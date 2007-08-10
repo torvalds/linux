@@ -317,18 +317,47 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 	return err;
 }
 
+int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
+{
+	struct btrfs_fs_info *info = root->fs_info;
+	int ret;
+	struct btrfs_trans_handle *trans;
+
+	if (root->defrag_running)
+		return 0;
+
+	trans = btrfs_start_transaction(root, 1);
+	while (1) {
+		root->defrag_running = 1;
+		ret = btrfs_defrag_leaves(trans, root, cacheonly);
+		btrfs_end_transaction(trans, root);
+		mutex_unlock(&info->fs_mutex);
+
+		btrfs_btree_balance_dirty(root);
+		cond_resched();
+
+		mutex_lock(&info->fs_mutex);
+		trans = btrfs_start_transaction(root, 1);
+		if (ret != -EAGAIN)
+			break;
+	}
+	root->defrag_running = 0;
+	radix_tree_tag_clear(&info->fs_roots_radix,
+		     (unsigned long)root->root_key.objectid,
+		     BTRFS_ROOT_DEFRAG_TAG);
+	btrfs_end_transaction(trans, root);
+	return 0;
+}
+
 int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 {
 	struct btrfs_root *gang[1];
 	struct btrfs_root *root;
-	struct btrfs_root *tree_root = info->tree_root;
-	struct btrfs_trans_handle *trans;
 	int i;
 	int ret;
 	int err = 0;
 	u64 last = 0;
 
-	trans = btrfs_start_transaction(tree_root, 1);
 	while(1) {
 		ret = radix_tree_gang_lookup_tag(&info->fs_roots_radix,
 						 (void **)gang, last,
@@ -339,37 +368,10 @@ int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info)
 		for (i = 0; i < ret; i++) {
 			root = gang[i];
 			last = root->root_key.objectid + 1;
-			radix_tree_tag_clear(&info->fs_roots_radix,
-				     (unsigned long)root->root_key.objectid,
-				     BTRFS_ROOT_DEFRAG_TAG);
-			if (root->defrag_running)
-				continue;
-
-			while (1) {
-				mutex_lock(&root->fs_info->trans_mutex);
-				record_root_in_trans(root);
-				mutex_unlock(&root->fs_info->trans_mutex);
-
-				root->defrag_running = 1;
-				err = btrfs_defrag_leaves(trans, root, 1);
-				btrfs_end_transaction(trans, tree_root);
-				mutex_unlock(&info->fs_mutex);
-
-				btrfs_btree_balance_dirty(root);
-				cond_resched();
-
-				mutex_lock(&info->fs_mutex);
-				trans = btrfs_start_transaction(tree_root, 1);
-				if (err != -EAGAIN)
-					break;
-			}
-			root->defrag_running = 0;
-			radix_tree_tag_clear(&info->fs_roots_radix,
-				     (unsigned long)root->root_key.objectid,
-				     BTRFS_ROOT_DEFRAG_TAG);
+			btrfs_defrag_root(root, 1);
 		}
 	}
-	btrfs_end_transaction(trans, tree_root);
+	btrfs_defrag_root(info->extent_root, 1);
 	return err;
 }
 
@@ -527,6 +529,20 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+int btrfs_clean_old_snapshots(struct btrfs_root *root)
+{
+	struct list_head dirty_roots;
+	INIT_LIST_HEAD(&dirty_roots);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	if (!list_empty(&dirty_roots)) {
+		drop_dirty_roots(root, &dirty_roots);
+	}
+	return 0;
+}
 void btrfs_transaction_cleaner(struct work_struct *work)
 {
 	struct btrfs_fs_info *fs_info = container_of(work,
@@ -536,12 +552,10 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_transaction *cur;
 	struct btrfs_trans_handle *trans;
-	struct list_head dirty_roots;
 	unsigned long now;
 	unsigned long delay = HZ * 30;
 	int ret;
 
-	INIT_LIST_HEAD(&dirty_roots);
 	mutex_lock(&root->fs_info->fs_mutex);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur = root->fs_info->running_transaction;
@@ -561,14 +575,7 @@ void btrfs_transaction_cleaner(struct work_struct *work)
 	ret = btrfs_commit_transaction(trans, root);
 out:
 	mutex_unlock(&root->fs_info->fs_mutex);
-
-	mutex_lock(&root->fs_info->trans_mutex);
-	list_splice_init(&root->fs_info->dead_roots, &dirty_roots);
-	mutex_unlock(&root->fs_info->trans_mutex);
-
-	if (!list_empty(&dirty_roots)) {
-		drop_dirty_roots(root, &dirty_roots);
-	}
+	btrfs_clean_old_snapshots(root);
 	btrfs_transaction_queue_work(root, delay);
 }
 

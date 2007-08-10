@@ -99,7 +99,6 @@ static int __btrfs_cow_block(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (ret)
 			return ret;
 	} else {
-		WARN_ON(!root->ref_cows);
 		clean_tree_block(trans, root, buf);
 	}
 
@@ -162,13 +161,14 @@ static int close_blocks(u64 blocknr, u64 other)
 
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct buffer_head *parent,
-		       int cache_only)
+		       int cache_only, u64 *last_ret)
 {
 	struct btrfs_node *parent_node;
 	struct buffer_head *cur_bh;
 	struct buffer_head *tmp_bh;
 	u64 blocknr;
-	u64 search_start = 0;
+	u64 search_start = *last_ret;
+	u64 last_block = 0;
 	u64 other;
 	u32 parent_nritems;
 	int start_slot;
@@ -198,6 +198,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	for (i = start_slot; i < end_slot; i++) {
 		int close = 1;
 		blocknr = btrfs_node_blockptr(parent_node, i);
+		if (last_block == 0)
+			last_block = blocknr;
 		if (i > 0) {
 			other = btrfs_node_blockptr(parent_node, i - 1);
 			close = close_blocks(blocknr, other);
@@ -206,8 +208,10 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			other = btrfs_node_blockptr(parent_node, i + 1);
 			close = close_blocks(blocknr, other);
 		}
-		if (close)
+		if (close) {
+			last_block = blocknr;
 			continue;
+		}
 
 		cur_bh = btrfs_find_tree_block(root, blocknr);
 		if (!cur_bh || !buffer_uptodate(cur_bh) ||
@@ -219,9 +223,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			brelse(cur_bh);
 			cur_bh = read_tree_block(root, blocknr);
 		}
-		if (search_start == 0) {
-			search_start = bh_blocknr(cur_bh) & ~((u64)65535);
-		}
+		if (search_start == 0)
+			search_start = last_block & ~((u64)65535);
+
 		err = __btrfs_cow_block(trans, root, cur_bh, parent, i,
 					&tmp_bh, search_start,
 					min(8, end_slot - i));

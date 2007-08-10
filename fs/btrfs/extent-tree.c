@@ -396,6 +396,14 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root)
+{
+	finish_current_insert(trans, root->fs_info->extent_root);
+	del_pending_extents(trans, root->fs_info->extent_root);
+	return 0;
+}
+
 static int lookup_extent_ref(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root, u64 blocknr,
 			     u64 num_blocks, u32 *refs)
@@ -1374,7 +1382,25 @@ static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
 			BUG_ON(ret);
 			continue;
 		}
-		next = read_tree_block(root, blocknr);
+		next = btrfs_find_tree_block(root, blocknr);
+		if (!next || !buffer_uptodate(next)) {
+			brelse(next);
+			mutex_unlock(&root->fs_info->fs_mutex);
+			next = read_tree_block(root, blocknr);
+			mutex_lock(&root->fs_info->fs_mutex);
+
+			/* we dropped the lock, check one more time */
+			ret = lookup_extent_ref(trans, root, blocknr, 1, &refs);
+			BUG_ON(ret);
+			if (refs != 1) {
+				path->slots[*level]++;
+				brelse(next);
+				ret = btrfs_free_extent(trans, root,
+							blocknr, 1, 1);
+				BUG_ON(ret);
+				continue;
+			}
+		}
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])
 			btrfs_block_release(root, path->nodes[*level-1]);

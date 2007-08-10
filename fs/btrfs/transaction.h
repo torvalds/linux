@@ -73,5 +73,7 @@ void btrfs_init_transaction_sys(void);
 void btrfs_exit_transaction_sys(void);
 int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list);
 int btrfs_defrag_dirty_roots(struct btrfs_fs_info *info);
+int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
+int btrfs_clean_old_snapshots(struct btrfs_root *root);
 
 #endif

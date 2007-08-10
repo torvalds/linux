@@ -2159,9 +2159,7 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_vol_args vol_args;
-	struct btrfs_trans_handle *trans;
 	int ret = 0;
-	int err;
 	struct btrfs_dir_item *di;
 	int namelen;
 	struct btrfs_path *path;
@@ -2201,25 +2199,8 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 
 	case BTRFS_IOC_DEFRAG:
 		mutex_lock(&root->fs_info->fs_mutex);
-		trans = btrfs_start_transaction(root, 1);
-		memset(&root->defrag_progress, 0,
-		       sizeof(root->defrag_progress));
-		while (1) {
-			root->defrag_running = 1;
-			err = btrfs_defrag_leaves(trans, root, 0);
-
-			btrfs_end_transaction(trans, root);
-			mutex_unlock(&root->fs_info->fs_mutex);
-
-			btrfs_btree_balance_dirty(root);
-
-			mutex_lock(&root->fs_info->fs_mutex);
-			trans = btrfs_start_transaction(root, 1);
-			if (err != -EAGAIN)
-				break;
-		}
-		root->defrag_running = 0;
-		btrfs_end_transaction(trans, root);
+		btrfs_defrag_root(root, 0);
+		btrfs_defrag_root(root->fs_info->extent_root, 0);
 		mutex_unlock(&root->fs_info->fs_mutex);
 		ret = 0;
 		break;

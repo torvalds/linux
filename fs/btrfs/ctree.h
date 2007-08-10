@@ -1019,6 +1019,8 @@ static inline void btrfs_memmove(struct btrfs_root *root,
 	btrfs_item_offset((leaf)->items + (slot))))
 
 /* extent-tree.c */
+int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root);
 int btrfs_copy_pinned(struct btrfs_root *root, struct radix_tree_root *copy);
 struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 							 btrfs_fs_info *info,
@@ -1066,7 +1068,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      ins_len, int cow);
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct buffer_head *parent,
-		       int cache_only);
+		       int cache_only, u64 *last_ret);
 void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
