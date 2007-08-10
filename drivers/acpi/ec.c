@@ -710,9 +710,7 @@ static int acpi_ec_add(struct acpi_device *device)
 	/* Check if we found the boot EC */
 	if (boot_ec) {
 		if (boot_ec->gpe == ec->gpe) {
-			mutex_lock(&boot_ec->lock);
 			ec_remove_handlers(boot_ec);
-			mutex_unlock(&boot_ec->lock);
 			mutex_destroy(&boot_ec->lock);
 			kfree(boot_ec);
 			first_ec = boot_ec = NULL;
