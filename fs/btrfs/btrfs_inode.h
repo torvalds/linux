@@ -25,6 +25,11 @@ struct btrfs_inode {
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_key location;
 	struct inode vfs_inode;
+
+	/*
+	 * transid of the trans_handle that last modified this inode
+	 */
+	u64 last_trans;
 };
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {

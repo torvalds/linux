@@ -193,6 +193,7 @@ static int btrfs_update_inode(struct btrfs_trans_handle *trans,
 
 	fill_inode_item(inode_item, inode);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
+	btrfs_set_inode_last_trans(trans, inode);
 	ret = 0;
 failed:
 	btrfs_release_path(root, path);
@@ -2234,6 +2235,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(btrfs_inode_cachep, GFP_NOFS);
 	if (!ei)
 		return NULL;
+	ei->last_trans = 0;
 	return &ei->vfs_inode;
 }
 

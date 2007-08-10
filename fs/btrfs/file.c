@@ -694,22 +694,36 @@ static int btrfs_sync_file(struct file *file,
 {
 	struct inode *inode = dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	int ret;
+	int ret = 0;
 	struct btrfs_trans_handle *trans;
 
 	/*
-	 * FIXME, use inode generation number to check if we can skip the
-	 * commit
+	 * check the transaction that last modified this inode
+	 * and see if its already been committed
 	 */
 	mutex_lock(&root->fs_info->fs_mutex);
+	if (!BTRFS_I(inode)->last_trans)
+		goto out;
+	mutex_lock(&root->fs_info->trans_mutex);
+	if (BTRFS_I(inode)->last_trans <=
+	    root->fs_info->last_trans_committed) {
+		BTRFS_I(inode)->last_trans = 0;
+		mutex_unlock(&root->fs_info->trans_mutex);
+		goto out;
+	}
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	/*
+ 	 * ok we haven't committed the transaction yet, lets do a commit
+ 	 */
 	trans = btrfs_start_transaction(root, 1);
 	if (!trans) {
 		ret = -ENOMEM;
 		goto out;
 	}
 	ret = btrfs_commit_transaction(trans, root);
-	mutex_unlock(&root->fs_info->fs_mutex);
 out:
+	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret > 0 ? EIO : ret;
 }
 

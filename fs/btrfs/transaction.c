@@ -55,7 +55,8 @@ static int join_transaction(struct btrfs_root *root)
 		BUG_ON(!cur_trans);
 		root->fs_info->generation++;
 		root->fs_info->running_transaction = cur_trans;
-		cur_trans->num_writers = 0;
+		cur_trans->num_writers = 1;
+		cur_trans->num_joined = 0;
 		cur_trans->transid = root->fs_info->generation;
 		init_waitqueue_head(&cur_trans->writer_wait);
 		init_waitqueue_head(&cur_trans->commit_wait);
@@ -65,8 +66,11 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->start_time = get_seconds();
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		init_bit_radix(&cur_trans->dirty_pages);
+	} else {
+		cur_trans->num_writers++;
+		cur_trans->num_joined++;
 	}
-	cur_trans->num_writers++;
+
 	return 0;
 }
 
@@ -428,12 +432,14 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
-	int ret = 0;
+	unsigned long joined = 0;
+	unsigned long timeout = 1;
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	struct list_head dirty_fs_roots;
 	struct radix_tree_root pinned_copy;
 	DEFINE_WAIT(wait);
+	int ret;
 
 	init_bit_radix(&pinned_copy);
 	INIT_LIST_HEAD(&dirty_fs_roots);
@@ -448,7 +454,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->fs_mutex);
 		ret = wait_for_commit(root, cur_trans);
 		BUG_ON(ret);
+
+		mutex_lock(&root->fs_info->trans_mutex);
 		put_transaction(cur_trans);
+		mutex_unlock(&root->fs_info->trans_mutex);
+
 		mutex_lock(&root->fs_info->fs_mutex);
 		return 0;
 	}
@@ -463,26 +473,35 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			mutex_unlock(&root->fs_info->trans_mutex);
 
 			wait_for_commit(root, prev_trans);
-			put_transaction(prev_trans);
 
 			mutex_lock(&root->fs_info->fs_mutex);
 			mutex_lock(&root->fs_info->trans_mutex);
+			put_transaction(prev_trans);
 		}
 	}
-	while (trans->transaction->num_writers > 1) {
+
+	do {
+		joined = cur_trans->num_joined;
 		WARN_ON(cur_trans != trans->transaction);
-		prepare_to_wait(&trans->transaction->writer_wait, &wait,
+		prepare_to_wait(&cur_trans->writer_wait, &wait,
 				TASK_UNINTERRUPTIBLE);
-		if (trans->transaction->num_writers <= 1)
-			break;
+
+		if (cur_trans->num_writers > 1)
+			timeout = MAX_SCHEDULE_TIMEOUT;
+		else
+			timeout = 1;
+
 		mutex_unlock(&root->fs_info->fs_mutex);
 		mutex_unlock(&root->fs_info->trans_mutex);
-		schedule();
+
+		schedule_timeout(timeout);
+
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
-		finish_wait(&trans->transaction->writer_wait, &wait);
-	}
-	finish_wait(&trans->transaction->writer_wait, &wait);
+		finish_wait(&cur_trans->writer_wait, &wait);
+	} while (cur_trans->num_writers > 1 ||
+		 (cur_trans->num_joined != joined));
+
 	WARN_ON(cur_trans != trans->transaction);
 	ret = add_dirty_roots(trans, &root->fs_info->fs_roots_radix,
 			      &dirty_fs_roots);
@@ -511,6 +530,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	btrfs_finish_extent_commit(trans, root, &pinned_copy);
 	mutex_lock(&root->fs_info->trans_mutex);
 	cur_trans->commit_done = 1;
+	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);

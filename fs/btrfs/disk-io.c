@@ -435,6 +435,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
+	fs_info->last_trans_committed = 0;
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->sb = sb;

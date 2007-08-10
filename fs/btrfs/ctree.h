@@ -301,6 +301,7 @@ struct btrfs_fs_info {
 	struct radix_tree_root extent_map_radix;
 	struct radix_tree_root extent_ins_radix;
 	u64 generation;
+	u64 last_trans_committed;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block *disk_super;
 	struct btrfs_super_block super_copy;

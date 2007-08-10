@@ -23,6 +23,7 @@
 struct btrfs_transaction {
 	u64 transid;
 	unsigned long num_writers;
+	unsigned long num_joined;
 	int in_commit;
 	int use_count;
 	int commit_done;
@@ -55,6 +56,12 @@ static inline void btrfs_update_inode_block_group(struct
 						  struct inode *inode)
 {
 	BTRFS_I(inode)->block_group = trans->block_group;
+}
+
+static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
+					      struct inode *inode)
+{
+	BTRFS_I(inode)->last_trans = trans->transaction->transid;
 }
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
