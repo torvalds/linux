@@ -68,6 +68,9 @@ size and dma_handle must all be the same as those passed into the
 consistent allocate.  cpu_addr must be the virtual address returned by
 the consistent allocate.
 
+Note that unlike their sibling allocation calls, these routines
+may only be called with IRQs enabled.
+
 
 Part Ib - Using small dma-coherent buffers
 ------------------------------------------

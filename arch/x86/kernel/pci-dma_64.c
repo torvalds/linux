@@ -167,6 +167,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_coherent(struct device *dev, size_t size,
 			 void *vaddr, dma_addr_t bus)
 {
+	WARN_ON(irqs_disabled());	/* for portability */
 	if (dma_ops->unmap_single)
 		dma_ops->unmap_single(dev, bus, size, 0);
 	free_pages((unsigned long)vaddr, get_order(size));
