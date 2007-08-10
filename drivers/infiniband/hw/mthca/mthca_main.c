@@ -137,40 +137,23 @@ static const char mthca_version[] __devinitdata =
 
 static int mthca_tune_pci(struct mthca_dev *mdev)
 {
-	int cap;
-	u16 val;
-
 	if (!tune_pci)
 		return 0;
 
 	/* First try to max out Read Byte Count */
-	cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_PCIX);
-	if (cap) {
-		if (pci_read_config_word(mdev->pdev, cap + PCI_X_CMD, &val)) {
-			mthca_err(mdev, "Couldn't read PCI-X command register, "
-				  "aborting.\n");
-			return -ENODEV;
-		}
-		val = (val & ~PCI_X_CMD_MAX_READ) | (3 << 2);
-		if (pci_write_config_word(mdev->pdev, cap + PCI_X_CMD, val)) {
-			mthca_err(mdev, "Couldn't write PCI-X command register, "
-				  "aborting.\n");
+	if (pci_find_capability(mdev->pdev, PCI_CAP_ID_PCIX)) {
+		if (pcix_set_mmrbc(mdev->pdev, pcix_get_max_mmrbc(mdev->pdev))) {
+			mthca_err(mdev, "Couldn't set PCI-X max read count, "
+				"aborting.\n");
 			return -ENODEV;
 		}
 	} else if (!(mdev->mthca_flags & MTHCA_FLAG_PCIE))
 		mthca_info(mdev, "No PCI-X capability, not setting RBC.\n");
 
-	cap = pci_find_capability(mdev->pdev, PCI_CAP_ID_EXP);
-	if (cap) {
-		if (pci_read_config_word(mdev->pdev, cap + PCI_EXP_DEVCTL, &val)) {
-			mthca_err(mdev, "Couldn't read PCI Express device control "
-				  "register, aborting.\n");
-			return -ENODEV;
-		}
-		val = (val & ~PCI_EXP_DEVCTL_READRQ) | (5 << 12);
-		if (pci_write_config_word(mdev->pdev, cap + PCI_EXP_DEVCTL, val)) {
-			mthca_err(mdev, "Couldn't write PCI Express device control "
-				  "register, aborting.\n");
+	if (pci_find_capability(mdev->pdev, PCI_CAP_ID_EXP)) {
+		if (pcie_set_readrq(mdev->pdev, 4096)) {
+			mthca_err(mdev, "Couldn't write PCI Express read request, "
+				"aborting.\n");
 			return -ENODEV;
 		}
 	} else if (mdev->mthca_flags & MTHCA_FLAG_PCIE)
