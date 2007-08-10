@@ -162,9 +162,7 @@ page_pde_offset = (__PAGE_OFFSET >> 20);
  * which will be freed later
  */
 
-#ifdef CONFIG_HOTPLUG_CPU
-.section .text,"ax",@progbits
-#else
+#ifndef CONFIG_HOTPLUG_CPU
 .section .init.text,"ax",@progbits
 #endif
 
