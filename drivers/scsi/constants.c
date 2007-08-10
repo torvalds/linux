@@ -1235,7 +1235,7 @@ scsi_print_sense_hdr(const char *name, struct scsi_sense_hdr *sshdr)
 }
 EXPORT_SYMBOL(scsi_print_sense_hdr);
 
-void
+static void
 scsi_decode_sense_buffer(const unsigned char *sense_buffer, int sense_len,
 		       struct scsi_sense_hdr *sshdr)
 {
@@ -1258,7 +1258,7 @@ scsi_decode_sense_buffer(const unsigned char *sense_buffer, int sense_len,
 	}
 }
 
-void
+static void
 scsi_decode_sense_extras(const unsigned char *sense_buffer, int sense_len,
 			 struct scsi_sense_hdr *sshdr)
 {
