@@ -177,9 +177,9 @@ int check_interval = 24 * 60 * 60;
 module_param(check_interval, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health checks.");
 
-int check_reset = 1;
-module_param(check_reset, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(check_reset, "If adapter fails health check, reset the adapter.");
+int aac_check_reset = 1;
+module_param_named(check_reset, aac_check_reset, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the adapter.");
 
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
@@ -1305,7 +1305,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!check_reset ||
+		if (!aac_check_reset ||
 		  (dev->supplement_adapter_info.SupportedOptions2 &
 		  le32_to_cpu(AAC_OPTION_IGNORE_RESET))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",

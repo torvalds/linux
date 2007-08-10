@@ -1871,4 +1871,4 @@ extern int aac_reset_devices;
 extern int aac_commit;
 extern int update_interval;
 extern int check_interval;
-extern int check_reset;
+extern int aac_check_reset;
