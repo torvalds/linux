@@ -565,9 +565,14 @@ static int verify_device(struct urdev *urd)
 			return -ENOMEM;
 		rc = diag_read_file(urd->dev_id.devno, buf);
 		kfree(buf);
-
 		if ((rc != 0) && (rc != -ENODATA)) /* EOF does not hurt */
 			return rc;
+		/* check if the file on top of the queue is open now */
+		rc = diag_read_next_file_info(&fcb, 0);
+		if (rc)
+			return rc;
+		if (!(fcb.file_stat & FLG_IN_USE))
+			return -EMFILE;
 		return 0;
 	default:
 		return -ENOTSUPP;

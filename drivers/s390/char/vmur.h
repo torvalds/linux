@@ -53,6 +53,7 @@ struct file_control_block {
 #define FLG_SYSTEM_HOLD	0x04
 #define FLG_CP_DUMP	0x10
 #define FLG_USER_HOLD	0x20
+#define FLG_IN_USE	0x80
 
 /*
  * A struct urdev is created for each ur device that is made available
