@@ -23,10 +23,9 @@
 #include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/audit.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
-#include <linux/audit.h>
-#include <linux/cache.h>
 
 #include "xfrm_hash.h"
 

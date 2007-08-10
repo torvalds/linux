@@ -19,9 +19,8 @@
 #include <linux/ipsec.h>
 #include <linux/module.h>
 #include <linux/cache.h>
-#include <asm/uaccess.h>
 #include <linux/audit.h>
-#include <linux/cache.h>
+#include <asm/uaccess.h>
 
 #include "xfrm_hash.h"
 
