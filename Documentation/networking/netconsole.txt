@@ -44,10 +44,35 @@ WARNING: the default target ethernet setting uses the broadcast
 ethernet address to send packets, which can cause increased load on
 other systems on the same ethernet segment.
 
+TIP: some LAN switches may be configured to suppress ethernet broadcasts
+so it is advised to explicitly specify the remote agents' MAC addresses
+from the config parameters passed to netconsole.
+
+TIP: to find out the MAC address of, say, 10.0.0.2, you may try using:
+
+ ping -c 1 10.0.0.2 ; /sbin/arp -n | grep 10.0.0.2
+
+TIP: in case the remote logging agent is on a separate LAN subnet than
+the sender, it is suggested to try specifying the MAC address of the
+default gateway (you may use /sbin/route -n to find it out) as the
+remote MAC address instead.
+
 NOTE: the network device (eth1 in the above case) can run any kind
 of other network traffic, netconsole is not intrusive. Netconsole
 might cause slight delays in other traffic if the volume of kernel
 messages is high, but should have no other impact.
+
+NOTE: if you find that the remote logging agent is not receiving or
+printing all messages from the sender, it is likely that you have set
+the "console_loglevel" parameter (on the sender) to only send high
+priority messages to the console. You can change this at runtime using:
+
+ dmesg -n 8
+
+or by specifying "debug" on the kernel command line at boot, to send
+all kernel messages to the console. A specific value for this parameter
+can also be set using the "loglevel" kernel boot option. See the
+dmesg(8) man page and Documentation/kernel-parameters.txt for details.
 
 Netconsole was designed to be as instantaneous as possible, to
 enable the logging of even the most critical kernel bugs. It works
