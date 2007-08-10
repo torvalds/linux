@@ -38,7 +38,7 @@ struct aligninfo {
 /* Bits in the flags field */
 #define LD	0	/* load */
 #define ST	1	/* store */
-#define	SE	2	/* sign-extend value */
+#define SE	2	/* sign-extend value, or FP ld/st as word */
 #define F	4	/* to/from fp regs */
 #define U	8	/* update index register */
 #define M	0x10	/* multiple load/store */
@@ -87,9 +87,9 @@ static struct aligninfo aligninfo[128] = {
 	{ 8, LD+F+U },		/* 00 1 1001: lfdu */
 	{ 4, ST+F+S+U },	/* 00 1 1010: stfsu */
 	{ 8, ST+F+U },		/* 00 1 1011: stfdu */
-	INVALID,		/* 00 1 1100 */
+	{ 16, LD+F },		/* 00 1 1100: lfdp */
 	INVALID,		/* 00 1 1101 */
-	INVALID,		/* 00 1 1110 */
+	{ 16, ST+F },		/* 00 1 1110: stfdp */
 	INVALID,		/* 00 1 1111 */
 	{ 8, LD },		/* 01 0 0000: ldx */
 	INVALID,		/* 01 0 0001 */
@@ -167,10 +167,10 @@ static struct aligninfo aligninfo[128] = {
 	{ 8, LD+F },		/* 11 0 1001: lfdx */
 	{ 4, ST+F+S },		/* 11 0 1010: stfsx */
 	{ 8, ST+F },		/* 11 0 1011: stfdx */
-	INVALID,		/* 11 0 1100 */
-	{ 8, LD+M },		/* 11 0 1101: lmd */
-	INVALID,		/* 11 0 1110 */
-	{ 8, ST+M },		/* 11 0 1111: stmd */
+	{ 16, LD+F },		/* 11 0 1100: lfdpx */
+	{ 4, LD+F+SE },		/* 11 0 1101: lfiwax */
+	{ 16, ST+F },		/* 11 0 1110: stfdpx */
+	{ 4, ST+F },		/* 11 0 1111: stfiwx */
 	{ 4, LD+U },		/* 11 1 0000: lwzux */
 	INVALID,		/* 11 1 0001 */
 	{ 4, ST+U },		/* 11 1 0010: stwux */
@@ -356,6 +356,42 @@ static int emulate_multiple(struct pt_regs *regs, unsigned char __user *addr,
 	return 1;
 }
 
+/*
+ * Emulate floating-point pair loads and stores.
+ * Only POWER6 has these instructions, and it does true little-endian,
+ * so we don't need the address swizzling.
+ */
+static int emulate_fp_pair(struct pt_regs *regs, unsigned char __user *addr,
+			   unsigned int reg, unsigned int flags)
+{
+	char *ptr = (char *) &current->thread.fpr[reg];
+	int i, ret;
+
+	if (!(flags & F))
+		return 0;
+	if (reg & 1)
+		return 0;	/* invalid form: FRS/FRT must be even */
+	if (!(flags & SW)) {
+		/* not byte-swapped - easy */
+		if (!(flags & ST))
+			ret = __copy_from_user(ptr, addr, 16);
+		else
+			ret = __copy_to_user(addr, ptr, 16);
+	} else {
+		/* each FPR value is byte-swapped separately */
+		ret = 0;
+		for (i = 0; i < 16; ++i) {
+			if (!(flags & ST))
+				ret |= __get_user(ptr[i^7], addr + i);
+			else
+				ret |= __put_user(ptr[i^7], addr + i);
+		}
+	}
+	if (ret)
+		return -EFAULT;
+	return 1;	/* exception handled and fixed up */
+}
+
 
 /*
  * Called on alignment exception. Attempts to fixup
@@ -471,6 +507,10 @@ int fix_alignment(struct pt_regs *regs)
 		flush_fp_to_thread(current);
 	}
 
+	/* Special case for 16-byte FP loads and stores */
+	if (nb == 16)
+		return emulate_fp_pair(regs, addr, reg, flags);
+
 	/* If we are loading, get the data from user space, else
 	 * get it from register values
 	 */
@@ -531,7 +571,8 @@ int fix_alignment(struct pt_regs *regs)
 	 * or floating point single precision conversion
 	 */
 	switch (flags & ~(U|SW)) {
-	case LD+SE:	/* sign extend */
+	case LD+SE:	/* sign extending integer loads */
+	case LD+F+SE:	/* sign extend for lfiwax */
 		if ( nb == 2 )
 			data.ll = data.x16.low16;
 		else	/* nb must be 4 */
