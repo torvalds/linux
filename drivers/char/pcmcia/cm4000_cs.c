@@ -1629,7 +1629,7 @@ static int cmm_open(struct inode *inode, struct file *filp)
 {
 	struct cm4000_dev *dev;
 	struct pcmcia_device *link;
-	int rc, minor = iminor(inode);
+	int minor = iminor(inode);
 
 	if (minor >= CM4000_MAX_DEV)
 		return -ENODEV;
@@ -1668,7 +1668,6 @@ static int cmm_open(struct inode *inode, struct file *filp)
 	start_monitor(dev);
 
 	link->open = 1;		/* only one open per device */
-	rc = 0;
 
 	DEBUGP(2, dev, "<- cmm_open\n");
 	return nonseekable_open(inode, filp);
@@ -1824,7 +1823,7 @@ static int cm4000_resume(struct pcmcia_device *link)
 
 static void cm4000_release(struct pcmcia_device *link)
 {
-	cmm_cm4000_release(link->priv);	/* delay release until device closed */
+	cmm_cm4000_release(link);	/* delay release until device closed */
 	pcmcia_disable_device(link);
 }
 
