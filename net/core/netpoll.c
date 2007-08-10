@@ -532,6 +532,29 @@ out:
 	return 0;
 }
 
+void netpoll_print_options(struct netpoll *np)
+{
+	printk(KERN_INFO "%s: local port %d\n",
+			 np->name, np->local_port);
+	printk(KERN_INFO "%s: local IP %d.%d.%d.%d\n",
+			 np->name, HIPQUAD(np->local_ip));
+	printk(KERN_INFO "%s: interface %s\n",
+			 np->name, np->dev_name);
+	printk(KERN_INFO "%s: remote port %d\n",
+			 np->name, np->remote_port);
+	printk(KERN_INFO "%s: remote IP %d.%d.%d.%d\n",
+			 np->name, HIPQUAD(np->remote_ip));
+	printk(KERN_INFO "%s: remote ethernet address "
+			 "%02x:%02x:%02x:%02x:%02x:%02x\n",
+			 np->name,
+			 np->remote_mac[0],
+			 np->remote_mac[1],
+			 np->remote_mac[2],
+			 np->remote_mac[3],
+			 np->remote_mac[4],
+			 np->remote_mac[5]);
+}
+
 int netpoll_parse_options(struct netpoll *np, char *opt)
 {
 	char *cur=opt, *delim;
@@ -544,7 +567,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		cur = delim;
 	}
 	cur++;
-	printk(KERN_INFO "%s: local port %d\n", np->name, np->local_port);
 
 	if (*cur != '/') {
 		if ((delim = strchr(cur, '/')) == NULL)
@@ -552,9 +574,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		*delim = 0;
 		np->local_ip = ntohl(in_aton(cur));
 		cur = delim;
-
-		printk(KERN_INFO "%s: local IP %d.%d.%d.%d\n",
-		       np->name, HIPQUAD(np->local_ip));
 	}
 	cur++;
 
@@ -568,8 +587,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 	}
 	cur++;
 
-	printk(KERN_INFO "%s: interface %s\n", np->name, np->dev_name);
-
 	if (*cur != '@') {
 		/* dst port */
 		if ((delim = strchr(cur, '@')) == NULL)
@@ -579,7 +596,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		cur = delim;
 	}
 	cur++;
-	printk(KERN_INFO "%s: remote port %d\n", np->name, np->remote_port);
 
 	/* dst ip */
 	if ((delim = strchr(cur, '/')) == NULL)
@@ -587,9 +603,6 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 	*delim = 0;
 	np->remote_ip = ntohl(in_aton(cur));
 	cur = delim + 1;
-
-	printk(KERN_INFO "%s: remote IP %d.%d.%d.%d\n",
-	       np->name, HIPQUAD(np->remote_ip));
 
 	if (*cur != 0) {
 		/* MAC address */
@@ -621,15 +634,7 @@ int netpoll_parse_options(struct netpoll *np, char *opt)
 		np->remote_mac[5] = simple_strtol(cur, NULL, 16);
 	}
 
-	printk(KERN_INFO "%s: remote ethernet address "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n",
-	       np->name,
-	       np->remote_mac[0],
-	       np->remote_mac[1],
-	       np->remote_mac[2],
-	       np->remote_mac[3],
-	       np->remote_mac[4],
-	       np->remote_mac[5]);
+	netpoll_print_options(np);
 
 	return 0;
 
@@ -831,6 +836,7 @@ void netpoll_set_trap(int trap)
 
 EXPORT_SYMBOL(netpoll_set_trap);
 EXPORT_SYMBOL(netpoll_trap);
+EXPORT_SYMBOL(netpoll_print_options);
 EXPORT_SYMBOL(netpoll_parse_options);
 EXPORT_SYMBOL(netpoll_setup);
 EXPORT_SYMBOL(netpoll_cleanup);
