@@ -207,7 +207,7 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 
 	ap->ioaddr.altstatus_addr = ap->ioaddr.ctl_addr;
 
-	pp_info = (struct pata_platform_info *)(pdev->dev.platform_data);
+	pp_info = pdev->dev.platform_data;
 	pata_platform_setup_port(&ap->ioaddr, pp_info);
 
 	/* activate */
