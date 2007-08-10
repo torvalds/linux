@@ -8,7 +8,7 @@
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2006	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
  *
  *
  * TODO
@@ -25,7 +25,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.3"
+#define DRV_VERSION	"0.3.4"
 
 enum {
 	HPT_PCI_FAST	=	(1 << 31),
@@ -579,10 +579,12 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		pci_write_config_dword(dev, 0x5C, (f_high << 16) | f_low);
 	}
 	if (adjust == 8) {
-		printk(KERN_WARNING "hpt3x2n: DPLL did not stabilize.\n");
+		printk(KERN_ERR "pata_hpt3x2n: DPLL did not stabilize!\n");
 		return -ENODEV;
 	}
 
+	printk(KERN_INFO "pata_hpt37x: bus clock %dMHz, using 66MHz DPLL.\n",
+	       pci_mhz);
 	/* Set our private data up. We only need a few flags so we use
 	   it directly */
 	port.private_data = NULL;
