@@ -7408,23 +7408,14 @@ static void alc262_fujitsu_unsol_event(struct hda_codec *codec,
 }
 
 /* bind volumes of both NID 0x0c and 0x0d */
-static int alc262_fujitsu_master_vol_put(struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x0c, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_VOLMASK, valp[0]);
-	change |= snd_hda_codec_amp_update(codec, 0x0c, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_VOLMASK, valp[1]);
-	snd_hda_codec_amp_update(codec, 0x0d, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[0]);
-	snd_hda_codec_amp_update(codec, 0x0d, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[1]);
-	return change;
-}
+static struct hda_bind_ctls alc262_fujitsu_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x0d, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
 
 /* bind hp and internal speaker mute (with plug check) */
 static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
@@ -7446,15 +7437,7 @@ static int alc262_fujitsu_master_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = alc262_fujitsu_master_vol_put,
-		.tlv = { .c = snd_hda_mixer_amp_tlv },
-		.private_value = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &alc262_fujitsu_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",

@@ -483,23 +483,14 @@ static int cxt5045_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 /* bind volumes of both NID 0x10 and 0x11 */
-static int cxt5045_hp_master_vol_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x10, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_VOLMASK, valp[0]);
-	change |= snd_hda_codec_amp_update(codec, 0x10, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_VOLMASK, valp[1]);
-	snd_hda_codec_amp_update(codec, 0x11, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[0]);
-	snd_hda_codec_amp_update(codec, 0x11, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[1]);
-	return change;
-}
+static struct hda_bind_ctls cxt5045_hp_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x10, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x11, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
 
 /* toggle input of built-in and mic jack appropriately */
 static void cxt5045_hp_automic(struct hda_codec *codec)
@@ -567,14 +558,7 @@ static struct snd_kcontrol_new cxt5045_mixers[] = {
 	HDA_CODEC_MUTE("Int Mic Switch", 0x1a, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Ext Mic Volume", 0x1a, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Ext Mic Switch", 0x1a, 0x02, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = cxt5045_hp_master_vol_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x10, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &cxt5045_hp_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
@@ -897,23 +881,14 @@ static int cxt5047_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 /* bind volumes of both NID 0x13 (Headphones) and 0x1d (Speakers) */
-static int cxt5047_hp_master_vol_put(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x1d, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_VOLMASK, valp[0]);
-	change |= snd_hda_codec_amp_update(codec, 0x1d, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_VOLMASK, valp[1]);
-	snd_hda_codec_amp_update(codec, 0x13, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[0]);
-	snd_hda_codec_amp_update(codec, 0x13, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[1]);
-	return change;
-}
+static struct hda_bind_ctls cxt5047_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x13, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x1d, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
 
 /* mute internal speaker if HP is plugged */
 static void cxt5047_hp_automute(struct hda_codec *codec)
@@ -1035,14 +1010,7 @@ static struct snd_kcontrol_new cxt5047_toshiba_mixers[] = {
 	HDA_CODEC_MUTE("Capture Switch", 0x12, 0x03, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Volume", 0x10, 0x00, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Switch", 0x10, 0x00, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = cxt5047_hp_master_vol_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x13, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &cxt5047_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",

@@ -2400,63 +2400,28 @@ static struct hda_verb vaio_ar_init[] = {
 };
 
 /* bind volumes of both NID 0x02 and 0x05 */
-static int vaio_master_vol_put(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_VOLMASK, valp[0]);
-	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_VOLMASK, valp[1]);
-	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[0]);
-	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[1]);
-	return change;
-}
+static struct hda_bind_ctls vaio_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
 
 /* bind volumes of both NID 0x02 and 0x05 */
-static int vaio_master_sw_put(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x02, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_MUTE,
-					  (valp[0] ? 0 : HDA_AMP_MUTE));
-	change |= snd_hda_codec_amp_update(codec, 0x02, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_MUTE,
-					   (valp[1] ? 0 : HDA_AMP_MUTE));
-	snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, (valp[0] ? 0 : HDA_AMP_MUTE));
-	snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, (valp[1] ? 0 : HDA_AMP_MUTE));
-	return change;
-}
+static struct hda_bind_ctls vaio_bind_master_sw = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
+		0,
+	},
+};
 
 static struct snd_kcontrol_new vaio_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = vaio_master_vol_put,
-		.tlv = { .c = snd_hda_mixer_amp_tlv },
-		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = snd_hda_mixer_amp_switch_info,
-		.get = snd_hda_mixer_amp_switch_get,
-		.put = vaio_master_sw_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &vaio_bind_master_vol),
+	HDA_BIND_SW("Master Playback Switch", &vaio_bind_master_sw),
 	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),
@@ -2472,22 +2437,8 @@ static struct snd_kcontrol_new vaio_mixer[] = {
 };
 
 static struct snd_kcontrol_new vaio_ar_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = vaio_master_vol_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = snd_hda_mixer_amp_switch_info,
-		.get = snd_hda_mixer_amp_switch_get,
-		.put = vaio_master_sw_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &vaio_bind_master_vol),
+	HDA_BIND_SW("Master Playback Switch", &vaio_bind_master_sw),
 	/* HDA_CODEC_VOLUME("CD Capture Volume", 0x07, 0, HDA_INPUT), */
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_INPUT),

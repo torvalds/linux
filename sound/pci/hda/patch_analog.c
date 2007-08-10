@@ -1127,23 +1127,14 @@ static int ad1981_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 }
 
 /* bind volumes of both NID 0x05 and 0x06 */
-static int ad1981_hp_master_vol_put(struct snd_kcontrol *kcontrol,
-				    struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	long *valp = ucontrol->value.integer.value;
-	int change;
-
-	change = snd_hda_codec_amp_update(codec, 0x05, 0, HDA_OUTPUT, 0,
-					  HDA_AMP_VOLMASK, valp[0]);
-	change |= snd_hda_codec_amp_update(codec, 0x05, 1, HDA_OUTPUT, 0,
-					   HDA_AMP_VOLMASK, valp[1]);
-	snd_hda_codec_amp_update(codec, 0x06, 0, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[0]);
-	snd_hda_codec_amp_update(codec, 0x06, 1, HDA_OUTPUT, 0,
-				 HDA_AMP_VOLMASK, valp[1]);
-	return change;
-}
+static struct hda_bind_ctls ad1981_hp_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x06, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
 
 /* mute internal speaker if HP is plugged */
 static void ad1981_hp_automute(struct hda_codec *codec)
@@ -1204,14 +1195,7 @@ static struct hda_input_mux ad1981_hp_capture_source = {
 };
 
 static struct snd_kcontrol_new ad1981_hp_mixers[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Volume",
-		.info = snd_hda_mixer_amp_volume_info,
-		.get = snd_hda_mixer_amp_volume_get,
-		.put = ad1981_hp_master_vol_put,
-		.private_value = HDA_COMPOSE_AMP_VAL(0x05, 3, 0, HDA_OUTPUT),
-	},
+	HDA_BIND_VOL("Master Playback Volume", &ad1981_hp_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
