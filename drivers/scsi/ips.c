@@ -6946,7 +6946,7 @@ module_exit(ips_module_exit);
 static int __devinit
 ips_insert_device(struct pci_dev *pci_dev, const struct pci_device_id *ent)
 {
-	int index;
+	int uninitialized_var(index);
 	int rc;
 
 	METHOD_TRACE("ips_insert_device", 1);
