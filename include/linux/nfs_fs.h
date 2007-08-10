@@ -292,9 +292,6 @@ extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
-extern int nfs_access_get_cached(struct inode *, struct rpc_cred *, struct nfs_access_entry *);
-extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
-extern void nfs_access_zap_cache(struct inode *inode);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
 extern int nfs_attribute_timeout(struct inode *inode);
@@ -382,6 +379,8 @@ extern const struct file_operations nfs_dir_operations;
 extern struct dentry_operations nfs_dentry_operations;
 
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh, struct nfs_fattr *fattr);
+extern int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags);
+extern void nfs_access_zap_cache(struct inode *inode);
 
 /*
  * linux/fs/nfs/symlink.c

@@ -65,7 +65,6 @@ static int nfs4_async_handle_error(struct rpc_task *, const struct nfs_server *)
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry);
 static int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct nfs4_exception *exception);
 static int nfs4_wait_clnt_recover(struct rpc_clnt *clnt, struct nfs_client *clp);
-static int _nfs4_do_access(struct inode *inode, struct rpc_cred *cred, int openflags);
 static int _nfs4_proc_lookup(struct inode *dir, const struct qstr *name, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
 static int _nfs4_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle, struct nfs_fattr *fattr);
 
@@ -454,7 +453,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		memcpy(stateid.data, delegation->stateid.data, sizeof(stateid.data));
 		rcu_read_unlock();
 		lock_kernel();
-		ret = _nfs4_do_access(state->inode, state->owner->so_cred, open_mode);
+		ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
 		unlock_kernel();
 		if (ret != 0)
 			goto out;
@@ -948,36 +947,6 @@ static int _nfs4_proc_open(struct nfs4_opendata *data)
 	return 0;
 }
 
-static int _nfs4_do_access(struct inode *inode, struct rpc_cred *cred, int openflags)
-{
-	struct nfs_access_entry cache;
-	int mask = 0;
-	int status;
-
-	if (openflags & FMODE_READ)
-		mask |= MAY_READ;
-	if (openflags & FMODE_WRITE)
-		mask |= MAY_WRITE;
-	if (openflags & FMODE_EXEC)
-		mask |= MAY_EXEC;
-	status = nfs_access_get_cached(inode, cred, &cache);
-	if (status == 0)
-		goto out;
-
-	/* Be clever: ask server to check for all possible rights */
-	cache.mask = MAY_EXEC | MAY_WRITE | MAY_READ;
-	cache.cred = cred;
-	cache.jiffies = jiffies;
-	status = _nfs4_proc_access(inode, &cache);
-	if (status != 0)
-		return status;
-	nfs_access_add_cache(inode, &cache);
-out:
-	if ((cache.mask & mask) == mask)
-		return 0;
-	return -EACCES;
-}
-
 static int nfs4_recover_expired_lease(struct nfs_server *server)
 {
 	struct nfs_client *clp = server->nfs_client;
@@ -1381,7 +1350,7 @@ static int nfs4_intent_set_file(struct nameidata *nd, struct path *path, struct 
 
 	/* If the open_intent is for execute, we have an extra check to make */
 	if (nd->intent.open.flags & FMODE_EXEC) {
-		ret = _nfs4_do_access(state->inode,
+		ret = nfs_may_open(state->inode,
 				state->owner->so_cred,
 				nd->intent.open.flags);
 		if (ret < 0)

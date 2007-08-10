@@ -1815,7 +1815,7 @@ static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, st
 	return NULL;
 }
 
-int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
+static int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_access_entry *cache;
@@ -1882,7 +1882,7 @@ found:
 	nfs_access_free_entry(entry);
 }
 
-void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
+static void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 {
 	struct nfs_access_entry *cache = kmalloc(sizeof(*cache), GFP_KERNEL);
 	if (cache == NULL)
@@ -1928,6 +1928,24 @@ out:
 	if ((cache.mask & mask) == mask)
 		return 0;
 	return -EACCES;
+}
+
+static int nfs_open_permission_mask(int openflags)
+{
+	int mask = 0;
+
+	if (openflags & FMODE_READ)
+		mask |= MAY_READ;
+	if (openflags & FMODE_WRITE)
+		mask |= MAY_WRITE;
+	if (openflags & FMODE_EXEC)
+		mask |= MAY_EXEC;
+	return mask;
+}
+
+int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
+{
+	return nfs_do_access(inode, cred, nfs_open_permission_mask(openflags));
 }
 
 int nfs_permission(struct inode *inode, int mask, struct nameidata *nd)
