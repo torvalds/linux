@@ -1023,6 +1023,7 @@ static ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_doulongvec_minmax,
 	},
+#endif
 #ifdef CONFIG_NUMA
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -1033,7 +1034,6 @@ static ctl_table vm_table[] = {
 		.proc_handler	= &numa_zonelist_order_handler,
 		.strategy	= &sysctl_string,
 	},
-#endif
 #endif
 #if defined(CONFIG_X86_32) || \
    (defined(CONFIG_SUPERH) && defined(CONFIG_VSYSCALL))
