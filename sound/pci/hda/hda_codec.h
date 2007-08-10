@@ -26,6 +26,10 @@
 #include <sound/pcm.h>
 #include <sound/hwdep.h>
 
+#if defined(CONFIG_PM) || defined(CONFIG_SND_HDA_POWER_SAVE)
+#define SND_HDA_NEEDS_RESUME	/* resume control code is required */
+#endif
+
 /*
  * nodes
  */
@@ -412,6 +416,10 @@ struct hda_bus_ops {
 	unsigned int (*get_response)(struct hda_codec *codec);
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	/* notify power-up/down from codec to contoller */
+	void (*pm_notify)(struct hda_codec *codec);
+#endif
 };
 
 /* template to pass to the bus constructor */
@@ -473,9 +481,12 @@ struct hda_codec_ops {
 	int (*init)(struct hda_codec *codec);
 	void (*free)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 	int (*suspend)(struct hda_codec *codec, pm_message_t state);
 	int (*resume)(struct hda_codec *codec);
+#endif
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 };
 
@@ -573,6 +584,12 @@ struct hda_codec {
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
 
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	int power_on;		/* current (global) power-state */
+	int power_count;	/* current (global) power refcount */
+	struct delayed_work power_work; /* delayed task for powerdown */
+#endif
 };
 
 /* direction */
@@ -617,7 +634,7 @@ void snd_hda_sequence_write(struct hda_codec *codec,
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex);
 
 /* cached write */
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 			      int direct, unsigned int verb, unsigned int parm);
 void snd_hda_sequence_write_cache(struct hda_codec *codec,
@@ -660,6 +677,17 @@ void snd_hda_get_codec_name(struct hda_codec *codec, char *name, int namelen);
 #ifdef CONFIG_PM
 int snd_hda_suspend(struct hda_bus *bus, pm_message_t state);
 int snd_hda_resume(struct hda_bus *bus);
+#endif
+
+/*
+ * power saving
+ */
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+void snd_hda_power_up(struct hda_codec *codec);
+void snd_hda_power_down(struct hda_codec *codec);
+#else
+static inline void snd_hda_power_up(struct hda_codec *codec) {}
+static inline void snd_hda_power_down(struct hda_codec *codec) {}
 #endif
 
 #endif /* __SOUND_HDA_CODEC_H */

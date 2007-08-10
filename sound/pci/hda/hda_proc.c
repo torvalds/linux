@@ -262,6 +262,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 
 	if (! codec->afg)
 		return;
+	snd_hda_power_up(codec);
 	snd_iprintf(buffer, "Default PCM:\n");
 	print_pcm_caps(buffer, codec, codec->afg);
 	snd_iprintf(buffer, "Default Amp-In caps: ");
@@ -272,6 +273,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid);
 	if (! nid || nodes < 0) {
 		snd_iprintf(buffer, "Invalid AFG subtree\n");
+		snd_hda_power_down(codec);
 		return;
 	}
 	for (i = 0; i < nodes; i++, nid++) {
@@ -359,6 +361,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "\n");
 		}
 	}
+	snd_hda_power_down(codec);
 }
 
 /*

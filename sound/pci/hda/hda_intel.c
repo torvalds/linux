@@ -75,6 +75,7 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 module_param(enable_msi, int, 0);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 
+/* power_save option is defined in hda_codec.c */
 
 /* just for backward compatibility */
 static int enable;
@@ -100,6 +101,18 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #define SFX	"hda-intel: "
+
+/*
+ * build flags
+ */
+
+/*
+ * reset the HD-audio controller in power save mode.
+ * this may give more power-saving, but will take longer time to
+ * wake up.
+ */
+#define HDA_POWER_SAVE_RESET_CONTROLLER
+
 
 /*
  * registers
@@ -345,6 +358,7 @@ struct azx {
 
 	/* flags */
 	int position_fix;
+	unsigned int running :1;
 	unsigned int initialized :1;
 	unsigned int single_cmd :1;
 	unsigned int polling_mode :1;
@@ -665,6 +679,9 @@ static unsigned int azx_get_response(struct hda_codec *codec)
 		return azx_rirb_get_response(codec);
 }
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static void azx_power_notify(struct hda_codec *codec);
+#endif
 
 /* reset codec link */
 static int azx_reset(struct azx *chip)
@@ -790,19 +807,12 @@ static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 
 
 /*
- * initialize the chip
+ * reset and start the controller registers
  */
 static void azx_init_chip(struct azx *chip)
 {
-	unsigned char reg;
-
-	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
-	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
-	 * Ensuring these bits are 0 clears playback static on some HD Audio
-	 * codecs
-	 */
-	pci_read_config_byte (chip->pci, ICH6_PCIREG_TCSEL, &reg);
-	pci_write_config_byte(chip->pci, ICH6_PCIREG_TCSEL, reg & 0xf8);
+	if (chip->initialized)
+		return;
 
 	/* reset controller */
 	azx_reset(chip);
@@ -819,22 +829,45 @@ static void azx_init_chip(struct azx *chip)
 	azx_writel(chip, DPLBASE, (u32)chip->posbuf.addr);
 	azx_writel(chip, DPUBASE, upper_32bit(chip->posbuf.addr));
 
+	chip->initialized = 1;
+}
+
+/*
+ * initialize the PCI registers
+ */
+/* update bits in a PCI register byte */
+static void update_pci_byte(struct pci_dev *pci, unsigned int reg,
+			    unsigned char mask, unsigned char val)
+{
+	unsigned char data;
+
+	pci_read_config_byte(pci, reg, &data);
+	data &= ~mask;
+	data |= (val & mask);
+	pci_write_config_byte(pci, reg, data);
+}
+
+static void azx_init_pci(struct azx *chip)
+{
+	/* Clear bits 0-2 of PCI register TCSEL (at offset 0x44)
+	 * TCSEL == Traffic Class Select Register, which sets PCI express QOS
+	 * Ensuring these bits are 0 clears playback static on some HD Audio
+	 * codecs
+	 */
+	update_pci_byte(chip->pci, ICH6_PCIREG_TCSEL, 0x07, 0);
+
 	switch (chip->driver_type) {
 	case AZX_DRIVER_ATI:
 		/* For ATI SB450 azalia HD audio, we need to enable snoop */
-		pci_read_config_byte(chip->pci,
-				     ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
-				     &reg);
-		pci_write_config_byte(chip->pci,
-				      ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
-				      (reg & 0xf8) |
-				      ATI_SB450_HDAUDIO_ENABLE_SNOOP);
+		update_pci_byte(chip->pci,
+				ATI_SB450_HDAUDIO_MISC_CNTR2_ADDR, 
+				0x07, ATI_SB450_HDAUDIO_ENABLE_SNOOP);
 		break;
 	case AZX_DRIVER_NVIDIA:
 		/* For NVIDIA HDA, enable snoop */
-		pci_read_config_byte(chip->pci,NVIDIA_HDA_TRANSREG_ADDR, &reg);
-		pci_write_config_byte(chip->pci,NVIDIA_HDA_TRANSREG_ADDR,
-				      (reg & 0xf0) | NVIDIA_HDA_ENABLE_COHBITS);
+		update_pci_byte(chip->pci,
+				NVIDIA_HDA_TRANSREG_ADDR,
+				0x0f, NVIDIA_HDA_ENABLE_COHBITS);
 		break;
         }
 }
@@ -1007,6 +1040,9 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	bus_temp.pci = chip->pci;
 	bus_temp.ops.command = azx_send_cmd;
 	bus_temp.ops.get_response = azx_get_response;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	bus_temp.ops.pm_notify = azx_power_notify;
+#endif
 
 	err = snd_hda_bus_new(chip->card, &bus_temp, &chip->bus);
 	if (err < 0)
@@ -1128,9 +1164,11 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 				   128);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 				   128);
+	snd_hda_power_up(apcm->codec);
 	err = hinfo->ops.open(hinfo, apcm->codec, substream);
 	if (err < 0) {
 		azx_release_device(azx_dev);
+		snd_hda_power_down(apcm->codec);
 		mutex_unlock(&chip->open_mutex);
 		return err;
 	}
@@ -1159,6 +1197,7 @@ static int azx_pcm_close(struct snd_pcm_substream *substream)
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	azx_release_device(azx_dev);
 	hinfo->ops.close(hinfo, apcm->codec, substream);
+	snd_hda_power_down(apcm->codec);
 	mutex_unlock(&chip->open_mutex);
 	return 0;
 }
@@ -1459,6 +1498,48 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 }
 
 
+static void azx_stop_chip(struct azx *chip)
+{
+	if (chip->initialized)
+		return;
+
+	/* disable interrupts */
+	azx_int_disable(chip);
+	azx_int_clear(chip);
+
+	/* disable CORB/RIRB */
+	azx_free_cmd_io(chip);
+
+	/* disable position buffer */
+	azx_writel(chip, DPLBASE, 0);
+	azx_writel(chip, DPUBASE, 0);
+
+	chip->initialized = 0;
+}
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+/* power-up/down the controller */
+static void azx_power_notify(struct hda_codec *codec)
+{
+	struct azx *chip = codec->bus->private_data;
+	struct hda_codec *c;
+	int power_on = 0;
+
+	list_for_each_entry(c, &codec->bus->codec_list, list) {
+		if (c->power_on) {
+			power_on = 1;
+			break;
+		}
+	}
+	if (power_on)
+		azx_init_chip(chip);
+#ifdef HDA_POWER_SAVE_RESET_CONTROLLER
+	else if (chip->running)
+		azx_stop_chip(chip);
+#endif
+}
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
+
 #ifdef CONFIG_PM
 /*
  * power management
@@ -1473,7 +1554,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	snd_hda_suspend(chip->bus, state);
-	azx_free_cmd_io(chip);
+	azx_stop_chip(chip);
 	if (chip->irq >= 0) {
 		synchronize_irq(chip->irq);
 		free_irq(chip->irq, chip);
@@ -1506,8 +1587,12 @@ static int azx_resume(struct pci_dev *pci)
 			chip->msi = 0;
 	if (azx_acquire_irq(chip, 1) < 0)
 		return -EIO;
+	azx_init_pci(chip);
+#ifndef CONFIG_SND_HDA_POWER_SAVE
+	/* the explicit resume is needed only when POWER_SAVE isn't set */
 	azx_init_chip(chip);
 	snd_hda_resume(chip->bus);
+#endif
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
@@ -1521,20 +1606,9 @@ static int azx_free(struct azx *chip)
 {
 	if (chip->initialized) {
 		int i;
-
 		for (i = 0; i < chip->num_streams; i++)
 			azx_stream_stop(chip, &chip->azx_dev[i]);
-
-		/* disable interrupts */
-		azx_int_disable(chip);
-		azx_int_clear(chip);
-
-		/* disable CORB/RIRB */
-		azx_free_cmd_io(chip);
-
-		/* disable position buffer */
-		azx_writel(chip, DPLBASE, 0);
-		azx_writel(chip, DPUBASE, 0);
+		azx_stop_chip(chip);
 	}
 
 	if (chip->irq >= 0) {
@@ -1720,9 +1794,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	azx_init_stream(chip);
 
 	/* initialize chip */
+	azx_init_pci(chip);
 	azx_init_chip(chip);
-
-	chip->initialized = 1;
 
 	/* codec detection */
 	if (!chip->codec_mask) {
@@ -1748,6 +1821,19 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
  errout:
 	azx_free(chip);
 	return err;
+}
+
+static void power_down_all_codecs(struct azx *chip)
+{
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	/* The codecs were powered up in snd_hda_codec_new().
+	 * Now all initialization done, so turn them down if possible
+	 */
+	struct hda_codec *codec;
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
+		snd_hda_power_down(codec);
+	}
+#endif
 }
 
 static int __devinit azx_probe(struct pci_dev *pci,
@@ -1800,6 +1886,8 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	}
 
 	pci_set_drvdata(pci, card);
+	chip->running = 1;
+	power_down_all_codecs(chip);
 
 	return err;
 }

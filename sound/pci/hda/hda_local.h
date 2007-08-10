@@ -86,7 +86,7 @@ int snd_hda_codec_amp_update(struct hda_codec *codec, hda_nid_t nid, int ch,
 			     int direction, int idx, int mask, int val);
 int snd_hda_codec_amp_stereo(struct hda_codec *codec, hda_nid_t nid,
 			     int dir, int idx, int mask, int val);
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 void snd_hda_codec_resume_amp(struct hda_codec *codec);
 #endif
 
@@ -365,5 +365,28 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
  * hwdep interface
  */
 int snd_hda_create_hwdep(struct hda_codec *codec);
+
+/*
+ * power-management
+ */
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+void snd_hda_schedule_power_save(struct hda_codec *codec);
+
+struct hda_amp_list {
+	hda_nid_t nid;
+	unsigned char dir;
+	unsigned char idx;
+};
+
+struct hda_loopback_check {
+	struct hda_amp_list *amplist;
+	int power_on;
+};
+
+int snd_hda_check_amp_list_power(struct hda_codec *codec,
+				 struct hda_loopback_check *check,
+				 hda_nid_t nid);
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 #endif /* __SOUND_HDA_LOCAL_H */

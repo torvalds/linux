@@ -581,6 +581,14 @@ config SND_HDA_GENERIC
 	  Say Y here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
 
+config SND_HDA_POWER_SAVE
+	bool "Aggressive power-saving on HD-audio"
+	depends on SND_HDA_INTEL && EXPERIMENTAL
+	help
+	  Say Y here to enable more aggressive power-saving mode on
+	  HD-audio driver.  The power-saving timeout can be configured
+	  via power_save option or over sysfs on-the-fly.
+
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
 	depends on SND

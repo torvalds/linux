@@ -1946,7 +1946,7 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 static int stac92xx_resume(struct hda_codec *codec)
 {
 	stac92xx_set_config_regs(codec);
@@ -1963,7 +1963,7 @@ static struct hda_codec_ops stac92xx_patch_ops = {
 	.init = stac92xx_init,
 	.free = stac92xx_free,
 	.unsol_event = stac92xx_unsol_event,
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 	.resume = stac92xx_resume,
 #endif
 };
@@ -2460,7 +2460,7 @@ static struct hda_codec_ops stac9872_patch_ops = {
 	.build_pcms = stac92xx_build_pcms,
 	.init = stac92xx_init,
 	.free = stac92xx_free,
-#ifdef CONFIG_PM
+#ifdef SND_HDA_NEEDS_RESUME
 	.resume = stac92xx_resume,
 #endif
 };

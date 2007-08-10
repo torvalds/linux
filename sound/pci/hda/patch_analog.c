@@ -73,6 +73,10 @@ struct ad198x_spec {
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
 	hda_nid_t private_dac_nids[4];
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	struct hda_loopback_check loopback;
+#endif
 };
 
 /*
@@ -143,6 +147,14 @@ static int ad198x_build_controls(struct hda_codec *codec)
 	}
 	return 0;
 }
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static int ad198x_check_power_status(struct hda_codec *codec, hda_nid_t nid)
+{
+	struct ad198x_spec *spec = codec->spec;
+	return snd_hda_check_amp_list_power(codec, &spec->loopback, nid);
+}
+#endif
 
 /*
  * Analog playback callbacks
@@ -323,6 +335,9 @@ static struct hda_codec_ops ad198x_patch_ops = {
 	.build_pcms = ad198x_build_pcms,
 	.init = ad198x_init,
 	.free = ad198x_free,
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	.check_power_status = ad198x_check_power_status,
+#endif
 };
 
 
@@ -736,6 +751,17 @@ static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	{}
 };
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1986a_loopbacks[] = {
+	{ 0x13, HDA_OUTPUT, 0 }, /* Mic */
+	{ 0x14, HDA_OUTPUT, 0 }, /* Phone */
+	{ 0x15, HDA_OUTPUT, 0 }, /* CD */
+	{ 0x16, HDA_OUTPUT, 0 }, /* Aux */
+	{ 0x17, HDA_OUTPUT, 0 }, /* Line */
+	{ } /* end */
+};
+#endif
+
 static int patch_ad1986a(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -759,6 +785,9 @@ static int patch_ad1986a(struct hda_codec *codec)
 	spec->mixers[0] = ad1986a_mixers;
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1986a_init_verbs;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1986a_loopbacks;
+#endif
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -944,6 +973,13 @@ static struct hda_verb ad1983_init_verbs[] = {
 	{ } /* end */
 };
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1983_loopbacks[] = {
+	{ 0x12, HDA_OUTPUT, 0 }, /* Mic */
+	{ 0x13, HDA_OUTPUT, 0 }, /* Line */
+	{ } /* end */
+};
+#endif
 
 static int patch_ad1983(struct hda_codec *codec)
 {
@@ -968,6 +1004,9 @@ static int patch_ad1983(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1983_init_verbs;
 	spec->spdif_route = 0;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1983_loopbacks;
+#endif
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1090,6 +1129,17 @@ static struct hda_verb ad1981_init_verbs[] = {
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
 	{ } /* end */
 };
+
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1981_loopbacks[] = {
+	{ 0x12, HDA_OUTPUT, 0 }, /* Front Mic */
+	{ 0x13, HDA_OUTPUT, 0 }, /* Line */
+	{ 0x1b, HDA_OUTPUT, 0 }, /* Aux */
+	{ 0x1c, HDA_OUTPUT, 0 }, /* Mic */
+	{ 0x1d, HDA_OUTPUT, 0 }, /* CD */
+	{ } /* end */
+};
+#endif
 
 /*
  * Patch for HP nx6320
@@ -1350,6 +1400,9 @@ static int patch_ad1981(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1981_init_verbs;
 	spec->spdif_route = 0;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1981_loopbacks;
+#endif
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -2103,6 +2156,15 @@ static void ad1988_laptop_unsol_event(struct hda_codec *codec, unsigned int res)
 		snd_hda_sequence_write(codec, ad1988_laptop_hp_off);
 } 
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1988_loopbacks[] = {
+	{ 0x20, HDA_INPUT, 0 }, /* Front Mic */
+	{ 0x20, HDA_INPUT, 1 }, /* Line */
+	{ 0x20, HDA_INPUT, 4 }, /* Mic */
+	{ 0x20, HDA_INPUT, 6 }, /* CD */
+	{ } /* end */
+};
+#endif
 
 /*
  * Automatic parse of I/O pins from the BIOS configuration
@@ -2647,6 +2709,9 @@ static int patch_ad1988(struct hda_codec *codec)
 		codec->patch_ops.unsol_event = ad1988_laptop_unsol_event;
 		break;
 	}
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1988_loopbacks;
+#endif
 
 	return 0;
 }
@@ -2803,6 +2868,16 @@ static struct hda_verb ad1884_init_verbs[] = {
 	{ } /* end */
 };
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1884_loopbacks[] = {
+	{ 0x20, HDA_INPUT, 0 }, /* Front Mic */
+	{ 0x20, HDA_INPUT, 1 }, /* Mic */
+	{ 0x20, HDA_INPUT, 2 }, /* CD */
+	{ 0x20, HDA_INPUT, 4 }, /* Docking */
+	{ } /* end */
+};
+#endif
+
 static int patch_ad1884(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -2827,6 +2902,9 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1884_init_verbs;
 	spec->spdif_route = 0;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1884_loopbacks;
+#endif
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -3208,6 +3286,16 @@ static struct hda_verb ad1882_init_verbs[] = {
 	{ } /* end */
 };
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+static struct hda_amp_list ad1882_loopbacks[] = {
+	{ 0x20, HDA_INPUT, 0 }, /* Front Mic */
+	{ 0x20, HDA_INPUT, 1 }, /* Mic */
+	{ 0x20, HDA_INPUT, 4 }, /* Line */
+	{ 0x20, HDA_INPUT, 6 }, /* CD */
+	{ } /* end */
+};
+#endif
+
 /* models */
 enum {
 	AD1882_3STACK,
@@ -3246,6 +3334,9 @@ static int patch_ad1882(struct hda_codec *codec)
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1882_init_verbs;
 	spec->spdif_route = 0;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+	spec->loopback.amplist = ad1882_loopbacks;
+#endif
 
 	codec->patch_ops = ad198x_patch_ops;
 
