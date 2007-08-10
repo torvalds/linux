@@ -482,3 +482,67 @@ void sdio_writel(struct sdio_func *func, unsigned long b, unsigned int addr,
 }
 EXPORT_SYMBOL_GPL(sdio_writel);
 
+/**
+ *	sdio_f0_readb - read a single byte from SDIO function 0
+ *	@func: an SDIO function of the card
+ *	@addr: address to read
+ *	@err_ret: optional status value from transfer
+ *
+ *	Reads a single byte from the address space of SDIO function 0.
+ *	If there is a problem reading the address, 0xff is returned
+ *	and @err_ret will contain the error code.
+ */
+unsigned char sdio_f0_readb(struct sdio_func *func, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+	unsigned char val;
+
+	BUG_ON(!func);
+
+	if (err_ret)
+		*err_ret = 0;
+
+	ret = mmc_io_rw_direct(func->card, 0, 0, addr, 0, &val);
+	if (ret) {
+		if (err_ret)
+			*err_ret = ret;
+		return 0xFF;
+	}
+
+	return val;
+}
+EXPORT_SYMBOL_GPL(sdio_f0_readb);
+
+/**
+ *	sdio_f0_writeb - write a single byte to SDIO function 0
+ *	@func: an SDIO function of the card
+ *	@b: byte to write
+ *	@addr: address to write to
+ *	@err_ret: optional status value from transfer
+ *
+ *	Writes a single byte to the address space of SDIO function 0.
+ *	@err_ret will contain the status of the actual transfer.
+ *
+ *	Only writes to the vendor specific CCCR registers (0xF0 -
+ *	0xFF) are permiited; @err_ret will be set to -EINVAL for *
+ *	writes outside this range.
+ */
+void sdio_f0_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
+	int *err_ret)
+{
+	int ret;
+
+	BUG_ON(!func);
+
+	if (addr < 0xF0 || addr > 0xFF) {
+		if (err_ret)
+			*err_ret = -EINVAL;
+		return;
+	}
+
+	ret = mmc_io_rw_direct(func->card, 1, 0, addr, b, NULL);
+	if (err_ret)
+		*err_ret = ret;
+}
+EXPORT_SYMBOL_GPL(sdio_f0_writeb);

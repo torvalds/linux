@@ -141,5 +141,10 @@ extern int sdio_memcpy_toio(struct sdio_func *func, unsigned int addr,
 extern int sdio_writesb(struct sdio_func *func, unsigned int addr,
 	void *src, int count);
 
+extern unsigned char sdio_f0_readb(struct sdio_func *func,
+	unsigned int addr, int *err_ret);
+extern void sdio_f0_writeb(struct sdio_func *func, unsigned char b,
+	unsigned int addr, int *err_ret);
+
 #endif
 
