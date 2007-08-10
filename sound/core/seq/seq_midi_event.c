@@ -252,7 +252,7 @@ int snd_midi_event_encode_byte(struct snd_midi_event *dev, int c,
 		ev->type = status_event[ST_SPECIAL + c - 0xf0].event;
 		ev->flags &= ~SNDRV_SEQ_EVENT_LENGTH_MASK;
 		ev->flags |= SNDRV_SEQ_EVENT_LENGTH_FIXED;
-		return 1;
+		return ev->type != SNDRV_SEQ_EVENT_NONE;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
