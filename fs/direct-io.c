@@ -974,6 +974,7 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	dio->get_block = get_block;
 	dio->end_io = end_io;
 	dio->map_bh.b_private = NULL;
+	dio->map_bh.b_state = 0;
 	dio->final_block_in_bio = -1;
 	dio->next_block_for_io = -1;
 
