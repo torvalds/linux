@@ -206,20 +206,20 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial, speed_t value
 		}
 	} else {
 		switch (value) {
-			case 300: break;
-			case 600: break;
-			case 1200: break;
-			case 2400: break;
-			case 4800: break;
-			case 9600: break;
-			case 19200: break;
-			case 38400: break;
-			case 57600: break;
-			case 115200: break;
-			default:
-				err("MCT USB-RS232: unsupported baudrate request 0x%x,"
-				    " using default of B9600", value);
-				value = 9600;
+		case 300: break;
+		case 600: break;
+		case 1200: break;
+		case 2400: break;
+		case 4800: break;
+		case 9600: break;
+		case 19200: break;
+		case 38400: break;
+		case 57600: break;
+		case 115200: break;
+		default:
+			err("MCT USB-RS232: unsupported baudrate request 0x%x,"
+			    " using default of B9600", value);
+			value = 9600;
 		}
 		return 115200/value;
 	}
