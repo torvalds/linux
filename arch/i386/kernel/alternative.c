@@ -11,6 +11,8 @@
 #include <asm/mce.h>
 #include <asm/nmi.h>
 
+#define MAX_PATCH_LEN (255-1)
+
 #ifdef CONFIG_HOTPLUG_CPU
 static int smp_alt_once;
 
@@ -148,7 +150,8 @@ static unsigned char** find_nop_table(void)
 
 #endif /* CONFIG_X86_64 */
 
-static void nop_out(void *insns, unsigned int len)
+/* Use this to add nops to a buffer, then text_poke the whole buffer. */
+static void add_nops(void *insns, unsigned int len)
 {
 	unsigned char **noptable = find_nop_table();
 
@@ -156,7 +159,7 @@ static void nop_out(void *insns, unsigned int len)
 		unsigned int noplen = len;
 		if (noplen > ASM_NOP_MAX)
 			noplen = ASM_NOP_MAX;
-		text_poke(insns, noptable[noplen], noplen);
+		memcpy(insns, noptable[noplen], noplen);
 		insns += noplen;
 		len -= noplen;
 	}
@@ -174,15 +177,15 @@ extern u8 *__smp_locks[], *__smp_locks_end[];
 void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 {
 	struct alt_instr *a;
-	u8 *instr;
-	int diff;
+	char insnbuf[MAX_PATCH_LEN];
 
 	DPRINTK("%s: alt table %p -> %p\n", __FUNCTION__, start, end);
 	for (a = start; a < end; a++) {
+		u8 *instr = a->instr;
 		BUG_ON(a->replacementlen > a->instrlen);
+		BUG_ON(a->instrlen > sizeof(insnbuf));
 		if (!boot_cpu_has(a->cpuid))
 			continue;
-		instr = a->instr;
 #ifdef CONFIG_X86_64
 		/* vsyscall code is not mapped yet. resolve it manually. */
 		if (instr >= (u8 *)VSYSCALL_START && instr < (u8*)VSYSCALL_END) {
@@ -191,9 +194,10 @@ void apply_alternatives(struct alt_instr *start, struct alt_instr *end)
 				__FUNCTION__, a->instr, instr);
 		}
 #endif
-		memcpy(instr, a->replacement, a->replacementlen);
-		diff = a->instrlen - a->replacementlen;
-		nop_out(instr + a->replacementlen, diff);
+		memcpy(insnbuf, a->replacement, a->replacementlen);
+		add_nops(insnbuf + a->replacementlen,
+			 a->instrlen - a->replacementlen);
+		text_poke(instr, insnbuf, a->instrlen);
 	}
 }
 
@@ -215,16 +219,18 @@ static void alternatives_smp_lock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 static void alternatives_smp_unlock(u8 **start, u8 **end, u8 *text, u8 *text_end)
 {
 	u8 **ptr;
+	char insn[1];
 
 	if (noreplace_smp)
 		return;
 
+	add_nops(insn, 1);
 	for (ptr = start; ptr < end; ptr++) {
 		if (*ptr < text)
 			continue;
 		if (*ptr > text_end)
 			continue;
-		nop_out(*ptr, 1);
+		text_poke(*ptr, insn, 1);
 	};
 }
 
@@ -351,6 +357,7 @@ void apply_paravirt(struct paravirt_patch_site *start,
 		    struct paravirt_patch_site *end)
 {
 	struct paravirt_patch_site *p;
+	char insnbuf[MAX_PATCH_LEN];
 
 	if (noreplace_paravirt)
 		return;
@@ -358,13 +365,15 @@ void apply_paravirt(struct paravirt_patch_site *start,
 	for (p = start; p < end; p++) {
 		unsigned int used;
 
-		used = paravirt_ops.patch(p->instrtype, p->clobbers, p->instr,
-					  p->len);
+		BUG_ON(p->len > MAX_PATCH_LEN);
+		used = paravirt_ops.patch(p->instrtype, p->clobbers, insnbuf,
+					  (unsigned long)p->instr, p->len);
 
 		BUG_ON(used > p->len);
 
 		/* Pad the rest with nops */
-		nop_out(p->instr + used, p->len - used);
+		add_nops(insnbuf + used, p->len - used);
+		text_poke(p->instr, insnbuf, p->len);
 	}
 }
 extern struct paravirt_patch_site __start_parainstructions[],

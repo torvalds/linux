@@ -47,7 +47,8 @@ struct paravirt_ops
 	 * The patch function should return the number of bytes of code
 	 * generated, as we nop pad the rest in generic code.
 	 */
-	unsigned (*patch)(u8 type, u16 clobber, void *firstinsn, unsigned len);
+	unsigned (*patch)(u8 type, u16 clobber, void *insnbuf,
+			  unsigned long addr, unsigned len);
 
 	/* Basic arch-specific setup */
 	void (*arch_setup)(void);
@@ -253,13 +254,16 @@ extern struct paravirt_ops paravirt_ops;
 
 unsigned paravirt_patch_nop(void);
 unsigned paravirt_patch_ignore(unsigned len);
-unsigned paravirt_patch_call(void *target, u16 tgt_clobbers,
-			     void *site, u16 site_clobbers,
+unsigned paravirt_patch_call(void *insnbuf,
+			     const void *target, u16 tgt_clobbers,
+			     unsigned long addr, u16 site_clobbers,
 			     unsigned len);
-unsigned paravirt_patch_jmp(void *target, void *site, unsigned len);
-unsigned paravirt_patch_default(u8 type, u16 clobbers, void *site, unsigned len);
+unsigned paravirt_patch_jmp(const void *target, void *insnbuf,
+			    unsigned long addr, unsigned len);
+unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
+				unsigned long addr, unsigned len);
 
-unsigned paravirt_patch_insns(void *site, unsigned len,
+unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 			      const char *start, const char *end);
 
 int paravirt_disable_iospace(void);

@@ -936,23 +936,24 @@ static const struct lguest_insns
 /* Now our patch routine is fairly simple (based on the native one in
  * paravirt.c).  If we have a replacement, we copy it in and return how much of
  * the available space we used. */
-static unsigned lguest_patch(u8 type, u16 clobber, void *insns, unsigned len)
+static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
+			     unsigned long addr, unsigned len)
 {
 	unsigned int insn_len;
 
 	/* Don't do anything special if we don't have a replacement */
 	if (type >= ARRAY_SIZE(lguest_insns) || !lguest_insns[type].start)
-		return paravirt_patch_default(type, clobber, insns, len);
+		return paravirt_patch_default(type, clobber, ibuf, addr, len);
 
 	insn_len = lguest_insns[type].end - lguest_insns[type].start;
 
 	/* Similarly if we can't fit replacement (shouldn't happen, but let's
 	 * be thorough). */
 	if (len < insn_len)
-		return paravirt_patch_default(type, clobber, insns, len);
+		return paravirt_patch_default(type, clobber, ibuf, addr, len);
 
 	/* Copy in our instructions. */
-	memcpy(insns, lguest_insns[type].start, insn_len);
+	memcpy(ibuf, lguest_insns[type].start, insn_len);
 	return insn_len;
 }
 

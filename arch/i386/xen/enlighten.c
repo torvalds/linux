@@ -842,7 +842,8 @@ void __init xen_setup_vcpu_info_placement(void)
 	}
 }
 
-static unsigned xen_patch(u8 type, u16 clobbers, void *insns, unsigned len)
+static unsigned xen_patch(u8 type, u16 clobbers, void *insnbuf,
+			  unsigned long addr, unsigned len)
 {
 	char *start, *end, *reloc;
 	unsigned ret;
@@ -869,7 +870,7 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 		if (start == NULL || (end-start) > len)
 			goto default_patch;
 
-		ret = paravirt_patch_insns(insns, len, start, end);
+		ret = paravirt_patch_insns(insnbuf, len, start, end);
 
 		/* Note: because reloc is assigned from something that
 		   appears to be an array, gcc assumes it's non-null,
@@ -877,8 +878,8 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 		   end. */
 		if (reloc > start && reloc < end) {
 			int reloc_off = reloc - start;
-			long *relocp = (long *)(insns + reloc_off);
-			long delta = start - (char *)insns;
+			long *relocp = (long *)(insnbuf + reloc_off);
+			long delta = start - (char *)addr;
 
 			*relocp += delta;
 		}
@@ -886,7 +887,8 @@ static unsigned xen_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 
 	default_patch:
 	default:
-		ret = paravirt_patch_default(type, clobbers, insns, len);
+		ret = paravirt_patch_default(type, clobbers, insnbuf,
+					     addr, len);
 		break;
 	}
 

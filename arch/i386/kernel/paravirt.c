@@ -69,7 +69,8 @@ DEF_NATIVE(read_tsc, "rdtsc");
 
 DEF_NATIVE(ud2a, "ud2a");
 
-static unsigned native_patch(u8 type, u16 clobbers, void *insns, unsigned len)
+static unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
+			     unsigned long addr, unsigned len)
 {
 	const unsigned char *start, *end;
 	unsigned ret;
@@ -90,7 +91,7 @@ static unsigned native_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 #undef SITE
 
 	patch_site:
-		ret = paravirt_patch_insns(insns, len, start, end);
+		ret = paravirt_patch_insns(ibuf, len, start, end);
 		break;
 
 	case PARAVIRT_PATCH(make_pgd):
@@ -107,7 +108,7 @@ static unsigned native_patch(u8 type, u16 clobbers, void *insns, unsigned len)
 		break;
 
 	default:
-		ret = paravirt_patch_default(type, clobbers, insns, len);
+		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
 		break;
 	}
 
@@ -129,68 +130,67 @@ struct branch {
 	u32 delta;
 } __attribute__((packed));
 
-unsigned paravirt_patch_call(void *target, u16 tgt_clobbers,
-			     void *site, u16 site_clobbers,
+unsigned paravirt_patch_call(void *insnbuf,
+			     const void *target, u16 tgt_clobbers,
+			     unsigned long addr, u16 site_clobbers,
 			     unsigned len)
 {
-	unsigned char *call = site;
-	unsigned long delta = (unsigned long)target - (unsigned long)(call+5);
-	struct branch b;
+	struct branch *b = insnbuf;
+	unsigned long delta = (unsigned long)target - (addr+5);
 
 	if (tgt_clobbers & ~site_clobbers)
 		return len;	/* target would clobber too much for this site */
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	b.opcode = 0xe8; /* call */
-	b.delta = delta;
-	BUILD_BUG_ON(sizeof(b) != 5);
-	text_poke(call, (unsigned char *)&b, 5);
+	b->opcode = 0xe8; /* call */
+	b->delta = delta;
+	BUILD_BUG_ON(sizeof(*b) != 5);
 
 	return 5;
 }
 
-unsigned paravirt_patch_jmp(void *target, void *site, unsigned len)
+unsigned paravirt_patch_jmp(const void *target, void *insnbuf,
+			    unsigned long addr, unsigned len)
 {
-	unsigned char *jmp = site;
-	unsigned long delta = (unsigned long)target - (unsigned long)(jmp+5);
-	struct branch b;
+	struct branch *b = insnbuf;
+	unsigned long delta = (unsigned long)target - (addr+5);
 
 	if (len < 5)
 		return len;	/* call too long for patch site */
 
-	b.opcode = 0xe9;	/* jmp */
-	b.delta = delta;
-	text_poke(jmp, (unsigned char *)&b, 5);
+	b->opcode = 0xe9;	/* jmp */
+	b->delta = delta;
 
 	return 5;
 }
 
-unsigned paravirt_patch_default(u8 type, u16 clobbers, void *site, unsigned len)
+unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
+				unsigned long addr, unsigned len)
 {
 	void *opfunc = *((void **)&paravirt_ops + type);
 	unsigned ret;
 
 	if (opfunc == NULL)
 		/* If there's no function, patch it with a ud2a (BUG) */
-		ret = paravirt_patch_insns(site, len, start_ud2a, end_ud2a);
+		ret = paravirt_patch_insns(insnbuf, len, start_ud2a, end_ud2a);
 	else if (opfunc == paravirt_nop)
 		/* If the operation is a nop, then nop the callsite */
 		ret = paravirt_patch_nop();
 	else if (type == PARAVIRT_PATCH(iret) ||
 		 type == PARAVIRT_PATCH(irq_enable_sysexit))
 		/* If operation requires a jmp, then jmp */
-		ret = paravirt_patch_jmp(opfunc, site, len);
+		ret = paravirt_patch_jmp(opfunc, insnbuf, addr, len);
 	else
 		/* Otherwise call the function; assume target could
 		   clobber any caller-save reg */
-		ret = paravirt_patch_call(opfunc, CLBR_ANY,
-					  site, clobbers, len);
+		ret = paravirt_patch_call(insnbuf, opfunc, CLBR_ANY,
+					  addr, clobbers, len);
 
 	return ret;
 }
 
-unsigned paravirt_patch_insns(void *site, unsigned len,
+unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 			      const char *start, const char *end)
 {
 	unsigned insn_len = end - start;
@@ -198,7 +198,7 @@ unsigned paravirt_patch_insns(void *site, unsigned len,
 	if (insn_len > len || start == NULL)
 		insn_len = len;
 	else
-		memcpy(site, start, insn_len);
+		memcpy(insnbuf, start, insn_len);
 
 	return insn_len;
 }
