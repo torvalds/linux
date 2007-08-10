@@ -94,6 +94,7 @@
 #define DISP_DIWCONF (DISP_BASE + 0xe8)
 #define DISP_DIWHSTRT (DISP_BASE + 0xec)
 #define DISP_DIWVSTRT (DISP_BASE + 0xf0)
+#define DISP_PIXDEPTH (DISP_BASE + 0x108)
 
 /* Pixel clocks, one for TV output, doubled for VGA output */
 #define TV_CLK 74239
@@ -600,6 +601,7 @@ static void pvr2_init_display(struct fb_info *info)
 
 	/* bits per pixel */
 	fb_writel(fb_readl(DISP_DIWMODE) | (--bytesperpixel << 2), DISP_DIWMODE);
+	fb_writel(bytesperpixel << 2, DISP_PIXDEPTH);
 
 	/* video enable, color sync, interlace,
 	 * hsync and vsync polarity (currently unused) */
@@ -808,6 +810,8 @@ static int __devinit pvr2fb_common_init(void)
 
 	if (register_framebuffer(fb_info) < 0)
 		goto out_err;
+	/*Must write PIXDEPTH to register before anything is displayed - so force init */
+	pvr2_init_display(fb_info);
 
 	modememused = get_line_length(fb_info->var.xres_virtual,
 				      fb_info->var.bits_per_pixel);
