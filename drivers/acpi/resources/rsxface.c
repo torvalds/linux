@@ -474,8 +474,6 @@ acpi_rs_match_vendor_resource(struct acpi_resource *resource, void *context)
 	return (AE_CTRL_TERMINATE);
 }
 
-ACPI_EXPORT_SYMBOL(acpi_rs_match_vendor_resource)
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_walk_resources
