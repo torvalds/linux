@@ -86,7 +86,7 @@ struct mpc83xx_spi {
 
 	unsigned nsecs;		/* (clock cycle time)/2 */
 
-	u32 sysclk;
+	u32 spibrg;		/* SPIBRG input clock */
 	u32 rx_shift;		/* RX data reg shift when in qe mode */
 	u32 tx_shift;		/* TX data reg shift when in qe mode */
 
@@ -169,17 +169,18 @@ static void mpc83xx_spi_chipselect(struct spi_device *spi, int value)
 
 		regval |= SPMODE_LEN(len);
 
-		if ((mpc83xx_spi->sysclk / spi->max_speed_hz) >= 64) {
-			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 64);
+		if ((mpc83xx_spi->spibrg / spi->max_speed_hz) >= 64) {
+			u8 pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 64);
 			if (pm > 0x0f) {
-				printk(KERN_WARNING "MPC83xx SPI: SPICLK can't be less then a SYSCLK/1024!\n"
-						"Requested SPICLK is %d Hz. Will use %d Hz instead.\n",
-						spi->max_speed_hz, mpc83xx_spi->sysclk / 1024);
+				dev_err(&spi->dev, "Requested speed is too "
+					"low: %d Hz. Will use %d Hz instead.\n",
+					spi->max_speed_hz,
+					mpc83xx_spi->spibrg / 1024);
 				pm = 0x0f;
 			}
 			regval |= SPMODE_PM(pm) | SPMODE_DIV16;
 		} else {
-			u8 pm = mpc83xx_spi->sysclk / (spi->max_speed_hz * 4);
+			u8 pm = mpc83xx_spi->spibrg / (spi->max_speed_hz * 4);
 			regval |= SPMODE_PM(pm);
 		}
 
@@ -429,12 +430,16 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 	mpc83xx_spi->bitbang.chipselect = mpc83xx_spi_chipselect;
 	mpc83xx_spi->bitbang.setup_transfer = mpc83xx_spi_setup_transfer;
 	mpc83xx_spi->bitbang.txrx_bufs = mpc83xx_spi_bufs;
-	mpc83xx_spi->sysclk = pdata->sysclk;
 	mpc83xx_spi->activate_cs = pdata->activate_cs;
 	mpc83xx_spi->deactivate_cs = pdata->deactivate_cs;
 	mpc83xx_spi->qe_mode = pdata->qe_mode;
 	mpc83xx_spi->get_rx = mpc83xx_spi_rx_buf_u8;
 	mpc83xx_spi->get_tx = mpc83xx_spi_tx_buf_u8;
+
+	if (mpc83xx_spi->qe_mode)
+		mpc83xx_spi->spibrg = pdata->sysclk / 2;
+	else
+		mpc83xx_spi->spibrg = pdata->sysclk;
 
 	mpc83xx_spi->rx_shift = 0;
 	mpc83xx_spi->tx_shift = 0;
