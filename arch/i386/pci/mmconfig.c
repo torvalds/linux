@@ -82,16 +82,15 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 
 	switch (len) {
 	case 1:
-		*value = readb(mmcfg_virt_addr + reg);
+		*value = mmio_config_readb(mmcfg_virt_addr + reg);
 		break;
 	case 2:
-		*value = readw(mmcfg_virt_addr + reg);
+		*value = mmio_config_readw(mmcfg_virt_addr + reg);
 		break;
 	case 4:
-		*value = readl(mmcfg_virt_addr + reg);
+		*value = mmio_config_readl(mmcfg_virt_addr + reg);
 		break;
 	}
-
 	spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
@@ -116,16 +115,15 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 
 	switch (len) {
 	case 1:
-		writeb(value, mmcfg_virt_addr + reg);
+		mmio_config_writeb(mmcfg_virt_addr, value);
 		break;
 	case 2:
-		writew(value, mmcfg_virt_addr + reg);
+		mmio_config_writew(mmcfg_virt_addr, value);
 		break;
 	case 4:
-		writel(value, mmcfg_virt_addr + reg);
+		mmio_config_writel(mmcfg_virt_addr, value);
 		break;
 	}
-
 	spin_unlock_irqrestore(&pci_config_lock, flags);
 
 	return 0;
