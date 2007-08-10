@@ -538,10 +538,13 @@ typedef u64 clientid4;
 
 struct nfs4_accessargs {
 	const struct nfs_fh *		fh;
+	const u32 *			bitmask;
 	u32				access;
 };
 
 struct nfs4_accessres {
+	const struct nfs_server *	server;
+	struct nfs_fattr *		fattr;
 	u32				supported;
 	u32				access;
 };

@@ -376,10 +376,12 @@ static int nfs4_stat_to_errno(int);
 				decode_locku_maxsz)
 #define NFS4_enc_access_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
-				encode_access_maxsz)
+				encode_access_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_access_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
-				decode_access_maxsz)
+				decode_access_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_getattr_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_getattr_maxsz)
@@ -1375,14 +1377,20 @@ static int nfs4_xdr_enc_access(struct rpc_rqst *req, __be32 *p, const struct nfs
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 2,
+		.nops = 3,
 	};
 	int status;
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_compound_hdr(&xdr, &hdr);
-	if ((status = encode_putfh(&xdr, args->fh)) == 0)
-		status = encode_access(&xdr, args->access);
+	status = encode_putfh(&xdr, args->fh);
+	if (status != 0)
+		goto out;
+	status = encode_access(&xdr, args->access);
+	if (status != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
+out:
 	return status;
 }
 
@@ -3784,8 +3792,13 @@ static int nfs4_xdr_dec_access(struct rpc_rqst *rqstp, __be32 *p, struct nfs4_ac
 	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
 	if ((status = decode_compound_hdr(&xdr, &hdr)) != 0)
 		goto out;
-	if ((status = decode_putfh(&xdr)) == 0)
-		status = decode_access(&xdr, res);
+	status = decode_putfh(&xdr);
+	if (status != 0)
+		goto out;
+	status = decode_access(&xdr, res);
+	if (status != 0)
+		goto out;
+	decode_getfattr(&xdr, res->fattr, res->server);
 out:
 	return status;
 }
