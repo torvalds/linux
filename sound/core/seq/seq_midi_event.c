@@ -32,10 +32,9 @@ MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>, Jaroslav Kysela <perex@suse.cz>");
 MODULE_DESCRIPTION("MIDI byte <-> sequencer event coder");
 MODULE_LICENSE("GPL");
 
-/* queue type */
-/* from 0 to 7 are normal commands (note off, on, etc.) */
-#define ST_NOTEOFF	0
-#define ST_NOTEON	1
+/* event type, index into status_event[] */
+/* from 0 to 6 are normal commands (note off, on, etc.) for 0x9?-0xe? */
+#define ST_INVALID	7
 #define ST_SPECIAL	8
 #define ST_SYSEX	ST_SPECIAL
 /* from 8 to 15 are events for 0xf0-0xf7 */
@@ -65,7 +64,7 @@ static struct status_event_list {
 	void (*encode)(struct snd_midi_event *dev, struct snd_seq_event *ev);
 	void (*decode)(struct snd_seq_event *ev, unsigned char *buf);
 } status_event[] = {
-	/* 0x80 - 0xf0 */
+	/* 0x80 - 0xef */
 	{SNDRV_SEQ_EVENT_NOTEOFF,	2, note_event, note_decode},
 	{SNDRV_SEQ_EVENT_NOTEON,	2, note_event, note_decode},
 	{SNDRV_SEQ_EVENT_KEYPRESS,	2, note_event, note_decode},
@@ -73,7 +72,8 @@ static struct status_event_list {
 	{SNDRV_SEQ_EVENT_PGMCHANGE,	1, one_param_ctrl_event, one_param_decode},
 	{SNDRV_SEQ_EVENT_CHANPRESS,	1, one_param_ctrl_event, one_param_decode},
 	{SNDRV_SEQ_EVENT_PITCHBEND,	2, pitchbend_ctrl_event, pitchbend_decode},
-	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL}, /* 0xf0 */
+	/* invalid */
+	{SNDRV_SEQ_EVENT_NONE,		0, NULL, NULL},
 	/* 0xf0 - 0xff */
 	{SNDRV_SEQ_EVENT_SYSEX,		1, NULL, NULL}, /* sysex: 0xf0 */
 	{SNDRV_SEQ_EVENT_QFRAME,	1, one_param_event, one_param_decode}, /* 0xf1 */
@@ -129,6 +129,7 @@ int snd_midi_event_new(int bufsize, struct snd_midi_event **rdev)
 	}
 	dev->bufsize = bufsize;
 	dev->lastcmd = 0xff;
+	dev->type = ST_INVALID;
 	spin_lock_init(&dev->lock);
 	*rdev = dev;
 	return 0;
@@ -149,7 +150,7 @@ static inline void reset_encode(struct snd_midi_event *dev)
 {
 	dev->read = 0;
 	dev->qlen = 0;
-	dev->type = 0;
+	dev->type = ST_INVALID;
 }
 
 void snd_midi_event_reset_encode(struct snd_midi_event *dev)
