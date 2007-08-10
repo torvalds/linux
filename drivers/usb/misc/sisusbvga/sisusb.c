@@ -1261,47 +1261,6 @@ static int sisusb_read_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 				addr += 4;
 				length -= 4;
 			}
-#if 0		/* That does not work, as EP 2 is an OUT EP! */
-		default:
-			CLEARPACKET(&packet);
-			packet.header  = 0x001f;
-			packet.address = 0x000001a0;
-			packet.data    = 0x00000006;
-			ret |= sisusb_send_bridge_packet(sisusb, 10,
-								&packet, 0);
-			packet.header  = 0x001f;
-			packet.address = 0x000001b0;
-			packet.data    = (length & ~3) | 0x40000000;
-			ret |= sisusb_send_bridge_packet(sisusb, 10,
-								&packet, 0);
-			packet.header  = 0x001f;
-			packet.address = 0x000001b4;
-			packet.data    = addr;
-			ret |= sisusb_send_bridge_packet(sisusb, 10,
-								&packet, 0);
-			packet.header  = 0x001f;
-			packet.address = 0x000001a4;
-			packet.data    = 0x00000001;
-			ret |= sisusb_send_bridge_packet(sisusb, 10,
-								&packet, 0);
-			if (userbuffer) {
-				ret |= sisusb_recv_bulk_msg(sisusb,
-							SISUSB_EP_GFX_BULK_IN,
-							(length & ~3),
-							NULL, userbuffer,
-							bytes_read, 0);
-				if (!ret) userbuffer += (*bytes_read);
-			} else {
-				ret |= sisusb_recv_bulk_msg(sisusb,
-							SISUSB_EP_GFX_BULK_IN,
-							(length & ~3),
-							kernbuffer, NULL,
-							bytes_read, 0);
-				if (!ret) kernbuffer += (*bytes_read);
-			}
-			addr += (*bytes_read);
-			length -= (*bytes_read);
-#endif
 	    }
 
 	    if (ret)
@@ -1400,22 +1359,6 @@ sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
 {
 	return(sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data));
 }
-
-#if 0
-
-int
-sisusb_writew(struct sisusb_usb_data *sisusb, u32 adr, u16 data)
-{
-	return(sisusb_write_memio_word(sisusb, SISUSB_TYPE_MEM, adr, data));
-}
-
-int
-sisusb_readw(struct sisusb_usb_data *sisusb, u32 adr, u16 *data)
-{
-	return(sisusb_read_memio_word(sisusb, SISUSB_TYPE_MEM, adr, data));
-}
-
-#endif  /*  0  */
 
 int
 sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,

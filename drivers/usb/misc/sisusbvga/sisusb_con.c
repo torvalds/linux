@@ -373,14 +373,6 @@ sisusbcon_putc(struct vc_data *c, int ch, int y, int x)
 		return;
 
 	/* sisusb->lock is down */
-
-	/* Don't need to put the character into buffer ourselves,
-	 * because the vt does this BEFORE calling us.
-	 */
-#if 0
-	sisusbcon_writew(ch, SISUSB_VADDR(x, y));
-#endif
-
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);
 		return;
@@ -490,10 +482,6 @@ sisusbcon_bmove(struct vc_data *c, int sy, int sx,
 	struct sisusb_usb_data *sisusb;
 	ssize_t written;
 	int cols, length;
-#if 0
-	u16 *src, *dest;
-	int i;
-#endif
 
 	if (width <= 0 || height <= 0)
 		return;
@@ -504,41 +492,6 @@ sisusbcon_bmove(struct vc_data *c, int sy, int sx,
 	/* sisusb->lock is down */
 
 	cols = sisusb->sisusb_num_columns;
-
-	/* Don't need to move data outselves, because
-	 * vt does this BEFORE calling us.
-	 * This is only used by vt's insert/deletechar.
-	 */
-#if 0
-	if (sx == 0 && dx == 0 && width >= c->vc_cols && width <= cols) {
-
-		sisusbcon_memmovew(SISUSB_VADDR(0, dy), SISUSB_VADDR(0, sy),
-					height * width * 2);
-
-	} else if (dy < sy || (dy == sy && dx < sx)) {
-
-		src  = SISUSB_VADDR(sx, sy);
-		dest = SISUSB_VADDR(dx, dy);
-
-		for (i = height; i > 0; i--) {
-			sisusbcon_memmovew(dest, src, width * 2);
-			src  += cols;
-			dest += cols;
-		}
-
-	} else {
-
-		src  = SISUSB_VADDR(sx, sy + height - 1);
-		dest = SISUSB_VADDR(dx, dy + height - 1);
-
-		for (i = height; i > 0; i--) {
-			sisusbcon_memmovew(dest, src, width * 2);
-			src  -= cols;
-			dest -= cols;
-		}
-
-	}
-#endif
 
 	if (sisusb_is_inactive(c, sisusb)) {
 		mutex_unlock(&sisusb->lock);

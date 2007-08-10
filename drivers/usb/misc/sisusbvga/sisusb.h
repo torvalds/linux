@@ -46,9 +46,7 @@
 /* For older kernels, support for text consoles is by default
  * off. To ensable text console support, change the following:
  */
-#if 0
-#define CONFIG_USB_SISUSBVGA_CON
-#endif
+/* #define CONFIG_USB_SISUSBVGA_CON */
 
 /* Version Information */
 
