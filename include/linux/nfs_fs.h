@@ -331,6 +331,11 @@ extern const struct inode_operations nfs3_file_inode_operations;
 extern const struct file_operations nfs_file_operations;
 extern const struct address_space_operations nfs_file_aops;
 
+static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
+{
+	return filp->private_data;
+}
+
 static inline struct rpc_cred *nfs_file_cred(struct file *file)
 {
 	if (file != NULL) {
