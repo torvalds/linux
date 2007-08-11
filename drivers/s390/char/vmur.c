@@ -119,10 +119,12 @@ static void urdev_put(struct urdev *urd)
 /*
  * Low-level functions to do I/O to a ur device.
  *     alloc_chan_prog
+ *     free_chan_prog
  *     do_ur_io
  *     ur_int_handler
  *
  * alloc_chan_prog allocates and builds the channel program
+ * free_chan_prog frees memory of the channel program
  *
  * do_ur_io issues the channel program to the device and blocks waiting
  * on a completion event it publishes at urd->io_done. The function
@@ -137,6 +139,16 @@ static void urdev_put(struct urdev *urd)
  * address pointer that alloc_chan_prog returned.
  */
 
+static void free_chan_prog(struct ccw1 *cpa)
+{
+	struct ccw1 *ptr = cpa;
+
+	while (ptr->cda) {
+		kfree((void *)(addr_t) ptr->cda);
+		ptr++;
+	}
+	kfree(cpa);
+}
 
 /*
  * alloc_chan_prog
@@ -144,44 +156,45 @@ static void urdev_put(struct urdev *urd)
  * with a final NOP CCW command-chained on (which ensures that CE and DE
  * are presented together in a single interrupt instead of as separate
  * interrupts unless an incorrect length indication kicks in first). The
- * data length in each CCW is reclen. The caller must ensure that count
- * is an integral multiple of reclen.
- * The channel program pointer returned by this function must be freed
- * with kfree. The caller is responsible for checking that
- * count/reclen is not ridiculously large.
+ * data length in each CCW is reclen.
  */
-static struct ccw1 *alloc_chan_prog(char *buf, size_t count, size_t reclen)
+static struct ccw1 *alloc_chan_prog(const char __user *ubuf, int rec_count,
+				    int reclen)
 {
-	size_t num_ccws;
 	struct ccw1 *cpa;
+	void *kbuf;
 	int i;
 
-	TRACE("alloc_chan_prog(%p, %zu, %zu)\n", buf, count, reclen);
+	TRACE("alloc_chan_prog(%p, %i, %i)\n", ubuf, rec_count, reclen);
 
 	/*
 	 * We chain a NOP onto the writes to force CE+DE together.
 	 * That means we allocate room for CCWs to cover count/reclen
 	 * records plus a NOP.
 	 */
-	num_ccws = count / reclen + 1;
-	cpa = kmalloc(num_ccws * sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
+	cpa = kzalloc((rec_count + 1) * sizeof(struct ccw1),
+		      GFP_KERNEL | GFP_DMA);
 	if (!cpa)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; count; i++) {
+	for (i = 0; i < rec_count; i++) {
 		cpa[i].cmd_code = WRITE_CCW_CMD;
 		cpa[i].flags = CCW_FLAG_CC | CCW_FLAG_SLI;
 		cpa[i].count = reclen;
-		cpa[i].cda = __pa(buf);
-		buf += reclen;
-		count -= reclen;
+		kbuf = kmalloc(reclen, GFP_KERNEL | GFP_DMA);
+		if (!kbuf) {
+			free_chan_prog(cpa);
+			return ERR_PTR(-ENOMEM);
+		}
+		cpa[i].cda = (u32)(addr_t) kbuf;
+		if (copy_from_user(kbuf, ubuf, reclen)) {
+			free_chan_prog(cpa);
+			return ERR_PTR(-EFAULT);
+		}
+		ubuf += reclen;
 	}
 	/* The following NOP CCW forces CE+DE to be presented together */
 	cpa[i].cmd_code = CCW_CMD_NOOP;
-	cpa[i].flags = 0;
-	cpa[i].count = 0;
-	cpa[i].cda = 0;
-
 	return cpa;
 }
 
@@ -189,7 +202,7 @@ static int do_ur_io(struct urdev *urd, struct ccw1 *cpa)
 {
 	int rc;
 	struct ccw_device *cdev = urd->cdev;
-	DECLARE_COMPLETION(event);
+	DECLARE_COMPLETION_ONSTACK(event);
 
 	TRACE("do_ur_io: cpa=%p\n", cpa);
 
@@ -325,24 +338,11 @@ static ssize_t do_write(struct urdev *urd, const char __user *udata,
 			size_t count, size_t reclen, loff_t *ppos)
 {
 	struct ccw1 *cpa;
-	char *buf;
 	int rc;
 
-	/* Data buffer must be under 2GB line for fmt1 CCWs: hence GFP_DMA */
-	buf = kmalloc(count, GFP_KERNEL | GFP_DMA);
-	if (!buf)
-		return -ENOMEM;
-
-	if (copy_from_user(buf, udata, count)) {
-		rc = -EFAULT;
-		goto fail_kfree_buf;
-	}
-
-	cpa = alloc_chan_prog(buf, count, reclen);
-	if (!cpa) {
-		rc = -ENOMEM;
-		goto fail_kfree_buf;
-	}
+	cpa = alloc_chan_prog(udata, count / reclen, reclen);
+	if (IS_ERR(cpa))
+		return PTR_ERR(cpa);
 
 	rc = do_ur_io(urd, cpa);
 	if (rc)
@@ -354,10 +354,9 @@ static ssize_t do_write(struct urdev *urd, const char __user *udata,
 	}
 	*ppos += count;
 	rc = count;
+
 fail_kfree_cpa:
-	kfree(cpa);
-fail_kfree_buf:
-	kfree(buf);
+	free_chan_prog(cpa);
 	return rc;
 }
 
@@ -473,7 +472,7 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 		return rc;
 
 	len = min((size_t) PAGE_SIZE, count);
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	buf = (char *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!buf)
 		return -ENOMEM;
 
@@ -500,7 +499,7 @@ static ssize_t diag14_read(struct file *file, char __user *ubuf, size_t count,
 	*offs += copied;
 	rc = copied;
 fail:
-	kfree(buf);
+	free_page((unsigned long) buf);
 	return rc;
 }
 
@@ -543,56 +542,97 @@ static int diag_read_next_file_info(struct file_control_block *buf, int spid)
 	}
 }
 
-static int verify_device(struct urdev *urd)
+static int verify_uri_device(struct urdev *urd)
 {
-	struct file_control_block fcb;
+	struct file_control_block *fcb;
 	char *buf;
 	int rc;
 
+	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
+	if (!fcb)
+		return -ENOMEM;
+
+	/* check for empty reader device (beginning of chain) */
+	rc = diag_read_next_file_info(fcb, 0);
+	if (rc)
+		goto fail_free_fcb;
+
+	/* if file is in hold status, we do not read it */
+	if (fcb->file_stat & (FLG_SYSTEM_HOLD | FLG_USER_HOLD)) {
+		rc = -EPERM;
+		goto fail_free_fcb;
+	}
+
+	/* open file on virtual reader	*/
+	buf = (char *) __get_free_page(GFP_KERNEL | GFP_DMA);
+	if (!buf) {
+		rc = -ENOMEM;
+		goto fail_free_fcb;
+	}
+	rc = diag_read_file(urd->dev_id.devno, buf);
+	if ((rc != 0) && (rc != -ENODATA)) /* EOF does not hurt */
+		goto fail_free_buf;
+
+	/* check if the file on top of the queue is open now */
+	rc = diag_read_next_file_info(fcb, 0);
+	if (rc)
+		goto fail_free_buf;
+	if (!(fcb->file_stat & FLG_IN_USE)) {
+		rc = -EMFILE;
+		goto fail_free_buf;
+	}
+	rc = 0;
+
+fail_free_buf:
+	free_page((unsigned long) buf);
+fail_free_fcb:
+	kfree(fcb);
+	return rc;
+}
+
+static int verify_device(struct urdev *urd)
+{
 	switch (urd->class) {
 	case DEV_CLASS_UR_O:
 		return 0; /* no check needed here */
 	case DEV_CLASS_UR_I:
-		/* check for empty reader device (beginning of chain) */
-		rc = diag_read_next_file_info(&fcb, 0);
-		if (rc)
-			return rc;
-
-		/* open file on virtual reader	*/
-		buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-		rc = diag_read_file(urd->dev_id.devno, buf);
-		kfree(buf);
-
-		if ((rc != 0) && (rc != -ENODATA)) /* EOF does not hurt */
-			return rc;
-		return 0;
+		return verify_uri_device(urd);
 	default:
 		return -ENOTSUPP;
 	}
 }
 
-static int get_file_reclen(struct urdev *urd)
+static int get_uri_file_reclen(struct urdev *urd)
 {
-	struct file_control_block fcb;
+	struct file_control_block *fcb;
 	int rc;
 
+	fcb = kmalloc(sizeof(*fcb), GFP_KERNEL | GFP_DMA);
+	if (!fcb)
+		return -ENOMEM;
+	rc = diag_read_next_file_info(fcb, 0);
+	if (rc)
+		goto fail_free;
+	if (fcb->file_stat & FLG_CP_DUMP)
+		rc = 0;
+	else
+		rc = fcb->rec_len;
+
+fail_free:
+	kfree(fcb);
+	return rc;
+}
+
+static int get_file_reclen(struct urdev *urd)
+{
 	switch (urd->class) {
 	case DEV_CLASS_UR_O:
 		return 0;
 	case DEV_CLASS_UR_I:
-		rc = diag_read_next_file_info(&fcb, 0);
-		if (rc)
-			return rc;
-		break;
+		return get_uri_file_reclen(urd);
 	default:
 		return -ENOTSUPP;
 	}
-	if (fcb.file_stat & FLG_CP_DUMP)
-		return 0;
-
-	return fcb.rec_len;
 }
 
 static int ur_open(struct inode *inode, struct file *file)
