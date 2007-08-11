@@ -309,18 +309,16 @@ static inline int is_word_sized(u16 reg)
 	      || (reg & 0x00ff) == 0x55));
 }
 
-/* We assume that the default bank is 0, thus the following two functions do
-   nothing for registers which live in bank 0. For others, they respectively
-   set the bank register to the correct value (before the register is
-   accessed), and back to 0 (afterwards). */
+/* Registers 0x50-0x5f are banked */
 static inline void w83627ehf_set_bank(struct w83627ehf_data *data, u16 reg)
 {
-	if (reg & 0xff00) {
+	if ((reg & 0x00f0) == 0x50) {
 		outb_p(W83627EHF_REG_BANK, data->addr + ADDR_REG_OFFSET);
 		outb_p(reg >> 8, data->addr + DATA_REG_OFFSET);
 	}
 }
 
+/* Not strictly necessary, but play it safe for now */
 static inline void w83627ehf_reset_bank(struct w83627ehf_data *data, u16 reg)
 {
 	if (reg & 0xff00) {
