@@ -726,10 +726,10 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
     DECLARE_COMPLETION_ONSTACK(wait);
     int rval;
 
-    scp = kmalloc(sizeof(*scp), GFP_KERNEL);
+    scp = kzalloc(sizeof(*scp), GFP_KERNEL);
     if (!scp)
         return -ENOMEM;
-    memset(scp, 0, sizeof(*scp));
+
     scp->device = sdev;
     /* use request field to save the ptr. to completion struct. */
     scp->request = (struct request *)&wait;
@@ -5518,10 +5518,9 @@ static int gdth_ioctl(struct inode *inode, struct file *filep,
         ha = HADATA(gdth_ctr_tab[hanum]);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-        scp  = kmalloc(sizeof(*scp), GFP_KERNEL);
+        scp  = kzalloc(sizeof(*scp), GFP_KERNEL);
         if (!scp)
             return -ENOMEM;
-        memset(scp, 0, sizeof(*scp));
         scp->device = ha->sdev;
         scp->cmd_len = 12;
         scp->use_sg = 0;

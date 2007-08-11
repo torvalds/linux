@@ -313,10 +313,10 @@ NCR_D700_probe(struct device *dev)
 		break;
 	}
 
-	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-	memset(p, '\0', sizeof(*p));
+
 	p->dev = dev;
 	snprintf(p->name, sizeof(p->name), "D700(%s)", dev->bus_id);
 	if (request_irq(irq, NCR_D700_intr, IRQF_SHARED, p->name, p)) {

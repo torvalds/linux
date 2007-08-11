@@ -111,13 +111,12 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 #endif
 			return 0;
 	}
-	fcs = kmalloc(sizeof (struct ctrl_inquiry) * fcscount, GFP_DMA);
+	fcs = kcalloc(fcscount, sizeof (struct ctrl_inquiry), GFP_DMA);
 	if (!fcs) {
 		printk ("PLUTO: Not enough memory to probe\n");
 		return 0;
 	}
 	
-	memset (fcs, 0, sizeof (struct ctrl_inquiry) * fcscount);
 	memset (&dev, 0, sizeof(dev));
 	atomic_set (&fcss, fcscount);
 	
@@ -211,7 +210,7 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 				char *p;
 				long *ages;
 				
-				ages = kmalloc (((inq->channels + 1) * inq->targets) * sizeof(long), GFP_KERNEL);
+				ages = kcalloc((inq->channels + 1) * inq->targets, sizeof(long), GFP_KERNEL);
 				if (!ages) continue;
 				
 				host = scsi_register (tpnt, sizeof (struct pluto));
@@ -238,7 +237,6 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 				fc->channels = inq->channels + 1;
 				fc->targets = inq->targets;
 				fc->ages = ages;
-				memset (ages, 0, ((inq->channels + 1) * inq->targets) * sizeof(long));
 				
 				pluto->fc = fc;
 				memcpy (pluto->rev_str, inq->revision, 4);
@@ -260,7 +258,7 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 		} else
 			fc->fcp_register(fc, TYPE_SCSI_FCP, 1);
 	}
-	kfree((char *)fcs);
+	kfree(fcs);
 	if (nplutos)
 		printk ("PLUTO: Total of %d SparcSTORAGE Arrays found\n", nplutos);
 	return nplutos;

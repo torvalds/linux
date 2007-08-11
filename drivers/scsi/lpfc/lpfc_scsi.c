@@ -202,10 +202,9 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport)
 	dma_addr_t pdma_phys;
 	uint16_t iotag;
 
-	psb = kmalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
+	psb = kzalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
 	if (!psb)
 		return NULL;
-	memset(psb, 0, sizeof (struct lpfc_scsi_buf));
 
 	/*
 	 * Get memory from the pci pool to map the virt space to pci bus space
