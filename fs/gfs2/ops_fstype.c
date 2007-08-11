@@ -849,7 +849,7 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = -ENOENT;
 		goto error;
 	}
-	sdp = (struct gfs2_sbd*) sb->s_fs_info;
+	sdp = sb->s_fs_info;
 	if (sdp->sd_vfs_meta) {
 		printk(KERN_WARNING "GFS2: gfs2meta mount already exists\n");
 		error = -EBUSY;
