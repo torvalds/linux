@@ -49,7 +49,6 @@ struct tuner {
 
 	unsigned int tv_freq;	/* keep track of the current settings */
 	unsigned int radio_freq;
-	u16 	     last_div;
 	unsigned int audmode;
 	v4l2_std_id  std;
 

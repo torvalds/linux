@@ -82,6 +82,10 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 #define TUNER_PLL_LOCKED   0x40
 #define TUNER_STEREO_MK3   0x04
 
+struct tuner_simple_priv {
+	u16 last_div;
+};
+
 /* ---------------------------------------------------------------------- */
 
 static int tuner_getstatus(struct i2c_client *c)
@@ -126,6 +130,7 @@ static int tuner_stereo(struct i2c_client *c)
 static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	struct tuner_simple_priv *priv = t->priv;
 	u8 config, cb, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
@@ -291,7 +296,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		break;
 	}
 
-	if (params->cb_first_if_lower_freq && div < t->last_div) {
+	if (params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = config;
 		buffer[1] = cb;
 		buffer[2] = (div>>8) & 0x7f;
@@ -302,7 +307,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[2] = config;
 		buffer[3] = cb;
 	}
-	t->last_div = div;
+	priv->last_div = div;
 	if (params->has_tda9887) {
 		int config = 0;
 		int is_secam_l = (t->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) &&
@@ -399,6 +404,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tunertype *tun;
 	struct tuner *t = i2c_get_clientdata(c);
+	struct tuner_simple_priv *priv = t->priv;
 	u8 buffer[4];
 	u16 div;
 	int rc, j;
@@ -464,7 +470,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	   freq * (1/800) */
 	div = (freq + 400) / 800;
 
-	if (params->cb_first_if_lower_freq && div < t->last_div) {
+	if (params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
 		buffer[2] = (div>>8) & 0x7f;
@@ -476,7 +482,7 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 
 	tuner_dbg("radio 0x%02x 0x%02x 0x%02x 0x%02x\n",
 	       buffer[0],buffer[1],buffer[2],buffer[3]);
-	t->last_div = div;
+	priv->last_div = div;
 
 	if (params->has_tda9887) {
 		int config = 0;
@@ -498,16 +504,31 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 }
 
+static void tuner_release(struct i2c_client *c)
+{
+	struct tuner *t = i2c_get_clientdata(c);
+
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 static struct tuner_operations simple_tuner_ops = {
 	.set_tv_freq    = default_set_tv_freq,
 	.set_radio_freq = default_set_radio_freq,
 	.has_signal     = tuner_signal,
 	.is_stereo      = tuner_stereo,
+	.release        = tuner_release,
 };
 
 int default_tuner_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	struct tuner_simple_priv *priv = NULL;
+
+	priv = kzalloc(sizeof(struct tuner_simple_priv), GFP_KERNEL);
+	if (priv == NULL)
+		return -ENOMEM;
+	t->priv = priv;
 
 	tuner_info("type set to %d (%s)\n",
 		   t->type, tuners[t->type].name);
