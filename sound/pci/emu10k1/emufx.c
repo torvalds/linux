@@ -2440,14 +2440,13 @@ static void copy_string(char *dst, char *src, char *null, int idx)
 		strcpy(dst, src);
 }
 
-static int snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
+static void snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 				   struct snd_emu10k1_fx8010_info *info)
 {
 	char **fxbus, **extin, **extout;
 	unsigned short fxbus_mask, extin_mask, extout_mask;
 	int res;
 
-	memset(info, 0, sizeof(info));
 	info->internal_tram_size = emu->fx8010.itram_size;
 	info->external_tram_size = emu->fx8010.etram_pages.bytes / 2;
 	fxbus = fxbuses;
@@ -2464,7 +2463,6 @@ static int snd_emu10k1_fx8010_info(struct snd_emu10k1 *emu,
 	for (res = 16; res < 32; res++, extout++)
 		copy_string(info->extout_names[res], extout_mask & (1 << res) ? *extout : NULL, "Unused", res);
 	info->gpr_controls = emu->fx8010.gpr_count;
-	return 0;
 }
 
 static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, unsigned int cmd, unsigned long arg)
@@ -2485,10 +2483,7 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 		info = kmalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
 			return -ENOMEM;
-		if ((res = snd_emu10k1_fx8010_info(emu, info)) < 0) {
-			kfree(info);
-			return res;
-		}
+		snd_emu10k1_fx8010_info(emu, info);
 		if (copy_to_user(argp, info, sizeof(*info))) {
 			kfree(info);
 			return -EFAULT;
