@@ -108,7 +108,7 @@ print_cfs_rq_runtime_sum(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 
 void print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 {
-	SEQ_printf(m, "\ncfs_rq %p\n", cfs_rq);
+	SEQ_printf(m, "\ncfs_rq\n");
 
 #define P(x) \
 	SEQ_printf(m, "  .%-30s: %Ld\n", #x, (long long)(cfs_rq->x))

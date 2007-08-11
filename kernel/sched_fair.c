@@ -959,13 +959,12 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		struct cfs_rq *this_cfs_rq;
-		long imbalances;
+		long imbalance;
 		unsigned long maxload;
 
 		this_cfs_rq = cpu_cfs_rq(busy_cfs_rq, this_cpu);
 
-		imbalance = busy_cfs_rq->load.weight -
-						 this_cfs_rq->load.weight;
+		imbalance = busy_cfs_rq->load.weight - this_cfs_rq->load.weight;
 		/* Don't pull if this_cfs_rq has more load than busy_cfs_rq */
 		if (imbalance <= 0)
 			continue;
@@ -976,7 +975,7 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 		*this_best_prio = cfs_rq_best_prio(this_cfs_rq);
 #else
-#define maxload rem_load_move
+# define maxload rem_load_move
 #endif
 		/* pass busy_cfs_rq argument into
 		 * load_balance_[start|next]_fair iterators
