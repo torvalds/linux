@@ -242,6 +242,8 @@ static int sbp2_max_speed_and_size(struct sbp2_lu *);
 
 static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xA, 0xB, 0xC };
 
+static DEFINE_RWLOCK(sbp2_hi_logical_units_lock);
+
 static struct hpsb_highlevel sbp2_highlevel = {
 	.name		= SBP2_DEVICE_NAME,
 	.host_reset	= sbp2_host_reset,
@@ -732,6 +734,7 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 	struct sbp2_fwhost_info *hi;
 	struct Scsi_Host *shost = NULL;
 	struct sbp2_lu *lu = NULL;
+	unsigned long flags;
 
 	lu = kzalloc(sizeof(*lu), GFP_KERNEL);
 	if (!lu) {
@@ -784,7 +787,9 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 
 	lu->hi = hi;
 
+	write_lock_irqsave(&sbp2_hi_logical_units_lock, flags);
 	list_add_tail(&lu->lu_list, &hi->logical_units);
+	write_unlock_irqrestore(&sbp2_hi_logical_units_lock, flags);
 
 	/* Register the status FIFO address range. We could use the same FIFO
 	 * for targets at different nodes. However we need different FIFOs per
@@ -828,16 +833,20 @@ static void sbp2_host_reset(struct hpsb_host *host)
 {
 	struct sbp2_fwhost_info *hi;
 	struct sbp2_lu *lu;
+	unsigned long flags;
 
 	hi = hpsb_get_hostinfo(&sbp2_highlevel, host);
 	if (!hi)
 		return;
+
+	read_lock_irqsave(&sbp2_hi_logical_units_lock, flags);
 	list_for_each_entry(lu, &hi->logical_units, lu_list)
 		if (likely(atomic_read(&lu->state) !=
 			   SBP2LU_STATE_IN_SHUTDOWN)) {
 			atomic_set(&lu->state, SBP2LU_STATE_IN_RESET);
 			scsi_block_requests(lu->shost);
 		}
+	read_unlock_irqrestore(&sbp2_hi_logical_units_lock, flags);
 }
 
 static int sbp2_start_device(struct sbp2_lu *lu)
@@ -919,6 +928,7 @@ alloc_fail:
 static void sbp2_remove_device(struct sbp2_lu *lu)
 {
 	struct sbp2_fwhost_info *hi;
+	unsigned long flags;
 
 	if (!lu)
 		return;
@@ -933,7 +943,9 @@ static void sbp2_remove_device(struct sbp2_lu *lu)
 	flush_scheduled_work();
 	sbp2util_remove_command_orb_pool(lu, hi->host);
 
+	write_lock_irqsave(&sbp2_hi_logical_units_lock, flags);
 	list_del(&lu->lu_list);
+	write_unlock_irqrestore(&sbp2_hi_logical_units_lock, flags);
 
 	if (lu->login_response)
 		dma_free_coherent(hi->host->device.parent,
@@ -1707,6 +1719,7 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 	}
 
 	/* Find the unit which wrote the status. */
+	read_lock_irqsave(&sbp2_hi_logical_units_lock, flags);
 	list_for_each_entry(lu_tmp, &hi->logical_units, lu_list) {
 		if (lu_tmp->ne->nodeid == nodeid &&
 		    lu_tmp->status_fifo_addr == addr) {
@@ -1714,6 +1727,8 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 			break;
 		}
 	}
+	read_unlock_irqrestore(&sbp2_hi_logical_units_lock, flags);
+
 	if (unlikely(!lu)) {
 		SBP2_ERR("lu is NULL - device is gone?");
 		return RCODE_ADDRESS_ERROR;
