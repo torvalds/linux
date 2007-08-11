@@ -507,6 +507,7 @@ struct cmac {
 	unsigned int tx_xcnt;
 	u64 tx_mcnt;
 	unsigned int rx_xcnt;
+	unsigned int rx_ocnt;
 	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
