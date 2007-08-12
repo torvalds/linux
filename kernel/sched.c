@@ -3106,7 +3106,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 			if (need_resched())
 				break;
 
-			rebalance_domains(balance_cpu, SCHED_IDLE);
+			rebalance_domains(balance_cpu, CPU_IDLE);
 
 			rq = cpu_rq(balance_cpu);
 			if (time_after(this_rq->next_balance, rq->next_balance))
