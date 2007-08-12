@@ -610,6 +610,17 @@ static inline int add_probe_files(struct bus_type *bus) { return 0; }
 static inline void remove_probe_files(struct bus_type *bus) {}
 #endif
 
+static ssize_t driver_uevent_store(struct device_driver *drv,
+				   const char *buf, size_t count)
+{
+	enum kobject_action action;
+
+	if (kobject_action_type(buf, count, &action) == 0)
+		kobject_uevent(&drv->kobj, action);
+	return count;
+}
+static DRIVER_ATTR(uevent, S_IWUSR, NULL, driver_uevent_store);
+
 /**
  *	bus_add_driver - Add a driver to the bus.
  *	@drv:	driver.
@@ -640,6 +651,11 @@ int bus_add_driver(struct device_driver *drv)
 	klist_add_tail(&drv->knode_bus, &bus->klist_drivers);
 	module_add_driver(drv->owner, drv);
 
+	error = driver_create_file(drv, &driver_attr_uevent);
+	if (error) {
+		printk(KERN_ERR "%s: uevent attr (%s) failed\n",
+			__FUNCTION__, drv->name);
+	}
 	error = driver_add_attrs(bus, drv);
 	if (error) {
 		/* How the hell do we get out of this pickle? Give up */
@@ -677,6 +693,7 @@ void bus_remove_driver(struct device_driver * drv)
 
 	remove_bind_files(drv);
 	driver_remove_attrs(drv->bus, drv);
+	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->knode_bus);
 	pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
@@ -804,6 +821,17 @@ static void klist_devices_put(struct klist_node *n)
 	put_device(dev);
 }
 
+static ssize_t bus_uevent_store(struct bus_type *bus,
+				const char *buf, size_t count)
+{
+	enum kobject_action action;
+
+	if (kobject_action_type(buf, count, &action) == 0)
+		kobject_uevent(&bus->subsys.kobj, action);
+	return count;
+}
+static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
+
 /**
  *	bus_register - register a bus with the system.
  *	@bus:	bus.
@@ -827,6 +855,10 @@ int bus_register(struct bus_type * bus)
 	retval = subsystem_register(&bus->subsys);
 	if (retval)
 		goto out;
+
+	retval = bus_create_file(bus, &bus_attr_uevent);
+	if (retval)
+		goto bus_uevent_fail;
 
 	kobject_set_name(&bus->devices.kobj, "devices");
 	bus->devices.kobj.parent = &bus->subsys.kobj;
@@ -863,6 +895,8 @@ bus_probe_files_fail:
 bus_drivers_fail:
 	kset_unregister(&bus->devices);
 bus_devices_fail:
+	bus_remove_file(bus, &bus_attr_uevent);
+bus_uevent_fail:
 	subsystem_unregister(&bus->subsys);
 out:
 	return retval;
@@ -882,6 +916,7 @@ void bus_unregister(struct bus_type * bus)
 	remove_probe_files(bus);
 	kset_unregister(&bus->drivers);
 	kset_unregister(&bus->devices);
+	bus_remove_file(bus, &bus_attr_uevent);
 	subsystem_unregister(&bus->subsys);
 }
 
