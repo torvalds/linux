@@ -50,7 +50,7 @@ static struct intc_vect vectors[] = {
 };
 
 static struct intc_mask_reg mask_registers[] = {
-	{ VOYAGER_INT_MASK, 1, 32, /* "Interrupt Mask", MMIO_base + 0x30 */
+	{ VOYAGER_INT_MASK, 0, 32, /* "Interrupt Mask", MMIO_base + 0x30 */
 	  { UP, G54, G53, G52, G51, G50, G49, G48,
 	    I2C, PW, 0, DMA, PCI, I2S, AC, US,
 	    0, 0, U1, U0, CV, MC, S1, S0,

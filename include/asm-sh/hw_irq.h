@@ -75,7 +75,7 @@ struct intc_desc {
 	unsigned int nr_prio_regs;
 	struct intc_sense_reg *sense_regs;
 	unsigned int nr_sense_regs;
-	struct irq_chip chip;
+	char *name;
 };
 
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
@@ -86,7 +86,7 @@ struct intc_desc symbol = {						\
 	_INTC_ARRAY(priorities),					\
 	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\
 	_INTC_ARRAY(sense_regs),					\
-	.chip.name = chipname,						\
+	chipname,							\
 }
 
 void __init register_intc_controller(struct intc_desc *desc);
