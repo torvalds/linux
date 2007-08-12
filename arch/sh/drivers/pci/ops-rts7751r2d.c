@@ -19,10 +19,10 @@
 #include "pci-sh4.h"
 
 static u8 rts7751r2d_irq_tab[] __initdata = {
-	IRQ_PCISLOT1,
-	IRQ_PCISLOT2,
-	IRQ_PCMCIA,
-	IRQ_PCIETH,
+	IRQ_PCI_INTA,
+	IRQ_PCI_INTB,
+	IRQ_PCI_INTC,
+	IRQ_PCI_INTD,
 };
 
 int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)

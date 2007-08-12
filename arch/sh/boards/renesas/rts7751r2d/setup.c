@@ -54,11 +54,7 @@ static struct resource cf_ide_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
-#ifdef CONFIG_RTS7751R2D_REV11
-		.start	= 1,
-#else
-		.start	= 2,
-#endif
+		.start	= IRQ_CF_IDE,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -147,7 +143,7 @@ static int __init rts7751r2d_devices_setup(void)
 {
 	int ret;
 
-	if (ctrl_inw(PA_BVERREG) == 0x10) { /* only working on R2D-PLUS */
+	if (ctrl_inw(PA_BVERREG) == 0x10) { /* R2D-PLUS */
 		ret = platform_device_register(&cf_ide_device);
 		if (ret)
 			return ret;
