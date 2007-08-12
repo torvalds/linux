@@ -75,7 +75,7 @@ enum {
 
 unsigned int sysctl_sched_features __read_mostly =
 		SCHED_FEAT_FAIR_SLEEPERS	*1 |
-		SCHED_FEAT_SLEEPER_AVG		*1 |
+		SCHED_FEAT_SLEEPER_AVG		*0 |
 		SCHED_FEAT_SLEEPER_LOAD_AVG	*1 |
 		SCHED_FEAT_PRECISE_CPU_LOAD	*1 |
 		SCHED_FEAT_START_DEBIT		*1 |
@@ -304,11 +304,9 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
 	if (cfs_rq->sleeper_bonus > sysctl_sched_granularity) {
-		delta = calc_delta_mine(cfs_rq->sleeper_bonus,
-					curr->load.weight, lw);
-		if (unlikely(delta > cfs_rq->sleeper_bonus))
-			delta = cfs_rq->sleeper_bonus;
-
+		delta = min(cfs_rq->sleeper_bonus, (u64)delta_exec);
+		delta = calc_delta_mine(delta, curr->load.weight, lw);
+		delta = min((u64)delta, cfs_rq->sleeper_bonus);
 		cfs_rq->sleeper_bonus -= delta;
 		delta_mine -= delta;
 	}
@@ -521,6 +519,8 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	 * Track the amount of bonus we've given to sleepers:
 	 */
 	cfs_rq->sleeper_bonus += delta_fair;
+	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
+		cfs_rq->sleeper_bonus = sysctl_sched_runtime_limit;
 
 	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }

@@ -3106,7 +3106,7 @@ static void run_rebalance_domains(struct softirq_action *h)
 			if (need_resched())
 				break;
 
-			rebalance_domains(balance_cpu, SCHED_IDLE);
+			rebalance_domains(balance_cpu, CPU_IDLE);
 
 			rq = cpu_rq(balance_cpu);
 			if (time_after(this_rq->next_balance, rq->next_balance))
@@ -6328,7 +6328,7 @@ int partition_sched_domains(cpumask_t *partition1, cpumask_t *partition2)
 }
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
-int arch_reinit_sched_domains(void)
+static int arch_reinit_sched_domains(void)
 {
 	int err;
 
@@ -6357,6 +6357,34 @@ static ssize_t sched_power_savings_store(const char *buf, size_t count, int smt)
 	return ret ? ret : count;
 }
 
+#ifdef CONFIG_SCHED_MC
+static ssize_t sched_mc_power_savings_show(struct sys_device *dev, char *page)
+{
+	return sprintf(page, "%u\n", sched_mc_power_savings);
+}
+static ssize_t sched_mc_power_savings_store(struct sys_device *dev,
+					    const char *buf, size_t count)
+{
+	return sched_power_savings_store(buf, count, 0);
+}
+static SYSDEV_ATTR(sched_mc_power_savings, 0644, sched_mc_power_savings_show,
+		   sched_mc_power_savings_store);
+#endif
+
+#ifdef CONFIG_SCHED_SMT
+static ssize_t sched_smt_power_savings_show(struct sys_device *dev, char *page)
+{
+	return sprintf(page, "%u\n", sched_smt_power_savings);
+}
+static ssize_t sched_smt_power_savings_store(struct sys_device *dev,
+					     const char *buf, size_t count)
+{
+	return sched_power_savings_store(buf, count, 1);
+}
+static SYSDEV_ATTR(sched_smt_power_savings, 0644, sched_smt_power_savings_show,
+		   sched_smt_power_savings_store);
+#endif
+
 int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 {
 	int err = 0;
@@ -6373,34 +6401,6 @@ int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 #endif
 	return err;
 }
-#endif
-
-#ifdef CONFIG_SCHED_MC
-static ssize_t sched_mc_power_savings_show(struct sys_device *dev, char *page)
-{
-	return sprintf(page, "%u\n", sched_mc_power_savings);
-}
-static ssize_t sched_mc_power_savings_store(struct sys_device *dev,
-					    const char *buf, size_t count)
-{
-	return sched_power_savings_store(buf, count, 0);
-}
-SYSDEV_ATTR(sched_mc_power_savings, 0644, sched_mc_power_savings_show,
-	    sched_mc_power_savings_store);
-#endif
-
-#ifdef CONFIG_SCHED_SMT
-static ssize_t sched_smt_power_savings_show(struct sys_device *dev, char *page)
-{
-	return sprintf(page, "%u\n", sched_smt_power_savings);
-}
-static ssize_t sched_smt_power_savings_store(struct sys_device *dev,
-					     const char *buf, size_t count)
-{
-	return sched_power_savings_store(buf, count, 1);
-}
-SYSDEV_ATTR(sched_smt_power_savings, 0644, sched_smt_power_savings_show,
-	    sched_smt_power_savings_store);
 #endif
 
 /*
