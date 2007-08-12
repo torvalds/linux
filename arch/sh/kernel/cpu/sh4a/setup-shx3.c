@@ -192,18 +192,21 @@ static struct intc_mask_reg mask_registers[] = {
 };
 
 static struct intc_prio_reg prio_registers[] = {
-	{ 0xfe410010, 32, 4, /* INTPRI */ { IRQ0, IRQ1, IRQ2, IRQ3 } },
+	{ 0xfe410010, 0, 32, 4, /* INTPRI */ { IRQ0, IRQ1, IRQ2, IRQ3 } },
 
-	{ 0xfe410800, 32, 4, /* INT2PRI0 */ { 0, HUDII, TMU5, TMU4,
-					      TMU3, TMU2, TMU1, TMU0 } },
-	{ 0xfe410804, 32, 4, /* INT2PRI1 */ { DTU3, DTU2, DTU1, DTU0,
-					      SCIF3, SCIF2, SCIF1, SCIF0 } },
-	{ 0xfe410808, 32, 4, /* INT2PRI2 */ { DMAC1, DMAC0, PCII56789, PCII4,
-					      PCII3, PCII2, PCII1, PCII0 } },
-	{ 0xfe41080c, 32, 4, /* INT2PRI3 */ { FE1, FE0, ATAPI, VCORE0,
-					      VIN1, VIN0, IIC, DU} },
-	{ 0xfe410810, 32, 4, /* INT2PRI4 */ { 0, 0, PAM, GPIO3,
-					      GPIO2, GPIO1, GPIO0, IRM } },
+	{ 0xfe410800, 0, 32, 4, /* INT2PRI0 */ { 0, HUDII, TMU5, TMU4,
+						 TMU3, TMU2, TMU1, TMU0 } },
+	{ 0xfe410804, 0, 32, 4, /* INT2PRI1 */ { DTU3, DTU2, DTU1, DTU0,
+						 SCIF3, SCIF2,
+						 SCIF1, SCIF0 } },
+	{ 0xfe410808, 0, 32, 4, /* INT2PRI2 */ { DMAC1, DMAC0,
+						 PCII56789, PCII4,
+						 PCII3, PCII2,
+						 PCII1, PCII0 } },
+	{ 0xfe41080c, 0, 32, 4, /* INT2PRI3 */ { FE1, FE0, ATAPI, VCORE0,
+						 VIN1, VIN0, IIC, DU} },
+	{ 0xfe410810, 0, 32, 4, /* INT2PRI4 */ { 0, 0, PAM, GPIO3,
+						 GPIO2, GPIO1, GPIO0, IRM } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "shx3", vectors, groups, priorities,

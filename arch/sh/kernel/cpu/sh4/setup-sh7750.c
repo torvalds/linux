@@ -133,13 +133,13 @@ static struct intc_prio priorities[] = {
 };
 
 static struct intc_prio_reg prio_registers[] = {
-	{ 0xffd00004, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
-	{ 0xffd00008, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
-	{ 0xffd0000c, 16, 4, /* IPRC */ { GPIOI, DMAC, SCIF, HUDI } },
-	{ 0xffd00010, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
-	{ 0xfe080000, 32, 4, /* INTPRI00 */ { 0, 0, 0, 0,
-					      TMU4, TMU3,
-					      PCIC1, PCIC0_PCISERR } },
+	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
+	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, SCI1, 0 } },
+	{ 0xffd0000c, 0, 16, 4, /* IPRC */ { GPIOI, DMAC, SCIF, HUDI } },
+	{ 0xffd00010, 0, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
+	{ 0xfe080000, 0, 32, 4, /* INTPRI00 */ { 0, 0, 0, 0,
+						 TMU4, TMU3,
+						 PCIC1, PCIC0_PCISERR } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7750", vectors, groups,

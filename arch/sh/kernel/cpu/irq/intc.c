@@ -59,14 +59,14 @@ static inline unsigned int set_prio_field(struct intc_desc *desc,
 
 static void disable_prio_16(struct intc_desc *desc, unsigned int data)
 {
-	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->reg;
+	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->set_reg;
 
 	ctrl_outw(set_prio_field(desc, ctrl_inw(addr), 0, data), addr);
 }
 
 static void enable_prio_16(struct intc_desc *desc, unsigned int data)
 {
-	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->reg;
+	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->set_reg;
 	unsigned int prio = _INTC_VALUE(data);
 
 	ctrl_outw(set_prio_field(desc, ctrl_inw(addr), prio, data), addr);
@@ -74,14 +74,14 @@ static void enable_prio_16(struct intc_desc *desc, unsigned int data)
 
 static void disable_prio_32(struct intc_desc *desc, unsigned int data)
 {
-	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->reg;
+	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->set_reg;
 
 	ctrl_outl(set_prio_field(desc, ctrl_inl(addr), 0, data), addr);
 }
 
 static void enable_prio_32(struct intc_desc *desc, unsigned int data)
 {
-	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->reg;
+	unsigned long addr = _INTC_PTR(desc, prio_regs, data)->set_reg;
 	unsigned int prio = _INTC_VALUE(data);
 
 	ctrl_outl(set_prio_field(desc, ctrl_inl(addr), prio, data), addr);

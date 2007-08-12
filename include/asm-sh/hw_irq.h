@@ -53,7 +53,7 @@ struct intc_mask_reg {
 };
 
 struct intc_prio_reg {
-	unsigned long reg, reg_width, field_width;
+	unsigned long set_reg, clr_reg, reg_width, field_width;
 	intc_enum enum_ids[16];
 };
 

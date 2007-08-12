@@ -181,15 +181,17 @@ static struct intc_mask_reg mask_registers[] = {
 };
 
 static struct intc_prio_reg prio_registers[] = {
-	{ 0xffd40000, 32, 8, /* INT2PRI0 */ { TMU0, TMU1, TMU2, TMU2_TICPI } },
-	{ 0xffd40004, 32, 8, /* INT2PRI1 */ { TMU3, TMU4, TMU5, RTC } },
-	{ 0xffd40008, 32, 8, /* INT2PRI2 */ { SCIF0, SCIF1, WDT } },
-	{ 0xffd4000c, 32, 8, /* INT2PRI3 */ { HUDI, DMAC0, DMAC1 } },
-	{ 0xffd40010, 32, 8, /* INT2PRI4 */ { CMT, HAC, PCISERR, PCIINTA, } },
-	{ 0xffd40014, 32, 8, /* INT2PRI5 */ { PCIINTB, PCIINTC,
-					      PCIINTD, PCIC5 } },
-	{ 0xffd40018, 32, 8, /* INT2PRI6 */ { SIOF, HSPI, MMCIF, SSI } },
-	{ 0xffd4001c, 32, 8, /* INT2PRI7 */ { FLCTL, GPIO } },
+	{ 0xffd40000, 0, 32, 8, /* INT2PRI0 */ { TMU0, TMU1,
+						 TMU2, TMU2_TICPI } },
+	{ 0xffd40004, 0, 32, 8, /* INT2PRI1 */ { TMU3, TMU4, TMU5, RTC } },
+	{ 0xffd40008, 0, 32, 8, /* INT2PRI2 */ { SCIF0, SCIF1, WDT } },
+	{ 0xffd4000c, 0, 32, 8, /* INT2PRI3 */ { HUDI, DMAC0, DMAC1 } },
+	{ 0xffd40010, 0, 32, 8, /* INT2PRI4 */ { CMT, HAC,
+						 PCISERR, PCIINTA, } },
+	{ 0xffd40014, 0, 32, 8, /* INT2PRI5 */ { PCIINTB, PCIINTC,
+						 PCIINTD, PCIC5 } },
+	{ 0xffd40018, 0, 32, 8, /* INT2PRI6 */ { SIOF, HSPI, MMCIF, SSI } },
+	{ 0xffd4001c, 0, 32, 8, /* INT2PRI7 */ { FLCTL, GPIO } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7780", vectors, groups, priorities,
@@ -210,8 +212,8 @@ static struct intc_mask_reg irq_mask_registers[] = {
 };
 
 static struct intc_prio_reg irq_prio_registers[] = {
-	{ 0xffd00010, 32, 4, /* INTPRI */ { IRQ0, IRQ1, IRQ2, IRQ3,
-					    IRQ4, IRQ5, IRQ6, IRQ7 } },
+	{ 0xffd00010, 0, 32, 4, /* INTPRI */ { IRQ0, IRQ1, IRQ2, IRQ3,
+					       IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
 static struct intc_sense_reg irq_sense_registers[] = {

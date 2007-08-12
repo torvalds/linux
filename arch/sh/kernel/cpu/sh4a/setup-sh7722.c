@@ -169,19 +169,19 @@ static struct intc_mask_reg mask_registers[] = {
 };
 
 static struct intc_prio_reg prio_registers[] = {
-	{ 0xa4080000, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, IRDA } },
-	{ 0xa4080004, 16, 4, /* IPRB */ { JPU, LCDC, SIM } },
-	{ 0xa4080008, 16, 4, /* IPRC */ { } },
-	{ 0xa408000c, 16, 4, /* IPRD */ { } },
-	{ 0xa4080010, 16, 4, /* IPRE */ { DMAC0123, VIOVOU, 0, VPU } },
-	{ 0xa4080014, 16, 4, /* IPRF */ { KEYSC, DMAC45, USB, CMT } },
-	{ 0xa4080018, 16, 4, /* IPRG */ { SCIF0, SCIF1, SCIF2 } },
-	{ 0xa408001c, 16, 4, /* IPRH */ { SIOF0, SIOF1, FLCTL, I2C } },
-	{ 0xa4080020, 16, 4, /* IPRI */ { SIO, 0, TSIF, RTC } },
-	{ 0xa4080024, 16, 4, /* IPRJ */ { 0, 0, SIU } },
-	{ 0xa4080028, 16, 4, /* IPRK */ { 0, 0, 0, SDHI } },
-	{ 0xa408002c, 16, 4, /* IPRL */ { TWODG, 0, TPU } },
-	{ 0xa4140010, 32, 4, /* INTPRI00 */
+	{ 0xa4080000, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, IRDA } },
+	{ 0xa4080004, 0, 16, 4, /* IPRB */ { JPU, LCDC, SIM } },
+	{ 0xa4080008, 0, 16, 4, /* IPRC */ { } },
+	{ 0xa408000c, 0, 16, 4, /* IPRD */ { } },
+	{ 0xa4080010, 0, 16, 4, /* IPRE */ { DMAC0123, VIOVOU, 0, VPU } },
+	{ 0xa4080014, 0, 16, 4, /* IPRF */ { KEYSC, DMAC45, USB, CMT } },
+	{ 0xa4080018, 0, 16, 4, /* IPRG */ { SCIF0, SCIF1, SCIF2 } },
+	{ 0xa408001c, 0, 16, 4, /* IPRH */ { SIOF0, SIOF1, FLCTL, I2C } },
+	{ 0xa4080020, 0, 16, 4, /* IPRI */ { SIO, 0, TSIF, RTC } },
+	{ 0xa4080024, 0, 16, 4, /* IPRJ */ { 0, 0, SIU } },
+	{ 0xa4080028, 0, 16, 4, /* IPRK */ { 0, 0, 0, SDHI } },
+	{ 0xa408002c, 0, 16, 4, /* IPRL */ { TWODG, 0, TPU } },
+	{ 0xa4140010, 0, 32, 4, /* INTPRI00 */
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 

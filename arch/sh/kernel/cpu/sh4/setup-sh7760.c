@@ -118,17 +118,17 @@ static struct intc_mask_reg mask_registers[] = {
 };
 
 static struct intc_prio_reg prio_registers[] = {
-	{ 0xffd00004, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2 } },
-	{ 0xffd00008, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
-	{ 0xffd0000c, 16, 4, /* IPRC */ { GPIOI, DMAC, 0, HUDI } },
-	{ 0xffd00010, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
-	{ 0xfe080000, 32, 4, /* INTPRI00 */ { IRQ4, IRQ5, IRQ6, IRQ7 } },
-	{ 0xfe080004, 32, 4, /* INTPRI04 */ { HCAN20, HCAN21, SSI0, SSI1,
-					      HAC0, HAC1, I2C0, I2C1 } },
-	{ 0xfe080008, 32, 4, /* INTPRI08 */ { USB, LCDC, DMABRG, SCIF0,
-					      SCIF1, SCIF2, SIM, HSPI } },
-	{ 0xfe08000c, 32, 4, /* INTPRI0C */ { 0, 0, MMCIF, 0,
-					      MFI, 0, ADC, CMT } },
+	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2 } },
+	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
+	{ 0xffd0000c, 0, 16, 4, /* IPRC */ { GPIOI, DMAC, 0, HUDI } },
+	{ 0xffd00010, 0, 16, 4, /* IPRD */ { IRL0, IRL1, IRL2, IRL3 } },
+	{ 0xfe080000, 0, 32, 4, /* INTPRI00 */ { IRQ4, IRQ5, IRQ6, IRQ7 } },
+	{ 0xfe080004, 0, 32, 4, /* INTPRI04 */ { HCAN20, HCAN21, SSI0, SSI1,
+						 HAC0, HAC1, I2C0, I2C1 } },
+	{ 0xfe080008, 0, 32, 4, /* INTPRI08 */ { USB, LCDC, DMABRG, SCIF0,
+						 SCIF1, SCIF2, SIM, HSPI } },
+	{ 0xfe08000c, 0, 32, 4, /* INTPRI0C */ { 0, 0, MMCIF, 0,
+						 MFI, 0, ADC, CMT } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7760", vectors, groups,
