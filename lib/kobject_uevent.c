@@ -23,23 +23,56 @@
 #include <net/sock.h>
 
 
-/* the strings here must match the enum in include/linux/kobject.h */
-const char *kobject_actions[] = {
-	"add",
-	"remove",
-	"change",
-	"move",
-	"online",
-	"offline",
-};
-
-#if defined(CONFIG_HOTPLUG)
 u64 uevent_seqnum;
 char uevent_helper[UEVENT_HELPER_PATH_LEN] = CONFIG_UEVENT_HELPER_PATH;
 static DEFINE_SPINLOCK(sequence_lock);
 #if defined(CONFIG_NET)
 static struct sock *uevent_sock;
 #endif
+
+/* the strings here must match the enum in include/linux/kobject.h */
+static const char *kobject_actions[] = {
+	[KOBJ_ADD] =		"add",
+	[KOBJ_REMOVE] =		"remove",
+	[KOBJ_CHANGE] =		"change",
+	[KOBJ_MOVE] =		"move",
+	[KOBJ_ONLINE] =		"online",
+	[KOBJ_OFFLINE] =	"offline",
+};
+
+/**
+ * kobject_action_type - translate action string to numeric type
+ *
+ * @buf: buffer containing the action string, newline is ignored
+ * @len: length of buffer
+ * @type: pointer to the location to store the action type
+ *
+ * Returns 0 if the action string was recognized.
+ */
+int kobject_action_type(const char *buf, size_t count,
+			enum kobject_action *type)
+{
+	enum kobject_action action;
+	int ret = -EINVAL;
+
+	if (count && buf[count-1] == '\n')
+		count--;
+
+	if (!count)
+		goto out;
+
+	for (action = 0; action < ARRAY_SIZE(kobject_actions); action++) {
+		if (strncmp(kobject_actions[action], buf, count) != 0)
+			continue;
+		if (kobject_actions[action][count] != '\0')
+			continue;
+		*type = action;
+		ret = 0;
+		break;
+	}
+out:
+	return ret;
+}
 
 /**
  * kobject_uevent_env - send an uevent with environmental data
@@ -270,5 +303,3 @@ static int __init kobject_uevent_init(void)
 
 postcore_initcall(kobject_uevent_init);
 #endif
-
-#endif /* CONFIG_HOTPLUG */

@@ -234,13 +234,11 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 
 	/* search the kset, the device belongs to */
 	top_kobj = &dev->kobj;
-	if (!top_kobj->kset && top_kobj->parent) {
-		do {
-			top_kobj = top_kobj->parent;
-		} while (!top_kobj->kset && top_kobj->parent);
-	}
+	while (!top_kobj->kset && top_kobj->parent)
+		top_kobj = top_kobj->parent;
 	if (!top_kobj->kset)
 		goto out;
+
 	kset = top_kobj->kset;
 	if (!kset->uevent_ops || !kset->uevent_ops->uevent)
 		goto out;
@@ -270,17 +268,9 @@ out:
 static ssize_t store_uevent(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	size_t len = count;
 	enum kobject_action action;
 
-	if (len && buf[len-1] == '\n')
-		len--;
-
-	for (action = 0; action < KOBJ_MAX; action++) {
-		if (strncmp(kobject_actions[action], buf, len) != 0)
-			continue;
-		if (kobject_actions[action][len] != '\0')
-			continue;
+	if (kobject_action_type(buf, count, &action) == 0) {
 		kobject_uevent(&dev->kobj, action);
 		goto out;
 	}

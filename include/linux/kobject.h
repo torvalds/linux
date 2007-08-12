@@ -58,9 +58,6 @@ enum kobject_action {
 	KOBJ_MAX
 };
 
-/* The list of strings defining the valid kobject actions as specified above */
-extern const char *kobject_actions[];
-
 struct kobject {
 	const char		* k_name;
 	struct kref		kref;
@@ -241,6 +238,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 
 int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 	__attribute__((format (printf, 2, 3)));
+
+int kobject_action_type(const char *buf, size_t count,
+			enum kobject_action *type);
 #else
 static inline int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 { return 0; }
@@ -251,6 +251,10 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 
 static inline int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
+
+static inline int kobject_action_type(const char *buf, size_t count,
+			enum kobject_action *type)
+{ return -EINVAL; }
 #endif
 
 #endif /* __KERNEL__ */
