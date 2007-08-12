@@ -33,6 +33,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
@@ -1328,9 +1329,73 @@ static int acpi_thermal_resume(struct acpi_device *device)
 	return AE_OK;
 }
 
+#ifdef CONFIG_DMI
+static int thermal_act(struct dmi_system_id *d) {
+
+	if (act == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"disabling all active thermal trip points\n", d->ident);
+		act = -1;
+	}
+	return 0;
+}
+static int thermal_tzp(struct dmi_system_id *d) {
+
+	if (tzp == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"enabling thermal zone polling\n", d->ident);
+		tzp = 300;	/* 300 dS = 30 Seconds */
+	}
+	return 0;
+}
+static int thermal_psv(struct dmi_system_id *d) {
+
+	if (psv == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"disabling all passive thermal trip points\n", d->ident);
+		psv = -1;
+	}
+	return 0;
+}
+
+static struct dmi_system_id thermal_dmi_table[] __initdata = {
+	/*
+	 * Award BIOS on this AOpen makes thermal control almost worthless.
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=8842
+	 */
+	{
+	 .callback = thermal_act,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_psv,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_tzp,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{}
+};
+#endif /* CONFIG_DMI */
+
 static int __init acpi_thermal_init(void)
 {
 	int result = 0;
+
+	dmi_check_system(thermal_dmi_table);
 
 	if (off) {
 		printk(KERN_NOTICE "ACPI: thermal control disabled\n");
