@@ -646,6 +646,17 @@ M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
 S:	Supported
 
+ATHEROS ATH5K WIRELESS DRIVER
+P:	Jiri Slaby
+M:	jirislaby@gmail.com
+P:	Nick Kossifidis
+M:	mickflemm@gmail.com
+P:	Luis R. Rodriguez
+M:	mcgrof@gmail.com
+L:	linux-wireless@vger.kernel.org
+L:	ath5k-devel@lists.ath5k.org
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com

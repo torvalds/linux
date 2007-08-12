@@ -648,6 +648,23 @@ config P54_PCI
 
 	  If you choose to build a module, it'll be called p54pci.
 
+config ATH5K
+	tristate "Atheros 5xxx wireless cards support"
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	---help---
+	  This module adds support for wireless adapters based on
+	  Atheros 5xxx chipset.
+
+	  Currently the following chip versions are supported:
+
+	  MAC: AR5211 AR5212
+	  PHY: RF5111/2111 RF5112/2112 RF5413/2413
+
+	  This driver uses the kernel's mac80211 subsystem.
+
+	  If you choose to build a module, it'll be called ath5k. Say M if
+	  unsure.
+
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"
