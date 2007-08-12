@@ -78,6 +78,10 @@ static int tzp;
 module_param(tzp, int, 0444);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
 
+static int nocrt;
+module_param(nocrt, int, 0);
+MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.\n");
+
 static int off;
 module_param(off, int, 0);
 MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
@@ -442,7 +446,7 @@ static int acpi_thermal_get_devices(struct acpi_thermal *tz)
 
 static int acpi_thermal_critical(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.critical.flags.valid)
+	if (!tz || !tz->trips.critical.flags.valid || nocrt)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.critical.temperature) {
@@ -464,7 +468,7 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 
 static int acpi_thermal_hot(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.hot.flags.valid)
+	if (!tz || !tz->trips.hot.flags.valid || nocrt)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.hot.temperature) {
@@ -839,12 +843,14 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 		goto end;
 
 	if (tz->trips.critical.flags.valid)
-		seq_printf(seq, "critical (S5):           %ld C\n",
-			   KELVIN_TO_CELSIUS(tz->trips.critical.temperature));
+		seq_printf(seq, "critical (S5):           %ld C%s",
+			   KELVIN_TO_CELSIUS(tz->trips.critical.temperature),
+			   nocrt ? " <disabled>\n" : "\n");
 
 	if (tz->trips.hot.flags.valid)
-		seq_printf(seq, "hot (S4):                %ld C\n",
-			   KELVIN_TO_CELSIUS(tz->trips.hot.temperature));
+		seq_printf(seq, "hot (S4):                %ld C%s",
+			   KELVIN_TO_CELSIUS(tz->trips.hot.temperature),
+			   nocrt ? " <disabled>\n" : "\n");
 
 	if (tz->trips.passive.flags.valid) {
 		seq_printf(seq,
