@@ -77,7 +77,7 @@ out:
 /**
  * kobject_uevent_env - send an uevent with environmental data
  *
- * @action: action that is happening (usually KOBJ_MOVE)
+ * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
  * @envp_ext: pointer to environmental data
  *
@@ -102,9 +102,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
-	while (!top_kobj->kset && top_kobj->parent) {
+	while (!top_kobj->kset && top_kobj->parent)
 		top_kobj = top_kobj->parent;
-	}
+
 	if (!top_kobj->kset) {
 		pr_debug("kobject attempted to send uevent without kset!\n");
 		return -EINVAL;
@@ -237,7 +237,7 @@ EXPORT_SYMBOL_GPL(kobject_uevent_env);
 /**
  * kobject_uevent - notify userspace by ending an uevent
  *
- * @action: action that is happening (usually KOBJ_ADD and KOBJ_REMOVE)
+ * @action: action that is happening
  * @kobj: struct kobject that the action is happening to
  *
  * Returns 0 if kobject_uevent() is completed with success or the
