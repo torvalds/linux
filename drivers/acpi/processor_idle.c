@@ -969,11 +969,17 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 	}
 
 	if (pr->flags.bm_check) {
-		/* bus mastering control is necessary */
 		if (!pr->flags.bm_control) {
-			/* In this case we enter C3 without bus mastering */
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				"C3 support without bus mastering control\n"));
+			if (pr->flags.has_cst != 1) {
+				/* bus mastering control is necessary */
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"C3 support requires BM control\n"));
+				return;
+			} else {
+				/* Here we enter C3 without bus mastering */
+				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					"C3 support without BM control\n"));
+			}
 		}
 	} else {
 		/*
