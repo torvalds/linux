@@ -89,6 +89,8 @@ enum {
 	FE0, FE1,
 	GPIO0, GPIO1, GPIO2, GPIO3,
 	PAM, IRM,
+	INTICI0, INTICI1, INTICI2, INTICI3,
+	INTICI4, INTICI5, INTICI6, INTICI7,
 
 	/* interrupt groups */
 	IRL, PCII56789, SCIF0, SCIF1, SCIF2, SCIF3,
@@ -137,6 +139,10 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(GPIO0, 0xe40), INTC_VECT(GPIO1, 0xe60),
 	INTC_VECT(GPIO2, 0xe80), INTC_VECT(GPIO3, 0xea0),
 	INTC_VECT(PAM, 0xec0), INTC_VECT(IRM, 0xee0),
+	INTC_VECT(INTICI0, 0xf00), INTC_VECT(INTICI1, 0xf20),
+	INTC_VECT(INTICI2, 0xf40), INTC_VECT(INTICI3, 0xf60),
+	INTC_VECT(INTICI4, 0xf80), INTC_VECT(INTICI5, 0xfa0),
+	INTC_VECT(INTICI6, 0xfc0), INTC_VECT(INTICI7, 0xfe0),
 };
 
 static struct intc_group groups[] = {
@@ -207,6 +213,9 @@ static struct intc_prio_reg prio_registers[] = {
 						 VIN1, VIN0, IIC, DU} },
 	{ 0xfe410810, 0, 32, 4, /* INT2PRI4 */ { 0, 0, PAM, GPIO3,
 						 GPIO2, GPIO1, GPIO0, IRM } },
+	{ 0xfe410090, 0xfe4100a0, 32, 4, /* CnICIPRI / CnICIPRICLR */
+	  { INTICI7, INTICI6, INTICI5, INTICI4,
+	    INTICI3, INTICI2, INTICI1, INTICI0 } },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "shx3", vectors, groups, priorities,
