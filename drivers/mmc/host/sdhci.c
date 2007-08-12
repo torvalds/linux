@@ -477,8 +477,8 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	/*
 	 * Controller doesn't count down when in single block mode.
 	 */
-	if ((data->blocks == 1) && (data->error == MMC_ERR_NONE))
-		blocks = 0;
+	if (data->blocks == 1)
+		blocks = (data->error == MMC_ERR_NONE) ? 0 : 1;
 	else
 		blocks = readw(host->ioaddr + SDHCI_BLOCK_COUNT);
 	data->bytes_xfered = data->blksz * (data->blocks - blocks);
