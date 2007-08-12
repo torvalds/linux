@@ -124,6 +124,8 @@ ENDPROC(__memcpy)
 	.quad memcpy
 	.quad 1b
 	.byte X86_FEATURE_REP_GOOD
-	.byte .Lfinal - memcpy
+	/* Replace only beginning, memcpy is used to apply alternatives, so it
+	 * is silly to overwrite itself with nops - reboot is only outcome... */
+	.byte 2b - 1b
 	.byte 2b - 1b
 	.previous
