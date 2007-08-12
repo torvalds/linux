@@ -1820,6 +1820,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
 
+	thermal.off=	[HW,ACPI]
+			1: disable ACPI thermal control
+
 	time		Show timing data prefixed to each printk message line
 			[deprecated, see 'printk.time']
 

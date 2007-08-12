@@ -78,6 +78,10 @@ static int tzp;
 module_param(tzp, int, 0);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
 
+static int off;
+module_param(off, int, 0);
+MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
+
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
 static int acpi_thermal_resume(struct acpi_device *device);
@@ -1285,7 +1289,10 @@ static int __init acpi_thermal_init(void)
 {
 	int result = 0;
 
-
+	if (off) {
+		printk(KERN_NOTICE "ACPI: thermal control disabled\n");
+		return -ENODEV;
+	}
 	acpi_thermal_dir = proc_mkdir(ACPI_THERMAL_CLASS, acpi_root_dir);
 	if (!acpi_thermal_dir)
 		return -ENODEV;
