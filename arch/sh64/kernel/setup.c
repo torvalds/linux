@@ -59,10 +59,6 @@
 #include <asm/setup.h>
 #include <asm/smp.h>
 
-#ifdef CONFIG_VT
-#include <linux/console.h>
-#endif
-
 struct screen_info screen_info;
 
 #ifdef CONFIG_BLK_DEV_RAM
