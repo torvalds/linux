@@ -856,6 +856,15 @@ static struct dmi_system_id sony_nc_ids[] = {
 			},
 		},
 		{
+			.ident = "Sony Vaio FZ Series",
+			.callback = sony_nc_C_enable,
+			.driver_data = sony_C_events,
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ"),
+			},
+		},
+		{
 			.ident = "Sony Vaio C Series",
 			.callback = sony_nc_C_enable,
 			.driver_data = sony_C_events,
