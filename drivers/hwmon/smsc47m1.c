@@ -585,6 +585,8 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 
 	if ((err = device_create_file(dev, &dev_attr_alarms)))
 		goto error_remove_files;
+	if ((err = device_create_file(dev, &dev_attr_name)))
+		goto error_remove_files;
 
 	data->class_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->class_dev)) {
