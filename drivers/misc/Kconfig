@@ -200,14 +200,22 @@ config THINKPAD_ACPI_BAY
 config THINKPAD_ACPI_INPUT_ENABLED
 	bool "Enable input layer support by default"
 	depends on THINKPAD_ACPI
-	default y
+	default n
 	---help---
-	  Enables hot key handling over the input layer by default.  If unset,
-	  the driver does not enable any hot key handling by default, and also
-	  starts up with a mostly empty keymap.
+	  This option enables thinkpad-acpi hot key handling over the input
+	  layer at driver load time.  When it is unset, the driver does not
+	  enable hot key handling by default, and also starts up with a mostly
+	  empty keymap.
 
-	  If you are not sure, say Y here.  Say N to retain the deprecated
-	  behavior of ibm-acpi, and thinkpad-acpi for kernels up to 2.6.21.
+	  This option should be enabled if you have a new enough HAL or other
+	  userspace support that properly handles the thinkpad-acpi event
+	  device.  It auto-tunes the hot key support to those reported by the
+	  firmware and enables it automatically.
+
+	  If unsure, say N here to retain the old behaviour of ibm-acpi, and
+	  thinkpad-acpi up to kernel 2.6.21: userspace will have to enable and
+	  set up the thinkpad-acpi hot key handling using the sysfs interace
+	  after loading the driver.
 
 
 endif # MISC_DEVICES

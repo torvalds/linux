@@ -845,7 +845,7 @@ static struct sony_nc_event sony_C_events[] = {
 };
 
 /* SNC-only model map */
-struct dmi_system_id sony_nc_ids[] = {
+static struct dmi_system_id sony_nc_ids[] = {
 		{
 			.ident = "Sony Vaio FE Series",
 			.callback = sony_nc_C_enable,
@@ -941,6 +941,11 @@ static int sony_nc_resume(struct acpi_device *device)
 			break;
 		}
 	}
+
+	/* set the last requested brightness level */
+	if (sony_backlight_device &&
+			!sony_backlight_update_status(sony_backlight_device))
+		printk(KERN_WARNING DRV_PFX "unable to restore brightness level");
 
 	/* re-initialize models with specific requirements */
 	dmi_check_system(sony_nc_ids);
