@@ -163,6 +163,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	acpi_irq_isa=	[HW,ACPI] If irq_balance, mark listed IRQs used by ISA
 			Format: <irq>,<irq>...
 
+	acpi_no_auto_ssdt	[HW,ACPI] Disable automatic loading of SSDT
+
 	acpi_os_name=	[HW,ACPI] Tell ACPI BIOS the name of the OS
 			Format: To spoof as Windows 98: ="Microsoft Windows"
 
@@ -1819,6 +1821,26 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	thash_entries=	[KNL,NET]
 			Set number of hash buckets for TCP connection
+
+	thermal.act=	[HW,ACPI]
+			-1: disable all active trip points in all thermal zones
+			<degrees C>: override all lowest active trip points
+
+	thermal.nocrt=	[HW,ACPI]
+			Set to disable actions on ACPI thermal zone
+			critical and hot trip points.
+
+	thermal.off=	[HW,ACPI]
+			1: disable ACPI thermal control
+
+	thermal.psv=	[HW,ACPI]
+			-1: disable all passive trip points
+			<degrees C>: override all passive trip points to this value
+
+	thermal.tzp=	[HW,ACPI]
+			Specify global default ACPI thermal zone polling rate
+			<deci-seconds>: poll all this frequency
+			0: no polling (default)
 
 	time		Show timing data prefixed to each printk message line
 			[deprecated, see 'printk.time']

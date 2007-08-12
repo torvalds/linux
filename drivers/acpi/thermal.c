@@ -33,6 +33,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
@@ -74,9 +75,25 @@ MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
 MODULE_LICENSE("GPL");
 
+static int act;
+module_param(act, int, 0644);
+MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.\n");
+
 static int tzp;
-module_param(tzp, int, 0);
+module_param(tzp, int, 0444);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
+
+static int nocrt;
+module_param(nocrt, int, 0);
+MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.\n");
+
+static int off;
+module_param(off, int, 0);
+MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
+
+static int psv;
+module_param(psv, int, 0644);
+MODULE_PARM_DESC(psv, "Disable or override all passive trip points.\n");
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
@@ -339,9 +356,16 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 	/* Passive: Processors (optional) */
 
-	status =
-	    acpi_evaluate_integer(tz->device->handle, "_PSV", NULL,
-				  &tz->trips.passive.temperature);
+	if (psv == -1) {
+		status = AE_SUPPORT;
+	} else if (psv > 0) {
+		tz->trips.passive.temperature = CELSIUS_TO_KELVIN(psv);
+		status = AE_OK;
+	} else {
+		status = acpi_evaluate_integer(tz->device->handle,
+			"_PSV", NULL, &tz->trips.passive.temperature);
+	}
+
 	if (ACPI_FAILURE(status)) {
 		tz->trips.passive.flags.valid = 0;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No passive threshold\n"));
@@ -386,11 +410,33 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 		char name[5] = { '_', 'A', 'C', ('0' + i), '\0' };
 
-		status =
-		    acpi_evaluate_integer(tz->device->handle, name, NULL,
-					  &tz->trips.active[i].temperature);
-		if (ACPI_FAILURE(status))
+		if (act == -1)
+			break;	/* disable all active trip points */
+
+		status = acpi_evaluate_integer(tz->device->handle,
+			name, NULL, &tz->trips.active[i].temperature);
+
+		if (ACPI_FAILURE(status)) {
+			if (i == 0)	/* no active trip points */
+				break;
+			if (act <= 0)	/* no override requested */
+				break;
+			if (i == 1) {	/* 1 trip point */
+				tz->trips.active[0].temperature =
+					CELSIUS_TO_KELVIN(act);
+			} else {	/* multiple trips */
+				/*
+				 * Don't allow override higher than
+				 * the next higher trip point
+				 */
+				tz->trips.active[i - 1].temperature =
+				    (tz->trips.active[i - 2].temperature <
+					CELSIUS_TO_KELVIN(act) ?
+					tz->trips.active[i - 2].temperature :
+					CELSIUS_TO_KELVIN(act));
+			}
 			break;
+		}
 
 		name[2] = 'L';
 		status =
@@ -427,7 +473,7 @@ static int acpi_thermal_get_devices(struct acpi_thermal *tz)
 
 static int acpi_thermal_critical(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.critical.flags.valid)
+	if (!tz || !tz->trips.critical.flags.valid || nocrt)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.critical.temperature) {
@@ -449,7 +495,7 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 
 static int acpi_thermal_hot(struct acpi_thermal *tz)
 {
-	if (!tz || !tz->trips.hot.flags.valid)
+	if (!tz || !tz->trips.hot.flags.valid || nocrt)
 		return -EINVAL;
 
 	if (tz->temperature >= tz->trips.hot.temperature) {
@@ -824,12 +870,14 @@ static int acpi_thermal_trip_seq_show(struct seq_file *seq, void *offset)
 		goto end;
 
 	if (tz->trips.critical.flags.valid)
-		seq_printf(seq, "critical (S5):           %ld C\n",
-			   KELVIN_TO_CELSIUS(tz->trips.critical.temperature));
+		seq_printf(seq, "critical (S5):           %ld C%s",
+			   KELVIN_TO_CELSIUS(tz->trips.critical.temperature),
+			   nocrt ? " <disabled>\n" : "\n");
 
 	if (tz->trips.hot.flags.valid)
-		seq_printf(seq, "hot (S4):                %ld C\n",
-			   KELVIN_TO_CELSIUS(tz->trips.hot.temperature));
+		seq_printf(seq, "hot (S4):                %ld C%s",
+			   KELVIN_TO_CELSIUS(tz->trips.hot.temperature),
+			   nocrt ? " <disabled>\n" : "\n");
 
 	if (tz->trips.passive.flags.valid) {
 		seq_printf(seq,
@@ -1281,11 +1329,78 @@ static int acpi_thermal_resume(struct acpi_device *device)
 	return AE_OK;
 }
 
+#ifdef CONFIG_DMI
+static int thermal_act(struct dmi_system_id *d) {
+
+	if (act == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"disabling all active thermal trip points\n", d->ident);
+		act = -1;
+	}
+	return 0;
+}
+static int thermal_tzp(struct dmi_system_id *d) {
+
+	if (tzp == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"enabling thermal zone polling\n", d->ident);
+		tzp = 300;	/* 300 dS = 30 Seconds */
+	}
+	return 0;
+}
+static int thermal_psv(struct dmi_system_id *d) {
+
+	if (psv == 0) {
+		printk(KERN_NOTICE "ACPI: %s detected: "
+			"disabling all passive thermal trip points\n", d->ident);
+		psv = -1;
+	}
+	return 0;
+}
+
+static struct dmi_system_id thermal_dmi_table[] __initdata = {
+	/*
+	 * Award BIOS on this AOpen makes thermal control almost worthless.
+	 * http://bugzilla.kernel.org/show_bug.cgi?id=8842
+	 */
+	{
+	 .callback = thermal_act,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_psv,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_tzp,
+	 .ident = "AOpen i915GMm-HFS",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
+		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{}
+};
+#endif /* CONFIG_DMI */
+
 static int __init acpi_thermal_init(void)
 {
 	int result = 0;
 
+	dmi_check_system(thermal_dmi_table);
 
+	if (off) {
+		printk(KERN_NOTICE "ACPI: thermal control disabled\n");
+		return -ENODEV;
+	}
 	acpi_thermal_dir = proc_mkdir(ACPI_THERMAL_CLASS, acpi_root_dir);
 	if (!acpi_thermal_dir)
 		return -ENODEV;
