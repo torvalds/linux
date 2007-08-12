@@ -82,6 +82,10 @@ static int off;
 module_param(off, int, 0);
 MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
 
+static int psv;
+module_param(psv, int, 0644);
+MODULE_PARM_DESC(psv, "Disable or override all passive trip points.\n");
+
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
 static int acpi_thermal_resume(struct acpi_device *device);
@@ -343,9 +347,16 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 	/* Passive: Processors (optional) */
 
-	status =
-	    acpi_evaluate_integer(tz->device->handle, "_PSV", NULL,
-				  &tz->trips.passive.temperature);
+	if (psv == -1) {
+		status = AE_SUPPORT;
+	} else if (psv > 0) {
+		tz->trips.passive.temperature = CELSIUS_TO_KELVIN(psv);
+		status = AE_OK;
+	} else {
+		status = acpi_evaluate_integer(tz->device->handle,
+			"_PSV", NULL, &tz->trips.passive.temperature);
+	}
+
 	if (ACPI_FAILURE(status)) {
 		tz->trips.passive.flags.valid = 0;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No passive threshold\n"));

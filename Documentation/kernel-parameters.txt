@@ -1823,6 +1823,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	thermal.off=	[HW,ACPI]
 			1: disable ACPI thermal control
 
+	thermal.psv=	[HW,ACPI]
+			-1: disable all passive trip points
+			<degrees C>: override all passive trip points to this value
+
 	thermal.tzp=	[HW,ACPI]
 			Specify global default ACPI thermal zone polling rate
 			<deci-seconds>: poll all this frequency
