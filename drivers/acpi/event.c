@@ -108,7 +108,7 @@ static const struct file_operations acpi_system_event_ops = {
 };
 
 #ifdef CONFIG_NET
-unsigned int acpi_event_seqnum;
+static unsigned int acpi_event_seqnum;
 struct acpi_genl_event {
 	acpi_device_class device_class;
 	char bus_id[15];
