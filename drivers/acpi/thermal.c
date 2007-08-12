@@ -74,6 +74,10 @@ MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
 MODULE_LICENSE("GPL");
 
+static int act;
+module_param(act, int, 0644);
+MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.\n");
+
 static int tzp;
 module_param(tzp, int, 0444);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
@@ -405,11 +409,33 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 
 		char name[5] = { '_', 'A', 'C', ('0' + i), '\0' };
 
-		status =
-		    acpi_evaluate_integer(tz->device->handle, name, NULL,
-					  &tz->trips.active[i].temperature);
-		if (ACPI_FAILURE(status))
+		if (act == -1)
+			break;	/* disable all active trip points */
+
+		status = acpi_evaluate_integer(tz->device->handle,
+			name, NULL, &tz->trips.active[i].temperature);
+
+		if (ACPI_FAILURE(status)) {
+			if (i == 0)	/* no active trip points */
+				break;
+			if (act <= 0)	/* no override requested */
+				break;
+			if (i == 1) {	/* 1 trip point */
+				tz->trips.active[0].temperature =
+					CELSIUS_TO_KELVIN(act);
+			} else {	/* multiple trips */
+				/*
+				 * Don't allow override higher than
+				 * the next higher trip point
+				 */
+				tz->trips.active[i - 1].temperature =
+				    (tz->trips.active[i - 2].temperature <
+					CELSIUS_TO_KELVIN(act) ?
+					tz->trips.active[i - 2].temperature :
+					CELSIUS_TO_KELVIN(act));
+			}
 			break;
+		}
 
 		name[2] = 'L';
 		status =
