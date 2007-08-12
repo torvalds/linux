@@ -39,6 +39,7 @@
 #include <linux/string.h>
 #include <linux/stringify.h>
 #include <linux/timer.h>
+#include <linux/workqueue.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -625,6 +626,8 @@ static void sbp2_release_target(struct kref *kref)
 	scsi_host_put(shost);
 }
 
+static struct workqueue_struct *sbp2_wq;
+
 static void sbp2_reconnect(struct work_struct *work);
 
 static void sbp2_login(struct work_struct *work)
@@ -647,7 +650,8 @@ static void sbp2_login(struct work_struct *work)
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
 		if (lu->retries++ < 5) {
-			schedule_delayed_work(&lu->work, DIV_ROUND_UP(HZ, 5));
+			queue_delayed_work(sbp2_wq, &lu->work,
+					   DIV_ROUND_UP(HZ, 5));
 		} else {
 			fw_error("failed to login to %s LUN %04x\n",
 				 unit->device.bus_id, lu->lun);
@@ -866,7 +870,7 @@ static int sbp2_probe(struct device *dev)
 	 * work.
 	 */
 	list_for_each_entry(lu, &tgt->lu_list, link)
-		if (schedule_delayed_work(&lu->work, 0))
+		if (queue_delayed_work(sbp2_wq, &lu->work, 0))
 			kref_get(&tgt->kref);
 	return 0;
 
@@ -910,7 +914,7 @@ static void sbp2_reconnect(struct work_struct *work)
 			lu->retries = 0;
 			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
 		}
-		schedule_delayed_work(&lu->work, DIV_ROUND_UP(HZ, 5));
+		queue_delayed_work(sbp2_wq, &lu->work, DIV_ROUND_UP(HZ, 5));
 		return;
 	}
 
@@ -940,7 +944,7 @@ static void sbp2_update(struct fw_unit *unit)
 	 */
 	list_for_each_entry(lu, &tgt->lu_list, link) {
 		lu->retries = 0;
-		if (schedule_delayed_work(&lu->work, 0))
+		if (queue_delayed_work(sbp2_wq, &lu->work, 0))
 			kref_get(&tgt->kref);
 	}
 }
@@ -1335,12 +1339,17 @@ MODULE_ALIAS("sbp2");
 
 static int __init sbp2_init(void)
 {
+	sbp2_wq = create_singlethread_workqueue(KBUILD_MODNAME);
+	if (!sbp2_wq)
+		return -ENOMEM;
+
 	return driver_register(&sbp2_driver.driver);
 }
 
 static void __exit sbp2_cleanup(void)
 {
 	driver_unregister(&sbp2_driver.driver);
+	destroy_workqueue(sbp2_wq);
 }
 
 module_init(sbp2_init);
