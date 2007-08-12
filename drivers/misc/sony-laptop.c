@@ -2317,8 +2317,6 @@ static int sony_pic_remove(struct acpi_device *device, int type)
 	struct sony_pic_ioport *io, *tmp_io;
 	struct sony_pic_irq *irq, *tmp_irq;
 
-	sonypi_compat_exit();
-
 	if (sony_pic_disable(device)) {
 		printk(KERN_ERR DRV_PFX "Couldn't disable device.\n");
 		return -ENXIO;
@@ -2327,6 +2325,8 @@ static int sony_pic_remove(struct acpi_device *device, int type)
 	free_irq(spic_dev.cur_irq->irq.interrupts[0], &spic_dev);
 	release_region(spic_dev.cur_ioport->io.minimum,
 			spic_dev.cur_ioport->io.address_length);
+
+	sonypi_compat_exit();
 
 	sony_laptop_remove_input();
 
@@ -2393,6 +2393,9 @@ static int sony_pic_add(struct acpi_device *device)
 		goto err_free_resources;
 	}
 
+	if (sonypi_compat_init())
+		goto err_remove_input;
+
 	/* request io port */
 	list_for_each_entry(io, &spic_dev.ioports, list) {
 		if (request_region(io->io.minimum, io->io.address_length,
@@ -2407,7 +2410,7 @@ static int sony_pic_add(struct acpi_device *device)
 	if (!spic_dev.cur_ioport) {
 		printk(KERN_ERR DRV_PFX "Failed to request_region.\n");
 		result = -ENODEV;
-		goto err_remove_input;
+		goto err_remove_compat;
 	}
 
 	/* request IRQ */
@@ -2447,9 +2450,6 @@ static int sony_pic_add(struct acpi_device *device)
 	if (result)
 		goto err_remove_pf;
 
-	if (sonypi_compat_init())
-		goto err_remove_pf;
-
 	return 0;
 
 err_remove_pf:
@@ -2464,6 +2464,9 @@ err_free_irq:
 err_release_region:
 	release_region(spic_dev.cur_ioport->io.minimum,
 			spic_dev.cur_ioport->io.address_length);
+
+err_remove_compat:
+	sonypi_compat_exit();
 
 err_remove_input:
 	sony_laptop_remove_input();
