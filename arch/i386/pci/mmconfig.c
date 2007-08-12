@@ -115,13 +115,13 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 
 	switch (len) {
 	case 1:
-		mmio_config_writeb(mmcfg_virt_addr, value);
+		mmio_config_writeb(mmcfg_virt_addr + reg, value);
 		break;
 	case 2:
-		mmio_config_writew(mmcfg_virt_addr, value);
+		mmio_config_writew(mmcfg_virt_addr + reg, value);
 		break;
 	case 4:
-		mmio_config_writel(mmcfg_virt_addr, value);
+		mmio_config_writel(mmcfg_virt_addr + reg, value);
 		break;
 	}
 	spin_unlock_irqrestore(&pci_config_lock, flags);
