@@ -1,18 +1,5 @@
 menu "Companion Chips"
 
-config VOYAGERGX
-	bool "VoyagerGX chip support"
-	depends on SH_RTS7751R2D
-	help
-	  Selecting this option will support Silicon Motion, Inc. SM501.
-	  Designed to complement needs for the embedded industry, it
-	  provides video and 2D capability. To reduce system cost a
-	  wide variety of include I/O is supported, including analog RGB
-	  and digital LCD Panel interface, 8-bit parallel interface, USB,
-	  UART, IrDA, Zoom Video, AC97 or I2S, SSP, PWM, and I2C. There
-	  are additional GPIO bits that can be used to interface to
-	  external as well.
-
 config HD6446X_SERIES
 	bool
 

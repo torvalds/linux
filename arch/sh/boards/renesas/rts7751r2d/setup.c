@@ -73,6 +73,22 @@ static struct platform_device cf_ide_device  = {
 	},
 };
 
+static struct resource heartbeat_resources[] = {
+	[0] = {
+		.start	= PA_OUTPORT,
+		.end	= PA_OUTPORT + 8 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device heartbeat_device = {
+	.name		= "heartbeat",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(heartbeat_resources),
+	.resource	= heartbeat_resources,
+};
+
+#ifdef CONFIG_MFD_SM501
 static struct plat_serial8250_port uart_platform_data[] = {
 	{
 		.membase	= (void __iomem *)VOYAGER_UART_BASE,
@@ -92,21 +108,6 @@ static struct platform_device uart_device = {
 	.dev		= {
 		.platform_data	= uart_platform_data,
 	},
-};
-
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PA_OUTPORT,
-		.end	= PA_OUTPORT + 8 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device heartbeat_device = {
-	.name		= "heartbeat",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
 };
 
 static struct resource sm501_resources[] = {
@@ -133,10 +134,14 @@ static struct platform_device sm501_device = {
 	.resource	= sm501_resources,
 };
 
+#endif /* CONFIG_MFD_SM501 */
+
 static struct platform_device *rts7751r2d_devices[] __initdata = {
+#ifdef CONFIG_MFD_SM501
 	&uart_device,
-	&heartbeat_device,
 	&sm501_device,
+#endif
+	&heartbeat_device,
 };
 
 static int __init rts7751r2d_devices_setup(void)
@@ -187,7 +192,7 @@ static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 	.mv_irq_demux		= rts7751r2d_irq_demux,
 
-#ifdef CONFIG_USB_SM501
+#if defined(CONFIG_MFD_SM501) && defined(CONFIG_USB_OHCI_HCD)
 	.mv_consistent_alloc	= voyagergx_consistent_alloc,
 	.mv_consistent_free	= voyagergx_consistent_free,
 #endif
