@@ -75,7 +75,17 @@ MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 module_param(enable_msi, int, 0);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 
+#ifdef CONFIG_SND_HDA_POWER_SAVE
 /* power_save option is defined in hda_codec.c */
+
+/* reset the HD-audio controller in power save mode.
+ * this may give more power-saving, but will take longer time to
+ * wake up.
+ */
+static int power_save_controller = 1;
+module_param(power_save_controller, bool, 0644);
+MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
+#endif
 
 /* just for backward compatibility */
 static int enable;
@@ -101,17 +111,6 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 MODULE_DESCRIPTION("Intel HDA driver");
 
 #define SFX	"hda-intel: "
-
-/*
- * build flags
- */
-
-/*
- * reset the HD-audio controller in power save mode.
- * this may give more power-saving, but will take longer time to
- * wake up.
- */
-#define HDA_POWER_SAVE_RESET_CONTROLLER
 
 
 /*
@@ -1533,10 +1532,8 @@ static void azx_power_notify(struct hda_codec *codec)
 	}
 	if (power_on)
 		azx_init_chip(chip);
-#ifdef HDA_POWER_SAVE_RESET_CONTROLLER
-	else if (chip->running)
+	else if (chip->running && power_save_controller)
 		azx_stop_chip(chip);
-#endif
 }
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
