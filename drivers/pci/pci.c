@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/log2.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
@@ -1454,7 +1455,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 	int cap, err = -EINVAL;
 	u32 stat, cmd, v, o;
 
-	if (mmrbc < 512 || mmrbc > 4096 || (mmrbc & (mmrbc-1)))
+	if (mmrbc < 512 || mmrbc > 4096 || !is_power_of_2(mmrbc))
 		goto out;
 
 	v = ffs(mmrbc) - 10;
@@ -1526,7 +1527,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	int cap, err = -EINVAL;
 	u16 ctl, v;
 
-	if (rq < 128 || rq > 4096 || (rq & (rq-1)))
+	if (rq < 128 || rq > 4096 || !is_power_of_2(rq))
 		goto out;
 
 	v = (ffs(rq) - 8) << 12;
