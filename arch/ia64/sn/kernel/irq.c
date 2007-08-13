@@ -405,7 +405,10 @@ sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
 	struct sn_pcibus_provider *pci_provider;
 
 	pci_provider = sn_pci_provider[sn_irq_info->irq_bridge_type];
-	if (pci_provider && pci_provider->force_interrupt)
+
+	/* Don't force an interrupt if the irq has been disabled */
+	if (!(irq_desc[sn_irq_info->irq_irq].status & IRQ_DISABLED) &&
+	    pci_provider && pci_provider->force_interrupt)
 		(*pci_provider->force_interrupt)(sn_irq_info);
 }
 
