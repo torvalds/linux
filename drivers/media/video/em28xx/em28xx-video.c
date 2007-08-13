@@ -268,8 +268,6 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	if (NULL == dev)
 		return -ENODEV;
 
-	filp->private_data=dev;
-
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
 				minor,v4l2_type_names[dev->type],dev->users);
 
