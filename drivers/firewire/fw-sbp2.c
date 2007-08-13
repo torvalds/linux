@@ -37,6 +37,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
 #include <linux/string.h>
+#include <linux/stringify.h>
 #include <linux/timer.h>
 
 #include <scsi/scsi.h>
@@ -59,6 +60,46 @@ static int sbp2_param_exclusive_login = 1;
 module_param_named(exclusive_login, sbp2_param_exclusive_login, bool, 0644);
 MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
 		 "(default = Y, use N for concurrent initiators)");
+
+/*
+ * Flags for firmware oddities
+ *
+ * - 128kB max transfer
+ *   Limit transfer size. Necessary for some old bridges.
+ *
+ * - 36 byte inquiry
+ *   When scsi_mod probes the device, let the inquiry command look like that
+ *   from MS Windows.
+ *
+ * - skip mode page 8
+ *   Suppress sending of mode_sense for mode page 8 if the device pretends to
+ *   support the SCSI Primary Block commands instead of Reduced Block Commands.
+ *
+ * - fix capacity
+ *   Tell sd_mod to correct the last sector number reported by read_capacity.
+ *   Avoids access beyond actual disk limits on devices with an off-by-one bug.
+ *   Don't use this with devices which don't have this bug.
+ *
+ * - override internal blacklist
+ *   Instead of adding to the built-in blacklist, use only the workarounds
+ *   specified in the module load parameter.
+ *   Useful if a blacklist entry interfered with a non-broken device.
+ */
+#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
+#define SBP2_WORKAROUND_INQUIRY_36	0x2
+#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
+#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
+#define SBP2_WORKAROUND_OVERRIDE	0x100
+
+static int sbp2_param_workarounds;
+module_param_named(workarounds, sbp2_param_workarounds, int, 0644);
+MODULE_PARM_DESC(workarounds, "Work around device bugs (default = 0"
+	", 128kB max transfer = " __stringify(SBP2_WORKAROUND_128K_MAX_TRANS)
+	", 36 byte inquiry = "    __stringify(SBP2_WORKAROUND_INQUIRY_36)
+	", skip mode page 8 = "   __stringify(SBP2_WORKAROUND_MODE_SENSE_8)
+	", fix capacity = "       __stringify(SBP2_WORKAROUND_FIX_CAPACITY)
+	", override internal blacklist = " __stringify(SBP2_WORKAROUND_OVERRIDE)
+	", or a combination)");
 
 /* I don't know why the SCSI stack doesn't define something like this... */
 typedef void (*scsi_done_fn_t)(struct scsi_cmnd *);
@@ -121,13 +162,6 @@ struct sbp2_target {
 #define SBP2_CSR_FIRMWARE_REVISION	0x3c
 #define SBP2_CSR_LOGICAL_UNIT_NUMBER	0x14
 #define SBP2_CSR_LOGICAL_UNIT_DIRECTORY	0xd4
-
-/* Flags for detected oddities and brokeness */
-#define SBP2_WORKAROUND_128K_MAX_TRANS	0x1
-#define SBP2_WORKAROUND_INQUIRY_36	0x2
-#define SBP2_WORKAROUND_MODE_SENSE_8	0x4
-#define SBP2_WORKAROUND_FIX_CAPACITY	0x8
-#define SBP2_WORKAROUND_OVERRIDE	0x100
 
 /* Management orb opcodes */
 #define SBP2_LOGIN_REQUEST		0x0
@@ -751,8 +785,15 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 				  u32 firmware_revision)
 {
 	int i;
+	unsigned w = sbp2_param_workarounds;
 
-	tgt->workarounds = 0;
+	if (w)
+		fw_notify("Please notify linux1394-devel@lists.sourceforge.net "
+			  "if you need the workarounds parameter for %s\n",
+			  tgt->unit->device.bus_id);
+
+	if (w & SBP2_WORKAROUND_OVERRIDE)
+		goto out;
 
 	for (i = 0; i < ARRAY_SIZE(sbp2_workarounds_table); i++) {
 
@@ -764,15 +805,16 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 		    sbp2_workarounds_table[i].model != ~0)
 			continue;
 
-		tgt->workarounds |= sbp2_workarounds_table[i].workarounds;
+		w |= sbp2_workarounds_table[i].workarounds;
 		break;
 	}
-
-	if (tgt->workarounds)
+ out:
+	if (w)
 		fw_notify("Workarounds for %s: 0x%x "
 			  "(firmware_revision 0x%06x, model_id 0x%06x)\n",
 			  tgt->unit->device.bus_id,
-			  tgt->workarounds, firmware_revision, model);
+			  w, firmware_revision, model);
+	tgt->workarounds = w;
 }
 
 static struct scsi_host_template scsi_driver_template;
