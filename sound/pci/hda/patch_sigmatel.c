@@ -44,7 +44,9 @@ enum {
 
 enum {
 	STAC_9205_REF,
-	STAC_M43xx,
+	STAC_9205_DELL_M43,
+	STAC_9205_DELL_M44,
+	STAC_9205_M43xx,
 	STAC_9205_MODELS
 };
 
@@ -788,23 +790,58 @@ static unsigned int ref9205_pin_configs[12] = {
 	0x90a000f0, 0x90a000f0, 0x01441030, 0x01c41030
 };
 
+static unsigned int dell_m43_9205_pin_configs[12] = {
+	0x0321101f, 0x03a11020, 0x90a70330, 0x90170310,
+	0x400000fe, 0x400000ff, 0x400000fd, 0x40f000f9,
+	0x400000fa, 0x400000fc, 0x0144131f, 0x40c003f8,
+};
+
+static unsigned int dell_m44_9205_pin_configs[12] = {
+	0x0421101f, 0x04a11020, 0x400003fa, 0x90170310,
+	0x400003fb, 0x400003fc, 0x400003fd, 0x400003f9,
+	0x90a60330, 0x400003ff, 0x01441340, 0x40c003fe,
+};
+
+
 static unsigned int *stac9205_brd_tbl[STAC_9205_MODELS] = {
-	[STAC_REF] = ref9205_pin_configs,
-	[STAC_M43xx] = NULL,
+	[STAC_9205_REF] = ref9205_pin_configs,
+	[STAC_9205_DELL_M43] = dell_m43_9205_pin_configs,
+	[STAC_9205_DELL_M44] = dell_m44_9205_pin_configs,
+	[STAC_9205_M43xx] = NULL,
 };
 
 static const char *stac9205_models[STAC_9205_MODELS] = {
 	[STAC_9205_REF] = "ref",
+	[STAC_9205_DELL_M43] = "dell-m43",
+	[STAC_9205_DELL_M44] = "dell-m44",
 };
 
 static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_9205_REF),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x01f8,
-		      "Dell Precision", STAC_M43xx),
-	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x01ff,
-		      "Dell Precision", STAC_M43xx),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f8,
+		      "Dell Precision", STAC_9205_M43xx),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f9,
+		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fa,
+		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fe,
+		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ff,
+		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0206,
+		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f1,
+		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f2,
+		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fc,
+		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fd,
+		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x021f,
+		      "Dell Inspiron", STAC_9205_DELL_M44),
 	{} /* terminator */
 };
 
@@ -2312,7 +2349,9 @@ static int patch_stac9205(struct hda_codec *codec)
 
 	spec->multiout.dac_nids = spec->dac_nids;
 	
-	if (spec->board_config == STAC_M43xx) {
+	switch (spec->board_config){
+	case STAC_9205_M43xx:
+	case STAC_9205_DELL_M43:
 		/* Enable SPDIF in/out */
 		stac92xx_set_config_reg(codec, 0x1f, 0x01441030);
 		stac92xx_set_config_reg(codec, 0x20, 0x1c410030);
@@ -2322,9 +2361,12 @@ static int patch_stac9205(struct hda_codec *codec)
 		 * GPIO2 High = Headphone Mute
 		 */
 		spec->gpio_data = 0x00000005;
-	} else
-		spec->gpio_mask = spec->gpio_data =
-			0x00000001; /* GPIO0 High = EAPD */
+		break;
+	default:
+		/* GPIO0 High = EAPD */
+		spec->gpio_mask = spec->gpio_data = 0x00000001;
+		break;
+	}
 
 	stac92xx_enable_gpio_mask(codec);
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
