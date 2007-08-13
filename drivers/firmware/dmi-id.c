@@ -20,10 +20,6 @@ struct dmi_device_attribute{
 #define to_dmi_dev_attr(_dev_attr) \
 	container_of(_dev_attr, struct dmi_device_attribute, dev_attr)
 
-#define DEFINE_DMI_ATTR(_name, _mode, _show)		\
-static struct device_attribute sys_dmi_##_name##_attr =	\
-	__ATTR(_name, _mode, _show, NULL);
-
 static ssize_t sys_dmi_field_show(struct device *dev,
 				  struct device_attribute *attr,
 				  char *page)
@@ -135,7 +131,8 @@ static ssize_t sys_dmi_modalias_show(struct device *dev,
 	return r+1;
 }
 
-DEFINE_DMI_ATTR(modalias, 0444, sys_dmi_modalias_show);
+static struct device_attribute sys_dmi_modalias_attr =
+	__ATTR(modalias, 0444, sys_dmi_modalias_show, NULL);
 
 static struct attribute *sys_dmi_attributes[DMI_STRING_MAX+2];
 
