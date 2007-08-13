@@ -67,6 +67,10 @@ unsigned long (*rtc_mips_get_time)(void) = null_rtc_get_time;
 int (*rtc_mips_set_time)(unsigned long) = null_rtc_set_time;
 int (*rtc_mips_set_mmss)(unsigned long);
 
+int update_persistent_clock(struct timespec now)
+{
+	return rtc_mips_set_mmss(now.tv_sec);
+}
 
 /* how many counter cycles in a jiffy */
 static unsigned long cycles_per_jiffy __read_mostly;
@@ -125,9 +129,6 @@ static void __init c0_hpt_timer_init(void)
 int (*mips_timer_state)(void);
 void (*mips_timer_ack)(void);
 
-/* last time when xtime and rtc are sync'ed up */
-static long last_rtc_update;
-
 /*
  * local_timer_interrupt() does profiling and process accounting
  * on a per-CPU basis.
@@ -158,23 +159,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 * call the generic timer interrupt handling
 	 */
 	do_timer(1);
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. rtc_mips_set_time() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_mips_set_mmss(xtime.tv_sec) == 0) {
-			last_rtc_update = xtime.tv_sec;
-		} else {
-			/* do it again in 60 s */
-			last_rtc_update = xtime.tv_sec - 600;
-		}
-	}
 
 	write_sequnlock(&xtime_lock);
 

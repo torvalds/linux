@@ -40,7 +40,6 @@
 #define TICK_SIZE (tick_nsec / 1000)
 
 static unsigned long ct_cur[NR_CPUS];	/* What counter should be at next timer irq */
-static long last_rtc_update;		/* Last time the rtc clock got updated */
 
 #if 0
 static int set_rtc_mmss(unsigned long nowtime)
@@ -112,23 +111,6 @@ again:
 		do_timer(1);
 
 	update_process_times(user_mode(get_irq_regs()));
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * RTC clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to when a second starts.
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_mips_set_time(xtime.tv_sec) == 0) {
-			last_rtc_update = xtime.tv_sec;
-		} else {
-			last_rtc_update = xtime.tv_sec - 600;
-			/* do it again in 60 s */
-		}
-	}
 
 	write_sequnlock(&xtime_lock);
 	irq_exit();
