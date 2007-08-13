@@ -433,21 +433,16 @@ EXPORT_SYMBOL(snd_pcm_format_set_silence);
  */
 int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 {
-	static unsigned rates[] = {
-		/* ATTENTION: these values depend on the definition in pcm.h! */
-		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
-		64000, 88200, 96000, 176400, 192000
-	};
 	int i;
-	for (i = 0; i < (int)ARRAY_SIZE(rates); i++) {
+	for (i = 0; i < (int)snd_pcm_known_rates.count; i++) {
 		if (runtime->hw.rates & (1 << i)) {
-			runtime->hw.rate_min = rates[i];
+			runtime->hw.rate_min = snd_pcm_known_rates.list[i];
 			break;
 		}
 	}
-	for (i = (int)ARRAY_SIZE(rates) - 1; i >= 0; i--) {
+	for (i = (int)snd_pcm_known_rates.count - 1; i >= 0; i--) {
 		if (runtime->hw.rates & (1 << i)) {
-			runtime->hw.rate_max = rates[i];
+			runtime->hw.rate_max = snd_pcm_known_rates.list[i];
 			break;
 		}
 	}
