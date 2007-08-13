@@ -1995,14 +1995,15 @@ config ACENIC_OMIT_TIGON_I
 	  The safe and default value for this is N.
 
 config DL2K
-	tristate "D-Link DL2000-based Gigabit Ethernet support"
+	tristate "DL2000/TC902x-based Gigabit Ethernet support"
 	depends on PCI
 	select CRC32
 	help
-	  This driver supports D-Link 2000-based gigabit ethernet cards, which
-	  includes
+	  This driver supports DL2000/TC902x-based Gigabit ethernet cards,
+	  which includes
 	  D-Link DGE-550T Gigabit Ethernet Adapter.
 	  D-Link DL2000-based Gigabit Ethernet Adapter.
+	  Sundance/Tamarack TC902x Gigabit Ethernet Adapter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dl2k.

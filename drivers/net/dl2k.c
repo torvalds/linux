@@ -10,9 +10,9 @@
     (at your option) any later version.
 */
 
-#define DRV_NAME	"D-Link DL2000-based linux driver"
-#define DRV_VERSION	"v1.18"
-#define DRV_RELDATE	"2006/06/27"
+#define DRV_NAME	"DL2000/TC902x-based linux driver"
+#define DRV_VERSION	"v1.19"
+#define DRV_RELDATE	"2007/08/12"
 #include "dl2k.h"
 #include <linux/dma-mapping.h>
 
@@ -339,16 +339,23 @@ parse_eeprom (struct net_device *dev)
 #ifdef	MEM_MAPPING
 	ioaddr = dev->base_addr;
 #endif
-	/* Check CRC */
-	crc = ~ether_crc_le (256 - 4, sromdata);
-	if (psrom->crc != crc) {
-		printk (KERN_ERR "%s: EEPROM data CRC error.\n", dev->name);
-		return -1;
+	if (np->pdev->vendor == PCI_VENDOR_ID_DLINK) {	/* D-Link Only */
+		/* Check CRC */
+		crc = ~ether_crc_le (256 - 4, sromdata);
+		if (psrom->crc != crc) {
+			printk (KERN_ERR "%s: EEPROM data CRC error.\n",
+					dev->name);
+			return -1;
+		}
 	}
 
 	/* Set MAC address */
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = psrom->mac_addr[i];
+
+	if (np->pdev->vendor != PCI_VENDOR_ID_DLINK) {
+		return 0;
+	}
 
 	/* Parse Software Information Block */
 	i = 0x30;
