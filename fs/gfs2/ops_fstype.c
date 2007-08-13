@@ -144,7 +144,8 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	snprintf(sdp->sd_proto_name, GFS2_FSNAME_LEN, "%s", proto);
 	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
 
-	while ((table = strchr(sdp->sd_table_name, '/')))
+	table = sdp->sd_table_name;
+	while ((table = strchr(table, '/')))
 		*table = '_';
 
 out:
