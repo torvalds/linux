@@ -45,6 +45,7 @@ asmlinkage long sys_spu_create(const char __user *name,
 	if (owner && try_module_get(owner)) {
 		if (flags & SPU_CREATE_AFFINITY_SPU) {
 			neighbor = fget_light(neighbor_fd, &fput_needed);
+			ret = -EBADF;
 			if (neighbor) {
 				ret = spufs_calls.create_thread(name, flags,
 								mode, neighbor);
