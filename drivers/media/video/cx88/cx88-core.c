@@ -1077,8 +1077,11 @@ static int get_ressources(struct cx88_core *core, struct pci_dev *pci)
 			       pci_resource_len(pci,0),
 			       core->name))
 		return 0;
-	printk(KERN_ERR "%s: can't get MMIO memory @ 0x%llx\n",
-	       core->name,(unsigned long long)pci_resource_start(pci,0));
+	printk(KERN_ERR
+	       "%s/%d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
+	       core->name, PCI_FUNC(pci->devfn),
+	       (unsigned long long)pci_resource_start(pci, 0),
+	       pci->subsystem_vendor, pci->subsystem_device);
 	return -EBUSY;
 }
 
@@ -1115,12 +1118,6 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	core->nr = cx88_devcount++;
 	sprintf(core->name,"cx88[%d]",core->nr);
 	if (0 != get_ressources(core,pci)) {
-		printk(KERN_ERR "CORE %s No more PCI ressources for "
-			"subsystem: %04x:%04x, board: %s\n",
-			core->name,pci->subsystem_vendor,
-			pci->subsystem_device,
-			cx88_boards[core->board].name);
-
 		cx88_devcount--;
 		goto fail_free;
 	}
