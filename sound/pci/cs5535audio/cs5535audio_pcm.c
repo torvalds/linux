@@ -43,7 +43,6 @@ static struct snd_pcm_hardware snd_cs5535audio_playback =
 		 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		 		SNDRV_PCM_INFO_MMAP_VALID |
 		 		SNDRV_PCM_INFO_PAUSE |
-				SNDRV_PCM_INFO_SYNC_START |
 				SNDRV_PCM_INFO_RESUME
 				),
 	.formats =		(
@@ -71,8 +70,7 @@ static struct snd_pcm_hardware snd_cs5535audio_capture =
 				SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
 		 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
-		 		SNDRV_PCM_INFO_MMAP_VALID |
-				SNDRV_PCM_INFO_SYNC_START
+		 		SNDRV_PCM_INFO_MMAP_VALID
 				),
 	.formats =		(
 				SNDRV_PCM_FMTBIT_S16_LE
@@ -102,7 +100,6 @@ static int snd_cs5535audio_playback_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_cs5535audio_playback;
 	cs5535au->playback_substream = substream;
 	runtime->private_data = &(cs5535au->dmas[CS5535AUDIO_DMA_PLAYBACK]);
-	snd_pcm_set_sync(substream);
 	if ((err = snd_pcm_hw_constraint_integer(runtime,
 				SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;
@@ -348,7 +345,6 @@ static int snd_cs5535audio_capture_open(struct snd_pcm_substream *substream)
 	runtime->hw = snd_cs5535audio_capture;
 	cs5535au->capture_substream = substream;
 	runtime->private_data = &(cs5535au->dmas[CS5535AUDIO_DMA_CAPTURE]);
-	snd_pcm_set_sync(substream);
 	if ((err = snd_pcm_hw_constraint_integer(runtime,
 					 SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
 		return err;

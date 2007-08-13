@@ -652,7 +652,7 @@ static int snd_mixart_hw_free(struct snd_pcm_substream *subs)
 static struct snd_pcm_hardware snd_mixart_analog_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
+			      SNDRV_PCM_INFO_MMAP_VALID |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats	  = ( SNDRV_PCM_FMTBIT_U8 |
 			      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |
@@ -673,7 +673,7 @@ static struct snd_pcm_hardware snd_mixart_analog_caps =
 static struct snd_pcm_hardware snd_mixart_digital_caps =
 {
 	.info             = ( SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			      SNDRV_PCM_INFO_MMAP_VALID | SNDRV_PCM_INFO_SYNC_START |
+			      SNDRV_PCM_INFO_MMAP_VALID |
 			      SNDRV_PCM_INFO_PAUSE),
 	.formats	  = ( SNDRV_PCM_FMTBIT_U8 |
 			      SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |

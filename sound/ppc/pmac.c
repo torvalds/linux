@@ -551,9 +551,6 @@ static int snd_pmac_pcm_open(struct snd_pmac *chip, struct pmac_stream *rec,
 
 	runtime->hw.periods_max = rec->cmd.size - 1;
 
-	if (chip->can_duplex)
-		snd_pcm_set_sync(subs);
-
 	/* constraints to fix choppy sound */
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	return 0;

@@ -904,6 +904,8 @@ static int pcxhr_open(struct snd_pcm_substream *subs)
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 4);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 4);
 
+	snd_pcm_set_sync(subs);
+
 	mgr->ref_count_rate++;
 
 	mutex_unlock(&mgr->setup_mutex);

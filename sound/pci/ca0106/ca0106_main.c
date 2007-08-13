@@ -274,10 +274,11 @@ static struct snd_ca0106_details ca0106_chip_details[] = {
 
 /* hardware definition */
 static struct snd_pcm_hardware snd_ca0106_playback_hw = {
-	.info =			(SNDRV_PCM_INFO_MMAP | 
-				 SNDRV_PCM_INFO_INTERLEAVED |
-				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =			SNDRV_PCM_INFO_MMAP | 
+				SNDRV_PCM_INFO_INTERLEAVED |
+				SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				SNDRV_PCM_INFO_MMAP_VALID |
+				SNDRV_PCM_INFO_SYNC_START,
 	.formats =		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	.rates =		(SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
 				 SNDRV_PCM_RATE_192000),
@@ -507,6 +508,7 @@ static int snd_ca0106_pcm_open_playback_channel(struct snd_pcm_substream *substr
                 return err;
 	if ((err = snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 64)) < 0)
                 return err;
+	snd_pcm_set_sync(substream);
 
 	if (chip->details->spi_dac && channel_id != PCM_FRONT_CHANNEL) {
 		const int reg = spi_dacd_reg[channel_id];
