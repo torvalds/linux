@@ -256,6 +256,13 @@ struct irq_chip irq_type_sn = {
 	.set_affinity	= sn_set_affinity_irq
 };
 
+ia64_vector sn_irq_to_vector(int irq)
+{
+	if (irq >= IA64_NUM_VECTORS)
+		return 0;
+	return (ia64_vector)irq;
+}
+
 unsigned int sn_local_vector_to_irq(u8 vector)
 {
 	return (CPU_VECTOR_TO_IRQ(smp_processor_id(), vector));
