@@ -295,6 +295,8 @@ qla2x00_gid_pt(scsi_qla_host_t *ha, sw_info_t *list)
 			list[i].d_id.b.domain = gid_data->port_id[0];
 			list[i].d_id.b.area = gid_data->port_id[1];
 			list[i].d_id.b.al_pa = gid_data->port_id[2];
+			memset(list[i].fabric_port_name, 0, WWN_SIZE);
+			list[i].fp_speed = PORT_SPEED_UNKNOWN;
 
 			/* Last one exit. */
 			if (gid_data->control_byte & BIT_7) {
@@ -1707,8 +1709,6 @@ qla2x00_gfpn_id(scsi_qla_host_t *ha, sw_info_t *list)
 
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GFPN_ID */
-		memset(list[i].fabric_port_name, 0, WWN_SIZE);
-
 		/* Prepare common MS IOCB */
 		ms_pkt = ha->isp_ops->prep_ms_iocb(ha, GFPN_ID_REQ_SIZE,
 		    GFPN_ID_RSP_SIZE);
@@ -1821,8 +1821,6 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 
 	for (i = 0; i < MAX_FIBRE_DEVICES; i++) {
 		/* Issue GFPN_ID */
-		list[i].fp_speeds = list[i].fp_speed = 0;
-
 		/* Prepare common MS IOCB */
 		ms_pkt = qla24xx_prep_ms_fm_iocb(ha, GPSC_REQ_SIZE,
 		    GPSC_RSP_SIZE);
@@ -1858,9 +1856,21 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 			}
 			rval = QLA_FUNCTION_FAILED;
 		} else {
-			/* Save portname */
-			list[i].fp_speeds = ct_rsp->rsp.gpsc.speeds;
-			list[i].fp_speed = ct_rsp->rsp.gpsc.speed;
+			/* Save port-speed */
+			switch (be16_to_cpu(ct_rsp->rsp.gpsc.speed)) {
+			case BIT_15:
+				list[i].fp_speed = PORT_SPEED_1GB;
+				break;
+			case BIT_14:
+				list[i].fp_speed = PORT_SPEED_2GB;
+				break;
+			case BIT_13:
+				list[i].fp_speed = PORT_SPEED_4GB;
+				break;
+			case BIT_11:
+				list[i].fp_speed = PORT_SPEED_8GB;
+				break;
+			}
 
 			DEBUG2_3(printk("scsi(%ld): GPSC ext entry - "
 			    "fpn %02x%02x%02x%02x%02x%02x%02x%02x speeds=%04x "
@@ -1873,8 +1883,8 @@ qla2x00_gpsc(scsi_qla_host_t *ha, sw_info_t *list)
 			    list[i].fabric_port_name[5],
 			    list[i].fabric_port_name[6],
 			    list[i].fabric_port_name[7],
-			    be16_to_cpu(list[i].fp_speeds),
-			    be16_to_cpu(list[i].fp_speed)));
+			    be16_to_cpu(ct_rsp->rsp.gpsc.speeds),
+			    be16_to_cpu(ct_rsp->rsp.gpsc.speed)));
 		}
 
 		/* Last device exit. */
