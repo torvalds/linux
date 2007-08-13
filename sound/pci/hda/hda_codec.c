@@ -1662,6 +1662,7 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 			    AC_PWRST_D3);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
+	codec->power_on = 0;
 #endif
 }
 
@@ -2195,7 +2196,6 @@ static void hda_power_work(struct work_struct *work)
 		return;
 
 	hda_call_codec_suspend(codec);
-	codec->power_on = 0;
 	if (codec->bus->ops.pm_notify)
 		codec->bus->ops.pm_notify(codec);
 }

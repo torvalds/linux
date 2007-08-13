@@ -1500,7 +1500,7 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 
 static void azx_stop_chip(struct azx *chip)
 {
-	if (chip->initialized)
+	if (!chip->initialized)
 		return;
 
 	/* disable interrupts */
