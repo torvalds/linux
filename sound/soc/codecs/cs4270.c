@@ -56,35 +56,6 @@ static unsigned int mclk_ratios[NUM_MCLK_RATIOS] =
 	{64, 96, 128, 192, 256, 384, 512, 768, 1024};
 
 /*
- * Sampling rate <-> bit patter mapping
- *
- * This array maps sampling rates to their SNDRV_PCM_RATE_x equivalent.
- *
- * This is really something that ALSA should provide.
- *
- * This table is used by cs4270_set_dai_sysclk() to tell ALSA which sampling
- * rates the CS4270 currently supports.
- */
-static struct {
-	unsigned int rate;
-	unsigned int bit;
-} rate_map[] = {
-	{5512, SNDRV_PCM_RATE_5512},
-	{8000, SNDRV_PCM_RATE_8000},
-	{11025, SNDRV_PCM_RATE_11025},
-	{16000, SNDRV_PCM_RATE_16000},
-	{22050, SNDRV_PCM_RATE_22050},
-	{32000, SNDRV_PCM_RATE_32000},
-	{44100, SNDRV_PCM_RATE_44100},
-	{48000, SNDRV_PCM_RATE_48000},
-	{64000, SNDRV_PCM_RATE_64000},
-	{88200, SNDRV_PCM_RATE_88200},
-	{96000, SNDRV_PCM_RATE_96000},
-	{176400, SNDRV_PCM_RATE_176400},
-	{192000, SNDRV_PCM_RATE_192000}
-};
-
-/*
  * Determine the CS4270 samples rates.
  *
  * 'freq' is the input frequency to MCLK.  The other parameters are ignored.
@@ -126,19 +97,15 @@ static int cs4270_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
 	cs4270->mclk = freq;
 
 	for (i = 0; i < NUM_MCLK_RATIOS; i++) {
-		unsigned int rate;
-		unsigned int j;
-		rate = freq / mclk_ratios[i];
-		for (j = 0; j < ARRAY_SIZE(rate_map); j++) {
-			if (rate == rate_map[j].rate) {
-				rates |= rate_map[j].bit;
-				if (rate < rate_min)
-					rate_min = rate;
-				if (rate > rate_max)
-					rate_max = rate;
-			}
-		}
+		unsigned int rate = freq / mclk_ratios[i];
+		rates |= snd_pcm_rate_to_rate_bit(rate);
+		if (rate < rate_min)
+			rate_min = rate;
+		if (rate > rate_max)
+			rate_max = rate;
 	}
+	/* FIXME: soc should support a rate list */
+	rates &= ~SNDRV_PCM_RATE_KNOT;
 
 	if (!rates) {
 		printk(KERN_ERR "cs4270: could not find a valid sample rate\n");

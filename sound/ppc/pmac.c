@@ -490,35 +490,14 @@ static int snd_pmac_pcm_open(struct snd_pmac *chip, struct pmac_stream *rec,
 			     struct snd_pcm_substream *subs)
 {
 	struct snd_pcm_runtime *runtime = subs->runtime;
-	int i, j, fflags;
-	static int typical_freqs[] = {
-		44100,
-		22050,
-		11025,
-		0,
-	};
-	static int typical_freq_flags[] = {
-		SNDRV_PCM_RATE_44100,
-		SNDRV_PCM_RATE_22050,
-		SNDRV_PCM_RATE_11025,
-		0,
-	};
+	int i;
 
 	/* look up frequency table and fill bit mask */
 	runtime->hw.rates = 0;
-	fflags = chip->freqs_ok;
-	for (i = 0; typical_freqs[i]; i++) {
-		for (j = 0; j < chip->num_freqs; j++) {
-			if ((chip->freqs_ok & (1 << j)) &&
-			    chip->freq_table[j] == typical_freqs[i]) {
-				runtime->hw.rates |= typical_freq_flags[i];
-				fflags &= ~(1 << j);
-				break;
-			}
-		}
-	}
-	if (fflags) /* rest */
-		runtime->hw.rates |= SNDRV_PCM_RATE_KNOT;
+	for (i = 0; i < chip->num_freqs; i++)
+		if (chip->freqs_ok & (1 << i))
+			runtime->hw.rates |=
+				snd_pcm_rate_to_rate_bit(chip->freq_table[i]);
 
 	/* check for minimum and maximum rates */
 	for (i = 0; i < chip->num_freqs; i++) {

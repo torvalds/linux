@@ -340,28 +340,9 @@ static struct snd_pcm_hardware snd_bt87x_analog_hw = {
 
 static int snd_bt87x_set_digital_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
-	static struct {
-		int rate;
-		unsigned int bit;
-	} ratebits[] = {
-		{8000, SNDRV_PCM_RATE_8000},
-		{11025, SNDRV_PCM_RATE_11025},
-		{16000, SNDRV_PCM_RATE_16000},
-		{22050, SNDRV_PCM_RATE_22050},
-		{32000, SNDRV_PCM_RATE_32000},
-		{44100, SNDRV_PCM_RATE_44100},
-		{48000, SNDRV_PCM_RATE_48000}
-	};
-	int i;
-
 	chip->reg_control |= CTL_DA_IOM_DA;
 	runtime->hw = snd_bt87x_digital_hw;
-	runtime->hw.rates = SNDRV_PCM_RATE_KNOT;
-	for (i = 0; i < ARRAY_SIZE(ratebits); ++i)
-		if (chip->dig_rate == ratebits[i].rate) {
-			runtime->hw.rates = ratebits[i].bit;
-			break;
-		}
+	runtime->hw.rates = snd_pcm_rate_to_rate_bit(chip->dig_rate);
 	runtime->hw.rate_min = chip->dig_rate;
 	runtime->hw.rate_max = chip->dig_rate;
 	return 0;

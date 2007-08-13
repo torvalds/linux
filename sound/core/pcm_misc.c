@@ -450,3 +450,21 @@ int snd_pcm_limit_hw_rates(struct snd_pcm_runtime *runtime)
 }
 
 EXPORT_SYMBOL(snd_pcm_limit_hw_rates);
+
+/**
+ * snd_pcm_rate_to_rate_bit - converts sample rate to SNDRV_PCM_RATE_xxx bit
+ * @rate: the sample rate to convert
+ *
+ * Returns the SNDRV_PCM_RATE_xxx flag that corresponds to the given rate, or
+ * SNDRV_PCM_RATE_KNOT for an unknown rate.
+ */
+unsigned int snd_pcm_rate_to_rate_bit(unsigned int rate)
+{
+	unsigned int i;
+
+	for (i = 0; i < snd_pcm_known_rates.count; i++)
+		if (snd_pcm_known_rates.list[i] == rate)
+			return 1u << i;
+	return SNDRV_PCM_RATE_KNOT;
+}
+EXPORT_SYMBOL(snd_pcm_rate_to_rate_bit);

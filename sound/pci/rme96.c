@@ -301,20 +301,6 @@ snd_rme96_capture_ptr(struct rme96 *rme96)
 }
 
 static int
-snd_rme96_ratecode(int rate)
-{
-    switch (rate) {
-    case 32000: return SNDRV_PCM_RATE_32000;
-    case 44100: return SNDRV_PCM_RATE_44100;
-    case 48000: return SNDRV_PCM_RATE_48000;
-    case 64000: return SNDRV_PCM_RATE_64000;
-    case 88200: return SNDRV_PCM_RATE_88200;
-    case 96000: return SNDRV_PCM_RATE_96000;
-    }
-    return 0;
-}
-
-static int
 snd_rme96_playback_silence(struct snd_pcm_substream *substream,
 			   int channel, /* not used (interleaved data) */
 			   snd_pcm_uframes_t pos,
@@ -1192,7 +1178,7 @@ snd_rme96_playback_spdif_open(struct snd_pcm_substream *substream)
 	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
 	{
                 /* slave clock */
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
@@ -1219,7 +1205,7 @@ snd_rme96_capture_spdif_open(struct snd_pcm_substream *substream)
                 if (isadat) {
                         return -EIO;
                 }
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
         }
@@ -1259,7 +1245,7 @@ snd_rme96_playback_adat_open(struct snd_pcm_substream *substream)
 	    (rate = snd_rme96_capture_getrate(rme96, &dummy)) > 0)
 	{
                 /* slave clock */
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
 	}        
@@ -1284,7 +1270,7 @@ snd_rme96_capture_adat_open(struct snd_pcm_substream *substream)
                 if (!isadat) {
                         return -EIO;
                 }
-                runtime->hw.rates = snd_rme96_ratecode(rate);
+                runtime->hw.rates = snd_pcm_rate_to_rate_bit(rate);
                 runtime->hw.rate_min = rate;
                 runtime->hw.rate_max = rate;
         }
