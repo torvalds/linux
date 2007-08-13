@@ -1317,6 +1317,12 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 		mgr->mem[i].phys = pci_resource_start(pci, i);
 		mgr->mem[i].virt = ioremap_nocache(mgr->mem[i].phys,
 						   pci_resource_len(pci, i));
+		if (!mgr->mem[i].virt) {
+		        printk(KERN_ERR "unable to remap resource 0x%lx\n",
+			       mgr->mem[i].phys);
+			snd_mixart_free(mgr);
+			return -EBUSY;
+		}
 	}
 
 	if (request_irq(pci->irq, snd_mixart_interrupt, IRQF_SHARED,
