@@ -292,8 +292,7 @@ firmware_class_timeout(u_long data)
 
 static inline void fw_setup_device_id(struct device *f_dev, struct device *dev)
 {
-	/* XXX warning we should watch out for name collisions */
-	strlcpy(f_dev->bus_id, dev->bus_id, BUS_ID_SIZE);
+	snprintf(f_dev->bus_id, BUS_ID_SIZE, "firmware-%s", dev->bus_id);
 }
 
 static int fw_register_device(struct device **dev_p, const char *fw_name,
