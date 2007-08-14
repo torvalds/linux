@@ -4888,6 +4888,38 @@ mpt_GetScsiPortSettings(MPT_ADAPTER *ioc, int portnum)
 				/* Nvram data is left with INVALID mark
 				 */
 				rc = 1;
+			} else if (ioc->pcidev->vendor == PCI_VENDOR_ID_ATTO) {
+
+				/* This is an ATTO adapter, read Page2 accordingly
+				*/
+				ATTO_SCSIPortPage2_t *pPP2 = (ATTO_SCSIPortPage2_t  *) pbuf;
+				ATTODeviceInfo_t *pdevice = NULL;
+				u16 ATTOFlags;
+
+				/* Save the Port Page 2 data
+				 * (reformat into a 32bit quantity)
+				 */
+				for (ii=0; ii < MPT_MAX_SCSI_DEVICES; ii++) {
+				  pdevice = &pPP2->DeviceSettings[ii];
+				  ATTOFlags = le16_to_cpu(pdevice->ATTOFlags);
+				  data = 0;
+
+				  /* Translate ATTO device flags to LSI format
+				   */
+				  if (ATTOFlags & ATTOFLAG_DISC)
+				    data |= (MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE);
+				  if (ATTOFlags & ATTOFLAG_ID_ENB)
+				    data |= (MPI_SCSIPORTPAGE2_DEVICE_ID_SCAN_ENABLE);
+				  if (ATTOFlags & ATTOFLAG_LUN_ENB)
+				    data |= (MPI_SCSIPORTPAGE2_DEVICE_LUN_SCAN_ENABLE);
+				  if (ATTOFlags & ATTOFLAG_TAGGED)
+				    data |= (MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE);
+				  if (!(ATTOFlags & ATTOFLAG_WIDE_ENB))
+				    data |= (MPI_SCSIPORTPAGE2_DEVICE_WIDE_DISABLE);
+
+				  data = (data << 16) | (pdevice->Period << 8) | 10;
+				  ioc->spi_data.nvram[ii] = data;
+				}
 			} else {
 				SCSIPortPage2_t *pPP2 = (SCSIPortPage2_t  *) pbuf;
 				MpiDeviceInfo_t	*pdevice = NULL;

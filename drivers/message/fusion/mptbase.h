@@ -194,6 +194,35 @@
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*
+ *  ATTO UL4D associated structures and defines
+ */
+#define ATTOFLAG_DISC     0x0001
+#define ATTOFLAG_TAGGED   0x0002
+#define ATTOFLAG_WIDE_ENB 0x0008
+#define ATTOFLAG_ID_ENB   0x0010
+#define ATTOFLAG_LUN_ENB  0x0060
+
+typedef struct _ATTO_DEVICE_INFO
+{
+	u8	Offset;					/* 00h */
+	u8	Period;					/* 01h */
+	u16	ATTOFlags;				/* 02h */
+} ATTO_DEVICE_INFO, MPI_POINTER PTR_ATTO_DEVICE_INFO,
+  ATTODeviceInfo_t, MPI_POINTER pATTODeviceInfo_t;
+
+typedef struct _ATTO_CONFIG_PAGE_SCSI_PORT_2
+{
+	CONFIG_PAGE_HEADER	Header;			/* 00h */
+	u16			PortFlags;		/* 04h */
+	u16			Unused1;		/* 06h */
+	u32			Unused2;		/* 08h */
+	ATTO_DEVICE_INFO	DeviceSettings[16];	/* 0Ch */
+} fATTO_CONFIG_PAGE_SCSI_PORT_2, MPI_POINTER PTR_ATTO_CONFIG_PAGE_SCSI_PORT_2,
+  ATTO_SCSIPortPage2_t, MPI_POINTER pATTO_SCSIPortPage2_t;
+
+
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
+/*
  *  MPT protocol driver defs...
  */
 typedef enum {

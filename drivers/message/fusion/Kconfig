@@ -20,6 +20,7 @@ config FUSION_SPI
 	  LSI53C1020A
 	  LSI53C1030
 	  LSI53C1035
+	  ATTO UL4D
 
 config FUSION_FC
 	tristate "Fusion MPT ScsiHost drivers for FC"
