@@ -614,6 +614,16 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	s64 value;
 	int err = -EIO;
 
+	if (gfs2_is_stuffed(ip)) {
+		struct gfs2_alloc *al = NULL;
+		al = gfs2_alloc_get(ip);
+		/* just request 1 blk */
+		al->al_requested = 1;
+		gfs2_inplace_reserve(ip);
+		gfs2_unstuff_dinode(ip, NULL);
+		gfs2_inplace_release(ip);
+		gfs2_alloc_put(ip);
+	}
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return -ENOMEM;
