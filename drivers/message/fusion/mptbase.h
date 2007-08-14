@@ -336,7 +336,8 @@ typedef struct _SYSIF_REGS
 	u32	Reserved2[2];	/* 38-3F  reserved for future use    */
 	u32	RequestFifo;	/* 40     Request Post/Free FIFO     */
 	u32	ReplyFifo;	/* 44     Reply   Post/Free FIFO     */
-	u32	Reserved3[2];	/* 48-4F  reserved for future use    */
+	u32	RequestHiPriFifo; /* 48   Hi Priority Request FIFO   */
+	u32	Reserved3;	/* 4C-4F  reserved for future use    */
 	u32	HostIndex;	/* 50     Host Index register        */
 	u32	Reserved4[15];	/* 54-8F                             */
 	u32	Fubar;		/* 90     For Fubar usage            */
@@ -893,6 +894,7 @@ extern void	 mpt_device_driver_deregister(int cb_idx);
 extern MPT_FRAME_HDR	*mpt_get_msg_frame(int handle, MPT_ADAPTER *ioc);
 extern void	 mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
+extern void	 mpt_put_msg_frame_hi_pri(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr);
 
 extern int	 mpt_send_handshake_request(int handle, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);

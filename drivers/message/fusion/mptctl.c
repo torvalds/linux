@@ -342,7 +342,7 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 	SCSITaskMgmt_t	*pScsiTm;
 	MPT_SCSI_HOST	*hd;
 	int		 ii;
-	int		 retval;
+	int		 retval=0;
 
 
 	ioctl->reset &= ~MPTCTL_RESET_OK;
@@ -395,12 +395,19 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 	DBG_DUMP_TM_REQUEST_FRAME(ioctl->ioc, (u32 *)mf);
 
 	ioctl->wait_done=0;
-	if ((retval = mpt_send_handshake_request(mptctl_id, ioctl->ioc,
-	     sizeof(SCSITaskMgmt_t), (u32*)pScsiTm, CAN_SLEEP)) != 0) {
-		dfailprintk(ioctl->ioc, printk(MYIOC_s_ERR_FMT "_send_handshake FAILED!"
-			" (hd %p, ioc %p, mf %p) \n", hd->ioc->name, hd,
-			hd->ioc, mf));
-		goto mptctl_bus_reset_done;
+
+	if ((ioctl->ioc->facts.IOCCapabilities & MPI_IOCFACTS_CAPABILITY_HIGH_PRI_Q) &&
+	    (ioctl->ioc->facts.MsgVersion >= MPI_VERSION_01_05))
+		mpt_put_msg_frame_hi_pri(mptctl_id, ioctl->ioc, mf);
+	else {
+		retval = mpt_send_handshake_request(mptctl_id, ioctl->ioc,
+			sizeof(SCSITaskMgmt_t), (u32*)pScsiTm, CAN_SLEEP);
+		if (retval != 0) {
+			dfailprintk(ioctl->ioc, printk(MYIOC_s_ERR_FMT "_send_handshake FAILED!"
+				" (hd %p, ioc %p, mf %p) \n", hd->ioc->name, hd,
+				hd->ioc, mf));
+			goto mptctl_bus_reset_done;
+		}
 	}
 
 	/* Now wait for the command to complete */
@@ -2187,15 +2194,20 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 
 		DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)mf);
 
-		if (mpt_send_handshake_request(mptctl_id, ioc,
-			sizeof(SCSITaskMgmt_t), (u32*)mf,
-			CAN_SLEEP) != 0) {
-			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT "_send_handshake FAILED!"
-				" (ioc %p, mf %p) \n", ioc->name,
-				ioc, mf));
-			mptctl_free_tm_flags(ioc);
-			rc = -ENODATA;
-			goto done_free_mem;
+		if ((ioc->facts.IOCCapabilities & MPI_IOCFACTS_CAPABILITY_HIGH_PRI_Q) &&
+		    (ioc->facts.MsgVersion >= MPI_VERSION_01_05))
+			mpt_put_msg_frame_hi_pri(mptctl_id, ioc, mf);
+		else {
+			rc =mpt_send_handshake_request(mptctl_id, ioc,
+				sizeof(SCSITaskMgmt_t), (u32*)mf, CAN_SLEEP);
+			if (rc != 0) {
+				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
+				    "_send_handshake FAILED! (ioc %p, mf %p)\n",
+				    ioc->name, ioc, mf));
+				mptctl_free_tm_flags(ioc);
+				rc = -ENODATA;
+				goto done_free_mem;
+			}
 		}
 
 	} else

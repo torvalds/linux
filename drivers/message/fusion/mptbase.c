@@ -842,6 +842,38 @@ mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	CHIPREG_WRITE32(&ioc->chip->RequestFifo, mf_dma_addr);
 }
 
+/**
+ *	mpt_put_msg_frame_hi_pri - Send a protocol specific MPT request frame
+ *	to a IOC using hi priority request queue.
+ *	@handle: Handle of registered MPT protocol driver
+ *	@ioc: Pointer to MPT adapter structure
+ *	@mf: Pointer to MPT request frame
+ *
+ *	This routine posts a MPT request frame to the request post FIFO of a
+ *	specific MPT adapter.
+ **/
+void
+mpt_put_msg_frame_hi_pri(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
+{
+	u32 mf_dma_addr;
+	int req_offset;
+	u16	 req_idx;	/* Request index */
+
+	/* ensure values are reset properly! */
+	mf->u.frame.hwhdr.msgctxu.fld.cb_idx = handle;
+	req_offset = (u8 *)mf - (u8 *)ioc->req_frames;
+	req_idx = req_offset / ioc->req_sz;
+	mf->u.frame.hwhdr.msgctxu.fld.req_idx = cpu_to_le16(req_idx);
+	mf->u.frame.hwhdr.msgctxu.fld.rsvd = 0;
+
+	DBG_DUMP_PUT_MSG_FRAME(ioc, (u32 *)mf);
+
+	mf_dma_addr = (ioc->req_frames_low_dma + req_offset);
+	dsgprintk(ioc, printk(MYIOC_s_DEBUG_FMT "mf_dma_addr=%x req_idx=%d\n",
+		ioc->name, mf_dma_addr, req_idx));
+	CHIPREG_WRITE32(&ioc->chip->RequestHiPriFifo, mf_dma_addr);
+}
+
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
  *	mpt_free_msg_frame - Place MPT request frame back on FreeQ.
@@ -7315,6 +7347,7 @@ EXPORT_SYMBOL(mpt_device_driver_register);
 EXPORT_SYMBOL(mpt_device_driver_deregister);
 EXPORT_SYMBOL(mpt_get_msg_frame);
 EXPORT_SYMBOL(mpt_put_msg_frame);
+EXPORT_SYMBOL(mpt_put_msg_frame_hi_pri);
 EXPORT_SYMBOL(mpt_free_msg_frame);
 EXPORT_SYMBOL(mpt_add_sge);
 EXPORT_SYMBOL(mpt_send_handshake_request);

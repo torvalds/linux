@@ -1717,12 +1717,18 @@ mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun, i
 
 	DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)pScsiTm);
 
-	if ((retval = mpt_send_handshake_request(hd->ioc->TaskCtx, hd->ioc,
-		sizeof(SCSITaskMgmt_t), (u32*)pScsiTm, CAN_SLEEP)) != 0) {
-		dfailprintk(hd->ioc, printk(MYIOC_s_ERR_FMT "send_handshake FAILED!"
+	if ((hd->ioc->facts.IOCCapabilities & MPI_IOCFACTS_CAPABILITY_HIGH_PRI_Q) &&
+	    (hd->ioc->facts.MsgVersion >= MPI_VERSION_01_05))
+		mpt_put_msg_frame_hi_pri(hd->ioc->TaskCtx, hd->ioc, mf);
+	else {
+		retval = mpt_send_handshake_request(hd->ioc->TaskCtx, hd->ioc,
+			sizeof(SCSITaskMgmt_t), (u32*)pScsiTm, CAN_SLEEP);
+		if (retval) {
+			dfailprintk(hd->ioc, printk(MYIOC_s_ERR_FMT "send_handshake FAILED!"
 			" (hd %p, ioc %p, mf %p, rc=%d) \n", hd->ioc->name, hd,
 			hd->ioc, mf, retval));
-		goto fail_out;
+			goto fail_out;
+		}
 	}
 
 	if(mptscsih_tm_wait_for_completion(hd, timeout) == FAILED) {

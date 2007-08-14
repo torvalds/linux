@@ -623,13 +623,7 @@ mptsas_target_reset(MPT_ADAPTER *ioc, u8 channel, u8 id)
 
 	DBG_DUMP_TM_REQUEST_FRAME(ioc, (u32 *)mf);
 
-	if (mpt_send_handshake_request(ioc->TaskCtx, ioc,
-	    sizeof(SCSITaskMgmt_t), (u32 *)mf, NO_SLEEP)) {
-		mpt_free_msg_frame(ioc, mf);
-		dfailprintk(ioc, printk(MYIOC_s_WARN_FMT "%s, tm handshake failed @%d!!\n",
-		    ioc->name,__FUNCTION__, __LINE__));
-		return 0;
-	}
+	mpt_put_msg_frame_hi_pri(ioc->TaskCtx, ioc, mf);
 
 	return 1;
 }
