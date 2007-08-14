@@ -127,10 +127,6 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 	if (ep->xfertype != USB_ENDPOINT_XFER_CONTROL || ev_type != 'S')
 		return '-';
 
-	if (urb->dev->bus->uses_dma &&
-	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
-		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
-	}
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 

@@ -361,10 +361,6 @@ static inline char mon_bin_get_setup(unsigned char *setupb,
 	if (!usb_endpoint_xfer_control(&urb->ep->desc) || ev_type != 'S')
 		return '-';
 
-	if (urb->dev->bus->uses_dma &&
-	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
-		return mon_dmapeek(setupb, urb->setup_dma, SETUP_LEN);
-	}
 	if (urb->setup_packet == NULL)
 		return 'Z';
 
