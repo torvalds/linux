@@ -652,6 +652,19 @@ static struct acpi_ec *make_acpi_ec(void)
 }
 
 static acpi_status
+acpi_ec_register_query_methods(acpi_handle handle, u32 level,
+			       void *context, void **return_value)
+{
+	struct acpi_namespace_node *node = handle;
+	struct acpi_ec *ec = context;
+	int value = 0;
+	if (sscanf(node->name.ascii, "_Q%x", &value) == 1) {
+		acpi_ec_add_query_handler(ec, value, handle, NULL, NULL);
+	}
+	return AE_OK;
+}
+
+static acpi_status
 ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 {
 	acpi_status status;
@@ -667,6 +680,10 @@ ec_parse_device(acpi_handle handle, u32 Level, void *context, void **retval)
 	status = acpi_evaluate_integer(handle, "_GPE", NULL, &ec->gpe);
 	if (ACPI_FAILURE(status))
 		return status;
+
+	/* Find and register all query methods */
+	acpi_walk_namespace(ACPI_TYPE_METHOD, handle, 1,
+			    acpi_ec_register_query_methods, ec, NULL);
 
 	/* Use the global lock for all EC transactions? */
 	acpi_evaluate_integer(handle, "_GLK", NULL, &ec->global_lock);
