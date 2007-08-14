@@ -147,20 +147,26 @@ static ssize_t show_stp_state(struct device *d,
 	return sprintf(buf, "%d\n", br->stp_enabled);
 }
 
-static void set_stp_state(struct net_bridge *br, unsigned long val)
-{
-	rtnl_lock();
-	spin_unlock_bh(&br->lock);
-	br_stp_set_enabled(br, val);
-	spin_lock_bh(&br->lock);
-	rtnl_unlock();
-}
 
 static ssize_t store_stp_state(struct device *d,
 			       struct device_attribute *attr, const char *buf,
 			       size_t len)
 {
-	return store_bridge_parm(d, buf, len, set_stp_state);
+	struct net_bridge *br = to_bridge(d);
+	char *endp;
+	unsigned long val;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	val = simple_strtoul(buf, &endp, 0);
+	if (endp == buf)
+		return -EINVAL;
+
+	rtnl_lock();
+	br_stp_set_enabled(br, val);
+	rtnl_unlock();
+
 }
 static DEVICE_ATTR(stp_state, S_IRUGO | S_IWUSR, show_stp_state,
 		   store_stp_state);
