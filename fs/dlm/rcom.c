@@ -386,8 +386,7 @@ static void receive_rcom_lock_reply(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 	dlm_recover_process_copy(ls, rc_in);
 }
 
-static int send_ls_not_ready(struct dlm_ls *ls, int nodeid,
-			     struct dlm_rcom *rc_in)
+static int send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
 	struct rcom_config *rf;
@@ -395,7 +394,7 @@ static int send_ls_not_ready(struct dlm_ls *ls, int nodeid,
 	char *mb;
 	int mb_len = sizeof(struct dlm_rcom) + sizeof(struct rcom_config);
 
-	mh = dlm_lowcomms_get_buffer(nodeid, mb_len, ls->ls_allocation, &mb);
+	mh = dlm_lowcomms_get_buffer(nodeid, mb_len, GFP_NOFS, &mb);
 	if (!mh)
 		return -ENOBUFS;
 	memset(mb, 0, mb_len);
@@ -465,7 +464,7 @@ void dlm_receive_rcom(struct dlm_header *hd, int nodeid)
 		log_print("lockspace %x from %d type %x not found",
 			  hd->h_lockspace, nodeid, rc->rc_type);
 		if (rc->rc_type == DLM_RCOM_STATUS)
-			send_ls_not_ready(ls, nodeid, rc);
+			send_ls_not_ready(nodeid, rc);
 		return;
 	}
 

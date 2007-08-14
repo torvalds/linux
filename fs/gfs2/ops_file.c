@@ -177,8 +177,8 @@ static const u32 fsflags_to_gfs2[32] = {
 	[5] = GFS2_DIF_APPENDONLY,
 	[7] = GFS2_DIF_NOATIME,
 	[12] = GFS2_DIF_EXHASH,
-	[14] = GFS2_DIF_JDATA,
-	[20] = GFS2_DIF_DIRECTIO,
+	[14] = GFS2_DIF_INHERIT_JDATA,
+	[20] = GFS2_DIF_INHERIT_DIRECTIO,
 };
 
 static const u32 gfs2_to_fsflags[32] = {
@@ -187,8 +187,6 @@ static const u32 gfs2_to_fsflags[32] = {
 	[gfs2fl_AppendOnly] = FS_APPEND_FL,
 	[gfs2fl_NoAtime] = FS_NOATIME_FL,
 	[gfs2fl_ExHash] = FS_INDEX_FL,
-	[gfs2fl_Jdata] = FS_JOURNAL_DATA_FL,
-	[gfs2fl_Directio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritDirectio] = FS_DIRECTIO_FL,
 	[gfs2fl_InheritJdata] = FS_JOURNAL_DATA_FL,
 };
@@ -207,6 +205,12 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 		return error;
 
 	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_di.di_flags);
+	if (!S_ISDIR(inode->i_mode)) {
+		if (ip->i_di.di_flags & GFS2_DIF_JDATA)
+			fsflags |= FS_JOURNAL_DATA_FL;
+		if (ip->i_di.di_flags & GFS2_DIF_DIRECTIO)
+			fsflags |= FS_DIRECTIO_FL;
+	}
 	if (put_user(fsflags, ptr))
 		error = -EFAULT;
 
@@ -270,13 +274,6 @@ static int do_gfs2_set_flags(struct file *filp, u32 reqflags, u32 mask)
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
-	if (S_ISDIR(inode->i_mode)) {
-		if ((new_flags ^ flags) & GFS2_DIF_JDATA)
-			new_flags ^= (GFS2_DIF_JDATA|GFS2_DIF_INHERIT_JDATA);
-		if ((new_flags ^ flags) & GFS2_DIF_DIRECTIO)
-			new_flags ^= (GFS2_DIF_DIRECTIO|GFS2_DIF_INHERIT_DIRECTIO);
-	}
-
 	error = -EINVAL;
 	if ((new_flags ^ flags) & ~GFS2_FLAGS_USER_SET)
 		goto out;
@@ -315,11 +312,19 @@ out:
 
 static int gfs2_set_flags(struct file *filp, u32 __user *ptr)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	u32 fsflags, gfsflags;
 	if (get_user(fsflags, ptr))
 		return -EFAULT;
 	gfsflags = fsflags_cvt(fsflags_to_gfs2, fsflags);
-	return do_gfs2_set_flags(filp, gfsflags, ~0);
+	if (!S_ISDIR(inode->i_mode)) {
+		if (gfsflags & GFS2_DIF_INHERIT_JDATA)
+			gfsflags ^= (GFS2_DIF_JDATA | GFS2_DIF_INHERIT_JDATA);
+		if (gfsflags & GFS2_DIF_INHERIT_DIRECTIO)
+			gfsflags ^= (GFS2_DIF_DIRECTIO | GFS2_DIF_INHERIT_DIRECTIO);
+		return do_gfs2_set_flags(filp, gfsflags, ~0);
+	}
+	return do_gfs2_set_flags(filp, gfsflags, ~GFS2_DIF_JDATA);
 }
 
 static long gfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)

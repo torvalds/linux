@@ -313,6 +313,7 @@ static void make_sockaddr(struct sockaddr_storage *saddr, uint16_t port,
 		in6_addr->sin6_port = cpu_to_be16(port);
 		*addr_len = sizeof(struct sockaddr_in6);
 	}
+	memset((char *)saddr + *addr_len, 0, sizeof(struct sockaddr_storage) - *addr_len);
 }
 
 /* Close a remote connection and tidy up */
@@ -332,8 +333,19 @@ static void close_connection(struct connection *con, bool and_other)
 		__free_page(con->rx_page);
 		con->rx_page = NULL;
 	}
-	con->retries = 0;
-	mutex_unlock(&con->sock_mutex);
+
+	/* If we are an 'othercon' then NULL the pointer to us
+	   from the parent and tidy ourself up */
+	if (test_bit(CF_IS_OTHERCON, &con->flags)) {
+		struct connection *parent = __nodeid2con(con->nodeid, 0);
+		parent->othercon = NULL;
+		kmem_cache_free(con_cache, con);
+	}
+	else {
+		/* Parent connections get reused */
+		con->retries = 0;
+		mutex_unlock(&con->sock_mutex);
+	}
 }
 
 /* We only send shutdown messages to nodes that are not part of the cluster */
@@ -631,7 +643,7 @@ out_resched:
 
 out_close:
 	mutex_unlock(&con->sock_mutex);
-	if (ret != -EAGAIN && !test_bit(CF_IS_OTHERCON, &con->flags)) {
+	if (ret != -EAGAIN) {
 		close_connection(con, false);
 		/* Reconnect when there is something to send */
 	}
@@ -1122,8 +1134,6 @@ static int tcp_listen_for_all(void)
 
 	log_print("Using TCP for communications");
 
-	set_bit(CF_IS_OTHERCON, &con->flags);
-
 	sock = tcp_create_listen_sock(con, dlm_local_addr[0]);
 	if (sock) {
 		add_sock(sock, con);
@@ -1407,7 +1417,7 @@ void dlm_lowcomms_stop(void)
 	for (i = 0; i <= max_nodeid; i++) {
 		con = __nodeid2con(i, 0);
 		if (con) {
-			con->flags |= 0xFF;
+			con->flags |= 0x0F;
 			if (con->sock)
 				con->sock->sk->sk_user_data = NULL;
 		}
@@ -1423,8 +1433,6 @@ void dlm_lowcomms_stop(void)
 		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
-			if (con->othercon)
-				kmem_cache_free(con_cache, con->othercon);
 			kmem_cache_free(con_cache, con);
 		}
 	}

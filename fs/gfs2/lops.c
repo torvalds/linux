@@ -486,8 +486,8 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 	}
-	sdp->sd_log_num_databuf++;
 	gfs2_log_lock(sdp);
+	sdp->sd_log_num_databuf++;
 	list_add(&le->le_list, &sdp->sd_log_le_databuf);
 	gfs2_log_unlock(sdp);
 }
@@ -523,7 +523,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	struct buffer_head *bh = NULL,*bh1 = NULL;
 	struct gfs2_log_descriptor *ld;
 	unsigned int limit;
-	unsigned int total_dbuf = sdp->sd_log_num_databuf;
+	unsigned int total_dbuf;
 	unsigned int total_jdata = sdp->sd_log_num_jdata;
 	unsigned int num, n;
 	__be64 *ptr = NULL;
@@ -535,6 +535,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 	 * into the log along with a header
 	 */
 	gfs2_log_lock(sdp);
+	total_dbuf = sdp->sd_log_num_databuf;
 	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf,
 				       bd_le.le_list);
 	while(total_dbuf) {
@@ -653,6 +654,7 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				break;
 		}
 		bh = NULL;
+		BUG_ON(total_dbuf < num);
 		total_dbuf -= num;
 		total_jdata -= num;
 	}
