@@ -1550,7 +1550,8 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < chip->pcm_devs; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
-	snd_hda_suspend(chip->bus, state);
+	if (chip->initialized)
+		snd_hda_suspend(chip->bus, state);
 	azx_stop_chip(chip);
 	if (chip->irq >= 0) {
 		synchronize_irq(chip->irq);

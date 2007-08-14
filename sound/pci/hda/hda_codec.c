@@ -2771,6 +2771,10 @@ int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		if (!codec->power_on)
+			continue;
+#endif
 		hda_call_codec_suspend(codec);
 	}
 	return 0;
