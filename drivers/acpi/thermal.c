@@ -77,23 +77,23 @@ MODULE_LICENSE("GPL");
 
 static int act;
 module_param(act, int, 0644);
-MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.\n");
+MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.");
 
 static int tzp;
 module_param(tzp, int, 0444);
-MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
+MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.");
 
 static int nocrt;
 module_param(nocrt, int, 0);
-MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.\n");
+MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.");
 
 static int off;
 module_param(off, int, 0);
-MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
+MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.");
 
 static int psv;
 module_param(psv, int, 0644);
-MODULE_PARM_DESC(psv, "Disable or override all passive trip points.\n");
+MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
