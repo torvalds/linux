@@ -272,11 +272,11 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 		/* Make sure the SMBus host is ready to start transmitting */
 		temp = inb_p(SMBHSTSTS);
 		if (i == 1) {
-			/* Erronenous conditions before transaction:
+			/* Erroneous conditions before transaction:
 			 * Byte_Done, Failed, Bus_Err, Dev_Err, Intr, Host_Busy */
 			errmask = 0x9f;
 		} else {
-			/* Erronenous conditions during transaction:
+			/* Erroneous conditions during transaction:
 			 * Failed, Bus_Err, Dev_Err, Intr */
 			errmask = 0x1e;
 		}
