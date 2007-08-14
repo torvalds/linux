@@ -686,10 +686,30 @@ done:
 	return retval;
 }
 
+static struct urb *usblp_new_writeurb(struct usblp *usblp, int transfer_length)
+{
+	struct urb *urb;
+	char *writebuf;
+
+	if ((writebuf = kmalloc(transfer_length, GFP_KERNEL)) == NULL)
+		return NULL;
+	if ((urb = usb_alloc_urb(0, GFP_KERNEL)) == NULL) {
+		kfree(writebuf);
+		return NULL;
+	}
+
+	usb_fill_bulk_urb(urb, usblp->dev,
+		usb_sndbulkpipe(usblp->dev,
+		 usblp->protocol[usblp->current_protocol].epwrite->bEndpointAddress),
+		writebuf, transfer_length, usblp_bulk_write, usblp);
+	urb->transfer_flags |= URB_FREE_BUFFER;
+
+	return urb;
+}
+
 static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
 	struct usblp *usblp = file->private_data;
-	char *writebuf;
 	struct urb *writeurb;
 	int rv;
 	int transfer_length;
@@ -710,18 +730,11 @@ static ssize_t usblp_write(struct file *file, const char __user *buffer, size_t 
 			transfer_length = USBLP_BUF_SIZE;
 
 		rv = -ENOMEM;
-		if ((writebuf = kmalloc(USBLP_BUF_SIZE, GFP_KERNEL)) == NULL)
-			goto raise_buf;
-		if ((writeurb = usb_alloc_urb(0, GFP_KERNEL)) == NULL)
+		if ((writeurb = usblp_new_writeurb(usblp, transfer_length)) == NULL)
 			goto raise_urb;
-		usb_fill_bulk_urb(writeurb, usblp->dev,
-			usb_sndbulkpipe(usblp->dev,
-			  usblp->protocol[usblp->current_protocol].epwrite->bEndpointAddress),
-			writebuf, transfer_length, usblp_bulk_write, usblp);
-		writeurb->transfer_flags |= URB_FREE_BUFFER;
 		usb_anchor_urb(writeurb, &usblp->urbs);
 
-		if (copy_from_user(writebuf,
+		if (copy_from_user(writeurb->transfer_buffer,
 				   buffer + writecount, transfer_length)) {
 			rv = -EFAULT;
 			goto raise_badaddr;
@@ -780,8 +793,6 @@ raise_badaddr:
 	usb_unanchor_urb(writeurb);
 	usb_free_urb(writeurb);
 raise_urb:
-	kfree(writebuf);
-raise_buf:
 raise_wait:
 collect_error:		/* Out of raise sequence */
 	mutex_unlock(&usblp->wmut);
