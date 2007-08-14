@@ -1,4 +1,3 @@
-#define DEBUG
 /*
  * Copyright (C) 2004 Texas Instruments, Inc.
  *
@@ -933,7 +932,7 @@ static int menelaus_set_time(struct device *dev, struct rtc_time *t)
 		return status;
 	status = menelaus_write_reg(MENELAUS_RTC_WKDAY, BIN2BCD(t->tm_wday));
 	if (status < 0) {
-		dev_err(&the_menelaus->client->dev, "rtc write reg %02x",
+		dev_err(&the_menelaus->client->dev, "rtc write reg %02x "
 				"err %d\n", MENELAUS_RTC_WKDAY, status);
 		return status;
 	}
