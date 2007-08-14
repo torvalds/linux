@@ -28,6 +28,7 @@
  *	v0.12 - add hpoj.sourceforge.net ioctls (David Paschal)
  *	v0.13 - alloc space for statusbuf (<status> not on stack);
  *		use usb_buffer_alloc() for read buf & write buf;
+ *      none  - Maintained in Linux kernel after v0.13
  */
 
 /*
@@ -114,7 +115,7 @@ MFG:HEWLETT-PACKARD;MDL:DESKJET 970C;CMD:MLC,PCL,PML;CLASS:PRINTER;DESCRIPTION:H
 #define USBLP_MINORS		16
 #define USBLP_MINOR_BASE	0
 
-#define USBLP_WRITE_TIMEOUT	(5000)			/* 5 seconds */
+#define USBLP_CTL_TIMEOUT	5000			/* 5 seconds */
 
 #define USBLP_FIRST_PROTOCOL	1
 #define USBLP_LAST_PROTOCOL	3
@@ -260,7 +261,7 @@ static int usblp_ctrl_msg(struct usblp *usblp, int request, int type, int dir, i
 
 	retval = usb_control_msg(usblp->dev,
 		dir ? usb_rcvctrlpipe(usblp->dev, 0) : usb_sndctrlpipe(usblp->dev, 0),
-		request, type | dir | recip, value, index, buf, len, USBLP_WRITE_TIMEOUT);
+		request, type | dir | recip, value, index, buf, len, USBLP_CTL_TIMEOUT);
 	dbg("usblp_control_msg: rq: 0x%02x dir: %d recip: %d value: %d idx: %d len: %#x result: %d",
 		request, !!dir, recip, value, index, len, retval);
 	return retval < 0 ? retval : 0;
@@ -479,8 +480,8 @@ static unsigned int usblp_poll(struct file *file, struct poll_table_struct *wait
 	poll_wait(file, &usblp->rwait, wait);
 	poll_wait(file, &usblp->wwait, wait);
 	spin_lock_irqsave(&usblp->lock, flags);
-	ret = ((!usblp->bidir || !usblp->rcomplete) ? 0 : POLLIN  | POLLRDNORM)
-	   | ((usblp->no_paper || usblp->wcomplete) ? POLLOUT | POLLWRNORM : 0);
+	ret = ((usblp->bidir && usblp->rcomplete) ? POLLIN  | POLLRDNORM : 0) |
+	   ((usblp->no_paper || usblp->wcomplete) ? POLLOUT | POLLWRNORM : 0);
 	spin_unlock_irqrestore(&usblp->lock, flags);
 	return ret;
 }
