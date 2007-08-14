@@ -89,10 +89,10 @@ static int max_lun = MPTSAS_MAX_LUN;
 module_param(max_lun, int, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
-static int	mptsasDoneCtx = -1;
-static int	mptsasTaskCtx = -1;
-static int	mptsasInternalCtx = -1; /* Used only for internal commands */
-static int	mptsasMgmtCtx = -1;
+static u8	mptsasDoneCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptsasTaskCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptsasInternalCtx = MPT_MAX_PROTOCOL_DRIVERS; /* Used only for internal commands */
+static u8	mptsasMgmtCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static void mptsas_hotplug_work(struct work_struct *work);
 

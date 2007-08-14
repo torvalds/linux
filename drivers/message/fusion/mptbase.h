@@ -679,9 +679,9 @@ typedef struct _MPT_ADAPTER
 	u8			 reload_fw;	/* Force a FW Reload on next reset */
 	u8			 NBShiftFactor;  /* NB Shift Factor based on Block Size (Facts)  */
 	u8			 pad1[4];
-	int			 DoneCtx;
-	int			 TaskCtx;
-	int			 InternalCtx;
+	u8			 DoneCtx;
+	u8			 TaskCtx;
+	u8			 InternalCtx;
 	spinlock_t		 initializing_hba_lock;
 	int 	 		 initializing_hba_lock_flag;
 	struct list_head	 list;
@@ -883,21 +883,21 @@ extern void	 mpt_detach(struct pci_dev *pdev);
 extern int	 mpt_suspend(struct pci_dev *pdev, pm_message_t state);
 extern int	 mpt_resume(struct pci_dev *pdev);
 #endif
-extern int	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
-extern void	 mpt_deregister(int cb_idx);
-extern int	 mpt_event_register(int cb_idx, MPT_EVHANDLER ev_cbfunc);
-extern void	 mpt_event_deregister(int cb_idx);
-extern int	 mpt_reset_register(int cb_idx, MPT_RESETHANDLER reset_func);
-extern void	 mpt_reset_deregister(int cb_idx);
-extern int	 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, int cb_idx);
-extern void	 mpt_device_driver_deregister(int cb_idx);
-extern MPT_FRAME_HDR	*mpt_get_msg_frame(int handle, MPT_ADAPTER *ioc);
+extern u8	 mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass);
+extern void	 mpt_deregister(u8 cb_idx);
+extern int	 mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc);
+extern void	 mpt_event_deregister(u8 cb_idx);
+extern int	 mpt_reset_register(u8 cb_idx, MPT_RESETHANDLER reset_func);
+extern void	 mpt_reset_deregister(u8 cb_idx);
+extern int	 mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, u8 cb_idx);
+extern void	 mpt_device_driver_deregister(u8 cb_idx);
+extern MPT_FRAME_HDR	*mpt_get_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc);
 extern void	 mpt_free_msg_frame(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
-extern void	 mpt_put_msg_frame(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
-extern void	 mpt_put_msg_frame_hi_pri(int handle, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
+extern void	 mpt_put_msg_frame(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
+extern void	 mpt_put_msg_frame_hi_pri(u8 cb_idx, MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf);
 extern void	 mpt_add_sge(char *pAddr, u32 flagslength, dma_addr_t dma_addr);
 
-extern int	 mpt_send_handshake_request(int handle, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);
+extern int	 mpt_send_handshake_request(u8 cb_idx, MPT_ADAPTER *ioc, int reqBytes, u32 *req, int sleepFlag);
 extern int	 mpt_verify_adapter(int iocid, MPT_ADAPTER **iocpp);
 extern u32	 mpt_GetIocState(MPT_ADAPTER *ioc, int cooked);
 extern void	 mpt_print_ioc_summary(MPT_ADAPTER *ioc, char *buf, int *size, int len, int showlan);
@@ -914,9 +914,6 @@ extern int	 mpt_raid_phys_disk_pg0(MPT_ADAPTER *ioc, u8 phys_disk_num, pRaidPhys
  */
 extern struct list_head	  ioc_list;
 extern struct proc_dir_entry	*mpt_proc_root_dir;
-
-extern int		  mpt_lan_index;	/* needed by mptlan.c */
-extern int		  mpt_stm_index;	/* needed by mptstm.c */
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 #endif		/* } __KERNEL__ */

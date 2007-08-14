@@ -90,9 +90,9 @@ static int max_lun = MPTFC_MAX_LUN;
 module_param(max_lun, int, 0);
 MODULE_PARM_DESC(max_lun, " max lun, default=16895 ");
 
-static int	mptfcDoneCtx = -1;
-static int	mptfcTaskCtx = -1;
-static int	mptfcInternalCtx = -1; /* Used only for internal commands */
+static u8	mptfcDoneCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptfcTaskCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptfcInternalCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static int mptfc_target_alloc(struct scsi_target *starget);
 static int mptfc_slave_alloc(struct scsi_device *sdev);

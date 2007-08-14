@@ -90,9 +90,9 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *,
 
 static struct scsi_transport_template *mptspi_transport_template = NULL;
 
-static int	mptspiDoneCtx = -1;
-static int	mptspiTaskCtx = -1;
-static int	mptspiInternalCtx = -1; /* Used only for internal commands */
+static u8	mptspiDoneCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptspiTaskCtx = MPT_MAX_PROTOCOL_DRIVERS;
+static u8	mptspiInternalCtx = MPT_MAX_PROTOCOL_DRIVERS; /* Used only for internal commands */
 
 /**
  * 	mptspi_setTargetNegoParms  - Update the target negotiation parameters

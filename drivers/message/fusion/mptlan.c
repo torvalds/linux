@@ -154,7 +154,7 @@ static unsigned short mpt_lan_type_trans(struct sk_buff *skb,
 /*
  *  Fusion MPT LAN private data
  */
-static int LanCtx = -1;
+static u8 LanCtx = MPT_MAX_PROTOCOL_DRIVERS;
 
 static u32 max_buckets_out = 127;
 static u32 tx_max_out_p = 127 - 16;
@@ -163,12 +163,6 @@ static u32 tx_max_out_p = 127 - 16;
 static struct NAA_Hosed *mpt_bad_naa = NULL;
 DEFINE_RWLOCK(bad_naa_lock);
 #endif
-
-/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
-/*
- * Fusion MPT LAN external data
- */
-extern int mpt_lan_index;
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /**
@@ -1510,9 +1504,6 @@ static int __init mpt_lan_init (void)
 		return -EBUSY;
 	}
 
-	/* Set the callback index to be used by driver core for turbo replies */
-	mpt_lan_index = LanCtx;
-
 	dlprintk((KERN_INFO MYNAM ": assigned context of %d\n", LanCtx));
 
 	if (mpt_reset_register(LanCtx, mpt_lan_ioc_reset)) {
@@ -1533,10 +1524,9 @@ static void __exit mpt_lan_exit(void)
 	mpt_device_driver_deregister(MPTLAN_DRIVER);
 	mpt_reset_deregister(LanCtx);
 
-	if (LanCtx >= 0) {
+	if (LanCtx) {
 		mpt_deregister(LanCtx);
-		LanCtx = -1;
-		mpt_lan_index = 0;
+		LanCtx = MPT_MAX_PROTOCOL_DRIVERS;
 	}
 }
 

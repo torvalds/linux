@@ -83,7 +83,7 @@ MODULE_VERSION(my_VERSION);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
-static int mptctl_id = -1;
+static u8 mptctl_id = MPT_MAX_PROTOCOL_DRIVERS;
 
 static DECLARE_WAIT_QUEUE_HEAD ( mptctl_wait );
 
@@ -2936,7 +2936,8 @@ static int __init mptctl_init(void)
 	 *  Install our handler
 	 */
 	++where;
-	if ((mptctl_id = mpt_register(mptctl_reply, MPTCTL_DRIVER)) < 0) {
+	mptctl_id = mpt_register(mptctl_reply, MPTCTL_DRIVER);
+	if (!mptctl_id || mptctl_id >= MPT_MAX_PROTOCOL_DRIVERS) {
 		printk(KERN_ERR MYNAM ": ERROR: Failed to register with Fusion MPT base driver\n");
 		misc_deregister(&mptctl_miscdev);
 		err = -EBUSY;
