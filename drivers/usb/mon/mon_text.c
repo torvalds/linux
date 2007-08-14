@@ -52,10 +52,11 @@ struct mon_event_text {
 	int type;		/* submit, complete, etc. */
 	unsigned long id;	/* From pointer, most of the time */
 	unsigned int tstamp;
-	int xfertype;
 	int busnum;
-	int devnum;
-	int epnum;
+	char devnum;
+	char epnum;
+	char is_in;
+	char xfertype;
 	int length;		/* Depends on type: xfer length or act length */
 	int status;
 	int interval;
@@ -63,7 +64,6 @@ struct mon_event_text {
 	int error_count;
 	char setup_flag;
 	char data_flag;
-	char is_in;
 	int numdesc;		/* Full number */
 	struct mon_iso_desc isodesc[ISODESC_MAX];
 	unsigned char setup[SETUP_MAX];

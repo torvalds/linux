@@ -172,6 +172,10 @@ static inline struct mon_bin_hdr *MON_OFF2HDR(const struct mon_reader_bin *rp,
 
 #define MON_RING_EMPTY(rp)	((rp)->b_cnt == 0)
 
+static unsigned char xfer_to_pipe[4] = {
+	PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+};
+
 static struct class *mon_bin_class;
 static dev_t mon_bin_dev0;
 static struct cdev mon_bin_cdev;
@@ -388,11 +392,13 @@ static char mon_bin_get_data(const struct mon_reader_bin *rp,
 static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
     char ev_type)
 {
+	const struct usb_endpoint_descriptor *epd = &urb->ep->desc;
 	unsigned long flags;
 	struct timeval ts;
 	unsigned int urb_length;
 	unsigned int offset;
 	unsigned int length;
+	unsigned char dir;
 	struct mon_bin_hdr *ep;
 	char data_tag = 0;
 
@@ -415,11 +421,14 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 			length = 0;
 			data_tag = '<';
 		}
+		/* Cannot rely on endpoint number in case of control ep.0 */
+		dir = USB_DIR_IN;
 	} else {
 		if (ev_type == 'C') {
 			length = 0;
 			data_tag = '>';
 		}
+		dir = 0;
 	}
 
 	if (rp->mmap_active)
@@ -440,21 +449,8 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	 */
 	memset(ep, 0, PKT_SIZE);
 	ep->type = ev_type;
-	switch (usb_endpoint_type(&urb->ep->desc)) {
-	case USB_ENDPOINT_XFER_CONTROL:
-		ep->xfer_type = PIPE_CONTROL;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		ep->xfer_type = PIPE_BULK;
-		break;
-	case USB_ENDPOINT_XFER_INT:
-		ep->xfer_type = PIPE_INTERRUPT;
-		break;
-	default:
-		ep->xfer_type = PIPE_ISOCHRONOUS;
-		break;
-	}
-	ep->epnum = urb->ep->desc.bEndpointAddress;
+	ep->xfer_type = xfer_to_pipe[usb_endpoint_type(epd)];
+	ep->epnum = dir | usb_endpoint_num(epd);
 	ep->devnum = urb->dev->devnum;
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
@@ -512,21 +508,9 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 
 	memset(ep, 0, PKT_SIZE);
 	ep->type = 'E';
-	switch (usb_endpoint_type(&urb->ep->desc)) {
-	case USB_ENDPOINT_XFER_CONTROL:
-		ep->xfer_type = PIPE_CONTROL;
-		break;
-	case USB_ENDPOINT_XFER_BULK:
-		ep->xfer_type = PIPE_BULK;
-		break;
-	case USB_ENDPOINT_XFER_INT:
-		ep->xfer_type = PIPE_INTERRUPT;
-		break;
-	default:
-		ep->xfer_type = PIPE_ISOCHRONOUS;
-		break;
-	}
-	ep->epnum = urb->ep->desc.bEndpointAddress;
+	ep->xfer_type = xfer_to_pipe[usb_endpoint_type(&urb->ep->desc)];
+	ep->epnum = usb_urb_dir_in(urb) ? USB_DIR_IN : 0;
+	ep->epnum |= usb_endpoint_num(&urb->ep->desc);
 	ep->devnum = urb->dev->devnum;
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
