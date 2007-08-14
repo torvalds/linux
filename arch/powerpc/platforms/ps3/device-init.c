@@ -372,7 +372,7 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 		    notify_event->dev_type == repo->dev_type) {
 			pr_debug("%s:%u: device ready: dev_id %u\n", __func__,
 				 __LINE__, repo->dev_id);
-			result = 0;
+			error = 0;
 			break;
 		}
 
