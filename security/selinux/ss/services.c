@@ -2127,7 +2127,7 @@ int selinux_audit_rule_init(u32 field, u32 op, char *rulestr,
 	*rule = NULL;
 
 	if (!ss_initialized)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	switch (field) {
 	case AUDIT_SUBJ_USER:
