@@ -345,16 +345,17 @@ static int usblp_check_status(struct usblp *usblp, int err)
 	unsigned char status, newerr = 0;
 	int error;
 
-	error = usblp_read_status (usblp, usblp->statusbuf);
-	if (error < 0) {
+	mutex_lock(&usblp->mut);
+	if ((error = usblp_read_status(usblp, usblp->statusbuf)) < 0) {
+		mutex_unlock(&usblp->mut);
 		if (printk_ratelimit())
 			printk(KERN_ERR
 				"usblp%d: error %d reading printer status\n",
 				usblp->minor, error);
 		return 0;
 	}
-
 	status = *usblp->statusbuf;
+	mutex_unlock(&usblp->mut);
 
 	if (~status & LP_PERRORP)
 		newerr = 3;
