@@ -1677,7 +1677,8 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	if (codec->patch_ops.resume)
 		codec->patch_ops.resume(codec);
 	else {
-		codec->patch_ops.init(codec);
+		if (codec->patch_ops.init)
+			codec->patch_ops.init(codec);
 		snd_hda_codec_resume_amp(codec);
 		snd_hda_codec_resume_cache(codec);
 	}
