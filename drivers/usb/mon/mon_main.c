@@ -148,18 +148,8 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
 {
 	struct mon_bus *mbus;
 
-	mbus = ubus->mon_bus;
-	if (mbus == NULL) {
-		/*
-		 * This should not happen.
-		 * At this point we do not even know the bus number...
-		 */
-		printk(KERN_ERR TAG ": Null mon bus in URB, address %p\n",
-		    urb);
-		return;
-	}
-
-	mon_bus_complete(mbus, urb);
+	if ((mbus = ubus->mon_bus) != NULL)
+		mon_bus_complete(mbus, urb);
 	mon_bus_complete(&mon_bus0, urb);
 }
 
@@ -170,7 +160,7 @@ static void mon_complete(struct usb_bus *ubus, struct urb *urb)
  */
 static void mon_stop(struct mon_bus *mbus)
 {
-	struct usb_bus *ubus = mbus->u_bus;
+	struct usb_bus *ubus;
 	struct list_head *p;
 
 	if (mbus == &mon_bus0) {
