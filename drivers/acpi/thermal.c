@@ -79,6 +79,10 @@ static int act;
 module_param(act, int, 0644);
 MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.");
 
+static int crt;
+module_param(crt, int, 0644);
+MODULE_PARM_DESC(crt, "Disable or lower all critical trip points.");
+
 static int tzp;
 module_param(tzp, int, 0444);
 MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.");
@@ -338,6 +342,20 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Found critical threshold [%lu]\n",
 				  tz->trips.critical.temperature));
+	}
+
+	if (tz->trips.critical.flags.valid == 1) {
+		if (crt == -1) {
+			tz->trips.critical.flags.valid = 0;
+		} else if (crt > 0) {
+			unsigned long crt_k = CELSIUS_TO_KELVIN(crt);
+
+			/*
+			 * Allow override to lower critical threshold
+			 */
+			if (crt_k < tz->trips.critical.temperature)
+				tz->trips.critical.temperature = crt_k;
+		}
 	}
 
 	/* Critical Sleep (optional) */
