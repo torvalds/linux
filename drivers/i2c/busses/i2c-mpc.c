@@ -362,7 +362,7 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 
       fail_add:
 	if (i2c->irq != 0)
-		free_irq(i2c->irq, NULL);
+		free_irq(i2c->irq, i2c);
       fail_irq:
 	iounmap(i2c->base);
       fail_map:
