@@ -107,6 +107,21 @@ struct mv64xxx_i2c_data {
  *
  *****************************************************************************
  */
+
+/* Reset hardware and initialize FSM */
+static void
+mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
+{
+	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_SOFT_RESET);
+	writel((((drv_data->freq_m & 0xf) << 3) | (drv_data->freq_n & 0x7)),
+		drv_data->reg_base + MV64XXX_I2C_REG_BAUD);
+	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_SLAVE_ADDR);
+	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_EXT_SLAVE_ADDR);
+	writel(MV64XXX_I2C_REG_CONTROL_TWSIEN | MV64XXX_I2C_REG_CONTROL_STOP,
+		drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+	drv_data->state = MV64XXX_I2C_STATE_IDLE;
+}
+
 static void
 mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 {
@@ -203,7 +218,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 			 drv_data->state, status, drv_data->msg->addr,
 			 drv_data->msg->flags);
 		drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
-		drv_data->state = MV64XXX_I2C_STATE_IDLE;
+		mv64xxx_i2c_hw_init(drv_data);
 		drv_data->rc = -EIO;
 	}
 }
@@ -367,6 +382,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 				"mv64xxx: I2C bus locked, block: %d, "
 				"time_left: %d\n", drv_data->block,
 				(int)time_left);
+			mv64xxx_i2c_hw_init(drv_data);
 		}
 	} else
 		spin_unlock_irqrestore(&drv_data->lock, flags);
@@ -443,19 +459,6 @@ static const struct i2c_algorithm mv64xxx_i2c_algo = {
  *
  *****************************************************************************
  */
-static void __devinit
-mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
-{
-	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_SOFT_RESET);
-	writel((((drv_data->freq_m & 0xf) << 3) | (drv_data->freq_n & 0x7)),
-		drv_data->reg_base + MV64XXX_I2C_REG_BAUD);
-	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_SLAVE_ADDR);
-	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_EXT_SLAVE_ADDR);
-	writel(MV64XXX_I2C_REG_CONTROL_TWSIEN | MV64XXX_I2C_REG_CONTROL_STOP,
-		drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-	drv_data->state = MV64XXX_I2C_STATE_IDLE;
-}
-
 static int __devinit
 mv64xxx_i2c_map_regs(struct platform_device *pd,
 	struct mv64xxx_i2c_data *drv_data)
