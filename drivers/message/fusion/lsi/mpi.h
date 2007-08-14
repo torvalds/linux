@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2007 LSI Logic Corporation.
+ *  Copyright (c) 2000-2007 LSI Corporation.
  *
  *
  *           Name:  mpi.h

@@ -3,9 +3,9 @@
  *      High performance SCSI + LAN / Fibre Channel device drivers.
  *      For use with PCI chip/adapter(s):
  *          LSIFC9xx/LSI409xx Fibre Channel
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -68,7 +68,7 @@
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 
 #ifndef MODULEAUTHOR
-#define MODULEAUTHOR	"LSI Logic Corporation"
+#define MODULEAUTHOR	"LSI Corporation"
 #endif
 
 #ifndef COPYRIGHT

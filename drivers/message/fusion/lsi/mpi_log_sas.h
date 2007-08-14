@@ -1,6 +1,6 @@
 /***************************************************************************
  *                                                                         *
- *  Copyright 2003 LSI Logic Corporation.  All rights reserved.            *
+ *  Copyright 2003 LSI Corporation.  All rights reserved.            *
  *                                                                         *
  * Description                                                             *
  * ------------                                                            *

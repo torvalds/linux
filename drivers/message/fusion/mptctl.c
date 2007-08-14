@@ -1,10 +1,10 @@
 /*
  *  linux/drivers/message/fusion/mptctl.c
  *      mpt Ioctl driver.
- *      For use with LSI Logic PCI chip/adapters
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      For use with LSI PCI chip/adapters
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
@@ -66,8 +66,8 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
 
-#define COPYRIGHT	"Copyright (c) 1999-2007 LSI Logic Corporation"
-#define MODULEAUTHOR	"LSI Logic Corporation"
+#define COPYRIGHT	"Copyright (c) 1999-2007 LSI Corporation"
+#define MODULEAUTHOR	"LSI Corporation"
 #include "mptbase.h"
 #include "mptctl.h"
 

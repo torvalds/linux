@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2004 LSI Logic Corporation.
+ *  Copyright (c) 2000-2004 LSI Corporation.
  *
  *
  *           Name:  mpi_fc.h

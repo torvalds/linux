@@ -2,10 +2,10 @@
  *  linux/drivers/message/fusion/mptbase.c
  *      This is the Fusion MPT base driver which supports multiple
  *      (SCSI + LAN) specialized protocol drivers.
- *      For use with LSI Logic PCI chip/adapter(s)
- *      running LSI Logic Fusion MPT (Message Passing Technology) firmware.
+ *      For use with LSI PCI chip/adapter(s)
+ *      running LSI Fusion MPT (Message Passing Technology) firmware.
  *
- *  Copyright (c) 1999-2007 LSI Logic Corporation
+ *  Copyright (c) 1999-2007 LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  */
