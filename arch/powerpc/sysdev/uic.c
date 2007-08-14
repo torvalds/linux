@@ -266,6 +266,9 @@ irqreturn_t uic_cascade(int virq, void *data)
 	int subvirq;
 
 	msr = mfdcr(uic->dcrbase + UIC_MSR);
+	if (!msr) /* spurious interrupt */
+		return IRQ_HANDLED;
+
 	src = 32 - ffs(msr);
 
 	subvirq = irq_linear_revmap(uic->irqhost, src);
