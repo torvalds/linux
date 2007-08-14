@@ -749,8 +749,11 @@ static int sd_media_changed(struct gendisk *disk)
 	 * can deal with it then.  It is only because of unrecoverable errors
 	 * that we would ever take a device offline in the first place.
 	 */
-	if (!scsi_device_online(sdp))
-		goto not_present;
+	if (!scsi_device_online(sdp)) {
+		set_media_not_present(sdkp);
+		retval = 1;
+		goto out;
+	}
 
 	/*
 	 * Using TEST_UNIT_READY enables differentiation between drive with
@@ -762,6 +765,7 @@ static int sd_media_changed(struct gendisk *disk)
 	 * sd_revalidate() is called.
 	 */
 	retval = -ENODEV;
+
 	if (scsi_block_when_processing_errors(sdp))
 		retval = scsi_test_unit_ready(sdp, SD_TIMEOUT, SD_MAX_RETRIES);
 
@@ -771,8 +775,11 @@ static int sd_media_changed(struct gendisk *disk)
 	 * and we will figure it out later once the drive is
 	 * available again.
 	 */
-	if (retval)
-		 goto not_present;
+	if (retval) {
+		set_media_not_present(sdkp);
+		retval = 1;
+		goto out;
+	}
 
 	/*
 	 * For removable scsi disk we have to recognise the presence
@@ -783,12 +790,11 @@ static int sd_media_changed(struct gendisk *disk)
 
 	retval = sdp->changed;
 	sdp->changed = 0;
-
+out:
+	if (retval != sdkp->previous_state)
+		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
+	sdkp->previous_state = retval;
 	return retval;
-
-not_present:
-	set_media_not_present(sdkp);
-	return 1;
 }
 
 static int sd_sync_cache(struct scsi_disk *sdkp)

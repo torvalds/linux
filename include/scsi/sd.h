@@ -41,6 +41,7 @@ struct scsi_disk {
 	u32		index;
 	u8		media_present;
 	u8		write_prot;
+	unsigned	previous_state : 1;
 	unsigned	WCE : 1;	/* state of disk WCE bit */
 	unsigned	RCD : 1;	/* state of disk RCD bit, unused */
 	unsigned	DPOFUA : 1;	/* state of disk DPOFUA bit */

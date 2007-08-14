@@ -192,8 +192,9 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 		 * and we will figure it out later once the drive is
 		 * available again.  */
 		cd->device->changed = 1;
-		return 1;	/* This will force a flush, if called from
-				 * check_disk_change */
+		/* This will force a flush, if called from check_disk_change */
+		retval = 1;
+		goto out;
 	};
 
 	retval = cd->device->changed;
@@ -203,9 +204,16 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 	if (retval) {
 		/* check multisession offset etc */
 		sr_cd_check(cdi);
-
 		get_sectorsize(cd);
 	}
+
+out:
+	/* Notify userspace, that media has changed. */
+	if (retval != cd->previous_state)
+		sdev_evt_send_simple(cd->device, SDEV_EVT_MEDIA_CHANGE,
+				     GFP_KERNEL);
+	cd->previous_state = retval;
+
 	return retval;
 }
  
