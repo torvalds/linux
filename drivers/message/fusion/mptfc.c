@@ -675,6 +675,50 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 }
 
 /*
+ *	mptfc_display_port_link_speed - displaying link speed
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@portnum: IOC Port number
+ *	@pp0dest: port page0 data payload
+ *
+ */
+static void
+mptfc_display_port_link_speed(MPT_ADAPTER *ioc, int portnum, FCPortPage0_t *pp0dest)
+{
+	u8	old_speed, new_speed, state;
+	char	*old, *new;
+
+	if (portnum >= 2)
+		return;
+
+	old_speed = ioc->fc_link_speed[portnum];
+	new_speed = pp0dest->CurrentSpeed;
+	state = pp0dest->PortState;
+
+	if (state != MPI_FCPORTPAGE0_PORTSTATE_OFFLINE &&
+	    new_speed != MPI_FCPORTPAGE0_CURRENT_SPEED_UKNOWN) {
+
+		old = old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
+		       old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
+			old_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
+			 "Unknown";
+		new = new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_1GBIT ? "1 Gbps" :
+		       new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_2GBIT ? "2 Gbps" :
+			new_speed == MPI_FCPORTPAGE0_CURRENT_SPEED_4GBIT ? "4 Gbps" :
+			 "Unknown";
+		if (old_speed == 0)
+			printk(MYIOC_s_NOTE_FMT
+				"FC Link Established, Speed = %s\n",
+				ioc->name, new);
+		else if (old_speed != new_speed)
+			printk(MYIOC_s_WARN_FMT
+				"FC Link Speed Change, Old Speed = %s, New Speed = %s\n",
+				ioc->name, old, new);
+
+		ioc->fc_link_speed[portnum] = new_speed;
+	}
+}
+
+/*
  *	mptfc_GetFcPortPage0 - Fetch FCPort config Page0.
  *	@ioc: Pointer to MPT_ADAPTER structure
  *	@portnum: IOC Port number
@@ -773,6 +817,7 @@ mptfc_GetFcPortPage0(MPT_ADAPTER *ioc, int portnum)
 							" complete.\n",
 						ioc->name);
 			}
+			mptfc_display_port_link_speed(ioc, portnum, pp0dest);
 		}
 
 		pci_free_consistent(ioc->pcidev, data_sz, (u8 *) ppage0_alloc, page0_dma);
@@ -1023,6 +1068,18 @@ mptfc_init_host_attr(MPT_ADAPTER *ioc,int portnum)
 }
 
 static void
+mptfc_link_status_change(struct work_struct *work)
+{
+	MPT_ADAPTER             *ioc =
+		container_of(work, MPT_ADAPTER, fc_rescan_work);
+	int ii;
+
+	for (ii=0; ii < ioc->facts.NumberOfPorts; ii++)
+		(void) mptfc_GetFcPortPage0(ioc, ii);
+
+}
+
+static void
 mptfc_setup_reset(struct work_struct *work)
 {
 	MPT_ADAPTER		*ioc =
@@ -1163,6 +1220,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&ioc->fc_rescan_work_lock);
 	INIT_WORK(&ioc->fc_rescan_work, mptfc_rescan_devices);
 	INIT_WORK(&ioc->fc_setup_reset_work, mptfc_setup_reset);
+	INIT_WORK(&ioc->fc_lsc_work, mptfc_link_status_change);
 
 	spin_lock_irqsave(&ioc->FreeQlock, flags);
 
@@ -1334,6 +1392,14 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 		if (ioc->fc_rescan_work_q) {
 			queue_work(ioc->fc_rescan_work_q,
 				   &ioc->fc_rescan_work);
+		}
+		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
+		break;
+	case MPI_EVENT_LINK_STATUS_CHANGE:
+		spin_lock_irqsave(&ioc->fc_rescan_work_lock, flags);
+		if (ioc->fc_rescan_work_q) {
+			queue_work(ioc->fc_rescan_work_q,
+				   &ioc->fc_lsc_work);
 		}
 		spin_unlock_irqrestore(&ioc->fc_rescan_work_lock, flags);
 		break;
