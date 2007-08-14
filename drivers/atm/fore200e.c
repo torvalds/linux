@@ -2435,7 +2435,7 @@ fore200e_init_cmd_queue(struct fore200e* fore200e)
 }
 
 
-static void __init
+static void __devinit
 fore200e_param_bs_queue(struct fore200e* fore200e,
 			enum buffer_scheme scheme, enum buffer_magn magn,
 			int queue_length, int pool_size, int supply_blksize)

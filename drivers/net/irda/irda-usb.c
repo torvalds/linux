@@ -1561,10 +1561,9 @@ static inline struct irda_class_desc *irda_usb_find_class_desc(struct usb_interf
 	struct irda_class_desc *desc;
 	int ret;
 
-	desc = kmalloc(sizeof (*desc), GFP_KERNEL);
-	if (desc == NULL) 
+	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
+	if (!desc)
 		return NULL;
-	memset(desc, 0, sizeof(*desc));
 
 	/* USB-IrDA class spec 1.0:
 	 *	6.1.3: Standard "Get Descriptor" Device Request is not
@@ -1617,7 +1616,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 {
 	struct net_device *net;
 	struct usb_device *dev = interface_to_usbdev(intf);
-	struct irda_usb_cb *self = NULL;
+	struct irda_usb_cb *self;
 	struct usb_host_interface *interface;
 	struct irda_class_desc *irda_desc;
 	int ret = -ENOMEM;
@@ -1655,7 +1654,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 		self->header_length = USB_IRDA_HEADER;
 	}
 
-	self->rx_urb = kzalloc(self->max_rx_urb * sizeof(struct urb *),
+	self->rx_urb = kcalloc(self->max_rx_urb, sizeof(struct urb *),
 				GFP_KERNEL);
 
 	for (i = 0; i < self->max_rx_urb; i++) {
@@ -1715,7 +1714,7 @@ static int irda_usb_probe(struct usb_interface *intf,
 	/* Find IrDA class descriptor */
 	irda_desc = irda_usb_find_class_desc(intf);
 	ret = -ENODEV;
-	if (irda_desc == NULL)
+	if (!irda_desc)
 		goto err_out_3;
 
 	if (self->needspatch) {
@@ -1738,15 +1737,13 @@ static int irda_usb_probe(struct usb_interface *intf,
 	/* Don't change this buffer size and allocation without doing
 	 * some heavy and complete testing. Don't ask why :-(
 	 * Jean II */
-	self->speed_buff = kmalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
-	if (self->speed_buff == NULL) 
+	self->speed_buff = kzalloc(IRDA_USB_SPEED_MTU, GFP_KERNEL);
+	if (!self->speed_buff)
 		goto err_out_3;
-
-	memset(self->speed_buff, 0, IRDA_USB_SPEED_MTU);
 
 	self->tx_buff = kzalloc(IRDA_SKB_MAX_MTU + self->header_length,
 				GFP_KERNEL);
-	if (self->tx_buff == NULL)
+	if (!self->tx_buff)
 		goto err_out_4;
 
 	ret = irda_usb_open(self);
@@ -1767,12 +1764,11 @@ static int irda_usb_probe(struct usb_interface *intf,
 
 		/* replace IrDA class descriptor with what patched device is now reporting */
 		irda_desc = irda_usb_find_class_desc (self->usbintf);
-		if (irda_desc == NULL) {
+		if (!irda_desc) {
 			ret = -ENODEV;
 			goto err_out_6;
 		}
-		if (self->irda_desc)
-			kfree (self->irda_desc);
+		kfree(self->irda_desc);
 		self->irda_desc = irda_desc;
 		irda_usb_init_qos(self);
 	}

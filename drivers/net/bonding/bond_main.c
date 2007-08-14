@@ -1202,43 +1202,35 @@ static int bond_sethwaddr(struct net_device *bond_dev,
 	return 0;
 }
 
-#define BOND_INTERSECT_FEATURES \
-	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_TSO | NETIF_F_UFO)
+#define BOND_VLAN_FEATURES \
+	(NETIF_F_VLAN_CHALLENGED | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_TX | \
+	 NETIF_F_HW_VLAN_FILTER)
 
 /* 
  * Compute the common dev->feature set available to all slaves.  Some
- * feature bits are managed elsewhere, so preserve feature bits set on
- * master device that are not part of the examined set.
+ * feature bits are managed elsewhere, so preserve those feature bits
+ * on the master device.
  */
 static int bond_compute_features(struct bonding *bond)
 {
-	unsigned long features = BOND_INTERSECT_FEATURES;
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
+	unsigned long features = bond_dev->features;
 	unsigned short max_hard_header_len = ETH_HLEN;
 	int i;
 
+	features &= ~(NETIF_F_ALL_CSUM | BOND_VLAN_FEATURES);
+	features |= NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
+		    NETIF_F_GSO_MASK | NETIF_F_NO_CSUM;
+
 	bond_for_each_slave(bond, slave, i) {
-		features &= (slave->dev->features & BOND_INTERSECT_FEATURES);
+		features = netdev_compute_features(features,
+						   slave->dev->features);
 		if (slave->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = slave->dev->hard_header_len;
 	}
 
-	if ((features & NETIF_F_SG) && 
-	    !(features & NETIF_F_ALL_CSUM))
-		features &= ~NETIF_F_SG;
-
-	/* 
-	 * features will include NETIF_F_TSO (NETIF_F_UFO) iff all 
-	 * slave devices support NETIF_F_TSO (NETIF_F_UFO), which 
-	 * implies that all slaves also support scatter-gather 
-	 * (NETIF_F_SG), which implies that features also includes 
-	 * NETIF_F_SG. So no need to check whether we have an  
-	 * illegal combination of NETIF_F_{TSO,UFO} and 
-	 * !NETIF_F_SG 
-	 */
-
-	features |= (bond_dev->features & ~BOND_INTERSECT_FEATURES);
+	features |= (bond_dev->features & BOND_VLAN_FEATURES);
 	bond_dev->features = features;
 	bond_dev->hard_header_len = max_hard_header_len;
 
