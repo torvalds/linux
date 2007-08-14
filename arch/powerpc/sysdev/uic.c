@@ -142,7 +142,7 @@ static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 
 	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
 	desc->status |= flow_type & IRQ_TYPE_SENSE_MASK;
-	if (trigger)
+	if (!trigger)
 		desc->status |= IRQ_LEVEL;
 
 	spin_unlock_irqrestore(&uic->lock, flags);
