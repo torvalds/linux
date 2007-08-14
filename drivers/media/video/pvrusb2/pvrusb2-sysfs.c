@@ -905,8 +905,8 @@ struct pvr2_sysfs *pvr2_sysfs_create(struct pvr2_context *mp,
 }
 
 
-static int pvr2_sysfs_hotplug(struct device *cd,char **envp,
-			      int numenvp,char *buf,int size)
+static int pvr2_sysfs_hotplug(struct device *d,
+			      struct kobj_uevent_env *env)
 {
 	/* Even though we don't do anything here, we still need this function
 	   because sysfs will still try to call it. */

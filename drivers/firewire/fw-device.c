@@ -130,22 +130,15 @@ static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 }
 
 static int
-fw_unit_uevent(struct device *dev, char **envp, int num_envp,
-	       char *buffer, int buffer_size)
+fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct fw_unit *unit = fw_unit(dev);
 	char modalias[64];
-	int length = 0;
-	int i = 0;
 
 	get_modalias(unit, modalias, sizeof(modalias));
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "MODALIAS=%s", modalias))
+	if (add_uevent_var(env, "MODALIAS=%s", modalias))
 		return -ENOMEM;
-
-	envp[i] = NULL;
 
 	return 0;
 }

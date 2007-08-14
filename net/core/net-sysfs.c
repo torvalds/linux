@@ -396,28 +396,22 @@ static struct attribute_group wireless_group = {
 #endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_HOTPLUG
-static int netdev_uevent(struct device *d, char **envp,
-			 int num_envp, char *buf, int size)
+static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
 {
 	struct net_device *dev = to_net_dev(d);
-	int retval, len = 0, i = 0;
+	int retval;
 
 	/* pass interface to uevent. */
-	retval = add_uevent_var(envp, num_envp, &i,
-				buf, size, &len,
-				"INTERFACE=%s", dev->name);
+	retval = add_uevent_var(env, "INTERFACE=%s", dev->name);
 	if (retval)
 		goto exit;
 
 	/* pass ifindex to uevent.
 	 * ifindex is useful as it won't change (interface name may change)
 	 * and is what RtNetlink uses natively. */
-	retval = add_uevent_var(envp, num_envp, &i,
-				buf, size, &len,
-				"IFINDEX=%d", dev->ifindex);
+	retval = add_uevent_var(env, "IFINDEX=%d", dev->ifindex);
 
 exit:
-	envp[i] = NULL;
 	return retval;
 }
 #endif

@@ -859,87 +859,66 @@ static void input_dev_release(struct device *device)
  * Input uevent interface - loading event handlers based on
  * device bitfields.
  */
-static int input_add_uevent_bm_var(char **envp, int num_envp, int *cur_index,
-				   char *buffer, int buffer_size, int *cur_len,
+static int input_add_uevent_bm_var(struct kobj_uevent_env *env,
 				   const char *name, unsigned long *bitmap, int max)
 {
-	if (*cur_index >= num_envp - 1)
+	int len;
+
+	if (add_uevent_var(env, "%s=", name))
 		return -ENOMEM;
 
-	envp[*cur_index] = buffer + *cur_len;
-
-	*cur_len += snprintf(buffer + *cur_len, max(buffer_size - *cur_len, 0), name);
-	if (*cur_len >= buffer_size)
+	len = input_print_bitmap(&env->buf[env->buflen - 1],
+				 sizeof(env->buf) - env->buflen,
+				 bitmap, max, 0);
+	if (len >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
 
-	*cur_len += input_print_bitmap(buffer + *cur_len,
-					max(buffer_size - *cur_len, 0),
-					bitmap, max, 0) + 1;
-	if (*cur_len > buffer_size)
-		return -ENOMEM;
-
-	(*cur_index)++;
+	env->buflen += len;
 	return 0;
 }
 
-static int input_add_uevent_modalias_var(char **envp, int num_envp, int *cur_index,
-					 char *buffer, int buffer_size, int *cur_len,
+static int input_add_uevent_modalias_var(struct kobj_uevent_env *env,
 					 struct input_dev *dev)
 {
-	if (*cur_index >= num_envp - 1)
+	int len;
+
+	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
 
-	envp[*cur_index] = buffer + *cur_len;
-
-	*cur_len += snprintf(buffer + *cur_len, max(buffer_size - *cur_len, 0),
-			     "MODALIAS=");
-	if (*cur_len >= buffer_size)
+	len = input_print_modalias(&env->buf[env->buflen - 1],
+				   sizeof(env->buf) - env->buflen,
+				   dev, 0);
+	if (len >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
 
-	*cur_len += input_print_modalias(buffer + *cur_len,
-					 max(buffer_size - *cur_len, 0),
-					 dev, 0) + 1;
-	if (*cur_len > buffer_size)
-		return -ENOMEM;
-
-	(*cur_index)++;
+	env->buflen += len;
 	return 0;
 }
 
 #define INPUT_ADD_HOTPLUG_VAR(fmt, val...)				\
 	do {								\
-		int err = add_uevent_var(envp, num_envp, &i,		\
-					buffer, buffer_size, &len,	\
-					fmt, val);			\
+		int err = add_uevent_var(env, fmt, val);		\
 		if (err)						\
 			return err;					\
 	} while (0)
 
 #define INPUT_ADD_HOTPLUG_BM_VAR(name, bm, max)				\
 	do {								\
-		int err = input_add_uevent_bm_var(envp, num_envp, &i,	\
-					buffer, buffer_size, &len,	\
-					name, bm, max);			\
+		int err = input_add_uevent_bm_var(env, name, bm, max);	\
 		if (err)						\
 			return err;					\
 	} while (0)
 
 #define INPUT_ADD_HOTPLUG_MODALIAS_VAR(dev)				\
 	do {								\
-		int err = input_add_uevent_modalias_var(envp,		\
-					num_envp, &i,			\
-					buffer, buffer_size, &len,	\
-					dev);				\
+		int err = input_add_uevent_modalias_var(env, dev);	\
 		if (err)						\
 			return err;					\
 	} while (0)
 
-static int input_dev_uevent(struct device *device, char **envp,
-			    int num_envp, char *buffer, int buffer_size)
+static int input_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 {
 	struct input_dev *dev = to_input_dev(device);
-	int i = 0;
-	int len = 0;
 
 	INPUT_ADD_HOTPLUG_VAR("PRODUCT=%x/%x/%x/%x",
 				dev->id.bustype, dev->id.vendor,
@@ -971,7 +950,6 @@ static int input_dev_uevent(struct device *device, char **envp,
 
 	INPUT_ADD_HOTPLUG_MODALIAS_VAR(dev);
 
-	envp[i] = NULL;
 	return 0;
 }
 

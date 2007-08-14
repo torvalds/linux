@@ -134,14 +134,17 @@ static struct attribute_group* sys_dmi_attribute_groups[] = {
 	NULL
 };
 
-static int dmi_dev_uevent(struct device *dev, char **envp,
-			    int num_envp, char *buffer, int buffer_size)
+static int dmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	strcpy(buffer, "MODALIAS=");
-	get_modalias(buffer+9, buffer_size-9);
-	envp[0] = buffer;
-	envp[1] = NULL;
+	ssize_t len;
 
+	if (add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+	len = get_modalias(&env->buf[env->buflen - 1],
+			   sizeof(env->buf) - env->buflen);
+	if (len >= (sizeof(env->buf) - env->buflen))
+		return -ENOMEM;
+	env->buflen += len;
 	return 0;
 }
 

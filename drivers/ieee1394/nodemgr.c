@@ -153,8 +153,7 @@ struct host_info {
 };
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv);
-static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
-			  char *buffer, int buffer_size);
+static int nodemgr_uevent(struct device *dev, struct kobj_uevent_env *env);
 static void nodemgr_resume_ne(struct node_entry *ne);
 static void nodemgr_remove_ne(struct node_entry *ne);
 static struct node_entry *find_entry_by_guid(u64 guid);
@@ -1160,12 +1159,9 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 
 #ifdef CONFIG_HOTPLUG
 
-static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
-			  char *buffer, int buffer_size)
+static int nodemgr_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct unit_directory *ud;
-	int i = 0;
-	int length = 0;
 	int retval = 0;
 	/* ieee1394:venNmoNspNverN */
 	char buf[8 + 1 + 3 + 8 + 2 + 8 + 2 + 8 + 3 + 8 + 1];
@@ -1180,9 +1176,7 @@ static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
 
 #define PUT_ENVP(fmt,val) 					\
 do {								\
-	retval = add_uevent_var(envp, num_envp, &i,		\
-				buffer, buffer_size, &length,	\
-				fmt, val);			\
+	retval = add_uevent_var(env, fmt, val);		\
 	if (retval)						\
 		return retval;					\
 } while (0)
@@ -1201,15 +1195,12 @@ do {								\
 
 #undef PUT_ENVP
 
-	envp[i] = NULL;
-
 	return 0;
 }
 
 #else
 
-static int nodemgr_uevent(struct device *dev, char **envp, int num_envp,
-			  char *buffer, int buffer_size)
+static int nodemgr_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

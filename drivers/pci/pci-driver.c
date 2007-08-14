@@ -532,8 +532,7 @@ void pci_dev_put(struct pci_dev *dev)
 }
 
 #ifndef CONFIG_HOTPLUG
-int pci_uevent(struct device *dev, char **envp, int num_envp,
-	       char *buffer, int buffer_size)
+int pci_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

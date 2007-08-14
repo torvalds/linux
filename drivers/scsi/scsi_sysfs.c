@@ -277,16 +277,11 @@ static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
 	return (sdp->inq_periph_qual == SCSI_INQ_PQ_CON)? 1: 0;
 }
 
-static int scsi_bus_uevent(struct device *dev, char **envp, int num_envp,
-		           char *buffer, int buffer_size)
+static int scsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct scsi_device *sdev = to_scsi_device(dev);
-	int i = 0;
-	int length = 0;
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
-	envp[i] = NULL;
+	add_uevent_var(env, "MODALIAS=" SCSI_DEVICE_MODALIAS_FMT, sdev->type);
 	return 0;
 }
 

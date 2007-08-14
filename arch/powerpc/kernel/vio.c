@@ -317,30 +317,20 @@ static int vio_bus_match(struct device *dev, struct device_driver *drv)
 	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
 }
 
-static int vio_hotplug(struct device *dev, char **envp, int num_envp,
-			char *buffer, int buffer_size)
+static int vio_hotplug(struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
 	struct device_node *dn;
 	const char *cp;
-	int length;
-
-	if (!num_envp)
-		return -ENOMEM;
 
 	dn = dev->archdata.of_node;
 	if (!dn)
 		return -ENODEV;
-	cp = of_get_property(dn, "compatible", &length);
+	cp = of_get_property(dn, "compatible", NULL);
 	if (!cp)
 		return -ENODEV;
 
-	envp[0] = buffer;
-	length = scnprintf(buffer, buffer_size, "MODALIAS=vio:T%sS%s",
-				vio_dev->type, cp);
-	if ((buffer_size - length) <= 0)
-		return -ENOMEM;
-	envp[1] = NULL;
+	add_uevent_var(env, "MODALIAS=vio:T%sS%s", vio_dev->type, cp);
 	return 0;
 }
 

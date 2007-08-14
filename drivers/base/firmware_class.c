@@ -88,19 +88,14 @@ static CLASS_ATTR(timeout, 0644, firmware_timeout_show, firmware_timeout_store);
 
 static void fw_dev_release(struct device *dev);
 
-static int firmware_uevent(struct device *dev, char **envp, int num_envp,
-			   char *buffer, int buffer_size)
+static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
-	int i = 0, len = 0;
 
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			   "FIRMWARE=%s", fw_priv->fw_id))
+	if (add_uevent_var(env, "FIRMWARE=%s", fw_priv->fw_id))
 		return -ENOMEM;
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			   "TIMEOUT=%i", loading_timeout))
+	if (add_uevent_var(env, "TIMEOUT=%i", loading_timeout))
 		return -ENOMEM;
-	envp[i] = NULL;
 
 	return 0;
 }

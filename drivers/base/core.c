@@ -141,33 +141,23 @@ static const char *dev_uevent_name(struct kset *kset, struct kobject *kobj)
 	return NULL;
 }
 
-static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
-			int num_envp, char *buffer, int buffer_size)
+static int dev_uevent(struct kset *kset, struct kobject *kobj,
+		      struct kobj_uevent_env *env)
 {
 	struct device *dev = to_dev(kobj);
-	int i = 0;
-	int length = 0;
 	int retval = 0;
 
 	/* add the major/minor if present */
 	if (MAJOR(dev->devt)) {
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "MAJOR=%u", MAJOR(dev->devt));
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "MINOR=%u", MINOR(dev->devt));
+		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
+		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
 	}
 
 	if (dev->type && dev->type->name)
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "DEVTYPE=%s", dev->type->name);
+		add_uevent_var(env, "DEVTYPE=%s", dev->type->name);
 
 	if (dev->driver)
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "DRIVER=%s", dev->driver->name);
+		add_uevent_var(env, "DRIVER=%s", dev->driver->name);
 
 #ifdef CONFIG_SYSFS_DEPRECATED
 	if (dev->class) {
@@ -181,59 +171,43 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj, char **envp,
 
 			path = kobject_get_path(&parent->kobj, GFP_KERNEL);
 			if (path) {
-				add_uevent_var(envp, num_envp, &i,
-					       buffer, buffer_size, &length,
-					       "PHYSDEVPATH=%s", path);
+				add_uevent_var(env, "PHYSDEVPATH=%s", path);
 				kfree(path);
 			}
 
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVBUS=%s", parent->bus->name);
+			add_uevent_var(env, "PHYSDEVBUS=%s", parent->bus->name);
 
 			if (parent->driver)
-				add_uevent_var(envp, num_envp, &i,
-					       buffer, buffer_size, &length,
-					       "PHYSDEVDRIVER=%s", parent->driver->name);
+				add_uevent_var(env, "PHYSDEVDRIVER=%s",
+					       parent->driver->name);
 		}
 	} else if (dev->bus) {
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "PHYSDEVBUS=%s", dev->bus->name);
+		add_uevent_var(env, "PHYSDEVBUS=%s", dev->bus->name);
 
 		if (dev->driver)
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVDRIVER=%s", dev->driver->name);
+			add_uevent_var(env, "PHYSDEVDRIVER=%s", dev->driver->name);
 	}
 #endif
 
-	/* terminate, set to next free slot, shrink available space */
-	envp[i] = NULL;
-	envp = &envp[i];
-	num_envp -= i;
-	buffer = &buffer[length];
-	buffer_size -= length;
-
+	/* have the bus specific function add its stuff */
 	if (dev->bus && dev->bus->uevent) {
-		/* have the bus specific function add its stuff */
-		retval = dev->bus->uevent(dev, envp, num_envp, buffer, buffer_size);
+		retval = dev->bus->uevent(dev, env);
 		if (retval)
 			pr_debug ("%s: bus uevent() returned %d\n",
 				  __FUNCTION__, retval);
 	}
 
+	/* have the class specific function add its stuff */
 	if (dev->class && dev->class->dev_uevent) {
-		/* have the class specific function add its stuff */
-		retval = dev->class->dev_uevent(dev, envp, num_envp, buffer, buffer_size);
+		retval = dev->class->dev_uevent(dev, env);
 		if (retval)
 			pr_debug("%s: class uevent() returned %d\n",
 				 __FUNCTION__, retval);
 	}
 
+	/* have the device type specific fuction add its stuff */
 	if (dev->type && dev->type->uevent) {
-		/* have the device type specific fuction add its stuff */
-		retval = dev->type->uevent(dev, envp, num_envp, buffer, buffer_size);
+		retval = dev->type->uevent(dev, env);
 		if (retval)
 			pr_debug("%s: dev_type uevent() returned %d\n",
 				 __FUNCTION__, retval);
@@ -253,9 +227,7 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 {
 	struct kobject *top_kobj;
 	struct kset *kset;
-	char *envp[32];
-	char *data = NULL;
-	char *pos;
+	struct kobj_uevent_env *env = NULL;
 	int i;
 	size_t count = 0;
 	int retval;
@@ -278,26 +250,20 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 		if (!kset->uevent_ops->filter(kset, &dev->kobj))
 			goto out;
 
-	data = (char *)get_zeroed_page(GFP_KERNEL);
-	if (!data)
+	env = kzalloc(sizeof(struct kobj_uevent_env), GFP_KERNEL);
+	if (!env)
 		return -ENOMEM;
 
 	/* let the kset specific function add its keys */
-	pos = data;
-	memset(envp, 0, sizeof(envp));
-	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
-					  envp, ARRAY_SIZE(envp),
-					  pos, PAGE_SIZE);
+	retval = kset->uevent_ops->uevent(kset, &dev->kobj, env);
 	if (retval)
 		goto out;
 
 	/* copy keys to file */
-	for (i = 0; envp[i]; i++) {
-		pos = &buf[count];
-		count += sprintf(pos, "%s\n", envp[i]);
-	}
+	for (i = 0; i < env->envp_idx; i++)
+		count += sprintf(&buf[count], "%s\n", env->envp[i]);
 out:
-	free_page((unsigned long)data);
+	kfree(env);
 	return count;
 }
 

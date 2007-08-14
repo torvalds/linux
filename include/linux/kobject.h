@@ -29,6 +29,8 @@
 
 #define KOBJ_NAME_LEN			20
 #define UEVENT_HELPER_PATH_LEN		256
+#define UEVENT_NUM_ENVP			32	/* number of env pointers */
+#define UEVENT_BUFFER_SIZE		2048	/* buffer for the variables */
 
 /* path to the userspace helper executed on an event */
 extern char uevent_helper[];
@@ -111,11 +113,18 @@ struct kobj_type {
 	struct attribute	** default_attrs;
 };
 
+struct kobj_uevent_env {
+	char *envp[UEVENT_NUM_ENVP];
+	int envp_idx;
+	char buf[UEVENT_BUFFER_SIZE];
+	int buflen;
+};
+
 struct kset_uevent_ops {
 	int (*filter)(struct kset *kset, struct kobject *kobj);
 	const char *(*name)(struct kset *kset, struct kobject *kobj);
-	int (*uevent)(struct kset *kset, struct kobject *kobj, char **envp,
-			int num_envp, char *buffer, int buffer_size);
+	int (*uevent)(struct kset *kset, struct kobject *kobj,
+		      struct kobj_uevent_env *env);
 };
 
 /*
@@ -275,10 +284,8 @@ int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 			char *envp[]);
 
-int add_uevent_var(char **envp, int num_envp, int *cur_index,
-			char *buffer, int buffer_size, int *cur_len,
-			const char *format, ...)
-	__attribute__((format (printf, 7, 8)));
+int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
+	__attribute__((format (printf, 2, 3)));
 #else
 static inline int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 { return 0; }
@@ -287,9 +294,7 @@ static inline int kobject_uevent_env(struct kobject *kobj,
 				      char *envp[])
 { return 0; }
 
-static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
-				      char *buffer, int buffer_size, int *cur_len, 
-				      const char *format, ...)
+static inline int add_uevent_var(struct kobj_uevent_env *env, const char *format, ...)
 { return 0; }
 #endif
 

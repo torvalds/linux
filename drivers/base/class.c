@@ -180,8 +180,7 @@ static void class_device_create_release(struct class_device *class_dev)
 
 /* needed to allow these devices to have parent class devices */
 static int class_device_create_uevent(struct class_device *class_dev,
-				       char **envp, int num_envp,
-				       char *buffer, int buffer_size)
+				      struct kobj_uevent_env *env)
 {
 	pr_debug("%s called for %s\n", __FUNCTION__, class_dev->class_id);
 	return 0;
@@ -403,64 +402,43 @@ static void remove_deprecated_class_device_links(struct class_device *cd)
 { }
 #endif
 
-static int class_uevent(struct kset *kset, struct kobject *kobj, char **envp,
-			 int num_envp, char *buffer, int buffer_size)
+static int class_uevent(struct kset *kset, struct kobject *kobj,
+			struct kobj_uevent_env *env)
 {
 	struct class_device *class_dev = to_class_dev(kobj);
 	struct device *dev = class_dev->dev;
-	int i = 0;
-	int length = 0;
 	int retval = 0;
 
 	pr_debug("%s - name = %s\n", __FUNCTION__, class_dev->class_id);
 
 	if (MAJOR(class_dev->devt)) {
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "MAJOR=%u", MAJOR(class_dev->devt));
+		add_uevent_var(env, "MAJOR=%u", MAJOR(class_dev->devt));
 
-		add_uevent_var(envp, num_envp, &i,
-			       buffer, buffer_size, &length,
-			       "MINOR=%u", MINOR(class_dev->devt));
+		add_uevent_var(env, "MINOR=%u", MINOR(class_dev->devt));
 	}
 
 	if (dev) {
 		const char *path = kobject_get_path(&dev->kobj, GFP_KERNEL);
 		if (path) {
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVPATH=%s", path);
+			add_uevent_var(env, "PHYSDEVPATH=%s", path);
 			kfree(path);
 		}
 
 		if (dev->bus)
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVBUS=%s", dev->bus->name);
+			add_uevent_var(env, "PHYSDEVBUS=%s", dev->bus->name);
 
 		if (dev->driver)
-			add_uevent_var(envp, num_envp, &i,
-				       buffer, buffer_size, &length,
-				       "PHYSDEVDRIVER=%s", dev->driver->name);
+			add_uevent_var(env, "PHYSDEVDRIVER=%s", dev->driver->name);
 	}
-
-	/* terminate, set to next free slot, shrink available space */
-	envp[i] = NULL;
-	envp = &envp[i];
-	num_envp -= i;
-	buffer = &buffer[length];
-	buffer_size -= length;
 
 	if (class_dev->uevent) {
 		/* have the class device specific function add its stuff */
-		retval = class_dev->uevent(class_dev, envp, num_envp,
-					    buffer, buffer_size);
+		retval = class_dev->uevent(class_dev, env);
 		if (retval)
 			pr_debug("class_dev->uevent() returned %d\n", retval);
 	} else if (class_dev->class->uevent) {
 		/* have the class specific function add its stuff */
-		retval = class_dev->class->uevent(class_dev, envp, num_envp,
-						   buffer, buffer_size);
+		retval = class_dev->class->uevent(class_dev, env);
 		if (retval)
 			pr_debug("class->uevent() returned %d\n", retval);
 	}

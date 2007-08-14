@@ -34,8 +34,7 @@ static const char *memory_uevent_name(struct kset *kset, struct kobject *kobj)
 	return MEMORY_CLASS_NAME;
 }
 
-static int memory_uevent(struct kset *kset, struct kobject *kobj, char **envp,
-			int num_envp, char *buffer, int buffer_size)
+static int memory_uevent(struct kset *kset, struct kobj_uevent_env *env)
 {
 	int retval = 0;
 

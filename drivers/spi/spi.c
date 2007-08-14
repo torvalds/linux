@@ -67,14 +67,11 @@ static int spi_match_device(struct device *dev, struct device_driver *drv)
 	return strncmp(spi->modalias, drv->name, BUS_ID_SIZE) == 0;
 }
 
-static int spi_uevent(struct device *dev, char **envp, int num_envp,
-		char *buffer, int buffer_size)
+static int spi_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct spi_device		*spi = to_spi_device(dev);
 
-	envp[0] = buffer;
-	snprintf(buffer, buffer_size, "MODALIAS=%s", spi->modalias);
-	envp[1] = NULL;
+	add_uevent_var(env, "MODALIAS=%s", spi->modalias);
 	return 0;
 }
 

@@ -53,8 +53,7 @@ static void wiphy_dev_release(struct device *dev)
 }
 
 #ifdef CONFIG_HOTPLUG
-static int wiphy_uevent(struct device *dev, char **envp,
-			int num_envp, char *buf, int size)
+static int wiphy_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	/* TODO, we probably need stuff here */
 	return 0;

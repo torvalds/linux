@@ -57,16 +57,11 @@ static int tifm_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int tifm_uevent(struct device *dev, char **envp, int num_envp,
-		       char *buffer, int buffer_size)
+static int tifm_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct tifm_dev *sock = container_of(dev, struct tifm_dev, dev);
-	int i = 0;
-	int length = 0;
 
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			   "TIFM_CARD_TYPE=%s",
-			   tifm_media_type_name(sock->type, 1)))
+	if (add_uevent_var(env, "TIFM_CARD_TYPE=%s", tifm_media_type_name(sock->type, 1)))
 		return -ENOMEM;
 
 	return 0;

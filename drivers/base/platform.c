@@ -529,13 +529,11 @@ static struct device_attribute platform_dev_attrs[] = {
 	__ATTR_NULL,
 };
 
-static int platform_uevent(struct device *dev, char **envp, int num_envp,
-		char *buffer, int buffer_size)
+static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
 
-	envp[0] = buffer;
-	snprintf(buffer, buffer_size, "MODALIAS=platform:%s", pdev->name);
+	add_uevent_var(env, "MODALIAS=platform:%s", pdev->name);
 	return 0;
 }
 
