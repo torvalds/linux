@@ -35,8 +35,9 @@ struct acpi_device_bus_id{
  * e.g. on a device with hid:IBM0001 and cid:ACPI0001 you get:
  * char *modalias: "acpi:IBM0001:ACPI0001"
 */
-int create_modalias(struct acpi_device *acpi_dev, char *modalias, int size){
-
+static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
+			   int size)
+{
 	int len;
 
 	if (!acpi_dev->flags.hardware_id)
