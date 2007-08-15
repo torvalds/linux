@@ -498,13 +498,30 @@ static struct snd_kcontrol_new ad1986a_3st_mixers[] = {
 /* laptop model - 2ch only */
 static hda_nid_t ad1986a_laptop_dac_nids[1] = { AD1986A_FRONT_DAC };
 
+/* master controls both pins 0x1a and 0x1b */
+static struct hda_bind_ctls ad1986a_laptop_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
+		0,
+	},
+};
+
+static struct hda_bind_ctls ad1986a_laptop_master_sw = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
+		0,
+	},
+};
+
 static struct snd_kcontrol_new ad1986a_laptop_mixers[] = {
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x03, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x03, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x1b, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
-	/* HDA_CODEC_VOLUME("Headphone Playback Volume", 0x1a, 0x0, HDA_OUTPUT),
-	   HDA_CODEC_MUTE("Headphone Playback Switch", 0x1a, 0x0, HDA_OUTPUT), */
+	HDA_BIND_VOL("Master Playback Volume", &ad1986a_laptop_master_vol),
+	HDA_BIND_SW("Master Playback Switch", &ad1986a_laptop_master_sw),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x17, 0x0, HDA_OUTPUT),
@@ -531,25 +548,6 @@ static struct snd_kcontrol_new ad1986a_laptop_mixers[] = {
 };
 
 /* laptop-eapd model - 2ch only */
-
-/* master controls both pins 0x1a and 0x1b */
-static struct hda_bind_ctls ad1986a_laptop_master_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
-		0,
-	},
-};
-
-static struct hda_bind_ctls ad1986a_laptop_master_sw = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x1a, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
-		0,
-	},
-};
 
 static struct hda_input_mux ad1986a_laptop_eapd_capture_source = {
 	.num_items = 3,
