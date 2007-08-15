@@ -320,21 +320,26 @@ static struct i2c_driver_device i2c_devices[] __initdata = {
 	{"ricoh,rv5c387a", "rtc-rs5c372", "rv5c387a",},
 };
 
-static int __init of_find_i2c_driver(struct device_node *node, struct i2c_board_info *info)
+static int __init of_find_i2c_driver(struct device_node *node,
+				     struct i2c_board_info *info)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(i2c_devices); i++) {
 		if (!of_device_is_compatible(node, i2c_devices[i].of_device))
 			continue;
-		strncpy(info->driver_name, i2c_devices[i].i2c_driver, KOBJ_NAME_LEN);
-		strncpy(info->type, i2c_devices[i].i2c_type, I2C_NAME_SIZE);
+		if (strlcpy(info->driver_name, i2c_devices[i].i2c_driver,
+			    KOBJ_NAME_LEN) >= KOBJ_NAME_LEN ||
+		    strlcpy(info->type, i2c_devices[i].i2c_type,
+			    I2C_NAME_SIZE) >= I2C_NAME_SIZE)
+			return -ENOMEM;
 		return 0;
 	}
 	return -ENODEV;
 }
 
-static void __init of_register_i2c_devices(struct device_node *adap_node, int bus_num)
+static void __init of_register_i2c_devices(struct device_node *adap_node,
+					   int bus_num)
 {
 	struct device_node *node = NULL;
 
