@@ -166,6 +166,7 @@ static int qlogicfas_release(struct Scsi_Host *shost)
 {
 	struct qlogicfas408_priv *priv = get_priv_by_host(shost);
 
+	scsi_remove_host(shost);
 	if (shost->irq) {
 		qlogicfas408_disable_ints(priv);	
 		free_irq(shost->irq, shost);
@@ -174,7 +175,6 @@ static int qlogicfas_release(struct Scsi_Host *shost)
 		free_dma(shost->dma_channel);
 	if (shost->io_port && shost->n_io_port)
 		release_region(shost->io_port, shost->n_io_port);
-	scsi_remove_host(shost);
 	scsi_host_put(shost);
 
 	return 0;
