@@ -52,6 +52,7 @@
 #include <linux/kernel.h>
 #include <linux/signal.h>
 #include <linux/fs.h>
+#include <linux/usb.h>
 #include <linux/tty.h>
 #include <linux/console.h>
 #include <linux/string.h>
@@ -537,7 +538,7 @@ sisusbcon_switch(struct vc_data *c)
 	 */
 	if (c->vc_origin == (unsigned long)c->vc_screenbuf) {
 		mutex_unlock(&sisusb->lock);
-		printk(KERN_DEBUG "sisusb: ASSERT ORIGIN != SCREENBUF!\n");
+		dev_dbg(&sisusb->sisusb_dev->dev, "ASSERT ORIGIN != SCREENBUF!\n");
 		return 0;
 	}
 
@@ -1428,7 +1429,7 @@ static const struct consw sisusb_dummy_con = {
 int
 sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 {
-	int i, ret, minor = sisusb->minor;
+	int i, ret;
 
 	mutex_lock(&sisusb->lock);
 
@@ -1461,9 +1462,7 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	/* Set up text mode (and upload  default font) */
 	if (sisusb_reset_text_mode(sisusb, 1)) {
 		mutex_unlock(&sisusb->lock);
-		printk(KERN_ERR
-			"sisusbvga[%d]: Failed to set up text mode\n",
-			minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to set up text mode\n");
 		return 1;
 	}
 
@@ -1484,9 +1483,7 @@ sisusb_console_init(struct sisusb_usb_data *sisusb, int first, int last)
 	/* Allocate screen buffer */
 	if (!(sisusb->scrbuf = (unsigned long)vmalloc(sisusb->scrbuf_size))) {
 		mutex_unlock(&sisusb->lock);
-		printk(KERN_ERR
-			"sisusbvga[%d]: Failed to allocate screen buffer\n",
-			minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate screen buffer\n");
 		return 1;
 	}
 

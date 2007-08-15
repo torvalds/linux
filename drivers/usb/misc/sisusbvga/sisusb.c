@@ -1003,16 +1003,10 @@ static int sisusb_write_mem_bulk(struct sisusb_usb_data *sisusb, u32 addr,
 			if (ret) {
 				msgcount++;
 				if (msgcount < 500)
-					printk(KERN_ERR
-						"sisusbvga[%d]: Wrote %zd of "
-						"%d bytes, error %d\n",
-						sisusb->minor, *bytes_written,
-						length, ret);
+					dev_err(&sisusb->sisusb_dev->dev, "Wrote %zd of %d bytes, error %d\n",
+						*bytes_written, length, ret);
 				else if (msgcount == 500)
-					printk(KERN_ERR
-						"sisusbvga[%d]: Too many errors"
-						", logging stopped\n",
-						sisusb->minor);
+					dev_err(&sisusb->sisusb_dev->dev, "Too many errors, logging stopped\n");
 			}
 			addr += (*bytes_written);
 			length -= (*bytes_written);
@@ -1389,10 +1383,10 @@ sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
     sisusb_copy_memory(sisusb, srcbuffer, sisusb->vrambase, 7, &dummy);
 
     for(i = 1; i <= 7; i++) {
-        printk(KERN_DEBUG "sisusb: rwtest %d bytes\n", i);
+        dev_dbg(&sisusb->sisusb_dev->dev, "sisusb: rwtest %d bytes\n", i);
 	sisusb_read_memory(sisusb, destbuffer, sisusb->vrambase, i, &dummy);
 	for(j = 0; j < i; j++) {
-	     printk(KERN_DEBUG "sisusb: rwtest read[%d] = %x\n", j, destbuffer[j]);
+	     dev_dbg(&sisusb->sisusb_dev->dev, "rwtest read[%d] = %x\n", j, destbuffer[j]);
 	}
     }
 }
@@ -2111,17 +2105,12 @@ sisusb_init_gfxcore(struct sisusb_usb_data *sisusb)
 		if (ramtype <= 1) {
 			ret |= sisusb_get_sdram_size(sisusb, &iret, bw, chab);
 			if (iret) {
-				printk(KERN_ERR "sisusbvga[%d]: RAM size "
-					"detection failed, "
-					"assuming 8MB video RAM\n",
-					sisusb->minor);
+				dev_err(&sisusb->sisusb_dev->dev,"RAM size detection failed, assuming 8MB video RAM\n");
 				ret |= SETIREG(SISSR,0x14,0x31);
 				/* TODO */
 			}
 		} else {
-			printk(KERN_ERR "sisusbvga[%d]: DDR RAM device found, "
-					"assuming 8MB video RAM\n",
-					sisusb->minor);
+			dev_err(&sisusb->sisusb_dev->dev, "DDR RAM device found, assuming 8MB video RAM\n");
 			ret |= SETIREG(SISSR,0x14,0x31);
 			/* *** TODO *** */
 		}
@@ -2192,8 +2181,7 @@ sisusb_get_ramconfig(struct sisusb_usb_data *sisusb)
 		break;
 	}
 
-	printk(KERN_INFO "sisusbvga[%d]: %dMB %s %s, bus width %d\n",
-			sisusb->minor, (sisusb->vramsize >> 20), ramtypetext1,
+	dev_info(&sisusb->sisusb_dev->dev, "%dMB %s %s, bus width %d\n", (sisusb->vramsize >> 20), ramtypetext1,
 			ramtypetext2[ramtype], bw);
 }
 
@@ -2453,8 +2441,7 @@ sisusb_open(struct inode *inode, struct file *file)
 	int subminor = iminor(inode);
 
 	if (!(interface = usb_find_interface(&sisusb_driver, subminor))) {
-		printk(KERN_ERR "sisusb[%d]: Failed to find interface\n",
-				subminor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to find interface\n");
 		return -ENODEV;
 	}
 
@@ -2477,18 +2464,12 @@ sisusb_open(struct inode *inode, struct file *file)
 		if (sisusb->sisusb_dev->speed == USB_SPEED_HIGH) {
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
 				mutex_unlock(&sisusb->lock);
-				printk(KERN_ERR
-					"sisusbvga[%d]: Failed to initialize "
-					"device\n",
-					sisusb->minor);
+				dev_err(&sisusb->sisusb_dev->dev, "Failed to initialize device\n");
 				return -EIO;
 			}
 		} else {
 			mutex_unlock(&sisusb->lock);
-			printk(KERN_ERR
-				"sisusbvga[%d]: Device not attached to "
-				"USB 2.0 hub\n",
-				sisusb->minor);
+			dev_err(&sisusb->sisusb_dev->dev, "Device not attached to USB 2.0 hub\n");
 			return -EIO;
 		}
 	}
@@ -2529,7 +2510,6 @@ static int
 sisusb_release(struct inode *inode, struct file *file)
 {
 	struct sisusb_usb_data *sisusb;
-	int myminor;
 
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
@@ -2541,8 +2521,6 @@ sisusb_release(struct inode *inode, struct file *file)
 		if (!sisusb_wait_all_out_complete(sisusb))
 			sisusb_kill_all_busy(sisusb);
 	}
-
-	myminor = sisusb->minor;
 
 	sisusb->isopen = 0;
 	file->private_data = NULL;
@@ -3126,17 +3104,13 @@ static int sisusb_probe(struct usb_interface *intf,
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct sisusb_usb_data *sisusb;
 	int retval = 0, i;
-	const char *memfail =
-		KERN_ERR
-		"sisusbvga[%d]: Failed to allocate memory for %s buffer\n";
 
-	printk(KERN_INFO "sisusb: USB2VGA dongle found at address %d\n",
+	dev_info(&dev->dev, "USB2VGA dongle found at address %d\n",
 		dev->devnum);
 
 	/* Allocate memory for our private */
 	if (!(sisusb = kzalloc(sizeof(*sisusb), GFP_KERNEL))) {
-		printk(KERN_ERR
-			"sisusb: Failed to allocate memory for private data\n");
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate memory for private data\n");
 		return -ENOMEM;
 	}
 	kref_init(&sisusb->kref);
@@ -3145,8 +3119,7 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	/* Register device */
 	if ((retval = usb_register_dev(intf, &usb_sisusb_class))) {
-		printk(KERN_ERR
-			"sisusb: Failed to get a minor for device %d\n",
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to get a minor for device %d\n",
 			dev->devnum);
 		retval = -ENODEV;
 		goto error_1;
@@ -3164,7 +3137,7 @@ static int sisusb_probe(struct usb_interface *intf,
 	sisusb->ibufsize = SISUSB_IBUF_SIZE;
 	if (!(sisusb->ibuf = usb_buffer_alloc(dev, SISUSB_IBUF_SIZE,
 					GFP_KERNEL, &sisusb->transfer_dma_in))) {
-		printk(memfail, "input", sisusb->minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate memory for input buffer");
 		retval = -ENOMEM;
 		goto error_2;
 	}
@@ -3176,7 +3149,7 @@ static int sisusb_probe(struct usb_interface *intf,
 					GFP_KERNEL,
 					&sisusb->transfer_dma_out[i]))) {
 			if (i == 0) {
-				printk(memfail, "output", sisusb->minor);
+				dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate memory for output buffer\n");
 				retval = -ENOMEM;
 				goto error_3;
 			}
@@ -3188,9 +3161,7 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	/* Allocate URBs */
 	if (!(sisusb->sisurbin = usb_alloc_urb(0, GFP_KERNEL))) {
-		printk(KERN_ERR
-			"sisusbvga[%d]: Failed to allocate URBs\n",
-			sisusb->minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
 		retval = -ENOMEM;
 		goto error_3;
 	}
@@ -3198,9 +3169,7 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	for (i = 0; i < sisusb->numobufs; i++) {
 		if (!(sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL))) {
-			printk(KERN_ERR
-				"sisusbvga[%d]: Failed to allocate URBs\n",
-				sisusb->minor);
+			dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
 			retval = -ENOMEM;
 			goto error_4;
 		}
@@ -3209,15 +3178,12 @@ static int sisusb_probe(struct usb_interface *intf,
 		sisusb->urbstatus[i] = 0;
 	}
 
-	printk(KERN_INFO "sisusbvga[%d]: Allocated %d output buffers\n",
-					sisusb->minor, sisusb->numobufs);
+	dev_info(&sisusb->sisusb_dev->dev, "Allocated %d output buffers\n", sisusb->numobufs);
 
 #ifdef INCL_SISUSB_CON
 	/* Allocate our SiS_Pr */
 	if (!(sisusb->SiS_Pr = kmalloc(sizeof(struct SiS_Private), GFP_KERNEL))) {
-		printk(KERN_ERR
-			"sisusbvga[%d]: Failed to allocate SiS_Pr\n",
-			sisusb->minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate SiS_Pr\n");
 	}
 #endif
 
@@ -3239,10 +3205,7 @@ static int sisusb_probe(struct usb_interface *intf,
 	ret |= register_ioctl32_conversion(SISUSB_GET_CONFIG,      NULL);
 	ret |= register_ioctl32_conversion(SISUSB_COMMAND,         NULL);
 	if (ret)
-		printk(KERN_ERR
-			"sisusbvga[%d]: Error registering ioctl32 "
-			"translations\n",
-			sisusb->minor);
+		dev_err(&sisusb->sisusb_dev->dev, "Error registering ioctl32 translations\n");
 	else
 		sisusb->ioctl32registered = 1;
 	}
@@ -3258,23 +3221,17 @@ static int sisusb_probe(struct usb_interface *intf,
 			initscreen = 0;
 #endif
 		if (sisusb_init_gfxdevice(sisusb, initscreen))
-			printk(KERN_ERR
-				"sisusbvga[%d]: Failed to early "
-				"initialize device\n",
-				sisusb->minor);
+			dev_err(&sisusb->sisusb_dev->dev, "Failed to early initialize device\n");
 
 	} else
-		printk(KERN_INFO
-			"sisusbvga[%d]: Not attached to USB 2.0 hub, "
-			"deferring init\n",
-			sisusb->minor);
+		dev_info(&sisusb->sisusb_dev->dev, "Not attached to USB 2.0 hub, deferring init\n");
 
 	sisusb->ready = 1;
 
 #ifdef SISUSBENDIANTEST
-	printk(KERN_DEBUG "sisusb: *** RWTEST ***\n");
+	dev_dbg(&sisusb->sisusb_dev->dev, "*** RWTEST ***\n");
 	sisusb_testreadwrite(sisusb);
-	printk(KERN_DEBUG "sisusb: *** RWTEST END ***\n");
+	dev_dbg(&sisusb->sisusb_dev->dev, "*** RWTEST END ***\n");
 #endif
 
 #ifdef INCL_SISUSB_CON
@@ -3297,7 +3254,6 @@ error_1:
 static void sisusb_disconnect(struct usb_interface *intf)
 {
 	struct sisusb_usb_data *sisusb;
-	int minor;
 
 	/* This should *not* happen */
 	if (!(sisusb = usb_get_intfdata(intf)))
@@ -3306,8 +3262,6 @@ static void sisusb_disconnect(struct usb_interface *intf)
 #ifdef INCL_SISUSB_CON
 	sisusb_console_exit(sisusb);
 #endif
-
-	minor = sisusb->minor;
 
 	usb_deregister_dev(intf, &usb_sisusb_class);
 
@@ -3327,10 +3281,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 		ret |= unregister_ioctl32_conversion(SISUSB_GET_CONFIG);
 		ret |= unregister_ioctl32_conversion(SISUSB_COMMAND);
 		if (ret) {
-			printk(KERN_ERR
-				"sisusbvga[%d]: Error unregistering "
-				"ioctl32 translations\n",
-				minor);
+			dev_err(&sisusb->sisusb_dev->dev, "Error unregistering ioctl32 translations\n");
 		}
 	}
 #endif
@@ -3343,7 +3294,7 @@ static void sisusb_disconnect(struct usb_interface *intf)
 	/* decrement our usage count */
 	kref_put(&sisusb->kref, sisusb_delete);
 
-	printk(KERN_INFO "sisusbvga[%d]: Disconnected\n", minor);
+	dev_info(&sisusb->sisusb_dev->dev, "Disconnected\n");
 }
 
 static struct usb_device_id sisusb_table [] = {
@@ -3368,6 +3319,7 @@ static struct usb_driver sisusb_driver = {
 static int __init usb_sisusb_init(void)
 {
 	int retval;
+	struct sisusb_usb_data *sisusb;
 
 #ifdef INCL_SISUSB_CON
 	sisusb_init_concode();
@@ -3375,10 +3327,9 @@ static int __init usb_sisusb_init(void)
 
 	if (!(retval = usb_register(&sisusb_driver))) {
 
-		printk(KERN_INFO "sisusb: Driver version %d.%d.%d\n",
-			SISUSB_VERSION, SISUSB_REVISION, SISUSB_PATCHLEVEL);
-		printk(KERN_INFO
-			"sisusb: Copyright (C) 2005 Thomas Winischhofer\n");
+		dev_info(&sisusb->sisusb_dev->dev, "Driver version %d.%d.%d\n", SISUSB_VERSION,
+				SISUSB_REVISION, SISUSB_PATCHLEVEL);
+		dev_info(&sisusb->sisusb_dev->dev, "sisusb: Copyright (C) 2005 Thomas Winischhofer\n");
 
 	}
 
