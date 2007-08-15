@@ -149,7 +149,7 @@ static void udbg_adb_putc(char c)
 		return udbg_adb_old_putc(c);
 }
 
-void udbg_adb_init_early(void)
+void __init udbg_adb_init_early(void)
 {
 #ifdef CONFIG_BOOTX_TEXT
 	if (btext_find_display(1) == 0) {
@@ -159,7 +159,7 @@ void udbg_adb_init_early(void)
 #endif
 }
 
-int udbg_adb_init(int force_btext)
+int __init udbg_adb_init(int force_btext)
 {
 	struct device_node *np;
 
