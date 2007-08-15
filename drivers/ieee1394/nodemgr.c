@@ -1712,7 +1712,8 @@ static int nodemgr_host_thread(void *__hi)
 		 * to make sure things settle down. */
 		g = get_hpsb_generation(host);
 		for (i = 0; i < 4 ; i++) {
-			if (msleep_interruptible(63) || kthread_should_stop())
+			msleep_interruptible(63);
+			if (kthread_should_stop())
 				goto exit;
 
 			/* Now get the generation in which the node ID's we collect
