@@ -27,10 +27,26 @@
 
 #include "cx88.h"
 
+static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
+static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
+static unsigned int card[]  = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
+
+module_param_array(tuner, int, NULL, 0444);
+module_param_array(radio, int, NULL, 0444);
+module_param_array(card,  int, NULL, 0444);
+
+MODULE_PARM_DESC(tuner,"tuner type");
+MODULE_PARM_DESC(radio,"radio tuner type");
+MODULE_PARM_DESC(card,"card type");
+
+static unsigned int latency = UNSET;
+module_param(latency,int,0444);
+MODULE_PARM_DESC(latency,"pci latency timer");
+
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
 
-const struct cx88_board cx88_boards[] = {
+static const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
 		.tuner_type     = UNSET,
@@ -1355,12 +1371,11 @@ const struct cx88_board cx88_boards[] = {
 		}},
 	},
 };
-const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
 /* ------------------------------------------------------------------ */
 /* PCI subsystem IDs                                                  */
 
-struct cx88_subid cx88_subids[] = {
+static const struct cx88_subid cx88_subids[] = {
 	{
 		.subvendor = 0x0070,
 		.subdevice = 0x3400,
@@ -1666,7 +1681,6 @@ struct cx88_subid cx88_subids[] = {
 		.card      = CX88_BOARD_ADSTECH_PTV_390,
 	},
 };
-const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
 
 /* ----------------------------------------------------------------------- */
 /* some leadtek specific stuff                                             */
@@ -1833,7 +1847,7 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 
 /* ----------------------------------------------------------------------- */
 
-void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
+static void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 {
 	int i;
 
@@ -1854,12 +1868,12 @@ void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 	}
 	printk("%s: Here is a list of valid choices for the card=<n> insmod option:\n",
 	       core->name);
-	for (i = 0; i < cx88_bcount; i++)
+	for (i = 0; i < ARRAY_SIZE(cx88_boards); i++)
 		printk("%s:    card=%d -> %s\n",
 		       core->name, i, cx88_boards[i].name);
 }
 
-void cx88_card_setup_pre_i2c(struct cx88_core *core)
+static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 {
 	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
@@ -1875,7 +1889,7 @@ void cx88_card_setup_pre_i2c(struct cx88_core *core)
 	}
 }
 
-void cx88_card_setup(struct cx88_core *core)
+static void cx88_card_setup(struct cx88_core *core)
 {
 	static u8 eeprom[256];
 
@@ -1966,6 +1980,144 @@ void cx88_card_setup(struct cx88_core *core)
 		}
 		break;
 	}
+}
+
+/* ------------------------------------------------------------------ */
+
+static int cx88_pci_quirks(const char *name, struct pci_dev *pci)
+{
+	unsigned int lat = UNSET;
+	u8 ctrl = 0;
+	u8 value;
+
+	/* check pci quirks */
+	if (pci_pci_problems & PCIPCI_TRITON) {
+		printk(KERN_INFO "%s: quirk: PCIPCI_TRITON -- set TBFX\n",
+		       name);
+		ctrl |= CX88X_EN_TBFX;
+	}
+	if (pci_pci_problems & PCIPCI_NATOMA) {
+		printk(KERN_INFO "%s: quirk: PCIPCI_NATOMA -- set TBFX\n",
+		       name);
+		ctrl |= CX88X_EN_TBFX;
+	}
+	if (pci_pci_problems & PCIPCI_VIAETBF) {
+		printk(KERN_INFO "%s: quirk: PCIPCI_VIAETBF -- set TBFX\n",
+		       name);
+		ctrl |= CX88X_EN_TBFX;
+	}
+	if (pci_pci_problems & PCIPCI_VSFX) {
+		printk(KERN_INFO "%s: quirk: PCIPCI_VSFX -- set VSFX\n",
+		       name);
+		ctrl |= CX88X_EN_VSFX;
+	}
+#ifdef PCIPCI_ALIMAGIK
+	if (pci_pci_problems & PCIPCI_ALIMAGIK) {
+		printk(KERN_INFO "%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
+		       name);
+		lat = 0x0A;
+	}
+#endif
+
+	/* check insmod options */
+	if (UNSET != latency)
+		lat = latency;
+
+	/* apply stuff */
+	if (ctrl) {
+		pci_read_config_byte(pci, CX88X_DEVCTRL, &value);
+		value |= ctrl;
+		pci_write_config_byte(pci, CX88X_DEVCTRL, value);
+	}
+	if (UNSET != lat) {
+		printk(KERN_INFO "%s: setting pci latency timer to %d\n",
+		       name, latency);
+		pci_write_config_byte(pci, PCI_LATENCY_TIMER, latency);
+	}
+	return 0;
+}
+
+int cx88_get_resources(const struct cx88_core *core, struct pci_dev *pci)
+{
+	if (request_mem_region(pci_resource_start(pci,0),
+			       pci_resource_len(pci,0),
+			       core->name))
+		return 0;
+	printk(KERN_ERR
+	       "%s/%d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
+	       core->name, PCI_FUNC(pci->devfn),
+	       (unsigned long long)pci_resource_start(pci, 0),
+	       pci->subsystem_vendor, pci->subsystem_device);
+	return -EBUSY;
+}
+
+/* Allocate and initialize the cx88 core struct.  One should hold the
+ * devlist mutex before calling this.  */
+struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
+{
+	struct cx88_core *core;
+	int i;
+
+	core = kzalloc(sizeof(*core), GFP_KERNEL);
+
+	atomic_inc(&core->refcount);
+	core->pci_bus  = pci->bus->number;
+	core->pci_slot = PCI_SLOT(pci->devfn);
+	core->pci_irqmask = 0x00fc00;
+	mutex_init(&core->lock);
+
+	core->nr = nr;
+	sprintf(core->name, "cx88[%d]", core->nr);
+	if (0 != cx88_get_resources(core, pci)) {
+		kfree(core);
+		return NULL;
+	}
+
+	/* PCI stuff */
+	cx88_pci_quirks(core->name, pci);
+	core->lmmio = ioremap(pci_resource_start(pci, 0),
+			      pci_resource_len(pci, 0));
+	core->bmmio = (u8 __iomem *)core->lmmio;
+
+	/* board config */
+	core->boardnr = UNSET;
+	if (card[core->nr] < ARRAY_SIZE(cx88_boards))
+		core->boardnr = card[core->nr];
+	for (i = 0; UNSET == core->boardnr && i < ARRAY_SIZE(cx88_subids); i++)
+		if (pci->subsystem_vendor == cx88_subids[i].subvendor &&
+		    pci->subsystem_device == cx88_subids[i].subdevice)
+			core->boardnr = cx88_subids[i].card;
+	if (UNSET == core->boardnr) {
+		core->boardnr = CX88_BOARD_UNKNOWN;
+		cx88_card_list(core, pci);
+	}
+
+	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
+
+	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+		core->name,pci->subsystem_vendor,
+		pci->subsystem_device, core->board.name,
+		core->boardnr, card[core->nr] == core->boardnr ?
+		"insmod option" : "autodetected");
+
+	if (tuner[core->nr] != UNSET)
+		core->board.tuner_type = tuner[core->nr];
+	if (radio[core->nr] != UNSET)
+		core->board.radio_type = radio[core->nr];
+
+	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
+		core->board.tuner_type, core->board.tuner_addr<<1,
+		core->board.radio_type, core->board.radio_addr<<1);
+
+	/* init hardware */
+	cx88_reset(core);
+	cx88_card_setup_pre_i2c(core);
+	cx88_i2c_init(core, pci);
+	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
+	cx88_card_setup(core);
+	cx88_ir_init(core, pci);
+
+	return core;
 }
 
 /* ------------------------------------------------------------------ */

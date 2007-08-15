@@ -580,15 +580,9 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
-extern const struct cx88_board cx88_boards[];
-extern const unsigned int cx88_bcount;
-
-extern struct cx88_subid cx88_subids[];
-extern const unsigned int cx88_idcount;
-
-extern void cx88_card_list(struct cx88_core *core, struct pci_dev *pci);
-extern void cx88_card_setup(struct cx88_core *core);
-extern void cx88_card_setup_pre_i2c(struct cx88_core *core);
+extern int cx88_get_resources(const struct cx88_core *core,
+			      struct pci_dev *pci);
+extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);
 
 /* ----------------------------------------------------------- */
 /* cx88-tvaudio.c                                              */

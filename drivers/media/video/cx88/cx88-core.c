@@ -52,22 +52,6 @@ static unsigned int core_debug = 0;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-static unsigned int latency = UNSET;
-module_param(latency,int,0444);
-MODULE_PARM_DESC(latency,"pci latency timer");
-
-static unsigned int tuner[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
-static unsigned int radio[] = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
-static unsigned int card[]  = {[0 ... (CX88_MAXBOARDS - 1)] = UNSET };
-
-module_param_array(tuner, int, NULL, 0444);
-module_param_array(radio, int, NULL, 0444);
-module_param_array(card,  int, NULL, 0444);
-
-MODULE_PARM_DESC(tuner,"tuner type");
-MODULE_PARM_DESC(radio,"radio tuner type");
-MODULE_PARM_DESC(card,"card type");
-
 static unsigned int nicam = 0;
 module_param(nicam,int,0644);
 MODULE_PARM_DESC(nicam,"tv audio is nicam");
@@ -997,61 +981,6 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 
 /* ------------------------------------------------------------------ */
 
-static int cx88_pci_quirks(char *name, struct pci_dev *pci)
-{
-	unsigned int lat = UNSET;
-	u8 ctrl = 0;
-	u8 value;
-
-	/* check pci quirks */
-	if (pci_pci_problems & PCIPCI_TRITON) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_TRITON -- set TBFX\n",
-		       name);
-		ctrl |= CX88X_EN_TBFX;
-	}
-	if (pci_pci_problems & PCIPCI_NATOMA) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_NATOMA -- set TBFX\n",
-		       name);
-		ctrl |= CX88X_EN_TBFX;
-	}
-	if (pci_pci_problems & PCIPCI_VIAETBF) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_VIAETBF -- set TBFX\n",
-		       name);
-		ctrl |= CX88X_EN_TBFX;
-	}
-	if (pci_pci_problems & PCIPCI_VSFX) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_VSFX -- set VSFX\n",
-		       name);
-		ctrl |= CX88X_EN_VSFX;
-	}
-#ifdef PCIPCI_ALIMAGIK
-	if (pci_pci_problems & PCIPCI_ALIMAGIK) {
-		printk(KERN_INFO "%s: quirk: PCIPCI_ALIMAGIK -- latency fixup\n",
-		       name);
-		lat = 0x0A;
-	}
-#endif
-
-	/* check insmod options */
-	if (UNSET != latency)
-		lat = latency;
-
-	/* apply stuff */
-	if (ctrl) {
-		pci_read_config_byte(pci, CX88X_DEVCTRL, &value);
-		value |= ctrl;
-		pci_write_config_byte(pci, CX88X_DEVCTRL, value);
-	}
-	if (UNSET != lat) {
-		printk(KERN_INFO "%s: setting pci latency timer to %d\n",
-		       name, latency);
-		pci_write_config_byte(pci, PCI_LATENCY_TIMER, latency);
-	}
-	return 0;
-}
-
-/* ------------------------------------------------------------------ */
-
 struct video_device *cx88_vdev_init(struct cx88_core *core,
 				    struct pci_dev *pci,
 				    struct video_device *template,
@@ -1071,25 +1000,10 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	return vfd;
 }
 
-static int get_ressources(struct cx88_core *core, struct pci_dev *pci)
-{
-	if (request_mem_region(pci_resource_start(pci,0),
-			       pci_resource_len(pci,0),
-			       core->name))
-		return 0;
-	printk(KERN_ERR
-	       "%s/%d: Can't get MMIO memory @ 0x%llx, subsystem: %04x:%04x\n",
-	       core->name, PCI_FUNC(pci->devfn),
-	       (unsigned long long)pci_resource_start(pci, 0),
-	       pci->subsystem_vendor, pci->subsystem_device);
-	return -EBUSY;
-}
-
 struct cx88_core* cx88_core_get(struct pci_dev *pci)
 {
 	struct cx88_core *core;
 	struct list_head *item;
-	int i;
 
 	mutex_lock(&devlist);
 	list_for_each(item,&cx88_devlist) {
@@ -1099,82 +1013,23 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 		if (PCI_SLOT(pci->devfn) != core->pci_slot)
 			continue;
 
-		if (0 != get_ressources(core,pci))
-			goto fail_unlock;
+		if (0 != cx88_get_resources(core, pci)) {
+			mutex_unlock(&devlist);
+			return NULL;
+		}
 		atomic_inc(&core->refcount);
 		mutex_unlock(&devlist);
 		return core;
 	}
-	core = kzalloc(sizeof(*core),GFP_KERNEL);
-	if (NULL == core)
-		goto fail_unlock;
 
-	atomic_inc(&core->refcount);
-	core->pci_bus  = pci->bus->number;
-	core->pci_slot = PCI_SLOT(pci->devfn);
-	core->pci_irqmask = 0x00fc00;
-	mutex_init(&core->lock);
-
-	core->nr = cx88_devcount++;
-	sprintf(core->name,"cx88[%d]",core->nr);
-	if (0 != get_ressources(core,pci)) {
-		cx88_devcount--;
-		goto fail_free;
+	core = cx88_core_create(pci, cx88_devcount);
+	if (NULL != core) {
+		cx88_devcount++;
+		list_add_tail(&core->devlist, &cx88_devlist);
 	}
-	list_add_tail(&core->devlist,&cx88_devlist);
-
-	/* PCI stuff */
-	cx88_pci_quirks(core->name, pci);
-	core->lmmio = ioremap(pci_resource_start(pci,0),
-			      pci_resource_len(pci,0));
-	core->bmmio = (u8 __iomem *)core->lmmio;
-
-	/* board config */
-	core->boardnr = UNSET;
-	if (card[core->nr] < cx88_bcount)
-		core->boardnr = card[core->nr];
-	for (i = 0; UNSET == core->boardnr  &&  i < cx88_idcount; i++)
-		if (pci->subsystem_vendor == cx88_subids[i].subvendor &&
-		    pci->subsystem_device == cx88_subids[i].subdevice)
-			core->boardnr = cx88_subids[i].card;
-	if (UNSET == core->boardnr) {
-		core->boardnr = CX88_BOARD_UNKNOWN;
-		cx88_card_list(core,pci);
-	}
-
-	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
-
-	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
-		core->name,pci->subsystem_vendor,
-		pci->subsystem_device, core->board.name,
-		core->boardnr, card[core->nr] == core->boardnr ?
-		"insmod option" : "autodetected");
-
-	if (tuner[core->nr] != UNSET)
-		core->board.tuner_type = tuner[core->nr];
-	if (radio[core->nr] != UNSET)
-		core->board.radio_type = radio[core->nr];
-
-	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
-		core->board.tuner_type, core->board.tuner_addr<<1,
-		core->board.radio_type, core->board.radio_addr<<1);
-
-	/* init hardware */
-	cx88_reset(core);
-	cx88_card_setup_pre_i2c(core);
-	cx88_i2c_init(core,pci);
-	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
-	cx88_card_setup(core);
-	cx88_ir_init(core,pci);
 
 	mutex_unlock(&devlist);
 	return core;
-
-fail_free:
-	kfree(core);
-fail_unlock:
-	mutex_unlock(&devlist);
-	return NULL;
 }
 
 void cx88_core_put(struct cx88_core *core, struct pci_dev *pci)
