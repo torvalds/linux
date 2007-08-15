@@ -292,8 +292,9 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		fs_err(sdp, "can't get root dentry\n");
 		error = -ENOMEM;
 		iput(inode);
-	}
-	sb->s_root->d_op = &gfs2_dops;
+	} else
+		sb->s_root->d_op = &gfs2_dops;
+	
 out:
 	gfs2_glock_dq_uninit(&sb_gh);
 	return error;
