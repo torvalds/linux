@@ -51,6 +51,7 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/seq_file.h>
+#include <linux/bootmem.h>
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -81,6 +82,10 @@ static struct sctp_af *sctp_af_v6_specific;
 
 struct kmem_cache *sctp_chunk_cachep __read_mostly;
 struct kmem_cache *sctp_bucket_cachep __read_mostly;
+
+extern int sysctl_sctp_mem[3];
+extern int sysctl_sctp_rmem[3];
+extern int sysctl_sctp_wmem[3];
 
 /* Return the address of the control sock. */
 struct sock *sctp_get_ctl_sock(void)
@@ -987,6 +992,8 @@ SCTP_STATIC __init int sctp_init(void)
 	int i;
 	int status = -EINVAL;
 	unsigned long goal;
+	unsigned long limit;
+	int max_share;
 	int order;
 
 	/* SCTP_DEBUG sanity check. */
@@ -1076,6 +1083,31 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
+
+	/* Set the pressure threshold to be a fraction of global memory that
+	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
+	 * memory, with a floor of 128 pages.
+	 * Note this initalizes the data in sctpv6_prot too
+	 * Unabashedly stolen from tcp_init
+	 */
+	limit = min(num_physpages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
+	limit = (limit * (num_physpages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = max(limit, 128UL);
+	sysctl_sctp_mem[0] = limit / 4 * 3;
+	sysctl_sctp_mem[1] = limit;
+	sysctl_sctp_mem[2] = sysctl_sctp_mem[0] * 2;
+
+	/* Set per-socket limits to no more than 1/128 the pressure threshold*/
+	limit = (sysctl_sctp_mem[1]) << (PAGE_SHIFT - 7);
+	max_share = min(4UL*1024*1024, limit);
+
+	sysctl_sctp_rmem[0] = PAGE_SIZE; /* give each asoc 1 page min */
+	sysctl_sctp_rmem[1] = (1500 *(sizeof(struct sk_buff) + 1));
+	sysctl_sctp_rmem[2] = max(sysctl_sctp_rmem[1], max_share);
+
+	sysctl_sctp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_sctp_wmem[1] = 16*1024;
+	sysctl_sctp_wmem[2] = max(64*1024, max_share);
 
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.

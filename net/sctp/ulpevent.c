@@ -685,6 +685,24 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	struct sctp_ulpevent *event = NULL;
 	struct sk_buff *skb;
 	size_t padding, len;
+	int rx_count;
+
+	/*
+	 * check to see if we need to make space for this
+	 * new skb, expand the rcvbuffer if needed, or drop
+	 * the frame
+	 */
+	if (asoc->ep->rcvbuf_policy)
+		rx_count = atomic_read(&asoc->rmem_alloc);
+	else
+		rx_count = atomic_read(&asoc->base.sk->sk_rmem_alloc);
+
+	if (rx_count >= asoc->base.sk->sk_rcvbuf) {
+
+		if ((asoc->base.sk->sk_userlocks & SOCK_RCVBUF_LOCK) ||
+		   (!sk_stream_rmem_schedule(asoc->base.sk, chunk->skb)))
+			goto fail;
+	}
 
 	/* Clone the original skb, sharing the data.  */
 	skb = skb_clone(chunk->skb, gfp);
