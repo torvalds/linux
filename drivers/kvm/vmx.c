@@ -2066,9 +2066,6 @@ again:
 
 	preempt_disable();
 
-	if (!vcpu->mmio_read_completed)
-		do_interrupt_requests(vcpu, kvm_run);
-
 	vmx_save_host_state(vmx);
 	kvm_load_guest_fpu(vcpu);
 
@@ -2078,6 +2075,18 @@ again:
 	vmcs_writel(HOST_CR0, read_cr0());
 
 	local_irq_disable();
+
+	if (signal_pending(current)) {
+		local_irq_enable();
+		preempt_enable();
+		r = -EINTR;
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		++vcpu->stat.signal_exits;
+		goto out;
+	}
+
+	if (!vcpu->mmio_read_completed)
+		do_interrupt_requests(vcpu, kvm_run);
 
 	vcpu->guest_mode = 1;
 	if (vcpu->requests)
@@ -2227,14 +2236,6 @@ again:
 
 	r = kvm_handle_exit(kvm_run, vcpu);
 	if (r > 0) {
-		/* Give scheduler a change to reschedule. */
-		if (signal_pending(current)) {
-			r = -EINTR;
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			++vcpu->stat.signal_exits;
-			goto out;
-		}
-
 		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
 			r = -EINTR;
 			kvm_run->exit_reason = KVM_EXIT_INTR;

@@ -1398,10 +1398,18 @@ again:
 	if (unlikely(r))
 		return r;
 
+	clgi();
+
+	if (signal_pending(current)) {
+		stgi();
+		++vcpu->stat.signal_exits;
+		post_kvm_run_save(svm, kvm_run);
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		return -EINTR;
+	}
+
 	if (!vcpu->mmio_read_completed)
 		do_interrupt_requests(svm, kvm_run);
-
-	clgi();
 
 	vcpu->guest_mode = 1;
 	if (vcpu->requests)
@@ -1582,13 +1590,6 @@ again:
 
 	r = handle_exit(svm, kvm_run);
 	if (r > 0) {
-		if (signal_pending(current)) {
-			++vcpu->stat.signal_exits;
-			post_kvm_run_save(svm, kvm_run);
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			return -EINTR;
-		}
-
 		if (dm_request_for_irq_injection(svm, kvm_run)) {
 			++vcpu->stat.request_irq_exits;
 			post_kvm_run_save(svm, kvm_run);
