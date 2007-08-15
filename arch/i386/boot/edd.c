@@ -37,11 +37,10 @@ static int read_mbr(u8 devno, void *buf)
 	return -(u8)ax;		/* 0 or -1 */
 }
 
-static u32 read_mbr_sig(u8 devno, struct edd_info *ei)
+static u32 read_mbr_sig(u8 devno, struct edd_info *ei, u32 *mbrsig)
 {
 	int sector_size;
 	char *mbrbuf_ptr, *mbrbuf_end;
-	u32 mbrsig;
 	u32 buf_base, mbr_base;
 	extern char _end[];
 
@@ -57,15 +56,15 @@ static u32 read_mbr_sig(u8 devno, struct edd_info *ei)
 
 	/* Make sure we actually have space on the heap... */
 	if (!(boot_params.hdr.loadflags & CAN_USE_HEAP))
-		return 0;
+		return -1;
 	if (mbrbuf_end > (char *)(size_t)boot_params.hdr.heap_end_ptr)
-		return 0;
+		return -1;
 
 	if (read_mbr(devno, mbrbuf_ptr))
-		return 0;
+		return -1;
 
-	mbrsig = *(u32 *)&mbrbuf_ptr[EDD_MBR_SIG_OFFSET];
-	return mbrsig;
+	*mbrsig = *(u32 *)&mbrbuf_ptr[EDD_MBR_SIG_OFFSET];
+	return 0;
 }
 
 static int get_edd_info(u8 devno, struct edd_info *ei)
@@ -132,6 +131,7 @@ void query_edd(void)
 	int do_edd = 1;
 	int devno;
 	struct edd_info ei, *edp;
+	u32 *mbrptr;
 
 	if (cmdline_find_option("edd", eddarg, sizeof eddarg) > 0) {
 		if (!strcmp(eddarg, "skipmbr") || !strcmp(eddarg, "skip"))
@@ -140,7 +140,8 @@ void query_edd(void)
 			do_edd = 0;
 	}
 
-	edp = (struct edd_info *)boot_params.eddbuf;
+	edp    = boot_params.eddbuf;
+	mbrptr = boot_params.edd_mbr_sig_buffer;
 
 	if (!do_edd)
 		return;
@@ -158,11 +159,8 @@ void query_edd(void)
 			boot_params.eddbuf_entries++;
 		}
 
-		if (do_mbr) {
-			u32 mbr_sig;
-			mbr_sig = read_mbr_sig(devno, &ei);
-			boot_params.edd_mbr_sig_buffer[devno-0x80] = mbr_sig;
-		}
+		if (do_mbr && !read_mbr_sig(devno, &ei, mbrptr++))
+			boot_params.edd_mbr_sig_buf_entries = devno-0x80+1;
 	}
 }
 
