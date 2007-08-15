@@ -737,12 +737,19 @@ check_mgmt:
 		 */
 		conn->ctask = list_entry(conn->xmitqueue.next,
 					 struct iscsi_cmd_task, running);
-		if (conn->ctask->state == ISCSI_TASK_PENDING) {
+		switch (conn->ctask->state) {
+		case ISCSI_TASK_ABORTING:
+			break;
+		case ISCSI_TASK_PENDING:
 			iscsi_prep_scsi_cmd_pdu(conn->ctask);
 			conn->session->tt->init_cmd_task(conn->ctask);
+			/* fall through */
+		default:
+			conn->ctask->state = ISCSI_TASK_RUNNING;
+			break;
 		}
-		conn->ctask->state = ISCSI_TASK_RUNNING;
 		list_move_tail(conn->xmitqueue.next, &conn->run_list);
+
 		rc = iscsi_xmit_ctask(conn);
 		if (rc)
 			goto again;
