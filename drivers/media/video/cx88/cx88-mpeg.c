@@ -675,22 +675,24 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 	struct list_head *list;
 	int err = 0, i = 0;
 
-	printk(KERN_INFO "%s() ->registering driver type=%s access=%s\n", __FUNCTION__ ,
-		drv->type_id == CX88_MPEG_DVB ? "dvb" : "blackbird",
-		drv->hw_access == CX8802_DRVCTL_SHARED ? "shared" : "exclusive");
+	printk(KERN_INFO
+	       "cx88/2: registering cx8802 driver, type: %s access: %s\n",
+	       drv->type_id == CX88_MPEG_DVB ? "dvb" : "blackbird",
+	       drv->hw_access == CX8802_DRVCTL_SHARED ? "shared" : "exclusive");
 
 	if ((err = cx8802_check_driver(drv)) != 0) {
-		printk(KERN_INFO "%s() cx8802_driver is invalid\n", __FUNCTION__ );
+		printk(KERN_ERR "cx88/2: cx8802_driver is invalid\n");
 		return err;
 	}
 
 	list_for_each(list,&cx8802_devlist) {
 		h = list_entry(list, struct cx8802_dev, devlist);
 
-		printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d]\n",
-			h->core->name,h->pci->subsystem_vendor,
-			h->pci->subsystem_device,h->core->board.name,
-			h->core->boardnr);
+		printk(KERN_INFO
+		       "%s/2: subsystem: %04x:%04x, board: %s [card=%d]\n",
+		       h->core->name, h->pci->subsystem_vendor,
+		       h->pci->subsystem_device, h->core->board.name,
+		       h->core->boardnr);
 
 		/* Bring up a new struct for each driver instance */
 		driver = kzalloc(sizeof(*drv),GFP_KERNEL);
@@ -712,7 +714,9 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 			list_add_tail(&driver->devlist,&h->drvlist.devlist);
 			mutex_unlock(&drv->core->lock);
 		} else {
-			printk(KERN_ERR "%s() ->probe failed err = %d\n", __FUNCTION__, err);
+			printk(KERN_ERR
+			       "%s/2: cx8802 probe failed, err = %d\n",
+			       h->core->name, err);
 		}
 
 	}
@@ -732,17 +736,20 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 	struct list_head *list2, *q;
 	int err = 0, i = 0;
 
-	printk(KERN_INFO "%s() ->unregistering driver type=%s\n", __FUNCTION__ ,
-		drv->type_id == CX88_MPEG_DVB ? "dvb" : "blackbird");
+	printk(KERN_INFO
+	       "cx88/2: unregistering cx8802 driver, type: %s access: %s\n",
+	       drv->type_id == CX88_MPEG_DVB ? "dvb" : "blackbird",
+	       drv->hw_access == CX8802_DRVCTL_SHARED ? "shared" : "exclusive");
 
 	list_for_each(list,&cx8802_devlist) {
 		i++;
 		h = list_entry(list, struct cx8802_dev, devlist);
 
-		printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d]\n",
-			h->core->name,h->pci->subsystem_vendor,
-			h->pci->subsystem_device,h->core->board.name,
-			h->core->boardnr);
+		printk(KERN_INFO
+		       "%s/2: subsystem: %04x:%04x, board: %s [card=%d]\n",
+		       h->core->name, h->pci->subsystem_vendor,
+		       h->pci->subsystem_device, h->core->board.name,
+		       h->core->boardnr);
 
 		list_for_each_safe(list2, q, &h->drvlist.devlist) {
 			d = list_entry(list2, struct cx8802_driver, devlist);
@@ -757,7 +764,8 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 				list_del(list2);
 				mutex_unlock(&drv->core->lock);
 			} else
-				printk(KERN_ERR "%s() ->remove failed err = %d\n", __FUNCTION__, err);
+				printk(KERN_ERR "%s/2: cx8802 driver remove "
+				       "failed (%d)\n", h->core->name, err);
 
 		}
 
@@ -865,7 +873,7 @@ static struct pci_driver cx8802_pci_driver = {
 
 static int cx8802_init(void)
 {
-	printk(KERN_INFO "cx2388x cx88-mpeg Driver Manager version %d.%d.%d loaded\n",
+	printk(KERN_INFO "cx88/2: cx2388x MPEG-TS Driver Manager version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
 	       (CX88_VERSION_CODE >>  8) & 0xff,
 	       CX88_VERSION_CODE & 0xff);

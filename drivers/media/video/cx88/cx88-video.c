@@ -1818,7 +1818,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = request_irq(pci_dev->irq, cx8800_irq,
 			  IRQF_SHARED | IRQF_DISABLED, core->name, dev);
 	if (err < 0) {
-		printk(KERN_ERR "%s: can't get IRQ %d\n",
+		printk(KERN_ERR "%s/0: can't get IRQ %d\n",
 		       core->name,pci_dev->irq);
 		goto fail_core;
 	}
@@ -1837,7 +1837,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s: can't register video device\n",
+		printk(KERN_ERR "%s/0: can't register video device\n",
 		       core->name);
 		goto fail_unreg;
 	}
@@ -1848,7 +1848,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[core->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s/0: can't register vbi device\n",
+		printk(KERN_ERR "%s/0: can't register vbi device\n",
 		       core->name);
 		goto fail_unreg;
 	}
@@ -1861,7 +1861,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {
-			printk(KERN_INFO "%s/0: can't register radio device\n",
+			printk(KERN_ERR "%s/0: can't register radio device\n",
 			       core->name);
 			goto fail_unreg;
 		}
@@ -1885,8 +1885,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
 		if (IS_ERR(core->kthread)) {
 			err = PTR_ERR(core->kthread);
-			printk(KERN_ERR "Failed to create cx88 audio thread, err=%d\n",
-			       err);
+			printk(KERN_ERR "%s/0: failed to create cx88 audio thread, err=%d\n",
+			       core->name, err);
 		}
 	}
 	return 0;
@@ -1937,12 +1937,12 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	/* stop video+vbi capture */
 	spin_lock(&dev->slock);
 	if (!list_empty(&dev->vidq.active)) {
-		printk("%s: suspend video\n", core->name);
+		printk("%s/0: suspend video\n", core->name);
 		stop_video_dma(dev);
 		del_timer(&dev->vidq.timeout);
 	}
 	if (!list_empty(&dev->vbiq.active)) {
-		printk("%s: suspend vbi\n", core->name);
+		printk("%s/0: suspend vbi\n", core->name);
 		cx8800_stop_vbi_dma(dev);
 		del_timer(&dev->vbiq.timeout);
 	}
@@ -1968,8 +1968,8 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	if (dev->state.disabled) {
 		err=pci_enable_device(pci_dev);
 		if (err) {
-			printk(KERN_ERR "%s: can't enable device\n",
-						       core->name);
+			printk(KERN_ERR "%s/0: can't enable device\n",
+			       core->name);
 			return err;
 		}
 
@@ -1977,9 +1977,7 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	}
 	err= pci_set_power_state(pci_dev, PCI_D0);
 	if (err) {
-		printk(KERN_ERR "%s: can't enable device\n",
-				       core->name);
-
+		printk(KERN_ERR "%s/0: can't set power state\n", core->name);
 		pci_disable_device(pci_dev);
 		dev->state.disabled = 1;
 
@@ -1993,11 +1991,11 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);
 	if (!list_empty(&dev->vidq.active)) {
-		printk("%s: resume video\n", core->name);
+		printk("%s/0: resume video\n", core->name);
 		restart_video_queue(dev,&dev->vidq);
 	}
 	if (!list_empty(&dev->vbiq.active)) {
-		printk("%s: resume vbi\n", core->name);
+		printk("%s/0: resume vbi\n", core->name);
 		cx8800_restart_vbi_queue(dev,&dev->vbiq);
 	}
 	spin_unlock(&dev->slock);
@@ -2033,7 +2031,7 @@ static struct pci_driver cx8800_pci_driver = {
 
 static int cx8800_init(void)
 {
-	printk(KERN_INFO "cx2388x v4l2 driver version %d.%d.%d loaded\n",
+	printk(KERN_INFO "cx88/0: cx2388x v4l2 driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
 	       (CX88_VERSION_CODE >>  8) & 0xff,
 	       CX88_VERSION_CODE & 0xff);

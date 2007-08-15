@@ -2094,7 +2094,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 
 	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
 
-	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 		core->name,pci->subsystem_vendor,
 		pci->subsystem_device, core->board.name,
 		core->boardnr, card[core->nr] == core->boardnr ?
@@ -2105,9 +2105,8 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	if (radio[core->nr] != UNSET)
 		core->board.radio_type = radio[core->nr];
 
-	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
-		core->board.tuner_type, core->board.tuner_addr<<1,
-		core->board.radio_type, core->board.radio_addr<<1);
+	printk(KERN_INFO "%s: TV tuner type %d, Radio tuner type %d\n",
+	       core->name, core->board.tuner_type, core->board.radio_type);
 
 	/* init hardware */
 	cx88_reset(core);
