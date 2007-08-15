@@ -200,7 +200,7 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 {
 	struct dvb_device *dvbdev;
 	struct file_operations *dvbdevfops;
-	struct class_device *clsdev;
+	struct device *clsdev;
 	int id;
 
 	mutex_lock(&dvbdev_register_lock);
@@ -242,10 +242,9 @@ int dvb_register_device(struct dvb_adapter *adap, struct dvb_device **pdvbdev,
 
 	mutex_unlock(&dvbdev_register_lock);
 
-	clsdev = class_device_create(dvb_class, NULL, MKDEV(DVB_MAJOR,
-				     nums2minor(adap->num, type, id)),
-				     adap->device, "dvb%d.%s%d", adap->num,
-				     dnames[type], id);
+	clsdev = device_create(dvb_class, adap->device,
+			       MKDEV(DVB_MAJOR, nums2minor(adap->num, type, id)),
+			       "dvb%d.%s%d", adap->num, dnames[type], id);
 	if (IS_ERR(clsdev)) {
 		printk(KERN_ERR "%s: failed to create device dvb%d.%s%d (%ld)\n",
 		       __FUNCTION__, adap->num, dnames[type], id, PTR_ERR(clsdev));
@@ -266,8 +265,8 @@ void dvb_unregister_device(struct dvb_device *dvbdev)
 	if (!dvbdev)
 		return;
 
-	class_device_destroy(dvb_class, MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
-					dvbdev->type, dvbdev->id)));
+	device_destroy(dvb_class, MKDEV(DVB_MAJOR, nums2minor(dvbdev->adapter->num,
+		       dvbdev->type, dvbdev->id)));
 
 	list_del (&dvbdev->list_head);
 	kfree (dvbdev->fops);
