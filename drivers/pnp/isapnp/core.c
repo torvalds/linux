@@ -1040,7 +1040,7 @@ static int isapnp_set_resources(struct pnp_dev *dev,
 
 static int isapnp_disable_resources(struct pnp_dev *dev)
 {
-	if (!dev || !dev->active)
+	if (!dev->active)
 		return -EINVAL;
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	isapnp_deactivate(dev->number);
