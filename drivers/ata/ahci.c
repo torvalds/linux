@@ -1368,6 +1368,30 @@ static void ahci_port_intr(struct ata_port *ap)
 		return;
 	}
 
+	if (status & PORT_IRQ_SDB_FIS) {
+		/*
+		 * if this is an ATAPI device with AN turned on,
+		 * then we should interrogate the device to
+		 * determine the cause of the interrupt
+		 *
+		 * for AN - this we should check the SDB FIS
+		 * and find the I and N bits set
+		 */
+		const __le32 *f = pp->rx_fis + RX_FIS_SDB;
+		u32 f0 = le32_to_cpu(f[0]);
+
+		/* check the 'N' bit in word 0 of the FIS */
+		if (f0 & (1 << 15)) {
+			int port_addr = ((f0 & 0x00000f00) >> 8);
+			struct ata_device *adev;
+			if (port_addr < ATA_MAX_DEVICES) {
+				adev = &ap->link.device[port_addr];
+				if (adev->flags & ATA_DFLAG_AN)
+					ata_scsi_media_change_notify(adev);
+			}
+		}
+	}
+
 	if (ap->link.sactive)
 		qc_active = readl(port_mmio + PORT_SCR_ACT);
 	else

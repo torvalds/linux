@@ -3160,6 +3160,24 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
 }
 
 /**
+ *	ata_scsi_media_change_notify - send media change event
+ *	@atadev: Pointer to the disk device with media change event
+ *
+ *	Tell the block layer to send a media change notification
+ *	event.
+ *
+ * 	LOCKING:
+ * 	interrupt context, may not sleep.
+ */
+void ata_scsi_media_change_notify(struct ata_device *atadev)
+{
+#ifdef OTHER_AN_PATCHES_HAVE_BEEN_APPLIED
+	scsi_device_event_notify(atadev->sdev, SDEV_MEDIA_CHANGE);
+#endif
+}
+EXPORT_SYMBOL_GPL(ata_scsi_media_change_notify);
+
+/**
  *	ata_scsi_hotplug - SCSI part of hotplug
  *	@work: Pointer to ATA port to perform SCSI hotplug on
  *
