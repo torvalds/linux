@@ -111,21 +111,21 @@ sub tda10045 {
 }
 
 sub tda10046 {
-    my $sourcefile = "tt_budget_217g.zip";
-    my $url = "http://www.technotrend.de/new/217g/$sourcefile";
-    my $hash = "6a7e1e2f2644b162ff0502367553c72d";
-    my $outfile = "dvb-fe-tda10046.fw";
-    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+	my $sourcefile = "TT_PCI_2.19h_28_11_2006.zip";
+	my $url = "http://technotrend-online.com/download/software/219/$sourcefile";
+	my $hash = "6a7e1e2f2644b162ff0502367553c72d";
+	my $outfile = "dvb-fe-tda10046.fw";
+	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
 
-    checkstandard();
+	checkstandard();
 
-    wgetfile($sourcefile, $url);
-    unzip($sourcefile, $tmpdir);
-    extract("$tmpdir/software/OEM/PCI/App/ttlcdacc.dll", 0x3f731, 24478, "$tmpdir/fwtmp");
-    verify("$tmpdir/fwtmp", $hash);
-    copy("$tmpdir/fwtmp", $outfile);
+	wgetfile($sourcefile, $url);
+	unzip($sourcefile, $tmpdir);
+	extract("$tmpdir/TT_PCI_2.19h_28_11_2006/software/OEM/PCI/App/ttlcdacc.dll", 0x65389, 24478, "$tmpdir/fwtmp");
+	verify("$tmpdir/fwtmp", $hash);
+	copy("$tmpdir/fwtmp", $outfile);
 
-    $outfile;
+	$outfile;
 }
 
 sub tda10046lifeview {
