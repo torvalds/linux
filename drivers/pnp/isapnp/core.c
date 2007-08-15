@@ -47,9 +47,6 @@
 #if 0
 #define ISAPNP_REGION_OK
 #endif
-#if 0
-#define ISAPNP_DEBUG
-#endif
 
 int isapnp_disable;		/* Disable ISA PnP */
 static int isapnp_rdp;		/* Read Data Port */
@@ -93,7 +90,6 @@ MODULE_LICENSE("GPL");
 
 static unsigned char isapnp_checksum_value;
 static DEFINE_MUTEX(isapnp_cfg_mutex);
-static int isapnp_detected;
 static int isapnp_csn_count;
 
 /* some prototypes */
@@ -1067,7 +1063,6 @@ static int __init isapnp_init(void)
 	struct pnp_dev *dev;
 
 	if (isapnp_disable) {
-		isapnp_detected = 0;
 		printk(KERN_INFO "isapnp: ISA Plug & Play support disabled\n");
 		return 0;
 	}
@@ -1115,7 +1110,6 @@ static int __init isapnp_init(void)
 		}
 		isapnp_set_rdp();
 	}
-	isapnp_detected = 1;
 	if (isapnp_rdp < 0x203 || isapnp_rdp > 0x3ff) {
 		cards = isapnp_isolate();
 		if (cards < 0 || (isapnp_rdp < 0x203 || isapnp_rdp > 0x3ff)) {
@@ -1123,7 +1117,6 @@ static int __init isapnp_init(void)
 			release_region(_PIDXR, 1);
 #endif
 			release_region(_PNPWRP, 1);
-			isapnp_detected = 0;
 			printk(KERN_INFO
 			       "isapnp: No Plug & Play device found\n");
 			return 0;
