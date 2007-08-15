@@ -102,6 +102,7 @@ enum {
 /* ALC268 models */
 enum {
 	ALC268_3ST,
+	ALC268_TOSHIBA,
 	ALC268_AUTO,
 	ALC268_MODEL_LAST /* last tag */
 };
@@ -129,6 +130,7 @@ enum {
 	ALC861VD_6ST_DIG,
 	ALC861VD_LENOVO,
 	ALC861VD_DALLAS,
+	ALC861VD_HP,
 	ALC861VD_AUTO,
 	ALC861VD_MODEL_LAST,
 };
@@ -6253,16 +6255,14 @@ static struct snd_kcontrol_new alc888_3st_hp_mixer[] = {
 };
 
 static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Front Playback Switch", 0x15, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
@@ -6277,7 +6277,7 @@ static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 		.put = alc883_mux_enum_put,
 	},
 	{ } /* end */
-};	
+};
 
 static struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{
@@ -6490,18 +6490,6 @@ static struct hda_verb alc883_medion_md2_verbs[] = {
 	{ } /* end */
 };
 
-static struct hda_verb alc883_acer_aspire_verbs[] = {
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
-	{ } /* end */
-};
-
 /* toggle speaker-output according to the hp-jack state */
 static void alc883_medion_md2_automute(struct hda_codec *codec)
 {
@@ -6575,6 +6563,21 @@ static void alc883_lenovo_101e_unsol_event(struct hda_codec *codec,
 	if ((res >> 26) == ALC880_FRONT_EVENT)
 		alc883_lenovo_101e_ispeaker_automute(codec);
 }
+
+static struct hda_verb alc883_acer_eapd_verbs[] = {
+	/* HP Pin: output 0 (0x0c) */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* Front Pin: output 0 (0x0c) */
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00},
+        /* eanable EAPD on medion laptop */
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
+	{0x20, AC_VERB_SET_PROC_COEF, 0x3050},
+	{ }
+};
 
 /*
  * generic initialization of ADC, input mixers and output mixers
@@ -6718,6 +6721,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x4319, "MSI", ALC883_TARGA_DIG),
 	SND_PCI_QUIRK(0x1462, 0x4324, "MSI", ALC883_TARGA_DIG),
 	SND_PCI_QUIRK(0x1462, 0xa422, "MSI", ALC883_TARGA_2ch_DIG),
+	SND_PCI_QUIRK(0x1025, 0x006c, "Acer Aspire 9810", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0x0110, "Acer Aspire", ALC883_ACER_ASPIRE),
 	SND_PCI_QUIRK(0x1025, 0, "Acer laptop", ALC883_ACER),
 	SND_PCI_QUIRK(0x15d9, 0x8780, "Supermicro PDSBA", ALC883_3ST_6ch),
@@ -6834,8 +6838,13 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_capture_source,
 	},
 	[ALC883_ACER_ASPIRE] = {
-		.mixers = { alc883_acer_aspire_mixer},
-		.init_verbs = { alc883_init_verbs, alc883_acer_aspire_verbs},
+		.mixers = { alc883_acer_aspire_mixer, alc883_chmode_mixer },
+		/* On TravelMate laptops, GPIO 0 enables the internal speaker
+		 * and the headphone jack.  Turn this on and rely on the
+		 * standard mute methods whenever the user wants to turn
+		 * these outputs off.
+		 */
+		.init_verbs = { alc883_init_verbs, alc883_acer_eapd_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
 		.dig_out_nid = ALC883_DIGOUT_NID,
@@ -6844,9 +6853,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
 		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
-		.unsol_event = alc883_medion_md2_unsol_event,
-		.init_hook = alc883_medion_md2_automute,
-	},	
+	},
 	[ALC883_MEDION] = {
 		.mixers = { alc883_fivestack_mixer,
 			    alc883_chmode_mixer },
@@ -8221,6 +8228,12 @@ static struct snd_kcontrol_new alc268_base_mixer[] = {
 	{ }
 };
 
+static struct hda_verb alc268_eapd_verbs[] = {
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -8610,6 +8623,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 
 static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
+	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
 	{}
 };
 
@@ -8623,6 +8637,18 @@ static struct alc_config_preset alc268_presets[] = {
                 .adc_nids = alc268_adc_nids_alt,
 		.hp_nid = 0x03,
 		.dig_out_nid = ALC268_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.input_mux = &alc268_capture_source,
+	},
+	[ALC268_TOSHIBA] = {
+		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
@@ -9916,6 +9942,14 @@ static struct hda_input_mux alc861vd_dallas_capture_source = {
 	},
 };
 
+static struct hda_input_mux alc861vd_hp_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Front Mic", 0x0 },
+		{ "ATAPI Mic", 0x1 },
+	},
+};
+
 #define alc861vd_mux_enum_info alc_mux_enum_info
 #define alc861vd_mux_enum_get alc_mux_enum_get
 
@@ -10114,6 +10148,22 @@ static struct snd_kcontrol_new alc861vd_dallas_mixer[] = {
 	HDA_CODEC_MUTE("ATAPI Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
+
+/* Pin assignment: Speaker=0x14, Line-out = 0x15,
+ *                 Front Mic=0x18, ATAPI Mic = 0x19,
+ */
+static struct snd_kcontrol_new alc861vd_hp_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Headphone Playback Switch", 0x0d, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("ATAPI Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	
 	{ } /* end */
 };
 
@@ -10399,6 +10449,7 @@ static struct snd_pci_quirk alc861vd_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo", ALC861VD_LENOVO),
 	SND_PCI_QUIRK(0x1179, 0xff00, "Toshiba A135", ALC861VD_LENOVO),
 	SND_PCI_QUIRK(0x1849, 0x0862, "ASRock K8NF6G-VSTA", ALC861VD_6ST_DIG),
+	SND_PCI_QUIRK(0x103c, 0x30bf, "HP TX1000", ALC861VD_HP),
 	{}
 };
 
@@ -10488,7 +10539,21 @@ static struct alc_config_preset alc861vd_presets[] = {
 		.input_mux = &alc861vd_dallas_capture_source,
 		.unsol_event = alc861vd_dallas_unsol_event,
 		.init_hook = alc861vd_dallas_automute,
-	},	
+	},
+	[ALC861VD_HP] = {
+		.mixers = { alc861vd_hp_mixer },
+		.init_verbs = { alc861vd_dallas_verbs, alc861vd_eapd_verbs },
+		.num_dacs = ARRAY_SIZE(alc861vd_dac_nids),
+		.dac_nids = alc861vd_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids),
+		.dig_out_nid = ALC861VD_DIGOUT_NID,
+		.adc_nids = alc861vd_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc861vd_3stack_2ch_modes),
+		.channel_mode = alc861vd_3stack_2ch_modes,
+		.input_mux = &alc861vd_hp_capture_source,
+		.unsol_event = alc861vd_dallas_unsol_event,
+		.init_hook = alc861vd_dallas_automute,
+	},		
 };
 
 /*
@@ -10849,7 +10914,7 @@ static int alc662_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct alc_spec *spec = codec->spec;
 	const struct hda_input_mux *imux = spec->input_mux;
 	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	static hda_nid_t capture_mixers[3] = { 0x24, 0x23, 0x22 };
+	static hda_nid_t capture_mixers[2] = { 0x23, 0x22 };
 	hda_nid_t nid = capture_mixers[adc_idx];
 	unsigned int *cur_val = &spec->cur_mux[adc_idx];
 	unsigned int i, idx;
@@ -11173,11 +11238,7 @@ static struct hda_verb alc662_auto_init_verbs[] = {
 	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
 	/* Input mixer */
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	/*{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(3)},*/
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
-
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ }
 };
 
