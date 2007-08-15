@@ -357,23 +357,6 @@ static void pata_icside_error_handler(struct ata_port *ap)
 			   pata_icside_postreset);
 }
 
-static u8 pata_icside_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: drv_stat 0x%X\n",
-			__FUNCTION__, status);
-
-	return status;
-}
-
 static struct ata_port_operations pata_icside_port_ops = {
 	.port_disable		= ata_port_disable,
 
@@ -403,7 +386,6 @@ static struct ata_port_operations pata_icside_port_ops = {
 
 	.irq_clear		= ata_dummy_noret,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= pata_icside_irq_ack,
 
 	.port_start		= pata_icside_port_start,
 

@@ -839,38 +839,6 @@ static u8 scc_irq_on (struct ata_port *ap)
 }
 
 /**
- *	scc_irq_ack - Acknowledge a device interrupt.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Note: Original code is ata_irq_ack().
- */
-
-static u8 scc_irq_ack (struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 host_stat, post_stat, status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	/* get controller status; clear intr, err bits */
-	host_stat = in_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS);
-	out_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS,
-		 host_stat | ATA_DMA_INTR | ATA_DMA_ERR);
-
-	post_stat = in_be32(ap->ioaddr.bmdma_addr + SCC_DMA_STATUS);
-
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
-		       __FUNCTION__,
-		       host_stat, post_stat, status);
-
-	return status;
-}
-
-/**
  *	scc_bmdma_freeze - Freeze BMDMA controller port
  *	@ap: port to freeze
  *
@@ -1047,7 +1015,6 @@ static const struct ata_port_operations scc_pata_ops = {
 
 	.irq_clear		= scc_bmdma_irq_clear,
 	.irq_on			= scc_irq_on,
-	.irq_ack		= scc_irq_ack,
 
 	.port_start		= scc_port_start,
 	.port_stop		= scc_port_stop,

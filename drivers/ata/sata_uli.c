@@ -117,7 +117,6 @@ static const struct ata_port_operations uli_ops = {
 
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= uli_scr_read,
 	.scr_write		= uli_scr_write,

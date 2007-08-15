@@ -5747,7 +5747,8 @@ idle_irq:
 
 #ifdef ATA_IRQ_TRAP
 	if ((ap->stats.idle_irq % 1000) == 0) {
-		ap->ops->irq_ack(ap, 0); /* debug trap */
+		ata_chk_status(ap);
+		ap->ops->irq_clear(ap);
 		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
 		return 1;
 	}
@@ -7137,9 +7138,6 @@ EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
 EXPORT_SYMBOL_GPL(ata_eh_qc_retry);
 EXPORT_SYMBOL_GPL(ata_do_eh);
 EXPORT_SYMBOL_GPL(ata_irq_on);
-EXPORT_SYMBOL_GPL(ata_dummy_irq_on);
-EXPORT_SYMBOL_GPL(ata_irq_ack);
-EXPORT_SYMBOL_GPL(ata_dummy_irq_ack);
 EXPORT_SYMBOL_GPL(ata_dev_try_classify);
 
 EXPORT_SYMBOL_GPL(ata_cable_40wire);

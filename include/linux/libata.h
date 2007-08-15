@@ -644,7 +644,6 @@ struct ata_port_operations {
 	irq_handler_t irq_handler;
 	void (*irq_clear) (struct ata_port *);
 	u8 (*irq_on) (struct ata_port *);
-	u8 (*irq_ack) (struct ata_port *ap, unsigned int chk_drq);
 
 	int (*scr_read) (struct ata_port *ap, unsigned int sc_reg, u32 *val);
 	int (*scr_write) (struct ata_port *ap, unsigned int sc_reg, u32 val);
@@ -852,9 +851,6 @@ extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
 extern struct ata_device *ata_dev_pair(struct ata_device *adev);
 extern int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev);
 extern u8 ata_irq_on(struct ata_port *ap);
-extern u8 ata_dummy_irq_on(struct ata_port *ap);
-extern u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq);
-extern u8 ata_dummy_irq_ack(struct ata_port *ap, unsigned int chk_drq);
 
 extern int ata_cable_40wire(struct ata_port *ap);
 extern int ata_cable_80wire(struct ata_port *ap);

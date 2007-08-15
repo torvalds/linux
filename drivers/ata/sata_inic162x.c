@@ -569,7 +569,6 @@ static struct ata_port_operations inic_port_ops = {
 
 	.irq_clear		= inic_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.qc_prep	 	= ata_qc_prep,
 	.qc_issue		= inic_qc_issue,

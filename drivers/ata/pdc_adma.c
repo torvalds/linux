@@ -177,7 +177,6 @@ static const struct ata_port_operations adma_ata_ops = {
 	.error_handler		= adma_error_handler,
 	.irq_clear		= adma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.port_start		= adma_port_start,
 	.port_stop		= adma_port_stop,
 	.host_stop		= adma_host_stop,

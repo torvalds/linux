@@ -398,8 +398,6 @@ static const struct ata_port_operations sil24_ops = {
 	.qc_issue		= sil24_qc_issue,
 
 	.irq_clear		= sil24_irq_clear,
-	.irq_on			= ata_dummy_irq_on,
-	.irq_ack		= ata_dummy_irq_ack,
 
 	.scr_read		= sil24_scr_read,
 	.scr_write		= sil24_scr_write,

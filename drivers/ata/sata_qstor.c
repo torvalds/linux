@@ -159,7 +159,6 @@ static const struct ata_port_operations qs_ata_ops = {
 	.eng_timeout		= qs_eng_timeout,
 	.irq_clear		= qs_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.scr_read		= qs_scr_read,
 	.scr_write		= qs_scr_write,
 	.port_start		= qs_port_start,

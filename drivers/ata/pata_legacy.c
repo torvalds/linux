@@ -171,7 +171,6 @@ static struct ata_port_operations simple_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -200,7 +199,6 @@ static struct ata_port_operations legacy_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -316,7 +314,6 @@ static struct ata_port_operations pdc20230_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -372,7 +369,6 @@ static struct ata_port_operations ht6560a_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -439,7 +435,6 @@ static struct ata_port_operations ht6560b_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -561,7 +556,6 @@ static struct ata_port_operations opti82c611a_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
@@ -695,7 +689,6 @@ static struct ata_port_operations opti82c46x_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };

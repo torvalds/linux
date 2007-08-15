@@ -499,7 +499,6 @@ static const struct ata_port_operations mv5_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,
@@ -530,7 +529,6 @@ static const struct ata_port_operations mv6_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,
@@ -561,7 +559,6 @@ static const struct ata_port_operations mv_iie_ops = {
 
 	.irq_clear		= mv_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.error_handler		= mv_error_handler,
 	.post_internal_cmd	= mv_post_int_cmd,

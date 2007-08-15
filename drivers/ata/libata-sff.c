@@ -64,46 +64,6 @@ u8 ata_irq_on(struct ata_port *ap)
 	return tmp;
 }
 
-u8 ata_dummy_irq_on (struct ata_port *ap) 	{ return 0; }
-
-/**
- *	ata_irq_ack - Acknowledge a device interrupt.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Wait up to 10 ms for legacy IDE device to become idle (BUSY
- *	or BUSY+DRQ clear).  Obtain dma status and port status from
- *	device.  Clear the interrupt.  Return port status.
- *
- *	LOCKING:
- */
-
-u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 host_stat = 0, post_stat = 0, status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	if (ap->ioaddr.bmdma_addr) {
-		/* get controller status; clear intr, err bits */
-		host_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-		iowrite8(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
-			 ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-
-		post_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	}
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
-			__FUNCTION__,
-			host_stat, post_stat, status);
-	return status;
-}
-
-u8 ata_dummy_irq_ack(struct ata_port *ap, unsigned int chk_drq) { return 0; }
-
 /**
  *	ata_tf_load - send taskfile registers to host controller
  *	@ap: Port to which output is sent

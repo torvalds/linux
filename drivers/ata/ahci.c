@@ -276,8 +276,6 @@ static const struct ata_port_operations ahci_ops = {
 	.qc_issue		= ahci_qc_issue,
 
 	.irq_clear		= ahci_irq_clear,
-	.irq_on			= ata_dummy_irq_on,
-	.irq_ack		= ata_dummy_irq_ack,
 
 	.scr_read		= ahci_scr_read,
 	.scr_write		= ahci_scr_write,
@@ -310,8 +308,6 @@ static const struct ata_port_operations ahci_vt8251_ops = {
 	.qc_issue		= ahci_qc_issue,
 
 	.irq_clear		= ahci_irq_clear,
-	.irq_on			= ata_dummy_irq_on,
-	.irq_ack		= ata_dummy_irq_ack,
 
 	.scr_read		= ahci_scr_read,
 	.scr_write		= ahci_scr_write,

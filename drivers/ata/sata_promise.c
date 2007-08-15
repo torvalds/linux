@@ -185,7 +185,6 @@ static const struct ata_port_operations pdc_sata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
@@ -212,7 +211,6 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
@@ -238,7 +236,6 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.port_start		= pdc_common_port_start,
 };

@@ -190,7 +190,6 @@ static struct ata_port_operations mpiix_port_ops = {
 
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= ata_port_start,
 };
