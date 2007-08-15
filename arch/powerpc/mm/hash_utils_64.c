@@ -601,13 +601,7 @@ static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 {
 	if (mm->context.user_psize == MMU_PAGE_4K)
 		return;
-#ifdef CONFIG_PPC_MM_SLICES
 	slice_set_user_psize(mm, MMU_PAGE_4K);
-#else /* CONFIG_PPC_MM_SLICES */
-	mm->context.user_psize = MMU_PAGE_4K;
-	mm->context.sllp = SLB_VSID_USER | mmu_psize_defs[MMU_PAGE_4K].sllp;
-#endif /* CONFIG_PPC_MM_SLICES */
-
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif

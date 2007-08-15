@@ -121,6 +121,7 @@ extern unsigned int get_slice_psize(struct mm_struct *mm,
 
 extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
+#define slice_mm_new_context(mm)	((mm)->context.id == 0)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 extern int is_hugepage_only_range(struct mm_struct *m,
@@ -130,6 +131,12 @@ extern int is_hugepage_only_range(struct mm_struct *m,
 #endif /* __ASSEMBLY__ */
 #else
 #define slice_init()
+#define slice_set_user_psize(mm, psize)		\
+do {						\
+	(mm)->context.user_psize = (psize);	\
+	(mm)->context.sllp = SLB_VSID_USER | mmu_psize_defs[(psize)].sllp; \
+} while (0)
+#define slice_mm_new_context(mm)	1
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #ifdef CONFIG_HUGETLB_PAGE
