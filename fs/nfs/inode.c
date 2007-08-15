@@ -978,8 +978,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 
 	/* Are we racing with known updates of the metadata on the server? */
 	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
-	if (data_stable)
-		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATIME);
+	nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ATIME
+			| NFS_INO_REVAL_PAGECACHE);
 
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
@@ -1060,12 +1060,11 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
 	}
+	invalid &= ~NFS_INO_INVALID_ATTR;
 	/* Don't invalidate the data if we were to blame */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 				|| S_ISLNK(inode->i_mode)))
 		invalid &= ~NFS_INO_INVALID_DATA;
-	if (data_stable)
-		invalid &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME|NFS_INO_REVAL_PAGECACHE);
 	if (!nfs_have_delegation(inode, FMODE_READ) ||
 			(nfsi->cache_validity & NFS_INO_REVAL_FORCED))
 		nfsi->cache_validity |= invalid;
