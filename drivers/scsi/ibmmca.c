@@ -1693,6 +1693,7 @@ static int __devexit ibmmca_remove(struct device *dev)
 	scsi_remove_host(shpnt);
 	release_region(shpnt->io_port, shpnt->n_io_port);
 	free_irq(shpnt->irq, dev);
+	scsi_host_put(shpnt);
 	return 0;
 }
 
