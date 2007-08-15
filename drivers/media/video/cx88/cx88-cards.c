@@ -30,7 +30,7 @@
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
 
-struct cx88_board cx88_boards[] = {
+const struct cx88_board cx88_boards[] = {
 	[CX88_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
 		.tuner_type     = UNSET,
@@ -1687,12 +1687,12 @@ static void leadtek_eeprom(struct cx88_core *core, u8 *eeprom_data)
 		return;
 	}
 
-	core->has_radio  = 1;
-	core->tuner_type = (eeprom_data[6] == 0x13) ? 43 : 38;
+	core->board.tuner_type = (eeprom_data[6] == 0x13) ?
+		TUNER_PHILIPS_FM1236_MK3 : TUNER_PHILIPS_FM1216ME_MK3;
 
 	printk(KERN_INFO "%s: Leadtek Winfast 2000XP Expert config: "
 	       "tuner=%d, eeprom[0]=0x%02x\n",
-	       core->name, core->tuner_type, eeprom_data[0]);
+	       core->name, core->board.tuner_type, eeprom_data[0]);
 }
 
 static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
@@ -1700,9 +1700,9 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	struct tveeprom tv;
 
 	tveeprom_hauppauge_analog(&core->i2c_client, &tv, eeprom_data);
-	core->tuner_type = tv.tuner_type;
+	core->board.tuner_type = tv.tuner_type;
 	core->tuner_formats = tv.tuner_formats;
-	core->has_radio  = tv.has_radio;
+	core->board.radio.type = tv.has_radio ? CX88_RADIO : 0;
 
 	/* Make sure we support the board model */
 	switch (tv.model)
@@ -1792,8 +1792,9 @@ static void gdi_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	       name ? name : "unknown");
 	if (NULL == name)
 		return;
-	core->tuner_type = gdi_tuner[eeprom_data[0x0d]].id;
-	core->has_radio  = gdi_tuner[eeprom_data[0x0d]].fm;
+	core->board.tuner_type = gdi_tuner[eeprom_data[0x0d]].id;
+	core->board.radio.type = gdi_tuner[eeprom_data[0x0d]].fm ?
+		CX88_RADIO : 0;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1860,7 +1861,7 @@ void cx88_card_list(struct cx88_core *core, struct pci_dev *pci)
 
 void cx88_card_setup_pre_i2c(struct cx88_core *core)
 {
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* Bring the 702 demod up before i2c scanning/attach or devices are hidden */
 		/* We leave here with the 702 on the bus */
@@ -1883,7 +1884,7 @@ void cx88_card_setup(struct cx88_core *core)
 		tveeprom_read(&core->i2c_client,eeprom,sizeof(eeprom));
 	}
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_ROSLYN:
 		if (0 == core->i2c_rc)
@@ -1927,7 +1928,7 @@ void cx88_card_setup(struct cx88_core *core)
 		msleep(1);
 		cx_set(MO_GP0_IO, 0x00000101);
 		if (0 == core->i2c_rc &&
-		    core->board == CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID)
+		    core->boardnr == CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID)
 			dvico_fusionhdtv_hybrid_init(core);
 		break;
 	case CX88_BOARD_KWORLD_DVB_T:
@@ -1965,13 +1966,9 @@ void cx88_card_setup(struct cx88_core *core)
 		}
 		break;
 	}
-	if (cx88_boards[core->board].radio.type == CX88_RADIO)
-		core->has_radio = 1;
 }
 
 /* ------------------------------------------------------------------ */
-
-EXPORT_SYMBOL(cx88_boards);
 
 /*
  * Local variables:

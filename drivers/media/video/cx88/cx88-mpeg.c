@@ -55,9 +55,9 @@ static void request_module_async(struct work_struct *work)
 {
 	struct cx8802_dev *dev=container_of(work, struct cx8802_dev, request_module_wk);
 
-	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_DVB)
+	if (dev->core->board.mpeg & CX88_MPEG_DVB)
 		request_module("cx88-dvb");
-	if (cx88_boards[dev->core->board].mpeg & CX88_MPEG_BLACKBIRD)
+	if (dev->core->board.mpeg & CX88_MPEG_BLACKBIRD)
 		request_module("cx88-blackbird");
 }
 
@@ -95,7 +95,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	dprintk( 1, "core->active_type_id = 0x%08x\n", core->active_type_id);
 
 	if ( (core->active_type_id == CX88_MPEG_DVB) &&
-		(cx88_boards[core->board].mpeg & CX88_MPEG_DVB) ) {
+		(core->board.mpeg & CX88_MPEG_DVB) ) {
 
 		dprintk( 1, "cx8802_start_dma doing .dvb\n");
 		/* negedge driven & software reset */
@@ -103,7 +103,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
 		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
-		switch (core->board) {
+		switch (core->boardnr) {
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
 		case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
@@ -124,7 +124,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);
 		udelay(100);
 	} else if ( (core->active_type_id == CX88_MPEG_BLACKBIRD) &&
-		(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) ) {
+		(core->board.mpeg & CX88_MPEG_BLACKBIRD) ) {
 		dprintk( 1, "cx8802_start_dma doing .blackbird\n");
 		cx_write(MO_PINMUX_IO, 0x88); /* enable MPEG parallel IO */
 
@@ -138,7 +138,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		udelay(100);
 	} else {
 		printk( "%s() Failed. Unsupported value in .mpeg (0x%08x)\n", __FUNCTION__,
-			cx88_boards[core->board].mpeg );
+			core->board.mpeg );
 		return -EINVAL;
 	}
 
@@ -689,8 +689,8 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 
 		printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d]\n",
 			h->core->name,h->pci->subsystem_vendor,
-			h->pci->subsystem_device,cx88_boards[h->core->board].name,
-			h->core->board);
+			h->pci->subsystem_device,h->core->board.name,
+			h->core->boardnr);
 
 		/* Bring up a new struct for each driver instance */
 		driver = kzalloc(sizeof(*drv),GFP_KERNEL);
@@ -741,8 +741,8 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 
 		printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d]\n",
 			h->core->name,h->pci->subsystem_vendor,
-			h->pci->subsystem_device,cx88_boards[h->core->board].name,
-			h->core->board);
+			h->pci->subsystem_device,h->core->board.name,
+			h->core->boardnr);
 
 		list_for_each_safe(list2, q, &h->drvlist.devlist) {
 			d = list_entry(list2, struct cx8802_driver, devlist);
@@ -782,7 +782,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	printk("%s/2: cx2388x 8802 Driver Manager\n", core->name);
 
 	err = -ENODEV;
-	if (!cx88_boards[core->board].mpeg)
+	if (!core->board.mpeg)
 		goto fail_core;
 
 	err = -ENOMEM;

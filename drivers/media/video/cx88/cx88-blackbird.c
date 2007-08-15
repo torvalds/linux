@@ -734,14 +734,14 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx88_blackbird");
-	strlcpy(cap->card, cx88_boards[core->board].name,sizeof(cap->card));
+	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
 	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_READWRITE     |
 		V4L2_CAP_STREAMING;
-	if (UNSET != core->tuner_type)
+	if (UNSET != core->board.tuner_type)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
@@ -990,7 +990,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	struct cx8802_fh  *fh   = priv;
 	struct cx88_core  *core = fh->dev->core;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 
 	f->type = V4L2_TUNER_ANALOG_TV;
@@ -1028,7 +1028,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 	u32 reg;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1049,7 +1049,7 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 {
 	struct cx88_core  *core = ((struct cx8802_fh *)priv)->dev->core;
 
-	if (UNSET == core->tuner_type)
+	if (UNSET == core->board.tuner_type)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1246,7 +1246,7 @@ static int cx8802_blackbird_advise_acquire(struct cx8802_driver *drv)
 	struct cx88_core *core = drv->core;
 	int err = 0;
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* By default, core setup will leave the cx22702 out of reset, on the bus.
 		 * We left the hardware on power up with the cx22702 active.
@@ -1268,7 +1268,7 @@ static int cx8802_blackbird_advise_release(struct cx8802_driver *drv)
 	struct cx88_core *core = drv->core;
 	int err = 0;
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* Exit leaving the cx23416 on the bus */
 		break;
@@ -1316,13 +1316,13 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 
 	dprintk( 1, "%s\n", __FUNCTION__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
-		core->board,
+		core->boardnr,
 		core->name,
 		core->pci_bus,
 		core->pci_slot);
 
 	err = -ENODEV;
-	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD))
+	if (!(core->board.mpeg & CX88_MPEG_BLACKBIRD))
 		goto fail_core;
 
 	dev->width = 720;

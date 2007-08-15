@@ -250,7 +250,7 @@ struct cx88_subid {
 	u32     card;
 };
 
-#define INPUT(nr) (&cx88_boards[core->board].input[nr])
+#define INPUT(nr) (core->board.input[nr])
 
 /* ----------------------------------------------------------- */
 /* device / file handle status                                 */
@@ -304,13 +304,8 @@ struct cx88_core {
 	u32                        i2c_state, i2c_rc;
 
 	/* config info -- analog */
-	unsigned int               board;
-	unsigned int               tuner_type;
-	unsigned int               radio_type;
-	unsigned char              tuner_addr;
-	unsigned char              radio_addr;
-	unsigned int               tda9887_conf;
-	unsigned int               has_radio;
+	unsigned int               boardnr;
+	struct cx88_board	   board;
 
 	/* Supported V4L _STD_ tuner formats */
 	unsigned int               tuner_formats;
@@ -585,7 +580,7 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
-extern struct cx88_board cx88_boards[];
+extern const struct cx88_board cx88_boards[];
 extern const unsigned int cx88_bcount;
 
 extern struct cx88_subid cx88_subids[];

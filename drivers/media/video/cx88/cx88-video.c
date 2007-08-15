@@ -368,17 +368,17 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 	/* struct cx88_core *core = dev->core; */
 
 	dprintk(1,"video_mux: %d [vmux=%d,gpio=0x%x,0x%x,0x%x,0x%x]\n",
-		input, INPUT(input)->vmux,
-		INPUT(input)->gpio0,INPUT(input)->gpio1,
-		INPUT(input)->gpio2,INPUT(input)->gpio3);
+		input, INPUT(input).vmux,
+		INPUT(input).gpio0,INPUT(input).gpio1,
+		INPUT(input).gpio2,INPUT(input).gpio3);
 	core->input = input;
-	cx_andor(MO_INPUT_FORMAT, 0x03 << 14, INPUT(input)->vmux << 14);
-	cx_write(MO_GP3_IO, INPUT(input)->gpio3);
-	cx_write(MO_GP0_IO, INPUT(input)->gpio0);
-	cx_write(MO_GP1_IO, INPUT(input)->gpio1);
-	cx_write(MO_GP2_IO, INPUT(input)->gpio2);
+	cx_andor(MO_INPUT_FORMAT, 0x03 << 14, INPUT(input).vmux << 14);
+	cx_write(MO_GP3_IO, INPUT(input).gpio3);
+	cx_write(MO_GP0_IO, INPUT(input).gpio0);
+	cx_write(MO_GP1_IO, INPUT(input).gpio1);
+	cx_write(MO_GP2_IO, INPUT(input).gpio2);
 
-	switch (INPUT(input)->type) {
+	switch (INPUT(input).type) {
 	case CX88_VMUX_SVIDEO:
 		cx_set(MO_AFECFG_IO,    0x00000001);
 		cx_set(MO_INPUT_FORMAT, 0x00010010);
@@ -393,9 +393,9 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		break;
 	}
 
-	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
+	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		/* sets sound input from external adc */
-		if (INPUT(input)->extadc)
+		if (INPUT(input).extadc)
 			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
 		else
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
@@ -767,12 +767,11 @@ static int video_open(struct inode *inode, struct file *file)
 			    fh);
 
 	if (fh->radio) {
-		int board = core->board;
 		dprintk(1,"video_open: setting radio device\n");
-		cx_write(MO_GP3_IO, cx88_boards[board].radio.gpio3);
-		cx_write(MO_GP0_IO, cx88_boards[board].radio.gpio0);
-		cx_write(MO_GP1_IO, cx88_boards[board].radio.gpio1);
-		cx_write(MO_GP2_IO, cx88_boards[board].radio.gpio2);
+		cx_write(MO_GP3_IO, core->board.radio.gpio3);
+		cx_write(MO_GP0_IO, core->board.radio.gpio0);
+		cx_write(MO_GP1_IO, core->board.radio.gpio1);
+		cx_write(MO_GP2_IO, core->board.radio.gpio2);
 		core->tvaudio = WW_FM;
 		cx88_set_tvaudio(core);
 		cx88_set_stereo(core,V4L2_TUNER_MODE_STEREO,1);
@@ -1078,8 +1077,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx8800");
-	strlcpy(cap->card, cx88_boards[core->board].name,
-		sizeof(cap->card));
+	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
 	cap->version = CX88_VERSION_CODE;
 	cap->capabilities =
@@ -1087,7 +1085,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 		V4L2_CAP_READWRITE     |
 		V4L2_CAP_STREAMING     |
 		V4L2_CAP_VBI_CAPTURE;
-	if (UNSET != core->tuner_type)
+	if (UNSET != core->board.tuner_type)
 		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
@@ -1221,14 +1219,14 @@ int cx88_enum_input (struct cx88_core  *core,struct v4l2_input *i)
 	n = i->index;
 	if (n >= 4)
 		return -EINVAL;
-	if (0 == INPUT(n)->type)
+	if (0 == INPUT(n).type)
 		return -EINVAL;
 	memset(i,0,sizeof(*i));
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name,iname[INPUT(n)->type]);
-	if ((CX88_VMUX_TELEVISION == INPUT(n)->type) ||
-		(CX88_VMUX_CABLE      == INPUT(n)->type))
+	strcpy(i->name,iname[INPUT(n).type]);
+	if ((CX88_VMUX_TELEVISION == INPUT(n).type) ||
+	    (CX88_VMUX_CABLE      == INPUT(n).type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 		i->std = CX88_NORMS;
 	return 0;
@@ -1297,7 +1295,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 	u32 reg;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1318,7 +1316,7 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 {
 	struct cx88_core  *core = ((struct cx8800_fh *)priv)->dev->core;
 
-	if (UNSET == core->tuner_type)
+	if (UNSET == core->board.tuner_type)
 		return -EINVAL;
 	if (0 != t->index)
 		return -EINVAL;
@@ -1333,7 +1331,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 	struct cx8800_fh  *fh   = priv;
 	struct cx88_core  *core = fh->dev->core;
 
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 
 	/* f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV; */
@@ -1348,7 +1346,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 int cx88_set_freq (struct cx88_core  *core,
 				struct v4l2_frequency *f)
 {
-	if (unlikely(UNSET == core->tuner_type))
+	if (unlikely(UNSET == core->board.tuner_type))
 		return -EINVAL;
 	if (unlikely(f->tuner != 0))
 		return -EINVAL;
@@ -1419,8 +1417,7 @@ static int radio_querycap (struct file *file, void  *priv,
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx8800");
-	strlcpy(cap->card, cx88_boards[core->board].name,
-		sizeof(cap->card));
+	strlcpy(cap->card, core->board.name, sizeof(cap->card));
 	sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
 	cap->version = CX88_VERSION_CODE;
 	cap->capabilities = V4L2_CAP_TUNER;
@@ -1828,10 +1825,10 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* load and configure helper modules */
-	if (TUNER_ABSENT != core->tuner_type)
+	if (TUNER_ABSENT != core->board.tuner_type)
 		request_module("tuner");
 
-	if (cx88_boards[ core->board ].audio_chip == AUDIO_CHIP_WM8775)
+	if (core->board.audio_chip == AUDIO_CHIP_WM8775)
 		request_module("wm8775");
 
 	/* register v4l devices */
@@ -1858,7 +1855,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	printk(KERN_INFO "%s/0: registered device vbi%d\n",
 	       core->name,dev->vbi_dev->minor & 0x1f);
 
-	if (core->has_radio) {
+	if (core->board.radio.type == CX88_RADIO) {
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
 						&cx8800_radio_template,"radio");
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
@@ -1884,7 +1881,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	mutex_unlock(&core->lock);
 
 	/* start tvaudio thread */
-	if (core->tuner_type != TUNER_ABSENT) {
+	if (core->board.tuner_type != TUNER_ABSENT) {
 		core->kthread = kthread_run(cx88_audio_thread, core, "cx88 tvaudio");
 		if (IS_ERR(core->kthread)) {
 			err = PTR_ERR(core->kthread);

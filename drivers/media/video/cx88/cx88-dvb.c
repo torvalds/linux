@@ -378,7 +378,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	dev->ts_gen_cntrl = 0x0c;
 
 	/* init frontend */
-	switch (dev->core->board) {
+	switch (dev->core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
@@ -653,7 +653,7 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 	int err = 0;
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* We arrive here with either the cx23416 or the cx22702
 		 * on the bus. Take the bus from the cx23416 and enable the
@@ -676,7 +676,7 @@ static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 	int err = 0;
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* Do Nothing, leave the cx22702 on the bus. */
 		break;
@@ -694,13 +694,13 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 
 	dprintk( 1, "%s\n", __FUNCTION__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
-		core->board,
+		core->boardnr,
 		core->name,
 		core->pci_bus,
 		core->pci_slot);
 
 	err = -ENODEV;
-	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_DVB))
+	if (!(core->board.mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
 	/* If vp3054 isn't enabled, a stub will just return 0 */

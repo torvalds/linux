@@ -738,7 +738,7 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 		value |= (1 << 15);
 		value |= (1 << 16);
 	}
-	if (INPUT(core->input)->type == CX88_VMUX_SVIDEO)
+	if (INPUT(core->input).type == CX88_VMUX_SVIDEO)
 		value |= (1 << 13) | (1 << 5);
 	if (V4L2_FIELD_INTERLACED == field)
 		value |= (1 << 3); // VINT (interlaced vertical scaling)
@@ -833,7 +833,7 @@ static int set_tvaudio(struct cx88_core *core)
 {
 	v4l2_std_id norm = core->tvnorm;
 
-	if (CX88_VMUX_TELEVISION != INPUT(core->input)->type)
+	if (CX88_VMUX_TELEVISION != INPUT(core->input).type)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm) {
@@ -1067,7 +1067,7 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	vfd->dev     = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
-		 core->name, type, cx88_boards[core->board].name);
+		 core->name, type, core->board.name);
 	return vfd;
 }
 
@@ -1130,39 +1130,34 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	core->bmmio = (u8 __iomem *)core->lmmio;
 
 	/* board config */
-	core->board = UNSET;
+	core->boardnr = UNSET;
 	if (card[core->nr] < cx88_bcount)
-		core->board = card[core->nr];
-	for (i = 0; UNSET == core->board  &&  i < cx88_idcount; i++)
+		core->boardnr = card[core->nr];
+	for (i = 0; UNSET == core->boardnr  &&  i < cx88_idcount; i++)
 		if (pci->subsystem_vendor == cx88_subids[i].subvendor &&
 		    pci->subsystem_device == cx88_subids[i].subdevice)
-			core->board = cx88_subids[i].card;
-	if (UNSET == core->board) {
-		core->board = CX88_BOARD_UNKNOWN;
+			core->boardnr = cx88_subids[i].card;
+	if (UNSET == core->boardnr) {
+		core->boardnr = CX88_BOARD_UNKNOWN;
 		cx88_card_list(core,pci);
 	}
+
+	memcpy(&core->board, &cx88_boards[core->boardnr], sizeof(core->board));
+
 	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 		core->name,pci->subsystem_vendor,
-		pci->subsystem_device,cx88_boards[core->board].name,
-		core->board, card[core->nr] == core->board ?
+		pci->subsystem_device, core->board.name,
+		core->boardnr, card[core->nr] == core->boardnr ?
 		"insmod option" : "autodetected");
 
-	core->tuner_type = tuner[core->nr];
-	core->radio_type = radio[core->nr];
-	if (UNSET == core->tuner_type)
-		core->tuner_type = cx88_boards[core->board].tuner_type;
-	if (UNSET == core->radio_type)
-		core->radio_type = cx88_boards[core->board].radio_type;
-	if (!core->tuner_addr)
-		core->tuner_addr = cx88_boards[core->board].tuner_addr;
-	if (!core->radio_addr)
-		core->radio_addr = cx88_boards[core->board].radio_addr;
+	if (tuner[core->nr] != UNSET)
+		core->board.tuner_type = tuner[core->nr];
+	if (radio[core->nr] != UNSET)
+		core->board.radio_type = radio[core->nr];
 
 	printk(KERN_INFO "TV tuner %d at 0x%02x, Radio tuner %d at 0x%02x\n",
-		core->tuner_type, core->tuner_addr<<1,
-		core->radio_type, core->radio_addr<<1);
-
-	core->tda9887_conf = cx88_boards[core->board].tda9887_conf;
+		core->board.tuner_type, core->board.tuner_addr<<1,
+		core->board.radio_type, core->board.radio_addr<<1);
 
 	/* init hardware */
 	cx88_reset(core);
