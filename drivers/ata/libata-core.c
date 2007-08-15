@@ -3705,6 +3705,10 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
 			       "%llu != %llu\n",
 			       (unsigned long long)n_sectors,
 			       (unsigned long long)dev->n_sectors);
+
+		/* restore original n_sectors */
+		dev->n_sectors = n_sectors;
+
 		rc = -ENODEV;
 		goto fail;
 	}
