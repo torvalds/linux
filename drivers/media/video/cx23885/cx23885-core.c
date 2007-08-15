@@ -759,8 +759,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	dev->bmmio = (u8 __iomem *)dev->lmmio;
 
-	cx23885_pci_quirks(dev);
-
 	/* board config */
 	dev->board = UNSET;
 	if (card[dev->nr] < cx23885_bcount)
@@ -778,6 +776,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	       dev->pci->subsystem_device, cx23885_boards[dev->board].name,
 	       dev->board, card[dev->nr] == dev->board ?
 	       "insmod option" : "autodetected");
+
+	cx23885_pci_quirks(dev);
 
 	/* Configure the internal memory */
 	if(dev->pci->device == 0x8880) {
