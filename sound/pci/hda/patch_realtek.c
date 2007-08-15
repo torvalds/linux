@@ -8618,6 +8618,7 @@ static void alc268_auto_init(struct hda_codec *codec)
  */
 static const char *alc268_models[ALC268_MODEL_LAST] = {
 	[ALC268_3ST]		= "3stack",
+	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_AUTO]		= "auto",
 };
 
@@ -10427,12 +10428,13 @@ static void alc861vd_dallas_unsol_event(struct hda_codec *codec, unsigned int re
  */
 static const char *alc861vd_models[ALC861VD_MODEL_LAST] = {
 	[ALC660VD_3ST]		= "3stack-660",
-	[ALC660VD_3ST_DIG]= "3stack-660-digout",
+	[ALC660VD_3ST_DIG]	= "3stack-660-digout",
 	[ALC861VD_3ST]		= "3stack",
 	[ALC861VD_3ST_DIG]	= "3stack-digout",
 	[ALC861VD_6ST_DIG]	= "6stack-digout",
 	[ALC861VD_LENOVO]	= "lenovo",
 	[ALC861VD_DALLAS]	= "dallas",
+	[ALC861VD_HP]		= "hp",
 	[ALC861VD_AUTO]		= "auto",
 };
 

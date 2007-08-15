@@ -832,6 +832,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	ALC268
 	  3stack	3-stack model
+	  toshiba	Toshiba A205
 	  auto		auto-config reading BIOS (default)
 
 	ALC662
@@ -858,7 +859,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-6ch-dig 3-jack 6-channel with SPDIF I/O
 	  6stack-dig-demo  6-jack digital for Intel demo board
 	  acer		Acer laptops (Travelmate 3012WTMi, Aspire 5600, etc)
-	  acer-aspire	Acer Aspire laptop
+	  acer-aspire	Acer Aspire 9810
 	  medion	Medion Laptops
 	  medion-md2	Medion MD2
 	  targa-dig	Targa/MSI
@@ -890,6 +891,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack-660-digout 3-jack with SPDIF OUT (for ALC660VD)
 	  lenovo	Lenovo 3000 C200
 	  dallas	Dallas laptops
+	  hp		HP TX1000
 	  auto		auto-config reading BIOS (default)
 
 	CMI9880
