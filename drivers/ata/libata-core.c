@@ -4614,6 +4614,8 @@ static void ata_pio_sectors(struct ata_queued_cmd *qc)
 			ata_pio_sector(qc);
 	} else
 		ata_pio_sector(qc);
+
+	ata_altstatus(qc->ap); /* flush */
 }
 
 /**
@@ -4788,6 +4790,7 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	VPRINTK("ata%u: xfering %d bytes\n", ap->print_id, bytes);
 
 	__atapi_pio_bytes(qc, bytes);
+	ata_altstatus(ap); /* flush */
 
 	return;
 
@@ -4959,7 +4962,6 @@ fsm_start:
 			 */
 			ap->hsm_task_state = HSM_ST;
 			ata_pio_sectors(qc);
-			ata_altstatus(ap); /* flush */
 		} else
 			/* send CDB */
 			atapi_send_cdb(ap, qc);
@@ -5040,7 +5042,6 @@ fsm_start:
 
 				if (!(qc->tf.flags & ATA_TFLAG_WRITE)) {
 					ata_pio_sectors(qc);
-					ata_altstatus(ap);
 					status = ata_wait_idle(ap);
 				}
 
@@ -5060,13 +5061,11 @@ fsm_start:
 			if (ap->hsm_task_state == HSM_ST_LAST &&
 			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
 				/* all data read */
-				ata_altstatus(ap);
 				status = ata_wait_idle(ap);
 				goto fsm_start;
 			}
 		}
 
-		ata_altstatus(ap); /* flush */
 		poll_next = 1;
 		break;
 
