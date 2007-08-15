@@ -915,14 +915,14 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int status = 0;
 
-	spin_lock(&inode->i_lock);
 	if (unlikely((fattr->valid & NFS_ATTR_FATTR) == 0)) {
+		spin_lock(&inode->i_lock);
 		nfsi->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+		spin_unlock(&inode->i_lock);
 		goto out;
 	}
-	status = nfs_update_inode(inode, fattr);
+	status = nfs_refresh_inode(inode, fattr);
 out:
-	spin_unlock(&inode->i_lock);
 	return status;
 }
 
