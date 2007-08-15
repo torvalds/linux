@@ -109,6 +109,32 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data)
 	return 0;
 }
 
+/* the following list of flags are the same as their associated
+ * NETIF_F_xxx values in include/linux/netdevice.h
+ */
+static const u32 flags_dup_features =
+	ETH_FLAG_LRO;
+
+u32 ethtool_op_get_flags(struct net_device *dev)
+{
+	/* in the future, this function will probably contain additional
+	 * handling for flags which are not so easily handled
+	 * by a simple masking operation
+	 */
+
+	return dev->features & flags_dup_features;
+}
+
+int ethtool_op_set_flags(struct net_device *dev, u32 data)
+{
+	if (data & ETH_FLAG_LRO)
+		dev->features |= NETIF_F_LRO;
+	else
+		dev->features &= ~NETIF_F_LRO;
+
+	return 0;
+}
+
 /* Handlers for each ethtool command */
 
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
@@ -783,6 +809,33 @@ static int ethtool_get_perm_addr(struct net_device *dev, void __user *useraddr)
 	return 0;
 }
 
+static int ethtool_get_flags(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { ETHTOOL_GFLAGS };
+
+	if (!dev->ethtool_ops->get_flags)
+		return -EOPNOTSUPP;
+
+	edata.data = dev->ethtool_ops->get_flags(dev);
+
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		return -EFAULT;
+	return 0;
+}
+
+static int ethtool_set_flags(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata;
+
+	if (!dev->ethtool_ops->set_flags)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_flags(dev, edata.data);
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct ifreq *ifr)
@@ -935,6 +988,12 @@ int dev_ethtool(struct ifreq *ifr)
 	case ETHTOOL_SGSO:
 		rc = ethtool_set_gso(dev, useraddr);
 		break;
+	case ETHTOOL_GFLAGS:
+		rc = ethtool_get_flags(dev, useraddr);
+		break;
+	case ETHTOOL_SFLAGS:
+		rc = ethtool_set_flags(dev, useraddr);
+		break;
 	default:
 		rc = -EOPNOTSUPP;
 	}
@@ -959,3 +1018,5 @@ EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
 EXPORT_SYMBOL(ethtool_op_set_tx_ipv6_csum);
 EXPORT_SYMBOL(ethtool_op_set_ufo);
 EXPORT_SYMBOL(ethtool_op_get_ufo);
+EXPORT_SYMBOL(ethtool_op_set_flags);
+EXPORT_SYMBOL(ethtool_op_get_flags);

@@ -449,6 +449,7 @@ struct net_device
 #define NETIF_F_GSO		2048	/* Enable software GSO. */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
 #define NETIF_F_MULTI_QUEUE	16384	/* Has multiple TX/RX queues */
+#define NETIF_F_LRO		32768	/* large receive offload */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16

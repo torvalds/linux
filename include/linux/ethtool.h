@@ -256,6 +256,19 @@ struct ethtool_perm_addr {
 	__u8	data[0];
 };
 
+/* boolean flags controlling per-interface behavior characteristics.
+ * When reading, the flag indicates whether or not a certain behavior
+ * is enabled/present.  When writing, the flag indicates whether
+ * or not the driver should turn on (set) or off (clear) a behavior.
+ *
+ * Some behaviors may read-only (unconditionally absent or present).
+ * If such is the case, return EINVAL in the set-flags operation if the
+ * flag differs from the read-only value.
+ */
+enum ethtool_flags {
+	ETH_FLAG_LRO		= (1 << 15),	/* LRO is enabled */
+};
+
 #ifdef __KERNEL__
 
 struct net_device;
@@ -272,6 +285,8 @@ u32 ethtool_op_get_tso(struct net_device *dev);
 int ethtool_op_set_tso(struct net_device *dev, u32 data);
 u32 ethtool_op_get_ufo(struct net_device *dev);
 int ethtool_op_set_ufo(struct net_device *dev, u32 data);
+u32 ethtool_op_get_flags(struct net_device *dev);
+int ethtool_op_set_flags(struct net_device *dev, u32 data);
 
 /**
  * &ethtool_ops - Alter and report network device settings
@@ -307,6 +322,8 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data);
  * get_strings: Return a set of strings that describe the requested objects 
  * phys_id: Identify the device
  * get_stats: Return statistics about the device
+ * get_flags: get 32-bit flags bitmap
+ * set_flags: set 32-bit flags bitmap
  * 
  * Description:
  *
@@ -369,6 +386,8 @@ struct ethtool_ops {
 	void	(*complete)(struct net_device *);
 	u32     (*get_ufo)(struct net_device *);
 	int     (*set_ufo)(struct net_device *, u32);
+	u32     (*get_flags)(struct net_device *);
+	int     (*set_flags)(struct net_device *, u32);
 };
 #endif /* __KERNEL__ */
 
@@ -410,6 +429,8 @@ struct ethtool_ops {
 #define ETHTOOL_SUFO		0x00000022 /* Set UFO enable (ethtool_value) */
 #define ETHTOOL_GGSO		0x00000023 /* Get GSO enable (ethtool_value) */
 #define ETHTOOL_SGSO		0x00000024 /* Set GSO enable (ethtool_value) */
+#define ETHTOOL_GFLAGS		0x00000025 /* Get flags bitmap(ethtool_value) */
+#define ETHTOOL_SFLAGS		0x00000026 /* Set flags bitmap(ethtool_value) */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET
