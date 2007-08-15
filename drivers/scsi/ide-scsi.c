@@ -671,6 +671,7 @@ static void ide_scsi_remove(ide_drive_t *drive)
 	struct ide_scsi_obj *scsi = scsihost_to_idescsi(scsihost);
 	struct gendisk *g = scsi->disk;
 
+	scsi_remove_host(scsihost);
 	ide_proc_unregister_driver(drive, scsi->driver);
 
 	ide_unregister_region(g);
@@ -679,7 +680,6 @@ static void ide_scsi_remove(ide_drive_t *drive)
 	g->private_data = NULL;
 	put_disk(g);
 
-	scsi_remove_host(scsihost);
 	ide_scsi_put(scsi);
 }
 
