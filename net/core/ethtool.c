@@ -179,10 +179,23 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 	info.cmd = ETHTOOL_GDRVINFO;
 	ops->get_drvinfo(dev, &info);
 
-	if (ops->self_test_count)
-		info.testinfo_len = ops->self_test_count(dev);
-	if (ops->get_stats_count)
-		info.n_stats = ops->get_stats_count(dev);
+	if (ops->get_sset_count) {
+		int rc;
+
+		rc = ops->get_sset_count(dev, ETH_SS_TEST);
+		if (rc >= 0)
+			info.testinfo_len = rc;
+		rc = ops->get_sset_count(dev, ETH_SS_STATS);
+		if (rc >= 0)
+			info.n_stats = rc;
+	} else {
+		/* code path for obsolete hooks */
+
+		if (ops->self_test_count)
+			info.testinfo_len = ops->self_test_count(dev);
+		if (ops->get_stats_count)
+			info.n_stats = ops->get_stats_count(dev);
+	}
 	if (ops->get_regs_len)
 		info.regdump_len = ops->get_regs_len(dev);
 	if (ops->get_eeprom_len)
@@ -669,16 +682,27 @@ static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
 	struct ethtool_test test;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
-	int ret;
+	int ret, test_len;
 
-	if (!ops->self_test || !ops->self_test_count)
+	if (!ops->self_test)
 		return -EOPNOTSUPP;
+	if (!ops->get_sset_count && !ops->self_test_count)
+		return -EOPNOTSUPP;
+
+	if (ops->get_sset_count)
+		test_len = ops->get_sset_count(dev, ETH_SS_TEST);
+	else
+		/* code path for obsolete hook */
+		test_len = ops->self_test_count(dev);
+	if (test_len < 0)
+		return test_len;
+	WARN_ON(test_len == 0);
 
 	if (copy_from_user(&test, useraddr, sizeof(test)))
 		return -EFAULT;
 
-	test.len = ops->self_test_count(dev);
-	data = kmalloc(test.len * sizeof(u64), GFP_USER);
+	test.len = test_len;
+	data = kmalloc(test_len * sizeof(u64), GFP_USER);
 	if (!data)
 		return -ENOMEM;
 
@@ -710,19 +734,29 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	if (copy_from_user(&gstrings, useraddr, sizeof(gstrings)))
 		return -EFAULT;
 
-	switch (gstrings.string_set) {
-	case ETH_SS_TEST:
-		if (!ops->self_test_count)
-			return -EOPNOTSUPP;
-		gstrings.len = ops->self_test_count(dev);
-		break;
-	case ETH_SS_STATS:
-		if (!ops->get_stats_count)
-			return -EOPNOTSUPP;
-		gstrings.len = ops->get_stats_count(dev);
-		break;
-	default:
-		return -EINVAL;
+	if (ops->get_sset_count) {
+		ret = ops->get_sset_count(dev, gstrings.string_set);
+		if (ret < 0)
+			return ret;
+
+		gstrings.len = ret;
+	} else {
+		/* code path for obsolete hooks */
+
+		switch (gstrings.string_set) {
+		case ETH_SS_TEST:
+			if (!ops->self_test_count)
+				return -EOPNOTSUPP;
+			gstrings.len = ops->self_test_count(dev);
+			break;
+		case ETH_SS_STATS:
+			if (!ops->get_stats_count)
+				return -EOPNOTSUPP;
+			gstrings.len = ops->get_stats_count(dev);
+			break;
+		default:
+			return -EINVAL;
+		}
 	}
 
 	data = kmalloc(gstrings.len * ETH_GSTRING_LEN, GFP_USER);
@@ -762,16 +796,27 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 	struct ethtool_stats stats;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
 	u64 *data;
-	int ret;
+	int ret, n_stats;
 
-	if (!ops->get_ethtool_stats || !ops->get_stats_count)
+	if (!ops->get_ethtool_stats)
 		return -EOPNOTSUPP;
+	if (!ops->get_sset_count && !ops->get_stats_count)
+		return -EOPNOTSUPP;
+
+	if (ops->get_sset_count)
+		n_stats = ops->get_sset_count(dev, ETH_SS_STATS);
+	else
+		/* code path for obsolete hook */
+		n_stats = ops->get_stats_count(dev);
+	if (n_stats < 0)
+		return n_stats;
+	WARN_ON(n_stats == 0);
 
 	if (copy_from_user(&stats, useraddr, sizeof(stats)))
 		return -EFAULT;
 
-	stats.n_stats = ops->get_stats_count(dev);
-	data = kmalloc(stats.n_stats * sizeof(u64), GFP_USER);
+	stats.n_stats = n_stats;
+	data = kmalloc(n_stats * sizeof(u64), GFP_USER);
 	if (!data)
 		return -ENOMEM;
 

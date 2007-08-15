@@ -376,11 +376,9 @@ struct ethtool_ops {
 	int	(*set_sg)(struct net_device *, u32);
 	u32	(*get_tso)(struct net_device *);
 	int	(*set_tso)(struct net_device *, u32);
-	int	(*self_test_count)(struct net_device *);
 	void	(*self_test)(struct net_device *, struct ethtool_test *, u64 *);
 	void	(*get_strings)(struct net_device *, u32 stringset, u8 *);
 	int	(*phys_id)(struct net_device *, u32);
-	int	(*get_stats_count)(struct net_device *);
 	void	(*get_ethtool_stats)(struct net_device *, struct ethtool_stats *, u64 *);
 	int	(*begin)(struct net_device *);
 	void	(*complete)(struct net_device *);
@@ -388,6 +386,11 @@ struct ethtool_ops {
 	int     (*set_ufo)(struct net_device *, u32);
 	u32     (*get_flags)(struct net_device *);
 	int     (*set_flags)(struct net_device *, u32);
+	int	(*get_sset_count)(struct net_device *, int);
+
+	/* the following hooks are obsolete */
+	int	(*self_test_count)(struct net_device *);/* use get_sset_count */
+	int	(*get_stats_count)(struct net_device *);/* use get_sset_count */
 };
 #endif /* __KERNEL__ */
 
