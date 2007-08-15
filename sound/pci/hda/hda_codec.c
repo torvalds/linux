@@ -525,6 +525,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		return;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	cancel_delayed_work(&codec->power_work);
+	flush_scheduled_work();
 #endif
 	list_del(&codec->list);
 	codec->bus->caddr_tbl[codec->addr] = NULL;
@@ -2223,7 +2224,7 @@ void snd_hda_power_up(struct hda_codec *codec)
 void snd_hda_power_down(struct hda_codec *codec)
 {
 	--codec->power_count;
-	if (!codec->power_on)
+	if (!codec->power_on || codec->power_count)
 		return;
 	if (power_save)
 		schedule_delayed_work(&codec->power_work,
