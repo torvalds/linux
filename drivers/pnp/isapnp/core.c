@@ -335,7 +335,7 @@ static int __init isapnp_isolate(void)
 		} else if (iteration > 1) {
 			break;
 		}
-	      __next:
+__next:
 		if (csn == 255)
 			break;
 		checksum = 0x6a;
@@ -733,7 +733,7 @@ static int __init isapnp_create_device(struct pnp_card *card,
 			       "isapnp: unexpected or unknown tag type 0x%x for logical device %i (device %i), ignored\n",
 			       type, dev->number, card->number);
 		}
-	      __skip:
+__skip:
 		if (size > 0)
 			isapnp_skip_bytes(size);
 	}
@@ -788,7 +788,7 @@ static void __init isapnp_parse_resource_map(struct pnp_card *card)
 			       "isapnp: unexpected or unknown tag type 0x%x for device %i, ignored\n",
 			       type, card->number);
 		}
-	      __skip:
+__skip:
 		if (size > 0)
 			isapnp_skip_bytes(size);
 	}
@@ -940,9 +940,6 @@ EXPORT_SYMBOL(isapnp_protocol);
 EXPORT_SYMBOL(isapnp_present);
 EXPORT_SYMBOL(isapnp_cfg_begin);
 EXPORT_SYMBOL(isapnp_cfg_end);
-#if 0
-EXPORT_SYMBOL(isapnp_read_byte);
-#endif
 EXPORT_SYMBOL(isapnp_write_byte);
 
 static int isapnp_read_resources(struct pnp_dev *dev,
@@ -993,6 +990,7 @@ static int isapnp_get_resources(struct pnp_dev *dev,
 				struct pnp_resource_table *res)
 {
 	int ret;
+
 	pnp_init_resource_table(res);
 	isapnp_cfg_begin(dev->card->number, dev->number);
 	ret = isapnp_read_resources(dev, res);
@@ -1148,13 +1146,12 @@ static int __init isapnp_init(void)
 			}
 		}
 	}
-	if (cards) {
+	if (cards)
 		printk(KERN_INFO
 		       "isapnp: %i Plug & Play card%s detected total\n", cards,
 		       cards > 1 ? "s" : "");
-	} else {
+	else
 		printk(KERN_INFO "isapnp: No Plug & Play card found\n");
-	}
 
 	isapnp_proc_init();
 	return 0;

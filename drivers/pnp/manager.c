@@ -390,7 +390,7 @@ static int pnp_assign_resources(struct pnp_dev *dev, int depnum)
 	up(&pnp_res_mutex);
 	return 1;
 
-      fail:
+fail:
 	pnp_clean_resource_table(&dev->res);
 	up(&pnp_res_mutex);
 	return 0;
@@ -444,7 +444,7 @@ int pnp_manual_config_dev(struct pnp_dev *dev, struct pnp_resource_table *res,
 	kfree(bak);
 	return 0;
 
-      fail:
+fail:
 	dev->res = *bak;
 	up(&pnp_res_mutex);
 	kfree(bak);

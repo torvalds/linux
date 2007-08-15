@@ -118,7 +118,7 @@ static int pnp_device_probe(struct device *dev)
 		goto fail;
 	return error;
 
-      fail:
+fail:
 	pnp_device_detach(pnp_dev);
 	return error;
 }

@@ -35,6 +35,7 @@
 static int irq_flags(int triggering, int polarity)
 {
 	int flag;
+
 	if (triggering == ACPI_LEVEL_SENSITIVE) {
 		if (polarity == ACPI_ACTIVE_LOW)
 			flag = IORESOURCE_IRQ_LOWLEVEL;
