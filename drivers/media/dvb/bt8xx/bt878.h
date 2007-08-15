@@ -151,9 +151,8 @@ void bt878_stop(struct bt878 *bt);
 #if defined(__powerpc__)	/* big-endian */
 static inline void io_st_le32(volatile unsigned __iomem *addr, unsigned val)
 {
-	__asm__ __volatile__("stwbrx %1,0,%2":"=m"(*addr):"r"(val),
-			     "r"(addr));
-	__asm__ __volatile__("eieio":::"memory");
+	st_le32(addr, val);
+	eieio();
 }
 
 #define bmtwrite(dat,adr)  io_st_le32((adr),(dat))
