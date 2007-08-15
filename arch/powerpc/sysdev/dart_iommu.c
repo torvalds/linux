@@ -204,7 +204,7 @@ static void dart_free(struct iommu_table *tbl, long index, long npages)
 }
 
 
-static int dart_init(struct device_node *dart_node)
+static int __init dart_init(struct device_node *dart_node)
 {
 	unsigned int i;
 	unsigned long tmp, base, size;
@@ -313,7 +313,7 @@ static void pci_dma_bus_setup_dart(struct pci_bus *bus)
 		PCI_DN(dn)->iommu_table = &iommu_table_dart;
 }
 
-void iommu_init_early_dart(void)
+void __init iommu_init_early_dart(void)
 {
 	struct device_node *dn;
 
