@@ -39,7 +39,8 @@ struct ethtool_drvinfo {
 	char	bus_info[ETHTOOL_BUSINFO_LEN];	/* Bus info for this IF. */
 				/* For PCI devices, use pci_name(pci_dev). */
 	char	reserved1[32];
-	char	reserved2[16];
+	char	reserved2[12];
+	__u32	n_priv_flags;	/* number of flags valid in ETHTOOL_GPFLAGS */
 	__u32	n_stats;	/* number of u64's from ETHTOOL_GSTATS */
 	__u32	testinfo_len;
 	__u32	eedump_len;	/* Size of data from ETHTOOL_GEEPROM (bytes) */
@@ -219,6 +220,7 @@ struct ethtool_pauseparam {
 enum ethtool_stringset {
 	ETH_SS_TEST		= 0,
 	ETH_SS_STATS,
+	ETH_SS_PRIV_FLAGS,
 };
 
 /* for passing string sets for data tagging */
@@ -386,6 +388,8 @@ struct ethtool_ops {
 	int     (*set_ufo)(struct net_device *, u32);
 	u32     (*get_flags)(struct net_device *);
 	int     (*set_flags)(struct net_device *, u32);
+	u32     (*get_priv_flags)(struct net_device *);
+	int     (*set_priv_flags)(struct net_device *, u32);
 	int	(*get_sset_count)(struct net_device *, int);
 
 	/* the following hooks are obsolete */
@@ -434,6 +438,8 @@ struct ethtool_ops {
 #define ETHTOOL_SGSO		0x00000024 /* Set GSO enable (ethtool_value) */
 #define ETHTOOL_GFLAGS		0x00000025 /* Get flags bitmap(ethtool_value) */
 #define ETHTOOL_SFLAGS		0x00000026 /* Set flags bitmap(ethtool_value) */
+#define ETHTOOL_GPFLAGS		0x00000027 /* Get driver-private flags bitmap */
+#define ETHTOOL_SPFLAGS		0x00000028 /* Set driver-private flags bitmap */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET

@@ -188,6 +188,9 @@ static int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 		rc = ops->get_sset_count(dev, ETH_SS_STATS);
 		if (rc >= 0)
 			info.n_stats = rc;
+		rc = ops->get_sset_count(dev, ETH_SS_PRIV_FLAGS);
+		if (rc >= 0)
+			info.n_priv_flags = rc;
 	} else {
 		/* code path for obsolete hooks */
 
@@ -881,6 +884,33 @@ static int ethtool_set_flags(struct net_device *dev, char __user *useraddr)
 	return dev->ethtool_ops->set_flags(dev, edata.data);
 }
 
+static int ethtool_get_priv_flags(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { ETHTOOL_GPFLAGS };
+
+	if (!dev->ethtool_ops->get_priv_flags)
+		return -EOPNOTSUPP;
+
+	edata.data = dev->ethtool_ops->get_priv_flags(dev);
+
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		return -EFAULT;
+	return 0;
+}
+
+static int ethtool_set_priv_flags(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata;
+
+	if (!dev->ethtool_ops->set_priv_flags)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+
+	return dev->ethtool_ops->set_priv_flags(dev, edata.data);
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct ifreq *ifr)
@@ -915,6 +945,8 @@ int dev_ethtool(struct ifreq *ifr)
 	case ETHTOOL_GPERMADDR:
 	case ETHTOOL_GUFO:
 	case ETHTOOL_GGSO:
+	case ETHTOOL_GFLAGS:
+	case ETHTOOL_GPFLAGS:
 		break;
 	default:
 		if (!capable(CAP_NET_ADMIN))
@@ -1038,6 +1070,12 @@ int dev_ethtool(struct ifreq *ifr)
 		break;
 	case ETHTOOL_SFLAGS:
 		rc = ethtool_set_flags(dev, useraddr);
+		break;
+	case ETHTOOL_GPFLAGS:
+		rc = ethtool_get_priv_flags(dev, useraddr);
+		break;
+	case ETHTOOL_SPFLAGS:
+		rc = ethtool_set_priv_flags(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
