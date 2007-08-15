@@ -656,6 +656,8 @@ ips_release(struct Scsi_Host *sh)
 
 	METHOD_TRACE("ips_release", 1);
 
+	scsi_remove_host(sh);
+
 	for (i = 0; i < IPS_MAX_ADAPTERS && ips_sh[i] != sh; i++) ;
 
 	if (i == IPS_MAX_ADAPTERS) {
@@ -707,7 +709,6 @@ ips_release(struct Scsi_Host *sh)
 	/* free IRQ */
 	free_irq(ha->irq, ha);
 
-	scsi_remove_host(sh);
 	scsi_host_put(sh);
 
 	ips_released_controllers++;
