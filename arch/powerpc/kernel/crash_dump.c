@@ -25,7 +25,7 @@
 #define DBG(fmt...)
 #endif
 
-void reserve_kdump_trampoline(void)
+void __init reserve_kdump_trampoline(void)
 {
 	lmb_reserve(0, KDUMP_RESERVE_LIMIT);
 }
