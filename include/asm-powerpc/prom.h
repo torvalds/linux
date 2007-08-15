@@ -145,7 +145,6 @@ extern void of_detach_node(struct device_node *);
 extern void finish_device_tree(void);
 extern void unflatten_device_tree(void);
 extern void early_init_devtree(void *);
-#define device_is_compatible(d, c)	of_device_is_compatible((d), (c))
 extern int machine_is_compatible(const char *compat);
 extern void print_properties(struct device_node *node);
 extern int prom_n_intr_cells(struct device_node* np);
