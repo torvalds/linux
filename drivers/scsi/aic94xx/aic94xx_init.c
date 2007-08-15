@@ -583,7 +583,7 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	asd_ha = kzalloc(sizeof(*asd_ha), GFP_KERNEL);
 	if (!asd_ha) {
 		asd_printk("out of memory\n");
-		goto Err;
+		goto Err_put;
 	}
 	asd_ha->pcidev = dev;
 	asd_ha->sas_ha.dev = &asd_ha->pcidev->dev;
@@ -600,14 +600,12 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 	shost->max_cmd_len = 16;
 
 	err = scsi_add_host(shost, &dev->dev);
-	if (err) {
-		scsi_host_put(shost);
+	if (err)
 		goto Err_free;
-	}
 
 	err = asd_dev->setup(asd_ha);
 	if (err)
-		goto Err_free;
+		goto Err_remove;
 
 	err = -ENODEV;
 	if (!pci_set_dma_mask(dev, DMA_64BIT_MASK)
@@ -618,14 +616,14 @@ static int __devinit asd_pci_probe(struct pci_dev *dev,
 		;
 	else {
 		asd_printk("no suitable DMA mask for %s\n", pci_name(dev));
-		goto Err_free;
+		goto Err_remove;
 	}
 
 	pci_set_drvdata(dev, asd_ha);
 
 	err = asd_map_ha(asd_ha);
 	if (err)
-		goto Err_free;
+		goto Err_remove;
 
 	err = asd_create_ha_caches(asd_ha);
         if (err)
@@ -692,9 +690,12 @@ Err_free_cache:
 	asd_destroy_ha_caches(asd_ha);
 Err_unmap:
 	asd_unmap_ha(asd_ha);
+Err_remove:
+	scsi_remove_host(shost);
 Err_free:
 	kfree(asd_ha);
-	scsi_remove_host(shost);
+Err_put:
+	scsi_host_put(shost);
 Err:
 	pci_disable_device(dev);
 	return err;
