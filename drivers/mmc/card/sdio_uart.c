@@ -1106,6 +1106,8 @@ static int __init sdio_uart_init(void)
 	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
 	tty_drv->init_termios = tty_std_termios;
 	tty_drv->init_termios.c_cflag = B4800 | CS8 | CREAD | HUPCL | CLOCAL;
+	tty_drv->init_termios.c_ispeed = 4800;
+	tty_drv->init_termios.c_ospeed = 4800;
 	tty_set_operations(tty_drv, &sdio_uart_ops);
 
 	ret = tty_register_driver(tty_drv);
