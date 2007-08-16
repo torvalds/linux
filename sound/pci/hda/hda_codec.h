@@ -586,7 +586,8 @@ struct hda_codec {
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	int power_on;		/* current (global) power-state */
+	unsigned int power_on :1;	/* current (global) power-state */
+	unsigned int power_transition :1; /* power-state in transition */
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */
 #endif
