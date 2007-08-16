@@ -357,11 +357,6 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 	static unsigned char *ule_where = ule_hist, ule_dump = 0;
 #endif
 
-	if (dev == NULL) {
-		printk( KERN_ERR "NO netdev struct!\n" );
-		return;
-	}
-
 	/* For all TS cells in current buffer.
 	 * Appearently, we are called for every single TS cell.
 	 */
