@@ -907,14 +907,10 @@ STATIC int __init
 init_xfs_fs( void )
 {
 	int			error;
-	struct sysinfo		si;
 	static char		message[] __initdata = KERN_INFO \
 		XFS_VERSION_STRING " with " XFS_BUILD_OPTIONS " enabled\n";
 
 	printk(message);
-
-	si_meminfo(&si);
-	xfs_physmem = si.totalram;
 
 	ktrace_init(64);
 
