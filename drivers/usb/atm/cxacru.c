@@ -456,7 +456,6 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 				 int* actual_length)
 {
 	struct timer_list timer;
-	int status = urb->status;
 
 	init_timer(&timer);
 	timer.expires = jiffies + msecs_to_jiffies(CMD_TIMEOUT);
@@ -468,7 +467,7 @@ static int cxacru_start_wait_urb(struct urb *urb, struct completion *done,
 
 	if (actual_length)
 		*actual_length = urb->actual_length;
-	return status;
+	return urb->status; /* must read status after completion */
 }
 
 static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
