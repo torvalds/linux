@@ -885,15 +885,12 @@ xfs_mountfs(
 	mp->m_writeio_blocks = 1 << (mp->m_writeio_log - sbp->sb_blocklog);
 
 	/*
-	 * Set the inode cluster size based on the physical memory
-	 * size.  This may still be overridden by the file system
+	 * Set the inode cluster size.
+	 * This may still be overridden by the file system
 	 * block size if it is larger than the chosen cluster size.
 	 */
-	if (xfs_physmem <= btoc(32 * 1024 * 1024)) { /* <= 32 MB */
-		mp->m_inode_cluster_size = XFS_INODE_SMALL_CLUSTER_SIZE;
-	} else {
-		mp->m_inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
-	}
+	mp->m_inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
+
 	/*
 	 * Set whether we're using inode alignment.
 	 */
