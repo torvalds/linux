@@ -1975,7 +1975,6 @@ xfs_da_do_buf(
 		error = mappedbno == -2 ? 0 : XFS_ERROR(EFSCORRUPTED);
 		if (unlikely(error == EFSCORRUPTED)) {
 			if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-				int	i;
 				cmn_err(CE_ALERT, "xfs_da_do_buf: bno %lld\n",
 					(long long)bno);
 				cmn_err(CE_ALERT, "dir: inode %lld\n",
