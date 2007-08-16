@@ -33,7 +33,7 @@ enum {
 	UH, TWOD, ZD, PV, CI,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_IRQ(UP, IRQ_SM501_UP), INTC_IRQ(G54, IRQ_SM501_G54),
 	INTC_IRQ(G53, IRQ_SM501_G53), INTC_IRQ(G52, IRQ_SM501_G52),
 	INTC_IRQ(G51, IRQ_SM501_G51), INTC_IRQ(G50, IRQ_SM501_G50),
@@ -49,7 +49,7 @@ static struct intc_vect vectors[] = {
 	INTC_IRQ(PV, IRQ_SM501_PV), INTC_IRQ(CI, IRQ_SM501_CI),
 };
 
-static struct intc_mask_reg mask_registers[] = {
+static struct intc_mask_reg mask_registers[] __initdata = {
 	{ VOYAGER_INT_MASK, 0, 32, /* "Interrupt Mask", MMIO_base + 0x30 */
 	  { UP, G54, G53, G52, G51, G50, G49, G48,
 	    I2C, PW, 0, DMA, PCI, I2S, AC, US,

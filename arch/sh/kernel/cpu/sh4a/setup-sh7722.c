@@ -84,7 +84,7 @@ enum {
 	SIM, RTC, DMAC0123, VIOVOU, USB, DMAC45, FLCTL, I2C, SDHI,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
 	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
 	INTC_VECT(IRQ4, 0x680), INTC_VECT(IRQ5, 0x6a0),
@@ -117,7 +117,7 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(JPU, 0x560), INTC_VECT(LCDC, 0x580),
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(SIM, SIM_ERI, SIM_RXI, SIM_TXI, SIM_TEI),
 	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
 	INTC_GROUP(DMAC0123, DMAC0, DMAC1, DMAC2, DMAC3),
@@ -130,7 +130,7 @@ static struct intc_group groups[] = {
 	INTC_GROUP(SDHI, SDHI0, SDHI1, SDHI2, SDHI3),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(SCIF0, 3),
 	INTC_PRIO(SCIF1, 3),
 	INTC_PRIO(SCIF2, 3),
@@ -138,7 +138,7 @@ static struct intc_prio priorities[] = {
 	INTC_PRIO(TMU1, 2),
 };
 
-static struct intc_mask_reg mask_registers[] = {
+static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xa4080080, 0xa40800c0, 8, /* IMR0 / IMCR0 */
 	  { } },
 	{ 0xa4080084, 0xa40800c4, 8, /* IMR1 / IMCR1 */
@@ -168,7 +168,7 @@ static struct intc_mask_reg mask_registers[] = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static struct intc_prio_reg prio_registers[] = {
+static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xa4080000, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, IRDA } },
 	{ 0xa4080004, 0, 16, 4, /* IPRB */ { JPU, LCDC, SIM } },
 	{ 0xa4080008, 0, 16, 4, /* IPRC */ { } },
@@ -185,7 +185,7 @@ static struct intc_prio_reg prio_registers[] = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static struct intc_sense_reg sense_registers[] = {
+static struct intc_sense_reg sense_registers[] __initdata = {
 	{ 0xa414001c, 16, 2, /* ICR1 */
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };

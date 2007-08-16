@@ -97,7 +97,7 @@ enum {
 	DMAC0, DMAC1, DTU0, DTU1, DTU2, DTU3,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(HUDII, 0x3e0),
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
 	INTC_VECT(TMU2, 0x440), INTC_VECT(TMU3, 0x460),
@@ -145,7 +145,7 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(INTICI6, 0xfc0), INTC_VECT(INTICI7, 0xfe0),
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(IRL, IRL_LLLL, IRL_LLLH, IRL_LLHL, IRL_LLHH,
 		   IRL_LHLL, IRL_LHLH, IRL_LHHL, IRL_LHHH,
 		   IRL_HLLL, IRL_HLLH, IRL_HLHL, IRL_HLHH,
@@ -165,14 +165,14 @@ static struct intc_group groups[] = {
 	INTC_GROUP(DTU3, DTU3_TEND, DTU3_AE, DTU3_TMISS),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(SCIF0, 3),
 	INTC_PRIO(SCIF1, 3),
 	INTC_PRIO(SCIF2, 3),
 	INTC_PRIO(SCIF3, 3),
 };
 
-static struct intc_mask_reg mask_registers[] = {
+static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xfe410030, 0xfe410050, 32, /* CnINTMSK0 / CnINTMSKCLR0 */
 	  { IRQ0, IRQ1, IRQ2, IRQ3 } },
 	{ 0xfe410040, 0xfe410060, 32, /* CnINTMSK1 / CnINTMSKCLR1 */
@@ -197,7 +197,7 @@ static struct intc_mask_reg mask_registers[] = {
 	    SCIF0_TXI, SCIF0_BRI, SCIF0_RXI, SCIF0_ERI } },
 };
 
-static struct intc_prio_reg prio_registers[] = {
+static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfe410010, 0, 32, 4, /* INTPRI */ { IRQ0, IRQ1, IRQ2, IRQ3 } },
 
 	{ 0xfe410800, 0, 32, 4, /* INT2PRI0 */ { 0, HUDII, TMU5, TMU4,
@@ -222,12 +222,12 @@ static DECLARE_INTC_DESC(intc_desc, "shx3", vectors, groups, priorities,
 			 mask_registers, prio_registers, NULL);
 
 /* Support for external interrupt pins in IRQ mode */
-static struct intc_vect vectors_irq[] = {
+static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRQ0, 0x240), INTC_VECT(IRQ1, 0x280),
 	INTC_VECT(IRQ2, 0x2c0), INTC_VECT(IRQ3, 0x300),
 };
 
-static struct intc_sense_reg sense_registers[] = {
+static struct intc_sense_reg sense_registers[] __initdata = {
 	{ 0xfe41001c, 32, 2, /* ICR1 */   { IRQ0, IRQ1, IRQ2, IRQ3 } },
 };
 
@@ -236,7 +236,7 @@ static DECLARE_INTC_DESC(intc_desc_irq, "shx3-irq", vectors_irq, groups,
 			 sense_registers);
 
 /* External interrupt pins in IRL mode */
-static struct intc_vect vectors_irl[] = {
+static struct intc_vect vectors_irl[] __initdata = {
 	INTC_VECT(IRL_LLLL, 0x200), INTC_VECT(IRL_LLLH, 0x220),
 	INTC_VECT(IRL_LLHL, 0x240), INTC_VECT(IRL_LLHH, 0x260),
 	INTC_VECT(IRL_LHLL, 0x280), INTC_VECT(IRL_LHLH, 0x2a0),

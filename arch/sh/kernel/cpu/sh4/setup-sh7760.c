@@ -43,7 +43,7 @@ enum {
 	DMAC, DMABRG, SCIF0, SCIF1, SCIF2, SIM, MMCIF, TMU2, REF,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(HUDI, 0x600), INTC_VECT(GPIOI, 0x620),
 	INTC_VECT(DMAC_DMTE0, 0x640), INTC_VECT(DMAC_DMTE1, 0x660),
 	INTC_VECT(DMAC_DMTE2, 0x680), INTC_VECT(DMAC_DMTE3, 0x6a0),
@@ -78,7 +78,7 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(REF_RCMI, 0x580), INTC_VECT(REF_ROVI, 0x5a0),
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(DMAC, DMAC_DMTE0, DMAC_DMTE1, DMAC_DMTE2,
 		   DMAC_DMTE3, DMAC_DMTE4, DMAC_DMTE5,
 		   DMAC_DMTE6, DMAC_DMTE7, DMAC_DMAE),
@@ -92,7 +92,7 @@ static struct intc_group groups[] = {
 	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(SCIF0, 3),
 	INTC_PRIO(SCIF1, 3),
 	INTC_PRIO(SCIF2, 3),
@@ -101,7 +101,7 @@ static struct intc_prio priorities[] = {
 	INTC_PRIO(DMABRG, 13),
 };
 
-static struct intc_mask_reg mask_registers[] = {
+static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xfe080040, 0xfe080060, 32, /* INTMSK00 / INTMSKCLR00 */
 	  { IRQ4, IRQ5, IRQ6, IRQ7, 0, 0, HCAN20, HCAN21,
 	    SSI0, SSI1, HAC0, HAC1, I2C0, I2C1, USB, LCDC,
@@ -117,7 +117,7 @@ static struct intc_mask_reg mask_registers[] = {
 	    0, MFI, 0, 0, 0, 0, ADC, CMT, } },
 };
 
-static struct intc_prio_reg prio_registers[] = {
+static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xffd00004, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2 } },
 	{ 0xffd00008, 0, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
 	{ 0xffd0000c, 0, 16, 4, /* IPRC */ { GPIOI, DMAC, 0, HUDI } },
@@ -134,7 +134,7 @@ static struct intc_prio_reg prio_registers[] = {
 static DECLARE_INTC_DESC(intc_desc, "sh7760", vectors, groups,
 			 priorities, mask_registers, prio_registers, NULL);
 
-static struct intc_vect vectors_irq[] = {
+static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRL0, 0x240), INTC_VECT(IRL1, 0x2a0),
 	INTC_VECT(IRL2, 0x300), INTC_VECT(IRL3, 0x360),
 };

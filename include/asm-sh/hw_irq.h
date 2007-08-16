@@ -42,10 +42,10 @@ struct intc_prio {
 
 struct intc_group {
 	intc_enum enum_id;
-	intc_enum *enum_ids;
+	intc_enum enum_ids[32];
 };
 
-#define INTC_GROUP(enum_id, ids...) { enum_id, (intc_enum []) { ids, 0 } }
+#define INTC_GROUP(enum_id, ids...) { enum_id, { ids } }
 
 struct intc_mask_reg {
 	unsigned long set_reg, clr_reg, reg_width;
@@ -81,7 +81,7 @@ struct intc_desc {
 #define _INTC_ARRAY(a) a, sizeof(a)/sizeof(*a)
 #define DECLARE_INTC_DESC(symbol, chipname, vectors, groups,		\
 	priorities, mask_regs, prio_regs, sense_regs)			\
-struct intc_desc symbol = {						\
+struct intc_desc symbol __initdata = {					\
 	_INTC_ARRAY(vectors), _INTC_ARRAY(groups),			\
 	_INTC_ARRAY(priorities),					\
 	_INTC_ARRAY(mask_regs), _INTC_ARRAY(prio_regs),			\

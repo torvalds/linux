@@ -39,7 +39,7 @@ enum {
 	RTC, REF, TMU2, DMAC, SCI, SCIF2, SCIF0,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
 	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
 	INTC_VECT(RTC_ATI, 0x480), INTC_VECT(RTC_PRI, 0x4a0),
@@ -71,7 +71,7 @@ static struct intc_vect vectors[] = {
 #endif
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
 	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
 	INTC_GROUP(REF, REF_RCMI, REF_ROVI),
@@ -81,14 +81,14 @@ static struct intc_group groups[] = {
 	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_BRI, SCIF2_TXI),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(DMAC, 7),
 	INTC_PRIO(SCI, 3),
 	INTC_PRIO(SCIF2, 3),
 	INTC_PRIO(SCIF0, 3),
 };
 
-static struct intc_prio_reg prio_registers[] = {
+static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfffffee2, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xfffffee4, 0, 16, 4, /* IPRB */ { WDT, REF, SCI, 0 } },
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
@@ -114,7 +114,7 @@ static DECLARE_INTC_DESC(intc_desc, "sh770x", vectors, groups,
 #if defined(CONFIG_CPU_SUBTYPE_SH7706) || \
     defined(CONFIG_CPU_SUBTYPE_SH7707) || \
     defined(CONFIG_CPU_SUBTYPE_SH7709)
-static struct intc_vect vectors_irq[] = {
+static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
 	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
 };

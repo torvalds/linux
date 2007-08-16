@@ -71,9 +71,8 @@ static unsigned char irl2irq_r2d_1[R2D_NR_IRL] __initdata = {
 	IRQ_TP,
 };
 
-static __initdata DECLARE_INTC_DESC(intc_desc_r2d_1, "r2d-1",
-				    vectors_r2d_1, NULL, NULL,
-				    mask_registers_r2d_1, NULL, NULL);
+static DECLARE_INTC_DESC(intc_desc_r2d_1, "r2d-1", vectors_r2d_1,
+			 NULL, NULL, mask_registers_r2d_1, NULL, NULL);
 
 #endif /* CONFIG_RTS7751R2D_1 */
 
@@ -110,9 +109,8 @@ static unsigned char irl2irq_r2d_plus[R2D_NR_IRL] __initdata = {
 	IRQ_TP,
 };
 
-static __initdata DECLARE_INTC_DESC(intc_desc_r2d_plus, "r2d-plus",
-				    vectors_r2d_plus, NULL, NULL,
-				    mask_registers_r2d_plus, NULL, NULL);
+static DECLARE_INTC_DESC(intc_desc_r2d_plus, "r2d-plus", vectors_r2d_plus,
+			 NULL, NULL, mask_registers_r2d_plus, NULL, NULL);
 
 #endif /* CONFIG_RTS7751R2D_PLUS */
 

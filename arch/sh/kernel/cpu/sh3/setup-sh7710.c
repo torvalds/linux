@@ -37,7 +37,7 @@ enum {
 	RTC, DMAC1, SCIF0, SCIF1, DMAC2, SIOF0, SIOF1,
 };
 
-static struct intc_vect vectors[] = {
+static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(IRQ4, 0x680), INTC_VECT(IRQ5, 0x6a0),
 	INTC_VECT(DMAC_DEI0, 0x800), INTC_VECT(DMAC_DEI1, 0x820),
 	INTC_VECT(DMAC_DEI2, 0x840), INTC_VECT(DMAC_DEI3, 0x860),
@@ -63,7 +63,7 @@ static struct intc_vect vectors[] = {
 	INTC_VECT(REF, 0x580),
 };
 
-static struct intc_group groups[] = {
+static struct intc_group groups[] __initdata = {
 	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
 	INTC_GROUP(DMAC1, DMAC_DEI0, DMAC_DEI1, DMAC_DEI2, DMAC_DEI3),
 	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_BRI, SCIF0_TXI),
@@ -73,7 +73,7 @@ static struct intc_group groups[] = {
 	INTC_GROUP(SIOF1, SIOF1_ERI, SIOF1_TXI, SIOF1_RXI, SIOF1_CCI),
 };
 
-static struct intc_prio priorities[] = {
+static struct intc_prio priorities[] __initdata = {
 	INTC_PRIO(DMAC1, 7),
 	INTC_PRIO(DMAC2, 7),
 	INTC_PRIO(SCIF0, 3),
@@ -85,7 +85,7 @@ static struct intc_prio priorities[] = {
 	INTC_PRIO(EDMAC2, 5),
 };
 
-static struct intc_prio_reg prio_registers[] = {
+static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfffffee2, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xfffffee4, 0, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
 	{ 0xa4000016, 0, 16, 4, /* IPRC */ { IRQ3, IRQ2, IRQ1, IRQ0 } },
@@ -103,7 +103,7 @@ static struct intc_prio_reg prio_registers[] = {
 static DECLARE_INTC_DESC(intc_desc, "sh7710", vectors, groups,
 			 priorities, NULL, prio_registers, NULL);
 
-static struct intc_vect vectors_irq[] = {
+static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
 	INTC_VECT(IRQ2, 0x640), INTC_VECT(IRQ3, 0x660),
 };
