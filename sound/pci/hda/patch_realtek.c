@@ -8672,10 +8672,6 @@ static void alc268_auto_init(struct hda_codec *codec)
 	alc268_auto_init_analog_input(codec);
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-#define alc883_loopbacks	alc880_loopbacks
-#endif
-
 /*
  * configuration and preset
  */
