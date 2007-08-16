@@ -17,22 +17,22 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xfffe8000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 241, 242, 243, 240},
+		.irqs		=  { 241, 242, 243, 240 },
 	}, {
 		.mapbase	= 0xfffe8800,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 247, 244, 245, 246},
+		.irqs		=  { 245, 246, 247, 244 },
 	}, {
 		.mapbase	= 0xfffe9000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 249, 250, 251, 248},
+		.irqs		=  { 249, 250, 251, 248 },
 	}, {
 		.mapbase	= 0xfffe9800,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		=  { 253, 254, 255, 252},
+		.irqs		=  { 253, 254, 255, 252 },
 	}, {
 		.flags = 0,
 	}
