@@ -553,7 +553,7 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_fan3_div.dev_attr)))
 			goto error_remove_files;
-	} else
+	} else if (data->type == smsc47m2)
 		dev_dbg(dev, "Fan 3 not enabled by hardware, skipping\n");
 
 	if (pwm1) {
@@ -580,7 +580,7 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_pwm3_enable.dev_attr)))
 			goto error_remove_files;
-	} else
+	} else if (data->type == smsc47m2)
 		dev_dbg(dev, "PWM 3 not enabled by hardware, skipping\n");
 
 	if ((err = device_create_file(dev, &dev_attr_alarms)))
