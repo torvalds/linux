@@ -156,6 +156,7 @@ enum {
 	ALC882_TARGA,
 	ALC882_ASUS_A7J,
 	ALC885_MACPRO,
+	ALC885_MBP3,
 	ALC885_IMAC24,
 	ALC882_AUTO,
 	ALC882_MODEL_LAST,
@@ -4895,6 +4896,38 @@ static struct hda_channel_mode alc882_sixstack_modes[2] = {
 	{ 8, alc882_sixstack_ch8_init },
 };
 
+/*
+ * macbook pro ALC885 can switch LineIn to LineOut without loosing Mic
+ */
+
+/*
+ * 2ch mode
+ */
+static struct hda_verb alc885_mbp_ch2_init[] = {
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
+	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{ } /* end */
+};
+
+/*
+ * 6ch mode
+ */
+static struct hda_verb alc885_mbp_ch6_init[] = {
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{ } /* end */
+};
+
+static struct hda_channel_mode alc885_mbp_6ch_modes[2] = {
+	{ 2, alc885_mbp_ch2_init },
+	{ 6, alc885_mbp_ch6_init },
+};
+
+
 /* Pin assignment: Front=0x14, Rear=0x15, CLFE=0x16, Side=0x17
  *                 Mic=0x18, Front Mic=0x19, Line-In=0x1a, HP=0x1b
  */
@@ -4925,6 +4958,19 @@ static struct snd_kcontrol_new alc882_base_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc885_mbp3_mixer[] = {
+	HDA_CODEC_VOLUME("Master Volume", 0x0c, 0x00, HDA_OUTPUT),
+	HDA_BIND_MUTE   ("Master Switch", 0x0c, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Speaker Switch", 0x14, 0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Out Volume", 0x0d,0x00, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line In Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Line In Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Mic Playback Switch", 0x0b, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line In Boost", 0x1a, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0x00, HDA_INPUT),
+	{ } /* end */
+};
 static struct snd_kcontrol_new alc882_w2jc_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
@@ -5135,6 +5181,66 @@ static struct hda_verb alc882_macpro_init_verbs[] = {
 	{ }
 };
 
+/* Macbook Pro rev3 */
+static struct hda_verb alc885_mbp3_init_verbs[] = {
+	/* Front mixer: unmute input/output amp left and right (volume = 0) */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* Rear mixer */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	/* Front Pin: output 0 (0x0c) */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* HP Pin: output 0 (0x0d) */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc4},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	/* Mic (rear) pin: input vref at 80% */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Front Mic pin: input vref at 80% */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Line In pin: use output 1 when in LineOut mode */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01},
+
+	/* FIXME: use matrix-type input source selection */
+	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
+	/* Input mixer1: unmute Mic, F-Mic, Line, CD inputs */
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* Input mixer2 */
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* Input mixer3 */
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	/* ADC1: mute amp left and right */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* ADC2: mute amp left and right */
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
+	/* ADC3: mute amp left and right */
+	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x09, AC_VERB_SET_CONNECT_SEL, 0x00},
+
+	{ }
+};
+
 /* iMac 24 mixer. */
 static struct snd_kcontrol_new alc885_imac24_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x00, HDA_OUTPUT),
@@ -5184,6 +5290,27 @@ static void alc885_imac24_unsol_event(struct hda_codec *codec,
 	if ((res >> 26) == ALC880_HP_EVENT)
 		alc885_imac24_automute(codec);
 }
+
+static void alc885_mbp3_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+
+ 	present = snd_hda_codec_read(codec, 0x15, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_stereo(codec, 0x14,  HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? 0 : HDA_AMP_MUTE);
+
+}
+static void alc885_mbp3_unsol_event(struct hda_codec *codec,
+				    unsigned int res)
+{
+	/* Headphone insertion or removal. */
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc885_mbp3_automute(codec);
+}
+
 
 static struct hda_verb alc882_targa_verbs[] = {
 	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -5422,6 +5549,7 @@ static const char *alc882_models[ALC882_MODEL_LAST] = {
 	[ALC882_ARIMA]		= "arima",
 	[ALC882_W2JC]		= "w2jc",
 	[ALC885_MACPRO]		= "macpro",
+	[ALC885_MBP3]		= "mbp3",
 	[ALC885_IMAC24]		= "imac24",
 	[ALC882_AUTO]		= "auto",
 };
@@ -5483,6 +5611,20 @@ static struct alc_config_preset alc882_presets[] = {
 		.need_dac_fix = 1,
 		.input_mux = &alc882_capture_source,
 		.dig_out_nid = ALC882_DIGOUT_NID,
+	},
+	[ALC885_MBP3] = {
+		.mixers = { alc885_mbp3_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc885_mbp3_init_verbs,
+				alc880_gpio1_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
+		.channel_mode = alc885_mbp_6ch_modes,
+		.num_channel_mode = ARRAY_SIZE(alc885_mbp_6ch_modes),
+		.input_mux = &alc882_capture_source,
+		.dig_out_nid = ALC882_DIGOUT_NID,
+		.dig_in_nid = ALC882_DIGIN_NID,
+		.unsol_event = alc885_mbp3_unsol_event,
+		.init_hook = alc885_mbp3_automute,
 	},
 	[ALC885_MACPRO] = {
 		.mixers = { alc882_macpro_mixer },
@@ -5683,6 +5825,9 @@ static int patch_alc882(struct hda_codec *codec)
 			break;
 		case 0x106b1000: /* iMac 24 */
 			board_config = ALC885_IMAC24;
+			break;
+		case 0x106b2c00: /* Macbook Pro rev3 */
+			board_config = ALC885_MBP3;
 			break;
 		default:
 			printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
