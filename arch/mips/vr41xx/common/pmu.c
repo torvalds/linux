@@ -91,14 +91,7 @@ static void vr41xx_halt(void)
 {
 	local_irq_disable();
 	printk(KERN_NOTICE "\nYou can turn off the power supply\n");
-	while (1) ;
-}
-
-static void vr41xx_power_off(void)
-{
-	local_irq_disable();
-	printk(KERN_NOTICE "\nYou can turn off the power supply\n");
-	while (1) ;
+	__asm__("hibernate;\n");
 }
 
 static int __init vr41xx_pmu_init(void)
@@ -134,7 +127,7 @@ static int __init vr41xx_pmu_init(void)
 	cpu_wait = vr41xx_cpu_wait;
 	_machine_restart = vr41xx_restart;
 	_machine_halt = vr41xx_halt;
-	pm_power_off = vr41xx_power_off;
+	pm_power_off = vr41xx_halt;
 
 	return 0;
 }
