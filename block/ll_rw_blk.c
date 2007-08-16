@@ -43,6 +43,8 @@ static void init_request_from_bio(struct request *req, struct bio *bio);
 static int __make_request(struct request_queue *q, struct bio *bio);
 static struct io_context *current_io_context(gfp_t gfp_flags, int node);
 static void blk_recalc_rq_segments(struct request *rq);
+static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
+			    struct bio *bio);
 
 /*
  * For the allocated request tables
@@ -3665,8 +3667,8 @@ void end_request(struct request *req, int uptodate)
 
 EXPORT_SYMBOL(end_request);
 
-void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
-		     struct bio *bio)
+static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
+			    struct bio *bio)
 {
 	/* first two bits are identical in rq->cmd_flags and bio->bi_rw */
 	rq->cmd_flags |= (bio->bi_rw & 3);
@@ -3680,9 +3682,10 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
-}
 
-EXPORT_SYMBOL(blk_rq_bio_prep);
+	if (bio->bi_bdev)
+		rq->rq_disk = bio->bi_bdev->bd_disk;
+}
 
 int kblockd_schedule_work(struct work_struct *work)
 {
