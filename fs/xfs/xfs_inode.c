@@ -67,7 +67,6 @@ STATIC int xfs_iformat_local(xfs_inode_t *, xfs_dinode_t *, int, int);
 STATIC int xfs_iformat_extents(xfs_inode_t *, xfs_dinode_t *, int);
 STATIC int xfs_iformat_btree(xfs_inode_t *, xfs_dinode_t *, int);
 
-
 #ifdef DEBUG
 /*
  * Make sure that the extents in the given memory buffer
@@ -77,28 +76,23 @@ STATIC void
 xfs_validate_extents(
 	xfs_ifork_t		*ifp,
 	int			nrecs,
-	int			disk,
 	xfs_exntfmt_t		fmt)
 {
-	xfs_bmbt_rec_t		*ep;
 	xfs_bmbt_irec_t		irec;
-	xfs_bmbt_rec_t		rec;
+	xfs_bmbt_rec_host_t	rec;
 	int			i;
 
 	for (i = 0; i < nrecs; i++) {
-		ep = xfs_iext_get_ext(ifp, i);
-		rec.l0 = get_unaligned((__uint64_t*)&ep->l0);
-		rec.l1 = get_unaligned((__uint64_t*)&ep->l1);
-		if (disk)
-			xfs_bmbt_disk_get_all(&rec, &irec);
-		else
-			xfs_bmbt_get_all(&rec, &irec);
+		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
+		rec.l0 = get_unaligned(&ep->l0);
+		rec.l1 = get_unaligned(&ep->l1);
+		xfs_bmbt_get_all(&rec, &irec);
 		if (fmt == XFS_EXTFMT_NOSTATE)
 			ASSERT(irec.br_state == XFS_EXT_NORM);
 	}
 }
 #else /* DEBUG */
-#define xfs_validate_extents(ifp, nrecs, disk, fmt)
+#define xfs_validate_extents(ifp, nrecs, fmt)
 #endif /* DEBUG */
 
 /*
@@ -602,7 +596,7 @@ xfs_iformat_extents(
 	xfs_dinode_t	*dip,
 	int		whichfork)
 {
-	xfs_bmbt_rec_t	*ep, *dp;
+	xfs_bmbt_rec_t	*dp;
 	xfs_ifork_t	*ifp;
 	int		nex;
 	int		size;
@@ -637,9 +631,9 @@ xfs_iformat_extents(
 	ifp->if_bytes = size;
 	if (size) {
 		dp = (xfs_bmbt_rec_t *) XFS_DFORK_PTR(dip, whichfork);
-		xfs_validate_extents(ifp, nex, 1, XFS_EXTFMT_INODE(ip));
+		xfs_validate_extents(ifp, nex, XFS_EXTFMT_INODE(ip));
 		for (i = 0; i < nex; i++, dp++) {
-			ep = xfs_iext_get_ext(ifp, i);
+			xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
 			ep->l0 = INT_GET(get_unaligned((__uint64_t*)&dp->l0),
 								ARCH_CONVERT);
 			ep->l1 = INT_GET(get_unaligned((__uint64_t*)&dp->l1),
@@ -1048,7 +1042,7 @@ xfs_iread_extents(
 		ifp->if_flags &= ~XFS_IFEXTENTS;
 		return error;
 	}
-	xfs_validate_extents(ifp, nextents, 0, XFS_EXTFMT_INODE(ip));
+	xfs_validate_extents(ifp, nextents, XFS_EXTFMT_INODE(ip));
 	return 0;
 }
 
@@ -2887,12 +2881,10 @@ xfs_iunpin_wait(
 int
 xfs_iextents_copy(
 	xfs_inode_t		*ip,
-	xfs_bmbt_rec_t		*buffer,
+	xfs_bmbt_rec_t		*dp,
 	int			whichfork)
 {
 	int			copied;
-	xfs_bmbt_rec_t		*dest_ep;
-	xfs_bmbt_rec_t		*ep;
 	int			i;
 	xfs_ifork_t		*ifp;
 	int			nrecs;
@@ -2912,10 +2904,9 @@ xfs_iextents_copy(
 	 * the delayed ones.  There must be at least one
 	 * non-delayed extent.
 	 */
-	dest_ep = buffer;
 	copied = 0;
 	for (i = 0; i < nrecs; i++) {
-		ep = xfs_iext_get_ext(ifp, i);
+		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
 		start_block = xfs_bmbt_get_startblock(ep);
 		if (ISNULLSTARTBLOCK(start_block)) {
 			/*
@@ -2926,14 +2917,14 @@ xfs_iextents_copy(
 
 		/* Translate to on disk format */
 		put_unaligned(INT_GET(ep->l0, ARCH_CONVERT),
-			      (__uint64_t*)&dest_ep->l0);
+			      (__uint64_t*)&dp->l0);
 		put_unaligned(INT_GET(ep->l1, ARCH_CONVERT),
-			      (__uint64_t*)&dest_ep->l1);
-		dest_ep++;
+			      (__uint64_t*)&dp->l1);
+		dp++;
 		copied++;
 	}
 	ASSERT(copied != 0);
-	xfs_validate_extents(ifp, copied, 1, XFS_EXTFMT_INODE(ip));
+	xfs_validate_extents(ifp, copied, XFS_EXTFMT_INODE(ip));
 
 	return (copied * (uint)sizeof(xfs_bmbt_rec_t));
 }
@@ -3711,7 +3702,7 @@ xfs_ilock_trace(xfs_inode_t *ip, int lock, unsigned int lockflags, inst_t *ra)
 /*
  * Return a pointer to the extent record at file index idx.
  */
-xfs_bmbt_rec_t *
+xfs_bmbt_rec_host_t *
 xfs_iext_get_ext(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	xfs_extnum_t	idx)		/* index of target extent */
@@ -3744,15 +3735,12 @@ xfs_iext_insert(
 	xfs_extnum_t	count,		/* number of inserted items */
 	xfs_bmbt_irec_t	*new)		/* items to insert */
 {
-	xfs_bmbt_rec_t	*ep;		/* extent record pointer */
 	xfs_extnum_t	i;		/* extent record index */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTENTS);
 	xfs_iext_add(ifp, idx, count);
-	for (i = idx; i < idx + count; i++, new++) {
-		ep = xfs_iext_get_ext(ifp, i);
-		xfs_bmbt_set_all(ep, new);
-	}
+	for (i = idx; i < idx + count; i++, new++)
+		xfs_bmbt_set_all(xfs_iext_get_ext(ifp, i), new);
 }
 
 /*
@@ -4203,7 +4191,7 @@ xfs_iext_realloc_direct(
 			rnew_size = xfs_iroundup(new_size);
 		}
 		if (rnew_size != ifp->if_real_bytes) {
-			ifp->if_u1.if_extents = (xfs_bmbt_rec_t *)
+			ifp->if_u1.if_extents =
 				kmem_realloc(ifp->if_u1.if_extents,
 						rnew_size,
 						ifp->if_real_bytes,
@@ -4266,8 +4254,7 @@ xfs_iext_inline_to_direct(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	int		new_size)	/* number of extents in file */
 {
-	ifp->if_u1.if_extents = (xfs_bmbt_rec_t *)
-		kmem_alloc(new_size, KM_SLEEP);
+	ifp->if_u1.if_extents = kmem_alloc(new_size, KM_SLEEP);
 	memset(ifp->if_u1.if_extents, 0, new_size);
 	if (ifp->if_bytes) {
 		memcpy(ifp->if_u1.if_extents, ifp->if_u2.if_inline_ext,
@@ -4310,7 +4297,7 @@ void
 xfs_iext_indirect_to_direct(
 	 xfs_ifork_t	*ifp)		/* inode fork pointer */
 {
-	xfs_bmbt_rec_t	*ep;		/* extent record pointer */
+	xfs_bmbt_rec_host_t *ep;	/* extent record pointer */
 	xfs_extnum_t	nextents;	/* number of extents in file */
 	int		size;		/* size of file extents */
 
@@ -4362,15 +4349,15 @@ xfs_iext_destroy(
 /*
  * Return a pointer to the extent record for file system block bno.
  */
-xfs_bmbt_rec_t *			/* pointer to found extent record */
+xfs_bmbt_rec_host_t *			/* pointer to found extent record */
 xfs_iext_bno_to_ext(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	xfs_fileoff_t	bno,		/* block number to search for */
 	xfs_extnum_t	*idxp)		/* index of target extent */
 {
-	xfs_bmbt_rec_t	*base;		/* pointer to first extent */
+	xfs_bmbt_rec_host_t *base;	/* pointer to first extent */
 	xfs_filblks_t	blockcount = 0;	/* number of blocks in extent */
-	xfs_bmbt_rec_t	*ep = NULL;	/* pointer to target extent */
+	xfs_bmbt_rec_host_t *ep = NULL;	/* pointer to target extent */
 	xfs_ext_irec_t	*erp = NULL;	/* indirection array pointer */
 	int		high;		/* upper boundary in search */
 	xfs_extnum_t	idx = 0;	/* index of target extent */
@@ -4545,8 +4532,7 @@ xfs_iext_irec_init(
 		kmem_alloc(sizeof(xfs_ext_irec_t), KM_SLEEP);
 
 	if (nextents == 0) {
-		ifp->if_u1.if_extents = (xfs_bmbt_rec_t *)
-			kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
+		ifp->if_u1.if_extents = kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
 	} else if (!ifp->if_real_bytes) {
 		xfs_iext_inline_to_direct(ifp, XFS_IEXT_BUFSZ);
 	} else if (ifp->if_real_bytes < XFS_IEXT_BUFSZ) {
@@ -4594,8 +4580,7 @@ xfs_iext_irec_new(
 
 	/* Initialize new extent record */
 	erp = ifp->if_u1.if_ext_irec;
-	erp[erp_idx].er_extbuf = (xfs_bmbt_rec_t *)
-		kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
+	erp[erp_idx].er_extbuf = kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
 	ifp->if_real_bytes = nlists * XFS_IEXT_BUFSZ;
 	memset(erp[erp_idx].er_extbuf, 0, XFS_IEXT_BUFSZ);
 	erp[erp_idx].er_extcount = 0;
@@ -4727,7 +4712,7 @@ void
 xfs_iext_irec_compact_full(
 	xfs_ifork_t	*ifp)			/* inode fork pointer */
 {
-	xfs_bmbt_rec_t	*ep, *ep_next;		/* extent record pointers */
+	xfs_bmbt_rec_host_t *ep, *ep_next;	/* extent record pointers */
 	xfs_ext_irec_t	*erp, *erp_next;	/* extent irec pointers */
 	int		erp_idx = 0;		/* extent irec index */
 	int		ext_avail;		/* empty entries in ex list */

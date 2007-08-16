@@ -44,7 +44,7 @@
  * it is possible that a third level of indirection may be required.
  */
 typedef struct xfs_ext_irec {
-	xfs_bmbt_rec_t	*er_extbuf;	/* block of extent records */
+	xfs_bmbt_rec_host_t *er_extbuf;	/* block of extent records */
 	xfs_extnum_t	er_extoff;	/* extent offset in file */
 	xfs_extnum_t	er_extcount;	/* number of extents in page/block */
 } xfs_ext_irec_t;
@@ -65,12 +65,12 @@ typedef struct xfs_ifork {
 	unsigned char		if_ext_max;	/* max # of extent records */
 	xfs_extnum_t		if_lastex;	/* last if_extents used */
 	union {
-		xfs_bmbt_rec_t	*if_extents;	/* linear map file exts */
+		xfs_bmbt_rec_host_t *if_extents;/* linear map file exts */
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
 		char		*if_data;	/* inline file data */
 	} if_u1;
 	union {
-		xfs_bmbt_rec_t	if_inline_ext[XFS_INLINE_EXTS];
+		xfs_bmbt_rec_host_t if_inline_ext[XFS_INLINE_EXTS];
 						/* very small file extents */
 		char		if_inline_data[XFS_INLINE_DATA];
 						/* very small file data */
@@ -549,7 +549,7 @@ xfs_inode_t	*xfs_vtoi(struct bhv_vnode *vp);
 
 void		xfs_synchronize_atime(xfs_inode_t *);
 
-xfs_bmbt_rec_t	*xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
+xfs_bmbt_rec_host_t *xfs_iext_get_ext(xfs_ifork_t *, xfs_extnum_t);
 void		xfs_iext_insert(xfs_ifork_t *, xfs_extnum_t, xfs_extnum_t,
 				xfs_bmbt_irec_t *);
 void		xfs_iext_add(xfs_ifork_t *, xfs_extnum_t, int);
@@ -564,7 +564,7 @@ void		xfs_iext_indirect_to_direct(xfs_ifork_t *);
 void		xfs_iext_direct_to_inline(xfs_ifork_t *, xfs_extnum_t);
 void		xfs_iext_inline_to_direct(xfs_ifork_t *, int);
 void		xfs_iext_destroy(xfs_ifork_t *);
-xfs_bmbt_rec_t	*xfs_iext_bno_to_ext(xfs_ifork_t *, xfs_fileoff_t, int *);
+xfs_bmbt_rec_host_t *xfs_iext_bno_to_ext(xfs_ifork_t *, xfs_fileoff_t, int *);
 xfs_ext_irec_t	*xfs_iext_bno_to_irec(xfs_ifork_t *, xfs_fileoff_t, int *);
 xfs_ext_irec_t	*xfs_iext_idx_to_irec(xfs_ifork_t *, xfs_extnum_t *, int *, int);
 void		xfs_iext_irec_init(xfs_ifork_t *);

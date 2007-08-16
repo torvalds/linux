@@ -1717,7 +1717,6 @@ xfs_qm_get_rtblks(
 	xfs_extnum_t	idx;			/* extent record index */
 	xfs_ifork_t	*ifp;			/* inode fork pointer */
 	xfs_extnum_t	nextents;		/* number of extent entries */
-	xfs_bmbt_rec_t	*ep;			/* pointer to an extent entry */
 	int		error;
 
 	ASSERT(XFS_IS_REALTIME_INODE(ip));
@@ -1728,10 +1727,8 @@ xfs_qm_get_rtblks(
 	}
 	rtblks = 0;
 	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
-	for (idx = 0; idx < nextents; idx++) {
-		ep = xfs_iext_get_ext(ifp, idx);
-		rtblks += xfs_bmbt_get_blockcount(ep);
-	}
+	for (idx = 0; idx < nextents; idx++)
+		rtblks += xfs_bmbt_get_blockcount(xfs_iext_get_ext(ifp, idx));
 	*O_rtblks = (xfs_qcnt_t)rtblks;
 	return 0;
 }

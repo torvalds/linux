@@ -378,7 +378,7 @@ xfs_check_nostate_extents(
  * entry (null if none).  Else, *lastxp will be set to the index
  * of the found entry; *gotp will contain the entry.
  */
-xfs_bmbt_rec_t *
+xfs_bmbt_rec_host_t *
 xfs_bmap_search_multi_extents(struct xfs_ifork *, xfs_fileoff_t, int *,
 			xfs_extnum_t *, xfs_bmbt_irec_t *, xfs_bmbt_irec_t *);
 

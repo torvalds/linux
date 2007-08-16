@@ -260,13 +260,14 @@ xfs_bmbt_trace_cursor(
 	char		*s,
 	int		line)
 {
-	xfs_bmbt_rec_t	r;
+	xfs_bmbt_rec_host_t	r;
 
 	xfs_bmbt_set_all(&r, &cur->bc_rec.b);
 	xfs_bmbt_trace_enter(func, cur, s, XFS_BMBT_KTRACE_CUR, line,
 		(cur->bc_nlevels << 24) | (cur->bc_private.b.flags << 16) |
 		cur->bc_private.b.allocated,
-		INT_GET(r.l0, ARCH_CONVERT) >> 32, (int)INT_GET(r.l0, ARCH_CONVERT), INT_GET(r.l1, ARCH_CONVERT) >> 32, (int)INT_GET(r.l1, ARCH_CONVERT),
+		r.l0 >> 32, (int)r.l0,
+		r.l1 >> 32, (int)r.l1,
 		(unsigned long)cur->bc_bufs[0], (unsigned long)cur->bc_bufs[1],
 		(unsigned long)cur->bc_bufs[2], (unsigned long)cur->bc_bufs[3],
 		(cur->bc_ptrs[0] << 16) | cur->bc_ptrs[1],
@@ -1826,7 +1827,7 @@ __xfs_bmbt_get_all(
 
 void
 xfs_bmbt_get_all(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_bmbt_irec_t *s)
 {
 	__xfs_bmbt_get_all(r->l0, r->l1, s);
@@ -1862,7 +1863,7 @@ xfs_bmbt_get_block(
  */
 xfs_filblks_t
 xfs_bmbt_get_blockcount(
-	xfs_bmbt_rec_t	*r)
+	xfs_bmbt_rec_host_t	*r)
 {
 	return (xfs_filblks_t)(r->l1 & XFS_MASK64LO(21));
 }
@@ -1872,7 +1873,7 @@ xfs_bmbt_get_blockcount(
  */
 xfs_fsblock_t
 xfs_bmbt_get_startblock(
-	xfs_bmbt_rec_t	*r)
+	xfs_bmbt_rec_host_t	*r)
 {
 #if XFS_BIG_BLKNOS
 	return (((xfs_fsblock_t)r->l0 & XFS_MASK64LO(9)) << 43) |
@@ -1896,7 +1897,7 @@ xfs_bmbt_get_startblock(
  */
 xfs_fileoff_t
 xfs_bmbt_get_startoff(
-	xfs_bmbt_rec_t	*r)
+	xfs_bmbt_rec_host_t	*r)
 {
 	return ((xfs_fileoff_t)r->l0 &
 		 XFS_MASK64LO(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
@@ -1904,7 +1905,7 @@ xfs_bmbt_get_startoff(
 
 xfs_exntst_t
 xfs_bmbt_get_state(
-	xfs_bmbt_rec_t	*r)
+	xfs_bmbt_rec_host_t	*r)
 {
 	int	ext_flag;
 
@@ -2294,7 +2295,7 @@ xfs_bmbt_newroot(
  */
 void
 xfs_bmbt_set_all(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_bmbt_irec_t	*s)
 {
 	int	extent_flag;
@@ -2336,7 +2337,7 @@ xfs_bmbt_set_all(
  */
 void
 xfs_bmbt_set_allf(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_fileoff_t	o,
 	xfs_fsblock_t	b,
 	xfs_filblks_t	c,
@@ -2468,7 +2469,7 @@ xfs_bmbt_disk_set_allf(
  */
 void
 xfs_bmbt_set_blockcount(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_filblks_t	v)
 {
 	ASSERT((v & XFS_MASK64HI(43)) == 0);
@@ -2481,7 +2482,7 @@ xfs_bmbt_set_blockcount(
  */
 void
 xfs_bmbt_set_startblock(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_fsblock_t	v)
 {
 #if XFS_BIG_BLKNOS
@@ -2509,7 +2510,7 @@ xfs_bmbt_set_startblock(
  */
 void
 xfs_bmbt_set_startoff(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_fileoff_t	v)
 {
 	ASSERT((v & XFS_MASK64HI(9)) == 0);
@@ -2523,7 +2524,7 @@ xfs_bmbt_set_startoff(
  */
 void
 xfs_bmbt_set_state(
-	xfs_bmbt_rec_t	*r,
+	xfs_bmbt_rec_host_t *r,
 	xfs_exntst_t	v)
 {
 	ASSERT(v == XFS_EXT_NORM || v == XFS_EXT_UNWRITTEN);
@@ -2624,10 +2625,8 @@ xfs_check_nostate_extents(
 	xfs_extnum_t		idx,
 	xfs_extnum_t		num)
 {
-	xfs_bmbt_rec_t		*ep;
-
 	for (; num > 0; num--, idx++) {
-		ep = xfs_iext_get_ext(ifp, idx);
+		xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, idx);
 		if ((ep->l0 >>
 		     (64 - BMBT_EXNTFLAG_BITLEN)) != 0) {
 			ASSERT(0);
