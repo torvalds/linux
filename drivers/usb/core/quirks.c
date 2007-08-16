@@ -30,6 +30,8 @@
 static const struct usb_device_id usb_quirk_list[] = {
 	/* HP 5300/5370C scanner */
 	{ USB_DEVICE(0x03f0, 0x0701), .driver_info = USB_QUIRK_STRING_FETCH_255 },
+	/* Hewlett-Packard PhotoSmart 720 / PhotoSmart 935 (storage) */
+	{ USB_DEVICE(0x03f0, 0x4002), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Acer Peripherals Inc. (now BenQ Corp.) Prisa 640BU */
 	{ USB_DEVICE(0x04a5, 0x207e), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Benq S2W 3300U */
