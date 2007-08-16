@@ -383,7 +383,7 @@ xfs_bmbt_delrec(
 		if (ptr < numrecs) {
 			memmove(&kp[ptr - 1], &kp[ptr],
 				(numrecs - ptr) * sizeof(*kp));
-			memmove(&pp[ptr - 1], &pp[ptr], /* INT_: direct copy */
+			memmove(&pp[ptr - 1], &pp[ptr],
 				(numrecs - ptr) * sizeof(*pp));
 			xfs_bmbt_log_ptrs(cur, bp, ptr, numrecs - 1);
 			xfs_bmbt_log_keys(cur, bp, ptr, numrecs - 1);
@@ -815,7 +815,7 @@ xfs_bmbt_insrec(
 #endif
 		memmove(&kp[ptr], &kp[ptr - 1],
 			(numrecs - ptr + 1) * sizeof(*kp));
-		memmove(&pp[ptr], &pp[ptr - 1], /* INT_: direct copy */
+		memmove(&pp[ptr], &pp[ptr - 1],
 			(numrecs - ptr + 1) * sizeof(*pp));
 #ifdef DEBUG
 		if ((error = xfs_btree_check_lptr(cur, *bnop, level))) {
@@ -1250,7 +1250,7 @@ xfs_bmbt_lshift(
 			return error;
 		}
 #endif
-		*lpp = *rpp; /* INT_: direct copy */
+		*lpp = *rpp;
 		xfs_bmbt_log_ptrs(cur, lbp, lrecs, lrecs);
 	} else {
 		lrp = XFS_BMAP_REC_IADDR(left, lrecs, cur);
@@ -1388,7 +1388,7 @@ xfs_bmbt_rshift(
 		}
 #endif
 		*rkp = *lkp;
-		*rpp = *lpp; /* INT_: direct copy */
+		*rpp = *lpp;
 		xfs_bmbt_log_keys(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 		xfs_bmbt_log_ptrs(cur, rbp, 1, be16_to_cpu(right->bb_numrecs) + 1);
 	} else {
