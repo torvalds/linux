@@ -754,14 +754,6 @@ static int pirq_entries [MAX_PIRQS];
 static int pirqs_enabled;
 int skip_ioapic_setup;
 
-static int __init ioapic_setup(char *str)
-{
-	skip_ioapic_setup = 1;
-	return 1;
-}
-
-__setup("noapic", ioapic_setup);
-
 static int __init ioapic_pirq_setup(char *str)
 {
 	int i, max;
