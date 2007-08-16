@@ -1228,6 +1228,71 @@ out_free_pdev:
 }
 
 /* --------------------------------------------------------------------
+ * IDE
+ * -------------------------------------------------------------------- */
+static struct ide_platform_data at32_ide0_data;
+static struct resource at32_ide0_resource[] = {
+	{
+		.start	= 0x04000000,
+		.end	= 0x07ffffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	IRQ(~0UL), /* Magic IRQ will be overridden */
+};
+DEFINE_DEV_DATA(at32_ide, 0);
+
+struct platform_device *__init
+at32_add_device_ide(unsigned int id, unsigned int extint,
+		    struct ide_platform_data *data)
+{
+	struct platform_device *pdev;
+	unsigned int extint_pin;
+
+	switch (extint) {
+	case 0:
+		extint_pin = GPIO_PIN_PB(25);
+		break;
+	case 1:
+		extint_pin = GPIO_PIN_PB(26);
+		break;
+	case 2:
+		extint_pin = GPIO_PIN_PB(27);
+		break;
+	case 3:
+		extint_pin = GPIO_PIN_PB(28);
+		break;
+	default:
+		return NULL;
+	}
+
+	switch (id) {
+	case 0:
+		pdev = &at32_ide0_device;
+		select_peripheral(PE(19), PERIPH_A, 0);	/* CFCE1  -> CS0_N */
+		select_peripheral(PE(20), PERIPH_A, 0);	/* CFCE2  -> CS1_N */
+		select_peripheral(PE(21), PERIPH_A, 0); /* NCS4   -> OE_N  */
+		select_peripheral(PE(23), PERIPH_A, 0); /* CFRNW  -> DIR   */
+		select_peripheral(PE(24), PERIPH_A, 0); /* NWAIT  <- IORDY */
+		set_ebi_sfr_bits(HMATRIX_BIT(CS4A));
+		data->cs = 4;
+		break;
+	default:
+		return NULL;
+	}
+
+	at32_select_periph(extint_pin, GPIO_PERIPH_A, AT32_GPIOF_DEGLITCH);
+
+	pdev->resource[1].start = EIM_IRQ_BASE + extint;
+	pdev->resource[1].end = pdev->resource[1].start;
+
+	memcpy(pdev->dev.platform_data, data, sizeof(struct ide_platform_data));
+
+	platform_device_register(pdev);
+
+	return pdev;
+}
+
+/* --------------------------------------------------------------------
  *  GCLK
  * -------------------------------------------------------------------- */
 static struct clk gclk0 = {

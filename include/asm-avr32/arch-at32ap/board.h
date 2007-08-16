@@ -44,6 +44,13 @@ struct usba_platform_data {
 struct platform_device *
 at32_add_device_usba(unsigned int id, struct usba_platform_data *data);
 
+struct ide_platform_data {
+	u8      cs;
+};
+struct platform_device *
+at32_add_device_ide(unsigned int id, unsigned int extint,
+		    struct ide_platform_data *data);
+
 /* depending on what's hooked up, not all SSC pins will be used */
 #define	ATMEL_SSC_TK		0x01
 #define	ATMEL_SSC_TF		0x02
