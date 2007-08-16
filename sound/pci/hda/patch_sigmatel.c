@@ -2411,6 +2411,7 @@ static struct hda_input_mux vaio_mux = {
 
 static struct hda_verb vaio_init[] = {
 	{0x0a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP }, /* HP <- 0x2 */
+	{0x0a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | STAC_HP_EVENT},
 	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT }, /* Speaker <- 0x5 */
 	{0x0d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 }, /* Mic? (<- 0x2) */
 	{0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN }, /* CD */
@@ -2507,6 +2508,49 @@ static struct hda_codec_ops stac9872_patch_ops = {
 #endif
 };
 
+static int stac9872_vaio_init(struct hda_codec *codec)
+{
+	int err;
+
+	err = stac92xx_init(codec);
+	if (err < 0)
+		return err;
+	if (codec->patch_ops.unsol_event)
+		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+	return 0;
+}
+
+static void stac9872_vaio_hp_detect(struct hda_codec *codec, unsigned int res)
+{
+	if (get_pin_presence(codec, 0x0a)) {
+		stac92xx_reset_pinctl(codec, 0x0f, AC_PINCTL_OUT_EN);
+		stac92xx_set_pinctl(codec, 0x0a, AC_PINCTL_OUT_EN);
+	} else {
+		stac92xx_reset_pinctl(codec, 0x0a, AC_PINCTL_OUT_EN);
+		stac92xx_set_pinctl(codec, 0x0f, AC_PINCTL_OUT_EN);
+	}
+} 
+
+static void stac9872_vaio_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	switch (res >> 26) {
+	case STAC_HP_EVENT:
+		stac9872_vaio_hp_detect(codec, res);
+		break;
+	}
+}
+
+static struct hda_codec_ops stac9872_vaio_patch_ops = {
+	.build_controls = stac92xx_build_controls,
+	.build_pcms = stac92xx_build_pcms,
+	.init = stac9872_vaio_init,
+	.free = stac92xx_free,
+	.unsol_event = stac9872_vaio_unsol_event,
+#ifdef CONFIG_PM
+	.resume = stac92xx_resume,
+#endif
+};
+
 enum { /* FE and SZ series. id=0x83847661 and subsys=0x104D0700 or 104D1000. */
        CXD9872RD_VAIO,
        /* Unknown. id=0x83847662 and subsys=0x104D1200 or 104D1000. */
@@ -2562,6 +2606,7 @@ static int patch_stac9872(struct hda_codec *codec)
 		spec->adc_nids = vaio_adcs;
 		spec->input_mux = &vaio_mux;
 		spec->mux_nids = vaio_mux_nids;
+		codec->patch_ops = stac9872_vaio_patch_ops;
 		break;
 	
 	case CXD9872AKD_VAIO:
@@ -2575,10 +2620,10 @@ static int patch_stac9872(struct hda_codec *codec)
 		spec->adc_nids = vaio_adcs;
 		spec->input_mux = &vaio_mux;
 		spec->mux_nids = vaio_mux_nids;
+		codec->patch_ops = stac9872_patch_ops;
 		break;
 	}
 
-	codec->patch_ops = stac9872_patch_ops;
 	return 0;
 }
 
