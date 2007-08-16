@@ -35,11 +35,11 @@ struct xfs_mount;
 #define XLOG_VERSION_1		1
 #define XLOG_VERSION_2		2		/* Large IClogs, Log sunit */
 #define XLOG_VERSION_OKBITS	(XLOG_VERSION_1 | XLOG_VERSION_2)
-#define XLOG_RECORD_BSIZE	(16*1024)	/* eventually 32k */
+#define XLOG_MIN_RECORD_BSIZE	(16*1024)	/* eventually 32k */
 #define XLOG_BIG_RECORD_BSIZE	(32*1024)	/* 32k buffers */
 #define XLOG_MAX_RECORD_BSIZE	(256*1024)
 #define XLOG_HEADER_CYCLE_SIZE	(32*1024)	/* cycle data in header */
-#define XLOG_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
+#define XLOG_MIN_RECORD_BSHIFT	14		/* 16384 == 1 << 14 */
 #define XLOG_BIG_RECORD_BSHIFT	15		/* 32k == 1 << 15 */
 #define XLOG_MAX_RECORD_BSHIFT	18		/* 256k == 1 << 18 */
 #define XLOG_BTOLSUNIT(log, b)  (((b)+(log)->l_mp->m_sb.sb_logsunit-1) / \

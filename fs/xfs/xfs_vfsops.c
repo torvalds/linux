@@ -238,11 +238,9 @@ xfs_start_flags(
 	mp->m_logbufs = ap->logbufs;
 	if (ap->logbufsize != -1 &&
 	    ap->logbufsize !=  0 &&
-	    ap->logbufsize != 16 * 1024 &&
-	    ap->logbufsize != 32 * 1024 &&
-	    ap->logbufsize != 64 * 1024 &&
-	    ap->logbufsize != 128 * 1024 &&
-	    ap->logbufsize != 256 * 1024) {
+	    (ap->logbufsize < XLOG_MIN_RECORD_BSIZE ||
+	     ap->logbufsize > XLOG_MAX_RECORD_BSIZE ||
+	     !is_power_of_2(ap->logbufsize))) {
 		cmn_err(CE_WARN,
 	"XFS: invalid logbufsize: %d [not 16k,32k,64k,128k or 256k]",
 			ap->logbufsize);
