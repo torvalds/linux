@@ -206,6 +206,18 @@ static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
 {
 	int i;
 
+	/* this doesn't scale well, but...
+	 *
+	 * this function should only be used for cerain uncommon
+	 * operations such as intc_set_priority() and intc_set_sense()
+	 * and in those rare cases performance doesn't matter that much.
+	 * keeping the memory footprint low is more important.
+	 *
+	 * one rather simple way to speed this up and still keep the
+	 * memory footprint down is to make sure the array is sorted
+	 * and then perform a bisect to lookup the irq.
+	 */
+
 	for (i = 0; i < nr_hp; i++) {
 		if ((hp + i)->irq != irq)
 			continue;
@@ -226,7 +238,7 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 
 	ihp = intc_find_irq(d->prio, d->nr_prio, irq);
 	if (ihp) {
-		if (prio >= ((1 << _INTC_WIDTH(ihp->handle)) - 1))
+		if (prio >= (1 << _INTC_WIDTH(ihp->handle)))
 			return -EINVAL;
 
 		intc_prio_level[irq] = prio;
@@ -237,7 +249,7 @@ int intc_set_priority(unsigned int irq, unsigned int prio)
 		 * priority level will be set during next enable()
 		 */
 
-		if (ihp->handle)
+		if (_INTC_FN(ihp->handle) != REG_FN_ERR)
 			_intc_enable(irq, ihp->handle);
 	}
 	return 0;
@@ -457,6 +469,7 @@ static void __init intc_register_irq(struct intc_desc *desc,
 				     intc_enum enum_id,
 				     unsigned int irq)
 {
+	struct intc_handle_int *hp;
 	unsigned int data[2], primary;
 
 	/* Prefer single interrupt source bitmap over other combinations:
@@ -495,9 +508,19 @@ static void __init intc_register_irq(struct intc_desc *desc,
 
 	/* add irq to d->prio list if priority is available */
 	if (data[1]) {
-		(d->prio + d->nr_prio)->irq = irq;
-		if (!primary) /* only secondary priority can access regs */
-			(d->prio + d->nr_prio)->handle = data[1];
+		hp = d->prio + d->nr_prio;
+		hp->irq = irq;
+		hp->handle = data[1];
+
+		if (primary) {
+			/*
+			 * only secondary priority should access registers, so
+			 * set _INTC_FN(h) = REG_FN_ERR for intc_set_priority()
+			 */
+
+			hp->handle &= ~_INTC_MK(0x0f, 0, 0, 0, 0, 0);
+			hp->handle |= _INTC_MK(REG_FN_ERR, 0, 0, 0, 0, 0);
+		}
 		d->nr_prio++;
 	}
 
