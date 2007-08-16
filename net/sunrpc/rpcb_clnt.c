@@ -387,6 +387,15 @@ void rpcb_getport_async(struct rpc_task *task)
 	dprintk("RPC: %5u %s: trying rpcbind version %u\n",
 		task->tk_pid, __FUNCTION__, bind_version);
 
+	rpcb_clnt = rpcb_create(clnt->cl_server, &addr, xprt->prot,
+				bind_version, 0);
+	if (IS_ERR(rpcb_clnt)) {
+		status = PTR_ERR(rpcb_clnt);
+		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
+			task->tk_pid, __FUNCTION__, PTR_ERR(rpcb_clnt));
+		goto bailout_nofree;
+	}
+
 	map = kzalloc(sizeof(struct rpcbind_args), GFP_ATOMIC);
 	if (!map) {
 		status = -ENOMEM;
@@ -401,17 +410,10 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_xprt = xprt_get(xprt);
 	map->r_netid = (xprt->prot == IPPROTO_TCP) ? RPCB_NETID_TCP :
 						   RPCB_NETID_UDP;
-	memcpy(&map->r_addr, rpc_peeraddr2str(clnt, RPC_DISPLAY_ADDR),
-			sizeof(map->r_addr));
+	memcpy(&map->r_addr,
+	       rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR),
+	       sizeof(map->r_addr));
 	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
-
-	rpcb_clnt = rpcb_create(clnt->cl_server, &addr, xprt->prot, bind_version, 0);
-	if (IS_ERR(rpcb_clnt)) {
-		status = PTR_ERR(rpcb_clnt);
-		dprintk("RPC: %5u %s: rpcb_create failed, error %ld\n",
-			task->tk_pid, __FUNCTION__, PTR_ERR(rpcb_clnt));
-		goto bailout;
-	}
 
 	child = rpc_run_task(rpcb_clnt, RPC_TASK_ASYNC, &rpcb_getport_ops, map);
 	rpc_release_client(rpcb_clnt);
@@ -419,7 +421,7 @@ void rpcb_getport_async(struct rpc_task *task)
 		status = -EIO;
 		dprintk("RPC: %5u %s: rpc_run_task failed\n",
 			task->tk_pid, __FUNCTION__);
-		goto bailout_nofree;
+		goto bailout;
 	}
 	rpc_put_task(child);
 
