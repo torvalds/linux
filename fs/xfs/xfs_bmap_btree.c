@@ -1914,19 +1914,13 @@ xfs_bmbt_get_state(
 				ext_flag);
 }
 
-#ifndef XFS_NATIVE_HOST
 /* Endian flipping versions of the bmbt extraction functions */
 void
 xfs_bmbt_disk_get_all(
 	xfs_bmbt_rec_t	*r,
 	xfs_bmbt_irec_t *s)
 {
-	__uint64_t	l0, l1;
-
-	l0 = INT_GET(r->l0, ARCH_CONVERT);
-	l1 = INT_GET(r->l1, ARCH_CONVERT);
-
-	__xfs_bmbt_get_all(l0, l1, s);
+	__xfs_bmbt_get_all(be64_to_cpu(r->l0), be64_to_cpu(r->l1), s);
 }
 
 /*
@@ -1936,7 +1930,7 @@ xfs_filblks_t
 xfs_bmbt_disk_get_blockcount(
 	xfs_bmbt_rec_t	*r)
 {
-	return (xfs_filblks_t)(INT_GET(r->l1, ARCH_CONVERT) & XFS_MASK64LO(21));
+	return (xfs_filblks_t)(be64_to_cpu(r->l1) & XFS_MASK64LO(21));
 }
 
 /*
@@ -1946,11 +1940,9 @@ xfs_fileoff_t
 xfs_bmbt_disk_get_startoff(
 	xfs_bmbt_rec_t	*r)
 {
-	return ((xfs_fileoff_t)INT_GET(r->l0, ARCH_CONVERT) &
+	return ((xfs_fileoff_t)be64_to_cpu(r->l0) &
 		 XFS_MASK64LO(64 - BMBT_EXNTFLAG_BITLEN)) >> 9;
 }
-#endif /* XFS_NATIVE_HOST */
-
 
 /*
  * Increment cursor by one record at the level.
@@ -2348,7 +2340,6 @@ xfs_bmbt_set_all(
 }
 
 
-#ifndef XFS_NATIVE_HOST
 /*
  * Set all the fields in a disk format bmap extent record from the arguments.
  */
@@ -2369,29 +2360,29 @@ xfs_bmbt_disk_set_allf(
 #if XFS_BIG_BLKNOS
 	ASSERT((startblock & XFS_MASK64HI(64-BMBT_STARTBLOCK_BITLEN)) == 0);
 
-	INT_SET(r->l0, ARCH_CONVERT,
+	r->l0 = cpu_to_be64(
 		((xfs_bmbt_rec_base_t)extent_flag << 63) |
 		 ((xfs_bmbt_rec_base_t)startoff << 9) |
 		 ((xfs_bmbt_rec_base_t)startblock >> 43));
-	INT_SET(r->l1, ARCH_CONVERT,
+	r->l1 = cpu_to_be64(
 		((xfs_bmbt_rec_base_t)startblock << 21) |
 		 ((xfs_bmbt_rec_base_t)blockcount &
 		  (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
 #else	/* !XFS_BIG_BLKNOS */
 	if (ISNULLSTARTBLOCK(b)) {
-		INT_SET(r->l0, ARCH_CONVERT,
+		r->l0 = cpu_to_be64(
 			((xfs_bmbt_rec_base_t)extent_flag << 63) |
 			 ((xfs_bmbt_rec_base_t)startoff << 9) |
 			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(9));
-		INT_SET(r->l1, ARCH_CONVERT, XFS_MASK64HI(11) |
+		r->l1 = cpu_to_be64(XFS_MASK64HI(11) |
 			  ((xfs_bmbt_rec_base_t)startblock << 21) |
 			  ((xfs_bmbt_rec_base_t)blockcount &
 			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
 	} else {
-		INT_SET(r->l0, ARCH_CONVERT,
+		r->l0 = cpu_to_be64(
 			((xfs_bmbt_rec_base_t)extent_flag << 63) |
 			 ((xfs_bmbt_rec_base_t)startoff << 9));
-		INT_SET(r->l1, ARCH_CONVERT,
+		r->l1 = cpu_to_be64(
 			((xfs_bmbt_rec_base_t)startblock << 21) |
 			 ((xfs_bmbt_rec_base_t)blockcount &
 			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
@@ -2410,7 +2401,6 @@ xfs_bmbt_disk_set_all(
 	xfs_bmbt_disk_set_allf(r, s->br_startoff, s->br_startblock,
 				  s->br_blockcount, s->br_state);
 }
-#endif /* XFS_NATIVE_HOST */
 
 /*
  * Set the blockcount field in a bmap extent record.

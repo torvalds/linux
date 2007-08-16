@@ -54,7 +54,7 @@ typedef struct xfs_bmbt_rec_32
 } xfs_bmbt_rec_32_t;
 typedef struct xfs_bmbt_rec_64
 {
-	__uint64_t		l0, l1;
+	__be64			l0, l1;
 } xfs_bmbt_rec_64_t;
 
 typedef __uint64_t	xfs_bmbt_rec_base_t;	/* use this for casts */
@@ -264,15 +264,9 @@ extern xfs_fsblock_t xfs_bmbt_get_startblock(xfs_bmbt_rec_host_t *r);
 extern xfs_fileoff_t xfs_bmbt_get_startoff(xfs_bmbt_rec_host_t *r);
 extern xfs_exntst_t xfs_bmbt_get_state(xfs_bmbt_rec_host_t *r);
 
-#ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_get_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern xfs_filblks_t xfs_bmbt_disk_get_blockcount(xfs_bmbt_rec_t *r);
 extern xfs_fileoff_t xfs_bmbt_disk_get_startoff(xfs_bmbt_rec_t *r);
-#else
-#define xfs_bmbt_disk_get_all(r, s)	xfs_bmbt_get_all(r, s)
-#define xfs_bmbt_disk_get_blockcount(r)	xfs_bmbt_get_blockcount(r)
-#define xfs_bmbt_disk_get_startoff(r)	xfs_bmbt_get_startoff(r)
-#endif /* XFS_NATIVE_HOST */
 
 extern int xfs_bmbt_increment(struct xfs_btree_cur *, int, int *);
 extern int xfs_bmbt_insert(struct xfs_btree_cur *, int *);
@@ -298,14 +292,9 @@ extern void xfs_bmbt_set_startblock(xfs_bmbt_rec_host_t *r, xfs_fsblock_t v);
 extern void xfs_bmbt_set_startoff(xfs_bmbt_rec_host_t *r, xfs_fileoff_t v);
 extern void xfs_bmbt_set_state(xfs_bmbt_rec_host_t *r, xfs_exntst_t v);
 
-#ifndef XFS_NATIVE_HOST
 extern void xfs_bmbt_disk_set_all(xfs_bmbt_rec_t *r, xfs_bmbt_irec_t *s);
 extern void xfs_bmbt_disk_set_allf(xfs_bmbt_rec_t *r, xfs_fileoff_t o,
 			xfs_fsblock_t b, xfs_filblks_t c, xfs_exntst_t v);
-#else
-#define xfs_bmbt_disk_set_all(r, s)		xfs_bmbt_set_all(r, s)
-#define xfs_bmbt_disk_set_allf(r, o, b, c, v)	xfs_bmbt_set_allf(r, o, b, c, v)
-#endif /* XFS_NATIVE_HOST */
 
 extern void xfs_bmbt_to_bmdr(xfs_bmbt_block_t *, int, xfs_bmdr_block_t *, int);
 extern int xfs_bmbt_update(struct xfs_btree_cur *, xfs_fileoff_t,

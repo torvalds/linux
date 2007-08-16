@@ -3492,8 +3492,8 @@ xfs_bmap_extents_to_btree(
 	for (cnt = i = 0; i < nextents; i++) {
 		ep = xfs_iext_get_ext(ifp, i);
 		if (!ISNULLSTARTBLOCK(xfs_bmbt_get_startblock(ep))) {
-			arp->l0 = INT_GET(ep->l0, ARCH_CONVERT);
-			arp->l1 = INT_GET(ep->l1, ARCH_CONVERT);
+			arp->l0 = cpu_to_be64(ep->l0);
+			arp->l1 = cpu_to_be64(ep->l1);
 			arp++; cnt++;
 		}
 	}
@@ -4566,8 +4566,8 @@ xfs_bmap_read_extents(
 		start = i;
 		for (j = 0; j < num_recs; j++, i++, frp++) {
 			xfs_bmbt_rec_host_t *trp = xfs_iext_get_ext(ifp, i);
-			trp->l0 = INT_GET(frp->l0, ARCH_CONVERT);
-			trp->l1 = INT_GET(frp->l1, ARCH_CONVERT);
+			trp->l0 = be64_to_cpu(frp->l0);
+			trp->l1 = be64_to_cpu(frp->l1);
 		}
 		if (exntf == XFS_EXTFMT_NOSTATE) {
 			/*
