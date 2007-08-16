@@ -46,6 +46,7 @@ enum kvm_exit_reason {
 	KVM_EXIT_SHUTDOWN         = 8,
 	KVM_EXIT_FAIL_ENTRY       = 9,
 	KVM_EXIT_INTR             = 10,
+	KVM_EXIT_SET_TPR          = 11
 };
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
