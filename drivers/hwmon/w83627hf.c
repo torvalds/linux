@@ -372,11 +372,8 @@ struct w83627hf_data {
 	u8 beep_enable;		/* Boolean */
 	u8 pwm[3];		/* Register value */
 	u8 pwm_freq[3];		/* Register value */
-	u16 sens[3];		/* 782D/783S only.
-				   1 = pentium diode; 2 = 3904 diode;
-				   3000-5000 = thermistor beta.
-				   Default = 3435.
-				   Other Betas unimplemented */
+	u16 sens[3];		/* 1 = pentium diode; 2 = 3904 diode;
+				   4 = thermistor */
 	u8 vrm;
 	u8 vrm_ovt;		/* Register value, 627THF/637HF/687THF only */
 };
@@ -1001,7 +998,11 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 				    tmp & ~BIT_SCFG2[nr - 1]);
 		data->sens[nr - 1] = val;
 		break;
-	case W83781D_DEFAULT_BETA:	/* thermistor */
+	case W83781D_DEFAULT_BETA:
+		dev_warn(dev, "Sensor type %d is deprecated, please use 4 "
+			 "instead\n", W83781D_DEFAULT_BETA);
+		/* fall through */
+	case 4:		/* thermistor */
 		tmp = w83627hf_read_value(data, W83781D_REG_SCFG1);
 		w83627hf_write_value(data, W83781D_REG_SCFG1,
 				    tmp & ~BIT_SCFG1[nr - 1]);
@@ -1009,8 +1010,8 @@ store_sensor_reg(struct device *dev, const char *buf, size_t count, int nr)
 		break;
 	default:
 		dev_err(dev,
-		       "Invalid sensor type %ld; must be 1, 2, or %d\n",
-		       (long) val, W83781D_DEFAULT_BETA);
+		       "Invalid sensor type %ld; must be 1, 2, or 4\n",
+		       (long) val);
 		break;
 	}
 
@@ -1513,7 +1514,7 @@ static void __devinit w83627hf_init_device(struct platform_device *pdev)
 	tmp = w83627hf_read_value(data, W83781D_REG_SCFG1);
 	for (i = 1; i <= 3; i++) {
 		if (!(tmp & BIT_SCFG1[i - 1])) {
-			data->sens[i - 1] = W83781D_DEFAULT_BETA;
+			data->sens[i - 1] = 4;
 		} else {
 			if (w83627hf_read_value
 			    (data,

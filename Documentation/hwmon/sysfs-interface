@@ -219,12 +219,12 @@ temp[1-*]_auto_point[1-*]_temp_hyst
 ****************
 
 temp[1-*]_type	Sensor type selection.
-		Integers 1 to 6 or thermistor Beta value (typically 3435)
+		Integers 1 to 6
 		RW
 		1: PII/Celeron Diode
 		2: 3904 transistor
 		3: thermal diode
-		4: thermistor (default/unknown Beta)
+		4: thermistor
 		5: AMD AMDSI
 		6: Intel PECI
 		Not all types are supported by all chips
