@@ -245,8 +245,7 @@ xfs_read(
 		mutex_lock(&inode->i_mutex);
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
-	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ) &&
-	    !(ioflags & IO_INVIS)) {
+	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
 		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int dmflags = FILP_DELAY_FLAG(file) | DM_SEM_FLAG_RD(ioflags);
 
@@ -307,8 +306,7 @@ xfs_splice_read(
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 
-	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_READ) &&
-	    (!(ioflags & IO_INVIS))) {
+	if (DM_EVENT_ENABLED(ip, DM_EVENT_READ) && !(ioflags & IO_INVIS)) {
 		bhv_vrwlock_t locktype = VRWLOCK_READ;
 		int error;
 
@@ -354,8 +352,7 @@ xfs_splice_write(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
-	if (DM_EVENT_ENABLED(BHV_TO_VNODE(bdp)->v_vfsp, ip, DM_EVENT_WRITE) &&
-	    (!(ioflags & IO_INVIS))) {
+	if (DM_EVENT_ENABLED(ip, DM_EVENT_WRITE) && !(ioflags & IO_INVIS)) {
 		bhv_vrwlock_t locktype = VRWLOCK_WRITE;
 		int error;
 
@@ -664,7 +661,7 @@ start:
 		goto out_unlock_mutex;
 	}
 
-	if ((DM_EVENT_ENABLED(vp->v_vfsp, xip, DM_EVENT_WRITE) &&
+	if ((DM_EVENT_ENABLED(xip, DM_EVENT_WRITE) &&
 	    !(ioflags & IO_INVIS) && !eventsent)) {
 		int		dmflags = FILP_DELAY_FLAG(file);
 
@@ -816,10 +813,8 @@ retry:
 	if (ret == -EIOCBQUEUED && !(ioflags & IO_ISAIO))
 		ret = wait_on_sync_kiocb(iocb);
 
-	if ((ret == -ENOSPC) &&
-	    DM_EVENT_ENABLED(vp->v_vfsp, xip, DM_EVENT_NOSPACE) &&
-	    !(ioflags & IO_INVIS)) {
-
+	if (ret == -ENOSPC &&
+	    DM_EVENT_ENABLED(xip, DM_EVENT_NOSPACE) && !(ioflags & IO_INVIS)) {
 		xfs_rwunlock(bdp, locktype);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);

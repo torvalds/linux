@@ -337,7 +337,7 @@ xfs_setattr(
 			}
 		}
 	} else {
-		if (DM_EVENT_ENABLED (vp->v_vfsp, ip, DM_EVENT_TRUNCATE) &&
+		if (DM_EVENT_ENABLED(ip, DM_EVENT_TRUNCATE) &&
 		    !(flags & ATTR_DMI)) {
 			int dmflags = AT_DELAY_FLAG(flags) | DM_SEM_FLAG_WR;
 			code = XFS_SEND_DATA(mp, DM_EVENT_TRUNCATE, vp,
@@ -896,7 +896,7 @@ xfs_setattr(
 		return code;
 	}
 
-	if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_ATTRIBUTE) &&
+	if (DM_EVENT_ENABLED(ip, DM_EVENT_ATTRIBUTE) &&
 	    !(flags & ATTR_DMI)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_ATTRIBUTE, vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL, NULL, NULL,
@@ -1666,8 +1666,7 @@ xfs_inactive(
 
 	mp = ip->i_mount;
 
-	if (ip->i_d.di_nlink == 0 &&
-	    DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_DESTROY)) {
+	if (ip->i_d.di_nlink == 0 && DM_EVENT_ENABLED(ip, DM_EVENT_DESTROY)) {
 		(void) XFS_SEND_DESTROY(mp, vp, DM_RIGHT_NULL);
 	}
 
@@ -1922,7 +1921,7 @@ xfs_create(
 	dm_di_mode = vap->va_mode;
 	namelen = VNAMELEN(dentry);
 
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_CREATE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_CREATE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_CREATE,
 				dir_vp, DM_RIGHT_NULL, NULL,
 				DM_RIGHT_NULL, name, NULL,
@@ -2087,9 +2086,8 @@ xfs_create(
 	/* Fallthrough to std_return with error = 0  */
 
 std_return:
-	if ( (*vpp || (error != 0 && dm_event_sent != 0)) &&
-			DM_EVENT_ENABLED(dir_vp->v_vfsp, XFS_BHVTOI(dir_bdp),
-							DM_EVENT_POSTCREATE)) {
+	if ((*vpp || (error != 0 && dm_event_sent != 0)) &&
+	    DM_EVENT_ENABLED(XFS_BHVTOI(dir_bdp), DM_EVENT_POSTCREATE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTCREATE,
 			dir_vp, DM_RIGHT_NULL,
 			*vpp ? vp:NULL,
@@ -2423,7 +2421,7 @@ xfs_remove(
 		IRELE(ip);
 	}
 
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
 					name, NULL, dm_di_mode, 0, 0);
@@ -2599,8 +2597,7 @@ xfs_remove(
 
 /*	Fall through to std_return with error = 0 */
  std_return:
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp,
-						DM_EVENT_POSTREMOVE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 				dir_vp, DM_RIGHT_NULL,
 				NULL, DM_RIGHT_NULL,
@@ -2677,7 +2674,7 @@ xfs_link(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	if (DM_EVENT_ENABLED(src_vp->v_vfsp, tdp, DM_EVENT_LINK)) {
+	if (DM_EVENT_ENABLED(tdp, DM_EVENT_LINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_LINK,
 					target_dir_vp, DM_RIGHT_NULL,
 					src_vp, DM_RIGHT_NULL,
@@ -2788,8 +2785,7 @@ xfs_link(
 
 	/* Fall through to std_return with error = 0. */
 std_return:
-	if (DM_EVENT_ENABLED(src_vp->v_vfsp, sip,
-						DM_EVENT_POSTLINK)) {
+	if (DM_EVENT_ENABLED(sip, DM_EVENT_POSTLINK)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTLINK,
 				target_dir_vp, DM_RIGHT_NULL,
 				src_vp, DM_RIGHT_NULL,
@@ -2853,7 +2849,7 @@ xfs_mkdir(
 	dp_joined_to_trans = B_FALSE;
 	dm_di_mode = vap->va_mode;
 
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_CREATE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_CREATE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_CREATE,
 					dir_vp, DM_RIGHT_NULL, NULL,
 					DM_RIGHT_NULL, dir_name, NULL,
@@ -3010,9 +3006,8 @@ xfs_mkdir(
 	 * xfs_trans_commit. */
 
 std_return:
-	if ( (created || (error != 0 && dm_event_sent != 0)) &&
-			DM_EVENT_ENABLED(dir_vp->v_vfsp, XFS_BHVTOI(dir_bdp),
-						DM_EVENT_POSTCREATE)) {
+	if ((created || (error != 0 && dm_event_sent != 0)) &&
+	    DM_EVENT_ENABLED(XFS_BHVTOI(dir_bdp), DM_EVENT_POSTCREATE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTCREATE,
 					dir_vp, DM_RIGHT_NULL,
 					created ? XFS_ITOV(cdp):NULL,
@@ -3081,7 +3076,7 @@ xfs_rmdir(
 		IRELE(cdp);
 	}
 
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_REMOVE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_REMOVE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_REMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
@@ -3270,7 +3265,7 @@ xfs_rmdir(
 	/* Fall through to std_return with error = 0 or the errno
 	 * from xfs_trans_commit. */
  std_return:
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_POSTREMOVE)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_POSTREMOVE)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTREMOVE,
 					dir_vp, DM_RIGHT_NULL,
 					NULL, DM_RIGHT_NULL,
@@ -3405,7 +3400,7 @@ xfs_symlink(
 		}
 	}
 
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, dp, DM_EVENT_SYMLINK)) {
+	if (DM_EVENT_ENABLED(dp, DM_EVENT_SYMLINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dir_vp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
 					link_name, target_path, 0, 0, 0);
@@ -3605,8 +3600,7 @@ xfs_symlink(
 	/* Fall through to std_return with error = 0 or errno from
 	 * xfs_trans_commit	*/
 std_return:
-	if (DM_EVENT_ENABLED(dir_vp->v_vfsp, XFS_BHVTOI(dir_bdp),
-			     DM_EVENT_POSTSYMLINK)) {
+	if (DM_EVENT_ENABLED(XFS_BHVTOI(dir_bdp), DM_EVENT_POSTSYMLINK)) {
 		(void) XFS_SEND_NAMESP(mp, DM_EVENT_POSTSYMLINK,
 					dir_vp, DM_RIGHT_NULL,
 					error ? NULL : XFS_ITOV(ip),
@@ -4109,7 +4103,7 @@ xfs_alloc_file_space(
 	/*	Generate a DMAPI event if needed.	*/
 	if (alloc_type != 0 && offset < ip->i_size &&
 			(attr_flags&ATTR_DMI) == 0  &&
-			DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_WRITE)) {
+			DM_EVENT_ENABLED(ip, DM_EVENT_WRITE)) {
 		xfs_off_t           end_dmi_offset;
 
 		end_dmi_offset = offset+len;
@@ -4223,9 +4217,8 @@ retry:
 		allocatesize_fsb -= allocated_fsb;
 	}
 dmapi_enospc_check:
-	if (error == ENOSPC && (attr_flags&ATTR_DMI) == 0 &&
-	    DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_NOSPACE)) {
-
+	if (error == ENOSPC && (attr_flags & ATTR_DMI) == 0 &&
+	    DM_EVENT_ENABLED(ip, DM_EVENT_NOSPACE)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_NOSPACE,
 				XFS_ITOV(ip), DM_RIGHT_NULL,
 				XFS_ITOV(ip), DM_RIGHT_NULL,
@@ -4369,9 +4362,8 @@ xfs_free_file_space(
 	end_dmi_offset = offset + len;
 	endoffset_fsb = XFS_B_TO_FSBT(mp, end_dmi_offset);
 
-	if (offset < ip->i_size &&
-	    (attr_flags & ATTR_DMI) == 0 &&
-	    DM_EVENT_ENABLED(XFS_MTOVFS(mp), ip, DM_EVENT_WRITE)) {
+	if (offset < ip->i_size && (attr_flags & ATTR_DMI) == 0 &&
+	    DM_EVENT_ENABLED(ip, DM_EVENT_WRITE)) {
 		if (end_dmi_offset > ip->i_size)
 			end_dmi_offset = ip->i_size;
 		error = XFS_SEND_DATA(mp, DM_EVENT_WRITE, vp,

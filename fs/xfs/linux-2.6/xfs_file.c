@@ -405,7 +405,7 @@ xfs_file_open_exec(
 
 		if (!ip)
 			return -EINVAL;
-		if (DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ))
+		if (DM_EVENT_ENABLED(ip, DM_EVENT_READ))
 			return -XFS_SEND_DATA(mp, DM_EVENT_READ, vp,
 					       0, 0, 0, NULL);
 	}

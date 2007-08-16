@@ -67,16 +67,10 @@ typedef enum {
 #define HAVE_DM_RIGHT_T
 
 /* Defines for determining if an event message should be sent. */
-#define	DM_EVENT_ENABLED(vfsp, ip, event) ( \
-	unlikely ((vfsp)->vfs_flag & VFS_DMI) && \
+#define	DM_EVENT_ENABLED(ip, event) ( \
+	unlikely (XFS_MTOVFS((ip)->i_mount)->vfs_flag & VFS_DMI) && \
 		( ((ip)->i_d.di_dmevmask & (1 << event)) || \
 		  ((ip)->i_mount->m_dmevmask & (1 << event)) ) \
-	)
-
-#define	DM_EVENT_ENABLED_IO(vfsp, io, event) ( \
-	unlikely ((vfsp)->vfs_flag & VFS_DMI) && \
-		( ((io)->io_dmevmask & (1 << event)) || \
-		  ((io)->io_mount->m_dmevmask & (1 << event)) ) \
 	)
 
 #define DM_XFS_VALID_FS_EVENTS		( \

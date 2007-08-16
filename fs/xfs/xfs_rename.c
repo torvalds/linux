@@ -264,9 +264,8 @@ xfs_rename(
 	src_dp = XFS_BHVTOI(src_dir_bdp);
 	mp = src_dp->i_mount;
 
-	if (DM_EVENT_ENABLED(src_dir_vp->v_vfsp, src_dp, DM_EVENT_RENAME) ||
-	    DM_EVENT_ENABLED(target_dir_vp->v_vfsp,
-				target_dp, DM_EVENT_RENAME)) {
+	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_RENAME) ||
+	    DM_EVENT_ENABLED(target_dp, DM_EVENT_RENAME)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_RENAME,
 					src_dir_vp, DM_RIGHT_NULL,
 					target_dir_vp, DM_RIGHT_NULL,
@@ -603,9 +602,8 @@ xfs_rename(
 	/* Fall through to std_return with error = 0 or errno from
 	 * xfs_trans_commit	 */
 std_return:
-	if (DM_EVENT_ENABLED(src_dir_vp->v_vfsp, src_dp, DM_EVENT_POSTRENAME) ||
-	    DM_EVENT_ENABLED(target_dir_vp->v_vfsp,
-				target_dp, DM_EVENT_POSTRENAME)) {
+	if (DM_EVENT_ENABLED(src_dp, DM_EVENT_POSTRENAME) ||
+	    DM_EVENT_ENABLED(target_dp, DM_EVENT_POSTRENAME)) {
 		(void) XFS_SEND_NAMESP (mp, DM_EVENT_POSTRENAME,
 					src_dir_vp, DM_RIGHT_NULL,
 					target_dir_vp, DM_RIGHT_NULL,

@@ -5811,10 +5811,9 @@ xfs_getbmap(
 	 *	could misinterpret holes in a DMAPI file as true holes,
 	 *	when in fact they may represent offline user data.
 	 */
-	if (   (interface & BMV_IF_NO_DMAPI_READ) == 0
-	    && DM_EVENT_ENABLED(vp->v_vfsp, ip, DM_EVENT_READ)
-	    && whichfork == XFS_DATA_FORK) {
-
+	if ((interface & BMV_IF_NO_DMAPI_READ) == 0 &&
+	    DM_EVENT_ENABLED(ip, DM_EVENT_READ) &&
+	    whichfork == XFS_DATA_FORK) {
 		error = XFS_SEND_DATA(mp, DM_EVENT_READ, vp, 0, 0, 0, NULL);
 		if (error)
 			return XFS_ERROR(error);
