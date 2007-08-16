@@ -29,7 +29,7 @@ static inline void align_mod(const int align, const int mod)
 		".endr\n\t"
 		".set	pop"
 		:
-		: "n" (align), "n" (mod));
+		: "rn" (align), "rn" (mod));
 }
 
 static inline void mult_sh_align_mod(long *v1, long *v2, long *w,
