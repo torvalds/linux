@@ -885,6 +885,12 @@ enum {
 				  ATA_TIMING_CYCLE | ATA_TIMING_UDMA,
 };
 
+/* libata-acpi.c */
+#ifdef CONFIG_ATA_ACPI
+extern int ata_acpi_cbl_80wire(struct ata_port *ap);
+#else
+static inline int ata_acpi_cbl_80wire(struct ata_port *ap) { return 0; }
+#endif
 
 #ifdef CONFIG_PCI
 struct pci_bits {
