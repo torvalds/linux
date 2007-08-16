@@ -1262,7 +1262,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 void
 xfs_unmountfs_close(xfs_mount_t *mp, struct cred *cr)
 {
-	if (mp->m_logdev_targp != mp->m_ddev_targp)
+	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_logdev_targp, 1);
 	if (mp->m_rtdev_targp)
 		xfs_free_buftarg(mp->m_rtdev_targp, 1);
