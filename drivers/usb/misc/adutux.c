@@ -188,7 +188,8 @@ static void adu_interrupt_in_callback(struct urb *urb)
 	spin_lock(&dev->buflock);
 
 	if (status != 0) {
-		if ((status != -ENOENT) && (status != -ECONNRESET)) {
+		if ((status != -ENOENT) && (status != -ECONNRESET) &&
+			(status != -ESHUTDOWN)) {
 			dbg(1," %s : nonzero status received: %d",
 			    __FUNCTION__, status);
 		}
