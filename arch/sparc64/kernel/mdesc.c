@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/miscdevice.h>
 
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
@@ -835,6 +836,43 @@ void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
 
 	mdesc_release(hp);
 }
+
+static ssize_t mdesc_read(struct file *file, char __user *buf,
+			  size_t len, loff_t *offp)
+{
+	struct mdesc_handle *hp = mdesc_grab();
+	int err;
+
+	if (!hp)
+		return -ENODEV;
+
+	err = hp->handle_size;
+	if (len < hp->handle_size)
+		err = -EMSGSIZE;
+	else if (copy_to_user(buf, &hp->mdesc, hp->handle_size))
+		err = -EFAULT;
+	mdesc_release(hp);
+
+	return err;
+}
+
+static const struct file_operations mdesc_fops = {
+	.read	= mdesc_read,
+	.owner	= THIS_MODULE,
+};
+
+static struct miscdevice mdesc_misc = {
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name	= "mdesc",
+	.fops	= &mdesc_fops,
+};
+
+static int __init mdesc_misc_init(void)
+{
+	return misc_register(&mdesc_misc);
+}
+
+__initcall(mdesc_misc_init);
 
 void __init sun4v_mdesc_init(void)
 {
