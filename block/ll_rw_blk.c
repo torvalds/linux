@@ -2941,15 +2941,9 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
-	req->hard_nr_sectors = req->nr_sectors = bio_sectors(bio);
-	req->current_nr_sectors = req->hard_cur_sectors = bio_cur_sectors(bio);
-	req->nr_phys_segments = bio_phys_segments(req->q, bio);
-	req->nr_hw_segments = bio_hw_segments(req->q, bio);
-	req->buffer = bio_data(bio);	/* see ->buffer comment above */
-	req->bio = req->biotail = bio;
 	req->ioprio = bio_prio(bio);
-	req->rq_disk = bio->bi_bdev->bd_disk;
 	req->start_time = jiffies;
+	blk_rq_bio_prep(req->q, req, bio);
 }
 
 static int __make_request(struct request_queue *q, struct bio *bio)
