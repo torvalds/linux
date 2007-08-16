@@ -5276,6 +5276,20 @@ static void alc882_gpio_mute(struct hda_codec *codec, int pin, int muted)
 			    AC_VERB_SET_GPIO_DATA, gpiostate);
 }
 
+/* set up GPIO at initialization */
+static void alc885_macpro_init_hook(struct hda_codec *codec)
+{
+	alc882_gpio_mute(codec, 0, 0);
+	alc882_gpio_mute(codec, 1, 0);
+}
+
+/* set up GPIO and update auto-muting at initialization */
+static void alc885_imac24_init_hook(struct hda_codec *codec)
+{
+	alc885_macpro_init_hook(codec);
+	alc885_imac24_automute(codec);
+}
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -5480,6 +5494,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc882_ch_modes),
 		.channel_mode = alc882_ch_modes,
 		.input_mux = &alc882_capture_source,
+		.init_hook = alc885_macpro_init_hook,
 	},
 	[ALC885_IMAC24] = {
 		.mixers = { alc885_imac24_mixer },
@@ -5492,7 +5507,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.channel_mode = alc882_ch_modes,
 		.input_mux = &alc882_capture_source,
 		.unsol_event = alc885_imac24_unsol_event,
-		.init_hook = alc885_imac24_automute,
+		.init_hook = alc885_imac24_init_hook,
 	},
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer,
@@ -5694,11 +5709,6 @@ static int patch_alc882(struct hda_codec *codec)
 
 	if (board_config != ALC882_AUTO)
 		setup_preset(spec, &alc882_presets[board_config]);
-
-	if (board_config == ALC885_MACPRO || board_config == ALC885_IMAC24) {
-		alc882_gpio_mute(codec, 0, 0);
-		alc882_gpio_mute(codec, 1, 0);
-	}
 
 	spec->stream_name_analog = "ALC882 Analog";
 	spec->stream_analog_playback = &alc882_pcm_analog_playback;
