@@ -25,12 +25,6 @@
 #include "pio.h"
 #include "pm.h"
 
-/*
- * We can reduce the code size a bit by using a constant here. Since
- * this file is completely chip-specific, it's safe to not use
- * ioremap. Generic drivers should of course never do this.
- */
-#define AT32_PM_BASE	0xfff00000
 
 #define PBMEM(base)					\
 	{						\
