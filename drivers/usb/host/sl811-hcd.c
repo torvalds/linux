@@ -957,17 +957,7 @@ static int sl811h_urb_enqueue(
 		sofirq_on(sl811);
 	}
 
-	/* in case of unlink-during-submit */
-	spin_lock(&urb->lock);
-	if (urb->status != -EINPROGRESS) {
-		spin_unlock(&urb->lock);
-		finish_request(sl811, ep, urb, 0);
-		retval = 0;
-		goto fail;
-	}
 	urb->hcpriv = hep;
-	spin_unlock(&urb->lock);
-
 	start_transfer(sl811);
 	sl811_write(sl811, SL11H_IRQ_ENABLE, sl811->irq_enable);
 fail:

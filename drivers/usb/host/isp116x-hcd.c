@@ -815,12 +815,6 @@ static int isp116x_urb_enqueue(struct usb_hcd *hcd,
 		}
 	}
 
-	/* in case of unlink-during-submit */
-	if (urb->status != -EINPROGRESS) {
-		finish_request(isp116x, ep, urb);
-		ret = 0;
-		goto fail;
-	}
 	urb->hcpriv = hep;
 	start_atl_transfers(isp116x);
 
