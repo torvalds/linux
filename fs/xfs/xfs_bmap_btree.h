@@ -35,44 +35,15 @@ typedef struct xfs_bmdr_block {
 
 /*
  * Bmap btree record and extent descriptor.
- * For 32-bit kernels,
- *  l0:31 is an extent flag (value 1 indicates non-normal).
- *  l0:0-30 and l1:9-31 are startoff.
- *  l1:0-8, l2:0-31, and l3:21-31 are startblock.
- *  l3:0-20 are blockcount.
- * For 64-bit kernels,
  *  l0:63 is an extent flag (value 1 indicates non-normal).
  *  l0:9-62 are startoff.
  *  l0:0-8 and l1:21-63 are startblock.
  *  l1:0-20 are blockcount.
  */
-
-#ifndef XFS_NATIVE_HOST
-
-#define BMBT_TOTAL_BITLEN	128	/* 128 bits, 16 bytes */
-#define BMBT_EXNTFLAG_BITOFF	0
 #define BMBT_EXNTFLAG_BITLEN	1
-#define BMBT_STARTOFF_BITOFF	(BMBT_EXNTFLAG_BITOFF + BMBT_EXNTFLAG_BITLEN)
 #define BMBT_STARTOFF_BITLEN	54
-#define BMBT_STARTBLOCK_BITOFF	(BMBT_STARTOFF_BITOFF + BMBT_STARTOFF_BITLEN)
 #define BMBT_STARTBLOCK_BITLEN	52
-#define BMBT_BLOCKCOUNT_BITOFF	\
-	(BMBT_STARTBLOCK_BITOFF + BMBT_STARTBLOCK_BITLEN)
-#define BMBT_BLOCKCOUNT_BITLEN	(BMBT_TOTAL_BITLEN - BMBT_BLOCKCOUNT_BITOFF)
-
-#else
-
-#define BMBT_TOTAL_BITLEN	128	/* 128 bits, 16 bytes */
-#define BMBT_EXNTFLAG_BITOFF	63
-#define BMBT_EXNTFLAG_BITLEN	1
-#define BMBT_STARTOFF_BITOFF	(BMBT_EXNTFLAG_BITOFF - BMBT_STARTOFF_BITLEN)
-#define BMBT_STARTOFF_BITLEN	54
-#define BMBT_STARTBLOCK_BITOFF	85 /* 128 - 43 (other 9 is in first word) */
-#define BMBT_STARTBLOCK_BITLEN	52
-#define BMBT_BLOCKCOUNT_BITOFF	64 /* Start of second 64 bit container */
 #define BMBT_BLOCKCOUNT_BITLEN	21
-
-#endif /* XFS_NATIVE_HOST */
 
 
 #define BMBT_USE_64	1
