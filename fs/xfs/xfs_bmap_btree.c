@@ -2291,6 +2291,51 @@ xfs_bmbt_newroot(
 }
 
 /*
+ * Set all the fields in a bmap extent record from the arguments.
+ */
+void
+xfs_bmbt_set_allf(
+	xfs_bmbt_rec_host_t	*r,
+	xfs_fileoff_t		startoff,
+	xfs_fsblock_t		startblock,
+	xfs_filblks_t		blockcount,
+	xfs_exntst_t		state)
+{
+	int		extent_flag = (state == XFS_EXT_NORM) ? 0 : 1;
+
+	ASSERT(state == XFS_EXT_NORM || state == XFS_EXT_UNWRITTEN);
+	ASSERT((startoff & XFS_MASK64HI(64-BMBT_STARTOFF_BITLEN)) == 0);
+	ASSERT((blockcount & XFS_MASK64HI(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
+
+#if XFS_BIG_BLKNOS
+	ASSERT((startblock & XFS_MASK64HI(64-BMBT_STARTBLOCK_BITLEN)) == 0);
+
+	r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
+		((xfs_bmbt_rec_base_t)startoff << 9) |
+		((xfs_bmbt_rec_base_t)startblock >> 43);
+	r->l1 = ((xfs_bmbt_rec_base_t)startblock << 21) |
+		((xfs_bmbt_rec_base_t)blockcount &
+		(xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
+#else	/* !XFS_BIG_BLKNOS */
+	if (ISNULLSTARTBLOCK(b)) {
+		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
+			((xfs_bmbt_rec_base_t)startoff << 9) |
+			 (xfs_bmbt_rec_base_t)XFS_MASK64LO(9);
+		r->l1 = XFS_MASK64HI(11) |
+			  ((xfs_bmbt_rec_base_t)startblock << 21) |
+			  ((xfs_bmbt_rec_base_t)blockcount &
+			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
+	} else {
+		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
+			((xfs_bmbt_rec_base_t)startoff << 9);
+		r->l1 = ((xfs_bmbt_rec_base_t)startblock << 21) |
+			 ((xfs_bmbt_rec_base_t)blockcount &
+			 (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
+	}
+#endif	/* XFS_BIG_BLKNOS */
+}
+
+/*
  * Set all the fields in a bmap extent record from the uncompressed form.
  */
 void
@@ -2298,85 +2343,62 @@ xfs_bmbt_set_all(
 	xfs_bmbt_rec_host_t *r,
 	xfs_bmbt_irec_t	*s)
 {
-	int	extent_flag;
-
-	ASSERT((s->br_state == XFS_EXT_NORM) ||
-		(s->br_state == XFS_EXT_UNWRITTEN));
-	extent_flag = (s->br_state == XFS_EXT_NORM) ? 0 : 1;
-	ASSERT((s->br_startoff & XFS_MASK64HI(9)) == 0);
-	ASSERT((s->br_blockcount & XFS_MASK64HI(43)) == 0);
-#if XFS_BIG_BLKNOS
-	ASSERT((s->br_startblock & XFS_MASK64HI(12)) == 0);
-	r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		 ((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
-		 ((xfs_bmbt_rec_base_t)s->br_startblock >> 43);
-	r->l1 = ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-		 ((xfs_bmbt_rec_base_t)s->br_blockcount &
-		 (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-#else	/* !XFS_BIG_BLKNOS */
-	if (ISNULLSTARTBLOCK(s->br_startblock)) {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
-			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(9);
-		r->l1 = XFS_MASK64HI(11) |
-			  ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)s->br_blockcount &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-	} else {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)s->br_startoff << 9);
-		r->l1 = ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)s->br_blockcount &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-	}
-#endif	/* XFS_BIG_BLKNOS */
+	xfs_bmbt_set_allf(r, s->br_startoff, s->br_startblock,
+			     s->br_blockcount, s->br_state);
 }
 
-/*
- * Set all the fields in a bmap extent record from the arguments.
- */
-void
-xfs_bmbt_set_allf(
-	xfs_bmbt_rec_host_t *r,
-	xfs_fileoff_t	o,
-	xfs_fsblock_t	b,
-	xfs_filblks_t	c,
-	xfs_exntst_t	v)
-{
-	int	extent_flag;
-
-	ASSERT((v == XFS_EXT_NORM) || (v == XFS_EXT_UNWRITTEN));
-	extent_flag = (v == XFS_EXT_NORM) ? 0 : 1;
-	ASSERT((o & XFS_MASK64HI(64-BMBT_STARTOFF_BITLEN)) == 0);
-	ASSERT((c & XFS_MASK64HI(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
-#if XFS_BIG_BLKNOS
-	ASSERT((b & XFS_MASK64HI(64-BMBT_STARTBLOCK_BITLEN)) == 0);
-	r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		((xfs_bmbt_rec_base_t)o << 9) |
-		((xfs_bmbt_rec_base_t)b >> 43);
-	r->l1 = ((xfs_bmbt_rec_base_t)b << 21) |
-		((xfs_bmbt_rec_base_t)c &
-		(xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-#else	/* !XFS_BIG_BLKNOS */
-	if (ISNULLSTARTBLOCK(b)) {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)o << 9) |
-			 (xfs_bmbt_rec_base_t)XFS_MASK64LO(9);
-		r->l1 = XFS_MASK64HI(11) |
-			  ((xfs_bmbt_rec_base_t)b << 21) |
-			  ((xfs_bmbt_rec_base_t)c &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-	} else {
-		r->l0 = ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)o << 9);
-		r->l1 = ((xfs_bmbt_rec_base_t)b << 21) |
-			 ((xfs_bmbt_rec_base_t)c &
-			 (xfs_bmbt_rec_base_t)XFS_MASK64LO(21));
-	}
-#endif	/* XFS_BIG_BLKNOS */
-}
 
 #ifndef XFS_NATIVE_HOST
+/*
+ * Set all the fields in a disk format bmap extent record from the arguments.
+ */
+void
+xfs_bmbt_disk_set_allf(
+	xfs_bmbt_rec_t		*r,
+	xfs_fileoff_t		startoff,
+	xfs_fsblock_t		startblock,
+	xfs_filblks_t		blockcount,
+	xfs_exntst_t		state)
+{
+	int			extent_flag = (state == XFS_EXT_NORM) ? 0 : 1;
+
+	ASSERT(state == XFS_EXT_NORM || state == XFS_EXT_UNWRITTEN);
+	ASSERT((startoff & XFS_MASK64HI(64-BMBT_STARTOFF_BITLEN)) == 0);
+	ASSERT((blockcount & XFS_MASK64HI(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
+
+#if XFS_BIG_BLKNOS
+	ASSERT((startblock & XFS_MASK64HI(64-BMBT_STARTBLOCK_BITLEN)) == 0);
+
+	INT_SET(r->l0, ARCH_CONVERT,
+		((xfs_bmbt_rec_base_t)extent_flag << 63) |
+		 ((xfs_bmbt_rec_base_t)startoff << 9) |
+		 ((xfs_bmbt_rec_base_t)startblock >> 43));
+	INT_SET(r->l1, ARCH_CONVERT,
+		((xfs_bmbt_rec_base_t)startblock << 21) |
+		 ((xfs_bmbt_rec_base_t)blockcount &
+		  (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
+#else	/* !XFS_BIG_BLKNOS */
+	if (ISNULLSTARTBLOCK(b)) {
+		INT_SET(r->l0, ARCH_CONVERT,
+			((xfs_bmbt_rec_base_t)extent_flag << 63) |
+			 ((xfs_bmbt_rec_base_t)startoff << 9) |
+			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(9));
+		INT_SET(r->l1, ARCH_CONVERT, XFS_MASK64HI(11) |
+			  ((xfs_bmbt_rec_base_t)startblock << 21) |
+			  ((xfs_bmbt_rec_base_t)blockcount &
+			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
+	} else {
+		INT_SET(r->l0, ARCH_CONVERT,
+			((xfs_bmbt_rec_base_t)extent_flag << 63) |
+			 ((xfs_bmbt_rec_base_t)startoff << 9));
+		INT_SET(r->l1, ARCH_CONVERT,
+			((xfs_bmbt_rec_base_t)startblock << 21) |
+			 ((xfs_bmbt_rec_base_t)blockcount &
+			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
+	}
+#endif	/* XFS_BIG_BLKNOS */
+}
+
 /*
  * Set all the fields in a bmap extent record from the uncompressed form.
  */
@@ -2385,82 +2407,8 @@ xfs_bmbt_disk_set_all(
 	xfs_bmbt_rec_t	*r,
 	xfs_bmbt_irec_t *s)
 {
-	int	extent_flag;
-
-	ASSERT((s->br_state == XFS_EXT_NORM) ||
-		(s->br_state == XFS_EXT_UNWRITTEN));
-	extent_flag = (s->br_state == XFS_EXT_NORM) ? 0 : 1;
-	ASSERT((s->br_startoff & XFS_MASK64HI(9)) == 0);
-	ASSERT((s->br_blockcount & XFS_MASK64HI(43)) == 0);
-#if XFS_BIG_BLKNOS
-	ASSERT((s->br_startblock & XFS_MASK64HI(12)) == 0);
-	INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		  ((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
-		  ((xfs_bmbt_rec_base_t)s->br_startblock >> 43));
-	INT_SET(r->l1, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-		  ((xfs_bmbt_rec_base_t)s->br_blockcount &
-		   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-#else	/* !XFS_BIG_BLKNOS */
-	if (ISNULLSTARTBLOCK(s->br_startblock)) {
-		INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)s->br_startoff << 9) |
-			  (xfs_bmbt_rec_base_t)XFS_MASK64LO(9));
-		INT_SET(r->l1, ARCH_CONVERT, XFS_MASK64HI(11) |
-			  ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)s->br_blockcount &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-	} else {
-		INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)s->br_startoff << 9));
-		INT_SET(r->l1, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)s->br_startblock << 21) |
-			  ((xfs_bmbt_rec_base_t)s->br_blockcount &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-	}
-#endif	/* XFS_BIG_BLKNOS */
-}
-
-/*
- * Set all the fields in a disk format bmap extent record from the arguments.
- */
-void
-xfs_bmbt_disk_set_allf(
-	xfs_bmbt_rec_t	*r,
-	xfs_fileoff_t	o,
-	xfs_fsblock_t	b,
-	xfs_filblks_t	c,
-	xfs_exntst_t	v)
-{
-	int	extent_flag;
-
-	ASSERT((v == XFS_EXT_NORM) || (v == XFS_EXT_UNWRITTEN));
-	extent_flag = (v == XFS_EXT_NORM) ? 0 : 1;
-	ASSERT((o & XFS_MASK64HI(64-BMBT_STARTOFF_BITLEN)) == 0);
-	ASSERT((c & XFS_MASK64HI(64-BMBT_BLOCKCOUNT_BITLEN)) == 0);
-#if XFS_BIG_BLKNOS
-	ASSERT((b & XFS_MASK64HI(64-BMBT_STARTBLOCK_BITLEN)) == 0);
-	INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-		((xfs_bmbt_rec_base_t)o << 9) |
-		((xfs_bmbt_rec_base_t)b >> 43));
-	INT_SET(r->l1, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)b << 21) |
-		  ((xfs_bmbt_rec_base_t)c &
-		   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-#else	/* !XFS_BIG_BLKNOS */
-	if (ISNULLSTARTBLOCK(b)) {
-		INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)o << 9) |
-			 (xfs_bmbt_rec_base_t)XFS_MASK64LO(9));
-		INT_SET(r->l1, ARCH_CONVERT, XFS_MASK64HI(11) |
-			  ((xfs_bmbt_rec_base_t)b << 21) |
-			  ((xfs_bmbt_rec_base_t)c &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-	} else {
-		INT_SET(r->l0, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)extent_flag << 63) |
-			((xfs_bmbt_rec_base_t)o << 9));
-		INT_SET(r->l1, ARCH_CONVERT, ((xfs_bmbt_rec_base_t)b << 21) |
-			  ((xfs_bmbt_rec_base_t)c &
-			   (xfs_bmbt_rec_base_t)XFS_MASK64LO(21)));
-	}
-#endif	/* XFS_BIG_BLKNOS */
+	xfs_bmbt_disk_set_allf(r, s->br_startoff, s->br_startblock,
+				  s->br_blockcount, s->br_state);
 }
 #endif /* XFS_NATIVE_HOST */
 
