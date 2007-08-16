@@ -50,8 +50,6 @@
 #include "xfs_acl.h"
 #include "xfs_filestream.h"
 
-#include <linux/log2.h>
-
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
 kmem_zone_t *xfs_chashlist_zone;
