@@ -2185,13 +2185,13 @@ xlog_state_do_callback(
 			}
 			cb = iclog->ic_callback;
 
-			while (cb != 0) {
+			while (cb) {
 				iclog->ic_callback_tail = &(iclog->ic_callback);
 				iclog->ic_callback = NULL;
 				LOG_UNLOCK(log, s);
 
 				/* perform callbacks in the order given */
-				for (; cb != 0; cb = cb_next) {
+				for (; cb; cb = cb_next) {
 					cb_next = cb->cb_next;
 					cb->cb_func(cb->cb_arg, aborted);
 				}
@@ -2202,7 +2202,7 @@ xlog_state_do_callback(
 			loopdidcallbacks++;
 			funcdidcallbacks++;
 
-			ASSERT(iclog->ic_callback == 0);
+			ASSERT(iclog->ic_callback == NULL);
 			if (!(iclog->ic_state & XLOG_STATE_IOERROR))
 				iclog->ic_state = XLOG_STATE_DIRTY;
 
@@ -3242,10 +3242,10 @@ xlog_ticket_put(xlog_t		*log,
 #else
 	/* When we debug, it is easier if tickets are cycled */
 	ticket->t_next     = NULL;
-	if (log->l_tail != 0) {
+	if (log->l_tail) {
 		log->l_tail->t_next = ticket;
 	} else {
-		ASSERT(log->l_freelist == 0);
+		ASSERT(log->l_freelist == NULL);
 		log->l_freelist = ticket;
 	}
 	log->l_tail	    = ticket;
@@ -3463,7 +3463,7 @@ xlog_verify_iclog(xlog_t	 *log,
 	s = LOG_LOCK(log);
 	icptr = log->l_iclog;
 	for (i=0; i < log->l_iclog_bufs; i++) {
-		if (icptr == 0)
+		if (icptr == NULL)
 			xlog_panic("xlog_verify_iclog: invalid ptr");
 		icptr = icptr->ic_next;
 	}
