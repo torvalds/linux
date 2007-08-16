@@ -871,16 +871,6 @@ xfs_mountfs(
 		writeio_log = mp->m_writeio_log;
 	}
 
-	/*
-	 * Set the number of readahead buffers to use based on
-	 * physical memory size.
-	 */
-	if (xfs_physmem <= 4096)		/* <= 16MB */
-		mp->m_nreadaheads = XFS_RW_NREADAHEAD_16MB;
-	else if (xfs_physmem <= 8192)	/* <= 32MB */
-		mp->m_nreadaheads = XFS_RW_NREADAHEAD_32MB;
-	else
-		mp->m_nreadaheads = XFS_RW_NREADAHEAD_K32;
 	if (sbp->sb_blocklog > readio_log) {
 		mp->m_readio_log = sbp->sb_blocklog;
 	} else {

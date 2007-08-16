@@ -23,32 +23,6 @@ struct xfs_inode;
 struct xfs_mount;
 
 /*
- * Maximum count of bmaps used by read and write paths.
- */
-#define	XFS_MAX_RW_NBMAPS	4
-
-/*
- * Counts of readahead buffers to use based on physical memory size.
- * None of these should be more than XFS_MAX_RW_NBMAPS.
- */
-#define	XFS_RW_NREADAHEAD_16MB	2
-#define	XFS_RW_NREADAHEAD_32MB	3
-#define	XFS_RW_NREADAHEAD_K32	4
-#define	XFS_RW_NREADAHEAD_K64	4
-
-/*
- * Maximum size of a buffer that we\'ll map.  Making this
- * too big will degrade performance due to the number of
- * pages which need to be gathered.  Making it too small
- * will prevent us from doing large I/O\'s to hardware that
- * needs it.
- *
- * This is currently set to 512 KB.
- */
-#define	XFS_MAX_BMAP_LEN_BB	1024
-#define	XFS_MAX_BMAP_LEN_BYTES	524288
-
-/*
  * Convert the given file system block to a disk block.
  * We have to treat it differently based on whether the
  * file is a real time file or not, because the bmap code

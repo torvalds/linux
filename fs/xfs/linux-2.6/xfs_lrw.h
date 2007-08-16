@@ -71,11 +71,6 @@ extern void xfs_inval_cached_trace(struct xfs_iocore *,
 #define xfs_inval_cached_trace(io, offset, len, first, last)
 #endif
 
-/*
- * Maximum count of bmaps used by read and write paths.
- */
-#define	XFS_MAX_RW_NBMAPS	4
-
 extern int xfs_bmap(struct bhv_desc *, xfs_off_t, ssize_t, int,
 			struct xfs_iomap *, int *);
 extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
