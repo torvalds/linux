@@ -103,6 +103,7 @@ enum {
 enum {
 	ALC268_3ST,
 	ALC268_TOSHIBA,
+	ALC268_ACER,
 	ALC268_AUTO,
 	ALC268_MODEL_LAST /* last tag */
 };
@@ -8234,6 +8235,58 @@ static struct hda_verb alc268_eapd_verbs[] = {
 	{ }
 };
 
+/* Toshiba specific */
+#define alc268_toshiba_automute	alc262_hippo_automute
+
+static struct hda_verb alc268_toshiba_verbs[] = {
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{ } /* end */
+};
+
+/* Acer specific */
+#define alc268_acer_bind_master_vol	alc262_fujitsu_bind_master_vol
+#define alc268_acer_master_sw_put	alc262_fujitsu_master_sw_put
+#define alc268_acer_automute	alc262_fujitsu_automute
+
+static struct snd_kcontrol_new alc268_acer_mixer[] = {
+	/* output mixer control */
+	HDA_BIND_VOL("Master Playback Volume", &alc268_acer_bind_master_vol),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = alc268_acer_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+	},
+	{ }
+};
+
+static struct hda_verb alc268_acer_verbs[] = {
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{ }
+};
+
+/* unsolicited event for HP jack sensing */
+static void alc268_toshiba_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 28) != ALC880_HP_EVENT)
+		return;
+	alc268_toshiba_automute(codec);
+}
+
+static void alc268_acer_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 28) != ALC880_HP_EVENT)
+		return;
+	alc268_acer_automute(codec, 1);
+}
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -8619,12 +8672,15 @@ static void alc268_auto_init(struct hda_codec *codec)
 static const char *alc268_models[ALC268_MODEL_LAST] = {
 	[ALC268_3ST]		= "3stack",
 	[ALC268_TOSHIBA]	= "toshiba",
+	[ALC268_ACER]		= "acer",
 	[ALC268_AUTO]		= "auto",
 };
 
 static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
+	SND_PCI_QUIRK(0x103c, 0x30cc, "TOSHIBA", ALC268_TOSHIBA),
+	SND_PCI_QUIRK(0x1025, 0x0126, "Acer", ALC268_ACER),
 	{}
 };
 
@@ -8644,7 +8700,8 @@ static struct alc_config_preset alc268_presets[] = {
 	},
 	[ALC268_TOSHIBA] = {
 		.mixers = { alc268_base_mixer, alc268_capture_alt_mixer },
-		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc268_toshiba_verbs },
 		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
 		.dac_nids = alc268_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
@@ -8653,6 +8710,23 @@ static struct alc_config_preset alc268_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
+		.input_mux = &alc268_capture_source,
+		.unsol_event = alc268_toshiba_unsol_event,
+		.init_hook = alc268_toshiba_automute,
+	},
+	[ALC268_ACER] = {
+		.mixers = { alc268_acer_mixer, alc268_capture_alt_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc268_acer_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt),
+		.adc_nids = alc268_adc_nids_alt,
+		.hp_nid = 0x02,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.input_mux = &alc268_capture_source,
+		.unsol_event = alc268_acer_unsol_event,
 	},
 };
 
