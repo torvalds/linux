@@ -407,6 +407,20 @@ static void snd_usbmidi_maudio_broken_running_status_input(
 }
 
 /*
+ * CME protocol: like the standard protocol, but SysEx commands are sent as a
+ * single USB packet preceded by a 0x0F byte.
+ */
+static void snd_usbmidi_cme_input(struct snd_usb_midi_in_endpoint *ep,
+				  uint8_t *buffer, int buffer_length)
+{
+	if (buffer_length < 2 || (buffer[0] & 0x0f) != 0x0f)
+		snd_usbmidi_standard_input(ep, buffer, buffer_length);
+	else
+		snd_usbmidi_input_data(ep, buffer[0] >> 4,
+				       &buffer[1], buffer_length - 1);
+}
+
+/*
  * Adds one USB MIDI packet to the output buffer.
  */
 static void snd_usbmidi_output_standard_packet(struct urb* urb, uint8_t p0,
@@ -569,6 +583,12 @@ static struct usb_protocol_ops snd_usbmidi_midiman_ops = {
 static struct usb_protocol_ops snd_usbmidi_maudio_broken_running_status_ops = {
 	.input = snd_usbmidi_maudio_broken_running_status_input,
 	.output = snd_usbmidi_standard_output, 
+	.output_packet = snd_usbmidi_output_standard_packet,
+};
+
+static struct usb_protocol_ops snd_usbmidi_cme_ops = {
+	.input = snd_usbmidi_cme_input,
+	.output = snd_usbmidi_standard_output,
 	.output_packet = snd_usbmidi_output_standard_packet,
 };
 
@@ -1690,6 +1710,7 @@ int snd_usb_create_midi_interface(struct snd_usb_audio* chip,
 		err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
 		break;
 	case QUIRK_MIDI_CME:
+		umidi->usb_protocol_ops = &snd_usbmidi_cme_ops;
 		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
 		break;
 	default:
