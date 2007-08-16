@@ -6575,18 +6575,41 @@ static void alc883_lenovo_101e_unsol_event(struct hda_codec *codec,
 		alc883_lenovo_101e_ispeaker_automute(codec);
 }
 
+/* toggle speaker-output according to the hp-jack state */
+static void alc883_acer_aspire_automute(struct hda_codec *codec)
+{
+ 	unsigned int present;
+ 
+ 	present = snd_hda_codec_read(codec, 0x14, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+	snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
+}
+
+static void alc883_acer_aspire_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc883_acer_aspire_automute(codec);
+}
+
 static struct hda_verb alc883_acer_eapd_verbs[] = {
 	/* HP Pin: output 0 (0x0c) */
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* Front Pin: output 0 (0x0c) */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
 	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00},
         /* eanable EAPD on medion laptop */
 	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
 	{0x20, AC_VERB_SET_PROC_COEF, 0x3050},
+	/* enable unsolicited event */
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 	{ }
 };
 
@@ -6832,8 +6855,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.init_hook = alc883_tagra_automute,
 	},
 	[ALC883_ACER] = {
-		.mixers = { alc883_base_mixer,
-			    alc883_chmode_mixer },
+		.mixers = { alc883_base_mixer },
 		/* On TravelMate laptops, GPIO 0 enables the internal speaker
 		 * and the headphone jack.  Turn this on and rely on the
 		 * standard mute methods whenever the user wants to turn
@@ -6849,12 +6871,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_capture_source,
 	},
 	[ALC883_ACER_ASPIRE] = {
-		.mixers = { alc883_acer_aspire_mixer, alc883_chmode_mixer },
-		/* On TravelMate laptops, GPIO 0 enables the internal speaker
-		 * and the headphone jack.  Turn this on and rely on the
-		 * standard mute methods whenever the user wants to turn
-		 * these outputs off.
-		 */
+		.mixers = { alc883_acer_aspire_mixer },
 		.init_verbs = { alc883_init_verbs, alc883_acer_eapd_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
@@ -6864,6 +6881,8 @@ static struct alc_config_preset alc883_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
 		.channel_mode = alc883_3ST_2ch_modes,
 		.input_mux = &alc883_capture_source,
+		.unsol_event = alc883_acer_aspire_unsol_event,
+		.init_hook = alc883_acer_aspire_automute,
 	},
 	[ALC883_MEDION] = {
 		.mixers = { alc883_fivestack_mixer,
@@ -6893,8 +6912,7 @@ static struct alc_config_preset alc883_presets[] = {
 		.init_hook = alc883_medion_md2_automute,
 	},	
 	[ALC883_LAPTOP_EAPD] = {
-		.mixers = { alc883_base_mixer,
-			    alc883_chmode_mixer },
+		.mixers = { alc883_base_mixer },
 		.init_verbs = { alc883_init_verbs, alc882_eapd_verbs },
 		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
 		.dac_nids = alc883_dac_nids,
