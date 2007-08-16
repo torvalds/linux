@@ -15,7 +15,8 @@
 
 static inline void wait_for_init_deassert(atomic_t *deassert)
 {
-	while (!atomic_read(deassert));
+	while (!atomic_read(deassert))
+		cpu_relax();
 	return;
 }
 
