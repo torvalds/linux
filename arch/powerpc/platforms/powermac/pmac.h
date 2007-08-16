@@ -22,9 +22,6 @@ extern void pmac_read_rtc_time(void);
 extern void pmac_calibrate_decr(void);
 extern void pmac_pci_irq_fixup(struct pci_dev *);
 extern void pmac_pci_init(void);
-extern unsigned long pmac_ide_get_base(int index);
-extern void pmac_ide_init_hwif_ports(hw_regs_t *hw,
-	unsigned long data_port, unsigned long ctrl_port, int *irq);
 
 extern void pmac_nvram_update(void);
 extern unsigned char pmac_nvram_read_byte(int addr);
@@ -33,7 +30,6 @@ extern int pmac_pci_enable_device_hook(struct pci_dev *dev, int initial);
 extern void pmac_pcibios_after_init(void);
 extern int of_show_percpuinfo(struct seq_file *m, int i);
 
-extern void pmac_pci_init(void);
 extern void pmac_setup_pci_dma(void);
 extern void pmac_check_ht_link(void);
 
