@@ -1173,16 +1173,15 @@ tape_34xx_bread(struct tape_device *device, struct request *req)
 	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
 
 	rq_for_each_segment(bv, req, iter) {
-			dst = kmap(bv->bv_page) + bv->bv_offset;
-			for (off = 0; off < bv->bv_len;
-			     off += TAPEBLOCK_HSEC_SIZE) {
-				ccw->flags = CCW_FLAG_CC;
-				ccw->cmd_code = READ_FORWARD;
-				ccw->count = TAPEBLOCK_HSEC_SIZE;
-				set_normalized_cda(ccw, (void*) __pa(dst));
-				ccw++;
-				dst += TAPEBLOCK_HSEC_SIZE;
-			}
+		dst = kmap(bv->bv_page) + bv->bv_offset;
+		for (off = 0; off < bv->bv_len; off += TAPEBLOCK_HSEC_SIZE) {
+			ccw->flags = CCW_FLAG_CC;
+			ccw->cmd_code = READ_FORWARD;
+			ccw->count = TAPEBLOCK_HSEC_SIZE;
+			set_normalized_cda(ccw, (void*) __pa(dst));
+			ccw++;
+			dst += TAPEBLOCK_HSEC_SIZE;
+		}
 	}
 
 	ccw = tape_ccw_end(ccw, NOP, 0, NULL);

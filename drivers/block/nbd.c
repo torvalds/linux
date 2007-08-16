@@ -212,19 +212,17 @@ static int nbd_send_req(struct nbd_device *lo, struct request *req)
 		 * whether to set MSG_MORE or not...
 		 */
 		rq_for_each_segment(bvec, req, iter) {
-				flags = 0;
-				if (!rq_iter_last(req, iter))
-					flags = MSG_MORE;
-				dprintk(DBG_TX, "%s: request %p: sending %d bytes data\n",
-						lo->disk->disk_name, req,
-						bvec->bv_len);
-				result = sock_send_bvec(sock, bvec, flags);
-				if (result <= 0) {
-					printk(KERN_ERR "%s: Send data failed (result %d)\n",
-							lo->disk->disk_name,
-							result);
-					goto error_out;
-				}
+			flags = 0;
+			if (!rq_iter_last(req, iter))
+				flags = MSG_MORE;
+			dprintk(DBG_TX, "%s: request %p: sending %d bytes data\n",
+					lo->disk->disk_name, req, bvec->bv_len);
+			result = sock_send_bvec(sock, bvec, flags);
+			if (result <= 0) {
+				printk(KERN_ERR "%s: Send data failed (result %d)\n",
+						lo->disk->disk_name, result);
+				goto error_out;
+			}
 		}
 	}
 	return 0;
@@ -323,16 +321,15 @@ static struct request *nbd_read_stat(struct nbd_device *lo)
 		struct bio_vec *bvec;
 
 		rq_for_each_segment(bvec, req, iter) {
-				result = sock_recv_bvec(sock, bvec);
-				if (result <= 0) {
-					printk(KERN_ERR "%s: Receive data failed (result %d)\n",
-							lo->disk->disk_name,
-							result);
-					req->errors++;
-					return req;
-				}
-				dprintk(DBG_RX, "%s: request %p: got %d bytes data\n",
-					lo->disk->disk_name, req, bvec->bv_len);
+			result = sock_recv_bvec(sock, bvec);
+			if (result <= 0) {
+				printk(KERN_ERR "%s: Receive data failed (result %d)\n",
+						lo->disk->disk_name, result);
+				req->errors++;
+				return req;
+			}
+			dprintk(DBG_RX, "%s: request %p: got %d bytes data\n",
+				lo->disk->disk_name, req, bvec->bv_len);
 		}
 	}
 	return req;

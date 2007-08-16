@@ -105,16 +105,15 @@ static void ps3disk_scatter_gather(struct ps3_storage_device *dev,
 			bio_sectors(iter.bio),
 			(unsigned long)iter.bio->bi_sector);
 
-			size = bvec->bv_len;
-			buf = bvec_kmap_irq(bvec, &flags);
-			if (gather)
-				memcpy(dev->bounce_buf+offset, buf, size);
-			else
-				memcpy(buf, dev->bounce_buf+offset, size);
-			offset += size;
-			flush_kernel_dcache_page(bvec->bv_page);
-			bvec_kunmap_irq(bvec, &flags);
-
+		size = bvec->bv_len;
+		buf = bvec_kmap_irq(bvec, &flags);
+		if (gather)
+			memcpy(dev->bounce_buf+offset, buf, size);
+		else
+			memcpy(buf, dev->bounce_buf+offset, size);
+		offset += size;
+		flush_kernel_dcache_page(bvec->bv_page);
+		bvec_kunmap_irq(bvec, &flags);
 		i++;
 	}
 }

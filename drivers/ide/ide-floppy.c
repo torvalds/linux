@@ -612,18 +612,18 @@ static void idefloppy_input_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, uns
 	int count, done = 0;
 
 	rq_for_each_segment(bvec, rq, iter) {
-			if (!bcount)
-				break;
+		if (!bcount)
+			break;
 
-			count = min(bvec->bv_len, bcount);
+		count = min(bvec->bv_len, bcount);
 
-			data = bvec_kmap_irq(bvec, &flags);
-			drive->hwif->atapi_input_bytes(drive, data, count);
-			bvec_kunmap_irq(data, &flags);
+		data = bvec_kmap_irq(bvec, &flags);
+		drive->hwif->atapi_input_bytes(drive, data, count);
+		bvec_kunmap_irq(data, &flags);
 
-			bcount -= count;
-			pc->b_count += count;
-			done += count;
+		bcount -= count;
+		pc->b_count += count;
+		done += count;
 	}
 
 	idefloppy_do_end_request(drive, 1, done >> 9);
@@ -644,18 +644,18 @@ static void idefloppy_output_buffers (ide_drive_t *drive, idefloppy_pc_t *pc, un
 	char *data;
 
 	rq_for_each_segment(bvec, rq, iter) {
-			if (!bcount)
-				break;
+		if (!bcount)
+			break;
 
-			count = min(bvec->bv_len, bcount);
+		count = min(bvec->bv_len, bcount);
 
-			data = bvec_kmap_irq(bvec, &flags);
-			drive->hwif->atapi_output_bytes(drive, data, count);
-			bvec_kunmap_irq(data, &flags);
+		data = bvec_kmap_irq(bvec, &flags);
+		drive->hwif->atapi_output_bytes(drive, data, count);
+		bvec_kunmap_irq(data, &flags);
 
-			bcount -= count;
-			pc->b_count += count;
-			done += count;
+		bcount -= count;
+		pc->b_count += count;
+		done += count;
 	}
 
 	idefloppy_do_end_request(drive, 1, done >> 9);

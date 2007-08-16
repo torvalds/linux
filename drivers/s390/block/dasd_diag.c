@@ -493,10 +493,10 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	/* Check struct bio and count the number of blocks for the request. */
 	count = 0;
 	rq_for_each_segment(bv, req, iter) {
-			if (bv->bv_len & (blksize - 1))
-				/* Fba can only do full blocks. */
-				return ERR_PTR(-EINVAL);
-			count += bv->bv_len >> (device->s2b_shift + 9);
+		if (bv->bv_len & (blksize - 1))
+			/* Fba can only do full blocks. */
+			return ERR_PTR(-EINVAL);
+		count += bv->bv_len >> (device->s2b_shift + 9);
 	}
 	/* Paranoia. */
 	if (count != last_rec - first_rec + 1)
@@ -514,16 +514,16 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 	dbio = dreq->bio;
 	recid = first_rec;
 	rq_for_each_segment(bv, req, iter) {
-			dst = page_address(bv->bv_page) + bv->bv_offset;
-			for (off = 0; off < bv->bv_len; off += blksize) {
-				memset(dbio, 0, sizeof (struct dasd_diag_bio));
-				dbio->type = rw_cmd;
-				dbio->block_number = recid + 1;
-				dbio->buffer = dst;
-				dbio++;
-				dst += blksize;
-				recid++;
-			}
+		dst = page_address(bv->bv_page) + bv->bv_offset;
+		for (off = 0; off < bv->bv_len; off += blksize) {
+			memset(dbio, 0, sizeof (struct dasd_diag_bio));
+			dbio->type = rw_cmd;
+			dbio->block_number = recid + 1;
+			dbio->buffer = dst;
+			dbio++;
+			dst += blksize;
+			recid++;
+		}
 	}
 	cqr->retries = DIAG_MAX_RETRIES;
 	cqr->buildclk = get_clock();

@@ -147,18 +147,18 @@ static unsigned int req_to_dma(struct request *req, struct lguest_dma *dma)
 	struct bio_vec *bvec;
 
 	rq_for_each_segment(bvec, req, iter) {
-			/* We told the block layer not to give us too many. */
-			BUG_ON(i == LGUEST_MAX_DMA_SECTIONS);
-			/* If we had a zero-length segment, it would look like
-			 * the end of the data referred to by the "struct
-			 * lguest_dma", so make sure that doesn't happen. */
-			BUG_ON(!bvec->bv_len);
-			/* Convert page & offset to a physical address */
-			dma->addr[i] = page_to_phys(bvec->bv_page)
-				+ bvec->bv_offset;
-			dma->len[i] = bvec->bv_len;
-			len += bvec->bv_len;
-			i++;
+		/* We told the block layer not to give us too many. */
+		BUG_ON(i == LGUEST_MAX_DMA_SECTIONS);
+		/* If we had a zero-length segment, it would look like
+		 * the end of the data referred to by the "struct
+		 * lguest_dma", so make sure that doesn't happen. */
+		BUG_ON(!bvec->bv_len);
+		/* Convert page & offset to a physical address */
+		dma->addr[i] = page_to_phys(bvec->bv_page)
+			+ bvec->bv_offset;
+		dma->len[i] = bvec->bv_len;
+		len += bvec->bv_len;
+		i++;
 	}
 	/* If the array isn't full, we mark the end with a 0 length */
 	if (i < LGUEST_MAX_DMA_SECTIONS)

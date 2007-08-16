@@ -1364,28 +1364,28 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 */
 	bvprv = NULL;
 	rq_for_each_segment(bvec, rq, iter) {
-			int nbytes = bvec->bv_len;
+		int nbytes = bvec->bv_len;
 
-			if (bvprv && cluster) {
-				if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
-					goto new_segment;
+		if (bvprv && cluster) {
+			if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
+				goto new_segment;
 
-				if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
-					goto new_segment;
-				if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
-					goto new_segment;
+			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+				goto new_segment;
+			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+				goto new_segment;
 
-				sg[nsegs - 1].length += nbytes;
-			} else {
+			sg[nsegs - 1].length += nbytes;
+		} else {
 new_segment:
-				memset(&sg[nsegs],0,sizeof(struct scatterlist));
-				sg[nsegs].page = bvec->bv_page;
-				sg[nsegs].length = nbytes;
-				sg[nsegs].offset = bvec->bv_offset;
+			memset(&sg[nsegs],0,sizeof(struct scatterlist));
+			sg[nsegs].page = bvec->bv_page;
+			sg[nsegs].length = nbytes;
+			sg[nsegs].offset = bvec->bv_offset;
 
-				nsegs++;
-			}
-			bvprv = bvec;
+			nsegs++;
+		}
+		bvprv = bvec;
 	} /* segments in rq */
 
 	return nsegs;
