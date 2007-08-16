@@ -715,12 +715,13 @@ setup_trap_table:
 
 	membar	#Sync
 
+	BRANCH_IF_SUN4V(o2, 1f)
+
 	/* Kill PROM timer */
 	sethi	%hi(0x80000000), %o2
 	sllx	%o2, 32, %o2
 	wr	%o2, 0, %tick_cmpr
 
-	BRANCH_IF_SUN4V(o2, 1f)
 	BRANCH_IF_ANY_CHEETAH(o2, o3, 1f)
 
 	ba,pt	%xcc, 2f
