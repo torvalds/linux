@@ -30,7 +30,6 @@ struct xfs_mount;
  */
 
 #define XLOG_MIN_ICLOGS		2
-#define XLOG_MED_ICLOGS		4
 #define XLOG_MAX_ICLOGS		8
 #define XLOG_HEADER_MAGIC_NUM	0xFEEDbabe	/* Invalid cycle number */
 #define XLOG_VERSION_1		1

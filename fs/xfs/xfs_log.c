@@ -1025,10 +1025,7 @@ xlog_bdstrat_cb(struct xfs_buf *bp)
 /*
  * Return size of each in-core log record buffer.
  *
- * Low memory machines only get 2 16KB buffers.  We don't want to waste
- * memory here.  However, all other machines get at least 2 32KB buffers.
- * The number is hard coded because we don't care about the minimum
- * memory size, just 32MB systems.
+ * All machines get 8 x 32KB buffers by default, unless tuned otherwise.
  *
  * If the filesystem blocksize is too large, we may need to choose a
  * larger size since the directory code currently logs entire blocks.
@@ -1041,17 +1038,10 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 	int size;
 	int xhdrs;
 
-	if (mp->m_logbufs <= 0) {
-		if (xfs_physmem <= btoc(128*1024*1024)) {
-			log->l_iclog_bufs = XLOG_MIN_ICLOGS;
-		} else if (xfs_physmem <= btoc(400*1024*1024)) {
-			log->l_iclog_bufs = XLOG_MED_ICLOGS;
-		} else {	/* 256K with 32K bufs */
-			log->l_iclog_bufs = XLOG_MAX_ICLOGS;
-		}
-	} else {
+	if (mp->m_logbufs <= 0)
+		log->l_iclog_bufs = XLOG_MAX_ICLOGS;
+	else
 		log->l_iclog_bufs = mp->m_logbufs;
-	}
 
 	/*
 	 * Buffer size passed in from mount system call.
@@ -1082,18 +1072,9 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 		goto done;
 	}
 
-	/*
-	 * Special case machines that have less than 32MB of memory.
-	 * All machines with more memory use 32KB buffers.
-	 */
-	if (xfs_physmem <= btoc(32*1024*1024)) {
-		/* Don't change; min configuration */
-		log->l_iclog_size = XLOG_RECORD_BSIZE;		/* 16k */
-		log->l_iclog_size_log = XLOG_RECORD_BSHIFT;
-	} else {
-		log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;	/* 32k */
-		log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
-	}
+	/* All machines use 32KB buffers by default. */
+	log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
+	log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
 
 	/* the default log size is 16k or 32k which is one header sector */
 	log->l_iclog_hsize = BBSIZE;
