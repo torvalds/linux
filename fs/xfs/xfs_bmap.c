@@ -5743,6 +5743,39 @@ error0:
 }
 
 /*
+ * returns 1 for success, 0 if we failed to map the extent.
+ */
+STATIC int
+xfs_getbmapx_fix_eof_hole(
+	xfs_inode_t		*ip,		/* xfs incore inode pointer */
+	struct getbmap		*out,		/* output structure */
+	int			prealloced,	/* this is a file with
+						* preallocated data space */
+	__int64_t		end,		/* last block requested */
+	xfs_fsblock_t		startblock)
+{
+	__int64_t		fixlen;
+	xfs_mount_t		*mp;		/* file system mount point */
+
+	if (startblock == HOLESTARTBLOCK) {
+		mp = ip->i_mount;
+		out->bmv_block = -1;
+		fixlen = XFS_FSB_TO_BB(mp, XFS_B_TO_FSB(mp, ip->i_size));
+		fixlen -= out->bmv_offset;
+		if (prealloced && out->bmv_offset + out->bmv_length == end) {
+			/* Came to hole at EOF. Trim it. */
+			if (fixlen <= 0)
+				return 0;
+			out->bmv_length = fixlen;
+		}
+	} else {
+		out->bmv_block = XFS_FSB_TO_DB(ip, startblock);
+	}
+
+	return 1;
+}
+
+/*
  * Fcntl interface to xfs_bmapi.
  */
 int						/* error code */
@@ -5904,18 +5937,15 @@ xfs_getbmap(
 			out.bmv_length = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			ASSERT(map[i].br_startblock != DELAYSTARTBLOCK);
                         if (map[i].br_startblock == HOLESTARTBLOCK &&
-                           ((prealloced && out.bmv_offset + out.bmv_length == bmvend) ||
-                             whichfork == XFS_ATTR_FORK )) {
-                                /*
-                                 * came to hole at end of file or the end of
-                                   attribute fork
-                                 */
+			    whichfork == XFS_ATTR_FORK) {
+				/* came to the end of attribute fork */
 				goto unlock_and_return;
 			} else {
-				out.bmv_block =
-				    (map[i].br_startblock == HOLESTARTBLOCK) ?
-					-1 :
-					XFS_FSB_TO_DB(ip, map[i].br_startblock);
+				if (!xfs_getbmapx_fix_eof_hole(ip, &out,
+							prealloced, bmvend,
+							map[i].br_startblock)) {
+					goto unlock_and_return;
+				}
 
 				/* return either getbmap/getbmapx structure. */
 				if (interface & BMV_IF_EXTENDED) {
