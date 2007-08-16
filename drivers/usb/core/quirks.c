@@ -79,6 +79,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Alcor multi-card reader */
 	{ USB_DEVICE(0x058f, 0x6366), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
+	/* Canon EOS 5D in PC Connection mode */
+	{ USB_DEVICE(0x04a9, 0x3101), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
 	/* RIM Blackberry */
 	{ USB_DEVICE(0x0fca, 0x0001), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	{ USB_DEVICE(0x0fca, 0x0004), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
