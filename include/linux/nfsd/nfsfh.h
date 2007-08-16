@@ -150,17 +150,7 @@ typedef struct svc_fh {
 	struct timespec		fh_pre_ctime;	/* ctime before oper */
 
 	/* Post-op attributes saved in fh_unlock */
-	umode_t			fh_post_mode;	/* i_mode */
-	nlink_t			fh_post_nlink;	/* i_nlink */
-	uid_t			fh_post_uid;	/* i_uid */
-	gid_t			fh_post_gid;	/* i_gid */
-	__u64			fh_post_size;	/* i_size */
-	unsigned long		fh_post_blocks; /* i_blocks */
-	unsigned long		fh_post_blksize;/* i_blksize */
-	__be32			fh_post_rdev[2];/* i_rdev */
-	struct timespec		fh_post_atime;	/* i_atime */
-	struct timespec		fh_post_mtime;	/* i_mtime */
-	struct timespec		fh_post_ctime;	/* i_ctime */
+	struct kstat		fh_post_attr;	/* full attrs after operation */
 #endif /* CONFIG_NFSD_V3 */
 
 } svc_fh;
@@ -297,36 +287,12 @@ fill_pre_wcc(struct svc_fh *fhp)
 	if (!fhp->fh_pre_saved) {
 		fhp->fh_pre_mtime = inode->i_mtime;
 		fhp->fh_pre_ctime = inode->i_ctime;
-			fhp->fh_pre_size  = inode->i_size;
-			fhp->fh_pre_saved = 1;
+		fhp->fh_pre_size  = inode->i_size;
+		fhp->fh_pre_saved = 1;
 	}
 }
 
-/*
- * Fill in the post_op attr for the wcc data
- */
-static inline void
-fill_post_wcc(struct svc_fh *fhp)
-{
-	struct inode    *inode = fhp->fh_dentry->d_inode;
-
-	if (fhp->fh_post_saved)
-		printk("nfsd: inode locked twice during operation.\n");
-
-	fhp->fh_post_mode       = inode->i_mode;
-	fhp->fh_post_nlink      = inode->i_nlink;
-	fhp->fh_post_uid	= inode->i_uid;
-	fhp->fh_post_gid	= inode->i_gid;
-	fhp->fh_post_size       = inode->i_size;
-	fhp->fh_post_blksize    = BLOCK_SIZE;
-	fhp->fh_post_blocks     = inode->i_blocks;
-	fhp->fh_post_rdev[0]    = htonl((u32)imajor(inode));
-	fhp->fh_post_rdev[1]    = htonl((u32)iminor(inode));
-	fhp->fh_post_atime      = inode->i_atime;
-	fhp->fh_post_mtime      = inode->i_mtime;
-	fhp->fh_post_ctime      = inode->i_ctime;
-	fhp->fh_post_saved      = 1;
-}
+extern void fill_post_wcc(struct svc_fh *);
 #else
 #define	fill_pre_wcc(ignored)
 #define fill_post_wcc(notused)
