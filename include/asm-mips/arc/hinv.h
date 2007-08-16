@@ -4,6 +4,7 @@
 #ifndef _ASM_ARC_HINV_H
 #define _ASM_ARC_HINV_H
 
+#include <asm/sgidefs.h>
 #include <asm/arc/types.h>
 
 /* configuration query defines */
@@ -110,7 +111,7 @@ union key_u {
 	ULONG FullKey;
 };
 
-#if _MIPS_SIM == _ABI64
+#if _MIPS_SIM == _MIPS_SIM_ABI64
 #define SGI_ARCS_VERS	64			/* sgi 64-bit version */
 #define SGI_ARCS_REV	0			/* rev .00 */
 #else
