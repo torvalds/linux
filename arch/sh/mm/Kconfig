@@ -50,7 +50,7 @@ choice
 config CPU_SUBTYPE_SH7619
 	bool "Support SH7619 processor"
 	select CPU_SH2
-	select CPU_HAS_IPR_IRQ
+	select CPU_HAS_INTC_IRQ
 
 # SH-2A Processor Support
 
