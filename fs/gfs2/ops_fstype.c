@@ -35,6 +35,7 @@
 #include "super.h"
 #include "sys.h"
 #include "util.h"
+#include "log.h"
 
 #define DO 0
 #define UNDO 1
@@ -887,6 +888,7 @@ error:
 static void gfs2_kill_sb(struct super_block *sb)
 {
 	gfs2_delete_debugfs_file(sb->s_fs_info);
+	gfs2_meta_syncfs(sb->s_fs_info);
 	kill_block_super(sb);
 }
 

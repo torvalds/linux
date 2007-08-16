@@ -229,8 +229,10 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		list_del(&bd->bd_ail_st_list);
 		list_del(&bd->bd_ail_gl_list);
 		atomic_dec(&bd->bd_gl->gl_ail_count);
-		bh_ip = GFS2_I(bd->bd_bh->b_page->mapping->host);
-		gfs2_meta_cache_flush(bh_ip);
+		if (bd->bd_bh->b_page->mapping) {
+			bh_ip = GFS2_I(bd->bd_bh->b_page->mapping->host);
+			gfs2_meta_cache_flush(bh_ip);
+		}
 		brelse(bd->bd_bh);
 	}
 }
