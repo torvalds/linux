@@ -340,7 +340,6 @@ static struct scsi_host_template nv_adma_sht = {
 };
 
 static const struct ata_port_operations nv_generic_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,
@@ -365,7 +364,6 @@ static const struct ata_port_operations nv_generic_ops = {
 };
 
 static const struct ata_port_operations nv_nf2_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,
@@ -390,7 +388,6 @@ static const struct ata_port_operations nv_nf2_ops = {
 };
 
 static const struct ata_port_operations nv_ck804_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,
@@ -416,7 +413,6 @@ static const struct ata_port_operations nv_ck804_ops = {
 };
 
 static const struct ata_port_operations nv_adma_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= nv_adma_tf_read,
 	.check_atapi_dma	= nv_adma_check_atapi_dma,

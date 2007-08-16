@@ -169,7 +169,6 @@ static struct scsi_host_template mpiix_sht = {
 };
 
 static struct ata_port_operations mpiix_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= mpiix_set_piomode,
 
 	.tf_load	= ata_tf_load,

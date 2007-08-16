@@ -162,7 +162,6 @@ static struct scsi_host_template adma_ata_sht = {
 };
 
 static const struct ata_port_operations adma_ata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,

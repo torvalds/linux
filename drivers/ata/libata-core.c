@@ -2208,7 +2208,6 @@ int ata_bus_probe(struct ata_port *ap)
 
 	/* no device present, disable port */
 	ata_port_disable(ap);
-	ap->ops->port_disable(ap);
 	return -ENODEV;
 
  fail:
@@ -3227,7 +3226,7 @@ void ata_bus_reset(struct ata_port *ap)
 
 err_out:
 	ata_port_printk(ap, KERN_ERR, "disabling port\n");
-	ap->ops->port_disable(ap);
+	ata_port_disable(ap);
 
 	DPRINTK("EXIT\n");
 }
@@ -6986,7 +6985,6 @@ static unsigned int ata_dummy_qc_issue(struct ata_queued_cmd *qc)
 }
 
 const struct ata_port_operations ata_dummy_port_ops = {
-	.port_disable		= ata_port_disable,
 	.check_status		= ata_dummy_check_status,
 	.check_altstatus	= ata_dummy_check_status,
 	.dev_select		= ata_noop_dev_select,

@@ -384,8 +384,6 @@ static struct scsi_host_template sil24_sht = {
 };
 
 static const struct ata_port_operations sil24_ops = {
-	.port_disable		= ata_port_disable,
-
 	.dev_config		= sil24_dev_config,
 
 	.check_status		= sil24_check_status,

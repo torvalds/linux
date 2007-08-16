@@ -122,8 +122,6 @@ static struct scsi_host_template svia_sht = {
 };
 
 static const struct ata_port_operations vt6420_sata_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -151,8 +149,6 @@ static const struct ata_port_operations vt6420_sata_ops = {
 };
 
 static const struct ata_port_operations vt6421_pata_ops = {
-	.port_disable		= ata_port_disable,
-
 	.set_piomode		= vt6421_set_pio_mode,
 	.set_dmamode		= vt6421_set_dma_mode,
 
@@ -184,8 +180,6 @@ static const struct ata_port_operations vt6421_pata_ops = {
 };
 
 static const struct ata_port_operations vt6421_sata_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

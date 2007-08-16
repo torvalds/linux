@@ -158,7 +158,6 @@ static struct scsi_host_template cs5520_sht = {
 };
 
 static struct ata_port_operations cs5520_port_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= cs5520_set_piomode,
 	.set_dmamode		= cs5520_set_dmamode,
 

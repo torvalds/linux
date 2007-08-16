@@ -358,8 +358,6 @@ static void pata_icside_error_handler(struct ata_port *ap)
 }
 
 static struct ata_port_operations pata_icside_port_ops = {
-	.port_disable		= ata_port_disable,
-
 	.set_dmamode		= pata_icside_set_dmamode,
 
 	.tf_load		= ata_tf_load,

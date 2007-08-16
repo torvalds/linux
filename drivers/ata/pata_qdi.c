@@ -170,7 +170,6 @@ static struct scsi_host_template qdi_sht = {
 };
 
 static struct ata_port_operations qdi6500_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= qdi6500_set_piomode,
 
 	.tf_load	= ata_tf_load,
@@ -197,7 +196,6 @@ static struct ata_port_operations qdi6500_port_ops = {
 };
 
 static struct ata_port_operations qdi6580_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= qdi6580_set_piomode,
 
 	.tf_load	= ata_tf_load,

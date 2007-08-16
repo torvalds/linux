@@ -238,7 +238,6 @@ static struct scsi_host_template oldpiix_sht = {
 };
 
 static const struct ata_port_operations oldpiix_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= oldpiix_set_piomode,
 	.set_dmamode		= oldpiix_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,

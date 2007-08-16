@@ -988,7 +988,6 @@ static struct scsi_host_template scc_sht = {
 };
 
 static const struct ata_port_operations scc_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= scc_set_piomode,
 	.set_dmamode		= scc_set_dmamode,
 	.mode_filter		= scc_mode_filter,

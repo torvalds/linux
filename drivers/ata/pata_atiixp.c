@@ -233,7 +233,6 @@ static struct scsi_host_template atiixp_sht = {
 };
 
 static struct ata_port_operations atiixp_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= atiixp_set_piomode,
 	.set_dmamode	= atiixp_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

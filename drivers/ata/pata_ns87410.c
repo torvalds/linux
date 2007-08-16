@@ -162,7 +162,6 @@ static struct scsi_host_template ns87410_sht = {
 };
 
 static struct ata_port_operations ns87410_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= ns87410_set_piomode,
 
 	.tf_load	= ata_tf_load,

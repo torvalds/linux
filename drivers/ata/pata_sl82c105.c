@@ -225,7 +225,6 @@ static struct scsi_host_template sl82c105_sht = {
 };
 
 static struct ata_port_operations sl82c105_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= sl82c105_set_piomode,
 	.mode_filter	= ata_pci_default_filter,
 

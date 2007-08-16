@@ -167,7 +167,6 @@ static struct scsi_host_template pdc_ata_sht = {
 };
 
 static const struct ata_port_operations pdc_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -193,7 +192,6 @@ static const struct ata_port_operations pdc_sata_ops = {
 
 /* First-generation chips need a more restrictive ->check_atapi_dma op */
 static const struct ata_port_operations pdc_old_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -218,7 +216,6 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 };
 
 static const struct ata_port_operations pdc_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

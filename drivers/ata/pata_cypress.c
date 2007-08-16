@@ -128,7 +128,6 @@ static struct scsi_host_template cy82c693_sht = {
 };
 
 static struct ata_port_operations cy82c693_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cy82c693_set_piomode,
 	.set_dmamode	= cy82c693_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

@@ -111,8 +111,6 @@ static struct scsi_host_template marvell_sht = {
 };
 
 static const struct ata_port_operations marvell_ops = {
-	.port_disable		= ata_port_disable,
-
 	/* Task file is PCI ATA format, use helpers */
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,

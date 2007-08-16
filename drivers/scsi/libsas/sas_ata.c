@@ -350,7 +350,6 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 }
 
 static struct ata_port_operations sas_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.check_status		= sas_ata_check_status,
 	.check_altstatus	= sas_ata_check_status,
 	.dev_select		= ata_noop_dev_select,

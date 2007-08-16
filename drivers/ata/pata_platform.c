@@ -69,7 +69,6 @@ static struct scsi_host_template pata_platform_sht = {
 static struct ata_port_operations pata_platform_port_ops = {
 	.set_mode		= pata_platform_set_mode,
 
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

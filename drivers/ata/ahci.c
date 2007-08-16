@@ -264,8 +264,6 @@ static struct scsi_host_template ahci_sht = {
 };
 
 static const struct ata_port_operations ahci_ops = {
-	.port_disable		= ata_port_disable,
-
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
 	.dev_select		= ata_noop_dev_select,
@@ -296,8 +294,6 @@ static const struct ata_port_operations ahci_ops = {
 };
 
 static const struct ata_port_operations ahci_vt8251_ops = {
-	.port_disable		= ata_port_disable,
-
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
 	.dev_select		= ata_noop_dev_select,

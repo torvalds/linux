@@ -317,7 +317,6 @@ static struct scsi_host_template vsc_sata_sht = {
 
 
 static const struct ata_port_operations vsc_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= vsc_sata_tf_load,
 	.tf_read		= vsc_sata_tf_read,
 	.exec_command		= ata_exec_command,

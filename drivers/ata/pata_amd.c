@@ -332,7 +332,6 @@ static struct scsi_host_template amd_sht = {
 };
 
 static struct ata_port_operations amd33_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= amd33_set_piomode,
 	.set_dmamode	= amd33_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -366,7 +365,6 @@ static struct ata_port_operations amd33_port_ops = {
 };
 
 static struct ata_port_operations amd66_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= amd66_set_piomode,
 	.set_dmamode	= amd66_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -400,7 +398,6 @@ static struct ata_port_operations amd66_port_ops = {
 };
 
 static struct ata_port_operations amd100_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= amd100_set_piomode,
 	.set_dmamode	= amd100_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -434,7 +431,6 @@ static struct ata_port_operations amd100_port_ops = {
 };
 
 static struct ata_port_operations amd133_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= amd133_set_piomode,
 	.set_dmamode	= amd133_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -468,7 +464,6 @@ static struct ata_port_operations amd133_port_ops = {
 };
 
 static struct ata_port_operations nv100_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= nv100_set_piomode,
 	.set_dmamode	= nv100_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -502,7 +497,6 @@ static struct ata_port_operations nv100_port_ops = {
 };
 
 static struct ata_port_operations nv133_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= nv133_set_piomode,
 	.set_dmamode	= nv133_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

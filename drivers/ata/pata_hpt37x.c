@@ -644,7 +644,6 @@ static struct scsi_host_template hpt37x_sht = {
  */
 
 static struct ata_port_operations hpt370_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370_filter,
@@ -682,7 +681,6 @@ static struct ata_port_operations hpt370_port_ops = {
  */
 
 static struct ata_port_operations hpt370a_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt370_set_piomode,
 	.set_dmamode	= hpt370_set_dmamode,
 	.mode_filter	= hpt370a_filter,
@@ -721,7 +719,6 @@ static struct ata_port_operations hpt370a_port_ops = {
  */
 
 static struct ata_port_operations hpt372_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -760,7 +757,6 @@ static struct ata_port_operations hpt372_port_ops = {
  */
 
 static struct ata_port_operations hpt374_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt372_set_piomode,
 	.set_dmamode	= hpt372_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

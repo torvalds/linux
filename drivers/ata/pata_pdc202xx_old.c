@@ -247,7 +247,6 @@ static struct scsi_host_template pdc202xx_sht = {
 };
 
 static struct ata_port_operations pdc2024x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= pdc202xx_set_piomode,
 	.set_dmamode	= pdc202xx_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -280,7 +279,6 @@ static struct ata_port_operations pdc2024x_port_ops = {
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= pdc202xx_set_piomode,
 	.set_dmamode	= pdc202xx_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

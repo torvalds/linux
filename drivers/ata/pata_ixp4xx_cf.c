@@ -107,7 +107,6 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.set_mode		= ixp4xx_set_mode,
 	.mode_filter		= ata_pci_default_filter,
 
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,

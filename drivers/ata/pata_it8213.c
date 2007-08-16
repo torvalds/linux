@@ -261,7 +261,6 @@ static struct scsi_host_template it8213_sht = {
 };
 
 static const struct ata_port_operations it8213_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= it8213_set_piomode,
 	.set_dmamode		= it8213_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,

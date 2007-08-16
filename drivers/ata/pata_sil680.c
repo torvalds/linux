@@ -238,7 +238,6 @@ static struct scsi_host_template sil680_sht = {
 };
 
 static struct ata_port_operations sil680_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= sil680_set_piomode,
 	.set_dmamode	= sil680_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

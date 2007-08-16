@@ -104,7 +104,6 @@ static struct scsi_host_template sis_sht = {
 };
 
 static const struct ata_port_operations sis_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

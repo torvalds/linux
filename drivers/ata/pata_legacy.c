@@ -150,7 +150,6 @@ static struct scsi_host_template legacy_sht = {
  */
 
 static struct ata_port_operations simple_port_ops = {
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -178,7 +177,6 @@ static struct ata_port_operations simple_port_ops = {
 static struct ata_port_operations legacy_port_ops = {
 	.set_mode	= legacy_set_mode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -293,7 +291,6 @@ static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsig
 static struct ata_port_operations pdc20230_port_ops = {
 	.set_piomode	= pdc20230_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -348,7 +345,6 @@ static void ht6560a_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static struct ata_port_operations ht6560a_port_ops = {
 	.set_piomode	= ht6560a_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -414,7 +410,6 @@ static void ht6560b_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static struct ata_port_operations ht6560b_port_ops = {
 	.set_piomode	= ht6560b_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -535,7 +530,6 @@ static void opti82c611a_set_piomode(struct ata_port *ap, struct ata_device *adev
 static struct ata_port_operations opti82c611a_port_ops = {
 	.set_piomode	= opti82c611a_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -668,7 +662,6 @@ static unsigned int opti82c46x_qc_issue_prot(struct ata_queued_cmd *qc)
 static struct ata_port_operations opti82c46x_port_ops = {
 	.set_piomode	= opti82c46x_set_piomode,
 
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,

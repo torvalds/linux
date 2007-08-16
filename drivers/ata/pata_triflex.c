@@ -198,7 +198,6 @@ static struct scsi_host_template triflex_sht = {
 };
 
 static struct ata_port_operations triflex_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= triflex_set_piomode,
 	.mode_filter	= ata_pci_default_filter,
 

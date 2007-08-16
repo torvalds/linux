@@ -368,7 +368,6 @@ static struct scsi_host_template optidma_sht = {
 };
 
 static struct ata_port_operations optidma_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= optidma_set_pio_mode,
 	.set_dmamode	= optidma_set_dma_mode,
 
@@ -403,7 +402,6 @@ static struct ata_port_operations optidma_port_ops = {
 };
 
 static struct ata_port_operations optiplus_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= optiplus_set_pio_mode,
 	.set_dmamode	= optiplus_set_dma_mode,
 

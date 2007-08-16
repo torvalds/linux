@@ -120,7 +120,6 @@ static struct scsi_host_template hpt3x3_sht = {
 };
 
 static struct ata_port_operations hpt3x3_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt3x3_set_piomode,
 #if defined(CONFIG_PATA_HPT3X3_DMA)
 	.set_dmamode	= hpt3x3_set_dmamode,

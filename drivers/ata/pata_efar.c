@@ -251,7 +251,6 @@ static struct scsi_host_template efar_sht = {
 };
 
 static const struct ata_port_operations efar_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= efar_set_piomode,
 	.set_dmamode		= efar_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,

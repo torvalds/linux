@@ -620,7 +620,6 @@ static struct scsi_host_template it821x_sht = {
 
 static struct ata_port_operations it821x_smart_port_ops = {
 	.set_mode	= it821x_smart_set_mode,
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.mode_filter	= ata_pci_default_filter,
@@ -655,7 +654,6 @@ static struct ata_port_operations it821x_smart_port_ops = {
 };
 
 static struct ata_port_operations it821x_passthru_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= it821x_passthru_set_piomode,
 	.set_dmamode	= it821x_passthru_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

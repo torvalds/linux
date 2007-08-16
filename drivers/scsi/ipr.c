@@ -4981,7 +4981,7 @@ static void ipr_ata_phy_reset(struct ata_port *ap)
 	rc = ipr_device_reset(ioa_cfg, res);
 
 	if (rc) {
-		ap->ops->port_disable(ap);
+		ata_port_disable(ap);
 		goto out_unlock;
 	}
 
@@ -4996,7 +4996,7 @@ static void ipr_ata_phy_reset(struct ata_port *ap)
 		break;
 	default:
 		ap->link.device[0].class = ATA_DEV_UNKNOWN;
-		ap->ops->port_disable(ap);
+		ata_port_disable(ap);
 		break;
 	};
 
@@ -5262,7 +5262,6 @@ static u8 ipr_ata_check_altstatus(struct ata_port *ap)
 }
 
 static struct ata_port_operations ipr_sata_ops = {
-	.port_disable = ata_port_disable,
 	.check_status = ipr_ata_check_status,
 	.check_altstatus = ipr_ata_check_altstatus,
 	.dev_select = ata_noop_dev_select,

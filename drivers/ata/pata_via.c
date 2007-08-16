@@ -348,7 +348,6 @@ static struct scsi_host_template via_sht = {
 };
 
 static struct ata_port_operations via_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= via_set_piomode,
 	.set_dmamode	= via_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -383,7 +382,6 @@ static struct ata_port_operations via_port_ops = {
 };
 
 static struct ata_port_operations via_port_ops_noirq = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= via_set_piomode,
 	.set_dmamode	= via_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

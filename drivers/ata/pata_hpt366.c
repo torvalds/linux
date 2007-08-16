@@ -312,7 +312,6 @@ static struct scsi_host_template hpt36x_sht = {
  */
 
 static struct ata_port_operations hpt366_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt366_set_piomode,
 	.set_dmamode	= hpt366_set_dmamode,
 	.mode_filter	= hpt366_filter,

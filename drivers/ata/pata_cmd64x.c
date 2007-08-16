@@ -284,7 +284,6 @@ static struct scsi_host_template cmd64x_sht = {
 };
 
 static struct ata_port_operations cmd64x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -318,7 +317,6 @@ static struct ata_port_operations cmd64x_port_ops = {
 };
 
 static struct ata_port_operations cmd646r1_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -352,7 +350,6 @@ static struct ata_port_operations cmd646r1_port_ops = {
 };
 
 static struct ata_port_operations cmd648_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd64x_set_piomode,
 	.set_dmamode	= cmd64x_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,

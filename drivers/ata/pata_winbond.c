@@ -138,7 +138,6 @@ static struct scsi_host_template winbond_sht = {
 };
 
 static struct ata_port_operations winbond_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= winbond_set_piomode,
 
 	.tf_load	= ata_tf_load,

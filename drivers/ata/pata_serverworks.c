@@ -318,7 +318,6 @@ static struct scsi_host_template serverworks_sht = {
 };
 
 static struct ata_port_operations serverworks_osb4_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_osb4_filter,
@@ -353,7 +352,6 @@ static struct ata_port_operations serverworks_osb4_port_ops = {
 };
 
 static struct ata_port_operations serverworks_csb_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= serverworks_set_piomode,
 	.set_dmamode	= serverworks_set_dmamode,
 	.mode_filter	= serverworks_csb_filter,

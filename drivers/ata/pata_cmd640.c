@@ -184,7 +184,6 @@ static struct scsi_host_template cmd640_sht = {
 };
 
 static struct ata_port_operations cmd640_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= cmd640_set_piomode,
 	.mode_filter	= ata_pci_default_filter,
 	.tf_load	= ata_tf_load,

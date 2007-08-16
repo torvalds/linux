@@ -254,7 +254,6 @@ static struct scsi_host_template pdc_sata_sht = {
 };
 
 static const struct ata_port_operations pdc_20621_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,

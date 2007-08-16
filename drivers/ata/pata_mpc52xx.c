@@ -283,7 +283,6 @@ static struct scsi_host_template mpc52xx_ata_sht = {
 };
 
 static struct ata_port_operations mpc52xx_ata_port_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= mpc52xx_ata_set_piomode,
 	.dev_select		= mpc52xx_ata_dev_select,
 	.tf_load		= ata_tf_load,

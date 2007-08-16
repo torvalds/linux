@@ -290,7 +290,6 @@ static struct scsi_host_template piix_sht = {
 };
 
 static const struct ata_port_operations piix_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= piix_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -323,7 +322,6 @@ static const struct ata_port_operations piix_pata_ops = {
 };
 
 static const struct ata_port_operations ich_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= piix_set_piomode,
 	.set_dmamode		= ich_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -356,8 +354,6 @@ static const struct ata_port_operations ich_pata_ops = {
 };
 
 static const struct ata_port_operations piix_sata_ops = {
-	.port_disable		= ata_port_disable,
-
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
