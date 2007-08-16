@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 
+#include <asm/cacheflush.h>
 #include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -70,6 +71,11 @@ static inline void software_reset(void)
 		pmu_write(PMUCNT2REG, pmucnt2);
 		break;
 	default:
+		set_c0_status(ST0_BEV | ST0_ERL);
+		change_c0_config(CONF_CM_CMASK, CONF_CM_UNCACHED);
+		flush_cache_all();
+		write_c0_wired(0);
+		__asm__("jr     %0"::"r"(0xbfc00000));
 		break;
 	}
 }
@@ -78,7 +84,6 @@ static void vr41xx_restart(char *command)
 {
 	local_irq_disable();
 	software_reset();
-	printk(KERN_NOTICE "\nYou can reset your system\n");
 	while (1) ;
 }
 
