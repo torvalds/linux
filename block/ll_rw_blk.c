@@ -1441,7 +1441,8 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 	return 1;
 }
 
-int ll_back_merge_fn(struct request_queue *q, struct request *req, struct bio *bio)
+static int ll_back_merge_fn(struct request_queue *q, struct request *req,
+			    struct bio *bio)
 {
 	unsigned short max_sectors;
 	int len;
@@ -1477,7 +1478,6 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req, struct bio *b
 
 	return ll_new_hw_segment(q, req, bio);
 }
-EXPORT_SYMBOL(ll_back_merge_fn);
 
 static int ll_front_merge_fn(struct request_queue *q, struct request *req, 
 			     struct bio *bio)
@@ -2367,6 +2367,23 @@ static int __blk_rq_unmap_user(struct bio *bio)
 	return ret;
 }
 
+int blk_rq_append_bio(struct request_queue *q, struct request *rq,
+		      struct bio *bio)
+{
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!ll_back_merge_fn(q, rq, bio))
+		return -EINVAL;
+	else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+
+		rq->data_len += bio->bi_size;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(blk_rq_append_bio);
+
 static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     void __user *ubuf, unsigned int len)
 {
@@ -2398,21 +2415,10 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 */
 	bio_get(bio);
 
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio)) {
-		ret = -EINVAL;
-		goto unmap_bio;
-	} else {
-		rq->biotail->bi_next = bio;
-		rq->biotail = bio;
+	ret = blk_rq_append_bio(q, rq, bio);
+	if (!ret)
+		return bio->bi_size;
 
-		rq->data_len += bio->bi_size;
-	}
-
-	return bio->bi_size;
-
-unmap_bio:
 	/* if it was boucned we must call the end io function */
 	bio_endio(bio, bio->bi_size, 0);
 	__blk_rq_unmap_user(orig_bio);

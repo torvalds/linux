@@ -263,16 +263,7 @@ static int scsi_merge_bio(struct request *rq, struct bio *bio)
 		bio->bi_rw |= (1 << BIO_RW);
 	blk_queue_bounce(q, &bio);
 
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio))
-		return -EINVAL;
-	else {
-		rq->biotail->bi_next = bio;
-		rq->biotail = bio;
-	}
-
-	return 0;
+	return blk_rq_append_bio(q, rq, bio);
 }
 
 static int scsi_bi_endio(struct bio *bio, unsigned int bytes_done, int error)
