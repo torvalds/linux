@@ -162,7 +162,7 @@ static ssize_t set_##value(struct device *dev,				\
 {									\
 	struct i2c_client *client = to_i2c_client(dev);			\
 	struct adm1021_data *data = i2c_get_clientdata(client);		\
-	int temp = simple_strtoul(buf, NULL, 10);			\
+	long temp = simple_strtol(buf, NULL, 10);			\
 									\
 	mutex_lock(&data->update_lock);					\
 	data->value = TEMP_TO_REG(temp);				\

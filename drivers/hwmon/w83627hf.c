@@ -263,7 +263,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 
 /* TEMP: 0.001C/bit (-128C to +127C)
    REG: 1C/bit, two's complement */
-static u8 TEMP_TO_REG(int temp)
+static u8 TEMP_TO_REG(long temp)
 {
         int ntemp = SENSORS_LIMIT(temp, TEMP_MIN, TEMP_MAX);
         ntemp += (ntemp<0 ? -500 : 500);
@@ -642,9 +642,9 @@ static ssize_t \
 store_temp_##reg (struct device *dev, const char *buf, size_t count, int nr) \
 { \
 	struct w83627hf_data *data = dev_get_drvdata(dev); \
-	u32 val; \
+	long val; \
 	 \
-	val = simple_strtoul(buf, NULL, 10); \
+	val = simple_strtol(buf, NULL, 10); \
 	 \
 	mutex_lock(&data->update_lock); \
 	 \
