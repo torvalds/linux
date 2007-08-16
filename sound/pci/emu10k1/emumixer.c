@@ -896,7 +896,7 @@ static struct snd_kcontrol_new snd_emu10k1_spdif_mask_control =
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
-	.count =	4,
+	.count =	3,
 	.info =         snd_emu10k1_spdif_info,
 	.get =          snd_emu10k1_spdif_get_mask
 };
@@ -905,7 +905,7 @@ static struct snd_kcontrol_new snd_emu10k1_spdif_control =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
-	.count =	4,
+	.count =	3,
 	.info =         snd_emu10k1_spdif_info,
 	.get =          snd_emu10k1_spdif_get,
 	.put =          snd_emu10k1_spdif_put
