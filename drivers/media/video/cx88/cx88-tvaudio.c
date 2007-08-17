@@ -62,6 +62,10 @@ static unsigned int always_analog = 0;
 module_param(always_analog,int,0644);
 MODULE_PARM_DESC(always_analog,"force analog audio out");
 
+static unsigned int radio_deemphasis = 0;
+module_param(radio_deemphasis,int,0644);
+MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
+		 "0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...)	if (audio_debug) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
@@ -678,6 +682,10 @@ static void set_audio_standard_FM(struct cx88_core *core,
 	};
 
 	/* It is enough to leave default values? */
+	/* No, it's not!  The deemphasis registers are reset to the 75us
+	 * values by default.  Analyzing the spectrum of the decoded audio
+	 * reveals that "no deemphasis" is the same as 75 us, while the 50 us
+	 * setting results in less deemphasis.  */
 	static const struct rlist fm_no_deemph[] = {
 
 		{AUD_POLYPH80SCALEFAC, 0x0003},
@@ -688,6 +696,7 @@ static void set_audio_standard_FM(struct cx88_core *core,
 	set_audio_start(core, SEL_FMRADIO);
 
 	switch (deemph) {
+	default:
 	case FM_NO_DEEMPH:
 		set_audio_registers(core, fm_no_deemph);
 		break;
@@ -757,7 +766,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		set_audio_standard_EIAJ(core);
 		break;
 	case WW_FM:
-		set_audio_standard_FM(core, FM_NO_DEEMPH);
+		set_audio_standard_FM(core, radio_deemphasis);
 		break;
 	case WW_NONE:
 	default:
