@@ -8418,7 +8418,16 @@ static struct hda_verb alc268_toshiba_verbs[] = {
 };
 
 /* Acer specific */
-#define alc268_acer_bind_master_vol	alc262_fujitsu_bind_master_vol
+/* bind volumes of both NID 0x0c and 0x0d */
+static struct hda_bind_ctls alc268_acer_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x02, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x03, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
 #define alc268_acer_master_sw_put	alc262_fujitsu_master_sw_put
 #define alc268_acer_automute	alc262_fujitsu_automute
 
