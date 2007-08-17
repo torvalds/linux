@@ -1215,9 +1215,9 @@ static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
 	}, *p = phy_magic;
 	unsigned int i;
 
-	mdio_write(ioaddr, 31, 0x0001);			//w 31 2 0 1
-	mdio_write(ioaddr, 21, 0x1000);			//w 21 15 0 1000
-	mdio_write(ioaddr, 24, 0x65c7);			//w 24 15 0 65c7
+	mdio_write(ioaddr, 0x1f, 0x0001);		//w 31 2 0 1
+	mdio_write(ioaddr, 0x15, 0x1000);		//w 21 15 0 1000
+	mdio_write(ioaddr, 0x18, 0x65c7);		//w 24 15 0 65c7
 	rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0);	//w 4 11 11 0
 
 	for (i = 0; i < ARRAY_SIZE(phy_magic); i++, p++) {
@@ -1230,14 +1230,18 @@ static void rtl8169s_hw_phy_config(void __iomem *ioaddr)
 		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 1); //w 4 11 11 1
 		rtl8169_write_gmii_reg_bit(ioaddr, 4, 11, 0); //w 4 11 11 0
 	}
-	mdio_write(ioaddr, 31, 0x0000); //w 31 2 0 0
+	mdio_write(ioaddr, 0x1f, 0x0000); //w 31 2 0 0
 }
 
 static void rtl8169sb_hw_phy_config(void __iomem *ioaddr)
 {
-	mdio_write(ioaddr, 31, 0x0002);
-	mdio_write(ioaddr,  1, 0x90d0);
-	mdio_write(ioaddr, 31, 0x0000);
+	struct phy_reg phy_reg_init[] = {
+		{ 0x1f, 0x0002 },
+		{ 0x01, 0x90d0 },
+		{ 0x1f, 0x0000 }
+	};
+
+	rtl_phy_write(ioaddr, phy_reg_init, ARRAY_SIZE(phy_reg_init));
 }
 
 static void rtl8168cp_hw_phy_config(void __iomem *ioaddr)
