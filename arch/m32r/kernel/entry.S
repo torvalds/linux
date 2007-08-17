@@ -290,16 +290,12 @@ syscall_badsys:
  */
 ENTRY(ei_handler)
 #if defined(CONFIG_CHIP_M32700)
-	SWITCH_TO_KERNEL_STACK
 	; WORKAROUND: force to clear SM bit and use the kernel stack (SPI).
+	SWITCH_TO_KERNEL_STACK
 #endif
 	SAVE_ALL
 	mv	r1, sp			; arg1(regs)
-#if defined(CONFIG_CHIP_VDEC2) || defined(CONFIG_CHIP_XNUX2) \
-	|| defined(CONFIG_CHIP_M32700) || defined(CONFIG_CHIP_M32102) \
-	|| defined(CONFIG_CHIP_OPSP) || defined(CONFIG_CHIP_M32104)
-
-;    GET_ICU_STATUS;
+	;    GET_ICU_STATUS;
 	seth	r0, #shigh(M32R_ICU_ISTS_ADDR)
 	ld	r0, @(low(M32R_ICU_ISTS_ADDR),r0)
 	push	r0
@@ -314,10 +310,15 @@ ENTRY(ei_handler)
 	;; IRQ exist check
 #if defined(CONFIG_CHIP_M32700)
 	/* WORKAROUND: IMASK bug M32700-TS1, TS2 chip. */
-	beqz	r0, 3f			; if (!irq_num) goto exit
-#else
+	bnez	r0, 0f
+	ld24	r14, #0x00070000
+	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
+	st	r14, @(low(M32R_ICU_IMASK_ADDR),r0)
+	bra	1f
+	.fillinsn
+0:
+#endif /* CONFIG_CHIP_M32700 */
 	beqz	r0, 1f			; if (!irq_num) goto exit
-#endif	/* WORKAROUND */
 	;; IPI check
 	cmpi	r0, #(M32R_IRQ_IPI0<<2)	; ISN < IPI0 check
 	bc	2f
@@ -333,218 +334,54 @@ ENTRY(ei_handler)
 1:
 	addi	sp, #4
 	bra	ret_to_intr
-#if defined(CONFIG_CHIP_M32700)
-	/* WORKAROUND: IMASK bug M32700-TS1, TS2 chip. */
-	.fillinsn
-3:
-	ld24	r14, #0x00070000
-	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
-	st	r14, @(low(M32R_ICU_IMASK_ADDR), r0)
-	addi	sp, #4
-	bra	ret_to_intr
-#endif	/* WORKAROUND */
-	;; do_IRQ
 	.fillinsn
 2:
 	srli	r0, #2
-#if defined(CONFIG_PLAT_USRV)
-	add3	r2, r0, #-(M32R_IRQ_INT1)	; INT1# interrupt
-	bnez	r2, 9f
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27				; ISN
-	addi	r0, #(M32700UT_PLD_IRQ_BASE)
-	.fillinsn
-9:
-#elif defined(CONFIG_PLAT_M32700UT)
-	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
-	bnez	r2, check_int0
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	addi	r0, #(M32700UT_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int0:
-	add3	r2, r0, #-(M32R_IRQ_INT0)       ; INT0# interrupt
-	bnez	r2, check_int2
-	; read ICU status of LAN-board
-	seth	r0, #high(M32700UT_LAN_ICUISTS)
-	or3	r0, r0, #low(M32700UT_LAN_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(M32700UT_LAN_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int2:
-	add3	r2, r0, #-(M32R_IRQ_INT2)       ; INT2# interrupt
-	bnez	r2, check_end
-	; read ICU status of LCD-board
-	seth	r0, #high(M32700UT_LCD_ICUISTS)
-	or3	r0, r0, #low(M32700UT_LCD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(M32700UT_LCD_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_end:
-#elif defined(CONFIG_PLAT_OPSPUT)
-	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
-	bnez	r2, check_int0
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	addi	r0, #(OPSPUT_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int0:
-	add3	r2, r0, #-(M32R_IRQ_INT0)       ; INT0# interrupt
-	bnez	r2, check_int2
-	; read ICU status of LAN-board
-	seth	r0, #high(OPSPUT_LAN_ICUISTS)
-	or3	r0, r0, #low(OPSPUT_LAN_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(OPSPUT_LAN_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int2:
-	add3	r2, r0, #-(M32R_IRQ_INT2)       ; INT2# interrupt
-	bnez	r2, check_end
-	; read ICU status of LCD-board
-	seth	r0, #high(OPSPUT_LCD_ICUISTS)
-	or3	r0, r0, #low(OPSPUT_LCD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(OPSPUT_LCD_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_end:
-#endif  /* CONFIG_PLAT_OPSPUT */
-	bl	do_IRQ			; r0(irq), r1(regs)
-#else  /* not CONFIG_SMP */
+#else /* not CONFIG_SMP */
 	srli	r0, #22			; r0(irq)
-#if defined(CONFIG_PLAT_USRV)
+#endif /* not CONFIG_SMP */
+
+#if defined(CONFIG_PLAT_HAS_INT1ICU)
 	add3	r2, r0, #-(M32R_IRQ_INT1)	; INT1# interrupt
-	bnez	r2, 1f
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
+	bnez	r2, 3f
+	seth	r0, #shigh(M32R_INT1ICU_ISTS)
+	lduh	r0, @(low(M32R_INT1ICU_ISTS),r0)	; bit10-6 : ISN
 	slli	r0, #21
 	srli	r0, #27				; ISN
-	addi	r0, #(M32700UT_PLD_IRQ_BASE)
-	.fillinsn
-1:
-#elif defined(CONFIG_PLAT_M32700UT)
-	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
-	bnez	r2, check_int0
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	addi	r0, #(M32700UT_PLD_IRQ_BASE)
+	addi	r0, #(M32R_INT1ICU_IRQ_BASE)
 	bra	check_end
 	.fillinsn
-check_int0:
-	add3	r2, r0, #-(M32R_IRQ_INT0)       ; INT0# interrupt
-	bnez	r2, check_int2
-	; read ICU status of LAN-board
-	seth	r0, #high(M32700UT_LAN_ICUISTS)
-	or3	r0, r0, #low(M32700UT_LAN_ICUISTS)
-	lduh	r0, @r0
+3:
+#endif /* CONFIG_PLAT_HAS_INT1ICU */
+#if defined(CONFIG_PLAT_HAS_INT0ICU)
+	add3	r2, r0, #-(M32R_IRQ_INT0)	; INT0# interrupt
+	bnez	r2, 4f
+	seth	r0, #shigh(M32R_INT0ICU_ISTS)
+	lduh	r0, @(low(M32R_INT0ICU_ISTS),r0)	; bit10-6 : ISN
 	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(M32700UT_LAN_PLD_IRQ_BASE)
+	srli	r0, #27				; ISN
+	addi	r0, #(M32R_INT0ICU_IRQ_BASE)
 	bra	check_end
 	.fillinsn
-check_int2:
-	add3	r2, r0, #-(M32R_IRQ_INT2)       ; INT2# interrupt
-	bnez	r2, check_end
-	; read ICU status of LCD-board
-	seth	r0, #high(M32700UT_LCD_ICUISTS)
-	or3	r0, r0, #low(M32700UT_LCD_ICUISTS)
-	lduh	r0, @r0
+4:
+#endif /* CONFIG_PLAT_HAS_INT0ICU */
+#if defined(CONFIG_PLAT_HAS_INT2ICU)
+	add3	r2, r0, #-(M32R_IRQ_INT2)	; INT2# interrupt
+	bnez	r2, 5f
+	seth	r0, #shigh(M32R_INT2ICU_ISTS)
+	lduh	r0, @(low(M32R_INT2ICU_ISTS),r0)	; bit10-6 : ISN
 	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(M32700UT_LCD_PLD_IRQ_BASE)
-	bra	check_end
+	srli	r0, #27				; ISN
+	addi	r0, #(M32R_INT2ICU_IRQ_BASE)
+	; bra	check_end
 	.fillinsn
+5:
+#endif /* CONFIG_PLAT_HAS_INT2ICU */
 check_end:
-#elif defined(CONFIG_PLAT_OPSPUT)
-	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
-	bnez	r2, check_int0
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	addi	r0, #(OPSPUT_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int0:
-	add3	r2, r0, #-(M32R_IRQ_INT0)       ; INT0# interrupt
-	bnez	r2, check_int2
-	; read ICU status of LAN-board
-	seth	r0, #high(OPSPUT_LAN_ICUISTS)
-	or3	r0, r0, #low(OPSPUT_LAN_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(OPSPUT_LAN_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_int2:
-	add3	r2, r0, #-(M32R_IRQ_INT2)       ; INT2# interrupt
-	bnez	r2, check_end
-	; read ICU status of LCD-board
-	seth	r0, #high(OPSPUT_LCD_ICUISTS)
-	or3	r0, r0, #low(OPSPUT_LCD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	add3	r0, r0, #(OPSPUT_LCD_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_end:
-#elif defined(CONFIG_PLAT_M32104UT)
-	add3	r2, r0, #-(M32R_IRQ_INT1)       ; INT1# interrupt
-	bnez	r2, check_end
-	; read ICU status register of PLD
-	seth	r0, #high(PLD_ICUISTS)
-	or3	r0, r0, #low(PLD_ICUISTS)
-	lduh	r0, @r0
-	slli	r0, #21
-	srli	r0, #27                         ; ISN
-	addi	r0, #(M32104UT_PLD_IRQ_BASE)
-	bra	check_end
-	.fillinsn
-check_end:
-#endif  /* CONFIG_PLAT_M32104UT */
 	bl	do_IRQ
-#endif  /* CONFIG_SMP */
 	pop	r14
 	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
 	st	r14, @(low(M32R_ICU_IMASK_ADDR),r0)
-#else
-#error no chip configuration
-#endif
 ret_to_intr:
 	bra  ret_from_intr
 
