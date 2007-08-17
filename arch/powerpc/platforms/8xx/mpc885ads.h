@@ -15,7 +15,6 @@
 #ifndef __ASM_MPC885ADS_H__
 #define __ASM_MPC885ADS_H__
 
-#include <asm/ppcboot.h>
 #include <sysdev/fsl_soc.h>
 
 /* U-Boot maps BCSR to 0xff080000 */

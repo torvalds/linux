@@ -5,7 +5,6 @@
 #include <linux/serial_8250.h>
 #include <asm/io.h>
 #include <asm/mpc10x.h>
-#include <asm/ppc_sys.h>
 #include <asm/prom.h>
 #include <asm/termbits.h>
 

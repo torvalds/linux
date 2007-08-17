@@ -38,7 +38,6 @@
 #include <asm/time.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/bootinfo.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpc85xx.h>
 #include <asm/irq.h>

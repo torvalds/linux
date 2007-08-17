@@ -23,7 +23,6 @@
 #define __MACH_ADS8260_DEFS
 
 #include <linux/seq_file.h>
-#include <asm/ppcboot.h>
 
 /* For our show_cpuinfo hooks. */
 #define CPUINFO_VENDOR		"Freescale Semiconductor"

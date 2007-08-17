@@ -32,7 +32,6 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/ppcboot.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/commproc.h>

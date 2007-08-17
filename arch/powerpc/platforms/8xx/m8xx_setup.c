@@ -36,13 +36,11 @@
 
 #include <asm/mmu.h>
 #include <asm/reg.h>
-#include <asm/residual.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/machdep.h>
-#include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/fs_pd.h>
@@ -55,7 +53,9 @@ struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
 #endif
 
 void m8xx_calibrate_decr(void);
+#ifdef CONFIG_8xx_WDT
 extern void m8xx_wdt_handler_install(bd_t *bp);
+#endif
 extern int cpm_pic_init(void);
 extern int cpm_get_irq(void);
 
