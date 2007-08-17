@@ -730,7 +730,7 @@ static void cafe_ctlr_init(struct cafe_camera *cam)
 	 * Here we must wait a bit for the controller to come around.
 	 */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	mdelay(5);	/* FIXME revisit this */
+	msleep(5);
 	spin_lock_irqsave(&cam->dev_lock, flags);
 
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_CCIC_EN|GCSR_SRC|GCSR_MRC);
