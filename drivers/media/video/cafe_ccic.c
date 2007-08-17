@@ -356,6 +356,7 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 {
 	unsigned int rval;
 	unsigned long flags;
+	DEFINE_WAIT(the_wait);
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
@@ -369,10 +370,29 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	rval = value | ((command << TWSIC1_ADDR_SHIFT) & TWSIC1_ADDR);
 	cafe_reg_write(cam, REG_TWSIC1, rval);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	msleep(2); /* Required or things flake */
 
+	/*
+	 * Time to wait for the write to complete.  THIS IS A RACY
+	 * WAY TO DO IT, but the sad fact is that reading the TWSIC1
+	 * register too quickly after starting the operation sends
+	 * the device into a place that may be kinder and better, but
+	 * which is absolutely useless for controlling the sensor.  In
+	 * practice we have plenty of time to get into our sleep state
+	 * before the interrupt hits, and the worst case is that we
+	 * time out and then see that things completed, so this seems
+	 * the best way for now.
+	 */
+	do {
+		prepare_to_wait(&cam->smbus_wait, &the_wait,
+				TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1); /* even 1 jiffy is too long */
+		finish_wait(&cam->smbus_wait, &the_wait);
+	} while (!cafe_smbus_write_done(cam));
+
+#ifdef IF_THE_CAFE_HARDWARE_WORKED_RIGHT
 	wait_event_timeout(cam->smbus_wait, cafe_smbus_write_done(cam),
 			CAFE_SMBUS_TIMEOUT);
+#endif
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
