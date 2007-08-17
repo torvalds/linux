@@ -652,12 +652,132 @@ static u32 netdev_get_link(struct net_device *dev) {
 	return 1;
 }
 
+static void ibmveth_set_rx_csum_flags(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if (data)
+		adapter->rx_csum = 1;
+	else {
+		/*
+		 * Since the ibmveth firmware interface does not have the concept of
+		 * separate tx/rx checksum offload enable, if rx checksum is disabled
+		 * we also have to disable tx checksum offload. Once we disable rx
+		 * checksum offload, we are no longer allowed to send tx buffers that
+		 * are not properly checksummed.
+		 */
+		adapter->rx_csum = 0;
+		dev->features &= ~NETIF_F_IP_CSUM;
+	}
+}
+
+static void ibmveth_set_tx_csum_flags(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if (data) {
+		dev->features |= NETIF_F_IP_CSUM;
+		adapter->rx_csum = 1;
+	} else
+		dev->features &= ~NETIF_F_IP_CSUM;
+}
+
+static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
+				    void (*done) (struct net_device *, u32))
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	union ibmveth_illan_attributes set_attr, clr_attr, ret_attr;
+	long ret;
+	int rc1 = 0, rc2 = 0;
+	int restart = 0;
+
+	if (netif_running(dev)) {
+		restart = 1;
+		adapter->pool_config = 1;
+		ibmveth_close(dev);
+		adapter->pool_config = 0;
+	}
+
+	set_attr.desc = 0;
+	clr_attr.desc = 0;
+
+	if (data)
+		set_attr.fields.tcp_csum_offload_ipv4 = 1;
+	else
+		clr_attr.fields.tcp_csum_offload_ipv4 = 1;
+
+	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr.desc);
+
+	if (ret == H_SUCCESS && !ret_attr.fields.active_trunk &&
+	    !ret_attr.fields.trunk_priority &&
+	    ret_attr.fields.csum_offload_padded_pkt_support) {
+		ret = h_illan_attributes(adapter->vdev->unit_address, clr_attr.desc,
+					 set_attr.desc, &ret_attr.desc);
+
+		if (ret != H_SUCCESS) {
+			rc1 = -EIO;
+			ibmveth_error_printk("unable to change checksum offload settings."
+					     " %d rc=%ld\n", data, ret);
+
+			ret = h_illan_attributes(adapter->vdev->unit_address,
+						 set_attr.desc, clr_attr.desc, &ret_attr.desc);
+		} else
+			done(dev, data);
+	} else {
+		rc1 = -EIO;
+		ibmveth_error_printk("unable to change checksum offload settings."
+				     " %d rc=%ld ret_attr=%lx\n", data, ret, ret_attr.desc);
+	}
+
+	if (restart)
+		rc2 = ibmveth_open(dev);
+
+	return rc1 ? rc1 : rc2;
+}
+
+static int ibmveth_set_rx_csum(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if ((data && adapter->rx_csum) || (!data && !adapter->rx_csum))
+		return 0;
+
+	return ibmveth_set_csum_offload(dev, data, ibmveth_set_rx_csum_flags);
+}
+
+static int ibmveth_set_tx_csum(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	int rc = 0;
+
+	if (data && (dev->features & NETIF_F_IP_CSUM))
+		return 0;
+	if (!data && !(dev->features & NETIF_F_IP_CSUM))
+		return 0;
+
+	if (data && !adapter->rx_csum)
+		rc = ibmveth_set_csum_offload(dev, data, ibmveth_set_tx_csum_flags);
+	else
+		ibmveth_set_tx_csum_flags(dev, data);
+
+	return rc;
+}
+
+static u32 ibmveth_get_rx_csum(struct net_device *dev)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	return adapter->rx_csum;
+}
+
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.get_link		= netdev_get_link,
 	.get_sg			= ethtool_op_get_sg,
 	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.set_tx_csum		= ibmveth_set_tx_csum,
+	.get_rx_csum		= ibmveth_get_rx_csum,
+	.set_rx_csum		= ibmveth_set_rx_csum,
 };
 
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1103,9 +1223,10 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 		ret = h_illan_attributes(dev->unit_address, 0, set_attr.desc,
 					 &ret_attr.desc);
 
-		if (ret == H_SUCCESS)
+		if (ret == H_SUCCESS) {
+			adapter->rx_csum = 1;
 			netdev->features |= NETIF_F_IP_CSUM;
-		else
+		} else
 			ret = h_illan_attributes(dev->unit_address, set_attr.desc,
 						 0, &ret_attr.desc);
 	}

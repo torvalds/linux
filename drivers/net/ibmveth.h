@@ -138,6 +138,7 @@ struct ibmveth_adapter {
     struct ibmveth_buff_pool rx_buff_pool[IbmVethNumBufferPools];
     struct ibmveth_rx_q rx_queue;
     int pool_config;
+    int rx_csum;
 
     /* adapter specific stats */
     u64 replenish_task_cycles;
