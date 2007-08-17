@@ -1441,18 +1441,9 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_net *dvbnet = dvbdev->priv;
 
-	if (!dvbdev)
-		return -ENODEV;
+	dvb_generic_release(inode, file);
 
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		dvbdev->readers++;
-	} else {
-		dvbdev->writers++;
-	}
-
-	dvbdev->users++;
-
-	if(dvbdev->users == 1 && dvbnet->exit==1) {
+	if(dvbdev->users == 1 && dvbnet->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		wake_up(&dvbdev->wait_queue);
