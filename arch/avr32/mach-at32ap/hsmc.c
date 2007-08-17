@@ -29,16 +29,25 @@ struct hsmc {
 
 static struct hsmc *hsmc;
 
-int smc_set_configuration(int cs, const struct smc_config *config)
+void smc_set_timing(struct smc_config *config,
+		    const struct smc_timing *timing)
 {
-	unsigned long mul;
-	unsigned long offset;
-	u32 setup, pulse, cycle, mode;
+	int recover;
+	int cycle;
 
-	if (!hsmc)
-		return -ENODEV;
-	if (cs >= NR_CHIP_SELECTS)
-		return -EINVAL;
+	unsigned long mul;
+
+	/* Reset all SMC timings */
+	config->ncs_read_setup	= 0;
+	config->nrd_setup	= 0;
+	config->ncs_write_setup	= 0;
+	config->nwe_setup	= 0;
+	config->ncs_read_pulse	= 0;
+	config->nrd_pulse	= 0;
+	config->ncs_write_pulse	= 0;
+	config->nwe_pulse	= 0;
+	config->read_cycle	= 0;
+	config->write_cycle	= 0;
 
 	/*
 	 * cycles = x / T = x * f
@@ -50,16 +59,102 @@ int smc_set_configuration(int cs, const struct smc_config *config)
 
 #define ns2cyc(x) ((((x) * mul) + 65535) >> 16)
 
-	setup = (HSMC_BF(NWE_SETUP, ns2cyc(config->nwe_setup))
-		 | HSMC_BF(NCS_WR_SETUP, ns2cyc(config->ncs_write_setup))
-		 | HSMC_BF(NRD_SETUP, ns2cyc(config->nrd_setup))
-		 | HSMC_BF(NCS_RD_SETUP, ns2cyc(config->ncs_read_setup)));
-	pulse = (HSMC_BF(NWE_PULSE, ns2cyc(config->nwe_pulse))
-		 | HSMC_BF(NCS_WR_PULSE, ns2cyc(config->ncs_write_pulse))
-		 | HSMC_BF(NRD_PULSE, ns2cyc(config->nrd_pulse))
-		 | HSMC_BF(NCS_RD_PULSE, ns2cyc(config->ncs_read_pulse)));
-	cycle = (HSMC_BF(NWE_CYCLE, ns2cyc(config->write_cycle))
-		 | HSMC_BF(NRD_CYCLE, ns2cyc(config->read_cycle)));
+	if (timing->ncs_read_setup > 0)
+		config->ncs_read_setup = ns2cyc(timing->ncs_read_setup);
+
+	if (timing->nrd_setup > 0)
+		config->nrd_setup = ns2cyc(timing->nrd_setup);
+
+	if (timing->ncs_write_setup > 0)
+		config->ncs_write_setup = ns2cyc(timing->ncs_write_setup);
+
+	if (timing->nwe_setup > 0)
+		config->nwe_setup = ns2cyc(timing->nwe_setup);
+
+	if (timing->ncs_read_pulse > 0)
+		config->ncs_read_pulse = ns2cyc(timing->ncs_read_pulse);
+
+	if (timing->nrd_pulse > 0)
+		config->nrd_pulse = ns2cyc(timing->nrd_pulse);
+
+	if (timing->ncs_write_pulse > 0)
+		config->ncs_write_pulse = ns2cyc(timing->ncs_write_pulse);
+
+	if (timing->nwe_pulse > 0)
+		config->nwe_pulse = ns2cyc(timing->nwe_pulse);
+
+	if (timing->read_cycle > 0)
+		config->read_cycle = ns2cyc(timing->read_cycle);
+
+	if (timing->write_cycle > 0)
+		config->write_cycle = ns2cyc(timing->write_cycle);
+
+	/* Extend read cycle in needed */
+	if (timing->ncs_read_recover > 0)
+		recover = ns2cyc(timing->ncs_read_recover);
+	else
+		recover = 1;
+
+	cycle = config->ncs_read_setup + config->ncs_read_pulse + recover;
+
+	if (config->read_cycle < cycle)
+		config->read_cycle = cycle;
+
+	/* Extend read cycle in needed */
+	if (timing->nrd_recover > 0)
+		recover = ns2cyc(timing->nrd_recover);
+	else
+		recover = 1;
+
+	cycle = config->nrd_setup + config->nrd_pulse + recover;
+
+	if (config->read_cycle < cycle)
+		config->read_cycle = cycle;
+
+	/* Extend write cycle in needed */
+	if (timing->ncs_write_recover > 0)
+		recover = ns2cyc(timing->ncs_write_recover);
+	else
+		recover = 1;
+
+	cycle = config->ncs_write_setup + config->ncs_write_pulse + recover;
+
+	if (config->write_cycle < cycle)
+		config->write_cycle = cycle;
+
+	/* Extend write cycle in needed */
+	if (timing->nwe_recover > 0)
+		recover = ns2cyc(timing->nwe_recover);
+	else
+		recover = 1;
+
+	cycle = config->nwe_setup + config->nwe_pulse + recover;
+
+	if (config->write_cycle < cycle)
+		config->write_cycle = cycle;
+}
+EXPORT_SYMBOL(smc_set_timing);
+
+int smc_set_configuration(int cs, const struct smc_config *config)
+{
+	unsigned long offset;
+	u32 setup, pulse, cycle, mode;
+
+	if (!hsmc)
+		return -ENODEV;
+	if (cs >= NR_CHIP_SELECTS)
+		return -EINVAL;
+
+	setup = (HSMC_BF(NWE_SETUP, config->nwe_setup)
+		 | HSMC_BF(NCS_WR_SETUP, config->ncs_write_setup)
+		 | HSMC_BF(NRD_SETUP, config->nrd_setup)
+		 | HSMC_BF(NCS_RD_SETUP, config->ncs_read_setup));
+	pulse = (HSMC_BF(NWE_PULSE, config->nwe_pulse)
+		 | HSMC_BF(NCS_WR_PULSE, config->ncs_write_pulse)
+		 | HSMC_BF(NRD_PULSE, config->nrd_pulse)
+		 | HSMC_BF(NCS_RD_PULSE, config->ncs_read_pulse));
+	cycle = (HSMC_BF(NWE_CYCLE, config->write_cycle)
+		 | HSMC_BF(NRD_CYCLE, config->read_cycle));
 
 	switch (config->bus_width) {
 	case 1:

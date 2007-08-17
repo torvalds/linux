@@ -15,22 +15,50 @@
 /*
  * All timing parameters are in nanoseconds.
  */
-struct smc_config {
+struct smc_timing {
 	/* Delay from address valid to assertion of given strobe */
-	u16		ncs_read_setup;
-	u16		nrd_setup;
-	u16		ncs_write_setup;
-	u16		nwe_setup;
+	int ncs_read_setup;
+	int nrd_setup;
+	int ncs_write_setup;
+	int nwe_setup;
 
 	/* Pulse length of given strobe */
-	u16		ncs_read_pulse;
-	u16		nrd_pulse;
-	u16		ncs_write_pulse;
-	u16		nwe_pulse;
+	int ncs_read_pulse;
+	int nrd_pulse;
+	int ncs_write_pulse;
+	int nwe_pulse;
 
 	/* Total cycle length of given operation */
-	u16		read_cycle;
-	u16		write_cycle;
+	int read_cycle;
+	int write_cycle;
+
+	/* Minimal recovery times, will extend cycle if needed */
+	int ncs_read_recover;
+	int nrd_recover;
+	int ncs_write_recover;
+	int nwe_recover;
+};
+
+/*
+ * All timing parameters are in clock cycles.
+ */
+struct smc_config {
+
+	/* Delay from address valid to assertion of given strobe */
+	u8		ncs_read_setup;
+	u8		nrd_setup;
+	u8		ncs_write_setup;
+	u8		nwe_setup;
+
+	/* Pulse length of given strobe */
+	u8		ncs_read_pulse;
+	u8		nrd_pulse;
+	u8		ncs_write_pulse;
+	u8		nwe_pulse;
+
+	/* Total cycle length of given operation */
+	u8		read_cycle;
+	u8		write_cycle;
 
 	/* Bus width in bytes */
 	u8		bus_width;
@@ -75,6 +103,9 @@ struct smc_config {
 	 */
 	unsigned int	tdf_mode:1;
 };
+
+extern void smc_set_timing(struct smc_config *config,
+			   const struct smc_timing *timing);
 
 extern int smc_set_configuration(int cs, const struct smc_config *config);
 extern struct smc_config *smc_get_configuration(int cs);
