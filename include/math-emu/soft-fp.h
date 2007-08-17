@@ -97,11 +97,18 @@
 #define FP_INHIBIT_RESULTS 0
 #endif
 
+#ifndef FP_TRAPPING_EXCEPTIONS
+#define FP_TRAPPING_EXCPETIONS 0
+#endif
+
 #define FP_SET_EXCEPTION(ex)				\
   _fex |= (ex)
   
 #define FP_UNSET_EXCEPTION(ex)				\
   _fex &= ~(ex)
+
+#define FP_CUR_EXCEPTIONS				\
+  (_fex)
 
 #define FP_CLEAR_EXCEPTIONS				\
   _fex = 0
