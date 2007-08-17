@@ -578,6 +578,17 @@ static void kill_traffic(struct usb_serial_port *port)
 {
 	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->write_urb);
+	/*
+	 * This is tricky.
+	 * Some drivers submit the read_urb in the
+	 * handler for the write_urb or vice versa
+	 * this order determines the order in which
+	 * usb_kill_urb() must be used to reliably
+	 * kill the URBs. As it is unknown here,
+	 * both orders must be used in turn.
+	 * The call below is not redundant.
+	 */
+	usb_kill_urb(port->read_urb);
 	usb_kill_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
 }
