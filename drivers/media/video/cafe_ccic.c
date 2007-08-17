@@ -2233,12 +2233,21 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 	ret = pci_enable_device(pdev);
+
 	if (ret) {
 		cam_warn(cam, "Unable to re-enable device on resume!\n");
 		return ret;
 	}
 	cafe_ctlr_init(cam);
-	cafe_ctlr_power_up(cam);
+	cafe_ctlr_power_down(cam);
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->users > 0) {
+		cafe_ctlr_power_up(cam);
+		__cafe_cam_reset(cam);
+	}
+	mutex_unlock(&cam->s_mutex);
+
 	set_bit(CF_CONFIG_NEEDED, &cam->flags);
 	if (cam->state == S_SPECREAD)
 		cam->state = S_IDLE;  /* Don't bother restarting */
