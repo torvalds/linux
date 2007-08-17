@@ -282,4 +282,12 @@ config AXON_RAM
 	  minor numbers are available in /proc/devices, /proc/partitions or
 	  in /sys/block/axonram?/dev.
 
+config FSL_ULI1575
+	bool
+	default n
+	help
+	  Supports for the ULI1575 PCIe south bridge that exists on some
+	  Freescale reference boards. The boards all use the ULI in pretty
+	  much the same way.
+
 endmenu
