@@ -464,6 +464,16 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 
 	case OP(RDMA_WRITE_LAST_WITH_IMMEDIATE):
 	rdma_last_imm:
+		if (header_in_data) {
+			wc.imm_data = *(__be32 *) data;
+			data += sizeof(__be32);
+		} else {
+			/* Immediate data comes after BTH */
+			wc.imm_data = ohdr->u.imm_data;
+		}
+		hdrsize += 4;
+		wc.wc_flags = IB_WC_WITH_IMM;
+
 		/* Get the number of bytes the message was padded by. */
 		pad = (be32_to_cpu(ohdr->bth[0]) >> 20) & 3;
 		/* Check for invalid length. */
@@ -484,16 +494,7 @@ void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 			dev->n_pkt_drops++;
 			goto done;
 		}
-		if (header_in_data) {
-			wc.imm_data = *(__be32 *) data;
-			data += sizeof(__be32);
-		} else {
-			/* Immediate data comes after BTH */
-			wc.imm_data = ohdr->u.imm_data;
-		}
-		hdrsize += 4;
-		wc.wc_flags = IB_WC_WITH_IMM;
-		wc.byte_len = 0;
+		wc.byte_len = qp->r_len;
 		goto last_imm;
 
 	case OP(RDMA_WRITE_LAST):
