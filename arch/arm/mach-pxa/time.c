@@ -16,10 +16,47 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
+#include <linux/sched.h>
 
+#include <asm/div64.h>
+#include <asm/cnt32_to_63.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/arch/pxa-regs.h>
+
+/*
+ * This is PXA's sched_clock implementation. This has a resolution
+ * of at least 308 ns and a maximum value of 208 days.
+ *
+ * The return value is guaranteed to be monotonic in that range as
+ * long as there is always less than 582 seconds between successive
+ * calls to sched_clock() which should always be the case in practice.
+ */
+
+#define OSCR2NS_SCALE_FACTOR 10
+
+static unsigned long oscr2ns_scale;
+
+static void __init set_oscr2ns_scale(unsigned long oscr_rate)
+{
+	unsigned long long v = 1000000000ULL << OSCR2NS_SCALE_FACTOR;
+	do_div(v, oscr_rate);
+	oscr2ns_scale = v;
+	/*
+	 * We want an even value to automatically clear the top bit
+	 * returned by cnt32_to_63() without an additional run time
+	 * instruction. So if the LSB is 1 then round it up.
+	 */
+	if (oscr2ns_scale & 1)
+		oscr2ns_scale++;
+}
+
+unsigned long long sched_clock(void)
+{
+	unsigned long long v = cnt32_to_63(OSCR);
+	return (v * oscr2ns_scale) >> OSCR2NS_SCALE_FACTOR;
+}
+
 
 static irqreturn_t
 pxa_ost0_interrupt(int irq, void *dev_id)
@@ -151,6 +188,8 @@ static void __init pxa_timer_init(void)
 {
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
+
+	set_oscr2ns_scale(CLOCK_TICK_RATE);
 
 	ckevt_pxa_osmr0.mult =
 		div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
