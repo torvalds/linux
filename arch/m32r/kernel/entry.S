@@ -109,13 +109,6 @@
 #define SP(reg)			@(0x68,reg)
 #define ORIG_R0(reg)		@(0x6C,reg)
 
-CF_MASK		= 0x00000001
-TF_MASK		= 0x00000100
-IF_MASK		= 0x00000200
-DF_MASK		= 0x00000400
-NT_MASK		= 0x00004000
-VM_MASK		= 0x00020000
-
 #ifdef CONFIG_PREEMPT
 #define preempt_stop(x)		CLI(x)
 #else
@@ -295,7 +288,7 @@ ENTRY(ei_handler)
 #endif
 	SAVE_ALL
 	mv	r1, sp			; arg1(regs)
-	;    GET_ICU_STATUS;
+	; get ICU status
 	seth	r0, #shigh(M32R_ICU_ISTS_ADDR)
 	ld	r0, @(low(M32R_ICU_ISTS_ADDR),r0)
 	push	r0
@@ -377,6 +370,7 @@ ENTRY(ei_handler)
 	.fillinsn
 5:
 #endif /* CONFIG_PLAT_HAS_INT2ICU */
+
 check_end:
 	bl	do_IRQ
 	pop	r14
@@ -467,7 +461,7 @@ inst:
 
 
 ENTRY(alignment_check)
-/* void alignment_check(int error_code) */
+	/* void alignment_check(int error_code) */
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
 	ldi	r1, #0x30			; error_code
@@ -477,7 +471,7 @@ error_code:
 	bra	ret_from_exception
 
 ENTRY(rie_handler)
-/* void rie_handler(int error_code) */
+	/* void rie_handler(int error_code) */
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
 	ldi	r1, #0x20			; error_code
@@ -486,7 +480,7 @@ ENTRY(rie_handler)
 	bra	error_code
 
 ENTRY(pie_handler)
-/* void pie_handler(int error_code) */
+	/* void pie_handler(int error_code) */
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
 	ldi	r1, #0				; error_code ; FIXME
@@ -495,8 +489,8 @@ ENTRY(pie_handler)
 	bra	error_code
 
 ENTRY(debug_trap)
-	.global	withdraw_debug_trap
 	/* void debug_trap(void) */
+	.global	withdraw_debug_trap
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
 	mv	r0, sp				; pt_regs
@@ -515,11 +509,9 @@ ENTRY(ill_trap)
 	bl	do_ill_trap
 	bra	error_code
 
-
-/* Cache flushing handler */
 ENTRY(cache_flushing_handler)
-	.global	_flush_cache_all
 	/* void _flush_cache_all(void); */
+	.global	_flush_cache_all
 	SWITCH_TO_KERNEL_STACK
 	push	r0
 	push	r1
