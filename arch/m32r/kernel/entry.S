@@ -333,7 +333,7 @@ ENTRY(ei_handler)
 	.fillinsn
 1:
 	addi	sp, #4
-	bra	ret_to_intr
+	bra	restore_all
 	.fillinsn
 2:
 	srli	r0, #2
@@ -382,7 +382,6 @@ check_end:
 	pop	r14
 	seth	r0, #shigh(M32R_ICU_IMASK_ADDR)
 	st	r14, @(low(M32R_ICU_IMASK_ADDR),r0)
-ret_to_intr:
 	bra  ret_from_intr
 
 /*
