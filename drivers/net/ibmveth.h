@@ -39,6 +39,12 @@
 #define IbmVethMcastRemoveFilter     0x2UL
 #define IbmVethMcastClearFilterTable 0x3UL
 
+#define IBMVETH_ILLAN_PADDED_PKT_CSUM	0x0000000000002000ULL
+#define IBMVETH_ILLAN_TRUNK_PRI_MASK	0x0000000000000F00ULL
+#define IBMVETH_ILLAN_IPV6_TCP_CSUM		0x0000000000000004ULL
+#define IBMVETH_ILLAN_IPV4_TCP_CSUM		0x0000000000000002ULL
+#define IBMVETH_ILLAN_ACTIVE_TRUNK		0x0000000000000001ULL
+
 /* hcall macros */
 #define h_register_logical_lan(ua, buflst, rxq, fltlst, mac) \
   plpar_hcall_norets(H_REGISTER_LOGICAL_LAN, ua, buflst, rxq, fltlst, mac)
@@ -151,13 +157,13 @@ struct ibmveth_adapter {
 };
 
 struct ibmveth_buf_desc_fields {
-    u32 valid : 1;
-    u32 toggle : 1;
-    u32 reserved : 4;
-    u32 no_csum : 1;
-    u32 csum_good : 1;
-    u32 length : 24;
-    u32 address;
+	u32 flags_len;
+#define IBMVETH_BUF_VALID	0x80000000
+#define IBMVETH_BUF_TOGGLE	0x40000000
+#define IBMVETH_BUF_NO_CSUM	0x02000000
+#define IBMVETH_BUF_CSUM_GOOD	0x01000000
+#define IBMVETH_BUF_LEN_MASK	0x00FFFFFF
+	u32 address;
 };
 
 union ibmveth_buf_desc {
@@ -165,33 +171,17 @@ union ibmveth_buf_desc {
     struct ibmveth_buf_desc_fields fields;
 };
 
-struct ibmveth_illan_attributes_fields {
-	u32 reserved;
-	u32 reserved2 : 18;
-	u32 csum_offload_padded_pkt_support : 1;
-	u32 reserved3 : 1;
-	u32 trunk_priority : 4;
-	u32 reserved4 : 5;
-	u32 tcp_csum_offload_ipv6 : 1;
-	u32 tcp_csum_offload_ipv4 : 1;
-	u32 active_trunk : 1;
-};
-
-union ibmveth_illan_attributes {
-	u64 desc;
-	struct ibmveth_illan_attributes_fields fields;
-};
-
 struct ibmveth_rx_q_entry {
-    u16 toggle : 1;
-    u16 valid : 1;
-    u16 reserved : 4;
-    u16 no_csum : 1;
-    u16 csum_good : 1;
-    u16 reserved2 : 8;
-    u16 offset;
-    u32 length;
-    u64 correlator;
+	u32 flags_off;
+#define IBMVETH_RXQ_TOGGLE		0x80000000
+#define IBMVETH_RXQ_TOGGLE_SHIFT	31
+#define IBMVETH_RXQ_VALID		0x40000000
+#define IBMVETH_RXQ_NO_CSUM		0x02000000
+#define IBMVETH_RXQ_CSUM_GOOD		0x01000000
+#define IBMVETH_RXQ_OFF_MASK		0x0000FFFF
+
+	u32 length;
+	u64 correlator;
 };
 
 #endif /* _IBMVETH_H */

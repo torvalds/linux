@@ -132,19 +132,29 @@ struct ibmveth_stat ibmveth_stats[] = {
 };
 
 /* simple methods of getting data from the current rxq entry */
+static inline u32 ibmveth_rxq_flags(struct ibmveth_adapter *adapter)
+{
+	return adapter->rx_queue.queue_addr[adapter->rx_queue.index].flags_off;
+}
+
+static inline int ibmveth_rxq_toggle(struct ibmveth_adapter *adapter)
+{
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_TOGGLE) >> IBMVETH_RXQ_TOGGLE_SHIFT;
+}
+
 static inline int ibmveth_rxq_pending_buffer(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].toggle == adapter->rx_queue.toggle);
+	return (ibmveth_rxq_toggle(adapter) == adapter->rx_queue.toggle);
 }
 
 static inline int ibmveth_rxq_buffer_valid(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].valid);
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_VALID);
 }
 
 static inline int ibmveth_rxq_frame_offset(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].offset);
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_OFF_MASK);
 }
 
 static inline int ibmveth_rxq_frame_length(struct ibmveth_adapter *adapter)
@@ -154,7 +164,7 @@ static inline int ibmveth_rxq_frame_length(struct ibmveth_adapter *adapter)
 
 static inline int ibmveth_rxq_csum_good(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].csum_good);
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_CSUM_GOOD);
 }
 
 /* setup the initial settings for a buffer pool */
@@ -254,9 +264,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		correlator = ((u64)pool->index << 32) | index;
 		*(u64*)skb->data = correlator;
 
-		desc.desc = 0;
-		desc.fields.valid = 1;
-		desc.fields.length = pool->buff_size;
+		desc.fields.flags_len = IBMVETH_BUF_VALID | pool->buff_size;
 		desc.fields.address = dma_addr;
 
 		lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
@@ -397,9 +405,8 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 		return;
 	}
 
-	desc.desc = 0;
-	desc.fields.valid = 1;
-	desc.fields.length = adapter->rx_buff_pool[pool].buff_size;
+	desc.fields.flags_len = IBMVETH_BUF_VALID |
+		adapter->rx_buff_pool[pool].buff_size;
 	desc.fields.address = adapter->rx_buff_pool[pool].dma_addr[index];
 
 	lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
@@ -555,9 +562,7 @@ static int ibmveth_open(struct net_device *netdev)
 	memcpy(&mac_address, netdev->dev_addr, netdev->addr_len);
 	mac_address = mac_address >> 16;
 
-	rxq_desc.desc = 0;
-	rxq_desc.fields.valid = 1;
-	rxq_desc.fields.length = adapter->rx_queue.queue_len;
+	rxq_desc.fields.flags_len = IBMVETH_BUF_VALID | adapter->rx_queue.queue_len;
 	rxq_desc.fields.address = adapter->rx_queue.queue_dma;
 
 	ibmveth_debug_printk("buffer list @ 0x%p\n", adapter->buffer_list_addr);
@@ -704,7 +709,7 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 				    void (*done) (struct net_device *, u32))
 {
 	struct ibmveth_adapter *adapter = dev->priv;
-	union ibmveth_illan_attributes set_attr, clr_attr, ret_attr;
+	u64 set_attr, clr_attr, ret_attr;
 	long ret;
 	int rc1 = 0, rc2 = 0;
 	int restart = 0;
@@ -716,21 +721,21 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 		adapter->pool_config = 0;
 	}
 
-	set_attr.desc = 0;
-	clr_attr.desc = 0;
+	set_attr = 0;
+	clr_attr = 0;
 
 	if (data)
-		set_attr.fields.tcp_csum_offload_ipv4 = 1;
+		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
 	else
-		clr_attr.fields.tcp_csum_offload_ipv4 = 1;
+		clr_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
 
-	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr.desc);
+	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr);
 
-	if (ret == H_SUCCESS && !ret_attr.fields.active_trunk &&
-	    !ret_attr.fields.trunk_priority &&
-	    ret_attr.fields.csum_offload_padded_pkt_support) {
-		ret = h_illan_attributes(adapter->vdev->unit_address, clr_attr.desc,
-					 set_attr.desc, &ret_attr.desc);
+	if (ret == H_SUCCESS && !(ret_attr & IBMVETH_ILLAN_ACTIVE_TRUNK) &&
+	    !(ret_attr & IBMVETH_ILLAN_TRUNK_PRI_MASK) &&
+	    (ret_attr & IBMVETH_ILLAN_PADDED_PKT_CSUM)) {
+		ret = h_illan_attributes(adapter->vdev->unit_address, clr_attr,
+					 set_attr, &ret_attr);
 
 		if (ret != H_SUCCESS) {
 			rc1 = -EIO;
@@ -738,13 +743,13 @@ static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
 					     " %d rc=%ld\n", data, ret);
 
 			ret = h_illan_attributes(adapter->vdev->unit_address,
-						 set_attr.desc, clr_attr.desc, &ret_attr.desc);
+						 set_attr, clr_attr, &ret_attr);
 		} else
 			done(dev, data);
 	} else {
 		rc1 = -EIO;
 		ibmveth_error_printk("unable to change checksum offload settings."
-				     " %d rc=%ld ret_attr=%lx\n", data, ret, ret_attr.desc);
+				     " %d rc=%ld ret_attr=%lx\n", data, ret, ret_attr);
 	}
 
 	if (restart)
@@ -850,11 +855,9 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int tx_send_failed = 0;
 	unsigned int tx_map_failed = 0;
 
-	desc.desc = 0;
-	desc.fields.length  = skb->len;
+	desc.fields.flags_len = IBMVETH_BUF_VALID | skb->len;
 	desc.fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
-					     desc.fields.length, DMA_TO_DEVICE);
-	desc.fields.valid   = 1;
+					     skb->len, DMA_TO_DEVICE);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
 	    ip_hdr(skb)->protocol != IPPROTO_TCP && skb_checksum_help(skb)) {
@@ -866,8 +869,7 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		unsigned char *buf = skb_transport_header(skb) + skb->csum_offset;
 
-		desc.fields.no_csum = 1;
-		desc.fields.csum_good = 1;
+		desc.fields.flags_len |= (IBMVETH_BUF_NO_CSUM | IBMVETH_BUF_CSUM_GOOD);
 
 		/* Need to zero out the checksum */
 		buf[0] = 0;
@@ -893,7 +895,8 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {
 		ibmveth_error_printk("tx: h_send_logical_lan failed with rc=%ld\n", lpar_rc);
 		ibmveth_error_printk("tx: valid=%d, len=%d, address=0x%08x\n",
-				     desc.fields.valid, desc.fields.length, desc.fields.address);
+				     (desc.fields.flags_len & IBMVETH_BUF_VALID) ? 1 : 0,
+				     skb->len, desc.fields.address);
 		tx_send_failed++;
 		tx_dropped++;
 	} else {
@@ -903,7 +906,7 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	dma_unmap_single(&adapter->vdev->dev, desc.fields.address,
-			 desc.fields.length, DMA_TO_DEVICE);
+			 skb->len, DMA_TO_DEVICE);
 
 out:	spin_lock_irqsave(&adapter->stats_lock, flags);
 	adapter->stats.tx_dropped += tx_dropped;
@@ -1108,7 +1111,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	long ret;
 	struct net_device *netdev;
 	struct ibmveth_adapter *adapter;
-	union ibmveth_illan_attributes set_attr, ret_attr;
+	u64 set_attr, ret_attr;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -1202,23 +1205,20 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	ibmveth_debug_printk("registering netdev...\n");
 
-	ret = h_illan_attributes(dev->unit_address, 0, 0, &ret_attr.desc);
+	ret = h_illan_attributes(dev->unit_address, 0, 0, &ret_attr);
 
-	if (ret == H_SUCCESS && !ret_attr.fields.active_trunk &&
-	    !ret_attr.fields.trunk_priority &&
-	    ret_attr.fields.csum_offload_padded_pkt_support) {
-		set_attr.desc = 0;
-		set_attr.fields.tcp_csum_offload_ipv4 = 1;
+	if (ret == H_SUCCESS && !(ret_attr & IBMVETH_ILLAN_ACTIVE_TRUNK) &&
+	    !(ret_attr & IBMVETH_ILLAN_TRUNK_PRI_MASK) &&
+	    (ret_attr & IBMVETH_ILLAN_PADDED_PKT_CSUM)) {
+		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
 
-		ret = h_illan_attributes(dev->unit_address, 0, set_attr.desc,
-					 &ret_attr.desc);
+		ret = h_illan_attributes(dev->unit_address, 0, set_attr, &ret_attr);
 
 		if (ret == H_SUCCESS) {
 			adapter->rx_csum = 1;
 			netdev->features |= NETIF_F_IP_CSUM;
 		} else
-			ret = h_illan_attributes(dev->unit_address, set_attr.desc,
-						 0, &ret_attr.desc);
+			ret = h_illan_attributes(dev->unit_address, set_attr, 0, &ret_attr);
 	}
 
 	rc = register_netdev(netdev);
