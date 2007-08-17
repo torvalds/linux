@@ -28,7 +28,6 @@
 /**************************************************************************/
 /*
   TODO:
-  - remove frag processing code - no longer needed
   - add support for sysfs
   - possibly remove procfs support
 */
@@ -128,9 +127,6 @@ struct ibmveth_stat ibmveth_stats[] = {
 	{ "replenish_add_buff_success", IBMVETH_STAT_OFF(replenish_add_buff_success) },
 	{ "rx_invalid_buffer", IBMVETH_STAT_OFF(rx_invalid_buffer) },
 	{ "rx_no_buffer", IBMVETH_STAT_OFF(rx_no_buffer) },
-	{ "tx_multidesc_send", IBMVETH_STAT_OFF(tx_multidesc_send) },
-	{ "tx_linearized", IBMVETH_STAT_OFF(tx_linearized) },
-	{ "tx_linearize_failed", IBMVETH_STAT_OFF(tx_linearize_failed) },
 	{ "tx_map_failed", IBMVETH_STAT_OFF(tx_map_failed) },
 	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
 };
@@ -843,9 +839,8 @@ static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev->priv;
-	union ibmveth_buf_desc desc[IbmVethMaxSendFrags];
+	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
-	int nfrags = 0, curfrag;
 	unsigned long correlator;
 	unsigned long flags;
 	unsigned int retry_count;
@@ -855,25 +850,11 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int tx_send_failed = 0;
 	unsigned int tx_map_failed = 0;
 
-
-	if ((skb_shinfo(skb)->nr_frags + 1) > IbmVethMaxSendFrags) {
-		tx_dropped++;
-		goto out;
-	}
-
-	memset(&desc, 0, sizeof(desc));
-
-	/* nfrags = number of frags after the initial fragment */
-	nfrags = skb_shinfo(skb)->nr_frags;
-
-	if(nfrags)
-		adapter->tx_multidesc_send++;
-
-	/* map the initial fragment */
-	desc[0].fields.length  = nfrags ? skb->len - skb->data_len : skb->len;
-	desc[0].fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
-					desc[0].fields.length, DMA_TO_DEVICE);
-	desc[0].fields.valid   = 1;
+	desc.desc = 0;
+	desc.fields.length  = skb->len;
+	desc.fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
+					     desc.fields.length, DMA_TO_DEVICE);
+	desc.fields.valid   = 1;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
 	    ip_hdr(skb)->protocol != IPPROTO_TCP && skb_checksum_help(skb)) {
@@ -885,51 +866,19 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		unsigned char *buf = skb_transport_header(skb) + skb->csum_offset;
 
-		desc[0].fields.no_csum = 1;
-		desc[0].fields.csum_good = 1;
+		desc.fields.no_csum = 1;
+		desc.fields.csum_good = 1;
 
 		/* Need to zero out the checksum */
 		buf[0] = 0;
 		buf[1] = 0;
 	}
 
-	if(dma_mapping_error(desc[0].fields.address)) {
-		ibmveth_error_printk("tx: unable to map initial fragment\n");
+	if (dma_mapping_error(desc.fields.address)) {
+		ibmveth_error_printk("tx: unable to map xmit buffer\n");
 		tx_map_failed++;
 		tx_dropped++;
 		goto out;
-	}
-
-	curfrag = nfrags;
-
-	/* map fragments past the initial portion if there are any */
-	while(curfrag--) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[curfrag];
-		desc[curfrag+1].fields.address
-			= dma_map_single(&adapter->vdev->dev,
-				page_address(frag->page) + frag->page_offset,
-				frag->size, DMA_TO_DEVICE);
-		desc[curfrag+1].fields.length = frag->size;
-		desc[curfrag+1].fields.valid  = 1;
-		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			desc[curfrag+1].fields.no_csum = 1;
-			desc[curfrag+1].fields.csum_good = 1;
-		}
-
-		if(dma_mapping_error(desc[curfrag+1].fields.address)) {
-			ibmveth_error_printk("tx: unable to map fragment %d\n", curfrag);
-			tx_map_failed++;
-			tx_dropped++;
-			/* Free all the mappings we just created */
-			while(curfrag < nfrags) {
-				dma_unmap_single(&adapter->vdev->dev,
-						 desc[curfrag+1].fields.address,
-						 desc[curfrag+1].fields.length,
-						 DMA_TO_DEVICE);
-				curfrag++;
-			}
-			goto out;
-		}
 	}
 
 	/* send the frame. Arbitrarily set retrycount to 1024 */
@@ -937,23 +886,14 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	retry_count = 1024;
 	do {
 		lpar_rc = h_send_logical_lan(adapter->vdev->unit_address,
-					     desc[0].desc,
-					     desc[1].desc,
-					     desc[2].desc,
-					     desc[3].desc,
-					     desc[4].desc,
-					     desc[5].desc,
-					     correlator,
-					     &correlator);
+					     desc.desc, 0, 0, 0, 0, 0,
+					     correlator, &correlator);
 	} while ((lpar_rc == H_BUSY) && (retry_count--));
 
 	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {
-		int i;
 		ibmveth_error_printk("tx: h_send_logical_lan failed with rc=%ld\n", lpar_rc);
-		for(i = 0; i < 6; i++) {
-			ibmveth_error_printk("tx: desc[%i] valid=%d, len=%d, address=0x%d\n", i,
-					     desc[i].fields.valid, desc[i].fields.length, desc[i].fields.address);
-		}
+		ibmveth_error_printk("tx: valid=%d, len=%d, address=0x%08x\n",
+				     desc.fields.valid, desc.fields.length, desc.fields.address);
 		tx_send_failed++;
 		tx_dropped++;
 	} else {
@@ -962,11 +902,8 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netdev->trans_start = jiffies;
 	}
 
-	do {
-		dma_unmap_single(&adapter->vdev->dev,
-				desc[nfrags].fields.address,
-				desc[nfrags].fields.length, DMA_TO_DEVICE);
-	} while(--nfrags >= 0);
+	dma_unmap_single(&adapter->vdev->dev, desc.fields.address,
+			 desc.fields.length, DMA_TO_DEVICE);
 
 out:	spin_lock_irqsave(&adapter->stats_lock, flags);
 	adapter->stats.tx_dropped += tx_dropped;
@@ -1366,10 +1303,7 @@ static int ibmveth_seq_show(struct seq_file *seq, void *v)
 		   firmware_mac[3], firmware_mac[4], firmware_mac[5]);
 
 	seq_printf(seq, "\nAdapter Statistics:\n");
-	seq_printf(seq, "  TX:  skbuffs linearized:          %ld\n", adapter->tx_linearized);
-	seq_printf(seq, "       multi-descriptor sends:      %ld\n", adapter->tx_multidesc_send);
-	seq_printf(seq, "       skb_linearize failures:      %ld\n", adapter->tx_linearize_failed);
-	seq_printf(seq, "       vio_map_single failres:      %ld\n", adapter->tx_map_failed);
+	seq_printf(seq, "  TX:  vio_map_single failres:      %ld\n", adapter->tx_map_failed);
 	seq_printf(seq, "       send failures:               %ld\n", adapter->tx_send_failed);
 	seq_printf(seq, "  RX:  replenish task cycles:       %ld\n", adapter->replenish_task_cycles);
 	seq_printf(seq, "       alloc_skb_failures:          %ld\n", adapter->replenish_no_mem);

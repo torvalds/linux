@@ -25,8 +25,6 @@
 #ifndef _IBMVETH_H
 #define _IBMVETH_H
 
-#define IbmVethMaxSendFrags 6
-
 /* constants for H_MULTICAST_CTRL */
 #define IbmVethMcastReceptionModifyBit     0x80000UL
 #define IbmVethMcastReceptionEnableBit     0x20000UL
@@ -147,9 +145,6 @@ struct ibmveth_adapter {
     u64 replenish_add_buff_success;
     u64 rx_invalid_buffer;
     u64 rx_no_buffer;
-    u64 tx_multidesc_send;
-    u64 tx_linearized;
-    u64 tx_linearize_failed;
     u64 tx_map_failed;
     u64 tx_send_failed;
     spinlock_t stats_lock;
