@@ -308,9 +308,12 @@ static int lguestblk_probe(struct lguest_device *lgdev)
 	}
 
 	/* This allocates a "struct gendisk" where we pack all the information
-	 * about the disk which the rest of Linux sees.  We ask for one minor
-	 * number; I do wonder if we should be asking for more. */
-	bd->disk = alloc_disk(1);
+	 * about the disk which the rest of Linux sees.  The argument is the
+	 * number of minor devices desired: we need one minor for the main
+	 * disk, and one for each partition.  Of course, we can't possibly know
+	 * how many partitions are on the disk (add_disk does that).
+	 */
+	bd->disk = alloc_disk(16);
 	if (!bd->disk) {
 		err = -ENOMEM;
 		goto out_unregister_blkdev;
