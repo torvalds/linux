@@ -944,7 +944,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[12], NULL },
 				{ NULL },
 			},
-			{   "Haupauge Nova-TD Stick/Elgato Eye-TV Diversity",
+			{   "Hauppauge Nova-TD Stick/Elgato Eye-TV Diversity",
 				{ &dib0700_usb_id_table[13], NULL },
 				{ NULL },
 			},
