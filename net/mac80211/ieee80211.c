@@ -4678,7 +4678,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 			memset(skb->cb, 0, sizeof(skb->cb));
 			netif_rx(skb);
 			skb = skb2;
-			break;
 		}
 	}
  out:

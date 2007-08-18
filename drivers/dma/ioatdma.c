@@ -347,8 +347,7 @@ ioat_dma_prep_memcpy(struct dma_chan *chan, size_t len, int int_en)
 	new->async_tx.ack = 0; /* client is in control of this ack */
 	new->async_tx.cookie = -EBUSY;
 
-	pci_unmap_len_set(new, src_len, orig_len);
-	pci_unmap_len_set(new, dst_len, orig_len);
+	pci_unmap_len_set(new, len, orig_len);
 	spin_unlock_bh(&ioat_chan->desc_lock);
 
 	return new ? &new->async_tx : NULL;
@@ -423,11 +422,11 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *chan)
 			*/
 			pci_unmap_page(chan->device->pdev,
 					pci_unmap_addr(desc, dst),
-					pci_unmap_len(desc, dst_len),
+					pci_unmap_len(desc, len),
 					PCI_DMA_FROMDEVICE);
 			pci_unmap_page(chan->device->pdev,
 					pci_unmap_addr(desc, src),
-					pci_unmap_len(desc, src_len),
+					pci_unmap_len(desc, len),
 					PCI_DMA_TODEVICE);
 		}
 
