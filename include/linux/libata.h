@@ -368,8 +368,6 @@ struct ata_ioports {
 struct ata_host {
 	spinlock_t		lock;
 	struct device 		*dev;
-	unsigned long		irq;
-	unsigned long		irq2;
 	void __iomem * const	*iomap;
 	unsigned int		n_ports;
 	void			*private_data;
@@ -967,6 +965,16 @@ static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 	ehi->flags |= ATA_EHI_HOTPLUGGED;
 	ehi->err_mask |= AC_ERR_ATA_BUS;
 }
+
+/*
+ * port description helpers
+ */
+extern void ata_port_desc(struct ata_port *ap, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
+#ifdef CONFIG_PCI
+extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
+			       const char *name);
+#endif
 
 /*
  * qc helpers

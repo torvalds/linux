@@ -234,6 +234,7 @@ static struct ata_port_operations qdi6580_port_ops = {
 
 static __init int qdi_init_one(unsigned long port, int type, unsigned long io, int irq, int fast)
 {
+	unsigned long ctl = io + 0x206;
 	struct platform_device *pdev;
 	struct ata_host *host;
 	struct ata_port *ap;
@@ -250,7 +251,7 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 
 	ret = -ENOMEM;
 	io_addr = devm_ioport_map(&pdev->dev, io, 8);
-	ctl_addr = devm_ioport_map(&pdev->dev, io + 0x206, 1);
+	ctl_addr = devm_ioport_map(&pdev->dev, ctl, 1);
 	if (!io_addr || !ctl_addr)
 		goto fail;
 
@@ -274,6 +275,8 @@ static __init int qdi_init_one(unsigned long port, int type, unsigned long io, i
 	ap->ioaddr.altstatus_addr = ctl_addr;
 	ap->ioaddr.ctl_addr = ctl_addr;
 	ata_std_ports(&ap->ioaddr);
+
+	ata_port_desc(ap, "cmd %lx ctl %lx", io, ctl);
 
 	/*
 	 *	Hook in a private data structure per channel

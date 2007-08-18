@@ -197,6 +197,7 @@ static __init int winbond_init_one(unsigned long port)
 
 	for (i = 0; i < 2 ; i ++) {
 		unsigned long cmd_port = 0x1F0 - (0x80 * i);
+		unsigned long ctl_port = cmd_port + 0x206;
 		struct ata_host *host;
 		struct ata_port *ap;
 		void __iomem *cmd_addr, *ctl_addr;
@@ -212,14 +213,16 @@ static __init int winbond_init_one(unsigned long port)
 		host = ata_host_alloc(&pdev->dev, 1);
 		if (!host)
 			goto err_unregister;
+		ap = host->ports[0];
 
 		rc = -ENOMEM;
 		cmd_addr = devm_ioport_map(&pdev->dev, cmd_port, 8);
-		ctl_addr = devm_ioport_map(&pdev->dev, cmd_port + 0x0206, 1);
+		ctl_addr = devm_ioport_map(&pdev->dev, ctl_port, 1);
 		if (!cmd_addr || !ctl_addr)
 			goto err_unregister;
 
-		ap = host->ports[0];
+		ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", cmd_port, ctl_port);
+
 		ap->ops = &winbond_port_ops;
 		ap->pio_mask = 0x1F;
 		ap->flags |= ATA_FLAG_SLAVE_POSS;

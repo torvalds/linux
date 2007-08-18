@@ -782,12 +782,14 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
 static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
+	static const unsigned long cmd_offset[] = { 0x17c0, 0x15c0 };
+	static const unsigned long bmdma_offset[] = { 0x1000, 0x1008 };
 	unsigned int board_idx = (unsigned int) ent->driver_data;
 	const struct ata_port_info *ppi[] =
 		{ &pdc2027x_port_info[board_idx], NULL };
 	struct ata_host *host;
 	void __iomem *mmio_base;
-	int rc;
+	int i, rc;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
@@ -817,10 +819,15 @@ static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_de
 
 	mmio_base = host->iomap[PDC_MMIO_BAR];
 
-	pdc_ata_setup_port(&host->ports[0]->ioaddr, mmio_base + 0x17c0);
-	host->ports[0]->ioaddr.bmdma_addr = mmio_base + 0x1000;
-	pdc_ata_setup_port(&host->ports[1]->ioaddr, mmio_base + 0x15c0);
-	host->ports[1]->ioaddr.bmdma_addr = mmio_base + 0x1008;
+	for (i = 0; i < 2; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		pdc_ata_setup_port(&ap->ioaddr, mmio_base + cmd_offset[i]);
+		ap->ioaddr.bmdma_addr = mmio_base + bmdma_offset[i];
+
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, cmd_offset[i], "cmd");
+	}
 
 	//pci_enable_intx(pdev);
 

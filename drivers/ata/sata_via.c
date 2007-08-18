@@ -399,6 +399,9 @@ static void vt6421_init_addrs(struct ata_port *ap)
 	ioaddr->scr_addr = vt6421_scr_addr(iomap[5], ap->port_no);
 
 	ata_std_ports(ioaddr);
+
+	ata_port_pbar_desc(ap, ap->port_no, -1, "port");
+	ata_port_pbar_desc(ap, 4, ap->port_no * 8, "bmdma");
 }
 
 static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)

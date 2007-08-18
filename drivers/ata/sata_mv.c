@@ -2584,8 +2584,14 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	}
 
 	for (port = 0; port < host->n_ports; port++) {
+		struct ata_port *ap = host->ports[port];
 		void __iomem *port_mmio = mv_port_base(mmio, port);
-		mv_port_init(&host->ports[port]->ioaddr, port_mmio);
+		unsigned int offset = port_mmio - mmio;
+
+		mv_port_init(&ap->ioaddr, port_mmio);
+
+		ata_port_pbar_desc(ap, MV_PRIMARY_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, MV_PRIMARY_BAR, offset, "port");
 	}
 
 	for (hc = 0; hc < n_hc; hc++) {

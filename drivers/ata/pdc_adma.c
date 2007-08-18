@@ -704,9 +704,16 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	if (rc)
 		return rc;
 
-	for (port_no = 0; port_no < ADMA_PORTS; ++port_no)
-		adma_ata_setup_port(&host->ports[port_no]->ioaddr,
-				    ADMA_ATA_REGS(mmio_base, port_no));
+	for (port_no = 0; port_no < ADMA_PORTS; ++port_no) {
+		struct ata_port *ap = host->ports[port_no];
+		void __iomem *port_base = ADMA_ATA_REGS(mmio_base, port_no);
+		unsigned int offset = port_base - mmio_base;
+
+		adma_ata_setup_port(&ap->ioaddr, port_base);
+
+		ata_port_pbar_desc(ap, ADMA_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, ADMA_MMIO_BAR, offset, "port");
+	}
 
 	/* initialize adapter */
 	adma_host_init(host, board_idx);

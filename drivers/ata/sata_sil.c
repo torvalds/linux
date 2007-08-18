@@ -687,7 +687,8 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	mmio_base = host->iomap[SIL_MMIO_BAR];
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_ioports *ioaddr = &host->ports[i]->ioaddr;
+		struct ata_port *ap = host->ports[i];
+		struct ata_ioports *ioaddr = &ap->ioaddr;
 
 		ioaddr->cmd_addr = mmio_base + sil_port[i].tf;
 		ioaddr->altstatus_addr =
@@ -695,6 +696,9 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		ioaddr->bmdma_addr = mmio_base + sil_port[i].bmdma;
 		ioaddr->scr_addr = mmio_base + sil_port[i].scr;
 		ata_std_ports(ioaddr);
+
+		ata_port_pbar_desc(ap, SIL_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, SIL_MMIO_BAR, sil_port[i].tf, "tf");
 	}
 
 	/* initialize and activate */

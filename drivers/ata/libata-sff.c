@@ -567,6 +567,9 @@ int ata_pci_init_bmdma(struct ata_host *host)
 		if ((!(ap->flags & ATA_FLAG_IGN_SIMPLEX)) &&
 		    (ioread8(bmdma + 2) & 0x80))
 			host->flags |= ATA_HOST_SIMPLEX;
+
+		ata_port_desc(ap, "bmdma 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, 4) + 8 * i);
 	}
 
 	return 0;
@@ -633,6 +636,10 @@ int ata_pci_init_sff_host(struct ata_host *host)
 		ap->ioaddr.ctl_addr = (void __iomem *)
 			((unsigned long)iomap[base + 1] | ATA_PCI_CTL_OFS);
 		ata_std_ports(&ap->ioaddr);
+
+		ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, base),
+			(unsigned long long)pci_resource_start(pdev, base + 1));
 
 		mask |= 1 << i;
 	}
@@ -804,24 +811,30 @@ int ata_pci_init_one(struct pci_dev *pdev,
 				      IRQF_SHARED, DRV_NAME, host);
 		if (rc)
 			goto err_out;
-		host->irq = pdev->irq;
+
+		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
+		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
 	} else {
 		if (!ata_port_is_dummy(host->ports[0])) {
-			host->irq = ATA_PRIMARY_IRQ(pdev);
-			rc = devm_request_irq(dev, host->irq,
+			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
 					      IRQF_SHARED, DRV_NAME, host);
 			if (rc)
 				goto err_out;
+
+			ata_port_desc(host->ports[0], "irq %d",
+				      ATA_PRIMARY_IRQ(pdev));
 		}
 
 		if (!ata_port_is_dummy(host->ports[1])) {
-			host->irq2 = ATA_SECONDARY_IRQ(pdev);
-			rc = devm_request_irq(dev, host->irq2,
+			rc = devm_request_irq(dev, ATA_SECONDARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
 					      IRQF_SHARED, DRV_NAME, host);
 			if (rc)
 				goto err_out;
+
+			ata_port_desc(host->ports[1], "irq %d",
+				      ATA_SECONDARY_IRQ(pdev));
 		}
 	}
 

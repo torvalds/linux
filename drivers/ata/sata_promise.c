@@ -1003,10 +1003,15 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	is_sataii_tx4 = pdc_is_sataii_tx4(pi->flags);
 	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 		unsigned int ata_no = pdc_port_no_to_ata_no(i, is_sataii_tx4);
-		pdc_ata_setup_port(host->ports[i],
-				   base + 0x200 + ata_no * 0x80,
-				   base + 0x400 + ata_no * 0x100);
+		unsigned int port_offset = 0x200 + ata_no * 0x80;
+		unsigned int scr_offset = 0x400 + ata_no * 0x100;
+
+		pdc_ata_setup_port(ap, base + port_offset, base + scr_offset);
+
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, port_offset, "port");
 	}
 
 	/* initialize adapter */

@@ -1119,12 +1119,15 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->iomap = iomap;
 
 	for (i = 0; i < host->n_ports; i++) {
-		void __iomem *port = iomap[SIL24_PORT_BAR] + i * PORT_REGS_SIZE;
+		struct ata_port *ap = host->ports[i];
+		size_t offset = ap->port_no * PORT_REGS_SIZE;
+		void __iomem *port = iomap[SIL24_PORT_BAR] + offset;
 
 		host->ports[i]->ioaddr.cmd_addr = port;
 		host->ports[i]->ioaddr.scr_addr = port + PORT_SCONTROL;
 
-		ata_std_ports(&host->ports[i]->ioaddr);
+		ata_port_pbar_desc(ap, SIL24_HOST_BAR, -1, "host");
+		ata_port_pbar_desc(ap, SIL24_PORT_BAR, offset, "port");
 	}
 
 	/* configure and activate the device */

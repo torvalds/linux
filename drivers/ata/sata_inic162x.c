@@ -693,16 +693,24 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	host->iomap = iomap = pcim_iomap_table(pdev);
 
 	for (i = 0; i < NR_PORTS; i++) {
-		struct ata_ioports *port = &host->ports[i]->ioaddr;
-		void __iomem *port_base = iomap[MMIO_BAR] + i * PORT_SIZE;
+		struct ata_port *ap = host->ports[i];
+		struct ata_ioports *port = &ap->ioaddr;
+		unsigned int offset = i * PORT_SIZE;
 
 		port->cmd_addr = iomap[2 * i];
 		port->altstatus_addr =
 		port->ctl_addr = (void __iomem *)
 			((unsigned long)iomap[2 * i + 1] | ATA_PCI_CTL_OFS);
-		port->scr_addr = port_base + PORT_SCR;
+		port->scr_addr = iomap[MMIO_BAR] + offset + PORT_SCR;
 
 		ata_std_ports(port);
+
+		ata_port_pbar_desc(ap, MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, MMIO_BAR, offset, "port");
+		ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+		  (unsigned long long)pci_resource_start(pdev, 2 * i),
+		  (unsigned long long)pci_resource_start(pdev, (2 * i + 1)) |
+				      ATA_PCI_CTL_OFS);
 	}
 
 	hpriv->cached_hctl = readw(iomap[MMIO_BAR] + HOST_CTL);

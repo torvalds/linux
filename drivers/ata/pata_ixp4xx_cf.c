@@ -131,8 +131,12 @@ static struct ata_port_operations ixp4xx_port_ops = {
 };
 
 static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
-				struct ixp4xx_pata_data *data)
+			      struct ixp4xx_pata_data *data,
+			      unsigned long raw_cs0, unsigned long raw_cs1)
 {
+	unsigned long raw_cmd = raw_cs0;
+	unsigned long raw_ctl = raw_cs1 + 0x06;
+
 	ioaddr->cmd_addr	= data->cs0;
 	ioaddr->altstatus_addr	= data->cs1 + 0x06;
 	ioaddr->ctl_addr	= data->cs1 + 0x06;
@@ -158,7 +162,12 @@ static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 	*(unsigned long *)&ioaddr->device_addr		^= 0x03;
 	*(unsigned long *)&ioaddr->status_addr		^= 0x03;
 	*(unsigned long *)&ioaddr->command_addr		^= 0x03;
+
+	raw_cmd ^= 0x03;
+	raw_ctl ^= 0x03;
 #endif
+
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", raw_cmd, raw_ctl);
 }
 
 static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
@@ -203,7 +212,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	ap->pio_mask = 0x1f; /* PIO4 */
 	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_NO_ATAPI;
 
-	ixp4xx_setup_port(&ap->ioaddr, data);
+	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
 	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 

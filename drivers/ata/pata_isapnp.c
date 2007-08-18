@@ -110,6 +110,10 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 
 	ata_std_ports(&ap->ioaddr);
 
+	ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+		      (unsigned long long)pnp_port_start(idev, 0),
+		      (unsigned long long)pnp_port_start(idev, 1));
+
 	/* activate */
 	return ata_host_activate(host, pnp_irq(idev, 0), ata_interrupt, 0,
 				 &isapnp_sht);

@@ -6541,7 +6541,6 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	/* set cable, sata_spd_limit and report */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		int irq_line;
 		unsigned long xfer_mask;
 
 		/* set SATA cable type if still unset */
@@ -6551,24 +6550,16 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		/* init sata_spd_limit to the current value */
 		sata_link_init_spd(&ap->link);
 
-		/* report the secondary IRQ for second channel legacy */
-		irq_line = host->irq;
-		if (i == 1 && host->irq2)
-			irq_line = host->irq2;
-
+		/* print per-port info to dmesg */
 		xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
 					      ap->udma_mask);
 
-		/* print per-port info to dmesg */
 		if (!ata_port_is_dummy(ap))
-			ata_port_printk(ap, KERN_INFO, "%cATA max %s cmd 0x%p "
-					"ctl 0x%p bmdma 0x%p irq %d\n",
+			ata_port_printk(ap, KERN_INFO,
+					"%cATA max %s %s\n",
 					(ap->flags & ATA_FLAG_SATA) ? 'S' : 'P',
 					ata_mode_string(xfer_mask),
-					ap->ioaddr.cmd_addr,
-					ap->ioaddr.ctl_addr,
-					ap->ioaddr.bmdma_addr,
-					irq_line);
+					ap->link.eh_info.desc);
 		else
 			ata_port_printk(ap, KERN_INFO, "DUMMY\n");
 	}
@@ -6652,7 +6643,7 @@ int ata_host_activate(struct ata_host *host, int irq,
 		      irq_handler_t irq_handler, unsigned long irq_flags,
 		      struct scsi_host_template *sht)
 {
-	int rc;
+	int i, rc;
 
 	rc = ata_host_start(host);
 	if (rc)
@@ -6663,8 +6654,8 @@ int ata_host_activate(struct ata_host *host, int irq,
 	if (rc)
 		return rc;
 
-	/* Used to print device info at probe */
-	host->irq = irq;
+	for (i = 0; i < host->n_ports; i++)
+		ata_port_desc(host->ports[i], "irq %d", irq);
 
 	rc = ata_host_register(host, sht);
 	/* if failed, just free the IRQ and leave ports alone */
@@ -7136,6 +7127,10 @@ EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);
 EXPORT_SYMBOL_GPL(ata_ehi_push_desc);
 EXPORT_SYMBOL_GPL(ata_ehi_clear_desc);
+EXPORT_SYMBOL_GPL(ata_port_desc);
+#ifdef CONFIG_PCI
+EXPORT_SYMBOL_GPL(ata_port_pbar_desc);
+#endif /* CONFIG_PCI */
 EXPORT_SYMBOL_GPL(ata_eng_timeout);
 EXPORT_SYMBOL_GPL(ata_port_schedule_eh);
 EXPORT_SYMBOL_GPL(ata_link_abort);

@@ -151,6 +151,73 @@ void ata_ehi_clear_desc(struct ata_eh_info *ehi)
 	ehi->desc_len = 0;
 }
 
+/**
+ *	ata_port_desc - append port description
+ *	@ap: target ATA port
+ *	@fmt: printf format string
+ *
+ *	Format string according to @fmt and append it to port
+ *	description.  If port description is not empty, " " is added
+ *	in-between.  This function is to be used while initializing
+ *	ata_host.  The description is printed on host registration.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_port_desc(struct ata_port *ap, const char *fmt, ...)
+{
+	va_list args;
+
+	WARN_ON(!(ap->pflags & ATA_PFLAG_INITIALIZING));
+
+	if (ap->link.eh_info.desc_len)
+		__ata_ehi_push_desc(&ap->link.eh_info, " ");
+
+	va_start(args, fmt);
+	__ata_ehi_pushv_desc(&ap->link.eh_info, fmt, args);
+	va_end(args);
+}
+
+#ifdef CONFIG_PCI
+
+/**
+ *	ata_port_pbar_desc - append PCI BAR description
+ *	@ap: target ATA port
+ *	@bar: target PCI BAR
+ *	@offset: offset into PCI BAR
+ *	@name: name of the area
+ *
+ *	If @offset is negative, this function formats a string which
+ *	contains the name, address, size and type of the BAR and
+ *	appends it to the port description.  If @offset is zero or
+ *	positive, only name and offsetted address is appended.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
+			const char *name)
+{
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	char *type = "";
+	unsigned long long start, len;
+
+	if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM)
+		type = "m";
+	else if (pci_resource_flags(pdev, bar) & IORESOURCE_IO)
+		type = "i";
+
+	start = (unsigned long long)pci_resource_start(pdev, bar);
+	len = (unsigned long long)pci_resource_len(pdev, bar);
+
+	if (offset < 0)
+		ata_port_desc(ap, "%s %s%llu@0x%llx", name, type, len, start);
+	else
+		ata_port_desc(ap, "%s 0x%llx", name, start + offset);
+}
+
+#endif /* CONFIG_PCI */
+
 static void ata_ering_record(struct ata_ering *ering, int is_io,
 			     unsigned int err_mask)
 {

@@ -189,6 +189,8 @@ static struct ata_port_operations cs5520_port_ops = {
 
 static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	static const unsigned int cmd_port[] = { 0x1F0, 0x170 };
+	static const unsigned int ctl_port[] = { 0x3F6, 0x376 };
 	struct ata_port_info pi = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f,
@@ -242,10 +244,10 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	}
 
 	/* Map IO ports and initialize host accordingly */
-	iomap[0] = devm_ioport_map(&pdev->dev, 0x1F0, 8);
-	iomap[1] = devm_ioport_map(&pdev->dev, 0x3F6, 1);
-	iomap[2] = devm_ioport_map(&pdev->dev, 0x170, 8);
-	iomap[3] = devm_ioport_map(&pdev->dev, 0x376, 1);
+	iomap[0] = devm_ioport_map(&pdev->dev, cmd_port[0], 8);
+	iomap[1] = devm_ioport_map(&pdev->dev, ctl_port[0], 1);
+	iomap[2] = devm_ioport_map(&pdev->dev, cmd_port[1], 8);
+	iomap[3] = devm_ioport_map(&pdev->dev, ctl_port[1], 1);
 	iomap[4] = pcim_iomap(pdev, 2, 0);
 
 	if (!iomap[0] || !iomap[1] || !iomap[2] || !iomap[3] || !iomap[4])
@@ -258,12 +260,20 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	ioaddr->bmdma_addr = iomap[4];
 	ata_std_ports(ioaddr);
 
+	ata_port_desc(host->ports[0],
+		      "cmd 0x%x ctl 0x%x", cmd_port[0], ctl_port[0]);
+	ata_port_pbar_desc(host->ports[0], 4, 0, "bmdma");
+
 	ioaddr = &host->ports[1]->ioaddr;
 	ioaddr->cmd_addr = iomap[2];
 	ioaddr->ctl_addr = iomap[3];
 	ioaddr->altstatus_addr = iomap[3];
 	ioaddr->bmdma_addr = iomap[4] + 8;
 	ata_std_ports(ioaddr);
+
+	ata_port_desc(host->ports[1],
+		      "cmd 0x%x ctl 0x%x", cmd_port[1], ctl_port[1]);
+	ata_port_pbar_desc(host->ports[1], 4, 8, "bmdma");
 
 	/* activate the host */
 	pci_set_master(pdev);
@@ -283,10 +293,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 		if (rc)
 			return rc;
 
-		if (i == 0)
-			host->irq = irq[0];
-		else
-			host->irq2 = irq[1];
+		ata_port_desc(ap, "irq %d", irq[i]);
 	}
 
 	return ata_host_register(host, &cs5520_sht);

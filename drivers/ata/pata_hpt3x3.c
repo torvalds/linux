@@ -237,7 +237,8 @@ static int hpt3x3_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	base = host->iomap[4];	/* Bus mastering base */
 
 	for (i = 0; i < host->n_ports; i++) {
-		struct ata_ioports *ioaddr = &host->ports[i]->ioaddr;
+		struct ata_port *ap = host->ports[i];
+		struct ata_ioports *ioaddr = &ap->ioaddr;
 
 		ioaddr->cmd_addr = base + offset_cmd[i];
 		ioaddr->altstatus_addr =
@@ -245,6 +246,9 @@ static int hpt3x3_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioaddr->scr_addr = NULL;
 		ata_std_ports(ioaddr);
 		ioaddr->bmdma_addr = base + 8 * i;
+
+		ata_port_pbar_desc(ap, 4, -1, "ioport");
+		ata_port_pbar_desc(ap, 4, offset_cmd[i], "cmd");
 	}
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ata_interrupt, IRQF_SHARED,

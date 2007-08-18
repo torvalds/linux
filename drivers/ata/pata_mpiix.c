@@ -201,7 +201,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	struct ata_port *ap;
 	void __iomem *cmd_addr, *ctl_addr;
 	u16 idetim;
-	int irq;
+	int cmd, ctl, irq;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &dev->dev, "version " DRV_VERSION "\n");
@@ -209,6 +209,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	host = ata_host_alloc(&dev->dev, 1);
 	if (!host)
 		return -ENOMEM;
+	ap = host->ports[0];
 
 	/* MPIIX has many functions which can be turned on or off according
 	   to other devices present. Make sure IDE is enabled before we try
@@ -220,17 +221,21 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* See if it's primary or secondary channel... */
 	if (!(idetim & SECONDARY)) {
+		cmd = 0x1F0;
+		ctl = 0x3F6;
 		irq = 14;
-		cmd_addr = devm_ioport_map(&dev->dev, 0x1F0, 8);
-		ctl_addr = devm_ioport_map(&dev->dev, 0x3F6, 1);
 	} else {
+		cmd = 0x170;
+		ctl = 0x376;
 		irq = 15;
-		cmd_addr = devm_ioport_map(&dev->dev, 0x170, 8);
-		ctl_addr = devm_ioport_map(&dev->dev, 0x376, 1);
 	}
 
+	cmd_addr = devm_ioport_map(&dev->dev, cmd, 8);
+	ctl_addr = devm_ioport_map(&dev->dev, ctl, 1);
 	if (!cmd_addr || !ctl_addr)
 		return -ENOMEM;
+
+	ata_port_desc(ap, "cmd 0x%x ctl 0x%x", cmd, ctl);
 
 	/* We do our own plumbing to avoid leaking special cases for whacko
 	   ancient hardware into the core code. There are two issues to
@@ -238,7 +243,6 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	   without BARs set fools the setup.  #2 If you pci_disable_device
 	   the MPIIX your box goes castors up */
 
-	ap = host->ports[0];
 	ap->ops = &mpiix_port_ops;
 	ap->pio_mask = 0x1F;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;

@@ -406,9 +406,15 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	mmio_base = host->iomap[VSC_MMIO_BAR];
 
-	for (i = 0; i < host->n_ports; i++)
-		vsc_sata_setup_port(&host->ports[i]->ioaddr,
-				    mmio_base + (i + 1) * VSC_SATA_PORT_OFFSET);
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		unsigned int offset = (i + 1) * VSC_SATA_PORT_OFFSET;
+
+		vsc_sata_setup_port(&ap->ioaddr, mmio_base + offset);
+
+		ata_port_pbar_desc(ap, VSC_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, VSC_MMIO_BAR, offset, "port");
+	}
 
 	/*
 	 * Use 32 bit DMA mask, because 64 bit address support is poor.

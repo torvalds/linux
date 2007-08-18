@@ -302,6 +302,8 @@ next_entry:
 	ap->ioaddr.ctl_addr = ctl_addr;
 	ata_std_ports(&ap->ioaddr);
 
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", io_base, ctl_base);
+
 	/* activate */
 	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_interrupt,
 				IRQF_SHARED, &pcmcia_sht);

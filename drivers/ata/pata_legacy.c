@@ -799,6 +799,8 @@ static __init int legacy_init_one(int port, unsigned long io, unsigned long ctrl
 	ata_std_ports(&ap->ioaddr);
 	ap->private_data = ld;
 
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", io, ctrl);
+
 	ret = ata_host_activate(host, irq, ata_interrupt, 0, &legacy_sht);
 	if (ret)
 		goto fail;

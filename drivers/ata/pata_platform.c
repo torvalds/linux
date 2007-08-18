@@ -208,6 +208,10 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	pp_info = pdev->dev.platform_data;
 	pata_platform_setup_port(&ap->ioaddr, pp_info);
 
+	ata_port_desc(ap, "%s cmd 0x%llx ctl 0x%llx", mmio ? "mmio" : "ioport",
+		      (unsigned long long)io_res->start,
+		      (unsigned long long)ctl_res->start);
+
 	/* activate */
 	return ata_host_activate(host, platform_get_irq(pdev, 0),
 				 ata_interrupt, pp_info ? pp_info->irq_flags

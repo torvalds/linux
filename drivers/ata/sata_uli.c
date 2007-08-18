@@ -239,6 +239,12 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		hpriv->scr_cfg_addr[2] = ULI5287_BASE + ULI5287_OFFS*4;
 		ata_std_ports(ioaddr);
 
+		ata_port_desc(host->ports[2],
+			"cmd 0x%llx ctl 0x%llx bmdma 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, 0) + 8,
+			((unsigned long long)pci_resource_start(pdev, 1) | ATA_PCI_CTL_OFS) + 4,
+			(unsigned long long)pci_resource_start(pdev, 4) + 16);
+
 		ioaddr = &host->ports[3]->ioaddr;
 		ioaddr->cmd_addr = iomap[2] + 8;
 		ioaddr->altstatus_addr =
@@ -247,6 +253,13 @@ static int uli_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		ioaddr->bmdma_addr = iomap[4] + 24;
 		hpriv->scr_cfg_addr[3] = ULI5287_BASE + ULI5287_OFFS*5;
 		ata_std_ports(ioaddr);
+
+		ata_port_desc(host->ports[2],
+			"cmd 0x%llx ctl 0x%llx bmdma 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, 2) + 9,
+			((unsigned long long)pci_resource_start(pdev, 3) | ATA_PCI_CTL_OFS) + 4,
+			(unsigned long long)pci_resource_start(pdev, 4) + 24);
+
 		break;
 
 	case uli_5289:
