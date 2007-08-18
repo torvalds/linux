@@ -1,7 +1,8 @@
 /* DVB USB compliant Linux driver for the
- *  - GENPIX 8pks/qpsk USB2.0 DVB-S module
+ *  - GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
  *
  * Copyright (C) 2006 Alan Nisota (alannisota@gmail.com)
+ * Copyright (C) 2006,2007 Alan Nisota (alannisota@gmail.com)
  *
  * Thanks to GENPIX for the sample code used to implement this module.
  *
@@ -30,21 +31,37 @@ extern int dvb_usb_gp8psk_debug;
 #define TH_COMMAND_IN                     0xC0
 #define TH_COMMAND_OUT                    0xC1
 
-/* command bytes */
-#define GET_8PSK_CONFIG                 0x80
+/* gp8psk commands */
+
+#define GET_8PSK_CONFIG                 0x80    /* in */
 #define SET_8PSK_CONFIG                 0x81
+#define I2C_WRITE			0x83
+#define I2C_READ			0x84
 #define ARM_TRANSFER                    0x85
 #define TUNE_8PSK                       0x86
-#define GET_SIGNAL_STRENGTH             0x87
+#define GET_SIGNAL_STRENGTH             0x87    /* in */
 #define LOAD_BCM4500                    0x88
-#define BOOT_8PSK                       0x89
-#define START_INTERSIL                  0x8A
+#define BOOT_8PSK                       0x89    /* in */
+#define START_INTERSIL                  0x8A    /* in */
 #define SET_LNB_VOLTAGE                 0x8B
 #define SET_22KHZ_TONE                  0x8C
 #define SEND_DISEQC_COMMAND             0x8D
 #define SET_DVB_MODE                    0x8E
 #define SET_DN_SWITCH                   0x8F
-#define GET_SIGNAL_LOCK                 0x90
+#define GET_SIGNAL_LOCK                 0x90    /* in */
+#define GET_SERIAL_NUMBER               0x93    /* in */
+#define USE_EXTRA_VOLT                  0x94
+#define CW3K_INIT			0x9d
+
+/* PSK_configuration bits */
+#define bm8pskStarted                   0x01
+#define bm8pskFW_Loaded                 0x02
+#define bmIntersilOn                    0x04
+#define bmDVBmode                       0x08
+#define bm22kHz                         0x10
+#define bmSEL18V                        0x20
+#define bmDCtuned                       0x40
+#define bmArmed                         0x80
 
 /* Satellite modulation modes */
 #define ADV_MOD_DVB_QPSK 0     /* DVB-S QPSK */
@@ -75,5 +92,6 @@ extern struct dvb_frontend * gp8psk_fe_attach(struct dvb_usb_device *d);
 extern int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen);
 extern int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen);
+extern int gp8psk_bcm4500_reload(struct dvb_usb_device *d);
 
 #endif
