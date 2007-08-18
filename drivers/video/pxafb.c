@@ -66,7 +66,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state);
 
 #ifdef CONFIG_FB_PXA_PARAMETERS
 #define PXAFB_OPTIONS_SIZE 256
-static char g_options[PXAFB_OPTIONS_SIZE] __initdata = "";
+static char g_options[PXAFB_OPTIONS_SIZE] __devinitdata = "";
 #endif
 
 static inline void pxafb_schedule_work(struct pxafb_info *fbi, u_int state)
