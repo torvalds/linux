@@ -163,8 +163,8 @@ static int ivtv_convert_ivtv_vbi(struct ivtv *itv, u8 *p)
 		linemask[1] = 0xf;
 		p += 4;
 	} else {
-		/* unknown VBI data stream */
-		return 0;
+		/* unknown VBI data, convert to empty VBI frame */
+		linemask[0] = linemask[1] = 0;
 	}
 	for (i = 0; i < 36; i++) {
 		int err = 0;

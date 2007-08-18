@@ -165,7 +165,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 	}
 
 	/* if this is the start of the DMA then fill in the magic cookie */
-	if (s->sg_pending_size == 0) {
+	if (s->sg_pending_size == 0 && ivtv_use_dma(s)) {
 		if (itv->has_cx23415 && (s->type == IVTV_ENC_STREAM_TYPE_PCM ||
 		    s->type == IVTV_DEC_STREAM_TYPE_VBI)) {
 			s->pending_backup = read_dec(offset - IVTV_DECODER_OFFSET);
@@ -252,7 +252,7 @@ static void dma_post(struct ivtv_stream *s)
 		/* Sync Buffer */
 		ivtv_buf_sync_for_cpu(s, buf);
 
-		if (x == 0) {
+		if (x == 0 && ivtv_use_dma(s)) {
 			offset = s->dma_last_offset;
 			if (u32buf[offset / 4] != DMA_MAGIC_COOKIE)
 			{
@@ -591,7 +591,6 @@ static void ivtv_irq_enc_pio_complete(struct ivtv *itv)
 	}
 	s = &itv->streams[itv->cur_pio_stream];
 	IVTV_DEBUG_HI_IRQ("ENC PIO COMPLETE %s\n", s->name);
-	s->sg_pending_size = 0;
 	clear_bit(IVTV_F_I_PIO, &itv->i_flags);
 	itv->cur_pio_stream = -1;
 	dma_post(s);
