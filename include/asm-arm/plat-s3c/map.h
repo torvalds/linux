@@ -30,11 +30,11 @@
 #define S3C_ADDR(x)	(S3C_ADDR_BASE + (x))
 #endif
 
-#define S3C_VA_IRQ	S3C_ADDR(0x000000000)	/* irq controller(s) */
-#define S3C_VA_SYS	S3C_ADDR(0x001000000)	/* system control */
-#define S3C_VA_MEM	S3C_ADDR(0x002000000)	/* system control */
-#define S3C_VA_TIMER	S3C_ADDR(0x003000000)	/* timer block */
-#define S3C_VA_WATCHDOG	S3C_ADDR(0x004000000)	/* watchdog */
-#define S3C_VA_UART	S3C_ADDR(0x010000000)	/* UART */
+#define S3C_VA_IRQ	S3C_ADDR(0x00000000)	/* irq controller(s) */
+#define S3C_VA_SYS	S3C_ADDR(0x00100000)	/* system control */
+#define S3C_VA_MEM	S3C_ADDR(0x00200000)	/* system control */
+#define S3C_VA_TIMER	S3C_ADDR(0x00300000)	/* timer block */
+#define S3C_VA_WATCHDOG	S3C_ADDR(0x00400000)	/* watchdog */
+#define S3C_VA_UART	S3C_ADDR(0x01000000)	/* UART */
 
 #endif /* __ASM_PLAT_MAP_H */
