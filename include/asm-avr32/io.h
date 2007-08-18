@@ -255,6 +255,8 @@ static inline void memset_io(volatile void __iomem *addr, unsigned char val,
 	memset((void __force *)addr, val, count);
 }
 
+#define mmiowb()
+
 #define IO_SPACE_LIMIT	0xffffffff
 
 extern void __iomem *__ioremap(unsigned long offset, size_t size,

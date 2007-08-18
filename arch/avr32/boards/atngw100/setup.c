@@ -9,6 +9,7 @@
  */
 #include <linux/clk.h>
 #include <linux/etherdevice.h>
+#include <linux/i2c-gpio.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/platform_device.h>
@@ -123,6 +124,19 @@ static struct platform_device ngw_gpio_leds = {
 	}
 };
 
+static struct i2c_gpio_platform_data i2c_gpio_data = {
+	.sda_pin	= GPIO_PIN_PA(6),
+	.scl_pin	= GPIO_PIN_PA(7),
+};
+
+static struct platform_device i2c_gpio_device = {
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &i2c_gpio_data,
+	},
+};
+
 static int __init atngw100_init(void)
 {
 	unsigned	i;
@@ -146,6 +160,10 @@ static int __init atngw100_init(void)
 				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	}
 	platform_device_register(&ngw_gpio_leds);
+
+	at32_select_gpio(i2c_gpio_data.sda_pin, 0);
+	at32_select_gpio(i2c_gpio_data.scl_pin, 0);
+	platform_device_register(&i2c_gpio_device);
 
 	return 0;
 }
