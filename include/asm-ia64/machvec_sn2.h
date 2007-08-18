@@ -35,6 +35,7 @@ extern ia64_mv_send_ipi_t sn2_send_IPI;
 extern ia64_mv_timer_interrupt_t sn_timer_interrupt;
 extern ia64_mv_global_tlb_purge_t sn2_global_tlb_purge;
 extern ia64_mv_tlb_migrate_finish_t	sn_tlb_migrate_finish;
+extern ia64_mv_irq_to_vector sn_irq_to_vector;
 extern ia64_mv_local_vector_to_irq sn_local_vector_to_irq;
 extern ia64_mv_pci_get_legacy_mem_t sn_pci_get_legacy_mem;
 extern ia64_mv_pci_legacy_read_t sn_pci_legacy_read;
@@ -104,6 +105,7 @@ extern ia64_mv_pci_fixup_bus_t		sn_pci_fixup_bus;
 #define platform_readw_relaxed		__sn_readw_relaxed
 #define platform_readl_relaxed		__sn_readl_relaxed
 #define platform_readq_relaxed		__sn_readq_relaxed
+#define platform_irq_to_vector		sn_irq_to_vector
 #define platform_local_vector_to_irq	sn_local_vector_to_irq
 #define platform_pci_get_legacy_mem	sn_pci_get_legacy_mem
 #define platform_pci_legacy_read	sn_pci_legacy_read
