@@ -293,8 +293,8 @@ enum {
 	ATA_EHI_DID_RESET	= ATA_EHI_DID_SOFTRESET | ATA_EHI_DID_HARDRESET,
 	ATA_EHI_RESET_MODIFIER_MASK = ATA_EHI_RESUME_LINK,
 
-	/* max repeat if error condition is still set after ->error_handler */
-	ATA_EH_MAX_REPEAT	= 5,
+	/* max tries if error condition is still set after ->error_handler */
+	ATA_EH_MAX_TRIES	= 5,
 
 	/* how hard are we gonna try to probe/recover devices */
 	ATA_PROBE_MAX_TRIES	= 3,
@@ -581,6 +581,7 @@ struct ata_port {
 	u32			msg_enable;
 	struct list_head	eh_done_q;
 	wait_queue_head_t	eh_wait_q;
+	int			eh_tries;
 
 	pm_message_t		pm_mesg;
 	int			*pm_result;

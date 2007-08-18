@@ -358,7 +358,7 @@ enum scsi_eh_timer_return ata_scsi_timed_out(struct scsi_cmnd *cmd)
 void ata_scsi_error(struct Scsi_Host *host)
 {
 	struct ata_port *ap = ata_shost_to_port(host);
-	int i, repeat_cnt = ATA_EH_MAX_REPEAT;
+	int i;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
@@ -424,6 +424,9 @@ void ata_scsi_error(struct Scsi_Host *host)
 			__ata_port_freeze(ap);
 
 		spin_unlock_irqrestore(ap->lock, flags);
+
+		/* initialize eh_tries */
+		ap->eh_tries = ATA_EH_MAX_TRIES;
 	} else
 		spin_unlock_wait(ap->lock);
 
@@ -468,15 +471,12 @@ void ata_scsi_error(struct Scsi_Host *host)
 		spin_lock_irqsave(ap->lock, flags);
 
 		if (ap->pflags & ATA_PFLAG_EH_PENDING) {
-			if (--repeat_cnt) {
-				ata_port_printk(ap, KERN_INFO,
-					"EH pending after completion, "
-					"repeating EH (cnt=%d)\n", repeat_cnt);
+			if (--ap->eh_tries) {
 				spin_unlock_irqrestore(ap->lock, flags);
 				goto repeat;
 			}
 			ata_port_printk(ap, KERN_ERR, "EH pending after %d "
-					"tries, giving up\n", ATA_EH_MAX_REPEAT);
+					"tries, giving up\n", ATA_EH_MAX_TRIES);
 			ap->pflags &= ~ATA_PFLAG_EH_PENDING;
 		}
 
@@ -1778,6 +1778,7 @@ static void ata_eh_link_report(struct ata_link *link)
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	const char *frozen, *desc;
+	char tries_buf[6];
 	int tag, nr_failed = 0;
 
 	desc = NULL;
@@ -1802,18 +1803,23 @@ static void ata_eh_link_report(struct ata_link *link)
 	if (ap->pflags & ATA_PFLAG_FROZEN)
 		frozen = " frozen";
 
+	memset(tries_buf, 0, sizeof(tries_buf));
+	if (ap->eh_tries < ATA_EH_MAX_TRIES)
+		snprintf(tries_buf, sizeof(tries_buf) - 1, " t%d",
+			 ap->eh_tries);
+
 	if (ehc->i.dev) {
 		ata_dev_printk(ehc->i.dev, KERN_ERR, "exception Emask 0x%x "
-			       "SAct 0x%x SErr 0x%x action 0x%x%s\n",
-			       ehc->i.err_mask, link->sactive,
-			       ehc->i.serror, ehc->i.action, frozen);
+			       "SAct 0x%x SErr 0x%x action 0x%x%s%s\n",
+			       ehc->i.err_mask, link->sactive, ehc->i.serror,
+			       ehc->i.action, frozen, tries_buf);
 		if (desc)
 			ata_dev_printk(ehc->i.dev, KERN_ERR, "%s\n", desc);
 	} else {
 		ata_link_printk(link, KERN_ERR, "exception Emask 0x%x "
-				"SAct 0x%x SErr 0x%x action 0x%x%s\n",
-				ehc->i.err_mask, link->sactive,
-				ehc->i.serror, ehc->i.action, frozen);
+				"SAct 0x%x SErr 0x%x action 0x%x%s%s\n",
+				ehc->i.err_mask, link->sactive, ehc->i.serror,
+				ehc->i.action, frozen, tries_buf);
 		if (desc)
 			ata_link_printk(link, KERN_ERR, "%s\n", desc);
 	}
