@@ -906,6 +906,9 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			IVTV_DEBUG_INFO("Input unchanged\n");
 			break;
 		}
+		if (atomic_read(&itv->capturing) > 0) {
+			return -EBUSY;
+		}
 		IVTV_DEBUG_INFO("Changing input from %d to %d\n",
 				itv->active_input, inp);
 

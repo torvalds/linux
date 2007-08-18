@@ -554,9 +554,10 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
+		itv->video_dec_func(itv, VIDIOC_STREAMOFF, 0);
+		ivtv_msleep_timeout(300, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-
-		ivtv_msleep_timeout(100, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMON, 0);
 	}
 
 	/* begin_capture */
@@ -713,7 +714,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	int cap_type;
 	unsigned long then;
 	int stopmode;
-	u32 data[CX2341X_MBOX_MAX_DATA];
 
 	if (s->v4l2dev == NULL)
 		return -EINVAL;
@@ -793,27 +793,9 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		}
 
 		then = jiffies;
-		/* Make sure DMA is complete */
-		add_wait_queue(&s->waitq, &wait);
-		do {
-			/* check if DMA is pending */
-			if ((s->type == IVTV_ENC_STREAM_TYPE_MPG) &&	/* MPG Only */
-			    (read_reg(IVTV_REG_DMASTATUS) & 0x02)) {
-				/* Check for last DMA */
-				ivtv_vapi_result(itv, data, CX2341X_ENC_GET_SEQ_END, 2, 0, 0);
 
-				if (data[0] == 1) {
-					IVTV_DEBUG_DMA("%s: Last DMA of size 0x%08x\n", s->name, data[1]);
-					break;
-				}
-			} else if (read_reg(IVTV_REG_DMASTATUS) & 0x02) {
-				break;
-			}
-		} while (!ivtv_msleep_timeout(10, 1) &&
-			 then + msecs_to_jiffies(2000) > jiffies);
-
-		set_current_state(TASK_RUNNING);
-		remove_wait_queue(&s->waitq, &wait);
+		/* Handle any pending interrupts */
+		ivtv_msleep_timeout(100, 1);
 	}
 
 	atomic_dec(&itv->capturing);

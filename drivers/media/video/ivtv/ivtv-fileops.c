@@ -892,12 +892,20 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 			return -EBUSY;
 		}
 
+		if (!test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
+			if (atomic_read(&itv->capturing) > 0) {
+				/* switching to radio while capture is
+				   in progress is not polite */
+				kfree(item);
+				return -EBUSY;
+			}
+		}
+		/* Mark that the radio is being used. */
+		set_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* We have the radio */
 		ivtv_mute(itv);
 		/* Switch tuner to radio */
 		ivtv_call_i2c_clients(itv, AUDC_SET_RADIO, NULL);
-		/* Mark that the radio is being used. */
-		set_bit(IVTV_F_I_RADIO_USER, &itv->i_flags);
 		/* Select the correct audio input (i.e. radio tuner) */
 		ivtv_audio_set_io(itv);
 		if (itv->hw_flags & IVTV_HW_SAA711X)
@@ -931,13 +939,8 @@ void ivtv_mute(struct ivtv *itv)
 
 void ivtv_unmute(struct ivtv *itv)
 {
-	/* initialize or refresh input */
-	if (atomic_read(&itv->capturing) == 0)
-		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-
-	ivtv_msleep_timeout(100, 0);
-
 	if (atomic_read(&itv->capturing)) {
+		ivtv_msleep_timeout(100, 0);
 		ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12);
 		ivtv_vapi(itv, CX2341X_ENC_MUTE_AUDIO, 1, 0);
 	}
