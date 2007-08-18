@@ -3,7 +3,8 @@
  *
  * Copyright (C) 2007 Hans Verkuil <hverkuil@xs4all.nl>
  *
- * Based on a tvaudio patch from Kazuhiko Kawakami <kazz-0@mail.goo.ne.jp>
+ * Based on a tvaudio patch from Takahiro Adachi <tadachi@tadachi-net.com>
+ * and Kazuhiko Kawakami <kazz-0@mail.goo.ne.jp>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
