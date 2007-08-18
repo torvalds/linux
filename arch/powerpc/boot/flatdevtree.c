@@ -134,20 +134,6 @@ static char *ft_next(struct ft_cxt *cxt, char *p, struct ft_atom *ret)
 #define HDR_SIZE	_ALIGN(sizeof(struct boot_param_header), 8)
 #define EXPAND_INCR	1024	/* alloc this much extra when expanding */
 
-/* See if the regions are in the standard order and non-overlapping */
-static int ft_ordered(struct ft_cxt *cxt)
-{
-	char *p = (char *)cxt->bph + HDR_SIZE;
-	enum ft_rgn_id r;
-
-	for (r = FT_RSVMAP; r <= FT_STRINGS; ++r) {
-		if (p > cxt->rgn[r].start)
-			return 0;
-		p = cxt->rgn[r].start + cxt->rgn[r].size;
-	}
-	return p <= (char *)cxt->bph + cxt->max_size;
-}
-
 /* Copy the tree to a newly-allocated region and put things in order */
 static int ft_reorder(struct ft_cxt *cxt, int nextra)
 {
@@ -573,10 +559,6 @@ int ft_open(struct ft_cxt *cxt, void *blob, unsigned int max_size,
 	cxt->rgn[FT_STRUCT].size = struct_size(cxt);
 	cxt->rgn[FT_STRINGS].start = blob + be32_to_cpu(bph->off_dt_strings);
 	cxt->rgn[FT_STRINGS].size = be32_to_cpu(bph->dt_strings_size);
-	/* Leave as '0' to force first ft_make_space call to do a ft_reorder
-	 * and move dt to an area allocated by realloc.
-	cxt->isordered = ft_ordered(cxt);
-	*/
 
 	cxt->p = cxt->rgn[FT_STRUCT].start;
 	cxt->str_anchor = cxt->rgn[FT_STRINGS].start;
