@@ -494,7 +494,9 @@ static void ivtv_irq_dma_read(struct ivtv *itv)
 					s->sg_processed, s->sg_processing_size, itv->dma_retries);
 			write_reg(read_reg(IVTV_REG_DMASTATUS) & 3, IVTV_REG_DMASTATUS);
 			if (itv->dma_retries == 3) {
+				/* Too many retries, give up on this frame */
 				itv->dma_retries = 0;
+				s->sg_processed = s->sg_processing_size;
 			}
 			else {
 				/* Retry, starting with the first xfer segment.
@@ -554,7 +556,9 @@ static void ivtv_irq_enc_dma_complete(struct ivtv *itv)
 			s->dma_offset, s->sg_processed, s->sg_processing_size, itv->dma_retries);
 		write_reg(read_reg(IVTV_REG_DMASTATUS) & 3, IVTV_REG_DMASTATUS);
 		if (itv->dma_retries == 3) {
+			/* Too many retries, give up on this frame */
 			itv->dma_retries = 0;
+			s->sg_processed = s->sg_processing_size;
 		}
 		else {
 			/* Retry, starting with the first xfer segment.
