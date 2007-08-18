@@ -163,8 +163,10 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 				 hdr_len, 0, GFP_KERNEL);
 	if (IS_ERR(msg))
 		ib_destroy_ah(ah);
-	else
+	else {
 		msg->ah = ah;
+		msg->context[0] = ah;
+	}
 
 	return msg;
 }
@@ -197,9 +199,7 @@ static void ack_ds_ack(struct ib_mad_agent_private *agent,
 
 void ib_rmpp_send_handler(struct ib_mad_send_wc *mad_send_wc)
 {
-	struct ib_rmpp_mad *rmpp_mad = mad_send_wc->send_buf->mad;
-
-	if (rmpp_mad->rmpp_hdr.rmpp_type != IB_MGMT_RMPP_TYPE_ACK)
+	if (mad_send_wc->send_buf->context[0] == mad_send_wc->send_buf->ah)
 		ib_destroy_ah(mad_send_wc->send_buf->ah);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
