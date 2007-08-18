@@ -160,11 +160,6 @@ static void platform_device_release(struct device *dev)
  *
  *	Create a platform device object which can have other objects attached
  *	to it, and which will have attached objects freed when it is released.
- *
- *	This device will be marked as not supporting hotpluggable drivers; no
- *	device add/remove uevents will be generated.  In the unusual case that
- *	the device isn't being dynamically allocated as a legacy "probe the
- *	hardware" driver, infrastructure code should reverse this marking.
  */
 struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 {
@@ -177,12 +172,6 @@ struct platform_device *platform_device_alloc(const char *name, unsigned int id)
 		pa->pdev.id = id;
 		device_initialize(&pa->pdev.dev);
 		pa->pdev.dev.release = platform_device_release;
-
-		/* prevent hotplug "modprobe $(MODALIAS)" from causing trouble in
-		 * legacy probe-the-hardware drivers, which don't properly split
-		 * out device enumeration logic from drivers.
-		 */
-		pa->pdev.dev.uevent_suppress = 1;
 	}
 
 	return pa ? &pa->pdev : NULL;
@@ -530,7 +519,7 @@ static ssize_t
 modalias_show(struct device *dev, struct device_attribute *a, char *buf)
 {
 	struct platform_device	*pdev = to_platform_device(dev);
-	int len = snprintf(buf, PAGE_SIZE, "%s\n", pdev->name);
+	int len = snprintf(buf, PAGE_SIZE, "platform:%s\n", pdev->name);
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
@@ -546,7 +535,7 @@ static int platform_uevent(struct device *dev, char **envp, int num_envp,
 	struct platform_device	*pdev = to_platform_device(dev);
 
 	envp[0] = buffer;
-	snprintf(buffer, buffer_size, "MODALIAS=%s", pdev->name);
+	snprintf(buffer, buffer_size, "MODALIAS=platform:%s", pdev->name);
 	return 0;
 }
 
