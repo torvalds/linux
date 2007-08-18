@@ -2063,7 +2063,9 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	atomic_inc(&core->refcount);
 	core->pci_bus  = pci->bus->number;
 	core->pci_slot = PCI_SLOT(pci->devfn);
-	core->pci_irqmask = 0x00fc00;
+	core->pci_irqmask = PCI_INT_RISC_RD_BERRINT | PCI_INT_RISC_WR_BERRINT |
+			    PCI_INT_BRDG_BERRINT | PCI_INT_SRC_DMA_BERRINT |
+			    PCI_INT_DST_DMA_BERRINT | PCI_INT_IPB_DMA_BERRINT;
 	mutex_init(&core->lock);
 
 	core->nr = nr;

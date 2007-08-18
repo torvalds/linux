@@ -67,7 +67,7 @@ static int cx8800_start_vbi_dma(struct cx8800_dev    *dev,
 	q->count = 1;
 
 	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x01);
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
 	cx_set(MO_VID_INTMSK, 0x0f0088);
 
 	/* enable capture */
@@ -91,7 +91,7 @@ int cx8800_stop_vbi_dma(struct cx8800_dev *dev)
 	cx_clear(VID_CAPTURE_CONTROL,0x18);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x000001);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
 	cx_clear(MO_VID_INTMSK, 0x0f0088);
 	return 0;
 }

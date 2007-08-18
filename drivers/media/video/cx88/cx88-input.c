@@ -167,7 +167,7 @@ static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 		schedule_work(&ir->work);
 	}
 	if (ir->sampling) {
-		core->pci_irqmask |= (1 << 18);	/* IR_SMP_INT */
+		core->pci_irqmask |= PCI_INT_IR_SMPINT;
 		cx_write(MO_DDS_IO, 0xa80a80);	/* 4 kHz sample rate */
 		cx_write(MO_DDSCFG_IO, 0x5);	/* enable */
 	}
@@ -177,7 +177,7 @@ static void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->sampling) {
 		cx_write(MO_DDSCFG_IO, 0x0);
-		core->pci_irqmask &= ~(1 << 18);
+		core->pci_irqmask &= ~PCI_INT_IR_SMPINT;
 	}
 
 	if (ir->polling) {

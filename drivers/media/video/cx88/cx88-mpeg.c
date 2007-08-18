@@ -148,7 +148,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 
 	/* enable irqs */
 	dprintk( 1, "setting the interrupt mask\n" );
-	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x04);
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_TSINT);
 	cx_set(MO_TS_INTMSK,  0x1f0011);
 
 	/* start dma */
@@ -166,7 +166,7 @@ static int cx8802_stop_dma(struct cx8802_dev *dev)
 	cx_clear(MO_TS_DMACNTRL, 0x11);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x000004);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_TSINT);
 	cx_clear(MO_TS_INTMSK, 0x1f0011);
 
 	/* Reset the controller */
@@ -413,7 +413,8 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 	int loop, handled = 0;
 
 	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
-		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x04);
+		status = cx_read(MO_PCI_INTSTAT) &
+			(core->pci_irqmask | PCI_INT_TSINT);
 		if (0 == status)
 			goto out;
 		dprintk( 1, "cx8802_irq\n" );
@@ -424,7 +425,7 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 
 		if (status & core->pci_irqmask)
 			cx88_core_irq(core,status);
-		if (status & 0x04)
+		if (status & PCI_INT_TSINT)
 			cx8802_mpeg_irq(dev);
 	};
 	if (MAX_IRQ_LOOP == loop) {

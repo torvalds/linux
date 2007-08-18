@@ -498,7 +498,7 @@ int cx88_core_irq(struct cx88_core *core, u32 status)
 {
 	int handled = 0;
 
-	if (status & (1<<18)) {
+	if (status & PCI_INT_IR_SMPINT) {
 		cx88_ir_irq(core);
 		handled++;
 	}

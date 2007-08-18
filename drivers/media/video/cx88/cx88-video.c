@@ -423,7 +423,7 @@ static int start_video_dma(struct cx8800_dev    *dev,
 	q->count = 1;
 
 	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x01);
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask | PCI_INT_VIDINT);
 
 	/* Enables corresponding bits at PCI_INT_STAT:
 		bits 0 to 4: video, audio, transport stream, VIP, Host
@@ -456,7 +456,7 @@ static int stop_video_dma(struct cx8800_dev    *dev)
 	cx_clear(VID_CAPTURE_CONTROL,0x06);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x000001);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_VIDINT);
 	cx_clear(MO_VID_INTMSK, 0x0f0011);
 	return 0;
 }
@@ -1604,7 +1604,8 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 	int loop, handled = 0;
 
 	for (loop = 0; loop < 10; loop++) {
-		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x01);
+		status = cx_read(MO_PCI_INTSTAT) &
+			(core->pci_irqmask | PCI_INT_VIDINT);
 		if (0 == status)
 			goto out;
 		cx_write(MO_PCI_INTSTAT, status);
@@ -1612,7 +1613,7 @@ static irqreturn_t cx8800_irq(int irq, void *dev_id)
 
 		if (status & core->pci_irqmask)
 			cx88_core_irq(core,status);
-		if (status & 0x01)
+		if (status & PCI_INT_VIDINT)
 			cx8800_vid_irq(dev);
 	};
 	if (10 == loop) {

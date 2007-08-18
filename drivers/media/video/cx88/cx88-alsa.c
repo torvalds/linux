@@ -149,9 +149,11 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 	/* reset counter */
 	cx_write(MO_AUDD_GPCNTRL,GP_COUNT_CONTROL_RESET);
 
-	dprintk(1,"Enabling IRQ, setting mask from 0x%x to 0x%x\n",chip->core->pci_irqmask,(chip->core->pci_irqmask | 0x02));
+	dprintk(1, "Enabling IRQ, setting mask from 0x%x to 0x%x\n",
+		chip->core->pci_irqmask,
+		chip->core->pci_irqmask | PCI_INT_AUDINT);
 	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | 0x02);
+	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | PCI_INT_AUDINT);
 
 
 	/* Enables corresponding bits at AUD_INT_STAT */
@@ -184,7 +186,7 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 	cx_clear(MO_AUD_DMACNTRL, 0x11);
 
 	/* disable irqs */
-	cx_clear(MO_PCI_INTMSK, 0x02);
+	cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
 	cx_clear(MO_AUD_INTMSK,
 			(1<<16)|
 			(1<<12)|
@@ -273,7 +275,8 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 	int loop, handled = 0;
 
 	for (loop = 0; loop < MAX_IRQ_LOOP; loop++) {
-		status = cx_read(MO_PCI_INTSTAT) & (core->pci_irqmask | 0x02);
+		status = cx_read(MO_PCI_INTSTAT) &
+			(core->pci_irqmask | PCI_INT_AUDINT);
 		if (0 == status)
 			goto out;
 		dprintk( 3, "cx8801_irq\n" );
@@ -282,8 +285,7 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 		handled = 1;
 		cx_write(MO_PCI_INTSTAT, status);
 
-		if (status & 0x02)
-		{
+		if (status & PCI_INT_AUDINT) {
 			dprintk( 2, "    ALSA IRQ handling\n" );
 			cx8801_aud_irq(chip);
 		}
@@ -293,7 +295,7 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 		dprintk( 0, "clearing mask\n" );
 		dprintk(1,"%s/0: irq loop -- clearing mask\n",
 		       core->name);
-		cx_clear(MO_PCI_INTMSK,0x02);
+		cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
 	}
 
  out:
