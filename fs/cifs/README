@@ -444,6 +444,13 @@ A partial list of the supported mount options follows:
  noposixpaths   If CIFS Unix extensions are supported, do not request
 		posix path name support (this may cause servers to
 		reject creatingfile with certain reserved characters).
+ nounix         Disable the CIFS Unix Extensions for this mount (tree
+		connection). This is rarely needed, but it may be useful
+		in order to turn off multiple settings all at once (ie
+		posix acls, posix locks, posix paths, symlink support
+		and retrieving uids/gids/mode from the server) or to
+		work around a bug in server which implement the Unix
+		Extensions.
  nobrl          Do not send byte range lock requests to the server.
 		This is necessary for certain applications that break
 		with cifs style mandatory byte range locks (and most
@@ -451,6 +458,12 @@ A partial list of the supported mount options follows:
 		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
+ servern        Specify the server 's netbios name (RFC1001 name) to use
+		when attempting to setup a session to the server.  This is
+		This is needed for mounting to some older servers (such
+		as OS/2 or Windows 98 and Windows ME) since they do not
+		support a default server name.  A server name can be up
+		to 15 characters long and is usually uppercased.
  sfu            When the CIFS Unix Extensions are not negotiated, attempt to
 		create device files and fifos in a format compatible with
 		Services for Unix (SFU).  In addition retrieve bits 10-12

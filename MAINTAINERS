@@ -1009,7 +1009,7 @@ P:	Steve French
 M:	sfrench@samba.org
 L:	linux-cifs-client@lists.samba.org
 L:	samba-technical@lists.samba.org
-W:	http://us1.samba.org/samba/Linux_CIFS_client.html
+W:	http://linux-cifs.samba.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
 S:	Supported
 
