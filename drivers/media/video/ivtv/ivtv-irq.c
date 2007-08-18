@@ -859,8 +859,9 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if ((combo & IVTV_IRQ_DMA) && !test_bit(IVTV_F_I_DMA, &itv->i_flags)) {
+		itv->irq_rr_idx++;
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
-			int idx = (i + itv->irq_rr_idx++) % IVTV_MAX_STREAMS;
+			int idx = (i + itv->irq_rr_idx) % IVTV_MAX_STREAMS;
 			struct ivtv_stream *s = &itv->streams[idx];
 
 			if (!test_and_clear_bit(IVTV_F_S_DMA_PENDING, &s->s_flags))
@@ -877,8 +878,9 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 	}
 
 	if ((combo & IVTV_IRQ_DMA) && !test_bit(IVTV_F_I_PIO, &itv->i_flags)) {
+		itv->irq_rr_idx++;
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
-			int idx = (i + itv->irq_rr_idx++) % IVTV_MAX_STREAMS;
+			int idx = (i + itv->irq_rr_idx) % IVTV_MAX_STREAMS;
 			struct ivtv_stream *s = &itv->streams[idx];
 
 			if (!test_and_clear_bit(IVTV_F_S_PIO_PENDING, &s->s_flags))
