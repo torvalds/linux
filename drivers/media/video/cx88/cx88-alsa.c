@@ -285,6 +285,8 @@ static irqreturn_t cx8801_irq(int irq, void *dev_id)
 		handled = 1;
 		cx_write(MO_PCI_INTSTAT, status);
 
+		if (status & core->pci_irqmask)
+			cx88_core_irq(core, status);
 		if (status & PCI_INT_AUDINT) {
 			dprintk( 2, "    ALSA IRQ handling\n" );
 			cx8801_aud_irq(chip);
