@@ -3,6 +3,11 @@ menuconfig MACINTOSH_DRIVERS
 	bool "Macintosh device drivers"
 	depends on PPC || MAC || X86
 	default y if (PPC_PMAC || MAC)
+	---help---
+	  Say Y here to get to see options for devices used with Macintosh
+	  computers. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if MACINTOSH_DRIVERS
 

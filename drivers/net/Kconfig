@@ -1968,6 +1968,16 @@ menuconfig NETDEV_1000
 	bool "Ethernet (1000 Mbit)"
 	depends on !UML
 	default y
+	---help---
+	  Ethernet (also called IEEE 802.3 or ISO 8802-2) is the most common
+	  type of Local Area Network (LAN) in universities and companies.
+
+	  Say Y here to get to see options for Gigabit Ethernet drivers.
+	  This option alone does not add any kernel code.
+	  Note that drivers supporting both 100 and 1000 MBit may be listed
+	  under "Ethernet (10 or 100MBit)" instead.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if NETDEV_1000
 
@@ -2339,6 +2349,11 @@ menuconfig NETDEV_10000
 	bool "Ethernet (10000 Mbit)"
 	depends on !UML
 	default y
+	---help---
+	  Say Y here to get to see options for 10 Gigabit Ethernet drivers.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if NETDEV_10000
 

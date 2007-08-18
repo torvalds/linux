@@ -6,6 +6,12 @@ menuconfig BLK_DEV
 	bool "Block devices"
 	depends on BLOCK
 	default y
+	---help---
+	  Say Y here to get to see options for various different block device
+	  drivers. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled;
+	  only do this if you know what you are doing.
 
 if BLK_DEV
 
