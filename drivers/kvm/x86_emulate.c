@@ -145,8 +145,10 @@ static u8 opcode_table[256] = {
 	0, 0, 0, 0,
 	/* 0xD8 - 0xDF */
 	0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0xE0 - 0xEF */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0xE0 - 0xE7 */
+	0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0xE8 - 0xEF */
+	0, SrcImm|ImplicitOps, 0, 0, 0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, 0,
@@ -445,6 +447,12 @@ struct operand {
 		else							\
 			(reg) = ((reg) & ~((1UL << (ad_bytes << 3)) - 1)) | \
 			   (((reg) + _inc) & ((1UL << (ad_bytes << 3)) - 1)); \
+	} while (0)
+
+#define JMP_REL(rel) 							\
+	do {								\
+		_eip += (int)(rel);					\
+		_eip = ((op_bytes == 2) ? (uint16_t)_eip : (uint32_t)_eip); \
 	} while (0)
 
 /*
@@ -1023,6 +1031,10 @@ done_prefixes:
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		src.val = _regs[VCPU_REGS_RCX];
 		goto grp2;
+	case 0xe9: /* jmp rel */
+		JMP_REL(src.val);
+		no_wb = 1; /* Disable writeback. */
+		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
 		switch (modrm_reg) {
 		case 0 ... 1:	/* test */
