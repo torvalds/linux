@@ -57,12 +57,8 @@
 #endif
 
 #include "ivtv-driver.h"
-#include "ivtv-queue.h"
 #include "ivtv-udma.h"
-#include "ivtv-irq.h"
-#include "ivtv-fileops.h"
 #include "ivtv-mailbox.h"
-#include "ivtv-cards.h"
 #include <media/ivtv-fb.h>
 
 /* card parameters */
