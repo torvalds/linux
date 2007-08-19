@@ -98,7 +98,7 @@
 #endif
 
 #ifndef FP_TRAPPING_EXCEPTIONS
-#define FP_TRAPPING_EXCPETIONS 0
+#define FP_TRAPPING_EXCEPTIONS 0
 #endif
 
 #define FP_SET_EXCEPTION(ex)				\
