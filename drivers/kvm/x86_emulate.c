@@ -148,7 +148,7 @@ static u8 opcode_table[256] = {
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE8 - 0xEF */
-	0, SrcImm|ImplicitOps, 0, 0, 0, 0, 0, 0,
+	0, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, 0,
@@ -1032,6 +1032,7 @@ done_prefixes:
 		src.val = _regs[VCPU_REGS_RCX];
 		goto grp2;
 	case 0xe9: /* jmp rel */
+	case 0xeb: /* jmp rel short */
 		JMP_REL(src.val);
 		no_wb = 1; /* Disable writeback. */
 		break;
