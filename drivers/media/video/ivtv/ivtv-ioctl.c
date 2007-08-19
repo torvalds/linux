@@ -1217,9 +1217,19 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		break;
 	}
 
+	case VIDIOC_OVERLAY: {
+		int *on = arg;
+
+		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
+			return -EINVAL;
+		ivtv_vapi(itv, CX2341X_OSD_SET_STATE, 1, *on != 0);
+		break;
+	}
+
 	case VIDIOC_LOG_STATUS:
 	{
 		int has_output = itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT;
+		u32 data[CX2341X_MBOX_MAX_DATA];
 		struct v4l2_input vidin;
 		struct v4l2_audio audin;
 		int i;
@@ -1234,8 +1244,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		ivtv_call_i2c_clients(itv, VIDIOC_LOG_STATUS, NULL);
 		ivtv_get_input(itv, itv->active_input, &vidin);
 		ivtv_get_audio_input(itv, itv->audio_input, &audin);
-		IVTV_INFO("Video Input: %s\n", vidin.name);
-		IVTV_INFO("Audio Input: %s%s\n", audin.name,
+		IVTV_INFO("Video Input:  %s\n", vidin.name);
+		IVTV_INFO("Audio Input:  %s%s\n", audin.name,
 			(itv->dualwatch_stereo_mode & ~0x300) == 0x200 ? " (Bilingual)" : "");
 		if (has_output) {
 			struct v4l2_output vidout;
@@ -1255,6 +1265,22 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				"Mono",
 				"Swapped"
 			};
+			static const char * const alpha_mode[] = {
+				"None",
+				"Global",
+				"Local",
+				"Global and Local"
+			};
+			static const char * const pixel_format[] = {
+				"Indexed",
+				"RGB 5:6:5",
+				"ARGB 1:5:5:5",
+				"ARGB 1:4:4:4",
+				"ARGB 8:8:8:8",
+				"5",
+				"6",
+				"7",
+			};
 
 			ivtv_get_output(itv, itv->active_output, &vidout);
 			ivtv_get_audio_output(itv, 0, &audout);
@@ -1264,12 +1290,17 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				audio_modes[itv->audio_bilingual_mode]);
 			if (mode < 0 || mode > OUT_PASSTHROUGH)
 				mode = OUT_NONE;
-			IVTV_INFO("Output Mode: %s\n", output_modes[mode]);
+			IVTV_INFO("Output Mode:  %s\n", output_modes[mode]);
+			ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
+			IVTV_INFO("Overlay:      %s, Alpha: %s, Pixel Format: %s\n",
+				data[0] & 1 ? "On" : "Off",
+				alpha_mode[(data[0] >> 1) & 0x3],
+				pixel_format[(data[0] >> 3) & 0x7]);
 		}
-		IVTV_INFO("Tuner: %s\n",
+		IVTV_INFO("Tuner:  %s\n",
 			test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
 		cx2341x_log_status(&itv->params, itv->name);
-		IVTV_INFO("Status flags: 0x%08lx\n", itv->i_flags);
+		IVTV_INFO("Status flags:    0x%08lx\n", itv->i_flags);
 		for (i = 0; i < IVTV_MAX_STREAMS; i++) {
 			struct ivtv_stream *s = &itv->streams[i];
 
@@ -1279,7 +1310,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 					(s->buffers - s->q_free.buffers) * 100 / s->buffers,
 					(s->buffers * s->buf_size) / 1024, s->buffers);
 		}
-		IVTV_INFO("Read MPEG/VBI: %lld/%lld bytes\n", (long long)itv->mpg_data_received, (long long)itv->vbi_data_inserted);
+		IVTV_INFO("Read MPG/VBI: %lld/%lld bytes\n", (long long)itv->mpg_data_received, (long long)itv->vbi_data_inserted);
 		IVTV_INFO("==================  END STATUS CARD #%d  ==================\n", itv->num);
 		break;
 	}
@@ -1501,6 +1532,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_S_AUDOUT:
 	case VIDIOC_S_EXT_CTRLS:
 	case VIDIOC_S_FBUF:
+	case VIDIOC_OVERLAY:
 		ret = v4l2_prio_check(&itv->prio, &id->prio);
 		if (ret)
 			return ret;
@@ -1554,6 +1586,7 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_TRY_ENCODER_CMD:
 	case VIDIOC_G_FBUF:
 	case VIDIOC_S_FBUF:
+	case VIDIOC_OVERLAY:
 		if (ivtv_debug & IVTV_DBGFLG_IOCTL) {
 			printk(KERN_INFO "ivtv%d ioctl: ", itv->num);
 			v4l_printk_ioctl(cmd);
