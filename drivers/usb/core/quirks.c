@@ -68,6 +68,8 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x05d8, 0x4005), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Agfa Snapscan1212u */
 	{ USB_DEVICE(0x06bd, 0x2061), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+	/* Seagate RSS LLC */
+	{ USB_DEVICE(0x0bc2, 0x3000), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Umax [hex] Astra 3400U */
 	{ USB_DEVICE(0x1606, 0x0060), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
