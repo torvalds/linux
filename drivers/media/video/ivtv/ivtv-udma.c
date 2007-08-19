@@ -40,6 +40,9 @@ int ivtv_udma_fill_sg_list (struct ivtv_user_dma *dma, struct ivtv_dma_page_info
 	int i, offset;
 	unsigned long flags;
 
+	if (map_offset < 0)
+		return map_offset;
+
 	offset = dma_page->offset;
 
 	/* Fill SG Array with new values */
@@ -55,7 +58,7 @@ int ivtv_udma_fill_sg_list (struct ivtv_user_dma *dma, struct ivtv_dma_page_info
 			if (dma->bouncemap[map_offset] == NULL)
 				dma->bouncemap[map_offset] = alloc_page(GFP_KERNEL);
 			if (dma->bouncemap[map_offset] == NULL)
-				return -ENOMEM;
+				return -1;
 			local_irq_save(flags);
 			src = kmap_atomic(dma->map[map_offset], KM_BOUNCE_READ) + offset;
 			memcpy(page_address(dma->bouncemap[map_offset]) + offset, src, len);
@@ -69,7 +72,7 @@ int ivtv_udma_fill_sg_list (struct ivtv_user_dma *dma, struct ivtv_dma_page_info
 		offset = 0;
 		map_offset++;
 	}
-	return 0;
+	return map_offset;
 }
 
 void ivtv_udma_fill_sg_array (struct ivtv_user_dma *dma, u32 buffer_offset, u32 buffer_offset_2, u32 split) {
@@ -138,13 +141,12 @@ int ivtv_udma_setup(struct ivtv *itv, unsigned long ivtv_dest_addr,
 	dma->page_count = user_dma.page_count;
 
 	/* Fill SG List with new values */
-	err = ivtv_udma_fill_sg_list(dma, &user_dma, 0);
-	if (err) {
+	if (ivtv_udma_fill_sg_list(dma, &user_dma, 0) < 0) {
 		for (i = 0; i < dma->page_count; i++) {
 			put_page(dma->map[i]);
 		}
 		dma->page_count = 0;
-		return err;
+		return -ENOMEM;
 	}
 
 	/* Map SG List */
