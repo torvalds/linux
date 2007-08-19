@@ -99,7 +99,8 @@ static u8 opcode_table[256] = {
 	/* 0x40 - 0x4F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x50 - 0x57 */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x58 - 0x5F */
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
@@ -1151,6 +1152,19 @@ special_insn:
 	if (twobyte)
 		goto twobyte_special_insn;
 	switch(b) {
+	case 0x50 ... 0x57:  /* push reg */
+		if (op_bytes == 2)
+			src.val = (u16) _regs[b & 0x7];
+		else
+			src.val = (u32) _regs[b & 0x7];
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = (void *) register_address(
+			ctxt->ss_base, _regs[VCPU_REGS_RSP]);
+		no_wb = 1; /* force writeback */
+		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
 		 if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
