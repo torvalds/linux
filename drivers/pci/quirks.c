@@ -947,7 +947,7 @@ static void k8t_sound_hostbridge(struct pci_dev *dev)
 	unsigned char val;
 
 	pci_read_config_byte(dev, 0x50, &val);
-	if (val == 0x88 || val == 0xc8) {
+	if (val == 0xc8) {
 		/* Assume it's probably a MSI-K8T-Neo2Fir */
 		printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, attempting to turn soundcard ON\n");
 		pci_write_config_byte(dev, 0x50, val & (~0x40));
