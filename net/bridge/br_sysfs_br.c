@@ -167,6 +167,7 @@ static ssize_t store_stp_state(struct device *d,
 	br_stp_set_enabled(br, val);
 	rtnl_unlock();
 
+	return len;
 }
 static DEVICE_ATTR(stp_state, S_IRUGO | S_IWUSR, show_stp_state,
 		   store_stp_state);
