@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/pci.h>
 
 #include <asm/delay.h>
 #include <sound/driver.h>
@@ -60,7 +61,6 @@ struct cx88_audio_dev {
 
 	/* pci i/o */
 	struct pci_dev             *pci;
-	unsigned char              pci_rev,pci_lat;
 
 	/* audio controls */
 	int                        irq;
@@ -667,6 +667,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	snd_cx88_card_t   *chip;
 	struct cx88_core  *core;
 	int               err;
+	unsigned char     pci_lat;
 
 	*rchip = NULL;
 
@@ -711,13 +712,12 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 	}
 
 	/* print pci info */
-	pci_read_config_byte(pci, PCI_CLASS_REVISION, &chip->pci_rev);
-	pci_read_config_byte(pci, PCI_LATENCY_TIMER,  &chip->pci_lat);
+	pci_read_config_byte(pci, PCI_LATENCY_TIMER, &pci_lat);
 
 	dprintk(1,"ALSA %s/%i: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", core->name, devno,
-	       pci_name(pci), chip->pci_rev, pci->irq,
-	       chip->pci_lat,(unsigned long long)pci_resource_start(pci,0));
+	       pci_name(pci), pci->revision, pci->irq,
+	       pci_lat, (unsigned long long)pci_resource_start(pci,0));
 
 	chip->irq = pci->irq;
 	synchronize_irq(chip->irq);
