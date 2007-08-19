@@ -1235,7 +1235,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		ivtv_get_input(itv, itv->active_input, &vidin);
 		ivtv_get_audio_input(itv, itv->audio_input, &audin);
 		IVTV_INFO("Video Input: %s\n", vidin.name);
-		IVTV_INFO("Audio Input: %s\n", audin.name);
+		IVTV_INFO("Audio Input: %s%s\n", audin.name,
+			(itv->dualwatch_stereo_mode & ~0x300) == 0x200 ? " (Bilingual)" : "");
 		if (has_output) {
 			struct v4l2_output vidout;
 			struct v4l2_audioout audout;
@@ -1247,11 +1248,20 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				"YUV Frames",
 				"Passthrough",
 			};
+			static const char * const audio_modes[] = {
+				"Stereo",
+				"Left",
+				"Right",
+				"Mono",
+				"Swapped"
+			};
 
 			ivtv_get_output(itv, itv->active_output, &vidout);
 			ivtv_get_audio_output(itv, 0, &audout);
 			IVTV_INFO("Video Output: %s\n", vidout.name);
-			IVTV_INFO("Audio Output: %s\n", audout.name);
+			IVTV_INFO("Audio Output: %s (Stereo/Bilingual: %s/%s)\n", audout.name,
+				audio_modes[itv->audio_stereo_mode],
+				audio_modes[itv->audio_bilingual_mode]);
 			if (mode < 0 || mode > OUT_PASSTHROUGH)
 				mode = OUT_NONE;
 			IVTV_INFO("Output Mode: %s\n", output_modes[mode]);
