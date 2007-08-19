@@ -1115,7 +1115,7 @@ static void __init txx9_spi_init(unsigned long base, int irq)
 static int __init rbtx4938_spi_init(void)
 {
 	struct spi_board_info srtc_info = {
-		.modalias = "rs5c348",
+		.modalias = "rtc-rs5c348",
 		.max_speed_hz = 1000000, /* 1.0Mbps @ Vdd 2.0V */
 		.bus_num = 0,
 		.chip_select = 16 + SRTC_CS,
