@@ -1030,7 +1030,7 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
 }
 
-static int rmode_tss_base(struct kvm* kvm)
+static gva_t rmode_tss_base(struct kvm* kvm)
 {
 	gfn_t base_gfn = kvm->memslots[0].base_gfn + kvm->memslots[0].npages - 3;
 	return base_gfn << PAGE_SHIFT;
