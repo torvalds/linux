@@ -1138,12 +1138,14 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		memset(&enc->raw, 0, sizeof(enc->raw));
 		switch (enc->cmd) {
 		case V4L2_ENC_CMD_START:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_START\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
 			return ivtv_start_capture(id);
 
 		case V4L2_ENC_CMD_STOP:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_STOP\n");
 			enc->flags &= V4L2_ENC_CMD_STOP_AT_GOP_END;
 			if (try)
 				return 0;
@@ -1151,6 +1153,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			return 0;
 
 		case V4L2_ENC_CMD_PAUSE:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_PAUSE\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
@@ -1163,6 +1166,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			break;
 
 		case V4L2_ENC_CMD_RESUME:
+			IVTV_DEBUG_IOCTL("V4L2_ENC_CMD_RESUME\n");
 			enc->flags = 0;
 			if (try)
 				return 0;
@@ -1174,6 +1178,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			ivtv_unmute(itv);
 			break;
 		default:
+			IVTV_DEBUG_IOCTL("Unknown cmd %d\n", enc->cmd);
 			return -EINVAL;
 		}
 		break;
@@ -1408,9 +1413,9 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		int try = (cmd == VIDEO_TRY_COMMAND);
 
 		if (try)
-			IVTV_DEBUG_IOCTL("VIDEO_TRY_COMMAND\n");
+			IVTV_DEBUG_IOCTL("VIDEO_TRY_COMMAND %d\n", vc->cmd);
 		else
-			IVTV_DEBUG_IOCTL("VIDEO_COMMAND\n");
+			IVTV_DEBUG_IOCTL("VIDEO_COMMAND %d\n", vc->cmd);
 		return ivtv_video_command(itv, id, vc, try);
 	}
 

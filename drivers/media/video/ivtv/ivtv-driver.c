@@ -186,8 +186,18 @@ MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
 MODULE_PARM_DESC(secam, "Set SECAM standard: B, G, H, D, K, L, LC");
 MODULE_PARM_DESC(ntsc, "Set NTSC standard: M, J, K");
 MODULE_PARM_DESC(debug,
-		 "Debug level (bitmask). Default: errors only\n"
-		 "\t\t\t(debug = 1023 gives full debugging)");
+		 "Debug level (bitmask). Default: 0\n"
+		 "\t\t\t   1/0x0001: warning\n"
+		 "\t\t\t   2/0x0002: info\n"
+		 "\t\t\t   4/0x0004: mailbox\n"
+		 "\t\t\t   8/0x0008: ioctl\n"
+		 "\t\t\t  16/0x0010: file\n"
+		 "\t\t\t  32/0x0020: dma\n"
+		 "\t\t\t  64/0x0040: irq\n"
+		 "\t\t\t 128/0x0080: decoder\n"
+		 "\t\t\t 256/0x0100: yuv\n"
+		 "\t\t\t 512/0x0200: i2c\n"
+		 "\t\t\t1024/0x0400: high volume\n");
 MODULE_PARM_DESC(ivtv_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
@@ -1354,9 +1364,9 @@ static int module_start(void)
 		return -1;
 	}
 
-	if (ivtv_debug < 0 || ivtv_debug > 1023) {
+	if (ivtv_debug < 0 || ivtv_debug > 2047) {
 		ivtv_debug = 0;
-		printk(KERN_INFO "ivtv:  Debug value must be >= 0 and <= 1023\n");
+		printk(KERN_INFO "ivtv:  Debug value must be >= 0 and <= 2047\n");
 	}
 
 	if (pci_register_driver(&ivtv_pci_driver)) {

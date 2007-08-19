@@ -256,17 +256,18 @@ extern const u32 yuv_offset[4];
 
 /* debugging */
 
-#define IVTV_DBGFLG_WARN  (1 << 0)
-#define IVTV_DBGFLG_INFO  (1 << 1)
-#define IVTV_DBGFLG_API   (1 << 2)
-#define IVTV_DBGFLG_DMA   (1 << 3)
-#define IVTV_DBGFLG_IOCTL (1 << 4)
-#define IVTV_DBGFLG_I2C   (1 << 5)
-#define IVTV_DBGFLG_IRQ   (1 << 6)
-#define IVTV_DBGFLG_DEC   (1 << 7)
-#define IVTV_DBGFLG_YUV   (1 << 8)
+#define IVTV_DBGFLG_WARN    (1 << 0)
+#define IVTV_DBGFLG_INFO    (1 << 1)
+#define IVTV_DBGFLG_MB      (1 << 2)
+#define IVTV_DBGFLG_IOCTL   (1 << 3)
+#define IVTV_DBGFLG_FILE    (1 << 4)
+#define IVTV_DBGFLG_DMA     (1 << 5)
+#define IVTV_DBGFLG_IRQ     (1 << 6)
+#define IVTV_DBGFLG_DEC     (1 << 7)
+#define IVTV_DBGFLG_YUV     (1 << 8)
+#define IVTV_DBGFLG_I2C     (1 << 9)
 /* Flag to turn on high volume debugging */
-#define IVTV_DBGFLG_HIGHVOL (1 << 9)
+#define IVTV_DBGFLG_HIGHVOL (1 << 10)
 
 /* NOTE: extra space before comma in 'itv->num , ## args' is required for
    gcc-2.95, otherwise it won't compile. */
@@ -275,30 +276,32 @@ extern const u32 yuv_offset[4];
 		if ((x) & ivtv_debug) \
 			printk(KERN_INFO "ivtv%d " type ": " fmt, itv->num , ## args); \
 	} while (0)
-#define IVTV_DEBUG_WARN(fmt, args...)  IVTV_DEBUG(IVTV_DBGFLG_WARN, "warning", fmt , ## args)
-#define IVTV_DEBUG_INFO(fmt, args...)  IVTV_DEBUG(IVTV_DBGFLG_INFO, "info",fmt , ## args)
-#define IVTV_DEBUG_API(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_API, "api", fmt , ## args)
-#define IVTV_DEBUG_DMA(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_DMA, "dma", fmt , ## args)
+#define IVTV_DEBUG_WARN(fmt, args...)  IVTV_DEBUG(IVTV_DBGFLG_WARN,  "warn",  fmt , ## args)
+#define IVTV_DEBUG_INFO(fmt, args...)  IVTV_DEBUG(IVTV_DBGFLG_INFO,  "info",  fmt , ## args)
+#define IVTV_DEBUG_MB(fmt, args...)    IVTV_DEBUG(IVTV_DBGFLG_MB,    "mb",    fmt , ## args)
+#define IVTV_DEBUG_DMA(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_DMA,   "dma",   fmt , ## args)
 #define IVTV_DEBUG_IOCTL(fmt, args...) IVTV_DEBUG(IVTV_DBGFLG_IOCTL, "ioctl", fmt , ## args)
-#define IVTV_DEBUG_I2C(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_I2C, "i2c", fmt , ## args)
-#define IVTV_DEBUG_IRQ(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_IRQ, "irq", fmt , ## args)
-#define IVTV_DEBUG_DEC(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
-#define IVTV_DEBUG_YUV(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
+#define IVTV_DEBUG_FILE(fmt, args...)  IVTV_DEBUG(IVTV_DBGFLG_FILE,  "file",  fmt , ## args)
+#define IVTV_DEBUG_I2C(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_I2C,   "i2c",   fmt , ## args)
+#define IVTV_DEBUG_IRQ(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_IRQ,   "irq",   fmt , ## args)
+#define IVTV_DEBUG_DEC(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_DEC,   "dec",   fmt , ## args)
+#define IVTV_DEBUG_YUV(fmt, args...)   IVTV_DEBUG(IVTV_DBGFLG_YUV,   "yuv",   fmt , ## args)
 
 #define IVTV_DEBUG_HIGH_VOL(x, type, fmt, args...) \
 	do { \
 		if (((x) & ivtv_debug) && (ivtv_debug & IVTV_DBGFLG_HIGHVOL)) \
 			printk(KERN_INFO "ivtv%d " type ": " fmt, itv->num , ## args); \
 	} while (0)
-#define IVTV_DEBUG_HI_WARN(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_WARN, "warning", fmt , ## args)
-#define IVTV_DEBUG_HI_INFO(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_INFO, "info",fmt , ## args)
-#define IVTV_DEBUG_HI_API(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_API, "api", fmt , ## args)
-#define IVTV_DEBUG_HI_DMA(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DMA, "dma", fmt , ## args)
+#define IVTV_DEBUG_HI_WARN(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_WARN,  "warn",  fmt , ## args)
+#define IVTV_DEBUG_HI_INFO(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_INFO,  "info",  fmt , ## args)
+#define IVTV_DEBUG_HI_MB(fmt, args...)    IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_MB,    "mb",    fmt , ## args)
+#define IVTV_DEBUG_HI_DMA(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DMA,   "dma",   fmt , ## args)
 #define IVTV_DEBUG_HI_IOCTL(fmt, args...) IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_IOCTL, "ioctl", fmt , ## args)
-#define IVTV_DEBUG_HI_I2C(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_I2C, "i2c", fmt , ## args)
-#define IVTV_DEBUG_HI_IRQ(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_IRQ, "irq", fmt , ## args)
-#define IVTV_DEBUG_HI_DEC(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DEC, "dec", fmt , ## args)
-#define IVTV_DEBUG_HI_YUV(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_YUV, "yuv", fmt , ## args)
+#define IVTV_DEBUG_HI_FILE(fmt, args...)  IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_FILE,  "file",  fmt , ## args)
+#define IVTV_DEBUG_HI_I2C(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_I2C,   "i2c",   fmt , ## args)
+#define IVTV_DEBUG_HI_IRQ(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_IRQ,   "irq",   fmt , ## args)
+#define IVTV_DEBUG_HI_DEC(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_DEC,   "dec",   fmt , ## args)
+#define IVTV_DEBUG_HI_YUV(fmt, args...)   IVTV_DEBUG_HIGH_VOL(IVTV_DBGFLG_YUV,   "yuv",   fmt , ## args)
 
 /* Standard kernel messages */
 #define IVTV_ERR(fmt, args...)      printk(KERN_ERR  "ivtv%d: " fmt, itv->num , ## args)

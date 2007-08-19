@@ -225,15 +225,15 @@ static int ivtv_api_call(struct ivtv *itv, int cmd, int args, u32 data[])
 	}
 	if (args < 0 || args > CX2341X_MBOX_MAX_DATA ||
 	    cmd < 0 || cmd > 255 || api_info[cmd].name == NULL) {
-		IVTV_ERR("Invalid API call: cmd = 0x%02x, args = %d\n", cmd, args);
+		IVTV_ERR("Invalid MB call: cmd = 0x%02x, args = %d\n", cmd, args);
 		return -EINVAL;
 	}
 
 	if (api_info[cmd].flags & API_HIGH_VOL) {
-	    IVTV_DEBUG_HI_API("API Call: %s\n", api_info[cmd].name);
+	    IVTV_DEBUG_HI_MB("MB Call: %s\n", api_info[cmd].name);
 	}
 	else {
-	    IVTV_DEBUG_API("API Call: %s\n", api_info[cmd].name);
+	    IVTV_DEBUG_MB("MB Call: %s\n", api_info[cmd].name);
 	}
 
 	/* clear possibly uninitialized part of data array */

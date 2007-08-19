@@ -409,7 +409,7 @@ static ssize_t ivtv_read_pos(struct ivtv_stream *s, char __user *ubuf, size_t co
 	ssize_t rc = count ? ivtv_read(s, ubuf, count, non_block) : 0;
 	struct ivtv *itv = s->itv;
 
-	IVTV_DEBUG_HI_INFO("read %zd from %s, got %zd\n", count, s->name, rc);
+	IVTV_DEBUG_HI_FILE("read %zd from %s, got %zd\n", count, s->name, rc);
 	if (rc > 0)
 		pos += rc;
 	return rc;
@@ -500,7 +500,7 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 	struct ivtv_stream *s = &itv->streams[id->type];
 	int rc;
 
-	IVTV_DEBUG_HI_IOCTL("read %zd bytes from %s\n", count, s->name);
+	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
 	rc = ivtv_start_capture(id);
 	if (rc)
@@ -538,7 +538,7 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 	int rc;
 	DEFINE_WAIT(wait);
 
-	IVTV_DEBUG_HI_IOCTL("write %zd bytes to %s\n", count, s->name);
+	IVTV_DEBUG_HI_FILE("write %zd bytes to %s\n", count, s->name);
 
 	if (s->type != IVTV_DEC_STREAM_TYPE_MPG &&
 	    s->type != IVTV_DEC_STREAM_TYPE_YUV &&
@@ -646,7 +646,7 @@ retry:
 	   to transfer the rest. */
 	if (count && !(filp->f_flags & O_NONBLOCK))
 		goto retry;
-	IVTV_DEBUG_HI_INFO("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
+	IVTV_DEBUG_HI_FILE("Wrote %d bytes to %s (%d)\n", bytes_written, s->name, s->q_full.bytesused);
 	return bytes_written;
 }
 
@@ -658,6 +658,7 @@ unsigned int ivtv_v4l2_dec_poll(struct file *filp, poll_table *wait)
 	int res = 0;
 
 	/* add stream's waitq to the poll list */
+	IVTV_DEBUG_HI_FILE("Decoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
 	set_bit(IVTV_F_I_EV_VSYNC_ENABLED, &itv->i_flags);
@@ -687,9 +688,11 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 					s->name, rc);
 			return POLLERR;
 		}
+		IVTV_DEBUG_FILE("Encoder poll started capture\n");
 	}
 
 	/* add stream's waitq to the poll list */
+	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
 	if (eof || s->q_full.length)
@@ -702,7 +705,7 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close() of %s\n", s->name);
 
 	/* 'Unclaim' this stream */
 
@@ -740,7 +743,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close() of %s\n", s->name);
 
 	/* Stop decoding */
 	if (test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
@@ -772,7 +775,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 
-	IVTV_DEBUG_IOCTL("close() of %s\n", s->name);
+	IVTV_DEBUG_FILE("close %s\n", s->name);
 
 	v4l2_prio_close(&itv->prio, &id->prio);
 
@@ -855,6 +858,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 		IVTV_ERR("Failed to initialize on minor %d\n", minor);
 		return -ENXIO;
 	}
+	IVTV_DEBUG_FILE("open %s\n", s->name);
 
 	if (y == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))
