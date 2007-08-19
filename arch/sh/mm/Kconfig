@@ -111,6 +111,14 @@ config CPU_SUBTYPE_SH7712
 	help
 	  Select SH7712 if you have a SH3-DSP SH7712 CPU.
 
+config CPU_SUBTYPE_SH7720
+	bool "Support SH7720 processor"
+	select CPU_SH3
+	select CPU_HAS_INTC_IRQ
+	select CPU_HAS_DSP
+	help
+	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
+
 # SH-4 Processor Support
 
 config CPU_SUBTYPE_SH7750

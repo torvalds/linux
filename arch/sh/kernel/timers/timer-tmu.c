@@ -173,7 +173,8 @@ static int tmu_timer_init(void)
 
 	tmu_timer_stop();
 
-#if !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
+#if !defined(CONFIG_CPU_SUBTYPE_SH7720) && \
+    !defined(CONFIG_CPU_SUBTYPE_SH7760) && \
     !defined(CONFIG_CPU_SUBTYPE_SH7785) && \
     !defined(CONFIG_CPU_SUBTYPE_SHX3)
 	ctrl_outb(TMU_TOCR_INIT, TMU_TOCR);

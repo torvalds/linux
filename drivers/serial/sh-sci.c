@@ -4,6 +4,7 @@
  * SuperH on-chip serial module support.  (SCI with no FIFO / with FIFO)
  *
  *  Copyright (C) 2002 - 2006  Paul Mundt
+ *  Modified to support SH7720 SCIF. Markus Brunner, Mark Jonas (Jul 2007).
  *
  * based off of the old drivers/char/sh-sci.c by:
  *
@@ -301,6 +302,38 @@ static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
 	}
 	sci_out(port, SCFCR, fcr_val);
 }
+#elif defined(CONFIG_CPU_SUBTYPE_SH7720)
+static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
+{
+	unsigned int fcr_val = 0;
+	unsigned short data;
+
+	if (cflag & CRTSCTS) {
+		/* enable RTS/CTS */
+		if (port->mapbase == 0xa4430000) { /* SCIF0 */
+			/* Clear PTCR bit 9-2; enable all scif pins but sck */
+			data = ctrl_inw(PORT_PTCR);
+			ctrl_outw((data & 0xfc03), PORT_PTCR);
+		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
+			/* Clear PVCR bit 9-2 */
+			data = ctrl_inw(PORT_PVCR);
+			ctrl_outw((data & 0xfc03), PORT_PVCR);
+		}
+		fcr_val |= SCFCR_MCE;
+	} else {
+		if (port->mapbase == 0xa4430000) { /* SCIF0 */
+			/* Clear PTCR bit 5-2; enable only tx and rx  */
+			data = ctrl_inw(PORT_PTCR);
+			ctrl_outw((data & 0xffc3), PORT_PTCR);
+		} else if (port->mapbase == 0xa4438000) { /* SCIF1 */
+			/* Clear PVCR bit 5-2 */
+			data = ctrl_inw(PORT_PVCR);
+			ctrl_outw((data & 0xffc3), PORT_PVCR);
+		}
+	}
+	sci_out(port, SCFCR, fcr_val);
+}
+
 #elif defined(CONFIG_CPU_SH3)
 /* For SH7705, SH7706, SH7707, SH7709, SH7709A, SH7729 */
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
