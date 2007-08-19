@@ -1145,6 +1145,10 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	   are not. */
 	itv->tuner_std = itv->std;
 
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
+		ivtv_call_i2c_clients(itv, VIDIOC_INT_S_STD_OUTPUT, &itv->std);
+	}
+
 	retval = ivtv_streams_setup(itv);
 	if (retval) {
 		IVTV_ERR("Error %d setting up streams\n", retval);
