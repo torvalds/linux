@@ -419,6 +419,8 @@ struct ivtv_user_dma {
 	struct mutex lock;
 	int page_count;
 	struct page *map[IVTV_DMA_SG_OSD_ENT];
+	/* Needed when dealing with highmem userspace buffers */
+	struct page *bouncemap[IVTV_DMA_SG_OSD_ENT];
 
 	/* Base Dev SG Array for cx23415/6 */
 	struct ivtv_sg_element SGarray[IVTV_DMA_SG_OSD_ENT];

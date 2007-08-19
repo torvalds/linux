@@ -83,7 +83,14 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 	}
 
 	/* Fill & map SG List */
-	ivtv_udma_fill_sg_list (dma, &uv_dma, ivtv_udma_fill_sg_list (dma, &y_dma, 0));
+	if (ivtv_udma_fill_sg_list (dma, &uv_dma, ivtv_udma_fill_sg_list (dma, &y_dma, 0))) {
+		IVTV_DEBUG_WARN("could not allocate bounce buffers for highmem userspace buffers\n");
+		for (i = 0; i < dma->page_count; i++) {
+			put_page(dma->map[i]);
+		}
+		dma->page_count = 0;
+		return -ENOMEM;
+	}
 	dma->SG_length = pci_map_sg(itv->dev, dma->SGlist, dma->page_count, PCI_DMA_TODEVICE);
 
 	/* Fill SG Array with new values */
