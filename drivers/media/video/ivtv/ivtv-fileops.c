@@ -502,7 +502,9 @@ ssize_t ivtv_v4l2_read(struct file * filp, char __user *buf, size_t count, loff_
 
 	IVTV_DEBUG_HI_FILE("read %zd bytes from %s\n", count, s->name);
 
+	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_capture(id);
+	mutex_unlock(&itv->serialize_lock);
 	if (rc)
 		return rc;
 	return ivtv_read_pos(s, buf, count, pos, filp->f_flags & O_NONBLOCK);
@@ -613,7 +615,9 @@ retry:
 	}
 
 	/* Start decoder (returns 0 if already started) */
+	mutex_lock(&itv->serialize_lock);
 	rc = ivtv_start_decoding(id, itv->speed);
+	mutex_unlock(&itv->serialize_lock);
 	if (rc) {
 		IVTV_DEBUG_WARN("Failed start decode stream %s\n", s->name);
 
@@ -681,8 +685,11 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-		int rc = ivtv_start_capture(id);
+		int rc;
 
+		mutex_lock(&itv->serialize_lock);
+		rc = ivtv_start_capture(id);
+		mutex_unlock(&itv->serialize_lock);
 		if (rc) {
 			IVTV_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
@@ -788,6 +795,7 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 	/* 'Unclaim' this stream */
 
 	/* Stop radio */
+	mutex_lock(&itv->serialize_lock);
 	if (id->type == IVTV_ENC_STREAM_TYPE_RAD) {
 		/* Closing radio device, return to TV mode */
 		ivtv_mute(itv);
@@ -822,53 +830,26 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		ivtv_stop_capture(id, 0);
 	}
 	kfree(id);
+	mutex_unlock(&itv->serialize_lock);
 	return 0;
 }
 
-int ivtv_v4l2_open(struct inode *inode, struct file *filp)
+static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 {
-	int x, y = 0;
+	struct ivtv *itv = s->itv;
 	struct ivtv_open_id *item;
-	struct ivtv *itv = NULL;
-	struct ivtv_stream *s = NULL;
-	int minor = iminor(inode);
 
-	/* Find which card this open was on */
-	spin_lock(&ivtv_cards_lock);
-	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
-		/* find out which stream this open was on */
-		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
-			s = &ivtv_cards[x]->streams[y];
-			if (s->v4l2dev && s->v4l2dev->minor == minor) {
-				itv = ivtv_cards[x];
-				break;
-			}
-		}
-	}
-	spin_unlock(&ivtv_cards_lock);
-
-	if (itv == NULL) {
-		/* Couldn't find a device registered
-		   on that minor, shouldn't happen! */
-		IVTV_WARN("No ivtv device found on minor %d\n", minor);
-		return -ENXIO;
-	}
-
-	if (ivtv_init_on_first_open(itv)) {
-		IVTV_ERR("Failed to initialize on minor %d\n", minor);
-		return -ENXIO;
-	}
 	IVTV_DEBUG_FILE("open %s\n", s->name);
 
-	if (y == IVTV_DEC_STREAM_TYPE_MPG &&
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))
 		return -EBUSY;
 
-	if (y == IVTV_DEC_STREAM_TYPE_YUV &&
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_MPG].s_flags))
 		return -EBUSY;
 
-	if (y == IVTV_DEC_STREAM_TYPE_YUV) {
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		if (read_reg(0x82c) == 0) {
 			IVTV_ERR("Tried to open YUV output device but need to send data to mpeg decoder before it can be used\n");
 			/* return -ENODEV; */
@@ -883,7 +864,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 		return -ENOMEM;
 	}
 	item->itv = itv;
-	item->type = y;
+	item->type = s->type;
 	v4l2_prio_open(&itv->prio, &item->prio);
 
 	item->open_id = itv->open_id++;
@@ -925,14 +906,50 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	}
 
 	/* YUV or MPG Decoding Mode? */
-	if (y == IVTV_DEC_STREAM_TYPE_MPG)
+	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
 		clear_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
-	else if (y == IVTV_DEC_STREAM_TYPE_YUV)
-	{
+	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV)
 		set_bit(IVTV_F_I_DEC_YUV, &itv->i_flags);
+	return 0;
+}
+
+int ivtv_v4l2_open(struct inode *inode, struct file *filp)
+{
+	int res, x, y = 0;
+	struct ivtv *itv = NULL;
+	struct ivtv_stream *s = NULL;
+	int minor = iminor(inode);
+
+	/* Find which card this open was on */
+	spin_lock(&ivtv_cards_lock);
+	for (x = 0; itv == NULL && x < ivtv_cards_active; x++) {
+		/* find out which stream this open was on */
+		for (y = 0; y < IVTV_MAX_STREAMS; y++) {
+			s = &ivtv_cards[x]->streams[y];
+			if (s->v4l2dev && s->v4l2dev->minor == minor) {
+				itv = ivtv_cards[x];
+				break;
+			}
+		}
+	}
+	spin_unlock(&ivtv_cards_lock);
+
+	if (itv == NULL) {
+		/* Couldn't find a device registered
+		   on that minor, shouldn't happen! */
+		IVTV_WARN("No ivtv device found on minor %d\n", minor);
+		return -ENXIO;
 	}
 
-	return 0;
+	mutex_lock(&itv->serialize_lock);
+	if (ivtv_init_on_first_open(itv)) {
+		IVTV_ERR("Failed to initialize on minor %d\n", minor);
+		mutex_unlock(&itv->serialize_lock);
+		return -ENXIO;
+	}
+	res = ivtv_serialized_open(s, filp);
+	mutex_unlock(&itv->serialize_lock);
+	return res;
 }
 
 void ivtv_mute(struct ivtv *itv)

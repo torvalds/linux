@@ -437,9 +437,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	if (s->v4l2dev == NULL)
 		return -EINVAL;
 
-	/* Big serialization lock to ensure no two streams are started
-	   simultaneously: that can give all sorts of weird results. */
-	mutex_lock(&itv->serialize_lock);
 	IVTV_DEBUG_INFO("Start encoder stream %s\n", s->name);
 
 	switch (s->type) {
@@ -481,7 +478,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 			0, sizeof(itv->vbi.sliced_mpeg_size));
 		break;
 	default:
-		mutex_unlock(&itv->serialize_lock);
 		return -EINVAL;
 	}
 	s->subtype = subtype;
@@ -564,7 +560,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	if (ivtv_vapi(itv, CX2341X_ENC_START_CAPTURE, 2, captype, subtype))
 	{
 		IVTV_DEBUG_WARN( "Error starting capture!\n");
-		mutex_unlock(&itv->serialize_lock);
 		return -EINVAL;
 	}
 
@@ -580,7 +575,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 
 	/* you're live! sit back and await interrupts :) */
 	atomic_inc(&itv->capturing);
-	mutex_unlock(&itv->serialize_lock);
 	return 0;
 }
 
@@ -751,9 +745,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		stopmode = 1;
 	}
 
-	/* ensure these actions are done only once */
-	mutex_lock(&itv->serialize_lock);
-
 	/* end_capture */
 	/* when: 0 =  end of GOP  1 = NOW!, type: 0 = mpeg, subtype: 3 = video+audio */
 	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, stopmode, cap_type, s->subtype);
@@ -810,7 +801,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VBI_CAP);
 
 	if (atomic_read(&itv->capturing) > 0) {
-		mutex_unlock(&itv->serialize_lock);
 		return 0;
 	}
 
@@ -827,7 +817,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	}
 
 	wake_up(&s->waitq);
-	mutex_unlock(&itv->serialize_lock);
 
 	return 0;
 }

@@ -1446,11 +1446,15 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 				return 0;
 			if (nonblocking)
 				return -EAGAIN;
-			/* wait for event */
+			/* Wait for event. Note that serialize_lock is locked,
+			   so to allow other processes to access the driver while
+			   we are waiting unlock first and later lock again. */
+			mutex_unlock(&itv->serialize_lock);
 			prepare_to_wait(&itv->event_waitq, &wait, TASK_INTERRUPTIBLE);
 			if ((itv->i_flags & (IVTV_F_I_EV_DEC_STOPPED|IVTV_F_I_EV_VSYNC)) == 0)
 				schedule();
 			finish_wait(&itv->event_waitq, &wait);
+			mutex_lock(&itv->serialize_lock);
 			if (signal_pending(current)) {
 				/* return if a signal was received */
 				IVTV_DEBUG_INFO("User stopped wait for event\n");
@@ -1580,12 +1584,9 @@ static int ivtv_v4l2_do_ioctl(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		    unsigned long arg)
+static int ivtv_serialized_ioctl(struct ivtv *itv, struct inode *inode, struct file *filp,
+		unsigned int cmd, unsigned long arg)
 {
-	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
-	struct ivtv *itv = id->itv;
-
 	/* Filter dvb ioctls that cannot be handled by video_usercopy */
 	switch (cmd) {
 	case VIDEO_SELECT_SOURCE:
@@ -1619,4 +1620,17 @@ int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		break;
 	}
 	return video_usercopy(inode, filp, cmd, arg, ivtv_v4l2_do_ioctl);
+}
+
+int ivtv_v4l2_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
+		    unsigned long arg)
+{
+	struct ivtv_open_id *id = (struct ivtv_open_id *)filp->private_data;
+	struct ivtv *itv = id->itv;
+	int res;
+
+	mutex_lock(&itv->serialize_lock);
+	res = ivtv_serialized_ioctl(itv, inode, filp, cmd, arg);
+	mutex_unlock(&itv->serialize_lock);
+	return res;
 }
