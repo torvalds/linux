@@ -186,10 +186,12 @@ extern const u32 yuv_offset[4];
 #define IVTV_DEFAULT_ENC_MPG_BUFFERS 4
 #define IVTV_DEFAULT_ENC_YUV_BUFFERS 2
 #define IVTV_DEFAULT_ENC_VBI_BUFFERS 1
-#define IVTV_DEFAULT_ENC_PCM_BUFFERS 1
+/* Exception: size in kB for this stream (MB is overkill) */
+#define IVTV_DEFAULT_ENC_PCM_BUFFERS 320
 #define IVTV_DEFAULT_DEC_MPG_BUFFERS 1
 #define IVTV_DEFAULT_DEC_YUV_BUFFERS 1
-#define IVTV_DEFAULT_DEC_VBI_BUFFERS 1
+/* Exception: size in kB for this stream (MB is way overkill) */
+#define IVTV_DEFAULT_DEC_VBI_BUFFERS 64
 
 /* ======================================================================== */
 /* ========================== END USER SETTABLE DMA VARIABLES ============= */
@@ -321,7 +323,7 @@ extern int ivtv_debug;
 
 
 struct ivtv_options {
-	int megabytes[IVTV_MAX_STREAMS]; /* Size in megabytes of each stream */
+	int kilobytes[IVTV_MAX_STREAMS]; /* Size in kilobytes of each stream */
 	int cardtype;		/* force card type on load */
 	int tuner;		/* set tuner on load */
 	int radio;		/* enable/disable radio */

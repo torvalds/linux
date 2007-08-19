@@ -208,7 +208,7 @@ MODULE_PARM_DESC(enc_vbi_buffers,
 		 "Encoder VBI Buffers (in MB)\n"
 		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_ENC_VBI_BUFFERS));
 MODULE_PARM_DESC(enc_pcm_buffers,
-		 "Encoder PCM buffers (in MB)\n"
+		 "Encoder PCM buffers (in kB)\n"
 		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_ENC_PCM_BUFFERS));
 MODULE_PARM_DESC(dec_mpg_buffers,
 		 "Decoder MPG buffers (in MB)\n"
@@ -217,7 +217,7 @@ MODULE_PARM_DESC(dec_yuv_buffers,
 		 "Decoder YUV buffers (in MB)\n"
 		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_DEC_YUV_BUFFERS));
 MODULE_PARM_DESC(dec_vbi_buffers,
-		 "Decoder VBI buffers (in MB)\n"
+		 "Decoder VBI buffers (in kB)\n"
 		 "\t\t\tDefault: " __stringify(IVTV_DEFAULT_DEC_VBI_BUFFERS));
 MODULE_PARM_DESC(newi2c,
 		 "Use new I2C implementation\n"
@@ -547,13 +547,13 @@ static void ivtv_process_options(struct ivtv *itv)
 	const char *chipname;
 	int i, j;
 
-	itv->options.megabytes[IVTV_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers;
-	itv->options.megabytes[IVTV_ENC_STREAM_TYPE_YUV] = enc_yuv_buffers;
-	itv->options.megabytes[IVTV_ENC_STREAM_TYPE_VBI] = enc_vbi_buffers;
-	itv->options.megabytes[IVTV_ENC_STREAM_TYPE_PCM] = enc_pcm_buffers;
-	itv->options.megabytes[IVTV_DEC_STREAM_TYPE_MPG] = dec_mpg_buffers;
-	itv->options.megabytes[IVTV_DEC_STREAM_TYPE_YUV] = dec_yuv_buffers;
-	itv->options.megabytes[IVTV_DEC_STREAM_TYPE_VBI] = dec_vbi_buffers;
+	itv->options.kilobytes[IVTV_ENC_STREAM_TYPE_MPG] = enc_mpg_buffers * 1024;
+	itv->options.kilobytes[IVTV_ENC_STREAM_TYPE_YUV] = enc_yuv_buffers * 1024;
+	itv->options.kilobytes[IVTV_ENC_STREAM_TYPE_VBI] = enc_vbi_buffers * 1024;
+	itv->options.kilobytes[IVTV_ENC_STREAM_TYPE_PCM] = enc_pcm_buffers;
+	itv->options.kilobytes[IVTV_DEC_STREAM_TYPE_MPG] = dec_mpg_buffers * 1024;
+	itv->options.kilobytes[IVTV_DEC_STREAM_TYPE_YUV] = dec_yuv_buffers * 1024;
+	itv->options.kilobytes[IVTV_DEC_STREAM_TYPE_VBI] = dec_vbi_buffers;
 	itv->options.cardtype = cardtype[itv->num];
 	itv->options.tuner = tuner[itv->num];
 	itv->options.radio = radio[itv->num];

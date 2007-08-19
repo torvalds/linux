@@ -150,7 +150,7 @@ static void ivtv_stream_init(struct ivtv *itv, int type)
 		s->dma = ivtv_stream_info[type].dma;
 	s->buf_size = itv->stream_buf_size[type];
 	if (s->buf_size)
-		s->buffers = itv->options.megabytes[type] * 1024 * 1024 / s->buf_size;
+		s->buffers = (itv->options.kilobytes[type] * 1024 + s->buf_size - 1) / s->buf_size;
 	spin_lock_init(&s->qlock);
 	init_waitqueue_head(&s->waitq);
 	s->id = -1;
@@ -192,7 +192,7 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	/* User explicitly selected 0 buffers for these streams, so don't
 	   create them. */
 	if (minor >= 0 && ivtv_stream_info[type].dma != PCI_DMA_NONE &&
-	    itv->options.megabytes[type] == 0) {
+	    itv->options.kilobytes[type] == 0) {
 		IVTV_INFO("Disabled %s device\n", ivtv_stream_info[type].name);
 		return 0;
 	}
@@ -238,18 +238,18 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 
 	switch (vfl_type) {
 	case VFL_TYPE_GRABBER:
-		IVTV_INFO("Registered device video%d for %s (%d MB)\n",
-			s->v4l2dev->minor, s->name, itv->options.megabytes[type]);
+		IVTV_INFO("Registered device video%d for %s (%d kB)\n",
+			s->v4l2dev->minor, s->name, itv->options.kilobytes[type]);
 		break;
 	case VFL_TYPE_RADIO:
 		IVTV_INFO("Registered device radio%d for %s\n",
 			s->v4l2dev->minor - MINOR_VFL_TYPE_RADIO_MIN, s->name);
 		break;
 	case VFL_TYPE_VBI:
-		if (itv->options.megabytes[type])
-			IVTV_INFO("Registered device vbi%d for %s (%d MB)\n",
+		if (itv->options.kilobytes[type])
+			IVTV_INFO("Registered device vbi%d for %s (%d kB)\n",
 				s->v4l2dev->minor - MINOR_VFL_TYPE_VBI_MIN,
-				s->name, itv->options.megabytes[type]);
+				s->name, itv->options.kilobytes[type]);
 		else
 			IVTV_INFO("Registered device vbi%d for %s\n",
 				s->v4l2dev->minor - MINOR_VFL_TYPE_VBI_MIN, s->name);
