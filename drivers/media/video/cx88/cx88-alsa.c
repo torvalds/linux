@@ -136,12 +136,11 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 	struct cx88_core *core=chip->core;
 	struct sram_channel *audio_ch = &cx88_sram_channels[SRAM_CH25];
 
-
-	dprintk(1, "Starting audio DMA for %i bytes/line and %i (%i) lines at address %08x\n",buf->bpl, chip->num_periods, audio_ch->fifo_size / buf->bpl, audio_ch->fifo_start);
+	/* Make sure RISC/FIFO are off before changing FIFO/RISC settings */
+	cx_clear(MO_AUD_DMACNTRL, 0x11);
 
 	/* setup fifo + format - out channel */
-	cx88_sram_channel_setup(chip->core, &cx88_sram_channels[SRAM_CH25],
-				buf->bpl, buf->risc.dma);
+	cx88_sram_channel_setup(chip->core, audio_ch, buf->bpl, buf->risc.dma);
 
 	/* sets bpl size */
 	cx_write(MO_AUDD_LNGTH, buf->bpl);
@@ -149,27 +148,30 @@ static int _cx88_start_audio_dma(snd_cx88_card_t *chip)
 	/* reset counter */
 	cx_write(MO_AUDD_GPCNTRL,GP_COUNT_CONTROL_RESET);
 
+	dprintk(1, "Start audio DMA, %d B/line, %d lines/FIFO, %d lines/irq, "
+		"%d B/irq\n", buf->bpl, cx_read(audio_ch->cmds_start + 8)>>1,
+		chip->num_periods, buf->bpl * chip->num_periods);
+
 	dprintk(1, "Enabling IRQ, setting mask from 0x%x to 0x%x\n",
 		chip->core->pci_irqmask,
 		chip->core->pci_irqmask | PCI_INT_AUDINT);
-	/* enable irqs */
-	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | PCI_INT_AUDINT);
-
 
 	/* Enables corresponding bits at AUD_INT_STAT */
-	cx_write(MO_AUD_INTMSK,
-			(1<<16)|
-			(1<<12)|
-			(1<<4)|
-			(1<<0)
-			);
+	cx_write(MO_AUD_INTMSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
+				AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
+
+	/* Clean any pending interrupt bits already set */
+	cx_write(MO_AUD_INTSTAT, ~0);
+
+	/* enable audio irqs */
+	cx_set(MO_PCI_INTMSK, chip->core->pci_irqmask | PCI_INT_AUDINT);
 
 	/* start dma */
 	cx_set(MO_DEV_CNTRL2, (1<<5)); /* Enables Risc Processor */
 	cx_set(MO_AUD_DMACNTRL, 0x11); /* audio downstream FIFO and RISC enable */
 
 	if (debug)
-		cx88_sram_channel_dump(chip->core, &cx88_sram_channels[SRAM_CH25]);
+		cx88_sram_channel_dump(chip->core, audio_ch);
 
 	return 0;
 }
@@ -187,12 +189,8 @@ static int _cx88_stop_audio_dma(snd_cx88_card_t *chip)
 
 	/* disable irqs */
 	cx_clear(MO_PCI_INTMSK, PCI_INT_AUDINT);
-	cx_clear(MO_AUD_INTMSK,
-			(1<<16)|
-			(1<<12)|
-			(1<<4)|
-			(1<<0)
-			);
+	cx_clear(MO_AUD_INTMSK, AUD_INT_OPC_ERR | AUD_INT_DN_SYNC |
+				AUD_INT_DN_RISCI2 | AUD_INT_DN_RISCI1);
 
 	if (debug)
 		cx88_sram_channel_dump(chip->core, &cx88_sram_channels[SRAM_CH25]);
@@ -239,14 +237,14 @@ static void cx8801_aud_irq(snd_cx88_card_t *chip)
 				   cx88_aud_irqs, ARRAY_SIZE(cx88_aud_irqs),
 				   status, mask);
 	/* risc op code error */
-	if (status & (1 << 16)) {
+	if (status & AUD_INT_OPC_ERR) {
 		printk(KERN_WARNING "%s/0: audio risc op code error\n",core->name);
 		cx_clear(MO_AUD_DMACNTRL, 0x11);
 		cx88_sram_channel_dump(core, &cx88_sram_channels[SRAM_CH25]);
 	}
 
 	/* risc1 downstream */
-	if (status & 0x01) {
+	if (status & AUD_INT_DN_RISCI1) {
 		spin_lock(&chip->reg_lock);
 		count = cx_read(MO_AUDD_GPCNT);
 		spin_unlock(&chip->reg_lock);

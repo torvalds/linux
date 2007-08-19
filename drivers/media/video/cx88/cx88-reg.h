@@ -612,6 +612,19 @@
 #define SEL_FMRADIO  0x20
 
 // AUD_CTL
+#define AUD_INT_DN_RISCI1	(1 <<  0)
+#define AUD_INT_UP_RISCI1	(1 <<  1)
+#define AUD_INT_RDS_DN_RISCI1	(1 <<  2)
+#define AUD_INT_DN_RISCI2	(1 <<  4) /* yes, 3 is skipped */
+#define AUD_INT_UP_RISCI2	(1 <<  5)
+#define AUD_INT_RDS_DN_RISCI2	(1 <<  6)
+#define AUD_INT_DN_SYNC		(1 << 12)
+#define AUD_INT_UP_SYNC		(1 << 13)
+#define AUD_INT_RDS_DN_SYNC	(1 << 14)
+#define AUD_INT_OPC_ERR		(1 << 16)
+#define AUD_INT_BER_IRQ		(1 << 20)
+#define AUD_INT_MCHG_IRQ	(1 << 21)
+
 #define EN_BTSC_FORCE_MONO      0
 #define EN_BTSC_FORCE_STEREO    1
 #define EN_BTSC_FORCE_SAP       2
