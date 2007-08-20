@@ -115,6 +115,9 @@ static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 	hwif->tuneproc = &triflex_tune_drive;
 	hwif->speedproc = &triflex_tune_chipset;
 
+	if (hwif->dma_base == 0)
+		return;
+
 	hwif->atapi_dma  = 1;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
