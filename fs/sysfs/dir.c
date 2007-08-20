@@ -130,8 +130,10 @@ struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd)
 
 		/* look it up */
 		parent_dentry = dentry;
+		mutex_lock(&parent_dentry->d_inode->i_mutex);
 		dentry = lookup_one_len_kern(cur->s_name, parent_dentry,
 					     strlen(cur->s_name));
+		mutex_unlock(&parent_dentry->d_inode->i_mutex);
 		dput(parent_dentry);
 
 		if (IS_ERR(dentry)) {
