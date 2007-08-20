@@ -18,6 +18,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
@@ -1049,6 +1050,9 @@ static irqreturn_t irq_handler(int irq, void *data)
 		iso_event &= ~(1 << i);
 	}
 
+	if (unlikely(event & OHCI1394_postedWriteErr))
+		fw_error("PCI posted write error\n");
+
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
@@ -1122,8 +1126,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_RQPkt | OHCI1394_RSPkt |
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_masterIntEnable |
-		  OHCI1394_cycle64Seconds);
+		  OHCI1394_postedWriteErr | OHCI1394_cycle64Seconds |
+		  OHCI1394_masterIntEnable);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
