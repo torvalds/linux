@@ -402,8 +402,6 @@ extern int dccp_insert_option(struct sock *sk, struct sk_buff *skb,
 			       unsigned char option,
 			       const void *value, unsigned char len);
 
-extern void dccp_timestamp(const struct sock *sk, struct timeval *tv);
-
 static inline suseconds_t timeval_usecs(const struct timeval *tv)
 {
 	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;

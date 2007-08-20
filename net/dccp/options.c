@@ -370,22 +370,6 @@ int dccp_insert_option_elapsed_time(struct sock *sk, struct sk_buff *skb,
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_elapsed_time);
 
-void dccp_timestamp(const struct sock *sk, struct timeval *tv)
-{
-	const struct dccp_sock *dp = dccp_sk(sk);
-
-	do_gettimeofday(tv);
-	tv->tv_sec  -= dp->dccps_epoch.tv_sec;
-	tv->tv_usec -= dp->dccps_epoch.tv_usec;
-
-	while (tv->tv_usec < 0) {
-		tv->tv_sec--;
-		tv->tv_usec += USEC_PER_SEC;
-	}
-}
-
-EXPORT_SYMBOL_GPL(dccp_timestamp);
-
 int dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
 	__be32 now = htonl(((suseconds_t)ktime_to_us(ktime_get_real())) / 10);

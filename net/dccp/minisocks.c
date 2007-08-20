@@ -112,7 +112,6 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		newdp->dccps_service_list  = NULL;
 		newdp->dccps_service	   = dreq->dreq_service;
 		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
-		do_gettimeofday(&newdp->dccps_epoch);
 
 		if (dccp_feat_clone(sk, newsk))
 			goto out_free;
