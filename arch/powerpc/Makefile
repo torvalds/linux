@@ -123,7 +123,7 @@ CFLAGS += $(cpu-as-y)
 head-y				:= arch/powerpc/kernel/head_32.o
 head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
-head-$(CONFIG_4xx)		:= arch/powerpc/kernel/head_4xx.o
+head-$(CONFIG_40x)		:= arch/powerpc/kernel/head_40x.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
 head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 
