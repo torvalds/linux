@@ -69,18 +69,6 @@ unsigned int get_memclk_frequency_10khz(void)
 EXPORT_SYMBOL(get_memclk_frequency_10khz);
 
 /*
- * Return the current LCD clock frequency in units of 10kHz
- */
-unsigned int get_lcdclk_frequency_10khz(void)
-{
-	if (cpu_is_pxa21x() || cpu_is_pxa25x())
-		return pxa25x_get_memclk_frequency_10khz();
-	else
-		return pxa27x_get_lcdclk_frequency_10khz();
-}
-EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
-
-/*
  * Handy function to set GPIO alternate functions
  */
 

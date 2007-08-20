@@ -105,7 +105,7 @@ unsigned int pxa27x_get_memclk_frequency_10khz(void)
 /*
  * Return the current LCD clock frequency in units of 10kHz as
  */
-unsigned int pxa27x_get_lcdclk_frequency_10khz(void)
+static unsigned int pxa27x_get_lcdclk_frequency_10khz(void)
 {
 	unsigned long ccsr;
 	unsigned int l, L, k, K;

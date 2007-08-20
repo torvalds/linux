@@ -122,7 +122,6 @@ extern void pxa_set_cken(int clock, int enable);
  * return current memory and LCD clock frequency in units of 10kHz
  */
 extern unsigned int get_memclk_frequency_10khz(void);
-extern unsigned int get_lcdclk_frequency_10khz(void);
 
 #endif
 

@@ -37,10 +37,8 @@ extern unsigned pxa25x_get_memclk_frequency_10khz(void);
 #ifdef CONFIG_PXA27x
 extern unsigned pxa27x_get_clk_frequency_khz(int);
 extern unsigned pxa27x_get_memclk_frequency_10khz(void);
-extern unsigned pxa27x_get_lcdclk_frequency_10khz(void);
 #else
 #define pxa27x_get_clk_frequency_khz(x)		(0)
 #define pxa27x_get_memclk_frequency_10khz()	(0)
-#define pxa27x_get_lcdclk_frequency_10khz()	(0)
 #endif
 
