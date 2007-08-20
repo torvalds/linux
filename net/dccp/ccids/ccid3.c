@@ -729,20 +729,21 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_rx_hist_entry *packet;
-	struct timeval now;
+	struct timeval tnow;
+	ktime_t now;
 	suseconds_t delta;
 
 	ccid3_pr_debug("%s(%p) - entry \n", dccp_role(sk), sk);
 
-	dccp_timestamp(sk, &now);
+	now = ktime_get_real();
 
 	switch (hcrx->ccid3hcrx_state) {
 	case TFRC_RSTATE_NO_DATA:
 		hcrx->ccid3hcrx_x_recv = 0;
 		break;
 	case TFRC_RSTATE_DATA:
-		delta = timeval_delta(&now,
-				      &hcrx->ccid3hcrx_tstamp_last_feedback);
+		delta = ktime_us_delta(now,
+				       hcrx->ccid3hcrx_tstamp_last_feedback);
 		DCCP_BUG_ON(delta < 0);
 		hcrx->ccid3hcrx_x_recv =
 			scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
@@ -764,7 +765,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	/* Elapsed time information [RFC 4340, 13.2] in units of 10 * usecs */
-	delta = timeval_delta(&now, &packet->dccphrx_tstamp);
+	tnow = ktime_to_timeval(now);
+	delta = timeval_delta(&tnow, &packet->dccphrx_tstamp);
 	DCCP_BUG_ON(delta < 0);
 	hcrx->ccid3hcrx_elapsed_time = delta / 10;
 
@@ -835,11 +837,13 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 
 	while (dccp_delta_seqno(hcrx->ccid3hcrx_seqno_nonloss, seqno)
 	   > TFRC_RECV_NUM_LATE_LOSS) {
+		struct timeval tstamp =
+			ktime_to_timeval(hcrx->ccid3hcrx_tstamp_last_feedback);
 		loss = 1;
 		dccp_li_update_li(sk,
 				  &hcrx->ccid3hcrx_li_hist,
 				  &hcrx->ccid3hcrx_hist,
-				  &hcrx->ccid3hcrx_tstamp_last_feedback,
+				  &tstamp,
 				  hcrx->ccid3hcrx_s,
 				  hcrx->ccid3hcrx_bytes_recv,
 				  hcrx->ccid3hcrx_x_recv,
@@ -989,9 +993,8 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_hist);
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
-	hcrx->ccid3hcrx_tstamp_last_ack = ktime_get_real();
 	hcrx->ccid3hcrx_tstamp_last_feedback =
-		ktime_to_timeval(hcrx->ccid3hcrx_tstamp_last_ack);
+		hcrx->ccid3hcrx_tstamp_last_ack = ktime_get_real();
 	hcrx->ccid3hcrx_s   = 0;
 	hcrx->ccid3hcrx_rtt = 0;
 	return 0;
