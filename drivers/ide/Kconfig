@@ -304,9 +304,8 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	default y
 	help
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config BLK_DEV_CMD640
 	bool "CMD640 chipset bugfix/support"
