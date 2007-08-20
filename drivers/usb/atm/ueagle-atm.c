@@ -149,6 +149,9 @@ struct uea_softc {
 
 	int modem_index;
 	unsigned int driver_info;
+	int annex;
+#define ANNEXA 0
+#define ANNEXB 1
 
 	int booting;
 	int reset;
@@ -207,10 +210,34 @@ struct uea_softc {
 #define ELSA_PID_PSTFIRM	0x3350
 #define ELSA_PID_PREFIRM	0x3351
 
+#define ELSA_PID_A_PREFIRM	0x3352
+#define ELSA_PID_A_PSTFIRM	0x3353
+#define ELSA_PID_B_PREFIRM	0x3362
+#define ELSA_PID_B_PSTFIRM	0x3363
+
 /*
- * Sagem USB IDs
+ * Devolo IDs : pots if (pid & 0x10)
  */
-#define EAGLE_VID		0x1110
+#define DEVOLO_VID			0x1039
+#define DEVOLO_EAGLE_I_A_PID_PSTFIRM	0x2110
+#define DEVOLO_EAGLE_I_A_PID_PREFIRM	0x2111
+
+#define DEVOLO_EAGLE_I_B_PID_PSTFIRM	0x2100
+#define DEVOLO_EAGLE_I_B_PID_PREFIRM	0x2101
+
+#define DEVOLO_EAGLE_II_A_PID_PSTFIRM	0x2130
+#define DEVOLO_EAGLE_II_A_PID_PREFIRM	0x2131
+
+#define DEVOLO_EAGLE_II_B_PID_PSTFIRM	0x2120
+#define DEVOLO_EAGLE_II_B_PID_PREFIRM	0x2121
+
+/*
+ * Reference design USB IDs
+ */
+#define ANALOG_VID		0x1110
+#define ADI930_PID_PREFIRM	0x9001
+#define ADI930_PID_PSTFIRM	0x9000
+
 #define EAGLE_I_PID_PREFIRM	0x9010	/* Eagle I */
 #define EAGLE_I_PID_PSTFIRM	0x900F	/* Eagle I */
 
@@ -241,6 +268,9 @@ struct uea_softc {
 
 #define PREFIRM 0
 #define PSTFIRM (1<<7)
+#define AUTO_ANNEX_A (1<<8)
+#define AUTO_ANNEX_B (1<<9)
+
 enum {
 	ADI930 = 0,
 	EAGLE_I,
@@ -255,8 +285,8 @@ enum {
 #define UEA_CHIP_VERSION(x) \
 	((x)->driver_info & 0xf)
 
-#define IS_ISDN(usb_dev) \
-	(le16_to_cpu((usb_dev)->descriptor.bcdDevice) & 0x80)
+#define IS_ISDN(x) \
+	((x)->annex & ANNEXB)
 
 #define INS_TO_USBDEV(ins) ins->usb_dev
 
@@ -511,6 +541,7 @@ static unsigned int debug;
 static int use_iso[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = 1};
 static int sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
+static int annex[NB_MODEM];
 
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "module debug level (0=off,1=on,2=verbose)");
@@ -521,6 +552,9 @@ MODULE_PARM_DESC(sync_wait, "wait the synchronisation before starting ATM");
 module_param_array(cmv_file, charp, NULL, 0644);
 MODULE_PARM_DESC(cmv_file,
 		"file name with configuration and management variables");
+module_param_array(annex, uint, NULL, 0644);
+MODULE_PARM_DESC(annex,
+                 "manually set annex a/b (0=auto, 1=annex a, 2=annex b)");
 
 #define UPDATE_ATM_STAT(type, val) \
 	do { \
@@ -810,17 +844,17 @@ static int request_dsp(struct uea_softc *sc)
 	char *dsp_name;
 
 	if (UEA_CHIP_VERSION(sc) == EAGLE_IV) {
-		if (IS_ISDN(sc->usb_dev))
+		if (IS_ISDN(sc))
 			dsp_name = FW_DIR "DSP4i.bin";
 		else
 			dsp_name = FW_DIR "DSP4p.bin";
 	} else if (UEA_CHIP_VERSION(sc) == ADI930) {
-		if (IS_ISDN(sc->usb_dev))
+		if (IS_ISDN(sc))
 			dsp_name = FW_DIR "DSP9i.bin";
 		else
 			dsp_name = FW_DIR "DSP9p.bin";
 	} else {
-		if (IS_ISDN(sc->usb_dev))
+		if (IS_ISDN(sc))
 			dsp_name = FW_DIR "DSPei.bin";
 		else
 			dsp_name = FW_DIR "DSPep.bin";
@@ -1515,7 +1549,7 @@ static void cmvs_file_name(struct uea_softc *sc, char *const cmv_name, int ver)
 		else
 			file_arr[3] = 'e';
 
-		file_arr[4] = IS_ISDN(sc->usb_dev) ? 'i' : 'p';
+		file_arr[4] = IS_ISDN(sc) ? 'i' : 'p';
 		file = file_arr;
 	} else
 		file = cmv_file[sc->modem_index];
@@ -2459,6 +2493,19 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	sc->modem_index = (modem_index < NB_MODEM) ? modem_index++ : 0;
 	sc->driver_info = id->driver_info;
 
+	/* first try to use module parameter */
+	if (annex[sc->modem_index] == 1)
+		sc->annex = ANNEXA;
+	else if (annex[sc->modem_index] == 2)
+		sc->annex = ANNEXB;
+	/* try to autodetect annex */
+	else if (sc->driver_info & AUTO_ANNEX_A)
+		sc->annex = ANNEXA;
+	else if (sc->driver_info & AUTO_ANNEX_B)
+		sc->annex = ANNEXB;
+	else
+		sc->annex = (le16_to_cpu(sc->usb_dev->descriptor.bcdDevice) & 0x80)?ANNEXB:ANNEXA;
+
 	/* ADI930 don't support iso */
 	if (UEA_CHIP_VERSION(id) != ADI930 && use_iso[sc->modem_index]) {
 		int i;
@@ -2520,10 +2567,11 @@ static int uea_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_device *usb = interface_to_usbdev(intf);
 
 	uea_enters(usb);
-	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) : %s %s\n",
-	       le16_to_cpu(usb->descriptor.idVendor),
-	       le16_to_cpu(usb->descriptor.idProduct),
-	       chip_name[UEA_CHIP_VERSION(id)], IS_ISDN(usb)?"isdn":"pots");
+	uea_info(usb, "ADSL device founded vid (%#X) pid (%#X) Rev (%#X): %s\n",
+		le16_to_cpu(usb->descriptor.idVendor),
+		le16_to_cpu(usb->descriptor.idProduct),
+		le16_to_cpu(usb->descriptor.bcdDevice),
+		chip_name[UEA_CHIP_VERSION(id)]);
 
 	usb_reset_device(usb);
 
@@ -2556,26 +2604,40 @@ static void uea_disconnect(struct usb_interface *intf)
  * List of supported VID/PID
  */
 static const struct usb_device_id uea_ids[] = {
+	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PREFIRM),	.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	ADI930_PID_PSTFIRM),	.driver_info = ADI930 | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_I_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_II_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IIC_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PREFIRM),	.driver_info = EAGLE_III | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_III_PID_PSTFIRM),	.driver_info = EAGLE_III | PSTFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PREFIRM),	.driver_info = EAGLE_IV | PREFIRM},
+	{USB_DEVICE(ANALOG_VID,	EAGLE_IV_PID_PSTFIRM),	.driver_info = EAGLE_IV | PSTFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_A_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_I_B_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_A_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
+	{USB_DEVICE(DEVOLO_VID,	DEVOLO_EAGLE_II_B_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM | AUTO_ANNEX_B},
 	{USB_DEVICE(ELSA_VID,	ELSA_PID_PREFIRM),	.driver_info = ADI930 | PREFIRM},
 	{USB_DEVICE(ELSA_VID,	ELSA_PID_PSTFIRM),	.driver_info = ADI930 | PSTFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_I_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_I_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_II_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_II_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_IIC_PID_PREFIRM),	.driver_info = EAGLE_II | PREFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_IIC_PID_PSTFIRM),	.driver_info = EAGLE_II | PSTFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_III_PID_PREFIRM),	.driver_info = EAGLE_III | PREFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_III_PID_PSTFIRM),	.driver_info = EAGLE_III | PSTFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_IV_PID_PREFIRM),	.driver_info = EAGLE_IV | PREFIRM},
-	{USB_DEVICE(EAGLE_VID,	EAGLE_IV_PID_PSTFIRM),	.driver_info = EAGLE_IV | PSTFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PREFIRM),	.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_A_PSTFIRM),	.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_A},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PREFIRM),	.driver_info = ADI930 | PREFIRM},
+	{USB_DEVICE(ELSA_VID,	ELSA_PID_B_PSTFIRM),	.driver_info = ADI930 | PSTFIRM | AUTO_ANNEX_B},
 	{USB_DEVICE(USR_VID,	MILLER_A_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	MILLER_A_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(USR_VID,	MILLER_A_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_A},
 	{USB_DEVICE(USR_VID,	MILLER_B_PID_PREFIRM),	.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	MILLER_B_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(USR_VID,	MILLER_B_PID_PSTFIRM),	.driver_info = EAGLE_I | PSTFIRM  | AUTO_ANNEX_B},
 	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PREFIRM),.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(USR_VID,	HEINEKEN_A_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_A},
 	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PREFIRM),.driver_info = EAGLE_I | PREFIRM},
-	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM},
+	{USB_DEVICE(USR_VID,	HEINEKEN_B_PID_PSTFIRM),.driver_info = EAGLE_I | PSTFIRM | AUTO_ANNEX_B},
 	{}
 };
 
