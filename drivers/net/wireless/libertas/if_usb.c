@@ -1044,8 +1044,10 @@ static void if_usb_exit_module(void)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list)
-		libertas_reset_device((wlan_private *) cardp->priv);
+	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list) {
+		libertas_prepare_and_send_command(cardp->priv, CMD_802_11_RESET,
+		                                  CMD_ACT_HALT, 0, 0, NULL);
+	}
 
 	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
