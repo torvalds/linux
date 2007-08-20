@@ -756,9 +756,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	mutex_lock(&sysfs_mutex);
 
-	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling)
-		if (sysfs_type(sd) && !strcmp(sd->s_name, dentry->d_name.name))
-			break;
+	sd = sysfs_find_dirent(parent_sd, dentry->d_name.name);
 
 	/* no such entry */
 	if (!sd)
