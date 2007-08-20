@@ -19,6 +19,7 @@ config EMBEDDED6xx
 config PPC_82xx
 	bool "Freescale 82xx"
 	depends on 6xx
+	select WANT_DEVICE_TREE
 
 config PPC_83xx
 	bool "Freescale 83xx"

@@ -114,7 +114,7 @@ void __dt_fixup_mac_addresses(u32 startindex, ...)
 
 #define MAX_ADDR_CELLS 4
 
-static void get_reg_format(void *node, u32 *naddr, u32 *nsize)
+void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize)
 {
 	if (getprop(node, "#address-cells", naddr, 4) != 4)
 		*naddr = 2;
@@ -224,7 +224,7 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	if (!parent)
 		return 0;
 
-	get_reg_format(parent, &naddr, &nsize);
+	dt_get_reg_format(parent, &naddr, &nsize);
 
 	if (nsize > 2)
 		return 0;
@@ -252,7 +252,7 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 		if (!parent)
 			break;
 
-		get_reg_format(parent, &naddr, &nsize);
+		dt_get_reg_format(parent, &naddr, &nsize);
 
 		buflen = getprop(node, "ranges", prop_buf,
 				sizeof(prop_buf));
