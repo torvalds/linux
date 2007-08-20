@@ -921,6 +921,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		set_bit(KEY_VOLUMEDOWN, input->keybit);
 	}
 
+	if (usage->type == EV_KEY) {
+		set_bit(EV_MSC, input->evbit);
+		set_bit(MSC_SCAN, input->mscbit);
+	}
+
 	hid_resolv_event(usage->type, usage->code);
 
 	dbg_hid_line("\n");
@@ -1043,6 +1048,9 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 			input_event(input, usage->type, last_key, 0);
 		}
 	}
+	/* report the usage code as scancode if the key status has changed */
+	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
+		input_event(input, EV_MSC, MSC_SCAN, usage->hid);
 
 	input_event(input, usage->type, usage->code, value);
 
