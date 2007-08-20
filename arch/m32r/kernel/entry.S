@@ -112,7 +112,7 @@
 #define nr_syscalls ((syscall_table_size)/4)
 
 #ifdef CONFIG_PREEMPT
-#define preempt_stop(x)		CLI(x)
+#define preempt_stop(x)		DISABLE_INTERRUPTS(x)
 #else
 #define preempt_stop(x)
 #define resume_kernel		restore_all
@@ -144,7 +144,7 @@ ret_from_intr:
 #endif
 	beqz	r4, resume_kernel
 ENTRY(resume_userspace)
-	CLI(r4)				; make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS(r4)		; make sure we don't miss an interrupt
 					; setting need_resched or sigpending
 					; between sampling and the iret
 	GET_THREAD_INFO(r8)
@@ -168,11 +168,11 @@ need_resched:
 	beqz	r4, restore_all
 	LDIMM	(r4, PREEMPT_ACTIVE)
 	st	r4, @(TI_PRE_COUNT, r8)
-	STI(r4)
+	ENABLE_INTERRUPTS(r4)
 	bl	schedule
 	ldi	r4, #0
 	st	r4, @(TI_PRE_COUNT, r8)
-	CLI(r4)
+	DISABLE_INTERRUPTS(r4)
 	bra	need_resched
 #endif
 
@@ -180,7 +180,7 @@ need_resched:
 ENTRY(system_call)
 	SWITCH_TO_KERNEL_STACK
 	SAVE_ALL
-	STI(r4)				; Enable interrupt
+	ENABLE_INTERRUPTS(r4)		; Enable interrupt
 	st	sp, PTREGS(sp)		; implicit pt_regs parameter
 	cmpui	r7, #NR_syscalls
 	bnc	syscall_badsys
@@ -198,7 +198,7 @@ syscall_call:
 	jl	r7			; execute system call
 	st	r0, R0(sp)		; save the return value
 syscall_exit:
-	CLI(r4)				; make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS(r4)		; make sure we don't miss an interrupt
 					; setting need_resched or sigpending
 					; between sampling and the iret
 	ld	r9, @(TI_FLAGS, r8)
@@ -215,7 +215,7 @@ work_pending:
 	beqz	r4, work_notifysig
 work_resched:
 	bl	schedule
-	CLI(r4)				; make sure we don't miss an interrupt
+	DISABLE_INTERRUPTS(r4)		; make sure we don't miss an interrupt
 					; setting need_resched or sigpending
 					; between sampling and the iret
 	ld	r9, @(TI_FLAGS, r8)
@@ -257,7 +257,7 @@ syscall_exit_work:
 	ld	r9, @(TI_FLAGS, r8)
 	and3	r4, r9, #_TIF_SYSCALL_TRACE
 	beqz	r4, work_pending
-	STI(r4)				; could let do_syscall_trace() call
+	ENABLE_INTERRUPTS(r4)		; could let do_syscall_trace() call
 					; schedule() instead
 	bl	do_syscall_trace
 	bra	resume_userspace

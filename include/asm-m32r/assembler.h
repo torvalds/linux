@@ -52,27 +52,27 @@
 	.endm
 
 #if !(defined(CONFIG_CHIP_M32102) || defined(CONFIG_CHIP_M32104))
-#define STI(reg) STI_M reg
-	.macro STI_M reg
+#define ENABLE_INTERRUPTS(reg) ENABLE_INTERRUPTS reg
+	.macro ENABLE_INTERRUPTS reg
 	setpsw  #0x40	    ->	nop
 	; WORKAROUND: "-> nop" is a workaround for the M32700(TS1).
 	.endm
 
-#define CLI(reg) CLI_M reg
-	.macro CLI_M reg
+#define DISABLE_INTERRUPTS(reg) DISABLE_INTERRUPTS reg
+	.macro DISABLE_INTERRUPTS reg
 	clrpsw  #0x40	    ->	nop
 	; WORKAROUND: "-> nop" is a workaround for the M32700(TS1).
 	.endm
 #else	/* CONFIG_CHIP_M32102 || CONFIG_CHIP_M32104 */
-#define STI(reg) STI_M reg
-	.macro STI_M reg
+#define ENABLE_INTERRUPTS(reg) ENABLE_INTERRUPTS reg
+	.macro ENABLE_INTERRUPTS reg
 	mvfc	\reg, psw
 	or3	\reg, \reg, #0x0040
 	mvtc	\reg, psw
 	.endm
 
-#define CLI(reg) CLI_M reg
-	.macro CLI_M reg
+#define DISABLE_INTERRUPTS(reg) DISABLE_INTERRUPTS reg
+	.macro DISABLE_INTERRUPTS reg
 	mvfc	\reg, psw
 	and3	\reg, \reg, #0xffbf
 	mvtc	\reg, psw
