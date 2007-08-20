@@ -256,7 +256,7 @@ void libertas_remove_rtap(wlan_private *priv);
 static ssize_t libertas_rtap_get(struct device * dev,
 		struct device_attribute *attr, char * buf)
 {
-	wlan_private *priv = (wlan_private *) dev->driver_data;
+	wlan_private *priv = (wlan_private *) (to_net_dev(dev))->priv;
 	wlan_adapter *adapter = priv->adapter;
 	return snprintf(buf, 5, "0x%X\n", adapter->monitormode);
 }
@@ -268,7 +268,7 @@ static ssize_t libertas_rtap_set(struct device * dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
 	int monitor_mode;
-	wlan_private *priv = (wlan_private *) dev->driver_data;
+	wlan_private *priv = (wlan_private *) (to_net_dev(dev))->priv;
 	wlan_adapter *adapter = priv->adapter;
 
 	sscanf(buf, "%x", &monitor_mode);
@@ -1138,7 +1138,7 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 		lbs_pr_err("init ethX device failed\n");
 		goto done;
 	}
-	dmdev->driver_data = priv = dev->priv;
+	priv = dev->priv;
 
 	/* allocate buffer for wlan_adapter */
 	if (!(priv->adapter = kzalloc(sizeof(wlan_adapter), GFP_KERNEL))) {
