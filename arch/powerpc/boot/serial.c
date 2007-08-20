@@ -121,6 +121,11 @@ int serial_console_init(void)
 		rc = ns16550_console_init(devp, &serial_cd);
 	else if (dt_is_compatible(devp, "marvell,mpsc"))
 		rc = mpsc_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "fsl,cpm1-scc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm1-smc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm2-scc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm2-smc-uart"))
+		rc = cpm_console_init(devp, &serial_cd);
 
 	/* Add other serial console driver calls here */
 
