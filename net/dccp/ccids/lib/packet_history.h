@@ -40,7 +40,6 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/time.h>
 
 #include "../../dccp.h"
 
@@ -58,7 +57,7 @@ struct dccp_tx_hist_entry {
 	u64		 dccphtx_seqno:48,
 			 dccphtx_sent:1;
 	u32		 dccphtx_rtt;
-	struct timeval	 dccphtx_tstamp;
+	ktime_t		 dccphtx_tstamp;
 };
 
 struct dccp_tx_hist {

@@ -401,7 +401,7 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 	}
 	dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, packet);
 
-	packet->dccphtx_tstamp = ktime_to_timeval(ktime_get_real());
+	packet->dccphtx_tstamp = ktime_get_real();
 	packet->dccphtx_seqno  = dccp_sk(sk)->dccps_gss;
 	packet->dccphtx_rtt    = hctx->ccid3hctx_rtt;
 	packet->dccphtx_sent   = 1;
@@ -412,7 +412,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
-	ktime_t now, t_hist;
+	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
 
@@ -451,12 +451,11 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_p = 1000000 / pinv;
 
 		now = ktime_get_real();
-		t_hist = timeval_to_ktime(packet->dccphtx_tstamp);
 		/*
 		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
 		 *	R_sample  =  (now - t_recvdata) - t_elapsed
 		 */
-		r_sample = dccp_sample_rtt(sk, now, &t_hist);
+		r_sample = dccp_sample_rtt(sk, now, &packet->dccphtx_tstamp);
 
 		/*
 		 * Update RTT estimate by
