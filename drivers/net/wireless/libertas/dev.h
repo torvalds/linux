@@ -143,7 +143,6 @@ struct _wlan_private {
 	   all other bits reserved 0 */
 	u8 dnld_sent;
 
-	const struct firmware *firmware;
 	struct device *hotplug_device;
 
 	/** thread to service interrupts */
@@ -156,9 +155,6 @@ struct _wlan_private {
 	struct work_struct sync_channel;
 
 	/** Hardware access */
-	int (*hw_register_dev) (wlan_private * priv);
-	int (*hw_unregister_dev) (wlan_private *);
-	int (*hw_prog_firmware) (wlan_private *);
 	int (*hw_host_to_card) (wlan_private * priv, u8 type, u8 * payload, u16 nb);
 	int (*hw_get_int_status) (wlan_private * priv, u8 *);
 	int (*hw_read_event_cause) (wlan_private *);

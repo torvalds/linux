@@ -38,7 +38,7 @@ struct bootcmdrespStr
 
 /* read callback private data */
 struct read_cb_info {
-        wlan_private *priv;
+        struct usb_card_rec *cardp;
         struct sk_buff *skb;
 };
 
@@ -58,6 +58,7 @@ struct usb_card_rec {
 	int bulk_out_size;
 	u8 bulk_out_endpointAddr;
 
+	const struct firmware *fw;
 	u8 CRC_OK;
 	u32 fwseqnum;
 	u32 lastseqnum;
@@ -65,6 +66,7 @@ struct usb_card_rec {
 	u32 fwlastblksent;
 	u8 fwdnldover;
 	u8 fwfinalblk;
+	u8 surprise_removed;
 
 	u32 usb_event_cause;
 	u8 usb_int_cause;

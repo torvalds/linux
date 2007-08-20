@@ -791,7 +791,6 @@ static int libertas_thread(void *data)
 		} else
 			spin_unlock_irq(&adapter->driver_lock);
 
-
 		lbs_deb_thread(
 		       "main-thread 222 (waking up): intcounter=%d currenttxskb=%p "
 		       "dnld_sent=%d\n", adapter->intcounter,
@@ -926,21 +925,13 @@ static int libertas_thread(void *data)
  *  @param priv    A pointer to wlan_private structure
  *  @return 	   0 or -1
  */
-static int wlan_setup_station_hw(wlan_private * priv)
+static int wlan_setup_firmware(wlan_private * priv)
 {
 	int ret = -1;
 	wlan_adapter *adapter = priv->adapter;
 	struct cmd_ds_mesh_access mesh_access;
 
 	lbs_deb_enter(LBS_DEB_FW);
-
-	ret = priv->hw_prog_firmware(priv);
-
-	if (ret) {
-		lbs_deb_fw("bootloader in invalid state\n");
-		ret = -1;
-		goto done;
-	}
 
 	/*
 	 * Read MAC address from HW
@@ -992,8 +983,6 @@ done:
 	return ret;
 }
 
-static void command_timer_fn(unsigned long data);
-
 /**
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
@@ -1035,6 +1024,76 @@ static void command_timer_fn(unsigned long data)
 	return;
 }
 
+static int libertas_init_adapter(wlan_private * priv)
+{
+	wlan_adapter *adapter = priv->adapter;
+	size_t bufsize;
+	int i, ret = 0;
+
+	/* Allocate buffer to store the BSSID list */
+	bufsize = MAX_NETWORK_COUNT * sizeof(struct bss_descriptor);
+	adapter->networks = kzalloc(bufsize, GFP_KERNEL);
+	if (!adapter->networks) {
+		lbs_pr_err("Out of memory allocating beacons\n");
+		ret = -1;
+		goto out;
+	}
+
+	/* Initialize scan result lists */
+	INIT_LIST_HEAD(&adapter->network_free_list);
+	INIT_LIST_HEAD(&adapter->network_list);
+	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
+		list_add_tail(&adapter->networks[i].list,
+			      &adapter->network_free_list);
+	}
+
+	adapter->libertas_ps_confirm_sleep.seqnum = cpu_to_le16(++adapter->seqnum);
+	adapter->libertas_ps_confirm_sleep.command =
+	    cpu_to_le16(CMD_802_11_PS_MODE);
+	adapter->libertas_ps_confirm_sleep.size =
+	    cpu_to_le16(sizeof(struct PS_CMD_ConfirmSleep));
+	adapter->libertas_ps_confirm_sleep.action =
+	    cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
+
+	memset(adapter->current_addr, 0xff, ETH_ALEN);
+
+	adapter->connect_status = LIBERTAS_DISCONNECTED;
+	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
+	adapter->mode = IW_MODE_INFRA;
+	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
+	adapter->currentpacketfilter = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
+	adapter->radioon = RADIO_ON;
+	adapter->auto_rate = 1;
+	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
+	adapter->psmode = WLAN802_11POWERMODECAM;
+	adapter->psstate = PS_STATE_FULL_POWER;
+
+	mutex_init(&adapter->lock);
+
+	memset(&adapter->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
+	adapter->tx_queue_idx = 0;
+	spin_lock_init(&adapter->txqueue_lock);
+
+	setup_timer(&adapter->command_timer, command_timer_fn,
+	            (unsigned long)priv);
+
+	INIT_LIST_HEAD(&adapter->cmdfreeq);
+	INIT_LIST_HEAD(&adapter->cmdpendingq);
+
+	spin_lock_init(&adapter->driver_lock);
+	init_waitqueue_head(&adapter->cmd_pending);
+	adapter->nr_cmd_pending = 0;
+
+	/* Allocate the command buffers */
+	if (libertas_allocate_cmd_buffer(priv)) {
+		lbs_pr_err("Out of memory allocating command buffers\n");
+		ret = -1;
+	}
+
+out:
+	return ret;
+}
+
 static void libertas_free_adapter(wlan_private * priv)
 {
 	wlan_adapter *adapter = priv->adapter;
@@ -1060,132 +1119,6 @@ static void libertas_free_adapter(wlan_private * priv)
 	priv->adapter = NULL;
 }
 
-static int wlan_allocate_adapter(wlan_private * priv)
-{
-	size_t bufsize;
-	wlan_adapter *adapter = priv->adapter;
-
-	/* Allocate buffer to store the BSSID list */
-	bufsize = MAX_NETWORK_COUNT * sizeof(struct bss_descriptor);
-	adapter->networks = kzalloc(bufsize, GFP_KERNEL);
-	if (!adapter->networks) {
-		lbs_pr_err("Out of memory allocating beacons\n");
-		libertas_free_adapter(priv);
-		return -ENOMEM;
-	}
-
-	/* Allocate the command buffers */
-	libertas_allocate_cmd_buffer(priv);
-
-	memset(&adapter->libertas_ps_confirm_sleep, 0, sizeof(struct PS_CMD_ConfirmSleep));
-	adapter->libertas_ps_confirm_sleep.seqnum = cpu_to_le16(++adapter->seqnum);
-	adapter->libertas_ps_confirm_sleep.command =
-	    cpu_to_le16(CMD_802_11_PS_MODE);
-	adapter->libertas_ps_confirm_sleep.size =
-	    cpu_to_le16(sizeof(struct PS_CMD_ConfirmSleep));
-	adapter->libertas_ps_confirm_sleep.result = 0;
-	adapter->libertas_ps_confirm_sleep.action =
-	    cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
-
-	return 0;
-}
-
-static void wlan_init_adapter(wlan_private * priv)
-{
-	wlan_adapter *adapter = priv->adapter;
-	int i;
-
-	adapter->connect_status = LIBERTAS_DISCONNECTED;
-	memset(adapter->current_addr, 0xff, ETH_ALEN);
-
-	/* 802.11 specific */
-	adapter->secinfo.wep_enabled = 0;
-	for (i = 0; i < sizeof(adapter->wep_keys) / sizeof(adapter->wep_keys[0]);
-	     i++)
-		memset(&adapter->wep_keys[i], 0, sizeof(struct enc_key));
-	adapter->wep_tx_keyidx = 0;
-	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
-	adapter->mode = IW_MODE_INFRA;
-
-	adapter->pending_assoc_req = NULL;
-	adapter->in_progress_assoc_req = NULL;
-
-	/* Initialize scan result lists */
-	INIT_LIST_HEAD(&adapter->network_free_list);
-	INIT_LIST_HEAD(&adapter->network_list);
-	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
-		list_add_tail(&adapter->networks[i].list,
-			      &adapter->network_free_list);
-	}
-
-	mutex_init(&adapter->lock);
-
-	memset(&adapter->curbssparams, 0, sizeof(adapter->curbssparams));
-	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
-
-	/* PnP and power profile */
-	adapter->surpriseremoved = 0;
-
-	adapter->currentpacketfilter =
-	    CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
-
-	adapter->radioon = RADIO_ON;
-
-	adapter->auto_rate = 1;
-	adapter->cur_rate = 0;
-
-	// set default capabilities
-	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
-
-	adapter->psmode = WLAN802_11POWERMODECAM;
-
-	adapter->psstate = PS_STATE_FULL_POWER;
-	adapter->needtowakeup = 0;
-
-	adapter->intcounter = 0;
-
-	adapter->currenttxskb = NULL;
-
-	memset(&adapter->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
-	adapter->tx_queue_idx = 0;
-	spin_lock_init(&adapter->txqueue_lock);
-
-	return;
-}
-
-static int libertas_init_fw(wlan_private * priv)
-{
-	int ret = -1;
-	wlan_adapter *adapter = priv->adapter;
-
-	lbs_deb_enter(LBS_DEB_FW);
-
-	/* Allocate adapter structure */
-	if ((ret = wlan_allocate_adapter(priv)) != 0)
-		goto done;
-
-	/* init adapter structure */
-	wlan_init_adapter(priv);
-
-	/* init timer etc. */
-	setup_timer(&adapter->command_timer, command_timer_fn,
-			(unsigned long)priv);
-
-	/* download fimrware etc. */
-	if ((ret = wlan_setup_station_hw(priv)) != 0) {
-		del_timer_sync(&adapter->command_timer);
-		goto done;
-	}
-
-	/* init 802.11d */
-	libertas_init_11d(priv);
-
-	ret = 0;
-done:
-	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
-	return ret;
-}
-
 /**
  * @brief This function adds the card. it will probe the
  * card, allocate the wlan_priv and initialize the device.
@@ -1203,9 +1136,9 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	/* Allocate an Ethernet device and register it */
 	if (!(dev = alloc_etherdev(sizeof(wlan_private)))) {
 		lbs_pr_err("init ethX device failed\n");
-		return NULL;
+		goto done;
 	}
-	priv = dev->priv;
+	dmdev->driver_data = priv = dev->priv;
 
 	/* allocate buffer for wlan_adapter */
 	if (!(priv->adapter = kzalloc(sizeof(wlan_adapter), GFP_KERNEL))) {
@@ -1213,10 +1146,16 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 		goto err_kzalloc;
 	}
 
+	if (libertas_init_adapter(priv)) {
+		lbs_pr_err("failed to initialize adapter structure.\n");
+		goto err_init_adapter;
+	}
+
 	priv->dev = dev;
 	priv->card = card;
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
+	priv->hotplug_device = dmdev;
 
 	SET_MODULE_OWNER(dev);
 
@@ -1239,87 +1178,144 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 
 	SET_NETDEV_DEV(dev, dmdev);
 
-	INIT_LIST_HEAD(&priv->adapter->cmdfreeq);
-	INIT_LIST_HEAD(&priv->adapter->cmdpendingq);
-
-	spin_lock_init(&priv->adapter->driver_lock);
-	init_waitqueue_head(&priv->adapter->cmd_pending);
-	priv->adapter->nr_cmd_pending = 0;
 	priv->rtap_net_dev = NULL;
 	if (device_create_file(dmdev, &dev_attr_libertas_rtap))
-		goto err_kzalloc;
-	goto done;
-
-err_kzalloc:
-	free_netdev(dev);
-	priv = NULL;
-done:
-	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
-	return priv;
-}
-EXPORT_SYMBOL_GPL(libertas_add_card);
-
-int libertas_activate_card(wlan_private *priv)
-{
-	struct net_device *dev = priv->dev;
-	int ret = -1;
-
-	lbs_deb_enter(LBS_DEB_MAIN);
+		goto err_init_adapter;
 
 	lbs_deb_thread("Starting main thread...\n");
 	init_waitqueue_head(&priv->waitq);
 	priv->main_thread = kthread_run(libertas_thread, dev, "libertas_main");
 	if (IS_ERR(priv->main_thread)) {
 		lbs_deb_thread("Error creating main thread.\n");
-		goto done;
+		goto err_kthread_run;
 	}
 
 	priv->work_thread = create_singlethread_workqueue("libertas_worker");
 	INIT_DELAYED_WORK(&priv->assoc_work, libertas_association_worker);
 	INIT_DELAYED_WORK(&priv->scan_work, libertas_scan_worker);
-
 	INIT_WORK(&priv->sync_channel, libertas_sync_channel);
 
-	/*
-	 * Register the device. Fillup the private data structure with
-	 * relevant information from the card and request for the required
-	 * IRQ.
-	 */
-	if (priv->hw_register_dev(priv) < 0) {
-		lbs_pr_err("failed to register WLAN device\n");
-		goto err_registerdev;
+	goto done;
+
+err_kthread_run:
+	device_remove_file(dmdev, &dev_attr_libertas_rtap);
+
+err_init_adapter:
+	libertas_free_adapter(priv);
+
+err_kzalloc:
+	free_netdev(dev);
+	priv = NULL;
+
+done:
+	lbs_deb_leave_args(LBS_DEB_NET, "priv %p", priv);
+	return priv;
+}
+EXPORT_SYMBOL_GPL(libertas_add_card);
+
+
+int libertas_remove_card(wlan_private *priv)
+{
+	wlan_adapter *adapter = priv->adapter;
+	struct net_device *dev = priv->dev;
+	union iwreq_data wrqu;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	libertas_remove_rtap(priv);
+
+	dev = priv->dev;
+	device_remove_file(priv->hotplug_device, &dev_attr_libertas_rtap);
+
+	cancel_delayed_work(&priv->scan_work);
+	cancel_delayed_work(&priv->assoc_work);
+	destroy_workqueue(priv->work_thread);
+
+	if (adapter->psmode == WLAN802_11POWERMODEMAX_PSP) {
+		adapter->psmode = WLAN802_11POWERMODECAM;
+		libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 	}
 
-	/* init FW and HW */
-	if (libertas_init_fw(priv)) {
-		lbs_pr_err("firmware init failed\n");
-		goto err_registerdev;
-	}
+	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);
+	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
+	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
+
+	/* Stop the thread servicing the interrupts */
+	adapter->surpriseremoved = 1;
+	kthread_stop(priv->main_thread);
+
+	libertas_free_adapter(priv);
+
+	priv->dev = NULL;
+	free_netdev(dev);
+
+	lbs_deb_leave(LBS_DEB_MAIN);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(libertas_remove_card);
+
+
+int libertas_start_card(wlan_private *priv)
+{
+	struct net_device *dev = priv->dev;
+	int ret = -1;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	/* poke the firmware */
+	ret = wlan_setup_firmware(priv);
+	if (ret)
+		goto done;
+
+	/* init 802.11d */
+	libertas_init_11d(priv);
 
 	if (register_netdev(dev)) {
 		lbs_pr_err("cannot register ethX device\n");
-		goto err_init_fw;
+		goto done;
 	}
-
-	lbs_pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
 
 	libertas_debugfs_init_one(priv, dev);
 
-	ret = 0;
-	goto done;
+	lbs_pr_info("%s: Marvell WLAN 802.11 adapter\n", dev->name);
 
-err_init_fw:
-	priv->hw_unregister_dev(priv);
-err_registerdev:
-	destroy_workqueue(priv->work_thread);
-	/* Stop the thread servicing the interrupts */
-	wake_up_interruptible(&priv->waitq);
-	kthread_stop(priv->main_thread);
+	ret = 0;
+
 done:
-	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(libertas_activate_card);
+EXPORT_SYMBOL_GPL(libertas_start_card);
+
+
+int libertas_stop_card(wlan_private *priv)
+{
+	struct net_device *dev = priv->dev;
+	int ret = -1;
+	struct cmd_ctrl_node *cmdnode;
+	unsigned long flags;
+
+	lbs_deb_enter(LBS_DEB_MAIN);
+
+	netif_stop_queue(priv->dev);
+	netif_carrier_off(priv->dev);
+
+	libertas_debugfs_remove_one(priv);
+
+	/* Flush pending command nodes */
+	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
+	list_for_each_entry(cmdnode, &priv->adapter->cmdpendingq, list) {
+		cmdnode->cmdwaitqwoken = 1;
+		wake_up_interruptible(&cmdnode->cmdwait_q);
+	}
+	spin_unlock_irqrestore(&priv->adapter->driver_lock, flags);
+
+	unregister_netdev(dev);
+
+	lbs_deb_leave_args(LBS_DEB_MAIN, "ret %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(libertas_stop_card);
 
 
 /**
@@ -1389,89 +1385,12 @@ done:
 }
 EXPORT_SYMBOL_GPL(libertas_add_mesh);
 
-static void wake_pending_cmdnodes(wlan_private *priv)
-{
-	struct cmd_ctrl_node *cmdnode;
-	unsigned long flags;
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
-	list_for_each_entry(cmdnode, &priv->adapter->cmdpendingq, list) {
-		cmdnode->cmdwaitqwoken = 1;
-		wake_up_interruptible(&cmdnode->cmdwait_q);
-	}
-	spin_unlock_irqrestore(&priv->adapter->driver_lock, flags);
-}
-
-
-int libertas_remove_card(wlan_private *priv)
-{
-	wlan_adapter *adapter;
-	struct net_device *dev;
-	union iwreq_data wrqu;
-
-	lbs_deb_enter(LBS_DEB_NET);
-
-	libertas_remove_rtap(priv);
-	if (!priv)
-		goto out;
-
-	adapter = priv->adapter;
-
-	if (!adapter)
-		goto out;
-
-	dev = priv->dev;
-	device_remove_file(priv->hotplug_device, &dev_attr_libertas_rtap);
-
-	netif_stop_queue(priv->dev);
-	netif_carrier_off(priv->dev);
-
-	wake_pending_cmdnodes(priv);
-
-	unregister_netdev(dev);
-
-	cancel_delayed_work(&priv->scan_work);
-	cancel_delayed_work(&priv->assoc_work);
-	destroy_workqueue(priv->work_thread);
-
-	if (adapter->psmode == WLAN802_11POWERMODEMAX_PSP) {
-		adapter->psmode = WLAN802_11POWERMODECAM;
-		libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
-	}
-
-	memset(wrqu.ap_addr.sa_data, 0xaa, ETH_ALEN);
-	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
-
-	adapter->surpriseremoved = 1;
-
-	/* Stop the thread servicing the interrupts */
-	kthread_stop(priv->main_thread);
-
-	libertas_debugfs_remove_one(priv);
-
-	lbs_deb_net("free adapter\n");
-	libertas_free_adapter(priv);
-
-	lbs_deb_net("unregister finish\n");
-
-	priv->dev = NULL;
-	free_netdev(dev);
-
-out:
-	lbs_deb_leave(LBS_DEB_NET);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(libertas_remove_card);
-
 
 void libertas_remove_mesh(wlan_private *priv)
 {
 	struct net_device *mesh_dev;
 
-	lbs_deb_enter(LBS_DEB_NET);
+	lbs_deb_enter(LBS_DEB_MAIN);
 
 	if (!priv)
 		goto out;
@@ -1488,7 +1407,7 @@ void libertas_remove_mesh(wlan_private *priv)
 	free_netdev(mesh_dev);
 
 out:
-	lbs_deb_leave(LBS_DEB_NET);
+	lbs_deb_leave(LBS_DEB_MAIN);
 }
 EXPORT_SYMBOL_GPL(libertas_remove_mesh);
 

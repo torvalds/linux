@@ -608,51 +608,6 @@ done:
 /* Callback functions for libertas.ko                               */
 /********************************************************************/
 
-static int if_cs_register_dev(wlan_private *priv)
-{
-	struct if_cs_card *card = (struct if_cs_card *)priv->card;
-
-	lbs_deb_enter(LBS_DEB_CS);
-
-	card->priv = priv;
-
-	return 0;
-}
-
-
-static int if_cs_unregister_dev(wlan_private *priv)
-{
-	lbs_deb_enter(LBS_DEB_CS);
-
-	/*
-	 * Nothing special here. Because the device's power gets turned off
-	 * anyway, there's no need to send a RESET command like in if_usb.c
-	 */
-
-	return 0;
-}
-
-
-/*
- * This callback is a dummy. The reason is that the USB code needs
- * to have various things set up in order to be able to download the
- * firmware. That's not needed in our case.
- *
- * On the contrary, if libertas_add_card() has been called and we're
- * then later called via libertas_activate_card(), but without a valid
- * firmware, then it's quite tedious to tear down the half-installed
- * card. Therefore, we download the firmware before calling adding/
- * activating the card in the first place. If that doesn't work, we
- * won't call into libertas.ko at all.
- */
-
-static int if_cs_prog_firmware(wlan_private *priv)
-{
-	priv->adapter->fw_ready = 1;
-	return 0;
-}
-
-
 /* Send commands or data packets to the card */
 static int if_cs_host_to_card(wlan_private *priv, u8 type, u8 *buf, u16 nb)
 {
@@ -902,13 +857,13 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 
 	/* Store pointers to our call-back functions */
+	card->priv = priv;
 	priv->card = card;
-	priv->hw_register_dev     = if_cs_register_dev;
-	priv->hw_unregister_dev   = if_cs_unregister_dev;
-	priv->hw_prog_firmware    = if_cs_prog_firmware;
 	priv->hw_host_to_card     = if_cs_host_to_card;
 	priv->hw_get_int_status   = if_cs_get_int_status;
 	priv->hw_read_event_cause = if_cs_read_event_cause;
+
+	priv->adapter->fw_ready = 1;
 
 	/* Now actually get the IRQ */
 	ret = request_irq(p_dev->irq.AssignedIRQ, if_cs_interrupt,
@@ -919,7 +874,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 
 	/* And finally bring the card up */
-	if (libertas_activate_card(priv) != 0) {
+	if (libertas_start_card(priv) != 0) {
 		lbs_pr_err("could not activate card\n");
 		goto out3;
 	}
@@ -951,6 +906,7 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
+	libertas_stop_card(card->priv);
 	libertas_remove_card(card->priv);
 	if_cs_release(p_dev);
 	kfree(card);

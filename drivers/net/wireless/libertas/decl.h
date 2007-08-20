@@ -72,8 +72,9 @@ void libertas_send_iwevcustom_event(wlan_private * priv, s8 * str);
 struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band,
 						             int *cfp_no);
 wlan_private *libertas_add_card(void *card, struct device *dmdev);
-int libertas_activate_card(wlan_private *priv);
 int libertas_remove_card(wlan_private *priv);
+int libertas_start_card(wlan_private *priv);
+int libertas_stop_card(wlan_private *priv);
 int libertas_add_mesh(wlan_private *priv, struct device *dev);
 void libertas_remove_mesh(wlan_private *priv);
 int libertas_reset_device(wlan_private *priv);
