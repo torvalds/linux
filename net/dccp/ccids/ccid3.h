@@ -153,7 +153,7 @@ struct ccid3_hc_rx_sock {
 	enum ccid3_hc_rx_states		ccid3hcrx_state:8;
 	u32				ccid3hcrx_bytes_recv;
 	struct timeval			ccid3hcrx_tstamp_last_feedback;
-	struct timeval			ccid3hcrx_tstamp_last_ack;
+	ktime_t				ccid3hcrx_tstamp_last_ack;
 	struct list_head		ccid3hcrx_hist;
 	struct list_head		ccid3hcrx_li_hist;
 	u16				ccid3hcrx_s;
