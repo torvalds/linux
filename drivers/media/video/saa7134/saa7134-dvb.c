@@ -763,6 +763,21 @@ static struct tda1004x_config kworld_dvb_t_210_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct tda1004x_config avermedia_super_007_config = {
+	.demod_address = 0x08,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP01_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x60,
+	.tuner_config  = 0,
+	.antenna_switch= 1,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -1024,6 +1039,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 		configure_tda827x_fe(dev, &asus_p7131_hybrid_lna_config);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
+		configure_tda827x_fe(dev, &avermedia_super_007_config);
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");

@@ -3534,6 +3534,22 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x3000,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_SUPER_007] = {
+		.name           = "Avermedia Super 007",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tuner_config   = 0,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv, /* FIXME: analog tv untested */
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -4257,6 +4273,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x2304,
 		.driver_data  = SAA7134_BOARD_10MOONSTVMASTER3,
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0xf01d, /* AVerTV DVB-T Super 007 */
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_SUPER_007,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -4564,6 +4586,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
 	case SAA7134_BOARD_PHILIPS_TIGER_S:
+	case SAA7134_BOARD_AVERMEDIA_SUPER_007:
 		{
 		u8 data[] = { 0x3c, 0x33, 0x60};
 		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
