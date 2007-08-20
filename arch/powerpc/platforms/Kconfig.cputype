@@ -40,6 +40,7 @@ config PPC_8xx
 config 40x
 	bool "AMCC 40x"
 	select PPC_DCR_NATIVE
+	select WANT_DEVICE_TREE
 
 config 44x
 	bool "AMCC 44x"
