@@ -388,11 +388,7 @@ EXPORT_SYMBOL_GPL(dccp_timestamp);
 
 int dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 {
-	struct timeval tv;
-	__be32 now;
-
-	dccp_timestamp(sk, &tv);
-	now = htonl(timeval_usecs(&tv) / 10);
+	__be32 now = htonl(((suseconds_t)ktime_to_us(ktime_get_real())) / 10);
 	/* yes this will overflow but that is the point as we want a
 	 * 10 usec 32 bit timer which mean it wraps every 11.9 hours */
 
