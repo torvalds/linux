@@ -108,7 +108,7 @@ unsigned long __init mmu_mapin_ram(void)
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_16M | _PAGE_HWEXEC | _PAGE_HWWRITE;
 
-		pmdp = pmd_offset(pgd_offset_k(v), v);
+		pmdp = pmd_offset(pud_offset(pgd_offset_k(v), v), v);
 		pmd_val(*pmdp++) = val;
 		pmd_val(*pmdp++) = val;
 		pmd_val(*pmdp++) = val;
@@ -123,7 +123,7 @@ unsigned long __init mmu_mapin_ram(void)
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_4M | _PAGE_HWEXEC | _PAGE_HWWRITE;
 
-		pmdp = pmd_offset(pgd_offset_k(v), v);
+		pmdp = pmd_offset(pud_offset(pgd_offset_k(v), v), v);
 		pmd_val(*pmdp) = val;
 
 		v += LARGE_PAGE_SIZE_4M;
