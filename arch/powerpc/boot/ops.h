@@ -87,6 +87,7 @@ void *simple_alloc_init(char *base, unsigned long heap_size,
 extern void flush_cache(void *, unsigned long);
 int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size);
 int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr);
+int dt_is_compatible(void *node, const char *compat);
 
 static inline void *finddevice(const char *name)
 {
