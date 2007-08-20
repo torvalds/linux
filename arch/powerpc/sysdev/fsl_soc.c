@@ -52,13 +52,13 @@ phys_addr_t get_immrbase(void)
 
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
-		unsigned int size;
+		int size;
 		const void *prop = of_get_property(soc, "reg", &size);
 
 		if (prop)
 			immrbase = of_translate_address(soc, prop);
 		of_node_put(soc);
-	};
+	}
 
 	return immrbase;
 }
@@ -76,16 +76,23 @@ u32 get_brgfreq(void)
 	if (brgfreq != -1)
 		return brgfreq;
 
-	node = of_find_node_by_type(NULL, "cpm");
+	node = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
+	if (!node)
+		node = of_find_node_by_type(NULL, "cpm");
 	if (node) {
-		unsigned int size;
-		const unsigned int *prop = of_get_property(node,
-					"brg-frequency", &size);
+		int size;
+		const unsigned int *prop;
 
-		if (prop)
+		prop = of_get_property(node, "fsl,brg-frequency", &size);
+		if (!prop)
+			prop = of_get_property(node, "brg-frequency", &size);
+		if (prop && size == 4)
 			brgfreq = *prop;
+
 		of_node_put(node);
-	};
+	}
 
 	return brgfreq;
 }
@@ -103,14 +110,14 @@ u32 get_baudrate(void)
 
 	node = of_find_node_by_type(NULL, "serial");
 	if (node) {
-		unsigned int size;
+		int size;
 		const unsigned int *prop = of_get_property(node,
 				"current-speed", &size);
 
 		if (prop)
 			fs_baudrate = *prop;
 		of_node_put(node);
-	};
+	}
 
 	return fs_baudrate;
 }
