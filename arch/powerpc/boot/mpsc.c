@@ -17,7 +17,6 @@
 #include "io.h"
 #include "ops.h"
 
-extern void udelay(long delay);
 
 #define MPSC_CHR_1		0x000c
 

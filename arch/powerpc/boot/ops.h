@@ -193,5 +193,6 @@ static inline void exit(void)
 	void *_platform_stack_top = _bss_stack + sizeof(_bss_stack);
 
 extern unsigned long timebase_period_ns;
+void udelay(long delay);
 
 #endif /* _PPC_BOOT_OPS_H_ */

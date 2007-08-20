@@ -19,8 +19,6 @@
 #include "io.h"
 #include "ops.h"
 
-extern void udelay(long delay);
-
 static int serial_open(void)
 {
 	struct serial_console_data *scdp = console_ops.data;
