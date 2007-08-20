@@ -60,10 +60,9 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 
 	BUG_ON(!name);
 
-	if (!kobj) {
-		if (sysfs_mount && sysfs_mount->mnt_sb)
-			parent_sd = sysfs_mount->mnt_sb->s_root->d_fsdata;
-	} else
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
 		parent_sd = kobj->sd;
 
 	error = -EFAULT;

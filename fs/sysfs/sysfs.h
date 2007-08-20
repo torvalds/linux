@@ -51,7 +51,6 @@ struct sysfs_addrm_cxt {
 	int			cnt;
 };
 
-extern struct vfsmount * sysfs_mount;
 extern struct sysfs_dirent sysfs_root;
 extern struct kmem_cache *sysfs_dir_cachep;
 

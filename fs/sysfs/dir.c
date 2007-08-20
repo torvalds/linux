@@ -737,10 +737,8 @@ int sysfs_create_dir(struct kobject * kobj)
 
 	if (kobj->parent)
 		parent_sd = kobj->parent->sd;
-	else if (sysfs_mount && sysfs_mount->mnt_sb)
-		parent_sd = sysfs_mount->mnt_sb->s_root->d_fsdata;
 	else
-		return -EFAULT;
+		parent_sd = &sysfs_root;
 
 	error = create_dir(kobj, parent_sd, kobject_name(kobj), &sd);
 	if (!error)
