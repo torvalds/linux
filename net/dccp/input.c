@@ -301,12 +301,10 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 
 		/* Obtain RTT sample from SYN exchange (used by CCID 3) */
-		if (dp->dccps_options_received.dccpor_timestamp_echo) {
-			struct timeval now;
-
-			dccp_timestamp(sk, &now);
-			dp->dccps_syn_rtt = dccp_sample_rtt(sk, &now, NULL);
-		}
+		if (dp->dccps_options_received.dccpor_timestamp_echo)
+			dp->dccps_syn_rtt = dccp_sample_rtt(sk,
+							    ktime_get_real(),
+							    NULL);
 
 		if (dccp_msk(sk)->dccpms_send_ack_vector &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
@@ -593,22 +591,21 @@ EXPORT_SYMBOL_GPL(dccp_rcv_state_process);
  * @t_recv: receive timestamp of packet with timestamp echo
  * @t_hist: packet history timestamp or NULL
  */
-u32 dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
-				     struct timeval *t_hist)
+u32 dccp_sample_rtt(struct sock *sk, ktime_t t_recv, ktime_t *t_hist)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_options_received *or = &dp->dccps_options_received;
-	suseconds_t delta;
+	s64 delta;
 
 	if (t_hist == NULL) {
 		if (!or->dccpor_timestamp_echo) {
 			DCCP_WARN("packet without timestamp echo\n");
 			return DCCP_SANE_RTT_MAX;
 		}
-		timeval_sub_usecs(t_recv, or->dccpor_timestamp_echo * 10);
-		delta = timeval_usecs(t_recv);
+		ktime_sub_us(t_recv, or->dccpor_timestamp_echo * 10);
+		delta = ktime_to_us(t_recv);
 	} else
-		delta = timeval_delta(t_recv, t_hist);
+		delta = ktime_us_delta(t_recv, *t_hist);
 
 	delta -= or->dccpor_elapsed_time * 10;		/* either set or 0 */
 
@@ -616,7 +613,7 @@ u32 dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
 		DCCP_WARN("unusable RTT sample %ld, using min\n", (long)delta);
 		return DCCP_SANE_RTT_MIN;
 	}
-	if (unlikely(delta - (suseconds_t)DCCP_SANE_RTT_MAX > 0)) {
+	if (unlikely(delta - (s64)DCCP_SANE_RTT_MAX > 0)) {
 		DCCP_WARN("RTT sample %ld too large, using max\n", (long)delta);
 		return DCCP_SANE_RTT_MAX;
 	}

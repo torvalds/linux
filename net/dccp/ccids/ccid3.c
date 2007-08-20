@@ -414,7 +414,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 	struct dccp_tx_hist_entry *packet;
-	struct timeval now;
+	ktime_t now, t_hist;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
 
@@ -452,13 +452,13 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		else				       /* can not exceed 100% */
 			hctx->ccid3hctx_p = 1000000 / pinv;
 
-		dccp_timestamp(sk, &now);
-
+		now = ktime_get_real();
+		t_hist = timeval_to_ktime(packet->dccphtx_tstamp);
 		/*
 		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
 		 *	R_sample  =  (now - t_recvdata) - t_elapsed
 		 */
-		r_sample = dccp_sample_rtt(sk, &now, &packet->dccphtx_tstamp);
+		r_sample = dccp_sample_rtt(sk, now, &t_hist);
 
 		/*
 		 * Update RTT estimate by
@@ -475,7 +475,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 */
 			hctx->ccid3hctx_rtt  = r_sample;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = timeval_to_ktime(now);
+			hctx->ccid3hctx_t_ld = now;
 
 			ccid3_update_send_interval(hctx);
 
@@ -882,6 +882,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_rx_hist_entry *packet;
 	u32 p_prev, r_sample, rtt_prev;
 	int loss, payload_size;
+	ktime_t now;
 
 	BUG_ON(hcrx == NULL);
 
@@ -891,14 +892,12 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case DCCP_PKT_ACK:
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			return;
-	case DCCP_PKT_DATAACK: {
-		struct timeval now;
-
+	case DCCP_PKT_DATAACK:
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
 		rtt_prev = hcrx->ccid3hcrx_rtt;
-		dccp_timestamp(sk, &now);
-		r_sample = dccp_sample_rtt(sk, &now, NULL);
+		now = ktime_get_real();
+		r_sample = dccp_sample_rtt(sk, now, NULL);
 
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			hcrx->ccid3hcrx_rtt = r_sample;
@@ -911,7 +910,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				       dccp_role(sk), sk, hcrx->ccid3hcrx_rtt,
 				       opt_recv->dccpor_elapsed_time);
 		break;
-	}
 	case DCCP_PKT_DATA:
 		break;
 	default: /* We're not interested in other packet types, move along */
@@ -942,9 +940,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		ccid3_hc_rx_send_feedback(sk);
 		ccid3_hc_rx_set_state(sk, TFRC_RSTATE_DATA);
 		return;
-	case TFRC_RSTATE_DATA: {
-		ktime_t now;
-
+	case TFRC_RSTATE_DATA:
 		hcrx->ccid3hcrx_bytes_recv += payload_size;
 		if (loss)
 			break;
@@ -956,7 +952,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			ccid3_hc_rx_send_feedback(sk);
 		}
 		return;
-	}
 	case TFRC_RSTATE_TERM:
 		DCCP_BUG("%s(%p) - Illegal state TERM", dccp_role(sk), sk);
 		return;

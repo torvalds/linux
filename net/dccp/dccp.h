@@ -13,6 +13,7 @@
  */
 
 #include <linux/dccp.h>
+#include <linux/ktime.h>
 #include <net/snmp.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -296,8 +297,8 @@ extern int	   dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr,
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
-extern u32	   dccp_sample_rtt(struct sock *sk, struct timeval *t_recv,
-						    struct timeval *t_history);
+extern u32	   dccp_sample_rtt(struct sock *sk, ktime_t t_recv,
+				   ktime_t *t_history);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
