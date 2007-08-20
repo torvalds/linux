@@ -748,24 +748,12 @@ int sysfs_create_dir(struct kobject * kobj)
 	return error;
 }
 
-static int sysfs_count_nlink(struct sysfs_dirent *sd)
-{
-	struct sysfs_dirent *child;
-	int nr = 0;
-
-	for (child = sd->s_children; child; child = child->s_sibling)
-		if (sysfs_type(child) == SYSFS_DIR)
-			nr++;
-	return nr + 2;
-}
-
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 				struct nameidata *nd)
 {
 	struct dentry *ret = NULL;
 	struct sysfs_dirent *parent_sd = dentry->d_parent->d_fsdata;
 	struct sysfs_dirent *sd;
-	struct bin_attribute *bin_attr;
 	struct inode *inode;
 
 	mutex_lock(&sysfs_mutex);
@@ -783,31 +771,6 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (!inode) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_unlock;
-	}
-
-	if (inode->i_state & I_NEW) {
-		/* initialize inode according to type */
-		switch (sysfs_type(sd)) {
-		case SYSFS_DIR:
-			inode->i_op = &sysfs_dir_inode_operations;
-			inode->i_fop = &sysfs_dir_operations;
-			inode->i_nlink = sysfs_count_nlink(sd);
-			break;
-		case SYSFS_KOBJ_ATTR:
-			inode->i_size = PAGE_SIZE;
-			inode->i_fop = &sysfs_file_operations;
-			break;
-		case SYSFS_KOBJ_BIN_ATTR:
-			bin_attr = sd->s_elem.bin_attr.bin_attr;
-			inode->i_size = bin_attr->size;
-			inode->i_fop = &bin_fops;
-			break;
-		case SYSFS_KOBJ_LINK:
-			inode->i_op = &sysfs_symlink_inode_operations;
-			break;
-		default:
-			BUG();
-		}
 	}
 
 	sysfs_instantiate(dentry, inode);

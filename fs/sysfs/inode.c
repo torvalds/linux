@@ -122,8 +122,22 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
  */
 static struct lock_class_key sysfs_inode_imutex_key;
 
+static int sysfs_count_nlink(struct sysfs_dirent *sd)
+{
+	struct sysfs_dirent *child;
+	int nr = 0;
+
+	for (child = sd->s_children; child; child = child->s_sibling)
+		if (sysfs_type(child) == SYSFS_DIR)
+			nr++;
+
+	return nr + 2;
+}
+
 static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 {
+	struct bin_attribute *bin_attr;
+
 	inode->i_blocks = 0;
 	inode->i_mapping->a_ops = &sysfs_aops;
 	inode->i_mapping->backing_dev_info = &sysfs_backing_dev_info;
@@ -139,6 +153,37 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 		set_inode_attr(inode, sd->s_iattr);
 	} else
 		set_default_inode_attr(inode, sd->s_mode);
+
+
+	/* initialize inode according to type */
+	switch (sysfs_type(sd)) {
+	case SYSFS_ROOT:
+		inode->i_op = &sysfs_dir_inode_operations;
+		inode->i_fop = &sysfs_dir_operations;
+		inc_nlink(inode); /* directory, account for "." */
+		break;
+	case SYSFS_DIR:
+		inode->i_op = &sysfs_dir_inode_operations;
+		inode->i_fop = &sysfs_dir_operations;
+		inode->i_nlink = sysfs_count_nlink(sd);
+		break;
+	case SYSFS_KOBJ_ATTR:
+		inode->i_size = PAGE_SIZE;
+		inode->i_fop = &sysfs_file_operations;
+		break;
+	case SYSFS_KOBJ_BIN_ATTR:
+		bin_attr = sd->s_elem.bin_attr.bin_attr;
+		inode->i_size = bin_attr->size;
+		inode->i_fop = &bin_fops;
+		break;
+	case SYSFS_KOBJ_LINK:
+		inode->i_op = &sysfs_symlink_inode_operations;
+		break;
+	default:
+		BUG();
+	}
+
+	unlock_new_inode(inode);
 }
 
 /**
@@ -179,9 +224,6 @@ struct inode * sysfs_get_inode(struct sysfs_dirent *sd)
 void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
 {
 	BUG_ON(!dentry || dentry->d_inode);
-
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
 
 	d_instantiate(dentry, inode);
 }

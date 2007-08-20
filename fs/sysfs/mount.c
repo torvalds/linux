@@ -49,11 +49,6 @@ static int sysfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	}
 
-	inode->i_op = &sysfs_dir_inode_operations;
-	inode->i_fop = &sysfs_dir_operations;
-	inc_nlink(inode); /* directory, account for "." */
-	unlock_new_inode(inode);
-
 	/* instantiate and link root dentry */
 	root = d_alloc_root(inode);
 	if (!root) {
