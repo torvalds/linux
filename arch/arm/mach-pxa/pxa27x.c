@@ -27,6 +27,7 @@
 
 #include "generic.h"
 #include "devices.h"
+#include "clock.h"
 
 /* Crystal clock: 13MHz */
 #define BASE_CLK	13000000
@@ -119,6 +120,48 @@ unsigned int pxa27x_get_lcdclk_frequency_10khz(void)
 
 	return (K / 10000);
 }
+
+static unsigned long clk_pxa27x_lcd_getrate(struct clk *clk)
+{
+	return pxa27x_get_lcdclk_frequency_10khz() * 10000;
+}
+
+static const struct clkops clk_pxa27x_lcd_ops = {
+	.enable		= clk_cken_enable,
+	.disable	= clk_cken_disable,
+	.getrate	= clk_pxa27x_lcd_getrate,
+};
+
+static struct clk pxa27x_clks[] = {
+	INIT_CK("LCDCLK", LCD,    &clk_pxa27x_lcd_ops, &pxa_device_fb.dev),
+	INIT_CK("CAMCLK", CAMERA, &clk_pxa27x_lcd_ops, NULL),
+
+	INIT_CKEN("UARTCLK", STUART, 14857000, 1, &pxa_device_stuart.dev),
+	INIT_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
+
+	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
+	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
+	INIT_CKEN("UDCCLK",  USB,  48000000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
+	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
+
+	INIT_CKEN("USBCLK", USB,    48000000, 0, &pxa27x_device_ohci.dev),
+	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
+	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, NULL),
+
+	/*
+	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP1, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP2, 13000000, 0, NULL),
+	INIT_CKEN("SSPCLK",  SSP3, 13000000, 0, NULL),
+	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
+	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
+	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
+	INIT_CKEN("IMCLK",   IM,   0, 0, NULL),
+	INIT_CKEN("MEMCLK",  MEMC, 0, 0, NULL),
+	*/
+};
 
 #ifdef CONFIG_PM
 
@@ -343,6 +386,8 @@ static int __init pxa27x_init(void)
 {
 	int ret = 0;
 	if (cpu_is_pxa27x()) {
+		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
+
 		if ((ret = pxa_init_dma(32)))
 			return ret;
 #ifdef CONFIG_PM

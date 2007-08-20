@@ -30,6 +30,7 @@
 
 #include "generic.h"
 #include "devices.h"
+#include "clock.h"
 
 /*
  * Various clock factors driven by the CCCR register.
@@ -93,6 +94,41 @@ unsigned int pxa25x_get_memclk_frequency_10khz(void)
 {
 	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK / 10000;
 }
+
+static unsigned long clk_pxa25x_lcd_getrate(struct clk *clk)
+{
+	return pxa25x_get_memclk_frequency_10khz() * 10000;
+}
+
+static const struct clkops clk_pxa25x_lcd_ops = {
+	.enable		= clk_cken_enable,
+	.disable	= clk_cken_disable,
+	.getrate	= clk_pxa25x_lcd_getrate,
+};
+
+/*
+ * 3.6864MHz -> OST, GPIO, SSP, PWM, PLLs (95.842MHz, 147.456MHz)
+ * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
+ * 147.456MHz -> UART 14.7456MHz, AC97 12.288MHz, I2S 5.672MHz (allegedly)
+ */
+static struct clk pxa25x_clks[] = {
+	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
+	INIT_CKEN("UARTCLK", FFUART, 14745600, 1, &pxa_device_ffuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", STUART, 14745600, 1, &pxa_device_stuart.dev),
+	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
+	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
+	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
+	/*
+	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
+	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
+	INIT_CKEN("SSPCLK",  SSP,  3686400,  0, NULL),
+	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
+	INIT_CKEN("NSSPCLK", NSSP, 3686400,  0, NULL),
+	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
+	*/
+};
 
 #ifdef CONFIG_PM
 
@@ -215,6 +251,8 @@ static int __init pxa25x_init(void)
 	int ret = 0;
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
+
 		if ((ret = pxa_init_dma(16)))
 			return ret;
 #ifdef CONFIG_PM
