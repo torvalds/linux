@@ -2063,7 +2063,7 @@ static int __init smc911x_probe(struct net_device *dev, unsigned long ioaddr)
 
 	/* Grab the IRQ */
 	retval = request_irq(dev->irq, &smc911x_interrupt,
-			IRQF_SHARED | IRQF_TRIGGER_FALLING, dev->name, dev);
+			IRQF_SHARED | SMC_IRQ_SENSE, dev->name, dev);
 	if (retval)
 		goto err_out;
 
