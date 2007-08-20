@@ -138,7 +138,7 @@ EXPORT_SYMBOL(imx_gpio_direction_input);
 int imx_gpio_direction_output(unsigned gpio, int value)
 {
 	imx_gpio_set_value(gpio, value);
-	imx_gpio_mode(gpio| GPIO_OUT);
+	imx_gpio_mode(gpio | GPIO_OUT | GPIO_GIUS | GPIO_DR);
 	return 0;
 }
 
