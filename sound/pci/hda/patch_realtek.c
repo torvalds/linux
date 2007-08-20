@@ -2875,6 +2875,7 @@ static struct alc_config_preset alc880_presets[] = {
 	       			alc880_beep_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
 		.dac_nids = alc880_dac_nids,
+		.dig_out_nid = ALC880_DIGOUT_NID,
 		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
 		.channel_mode = alc880_2_jack_modes,
 		.input_mux = &alc880_capture_source,
