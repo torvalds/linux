@@ -584,9 +584,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 
 	/* set raw VBI format */
 	if (fmt->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
-		if (set_fmt && streamtype == IVTV_ENC_STREAM_TYPE_VBI &&
-		    itv->vbi.sliced_in->service_set &&
-		    atomic_read(&itv->capturing) > 0) {
+		if (set_fmt && atomic_read(&itv->capturing) > 0) {
 			return -EBUSY;
 		}
 		if (set_fmt) {
@@ -624,7 +622,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		return 0;
 	if (set == 0)
 		return -EINVAL;
-	if (atomic_read(&itv->capturing) > 0 && itv->vbi.sliced_in->service_set == 0) {
+	if (atomic_read(&itv->capturing) > 0) {
 		return -EBUSY;
 	}
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
