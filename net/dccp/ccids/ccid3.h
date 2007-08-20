@@ -38,7 +38,6 @@
 
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/time.h>
 #include <linux/types.h>
 #include <linux/tfrc.h>
 #include "../ccid.h"
@@ -111,7 +110,7 @@ struct ccid3_hc_tx_sock {
 	u8				ccid3hctx_idle;
 	ktime_t				ccid3hctx_t_last_win_count;
 	struct timer_list		ccid3hctx_no_feedback_timer;
-	struct timeval			ccid3hctx_t_ld;
+	ktime_t				ccid3hctx_t_ld;
 	ktime_t				ccid3hctx_t_nom;
 	u32				ccid3hctx_delta;
 	struct list_head		ccid3hctx_hist;

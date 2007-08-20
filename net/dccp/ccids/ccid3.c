@@ -154,12 +154,10 @@ static void ccid3_hc_tx_update_x(struct sock *sk)
 								TFRC_T_MBI);
 
 	} else {
-		struct timeval now;
+		const ktime_t now = ktime_get_real();
 
-		dccp_timestamp(sk, &now);
-
-		if ((timeval_delta(&now, &hctx->ccid3hctx_t_ld) -
-		     (suseconds_t)hctx->ccid3hctx_rtt) >= 0) {
+		if ((ktime_us_delta(now, hctx->ccid3hctx_t_ld) -
+		     (s64)hctx->ccid3hctx_rtt) >= 0) {
 
 			hctx->ccid3hctx_x =
 				max(min(2 * hctx->ccid3hctx_x, min_rate),
@@ -343,7 +341,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			ccid3_pr_debug("SYN RTT = %uus\n", dp->dccps_syn_rtt);
 			hctx->ccid3hctx_rtt  = dp->dccps_syn_rtt;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = ktime_to_timeval(now);
+			hctx->ccid3hctx_t_ld = now;
 		} else {
 			/* Sender does not have RTT sample: X = MSS/second */
 			hctx->ccid3hctx_x = dp->dccps_mss_cache;
@@ -477,7 +475,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 */
 			hctx->ccid3hctx_rtt  = r_sample;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-			hctx->ccid3hctx_t_ld = now;
+			hctx->ccid3hctx_t_ld = timeval_to_ktime(now);
 
 			ccid3_update_send_interval(hctx);
 
