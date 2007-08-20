@@ -120,10 +120,6 @@ void ps3_copy_vectors(void)
 
 void platform_init(void)
 {
-	extern char _end[];
-	extern char _dtb_start[];
-	extern char _initrd_start[];
-	extern char _initrd_end[];
 	const u32 heapsize = 0x1000000 - (u32)_end; /* 16MiB */
 	void *chosen;
 	unsigned long ft_addr;

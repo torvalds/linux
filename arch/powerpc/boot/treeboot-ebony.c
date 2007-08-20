@@ -16,8 +16,6 @@
 #include "stdio.h"
 #include "44x.h"
 
-extern char _end[];
-
 BSS_STACK(4096);
 
 #define OPENBIOS_MAC_BASE	0xfffffe0c

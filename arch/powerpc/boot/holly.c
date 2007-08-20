@@ -21,11 +21,6 @@
 #include "ops.h"
 #include "io.h"
 
-extern char _start[];
-extern char _end[];
-extern char _dtb_start[];
-extern char _dtb_end[];
-
 BSS_STACK(4096);
 
 void platform_init(unsigned long r3, unsigned long r4, unsigned long r5)

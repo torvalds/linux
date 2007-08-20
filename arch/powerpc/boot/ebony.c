@@ -29,9 +29,6 @@
 #include "4xx.h"
 #include "44x.h"
 
-extern char _dtb_start[];
-extern char _dtb_end[];
-
 static u8 *ebony_mac0, *ebony_mac1;
 
 /* Calculate 440GP clocks */

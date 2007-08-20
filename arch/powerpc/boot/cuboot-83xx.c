@@ -18,7 +18,6 @@
 #include "ppcboot.h"
 
 static bd_t bd;
-extern char _dtb_start[], _dtb_end[];
 
 static void platform_fixups(void)
 {

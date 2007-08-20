@@ -21,10 +21,6 @@
 #include "gunzip_util.h"
 #include "mv64x60.h"
 
-extern char _end[];
-extern char _vmlinux_start[], _vmlinux_end[];
-extern char _dtb_start[], _dtb_end[];
-
 #define KB	1024U
 #define MB	(KB*KB)
 #define GB	(KB*MB)
