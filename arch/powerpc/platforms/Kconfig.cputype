@@ -36,6 +36,7 @@ config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
 	select 8xx
+	select WANT_DEVICE_TREE
 
 config 40x
 	bool "AMCC 40x"
