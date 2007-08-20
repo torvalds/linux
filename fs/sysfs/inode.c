@@ -211,23 +211,6 @@ struct inode * sysfs_get_inode(struct sysfs_dirent *sd)
 	return inode;
 }
 
-/**
- *	sysfs_instantiate - instantiate dentry
- *	@dentry: dentry to be instantiated
- *	@inode: inode associated with @sd
- *
- *	Unlock @inode if locked and instantiate @dentry with @inode.
- *
- *	LOCKING:
- *	None.
- */
-void sysfs_instantiate(struct dentry *dentry, struct inode *inode)
-{
-	BUG_ON(!dentry || dentry->d_inode);
-
-	d_instantiate(dentry, inode);
-}
-
 int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 {
 	struct sysfs_addrm_cxt acxt;

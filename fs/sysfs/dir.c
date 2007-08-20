@@ -773,7 +773,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
-	sysfs_instantiate(dentry, inode);
+	d_instantiate(dentry, inode);
 	sysfs_attach_dentry(sd, dentry);
 
  out_unlock:
