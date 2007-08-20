@@ -18,22 +18,22 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/gfp.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/pci.h>
 #include <linux/spinlock.h>
 
 #include <asm/page.h>
 #include <asm/system.h>
 
-#include "fw-transaction.h"
 #include "fw-ohci.h"
+#include "fw-transaction.h"
 
 #define DESCRIPTOR_OUTPUT_MORE		0
 #define DESCRIPTOR_OUTPUT_LAST		(1 << 12)
