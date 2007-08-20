@@ -80,13 +80,6 @@ ifneq ($(CONFIG_PPC_INDIRECT_IO),y)
 obj-y				+= iomap.o
 endif
 
-ifeq ($(CONFIG_PPC_ISERIES),y)
-CFLAGS_lparmap.s		+= -g0
-extra-y += lparmap.s
-$(obj)/head_64.o:	$(obj)/lparmap.s
-AFLAGS_head_64.o += -I$(obj)
-endif
-
 else
 # stuff used from here for ARCH=ppc
 smpobj-$(CONFIG_SMP)		+= smp.o

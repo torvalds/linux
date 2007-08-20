@@ -22,6 +22,8 @@
 
 #include <asm/types.h>
 
+#endif
+
 /*
  * The iSeries hypervisor will set up mapping for one or more
  * ESID/VSID pairs (in SLB/segment registers) and will set up
@@ -56,6 +58,7 @@
 /* Hypervisor initially maps 32MB of the load area */
 #define HvPagesToMap	8192
 
+#ifndef __ASSEMBLY__
 struct LparMap {
 	u64	xNumberEsids;	// Number of ESID/VSID pairs
 	u64	xNumberRanges;	// Number of VA ranges to map

@@ -28,7 +28,7 @@
 
 /* Segment size */
 #define SID_SHIFT		28
-#define SID_MASK		0xfffffffffUL
+#define SID_MASK		ASM_CONST(0xfffffffff)
 #define ESID_MASK		0xfffffffff0000000UL
 #define GET_ESID(x)		(((x) >> SID_SHIFT) & SID_MASK)
 

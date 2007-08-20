@@ -34,6 +34,7 @@
 #include <asm/iseries/lpar_map.h>
 #include <asm/thread_info.h>
 #include <asm/firmware.h>
+#include <asm/page_64.h>
 
 #define DO_SOFT_DISABLE
 
@@ -1519,8 +1520,8 @@ _GLOBAL(do_stab_bolted)
  * Space for CPU0's segment table.
  *
  * On iSeries, the hypervisor must fill in at least one entry before
- * we get control (with relocate on).  The address is give to the hv
- * as a page number (see xLparMap in lpardata.c), so this must be at a
+ * we get control (with relocate on).  The address is given to the hv
+ * as a page number (see xLparMap below), so this must be at a
  * fixed address (the linker can't compute (u64)&initial_stab >>
  * PAGE_SHIFT).
  */
@@ -1542,12 +1543,22 @@ fwnmi_data_area:
 	 * both pSeries and iSeries */
 #ifdef CONFIG_PPC_ISERIES
         . = LPARMAP_PHYS
-#include "lparmap.s"
-/*
- * This ".text" is here for old compilers that generate a trailing
- * .note section when compiling .c files to .s
- */
-	.text
+	.globl xLparMap
+xLparMap:
+	.quad	HvEsidsToMap		/* xNumberEsids */
+	.quad	HvRangesToMap		/* xNumberRanges */
+	.quad	STAB0_PAGE		/* xSegmentTableOffs */
+	.zero	40			/* xRsvd */
+	/* xEsids (HvEsidsToMap entries of 2 quads) */
+	.quad	PAGE_OFFSET_ESID	/* xKernelEsid */
+	.quad	PAGE_OFFSET_VSID	/* xKernelVsid */
+	.quad	VMALLOC_START_ESID	/* xKernelEsid */
+	.quad	VMALLOC_START_VSID	/* xKernelVsid */
+	/* xRanges (HvRangesToMap entries of 3 quads) */
+	.quad	HvPagesToMap		/* xPages */
+	.quad	0			/* xOffset */
+	.quad	PAGE_OFFSET_VSID << (SID_SHIFT - HW_PAGE_SHIFT)	/* xVPN */
+
 #endif /* CONFIG_PPC_ISERIES */
 
         . = 0x8000
