@@ -167,6 +167,7 @@ struct uea_softc {
 	union cmv_dsc cmv_dsc;
 
 	struct work_struct task;
+	struct workqueue_struct *work_q;
 	u16 pageno;
 	u16 ovl;
 
@@ -1830,7 +1831,7 @@ static int uea_start_reset(struct uea_softc *sc)
 	/* start loading DSP */
 	sc->pageno = 0;
 	sc->ovl = 0;
-	schedule_work(&sc->task);
+	queue_work(sc->work_q, &sc->task);
 
 	/* wait for modem ready CMV */
 	ret = wait_cmv_ack(sc);
@@ -2038,13 +2039,13 @@ static void uea_schedule_load_page_e1(struct uea_softc *sc, struct intr_pkt *int
 {
 	sc->pageno = intr->e1_bSwapPageNo;
 	sc->ovl = intr->e1_bOvl >> 4 | intr->e1_bOvl << 4;
-	schedule_work(&sc->task);
+	queue_work(sc->work_q, &sc->task);
 }
 
 static void uea_schedule_load_page_e4(struct uea_softc *sc, struct intr_pkt *intr)
 {
 	sc->pageno = intr->e4_bSwapPageNo;
-	schedule_work(&sc->task);
+	queue_work(sc->work_q, &sc->task);
 }
 
 /*
@@ -2117,6 +2118,13 @@ static int uea_boot(struct uea_softc *sc)
 	init_waitqueue_head(&sc->sync_q);
 	init_waitqueue_head(&sc->cmv_ack_wait);
 
+	sc->work_q = create_workqueue("ueagle-dsp");
+	if (!sc->work_q) {
+		uea_err(INS_TO_USBDEV(sc), "cannot allocate workqueue\n");
+		uea_leaves(INS_TO_USBDEV(sc));
+		return -ENOMEM;
+	}
+
 	if (UEA_CHIP_VERSION(sc) == ADI930)
 		load_XILINX_firmware(sc);
 
@@ -2124,14 +2132,13 @@ static int uea_boot(struct uea_softc *sc)
 	if (!intr) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "cannot allocate interrupt package\n");
-		uea_leaves(INS_TO_USBDEV(sc));
-		return -ENOMEM;
+		goto err0;
 	}
 
 	sc->urb_int = usb_alloc_urb(0, GFP_KERNEL);
 	if (!sc->urb_int) {
 		uea_err(INS_TO_USBDEV(sc), "cannot allocate interrupt URB\n");
-		goto err;
+		goto err1;
 	}
 
 	usb_fill_int_urb(sc->urb_int, sc->usb_dev,
@@ -2144,7 +2151,7 @@ static int uea_boot(struct uea_softc *sc)
 	if (ret < 0) {
 		uea_err(INS_TO_USBDEV(sc),
 		       "urb submition failed with error %d\n", ret);
-		goto err;
+		goto err1;
 	}
 
 	sc->kthread = kthread_run(uea_kthread, sc, "ueagle-atm");
@@ -2158,10 +2165,12 @@ static int uea_boot(struct uea_softc *sc)
 
 err2:
 	usb_kill_urb(sc->urb_int);
-err:
+err1:
 	usb_free_urb(sc->urb_int);
 	sc->urb_int = NULL;
 	kfree(intr);
+err0:
+	destroy_workqueue(sc->work_q);
 	uea_leaves(INS_TO_USBDEV(sc));
 	return -ENOMEM;
 }
@@ -2176,14 +2185,14 @@ static void uea_stop(struct uea_softc *sc)
 	ret = kthread_stop(sc->kthread);
 	uea_dbg(INS_TO_USBDEV(sc), "kthread finish with status %d\n", ret);
 
-	/* stop any pending boot process */
-	flush_scheduled_work();
-
 	uea_request(sc, UEA_SET_MODE, UEA_LOOPBACK_ON, 0, NULL);
 
 	usb_kill_urb(sc->urb_int);
 	kfree(sc->urb_int->transfer_buffer);
 	usb_free_urb(sc->urb_int);
+
+	/* stop any pending boot process, when no one can schedule work */
+	destroy_workqueue(sc->work_q);
 
 	if (sc->dsp_firm)
 		release_firmware(sc->dsp_firm);
