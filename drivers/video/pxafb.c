@@ -37,6 +37,8 @@
 #include <linux/cpufreq.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -506,15 +508,15 @@ static struct fb_ops pxafb_ops = {
  *
  * Factoring the 10^4 and 10^-12 out gives 10^-8 == 1 / 100000000 as used below.
  */
-static inline unsigned int get_pcd(unsigned int pixclock)
+static inline unsigned int get_pcd(struct pxafb_info *fbi, unsigned int pixclock)
 {
 	unsigned long long pcd;
 
 	/* FIXME: Need to take into account Double Pixel Clock mode
-         * (DPC) bit? or perhaps set it based on the various clock
-         * speeds */
-
-	pcd = (unsigned long long)get_lcdclk_frequency_10khz() * pixclock;
+	 * (DPC) bit? or perhaps set it based on the various clock
+	 * speeds */
+	pcd = (unsigned long long)(clk_get_rate(fbi->clk) / 10000);
+	pcd *= pixclock;
 	do_div(pcd, 100000000 * 2);
 	/* no need for this, since we should subtract 1 anyway. they cancel */
 	/* pcd += 1; */ /* make up for integer math truncations */
@@ -523,19 +525,21 @@ static inline unsigned int get_pcd(unsigned int pixclock)
 
 /*
  * Some touchscreens need hsync information from the video driver to
- * function correctly. We export it here.
+ * function correctly. We export it here.  Note that 'hsync_time' and
+ * the value returned from pxafb_get_hsync_time() is the *reciprocal*
+ * of the hsync period in seconds.
  */
 static inline void set_hsync_time(struct pxafb_info *fbi, unsigned int pcd)
 {
-	unsigned long long htime;
+	unsigned long htime;
 
 	if ((pcd == 0) || (fbi->fb.var.hsync_len == 0)) {
 		fbi->hsync_time=0;
 		return;
 	}
 
-	htime = (unsigned long long)get_lcdclk_frequency_10khz() * 10000;
-	do_div(htime, pcd * fbi->fb.var.hsync_len);
+	htime = clk_get_rate(fbi->clk) / (pcd * fbi->fb.var.hsync_len);
+
 	fbi->hsync_time = htime;
 }
 
@@ -560,7 +564,7 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var, struct pxafb_info *
 {
 	struct pxafb_lcd_reg new_regs;
 	u_long flags;
-	u_int lines_per_panel, pcd = get_pcd(var->pixclock);
+	u_int lines_per_panel, pcd = get_pcd(fbi, var->pixclock);
 
 	pr_debug("pxafb: Configuring PXA LCD\n");
 
@@ -803,7 +807,7 @@ static void pxafb_enable_controller(struct pxafb_info *fbi)
 	pr_debug("reg_lccr3 0x%08x\n", (unsigned int) fbi->reg_lccr3);
 
 	/* enable LCD controller clock */
-	pxa_set_cken(CKEN_LCD, 1);
+	clk_enable(fbi->clk);
 
 	/* Sequence from 11.7.10 */
 	LCCR3 = fbi->reg_lccr3;
@@ -840,7 +844,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 	remove_wait_queue(&fbi->ctrlr_wait, &wait);
 
 	/* disable LCD controller clock */
-	pxa_set_cken(CKEN_LCD, 0);
+	clk_disable(fbi->clk);
 }
 
 /*
@@ -994,7 +998,7 @@ pxafb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
 		break;
 
 	case CPUFREQ_POSTCHANGE:
-		pcd = get_pcd(fbi->fb.var.pixclock);
+		pcd = get_pcd(fbi, fbi->fb.var.pixclock);
 		set_hsync_time(fbi, pcd);
 		fbi->reg_lccr3 = (fbi->reg_lccr3 & ~0xff) | LCCR3_PixClkDiv(pcd);
 		set_ctrlr_state(fbi, C_ENABLE_CLKCHANGE);
@@ -1118,6 +1122,12 @@ static struct pxafb_info * __init pxafb_init_fbinfo(struct device *dev)
 
 	memset(fbi, 0, sizeof(struct pxafb_info));
 	fbi->dev = dev;
+
+	fbi->clk = clk_get(dev, "LCDCLK");
+	if (IS_ERR(fbi->clk)) {
+		kfree(fbi);
+		return NULL;
+	}
 
 	strcpy(fbi->fb.fix.id, PXA_NAME);
 
