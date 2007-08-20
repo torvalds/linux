@@ -161,7 +161,6 @@ struct uea_softc {
 	struct task_struct *kthread;
 	u32 data;
 	u32 data1;
-	wait_queue_head_t cmv_ack_wait;
 
 	int cmv_ack;
 	union cmv_dsc cmv_dsc;
@@ -557,6 +556,15 @@ MODULE_PARM_DESC(cmv_file,
 module_param_array(annex, uint, NULL, 0644);
 MODULE_PARM_DESC(annex,
                  "manually set annex a/b (0=auto, 1=annex a, 2=annex b)");
+
+#define uea_wait(sc, cond, timeo) \
+({ \
+	int _r = wait_event_interruptible_timeout(sc->sync_q, \
+			(cond) || kthread_should_stop(), timeo); \
+	if (kthread_should_stop()) \
+		_r = -ENODEV; \
+	_r; \
+})
 
 #define UPDATE_ATM_STAT(type, val) \
 	do { \
@@ -1067,13 +1075,13 @@ static inline void wake_up_cmv_ack(struct uea_softc *sc)
 {
 	BUG_ON(sc->cmv_ack);
 	sc->cmv_ack = 1;
-	wake_up(&sc->cmv_ack_wait);
+	wake_up(&sc->sync_q);
 }
 
 static inline int wait_cmv_ack(struct uea_softc *sc)
 {
-	int ret = wait_event_interruptible_timeout(sc->cmv_ack_wait,
-						   sc->cmv_ack, ACK_TIMEOUT);
+	int ret = uea_wait(sc, sc->cmv_ack , ACK_TIMEOUT);
+
 	sc->cmv_ack = 0;
 
 	uea_dbg(INS_TO_USBDEV(sc), "wait_event_timeout : %d ms\n",
@@ -1806,7 +1814,9 @@ static int uea_start_reset(struct uea_softc *sc)
 	uea_request(sc, UEA_SET_MODE, UEA_START_RESET, 0, NULL);
 
 	/* original driver use 200ms, but windows driver use 100ms */
-	msleep(100);
+	ret = uea_wait(sc, 0, msecs_to_jiffies(100));
+	if (ret < 0)
+		return ret;
 
 	/* leave reset mode */
 	uea_request(sc, UEA_SET_MODE, UEA_END_RESET, 0, NULL);
@@ -1818,7 +1828,9 @@ static int uea_start_reset(struct uea_softc *sc)
 		uea_request(sc, UEA_SET_2183_DATA, UEA_SWAP_MAILBOX, 2, &zero);
 	}
 
-	msleep(1000);
+	ret = uea_wait(sc, 0, msecs_to_jiffies(1000));
+	if (ret < 0)
+		return ret;
 
 	if (UEA_CHIP_VERSION(sc) == EAGLE_IV)
 		sc->cmv_dsc.e4.function = E4_MAKEFUNCTION(E4_ADSLDIRECTIVE, E4_MODEMREADY, 1);
@@ -1868,7 +1880,7 @@ static int uea_kthread(void *data)
 		if (!ret)
 			ret = sc->stat(sc);
 		if (ret != -EAGAIN)
-			msleep_interruptible(1000);
+			uea_wait(sc, 0, msecs_to_jiffies(1000));
  		if (try_to_freeze())
 			uea_err(INS_TO_USBDEV(sc), "suspend/resume not supported, "
 				"please unplug/replug your modem\n");
@@ -2116,7 +2128,6 @@ static int uea_boot(struct uea_softc *sc)
 	}
 
 	init_waitqueue_head(&sc->sync_q);
-	init_waitqueue_head(&sc->cmv_ack_wait);
 
 	sc->work_q = create_workqueue("ueagle-dsp");
 	if (!sc->work_q) {
