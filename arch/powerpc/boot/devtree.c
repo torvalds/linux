@@ -218,7 +218,7 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	u32 this_addr[MAX_ADDR_CELLS];
 	void *parent;
 	u64 ret_addr, ret_size;
-	u32 naddr, nsize, prev_naddr;
+	u32 naddr, nsize, prev_naddr, prev_nsize;
 	int buflen, offset;
 
 	parent = get_parent(node);
@@ -233,7 +233,7 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	offset = (naddr + nsize) * res;
 
 	if (reglen < offset + naddr + nsize ||
-	    sizeof(dt_xlate_buf) < offset + naddr + nsize)
+	    sizeof(dt_xlate_buf) < (offset + naddr + nsize) * 4)
 		return 0;
 
 	copy_val(last_addr, dt_xlate_buf + offset, naddr);
@@ -244,20 +244,26 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 		ret_size |= dt_xlate_buf[offset + naddr + 1];
 	}
 
-	while ((node = get_parent(node))) {
+	for (;;) {
 		prev_naddr = naddr;
+		prev_nsize = nsize;
+		node = parent;
 
-		get_reg_format(node, &naddr, &nsize);
+		parent = get_parent(node);
+		if (!parent)
+			break;
+
+		get_reg_format(parent, &naddr, &nsize);
 
 		buflen = getprop(node, "ranges", dt_xlate_buf,
 				sizeof(dt_xlate_buf));
-		if (buflen < 0)
+		if (buflen == 0)
 			continue;
-		if (buflen > sizeof(dt_xlate_buf))
+		if (buflen < 0 || buflen > sizeof(dt_xlate_buf))
 			return 0;
 
 		offset = find_range(last_addr, dt_xlate_buf, prev_naddr,
-		                    naddr, nsize, buflen / 4);
+		                    naddr, prev_nsize, buflen / 4);
 
 		if (offset < 0)
 			return 0;
