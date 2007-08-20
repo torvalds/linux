@@ -584,6 +584,8 @@ int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *driv
 	return 0;
 }
 
+EXPORT_SYMBOL_GPL(ide_in_drive_list);
+
 /*
  * Early UDMA66 devices don't set bit14 to 1, only bit13 is valid.
  * We list them here and depend on the device side cable detection for them.
