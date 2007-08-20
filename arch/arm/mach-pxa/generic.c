@@ -267,21 +267,80 @@ void __init set_pxa_fb_parent(struct device *parent_dev)
 	pxa_device_fb.dev.parent = parent_dev;
 }
 
+static struct resource pxa_resource_ffuart[] = {
+	{
+		.start	= __PREG(FFUART),
+		.end	= __PREG(FFUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_FFUART,
+		.end	= IRQ_FFUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_ffuart= {
 	.name		= "pxa2xx-uart",
 	.id		= 0,
+	.resource	= pxa_resource_ffuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_ffuart),
 };
+
+static struct resource pxa_resource_btuart[] = {
+	{
+		.start	= __PREG(BTUART),
+		.end	= __PREG(BTUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_BTUART,
+		.end	= IRQ_BTUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_btuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 1,
+	.resource	= pxa_resource_btuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_btuart),
 };
+
+static struct resource pxa_resource_stuart[] = {
+	{
+		.start	= __PREG(STUART),
+		.end	= __PREG(STUART) + 35,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_STUART,
+		.end	= IRQ_STUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_stuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 2,
+	.resource	= pxa_resource_stuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_stuart),
 };
+
+static struct resource pxa_resource_hwuart[] = {
+	{
+		.start	= __PREG(HWUART),
+		.end	= __PREG(HWUART) + 47,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_HWUART,
+		.end	= IRQ_HWUART,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
 struct platform_device pxa_device_hwuart = {
 	.name		= "pxa2xx-uart",
 	.id		= 3,
+	.resource	= pxa_resource_hwuart,
+	.num_resources	= ARRAY_SIZE(pxa_resource_hwuart),
 };
 
 static struct resource pxai2c_resources[] = {

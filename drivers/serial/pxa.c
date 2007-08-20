@@ -582,7 +582,7 @@ serial_pxa_type(struct uart_port *port)
 
 #ifdef CONFIG_SERIAL_PXA_CONSOLE
 
-static struct uart_pxa_port serial_pxa_ports[];
+static struct uart_pxa_port *serial_pxa_ports[4];
 static struct uart_driver serial_pxa_reg;
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
@@ -632,7 +632,7 @@ static void serial_pxa_console_putchar(struct uart_port *port, int ch)
 static void
 serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 {
-	struct uart_pxa_port *up = &serial_pxa_ports[co->index];
+	struct uart_pxa_port *up = serial_pxa_ports[co->index];
 	unsigned int ier;
 
 	/*
@@ -662,7 +662,9 @@ serial_pxa_console_setup(struct console *co, char *options)
 
 	if (co->index == -1 || co->index >= serial_pxa_reg.nr)
 		co->index = 0;
-       	up = &serial_pxa_ports[co->index];
+	up = serial_pxa_ports[co->index];
+	if (!up)
+		return -ENODEV;
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -679,15 +681,6 @@ static struct console serial_pxa_console = {
 	.index		= -1,
 	.data		= &serial_pxa_reg,
 };
-
-static int __init
-serial_pxa_console_init(void)
-{
-	register_console(&serial_pxa_console);
-	return 0;
-}
-
-console_initcall(serial_pxa_console_init);
 
 #define PXA_CONSOLE	&serial_pxa_console
 #else
@@ -714,73 +707,13 @@ struct uart_ops serial_pxa_pops = {
 	.verify_port	= serial_pxa_verify_port,
 };
 
-static struct uart_pxa_port serial_pxa_ports[] = {
-     {	/* FFUART */
-	.name	= "FFUART",
-	.cken	= CKEN_FFUART,
-	.port	= {
-		.type		= PORT_PXA,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)&FFUART,
-		.mapbase	= __PREG(FFUART),
-		.irq		= IRQ_FFUART,
-		.uartclk	= 921600 * 16,
-		.fifosize	= 64,
-		.ops		= &serial_pxa_pops,
-		.line		= 0,
-	},
-  }, {	/* BTUART */
-	.name	= "BTUART",
-	.cken	= CKEN_BTUART,
-	.port	= {
-		.type		= PORT_PXA,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)&BTUART,
-		.mapbase	= __PREG(BTUART),
-		.irq		= IRQ_BTUART,
-		.uartclk	= 921600 * 16,
-		.fifosize	= 64,
-		.ops		= &serial_pxa_pops,
-		.line		= 1,
-	},
-  }, {	/* STUART */
-	.name	= "STUART",
-	.cken	= CKEN_STUART,
-	.port	= {
-		.type		= PORT_PXA,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)&STUART,
-		.mapbase	= __PREG(STUART),
-		.irq		= IRQ_STUART,
-		.uartclk	= 921600 * 16,
-		.fifosize	= 64,
-		.ops		= &serial_pxa_pops,
-		.line		= 2,
-	},
-  }, {  /* HWUART */
-	.name	= "HWUART",
-	.cken	= CKEN_HWUART,
-	.port = {
-		.type		= PORT_PXA,
-		.iotype		= UPIO_MEM,
-		.membase	= (void *)&HWUART,
-		.mapbase	= __PREG(HWUART),
-		.irq		= IRQ_HWUART,
-		.uartclk	= 921600 * 16,
-		.fifosize	= 64,
-		.ops		= &serial_pxa_pops,
-		.line		= 3,
-	},
-  }
-};
-
 static struct uart_driver serial_pxa_reg = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "PXA serial",
 	.dev_name	= "ttyS",
 	.major		= TTY_MAJOR,
 	.minor		= 64,
-	.nr		= ARRAY_SIZE(serial_pxa_ports),
+	.nr		= 4,
 	.cons		= PXA_CONSOLE,
 };
 
@@ -806,10 +739,60 @@ static int serial_pxa_resume(struct platform_device *dev)
 
 static int serial_pxa_probe(struct platform_device *dev)
 {
-	serial_pxa_ports[dev->id].port.dev = &dev->dev;
-	uart_add_one_port(&serial_pxa_reg, &serial_pxa_ports[dev->id].port);
-	platform_set_drvdata(dev, &serial_pxa_ports[dev->id]);
+	struct uart_pxa_port *sport;
+	struct resource *mmres, *irqres;
+	int ret;
+
+	mmres = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	irqres = platform_get_resource(dev, IORESOURCE_IRQ, 0);
+	if (!mmres || !irqres)
+		return -ENODEV;
+
+	sport = kzalloc(sizeof(struct uart_pxa_port), GFP_KERNEL);
+	if (!sport)
+		return -ENOMEM;
+
+	sport->port.type = PORT_PXA;
+	sport->port.iotype = UPIO_MEM;
+	sport->port.mapbase = mmres->start;
+	sport->port.irq = irqres->start;
+	sport->port.fifosize = 64;
+	sport->port.ops = &serial_pxa_pops;
+	sport->port.line = dev->id;
+	sport->port.dev = &dev->dev;
+	sport->port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
+	sport->port.uartclk = 921600 * 16;
+
+	/*
+	 * Is it worth keeping this?
+	 */
+	if (mmres->start == __PREG(FFUART))
+		sport->name = "FFUART";
+	else if (mmres->start == __PREG(BTUART))
+		sport->name = "BTUART";
+	else if (mmres->start == __PREG(STUART))
+		sport->name = "STUART";
+	else if (mmres->start == __PREG(HWUART))
+		sport->name = "HWUART";
+	else
+		sport->name = "???";
+
+	sport->port.membase = ioremap(mmres->start, mmres->end - mmres->start + 1);
+	if (!sport->port.membase) {
+		ret = -ENOMEM;
+		goto err_free;
+	}
+
+	serial_pxa_ports[dev->id] = sport;
+
+	uart_add_one_port(&serial_pxa_reg, &sport->port);
+	platform_set_drvdata(dev, sport);
+
 	return 0;
+
+ err_free:
+	kfree(sport);
+	return ret;
 }
 
 static int serial_pxa_remove(struct platform_device *dev)
@@ -818,8 +801,8 @@ static int serial_pxa_remove(struct platform_device *dev)
 
 	platform_set_drvdata(dev, NULL);
 
-	if (sport)
-		uart_remove_one_port(&serial_pxa_reg, &sport->port);
+	uart_remove_one_port(&serial_pxa_reg, &sport->port);
+	kfree(sport);
 
 	return 0;
 }
