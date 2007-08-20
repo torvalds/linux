@@ -78,11 +78,8 @@ machine_kexec(struct kimage *image)
 	 */
 	local_irq_disable();
 
-	flush_icache_range(reboot_code_buffer,
-			   reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
-
 	printk("Will call new kernel at %08lx\n", image->start);
 	printk("Bye ...\n");
-	flush_cache_all();
+	__flush_cache_all();
 	((noretfun_t) reboot_code_buffer)();
 }
