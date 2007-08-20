@@ -282,7 +282,7 @@ static struct resource pxa27x_ohci_resources[] = {
 	},
 };
 
-static struct platform_device pxa27x_device_ohci = {
+struct platform_device pxa27x_device_ohci = {
 	.name		= "pxa27x-ohci",
 	.id		= -1,
 	.dev		= {
@@ -310,7 +310,7 @@ static struct resource i2c_power_resources[] = {
 	},
 };
 
-static struct platform_device pxa27x_device_i2c_power = {
+struct platform_device pxa27x_device_i2c_power = {
 	.name		= "pxa2xx-i2c",
 	.id		= 1,
 	.resource	= i2c_power_resources,
