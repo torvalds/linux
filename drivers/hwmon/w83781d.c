@@ -220,7 +220,7 @@ DIV_TO_REG(long val, enum chips type)
    the driver field to differentiate between I2C and ISA chips. */
 struct w83781d_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 	enum chips type;
 
@@ -1158,9 +1158,9 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (err)
 		goto ERROR4;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR4;
 	}
 
@@ -1194,7 +1194,7 @@ w83781d_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &w83781d_group);
 		sysfs_remove_group(&client->dev.kobj, &w83781d_group_opt);
 	}
@@ -1261,9 +1261,9 @@ w83781d_isa_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_remove_files;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -1285,7 +1285,7 @@ w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83781d_group_opt);
 	device_remove_file(&pdev->dev, &dev_attr_name);

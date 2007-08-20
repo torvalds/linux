@@ -116,7 +116,7 @@ struct smsc47m1_data {
 	unsigned short addr;
 	const char *name;
 	enum chips type;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
@@ -588,9 +588,9 @@ static int __devinit smsc47m1_probe(struct platform_device *pdev)
 	if ((err = device_create_file(dev, &dev_attr_name)))
 		goto error_remove_files;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto error_remove_files;
 	}
 
@@ -611,7 +611,7 @@ static int __devexit smsc47m1_remove(struct platform_device *pdev)
 	struct smsc47m1_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &smsc47m1_group);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);

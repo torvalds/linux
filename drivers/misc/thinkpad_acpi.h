@@ -171,7 +171,7 @@ static int parse_strtoul(const char *buf, unsigned long max,
 
 /* Device model */
 static struct platform_device *tpacpi_pdev;
-static struct class_device *tpacpi_hwmon;
+static struct device *tpacpi_hwmon;
 static struct platform_driver tpacpi_pdriver;
 static struct input_dev *tpacpi_inputdev;
 static int tpacpi_create_driver_attributes(struct device_driver *drv);

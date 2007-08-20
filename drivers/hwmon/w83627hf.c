@@ -346,7 +346,7 @@ static inline u8 DIV_TO_REG(long val)
 struct w83627hf_data {
 	unsigned short addr;
 	const char *name;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 	enum chips type;
 
@@ -1295,9 +1295,9 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 		 || (err = device_create_file(dev, &dev_attr_pwm3_freq)))
 			goto ERROR4;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR4;
 	}
 
@@ -1320,7 +1320,7 @@ static int __devexit w83627hf_remove(struct platform_device *pdev)
 	struct w83627hf_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group);
 	sysfs_remove_group(&pdev->dev.kobj, &w83627hf_group_opt);

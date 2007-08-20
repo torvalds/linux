@@ -222,7 +222,7 @@ struct it87_sio_data {
 /* For each registered chip, we need to keep some data in memory.
    The structure is dynamically allocated. */
 struct it87_data {
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	enum chips type;
 
 	unsigned short addr;
@@ -1089,9 +1089,9 @@ static int __devinit it87_probe(struct platform_device *pdev)
 			goto ERROR4;
 	}
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR4;
 	}
 
@@ -1113,7 +1113,7 @@ static int __devexit it87_remove(struct platform_device *pdev)
 {
 	struct it87_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &it87_group);
 	sysfs_remove_group(&pdev->dev.kobj, &it87_group_opt);
 

@@ -131,7 +131,7 @@ static inline int TEMP_FROM_REG(s8 val)
    the driver field to differentiate between I2C and ISA chips. */
 struct lm78_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 	enum chips type;
 
@@ -585,9 +585,9 @@ static int lm78_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &lm78_group)))
 		goto ERROR3;
 
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR4;
 	}
 
@@ -608,7 +608,7 @@ static int lm78_detach_client(struct i2c_client *client)
 	struct lm78_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm78_group);
 
 	if ((err = i2c_detach_client(client)))
@@ -659,9 +659,9 @@ static int __devinit lm78_isa_probe(struct platform_device *pdev)
 	 || (err = device_create_file(&pdev->dev, &dev_attr_name)))
 		goto exit_remove_files;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -681,7 +681,7 @@ static int __devexit lm78_isa_remove(struct platform_device *pdev)
 {
 	struct lm78_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &lm78_group);
 	device_remove_file(&pdev->dev, &dev_attr_name);
 	release_region(data->client.addr, LM78_EXTENT);

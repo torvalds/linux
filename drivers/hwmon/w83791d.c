@@ -247,7 +247,7 @@ static u8 div_to_reg(int nr, long val)
 
 struct w83791d_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 
 	char valid;			/* !=0 if following fields are valid */
@@ -1017,9 +1017,9 @@ static int w83791d_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto error3;
 
 	/* Everything is ready, now register the working device */
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto error4;
 	}
 
@@ -1051,7 +1051,7 @@ static int w83791d_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &w83791d_group);
 	}
 

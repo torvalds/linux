@@ -180,7 +180,7 @@ static inline u8 PWM_TO_REG(int val, int inv)
 
 struct pc87360_data {
 	const char *name;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex lock;
 	struct mutex update_lock;
 	char valid;		/* !=0 if following fields are valid */
@@ -1054,9 +1054,9 @@ static int __devinit pc87360_probe(struct platform_device *pdev)
 	if ((err = device_create_file(dev, &dev_attr_name)))
 		goto ERROR3;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR3;
 	}
 	return 0;
@@ -1083,7 +1083,7 @@ static int __devexit pc87360_remove(struct platform_device *pdev)
 	struct pc87360_data *data = platform_get_drvdata(pdev);
 	int i;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 
 	device_remove_file(&pdev->dev, &dev_attr_name);
 	sysfs_remove_group(&pdev->dev.kobj, &pc8736x_temp_group);

@@ -87,7 +87,7 @@ I2C_CLIENT_INSMOD_2(f75373, f75375);
 struct f75375_data {
 	unsigned short addr;
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	const char *name;
 	int kind;
@@ -583,7 +583,7 @@ static int f75375_detach_client(struct i2c_client *client)
 	struct f75375_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 
 	err = i2c_detach_client(client);
@@ -655,9 +655,9 @@ static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 	if ((err = sysfs_create_group(&client->dev.kobj, &f75375_group)))
 		goto exit_detach;
 
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 

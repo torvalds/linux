@@ -38,7 +38,7 @@
 #define SEL_CORE	0x04
 
 struct k8temp_data {
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 	const char *name;
 	char valid;		/* zero until following fields are valid */
@@ -225,10 +225,10 @@ static int __devinit k8temp_probe(struct pci_dev *pdev,
 	if (err)
 		goto exit_remove;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 
@@ -255,7 +255,7 @@ static void __devexit k8temp_remove(struct pci_dev *pdev)
 {
 	struct k8temp_data *data = dev_get_drvdata(&pdev->dev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	device_remove_file(&pdev->dev,
 			   &sensor_dev_attr_temp1_input.dev_attr);
 	device_remove_file(&pdev->dev,

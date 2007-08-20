@@ -328,7 +328,7 @@ struct lm85_autofan {
    The structure is dynamically allocated. */
 struct lm85_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -1257,9 +1257,9 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 					&dev_attr_in4_max)))
 			goto ERROR3;
 
-	data->class_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto ERROR3;
 	}
 
@@ -1280,7 +1280,7 @@ static int lm85_detect(struct i2c_adapter *adapter, int address,
 static int lm85_detach_client(struct i2c_client *client)
 {
 	struct lm85_data *data = i2c_get_clientdata(client);
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm85_group);
 	sysfs_remove_group(&client->dev.kobj, &lm85_group_opt);
 	i2c_detach_client(client);

@@ -201,7 +201,7 @@ struct block1_t {
  */
 struct lm93_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	unsigned long last_updated;	/* In jiffies */
@@ -2590,11 +2590,11 @@ static int lm93_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto err_detach;
 
 	/* Register hwmon driver class */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if ( !IS_ERR(data->class_dev))
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if ( !IS_ERR(data->hwmon_dev))
 		return 0;
 
-	err = PTR_ERR(data->class_dev);
+	err = PTR_ERR(data->hwmon_dev);
 	dev_err(&client->dev, "error registering hwmon device.\n");
 	sysfs_remove_group(&client->dev.kobj, &lm93_attr_grp);
 err_detach:
@@ -2619,7 +2619,7 @@ static int lm93_detach_client(struct i2c_client *client)
 	struct lm93_data *data = i2c_get_clientdata(client);
 	int err = 0;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm93_attr_grp);
 
 	err = i2c_detach_client(client);

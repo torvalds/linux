@@ -61,7 +61,7 @@ const static u8 THMC50_REG_TEMP_MAX[] = { 0x39, 0x37, 0x2B };
 /* Each client has this additional data */
 struct thmc50_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	enum chips type;
@@ -351,9 +351,9 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 			goto exit_remove_sysfs_thmc50;
 
 	/* Register a new directory entry with module sensors */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_sysfs;
 	}
 
@@ -384,7 +384,7 @@ static int thmc50_detach_client(struct i2c_client *client)
 	struct thmc50_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &thmc50_group);
 	if (data->type == adm1022)
 		sysfs_remove_group(&client->dev.kobj, &adm1022_group);

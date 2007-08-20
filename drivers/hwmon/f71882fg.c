@@ -87,7 +87,7 @@ static inline u16 fan_from_reg ( u16 reg );
 
 struct f71882fg_data {
 	unsigned short addr;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
@@ -781,9 +781,9 @@ static int __devinit f71882fg_probe(struct platform_device * pdev)
 		}
 	}
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_unregister_sysfs;
 	}
 
@@ -811,7 +811,7 @@ static int __devexit f71882fg_remove(struct platform_device *pdev)
 	struct f71882fg_data *data = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 
 	for (i = 0; i < ARRAY_SIZE(f71882fg_dev_attr); i++)
 		device_remove_file(&pdev->dev, &f71882fg_dev_attr[i]);

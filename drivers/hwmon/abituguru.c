@@ -176,7 +176,7 @@ MODULE_PARM_DESC(verbose, "How verbose should the driver be? (0-3):\n"
    The structure is dynamically allocated, at the same time when a new
    abituguru device is allocated. */
 struct abituguru_data {
-	struct class_device *class_dev; /* hwmon registered device */
+	struct device *hwmon_dev;	/* hwmon registered device */
 	struct mutex update_lock;	/* protect access to data and uGuru */
 	unsigned long last_updated;	/* In jiffies */
 	unsigned short addr;		/* uguru base address */
@@ -1287,11 +1287,11 @@ static int __devinit abituguru_probe(struct platform_device *pdev)
 				&abituguru_sysfs_attr[i].dev_attr))
 			goto abituguru_probe_error;
 
-	data->class_dev = hwmon_device_register(&pdev->dev);
-	if (!IS_ERR(data->class_dev))
+	data->hwmon_dev = hwmon_device_register(&pdev->dev);
+	if (!IS_ERR(data->hwmon_dev))
 		return 0; /* success */
 
-	res = PTR_ERR(data->class_dev);
+	res = PTR_ERR(data->hwmon_dev);
 abituguru_probe_error:
 	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
 		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
@@ -1308,7 +1308,7 @@ static int __devexit abituguru_remove(struct platform_device *pdev)
 	int i;
 	struct abituguru_data *data = platform_get_drvdata(pdev);
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	for (i = 0; data->sysfs_attr[i].dev_attr.attr.name; i++)
 		device_remove_file(&pdev->dev, &data->sysfs_attr[i].dev_attr);
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)

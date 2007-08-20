@@ -108,7 +108,7 @@ static const u8 bitalarmfan[]	= {6, 7};
 struct vt1211_data {
 	unsigned short addr;
 	const char *name;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
@@ -1191,9 +1191,9 @@ static int __devinit vt1211_probe(struct platform_device *pdev)
 	}
 
 	/* Register device */
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		dev_err(dev, "Class registration failed (%d)\n", err);
 		goto EXIT_DEV_REMOVE_SILENT;
 	}
@@ -1217,7 +1217,7 @@ static int __devexit vt1211_remove(struct platform_device *pdev)
 	struct vt1211_data *data = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 	vt1211_remove_sysfs(pdev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);

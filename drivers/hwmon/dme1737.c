@@ -155,7 +155,7 @@ static const u8 DME1737_BIT_ALARM_FAN[] = {10, 11, 12, 13, 22, 23};
 
 struct dme1737_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 
 	struct mutex update_lock;
 	int valid;			/* !=0 if following fields are valid */
@@ -1983,9 +1983,9 @@ static int dme1737_detect(struct i2c_adapter *adapter, int address,
 	}
 
 	/* Register device */
-	data->class_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 
@@ -2030,7 +2030,7 @@ static int dme1737_detach_client(struct i2c_client *client)
 	struct dme1737_data *data = i2c_get_clientdata(client);
 	int ix, err;
 
-	hwmon_device_unregister(data->class_dev);
+	hwmon_device_unregister(data->hwmon_dev);
 
 	for (ix = 0; ix < ARRAY_SIZE(dme1737_fan_group); ix++) {
 		if (data->has_fan & (1 << ix)) {

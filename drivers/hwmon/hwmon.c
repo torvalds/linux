@@ -28,17 +28,17 @@ static DEFINE_IDR(hwmon_idr);
 static DEFINE_SPINLOCK(idr_lock);
 
 /**
- * hwmon_device_register - register w/ hwmon sysfs class
+ * hwmon_device_register - register w/ hwmon
  * @dev: the device to register
  *
- * hwmon_device_unregister() must be called when the class device is no
+ * hwmon_device_unregister() must be called when the device is no
  * longer needed.
  *
- * Returns the pointer to the new struct class device.
+ * Returns the pointer to the new device.
  */
-struct class_device *hwmon_device_register(struct device *dev)
+struct device *hwmon_device_register(struct device *dev)
 {
-	struct class_device *cdev;
+	struct device *hwdev;
 	int id, err;
 
 again:
@@ -55,34 +55,33 @@ again:
 		return ERR_PTR(err);
 
 	id = id & MAX_ID_MASK;
-	cdev = class_device_create(hwmon_class, NULL, MKDEV(0,0), dev,
-					HWMON_ID_FORMAT, id);
+	hwdev = device_create(hwmon_class, dev, MKDEV(0,0), HWMON_ID_FORMAT, id);
 
-	if (IS_ERR(cdev)) {
+	if (IS_ERR(hwdev)) {
 		spin_lock(&idr_lock);
 		idr_remove(&hwmon_idr, id);
 		spin_unlock(&idr_lock);
 	}
 
-	return cdev;
+	return hwdev;
 }
 
 /**
  * hwmon_device_unregister - removes the previously registered class device
  *
- * @cdev: the class device to destroy
+ * @dev: the class device to destroy
  */
-void hwmon_device_unregister(struct class_device *cdev)
+void hwmon_device_unregister(struct device *dev)
 {
 	int id;
 
-	if (likely(sscanf(cdev->class_id, HWMON_ID_FORMAT, &id) == 1)) {
-		class_device_unregister(cdev);
+	if (likely(sscanf(dev->bus_id, HWMON_ID_FORMAT, &id) == 1)) {
+		device_unregister(dev);
 		spin_lock(&idr_lock);
 		idr_remove(&hwmon_idr, id);
 		spin_unlock(&idr_lock);
 	} else
-		dev_dbg(cdev->dev,
+		dev_dbg(dev->parent,
 			"hwmon_device_unregister() failed: bad class ID!\n");
 }
 

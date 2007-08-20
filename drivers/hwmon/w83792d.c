@@ -267,7 +267,7 @@ DIV_TO_REG(long val)
 
 struct w83792d_data {
 	struct i2c_client client;
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	enum chips type;
 
 	struct mutex update_lock;
@@ -1443,9 +1443,9 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 					      &w83792d_group_fan[3])))
 			goto exit_remove_files;
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
 	}
 
@@ -1480,7 +1480,7 @@ w83792d_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 		sysfs_remove_group(&client->dev.kobj, &w83792d_group);
 		for (i = 0; i < ARRAY_SIZE(w83792d_group_fan); i++)
 			sysfs_remove_group(&client->dev.kobj,

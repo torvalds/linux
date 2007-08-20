@@ -179,7 +179,7 @@ static inline s8 TEMP_TO_REG(long val, s8 min, s8 max)
 struct w83793_data {
 	struct i2c_client client;
 	struct i2c_client *lm75[2];
-	struct class_device *class_dev;
+	struct device *hwmon_dev;
 	struct mutex update_lock;
 	char valid;			/* !=0 if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
@@ -1075,7 +1075,7 @@ static int w83793_detach_client(struct i2c_client *client)
 
 	/* main client */
 	if (data) {
-		hwmon_device_unregister(data->class_dev);
+		hwmon_device_unregister(data->hwmon_dev);
 
 		for (i = 0; i < ARRAY_SIZE(w83793_sensor_attr_2); i++)
 			device_remove_file(dev,
@@ -1434,9 +1434,9 @@ static int w83793_detect(struct i2c_adapter *adapter, int address, int kind)
 		}
 	}
 
-	data->class_dev = hwmon_device_register(dev);
-	if (IS_ERR(data->class_dev)) {
-		err = PTR_ERR(data->class_dev);
+	data->hwmon_dev = hwmon_device_register(dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
 
