@@ -42,6 +42,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
@@ -55,7 +56,7 @@ struct uart_pxa_port {
 	unsigned char           lcr;
 	unsigned char           mcr;
 	unsigned int            lsr_break_flag;
-	unsigned int		cken;
+	struct clk		*clk;
 	char			*name;
 };
 
@@ -351,6 +352,8 @@ static int serial_pxa_startup(struct uart_port *port)
 	else
 		up->mcr = 0;
 
+	up->port.uartclk = clk_get_rate(up->clk);
+
 	/*
 	 * Allocate the IRQ
 	 */
@@ -546,9 +549,11 @@ serial_pxa_pm(struct uart_port *port, unsigned int state,
 	      unsigned int oldstate)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
-	pxa_set_cken(up->cken, !state);
+
 	if (!state)
-		udelay(1);
+		clk_enable(up->clk);
+	else
+		clk_disable(up->clk);
 }
 
 static void serial_pxa_release_port(struct uart_port *port)
@@ -635,6 +640,8 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	struct uart_pxa_port *up = serial_pxa_ports[co->index];
 	unsigned int ier;
 
+	clk_enable(up->clk);
+
 	/*
 	 *	First save the IER then disable the interrupts
 	 */
@@ -649,6 +656,8 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	 */
 	wait_for_xmitr(up);
 	serial_out(up, UART_IER, ier);
+
+	clk_disable(up->clk);
 }
 
 static int __init
@@ -752,6 +761,12 @@ static int serial_pxa_probe(struct platform_device *dev)
 	if (!sport)
 		return -ENOMEM;
 
+	sport->clk = clk_get(&dev->dev, "UARTCLK");
+	if (IS_ERR(sport->clk)) {
+		ret = PTR_ERR(sport->clk);
+		goto err_free;
+	}
+
 	sport->port.type = PORT_PXA;
 	sport->port.iotype = UPIO_MEM;
 	sport->port.mapbase = mmres->start;
@@ -761,7 +776,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	sport->port.line = dev->id;
 	sport->port.dev = &dev->dev;
 	sport->port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
-	sport->port.uartclk = 921600 * 16;
+	sport->port.uartclk = clk_get_rate(sport->clk);
 
 	/*
 	 * Is it worth keeping this?
@@ -780,7 +795,7 @@ static int serial_pxa_probe(struct platform_device *dev)
 	sport->port.membase = ioremap(mmres->start, mmres->end - mmres->start + 1);
 	if (!sport->port.membase) {
 		ret = -ENOMEM;
-		goto err_free;
+		goto err_clk;
 	}
 
 	serial_pxa_ports[dev->id] = sport;
@@ -790,6 +805,8 @@ static int serial_pxa_probe(struct platform_device *dev)
 
 	return 0;
 
+ err_clk:
+	clk_put(sport->clk);
  err_free:
 	kfree(sport);
 	return ret;
@@ -802,6 +819,7 @@ static int serial_pxa_remove(struct platform_device *dev)
 	platform_set_drvdata(dev, NULL);
 
 	uart_remove_one_port(&serial_pxa_reg, &sport->port);
+	clk_put(sport->clk);
 	kfree(sport);
 
 	return 0;
