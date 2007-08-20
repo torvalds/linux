@@ -24,12 +24,12 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/poll.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
+#include <linux/spinlock.h>
 
-#include <asm/uaccess.h>
-#include <asm/semaphore.h>
+#include <asm/page.h>
 #include <asm/system.h>
 
 #include "fw-transaction.h"
