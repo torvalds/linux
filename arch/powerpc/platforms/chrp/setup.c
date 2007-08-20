@@ -37,7 +37,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
-#include <asm/gg2.h>
 #include <asm/pci-bridge.h>
 #include <asm/dma.h>
 #include <asm/machdep.h>
@@ -51,6 +50,7 @@
 #include <asm/xmon.h>
 
 #include "chrp.h"
+#include "gg2.h"
 
 void rtas_indicator_progress(char *, unsigned short);
 

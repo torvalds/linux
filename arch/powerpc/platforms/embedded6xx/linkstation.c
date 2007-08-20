@@ -18,8 +18,9 @@
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/mpic.h>
-#include <asm/mpc10x.h>
 #include <asm/pci-bridge.h>
+
+#include "mpc10x.h"
 
 static struct mtd_partition linkstation_physmap_partitions[] = {
 	{

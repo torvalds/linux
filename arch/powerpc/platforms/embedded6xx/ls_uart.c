@@ -4,9 +4,10 @@
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
 #include <asm/io.h>
-#include <asm/mpc10x.h>
 #include <asm/prom.h>
 #include <asm/termbits.h>
+
+#include "mpc10x.h"
 
 static void __iomem *avr_addr;
 static unsigned long avr_clock;

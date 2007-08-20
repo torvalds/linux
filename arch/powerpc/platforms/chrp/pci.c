@@ -13,7 +13,6 @@
 #include <asm/irq.h>
 #include <asm/hydra.h>
 #include <asm/prom.h>
-#include <asm/gg2.h>
 #include <asm/machdep.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
@@ -21,6 +20,7 @@
 #include <asm/rtas.h>
 
 #include "chrp.h"
+#include "gg2.h"
 
 /* LongTrail */
 void __iomem *gg2_pci_config_base;
