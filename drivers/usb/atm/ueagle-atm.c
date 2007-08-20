@@ -538,15 +538,16 @@ static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III", 
 
 static int modem_index;
 static unsigned int debug;
-static int use_iso[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = 1};
+static unsigned int altsetting[NB_MODEM] = {[0 ... (NB_MODEM - 1)] = FASTEST_ISO_INTF};
 static int sync_wait[NB_MODEM];
 static char *cmv_file[NB_MODEM];
 static int annex[NB_MODEM];
 
 module_param(debug, uint, 0644);
 MODULE_PARM_DESC(debug, "module debug level (0=off,1=on,2=verbose)");
-module_param_array(use_iso, bool, NULL, 0644);
-MODULE_PARM_DESC(use_iso, "use isochronous usb pipe for incoming traffic");
+module_param_array(altsetting, uint, NULL, 0644);
+MODULE_PARM_DESC(altsetting, "alternate setting for incoming traffic: 0=bulk, "
+			     "1=isoc slowest, ... , 8=isoc fastest (default)");
 module_param_array(sync_wait, bool, NULL, 0644);
 MODULE_PARM_DESC(sync_wait, "wait the synchronisation before starting ATM");
 module_param_array(cmv_file, charp, NULL, 0644);
@@ -1254,7 +1255,7 @@ static void uea_set_bulk_timeout(struct uea_softc *sc, u32 dsrate)
 	 */
 
 	if (UEA_CHIP_VERSION(sc) == ADI930 ||
-	    use_iso[sc->modem_index] > 0 ||
+	    altsetting[sc->modem_index] > 0 ||
 	    sc->stats.phy.dsrate == dsrate)
 		return;
 
@@ -2459,6 +2460,7 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct uea_softc *sc;
 	int ret, ifnum = intf->altsetting->desc.bInterfaceNumber;
+	unsigned int alt;
 
 	uea_enters(usb);
 
@@ -2506,22 +2508,16 @@ static int uea_bind(struct usbatm_data *usbatm, struct usb_interface *intf,
 	else
 		sc->annex = (le16_to_cpu(sc->usb_dev->descriptor.bcdDevice) & 0x80)?ANNEXB:ANNEXA;
 
+	alt = altsetting[sc->modem_index];
 	/* ADI930 don't support iso */
-	if (UEA_CHIP_VERSION(id) != ADI930 && use_iso[sc->modem_index]) {
-		int i;
-
-		/* try set fastest alternate for inbound traffic interface */
-		for (i = FASTEST_ISO_INTF; i > 0; i--)
-			if (usb_set_interface(usb, UEA_DS_IFACE_NO, i) == 0)
-				break;
-
-		if (i > 0) {
-			uea_dbg(usb, "set alternate %d for 2 interface\n", i);
+	if (UEA_CHIP_VERSION(id) != ADI930 && alt > 0) {
+		if (alt <= 8 && usb_set_interface(usb, UEA_DS_IFACE_NO, alt) == 0) {
+			uea_dbg(usb, "set alternate %u for 2 interface\n", alt);
 			uea_info(usb, "using iso mode\n");
 			usbatm->flags |= UDSL_USE_ISOC | UDSL_IGNORE_EILSEQ;
 		} else {
-			uea_err(usb, "setting any alternate failed for "
-					"2 interface, using bulk mode\n");
+			uea_err(usb, "setting alternate %u failed for "
+					"2 interface, using bulk mode\n", alt);
 		}
 	}
 
