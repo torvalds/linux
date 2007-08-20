@@ -567,6 +567,7 @@ static void configure_tda827x_fe(struct saa7134_dev *dev, struct tda1004x_config
 }
 
 /* ------------------------------------------------------------------ */
+
 static struct tda1004x_config tda827x_lifeview_config = {
 	.demod_address = 0x08,
 	.invert        = 1,
@@ -746,6 +747,7 @@ static struct tda1004x_config asus_p7131_hybrid_lna_config = {
 	.antenna_switch= 2,
 	.request_firmware = philips_tda1004x_request_firmware
 };
+
 static struct tda1004x_config kworld_dvb_t_210_config = {
 	.demod_address = 0x08,
 	.invert        = 1,
@@ -760,6 +762,7 @@ static struct tda1004x_config kworld_dvb_t_210_config = {
 	.antenna_switch= 1,
 	.request_firmware = philips_tda1004x_request_firmware
 };
+
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
