@@ -561,12 +561,10 @@ static long pdc_read_counter(struct ata_host *host)
 retry:
 	bccrl = readl(mmio_base + PDC_BYTE_COUNT) & 0x7fff;
 	bccrh = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0x7fff;
-	rmb();
 
 	/* Read the counter values again for verification */
 	bccrlv = readl(mmio_base + PDC_BYTE_COUNT) & 0x7fff;
 	bccrhv = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0x7fff;
-	rmb();
 
 	counter = (bccrh << 15) | bccrl;
 
@@ -740,9 +738,6 @@ static int pdc_hardware_init(struct ata_host *host, unsigned int board_idx)
 	 * The pdc20275 controller employs PLL circuit to help correct timing registers setting.
 	 */
 	pll_clock = pdc_detect_pll_input_clock(host);
-
-	if (pll_clock < 0) /* counter overflow? Try again. */
-		pll_clock = pdc_detect_pll_input_clock(host);
 
 	dev_printk(KERN_INFO, host->dev, "PLL input clock %ld kHz\n", pll_clock/1000);
 
