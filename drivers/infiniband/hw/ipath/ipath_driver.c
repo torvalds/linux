@@ -382,8 +382,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 
 	ipath_cdbg(VERBOSE, "initializing unit #%u\n", dd->ipath_unit);
 
-	read_bars(dd, pdev, &bar0, &bar1);
-
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		/* This can happen iff:
@@ -528,9 +526,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		ret = -ENODEV;
 		goto bail_regions;
 	}
-
-	dd->ipath_deviceid = ent->device;	/* save for later use */
-	dd->ipath_vendorid = ent->vendor;
 
 	dd->ipath_pcirev = pdev->revision;
 
