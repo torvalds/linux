@@ -74,6 +74,8 @@ void dt_fixup_cpu_clocks(u32 cpu, u32 tb, u32 bus)
 		if (bus > 0)
 			setprop_val(devp, "bus-frequency", bus);
 	}
+
+	timebase_period_ns = 1000000000 / tb;
 }
 
 void dt_fixup_clock(const char *path, u32 freq)
