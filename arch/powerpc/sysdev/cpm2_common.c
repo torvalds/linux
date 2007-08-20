@@ -201,7 +201,7 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	}
 
 	if (mode == CPM_CLK_RX)
-		shift +=3;
+		shift += 3;
 
 	for (i=0; i<24; i++) {
 		if (clk_map[i][0] == target && clk_map[i][1] == clock) {

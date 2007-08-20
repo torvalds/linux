@@ -272,7 +272,7 @@ void do_IRQ(struct pt_regs *regs)
 	struct thread_info *curtp, *irqtp;
 #endif
 
-        irq_enter();
+	irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 2KB free? */
@@ -321,7 +321,7 @@ void do_IRQ(struct pt_regs *regs)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
-        irq_exit();
+	irq_exit();
 	set_irq_regs(old_regs);
 
 #ifdef CONFIG_PPC_ISERIES

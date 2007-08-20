@@ -45,10 +45,10 @@
 #define CPM_MAP_SIZE    (0x4000)
 
 static void m8xx_cpm_dpinit(void);
-static	uint	host_buffer;	/* One page of host buffer */
-static	uint	host_end;	/* end + 1 */
-cpm8xx_t	*cpmp;		/* Pointer to comm processor space */
-cpic8xx_t	*cpic_reg;
+static uint host_buffer; /* One page of host buffer */
+static uint host_end;    /* end + 1 */
+cpm8xx_t *cpmp;          /* Pointer to comm processor space */
+cpic8xx_t *cpic_reg;
 
 static struct device_node *cpm_pic_node;
 static struct irq_host *cpm_pic_host;
@@ -115,7 +115,7 @@ static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
  * and return.  This is a no-op function so we don't need any special
  * tests in the interrupt handler.
  */
-static	irqreturn_t cpm_error_interrupt(int irq, void *dev)
+static irqreturn_t cpm_error_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }
@@ -181,7 +181,7 @@ unsigned int cpm_pic_init(void)
 		printk(KERN_ERR "CPM PIC init: can not find cpm node\n");
 		goto end;
 	}
-	eirq= irq_of_parse_and_map(np, 0);
+	eirq = irq_of_parse_and_map(np, 0);
 	if (eirq == NO_IRQ)
 		goto end;
 
@@ -197,15 +197,15 @@ end:
 
 void cpm_reset(void)
 {
-	cpm8xx_t	*commproc;
-	sysconf8xx_t    *siu_conf;
+	cpm8xx_t *commproc;
+	sysconf8xx_t *siu_conf;
 
 	commproc = (cpm8xx_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
 
 #ifdef CONFIG_UCODE_PATCH
 	/* Perform a reset.
 	*/
-	out_be16(&commproc->cp_cpcr,  CPM_CR_RST | CPM_CR_FLG);
+	out_be16(&commproc->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);
 
 	/* Wait for it.
 	*/
@@ -307,7 +307,7 @@ static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
 
 #define CPM_DPMEM_ALIGNMENT	8
-static u8* dpram_vbase;
+static u8 *dpram_vbase;
 static uint dpram_pbase;
 
 void m8xx_cpm_dpinit(void)
