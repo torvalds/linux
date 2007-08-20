@@ -517,6 +517,7 @@ struct ivtv_stream {
 struct ivtv_open_id {
 	u32 open_id;
 	int type;
+	int yuv_frames;
 	enum v4l2_priority prio;
 	struct ivtv *itv;
 };

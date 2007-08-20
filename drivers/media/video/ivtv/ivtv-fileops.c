@@ -757,6 +757,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 		IVTV_DEBUG_INFO("close stopping decode\n");
 
 		ivtv_stop_v4l2_decode_stream(s, flags, pts);
+		itv->output_mode = OUT_NONE;
 	}
 	clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
@@ -764,11 +765,7 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 		/* Restore registers we've changed & clean up any mess we've made */
 		ivtv_yuv_close(itv);
 	}
-	if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_YUV)
-		itv->output_mode = OUT_NONE;
-	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_UDMA_YUV)
-		itv->output_mode = OUT_NONE;
-	else if (s->type == IVTV_DEC_STREAM_TYPE_MPG && itv->output_mode == OUT_MPG)
+	if (itv->output_mode == OUT_UDMA_YUV && id->yuv_frames)
 		itv->output_mode = OUT_NONE;
 
 	itv->speed = 0;

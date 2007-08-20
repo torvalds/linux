@@ -1346,6 +1346,8 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			ivtv_release_stream(s);
 			return -EBUSY;
 		}
+		/* Mark that this file handle started the UDMA_YUV mode */
+		id->yuv_frames = 1;
 		if (args->y_source == NULL)
 			return 0;
 		return ivtv_yuv_prep_frame(itv, args);
