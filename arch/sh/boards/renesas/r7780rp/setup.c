@@ -19,6 +19,7 @@
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
 #include <asm/clock.h>
+#include <asm/heartbeat.h>
 #include <asm/io.h>
 
 static struct resource r8a66597_usb_host_resources[] = {
@@ -108,15 +109,22 @@ static struct platform_device cf_ide_device  = {
 	},
 };
 
-static unsigned char heartbeat_bit_pos[] = { 2, 1, 0, 3, 6, 5, 4, 7 };
-
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= PA_OBLED,
-		.end	= PA_OBLED + ARRAY_SIZE(heartbeat_bit_pos) - 1,
+		.end	= PA_OBLED + 8 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 };
+
+#ifndef CONFIG_SH_R7785RP
+static unsigned char heartbeat_bit_pos[] = { 2, 1, 0, 3, 6, 5, 4, 7 };
+
+static struct heartbeat_data heartbeat_data = {
+	.bit_pos	= heartbeat_bit_pos,
+	.nr_bits	= ARRAY_SIZE(heartbeat_bit_pos),
+};
+#endif
 
 static struct platform_device heartbeat_device = {
 	.name		= "heartbeat",
@@ -125,7 +133,7 @@ static struct platform_device heartbeat_device = {
 	/* R7785RP has a slightly more sensible FPGA.. */
 #ifndef CONFIG_SH_R7785RP
 	.dev	= {
-		.platform_data	= heartbeat_bit_pos,
+		.platform_data	= heartbeat_data,
 	},
 #endif
 	.num_resources	= ARRAY_SIZE(heartbeat_resources),

@@ -24,24 +24,44 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <asm/heartbeat.h>
 
 #define DRV_NAME "heartbeat"
-#define DRV_VERSION "0.1.0"
+#define DRV_VERSION "0.1.1"
 
-struct heartbeat_data {
-	void __iomem *base;
-	unsigned char bit_pos[8];
-	struct timer_list timer;
-};
+static unsigned char default_bit_pos[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+
+static inline void heartbeat_toggle_bit(struct heartbeat_data *hd,
+					unsigned bit, unsigned int inverted)
+{
+	unsigned int new;
+
+	new = (1 << hd->bit_pos[bit]);
+	if (inverted)
+		new = ~new;
+
+	switch (hd->regsize) {
+	case 32:
+		iowrite32(new, hd->base);
+		break;
+	case 16:
+		iowrite16(new, hd->base);
+		break;
+	default:
+		iowrite8(new, hd->base);
+		break;
+	}
+}
 
 static void heartbeat_timer(unsigned long data)
 {
 	struct heartbeat_data *hd = (struct heartbeat_data *)data;
 	static unsigned bit = 0, up = 1;
 
-	ctrl_outw(1 << hd->bit_pos[bit], (unsigned long)hd->base);
+	heartbeat_toggle_bit(hd, bit, hd->flags & HEARTBEAT_INVERTED);
+
 	bit += up;
-	if ((bit == 0) || (bit == ARRAY_SIZE(hd->bit_pos)-1))
+	if ((bit == 0) || (bit == (hd->nr_bits)-1))
 		up = -up;
 
 	mod_timer(&hd->timer, jiffies + (110 - ((300 << FSHIFT) /
@@ -64,21 +84,31 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hd = kmalloc(sizeof(struct heartbeat_data), GFP_KERNEL);
-	if (unlikely(!hd))
-		return -ENOMEM;
-
 	if (pdev->dev.platform_data) {
-		memcpy(hd->bit_pos, pdev->dev.platform_data,
-		       ARRAY_SIZE(hd->bit_pos));
+		hd = pdev->dev.platform_data;
 	} else {
-		int i;
-
-		for (i = 0; i < ARRAY_SIZE(hd->bit_pos); i++)
-			hd->bit_pos[i] = i;
+		hd = kzalloc(sizeof(struct heartbeat_data), GFP_KERNEL);
+		if (unlikely(!hd))
+			return -ENOMEM;
 	}
 
-	hd->base = (void __iomem *)(unsigned long)res->start;
+	hd->base = ioremap_nocache(res->start, res->end - res->start + 1);
+	if (!unlikely(hd->base)) {
+		dev_err(&pdev->dev, "ioremap failed\n");
+
+		if (!pdev->dev.platform_data)
+			kfree(hd);
+
+		return -ENXIO;
+	}
+
+	if (!hd->nr_bits) {
+		hd->bit_pos = default_bit_pos;
+		hd->nr_bits = ARRAY_SIZE(default_bit_pos);
+	}
+
+	if (!hd->regsize)
+		hd->regsize = 8;	/* default access size */
 
 	setup_timer(&hd->timer, heartbeat_timer, (unsigned long)hd);
 	platform_set_drvdata(pdev, hd);
@@ -91,10 +121,12 @@ static int heartbeat_drv_remove(struct platform_device *pdev)
 	struct heartbeat_data *hd = platform_get_drvdata(pdev);
 
 	del_timer_sync(&hd->timer);
+	iounmap(hd->base);
 
 	platform_set_drvdata(pdev, NULL);
 
-	kfree(hd);
+	if (!pdev->dev.platform_data)
+		kfree(hd);
 
 	return 0;
 }
