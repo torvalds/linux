@@ -13,8 +13,8 @@
  *  any later version.
  */
 
+#include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/time.h>
 
 extern void dccp_li_hist_purge(struct list_head *list);
 
@@ -23,7 +23,7 @@ extern u32 dccp_li_hist_calc_i_mean(struct list_head *list);
 extern void dccp_li_update_li(struct sock *sk,
 			      struct list_head *li_hist_list,
 			      struct list_head *hist_list,
-			      struct timeval *last_feedback, u16 s,
+			      ktime_t last_feedback, u16 s,
 			      u32 bytes_recv, u32 previous_x_recv,
 			      u64 seq_loss, u8 win_loss);
 #endif /* _DCCP_LI_HIST_ */

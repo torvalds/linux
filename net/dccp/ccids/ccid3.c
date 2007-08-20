@@ -727,7 +727,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_rx_hist_entry *packet;
-	ktime_t now, t_hist;
+	ktime_t now;
 	suseconds_t delta;
 
 	ccid3_pr_debug("%s(%p) - entry \n", dccp_role(sk), sk);
@@ -762,8 +762,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	/* Elapsed time information [RFC 4340, 13.2] in units of 10 * usecs */
-	t_hist = timeval_to_ktime(packet->dccphrx_tstamp);
-	delta = ktime_us_delta(now, t_hist);
+	delta = ktime_us_delta(now, packet->dccphrx_tstamp);
 	DCCP_BUG_ON(delta < 0);
 	hcrx->ccid3hcrx_elapsed_time = delta / 10;
 
@@ -834,13 +833,11 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 
 	while (dccp_delta_seqno(hcrx->ccid3hcrx_seqno_nonloss, seqno)
 	   > TFRC_RECV_NUM_LATE_LOSS) {
-		struct timeval tstamp =
-			ktime_to_timeval(hcrx->ccid3hcrx_tstamp_last_feedback);
 		loss = 1;
 		dccp_li_update_li(sk,
 				  &hcrx->ccid3hcrx_li_hist,
 				  &hcrx->ccid3hcrx_hist,
-				  &tstamp,
+				  hcrx->ccid3hcrx_tstamp_last_feedback,
 				  hcrx->ccid3hcrx_s,
 				  hcrx->ccid3hcrx_bytes_recv,
 				  hcrx->ccid3hcrx_x_recv,
@@ -913,7 +910,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, sk, opt_recv->dccpor_ndp,
+	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
 					skb, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s(%p), Not enough mem to add rx packet "
