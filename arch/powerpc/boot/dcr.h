@@ -124,4 +124,14 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2C
 #define DCRN_MAL0_CFG					0x180
 #define MAL_RESET 0x80000000
 
+/* 440EP Clock/Power-on Reset regs */
+#define DCRN_CPR0_ADDR	0xc
+#define DCRN_CPR0_DATA	0xd
+#define CPR0_PLLD0	0x60
+#define CPR0_OPBD0	0xc0
+#define CPR0_PERD0	0xe0
+#define CPR0_PRIMBD0	0xa0
+#define CPR0_SCPID	0x120
+#define CPR0_PLLC0	0x40
+
 #endif	/* _PPC_BOOT_DCR_H_ */

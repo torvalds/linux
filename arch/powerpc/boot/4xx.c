@@ -108,3 +108,85 @@ void ibm4xx_fixup_ebc_ranges(const char *ebc)
 
 	setprop(devp, "ranges", ranges, (p - ranges) * sizeof(u32));
 }
+
+#define SPRN_CCR1 0x378
+void ibm440ep_fixup_clocks(unsigned int sysclk, unsigned int ser_clk)
+{
+	u32 cpu, plb, opb, ebc, tb, uart0, m, vco;
+	u32 reg;
+	u32 fwdva, fwdvb, fbdv, lfbdv, opbdv0, perdv0, spcid0, prbdv0, tmp;
+
+	mtdcr(DCRN_CPR0_ADDR, CPR0_PLLD0);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x000F0000) >> 16;
+	fwdva = tmp ? tmp : 16;
+	tmp = (reg & 0x00000700) >> 8;
+	fwdvb = tmp ? tmp : 8;
+	tmp = (reg & 0x1F000000) >> 24;
+	fbdv = tmp ? tmp : 32;
+	lfbdv = (reg & 0x0000007F);
+
+	mtdcr(DCRN_CPR0_ADDR, CPR0_OPBD0);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x03000000) >> 24;
+	opbdv0 = tmp ? tmp : 4;
+
+	mtdcr(DCRN_CPR0_ADDR, CPR0_PERD0);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x07000000) >> 24;
+	perdv0 = tmp ? tmp : 8;
+
+	mtdcr(DCRN_CPR0_ADDR, CPR0_PRIMBD0);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x07000000) >> 24;
+	prbdv0 = tmp ? tmp : 8;
+
+	mtdcr(DCRN_CPR0_ADDR, CPR0_SCPID);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x03000000) >> 24;
+	spcid0 = tmp ? tmp : 4;
+
+	/* Calculate M */
+	mtdcr(DCRN_CPR0_ADDR, CPR0_PLLC0);
+	reg = mfdcr(DCRN_CPR0_DATA);
+	tmp = (reg & 0x03000000) >> 24;
+	if (tmp == 0) { /* PLL output */
+		tmp = (reg & 0x20000000) >> 29;
+		if (!tmp) /* PLLOUTA */
+			m = fbdv * lfbdv * fwdva;
+		else
+			m = fbdv * lfbdv * fwdvb;
+	}
+	else if (tmp == 1) /* CPU output */
+		m = fbdv * fwdva;
+	else
+		m = perdv0 * opbdv0 * fwdvb;
+
+	vco = (m * sysclk) + (m >> 1);
+	cpu = vco / fwdva;
+	plb = vco / fwdvb / prbdv0;
+	opb = plb / opbdv0;
+	ebc = plb / perdv0;
+
+	/* FIXME */
+	uart0 = ser_clk;
+
+	/* Figure out timebase.  Either CPU or default TmrClk */
+	asm volatile (
+			"mfspr	%0,%1\n"
+			:
+			"=&r"(reg) : "i"(SPRN_CCR1));
+	if (reg & 0x0080)
+		tb = 25000000; /* TmrClk is 25MHz */
+	else
+		tb = cpu;
+
+	dt_fixup_cpu_clocks(cpu, tb, 0);
+	dt_fixup_clock("/plb", plb);
+	dt_fixup_clock("/plb/opb", opb);
+	dt_fixup_clock("/plb/opb/ebc", ebc);
+	dt_fixup_clock("/plb/opb/serial@ef600300", uart0);
+	dt_fixup_clock("/plb/opb/serial@ef600400", uart0);
+	dt_fixup_clock("/plb/opb/serial@ef600500", uart0);
+	dt_fixup_clock("/plb/opb/serial@ef600600", uart0);
+}

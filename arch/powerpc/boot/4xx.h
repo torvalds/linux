@@ -16,5 +16,6 @@ void ibm44x_dbcr_reset(void);
 void ibm40x_dbcr_reset(void);
 void ibm4xx_quiesce_eth(u32 *emac0, u32 *emac1);
 void ibm4xx_fixup_ebc_ranges(const char *ebc);
+void ibm440ep_fixup_clocks(unsigned int sysclk, unsigned int ser_clk);
 
 #endif /* _POWERPC_BOOT_4XX_H_ */
