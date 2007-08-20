@@ -828,7 +828,7 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 		hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
 	hwif->OUTB(speed, IDE_NSECTOR_REG);
 	hwif->OUTB(SETFEATURES_XFER, IDE_FEATURE_REG);
-	hwif->OUTB(WIN_SETFEATURES, IDE_COMMAND_REG);
+	hwif->OUTBSYNC(drive, WIN_SETFEATURES, IDE_COMMAND_REG);
 	if ((IDE_CONTROL_REG) && (drive->quirk_list == 2))
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	udelay(1);
@@ -855,7 +855,7 @@ int ide_config_drive_speed (ide_drive_t *drive, u8 speed)
 	 */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
-		if (OK_STAT((stat = hwif->INB(IDE_STATUS_REG)), DRIVE_READY, BUSY_STAT|DRQ_STAT|ERR_STAT)) {
+		if (OK_STAT((stat = hwif->INB(IDE_STATUS_REG)), drive->ready_stat, BUSY_STAT|DRQ_STAT|ERR_STAT)) {
 			error = 0;
 			break;
 		}
