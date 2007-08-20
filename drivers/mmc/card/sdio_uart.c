@@ -79,6 +79,7 @@ struct sdio_uart_port {
 	struct mutex		open_lock;
 	struct sdio_func	*func;
 	struct mutex		func_lock;
+	struct task_struct	*in_sdio_uart_irq;
 	unsigned int		regs_offset;
 	struct circ_buf		xmit;
 	spinlock_t		write_lock;
@@ -186,14 +187,16 @@ static int sdio_uart_claim_func(struct sdio_uart_port *port)
 		mutex_unlock(&port->func_lock);
 		return -ENODEV;
 	}
-	sdio_claim_host(port->func);
+	if (likely(port->in_sdio_uart_irq != current))
+		sdio_claim_host(port->func);
 	mutex_unlock(&port->func_lock);
 	return 0;
 }
 
 static inline void sdio_uart_release_func(struct sdio_uart_port *port)
 {
-	sdio_release_host(port->func);
+	if (likely(port->in_sdio_uart_irq != current))
+		sdio_release_host(port->func);
 }
 
 static inline unsigned int sdio_in(struct sdio_uart_port *port, int offset)
@@ -511,15 +514,29 @@ static void sdio_uart_irq(struct sdio_func *func)
 	struct sdio_uart_port *port = sdio_get_drvdata(func);
 	unsigned int iir, lsr;
 
+	/*
+	 * In a few places sdio_uart_irq() is called directly instead of
+	 * waiting for the actual interrupt to be raised and the SDIO IRQ
+	 * thread scheduled in order to reduce latency.  However, some
+	 * interaction with the tty core may end up calling us back
+	 * (serial echo, flow control, etc.) through those same places
+	 * causing undesirable effects.  Let's stop the recursion here.
+	 */
+	if (unlikely(port->in_sdio_uart_irq == current))
+		return;
+
 	iir = sdio_in(port, UART_IIR);
 	if (iir & UART_IIR_NO_INT)
 		return;
+
+	port->in_sdio_uart_irq = current;
 	lsr = sdio_in(port, UART_LSR);
 	if (lsr & UART_LSR_DR)
 		sdio_uart_receive_chars(port, &lsr);
 	sdio_uart_check_modem_status(port);
 	if (lsr & UART_LSR_THRE)
 		sdio_uart_transmit_chars(port);
+	port->in_sdio_uart_irq = NULL;
 }
 
 static int sdio_uart_startup(struct sdio_uart_port *port)
