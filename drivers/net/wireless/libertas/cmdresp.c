@@ -174,7 +174,11 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
 	       hwspec->hwifversion, hwspec->version);
 
-	adapter->regioncode = le16_to_cpu(hwspec->regioncode);
+	/* Clamp region code to 8-bit since FW spec indicates that it should
+	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
+	 * returns non-zero high 8 bits here.
+	 */
+	adapter->regioncode = le16_to_cpu(hwspec->regioncode) & 0xFF;
 
 	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
 		/* use the region code to search for the index */
