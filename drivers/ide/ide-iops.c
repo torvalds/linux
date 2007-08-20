@@ -565,6 +565,34 @@ int ide_wait_stat (ide_startstop_t *startstop, ide_drive_t *drive, u8 good, u8 b
 
 EXPORT_SYMBOL(ide_wait_stat);
 
+/**
+ *	ide_in_drive_list	-	look for drive in black/white list
+ *	@id: drive identifier
+ *	@drive_table: list to inspect
+ *
+ *	Look for a drive in the blacklist and the whitelist tables
+ *	Returns 1 if the drive is found in the table.
+ */
+
+int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
+{
+	for ( ; drive_table->id_model; drive_table++)
+		if ((!strcmp(drive_table->id_model, id->model)) &&
+		    (!drive_table->id_firmware ||
+		     strstr(id->fw_rev, drive_table->id_firmware)))
+			return 1;
+	return 0;
+}
+
+/*
+ * Early UDMA66 devices don't set bit14 to 1, only bit13 is valid.
+ * We list them here and depend on the device side cable detection for them.
+ */
+static const struct drive_list_entry ivb_list[] = {
+	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
+	{ NULL				, NULL		}
+};
+
 /*
  *  All hosts that use the 80c ribbon must use!
  *  The name is derived from upper byte of word 93 and the 80c ribbon.
@@ -573,11 +601,16 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
+	int ivb = ide_in_drive_list(id, ivb_list);
 
 	if (hwif->cbl == ATA_CBL_PATA40_SHORT)
 		return 1;
 
-	if (hwif->cbl != ATA_CBL_PATA80)
+	if (ivb)
+		printk(KERN_DEBUG "%s: skipping word 93 validity check\n",
+				  drive->name);
+
+	if (hwif->cbl != ATA_CBL_PATA80 && !ivb)
 		goto no_80w;
 
 	/* Check for SATA but only if we are ATA5 or higher */
@@ -587,11 +620,11 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	/*
 	 * FIXME:
 	 * - change master/slave IDENTIFY order
-	 * - force bit13 (80c cable present) check
+	 * - force bit13 (80c cable present) check also for !ivb devices
 	 *   (unless the slave device is pre-ATA3)
 	 */
 #ifndef CONFIG_IDEDMA_IVB
-	if (id->hw_config & 0x4000)
+	if ((id->hw_config & 0x4000) || (ivb && (id->hw_config & 0x2000)))
 #else
 	if (id->hw_config & 0x6000)
 #endif
