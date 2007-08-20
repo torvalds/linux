@@ -2,7 +2,8 @@
  * Copyright (c) 2003, 2004
  *	Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
  *
- * Copyright (c) 2005 Matthieu Castet <castet.matthieu@free.fr>
+ * Copyright (c) 2005-2007 Matthieu Castet <castet.matthieu@free.fr>
+ * Copyright (c) 2005-2007 Stanislaw Gruszka <stf_xl@wp.pl>
  *
  * This software is available to you under a choice of one of two
  * licenses. You may choose to be licensed under the terms of the GNU
@@ -1881,9 +1882,7 @@ static int uea_kthread(void *data)
 			ret = sc->stat(sc);
 		if (ret != -EAGAIN)
 			uea_wait(sc, 0, msecs_to_jiffies(1000));
- 		if (try_to_freeze())
-			uea_err(INS_TO_USBDEV(sc), "suspend/resume not supported, "
-				"please unplug/replug your modem\n");
+		try_to_freeze();
 	}
 	uea_leaves(INS_TO_USBDEV(sc));
 	return ret;
