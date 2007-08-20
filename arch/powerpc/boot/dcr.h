@@ -121,4 +121,7 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2C
 #define DCRN_CPC0_MIRQ1					0x0ed
 #define DCRN_CPC0_JTAGID				0x0ef
 
+#define DCRN_MAL0_CFG					0x180
+#define MAL_RESET 0x80000000
+
 #endif	/* _PPC_BOOT_DCR_H_ */

@@ -21,8 +21,8 @@
 #include "reg.h"
 #include "dcr.h"
 
-/* Read the 44x memory controller to get size of system memory. */
-void ibm44x_fixup_memsize(void)
+/* Read the 4xx SDRAM controller to get size of system memory. */
+void ibm4xx_fixup_memsize(void)
 {
 	int i;
 	unsigned long memsize, bank_config;
@@ -39,8 +39,9 @@ void ibm44x_fixup_memsize(void)
 	dt_fixup_memory(0, memsize);
 }
 
-#define SPRN_DBCR0		0x134
-#define   DBCR0_RST_SYSTEM	0x30000000
+#define SPRN_DBCR0_40X 0x3F2
+#define SPRN_DBCR0_44X 0x134
+#define DBCR0_RST_SYSTEM 0x30000000
 
 void ibm44x_dbcr_reset(void)
 {
@@ -50,9 +51,33 @@ void ibm44x_dbcr_reset(void)
 		"mfspr	%0,%1\n"
 		"oris	%0,%0,%2@h\n"
 		"mtspr	%1,%0"
-		: "=&r"(tmp) : "i"(SPRN_DBCR0), "i"(DBCR0_RST_SYSTEM)
+		: "=&r"(tmp) : "i"(SPRN_DBCR0_44X), "i"(DBCR0_RST_SYSTEM)
 		);
 
+}
+
+void ibm40x_dbcr_reset(void)
+{
+	unsigned long tmp;
+
+	asm volatile (
+		"mfspr	%0,%1\n"
+		"oris	%0,%0,%2@h\n"
+		"mtspr	%1,%0"
+		: "=&r"(tmp) : "i"(SPRN_DBCR0_40X), "i"(DBCR0_RST_SYSTEM)
+		);
+}
+
+#define EMAC_RESET 0x20000000
+void ibm4xx_quiesce_eth(u32 *emac0, u32 *emac1)
+{
+	/* Quiesce the MAL and EMAC(s) since PIBS/OpenBIOS don't do this for us */
+	if (emac0)
+		*emac0 = EMAC_RESET;
+	if (emac1)
+		*emac1 = EMAC_RESET;
+
+	mtdcr(DCRN_MAL0_CFG, MAL_RESET);
 }
 
 /* Read 4xx EBC bus bridge registers to get mappings of the peripheral
