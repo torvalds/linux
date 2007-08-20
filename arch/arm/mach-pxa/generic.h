@@ -26,3 +26,21 @@ extern unsigned int get_clk_frequency_khz(int info);
 	mi->bank[__nr].size = (__size), \
 	mi->bank[__nr].node = (((unsigned)(__start) - PHYS_OFFSET) >> 27)
 
+#ifdef CONFIG_PXA25x
+extern unsigned pxa25x_get_clk_frequency_khz(int);
+extern unsigned pxa25x_get_memclk_frequency_10khz(void);
+#else
+#define pxa25x_get_clk_frequency_khz(x)		(0)
+#define pxa25x_get_memclk_frequency_10khz()	(0)
+#endif
+
+#ifdef CONFIG_PXA27x
+extern unsigned pxa27x_get_clk_frequency_khz(int);
+extern unsigned pxa27x_get_memclk_frequency_10khz(void);
+extern unsigned pxa27x_get_lcdclk_frequency_10khz(void);
+#else
+#define pxa27x_get_clk_frequency_khz(x)		(0)
+#define pxa27x_get_memclk_frequency_10khz()	(0)
+#define pxa27x_get_lcdclk_frequency_10khz()	(0)
+#endif
+

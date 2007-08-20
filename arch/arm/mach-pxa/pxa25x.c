@@ -53,7 +53,7 @@ static unsigned char N2_clk_mult[8] = { 0, 0, 2, 3, 4, 0, 6, 0 };
  * We assume these values have been applied via a fcs.
  * If info is not 0 we also display the current settings.
  */
-unsigned int get_clk_frequency_khz(int info)
+unsigned int pxa25x_get_clk_frequency_khz(int info)
 {
 	unsigned long cccr, turbo;
 	unsigned int l, L, m, M, n2, N;
@@ -86,27 +86,13 @@ unsigned int get_clk_frequency_khz(int info)
 	return (turbo & 1) ? (N/1000) : (M/1000);
 }
 
-EXPORT_SYMBOL(get_clk_frequency_khz);
-
 /*
  * Return the current memory clock frequency in units of 10kHz
  */
-unsigned int get_memclk_frequency_10khz(void)
+unsigned int pxa25x_get_memclk_frequency_10khz(void)
 {
 	return L_clk_mult[(CCCR >> 0) & 0x1f] * BASE_CLK / 10000;
 }
-
-EXPORT_SYMBOL(get_memclk_frequency_10khz);
-
-/*
- * Return the current LCD clock frequency in units of 10kHz
- */
-unsigned int get_lcdclk_frequency_10khz(void)
-{
-	return get_memclk_frequency_10khz();
-}
-
-EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 

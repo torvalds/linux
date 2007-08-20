@@ -36,7 +36,7 @@
  * We assume these values have been applied via a fcs.
  * If info is not 0 we also display the current settings.
  */
-unsigned int get_clk_frequency_khz( int info)
+unsigned int pxa27x_get_clk_frequency_khz(int info)
 {
 	unsigned long ccsr, clkcfg;
 	unsigned int l, L, m, M, n2, N, S;
@@ -79,7 +79,7 @@ unsigned int get_clk_frequency_khz( int info)
  * Return the current mem clock frequency in units of 10kHz as
  * reflected by CCCR[A], B, and L
  */
-unsigned int get_memclk_frequency_10khz(void)
+unsigned int pxa27x_get_memclk_frequency_10khz(void)
 {
 	unsigned long ccsr, clkcfg;
 	unsigned int l, L, m, M;
@@ -104,7 +104,7 @@ unsigned int get_memclk_frequency_10khz(void)
 /*
  * Return the current LCD clock frequency in units of 10kHz as
  */
-unsigned int get_lcdclk_frequency_10khz(void)
+unsigned int pxa27x_get_lcdclk_frequency_10khz(void)
 {
 	unsigned long ccsr;
 	unsigned int l, L, k, K;
@@ -119,10 +119,6 @@ unsigned int get_lcdclk_frequency_10khz(void)
 
 	return (K / 10000);
 }
-
-EXPORT_SYMBOL(get_clk_frequency_khz);
-EXPORT_SYMBOL(get_memclk_frequency_10khz);
-EXPORT_SYMBOL(get_lcdclk_frequency_10khz);
 
 #ifdef CONFIG_PM
 
