@@ -158,7 +158,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_recv->dccpor_timestamp = ntohl(*(__be32 *)value);
 
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
-			dccp_timestamp(sk, &dp->dccps_timestamp_time);
+			dp->dccps_timestamp_time = ktime_get_real();
 
 			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
 				      dccp_role(sk), opt_recv->dccpor_timestamp,
@@ -405,14 +405,12 @@ static int dccp_insert_option_timestamp_echo(struct sock *sk,
 					     struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct timeval now;
 	__be32 tstamp_echo;
-	u32 elapsed_time;
 	int len, elapsed_time_len;
 	unsigned char *to;
-
-	dccp_timestamp(sk, &now);
-	elapsed_time = timeval_delta(&now, &dp->dccps_timestamp_time) / 10;
+	const suseconds_t delta = ktime_us_delta(ktime_get_real(),
+						 dp->dccps_timestamp_time);
+	u32 elapsed_time = delta / 10;
 	elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	len = 6 + elapsed_time_len;
 
@@ -438,8 +436,7 @@ static int dccp_insert_option_timestamp_echo(struct sock *sk,
 	}
 
 	dp->dccps_timestamp_echo = 0;
-	dp->dccps_timestamp_time.tv_sec = 0;
-	dp->dccps_timestamp_time.tv_usec = 0;
+	dp->dccps_timestamp_time = ktime_set(0, 0);
 	return 0;
 }
 

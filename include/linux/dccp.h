@@ -215,6 +215,7 @@ struct dccp_so_feat {
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/uio.h>
 #include <linux/workqueue.h>
@@ -498,7 +499,7 @@ struct dccp_sock {
 	__u64				dccps_gar;
 	__be32				dccps_service;
 	struct dccp_service_list	*dccps_service_list;
-	struct timeval			dccps_timestamp_time;
+	ktime_t				dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
