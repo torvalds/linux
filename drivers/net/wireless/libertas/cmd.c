@@ -1009,7 +1009,9 @@ static int DownloadcommandToStation(wlan_private * priv,
 	if (ret != 0) {
 		lbs_deb_host("DNLD_CMD: hw_host_to_card failed\n");
 		spin_lock_irqsave(&adapter->driver_lock, flags);
+		adapter->cur_cmd_retcode = ret;
 		__libertas_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
+		adapter->nr_cmd_pending--;
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		goto done;
