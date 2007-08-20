@@ -89,7 +89,7 @@ MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.");
 
 static int nocrt;
 module_param(nocrt, int, 0);
-MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.");
+MODULE_PARM_DESC(nocrt, "Set to take no action upon ACPI thermal zone critical trips points.");
 
 static int off;
 module_param(off, int, 0);
@@ -1357,6 +1357,13 @@ static int thermal_act(struct dmi_system_id *d) {
 	}
 	return 0;
 }
+static int thermal_nocrt(struct dmi_system_id *d) {
+
+	printk(KERN_NOTICE "ACPI: %s detected: "
+		"disabling all critical thermal trip point actions.\n", d->ident);
+	nocrt = 1;
+	return 0;
+}
 static int thermal_tzp(struct dmi_system_id *d) {
 
 	if (tzp == 0) {
@@ -1403,6 +1410,14 @@ static struct dmi_system_id thermal_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
 		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_nocrt,
+	 .ident = "Gigabyte GA-7ZX",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
+		DMI_MATCH(DMI_BOARD_NAME, "7ZX"),
 		},
 	},
 	{}
