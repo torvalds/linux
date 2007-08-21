@@ -434,10 +434,13 @@ void cx88_sram_channel_dump(struct cx88_core *core,
 		printk("%s:   cmds: %-12s: 0x%08x\n",
 		       core->name,name[i],
 		       cx_read(ch->cmds_start + 4*i));
-	for (i = 0; i < 4; i++) {
+	for (n = 1, i = 0; i < 4; i++) {
 		risc = cx_read(ch->cmds_start + 4 * (i+11));
 		printk("%s:   risc%d: ", core->name, i);
-		cx88_risc_decode(risc);
+		if (--n)
+			printk("0x%08x [ arg #%d ]\n", risc, n);
+		else
+			n = cx88_risc_decode(risc);
 	}
 	for (i = 0; i < 16; i += n) {
 		risc = cx_read(ch->ctrl_start + 4 * i);
