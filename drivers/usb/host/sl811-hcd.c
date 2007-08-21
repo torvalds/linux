@@ -436,8 +436,7 @@ static void finish_request(
 		ep->nextpid = USB_PID_SETUP;
 
 	spin_lock(&urb->lock);
-	if (urb->status == -EINPROGRESS)
-		urb->status = status;
+	urb->status = status;
 	spin_unlock(&urb->lock);
 
 	usb_hcd_unlink_urb_from_ep(sl811_to_hcd(sl811), urb);
@@ -598,7 +597,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 				bank, status, ep, urbstat);
 	}
 
-	if (urb && (urbstat != -EINPROGRESS || urb->status != -EINPROGRESS))
+	if (urb && (urbstat != -EINPROGRESS || urb->unlinked))
 		finish_request(sl811, ep, urb, urbstat);
 }
 

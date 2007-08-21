@@ -532,8 +532,7 @@ error:
 
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
-	if (urb->status == -EINPROGRESS)
-		urb->status = status;
+	urb->status = status;
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 	/* This peculiar use of spinlocks echoes what real HC drivers do.
@@ -1024,6 +1023,7 @@ int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
 	switch (hcd->state) {
 	case HC_STATE_RUNNING:
 	case HC_STATE_RESUMING:
+		urb->unlinked = 0;
 		list_add_tail(&urb->urb_list, &urb->ep->urb_list);
 		break;
 	default:
@@ -1071,9 +1071,9 @@ int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 	/* Any status except -EINPROGRESS means something already started to
 	 * unlink this URB from the hardware.  So there's no more work to do.
 	 */
-	if (urb->status != -EINPROGRESS)
+	if (urb->unlinked)
 		return -EBUSY;
-	urb->status = status;
+	urb->unlinked = status;
 
 	/* IRQ setup can easily be broken so that USB controllers
 	 * never get completion IRQs ... maybe even the ones we need to
@@ -1259,6 +1259,10 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  * (and is done using urb->hcpriv).  It also released all HCD locks;
  * the device driver won't cause problems if it frees, modifies,
  * or resubmits this URB.
+ *
+ * If @urb was unlinked, the value of @urb->status will be overridden by
+ * @urb->unlinked.  Erroneous short transfers are detected in case
+ * the HCD hasn't checked for them.
  */
 void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 {
@@ -1266,7 +1270,9 @@ void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 	usbmon_urb_complete (&hcd->self, urb);
 	usb_unanchor_urb(urb);
 	urb->hcpriv = NULL;
-	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
+	if (unlikely(urb->unlinked))
+		urb->status = urb->unlinked;
+	else if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
 			urb->actual_length < urb->transfer_buffer_length &&
 			!urb->status))
 		urb->status = -EREMOTEIO;
@@ -1305,8 +1311,7 @@ rescan:
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
 		int	is_in;
 
-		/* the urb may already have been unlinked */
-		if (urb->status != -EINPROGRESS)
+		if (urb->unlinked)
 			continue;
 		usb_get_urb (urb);
 		is_in = usb_urb_dir_in(urb);

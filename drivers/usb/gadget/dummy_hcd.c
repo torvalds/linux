@@ -1029,8 +1029,7 @@ static int dummy_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 static void maybe_set_status (struct urb *urb, int status)
 {
 	spin_lock (&urb->lock);
-	if (urb->status == -EINPROGRESS)
-		urb->status = status;
+	urb->status = status;
 	spin_unlock (&urb->lock);
 }
 
@@ -1257,10 +1256,9 @@ restart:
 		int			type;
 
 		urb = urbp->urb;
-		if (urb->status != -EINPROGRESS) {
-			/* likely it was just unlinked */
+		if (urb->unlinked)
 			goto return_urb;
-		} else if (dum->rh_state != DUMMY_RH_RUNNING)
+		else if (dum->rh_state != DUMMY_RH_RUNNING)
 			continue;
 		type = usb_pipetype (urb->pipe);
 

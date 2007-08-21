@@ -758,8 +758,7 @@ static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 			cc = TD_CC_NOERROR;
 		if (cc != TD_CC_NOERROR && cc < 0x0E) {
 			spin_lock (&urb->lock);
-			if (urb->status == -EINPROGRESS)
-				urb->status = cc_to_error [cc];
+			urb->status = cc_to_error[cc];
 			spin_unlock (&urb->lock);
 		}
 
@@ -972,7 +971,7 @@ rescan_this:
 			urb = td->urb;
 			urb_priv = td->urb->hcpriv;
 
-			if (urb->status == -EINPROGRESS) {
+			if (!urb->unlinked) {
 				prev = &td->hwNextTD;
 				continue;
 			}

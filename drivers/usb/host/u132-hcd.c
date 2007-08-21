@@ -645,12 +645,12 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer + urb->actual_length;
                 u8 *b = buf;
@@ -716,8 +716,8 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -744,12 +744,12 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 urb->actual_length += len;
                 endp->toggle_bits = toggle_bits;
@@ -768,8 +768,8 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -797,12 +797,12 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer + urb->actual_length;
                 u8 *b = buf;
@@ -871,8 +871,8 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -898,18 +898,18 @@ static void u132_hcd_configure_empty_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -936,12 +936,12 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer;
                 u8 *b = buf;
@@ -980,8 +980,8 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1007,18 +1007,18 @@ static void u132_hcd_configure_empty_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1045,12 +1045,12 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 if (usb_pipein(urb->pipe)) {
                         int retval;
                         struct u132_ring *ring = endp->ring;
@@ -1077,8 +1077,8 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
                         return;
                 }
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1106,20 +1106,20 @@ static void u132_hcd_enumeration_empty_recv(void *data, struct urb *urb,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 u132->addr[0].address = 0;
                 endp->usb_addr = udev->usb_addr;
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1145,12 +1145,12 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 up(&u132->scheduler_lock);
@@ -1162,8 +1162,8 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1189,18 +1189,18 @@ static void u132_hcd_initial_empty_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1227,12 +1227,12 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 u8 *u = urb->transfer_buffer;
@@ -1251,8 +1251,8 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -1279,12 +1279,12 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
                 u132_hcd_giveback_urb(u132, endp, urb, -EINTR);
                 return;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, -ENODEV);
                 return;
-        } else if (urb->status == -EINPROGRESS) {
+	} else if (!urb->unlinked) {
                 int retval;
                 struct u132_ring *ring = endp->ring;
                 up(&u132->scheduler_lock);
@@ -1296,8 +1296,8 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
                         u132_hcd_giveback_urb(u132, endp, urb, retval);
                 return;
         } else {
-                dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p statu"
-                        "s=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
+				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
                 u132_hcd_giveback_urb(u132, endp, urb, urb->status);
                 return;
@@ -2279,8 +2279,8 @@ static int u132_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
                         , u132->going);
                 return -ENODEV;
         } else if (u132->going > 0) {
-                dev_err(&u132->platform_dev->dev, "device is being removed urb="
-                        "%p status=%d\n", urb, urb->status);
+		dev_err(&u132->platform_dev->dev, "device is being removed "
+				"urb=%p\n", urb);
                 return -ESHUTDOWN;
         } else {
                 u8 usb_addr = usb_pipedevice(urb->pipe);

@@ -151,7 +151,7 @@ static void qtd_copy_status (
 		urb->actual_length += length - QTD_LENGTH (token);
 
 	/* don't modify error codes */
-	if (unlikely (urb->status != -EINPROGRESS))
+	if (unlikely(urb->unlinked))
 		return;
 
 	/* force cleanup after short read; not always an error */
@@ -232,21 +232,14 @@ __acquires(ehci->lock)
 	}
 
 	spin_lock (&urb->lock);
-	switch (urb->status) {
-	case -EINPROGRESS:		/* success */
-		urb->status = 0;
-	default:			/* fault */
-		COUNT (ehci->stats.complete);
-		break;
-	case -EREMOTEIO:		/* fault or normal */
-		if (!(urb->transfer_flags & URB_SHORT_NOT_OK))
+	if (unlikely(urb->unlinked)) {
+		COUNT(ehci->stats.unlink);
+	} else {
+		if (likely(urb->status == -EINPROGRESS ||
+				(urb->status == -EREMOTEIO &&
+				 !(urb->transfer_flags & URB_SHORT_NOT_OK))))
 			urb->status = 0;
-		COUNT (ehci->stats.complete);
-		break;
-	case -ECONNRESET:		/* canceled */
-	case -ENOENT:
-		COUNT (ehci->stats.unlink);
-		break;
+		COUNT(ehci->stats.complete);
 	}
 	spin_unlock (&urb->lock);
 
@@ -364,7 +357,8 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			 * for the urb faulted (including short read) or
 			 * its urb was canceled.  we may patch qh or qtds.
 			 */
-			if (likely (urb->status == -EINPROGRESS))
+			if (likely(urb->status == -EINPROGRESS &&
+					!urb->unlinked))
 				continue;
 
 			/* issue status after short control reads */
@@ -395,7 +389,8 @@ halt:
 		spin_lock (&urb->lock);
 		qtd_copy_status (ehci, urb, qtd->length, token);
 		if (unlikely(urb->status == -EREMOTEIO)) {
-			do_status = usb_pipecontrol(urb->pipe);
+			do_status = (!urb->unlinked &&
+					usb_pipecontrol(urb->pipe));
 			urb->status = 0;
 		}
 		spin_unlock (&urb->lock);

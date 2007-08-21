@@ -455,11 +455,10 @@ static void postproc_atl_queue(struct isp116x *isp116x)
  done:
 		if (status != -EINPROGRESS) {
 			spin_lock(&urb->lock);
-			if (urb->status == -EINPROGRESS)
-				urb->status = status;
+			urb->status = status;
 			spin_unlock(&urb->lock);
 		}
-		if (urb->status != -EINPROGRESS)
+		if (urb->status != -EINPROGRESS || urb->unlinked)
 			finish_request(isp116x, ep, urb);
 	}
 }

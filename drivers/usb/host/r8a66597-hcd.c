@@ -1118,7 +1118,7 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 	r8a66597->timeout_map &= ~(1 << pipenum);
 
 	if (likely(td)) {
-		if (td->set_address && urb->status != 0)
+		if (td->set_address && (urb->status != 0 || urb->unlinked))
 			r8a66597->address_map &= ~(1 << urb->setup_packet[2]);
 
 		pipe_toggle_save(r8a66597, td->pipe, urb);
@@ -1225,8 +1225,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 	}
 
 	if (finish && pipenum != 0) {
-		if (td->urb->status == -EINPROGRESS)
-			td->urb->status = status;
+		td->urb->status = status;
 		finish_request(r8a66597, td, pipenum, urb);
 	}
 }
@@ -1308,32 +1307,24 @@ static void check_next_phase(struct r8a66597 *r8a66597)
 	switch (td->type) {
 	case USB_PID_IN:
 	case USB_PID_OUT:
-		if (urb->status != -EINPROGRESS) {
-			finish = 1;
-			break;
-		}
 		if (check_transfer_finish(td, urb))
 			td->type = USB_PID_ACK;
 		break;
 	case USB_PID_SETUP:
-		if (urb->status != -EINPROGRESS)
-			finish = 1;
-		else if (urb->transfer_buffer_length == urb->actual_length) {
+		if (urb->transfer_buffer_length == urb->actual_length)
 			td->type = USB_PID_ACK;
-			urb->status = 0;
-		} else if (usb_pipeout(urb->pipe))
+		else if (usb_pipeout(urb->pipe))
 			td->type = USB_PID_OUT;
 		else
 			td->type = USB_PID_IN;
 		break;
 	case USB_PID_ACK:
 		finish = 1;
-		if (urb->status == -EINPROGRESS)
-			urb->status = 0;
+		urb->status = 0;
 		break;
 	}
 
-	if (finish)
+	if (finish || urb->unlinked)
 		finish_request(r8a66597, td, 0, urb);
 	else
 		start_transfer(r8a66597, td);
@@ -1418,8 +1409,7 @@ static void irq_pipe_empty(struct r8a66597 *r8a66597)
 			if ((tmp & INBUFM) == 0) {
 				disable_irq_empty(r8a66597, pipenum);
 				pipe_irq_disable(r8a66597, pipenum);
-				if (td->urb->status == -EINPROGRESS)
-					td->urb->status = 0;
+				td->urb->status = 0;
 				finish_request(r8a66597, td, pipenum, td->urb);
 			}
 		}

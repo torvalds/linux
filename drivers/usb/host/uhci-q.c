@@ -1557,15 +1557,12 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 			break;
 
 		spin_lock(&urb->lock);
-		if (urb->status == -EINPROGRESS)	/* Not dequeued */
-			urb->status = status;
-		else
-			status = ECONNRESET;		/* Not -ECONNRESET */
+		urb->status = status;
 		spin_unlock(&urb->lock);
 
 		/* Dequeued but completed URBs can't be given back unless
 		 * the QH is stopped or has finished unlinking. */
-		if (status == ECONNRESET) {
+		if (urb->unlinked) {
 			if (QH_FINISHED_UNLINKING(qh))
 				qh->is_stopped = 1;
 			else if (!qh->is_stopped)
@@ -1588,7 +1585,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 restart:
 	list_for_each_entry(urbp, &qh->queue, node) {
 		urb = urbp->urb;
-		if (urb->status != -EINPROGRESS) {
+		if (urb->unlinked) {
 
 			/* Fix up the TD links and save the toggles for
 			 * non-Isochronous queues.  For Isochronous queues,
