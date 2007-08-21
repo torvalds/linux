@@ -1844,7 +1844,7 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 
 	spin_lock(&gl->gl_spin);
 
-	print_dbg(gi, "Glock 0x%p (%u, %llu)\n", gl, gl->gl_name.ln_type,
+	print_dbg(gi, "Glock 0x%p (%u, 0x%llx)\n", gl, gl->gl_name.ln_type,
 		   (unsigned long long)gl->gl_name.ln_number);
 	print_dbg(gi, "  gl_flags =");
 	for (x = 0; x < 32; x++) {
@@ -2024,20 +2024,21 @@ static int gfs2_glock_iter_next(struct glock_iter *gi)
 {
 	struct gfs2_glock *gl;
 
+restart:
 	read_lock(gl_lock_addr(gi->hash));
 	gl = gi->gl;
 	if (gl) {
-		gi->gl = hlist_entry(gl->gl_list.next, struct gfs2_glock,
-				     gl_list);
+		gi->gl = hlist_entry(gl->gl_list.next,
+				     struct gfs2_glock, gl_list);
 		if (gi->gl)
 			gfs2_glock_hold(gi->gl);
 	}
 	read_unlock(gl_lock_addr(gi->hash));
 	if (gl)
 		gfs2_glock_put(gl);
-
-	while(gi->gl == NULL) {
+	if (gl && gi->gl == NULL)
 		gi->hash++;
+	while(gi->gl == NULL) {
 		if (gi->hash >= GFS2_GL_HASH_SIZE)
 			return 1;
 		read_lock(gl_lock_addr(gi->hash));
@@ -2046,7 +2047,12 @@ static int gfs2_glock_iter_next(struct glock_iter *gi)
 		if (gi->gl)
 			gfs2_glock_hold(gi->gl);
 		read_unlock(gl_lock_addr(gi->hash));
+		gi->hash++;
 	}
+
+	if (gi->sdp != gi->gl->gl_sbd)
+		goto restart;
+
 	return 0;
 }
 
@@ -2068,16 +2074,10 @@ static struct glock_iter *gfs2_glock_iter_init(struct gfs2_sbd *sdp)
 	gi->sdp = sdp;
 	gi->hash = 0;
 	gi->seq = NULL;
+	gi->gl = NULL;
 	memset(gi->string, 0, sizeof(gi->string));
 
-	read_lock(gl_lock_addr(gi->hash));
-	gi->gl = hlist_entry(gl_hash_table[gi->hash].hb_list.first,
-			     struct gfs2_glock, gl_list);
-	if (gi->gl)
-		gfs2_glock_hold(gi->gl);
-	read_unlock(gl_lock_addr(gi->hash));
-
-	if (!gi->gl && gfs2_glock_iter_next(gi)) {
+	if (gfs2_glock_iter_next(gi)) {
 		gfs2_glock_iter_free(gi);
 		return NULL;
 	}
