@@ -1109,8 +1109,9 @@ static void set_td_timer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 }
 
 /* this function must be called with interrupt disabled */
-static void done(struct r8a66597 *r8a66597, struct r8a66597_td *td,
-		 u16 pipenum, struct urb *urb)
+static void finish_request(struct r8a66597 *r8a66597, struct r8a66597_td *td,
+		u16 pipenum, struct urb *urb)
+__releases(r8a66597->lock) __acquires(r8a66597->lock)
 {
 	int restart = 0;
 	struct usb_hcd *hcd = r8a66597_to_hcd(r8a66597);
@@ -1151,14 +1152,6 @@ static void done(struct r8a66597 *r8a66597, struct r8a66597_td *td,
 	}
 }
 
-/* this function must be called with interrupt disabled */
-static void finish_request(struct r8a66597 *r8a66597, struct r8a66597_td *td,
-			   u16 pipenum, struct urb *urb)
-__releases(r8a66597->lock) __acquires(r8a66597->lock)
-{
-	done(r8a66597, td, pipenum, urb);
-}
-
 static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 {
 	u16 tmp;
@@ -1167,6 +1160,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 	struct r8a66597_td *td = r8a66597_get_td(r8a66597, pipenum);
 	struct urb *urb;
 	int finish = 0;
+	int status = 0;
 
 	if (unlikely(!td))
 		return;
@@ -1185,7 +1179,6 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 
 	/* prepare parameters */
 	rcv_len = tmp & DTLN;
-	bufsize = td->maxpacket;
 	if (usb_pipeisoc(urb->pipe)) {
 		buf = (u16 *)(urb->transfer_buffer +
 				urb->iso_frame_desc[td->iso_cnt].offset);
@@ -1194,25 +1187,30 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 		buf = (void *)urb->transfer_buffer + urb->actual_length;
 		urb_len = urb->transfer_buffer_length - urb->actual_length;
 	}
-	if (rcv_len < bufsize)
-		size = min(rcv_len, urb_len);
-	else
-		size = min(bufsize, urb_len);
+	bufsize = min(urb_len, (int) td->maxpacket);
+	if (rcv_len <= bufsize) {
+		size = rcv_len;
+	} else {
+		size = bufsize;
+		status = -EOVERFLOW;
+		finish = 1;
+	}
 
 	/* update parameters */
 	urb->actual_length += size;
 	if (rcv_len == 0)
 		td->zero_packet = 1;
-	if ((size % td->maxpacket) > 0) {
+	if (rcv_len < bufsize) {
 		td->short_packet = 1;
 		if (urb->transfer_buffer_length != urb->actual_length &&
 		    urb->transfer_flags & URB_SHORT_NOT_OK)
-			td->urb->status = -EREMOTEIO;
+			status = -EREMOTEIO;
 	}
 	if (usb_pipeisoc(urb->pipe)) {
 		urb->iso_frame_desc[td->iso_cnt].actual_length = size;
-		urb->iso_frame_desc[td->iso_cnt].status = 0;
+		urb->iso_frame_desc[td->iso_cnt].status = status;
 		td->iso_cnt++;
+		finish = 0;
 	}
 
 	/* check transfer finish */
@@ -1233,7 +1231,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 
 	if (finish && pipenum != 0) {
 		if (td->urb->status == -EINPROGRESS)
-			td->urb->status = 0;
+			td->urb->status = status;
 		finish_request(r8a66597, td, pipenum, urb);
 	}
 }
@@ -1807,7 +1805,7 @@ static int r8a66597_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, td->pipenum);
 		disable_irq_empty(r8a66597, td->pipenum);
-		done(r8a66597, td, td->pipenum, urb);
+		finish_request(r8a66597, td, td->pipenum, urb);
 	}
  done:
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
@@ -1841,7 +1839,7 @@ static void r8a66597_endpoint_disable(struct usb_hcd *hcd,
 	td = r8a66597_get_td(r8a66597, pipenum);
 	if (td)
 		urb = td->urb;
-	done(r8a66597, td, pipenum, urb);
+	finish_request(r8a66597, td, pipenum, urb);
 	kfree(hep->hcpriv);
 	hep->hcpriv = NULL;
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
