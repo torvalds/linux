@@ -1099,8 +1099,7 @@ top:
 		 *
 		 * partially filling a buffer optionally blocks queue advances
 		 * (so completion handlers can clean up the queue) but we don't
-		 * need to emulate such data-in-flight.  so we only show part
-		 * of the URB_SHORT_NOT_OK effect: completion status.
+		 * need to emulate such data-in-flight.
 		 */
 		if (is_short) {
 			if (host_len == dev_len) {
@@ -1111,10 +1110,7 @@ top:
 				if (dev_len > host_len)
 					maybe_set_status (urb, -EOVERFLOW);
 				else
-					maybe_set_status (urb,
-						(urb->transfer_flags
-							& URB_SHORT_NOT_OK)
-						? -EREMOTEIO : 0);
+					maybe_set_status (urb, 0);
 			} else if (!to_host) {
 				maybe_set_status (urb, 0);
 				if (host_len > dev_len)
@@ -1516,7 +1512,6 @@ restart:
 			continue;
 
 return_urb:
-		urb->hcpriv = NULL;
 		list_del (&urbp->urbp_list);
 		kfree (urbp);
 		if (ep)

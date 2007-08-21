@@ -232,7 +232,6 @@ __acquires(ehci->lock)
 	}
 
 	spin_lock (&urb->lock);
-	urb->hcpriv = NULL;
 	switch (urb->status) {
 	case -EINPROGRESS:		/* success */
 		urb->status = 0;
@@ -395,8 +394,10 @@ halt:
 		/* remove it from the queue */
 		spin_lock (&urb->lock);
 		qtd_copy_status (ehci, urb, qtd->length, token);
-		do_status = (urb->status == -EREMOTEIO)
-				&& usb_pipecontrol (urb->pipe);
+		if (unlikely(urb->status == -EREMOTEIO)) {
+			do_status = usb_pipecontrol(urb->pipe);
+			urb->status = 0;
+		}
 		spin_unlock (&urb->lock);
 
 		if (stopped && qtd->qtd_list.prev != &qh->qtd_list) {

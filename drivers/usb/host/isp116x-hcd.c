@@ -282,7 +282,6 @@ __releases(isp116x->lock) __acquires(isp116x->lock)
 {
 	unsigned i;
 
-	urb->hcpriv = NULL;
 	ep->error_count = 0;
 
 	if (usb_pipecontrol(urb->pipe))
@@ -446,12 +445,7 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 			if (PTD_GET_ACTIVE(ptd)
 			    || (cc != TD_CC_NOERROR && cc < 0x0E))
 				break;
-			if ((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-					urb->actual_length <
-						urb->transfer_buffer_length)
-				status = -EREMOTEIO;
-			else
-				status = 0;
+			status = 0;
 			ep->nextpid = 0;
 			break;
 		default:

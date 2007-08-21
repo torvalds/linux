@@ -783,7 +783,6 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 
 		if (urb) {
 			urb->status = -ENODEV;
-			urb->hcpriv = NULL;
 			usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597),
 					urb);
 
@@ -1134,7 +1133,6 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 		if (usb_pipeisoc(urb->pipe))
 			urb->start_frame = r8a66597_get_frame(hcd);
 
-		urb->hcpriv = NULL;
 		usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
 
 		spin_unlock(&r8a66597->lock);
@@ -1202,9 +1200,6 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 		td->zero_packet = 1;
 	if (rcv_len < bufsize) {
 		td->short_packet = 1;
-		if (urb->transfer_buffer_length != urb->actual_length &&
-		    urb->transfer_flags & URB_SHORT_NOT_OK)
-			status = -EREMOTEIO;
 	}
 	if (usb_pipeisoc(urb->pipe)) {
 		urb->iso_frame_desc[td->iso_cnt].actual_length = size;
@@ -1214,7 +1209,7 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 	}
 
 	/* check transfer finish */
-	if (check_transfer_finish(td, urb)) {
+	if (finish || check_transfer_finish(td, urb)) {
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, pipenum);
 		finish = 1;

@@ -43,21 +43,10 @@ __acquires(ohci->lock)
 	// ASSERT (urb->hcpriv != 0);
 
 	urb_free_priv (ohci, urb->hcpriv);
-	urb->hcpriv = NULL;
 
 	spin_lock (&urb->lock);
 	if (likely (urb->status == -EINPROGRESS))
 		urb->status = 0;
-	/* report short control reads right even though the data TD always
-	 * has TD_R set.  (much simpler, but creates the 1-td limit.)
-	 */
-	if (unlikely (urb->transfer_flags & URB_SHORT_NOT_OK)
-			&& unlikely (usb_pipecontrol (urb->pipe))
-			&& urb->actual_length < urb->transfer_buffer_length
-			&& usb_pipein (urb->pipe)
-			&& urb->status == 0) {
-		urb->status = -EREMOTEIO;
-	}
 	spin_unlock (&urb->lock);
 
 	switch (usb_pipetype (urb->pipe)) {

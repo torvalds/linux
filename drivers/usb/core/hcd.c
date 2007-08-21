@@ -366,6 +366,7 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	spin_unlock_irq(&hcd_root_hub_lock);
 	if (status)
 		return status;
+	urb->hcpriv = hcd;	/* Indicate it's queued */
 
 	cmd = (struct usb_ctrlrequest *) urb->setup_packet;
 	typeReq  = (cmd->bRequestType << 8) | cmd->bRequest;
@@ -579,7 +580,6 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			hcd->poll_pending = 0;
 			hcd->status_urb = NULL;
 			urb->status = 0;
-			urb->hcpriv = NULL;
 			urb->actual_length = length;
 			memcpy(urb->transfer_buffer, buffer, length);
 
@@ -675,7 +675,6 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			del_timer (&hcd->rh_timer);
 		if (urb == hcd->status_urb) {
 			hcd->status_urb = NULL;
-			urb->hcpriv = NULL;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 			spin_unlock(&hcd_root_hub_lock);
@@ -1192,6 +1191,7 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	if (unlikely(status)) {
 		usbmon_urb_submit_error(&hcd->self, urb, status);
 		unmap_urb_for_dma(hcd, urb);
+		urb->hcpriv = NULL;
 		INIT_LIST_HEAD(&urb->urb_list);
 		atomic_dec(&urb->use_count);
 		if (urb->reject)
@@ -1265,6 +1265,11 @@ void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 	unmap_urb_for_dma(hcd, urb);
 	usbmon_urb_complete (&hcd->self, urb);
 	usb_unanchor_urb(urb);
+	urb->hcpriv = NULL;
+	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
+			urb->actual_length < urb->transfer_buffer_length &&
+			!urb->status))
+		urb->status = -EREMOTEIO;
 
 	/* pass ownership to the completion handler */
 	urb->complete (urb);

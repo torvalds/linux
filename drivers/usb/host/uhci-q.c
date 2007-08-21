@@ -757,7 +757,6 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 		uhci_free_td(uhci, td);
 	}
 
-	urbp->urb->hcpriv = NULL;
 	kmem_cache_free(uhci_up_cachep, urbp);
 }
 
@@ -1494,13 +1493,6 @@ __acquires(uhci->lock)
 		 * unlinked first.  Regardless, don't confuse people with a
 		 * negative length. */
 		urb->actual_length = max(urb->actual_length, 0);
-
-		/* Report erroneous short transfers */
-		if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-				urb->actual_length <
-					urb->transfer_buffer_length &&
-				urb->status == 0))
-			urb->status = -EREMOTEIO;
 	}
 
 	/* When giving back the first URB in an Isochronous queue,
