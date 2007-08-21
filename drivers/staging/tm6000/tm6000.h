@@ -3,6 +3,9 @@
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
+   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+	- DVB-T support
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation version 2
@@ -26,6 +29,11 @@
 #include "tm6000-usb-isoc.h"
 #include <linux/i2c.h>
 #include <linux/mutex.h>
+
+#include <linux/dvb/frontend.h>
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+#include "dmxdev.h"
 
 #define TM6000_VERSION KERNEL_VERSION(0, 0, 1)
 
@@ -97,12 +105,23 @@ struct tm6000_capabilities {
 	unsigned int    has_eeprom:1;
 };
 
+struct tm6000_dvb {
+	struct dvb_adapter	adapter;
+	struct dvb_demux	demux;
+	struct dvb_frontend	*frontend;
+	struct dmxdev		dmxdev;
+	unsigned int		streams;
+	struct urb 		*bulk_urb;
+	struct mutex		mutex;
+};
+
 struct tm6000_core {
 	/* generic device properties */
 	char				name[30];	/* name (including minor) of the device */
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
-	v4l2_std_id			norm;		/* Current norm */
+
+	v4l2_std_id                     norm;           /* Current norm */
 
 	enum tm6000_core_state		state;
 
@@ -135,6 +154,9 @@ struct tm6000_core {
 	unsigned int			fourcc;
 
 	enum tm6000_mode		mode;
+
+	/* DVB-T support */
+	struct tm6000_dvb		*dvb;
 
 	/* locks */
 	struct mutex			lock;
@@ -181,8 +203,12 @@ int tm6000_init (struct tm6000_core *dev);
 int tm6000_init_after_firmware (struct tm6000_core *dev);
 
 int tm6000_init_analog_mode (struct tm6000_core *dev);
+int tm6000_init_digital_mode (struct tm6000_core *dev);
 int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm);
 int tm6000_set_audio_bitrate (struct tm6000_core *dev, int bitrate);
+
+int tm6000_dvb_register(struct tm6000_core *dev);
+void tm6000_dvb_unregister(struct tm6000_core *dev);
 
 int tm6000_v4l2_register(struct tm6000_core *dev);
 int tm6000_v4l2_unregister(struct tm6000_core *dev);

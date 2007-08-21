@@ -185,7 +185,19 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	dev->freq = f.frequency;
 
 	tm6000_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
-
+	if(dev->caps.has_dvb) {
+		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
+		if(!dev->dvb) {
+			rc = -ENOMEM;
+			goto err;
+		}
+		rc = tm6000_dvb_register(dev);
+		if(rc < 0) {
+			kfree(dev->dvb);
+			dev->dvb = NULL;
+			goto err;
+		}
+	}
 err:
 	mutex_unlock(&dev->lock);
 	return rc;
@@ -388,6 +400,11 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	printk("tm6000: disconnecting %s\n", dev->name);
 
 	mutex_lock(&dev->lock);
+
+	if(dev->dvb) {
+		tm6000_dvb_unregister(dev);
+		kfree(dev->dvb);
+	}
 
 	tm6000_v4l2_unregister(dev);
 

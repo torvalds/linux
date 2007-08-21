@@ -3,6 +3,9 @@
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
+   Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+       - DVB-T support
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation version 2
@@ -207,6 +210,32 @@ int tm6000_init_analog_mode (struct tm6000_core *dev)
 	return 0;
 }
 
+int tm6000_init_digital_mode (struct tm6000_core *dev)
+{
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x08);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00ff, 0x00);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x003f, 0x01);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00df, 0x08);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0xd8);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c0, 0x40);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c1, 0xd0);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00c3, 0x09);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00da, 0x37);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d1, 0xd8);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d2, 0xc0);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d6, 0x60);
+	msleep(50);
+
+	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
+	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x01);
+	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
+
+	msleep(100);
+
+	return 0;
+}
 
 /* The meaning of those initializations are unknown */
 u8 init_tab[][2] = {
