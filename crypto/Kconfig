@@ -412,6 +412,20 @@ config CRYPTO_ANUBIS
 	  <https://www.cosic.esat.kuleuven.ac.be/nessie/reports/>
 	  <http://planeta.terra.com.br/informatica/paulobarreto/AnubisPage.html>
 
+config CRYPTO_SEED
+	tristate "SEED cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  SEED cipher algorithm (RFC4269).
+
+	  SEED is a 128-bit symmetric key block cipher that has been
+	  developed by KISA (Korea Information Security Agency) as a
+	  national standard encryption algorithm of the Republic of Korea.
+	  It is a 16 round block cipher with the key size of 128 bit.
+
+	  See also:
+	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
+
 
 config CRYPTO_DEFLATE
 	tristate "Deflate compression algorithm"

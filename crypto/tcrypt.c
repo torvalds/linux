@@ -78,7 +78,7 @@ static char *check[] = {
 	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", NULL
+	"camellia", "seed", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1028,6 +1028,12 @@ static void do_test(void)
 		test_cipher("cbc(camellia)", DECRYPT,
 			    camellia_cbc_dec_tv_template,
 			    CAMELLIA_CBC_DEC_TEST_VECTORS);
+
+		//SEED
+		test_cipher("ecb(seed)", ENCRYPT, seed_enc_tv_template,
+			    SEED_ENC_TEST_VECTORS);
+		test_cipher("ecb(seed)", DECRYPT, seed_dec_tv_template,
+			    SEED_DEC_TEST_VECTORS);
 
 		test_hash("sha384", sha384_tv_template, SHA384_TEST_VECTORS);
 		test_hash("sha512", sha512_tv_template, SHA512_TEST_VECTORS);
