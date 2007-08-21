@@ -34,6 +34,8 @@ isa-y			:= $(isa-y)-nofpu
 endif
 endif
 
+isa-y			:= $(isa-y)-up
+
 cflags-$(CONFIG_CPU_SH2)		:= $(call cc-option,-m2,)
 cflags-$(CONFIG_CPU_SH2A)		+= $(call cc-option,-m2a,) \
 					   $(call cc-option,-m2a-nofpu,)
@@ -46,7 +48,20 @@ cflags-$(CONFIG_CPU_SH4A)		+= $(call cc-option,-m4a,) \
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mb
 cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 
-cflags-y	+= $(call as-option,-Wa$(comma)-isa=$(isa-y),) -ffreestanding
+#
+# -Wa,-isa= tuning implies -Wa,-dsp for the versions of binutils that
+# support it, while -Wa,-dsp by itself limits the range of usable opcodes
+# on certain CPU subtypes. Try the ISA variant first, and if that fails,
+# fall back on -Wa,-dsp for the old binutils versions. Even without DSP
+# opcodes, we always want the best ISA tuning the version of binutils
+# will provide.
+#
+isaflags-y	:= $(call as-option,-Wa$(comma)-isa=$(isa-y),)
+
+isaflags-$(CONFIG_SH_DSP)		:= \
+	$(call as-option,-Wa$(comma)-isa=$(isa-y),-Wa$(comma)-dsp)
+
+cflags-y	+= $(isaflags-y) -ffreestanding
 
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
