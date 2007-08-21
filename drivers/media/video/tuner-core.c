@@ -70,6 +70,40 @@ static struct i2c_client client_template;
 
 /* ---------------------------------------------------------------------- */
 
+static void fe_set_freq(struct tuner *t, unsigned int freq)
+{
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+
+	struct analog_parameters params = {
+		.frequency = freq,
+		.mode      = t->mode,
+		.audmode   = t->audmode,
+		.std       = t->std
+	};
+
+	if (NULL == fe_tuner_ops->set_analog_params) {
+		tuner_warn("Tuner frontend module has no way to set freq\n");
+		return;
+	}
+	fe_tuner_ops->set_analog_params(&t->fe, &params);
+}
+
+static void fe_release(struct tuner *t)
+{
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+
+	if (fe_tuner_ops->release)
+		fe_tuner_ops->release(&t->fe);
+}
+
+static void fe_standby(struct tuner *t)
+{
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+
+	if (fe_tuner_ops->sleep)
+		fe_tuner_ops->sleep(&t->fe);
+}
+
 /* Set tuner frequency,  freq in Units of 62.5kHz = 1/16MHz */
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
@@ -171,6 +205,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		     int (*tuner_callback) (void *dev, int command,int arg))
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	unsigned char buffer[4];
 
 	if (type == UNSET || type == TUNER_ABSENT) {
@@ -257,6 +292,17 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		default_tuner_init(t);
 		break;
 	}
+
+	if (fe_tuner_ops->set_analog_params) {
+		strlcpy(t->i2c.name, fe_tuner_ops->info.name, sizeof(t->i2c.name));
+
+		t->ops.set_tv_freq    = fe_set_freq;
+		t->ops.set_radio_freq = fe_set_freq;
+		t->ops.standby        = fe_standby;
+		t->ops.release        = fe_release;
+	}
+
+	tuner_info("type set to %s\n", t->i2c.name);
 
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
@@ -429,6 +475,7 @@ static int tuner_fixup_std(struct tuner *t)
 static void tuner_status(struct tuner *t)
 {
 	unsigned long freq, freq_fraction;
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 	const char *p;
 
 	switch (t->mode) {
@@ -449,6 +496,15 @@ static void tuner_status(struct tuner *t)
 	tuner_info("Standard:        0x%08lx\n", (unsigned long)t->std);
 	if (t->mode != V4L2_TUNER_RADIO)
 	       return;
+	if (fe_tuner_ops->get_status) {
+		u32 tuner_status;
+
+		fe_tuner_ops->get_status(&t->fe, &tuner_status);
+		if (tuner_status & TUNER_STATUS_LOCKED)
+			tuner_info("Tuner is locked.\n");
+		if (tuner_status & TUNER_STATUS_STEREO)
+			tuner_info("Stereo:          yes\n");
+	}
 	if (t->ops.has_signal) {
 		tuner_info("Signal strength: %d\n", t->ops.has_signal(t));
 	}
@@ -634,6 +690,7 @@ static inline int check_v4l2(struct tuner *t)
 static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
 
 	if (tuner_debug>1)
 		v4l_i2c_print_ioctl(&(t->i2c),cmd);
@@ -720,15 +777,27 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				return 0;
 
 			if (V4L2_TUNER_RADIO == t->mode) {
-				if (t->ops.has_signal)
-					vt->signal = t->ops.has_signal(t);
-				if (t->ops.is_stereo) {
-					if (t->ops.is_stereo(t))
-						vt->flags |=
-						    VIDEO_TUNER_STEREO_ON;
-					else
-						vt->flags &=
-						    ~VIDEO_TUNER_STEREO_ON;
+				if (fe_tuner_ops->get_status) {
+					u32 tuner_status;
+
+					fe_tuner_ops->get_status(&t->fe, &tuner_status);
+						if (tuner_status & TUNER_STATUS_STEREO)
+							vt->flags |= VIDEO_TUNER_STEREO_ON;
+						else
+							vt->flags &= ~VIDEO_TUNER_STEREO_ON;
+						vt->signal = tuner_status & TUNER_STATUS_LOCKED
+							? 65535 : 0;
+				} else {
+					if (t->ops.is_stereo) {
+						if (t->ops.is_stereo(t))
+							vt->flags |=
+								VIDEO_TUNER_STEREO_ON;
+						else
+							vt->flags &=
+								~VIDEO_TUNER_STEREO_ON;
+					}
+					if (t->ops.has_signal)
+						vt->signal = t->ops.has_signal(t);
 				}
 				vt->flags |= VIDEO_TUNER_LOW;	/* Allow freqs at 62.5 Hz */
 
@@ -751,9 +820,17 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			if (check_v4l2(t) == EINVAL)
 				return 0;
 
-			if (V4L2_TUNER_RADIO == t->mode && t->ops.is_stereo)
-				va->mode = t->ops.is_stereo(t)
-				    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
+			if (V4L2_TUNER_RADIO == t->mode) {
+				if (fe_tuner_ops->get_status) {
+					u32 tuner_status;
+
+					fe_tuner_ops->get_status(&t->fe, &tuner_status);
+					va->mode = (tuner_status & TUNER_STATUS_STEREO)
+					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
+				} else if (t->ops.is_stereo)
+					va->mode = t->ops.is_stereo(t)
+					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
+			}
 			return 0;
 		}
 #endif
@@ -804,6 +881,15 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				return 0;
 			switch_v4l2();
 			f->type = t->mode;
+			if (fe_tuner_ops->get_frequency) {
+				u32 abs_freq;
+
+				fe_tuner_ops->get_frequency(&t->fe, &abs_freq);
+				f->frequency = (V4L2_TUNER_RADIO == t->mode) ?
+					(abs_freq * 2 + 125/2) / 125 :
+					(abs_freq + 62500/2) / 62500;
+				break;
+			}
 			f->frequency = (V4L2_TUNER_RADIO == t->mode) ?
 				t->radio_freq : t->tv_freq;
 			break;
@@ -828,16 +914,23 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			}
 
 			/* radio mode */
-			if (t->ops.has_signal)
-				tuner->signal = t->ops.has_signal(t);
-
 			tuner->rxsubchans =
 				V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-			if (t->ops.is_stereo) {
-				tuner->rxsubchans = t->ops.is_stereo(t) ?
-					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
-			}
+			if (fe_tuner_ops->get_status) {
+				u32 tuner_status;
 
+				fe_tuner_ops->get_status(&t->fe, &tuner_status);
+				tuner->rxsubchans = (tuner_status & TUNER_STATUS_STEREO) ?
+					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+				tuner->signal = tuner_status & TUNER_STATUS_LOCKED ? 65535 : 0;
+			} else {
+				if (t->ops.is_stereo) {
+					tuner->rxsubchans = t->ops.is_stereo(t) ?
+						V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
+				}
+				if (t->ops.has_signal)
+					tuner->signal = t->ops.has_signal(t);
+			}
 			tuner->capability |=
 			    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 			tuner->audmode = t->audmode;

@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include "tuner-i2c.h"
+#include "dvb_frontend.h"
 
 extern unsigned const int tuner_count;
 
@@ -57,6 +58,8 @@ struct tuner {
 
 	int          using_v4l2;
 	void *priv;
+
+	struct dvb_frontend fe;
 
 	/* used by tda9887 */
 	unsigned int       tda9887_config;

@@ -62,6 +62,13 @@ struct dvb_tuner_info {
 	u32 bandwidth_step;
 };
 
+struct analog_parameters {
+	unsigned int frequency;
+	unsigned int mode;
+	unsigned int audmode;
+	u64 std;
+};
+
 struct dvb_tuner_ops {
 
 	struct dvb_tuner_info info;
@@ -72,6 +79,7 @@ struct dvb_tuner_ops {
 
 	/** This is for simple PLLs - set all parameters in one go. */
 	int (*set_params)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p);
+	int (*set_analog_params)(struct dvb_frontend *fe, struct analog_parameters *p);
 
 	/** This is support for demods like the mt352 - fills out the supplied buffer with what to write. */
 	int (*calc_regs)(struct dvb_frontend *fe, struct dvb_frontend_parameters *p, u8 *buf, int buf_len);
@@ -80,6 +88,7 @@ struct dvb_tuner_ops {
 	int (*get_bandwidth)(struct dvb_frontend *fe, u32 *bandwidth);
 
 #define TUNER_STATUS_LOCKED 1
+#define TUNER_STATUS_STEREO 2
 	int (*get_status)(struct dvb_frontend *fe, u32 *status);
 
 	/** These are provided seperately from set_params in order to facilitate silicon
