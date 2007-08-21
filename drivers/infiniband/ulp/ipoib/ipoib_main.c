@@ -1083,7 +1083,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_pkey port %d failed (ret = %d)\n",
 		       hca->name, port, result);
-		goto alloc_mem_failed;
+		goto device_init_failed;
 	}
 
 	/*
@@ -1099,7 +1099,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
-		goto alloc_mem_failed;
+		goto device_init_failed;
 	} else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
