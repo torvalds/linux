@@ -1324,7 +1324,6 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	if (list_empty(&qh->queue)) {
 		qh->iso_packet_desc = &urb->iso_frame_desc[0];
 		qh->iso_frame = urb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	qh->skel = SKEL_ISO;
@@ -1361,18 +1360,15 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 			qh->iso_packet_desc->actual_length = actlength;
 			qh->iso_packet_desc->status = status;
 		}
-
-		if (status) {
+		if (status)
 			urb->error_count++;
-			qh->iso_status = status;
-		}
 
 		uhci_remove_td_from_urbp(td);
 		uhci_free_td(uhci, td);
 		qh->iso_frame += qh->period;
 		++qh->iso_packet_desc;
 	}
-	return qh->iso_status;
+	return 0;
 }
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
@@ -1517,7 +1513,6 @@ __acquires(uhci->lock)
 
 		qh->iso_packet_desc = &nurb->iso_frame_desc[0];
 		qh->iso_frame = nurb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	/* Take the URB off the QH's queue.  If the queue is now empty,
@@ -1586,7 +1581,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		}
 
 		uhci_giveback_urb(uhci, qh, urb);
-		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
+		if (status < 0)
 			break;
 	}
 

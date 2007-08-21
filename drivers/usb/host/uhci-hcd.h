@@ -146,7 +146,6 @@ struct uhci_qh {
 	short phase;			/* Between 0 and period-1 */
 	short load;			/* Periodic time requirement, in us */
 	unsigned int iso_frame;		/* Frame # for iso_packet_desc */
-	int iso_status;			/* Status for Isochronous URBs */
 
 	int state;			/* QH_STATE_xxx; see above */
 	int type;			/* Queue type (control, bulk, etc) */
