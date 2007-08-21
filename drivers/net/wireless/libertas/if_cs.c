@@ -459,7 +459,7 @@ static int if_cs_prog_helper(struct if_cs_card *card)
 		ret = -ENODEV;
 		goto done;
 	}
-	lbs_deb_cs("helper size %d\n", fw->size);
+	lbs_deb_cs("helper size %td\n", fw->size);
 
 	/* "Set the 5 bytes of the helper image to 0" */
 	/* Not needed, this contains an ARM branch instruction */
@@ -535,7 +535,7 @@ static int if_cs_prog_real(struct if_cs_card *card)
 		ret = -ENODEV;
 		goto done;
 	}
-	lbs_deb_cs("fw size %d\n", fw->size);
+	lbs_deb_cs("fw size %td\n", fw->size);
 
 	ret = if_cs_poll_while_fw_download(card, IF_CS_C_SQ_READ_LOW, IF_CS_C_SQ_HELPER_OK);
 	if (ret < 0) {
