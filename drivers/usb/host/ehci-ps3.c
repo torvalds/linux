@@ -47,7 +47,7 @@ static int ps3_ehci_hc_reset(struct usb_hcd *hcd)
 	if (result)
 		return result;
 
-	ehci_port_power(ehci, 0);
+	ehci_reset(ehci);
 
 	return result;
 }
