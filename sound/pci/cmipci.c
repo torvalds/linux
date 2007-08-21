@@ -2923,6 +2923,13 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		break;
 	}
 
+	sprintf(card->shortname, "C-Media PCI %s", card->driver);
+	sprintf(card->longname, "%s (model %d) at 0x%lx, irq %i",
+		card->shortname,
+		cm->chip_version,
+		cm->iobase,
+		cm->irq);
+
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops)) < 0) {
 		snd_cmipci_free(cm);
 		return err;
@@ -3048,15 +3055,6 @@ static int __devinit snd_cmipci_probe(struct pci_dev *pci,
 		return err;
 	}
 	card->private_data = cm;
-
-	sprintf(card->shortname, "C-Media PCI %s", card->driver);
-	sprintf(card->longname, "%s (model %d) at 0x%lx, irq %i",
-		card->shortname,
-		cm->chip_version,
-		cm->iobase,
-		cm->irq);
-
-	//snd_printd("%s is detected\n", card->longname);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
