@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <media/ir-common.h>

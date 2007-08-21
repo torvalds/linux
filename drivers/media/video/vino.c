@@ -28,7 +28,6 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/moduleparam.h>
 #include <linux/time.h>
 #include <linux/version.h>
 

@@ -64,7 +64,6 @@
 #include <linux/vmalloc.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#include <linux/moduleparam.h>
 
 #include "pwc.h"
 #include "pwc-kiara.h"
