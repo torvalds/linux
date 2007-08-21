@@ -107,6 +107,20 @@ config MACH_JAZZ
 	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millenium and
 	 Olivetti M700-10 workstations.
 
+config LASAT
+	bool "LASAT Networks platforms"
+	select DMA_NONCOHERENT
+	select SYS_HAS_EARLY_PRINTK
+	select HW_HAS_PCI
+	select PCI_GT64XXX_PCI0
+	select MIPS_NILE4
+	select R5000_CPU_SCACHE
+	select SYS_HAS_CPU_R5000
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+
 config LEMOTE_FULONG
 	bool "Lemote Fulong mini-PC"
 	select ARCH_SPARSEMEM_ENABLE
@@ -599,6 +613,7 @@ endchoice
 
 source "arch/mips/au1000/Kconfig"
 source "arch/mips/jazz/Kconfig"
+source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
@@ -704,6 +719,9 @@ config MIPS_BONITO64
 	bool
 
 config MIPS_MSC
+	bool
+
+config MIPS_NILE4
 	bool
 
 config MIPS_DISABLE_OBSOLETE_IDE

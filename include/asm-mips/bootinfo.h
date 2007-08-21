@@ -175,6 +175,13 @@
 #define  MACH_HP_LASERJET	1
 
 /*
+ * Valid machtype for group LASAT
+ */
+#define MACH_GROUP_LASAT       21
+#define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */
+#define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
+
+/*
  * Valid machtype for group TITAN
  */
 #define MACH_GROUP_TITAN       22	/* PMC-Sierra Titan		*/

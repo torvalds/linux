@@ -362,6 +362,13 @@ cflags-$(CONFIG_BASLER_EXCITE)	+= -Iinclude/asm-mips/mach-excite
 load-$(CONFIG_BASLER_EXCITE)	+= 0x80100000
 
 #
+# LASAT platforms
+#
+core-$(CONFIG_LASAT)		+= arch/mips/lasat/
+cflags-$(CONFIG_LASAT)		+= -Iinclude/asm-mips/mach-lasat
+load-$(CONFIG_LASAT)		+= 0xffffffff80000000
+
+#
 # Common VR41xx
 #
 core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/
@@ -628,6 +635,11 @@ core-y			+= arch/mips/kernel/ arch/mips/mm/ arch/mips/math-emu/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
+ifdef CONFIG_LASAT
+rom.bin rom.sw: vmlinux
+	$(Q)$(MAKE) $(build)=arch/mips/lasat/image $@
+endif
+
 #
 # Some machines like the Indy need 32-bit ELF binaries for booting purposes.
 # Other need ECOFF, so we build a 32-bit ELF binary for them which we then
@@ -671,6 +683,7 @@ endif
 
 archclean:
 	@$(MAKE) $(clean)=arch/mips/boot
+	@$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
 	echo '  vmlinux.ecoff        - ECOFF boot image'
