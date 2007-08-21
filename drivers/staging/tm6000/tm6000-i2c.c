@@ -59,7 +59,6 @@ static int tm6000_i2c_scan(struct i2c_adapter *i2c_adap, int addr)
 	if (
 		(dev->caps.has_tuner   && (addr==dev->tuner_addr)) ||
 		(dev->caps.has_tda9874 && (addr==0xb0)) ||
-		(dev->caps.has_zl10353 && (addr==0x1e)) ||
 		(dev->caps.has_eeprom  && (addr==0xa0))
 	   ) {
 		printk("Hack: enabling device at addr 0x%02x\n",addr);
@@ -271,30 +270,6 @@ static void dec_use(struct i2c_adapter *adap)
 	msleep (10);							\
 	}
 
-int static init_zl10353 (struct tm6000_core *dev, u8 addr)
-{
-	int rc=0;
-
-	mass_write (addr, 0x89, { 0x38 });
-	mass_write (addr, 0x8a, { 0x2d });
-	mass_write (addr, 0x50, { 0xff });
-	mass_write (addr, 0x51, { 0x00 , 0x00 , 0x50 });
-	mass_write (addr, 0x54, { 0x72 , 0x49 });
-	mass_write (addr, 0x87, { 0x0e , 0x0e });
-	mass_write (addr, 0x7b, { 0x04 });
-	mass_write (addr, 0x57, { 0xb8 , 0xc2 });
-	mass_write (addr, 0x59, { 0x00 , 0x02 , 0x00 , 0x00 , 0x01 });
-	mass_write (addr, 0x59, { 0x00 , 0x00 , 0xb3 , 0xd0 , 0x01 });
-	mass_write (addr, 0x58, { 0xc0 , 0x11 , 0xc5 , 0xc2 , 0xa4 , 0x01 });
-	mass_write (addr, 0x5e, { 0x01 });
-	mass_write (addr, 0x67, { 0x1c , 0x20 });
-	mass_write (addr, 0x75, { 0x33 });
-	mass_write (addr, 0x85, { 0x10 , 0x40 });
-	mass_write (addr, 0x8c, { 0x0b , 0x00 , 0x40 , 0x00 });
-
-	return 0;
-}
-
 /* Tuner callback to provide the proper gpio changes needed for xc2028 */
 
 static int tm6000_tuner_callback(void *ptr, int command, int arg)
@@ -358,9 +333,6 @@ static int attach_inform(struct i2c_client *client)
 		client->driver->driver.name, client->addr, client->name);
 
 	switch (client->addr<<1) {
-	case 0x1e:
-		init_zl10353 (dev, client->addr);
-		return 0;
 	case 0xa0:
 		tm6000_i2c_eeprom(dev, eedata, sizeof(eedata)-1);
 		eedata[sizeof(eedata)]='\0';
