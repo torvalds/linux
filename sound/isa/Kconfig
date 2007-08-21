@@ -414,7 +414,7 @@ config SND_SSCAPE
 config SND_WAVEFRONT
 	tristate "Turtle Beach Maui,Tropez,Tropez+ (Wavefront)"
 	depends on SND
-	select FW_LOADER if !SND_WAVEFRONT_FIRMWARE_IN_KERNEL
+	select FW_LOADER
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_CS4231_LIB
@@ -430,8 +430,9 @@ config SND_WAVEFRONT_FIRMWARE_IN_KERNEL
 	depends on SND_WAVEFRONT
 	default y
 	help
-	  Say Y here to include the static firmware built in the kernel
-	  for the Wavefront driver.  If you choose N here, you need to
-	  install the firmware files from the alsa-firmware package.
+	  Say Y here to include the static firmware for FX DSP built in
+	  the kernel for the Wavefront driver.  If you choose N here,
+	  you need to install the firmware files from the
+	  alsa-firmware package.
 
 endmenu

@@ -1716,7 +1716,51 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2            - DMA2 # for CS4232 PCM interface.
     isapnp          - ISA PnP detection - 0 = disable, 1 = enable (default)
 
+    The below are options for wavefront_synth features:
+    wf_raw	    - Assume that we need to boot the OS (default:no)
+	If yes, then during driver loading, the state of the board is
+	ignored, and we reset the board and load the firmware anyway.
+    fx_raw	    - Assume that the FX process needs help (default:yes)
+	If false, we'll leave the FX processor in whatever state it is
+	when the driver is loaded.  The default is to download the
+	microprogram and associated coefficients to set it up for
+	"default" operation, whatever that means.
+    debug_default   - Debug parameters for card initialization
+    wait_usecs	    - How long to wait without sleeping, usecs
+		      (default:150)
+	This magic number seems to give pretty optimal throughput
+	based on my limited experimentation. 
+	If you want to play around with it and find a better value, be
+	my guest. Remember, the idea is to get a number that causes us
+	to just busy wait for as many WaveFront commands as possible,
+	without coming up with a number so large that we hog the whole
+	CPU. 
+	Specifically, with this number, out of about 134,000 status
+	waits, only about 250 result in a sleep. 
+    sleep_interval  - How long to sleep when waiting for reply
+		      (default: 100)
+    sleep_tries	    - How many times to try sleeping during a wait
+		      (default: 50)
+    ospath	    - Pathname to processed ICS2115 OS firmware
+		      (default:wavefront.os)
+	The path name of the ISC2115 OS firmware.  In the recent
+	version, it's handled via firmware loader framework, so it
+	must be installed in the proper path, typically,
+	/lib/firmware.
+    reset_time	    - How long to wait for a reset to take effect
+		      (default:2)
+    ramcheck_time   - How many seconds to wait for the RAM test
+		      (default:20)
+    osrun_time	    - How many seconds to wait for the ICS2115 OS
+		      (default:10)
+
     This module supports multiple cards and ISA PnP.
+
+    Note: the firmware file "wavefront.os" was located in the earlier
+          version in /etc.  Now it's loaded via firmware loader, and
+	  must be in the proper firmware path, such as /lib/firmware.
+	  Copy (or symlink) the file appropriately if you get an error
+	  regarding firmware downloading after upgrading the kernel.
 
   Module snd-sonicvibes
   ---------------------
