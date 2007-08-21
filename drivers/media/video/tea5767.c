@@ -20,6 +20,10 @@
 /* from tuner-core.c */
 extern int tuner_debug;
 
+struct tea5767_priv {
+	struct tuner_i2c_props i2c_props;
+};
+
 /*****************************************************************************/
 
 /******************************
@@ -129,10 +133,8 @@ enum tea5767_xtal_freq {
 
 /*****************************************************************************/
 
-static void set_tv_freq(struct i2c_client *c, unsigned int freq)
+static void set_tv_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
-
 	tuner_warn("This tuner doesn't support TV freq.\n");
 }
 
@@ -190,9 +192,9 @@ static void tea5767_status_dump(unsigned char *buffer)
 }
 
 /* Freq should be specifyed at 62.5 Hz */
-static void set_radio_freq(struct i2c_client *c, unsigned int frq)
+static void set_radio_freq(struct tuner *t, unsigned int frq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct tea5767_priv *priv = t->priv;
 	unsigned char buffer[5];
 	unsigned div;
 	int rc;
@@ -246,38 +248,38 @@ static void set_radio_freq(struct i2c_client *c, unsigned int frq)
 	buffer[0] = (div >> 8) & 0x3f;
 	buffer[1] = div & 0xff;
 
-	if (5 != (rc = i2c_master_send(c, buffer, 5)))
+	if (5 != (rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
 	if (tuner_debug) {
-		if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+		if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
 			tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 		else
 			tea5767_status_dump(buffer);
 	}
 }
 
-static int tea5767_signal(struct i2c_client *c)
+static int tea5767_signal(struct tuner *t)
 {
 	unsigned char buffer[5];
 	int rc;
-	struct tuner *t = i2c_get_clientdata(c);
+	struct tea5767_priv *priv = t->priv;
 
 	memset(buffer, 0, sizeof(buffer));
-	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+	if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
 	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << 8);
 }
 
-static int tea5767_stereo(struct i2c_client *c)
+static int tea5767_stereo(struct tuner *t)
 {
 	unsigned char buffer[5];
 	int rc;
-	struct tuner *t = i2c_get_clientdata(c);
+	struct tea5767_priv *priv = t->priv;
 
 	memset(buffer, 0, sizeof(buffer));
-	if (5 != (rc = i2c_master_recv(c, buffer, 5)))
+	if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 
 	rc = buffer[2] & TEA5767_STEREO_MASK;
@@ -287,10 +289,10 @@ static int tea5767_stereo(struct i2c_client *c)
 	return ((buffer[2] & TEA5767_STEREO_MASK) ? V4L2_TUNER_SUB_STEREO : 0);
 }
 
-static void tea5767_standby(struct i2c_client *c)
+static void tea5767_standby(struct tuner *t)
 {
 	unsigned char buffer[5];
-	struct tuner *t = i2c_get_clientdata(c);
+	struct tea5767_priv *priv = t->priv;
 	unsigned div, rc;
 
 	div = (87500 * 4 + 700 + 225 + 25) / 50; /* Set frequency to 87.5 MHz */
@@ -301,17 +303,17 @@ static void tea5767_standby(struct i2c_client *c)
 		    TEA5767_ST_NOISE_CTL | TEA5767_JAPAN_BAND | TEA5767_STDBY;
 	buffer[4] = 0;
 
-	if (5 != (rc = i2c_master_send(c, buffer, 5)))
+	if (5 != (rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 5)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 }
 
-int tea5767_autodetection(struct i2c_client *c)
+int tea5767_autodetection(struct tuner *t)
 {
+	struct tuner_i2c_props i2c = { .adap = t->i2c.adapter, .addr = t->i2c.addr };
 	unsigned char buffer[7] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	int rc;
-	struct tuner *t = i2c_get_clientdata(c);
 
-	if ((rc = i2c_master_recv(c, buffer, 7))< 5) {
+	if ((rc = tuner_i2c_xfer_send(&i2c, buffer, 7))< 5) {
 		tuner_warn("It is not a TEA5767. Received %i bytes.\n", rc);
 		return EINVAL;
 	}
@@ -343,20 +345,35 @@ int tea5767_autodetection(struct i2c_client *c)
 	return 0;
 }
 
+static void tea5767_release(struct tuner *t)
+{
+	kfree(t->priv);
+	t->priv = NULL;
+}
+
 static struct tuner_operations tea5767_tuner_ops = {
 	.set_tv_freq    = set_tv_freq,
 	.set_radio_freq = set_radio_freq,
 	.has_signal     = tea5767_signal,
 	.is_stereo      = tea5767_stereo,
 	.standby        = tea5767_standby,
+	.release        = tea5767_release,
 };
 
-int tea5767_tuner_init(struct i2c_client *c)
+int tea5767_tuner_init(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct tea5767_priv *priv = NULL;
+
+	priv = kzalloc(sizeof(struct tea5767_priv), GFP_KERNEL);
+	if (priv == NULL)
+		return -ENOMEM;
+	t->priv = priv;
+
+	priv->i2c_props.addr = t->i2c.addr;
+	priv->i2c_props.adap = t->i2c.adapter;
 
 	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5767HN FM Radio");
-	strlcpy(c->name, "tea5767", sizeof(c->name));
+	strlcpy(t->i2c.name, "tea5767", sizeof(t->i2c.name));
 
 	memcpy(&t->ops, &tea5767_tuner_ops, sizeof(struct tuner_operations));
 

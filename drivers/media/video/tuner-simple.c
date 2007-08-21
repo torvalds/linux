@@ -84,31 +84,32 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 
 struct tuner_simple_priv {
 	u16 last_div;
+	struct tuner_i2c_props i2c_props;
 };
 
 /* ---------------------------------------------------------------------- */
 
-static int tuner_getstatus(struct i2c_client *c)
+static int tuner_getstatus(struct tuner *t)
 {
+	struct tuner_simple_priv *priv = t->priv;
 	unsigned char byte;
 
-	if (1 != i2c_master_recv(c,&byte,1))
+	if (1 != tuner_i2c_xfer_recv(&priv->i2c_props,&byte,1))
 		return 0;
 
 	return byte;
 }
 
-static int tuner_signal(struct i2c_client *c)
+static int tuner_signal(struct tuner *t)
 {
-	return (tuner_getstatus(c) & TUNER_SIGNAL) << 13;
+	return (tuner_getstatus(t) & TUNER_SIGNAL) << 13;
 }
 
-static int tuner_stereo(struct i2c_client *c)
+static int tuner_stereo(struct tuner *t)
 {
 	int stereo, status;
-	struct tuner *t = i2c_get_clientdata(c);
 
-	status = tuner_getstatus (c);
+	status = tuner_getstatus(t);
 
 	switch (t->type) {
 		case TUNER_PHILIPS_FM1216ME_MK3:
@@ -127,9 +128,8 @@ static int tuner_stereo(struct i2c_client *c)
 
 /* ---------------------------------------------------------------------- */
 
-static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
+static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	struct tuner_simple_priv *priv = t->priv;
 	u8 config, cb, tuneraddr;
 	u16 div;
@@ -285,13 +285,13 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			buffer[1] = 0x04;
 		}
 		/* set to the correct mode (analog or digital) */
-		tuneraddr = c->addr;
-		c->addr = 0x0a;
-		if (2 != (rc = i2c_master_send(c,&buffer[0],2)))
+		tuneraddr = priv->i2c_props.addr;
+		priv->i2c_props.addr = 0x0a;
+		if (2 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,&buffer[0],2)))
 			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
-		if (2 != (rc = i2c_master_send(c,&buffer[2],2)))
+		if (2 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,&buffer[2],2)))
 			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
-		c->addr = tuneraddr;
+		priv->i2c_props.addr = tuneraddr;
 		/* FIXME: input */
 		break;
 	}
@@ -345,12 +345,12 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		}
 		if (params->default_pll_gating_18)
 			config |= TDA9887_GATING_18;
-		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
+		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
 	}
 	tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 		  buffer[0],buffer[1],buffer[2],buffer[3]);
 
-	if (4 != (rc = i2c_master_send(c,buffer,4)))
+	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	switch (t->type) {
@@ -362,7 +362,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		buffer[1] = 0x20;
 		tuner_dbg("tv 0x%02x 0x%02x\n",buffer[0],buffer[1]);
 
-		if (2 != (rc = i2c_master_send(c,buffer,2)))
+		if (2 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,2)))
 			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
 		break;
 	case TUNER_MICROTUNE_4042FI5:
@@ -375,7 +375,7 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		for (;;) {
 			if (time_after(jiffies,timeout))
 				return;
-			if (1 != (rc = i2c_master_recv(c,&status_byte,1))) {
+			if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,&status_byte,1))) {
 				tuner_warn("i2c i/o read error: rc == %d (should be 1)\n",rc);
 				break;
 			}
@@ -393,17 +393,16 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		tuner_dbg("tv 0x%02x 0x%02x 0x%02x 0x%02x\n",
 			  buffer[0],buffer[1],buffer[2],buffer[3]);
 
-		if (4 != (rc = i2c_master_send(c,buffer,4)))
+		if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 			tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 		break;
 	}
 	}
 }
 
-static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
+static void default_set_radio_freq(struct tuner *t, unsigned int freq)
 {
 	struct tunertype *tun;
-	struct tuner *t = i2c_get_clientdata(c);
 	struct tuner_simple_priv *priv = t->priv;
 	u8 buffer[4];
 	u16 div;
@@ -498,16 +497,14 @@ static void default_set_radio_freq(struct i2c_client *c, unsigned int freq)
 			config |= TDA9887_GAIN_NORMAL;
 		if (params->radio_if == 2)
 			config |= TDA9887_RIF_41_3;
-		i2c_clients_command(c->adapter, TDA9887_SET_CONFIG, &config);
+		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
 	}
-	if (4 != (rc = i2c_master_send(c,buffer,4)))
+	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 }
 
-static void tuner_release(struct i2c_client *c)
+static void tuner_release(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
-
 	kfree(t->priv);
 	t->priv = NULL;
 }
@@ -520,9 +517,8 @@ static struct tuner_operations simple_tuner_ops = {
 	.release        = tuner_release,
 };
 
-int default_tuner_init(struct i2c_client *c)
+int default_tuner_init(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	struct tuner_simple_priv *priv = NULL;
 
 	priv = kzalloc(sizeof(struct tuner_simple_priv), GFP_KERNEL);
@@ -530,9 +526,12 @@ int default_tuner_init(struct i2c_client *c)
 		return -ENOMEM;
 	t->priv = priv;
 
+	priv->i2c_props.addr = t->i2c.addr;
+	priv->i2c_props.adap = t->i2c.adapter;
+
 	tuner_info("type set to %d (%s)\n",
 		   t->type, tuners[t->type].name);
-	strlcpy(c->name, tuners[t->type].name, sizeof(c->name));
+	strlcpy(t->i2c.name, tuners[t->type].name, sizeof(t->i2c.name));
 
 	memcpy(&t->ops, &simple_tuner_ops, sizeof(struct tuner_operations));
 

@@ -37,23 +37,22 @@ static char *microtune_part[] = {
 };
 
 struct microtune_priv {
+	struct tuner_i2c_props i2c_props;
+
 	unsigned int xogc;
 	unsigned int radio_if2;
 };
 
-static void microtune_release(struct i2c_client *c)
+static void microtune_release(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
-
 	kfree(t->priv);
 	t->priv = NULL;
 }
 
 // IsSpurInBand()?
-static int mt2032_spurcheck(struct i2c_client *c,
+static int mt2032_spurcheck(struct tuner *t,
 			    int f1, int f2, int spectrum_from,int spectrum_to)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	int n1=1,n2,f;
 
 	f1=f1/1000; //scale to kHz to avoid 32bit overflows
@@ -81,7 +80,7 @@ static int mt2032_spurcheck(struct i2c_client *c,
 	return 1;
 }
 
-static int mt2032_compute_freq(struct i2c_client *c,
+static int mt2032_compute_freq(struct tuner *t,
 			       unsigned int rfin,
 			       unsigned int if1, unsigned int if2,
 			       unsigned int spectrum_from,
@@ -90,7 +89,6 @@ static int mt2032_compute_freq(struct i2c_client *c,
 			       int *ret_sel,
 			       unsigned int xogc) //all in Hz
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	unsigned int fref,lo1,lo1n,lo1a,s,sel,lo1freq, desired_lo1,
 		desired_lo2,lo2,lo2n,lo2a,lo2num,lo2freq;
 
@@ -140,7 +138,7 @@ static int mt2032_compute_freq(struct i2c_client *c,
 		return(-1);
 	}
 
-	mt2032_spurcheck(c, lo1freq, desired_lo2,  spectrum_from, spectrum_to);
+	mt2032_spurcheck(t, lo1freq, desired_lo2,  spectrum_from, spectrum_to);
 	// should recalculate lo1 (one step up/down)
 
 	// set up MT2032 register map for transfer over i2c
@@ -164,16 +162,16 @@ static int mt2032_compute_freq(struct i2c_client *c,
 	return 0;
 }
 
-static int mt2032_check_lo_lock(struct i2c_client *c)
+static int mt2032_check_lo_lock(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct microtune_priv *priv = t->priv;
 	int try,lock=0;
 	unsigned char buf[2];
 
 	for(try=0;try<10;try++) {
 		buf[0]=0x0e;
-		i2c_master_send(c,buf,1);
-		i2c_master_recv(c,buf,1);
+		tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+		tuner_i2c_xfer_recv(&priv->i2c_props,buf,1);
 		tuner_dbg("mt2032 Reg.E=0x%02x\n",buf[0]);
 		lock=buf[0] &0x06;
 
@@ -186,15 +184,15 @@ static int mt2032_check_lo_lock(struct i2c_client *c)
 	return lock;
 }
 
-static int mt2032_optimize_vco(struct i2c_client *c,int sel,int lock)
+static int mt2032_optimize_vco(struct tuner *t,int sel,int lock)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct microtune_priv *priv = t->priv;
 	unsigned char buf[2];
 	int tad1;
 
 	buf[0]=0x0f;
-	i2c_master_send(c,buf,1);
-	i2c_master_recv(c,buf,1);
+	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+	tuner_i2c_xfer_recv(&priv->i2c_props,buf,1);
 	tuner_dbg("mt2032 Reg.F=0x%02x\n",buf[0]);
 	tad1=buf[0]&0x07;
 
@@ -217,58 +215,57 @@ static int mt2032_optimize_vco(struct i2c_client *c,int sel,int lock)
 
 	buf[0]=0x0f;
 	buf[1]=sel;
-	i2c_master_send(c,buf,2);
-	lock=mt2032_check_lo_lock(c);
+	tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
+	lock=mt2032_check_lo_lock(t);
 	return lock;
 }
 
 
-static void mt2032_set_if_freq(struct i2c_client *c, unsigned int rfin,
+static void mt2032_set_if_freq(struct tuner *t, unsigned int rfin,
 			       unsigned int if1, unsigned int if2,
 			       unsigned int from, unsigned int to)
 {
 	unsigned char buf[21];
 	int lint_try,ret,sel,lock=0;
-	struct tuner *t = i2c_get_clientdata(c);
 	struct microtune_priv *priv = t->priv;
 
 	tuner_dbg("mt2032_set_if_freq rfin=%d if1=%d if2=%d from=%d to=%d\n",
 		  rfin,if1,if2,from,to);
 
 	buf[0]=0;
-	ret=i2c_master_send(c,buf,1);
-	i2c_master_recv(c,buf,21);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
 
 	buf[0]=0;
-	ret=mt2032_compute_freq(c,rfin,if1,if2,from,to,&buf[1],&sel,priv->xogc);
+	ret=mt2032_compute_freq(t,rfin,if1,if2,from,to,&buf[1],&sel,priv->xogc);
 	if (ret<0)
 		return;
 
 	// send only the relevant registers per Rev. 1.2
 	buf[0]=0;
-	ret=i2c_master_send(c,buf,4);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,4);
 	buf[5]=5;
-	ret=i2c_master_send(c,buf+5,4);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf+5,4);
 	buf[11]=11;
-	ret=i2c_master_send(c,buf+11,3);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf+11,3);
 	if(ret!=3)
 		tuner_warn("i2c i/o error: rc == %d (should be 3)\n",ret);
 
 	// wait for PLLs to lock (per manual), retry LINT if not.
 	for(lint_try=0; lint_try<2; lint_try++) {
-		lock=mt2032_check_lo_lock(c);
+		lock=mt2032_check_lo_lock(t);
 
 		if(optimize_vco)
-			lock=mt2032_optimize_vco(c,sel,lock);
+			lock=mt2032_optimize_vco(t,sel,lock);
 		if(lock==6) break;
 
 		tuner_dbg("mt2032: re-init PLLs by LINT\n");
 		buf[0]=7;
 		buf[1]=0x80 +8+priv->xogc; // set LINT to re-init PLLs
-		i2c_master_send(c,buf,2);
+		tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 		mdelay(10);
 		buf[1]=8+priv->xogc;
-		i2c_master_send(c,buf,2);
+		tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 	}
 
 	if (lock!=6)
@@ -276,15 +273,14 @@ static void mt2032_set_if_freq(struct i2c_client *c, unsigned int rfin,
 
 	buf[0]=2;
 	buf[1]=0x20; // LOGC for optimal phase noise
-	ret=i2c_master_send(c,buf,2);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 	if (ret!=2)
 		tuner_warn("i2c i/o error: rc == %d (should be 2)\n",ret);
 }
 
 
-static void mt2032_set_tv_freq(struct i2c_client *c, unsigned int freq)
+static void mt2032_set_tv_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	int if2,from,to;
 
 	// signal bandwidth and picture carrier
@@ -300,18 +296,17 @@ static void mt2032_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		if2  = 38900*1000;
 	}
 
-	mt2032_set_if_freq(c, freq*62500 /* freq*1000*1000/16 */,
+	mt2032_set_if_freq(t, freq*62500 /* freq*1000*1000/16 */,
 			   1090*1000*1000, if2, from, to);
 }
 
-static void mt2032_set_radio_freq(struct i2c_client *c, unsigned int freq)
+static void mt2032_set_radio_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	struct microtune_priv *priv = t->priv;
 	int if2 = priv->radio_if2;
 
 	// per Manual for FM tuning: first if center freq. 1085 MHz
-	mt2032_set_if_freq(c, freq * 1000 / 16,
+	mt2032_set_if_freq(t, freq * 1000 / 16,
 			      1085*1000*1000,if2,if2,if2);
 }
 
@@ -322,9 +317,8 @@ static struct tuner_operations mt2032_tuner_ops = {
 };
 
 // Initalization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001
-static int mt2032_init(struct i2c_client *c)
+static int mt2032_init(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	struct microtune_priv *priv = t->priv;
 	unsigned char buf[21];
 	int ret,xogc,xok=0;
@@ -334,7 +328,7 @@ static int mt2032_init(struct i2c_client *c)
 	buf[2]=0xff;
 	buf[3]=0x0f;
 	buf[4]=0x1f;
-	ret=i2c_master_send(c,buf+1,4);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf+1,4);
 
 	buf[5]=6; // Index register 6
 	buf[6]=0xe4;
@@ -342,11 +336,11 @@ static int mt2032_init(struct i2c_client *c)
 	buf[8]=0xc3;
 	buf[9]=0x4e;
 	buf[10]=0xec;
-	ret=i2c_master_send(c,buf+5,6);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf+5,6);
 
 	buf[12]=13;  // Index register 13
 	buf[13]=0x32;
-	ret=i2c_master_send(c,buf+12,2);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf+12,2);
 
 	// Adjust XOGC (register 7), wait for XOK
 	xogc=7;
@@ -354,8 +348,8 @@ static int mt2032_init(struct i2c_client *c)
 		tuner_dbg("mt2032: xogc = 0x%02x\n",xogc&0x07);
 		mdelay(10);
 		buf[0]=0x0e;
-		i2c_master_send(c,buf,1);
-		i2c_master_recv(c,buf,1);
+		tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+		tuner_i2c_xfer_recv(&priv->i2c_props,buf,1);
 		xok=buf[0]&0x01;
 		tuner_dbg("mt2032: xok = 0x%02x\n",xok);
 		if (xok == 1) break;
@@ -368,7 +362,7 @@ static int mt2032_init(struct i2c_client *c)
 		}
 		buf[0]=0x07;
 		buf[1]=0x88 + xogc;
-		ret=i2c_master_send(c,buf,2);
+		ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 		if (ret!=2)
 			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",ret);
 	} while (xok != 1 );
@@ -379,21 +373,21 @@ static int mt2032_init(struct i2c_client *c)
 	return(1);
 }
 
-static void mt2050_set_antenna(struct i2c_client *c, unsigned char antenna)
+static void mt2050_set_antenna(struct tuner *t, unsigned char antenna)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct microtune_priv *priv = t->priv;
 	unsigned char buf[2];
 	int ret;
 
 	buf[0] = 6;
 	buf[1] = antenna ? 0x11 : 0x10;
-	ret=i2c_master_send(c,buf,2);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
 	tuner_dbg("mt2050: enabled antenna connector %d\n", antenna);
 }
 
-static void mt2050_set_if_freq(struct i2c_client *c,unsigned int freq, unsigned int if2)
+static void mt2050_set_if_freq(struct tuner *t,unsigned int freq, unsigned int if2)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct microtune_priv *priv = t->priv;
 	unsigned int if1=1218*1000*1000;
 	unsigned int f_lo1,f_lo2,lo1,lo2,f_lo1_modulo,f_lo2_modulo,num1,num2,div1a,div1b,div2a,div2b;
 	int ret;
@@ -449,14 +443,13 @@ static void mt2050_set_if_freq(struct i2c_client *c,unsigned int freq, unsigned 
 		printk("\n");
 	}
 
-	ret=i2c_master_send(c,buf,6);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,6);
 	if (ret!=6)
 		tuner_warn("i2c i/o error: rc == %d (should be 6)\n",ret);
 }
 
-static void mt2050_set_tv_freq(struct i2c_client *c, unsigned int freq)
+static void mt2050_set_tv_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	unsigned int if2;
 
 	if (t->std & V4L2_STD_525_60) {
@@ -470,18 +463,17 @@ static void mt2050_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		// DVB (pinnacle 300i)
 		if2 = 36150*1000;
 	}
-	mt2050_set_if_freq(c, freq*62500, if2);
-	mt2050_set_antenna(c, tv_antenna);
+	mt2050_set_if_freq(t, freq*62500, if2);
+	mt2050_set_antenna(t, tv_antenna);
 }
 
-static void mt2050_set_radio_freq(struct i2c_client *c, unsigned int freq)
+static void mt2050_set_radio_freq(struct tuner *t, unsigned int freq)
 {
-	struct tuner *t = i2c_get_clientdata(c);
 	struct microtune_priv *priv = t->priv;
 	int if2 = priv->radio_if2;
 
-	mt2050_set_if_freq(c, freq * 1000 / 16, if2);
-	mt2050_set_antenna(c, radio_antenna);
+	mt2050_set_if_freq(t, freq * 1000 / 16, if2);
+	mt2050_set_antenna(t, radio_antenna);
 }
 
 static struct tuner_operations mt2050_tuner_ops = {
@@ -490,23 +482,23 @@ static struct tuner_operations mt2050_tuner_ops = {
 	.release        = microtune_release,
 };
 
-static int mt2050_init(struct i2c_client *c)
+static int mt2050_init(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
+	struct microtune_priv *priv = t->priv;
 	unsigned char buf[2];
 	int ret;
 
 	buf[0]=6;
 	buf[1]=0x10;
-	ret=i2c_master_send(c,buf,2); //  power
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2); //  power
 
 	buf[0]=0x0f;
 	buf[1]=0x0f;
-	ret=i2c_master_send(c,buf,2); // m1lo
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,2); // m1lo
 
 	buf[0]=0x0d;
-	ret=i2c_master_send(c,buf,1);
-	i2c_master_recv(c,buf,1);
+	ret=tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+	tuner_i2c_xfer_recv(&priv->i2c_props,buf,1);
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
 
@@ -515,10 +507,9 @@ static int mt2050_init(struct i2c_client *c)
 	return 0;
 }
 
-int microtune_init(struct i2c_client *c)
+int microtune_init(struct tuner *t)
 {
 	struct microtune_priv *priv = NULL;
-	struct tuner *t = i2c_get_clientdata(c);
 	char *name;
 	unsigned char buf[21];
 	int company_code;
@@ -527,6 +518,9 @@ int microtune_init(struct i2c_client *c)
 	if (priv == NULL)
 		return -ENOMEM;
 	t->priv = priv;
+
+	priv->i2c_props.addr = t->i2c.addr;
+	priv->i2c_props.adap = t->i2c.adapter;
 
 	priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 
@@ -541,8 +535,8 @@ int microtune_init(struct i2c_client *c)
 	}
 	name = "unknown";
 
-	i2c_master_send(c,buf,1);
-	i2c_master_recv(c,buf,21);
+	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
+	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
 	if (tuner_debug) {
 		int i;
 		tuner_dbg("MT20xx hexdump:");
@@ -562,10 +556,10 @@ int microtune_init(struct i2c_client *c)
 		name = microtune_part[buf[0x13]];
 	switch (buf[0x13]) {
 	case MT2032:
-		mt2032_init(c);
+		mt2032_init(t);
 		break;
 	case MT2050:
-		mt2050_init(c);
+		mt2050_init(t);
 		break;
 	default:
 		tuner_info("microtune %s found, not (yet?) supported, sorry :-/\n",
@@ -573,7 +567,7 @@ int microtune_init(struct i2c_client *c)
 		return 0;
 	}
 
-	strlcpy(c->name, name, sizeof(c->name));
+	strlcpy(t->i2c.name, name, sizeof(t->i2c.name));
 	tuner_info("microtune %s found, OK\n",name);
 	return 0;
 }
