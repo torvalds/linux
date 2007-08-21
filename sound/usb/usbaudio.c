@@ -2840,6 +2840,10 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 			/* skip non-supported classes */
 			continue;
 		}
+		if (snd_usb_get_speed(dev) == USB_SPEED_LOW) {
+			snd_printk(KERN_ERR "low speed audio streaming not supported\n");
+			continue;
+		}
 		if (! parse_audio_endpoints(chip, j)) {
 			usb_set_interface(dev, j, 0); /* reset the current interface */
 			usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
@@ -3382,7 +3386,8 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 
 	*rchip = NULL;
 
-	if (snd_usb_get_speed(dev) != USB_SPEED_FULL &&
+	if (snd_usb_get_speed(dev) != USB_SPEED_LOW &&
+	    snd_usb_get_speed(dev) != USB_SPEED_FULL &&
 	    snd_usb_get_speed(dev) != USB_SPEED_HIGH) {
 		snd_printk(KERN_ERR "unknown device speed %d\n", snd_usb_get_speed(dev));
 		return -ENXIO;
@@ -3456,7 +3461,9 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 		usb_make_path(dev, card->longname + len, sizeof(card->longname) - len);
 
 	strlcat(card->longname,
-		snd_usb_get_speed(dev) == USB_SPEED_FULL ? ", full speed" : ", high speed",
+		snd_usb_get_speed(dev) == USB_SPEED_LOW ? ", low speed" :
+		snd_usb_get_speed(dev) == USB_SPEED_FULL ? ", full speed" :
+		", high speed",
 		sizeof(card->longname));
 
 	snd_usb_audio_create_proc(chip);
