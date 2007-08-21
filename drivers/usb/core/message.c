@@ -1358,6 +1358,30 @@ static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
 	usb_dev = interface_to_usbdev(intf);
 	alt = intf->cur_altsetting;
 
+#ifdef CONFIG_USB_DEVICEFS
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "DEVICE=/proc/bus/usb/%03d/%03d",
+			   usb_dev->bus->busnum, usb_dev->devnum))
+		return -ENOMEM;
+#endif
+
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "PRODUCT=%x/%x/%x",
+			   le16_to_cpu(usb_dev->descriptor.idVendor),
+			   le16_to_cpu(usb_dev->descriptor.idProduct),
+			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
+		return -ENOMEM;
+
+	if (add_uevent_var(envp, num_envp, &i,
+			   buffer, buffer_size, &length,
+			   "TYPE=%d/%d/%d",
+			   usb_dev->descriptor.bDeviceClass,
+			   usb_dev->descriptor.bDeviceSubClass,
+			   usb_dev->descriptor.bDeviceProtocol))
+		return -ENOMEM;
+
 	if (add_uevent_var(envp, num_envp, &i,
 		   buffer, buffer_size, &length,
 		   "INTERFACE=%d/%d/%d",
