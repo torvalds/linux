@@ -59,7 +59,6 @@ simcons_write (struct console *cons, const char *buf, unsigned count)
 
 static struct tty_driver *simcons_console_device (struct console *c, int *index)
 {
-	extern struct tty_driver *hp_simserial_driver;
 	*index = c->index;
 	return hp_simserial_driver;
 }

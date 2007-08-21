@@ -7,4 +7,10 @@ static inline int simcons_register(void) { return 1; }
 int simcons_register(void);
 #endif
 
+struct tty_driver;
+extern struct tty_driver *hp_simserial_driver;
+
+void ia64_ssc_connect_irq(long intr, long irq);
+void ia64_ctl_trace(long on);
+
 #endif
