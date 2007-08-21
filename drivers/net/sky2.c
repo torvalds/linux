@@ -219,8 +219,11 @@ static void sky2_power_on(struct sky2_hw *hw)
 	else
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX) {
 		u32 reg;
+
+		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 
 		reg = sky2_pci_read32(hw, PCI_DEV_REG4);
 		/* set all bits to 0 except bits 15..12 and 8 */
@@ -238,6 +241,8 @@ static void sky2_power_on(struct sky2_hw *hw)
 		reg = sky2_read32(hw, B2_GP_IO);
 		reg |= GLB_GPIO_STAT_RACE_DIS;
 		sky2_write32(hw, B2_GP_IO, reg);
+
+		sky2_read32(hw, B2_GP_IO);
 	}
 }
 
