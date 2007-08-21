@@ -232,7 +232,7 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 		IVTV_DEBUG_IOCTL("VIDIOC_S_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
 			struct cx2341x_mpeg_params p = itv->params;
-			int err = cx2341x_ext_ctrls(&p, arg, cmd);
+			int err = cx2341x_ext_ctrls(&p, atomic_read(&itv->capturing), arg, cmd);
 
 			if (err)
 				return err;
@@ -282,7 +282,7 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 		}
 		IVTV_DEBUG_IOCTL("VIDIOC_G_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, arg, cmd);
+			return cx2341x_ext_ctrls(&itv->params, 0, arg, cmd);
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg)
 
 		IVTV_DEBUG_IOCTL("VIDIOC_TRY_EXT_CTRLS\n");
 		if (c->ctrl_class == V4L2_CTRL_CLASS_MPEG)
-			return cx2341x_ext_ctrls(&itv->params, arg, cmd);
+			return cx2341x_ext_ctrls(&itv->params, atomic_read(&itv->capturing), arg, cmd);
 		return -EINVAL;
 	}
 

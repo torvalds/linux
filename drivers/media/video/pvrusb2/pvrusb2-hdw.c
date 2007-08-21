@@ -492,7 +492,7 @@ static int ctrl_cx2341x_get(struct pvr2_ctrl *cptr,int *vp)
 	cs.controls = &c1;
 	cs.count = 1;
 	c1.id = cptr->info->v4l_id;
-	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state, 0, &cs,
 				VIDIOC_G_EXT_CTRLS);
 	if (ret) return ret;
 	*vp = c1.value;
@@ -510,7 +510,7 @@ static int ctrl_cx2341x_set(struct pvr2_ctrl *cptr,int m,int v)
 	cs.count = 1;
 	c1.id = cptr->info->v4l_id;
 	c1.value = v;
-	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state, 0, &cs,
 				VIDIOC_S_EXT_CTRLS);
 	if (ret) return ret;
 	cptr->hdw->enc_stale = !0;
@@ -2478,7 +2478,7 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		cs.count = 1;
 		c1.id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ;
 		c1.value = hdw->srate_val;
-		cx2341x_ext_ctrls(&hdw->enc_ctl_state,&cs,VIDIOC_S_EXT_CTRLS);
+		cx2341x_ext_ctrls(&hdw->enc_ctl_state, 0, &cs,VIDIOC_S_EXT_CTRLS);
 	}
 
 	/* Scan i2c core at this point - before we clear all the dirty

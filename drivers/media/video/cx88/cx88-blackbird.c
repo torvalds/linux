@@ -876,7 +876,7 @@ static int vidioc_g_ext_ctrls (struct file *file, void *priv,
 
 	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
-	return cx2341x_ext_ctrls(&dev->params, f, VIDIOC_G_EXT_CTRLS);
+	return cx2341x_ext_ctrls(&dev->params, 0, f, VIDIOC_G_EXT_CTRLS);
 }
 
 static int vidioc_s_ext_ctrls (struct file *file, void *priv,
@@ -889,7 +889,7 @@ static int vidioc_s_ext_ctrls (struct file *file, void *priv,
 	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
 	p = dev->params;
-	err = cx2341x_ext_ctrls(&p, f, VIDIOC_S_EXT_CTRLS);
+	err = cx2341x_ext_ctrls(&p, 0, f, VIDIOC_S_EXT_CTRLS);
 	if (!err) {
 		err = cx2341x_update(dev, blackbird_mbox_func, &dev->params, &p);
 		dev->params = p;
@@ -907,7 +907,7 @@ static int vidioc_try_ext_ctrls (struct file *file, void *priv,
 	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
 	p = dev->params;
-	err = cx2341x_ext_ctrls(&p, f, VIDIOC_TRY_EXT_CTRLS);
+	err = cx2341x_ext_ctrls(&p, 0, f, VIDIOC_TRY_EXT_CTRLS);
 
 	return err;
 }
