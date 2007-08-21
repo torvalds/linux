@@ -548,6 +548,7 @@ config ETRAX_IDE
 	select BLK_DEV_IDEDISK
 	select BLK_DEV_IDECD
 	select BLK_DEV_IDEDMA
+	select IDE_GENERIC
 	help
 	  Enable this to get support for ATA/IDE.
 	  You can't use parallel ports or SCSI ports
