@@ -19,8 +19,8 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef __TUNER_HW_H__
-#define __TUNER_HW_H__
+#ifndef __TUNER_DRIVER_H__
+#define __TUNER_DRIVER_H__
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
@@ -95,7 +95,7 @@ extern int tea5767_tuner_init(struct i2c_client *c);
 		printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
-#endif /* __TUNER_HW_H__ */
+#endif /* __TUNER_DRIVER_H__ */
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
