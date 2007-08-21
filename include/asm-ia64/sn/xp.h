@@ -86,7 +86,7 @@ xp_bte_copy(u64 src, u64 vdst, u64 len, u64 mode, void *notification)
 	BUG_ON(REGION_NUMBER(vdst) != RGN_KERNEL);
 
 	ret = bte_copy(src, pdst, len, mode, notification);
-	if (ret != BTE_SUCCESS) {
+	if ((ret != BTE_SUCCESS) && BTE_ERROR_RETRY(ret)) {
 		if (!in_interrupt()) {
 			cond_resched();
 		}
@@ -244,7 +244,30 @@ enum xpc_retval {
 
 	xpcDisconnected,	/* 51: channel disconnected (closed) */
 
-	xpcUnknownReason	/* 52: unknown reason -- must be last in list */
+	xpcBteSh2Start,		/* 52: BTE CRB timeout */
+
+				/* 53: 0x1 BTE Error Response Short */
+	xpcBteSh2RspShort = xpcBteSh2Start + BTEFAIL_SH2_RESP_SHORT,
+
+				/* 54: 0x2 BTE Error Response Long */
+	xpcBteSh2RspLong = xpcBteSh2Start + BTEFAIL_SH2_RESP_LONG,
+
+				/* 56: 0x4 BTE Error Response DSB */
+	xpcBteSh2RspDSB = xpcBteSh2Start + BTEFAIL_SH2_RESP_DSP,
+
+				/* 60: 0x8 BTE Error Response Access */
+	xpcBteSh2RspAccess = xpcBteSh2Start + BTEFAIL_SH2_RESP_ACCESS,
+
+				/* 68: 0x10 BTE Error CRB timeout */
+	xpcBteSh2CRBTO = xpcBteSh2Start + BTEFAIL_SH2_CRB_TO,
+
+				/* 84: 0x20 BTE Error NACK limit */
+	xpcBteSh2NACKLimit = xpcBteSh2Start + BTEFAIL_SH2_NACK_LIMIT,
+
+				/* 115: BTE end */
+	xpcBteSh2End = xpcBteSh2Start + BTEFAIL_SH2_ALL,
+
+	xpcUnknownReason	/* 116: unknown reason -- must be last in list */
 };
 
 
