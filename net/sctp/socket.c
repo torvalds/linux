@@ -353,6 +353,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	 * The function sctp_get_port_local() does duplicate address
 	 * detection.
 	 */
+	addr->v4.sin_port = htons(snum);
 	if ((ret = sctp_get_port_local(sk, addr))) {
 		if (ret == (long) sk) {
 			/* This endpoint has a conflicting address. */
