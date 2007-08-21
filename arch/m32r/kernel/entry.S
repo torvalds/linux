@@ -355,7 +355,7 @@ ENTRY(ei_handler)
 	lduh	r0, @(low(M32R_INT0ICU_ISTS),r0)	; bit10-6 : ISN
 	slli	r0, #21
 	srli	r0, #27				; ISN
-	addi	r0, #(M32R_INT0ICU_IRQ_BASE)
+	add3	r0, r0, #(M32R_INT0ICU_IRQ_BASE)
 	bra	check_end
 	.fillinsn
 4:
@@ -367,7 +367,7 @@ ENTRY(ei_handler)
 	lduh	r0, @(low(M32R_INT2ICU_ISTS),r0)	; bit10-6 : ISN
 	slli	r0, #21
 	srli	r0, #27				; ISN
-	addi	r0, #(M32R_INT2ICU_IRQ_BASE)
+	add3	r0, r0, #(M32R_INT2ICU_IRQ_BASE)
 	; bra	check_end
 	.fillinsn
 5:
