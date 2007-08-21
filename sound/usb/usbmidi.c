@@ -983,8 +983,10 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 		snd_usbmidi_out_endpoint_delete(ep);
 		return -ENOMEM;
 	}
-	/* we never use interrupt output pipes */
-	pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
+	if (ep_info->out_interval)
+		pipe = usb_sndintpipe(umidi->chip->dev, ep_info->out_ep);
+	else
+		pipe = usb_sndbulkpipe(umidi->chip->dev, ep_info->out_ep);
 	if (umidi->chip->usb_id == USB_ID(0x0a92, 0x1020)) /* ESI M4U */
 		/* FIXME: we need more URBs to get reasonable bandwidth here: */
 		ep->max_transfer = 4;
@@ -996,8 +998,14 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 		snd_usbmidi_out_endpoint_delete(ep);
 		return -ENOMEM;
 	}
-	usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
-			  ep->max_transfer, snd_usbmidi_out_urb_complete, ep);
+	if (ep_info->out_interval)
+		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer,
+				 ep->max_transfer, snd_usbmidi_out_urb_complete,
+				 ep, ep_info->out_interval);
+	else
+		usb_fill_bulk_urb(ep->urb, umidi->chip->dev,
+				  pipe, buffer, ep->max_transfer,
+				  snd_usbmidi_out_urb_complete, ep);
 	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	spin_lock_init(&ep->buffer_lock);
