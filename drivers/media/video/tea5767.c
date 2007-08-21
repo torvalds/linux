@@ -11,8 +11,8 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/videodev.h>
 #include <linux/delay.h>
+#include <linux/videodev.h>
 #include "tuner-driver.h"
 
 #define PREFIX "TEA5767 "

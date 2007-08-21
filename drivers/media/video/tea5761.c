@@ -8,8 +8,8 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/videodev.h>
 #include <linux/delay.h>
+#include <linux/videodev.h>
 #include <media/tuner.h>
 #include "tuner-driver.h"
 

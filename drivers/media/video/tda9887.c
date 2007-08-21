@@ -3,12 +3,11 @@
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/types.h>
-#include <linux/videodev.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-
+#include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include "tuner-driver.h"
