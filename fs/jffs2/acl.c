@@ -176,7 +176,7 @@ static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct
 	spin_unlock(&inode->i_lock);
 }
 
-static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
+struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct posix_acl *acl;
@@ -247,8 +247,13 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 			if (rc < 0)
 				return rc;
 			if (inode->i_mode != mode) {
-				inode->i_mode = mode;
-				jffs2_dirty_inode(inode);
+				struct iattr attr;
+
+				attr.ia_valid = ATTR_MODE;
+				attr.ia_mode = mode;
+				rc = jffs2_do_setattr(inode, &attr);
+				if (rc < 0)
+					return rc;
 			}
 			if (rc == 0)
 				acl = NULL;
@@ -307,22 +312,16 @@ int jffs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 	return generic_permission(inode, mask, jffs2_check_acl);
 }
 
-int jffs2_init_acl(struct inode *inode, struct inode *dir)
+int jffs2_init_acl(struct inode *inode, struct posix_acl *acl)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
-	struct posix_acl *acl = NULL, *clone;
+	struct posix_acl *clone;
 	mode_t mode;
 	int rc = 0;
 
 	f->i_acl_access = JFFS2_ACL_NOT_CACHED;
 	f->i_acl_default = JFFS2_ACL_NOT_CACHED;
-	if (!S_ISLNK(inode->i_mode)) {
-		acl = jffs2_get_acl(dir, ACL_TYPE_DEFAULT);
-		if (IS_ERR(acl))
-			return PTR_ERR(acl);
-		if (!acl)
-			inode->i_mode &= ~current->fs->umask;
-	}
+
 	if (acl) {
 		if (S_ISDIR(inode->i_mode)) {
 			rc = jffs2_set_acl(inode, ACL_TYPE_DEFAULT, acl);
