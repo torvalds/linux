@@ -9,8 +9,7 @@ static inline void atomic_scrub(void *va, u32 size)
 	unsigned long temp;
 	u32 i;
 
-	for (i = 0; i < size / sizeof(unsigned long); i++, virt_addr++) {
-
+	for (i = 0; i < size / sizeof(unsigned long); i++) {
 		/*
 		 * Very carefully read and write to memory atomically
 		 * so we are interrupt, DMA and SMP safe.
@@ -19,16 +18,16 @@ static inline void atomic_scrub(void *va, u32 size)
 		 */
 
 		__asm__ __volatile__ (
-		"       .set    mips3                                   \n"
-		"1:     ll      %0, %1          # atomic_add            \n"
-		"       ll      %0, %1          # atomic_add            \n"
-		"       addu    %0, $0                                  \n"
-		"       sc      %0, %1                                  \n"
-		"       beqz    %0, 1b                                  \n"
-		"       .set    mips0                                   \n"
+		"	.set	mips2					\n"
+		"1:	ll	%0, %1		# atomic_scrub		\n"
+		"	addu	%0, $0					\n"
+		"	sc	%0, %1					\n"
+		"	beqz	%0, 1b					\n"
+		"	.set	mips0					\n"
 		: "=&r" (temp), "=m" (*virt_addr)
 		: "m" (*virt_addr));
 
+		virt_addr++;
 	}
 }
 
