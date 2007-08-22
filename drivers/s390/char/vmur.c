@@ -14,6 +14,7 @@
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 #include <asm/debug.h>
+#include <asm/diag.h>
 
 #include "vmur.h"
 
@@ -379,31 +380,6 @@ static ssize_t ur_write(struct file *file, const char __user *udata,
 	return do_write(urf->urd, udata, count, urf->dev_reclen, ppos);
 }
 
-static int do_diag_14(unsigned long rx, unsigned long ry1,
-		      unsigned long subcode)
-{
-	register unsigned long _ry1 asm("2") = ry1;
-	register unsigned long _ry2 asm("3") = subcode;
-	int rc = 0;
-
-	asm volatile(
-#ifdef CONFIG_64BIT
-		"   sam31\n"
-		"   diag    %2,2,0x14\n"
-		"   sam64\n"
-#else
-		"   diag    %2,2,0x14\n"
-#endif
-		"   ipm     %0\n"
-		"   srl     %0,28\n"
-		: "=d" (rc), "+d" (_ry2)
-		: "d" (rx), "d" (_ry1)
-		: "cc");
-
-	TRACE("diag 14: subcode=0x%lx, cc=%i\n", subcode, rc);
-	return rc;
-}
-
 /*
  * diagnose code 0x14 subcode 0x0028 - position spool file to designated
  *				       record
@@ -415,7 +391,7 @@ static int diag_position_to_record(int devno, int record)
 {
 	int cc;
 
-	cc = do_diag_14(record, devno, 0x28);
+	cc = diag14(record, devno, 0x28);
 	switch (cc) {
 	case 0:
 		return 0;
@@ -440,7 +416,7 @@ static int diag_read_file(int devno, char *buf)
 {
 	int cc;
 
-	cc = do_diag_14((unsigned long) buf, devno, 0x00);
+	cc = diag14((unsigned long) buf, devno, 0x00);
 	switch (cc) {
 	case 0:
 		return 0;
@@ -533,7 +509,7 @@ static int diag_read_next_file_info(struct file_control_block *buf, int spid)
 {
 	int cc;
 
-	cc = do_diag_14((unsigned long) buf, spid, 0xfff);
+	cc = diag14((unsigned long) buf, spid, 0xfff);
 	switch (cc) {
 	case 0:
 		return 0;

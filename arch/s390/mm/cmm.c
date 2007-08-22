@@ -20,6 +20,7 @@
 
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
+#include <asm/diag.h>
 
 static char *sender = "VMRMSVM";
 module_param(sender, charp, 0400);
