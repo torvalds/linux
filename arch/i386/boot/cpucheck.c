@@ -96,7 +96,8 @@ static int has_fpu(void)
 		asm volatile("movl %0,%%cr0" : : "r" (cr0));
 	}
 
-	asm("fninit ; fnstsw %0 ; fnstcw %1" : "+m" (fsw), "+m" (fcw));
+	asm volatile("fninit ; fnstsw %0 ; fnstcw %1"
+		     : "+m" (fsw), "+m" (fcw));
 
 	return fsw == 0 && (fcw & 0x103f) == 0x003f;
 }

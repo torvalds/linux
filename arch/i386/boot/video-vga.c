@@ -47,16 +47,16 @@ static u8 vga_set_basic_mode(void)
 
 #ifdef CONFIG_VIDEO_400_HACK
 	if (adapter >= ADAPTER_VGA) {
-		asm(INT10
-		    : : "a" (0x1202), "b" (0x0030)
-		    : "ecx", "edx", "esi", "edi");
+		asm volatile(INT10
+			     : : "a" (0x1202), "b" (0x0030)
+			     : "ecx", "edx", "esi", "edi");
 	}
 #endif
 
 	ax = 0x0f00;
-	asm(INT10
-	    : "+a" (ax)
-	    : : "ebx", "ecx", "edx", "esi", "edi");
+	asm volatile(INT10
+		     : "+a" (ax)
+		     : : "ebx", "ecx", "edx", "esi", "edi");
 
 	mode = (u8)ax;
 

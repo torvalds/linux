@@ -54,9 +54,9 @@ static u8 gettime(void)
 	u16 ax = 0x0200;
 	u16 cx, dx;
 
-	asm("int $0x1a"
-	    : "+a" (ax), "=c" (cx), "=d" (dx)
-	    : : "ebx", "esi", "edi");
+	asm volatile("int $0x1a"
+		     : "+a" (ax), "=c" (cx), "=d" (dx)
+		     : : "ebx", "esi", "edi");
 
 	return dx >> 8;
 }
@@ -67,7 +67,7 @@ static u8 gettime(void)
 int getchar(void)
 {
 	u16 ax = 0;
-	asm("int $0x16" : "+a" (ax));
+	asm volatile("int $0x16" : "+a" (ax));
 
 	return ax & 0xff;
 }
@@ -75,9 +75,9 @@ int getchar(void)
 static int kbd_pending(void)
 {
 	u8 pending;
-	asm("int $0x16; setnz %0"
-	    : "=rm" (pending)
-	    : "a" (0x0100));
+	asm volatile("int $0x16; setnz %0"
+		     : "=rm" (pending)
+		     : "a" (0x0100));
 	return pending;
 }
 
