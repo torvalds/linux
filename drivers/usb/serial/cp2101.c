@@ -521,7 +521,7 @@ static void cp2101_set_termios (struct usb_serial_port *port,
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if ((!port->tty) || (!port->tty->termios)) {
+	if (!port->tty || !port->tty->termios) {
 		dbg("%s - no tty structures", __FUNCTION__);
 		return;
 	}
