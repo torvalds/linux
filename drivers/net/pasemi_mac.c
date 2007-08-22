@@ -206,7 +206,7 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 			   PAS_DMA_RXCHAN_BASEU_SIZ(RX_RING_SIZE >> 2));
 
 	write_dma_reg(mac, PAS_DMA_RXCHAN_CFG(chan_id),
-			   PAS_DMA_RXCHAN_CFG_HBU(1));
+			   PAS_DMA_RXCHAN_CFG_HBU(2));
 
 	write_dma_reg(mac, PAS_DMA_RXINT_BASEL(mac->dma_if),
 			   PAS_DMA_RXINT_BASEL_BRBL(__pa(ring->buffers)));
@@ -214,6 +214,9 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 	write_dma_reg(mac, PAS_DMA_RXINT_BASEU(mac->dma_if),
 			   PAS_DMA_RXINT_BASEU_BRBH(__pa(ring->buffers) >> 32) |
 			   PAS_DMA_RXINT_BASEU_SIZ(RX_RING_SIZE >> 3));
+
+	write_dma_reg(mac, PAS_DMA_RXINT_CFG(mac->dma_if),
+			   PAS_DMA_RXINT_CFG_DHL(2));
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
