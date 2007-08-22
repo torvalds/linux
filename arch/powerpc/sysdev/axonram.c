@@ -281,8 +281,6 @@ failed:
 		if (bank->irq_id != NO_IRQ)
 			free_irq(bank->irq_id, device);
 		if (bank->disk != NULL) {
-			if (bank->disk->queue != NULL)
-				blk_cleanup_queue(bank->disk->queue);
 			if (bank->disk->major > 0)
 				unregister_blkdev(bank->disk->major,
 						bank->disk->disk_name);
@@ -310,7 +308,6 @@ axon_ram_remove(struct of_device *device)
 
 	device_remove_file(&device->dev, &dev_attr_ecc);
 	free_irq(bank->irq_id, device);
-	blk_cleanup_queue(bank->disk->queue);
 	unregister_blkdev(bank->disk->major, bank->disk->disk_name);
 	del_gendisk(bank->disk);
 	iounmap((void __iomem *) bank->io_addr);
