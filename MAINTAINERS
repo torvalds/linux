@@ -3452,7 +3452,7 @@ S:	Maintained
 
 TPM DEVICE DRIVER
 P:	Kylene Hall
-M:	kjhall@us.ibm.com
+M:	tpmdd-devel@lists.sourceforge.net
 W:	http://tpmdd.sourceforge.net
 P:	Marcel Selhorst
 M:	tpm@selhorst.net
