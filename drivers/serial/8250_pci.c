@@ -1652,6 +1652,10 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 	},
 };
 
+static const struct pci_device_id softmodem_blacklist[] = {
+	{ PCI_VDEVICE ( AL, 0x5457 ), }, /* ALi Corporation M5457 AC'97 Modem */
+};
+
 /*
  * Given a complete unknown PCI device, try to use some heuristics to
  * guess what the configuration might be, based on the pitiful PCI
@@ -1660,6 +1664,7 @@ static struct pciserial_board pci_boards[] __devinitdata = {
 static int __devinit
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
+	const struct pci_device_id *blacklist;
 	int num_iomem, num_port, first_port = -1, i;
 	
 	/*
@@ -1673,6 +1678,18 @@ serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 	     ((dev->class >> 8) != PCI_CLASS_COMMUNICATION_MODEM)) ||
 	    (dev->class & 0xff) > 6)
 		return -ENODEV;
+
+	/*
+	 * Do not access blacklisted devices that are known not to
+	 * feature serial ports.
+	 */
+	for (blacklist = softmodem_blacklist;
+	     blacklist < softmodem_blacklist + ARRAY_SIZE(softmodem_blacklist);
+	     blacklist++) {
+		if (dev->vendor == blacklist->vendor &&
+		    dev->device == blacklist->device)
+			return -ENODEV;
+	}
 
 	num_iomem = num_port = 0;
 	for (i = 0; i < PCI_NUM_BAR_RESOURCES; i++) {
