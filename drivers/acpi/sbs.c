@@ -445,6 +445,7 @@ static int acpi_sbs_generate_event(struct acpi_device *device,
 	strcpy(acpi_device_bid(device), bid_saved);
 	strcpy(acpi_device_class(device), class_saved);
 
+	acpi_bus_generate_netlink_event(class, bid, event, state);
 	return result;
 }
 

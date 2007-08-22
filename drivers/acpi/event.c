@@ -147,7 +147,8 @@ static struct genl_multicast_group acpi_event_mcgrp = {
 	.name = ACPI_GENL_MCAST_GROUP_NAME,
 };
 
-int acpi_bus_generate_genetlink_event(struct acpi_device *device,
+int acpi_bus_generate_netlink_event(const char *device_class,
+				      const char *bus_id,
 				      u8 type, int data)
 {
 	struct sk_buff *skb;
@@ -191,8 +192,8 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 
 	memset(event, 0, sizeof(struct acpi_genl_event));
 
-	strcpy(event->device_class, device->pnp.device_class);
-	strcpy(event->bus_id, device->dev.bus_id);
+	strcpy(event->device_class, device_class);
+	strcpy(event->bus_id, bus_id);
 	event->type = type;
 	event->data = data;
 
@@ -211,6 +212,8 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 	return 0;
 }
 
+EXPORT_SYMBOL(acpi_bus_generate_netlink_event);
+
 static int acpi_event_genetlink_init(void)
 {
 	int result;
@@ -228,11 +231,13 @@ static int acpi_event_genetlink_init(void)
 }
 
 #else
-int acpi_bus_generate_genetlink_event(struct acpi_device *device, u8 type,
+int acpi_bus_generate_netlink_event(struct acpi_device *device, u8 type,
 				      int data)
 {
 	return 0;
 }
+
+EXPORT_SYMBOL(acpi_generate_netlink_event);
 
 static int acpi_event_genetlink_init(void)
 {

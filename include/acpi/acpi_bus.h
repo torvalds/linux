@@ -321,8 +321,7 @@ struct acpi_bus_event {
 };
 
 extern struct kset acpi_subsys;
-extern int acpi_bus_generate_genetlink_event(struct acpi_device *device,
-						u8 type, int data);
+extern int acpi_bus_generate_netlink_event(const char*, const char*, u8, int);
 /*
  * External Functions
  */

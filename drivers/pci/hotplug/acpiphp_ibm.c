@@ -268,6 +268,9 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 	if (subevent == 0x80) {
 		dbg("%s: generationg bus event\n", __FUNCTION__);
 		acpi_bus_generate_event(note->device, note->event, detail);
+		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
+						  note->device->dev.bus_id,
+						  note->event, detail);
 	} else
 		note->event = event;
 }

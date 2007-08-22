@@ -869,6 +869,9 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 		acpi_battery_notify_update(battery);
 		acpi_bus_generate_event(device, event,
 					acpi_battery_present(battery));
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event,
+						  acpi_battery_present(battery));
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
