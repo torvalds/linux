@@ -559,7 +559,7 @@ static const struct ata_port_operations sis_133_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_133_for_sata_ops = {
@@ -591,7 +591,7 @@ static const struct ata_port_operations sis_133_for_sata_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_133_early_ops = {
@@ -623,7 +623,7 @@ static const struct ata_port_operations sis_133_early_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_100_ops = {
@@ -655,7 +655,7 @@ static const struct ata_port_operations sis_100_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_66_ops = {
@@ -687,7 +687,7 @@ static const struct ata_port_operations sis_66_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_operations sis_old_ops = {
@@ -719,7 +719,7 @@ static const struct ata_port_operations sis_old_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static const struct ata_port_info sis_info = {

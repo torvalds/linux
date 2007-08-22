@@ -139,7 +139,7 @@ static const struct ata_port_operations marvell_ops = {
 	.irq_on			= ata_irq_on,
 
 	/* Generic PATA PCI ATA helpers */
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 

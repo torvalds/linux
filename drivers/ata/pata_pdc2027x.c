@@ -173,7 +173,7 @@ static struct ata_port_operations pdc2027x_pata100_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static struct ata_port_operations pdc2027x_pata133_ops = {
@@ -206,7 +206,7 @@ static struct ata_port_operations pdc2027x_pata133_ops = {
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 static struct ata_port_info pdc2027x_port_info[] = {
