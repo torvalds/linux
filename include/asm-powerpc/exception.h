@@ -62,6 +62,16 @@
 	ori	reg,reg,(label)@l;	/* virt addr of handler ... */
 #endif
 
+#define EXCEPTION_PROLOG_1(area)				\
+	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
+	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
+	std	r10,area+EX_R10(r13);					\
+	std	r11,area+EX_R11(r13);					\
+	std	r12,area+EX_R12(r13);					\
+	mfspr	r9,SPRN_SPRG1;						\
+	std	r9,area+EX_R13(r13);					\
+	mfcr	r9
+
 /*
  * Equal to EXCEPTION_PROLOG_PSERIES, except that it forces 64bit mode.
  * The firmware calls the registered system_reset_fwnmi and
@@ -70,14 +80,7 @@
  * This firmware bug is present on POWER4 and JS20.
  */
 #define EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(area, label)		\
-	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
-	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
-	std	r10,area+EX_R10(r13);					\
-	std	r11,area+EX_R11(r13);					\
-	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG1;						\
-	std	r9,area+EX_R13(r13);					\
-	mfcr	r9;							\
+	EXCEPTION_PROLOG_1(area);					\
 	clrrdi	r12,r13,32;		/* get high part of &label */	\
 	mfmsr	r10;							\
 	/* force 64bit mode */						\
@@ -94,14 +97,7 @@
 	b	.	/* prevent speculative execution */
 
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
-	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
-	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
-	std	r10,area+EX_R10(r13);					\
-	std	r11,area+EX_R11(r13);					\
-	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG1;						\
-	std	r9,area+EX_R13(r13);					\
-	mfcr	r9;							\
+	EXCEPTION_PROLOG_1(area);					\
 	clrrdi	r12,r13,32;		/* get high part of &label */	\
 	mfmsr	r10;							\
 	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
@@ -112,28 +108,6 @@
 	mtspr	SPRN_SRR1,r10;						\
 	rfid;								\
 	b	.	/* prevent speculative execution */
-
-/*
- * This is the start of the interrupt handlers for iSeries
- * This code runs with relocation on.
- */
-#define EXCEPTION_PROLOG_ISERIES_1(area)				\
-	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
-	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
-	std	r10,area+EX_R10(r13);					\
-	std	r11,area+EX_R11(r13);					\
-	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRN_SPRG1;						\
-	std	r9,area+EX_R13(r13);					\
-	mfcr	r9
-
-#define EXCEPTION_PROLOG_ISERIES_2					\
-	mfmsr	r10;							\
-	ld	r12,PACALPPACAPTR(r13);					\
-	ld	r11,LPPACASRR0(r12);					\
-	ld	r12,LPPACASRR1(r12);					\
-	ori	r10,r10,MSR_RI;						\
-	mtmsrd	r10,1
 
 /*
  * The common exception prolog is used for all except a few exceptions
@@ -246,27 +220,6 @@ label##_pSeries:							\
 	mtspr	SPRN_SRR1,r10;						\
 	rfid;								\
 	b	.	/* prevent speculative execution */
-
-#define STD_EXCEPTION_ISERIES(n, label, area)		\
-	.globl label##_iSeries;				\
-label##_iSeries:					\
-	HMT_MEDIUM;					\
-	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
-	EXCEPTION_PROLOG_ISERIES_1(area);		\
-	EXCEPTION_PROLOG_ISERIES_2;			\
-	b	label##_common
-
-#define MASKABLE_EXCEPTION_ISERIES(n, label)				\
-	.globl label##_iSeries;						\
-label##_iSeries:							\
-	HMT_MEDIUM;							\
-	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
-	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
-	lbz	r10,PACASOFTIRQEN(r13);					\
-	cmpwi	0,r10,0;						\
-	beq-	label##_iSeries_masked;					\
-	EXCEPTION_PROLOG_ISERIES_2;					\
-	b	label##_common;						\
 
 #ifdef CONFIG_PPC_ISERIES
 #define DISABLE_INTS				\

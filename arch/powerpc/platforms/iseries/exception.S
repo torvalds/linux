@@ -30,8 +30,9 @@
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/ptrace.h>
-#include <asm/exception.h>
 #include <asm/cputable.h>
+
+#include "exception.h"
 
 	.text
 
@@ -104,15 +105,15 @@ BEGIN_FTR_SECTION
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
-	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN)
-	EXCEPTION_PROLOG_ISERIES_2
+	EXCEPTION_PROLOG_1(PACA_EXGEN)
+	EXCEPTION_PROLOG_ISERIES_1
 	b	data_access_common
 
 .do_stab_bolted_iSeries:
 	mtcrf	0x80,r12
 	mfspr	r12,SPRN_SPRG2
-	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
-	EXCEPTION_PROLOG_ISERIES_2
+	EXCEPTION_PROLOG_1(PACA_EXSLB)
+	EXCEPTION_PROLOG_ISERIES_1
 	b	.do_stab_bolted
 
 	.globl	data_access_slb_iSeries
@@ -171,7 +172,7 @@ slb_miss_user_iseries:
 	std	r10,PACA_EXGEN+EX_R13(r13)
 	std	r11,PACA_EXGEN+EX_R9(r13)
 	std	r12,PACA_EXGEN+EX_R3(r13)
-	EXCEPTION_PROLOG_ISERIES_2
+	EXCEPTION_PROLOG_ISERIES_1
 	b	slb_miss_user_common
 #endif
 
@@ -187,7 +188,7 @@ slb_miss_user_iseries:
 system_call_iSeries:
 	mr	r9,r13
 	mfspr	r13,SPRN_SPRG3
-	EXCEPTION_PROLOG_ISERIES_2
+	EXCEPTION_PROLOG_ISERIES_1
 	b	system_call_common
 
 	STD_EXCEPTION_ISERIES( 0xd00, single_step, PACA_EXGEN)
