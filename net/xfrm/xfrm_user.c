@@ -33,6 +33,11 @@
 #endif
 #include <linux/audit.h>
 
+static inline int alg_len(struct xfrm_algo *alg)
+{
+	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
+}
+
 static int verify_one_alg(struct rtattr **xfrma, enum xfrm_attr_type_t type)
 {
 	struct rtattr *rt = xfrma[type - 1];
@@ -232,7 +237,6 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	struct rtattr *rta = u_arg;
 	struct xfrm_algo *p, *ualg;
 	struct xfrm_algo_desc *algo;
-	int len;
 
 	if (!rta)
 		return 0;
@@ -244,8 +248,7 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 		return -ENOSYS;
 	*props = algo->desc.sadb_alg_id;
 
-	len = sizeof(*ualg) + (ualg->alg_key_len + 7U) / 8;
-	p = kmemdup(ualg, len, GFP_KERNEL);
+	p = kmemdup(ualg, alg_len(ualg), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -617,11 +620,9 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	copy_to_user_state(x, p);
 
 	if (x->aalg)
-		NLA_PUT(skb, XFRMA_ALG_AUTH,
-			sizeof(*(x->aalg))+(x->aalg->alg_key_len+7)/8, x->aalg);
+		NLA_PUT(skb, XFRMA_ALG_AUTH, alg_len(x->aalg), x->aalg);
 	if (x->ealg)
-		NLA_PUT(skb, XFRMA_ALG_CRYPT,
-			sizeof(*(x->ealg))+(x->ealg->alg_key_len+7)/8, x->ealg);
+		NLA_PUT(skb, XFRMA_ALG_CRYPT, alg_len(x->ealg), x->ealg);
 	if (x->calg)
 		NLA_PUT(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg);
 
@@ -2072,9 +2073,9 @@ static inline int xfrm_sa_len(struct xfrm_state *x)
 {
 	int l = 0;
 	if (x->aalg)
-		l += RTA_SPACE(sizeof(*x->aalg) + (x->aalg->alg_key_len+7)/8);
+		l += RTA_SPACE(alg_len(x->aalg));
 	if (x->ealg)
-		l += RTA_SPACE(sizeof(*x->ealg) + (x->ealg->alg_key_len+7)/8);
+		l += RTA_SPACE(alg_len(x->ealg));
 	if (x->calg)
 		l += RTA_SPACE(sizeof(*x->calg));
 	if (x->encap)
@@ -2127,11 +2128,9 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 	copy_to_user_state(x, p);
 
 	if (x->aalg)
-		NLA_PUT(skb, XFRMA_ALG_AUTH,
-			sizeof(*(x->aalg))+(x->aalg->alg_key_len+7)/8, x->aalg);
+		NLA_PUT(skb, XFRMA_ALG_AUTH, alg_len(x->aalg), x->aalg);
 	if (x->ealg)
-		NLA_PUT(skb, XFRMA_ALG_CRYPT,
-			sizeof(*(x->ealg))+(x->ealg->alg_key_len+7)/8, x->ealg);
+		NLA_PUT(skb, XFRMA_ALG_CRYPT, alg_len(x->ealg), x->ealg);
 	if (x->calg)
 		NLA_PUT(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg);
 
