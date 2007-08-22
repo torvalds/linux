@@ -57,7 +57,7 @@ static DEFINE_RWLOCK(adapter_list_lock);
 static LIST_HEAD(adapter_list);
 
 static const unsigned int MAX_ATIDS = 64 * 1024;
-static const unsigned int ATID_BASE = 0x100000;
+static const unsigned int ATID_BASE = 0x10000;
 
 static inline int offload_activated(struct t3cdev *tdev)
 {
@@ -694,10 +694,19 @@ static int do_cr(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_pass_accept_req *req = cplhdr(skb);
 	unsigned int stid = G_PASS_OPEN_TID(ntohl(req->tos_tid));
+	struct tid_info *t = &(T3C_DATA(dev))->tid_maps;
 	struct t3c_tid_entry *t3c_tid;
+	unsigned int tid = GET_TID(req);
 
-	t3c_tid = lookup_stid(&(T3C_DATA(dev))->tid_maps, stid);
-	if (t3c_tid->ctx && t3c_tid->client->handlers &&
+	if (unlikely(tid >= t->ntids)) {
+		printk("%s: passive open TID %u too large\n",
+		       dev->name, tid);
+		t3_fatal_err(tdev2adap(dev));
+		return CPL_RET_BUF_DONE;
+	}
+
+	t3c_tid = lookup_stid(t, stid);
+	if (t3c_tid && t3c_tid->ctx && t3c_tid->client->handlers &&
 	    t3c_tid->client->handlers[CPL_PASS_ACCEPT_REQ]) {
 		return t3c_tid->client->handlers[CPL_PASS_ACCEPT_REQ]
 		    (dev, skb, t3c_tid->ctx);
@@ -779,16 +788,25 @@ static int do_act_establish(struct t3cdev *dev, struct sk_buff *skb)
 {
 	struct cpl_act_establish *req = cplhdr(skb);
 	unsigned int atid = G_PASS_OPEN_TID(ntohl(req->tos_tid));
+	struct tid_info *t = &(T3C_DATA(dev))->tid_maps;
 	struct t3c_tid_entry *t3c_tid;
+	unsigned int tid = GET_TID(req);
 
-	t3c_tid = lookup_atid(&(T3C_DATA(dev))->tid_maps, atid);
+	if (unlikely(tid >= t->ntids)) {
+		printk("%s: active establish TID %u too large\n",
+		       dev->name, tid);
+		t3_fatal_err(tdev2adap(dev));
+		return CPL_RET_BUF_DONE;
+	}
+
+	t3c_tid = lookup_atid(t, atid);
 	if (t3c_tid && t3c_tid->ctx && t3c_tid->client->handlers &&
 	    t3c_tid->client->handlers[CPL_ACT_ESTABLISH]) {
 		return t3c_tid->client->handlers[CPL_ACT_ESTABLISH]
 		    (dev, skb, t3c_tid->ctx);
 	} else {
 		printk(KERN_ERR "%s: received clientless CPL command 0x%x\n",
-		       dev->name, CPL_PASS_ACCEPT_REQ);
+		       dev->name, CPL_ACT_ESTABLISH);
 		return CPL_RET_BUF_DONE | CPL_RET_BAD_MSG;
 	}
 }
