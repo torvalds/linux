@@ -784,7 +784,6 @@ static int de_thread(struct task_struct *tsk)
 	 * and we can just re-use it all.
 	 */
 	if (atomic_read(&oldsighand->count) <= 1) {
-		BUG_ON(atomic_read(&sig->count) != 1);
 		signalfd_detach(tsk);
 		exit_itimers(sig);
 		return 0;
@@ -928,8 +927,6 @@ no_thread_group:
 	exit_itimers(sig);
 	if (leader)
 		release_task(leader);
-
-	BUG_ON(atomic_read(&sig->count) != 1);
 
 	if (atomic_read(&oldsighand->count) == 1) {
 		/*
