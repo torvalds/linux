@@ -24,6 +24,8 @@
 unsigned long asid_cache = ASID_USER_FIRST;
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 
+#undef DEBUG_PAGE_FAULT
+
 /*
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
@@ -64,7 +66,7 @@ void do_page_fault(struct pt_regs *regs)
 		    exccause == EXCCAUSE_ITLB_MISS ||
 		    exccause == EXCCAUSE_FETCH_CACHE_ATTRIBUTE) ? 1 : 0;
 
-#if 0
+#ifdef DEBUG_PAGE_FAULT
 	printk("[%s:%d:%08x:%d:%08x:%s%s]\n", current->comm, current->pid,
 	       address, exccause, regs->pc, is_write? "w":"", is_exec? "x":"");
 #endif
@@ -219,7 +221,7 @@ bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this kernel fault?  */
 	if ((entry = search_exception_tables(regs->pc)) != NULL) {
-#if 1
+#ifdef DEBUG_PAGE_FAULT
 		printk(KERN_DEBUG "%s: Exception at pc=%#010lx (%lx)\n",
 				current->comm, regs->pc, entry->fixup);
 #endif

@@ -1,5 +1,5 @@
 /*
- * linux/include/asm-xtensa/pgtable.h
+ * include/asm-xtensa/pgtable.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -60,16 +60,20 @@
 #define FIRST_USER_ADDRESS	0
 #define FIRST_USER_PGD_NR	(FIRST_USER_ADDRESS >> PGDIR_SHIFT)
 
-/* virtual memory area. We keep a distance to other memory regions to be
+/*
+ * Virtual memory area. We keep a distance to other memory regions to be
  * on the safe side. We also use this area for cache aliasing.
  */
 
-// FIXME: virtual memory area must be configuration-dependent
-
 #define VMALLOC_START		0xC0000000
-#define VMALLOC_END		0xC7FF0000
+#define VMALLOC_END		0xC6FEFFFF
+#define TLBTEMP_BASE_1		0xC6FF0000
+#define TLBTEMP_BASE_2		0xC6FF8000
+#define MODULE_START		0xC7000000
+#define MODULE_END		0xC7FFFFFF
 
-/* Xtensa Linux config PTE layout (when present):
+/*
+ * Xtensa Linux config PTE layout (when present):
  *	31-12:	PPN
  *	11-6:	Software
  *	5-4:	RING
@@ -126,12 +130,13 @@
 #define PAGE_SHARED	   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITABLE)
 #define PAGE_SHARED_EXEC \
 	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITABLE | _PAGE_HW_EXEC)
-#define PAGE_KERNEL	   __pgprot(_PAGE_PRESENT)
+#define PAGE_KERNEL	   __pgprot(_PAGE_PRESENT | _PAGE_HW_WRITE)
+#define PAGE_KERNEL_EXEC   __pgprot(_PAGE_PRESENT|_PAGE_HW_WRITE|_PAGE_HW_EXEC)
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)
-# define _PAGE_DIRECTORY (_PAGE_VALID | _PAGE_ACCESSED | _PAGE_HW_WRITE)
+# define _PAGE_DIRECTORY (_PAGE_VALID | _PAGE_ACCESSED)
 #else
-# define _PAGE_DIRECTORY (_PAGE_VALID|_PAGE_ACCESSED|_PAGE_HW_WRITE|_PAGE_CA_WB)
+# define _PAGE_DIRECTORY (_PAGE_VALID | _PAGE_ACCESSED | _PAGE_CA_WB)
 #endif
 
 #else /* no mmu */
@@ -244,6 +249,10 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 static inline void update_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
+#if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
+	__asm__ __volatile__ ("dhwb %0, 0" :: "a" (ptep));
+#endif
+
 }
 
 struct mm_struct;
@@ -383,13 +392,12 @@ extern  void update_mmu_cache(struct vm_area_struct * vma,
  * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
+
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
                 remap_pfn_range(vma, from, pfn, size, prot)
 
 
-/* No page table caches to init */
-
-#define pgtable_cache_init()	do { } while (0)
+extern void pgtable_cache_init(void);
 
 typedef pte_t *pte_addr_t;
 
