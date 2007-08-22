@@ -1326,6 +1326,7 @@
 #define V_D0_WEIGHT(x) ((x) << S_D0_WEIGHT)
 
 #define A_PM1_RX_CFG 0x5c0
+#define A_PM1_RX_MODE 0x5c4
 
 #define A_PM1_RX_INT_ENABLE 0x5d8
 
@@ -1394,6 +1395,7 @@
 #define A_PM1_RX_INT_CAUSE 0x5dc
 
 #define A_PM1_TX_CFG 0x5e0
+#define A_PM1_TX_MODE 0x5e4
 
 #define A_PM1_TX_INT_ENABLE 0x5f8
 

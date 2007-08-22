@@ -3223,6 +3223,8 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
 
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
+	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
+	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	init_hw_for_avail_ports(adapter, adapter->params.nports);
 	t3_sge_init(adapter, &adapter->params.sge);
 
