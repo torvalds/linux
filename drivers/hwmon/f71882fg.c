@@ -384,7 +384,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device * dev)
 	}
 
 	/* Update every second */
-	if (time_after(jiffies, data->last_updated + HZ) || !data->valid)  {
+	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
 		data->temp_status = f71882fg_read8(data,
 						F71882FG_REG_TEMP_STATUS);
 		data->temp_diode_open = f71882fg_read8(data,
@@ -614,7 +614,7 @@ static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
 	data->temp_hyst[nr] = val;
 
 	/* convert value to register contents */
-	switch(nr) {
+	switch (nr) {
 		case 0:
 			val = val << 4;
 			break;
@@ -748,7 +748,7 @@ static int __devinit f71882fg_probe(struct platform_device * pdev)
 	int err, i;
 	u8 start_reg;
 
-	if(!(data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL)))
+	if (!(data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL)))
 		return -ENOMEM;
 
 	data->addr = platform_get_resource(pdev, IORESOURCE_IO, 0)->start;
@@ -850,7 +850,7 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address)
 	}
 
 	superio_select(sioaddr, SIO_F71882FG_LD_HWM);
-	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01))  {
+	if (!(superio_inb(sioaddr, SIO_REG_ENABLE) & 0x01)) {
 		printk(KERN_WARNING DRVNAME ": Device not activated\n");
 		goto exit;
 	}
@@ -890,18 +890,18 @@ static int __init f71882fg_device_add(unsigned short address)
 	int err;
 
 	f71882fg_pdev = platform_device_alloc(DRVNAME, address);
-	if(!f71882fg_pdev)
+	if (!f71882fg_pdev)
 		return -ENOMEM;
 
 	res.name = f71882fg_pdev->name;
 	err = platform_device_add_resources(f71882fg_pdev, &res, 1);
-	if(err) {
+	if (err) {
 		printk(KERN_ERR DRVNAME ": Device resource addition failed\n");
 		goto exit_device_put;
 	}
 
 	err = platform_device_add(f71882fg_pdev);
-	if(err) {
+	if (err) {
 		printk(KERN_ERR DRVNAME ": Device addition failed\n");
 		goto exit_device_put;
 	}
