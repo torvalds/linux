@@ -68,6 +68,7 @@ config AMIGA_Z2RAM
 config BLK_DEV_XD
 	tristate "XT hard disk support"
 	depends on ISA && ISA_DMA_API
+	select CHECK_SIGNATURE
 	help
 	  Very old 8 bit hard disk controllers used in the IBM XT computer
 	  will be supported if you say Y here.
