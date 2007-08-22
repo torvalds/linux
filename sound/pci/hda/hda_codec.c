@@ -514,7 +514,7 @@ static int read_widget_caps(struct hda_codec *codec, hda_nid_t fg_node)
 
 static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
-static inline void free_hda_cache(struct hda_cache_rec *cache);
+static void free_hda_cache(struct hda_cache_rec *cache);
 
 /*
  * codec destructor
@@ -707,7 +707,7 @@ static void __devinit init_hda_cache(struct hda_cache_rec *cache,
 	cache->record_size = record_size;
 }
 
-static inline void free_hda_cache(struct hda_cache_rec *cache)
+static void free_hda_cache(struct hda_cache_rec *cache)
 {
 	kfree(cache->buffer);
 }
