@@ -170,14 +170,14 @@ config SND_CA0106
 	  will be called snd-ca0106.
 
 config SND_CMIPCI
-	tristate "C-Media 8738, 8338"
+	tristate "C-Media 8338, 8738, 8768, 8770"
 	depends on SND
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
 	help
-	  If you want to use soundcards based on C-Media CMI8338 or CMI8738
-	  chips, say Y here and read
+	  If you want to use soundcards based on C-Media CMI8338, CMI8738,
+	  CMI8768 or CMI8770 chips, say Y here and read
 	  <file:Documentation/sound/alsa/CMIPCI.txt>.
 
 	  To compile this driver as a module, choose M here: the module

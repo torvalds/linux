@@ -2774,10 +2774,14 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 	if (!fm_port)
 		goto disable_fm;
 
-	/* first try FM regs in PCI port range */
-	iosynth = cm->iobase + CM_REG_FM_PCI;
-	err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
-			      OPL3_HW_OPL3, 1, &opl3);
+	if (cm->chip_version > 33) {
+		/* first try FM regs in PCI port range */
+		iosynth = cm->iobase + CM_REG_FM_PCI;
+		err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
+				      OPL3_HW_OPL3, 1, &opl3);
+	} else {
+		err = -EIO;
+	}
 	if (err < 0) {
 		/* then try legacy ports */
 		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL) & ~CM_FMSEL_MASK;
@@ -2935,7 +2939,8 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		return err;
 	}
 
-	integrated_midi = snd_cmipci_read_b(cm, CM_REG_MPU_PCI) != 0xff;
+	integrated_midi = cm->chip_version > 33 &&
+		snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1) != 0xff;
 	if (integrated_midi && mpu_port[dev] == 1)
 		iomidi = cm->iobase + CM_REG_MPU_PCI;
 	else {
@@ -2955,8 +2960,11 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		}
 	}
 
-	if ((err = snd_cmipci_create_fm(cm, fm_port[dev])) < 0)
-		return err;
+	if (cm->chip_version < 68) {
+		err = snd_cmipci_create_fm(cm, fm_port[dev]);
+		if (err < 0)
+			return err;
+	}
 
 	/* reset mixer */
 	snd_cmipci_mixer_write(cm, 0, 0);
