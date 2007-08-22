@@ -46,6 +46,11 @@ I2C_CLIENT_MODULE_PARM(adm1022_temp3, "List of adapter,address pairs "
 #define THMC50_REG_COMPANY_ID			0x3E
 #define THMC50_REG_DIE_CODE			0x3F
 #define THMC50_REG_ANALOG_OUT			0x19
+/*
+ * We use mirror status register for reading alarms
+ * so ACPI can use the primary status register.
+ */
+#define THMC50_REG_INTR_MIRROR			0x4C
 
 const static u8 THMC50_REG_TEMP[] = { 0x27, 0x26, 0x20 };
 const static u8 THMC50_REG_TEMP_MIN[] = { 0x3A, 0x38, 0x2C };
@@ -69,6 +74,7 @@ struct thmc50_data {
 	s8 temp_max[3];
 	s8 temp_min[3];
 	u8 analog_out;
+	u8 alarms;
 };
 
 static int thmc50_attach_adapter(struct i2c_adapter *adapter);
@@ -180,6 +186,15 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	int index = to_sensor_dev_attr(attr)->index;
+	struct thmc50_data *data = thmc50_update_device(dev);
+
+	return sprintf(buf, "%u\n", (data->alarms >> index) & 1);
+}
+
 #define temp_reg(offset)						\
 static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, show_temp,	\
 			NULL, offset - 1);				\
@@ -192,6 +207,12 @@ temp_reg(1);
 temp_reg(2);
 temp_reg(3);
 
+static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR(temp3_fault, S_IRUGO, show_alarm, NULL, 2);
+
 static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO | S_IWUSR, show_analog_out,
 			  set_analog_out, 0);
 static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO, show_pwm_mode, NULL, 0);
@@ -200,9 +221,12 @@ static struct attribute *thmc50_attributes[] = {
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_mode.dev_attr.attr,
 	NULL
@@ -217,6 +241,8 @@ static struct attribute *adm1022_attributes[] = {
 	&sensor_dev_attr_temp3_max.dev_attr.attr,
 	&sensor_dev_attr_temp3_min.dev_attr.attr,
 	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_fault.dev_attr.attr,
 	NULL
 };
 
@@ -414,6 +440,8 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 		}
 		data->analog_out =
 		    i2c_smbus_read_byte_data(client, THMC50_REG_ANALOG_OUT);
+		data->alarms =
+		    i2c_smbus_read_byte_data(client, THMC50_REG_INTR_MIRROR);
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
