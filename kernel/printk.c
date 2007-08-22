@@ -1085,10 +1085,12 @@ EXPORT_SYMBOL(unregister_console);
 
 static int __init disable_boot_consoles(void)
 {
-	if (console_drivers->flags & CON_BOOT) {
-		printk(KERN_INFO "turn off boot console %s%d\n",
-			console_drivers->name, console_drivers->index);
-		return unregister_console(console_drivers);
+	if (console_drivers != NULL) {
+		if (console_drivers->flags & CON_BOOT) {
+			printk(KERN_INFO "turn off boot console %s%d\n",
+				console_drivers->name, console_drivers->index);
+			return unregister_console(console_drivers);
+		}
 	}
 	return 0;
 }
