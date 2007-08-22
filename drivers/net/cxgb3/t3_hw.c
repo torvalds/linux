@@ -505,7 +505,7 @@ struct t3_vpd {
 	u8 vpdr_len[2];
 	VPD_ENTRY(pn, 16);	/* part number */
 	VPD_ENTRY(ec, 16);	/* EC level */
-	VPD_ENTRY(sn, 16);	/* serial number */
+	VPD_ENTRY(sn, SERNUM_LEN); /* serial number */
 	VPD_ENTRY(na, 12);	/* MAC address base */
 	VPD_ENTRY(cclk, 6);	/* core clock */
 	VPD_ENTRY(mclk, 6);	/* mem clock */
@@ -648,6 +648,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	p->uclk = simple_strtoul(vpd.uclk_data, NULL, 10);
 	p->mdc = simple_strtoul(vpd.mdc_data, NULL, 10);
 	p->mem_timing = simple_strtoul(vpd.mt_data, NULL, 10);
+	memcpy(p->sn, vpd.sn_data, SERNUM_LEN);
 
 	/* Old eeproms didn't have port information */
 	if (adapter->params.rev == 0 && !vpd.port0_data[0]) {
