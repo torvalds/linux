@@ -20,7 +20,6 @@
 #include <linux/param.h>
 #include <linux/serial.h>
 #include <linux/serialP.h>
-#include <linux/console.h>
 
 #include <asm/uaccess.h>
 #include <asm/irq.h>
