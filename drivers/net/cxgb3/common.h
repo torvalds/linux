@@ -104,7 +104,7 @@ enum {
 	PROTO_SRAM_LINES = 128, /* size of TP sram */
 };
 
-#define MAX_RX_COALESCING_LEN 16224U
+#define MAX_RX_COALESCING_LEN 12288U
 
 enum {
 	PAUSE_RX = 1 << 0,
