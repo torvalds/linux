@@ -524,7 +524,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		skb_put(skb, len);
 
 		if (likely((macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK)) {
-			skb->ip_summed = CHECKSUM_COMPLETE;
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			skb->csum = (macrx & XCT_MACRX_CSUM_M) >>
 					   XCT_MACRX_CSUM_S;
 		} else
