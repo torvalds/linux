@@ -15,8 +15,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/dma-mapping.h>
-#include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -26,6 +24,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/mainstone.h>
+#include <asm/cacheflush.h>
 
 
 #define ROM_ADDR	0x00000000
@@ -36,7 +35,7 @@
 static void mainstone_map_inval_cache(struct map_info *map, unsigned long from,
 				      ssize_t len)
 {
-	consistent_sync((char *)map->cached + from, len, DMA_FROM_DEVICE);
+	flush_ioremap_region(map->phys, map->cached, from, len);
 }
 
 static struct map_info mainstone_maps[2] = { {

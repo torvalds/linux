@@ -426,6 +426,13 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
  */
 #define flush_icache_page(vma,page)	do { } while (0)
 
+static inline void flush_ioremap_region(unsigned long phys, void __iomem *virt,
+	unsigned offset, size_t size)
+{
+	const void *start = (void __force *)virt + offset;
+	dmac_inv_range(start, start + size);
+}
+
 #define __cacheid_present(val)			(val != read_cpuid(CPUID_ID))
 #define __cacheid_type_v7(val)			((val & (7 << 29)) == (4 << 29))
 
