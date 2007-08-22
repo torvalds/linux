@@ -780,18 +780,12 @@ static int de_thread(struct task_struct *tsk)
 	int count;
 
 	/*
-	 * Tell all the sighand listeners that this sighand has
-	 * been detached. The signalfd_detach() function grabs the
-	 * sighand lock, if signal listeners are present on the sighand.
-	 */
-	signalfd_detach(tsk);
-
-	/*
 	 * If we don't share sighandlers, then we aren't sharing anything
 	 * and we can just re-use it all.
 	 */
 	if (atomic_read(&oldsighand->count) <= 1) {
 		BUG_ON(atomic_read(&sig->count) != 1);
+		signalfd_detach(tsk);
 		exit_itimers(sig);
 		return 0;
 	}
@@ -930,6 +924,7 @@ static int de_thread(struct task_struct *tsk)
 	sig->flags = 0;
 
 no_thread_group:
+	signalfd_detach(tsk);
 	exit_itimers(sig);
 	if (leader)
 		release_task(leader);
