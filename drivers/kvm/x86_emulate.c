@@ -1163,7 +1163,6 @@ special_insn:
 		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
 		dst.ptr = (void *) register_address(
 			ctxt->ss_base, _regs[VCPU_REGS_RSP]);
-		no_wb = 1; /* force writeback */
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
