@@ -88,7 +88,7 @@ iSeries_secondary_smp_loop:
 
 /***  ISeries-LPAR interrupt handlers ***/
 
-	STD_EXCEPTION_ISERIES(0x200, machine_check, PACA_EXMC)
+	STD_EXCEPTION_ISERIES(machine_check, PACA_EXMC)
 
 	.globl data_access_iSeries
 data_access_iSeries:
@@ -137,7 +137,7 @@ data_access_slb_iSeries:
 	ld	r12,LPPACASRR1(r12)
 	b	.slb_miss_realmode
 
-	STD_EXCEPTION_ISERIES(0x400, instruction_access, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(instruction_access, PACA_EXGEN)
 
 	.globl	instruction_access_slb_iSeries
 instruction_access_slb_iSeries:
@@ -176,13 +176,13 @@ slb_miss_user_iseries:
 	b	slb_miss_user_common
 #endif
 
-	MASKABLE_EXCEPTION_ISERIES(0x500, hardware_interrupt)
-	STD_EXCEPTION_ISERIES(0x600, alignment, PACA_EXGEN)
-	STD_EXCEPTION_ISERIES(0x700, program_check, PACA_EXGEN)
-	STD_EXCEPTION_ISERIES(0x800, fp_unavailable, PACA_EXGEN)
-	MASKABLE_EXCEPTION_ISERIES(0x900, decrementer)
-	STD_EXCEPTION_ISERIES(0xa00, trap_0a, PACA_EXGEN)
-	STD_EXCEPTION_ISERIES(0xb00, trap_0b, PACA_EXGEN)
+	MASKABLE_EXCEPTION_ISERIES(hardware_interrupt)
+	STD_EXCEPTION_ISERIES(alignment, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(program_check, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(fp_unavailable, PACA_EXGEN)
+	MASKABLE_EXCEPTION_ISERIES(decrementer)
+	STD_EXCEPTION_ISERIES(trap_0a, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(trap_0b, PACA_EXGEN)
 
 	.globl	system_call_iSeries
 system_call_iSeries:
@@ -191,9 +191,9 @@ system_call_iSeries:
 	EXCEPTION_PROLOG_ISERIES_1
 	b	system_call_common
 
-	STD_EXCEPTION_ISERIES( 0xd00, single_step, PACA_EXGEN)
-	STD_EXCEPTION_ISERIES( 0xe00, trap_0e, PACA_EXGEN)
-	STD_EXCEPTION_ISERIES( 0xf00, performance_monitor, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(single_step, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(trap_0e, PACA_EXGEN)
+	STD_EXCEPTION_ISERIES(performance_monitor, PACA_EXGEN)
 
 decrementer_iSeries_masked:
 	/* We may not have a valid TOC pointer in here. */

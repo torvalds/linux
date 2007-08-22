@@ -34,7 +34,7 @@
 	ori	r10,r10,MSR_RI;						\
 	mtmsrd	r10,1
 
-#define STD_EXCEPTION_ISERIES(n, label, area)				\
+#define STD_EXCEPTION_ISERIES(label, area)				\
 	.globl label##_iSeries;						\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
@@ -43,7 +43,7 @@ label##_iSeries:							\
 	EXCEPTION_PROLOG_ISERIES_1;					\
 	b	label##_common
 
-#define MASKABLE_EXCEPTION_ISERIES(n, label)				\
+#define MASKABLE_EXCEPTION_ISERIES(label)				\
 	.globl label##_iSeries;						\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
