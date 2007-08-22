@@ -7,6 +7,7 @@ header-y += raid/
 header-y += spi/
 header-y += sunrpc/
 header-y += tc_act/
+header-y += tc_ematch/
 header-y += netfilter/
 header-y += netfilter_arp/
 header-y += netfilter_bridge/
