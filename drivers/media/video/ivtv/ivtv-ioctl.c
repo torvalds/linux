@@ -1270,7 +1270,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				"Global and Local"
 			};
 			static const char * const pixel_format[] = {
-				"Indexed",
+				"RGB Indexed",
 				"RGB 5:6:5",
 				"ARGB 1:5:5:5",
 				"ARGB 1:4:4:4",
@@ -1278,6 +1278,14 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				"5",
 				"6",
 				"7",
+				"YUV Indexed",
+				"YUV 5:6:5",
+				"AYUV 1:5:5:5",
+				"AYUV 1:4:4:4",
+				"AYUV 8:8:8:8",
+				"13",
+				"14",
+				"15",
 			};
 
 			ivtv_get_output(itv, itv->active_output, &vidout);
@@ -1290,10 +1298,11 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				mode = OUT_NONE;
 			IVTV_INFO("Output Mode:  %s\n", output_modes[mode]);
 			ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
+			data[0] |= (read_reg(0x2a00) >> 7) & 0x40;
 			IVTV_INFO("Overlay:      %s, Alpha: %s, Pixel Format: %s\n",
 				data[0] & 1 ? "On" : "Off",
 				alpha_mode[(data[0] >> 1) & 0x3],
-				pixel_format[(data[0] >> 3) & 0x7]);
+				pixel_format[(data[0] >> 3) & 0xf]);
 		}
 		IVTV_INFO("Tuner:  %s\n",
 			test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? "Radio" : "TV");
