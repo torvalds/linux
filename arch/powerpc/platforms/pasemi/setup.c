@@ -50,26 +50,30 @@ static void pas_restart(char *cmd)
 
 #ifdef CONFIG_SMP
 static DEFINE_SPINLOCK(timebase_lock);
+static unsigned long timebase;
 
 static void __devinit pas_give_timebase(void)
 {
-	unsigned long tb;
-
 	spin_lock(&timebase_lock);
 	mtspr(SPRN_TBCTL, TBCTL_FREEZE);
-	tb = mftb();
-	mtspr(SPRN_TBCTL, TBCTL_UPDATE_LOWER | (tb & 0xffffffff));
-	mtspr(SPRN_TBCTL, TBCTL_UPDATE_UPPER | (tb >> 32));
-	mtspr(SPRN_TBCTL, TBCTL_RESTART);
+	isync();
+	timebase = get_tb();
 	spin_unlock(&timebase_lock);
-	pr_debug("pas_give_timebase: cpu %d gave tb %lx\n",
-		 smp_processor_id(), tb);
+
+	while (timebase)
+		barrier();
+	mtspr(SPRN_TBCTL, TBCTL_RESTART);
 }
 
 static void __devinit pas_take_timebase(void)
 {
-	pr_debug("pas_take_timebase: cpu %d has tb %lx\n",
-		 smp_processor_id(), mftb());
+	while (!timebase)
+		smp_rmb();
+
+	spin_lock(&timebase_lock);
+	set_tb(timebase >> 32, timebase & 0xffffffff);
+	timebase = 0;
+	spin_unlock(&timebase_lock);
 }
 
 struct smp_ops_t pas_smp_ops = {
