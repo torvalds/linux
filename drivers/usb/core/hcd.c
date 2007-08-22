@@ -1266,9 +1266,6 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  */
 void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 {
-	unmap_urb_for_dma(hcd, urb);
-	usbmon_urb_complete (&hcd->self, urb);
-	usb_unanchor_urb(urb);
 	urb->hcpriv = NULL;
 	if (unlikely(urb->unlinked))
 		urb->status = urb->unlinked;
@@ -1276,6 +1273,10 @@ void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
 			urb->actual_length < urb->transfer_buffer_length &&
 			!urb->status))
 		urb->status = -EREMOTEIO;
+
+	unmap_urb_for_dma(hcd, urb);
+	usbmon_urb_complete(&hcd->self, urb);
+	usb_unanchor_urb(urb);
 
 	/* pass ownership to the completion handler */
 	urb->complete (urb);
