@@ -258,19 +258,6 @@ struct ciw {
 /* Sick revalidation of device. */
 #define CIO_REVALIDATE 0x0008
 
-struct diag210 {
-	__u16 vrdcdvno : 16;   /* device number (input) */
-	__u16 vrdclen  : 16;   /* data block length (input) */
-	__u32 vrdcvcla : 8;    /* virtual device class (output) */
-	__u32 vrdcvtyp : 8;    /* virtual device type (output) */
-	__u32 vrdcvsta : 8;    /* virtual device status (output) */
-	__u32 vrdcvfla : 8;    /* virtual device flags (output) */
-	__u32 vrdcrccl : 8;    /* real device class (output) */
-	__u32 vrdccrty : 8;    /* real device type (output) */
-	__u32 vrdccrmd : 8;    /* real device model (output) */
-	__u32 vrdccrft : 8;    /* real device feature (output) */
-} __attribute__ ((packed,aligned(4)));
-
 struct ccw_dev_id {
 	u8 ssid;
 	u16 devno;
@@ -284,8 +271,6 @@ static inline int ccw_dev_id_is_equal(struct ccw_dev_id *dev_id1,
 		return 1;
 	return 0;
 }
-
-extern int diag210(struct diag210 *addr);
 
 extern void wait_cons_dev(void);
 

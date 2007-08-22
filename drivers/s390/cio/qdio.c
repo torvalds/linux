@@ -195,6 +195,8 @@ qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 again:
 	ccq = do_eqbs(irq->sch_token, state, q_no, start, cnt);
 	rc = qdio_check_ccq(q, ccq);
+	if ((ccq == 96) && (tmp_cnt != *cnt))
+		rc = 0;
 	if (rc == 1) {
 		QDIO_DBF_TEXT5(1,trace,"eqAGAIN");
 		goto again;
@@ -740,7 +742,8 @@ qdio_get_outbound_buffer_frontier(struct qdio_q *q)
 	first_not_to_check=f+qdio_min(atomic_read(&q->number_of_buffers_used),
 				      (QDIO_MAX_BUFFERS_PER_Q-1));
 
-	if ((!q->is_iqdio_q)&&(!q->hydra_gives_outbound_pcis))
+	if (((!q->is_iqdio_q) && (!q->hydra_gives_outbound_pcis)) ||
+		 (q->queue_type == QDIO_IQDIO_QFMT_ASYNCH))
 		SYNC_MEMORY;
 
 check_next:
