@@ -960,6 +960,11 @@ cpu_init (void)
 
 	/* clear TPR & XTP to enable all interrupt classes: */
 	ia64_setreg(_IA64_REG_CR_TPR, 0);
+
+	/* Clear any pending interrupts left by SAL/EFI */
+	while (ia64_get_ivr() != IA64_SPURIOUS_INT_VECTOR)
+		ia64_eoi();
+
 #ifdef CONFIG_SMP
 	normal_xtp();
 #endif
