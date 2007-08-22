@@ -783,10 +783,10 @@ static void td_done (struct ohci_hcd *ohci, struct urb *urb, struct td *td)
 
 /*-------------------------------------------------------------------------*/
 
-static inline struct td *
-ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
+static void ed_halted(struct ohci_hcd *ohci, struct td *td, int cc)
 {
 	struct urb		*urb = td->urb;
+	urb_priv_t		*urb_priv = urb->hcpriv;
 	struct ed		*ed = td->ed;
 	struct list_head	*tmp = td->td_list.next;
 	__hc32			toggle = ed->hwHeadP & cpu_to_hc32 (ohci, ED_C);
@@ -798,13 +798,12 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 	wmb ();
 	ed->hwHeadP &= ~cpu_to_hc32 (ohci, ED_H);
 
-	/* put any later tds from this urb onto the donelist, after 'td',
-	 * order won't matter here: no errors, and nothing was transferred.
-	 * also patch the ed so it looks as if those tds completed normally.
+	/* Get rid of all later tds from this urb.  We don't have
+	 * to be careful: no errors and nothing was transferred.
+	 * Also patch the ed so it looks as if those tds completed normally.
 	 */
 	while (tmp != &ed->td_list) {
 		struct td	*next;
-		__hc32		info;
 
 		next = list_entry (tmp, struct td, td_list);
 		tmp = next->td_list.next;
@@ -819,14 +818,9 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 		 * then we need to leave the control STATUS packet queued
 		 * and clear ED_SKIP.
 		 */
-		info = next->hwINFO;
-		info |= cpu_to_hc32 (ohci, TD_DONE);
-		info &= ~cpu_to_hc32 (ohci, TD_CC);
-		next->hwINFO = info;
 
-		next->next_dl_td = rev;
-		rev = next;
-
+		list_del(&next->td_list);
+		urb_priv->td_cnt++;
 		ed->hwHeadP = next->hwNextTD | toggle;
 	}
 
@@ -852,8 +846,6 @@ ed_halted (struct ohci_hcd *ohci, struct td *td, int cc, struct td *rev)
 			hc32_to_cpu (ohci, td->hwINFO),
 			cc, cc_to_error [cc]);
 	}
-
-	return rev;
 }
 
 /* replies to the request have to be on a FIFO basis so
@@ -890,7 +882,7 @@ static struct td *dl_reverse_done_list (struct ohci_hcd *ohci)
 		 */
 		if (cc != TD_CC_NOERROR
 				&& (td->ed->hwHeadP & cpu_to_hc32 (ohci, ED_H)))
-			td_rev = ed_halted (ohci, td, cc, td_rev);
+			ed_halted(ohci, td, cc);
 
 		td->next_dl_td = td_rev;
 		td_rev = td;
