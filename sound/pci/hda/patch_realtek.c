@@ -7453,18 +7453,46 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_bind_ctls alc262_sony_bind_sw = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		0,
-	},
-};
+/* bind hp and internal speaker mute (with plug check) */
+static int alc262_sony_master_sw_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	/* change hp mute */
+	change = snd_hda_codec_amp_update(codec, 0x15, 0, HDA_OUTPUT, 0,
+					  HDA_AMP_MUTE,
+					  valp[0] ? 0 : HDA_AMP_MUTE);
+	change |= snd_hda_codec_amp_update(codec, 0x15, 1, HDA_OUTPUT, 0,
+					   HDA_AMP_MUTE,
+					   valp[1] ? 0 : HDA_AMP_MUTE);
+	if (change) {
+		/* change speaker according to HP jack state */
+		struct alc_spec *spec = codec->spec;
+		unsigned int mute;
+		if (spec->jack_present)
+			mute = HDA_AMP_MUTE;
+		else
+			mute = snd_hda_codec_amp_read(codec, 0x15, 0,
+						      HDA_OUTPUT, 0);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+	}
+	return change;
+}
 
 static struct snd_kcontrol_new alc262_sony_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_SW("Front Playback Switch", &alc262_sony_bind_sw),
+	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_hda_mixer_amp_switch_info,
+		.get = snd_hda_mixer_amp_switch_get,
+		.put = alc262_sony_master_sw_put,
+		.private_value = HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
+	},
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("ATAPI Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
