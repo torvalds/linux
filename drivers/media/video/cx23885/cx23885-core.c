@@ -622,11 +622,9 @@ static int cx23885_pci_quirks(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	switch(dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
+	if(dev->bridge == CX23885_BRIDGE_885)
 		cx_clear(RDR_TLCTL0, 1 << 4);
-		break;
-	}
+
 	return 0;
 }
 
@@ -777,8 +775,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	       dev->board, card[dev->nr] == dev->board ?
 	       "insmod option" : "autodetected");
 
-	cx23885_pci_quirks(dev);
-
 	/* Configure the internal memory */
 	if(dev->pci->device == 0x8880) {
 		dev->bridge = CX23885_BRIDGE_887;
@@ -790,6 +786,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	}
 	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n",
 		__FUNCTION__, dev->bridge);
+
+	cx23885_pci_quirks(dev);
 
 	/* init hardware */
 	cx23885_reset(dev);
