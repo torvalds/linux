@@ -492,11 +492,12 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	gfs2_trans_add_gl(bd->bd_gl);
 	if (gfs2_is_jdata(ip)) {
-		sdp->sd_log_num_jdata++;
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 	}
 	gfs2_log_lock(sdp);
+	if (gfs2_is_jdata(ip))
+		sdp->sd_log_num_jdata++;
 	sdp->sd_log_num_databuf++;
 	list_add(&le->le_list, &sdp->sd_log_le_databuf);
 	gfs2_log_unlock(sdp);
