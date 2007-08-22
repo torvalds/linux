@@ -2,6 +2,7 @@ EXTRA_CFLAGS	+= -mno-minimal-toc
 
 extra-y += dt.o
 
+obj-y += exception.o
 obj-y += hvlog.o hvlpconfig.o lpardata.o setup.o dt_mod.o mf.o lpevents.o \
 	hvcall.o proc.o htab.o iommu.o misc.o irq.o
 obj-$(CONFIG_PCI) += pci.o vpdinfo.o
