@@ -2023,7 +2023,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 		axp->d.next = ctx->aux_pids;
 		ctx->aux_pids = (void *)axp;
 	}
-	BUG_ON(axp->pid_count > AUDIT_AUX_PIDS);
+	BUG_ON(axp->pid_count >= AUDIT_AUX_PIDS);
 
 	axp->target_pid[axp->pid_count] = t->tgid;
 	selinux_get_task_sid(t, &axp->target_sid[axp->pid_count]);
