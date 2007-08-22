@@ -1224,6 +1224,14 @@ static inline int copy_to_user_sec_ctx(struct xfrm_policy *xp, struct sk_buff *s
 	}
 	return 0;
 }
+static inline size_t userpolicy_type_attrsize(void)
+{
+#ifdef CONFIG_XFRM_SUB_POLICY
+	return nla_total_size(sizeof(struct xfrm_userpolicy_type));
+#else
+	return 0;
+#endif
+}
 
 #ifdef CONFIG_XFRM_SUB_POLICY
 static int copy_to_user_policy_type(u8 type, struct sk_buff *skb)
@@ -1857,9 +1865,7 @@ static int xfrm_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 
 	len = RTA_SPACE(sizeof(struct xfrm_user_migrate) * num_migrate);
 	len += NLMSG_SPACE(sizeof(struct xfrm_userpolicy_id));
-#ifdef CONFIG_XFRM_SUB_POLICY
-	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
-#endif
+	len += userpolicy_type_attrsize();
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -2214,9 +2220,7 @@ static int xfrm_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *xt,
 	len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	len += NLMSG_SPACE(sizeof(struct xfrm_user_acquire));
 	len += RTA_SPACE(xfrm_user_sec_ctx_size(x->security));
-#ifdef CONFIG_XFRM_SUB_POLICY
-	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
-#endif
+	len += userpolicy_type_attrsize();
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -2322,9 +2326,7 @@ static int xfrm_exp_policy_notify(struct xfrm_policy *xp, int dir, struct km_eve
 	len = RTA_SPACE(sizeof(struct xfrm_user_tmpl) * xp->xfrm_nr);
 	len += NLMSG_SPACE(sizeof(struct xfrm_user_polexpire));
 	len += RTA_SPACE(xfrm_user_sec_ctx_size(xp->security));
-#ifdef CONFIG_XFRM_SUB_POLICY
-	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
-#endif
+	len += userpolicy_type_attrsize();
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (skb == NULL)
 		return -ENOMEM;
@@ -2349,9 +2351,7 @@ static int xfrm_notify_policy(struct xfrm_policy *xp, int dir, struct km_event *
 		len += RTA_SPACE(headlen);
 		headlen = sizeof(*id);
 	}
-#ifdef CONFIG_XFRM_SUB_POLICY
-	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
-#endif
+	len += userpolicy_type_attrsize();
 	len += NLMSG_SPACE(headlen);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
@@ -2401,9 +2401,7 @@ static int xfrm_notify_policy_flush(struct km_event *c)
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
 	int len = 0;
-#ifdef CONFIG_XFRM_SUB_POLICY
-	len += RTA_SPACE(sizeof(struct xfrm_userpolicy_type));
-#endif
+	len += userpolicy_type_attrsize();
 	len += NLMSG_LENGTH(0);
 
 	skb = alloc_skb(len, GFP_ATOMIC);
