@@ -31,7 +31,7 @@ struct pasemi_mac_txring {
 	struct pas_dma_xct_descr	*desc;
 	dma_addr_t	 dma;
 	unsigned int	 size;
-	unsigned int	 next_to_use;
+	unsigned int	 next_to_fill;
 	unsigned int	 next_to_clean;
 	struct pasemi_mac_buffer *desc_info;
 	char		 irq_name[10];  /* "eth%d tx" */

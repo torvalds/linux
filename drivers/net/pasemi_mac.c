@@ -69,6 +69,10 @@
 #define RX_DESC_INFO(mac, num)	((mac)->rx->desc_info[(num) & (RX_RING_SIZE-1)])
 #define RX_BUFF(mac, num)	((mac)->rx->buffers[(num) & (RX_RING_SIZE-1)])
 
+#define RING_USED(ring)		(((ring)->next_to_fill - (ring)->next_to_clean) \
+				 & ((ring)->size - 1))
+#define RING_AVAIL(ring)	((ring->size) - RING_USED(ring))
+
 #define BUF_SIZE 1646 /* 1500 MTU + ETH_HLEN + VLAN_HLEN + 2 64B cachelines */
 
 MODULE_LICENSE("GPL");
@@ -174,6 +178,7 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 
 	spin_lock_init(&ring->lock);
 
+	ring->size = RX_RING_SIZE;
 	ring->desc_info = kzalloc(sizeof(struct pasemi_mac_buffer) *
 				  RX_RING_SIZE, GFP_KERNEL);
 
@@ -253,6 +258,7 @@ static int pasemi_mac_setup_tx_resources(struct net_device *dev)
 
 	spin_lock_init(&ring->lock);
 
+	ring->size = TX_RING_SIZE;
 	ring->desc_info = kzalloc(sizeof(struct pasemi_mac_buffer) *
 				  TX_RING_SIZE, GFP_KERNEL);
 	if (!ring->desc_info)
@@ -281,7 +287,7 @@ static int pasemi_mac_setup_tx_resources(struct net_device *dev)
 			   PAS_DMA_TXCHAN_CFG_UP |
 			   PAS_DMA_TXCHAN_CFG_WT(2));
 
-	ring->next_to_use = 0;
+	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
 
 	snprintf(ring->irq_name, sizeof(ring->irq_name),
@@ -376,9 +382,7 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 	int start = mac->rx->next_to_fill;
 	unsigned int limit, count;
 
-	limit = (mac->rx->next_to_clean + RX_RING_SIZE -
-		 mac->rx->next_to_fill) & (RX_RING_SIZE - 1);
-
+	limit = RING_AVAIL(mac->rx);
 	/* Check to see if we're doing first-time setup */
 	if (unlikely(mac->rx->next_to_clean == 0 && mac->rx->next_to_fill == 0))
 		limit = RX_RING_SIZE;
@@ -562,7 +566,7 @@ restart:
 	spin_lock_irqsave(&mac->tx->lock, flags);
 
 	start = mac->tx->next_to_clean;
-	limit = min(mac->tx->next_to_use, start+32);
+	limit = min(mac->tx->next_to_fill, start+32);
 
 	count = 0;
 
@@ -1004,14 +1008,13 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&txring->lock, flags);
 
-	if (txring->next_to_clean - txring->next_to_use == TX_RING_SIZE) {
+	if (RING_AVAIL(txring) <= 1) {
 		spin_unlock_irqrestore(&txring->lock, flags);
 		pasemi_mac_clean_tx(mac);
 		pasemi_mac_restart_tx_intr(mac);
 		spin_lock_irqsave(&txring->lock, flags);
 
-		if (txring->next_to_clean - txring->next_to_use ==
-		    TX_RING_SIZE) {
+		if (RING_AVAIL(txring) <= 1) {
 			/* Still no room -- stop the queue and wait for tx
 			 * intr when there's room.
 			 */
@@ -1020,15 +1023,15 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	dp = &TX_DESC(mac, txring->next_to_use);
-	info = &TX_DESC_INFO(mac, txring->next_to_use);
+	dp = &TX_DESC(mac, txring->next_to_fill);
+	info = &TX_DESC_INFO(mac, txring->next_to_fill);
 
 	dp->mactx = mactx;
 	dp->ptr   = ptr;
 	info->dma = map;
 	info->skb = skb;
 
-	txring->next_to_use++;
+	txring->next_to_fill++;
 	mac->stats.tx_packets++;
 	mac->stats.tx_bytes += skb->len;
 
