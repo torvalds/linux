@@ -55,6 +55,9 @@ static int snap_rcv(struct sk_buff *skb, struct net_device *dev,
 		.type = __constant_htons(ETH_P_SNAP),
 	};
 
+	if (unlikely(!pskb_may_pull(skb, 5)))
+		goto drop;
+
 	rcu_read_lock();
 	proto = find_snap_client(skb_transport_header(skb));
 	if (proto) {
@@ -62,14 +65,18 @@ static int snap_rcv(struct sk_buff *skb, struct net_device *dev,
 		skb->transport_header += 5;
 		skb_pull_rcsum(skb, 5);
 		rc = proto->rcvfunc(skb, dev, &snap_packet_type, orig_dev);
-	} else {
-		skb->sk = NULL;
-		kfree_skb(skb);
-		rc = 1;
 	}
-
 	rcu_read_unlock();
+
+	if (unlikely(!proto))
+		goto drop;
+
+out:
 	return rc;
+
+drop:
+	kfree_skb(skb);
+	goto out;
 }
 
 /*
