@@ -195,6 +195,8 @@ qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 again:
 	ccq = do_eqbs(irq->sch_token, state, q_no, start, cnt);
 	rc = qdio_check_ccq(q, ccq);
+	if ((ccq == 96) && (tmp_cnt != *cnt))
+		rc = 0;
 	if (rc == 1) {
 		QDIO_DBF_TEXT5(1,trace,"eqAGAIN");
 		goto again;
