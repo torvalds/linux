@@ -2458,6 +2458,10 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
 			 "(0x%x)\n", (v >> S_RSPQ0DISABLED) & 0xff);
 	}
 
+	if (status & (F_HIPIODRBDROPERR | F_LOPIODRBDROPERR))
+		CH_ALERT(adapter, "SGE dropped %s priority doorbell\n",
+			 status & F_HIPIODRBDROPERR ? "high" : "lo");
+
 	t3_write_reg(adapter, A_SG_INT_CAUSE, status);
 	if (status & (F_RSPQCREDITOVERFOW | F_RSPQDISABLED))
 		t3_fatal_err(adapter);
