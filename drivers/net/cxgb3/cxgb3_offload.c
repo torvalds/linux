@@ -317,6 +317,8 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 	struct iff_mac *iffmacp;
 	struct ddp_params *ddpp;
 	struct adap_ports *ports;
+	struct ofld_page_info *rx_page_info;
+	struct tp_params *tp = &adapter->params.tp;
 	int i;
 
 	switch (req) {
@@ -382,6 +384,11 @@ static int cxgb_offload_ctl(struct t3cdev *tdev, unsigned int req, void *data)
 		if (!offload_running(adapter))
 			return -EAGAIN;
 		return cxgb_rdma_ctl(adapter, req, data);
+	case GET_RX_PAGE_INFO:
+		rx_page_info = data;
+		rx_page_info->page_size = tp->rx_pg_size;
+		rx_page_info->num = tp->rx_num_pgs;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
