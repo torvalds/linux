@@ -643,7 +643,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			spin_unlock(&mm->page_table_lock);
 			ret = hugetlb_fault(mm, vma, vaddr, 0);
 			spin_lock(&mm->page_table_lock);
-			if (!(ret & VM_FAULT_MAJOR))
+			if (!(ret & VM_FAULT_ERROR))
 				continue;
 
 			remainder = 0;
