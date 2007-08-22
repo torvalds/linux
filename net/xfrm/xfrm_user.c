@@ -19,7 +19,6 @@
 #include <linux/string.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <linux/rtnetlink.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
 #include <linux/init.h>
