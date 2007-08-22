@@ -354,7 +354,7 @@ config MTD_CFI_FLAGADM
 
 config MTD_WALNUT
 	tristate "Flash device mapped on IBM 405GP Walnut"
-	depends on MTD_JEDECPROBE && WALNUT
+	depends on MTD_JEDECPROBE && WALNUT && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 405GP
 	  Walnut board. If you have one of these boards and would like to
@@ -370,7 +370,7 @@ config MTD_EBONY
 
 config MTD_OCOTEA
 	tristate "Flash devices mapped on IBM 440GX Ocotea"
-	depends on MTD_CFI && OCOTEA
+	depends on MTD_CFI && OCOTEA && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 440GX
 	  Ocotea board. If you have one of these boards and would like to
