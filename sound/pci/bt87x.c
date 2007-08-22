@@ -764,6 +764,10 @@ static struct pci_device_id snd_bt87x_ids[] = {
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x121a, 0x3000, 32000),
 	/* AVerMedia Studio No. 103, 203, ...? */
 	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1461, 0x0003, 48000),
+	/* Prolink PixelView PV-M4900 */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0x1554, 0x4011, 32000),
+	/* Pinnacle  Studio PCTV rave */
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, 0xbd11, 0x1200, 32000),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, snd_bt87x_ids);
