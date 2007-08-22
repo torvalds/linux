@@ -347,22 +347,12 @@ struct ata_taskfile {
 };
 
 #define ata_id_is_ata(id)	(((id)[0] & (1 << 15)) == 0)
-#define ata_id_rahead_enabled(id) ((id)[85] & (1 << 6))
-#define ata_id_wcache_enabled(id) ((id)[85] & (1 << 5))
-#define ata_id_hpa_enabled(id)	((id)[85] & (1 << 10))
-#define ata_id_has_fua(id)	((id)[84] & (1 << 6))
-#define ata_id_has_flush(id)	((id)[83] & (1 << 12))
-#define ata_id_has_flush_ext(id) ((id)[83] & (1 << 13))
-#define ata_id_has_lba48(id)	((id)[83] & (1 << 10))
-#define ata_id_has_hpa(id)	((id)[82] & (1 << 10))
-#define ata_id_has_wcache(id)	((id)[82] & (1 << 5))
-#define ata_id_has_pm(id)	((id)[82] & (1 << 3))
 #define ata_id_has_lba(id)	((id)[49] & (1 << 9))
 #define ata_id_has_dma(id)	((id)[49] & (1 << 8))
 #define ata_id_has_ncq(id)	((id)[76] & (1 << 8))
 #define ata_id_queue_depth(id)	(((id)[75] & 0x1f) + 1)
 #define ata_id_removeable(id)	((id)[0] & (1 << 7))
-#define ata_id_has_dword_io(id)	((id)[50] & (1 << 0))
+#define ata_id_has_dword_io(id)	((id)[48] & (1 << 0))
 #define ata_id_has_AN(id)	\
 	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
 	  ((id)[78] & (1 << 5)) )
@@ -377,6 +367,90 @@ struct ata_taskfile {
 	  ((u64) (id)[(n) + 0]) )
 
 #define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
+
+static inline int ata_id_has_fua(const u16 *id)
+{
+	if ((id[84] & 0xC000) != 0x4000)
+		return 0;
+	return id[84] & (1 << 6);
+}
+
+static inline int ata_id_has_flush(const u16 *id)
+{
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	return id[83] & (1 << 12);
+}
+
+static inline int ata_id_has_flush_ext(const u16 *id)
+{
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	return id[83] & (1 << 13);
+}
+
+static inline int ata_id_has_lba48(const u16 *id)
+{
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	return id[83] & (1 << 10);
+}
+
+static inline int ata_id_hpa_enabled(const u16 *id)
+{
+	/* Yes children, word 83 valid bits cover word 82 data */
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	/* And 87 covers 85-87 */
+	if ((id[87] & 0xC000) != 0x4000)
+		return 0;
+	/* Check command sets enabled as well as supported */
+	if ((id[85] & ( 1 << 10)) == 0)
+		return 0;
+	return id[82] & (1 << 10);
+}
+
+static inline int ata_id_has_wcache(const u16 *id)
+{
+	/* Yes children, word 83 valid bits cover word 82 data */
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	return id[82] & (1 << 5);
+}
+
+static inline int ata_id_has_pm(const u16 *id)
+{
+	if ((id[83] & 0xC000) != 0x4000)
+		return 0;
+	return id[82] & (1 << 3);
+}
+
+static inline int ata_id_rahead_enabled(const u16 *id)
+{
+	if ((id[87] & 0xC000) != 0x4000)
+		return 0;
+	return id[85] & (1 << 6);
+}
+
+static inline int ata_id_wcache_enabled(const u16 *id)
+{
+	if ((id[87] & 0xC000) != 0x4000)
+		return 0;
+	return id[85] & (1 << 5);
+}
+
+/**
+ *	ata_id_major_version	-	get ATA level of drive
+ *	@id: Identify data
+ *
+ *	Caveats:
+ *		ATA-1 considers identify optional
+ *		ATA-2 introduces mandatory identify
+ *		ATA-3 introduces word 80 and accurate reporting
+ *
+ *	The practical impact of this is that ata_id_major_version cannot
+ *	reliably report on drives below ATA3. 
+ */
 
 static inline unsigned int ata_id_major_version(const u16 *id)
 {
