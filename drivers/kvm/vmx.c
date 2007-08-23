@@ -54,7 +54,8 @@ struct vcpu_vmx {
 	struct {
 		int           loaded;
 		u16           fs_sel, gs_sel, ldt_sel;
-		int           fs_gs_ldt_reload_needed;
+		int           gs_ldt_reload_needed;
+		int           fs_reload_needed;
 	}host_state;
 
 };
@@ -353,20 +354,21 @@ static void vmx_save_host_state(struct vcpu_vmx *vmx)
 	 * allow segment selectors with cpl > 0 or ti == 1.
 	 */
 	vmx->host_state.ldt_sel = read_ldt();
-	vmx->host_state.fs_gs_ldt_reload_needed = vmx->host_state.ldt_sel;
+	vmx->host_state.gs_ldt_reload_needed = vmx->host_state.ldt_sel;
 	vmx->host_state.fs_sel = read_fs();
-	if (!(vmx->host_state.fs_sel & 7))
+	if (!(vmx->host_state.fs_sel & 7)) {
 		vmcs_write16(HOST_FS_SELECTOR, vmx->host_state.fs_sel);
-	else {
+		vmx->host_state.fs_reload_needed = 0;
+	} else {
 		vmcs_write16(HOST_FS_SELECTOR, 0);
-		vmx->host_state.fs_gs_ldt_reload_needed = 1;
+		vmx->host_state.fs_reload_needed = 1;
 	}
 	vmx->host_state.gs_sel = read_gs();
 	if (!(vmx->host_state.gs_sel & 7))
 		vmcs_write16(HOST_GS_SELECTOR, vmx->host_state.gs_sel);
 	else {
 		vmcs_write16(HOST_GS_SELECTOR, 0);
-		vmx->host_state.fs_gs_ldt_reload_needed = 1;
+		vmx->host_state.gs_ldt_reload_needed = 1;
 	}
 
 #ifdef CONFIG_X86_64
@@ -396,9 +398,10 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 		return;
 
 	vmx->host_state.loaded = 0;
-	if (vmx->host_state.fs_gs_ldt_reload_needed) {
-		load_ldt(vmx->host_state.ldt_sel);
+	if (vmx->host_state.fs_reload_needed)
 		load_fs(vmx->host_state.fs_sel);
+	if (vmx->host_state.gs_ldt_reload_needed) {
+		load_ldt(vmx->host_state.ldt_sel);
 		/*
 		 * If we have to reload gs, we must take care to
 		 * preserve our gs base.
@@ -409,9 +412,8 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 		wrmsrl(MSR_GS_BASE, vmcs_readl(HOST_GS_BASE));
 #endif
 		local_irq_restore(flags);
-
-		reload_tss();
 	}
+	reload_tss();
 	save_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	load_msrs(vmx->host_msrs, vmx->save_nmsrs);
 	if (msr_efer_need_save_restore(vmx))
