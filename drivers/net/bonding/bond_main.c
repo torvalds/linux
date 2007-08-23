@@ -144,7 +144,7 @@ static struct proc_dir_entry *bond_proc_dir = NULL;
 #endif
 
 extern struct rw_semaphore bonding_rwsem;
-static u32 arp_target[BOND_MAX_ARP_TARGETS] = { 0, } ;
+static __be32 arp_target[BOND_MAX_ARP_TARGETS] = { 0, } ;
 static int arp_ip_count	= 0;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype= BOND_XMIT_POLICY_LAYER2;
@@ -2226,7 +2226,7 @@ out:
 }
 
 
-static u32 bond_glean_dev_ip(struct net_device *dev)
+static __be32 bond_glean_dev_ip(struct net_device *dev)
 {
 	struct in_device *idev;
 	struct in_ifaddr *ifa;
@@ -2269,7 +2269,7 @@ static int bond_has_ip(struct bonding *bond)
 	return 0;
 }
 
-static int bond_has_this_ip(struct bonding *bond, u32 ip)
+static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
 	struct vlan_entry *vlan, *vlan_next;
 
@@ -2293,7 +2293,7 @@ static int bond_has_this_ip(struct bonding *bond, u32 ip)
  * switches in VLAN mode (especially if ports are configured as
  * "native" to a VLAN) might not pass non-tagged frames.
  */
-static void bond_arp_send(struct net_device *slave_dev, int arp_op, u32 dest_ip, u32 src_ip, unsigned short vlan_id)
+static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_ip, __be32 src_ip, unsigned short vlan_id)
 {
 	struct sk_buff *skb;
 
@@ -2321,7 +2321,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, u32 dest_ip,
 static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 {
 	int i, vlan_id, rv;
-	u32 *targets = bond->params.arp_targets;
+	__be32 *targets = bond->params.arp_targets;
 	struct vlan_entry *vlan, *vlan_next;
 	struct net_device *vlan_dev;
 	struct flowi fl;
@@ -2426,10 +2426,10 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
 	}
 }
 
-static void bond_validate_arp(struct bonding *bond, struct slave *slave, u32 sip, u32 tip)
+static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 sip, __be32 tip)
 {
 	int i;
-	u32 *targets = bond->params.arp_targets;
+	__be32 *targets = bond->params.arp_targets;
 
 	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
@@ -2451,7 +2451,7 @@ static int bond_arp_rcv(struct sk_buff *skb, struct net_device *dev, struct pack
 	struct slave *slave;
 	struct bonding *bond;
 	unsigned char *arp_ptr;
-	u32 sip, tip;
+	__be32 sip, tip;
 
 	if (dev->nd_net != &init_net)
 		goto out;
@@ -3427,14 +3427,14 @@ static int bond_xmit_hash_policy_l34(struct sk_buff *skb,
 {
 	struct ethhdr *data = (struct ethhdr *)skb->data;
 	struct iphdr *iph = ip_hdr(skb);
-	u16 *layer4hdr = (u16 *)((u32 *)iph + iph->ihl);
+	__be16 *layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
 	int layer4_xor = 0;
 
 	if (skb->protocol == __constant_htons(ETH_P_IP)) {
 		if (!(iph->frag_off & __constant_htons(IP_MF|IP_OFFSET)) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP)) {
-			layer4_xor = htons((*layer4hdr ^ *(layer4hdr + 1)));
+			layer4_xor = ntohs((*layer4hdr ^ *(layer4hdr + 1)));
 		}
 		return (layer4_xor ^
 			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
@@ -4521,7 +4521,7 @@ static int bond_check_params(struct bond_params *params)
 			       arp_ip_target[arp_ip_count]);
 			arp_interval = 0;
 		} else {
-			u32 ip = in_aton(arp_ip_target[arp_ip_count]);
+			__be32 ip = in_aton(arp_ip_target[arp_ip_count]);
 			arp_target[arp_ip_count] = ip;
 		}
 	}

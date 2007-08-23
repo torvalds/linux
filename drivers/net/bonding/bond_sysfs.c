@@ -682,16 +682,16 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 					 struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
-	u32 newtarget;
+	__be32 newtarget;
 	int i = 0, done = 0, ret = count;
 	struct bonding *bond = to_bond(d);
-	u32 *targets;
+	__be32 *targets;
 
 	targets = bond->params.arp_targets;
 	newtarget = in_aton(buf + 1);
 	/* look for adds */
 	if (buf[0] == '+') {
-		if ((newtarget == 0) || (newtarget == INADDR_BROADCAST)) {
+		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
 			       ": %s: invalid ARP target %u.%u.%u.%u specified for addition\n",
  			       bond->dev->name, NIPQUAD(newtarget));
@@ -727,7 +727,7 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 
 	}
 	else if (buf[0] == '-')	{
-		if ((newtarget == 0) || (newtarget == INADDR_BROADCAST)) {
+		if ((newtarget == 0) || (newtarget == htonl(INADDR_BROADCAST))) {
 			printk(KERN_ERR DRV_NAME
 			       ": %s: invalid ARP target %d.%d.%d.%d specified for removal\n",
 			       bond->dev->name, NIPQUAD(newtarget));
