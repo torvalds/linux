@@ -5257,15 +5257,16 @@ static void migrate_dead_tasks(unsigned int dead_cpu)
 static struct ctl_table sd_ctl_dir[] = {
 	{
 		.procname	= "sched_domain",
-		.mode		= 0755,
+		.mode		= 0555,
 	},
 	{0,},
 };
 
 static struct ctl_table sd_ctl_root[] = {
 	{
+		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= sd_ctl_dir,
 	},
 	{0,},
@@ -5341,7 +5342,7 @@ static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 	for_each_domain(cpu, sd) {
 		snprintf(buf, 32, "domain%d", i);
 		entry->procname = kstrdup(buf, GFP_KERNEL);
-		entry->mode = 0755;
+		entry->mode = 0555;
 		entry->child = sd_alloc_ctl_domain_table(sd);
 		entry++;
 		i++;
@@ -5361,7 +5362,7 @@ static void init_sched_domain_sysctl(void)
 	for (i = 0; i < cpu_num; i++, entry++) {
 		snprintf(buf, 32, "cpu%d", i);
 		entry->procname = kstrdup(buf, GFP_KERNEL);
-		entry->mode = 0755;
+		entry->mode = 0555;
 		entry->child = sd_alloc_ctl_cpu_table(i);
 	}
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
