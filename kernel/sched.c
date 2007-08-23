@@ -262,7 +262,8 @@ struct rq {
 	s64 clock_max_delta;
 
 	unsigned int clock_warps, clock_overflows;
-	unsigned int clock_unstable_events;
+	u64 idle_clock;
+	unsigned int clock_deep_idle_events;
 	u64 tick_timestamp;
 
 	atomic_t nr_iowait;
@@ -556,18 +557,40 @@ static inline struct rq *this_rq_lock(void)
 }
 
 /*
- * CPU frequency is/was unstable - start new by setting prev_clock_raw:
+ * We are going deep-idle (irqs are disabled):
  */
-void sched_clock_unstable_event(void)
+void sched_clock_idle_sleep_event(void)
 {
-	unsigned long flags;
-	struct rq *rq;
+	struct rq *rq = cpu_rq(smp_processor_id());
 
-	rq = task_rq_lock(current, &flags);
-	rq->prev_clock_raw = sched_clock();
-	rq->clock_unstable_events++;
-	task_rq_unlock(rq, &flags);
+	spin_lock(&rq->lock);
+	__update_rq_clock(rq);
+	spin_unlock(&rq->lock);
+	rq->clock_deep_idle_events++;
 }
+EXPORT_SYMBOL_GPL(sched_clock_idle_sleep_event);
+
+/*
+ * We just idled delta nanoseconds (called with irqs disabled):
+ */
+void sched_clock_idle_wakeup_event(u64 delta_ns)
+{
+	struct rq *rq = cpu_rq(smp_processor_id());
+	u64 now = sched_clock();
+
+	rq->idle_clock += delta_ns;
+	/*
+	 * Override the previous timestamp and ignore all
+	 * sched_clock() deltas that occured while we idled,
+	 * and use the PM-provided delta_ns to advance the
+	 * rq clock:
+	 */
+	spin_lock(&rq->lock);
+	rq->prev_clock_raw = now;
+	rq->clock += delta_ns;
+	spin_unlock(&rq->lock);
+}
+EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
 
 /*
  * resched_task - mark a task 'to be rescheduled now'.
