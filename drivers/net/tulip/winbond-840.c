@@ -381,7 +381,7 @@ static int __devinit w840_probe1 (struct pci_dev *pdev,
 		goto err_out_free_res;
 
 	for (i = 0; i < 3; i++)
-		((u16 *)dev->dev_addr)[i] = le16_to_cpu(eeprom_read(ioaddr, i));
+		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(eeprom_read(ioaddr, i));
 
 	/* Reset the chip to erase previous misconfiguration.
 	   No hold time required! */

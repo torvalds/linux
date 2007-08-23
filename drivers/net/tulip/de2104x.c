@@ -264,10 +264,10 @@ struct de_srom_info_leaf {
 } __attribute__((packed));
 
 struct de_desc {
-	u32			opts1;
-	u32			opts2;
-	u32			addr1;
-	u32			addr2;
+	__le32			opts1;
+	__le32			opts2;
+	__le32			addr1;
+	__le32			addr2;
 };
 
 struct media_info {
@@ -1771,8 +1771,8 @@ static void __devinit de21041_get_srom_info (struct de_private *de)
 
 	/* download entire eeprom */
 	for (i = 0; i < DE_EEPROM_WORDS; i++)
-		((u16 *)ee_data)[i] =
-			le16_to_cpu(tulip_read_eeprom(de->regs, i, ee_addr_size));
+		((__le16 *)ee_data)[i] =
+			cpu_to_le16(tulip_read_eeprom(de->regs, i, ee_addr_size));
 
 	/* DEC now has a specification but early board makers
 	   just put the address in the first EEPROM locations. */

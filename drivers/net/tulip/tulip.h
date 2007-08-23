@@ -178,18 +178,18 @@ enum tulip_busconfig_bits {
 
 /* The Tulip Rx and Tx buffer descriptors. */
 struct tulip_rx_desc {
-	s32 status;
-	s32 length;
-	u32 buffer1;
-	u32 buffer2;
+	__le32 status;
+	__le32 length;
+	__le32 buffer1;
+	__le32 buffer2;
 };
 
 
 struct tulip_tx_desc {
-	s32 status;
-	s32 length;
-	u32 buffer1;
-	u32 buffer2;		/* We use only buffer 1.  */
+	__le32 status;
+	__le32 length;
+	__le32 buffer1;
+	__le32 buffer2;		/* We use only buffer 1.  */
 };
 
 

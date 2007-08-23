@@ -482,7 +482,7 @@
 static char version[] __devinitdata = "de4x5.c:V0.546 2001/02/22 davies@maniac.ultranet.com\n";
 
 #define c_char const char
-#define TWIDDLE(a) (u_short)le16_to_cpu(get_unaligned((u_short *)(a)))
+#define TWIDDLE(a) (u_short)le16_to_cpu(get_unaligned((__le16 *)(a)))
 
 /*
 ** MII Information
@@ -756,10 +756,10 @@ struct de4x5_srom {
                                         /* Multiple of 4 for DC21040  */
                                         /* Allows 512 byte alignment  */
 struct de4x5_desc {
-    volatile s32 status;
-    u32 des1;
-    u32 buf;
-    u32 next;
+    volatile __le32 status;
+    __le32 des1;
+    __le32 buf;
+    __le32 next;
     DESC_ALIGN
 };
 
