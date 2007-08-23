@@ -1099,14 +1099,21 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 	case VIDIOC_G_ENC_INDEX: {
 		struct v4l2_enc_idx *idx = arg;
+		struct v4l2_enc_idx_entry *e = idx->entry;
+		int entries;
 		int i;
 
-		idx->entries = (itv->pgm_info_write_idx + IVTV_MAX_PGM_INDEX - itv->pgm_info_read_idx) %
+		entries = (itv->pgm_info_write_idx + IVTV_MAX_PGM_INDEX - itv->pgm_info_read_idx) %
 					IVTV_MAX_PGM_INDEX;
-		if (idx->entries > V4L2_ENC_IDX_ENTRIES)
-			idx->entries = V4L2_ENC_IDX_ENTRIES;
-		for (i = 0; i < idx->entries; i++) {
-			idx->entry[i] = itv->pgm_info[(itv->pgm_info_read_idx + i) % IVTV_MAX_PGM_INDEX];
+		if (entries > V4L2_ENC_IDX_ENTRIES)
+			entries = V4L2_ENC_IDX_ENTRIES;
+		idx->entries = 0;
+		for (i = 0; i < entries; i++) {
+			*e = itv->pgm_info[(itv->pgm_info_read_idx + i) % IVTV_MAX_PGM_INDEX];
+			if ((e->flags & V4L2_ENC_IDX_FRAME_MASK) <= V4L2_ENC_IDX_FRAME_B) {
+				idx->entries++;
+				e++;
+			}
 		}
 		itv->pgm_info_read_idx = (itv->pgm_info_read_idx + idx->entries) % IVTV_MAX_PGM_INDEX;
 		break;
