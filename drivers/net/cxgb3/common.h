@@ -168,8 +168,8 @@ enum {
 };
 
 struct sg_ent {			/* SGE scatter/gather entry */
-	u32 len[2];
-	u64 addr[2];
+	__be32 len[2];
+	__be64 addr[2];
 };
 
 #ifndef SGE_NUM_GENBITS

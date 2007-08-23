@@ -79,7 +79,7 @@ enum {
 };
 
 struct tx_desc {
-	u64 flit[TX_DESC_FLITS];
+	__be64 flit[TX_DESC_FLITS];
 };
 
 struct rx_desc {
@@ -904,8 +904,8 @@ static void write_wr_hdr_sgl(unsigned int ndesc, struct sk_buff *skb,
 			     const struct sge_txq *q,
 			     const struct sg_ent *sgl,
 			     unsigned int flits, unsigned int sgl_flits,
-			     unsigned int gen, unsigned int wr_hi,
-			     unsigned int wr_lo)
+			     unsigned int gen, __be32 wr_hi,
+			     __be32 wr_lo)
 {
 	struct work_request_hdr *wrp = (struct work_request_hdr *)d;
 	struct tx_sw_desc *sd = &q->sdesc[pidx];
