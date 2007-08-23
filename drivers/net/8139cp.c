@@ -78,7 +78,7 @@
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define CP_VLAN_TAG_USED 1
 #define CP_VLAN_TX_TAG(tx_desc,vlan_tag_value) \
-	do { (tx_desc)->opts2 = (vlan_tag_value); } while (0)
+	do { (tx_desc)->opts2 = cpu_to_le32(vlan_tag_value); } while (0)
 #else
 #define CP_VLAN_TAG_USED 0
 #define CP_VLAN_TX_TAG(tx_desc,vlan_tag_value) \
@@ -304,7 +304,7 @@ static const unsigned int cp_rx_config =
 
 struct cp_desc {
 	__le32		opts1;
-	u32		opts2;
+	__le32		opts2;
 	__le64		addr;
 };
 
@@ -462,9 +462,9 @@ static inline void cp_rx_skb (struct cp_private *cp, struct sk_buff *skb,
 	cp->dev->last_rx = jiffies;
 
 #if CP_VLAN_TAG_USED
-	if (cp->vlgrp && (desc->opts2 & RxVlanTagged)) {
+	if (cp->vlgrp && (desc->opts2 & cpu_to_le32(RxVlanTagged))) {
 		vlan_hwaccel_receive_skb(skb, cp->vlgrp,
-					 be16_to_cpu(desc->opts2 & 0xffff));
+					 swab16(le32_to_cpu(desc->opts2) & 0xffff));
 	} else
 #endif
 		netif_receive_skb(skb);
@@ -765,7 +765,7 @@ static int cp_start_xmit (struct sk_buff *skb, struct net_device *dev)
 
 #if CP_VLAN_TAG_USED
 	if (cp->vlgrp && vlan_tx_tag_present(skb))
-		vlan_tag = TxVlanTag | cpu_to_be16(vlan_tx_tag_get(skb));
+		vlan_tag = TxVlanTag | swab16(vlan_tx_tag_get(skb));
 #endif
 
 	entry = cp->tx_head;
