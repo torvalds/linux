@@ -40,6 +40,7 @@
 #include <asm/sn/shub_mmr.h>
 #include <asm/sn/nodepda.h>
 #include <asm/sn/rw_mmr.h>
+#include <asm/sn/sn_feature_sets.h>
 
 DEFINE_PER_CPU(struct ptc_stats, ptcstats);
 DECLARE_PER_CPU(struct ptc_stats, ptcstats);
@@ -428,6 +429,31 @@ void sn2_send_IPI(int cpuid, int vector, int delivery_mode, int redirect)
 
 	sn_send_IPI_phys(nasid, physid, vector, delivery_mode);
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+/**
+ * sn_cpu_disable_allowed - Determine if a CPU can be disabled.
+ * @cpu - CPU that is requested to be disabled.
+ *
+ * CPU disable is only allowed on SHub2 systems running with a PROM
+ * that supports CPU disable. It is not permitted to disable the boot processor.
+ */
+bool sn_cpu_disable_allowed(int cpu)
+{
+	if (is_shub2() && sn_prom_feature_available(PRF_CPU_DISABLE_SUPPORT)) {
+		if (cpu != 0)
+			return true;
+		else
+			printk(KERN_WARNING
+			      "Disabling the boot processor is not allowed.\n");
+
+	} else
+		printk(KERN_WARNING
+		       "CPU disable is not supported on this system.\n");
+
+	return false;
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_PROC_FS
 

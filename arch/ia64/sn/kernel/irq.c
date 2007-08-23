@@ -19,6 +19,7 @@
 #include <asm/sn/pcidev.h>
 #include <asm/sn/shub_mmr.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/sn/sn_feature_sets.h>
 
 static void force_interrupt(int irq);
 static void register_intr_pda(struct sn_irq_info *sn_irq_info);
@@ -232,6 +233,20 @@ static void sn_set_affinity_irq(unsigned int irq, cpumask_t mask)
 				 sn_irq_lh[irq], list)
 		(void)sn_retarget_vector(sn_irq_info, nasid, slice);
 }
+
+#ifdef CONFIG_SMP
+void sn_set_err_irq_affinity(unsigned int irq)
+{
+        /*
+         * On systems which support CPU disabling (SHub2), all error interrupts
+         * are targetted at the boot CPU.
+         */
+        if (is_shub2() && sn_prom_feature_available(PRF_CPU_DISABLE_SUPPORT))
+                set_irq_affinity_info(irq, cpu_physical_id(0), 0);
+}
+#else
+void sn_set_err_irq_affinity(unsigned int irq) { }
+#endif
 
 static void
 sn_mask_irq(unsigned int irq)

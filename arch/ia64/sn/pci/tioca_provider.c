@@ -654,6 +654,8 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 		       __FUNCTION__, SGI_TIOCA_ERROR,
 		       (int)tioca_common->ca_common.bs_persist_busnum);
 
+	sn_set_err_irq_affinity(SGI_TIOCA_ERROR);
+
 	/* Setup locality information */
 	controller->node = tioca_kern->ca_closest_node;
 	return tioca_common;
