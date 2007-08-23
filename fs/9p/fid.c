@@ -92,23 +92,6 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	return fid;
 }
 
-struct p9_fid *v9fs_fid_lookup_remove(struct dentry *dentry)
-{
-	struct p9_fid *fid;
-	struct v9fs_dentry *dent;
-
-	dent = dentry->d_fsdata;
-	fid = v9fs_fid_lookup(dentry);
-	if (!IS_ERR(fid)) {
-		spin_lock(&dent->lock);
-		list_del(&fid->dlist);
-		spin_unlock(&dent->lock);
-	}
-
-	return fid;
-}
-
-
 /**
  * v9fs_fid_clone - lookup the fid for a dentry, clone a private copy and
  * 	release it
