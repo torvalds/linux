@@ -536,14 +536,13 @@ static struct i2c_adapter ivtv_i2c_adap_template = {
 #endif
 };
 
-static struct i2c_algo_bit_data ivtv_i2c_algo_template = {
-	NULL,                   /* ?? */
-	ivtv_setsda_old,        /* setsda function */
-	ivtv_setscl_old,        /* " */
-	ivtv_getsda_old,        /* " */
-	ivtv_getscl_old,        /* " */
-	10,                     /* udelay */
-	200                     /* timeout */
+static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
+	.setsda		= ivtv_setsda_old,
+	.setscl		= ivtv_setscl_old,
+	.getsda		= ivtv_getsda_old,
+	.getscl		= ivtv_getscl_old,
+	.udelay		= 10,
+	.timeout	= 200,
 };
 
 static struct i2c_client ivtv_i2c_client_template = {
