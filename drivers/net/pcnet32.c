@@ -210,31 +210,31 @@ static int homepna[MAX_UNITS];
 
 /* The PCNET32 Rx and Tx ring descriptors. */
 struct pcnet32_rx_head {
-	u32	base;
-	s16	buf_length;	/* two`s complement of length */
-	s16	status;
-	u32	msg_length;
-	u32	reserved;
+	__le32	base;
+	__le16	buf_length;	/* two`s complement of length */
+	__le16	status;
+	__le32	msg_length;
+	__le32	reserved;
 };
 
 struct pcnet32_tx_head {
-	u32	base;
-	s16	length;		/* two`s complement of length */
-	s16	status;
-	u32	misc;
-	u32	reserved;
+	__le32	base;
+	__le16	length;		/* two`s complement of length */
+	__le16	status;
+	__le32	misc;
+	__le32	reserved;
 };
 
 /* The PCNET32 32-Bit initialization block, described in databook. */
 struct pcnet32_init_block {
-	u16	mode;
-	u16	tlen_rlen;
+	__le16	mode;
+	__le16	tlen_rlen;
 	u8	phys_addr[6];
-	u16	reserved;
-	u32	filter[2];
+	__le16	reserved;
+	__le32	filter[2];
 	/* Receive and transmit ring base, along with extra bits. */
-	u32	rx_ring;
-	u32	tx_ring;
+	__le32	rx_ring;
+	__le32	tx_ring;
 };
 
 /* PCnet32 access functions */
@@ -610,9 +610,9 @@ static void pcnet32_realloc_rx_ring(struct net_device *dev,
 		new_dma_addr_list[new] =
 			    pci_map_single(lp->pci_dev, rx_skbuff->data,
 					   PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
-		new_rx_ring[new].base = (u32) le32_to_cpu(new_dma_addr_list[new]);
-		new_rx_ring[new].buf_length = le16_to_cpu(2 - PKT_BUF_SZ);
-		new_rx_ring[new].status = le16_to_cpu(0x8000);
+		new_rx_ring[new].base = cpu_to_le32(new_dma_addr_list[new]);
+		new_rx_ring[new].buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
+		new_rx_ring[new].status = cpu_to_le16(0x8000);
 	}
 	/* and free any unneeded buffers */
 	for (; new < lp->rx_ring_size; new++) {
@@ -888,7 +888,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	int x, i;		/* counters */
 	int numbuffs = 4;	/* number of TX/RX buffers and descs */
 	u16 status = 0x8300;	/* TX ring status */
-	u16 teststatus;		/* test of ring status */
+	__le16 teststatus;	/* test of ring status */
 	int rc;			/* return code */
 	int size;		/* size of packets */
 	unsigned char *packet;	/* source packet data */
@@ -935,7 +935,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 			packet = skb->data;
 			skb_put(skb, size);	/* create space for data */
 			lp->tx_skbuff[x] = skb;
-			lp->tx_ring[x].length = le16_to_cpu(-skb->len);
+			lp->tx_ring[x].length = cpu_to_le16(-skb->len);
 			lp->tx_ring[x].misc = 0;
 
 			/* put DA and SA into the skb */
@@ -955,10 +955,9 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 			lp->tx_dma_addr[x] =
 			    pci_map_single(lp->pci_dev, skb->data, skb->len,
 					   PCI_DMA_TODEVICE);
-			lp->tx_ring[x].base =
-			    (u32) le32_to_cpu(lp->tx_dma_addr[x]);
+			lp->tx_ring[x].base = cpu_to_le32(lp->tx_dma_addr[x]);
 			wmb();	/* Make sure owner changes after all others are visible */
-			lp->tx_ring[x].status = le16_to_cpu(status);
+			lp->tx_ring[x].status = cpu_to_le16(status);
 		}
 	}
 
@@ -969,7 +968,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	x = a->read_csr(ioaddr, CSR15) & 0xfffc;
 	lp->a.write_csr(ioaddr, CSR15, x | 0x0044);
 
-	teststatus = le16_to_cpu(0x8000);
+	teststatus = cpu_to_le16(0x8000);
 	lp->a.write_csr(ioaddr, CSR0, CSR0_START);	/* Set STRT bit */
 
 	/* Check status of descriptors */
@@ -1099,6 +1098,7 @@ static int pcnet32_phys_id(struct net_device *dev, u32 data)
 	mod_timer(&lp->blink_timer, jiffies);
 	set_current_state(TASK_INTERRUPTIBLE);
 
+	/* AV: the limit here makes no sense whatsoever */
 	if ((!data) || (data > (u32) (MAX_SCHEDULE_TIMEOUT / HZ)))
 		data = (u32) (MAX_SCHEDULE_TIMEOUT / HZ);
 
@@ -1224,7 +1224,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 							   newskb->data,
 							   PKT_BUF_SZ - 2,
 							   PCI_DMA_FROMDEVICE);
-			rxp->base = le32_to_cpu(lp->rx_dma_addr[entry]);
+			rxp->base = cpu_to_le32(lp->rx_dma_addr[entry]);
 			rx_in_place = 1;
 		} else
 			skb = NULL;
@@ -1283,9 +1283,9 @@ static int pcnet32_rx(struct net_device *dev, int budget)
 		 * The docs say that the buffer length isn't touched, but Andrew
 		 * Boyd of QNX reports that some revs of the 79C965 clear it.
 		 */
-		rxp->buf_length = le16_to_cpu(2 - PKT_BUF_SZ);
+		rxp->buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
 		wmb();	/* Make sure owner changes after others are visible */
-		rxp->status = le16_to_cpu(0x8000);
+		rxp->status = cpu_to_le16(0x8000);
 		entry = (++lp->cur_rx) & lp->rx_mod_mask;
 		rxp = &lp->rx_ring[entry];
 	}
@@ -1875,15 +1875,15 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	    && dev->dev_addr[2] == 0x75)
 		lp->options = PCNET32_PORT_FD | PCNET32_PORT_GPSI;
 
-	lp->init_block->mode = le16_to_cpu(0x0003);	/* Disable Rx and Tx. */
+	lp->init_block->mode = cpu_to_le16(0x0003);	/* Disable Rx and Tx. */
 	lp->init_block->tlen_rlen =
-	    le16_to_cpu(lp->tx_len_bits | lp->rx_len_bits);
+	    cpu_to_le16(lp->tx_len_bits | lp->rx_len_bits);
 	for (i = 0; i < 6; i++)
 		lp->init_block->phys_addr[i] = dev->dev_addr[i];
 	lp->init_block->filter[0] = 0x00000000;
 	lp->init_block->filter[1] = 0x00000000;
-	lp->init_block->rx_ring = (u32) le32_to_cpu(lp->rx_ring_dma_addr);
-	lp->init_block->tx_ring = (u32) le32_to_cpu(lp->tx_ring_dma_addr);
+	lp->init_block->rx_ring = cpu_to_le32(lp->rx_ring_dma_addr);
+	lp->init_block->tx_ring = cpu_to_le32(lp->tx_ring_dma_addr);
 
 	/* switch pcnet32 to 32bit mode */
 	a->write_bcr(ioaddr, 20, 2);
@@ -2274,7 +2274,7 @@ static int pcnet32_open(struct net_device *dev)
 #endif
 
 	lp->init_block->mode =
-	    le16_to_cpu((lp->options & PCNET32_PORT_PORTSEL) << 7);
+	    cpu_to_le16((lp->options & PCNET32_PORT_PORTSEL) << 7);
 	pcnet32_load_multicast(dev);
 
 	if (pcnet32_init_ring(dev)) {
@@ -2401,10 +2401,10 @@ static int pcnet32_init_ring(struct net_device *dev)
 			lp->rx_dma_addr[i] =
 			    pci_map_single(lp->pci_dev, rx_skbuff->data,
 					   PKT_BUF_SZ - 2, PCI_DMA_FROMDEVICE);
-		lp->rx_ring[i].base = (u32) le32_to_cpu(lp->rx_dma_addr[i]);
-		lp->rx_ring[i].buf_length = le16_to_cpu(2 - PKT_BUF_SZ);
+		lp->rx_ring[i].base = cpu_to_le32(lp->rx_dma_addr[i]);
+		lp->rx_ring[i].buf_length = cpu_to_le16(2 - PKT_BUF_SZ);
 		wmb();		/* Make sure owner changes after all others are visible */
-		lp->rx_ring[i].status = le16_to_cpu(0x8000);
+		lp->rx_ring[i].status = cpu_to_le16(0x8000);
 	}
 	/* The Tx buffer address is filled in as needed, but we do need to clear
 	 * the upper ownership bit. */
@@ -2416,11 +2416,11 @@ static int pcnet32_init_ring(struct net_device *dev)
 	}
 
 	lp->init_block->tlen_rlen =
-	    le16_to_cpu(lp->tx_len_bits | lp->rx_len_bits);
+	    cpu_to_le16(lp->tx_len_bits | lp->rx_len_bits);
 	for (i = 0; i < 6; i++)
 		lp->init_block->phys_addr[i] = dev->dev_addr[i];
-	lp->init_block->rx_ring = (u32) le32_to_cpu(lp->rx_ring_dma_addr);
-	lp->init_block->tx_ring = (u32) le32_to_cpu(lp->tx_ring_dma_addr);
+	lp->init_block->rx_ring = cpu_to_le32(lp->rx_ring_dma_addr);
+	lp->init_block->tx_ring = cpu_to_le32(lp->tx_ring_dma_addr);
 	wmb();			/* Make sure all changes are visible */
 	return 0;
 }
@@ -2529,16 +2529,16 @@ static int pcnet32_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Caution: the write order is important here, set the status
 	 * with the "ownership" bits last. */
 
-	lp->tx_ring[entry].length = le16_to_cpu(-skb->len);
+	lp->tx_ring[entry].length = cpu_to_le16(-skb->len);
 
 	lp->tx_ring[entry].misc = 0x00000000;
 
 	lp->tx_skbuff[entry] = skb;
 	lp->tx_dma_addr[entry] =
 	    pci_map_single(lp->pci_dev, skb->data, skb->len, PCI_DMA_TODEVICE);
-	lp->tx_ring[entry].base = (u32) le32_to_cpu(lp->tx_dma_addr[entry]);
+	lp->tx_ring[entry].base = cpu_to_le32(lp->tx_dma_addr[entry]);
 	wmb();			/* Make sure owner changes after all others are visible */
-	lp->tx_ring[entry].status = le16_to_cpu(status);
+	lp->tx_ring[entry].status = cpu_to_le16(status);
 
 	lp->cur_tx++;
 	lp->stats.tx_bytes += skb->len;
@@ -2709,7 +2709,7 @@ static void pcnet32_load_multicast(struct net_device *dev)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	volatile struct pcnet32_init_block *ib = lp->init_block;
-	volatile u16 *mcast_table = (u16 *) & ib->filter;
+	volatile __le16 *mcast_table = (__le16 *)ib->filter;
 	struct dev_mc_list *dmi = dev->mc_list;
 	unsigned long ioaddr = dev->base_addr;
 	char *addrs;
@@ -2718,8 +2718,8 @@ static void pcnet32_load_multicast(struct net_device *dev)
 
 	/* set all multicast bits */
 	if (dev->flags & IFF_ALLMULTI) {
-		ib->filter[0] = 0xffffffff;
-		ib->filter[1] = 0xffffffff;
+		ib->filter[0] = cpu_to_le32(~0U);
+		ib->filter[1] = cpu_to_le32(~0U);
 		lp->a.write_csr(ioaddr, PCNET32_MC_FILTER, 0xffff);
 		lp->a.write_csr(ioaddr, PCNET32_MC_FILTER+1, 0xffff);
 		lp->a.write_csr(ioaddr, PCNET32_MC_FILTER+2, 0xffff);
@@ -2741,9 +2741,7 @@ static void pcnet32_load_multicast(struct net_device *dev)
 
 		crc = ether_crc_le(6, addrs);
 		crc = crc >> 26;
-		mcast_table[crc >> 4] =
-		    le16_to_cpu(le16_to_cpu(mcast_table[crc >> 4]) |
-				(1 << (crc & 0xf)));
+		mcast_table[crc >> 4] |= cpu_to_le16(1 << (crc & 0xf));
 	}
 	for (i = 0; i < 4; i++)
 		lp->a.write_csr(ioaddr, PCNET32_MC_FILTER + i,
@@ -2769,12 +2767,12 @@ static void pcnet32_set_multicast_list(struct net_device *dev)
 			printk(KERN_INFO "%s: Promiscuous mode enabled.\n",
 			       dev->name);
 		lp->init_block->mode =
-		    le16_to_cpu(0x8000 | (lp->options & PCNET32_PORT_PORTSEL) <<
+		    cpu_to_le16(0x8000 | (lp->options & PCNET32_PORT_PORTSEL) <<
 				7);
 		lp->a.write_csr(ioaddr, CSR15, csr15 | 0x8000);
 	} else {
 		lp->init_block->mode =
-		    le16_to_cpu((lp->options & PCNET32_PORT_PORTSEL) << 7);
+		    cpu_to_le16((lp->options & PCNET32_PORT_PORTSEL) << 7);
 		lp->a.write_csr(ioaddr, CSR15, csr15 & 0x7fff);
 		pcnet32_load_multicast(dev);
 	}
