@@ -384,14 +384,6 @@ config MTD_REDWOOD
 	  Redwood board. If you have one of these boards and would like to
 	  use the flash chips on it, say 'Y'.
 
-config MTD_TQM834x
-	tristate "Flash device mapped on TQ Components TQM834x Boards"
-	depends on MTD_CFI && TQM834x
-	help
-	  This enables access routines for the flash chips on the
-	  TQ Components TQM834x boards. If you have one of these boards
-	  and would like to use the flash chips on it, say 'Y'.
-
 config MTD_OCELOT
 	tristate "Momenco Ocelot boot flash device"
 	depends on MOMENCO_OCELOT
