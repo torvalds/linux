@@ -32,6 +32,9 @@
 extern void qe_reset(void);
 extern int par_io_init(struct device_node *np);
 extern int par_io_of_config(struct device_node *np);
+extern int par_io_config_pin(u8 port, u8 pin, int dir, int open_drain,
+			     int assignment, int has_irq);
+extern int par_io_data_set(u8 port, u8 pin, u8 val);
 
 /* QE internal API */
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
