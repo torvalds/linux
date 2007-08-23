@@ -1404,7 +1404,7 @@ This function checks if there is any transmit  descriptors available to queue mo
 static int amd8111e_tx_queue_avail(struct amd8111e_priv* lp )
 {
 	int tx_index = lp->tx_idx & TX_BUFF_MOD_MASK;
-	if(lp->tx_skbuff[tx_index] != 0)
+	if (lp->tx_skbuff[tx_index])
 		return -1;
 	else
 		return 0;
@@ -1441,7 +1441,7 @@ static int amd8111e_start_xmit(struct sk_buff *skb, struct net_device * dev)
 	lp->tx_dma_addr[tx_index] =
 	    pci_map_single(lp->pci_dev, skb->data, skb->len, PCI_DMA_TODEVICE);
 	lp->tx_ring[tx_index].buff_phy_addr =
-	    (u32) cpu_to_le32(lp->tx_dma_addr[tx_index]);
+	    cpu_to_le32(lp->tx_dma_addr[tx_index]);
 
 	/*  Set FCS and LTINT bits */
 	wmb();
@@ -1998,7 +1998,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	spin_lock_init(&lp->lock);
 
 	lp->mmio = ioremap(reg_addr, reg_len);
-	if (lp->mmio == 0) {
+	if (!lp->mmio) {
 		printk(KERN_ERR "amd8111e: Cannot map device registers, "
 		       "exiting\n");
 		err = -ENOMEM;
