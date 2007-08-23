@@ -1415,7 +1415,7 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int id, int data_type)
 	char dir_name[32];
 	int do_battery_init = 0, do_ac_init = 0;
 	int old_remaining_capacity = 0;
-	int update_ac = 1, update_battery = 1;
+	int update_battery = 1;
 	int up_tm = update_time;
 
 	if (sbs_zombie(sbs)) {
@@ -1434,10 +1434,6 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int id, int data_type)
 	}
 
 	sbs->run_cnt++;
-
-	if (!update_ac && !update_battery) {
-		goto end;
-	}
 
 	old_ac_present = sbs->ac.ac_present;
 

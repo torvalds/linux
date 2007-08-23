@@ -1080,6 +1080,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
 	nlink_t old_dir_nlink = old_dir->i_nlink;
+	struct ocfs2_dinode *old_di;
 
 	/* At some point it might be nice to break this function up a
 	 * bit. */
@@ -1354,7 +1355,20 @@ static int ocfs2_rename(struct inode *old_dir,
 
 	old_inode->i_ctime = CURRENT_TIME;
 	mark_inode_dirty(old_inode);
-	ocfs2_mark_inode_dirty(handle, old_inode, old_inode_bh);
+
+	status = ocfs2_journal_access(handle, old_inode, old_inode_bh,
+				      OCFS2_JOURNAL_ACCESS_WRITE);
+	if (status >= 0) {
+		old_di = (struct ocfs2_dinode *) old_inode_bh->b_data;
+
+		old_di->i_ctime = cpu_to_le64(old_inode->i_ctime.tv_sec);
+		old_di->i_ctime_nsec = cpu_to_le32(old_inode->i_ctime.tv_nsec);
+
+		status = ocfs2_journal_dirty(handle, old_inode_bh);
+		if (status < 0)
+			mlog_errno(status);
+	} else
+		mlog_errno(status);
 
 	/* now that the name has been added to new_dir, remove the old name */
 	status = ocfs2_delete_entry(handle, old_dir, old_de, old_de_bh);

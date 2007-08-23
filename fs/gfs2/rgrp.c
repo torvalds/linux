@@ -863,16 +863,19 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 	u64 no_addr;
 
 	for(;;) {
+		if (goal >= rgd->rd_data)
+			break;
 		goal = rgblk_search(rgd, goal, GFS2_BLKST_UNLINKED,
 				    GFS2_BLKST_UNLINKED);
-		if (goal == 0)
-			return 0;
+		if (goal == BFITNOENT)
+			break;
 		no_addr = goal + rgd->rd_data0;
-		if (no_addr <= *last_unlinked)
+		goal++;
+		if (no_addr < *last_unlinked)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
-					no_addr, -1);
+					  no_addr, -1);
 		if (!IS_ERR(inode))
 			return inode;
 	}
@@ -1313,7 +1316,7 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 				    bi->bi_len, blk, new_state);
 	}
 
-	return (blk == BFITNOENT) ? 0 : (bi->bi_start * GFS2_NBBY) + blk;
+	return (blk == BFITNOENT) ? blk : (bi->bi_start * GFS2_NBBY) + blk;
 }
 
 /**
@@ -1393,6 +1396,7 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 		goal = rgd->rd_last_alloc_data;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
+	BUG_ON(blk == BFITNOENT);
 	rgd->rd_last_alloc_data = blk;
 
 	block = rgd->rd_data0 + blk;
@@ -1437,6 +1441,7 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 		goal = rgd->rd_last_alloc_meta;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED);
+	BUG_ON(blk == BFITNOENT);
 	rgd->rd_last_alloc_meta = blk;
 
 	block = rgd->rd_data0 + blk;
@@ -1478,6 +1483,7 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 
 	blk = rgblk_search(rgd, rgd->rd_last_alloc_meta,
 			   GFS2_BLKST_FREE, GFS2_BLKST_DINODE);
+	BUG_ON(blk == BFITNOENT);
 
 	rgd->rd_last_alloc_meta = blk;
 

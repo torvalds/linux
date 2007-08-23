@@ -367,16 +367,15 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 
 	pdev = to_pci_dev(dev);
 
-	/* is the device behind a bridge? */
-	if (unlikely(pdev->bus->parent))
-		pbus = pdev->bus->parent;
-	else
-		pbus = pdev->bus;
+	pbus = pdev->bus;
+
+	/* is the device behind a bridge? Look for the root bus */
+	while (pbus->parent)
+		pbus = pbus->parent;
 
 	tbl = pci_iommu(pbus);
 
-	BUG_ON(pdev->bus->parent &&
-	       (tbl->it_busno != pdev->bus->parent->number));
+	BUG_ON(tbl && (tbl->it_busno != pbus->number));
 
 	return tbl;
 }

@@ -275,11 +275,8 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
 		/* READ_SPARAM: no buffers */
-		lpfc_printf_log(phba,
-			        KERN_WARNING,
-			        LOG_MBOX,
-			        "%d:0301 READ_SPARAM: no buffers\n",
-			        phba->brd_no);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+			        "0301 READ_SPARAM: no buffers\n");
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
@@ -378,9 +375,8 @@ lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-				"%d (%d):0302 REG_LOGIN: no buffers, DID x%x, "
-				"flag x%x\n",
-				phba->brd_no, vpi, did, flag);
+				"0302 REG_LOGIN: no buffers, VPI:%d DID:x%x, "
+				"flag x%x\n", vpi, did, flag);
 		return (1);
 	}
 	INIT_LIST_HEAD(&mp->list);
@@ -564,7 +560,8 @@ lpfc_build_hbq_profile5(struct config_hbq_var *hbqmb,
 }
 
 void
-lpfc_config_hbq(struct lpfc_hba *phba, struct lpfc_hbq_init *hbq_desc,
+lpfc_config_hbq(struct lpfc_hba *phba, uint32_t id,
+		 struct lpfc_hbq_init *hbq_desc,
 		uint32_t hbq_entry_index, LPFC_MBOXQ_t *pmb)
 {
 	int i;
@@ -572,6 +569,7 @@ lpfc_config_hbq(struct lpfc_hba *phba, struct lpfc_hbq_init *hbq_desc,
 	struct config_hbq_var *hbqmb = &mb->un.varCfgHbq;
 
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+	hbqmb->hbqId = id;
 	hbqmb->entry_count = hbq_desc->entry_count;   /* # entries in HBQ */
 	hbqmb->recvNotify = hbq_desc->rn;             /* Receive
 						       * Notification */
@@ -691,8 +689,8 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
-		mb->un.varCfgPort.max_hbq = 1; /* Requesting 2 HBQs */
-		if (phba->max_vpi && phba->cfg_npiv_enable &&
+		mb->un.varCfgPort.max_hbq = lpfc_sli_hbq_count();
+		if (phba->max_vpi && phba->cfg_enable_npiv &&
 		    phba->vpd.sli3Feat.cmv) {
 			mb->un.varCfgPort.max_vpi = phba->max_vpi;
 			mb->un.varCfgPort.cmv = 1;

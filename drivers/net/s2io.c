@@ -2430,7 +2430,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 					(rxdp3->Buffer1_ptr == DMA_ERROR_CODE)) {
 					pci_unmap_single
 						(nic->pdev,
-						(dma_addr_t)skb->data,
+						(dma_addr_t)rxdp3->Buffer2_ptr,
 						dev->mtu + 4,
 						PCI_DMA_FROMDEVICE);
 					goto pci_map_failed;
@@ -6211,7 +6211,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			if( (rxdp3->Buffer0_ptr == 0) ||
 				(rxdp3->Buffer0_ptr == DMA_ERROR_CODE)) {
 				pci_unmap_single (sp->pdev,
-					(dma_addr_t)(*skb)->data,
+					(dma_addr_t)rxdp3->Buffer2_ptr,
 					dev->mtu + 4, PCI_DMA_FROMDEVICE);
 				goto memalloc_failed;
 			}
@@ -6224,7 +6224,10 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			if( (rxdp3->Buffer1_ptr == 0) ||
 				(rxdp3->Buffer1_ptr == DMA_ERROR_CODE)) {
 				pci_unmap_single (sp->pdev,
-					(dma_addr_t)(*skb)->data,
+					(dma_addr_t)rxdp3->Buffer0_ptr,
+					BUF0_LEN, PCI_DMA_FROMDEVICE);
+				pci_unmap_single (sp->pdev,
+					(dma_addr_t)rxdp3->Buffer2_ptr,
 					dev->mtu + 4, PCI_DMA_FROMDEVICE);
 				goto memalloc_failed;
 			}

@@ -20,10 +20,8 @@
 #include "delegation.h"
 #include "internal.h"
 
-static void nfs_free_delegation(struct nfs_delegation *delegation)
+static void nfs_do_free_delegation(struct nfs_delegation *delegation)
 {
-	if (delegation->cred)
-		put_rpccred(delegation->cred);
 	kfree(delegation);
 }
 
@@ -31,7 +29,18 @@ static void nfs_free_delegation_callback(struct rcu_head *head)
 {
 	struct nfs_delegation *delegation = container_of(head, struct nfs_delegation, rcu);
 
-	nfs_free_delegation(delegation);
+	nfs_do_free_delegation(delegation);
+}
+
+static void nfs_free_delegation(struct nfs_delegation *delegation)
+{
+	struct rpc_cred *cred;
+
+	cred = rcu_dereference(delegation->cred);
+	rcu_assign_pointer(delegation->cred, NULL);
+	call_rcu(&delegation->rcu, nfs_free_delegation_callback);
+	if (cred)
+		put_rpccred(cred);
 }
 
 static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_state *state)
@@ -166,7 +175,7 @@ static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *
 	int res = 0;
 
 	res = nfs4_proc_delegreturn(inode, delegation->cred, &delegation->stateid);
-	call_rcu(&delegation->rcu, nfs_free_delegation_callback);
+	nfs_free_delegation(delegation);
 	return res;
 }
 
@@ -448,7 +457,7 @@ restart:
 		spin_unlock(&clp->cl_lock);
 		rcu_read_unlock();
 		if (delegation != NULL)
-			call_rcu(&delegation->rcu, nfs_free_delegation_callback);
+			nfs_free_delegation(delegation);
 		goto restart;
 	}
 	rcu_read_unlock();

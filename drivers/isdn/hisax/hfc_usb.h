@@ -1,8 +1,8 @@
 /*
-* hfc_usb.h
-*
-* $Id: hfc_usb.h,v 4.2 2005/04/07 15:27:17 martinb1 Exp $
-*/
+ * hfc_usb.h
+ *
+ * $Id: hfc_usb.h,v 1.1.2.5 2007/08/20 14:36:03 mbachem Exp $
+ */
 
 #ifndef __HFC_USB_H__
 #define __HFC_USB_H__
@@ -10,25 +10,20 @@
 #define DRIVER_AUTHOR   "Peter Sprenger (sprenger@moving-byters.de)"
 #define DRIVER_DESC     "HFC-S USB based HiSAX ISDN driver"
 
-#define VERBOSE_USB_DEBUG
 
+#define HFC_CTRL_TIMEOUT	20	/* 5ms timeout writing/reading regs */
+#define HFC_TIMER_T3		8000	/* timeout for l1 activation timer */
+#define HFC_TIMER_T4		500	/* time for state change interval */
 
-/***********/
-/* defines */
-/***********/
-#define HFC_CTRL_TIMEOUT 20	/* 5ms timeout writing/reading regs */
-#define HFC_TIMER_T3 8000	/* timeout for l1 activation timer */
-#define HFC_TIMER_T4 500	/* time for state change interval */
+#define HFCUSB_L1_STATECHANGE	0	/* L1 state changed */
+#define HFCUSB_L1_DRX		1	/* D-frame received */
+#define HFCUSB_L1_ERX		2	/* E-frame received */
+#define HFCUSB_L1_DTX		4	/* D-frames completed */
 
-#define HFCUSB_L1_STATECHANGE 0	/* L1 state changed */
-#define HFCUSB_L1_DRX 1		/* D-frame received */
-#define HFCUSB_L1_ERX 2		/* E-frame received */
-#define HFCUSB_L1_DTX 4		/* D-frames completed */
+#define MAX_BCH_SIZE		2048	/* allowed B-channel packet size */
 
-#define MAX_BCH_SIZE 2048	/* allowed B-channel packet size */
-
-#define HFCUSB_RX_THRESHOLD 64	/* threshold for fifo report bit rx */
-#define HFCUSB_TX_THRESHOLD 64	/* threshold for fifo report bit tx */
+#define HFCUSB_RX_THRESHOLD	64	/* threshold for fifo report bit rx */
+#define HFCUSB_TX_THRESHOLD	64	/* threshold for fifo report bit tx */
 
 #define HFCUSB_CHIP_ID		0x16	/* Chip ID register index */
 #define HFCUSB_CIRM		0x00	/* cirm register index */
@@ -52,9 +47,8 @@
 
 #define HFCUSB_CHIPID		0x40	/* ID value of HFC-S USB */
 
-/******************/
+
 /* fifo registers */
-/******************/
 #define HFCUSB_NUM_FIFOS	8	/* maximum number of fifos */
 #define HFCUSB_B1_TX		0	/* index for B1 transmit bulk/int */
 #define HFCUSB_B1_RX		1	/* index for B1 receive bulk/int */
@@ -66,9 +60,9 @@
 #define HFCUSB_PCM_RX		7
 
 /*
-* used to switch snd_transfer_mode for different TA modes e.g. the Billion USB TA just
-* supports ISO out, while the Cologne Chip EVAL TA just supports BULK out
-*/
+ * used to switch snd_transfer_mode for different TA modes e.g. the Billion USB TA just
+ * supports ISO out, while the Cologne Chip EVAL TA just supports BULK out
+ */
 #define USB_INT		0
 #define USB_BULK	1
 #define USB_ISOC	2
@@ -77,49 +71,36 @@
 #define ISOC_PACKETS_B	8
 #define ISO_BUFFER_SIZE	128
 
-// ISO send definitions
+/* Fifo flow Control for TX ISO */
 #define SINK_MAX	68
 #define SINK_MIN	48
 #define SINK_DMIN	12
 #define SINK_DMAX	18
 #define BITLINE_INF	(-64*8)
 
-
-/**********/
-/* macros */
-/**********/
+/* HFC-S USB register access by Control-URSs */
 #define write_usb(a,b,c)usb_control_msg((a)->dev,(a)->ctrl_out_pipe,0,0x40,(c),(b),NULL,0,HFC_CTRL_TIMEOUT)
 #define read_usb(a,b,c) usb_control_msg((a)->dev,(a)->ctrl_in_pipe,1,0xC0,0,(b),(c),1,HFC_CTRL_TIMEOUT)
-
-
-/*******************/
-/* Debugging Flags */
-/*******************/
-#define USB_DBG   1
-#define ISDN_DBG  2
-
-
-/* *********************/
-/* USB related defines */
-/***********************/
 #define HFC_CTRL_BUFSIZE 32
 
-
-
-/*************************************************/
 /* entry and size of output/input control buffer */
-/*************************************************/
 typedef struct {
 	__u8 hfc_reg;		/* register number */
 	__u8 reg_val;		/* value to be written (or read) */
 	int action;		/* data for action handler */
 } ctrl_buft;
 
+/* Debugging Flags */
+#define HFCUSB_DBG_INIT		0x0001
+#define HFCUSB_DBG_STATES	0x0002
+#define HFCUSB_DBG_DCHANNEL	0x0080
+#define HFCUSB_DBG_FIFO_ERR	0x4000
+#define HFCUSB_DBG_VERBOSE_USB	0x8000
 
-/********************/
-/* URB error codes: */
-/********************/
-/* Used to represent a list of values and their respective symbolic names */
+/*
+ * URB error codes:
+ * Used to represent a list of values and their respective symbolic names
+ */
 struct hfcusb_symbolic_list {
 	const int num;
 	const char *name;
@@ -134,20 +115,20 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 	{-ENXIO, "URB already queued"},
 	{-EFBIG, "Too much ISO frames requested"},
 	{-ENOSR, "Buffer error (overrun)"},
-	{-EPIPE, "Specified endpoint is stalled"},
+	{-EPIPE, "Specified endpoint is stalled (device not responding)"},
 	{-EOVERFLOW, "Babble (bad cable?)"},
 	{-EPROTO, "Bit-stuff error (bad cable?)"},
-	{-EILSEQ, "CRC or missing token"},
-	{-ETIME, "Device did not respond"},
+	{-EILSEQ, "CRC/Timeout"},
+	{-ETIMEDOUT, "NAK (device does not respond)"},
 	{-ESHUTDOWN, "Device unplugged"},
 	{-1, NULL}
 };
 
 
-/*****************************************************/
-/* device dependant information to support different */
-/* ISDN Ta's using the HFC-S USB chip                */
-/*****************************************************/
+/*
+ * device dependant information to support different
+ * ISDN Ta's using the HFC-S USB chip
+ */
 
 /* USB descriptor need to contain one of the following EndPoint combination: */
 #define CNF_4INT3ISO	1	// 4 INT IN, 3 ISO OUT
@@ -155,16 +136,19 @@ static struct hfcusb_symbolic_list urb_errlist[] = {
 #define CNF_4ISO3ISO	3	// 4 ISO IN, 3 ISO OUT
 #define CNF_3ISO3ISO	4	// 3 ISO IN, 3 ISO OUT
 
-#define EP_NUL 1		// Endpoint at this position not allowed
-#define EP_NOP 2		// all type of endpoints allowed at this position
-#define EP_ISO 3		// Isochron endpoint mandatory at this position
-#define EP_BLK 4		// Bulk endpoint mandatory at this position
-#define EP_INT 5		// Interrupt endpoint mandatory at this position
+#define EP_NUL	1	// Endpoint at this position not allowed
+#define EP_NOP	2	// all type of endpoints allowed at this position
+#define EP_ISO	3	// Isochron endpoint mandatory at this position
+#define EP_BLK	4	// Bulk endpoint mandatory at this position
+#define EP_INT	5	// Interrupt endpoint mandatory at this position
 
-/* this array represents all endpoints possible in the HCF-USB the last
-* 3 entries are the configuration number, the minimum interval for
-* Interrupt endpoints & boolean if E-channel logging possible
-*/
+/*
+ * List of all supported endpoint configuration sets, used to find the
+ * best matching endpoint configuration within a devices' USB descriptor.
+ * We need at least 3 RX endpoints, and 3 TX endpoints, either
+ * INT-in and ISO-out, or ISO-in and ISO-out)
+ * with 4 RX endpoints even E-Channel logging is possible
+ */
 static int validconf[][19] = {
 	// INT in, ISO out config
 	{EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NUL, EP_INT, EP_NOP, EP_INT,
@@ -193,7 +177,6 @@ static char *conf_str[] = {
 };
 #endif
 
-
 typedef struct {
 	int vendor;		// vendor id
 	int prod_id;		// product id
@@ -202,9 +185,9 @@ typedef struct {
 	signed short led_bits[8];	// array of 8 possible LED bitmask settings
 } vendor_data;
 
-#define LED_OFF      0		// no LED support
-#define LED_SCHEME1  1		// LED standard scheme
-#define LED_SCHEME2  2		// not used yet...
+#define LED_OFF		0	// no LED support
+#define LED_SCHEME1	1	// LED standard scheme
+#define LED_SCHEME2	2	// not used yet...
 
 #define LED_POWER_ON	1
 #define LED_POWER_OFF	2
@@ -217,11 +200,8 @@ typedef struct {
 #define LED_B2_OFF	9
 #define LED_B2_DATA	10
 
-#define LED_NORMAL   0		// LEDs are normal
-#define LED_INVERTED 1		// LEDs are inverted
-
-/* time in ms to perform a Flashing LED when B-Channel has traffic */
-#define LED_TIME      250
+#define LED_NORMAL   	0	// LEDs are normal
+#define LED_INVERTED 	1	// LEDs are inverted
 
 
-#endif				// __HFC_USB_H__
+#endif	// __HFC_USB_H__

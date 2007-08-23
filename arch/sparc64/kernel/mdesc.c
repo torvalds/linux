@@ -9,6 +9,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/miscdevice.h>
 
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
@@ -568,20 +569,6 @@ static void __init report_platform_properties(void)
 	mdesc_release(hp);
 }
 
-static int inline find_in_proplist(const char *list, const char *match, int len)
-{
-	while (len > 0) {
-		int l;
-
-		if (!strcmp(list, match))
-			return 1;
-		l = strlen(list) + 1;
-		list += l;
-		len -= l;
-	}
-	return 0;
-}
-
 static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
 					struct mdesc_handle *hp,
 					u64 mp)
@@ -596,10 +583,10 @@ static void __devinit fill_in_one_cache(cpuinfo_sparc *c,
 
 	switch (*level) {
 	case 1:
-		if (find_in_proplist(type, "instn", type_len)) {
+		if (of_find_in_proplist(type, "instn", type_len)) {
 			c->icache_size = *size;
 			c->icache_line_size = *line_size;
-		} else if (find_in_proplist(type, "data", type_len)) {
+		} else if (of_find_in_proplist(type, "data", type_len)) {
 			c->dcache_size = *size;
 			c->dcache_line_size = *line_size;
 		}
@@ -677,7 +664,7 @@ static void __devinit set_core_ids(struct mdesc_handle *hp)
 			continue;
 
 		type = mdesc_get_property(hp, mp, "type", &len);
-		if (!find_in_proplist(type, "instn", len))
+		if (!of_find_in_proplist(type, "instn", len))
 			continue;
 
 		mark_core_ids(hp, mp, idx);
@@ -718,8 +705,8 @@ static void __devinit __set_proc_ids(struct mdesc_handle *hp,
 		int len;
 
 		type = mdesc_get_property(hp, mp, "type", &len);
-		if (!find_in_proplist(type, "int", len) &&
-		    !find_in_proplist(type, "integer", len))
+		if (!of_find_in_proplist(type, "int", len) &&
+		    !of_find_in_proplist(type, "integer", len))
 			continue;
 
 		mark_proc_ids(hp, mp, idx);
@@ -849,6 +836,43 @@ void __devinit mdesc_fill_in_cpu_data(cpumask_t mask)
 
 	mdesc_release(hp);
 }
+
+static ssize_t mdesc_read(struct file *file, char __user *buf,
+			  size_t len, loff_t *offp)
+{
+	struct mdesc_handle *hp = mdesc_grab();
+	int err;
+
+	if (!hp)
+		return -ENODEV;
+
+	err = hp->handle_size;
+	if (len < hp->handle_size)
+		err = -EMSGSIZE;
+	else if (copy_to_user(buf, &hp->mdesc, hp->handle_size))
+		err = -EFAULT;
+	mdesc_release(hp);
+
+	return err;
+}
+
+static const struct file_operations mdesc_fops = {
+	.read	= mdesc_read,
+	.owner	= THIS_MODULE,
+};
+
+static struct miscdevice mdesc_misc = {
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name	= "mdesc",
+	.fops	= &mdesc_fops,
+};
+
+static int __init mdesc_misc_init(void)
+{
+	return misc_register(&mdesc_misc);
+}
+
+__initcall(mdesc_misc_init);
 
 void __init sun4v_mdesc_init(void)
 {

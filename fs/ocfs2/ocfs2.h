@@ -494,16 +494,16 @@ static inline unsigned int ocfs2_page_index_to_clusters(struct super_block *sb,
 /*
  * Find the 1st page index which covers the given clusters.
  */
-static inline unsigned long ocfs2_align_clusters_to_page_index(struct super_block *sb,
+static inline pgoff_t ocfs2_align_clusters_to_page_index(struct super_block *sb,
 							u32 clusters)
 {
 	unsigned int cbits = OCFS2_SB(sb)->s_clustersize_bits;
-	unsigned long index = clusters;
+        pgoff_t index = clusters;
 
 	if (PAGE_CACHE_SHIFT > cbits) {
-		index = clusters >> (PAGE_CACHE_SHIFT - cbits);
+		index = (pgoff_t)clusters >> (PAGE_CACHE_SHIFT - cbits);
 	} else if (PAGE_CACHE_SHIFT < cbits) {
-		index = clusters << (cbits - PAGE_CACHE_SHIFT);
+		index = (pgoff_t)clusters << (cbits - PAGE_CACHE_SHIFT);
 	}
 
 	return index;

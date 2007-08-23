@@ -7,7 +7,7 @@
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
  */
-static inline void update_curr_rt(struct rq *rq, u64 now)
+static inline void update_curr_rt(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
 	u64 delta_exec;
@@ -15,18 +15,17 @@ static inline void update_curr_rt(struct rq *rq, u64 now)
 	if (!task_has_rt_policy(curr))
 		return;
 
-	delta_exec = now - curr->se.exec_start;
+	delta_exec = rq->clock - curr->se.exec_start;
 	if (unlikely((s64)delta_exec < 0))
 		delta_exec = 0;
 
 	schedstat_set(curr->se.exec_max, max(curr->se.exec_max, delta_exec));
 
 	curr->se.sum_exec_runtime += delta_exec;
-	curr->se.exec_start = now;
+	curr->se.exec_start = rq->clock;
 }
 
-static void
-enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
+static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
@@ -37,12 +36,11 @@ enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup, u64 now)
 /*
  * Adding/removing a task to/from a priority array:
  */
-static void
-dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep, u64 now)
+static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
-	update_curr_rt(rq, now);
+	update_curr_rt(rq);
 
 	list_del(&p->run_list);
 	if (list_empty(array->queue + p->prio))
@@ -75,7 +73,7 @@ static void check_preempt_curr_rt(struct rq *rq, struct task_struct *p)
 		resched_task(rq->curr);
 }
 
-static struct task_struct *pick_next_task_rt(struct rq *rq, u64 now)
+static struct task_struct *pick_next_task_rt(struct rq *rq)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 	struct task_struct *next;
@@ -89,14 +87,14 @@ static struct task_struct *pick_next_task_rt(struct rq *rq, u64 now)
 	queue = array->queue + idx;
 	next = list_entry(queue->next, struct task_struct, run_list);
 
-	next->se.exec_start = now;
+	next->se.exec_start = rq->clock;
 
 	return next;
 }
 
-static void put_prev_task_rt(struct rq *rq, struct task_struct *p, u64 now)
+static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 {
-	update_curr_rt(rq, now);
+	update_curr_rt(rq);
 	p->se.exec_start = 0;
 }
 
@@ -172,28 +170,15 @@ static struct task_struct *load_balance_next_rt(void *arg)
 	return p;
 }
 
-static int
+static unsigned long
 load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			unsigned long max_nr_move, unsigned long max_load_move,
 			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, unsigned long *load_moved)
+			int *all_pinned, int *this_best_prio)
 {
-	int this_best_prio, best_prio, best_prio_seen = 0;
 	int nr_moved;
 	struct rq_iterator rt_rq_iterator;
-
-	best_prio = sched_find_first_bit(busiest->rt.active.bitmap);
-	this_best_prio = sched_find_first_bit(this_rq->rt.active.bitmap);
-
-	/*
-	 * Enable handling of the case where there is more than one task
-	 * with the best priority.   If the current running task is one
-	 * of those with prio==best_prio we know it won't be moved
-	 * and therefore it's safe to override the skip (based on load)
-	 * of any task we find with that prio.
-	 */
-	if (busiest->curr->prio == best_prio)
-		best_prio_seen = 1;
+	unsigned long load_moved;
 
 	rt_rq_iterator.start = load_balance_start_rt;
 	rt_rq_iterator.next = load_balance_next_rt;
@@ -203,11 +188,10 @@ load_balance_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	rt_rq_iterator.arg = busiest;
 
 	nr_moved = balance_tasks(this_rq, this_cpu, busiest, max_nr_move,
-			max_load_move, sd, idle, all_pinned, load_moved,
-			this_best_prio, best_prio, best_prio_seen,
-			&rt_rq_iterator);
+			max_load_move, sd, idle, all_pinned, &load_moved,
+			this_best_prio, &rt_rq_iterator);
 
-	return nr_moved;
+	return load_moved;
 }
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)

@@ -56,8 +56,10 @@ static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 		return -ENOMEM;
 
 	w = dlm_node_weight(ls->ls_name, nodeid);
-	if (w < 0)
+	if (w < 0) {
+		kfree(memb);
 		return w;
+	}
 
 	memb->nodeid = nodeid;
 	memb->weight = w;

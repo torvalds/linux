@@ -180,8 +180,6 @@ source "drivers/isdn/Kconfig"
 
 source "drivers/telephony/Kconfig"
 
-source "drivers/cdrom/Kconfig"
-
 #
 # input before char - char/joystick depends on it. As does USB.
 #

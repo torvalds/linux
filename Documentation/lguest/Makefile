@@ -13,7 +13,9 @@ LGUEST_GUEST_TOP := ($(CONFIG_PAGE_OFFSET) - 0x08000000)
 
 CFLAGS:=-Wall -Wmissing-declarations -Wmissing-prototypes -O3 -Wl,-T,lguest.lds
 LDLIBS:=-lz
-
+# Removing this works for some versions of ld.so (eg. Ubuntu Feisty) and
+# not others (eg. FC7).
+LDFLAGS+=-static
 all: lguest.lds lguest
 
 # The linker script on x86 is so complex the only way of creating one

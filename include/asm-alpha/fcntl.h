@@ -16,6 +16,7 @@
 #define O_LARGEFILE	0400000 /* will be set by the kernel on every open */
 #define O_DIRECT	02000000 /* direct disk access - should check with OSF/1 */
 #define O_NOATIME	04000000
+#define O_CLOEXEC	010000000 /* set close_on_exec */
 
 #define F_GETLK		7
 #define F_SETLK		8

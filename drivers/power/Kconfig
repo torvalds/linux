@@ -38,7 +38,7 @@ config BATTERY_DS2760
 
 config BATTERY_PMU
 	tristate "Apple PMU battery"
-	depends on ADB_PMU
+	depends on PPC32 && ADB_PMU
 	help
 	  Say Y here to expose battery information on Apple machines
 	  through the generic battery class.

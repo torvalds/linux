@@ -759,7 +759,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		   mmu_psize_defs[mmu_vmalloc_psize].sllp) {
 		get_paca()->vmalloc_sllp =
 			mmu_psize_defs[mmu_vmalloc_psize].sllp;
-		slb_flush_and_rebolt();
+		slb_vmalloc_update();
 	}
 #endif /* CONFIG_PPC_64K_PAGES */
 
@@ -795,7 +795,7 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 #ifdef CONFIG_PPC_MM_SLICES
 	/* We only prefault standard pages for now */
-	if (unlikely(get_slice_psize(mm, ea) != mm->context.user_psize));
+	if (unlikely(get_slice_psize(mm, ea) != mm->context.user_psize))
 		return;
 #endif
 

@@ -3,6 +3,7 @@
 #include <linux/mm.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/apic.h>
 
 #include "cpu.h"
 
@@ -22,6 +23,7 @@
 extern void vide(void);
 __asm__(".align 4\nvide: ret");
 
+#ifdef CONFIG_X86_LOCAL_APIC
 #define ENABLE_C1E_MASK         0x18000000
 #define CPUID_PROCESSOR_SIGNATURE       1
 #define CPUID_XFAM              0x0ff00000
@@ -52,6 +54,7 @@ static __cpuinit int amd_apic_timer_broken(void)
         }
 	return 0;
 }
+#endif
 
 int force_mwait __cpuinitdata;
 
@@ -282,8 +285,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			num_cache_leaves = 3;
 	}
 
+#ifdef CONFIG_X86_LOCAL_APIC
 	if (amd_apic_timer_broken())
-		set_bit(X86_FEATURE_LAPIC_TIMER_BROKEN, c->x86_capability);
+		local_apic_timer_disabled = 1;
+#endif
 
 	if (c->x86 == 0x10 && !force_mwait)
 		clear_bit(X86_FEATURE_MWAIT, c->x86_capability);

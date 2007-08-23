@@ -736,9 +736,6 @@ gss_do_free_ctx(struct gss_cl_ctx *ctx)
 {
 	dprintk("RPC:       gss_free_ctx\n");
 
-	if (ctx->gc_gss_ctx)
-		gss_delete_sec_context(&ctx->gc_gss_ctx);
-
 	kfree(ctx->gc_wire_ctx.data);
 	kfree(ctx);
 }
@@ -753,7 +750,13 @@ gss_free_ctx_callback(struct rcu_head *head)
 static void
 gss_free_ctx(struct gss_cl_ctx *ctx)
 {
+	struct gss_ctx *gc_gss_ctx;
+
+	gc_gss_ctx = rcu_dereference(ctx->gc_gss_ctx);
+	rcu_assign_pointer(ctx->gc_gss_ctx, NULL);
 	call_rcu(&ctx->gc_rcu, gss_free_ctx_callback);
+	if (gc_gss_ctx)
+		gss_delete_sec_context(&gc_gss_ctx);
 }
 
 static void

@@ -4154,8 +4154,9 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 			      fcp_rsp_iu->fcp_resid,
 			      (int) zfcp_get_fcp_dl(fcp_cmnd_iu));
 
-		scpnt->resid = fcp_rsp_iu->fcp_resid;
-		if (scpnt->request_bufflen - scpnt->resid < scpnt->underflow)
+		scsi_set_resid(scpnt, fcp_rsp_iu->fcp_resid);
+		if (scsi_bufflen(scpnt) - scsi_get_resid(scpnt) <
+		    scpnt->underflow)
 			set_host_byte(&scpnt->result, DID_ERROR);
 	}
 

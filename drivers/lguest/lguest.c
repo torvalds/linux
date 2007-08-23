@@ -323,9 +323,12 @@ static void lguest_write_gdt_entry(struct desc_struct *dt,
  * __thread variables).  So we have a hypercall specifically for this case. */
 static void lguest_load_tls(struct thread_struct *t, unsigned int cpu)
 {
+	/* There's one problem which normal hardware doesn't have: the Host
+	 * can't handle us removing entries we're currently using.  So we clear
+	 * the GS register here: if it's needed it'll be reloaded anyway. */
+	loadsegment(gs, 0);
 	lazy_hcall(LHCALL_LOAD_TLS, __pa(&t->tls_array), cpu, 0);
 }
-/*:*/
 
 /*G:038 That's enough excitement for now, back to ploughing through each of
  * the paravirt_ops (we're about 1/3 of the way through).
@@ -687,7 +690,8 @@ static struct clocksource lguest_clock = {
 	.rating		= 400,
 	.read		= lguest_clock_read,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1,
+	.mult		= 1 << 22,
+	.shift		= 22,
 };
 
 /* The "scheduler clock" is just our real clock, adjusted to start at zero */
@@ -770,7 +774,6 @@ static void lguest_time_init(void)
 	 * way, the "rating" is initialized so high that it's always chosen
 	 * over any other clocksource. */
 	if (lguest_data.tsc_khz) {
-		lguest_clock.shift = 22;
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
 							 lguest_clock.shift);
 		lguest_clock.flags = CLOCK_SOURCE_IS_CONTINUOUS;
@@ -933,23 +936,24 @@ static const struct lguest_insns
 /* Now our patch routine is fairly simple (based on the native one in
  * paravirt.c).  If we have a replacement, we copy it in and return how much of
  * the available space we used. */
-static unsigned lguest_patch(u8 type, u16 clobber, void *insns, unsigned len)
+static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
+			     unsigned long addr, unsigned len)
 {
 	unsigned int insn_len;
 
 	/* Don't do anything special if we don't have a replacement */
 	if (type >= ARRAY_SIZE(lguest_insns) || !lguest_insns[type].start)
-		return paravirt_patch_default(type, clobber, insns, len);
+		return paravirt_patch_default(type, clobber, ibuf, addr, len);
 
 	insn_len = lguest_insns[type].end - lguest_insns[type].start;
 
 	/* Similarly if we can't fit replacement (shouldn't happen, but let's
 	 * be thorough). */
 	if (len < insn_len)
-		return paravirt_patch_default(type, clobber, insns, len);
+		return paravirt_patch_default(type, clobber, ibuf, addr, len);
 
 	/* Copy in our instructions. */
-	memcpy(insns, lguest_insns[type].start, insn_len);
+	memcpy(ibuf, lguest_insns[type].start, insn_len);
 	return insn_len;
 }
 

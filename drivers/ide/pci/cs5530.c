@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cs5530.c		Version 0.73	Mar 10 2007
+ * linux/drivers/ide/pci/cs5530.c		Version 0.74	Jul 28 2007
  *
  * Copyright (C) 2000			Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2000			Mark Lord <mlord@pobox.com>
@@ -207,6 +207,9 @@ static unsigned int __devinit init_chipset_cs5530 (struct pci_dev *dev, const ch
 	struct pci_dev *master_0 = NULL, *cs5530_0 = NULL;
 	unsigned long flags;
 
+	if (pci_resource_start(dev, 4) == 0)
+		return -EFAULT;
+
 	dev = NULL;
 	while ((dev = pci_get_device(PCI_VENDOR_ID_CYRIX, PCI_ANY_ID, dev)) != NULL) {
 		switch (dev->device) {
@@ -324,6 +327,9 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 			hwif->drives[1].autotune = 1;
 			/* needs autotuning later */
 	}
+
+	if (hwif->dma_base == 0)
+		return;
 
 	hwif->atapi_dma = 1;
 	hwif->ultra_mask = 0x07;

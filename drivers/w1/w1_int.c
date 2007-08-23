@@ -170,22 +170,24 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 void w1_remove_master_device(struct w1_bus_master *bm)
 {
-	struct w1_master *dev = NULL;
+	struct w1_master *dev, *found = NULL;
 
 	list_for_each_entry(dev, &w1_masters, w1_master_entry) {
 		if (!dev->initialized)
 			continue;
 
-		if (dev->bus_master->data == bm->data)
+		if (dev->bus_master->data == bm->data) {
+			found = dev;
 			break;
+		}
 	}
 
-	if (!dev) {
+	if (!found) {
 		printk(KERN_ERR "Device doesn't exist.\n");
 		return;
 	}
 
-	__w1_remove_master_device(dev);
+	__w1_remove_master_device(found);
 }
 
 EXPORT_SYMBOL(w1_add_master_device);

@@ -109,7 +109,7 @@ int mlx4_MAD_IFC(struct mlx4_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 			   in_modifier, op_modifier,
 			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C);
 
-	if (!err);
+	if (!err)
 		memcpy(response_mad, outmailbox->buf, 256);
 
 	mlx4_free_cmd_mailbox(dev->dev, inmailbox);

@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.6.3"
-#define DRV_MODULE_RELDATE	"July 16, 2007"
+#define DRV_MODULE_VERSION	"1.6.4"
+#define DRV_MODULE_RELDATE	"August 3, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -6937,6 +6937,11 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct bnx2 *bp = netdev_priv(dev);
 	u32 reset_code;
 
+	/* PCI register 4 needs to be saved whether netif_running() or not.
+	 * MSI address and data need to be saved if using MSI and
+	 * netif_running().
+	 */
+	pci_save_state(pdev);
 	if (!netif_running(dev))
 		return 0;
 
@@ -6952,7 +6957,6 @@ bnx2_suspend(struct pci_dev *pdev, pm_message_t state)
 		reset_code = BNX2_DRV_MSG_CODE_SUSPEND_NO_WOL;
 	bnx2_reset_chip(bp, reset_code);
 	bnx2_free_skbs(bp);
-	pci_save_state(pdev);
 	bnx2_set_power_state(bp, pci_choose_state(pdev, state));
 	return 0;
 }
@@ -6963,10 +6967,10 @@ bnx2_resume(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnx2 *bp = netdev_priv(dev);
 
+	pci_restore_state(pdev);
 	if (!netif_running(dev))
 		return 0;
 
-	pci_restore_state(pdev);
 	bnx2_set_power_state(bp, PCI_D0);
 	netif_device_attach(dev);
 	bnx2_init_nic(bp);

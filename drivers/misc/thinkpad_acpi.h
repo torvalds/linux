@@ -246,6 +246,8 @@ static struct {
 	u16 wan:1;
 	u16 fan_ctrl_status_undef:1;
 	u16 input_device_registered:1;
+	u16 platform_drv_registered:1;
+	u16 platform_drv_attrs_registered:1;
 } tp_features;
 
 struct thinkpad_id_data {

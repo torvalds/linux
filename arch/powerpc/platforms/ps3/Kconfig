@@ -1,5 +1,5 @@
 config PPC_PS3
-	bool "Sony PS3 (incomplete)"
+	bool "Sony PS3"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_CELL
 	select USB_ARCH_HAS_OHCI
@@ -10,10 +10,10 @@ config PPC_PS3
 	select MEMORY_HOTPLUG
 	help
 	  This option enables support for the Sony PS3 game console
-	  and other platforms using the PS3 hypervisor.
-	  Support for this platform is not yet complete, so
-	  enabling this will not result in a bootable kernel on a
-	  PS3 system.
+	  and other platforms using the PS3 hypervisor.  Enabling this
+	  option will allow building otheros.bld, a kernel image suitable
+	  for programming into flash memory, and vmlinux, a kernel image
+	  suitable for loading via kexec.
 
 menu "PS3 Platform Options"
 	depends on PPC_PS3

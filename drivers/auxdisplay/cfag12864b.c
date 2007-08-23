@@ -355,7 +355,7 @@ static int __init cfag12864b_init(void)
 
 	cfag12864b_cache = kmalloc(sizeof(unsigned char) *
 		CFAG12864B_SIZE, GFP_KERNEL);
-	if (cfag12864b_buffer == NULL) {
+	if (cfag12864b_cache == NULL) {
 		printk(KERN_ERR CFAG12864B_NAME ": ERROR: "
 			"can't alloc cache buffer (%i bytes)\n",
 			CFAG12864B_SIZE);

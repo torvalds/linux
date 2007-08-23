@@ -821,8 +821,9 @@ static int ax_probe(struct platform_device *pdev)
 	dev->base_addr = (unsigned long)ei_status.mem;
 
 	if (ei_status.mem == NULL) {
-		dev_err(&pdev->dev, "Cannot ioremap area (%08zx,%08zx)\n",
-			res->start, res->end);
+		dev_err(&pdev->dev, "Cannot ioremap area (%08llx,%08llx)\n",
+			(unsigned long long)res->start,
+			(unsigned long long)res->end);
 
  		ret = -ENXIO;
 		goto exit_req;

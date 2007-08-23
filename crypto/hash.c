@@ -40,7 +40,7 @@ static int hash_setkey_unaligned(struct crypto_hash *crt, const u8 *key,
 	alignbuffer = (u8 *)ALIGN((unsigned long)buffer, alignmask + 1);
 	memcpy(alignbuffer, key, keylen);
 	ret = alg->setkey(crt, alignbuffer, keylen);
-	memset(alignbuffer, 0, absize);
+	memset(alignbuffer, 0, keylen);
 	kfree(buffer);
 	return ret;
 }

@@ -105,10 +105,10 @@ The version of thinkpad-acpi's sysfs interface is exported by the driver
 as a driver attribute (see below).
 
 Sysfs driver attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/bus/platform/drivers/thinkpad-acpi/.
+for 2.6.20 this is /sys/bus/platform/drivers/thinkpad_acpi/.
 
 Sysfs device attributes are on the driver's sysfs attribute space,
-for 2.6.20 this is /sys/devices/platform/thinkpad-acpi/.
+for 2.6.20 this is /sys/devices/platform/thinkpad_acpi/.
 
 Driver version
 --------------

@@ -190,6 +190,16 @@ void sctp_assocs_proc_exit(void);
 
 
 /*
+ * Module global variables
+ */
+
+ /*
+  * sctp/protocol.c
+  */
+extern struct kmem_cache *sctp_chunk_cachep __read_mostly;
+extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
+
+/*
  *  Section:  Macros, externs, and inlines
  */
 

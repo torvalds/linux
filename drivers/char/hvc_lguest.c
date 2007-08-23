@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/lguest_bus.h>
+#include <asm/paravirt.h>
 #include "hvc_console.h"
 
 /*D:340 This is our single console input buffer, with associated "struct

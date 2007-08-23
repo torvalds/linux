@@ -1593,6 +1593,9 @@ static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 		  pci_name(pdev));
 
 	isa_bridge = pci_get_device(PCI_VENDOR_ID_SI, 0x0965, NULL);
+	if (!isa_bridge)
+		isa_bridge = pci_get_device(PCI_VENDOR_ID_SI, 0x0966, NULL);
+
 	if (!isa_bridge) {
 		net_probe(tp, KERN_INFO "%s: Can not find ISA bridge.\n",
 			  pci_name(pdev));

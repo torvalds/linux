@@ -356,6 +356,7 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 {
 	unsigned int rval;
 	unsigned long flags;
+	DEFINE_WAIT(the_wait);
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
@@ -369,10 +370,29 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	rval = value | ((command << TWSIC1_ADDR_SHIFT) & TWSIC1_ADDR);
 	cafe_reg_write(cam, REG_TWSIC1, rval);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	msleep(2); /* Required or things flake */
 
+	/*
+	 * Time to wait for the write to complete.  THIS IS A RACY
+	 * WAY TO DO IT, but the sad fact is that reading the TWSIC1
+	 * register too quickly after starting the operation sends
+	 * the device into a place that may be kinder and better, but
+	 * which is absolutely useless for controlling the sensor.  In
+	 * practice we have plenty of time to get into our sleep state
+	 * before the interrupt hits, and the worst case is that we
+	 * time out and then see that things completed, so this seems
+	 * the best way for now.
+	 */
+	do {
+		prepare_to_wait(&cam->smbus_wait, &the_wait,
+				TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1); /* even 1 jiffy is too long */
+		finish_wait(&cam->smbus_wait, &the_wait);
+	} while (!cafe_smbus_write_done(cam));
+
+#ifdef IF_THE_CAFE_HARDWARE_WORKED_RIGHT
 	wait_event_timeout(cam->smbus_wait, cafe_smbus_write_done(cam),
 			CAFE_SMBUS_TIMEOUT);
+#endif
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -710,7 +730,7 @@ static void cafe_ctlr_init(struct cafe_camera *cam)
 	 * Here we must wait a bit for the controller to come around.
 	 */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	mdelay(5);	/* FIXME revisit this */
+	msleep(5);
 	spin_lock_irqsave(&cam->dev_lock, flags);
 
 	cafe_reg_write(cam, REG_GL_CSR, GCSR_CCIC_EN|GCSR_SRC|GCSR_MRC);
@@ -2233,12 +2253,21 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 	ret = pci_enable_device(pdev);
+
 	if (ret) {
 		cam_warn(cam, "Unable to re-enable device on resume!\n");
 		return ret;
 	}
 	cafe_ctlr_init(cam);
-	cafe_ctlr_power_up(cam);
+	cafe_ctlr_power_down(cam);
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->users > 0) {
+		cafe_ctlr_power_up(cam);
+		__cafe_cam_reset(cam);
+	}
+	mutex_unlock(&cam->s_mutex);
+
 	set_bit(CF_CONFIG_NEEDED, &cam->flags);
 	if (cam->state == S_SPECREAD)
 		cam->state = S_IDLE;  /* Don't bother restarting */

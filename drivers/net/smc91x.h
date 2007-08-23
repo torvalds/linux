@@ -299,7 +299,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #define SMC_CAN_USE_8BIT       1
 #define SMC_CAN_USE_16BIT      1
-#define SMC_CAN_USE_32BIT      1
+#define SMC_CAN_USE_32BIT      0
 
 #define SMC_inb(a, r)          inb((a) + (r))
 #define SMC_inw(a, r)          inw((a) + (r))
@@ -309,8 +309,6 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outsw(a, r, p, l)  outsw((a) + (r), p, l)
 
 #endif  /* BOARDS */
-
-#define set_irq_type(irq, type) do {} while (0)
 
 #elif   defined(CONFIG_M32R)
 

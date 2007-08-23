@@ -389,6 +389,13 @@ early_console_setup (char *cmdline)
 	if (!efi_setup_pcdp_console(cmdline))
 		earlycons++;
 #endif
+#ifdef CONFIG_HP_SIMSERIAL_CONSOLE
+	{
+		extern struct console hpsim_cons;
+		register_console(&hpsim_cons);
+		earlycons++;
+	}
+#endif
 
 	return (earlycons) ? 0 : -1;
 }

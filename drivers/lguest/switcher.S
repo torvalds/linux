@@ -47,6 +47,7 @@
 // Down here in the depths of assembler code.
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <asm/page.h>
 #include "lg.h"
 
 // We mark the start of the code to copy
@@ -182,13 +183,15 @@ ENTRY(switch_to_guest)
 	movl	$(LGUEST_DS), %eax;					\
 	movl	%eax, %ds;						\
 	/* So where are we?  Which CPU, which struct?			\
-	 * The stack is our clue: our TSS sets				\
-	 * It at the end of "struct lguest_pages"			\
-	 * And we then pushed and pushed and pushed Guest regs:		\
-	 * Now stack points atop the "struct lguest_regs".   		\
-	 * Subtract that offset, and we find our struct. */		\
+	 * The stack is our clue: our TSS starts			\
+	 * It at the end of "struct lguest_pages".			\
+	 * Or we may have stumbled while restoring			\
+	 * Our Guest segment regs while in switch_to_guest,		\
+	 * The fault pushed atop that part-unwound stack.		\
+	 * If we round the stack down to the page start			\
+	 * We're at the start of "struct lguest_pages". */		\
 	movl	%esp, %eax;						\
-	subl	$LGUEST_PAGES_regs, %eax;				\
+	andl	$(~(1 << PAGE_SHIFT - 1)), %eax;			\
 	/* Save our trap number: the switch will obscure it		\
 	 * (The Guest regs are not mapped here in the Host)		\
 	 * %ebx holds it safe for deliver_to_host */			\

@@ -45,6 +45,4 @@ void __ocfs2_abort(struct super_block *sb,
 
 #define ocfs2_abort(sb, fmt, args...) __ocfs2_abort(sb, __PRETTY_FUNCTION__, fmt, ##args)
 
-unsigned long long ocfs2_max_file_offset(unsigned int blockshift);
-
 #endif /* OCFS2_SUPER_H */

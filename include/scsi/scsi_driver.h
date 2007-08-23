@@ -13,8 +13,6 @@ struct scsi_driver {
 
 	int (*init_command)(struct scsi_cmnd *);
 	void (*rescan)(struct device *);
-	int (*issue_flush)(struct device *, sector_t *);
-	int (*prepare_flush)(struct request_queue *, struct request *);
 };
 #define to_scsi_driver(drv) \
 	container_of((drv), struct scsi_driver, gendrv)

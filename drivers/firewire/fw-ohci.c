@@ -907,6 +907,8 @@ static void bus_reset_tasklet(unsigned long data)
 	int self_id_count, i, j, reg;
 	int generation, new_generation;
 	unsigned long flags;
+	void *free_rom = NULL;
+	dma_addr_t free_rom_bus = 0;
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
@@ -970,8 +972,8 @@ static void bus_reset_tasklet(unsigned long data)
 	 */
 
 	if (ohci->next_config_rom != NULL) {
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  ohci->config_rom, ohci->config_rom_bus);
+		free_rom     = ohci->config_rom;
+		free_rom_bus = ohci->config_rom_bus;
 		ohci->config_rom      = ohci->next_config_rom;
 		ohci->config_rom_bus  = ohci->next_config_rom_bus;
 		ohci->next_config_rom = NULL;
@@ -989,6 +991,10 @@ static void bus_reset_tasklet(unsigned long data)
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
+
+	if (free_rom)
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  free_rom, free_rom_bus);
 
 	fw_core_handle_bus_reset(&ohci->card, ohci->node_id, generation,
 				 self_id_count, ohci->self_id_buffer);
@@ -1186,7 +1192,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
-	int retval = 0;
+	int retval = -EBUSY;
 	__be32 *next_config_rom;
 	dma_addr_t next_config_rom_bus;
 
@@ -1240,10 +1246,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 
 		reg_write(ohci, OHCI1394_ConfigROMmap,
 			  ohci->next_config_rom_bus);
-	} else {
-		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
-				  next_config_rom, next_config_rom_bus);
-		retval = -EBUSY;
+		retval = 0;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -1257,6 +1260,9 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 	 */
 	if (retval == 0)
 		fw_core_initiate_bus_reset(&ohci->card, 1);
+	else
+		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
+				  next_config_rom, next_config_rom_bus);
 
 	return retval;
 }

@@ -19,8 +19,6 @@
 
 #define check_pgt_cache()	do {} while (0)
 
-extern void diag10(unsigned long addr);
-
 /*
  * Page allocation orders.
  */

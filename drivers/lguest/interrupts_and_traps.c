@@ -195,13 +195,16 @@ static int has_err(unsigned int trap)
 /* deliver_trap() returns true if it could deliver the trap. */
 int deliver_trap(struct lguest *lg, unsigned int num)
 {
-	u32 lo = lg->idt[num].a, hi = lg->idt[num].b;
+	/* Trap numbers are always 8 bit, but we set an impossible trap number
+	 * for traps inside the Switcher, so check that here. */
+	if (num >= ARRAY_SIZE(lg->idt))
+		return 0;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
-	if (!idt_present(lo, hi))
+	if (!idt_present(lg->idt[num].a, lg->idt[num].b))
 		return 0;
-	set_guest_interrupt(lg, lo, hi, has_err(num));
+	set_guest_interrupt(lg, lg->idt[num].a, lg->idt[num].b, has_err(num));
 	return 1;
 }
 

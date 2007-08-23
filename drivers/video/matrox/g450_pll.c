@@ -331,16 +331,19 @@ static int __g450_setclk(WPMINFO unsigned int fout, unsigned int pll,
 					tmp |= M1064_XPIXCLKCTRL_PLL_UP;
 				}
 				matroxfb_DAC_out(PMINFO M1064_XPIXCLKCTRL, tmp);
-#ifdef __powerpc__
-				/* This is necessary to avoid jitter on PowerPC
-				 * (OpenFirmware) systems, but apparently
-				 * introduces jitter, at least on a x86-64
-				 * using DVI.
-				 * A simple workaround is disable for non-PPC.
-				 */
-				matroxfb_DAC_out(PMINFO M1064_XDVICLKCTRL, 0);
-#endif /* __powerpc__ */
-				matroxfb_DAC_out(PMINFO M1064_XPWRCTRL, xpwrctrl);
+				/* DVI PLL preferred for frequencies up to
+				   panel link max, standard PLL otherwise */
+				if (fout >= MINFO->max_pixel_clock_panellink)
+					tmp = 0;
+				else tmp =
+					M1064_XDVICLKCTRL_DVIDATAPATHSEL |
+					M1064_XDVICLKCTRL_C1DVICLKSEL |
+					M1064_XDVICLKCTRL_C1DVICLKEN |
+					M1064_XDVICLKCTRL_DVILOOPCTL |
+					M1064_XDVICLKCTRL_P1LOOPBWDTCTL;
+				matroxfb_DAC_out(PMINFO M1064_XDVICLKCTRL,tmp);
+				matroxfb_DAC_out(PMINFO M1064_XPWRCTRL,
+						 xpwrctrl);
 
 				matroxfb_DAC_unlock_irqrestore(flags);
 			}

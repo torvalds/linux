@@ -902,26 +902,17 @@ static int ace_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int ace_ioctl(struct inode *inode, struct file *filp,
-		     unsigned int cmd, unsigned long arg)
+static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct ace_device *ace = inode->i_bdev->bd_disk->private_data;
-	struct hd_geometry __user *geo = (struct hd_geometry __user *)arg;
-	struct hd_geometry g;
-	dev_dbg(ace->dev, "ace_ioctl()\n");
+	struct ace_device *ace = bdev->bd_disk->private_data;
 
-	switch (cmd) {
-	case HDIO_GETGEO:
-		g.heads = ace->cf_id.heads;
-		g.sectors = ace->cf_id.sectors;
-		g.cylinders = ace->cf_id.cyls;
-		g.start = 0;
-		return copy_to_user(geo, &g, sizeof(g)) ? -EFAULT : 0;
+	dev_dbg(ace->dev, "ace_getgeo()\n");
 
-	default:
-		return -ENOTTY;
-	}
-	return -ENOTTY;
+	geo->heads = ace->cf_id.heads;
+	geo->sectors = ace->cf_id.sectors;
+	geo->cylinders = ace->cf_id.cyls;
+
+	return 0;
 }
 
 static struct block_device_operations ace_fops = {
@@ -930,7 +921,7 @@ static struct block_device_operations ace_fops = {
 	.release = ace_release,
 	.media_changed = ace_media_changed,
 	.revalidate_disk = ace_revalidate_disk,
-	.ioctl = ace_ioctl,
+	.getgeo = ace_getgeo,
 };
 
 /* --------------------------------------------------------------------

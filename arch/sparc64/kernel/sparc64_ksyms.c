@@ -168,6 +168,7 @@ EXPORT_SYMBOL(change_bit);
 EXPORT_SYMBOL(__flushw_user);
 
 EXPORT_SYMBOL(tlb_type);
+EXPORT_SYMBOL(sun4v_chip_type);
 EXPORT_SYMBOL(get_fb_unmapped_area);
 EXPORT_SYMBOL(flush_icache_range);
 

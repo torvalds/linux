@@ -69,7 +69,6 @@ void ax25_protocol_release(unsigned int pid)
 	if (protocol->pid == pid) {
 		protocol_list = protocol->next;
 		write_unlock_bh(&protocol_list_lock);
-		kfree(protocol);
 		return;
 	}
 
@@ -78,7 +77,6 @@ void ax25_protocol_release(unsigned int pid)
 			s = protocol->next;
 			protocol->next = protocol->next->next;
 			write_unlock_bh(&protocol_list_lock);
-			kfree(s);
 			return;
 		}
 

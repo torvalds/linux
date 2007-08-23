@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>

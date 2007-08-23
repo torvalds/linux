@@ -8,7 +8,9 @@ obj-$(CONFIG_CPU_SH2)	+= cache-sh2.o
 obj-$(CONFIG_CPU_SH3)	+= cache-sh3.o
 obj-$(CONFIG_CPU_SH4)	+= cache-sh4.o
 
-mmu-y			:= fault-nommu.o tlb-nommu.o pg-nommu.o
+mmu-y			:= tlb-nommu.o pg-nommu.o
+mmu-$(CONFIG_CPU_SH3)	+= fault-nommu.o
+mmu-$(CONFIG_CPU_SH4)	+= fault-nommu.o
 mmu-$(CONFIG_MMU)	:= fault.o clear_page.o copy_page.o tlb-flush.o	\
 			   ioremap.o
 

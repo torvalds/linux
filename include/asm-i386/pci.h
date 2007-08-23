@@ -8,6 +8,9 @@ struct pci_sysdata {
 	int		node;		/* NUMA node */
 };
 
+/* scan a bus after allocating a pci_sysdata for it */
+extern struct pci_bus *pci_scan_bus_with_sysdata(int busno);
+
 #include <linux/mm.h>		/* for struct page */
 
 /* Can be used to override the logic in pci_scan_bus for skipping

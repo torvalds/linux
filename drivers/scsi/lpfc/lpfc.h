@@ -45,7 +45,7 @@ struct lpfc_sli2_slim;
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
 
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
-#define LPFC_HB_MBOX_TIMEOUT    30 	/* Heart beat timeout  in seconds. */
+#define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
@@ -78,6 +78,7 @@ struct lpfc_dma_pool {
 
 struct hbq_dmabuf {
 	struct lpfc_dmabuf dbuf;
+	uint32_t size;
 	uint32_t tag;
 };
 
@@ -329,13 +330,30 @@ struct lpfc_vport {
 #define FC_LOADING		0x1	/* HBA in process of loading drvr */
 #define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
 	char  *vname;		        /* Application assigned name */
+
+	/* Vport Config Parameters */
+	uint32_t cfg_scan_down;
+	uint32_t cfg_lun_queue_depth;
+	uint32_t cfg_nodev_tmo;
+	uint32_t cfg_devloss_tmo;
+	uint32_t cfg_restrict_login;
+	uint32_t cfg_peer_port_login;
+	uint32_t cfg_fcp_class;
+	uint32_t cfg_use_adisc;
+	uint32_t cfg_fdmi_on;
+	uint32_t cfg_discovery_threads;
+	uint32_t cfg_log_verbose;
+	uint32_t cfg_max_luns;
+
+	uint32_t dev_loss_tmo_changed;
+
 	struct fc_vport *fc_vport;
 
 #ifdef CONFIG_LPFC_DEBUG_FS
 	struct dentry *debug_disc_trc;
 	struct dentry *debug_nodelist;
 	struct dentry *vport_debugfs_root;
-	struct lpfc_disc_trc *disc_trc;
+	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
 };
@@ -345,17 +363,25 @@ struct hbq_s {
 	uint32_t next_hbqPutIdx;  /* Index to next HBQ slot to use */
 	uint32_t hbqPutIdx;	  /* HBQ slot to use */
 	uint32_t local_hbqGetIdx; /* Local copy of Get index from Port */
+	void    *hbq_virt;	  /* Virtual ptr to this hbq */
+	struct list_head hbq_buffer_list;  /* buffers assigned to this HBQ */
+				  /* Callback for HBQ buffer allocation */
+	struct hbq_dmabuf *(*hbq_alloc_buffer) (struct lpfc_hba *);
+				  /* Callback for HBQ buffer free */
+	void               (*hbq_free_buffer) (struct lpfc_hba *,
+					       struct hbq_dmabuf *);
 };
 
-#define LPFC_MAX_HBQS  16
-/* this matches the possition in the lpfc_hbq_defs array */
+#define LPFC_MAX_HBQS  4
+/* this matches the position in the lpfc_hbq_defs array */
 #define LPFC_ELS_HBQ	0
+#define LPFC_EXTRA_HBQ	1
 
 struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
 	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
-#define LPFC_SLI3_ENABLED 	 0x01
+#define LPFC_SLI3_ENABLED	 0x01
 #define LPFC_SLI3_HBQ_ENABLED	 0x02
 #define LPFC_SLI3_NPIV_ENABLED	 0x04
 #define LPFC_SLI3_VPORT_TEARDOWN 0x08
@@ -364,7 +390,7 @@ struct lpfc_hba {
 
 	enum hba_state link_state;
 	uint32_t link_flag;	/* link state flags */
-#define LS_LOOPBACK_MODE      0x1 	/* NPort is in Loopback mode */
+#define LS_LOOPBACK_MODE      0x1	/* NPort is in Loopback mode */
 					/* This flag is set while issuing */
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
@@ -413,28 +439,16 @@ struct lpfc_hba {
 	uint8_t  wwpn[8];
 	uint32_t RandomData[7];
 
-	uint32_t cfg_log_verbose;
-	uint32_t cfg_lun_queue_depth;
-	uint32_t cfg_nodev_tmo;
-	uint32_t cfg_devloss_tmo;
-	uint32_t cfg_hba_queue_depth;
-	uint32_t cfg_peer_port_login;
-	uint32_t cfg_vport_restrict_login;
-	uint32_t cfg_npiv_enable;
-	uint32_t cfg_fcp_class;
-	uint32_t cfg_use_adisc;
+	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
+	uint32_t cfg_enable_npiv;
 	uint32_t cfg_topology;
-	uint32_t cfg_scan_down;
 	uint32_t cfg_link_speed;
 	uint32_t cfg_cr_delay;
 	uint32_t cfg_cr_count;
 	uint32_t cfg_multi_ring_support;
 	uint32_t cfg_multi_ring_rctl;
 	uint32_t cfg_multi_ring_type;
-	uint32_t cfg_fdmi_on;
-	uint32_t cfg_discovery_threads;
-	uint32_t cfg_max_luns;
 	uint32_t cfg_poll;
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
@@ -442,8 +456,8 @@ struct lpfc_hba {
 	uint32_t cfg_sg_dma_buf_size;
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
+	uint32_t cfg_hba_queue_depth;
 
-	uint32_t dev_loss_tmo_changed;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -457,7 +471,6 @@ struct lpfc_hba {
 	wait_queue_head_t    *work_wait;
 	struct task_struct   *worker_thread;
 
-	struct list_head hbq_buffer_list;
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
@@ -526,12 +539,14 @@ struct lpfc_hba {
 	mempool_t *nlp_mem_pool;
 
 	struct fc_host_statistics link_stats;
+	uint8_t using_msi;
 
 	struct list_head port_list;
-	struct lpfc_vport *pport; /* physical lpfc_vport pointer */
-	uint16_t max_vpi;	/* Maximum virtual nports */
-#define LPFC_MAX_VPI 100  /* Max number of VPorts supported */
-	unsigned long *vpi_bmask; /* vpi allocation table */
+	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
+	uint16_t max_vpi;		/* Maximum virtual nports */
+#define LPFC_MAX_VPI 100		/* Max number of VPI supported */
+#define LPFC_MAX_VPORTS (LPFC_MAX_VPI+1)/* Max number of VPorts supported */
+	unsigned long *vpi_bmask;	/* vpi allocation table */
 
 	/* Data structure used by fabric iocb scheduler */
 	struct list_head fabric_iocb_list;
@@ -547,6 +562,11 @@ struct lpfc_hba {
 #ifdef CONFIG_LPFC_DEBUG_FS
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
+	struct dentry *debug_hbqinfo;
+	struct dentry *debug_dumpslim;
+	struct dentry *debug_slow_ring_trc;
+	struct lpfc_debugfs_trc *slow_ring_trc;
+	atomic_t slow_ring_trc_cnt;
 #endif
 
 	/* Fields used for heart beat. */

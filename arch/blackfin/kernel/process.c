@@ -33,6 +33,8 @@
 #include <linux/user.h>
 #include <linux/a.out.h>
 #include <linux/uaccess.h>
+#include <linux/fs.h>
+#include <linux/err.h>
 
 #include <asm/blackfin.h>
 #include <asm/fixed_code.h>

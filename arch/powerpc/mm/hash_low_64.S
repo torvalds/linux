@@ -472,10 +472,12 @@ _GLOBAL(htab_call_hpte_insert1)
 	/* Now try secondary slot */
 
 	/* real page number in r5, PTE RPN value + index */
-	rldicl	r5,r31,64-PTE_RPN_SHIFT,PTE_RPN_SHIFT
+	andis.	r0,r31,_PAGE_4K_PFN@h
+	srdi	r5,r31,PTE_RPN_SHIFT
+	bne-	3f
 	sldi	r5,r5,PAGE_SHIFT-HW_PAGE_SHIFT
 	add	r5,r5,r25
-	sldi	r5,r5,HW_PAGE_SHIFT
+3:	sldi	r5,r5,HW_PAGE_SHIFT
 
 	/* Calculate secondary group hash */
 	andc	r0,r27,r28

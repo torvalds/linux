@@ -76,7 +76,7 @@ static void scif_sercon_putc(int c)
 	sci_in(&scif_port, SCxSR);
 	sci_out(&scif_port, SCxSR, 0xf3 & ~(0x20 | 0x40));
 
-	while ((sci_in(&scif_port, SCxSR) & 0x40) == 0);
+	while ((sci_in(&scif_port, SCxSR) & 0x40) == 0)
 		;
 
 	if (c == '\n')

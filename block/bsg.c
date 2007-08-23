@@ -1,5 +1,5 @@
 /*
- * bsg.c - block layer implementation of the sg v3 interface
+ * bsg.c - block layer implementation of the sg v4 interface
  *
  * Copyright (C) 2004 Jens Axboe <axboe@suse.de> SUSE Labs
  * Copyright (C) 2004 Peter M. Jones <pjones@redhat.com>
@@ -421,7 +421,6 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	hdr->info = 0;
 	if (hdr->device_status || hdr->transport_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
-	hdr->din_resid = rq->data_len;
 	hdr->response_len = 0;
 
 	if (rq->sense_len && hdr->response) {
@@ -437,9 +436,14 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	}
 
 	if (rq->next_rq) {
+		hdr->dout_resid = rq->data_len;
+		hdr->din_resid = rq->next_rq->data_len;
 		blk_rq_unmap_user(bidi_bio);
 		blk_put_request(rq->next_rq);
-	}
+	} else if (rq_data_dir(rq) == READ)
+		hdr->din_resid = rq->data_len;
+	else
+		hdr->dout_resid = rq->data_len;
 
 	blk_rq_unmap_user(bio);
 	blk_put_request(rq);

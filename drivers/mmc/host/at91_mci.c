@@ -83,7 +83,7 @@
 
 #define AT91_MCI_ERRORS	(AT91_MCI_RINDE | AT91_MCI_RDIRE | AT91_MCI_RCRCE	\
 		| AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE		\
-		| AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)			
+		| AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)
 
 #define at91_mci_read(host, reg)	__raw_readl((host)->baseaddr + (reg))
 #define at91_mci_write(host, reg, val)	__raw_writel((val), (host)->baseaddr + (reg))
@@ -676,15 +676,15 @@ static irqreturn_t at91_mci_irq(int irq, void *devid)
 
 	int_status = at91_mci_read(host, AT91_MCI_SR);
 	int_mask = at91_mci_read(host, AT91_MCI_IMR);
-	
+
 	pr_debug("MCI irq: status = %08X, %08X, %08X\n", int_status, int_mask,
 		int_status & int_mask);
-	
+
 	int_status = int_status & int_mask;
 
 	if (int_status & AT91_MCI_ERRORS) {
 		completed = 1;
-		
+
 		if (int_status & AT91_MCI_UNRE)
 			pr_debug("MMC: Underrun error\n");
 		if (int_status & AT91_MCI_OVRE)

@@ -79,7 +79,6 @@ static u32 htcp_cwnd_undo(struct sock *sk)
 static inline void measure_rtt(struct sock *sk, u32 srtt)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	const struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 
 	/* keep track of minimum RTT seen so far, minRTT is zero at first */
@@ -87,8 +86,7 @@ static inline void measure_rtt(struct sock *sk, u32 srtt)
 		ca->minRTT = srtt;
 
 	/* max RTT */
-	if (icsk->icsk_ca_state == TCP_CA_Open
-	    && tp->snd_ssthresh < 0xFFFF && htcp_ccount(ca) > 3) {
+	if (icsk->icsk_ca_state == TCP_CA_Open) {
 		if (ca->maxRTT < ca->minRTT)
 			ca->maxRTT = ca->minRTT;
 		if (ca->maxRTT < srtt

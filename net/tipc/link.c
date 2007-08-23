@@ -2383,10 +2383,10 @@ void tipc_link_changeover(struct link *l_ptr)
 		struct tipc_msg *msg = buf_msg(crs);
 
 		if ((msg_user(msg) == MSG_BUNDLER) && split_bundles) {
-			u32 msgcount = msg_msgcnt(msg);
 			struct tipc_msg *m = msg_get_wrapped(msg);
 			unchar* pos = (unchar*)m;
 
+			msgcount = msg_msgcnt(msg);
 			while (msgcount--) {
 				msg_set_seqno(m,msg_seqno(msg));
 				tipc_link_tunnel(l_ptr, &tunnel_hdr, m,

@@ -1,7 +1,6 @@
-/* $Id: irq.h,v 1.32 2000/08/26 02:42:28 anton Exp $
- * irq.h: IRQ registers on the Sparc.
+/* irq.h: IRQ registers on the Sparc.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef _SPARC_IRQ_H
@@ -12,7 +11,5 @@
 #define NR_IRQS    16
 
 #define irq_canonicalize(irq)	(irq)
-
-extern int request_fast_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, __const__ char *devname);
 
 #endif

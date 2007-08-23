@@ -351,34 +351,14 @@ void handler_irq(int irq, struct pt_regs * regs)
 	set_irq_regs(old_regs);
 }
 
-#ifdef CONFIG_BLK_DEV_FD
-extern void floppy_interrupt(int irq, void *dev_id);
-
-void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
-{
-	struct pt_regs *old_regs;
-	int cpu = smp_processor_id();
-
-	old_regs = set_irq_regs(regs);
-	disable_pil_irq(irq);
-	irq_enter();
-	kstat_cpu(cpu).irqs[irq]++;
-	floppy_interrupt(irq, dev_id);
-	irq_exit();
-	enable_pil_irq(irq);
-	set_irq_regs(old_regs);
-	// XXX Eek, it's totally changed with preempt_count() and such
-	// if (softirq_pending(cpu))
-	//	do_softirq();
-}
-#endif
+#if defined(CONFIG_BLK_DEV_FD) || defined(CONFIG_BLK_DEV_FD_MODULE)
 
 /* Fast IRQs on the Sparc can only have one routine attached to them,
  * thus no sharing possible.
  */
-int request_fast_irq(unsigned int irq,
-		     irq_handler_t handler,
-		     unsigned long irqflags, const char *devname)
+static int request_fast_irq(unsigned int irq,
+			    void (*handler)(void),
+			    unsigned long irqflags, const char *devname)
 {
 	struct irqaction *action;
 	unsigned long flags;
@@ -457,7 +437,6 @@ int request_fast_irq(unsigned int irq,
 	 */
 	flush_cache_all();
 
-	action->handler = handler;
 	action->flags = irqflags;
 	cpus_clear(action->mask);
 	action->name = devname;
@@ -474,6 +453,61 @@ out_unlock:
 out:
 	return ret;
 }
+
+/* These variables are used to access state from the assembler
+ * interrupt handler, floppy_hardint, so we cannot put these in
+ * the floppy driver image because that would not work in the
+ * modular case.
+ */
+volatile unsigned char *fdc_status;
+EXPORT_SYMBOL(fdc_status);
+
+char *pdma_vaddr;
+EXPORT_SYMBOL(pdma_vaddr);
+
+unsigned long pdma_size;
+EXPORT_SYMBOL(pdma_size);
+
+volatile int doing_pdma;
+EXPORT_SYMBOL(doing_pdma);
+
+char *pdma_base;
+EXPORT_SYMBOL(pdma_base);
+
+unsigned long pdma_areasize;
+EXPORT_SYMBOL(pdma_areasize);
+
+extern void floppy_hardint(void);
+
+static irqreturn_t (*floppy_irq_handler)(int irq, void *dev_id);
+
+void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	int cpu = smp_processor_id();
+
+	old_regs = set_irq_regs(regs);
+	disable_pil_irq(irq);
+	irq_enter();
+	kstat_cpu(cpu).irqs[irq]++;
+	floppy_irq_handler(irq, dev_id);
+	irq_exit();
+	enable_pil_irq(irq);
+	set_irq_regs(old_regs);
+	// XXX Eek, it's totally changed with preempt_count() and such
+	// if (softirq_pending(cpu))
+	//	do_softirq();
+}
+
+int sparc_floppy_request_irq(int irq, unsigned long flags,
+			     irqreturn_t (*irq_handler)(int irq, void *))
+{
+	floppy_irq_handler = irq_handler;
+	return request_fast_irq(irq, floppy_hardint, flags, "floppy");
+}
+EXPORT_SYMBOL(sparc_floppy_request_irq);
+
+#endif
 
 int request_irq(unsigned int irq,
 		irq_handler_t handler,

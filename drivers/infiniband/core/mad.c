@@ -1842,15 +1842,10 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 {
 	struct ib_mad_qp_info *qp_info;
 	struct ib_mad_private_header *mad_priv_hdr;
-	struct ib_mad_private *recv, *response;
+	struct ib_mad_private *recv, *response = NULL;
 	struct ib_mad_list_head *mad_list;
 	struct ib_mad_agent_private *mad_agent;
 	int port_num;
-
-	response = kmem_cache_alloc(ib_mad_cache, GFP_KERNEL);
-	if (!response)
-		printk(KERN_ERR PFX "ib_mad_recv_done_handler no memory "
-		       "for response buffer\n");
 
 	mad_list = (struct ib_mad_list_head *)(unsigned long)wc->wr_id;
 	qp_info = mad_list->mad_queue->qp_info;
@@ -1878,6 +1873,13 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 	/* Validate MAD */
 	if (!validate_mad(&recv->mad.mad, qp_info->qp->qp_num))
 		goto out;
+
+	response = kmem_cache_alloc(ib_mad_cache, GFP_KERNEL);
+	if (!response) {
+		printk(KERN_ERR PFX "ib_mad_recv_done_handler no memory "
+		       "for response buffer\n");
+		goto out;
+	}
 
 	if (port_priv->device->node_type == RDMA_NODE_IB_SWITCH)
 		port_num = wc->port_num;
@@ -1914,12 +1916,11 @@ static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 			response->header.recv_wc.recv_buf.mad = &response->mad.mad;
 			response->header.recv_wc.recv_buf.grh = &response->grh;
 
-			if (!agent_send_response(&response->mad.mad,
-						 &response->grh, wc,
-						 port_priv->device,
-						 smi_get_fwd_port(&recv->mad.smp),
-						 qp_info->qp->qp_num))
-				response = NULL;
+			agent_send_response(&response->mad.mad,
+					    &response->grh, wc,
+					    port_priv->device,
+					    smi_get_fwd_port(&recv->mad.smp),
+					    qp_info->qp->qp_num);
 
 			goto out;
 		}

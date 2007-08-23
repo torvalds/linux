@@ -49,12 +49,10 @@
 
 /* Shift to put page number into pte.
  *
- * That gives us a max RPN of 32 bits, which means a max of 48 bits
- * of addressable physical space.
- * We could get 3 more bits here by setting PTE_RPN_SHIFT to 29 but
- * 32 makes PTEs more readable for debugging for now :)
+ * That gives us a max RPN of 34 bits, which means a max of 50 bits
+ * of addressable physical space, or 46 bits for the special 4k PFNs.
  */
-#define PTE_RPN_SHIFT	(32)
+#define PTE_RPN_SHIFT	(30)
 #define PTE_RPN_MAX	(1UL << (64 - PTE_RPN_SHIFT))
 #define PTE_RPN_MASK	(~((1UL<<PTE_RPN_SHIFT)-1))
 

@@ -5,6 +5,7 @@
 #include <linux/bootmem.h>
 #include <linux/lguest_bus.h>
 #include <asm/io.h>
+#include <asm/paravirt.h>
 
 static ssize_t type_show(struct device *_dev,
                          struct device_attribute *attr, char *buf)

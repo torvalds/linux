@@ -289,18 +289,18 @@ static LIST_HEAD(aha152x_host_list);
 		if(spin_is_locked(&QLOCK)) { \
 			DPRINTK(debug_intr, DEBUG_LEAD "(%s:%d) already locked at %s:%d\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__, QLOCKER, QLOCKERL); \
 		} \
-		DPRINTK(debug_locks, DEBUG_LEAD "(%s:%d) locking\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locking\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
 		spin_lock_irqsave(&QLOCK,flags); \
-		DPRINTK(debug_locks, DEBUG_LEAD "(%s:%d) locked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) locked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
 		QLOCKER=__FUNCTION__; \
 		QLOCKERL=__LINE__; \
 	} while(0)
 
 #define DO_UNLOCK(flags)	\
 	do { \
-		DPRINTK(debug_locks, DEBUG_LEAD "(%s:%d) unlocking (locked at %s:%d)\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__, QLOCKER, QLOCKERL); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocking (locked at %s:%d)\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__, QLOCKER, QLOCKERL); \
 		spin_unlock_irqrestore(&QLOCK,flags); \
-		DPRINTK(debug_locks, DEBUG_LEAD "(%s:%d) unlocked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
+		DPRINTK(debug_locking, DEBUG_LEAD "(%s:%d) unlocked\n", CMDINFO(CURRENT_SC), __FUNCTION__, __LINE__); \
 		QLOCKER="(not locked)"; \
 		QLOCKERL=0; \
 	} while(0)
@@ -321,6 +321,12 @@ static LIST_HEAD(aha152x_host_list);
 			(cmd) ? ((cmd)->device->host->host_no) : -1, \
                         (cmd) ? ((cmd)->device->id & 0x0f) : -1, \
 			(cmd) ? ((cmd)->device->lun & 0x07) : -1
+
+static inline void
+CMD_INC_RESID(struct scsi_cmnd *cmd, int inc)
+{
+	scsi_set_resid(cmd, scsi_get_resid(cmd) + inc);
+}
 
 #define DELAY_DEFAULT 1000
 
@@ -552,13 +558,10 @@ struct aha152x_hostdata {
 struct aha152x_scdata {
 	Scsi_Cmnd *next;	/* next sc in queue */
 	struct completion *done;/* semaphore to block on */
-	unsigned char cmd_len;
-	unsigned char cmnd[MAX_COMMAND_SIZE];
-	unsigned short use_sg;
-	unsigned request_bufflen;
-	void *request_buffer;
+	unsigned char aha_orig_cmd_len;
+	unsigned char aha_orig_cmnd[MAX_COMMAND_SIZE];
+	int aha_orig_resid;
 };
-
 
 /* access macros for hostdata */
 
@@ -978,15 +981,15 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 #if defined(AHA152X_DEBUG)
 	if (HOSTDATA(shpnt)->debug & debug_queue) {
 		printk(INFO_LEAD "queue: %p; cmd_len=%d pieces=%d size=%u cmnd=",
-		       CMDINFO(SCpnt), SCpnt, SCpnt->cmd_len, SCpnt->use_sg, SCpnt->request_bufflen);
+		       CMDINFO(SCpnt), SCpnt, SCpnt->cmd_len,
+		       scsi_sg_count(SCpnt), scsi_bufflen(SCpnt));
 		__scsi_print_command(SCpnt->cmnd);
 	}
 #endif
 
 	SCpnt->scsi_done	= done;
-	SCpnt->resid 		= SCpnt->request_bufflen;
 	SCpnt->SCp.phase	= not_issued | phase;
-	SCpnt->SCp.Status	= CHECK_CONDITION;
+	SCpnt->SCp.Status	= 0x1; /* Ilegal status by SCSI standard */
 	SCpnt->SCp.Message	= 0;
 	SCpnt->SCp.have_data_in	= 0;
 	SCpnt->SCp.sent_command	= 0;
@@ -997,20 +1000,11 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 			return FAILED;
 		}
 	} else {
-		struct aha152x_scdata *sc;
-
 		SCpnt->host_scribble = kmalloc(sizeof(struct aha152x_scdata), GFP_ATOMIC);
 		if(SCpnt->host_scribble==0) {
 			printk(ERR_LEAD "allocation failed\n", CMDINFO(SCpnt));
 			return FAILED;
 		}
-
-		sc = SCDATA(SCpnt);
-		memcpy(sc->cmnd, SCpnt->cmnd, sizeof(sc->cmnd));
-		sc->request_buffer  = SCpnt->request_buffer;
-		sc->request_bufflen = SCpnt->request_bufflen;
-		sc->use_sg          = SCpnt->use_sg;
-		sc->cmd_len         = SCpnt->cmd_len;
 	}
 
 	SCNEXT(SCpnt)		= NULL;
@@ -1022,16 +1016,25 @@ static int aha152x_internal_queue(Scsi_Cmnd *SCpnt, struct completion *complete,
 	   SCp.buffer           : next buffer
 	   SCp.buffers_residual : left buffers in list
 	   SCp.phase            : current state of the command */
-	if (SCpnt->use_sg) {
-		SCpnt->SCp.buffer           = (struct scatterlist *) SCpnt->request_buffer;
-		SCpnt->SCp.ptr              = SG_ADDRESS(SCpnt->SCp.buffer);
-		SCpnt->SCp.this_residual    = SCpnt->SCp.buffer->length;
-		SCpnt->SCp.buffers_residual = SCpnt->use_sg - 1;
-	} else {
-		SCpnt->SCp.ptr              = (char *) SCpnt->request_buffer;
-		SCpnt->SCp.this_residual    = SCpnt->request_bufflen;
+
+	if ((phase & (check_condition|resetting)) || !scsi_sglist(SCpnt)) {
+		if (phase & check_condition) {
+			SCpnt->SCp.ptr           = SCpnt->sense_buffer;
+			SCpnt->SCp.this_residual = sizeof(SCpnt->sense_buffer);
+			scsi_set_resid(SCpnt, sizeof(SCpnt->sense_buffer));
+		} else {
+			SCpnt->SCp.ptr           = NULL;
+			SCpnt->SCp.this_residual = 0;
+			scsi_set_resid(SCpnt, 0);
+		}
 		SCpnt->SCp.buffer           = NULL;
 		SCpnt->SCp.buffers_residual = 0;
+	} else {
+		scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
+		SCpnt->SCp.buffer           = scsi_sglist(SCpnt);
+		SCpnt->SCp.ptr              = SG_ADDRESS(SCpnt->SCp.buffer);
+		SCpnt->SCp.this_residual    = SCpnt->SCp.buffer->length;
+		SCpnt->SCp.buffers_residual = scsi_sg_count(SCpnt) - 1;
 	}
 
 	DO_LOCK(flags);
@@ -1150,9 +1153,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DECLARE_COMPLETION(done);
 	int ret, issued, disconnected;
 	unsigned char old_cmd_len = SCpnt->cmd_len;
-	unsigned short old_use_sg = SCpnt->use_sg;
-	void *old_buffer = SCpnt->request_buffer;
-	unsigned old_bufflen = SCpnt->request_bufflen;
 	unsigned long flags;
 	unsigned long timeleft;
 
@@ -1174,9 +1174,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	DO_UNLOCK(flags);
 
 	SCpnt->cmd_len         = 0;
-	SCpnt->use_sg          = 0;
-	SCpnt->request_buffer  = NULL;
-	SCpnt->request_bufflen = 0;
 
 	aha152x_internal_queue(SCpnt, &done, resetting, reset_done);
 
@@ -1189,9 +1186,6 @@ static int aha152x_device_reset(Scsi_Cmnd * SCpnt)
 	}
 
 	SCpnt->cmd_len         = old_cmd_len;
-	SCpnt->use_sg          = old_use_sg;
-  	SCpnt->request_buffer  = old_buffer;
-       	SCpnt->request_bufflen = old_bufflen;
 
 	DO_LOCK(flags);
 
@@ -1531,8 +1525,8 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			/* target sent DISCONNECT */
 			DPRINTK(debug_selection, DEBUG_LEAD "target disconnected at %d/%d\n",
 				CMDINFO(CURRENT_SC),
-				CURRENT_SC->resid,
-				CURRENT_SC->request_bufflen);
+				scsi_get_resid(CURRENT_SC),
+				scsi_bufflen(CURRENT_SC));
 #if defined(AHA152X_STAT)
 			HOSTDATA(shpnt)->disconnections++;
 #endif
@@ -1568,18 +1562,16 @@ static void busfree_run(struct Scsi_Host *shpnt)
 #endif
 
 			/* restore old command */
-			memcpy(cmd->cmnd, sc->cmnd, sizeof(sc->cmnd));
-			cmd->request_buffer  = sc->request_buffer;
-			cmd->request_bufflen = sc->request_bufflen;
-			cmd->use_sg          = sc->use_sg;
-			cmd->cmd_len         = sc->cmd_len;
+			memcpy(cmd->cmnd, sc->aha_orig_cmnd, sizeof(cmd->cmnd));
+			cmd->cmd_len = sc->aha_orig_cmd_len;
+			scsi_set_resid(cmd, sc->aha_orig_resid);
 
-			cmd->SCp.Status = 0x02;
+			cmd->SCp.Status = SAM_STAT_CHECK_CONDITION;
 
 			HOSTDATA(shpnt)->commands--;
 			if (!HOSTDATA(shpnt)->commands)
 				SETPORT(PORTA, 0);	/* turn led off */
-		} else if(DONE_SC->SCp.Status==0x02) {
+		} else if(DONE_SC->SCp.Status==SAM_STAT_CHECK_CONDITION) {
 #if defined(AHA152X_STAT)
 			HOSTDATA(shpnt)->busfree_with_check_condition++;
 #endif
@@ -1587,12 +1579,22 @@ static void busfree_run(struct Scsi_Host *shpnt)
 			DPRINTK(debug_eh, ERR_LEAD "CHECK CONDITION found\n", CMDINFO(DONE_SC));
 #endif
 
-			if(!(DONE_SC->SCp.Status & not_issued)) {
+			if(!(DONE_SC->SCp.phase & not_issued)) {
+				struct aha152x_scdata *sc;
 				Scsi_Cmnd *ptr = DONE_SC;
 				DONE_SC=NULL;
 #if 0
 				DPRINTK(debug_eh, ERR_LEAD "requesting sense\n", CMDINFO(ptr));
 #endif
+
+				/* save old command */
+				sc = SCDATA(ptr);
+				/* It was allocated in aha152x_internal_queue? */
+				BUG_ON(!sc);
+				memcpy(sc->aha_orig_cmnd, ptr->cmnd,
+				                            sizeof(ptr->cmnd));
+				sc->aha_orig_cmd_len = ptr->cmd_len;
+				sc->aha_orig_resid = scsi_get_resid(ptr);
 
 				ptr->cmnd[0]         = REQUEST_SENSE;
 				ptr->cmnd[1]         = 0;
@@ -1601,10 +1603,7 @@ static void busfree_run(struct Scsi_Host *shpnt)
 				ptr->cmnd[4]         = sizeof(ptr->sense_buffer);
 				ptr->cmnd[5]         = 0;
 				ptr->cmd_len         = 6;
-				ptr->use_sg          = 0; 
-				ptr->request_buffer  = ptr->sense_buffer;
-				ptr->request_bufflen = sizeof(ptr->sense_buffer);
-			
+
 				DO_UNLOCK(flags);
 				aha152x_internal_queue(ptr, NULL, check_condition, ptr->scsi_done);
 				DO_LOCK(flags);
@@ -2180,7 +2179,8 @@ static void datai_init(struct Scsi_Host *shpnt)
 	DATA_LEN=0;
 	DPRINTK(debug_datai,
 		DEBUG_LEAD "datai_init: request_bufflen=%d resid=%d\n",
-		CMDINFO(CURRENT_SC), CURRENT_SC->request_bufflen, CURRENT_SC->resid);
+		CMDINFO(CURRENT_SC), scsi_bufflen(CURRENT_SC),
+		scsi_get_resid(CURRENT_SC));
 }
 
 static void datai_run(struct Scsi_Host *shpnt)
@@ -2293,11 +2293,12 @@ static void datai_run(struct Scsi_Host *shpnt)
 
 static void datai_end(struct Scsi_Host *shpnt)
 {
-	CURRENT_SC->resid -= GETSTCNT();
+	CMD_INC_RESID(CURRENT_SC, -GETSTCNT());
 
 	DPRINTK(debug_datai,
 		DEBUG_LEAD "datai_end: request_bufflen=%d resid=%d stcnt=%d\n",
-		CMDINFO(CURRENT_SC), CURRENT_SC->request_bufflen, CURRENT_SC->resid, GETSTCNT());
+		CMDINFO(CURRENT_SC), scsi_bufflen(CURRENT_SC),
+		scsi_get_resid(CURRENT_SC), GETSTCNT());
 
 	SETPORT(SXFRCTL0, CH1|CLRSTCNT);
 	SETPORT(DMACNTRL0, 0);
@@ -2318,11 +2319,12 @@ static void datao_init(struct Scsi_Host *shpnt)
 	SETPORT(SIMODE0, 0);
 	SETPORT(SIMODE1, ENSCSIPERR | ENSCSIRST | ENPHASEMIS | ENBUSFREE );
 
-	DATA_LEN = CURRENT_SC->resid;
+	DATA_LEN = scsi_get_resid(CURRENT_SC);
 
 	DPRINTK(debug_datao,
 		DEBUG_LEAD "datao_init: request_bufflen=%d; resid=%d\n",
-		CMDINFO(CURRENT_SC), CURRENT_SC->request_bufflen, CURRENT_SC->resid);
+		CMDINFO(CURRENT_SC), scsi_bufflen(CURRENT_SC),
+		scsi_get_resid(CURRENT_SC));
 }
 
 static void datao_run(struct Scsi_Host *shpnt)
@@ -2346,7 +2348,7 @@ static void datao_run(struct Scsi_Host *shpnt)
 			SETPORT(DMACNTRL0,WRITE_READ|ENDMA|_8BIT);
 			SETPORT(DATAPORT, *CURRENT_SC->SCp.ptr++);
 			CURRENT_SC->SCp.this_residual--;
-			CURRENT_SC->resid--;
+			CMD_INC_RESID(CURRENT_SC, -1);
 			SETPORT(DMACNTRL0,WRITE_READ|ENDMA);
 		}
 
@@ -2355,7 +2357,7 @@ static void datao_run(struct Scsi_Host *shpnt)
 			outsw(DATAPORT, CURRENT_SC->SCp.ptr, data_count);
 			CURRENT_SC->SCp.ptr           += 2 * data_count;
 			CURRENT_SC->SCp.this_residual -= 2 * data_count;
-			CURRENT_SC->resid             -= 2 * data_count;
+			CMD_INC_RESID(CURRENT_SC, -2 * data_count);
 	  	}
 
 		if(CURRENT_SC->SCp.this_residual==0 && CURRENT_SC->SCp.buffers_residual>0) {
@@ -2381,35 +2383,34 @@ static void datao_run(struct Scsi_Host *shpnt)
 static void datao_end(struct Scsi_Host *shpnt)
 {
 	if(TESTLO(DMASTAT, DFIFOEMP)) {
-		int data_count = (DATA_LEN - CURRENT_SC->resid) - GETSTCNT();
+		int data_count = (DATA_LEN - scsi_get_resid(CURRENT_SC)) -
+		                                                    GETSTCNT();
 
 		DPRINTK(debug_datao, DEBUG_LEAD "datao: %d bytes to resend (%d written, %d transferred)\n",
 			CMDINFO(CURRENT_SC),
 			data_count,
-			DATA_LEN-CURRENT_SC->resid,
+			DATA_LEN - scsi_get_resid(CURRENT_SC),
 			GETSTCNT());
 
-		CURRENT_SC->resid += data_count;
+		CMD_INC_RESID(CURRENT_SC, data_count);
 
-		if(CURRENT_SC->use_sg) {
-			data_count -= CURRENT_SC->SCp.ptr - SG_ADDRESS(CURRENT_SC->SCp.buffer);
-			while(data_count>0) {
-				CURRENT_SC->SCp.buffer--;
-				CURRENT_SC->SCp.buffers_residual++;
-				data_count -= CURRENT_SC->SCp.buffer->length;
-			}
-			CURRENT_SC->SCp.ptr           = SG_ADDRESS(CURRENT_SC->SCp.buffer) - data_count;
-			CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length + data_count;
-		} else {
-			CURRENT_SC->SCp.ptr           -= data_count;
-			CURRENT_SC->SCp.this_residual += data_count;
+		data_count -= CURRENT_SC->SCp.ptr -
+		                             SG_ADDRESS(CURRENT_SC->SCp.buffer);
+		while(data_count>0) {
+			CURRENT_SC->SCp.buffer--;
+			CURRENT_SC->SCp.buffers_residual++;
+			data_count -= CURRENT_SC->SCp.buffer->length;
 		}
+		CURRENT_SC->SCp.ptr = SG_ADDRESS(CURRENT_SC->SCp.buffer) -
+		                                                     data_count;
+		CURRENT_SC->SCp.this_residual = CURRENT_SC->SCp.buffer->length +
+		                                                     data_count;
 	}
 
 	DPRINTK(debug_datao, DEBUG_LEAD "datao_end: request_bufflen=%d; resid=%d; stcnt=%d\n",
 		CMDINFO(CURRENT_SC),
-		CURRENT_SC->request_bufflen,
-		CURRENT_SC->resid,
+		scsi_bufflen(CURRENT_SC),
+		scsi_get_resid(CURRENT_SC),
 		GETSTCNT());
 
 	SETPORT(SXFRCTL0, CH1|CLRCH1|CLRSTCNT);
@@ -2936,7 +2937,7 @@ static void show_command(Scsi_Cmnd *ptr)
 	__scsi_print_command(ptr->cmnd);
 
 	printk(KERN_DEBUG "); request_bufflen=%d; resid=%d; phase |",
-	       ptr->request_bufflen, ptr->resid);
+	       scsi_bufflen(ptr), scsi_get_resid(ptr));
 
 	if (ptr->SCp.phase & not_issued)
 		printk("not issued|");
@@ -3006,7 +3007,8 @@ static int get_command(char *pos, Scsi_Cmnd * ptr)
 		SPRINTF("0x%02x ", ptr->cmnd[i]);
 
 	SPRINTF("); resid=%d; residual=%d; buffers=%d; phase |",
-		ptr->resid, ptr->SCp.this_residual, ptr->SCp.buffers_residual);
+		scsi_get_resid(ptr), ptr->SCp.this_residual,
+		ptr->SCp.buffers_residual);
 
 	if (ptr->SCp.phase & not_issued)
 		SPRINTF("not issued|");
@@ -3395,7 +3397,7 @@ static int aha152x_proc_info(struct Scsi_Host *shpnt, char *buffer, char **start
 	PDEBUG(debug_datai, "data in");
 	PDEBUG(debug_datao, "data out");
 	PDEBUG(debug_eh, "eh");
-	PDEBUG(debug_locks, "locks");
+	PDEBUG(debug_locking, "locks");
 	PDEBUG(debug_phases, "phases");
 
 	SPRINTF("\n");
@@ -3474,6 +3476,12 @@ static int aha152x_proc_info(struct Scsi_Host *shpnt, char *buffer, char **start
 	return thislength < length ? thislength : length;
 }
 
+static int aha152x_adjust_queue(struct scsi_device *device)
+{
+	blk_queue_bounce_limit(device->request_queue, BLK_BOUNCE_HIGH);
+	return 0;
+}
+
 static struct scsi_host_template aha152x_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= AHA152X_REVID,
@@ -3490,6 +3498,7 @@ static struct scsi_host_template aha152x_driver_template = {
 	.sg_tablesize			= SG_ALL,
 	.cmd_per_lun			= 1,
 	.use_clustering			= DISABLE_CLUSTERING,
+	.slave_alloc			= aha152x_adjust_queue,
 };
 
 #if !defined(PCMCIA)

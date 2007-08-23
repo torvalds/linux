@@ -95,13 +95,12 @@ spitfire_startup:
 	membar		#Sync
 
 startup_continue:
+	mov		%o0, %l0
+	BRANCH_IF_SUN4V(g1, niagara_lock_tlb)
+
 	sethi		%hi(0x80000000), %g2
 	sllx		%g2, 32, %g2
 	wr		%g2, 0, %tick_cmpr
-
-	mov		%o0, %l0
-
-	BRANCH_IF_SUN4V(g1, niagara_lock_tlb)
 
 	/* Call OBP by hand to lock KERNBASE into i/d tlbs.
 	 * We lock 2 consequetive entries if we are 'bigkernel'.
@@ -366,11 +365,8 @@ after_lock_tlb:
 	call		hard_smp_processor_id
 	 nop
 	
-	mov		%o0, %o1
-	mov		0, %o0
-	mov		0, %o2
-	call		sun4v_init_mondo_queues
-	 mov		1, %o3
+	call		sun4v_register_mondo_queues
+	 nop
 
 1:	call		init_cur_cpu_trap
 	 ldx		[%l0], %o0

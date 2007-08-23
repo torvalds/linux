@@ -374,8 +374,9 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
 	int rc = -ENOMEM;
-	struct rt_cache_iter_state *s = kmalloc(sizeof(*s), GFP_KERNEL);
+	struct rt_cache_iter_state *s;
 
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		goto out;
 	rc = seq_open(file, &rt_cache_seq_ops);
@@ -383,7 +384,6 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 		goto out_kfree;
 	seq          = file->private_data;
 	seq->private = s;
-	memset(s, 0, sizeof(*s));
 out:
 	return rc;
 out_kfree:

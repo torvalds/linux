@@ -183,7 +183,9 @@ static int spidev_message(struct spidev_data *spidev,
 
 		if (u_tmp->rx_buf) {
 			k_tmp->rx_buf = buf;
-			if (!access_ok(VERIFY_WRITE, u_tmp->rx_buf, u_tmp->len))
+			if (!access_ok(VERIFY_WRITE, (u8 __user *)
+						(ptrdiff_t) u_tmp->rx_buf,
+						u_tmp->len))
 				goto done;
 		}
 		if (u_tmp->tx_buf) {

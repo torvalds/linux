@@ -479,109 +479,6 @@ static int disable_periodic (struct ehci_hcd *ehci)
 }
 
 /*-------------------------------------------------------------------------*/
-#ifdef CONFIG_CPU_FREQ
-
-static int safe_to_modify_i (struct ehci_hcd *ehci, struct ehci_qh *qh)
-{
-	int now; /* current (frame * 8) + uframe */
-	int prev_start, next_start; /* uframes from/to split start */
-	int start_uframe = ffs(le32_to_cpup (&qh->hw_info2) & QH_SMASK);
-	int end_uframe = fls((le32_to_cpup (&qh->hw_info2) & QH_CMASK) >> 8);
-	int split_duration = end_uframe - start_uframe;
-
-	now = readl(&ehci->regs->frame_index) % (ehci->periodic_size << 3);
-
-	next_start = ((1024 << 3) + (qh->start << 3) + start_uframe - now)
-			% (qh->period << 3);
-	prev_start = (qh->period << 3) - next_start;
-
-	/*
-	 * Make sure there will be at least one uframe when qh is safe.
-	 */
-	if ((qh->period << 3) <= (ehci->i_thresh + 2 + split_duration))
-		/* never safe */
-		return -EINVAL;
-
-	/*
-	 * Wait 1 uframe after transaction should have started, to make
-	 * sure controller has time to write back overlay, so we can
-	 * check QTD_STS_STS to see if transaction is in progress.
-	 */
-	if ((next_start > ehci->i_thresh) && (prev_start > 1))
-		/* safe to set "i" bit if split isn't in progress */
-		return (qh->hw_token & STATUS_BIT(ehci)) ? 0 : 1;
-	else
-		return 0;
-}
-
-/* Set inactivate bit for all the split interrupt QHs. */
-static void qh_inactivate_split_intr_qhs (struct ehci_hcd *ehci)
-{
-	struct ehci_qh	*qh;
-	int		not_done, safe;
-	u32		inactivate = INACTIVATE_BIT(ehci);
-	u32		active = ACTIVE_BIT(ehci);
-
-	do {
-		not_done = 0;
-		list_for_each_entry(qh, &ehci->split_intr_qhs,
-				split_intr_qhs) {
-			if (qh->hw_info1 & inactivate)
-				/* already off */
-				continue;
-			/*
-			 * To avoid setting "I" after the start split happens,
-			 * don't set it if the QH might be cached in the
-			 * controller.  Some HCs (Broadcom/ServerWorks HT1000)
-			 * will stop in the middle of a split transaction when
-			 * the "I" bit is set.
-			 */
-			safe = safe_to_modify_i(ehci, qh);
-			if (safe == 0) {
-				not_done = 1;
-			} else if (safe > 0) {
-				qh->was_active = qh->hw_token & active;
-				qh->hw_info1 |= inactivate;
-			}
-		}
-	} while (not_done);
-	wmb();
-}
-
-static void qh_reactivate_split_intr_qhs (struct ehci_hcd *ehci)
-{
-	struct ehci_qh	*qh;
-	u32		token;
-	int		not_done, safe;
-	u32		inactivate = INACTIVATE_BIT(ehci);
-	u32		active = ACTIVE_BIT(ehci);
-	u32		halt = HALT_BIT(ehci);
-
-	do {
-		not_done = 0;
-		list_for_each_entry(qh, &ehci->split_intr_qhs, split_intr_qhs) {
-			if (!(qh->hw_info1 & inactivate)) /* already on */
-				continue;
-			/*
-			 * Don't reactivate if cached, or controller might
-			 * overwrite overlay after we modify it!
-			 */
-			safe = safe_to_modify_i(ehci, qh);
-			if (safe == 0) {
-				not_done = 1;
-			} else if (safe > 0) {
-				/* See EHCI 1.0 section 4.15.2.4. */
-				token = qh->hw_token;
-				qh->hw_token = (token | halt) & ~active;
-				wmb();
-				qh->hw_info1 &= ~inactivate;
-				wmb();
-				qh->hw_token = (token & ~halt) | qh->was_active;
-			}
-		}
-	} while (not_done);
-}
-#endif
 
 /* periodic schedule slots have iso tds (normal or split) first, then a
  * sparse tree for active interrupt transfers.
@@ -598,17 +495,6 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
 		period, hc32_to_cpup(ehci, &qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
-
-#ifdef CONFIG_CPU_FREQ
-	/*
-	 * If low/full speed interrupt QHs are inactive (because of
-	 * cpufreq changing processor speeds), start QH with I flag set--
-	 * it will automatically be cleared when cpufreq is done.
-	 */
-	if (ehci->cpufreq_changing)
-		if (!(qh->hw_info1 & (cpu_to_le32(1 << 13))))
-			qh->hw_info1 |= INACTIVATE_BIT(ehci);
-#endif
 
 	/* high bandwidth, or otherwise every microframe */
 	if (period == 0)
@@ -658,12 +544,6 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		? ((qh->usecs + qh->c_usecs) / qh->period)
 		: (qh->usecs * 8);
 
-#ifdef CONFIG_CPU_FREQ
-	/* add qh to list of low/full speed interrupt QHs, if applicable */
-	if (!(qh->hw_info1 & (cpu_to_le32(1 << 13)))) {
-		list_add(&qh->split_intr_qhs, &ehci->split_intr_qhs);
-	}
-#endif
 	/* maybe enable periodic schedule processing */
 	if (!ehci->periodic_sched++)
 		return enable_periodic (ehci);
@@ -682,13 +562,6 @@ static void qh_unlink_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	//   (and overlay token SplitXstate is false?)
 	// THEN
 	//   qh->hw_info1 |= __constant_cpu_to_hc32(1 << 7 /* "ignore" */);
-
-#ifdef CONFIG_CPU_FREQ
-	/* remove qh from list of low/full speed interrupt QHs */
-	if (!(qh->hw_info1 & (cpu_to_le32(1 << 13)))) {
-		list_del_init(&qh->split_intr_qhs);
-	}
-#endif
 
 	/* high bandwidth, or otherwise part of every microframe */
 	if ((period = qh->period) == 0)

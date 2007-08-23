@@ -231,21 +231,34 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 	return;
 }
 
-void *
-lpfc_hbq_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
+struct hbq_dmabuf *
+lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 {
-	void *ret;
-	ret = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_ATOMIC, handle);
-	return ret;
+	struct hbq_dmabuf *hbqbp;
+
+	hbqbp = kmalloc(sizeof(struct hbq_dmabuf), GFP_KERNEL);
+	if (!hbqbp)
+		return NULL;
+
+	hbqbp->dbuf.virt = pci_pool_alloc(phba->lpfc_hbq_pool, GFP_KERNEL,
+					  &hbqbp->dbuf.phys);
+	if (!hbqbp->dbuf.virt) {
+		kfree(hbqbp);
+		return NULL;
+	}
+	hbqbp->size = LPFC_BPL_SIZE;
+	return hbqbp;
 }
 
 void
-lpfc_hbq_free(struct lpfc_hba *phba, void *virt, dma_addr_t dma)
+lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 {
-	pci_pool_free(phba->lpfc_hbq_pool, virt, dma);
+	pci_pool_free(phba->lpfc_hbq_pool, hbqbp->dbuf.virt, hbqbp->dbuf.phys);
+	kfree(hbqbp);
 	return;
 }
 
+/* This is ONLY called for the LPFC_ELS_HBQ */
 void
 lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 {
@@ -254,9 +267,8 @@ lpfc_in_buf_free(struct lpfc_hba *phba, struct lpfc_dmabuf *mp)
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		hbq_entry = container_of(mp, struct hbq_dmabuf, dbuf);
 		if (hbq_entry->tag == -1) {
-			lpfc_hbq_free(phba, hbq_entry->dbuf.virt,
-				      hbq_entry->dbuf.phys);
-			kfree(hbq_entry);
+			(phba->hbqs[LPFC_ELS_HBQ].hbq_free_buffer)
+				(phba, hbq_entry);
 		} else {
 			lpfc_sli_free_hbq(phba, hbq_entry);
 		}

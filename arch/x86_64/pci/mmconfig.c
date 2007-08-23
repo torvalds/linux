@@ -66,13 +66,13 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 
 	switch (len) {
 	case 1:
-		*value = readb(addr + reg);
+		*value = mmio_config_readb(addr + reg);
 		break;
 	case 2:
-		*value = readw(addr + reg);
+		*value = mmio_config_readw(addr + reg);
 		break;
 	case 4:
-		*value = readl(addr + reg);
+		*value = mmio_config_readl(addr + reg);
 		break;
 	}
 
@@ -94,13 +94,13 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 
 	switch (len) {
 	case 1:
-		writeb(value, addr + reg);
+		mmio_config_writeb(addr + reg, value);
 		break;
 	case 2:
-		writew(value, addr + reg);
+		mmio_config_writew(addr + reg, value);
 		break;
 	case 4:
-		writel(value, addr + reg);
+		mmio_config_writel(addr + reg, value);
 		break;
 	}
 

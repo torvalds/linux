@@ -1052,17 +1052,18 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	}
 	/* implicit 'else' */
 
-	/* we only allow nat config for new conntracks */
-	if (cda[CTA_NAT_SRC-1] || cda[CTA_NAT_DST-1]) {
-		err = -EINVAL;
-		goto out_unlock;
-	}
-
 	/* We manipulate the conntrack inside the global conntrack table lock,
 	 * so there's no need to increase the refcount */
 	err = -EEXIST;
-	if (!(nlh->nlmsg_flags & NLM_F_EXCL))
-		err = ctnetlink_change_conntrack(nf_ct_tuplehash_to_ctrack(h), cda);
+	if (!(nlh->nlmsg_flags & NLM_F_EXCL)) {
+		/* we only allow nat config for new conntracks */
+		if (cda[CTA_NAT_SRC-1] || cda[CTA_NAT_DST-1]) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		err = ctnetlink_change_conntrack(nf_ct_tuplehash_to_ctrack(h),
+						 cda);
+	}
 
 out_unlock:
 	write_unlock_bh(&nf_conntrack_lock);

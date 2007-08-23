@@ -10,6 +10,8 @@ struct pci_sysdata {
 	void*		iommu;		/* IOMMU private data */
 };
 
+extern struct pci_bus *pci_scan_bus_with_sysdata(int busno);
+
 #ifdef CONFIG_CALGARY_IOMMU
 static inline void* pci_iommu(struct pci_bus *bus)
 {

@@ -268,7 +268,6 @@ static inline void sun4c_init_clean_mmu(unsigned long kernel_end)
 	unsigned char savectx, ctx;
 
 	savectx = sun4c_get_context();
-	kernel_end = SUN4C_REAL_PGDIR_ALIGN(kernel_end);
 	for (ctx = 0; ctx < num_contexts; ctx++) {
 		sun4c_set_context(ctx);
 		for (vaddr = 0; vaddr < 0x20000000; vaddr += SUN4C_REAL_PGDIR_SIZE)
@@ -2064,7 +2063,6 @@ void __init sun4c_paging_init(void)
 	unsigned long end_pfn, pages_avail;
 
 	kernel_end = (unsigned long) &end;
-	kernel_end += (SUN4C_REAL_PGDIR_SIZE * 4);
 	kernel_end = SUN4C_REAL_PGDIR_ALIGN(kernel_end);
 
 	pages_avail = 0;

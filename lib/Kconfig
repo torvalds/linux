@@ -138,4 +138,7 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
+config CHECK_SIGNATURE
+	bool
+
 endmenu

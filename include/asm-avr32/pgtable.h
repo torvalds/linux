@@ -32,8 +32,6 @@
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define PTE_PHYS_MASK	0x1ffff000
-
 #ifndef __ASSEMBLY__
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
@@ -265,7 +263,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
  * trivial.
  */
 #define pages_to_mb(x)	((x) >> (20-PAGE_SHIFT))
-#define pte_page(x) 	phys_to_page(pte_val(x) & PTE_PHYS_MASK)
+#define pte_page(x)	(pfn_to_page(pte_pfn(x)))
 
 /*
  * Mark the prot value as uncacheable and unbufferable

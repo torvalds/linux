@@ -468,7 +468,7 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 		ctx->lockowner = current->files;
 		ctx->error = 0;
 		ctx->dir_cookie = 0;
-		kref_init(&ctx->kref);
+		atomic_set(&ctx->count, 1);
 	}
 	return ctx;
 }
@@ -476,21 +476,18 @@ static struct nfs_open_context *alloc_nfs_open_context(struct vfsmount *mnt, str
 struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx)
 {
 	if (ctx != NULL)
-		kref_get(&ctx->kref);
+		atomic_inc(&ctx->count);
 	return ctx;
 }
 
-static void nfs_free_open_context(struct kref *kref)
+void put_nfs_open_context(struct nfs_open_context *ctx)
 {
-	struct nfs_open_context *ctx = container_of(kref,
-			struct nfs_open_context, kref);
+	struct inode *inode = ctx->path.dentry->d_inode;
 
-	if (!list_empty(&ctx->list)) {
-		struct inode *inode = ctx->path.dentry->d_inode;
-		spin_lock(&inode->i_lock);
-		list_del(&ctx->list);
-		spin_unlock(&inode->i_lock);
-	}
+	if (!atomic_dec_and_lock(&ctx->count, &inode->i_lock))
+		return;
+	list_del(&ctx->list);
+	spin_unlock(&inode->i_lock);
 	if (ctx->state != NULL)
 		nfs4_close_state(&ctx->path, ctx->state, ctx->mode);
 	if (ctx->cred != NULL)
@@ -498,11 +495,6 @@ static void nfs_free_open_context(struct kref *kref)
 	dput(ctx->path.dentry);
 	mntput(ctx->path.mnt);
 	kfree(ctx);
-}
-
-void put_nfs_open_context(struct nfs_open_context *ctx)
-{
-	kref_put(&ctx->kref, nfs_free_open_context);
 }
 
 /*

@@ -316,39 +316,51 @@ static void ocfs2_destroy_inode(struct inode *inode)
 	kmem_cache_free(ocfs2_inode_cachep, OCFS2_I(inode));
 }
 
-/* From xfs_super.c:xfs_max_file_offset
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.
- */
-unsigned long long ocfs2_max_file_offset(unsigned int blockshift)
+static unsigned long long ocfs2_max_file_offset(unsigned int bbits,
+						unsigned int cbits)
 {
-	unsigned int pagefactor = 1;
-	unsigned int bitshift = BITS_PER_LONG - 1;
+	unsigned int bytes = 1 << cbits;
+	unsigned int trim = bytes;
+	unsigned int bitshift = 32;
 
-	/* Figure out maximum filesize, on Linux this can depend on
-	 * the filesystem blocksize (on 32 bit platforms).
-	 * __block_prepare_write does this in an [unsigned] long...
-	 *      page->index << (PAGE_CACHE_SHIFT - bbits)
-	 * So, for page sized blocks (4K on 32 bit platforms),
-	 * this wraps at around 8Tb (hence MAX_LFS_FILESIZE which is
-	 *      (((u64)PAGE_CACHE_SIZE << (BITS_PER_LONG-1))-1)
-	 * but for smaller blocksizes it is less (bbits = log2 bsize).
-	 * Note1: get_block_t takes a long (implicit cast from above)
-	 * Note2: The Large Block Device (LBD and HAVE_SECTOR_T) patch
-	 * can optionally convert the [unsigned] long from above into
-	 * an [unsigned] long long.
+	/*
+	 * i_size and all block offsets in ocfs2 are always 64 bits
+	 * wide. i_clusters is 32 bits, in cluster-sized units. So on
+	 * 64 bit platforms, cluster size will be the limiting factor.
 	 */
 
 #if BITS_PER_LONG == 32
 # if defined(CONFIG_LBD)
 	BUILD_BUG_ON(sizeof(sector_t) != 8);
-	pagefactor = PAGE_CACHE_SIZE;
-	bitshift = BITS_PER_LONG;
+	/*
+	 * We might be limited by page cache size.
+	 */
+	if (bytes > PAGE_CACHE_SIZE) {
+		bytes = PAGE_CACHE_SIZE;
+		trim = 1;
+		/*
+		 * Shift by 31 here so that we don't get larger than
+		 * MAX_LFS_FILESIZE
+		 */
+		bitshift = 31;
+	}
 # else
-	pagefactor = PAGE_CACHE_SIZE >> (PAGE_CACHE_SHIFT - blockshift);
+	/*
+	 * We are limited by the size of sector_t. Use block size, as
+	 * that's what we expose to the VFS.
+	 */
+	bytes = 1 << bbits;
+	trim = 1;
+	bitshift = 31;
 # endif
 #endif
 
-	return (((unsigned long long)pagefactor) << bitshift) - 1;
+	/*
+	 * Trim by a whole cluster when we can actually approach the
+	 * on-disk limits. Otherwise we can overflow i_clusters when
+	 * an extent start is at the max offset.
+	 */
+	return (((unsigned long long)bytes) << bitshift) - trim;
 }
 
 static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
@@ -1259,8 +1271,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 				  int sector_size)
 {
 	int status = 0;
-	int i;
-	struct ocfs2_dinode *di = NULL;
+	int i, cbits, bbits;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 	struct inode *inode = NULL;
 	struct buffer_head *bitmap_bh = NULL;
 	struct ocfs2_journal *journal;
@@ -1279,9 +1291,12 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	sb->s_fs_info = osb;
 	sb->s_op = &ocfs2_sops;
 	sb->s_export_op = &ocfs2_export_ops;
+	sb->s_time_gran = 1;
 	sb->s_flags |= MS_NOATIME;
 	/* this is needed to support O_LARGEFILE */
-	sb->s_maxbytes = ocfs2_max_file_offset(sb->s_blocksize_bits);
+	cbits = le32_to_cpu(di->id2.i_super.s_clustersize_bits);
+	bbits = le32_to_cpu(di->id2.i_super.s_blocksize_bits);
+	sb->s_maxbytes = ocfs2_max_file_offset(bbits, cbits);
 
 	osb->sb = sb;
 	/* Save off for ocfs2_rw_direct */
@@ -1340,8 +1355,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 		status = -ENOMEM;
 		goto bail;
 	}
-
-	di = (struct ocfs2_dinode *)bh->b_data;
 
 	osb->max_slots = le16_to_cpu(di->id2.i_super.s_max_slots);
 	if (osb->max_slots > OCFS2_MAX_SLOTS || osb->max_slots == 0) {

@@ -223,7 +223,6 @@
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
 #define MCSR_DCP_PERR 	0x20000000UL /* D-Cache Push Parity Error */
 #define MCSR_DCPERR 	0x10000000UL /* D-Cache Parity Error */
-#define MCSR_GL_CI 	0x00010000UL /* Guarded Load or Cache-Inhibited stwcx. */
 #define MCSR_BUS_IAERR 	0x00000080UL /* Instruction Address Error */
 #define MCSR_BUS_RAERR 	0x00000040UL /* Read Address Error */
 #define MCSR_BUS_WAERR 	0x00000020UL /* Write Address Error */
@@ -232,6 +231,12 @@
 #define MCSR_BUS_WBERR 	0x00000004UL /* Write Data Bus Error */
 #define MCSR_BUS_IPERR 	0x00000002UL /* Instruction parity Error */
 #define MCSR_BUS_RPERR 	0x00000001UL /* Read parity Error */
+
+/* e500 parts may set unused bits in MCSR; mask these off */
+#define MCSR_MASK	(MCSR_MCP | MCSR_ICPERR | MCSR_DCP_PERR | \
+			MCSR_DCPERR | MCSR_BUS_IAERR | MCSR_BUS_RAERR | \
+			MCSR_BUS_WAERR | MCSR_BUS_IBERR | MCSR_BUS_RBERR | \
+			MCSR_BUS_WBERR | MCSR_BUS_IPERR | MCSR_BUS_RPERR)
 #endif
 #ifdef CONFIG_E200
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
@@ -243,6 +248,11 @@
 #define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
 #define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
 					store or cache line push */
+
+/* e200 parts may set unused bits in MCSR; mask these off */
+#define MCSR_MASK	(MCSR_MCP | MCSR_CP_PERR | MCSR_CPERR | \
+			MCSR_EXCP_ERR | MCSR_BUS_IRERR | MCSR_BUS_DRERR | \
+			MCSR_BUS_WRERR)
 #endif
 
 /* Bit definitions for the DBSR. */

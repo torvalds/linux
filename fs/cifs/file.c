@@ -1904,6 +1904,25 @@ static int cifs_readpage(struct file *file, struct page *page)
 	return rc;
 }
 
+static int is_inode_writable(struct cifsInodeInfo *cifs_inode)
+{
+	struct cifsFileInfo *open_file;
+
+	read_lock(&GlobalSMBSeslock);
+	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
+		if (open_file->closePend)
+			continue;
+		if (open_file->pfile &&
+		    ((open_file->pfile->f_flags & O_RDWR) ||
+		     (open_file->pfile->f_flags & O_WRONLY))) {
+			read_unlock(&GlobalSMBSeslock);
+			return 1;
+		}
+	}
+	read_unlock(&GlobalSMBSeslock);
+	return 0;
+}
+
 /* We do not want to update the file size from server for inodes
    open for write - to avoid races with writepage extending
    the file - in the future we could consider allowing
@@ -1912,18 +1931,12 @@ static int cifs_readpage(struct file *file, struct page *page)
    page caching in the current Linux kernel design */
 int is_size_safe_to_change(struct cifsInodeInfo *cifsInode, __u64 end_of_file)
 {
-	struct cifsFileInfo *open_file = NULL;
+	if (!cifsInode)
+		return 1;
 
-	if (cifsInode)
-		open_file =  find_writable_file(cifsInode);
-
-	if (open_file) {
+	if (is_inode_writable(cifsInode)) {
+		/* This inode is open for write at least once */
 		struct cifs_sb_info *cifs_sb;
-
-		/* there is not actually a write pending so let
-		this handle go free and allow it to
-		be closable if needed */
-		atomic_dec(&open_file->wrtPending);
 
 		cifs_sb = CIFS_SB(cifsInode->vfs_inode.i_sb);
 		if ( cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO ) {

@@ -70,7 +70,6 @@ static struct of_device_id mpc832x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .type = "qe", },
-	{ .type = "mdio", },
 	{},
 };
 

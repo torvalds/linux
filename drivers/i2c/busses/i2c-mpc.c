@@ -105,6 +105,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 			schedule();
 			if (time_after(jiffies, orig_jiffies + timeout)) {
 				pr_debug("I2C: timeout\n");
+				writeccr(i2c, 0);
 				result = -EIO;
 				break;
 			}
@@ -116,10 +117,12 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 		result = wait_event_interruptible_timeout(i2c->queue,
 			(i2c->interrupt & CSR_MIF), timeout * HZ);
 
-		if (unlikely(result < 0))
+		if (unlikely(result < 0)) {
 			pr_debug("I2C: wait interrupted\n");
-		else if (unlikely(!(i2c->interrupt & CSR_MIF))) {
+			writeccr(i2c, 0);
+		} else if (unlikely(!(i2c->interrupt & CSR_MIF))) {
 			pr_debug("I2C: wait timeout\n");
+			writeccr(i2c, 0);
 			result = -ETIMEDOUT;
 		}
 
@@ -172,7 +175,6 @@ static void mpc_i2c_start(struct mpc_i2c *i2c)
 static void mpc_i2c_stop(struct mpc_i2c *i2c)
 {
 	writeccr(i2c, CCR_MEN);
-	writeccr(i2c, 0);
 }
 
 static int mpc_write(struct mpc_i2c *i2c, int target,
@@ -261,6 +263,7 @@ static int mpc_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	while (readb(i2c->base + MPC_I2C_SR) & CSR_MBB) {
 		if (signal_pending(current)) {
 			pr_debug("I2C: Interrupted\n");
+			writeccr(i2c, 0);
 			return -EINTR;
 		}
 		if (time_after(jiffies, orig_jiffies + HZ)) {
@@ -362,7 +365,7 @@ static int fsl_i2c_probe(struct platform_device *pdev)
 
       fail_add:
 	if (i2c->irq != 0)
-		free_irq(i2c->irq, NULL);
+		free_irq(i2c->irq, i2c);
       fail_irq:
 	iounmap(i2c->base);
       fail_map:

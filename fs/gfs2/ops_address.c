@@ -416,7 +416,7 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 
 	error = gfs2_trans_begin(sdp, rblocks, 0);
 	if (error)
-		goto out;
+		goto out_trans_fail;
 
 	if (gfs2_is_stuffed(ip)) {
 		if (end > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
@@ -434,6 +434,7 @@ prepare_write:
 out:
 	if (error) {
 		gfs2_trans_end(sdp);
+out_trans_fail:
 		if (alloc_required) {
 			gfs2_inplace_release(ip);
 out_qunlock:

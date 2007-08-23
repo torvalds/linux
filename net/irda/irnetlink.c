@@ -106,7 +106,7 @@ static int irda_nl_get_mode(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if(nla_put_string(msg, IRDA_NL_ATTR_IFNAME,
-			  dev->name));
+			  dev->name))
 		goto err_out;
 
 	if(nla_put_u32(msg, IRDA_NL_ATTR_MODE, irlap->mode))
