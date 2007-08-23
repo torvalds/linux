@@ -73,9 +73,10 @@ static u8 vga_set_basic_mode(void)
 		mode = 3;
 
 	/* Set the mode */
+	ax = mode;
 	asm volatile(INT10
-		     : : "a" (mode)
-		     : "ebx", "ecx", "edx", "esi", "edi");
+		     : "+a" (ax)
+		     : : "ebx", "ecx", "edx", "esi", "edi");
 	do_restore = 1;
 	return mode;
 }
