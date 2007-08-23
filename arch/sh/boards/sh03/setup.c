@@ -44,7 +44,7 @@ static void __init sh03_setup(char **cmdline_p)
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= 0xa0800000,
-		.end	= 0xa0800000 + 8 - 1,
+		.end	= 0xa0800000,
 		.flags	= IORESOURCE_MEM,
 	},
 };

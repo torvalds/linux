@@ -18,7 +18,7 @@
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= 0xb8140020,
-		.end	= 0xb8140020 + 8 - 1,
+		.end	= 0xb8140020,
 		.flags	= IORESOURCE_MEM,
 	},
 };

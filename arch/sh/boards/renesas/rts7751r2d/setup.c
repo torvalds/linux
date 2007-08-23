@@ -76,7 +76,7 @@ static struct platform_device cf_ide_device  = {
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= PA_OUTPORT,
-		.end	= PA_OUTPORT + 8 - 1,
+		.end	= PA_OUTPORT,
 		.flags	= IORESOURCE_MEM,
 	},
 };

@@ -112,7 +112,7 @@ static struct platform_device cf_ide_device  = {
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= PA_OBLED,
-		.end	= PA_OBLED + 8 - 1,
+		.end	= PA_OBLED,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -133,7 +133,7 @@ static struct platform_device heartbeat_device = {
 	/* R7785RP has a slightly more sensible FPGA.. */
 #ifndef CONFIG_SH_R7785RP
 	.dev	= {
-		.platform_data	= heartbeat_data,
+		.platform_data	= &heartbeat_data,
 	},
 #endif
 	.num_resources	= ARRAY_SIZE(heartbeat_resources),

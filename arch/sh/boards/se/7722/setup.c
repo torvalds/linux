@@ -21,7 +21,7 @@
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start  = PA_LED,
-		.end    = PA_LED + 8 - 1,
+		.end    = PA_LED,
 		.flags  = IORESOURCE_MEM,
 	},
 };
