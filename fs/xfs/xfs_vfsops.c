@@ -572,6 +572,7 @@ xfs_unmount(
 	rip = mp->m_rootip;
 	rvp = XFS_ITOV(rip);
 
+#ifdef HAVE_DMAPI
 	if (vfsp->vfs_flag & VFS_DMI) {
 		error = XFS_SEND_PREUNMOUNT(mp, vfsp,
 				rvp, DM_RIGHT_NULL, rvp, DM_RIGHT_NULL,
@@ -584,7 +585,7 @@ xfs_unmount(
 		unmount_event_flags = (mp->m_dmevmask & (1<<DM_EVENT_UNMOUNT))?
 					0 : DM_FLAGS_UNWANTED;
 	}
-
+#endif
 	/*
 	 * First blow any referenced inode from this file system
 	 * out of the reference cache, and delete the timer.
