@@ -8500,7 +8500,7 @@ static struct hda_verb alc268_toshiba_verbs[] = {
 };
 
 /* Acer specific */
-/* bind volumes of both NID 0x0c and 0x0d */
+/* bind volumes of both NID 0x02 and 0x03 */
 static struct hda_bind_ctls alc268_acer_bind_master_vol = {
 	.ops = &snd_hda_bind_vol,
 	.values = {
@@ -8510,8 +8510,46 @@ static struct hda_bind_ctls alc268_acer_bind_master_vol = {
 	},
 };
 
-#define alc268_acer_master_sw_put	alc262_fujitsu_master_sw_put
-#define alc268_acer_automute	alc262_fujitsu_automute
+/* mute/unmute internal speaker according to the hp jack and mute state */
+static void alc268_acer_automute(struct hda_codec *codec, int force)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int mute;
+
+	if (force || !spec->sense_updated) {
+		unsigned int present;
+		present = snd_hda_codec_read(codec, 0x14, 0,
+				    	 AC_VERB_GET_PIN_SENSE, 0);
+		spec->jack_present = (present & 0x80000000) != 0;
+		spec->sense_updated = 1;
+	}
+	if (spec->jack_present)
+		mute = HDA_AMP_MUTE; /* mute internal speaker */
+	else /* unmute internal speaker if necessary */
+		mute = snd_hda_codec_amp_read(codec, 0x14, 0, HDA_OUTPUT, 0);
+	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, mute);
+}
+
+
+/* bind hp and internal speaker mute (with plug check) */
+static int alc268_acer_master_sw_put(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	long *valp = ucontrol->value.integer.value;
+	int change;
+
+	change = snd_hda_codec_amp_update(codec, 0x14, 0, HDA_OUTPUT, 0,
+					  HDA_AMP_MUTE,
+					  valp[0] ? 0 : HDA_AMP_MUTE);
+	change |= snd_hda_codec_amp_update(codec, 0x14, 1, HDA_OUTPUT, 0,
+					   HDA_AMP_MUTE,
+					   valp[1] ? 0 : HDA_AMP_MUTE);
+	if (change)
+		alc268_acer_automute(codec, 0);
+	return change;
+}
 
 static struct snd_kcontrol_new alc268_acer_mixer[] = {
 	/* output mixer control */
@@ -8542,7 +8580,7 @@ static struct hda_verb alc268_acer_verbs[] = {
 static void alc268_toshiba_unsol_event(struct hda_codec *codec,
 				       unsigned int res)
 {
-	if ((res >> 28) != ALC880_HP_EVENT)
+	if ((res >> 26) != ALC880_HP_EVENT)
 		return;
 	alc268_toshiba_automute(codec);
 }
@@ -8550,8 +8588,13 @@ static void alc268_toshiba_unsol_event(struct hda_codec *codec,
 static void alc268_acer_unsol_event(struct hda_codec *codec,
 				       unsigned int res)
 {
-	if ((res >> 28) != ALC880_HP_EVENT)
+	if ((res >> 26) != ALC880_HP_EVENT)
 		return;
+	alc268_acer_automute(codec, 1);
+}
+
+static void alc268_acer_init_hook(struct hda_codec *codec)
+{
 	alc268_acer_automute(codec, 1);
 }
 
@@ -8945,6 +8988,7 @@ static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x103c, 0x30cc, "TOSHIBA", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x1025, 0x0126, "Acer", ALC268_ACER),
+	SND_PCI_QUIRK(0x1025, 0x0130, "Acer Extensa 5210", ALC268_ACER),
 	{}
 };
 
@@ -8991,6 +9035,7 @@ static struct alc_config_preset alc268_presets[] = {
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
 		.unsol_event = alc268_acer_unsol_event,
+		.init_hook = alc268_acer_init_hook,
 	},
 };
 
