@@ -977,19 +977,19 @@ static const char rtl8169_gstrings[][ETH_GSTRING_LEN] = {
 };
 
 struct rtl8169_counters {
-	u64	tx_packets;
-	u64	rx_packets;
-	u64	tx_errors;
-	u32	rx_errors;
-	u16	rx_missed;
-	u16	align_errors;
-	u32	tx_one_collision;
-	u32	tx_multi_collision;
-	u64	rx_unicast;
-	u64	rx_broadcast;
-	u32	rx_multicast;
-	u16	tx_aborted;
-	u16	tx_underun;
+	__le64	tx_packets;
+	__le64	rx_packets;
+	__le64	tx_errors;
+	__le32	rx_errors;
+	__le16	rx_missed;
+	__le16	align_errors;
+	__le32	tx_one_collision;
+	__le32	tx_multi_collision;
+	__le64	rx_unicast;
+	__le64	rx_broadcast;
+	__le32	rx_multicast;
+	__le16	tx_aborted;
+	__le16	tx_underun;
 };
 
 static int rtl8169_get_sset_count(struct net_device *dev, int sset)
