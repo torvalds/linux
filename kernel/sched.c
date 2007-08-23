@@ -3043,6 +3043,7 @@ static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
 	struct sched_domain *sd;
 	/* Earliest time when we have to do rebalance again */
 	unsigned long next_balance = jiffies + 60*HZ;
+	int update_next_balance = 0;
 
 	for_each_domain(cpu, sd) {
 		if (!(sd->flags & SD_LOAD_BALANCE))
@@ -3079,8 +3080,10 @@ static inline void rebalance_domains(int cpu, enum cpu_idle_type idle)
 		if (sd->flags & SD_SERIALIZE)
 			spin_unlock(&balancing);
 out:
-		if (time_after(next_balance, sd->last_balance + interval))
+		if (time_after(next_balance, sd->last_balance + interval)) {
 			next_balance = sd->last_balance + interval;
+			update_next_balance = 1;
+		}
 
 		/*
 		 * Stop the load balance at this level. There is another
@@ -3090,7 +3093,14 @@ out:
 		if (!balance)
 			break;
 	}
-	rq->next_balance = next_balance;
+
+	/*
+	 * next_balance will be updated only when there is a need.
+	 * When the cpu is attached to null domain for ex, it will not be
+	 * updated.
+	 */
+	if (likely(update_next_balance))
+		rq->next_balance = next_balance;
 }
 
 /*
