@@ -58,8 +58,6 @@ struct coretemp_data {
 	u8 alarm;
 };
 
-static struct coretemp_data *coretemp_update_device(struct device *dev);
-
 /*
  * Sysfs stuff
  */
@@ -350,7 +348,7 @@ static int coretemp_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata coretemp_cpu_notifier = {
+static struct notifier_block coretemp_cpu_notifier = {
 	.notifier_call = coretemp_cpu_callback,
 };
 #endif				/* !CONFIG_HOTPLUG_CPU */
