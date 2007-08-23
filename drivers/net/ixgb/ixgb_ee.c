@@ -411,7 +411,7 @@ ixgb_write_eeprom(struct ixgb_hw *hw, uint16_t offset, uint16_t data)
 	ixgb_cleanup_eeprom(hw);
 
 	/* clear the init_ctrl_reg_1 to signify that the cache is invalidated */
-	ee_map->init_ctrl_reg_1 = le16_to_cpu(EEPROM_ICW1_SIGNATURE_CLEAR);
+	ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
 
 	return;
 }
@@ -476,19 +476,19 @@ ixgb_get_eeprom_data(struct ixgb_hw *hw)
 		uint16_t ee_data;
 		ee_data = ixgb_read_eeprom(hw, i);
 		checksum += ee_data;
-		hw->eeprom[i] = le16_to_cpu(ee_data);
+		hw->eeprom[i] = cpu_to_le16(ee_data);
 	}
 
 	if (checksum != (uint16_t) EEPROM_SUM) {
 		DEBUGOUT("ixgb_ee: Checksum invalid.\n");
 		/* clear the init_ctrl_reg_1 to signify that the cache is
 		 * invalidated */
-		ee_map->init_ctrl_reg_1 = le16_to_cpu(EEPROM_ICW1_SIGNATURE_CLEAR);
+		ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
 		return (FALSE);
 	}
 
-	if ((ee_map->init_ctrl_reg_1 & le16_to_cpu(EEPROM_ICW1_SIGNATURE_MASK))
-		 != le16_to_cpu(EEPROM_ICW1_SIGNATURE_VALID)) {
+	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
+		 != cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
 		DEBUGOUT("ixgb_ee: Signature invalid.\n");
 		return(FALSE);
 	}
@@ -511,8 +511,8 @@ ixgb_check_and_get_eeprom_data (struct ixgb_hw* hw)
 {
 	struct ixgb_ee_map_type *ee_map = (struct ixgb_ee_map_type *)hw->eeprom;
 
-	if ((ee_map->init_ctrl_reg_1 & le16_to_cpu(EEPROM_ICW1_SIGNATURE_MASK))
-	    == le16_to_cpu(EEPROM_ICW1_SIGNATURE_VALID)) {
+	if ((ee_map->init_ctrl_reg_1 & cpu_to_le16(EEPROM_ICW1_SIGNATURE_MASK))
+	    == cpu_to_le16(EEPROM_ICW1_SIGNATURE_VALID)) {
 		return (TRUE);
 	} else {
 		return ixgb_get_eeprom_data(hw);
@@ -528,7 +528,7 @@ ixgb_check_and_get_eeprom_data (struct ixgb_hw* hw)
  * Returns:
  *          Word at indexed offset in eeprom, if valid, 0 otherwise.
  ******************************************************************************/
-uint16_t
+__le16
 ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index)
 {
 

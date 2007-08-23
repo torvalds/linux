@@ -76,22 +76,22 @@
 /* EEPROM structure */
 struct ixgb_ee_map_type {
 	uint8_t mac_addr[IXGB_ETH_LENGTH_OF_ADDRESS];
-	uint16_t compatibility;
-	uint16_t reserved1[4];
-	uint32_t pba_number;
-	uint16_t init_ctrl_reg_1;
-	uint16_t subsystem_id;
-	uint16_t subvendor_id;
-	uint16_t device_id;
-	uint16_t vendor_id;
-	uint16_t init_ctrl_reg_2;
-	uint16_t oem_reserved[16];
-	uint16_t swdpins_reg;
-	uint16_t circuit_ctrl_reg;
+	__le16 compatibility;
+	__le16 reserved1[4];
+	__le32 pba_number;
+	__le16 init_ctrl_reg_1;
+	__le16 subsystem_id;
+	__le16 subvendor_id;
+	__le16 device_id;
+	__le16 vendor_id;
+	__le16 init_ctrl_reg_2;
+	__le16 oem_reserved[16];
+	__le16 swdpins_reg;
+	__le16 circuit_ctrl_reg;
 	uint8_t d3_power;
 	uint8_t d0_power;
-	uint16_t reserved2[28];
-	uint16_t checksum;
+	__le16 reserved2[28];
+	__le16 checksum;
 };
 
 /* EEPROM Functions */

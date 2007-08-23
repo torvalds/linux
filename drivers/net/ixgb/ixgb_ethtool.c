@@ -422,7 +422,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	struct ixgb_hw *hw = &adapter->hw;
-	uint16_t *eeprom_buff;
+	__le16 *eeprom_buff;
 	int i, max_len, first_word, last_word;
 	int ret_val = 0;
 
@@ -446,7 +446,7 @@ ixgb_get_eeprom(struct net_device *netdev,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(uint16_t) *
+	eeprom_buff = kmalloc(sizeof(__le16) *
 			(last_word - first_word + 1), GFP_KERNEL);
 	if(!eeprom_buff)
 		return -ENOMEM;
