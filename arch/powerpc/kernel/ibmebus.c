@@ -371,7 +371,8 @@ static int ibmebus_match_path(struct device *dev, void *data)
 
 static char *ibmebus_chomp(const char *in, size_t count)
 {
-	char *out = (char*)kmalloc(count + 1, GFP_KERNEL);
+	char *out = kmalloc(count + 1, GFP_KERNEL);
+
 	if (!out)
 		return NULL;
 
