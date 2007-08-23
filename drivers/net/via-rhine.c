@@ -335,16 +335,16 @@ enum wol_bits {
 
 /* The Rx and Tx buffer descriptors. */
 struct rx_desc {
-	s32 rx_status;
-	u32 desc_length; /* Chain flag, Buffer/frame length */
-	u32 addr;
-	u32 next_desc;
+	__le32 rx_status;
+	__le32 desc_length; /* Chain flag, Buffer/frame length */
+	__le32 addr;
+	__le32 next_desc;
 };
 struct tx_desc {
-	s32 tx_status;
-	u32 desc_length; /* Chain flag, Tx Config, Frame length */
-	u32 addr;
-	u32 next_desc;
+	__le32 tx_status;
+	__le32 desc_length; /* Chain flag, Tx Config, Frame length */
+	__le32 addr;
+	__le32 next_desc;
 };
 
 /* Initial value for tx_desc.desc_length, Buffer size goes to bits 0-10 */
