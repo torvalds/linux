@@ -11,6 +11,7 @@
 #define __INCORE_DOT_H__
 
 #include <linux/fs.h>
+#include <linux/workqueue.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -130,6 +131,7 @@ struct gfs2_glock_operations {
 	int (*go_lock) (struct gfs2_holder *gh);
 	void (*go_unlock) (struct gfs2_holder *gh);
 	const int go_type;
+	const unsigned long go_min_hold_time;
 };
 
 enum {
@@ -161,6 +163,7 @@ enum {
 	GLF_LOCK		= 1,
 	GLF_STICKY		= 2,
 	GLF_DEMOTE		= 3,
+	GLF_PENDING_DEMOTE	= 4,
 	GLF_DIRTY		= 5,
 };
 
@@ -193,6 +196,7 @@ struct gfs2_glock {
 
 	u64 gl_vn;
 	unsigned long gl_stamp;
+	unsigned long gl_tchange;
 	void *gl_object;
 
 	struct list_head gl_reclaim;
@@ -203,6 +207,7 @@ struct gfs2_glock {
 	struct gfs2_log_element gl_le;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
+	struct delayed_work gl_work;
 };
 
 struct gfs2_alloc {
