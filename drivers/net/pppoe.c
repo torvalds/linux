@@ -103,7 +103,7 @@ static inline int cmp_2_addr(struct pppoe_addr *a, struct pppoe_addr *b)
 		(memcmp(a->remote, b->remote, ETH_ALEN) == 0));
 }
 
-static inline int cmp_addr(struct pppoe_addr *a, unsigned long sid, char *addr)
+static inline int cmp_addr(struct pppoe_addr *a, __be16 sid, char *addr)
 {
 	return (a->sid == sid &&
 		(memcmp(a->remote,addr,ETH_ALEN) == 0));
@@ -113,7 +113,7 @@ static inline int cmp_addr(struct pppoe_addr *a, unsigned long sid, char *addr)
 #error 8 must be a multiple of PPPOE_HASH_BITS
 #endif
 
-static int hash_item(unsigned int sid, unsigned char *addr)
+static int hash_item(__be16 sid, unsigned char *addr)
 {
 	unsigned char hash = 0;
 	unsigned int i;
@@ -122,7 +122,7 @@ static int hash_item(unsigned int sid, unsigned char *addr)
 		hash ^= addr[i];
 	}
 	for (i = 0 ; i < sizeof(sid_t)*8 ; i += 8 ){
-		hash ^= sid>>i;
+		hash ^= (__force __u32)sid>>i;
 	}
 	for (i = 8 ; (i>>=1) >= PPPOE_HASH_BITS ; ) {
 		hash ^= hash>>i;
@@ -139,7 +139,7 @@ static struct pppox_sock *item_hash_table[PPPOE_HASH_SIZE];
  *  Set/get/delete/rehash items  (internal versions)
  *
  **********************************************************************/
-static struct pppox_sock *__get_item(unsigned long sid, unsigned char *addr, int ifindex)
+static struct pppox_sock *__get_item(__be16 sid, unsigned char *addr, int ifindex)
 {
 	int hash = hash_item(sid, addr);
 	struct pppox_sock *ret;
@@ -171,7 +171,7 @@ static int __set_item(struct pppox_sock *po)
 	return 0;
 }
 
-static struct pppox_sock *__delete_item(unsigned long sid, char *addr, int ifindex)
+static struct pppox_sock *__delete_item(__be16 sid, char *addr, int ifindex)
 {
 	int hash = hash_item(sid, addr);
 	struct pppox_sock *ret, **src;
@@ -197,7 +197,7 @@ static struct pppox_sock *__delete_item(unsigned long sid, char *addr, int ifind
  *  Set/get/delete/rehash items
  *
  **********************************************************************/
-static inline struct pppox_sock *get_item(unsigned long sid,
+static inline struct pppox_sock *get_item(__be16 sid,
 					 unsigned char *addr, int ifindex)
 {
 	struct pppox_sock *po;
@@ -224,7 +224,7 @@ static inline struct pppox_sock *get_item_by_addr(struct sockaddr_pppox *sp)
 	return get_item(sp->sa_addr.pppoe.sid, sp->sa_addr.pppoe.remote, ifindex);
 }
 
-static inline struct pppox_sock *delete_item(unsigned long sid, char *addr, int ifindex)
+static inline struct pppox_sock *delete_item(__be16 sid, char *addr, int ifindex)
 {
 	struct pppox_sock *ret;
 
@@ -400,7 +400,7 @@ static int pppoe_rcv(struct sk_buff *skb,
 
 	ph = pppoe_hdr(skb);
 
-	po = get_item((unsigned long) ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
+	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (po != NULL)
 		return sk_receive_skb(sk_pppox(po), skb, 0);
 drop:
@@ -437,7 +437,7 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 	if (ph->code != PADT_CODE)
 		goto abort;
 
-	po = get_item((unsigned long) ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
+	po = get_item(ph->sid, eth_hdr(skb)->h_source, dev->ifindex);
 	if (po) {
 		struct sock *sk = sk_pppox(po);
 
