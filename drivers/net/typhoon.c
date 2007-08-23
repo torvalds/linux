@@ -300,9 +300,9 @@ struct typhoon {
 	const char *		name;
 	struct typhoon_shared *	shared;
 	dma_addr_t		shared_dma;
-	u16			xcvr_select;
-	u16			wol_events;
-	u32			offload;
+	__le16			xcvr_select;
+	__le16			wol_events;
+	__le32			offload;
 
 	/* unused stuff (future use) */
 	int			capabilities;
@@ -828,7 +828,7 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 		first_txd->processFlags |=
 		    TYPHOON_TX_PF_INSERT_VLAN | TYPHOON_TX_PF_VLAN_PRIORITY;
 		first_txd->processFlags |=
-		    cpu_to_le32(htons(vlan_tx_tag_get(skb)) <<
+		    cpu_to_le32(ntohs(vlan_tx_tag_get(skb)) <<
 				TYPHOON_TX_PF_VLAN_TAG_SHIFT);
 	}
 
@@ -920,7 +920,7 @@ typhoon_set_rx_mode(struct net_device *dev)
 	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
 	u32 mc_filter[2];
-	u16 filter;
+	__le16 filter;
 
 	filter = TYPHOON_RX_FILTER_DIRECTED | TYPHOON_RX_FILTER_BROADCAST;
 	if(dev->flags & IFF_PROMISC) {
@@ -1131,7 +1131,7 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct typhoon *tp = netdev_priv(dev);
 	struct cmd_desc xp_cmd;
-	int xcvr;
+	__le16 xcvr;
 	int err;
 
 	err = -EINVAL;
@@ -1536,7 +1536,7 @@ out_timeout:
 
 static u32
 typhoon_clean_tx(struct typhoon *tp, struct transmit_ring *txRing,
-			volatile u32 * index)
+			volatile __le32 * index)
 {
 	u32 lastRead = txRing->lastRead;
 	struct tx_desc *tx;
@@ -1572,7 +1572,7 @@ typhoon_clean_tx(struct typhoon *tp, struct transmit_ring *txRing,
 
 static void
 typhoon_tx_complete(struct typhoon *tp, struct transmit_ring *txRing,
-			volatile u32 * index)
+			volatile __le32 * index)
 {
 	u32 lastRead;
 	int numDesc = MAX_SKB_FRAGS + 1;
@@ -1662,8 +1662,8 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 }
 
 static int
-typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
-	   volatile u32 * cleared, int budget)
+typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * ready,
+	   volatile __le32 * cleared, int budget)
 {
 	struct rx_desc *rx;
 	struct sk_buff *skb, *new_skb;
@@ -1673,7 +1673,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile u32 * ready,
 	u32 rxaddr;
 	int pkt_len;
 	u32 idx;
-	u32 csum_bits;
+	__le32 csum_bits;
 	int received;
 
 	received = 0;
@@ -1840,7 +1840,7 @@ typhoon_free_rx_rings(struct typhoon *tp)
 }
 
 static int
-typhoon_sleep(struct typhoon *tp, pci_power_t state, u16 events)
+typhoon_sleep(struct typhoon *tp, pci_power_t state, __le16 events)
 {
 	struct pci_dev *pdev = tp->pdev;
 	void __iomem *ioaddr = tp->ioaddr;
@@ -1928,8 +1928,8 @@ typhoon_start_runtime(struct typhoon *tp)
 		goto error_out;
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_SET_MAC_ADDRESS);
-	xp_cmd.parm1 = cpu_to_le16(ntohs(*(u16 *)&dev->dev_addr[0]));
-	xp_cmd.parm2 = cpu_to_le32(ntohl(*(u32 *)&dev->dev_addr[2]));
+	xp_cmd.parm1 = cpu_to_le16(ntohs(*(__be16 *)&dev->dev_addr[0]));
+	xp_cmd.parm2 = cpu_to_le32(ntohl(*(__be32 *)&dev->dev_addr[2]));
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
 	if(err < 0)
 		goto error_out;
@@ -2229,8 +2229,8 @@ typhoon_suspend(struct pci_dev *pdev, pm_message_t state)
 	}
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_SET_MAC_ADDRESS);
-	xp_cmd.parm1 = cpu_to_le16(ntohs(*(u16 *)&dev->dev_addr[0]));
-	xp_cmd.parm2 = cpu_to_le32(ntohl(*(u32 *)&dev->dev_addr[2]));
+	xp_cmd.parm1 = cpu_to_le16(ntohs(*(__be16 *)&dev->dev_addr[0]));
+	xp_cmd.parm2 = cpu_to_le32(ntohl(*(__be32 *)&dev->dev_addr[2]));
 	if(typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL) < 0) {
 		printk(KERN_ERR "%s: unable to set mac address in suspend\n",
 				dev->name);
@@ -2465,8 +2465,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto error_out_reset;
 	}
 
-	*(u16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
-	*(u32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
+	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
+	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
 
 	if(!is_valid_ether_addr(dev->dev_addr)) {
 		printk(ERR_PFX "%s: Could not obtain valid ethernet address, "
