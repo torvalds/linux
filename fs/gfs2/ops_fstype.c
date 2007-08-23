@@ -887,8 +887,10 @@ error:
 
 static void gfs2_kill_sb(struct super_block *sb)
 {
-	gfs2_delete_debugfs_file(sb->s_fs_info);
-	gfs2_meta_syncfs(sb->s_fs_info);
+	if (sb->s_fs_info) {
+		gfs2_delete_debugfs_file(sb->s_fs_info);
+		gfs2_meta_syncfs(sb->s_fs_info);
+	}
 	kill_block_super(sb);
 }
 
