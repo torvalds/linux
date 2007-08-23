@@ -16,10 +16,13 @@
 #include <crypto/algapi.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 
-static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key, unsigned int keylen)
+static int setkey_unaligned(struct crypto_ablkcipher *tfm, const u8 *key,
+			    unsigned int keylen)
 {
 	struct ablkcipher_alg *cipher = crypto_ablkcipher_alg(tfm);
 	unsigned long alignmask = crypto_ablkcipher_alignmask(tfm);

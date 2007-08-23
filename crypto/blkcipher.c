@@ -339,7 +339,8 @@ static int blkcipher_walk_first(struct blkcipher_desc *desc,
 	return blkcipher_walk_next(desc, walk);
 }
 
-static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
+			    unsigned int keylen)
 {
 	struct blkcipher_alg *cipher = &tfm->__crt_alg->cra_blkcipher;
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
@@ -360,8 +361,7 @@ static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key, unsigned int 
 	return ret;
 }
 
-static int setkey(struct crypto_tfm *tfm, const u8 *key,
-		  unsigned int keylen)
+static int setkey(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
 {
 	struct blkcipher_alg *cipher = &tfm->__crt_alg->cra_blkcipher;
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);

@@ -16,11 +16,12 @@
 #include <linux/kernel.h>
 #include <linux/crypto.h>
 #include <linux/errno.h>
-#include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include "internal.h"
 
-static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key, unsigned int keylen)
+static int setkey_unaligned(struct crypto_tfm *tfm, const u8 *key,
+			    unsigned int keylen)
 {
 	struct cipher_alg *cia = &tfm->__crt_alg->cra_cipher;
 	unsigned long alignmask = crypto_tfm_alg_alignmask(tfm);
