@@ -667,7 +667,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	cx2341x_fill_defaults(&itv->params);
 	itv->params.port = CX2341X_PORT_MEMORY;
 	itv->params.capabilities = CX2341X_CAP_HAS_SLICED_VBI;
-	init_waitqueue_head(&itv->cap_w);
+	init_waitqueue_head(&itv->eos_waitq);
 	init_waitqueue_head(&itv->event_waitq);
 	init_waitqueue_head(&itv->vsync_waitq);
 	init_waitqueue_head(&itv->dma_waitq);
@@ -713,14 +713,6 @@ static void __devinit ivtv_init_struct2(struct ivtv *itv)
 			break;
 	itv->nof_audio_inputs = i;
 
-	/* 0x00EF = saa7114(239) 0x00F0 = saa7115(240) 0x0106 = micro */
-	if (itv->card->hw_all & (IVTV_HW_SAA7115 | IVTV_HW_SAA717X))
-		itv->digitizer = 0xF1;
-	else if (itv->card->hw_all & IVTV_HW_SAA7114)
-		itv->digitizer = 0xEF;
-	else /* cx25840 */
-		itv->digitizer = 0x140;
-
 	if (itv->card->hw_all & IVTV_HW_CX25840) {
 		itv->vbi.sliced_size = 288;  /* multiple of 16, real size = 284 */
 	} else {
@@ -749,6 +741,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 			  const struct pci_device_id *pci_id)
 {
 	u16 cmd;
+	u8 card_rev;
 	unsigned char pci_latency;
 
 	IVTV_DEBUG_INFO("Enabling pci device\n");
@@ -795,7 +788,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 	}
 	IVTV_DEBUG_INFO("Bus Mastering Enabled.\n");
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &itv->card_rev);
+	pci_read_config_byte(dev, PCI_CLASS_REVISION, &card_rev);
 	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && ivtv_pci_latency) {
@@ -812,7 +805,7 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 
 	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
-		   itv->dev->device, itv->card_rev, dev->bus->number,
+		   itv->dev->device, card_rev, dev->bus->number,
 		   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
 		   itv->dev->irq, pci_latency, (unsigned long)itv->base_addr);
 

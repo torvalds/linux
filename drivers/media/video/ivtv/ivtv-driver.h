@@ -550,133 +550,134 @@ struct ivtv_card;
 
 /* Struct to hold info about ivtv cards */
 struct ivtv {
-	int num;		/* board number, -1 during init! */
-	char name[8];		/* board name for printk and interrupts (e.g. 'ivtv0') */
-	struct pci_dev *dev;	/* PCI device */
+	/* General fixed card data */
+	int num;			/* board number, -1 during init! */
+	char name[8];			/* board name for printk and interrupts (e.g. 'ivtv0') */
+	struct pci_dev *dev;		/* PCI device */
 	const struct ivtv_card *card;	/* card information */
-	const char *card_name;  /* full name of the card */
-	u8 has_cx23415;		/* 1 if it is a cx23415 based card, 0 for cx23416 */
-	u8 is_50hz;
-	u8 is_60hz;
-	u8 is_out_50hz;
-	u8 is_out_60hz;
-	u8 pvr150_workaround;   /* 1 if the cx25840 needs to workaround a PVR150 bug */
-	u8 nof_inputs;		/* number of video inputs */
-	u8 nof_audio_inputs;	/* number of audio inputs */
-	u32 v4l2_cap;		/* V4L2 capabilities of card */
-	u32 hw_flags; 		/* Hardware description of the board */
-	int tunerid;		/* Userspace tuner ID for experimental Xceive tuner support */
-
-	/* controlling Video decoder function */
+	const char *card_name;          /* full name of the card */
+	u8 has_cx23415;			/* 1 if it is a cx23415 based card, 0 for cx23416 */
+	u8 pvr150_workaround;           /* 1 if the cx25840 needs to workaround a PVR150 bug */
+	u8 nof_inputs;			/* number of video inputs */
+	u8 nof_audio_inputs;		/* number of audio inputs */
+	u32 v4l2_cap;			/* V4L2 capabilities of card */
+	u32 hw_flags; 			/* hardware description of the board */
+	int tunerid;			/* userspace tuner ID for experimental Xceive tuner support */
+	v4l2_std_id tuner_std;		/* the norm of the card's tuner (fixed) */
+					/* controlling video decoder function */
 	int (*video_dec_func)(struct ivtv *, unsigned int, void *);
+	u32 base_addr;                  /* PCI resource base address */
+	volatile void __iomem *enc_mem; /* pointer to mapped encoder memory */
+	volatile void __iomem *dec_mem; /* pointer to mapped decoder memory */
+	volatile void __iomem *reg_mem; /* pointer to mapped registers */
+	struct ivtv_options options; 	/* user options */
 
-	struct ivtv_options options; 	/* User options */
-	int stream_buf_size[IVTV_MAX_STREAMS]; /* Stream buffer size */
-	struct ivtv_stream streams[IVTV_MAX_STREAMS]; 	/* Stream data */
-	int speed;
-	u8 speed_mute_audio;
-	unsigned long i_flags;  /* global ivtv flags */
-	atomic_t capturing;	/* count number of active capture streams */
-	atomic_t decoding;	/* count number of active decoding streams */
-	u32 irq_rr_idx; /* Round-robin stream index */
-	int cur_dma_stream;	/* index of stream doing DMA */
-	int cur_pio_stream;	/* index of stream doing PIO */
-	u32 dma_data_req_offset;
-	u32 dma_data_req_size;
-	int dma_retries;
-	int output_mode;        /* NONE, MPG, YUV, UDMA YUV, passthrough */
-	spinlock_t lock;        /* lock access to this struct */
-	int search_pack_header;
 
-	spinlock_t dma_reg_lock; /* lock access to DMA engine registers */
-	struct mutex serialize_lock;  /* lock used to serialize starting streams */
+	/* High-level state info */
+	unsigned long i_flags;          /* global ivtv flags */
+	u8 is_50hz;                     /* 1 if the current capture standard is 50 Hz */
+	u8 is_60hz                      /* 1 if the current capture standard is 60 Hz */;
+	u8 is_out_50hz                  /* 1 if the current TV output standard is 50 Hz */;
+	u8 is_out_60hz                  /* 1 if the current TV output standard is 60 Hz */;
+	int output_mode;                /* decoder output mode: NONE, MPG, YUV, UDMA YUV, passthrough */
+	u32 audio_input;                /* current audio input */
+	u32 active_input;               /* current video input */
+	u32 active_output;              /* current video output */
+	v4l2_std_id std;                /* current capture TV standard */
+	v4l2_std_id std_out;            /* current TV output standard */
+	u8 audio_stereo_mode;           /* decoder setting how to handle stereo MPEG audio */
+	u8 audio_bilingual_mode;        /* decoder setting how to handle bilingual MPEG audio */
+	struct cx2341x_mpeg_params params;              /* current encoder parameters */
 
-	/* User based DMA for OSD */
-	struct ivtv_user_dma udma;
 
-	int open_id;		/* incremented each time an open occurs, used as unique ID.
-				   starts at 1, so 0 can be used as uninitialized value
-				   in the stream->id. */
+	/* Locking */
+	spinlock_t lock;                /* lock access to this struct */
+					/* mutex used to serialize open/close/start/stop/ioctl operations */
+	struct mutex serialize_lock;
 
-	u32 base_addr;
-	u32 irqmask;
 
-	struct v4l2_prio_state prio;
-	struct workqueue_struct *irq_work_queues;
-	struct work_struct irq_work_queue;
-	struct timer_list dma_timer; /* Timer used to catch unfinished DMAs */
+	/* Streams */
+	int stream_buf_size[IVTV_MAX_STREAMS];          /* stream buffer size */
+	struct ivtv_stream streams[IVTV_MAX_STREAMS]; 	/* stream data */
+	atomic_t capturing;		/* count number of active capture streams */
+	atomic_t decoding;		/* count number of active decoding streams */
 
-	struct vbi_info vbi;
 
-	struct ivtv_mailbox_data enc_mbox;
-	struct ivtv_mailbox_data dec_mbox;
-	struct ivtv_api_cache api_cache[256]; 	/* Cached API Commands */
+	/* Interrupts & DMA */
+	u32 irqmask;                    /* active interrupts */
+	u32 irq_rr_idx;                 /* round-robin stream index */
+	struct workqueue_struct *irq_work_queues;       /* workqueue for PIO/YUV/VBI actions */
+	struct work_struct irq_work_queue;              /* work entry */
+	spinlock_t dma_reg_lock;        /* lock access to DMA engine registers */
+	int cur_dma_stream;		/* index of current stream doing DMA (-1 if none) */
+	int cur_pio_stream;		/* index of current stream doing PIO (-1 if none) */
+	u32 dma_data_req_offset;        /* store offset in decoder memory of current DMA request */
+	u32 dma_data_req_size;          /* store size of current DMA request */
+	int dma_retries;                /* current DMA retry attempt */
+	struct ivtv_user_dma udma;      /* user based DMA for OSD */
+	struct timer_list dma_timer;    /* timer used to catch unfinished DMAs */
+	u32 last_vsync_frame;           /* last seen vsync field */
+	wait_queue_head_t dma_waitq;    /* wake up when the current DMA is finished */
+	wait_queue_head_t eos_waitq;    /* wake up when EOS arrives */
+	wait_queue_head_t event_waitq;  /* wake up when the next decoder event arrives */
+	wait_queue_head_t vsync_waitq;  /* wake up when the next decoder vsync arrives */
 
-	u8 card_rev;
-	volatile void __iomem *enc_mem, *dec_mem, *reg_mem;
 
-	u32 pgm_info_offset;
-	u32 pgm_info_num;
-	u32 pgm_info_write_idx;
-	u32 pgm_info_read_idx;
-	struct v4l2_enc_idx_entry pgm_info[IVTV_MAX_PGM_INDEX];
+	/* Mailbox */
+	struct ivtv_mailbox_data enc_mbox;              /* encoder mailboxes */
+	struct ivtv_mailbox_data dec_mbox;              /* decoder mailboxes */
+	struct ivtv_api_cache api_cache[256]; 		/* cached API commands */
 
-	u64 mpg_data_received;
-	u64 vbi_data_inserted;
 
-	wait_queue_head_t cap_w;
-	/* when the next decoder event arrives this queue is woken up */
-	wait_queue_head_t event_waitq;
-	/* when the next decoder vsync arrives this queue is woken up */
-	wait_queue_head_t vsync_waitq;
-	/* when the current DMA is finished this queue is woken up */
-	wait_queue_head_t dma_waitq;
-
-	/* OSD support */
-	unsigned long osd_video_pbase;
-	int osd_global_alpha_state; /* 0=off : 1=on */
-	int osd_local_alpha_state;  /* 0=off : 1=on */
-	int osd_color_key_state;    /* 0=off : 1=on */
-	u8  osd_global_alpha;       /* Current global alpha */
-	u32 osd_color_key;          /* Current color key */
-	u32 osd_pixelformat; 	    /* Current pixel format */
-	struct v4l2_rect osd_rect;  /* Current OSD position and size */
-	struct v4l2_rect main_rect; /* Current Main window position and size */
-
-	u32 last_dec_timing[3];     /* Store last retrieved pts/scr/frame values */
-
-	/* i2c */
+	/* I2C */
 	struct i2c_adapter i2c_adap;
 	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_client i2c_client;
-	struct mutex i2c_bus_lock;
-	int i2c_state;
-	struct i2c_client *i2c_clients[I2C_CLIENTS_MAX];
+	struct i2c_client *i2c_clients[I2C_CLIENTS_MAX];/* pointers to all I2C clients */
+	int i2c_state;                  /* i2c bit state */
+	struct mutex i2c_bus_lock;      /* lock i2c bus */
 
-	/* v4l2 and User settings */
 
-	/* codec settings */
-	struct cx2341x_mpeg_params params;
-	u32 audio_input;
-	u32 active_input;
-	u32 active_output;
-	v4l2_std_id std;
-	v4l2_std_id std_out;
-	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
-	u8 audio_stereo_mode;
-	u8 audio_bilingual_mode;
+	/* Program Index information */
+	u32 pgm_info_offset;            /* start of pgm info in encoder memory */
+	u32 pgm_info_num;               /* number of elements in the pgm cyclic buffer in encoder memory */
+	u32 pgm_info_write_idx;         /* last index written by the card that was transferred to pgm_info[] */
+	u32 pgm_info_read_idx;          /* last index in pgm_info read by the application */
+	struct v4l2_enc_idx_entry pgm_info[IVTV_MAX_PGM_INDEX]; /* filled from the pgm cyclic buffer on the card */
 
-	/* dualwatch */
-	unsigned long dualwatch_jiffies;
-	u16 dualwatch_stereo_mode;
 
-	/* Digitizer type */
-	int digitizer;		/* 0x00EF = saa7114 0x00FO = saa7115 0x0106 = mic */
+	/* Miscellaneous */
+	u32 open_id;			/* incremented each time an open occurs, is >= 1 */
+	struct v4l2_prio_state prio;    /* priority state */
+	int search_pack_header;         /* 1 if ivtv_copy_buf_to_user() is scanning for a pack header (0xba) */
+	int speed;                      /* current playback speed setting */
+	u8 speed_mute_audio;            /* 1 if audio should be muted when fast forward */
+	u64 mpg_data_received;          /* number of bytes received from the MPEG stream */
+	u64 vbi_data_inserted;          /* number of VBI bytes inserted into the MPEG stream */
+	u32 last_dec_timing[3];         /* cache last retrieved pts/scr/frame values */
+	unsigned long dualwatch_jiffies;/* jiffies value of the previous dualwatch check */
+	u16 dualwatch_stereo_mode;      /* current detected dualwatch stereo mode */
 
-	u32 lastVsyncFrame;
 
-	struct yuv_playback_info yuv_info;
-	struct osd_info *osd_info;
+	/* VBI state info */
+	struct vbi_info vbi;            /* VBI-specific data */
+
+
+	/* YUV playback */
+	struct yuv_playback_info yuv_info;              /* YUV playback data */
+
+
+	/* OSD support */
+	unsigned long osd_video_pbase;
+	int osd_global_alpha_state;     /* 1 = global alpha is on */
+	int osd_local_alpha_state;      /* 1 = local alpha is on */
+	int osd_chroma_key_state;       /* 1 = chroma-keying is on */
+	u8  osd_global_alpha;           /* current global alpha */
+	u32 osd_chroma_key;             /* current chroma key */
+	u32 osd_pixelformat; 		/* current pixel format */
+	struct v4l2_rect osd_rect;      /* current OSD position and size */
+	struct v4l2_rect main_rect;     /* current Main window position and size */
+	struct osd_info *osd_info;      /* ivtv-fb private OSD info */
 };
 
 /* Globals */

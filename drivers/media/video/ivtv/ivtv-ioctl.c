@@ -163,7 +163,7 @@ void ivtv_set_osd_alpha(struct ivtv *itv)
 {
 	ivtv_vapi(itv, CX2341X_OSD_SET_GLOBAL_ALPHA, 3,
 		itv->osd_global_alpha_state, itv->osd_global_alpha, !itv->osd_local_alpha_state);
-	ivtv_vapi(itv, CX2341X_OSD_SET_CHROMA_KEY, 2, itv->osd_color_key_state, itv->osd_color_key);
+	ivtv_vapi(itv, CX2341X_OSD_SET_CHROMA_KEY, 2, itv->osd_chroma_key_state, itv->osd_chroma_key);
 }
 
 int ivtv_set_speed(struct ivtv *itv, int speed)
@@ -426,7 +426,7 @@ static int ivtv_get_fmt(struct ivtv *itv, int streamtype, struct v4l2_format *fm
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
-		fmt->fmt.win.chromakey = itv->osd_color_key;
+		fmt->fmt.win.chromakey = itv->osd_chroma_key;
 		fmt->fmt.win.global_alpha = itv->osd_global_alpha;
 		break;
 
@@ -546,7 +546,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 			return -EINVAL;
 		if (set_fmt) {
-			itv->osd_color_key = fmt->fmt.win.chromakey;
+			itv->osd_chroma_key = fmt->fmt.win.chromakey;
 			itv->osd_global_alpha = fmt->fmt.win.global_alpha;
 			ivtv_set_osd_alpha(itv);
 		}
@@ -1197,7 +1197,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
 		if (itv->osd_local_alpha_state)
 			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
-		if (itv->osd_color_key_state)
+		if (itv->osd_chroma_key_state)
 			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
 		break;
 	}
@@ -1209,7 +1209,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			return -EINVAL;
 		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
 		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
-		itv->osd_color_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
+		itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 		ivtv_set_osd_alpha(itv);
 		break;
 	}

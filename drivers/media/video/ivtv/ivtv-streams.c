@@ -404,8 +404,8 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	if (!itv->vbi.fpi)
 		itv->vbi.fpi = 1;
 
-	IVTV_DEBUG_INFO("Setup VBI start 0x%08x frames %d fpi %d lines 0x%08x\n",
-		itv->vbi.enc_start, data[1], itv->vbi.fpi, itv->digitizer);
+	IVTV_DEBUG_INFO("Setup VBI start 0x%08x frames %d fpi %d\n",
+		itv->vbi.enc_start, data[1], itv->vbi.fpi);
 
 	/* select VBI lines.
 	   Note that the sliced argument seems to have no effect. */
@@ -494,6 +494,8 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	if (atomic_read(&itv->capturing) == 0) {
+		int digitizer;
+
 		/* Always use frame based mode. Experiments have demonstrated that byte
 		   stream based mode results in dropped frames and corruption. Not often,
 		   but occasionally. Many thanks go to Leonard Orb who spent a lot of
@@ -519,7 +521,14 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		ivtv_vapi(itv, CX2341X_ENC_SET_PLACEHOLDER, 12,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-		ivtv_vapi(itv, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, itv->digitizer, itv->digitizer);
+		if (itv->card->hw_all & (IVTV_HW_SAA7115 | IVTV_HW_SAA717X))
+		    digitizer = 0xF1;
+		else if (itv->card->hw_all & IVTV_HW_SAA7114)
+		    digitizer = 0xEF;
+		else /* cx25840 */
+		    digitizer = 0x140;
+
+		ivtv_vapi(itv, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, digitizer, digitizer);
 
 		/* Setup VBI */
 		if (itv->v4l2_cap & V4L2_CAP_VBI_CAPTURE) {
@@ -761,7 +770,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			unsigned long duration;
 
 			then = jiffies;
-			add_wait_queue(&itv->cap_w, &wait);
+			add_wait_queue(&itv->eos_waitq, &wait);
 
 			set_current_state(TASK_INTERRUPTIBLE);
 
@@ -787,7 +796,7 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 				IVTV_DEBUG_INFO("%s: EOS took %lu ms to occur.\n", s->name, duration);
 			}
 			set_current_state(TASK_RUNNING);
-			remove_wait_queue(&itv->cap_w, &wait);
+			remove_wait_queue(&itv->eos_waitq, &wait);
 		}
 
 		then = jiffies;

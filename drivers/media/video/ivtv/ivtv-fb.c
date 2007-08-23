@@ -405,7 +405,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 			if (itv->is_50hz && trace > 312) trace -= 312;
 			else if (itv->is_60hz && trace > 262) trace -= 262;
 			if (trace == 1) vblank.flags |= FB_VBLANK_VSYNCING;
-			vblank.count = itv->lastVsyncFrame;
+			vblank.count = itv->last_vsync_frame;
 			vblank.vcount = trace;
 			vblank.hcount = 0;
 			if (copy_to_user((void __user *)arg, &vblank, sizeof(vblank)))
