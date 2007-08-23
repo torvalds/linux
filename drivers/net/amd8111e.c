@@ -709,7 +709,8 @@ static int amd8111e_tx(struct net_device *dev)
 		lp->tx_complete_idx++;
 		/*COAL update tx coalescing parameters */
 		lp->coal_conf.tx_packets++;
-		lp->coal_conf.tx_bytes += lp->tx_ring[tx_index].buff_count;
+		lp->coal_conf.tx_bytes +=
+			le16_to_cpu(lp->tx_ring[tx_index].buff_count);
 
 		if (netif_queue_stopped(dev) &&
 			lp->tx_complete_idx > lp->tx_idx - NUM_TX_BUFFERS +2){
