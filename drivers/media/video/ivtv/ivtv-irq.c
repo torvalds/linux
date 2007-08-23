@@ -750,8 +750,8 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	if (0) IVTV_DEBUG_IRQ("DEC VSYNC\n");
 
 	if (((frame ^ itv->yuv_info.sync_field[last_dma_frame]) == 0 &&
-		((itv->last_vsync_frame & 1) ^ itv->yuv_info.sync_field[last_dma_frame])) ||
-			(frame != (itv->last_vsync_frame & 1) && !itv->yuv_info.frame_interlaced)) {
+		((itv->last_vsync_field & 1) ^ itv->yuv_info.sync_field[last_dma_frame])) ||
+			(frame != (itv->last_vsync_field & 1) && !itv->yuv_info.frame_interlaced)) {
 		int next_dma_frame = last_dma_frame;
 
 		if (!(itv->yuv_info.frame_interlaced && itv->yuv_info.field_delay[next_dma_frame] && itv->yuv_info.fields_lapsed < 1)) {
@@ -766,10 +766,10 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 			}
 		}
 	}
-	if (frame != (itv->last_vsync_frame & 1)) {
+	if (frame != (itv->last_vsync_field & 1)) {
 		struct ivtv_stream *s = ivtv_get_output_stream(itv);
 
-		itv->last_vsync_frame += 1;
+		itv->last_vsync_field += 1;
 		if (frame == 0) {
 			clear_bit(IVTV_F_I_VALID_DEC_TIMINGS, &itv->i_flags);
 			clear_bit(IVTV_F_I_EV_VSYNC_FIELD, &itv->i_flags);
@@ -834,7 +834,7 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 		 */
 		if (~itv->irqmask & IVTV_IRQ_DEC_VSYNC) {
 			/* vsync is enabled, see if we're in a new field */
-			if ((itv->last_vsync_frame & 1) != (read_reg(0x28c0) & 1)) {
+			if ((itv->last_vsync_field & 1) != (read_reg(0x28c0) & 1)) {
 				/* New field, looks like we missed it */
 				IVTV_DEBUG_YUV("VSync interrupt missed %d\n",read_reg(0x28c0)>>16);
 				vsync_force = 1;

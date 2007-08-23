@@ -180,11 +180,11 @@ extern int ivtv_debug;
 #define IVTV_MAX_PGM_INDEX (400)
 
 struct ivtv_options {
-	int kilobytes[IVTV_MAX_STREAMS]; /* Size in kilobytes of each stream */
-	int cardtype;		/* force card type on load */
-	int tuner;		/* set tuner on load */
-	int radio;		/* enable/disable radio */
-	int newi2c;		/* New I2C algorithm */
+	int kilobytes[IVTV_MAX_STREAMS];        /* size in kilobytes of each stream */
+	int cardtype;				/* force card type on load */
+	int tuner;				/* set tuner on load */
+	int radio;				/* enable/disable radio */
+	int newi2c;				/* new I2C algorithm */
 };
 
 /* ivtv-specific mailbox template */
@@ -231,10 +231,10 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DMA		   0 	/* DMA in progress */
 #define IVTV_F_I_UDMA		   1 	/* UDMA in progress */
 #define IVTV_F_I_UDMA_PENDING	   2 	/* UDMA pending */
-#define IVTV_F_I_SPEED_CHANGE	   3 	/* A speed change is in progress */
-#define IVTV_F_I_EOS		   4 	/* End of encoder stream reached */
-#define IVTV_F_I_RADIO_USER	   5 	/* The radio tuner is selected */
-#define IVTV_F_I_DIG_RST	   6 	/* Reset digitizer */
+#define IVTV_F_I_SPEED_CHANGE	   3 	/* a speed change is in progress */
+#define IVTV_F_I_EOS		   4 	/* end of encoder stream reached */
+#define IVTV_F_I_RADIO_USER	   5 	/* the radio tuner is selected */
+#define IVTV_F_I_DIG_RST	   6 	/* reset digitizer */
 #define IVTV_F_I_DEC_YUV	   7 	/* YUV instead of MPG is being decoded */
 #define IVTV_F_I_UPDATE_CC	   9  	/* CC should be updated */
 #define IVTV_F_I_UPDATE_WSS	   10 	/* WSS should be updated */
@@ -242,7 +242,7 @@ struct ivtv_mailbox_data {
 #define IVTV_F_I_DECODING_YUV	   12 	/* this stream is YUV frame decoding */
 #define IVTV_F_I_ENC_PAUSED	   13 	/* the encoder is paused */
 #define IVTV_F_I_VALID_DEC_TIMINGS 14 	/* last_dec_timing is valid */
-#define IVTV_F_I_HAVE_WORK  	   15	/* Used in the interrupt handler: there is work to be done */
+#define IVTV_F_I_HAVE_WORK  	   15	/* used in the interrupt handler: there is work to be done */
 #define IVTV_F_I_WORK_HANDLER_VBI  16	/* there is work to be done for VBI */
 #define IVTV_F_I_WORK_HANDLER_YUV  17	/* there is work to be done for YUV */
 #define IVTV_F_I_WORK_HANDLER_PIO  18	/* there is work to be done for PIO */
@@ -295,19 +295,18 @@ struct ivtv_buffer {
 	unsigned short b_flags;
 	unsigned short dma_xfer_cnt;
 	char *buf;
-
 	u32 bytesused;
 	u32 readpos;
 };
 
 struct ivtv_queue {
-	struct list_head list;
-	u32 buffers;
-	u32 length;
-	u32 bytesused;
+	struct list_head list;          /* the list of buffers in this queue */
+	u32 buffers;                    /* number of buffers in this queue */
+	u32 length;                     /* total number of bytes of available buffer space */
+	u32 bytesused;                  /* total number of bytes used in this queue */
 };
 
-struct ivtv;	/* forward reference */
+struct ivtv;				/* forward reference */
 
 struct ivtv_stream {
 	/* These first four fields are always set, even if the stream
@@ -318,11 +317,9 @@ struct ivtv_stream {
 	int type;			/* stream type */
 
 	u32 id;
-	spinlock_t qlock; 	/* locks access to the queues */
-	unsigned long s_flags;	/* status flags, see above */
-	int dma;		/* can be PCI_DMA_TODEVICE,
-				   PCI_DMA_FROMDEVICE or
-				   PCI_DMA_NONE */
+	spinlock_t qlock; 		/* locks access to the queues */
+	unsigned long s_flags;		/* status flags, see above */
+	int dma;			/* can be PCI_DMA_TODEVICE, PCI_DMA_FROMDEVICE or PCI_DMA_NONE */
 	u32 pending_offset;
 	u32 pending_backup;
 	u64 pending_pts;
@@ -365,10 +362,10 @@ struct ivtv_stream {
 };
 
 struct ivtv_open_id {
-	u32 open_id;
-	int type;
-	int yuv_frames;
-	enum v4l2_priority prio;
+	u32 open_id;                    /* unique ID for this file descriptor */
+	int type;                       /* stream type */
+	int yuv_frames;                 /* 1: started OUT_UDMA_YUV output mode */
+	enum v4l2_priority prio;        /* priority */
 	struct ivtv *itv;
 };
 
@@ -493,6 +490,14 @@ struct yuv_playback_info
 
 /* VBI data */
 struct vbi_info {
+	/* VBI general fixed card data */
+	u32 raw_decoder_line_size;              /* raw VBI line size from digitizer */
+	u8 raw_decoder_sav_odd_field;           /* raw VBI Start Active Video digitizer code of odd field */
+	u8 raw_decoder_sav_even_field;          /* raw VBI Start Active Video digitizer code of even field */
+	u32 sliced_decoder_line_size;           /* sliced VBI line size from digitizer */
+	u8 sliced_decoder_sav_odd_field;        /* sliced VBI Start Active Video digitizer code of odd field */
+	u8 sliced_decoder_sav_even_field;       /* sliced VBI Start Active Video digitizer code of even field */
+
 	u32 dec_start;
 	u32 enc_start, enc_size;
 	int fpi;
@@ -506,12 +511,6 @@ struct vbi_info {
 	int wss;
 	u8 wss_found;
 	u8 wss_no_update;
-	u32 raw_decoder_line_size;
-	u8 raw_decoder_sav_odd_field;
-	u8 raw_decoder_sav_even_field;
-	u32 sliced_decoder_line_size;
-	u8 sliced_decoder_sav_odd_field;
-	u8 sliced_decoder_sav_even_field;
 	struct v4l2_format in;
 	/* convenience pointer to sliced struct in vbi_in union */
 	struct v4l2_sliced_vbi_format *sliced_in;
@@ -592,8 +591,7 @@ struct ivtv {
 
 	/* Locking */
 	spinlock_t lock;                /* lock access to this struct */
-					/* mutex used to serialize open/close/start/stop/ioctl operations */
-	struct mutex serialize_lock;
+	struct mutex serialize_lock;    /* mutex used to serialize open/close/start/stop/ioctl operations */
 
 
 	/* Streams */
@@ -616,7 +614,7 @@ struct ivtv {
 	int dma_retries;                /* current DMA retry attempt */
 	struct ivtv_user_dma udma;      /* user based DMA for OSD */
 	struct timer_list dma_timer;    /* timer used to catch unfinished DMAs */
-	u32 last_vsync_frame;           /* last seen vsync field */
+	u32 last_vsync_field;           /* last seen vsync field */
 	wait_queue_head_t dma_waitq;    /* wake up when the current DMA is finished */
 	wait_queue_head_t eos_waitq;    /* wake up when EOS arrives */
 	wait_queue_head_t event_waitq;  /* wake up when the next decoder event arrives */
