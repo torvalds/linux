@@ -42,7 +42,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
-#include <media/video-buf-dvb.h>
+#include <media/videobuf-dvb.h>
 #endif
 
 #define UNSET (-1U)

@@ -23,7 +23,7 @@
 #include <linux/freezer.h>
 
 #include <media/videobuf-dma-sg.h>
-#include <media/video-buf-dvb.h>
+#include <media/videobuf-dvb.h>
 
 /* ------------------------------------------------------------------ */
 

@@ -32,7 +32,7 @@
 #include <media/cx2341x.h>
 #include <media/audiochip.h>
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
-#include <media/video-buf-dvb.h>
+#include <media/videobuf-dvb.h>
 #endif
 
 #include "btcx-risc.h"
