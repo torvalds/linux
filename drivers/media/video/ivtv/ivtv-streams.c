@@ -719,7 +719,6 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	struct ivtv *itv = s->itv;
 	DECLARE_WAITQUEUE(wait, current);
 	int cap_type;
-	unsigned long then;
 	int stopmode;
 
 	if (s->v4l2dev == NULL)
@@ -762,14 +761,12 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 	/* when: 0 =  end of GOP  1 = NOW!, type: 0 = mpeg, subtype: 3 = video+audio */
 	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, stopmode, cap_type, s->subtype);
 
-	then = jiffies;
-
 	if (!test_bit(IVTV_F_S_PASSTHROUGH, &s->s_flags)) {
 		if (s->type == IVTV_ENC_STREAM_TYPE_MPG && gop_end) {
 			/* only run these if we're shutting down the last cap */
 			unsigned long duration;
+			unsigned long then = jiffies;
 
-			then = jiffies;
 			add_wait_queue(&itv->eos_waitq, &wait);
 
 			set_current_state(TASK_INTERRUPTIBLE);
@@ -797,9 +794,8 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 			}
 			set_current_state(TASK_RUNNING);
 			remove_wait_queue(&itv->eos_waitq, &wait);
+			set_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 		}
-
-		then = jiffies;
 
 		/* Handle any pending interrupts */
 		ivtv_msleep_timeout(100, 1);

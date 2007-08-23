@@ -258,16 +258,16 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 			}
 			return buf;
 		}
-		/* return if file was opened with O_NONBLOCK */
-		if (non_block) {
-			*err = -EAGAIN;
-			return NULL;
-		}
 
 		/* return if end of stream */
 		if (s->type != IVTV_DEC_STREAM_TYPE_VBI && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
-			clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 			IVTV_DEBUG_INFO("EOS %s\n", s->name);
+			return NULL;
+		}
+
+		/* return if file was opened with O_NONBLOCK */
+		if (non_block) {
+			*err = -EAGAIN;
 			return NULL;
 		}
 
@@ -378,10 +378,20 @@ static ssize_t ivtv_read(struct ivtv_stream *s, char __user *ubuf, size_t tot_co
 		int rc;
 
 		buf = ivtv_get_buffer(s, non_block, &rc);
-		if (buf == NULL && rc == -EAGAIN && tot_written)
-			break;
-		if (buf == NULL)
+		/* if there is no data available... */
+		if (buf == NULL) {
+			/* if we got data, then return that regardless */
+			if (tot_written)
+				break;
+			/* EOS condition */
+			if (rc == 0) {
+				clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
+				clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+				ivtv_release_stream(s);
+			}
+			/* set errno */
 			return rc;
+		}
 		rc = ivtv_copy_buf_to_user(s, buf, ubuf + tot_written, tot_count - tot_written);
 		if (buf != &itv->vbi.sliced_mpeg_buf) {
 			ivtv_enqueue(s, buf, (buf->readpos == buf->bytesused) ? &s->q_free : &s->q_io);
@@ -738,10 +748,11 @@ void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
 			ivtv_stop_v4l2_encode_stream(s, gop_end);
 		}
 	}
-	clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
-
-	ivtv_release_stream(s);
+	if (!gop_end) {
+		clear_bit(IVTV_F_S_APPL_IO, &s->s_flags);
+		clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
+		ivtv_release_stream(s);
+	}
 }
 
 static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
