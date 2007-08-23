@@ -32,6 +32,9 @@
 #define IVTV_YUV_HORIZONTAL_FILTER_OFFSET 0x025d8
 #define IVTV_YUV_VERTICAL_FILTER_OFFSET 0x03358
 
+#define IVTV_YUV_UPDATE_HORIZONTAL  0x01
+#define IVTV_YUV_UPDATE_VERTICAL    0x02
+
 extern const u32 yuv_offset[4];
 
 int ivtv_yuv_filter_check(struct ivtv *itv);

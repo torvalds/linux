@@ -25,8 +25,7 @@
 #include "ivtv-queue.h"
 #include "ivtv-fileops.h"
 #include "ivtv-vbi.h"
-#include "ivtv-audio.h"
-#include "ivtv-video.h"
+#include "ivtv-routing.h"
 #include "ivtv-streams.h"
 #include "ivtv-yuv.h"
 #include "ivtv-ioctl.h"
@@ -675,7 +674,7 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 	case VIDIOC_INT_S_AUDIO_ROUTING: {
 		struct v4l2_routing *route = arg;
 
-		ivtv_audio_set_route(itv, route);
+		ivtv_i2c_hw(itv, itv->card->hw_audio, VIDIOC_INT_S_AUDIO_ROUTING, route);
 		break;
 	}
 

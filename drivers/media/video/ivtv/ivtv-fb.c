@@ -382,7 +382,7 @@ static int ivtv_fb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 	}
 
 	/* OSD Address to send DMA to */
-	dest_offset += IVTV_DEC_MEM_START + oi->video_rbase;
+	dest_offset += IVTV_DECODER_OFFSET + oi->video_rbase;
 
 	/* Fill Buffers */
 	return ivtv_fb_prep_dec_dma_to_device(itv, dest_offset, source, count);

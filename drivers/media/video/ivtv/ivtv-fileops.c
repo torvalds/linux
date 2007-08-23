@@ -27,7 +27,7 @@
 #include "ivtv-irq.h"
 #include "ivtv-vbi.h"
 #include "ivtv-mailbox.h"
-#include "ivtv-audio.h"
+#include "ivtv-routing.h"
 #include "ivtv-streams.h"
 #include "ivtv-yuv.h"
 #include "ivtv-ioctl.h"

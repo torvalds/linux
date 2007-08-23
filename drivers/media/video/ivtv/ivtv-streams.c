@@ -38,6 +38,7 @@
 #include "ivtv-queue.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-ioctl.h"
+#include "ivtv-irq.h"
 #include "ivtv-yuv.h"
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
@@ -61,6 +62,13 @@ static struct file_operations ivtv_v4l2_dec_fops = {
       .release = ivtv_v4l2_close,
       .poll = ivtv_v4l2_dec_poll,
 };
+
+#define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
+#define IVTV_V4L2_ENC_PCM_OFFSET  24	/* offset from 0 to register pcm v4l2 minors on */
+#define IVTV_V4L2_ENC_YUV_OFFSET  32	/* offset from 0 to register yuv v4l2 minors on */
+#define IVTV_V4L2_DEC_YUV_OFFSET  48	/* offset from 0 to register decoder yuv v4l2 minors on */
+#define IVTV_V4L2_DEC_VBI_OFFSET   8	/* offset from 0 to register decoder vbi input v4l2 minors on */
+#define IVTV_V4L2_DEC_VOUT_OFFSET 16	/* offset from 0 to register vbi output v4l2 minors on */
 
 static struct {
 	const char *name;
@@ -658,10 +666,10 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	/* Zero out decoder counters */
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[0]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[1]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[2]);
-	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_FIELD_DISPLAYED].data[3]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[0]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[1]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[2]);
+	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA_END].data[3]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[0]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[1]);
 	writel(0, &itv->dec_mbox.mbox[IVTV_MBOX_DMA].data[2]);

@@ -65,12 +65,11 @@
 #include <media/ivtv.h>
 
 
+/* Memory layout */
 #define IVTV_ENCODER_OFFSET	0x00000000
-#define IVTV_ENCODER_SIZE	0x00800000	/* Last half isn't needed 0x01000000 */
-
+#define IVTV_ENCODER_SIZE	0x00800000	/* Total size is 0x01000000, but only first half is used */
 #define IVTV_DECODER_OFFSET	0x01000000
-#define IVTV_DECODER_SIZE	0x00800000	/* Last half isn't needed 0x01000000 */
-
+#define IVTV_DECODER_SIZE	0x00800000	/* Total size is 0x01000000, but only first half is used */
 #define IVTV_REG_OFFSET 	0x02000000
 #define IVTV_REG_SIZE		0x00010000
 
@@ -89,50 +88,7 @@
 #define IVTV_DEC_STREAM_TYPE_YUV  8
 #define IVTV_MAX_STREAMS	  9
 
-#define IVTV_V4L2_DEC_MPG_OFFSET  16	/* offset from 0 to register decoder mpg v4l2 minors on */
-#define IVTV_V4L2_ENC_PCM_OFFSET  24	/* offset from 0 to register pcm v4l2 minors on */
-#define IVTV_V4L2_ENC_YUV_OFFSET  32	/* offset from 0 to register yuv v4l2 minors on */
-#define IVTV_V4L2_DEC_YUV_OFFSET  48	/* offset from 0 to register decoder yuv v4l2 minors on */
-#define IVTV_V4L2_DEC_VBI_OFFSET   8	/* offset from 0 to register decoder vbi input v4l2 minors on */
-#define IVTV_V4L2_DEC_VOUT_OFFSET 16	/* offset from 0 to register vbi output v4l2 minors on */
-
-#define IVTV_ENC_MEM_START 0x00000000
-#define IVTV_DEC_MEM_START 0x01000000
-
-/* Decoder Buffer hardware size on Chip */
-#define IVTV_DEC_MAX_BUF        0x00100000	/* max bytes in decoder buffer */
-#define IVTV_DEC_MIN_BUF        0x00010000	/* min bytes in dec buffer */
-
-/* ======================================================================== */
-/* ========================== START USER SETTABLE DMA VARIABLES =========== */
-/* ======================================================================== */
-
 #define IVTV_DMA_SG_OSD_ENT	(2883584/PAGE_SIZE)	/* sg entities */
-
-/* DMA Buffers, Default size in MB allocated */
-#define IVTV_DEFAULT_ENC_MPG_BUFFERS 4
-#define IVTV_DEFAULT_ENC_YUV_BUFFERS 2
-#define IVTV_DEFAULT_ENC_VBI_BUFFERS 1
-/* Exception: size in kB for this stream (MB is overkill) */
-#define IVTV_DEFAULT_ENC_PCM_BUFFERS 320
-#define IVTV_DEFAULT_DEC_MPG_BUFFERS 1
-#define IVTV_DEFAULT_DEC_YUV_BUFFERS 1
-/* Exception: size in kB for this stream (MB is way overkill) */
-#define IVTV_DEFAULT_DEC_VBI_BUFFERS 64
-
-/* ======================================================================== */
-/* ========================== END USER SETTABLE DMA VARIABLES ============= */
-/* ======================================================================== */
-
-/* Decoder Status Register */
-#define IVTV_DMA_ERR_LIST 	0x00000010
-#define IVTV_DMA_ERR_WRITE 	0x00000008
-#define IVTV_DMA_ERR_READ 	0x00000004
-#define IVTV_DMA_SUCCESS_WRITE 	0x00000002
-#define IVTV_DMA_SUCCESS_READ 	0x00000001
-#define IVTV_DMA_READ_ERR 	(IVTV_DMA_ERR_LIST | IVTV_DMA_ERR_READ)
-#define IVTV_DMA_WRITE_ERR 	(IVTV_DMA_ERR_LIST | IVTV_DMA_ERR_WRITE)
-#define IVTV_DMA_ERR 		(IVTV_DMA_ERR_LIST | IVTV_DMA_ERR_WRITE | IVTV_DMA_ERR_READ)
 
 /* DMA Registers */
 #define IVTV_REG_DMAXFER 	(0x0000)
@@ -156,32 +112,11 @@
 #define IVTV_REG_VPU 			(0x9058)
 #define IVTV_REG_APU 			(0xA064)
 
-#define IVTV_IRQ_ENC_START_CAP		(0x1 << 31)
-#define IVTV_IRQ_ENC_EOS		(0x1 << 30)
-#define IVTV_IRQ_ENC_VBI_CAP		(0x1 << 29)
-#define IVTV_IRQ_ENC_VIM_RST		(0x1 << 28)
-#define IVTV_IRQ_ENC_DMA_COMPLETE	(0x1 << 27)
-#define IVTV_IRQ_ENC_PIO_COMPLETE	(0x1 << 25)
-#define IVTV_IRQ_DEC_AUD_MODE_CHG	(0x1 << 24)
-#define IVTV_IRQ_DEC_DATA_REQ		(0x1 << 22)
-#define IVTV_IRQ_DEC_DMA_COMPLETE	(0x1 << 20)
-#define IVTV_IRQ_DEC_VBI_RE_INSERT	(0x1 << 19)
-#define IVTV_IRQ_DMA_ERR		(0x1 << 18)
-#define IVTV_IRQ_DMA_WRITE		(0x1 << 17)
-#define IVTV_IRQ_DMA_READ		(0x1 << 16)
-#define IVTV_IRQ_DEC_VSYNC		(0x1 << 10)
-
-/* IRQ Masks */
-#define IVTV_IRQ_MASK_INIT (IVTV_IRQ_DMA_ERR|IVTV_IRQ_ENC_DMA_COMPLETE|\
-		IVTV_IRQ_DMA_READ|IVTV_IRQ_ENC_PIO_COMPLETE)
-
-#define IVTV_IRQ_MASK_CAPTURE (IVTV_IRQ_ENC_START_CAP | IVTV_IRQ_ENC_EOS)
-#define IVTV_IRQ_MASK_DECODE  (IVTV_IRQ_DEC_DATA_REQ|IVTV_IRQ_DEC_AUD_MODE_CHG)
-
 /* i2c stuff */
 #define I2C_CLIENTS_MAX 16
 
 /* debugging */
+extern int ivtv_debug;
 
 #define IVTV_DBGFLG_WARN    (1 << 0)
 #define IVTV_DBGFLG_INFO    (1 << 1)
@@ -235,11 +170,6 @@
 #define IVTV_WARN(fmt, args...)     printk(KERN_WARNING "ivtv%d: " fmt, itv->num , ## args)
 #define IVTV_INFO(fmt, args...)     printk(KERN_INFO "ivtv%d: " fmt, itv->num , ## args)
 
-/* Values for IVTV_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
-#define MPEG_FRAME_TYPE_IFRAME 1
-#define MPEG_FRAME_TYPE_IFRAME_PFRAME 3
-#define MPEG_FRAME_TYPE_ALL 7
-
 /* output modes (cx23415 only) */
 #define OUT_NONE        0
 #define OUT_MPG         1
@@ -249,9 +179,6 @@
 
 #define IVTV_MAX_PGM_INDEX (400)
 
-extern int ivtv_debug;
-
-
 struct ivtv_options {
 	int kilobytes[IVTV_MAX_STREAMS]; /* Size in kilobytes of each stream */
 	int cardtype;		/* force card type on load */
@@ -259,11 +186,6 @@ struct ivtv_options {
 	int radio;		/* enable/disable radio */
 	int newi2c;		/* New I2C algorithm */
 };
-
-#define IVTV_MBOX_DMA_START 6
-#define IVTV_MBOX_DMA_END 8
-#define IVTV_MBOX_DMA 9
-#define IVTV_MBOX_FIELD_DISPLAYED 8
 
 /* ivtv-specific mailbox template */
 struct ivtv_mailbox {
@@ -450,31 +372,28 @@ struct ivtv_open_id {
 	struct ivtv *itv;
 };
 
-#define IVTV_YUV_UPDATE_HORIZONTAL  0x01
-#define IVTV_YUV_UPDATE_VERTICAL    0x02
-
 struct yuv_frame_info
 {
 	u32 update;
-	int src_x;
-	int src_y;
-	unsigned int src_w;
-	unsigned int src_h;
-	int dst_x;
-	int dst_y;
-	unsigned int dst_w;
-	unsigned int dst_h;
-	int pan_x;
-	int pan_y;
+	s32 src_x;
+	s32 src_y;
+	u32 src_w;
+	u32 src_h;
+	s32 dst_x;
+	s32 dst_y;
+	u32 dst_w;
+	u32 dst_h;
+	s32 pan_x;
+	s32 pan_y;
 	u32 vis_w;
 	u32 vis_h;
 	u32 interlaced_y;
 	u32 interlaced_uv;
-	int tru_x;
+	s32 tru_x;
 	u32 tru_w;
 	u32 tru_h;
 	u32 offset_y;
-	int lace_mode;
+	s32 lace_mode;
 };
 
 #define IVTV_YUV_MODE_INTERLACED	0x00

@@ -52,7 +52,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include "ivtv-vbi.h"
-#include "ivtv-audio.h"
+#include "ivtv-routing.h"
 #include "ivtv-gpio.h"
 #include "ivtv-yuv.h"
 
@@ -106,6 +106,18 @@ static char secam[] = "--";
 static char ntsc[] = "-";
 
 /* Buffers */
+
+/* DMA Buffers, Default size in MB allocated */
+#define IVTV_DEFAULT_ENC_MPG_BUFFERS 4
+#define IVTV_DEFAULT_ENC_YUV_BUFFERS 2
+#define IVTV_DEFAULT_ENC_VBI_BUFFERS 1
+/* Exception: size in kB for this stream (MB is overkill) */
+#define IVTV_DEFAULT_ENC_PCM_BUFFERS 320
+#define IVTV_DEFAULT_DEC_MPG_BUFFERS 1
+#define IVTV_DEFAULT_DEC_YUV_BUFFERS 1
+/* Exception: size in kB for this stream (MB is way overkill) */
+#define IVTV_DEFAULT_DEC_VBI_BUFFERS 64
+
 static int enc_mpg_buffers = IVTV_DEFAULT_ENC_MPG_BUFFERS;
 static int enc_yuv_buffers = IVTV_DEFAULT_ENC_YUV_BUFFERS;
 static int enc_vbi_buffers = IVTV_DEFAULT_ENC_VBI_BUFFERS;

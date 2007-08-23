@@ -42,7 +42,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 	int y_decode_height, uv_decode_height, y_size;
 	int frame = atomic_read(&itv->yuv_info.next_fill_frame);
 
-	y_buffer_offset = IVTV_DEC_MEM_START + yuv_offset[frame];
+	y_buffer_offset = IVTV_DECODER_OFFSET + yuv_offset[frame];
 	uv_buffer_offset = y_buffer_offset + IVTV_YUV_BUFFER_UV_OFFSET;
 
 	y_decode_height = uv_decode_height = args->src.height + args->src.top;
@@ -106,7 +106,7 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 		if (itv->yuv_info.blanking_dmaptr) {
 			dma->SGarray[dma->SG_length].size = cpu_to_le32(720*16);
 			dma->SGarray[dma->SG_length].src = cpu_to_le32(itv->yuv_info.blanking_dmaptr);
-			dma->SGarray[dma->SG_length].dst = cpu_to_le32(IVTV_DEC_MEM_START + yuv_offset[frame]);
+			dma->SGarray[dma->SG_length].dst = cpu_to_le32(IVTV_DECODER_OFFSET + yuv_offset[frame]);
 			dma->SG_length++;
 		}
 	}
