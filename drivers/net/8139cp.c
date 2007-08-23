@@ -303,25 +303,25 @@ static const unsigned int cp_rx_config =
 	  (RX_DMA_BURST << RxCfgDMAShift);
 
 struct cp_desc {
-	u32		opts1;
+	__le32		opts1;
 	u32		opts2;
-	u64		addr;
+	__le64		addr;
 };
 
 struct cp_dma_stats {
-	u64			tx_ok;
-	u64			rx_ok;
-	u64			tx_err;
-	u32			rx_err;
-	u16			rx_fifo;
-	u16			frame_align;
-	u32			tx_ok_1col;
-	u32			tx_ok_mcol;
-	u64			rx_ok_phys;
-	u64			rx_ok_bcast;
-	u32			rx_ok_mcast;
-	u16			tx_abort;
-	u16			tx_underrun;
+	__le64			tx_ok;
+	__le64			rx_ok;
+	__le64			tx_err;
+	__le32			rx_err;
+	__le16			rx_fifo;
+	__le16			frame_align;
+	__le32			tx_ok_1col;
+	__le32			tx_ok_mcol;
+	__le64			rx_ok_phys;
+	__le64			rx_ok_bcast;
+	__le32			rx_ok_mcast;
+	__le16			tx_abort;
+	__le16			tx_underrun;
 } __attribute__((packed));
 
 struct cp_extra_stats {
@@ -1018,8 +1018,8 @@ static void cp_init_hw (struct cp_private *cp)
 	cpw8_f (Cfg9346, Cfg9346_Unlock);
 
 	/* Restore our idea of the MAC address. */
-	cpw32_f (MAC0 + 0, cpu_to_le32 (*(u32 *) (dev->dev_addr + 0)));
-	cpw32_f (MAC0 + 4, cpu_to_le32 (*(u32 *) (dev->dev_addr + 4)));
+	cpw32_f (MAC0 + 0, le32_to_cpu (*(__le32 *) (dev->dev_addr + 0)));
+	cpw32_f (MAC0 + 4, le32_to_cpu (*(__le32 *) (dev->dev_addr + 4)));
 
 	cp_start_hw(cp);
 	cpw8(TxThresh, 0x06); /* XXX convert magic num to a constant */
@@ -1930,8 +1930,8 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* read MAC address from EEPROM */
 	addr_len = read_eeprom (regs, 0, 8) == 0x8129 ? 8 : 6;
 	for (i = 0; i < 3; i++)
-		((u16 *) (dev->dev_addr))[i] =
-		    le16_to_cpu (read_eeprom (regs, i + 7, addr_len));
+		((__le16 *) (dev->dev_addr))[i] =
+		    cpu_to_le16(read_eeprom (regs, i + 7, addr_len));
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->open = cp_open;
