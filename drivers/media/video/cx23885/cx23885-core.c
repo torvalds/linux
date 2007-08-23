@@ -603,6 +603,11 @@ void cx23885_reset(struct cx23885_dev *dev)
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH09 ], 128, 0);
 
 	switch(dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		/* GPIO-0 cx24227 demodulator reset */
+		dprintk( 1, "%s() Configuring HVR1250 GPIO's\n", __FUNCTION__);
+		cx_set(GP0_IO, 0x00010001); /* Bring the part out of reset */
+		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		/* GPIO-0 656_CLK */
 		/* GPIO-1 656_D0 */
@@ -650,6 +655,7 @@ static int cx23885_ir_init(struct cx23885_dev *dev)
 	dprintk(1, "%s()\n", __FUNCTION__);
 
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		dprintk(1, "%s() FIXME - Implement IR support\n", __FUNCTION__);
 		break;
@@ -1023,6 +1029,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	cx_write(GPIO2, 0x00);
 
 	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		cx_write(port->reg_vld_misc, 0x00);
