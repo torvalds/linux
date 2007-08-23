@@ -867,7 +867,7 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		device = battery->device;
 		acpi_battery_notify_update(battery);
-		acpi_bus_generate_event(device, event,
+		acpi_bus_generate_proc_event(device, event,
 					acpi_battery_present(battery));
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
 						  device->dev.bus_id, event,

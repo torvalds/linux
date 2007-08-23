@@ -1190,10 +1190,10 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		if (sendacpi)
-			acpi_bus_generate_event(ibm->acpi->device, event, hkey);
+			acpi_bus_generate_proc_event(ibm->acpi->device, event, hkey);
 	} else {
 		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
-		acpi_bus_generate_event(ibm->acpi->device, event, 0);
+		acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
 	}
 }
 
@@ -2179,7 +2179,7 @@ static void dock_notify(struct ibm_struct *ibm, u32 event)
 		       event, _sta(dock_handle));
 		data = 0;	/* unknown */
 	}
-	acpi_bus_generate_event(ibm->acpi->device, event, data);
+	acpi_bus_generate_proc_event(ibm->acpi->device, event, data);
 	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
 					  ibm->acpi->device->dev.bus_id,
 					  event, data);
@@ -2280,7 +2280,7 @@ static int __init bay_init(struct ibm_init_struct *iibm)
 
 static void bay_notify(struct ibm_struct *ibm, u32 event)
 {
-	acpi_bus_generate_event(ibm->acpi->device, event, 0);
+	acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
 	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
 					  ibm->acpi->device->dev.bus_id,
 					  event, 0);

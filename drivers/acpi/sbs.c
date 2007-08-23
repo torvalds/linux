@@ -440,7 +440,7 @@ static int acpi_sbs_generate_event(struct acpi_device *device,
 	strcpy(acpi_device_bid(device), bid);
 	strcpy(acpi_device_class(device), class);
 
-	result = acpi_bus_generate_event(device, event, state);
+	result = acpi_bus_generate_proc_event(device, event, state);
 
 	strcpy(acpi_device_bid(device), bid_saved);
 	strcpy(acpi_device_class(device), class_saved);

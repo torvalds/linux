@@ -68,6 +68,20 @@ config ACPI_PROCFS
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
 
+config ACPI_PROC_EVENT
+	bool "Deprecated /proc/acpi/event support"
+	depends on PROC_FS
+	---help---
+	  A user-space daemon, acpi, typically read /proc/acpi/event
+	  and handled all ACPI sub-system generated events.
+
+	  These events are now delivered to user-space via
+	  either the input layer, or as netlink events.
+
+	  This build option enables the old code for for legacy
+	  user-space implementation.  After some time, this will
+	  be moved under CONFIG_ACPI_PROCFS, and then deleted.
+
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86

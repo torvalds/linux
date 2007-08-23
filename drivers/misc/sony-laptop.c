@@ -904,7 +904,7 @@ static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 
 	dprintk("sony_acpi_notify, event: 0x%.2x\n", ev);
 	sony_laptop_report_input_event(ev);
-	acpi_bus_generate_event(sony_nc_acpi_device, 1, ev);
+	acpi_bus_generate_proc_event(sony_nc_acpi_device, 1, ev);
 }
 
 static acpi_status sony_walk_callback(acpi_handle handle, u32 level,
@@ -2292,7 +2292,7 @@ static irqreturn_t sony_pic_irq(int irq, void *dev_id)
 
 found:
 	sony_laptop_report_input_event(device_event);
-	acpi_bus_generate_event(spic_dev.acpi_dev, 1, device_event);
+	acpi_bus_generate_proc_event(spic_dev.acpi_dev, 1, device_event);
 	sonypi_compat_report_event(device_event);
 
 	return IRQ_HANDLED;

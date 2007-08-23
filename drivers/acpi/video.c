@@ -1775,7 +1775,7 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User requested a switch,
 					 * most likely via hotkey. */
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		break;
 
 	case ACPI_VIDEO_NOTIFY_PROBE:	/* User plugged in or removed a video
@@ -1783,14 +1783,14 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		acpi_video_device_enumerate(video);
 		acpi_video_device_rebind(video);
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		break;
 
 	case ACPI_VIDEO_NOTIFY_CYCLE:	/* Cycle Display output hotkey pressed. */
 	case ACPI_VIDEO_NOTIFY_NEXT_OUTPUT:	/* Next Display output hotkey pressed. */
 	case ACPI_VIDEO_NOTIFY_PREV_OUTPUT:	/* previous Display output hotkey pressed. */
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		break;
 
 	default:
@@ -1815,7 +1815,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* change in status (cycle output device) */
 	case ACPI_VIDEO_NOTIFY_PROBE:	/* change in status (output device status) */
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		break;
 	case ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS:	/* Cycle brightness */
 	case ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS:	/* Increase brightness */
@@ -1823,7 +1823,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS:	/* zero brightnesss */
 	case ACPI_VIDEO_NOTIFY_DISPLAY_OFF:	/* display device off */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
