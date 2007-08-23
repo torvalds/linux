@@ -19,13 +19,10 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-mailbox.h"
 #include "ivtv-i2c.h"
-#include "ivtv-gpio.h"
 #include "ivtv-cards.h"
 #include "ivtv-audio.h"
 #include <media/msp3400.h>
-#include <linux/videodev.h>
 
 /* Selects the audio input and output according to the current
    settings. */

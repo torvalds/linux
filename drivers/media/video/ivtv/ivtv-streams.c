@@ -35,16 +35,12 @@
 
 #include "ivtv-driver.h"
 #include "ivtv-fileops.h"
-#include "ivtv-i2c.h"
 #include "ivtv-queue.h"
 #include "ivtv-mailbox.h"
-#include "ivtv-audio.h"
-#include "ivtv-video.h"
-#include "ivtv-vbi.h"
 #include "ivtv-ioctl.h"
-#include "ivtv-irq.h"
-#include "ivtv-streams.h"
+#include "ivtv-yuv.h"
 #include "ivtv-cards.h"
+#include "ivtv-streams.h"
 
 static struct file_operations ivtv_v4l2_enc_fops = {
       .owner = THIS_MODULE,

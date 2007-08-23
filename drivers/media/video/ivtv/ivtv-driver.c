@@ -87,13 +87,6 @@ static struct pci_device_id ivtv_pci_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci,ivtv_pci_tbl);
 
-const u32 yuv_offset[4] = {
-	IVTV_YUV_BUFFER_OFFSET,
-	IVTV_YUV_BUFFER_OFFSET_1,
-	IVTV_YUV_BUFFER_OFFSET_2,
-	IVTV_YUV_BUFFER_OFFSET_3
-};
-
 /* Parameter declarations */
 static int cardtype[IVTV_MAX_CARDS];
 static int tuner[IVTV_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,

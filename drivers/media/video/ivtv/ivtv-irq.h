@@ -19,8 +19,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_IRQ_H
+#define IVTV_IRQ_H
+
 irqreturn_t ivtv_irq_handler(int irq, void *dev_id);
 
 void ivtv_irq_work_handler(struct work_struct *work);
 void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock);
 void ivtv_unfinished_dma(unsigned long arg);
+
+#endif

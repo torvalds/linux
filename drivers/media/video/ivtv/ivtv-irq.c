@@ -19,12 +19,9 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-firmware.h"
-#include "ivtv-fileops.h"
 #include "ivtv-queue.h"
 #include "ivtv-udma.h"
 #include "ivtv-irq.h"
-#include "ivtv-ioctl.h"
 #include "ivtv-mailbox.h"
 #include "ivtv-vbi.h"
 #include "ivtv-yuv.h"

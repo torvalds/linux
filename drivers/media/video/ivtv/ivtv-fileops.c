@@ -30,7 +30,6 @@
 #include "ivtv-audio.h"
 #include "ivtv-streams.h"
 #include "ivtv-yuv.h"
-#include "ivtv-controls.h"
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include <media/saa7115.h>

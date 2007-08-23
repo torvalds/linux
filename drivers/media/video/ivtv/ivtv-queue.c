@@ -20,9 +20,7 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-streams.h"
 #include "ivtv-queue.h"
-#include "ivtv-mailbox.h"
 
 int ivtv_buf_copy_from_user(struct ivtv_stream *s, struct ivtv_buffer *buf, const char __user *src, int copybytes)
 {

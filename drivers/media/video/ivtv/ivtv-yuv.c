@@ -19,10 +19,15 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-queue.h"
 #include "ivtv-udma.h"
-#include "ivtv-irq.h"
 #include "ivtv-yuv.h"
+
+const u32 yuv_offset[4] = {
+	IVTV_YUV_BUFFER_OFFSET,
+	IVTV_YUV_BUFFER_OFFSET_1,
+	IVTV_YUV_BUFFER_OFFSET_2,
+	IVTV_YUV_BUFFER_OFFSET_3
+};
 
 static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 				 struct ivtv_dma_frame *args)

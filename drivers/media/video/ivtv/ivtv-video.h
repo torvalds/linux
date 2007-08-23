@@ -17,8 +17,13 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_VIDEO_H
+#define IVTV_VIDEO_H
+
 void ivtv_set_wss(struct ivtv *itv, int enabled, int mode);
 void ivtv_set_cc(struct ivtv *itv, int mode, u8 cc1, u8 cc2, u8 cc3, u8 cc4);
 void ivtv_set_vps(struct ivtv *itv, int enabled, u8 vps1, u8 vps2, u8 vps3,
 		  u8 vps4, u8 vps5);
 void ivtv_video_set_io(struct ivtv *itv);
+
+#endif

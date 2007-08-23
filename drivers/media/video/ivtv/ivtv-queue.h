@@ -19,6 +19,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_QUEUE_H
+#define IVTV_QUEUE_H
+
 #define IVTV_DMA_UNMAPPED	((u32) -1)
 #define SLICED_VBI_PIO 1
 
@@ -89,3 +92,5 @@ static inline void ivtv_stream_sync_for_device(struct ivtv_stream *s)
 		pci_dma_sync_single_for_device(s->itv->dev, s->sg_handle,
 			sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
 }
+
+#endif
