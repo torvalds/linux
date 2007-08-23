@@ -39,11 +39,22 @@
 
 enum {
 	STAC_REF,
+	STAC_9200_DELL_D21,
+	STAC_9200_DELL_D22,
+	STAC_9200_DELL_D23,
+	STAC_9200_DELL_M21,
+	STAC_9200_DELL_M22,
+	STAC_9200_DELL_M23,
+	STAC_9200_DELL_M24,
+	STAC_9200_DELL_M25,
+	STAC_9200_DELL_M26,
+	STAC_9200_DELL_M27,
 	STAC_9200_MODELS
 };
 
 enum {
 	STAC_9205_REF,
+	STAC_9205_DELL_M42,
 	STAC_9205_DELL_M43,
 	STAC_9205_DELL_M44,
 	STAC_9205_M43xx,
@@ -62,19 +73,22 @@ enum {
 	STAC_D945_REF,
 	STAC_D945GTP3,
 	STAC_D945GTP5,
-	STAC_922X_DELL,
 	STAC_INTEL_MAC_V1,
 	STAC_INTEL_MAC_V2,
 	STAC_INTEL_MAC_V3,
 	STAC_INTEL_MAC_V4,
 	STAC_INTEL_MAC_V5,
-	/* for backward compitability */
+	/* for backward compatibility */
 	STAC_MACMINI,
 	STAC_MACBOOK,
 	STAC_MACBOOK_PRO_V1,
 	STAC_MACBOOK_PRO_V2,
 	STAC_IMAC_INTEL,
 	STAC_IMAC_INTEL_20,
+	STAC_922X_DELL_D81,
+	STAC_922X_DELL_D82,
+	STAC_922X_DELL_M81,
+	STAC_922X_DELL_M82,
 	STAC_922X_MODELS
 };
 
@@ -456,12 +470,144 @@ static unsigned int ref9200_pin_configs[8] = {
 	0x02a19020, 0x01a19021, 0x90100140, 0x01813122,
 };
 
+/* 
+    STAC 9200 pin configs for
+    102801A8
+    102801DE
+    102801E8
+*/
+static unsigned int dell9200_d21_pin_configs[8] = {
+	0x400001f0, 0x400001f1, 0x01a19021, 0x90100140,
+	0x01813122, 0x02214030, 0x01014010, 0x02a19020,
+};
+
+/* 
+    STAC 9200 pin configs for
+    102801C0
+    102801C1
+*/
+static unsigned int dell9200_d22_pin_configs[8] = {
+	0x400001f0, 0x400001f1, 0x02a19021, 0x90100140,
+	0x400001f2, 0x0221401f, 0x01014010, 0x01813020,
+};
+
+/* 
+    STAC 9200 pin configs for
+    102801C4 (Dell Dimension E310)
+    102801C5
+    102801C7
+    102801D9
+    102801DA
+    102801E3
+*/
+static unsigned int dell9200_d23_pin_configs[8] = {
+	0x400001f0, 0x400001f1, 0x01a19021, 0x90100140,
+	0x400001f2, 0x0221401f, 0x01014010, 0x01813020,
+};
+
+
+/* 
+    STAC 9200-32 pin configs for
+    102801B5 (Dell Inspiron 630m)
+    102801D8 (Dell Inspiron 640m)
+*/
+static unsigned int dell9200_m21_pin_configs[8] = {
+	0x40c003fa, 0x03441340, 0x03a11020, 0x401003fc,
+	0x403003fd, 0x0321121f, 0x0321121f, 0x408003fb,
+};
+
+/* 
+    STAC 9200-32 pin configs for
+    102801C2 (Dell Latitude D620)
+    102801C8 
+    102801CC (Dell Latitude D820)
+    102801D4 
+    102801D6 
+*/
+static unsigned int dell9200_m22_pin_configs[8] = {
+	0x40c003fa, 0x0144131f, 0x03A11020, 0x401003fb, 
+	0x40f000fc, 0x0321121f, 0x90170310, 0x90a70321, 
+};
+
+/* 
+    STAC 9200-32 pin configs for
+    102801CE (Dell XPS M1710)
+    102801CF (Dell Precision M90)
+*/
+static unsigned int dell9200_m23_pin_configs[8] = {
+	0x40c003fa, 0x01441340, 0x0421421f, 0x90170310,
+	0x408003fb, 0x04a1102e, 0x90170311, 0x403003fc,
+};
+
+/*
+    STAC 9200-32 pin configs for 
+    102801C9
+    102801CA
+    102801CB (Dell Latitude 120L)
+    102801D3
+*/
+static unsigned int dell9200_m24_pin_configs[8] = {
+	0x40c003fa, 0x404003fb, 0x03a11020, 0x401003fd, 
+	0x403003fe, 0x0321121f, 0x90170310, 0x408003fc,
+};
+
+/*
+    STAC 9200-32 pin configs for
+    102801BD (Dell Inspiron E1505n)
+    102801EE
+    102801EF
+*/
+static unsigned int dell9200_m25_pin_configs[8] = {
+	0x40c003fa, 0x01441340, 0x04a11020, 0x401003fc,
+	0x403003fd, 0x0421121f, 0x90170310, 0x408003fb,
+};
+
+/*
+    STAC 9200-32 pin configs for
+    102801F5 (Dell Inspiron 1501)
+    102801F6
+*/
+static unsigned int dell9200_m26_pin_configs[8] = {
+	0x40c003fa, 0x404003fb, 0x04a11020, 0x401003fd,
+	0x403003fe, 0x0421121f, 0x90170310, 0x408003fc,
+};
+
+/*
+    STAC 9200-32
+    102801CD (Dell Inspiron E1705/9400)
+*/
+static unsigned int dell9200_m27_pin_configs[8] = {
+	0x40c003fa, 0x01441340, 0x04a11020, 0x90170310,
+	0x40f003fc, 0x0421121f, 0x90170310, 0x408003fb,
+};
+
+
 static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_REF] = ref9200_pin_configs,
+	[STAC_9200_DELL_D21] = dell9200_d21_pin_configs,
+	[STAC_9200_DELL_D22] = dell9200_d22_pin_configs,
+	[STAC_9200_DELL_D23] = dell9200_d23_pin_configs,
+	[STAC_9200_DELL_M21] = dell9200_m21_pin_configs,
+	[STAC_9200_DELL_M22] = dell9200_m22_pin_configs,
+	[STAC_9200_DELL_M23] = dell9200_m23_pin_configs,
+	[STAC_9200_DELL_M24] = dell9200_m24_pin_configs,
+	[STAC_9200_DELL_M25] = dell9200_m25_pin_configs,
+	[STAC_9200_DELL_M26] = dell9200_m26_pin_configs,
+	[STAC_9200_DELL_M27] = dell9200_m27_pin_configs,
 };
 
 static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_REF] = "ref",
+	[STAC_9200_DELL_D21] = "dell-d21",
+	[STAC_9200_DELL_D22] = "dell-d22",
+	[STAC_9200_DELL_D23] = "dell-d23",
+	[STAC_9200_DELL_M21] = "dell-m21",
+	[STAC_9200_DELL_M22] = "dell-m22",
+	[STAC_9200_DELL_M23] = "dell-m23",
+	[STAC_9200_DELL_M24] = "dell-m24",
+	[STAC_9200_DELL_M25] = "dell-m25",
+	[STAC_9200_DELL_M26] = "dell-m26",
+	[STAC_9200_DELL_M27] = "dell-m27",
 };
 
 static struct snd_pci_quirk stac9200_cfg_tbl[] = {
@@ -469,27 +615,64 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_REF),
 	/* Dell laptops have BIOS problem */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01a8,
+		      "unknown Dell", STAC_9200_DELL_D21),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01b5,
-		      "Dell Inspiron 630m", STAC_REF),
+		      "Dell Inspiron 630m", STAC_9200_DELL_M21),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01bd,
+		      "Dell Inspiron E1505n", STAC_9200_DELL_M25),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c0,
+		      "unknown Dell", STAC_9200_DELL_D22),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c1,
+		      "unknown Dell", STAC_9200_DELL_D22),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c2,
-		      "Dell Latitude D620", STAC_REF),
+		      "Dell Latitude D620", STAC_9200_DELL_M22),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c5,
+		      "unknown Dell", STAC_9200_DELL_D23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c7,
+		      "unknown Dell", STAC_9200_DELL_D23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c8,
+		      "unknown Dell", STAC_9200_DELL_M22),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01c9,
+		      "unknown Dell", STAC_9200_DELL_M24),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ca,
+		      "unknown Dell", STAC_9200_DELL_M24),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cb,
-		      "Dell Latitude 120L", STAC_REF),
+		      "Dell Latitude 120L", STAC_9200_DELL_M24),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cc,
-		      "Dell Latitude D820", STAC_REF),
+		      "Dell Latitude D820", STAC_9200_DELL_M22),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cd,
-		      "Dell Inspiron E1705/9400", STAC_REF),
+		      "Dell Inspiron E1705/9400", STAC_9200_DELL_M27),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ce,
-		      "Dell XPS M1710", STAC_REF),
+		      "Dell XPS M1710", STAC_9200_DELL_M23),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01cf,
-		      "Dell Precision M90", STAC_REF),
+		      "Dell Precision M90", STAC_9200_DELL_M23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d3,
+		      "unknown Dell", STAC_9200_DELL_M22),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d4,
+		      "unknown Dell", STAC_9200_DELL_M22),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d6,
-		      "unknown Dell", STAC_REF),
+		      "unknown Dell", STAC_9200_DELL_M22),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d8,
-		      "Dell Inspiron 640m", STAC_REF),
+		      "Dell Inspiron 640m", STAC_9200_DELL_M21),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d9,
+		      "unknown Dell", STAC_9200_DELL_D23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01da,
+		      "unknown Dell", STAC_9200_DELL_D23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01de,
+		      "unknown Dell", STAC_9200_DELL_D21),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01e3,
+		      "unknown Dell", STAC_9200_DELL_D23),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01e8,
+		      "unknown Dell", STAC_9200_DELL_D21),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ee,
+		      "unknown Dell", STAC_9200_DELL_M25),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ef,
+		      "unknown Dell", STAC_9200_DELL_M25),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f5,
-		      "Dell Inspiron 1501", STAC_REF),
-
+		      "Dell Inspiron 1501", STAC_9200_DELL_M26),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f6,
+		      "unknown Dell", STAC_9200_DELL_M26),
 	/* Panasonic */
 	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_REF),
 
@@ -548,6 +731,51 @@ static unsigned int ref922x_pin_configs[10] = {
 	0x40000100, 0x40000100,
 };
 
+/*
+    STAC 922X pin configs for
+    102801A7
+    102801AB
+    102801A9
+    102801D1
+    102801D2
+*/
+static unsigned int dell_922x_d81_pin_configs[10] = {
+	0x02214030, 0x01a19021, 0x01111012, 0x01114010,
+	0x02a19020, 0x01117011, 0x400001f0, 0x400001f1,
+	0x01813122, 0x400001f2,
+};
+
+/*
+    STAC 922X pin configs for
+    102801AC
+    102801D0
+*/
+static unsigned int dell_922x_d82_pin_configs[10] = {
+	0x02214030, 0x01a19021, 0x01111012, 0x01114010,
+	0x02a19020, 0x01117011, 0x01451140, 0x400001f0,
+	0x01813122, 0x400001f1,
+};
+
+/*
+    STAC 922X pin configs for
+    102801BF
+*/
+static unsigned int dell_922x_m81_pin_configs[10] = {
+	0x0321101f, 0x01112024, 0x01111222, 0x91174220,
+	0x03a11050, 0x01116221, 0x90a70330, 0x01452340, 
+	0x40C003f1, 0x405003f0,
+};
+
+/*
+    STAC 9221 A1 pin configs for
+    102801D7 (Dell XPS M1210)
+*/
+static unsigned int dell_922x_m82_pin_configs[10] = {
+	0x0221121f, 0x408103ff, 0x02111212, 0x90100310, 
+	0x408003f1, 0x02111211, 0x03451340, 0x40c003f2, 
+	0x508003f3, 0x405003f4, 
+};
+
 static unsigned int d945gtp3_pin_configs[10] = {
 	0x0221401f, 0x01a19022, 0x01813021, 0x01014010,
 	0x40000100, 0x40000100, 0x40000100, 0x40000100,
@@ -590,48 +818,49 @@ static unsigned int intel_mac_v5_pin_configs[10] = {
 	0x400000fc, 0x400000fb,
 };
 
-static unsigned int stac922x_dell_pin_configs[10] = {
-	0x0221121e, 0x408103ff, 0x02a1123e, 0x90100310,
-	0x408003f1, 0x0221122f, 0x03451340, 0x40c003f2,
-	0x50a003f3, 0x405003f4
-};
 
 static unsigned int *stac922x_brd_tbl[STAC_922X_MODELS] = {
 	[STAC_D945_REF] = ref922x_pin_configs,
 	[STAC_D945GTP3] = d945gtp3_pin_configs,
 	[STAC_D945GTP5] = d945gtp5_pin_configs,
-	[STAC_922X_DELL] = stac922x_dell_pin_configs,
 	[STAC_INTEL_MAC_V1] = intel_mac_v1_pin_configs,
 	[STAC_INTEL_MAC_V2] = intel_mac_v2_pin_configs,
 	[STAC_INTEL_MAC_V3] = intel_mac_v3_pin_configs,
 	[STAC_INTEL_MAC_V4] = intel_mac_v4_pin_configs,
 	[STAC_INTEL_MAC_V5] = intel_mac_v5_pin_configs,
-	/* for backward compitability */
+	/* for backward compatibility */
 	[STAC_MACMINI] = intel_mac_v3_pin_configs,
 	[STAC_MACBOOK] = intel_mac_v5_pin_configs,
 	[STAC_MACBOOK_PRO_V1] = intel_mac_v3_pin_configs,
 	[STAC_MACBOOK_PRO_V2] = intel_mac_v3_pin_configs,
 	[STAC_IMAC_INTEL] = intel_mac_v2_pin_configs,
 	[STAC_IMAC_INTEL_20] = intel_mac_v3_pin_configs,
+	[STAC_922X_DELL_D81] = dell_922x_d81_pin_configs,
+	[STAC_922X_DELL_D82] = dell_922x_d82_pin_configs,	
+	[STAC_922X_DELL_M81] = dell_922x_m81_pin_configs,
+	[STAC_922X_DELL_M82] = dell_922x_m82_pin_configs,	
 };
 
 static const char *stac922x_models[STAC_922X_MODELS] = {
 	[STAC_D945_REF]	= "ref",
 	[STAC_D945GTP5]	= "5stack",
 	[STAC_D945GTP3]	= "3stack",
-	[STAC_922X_DELL] = "dell",
 	[STAC_INTEL_MAC_V1] = "intel-mac-v1",
 	[STAC_INTEL_MAC_V2] = "intel-mac-v2",
 	[STAC_INTEL_MAC_V3] = "intel-mac-v3",
 	[STAC_INTEL_MAC_V4] = "intel-mac-v4",
 	[STAC_INTEL_MAC_V5] = "intel-mac-v5",
-	/* for backward compitability */
+	/* for backward compatibility */
 	[STAC_MACMINI]	= "macmini",
 	[STAC_MACBOOK]	= "macbook",
 	[STAC_MACBOOK_PRO_V1]	= "macbook-pro-v1",
 	[STAC_MACBOOK_PRO_V2]	= "macbook-pro",
 	[STAC_IMAC_INTEL] = "imac-intel",
 	[STAC_IMAC_INTEL_20] = "imac-intel-20",
+	[STAC_922X_DELL_D81] = "dell-d81",
+	[STAC_922X_DELL_D82] = "dell-d82",
+	[STAC_922X_DELL_M81] = "dell-m81",
+	[STAC_922X_DELL_M82] = "dell-m82",
 };
 
 static struct snd_pci_quirk stac922x_cfg_tbl[] = {
@@ -695,9 +924,25 @@ static struct snd_pci_quirk stac922x_cfg_tbl[] = {
 	/* Apple Mac Mini (early 2006) */
 	SND_PCI_QUIRK(0x8384, 0x7680,
 		      "Mac Mini", STAC_INTEL_MAC_V3),
-	/* Dell */
-	SND_PCI_QUIRK(0x1028, 0x01d7, "Dell XPS M1210", STAC_922X_DELL),
-
+	/* Dell systems  */
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01a7,
+		      "unknown Dell", STAC_922X_DELL_D81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01a9,
+		      "unknown Dell", STAC_922X_DELL_D81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ab,
+		      "unknown Dell", STAC_922X_DELL_D81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ac,
+		      "unknown Dell", STAC_922X_DELL_D82),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01bf,
+		      "unknown Dell", STAC_922X_DELL_M81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d0,
+		      "unknown Dell", STAC_922X_DELL_D82),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d1,
+		      "unknown Dell", STAC_922X_DELL_D81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d2,
+		      "unknown Dell", STAC_922X_DELL_D81),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01d7,
+		      "Dell XPS M1210", STAC_922X_DELL_M82),
 	{} /* terminator */
 };
 
@@ -768,7 +1013,7 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2002, "Intel D965", STAC_D965_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2001, "Intel D965", STAC_D965_3ST),
 	/* Dell 3 stack systems */
-	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01dd, "Dell E520", STAC_DELL_3ST),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01dd, "Dell Dimension E520", STAC_DELL_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01ed, "Dell     ", STAC_DELL_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f4, "Dell     ", STAC_DELL_3ST),
 	/* 965 based 5 stack systems */
@@ -790,28 +1035,54 @@ static unsigned int ref9205_pin_configs[12] = {
 	0x90a000f0, 0x90a000f0, 0x01441030, 0x01c41030
 };
 
-static unsigned int dell_m43_9205_pin_configs[12] = {
+/*
+    STAC 9205 pin configs for
+    102801F1
+    102801F2
+    102801FC
+    102801FD
+    10280204
+    1028021F
+*/
+static unsigned int dell_9205_m42_pin_configs[12] = {
+	0x0321101F, 0x03A11020, 0x400003FA, 0x90170310,
+	0x400003FB, 0x400003FC, 0x400003FD, 0x40F000F9,
+	0x90A60330, 0x400003FF, 0x0144131F, 0x40C003FE,
+};
+
+/*
+    STAC 9205 pin configs for
+    102801F9
+    102801FA
+    102801FE
+    102801FF (Dell Precision M4300)
+    10280206
+    10280200
+    10280201
+*/
+static unsigned int dell_9205_m43_pin_configs[12] = {
 	0x0321101f, 0x03a11020, 0x90a70330, 0x90170310,
 	0x400000fe, 0x400000ff, 0x400000fd, 0x40f000f9,
 	0x400000fa, 0x400000fc, 0x0144131f, 0x40c003f8,
 };
 
-static unsigned int dell_m44_9205_pin_configs[12] = {
+static unsigned int dell_9205_m44_pin_configs[12] = {
 	0x0421101f, 0x04a11020, 0x400003fa, 0x90170310,
 	0x400003fb, 0x400003fc, 0x400003fd, 0x400003f9,
 	0x90a60330, 0x400003ff, 0x01441340, 0x40c003fe,
 };
 
-
 static unsigned int *stac9205_brd_tbl[STAC_9205_MODELS] = {
 	[STAC_9205_REF] = ref9205_pin_configs,
-	[STAC_9205_DELL_M43] = dell_m43_9205_pin_configs,
-	[STAC_9205_DELL_M44] = dell_m44_9205_pin_configs,
+	[STAC_9205_DELL_M42] = dell_9205_m42_pin_configs,
+	[STAC_9205_DELL_M43] = dell_9205_m43_pin_configs,
+	[STAC_9205_DELL_M44] = dell_9205_m44_pin_configs,
 	[STAC_9205_M43xx] = NULL,
 };
 
 static const char *stac9205_models[STAC_9205_MODELS] = {
 	[STAC_9205_REF] = "ref",
+	[STAC_9205_DELL_M42] = "dell-m42",
 	[STAC_9205_DELL_M43] = "dell-m43",
 	[STAC_9205_DELL_M44] = "dell-m44",
 };
@@ -820,16 +1091,24 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 	/* SigmaTel reference board */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_INTEL, 0x2668,
 		      "DFI LanParty", STAC_9205_REF),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f1,
+		      "unknown Dell", STAC_9205_DELL_M42),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f2,
+		      "unknown Dell", STAC_9205_DELL_M42),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f8,
 		      "Dell Precision", STAC_9205_M43xx),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f9,
 		      "Dell Precision", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fa,
 		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fc,
+		      "unknown Dell", STAC_9205_DELL_M42),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fd,
+		      "unknown Dell", STAC_9205_DELL_M42),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fe,
 		      "Dell Precision", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01ff,
-		      "Dell Precision", STAC_9205_DELL_M43),
+		      "Dell Precision M4300", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0206,
 		      "Dell Precision", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f1,
@@ -840,6 +1119,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 		      "Dell Inspiron", STAC_9205_DELL_M44),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fd,
 		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0204,
+		      "unknown Dell", STAC_9205_DELL_M42),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x021f,
 		      "Dell Inspiron", STAC_9205_DELL_M44),
 	{} /* terminator */
