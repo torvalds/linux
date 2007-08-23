@@ -2582,7 +2582,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	if (check_btres(fh, RESOURCE_OVERLAY)) {
 		struct bttv_buffer *new;
 
-		new = videobuf_alloc(sizeof(*new));
+		new = videobuf_pci_alloc(sizeof(*new));
 		new->crop = btv->crop[!!fh->do_crop].rect;
 		bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		retval = bttv_switch_overlay(btv,fh,new);
@@ -3048,7 +3048,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		mutex_lock(&fh->cap.lock);
 		if (*on) {
 			fh->ov.tvnorm = btv->tvnorm;
-			new = videobuf_alloc(sizeof(*new));
+			new = videobuf_pci_alloc(sizeof(*new));
 			new->crop = btv->crop[!!fh->do_crop].rect;
 			bttv_overlay_risc(btv, &fh->ov, fh->ovfmt, new);
 		} else {
@@ -3141,9 +3141,12 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			retval = -EIO;
 			/* fall through */
 		case STATE_DONE:
-			videobuf_dma_sync(&fh->cap,&buf->vb.dma);
+		{
+			struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+			videobuf_dma_sync(&fh->cap,dma);
 			bttv_dma_free(&fh->cap,btv,buf);
 			break;
+		}
 		default:
 			retval = -EINVAL;
 			break;
@@ -3337,7 +3340,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			if (check_btres(fh, RESOURCE_OVERLAY)) {
 				struct bttv_buffer *new;
 
-				new = videobuf_alloc(sizeof(*new));
+				new = videobuf_pci_alloc(sizeof(*new));
 				new->crop = btv->crop[!!fh->do_crop].rect;
 				bttv_overlay_risc(btv,&fh->ov,fh->ovfmt,new);
 				retval = bttv_switch_overlay(btv,fh,new);
@@ -3696,7 +3699,7 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
 			}
-			fh->cap.read_buf = videobuf_alloc(fh->cap.msize);
+			fh->cap.read_buf = videobuf_pci_alloc(fh->cap.msize);
 			if (NULL == fh->cap.read_buf) {
 				mutex_unlock(&fh->cap.lock);
 				return POLLERR;
@@ -3763,13 +3766,13 @@ static int bttv_open(struct inode *inode, struct file *file)
 	fh->ov.setup_ok = 0;
 	v4l2_prio_open(&btv->prio,&fh->prio);
 
-	videobuf_queue_init(&fh->cap, &bttv_video_qops,
+	videobuf_queue_pci_init(&fh->cap, &bttv_video_qops,
 			    btv->c.pci, &btv->s_lock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct bttv_buffer),
 			    fh);
-	videobuf_queue_init(&fh->vbi, &bttv_vbi_qops,
+	videobuf_queue_pci_init(&fh->vbi, &bttv_vbi_qops,
 			    btv->c.pci, &btv->s_lock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,

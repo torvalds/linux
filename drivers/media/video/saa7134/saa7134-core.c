@@ -236,9 +236,10 @@ int saa7134_buffer_startpage(struct saa7134_buf *buf)
 unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 {
 	unsigned long base;
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 	base  = saa7134_buffer_startpage(buf) * 4096;
-	base += buf->vb.dma.sglist[0].offset;
+	base += dma->sglist[0].offset;
 	return base;
 }
 
@@ -286,11 +287,12 @@ void saa7134_pgtable_free(struct pci_dev *pci, struct saa7134_pgtable *pt)
 
 void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 {
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	BUG_ON(in_interrupt());
 
 	videobuf_waiton(&buf->vb,0,0);
-	videobuf_dma_unmap(q, &buf->vb.dma);
-	videobuf_dma_free(&buf->vb.dma);
+	videobuf_dma_unmap(q, dma);
+	videobuf_dma_free(dma);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
 

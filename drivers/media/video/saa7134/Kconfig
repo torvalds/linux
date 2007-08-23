@@ -1,7 +1,7 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
 	depends on VIDEO_DEV && PCI && I2C
-	select VIDEO_BUF
+	select VIDEOBUF_DMA_SG
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select CRC32

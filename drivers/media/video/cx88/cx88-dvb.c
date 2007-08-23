@@ -710,7 +710,7 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 
 	/* dvb stuff */
 	printk(KERN_INFO "%s/2: cx2388x based DVB/ATSC card\n", core->name);
-	videobuf_queue_init(&dev->dvb.dvbq, &dvb_qops,
+	videobuf_queue_pci_init(&dev->dvb.dvbq, &dvb_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_TOP,

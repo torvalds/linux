@@ -37,7 +37,7 @@
 #include <media/tuner.h>
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
-#include <media/video-buf.h>
+#include <media/videobuf-dma-sg.h>
 #include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

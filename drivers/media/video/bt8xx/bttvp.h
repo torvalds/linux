@@ -41,7 +41,7 @@
 #include <media/v4l2-common.h>
 
 #include <linux/device.h>
-#include <media/video-buf.h>
+#include <media/videobuf-dma-sg.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/ir-common.h>

@@ -172,6 +172,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		return -EINVAL;
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 		buf->vb.width  = VBI_LINE_LENGTH;
 		buf->vb.height = VBI_LINE_COUNT;
 		buf->vb.size   = size;
@@ -180,7 +181,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
 		cx88_risc_buffer(dev->pci, &buf->risc,
-				 buf->vb.dma.sglist,
+				 dma->sglist,
 				 0, buf->vb.width * buf->vb.height,
 				 buf->vb.width, 0,
 				 buf->vb.height);

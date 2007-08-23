@@ -237,6 +237,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 			struct cx88_buffer *buf, enum v4l2_field field)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	int rc;
 
 	dprintk(1, "%s: %p\n", __FUNCTION__, buf);
@@ -252,7 +253,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
 		cx88_risc_databuffer(dev->pci, &buf->risc,
-				     buf->vb.dma.sglist,
+				     dma->sglist,
 				     buf->vb.width, buf->vb.height, 0);
 	}
 	buf->vb.state = STATE_PREPARED;

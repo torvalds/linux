@@ -126,8 +126,12 @@ config TUNER_SIMPLE
 
 endif # VIDEO_TUNER_CUSTOMIZE
 
-config VIDEO_BUF
+config VIDEOBUF_GEN
+	tristate
+
+config VIDEOBUF_DMA_SG
 	depends on PCI
+	select VIDEOBUF_GEN
 	tristate
 
 config VIDEO_BUF_DVB

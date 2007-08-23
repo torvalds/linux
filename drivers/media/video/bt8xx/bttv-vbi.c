@@ -150,13 +150,14 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 
 	if (redo_dma_risc) {
 		unsigned int bpl, padding, offset;
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 		bpl = 2044; /* max. vbipack */
 		padding = VBI_BPL - bpl;
 
 		if (fh->vbi_fmt.fmt.count[0] > 0) {
 			rc = bttv_risc_packed(btv, &buf->top,
-					      buf->vb.dma.sglist,
+					      dma->sglist,
 					      /* offset */ 0, bpl,
 					      padding, skip_lines0,
 					      fh->vbi_fmt.fmt.count[0]);
@@ -168,7 +169,7 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 			offset = fh->vbi_fmt.fmt.count[0] * VBI_BPL;
 
 			rc = bttv_risc_packed(btv, &buf->bottom,
-					      buf->vb.dma.sglist,
+					      dma->sglist,
 					      offset, bpl,
 					      padding, skip_lines1,
 					      fh->vbi_fmt.fmt.count[1]);

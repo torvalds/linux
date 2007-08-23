@@ -1197,7 +1197,7 @@ static int cafe_setup_siobuf(struct cafe_camera *cam, int index)
 	buf->v4lbuf.field = V4L2_FIELD_NONE;
 	buf->v4lbuf.memory = V4L2_MEMORY_MMAP;
 	/*
-	 * Offset: must be 32-bit even on a 64-bit system.  video-buf
+	 * Offset: must be 32-bit even on a 64-bit system.  videobuf-dma-sg
 	 * just uses the length times the index, but the spec warns
 	 * against doing just that - vma merging problems.  So we
 	 * leave a gap between each pair of buffers.

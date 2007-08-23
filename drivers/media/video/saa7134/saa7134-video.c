@@ -1037,6 +1037,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 	}
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+
 		buf->vb.width  = fh->width;
 		buf->vb.height = fh->height;
 		buf->vb.size   = size;
@@ -1048,8 +1050,8 @@ static int buffer_prepare(struct videobuf_queue *q,
 		if (err)
 			goto oops;
 		err = saa7134_pgtable_build(dev->pci,buf->pt,
-					    buf->vb.dma.sglist,
-					    buf->vb.dma.sglen,
+					    dma->sglist,
+					    dma->sglen,
 					    saa7134_buffer_startpage(buf));
 		if (err)
 			goto oops;
@@ -1309,13 +1311,13 @@ static int video_open(struct inode *inode, struct file *file)
 	fh->height   = 576;
 	v4l2_prio_open(&dev->prio,&fh->prio);
 
-	videobuf_queue_init(&fh->cap, &video_qops,
+	videobuf_queue_pci_init(&fh->cap, &video_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct saa7134_buf),
 			    fh);
-	videobuf_queue_init(&fh->vbi, &saa7134_vbi_qops,
+	videobuf_queue_pci_init(&fh->vbi, &saa7134_vbi_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
@@ -2137,29 +2139,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	}
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	case VIDIOCGMBUF:
-	{
-		struct video_mbuf *mbuf = arg;
-		struct videobuf_queue *q;
-		struct v4l2_requestbuffers req;
-		unsigned int i;
-
-		q = saa7134_queue(fh);
-		memset(&req,0,sizeof(req));
-		req.type   = q->type;
-		req.count  = gbuffers;
-		req.memory = V4L2_MEMORY_MMAP;
-		err = videobuf_reqbufs(q,&req);
-		if (err < 0)
-			return err;
-		memset(mbuf,0,sizeof(*mbuf));
-		mbuf->frames = req.count;
-		mbuf->size   = 0;
-		for (i = 0; i < mbuf->frames; i++) {
-			mbuf->offsets[i]  = q->bufs[i]->boff;
-			mbuf->size       += q->bufs[i]->bsize;
-		}
-		return 0;
-	}
+		return videobuf_cgmbuf(saa7134_queue(fh), arg, gbuffers);
 #endif
 	case VIDIOC_REQBUFS:
 		return videobuf_reqbufs(saa7134_queue(fh),arg);

@@ -534,6 +534,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct cx8800_dev  *dev = fh->dev;
 	struct cx88_core *core = dev->core;
 	struct cx88_buffer *buf = container_of(vb,struct cx88_buffer,vb);
+	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	int rc, init_buffer = 0;
 
 	BUG_ON(NULL == fh->fmt);
@@ -566,30 +567,30 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		switch (buf->vb.field) {
 		case V4L2_FIELD_TOP:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, 0, UNSET,
+					 dma->sglist, 0, UNSET,
 					 buf->bpl, 0, buf->vb.height);
 			break;
 		case V4L2_FIELD_BOTTOM:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, UNSET, 0,
+					 dma->sglist, UNSET, 0,
 					 buf->bpl, 0, buf->vb.height);
 			break;
 		case V4L2_FIELD_INTERLACED:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist, 0, buf->bpl,
+					 dma->sglist, 0, buf->bpl,
 					 buf->bpl, buf->bpl,
 					 buf->vb.height >> 1);
 			break;
 		case V4L2_FIELD_SEQ_TB:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
+					 dma->sglist,
 					 0, buf->bpl * (buf->vb.height >> 1),
 					 buf->bpl, 0,
 					 buf->vb.height >> 1);
 			break;
 		case V4L2_FIELD_SEQ_BT:
 			cx88_risc_buffer(dev->pci, &buf->risc,
-					 buf->vb.dma.sglist,
+					 dma->sglist,
 					 buf->bpl * (buf->vb.height >> 1), 0,
 					 buf->bpl, 0,
 					 buf->vb.height >> 1);
@@ -752,13 +753,13 @@ static int video_open(struct inode *inode, struct file *file)
 	fh->height   = 240;
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
-	videobuf_queue_init(&fh->vidq, &cx8800_video_qops,
+	videobuf_queue_pci_init(&fh->vidq, &cx8800_video_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,
 			    sizeof(struct cx88_buffer),
 			    fh);
-	videobuf_queue_init(&fh->vbiq, &cx8800_vbi_qops,
+	videobuf_queue_pci_init(&fh->vbiq, &cx8800_vbi_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB,
@@ -1104,28 +1105,9 @@ static int vidioc_enum_fmt_cap (struct file *file, void  *priv,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 {
-	struct cx8800_fh           *fh   = priv;
-	struct videobuf_queue      *q;
-	struct v4l2_requestbuffers req;
-	unsigned int i;
-	int err;
+	struct cx8800_fh           *fh  = priv;
 
-	q = get_queue(fh);
-	memset(&req,0,sizeof(req));
-	req.type   = q->type;
-	req.count  = 8;
-	req.memory = V4L2_MEMORY_MMAP;
-	err = videobuf_reqbufs(q,&req);
-	if (err < 0)
-		return err;
-
-	mbuf->frames = req.count;
-	mbuf->size   = 0;
-	for (i = 0; i < mbuf->frames; i++) {
-		mbuf->offsets[i]  = q->bufs[i]->boff;
-		mbuf->size       += q->bufs[i]->bsize;
-	}
-	return 0;
+	return videobuf_cgmbuf (get_queue(fh), mbuf, 8);
 }
 #endif
 

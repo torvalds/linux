@@ -92,6 +92,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	}
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+
 		buf->vb.width  = llength;
 		buf->vb.height = lines;
 		buf->vb.size   = size;
@@ -101,8 +103,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		if (err)
 			goto oops;
 		err = saa7134_pgtable_build(dev->pci,buf->pt,
-					    buf->vb.dma.sglist,
-					    buf->vb.dma.sglen,
+					    dma->sglist,
+					    dma->sglen,
 					    saa7134_buffer_startpage(buf));
 		if (err)
 			goto oops;

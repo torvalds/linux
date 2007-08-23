@@ -1111,7 +1111,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	file->private_data = fh;
 	fh->dev      = dev;
 
-	videobuf_queue_init(&fh->mpegq, &blackbird_qops,
+	videobuf_queue_pci_init(&fh->mpegq, &blackbird_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_INTERLACED,

@@ -100,7 +100,7 @@ int saa7146_wait_for_debi_done(struct saa7146_dev *dev, int nobusyloop)
  * general helper functions
  ****************************************************************************/
 
-/* this is videobuf_vmalloc_to_sg() from video-buf.c
+/* this is videobuf_vmalloc_to_sg() from videobuf-dma-sg.c
    make sure virt has been allocated with vmalloc_32(), otherwise the BUG()
    may be triggered on highmem machines */
 static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)

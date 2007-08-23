@@ -72,7 +72,7 @@ struct cx88_audio_dev {
 	unsigned int               period_size;
 	unsigned int               num_periods;
 
-	struct videobuf_dmabuf     dma_risc;
+	struct videobuf_dmabuf     *dma_risc;
 
 	struct cx88_buffer	   *buf;
 
@@ -282,11 +282,12 @@ static int dsp_buffer_free(snd_cx88_card_t *chip)
 	BUG_ON(!chip->dma_size);
 
 	dprintk(2,"Freeing buffer\n");
-	videobuf_pci_dma_unmap(chip->pci, &chip->dma_risc);
-	videobuf_dma_free(&chip->dma_risc);
+	videobuf_pci_dma_unmap(chip->pci, chip->dma_risc);
+	videobuf_dma_free(chip->dma_risc);
 	btcx_riscmem_free(chip->pci,&chip->buf->risc);
 	kfree(chip->buf);
 
+	chip->dma_risc = NULL;
 	chip->dma_size = 0;
 
 	return 0;
@@ -366,6 +367,8 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 			      struct snd_pcm_hw_params * hw_params)
 {
 	snd_cx88_card_t *chip = snd_pcm_substream_chip(substream);
+	struct videobuf_dmabuf *dma;
+
 	struct cx88_buffer *buf;
 	int ret;
 
@@ -381,7 +384,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	BUG_ON(!chip->dma_size);
 	BUG_ON(chip->num_periods & (chip->num_periods-1));
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	buf = videobuf_pci_alloc(sizeof(*buf));
 	if (NULL == buf)
 		return -ENOMEM;
 
@@ -392,17 +395,18 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	buf->vb.height = chip->num_periods;
 	buf->vb.size   = chip->dma_size;
 
-	videobuf_dma_init(&buf->vb.dma);
-	ret = videobuf_dma_init_kernel(&buf->vb.dma, PCI_DMA_FROMDEVICE,
+	dma=videobuf_to_dma(&buf->vb);
+	videobuf_dma_init(dma);
+	ret = videobuf_dma_init_kernel(dma, PCI_DMA_FROMDEVICE,
 			(PAGE_ALIGN(buf->vb.size) >> PAGE_SHIFT));
 	if (ret < 0)
 		goto error;
 
-	ret = videobuf_pci_dma_map(chip->pci,&buf->vb.dma);
+	ret = videobuf_pci_dma_map(chip->pci,dma);
 	if (ret < 0)
 		goto error;
 
-	ret = cx88_risc_databuffer(chip->pci, &buf->risc, buf->vb.dma.sglist,
+	ret = cx88_risc_databuffer(chip->pci, &buf->risc, dma->sglist,
 				   buf->vb.width, buf->vb.height, 1);
 	if (ret < 0)
 		goto error;
@@ -414,9 +418,9 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	buf->vb.state = STATE_PREPARED;
 
 	chip->buf = buf;
-	chip->dma_risc = buf->vb.dma;
+	chip->dma_risc = dma;
 
-	substream->runtime->dma_area = chip->dma_risc.vmalloc;
+	substream->runtime->dma_area = chip->dma_risc->vmalloc;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
 	return 0;

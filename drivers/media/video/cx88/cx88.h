@@ -28,7 +28,7 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/video-buf.h>
+#include <media/videobuf-dma-sg.h>
 #include <media/cx2341x.h>
 #include <media/audiochip.h>
 #if defined(CONFIG_VIDEO_BUF_DVB) || defined(CONFIG_VIDEO_BUF_DVB_MODULE)
