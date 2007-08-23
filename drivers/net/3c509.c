@@ -299,7 +299,7 @@ static struct isapnp_device_id el3_isapnp_adapters[] __initdata = {
 	{ }	/* terminate list */
 };
 
-static u16 el3_isapnp_phys_addr[8][3];
+static __be16 el3_isapnp_phys_addr[8][3];
 static int nopnp;
 #endif /* __ISAPNP__ */
 
@@ -379,7 +379,7 @@ static int __init el3_probe(int card_idx)
 	struct el3_private *lp;
 	short lrs_state = 0xff, i;
 	int ioaddr, irq, if_port;
-	u16 phys_addr[3];
+	__be16 phys_addr[3];
 	static int current_tag;
 	int err = -ENODEV;
 #if defined(__ISAPNP__)
