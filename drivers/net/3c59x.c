@@ -538,10 +538,10 @@ enum MasterCtrl {
 #define LAST_FRAG 	0x80000000			/* Last Addr/Len pair in descriptor. */
 #define DN_COMPLETE	0x00010000			/* This packet has been downloaded */
 struct boom_rx_desc {
-	u32 next;					/* Last entry points to 0.   */
-	s32 status;
-	u32 addr;					/* Up to 63 addr/len pairs possible. */
-	s32 length;					/* Set LAST_FRAG to indicate last pair. */
+	__le32 next;					/* Last entry points to 0.   */
+	__le32 status;
+	__le32 addr;					/* Up to 63 addr/len pairs possible. */
+	__le32 length;					/* Set LAST_FRAG to indicate last pair. */
 };
 /* Values for the Rx status entry. */
 enum rx_desc_status {
@@ -558,16 +558,16 @@ enum rx_desc_status {
 #endif
 
 struct boom_tx_desc {
-	u32 next;					/* Last entry points to 0.   */
-	s32 status;					/* bits 0:12 length, others see below.  */
+	__le32 next;					/* Last entry points to 0.   */
+	__le32 status;					/* bits 0:12 length, others see below.  */
 #if DO_ZEROCOPY
 	struct {
-		u32 addr;
-		s32 length;
+		__le32 addr;
+		__le32 length;
 	} frag[1+MAX_SKB_FRAGS];
 #else
-		u32 addr;
-		s32 length;
+		__le32 addr;
+		__le32 length;
 #endif
 };
 
@@ -1131,7 +1131,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 					   + sizeof(struct boom_tx_desc) * TX_RING_SIZE,
 					   &vp->rx_ring_dma);
 	retval = -ENOMEM;
-	if (vp->rx_ring == 0)
+	if (!vp->rx_ring)
 		goto free_region;
 
 	vp->tx_ring = (struct boom_tx_desc *)(vp->rx_ring + RX_RING_SIZE);
@@ -1204,7 +1204,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if ((checksum != 0x00) && !(vci->drv_flags & IS_TORNADO))
 		printk(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 	for (i = 0; i < 3; i++)
-		((u16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
+		((__be16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	if (print_info)
 		printk(" %s", print_mac(mac, dev->dev_addr));
@@ -2500,7 +2500,7 @@ boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != 0) {
+			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
@@ -2914,7 +2914,7 @@ static int vortex_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	struct vortex_private *vp = netdev_priv(dev);
 	void __iomem *ioaddr = vp->ioaddr;
 	unsigned long flags;
-	int state = 0;
+	pci_power_t state = 0;
 
 	if(VORTEX_PCI(vp))
 		state = VORTEX_PCI(vp)->current_state;
