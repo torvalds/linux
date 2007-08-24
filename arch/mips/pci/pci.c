@@ -75,7 +75,7 @@ pcibios_align_resource(void *data, struct resource *res,
 	res->start = start;
 }
 
-void __init register_pci_controller(struct pci_controller *hose)
+void __devinit register_pci_controller(struct pci_controller *hose)
 {
 	if (request_resource(&iomem_resource, hose->mem_resource) < 0)
 		goto out;
