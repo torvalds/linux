@@ -1241,7 +1241,6 @@ struct urb
 {
 	/* private: usb core and host controller only fields in the urb */
 	struct kref kref;		/* reference count of the URB */
-	spinlock_t lock;		/* lock for the URB */
 	void *hcpriv;			/* private data for host controller */
 	atomic_t use_count;		/* concurrent submissions counter */
 	u8 reject;			/* submissions will fail */
@@ -1299,7 +1298,6 @@ static inline void usb_fill_control_urb (struct urb *urb,
 					 usb_complete_t complete_fn,
 					 void *context)
 {
-	spin_lock_init(&urb->lock);
 	urb->dev = dev;
 	urb->pipe = pipe;
 	urb->setup_packet = setup_packet;
@@ -1330,7 +1328,6 @@ static inline void usb_fill_bulk_urb (struct urb *urb,
 				      usb_complete_t complete_fn,
 				      void *context)
 {
-	spin_lock_init(&urb->lock);
 	urb->dev = dev;
 	urb->pipe = pipe;
 	urb->transfer_buffer = transfer_buffer;
@@ -1366,7 +1363,6 @@ static inline void usb_fill_int_urb (struct urb *urb,
 				     void *context,
 				     int interval)
 {
-	spin_lock_init(&urb->lock);
 	urb->dev = dev;
 	urb->pipe = pipe;
 	urb->transfer_buffer = transfer_buffer;

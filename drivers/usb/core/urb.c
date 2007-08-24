@@ -39,7 +39,6 @@ void usb_init_urb(struct urb *urb)
 	if (urb) {
 		memset(urb, 0, sizeof(*urb));
 		kref_init(&urb->kref);
-		spin_lock_init(&urb->lock);
 		INIT_LIST_HEAD(&urb->anchor_list);
 	}
 }
@@ -541,19 +540,21 @@ int usb_unlink_urb(struct urb *urb)
  */
 void usb_kill_urb(struct urb *urb)
 {
+	static DEFINE_MUTEX(reject_mutex);
+
 	might_sleep();
 	if (!(urb && urb->dev && urb->ep))
 		return;
-	spin_lock_irq(&urb->lock);
+	mutex_lock(&reject_mutex);
 	++urb->reject;
-	spin_unlock_irq(&urb->lock);
+	mutex_unlock(&reject_mutex);
 
 	usb_hcd_unlink_urb(urb, -ENOENT);
 	wait_event(usb_kill_urb_queue, atomic_read(&urb->use_count) == 0);
 
-	spin_lock_irq(&urb->lock);
+	mutex_lock(&reject_mutex);
 	--urb->reject;
-	spin_unlock_irq(&urb->lock);
+	mutex_unlock(&reject_mutex);
 }
 
 /**
