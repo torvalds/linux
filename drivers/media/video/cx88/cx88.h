@@ -519,7 +519,7 @@ cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 extern int
 cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 		     struct scatterlist *sglist, unsigned int bpl,
-		     unsigned int lines);
+		     unsigned int lines, unsigned int lpi);
 extern int
 cx88_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 		  u32 reg, u32 mask, u32 value);

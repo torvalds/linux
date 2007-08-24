@@ -253,7 +253,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 			goto fail;
 		cx88_risc_databuffer(dev->pci, &buf->risc,
 				     buf->vb.dma.sglist,
-				     buf->vb.width, buf->vb.height);
+				     buf->vb.width, buf->vb.height, 0);
 	}
 	buf->vb.state = STATE_PREPARED;
 	return 0;

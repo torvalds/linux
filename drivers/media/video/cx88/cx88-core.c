@@ -68,13 +68,15 @@ static DEFINE_MUTEX(devlist);
 
 #define NO_SYNC_LINE (-1U)
 
+/* @lpi: lines per IRQ, or 0 to not generate irqs. Note: IRQ to be
+	 generated _after_ lpi lines are transferred. */
 static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
 			    unsigned int bpl, unsigned int padding,
-			    unsigned int lines)
+			    unsigned int lines, unsigned int lpi)
 {
 	struct scatterlist *sg;
-	unsigned int line,todo;
+	unsigned int line,todo,sol;
 
 	/* sync instruction */
 	if (sync_line != NO_SYNC_LINE)
@@ -87,15 +89,19 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			offset -= sg_dma_len(sg);
 			sg++;
 		}
+		if (lpi && line>0 && !(line % lpi))
+			sol = RISC_SOL | RISC_IRQ1 | RISC_CNT_INC;
+		else
+			sol = RISC_SOL;
 		if (bpl <= sg_dma_len(sg)-offset) {
 			/* fits into current chunk */
-			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|RISC_EOL|bpl);
+			*(rp++)=cpu_to_le32(RISC_WRITE|sol|RISC_EOL|bpl);
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			offset+=bpl;
 		} else {
 			/* scanline needs to be split */
 			todo = bpl;
-			*(rp++)=cpu_to_le32(RISC_WRITE|RISC_SOL|
+			*(rp++)=cpu_to_le32(RISC_WRITE|sol|
 					    (sg_dma_len(sg)-offset));
 			*(rp++)=cpu_to_le32(sg_dma_address(sg)+offset);
 			todo -= (sg_dma_len(sg)-offset);
@@ -146,10 +152,10 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	rp = risc->cpu;
 	if (UNSET != top_offset)
 		rp = cx88_risc_field(rp, sglist, top_offset, 0,
-				     bpl, padding, lines);
+				     bpl, padding, lines, 0);
 	if (UNSET != bottom_offset)
 		rp = cx88_risc_field(rp, sglist, bottom_offset, 0x200,
-				     bpl, padding, lines);
+				     bpl, padding, lines, 0);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
@@ -159,7 +165,7 @@ int cx88_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 			 struct scatterlist *sglist, unsigned int bpl,
-			 unsigned int lines)
+			 unsigned int lines, unsigned int lpi)
 {
 	u32 instructions;
 	u32 *rp;
@@ -176,7 +182,7 @@ int cx88_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0, lines);
+	rp = cx88_risc_field(rp, sglist, 0, NO_SYNC_LINE, bpl, 0, lines, lpi);
 
 	/* save pointer to jmp instruction address */
 	risc->jmp = rp;
