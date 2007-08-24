@@ -346,7 +346,7 @@ int cifs_xquota_set(struct super_block *sb, int quota_type, qid_t qid,
 	if (pTcon) {
 		cFYI(1, ("set type: 0x%x id: %d", quota_type, qid));
 	} else {
-		return -EIO;
+		rc = -EIO;
 	}
 
 	FreeXid(xid);
