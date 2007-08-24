@@ -1109,7 +1109,7 @@ static void set_td_timer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 
 /* this function must be called with interrupt disabled */
 static void finish_request(struct r8a66597 *r8a66597, struct r8a66597_td *td,
-		u16 pipenum, struct urb *urb)
+		u16 pipenum, struct urb *urb, int status)
 __releases(r8a66597->lock) __acquires(r8a66597->lock)
 {
 	int restart = 0;
@@ -1118,7 +1118,7 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 	r8a66597->timeout_map &= ~(1 << pipenum);
 
 	if (likely(td)) {
-		if (td->set_address && (urb->status != 0 || urb->unlinked))
+		if (td->set_address && (status != 0 || urb->unlinked))
 			r8a66597->address_map &= ~(1 << urb->setup_packet[2]);
 
 		pipe_toggle_save(r8a66597, td->pipe, urb);
@@ -1135,6 +1135,7 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 
 		usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
 
+		urb->status = status;
 		spin_unlock(&r8a66597->lock);
 		usb_hcd_giveback_urb(hcd, urb);
 		spin_lock(&r8a66597->lock);
@@ -1167,11 +1168,10 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 	fifo_change_from_pipe(r8a66597, td->pipe);
 	tmp = r8a66597_read(r8a66597, td->pipe->fifoctr);
 	if (unlikely((tmp & FRDY) == 0)) {
-		urb->status = -EPIPE;
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, pipenum);
 		err("in fifo not ready (%d)", pipenum);
-		finish_request(r8a66597, td, pipenum, td->urb);
+		finish_request(r8a66597, td, pipenum, td->urb, -EPIPE);
 		return;
 	}
 
@@ -1224,10 +1224,8 @@ static void packet_read(struct r8a66597 *r8a66597, u16 pipenum)
 					   buf, size);
 	}
 
-	if (finish && pipenum != 0) {
-		td->urb->status = status;
-		finish_request(r8a66597, td, pipenum, urb);
-	}
+	if (finish && pipenum != 0)
+		finish_request(r8a66597, td, pipenum, urb, status);
 }
 
 static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
@@ -1245,11 +1243,10 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 	fifo_change_from_pipe(r8a66597, td->pipe);
 	tmp = r8a66597_read(r8a66597, td->pipe->fifoctr);
 	if (unlikely((tmp & FRDY) == 0)) {
-		urb->status = -EPIPE;
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, pipenum);
 		err("out write fifo not ready. (%d)", pipenum);
-		finish_request(r8a66597, td, pipenum, td->urb);
+		finish_request(r8a66597, td, pipenum, urb, -EPIPE);
 		return;
 	}
 
@@ -1294,7 +1291,7 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 }
 
 
-static void check_next_phase(struct r8a66597 *r8a66597)
+static void check_next_phase(struct r8a66597 *r8a66597, int status)
 {
 	struct r8a66597_td *td = r8a66597_get_td(r8a66597, 0);
 	struct urb *urb;
@@ -1320,28 +1317,28 @@ static void check_next_phase(struct r8a66597 *r8a66597)
 		break;
 	case USB_PID_ACK:
 		finish = 1;
-		urb->status = 0;
 		break;
 	}
 
-	if (finish || urb->unlinked)
-		finish_request(r8a66597, td, 0, urb);
+	if (finish || status != 0 || urb->unlinked)
+		finish_request(r8a66597, td, 0, urb, status);
 	else
 		start_transfer(r8a66597, td);
 }
 
-static void set_urb_error(struct r8a66597 *r8a66597, u16 pipenum)
+static int get_urb_error(struct r8a66597 *r8a66597, u16 pipenum)
 {
 	struct r8a66597_td *td = r8a66597_get_td(r8a66597, pipenum);
 
-	if (td && td->urb) {
+	if (td) {
 		u16 pid = r8a66597_read(r8a66597, td->pipe->pipectr) & PID;
 
 		if (pid == PID_NAK)
-			td->urb->status = -ECONNRESET;
+			return -ECONNRESET;
 		else
-			td->urb->status = -EPIPE;
+			return -EPIPE;
 	}
+	return 0;
 }
 
 static void irq_pipe_ready(struct r8a66597 *r8a66597)
@@ -1360,7 +1357,7 @@ static void irq_pipe_ready(struct r8a66597 *r8a66597)
 			packet_read(r8a66597, 0);
 		else
 			pipe_irq_disable(r8a66597, 0);
-		check_next_phase(r8a66597);
+		check_next_phase(r8a66597, 0);
 	}
 
 	for (pipenum = 1; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
@@ -1394,7 +1391,7 @@ static void irq_pipe_empty(struct r8a66597 *r8a66597)
 		td = r8a66597_get_td(r8a66597, 0);
 		if (td && td->type != USB_PID_OUT)
 			disable_irq_empty(r8a66597, 0);
-		check_next_phase(r8a66597);
+		check_next_phase(r8a66597, 0);
 	}
 
 	for (pipenum = 1; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
@@ -1409,8 +1406,8 @@ static void irq_pipe_empty(struct r8a66597 *r8a66597)
 			if ((tmp & INBUFM) == 0) {
 				disable_irq_empty(r8a66597, pipenum);
 				pipe_irq_disable(r8a66597, pipenum);
-				td->urb->status = 0;
-				finish_request(r8a66597, td, pipenum, td->urb);
+				finish_request(r8a66597, td, pipenum, td->urb,
+						0);
 			}
 		}
 	}
@@ -1421,15 +1418,16 @@ static void irq_pipe_nrdy(struct r8a66597 *r8a66597)
 	u16 check;
 	u16 pipenum;
 	u16 mask;
+	int status;
 
 	mask = r8a66597_read(r8a66597, NRDYSTS)
 	       & r8a66597_read(r8a66597, NRDYENB);
 	r8a66597_write(r8a66597, ~mask, NRDYSTS);
 	if (mask & NRDY0) {
 		cfifo_change(r8a66597, 0);
-		set_urb_error(r8a66597, 0);
+		status = get_urb_error(r8a66597, 0);
 		pipe_irq_disable(r8a66597, 0);
-		check_next_phase(r8a66597);
+		check_next_phase(r8a66597, status);
 	}
 
 	for (pipenum = 1; pipenum < R8A66597_MAX_NUM_PIPE; pipenum++) {
@@ -1440,10 +1438,10 @@ static void irq_pipe_nrdy(struct r8a66597 *r8a66597)
 			if (unlikely(!td))
 				continue;
 
-			set_urb_error(r8a66597, pipenum);
+			status = get_urb_error(r8a66597, pipenum);
 			pipe_irq_disable(r8a66597, pipenum);
 			pipe_stop(r8a66597, td->pipe);
-			finish_request(r8a66597, td, pipenum, td->urb);
+			finish_request(r8a66597, td, pipenum, td->urb, status);
 		}
 	}
 }
@@ -1463,6 +1461,7 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 	u16 intsts0, intsts1, intsts2;
 	u16 intenb0, intenb1, intenb2;
 	u16 mask0, mask1, mask2;
+	int status;
 
 	spin_lock(&r8a66597->lock);
 
@@ -1506,12 +1505,12 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 		}
 		if (mask1 & SIGN) {
 			r8a66597_write(r8a66597, ~SIGN, INTSTS1);
-			set_urb_error(r8a66597, 0);
-			check_next_phase(r8a66597);
+			status = get_urb_error(r8a66597, 0);
+			check_next_phase(r8a66597, status);
 		}
 		if (mask1 & SACK) {
 			r8a66597_write(r8a66597, ~SACK, INTSTS1);
-			check_next_phase(r8a66597);
+			check_next_phase(r8a66597, 0);
 		}
 	}
 	if (mask0) {
@@ -1790,7 +1789,7 @@ static int r8a66597_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 		pipe_stop(r8a66597, td->pipe);
 		pipe_irq_disable(r8a66597, td->pipenum);
 		disable_irq_empty(r8a66597, td->pipenum);
-		finish_request(r8a66597, td, td->pipenum, urb);
+		finish_request(r8a66597, td, td->pipenum, urb, status);
 	}
  done:
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
@@ -1824,7 +1823,7 @@ static void r8a66597_endpoint_disable(struct usb_hcd *hcd,
 	td = r8a66597_get_td(r8a66597, pipenum);
 	if (td)
 		urb = td->urb;
-	finish_request(r8a66597, td, pipenum, urb);
+	finish_request(r8a66597, td, pipenum, urb, -ESHUTDOWN);
 	kfree(hep->hcpriv);
 	hep->hcpriv = NULL;
 	spin_unlock_irqrestore(&r8a66597->lock, flags);
