@@ -233,8 +233,9 @@ static int acpi_event_genetlink_init(void)
 }
 
 #else
-int acpi_bus_generate_netlink_event(struct acpi_device *device, u8 type,
-				      int data)
+int acpi_bus_generate_netlink_event(const char *device_class,
+				      const char *bus_id,
+				      u8 type, int data)
 {
 	return 0;
 }
