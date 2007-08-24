@@ -661,6 +661,27 @@ static int tuner_probe(struct i2c_adapter *adap)
 		normal_i2c[1] = I2C_CLIENT_END;
 	}
 
+	/* HACK: Ignore 0x6b and 0x6f on cx88 boards.
+	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
+	 * and an RTC at 0x6f which can get corrupted if probed.
+	 */
+	if (adap->id == I2C_HW_B_CX2388x) {
+		unsigned int i = 0;
+
+		while (i < I2C_CLIENT_MAX_OPTS && ignore[i] != I2C_CLIENT_END)
+			i += 2;
+		if (i + 4 < I2C_CLIENT_MAX_OPTS) {
+			ignore[i+0] = adap->nr;
+			ignore[i+1] = 0x6b;
+			ignore[i+2] = adap->nr;
+			ignore[i+3] = 0x6f;
+			ignore[i+4] = I2C_CLIENT_END;
+		} else
+			printk(KERN_WARNING "tuner: "
+			       "too many options specified "
+			       "in i2c probe ignore list!\n");
+	}
+
 	default_mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
 
 	if (adap->class & I2C_CLASS_TV_ANALOG)
