@@ -1627,7 +1627,7 @@ itd_complete (
 
 	/* give urb back to the driver ... can be out-of-order */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb);
+	ehci_urb_done(ehci, urb, 0);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -2000,7 +2000,7 @@ sitd_complete (
 
 	/* give urb back to the driver */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb);
+	ehci_urb_done(ehci, urb, 0);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
