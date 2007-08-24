@@ -12,23 +12,24 @@
  *	This program is free software; you can redistribute it and/or modify
  *  	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, version 2.
+ *
+ * Updated: Yuichi Nakamura <ynakam@hitachisoft.jp>
+ * 	Tuned number of hash slots for avtab to reduce memory usage
  */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/errno.h>
-
 #include "avtab.h"
 #include "policydb.h"
 
-#define AVTAB_HASH(keyp) \
-((keyp->target_class + \
- (keyp->target_type << 2) + \
- (keyp->source_type << 9)) & \
- AVTAB_HASH_MASK)
-
 static struct kmem_cache *avtab_node_cachep;
+
+static inline int avtab_hash(struct avtab_key *keyp, u16 mask)
+{
+	return ((keyp->target_class + (keyp->target_type << 2) +
+		 (keyp->source_type << 9)) & mask);
+}
 
 static struct avtab_node*
 avtab_insert_node(struct avtab *h, int hvalue,
@@ -59,10 +60,10 @@ static int avtab_insert(struct avtab *h, struct avtab_key *key, struct avtab_dat
 	struct avtab_node *prev, *cur, *newnode;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->htable)
 		return -EINVAL;
 
-	hvalue = AVTAB_HASH(key);
+	hvalue = avtab_hash(key, h->mask);
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
@@ -100,9 +101,9 @@ avtab_insert_nonunique(struct avtab * h, struct avtab_key * key, struct avtab_da
 	struct avtab_node *prev, *cur, *newnode;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->htable)
 		return NULL;
-	hvalue = AVTAB_HASH(key);
+	hvalue = avtab_hash(key, h->mask);
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
@@ -132,10 +133,10 @@ struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->htable)
 		return NULL;
 
-	hvalue = AVTAB_HASH(key);
+	hvalue = avtab_hash(key, h->mask);
 	for (cur = h->htable[hvalue]; cur; cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
@@ -167,10 +168,10 @@ avtab_search_node(struct avtab *h, struct avtab_key *key)
 	struct avtab_node *cur;
 	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
 
-	if (!h)
+	if (!h || !h->htable)
 		return NULL;
 
-	hvalue = AVTAB_HASH(key);
+	hvalue = avtab_hash(key, h->mask);
 	for (cur = h->htable[hvalue]; cur; cur = cur->next) {
 		if (key->source_type == cur->key.source_type &&
 		    key->target_type == cur->key.target_type &&
@@ -228,7 +229,7 @@ void avtab_destroy(struct avtab *h)
 	if (!h || !h->htable)
 		return;
 
-	for (i = 0; i < AVTAB_SIZE; i++) {
+	for (i = 0; i < h->nslot; i++) {
 		cur = h->htable[i];
 		while (cur != NULL) {
 			temp = cur;
@@ -237,32 +238,63 @@ void avtab_destroy(struct avtab *h)
 		}
 		h->htable[i] = NULL;
 	}
-	vfree(h->htable);
+	kfree(h->htable);
 	h->htable = NULL;
+	h->nslot = 0;
+	h->mask = 0;
 }
-
 
 int avtab_init(struct avtab *h)
 {
-	int i;
+	h->htable = NULL;
+	h->nel = 0;
+	return 0;
+}
 
-	h->htable = vmalloc(sizeof(*(h->htable)) * AVTAB_SIZE);
+int avtab_alloc(struct avtab *h, u32 nrules)
+{
+	u16 mask = 0;
+	u32 shift = 0;
+	u32 work = nrules;
+	u32 nslot = 0;
+
+	if (nrules == 0)
+		goto avtab_alloc_out;
+
+	while (work) {
+		work  = work >> 1;
+		shift++;
+	}
+	if (shift > 2)
+		shift = shift - 2;
+	nslot = 1 << shift;
+	if (nslot > MAX_AVTAB_SIZE)
+		nslot = MAX_AVTAB_SIZE;
+	mask = nslot - 1;
+
+	h->htable = kcalloc(nslot, sizeof(*(h->htable)), GFP_KERNEL);
 	if (!h->htable)
 		return -ENOMEM;
-	for (i = 0; i < AVTAB_SIZE; i++)
-		h->htable[i] = NULL;
+
+ avtab_alloc_out:
 	h->nel = 0;
+	h->nslot = nslot;
+	h->mask = mask;
+	printk(KERN_DEBUG "SELinux:%d avtab hash slots allocated."
+	       "Num of rules:%d\n", h->nslot, nrules);
 	return 0;
 }
 
 void avtab_hash_eval(struct avtab *h, char *tag)
 {
 	int i, chain_len, slots_used, max_chain_len;
+	unsigned long long chain2_len_sum;
 	struct avtab_node *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
-	for (i = 0; i < AVTAB_SIZE; i++) {
+	chain2_len_sum = 0;
+	for (i = 0; i < h->nslot; i++) {
 		cur = h->htable[i];
 		if (cur) {
 			slots_used++;
@@ -274,12 +306,14 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 
 			if (chain_len > max_chain_len)
 				max_chain_len = chain_len;
+			chain2_len_sum += chain_len * chain_len;
 		}
 	}
 
 	printk(KERN_DEBUG "%s:  %d entries and %d/%d buckets used, longest "
-	       "chain length %d\n", tag, h->nel, slots_used, AVTAB_SIZE,
-	       max_chain_len);
+	       "chain length %d sum of chain length^2 %Lu\n",
+	       tag, h->nel, slots_used, h->nslot, max_chain_len,
+	       chain2_len_sum);
 }
 
 static uint16_t spec_order[] = {
@@ -419,6 +453,11 @@ int avtab_read(struct avtab *a, void *fp, u32 vers)
 		rc = -EINVAL;
 		goto bad;
 	}
+
+	rc = avtab_alloc(a, nel);
+	if (rc)
+		goto bad;
+
 	for (i = 0; i < nel; i++) {
 		rc = avtab_read_item(fp,vers, a, avtab_insertf, NULL);
 		if (rc) {

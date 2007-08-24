@@ -456,6 +456,10 @@ int cond_read_list(struct policydb *p, void *fp)
 
 	len = le32_to_cpu(buf[0]);
 
+	rc = avtab_alloc(&(p->te_cond_avtab), p->te_avtab.nel);
+	if (rc)
+		goto err;
+
 	for (i = 0; i < len; i++) {
 		node = kzalloc(sizeof(struct cond_node), GFP_KERNEL);
 		if (!node)

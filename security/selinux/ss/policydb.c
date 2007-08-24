@@ -177,17 +177,14 @@ static int policydb_init(struct policydb *p)
 
 	rc = roles_init(p);
 	if (rc)
-		goto out_free_avtab;
+		goto out_free_symtab;
 
 	rc = cond_policydb_init(p);
 	if (rc)
-		goto out_free_avtab;
+		goto out_free_symtab;
 
 out:
 	return rc;
-
-out_free_avtab:
-	avtab_destroy(&p->te_avtab);
 
 out_free_symtab:
 	for (i = 0; i < SYM_NUM; i++)
