@@ -306,6 +306,8 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 		delta = min(cfs_rq->sleeper_bonus, (u64)delta_exec);
 		delta = calc_delta_mine(delta, curr->load.weight, lw);
 		delta = min((u64)delta, cfs_rq->sleeper_bonus);
+		delta = min(delta, (unsigned long)(
+			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
 		cfs_rq->sleeper_bonus -= delta;
 		delta_mine -= delta;
 	}
@@ -493,6 +495,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	unsigned long load = cfs_rq->load.weight, delta_fair;
 	long prev_runtime;
 
+	/*
+	 * Do not boost sleepers if there's too much bonus 'in flight'
+	 * already:
+	 */
+	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
+		return;
+
 	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_LOAD_AVG)
 		load = rq_of(cfs_rq)->cpu_load[2];
 
@@ -512,16 +521,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
+	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	delta_fair = se->wait_runtime - prev_runtime;
 
 	/*
 	 * Track the amount of bonus we've given to sleepers:
 	 */
 	cfs_rq->sleeper_bonus += delta_fair;
-	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
-		cfs_rq->sleeper_bonus = sysctl_sched_runtime_limit;
-
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
