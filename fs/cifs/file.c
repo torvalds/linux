@@ -767,7 +767,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 			mutex_lock(&fid->lock_mutex);
 			list_for_each_entry_safe(li, tmp, &fid->llist, llist) {
 				if (pfLock->fl_start <= li->offset &&
-						(pflock->fl_start + length) >=
+						(pfLock->fl_start + length) >=
 						(li->offset + li->length)) {
 					stored_rc = CIFSSMBLock(xid, pTcon,
 							netfid,
