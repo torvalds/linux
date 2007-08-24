@@ -85,6 +85,163 @@
 static int velocity_nics = 0;
 static int msglevel = MSG_LEVEL_INFO;
 
+/**
+ *	mac_get_cam_mask	-	Read a CAM mask
+ *	@regs: register block for this velocity
+ *	@mask: buffer to store mask
+ *
+ *	Fetch the mask bits of the selected CAM and store them into the
+ *	provided mask buffer.
+ */
+
+static void mac_get_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* read mask */
+	for (i = 0; i < 8; i++)
+		*mask++ = readb(&(regs->MARCAM[i]));
+
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+}
+
+
+/**
+ *	mac_set_cam_mask	-	Set a CAM mask
+ *	@regs: register block for this velocity
+ *	@mask: CAM mask to load
+ *
+ *	Store a new mask into a CAM
+ */
+
+static void mac_set_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(CAMADDR_CAMEN, &regs->CAMADDR);
+
+	for (i = 0; i < 8; i++) {
+		writeb(*mask++, &(regs->MARCAM[i]));
+	}
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+static void mac_set_vlan_cam_mask(struct mac_regs __iomem * regs, u8 * mask)
+{
+	int i;
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_MASK, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	writeb(CAMADDR_CAMEN | CAMADDR_VCAMSL, &regs->CAMADDR);
+
+	for (i = 0; i < 8; i++) {
+		writeb(*mask++, &(regs->MARCAM[i]));
+	}
+	/* disable CAMEN */
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+/**
+ *	mac_set_cam	-	set CAM data
+ *	@regs: register block of this velocity
+ *	@idx: Cam index
+ *	@addr: 2 or 6 bytes of CAM data
+ *
+ *	Load an address or vlan tag into a CAM
+ */
+
+static void mac_set_cam(struct mac_regs __iomem * regs, int idx, const u8 *addr)
+{
+	int i;
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_DATA, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	idx &= (64 - 1);
+
+	writeb(CAMADDR_CAMEN | idx, &regs->CAMADDR);
+
+	for (i = 0; i < 6; i++) {
+		writeb(*addr++, &(regs->MARCAM[i]));
+	}
+	BYTE_REG_BITS_ON(CAMCR_CAMWR, &regs->CAMCR);
+
+	udelay(10);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+static void mac_set_vlan_cam(struct mac_regs __iomem * regs, int idx,
+			     const u8 *addr)
+{
+
+	/* Select CAM mask */
+	BYTE_REG_BITS_SET(CAMCR_PS_CAM_DATA, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+
+	idx &= (64 - 1);
+
+	writeb(CAMADDR_CAMEN | CAMADDR_VCAMSL | idx, &regs->CAMADDR);
+	writew(*((u16 *) addr), &regs->MARCAM[0]);
+
+	BYTE_REG_BITS_ON(CAMCR_CAMWR, &regs->CAMCR);
+
+	udelay(10);
+
+	writeb(0, &regs->CAMADDR);
+
+	/* Select mar */
+	BYTE_REG_BITS_SET(CAMCR_PS_MAR, CAMCR_PS1 | CAMCR_PS0, &regs->CAMCR);
+}
+
+
+/**
+ *	mac_wol_reset	-	reset WOL after exiting low power
+ *	@regs: register block of this velocity
+ *
+ *	Called after we drop out of wake on lan mode in order to
+ *	reset the Wake on lan features. This function doesn't restore
+ *	the rest of the logic from the result of sleep/wakeup
+ */
+
+static void mac_wol_reset(struct mac_regs __iomem * regs)
+{
+
+	/* Turn off SWPTAG right after leaving power mode */
+	BYTE_REG_BITS_OFF(STICKHW_SWPTAG, &regs->STICKHW);
+	/* clear sticky bits */
+	BYTE_REG_BITS_OFF((STICKHW_DS1 | STICKHW_DS0), &regs->STICKHW);
+
+	BYTE_REG_BITS_OFF(CHIPGCR_FCGMII, &regs->CHIPGCR);
+	BYTE_REG_BITS_OFF(CHIPGCR_FCMODE, &regs->CHIPGCR);
+	/* disable force PME-enable */
+	writeb(WOLCFG_PMEOVR, &regs->WOLCFGClr);
+	/* disable power-event config bit */
+	writew(0xFFFF, &regs->WOLCRClr);
+	/* clear power status */
+	writew(0xFFFF, &regs->WOLSRClr);
+}
 
 static int velocity_mii_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static const struct ethtool_ops velocity_ethtool_ops;
@@ -309,7 +466,7 @@ MODULE_DEVICE_TABLE(pci, velocity_id_table);
  *	a pointer a static string valid while the driver is loaded.
  */
 
-static char __devinit *get_chip_name(enum chip_type chip_id)
+static const char __devinit *get_chip_name(enum chip_type chip_id)
 {
 	int i;
 	for (i = 0; chip_info_table[i].name != NULL; i++)
@@ -458,8 +615,8 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	/* Disable all CAMs */
 	memset(vptr->vCAMmask, 0, sizeof(u8) * 8);
 	memset(vptr->mCAMmask, 0, sizeof(u8) * 8);
-	mac_set_cam_mask(regs, vptr->vCAMmask, VELOCITY_VLAN_ID_CAM);
-	mac_set_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
+	mac_set_cam_mask(regs, vptr->mCAMmask);
 
 	/* Enable first VCAM */
 	if (vptr->vlgrp) {
@@ -471,17 +628,16 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 				if (vid != 0)
 					WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
 
-				mac_set_cam(regs, 0, (u8 *) &vid,
-					    VELOCITY_VLAN_ID_CAM);
+				mac_set_vlan_cam(regs, 0, (u8 *) &vid);
 			}
 		}
 		vptr->vCAMmask[0] |= 1;
-		mac_set_cam_mask(regs, vptr->vCAMmask, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 	} else {
 		u16 temp = 0;
-		mac_set_cam(regs, 0, (u8 *) &temp, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam(regs, 0, (u8 *) &temp);
 		temp = 1;
-		mac_set_cam_mask(regs, (u8 *) &temp, VELOCITY_VLAN_ID_CAM);
+		mac_set_vlan_cam_mask(regs, (u8 *) &temp);
 	}
 }
 
@@ -2131,14 +2287,14 @@ static void velocity_set_multi(struct net_device *dev)
 		rx_mode = (RCR_AM | RCR_AB);
 	} else {
 		int offset = MCAM_SIZE - vptr->multicast_limit;
-		mac_get_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+		mac_get_cam_mask(regs, vptr->mCAMmask);
 
 		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count; i++, mclist = mclist->next) {
-			mac_set_cam(regs, i + offset, mclist->dmi_addr, VELOCITY_MULTICAST_CAM);
+			mac_set_cam(regs, i + offset, mclist->dmi_addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
 		}
 
-		mac_set_cam_mask(regs, vptr->mCAMmask, VELOCITY_MULTICAST_CAM);
+		mac_set_cam_mask(regs, vptr->mCAMmask);
 		rx_mode = (RCR_AM | RCR_AB);
 	}
 	if (dev->mtu > 1500)
