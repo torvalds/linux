@@ -795,8 +795,8 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 }
 
 
-static void dvb_net_sec(struct net_device *dev, const u8 *pkt, int
-pkt_len)
+static void dvb_net_sec(struct net_device *dev,
+			const u8 *pkt, int pkt_len)
 {
 	u8 *eth;
 	struct sk_buff *skb;
