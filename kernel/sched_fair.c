@@ -303,8 +303,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
 	if (cfs_rq->sleeper_bonus > sysctl_sched_granularity) {
-		delta = min(cfs_rq->sleeper_bonus, (u64)delta_exec);
-		delta = calc_delta_mine(delta, curr->load.weight, lw);
+		delta = calc_delta_mine(delta_exec, curr->load.weight, lw);
 		delta = min((u64)delta, cfs_rq->sleeper_bonus);
 		delta = min(delta, (unsigned long)(
 			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
