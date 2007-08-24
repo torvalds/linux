@@ -545,6 +545,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x413C, 0x4009) }, /* Dell Axim USB Sync */
 	{ USB_DEVICE(0x4505, 0x0010) }, /* Smartphone */
 	{ USB_DEVICE(0x5E04, 0xCE00) }, /* SAGEM Wireless Assistant */
+	{ USB_DEVICE(0x0BB4, 0x00CF) }, /* HTC smartphone modems */
 	{ }                             /* Terminating entry */
 };
 

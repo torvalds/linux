@@ -599,7 +599,6 @@ enum fsg_buffer_state {
 
 struct fsg_buffhd {
 	void				*buf;
-	dma_addr_t			dma;
 	enum fsg_buffer_state		state;
 	struct fsg_buffhd		*next;
 
@@ -1295,6 +1294,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 	struct usb_request	*req = fsg->ep0req;
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
+	u16                     w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
 	if (!fsg->config)
@@ -1308,7 +1308,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			if (ctrl->bRequestType != (USB_DIR_OUT |
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 				break;
-			if (w_index != 0) {
+			if (w_index != 0 || w_value != 0) {
 				value = -EDOM;
 				break;
 			}
@@ -1324,7 +1324,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			if (ctrl->bRequestType != (USB_DIR_IN |
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 				break;
-			if (w_index != 0) {
+			if (w_index != 0 || w_value != 0) {
 				value = -EDOM;
 				break;
 			}
@@ -1343,7 +1343,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			if (ctrl->bRequestType != (USB_DIR_OUT |
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 				break;
-			if (w_index != 0) {
+			if (w_index != 0 || w_value != 0) {
 				value = -EDOM;
 				break;
 			}
@@ -2611,7 +2611,6 @@ static int send_status(struct fsg_dev *fsg)
 
 		fsg->intr_buffhd = bh;		// Point to the right buffhd
 		fsg->intreq->buf = bh->inreq->buf;
-		fsg->intreq->dma = bh->inreq->dma;
 		fsg->intreq->context = bh;
 		start_transfer(fsg, fsg->intr_in, fsg->intreq,
 				&fsg->intreq_busy, &bh->state);
@@ -3200,7 +3199,6 @@ reset:
 		if ((rc = alloc_request(fsg, fsg->bulk_out, &bh->outreq)) != 0)
 			goto reset;
 		bh->inreq->buf = bh->outreq->buf = bh->buf;
-		bh->inreq->dma = bh->outreq->dma = bh->dma;
 		bh->inreq->context = bh->outreq->context = bh;
 		bh->inreq->complete = bulk_in_complete;
 		bh->outreq->complete = bulk_out_complete;

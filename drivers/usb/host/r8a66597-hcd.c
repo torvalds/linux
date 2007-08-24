@@ -2208,8 +2208,6 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 clean_up:
 	if (reg)
 		iounmap(reg);
-	if (res)
-		release_mem_region(res->start, 1);
 
 	return ret;
 }

@@ -6,7 +6,7 @@
  * Bus Glue for PPC On-Chip EHCI driver
  * Tested on AMCC 440EPx
  *
- * Based on "ehci-au12xx.c" by David Brownell <dbrownell@users.sourceforge.net>
+ * Based on "ehci-au1xxx.c" by K.Boge <karsten.boge@amd.com>
  *
  * This file is licenced under the GPL.
  */
@@ -14,6 +14,24 @@
 #include <linux/platform_device.h>
 
 extern int usb_disabled(void);
+
+/* called during probe() after chip reset completes */
+static int ehci_ppc_soc_setup(struct usb_hcd *hcd)
+{
+	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+	int		retval;
+
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
+
+	retval = ehci_init(hcd);
+	if (retval)
+		return retval;
+
+	ehci->sbrn = 0x20;
+	return ehci_reset(ehci);
+}
 
 /**
  * usb_ehci_ppc_soc_probe - initialize PPC-SoC-based HCDs
@@ -120,7 +138,7 @@ static const struct hc_driver ehci_ppc_soc_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset = ehci_init,
+	.reset = ehci_ppc_soc_setup,
 	.start = ehci_run,
 	.stop = ehci_stop,
 	.shutdown = ehci_shutdown,

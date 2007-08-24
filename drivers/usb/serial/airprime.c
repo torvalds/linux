@@ -18,7 +18,6 @@
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x0c88, 0x17da) }, /* Kyocera Wireless KPC650/Passport */
-	{ USB_DEVICE(0x413c, 0x8115) }, /* Dell Wireless HSDPA 5500 */
 	{ },
 };
 MODULE_DEVICE_TABLE(usb, id_table);

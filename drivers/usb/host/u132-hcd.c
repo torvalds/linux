@@ -1520,11 +1520,14 @@ static void u132_hcd_endp_work_scheduler(struct work_struct *work)
                 }
         }
 }
+#ifdef CONFIG_PM
 
 static void port_power(struct u132 *u132, int pn, int is_on)
 {
         u132->port[pn].power = is_on;
 }
+
+#endif
 
 static void u132_power(struct u132 *u132, int is_on)
 {

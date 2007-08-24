@@ -74,7 +74,7 @@ urb_print (struct urb * urb, char * str, int small)
 
 #define ohci_dbg_sw(ohci, next, size, format, arg...) \
 	do { \
-	if (next) { \
+	if (next != NULL) { \
 		unsigned s_len; \
 		s_len = scnprintf (*next, *size, format, ## arg ); \
 		*size -= s_len; *next += s_len; \
