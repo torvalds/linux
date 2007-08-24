@@ -1047,7 +1047,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * -granularity/2, so initialize the task with that:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
-		p->se.wait_runtime = -(sysctl_sched_granularity / 2);
+		p->se.wait_runtime = -((long)sysctl_sched_granularity / 2);
 
 	__enqueue_entity(cfs_rq, se);
 }
