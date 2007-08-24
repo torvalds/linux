@@ -2180,12 +2180,6 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	if (task_running(rq, p))
 		return 0;
 
-	/*
-	 * Aggressive migration if too many balance attempts have failed:
-	 */
-	if (sd->nr_balance_failed > sd->cache_nice_tries)
-		return 1;
-
 	return 1;
 }
 
@@ -4923,7 +4917,7 @@ static inline void sched_init_granularity(void)
 	if (sysctl_sched_granularity > gran_limit)
 		sysctl_sched_granularity = gran_limit;
 
-	sysctl_sched_runtime_limit = sysctl_sched_granularity * 8;
+	sysctl_sched_runtime_limit = sysctl_sched_granularity * 5;
 	sysctl_sched_wakeup_granularity = sysctl_sched_granularity / 2;
 }
 

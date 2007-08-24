@@ -19,7 +19,7 @@
 
 /*
  * Preemption granularity:
- * (default: 2 msec, units: nanoseconds)
+ * (default: 10 msec, units: nanoseconds)
  *
  * NOTE: this granularity value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS will typically be somewhat
@@ -31,18 +31,17 @@
  * number of CPUs. (i.e. factor 2x on 2-way systems, 3x on 4-way
  * systems, 4x on 8-way systems, 5x on 16-way systems, etc.)
  */
-unsigned int sysctl_sched_granularity __read_mostly = 2000000000ULL/HZ;
+unsigned int sysctl_sched_granularity __read_mostly = 10000000UL;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 10 msec, units: nanoseconds)
+ * (default: 25 msec, units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
-							10000000000ULL/HZ;
+unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly = 25000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
@@ -52,12 +51,12 @@ unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000000ULL/HZ;
+unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000UL;
 
 unsigned int sysctl_sched_stat_granularity __read_mostly;
 
 /*
- * Initialized in sched_init_granularity():
+ * Initialized in sched_init_granularity() [to 5 times the base granularity]:
  */
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 
@@ -304,9 +303,9 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
 	if (cfs_rq->sleeper_bonus > sysctl_sched_granularity) {
-		delta = min(cfs_rq->sleeper_bonus, (u64)delta_exec);
-		delta = calc_delta_mine(delta, curr->load.weight, lw);
-		delta = min((u64)delta, cfs_rq->sleeper_bonus);
+		delta = min((u64)delta_mine, cfs_rq->sleeper_bonus);
+		delta = min(delta, (unsigned long)(
+			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
 		cfs_rq->sleeper_bonus -= delta;
 		delta_mine -= delta;
 	}
@@ -494,6 +493,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	unsigned long load = cfs_rq->load.weight, delta_fair;
 	long prev_runtime;
 
+	/*
+	 * Do not boost sleepers if there's too much bonus 'in flight'
+	 * already:
+	 */
+	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
+		return;
+
 	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_LOAD_AVG)
 		load = rq_of(cfs_rq)->cpu_load[2];
 
@@ -513,16 +519,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
+	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	delta_fair = se->wait_runtime - prev_runtime;
 
 	/*
 	 * Track the amount of bonus we've given to sleepers:
 	 */
 	cfs_rq->sleeper_bonus += delta_fair;
-	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
-		cfs_rq->sleeper_bonus = sysctl_sched_runtime_limit;
-
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -1044,7 +1047,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * -granularity/2, so initialize the task with that:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
-		p->se.wait_runtime = -(sysctl_sched_granularity / 2);
+		p->se.wait_runtime = -((long)sysctl_sched_granularity / 2);
 
 	__enqueue_entity(cfs_rq, se);
 }
@@ -1057,7 +1060,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
  */
 static void set_curr_task_fair(struct rq *rq)
 {
-	struct sched_entity *se = &rq->curr.se;
+	struct sched_entity *se = &rq->curr->se;
 
 	for_each_sched_entity(se)
 		set_next_entity(cfs_rq_of(se), se);
