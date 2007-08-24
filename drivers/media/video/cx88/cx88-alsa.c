@@ -95,7 +95,6 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
-static struct snd_card *snd_cx88_cards[SNDRV_CARDS];
 
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable cx88x soundcard. default enabled.");
@@ -759,8 +758,6 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 		snd_card_free(card);
 		return (err);
 	}
-	snd_cx88_cards[devno] = card;
-
 	pci_set_drvdata(pci,card);
 
 	devno++;
