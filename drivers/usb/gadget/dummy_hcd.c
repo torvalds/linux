@@ -1026,16 +1026,10 @@ static int dummy_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	return rc;
 }
 
-static void maybe_set_status (struct urb *urb, int status)
-{
-	spin_lock (&urb->lock);
-	urb->status = status;
-	spin_unlock (&urb->lock);
-}
-
 /* transfer up to a frame's worth; caller must own lock */
 static int
-transfer (struct dummy *dum, struct urb *urb, struct dummy_ep *ep, int limit)
+transfer(struct dummy *dum, struct urb *urb, struct dummy_ep *ep, int limit,
+		int *status)
 {
 	struct dummy_request	*req;
 
@@ -1103,15 +1097,15 @@ top:
 		if (is_short) {
 			if (host_len == dev_len) {
 				req->req.status = 0;
-				maybe_set_status (urb, 0);
+				*status = 0;
 			} else if (to_host) {
 				req->req.status = 0;
 				if (dev_len > host_len)
-					maybe_set_status (urb, -EOVERFLOW);
+					*status = -EOVERFLOW;
 				else
-					maybe_set_status (urb, 0);
+					*status = 0;
 			} else if (!to_host) {
-				maybe_set_status (urb, 0);
+				*status = 0;
 				if (host_len > dev_len)
 					req->req.status = -EOVERFLOW;
 				else
@@ -1125,9 +1119,8 @@ top:
 				req->req.status = 0;
 			if (urb->transfer_buffer_length == urb->actual_length
 					&& !(urb->transfer_flags
-						& URB_ZERO_PACKET)) {
-				maybe_set_status (urb, 0);
-			}
+						& URB_ZERO_PACKET))
+				*status = 0;
 		}
 
 		/* device side completion --> continuable */
@@ -1143,7 +1136,7 @@ top:
 		}
 
 		/* host side completion --> terminate */
-		if (urb->status != -EINPROGRESS)
+		if (*status != -EINPROGRESS)
 			break;
 
 		/* rescan to continue with any other queued i/o */
@@ -1254,6 +1247,7 @@ restart:
 		u8			address;
 		struct dummy_ep		*ep = NULL;
 		int			type;
+		int			status = -EINPROGRESS;
 
 		urb = urbp->urb;
 		if (urb->unlinked)
@@ -1279,7 +1273,7 @@ restart:
 			dev_dbg (dummy_dev(dum),
 				"no ep configured for urb %p\n",
 				urb);
-			maybe_set_status (urb, -EPROTO);
+			status = -EPROTO;
 			goto return_urb;
 		}
 
@@ -1294,7 +1288,7 @@ restart:
 			/* NOTE: must not be iso! */
 			dev_dbg (dummy_dev(dum), "ep %s halted, urb %p\n",
 					ep->ep.name, urb);
-			maybe_set_status (urb, -EPIPE);
+			status = -EPIPE;
 			goto return_urb;
 		}
 		/* FIXME make sure both ends agree on maxpacket */
@@ -1312,7 +1306,7 @@ restart:
 			w_value = le16_to_cpu(setup.wValue);
 			if (le16_to_cpu(setup.wLength) !=
 					urb->transfer_buffer_length) {
-				maybe_set_status (urb, -EOVERFLOW);
+				status = -EOVERFLOW;
 				goto return_urb;
 			}
 
@@ -1342,7 +1336,7 @@ restart:
 				if (setup.bRequestType != Dev_Request)
 					break;
 				dum->address = w_value;
-				maybe_set_status (urb, 0);
+				status = 0;
 				dev_dbg (udc_dev(dum), "set_address = %d\n",
 						w_value);
 				value = 0;
@@ -1369,7 +1363,7 @@ restart:
 					if (value == 0) {
 						dum->devstatus |=
 							(1 << w_value);
-						maybe_set_status (urb, 0);
+						status = 0;
 					}
 
 				} else if (setup.bRequestType == Ep_Request) {
@@ -1381,7 +1375,7 @@ restart:
 					}
 					ep2->halted = 1;
 					value = 0;
-					maybe_set_status (urb, 0);
+					status = 0;
 				}
 				break;
 			case USB_REQ_CLEAR_FEATURE:
@@ -1391,7 +1385,7 @@ restart:
 						dum->devstatus &= ~(1 <<
 							USB_DEVICE_REMOTE_WAKEUP);
 						value = 0;
-						maybe_set_status (urb, 0);
+						status = 0;
 						break;
 					default:
 						value = -EOPNOTSUPP;
@@ -1406,7 +1400,7 @@ restart:
 					}
 					ep2->halted = 0;
 					value = 0;
-					maybe_set_status (urb, 0);
+					status = 0;
 				}
 				break;
 			case USB_REQ_GET_STATUS:
@@ -1443,7 +1437,7 @@ restart:
 					urb->actual_length = min (2,
 						urb->transfer_buffer_length);
 					value = 0;
-					maybe_set_status (urb, 0);
+					status = 0;
 				}
 				break;
 			}
@@ -1470,7 +1464,7 @@ restart:
 					dev_dbg (udc_dev(dum),
 						"setup --> %d\n",
 						value);
-				maybe_set_status (urb, -EPIPE);
+				status = -EPIPE;
 				urb->actual_length = 0;
 			}
 
@@ -1487,7 +1481,7 @@ restart:
 			 * report random errors, to debug drivers.
 			 */
 			limit = max (limit, periodic_bytes (dum, ep));
-			maybe_set_status (urb, -ENOSYS);
+			status = -ENOSYS;
 			break;
 
 		case PIPE_INTERRUPT:
@@ -1501,12 +1495,12 @@ restart:
 		default:
 		treat_control_like_bulk:
 			ep->last_io = jiffies;
-			total = transfer (dum, urb, ep, limit);
+			total = transfer(dum, urb, ep, limit, &status);
 			break;
 		}
 
 		/* incomplete transfer? */
-		if (urb->status == -EINPROGRESS)
+		if (status == -EINPROGRESS)
 			continue;
 
 return_urb:
@@ -1517,6 +1511,7 @@ return_urb:
 
 		usb_hcd_unlink_urb_from_ep(dummy_to_hcd(dum), urb);
 		spin_unlock (&dum->lock);
+		urb->status = status;
 		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb);
 		spin_lock (&dum->lock);
 
