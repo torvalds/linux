@@ -152,10 +152,10 @@ static spinlock_t pmu_lock;
 static u8 pmu_intr_mask;
 static int pmu_version;
 static int drop_interrupts;
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 static int option_lid_wakeup = 1;
-#endif /* CONFIG_PM && CONFIG_PPC32 */
-#if (defined(CONFIG_PM)&&defined(CONFIG_PPC32))||defined(CONFIG_PMAC_BACKLIGHT_LEGACY)
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
+#if (defined(CONFIG_PM_SLEEP)&&defined(CONFIG_PPC32))||defined(CONFIG_PMAC_BACKLIGHT_LEGACY)
 static int sleep_in_progress;
 #endif
 static unsigned long async_req_locks;
@@ -875,7 +875,7 @@ proc_read_options(char *page, char **start, off_t off,
 {
 	char *p = page;
 
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		p += sprintf(p, "lid_wakeup=%d\n", option_lid_wakeup);
@@ -916,7 +916,7 @@ proc_write_options(struct file *file, const char __user *buffer,
 	*(val++) = 0;
 	while(*val == ' ')
 		val++;
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		if (!strcmp(label, "lid_wakeup"))
@@ -1738,7 +1738,7 @@ pmu_present(void)
 	return via != 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 static LIST_HEAD(sleep_notifiers);
 
@@ -1769,9 +1769,9 @@ pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
 	return 0;
 }
 EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 
 /* Sleep is broadcast last-to-first */
 static void broadcast_sleep(int when)
@@ -2390,7 +2390,7 @@ powerbook_sleep_3400(void)
 	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PPC32 */
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 
 /*
  * Support for /dev/pmu device
@@ -2573,7 +2573,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	int error = -EINVAL;
 
 	switch (cmd) {
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 	case PMU_IOC_SLEEP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
@@ -2601,7 +2601,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 			return put_user(0, argp);
 		else
 			return put_user(1, argp);
-#endif /* CONFIG_PM && CONFIG_PPC32 */
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 
 #ifdef CONFIG_PMAC_BACKLIGHT_LEGACY
 	/* Compatibility ioctl's for backlight */
@@ -2757,7 +2757,7 @@ pmu_polled_request(struct adb_request *req)
  * to do suspend-to-disk.
  */
 
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 
 int pmu_sys_suspended;
 
@@ -2792,7 +2792,7 @@ static int pmu_sys_resume(struct sys_device *sysdev)
 	return 0;
 }
 
-#endif /* CONFIG_PM && CONFIG_PPC32 */
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 
 static struct sysdev_class pmu_sysclass = {
 	set_kset_name("pmu"),
@@ -2803,10 +2803,10 @@ static struct sys_device device_pmu = {
 };
 
 static struct sysdev_driver driver_pmu = {
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 	.suspend	= &pmu_sys_suspend,
 	.resume		= &pmu_sys_resume,
-#endif /* CONFIG_PM && CONFIG_PPC32 */
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 };
 
 static int __init init_pmu_sysfs(void)
@@ -2841,10 +2841,10 @@ EXPORT_SYMBOL(pmu_wait_complete);
 EXPORT_SYMBOL(pmu_suspend);
 EXPORT_SYMBOL(pmu_resume);
 EXPORT_SYMBOL(pmu_unlock);
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);
 EXPORT_SYMBOL(pmu_batteries);
 EXPORT_SYMBOL(pmu_power_flags);
-#endif /* CONFIG_PM && CONFIG_PPC32 */
+#endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 

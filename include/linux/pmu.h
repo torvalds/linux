@@ -226,7 +226,7 @@ extern unsigned int pmu_power_flags;
 extern void pmu_backlight_init(void);
 
 /* some code needs to know if the PMU was suspended for hibernation */
-#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
 extern int pmu_sys_suspended;
 #else
 /* if power management is not configured it can't be suspended */

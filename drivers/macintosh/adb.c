@@ -89,7 +89,7 @@ static int sleepy_trackpad;
 static int autopoll_devs;
 int __adb_probe_sync;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static void adb_notify_sleep(struct pmu_sleep_notifier *self, int when);
 static struct pmu_sleep_notifier adb_sleep_notifier = {
 	adb_notify_sleep,
@@ -313,7 +313,7 @@ int __init adb_init(void)
 		printk(KERN_WARNING "Warning: no ADB interface detected\n");
 		adb_controller = NULL;
 	} else {
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 		pmu_register_sleep_notifier(&adb_sleep_notifier);
 #endif /* CONFIG_PM */
 #ifdef CONFIG_PPC
