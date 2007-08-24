@@ -339,10 +339,7 @@ v4l_fbuffer_alloc (struct file *file)
 		if (fh->v4l_buffers.buffer_size <= MAX_KMALLOC_MEM) {
 			/* Use kmalloc */
 
-			mem =
-			    (unsigned char *) kmalloc(fh->v4l_buffers.
-						      buffer_size,
-						      GFP_KERNEL);
+			mem = kmalloc(fh->v4l_buffers.buffer_size, GFP_KERNEL);
 			if (mem == 0) {
 				dprintk(1,
 					KERN_ERR
