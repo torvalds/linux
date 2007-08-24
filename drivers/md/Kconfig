@@ -263,7 +263,7 @@ config DM_MULTIPATH_EMC
 
 config DM_MULTIPATH_RDAC
 	tristate "LSI/Engenio RDAC multipath support (EXPERIMENTAL)"
-	depends on DM_MULTIPATH && BLK_DEV_DM && EXPERIMENTAL
+	depends on DM_MULTIPATH && BLK_DEV_DM && SCSI && EXPERIMENTAL
 	---help---
 	  Multipath support for LSI/Engenio RDAC.
 
