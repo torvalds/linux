@@ -347,11 +347,11 @@ void usb_kick_khubd(struct usb_device *hdev)
 static void hub_irq(struct urb *urb)
 {
 	struct usb_hub *hub = urb->context;
-	int status;
+	int status = urb->status;
 	int i;
 	unsigned long bits;
 
-	switch (urb->status) {
+	switch (status) {
 	case -ENOENT:		/* synchronous unlink */
 	case -ECONNRESET:	/* async unlink */
 	case -ESHUTDOWN:	/* hardware going away */
@@ -359,10 +359,10 @@ static void hub_irq(struct urb *urb)
 
 	default:		/* presumably an error */
 		/* Cause a hub reset after 10 consecutive errors */
-		dev_dbg (hub->intfdev, "transfer --> %d\n", urb->status);
+		dev_dbg (hub->intfdev, "transfer --> %d\n", status);
 		if ((++hub->nerrors < 10) || hub->error)
 			goto resubmit;
-		hub->error = urb->status;
+		hub->error = status;
 		/* FALL THROUGH */
 
 	/* let khubd handle things */

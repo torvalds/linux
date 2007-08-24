@@ -71,6 +71,7 @@ struct async {
 	void __user *userbuffer;
 	void __user *userurb;
 	struct urb *urb;
+	int status;
 	u32 secid;
 };
 
@@ -310,9 +311,10 @@ static void async_completed(struct urb *urb)
         spin_lock(&ps->lock);
         list_move_tail(&as->asynclist, &ps->async_completed);
         spin_unlock(&ps->lock);
+	as->status = urb->status;
 	if (as->signr) {
 		sinfo.si_signo = as->signr;
-		sinfo.si_errno = as->urb->status;
+		sinfo.si_errno = as->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
 		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
@@ -1132,7 +1134,7 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (as->userbuffer)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer, urb->transfer_buffer_length))
 			return -EFAULT;
-	if (put_user(urb->status, &userurb->status))
+	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
 	if (put_user(urb->actual_length, &userurb->actual_length))
 		return -EFAULT;
@@ -1246,7 +1248,7 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	if (as->userbuffer)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer, urb->transfer_buffer_length))
 			return -EFAULT;
-	if (put_user(urb->status, &userurb->status))
+	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
 	if (put_user(urb->actual_length, &userurb->actual_length))
 		return -EFAULT;
