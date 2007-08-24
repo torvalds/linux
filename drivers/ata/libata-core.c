@@ -3700,11 +3700,16 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
 		goto fail;
 
 	/* verify n_sectors hasn't changed */
-	if (dev->class == ATA_DEV_ATA && dev->n_sectors != n_sectors) {
+	if (dev->class == ATA_DEV_ATA && n_sectors &&
+	    dev->n_sectors != n_sectors) {
 		ata_dev_printk(dev, KERN_INFO, "n_sectors mismatch "
 			       "%llu != %llu\n",
 			       (unsigned long long)n_sectors,
 			       (unsigned long long)dev->n_sectors);
+
+		/* restore original n_sectors */
+		dev->n_sectors = n_sectors;
+
 		rc = -ENODEV;
 		goto fail;
 	}
