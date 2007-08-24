@@ -203,14 +203,14 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		s->dma != PCI_DMA_NONE ? "DMA " : "",
 		s->name, s->buffers, s->buf_size, s->buffers * s->buf_size / 1024);
 
-	s->sg_pending = (struct ivtv_sg_element *)kzalloc(SGsize, GFP_KERNEL);
+	s->sg_pending = kzalloc(SGsize, GFP_KERNEL);
 	if (s->sg_pending == NULL) {
 		IVTV_ERR("Could not allocate sg_pending for %s stream\n", s->name);
 		return -ENOMEM;
 	}
 	s->sg_pending_size = 0;
 
-	s->sg_processing = (struct ivtv_sg_element *)kzalloc(SGsize, GFP_KERNEL);
+	s->sg_processing = kzalloc(SGsize, GFP_KERNEL);
 	if (s->sg_processing == NULL) {
 		IVTV_ERR("Could not allocate sg_processing for %s stream\n", s->name);
 		kfree(s->sg_pending);
@@ -219,7 +219,7 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 	}
 	s->sg_processing_size = 0;
 
-	s->sg_dma = (struct ivtv_sg_element *)kzalloc(sizeof(struct ivtv_sg_element), GFP_KERNEL);
+	s->sg_dma = kzalloc(sizeof(struct ivtv_sg_element), GFP_KERNEL);
 	if (s->sg_dma == NULL) {
 		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
 		kfree(s->sg_pending);
