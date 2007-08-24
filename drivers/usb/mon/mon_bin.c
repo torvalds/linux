@@ -386,7 +386,7 @@ static char mon_bin_get_data(const struct mon_reader_bin *rp,
 }
 
 static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
-    char ev_type)
+    char ev_type, int status)
 {
 	const struct usb_endpoint_descriptor *epd = &urb->ep->desc;
 	unsigned long flags;
@@ -452,7 +452,7 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 	ep->id = (unsigned long) urb;
 	ep->ts_sec = ts.tv_sec;
 	ep->ts_usec = ts.tv_usec;
-	ep->status = urb->status;
+	ep->status = status;
 	ep->len_urb = urb_length;
 	ep->len_cap = length;
 
@@ -475,13 +475,13 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
 static void mon_bin_submit(void *data, struct urb *urb)
 {
 	struct mon_reader_bin *rp = data;
-	mon_bin_event(rp, urb, 'S');
+	mon_bin_event(rp, urb, 'S', -EINPROGRESS);
 }
 
-static void mon_bin_complete(void *data, struct urb *urb)
+static void mon_bin_complete(void *data, struct urb *urb, int status)
 {
 	struct mon_reader_bin *rp = data;
-	mon_bin_event(rp, urb, 'C');
+	mon_bin_event(rp, urb, 'C', status);
 }
 
 static void mon_bin_error(void *data, struct urb *urb, int error)

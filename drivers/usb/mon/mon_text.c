@@ -183,7 +183,7 @@ static inline unsigned int mon_get_timestamp(void)
 }
 
 static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
-    char ev_type)
+    char ev_type, int status)
 {
 	struct mon_event_text *ep;
 	unsigned int stamp;
@@ -210,7 +210,7 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	ep->length = (ev_type == 'S') ?
 	    urb->transfer_buffer_length : urb->actual_length;
 	/* Collecting status makes debugging sense for submits, too */
-	ep->status = urb->status;
+	ep->status = status;
 
 	if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
 		ep->interval = urb->interval;
@@ -248,13 +248,13 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 static void mon_text_submit(void *data, struct urb *urb)
 {
 	struct mon_reader_text *rp = data;
-	mon_text_event(rp, urb, 'S');
+	mon_text_event(rp, urb, 'S', -EINPROGRESS);
 }
 
-static void mon_text_complete(void *data, struct urb *urb)
+static void mon_text_complete(void *data, struct urb *urb, int status)
 {
 	struct mon_reader_text *rp = data;
-	mon_text_event(rp, urb, 'C');
+	mon_text_event(rp, urb, 'C', status);
 }
 
 static void mon_text_error(void *data, struct urb *urb, int error)
