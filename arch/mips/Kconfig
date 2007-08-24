@@ -692,10 +692,6 @@ config EARLY_PRINTK
 config SYS_HAS_EARLY_PRINTK
 	bool
 
-config GENERIC_ISA_DMA
-	bool
-	select ZONE_DMA
-
 config HOTPLUG_CPU
 	bool
 	default n
@@ -715,9 +711,13 @@ config MIPS_DISABLE_OBSOLETE_IDE
 config NO_IOPORT
 	def_bool n
 
+config GENERIC_ISA_DMA
+	bool
+	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
+
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
-	select ZONE_DMA
+	select GENERIC_ISA_DMA
 
 config GENERIC_GPIO
 	bool
