@@ -1783,8 +1783,8 @@ IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_tt_1500);
 
-/* DViCO FUSION HDTV 5 RT GOLD remote */
-IR_KEYTAB_TYPE ir_codes_fusion_gold[IR_KEYTAB_SIZE] = {
+/* DViCO FUSION HDTV MCE remote */
+IR_KEYTAB_TYPE ir_codes_fusionhdtv_mce[IR_KEYTAB_SIZE] = {
 
 	[ 0x0b ] = KEY_1,
 	[ 0x17 ] = KEY_2,
@@ -1806,7 +1806,7 @@ IR_KEYTAB_TYPE ir_codes_fusion_gold[IR_KEYTAB_SIZE] = {
 	[ 0x02 ] = KEY_TV,		/* Labeled DTV on remote */
 	[ 0x0e ] = KEY_MP3,
 	[ 0x1a ] = KEY_DVD,
-	[ 0x1e ] = KEY_RESERVED,	/* Labeled CPF on remote */
+	[ 0x1e ] = KEY_FAVORITES,	/* Labeled CPF on remote */
 	[ 0x16 ] = KEY_SETUP,
 	[ 0x46 ] = KEY_POWER2,		/* TV On/Off button on remote */
 	[ 0x0a ] = KEY_EPG,		/* Labeled Guide on remote */
@@ -1815,9 +1815,10 @@ IR_KEYTAB_TYPE ir_codes_fusion_gold[IR_KEYTAB_SIZE] = {
 	[ 0x59 ] = KEY_INFO,		/* Labeled MORE on remote */
 	[ 0x4d ] = KEY_MENU,		/* Labeled DVDMENU on remote */
 	[ 0x55 ] = KEY_CYCLEWINDOWS,	/* Labeled ALT-TAB on remote */
-	[ 0x0f ] = KEY_REDO,		/* Labeled |<< REPLAY on remote */
-	[ 0x12 ] = KEY_END, 		/* Labeled >>| SKIP on remote */
-	[ 0x42 ] = KEY_GREEN, 		/* Labeled START with a green
+
+	[ 0x0f ] = KEY_PREVIOUSSONG,	/* Labeled |<< REPLAY on remote */
+	[ 0x12 ] = KEY_NEXTSONG,	/* Labeled >>| SKIP on remote */
+	[ 0x42 ] = KEY_ENTER, 		/* Labeled START with a green
 					 * MS windows logo on remote */
 
 	[ 0x15 ] = KEY_VOLUMEUP,
@@ -1825,29 +1826,20 @@ IR_KEYTAB_TYPE ir_codes_fusion_gold[IR_KEYTAB_SIZE] = {
 	[ 0x11 ] = KEY_CHANNELUP,
 	[ 0x09 ] = KEY_CHANNELDOWN,
 
-	/* The following are not defined in kernel 2.6 and
-	 * I cannot find suitable substitute key definitions.
-
-	[ 0x52 ] = KEY_PHOTO,
-	[ 0x5a ] = KEY_LIVE,
-	[ 0x19 ] = KEY_FOLDER,
-
-	*/
-
-	[ 0x52 ] = KEY_RESERVED,
-	[ 0x5a ] = KEY_RESERVED,
-	[ 0x19 ] = KEY_RESERVED,
+	[ 0x52 ] = KEY_CAMERA,
+	[ 0x5a ] = KEY_TUNER,
+	[ 0x19 ] = KEY_OPEN,
 
 	[ 0x13 ] = KEY_MODE,		/* 4:3 16:9 select */
 	[ 0x1f ] = KEY_ZOOM,
 
 	[ 0x43 ] = KEY_REWIND,
 	[ 0x47 ] = KEY_PLAYPAUSE,
-	[ 0x4f ] = KEY_FORWARD,
+	[ 0x4f ] = KEY_FASTFORWARD,
 	[ 0x57 ] = KEY_MUTE,
 	[ 0x0d ] = KEY_STOP,
 	[ 0x01 ] = KEY_RECORD,
 	[ 0x4e ] = KEY_POWER,
 };
 
-EXPORT_SYMBOL_GPL(ir_codes_fusion_gold);
+EXPORT_SYMBOL_GPL(ir_codes_fusionhdtv_mce);

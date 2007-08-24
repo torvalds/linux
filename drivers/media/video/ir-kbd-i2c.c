@@ -143,7 +143,7 @@ static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_fusion_gold(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_fusionhdtv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[4];
 
@@ -154,7 +154,7 @@ static int get_key_fusion_gold(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	if(buf[0] !=0 || buf[1] !=0 || buf[2] !=0 || buf[3] != 0)
-		dprintk(2, "ir fusion gold: 0x%2x 0x%2x 0x%2x 0x%2x\n",
+		dprintk(2, "%s: 0x%2x 0x%2x 0x%2x 0x%2x\n", __FUNCTION__,
 			buf[0], buf[1], buf[2], buf[3]);
 
 	/* no key pressed or signal from other ir remote */
@@ -165,9 +165,7 @@ static int get_key_fusion_gold(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = (buf[2] << 8) | buf[3];
 
 	return 1;
-
 }
-
 
 static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
@@ -392,10 +390,10 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir_codes    = ir_codes_empty;
 		break;
 	case 0x6b:
-		name        = "FusionGold";
-		ir->get_key = get_key_fusion_gold;
+		name        = "FusionHDTV";
+		ir->get_key = get_key_fusionhdtv;
 		ir_type     = IR_TYPE_RC5;
-		ir_codes    = ir_codes_fusion_gold;
+		ir_codes    = ir_codes_fusionhdtv_mce;
 		break;
 	case 0x7a:
 	case 0x47:
