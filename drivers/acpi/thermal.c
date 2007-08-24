@@ -1085,9 +1085,9 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 		entry->owner = THIS_MODULE;
 	}
 
-	/* 'trip_points' [R/W] */
+	/* 'trip_points' [R] */
 	entry = create_proc_entry(ACPI_THERMAL_FILE_TRIP_POINTS,
-				  S_IFREG | S_IRUGO | S_IWUSR,
+				  S_IRUGO,
 				  acpi_device_dir(device));
 	if (!entry)
 		return -ENODEV;
