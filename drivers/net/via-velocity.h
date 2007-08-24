@@ -1701,7 +1701,7 @@ struct velocity_opt {
 	int numrx;			/* Number of RX descriptors */
 	int numtx;			/* Number of TX descriptors */
 	enum speed_opt spd_dpx;		/* Media link mode */
-	int vid;			/* vlan id */
+
 	int DMA_length;			/* DMA length */
 	int rx_thresh;			/* RX_THRESH */
 	int flow_cntl;
@@ -1727,6 +1727,7 @@ struct velocity_info {
 	dma_addr_t tx_bufs_dma;
 	u8 *tx_bufs;
 
+	struct vlan_group    *vlgrp;
 	u8 ip_addr[4];
 	enum chip_type chip_id;
 
