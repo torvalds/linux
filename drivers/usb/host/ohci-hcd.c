@@ -129,7 +129,7 @@ static int ohci_urb_enqueue (
 	int		retval = 0;
 
 #ifdef OHCI_VERBOSE_DEBUG
-	urb_print (urb, "SUB", usb_pipein (pipe));
+	urb_print(urb, "SUB", usb_pipein(pipe), -EINPROGRESS);
 #endif
 
 	/* every endpoint has a ed, locate and maybe (re)initialize it */
@@ -240,8 +240,8 @@ fail:
 }
 
 /*
- * decouple the URB from the HC queues (TDs, urb_priv); it's
- * already marked using urb->status.  reporting is always done
+ * decouple the URB from the HC queues (TDs, urb_priv).
+ * reporting is always done
  * asynchronously, and we might be dealing with an urb that's
  * partially transferred, or an ED with other urbs being unlinked.
  */
@@ -252,7 +252,7 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	int			rc;
 
 #ifdef OHCI_VERBOSE_DEBUG
-	urb_print (urb, "UNLINK", 1);
+	urb_print(urb, "UNLINK", 1, status);
 #endif
 
 	spin_lock_irqsave (&ohci->lock, flags);
@@ -277,7 +277,7 @@ static int ohci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		 * any more ... just clean up every urb's memory.
 		 */
 		if (urb->hcpriv)
-			finish_urb (ohci, urb);
+			finish_urb(ohci, urb, status);
 	}
 	spin_unlock_irqrestore (&ohci->lock, flags);
 	return rc;
@@ -927,9 +927,8 @@ static int ohci_restart (struct ohci_hcd *ohci)
 					ed, ed->state);
 		}
 
-		spin_lock (&urb->lock);
-		urb->status = -ESHUTDOWN;
-		spin_unlock (&urb->lock);
+		if (!urb->unlinked)
+			urb->unlinked = -ESHUTDOWN;
 	}
 	finish_unlinks (ohci, 0);
 	spin_unlock_irq(&ohci->lock);
