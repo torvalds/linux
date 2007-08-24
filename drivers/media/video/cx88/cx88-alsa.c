@@ -28,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
+#include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 
@@ -423,6 +424,8 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	chip->dma_risc = buf->vb.dma;
 
 	substream->runtime->dma_area = chip->dma_risc.vmalloc;
+	substream->runtime->dma_bytes = chip->dma_size;
+	substream->runtime->dma_addr = 0;
 	return 0;
 
 error:
@@ -500,6 +503,16 @@ static snd_pcm_uframes_t snd_cx88_pointer(struct snd_pcm_substream *substream)
 }
 
 /*
+ * page callback (needed for mmap)
+ */
+static struct page *snd_cx88_page(struct snd_pcm_substream *substream,
+				unsigned long offset)
+{
+	void *pageptr = substream->runtime->dma_area + offset;
+	return vmalloc_to_page(pageptr);
+}
+
+/*
  * operators
  */
 static struct snd_pcm_ops snd_cx88_pcm_ops = {
@@ -511,6 +524,7 @@ static struct snd_pcm_ops snd_cx88_pcm_ops = {
 	.prepare = snd_cx88_prepare,
 	.trigger = snd_cx88_card_trigger,
 	.pointer = snd_cx88_pointer,
+	.page = snd_cx88_page,
 };
 
 /*
