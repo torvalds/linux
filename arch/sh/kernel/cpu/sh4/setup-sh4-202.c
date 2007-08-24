@@ -41,3 +41,8 @@ static int __init sh4202_devices_setup(void)
 				    ARRAY_SIZE(sh4202_devices));
 }
 __initcall(sh4202_devices_setup);
+
+void __init plat_irq_setup(void)
+{
+	/* do nothing - all IRL interrupts are handled by the board code */
+}
