@@ -103,15 +103,15 @@ foreach my $thismod (@allcfiles) {
 	my $state=0;
 	while ( <MODULE_MODULE> ) {
 		chomp;
-		if ($state eq 0) {
+		if ($state == 0) {
 			$state = 1 if ($_ =~ /static const struct modversion_info/);
 			next;
 		}
-		if ($state eq 1) {
+		if ($state == 1) {
 			$state = 2 if ($_ =~ /__attribute__\(\(section\("__versions"\)\)\)/);
 			next;
 		}
-		if ($state eq 2) {
+		if ($state == 2) {
 			if ( $_ !~ /0x[0-9a-f]+,/ ) {
 				next;
 			}
@@ -121,7 +121,7 @@ foreach my $thismod (@allcfiles) {
 			push(@{$MODULE{$thismod}} , $sym);
 		}
 	}
-	if ($state ne 2) {
+	if ($state != 2) {
 		print "WARNING:$thismod is not built with CONFIG_MODVERSION enabled\n";
 	}
 	close(MODULE_MODULE);
