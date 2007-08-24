@@ -19,7 +19,7 @@
 
 /*
  * Preemption granularity:
- * (default: 2 msec, units: nanoseconds)
+ * (default: 10 msec, units: nanoseconds)
  *
  * NOTE: this granularity value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS will typically be somewhat
@@ -31,18 +31,17 @@
  * number of CPUs. (i.e. factor 2x on 2-way systems, 3x on 4-way
  * systems, 4x on 8-way systems, 5x on 16-way systems, etc.)
  */
-unsigned int sysctl_sched_granularity __read_mostly = 2000000000ULL/HZ;
+unsigned int sysctl_sched_granularity __read_mostly = 10000000UL;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 10 msec, units: nanoseconds)
+ * (default: 25 msec, units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
-							10000000000ULL/HZ;
+unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly = 25000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
@@ -52,12 +51,12 @@ unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000000ULL/HZ;
+unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000UL;
 
 unsigned int sysctl_sched_stat_granularity __read_mostly;
 
 /*
- * Initialized in sched_init_granularity():
+ * Initialized in sched_init_granularity() [to 5 times the base granularity]:
  */
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 

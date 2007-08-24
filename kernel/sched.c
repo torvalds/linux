@@ -4923,7 +4923,7 @@ static inline void sched_init_granularity(void)
 	if (sysctl_sched_granularity > gran_limit)
 		sysctl_sched_granularity = gran_limit;
 
-	sysctl_sched_runtime_limit = sysctl_sched_granularity * 8;
+	sysctl_sched_runtime_limit = sysctl_sched_granularity * 5;
 	sysctl_sched_wakeup_granularity = sysctl_sched_granularity / 2;
 }
 
