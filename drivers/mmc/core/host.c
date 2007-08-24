@@ -58,11 +58,9 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	struct mmc_host *host;
 
-	host = kmalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
+	host = kzalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
 	if (!host)
 		return NULL;
-
-	memset(host, 0, sizeof(struct mmc_host) + extra);
 
 	host->parent = dev;
 	host->class_dev.parent = dev;
