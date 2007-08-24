@@ -2827,7 +2827,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	};
 	unsigned int val = 0;
 	long iomidi;
-	int integrated_midi;
+	int integrated_midi = 0;
 	int pcm_index, pcm_spdif_index;
 	static struct pci_device_id intel_82437vx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437VX) },
@@ -2939,11 +2939,14 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		return err;
 	}
 
-	integrated_midi = cm->chip_version > 33 &&
-		snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1) != 0xff;
-	if (integrated_midi && mpu_port[dev] == 1)
-		iomidi = cm->iobase + CM_REG_MPU_PCI;
-	else {
+	if (cm->chip_version > 33 && mpu_port[dev] == 1) {
+		val = snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1);
+		if (val != 0x00 && val != 0xff) {
+			iomidi = cm->iobase + CM_REG_MPU_PCI;
+			integrated_midi = 1;
+		}
+	}
+	if (!integrated_midi) {
 		iomidi = mpu_port[dev];
 		switch (iomidi) {
 		case 0x320: val = CM_VMPU_320; break;
