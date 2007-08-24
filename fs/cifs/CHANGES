@@ -6,7 +6,10 @@ done with "serverino" mount option).  Add support for POSIX Unlink
 Samba supports newer POSIX CIFS Protocol Extensions). Add "nounix"
 mount option to allow disabling the CIFS Unix Extensions for just
 that mount. Fix hang on spinlock in find_writable_file (race when
-reopening file after session crash).
+reopening file after session crash).  Byte range unlock request to
+windows server could unlock more bytes (on server copy of file)
+than intended if start of unlock request is well before start of
+a previous byte range lock that we issued.
 
 Version 1.49
 ------------
