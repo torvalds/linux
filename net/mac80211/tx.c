@@ -1528,8 +1528,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 
 	skb->dev = local->mdev;
-	sdata->stats.tx_packets++;
-	sdata->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	/* Update skb pointers to various headers since this modified frame
 	 * is going to go through Linux networking code that may potentially
@@ -1602,8 +1602,8 @@ int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!(fc & IEEE80211_FCTL_PROTECTED))
 		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 
-	sdata->stats.tx_packets++;
-	sdata->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	dev_queue_xmit(skb);
 

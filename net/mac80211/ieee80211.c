@@ -47,13 +47,6 @@ struct ieee80211_tx_status_rtap_hdr {
 
 /* common interface routines */
 
-static struct net_device_stats *ieee80211_get_stats(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata;
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	return &(sdata->stats);
-}
-
 static int header_parse_80211(struct sk_buff *skb, unsigned char *haddr)
 {
 	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
@@ -168,11 +161,9 @@ ieee80211_rx_mgmt(struct ieee80211_local *local, struct sk_buff *skb,
 {
 	struct ieee80211_frame_info *fi;
 	const size_t hlen = sizeof(struct ieee80211_frame_info);
-	struct ieee80211_sub_if_data *sdata;
+	struct net_device *dev = local->apdev;
 
-	skb->dev = local->apdev;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(local->apdev);
+	skb->dev = dev;
 
 	if (skb_headroom(skb) < hlen) {
 		I802_DEBUG_INC(local->rx_expand_skb_head);
@@ -187,8 +178,8 @@ ieee80211_rx_mgmt(struct ieee80211_local *local, struct sk_buff *skb,
 	ieee80211_fill_frame_info(local, fi, status);
 	fi->msg_type = htonl(msg_type);
 
-	sdata->stats.rx_packets++;
-	sdata->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -269,7 +260,6 @@ void ieee80211_if_mgmt_setup(struct net_device *dev)
 	ether_setup(dev);
 	dev->hard_start_xmit = ieee80211_mgmt_start_xmit;
 	dev->change_mtu = ieee80211_change_mtu_apdev;
-	dev->get_stats = ieee80211_get_stats;
 	dev->open = ieee80211_mgmt_open;
 	dev->stop = ieee80211_mgmt_stop;
 	dev->type = ARPHRD_IEEE80211_PRISM;
@@ -599,7 +589,6 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->wireless_handlers = &ieee80211_iw_handler_def;
 	dev->set_multicast_list = ieee80211_set_multicast_list;
 	dev->change_mtu = ieee80211_change_mtu;
-	dev->get_stats = ieee80211_get_stats;
 	dev->open = ieee80211_open;
 	dev->stop = ieee80211_stop;
 	dev->uninit = ieee80211_if_reinit;
@@ -1460,13 +1449,6 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	wiphy_free(local->hw.wiphy);
 }
 EXPORT_SYMBOL(ieee80211_free_hw);
-
-struct net_device_stats *ieee80211_dev_stats(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata;
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	return &sdata->stats;
-}
 
 static int __init ieee80211_init(void)
 {

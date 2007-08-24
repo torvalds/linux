@@ -137,7 +137,6 @@ ieee80211_rx_monitor(struct net_device *dev, struct sk_buff *skb,
 		     struct ieee80211_rx_status *status)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_rate *rate;
 	struct ieee80211_rtap_hdr {
 		struct ieee80211_radiotap_header hdr;
@@ -149,8 +148,6 @@ ieee80211_rx_monitor(struct net_device *dev, struct sk_buff *skb,
 	} __attribute__ ((packed)) *rthdr;
 
 	skb->dev = dev;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (status->flag & RX_FLAG_RADIOTAP)
 		goto out;
@@ -184,8 +181,8 @@ ieee80211_rx_monitor(struct net_device *dev, struct sk_buff *skb,
 	rthdr->antsignal = status->ssi;
 
  out:
-	sdata->stats.rx_packets++;
-	sdata->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1053,8 +1050,8 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 
 	skb2 = NULL;
 
-	sdata->stats.rx_packets++;
-	sdata->stats.rx_bytes += skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 	if (local->bridge_packets && (sdata->type == IEEE80211_IF_TYPE_AP
 	    || sdata->type == IEEE80211_IF_TYPE_VLAN) &&
