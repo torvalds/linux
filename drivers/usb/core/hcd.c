@@ -532,7 +532,6 @@ error:
 
 	/* any errors get returned through the urb completion */
 	spin_lock_irq(&hcd_root_hub_lock);
-	urb->status = status;
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 	/* This peculiar use of spinlocks echoes what real HC drivers do.
@@ -540,7 +539,7 @@ error:
 	 * RT-friendly.
 	 */
 	spin_unlock(&hcd_root_hub_lock);
-	usb_hcd_giveback_urb(hcd, urb);
+	usb_hcd_giveback_urb(hcd, urb, status);
 	spin_lock(&hcd_root_hub_lock);
 
 	spin_unlock_irq(&hcd_root_hub_lock);
@@ -578,13 +577,12 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 		if (urb) {
 			hcd->poll_pending = 0;
 			hcd->status_urb = NULL;
-			urb->status = 0;
 			urb->actual_length = length;
 			memcpy(urb->transfer_buffer, buffer, length);
 
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 			spin_unlock(&hcd_root_hub_lock);
-			usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, 0);
 			spin_lock(&hcd_root_hub_lock);
 		} else {
 			length = 0;
@@ -677,7 +675,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
 
 			spin_unlock(&hcd_root_hub_lock);
-			usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, status);
 			spin_lock(&hcd_root_hub_lock);
 		}
 	}
@@ -1252,6 +1250,7 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  * usb_hcd_giveback_urb - return URB from HCD to device driver
  * @hcd: host controller returning the URB
  * @urb: urb being returned to the USB device driver.
+ * @status: completion status code for the URB.
  * Context: in_interrupt()
  *
  * This hands the URB from HCD to its USB device driver, using its
@@ -1260,25 +1259,26 @@ int usb_hcd_unlink_urb (struct urb *urb, int status)
  * the device driver won't cause problems if it frees, modifies,
  * or resubmits this URB.
  *
- * If @urb was unlinked, the value of @urb->status will be overridden by
+ * If @urb was unlinked, the value of @status will be overridden by
  * @urb->unlinked.  Erroneous short transfers are detected in case
  * the HCD hasn't checked for them.
  */
-void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb)
+void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	urb->hcpriv = NULL;
 	if (unlikely(urb->unlinked))
-		urb->status = urb->unlinked;
+		status = urb->unlinked;
 	else if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
 			urb->actual_length < urb->transfer_buffer_length &&
-			!urb->status))
-		urb->status = -EREMOTEIO;
+			!status))
+		status = -EREMOTEIO;
 
 	unmap_urb_for_dma(hcd, urb);
-	usbmon_urb_complete(&hcd->self, urb, urb->status);
+	usbmon_urb_complete(&hcd->self, urb, status);
 	usb_unanchor_urb(urb);
 
 	/* pass ownership to the completion handler */
+	urb->status = status;
 	urb->complete (urb);
 	atomic_dec (&urb->use_count);
 	if (unlikely (urb->reject))

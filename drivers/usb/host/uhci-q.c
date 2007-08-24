@@ -1480,7 +1480,7 @@ done:
  * Finish unlinking an URB and give it back
  */
 static void uhci_giveback_urb(struct uhci_hcd *uhci, struct uhci_qh *qh,
-		struct urb *urb)
+		struct urb *urb, int status)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
@@ -1520,7 +1520,7 @@ __acquires(uhci->lock)
 	usb_hcd_unlink_urb_from_ep(uhci_to_hcd(uhci), urb);
 
 	spin_unlock(&uhci->lock);
-	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);
+	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb, status);
 	spin_lock(&uhci->lock);
 
 	/* If the queue is now empty, we can unlink the QH and give up its
@@ -1556,10 +1556,6 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		if (status == -EINPROGRESS)
 			break;
 
-		spin_lock(&urb->lock);
-		urb->status = status;
-		spin_unlock(&urb->lock);
-
 		/* Dequeued but completed URBs can't be given back unless
 		 * the QH is stopped or has finished unlinking. */
 		if (urb->unlinked) {
@@ -1569,7 +1565,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 				return;
 		}
 
-		uhci_giveback_urb(uhci, qh, urb);
+		uhci_giveback_urb(uhci, qh, urb, status);
 		if (status < 0)
 			break;
 	}
@@ -1594,7 +1590,7 @@ restart:
 				qh->is_stopped = 0;
 				return;
 			}
-			uhci_giveback_urb(uhci, qh, urb);
+			uhci_giveback_urb(uhci, qh, urb, 0);
 			goto restart;
 		}
 	}

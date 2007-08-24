@@ -436,9 +436,8 @@ static void finish_request(
 		ep->nextpid = USB_PID_SETUP;
 
 	usb_hcd_unlink_urb_from_ep(sl811_to_hcd(sl811), urb);
-	urb->status = status;
 	spin_unlock(&sl811->lock);
-	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb);
+	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb, status);
 	spin_lock(&sl811->lock);
 
 	/* leave active endpoints in the schedule */

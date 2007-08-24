@@ -277,7 +277,7 @@ static void preproc_atl_queue(struct isp116x *isp116x)
   processed urbs.
 */
 static void finish_request(struct isp116x *isp116x, struct isp116x_ep *ep,
-			   struct urb *urb)
+			   struct urb *urb, int status)
 __releases(isp116x->lock) __acquires(isp116x->lock)
 {
 	unsigned i;
@@ -291,7 +291,7 @@ __releases(isp116x->lock) __acquires(isp116x->lock)
 
 	usb_hcd_unlink_urb_from_ep(isp116x_to_hcd(isp116x), urb);
 	spin_unlock(&isp116x->lock);
-	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb);
+	usb_hcd_giveback_urb(isp116x_to_hcd(isp116x), urb, status);
 	spin_lock(&isp116x->lock);
 
 	/* take idle endpoints out of the schedule */
@@ -453,13 +453,8 @@ static void postproc_atl_queue(struct isp116x *isp116x)
 		}
 
  done:
-		if (status != -EINPROGRESS) {
-			spin_lock(&urb->lock);
-			urb->status = status;
-			spin_unlock(&urb->lock);
-		}
-		if (urb->status != -EINPROGRESS || urb->unlinked)
-			finish_request(isp116x, ep, urb);
+		if (status != -EINPROGRESS || urb->unlinked)
+			finish_request(isp116x, ep, urb, status);
 	}
 }
 
@@ -853,7 +848,7 @@ static int isp116x_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 			}
 
 	if (urb)
-		finish_request(isp116x, ep, urb);
+		finish_request(isp116x, ep, urb, status);
  done:
 	spin_unlock_irqrestore(&isp116x->lock, flags);
 	return rc;

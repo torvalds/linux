@@ -456,21 +456,6 @@ struct urb_priv {
 };
 
 
-/*
- * Locking in uhci.c
- *
- * Almost everything relating to the hardware schedule and processing
- * of URBs is protected by uhci->lock.  urb->status is protected by
- * urb->lock; that's the one exception.
- *
- * To prevent deadlocks, never lock uhci->lock while holding urb->lock.
- * The safe order of locking is:
- *
- * #1 uhci->lock
- * #2 urb->lock
- */
-
-
 /* Some special IDs */
 
 #define PCI_VENDOR_ID_GENESYS		0x17a0

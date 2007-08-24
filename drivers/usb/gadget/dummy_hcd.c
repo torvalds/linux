@@ -1511,8 +1511,7 @@ return_urb:
 
 		usb_hcd_unlink_urb_from_ep(dummy_to_hcd(dum), urb);
 		spin_unlock (&dum->lock);
-		urb->status = status;
-		usb_hcd_giveback_urb (dummy_to_hcd(dum), urb);
+		usb_hcd_giveback_urb(dummy_to_hcd(dum), urb, status);
 		spin_lock (&dum->lock);
 
 		goto restart;

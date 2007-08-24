@@ -62,8 +62,7 @@ __acquires(ohci->lock)
 	/* urb->complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ohci_to_hcd(ohci), urb);
 	spin_unlock (&ohci->lock);
-	urb->status = status;
-	usb_hcd_giveback_urb (ohci_to_hcd(ohci), urb);
+	usb_hcd_giveback_urb(ohci_to_hcd(ohci), urb, status);
 	spin_lock (&ohci->lock);
 
 	/* stop periodic dma if it's not needed */

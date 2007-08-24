@@ -782,12 +782,12 @@ static void force_dequeue(struct r8a66597 *r8a66597, u16 pipenum, u16 address)
 		kfree(td);
 
 		if (urb) {
-			urb->status = -ENODEV;
 			usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597),
 					urb);
 
 			spin_unlock(&r8a66597->lock);
-			usb_hcd_giveback_urb(r8a66597_to_hcd(r8a66597), urb);
+			usb_hcd_giveback_urb(r8a66597_to_hcd(r8a66597), urb,
+					-ENODEV);
 			spin_lock(&r8a66597->lock);
 		}
 		break;
@@ -1134,10 +1134,8 @@ __releases(r8a66597->lock) __acquires(r8a66597->lock)
 			urb->start_frame = r8a66597_get_frame(hcd);
 
 		usb_hcd_unlink_urb_from_ep(r8a66597_to_hcd(r8a66597), urb);
-
-		urb->status = status;
 		spin_unlock(&r8a66597->lock);
-		usb_hcd_giveback_urb(hcd, urb);
+		usb_hcd_giveback_urb(hcd, urb, status);
 		spin_lock(&r8a66597->lock);
 	}
 

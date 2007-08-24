@@ -256,8 +256,7 @@ __acquires(ehci->lock)
 	/* complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
 	spin_unlock (&ehci->lock);
-	urb->status = status;
-	usb_hcd_giveback_urb (ehci_to_hcd(ehci), urb);
+	usb_hcd_giveback_urb(ehci_to_hcd(ehci), urb, status);
 	spin_lock (&ehci->lock);
 }
 

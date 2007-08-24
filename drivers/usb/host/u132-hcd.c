@@ -518,7 +518,6 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
         unsigned long irqs;
         struct usb_hcd *hcd = u132_to_hcd(u132);
         urb->error_count = 0;
-        urb->status = status;
         spin_lock_irqsave(&endp->queue_lock.slock, irqs);
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
         endp->queue_next += 1;
@@ -542,7 +541,7 @@ static void u132_hcd_giveback_urb(struct u132 *u132, struct u132_endp *endp,
         u132_ring_queue_work(u132, ring, 0);
         up(&u132->scheduler_lock);
         u132_endp_put_kref(u132, endp);
-        usb_hcd_giveback_urb(hcd, urb);
+	usb_hcd_giveback_urb(hcd, urb, status);
         return;
 }
 
@@ -558,7 +557,6 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
         unsigned long irqs;
         struct usb_hcd *hcd = u132_to_hcd(u132);
         urb->error_count = 0;
-        urb->status = status;
         spin_lock_irqsave(&endp->queue_lock.slock, irqs);
 	usb_hcd_unlink_urb_from_ep(hcd, urb);
         endp->queue_next += 1;
@@ -575,7 +573,7 @@ static void u132_hcd_abandon_urb(struct u132 *u132, struct u132_endp *endp,
                 endp->active = 0;
                 spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
                 kfree(urbq);
-        } usb_hcd_giveback_urb(hcd, urb);
+	} usb_hcd_giveback_urb(hcd, urb, status);
         return;
 }
 
@@ -719,7 +717,7 @@ static void u132_hcd_interrupt_recv(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -771,7 +769,7 @@ static void u132_hcd_bulk_output_sent(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -874,7 +872,7 @@ static void u132_hcd_bulk_input_recv(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -911,7 +909,7 @@ static void u132_hcd_configure_empty_sent(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -983,7 +981,7 @@ static void u132_hcd_configure_input_recv(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1020,7 +1018,7 @@ static void u132_hcd_configure_empty_recv(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1080,7 +1078,7 @@ static void u132_hcd_configure_setup_sent(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1121,7 +1119,7 @@ static void u132_hcd_enumeration_empty_recv(void *data, struct urb *urb,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1165,7 +1163,7 @@ static void u132_hcd_enumeration_address_sent(void *data, struct urb *urb,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1202,7 +1200,7 @@ static void u132_hcd_initial_empty_sent(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1254,7 +1252,7 @@ static void u132_hcd_initial_input_recv(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -1299,7 +1297,7 @@ static void u132_hcd_initial_setup_sent(void *data, struct urb *urb, u8 *buf,
 		dev_err(&u132->platform_dev->dev, "CALLBACK called urb=%p "
 				"unlinked=%d\n", urb, urb->unlinked);
                 up(&u132->scheduler_lock);
-                u132_hcd_giveback_urb(u132, endp, urb, urb->status);
+		u132_hcd_giveback_urb(u132, endp, urb, 0);
                 return;
         }
 }
@@ -2428,7 +2426,7 @@ static int dequeue_from_overflow_chain(struct u132 *u132,
                         list_del(scan);
                         endp->queue_size -= 1;
                         urb->error_count = 0;
-                        usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, 0);
                         return 0;
                 } else
                         continue;
@@ -2472,7 +2470,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                         return 0;
                 } else {
                         spin_unlock_irqrestore(&endp->queue_lock.slock, irqs);
-                        u132_hcd_abandon_urb(u132, endp, urb, urb->status);
+			u132_hcd_abandon_urb(u132, endp, urb, status);
                         return 0;
                 }
         } else {
@@ -2513,7 +2511,7 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
                                         irqs);
                                 kfree(urbq);
                         } urb->error_count = 0;
-                        usb_hcd_giveback_urb(hcd, urb);
+			usb_hcd_giveback_urb(hcd, urb, status);
                         return 0;
                 } else if (list_empty(&endp->urb_more)) {
                         dev_err(&u132->platform_dev->dev, "urb=%p not found in "
