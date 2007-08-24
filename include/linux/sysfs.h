@@ -119,6 +119,8 @@ void sysfs_remove_file_from_group(struct kobject *kobj,
 
 void sysfs_notify(struct kobject *kobj, char *dir, char *attr);
 
+void sysfs_printk_last_file(void);
+
 extern int __must_check sysfs_init(void);
 
 #else /* CONFIG_SYSFS */
@@ -229,6 +231,10 @@ static inline void sysfs_notify(struct kobject *kobj, char *dir, char *attr)
 static inline int __must_check sysfs_init(void)
 {
 	return 0;
+}
+
+static inline void sysfs_printk_last_file(void)
+{
 }
 
 #endif /* CONFIG_SYSFS */
