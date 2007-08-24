@@ -112,7 +112,7 @@ foreach my $thismod (@allcfiles) {
 			next;
 		}
 		if ($state eq 2) {
-			if ( $_ !~ /0x[0-9a-f]{7,8},/ ) {
+			if ( $_ !~ /0x[0-9a-f]+,/ ) {
 				next;
 			}
 			my $sym = (split /([,"])/,)[4];
