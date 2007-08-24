@@ -435,11 +435,8 @@ static void finish_request(
 	if (usb_pipecontrol(urb->pipe))
 		ep->nextpid = USB_PID_SETUP;
 
-	spin_lock(&urb->lock);
-	urb->status = status;
-	spin_unlock(&urb->lock);
-
 	usb_hcd_unlink_urb_from_ep(sl811_to_hcd(sl811), urb);
+	urb->status = status;
 	spin_unlock(&sl811->lock);
 	usb_hcd_giveback_urb(sl811_to_hcd(sl811), urb);
 	spin_lock(&sl811->lock);
@@ -537,27 +534,20 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 						bank + SL11H_XFERCNTREG);
 			if (len > ep->length) {
 				len = ep->length;
-				urb->status = -EOVERFLOW;
+				urbstat = -EOVERFLOW;
 			}
 			urb->actual_length += len;
 			sl811_read_buf(sl811, SL811HS_PACKET_BUF(bank == 0),
 					buf, len);
 			usb_dotoggle(udev, ep->epnum, 0);
-			if (urb->actual_length == urb->transfer_buffer_length
-					|| len < ep->maxpacket)
-				urbstat = 0;
-			if (usb_pipecontrol(urb->pipe) && urbstat == 0) {
-
-				/* NOTE if the status stage STALLs (why?),
-				 * this reports the wrong urb status.
-				 */
-				spin_lock(&urb->lock);
-				if (urb->status == -EINPROGRESS)
-					urb->status = urbstat;
-				spin_unlock(&urb->lock);
-
-				urb = NULL;
-				ep->nextpid = USB_PID_ACK;
+			if (urbstat == -EINPROGRESS &&
+					(len < ep->maxpacket ||
+						urb->actual_length ==
+						urb->transfer_buffer_length)) {
+				if (usb_pipecontrol(urb->pipe))
+					ep->nextpid = USB_PID_ACK;
+				else
+					urbstat = 0;
 			}
 			break;
 		case USB_PID_SETUP:
@@ -597,7 +587,7 @@ done(struct sl811 *sl811, struct sl811h_ep *ep, u8 bank)
 				bank, status, ep, urbstat);
 	}
 
-	if (urb && (urbstat != -EINPROGRESS || urb->unlinked))
+	if (urbstat != -EINPROGRESS || urb->unlinked)
 		finish_request(sl811, ep, urb, urbstat);
 }
 
