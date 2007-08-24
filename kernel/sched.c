@@ -2180,12 +2180,6 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	if (task_running(rq, p))
 		return 0;
 
-	/*
-	 * Aggressive migration if too many balance attempts have failed:
-	 */
-	if (sd->nr_balance_failed > sd->cache_nice_tries)
-		return 1;
-
 	return 1;
 }
 
