@@ -796,6 +796,7 @@ struct p9_fcall *p9_create_twrite_u(u32 fid, u64 offset, u32 count,
 	if (err) {
 		kfree(fc);
 		fc = ERR_PTR(err);
+		goto error;
 	}
 
 	if (buf_check_overflow(bufp)) {

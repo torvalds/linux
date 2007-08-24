@@ -6,11 +6,25 @@ ABOUT
 
 v9fs is a Unix implementation of the Plan 9 9p remote filesystem protocol.
 
-This software was originally developed by Ron Minnich <rminnich@lanl.gov>
-and Maya Gokhale <maya@lanl.gov>.  Additional development by Greg Watson
+This software was originally developed by Ron Minnich <rminnich@sandia.gov>
+and Maya Gokhale.  Additional development by Greg Watson
 <gwatson@lanl.gov> and most recently Eric Van Hensbergen
 <ericvh@gmail.com>, Latchesar Ionkov <lucho@ionkov.net> and Russ Cox
 <rsc@swtch.com>.
+
+The best detailed explanation of the Linux implementation and applications of
+the 9p client is available in the form of a USENIX paper:
+   http://www.usenix.org/events/usenix05/tech/freenix/hensbergen.html
+
+Other applications are described in the following papers:
+	* XCPU & Clustering
+		http://www.xcpu.org/xcpu-talk.pdf
+	* KVMFS: control file system for KVM
+		http://www.xcpu.org/kvmfs.pdf
+	* CellFS: A New ProgrammingModel for the Cell BE
+		http://www.xcpu.org/cellfs-talk.pdf
+	* PROSE I/O: Using 9p to enable Application Partitions
+		http://plan9.escet.urjc.es/iwp9/cready/PROSE_iwp9_2006.pdf
 
 USAGE
 =====
@@ -90,9 +104,9 @@ subset of the namespace by extending the path: '#U*'/tmp would just export
 and export.
 
 A Linux version of the 9p server is now maintained under the npfs project
-on sourceforge (http://sourceforge.net/projects/npfs).  There is also a
-more stable single-threaded version of the server (named spfs) available from
-the same CVS repository.
+on sourceforge (http://sourceforge.net/projects/npfs).  The currently
+maintained version is the single-threaded version of the server (named spfs)
+available from the same CVS repository.
 
 There are user and developer mailing lists available through the v9fs project
 on sourceforge (http://sourceforge.net/projects/v9fs).

@@ -288,9 +288,10 @@ struct p9_conn *p9_conn_create(struct p9_transport *trans, int msize,
 	m->extended = extended;
 	m->trans = trans;
 	m->tagpool = p9_idpool_create();
-	if (!m->tagpool) {
+	if (IS_ERR(m->tagpool)) {
+		mtmp = ERR_PTR(-ENOMEM);
 		kfree(m);
-		return ERR_PTR(PTR_ERR(m->tagpool));
+		return mtmp;
 	}
 
 	m->err = 0;
@@ -308,8 +309,10 @@ struct p9_conn *p9_conn_create(struct p9_transport *trans, int msize,
 	memset(&m->poll_waddr, 0, sizeof(m->poll_waddr));
 	m->poll_task = NULL;
 	n = p9_mux_poll_start(m);
-	if (n)
+	if (n) {
+		kfree(m);
 		return ERR_PTR(n);
+	}
 
 	n = trans->poll(trans, &m->pt);
 	if (n & POLLIN) {
