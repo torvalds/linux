@@ -59,14 +59,12 @@ static inline void slb_shadow_update(unsigned long ea,
 {
 	/*
 	 * Clear the ESID first so the entry is not valid while we are
-	 * updating it.
+	 * updating it.  No write barriers are needed here, provided
+	 * we only update the current CPU's SLB shadow buffer.
 	 */
 	get_slb_shadow()->save_area[entry].esid = 0;
-	smp_wmb();
 	get_slb_shadow()->save_area[entry].vsid = mk_vsid_data(ea, flags);
-	smp_wmb();
 	get_slb_shadow()->save_area[entry].esid = mk_esid_data(ea, entry);
-	smp_wmb();
 }
 
 static inline void slb_shadow_clear(unsigned long entry)
