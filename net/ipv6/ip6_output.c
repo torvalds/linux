@@ -441,8 +441,10 @@ int ip6_forward(struct sk_buff *skb)
 
 	/* IPv6 specs say nothing about it, but it is clear that we cannot
 	   send redirects to source routed frames.
+	   We don't send redirects to frames decapsulated from IPsec.
 	 */
-	if (skb->dev == dst->dev && dst->neighbour && opt->srcrt == 0) {
+	if (skb->dev == dst->dev && dst->neighbour && opt->srcrt == 0 &&
+	    !skb->sp) {
 		struct in6_addr *target = NULL;
 		struct rt6_info *rt;
 		struct neighbour *n = dst->neighbour;
