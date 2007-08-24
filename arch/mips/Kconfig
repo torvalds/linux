@@ -125,6 +125,7 @@ config LEMOTE_FULONG
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_HAS_EARLY_PRINTK
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select CPU_HAS_WB
 	help
 	  Lemote Fulong mini-PC board based on the Chinese Loongson-2E CPU and
