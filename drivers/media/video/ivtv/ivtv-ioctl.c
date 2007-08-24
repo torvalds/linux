@@ -699,6 +699,7 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void *arg)
 {
 	struct ivtv_open_id *id = NULL;
+	u32 data[CX2341X_MBOX_MAX_DATA];
 
 	if (filp) id = (struct ivtv_open_id *)filp->private_data;
 
@@ -1183,22 +1184,59 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 
 	case VIDIOC_G_FBUF: {
 		struct v4l2_framebuffer *fb = arg;
+		int pixfmt;
+		static u32 pixel_format[16] = {
+			V4L2_PIX_FMT_RGB332, /* Really RGB Indexed */
+			V4L2_PIX_FMT_RGB565,
+			V4L2_PIX_FMT_RGB555,
+			V4L2_PIX_FMT_RGB444,
+			V4L2_PIX_FMT_RGB32,
+			0,
+			0,
+			0,
+			/* Really YUV variants */
+			V4L2_PIX_FMT_RGB332, /* Really YUV Indexed */
+			V4L2_PIX_FMT_RGB565,
+			V4L2_PIX_FMT_RGB555,
+			V4L2_PIX_FMT_RGB444,
+			V4L2_PIX_FMT_RGB32,
+			0,
+			0,
+			0,
+		};
 
 		memset(fb, 0, sizeof(*fb));
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 			return -EINVAL;
 		fb->capability = V4L2_FBUF_CAP_EXTERNOVERLAY | V4L2_FBUF_CAP_CHROMAKEY |
-			V4L2_FBUF_CAP_LOCAL_ALPHA | V4L2_FBUF_CAP_GLOBAL_ALPHA;
-		fb->fmt.pixelformat = itv->osd_pixelformat;
+			V4L2_FBUF_CAP_GLOBAL_ALPHA;
+		ivtv_vapi_result(itv, data, CX2341X_OSD_GET_STATE, 0);
+		data[0] |= (read_reg(0x2a00) >> 7) & 0x40;
+		pixfmt = (data[0] >> 3) & 0xf;
+		fb->fmt.pixelformat = pixel_format[pixfmt];
 		fb->fmt.width = itv->osd_rect.width;
 		fb->fmt.height = itv->osd_rect.height;
 		fb->base = (void *)itv->osd_video_pbase;
-		if (itv->osd_global_alpha_state)
-			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
-		if (itv->osd_local_alpha_state)
-			fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
 		if (itv->osd_chroma_key_state)
 			fb->flags |= V4L2_FBUF_FLAG_CHROMAKEY;
+		if (itv->osd_global_alpha_state)
+			fb->flags |= V4L2_FBUF_FLAG_GLOBAL_ALPHA;
+		pixfmt &= 7;
+		/* no local alpha for RGB565 or unknown formats */
+		if (pixfmt == 1 || pixfmt > 4)
+			break;
+		/* 16-bit formats have inverted local alpha */
+		if (pixfmt == 2 || pixfmt == 3)
+			fb->capability |= V4L2_FBUF_CAP_LOCAL_INV_ALPHA;
+		else
+			fb->capability |= V4L2_FBUF_CAP_LOCAL_ALPHA;
+		if (itv->osd_local_alpha_state) {
+			/* 16-bit formats have inverted local alpha */
+			if (pixfmt == 2 || pixfmt == 3)
+				fb->flags |= V4L2_FBUF_FLAG_LOCAL_INV_ALPHA;
+			else
+				fb->flags |= V4L2_FBUF_FLAG_LOCAL_ALPHA;
+		}
 		break;
 	}
 
@@ -1208,7 +1246,8 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		if (!(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT_OVERLAY))
 			return -EINVAL;
 		itv->osd_global_alpha_state = (fb->flags & V4L2_FBUF_FLAG_GLOBAL_ALPHA) != 0;
-		itv->osd_local_alpha_state = (fb->flags & V4L2_FBUF_FLAG_LOCAL_ALPHA) != 0;
+		itv->osd_local_alpha_state =
+			(fb->flags & (V4L2_FBUF_FLAG_LOCAL_ALPHA|V4L2_FBUF_FLAG_LOCAL_INV_ALPHA)) != 0;
 		itv->osd_chroma_key_state = (fb->flags & V4L2_FBUF_FLAG_CHROMAKEY) != 0;
 		ivtv_set_osd_alpha(itv);
 		break;
@@ -1226,7 +1265,6 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_LOG_STATUS:
 	{
 		int has_output = itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT;
-		u32 data[CX2341X_MBOX_MAX_DATA];
 		struct v4l2_input vidin;
 		struct v4l2_audio audin;
 		int i;
@@ -1248,28 +1286,28 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			struct v4l2_output vidout;
 			struct v4l2_audioout audout;
 			int mode = itv->output_mode;
-			static const char * const output_modes[] = {
+			static const char * const output_modes[5] = {
 				"None",
 				"MPEG Streaming",
 				"YUV Streaming",
 				"YUV Frames",
 				"Passthrough",
 			};
-			static const char * const audio_modes[] = {
+			static const char * const audio_modes[5] = {
 				"Stereo",
 				"Left",
 				"Right",
 				"Mono",
 				"Swapped"
 			};
-			static const char * const alpha_mode[] = {
+			static const char * const alpha_mode[4] = {
 				"None",
 				"Global",
 				"Local",
 				"Global and Local"
 			};
-			static const char * const pixel_format[] = {
-				"RGB Indexed",
+			static const char * const pixel_format[16] = {
+				"ARGB Indexed",
 				"RGB 5:6:5",
 				"ARGB 1:5:5:5",
 				"ARGB 1:4:4:4",
@@ -1277,7 +1315,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 				"5",
 				"6",
 				"7",
-				"YUV Indexed",
+				"AYUV Indexed",
 				"YUV 5:6:5",
 				"AYUV 1:5:5:5",
 				"AYUV 1:4:4:4",

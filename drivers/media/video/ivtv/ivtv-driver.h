@@ -672,7 +672,6 @@ struct ivtv {
 	int osd_chroma_key_state;       /* 1 = chroma-keying is on */
 	u8  osd_global_alpha;           /* current global alpha */
 	u32 osd_chroma_key;             /* current chroma key */
-	u32 osd_pixelformat; 		/* current pixel format */
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
 	struct osd_info *osd_info;      /* ivtv-fb private OSD info */
