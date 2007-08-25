@@ -1019,7 +1019,86 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
  *    for retransmitted and already SACKed segment -> reordering..
  * Both of these heuristics are not used in Loss state, when we cannot
  * account for retransmits accurately.
+ *
+ * SACK block validation.
+ * ----------------------
+ *
+ * SACK block range validation checks that the received SACK block fits to
+ * the expected sequence limits, i.e., it is between SND.UNA and SND.NXT.
+ * Note that SND.UNA is not included to the range though being valid because
+ * it means that the receiver is rather inconsistent with itself (reports
+ * SACK reneging when it should advance SND.UNA).
+ *
+ * Implements also blockage to start_seq wrap-around. Problem lies in the
+ * fact that though start_seq (s) is before end_seq (i.e., not reversed),
+ * there's no guarantee that it will be before snd_nxt (n). The problem
+ * happens when start_seq resides between end_seq wrap (e_w) and snd_nxt
+ * wrap (s_w):
+ *
+ *         <- outs wnd ->                          <- wrapzone ->
+ *         u     e      n                         u_w   e_w  s n_w
+ *         |     |      |                          |     |   |  |
+ * |<------------+------+----- TCP seqno space --------------+---------->|
+ * ...-- <2^31 ->|                                           |<--------...
+ * ...---- >2^31 ------>|                                    |<--------...
+ *
+ * Current code wouldn't be vulnerable but it's better still to discard such
+ * crazy SACK blocks. Doing this check for start_seq alone closes somewhat
+ * similar case (end_seq after snd_nxt wrap) as earlier reversed check in
+ * snd_nxt wrap -> snd_una region will then become "well defined", i.e.,
+ * equal to the ideal case (infinite seqno space without wrap caused issues).
+ *
+ * With D-SACK the lower bound is extended to cover sequence space below
+ * SND.UNA down to undo_marker, which is the last point of interest. Yet
+ * again, DSACK block must not to go across snd_una (for the same reason as
+ * for the normal SACK blocks, explained above). But there all simplicity
+ * ends, TCP might receive valid D-SACKs below that. As long as they reside
+ * fully below undo_marker they do not affect behavior in anyway and can
+ * therefore be safely ignored. In rare cases (which are more or less
+ * theoretical ones), the D-SACK will nicely cross that boundary due to skb
+ * fragmentation and packet reordering past skb's retransmission. To consider
+ * them correctly, the acceptable range must be extended even more though
+ * the exact amount is rather hard to quantify. However, tp->max_window can
+ * be used as an exaggerated estimate.
  */
+static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
+				  u32 start_seq, u32 end_seq)
+{
+	/* Too far in future, or reversed (interpretation is ambiguous) */
+	if (after(end_seq, tp->snd_nxt) || !before(start_seq, end_seq))
+		return 0;
+
+	/* Nasty start_seq wrap-around check (see comments above) */
+	if (!before(start_seq, tp->snd_nxt))
+		return 0;
+
+	/* In outstanding window? ...This is valid exit for DSACKs too.
+	 * start_seq == snd_una is non-sensical (see comments above)
+	 */
+	if (after(start_seq, tp->snd_una))
+		return 1;
+
+	if (!is_dsack || !tp->undo_marker)
+		return 0;
+
+	/* ...Then it's D-SACK, and must reside below snd_una completely */
+	if (!after(end_seq, tp->snd_una))
+		return 0;
+
+	if (!before(start_seq, tp->undo_marker))
+		return 1;
+
+	/* Too old */
+	if (!after(end_seq, tp->undo_marker))
+		return 0;
+
+	/* Undo_marker boundary crossing (overestimates a lot). Known already:
+	 *   start_seq < undo_marker and end_seq >= undo_marker.
+	 */
+	return !before(start_seq, end_seq - tp->max_window);
+}
+
+
 static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
 			   struct tcp_sack_block_wire *sp, int num_sacks,
 			   u32 prior_snd_una)
@@ -1160,6 +1239,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		__u32 end_seq = ntohl(sp->end_seq);
 		int fack_count;
 		int dup_sack = (found_dup_sack && (i == first_sack_index));
+
+		if (!tcp_is_sackblock_valid(tp, dup_sack, start_seq, end_seq))
+			continue;
 
 		skb = cached_skb;
 		fack_count = cached_fack_count;
