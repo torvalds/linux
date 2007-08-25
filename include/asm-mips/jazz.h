@@ -185,37 +185,25 @@ typedef struct {
 #define JAZZ_IO_IRQ_ENABLE      0xe0010002
 
 /*
- * JAZZ interrupt enable bits
- */
-#define JAZZ_IE_PARALLEL            (1 << 0)
-#define JAZZ_IE_FLOPPY              (1 << 1)
-#define JAZZ_IE_SOUND               (1 << 2)
-#define JAZZ_IE_VIDEO               (1 << 3)
-#define JAZZ_IE_ETHERNET            (1 << 4)
-#define JAZZ_IE_SCSI                (1 << 5)
-#define JAZZ_IE_KEYBOARD            (1 << 6)
-#define JAZZ_IE_MOUSE               (1 << 7)
-#define JAZZ_IE_SERIAL1             (1 << 8)
-#define JAZZ_IE_SERIAL2             (1 << 9)
-
-/*
  * JAZZ Interrupt Level definitions
  *
  * This is somewhat broken.  For reasons which nobody can remember anymore
  * we remap the Jazz interrupts to the usual ISA style interrupt numbers.
  */
-#define JAZZ_PARALLEL_IRQ       16
-#define JAZZ_FLOPPY_IRQ         17
-#define JAZZ_SOUND_IRQ          18
-#define JAZZ_VIDEO_IRQ          19
-#define JAZZ_ETHERNET_IRQ       20
-#define JAZZ_SCSI_IRQ           21
-#define JAZZ_KEYBOARD_IRQ       22
-#define JAZZ_MOUSE_IRQ          23
-#define JAZZ_SERIAL1_IRQ        24
-#define JAZZ_SERIAL2_IRQ        25
+#define JAZZ_IRQ_START          24
+#define JAZZ_IRQ_END            (24 + 9)
+#define JAZZ_PARALLEL_IRQ       (JAZZ_IRQ_START + 0)
+#define JAZZ_FLOPPY_IRQ         (JAZZ_IRQ_START + 1)
+#define JAZZ_SOUND_IRQ          (JAZZ_IRQ_START + 2)
+#define JAZZ_VIDEO_IRQ          (JAZZ_IRQ_START + 3)
+#define JAZZ_ETHERNET_IRQ       (JAZZ_IRQ_START + 4)
+#define JAZZ_SCSI_IRQ           (JAZZ_IRQ_START + 5)
+#define JAZZ_KEYBOARD_IRQ       (JAZZ_IRQ_START + 6)
+#define JAZZ_MOUSE_IRQ          (JAZZ_IRQ_START + 7)
+#define JAZZ_SERIAL1_IRQ        (JAZZ_IRQ_START + 8)
+#define JAZZ_SERIAL2_IRQ        (JAZZ_IRQ_START + 9)
 
-#define JAZZ_TIMER_IRQ          31
+#define JAZZ_TIMER_IRQ          (MIPS_CPU_IRQ_BASE+6)
 
 
 /*

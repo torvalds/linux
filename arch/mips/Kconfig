@@ -93,6 +93,7 @@ config MACH_JAZZ
 	select ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select GENERIC_ISA_DMA
+	select IRQ_CPU
 	select I8259
 	select ISA
 	select PCSPEAKER
