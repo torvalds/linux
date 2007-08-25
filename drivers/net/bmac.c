@@ -19,6 +19,7 @@
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/bitrev.h>
+#include <linux/ethtool.h>
 #include <asm/prom.h>
 #include <asm/dbdma.h>
 #include <asm/io.h>
@@ -1246,6 +1247,17 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
+static void bmac_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
+{
+	struct bmac_data *bp = netdev_priv(dev);
+	strcpy(info->driver, "bmac");
+	strcpy(info->bus_info, bp->mdev->ofdev.dev.bus_id);
+}
+
+static const struct ethtool_ops bmac_ethtool_ops = {
+	.get_drvinfo		= bmac_get_drvinfo,
+	.get_link		= ethtool_op_get_link,
+};
 
 static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 {
@@ -1311,6 +1323,7 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 
 	dev->open = bmac_open;
 	dev->stop = bmac_close;
+	dev->ethtool_ops = &bmac_ethtool_ops;
 	dev->hard_start_xmit = bmac_output;
 	dev->get_stats = bmac_stats;
 	dev->set_multicast_list = bmac_set_multicast;
