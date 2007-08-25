@@ -1823,6 +1823,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			-1: disable all active trip points in all thermal zones
 			<degrees C>: override all lowest active trip points
 
+	thermal.crt=	[HW,ACPI]
+			-1: disable all critical trip points in all thermal zones
+			<degrees C>: lower all critical trip points
+
 	thermal.nocrt=	[HW,ACPI]
 			Set to disable actions on ACPI thermal zone
 			critical and hot trip points.
