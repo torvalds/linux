@@ -1881,6 +1881,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	return;
 }
 
+static int instance;
 static int acpi_video_bus_add(struct acpi_device *device)
 {
 	int result = 0;
@@ -1895,6 +1896,13 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)
 		return -ENOMEM;
+
+	/* a hack to fix the duplicate name "VID" problem on T61 */
+	if (!strcmp(device->pnp.bus_id, "VID")) {
+		if (instance)
+			device->pnp.bus_id[3] = '0' + instance;
+		instance ++;
+	}
 
 	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
