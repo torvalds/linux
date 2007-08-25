@@ -222,8 +222,8 @@ static ctl_table kern_table[] = {
 #ifdef CONFIG_SCHED_DEBUG
 	{
 		.ctl_name	= CTL_UNNUMBERED,
-		.procname	= "sched_granularity_ns",
-		.data		= &sysctl_sched_granularity,
+		.procname	= "sched_min_granularity_ns",
+		.data		= &sysctl_sched_min_granularity,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_minmax,

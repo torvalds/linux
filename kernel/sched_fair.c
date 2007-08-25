@@ -40,7 +40,7 @@ unsigned int sysctl_sched_latency __read_mostly = 20000000ULL;
  * Minimal preemption granularity for CPU-bound tasks:
  * (default: 2 msec, units: nanoseconds)
  */
-unsigned int sysctl_sched_granularity __read_mostly = 2000000ULL;
+unsigned int sysctl_sched_min_granularity __read_mostly = 2000000ULL;
 
 /*
  * SCHED_BATCH wake-up granularity.
@@ -258,7 +258,7 @@ sched_granularity(struct cfs_rq *cfs_rq)
 
 	if (nr > 1) {
 		gran = gran/nr - gran/nr/nr;
-		gran = max(gran, sysctl_sched_granularity);
+		gran = max(gran, sysctl_sched_min_granularity);
 	}
 
 	return gran;
