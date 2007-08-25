@@ -91,10 +91,10 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 
 	if (!saddr)
 		saddr = dev->dev_addr;
-	memcpy(eth->h_source, saddr, dev->addr_len);
+	memcpy(eth->h_source, saddr, ETH_ALEN);
 
 	if (daddr) {
-		memcpy(eth->h_dest, daddr, dev->addr_len);
+		memcpy(eth->h_dest, daddr, ETH_ALEN);
 		return ETH_HLEN;
 	}
 
@@ -103,7 +103,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 	 */
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		memset(eth->h_dest, 0, dev->addr_len);
+		memset(eth->h_dest, 0, ETH_ALEN);
 		return ETH_HLEN;
 	}
 
@@ -135,7 +135,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 		       "%s: unable to resolve type %X addresses.\n",
 		       dev->name, (int)eth->h_proto);
 
-		memcpy(eth->h_source, dev->dev_addr, dev->addr_len);
+		memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
 	}
 
@@ -233,8 +233,8 @@ int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 		return -1;
 
 	eth->h_proto = type;
-	memcpy(eth->h_source, dev->dev_addr, dev->addr_len);
-	memcpy(eth->h_dest, neigh->ha, dev->addr_len);
+	memcpy(eth->h_source, dev->dev_addr, ETH_ALEN);
+	memcpy(eth->h_dest, neigh->ha, ETH_ALEN);
 	hh->hh_len = ETH_HLEN;
 	return 0;
 }
@@ -251,7 +251,7 @@ void eth_header_cache_update(struct hh_cache *hh, struct net_device *dev,
 			     unsigned char *haddr)
 {
 	memcpy(((u8 *) hh->hh_data) + HH_DATA_OFF(sizeof(struct ethhdr)),
-	       haddr, dev->addr_len);
+	       haddr, ETH_ALEN);
 }
 
 /**
@@ -271,7 +271,7 @@ static int eth_mac_addr(struct net_device *dev, void *p)
 		return -EBUSY;
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	return 0;
 }
 
