@@ -57,6 +57,10 @@ BTFIXUPDEF_CALL(void, flush_tlb_page, struct vm_area_struct *, unsigned long)
 /*
  * This is a kludge, until I know better. --zaitcev XXX
  */
-#define flush_tlb_kernel_range(start, end) flush_tlb_all()
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	flush_tlb_all();
+}
 
 #endif /* _SPARC_TLBFLUSH_H */
