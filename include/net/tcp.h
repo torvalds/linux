@@ -614,18 +614,6 @@ static inline void tcp_dec_pcount_approx(__u32 *count,
 	tcp_dec_pcount_approx_int(count, tcp_skb_pcount(skb));
 }
 
-static inline void tcp_packets_out_inc(struct sock *sk,
-				       const struct sk_buff *skb)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-	int orig = tp->packets_out;
-
-	tp->packets_out += tcp_skb_pcount(skb);
-	if (!orig)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
-}
-
 /* Events passed to congestion control interface */
 enum tcp_ca_event {
 	CA_EVENT_TX_START,	/* first transmit when no packets in flight */
