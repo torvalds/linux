@@ -69,7 +69,7 @@ XXXX add flash parts, rtc, ??
 
 			rtc@32 {
 				device_type = "rtc";
-				compatible = "ricoh,rs5c372b";
+				compatible = "ricoh,rs5c372a";
 				reg = <32>;
 			};
 		};
@@ -80,7 +80,7 @@ XXXX add flash parts, rtc, ??
 			reg = <80004500 8>;
 			clock-frequency = <7c044a8>;
 			current-speed = <2580>;
-			interrupts = <9 2>;
+			interrupts = <9 0>;
 			interrupt-parent = <&mpic>;
 		};
 
