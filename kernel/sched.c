@@ -4921,8 +4921,8 @@ static inline void sched_init_granularity(void)
 	if (sysctl_sched_latency > limit)
 		sysctl_sched_latency = limit;
 
-	sysctl_sched_runtime_limit = sysctl_sched_latency * 5;
-	sysctl_sched_wakeup_granularity = sysctl_sched_latency / 2;
+	sysctl_sched_runtime_limit = sysctl_sched_latency;
+	sysctl_sched_wakeup_granularity = sysctl_sched_min_granularity / 2;
 }
 
 #ifdef CONFIG_SMP
