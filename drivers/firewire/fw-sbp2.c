@@ -361,10 +361,11 @@ complete_transaction(struct fw_card *card, int rcode,
 		orb->rcode = rcode;
 	if (orb->rcode != RCODE_COMPLETE) {
 		list_del(&orb->link);
+		spin_unlock_irqrestore(&card->lock, flags);
 		orb->callback(orb, NULL);
+	} else {
+		spin_unlock_irqrestore(&card->lock, flags);
 	}
-
-	spin_unlock_irqrestore(&card->lock, flags);
 
 	kref_put(&orb->kref, free_orb);
 }
