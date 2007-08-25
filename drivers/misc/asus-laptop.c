@@ -732,7 +732,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 		lcd_blank(FB_BLANK_POWERDOWN);
 	}
 
-	acpi_bus_generate_event(hotk->device, event,
+	acpi_bus_generate_proc_event(hotk->device, event,
 				hotk->event_count[event % 128]++);
 
 	return;
@@ -1072,7 +1072,8 @@ static void asus_backlight_exit(void)
 }
 
 #define  ASUS_LED_UNREGISTER(object)				\
-	led_classdev_unregister(&object##_led)
+	if (object##_led.dev)					\
+		led_classdev_unregister(&object##_led)
 
 static void asus_led_exit(void)
 {

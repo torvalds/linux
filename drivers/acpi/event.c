@@ -17,6 +17,7 @@
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
 ACPI_MODULE_NAME("event");
 
+#ifdef CONFIG_ACPI_PROC_EVENT
 /* Global vars for handling event proc entry */
 static DEFINE_SPINLOCK(acpi_system_event_lock);
 int event_is_open = 0;
@@ -106,6 +107,7 @@ static const struct file_operations acpi_system_event_ops = {
 	.release = acpi_system_close_event,
 	.poll = acpi_system_poll_event,
 };
+#endif	/* CONFIG_ACPI_PROC_EVENT */
 
 #ifdef CONFIG_NET
 static unsigned int acpi_event_seqnum;
@@ -147,7 +149,8 @@ static struct genl_multicast_group acpi_event_mcgrp = {
 	.name = ACPI_GENL_MCAST_GROUP_NAME,
 };
 
-int acpi_bus_generate_genetlink_event(struct acpi_device *device,
+int acpi_bus_generate_netlink_event(const char *device_class,
+				      const char *bus_id,
 				      u8 type, int data)
 {
 	struct sk_buff *skb;
@@ -191,8 +194,8 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 
 	memset(event, 0, sizeof(struct acpi_genl_event));
 
-	strcpy(event->device_class, device->pnp.device_class);
-	strcpy(event->bus_id, device->dev.bus_id);
+	strcpy(event->device_class, device_class);
+	strcpy(event->bus_id, bus_id);
 	event->type = type;
 	event->data = data;
 
@@ -211,6 +214,8 @@ int acpi_bus_generate_genetlink_event(struct acpi_device *device,
 	return 0;
 }
 
+EXPORT_SYMBOL(acpi_bus_generate_netlink_event);
+
 static int acpi_event_genetlink_init(void)
 {
 	int result;
@@ -228,11 +233,14 @@ static int acpi_event_genetlink_init(void)
 }
 
 #else
-int acpi_bus_generate_genetlink_event(struct acpi_device *device, u8 type,
-				      int data)
+int acpi_bus_generate_netlink_event(const char *device_class,
+				      const char *bus_id,
+				      u8 type, int data)
 {
 	return 0;
 }
+
+EXPORT_SYMBOL(acpi_generate_netlink_event);
 
 static int acpi_event_genetlink_init(void)
 {
@@ -242,7 +250,9 @@ static int acpi_event_genetlink_init(void)
 
 static int __init acpi_event_init(void)
 {
+#ifdef CONFIG_ACPI_PROC_EVENT
 	struct proc_dir_entry *entry;
+#endif
 	int error = 0;
 
 	if (acpi_disabled)
@@ -254,12 +264,14 @@ static int __init acpi_event_init(void)
 		printk(KERN_WARNING PREFIX
 		       "Failed to create genetlink family for ACPI event\n");
 
+#ifdef CONFIG_ACPI_PROC_EVENT
 	/* 'event' [R] */
 	entry = create_proc_entry("event", S_IRUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_event_ops;
 	else
 		return -ENODEV;
+#endif
 
 	return 0;
 }

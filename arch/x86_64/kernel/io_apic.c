@@ -397,14 +397,12 @@ static void clear_IO_APIC (void)
 int skip_ioapic_setup;
 int ioapic_force;
 
-/* dummy parsing: see setup.c */
-
-static int __init disable_ioapic_setup(char *str)
+static int __init parse_noapic(char *str)
 {
-	skip_ioapic_setup = 1;
+	disable_ioapic_setup();
 	return 0;
 }
-early_param("noapic", disable_ioapic_setup);
+early_param("noapic", parse_noapic);
 
 /* Actually the next is obsolete, but keep it for paranoid reasons -AK */
 static int __init disable_timer_pin_setup(char *arg)

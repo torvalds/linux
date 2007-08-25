@@ -1069,7 +1069,7 @@ static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
 		hotk->brightness = (event & ~((u32) BR_DOWN));
 	}
 
-	acpi_bus_generate_event(hotk->device, event,
+	acpi_bus_generate_proc_event(hotk->device, event,
 				hotk->event_count[event % 128]++);
 
 	return;

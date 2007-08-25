@@ -77,23 +77,27 @@ MODULE_LICENSE("GPL");
 
 static int act;
 module_param(act, int, 0644);
-MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.\n");
+MODULE_PARM_DESC(act, "Disable or override all lowest active trip points.");
+
+static int crt;
+module_param(crt, int, 0644);
+MODULE_PARM_DESC(crt, "Disable or lower all critical trip points.");
 
 static int tzp;
 module_param(tzp, int, 0444);
-MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.\n");
+MODULE_PARM_DESC(tzp, "Thermal zone polling frequency, in 1/10 seconds.");
 
 static int nocrt;
 module_param(nocrt, int, 0);
-MODULE_PARM_DESC(nocrt, "Set to disable action on ACPI thermal zone critical and hot trips.\n");
+MODULE_PARM_DESC(nocrt, "Set to take no action upon ACPI thermal zone critical trips points.");
 
 static int off;
 module_param(off, int, 0);
-MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.\n");
+MODULE_PARM_DESC(off, "Set to disable ACPI thermal support.");
 
 static int psv;
 module_param(psv, int, 0644);
-MODULE_PARM_DESC(psv, "Disable or override all passive trip points.\n");
+MODULE_PARM_DESC(psv, "Disable or override all passive trip points.");
 
 static int acpi_thermal_add(struct acpi_device *device);
 static int acpi_thermal_remove(struct acpi_device *device, int type);
@@ -340,6 +344,20 @@ static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 				  tz->trips.critical.temperature));
 	}
 
+	if (tz->trips.critical.flags.valid == 1) {
+		if (crt == -1) {
+			tz->trips.critical.flags.valid = 0;
+		} else if (crt > 0) {
+			unsigned long crt_k = CELSIUS_TO_KELVIN(crt);
+
+			/*
+			 * Allow override to lower critical threshold
+			 */
+			if (crt_k < tz->trips.critical.temperature)
+				tz->trips.critical.temperature = crt_k;
+		}
+	}
+
 	/* Critical Sleep (optional) */
 
 	status =
@@ -485,8 +503,12 @@ static int acpi_thermal_critical(struct acpi_thermal *tz)
 	printk(KERN_EMERG
 	       "Critical temperature reached (%ld C), shutting down.\n",
 	       KELVIN_TO_CELSIUS(tz->temperature));
-	acpi_bus_generate_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
+	acpi_bus_generate_proc_event(tz->device, ACPI_THERMAL_NOTIFY_CRITICAL,
 				tz->trips.critical.flags.enabled);
+	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
+					  tz->device->dev.bus_id,
+					  ACPI_THERMAL_NOTIFY_CRITICAL,
+					  tz->trips.critical.flags.enabled);
 
 	orderly_poweroff(true);
 
@@ -504,8 +526,12 @@ static int acpi_thermal_hot(struct acpi_thermal *tz)
 	} else if (tz->trips.hot.flags.enabled)
 		tz->trips.hot.flags.enabled = 0;
 
-	acpi_bus_generate_event(tz->device, ACPI_THERMAL_NOTIFY_HOT,
+	acpi_bus_generate_proc_event(tz->device, ACPI_THERMAL_NOTIFY_HOT,
 				tz->trips.hot.flags.enabled);
+	acpi_bus_generate_netlink_event(tz->device->pnp.device_class,
+					  tz->device->dev.bus_id,
+					  ACPI_THERMAL_NOTIFY_HOT,
+					  tz->trips.hot.flags.enabled);
 
 	/* TBD: Call user-mode "sleep(S4)" function */
 
@@ -1067,9 +1093,9 @@ static int acpi_thermal_add_fs(struct acpi_device *device)
 		entry->owner = THIS_MODULE;
 	}
 
-	/* 'trip_points' [R/W] */
+	/* 'trip_points' [R] */
 	entry = create_proc_entry(ACPI_THERMAL_FILE_TRIP_POINTS,
-				  S_IFREG | S_IRUGO | S_IWUSR,
+				  S_IRUGO,
 				  acpi_device_dir(device));
 	if (!entry)
 		return -ENODEV;
@@ -1149,12 +1175,16 @@ static void acpi_thermal_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_THERMAL_NOTIFY_THRESHOLDS:
 		acpi_thermal_get_trip_points(tz);
 		acpi_thermal_check(tz);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 		break;
 	case ACPI_THERMAL_NOTIFY_DEVICES:
 		if (tz->flags.devices)
 			acpi_thermal_get_devices(tz);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
@@ -1339,6 +1369,13 @@ static int thermal_act(struct dmi_system_id *d) {
 	}
 	return 0;
 }
+static int thermal_nocrt(struct dmi_system_id *d) {
+
+	printk(KERN_NOTICE "ACPI: %s detected: "
+		"disabling all critical thermal trip point actions.\n", d->ident);
+	nocrt = 1;
+	return 0;
+}
 static int thermal_tzp(struct dmi_system_id *d) {
 
 	if (tzp == 0) {
@@ -1385,6 +1422,14 @@ static struct dmi_system_id thermal_dmi_table[] __initdata = {
 	 .matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "AOpen"),
 		DMI_MATCH(DMI_BOARD_NAME, "i915GMm-HFS"),
+		},
+	},
+	{
+	 .callback = thermal_nocrt,
+	 .ident = "Gigabyte GA-7ZX",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."),
+		DMI_MATCH(DMI_BOARD_NAME, "7ZX"),
 		},
 	},
 	{}
