@@ -71,7 +71,7 @@ struct sys_timer omap_timer;
 #if defined(CONFIG_ARCH_OMAP16XX)
 #define TIMER_32K_SYNCHRONIZED		0xfffbc410
 #elif defined(CONFIG_ARCH_OMAP24XX)
-#define TIMER_32K_SYNCHRONIZED		0x48004010
+#define TIMER_32K_SYNCHRONIZED		(OMAP24XX_32KSYNCT_BASE + 0x10)
 #else
 #error OMAP 32KHz timer does not currently work on 15XX!
 #endif
@@ -147,14 +147,15 @@ static inline void omap_32k_timer_ack_irq(void)
 static void omap_32k_timer_set_mode(enum clock_event_mode mode,
 				    struct clock_event_device *evt)
 {
+	omap_32k_timer_stop();
+
 	switch (mode) {
-	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_PERIODIC:
 		omap_32k_timer_start(OMAP_32K_TIMER_TICK_PERIOD);
 		break;
+	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		omap_32k_timer_stop();
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		break;
@@ -194,8 +195,6 @@ omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
 	return (unsigned long long) ticks_32k * 1000 * 5*5*5*5*5*5 >> 9;
 }
 
-static unsigned long omap_32k_last_tick = 0;
-
 /*
  * Returns current time from boot in nsecs. It's OK for this to wrap
  * around for now, as it's just a relative time stamp.
@@ -225,7 +224,6 @@ static __init void omap_init_32k_timer(void)
 {
 	if (cpu_class_is_omap1())
 		setup_irq(INT_OS_TIMER, &omap_32k_timer_irq);
-	omap_32k_last_tick = omap_32k_sync_timer_read();
 
 #ifdef CONFIG_ARCH_OMAP2
 	/* REVISIT: Check 24xx TIOCP_CFG settings after idle works */
