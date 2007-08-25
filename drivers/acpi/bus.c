@@ -276,6 +276,7 @@ EXPORT_SYMBOL(acpi_bus_set_power);
                                 Event Management
    -------------------------------------------------------------------------- */
 
+#ifdef CONFIG_ACPI_PROC_EVENT
 static DEFINE_SPINLOCK(acpi_bus_event_lock);
 
 LIST_HEAD(acpi_bus_event_list);
@@ -283,7 +284,7 @@ DECLARE_WAIT_QUEUE_HEAD(acpi_bus_event_queue);
 
 extern int event_is_open;
 
-int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
+int acpi_bus_generate_proc_event(struct acpi_device *device, u8 type, int data)
 {
 	struct acpi_bus_event *event = NULL;
 	unsigned long flags = 0;
@@ -291,10 +292,6 @@ int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
 
 	if (!device)
 		return -EINVAL;
-
-	if (acpi_bus_generate_genetlink_event(device, type, data))
-		printk(KERN_WARNING PREFIX
-			"Failed to generate an ACPI event via genetlink!\n");
 
 	/* drop event on the floor if no one's listening */
 	if (!event_is_open)
@@ -318,7 +315,7 @@ int acpi_bus_generate_event(struct acpi_device *device, u8 type, int data)
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_bus_generate_event);
+EXPORT_SYMBOL(acpi_bus_generate_proc_event);
 
 int acpi_bus_receive_event(struct acpi_bus_event *event)
 {
@@ -364,6 +361,7 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
 }
 
 EXPORT_SYMBOL(acpi_bus_receive_event);
+#endif	/* CONFIG_ACPI_PROC_EVENT */
 
 /* --------------------------------------------------------------------------
                              Notification Handling

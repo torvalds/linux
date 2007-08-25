@@ -1781,7 +1781,7 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User requested a switch,
 					 * most likely via hotkey. */
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
@@ -1790,23 +1790,23 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		acpi_video_device_enumerate(video);
 		acpi_video_device_rebind(video);
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
 	case ACPI_VIDEO_NOTIFY_CYCLE:	/* Cycle Display output hotkey pressed. */
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 	case ACPI_VIDEO_NOTIFY_NEXT_OUTPUT:	/* Next Display output hotkey pressed. */
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_VIDEO_NEXT;
 		break;
 	case ACPI_VIDEO_NOTIFY_PREV_OUTPUT:	/* previous Display output hotkey pressed. */
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_VIDEO_PREV;
 		break;
 
@@ -1843,27 +1843,27 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS:	/* Cycle brightness */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_BRIGHTNESS_CYCLE;
 		break;
 	case ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS:	/* Increase brightness */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_BRIGHTNESSUP;
 		break;
 	case ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS:	/* Decrease brightness */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_BRIGHTNESSDOWN;
 		break;
 	case ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS:	/* zero brightnesss */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_BRIGHTNESS_ZERO;
 		break;
 	case ACPI_VIDEO_NOTIFY_DISPLAY_OFF:	/* display device off */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
 		keycode = KEY_DISPLAY_OFF;
 		break;
 	default:
