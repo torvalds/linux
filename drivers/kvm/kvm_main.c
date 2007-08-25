@@ -655,6 +655,7 @@ void fx_init(struct kvm_vcpu *vcpu)
 	fx_restore(&vcpu->host_fx_image);
 	preempt_enable();
 
+	vcpu->cr0 |= X86_CR0_ET;
 	after_mxcsr_mask = offsetof(struct i387_fxsave_struct, st_space);
 	vcpu->guest_fx_image.mxcsr = 0x1f80;
 	memset((void *)&vcpu->guest_fx_image + after_mxcsr_mask,
