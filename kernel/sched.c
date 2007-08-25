@@ -4911,14 +4911,18 @@ cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 static inline void sched_init_granularity(void)
 {
 	unsigned int factor = 1 + ilog2(num_online_cpus());
-	const unsigned long gran_limit = 100000000;
+	const unsigned long limit = 100000000;
 
-	sysctl_sched_granularity *= factor;
-	if (sysctl_sched_granularity > gran_limit)
-		sysctl_sched_granularity = gran_limit;
+	sysctl_sched_min_granularity *= factor;
+	if (sysctl_sched_min_granularity > limit)
+		sysctl_sched_min_granularity = limit;
 
-	sysctl_sched_runtime_limit = sysctl_sched_granularity * 5;
-	sysctl_sched_wakeup_granularity = sysctl_sched_granularity / 2;
+	sysctl_sched_latency *= factor;
+	if (sysctl_sched_latency > limit)
+		sysctl_sched_latency = limit;
+
+	sysctl_sched_runtime_limit = sysctl_sched_latency * 5;
+	sysctl_sched_wakeup_granularity = sysctl_sched_latency / 2;
 }
 
 #ifdef CONFIG_SMP
