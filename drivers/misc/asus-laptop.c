@@ -1072,7 +1072,8 @@ static void asus_backlight_exit(void)
 }
 
 #define  ASUS_LED_UNREGISTER(object)				\
-	led_classdev_unregister(&object##_led)
+	if (object##_led.dev)					\
+		led_classdev_unregister(&object##_led)
 
 static void asus_led_exit(void)
 {
