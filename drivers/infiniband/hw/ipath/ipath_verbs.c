@@ -230,6 +230,18 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 	}
 }
 
+static void ipath_flush_wqe(struct ipath_qp *qp, struct ib_send_wr *wr)
+{
+	struct ib_wc wc;
+
+	memset(&wc, 0, sizeof(wc));
+	wc.wr_id = wr->wr_id;
+	wc.status = IB_WC_WR_FLUSH_ERR;
+	wc.opcode = ib_ipath_wc_opcode[wr->opcode];
+	wc.qp = &qp->ibqp;
+	ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+}
+
 /**
  * ipath_post_one_send - post one RC, UC, or UD send work request
  * @qp: the QP to post on
@@ -248,8 +260,14 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Check that state is OK to post send. */
-	if (!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK))
-		goto bail_inval;
+	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK))) {
+		if (qp->state != IB_QPS_SQE && qp->state != IB_QPS_ERR)
+			goto bail_inval;
+		/* C10-96 says generate a flushed completion entry. */
+		ipath_flush_wqe(qp, wr);
+		ret = 0;
+		goto bail;
+	}
 
 	/* IB spec says that num_sge == 0 is OK. */
 	if (wr->num_sge > qp->s_max_sge)
