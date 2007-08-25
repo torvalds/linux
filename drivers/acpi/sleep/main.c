@@ -305,7 +305,7 @@ int acpi_pm_device_sleep_state(struct device *dev, int wake, int *d_min_p)
 	unsigned long d_min, d_max;
 
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		printk(KERN_ERR "ACPI handle has no context!\n");
+		printk(KERN_DEBUG "ACPI handle has no context!\n");
 		return -ENODEV;
 	}
 

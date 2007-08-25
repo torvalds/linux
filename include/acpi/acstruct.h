@@ -146,7 +146,7 @@ struct acpi_init_walk_info {
 struct acpi_get_devices_info {
 	acpi_walk_callback user_function;
 	void *context;
-	char *hid;
+	const char *hid;
 };
 
 union acpi_aml_operands {
