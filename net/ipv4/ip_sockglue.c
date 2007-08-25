@@ -625,6 +625,10 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 	{
 		struct ip_mreqn mreq;
 
+		err = -EPROTO;
+		if (inet_sk(sk)->is_icsk)
+			break;
+
 		if (optlen < sizeof(struct ip_mreq))
 			goto e_inval;
 		err = -EFAULT;
