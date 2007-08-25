@@ -573,10 +573,9 @@ restart:
 			dvb_frontend_swzigzag(fe);
 	}
 
-	if (dvb_shutdown_timeout) {
-		if (dvb_powerdown_on_sleep)
-			if (fe->ops.set_voltage)
-				fe->ops.set_voltage(fe, SEC_VOLTAGE_OFF);
+	if (dvb_powerdown_on_sleep) {
+		if (fe->ops.set_voltage)
+			fe->ops.set_voltage(fe, SEC_VOLTAGE_OFF);
 		if (fe->ops.tuner_ops.sleep) {
 			fe->ops.tuner_ops.sleep(fe);
 			if (fe->ops.i2c_gate_ctrl)
