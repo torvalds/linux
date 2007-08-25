@@ -419,7 +419,6 @@ static void __init build_devlist(void)
 static int pnpbios_disabled;
 int pnpbios_dont_use_current_config;
 
-#ifndef MODULE
 static int __init pnpbios_setup(char *str)
 {
 	int invert;
@@ -443,7 +442,6 @@ static int __init pnpbios_setup(char *str)
 }
 
 __setup("pnpbios=", pnpbios_setup);
-#endif
 
 /* PnP BIOS signature: "$PnP" */
 #define PNP_SIGNATURE   (('$' << 0) + ('P' << 8) + ('n' << 16) + ('P' << 24))
@@ -591,6 +589,7 @@ subsys_initcall(pnpbios_init);
 static int __init pnpbios_thread_init(void)
 {
 	struct task_struct *task;
+
 #if defined(CONFIG_PPC_MERGE)
 	if (check_legacy_ioport(PNPBIOS_BASE))
 		return 0;
@@ -606,48 +605,7 @@ static int __init pnpbios_thread_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-
-/* init/main.c calls pnpbios_init early */
-
 /* Start the kernel thread later: */
 module_init(pnpbios_thread_init);
-
-#else
-
-/*
- * N.B.: Building pnpbios as a module hasn't been fully implemented
- */
-
-MODULE_LICENSE("GPL");
-
-static int __init pnpbios_init_all(void)
-{
-	int r;
-
-	r = pnpbios_init();
-	if (r)
-		return r;
-	r = pnpbios_thread_init();
-	if (r)
-		return r;
-	return 0;
-}
-
-static void __exit pnpbios_exit(void)
-{
-#ifdef CONFIG_HOTPLUG
-	unloading = 1;
-	wait_for_completion(&unload_sem);
-#endif
-	pnpbios_proc_exit();
-	/* We ought to free resources here */
-	return;
-}
-
-module_init(pnpbios_init_all);
-module_exit(pnpbios_exit);
-
-#endif
 
 EXPORT_SYMBOL(pnpbios_protocol);

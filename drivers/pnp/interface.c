@@ -459,7 +459,8 @@ pnp_set_current_resources(struct device *dmdev, struct device_attribute *attr,
 		up(&pnp_res_mutex);
 		goto done;
 	}
-      done:
+
+done:
 	if (retval < 0)
 		return retval;
 	return count;
@@ -499,10 +500,10 @@ int pnp_interface_attach_device(struct pnp_dev *dev)
 
 	return 0;
 
-      err_res:
+err_res:
 	device_remove_file(&dev->dev, &dev_attr_resources);
-      err_opt:
+err_opt:
 	device_remove_file(&dev->dev, &dev_attr_options);
-      err:
+err:
 	return rc;
 }

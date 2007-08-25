@@ -25,13 +25,13 @@ static const struct pnp_card_device_id *match_card(struct pnp_card_driver *drv,
 				int found;
 				struct pnp_dev *dev;
 
-				if (i == PNP_MAX_DEVICES
-				    || !*drv_id->devs[i].id)
+				if (i == PNP_MAX_DEVICES ||
+				    !*drv_id->devs[i].id)
 					return drv_id;
 				found = 0;
 				card_for_each_dev(card, dev) {
-					if (compare_pnp_id
-					    (dev->id, drv_id->devs[i].id)) {
+					if (compare_pnp_id(dev->id,
+						   drv_id->devs[i].id)) {
 						found = 1;
 						break;
 					}
@@ -183,7 +183,7 @@ static int pnp_interface_attach_card(struct pnp_card *card)
 
 	return 0;
 
-      err_name:
+err_name:
 	device_remove_file(&card->dev, &dev_attr_name);
 	return rc;
 }
@@ -321,10 +321,10 @@ struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink,
 		pos = pos->next;
 	}
 
-      done:
+done:
 	return NULL;
 
-      found:
+found:
 	dev->card_link = clink;
 	dev->dev.driver = &drv->link.driver;
 	if (pnp_bus_type.probe(&dev->dev))
@@ -334,7 +334,7 @@ struct pnp_dev *pnp_request_card_device(struct pnp_card_link *clink,
 
 	return dev;
 
-      err_out:
+err_out:
 	dev->dev.driver = NULL;
 	dev->card_link = NULL;
 	return NULL;

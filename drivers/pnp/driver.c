@@ -118,7 +118,7 @@ static int pnp_device_probe(struct device *dev)
 		goto fail;
 	return error;
 
-      fail:
+fail:
 	pnp_device_detach(pnp_dev);
 	return error;
 }
@@ -232,10 +232,6 @@ int pnp_add_id(struct pnp_id *id, struct pnp_dev *dev)
 {
 	struct pnp_id *ptr;
 
-	if (!id)
-		return -EINVAL;
-	if (!dev)
-		return -EINVAL;
 	id->next = NULL;
 	ptr = dev->id;
 	while (ptr && ptr->next)

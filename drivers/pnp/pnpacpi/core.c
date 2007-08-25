@@ -248,9 +248,9 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	num++;
 
 	return AE_OK;
-      err1:
+err1:
 	kfree(dev_id);
-      err:
+err:
 	kfree(dev);
 	return -EINVAL;
 }

@@ -212,7 +212,7 @@ static int proc_write_node(struct file *file, const char __user * buf,
 		goto out;
 	}
 	ret = count;
-      out:
+out:
 	kfree(node);
 	return ret;
 }
