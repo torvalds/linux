@@ -1056,18 +1056,15 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 
 	dprintk ("%s\n", __FUNCTION__);
 
-	if ((ret = dvb_generic_open (inode, file)) < 0)
-		return ret;
-
-	if (fe->ops.ts_bus_ctrl) {
-		if ((ret = fe->ops.ts_bus_ctrl (fe, 1)) < 0) {
-			dvb_generic_release (inode, file);
+	if (dvbdev->users == -1 && fe->ops.ts_bus_ctrl) {
+		if ((ret = fe->ops.ts_bus_ctrl(fe, 1)) < 0)
 			return ret;
-		}
 	}
 
-	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
+	if ((ret = dvb_generic_open (inode, file)) < 0)
+		goto err1;
 
+	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		/* normal tune mode when opened R/W */
 		fepriv->tune_mode_flags &= ~FE_TUNE_MODE_ONESHOT;
 		fepriv->tone = -1;
@@ -1075,12 +1072,19 @@ static int dvb_frontend_open(struct inode *inode, struct file *file)
 
 		ret = dvb_frontend_start (fe);
 		if (ret)
-			dvb_generic_release (inode, file);
+			goto err2;
 
 		/*  empty event queue */
 		fepriv->events.eventr = fepriv->events.eventw = 0;
 	}
 
+	return ret;
+
+err2:
+	dvb_generic_release(inode, file);
+err1:
+	if (dvbdev->users == -1 && fe->ops.ts_bus_ctrl)
+		fe->ops.ts_bus_ctrl(fe, 0);
 	return ret;
 }
 
@@ -1096,16 +1100,18 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY)
 		fepriv->release_jiffies = jiffies;
 
-	if (fe->ops.ts_bus_ctrl)
-		fe->ops.ts_bus_ctrl (fe, 0);
-
 	ret = dvb_generic_release (inode, file);
 
-	if (dvbdev->users==-1 && fepriv->exit==1) {
-		fops_put(file->f_op);
-		file->f_op = NULL;
-		wake_up(&dvbdev->wait_queue);
+	if (dvbdev->users == -1) {
+		if (fepriv->exit == 1) {
+			fops_put(file->f_op);
+			file->f_op = NULL;
+			wake_up(&dvbdev->wait_queue);
+		}
+		if (fe->ops.ts_bus_ctrl)
+			fe->ops.ts_bus_ctrl(fe, 0);
 	}
+
 	return ret;
 }
 
