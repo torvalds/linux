@@ -957,7 +957,7 @@ slip_close(struct tty_struct *tty)
   *			STANDARD SLIP ENCAPSULATION		  	 *
   ************************************************************************/
 
-int
+static int
 slip_esc(unsigned char *s, unsigned char *d, int len)
 {
 	unsigned char *ptr = d;
