@@ -1399,6 +1399,7 @@ static inline void idle_task_exit(void) {}
 
 extern void sched_idle_next(void);
 
+extern unsigned int sysctl_sched_latency;
 extern unsigned int sysctl_sched_granularity;
 extern unsigned int sysctl_sched_wakeup_granularity;
 extern unsigned int sysctl_sched_batch_wakeup_granularity;
