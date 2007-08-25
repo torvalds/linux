@@ -1497,11 +1497,21 @@ send_ack:
 static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 {
 	unsigned long flags;
+	int lastwqe;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
-	ipath_error_qp(qp, err);
+	lastwqe = ipath_error_qp(qp, err);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
 }
 
 static inline void ipath_update_ack_queue(struct ipath_qp *qp, unsigned n)

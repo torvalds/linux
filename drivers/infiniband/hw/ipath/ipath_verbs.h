@@ -672,7 +672,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 
 int ipath_destroy_qp(struct ib_qp *ibqp);
 
-void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
+int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
 
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
