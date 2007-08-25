@@ -177,8 +177,14 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 						     MTRR_TYPE_WRCOMB, 1);
 			}
 		}
-		if (map->type == _DRM_REGISTERS)
+		if (map->type == _DRM_REGISTERS) {
 			map->handle = ioremap(map->offset, map->size);
+			if (!map->handle) {
+				drm_free(map, sizeof(*map), DRM_MEM_MAPS);
+				return -ENOMEM;
+			}
+		}
+				
 		break;
 	case _DRM_SHM:
 		list = drm_find_matching_map(dev, map);
