@@ -1013,7 +1013,7 @@ int mga_dma_init(DRM_IOCTL_ARGS)
 	drm_mga_init_t init;
 	int err;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(init, (drm_mga_init_t __user *) data,
 				 sizeof(init));
@@ -1042,7 +1042,7 @@ int mga_dma_flush(DRM_IOCTL_ARGS)
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 	struct drm_lock lock;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(lock, (struct drm_lock __user *) data,
 				 sizeof(lock));
@@ -1077,7 +1077,7 @@ int mga_dma_reset(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return mga_do_dma_reset(dev_priv);
 }
@@ -1086,7 +1086,8 @@ int mga_dma_reset(DRM_IOCTL_ARGS)
  * DMA buffer management
  */
 
-static int mga_dma_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm_dma * d)
+static int mga_dma_get_buffers(struct drm_device * dev,
+			       struct drm_file *file_priv, struct drm_dma * d)
 {
 	struct drm_buf *buf;
 	int i;
@@ -1096,7 +1097,7 @@ static int mga_dma_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm
 		if (!buf)
 			return -EAGAIN;
 
-		buf->filp = filp;
+		buf->file_priv = file_priv;
 
 		if (DRM_COPY_TO_USER(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
@@ -1119,7 +1120,7 @@ int mga_dma_buffers(DRM_IOCTL_ARGS)
 	struct drm_dma d;
 	int ret = 0;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(d, argp, sizeof(d));
 
@@ -1144,7 +1145,7 @@ int mga_dma_buffers(DRM_IOCTL_ARGS)
 	d.granted_count = 0;
 
 	if (d.request_count) {
-		ret = mga_dma_get_buffers(filp, dev, &d);
+		ret = mga_dma_get_buffers(dev, file_priv, &d);
 	}
 
 	DRM_COPY_TO_USER_IOCTL(argp, d, sizeof(d));

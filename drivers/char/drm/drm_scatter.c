@@ -62,11 +62,10 @@ void drm_sg_cleanup(struct drm_sg_mem * entry)
 # define ScatterHandle(x) (unsigned int)(x)
 #endif
 
-int drm_sg_alloc(struct inode *inode, struct file *filp,
+int drm_sg_alloc(struct inode *inode, struct drm_file *file_priv,
 		 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_scatter_gather __user *argp = (void __user *)arg;
 	struct drm_scatter_gather request;
 	struct drm_sg_mem *entry;
@@ -198,11 +197,10 @@ int drm_sg_alloc(struct inode *inode, struct file *filp,
 	return -ENOMEM;
 }
 
-int drm_sg_free(struct inode *inode, struct file *filp,
+int drm_sg_free(struct inode *inode, struct drm_file *file_priv,
 		unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_scatter_gather request;
 	struct drm_sg_mem *entry;
 

@@ -149,7 +149,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 
 	tmpSize = (mem.size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
 	item = drm_sman_alloc(&dev_priv->sman, mem.type, tmpSize, 0,
-			      (unsigned long)priv);
+			      (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	if (item) {
 		mem.offset = ((mem.type == VIA_MEM_VIDEO) ?
@@ -188,13 +188,13 @@ int via_mem_free(DRM_IOCTL_ARGS)
 }
 
 
-void via_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
+void via_reclaim_buffers_locked(struct drm_device * dev,
+				struct drm_file *file_priv)
 {
 	drm_via_private_t *dev_priv = dev->dev_private;
-	struct drm_file *priv = filp->private_data;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)priv)) {
+	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -203,7 +203,7 @@ void via_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
 		dev->driver->dma_quiescent(dev);
 	}
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)priv);
+	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }

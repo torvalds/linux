@@ -114,16 +114,15 @@ static int i830_wait_irq(struct drm_device * dev, int irq_nr)
 
 /* Needs the lock as it touches the ring.
  */
-int i830_irq_emit(struct inode *inode, struct file *filp, unsigned int cmd,
-		  unsigned long arg)
+int i830_irq_emit(struct inode *inode, struct drm_file *file_priv,
+		  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_irq_emit_t emit;
 	int result;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
@@ -146,11 +145,10 @@ int i830_irq_emit(struct inode *inode, struct file *filp, unsigned int cmd,
 
 /* Doesn't need the hardware lock.
  */
-int i830_irq_wait(struct inode *inode, struct file *filp, unsigned int cmd,
-		  unsigned long arg)
+int i830_irq_wait(struct inode *inode, struct drm_file *file_priv,
+		  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_irq_wait_t irqwait;
 

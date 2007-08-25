@@ -330,7 +330,7 @@ static int via_flush_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return via_driver_dma_quiescent(dev);
 }
@@ -341,7 +341,7 @@ static int via_cmdbuffer(DRM_IOCTL_ARGS)
 	drm_via_cmdbuffer_t cmdbuf;
 	int ret;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
 				 sizeof(cmdbuf));
@@ -386,7 +386,7 @@ static int via_pci_cmdbuffer(DRM_IOCTL_ARGS)
 	drm_via_cmdbuffer_t cmdbuf;
 	int ret;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
 				 sizeof(cmdbuf));
@@ -662,7 +662,7 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 	drm_via_private_t *dev_priv;
 
 	DRM_DEBUG("via cmdbuf_size\n");
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	dev_priv = (drm_via_private_t *) dev->dev_private;
 

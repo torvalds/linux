@@ -780,8 +780,7 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
  * Called by the ioctl handler function radeon_cp_cmdbuf.
  */
 int r300_do_cp_cmdbuf(struct drm_device *dev,
-		      DRMFILE filp,
-		      struct drm_file *filp_priv,
+		      struct drm_file *file_priv,
 		      drm_radeon_kcmd_buffer_t *cmdbuf)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -884,9 +883,10 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 			}
 
 			buf = dma->buflist[idx];
-			if (buf->filp != filp || buf->pending) {
+			if (buf->file_priv != file_priv || buf->pending) {
 				DRM_ERROR("bad buffer %p %p %d\n",
-					  buf->filp, filp, buf->pending);
+					  buf->file_priv, file_priv,
+					  buf->pending);
 				ret = -EINVAL;
 				goto cleanup;
 			}

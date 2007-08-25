@@ -188,7 +188,7 @@ struct mem_block {
 	struct mem_block *prev;
 	int start;
 	int size;
-	DRMFILE filp;		/* 0: free, -1: heap, other: real files */
+	struct drm_file *file_priv; /* NULL: free, -1: heap, other: real files */
 };
 
 struct radeon_surface {
@@ -203,7 +203,7 @@ struct radeon_virt_surface {
 	u32 lower;
 	u32 upper;
 	u32 flags;
-	DRMFILE filp;
+	struct drm_file *file_priv;
 };
 
 typedef struct drm_radeon_private {
@@ -351,7 +351,8 @@ extern int radeon_mem_alloc(DRM_IOCTL_ARGS);
 extern int radeon_mem_free(DRM_IOCTL_ARGS);
 extern int radeon_mem_init_heap(DRM_IOCTL_ARGS);
 extern void radeon_mem_takedown(struct mem_block **heap);
-extern void radeon_mem_release(DRMFILE filp, struct mem_block *heap);
+extern void radeon_mem_release(struct drm_file *file_priv,
+			       struct mem_block *heap);
 
 				/* radeon_irq.c */
 extern int radeon_irq_emit(DRM_IOCTL_ARGS);
@@ -372,7 +373,7 @@ extern int radeon_vblank_crtc_set(struct drm_device *dev, int64_t value);
 extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
 extern int radeon_driver_unload(struct drm_device *dev);
 extern int radeon_driver_firstopen(struct drm_device *dev);
-extern void radeon_driver_preclose(struct drm_device * dev, DRMFILE filp);
+extern void radeon_driver_preclose(struct drm_device * dev, struct drm_file *file_priv);
 extern void radeon_driver_postclose(struct drm_device * dev, struct drm_file * filp);
 extern void radeon_driver_lastclose(struct drm_device * dev);
 extern int radeon_driver_open(struct drm_device * dev, struct drm_file * filp_priv);
@@ -382,8 +383,8 @@ extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 /* r300_cmdbuf.c */
 extern void r300_init_reg_flags(void);
 
-extern int r300_do_cp_cmdbuf(struct drm_device * dev, DRMFILE filp,
-			     struct drm_file * filp_priv,
+extern int r300_do_cp_cmdbuf(struct drm_device * dev,
+			     struct drm_file *file_priv,
 			     drm_radeon_kcmd_buffer_t * cmdbuf);
 
 /* Flags for stats.boxes

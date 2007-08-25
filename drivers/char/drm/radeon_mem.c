@@ -39,7 +39,7 @@
  */
 
 static struct mem_block *split_block(struct mem_block *p, int start, int size,
-				     DRMFILE filp)
+				     struct drm_file *file_priv)
 {
 	/* Maybe cut off the start of an existing block */
 	if (start > p->start) {
@@ -49,7 +49,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 			goto out;
 		newblock->start = start;
 		newblock->size = p->size - (start - p->start);
-		newblock->filp = NULL;
+		newblock->file_priv = NULL;
 		newblock->next = p->next;
 		newblock->prev = p;
 		p->next->prev = newblock;
@@ -66,7 +66,7 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 			goto out;
 		newblock->start = start + size;
 		newblock->size = p->size - size;
-		newblock->filp = NULL;
+		newblock->file_priv = NULL;
 		newblock->next = p->next;
 		newblock->prev = p;
 		p->next->prev = newblock;
@@ -76,20 +76,20 @@ static struct mem_block *split_block(struct mem_block *p, int start, int size,
 
       out:
 	/* Our block is in the middle */
-	p->filp = filp;
+	p->file_priv = file_priv;
 	return p;
 }
 
 static struct mem_block *alloc_block(struct mem_block *heap, int size,
-				     int align2, DRMFILE filp)
+				     int align2, struct drm_file *file_priv)
 {
 	struct mem_block *p;
 	int mask = (1 << align2) - 1;
 
 	list_for_each(p, heap) {
 		int start = (p->start + mask) & ~mask;
-		if (p->filp == 0 && start + size <= p->start + p->size)
-			return split_block(p, start, size, filp);
+		if (p->file_priv == 0 && start + size <= p->start + p->size)
+			return split_block(p, start, size, file_priv);
 	}
 
 	return NULL;
@@ -108,12 +108,12 @@ static struct mem_block *find_block(struct mem_block *heap, int start)
 
 static void free_block(struct mem_block *p)
 {
-	p->filp = NULL;
+	p->file_priv = NULL;
 
-	/* Assumes a single contiguous range.  Needs a special filp in
+	/* Assumes a single contiguous range.  Needs a special file_priv in
 	 * 'heap' to stop it being subsumed.
 	 */
-	if (p->next->filp == 0) {
+	if (p->next->file_priv == 0) {
 		struct mem_block *q = p->next;
 		p->size += q->size;
 		p->next = q->next;
@@ -121,7 +121,7 @@ static void free_block(struct mem_block *p)
 		drm_free(q, sizeof(*q), DRM_MEM_BUFS);
 	}
 
-	if (p->prev->filp == 0) {
+	if (p->prev->file_priv == 0) {
 		struct mem_block *q = p->prev;
 		q->size += p->size;
 		q->next = p->next;
@@ -147,18 +147,18 @@ static int init_heap(struct mem_block **heap, int start, int size)
 
 	blocks->start = start;
 	blocks->size = size;
-	blocks->filp = NULL;
+	blocks->file_priv = NULL;
 	blocks->next = blocks->prev = *heap;
 
 	memset(*heap, 0, sizeof(**heap));
-	(*heap)->filp = (DRMFILE) - 1;
+	(*heap)->file_priv = (struct drm_file *) - 1;
 	(*heap)->next = (*heap)->prev = blocks;
 	return 0;
 }
 
 /* Free all blocks associated with the releasing file.
  */
-void radeon_mem_release(DRMFILE filp, struct mem_block *heap)
+void radeon_mem_release(struct drm_file *file_priv, struct mem_block *heap)
 {
 	struct mem_block *p;
 
@@ -166,15 +166,15 @@ void radeon_mem_release(DRMFILE filp, struct mem_block *heap)
 		return;
 
 	list_for_each(p, heap) {
-		if (p->filp == filp)
-			p->filp = NULL;
+		if (p->file_priv == file_priv)
+			p->file_priv = NULL;
 	}
 
-	/* Assumes a single contiguous range.  Needs a special filp in
+	/* Assumes a single contiguous range.  Needs a special file_priv in
 	 * 'heap' to stop it being subsumed.
 	 */
 	list_for_each(p, heap) {
-		while (p->filp == 0 && p->next->filp == 0) {
+		while (p->file_priv == 0 && p->next->file_priv == 0) {
 			struct mem_block *q = p->next;
 			p->size += q->size;
 			p->next = q->next;
@@ -242,7 +242,7 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 	if (alloc.alignment < 12)
 		alloc.alignment = 12;
 
-	block = alloc_block(*heap, alloc.size, alloc.alignment, filp);
+	block = alloc_block(*heap, alloc.size, alloc.alignment, file_priv);
 
 	if (!block)
 		return -ENOMEM;
@@ -278,7 +278,7 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 	if (!block)
 		return -EFAULT;
 
-	if (block->filp != filp)
+	if (block->file_priv != file_priv)
 		return -EPERM;
 
 	free_block(block);

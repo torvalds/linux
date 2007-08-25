@@ -123,7 +123,7 @@ static int sis_fb_init(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
+static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
 			 unsigned long data, int pool)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
@@ -145,7 +145,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
 
 	mem.size = (mem.size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
 	item = drm_sman_alloc(&dev_priv->sman, pool, mem.size, 0,
-			      (unsigned long)priv);
+			      (unsigned long)file_priv);
 
 	mutex_unlock(&dev->struct_mutex);
 	if (item) {
@@ -191,7 +191,7 @@ static int sis_drm_free(DRM_IOCTL_ARGS)
 static int sis_fb_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
-	return sis_drm_alloc(dev, priv, data, VIDEO_TYPE);
+	return sis_drm_alloc(dev, file_priv, data, VIDEO_TYPE);
 }
 
 static int sis_ioctl_agp_init(DRM_IOCTL_ARGS)
@@ -226,7 +226,7 @@ static int sis_ioctl_agp_alloc(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
-	return sis_drm_alloc(dev, priv, data, AGP_TYPE);
+	return sis_drm_alloc(dev, file_priv, data, AGP_TYPE);
 }
 
 static drm_local_map_t *sis_reg_init(struct drm_device *dev)
@@ -314,13 +314,13 @@ void sis_lastclose(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 }
 
-void sis_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
+void sis_reclaim_buffers_locked(struct drm_device * dev,
+				struct drm_file *file_priv)
 {
 	drm_sis_private_t *dev_priv = dev->dev_private;
-	struct drm_file *priv = filp->private_data;
 
 	mutex_lock(&dev->struct_mutex);
-	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)priv)) {
+	if (drm_sman_owner_clean(&dev_priv->sman, (unsigned long)file_priv)) {
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
@@ -329,7 +329,7 @@ void sis_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
 		dev->driver->dma_quiescent(dev);
 	}
 
-	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)priv);
+	drm_sman_owner_cleanup(&dev_priv->sman, (unsigned long)file_priv);
 	mutex_unlock(&dev->struct_mutex);
 	return;
 }

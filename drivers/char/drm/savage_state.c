@@ -969,7 +969,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_savage_cmdbuf_t __user *) data,
 				 sizeof(cmdbuf));

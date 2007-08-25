@@ -122,10 +122,9 @@ static const struct file_operations i830_buffer_fops = {
 	.fasync = drm_fasync,
 };
 
-static int i830_map_buffer(struct drm_buf * buf, struct file *filp)
+static int i830_map_buffer(struct drm_buf * buf, struct drm_file *file_priv)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_buf_priv_t *buf_priv = buf->dev_private;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	const struct file_operations *old_fops;
@@ -136,13 +135,13 @@ static int i830_map_buffer(struct drm_buf * buf, struct file *filp)
 		return -EINVAL;
 
 	down_write(&current->mm->mmap_sem);
-	old_fops = filp->f_op;
-	filp->f_op = &i830_buffer_fops;
+	old_fops = file_priv->filp->f_op;
+	file_priv->filp->f_op = &i830_buffer_fops;
 	dev_priv->mmap_buffer = buf;
-	virtual = do_mmap(filp, 0, buf->total, PROT_READ | PROT_WRITE,
+	virtual = do_mmap(file_priv->filp, 0, buf->total, PROT_READ | PROT_WRITE,
 			  MAP_SHARED, buf->bus_address);
 	dev_priv->mmap_buffer = NULL;
-	filp->f_op = old_fops;
+	file_priv->filp->f_op = old_fops;
 	if (IS_ERR((void *)virtual)) {	/* ugh */
 		/* Real error */
 		DRM_ERROR("mmap error\n");
@@ -177,7 +176,7 @@ static int i830_unmap_buffer(struct drm_buf * buf)
 }
 
 static int i830_dma_get_buffer(struct drm_device * dev, drm_i830_dma_t * d,
-			       struct file *filp)
+			       struct drm_file *file_priv)
 {
 	struct drm_buf *buf;
 	drm_i830_buf_priv_t *buf_priv;
@@ -190,13 +189,13 @@ static int i830_dma_get_buffer(struct drm_device * dev, drm_i830_dma_t * d,
 		return retcode;
 	}
 
-	retcode = i830_map_buffer(buf, filp);
+	retcode = i830_map_buffer(buf, file_priv);
 	if (retcode) {
 		i830_freelist_put(dev, buf);
 		DRM_ERROR("mapbuf failed, retcode %d\n", retcode);
 		return retcode;
 	}
-	buf->filp = filp;
+	buf->file_priv = file_priv;
 	buf_priv = buf->dev_private;
 	d->granted = 1;
 	d->request_idx = buf->idx;
@@ -451,11 +450,10 @@ static int i830_dma_initialize(struct drm_device * dev,
 	return 0;
 }
 
-static int i830_dma_init(struct inode *inode, struct file *filp,
+static int i830_dma_init(struct inode *inode, struct drm_file *file_priv,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv;
 	drm_i830_init_t init;
 	int retcode = 0;
@@ -1248,7 +1246,7 @@ static int i830_flush_queue(struct drm_device * dev)
 }
 
 /* Must be called with the lock held */
-static void i830_reclaim_buffers(struct drm_device * dev, struct file *filp)
+static void i830_reclaim_buffers(struct drm_device * dev, struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	int i;
@@ -1266,7 +1264,7 @@ static void i830_reclaim_buffers(struct drm_device * dev, struct file *filp)
 		struct drm_buf *buf = dma->buflist[i];
 		drm_i830_buf_priv_t *buf_priv = buf->dev_private;
 
-		if (buf->filp == filp && buf_priv) {
+		if (buf->file_priv == file_priv && buf_priv) {
 			int used = cmpxchg(buf_priv->in_use, I830_BUF_CLIENT,
 					   I830_BUF_FREE);
 
@@ -1278,23 +1276,21 @@ static void i830_reclaim_buffers(struct drm_device * dev, struct file *filp)
 	}
 }
 
-static int i830_flush_ioctl(struct inode *inode, struct file *filp,
+static int i830_flush_ioctl(struct inode *inode, struct drm_file *file_priv,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	i830_flush_queue(dev);
 	return 0;
 }
 
-static int i830_dma_vertex(struct inode *inode, struct file *filp,
+static int i830_dma_vertex(struct inode *inode, struct drm_file *file_priv,
 			   unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_device_dma *dma = dev->dma;
 	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 	u32 *hw_status = dev_priv->hw_status_page;
@@ -1306,7 +1302,7 @@ static int i830_dma_vertex(struct inode *inode, struct file *filp,
 	    (&vertex, (drm_i830_vertex_t __user *) arg, sizeof(vertex)))
 		return -EFAULT;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_DEBUG("i830 dma vertex, idx %d used %d discard %d\n",
 		  vertex.idx, vertex.used, vertex.discard);
@@ -1324,18 +1320,17 @@ static int i830_dma_vertex(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static int i830_clear_bufs(struct inode *inode, struct file *filp,
+static int i830_clear_bufs(struct inode *inode, struct drm_file *file_priv,
 			   unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_clear_t clear;
 
 	if (copy_from_user
 	    (&clear, (drm_i830_clear_t __user *) arg, sizeof(clear)))
 		return -EFAULT;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	/* GH: Someone's doing nasty things... */
 	if (!dev->dev_private) {
@@ -1348,15 +1343,14 @@ static int i830_clear_bufs(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static int i830_swap_bufs(struct inode *inode, struct file *filp,
+static int i830_swap_bufs(struct inode *inode, struct drm_file *file_priv,
 			  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 
 	DRM_DEBUG("i830_swap_bufs\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	i830_dma_dispatch_swap(dev);
 	return 0;
@@ -1386,16 +1380,15 @@ static int i830_do_cleanup_pageflip(struct drm_device * dev)
 	return 0;
 }
 
-static int i830_flip_bufs(struct inode *inode, struct file *filp,
+static int i830_flip_bufs(struct inode *inode, struct drm_file *file_priv,
 			  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv->page_flipping)
 		i830_do_init_pageflip(dev);
@@ -1404,11 +1397,10 @@ static int i830_flip_bufs(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static int i830_getage(struct inode *inode, struct file *filp, unsigned int cmd,
+static int i830_getage(struct inode *inode, struct drm_file *file_priv, unsigned int cmd,
 		       unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 	u32 *hw_status = dev_priv->hw_status_page;
 	drm_i830_sarea_t *sarea_priv = (drm_i830_sarea_t *)
@@ -1418,11 +1410,10 @@ static int i830_getage(struct inode *inode, struct file *filp, unsigned int cmd,
 	return 0;
 }
 
-static int i830_getbuf(struct inode *inode, struct file *filp, unsigned int cmd,
-		       unsigned long arg)
+static int i830_getbuf(struct inode *inode, struct drm_file *file_priv,
+		       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	int retcode = 0;
 	drm_i830_dma_t d;
 	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
@@ -1434,11 +1425,11 @@ static int i830_getbuf(struct inode *inode, struct file *filp, unsigned int cmd,
 	if (copy_from_user(&d, (drm_i830_dma_t __user *) arg, sizeof(d)))
 		return -EFAULT;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	d.granted = 0;
 
-	retcode = i830_dma_get_buffer(dev, &d, filp);
+	retcode = i830_dma_get_buffer(dev, &d, file_priv);
 
 	DRM_DEBUG("i830_dma: %d returning %d, granted = %d\n",
 		  current->pid, retcode, d.granted);
@@ -1451,23 +1442,22 @@ static int i830_getbuf(struct inode *inode, struct file *filp, unsigned int cmd,
 }
 
 static int i830_copybuf(struct inode *inode,
-			struct file *filp, unsigned int cmd, unsigned long arg)
+			struct drm_file *file_priv, unsigned int cmd, unsigned long arg)
 {
 	/* Never copy - 2.4.x doesn't need it */
 	return 0;
 }
 
-static int i830_docopy(struct inode *inode, struct file *filp, unsigned int cmd,
+static int i830_docopy(struct inode *inode, struct drm_file *file_priv, unsigned int cmd,
 		       unsigned long arg)
 {
 	return 0;
 }
 
-static int i830_getparam(struct inode *inode, struct file *filp,
+static int i830_getparam(struct inode *inode, struct drm_file *file_priv,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_getparam_t param;
 	int value;
@@ -1497,11 +1487,10 @@ static int i830_getparam(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static int i830_setparam(struct inode *inode, struct file *filp,
+static int i830_setparam(struct inode *inode, struct drm_file *file_priv,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_setparam_t param;
 
@@ -1542,7 +1531,7 @@ void i830_driver_lastclose(struct drm_device * dev)
 	i830_dma_cleanup(dev);
 }
 
-void i830_driver_preclose(struct drm_device * dev, DRMFILE filp)
+void i830_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
 	if (dev->dev_private) {
 		drm_i830_private_t *dev_priv = dev->dev_private;
@@ -1552,9 +1541,9 @@ void i830_driver_preclose(struct drm_device * dev, DRMFILE filp)
 	}
 }
 
-void i830_driver_reclaim_buffers_locked(struct drm_device * dev, struct file *filp)
+void i830_driver_reclaim_buffers_locked(struct drm_device * dev, struct drm_file *file_priv)
 {
-	i830_reclaim_buffers(dev, filp);
+	i830_reclaim_buffers(dev, file_priv);
 }
 
 int i830_driver_dma_quiescent(struct drm_device * dev)

@@ -632,7 +632,7 @@ int r128_cce_init(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(init, (drm_r128_init_t __user *) data,
 				 sizeof(init));
@@ -653,7 +653,7 @@ int r128_cce_start(DRM_IOCTL_ARGS)
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (dev_priv->cce_running || dev_priv->cce_mode == R128_PM4_NONPM4) {
 		DRM_DEBUG("%s while CCE running\n", __FUNCTION__);
@@ -676,7 +676,7 @@ int r128_cce_stop(DRM_IOCTL_ARGS)
 	int ret;
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(stop, (drm_r128_cce_stop_t __user *) data,
 				 sizeof(stop));
@@ -717,7 +717,7 @@ int r128_cce_reset(DRM_IOCTL_ARGS)
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
 		DRM_DEBUG("%s called before init done\n", __FUNCTION__);
@@ -738,7 +738,7 @@ int r128_cce_idle(DRM_IOCTL_ARGS)
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (dev_priv->cce_running) {
 		r128_do_cce_flush(dev_priv);
@@ -752,7 +752,7 @@ int r128_engine_reset(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return r128_do_engine_reset(dev);
 }
@@ -828,7 +828,7 @@ static struct drm_buf *r128_freelist_get(struct drm_device * dev)
 	for (i = 0; i < dma->buf_count; i++) {
 		buf = dma->buflist[i];
 		buf_priv = buf->dev_private;
-		if (buf->filp == 0)
+		if (buf->file_priv == 0)
 			return buf;
 	}
 
@@ -886,7 +886,9 @@ int r128_wait_ring(drm_r128_private_t * dev_priv, int n)
 	return -EBUSY;
 }
 
-static int r128_cce_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm_dma * d)
+static int r128_cce_get_buffers(struct drm_device * dev,
+				struct drm_file *file_priv,
+				struct drm_dma * d)
 {
 	int i;
 	struct drm_buf *buf;
@@ -896,7 +898,7 @@ static int r128_cce_get_buffers(DRMFILE filp, struct drm_device * dev, struct dr
 		if (!buf)
 			return -EAGAIN;
 
-		buf->filp = filp;
+		buf->file_priv = file_priv;
 
 		if (DRM_COPY_TO_USER(&d->request_indices[i], &buf->idx,
 				     sizeof(buf->idx)))
@@ -918,7 +920,7 @@ int r128_cce_buffers(DRM_IOCTL_ARGS)
 	struct drm_dma __user *argp = (void __user *)data;
 	struct drm_dma d;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(d, argp, sizeof(d));
 
@@ -941,7 +943,7 @@ int r128_cce_buffers(DRM_IOCTL_ARGS)
 	d.granted_count = 0;
 
 	if (d.request_count) {
-		ret = r128_cce_get_buffers(filp, dev, &d);
+		ret = r128_cce_get_buffers(dev, file_priv, &d);
 	}
 
 	DRM_COPY_TO_USER_IOCTL(argp, d, sizeof(d));

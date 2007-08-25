@@ -41,7 +41,7 @@
  * Get interrupt from bus id.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_irq_busid structure.
  * \return zero on success or a negative number on failure.
@@ -50,11 +50,10 @@
  * This IOCTL is deprecated, and will now return EINVAL for any busid not equal
  * to that of the device that this DRM instance attached to.
  */
-int drm_irq_by_busid(struct inode *inode, struct file *filp,
+int drm_irq_by_busid(struct inode *inode, struct drm_file *file_priv,
 		     unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_irq_busid __user *argp = (void __user *)arg;
 	struct drm_irq_busid p;
 
@@ -187,18 +186,17 @@ EXPORT_SYMBOL(drm_irq_uninstall);
  * IRQ control ioctl.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_control structure.
  * \return zero on success or a negative number on failure.
  *
  * Calls irq_install() or irq_uninstall() according to \p arg.
  */
-int drm_control(struct inode *inode, struct file *filp,
+int drm_control(struct inode *inode, struct drm_file *file_priv,
 		unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_control ctl;
 
 	/* if we haven't irq we fallback for compatibility reasons - this used to be a separate function in drm_dma.h */
@@ -227,7 +225,7 @@ int drm_control(struct inode *inode, struct file *filp,
  * Wait for VBLANK.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param data user argument, pointing to a drm_wait_vblank structure.
  * \return zero on success or a negative number on failure.
@@ -244,8 +242,7 @@ int drm_control(struct inode *inode, struct file *filp,
  */
 int drm_wait_vblank(DRM_IOCTL_ARGS)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	union drm_wait_vblank __user *argp = (void __user *)data;
 	union drm_wait_vblank vblwait;
 	struct timeval now;

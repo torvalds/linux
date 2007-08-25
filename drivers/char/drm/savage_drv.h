@@ -212,7 +212,8 @@ extern int savage_driver_load(struct drm_device *dev, unsigned long chipset);
 extern int savage_driver_firstopen(struct drm_device *dev);
 extern void savage_driver_lastclose(struct drm_device *dev);
 extern int savage_driver_unload(struct drm_device *dev);
-extern void savage_reclaim_buffers(struct drm_device * dev, DRMFILE filp);
+extern void savage_reclaim_buffers(struct drm_device *dev,
+				   struct drm_file *file_priv);
 
 /* state functions */
 extern void savage_emit_clip_rect_s3d(drm_savage_private_t * dev_priv,

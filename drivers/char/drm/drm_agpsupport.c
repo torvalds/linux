@@ -40,7 +40,7 @@
  * Get AGP information.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a (output) drm_agp_info structure.
  * \return zero on success or a negative number on failure.
@@ -71,11 +71,10 @@ int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 
 EXPORT_SYMBOL(drm_agp_info);
 
-int drm_agp_info_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_info_ioctl(struct inode *inode, struct drm_file *file_priv,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_info info;
 	int err;
 
@@ -115,7 +114,7 @@ EXPORT_SYMBOL(drm_agp_acquire);
  * Acquire the AGP device (ioctl).
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument.
  * \return zero on success or a negative number on failure.
@@ -123,12 +122,10 @@ EXPORT_SYMBOL(drm_agp_acquire);
  * Verifies the AGP device hasn't been acquired before and calls
  * \c agp_backend_acquire.
  */
-int drm_agp_acquire_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_acquire_ioctl(struct inode *inode, struct drm_file *file_priv,
 			  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-
-	return drm_agp_acquire((struct drm_device *) priv->head->dev);
+	return drm_agp_acquire((struct drm_device *) file_priv->head->dev);
 }
 
 /**
@@ -149,11 +146,10 @@ int drm_agp_release(struct drm_device * dev)
 }
 EXPORT_SYMBOL(drm_agp_release);
 
-int drm_agp_release_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_release_ioctl(struct inode *inode, struct drm_file *file_priv,
 			  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 
 	return drm_agp_release(dev);
 }
@@ -182,11 +178,10 @@ int drm_agp_enable(struct drm_device * dev, struct drm_agp_mode mode)
 
 EXPORT_SYMBOL(drm_agp_enable);
 
-int drm_agp_enable_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_enable_ioctl(struct inode *inode, struct drm_file *file_priv,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_mode mode;
 
 	if (copy_from_user(&mode, (struct drm_agp_mode __user *) arg, sizeof(mode)))
@@ -199,7 +194,7 @@ int drm_agp_enable_ioctl(struct inode *inode, struct file *filp,
  * Allocate AGP memory.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv file private pointer.
  * \param cmd command.
  * \param arg pointer to a drm_agp_buffer structure.
  * \return zero on success or a negative number on failure.
@@ -241,11 +236,10 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 }
 EXPORT_SYMBOL(drm_agp_alloc);
 
-int drm_agp_alloc_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_alloc_ioctl(struct inode *inode, struct drm_file *file_priv,
 			unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_buffer request;
 	struct drm_agp_buffer __user *argp = (void __user *)arg;
 	int err;
@@ -297,7 +291,7 @@ static struct drm_agp_mem *drm_agp_lookup_entry(struct drm_device * dev,
  * Unbind AGP memory from the GATT (ioctl).
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_binding structure.
  * \return zero on success or a negative number on failure.
@@ -323,11 +317,10 @@ int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request)
 }
 EXPORT_SYMBOL(drm_agp_unbind);
 
-int drm_agp_unbind_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_unbind_ioctl(struct inode *inode, struct drm_file *file_priv,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_binding request;
 
 	if (copy_from_user
@@ -341,7 +334,7 @@ int drm_agp_unbind_ioctl(struct inode *inode, struct file *filp,
  * Bind AGP memory into the GATT (ioctl)
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_binding structure.
  * \return zero on success or a negative number on failure.
@@ -372,11 +365,10 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 }
 EXPORT_SYMBOL(drm_agp_bind);
 
-int drm_agp_bind_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_bind_ioctl(struct inode *inode, struct drm_file *file_priv,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_binding request;
 
 	if (copy_from_user
@@ -390,7 +382,7 @@ int drm_agp_bind_ioctl(struct inode *inode, struct file *filp,
  * Free AGP memory (ioctl).
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg pointer to a drm_agp_buffer structure.
  * \return zero on success or a negative number on failure.
@@ -419,11 +411,10 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 }
 EXPORT_SYMBOL(drm_agp_free);
 
-int drm_agp_free_ioctl(struct inode *inode, struct file *filp,
+int drm_agp_free_ioctl(struct inode *inode, struct drm_file *file_priv,
 		       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_agp_buffer request;
 
 	if (copy_from_user

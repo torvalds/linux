@@ -144,7 +144,7 @@ extern void via_init_futex(drm_via_private_t * dev_priv);
 extern void via_cleanup_futex(drm_via_private_t * dev_priv);
 extern void via_release_futex(drm_via_private_t * dev_priv, int context);
 
-extern void via_reclaim_buffers_locked(struct drm_device *dev, struct file *filp);
+extern void via_reclaim_buffers_locked(struct drm_device *dev, struct drm_file *file_priv);
 extern void via_lastclose(struct drm_device *dev);
 
 extern void via_dmablit_handler(struct drm_device *dev, int engine, int from_irq);

@@ -933,7 +933,7 @@ static int savage_bci_init(DRM_IOCTL_ARGS)
 	DRM_DEVICE;
 	drm_savage_init_t init;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(init, (drm_savage_init_t __user *) data,
 				 sizeof(init));
@@ -956,7 +956,7 @@ static int savage_bci_event_emit(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("\n");
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(event, (drm_savage_event_emit_t __user *) data,
 				 sizeof(event));
@@ -1007,7 +1007,9 @@ static int savage_bci_event_wait(DRM_IOCTL_ARGS)
  * DMA buffer management
  */
 
-static int savage_bci_get_buffers(DRMFILE filp, struct drm_device *dev, struct drm_dma *d)
+static int savage_bci_get_buffers(struct drm_device *dev,
+				  struct drm_file *file_priv,
+				  struct drm_dma *d)
 {
 	struct drm_buf *buf;
 	int i;
@@ -1017,7 +1019,7 @@ static int savage_bci_get_buffers(DRMFILE filp, struct drm_device *dev, struct d
 		if (!buf)
 			return -EAGAIN;
 
-		buf->filp = filp;
+		buf->file_priv = file_priv;
 
 		if (DRM_COPY_TO_USER(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
@@ -1038,7 +1040,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	struct drm_dma d;
 	int ret = 0;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	DRM_COPY_FROM_USER_IOCTL(d, (struct drm_dma __user *) data, sizeof(d));
 
@@ -1061,7 +1063,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	d.granted_count = 0;
 
 	if (d.request_count) {
-		ret = savage_bci_get_buffers(filp, dev, &d);
+		ret = savage_bci_get_buffers(dev, file_priv, &d);
 	}
 
 	DRM_COPY_TO_USER_IOCTL((struct drm_dma __user *) data, d, sizeof(d));
@@ -1069,7 +1071,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	return ret;
 }
 
-void savage_reclaim_buffers(struct drm_device *dev, DRMFILE filp)
+void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct drm_device_dma *dma = dev->dma;
 	drm_savage_private_t *dev_priv = dev->dev_private;
@@ -1088,7 +1090,7 @@ void savage_reclaim_buffers(struct drm_device *dev, DRMFILE filp)
 		struct drm_buf *buf = dma->buflist[i];
 		drm_savage_buf_priv_t *buf_priv = buf->dev_private;
 
-		if (buf->filp == filp && buf_priv &&
+		if (buf->file_priv == file_priv && buf_priv &&
 		    buf_priv->next == NULL && buf_priv->prev == NULL) {
 			uint16_t event;
 			DRM_DEBUG("reclaimed from client\n");
@@ -1098,7 +1100,7 @@ void savage_reclaim_buffers(struct drm_device *dev, DRMFILE filp)
 		}
 	}
 
-	drm_core_reclaim_buffers(dev, filp);
+	drm_core_reclaim_buffers(dev, file_priv);
 }
 
 drm_ioctl_desc_t savage_ioctls[] = {

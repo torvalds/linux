@@ -41,23 +41,22 @@ static int drm_notifier(void *priv);
  * Lock ioctl.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_lock structure.
  * \return zero on success or negative number on failure.
  *
  * Add the current task to the lock wait queue, and attempt to take to lock.
  */
-int drm_lock(struct inode *inode, struct file *filp,
+int drm_lock(struct inode *inode, struct drm_file *file_priv,
 	     unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	DECLARE_WAITQUEUE(entry, current);
 	struct drm_lock lock;
 	int ret = 0;
 
-	++priv->lock_count;
+	++file_priv->lock_count;
 
 	if (copy_from_user(&lock, (struct drm_lock __user *) arg, sizeof(lock)))
 		return -EFAULT;
@@ -88,7 +87,7 @@ int drm_lock(struct inode *inode, struct file *filp,
 			break;
 		}
 		if (drm_lock_take(&dev->lock, lock.context)) {
-			dev->lock.filp = filp;
+			dev->lock.file_priv = file_priv;
 			dev->lock.lock_time = jiffies;
 			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
 			break;	/* Got lock */
@@ -142,18 +141,17 @@ int drm_lock(struct inode *inode, struct file *filp,
  * Unlock ioctl.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument, pointing to a drm_lock structure.
  * \return zero on success or negative number on failure.
  *
  * Transfer and free the lock.
  */
-int drm_unlock(struct inode *inode, struct file *filp,
+int drm_unlock(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_lock lock;
 	unsigned long irqflags;
 
@@ -257,7 +255,7 @@ static int drm_lock_transfer(struct drm_lock_data *lock_data,
 	unsigned int old, new, prev;
 	volatile unsigned int *lock = &lock_data->hw_lock->lock;
 
-	lock_data->filp = NULL;
+	lock_data->file_priv = NULL;
 	do {
 		old = *lock;
 		new = context | _DRM_LOCK_HELD;
@@ -390,13 +388,13 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 EXPORT_SYMBOL(drm_idlelock_release);
 
 
-int drm_i_have_hw_lock(struct file *filp)
+int drm_i_have_hw_lock(struct drm_file *file_priv)
 {
 	DRM_DEVICE;
 
-	return (priv->lock_count && dev->lock.hw_lock &&
+	return (file_priv->lock_count && dev->lock.hw_lock &&
 		_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) &&
-		dev->lock.filp == filp);
+		dev->lock.file_priv == file_priv);
 }
 
 EXPORT_SYMBOL(drm_i_have_hw_lock);

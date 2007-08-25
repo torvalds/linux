@@ -602,7 +602,7 @@ static int i915_flush_ioctl(DRM_IOCTL_ARGS)
 {
 	DRM_DEVICE;
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return i915_quiescent(dev);
 }
@@ -628,7 +628,7 @@ static int i915_batchbuffer(DRM_IOCTL_ARGS)
 	DRM_DEBUG("i915 batchbuffer, start %x used %d cliprects %d\n",
 		  batch.start, batch.used, batch.num_cliprects);
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (batch.num_cliprects && DRM_VERIFYAREA_READ(batch.cliprects,
 						       batch.num_cliprects *
@@ -657,7 +657,7 @@ static int i915_cmdbuffer(DRM_IOCTL_ARGS)
 	DRM_DEBUG("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 		  cmdbuf.buf, cmdbuf.sz, cmdbuf.num_cliprects);
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (cmdbuf.num_cliprects &&
 	    DRM_VERIFYAREA_READ(cmdbuf.cliprects,
@@ -683,7 +683,7 @@ static int i915_flip_bufs(DRM_IOCTL_ARGS)
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
-	LOCK_TEST_WITH_RETURN(dev, filp);
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return i915_dispatch_flip(dev);
 }
@@ -821,11 +821,11 @@ void i915_driver_lastclose(struct drm_device * dev)
 	i915_dma_cleanup(dev);
 }
 
-void i915_driver_preclose(struct drm_device * dev, DRMFILE filp)
+void i915_driver_preclose(struct drm_device * dev, struct drm_file *file_priv)
 {
 	if (dev->dev_private) {
 		drm_i915_private_t *dev_priv = dev->dev_private;
-		i915_mem_release(dev, filp, dev_priv->agp_heap);
+		i915_mem_release(dev, file_priv, dev_priv->agp_heap);
 	}
 }
 

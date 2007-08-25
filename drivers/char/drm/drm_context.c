@@ -131,7 +131,7 @@ void drm_ctxbitmap_cleanup(struct drm_device * dev)
  * Get per-context SAREA.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_priv_map structure.
  * \return zero on success or a negative number on failure.
@@ -139,11 +139,10 @@ void drm_ctxbitmap_cleanup(struct drm_device * dev)
  * Gets the map from drm_device::ctx_idr with the handle specified and
  * returns its handle.
  */
-int drm_getsareactx(struct inode *inode, struct file *filp,
+int drm_getsareactx(struct inode *inode, struct drm_file *file_priv,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx_priv_map __user *argp = (void __user *)arg;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map;
@@ -182,7 +181,7 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
  * Set per-context SAREA.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_priv_map structure.
  * \return zero on success or a negative number on failure.
@@ -190,11 +189,10 @@ int drm_getsareactx(struct inode *inode, struct file *filp,
  * Searches the mapping specified in \p arg and update the entry in
  * drm_device::ctx_idr with it.
  */
-int drm_setsareactx(struct inode *inode, struct file *filp,
+int drm_setsareactx(struct inode *inode, struct drm_file *file_priv,
 		    unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx_priv_map request;
 	struct drm_map *map = NULL;
 	struct drm_map_list *r_list = NULL;
@@ -292,12 +290,12 @@ static int drm_context_switch_complete(struct drm_device * dev, int new)
  * Reserve contexts.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx_res structure.
  * \return zero on success or a negative number on failure.
  */
-int drm_resctx(struct inode *inode, struct file *filp,
+int drm_resctx(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
 	struct drm_ctx_res res;
@@ -327,18 +325,17 @@ int drm_resctx(struct inode *inode, struct file *filp,
  * Add context.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  *
  * Get a new handle for the context and copy to userspace.
  */
-int drm_addctx(struct inode *inode, struct file *filp,
+int drm_addctx(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx_list *ctx_entry;
 	struct drm_ctx __user *argp = (void __user *)arg;
 	struct drm_ctx ctx;
@@ -374,7 +371,7 @@ int drm_addctx(struct inode *inode, struct file *filp,
 
 	INIT_LIST_HEAD(&ctx_entry->head);
 	ctx_entry->handle = ctx.handle;
-	ctx_entry->tag = priv;
+	ctx_entry->tag = file_priv;
 
 	mutex_lock(&dev->ctxlist_mutex);
 	list_add(&ctx_entry->head, &dev->ctxlist);
@@ -386,7 +383,7 @@ int drm_addctx(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-int drm_modctx(struct inode *inode, struct file *filp,
+int drm_modctx(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
 	/* This does nothing */
@@ -397,12 +394,12 @@ int drm_modctx(struct inode *inode, struct file *filp,
  * Get context.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  */
-int drm_getctx(struct inode *inode, struct file *filp,
+int drm_getctx(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
 	struct drm_ctx __user *argp = (void __user *)arg;
@@ -423,18 +420,17 @@ int drm_getctx(struct inode *inode, struct file *filp,
  * Switch context.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  *
  * Calls context_switch().
  */
-int drm_switchctx(struct inode *inode, struct file *filp,
+int drm_switchctx(struct inode *inode, struct drm_file *file_priv,
 		  unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))
@@ -448,18 +444,17 @@ int drm_switchctx(struct inode *inode, struct file *filp,
  * New context.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  *
  * Calls context_switch_complete().
  */
-int drm_newctx(struct inode *inode, struct file *filp,
+int drm_newctx(struct inode *inode, struct drm_file *file_priv,
 	       unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))
@@ -475,18 +470,17 @@ int drm_newctx(struct inode *inode, struct file *filp,
  * Remove context.
  *
  * \param inode device inode.
- * \param filp file pointer.
+ * \param file_priv DRM file private.
  * \param cmd command.
  * \param arg user argument pointing to a drm_ctx structure.
  * \return zero on success or a negative number on failure.
  *
  * If not the special kernel context, calls ctxbitmap_free() to free the specified context.
  */
-int drm_rmctx(struct inode *inode, struct file *filp,
+int drm_rmctx(struct inode *inode, struct drm_file *file_priv,
 	      unsigned int cmd, unsigned long arg)
 {
-	struct drm_file *priv = filp->private_data;
-	struct drm_device *dev = priv->head->dev;
+	struct drm_device *dev = file_priv->head->dev;
 	struct drm_ctx ctx;
 
 	if (copy_from_user(&ctx, (struct drm_ctx __user *) arg, sizeof(ctx)))
@@ -494,7 +488,7 @@ int drm_rmctx(struct inode *inode, struct file *filp,
 
 	DRM_DEBUG("%d\n", ctx.handle);
 	if (ctx.handle == DRM_KERNEL_CONTEXT + 1) {
-		priv->remove_auth_on_close = 1;
+		file_priv->remove_auth_on_close = 1;
 	}
 	if (ctx.handle != DRM_KERNEL_CONTEXT) {
 		if (dev->driver->context_dtor)
