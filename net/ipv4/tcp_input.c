@@ -2424,8 +2424,7 @@ static void tcp_cong_avoid(struct sock *sk, u32 ack,
 /* Restart timer after forward progress on connection.
  * RFC2988 recommends to restart timer to now+rto.
  */
-
-static void tcp_ack_packets_out(struct sock *sk)
+static void tcp_rearm_rto(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -2581,7 +2580,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			= inet_csk(sk)->icsk_ca_ops;
 
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
-		tcp_ack_packets_out(sk);
+		tcp_rearm_rto(sk);
 
 		if (tcp_is_reno(tp))
 			tcp_remove_reno_sacks(sk, pkts_acked);
