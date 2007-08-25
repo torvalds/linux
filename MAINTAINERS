@@ -2661,6 +2661,12 @@ L:	netdev@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 
+NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
+P:	Paul Moore
+M:	paul.moore@hp.com
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 NETWORKING [WIRELESS]
 P:	John W. Linville
 M:	linville@tuxdriver.com
