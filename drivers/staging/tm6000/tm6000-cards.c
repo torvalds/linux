@@ -191,12 +191,14 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 			rc = -ENOMEM;
 			goto err;
 		}
+#ifdef CONFIG_VIDEO_TM6000_DVB
 		rc = tm6000_dvb_register(dev);
 		if(rc < 0) {
 			kfree(dev->dvb);
 			dev->dvb = NULL;
 			goto err;
 		}
+#endif
 	}
 err:
 	mutex_unlock(&dev->lock);
@@ -401,10 +403,12 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&dev->lock);
 
+#ifdef CONFIG_VIDEO_TM6000_DVB
 	if(dev->dvb) {
 		tm6000_dvb_unregister(dev);
 		kfree(dev->dvb);
 	}
+#endif
 
 	tm6000_v4l2_unregister(dev);
 

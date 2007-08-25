@@ -12,3 +12,9 @@ config VIDEO_TM6000
 	  an external software decoder to watch TV on your computer.
 
 	  Say Y if you own such a device and want to use it.
+
+config VIDEO_TM6000_DVB
+	bool "DVB Support for tm6000 based TV cards"
+	depends on VIDEO_TM6000 && DVB_CORE
+	---help---
+	  This adds support for DVB cards based on the tm5600/tm6000 chip.
