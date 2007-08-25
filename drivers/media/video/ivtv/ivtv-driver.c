@@ -1003,6 +1003,8 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 
 	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
 
+	mutex_lock(&itv->serialize_lock);
+
 	/* PCI Device Setup */
 	if ((retval = ivtv_setup_pci(itv, dev, pci_id)) != 0) {
 		if (retval == -EIO)
@@ -1174,6 +1176,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		IVTV_ERR("Failed to register irq %d\n", retval);
 		goto free_streams;
 	}
+	mutex_unlock(&itv->serialize_lock);
 	IVTV_INFO("Initialized card #%d: %s\n", itv->num, itv->card_name);
 	return 0;
 
@@ -1192,6 +1195,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
       free_workqueue:
 	destroy_workqueue(itv->irq_work_queues);
+	mutex_unlock(&itv->serialize_lock);
       err:
 	if (retval == 0)
 		retval = -ENODEV;

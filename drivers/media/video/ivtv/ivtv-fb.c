@@ -1011,10 +1011,13 @@ static int ivtvfb_init_io(struct ivtv *itv)
 {
 	struct osd_info *oi = itv->osd_info;
 
+	mutex_lock(&itv->serialize_lock);
 	if (ivtv_init_on_first_open(itv)) {
+		mutex_unlock(&itv->serialize_lock);
 		IVTV_FB_ERR("Failed to initialize ivtv\n");
 		return -ENXIO;
 	}
+	mutex_unlock(&itv->serialize_lock);
 
 	ivtv_fb_get_framebuffer(itv, &oi->video_rbase, &oi->video_buffer_size);
 
