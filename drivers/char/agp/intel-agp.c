@@ -930,8 +930,10 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	temp &= 0xfff80000;
 
 	intel_private.registers = ioremap(temp,128 * 4096);
-	if (!intel_private.registers)
+	if (!intel_private.registers) {
+		iounmap(intel_private.gtt);
 		return -ENOMEM;
+	}
 
 	temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
 	global_cache_flush();	/* FIXME: ? */
@@ -985,13 +987,15 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
        temp &= 0xfff00000;
        intel_private.gtt = ioremap((temp + (512 * 1024)) , 512 * 1024);
 
-       if (!intel_private.gtt)
-               return -ENOMEM;
+	if (!intel_private.gtt)
+		return -ENOMEM;
 
 
        intel_private.registers = ioremap(temp,128 * 4096);
-       if (!intel_private.registers)
-               return -ENOMEM;
+       if (!intel_private.registers) {
+		iounmap(intel_private.gtt);
+		return -ENOMEM;
+	}
 
        temp = readl(intel_private.registers+I810_PGETBL_CTL) & 0xfffff000;
        global_cache_flush();   /* FIXME: ? */

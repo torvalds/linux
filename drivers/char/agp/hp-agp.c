@@ -221,6 +221,7 @@ hp_zx1_lba_init (u64 hpa)
 	if (cap != PCI_CAP_ID_AGP) {
 		printk(KERN_ERR PFX "Invalid capability ID 0x%02x at 0x%x\n",
 		       cap, hp->lba_cap_offset);
+		iounmap(hp->lba_regs);
 		return -ENODEV;
 	}
 

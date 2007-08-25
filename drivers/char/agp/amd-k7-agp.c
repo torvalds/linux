@@ -223,6 +223,8 @@ static int amd_irongate_configure(void)
 	pci_read_config_dword(agp_bridge->dev, AMD_MMBASE, &temp);
 	temp = (temp & PCI_BASE_ADDRESS_MEM_MASK);
 	amd_irongate_private.registers = (volatile u8 __iomem *) ioremap(temp, 4096);
+	if (!amd_irongate_private.registers)
+		return -ENOMEM;
 
 	/* Write out the address of the gatt table */
 	writel(agp_bridge->gatt_bus_addr, amd_irongate_private.registers+AMD_ATTBASE);

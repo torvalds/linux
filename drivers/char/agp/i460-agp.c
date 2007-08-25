@@ -249,6 +249,10 @@ static int i460_create_gatt_table (struct agp_bridge_data *bridge)
 	num_entries = A_SIZE_8(temp)->num_entries;
 
 	i460.gatt = ioremap(INTEL_I460_ATTBASE, PAGE_SIZE << page_order);
+	if (!i460.gatt) {
+		printk(KERN_ERR PFX "ioremap failed\n");
+		return -ENOMEM;
+	}
 
 	/* These are no good, the should be removed from the agp_bridge strucure... */
 	agp_bridge->gatt_table_real = NULL;

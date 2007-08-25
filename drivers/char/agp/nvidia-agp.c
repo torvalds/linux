@@ -157,6 +157,9 @@ static int nvidia_configure(void)
 	nvidia_private.aperture =
 		(volatile u32 __iomem *) ioremap(apbase, 33 * PAGE_SIZE);
 
+	if (!nvidia_private.aperture)
+		return -ENOMEM;
+
 	return 0;
 }
 
