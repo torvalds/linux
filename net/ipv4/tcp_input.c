@@ -1240,8 +1240,16 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		int fack_count;
 		int dup_sack = (found_dup_sack && (i == first_sack_index));
 
-		if (!tcp_is_sackblock_valid(tp, dup_sack, start_seq, end_seq))
+		if (!tcp_is_sackblock_valid(tp, dup_sack, start_seq, end_seq)) {
+			if (dup_sack) {
+				if (!tp->undo_marker)
+					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDNOUNDO);
+				else
+					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDOLD);
+			} else
+				NET_INC_STATS_BH(LINUX_MIB_TCPSACKDISCARD);
 			continue;
+		}
 
 		skb = cached_skb;
 		fack_count = cached_fack_count;
