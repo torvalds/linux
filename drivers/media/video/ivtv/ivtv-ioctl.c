@@ -1186,7 +1186,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 		struct v4l2_framebuffer *fb = arg;
 		int pixfmt;
 		static u32 pixel_format[16] = {
-			V4L2_PIX_FMT_RGB332, /* Really RGB Indexed */
+			V4L2_PIX_FMT_PAL8, /* Uses a 256-entry RGB colormap */
 			V4L2_PIX_FMT_RGB565,
 			V4L2_PIX_FMT_RGB555,
 			V4L2_PIX_FMT_RGB444,
@@ -1194,12 +1194,11 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 			0,
 			0,
 			0,
-			/* Really YUV variants */
-			V4L2_PIX_FMT_RGB332, /* Really YUV Indexed */
-			V4L2_PIX_FMT_RGB565,
-			V4L2_PIX_FMT_RGB555,
-			V4L2_PIX_FMT_RGB444,
-			V4L2_PIX_FMT_RGB32,
+			V4L2_PIX_FMT_PAL8, /* Uses a 256-entry YUV colormap */
+			V4L2_PIX_FMT_YUV565,
+			V4L2_PIX_FMT_YUV555,
+			V4L2_PIX_FMT_YUV444,
+			V4L2_PIX_FMT_YUV32,
 			0,
 			0,
 			0,
