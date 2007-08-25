@@ -1735,7 +1735,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		 * it is better to underestimate fackets.
 		 */
 		tcp_dec_pcount_approx(&tp->fackets_out, next_skb);
-		tcp_packets_out_dec(tp, next_skb);
+		tp->packets_out -= tcp_skb_pcount(next_skb);
 		sk_stream_free_skb(sk, next_skb);
 	}
 }

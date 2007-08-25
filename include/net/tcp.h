@@ -626,12 +626,6 @@ static inline void tcp_packets_out_inc(struct sock *sk,
 					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 }
 
-static inline void tcp_packets_out_dec(struct tcp_sock *tp, 
-				       const struct sk_buff *skb)
-{
-	tp->packets_out -= tcp_skb_pcount(skb);
-}
-
 /* Events passed to congestion control interface */
 enum tcp_ca_event {
 	CA_EVENT_TX_START,	/* first transmit when no packets in flight */

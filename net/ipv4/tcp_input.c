@@ -2569,7 +2569,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			last_ackt = skb->tstamp;
 		}
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
-		tcp_packets_out_dec(tp, skb);
+		tp->packets_out -= tcp_skb_pcount(skb);
 		tcp_unlink_write_queue(skb, sk);
 		sk_stream_free_skb(sk, skb);
 		clear_all_retrans_hints(tp);
