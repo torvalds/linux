@@ -417,7 +417,7 @@ static int __send_request(struct request *req)
 	desc->req_id = port->req_id;
 	desc->operation = op;
 	if (port->vdisk_type == VD_DISK_TYPE_DISK) {
-		desc->slice = 2;
+		desc->slice = 0xff;
 	} else {
 		desc->slice = 0;
 	}
