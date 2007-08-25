@@ -51,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.16"
+#define DRV_VERSION		"1.17"
 #define PFX			DRV_NAME " "
 
 /*
@@ -98,10 +98,6 @@ MODULE_PARM_DESC(copybreak, "Receive copy threshold");
 static int disable_msi = 0;
 module_param(disable_msi, int, 0);
 MODULE_PARM_DESC(disable_msi, "Disable Message Signaled Interrupt (MSI)");
-
-static int idle_timeout = 100;
-module_param(idle_timeout, int, 0);
-MODULE_PARM_DESC(idle_timeout, "Watchdog timer for lost interrupts (ms)");
 
 static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, 0x9000) }, /* SK-9Sxx */
@@ -219,8 +215,11 @@ static void sky2_power_on(struct sky2_hw *hw)
 	else
 		sky2_write8(hw, B2_Y2_CLK_GATE, 0);
 
-	if (hw->chip_id == CHIP_ID_YUKON_EC_U || hw->chip_id == CHIP_ID_YUKON_EX) {
+	if (hw->chip_id == CHIP_ID_YUKON_EC_U ||
+	    hw->chip_id == CHIP_ID_YUKON_EX) {
 		u32 reg;
+
+		sky2_pci_write32(hw, PCI_DEV_REG3, 0);
 
 		reg = sky2_pci_read32(hw, PCI_DEV_REG4);
 		/* set all bits to 0 except bits 15..12 and 8 */
@@ -238,6 +237,8 @@ static void sky2_power_on(struct sky2_hw *hw)
 		reg = sky2_read32(hw, B2_GP_IO);
 		reg |= GLB_GPIO_STAT_RACE_DIS;
 		sky2_write32(hw, B2_GP_IO, reg);
+
+		sky2_read32(hw, B2_GP_IO);
 	}
 }
 
@@ -1619,6 +1620,9 @@ static int sky2_down(struct net_device *dev)
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
+	if (netif_carrier_ok(dev) && --hw->active == 0)
+		del_timer(&hw->watchdog_timer);
+
 	/* Stop more packets from being queued */
 	netif_stop_queue(dev);
 
@@ -1739,6 +1743,10 @@ static void sky2_link_up(struct sky2_port *sky2)
 
 	netif_carrier_on(sky2->netdev);
 
+	if (hw->active++ == 0)
+		mod_timer(&hw->watchdog_timer, jiffies + 1);
+
+
 	/* Turn on link LED */
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG),
 		    LINKLED_ON | LINKLED_BLINK_OFF | LINKLED_LINKSYNC_OFF);
@@ -1789,6 +1797,11 @@ static void sky2_link_down(struct sky2_port *sky2)
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 
 	netif_carrier_off(sky2->netdev);
+
+	/* Stop watchdog if both ports are not active */
+	if (--hw->active == 0)
+		del_timer(&hw->watchdog_timer);
+
 
 	/* Turn on link LED */
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
@@ -2421,25 +2434,20 @@ static void sky2_le_error(struct sky2_hw *hw, unsigned port,
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_CLR_IRQ_CHK);
 }
 
-/* If idle then force a fake soft NAPI poll once a second
- * to work around cases where sharing an edge triggered interrupt.
- */
-static inline void sky2_idle_start(struct sky2_hw *hw)
-{
-	if (idle_timeout > 0)
-		mod_timer(&hw->idle_timer,
-			  jiffies + msecs_to_jiffies(idle_timeout));
-}
-
-static void sky2_idle(unsigned long arg)
+/* Check for lost IRQ once a second */
+static void sky2_watchdog(unsigned long arg)
 {
 	struct sky2_hw *hw = (struct sky2_hw *) arg;
-	struct net_device *dev = hw->dev[0];
 
-	if (__netif_rx_schedule_prep(dev))
-		__netif_rx_schedule(dev);
+	if (sky2_read32(hw, B0_ISRC)) {
+		struct net_device *dev = hw->dev[0];
 
-	mod_timer(&hw->idle_timer, jiffies + msecs_to_jiffies(idle_timeout));
+		if (__netif_rx_schedule_prep(dev))
+			__netif_rx_schedule(dev);
+	}
+
+	if (hw->active > 0)
+		mod_timer(&hw->watchdog_timer, round_jiffies(jiffies + HZ));
 }
 
 /* Hardware/software error handling */
@@ -2727,8 +2735,6 @@ static void sky2_restart(struct work_struct *work)
 	struct net_device *dev;
 	int i, err;
 
-	del_timer_sync(&hw->idle_timer);
-
 	rtnl_lock();
 	sky2_write32(hw, B0_IMSK, 0);
 	sky2_read32(hw, B0_IMSK);
@@ -2756,8 +2762,6 @@ static void sky2_restart(struct work_struct *work)
 			}
 		}
 	}
-
-	sky2_idle_start(hw);
 
 	rtnl_unlock();
 }
@@ -4025,10 +4029,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 			sky2_show_addr(dev1);
 	}
 
-	setup_timer(&hw->idle_timer, sky2_idle, (unsigned long) hw);
+	setup_timer(&hw->watchdog_timer, sky2_watchdog, (unsigned long) hw);
 	INIT_WORK(&hw->restart_work, sky2_restart);
-
-	sky2_idle_start(hw);
 
 	pci_set_drvdata(pdev, hw);
 
@@ -4064,7 +4066,7 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
-	del_timer_sync(&hw->idle_timer);
+	del_timer_sync(&hw->watchdog_timer);
 
 	flush_scheduled_work();
 
@@ -4108,7 +4110,6 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!hw)
 		return 0;
 
-	del_timer_sync(&hw->idle_timer);
 	netif_poll_disable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {
@@ -4174,7 +4175,7 @@ static int sky2_resume(struct pci_dev *pdev)
 	}
 
 	netif_poll_enable(hw->dev[0]);
-	sky2_idle_start(hw);
+
 	return 0;
 out:
 	dev_err(&pdev->dev, "resume failed (%d)\n", err);
@@ -4191,7 +4192,6 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
-	del_timer_sync(&hw->idle_timer);
 	netif_poll_disable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {

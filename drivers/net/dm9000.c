@@ -700,6 +700,7 @@ dm9000_init_dm9000(struct net_device *dev)
 static int
 dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	unsigned long flags;
 	board_info_t *db = (board_info_t *) dev->priv;
 
 	PRINTK3("dm9000_start_xmit\n");
@@ -707,10 +708,7 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (db->tx_pkt_cnt > 1)
 		return 1;
 
-	netif_stop_queue(dev);
-
-	/* Disable all interrupts */
-	iow(db, DM9000_IMR, IMR_PAR);
+	spin_lock_irqsave(&db->lock, flags);
 
 	/* Move data to DM9000 TX RAM */
 	writeb(DM9000_MWCMD, db->io_addr);
@@ -718,12 +716,9 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	(db->outblk)(db->io_data, skb->data, skb->len);
 	db->stats.tx_bytes += skb->len;
 
+	db->tx_pkt_cnt++;
 	/* TX control: First packet immediately send, second packet queue */
-	if (db->tx_pkt_cnt == 0) {
-
-		/* First Packet */
-		db->tx_pkt_cnt++;
-
+	if (db->tx_pkt_cnt == 1) {
 		/* Set TX length to DM9000 */
 		iow(db, DM9000_TXPLL, skb->len & 0xff);
 		iow(db, DM9000_TXPLH, (skb->len >> 8) & 0xff);
@@ -732,22 +727,16 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iow(db, DM9000_TCR, TCR_TXREQ);	/* Cleared after TX complete */
 
 		dev->trans_start = jiffies;	/* save the time stamp */
-
 	} else {
 		/* Second packet */
-		db->tx_pkt_cnt++;
 		db->queue_pkt_len = skb->len;
+		netif_stop_queue(dev);
 	}
+
+	spin_unlock_irqrestore(&db->lock, flags);
 
 	/* free this SKB */
 	dev_kfree_skb(skb);
-
-	/* Re-enable resource check */
-	if (db->tx_pkt_cnt == 1)
-		netif_wake_queue(dev);
-
-	/* Re-enable interrupt */
-	iow(db, DM9000_IMR, IMR_PAR | IMR_PTM | IMR_PRM);
 
 	return 0;
 }
