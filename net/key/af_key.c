@@ -352,16 +352,14 @@ static int verify_address_len(void *p)
 
 	switch (addr->sa_family) {
 	case AF_INET:
-		len  = sizeof(*sp) + sizeof(*sin) + (sizeof(uint64_t) - 1);
-		len /= sizeof(uint64_t);
+		len = DIV_ROUND_UP(sizeof(*sp) + sizeof(*sin), sizeof(uint64_t));
 		if (sp->sadb_address_len != len ||
 		    sp->sadb_address_prefixlen > 32)
 			return -EINVAL;
 		break;
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	case AF_INET6:
-		len  = sizeof(*sp) + sizeof(*sin6) + (sizeof(uint64_t) - 1);
-		len /= sizeof(uint64_t);
+		len = DIV_ROUND_UP(sizeof(*sp) + sizeof(*sin6), sizeof(uint64_t));
 		if (sp->sadb_address_len != len ||
 		    sp->sadb_address_prefixlen > 128)
 			return -EINVAL;
@@ -386,14 +384,9 @@ static int verify_address_len(void *p)
 
 static inline int pfkey_sec_ctx_len(struct sadb_x_sec_ctx *sec_ctx)
 {
-	int len = 0;
-
-	len += sizeof(struct sadb_x_sec_ctx);
-	len += sec_ctx->sadb_x_ctx_len;
-	len += sizeof(uint64_t) - 1;
-	len /= sizeof(uint64_t);
-
-	return len;
+	return DIV_ROUND_UP(sizeof(struct sadb_x_sec_ctx) +
+			    sec_ctx->sadb_x_ctx_len,
+			    sizeof(uint64_t));
 }
 
 static inline int verify_sec_ctx_len(void *p)

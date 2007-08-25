@@ -646,11 +646,7 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 		skb_shinfo(skb)->gso_size = 0;
 		skb_shinfo(skb)->gso_type = 0;
 	} else {
-		unsigned int factor;
-
-		factor = skb->len + (mss_now - 1);
-		factor /= mss_now;
-		skb_shinfo(skb)->gso_segs = factor;
+		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss_now);
 		skb_shinfo(skb)->gso_size = mss_now;
 		skb_shinfo(skb)->gso_type = sk->sk_gso_type;
 	}
