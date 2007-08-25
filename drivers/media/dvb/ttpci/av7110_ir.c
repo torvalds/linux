@@ -279,7 +279,7 @@ static int av7110_ir_write_proc(struct file *file, const char __user *buffer,
 	if (count < size)
 		return -EINVAL;
 
-	page = (char *) vmalloc(size);
+	page = vmalloc(size);
 	if (!page)
 		return -ENOMEM;
 
