@@ -493,7 +493,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 	if (addr1->sa.sa_family != addr2->sa.sa_family) {
 		if (addr1->sa.sa_family == AF_INET &&
 		    addr2->sa.sa_family == AF_INET6 &&
-		    IPV6_ADDR_MAPPED == ipv6_addr_type(&addr2->v6.sin6_addr)) {
+		    ipv6_addr_v4mapped(&addr2->v6.sin6_addr)) {
 			if (addr2->v6.sin6_port == addr1->v4.sin_port &&
 			    addr2->v6.sin6_addr.s6_addr32[3] ==
 			    addr1->v4.sin_addr.s_addr)
@@ -501,7 +501,7 @@ static int sctp_v6_cmp_addr(const union sctp_addr *addr1,
 		}
 		if (addr2->sa.sa_family == AF_INET &&
 		    addr1->sa.sa_family == AF_INET6 &&
-		    IPV6_ADDR_MAPPED == ipv6_addr_type(&addr1->v6.sin6_addr)) {
+		    ipv6_addr_v4mapped(&addr1->v6.sin6_addr)) {
 			if (addr1->v6.sin6_port == addr2->v4.sin_port &&
 			    addr1->v6.sin6_addr.s6_addr32[3] ==
 			    addr2->v4.sin_addr.s_addr)
