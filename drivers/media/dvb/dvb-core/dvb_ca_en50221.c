@@ -1535,8 +1535,10 @@ static int dvb_ca_en50221_io_open(struct inode *inode, struct file *file)
 		return -EIO;
 
 	err = dvb_generic_open(inode, file);
-	if (err < 0)
+	if (err < 0) {
+		module_put(ca->pub->owner);
 		return err;
+	}
 
 	for (i = 0; i < ca->slot_count; i++) {
 
