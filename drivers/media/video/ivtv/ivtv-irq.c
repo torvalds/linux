@@ -786,7 +786,10 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 			wake_up(&s->waitq);
 
 		/* Send VBI to saa7127 */
-		if (frame) {
+		if (frame && (itv->output_mode == OUT_PASSTHROUGH ||
+			test_bit(IVTV_F_I_UPDATE_WSS, &itv->i_flags) ||
+			test_bit(IVTV_F_I_UPDATE_VPS, &itv->i_flags) ||
+			test_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags))) {
 			set_bit(IVTV_F_I_WORK_HANDLER_VBI, &itv->i_flags);
 			set_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags);
 		}
@@ -809,7 +812,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	}
 }
 
-#define IVTV_IRQ_DMA (IVTV_IRQ_DMA_READ | IVTV_IRQ_ENC_DMA_COMPLETE | IVTV_IRQ_DMA_ERR | IVTV_IRQ_ENC_START_CAP | IVTV_IRQ_ENC_VBI_CAP | IVTV_IRQ_DEC_DATA_REQ)
+#define IVTV_IRQ_DMA (IVTV_IRQ_DMA_READ | IVTV_IRQ_ENC_DMA_COMPLETE | IVTV_IRQ_DMA_ERR | IVTV_IRQ_ENC_START_CAP | IVTV_IRQ_ENC_VBI_CAP | IVTV_IRQ_DEC_DATA_REQ | IVTV_IRQ_DEC_VBI_RE_INSERT)
 
 irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 {
@@ -942,8 +945,9 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 		}
 	}
 
-	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags))
+	if (test_and_clear_bit(IVTV_F_I_HAVE_WORK, &itv->i_flags)) {
 		queue_work(itv->irq_work_queues, &itv->irq_work_queue);
+	}
 
 	spin_unlock(&itv->dma_reg_lock);
 

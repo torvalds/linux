@@ -563,8 +563,11 @@ ssize_t ivtv_v4l2_write(struct file *filp, const char __user *user_buf, size_t c
 
 	/* This stream does not need to start any decoding */
 	if (s->type == IVTV_DEC_STREAM_TYPE_VOUT) {
+		int elems = count / sizeof(struct v4l2_sliced_vbi_data);
+
 		set_bit(IVTV_F_S_APPL_IO, &s->s_flags);
-		return ivtv_write_vbi(itv, user_buf, count);
+		ivtv_write_vbi(itv, (const struct v4l2_sliced_vbi_data *)user_buf, elems);
+		return elems * sizeof(struct v4l2_sliced_vbi_data);
 	}
 
 	mode = s->type == IVTV_DEC_STREAM_TYPE_MPG ? OUT_MPG : OUT_YUV;
@@ -828,10 +831,10 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 		ivtv_stop_decoding(id, VIDEO_CMD_STOP_TO_BLACK | VIDEO_CMD_STOP_IMMEDIATELY, 0);
 
 		/* If all output streams are closed, and if the user doesn't have
-		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable VBI on TV-out. */
+		   IVTV_DEC_STREAM_TYPE_VOUT open, then disable CC on TV-out. */
 		if (itv->output_mode == OUT_NONE && !test_bit(IVTV_F_S_APPL_IO, &s_vout->s_flags)) {
-			/* disable VBI on TV-out */
-			ivtv_disable_vbi(itv);
+			/* disable CC on TV-out */
+			ivtv_disable_cc(itv);
 		}
 	} else {
 		ivtv_stop_capture(id, 0);

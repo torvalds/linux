@@ -489,6 +489,15 @@ struct yuv_playback_info
 #define IVTV_VBI_FRAMES 32
 
 /* VBI data */
+struct vbi_cc {
+	u8 odd[2];	/* two-byte payload of odd field */
+	u8 even[2];	/* two-byte payload of even field */;
+};
+
+struct vbi_vps {
+	u8 data[5];	/* five-byte VPS payload */
+};
+
 struct vbi_info {
 	/* VBI general fixed card data */
 	u32 raw_decoder_line_size;              /* raw VBI line size from digitizer */
@@ -502,15 +511,14 @@ struct vbi_info {
 	u32 enc_start, enc_size;
 	int fpi;
 	u32 frame;
-	u8 cc_data_odd[256];
-	u8 cc_data_even[256];
-	int cc_pos;
-	u8 cc_no_update;
-	u8 vps[5];
-	u8 vps_found;
-	int wss;
-	u8 wss_found;
-	u8 wss_no_update;
+	struct vbi_cc cc_payload[256];		/* Sliced VBI CC payload array. It is an array to
+						   prevent dropping CC data if they couldn't be
+						   processed fast enough. */
+	int cc_payload_idx;			/* Index in cc_payload */
+	u8 cc_missing_cnt;			/* Counts number of frames without CC for passthrough mode */
+	int wss_payload;			/* Sliced VBI WSS payload */
+	u8 wss_missing_cnt;			/* Counts number of frames without WSS for passthrough mode */
+	struct vbi_vps vps_payload;		/* Sliced VBI VPS payload */
 	struct v4l2_format in;
 	/* convenience pointer to sliced struct in vbi_in union */
 	struct v4l2_sliced_vbi_format *sliced_in;
