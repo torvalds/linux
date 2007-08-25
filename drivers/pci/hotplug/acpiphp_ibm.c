@@ -399,7 +399,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 
 	status = acpi_get_object_info(handle, &info_buffer);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  Failed to get device information", __FUNCTION__);
+		err("%s:  Failed to get device information\n", __FUNCTION__);
 		return 0;
 	}
 	info.hardware_id.value[sizeof(info.hardware_id.value) - 1] = '\0';
