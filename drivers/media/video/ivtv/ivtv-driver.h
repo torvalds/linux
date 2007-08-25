@@ -499,7 +499,8 @@ struct vbi_vps {
 };
 
 struct vbi_info {
-	/* VBI general fixed card data */
+	/* VBI general data, does not change during streaming */
+
 	u32 raw_decoder_line_size;              /* raw VBI line size from digitizer */
 	u8 raw_decoder_sav_odd_field;           /* raw VBI Start Active Video digitizer code of odd field */
 	u8 raw_decoder_sav_even_field;          /* raw VBI Start Active Video digitizer code of even field */
@@ -507,27 +508,42 @@ struct vbi_info {
 	u8 sliced_decoder_sav_odd_field;        /* sliced VBI Start Active Video digitizer code of odd field */
 	u8 sliced_decoder_sav_even_field;       /* sliced VBI Start Active Video digitizer code of even field */
 
-	u32 dec_start;
-	u32 enc_start, enc_size;
-	int fpi;
-	u32 frame;
-	struct vbi_cc cc_payload[256];		/* Sliced VBI CC payload array. It is an array to
-						   prevent dropping CC data if they couldn't be
-						   processed fast enough. */
-	int cc_payload_idx;			/* Index in cc_payload */
-	u8 cc_missing_cnt;			/* Counts number of frames without CC for passthrough mode */
-	int wss_payload;			/* Sliced VBI WSS payload */
-	u8 wss_missing_cnt;			/* Counts number of frames without WSS for passthrough mode */
-	struct vbi_vps vps_payload;		/* Sliced VBI VPS payload */
-	struct v4l2_format in;
-	/* convenience pointer to sliced struct in vbi_in union */
-	struct v4l2_sliced_vbi_format *sliced_in;
-	int insert_mpeg;
+	u32 start[2];				/* start of first VBI line in the odd/even fields */
+	u32 count;				/* number of VBI lines per field */
+	u32 raw_size;				/* size of raw VBI line from the digitizer */
+	u32 sliced_size;			/* size of sliced VBI line from the digitizer */
 
-	/* Buffer for the maximum of 2 * 18 * packet_size sliced VBI lines.
-	   One for /dev/vbi0 and one for /dev/vbi8 */
-	struct v4l2_sliced_vbi_data sliced_data[36];
-	struct v4l2_sliced_vbi_data sliced_dec_data[36];
+	u32 dec_start;				/* start in decoder memory of VBI re-insertion buffers */
+	u32 enc_start;				/* start in encoder memory of VBI capture buffers */
+	u32 enc_size;				/* size of VBI capture area */
+	int fpi;				/* number of VBI frames per interrupt */
+
+	struct v4l2_format in;			/* current VBI capture format */
+	struct v4l2_sliced_vbi_format *sliced_in; /* convenience pointer to sliced struct in vbi.in union */
+	int insert_mpeg;			/* if non-zero, then embed VBI data in MPEG stream */
+
+	/* Raw VBI compatibility hack */
+
+	u32 frame; 				/* frame counter hack needed for backwards compatibility
+						   of old VBI software */
+
+	/* Sliced VBI output data */
+
+	struct vbi_cc cc_payload[256];		/* sliced VBI CC payload array: it is an array to
+						   prevent dropping CC data if they couldn't be
+						   processed fast enough */
+	int cc_payload_idx;			/* index in cc_payload */
+	u8 cc_missing_cnt;			/* counts number of frames without CC for passthrough mode */
+	int wss_payload;			/* sliced VBI WSS payload */
+	u8 wss_missing_cnt;			/* counts number of frames without WSS for passthrough mode */
+	struct vbi_vps vps_payload;		/* sliced VBI VPS payload */
+
+	/* Sliced VBI capture data */
+
+	struct v4l2_sliced_vbi_data sliced_data[36];	/* sliced VBI storage for VBI encoder stream */
+	struct v4l2_sliced_vbi_data sliced_dec_data[36];/* sliced VBI storage for VBI decoder stream */
+
+	/* VBI Embedding data */
 
 	/* Buffer for VBI data inserted into MPEG stream.
 	   The first byte is a dummy byte that's never used.
@@ -544,12 +560,9 @@ struct vbi_info {
 	   This pointer array will allocate 2049 bytes to store each VBI frame. */
 	u8 *sliced_mpeg_data[IVTV_VBI_FRAMES];
 	u32 sliced_mpeg_size[IVTV_VBI_FRAMES];
-	struct ivtv_buffer sliced_mpeg_buf;
-	u32 inserted_frame;
-
-	u32 start[2], count;
-	u32 raw_size;
-	u32 sliced_size;
+	struct ivtv_buffer sliced_mpeg_buf;	/* temporary buffer holding data from sliced_mpeg_data */
+	u32 inserted_frame;			/* index in sliced_mpeg_size of next sliced data
+						   to be inserted in the MPEG stream */
 };
 
 /* forward declaration of struct defined in ivtv-cards.h */

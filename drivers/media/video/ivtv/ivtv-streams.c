@@ -321,16 +321,6 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	/* Reset VBI */
 	ivtv_vapi(itv, CX2341X_ENC_SET_VBI_LINE, 5, 0xffff , 0, 0, 0, 0);
 
-	if (itv->is_60hz) {
-		itv->vbi.count = 12;
-		itv->vbi.start[0] = 10;
-		itv->vbi.start[1] = 273;
-	} else {        /* PAL/SECAM */
-		itv->vbi.count = 18;
-		itv->vbi.start[0] = 6;
-		itv->vbi.start[1] = 318;
-	}
-
 	/* setup VBI registers */
 	itv->video_dec_func(itv, VIDIOC_S_FMT, &itv->vbi.in);
 
