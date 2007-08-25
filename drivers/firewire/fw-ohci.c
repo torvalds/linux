@@ -30,6 +30,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
+#include <asm/system.h>
 
 #include "fw-transaction.h"
 #include "fw-ohci.h"
@@ -926,12 +927,14 @@ static void bus_reset_tasklet(unsigned long data)
 
 	self_id_count = (reg_read(ohci, OHCI1394_SelfIDCount) >> 3) & 0x3ff;
 	generation = (le32_to_cpu(ohci->self_id_cpu[0]) >> 16) & 0xff;
+	rmb();
 
 	for (i = 1, j = 0; j < self_id_count; i += 2, j++) {
 		if (ohci->self_id_cpu[i] != ~ohci->self_id_cpu[i + 1])
 			fw_error("inconsistent self IDs\n");
 		ohci->self_id_buffer[j] = le32_to_cpu(ohci->self_id_cpu[i]);
 	}
+	rmb();
 
 	/*
 	 * Check the consistency of the self IDs we just read.  The
