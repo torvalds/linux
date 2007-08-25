@@ -233,9 +233,9 @@ static u8 bw2regs_66hz[] __devinitdata = {
 	0x10, 0x20,	0
 };
 
-static void __devinit bw2_do_default_mode(struct bw2_par *par,
-					  struct fb_info *info,
-					  int *linebytes)
+static int __devinit bw2_do_default_mode(struct bw2_par *par,
+					 struct fb_info *info,
+					 int *linebytes)
 {
 	u8 status, mon;
 	u8 *p;
@@ -266,17 +266,18 @@ static void __devinit bw2_do_default_mode(struct bw2_par *par,
 		break;
 
 	case BWTWO_SR_ID_NOCONN:
-		return;
+		return 0;
 
 	default:
-		prom_printf("bw2: can't handle SR %02x\n",
-			    status);
-		prom_halt();
+		printk(KERN_ERR "bw2: can't handle SR %02x\n",
+		       status);
+		return -EINVAL;
 	}
 	for ( ; *p; p += 2) {
 		u8 __iomem *regp = &((u8 __iomem *)par->regs)[p[0]];
 		sbus_writeb(p[1], regp);
 	}
+	return 0;
 }
 
 static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *match)
@@ -312,8 +313,11 @@ static int __devinit bw2_probe(struct of_device *op, const struct of_device_id *
 	if (!par->regs)
 		goto out_release_fb;
 
-	if (!of_find_property(dp, "width", NULL))
-		bw2_do_default_mode(par, info, &linebytes);
+	if (!of_find_property(dp, "width", NULL)) {
+		err = bw2_do_default_mode(par, info, &linebytes);
+		if (err)
+			goto out_unmap_regs;
+	}
 
 	par->fbsize = PAGE_ALIGN(linebytes * info->var.yres);
 
