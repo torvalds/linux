@@ -220,15 +220,6 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
-static void attach_tda8290(struct tuner *t)
-{
-	struct tda8290_config cfg = {
-		.lna_cfg        = &t->config,
-		.tuner_callback = t->tuner_callback
-	};
-	tda8290_attach(&t->fe, t->i2c.adapter, t->i2c.addr, &cfg);
-}
-
 static void attach_simple_tuner(struct tuner *t)
 {
 	struct simple_tuner_config cfg = {
@@ -284,7 +275,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		attach_tda8290(t);
+		tda8290_attach(t);
 		break;
 	}
 	case TUNER_TEA5767:
@@ -343,7 +334,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 
-	if (fe_tuner_ops->set_analog_params) {
+	if ((fe_tuner_ops->set_analog_params) &&
+	    ((NULL == t->ops.set_tv_freq) && (NULL == t->ops.set_radio_freq))) {
 		strlcpy(t->i2c.name, fe_tuner_ops->info.name, sizeof(t->i2c.name));
 
 		t->ops.set_tv_freq    = fe_set_freq;
@@ -624,7 +616,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda8290_probe(t->i2c.adapter, t->i2c.addr) == 0) {
+			if (tda8290_probe(t) == 0) {
 				tuner_dbg("chip at addr %x is a tda8290\n", addr);
 			} else {
 				/* Default is being tda9887 */

@@ -107,6 +107,7 @@ config TUNER_MT20XX
 config TUNER_TDA8290
 	tristate "TDA 8290+8275(a) tuner combo"
 	depends on I2C
+	select DVB_TDA827X
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for Philips TDA8290+8275(a) tuner.
