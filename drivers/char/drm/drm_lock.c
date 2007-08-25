@@ -125,7 +125,7 @@ int drm_lock(struct inode *inode, struct file *filp,
 	if (dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT)) {
 		if (dev->driver->dma_quiescent(dev)) {
 			DRM_DEBUG("%d waiting for DMA quiescent\n", lock.context);
-			return DRM_ERR(EBUSY);
+			return -EBUSY;
 		}
 	}
 

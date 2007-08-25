@@ -175,24 +175,24 @@ static int via_initialize(struct drm_device * dev,
 {
 	if (!dev_priv || !dev_priv->mmio) {
 		DRM_ERROR("via_dma_init called before via_map_init\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	if (dev_priv->ring.virtual_start != NULL) {
 		DRM_ERROR("%s called again without calling cleanup\n",
 			  __FUNCTION__);
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	if (!dev->agp || !dev->agp->base) {
 		DRM_ERROR("%s called with no agp memory available\n",
 			  __FUNCTION__);
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	if (dev_priv->chipset == VIA_DX9_0) {
 		DRM_ERROR("AGP DMA is not supported on this chip\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	dev_priv->ring.map.offset = dev->agp->base + init->offset;
@@ -207,7 +207,7 @@ static int via_initialize(struct drm_device * dev,
 		via_dma_cleanup(dev);
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
@@ -240,22 +240,22 @@ static int via_dma_init(DRM_IOCTL_ARGS)
 	switch (init.func) {
 	case VIA_INIT_DMA:
 		if (!DRM_SUSER(DRM_CURPROC))
-			retcode = DRM_ERR(EPERM);
+			retcode = -EPERM;
 		else
 			retcode = via_initialize(dev, dev_priv, &init);
 		break;
 	case VIA_CLEANUP_DMA:
 		if (!DRM_SUSER(DRM_CURPROC))
-			retcode = DRM_ERR(EPERM);
+			retcode = -EPERM;
 		else
 			retcode = via_dma_cleanup(dev);
 		break;
 	case VIA_DMA_INITIALIZED:
 		retcode = (dev_priv->ring.virtual_start != NULL) ?
-			0 : DRM_ERR(EFAULT);
+			0 : -EFAULT;
 		break;
 	default:
-		retcode = DRM_ERR(EINVAL);
+		retcode = -EINVAL;
 		break;
 	}
 
@@ -273,15 +273,15 @@ static int via_dispatch_cmdbuffer(struct drm_device * dev, drm_via_cmdbuffer_t *
 	if (dev_priv->ring.virtual_start == NULL) {
 		DRM_ERROR("%s called without initializing AGP ring buffer.\n",
 			  __FUNCTION__);
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	if (cmd->size > VIA_PCI_BUF_SIZE) {
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	/*
 	 * Running this function on AGP memory is dead slow. Therefore
@@ -297,7 +297,7 @@ static int via_dispatch_cmdbuffer(struct drm_device * dev, drm_via_cmdbuffer_t *
 
 	vb = via_check_dma(dev_priv, (cmd->size < 0x100) ? 0x102 : cmd->size);
 	if (vb == NULL) {
-		return DRM_ERR(EAGAIN);
+		return -EAGAIN;
 	}
 
 	memcpy(vb, dev_priv->pci_buf, cmd->size);
@@ -321,7 +321,7 @@ int via_driver_dma_quiescent(struct drm_device * dev)
 	drm_via_private_t *dev_priv = dev->dev_private;
 
 	if (!via_wait_idle(dev_priv)) {
-		return DRM_ERR(EBUSY);
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -363,10 +363,10 @@ static int via_dispatch_pci_cmdbuffer(struct drm_device * dev,
 	int ret;
 
 	if (cmd->size > VIA_PCI_BUF_SIZE) {
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 	if (DRM_COPY_FROM_USER(dev_priv->pci_buf, cmd->buf, cmd->size))
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	if ((ret =
 	     via_verify_command_stream((uint32_t *) dev_priv->pci_buf,
@@ -669,7 +669,7 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 	if (dev_priv->ring.virtual_start == NULL) {
 		DRM_ERROR("%s called without initializing AGP ring buffer.\n",
 			  __FUNCTION__);
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(d_siz, (drm_via_cmdbuf_size_t __user *) data,
@@ -687,7 +687,7 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 		}
 		if (!count) {
 			DRM_ERROR("VIA_CMDBUF_SPACE timed out.\n");
-			ret = DRM_ERR(EAGAIN);
+			ret = -EAGAIN;
 		}
 		break;
 	case VIA_CMDBUF_LAG:
@@ -699,11 +699,11 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 		}
 		if (!count) {
 			DRM_ERROR("VIA_CMDBUF_LAG timed out.\n");
-			ret = DRM_ERR(EAGAIN);
+			ret = -EAGAIN;
 		}
 		break;
 	default:
-		ret = DRM_ERR(EFAULT);
+		ret = -EFAULT;
 	}
 	d_siz.size = tmp_size;
 

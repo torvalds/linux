@@ -276,7 +276,7 @@ int i915_mem_alloc(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_i915_mem_alloc_t __user *) data,
@@ -284,7 +284,7 @@ int i915_mem_alloc(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, alloc.region);
 	if (!heap || !*heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	/* Make things easier on ourselves: all allocations at least
 	 * 4k aligned.
@@ -295,13 +295,13 @@ int i915_mem_alloc(DRM_IOCTL_ARGS)
 	block = alloc_block(*heap, alloc.size, alloc.alignment, filp);
 
 	if (!block)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	mark_block(dev, block, 1);
 
 	if (DRM_COPY_TO_USER(alloc.region_offset, &block->start, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -316,7 +316,7 @@ int i915_mem_free(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_i915_mem_free_t __user *) data,
@@ -324,14 +324,14 @@ int i915_mem_free(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, memfree.region);
 	if (!heap || !*heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	block = find_block(*heap, memfree.region_offset);
 	if (!block)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	if (block->filp != filp)
-		return DRM_ERR(EPERM);
+		return -EPERM;
 
 	mark_block(dev, block, 0);
 	free_block(block);
@@ -347,7 +347,7 @@ int i915_mem_init_heap(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(initheap,
@@ -356,11 +356,11 @@ int i915_mem_init_heap(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, initheap.region);
 	if (!heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	if (*heap) {
 		DRM_ERROR("heap already initialized?");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return init_heap(heap, initheap.start, initheap.size);
@@ -375,7 +375,7 @@ int i915_mem_destroy_heap( DRM_IOCTL_ARGS )
 
 	if ( !dev_priv ) {
 		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL( destroyheap, (drm_i915_mem_destroy_heap_t *)data,
@@ -384,12 +384,12 @@ int i915_mem_destroy_heap( DRM_IOCTL_ARGS )
 	heap = get_heap( dev_priv, destroyheap.region );
 	if (!heap) {
 		DRM_ERROR("get_heap failed");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 	
 	if (!*heap) {
 		DRM_ERROR("heap not initialized?");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	i915_mem_takedown( heap );

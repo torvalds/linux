@@ -140,7 +140,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	mem.size = (mem.size + SIS_MM_ALIGN_MASK) >> SIS_MM_ALIGN_SHIFT;
@@ -159,7 +159,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file * priv,
 		mem.offset = 0;
 		mem.size = 0;
 		mem.free = 0;
-		retval = DRM_ERR(ENOMEM);
+		retval = -ENOMEM;
 	}
 
 	DRM_COPY_TO_USER_IOCTL(argp, mem, sizeof(mem));

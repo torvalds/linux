@@ -428,7 +428,7 @@ do {									\
 			DRM_UDELAY(1);				\
 		}							\
 		DRM_ERROR( "ring space check failed!\n" );		\
-		return DRM_ERR(EBUSY);				\
+		return -EBUSY;				\
 	}								\
  __ring_space_done:							\
 	;								\

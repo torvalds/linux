@@ -42,7 +42,7 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv = drm_calloc(1, sizeof(drm_sis_private_t), DRM_MEM_DRIVER);
 	if (dev_priv == NULL)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->chipset = chipset;

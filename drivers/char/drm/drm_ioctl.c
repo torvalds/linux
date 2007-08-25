@@ -123,7 +123,7 @@ int drm_setunique(struct inode *inode, struct file *filp,
 	 */
 	ret = sscanf(dev->unique, "PCI:%d:%d:%d", &bus, &slot, &func);
 	if (ret != 3)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	domain = bus >> 8;
 	bus &= 0xff;
 

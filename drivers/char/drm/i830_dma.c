@@ -389,7 +389,7 @@ static int i830_dma_initialize(struct drm_device * dev,
 		i830_dma_cleanup(dev);
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;

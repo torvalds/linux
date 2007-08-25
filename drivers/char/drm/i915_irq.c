@@ -311,7 +311,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	DRM_WAIT_ON(ret, dev_priv->irq_queue, 3 * DRM_HZ,
 		    READ_BREADCRUMB(dev_priv) >= irq_nr);
 
-	if (ret == DRM_ERR(EBUSY)) {
+	if (ret == -EBUSY) {
 		DRM_ERROR("%s: EBUSY -- rec: %d emitted: %d\n",
 			  __FUNCTION__,
 			  READ_BREADCRUMB(dev_priv), (int)dev_priv->counter);
@@ -330,7 +330,7 @@ static int i915_driver_vblank_do_wait(struct drm_device *dev, unsigned int *sequ
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
@@ -366,7 +366,7 @@ int i915_irq_emit(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(emit, (drm_i915_irq_emit_t __user *) data,
@@ -376,7 +376,7 @@ int i915_irq_emit(DRM_IOCTL_ARGS)
 
 	if (DRM_COPY_TO_USER(emit.irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -392,7 +392,7 @@ int i915_irq_wait(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(irqwait, (drm_i915_irq_wait_t __user *) data,
@@ -425,7 +425,7 @@ int i915_vblank_pipe_set(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(pipe, (drm_i915_vblank_pipe_t __user *) data,
@@ -434,7 +434,7 @@ int i915_vblank_pipe_set(DRM_IOCTL_ARGS)
 	if (pipe.pipe & ~(DRM_I915_VBLANK_PIPE_A|DRM_I915_VBLANK_PIPE_B)) {
 		DRM_ERROR("%s called with invalid pipe 0x%x\n", 
 			  __FUNCTION__, pipe.pipe);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	dev_priv->vblank_pipe = pipe.pipe;
@@ -453,7 +453,7 @@ int i915_vblank_pipe_get(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	flag = I915_READ(I915REG_INT_ENABLE_R);
@@ -482,12 +482,12 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __func__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (dev_priv->sarea_priv->rotation) {
 		DRM_DEBUG("Rotation not supported\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(swap, (drm_i915_vblank_swap_t __user *) data,
@@ -496,7 +496,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	if (swap.seqtype & ~(_DRM_VBLANK_RELATIVE | _DRM_VBLANK_ABSOLUTE |
 			     _DRM_VBLANK_SECONDARY | _DRM_VBLANK_NEXTONMISS)) {
 		DRM_ERROR("Invalid sequence type 0x%x\n", swap.seqtype);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	pipe = (swap.seqtype & _DRM_VBLANK_SECONDARY) ? 1 : 0;
@@ -505,7 +505,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	if (!(dev_priv->vblank_pipe & (1 << pipe))) {
 		DRM_ERROR("Invalid pipe %d\n", pipe);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	spin_lock_irqsave(&dev->drw_lock, irqflags);
@@ -513,7 +513,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 	if (!drm_get_drawable_info(dev, swap.drawable)) {
 		spin_unlock_irqrestore(&dev->drw_lock, irqflags);
 		DRM_DEBUG("Invalid drawable ID %d\n", swap.drawable);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	spin_unlock_irqrestore(&dev->drw_lock, irqflags);
@@ -528,7 +528,7 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 			swap.sequence = curseq + 1;
 		} else {
 			DRM_DEBUG("Missed target sequence\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	}
 
@@ -550,14 +550,14 @@ int i915_vblank_swap(DRM_IOCTL_ARGS)
 
 	if (dev_priv->swaps_pending >= 100) {
 		DRM_DEBUG("Too many swaps queued\n");
-		return DRM_ERR(EBUSY);
+		return -EBUSY;
 	}
 
 	vbl_swap = drm_calloc(1, sizeof(vbl_swap), DRM_MEM_DRIVER);
 
 	if (!vbl_swap) {
 		DRM_ERROR("Failed to allocate memory to queue swap\n");
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	DRM_DEBUG("\n");

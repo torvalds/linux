@@ -60,7 +60,7 @@ savage_bci_wait_fifo_shadow(drm_savage_private_t * dev_priv, unsigned int n)
 	DRM_ERROR("failed!\n");
 	DRM_INFO("   status=0x%08x, threshold=0x%08x\n", status, threshold);
 #endif
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 static int
@@ -81,7 +81,7 @@ savage_bci_wait_fifo_s3d(drm_savage_private_t * dev_priv, unsigned int n)
 	DRM_ERROR("failed!\n");
 	DRM_INFO("   status=0x%08x\n", status);
 #endif
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 static int
@@ -102,7 +102,7 @@ savage_bci_wait_fifo_s4(drm_savage_private_t * dev_priv, unsigned int n)
 	DRM_ERROR("failed!\n");
 	DRM_INFO("   status=0x%08x\n", status);
 #endif
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 /*
@@ -136,7 +136,7 @@ savage_bci_wait_event_shadow(drm_savage_private_t * dev_priv, uint16_t e)
 	DRM_INFO("   status=0x%08x, e=0x%04x\n", status, e);
 #endif
 
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 static int
@@ -158,7 +158,7 @@ savage_bci_wait_event_reg(drm_savage_private_t * dev_priv, uint16_t e)
 	DRM_INFO("   status=0x%08x, e=0x%04x\n", status, e);
 #endif
 
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 uint16_t savage_bci_emit_event(drm_savage_private_t * dev_priv,
@@ -301,7 +301,7 @@ static int savage_dma_init(drm_savage_private_t * dev_priv)
 	dev_priv->dma_pages = drm_alloc(sizeof(drm_savage_dma_page_t) *
 					dev_priv->nr_dma_pages, DRM_MEM_DRIVER);
 	if (dev_priv->dma_pages == NULL)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	for (i = 0; i < dev_priv->nr_dma_pages; ++i) {
 		SET_AGE(&dev_priv->dma_pages[i].age, 0, 0);
@@ -541,7 +541,7 @@ int savage_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	dev_priv = drm_alloc(sizeof(drm_savage_private_t), DRM_MEM_DRIVER);
 	if (dev_priv == NULL)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	memset(dev_priv, 0, sizeof(drm_savage_private_t));
 	dev->dev_private = (void *)dev_priv;
@@ -682,16 +682,16 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 
 	if (init->fb_bpp != 16 && init->fb_bpp != 32) {
 		DRM_ERROR("invalid frame buffer bpp %d!\n", init->fb_bpp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (init->depth_bpp != 16 && init->depth_bpp != 32) {
 		DRM_ERROR("invalid depth buffer bpp %d!\n", init->fb_bpp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (init->dma_type != SAVAGE_DMA_AGP &&
 	    init->dma_type != SAVAGE_DMA_PCI) {
 		DRM_ERROR("invalid dma memory type %d!\n", init->dma_type);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	dev_priv->cob_size = init->cob_size;
@@ -715,14 +715,14 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 	if (!dev_priv->sarea) {
 		DRM_ERROR("could not find sarea!\n");
 		savage_do_cleanup_bci(dev);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (init->status_offset != 0) {
 		dev_priv->status = drm_core_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
 			DRM_ERROR("could not find shadow status region!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	} else {
 		dev_priv->status = NULL;
@@ -734,13 +734,13 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("could not find DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		drm_core_ioremap(dev->agp_buffer_map, dev);
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("failed to ioremap DMA buffer region!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(ENOMEM);
+			return -ENOMEM;
 		}
 	}
 	if (init->agp_textures_offset) {
@@ -749,7 +749,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		if (!dev_priv->agp_textures) {
 			DRM_ERROR("could not find agp texture region!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	} else {
 		dev_priv->agp_textures = NULL;
@@ -760,39 +760,39 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 			DRM_ERROR("command DMA not supported on "
 				  "Savage3D/MX/IX.\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		if (dev->dma && dev->dma->buflist) {
 			DRM_ERROR("command and vertex DMA not supported "
 				  "at the same time.\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		dev_priv->cmd_dma = drm_core_findmap(dev, init->cmd_dma_offset);
 		if (!dev_priv->cmd_dma) {
 			DRM_ERROR("could not find command DMA region!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		if (dev_priv->dma_type == SAVAGE_DMA_AGP) {
 			if (dev_priv->cmd_dma->type != _DRM_AGP) {
 				DRM_ERROR("AGP command DMA region is not a "
 					  "_DRM_AGP map!\n");
 				savage_do_cleanup_bci(dev);
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 			drm_core_ioremap(dev_priv->cmd_dma, dev);
 			if (!dev_priv->cmd_dma->handle) {
 				DRM_ERROR("failed to ioremap command "
 					  "DMA region!\n");
 				savage_do_cleanup_bci(dev);
-				return DRM_ERR(ENOMEM);
+				return -ENOMEM;
 			}
 		} else if (dev_priv->cmd_dma->type != _DRM_CONSISTENT) {
 			DRM_ERROR("PCI command DMA region is not a "
 				  "_DRM_CONSISTENT map!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 	} else {
 		dev_priv->cmd_dma = NULL;
@@ -809,7 +809,7 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 		if (!dev_priv->fake_dma.handle) {
 			DRM_ERROR("could not allocate faked DMA buffer!\n");
 			savage_do_cleanup_bci(dev);
-			return DRM_ERR(ENOMEM);
+			return -ENOMEM;
 		}
 		dev_priv->cmd_dma = &dev_priv->fake_dma;
 		dev_priv->dma_flush = savage_fake_dma_flush;
@@ -886,13 +886,13 @@ static int savage_do_init_bci(struct drm_device * dev, drm_savage_init_t * init)
 	if (savage_freelist_init(dev) < 0) {
 		DRM_ERROR("could not initialize freelist\n");
 		savage_do_cleanup_bci(dev);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	if (savage_dma_init(dev_priv) < 0) {
 		DRM_ERROR("could not initialize command DMA\n");
 		savage_do_cleanup_bci(dev);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -945,7 +945,7 @@ static int savage_bci_init(DRM_IOCTL_ARGS)
 		return savage_do_cleanup_bci(dev);
 	}
 
-	return DRM_ERR(EINVAL);
+	return -EINVAL;
 }
 
 static int savage_bci_event_emit(DRM_IOCTL_ARGS)
@@ -1015,16 +1015,16 @@ static int savage_bci_get_buffers(DRMFILE filp, struct drm_device *dev, struct d
 	for (i = d->granted_count; i < d->request_count; i++) {
 		buf = savage_freelist_get(dev);
 		if (!buf)
-			return DRM_ERR(EAGAIN);
+			return -EAGAIN;
 
 		buf->filp = filp;
 
 		if (DRM_COPY_TO_USER(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 		if (DRM_COPY_TO_USER(&d->request_sizes[i],
 				     &buf->total, sizeof(buf->total)))
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 
 		d->granted_count++;
 	}
@@ -1047,7 +1047,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	if (d.send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
 			  DRM_CURRENTPID, d.send_count);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
@@ -1055,7 +1055,7 @@ int savage_bci_buffers(DRM_IOCTL_ARGS)
 	if (d.request_count < 0 || d.request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
 			  DRM_CURRENTPID, d.request_count, dma->buf_count);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	d.granted_count = 0;

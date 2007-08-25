@@ -71,7 +71,7 @@ int mga_do_wait_for_idle(drm_mga_private_t * dev_priv)
 	DRM_ERROR("failed!\n");
 	DRM_INFO("   status=0x%08x\n", status);
 #endif
-	return DRM_ERR(EBUSY);
+	return -EBUSY;
 }
 
 static int mga_do_dma_reset(drm_mga_private_t * dev_priv)
@@ -256,7 +256,7 @@ static int mga_freelist_init(struct drm_device * dev, drm_mga_private_t * dev_pr
 
 	dev_priv->head = drm_alloc(sizeof(drm_mga_freelist_t), DRM_MEM_DRIVER);
 	if (dev_priv->head == NULL)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	memset(dev_priv->head, 0, sizeof(drm_mga_freelist_t));
 	SET_AGE(&dev_priv->head->age, MGA_BUFFER_USED, 0);
@@ -267,7 +267,7 @@ static int mga_freelist_init(struct drm_device * dev, drm_mga_private_t * dev_pr
 
 		entry = drm_alloc(sizeof(drm_mga_freelist_t), DRM_MEM_DRIVER);
 		if (entry == NULL)
-			return DRM_ERR(ENOMEM);
+			return -ENOMEM;
 
 		memset(entry, 0, sizeof(drm_mga_freelist_t));
 
@@ -399,7 +399,7 @@ int mga_driver_load(struct drm_device * dev, unsigned long flags)
 
 	dev_priv = drm_alloc(sizeof(drm_mga_private_t), DRM_MEM_DRIVER);
 	if (!dev_priv)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	dev->dev_private = (void *)dev_priv;
 	memset(dev_priv, 0, sizeof(drm_mga_private_t));
@@ -578,7 +578,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 		DRM_ERROR("failed to ioremap agp regions! (%p, %p, %p)\n",
 			  dev_priv->warp->handle, dev_priv->primary->handle,
 			  dev->agp_buffer_map->handle);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	dev_priv->dma_access = MGA_PAGPXFER;
@@ -622,7 +622,7 @@ static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
 
 	if (dev->dma == NULL) {
 		DRM_ERROR("dev->dma is NULL\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	/* Make drm_addbufs happy by not trying to create a mapping for less
@@ -656,7 +656,7 @@ static int mga_do_pci_dma_bootstrap(struct drm_device * dev,
 
 	if (err != 0) {
 		DRM_ERROR("Unable to allocate primary DMA region: %d\n", err);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	if (dev_priv->primary->size != dma_bs->primary_size) {
@@ -826,7 +826,7 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 	dev_priv->sarea = drm_getsarea(dev);
 	if (!dev_priv->sarea) {
 		DRM_ERROR("failed to find sarea!\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (!dev_priv->used_new_dma_init) {
@@ -837,29 +837,29 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 		dev_priv->status = drm_core_findmap(dev, init->status_offset);
 		if (!dev_priv->status) {
 			DRM_ERROR("failed to find status page!\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		dev_priv->mmio = drm_core_findmap(dev, init->mmio_offset);
 		if (!dev_priv->mmio) {
 			DRM_ERROR("failed to find mmio region!\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		dev_priv->warp = drm_core_findmap(dev, init->warp_offset);
 		if (!dev_priv->warp) {
 			DRM_ERROR("failed to find warp microcode region!\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		dev_priv->primary = drm_core_findmap(dev, init->primary_offset);
 		if (!dev_priv->primary) {
 			DRM_ERROR("failed to find primary dma region!\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		dev->agp_buffer_token = init->buffers_offset;
 		dev->agp_buffer_map =
 		    drm_core_findmap(dev, init->buffers_offset);
 		if (!dev->agp_buffer_map) {
 			DRM_ERROR("failed to find dma buffer region!\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		drm_core_ioremap(dev_priv->warp, dev);
@@ -877,7 +877,7 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 	     ((dev->agp_buffer_map == NULL) ||
 	      (dev->agp_buffer_map->handle == NULL)))) {
 		DRM_ERROR("failed to ioremap agp regions!\n");
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	ret = mga_warp_install_microcode(dev_priv);
@@ -927,7 +927,7 @@ static int mga_do_init_dma(struct drm_device * dev, drm_mga_init_t * init)
 
 	if (mga_freelist_init(dev, dev_priv) < 0) {
 		DRM_ERROR("could not initialize freelist\n");
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	return 0;
@@ -1029,7 +1029,7 @@ int mga_dma_init(DRM_IOCTL_ARGS)
 		return mga_do_cleanup_dma(dev, FULL_CLEANUP);
 	}
 
-	return DRM_ERR(EINVAL);
+	return -EINVAL;
 }
 
 /* ================================================================
@@ -1094,16 +1094,16 @@ static int mga_dma_get_buffers(DRMFILE filp, struct drm_device * dev, struct drm
 	for (i = d->granted_count; i < d->request_count; i++) {
 		buf = mga_freelist_get(dev);
 		if (!buf)
-			return DRM_ERR(EAGAIN);
+			return -EAGAIN;
 
 		buf->filp = filp;
 
 		if (DRM_COPY_TO_USER(&d->request_indices[i],
 				     &buf->idx, sizeof(buf->idx)))
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 		if (DRM_COPY_TO_USER(&d->request_sizes[i],
 				     &buf->total, sizeof(buf->total)))
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 
 		d->granted_count++;
 	}
@@ -1128,7 +1128,7 @@ int mga_dma_buffers(DRM_IOCTL_ARGS)
 	if (d.send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
 			  DRM_CURRENTPID, d.send_count);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
@@ -1136,7 +1136,7 @@ int mga_dma_buffers(DRM_IOCTL_ARGS)
 	if (d.request_count < 0 || d.request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
 			  DRM_CURRENTPID, d.request_count, dma->buf_count);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	WRAP_TEST_WITH_RETURN(dev_priv);

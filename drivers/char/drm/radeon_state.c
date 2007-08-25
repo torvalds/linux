@@ -85,7 +85,7 @@ static __inline__ int radeon_check_and_fixup_offset(drm_radeon_private_t *
 		*offset = off;
 		return 0;
 	}
-	return DRM_ERR(EINVAL);
+	return -EINVAL;
 }
 
 static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
@@ -99,7 +99,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 		    &data[(RADEON_RB3D_DEPTHOFFSET - RADEON_PP_MISC) / 4])) {
 			DRM_ERROR("Invalid depth buffer offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -107,7 +107,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 		    &data[(RADEON_RB3D_COLOROFFSET - RADEON_PP_CNTL) / 4])) {
 			DRM_ERROR("Invalid colour buffer offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -120,7 +120,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &data[0])) {
 			DRM_ERROR("Invalid R200 texture offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -130,7 +130,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 		    &data[(RADEON_PP_TXOFFSET_0 - RADEON_PP_TXFILTER_0) / 4])) {
 			DRM_ERROR("Invalid R100 texture offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -147,7 +147,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 								  &data[i])) {
 					DRM_ERROR
 					    ("Invalid R200 cubic texture offset\n");
-					return DRM_ERR(EINVAL);
+					return -EINVAL;
 				}
 			}
 			break;
@@ -163,7 +163,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 								  &data[i])) {
 					DRM_ERROR
 					    ("Invalid R100 cubic texture offset\n");
-					return DRM_ERR(EINVAL);
+					return -EINVAL;
 				}
 			}
 		}
@@ -256,7 +256,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 
 	default:
 		DRM_ERROR("Unknown state packet ID %d\n", id);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -277,12 +277,12 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 
 	if ((cmd[0] & 0xc0000000) != RADEON_CP_PACKET3) {
 		DRM_ERROR("Not a type 3 packet\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (4 * *cmdsz > cmdbuf->bufsz) {
 		DRM_ERROR("Packet size larger than size of data provided\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	switch(cmd[0] & 0xff00) {
@@ -307,7 +307,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 		/* safe but r200 only */
 		if (dev_priv->microcode_version != UCODE_R200) {
 			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -317,7 +317,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 		if (count > 18) { /* 12 arrays max */
 			DRM_ERROR("Too large payload in 3D_LOAD_VBPNTR (count=%d)\n",
 				  count);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		/* carefully check packet contents */
@@ -330,7 +330,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 				DRM_ERROR
 				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
 				     k, i);
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 			k++;
 			i++;
@@ -341,7 +341,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 				DRM_ERROR
 				    ("Invalid offset (k=%d i=%d) in 3D_LOAD_VBPNTR packet.\n",
 				     k, i);
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 			k++;
 			i++;
@@ -351,33 +351,33 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 			DRM_ERROR
 			    ("Malformed 3D_LOAD_VBPNTR packet (k=%d i=%d narrays=%d count+1=%d).\n",
 			      k, i, narrays, count + 1);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
 	case RADEON_3D_RNDR_GEN_INDX_PRIM:
 		if (dev_priv->microcode_version != UCODE_R100) {
 			DRM_ERROR("Invalid 3d packet for r200-class chip\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[1])) {
 				DRM_ERROR("Invalid rndr_gen_indx offset\n");
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 		}
 		break;
 
 	case RADEON_CP_INDX_BUFFER:
 		if (dev_priv->microcode_version != UCODE_R200) {
 			DRM_ERROR("Invalid 3d packet for r100-class chip\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		if ((cmd[1] & 0x8000ffff) != 0x80000810) {
 			DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &cmd[2])) {
 			DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 		break;
 
@@ -391,7 +391,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 			if (radeon_check_and_fixup_offset
 			    (dev_priv, filp_priv, &offset)) {
 				DRM_ERROR("Invalid first packet offset\n");
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 			cmd[2] = (cmd[2] & 0xffc00000) | offset >> 10;
 		}
@@ -402,7 +402,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 			if (radeon_check_and_fixup_offset
 			    (dev_priv, filp_priv, &offset)) {
 				DRM_ERROR("Invalid second packet offset\n");
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 			cmd[3] = (cmd[3] & 0xffc00000) | offset >> 10;
 		}
@@ -410,7 +410,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 
 	default:
 		DRM_ERROR("Invalid packet type %x\n", cmd[0] & 0xff00);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -451,13 +451,13 @@ static int radeon_emit_state(drm_radeon_private_t * dev_priv,
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &ctx->rb3d_depthoffset)) {
 			DRM_ERROR("Invalid depth buffer offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &ctx->rb3d_coloroffset)) {
 			DRM_ERROR("Invalid depth buffer offset\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		BEGIN_RING(14);
@@ -546,7 +546,7 @@ static int radeon_emit_state(drm_radeon_private_t * dev_priv,
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &tex[0].pp_txoffset)) {
 			DRM_ERROR("Invalid texture offset for unit 0\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		BEGIN_RING(9);
@@ -566,7 +566,7 @@ static int radeon_emit_state(drm_radeon_private_t * dev_priv,
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &tex[1].pp_txoffset)) {
 			DRM_ERROR("Invalid texture offset for unit 1\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		BEGIN_RING(9);
@@ -586,7 +586,7 @@ static int radeon_emit_state(drm_radeon_private_t * dev_priv,
 		if (radeon_check_and_fixup_offset(dev_priv, filp_priv,
 						  &tex[2].pp_txoffset)) {
 			DRM_ERROR("Invalid texture offset for unit 2\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		BEGIN_RING(9);
@@ -1668,7 +1668,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 
 	if (radeon_check_and_fixup_offset(dev_priv, filp_priv, &tex->offset)) {
 		DRM_ERROR("Invalid destination offset\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	dev_priv->stats.boxes |= RADEON_BOX_TEXTURE_LOAD;
@@ -1711,11 +1711,11 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 		break;
 	default:
 		DRM_ERROR("invalid texture format %d\n", tex->format);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	spitch = blit_width >> 6;
 	if (spitch == 0 && image->height > 1)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
 	texpitch = tex->pitch;
 	if ((texpitch << 22) & RADEON_DST_TILE_MICRO) {
@@ -1760,8 +1760,8 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 		if (!buf) {
 			DRM_DEBUG("radeon_cp_dispatch_texture: EAGAIN\n");
 			if (DRM_COPY_TO_USER(tex->image, image, sizeof(*image)))
-				return DRM_ERR(EFAULT);
-			return DRM_ERR(EAGAIN);
+				return -EFAULT;
+			return -EAGAIN;
 		}
 
 		/* Dispatch the indirect buffer.
@@ -1774,7 +1774,7 @@ static int radeon_cp_dispatch_texture(DRMFILE filp,
 	do { \
 		if (DRM_COPY_FROM_USER(_buf, _data, (_width))) {\
 			DRM_ERROR("EFAULT on pad, %d bytes\n", (_width)); \
-			return DRM_ERR(EFAULT); \
+			return -EFAULT; \
 		} \
 	} while(0)
 
@@ -2083,7 +2083,7 @@ static int radeon_surface_alloc(DRM_IOCTL_ARGS)
 				 sizeof(alloc));
 
 	if (alloc_surface(&alloc, dev_priv, filp) == -1)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	else
 		return 0;
 }
@@ -2098,7 +2098,7 @@ static int radeon_surface_free(DRM_IOCTL_ARGS)
 				 sizeof(memfree));
 
 	if (free_surface(filp, dev_priv, memfree.address))
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	else
 		return 0;
 }
@@ -2124,7 +2124,7 @@ static int radeon_cp_clear(DRM_IOCTL_ARGS)
 
 	if (DRM_COPY_FROM_USER(&depth_boxes, clear.depth_boxes,
 			       sarea_priv->nbox * sizeof(depth_boxes[0])))
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	radeon_cp_dispatch_clear(dev, &clear, depth_boxes);
 
@@ -2226,11 +2226,11 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 	if (vertex.idx < 0 || vertex.idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
 			  vertex.idx, dma->buf_count - 1);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (vertex.prim < 0 || vertex.prim > RADEON_PRIM_TYPE_3VRT_LINE_LIST) {
 		DRM_ERROR("buffer prim %d\n", vertex.prim);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -2241,11 +2241,11 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 	if (buf->filp != filp) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
 			  DRM_CURRENTPID, buf->filp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (buf->pending) {
 		DRM_ERROR("sending pending buffer %d\n", vertex.idx);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/* Build up a prim_t record:
@@ -2259,7 +2259,7 @@ static int radeon_cp_vertex(DRM_IOCTL_ARGS)
 					      sarea_priv->tex_state,
 					      sarea_priv->dirty)) {
 				DRM_ERROR("radeon_emit_state failed\n");
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 
 			sarea_priv->dirty &= ~(RADEON_UPLOAD_TEX0IMAGES |
@@ -2310,11 +2310,11 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	if (elts.idx < 0 || elts.idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
 			  elts.idx, dma->buf_count - 1);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (elts.prim < 0 || elts.prim > RADEON_PRIM_TYPE_3VRT_LINE_LIST) {
 		DRM_ERROR("buffer prim %d\n", elts.prim);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -2325,11 +2325,11 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 	if (buf->filp != filp) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
 			  DRM_CURRENTPID, buf->filp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (buf->pending) {
 		DRM_ERROR("sending pending buffer %d\n", elts.idx);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	count = (elts.end - elts.start) / sizeof(u16);
@@ -2337,11 +2337,11 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 
 	if (elts.start & 0x7) {
 		DRM_ERROR("misaligned buffer 0x%x\n", elts.start);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (elts.start < buf->used) {
 		DRM_ERROR("no header 0x%x - 0x%x\n", elts.start, buf->used);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	buf->used = elts.end;
@@ -2352,7 +2352,7 @@ static int radeon_cp_indices(DRM_IOCTL_ARGS)
 				      sarea_priv->tex_state,
 				      sarea_priv->dirty)) {
 			DRM_ERROR("radeon_emit_state failed\n");
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		}
 
 		sarea_priv->dirty &= ~(RADEON_UPLOAD_TEX0IMAGES |
@@ -2394,13 +2394,13 @@ static int radeon_cp_texture(DRM_IOCTL_ARGS)
 
 	if (tex.image == NULL) {
 		DRM_ERROR("null texture image!\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (DRM_COPY_FROM_USER(&image,
 			       (drm_radeon_tex_image_t __user *) tex.image,
 			       sizeof(image)))
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
 	VB_AGE_TEST_WITH_RETURN(dev_priv);
@@ -2424,7 +2424,7 @@ static int radeon_cp_stipple(DRM_IOCTL_ARGS)
 				 sizeof(stipple));
 
 	if (DRM_COPY_FROM_USER(&mask, stipple.mask, 32 * sizeof(u32)))
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
 
@@ -2455,7 +2455,7 @@ static int radeon_cp_indirect(DRM_IOCTL_ARGS)
 	if (indirect.idx < 0 || indirect.idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
 			  indirect.idx, dma->buf_count - 1);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	buf = dma->buflist[indirect.idx];
@@ -2463,17 +2463,17 @@ static int radeon_cp_indirect(DRM_IOCTL_ARGS)
 	if (buf->filp != filp) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
 			  DRM_CURRENTPID, buf->filp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	if (buf->pending) {
 		DRM_ERROR("sending pending buffer %d\n", indirect.idx);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (indirect.start < buf->used) {
 		DRM_ERROR("reusing indirect: start=0x%x actual=0x%x\n",
 			  indirect.start, buf->used);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -2528,7 +2528,7 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	if (vertex.idx < 0 || vertex.idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
 			  vertex.idx, dma->buf_count - 1);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	RING_SPACE_TEST_WITH_RETURN(dev_priv);
@@ -2539,23 +2539,23 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 	if (buf->filp != filp) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
 			  DRM_CURRENTPID, buf->filp);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (buf->pending) {
 		DRM_ERROR("sending pending buffer %d\n", vertex.idx);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (sarea_priv->nbox > RADEON_NR_SAREA_CLIPRECTS)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
 	for (laststate = 0xff, i = 0; i < vertex.nr_prims; i++) {
 		drm_radeon_prim_t prim;
 		drm_radeon_tcl_prim_t tclprim;
 
 		if (DRM_COPY_FROM_USER(&prim, &vertex.prim[i], sizeof(prim)))
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 
 		if (prim.stateidx != laststate) {
 			drm_radeon_state_t state;
@@ -2563,11 +2563,11 @@ static int radeon_cp_vertex2(DRM_IOCTL_ARGS)
 			if (DRM_COPY_FROM_USER(&state,
 					       &vertex.state[prim.stateidx],
 					       sizeof(state)))
-				return DRM_ERR(EFAULT);
+				return -EFAULT;
 
 			if (radeon_emit_state2(dev_priv, filp_priv, &state)) {
 				DRM_ERROR("radeon_emit_state2 failed\n");
-				return DRM_ERR(EINVAL);
+				return -EINVAL;
 			}
 
 			laststate = prim.stateidx;
@@ -2613,19 +2613,19 @@ static int radeon_emit_packets(drm_radeon_private_t * dev_priv,
 	RING_LOCALS;
 
 	if (id >= RADEON_MAX_STATE_PACKETS)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
 	sz = packet[id].len;
 	reg = packet[id].start;
 
 	if (sz * sizeof(int) > cmdbuf->bufsz) {
 		DRM_ERROR("Packet size provided larger than data provided\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (radeon_check_and_fixup_packets(dev_priv, filp_priv, id, data)) {
 		DRM_ERROR("Packet verification failed\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	BEGIN_RING(sz + 1);
@@ -2713,7 +2713,7 @@ static __inline__ int radeon_emit_veclinear(drm_radeon_private_t *dev_priv,
         if (!sz)
                 return 0;
         if (sz * 4 > cmdbuf->bufsz)
-                return DRM_ERR(EINVAL);
+                return -EINVAL;
 
 	BEGIN_RING(5 + sz);
 	OUT_RING_REG(RADEON_SE_TCL_STATE_FLUSH, 0);
@@ -2781,7 +2781,7 @@ static int radeon_emit_packet3_cliprect(struct drm_device *dev,
 	do {
 		if (i < cmdbuf->nbox) {
 			if (DRM_COPY_FROM_USER(&box, &boxes[i], sizeof(box)))
-				return DRM_ERR(EFAULT);
+				return -EFAULT;
 			/* FIXME The second and subsequent times round
 			 * this loop, send a WAIT_UNTIL_3D_IDLE before
 			 * calling emit_clip_rect(). This fixes a
@@ -2839,7 +2839,7 @@ static int radeon_emit_wait(struct drm_device * dev, int flags)
 		ADVANCE_RING();
 		break;
 	default:
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;
@@ -2870,7 +2870,7 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	VB_AGE_TEST_WITH_RETURN(dev_priv);
 
 	if (cmdbuf.bufsz > 64 * 1024 || cmdbuf.bufsz < 0) {
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	/* Allocate an in-kernel area and copy in the cmdbuf.  Do this to avoid
@@ -2881,11 +2881,11 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
 	if (orig_bufsz != 0) {
 		kbuf = drm_alloc(cmdbuf.bufsz, DRM_MEM_DRIVER);
 		if (kbuf == NULL)
-			return DRM_ERR(ENOMEM);
+			return -ENOMEM;
 		if (DRM_COPY_FROM_USER(kbuf, (void __user *)cmdbuf.buf,
 				       cmdbuf.bufsz)) {
 			drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
-			return DRM_ERR(EFAULT);
+			return -EFAULT;
 		}
 		cmdbuf.buf = kbuf;
 	}
@@ -3012,7 +3012,7 @@ static int radeon_cp_cmdbuf(DRM_IOCTL_ARGS)
       err:
 	if (orig_bufsz != 0)
 		drm_free(kbuf, orig_bufsz, DRM_MEM_DRIVER);
-	return DRM_ERR(EINVAL);
+	return -EINVAL;
 }
 
 static int radeon_cp_getparam(DRM_IOCTL_ARGS)
@@ -3074,7 +3074,7 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 		break;
 	case RADEON_PARAM_SCRATCH_OFFSET:
 		if (!dev_priv->writeback_works)
-			return DRM_ERR(EINVAL);
+			return -EINVAL;
 		value = RADEON_SCRATCH_REG_OFFSET;
 		break;
 	case RADEON_PARAM_CARD_TYPE:
@@ -3090,12 +3090,12 @@ static int radeon_cp_getparam(DRM_IOCTL_ARGS)
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", param.param);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (DRM_COPY_TO_USER(param.value, &value, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -3149,7 +3149,7 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
 		break;
 	default:
 		DRM_DEBUG("Invalid parameter %d\n", sp.param);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;

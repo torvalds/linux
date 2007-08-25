@@ -137,12 +137,12 @@ static int init_heap(struct mem_block **heap, int start, int size)
 	struct mem_block *blocks = drm_alloc(sizeof(*blocks), DRM_MEM_BUFS);
 
 	if (!blocks)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	*heap = drm_alloc(sizeof(**heap), DRM_MEM_BUFS);
 	if (!*heap) {
 		drm_free(blocks, sizeof(*blocks), DRM_MEM_BUFS);
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 	}
 
 	blocks->start = start;
@@ -226,7 +226,7 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_radeon_mem_alloc_t __user *) data,
@@ -234,7 +234,7 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, alloc.region);
 	if (!heap || !*heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	/* Make things easier on ourselves: all allocations at least
 	 * 4k aligned.
@@ -245,11 +245,11 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 	block = alloc_block(*heap, alloc.size, alloc.alignment, filp);
 
 	if (!block)
-		return DRM_ERR(ENOMEM);
+		return -ENOMEM;
 
 	if (DRM_COPY_TO_USER(alloc.region_offset, &block->start, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return 0;
@@ -264,7 +264,7 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_mem_free_t __user *) data,
@@ -272,14 +272,14 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, memfree.region);
 	if (!heap || !*heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	block = find_block(*heap, memfree.region_offset);
 	if (!block)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	if (block->filp != filp)
-		return DRM_ERR(EPERM);
+		return -EPERM;
 
 	free_block(block);
 	return 0;
@@ -294,7 +294,7 @@ int radeon_mem_init_heap(DRM_IOCTL_ARGS)
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	DRM_COPY_FROM_USER_IOCTL(initheap,
@@ -303,11 +303,11 @@ int radeon_mem_init_heap(DRM_IOCTL_ARGS)
 
 	heap = get_heap(dev_priv, initheap.region);
 	if (!heap)
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 
 	if (*heap) {
 		DRM_ERROR("heap already initialized?");
-		return DRM_ERR(EFAULT);
+		return -EFAULT;
 	}
 
 	return init_heap(heap, initheap.start, initheap.size);

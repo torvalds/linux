@@ -10,7 +10,6 @@
 #define DRMFILE                         struct file *
 /** Ioctl arguments */
 #define DRM_IOCTL_ARGS			struct inode *inode, struct file *filp, unsigned int cmd, unsigned long data
-#define DRM_ERR(d)			-(d)
 /** Current process ID */
 #define DRM_CURRENTPID			current->pid
 #define DRM_SUSER(p)			capable(CAP_SYS_ADMIN)

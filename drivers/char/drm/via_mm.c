@@ -136,7 +136,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 
 	if (mem.type > VIA_MEM_AGP) {
 		DRM_ERROR("Unknown memory type allocation\n");
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 	mutex_lock(&dev->struct_mutex);
 	if (0 == ((mem.type == VIA_MEM_VIDEO) ? dev_priv->vram_initialized :
@@ -144,7 +144,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
 		mutex_unlock(&dev->struct_mutex);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	tmpSize = (mem.size + VIA_MM_ALIGN_MASK) >> VIA_MM_ALIGN_SHIFT;
@@ -162,7 +162,7 @@ int via_mem_alloc(DRM_IOCTL_ARGS)
 		mem.size = 0;
 		mem.index = 0;
 		DRM_DEBUG("Video memory allocation failed\n");
-		retval = DRM_ERR(ENOMEM);
+		retval = -ENOMEM;
 	}
 	DRM_COPY_TO_USER_IOCTL((drm_via_mem_t __user *) data, mem, sizeof(mem));
 

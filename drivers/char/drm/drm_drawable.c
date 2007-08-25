@@ -130,7 +130,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS)
 
 		if (update.num && !rects) {
 			DRM_ERROR("Failed to allocate cliprect memory\n");
-			err = DRM_ERR(ENOMEM);
+			err = -ENOMEM;
 			goto error;
 		}
 
@@ -140,7 +140,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS)
 						     update.num *
 						     sizeof(*rects))) {
 			DRM_ERROR("Failed to copy cliprects from userspace\n");
-			err = DRM_ERR(EFAULT);
+			err = -EFAULT;
 			goto error;
 		}
 
@@ -161,7 +161,7 @@ int drm_update_drawable_info(DRM_IOCTL_ARGS)
 		break;
 	default:
 		DRM_ERROR("Invalid update type %d\n", update.type);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	return 0;

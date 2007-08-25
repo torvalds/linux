@@ -205,13 +205,13 @@ via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequenc
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (irq >= drm_via_irq_num) {
 		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
 			  irq);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	real_irq = dev_priv->irq_map[irq];
@@ -219,7 +219,7 @@ via_driver_irq_wait(struct drm_device * dev, unsigned int irq, int force_sequenc
 	if (real_irq < 0) {
 		DRM_ERROR("%s Video IRQ %d not available on this hardware.\n",
 			  __FUNCTION__, irq);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	masks = dev_priv->irq_masks;
@@ -343,13 +343,13 @@ int via_wait_irq(DRM_IOCTL_ARGS)
 	int force_sequence;
 
 	if (!dev->irq)
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 
 	DRM_COPY_FROM_USER_IOCTL(irqwait, argp, sizeof(irqwait));
 	if (irqwait.request.irq >= dev_priv->num_irqs) {
 		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
 			  irqwait.request.irq);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	cur_irq += irqwait.request.irq;
@@ -361,13 +361,13 @@ int via_wait_irq(DRM_IOCTL_ARGS)
 	case VIA_IRQ_ABSOLUTE:
 		break;
 	default:
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	if (irqwait.request.type & VIA_IRQ_SIGNAL) {
 		DRM_ERROR("%s Signals on Via IRQs not implemented yet.\n",
 			  __FUNCTION__);
-		return DRM_ERR(EINVAL);
+		return -EINVAL;
 	}
 
 	force_sequence = (irqwait.request.type & VIA_IRQ_FORCE_SEQUENCE);
