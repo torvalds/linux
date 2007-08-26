@@ -62,7 +62,7 @@
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 
-#include <media/ivtv.h>
+#include <linux/ivtv.h>
 
 
 /* Memory layout */
