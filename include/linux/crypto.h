@@ -95,7 +95,6 @@ struct crypto_async_request;
 struct crypto_aead;
 struct crypto_blkcipher;
 struct crypto_hash;
-struct crypto_queue;
 struct crypto_tfm;
 struct crypto_type;
 
@@ -177,8 +176,6 @@ struct ablkcipher_alg {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
-
-	struct crypto_queue *queue;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;

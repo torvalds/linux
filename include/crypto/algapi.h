@@ -234,16 +234,16 @@ static inline struct crypto_async_request *crypto_get_backlog(
 	       container_of(queue->backlog, struct crypto_async_request, list);
 }
 
-static inline int ablkcipher_enqueue_request(struct ablkcipher_alg *alg,
+static inline int ablkcipher_enqueue_request(struct crypto_queue *queue,
 					     struct ablkcipher_request *request)
 {
-	return crypto_enqueue_request(alg->queue, &request->base);
+	return crypto_enqueue_request(queue, &request->base);
 }
 
 static inline struct ablkcipher_request *ablkcipher_dequeue_request(
-	struct ablkcipher_alg *alg)
+	struct crypto_queue *queue)
 {
-	return ablkcipher_request_cast(crypto_dequeue_request(alg->queue));
+	return ablkcipher_request_cast(crypto_dequeue_request(queue));
 }
 
 static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
@@ -251,10 +251,10 @@ static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
 	return req->__ctx;
 }
 
-static inline int ablkcipher_tfm_in_queue(struct crypto_ablkcipher *tfm)
+static inline int ablkcipher_tfm_in_queue(struct crypto_queue *queue,
+					  struct crypto_ablkcipher *tfm)
 {
-	return crypto_tfm_in_queue(crypto_ablkcipher_alg(tfm)->queue,
-				   crypto_ablkcipher_tfm(tfm));
+	return crypto_tfm_in_queue(queue, crypto_ablkcipher_tfm(tfm));
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */
