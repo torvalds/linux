@@ -47,7 +47,7 @@
 #include <linux/console.h>
 #include <linux/bitops.h>
 #include <linux/pagemap.h>
-#include <linux/matroxfb.h>
+#include <media/ivtv-fb.h>
 
 #include <asm/io.h>
 #include <asm/ioctl.h>
@@ -59,7 +59,6 @@
 #include "ivtv-driver.h"
 #include "ivtv-udma.h"
 #include "ivtv-mailbox.h"
-#include <media/ivtv-fb.h>
 
 /* card parameters */
 static int ivtv_fb_card_id = -1;
