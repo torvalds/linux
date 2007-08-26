@@ -207,11 +207,9 @@ static int intr_connect_level(int cpu, int bit)
 {
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(cpu));
 	struct slice_data *si = cpu_data[cpu].data;
-	unsigned long flags;
 
 	set_bit(bit, si->irq_enable_mask);
 
-	local_irq_save(flags);
 	if (!cputoslice(cpu)) {
 		REMOTE_HUB_S(nasid, PI_INT_MASK0_A, si->irq_enable_mask[0]);
 		REMOTE_HUB_S(nasid, PI_INT_MASK1_A, si->irq_enable_mask[1]);
@@ -219,7 +217,6 @@ static int intr_connect_level(int cpu, int bit)
 		REMOTE_HUB_S(nasid, PI_INT_MASK0_B, si->irq_enable_mask[0]);
 		REMOTE_HUB_S(nasid, PI_INT_MASK1_B, si->irq_enable_mask[1]);
 	}
-	local_irq_restore(flags);
 
 	return 0;
 }
