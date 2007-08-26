@@ -40,17 +40,8 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
 #include <linux/fb.h>
-#include <linux/console.h>
-#include <linux/bitops.h>
-#include <linux/pagemap.h>
-#include <media/ivtv-fb.h>
-
-#include <asm/io.h>
-#include <asm/ioctl.h>
+#include <linux/ivtvfb.h>
 
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
