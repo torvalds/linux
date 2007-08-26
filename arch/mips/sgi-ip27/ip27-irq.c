@@ -285,6 +285,8 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 
         bridge->b_wid_tflush;
 
+	intr_connect_level(cpu, swlevel);
+
         return 0;       /* Never anything pending.  */
 }
 
