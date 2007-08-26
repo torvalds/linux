@@ -35,7 +35,7 @@ extern int cx25840_debug;
 #define CX25840_CID_ENABLE_PVR150_WORKAROUND (V4L2_CID_PRIVATE_BASE+0)
 
 struct cx25840_state {
-	struct i2c_client c;
+	struct i2c_client *c;
 	int pvr150_workaround;
 	int radio;
 	enum cx25840_video_input vid_input;
@@ -48,6 +48,8 @@ struct cx25840_state {
 	u32 rev;
 	int is_cx25836;
 	int is_initialized;
+	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
+	struct work_struct fw_work;   /* work entry for fw load */
 };
 
 /* ----------------------------------------------------------------------- */

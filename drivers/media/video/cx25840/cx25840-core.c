@@ -179,9 +179,18 @@ static void cx25836_initialize(struct i2c_client *client)
 	cx25840_and_or(client, 0x15b, ~0x1e, 0x10);
 }
 
+static void cx25840_work_handler(struct work_struct *work)
+{
+	struct cx25840_state *state = container_of(work, struct cx25840_state, fw_work);
+	cx25840_loadfw(state->c);
+	wake_up(&state->fw_wait);
+}
+
 static void cx25840_initialize(struct i2c_client *client)
 {
+	DEFINE_WAIT(wait);
 	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct workqueue_struct *q;
 
 	/* datasheet startup in numbered steps, refer to page 3-77 */
 	/* 2. */
@@ -197,7 +206,19 @@ static void cx25840_initialize(struct i2c_client *client)
 	cx25840_write(client, 0x13c, 0x01);
 	cx25840_write(client, 0x13c, 0x00);
 	/* 5. */
-	cx25840_loadfw(client);
+	/* Do the firmware load in a work handler to prevent.
+	   Otherwise the kernel is blocked waiting for the
+	   bit-banging i2c interface to finish uploading the
+	   firmware. */
+	INIT_WORK(&state->fw_work, cx25840_work_handler);
+	init_waitqueue_head(&state->fw_wait);
+	q = create_singlethread_workqueue("cx25840_fw");
+	prepare_to_wait(&state->fw_wait, &wait, TASK_UNINTERRUPTIBLE);
+	queue_work(q, &state->fw_work);
+	schedule();
+	finish_wait(&state->fw_wait, &wait);
+	destroy_workqueue(q);
+
 	/* 6. */
 	cx25840_write(client, 0x115, 0x8c);
 	cx25840_write(client, 0x116, 0x07);
@@ -872,17 +893,16 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return 0;
 
-	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
-	if (state == 0)
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (client == 0)
 		return -ENOMEM;
 
-	client = &state->c;
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_cx25840;
 	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
-	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
 	device_id |= cx25840_read(client, 0x100);
@@ -891,16 +911,20 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
 	if ((device_id & 0xff00) == 0x8300) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-		state->is_cx25836 = 1;
 	}
 	else if ((device_id & 0xff00) == 0x8400) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-		state->is_cx25836 = 0;
 	}
 	else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		kfree(state);
+		kfree(client);
 		return 0;
+	}
+
+	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
+	if (state == NULL) {
+		kfree(client);
+		return -ENOMEM;
 	}
 
 	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
@@ -908,9 +932,11 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
 		    (device_id & 0xfff0) >> 4,
 		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
-		    address << 1, adapter->name);
+		    client->addr << 1, client->adapter->name);
 
 	i2c_set_clientdata(client, state);
+	state->c = client;
+	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
@@ -944,6 +970,7 @@ static int cx25840_detach_client(struct i2c_client *client)
 	}
 
 	kfree(state);
+	kfree(client);
 
 	return 0;
 }
