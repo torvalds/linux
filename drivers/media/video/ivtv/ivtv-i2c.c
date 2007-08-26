@@ -541,7 +541,7 @@ static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
 	.setscl		= ivtv_setscl_old,
 	.getsda		= ivtv_getsda_old,
 	.getscl		= ivtv_getscl_old,
-	.udelay		= 10,
+	.udelay		= 5,
 	.timeout	= 200,
 };
 
