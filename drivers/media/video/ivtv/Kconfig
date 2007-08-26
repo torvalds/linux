@@ -41,4 +41,4 @@ config VIDEO_FB_IVTV
 	  homepage at <http://www.ivtvdriver.org>.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called ivtv-fb.
+	  module will be called ivtvfb.

@@ -128,15 +128,15 @@ MODULE_LICENSE("GPL");
 #define IVTV_FB_DEBUG(x, type, fmt, args...) \
 	do { \
 		if ((x) & ivtv_fb_debug) \
-			printk(KERN_INFO "ivtv-fb%d " type ": " fmt, itv->num , ## args); \
+			printk(KERN_INFO "ivtvfb%d " type ": " fmt, itv->num , ## args); \
 	} while (0)
 #define IVTV_FB_DEBUG_WARN(fmt, args...)  IVTV_FB_DEBUG(IVTV_FB_DBGFLG_WARN, "warning", fmt , ## args)
 #define IVTV_FB_DEBUG_INFO(fmt, args...)  IVTV_FB_DEBUG(IVTV_FB_DBGFLG_INFO, "info", fmt , ## args)
 
 /* Standard kernel messages */
-#define IVTV_FB_ERR(fmt, args...)   printk(KERN_ERR  "ivtv-fb%d: " fmt, itv->num , ## args)
-#define IVTV_FB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtv-fb%d: " fmt, itv->num , ## args)
-#define IVTV_FB_INFO(fmt, args...)  printk(KERN_INFO "ivtv-fb%d: " fmt, itv->num , ## args)
+#define IVTV_FB_ERR(fmt, args...)   printk(KERN_ERR  "ivtvfb%d: " fmt, itv->num , ## args)
+#define IVTV_FB_WARN(fmt, args...)  printk(KERN_WARNING  "ivtvfb%d: " fmt, itv->num , ## args)
+#define IVTV_FB_INFO(fmt, args...)  printk(KERN_INFO "ivtvfb%d: " fmt, itv->num , ## args)
 
 /* --------------------------------------------------------------------- */
 
@@ -1143,7 +1143,7 @@ static int __init ivtvfb_init(void)
 	int i, registered = 0;
 
 	if (ivtv_fb_card_id < -1 || ivtv_fb_card_id >= IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtv-fb:  ivtv_fb_card_id parameter is out of range (valid range: -1 - %d)\n",
+		printk(KERN_ERR "ivtvfb:  ivtv_fb_card_id parameter is out of range (valid range: -1 - %d)\n",
 		     IVTV_MAX_CARDS - 1);
 		return -EINVAL;
 	}
@@ -1161,7 +1161,7 @@ static int __init ivtvfb_init(void)
 		}
 	}
 	if (!registered) {
-		printk(KERN_ERR "ivtv-fb:  no cards found");
+		printk(KERN_ERR "ivtvfb:  no cards found");
 		return -ENODEV;
 	}
 	return 0;
@@ -1172,7 +1172,7 @@ static void ivtvfb_cleanup(void)
 	struct ivtv *itv;
 	int i;
 
-	printk(KERN_INFO "ivtv-fb:  Unloading framebuffer module\n");
+	printk(KERN_INFO "ivtvfb:  Unloading framebuffer module\n");
 
 	for (i = 0; i < ivtv_cards_active; i++) {
 		itv = ivtv_cards[i];

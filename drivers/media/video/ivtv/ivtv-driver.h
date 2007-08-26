@@ -695,7 +695,7 @@ struct ivtv {
 	u32 osd_chroma_key;             /* current chroma key */
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
-	struct osd_info *osd_info;      /* ivtv-fb private OSD info */
+	struct osd_info *osd_info;      /* ivtvfb private OSD info */
 };
 
 /* Globals */
