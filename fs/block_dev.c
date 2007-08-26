@@ -1007,6 +1007,13 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 		return ret;
 	}
 
+	if (file->f_flags & O_NDELAY)
+		file->f_mode |= FMODE_NDELAY;
+	if (file->f_flags & O_EXCL)
+		file->f_mode |= FMODE_EXCL;
+	if ((file->f_flags & O_ACCMODE) == 3)
+		file->f_mode |= FMODE_WRITE_IOCTL;
+
 	ret = -ENXIO;
 	file->f_mapping = bdev->bd_inode->i_mapping;
 

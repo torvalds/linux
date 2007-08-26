@@ -1691,7 +1691,7 @@ static int ub_bd_open(struct inode *inode, struct file *filp)
 	 * under some pretty murky conditions (a failure of READ CAPACITY).
 	 * We may need it one day.
 	 */
-	if (lun->removable && lun->changed && !(filp->f_flags & O_NDELAY)) {
+	if (lun->removable && lun->changed && !(filp->f_mode & FMODE_NDELAY)) {
 		rc = -ENOMEDIUM;
 		goto err_open;
 	}

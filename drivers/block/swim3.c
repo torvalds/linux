@@ -904,10 +904,10 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		swim3_action(fs, SETMFM);
 		swim3_select(fs, RELAX);
 
-	} else if (fs->ref_count == -1 || filp->f_flags & O_EXCL)
+	} else if (fs->ref_count == -1 || filp->f_mode & FMODE_EXCL)
 		return -EBUSY;
 
-	if (err == 0 && (filp->f_flags & O_NDELAY) == 0
+	if (err == 0 && (filp->f_mode & FMODE_NDELAY) == 0
 	    && (filp->f_mode & (FMODE_READ|FMODE_WRITE))) {
 		check_disk_change(inode->i_bdev);
 		if (fs->ejected)
@@ -930,7 +930,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		return err;
 	}
 
-	if (filp->f_flags & O_EXCL)
+	if (filp->f_mode & FMODE_EXCL)
 		fs->ref_count = -1;
 	else
 		++fs->ref_count;

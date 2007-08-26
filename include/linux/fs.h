@@ -76,6 +76,10 @@ extern int dir_notify_enable;
    behavior for cross-node execution/opening_for_writing of files */
 #define FMODE_EXEC	((__force fmode_t)16)
 
+#define FMODE_NDELAY	((__force fmode_t)32)
+#define FMODE_EXCL	((__force fmode_t)64)
+#define FMODE_WRITE_IOCTL	((__force fmode_t)128)
+
 #define RW_MASK		1
 #define RWA_MASK	2
 #define READ 0

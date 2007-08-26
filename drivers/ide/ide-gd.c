@@ -197,7 +197,7 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 		 * unreadable disk, so that we can get the format capacity
 		 * of the drive or begin the format - Sam
 		 */
-		if (ret && (filp->f_flags & O_NDELAY) == 0) {
+		if (ret && (filp->f_mode & FMODE_NDELAY) == 0) {
 			ret = -EIO;
 			goto out_put_idkp;
 		}

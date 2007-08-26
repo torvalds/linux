@@ -1813,17 +1813,17 @@ static int floppy_open( struct inode *inode, struct file *filp )
 	if (p->ref && p->type != type)
 		return -EBUSY;
 
-	if (p->ref == -1 || (p->ref && filp->f_flags & O_EXCL))
+	if (p->ref == -1 || (p->ref && filp->f_mode & FMODE_EXCL))
 		return -EBUSY;
 
-	if (filp->f_flags & O_EXCL)
+	if (filp->f_mode & FMODE_EXCL)
 		p->ref = -1;
 	else
 		p->ref++;
 
 	p->type = type;
 
-	if (filp->f_flags & O_NDELAY)
+	if (filp->f_mode & FMODE_NDELAY)
 		return 0;
 
 	if (filp->f_mode & (FMODE_READ|FMODE_WRITE)) {

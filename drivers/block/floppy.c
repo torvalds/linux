@@ -3453,7 +3453,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 static int fd_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 		    unsigned long param)
 {
-#define FD_IOCTL_ALLOWED ((filp) && (filp)->private_data)
+#define FD_IOCTL_ALLOWED ((filp) && (filp)->f_mode & (FMODE_WRITE|FMODE_WRITE_IOCTL))
 #define OUT(c,x) case c: outparam = (const char *) (x); break
 #define IN(c,x,tag) case c: *(x) = inparam. tag ; return 0
 
@@ -3690,7 +3690,6 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	int res = -EBUSY;
 	char *tmp;
 
-	filp->private_data = (void *)0;
 	mutex_lock(&open_lock);
 	old_dev = UDRS->fd_device;
 	if (opened_bdev[drive] && opened_bdev[drive] != inode->i_bdev)
@@ -3701,10 +3700,10 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		USETF(FD_VERIFY);
 	}
 
-	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
+	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_mode & FMODE_EXCL)))
 		goto out2;
 
-	if (filp->f_flags & O_EXCL)
+	if (filp->f_mode & FMODE_EXCL)
 		UDRS->fd_ref = -1;
 	else
 		UDRS->fd_ref++;
@@ -3751,16 +3750,10 @@ static int floppy_open(struct inode *inode, struct file *filp)
 			buffer_track = -1;
 	}
 
-	/* Allow ioctls if we have write-permissions even if read-only open.
-	 * Needed so that programs such as fdrawcmd still can work on write
-	 * protected disks */
-	if ((filp->f_mode & FMODE_WRITE) || !file_permission(filp, MAY_WRITE))
-		filp->private_data = (void *)8;
-
 	if (UFDCS->rawcmd == 1)
 		UFDCS->rawcmd = 2;
 
-	if (!(filp->f_flags & O_NDELAY)) {
+	if (!(filp->f_mode & FMODE_NDELAY)) {
 		if (filp->f_mode & (FMODE_READ|FMODE_WRITE)) {
 			UDRS->last_checked = 0;
 			check_disk_change(inode->i_bdev);

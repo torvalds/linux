@@ -982,7 +982,7 @@ int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip, struct file *fp)
 	/* if this was a O_NONBLOCK open and we should honor the flags,
 	 * do a quick open without drive/disc integrity checks. */
 	cdi->use_count++;
-	if ((fp->f_flags & O_NONBLOCK) && (cdi->options & CDO_USE_FFLAGS)) {
+	if ((fp->f_mode & FMODE_NDELAY) && (cdi->options & CDO_USE_FFLAGS)) {
 		ret = cdi->ops->open(cdi, 1);
 	} else {
 		ret = open_for_data(cdi);
@@ -1205,7 +1205,7 @@ int cdrom_release(struct cdrom_device_info *cdi, struct file *fp)
 	}
 
 	opened_for_data = !(cdi->options & CDO_USE_FFLAGS) ||
-		!(fp && fp->f_flags & O_NONBLOCK);
+		!(fp && fp->f_mode & FMODE_NDELAY);
 
 	/*
 	 * flush cache on last write release

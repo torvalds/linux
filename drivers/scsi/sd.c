@@ -640,7 +640,7 @@ static int sd_open(struct inode *inode, struct file *filp)
 	 */
 	retval = -ENOMEDIUM;
 	if (sdev->removable && !sdkp->media_present &&
-	    !(filp->f_flags & O_NDELAY))
+	    !(filp->f_mode & FMODE_NDELAY))
 		goto error_out;
 
 	/*
