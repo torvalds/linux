@@ -1587,7 +1587,7 @@ static int pmz_suspend(struct macio_dev *mdev, pm_message_t pm_state)
 	if (pm_state.event == mdev->ofdev.dev.power.power_state.event)
 		return 0;
 
-	pmz_debug("suspend, switching to state %d\n", pm_state);
+	pmz_debug("suspend, switching to state %d\n", pm_state.event);
 
 	state = pmz_uart_reg.state + uap->port.line;
 
