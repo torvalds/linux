@@ -39,7 +39,6 @@ static int cache_block_group(struct btrfs_root *root,
 	u64 i;
 	u64 last = 0;
 	u64 hole_size;
-	u64 limit;
 	int found = 0;
 
 	root = root->fs_info->extent_root;
@@ -62,7 +61,6 @@ static int cache_block_group(struct btrfs_root *root,
 		return ret;
 	if (ret && path->slots[0] > 0)
 		path->slots[0]--;
-	limit = block_group->key.objectid + block_group->key.offset;
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		slot = path->slots[0];
@@ -982,7 +980,6 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_block_group_cache *block_group;
 	int full_scan = 0;
 	int wrapped = 0;
-	u64 limit;
 
 	WARN_ON(num_blocks < 1);
 	ins->flags = 0;
@@ -1049,12 +1046,6 @@ check_failed:
 		l = btrfs_buffer_leaf(path->nodes[0]);
 		slot = path->slots[0];
 		if (slot >= btrfs_header_nritems(&l->header)) {
-			if (start_found)
-				limit = last_block +
-					(block_group->key.offset >> 1);
-			else
-				limit = search_start +
-					(block_group->key.offset >> 1);
 			ret = btrfs_next_leaf(root, path);
 			if (ret == 0)
 				continue;

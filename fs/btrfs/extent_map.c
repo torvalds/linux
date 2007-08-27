@@ -30,9 +30,6 @@ struct tree_entry {
 
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
 
-static LIST_HEAD(all_states);
-spinlock_t state_lock = SPIN_LOCK_UNLOCKED;
-
 void __init extent_map_init(void)
 {
 	extent_map_cache = kmem_cache_create("extent_map",
@@ -49,15 +46,6 @@ void __init extent_map_init(void)
 
 void __exit extent_map_exit(void)
 {
-	while(!list_empty(&all_states)) {
-		struct extent_state *state;
-		struct list_head *cur = all_states.next;
-		state = list_entry(cur, struct extent_state, list);
-		printk("found leaked state %Lu %Lu state %d in_tree %d\n",
-		       state->start, state->end, state->state, state->in_tree);
-		list_del(&state->list);
-		kfree(state);
-	}
 	if (extent_map_cache)
 		kmem_cache_destroy(extent_map_cache);
 	if (extent_state_cache)
@@ -69,6 +57,7 @@ void extent_map_tree_init(struct extent_map_tree *tree,
 {
 	tree->map.rb_node = NULL;
 	tree->state.rb_node = NULL;
+	tree->fill_delalloc = NULL;
 	rwlock_init(&tree->lock);
 	tree->mapping = mapping;
 }
@@ -106,9 +95,6 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 	state->in_tree = 0;
 	atomic_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
-	spin_lock_irq(&state_lock);
-	list_add(&state->list, &all_states);
-	spin_unlock_irq(&state_lock);
 	return state;
 }
 EXPORT_SYMBOL(alloc_extent_state);
@@ -117,9 +103,6 @@ void free_extent_state(struct extent_state *state)
 {
 	if (atomic_dec_and_test(&state->refs)) {
 		WARN_ON(state->in_tree);
-		spin_lock_irq(&state_lock);
-		list_del_init(&state->list);
-		spin_unlock_irq(&state_lock);
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
@@ -369,7 +352,7 @@ static int insert_state(struct extent_map_tree *tree,
 	if (node) {
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
-printk("found node %Lu %Lu on insert of %Lu %Lu\n", found->start, found->end, start, end);
+		printk("found node %Lu %Lu on insert of %Lu %Lu\n", found->start, found->end, start, end);
 		free_extent_state(state);
 		return -EEXIST;
 	}
@@ -408,7 +391,7 @@ static int split_state(struct extent_map_tree *tree, struct extent_state *orig,
 	if (node) {
 		struct extent_state *found;
 		found = rb_entry(node, struct extent_state, rb_node);
-printk("found node %Lu %Lu on insert of %Lu %Lu\n", found->start, found->end, prealloc->start, prealloc->end);
+		printk("found node %Lu %Lu on insert of %Lu %Lu\n", found->start, found->end, prealloc->start, prealloc->end);
 		free_extent_state(prealloc);
 		return -EEXIST;
 	}
@@ -792,10 +775,20 @@ int set_extent_dirty(struct extent_map_tree *tree, u64 start, u64 end,
 }
 EXPORT_SYMBOL(set_extent_dirty);
 
+int set_extent_delalloc(struct extent_map_tree *tree, u64 start, u64 end,
+		     gfp_t mask)
+{
+	return set_extent_bit(tree, start, end,
+			      EXTENT_DELALLOC | EXTENT_DIRTY, 0, NULL,
+			      mask);
+}
+EXPORT_SYMBOL(set_extent_delalloc);
+
 int clear_extent_dirty(struct extent_map_tree *tree, u64 start, u64 end,
 		       gfp_t mask)
 {
-	return clear_extent_bit(tree, start, end, EXTENT_DIRTY, 0, 0, mask);
+	return clear_extent_bit(tree, start, end,
+				EXTENT_DIRTY | EXTENT_DELALLOC, 0, 0, mask);
 }
 EXPORT_SYMBOL(clear_extent_dirty);
 
@@ -921,6 +914,62 @@ int set_range_writeback(struct extent_map_tree *tree, u64 start, u64 end)
 	return 0;
 }
 EXPORT_SYMBOL(set_range_writeback);
+
+u64 find_lock_delalloc_range(struct extent_map_tree *tree,
+			     u64 start, u64 lock_start, u64 *end, u64 max_bytes)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+	u64 cur_start = start;
+	u64 found = 0;
+	u64 total_bytes = 0;
+
+	write_lock_irq(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+search_again:
+	node = tree_search(&tree->state, cur_start);
+	if (!node || IS_ERR(node)) {
+		goto out;
+	}
+
+	while(1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if (state->start != cur_start) {
+			goto out;
+		}
+		if (!(state->state & EXTENT_DELALLOC)) {
+			goto out;
+		}
+		if (state->start >= lock_start) {
+			if (state->state & EXTENT_LOCKED) {
+				DEFINE_WAIT(wait);
+				atomic_inc(&state->refs);
+				write_unlock_irq(&tree->lock);
+				schedule();
+				write_lock_irq(&tree->lock);
+				finish_wait(&state->wq, &wait);
+				free_extent_state(state);
+				goto search_again;
+			}
+			state->state |= EXTENT_LOCKED;
+		}
+		found++;
+		*end = state->end;
+		cur_start = state->end + 1;
+		node = rb_next(node);
+		if (!node)
+			break;
+		total_bytes = state->end - state->start + 1;
+		if (total_bytes >= max_bytes)
+			break;
+	}
+out:
+	write_unlock_irq(&tree->lock);
+	return found;
+}
 
 /*
  * helper function to lock both pages and extents in the tree.
@@ -1285,6 +1334,7 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
 		set_page_private(page, 1);
+		WARN_ON(!page->mapping->a_ops->invalidatepage);
 		page_cache_get(page);
 	}
 
@@ -1384,7 +1434,10 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 	size_t blocksize;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
+	u64 nr_delalloc;
+	u64 delalloc_end;
 
+	WARN_ON(!PageLocked(page));
 	if (page->index > end_index) {
 		clear_extent_dirty(tree, start, page_end, GFP_NOFS);
 		unlock_page(page);
@@ -1400,11 +1453,34 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
 		set_page_private(page, 1);
+		WARN_ON(!page->mapping->a_ops->invalidatepage);
 		page_cache_get(page);
 	}
 
-	end = page_end;
 	lock_extent(tree, start, page_end, GFP_NOFS);
+	nr_delalloc = find_lock_delalloc_range(tree, start, page_end + 1,
+					       &delalloc_end,
+					       128 * 1024 * 1024);
+	if (nr_delalloc) {
+		tree->fill_delalloc(inode, start, delalloc_end);
+		if (delalloc_end >= page_end + 1) {
+			clear_extent_bit(tree, page_end + 1, delalloc_end,
+					 EXTENT_LOCKED | EXTENT_DELALLOC,
+					 1, 0, GFP_NOFS);
+		}
+		clear_extent_bit(tree, start, page_end, EXTENT_DELALLOC,
+				 0, 0, GFP_NOFS);
+		if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
+			printk("found delalloc bits after clear extent_bit\n");
+		}
+	} else if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
+		printk("found delalloc bits after find_delalloc_range returns 0\n");
+	}
+
+	end = page_end;
+	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
+		printk("found delalloc bits after lock_extent\n");
+	}
 
 	if (last_byte <= start) {
 		clear_extent_dirty(tree, start, page_end, GFP_NOFS);
@@ -1419,7 +1495,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			clear_extent_dirty(tree, cur, page_end, GFP_NOFS);
 			break;
 		}
-		em = get_extent(inode, page, page_offset, cur, end, 1);
+		em = get_extent(inode, page, page_offset, cur, end, 0);
 		if (IS_ERR(em) || !em) {
 			SetPageError(page);
 			break;
@@ -1507,6 +1583,7 @@ int extent_commit_write(struct extent_map_tree *tree,
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
 		set_page_private(page, 1);
+		WARN_ON(!page->mapping->a_ops->invalidatepage);
 		page_cache_get(page);
 	}
 
@@ -1543,6 +1620,7 @@ int extent_prepare_write(struct extent_map_tree *tree,
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
 		set_page_private(page, 1);
+		WARN_ON(!page->mapping->a_ops->invalidatepage);
 		page_cache_get(page);
 	}
 	block_start = (page_start + from) & ~((u64)blocksize - 1);
@@ -1628,29 +1706,28 @@ int try_release_extent_mapping(struct extent_map_tree *tree, struct page *page)
 	u64 start = page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	u64 orig_start = start;
+	int ret = 1;
 
 	while (start <= end) {
 		em = lookup_extent_mapping(tree, start, end);
 		if (!em || IS_ERR(em))
 			break;
-		if (test_range_bit(tree, em->start, em->end,
-				   EXTENT_LOCKED, 0)) {
+		if (!test_range_bit(tree, em->start, em->end,
+				    EXTENT_LOCKED, 0)) {
+			remove_extent_mapping(tree, em);
+			/* once for the rb tree */
 			free_extent_map(em);
-			start = em->end + 1;
-printk("range still locked %Lu %Lu\n", em->start, em->end);
-			break;
 		}
-		remove_extent_mapping(tree, em);
 		start = em->end + 1;
-		/* once for the rb tree */
-		free_extent_map(em);
 		/* once for us */
 		free_extent_map(em);
 	}
-	WARN_ON(test_range_bit(tree, orig_start, end, EXTENT_WRITEBACK, 0));
-	clear_extent_bit(tree, orig_start, end, EXTENT_UPTODATE,
-			 1, 1, GFP_NOFS);
-	return 1;
+	if (test_range_bit(tree, orig_start, end, EXTENT_LOCKED, 0))
+		ret = 0;
+	else
+		clear_extent_bit(tree, orig_start, end, EXTENT_UPTODATE,
+				 1, 1, GFP_NOFS);
+	return ret;
 }
 EXPORT_SYMBOL(try_release_extent_mapping);
 

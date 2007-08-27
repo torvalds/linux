@@ -83,6 +83,7 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 	bi->location.offset = 0;
 	bi->location.flags = 0;
 	bi->root = tree_root;
+
 	btrfs_set_key_type(&bi->location, BTRFS_INODE_ITEM_KEY);
 
 	if (!inode) {

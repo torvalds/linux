@@ -11,6 +11,7 @@ struct extent_map_tree {
 	struct rb_root state;
 	struct address_space *mapping;
 	rwlock_t lock;
+	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
 };
 
 /* note, this must start with the same fields as fs/extent_map.c:tree_entry */
@@ -73,6 +74,8 @@ int set_extent_uptodate(struct extent_map_tree *tree, u64 start, u64 end,
 int set_extent_new(struct extent_map_tree *tree, u64 start, u64 end,
 		   gfp_t mask);
 int set_extent_dirty(struct extent_map_tree *tree, u64 start, u64 end,
+		     gfp_t mask);
+int set_extent_delalloc(struct extent_map_tree *tree, u64 start, u64 end,
 		     gfp_t mask);
 int extent_invalidatepage(struct extent_map_tree *tree,
 			  struct page *page, unsigned long offset);
