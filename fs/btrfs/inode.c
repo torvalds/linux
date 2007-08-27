@@ -2096,6 +2096,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
 	struct btrfs_root_item new_root_item;
+	struct buffer_head *tmp;
 	int ret;
 	int err;
 	u64 objectid;
@@ -2123,6 +2124,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	key.offset = 1;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
 	btrfs_set_root_blocknr(&new_root_item, bh_blocknr(root->node));
 
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
