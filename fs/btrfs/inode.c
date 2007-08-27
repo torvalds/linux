@@ -121,6 +121,8 @@ void btrfs_read_locked_inode(struct inode *inode)
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_mapping->a_ops = &btrfs_aops;
+		extent_map_tree_init(&BTRFS_I(inode)->extent_tree,
+				     inode->i_mapping, GFP_NOFS);
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
 		break;
@@ -169,7 +171,7 @@ static void fill_inode_item(struct btrfs_inode_item *item,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
 
-static int btrfs_update_inode(struct btrfs_trans_handle *trans,
+int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct inode *inode)
 {
@@ -400,6 +402,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	int found_extent;
 	int del_item;
 
+	btrfs_drop_extent_cache(inode, inode->i_size, (u64)-1);
 	path = btrfs_alloc_path();
 	path->reada = -1;
 	BUG_ON(!path);
@@ -511,47 +514,27 @@ error:
 	return ret;
 }
 
-/*
- * taken from block_truncate_page, but does cow as it zeros out
- * any bytes left in the last page in the file.
- */
-static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
+static int btrfs_cow_one_page(struct btrfs_trans_handle *trans,
+			      struct inode *inode, struct page *page,
+			      size_t zero_start)
 {
-	struct inode *inode = mapping->host;
-	unsigned blocksize = 1 << inode->i_blkbits;
-	pgoff_t index = from >> PAGE_CACHE_SHIFT;
-	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-	struct page *page;
 	char *kaddr;
 	int ret = 0;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 alloc_hint = 0;
+	u64 page_start = page->index << PAGE_CACHE_SHIFT;
 	struct btrfs_key ins;
-	struct btrfs_trans_handle *trans;
 
-	if ((offset & (blocksize - 1)) == 0)
-		goto out;
-
-	ret = -ENOMEM;
-	page = grab_cache_page(mapping, index);
-	if (!page)
-		goto out;
-
-	if (!PageUptodate(page)) {
-		ret = btrfs_readpage(NULL, page);
-		lock_page(page);
-		if (!PageUptodate(page)) {
-			ret = -EIO;
-			goto out;
-		}
+	if (!PagePrivate(page)) {
+		SetPagePrivate(page);
+		set_page_private(page, 1);
+		page_cache_get(page);
 	}
-	mutex_lock(&root->fs_info->fs_mutex);
-	trans = btrfs_start_transaction(root, 1);
+
 	btrfs_set_trans_block_group(trans, inode);
 
 	ret = btrfs_drop_extents(trans, root, inode,
-				 page->index << PAGE_CACHE_SHIFT,
-				 (page->index + 1) << PAGE_CACHE_SHIFT,
+				 page_start, page_start + PAGE_CACHE_SIZE,
 				 &alloc_hint);
 	if (ret)
 		goto out;
@@ -560,22 +543,70 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 	if (ret)
 		goto out;
 	ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
-				       page->index << PAGE_CACHE_SHIFT,
-				       ins.objectid, 1, 1);
+				       page_start, ins.objectid, 1, 1);
 	if (ret)
 		goto out;
 	SetPageChecked(page);
 	kaddr = kmap(page);
-	memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
-	flush_dcache_page(page);
-	ret = btrfs_csum_file_block(trans, root, inode->i_ino,
-			      page->index << PAGE_CACHE_SHIFT,
-			      kaddr, PAGE_CACHE_SIZE);
+	if (zero_start != PAGE_CACHE_SIZE) {
+		memset(kaddr + zero_start, 0, PAGE_CACHE_SIZE - zero_start);
+		flush_dcache_page(page);
+	}
 	kunmap(page);
+
+out:
+	return ret;
+}
+
+/*
+ * taken from block_truncate_page, but does cow as it zeros out
+ * any bytes left in the last page in the file.
+ */
+static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
+{
+	struct inode *inode = mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	unsigned blocksize = 1 << inode->i_blkbits;
+	pgoff_t index = from >> PAGE_CACHE_SHIFT;
+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
+	struct page *page;
+	int ret = 0;
+	u64 page_start;
+
+	if ((offset & (blocksize - 1)) == 0)
+		goto out;
+
+	ret = -ENOMEM;
+	page = grab_cache_page(mapping, index);
+	if (!page)
+		goto out;
+	if (!PageUptodate(page)) {
+		ret = btrfs_readpage(NULL, page);
+		lock_page(page);
+		if (!PageUptodate(page)) {
+			ret = -EIO;
+			goto out;
+		}
+	}
+	page_start = page->index << PAGE_CACHE_SHIFT;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_cow_one_page(trans, inode, page, offset);
+	if (!ret) {
+		char *kaddr = kmap(page);
+		ret = btrfs_csum_file_block(trans, root, inode->i_ino,
+					    page_start, kaddr, PAGE_CACHE_SIZE);
+		kunmap(page);
+	}
+	set_extent_dirty(&BTRFS_I(inode)->extent_tree,
+			 page_start, page_start + PAGE_CACHE_SIZE - 1,
+			 GFP_NOFS);
+	set_page_dirty(page);
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 
-	set_page_dirty(page);
 	unlock_page(page);
 	page_cache_release(page);
 out:
@@ -1095,6 +1126,8 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
+		extent_map_tree_init(&BTRFS_I(inode)->extent_tree,
+				     inode->i_mapping, GFP_NOFS);
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
@@ -1237,6 +1270,182 @@ out_unlock:
 	btrfs_btree_balance_dirty(root);
 	return err;
 }
+
+struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
+				    size_t page_offset, u64 start, u64 end,
+				    int create)
+{
+	int ret;
+	int err = 0;
+	u64 blocknr;
+	u64 extent_start = 0;
+	u64 extent_end = 0;
+	u64 objectid = inode->i_ino;
+	u32 found_type;
+	int failed_insert = 0;
+	struct btrfs_path *path;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_file_extent_item *item;
+	struct btrfs_leaf *leaf;
+	struct btrfs_disk_key *found_key;
+	struct extent_map *em = NULL;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct btrfs_trans_handle *trans = NULL;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+	mutex_lock(&root->fs_info->fs_mutex);
+
+again:
+	em = lookup_extent_mapping(em_tree, start, end);
+	if (em) {
+		goto out;
+	}
+	if (!em) {
+		em = alloc_extent_map(GFP_NOFS);
+		if (!em) {
+			err = -ENOMEM;
+			goto out;
+		}
+		em->start = 0;
+		em->end = 0;
+	}
+	em->bdev = inode->i_sb->s_bdev;
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+				       objectid, start, 0);
+	if (ret < 0) {
+		err = ret;
+		goto out;
+	}
+
+	if (ret != 0) {
+		if (path->slots[0] == 0)
+			goto not_found;
+		path->slots[0]--;
+	}
+
+	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
+			      struct btrfs_file_extent_item);
+	leaf = btrfs_buffer_leaf(path->nodes[0]);
+	blocknr = btrfs_file_extent_disk_blocknr(item);
+	blocknr += btrfs_file_extent_offset(item);
+
+	/* are we inside the extent that was found? */
+	found_key = &leaf->items[path->slots[0]].key;
+	found_type = btrfs_disk_key_type(found_key);
+	if (btrfs_disk_key_objectid(found_key) != objectid ||
+	    found_type != BTRFS_EXTENT_DATA_KEY) {
+		goto not_found;
+	}
+
+	found_type = btrfs_file_extent_type(item);
+	extent_start = btrfs_disk_key_offset(&leaf->items[path->slots[0]].key);
+	if (found_type == BTRFS_FILE_EXTENT_REG) {
+		extent_end = extent_start +
+		       (btrfs_file_extent_num_blocks(item) << inode->i_blkbits);
+		err = 0;
+		if (start < extent_start || start > extent_end) {
+			em->start = start;
+			if (start < extent_start) {
+				em->end = extent_end - 1;
+			} else {
+				em->end = end;
+			}
+			goto not_found_em;
+		}
+		if (btrfs_file_extent_disk_blocknr(item) == 0) {
+			em->start = extent_start;
+			em->end = extent_end - 1;
+			em->block_start = 0;
+			em->block_end = 0;
+			goto insert;
+		}
+		em->block_start = blocknr << inode->i_blkbits;
+		em->block_end = em->block_start +
+			(btrfs_file_extent_num_blocks(item) <<
+			 inode->i_blkbits) - 1;
+		em->start = extent_start;
+		em->end = extent_end - 1;
+		goto insert;
+	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+		char *ptr;
+		char *map;
+		u32 size;
+
+		size = btrfs_file_extent_inline_len(leaf->items +
+						    path->slots[0]);
+		extent_end = extent_start + size;
+		if (start < extent_start || start > extent_end) {
+			em->start = start;
+			if (start < extent_start) {
+				em->end = extent_end - 1;
+			} else {
+				em->end = end;
+			}
+			goto not_found_em;
+		}
+		em->block_start = EXTENT_MAP_INLINE;
+		em->block_end = EXTENT_MAP_INLINE;
+		em->start = extent_start;
+		em->end = extent_end - 1;
+		if (!page) {
+			goto insert;
+		}
+		ptr = btrfs_file_extent_inline_start(item);
+		map = kmap(page);
+		memcpy(map + page_offset, ptr, size);
+		flush_dcache_page(result->b_page);
+		kunmap(page);
+		set_extent_uptodate(em_tree, extent_start,
+				    extent_end, GFP_NOFS);
+		goto insert;
+	} else {
+		printk("unkknown found_type %d\n", found_type);
+		WARN_ON(1);
+	}
+not_found:
+	em->start = start;
+	em->end = end;
+not_found_em:
+	em->block_start = 0;
+	em->block_end = 0;
+insert:
+	btrfs_release_path(root, path);
+	if (em->start > start || em->end < start) {
+		printk("bad extent! %Lu %Lu start %Lu end %Lu\n", em->start, em->end, start, end);
+		WARN_ON(1);
+		err = -EIO;
+		goto out;
+	}
+	ret = add_extent_mapping(em_tree, em);
+	if (ret == -EEXIST) {
+		free_extent_map(em);
+		failed_insert++;
+		if (failed_insert > 5) {
+			printk("failing to insert %Lu %Lu\n", start, end);
+			err = -EIO;
+			goto out;
+		}
+		em = NULL;
+		goto again;
+	}
+	err = 0;
+out:
+	btrfs_free_path(path);
+	if (trans) {
+		ret = btrfs_end_transaction(trans, root);
+		if (!err)
+			err = ret;
+	}
+	mutex_unlock(&root->fs_info->fs_mutex);
+	if (err) {
+		free_extent_map(em);
+		WARN_ON(1);
+		return ERR_PTR(err);
+	}
+	return em;
+}
+
 
 /*
  * FIBMAP and others want to pass in a fake buffer head.  They need to
@@ -1398,46 +1607,22 @@ int btrfs_get_block(struct inode *inode, sector_t iblock,
 	return err;
 }
 
-static int btrfs_get_block_csum(struct inode *inode, sector_t iblock,
-				struct buffer_head *result, int create)
-{
-	int ret;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct page *page = result->b_page;
-	u64 offset = (page->index << PAGE_CACHE_SHIFT) + bh_offset(result);
-	struct btrfs_csum_item *item;
-	struct btrfs_path *path = NULL;
-
-	mutex_lock(&root->fs_info->fs_mutex);
-	ret = btrfs_get_block_lock(inode, iblock, result, create);
-	if (ret)
-		goto out;
-
-	path = btrfs_alloc_path();
-	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, offset, 0);
-	if (IS_ERR(item)) {
-		ret = PTR_ERR(item);
-		/* a csum that isn't present is a preallocated region. */
-		if (ret == -ENOENT || ret == -EFBIG)
-			ret = 0;
-		result->b_private = NULL;
-		goto out;
-	}
-	memcpy((char *)&result->b_private, &item->csum, BTRFS_CRC32_SIZE);
-out:
-	if (path)
-		btrfs_free_path(path);
-	mutex_unlock(&root->fs_info->fs_mutex);
-	return ret;
-}
-
 static int btrfs_get_block_bmap(struct inode *inode, sector_t iblock,
 			   struct buffer_head *result, int create)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	mutex_lock(&root->fs_info->fs_mutex);
-	btrfs_get_block_lock(inode, iblock, result, BTRFS_GET_BLOCK_NO_DIRECT);
-	mutex_unlock(&root->fs_info->fs_mutex);
+	u64 start = iblock << inode->i_blkbits;
+	u64 end = start + root->blocksize -1;
+	struct extent_map *em;
+
+	em = btrfs_get_extent(inode, NULL, 0, start, end, 0);
+	if (em && !IS_ERR(em) && em->block_start != EXTENT_MAP_INLINE &&
+	    em->block_start != 0) {
+		u64 offset;
+		offset = start - em->start;
+		start = (em->block_start + offset) >> inode->i_blkbits;
+		btrfs_map_bh_to_logical(root, result, start);
+	}
 	return 0;
 }
 
@@ -1449,442 +1634,50 @@ static sector_t btrfs_bmap(struct address_space *as, sector_t block)
 static int btrfs_prepare_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
-	return block_prepare_write(page, from, to, btrfs_get_block);
+	return extent_prepare_write(&BTRFS_I(page->mapping->host)->extent_tree,
+				    page->mapping->host, page, from, to,
+				    btrfs_get_extent);
 }
 
-static void buffer_io_error(struct buffer_head *bh)
-{
-	char b[BDEVNAME_SIZE];
-
-	printk(KERN_ERR "Buffer I/O error on device %s, logical block %Lu\n",
-			bdevname(bh->b_bdev, b),
-			(unsigned long long)bh->b_blocknr);
-}
-
-/*
- * I/O completion handler for block_read_full_page() - pages
- * which come unlocked at the end of I/O.
- */
-static void btrfs_end_buffer_async_read(struct buffer_head *bh, int uptodate)
-{
-	unsigned long flags;
-	struct buffer_head *first;
-	struct buffer_head *tmp;
-	struct page *page;
-	int page_uptodate = 1;
-	struct inode *inode;
-	int ret;
-
-	BUG_ON(!buffer_async_read(bh));
-
-	page = bh->b_page;
-	inode = page->mapping->host;
-	if (uptodate) {
-		void *kaddr;
-		struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-		if (bh->b_private) {
-			char csum[BTRFS_CRC32_SIZE];
-			kaddr = kmap_atomic(page, KM_IRQ0);
-			ret = btrfs_csum_data(root, kaddr + bh_offset(bh),
-					      bh->b_size, csum);
-			BUG_ON(ret);
-			if (memcmp(csum, &bh->b_private, BTRFS_CRC32_SIZE)) {
-				u64 offset;
-				offset = (page->index << PAGE_CACHE_SHIFT) +
-					bh_offset(bh);
-				printk("btrfs csum failed ino %lu off %llu\n",
-				       page->mapping->host->i_ino,
-				       (unsigned long long)offset);
-				memset(kaddr + bh_offset(bh), 1, bh->b_size);
-				flush_dcache_page(page);
-			}
-			kunmap_atomic(kaddr, KM_IRQ0);
-		}
-		set_buffer_uptodate(bh);
-	} else {
-		clear_buffer_uptodate(bh);
-		if (printk_ratelimit())
-			buffer_io_error(bh);
-		SetPageError(page);
-	}
-
-	/*
-	 * Be _very_ careful from here on. Bad things can happen if
-	 * two buffer heads end IO at almost the same time and both
-	 * decide that the page is now completely done.
-	 */
-	first = page_buffers(page);
-	local_irq_save(flags);
-	bit_spin_lock(BH_Uptodate_Lock, &first->b_state);
-	clear_buffer_async_read(bh);
-	unlock_buffer(bh);
-	tmp = bh;
-	do {
-		if (!buffer_uptodate(tmp))
-			page_uptodate = 0;
-		if (buffer_async_read(tmp)) {
-			BUG_ON(!buffer_locked(tmp));
-			goto still_busy;
-		}
-		tmp = tmp->b_this_page;
-	} while (tmp != bh);
-	bit_spin_unlock(BH_Uptodate_Lock, &first->b_state);
-	local_irq_restore(flags);
-
-	/*
-	 * If none of the buffers had errors and they are all
-	 * uptodate then we can set the page uptodate.
-	 */
-	if (page_uptodate && !PageError(page))
-		SetPageUptodate(page);
-	unlock_page(page);
-	return;
-
-still_busy:
-	bit_spin_unlock(BH_Uptodate_Lock, &first->b_state);
-	local_irq_restore(flags);
-	return;
-}
-
-/*
- * Generic "read page" function for block devices that have the normal
- * get_block functionality. This is most of the block device filesystems.
- * Reads the page asynchronously --- the unlock_buffer() and
- * set/clear_buffer_uptodate() functions propagate buffer state into the
- * page struct once IO has completed.
- */
 int btrfs_readpage(struct file *file, struct page *page)
 {
-	struct inode *inode = page->mapping->host;
-	sector_t iblock, lblock;
-	struct buffer_head *bh, *head, *arr[MAX_BUF_PER_PAGE];
-	unsigned int blocksize;
-	int nr, i;
-	int fully_mapped = 1;
-
-	BUG_ON(!PageLocked(page));
-	blocksize = 1 << inode->i_blkbits;
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, blocksize, 0);
-	head = page_buffers(page);
-
-	iblock = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	lblock = (i_size_read(inode)+blocksize-1) >> inode->i_blkbits;
-	bh = head;
-	nr = 0;
-	i = 0;
-
-	do {
-		if (buffer_uptodate(bh))
-			continue;
-
-		if (!buffer_mapped(bh)) {
-			int err = 0;
-
-			fully_mapped = 0;
-			if (iblock < lblock) {
-				WARN_ON(bh->b_size != blocksize);
-				err = btrfs_get_block_csum(inode, iblock,
-							   bh, 0);
-				if (err)
-					SetPageError(page);
-			}
-			if (!buffer_mapped(bh)) {
-				void *kaddr = kmap_atomic(page, KM_USER0);
-				memset(kaddr + i * blocksize, 0, blocksize);
-				flush_dcache_page(page);
-				kunmap_atomic(kaddr, KM_USER0);
-				if (!err)
-					set_buffer_uptodate(bh);
-				continue;
-			}
-			/*
-			 * get_block() might have updated the buffer
-			 * synchronously
-			 */
-			if (buffer_uptodate(bh))
-				continue;
-		}
-		arr[nr++] = bh;
-	} while (i++, iblock++, (bh = bh->b_this_page) != head);
-
-	if (fully_mapped)
-		SetPageMappedToDisk(page);
-
-	if (!nr) {
-		/*
-		 * All buffers are uptodate - we can set the page uptodate
-		 * as well. But not if get_block() returned an error.
-		 */
-		if (!PageError(page))
-			SetPageUptodate(page);
-		unlock_page(page);
-		return 0;
-	}
-
-	/* Stage two: lock the buffers */
-	for (i = 0; i < nr; i++) {
-		bh = arr[i];
-		lock_buffer(bh);
-		bh->b_end_io = btrfs_end_buffer_async_read;
-		set_buffer_async_read(bh);
-	}
-
-	/*
-	 * Stage 3: start the IO.  Check for uptodateness
-	 * inside the buffer lock in case another process reading
-	 * the underlying blockdev brought it uptodate (the sct fix).
-	 */
-	for (i = 0; i < nr; i++) {
-		bh = arr[i];
-		if (buffer_uptodate(bh))
-			btrfs_end_buffer_async_read(bh, 1);
-		else
-			submit_bh(READ, bh);
-	}
-	return 0;
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	return extent_read_full_page(tree, page, btrfs_get_extent);
 }
-
-/*
- * Aside from a tiny bit of packed file data handling, this is the
- * same as the generic code.
- *
- * While block_write_full_page is writing back the dirty buffers under
- * the page lock, whoever dirtied the buffers may decide to clean them
- * again at any time.  We handle that by only looking at the buffer
- * state inside lock_buffer().
- *
- * If block_write_full_page() is called for regular writeback
- * (wbc->sync_mode == WB_SYNC_NONE) then it will redirty a page which has a
- * locked buffer.   This only can happen if someone has written the buffer
- * directly, with submit_bh().  At the address_space level PageWriteback
- * prevents this contention from occurring.
- */
-static int __btrfs_write_full_page(struct inode *inode, struct page *page,
-				   struct writeback_control *wbc)
-{
-	int err;
-	sector_t block;
-	sector_t last_block;
-	struct buffer_head *bh, *head;
-	const unsigned blocksize = 1 << inode->i_blkbits;
-	int nr_underway = 0;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-
-	BUG_ON(!PageLocked(page));
-
-	last_block = (i_size_read(inode) - 1) >> inode->i_blkbits;
-
-	/* no csumming allowed when from PF_MEMALLOC */
-	if (current->flags & PF_MEMALLOC) {
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
-	}
-
-	if (!page_has_buffers(page)) {
-		create_empty_buffers(page, blocksize,
-					(1 << BH_Dirty)|(1 << BH_Uptodate));
-	}
-
-	/*
-	 * Be very careful.  We have no exclusion from __set_page_dirty_buffers
-	 * here, and the (potentially unmapped) buffers may become dirty at
-	 * any time.  If a buffer becomes dirty here after we've inspected it
-	 * then we just miss that fact, and the page stays dirty.
-	 *
-	 * Buffers outside i_size may be dirtied by __set_page_dirty_buffers;
-	 * handle that here by just cleaning them.
-	 */
-
-	block = (sector_t)page->index << (PAGE_CACHE_SHIFT - inode->i_blkbits);
-	head = page_buffers(page);
-	bh = head;
-
-	/*
-	 * Get all the dirty buffers mapped to disk addresses and
-	 * handle any aliases from the underlying blockdev's mapping.
-	 */
-	do {
-		if (block > last_block) {
-			/*
-			 * mapped buffers outside i_size will occur, because
-			 * this page can be outside i_size when there is a
-			 * truncate in progress.
-			 */
-			/*
-			 * The buffer was zeroed by block_write_full_page()
-			 */
-			clear_buffer_dirty(bh);
-			set_buffer_uptodate(bh);
-		} else if (!buffer_mapped(bh) && buffer_dirty(bh)) {
-			WARN_ON(bh->b_size != blocksize);
-			err = btrfs_get_block(inode, block, bh, 0);
-			if (err) {
-				goto recover;
-			}
-			if (buffer_new(bh)) {
-				/* blockdev mappings never come here */
-				clear_buffer_new(bh);
-			}
-		}
-		bh = bh->b_this_page;
-		block++;
-	} while (bh != head);
-
-	do {
-		if (!buffer_mapped(bh))
-			continue;
-		/*
-		 * If it's a fully non-blocking write attempt and we cannot
-		 * lock the buffer then redirty the page.  Note that this can
-		 * potentially cause a busy-wait loop from pdflush and kswapd
-		 * activity, but those code paths have their own higher-level
-		 * throttling.
-		 */
-		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
-			lock_buffer(bh);
-		} else if (test_set_buffer_locked(bh)) {
-			redirty_page_for_writepage(wbc, page);
-			continue;
-		}
-		if (test_clear_buffer_dirty(bh) && bh->b_blocknr != 0) {
-			struct btrfs_trans_handle *trans;
-			int ret;
-			u64 off = page->index << PAGE_CACHE_SHIFT;
-			char *kaddr;
-
-			off += bh_offset(bh);
-			mutex_lock(&root->fs_info->fs_mutex);
-			trans = btrfs_start_transaction(root, 1);
-			btrfs_set_trans_block_group(trans, inode);
-			kaddr = kmap(page);
-			btrfs_csum_file_block(trans, root, inode->i_ino,
-						    off, kaddr + bh_offset(bh),
-						    bh->b_size);
-			kunmap(page);
-			ret = btrfs_end_transaction(trans, root);
-			BUG_ON(ret);
-			mutex_unlock(&root->fs_info->fs_mutex);
-			mark_buffer_async_write(bh);
-		} else {
-			unlock_buffer(bh);
-		}
-	} while ((bh = bh->b_this_page) != head);
-
-	/*
-	 * The page and its buffers are protected by PageWriteback(), so we can
-	 * drop the bh refcounts early.
-	 */
-	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
-
-	do {
-		struct buffer_head *next = bh->b_this_page;
-		if (buffer_async_write(bh)) {
-			submit_bh(WRITE, bh);
-			nr_underway++;
-		}
-		bh = next;
-	} while (bh != head);
-	unlock_page(page);
-
-	err = 0;
-done:
-	if (nr_underway == 0) {
-		/*
-		 * The page was marked dirty, but the buffers were
-		 * clean.  Someone wrote them back by hand with
-		 * ll_rw_block/submit_bh.  A rare case.
-		 */
-		int uptodate = 1;
-		do {
-			if (!buffer_uptodate(bh)) {
-				uptodate = 0;
-				break;
-			}
-			bh = bh->b_this_page;
-		} while (bh != head);
-		if (uptodate)
-			SetPageUptodate(page);
-		end_page_writeback(page);
-	}
-	return err;
-
-recover:
-	/*
-	 * ENOSPC, or some other error.  We may already have added some
-	 * blocks to the file, so we need to write these out to avoid
-	 * exposing stale data.
-	 * The page is currently locked and not marked for writeback
-	 */
-	bh = head;
-	/* Recovery: lock and submit the mapped buffers */
-	do {
-		if (buffer_mapped(bh) && buffer_dirty(bh)) {
-			lock_buffer(bh);
-			mark_buffer_async_write(bh);
-		} else {
-			/*
-			 * The buffer may have been set dirty during
-			 * attachment to a dirty page.
-			 */
-			clear_buffer_dirty(bh);
-		}
-	} while ((bh = bh->b_this_page) != head);
-	SetPageError(page);
-	BUG_ON(PageWriteback(page));
-	set_page_writeback(page);
-	do {
-		struct buffer_head *next = bh->b_this_page;
-		if (buffer_async_write(bh)) {
-			clear_buffer_dirty(bh);
-			submit_bh(WRITE, bh);
-			nr_underway++;
-		}
-		bh = next;
-	} while (bh != head);
-	unlock_page(page);
-	goto done;
-}
-
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct inode * const inode = page->mapping->host;
-	loff_t i_size = i_size_read(inode);
-	const pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-	unsigned offset;
-	void *kaddr;
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
+}
 
-	/* Is the page fully inside i_size? */
-	if (page->index < end_index)
-		return __btrfs_write_full_page(inode, page, wbc);
+static int btrfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+{
+	struct extent_map_tree *tree;
+	int ret;
 
-	/* Is the page fully outside i_size? (truncate in progress) */
-	offset = i_size & (PAGE_CACHE_SIZE-1);
-	if (page->index >= end_index+1 || !offset) {
-		/*
-		 * The page may have dirty, unmapped buffers.  For example,
-		 * they may have been added in ext3_writepage().  Make them
-		 * freeable here, so the page does not leak.
-		 */
-		block_invalidatepage(page, 0);
-		unlock_page(page);
-		return 0; /* don't care */
+	if (page->private != 1) {
+		WARN_ON(1);
+		return try_to_free_buffers(page);
 	}
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	ret = try_release_extent_mapping(tree, page);
+	if (ret == 1) {
+		ClearPagePrivate(page);
+		set_page_private(page, 0);
+		page_cache_release(page);
+	}
+	return ret;
+}
 
-	/*
-	 * The page straddles i_size.  It must be zeroed out on each and every
-	 * writepage invokation because it may be mmapped.  "A file is mapped
-	 * in multiples of the page size.  For a file that is not a multiple of
-	 * the  page size, the remaining memory is zeroed when mapped, and
-	 * writes to that region are not written out to the file."
-	 */
-	kaddr = kmap_atomic(page, KM_USER0);
-	memset(kaddr + offset, 0, PAGE_CACHE_SIZE - offset);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
-	return __btrfs_write_full_page(inode, page, wbc);
+static void btrfs_invalidatepage(struct page *page, unsigned long offset)
+{
+	struct extent_map_tree *tree;
+
+	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	extent_invalidatepage(tree, page, offset);
+	btrfs_releasepage(page, GFP_NOFS);
 }
 
 /*
@@ -1905,28 +1698,39 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 {
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
 	unsigned long end;
 	loff_t size;
 	int ret = -EINVAL;
+	u64 page_start;
 
 	lock_page(page);
 	wait_on_page_writeback(page);
 	size = i_size_read(inode);
+	page_start = page->index << PAGE_CACHE_SHIFT;
+
 	if ((page->mapping != inode->i_mapping) ||
-	    ((page->index << PAGE_CACHE_SHIFT) > size)) {
+	    (page_start > size)) {
 		/* page got truncated out from underneath us */
 		goto out_unlock;
 	}
 
 	/* page is wholly or partially inside EOF */
-	if (((page->index + 1) << PAGE_CACHE_SHIFT) > size)
+	if (page_start + PAGE_CACHE_SIZE > size)
 		end = size & ~PAGE_CACHE_MASK;
 	else
 		end = PAGE_CACHE_SIZE;
 
-	ret = btrfs_prepare_write(NULL, page, 0, end);
-	if (!ret)
-		ret = btrfs_commit_write(NULL, page, 0, end);
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	ret = btrfs_cow_one_page(trans, inode, page, end);
+	btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	set_extent_dirty(&BTRFS_I(inode)->extent_tree,
+			 page_start, page_start + PAGE_CACHE_SIZE - 1,
+			 GFP_NOFS);
+	set_page_dirty(page);
 
 out_unlock:
 	unlock_page(page);
@@ -1962,21 +1766,8 @@ static void btrfs_truncate(struct inode *inode)
 int btrfs_commit_write(struct file *file, struct page *page,
 		       unsigned from, unsigned to)
 {
-	struct inode *inode = page->mapping->host;
-	struct buffer_head *bh;
-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
-
-	SetPageUptodate(page);
-	bh = page_buffers(page);
-	set_buffer_uptodate(bh);
-	if (buffer_mapped(bh) && bh->b_blocknr != 0) {
-		set_page_dirty(page);
-	}
-	if (pos > inode->i_size) {
-		i_size_write(inode, pos);
-		mark_inode_dirty(inode);
-	}
-	return 0;
+	return extent_commit_write(&BTRFS_I(page->mapping->host)->extent_tree,
+				   page->mapping->host, page, from, to);
 }
 
 static int create_subvol(struct btrfs_root *root, char *name, int namelen)
@@ -2471,6 +2262,8 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		inode->i_mapping->a_ops = &btrfs_aops;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
+		extent_map_tree_init(&BTRFS_I(inode)->extent_tree,
+				     inode->i_mapping, GFP_NOFS);
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
@@ -2553,6 +2346,9 @@ static struct address_space_operations btrfs_aops = {
 	.prepare_write	= btrfs_prepare_write,
 	.commit_write	= btrfs_commit_write,
 	.bmap		= btrfs_bmap,
+	.invalidatepage = btrfs_invalidatepage,
+	.releasepage	= btrfs_releasepage,
+	.set_page_dirty	= __set_page_dirty_nobuffers,
 };
 
 static struct address_space_operations btrfs_symlink_aops = {

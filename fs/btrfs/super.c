@@ -185,6 +185,7 @@ static int __init init_btrfs_fs(void)
 	err = btrfs_init_cachep();
 	if (err)
 		return err;
+	extent_map_init();
 	return register_filesystem(&btrfs_fs_type);
 }
 
@@ -192,6 +193,7 @@ static void __exit exit_btrfs_fs(void)
 {
 	btrfs_exit_transaction_sys();
 	btrfs_destroy_cachep();
+	extent_map_exit();
 	unregister_filesystem(&btrfs_fs_type);
 }
 

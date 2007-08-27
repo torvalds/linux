@@ -1176,7 +1176,14 @@ int btrfs_commit_write(struct file *file, struct page *page,
 		       unsigned from, unsigned to);
 int btrfs_get_block(struct inode *inode, sector_t iblock,
 		    struct buffer_head *result, int create);
+struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
+				    size_t page_offset, u64 start, u64 end,
+				    int create);
+int btrfs_update_inode(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct inode *inode);
 /* file.c */
+int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end);
 extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,

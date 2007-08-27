@@ -19,11 +19,14 @@
 #ifndef __BTRFS_I__
 #define __BTRFS_I__
 
+#include "extent_map.h"
+
 /* in memory btrfs inode */
 struct btrfs_inode {
 	struct btrfs_root *root;
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_key location;
+	struct extent_map_tree extent_tree;
 	struct inode vfs_inode;
 
 	/*
