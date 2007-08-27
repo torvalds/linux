@@ -424,7 +424,6 @@ struct cmipci {
 
 	int chip_version;
 	int max_channels;
-	unsigned int has_dual_dac: 1;
 	unsigned int can_ac3_sw: 1;
 	unsigned int can_ac3_hw: 1;
 	unsigned int can_multi_ch: 1;
@@ -2643,7 +2642,6 @@ static void __devinit query_chip(struct cmipci *cm)
 			break;
 		}
 		cm->max_channels = 2;
-		cm->has_dual_dac = 1;
 	} else {
 		if (detect & CM_CHIP_039) {
 			cm->chip_version = 39;
@@ -2659,7 +2657,6 @@ static void __devinit query_chip(struct cmipci *cm)
 			cm->max_channels = 6;
 		}
 		cm->can_ac3_hw = 1;
-		cm->has_dual_dac = 1;
 		cm->can_multi_ch = 1;
 	}
 }
@@ -2975,11 +2972,9 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	if ((err = snd_cmipci_pcm_new(cm, pcm_index)) < 0)
 		return err;
 	pcm_index++;
-	if (cm->has_dual_dac) {
-		if ((err = snd_cmipci_pcm2_new(cm, pcm_index)) < 0)
-			return err;
-		pcm_index++;
-	}
+	if ((err = snd_cmipci_pcm2_new(cm, pcm_index)) < 0)
+		return err;
+	pcm_index++;
 	if (cm->can_ac3_hw || cm->can_ac3_sw) {
 		pcm_spdif_index = pcm_index;
 		if ((err = snd_cmipci_pcm_spdif_new(cm, pcm_index)) < 0)
