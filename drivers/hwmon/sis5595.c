@@ -517,7 +517,7 @@ static int __devinit sis5595_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, data);
 
 	/* Check revision and pin registers to determine whether 4 or 5 voltages */
-	pci_read_config_byte(s_bridge, PCI_REVISION_ID, &data->revision);
+	data->revision = s_bridge->revision;
 	/* 4 voltages, 1 temp */
 	data->maxins = 3;
 	if (data->revision >= REV2MIN) {
