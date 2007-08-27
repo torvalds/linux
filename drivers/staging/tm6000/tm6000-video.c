@@ -163,7 +163,7 @@ static void inline buffer_filled (struct tm6000_core *dev,
 				  struct tm6000_buffer *buf)
 {
 	/* Advice that buffer was filled */
-	dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] wakeup\n",buf,buf->vb.i);
+	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n",buf,buf->vb.i);
 	buf->vb.state = STATE_DONE;
 	buf->vb.field_count++;
 	do_gettimeofday(&buf->vb.ts);
@@ -314,7 +314,7 @@ static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
 			pos=0;
 			/* Announces that a new buffer were filled */
 			buffer_filled (dev, *buf);
-			dprintk(dev, V4L2_DEBUG_QUEUE, "new buffer filled\n");
+			dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
 
 			rc=get_next_buf (dma_q, buf);
 			if (rc<=0) {
@@ -328,6 +328,47 @@ static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
 	dev->isoc_ctl.pos=pos;
 	return rc;
 }
+
+static void inline print_err_status (struct tm6000_core *dev,
+				     int packet, int status)
+{
+	char *errmsg = "Unknown";
+
+	switch(status) {
+	case -ENOENT:
+		errmsg = "unlinked synchronuously";
+		break;
+	case -ECONNRESET:
+		errmsg = "unlinked asynchronuously";
+		break;
+	case -ENOSR:
+		errmsg = "Buffer error (overrun)";
+		break;
+	case -EPIPE:
+		errmsg = "Stalled (device not responding)";
+		break;
+	case -EOVERFLOW:
+		errmsg = "Babble (bad cable?)";
+		break;
+	case -EPROTO:
+		errmsg = "Bit-stuff error (bad cable?)";
+		break;
+	case -EILSEQ:
+		errmsg = "CRC/Timeout (could be anything)";
+		break;
+	case -ETIME:
+		errmsg = "Device does not respond";
+		break;
+	}
+	if (packet<0) {
+		dprintk(dev, V4L2_DEBUG_QUEUE, "URB status %d [%s].\n",
+			status, errmsg);
+	} else {
+		dprintk(dev, V4L2_DEBUG_QUEUE, "URB packet %d, status %d [%s].\n",
+			packet, status, errmsg);
+	}
+}
+
 
 /*
  * Controls the isoc copy of each urb packet
@@ -344,42 +385,18 @@ static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
 
 	copied=0;
 
+	if (urb->status<0) {
+		print_err_status (dev,-1,urb->status);
+		return 0;
+	}
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
-		char *errmsg = "Unknown";
 
-		switch(status) {
-		case -ENOENT:
-			errmsg = "unlinked synchronuously";
-			break;
-		case -ECONNRESET:
-			errmsg = "unlinked asynchronuously";
-			break;
-		case -ENOSR:
-			errmsg = "Buffer error (overrun)";
-			break;
-		case -EPIPE:
-			errmsg = "Stalled (device not responding)";
-			break;
-		case -EOVERFLOW:
-			errmsg = "Babble (bad cable?)";
-			break;
-		case -EPROTO:
-			errmsg = "Bit-stuff error (bad cable?)";
-			break;
-		case -EILSEQ:
-			errmsg = "CRC/Timeout (could be anything)";
-			break;
-		case -ETIME:
-			errmsg = "Device does not respond";
-			break;
-		}
-		dprintk(dev, V4L2_DEBUG_QUEUE, "URB status %d [%s].\n",
-			status, errmsg);
-
-		if (status<0)
+		if (status<0) {
+			print_err_status (dev,i,status);
 			continue;
+		}
 
 		len=urb->iso_frame_desc[i].actual_length;
 
@@ -402,7 +419,7 @@ static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
 
 	if (((*buf)->fmt->fourcc)!=V4L2_PIX_FMT_TM6000) {
 		buffer_filled (dev, *buf);
-		dprintk(dev, V4L2_DEBUG_QUEUE, "new buffer filled\n");
+		dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
 	}
 
 	return rc;
