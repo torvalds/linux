@@ -978,24 +978,24 @@ static int OSDSetColor(struct av7110 *av7110, u8 color, u8 r, u8 g, u8 b, u8 ble
 
 static int OSDSetPalette(struct av7110 *av7110, u32 __user * colors, u8 first, u8 last)
 {
-       int i;
-       int length = last - first + 1;
+	int i;
+	int length = last - first + 1;
 
-       if (length * 4 > DATA_BUFF3_SIZE)
-	       return -EINVAL;
+	if (length * 4 > DATA_BUFF3_SIZE)
+		return -EINVAL;
 
-       for (i = 0; i < length; i++) {
-	       u32 color, blend, yuv;
+	for (i = 0; i < length; i++) {
+		u32 color, blend, yuv;
 
-	       if (get_user(color, colors + i))
-		       return -EFAULT;
-	       blend = (color & 0xF0000000) >> 4;
-	       yuv = blend ? RGB2YUV(color & 0xFF, (color >> 8) & 0xFF,
+		if (get_user(color, colors + i))
+			return -EFAULT;
+		blend = (color & 0xF0000000) >> 4;
+		yuv = blend ? RGB2YUV(color & 0xFF, (color >> 8) & 0xFF,
 				     (color >> 16) & 0xFF) | blend : 0;
-	       yuv = ((yuv & 0xFFFF0000) >> 16) | ((yuv & 0x0000FFFF) << 16);
-	       wdebi(av7110, DEBINOSWAP, DATA_BUFF3_BASE + i * 4, yuv, 4);
-       }
-       return av7110_fw_cmd(av7110, COMTYPE_OSD, Set_Palette, 4,
+		yuv = ((yuv & 0xFFFF0000) >> 16) | ((yuv & 0x0000FFFF) << 16);
+		wdebi(av7110, DEBINOSWAP, DATA_BUFF3_BASE + i * 4, yuv, 4);
+	}
+	return av7110_fw_cmd(av7110, COMTYPE_OSD, Set_Palette, 4,
 			    av7110->osdwin,
 			    bpp2pal[av7110->osdbpp[av7110->osdwin]],
 			    first, last);

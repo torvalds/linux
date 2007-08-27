@@ -844,21 +844,21 @@ cmd_tab_mask_end:
 /*********************************/
 
 static int palette2fmt[] = {
-       0,
-       PLANB_GRAY,
-       0,
-       0,
-       0,
-       PLANB_COLOUR32,
-       PLANB_COLOUR15,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
-       0,
+	0,
+	PLANB_GRAY,
+	0,
+	0,
+	0,
+	PLANB_COLOUR32,
+	PLANB_COLOUR15,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
 };
 
 #define PLANB_PALETTE_MAX 15

@@ -1077,7 +1077,7 @@ static int mpeg_open(struct inode *inode, struct file *file)
 	struct cx8802_driver *drv = NULL;
 	int err;
 
-       dev = cx8802_get_device(inode);
+	dev = cx8802_get_device(inode);
 
 	dprintk( 1, "%s\n", __FUNCTION__);
 
@@ -1234,7 +1234,7 @@ static struct video_device cx8802_mpeg_template =
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
 	.tvnorms              = CX88_NORMS,
-       .current_norm         = V4L2_STD_NTSC_M,
+	.current_norm         = V4L2_STD_NTSC_M,
 };
 
 /* ------------------------------------------------------------------ */

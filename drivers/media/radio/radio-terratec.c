@@ -173,7 +173,7 @@ static int tt_setfreq(struct tt_device *dev, unsigned long freq1)
 		i--;
 		p--;
 		temp = temp/2;
-       }
+	}
 
 	spin_lock(&lock);
 

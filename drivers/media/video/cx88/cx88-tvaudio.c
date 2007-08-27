@@ -798,9 +798,9 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	core->astat = reg;
 
 /* TODO
-       Reading from AUD_STATUS is not enough
-       for auto-detecting sap/dual-fm/nicam.
-       Add some code here later.
+	Reading from AUD_STATUS is not enough
+	for auto-detecting sap/dual-fm/nicam.
+	Add some code here later.
 */
 
 	return;

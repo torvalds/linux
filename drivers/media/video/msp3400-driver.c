@@ -244,17 +244,17 @@ int msp_write_dsp(struct i2c_client *client, int addr, int val)
  * ----------------------------------------------------------------------- */
 
 static int scarts[3][9] = {
-       /* MASK   IN1     IN2     IN3     IN4     IN1_DA  IN2_DA  MONO    MUTE   */
+	/* MASK   IN1     IN2     IN3     IN4     IN1_DA  IN2_DA  MONO    MUTE   */
 	/* SCART DSP Input select */
-       { 0x0320, 0x0000, 0x0200, 0x0300, 0x0020, -1,     -1,     0x0100, 0x0320 },
+	{ 0x0320, 0x0000, 0x0200, 0x0300, 0x0020, -1,     -1,     0x0100, 0x0320 },
 	/* SCART1 Output select */
-       { 0x0c40, 0x0440, 0x0400, 0x0000, 0x0840, 0x0c00, 0x0040, 0x0800, 0x0c40 },
+	{ 0x0c40, 0x0440, 0x0400, 0x0000, 0x0840, 0x0c00, 0x0040, 0x0800, 0x0c40 },
 	/* SCART2 Output select */
-       { 0x3080, 0x1000, 0x1080, 0x2080, 0x3080, 0x0000, 0x0080, 0x2000, 0x3000 },
+	{ 0x3080, 0x1000, 0x1080, 0x2080, 0x3080, 0x0000, 0x0080, 0x2000, 0x3000 },
 };
 
 static char *scart_names[] = {
-       "in1", "in2", "in3", "in4", "in1 da", "in2 da", "mono", "mute"
+	"in1", "in2", "in3", "in4", "in1 da", "in2 da", "mono", "mute"
 };
 
 void msp_set_scart(struct i2c_client *client, int in, int out)

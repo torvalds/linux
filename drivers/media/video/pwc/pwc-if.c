@@ -126,9 +126,9 @@ static struct usb_driver pwc_driver = {
 static int default_size = PSZ_QCIF;
 static int default_fps = 10;
 static int default_fbufs = 3;   /* Default number of frame buffers */
-       int pwc_mbufs = 2;	/* Default number of mmap() buffers */
+	int pwc_mbufs = 2;	/* Default number of mmap() buffers */
 #ifdef CONFIG_USB_PWC_DEBUG
-       int pwc_trace = PWC_DEBUG_LEVEL;
+	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
 static int power_save = 0;
 static int led_on = 100, led_off = 0; /* defaults to LED that is on while in use */

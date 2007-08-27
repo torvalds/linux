@@ -312,7 +312,7 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
 	dev->dmasound.blksize = 0;
 	dev->dmasound.bufsize = 0;
 
-       return 0;
+	return 0;
 }
 
 
