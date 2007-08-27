@@ -3285,14 +3285,12 @@ static int udc_pci_probe(
 
 	pci_set_drvdata(pdev, dev);
 
-	/* chip revision */
-	dev->chiprev = 0;
+	/* chip revision for Hs AMD5536 */
+	dev->chiprev = pdev->revision;
 
 	pci_set_master(pdev);
 	pci_set_mwi(pdev);
 
-	/* chip rev for Hs AMD5536 */
-	pci_read_config_byte(pdev, PCI_REVISION_ID, (u8 *) &dev->chiprev);
 	/* init dma pools */
 	if (use_dma) {
 		retval = init_dma_pools(dev);
