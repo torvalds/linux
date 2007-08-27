@@ -612,20 +612,13 @@ static void m82xx_restart(char *cmd)
 	while (1) ;
 }
 
-static void m82xx_halt(void)
-{
-	local_irq_disable();
-	while (1) ;
-}
-
 define_machine(mpc82xx_ads)
 {
 	.name = "MPC82xx ADS",
 	.probe = mpc82xx_ads_probe,
 	.setup_arch =    mpc82xx_ads_setup_arch,
 	.init_IRQ =    mpc82xx_ads_pic_init,
-	.show_cpuinfo =    mpc82xx_ads_show_cpuinfo,
 	.get_irq =    cpm2_get_irq,
-	.calibrate_decr =    m82xx_calibrate_decr,
-	.restart = m82xx_restart,.halt = m82xx_halt,
+	.calibrate_decr = generic_calibrate_decr,
+	.restart = m82xx_restart,
 };

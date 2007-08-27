@@ -24,10 +24,6 @@
 
 #include <linux/seq_file.h>
 
-/* For our show_cpuinfo hooks. */
-#define CPUINFO_VENDOR		"Freescale Semiconductor"
-#define CPUINFO_MACHINE		"PQ2 ADS PowerPC"
-
 /* Backword-compatibility stuff for the drivers */
 #define CPM_MAP_ADDR		((uint)0xf0000000)
 #define CPM_IRQ_OFFSET 0
@@ -58,8 +54,6 @@
 #define SIU_INT_SCC4		((uint)0x2b+CPM_IRQ_OFFSET)
 
 void m82xx_pci_init_irq(void);
-void mpc82xx_ads_show_cpuinfo(struct seq_file*);
-void m82xx_calibrate_decr(void);
 
 #endif /* __MACH_ADS8260_DEFS */
 #endif /* __KERNEL__ */
