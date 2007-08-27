@@ -902,7 +902,9 @@ EXPORT_SYMBOL(gpio_direction_output);
  */
 void bfin_gpio_reset_spi0_ssel1(void)
 {
-	port_setup(P_SPI0_SSEL1, GPIO_USAGE);
-	gpio_bankb[gpio_bank(P_SPI0_SSEL1)]->data_set = gpio_bit(P_SPI0_SSEL1);
+	u16 gpio = P_IDENT(P_SPI0_SSEL1);
+
+	port_setup(gpio, GPIO_USAGE);
+	gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
 	udelay(1);
 }
