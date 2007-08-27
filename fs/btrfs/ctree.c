@@ -2120,7 +2120,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		if (!level)
 			break;
 		if (path->reada)
-			reada_for_search(root, path, level, slot);
+			reada_for_search(root, path, level, 0);
 		next = read_tree_block(root,
 		       btrfs_node_blockptr(btrfs_buffer_node(next), 0));
 	}
