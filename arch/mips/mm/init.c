@@ -26,6 +26,7 @@
 #include <linux/proc_fs.h>
 #include <linux/pfn.h>
 
+#include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
 #include <asm/cachectl.h>
 #include <asm/cpu.h>
@@ -498,7 +499,13 @@ unsigned long pgd_current[NR_CPUS];
  * different layout ...
  */
 #define __page_aligned(order) __attribute__((__aligned__(PAGE_SIZE<<order)))
-pgd_t swapper_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);
+
+/*
+ * gcc 3.3 and older have trouble determining that PTRS_PER_PGD and PGD_ORDER
+ * are constants.  So we use the variants from asm-offset.h until that gcc
+ * will officially be retired.
+ */
+pgd_t swapper_pg_dir[_PTRS_PER_PGD] __page_aligned(_PGD_ORDER);
 #ifdef CONFIG_64BIT
 #ifdef MODULE_START
 pgd_t module_pg_dir[PTRS_PER_PGD] __page_aligned(PGD_ORDER);

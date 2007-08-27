@@ -76,7 +76,7 @@ __setup("nokgdb", nokgdb);
 
 /* Default to UART1 */
 int kgdb_port = 1;
-#ifdef CONFIG_SIBYTE_SB1250_DUART
+#ifdef CONFIG_SERIAL_SB1250_DUART
 extern char sb1250_duart_present[];
 #endif
 #endif
@@ -404,7 +404,7 @@ void __init arch_init_irq(void)
 	if (kgdb_flag) {
 		kgdb_irq = K_BCM1480_INT_UART_0 + kgdb_port;
 
-#ifdef CONFIG_SIBYTE_SB1250_DUART
+#ifdef CONFIG_SERIAL_SB1250_DUART
 		sb1250_duart_present[kgdb_port] = 0;
 #endif
 		/* Setup uart 1 settings, mapper */

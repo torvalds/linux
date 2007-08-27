@@ -28,7 +28,6 @@ config BASLER_EXCITE
 	select MIPS_RM9122
 	select SYS_HAS_CPU_RM9000
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_KGDB
 	help
@@ -126,6 +125,7 @@ config LEMOTE_FULONG
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_HAS_EARLY_PRINTK
 	select GENERIC_HARDIRQS_NO__DO_IRQ
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select CPU_HAS_WB
 	help
 	  Lemote Fulong mini-PC board based on the Chinese Loongson-2E CPU and
@@ -192,8 +192,7 @@ config MIPS_MALTA
 	  board.
 
 config MIPS_SEAD
-	bool "MIPS SEAD board (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "MIPS SEAD board"
 	select IRQ_CPU
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
@@ -528,6 +527,7 @@ config TOSHIBA_JMR3927
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_TX3927
+	select IRQ_TXX9
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX39XX
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -540,7 +540,9 @@ config TOSHIBA_RBTX4927
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
-	select I8259
+	select IRQ_CPU
+	select IRQ_TXX9
+	select I8259 if TOSHIBA_FPCIB0
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -555,12 +557,11 @@ config TOSHIBA_RBTX4927
 
 config TOSHIBA_RBTX4938
 	bool "Toshiba RBTX4938 board"
-	select HAVE_STD_PC_SERIAL_PORT
 	select DMA_NONCOHERENT
-	select GENERIC_ISA_DMA
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
-	select I8259
+	select IRQ_CPU
+	select IRQ_TXX9
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_TX49XX
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -604,7 +605,6 @@ source "arch/mips/sibyte/Kconfig"
 source "arch/mips/tx4927/Kconfig"
 source "arch/mips/tx4938/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
-source "arch/mips/philips/pnx8550/common/Kconfig"
 
 endmenu
 
@@ -693,9 +693,9 @@ config EARLY_PRINTK
 config SYS_HAS_EARLY_PRINTK
 	bool
 
-config GENERIC_ISA_DMA
+config HOTPLUG_CPU
 	bool
-	select ZONE_DMA
+	default n
 
 config I8259
 	bool
@@ -712,9 +712,13 @@ config MIPS_DISABLE_OBSOLETE_IDE
 config NO_IOPORT
 	def_bool n
 
+config GENERIC_ISA_DMA
+	bool
+	select ZONE_DMA if GENERIC_ISA_DMA_SUPPORT_BROKEN=n
+
 config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	bool
-	select ZONE_DMA
+	select GENERIC_ISA_DMA
 
 config GENERIC_GPIO
 	bool
@@ -766,6 +770,9 @@ config IRQ_MSP_SLP
 	bool
 
 config IRQ_MSP_CIC
+	bool
+
+config IRQ_TXX9
 	bool
 
 config MIPS_BOARDS_GEN
@@ -1427,8 +1434,7 @@ config SB1_PASS_2_1_WORKAROUNDS
 	default y
 
 config 64BIT_PHYS_ADDR
-	bool "Support for 64-bit physical address space"
-	depends on (CPU_R4X00 || CPU_R5000 || CPU_RM7000 || CPU_RM9000 || CPU_R10000 || CPU_SB1 || CPU_MIPS32 || CPU_MIPS64) && 32BIT
+	bool
 
 config CPU_HAS_LLSC
 	bool
