@@ -192,11 +192,6 @@ void __init setup_arch(char **cmdline_p)
 	}
 #endif
 
-#ifdef DEBUG_SERIAL_EARLY_INIT
-	bfin_console_init();	/* early console registration */
-	/* this give a chance to get printk() working before crash. */
-#endif
-
 	printk(KERN_INFO "Hardware Trace ");
 	if (bfin_read_TBUFCTL() & 0x1 )
 		printk("Active ");
