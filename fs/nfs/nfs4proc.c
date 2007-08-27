@@ -1434,7 +1434,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	}
 	res = d_add_unique(dentry, igrab(state->inode));
 	if (res != NULL)
-		dentry = res;
+		path.dentry = res;
 	nfs4_intent_set_file(nd, &path, state);
 	return res;
 }
