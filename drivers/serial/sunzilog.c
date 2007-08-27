@@ -1431,14 +1431,16 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 			return err;
 		}
 	} else {
-		printk(KERN_INFO "%s: Keyboard at MMIO 0x%lx (irq = %d) "
+		printk(KERN_INFO "%s: Keyboard at MMIO 0x%llx (irq = %d) "
 		       "is a %s\n",
-		       op->dev.bus_id, up[0].port.mapbase, op->irqs[0],
-		       sunzilog_type (&up[0].port));
-		printk(KERN_INFO "%s: Mouse at MMIO 0x%lx (irq = %d) "
+		       op->dev.bus_id,
+		       (unsigned long long) up[0].port.mapbase,
+		       op->irqs[0], sunzilog_type(&up[0].port));
+		printk(KERN_INFO "%s: Mouse at MMIO 0x%llx (irq = %d) "
 		       "is a %s\n",
-		       op->dev.bus_id, up[1].port.mapbase, op->irqs[0],
-		       sunzilog_type (&up[1].port));
+		       op->dev.bus_id,
+		       (unsigned long long) up[1].port.mapbase,
+		       op->irqs[0], sunzilog_type(&up[1].port));
 	}
 
 	dev_set_drvdata(&op->dev, &up[0]);
