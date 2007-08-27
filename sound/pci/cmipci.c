@@ -2625,46 +2625,42 @@ static void __devinit query_chip(struct cmipci *cm)
 	if (! detect) {
 		/* check reg 08h, bit 24-28 */
 		detect = snd_cmipci_read(cm, CM_REG_CHFORMAT) & CM_CHIP_MASK1;
-		if (! detect) {
+		switch (detect) {
+		case 0:
 			cm->chip_version = 33;
-			cm->max_channels = 2;
 			if (cm->do_soft_ac3)
 				cm->can_ac3_sw = 1;
 			else
 				cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-		} else {
+			break;
+		case 1:
 			cm->chip_version = 37;
-			cm->max_channels = 2;
 			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
+			break;
+		default:
+			cm->chip_version = 39;
+			cm->can_ac3_hw = 1;
+			break;
 		}
+		cm->max_channels = 2;
+		cm->has_dual_dac = 1;
 	} else {
-		/* check reg 0Ch, bit 26 */
-		if (detect & CM_CHIP_8768) {
-			cm->chip_version = 68;
-			cm->max_channels = 8;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
-		} else if (detect & CM_CHIP_055) {
-			cm->chip_version = 55;
-			cm->max_channels = 6;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
-		} else if (detect & CM_CHIP_039) {
+		if (detect & CM_CHIP_039) {
 			cm->chip_version = 39;
 			if (detect & CM_CHIP_039_6CH) /* 4 or 6 channels */
 				cm->max_channels = 6;
 			else
 				cm->max_channels = 4;
-			cm->can_ac3_hw = 1;
-			cm->has_dual_dac = 1;
-			cm->can_multi_ch = 1;
+		} else if (detect & CM_CHIP_8768) {
+			cm->chip_version = 68;
+			cm->max_channels = 8;
 		} else {
-			printk(KERN_ERR "chip %x version not supported\n", detect);
+			cm->chip_version = 55;
+			cm->max_channels = 6;
 		}
+		cm->can_ac3_hw = 1;
+		cm->has_dual_dac = 1;
+		cm->can_multi_ch = 1;
 	}
 }
 
