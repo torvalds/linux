@@ -472,11 +472,9 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_ICH8_3, quirk_
  */
 static void __devinit quirk_vt82c586_acpi(struct pci_dev *dev)
 {
-	u8 rev;
 	u32 region;
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &rev);
-	if (rev & 0x10) {
+	if (dev->revision & 0x10) {
 		pci_read_config_dword(dev, 0x48, &region);
 		region &= PCI_BASE_ADDRESS_IO_MASK;
 		quirk_io_region(dev, region, 256, PCI_BRIDGE_RESOURCES, "vt82c586 ACPI");
