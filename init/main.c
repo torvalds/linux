@@ -168,7 +168,7 @@ static int __init maxcpus(char *str)
 	return 0;
 }
 
-early_param("maxcpus=", maxcpus);
+early_param("maxcpus", maxcpus);
 #else
 #define max_cpus NR_CPUS
 #endif
