@@ -67,7 +67,7 @@ static __inline__ unsigned long ide_default_io_base(int index)
 #define ide_init_default_irq(base)	ide_default_irq(base)
 #endif
 
-#if (defined CONFIG_APUS || defined CONFIG_BLK_DEV_MPC8xx_IDE )
+#ifdef CONFIG_BLK_DEV_MPC8xx_IDE
 #define IDE_ARCH_ACK_INTR  1
 #define ide_ack_intr(hwif) (hwif->hw.ack_intr ? hwif->hw.ack_intr(hwif) : 1)
 #endif
