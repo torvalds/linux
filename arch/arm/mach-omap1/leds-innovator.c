@@ -95,8 +95,5 @@ void innovator_leds_event(led_event_t evt)
 		break;
 	}
 
-	if (led_state & LED_STATE_ENABLED)
-		;
-
 	local_irq_restore(flags);
 }
