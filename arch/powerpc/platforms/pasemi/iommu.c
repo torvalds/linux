@@ -93,7 +93,7 @@ static void iobmap_build(struct iommu_table *tbl, long index,
 
 	pr_debug("iobmap: build at: %lx, %lx, addr: %lx\n", index, npages, uaddr);
 
-	bus_addr = (tbl->it_offset + index) << PAGE_SHIFT;
+	bus_addr = (tbl->it_offset + index) << IOBMAP_PAGE_SHIFT;
 
 	ip = ((u32 *)tbl->it_base) + index;
 
@@ -118,7 +118,7 @@ static void iobmap_free(struct iommu_table *tbl, long index,
 
 	pr_debug("iobmap: free at: %lx, %lx\n", index, npages);
 
-	bus_addr = (tbl->it_offset + index) << PAGE_SHIFT;
+	bus_addr = (tbl->it_offset + index) << IOBMAP_PAGE_SHIFT;
 
 	ip = ((u32 *)tbl->it_base) + index;
 
@@ -137,7 +137,7 @@ static void iommu_table_iobmap_setup(void)
 	iommu_table_iobmap.it_busno = 0;
 	iommu_table_iobmap.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_iobmap.it_size = 0x80000000 >> PAGE_SHIFT;
+	iommu_table_iobmap.it_size = 0x80000000 >> IOBMAP_PAGE_SHIFT;
 
 	/* Initialize the common IOMMU code */
 	iommu_table_iobmap.it_base = (unsigned long)iob_l2_base;
