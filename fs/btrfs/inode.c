@@ -827,7 +827,7 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
 	path = btrfs_alloc_path();
-	path->reada = 1;
+	path->reada = 2;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;

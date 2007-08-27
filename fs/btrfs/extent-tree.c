@@ -52,7 +52,7 @@ static int cache_block_group(struct btrfs_root *root,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = 1;
+	path->reada = 2;
 	key.objectid = block_group->key.objectid;
 	key.flags = 0;
 	key.offset = 0;
@@ -1015,7 +1015,7 @@ check_failed:
 	ins->objectid = search_start;
 	ins->offset = 0;
 	start_found = 0;
-	path->reada = 1;
+	path->reada = 2;
 
 	ret = btrfs_search_slot(trans, root, ins, path, 0, 0);
 	if (ret < 0)

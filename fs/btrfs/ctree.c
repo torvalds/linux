@@ -43,8 +43,10 @@ struct btrfs_path *btrfs_alloc_path(void)
 {
 	struct btrfs_path *path;
 	path = kmem_cache_alloc(btrfs_path_cachep, GFP_NOFS);
-	if (path)
+	if (path) {
 		btrfs_init_path(path);
+		path->reada = 1;
+	}
 	return path;
 }
 
@@ -159,6 +161,34 @@ static int close_blocks(u64 blocknr, u64 other)
 	return 0;
 }
 
+static int should_defrag_leaf(struct buffer_head *bh)
+{
+	struct btrfs_leaf *leaf = btrfs_buffer_leaf(bh);
+	struct btrfs_disk_key *key;
+	u32 nritems;
+
+	if (buffer_defrag(bh))
+		return 1;
+
+	nritems = btrfs_header_nritems(&leaf->header);
+	if (nritems == 0)
+		return 0;
+
+	key = &leaf->items[0].key;
+	if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+		return 1;
+
+	key = &leaf->items[nritems-1].key;
+	if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+		return 1;
+	if (nritems > 4) {
+		key = &leaf->items[nritems/2].key;
+		if (btrfs_disk_key_type(key) == BTRFS_DIR_ITEM_KEY)
+			return 1;
+	}
+	return 0;
+}
+
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct buffer_head *parent,
 		       int cache_only, u64 *last_ret)
@@ -217,7 +247,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 		cur_bh = btrfs_find_tree_block(root, blocknr);
 		if (!cur_bh || !buffer_uptodate(cur_bh) ||
-		    buffer_locked(cur_bh) || !buffer_defrag(cur_bh)) {
+		    buffer_locked(cur_bh) ||
+		    (parent_level != 1 && !buffer_defrag(cur_bh)) ||
+		    (parent_level == 1 && !should_defrag_leaf(cur_bh))) {
 			if (cache_only) {
 				brelse(cur_bh);
 				continue;
@@ -297,6 +329,7 @@ static int check_node(struct btrfs_root *root, struct btrfs_path *path,
 		parent = btrfs_buffer_node(path->nodes[level + 1]);
 
 	slot = path->slots[level];
+	BUG_ON(!buffer_uptodate(path->nodes[level]));
 	BUG_ON(nritems == 0);
 	if (parent) {
 		struct btrfs_disk_key *parent_key;
@@ -511,9 +544,6 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 		err_on_enospc = 1;
 
 	left_buf = read_node_slot(root, parent_buf, pslot - 1);
-	right_buf = read_node_slot(root, parent_buf, pslot + 1);
-
-	/* first, try to make some room in the middle buffer */
 	if (left_buf) {
 		wret = btrfs_cow_block(trans, root, left_buf,
 				       parent_buf, pslot - 1, &left_buf);
@@ -521,6 +551,19 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 			ret = wret;
 			goto enospc;
 		}
+	}
+	right_buf = read_node_slot(root, parent_buf, pslot + 1);
+	if (right_buf) {
+		wret = btrfs_cow_block(trans, root, right_buf,
+				       parent_buf, pslot + 1, &right_buf);
+		if (wret) {
+			ret = wret;
+			goto enospc;
+		}
+	}
+
+	/* first, try to make some room in the middle buffer */
+	if (left_buf) {
 		left = btrfs_buffer_node(left_buf);
 		orig_slot += btrfs_header_nritems(&left->header);
 		wret = push_node_left(trans, root, left_buf, mid_buf);
@@ -534,13 +577,6 @@ static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
 	 * then try to empty the right most buffer into the middle
 	 */
 	if (right_buf) {
-		wret = btrfs_cow_block(trans, root, right_buf,
-				       parent_buf, pslot + 1, &right_buf);
-		if (wret) {
-			ret = wret;
-			goto enospc;
-		}
-
 		right = btrfs_buffer_node(right_buf);
 		wret = push_node_left(trans, root, mid_buf, right_buf);
 		if (wret < 0 && wret != -ENOSPC)
@@ -817,7 +853,7 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 		for (i = 0; i < ret; i++) {
 			blocknr = gang[i];
 			clear_radix_bit(&found, blocknr);
-			if (nread > 32)
+			if (path->reada == 1 && nread > 16)
 				continue;
 			if (close_blocks(cluster_start, blocknr)) {
 				readahead_tree_block(root, blocknr);
