@@ -60,11 +60,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		blkno = bh->b_blocknr;
 		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
 
-		bd->bd_ail = NULL;
-		list_del(&bd->bd_ail_st_list);
-		list_del(&bd->bd_ail_gl_list);
-		atomic_dec(&gl->gl_ail_count);
-		brelse(bh);
+		gfs2_remove_from_ail(NULL, bd);
 		gfs2_log_unlock(sdp);
 
 		gfs2_trans_add_revoke(sdp, blkno);

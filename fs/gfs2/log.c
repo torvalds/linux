@@ -60,6 +60,26 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 }
 
 /**
+ * gfs2_remove_from_ail - Remove an entry from the ail lists, updating counters
+ * @mapping: The associated mapping (maybe NULL)
+ * @bd: The gfs2_bufdata to remove
+ *
+ * The log lock _must_ be held when calling this function
+ *
+ */
+
+void gfs2_remove_from_ail(struct address_space *mapping, struct gfs2_bufdata *bd)
+{
+	bd->bd_ail = NULL;
+	list_del(&bd->bd_ail_st_list);
+	list_del(&bd->bd_ail_gl_list);
+	atomic_dec(&bd->bd_gl->gl_ail_count);
+	if (mapping)
+		gfs2_meta_cache_flush(GFS2_I(mapping->host));
+	brelse(bd->bd_bh);
+}
+
+/**
  * gfs2_ail1_start_one - Start I/O on a part of the AIL
  * @sdp: the filesystem
  * @tr: the part of the AIL
@@ -219,21 +239,12 @@ static void gfs2_ail2_empty_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 {
 	struct list_head *head = &ai->ai_ail2_list;
 	struct gfs2_bufdata *bd;
-	struct gfs2_inode *bh_ip;
 
 	while (!list_empty(head)) {
 		bd = list_entry(head->prev, struct gfs2_bufdata,
 				bd_ail_st_list);
 		gfs2_assert(sdp, bd->bd_ail == ai);
-		bd->bd_ail = NULL;
-		list_del(&bd->bd_ail_st_list);
-		list_del(&bd->bd_ail_gl_list);
-		atomic_dec(&bd->bd_gl->gl_ail_count);
-		if (bd->bd_bh->b_page->mapping) {
-			bh_ip = GFS2_I(bd->bd_bh->b_page->mapping->host);
-			gfs2_meta_cache_flush(bh_ip);
-		}
-		brelse(bd->bd_bh);
+		gfs2_remove_from_ail(bd->bd_bh->b_page->mapping, bd);
 	}
 }
 
