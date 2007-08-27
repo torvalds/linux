@@ -124,10 +124,10 @@ dump_cp0(char *key)
 	return;
 }
 
-void print_pic(char *key, u32 reg, char *name)
+void print_pic(char *key, unsigned long reg, char *name)
 {
-	printk("%s pic:0x%08x:%s=0x%08x\n", key, reg, name,
-	       TX4927_RD(reg));
+	printk(KERN_INFO "%s pic:0x%08lx:%s=0x%08x\n", key, reg, name,
+	       __raw_readl((void __iomem *)reg));
 	return;
 }
 
@@ -166,9 +166,10 @@ void dump_pic(char *key)
 }
 
 
-void print_addr(char *hdr, char *key, u32 addr)
+void print_addr(char *hdr, char *key, unsigned long addr)
 {
-	printk("%s %s:0x%08x=0x%08x\n", hdr, key, addr, TX4927_RD(addr));
+	printk(KERN_INFO "%s %s:0x%08lx=0x%08x\n", hdr, key, addr,
+	       __raw_readl((void __iomem *)addr));
 	return;
 }
 
