@@ -116,11 +116,21 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type* ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
-	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data);
+	struct vlan_hdr *vhdr;
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
 	__be16 proto;
+
+	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+		return -1;
+
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN))) {
+		kfree_skb(skb);
+		return -1;
+	}
+
+	vhdr = (struct vlan_hdr *)(skb->data);
 
 	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);

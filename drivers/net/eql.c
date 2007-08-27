@@ -391,7 +391,7 @@ static int __eql_insert_slave(slave_queue_t *queue, slave_t *slave)
 		slave_t *duplicate_slave = NULL;
 
 		duplicate_slave = __eql_find_slave_dev(queue, slave->dev);
-		if (duplicate_slave != 0)
+		if (duplicate_slave)
 			eql_kill_one_slave(queue, duplicate_slave);
 
 		list_add(&slave->list, &queue->all_slaves);

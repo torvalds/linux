@@ -2291,7 +2291,7 @@ static int __init isdn_init(void)
 	int i;
 	char tmprev[50];
 
-	if (!(dev = (isdn_dev *) vmalloc(sizeof(isdn_dev)))) {
+	if (!(dev = vmalloc(sizeof(isdn_dev)))) {
 		printk(KERN_WARNING "isdn: Could not allocate device-struct.\n");
 		return -EIO;
 	}

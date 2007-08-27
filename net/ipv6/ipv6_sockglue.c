@@ -554,6 +554,10 @@ done:
 	{
 		struct ipv6_mreq mreq;
 
+		retv = -EPROTO;
+		if (inet_sk(sk)->is_icsk)
+			break;
+
 		retv = -EFAULT;
 		if (copy_from_user(&mreq, optval, sizeof(struct ipv6_mreq)))
 			break;
