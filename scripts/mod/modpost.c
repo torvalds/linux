@@ -381,6 +381,12 @@ static int parse_elf(struct elf_info *info, const char *filename)
 	sechdrs = (void *)hdr + hdr->e_shoff;
 	info->sechdrs = sechdrs;
 
+	/* Check if file offset is correct */
+	if (hdr->e_shoff > info->size) {
+		fatal("section header offset=%u in file '%s' is bigger then filesize=%lu\n", hdr->e_shoff, filename, info->size);
+		return 0;
+	}
+
 	/* Fix endianness in section headers */
 	for (i = 0; i < hdr->e_shnum; i++) {
 		sechdrs[i].sh_type   = TO_NATIVE(sechdrs[i].sh_type);
