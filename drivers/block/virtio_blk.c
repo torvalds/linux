@@ -149,8 +149,8 @@ static void do_virtblk_request(struct request_queue *q)
 static int virtblk_ioctl(struct inode *inode, struct file *filp,
 			 unsigned cmd, unsigned long data)
 {
-	return scsi_cmd_ioctl(filp, inode->i_bdev->bd_disk->queue,
-			      inode->i_bdev->bd_disk, cmd,
+	return scsi_cmd_ioctl(inode->i_bdev->bd_disk->queue,
+			      inode->i_bdev->bd_disk, filp->f_mode, cmd,
 			      (void __user *)data);
 }
 

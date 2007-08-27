@@ -1232,7 +1232,8 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 	case SG_EMULATED_HOST:
 	case SG_IO:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return scsi_cmd_ioctl(filep, disk->queue, disk, cmd, argp);
+		return scsi_cmd_ioctl(disk->queue, disk,
+				      filep ? filep->f_mode : 0, cmd, argp);
 
 	/* scsi_cmd_ioctl would normally handle these, below, but */
 	/* they aren't a good fit for cciss, as CD-ROMs are */

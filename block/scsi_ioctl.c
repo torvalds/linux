@@ -517,8 +517,8 @@ static inline int blk_send_start_stop(struct request_queue *q,
 	return __blk_send_generic(q, bd_disk, GPCMD_START_STOP_UNIT, data);
 }
 
-int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
-		   struct gendisk *bd_disk, unsigned int cmd, void __user *arg)
+int scsi_cmd_ioctl(struct request_queue *q, struct gendisk *bd_disk, fmode_t mode,
+		   unsigned int cmd, void __user *arg)
 {
 	int err;
 
@@ -559,7 +559,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			err = -EFAULT;
 			if (copy_from_user(&hdr, arg, sizeof(hdr)))
 				break;
-			err = sg_io(q, bd_disk, &hdr, file ? file->f_mode : 0);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -607,7 +607,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
 			hdr.cmd_len = sizeof(cgc.cmd);
 
-			err = sg_io(q, bd_disk, &hdr, file ? file->f_mode : 0);
+			err = sg_io(q, bd_disk, &hdr, mode);
 			if (err == -EFAULT)
 				break;
 
@@ -631,7 +631,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			if (!arg)
 				break;
 
-			err = sg_scsi_ioctl(q, bd_disk, file ? file->f_mode : 0, arg);
+			err = sg_scsi_ioctl(q, bd_disk, mode, arg);
 			break;
 		case CDROMCLOSETRAY:
 			err = blk_send_start_stop(q, bd_disk, 0x03);

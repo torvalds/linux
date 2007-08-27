@@ -2672,7 +2672,7 @@ int cdrom_ioctl(struct file * file, struct cdrom_device_info *cdi,
 	/*
 	 * Try the generic SCSI command ioctl's first.
 	 */
-	ret = scsi_cmd_ioctl(file, disk->queue, disk, cmd, argp);
+	ret = scsi_cmd_ioctl(disk->queue, disk, file ? file->f_mode : 0, cmd, argp);
 	if (ret != -ENOTTY)
 		return ret;
 

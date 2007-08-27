@@ -717,8 +717,8 @@ extern void blk_plug_device(struct request_queue *);
 extern void blk_plug_device_unlocked(struct request_queue *);
 extern int blk_remove_plug(struct request_queue *);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
-extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
-			  struct gendisk *, unsigned int, void __user *);
+extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			  unsigned int, void __user *);
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
 

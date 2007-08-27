@@ -1729,7 +1729,7 @@ static int ub_bd_ioctl(struct inode *inode, struct file *filp,
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	void __user *usermem = (void __user *) arg;
 
-	return scsi_cmd_ioctl(filp, disk->queue, disk, cmd, usermem);
+	return scsi_cmd_ioctl(disk->queue, disk, filp ? filp->f_mode : 0, cmd, usermem);
 }
 
 /*

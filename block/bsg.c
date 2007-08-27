@@ -914,7 +914,7 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case SG_EMULATED_HOST:
 	case SCSI_IOCTL_SEND_COMMAND: {
 		void __user *uarg = (void __user *) arg;
-		return scsi_cmd_ioctl(file, bd->queue, NULL, cmd, uarg);
+		return scsi_cmd_ioctl(bd->queue, NULL, file->f_mode, cmd, uarg);
 	}
 	case SG_IO: {
 		struct request *rq;

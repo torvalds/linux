@@ -775,7 +775,8 @@ static int sd_ioctl(struct inode * inode, struct file * filp,
 		case SCSI_IOCTL_GET_BUS_NUMBER:
 			return scsi_ioctl(sdp, cmd, p);
 		default:
-			error = scsi_cmd_ioctl(filp, disk->queue, disk, cmd, p);
+			error = scsi_cmd_ioctl(disk->queue, disk,
+					filp ? filp->f_mode : 0, cmd, p);
 			if (error != -ENOTTY)
 				return error;
 	}

@@ -3567,8 +3567,8 @@ static long st_ioctl(struct file *file, unsigned int cmd_in, unsigned long arg)
 			    !capable(CAP_SYS_RAWIO))
 				i = -EPERM;
 			else
-				i = scsi_cmd_ioctl(file, STp->disk->queue,
-						   STp->disk, cmd_in, p);
+				i = scsi_cmd_ioctl(STp->disk->queue, STp->disk,
+						   file->f_mode, cmd_in, p);
 			if (i != -ENOTTY)
 				return i;
 			break;

@@ -280,8 +280,8 @@ int ide_floppy_ioctl(ide_drive_t *drive, struct inode *inode,
 	 * and CDROM_SEND_PACKET (legacy) ioctls
 	 */
 	if (cmd != CDROM_SEND_PACKET && cmd != SCSI_IOCTL_SEND_COMMAND)
-		err = scsi_cmd_ioctl(file, bdev->bd_disk->queue,
-					bdev->bd_disk, cmd, argp);
+		err = scsi_cmd_ioctl(bdev->bd_disk->queue, bdev->bd_disk,
+				file ? file->f_mode : 0, cmd, argp);
 
 	if (err == -ENOTTY)
 		err = generic_ide_ioctl(drive, file, bdev, cmd, arg);
