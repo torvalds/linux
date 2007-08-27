@@ -145,7 +145,7 @@ config FRAMEBUFFER_CONSOLE_ROTATION
          oriented.
 
 config STI_CONSOLE
-        tristate "STI text console" 
+        bool "STI text console"
         depends on PARISC
         default y
         help

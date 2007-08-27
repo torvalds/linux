@@ -222,9 +222,7 @@
 	ENTRY_SAME(setfsgid)
 	/* I think this might work */
 	ENTRY_SAME(llseek)		/* 140 */
-	/* struct linux_dirent has longs, like 'unsigned long d_ino' which
-	 * almost definitely should be 'ino_t d_ino' but it's too late now */
-	ENTRY_DIFF(getdents)
+	ENTRY_COMP(getdents)
 	/* it is POSSIBLE that select will be OK because even though fd_set
 	 * contains longs, the macros and sizes are clever. */
 	ENTRY_COMP(select)
