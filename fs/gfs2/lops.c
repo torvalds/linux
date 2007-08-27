@@ -27,7 +27,71 @@
 #include "trans.h"
 #include "util.h"
 
-static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
+/**
+ * gfs2_pin - Pin a buffer in memory
+ * @sdp: The superblock
+ * @bh: The buffer to be pinned
+ *
+ * The log lock must be held when calling this function
+ */
+static void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
+{
+	struct gfs2_bufdata *bd;
+
+	gfs2_assert_withdraw(sdp, test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags));
+
+	clear_buffer_dirty(bh);
+	if (test_set_buffer_pinned(bh))
+		gfs2_assert_withdraw(sdp, 0);
+	if (!buffer_uptodate(bh))
+		gfs2_io_error_bh(sdp, bh);
+	bd = bh->b_private;
+	/* If this buffer is in the AIL and it has already been written
+	 * to in-place disk block, remove it from the AIL.
+	 */
+	if (bd->bd_ail)
+		list_move(&bd->bd_ail_st_list, &bd->bd_ail->ai_ail2_list);
+	get_bh(bh);
+}
+
+/**
+ * gfs2_unpin - Unpin a buffer
+ * @sdp: the filesystem the buffer belongs to
+ * @bh: The buffer to unpin
+ * @ai:
+ *
+ */
+
+static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
+		       struct gfs2_ail *ai)
+{
+	struct gfs2_bufdata *bd = bh->b_private;
+
+	gfs2_assert_withdraw(sdp, buffer_uptodate(bh));
+
+	if (!buffer_pinned(bh))
+		gfs2_assert_withdraw(sdp, 0);
+
+	lock_buffer(bh);
+	mark_buffer_dirty(bh);
+	clear_buffer_pinned(bh);
+
+	gfs2_log_lock(sdp);
+	if (bd->bd_ail) {
+		list_del(&bd->bd_ail_st_list);
+		brelse(bh);
+	} else {
+		struct gfs2_glock *gl = bd->bd_gl;
+		list_add(&bd->bd_ail_gl_list, &gl->gl_ail_list);
+		atomic_inc(&gl->gl_ail_count);
+	}
+	bd->bd_ail = ai;
+	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
+	gfs2_log_unlock(sdp);
+	unlock_buffer(bh);
+}
+
+static void __glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_glock *gl;
 	struct gfs2_trans *tr = current->journal_info;
@@ -38,15 +102,19 @@ static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(gl)))
 		return;
 
-	gfs2_log_lock(sdp);
-	if (!list_empty(&le->le_list)){
-		gfs2_log_unlock(sdp);
+	if (!list_empty(&le->le_list))
 		return;
-	}
+
 	gfs2_glock_hold(gl);
 	set_bit(GLF_DIRTY, &gl->gl_flags);
 	sdp->sd_log_num_gl++;
 	list_add(&le->le_list, &sdp->sd_log_le_gl);
+}
+
+static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
+{
+	gfs2_log_lock(sdp);
+	__glock_lo_add(sdp, le);
 	gfs2_log_unlock(sdp);
 }
 
@@ -71,30 +139,25 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
 	struct gfs2_trans *tr;
 
+	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&bd->bd_list_tr)) {
-		gfs2_log_unlock(sdp);
-		return;
-	}
+	if (!list_empty(&bd->bd_list_tr))
+		goto out;
 	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_buf++;
 	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
-	gfs2_log_unlock(sdp);
-
 	if (!list_empty(&le->le_list))
-		return;
-
-	gfs2_trans_add_gl(bd->bd_gl);
-
+		goto out;
+	__glock_lo_add(sdp, &bd->bd_gl->gl_le);
 	gfs2_meta_check(sdp, bd->bd_bh);
 	gfs2_pin(sdp, bd->bd_bh);
-	gfs2_log_lock(sdp);
 	sdp->sd_log_num_buf++;
 	list_add(&le->le_list, &sdp->sd_log_le_buf);
-	gfs2_log_unlock(sdp);
-
 	tr->tr_num_buf_new++;
+out:
+	gfs2_log_unlock(sdp);
+	unlock_buffer(bd->bd_bh);
 }
 
 static void buf_lo_incore_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
@@ -476,31 +539,29 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	struct address_space *mapping = bd->bd_bh->b_page->mapping;
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
 
+	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&bd->bd_list_tr)) {
-		gfs2_log_unlock(sdp);
-		return;
-	}
+	if (!list_empty(&bd->bd_list_tr))
+		goto out;
 	tr->tr_touched = 1;
 	if (gfs2_is_jdata(ip)) {
 		tr->tr_num_buf++;
 		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 	}
-	gfs2_log_unlock(sdp);
 	if (!list_empty(&le->le_list))
-		return;
+		goto out;
 
-	gfs2_trans_add_gl(bd->bd_gl);
+	__glock_lo_add(sdp, &bd->bd_gl->gl_le);
 	if (gfs2_is_jdata(ip)) {
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
-	}
-	gfs2_log_lock(sdp);
-	if (gfs2_is_jdata(ip))
 		sdp->sd_log_num_jdata++;
+	}
 	sdp->sd_log_num_databuf++;
 	list_add(&le->le_list, &sdp->sd_log_le_databuf);
+out:
 	gfs2_log_unlock(sdp);
+	unlock_buffer(bd->bd_bh);
 }
 
 static int gfs2_check_magic(struct buffer_head *bh)
