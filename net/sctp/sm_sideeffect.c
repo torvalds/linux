@@ -1013,8 +1013,9 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 		break;
 
 	case SCTP_DISPOSITION_VIOLATION:
-		printk(KERN_ERR "sctp protocol violation state %d "
-		       "chunkid %d\n", state, subtype.chunk);
+		if (net_ratelimit())
+			printk(KERN_ERR "sctp protocol violation state %d "
+			       "chunkid %d\n", state, subtype.chunk);
 		break;
 
 	case SCTP_DISPOSITION_NOT_IMPL:
