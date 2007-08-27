@@ -158,10 +158,16 @@ static int bfin_pm_finish(suspend_state_t state)
 	return 0;
 }
 
+static int bfin_pm_valid(suspend_state_t state)
+{
+	return (state == PM_SUSPEND_STANDBY);
+}
+
 struct pm_ops bfin_pm_ops = {
 	.prepare = bfin_pm_prepare,
 	.enter = bfin_pm_enter,
 	.finish = bfin_pm_finish,
+	.valid	= bfin_pm_valid,
 };
 
 static int __init bfin_pm_init(void)
