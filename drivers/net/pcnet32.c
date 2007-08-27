@@ -23,11 +23,11 @@
 
 #define DRV_NAME	"pcnet32"
 #ifdef CONFIG_PCNET32_NAPI
-#define DRV_VERSION	"1.33-NAPI"
+#define DRV_VERSION	"1.34-NAPI"
 #else
-#define DRV_VERSION	"1.33"
+#define DRV_VERSION	"1.34"
 #endif
-#define DRV_RELDATE	"27.Jun.2006"
+#define DRV_RELDATE	"14.Aug.2007"
 #define PFX		DRV_NAME ": "
 
 static const char *const version =
@@ -2955,6 +2955,33 @@ static void pcnet32_watchdog(struct net_device *dev)
 	mod_timer(&(lp->watchdog_timer), PCNET32_WATCHDOG_TIMEOUT);
 }
 
+static int pcnet32_pm_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	if (netif_running(dev)) {
+		netif_device_detach(dev);
+		pcnet32_close(dev);
+	}
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	return 0;
+}
+
+static int pcnet32_pm_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	if (netif_running(dev)) {
+		pcnet32_open(dev);
+		netif_device_attach(dev);
+	}
+	return 0;
+}
+
 static void __devexit pcnet32_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
@@ -2978,6 +3005,8 @@ static struct pci_driver pcnet32_driver = {
 	.probe = pcnet32_probe_pci,
 	.remove = __devexit_p(pcnet32_remove_one),
 	.id_table = pcnet32_pci_tbl,
+	.suspend = pcnet32_pm_suspend,
+	.resume = pcnet32_pm_resume,
 };
 
 /* An additional parameter that may be passed in... */
