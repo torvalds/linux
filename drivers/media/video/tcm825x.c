@@ -635,8 +635,8 @@ static int ioctl_try_fmt_cap(struct v4l2_int_device *s,
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 
 	isize = tcm825x_find_size(s, pix->width, pix->height);
-	dev_dbg(&sensor->i2c_client->dev, "isize = %d num_capture = %d\n",
-		isize, TCM825X_NUM_CAPTURE_FORMATS);
+	dev_dbg(&sensor->i2c_client->dev, "isize = %d num_capture = %lu\n",
+		isize, (unsigned long)TCM825X_NUM_CAPTURE_FORMATS);
 
 	pix->width = tcm825x_sizes[isize].width;
 	pix->height = tcm825x_sizes[isize].height;
