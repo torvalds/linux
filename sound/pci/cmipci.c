@@ -2818,7 +2818,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	static struct snd_device_ops ops = {
 		.dev_free =	snd_cmipci_dev_free,
 	};
-	unsigned int val = 0;
+	unsigned int val;
 	long iomidi;
 	int integrated_midi = 0;
 	int pcm_index, pcm_spdif_index;
@@ -2920,18 +2920,46 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		break;
 	}
 
-	sprintf(card->shortname, "C-Media PCI %s", card->driver);
-	sprintf(card->longname, "%s (model %d) at 0x%lx, irq %i",
-		card->shortname,
-		cm->chip_version,
-		cm->iobase,
-		cm->irq);
+	sprintf(card->shortname, "C-Media %s", card->driver);
+	if (cm->chip_version < 68) {
+		val = pci->device < 0x110 ? 8338 : 8738;
+		sprintf(card->longname,
+			"C-Media CMI%d (model %d) at 0x%lx, irq %i",
+			val, cm->chip_version, cm->iobase, cm->irq);
+	} else {
+		switch (snd_cmipci_read_b(cm, CM_REG_INT_HLDCLR + 3) & 0x03) {
+		case 0:
+			val = 8769;
+			break;
+		case 2:
+			val = 8762;
+			break;
+		default:
+			switch ((pci->subsystem_vendor << 16) |
+				pci->subsystem_device) {
+			case 0x13f69761:
+			case 0x584d3741:
+			case 0x584d3751:
+			case 0x584d3761:
+			case 0x584d3771:
+			case 0x72848384:
+				val = 8770;
+				break;
+			default:
+				val = 8768;
+				break;
+			}
+		}
+		sprintf(card->longname, "C-Media CMI%d at 0x%lx, irq %i",
+			val, cm->iobase, cm->irq);
+	}
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops)) < 0) {
 		snd_cmipci_free(cm);
 		return err;
 	}
 
+	val = 0;
 	if (cm->chip_version > 33 && mpu_port[dev] == 1) {
 		val = snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1);
 		if (val != 0x00 && val != 0xff) {
