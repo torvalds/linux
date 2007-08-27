@@ -1122,9 +1122,8 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	} else {
 		dprintk(1,"poll: read() interface\n");
 		/* read() capture */
-		buf = (struct vivi_buffer*)fh->vb_vidq.read_buf;
-		if (NULL == buf)
-			return POLLERR;
+		return videobuf_poll_stream(file, &fh->	vb_vidq,
+					    wait);
 	}
 	poll_wait(file, &buf->vb.done, wait);
 	if (buf->vb.state == STATE_DONE ||
