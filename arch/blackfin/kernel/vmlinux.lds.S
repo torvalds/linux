@@ -46,6 +46,7 @@ SECTIONS
 		__text = .;
 		_text = .;
 		__stext = .;
+		*(.text.*)
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
@@ -73,6 +74,7 @@ SECTIONS
 		. = ALIGN(THREAD_SIZE);
 		*(.data.init_task)
 		DATA_DATA
+		*(.data.*)
 		CONSTRUCTORS
 
 		. = ALIGN(32);
@@ -164,7 +166,7 @@ SECTIONS
 	{
 		. = ALIGN(4);
 		___bss_start = .;
-		*(.bss)
+		*(.bss .bss.*)
 		*(COMMON)
 		. = ALIGN(4);
 		___bss_stop = .;
