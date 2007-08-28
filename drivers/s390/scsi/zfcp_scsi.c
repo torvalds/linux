@@ -731,7 +731,7 @@ zfcp_get_fc_host_stats(struct Scsi_Host *shost)
 	if (!data)
 		return NULL;
 
-	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
+	ret = zfcp_fsf_exchange_port_data_sync(adapter, data);
 	if (ret) {
 		kfree(data);
 		return NULL; /* XXX return zeroed fc_stats? */
@@ -761,7 +761,7 @@ zfcp_reset_fc_host_stats(struct Scsi_Host *shost)
 	if (!data)
 		return;
 
-	ret = zfcp_fsf_exchange_port_data(NULL, adapter, data);
+	ret = zfcp_fsf_exchange_port_data_sync(adapter, data);
 	if (ret) {
 		kfree(data);
 	} else {
@@ -800,6 +800,7 @@ struct fc_function_template zfcp_transport_functions = {
 	.show_host_port_type = 1,
 	.show_host_speed = 1,
 	.show_host_port_id = 1,
+	.disable_target_scan = 1,
 };
 
 /**

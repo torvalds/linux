@@ -2197,7 +2197,7 @@ zfcp_erp_adapter_strategy_open_fsf_xport(struct zfcp_erp_action *erp_action)
 	zfcp_erp_action_to_running(erp_action);
 	write_unlock_irq(&adapter->erp_lock);
 
-	ret = zfcp_fsf_exchange_port_data(erp_action, adapter, NULL);
+	ret = zfcp_fsf_exchange_port_data(erp_action);
 	if (ret == -EOPNOTSUPP) {
 		debug_text_event(adapter->erp_dbf, 3, "a_xport_notsupp");
 		return ZFCP_ERP_SUCCEEDED;

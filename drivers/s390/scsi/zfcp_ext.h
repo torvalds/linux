@@ -82,9 +82,11 @@ extern int  zfcp_fsf_open_unit(struct zfcp_erp_action *);
 extern int  zfcp_fsf_close_unit(struct zfcp_erp_action *);
 
 extern int  zfcp_fsf_exchange_config_data(struct zfcp_erp_action *);
-extern int  zfcp_fsf_exchange_port_data(struct zfcp_erp_action *,
-					struct zfcp_adapter *,
-					struct fsf_qtcb_bottom_port *);
+extern int  zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *,
+                                              struct fsf_qtcb_bottom_config *);
+extern int  zfcp_fsf_exchange_port_data(struct zfcp_erp_action *);
+extern int  zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *,
+                                             struct fsf_qtcb_bottom_port *);
 extern int  zfcp_fsf_control_file(struct zfcp_adapter *, struct zfcp_fsf_req **,
 				  u32, u32, struct zfcp_sg_list *);
 extern void zfcp_fsf_start_timer(struct zfcp_fsf_req *, unsigned long);

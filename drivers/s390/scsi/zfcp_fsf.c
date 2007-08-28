@@ -1941,25 +1941,28 @@ zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 {
 	volatile struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req;
+	struct zfcp_adapter *adapter = erp_action->adapter;
 	unsigned long lock_flags;
-	int retval = 0;
+	int retval;
 
 	/* setup new FSF request */
-	retval = zfcp_fsf_req_create(erp_action->adapter,
+	retval = zfcp_fsf_req_create(adapter,
 				     FSF_QTCB_EXCHANGE_CONFIG_DATA,
 				     ZFCP_REQ_AUTO_CLEANUP,
-				     erp_action->adapter->pool.fsf_req_erp,
+				     adapter->pool.fsf_req_erp,
 				     &lock_flags, &fsf_req);
-	if (retval < 0) {
+	if (retval) {
 		ZFCP_LOG_INFO("error: Could not create exchange configuration "
 			      "data request for adapter %s.\n",
-			      zfcp_get_busid_by_adapter(erp_action->adapter));
-		goto out;
+			      zfcp_get_busid_by_adapter(adapter));
+		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
+					lock_flags);
+		return retval;
 	}
 
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
-        sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-        sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	fsf_req->qtcb->bottom.config.feature_selection =
 			FSF_FEATURE_CFDC |
@@ -1971,23 +1974,71 @@ zfcp_fsf_exchange_config_data(struct zfcp_erp_action *erp_action)
 
 	zfcp_erp_start_timer(fsf_req);
 	retval = zfcp_fsf_req_send(fsf_req);
+	write_unlock_irqrestore(&adapter->request_queue.queue_lock,
+				lock_flags);
 	if (retval) {
-		ZFCP_LOG_INFO
-		    ("error: Could not send exchange configuration data "
-		     "command on the adapter %s\n",
-		     zfcp_get_busid_by_adapter(erp_action->adapter));
+		ZFCP_LOG_INFO("error: Could not send exchange configuration "
+			      "data command on the adapter %s\n",
+			      zfcp_get_busid_by_adapter(adapter));
 		zfcp_fsf_req_free(fsf_req);
 		erp_action->fsf_req = NULL;
-		goto out;
+	}
+	else
+		ZFCP_LOG_DEBUG("exchange configuration data request initiated "
+			       "(adapter %s)\n",
+			       zfcp_get_busid_by_adapter(adapter));
+
+	return retval;
+}
+
+int
+zfcp_fsf_exchange_config_data_sync(struct zfcp_adapter *adapter,
+				struct fsf_qtcb_bottom_config *data)
+{
+	volatile struct qdio_buffer_element *sbale;
+	struct zfcp_fsf_req *fsf_req;
+	unsigned long lock_flags;
+	int retval;
+
+	/* setup new FSF request */
+	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_CONFIG_DATA,
+				     0, NULL, &lock_flags, &fsf_req);
+	if (retval) {
+		ZFCP_LOG_INFO("error: Could not create exchange configuration "
+			      "data request for adapter %s.\n",
+			      zfcp_get_busid_by_adapter(adapter));
+		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
+					lock_flags);
+		return retval;
 	}
 
-	ZFCP_LOG_DEBUG("exchange configuration data request initiated "
-		       "(adapter %s)\n",
-		       zfcp_get_busid_by_adapter(erp_action->adapter));
+	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
- out:
-	write_unlock_irqrestore(&erp_action->adapter->request_queue.queue_lock,
+	fsf_req->qtcb->bottom.config.feature_selection =
+			FSF_FEATURE_CFDC |
+			FSF_FEATURE_LUN_SHARING |
+			FSF_FEATURE_NOTIFICATION_LOST |
+			FSF_FEATURE_UPDATE_ALERT;
+
+	if (data)
+		fsf_req->data = (unsigned long) data;
+
+	zfcp_fsf_start_timer(fsf_req, ZFCP_FSF_REQUEST_TIMEOUT);
+	retval = zfcp_fsf_req_send(fsf_req);
+	write_unlock_irqrestore(&adapter->request_queue.queue_lock,
 				lock_flags);
+	if (retval)
+		ZFCP_LOG_INFO("error: Could not send exchange configuration "
+			      "data command on the adapter %s\n",
+			      zfcp_get_busid_by_adapter(adapter));
+	else
+		wait_event(fsf_req->completion_wq,
+			   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
+
+	zfcp_fsf_req_free(fsf_req);
+
 	return retval;
 }
 
@@ -2016,11 +2067,17 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 	adapter->peer_d_id = 0;
 
 	if (xchg_ok) {
+
+		if (fsf_req->data)
+			memcpy((struct fsf_qtcb_bottom_config *) fsf_req->data,
+				bottom, sizeof (struct fsf_qtcb_bottom_config));
+
 		fc_host_node_name(shost) = bottom->nport_serv_param.wwnn;
 		fc_host_port_name(shost) = bottom->nport_serv_param.wwpn;
 		fc_host_port_id(shost) = bottom->s_id & ZFCP_DID_MASK;
 		fc_host_speed(shost) = bottom->fc_link_speed;
-		fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
+		fc_host_supported_classes(shost) =
+				FC_COS_CLASS2 | FC_COS_CLASS3;
 		adapter->hydra_version = bottom->adapter_type;
 		if (fc_host_permanent_port_name(shost) == -1)
 			fc_host_permanent_port_name(shost) =
@@ -2053,7 +2110,8 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 		       min(FC_SERIAL_NUMBER_SIZE, 17));
 	}
 
-	ZFCP_LOG_NORMAL("The adapter %s reported the following characteristics:\n"
+	ZFCP_LOG_NORMAL("The adapter %s reported the following "
+			"characteristics:\n"
 			"WWNN 0x%016Lx, "
 			"WWPN 0x%016Lx, "
 			"S_ID 0x%06x,\n"
@@ -2090,7 +2148,7 @@ zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 	return 0;
 }
 
-/*
+/**
  * function:    zfcp_fsf_exchange_config_data_handler
  *
  * purpose:     is called for finished Exchange Configuration Data command
@@ -2125,7 +2183,7 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 					adapter->peer_wwpn,
 					adapter->peer_d_id);
 			debug_text_event(fsf_req->adapter->erp_dbf, 0,
-					 "top-p-to-p");
+					"top-p-to-p");
 			break;
 		case FC_PORTTYPE_NLPORT:
 			ZFCP_LOG_NORMAL("error: Arbitrated loop fibrechannel "
@@ -2138,8 +2196,8 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 			return -EIO;
 		case FC_PORTTYPE_NPORT:
 			ZFCP_LOG_NORMAL("Switched fabric fibrechannel "
-				      "network detected at adapter %s.\n",
-				      zfcp_get_busid_by_adapter(adapter));
+					"network detected at adapter %s.\n",
+					zfcp_get_busid_by_adapter(adapter));
 			break;
 		default:
 			ZFCP_LOG_NORMAL("bug: The fibrechannel topology "
@@ -2179,7 +2237,8 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 		if (zfcp_fsf_exchange_config_evaluate(fsf_req, 0))
 			return -EIO;
 
-		atomic_set_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK, &adapter->status);
+		atomic_set_mask(ZFCP_STATUS_ADAPTER_XCONFIG_OK,
+				&adapter->status);
 
 		zfcp_fsf_link_down_info_eval(adapter,
 			&qtcb->header.fsf_status_qual.link_down_info);
@@ -2187,7 +2246,7 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 	default:
 		debug_text_event(fsf_req->adapter->erp_dbf, 0, "fsf-stat-ng");
 		debug_event(fsf_req->adapter->erp_dbf, 0,
-			    &fsf_req->qtcb->header.fsf_status, sizeof (u32));
+			    &fsf_req->qtcb->header.fsf_status, sizeof(u32));
 		zfcp_erp_adapter_shutdown(adapter, 0);
 		return -EIO;
 	}
@@ -2197,34 +2256,91 @@ zfcp_fsf_exchange_config_data_handler(struct zfcp_fsf_req *fsf_req)
 /**
  * zfcp_fsf_exchange_port_data - request information about local port
  * @erp_action: ERP action for the adapter for which port data is requested
- * @adapter: for which port data is requested
- * @data: response to exchange port data request
  */
 int
-zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
-			    struct zfcp_adapter *adapter,
-			    struct fsf_qtcb_bottom_port *data)
+zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 {
 	volatile struct qdio_buffer_element *sbale;
-        struct zfcp_fsf_req *fsf_req;
+	struct zfcp_fsf_req *fsf_req;
+	struct zfcp_adapter *adapter = erp_action->adapter;
 	unsigned long lock_flags;
-	int retval = 0;
+	int retval;
 
 	if (!(adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT)) {
 		ZFCP_LOG_INFO("error: exchange port data "
-                              "command not supported by adapter %s\n",
+			      "command not supported by adapter %s\n",
 			      zfcp_get_busid_by_adapter(adapter));
-                return -EOPNOTSUPP;
-        }
+		return -EOPNOTSUPP;
+	}
 
 	/* setup new FSF request */
 	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA,
-				     erp_action ? ZFCP_REQ_AUTO_CLEANUP : 0,
-				     NULL, &lock_flags, &fsf_req);
-	if (retval < 0) {
+				     ZFCP_REQ_AUTO_CLEANUP,
+				     adapter->pool.fsf_req_erp,
+				     &lock_flags, &fsf_req);
+	if (retval) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
-                              "exchange port data request for"
-                              "the adapter %s.\n",
+			      "exchange port data request for"
+			      "the adapter %s.\n",
+			      zfcp_get_busid_by_adapter(adapter));
+		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
+					lock_flags);
+		return retval;
+	}
+
+	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+
+	erp_action->fsf_req = fsf_req;
+	fsf_req->erp_action = erp_action;
+	zfcp_erp_start_timer(fsf_req);
+
+	retval = zfcp_fsf_req_send(fsf_req);
+	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
+
+	if (retval) {
+		ZFCP_LOG_INFO("error: Could not send an exchange port data "
+			      "command on the adapter %s\n",
+			      zfcp_get_busid_by_adapter(adapter));
+		zfcp_fsf_req_free(fsf_req);
+		erp_action->fsf_req = NULL;
+	}
+	else
+		ZFCP_LOG_DEBUG("exchange port data request initiated "
+			       "(adapter %s)\n",
+			       zfcp_get_busid_by_adapter(adapter));
+	return retval;
+}
+
+
+/**
+ * zfcp_fsf_exchange_port_data_sync - request information about local port
+ * and wait until information is ready
+ */
+int
+zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
+				struct fsf_qtcb_bottom_port *data)
+{
+	volatile struct qdio_buffer_element *sbale;
+	struct zfcp_fsf_req *fsf_req;
+	unsigned long lock_flags;
+	int retval;
+
+	if (!(adapter->adapter_features & FSF_FEATURE_HBAAPI_MANAGEMENT)) {
+		ZFCP_LOG_INFO("error: exchange port data "
+			      "command not supported by adapter %s\n",
+			      zfcp_get_busid_by_adapter(adapter));
+		return -EOPNOTSUPP;
+	}
+
+	/* setup new FSF request */
+	retval = zfcp_fsf_req_create(adapter, FSF_QTCB_EXCHANGE_PORT_DATA,
+				0, NULL, &lock_flags, &fsf_req);
+	if (retval) {
+		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
+			      "exchange port data request for"
+			      "the adapter %s.\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
 					lock_flags);
@@ -2235,36 +2351,23 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action,
 		fsf_req->data = (unsigned long) data;
 
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
-        sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
-        sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
+	sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
+	sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
-	if (erp_action) {
-		erp_action->fsf_req = fsf_req;
-		fsf_req->erp_action = erp_action;
-		zfcp_erp_start_timer(fsf_req);
-	} else
-		zfcp_fsf_start_timer(fsf_req, ZFCP_FSF_REQUEST_TIMEOUT);
-
+	zfcp_fsf_start_timer(fsf_req, ZFCP_FSF_REQUEST_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
-	if (retval) {
-		ZFCP_LOG_INFO("error: Could not send an exchange port data "
-                              "command on the adapter %s\n",
-			      zfcp_get_busid_by_adapter(adapter));
-		zfcp_fsf_req_free(fsf_req);
-		if (erp_action)
-			erp_action->fsf_req = NULL;
-		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
-					lock_flags);
-		return retval;
-	}
-
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 
-	if (!erp_action) {
+	if (retval)
+		ZFCP_LOG_INFO("error: Could not send an exchange port data "
+			      "command on the adapter %s\n",
+			      zfcp_get_busid_by_adapter(adapter));
+	else
 		wait_event(fsf_req->completion_wq,
 			   fsf_req->status & ZFCP_STATUS_FSFREQ_COMPLETED);
-		zfcp_fsf_req_free(fsf_req);
-	}
+
+	zfcp_fsf_req_free(fsf_req);
+
 	return retval;
 }
 
@@ -2277,18 +2380,16 @@ static void
 zfcp_fsf_exchange_port_evaluate(struct zfcp_fsf_req *fsf_req, int xchg_ok)
 {
 	struct zfcp_adapter *adapter;
-	struct fsf_qtcb *qtcb;
-	struct fsf_qtcb_bottom_port *bottom, *data;
+	struct fsf_qtcb_bottom_port *bottom;
 	struct Scsi_Host *shost;
 
 	adapter = fsf_req->adapter;
-	qtcb = fsf_req->qtcb;
-	bottom = &qtcb->bottom.port;
+	bottom = &fsf_req->qtcb->bottom.port;
 	shost = adapter->scsi_host;
 
-	data = (struct fsf_qtcb_bottom_port*) fsf_req->data;
-	if (data)
-		memcpy(data, bottom, sizeof(struct fsf_qtcb_bottom_port));
+	if (fsf_req->data)
+		memcpy((struct fsf_qtcb_bottom_port*) fsf_req->data, bottom,
+			sizeof(struct fsf_qtcb_bottom_port));
 
 	if (adapter->connection_features & FSF_FEATURE_NPIV_MODE)
 		fc_host_permanent_port_name(shost) = bottom->wwpn;
