@@ -1,12 +1,20 @@
 /*
- *
  * i2c tv tuner chip device driver
  * controls microtune tuners, mt2032 + mt2050 at the moment.
+ *
+ * This "mt20xx" module was split apart from the original "tuner" module.
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/videodev.h>
-#include "tuner-driver.h"
+#include "tuner-i2c.h"
+#include "mt20xx.h"
+
+static int debug = 0;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
+
+#define PREFIX "mt20xx "
 
 /* ---------------------------------------------------------------------- */
 
@@ -18,9 +26,6 @@ module_param(tv_antenna,        int, 0644);
 
 static unsigned int radio_antenna = 0;
 module_param(radio_antenna,     int, 0644);
-
-/* from tuner-core.c */
-extern int tuner_debug;
 
 /* ---------------------------------------------------------------------- */
 
@@ -40,19 +45,31 @@ struct microtune_priv {
 	struct tuner_i2c_props i2c_props;
 
 	unsigned int xogc;
-	unsigned int radio_if2;
+	//unsigned int radio_if2;
+
+	u32 frequency;
 };
 
-static void microtune_release(struct tuner *t)
+static int microtune_release(struct dvb_frontend *fe)
 {
-	kfree(t->priv);
-	t->priv = NULL;
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+
+	return 0;
+}
+
+static int microtune_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct microtune_priv *priv = fe->tuner_priv;
+	*frequency = priv->frequency;
+	return 0;
 }
 
 // IsSpurInBand()?
-static int mt2032_spurcheck(struct tuner *t,
+static int mt2032_spurcheck(struct dvb_frontend *fe,
 			    int f1, int f2, int spectrum_from,int spectrum_to)
 {
+	struct microtune_priv *priv = fe->tuner_priv;
 	int n1=1,n2,f;
 
 	f1=f1/1000; //scale to kHz to avoid 32bit overflows
@@ -80,7 +97,7 @@ static int mt2032_spurcheck(struct tuner *t,
 	return 1;
 }
 
-static int mt2032_compute_freq(struct tuner *t,
+static int mt2032_compute_freq(struct dvb_frontend *fe,
 			       unsigned int rfin,
 			       unsigned int if1, unsigned int if2,
 			       unsigned int spectrum_from,
@@ -89,6 +106,7 @@ static int mt2032_compute_freq(struct tuner *t,
 			       int *ret_sel,
 			       unsigned int xogc) //all in Hz
 {
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned int fref,lo1,lo1n,lo1a,s,sel,lo1freq, desired_lo1,
 		desired_lo2,lo2,lo2n,lo2a,lo2num,lo2freq;
 
@@ -138,7 +156,7 @@ static int mt2032_compute_freq(struct tuner *t,
 		return(-1);
 	}
 
-	mt2032_spurcheck(t, lo1freq, desired_lo2,  spectrum_from, spectrum_to);
+	mt2032_spurcheck(fe, lo1freq, desired_lo2,  spectrum_from, spectrum_to);
 	// should recalculate lo1 (one step up/down)
 
 	// set up MT2032 register map for transfer over i2c
@@ -162,9 +180,9 @@ static int mt2032_compute_freq(struct tuner *t,
 	return 0;
 }
 
-static int mt2032_check_lo_lock(struct tuner *t)
+static int mt2032_check_lo_lock(struct dvb_frontend *fe)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	int try,lock=0;
 	unsigned char buf[2];
 
@@ -184,9 +202,9 @@ static int mt2032_check_lo_lock(struct tuner *t)
 	return lock;
 }
 
-static int mt2032_optimize_vco(struct tuner *t,int sel,int lock)
+static int mt2032_optimize_vco(struct dvb_frontend *fe,int sel,int lock)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[2];
 	int tad1;
 
@@ -216,18 +234,18 @@ static int mt2032_optimize_vco(struct tuner *t,int sel,int lock)
 	buf[0]=0x0f;
 	buf[1]=sel;
 	tuner_i2c_xfer_send(&priv->i2c_props,buf,2);
-	lock=mt2032_check_lo_lock(t);
+	lock=mt2032_check_lo_lock(fe);
 	return lock;
 }
 
 
-static void mt2032_set_if_freq(struct tuner *t, unsigned int rfin,
+static void mt2032_set_if_freq(struct dvb_frontend *fe, unsigned int rfin,
 			       unsigned int if1, unsigned int if2,
 			       unsigned int from, unsigned int to)
 {
 	unsigned char buf[21];
 	int lint_try,ret,sel,lock=0;
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 
 	tuner_dbg("mt2032_set_if_freq rfin=%d if1=%d if2=%d from=%d to=%d\n",
 		  rfin,if1,if2,from,to);
@@ -237,7 +255,7 @@ static void mt2032_set_if_freq(struct tuner *t, unsigned int rfin,
 	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
 
 	buf[0]=0;
-	ret=mt2032_compute_freq(t,rfin,if1,if2,from,to,&buf[1],&sel,priv->xogc);
+	ret=mt2032_compute_freq(fe,rfin,if1,if2,from,to,&buf[1],&sel,priv->xogc);
 	if (ret<0)
 		return;
 
@@ -253,10 +271,10 @@ static void mt2032_set_if_freq(struct tuner *t, unsigned int rfin,
 
 	// wait for PLLs to lock (per manual), retry LINT if not.
 	for(lint_try=0; lint_try<2; lint_try++) {
-		lock=mt2032_check_lo_lock(t);
+		lock=mt2032_check_lo_lock(fe);
 
 		if(optimize_vco)
-			lock=mt2032_optimize_vco(t,sel,lock);
+			lock=mt2032_optimize_vco(fe,sel,lock);
 		if(lock==6) break;
 
 		tuner_dbg("mt2032: re-init PLLs by LINT\n");
@@ -279,12 +297,13 @@ static void mt2032_set_if_freq(struct tuner *t, unsigned int rfin,
 }
 
 
-static void mt2032_set_tv_freq(struct tuner *t, unsigned int freq)
+static int mt2032_set_tv_freq(struct dvb_frontend *fe,
+			      struct analog_parameters *params)
 {
 	int if2,from,to;
 
 	// signal bandwidth and picture carrier
-	if (t->std & V4L2_STD_525_60) {
+	if (params->std & V4L2_STD_525_60) {
 		// NTSC
 		from = 40750*1000;
 		to   = 46750*1000;
@@ -296,30 +315,64 @@ static void mt2032_set_tv_freq(struct tuner *t, unsigned int freq)
 		if2  = 38900*1000;
 	}
 
-	mt2032_set_if_freq(t, freq*62500 /* freq*1000*1000/16 */,
+	mt2032_set_if_freq(fe, params->frequency*62500,
 			   1090*1000*1000, if2, from, to);
+
+	return 0;
 }
 
-static void mt2032_set_radio_freq(struct tuner *t, unsigned int freq)
+static int mt2032_set_radio_freq(struct dvb_frontend *fe,
+				 struct analog_parameters *params)
 {
-	struct microtune_priv *priv = t->priv;
-	int if2 = priv->radio_if2;
+	struct microtune_priv *priv = fe->tuner_priv;
+	int if2;
+
+	if (params->std & V4L2_STD_525_60) {
+		tuner_dbg("pinnacle ntsc\n");
+		if2 = 41300 * 1000;
+	} else {
+		tuner_dbg("pinnacle pal\n");
+		if2 = 33300 * 1000;
+	}
 
 	// per Manual for FM tuning: first if center freq. 1085 MHz
-	mt2032_set_if_freq(t, freq * 1000 / 16,
-			      1085*1000*1000,if2,if2,if2);
+	mt2032_set_if_freq(fe, params->frequency * 125 / 2,
+			   1085*1000*1000,if2,if2,if2);
+
+	return 0;
 }
 
-static struct tuner_operations mt2032_tuner_ops = {
-	.set_tv_freq    = mt2032_set_tv_freq,
-	.set_radio_freq = mt2032_set_radio_freq,
-	.release        = microtune_release,
+static int mt2032_set_params(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
+{
+	struct microtune_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	switch (params->mode) {
+	case V4L2_TUNER_RADIO:
+		ret = mt2032_set_radio_freq(fe, params);
+		priv->frequency = params->frequency * 125 / 2;
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+	case V4L2_TUNER_DIGITAL_TV:
+		ret = mt2032_set_tv_freq(fe, params);
+		priv->frequency = params->frequency * 62500;
+		break;
+	}
+
+	return ret;
+}
+
+static struct dvb_tuner_ops mt2032_tuner_ops = {
+	.set_analog_params = mt2032_set_params,
+	.release           = microtune_release,
+	.get_frequency     = microtune_get_frequency,
 };
 
 // Initalization as described in "MT203x Programming Procedures", Rev 1.2, Feb.2001
-static int mt2032_init(struct tuner *t)
+static int mt2032_init(struct dvb_frontend *fe)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[21];
 	int ret,xogc,xok=0;
 
@@ -368,14 +421,14 @@ static int mt2032_init(struct tuner *t)
 	} while (xok != 1 );
 	priv->xogc=xogc;
 
-	memcpy(&t->ops, &mt2032_tuner_ops, sizeof(struct tuner_operations));
+	memcpy(&fe->ops.tuner_ops, &mt2032_tuner_ops, sizeof(struct dvb_tuner_ops));
 
 	return(1);
 }
 
-static void mt2050_set_antenna(struct tuner *t, unsigned char antenna)
+static void mt2050_set_antenna(struct dvb_frontend *fe, unsigned char antenna)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[2];
 	int ret;
 
@@ -385,9 +438,9 @@ static void mt2050_set_antenna(struct tuner *t, unsigned char antenna)
 	tuner_dbg("mt2050: enabled antenna connector %d\n", antenna);
 }
 
-static void mt2050_set_if_freq(struct tuner *t,unsigned int freq, unsigned int if2)
+static void mt2050_set_if_freq(struct dvb_frontend *fe,unsigned int freq, unsigned int if2)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned int if1=1218*1000*1000;
 	unsigned int f_lo1,f_lo2,lo1,lo2,f_lo1_modulo,f_lo2_modulo,num1,num2,div1a,div1b,div2a,div2b;
 	int ret;
@@ -419,7 +472,7 @@ static void mt2050_set_if_freq(struct tuner *t,unsigned int freq, unsigned int i
 	div2a=(lo2/8)-1;
 	div2b=lo2-(div2a+1)*8;
 
-	if (tuner_debug > 1) {
+	if (debug > 1) {
 		tuner_dbg("lo1 lo2 = %d %d\n", lo1, lo2);
 		tuner_dbg("num1 num2 div1a div1b div2a div2b= %x %x %x %x %x %x\n",
 			  num1,num2,div1a,div1b,div2a,div2b);
@@ -435,7 +488,7 @@ static void mt2050_set_if_freq(struct tuner *t,unsigned int freq, unsigned int i
 	buf[5]=div2a;
 	if(num2!=0) buf[5]=buf[5]|0x40;
 
-	if (tuner_debug > 1) {
+	if (debug > 1) {
 		int i;
 		tuner_dbg("bufs is: ");
 		for(i=0;i<6;i++)
@@ -448,43 +501,78 @@ static void mt2050_set_if_freq(struct tuner *t,unsigned int freq, unsigned int i
 		tuner_warn("i2c i/o error: rc == %d (should be 6)\n",ret);
 }
 
-static void mt2050_set_tv_freq(struct tuner *t, unsigned int freq)
+static int mt2050_set_tv_freq(struct dvb_frontend *fe,
+			      struct analog_parameters *params)
 {
 	unsigned int if2;
 
-	if (t->std & V4L2_STD_525_60) {
+	if (params->std & V4L2_STD_525_60) {
 		// NTSC
 		if2 = 45750*1000;
 	} else {
 		// PAL
 		if2 = 38900*1000;
 	}
-	if (V4L2_TUNER_DIGITAL_TV == t->mode) {
+	if (V4L2_TUNER_DIGITAL_TV == params->mode) {
 		// DVB (pinnacle 300i)
 		if2 = 36150*1000;
 	}
-	mt2050_set_if_freq(t, freq*62500, if2);
-	mt2050_set_antenna(t, tv_antenna);
+	mt2050_set_if_freq(fe, params->frequency*62500, if2);
+	mt2050_set_antenna(fe, tv_antenna);
+
+	return 0;
 }
 
-static void mt2050_set_radio_freq(struct tuner *t, unsigned int freq)
+static int mt2050_set_radio_freq(struct dvb_frontend *fe,
+				 struct analog_parameters *params)
 {
-	struct microtune_priv *priv = t->priv;
-	int if2 = priv->radio_if2;
+	struct microtune_priv *priv = fe->tuner_priv;
+	int if2;
 
-	mt2050_set_if_freq(t, freq * 1000 / 16, if2);
-	mt2050_set_antenna(t, radio_antenna);
+	if (params->std & V4L2_STD_525_60) {
+		tuner_dbg("pinnacle ntsc\n");
+		if2 = 41300 * 1000;
+	} else {
+		tuner_dbg("pinnacle pal\n");
+		if2 = 33300 * 1000;
+	}
+
+	mt2050_set_if_freq(fe, params->frequency * 125 / 2, if2);
+	mt2050_set_antenna(fe, radio_antenna);
+
+	return 0;
 }
 
-static struct tuner_operations mt2050_tuner_ops = {
-	.set_tv_freq    = mt2050_set_tv_freq,
-	.set_radio_freq = mt2050_set_radio_freq,
-	.release        = microtune_release,
+static int mt2050_set_params(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
+{
+	struct microtune_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	switch (params->mode) {
+	case V4L2_TUNER_RADIO:
+		ret = mt2050_set_radio_freq(fe, params);
+		priv->frequency = params->frequency * 125 / 2;
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+	case V4L2_TUNER_DIGITAL_TV:
+		ret = mt2050_set_tv_freq(fe, params);
+		priv->frequency = params->frequency * 62500;
+		break;
+	}
+
+	return ret;
+}
+
+static struct dvb_tuner_ops mt2050_tuner_ops = {
+	.set_analog_params = mt2050_set_params,
+	.release           = microtune_release,
+	.get_frequency     = microtune_get_frequency,
 };
 
-static int mt2050_init(struct tuner *t)
+static int mt2050_init(struct dvb_frontend *fe)
 {
-	struct microtune_priv *priv = t->priv;
+	struct microtune_priv *priv = fe->tuner_priv;
 	unsigned char buf[2];
 	int ret;
 
@@ -502,12 +590,14 @@ static int mt2050_init(struct tuner *t)
 
 	tuner_dbg("mt2050: sro is %x\n",buf[0]);
 
-	memcpy(&t->ops, &mt2050_tuner_ops, sizeof(struct tuner_operations));
+	memcpy(&fe->ops.tuner_ops, &mt2050_tuner_ops, sizeof(struct dvb_tuner_ops));
 
 	return 0;
 }
 
-int microtune_init(struct tuner *t)
+struct dvb_frontend *microtune_attach(struct dvb_frontend *fe,
+				      struct i2c_adapter* i2c_adap,
+				      u8 i2c_addr)
 {
 	struct microtune_priv *priv = NULL;
 	char *name;
@@ -516,28 +606,21 @@ int microtune_init(struct tuner *t)
 
 	priv = kzalloc(sizeof(struct microtune_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
-	t->priv = priv;
+		return NULL;
+	fe->tuner_priv = priv;
 
-	priv->i2c_props.addr = t->i2c.addr;
-	priv->i2c_props.adap = t->i2c.adapter;
+	priv->i2c_props.addr = i2c_addr;
+	priv->i2c_props.adap = i2c_adap;
 
-	priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
+	//priv->radio_if2 = 10700 * 1000;	/* 10.7MHz - FM radio */
 
 	memset(buf,0,sizeof(buf));
 
-	if (t->std & V4L2_STD_525_60) {
-		tuner_dbg("pinnacle ntsc\n");
-		priv->radio_if2 = 41300 * 1000;
-	} else {
-		tuner_dbg("pinnacle pal\n");
-		priv->radio_if2 = 33300 * 1000;
-	}
 	name = "unknown";
 
 	tuner_i2c_xfer_send(&priv->i2c_props,buf,1);
 	tuner_i2c_xfer_recv(&priv->i2c_props,buf,21);
-	if (tuner_debug) {
+	if (debug) {
 		int i;
 		tuner_dbg("MT20xx hexdump:");
 		for(i=0;i<21;i++) {
@@ -556,10 +639,10 @@ int microtune_init(struct tuner *t)
 		name = microtune_part[buf[0x13]];
 	switch (buf[0x13]) {
 	case MT2032:
-		mt2032_init(t);
+		mt2032_init(fe);
 		break;
 	case MT2050:
-		mt2050_init(t);
+		mt2050_init(fe);
 		break;
 	default:
 		tuner_info("microtune %s found, not (yet?) supported, sorry :-/\n",
@@ -567,10 +650,17 @@ int microtune_init(struct tuner *t)
 		return 0;
 	}
 
-	strlcpy(t->i2c.name, name, sizeof(t->i2c.name));
+	strlcpy(fe->ops.tuner_ops.info.name, name,
+		sizeof(fe->ops.tuner_ops.info.name));
 	tuner_info("microtune %s found, OK\n",name);
-	return 0;
+	return fe;
 }
+
+EXPORT_SYMBOL_GPL(microtune_attach);
+
+MODULE_DESCRIPTION("Microtune tuner driver");
+MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_LICENSE("GPL");
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

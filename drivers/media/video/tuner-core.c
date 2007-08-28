@@ -19,6 +19,7 @@
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include "tuner-driver.h"
+#include "mt20xx.h"
 #include "tda8290.h"
 
 #define UNSET (-1U)
@@ -252,7 +253,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	switch (t->type) {
 	case TUNER_MT2032:
-		microtune_init(t);
+		microtune_attach(&t->fe, t->i2c.adapter, t->i2c.addr);
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
