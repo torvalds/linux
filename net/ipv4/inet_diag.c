@@ -11,6 +11,7 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -112,7 +113,7 @@ static int inet_csk_diag_fill(struct sock *sk,
 	}
 #endif
 
-#define EXPIRES_IN_MS(tmo)  ((tmo - jiffies) * 1000 + HZ - 1) / HZ
+#define EXPIRES_IN_MS(tmo)  DIV_ROUND_UP((tmo - jiffies) * 1000, HZ)
 
 	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
 		r->idiag_timer = 1;
@@ -190,7 +191,7 @@ static int inet_twsk_diag_fill(struct inet_timewait_sock *tw,
 	r->id.idiag_dst[0]    = tw->tw_daddr;
 	r->idiag_state	      = tw->tw_substate;
 	r->idiag_timer	      = 3;
-	r->idiag_expires      = (tmo * 1000 + HZ - 1) / HZ;
+	r->idiag_expires      = DIV_ROUND_UP(tmo * 1000, HZ);
 	r->idiag_rqueue	      = 0;
 	r->idiag_wqueue	      = 0;
 	r->idiag_uid	      = 0;

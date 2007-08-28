@@ -40,6 +40,7 @@
 #ifndef _SOCK_H
 #define _SOCK_H
 
+#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/cache.h>
@@ -702,7 +703,7 @@ extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
 
 static inline int sk_stream_pages(int amt)
 {
-	return (amt + SK_STREAM_MEM_QUANTUM - 1) / SK_STREAM_MEM_QUANTUM;
+	return DIV_ROUND_UP(amt, SK_STREAM_MEM_QUANTUM);
 }
 
 static inline void sk_stream_mem_reclaim(struct sock *sk)

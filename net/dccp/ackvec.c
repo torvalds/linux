@@ -69,9 +69,8 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
 	/* Figure out how many options do we need to represent the ackvec */
-	const u16 nr_opts = (av->dccpav_vec_len +
-			     DCCP_MAX_ACKVEC_OPT_LEN - 1) /
-			    DCCP_MAX_ACKVEC_OPT_LEN;
+	const u16 nr_opts = DIV_ROUND_UP(av->dccpav_vec_len,
+					 DCCP_MAX_ACKVEC_OPT_LEN);
 	u16 len = av->dccpav_vec_len + 2 * nr_opts, i;
 	u32 elapsed_time;
 	const unsigned char *tail, *from;

@@ -247,6 +247,7 @@
  *	TCP_CLOSE		socket is finished
  */
 
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
@@ -2210,7 +2211,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb, int features)
 			goto out;
 
 		mss = skb_shinfo(skb)->gso_size;
-		skb_shinfo(skb)->gso_segs = (skb->len + mss - 1) / mss;
+		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
 
 		segs = NULL;
 		goto out;

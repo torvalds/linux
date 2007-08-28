@@ -476,7 +476,7 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
 	payload_len = first->len - hdrlen;
 	per_fragm = frag_threshold - hdrlen - FCS_LEN;
-	num_fragm = (payload_len + per_fragm - 1) / per_fragm;
+	num_fragm = DIV_ROUND_UP(payload_len, per_fragm);
 
 	frags = kzalloc(num_fragm * sizeof(struct sk_buff *), GFP_ATOMIC);
 	if (!frags)

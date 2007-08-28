@@ -64,7 +64,7 @@ static inline int br_get_ticks(const unsigned char *src)
 {
 	unsigned long ticks = ntohs(get_unaligned((__be16 *)src));
 
-	return (ticks * HZ + STP_HZ - 1) / STP_HZ;
+	return DIV_ROUND_UP(ticks * HZ, STP_HZ);
 }
 
 /* called under bridge lock */
