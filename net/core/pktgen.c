@@ -3331,8 +3331,9 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 	}
 
 	if ((netif_queue_stopped(odev) ||
-	     netif_subqueue_stopped(odev, pkt_dev->skb->queue_mapping)) ||
-	     need_resched()) {
+	     (pkt_dev->skb &&
+	      netif_subqueue_stopped(odev, pkt_dev->skb->queue_mapping))) ||
+	    need_resched()) {
 		idle_start = getCurUs();
 
 		if (!netif_running(odev)) {
