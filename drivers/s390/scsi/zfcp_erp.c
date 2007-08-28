@@ -1687,8 +1687,8 @@ zfcp_erp_strategy_followup_actions(int action,
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if (status == ZFCP_ERP_SUCCEEDED) ;	/* no further action */
-		else
+		/* Nothing to do if status == ZFCP_ERP_SUCCEEDED */
+		if (status != ZFCP_ERP_SUCCEEDED)
 			zfcp_erp_port_reopen_internal(unit->port, 0);
 		break;
 	}
