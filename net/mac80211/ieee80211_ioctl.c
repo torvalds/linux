@@ -287,16 +287,6 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static int ieee80211_ioctl_set_radio_enabled(struct net_device *dev,
-					     int val)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	conf->radio_enabled = val;
-	return ieee80211_hw_config(wdev_priv(dev->ieee80211_ptr));
-}
-
 static int ieee80211_ioctl_giwname(struct net_device *dev,
 				   struct iw_request_info *info,
 				   char *name, char *extra)
@@ -1105,10 +1095,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_NEXT_MODE:
 		local->next_mode = value;
-		break;
-
-	case PRISM2_PARAM_RADIO_ENABLED:
-		ret = ieee80211_ioctl_set_radio_enabled(dev, value);
 		break;
 
 	case PRISM2_PARAM_ANTENNA_MODE:
