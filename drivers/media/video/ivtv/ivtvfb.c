@@ -1064,8 +1064,8 @@ static void ivtvfb_release_buffers (struct ivtv *itv)
 	struct osd_info *oi = itv->osd_info;
 
 	/* Release cmap */
-	if (oi->ivtvfb_info.cmap.len);
-	fb_dealloc_cmap(&oi->ivtvfb_info.cmap);
+	if (oi->ivtvfb_info.cmap.len)
+		fb_dealloc_cmap(&oi->ivtvfb_info.cmap);
 
 	/* Release pseudo palette */
 	if (oi->ivtvfb_info.pseudo_palette)
