@@ -13,7 +13,6 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <net/iw_handler.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 
@@ -1206,20 +1205,17 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	}
 
 	if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) &&
-	    rx->sdata->type == IEEE80211_IF_TYPE_AP) {
-		keyidx = ieee80211_wep_get_keyidx(rx->skb);
+	    rx->sdata->type == IEEE80211_IF_TYPE_AP && keyidx) {
 		/* AP with Pairwise keys support should never receive Michael
 		 * MIC errors for non-zero keyidx because these are reserved
 		 * for group keys and only the AP is sending real multicast
 		 * frames in BSS. */
-		if (keyidx) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: ignored Michael MIC "
-				       "error for a frame with non-zero keyidx"
-				       " (%d) (src " MAC_FMT ")\n", dev->name,
-				       keyidx, MAC_ARG(hdr->addr2));
-			goto ignore;
-		}
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: ignored Michael MIC error for "
+			       "a frame with non-zero keyidx (%d)"
+			       " (src " MAC_FMT ")\n", dev->name, keyidx,
+			       MAC_ARG(hdr->addr2));
+		goto ignore;
 	}
 
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
@@ -1233,32 +1229,11 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		goto ignore;
 	}
 
-	do {
-		union iwreq_data wrqu;
-		char *buf = kmalloc(128, GFP_ATOMIC);
-		if (!buf)
-			break;
-
-		/* TODO: needed parameters: count, key type, TSC */
-		sprintf(buf, "MLME-MICHAELMICFAILURE.indication("
-			"keyid=%d %scast addr=" MAC_FMT ")",
-			keyidx, hdr->addr1[0] & 0x01 ? "broad" : "uni",
-			MAC_ARG(hdr->addr2));
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = strlen(buf);
-		wireless_send_event(rx->dev, IWEVCUSTOM, &wrqu, buf);
-		kfree(buf);
-	} while (0);
-
 	/* TODO: consider verifying the MIC error report with software
 	 * implementation if we get too many spurious reports from the
 	 * hardware. */
-	if (!rx->local->apdev)
-		goto ignore;
-	ieee80211_rx_mgmt(rx->local, rx->skb, rx->u.rx.status,
-			  ieee80211_msg_michael_mic_failure);
-	return;
 
+	mac80211_ev_michael_mic_failure(rx->dev, keyidx, hdr);
  ignore:
 	dev_kfree_skb(rx->skb);
 	rx->skb = NULL;

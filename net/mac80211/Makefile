@@ -22,4 +22,5 @@ mac80211-objs := \
 	tx.o \
 	key.o \
 	util.o \
+	event.o \
 	$(mac80211-objs-y)

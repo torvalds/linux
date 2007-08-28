@@ -11,10 +11,8 @@
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/compiler.h>
-#include <net/iw_handler.h>
-
 #include <net/mac80211.h>
-#include "ieee80211_common.h"
+
 #include "ieee80211_i.h"
 #include "michael.h"
 #include "tkip.h"
@@ -181,33 +179,9 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
 		       MAC_FMT "\n", rx->dev->name, MAC_ARG(sa));
 
-		do {
-			struct ieee80211_hdr *hdr;
-			union iwreq_data wrqu;
-			char *buf = kmalloc(128, GFP_ATOMIC);
-			if (!buf)
-				break;
-
-			/* TODO: needed parameters: count, key type, TSC */
-			hdr = (struct ieee80211_hdr *) skb->data;
-			sprintf(buf, "MLME-MICHAELMICFAILURE.indication("
-				"keyid=%d %scast addr=" MAC_FMT ")",
-				rx->key->keyidx,
-				hdr->addr1[0] & 0x01 ? "broad" : "uni",
-				MAC_ARG(hdr->addr2));
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.length = strlen(buf);
-			wireless_send_event(rx->dev, IWEVCUSTOM, &wrqu, buf);
-			kfree(buf);
-		} while (0);
-
-		if (!rx->local->apdev)
-			return TXRX_DROP;
-
-		ieee80211_rx_mgmt(rx->local, rx->skb, rx->u.rx.status,
-				  ieee80211_msg_michael_mic_failure);
-
-		return TXRX_QUEUED;
+		mac80211_ev_michael_mic_failure(rx->dev, rx->key->keyidx,
+						(void *) skb->data);
+		return TXRX_DROP;
 	}
 
  remove_mic:
