@@ -746,9 +746,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_disable_int(adapter);
 
-	if (adapter->irq)
-		free_irq(adapter->irq, adapter);
-
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		init_firmware_done++;
 		netxen_free_hw_resources(adapter);
@@ -772,12 +769,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
-	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
-		pci_disable_msi(pdev);
-
 	vfree(adapter->cmd_buf_arr);
-
-	pci_disable_device(pdev);
 
 	if (adapter->portnum == 0) {
 		if (init_firmware_done) {
@@ -829,12 +821,19 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
+	if (adapter->irq)
+		free_irq(adapter->irq, adapter);
+
+	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
+		pci_disable_msi(pdev);
+
 	iounmap(adapter->ahw.db_base);
 	iounmap(adapter->ahw.pci_base0);
 	iounmap(adapter->ahw.pci_base1);
 	iounmap(adapter->ahw.pci_base2);
 
 	pci_release_regions(pdev);
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(netdev);
