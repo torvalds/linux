@@ -67,7 +67,7 @@ void ieee80211_wep_get_iv(struct ieee80211_local *local,
 			  struct ieee80211_key *key, u8 *iv)
 {
 	local->wep_iv++;
-	if (ieee80211_wep_weak_iv(local->wep_iv, key->keylen))
+	if (ieee80211_wep_weak_iv(local->wep_iv, key->conf.keylen))
 		local->wep_iv += 0x0100;
 
 	if (!iv)
@@ -76,7 +76,7 @@ void ieee80211_wep_get_iv(struct ieee80211_local *local,
 	*iv++ = (local->wep_iv >> 16) & 0xff;
 	*iv++ = (local->wep_iv >> 8) & 0xff;
 	*iv++ = local->wep_iv & 0xff;
-	*iv++ = key->keyidx << 6;
+	*iv++ = key->conf.keyidx << 6;
 }
 
 
@@ -159,10 +159,10 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local, struct sk_buff *skb,
 	u8 *rc4key, *iv;
 	size_t len;
 
-	if (!key || key->alg != ALG_WEP)
+	if (!key || key->conf.alg != ALG_WEP)
 		return -1;
 
-	klen = 3 + key->keylen;
+	klen = 3 + key->conf.keylen;
 	rc4key = kmalloc(klen, GFP_ATOMIC);
 	if (!rc4key)
 		return -1;
@@ -179,7 +179,7 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local, struct sk_buff *skb,
 	memcpy(rc4key, iv, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
-	memcpy(rc4key + 3, key->key, key->keylen);
+	memcpy(rc4key + 3, key->conf.key, key->conf.keylen);
 
 	/* Add room for ICV */
 	skb_put(skb, WEP_ICV_LEN);
@@ -251,10 +251,10 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
-	if (!key || keyidx != key->keyidx || key->alg != ALG_WEP)
+	if (!key || keyidx != key->conf.keyidx || key->conf.alg != ALG_WEP)
 		return -1;
 
-	klen = 3 + key->keylen;
+	klen = 3 + key->conf.keylen;
 
 	rc4key = kmalloc(klen, GFP_ATOMIC);
 	if (!rc4key)
@@ -264,7 +264,7 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 	memcpy(rc4key, skb->data + hdrlen, 3);
 
 	/* Copy rest of the WEP key (the secret part) */
-	memcpy(rc4key + 3, key->key, key->keylen);
+	memcpy(rc4key + 3, key->conf.key, key->conf.keylen);
 
 	if (ieee80211_wep_decrypt_data(local->wep_rx_tfm, rc4key, klen,
 				       skb->data + hdrlen + WEP_IV_LEN,
@@ -321,7 +321,7 @@ u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 	ivpos = skb->data + hdrlen;
 	iv = (ivpos[0] << 16) | (ivpos[1] << 8) | ivpos[2];
 
-	if (ieee80211_wep_weak_iv(iv, key->keylen))
+	if (ieee80211_wep_weak_iv(iv, key->conf.keylen))
 		return ivpos;
 
 	return NULL;

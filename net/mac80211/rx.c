@@ -374,7 +374,7 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 		 * pairwise or station-to-station keys, but for WEP we allow
 		 * using a key index as well.
 		 */
-		if (rx->key && rx->key->alg != ALG_WEP &&
+		if (rx->key && rx->key->conf.alg != ALG_WEP &&
 		    !is_multicast_ether_addr(hdr->addr1))
 			rx->key = NULL;
 	}
@@ -522,18 +522,15 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 {
 	if (!rx->sta || !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    !rx->key || rx->key->alg != ALG_WEP ||
+	    !rx->key || rx->key->conf.alg != ALG_WEP ||
 	    !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_CONTINUE;
 
 	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
 	if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) ||
-	    rx->key->force_sw_encrypt) {
-		u8 *iv = ieee80211_wep_is_weak_iv(rx->skb, rx->key);
-		if (iv) {
+	    (rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT))
+		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 			rx->sta->wep_weak_iv_count++;
-		}
-	}
 
 	return TXRX_CONTINUE;
 }
@@ -541,7 +538,7 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 static ieee80211_txrx_result
 ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 {
-	if ((rx->key && rx->key->alg != ALG_WEP) ||
+	if ((rx->key && rx->key->conf.alg != ALG_WEP) ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	     ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
@@ -556,7 +553,7 @@ ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 	}
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED) ||
-	    rx->key->force_sw_encrypt) {
+	    (rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
@@ -680,7 +677,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 		/* This is the first fragment of a new frame. */
 		entry = ieee80211_reassemble_add(rx->sdata, frag, seq,
 						 rx->u.rx.queue, &(rx->skb));
-		if (rx->key && rx->key->alg == ALG_CCMP &&
+		if (rx->key && rx->key->conf.alg == ALG_CCMP &&
 		    (rx->fc & IEEE80211_FCTL_PROTECTED)) {
 			/* Store CCMP PN so that we can verify that the next
 			 * fragment has a sequential PN value. */
@@ -707,7 +704,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 	if (entry->ccmp) {
 		int i;
 		u8 pn[CCMP_PN_LEN], *rpn;
-		if (!rx->key || rx->key->alg != ALG_CCMP)
+		if (!rx->key || rx->key->conf.alg != ALG_CCMP)
 			return TXRX_DROP;
 		memcpy(pn, entry->last_pn, CCMP_PN_LEN);
 		for (i = CCMP_PN_LEN - 1; i >= 0; i--) {
@@ -900,7 +897,8 @@ ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 	 * uploaded to the hardware.
 	 */
 	if ((rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) &&
-	    (!rx->key || !rx->key->force_sw_encrypt))
+	    (!rx->key ||
+	     !(rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)))
 		return TXRX_CONTINUE;
 
 	/* Drop unencrypted frames if key is set. */

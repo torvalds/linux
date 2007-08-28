@@ -205,8 +205,8 @@ struct ieee80211_tx_control {
 				 * is not implemented by the driver */
 	u8 power_level;		/* per-packet transmit power level, in dBm */
 	u8 antenna_sel_tx; 	/* 0 = default/diversity, 1 = Ant0, 2 = Ant1 */
-	s8 key_idx;		/* -1 = do not encrypt, >= 0 keyidx from
-				 * hw->set_key() */
+	s8 key_idx;		/* HW_KEY_IDX_INVALID = do not encrypt,
+				 * other values: keyidx from hw->set_key() */
 	u8 icv_len;		/* length of the ICV/MIC field in octets */
 	u8 iv_len;		/* length of the IV field in octets */
 	u8 tkip_key[16];	/* generated phase2/phase1 key for hw TKIP */
@@ -392,26 +392,23 @@ struct ieee80211_if_conf {
 	struct ieee80211_tx_control *beacon_control;
 };
 
-typedef enum { ALG_NONE, ALG_WEP, ALG_TKIP, ALG_CCMP, ALG_NULL }
-ieee80211_key_alg;
-
+typedef enum {
+	ALG_NONE,
+	ALG_WEP,
+	ALG_TKIP,
+	ALG_CCMP,
+} ieee80211_key_alg;
 
 struct ieee80211_key_conf {
+	/* shall be changed by the driver to anything but HW_KEY_IDX_INVALID */
+	int hw_key_idx;
 
-	int hw_key_idx;			/* filled + used by low-level driver */
 	ieee80211_key_alg alg;
+
 	int keylen;
 
 #define IEEE80211_KEY_FORCE_SW_ENCRYPT (1<<0) /* to be cleared by low-level
 						 driver */
-#define IEEE80211_KEY_DEFAULT_TX_KEY   (1<<1) /* This key is the new default TX
-						 key (used only for broadcast
-						 keys). */
-#define IEEE80211_KEY_DEFAULT_WEP_ONLY (1<<2) /* static WEP is the only
-						 configured security policy;
-						 this allows some low-level
-						 drivers to determine when
-						 hwaccel can be used */
 	u32 flags; /* key configuration flags defined above */
 
 	s8 keyidx;			/* WEP key index */
@@ -625,20 +622,26 @@ struct ieee80211_ops {
 	 * Must be atomic. */
 	int (*set_tim)(struct ieee80211_hw *hw, int aid, int set);
 
-	/* Set encryption key. IEEE 802.11 module calls this function to set
-	 * encryption keys. addr is ff:ff:ff:ff:ff:ff for default keys and
-	 * station hwaddr for individual keys. aid of the station is given
-	 * to help low-level driver in selecting which key->hw_key_idx to use
-	 * for this key. TX control data will use the hw_key_idx selected by
-	 * the low-level driver. */
+	/*
+	 * Set encryption key.
+	 *
+	 * This is called to enable hardware acceleration of encryption and
+	 * decryption. The address will be the broadcast address for default
+	 * keys and the other station's hardware address for individual keys.
+	 * When transmitting, the TX control data will use the hw_key_idx
+	 * selected by the low-level driver.
+	 */
 	int (*set_key)(struct ieee80211_hw *hw, set_key_cmd cmd,
-		       u8 *addr, struct ieee80211_key_conf *key, int aid);
+		       u8 *address, struct ieee80211_key_conf *key,
+		       int static_wep_only);
 
-	/* Set TX key index for default/broadcast keys. This is needed in cases
+	/*
+	 * Set TX key index for default/broadcast keys. This is needed in cases
 	 * where wlan card is doing full WEP/TKIP encapsulation (wep_include_iv
 	 * is not set), in other cases, this function pointer can be set to
-	 * NULL since the IEEE 802. 11 module takes care of selecting the key
-	 * index for each TX frame. */
+	 * NULL since the IEEE 802.11 module takes care of selecting the key
+	 * index for each TX frame.
+	 */
 	int (*set_key_idx)(struct ieee80211_hw *hw, int idx);
 
 	/* Enable/disable IEEE 802.1X. This item requests wlan card to pass

@@ -228,23 +228,20 @@ void sta_info_free(struct sta_info *sta)
 
 	if (sta->key) {
 		if (local->ops->set_key) {
-			struct ieee80211_key_conf *key;
-			key = ieee80211_key_data2conf(local, sta->key);
-			if (key) {
-				local->ops->set_key(local_to_hw(local),
-						   DISABLE_KEY,
-						   sta->addr, key, sta->aid);
-				kfree(key);
-			}
+			local->ops->set_key(local_to_hw(local),
+					   DISABLE_KEY, sta->addr,
+					   &sta->key->conf,
+					   local->default_wep_only);
 		}
 	} else if (sta->key_idx_compression != HW_KEY_IDX_INVALID) {
 		struct ieee80211_key_conf conf;
 		memset(&conf, 0, sizeof(conf));
 		conf.hw_key_idx = sta->key_idx_compression;
-		conf.alg = ALG_NULL;
+		conf.alg = ALG_NONE;
 		conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
 		local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				   sta->addr, &conf, sta->aid);
+				    sta->addr, &conf,
+				    local->default_wep_only);
 		sta->key_idx_compression = HW_KEY_IDX_INVALID;
 	}
 

@@ -904,7 +904,7 @@ static int ieee80211_sta_wep_configured(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (!sdata || !sdata->default_key ||
-	    sdata->default_key->alg != ALG_WEP)
+	    sdata->default_key->conf.alg != ALG_WEP)
 		return 0;
 	return 1;
 }

@@ -31,29 +31,20 @@ static void ieee80211_set_hw_encryption(struct net_device *dev,
 					struct sta_info *sta, u8 addr[ETH_ALEN],
 					struct ieee80211_key *key)
 {
-	struct ieee80211_key_conf *keyconf = NULL;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	/* default to sw encryption; this will be cleared by low-level
 	 * driver if the hw supports requested encryption */
 	if (key)
-		key->force_sw_encrypt = 1;
+		key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
 
-	if (key && local->ops->set_key &&
-	    (keyconf = ieee80211_key_data2conf(local, key))) {
+	if (key && local->ops->set_key) {
 		if (local->ops->set_key(local_to_hw(local), SET_KEY, addr,
-				       keyconf, sta ? sta->aid : 0)) {
-			key->force_sw_encrypt = 1;
-			key->hw_key_idx = HW_KEY_IDX_INVALID;
-		} else {
-			key->force_sw_encrypt =
-				!!(keyconf->flags & IEEE80211_KEY_FORCE_SW_ENCRYPT);
-			key->hw_key_idx =
-				keyconf->hw_key_idx;
-
+					&key->conf, local->default_wep_only)) {
+			key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
+			key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
 		}
 	}
-	kfree(keyconf);
 }
 
 
@@ -66,7 +57,6 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 	struct sta_info *sta;
 	struct ieee80211_key *key, *old_key;
 	int try_hwaccel = 1;
-	struct ieee80211_key_conf *keyconf;
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -154,18 +144,16 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 	}
 
 	if (alg == ALG_NONE) {
-		keyconf = NULL;
 		if (try_hwaccel && key &&
-		    key->hw_key_idx != HW_KEY_IDX_INVALID &&
+		    key->conf.hw_key_idx != HW_KEY_IDX_INVALID &&
 		    local->ops->set_key &&
-		    (keyconf = ieee80211_key_data2conf(local, key)) != NULL &&
 		    local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				       sta_addr, keyconf, sta ? sta->aid : 0)) {
+					sta_addr, &key->conf,
+					local->default_wep_only)) {
 			printk(KERN_DEBUG "%s: set_encrypt - low-level disable"
 			       " failed\n", dev->name);
 			ret = -EINVAL;
 		}
-		kfree(keyconf);
 
 		if (set_tx_key || sdata->default_key == key) {
 			ieee80211_debugfs_key_remove_default(sdata);
@@ -189,22 +177,20 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 
 		/* default to sw encryption; low-level driver sets these if the
 		 * requested encryption is supported */
-		key->hw_key_idx = HW_KEY_IDX_INVALID;
-		key->force_sw_encrypt = 1;
+		key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
+		key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
 
-		key->alg = alg;
-		key->keyidx = idx;
-		key->keylen = key_len;
-		memcpy(key->key, _key, key_len);
-		if (set_tx_key)
-			key->default_tx_key = 1;
+		key->conf.alg = alg;
+		key->conf.keyidx = idx;
+		key->conf.keylen = key_len;
+		memcpy(key->conf.key, _key, key_len);
 
 		if (alg == ALG_CCMP) {
 			/* Initialize AES key state here as an optimization
 			 * so that it does not need to be initialized for every
 			 * packet. */
 			key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(
-				key->key);
+				key->conf.key);
 			if (!key->u.ccmp.tfm) {
 				ret = -ENOMEM;
 				goto err_free;
@@ -941,43 +927,38 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 static void ieee80211_key_enable_hwaccel(struct ieee80211_local *local,
 					 struct ieee80211_key *key)
 {
-	struct ieee80211_key_conf *keyconf;
 	u8 addr[ETH_ALEN];
 
-	if (!key || key->alg != ALG_WEP || !key->force_sw_encrypt ||
+	if (!key || key->conf.alg != ALG_WEP ||
+	    !(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) ||
 	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
 		return;
 
 	memset(addr, 0xff, ETH_ALEN);
-	keyconf = ieee80211_key_data2conf(local, key);
-	if (keyconf && local->ops->set_key &&
+
+	if (local->ops->set_key)
 	    local->ops->set_key(local_to_hw(local),
-			       SET_KEY, addr, keyconf, 0) == 0) {
-		key->force_sw_encrypt =
-			!!(keyconf->flags & IEEE80211_KEY_FORCE_SW_ENCRYPT);
-		key->hw_key_idx = keyconf->hw_key_idx;
-	}
-	kfree(keyconf);
+				SET_KEY, addr, &key->conf,
+				local->default_wep_only);
 }
 
 
 static void ieee80211_key_disable_hwaccel(struct ieee80211_local *local,
 					  struct ieee80211_key *key)
 {
-	struct ieee80211_key_conf *keyconf;
 	u8 addr[ETH_ALEN];
 
-	if (!key || key->alg != ALG_WEP || key->force_sw_encrypt ||
+	if (!key || key->conf.alg != ALG_WEP ||
+	    (key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) ||
 	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
 		return;
 
 	memset(addr, 0xff, ETH_ALEN);
-	keyconf = ieee80211_key_data2conf(local, key);
-	if (keyconf && local->ops->set_key)
+	if (local->ops->set_key)
 		local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				   addr, keyconf, 0);
-	kfree(keyconf);
-	key->force_sw_encrypt = 1;
+				    addr, &key->conf,
+				    local->default_wep_only);
+	key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
 }
 
 
@@ -1341,9 +1322,9 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 		return 0;
 	}
 
-	memcpy(key, sdata->keys[idx]->key,
-	       min((int)erq->length, sdata->keys[idx]->keylen));
-	erq->length = sdata->keys[idx]->keylen;
+	memcpy(key, sdata->keys[idx]->conf.key,
+	       min((int)erq->length, sdata->keys[idx]->conf.keylen));
+	erq->length = sdata->keys[idx]->conf.keylen;
 	erq->flags |= IW_ENCODE_ENABLED;
 
 	return 0;

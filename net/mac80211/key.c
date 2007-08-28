@@ -13,32 +13,6 @@
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 
-struct ieee80211_key_conf *
-ieee80211_key_data2conf(struct ieee80211_local *local,
-			const struct ieee80211_key *data)
-{
-	struct ieee80211_key_conf *conf;
-
-	conf = kmalloc(sizeof(*conf) + data->keylen, GFP_ATOMIC);
-	if (!conf)
-		return NULL;
-
-	conf->hw_key_idx = data->hw_key_idx;
-	conf->alg = data->alg;
-	conf->keylen = data->keylen;
-	conf->flags = 0;
-	if (data->force_sw_encrypt)
-		conf->flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-	conf->keyidx = data->keyidx;
-	if (data->default_tx_key)
-		conf->flags |= IEEE80211_KEY_DEFAULT_TX_KEY;
-	if (local->default_wep_only)
-		conf->flags |= IEEE80211_KEY_DEFAULT_WEP_ONLY;
-	memcpy(conf->key, data->key, data->keylen);
-
-	return conf;
-}
-
 struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 					  int idx, size_t key_len, gfp_t flags)
 {
@@ -56,7 +30,7 @@ static void ieee80211_key_release(struct kref *kref)
 	struct ieee80211_key *key;
 
 	key = container_of(kref, struct ieee80211_key, kref);
-	if (key->alg == ALG_CCMP)
+	if (key->conf.alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	ieee80211_debugfs_key_remove(key);
 	kfree(key);

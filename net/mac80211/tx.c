@@ -539,11 +539,11 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 
 static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
 {
-	if (tx->key->force_sw_encrypt) {
+	if (tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) {
 		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
 			return -1;
 	} else {
-		tx->u.tx.control->key_idx = tx->key->hw_key_idx;
+		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
 		if (tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
 			if (ieee80211_wep_add_iv(tx->local, skb, tx->key) ==
 			    NULL)
@@ -561,7 +561,7 @@ ieee80211_tx_h_wep_encrypt(struct ieee80211_txrx_data *tx)
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (!tx->key || tx->key->alg != ALG_WEP ||
+	if (!tx->key || tx->key->conf.alg != ALG_WEP ||
 	    ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	     ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	      (fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)))

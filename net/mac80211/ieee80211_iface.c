@@ -227,7 +227,8 @@ void ieee80211_if_reinit(struct net_device *dev)
 		memset(addr, 0xff, ETH_ALEN);
 		if (local->ops->set_key)
 			local->ops->set_key(local_to_hw(local), DISABLE_KEY, addr,
-					    local->keys[i], 0);
+					    local->keys[i],
+					    local->default_wep_only);
 #endif
 		ieee80211_key_free(sdata->keys[i]);
 		sdata->keys[i] = NULL;

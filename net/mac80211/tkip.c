@@ -182,7 +182,7 @@ u8 * ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
 	*pos++ = iv0;
 	*pos++ = iv1;
 	*pos++ = iv2;
-	*pos++ = (key->keyidx << 6) | (1 << 5) /* Ext IV */;
+	*pos++ = (key->conf.keyidx << 6) | (1 << 5) /* Ext IV */;
 	*pos++ = key->u.tkip.iv32 & 0xff;
 	*pos++ = (key->u.tkip.iv32 >> 8) & 0xff;
 	*pos++ = (key->u.tkip.iv32 >> 16) & 0xff;
@@ -194,7 +194,7 @@ u8 * ieee80211_tkip_add_iv(u8 *pos, struct ieee80211_key *key,
 void ieee80211_tkip_gen_phase1key(struct ieee80211_key *key, u8 *ta,
 				  u16 *phase1key)
 {
-	tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+	tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   key->u.tkip.iv32, phase1key);
 }
 
@@ -204,12 +204,13 @@ void ieee80211_tkip_gen_rc4key(struct ieee80211_key *key, u8 *ta,
 	/* Calculate per-packet key */
 	if (key->u.tkip.iv16 == 0 || !key->u.tkip.tx_initialized) {
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+		tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 				   key->u.tkip.iv32, key->u.tkip.p1k);
 		key->u.tkip.tx_initialized = 1;
 	}
 
-	tkip_mixing_phase2(key->u.tkip.p1k, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+	tkip_mixing_phase2(key->u.tkip.p1k,
+			   &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   key->u.tkip.iv16, rc4key);
 }
 
@@ -266,7 +267,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	if (!(keyid & (1 << 5)))
 		return TKIP_DECRYPT_NO_EXT_IV;
 
-	if ((keyid >> 6) != key->keyidx)
+	if ((keyid >> 6) != key->conf.keyidx)
 		return TKIP_DECRYPT_INVALID_KEYIDX;
 
 	if (key->u.tkip.rx_initialized[queue] &&
@@ -293,7 +294,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	    key->u.tkip.iv32_rx[queue] != iv32) {
 		key->u.tkip.rx_initialized[queue] = 1;
 		/* IV16 wrapped around - perform TKIP phase 1 */
-		tkip_mixing_phase1(ta, &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+		tkip_mixing_phase1(ta, &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 				   iv32, key->u.tkip.p1k_rx[queue]);
 #ifdef CONFIG_TKIP_DEBUG
 		{
@@ -302,7 +303,8 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 			       " TK=", MAC_ARG(ta));
 			for (i = 0; i < 16; i++)
 				printk("%02x ",
-				       key->key[ALG_TKIP_TEMP_ENCR_KEY + i]);
+				       key->conf.key[
+						ALG_TKIP_TEMP_ENCR_KEY + i]);
 			printk("\n");
 			printk(KERN_DEBUG "TKIP decrypt: P1K=");
 			for (i = 0; i < 5; i++)
@@ -313,7 +315,7 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	}
 
 	tkip_mixing_phase2(key->u.tkip.p1k_rx[queue],
-			   &key->key[ALG_TKIP_TEMP_ENCR_KEY],
+			   &key->conf.key[ALG_TKIP_TEMP_ENCR_KEY],
 			   iv16, rc4key);
 #ifdef CONFIG_TKIP_DEBUG
 	{

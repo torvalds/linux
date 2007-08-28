@@ -890,7 +890,7 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 	if (!key)
 		goto no_key;
 
-	switch (key->alg) {
+	switch (key->conf.alg) {
 	case ALG_WEP:
 		iv_len = WEP_IV_LEN;
 		mic_len = WEP_ICV_LEN;
@@ -907,7 +907,8 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 		goto no_key;
 	}
 
-	if (skb->len >= mic_len && key->force_sw_encrypt)
+	if (skb->len >= mic_len &&
+	    (key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT))
 		skb_trim(skb, skb->len - mic_len);
 	if (skb->len >= iv_len && skb->len > hdrlen) {
 		memmove(skb->data + iv_len, skb->data, hdrlen);

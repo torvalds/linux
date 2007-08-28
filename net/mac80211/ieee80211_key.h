@@ -44,8 +44,6 @@
 struct ieee80211_key {
 	struct kref kref;
 
-	int hw_key_idx; /* filled and used by low-level driver */
-	ieee80211_key_alg alg;
 	union {
 		struct {
 			/* last used TSC */
@@ -73,22 +71,16 @@ struct ieee80211_key {
 			u8 rx_crypto_buf[6 * AES_BLOCK_LEN];
 		} ccmp;
 	} u;
-	int tx_rx_count; /* number of times this key has been used */
-	int keylen;
 
-	/* if the low level driver can provide hardware acceleration it should
-	 * clear this flag */
-	unsigned int force_sw_encrypt:1;
-	unsigned int default_tx_key:1; /* This key is the new default TX key
-					* (used only for broadcast keys). */
-	s8 keyidx; /* WEP key index */
+	/* number of times this key has been used */
+	int tx_rx_count;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
 		struct dentry *stalink;
 		struct dentry *dir;
 		struct dentry *keylen;
-		struct dentry *force_sw_encrypt;
+		struct dentry *flags;
 		struct dentry *keyidx;
 		struct dentry *hw_key_idx;
 		struct dentry *tx_rx_count;
@@ -100,7 +92,11 @@ struct ieee80211_key {
 	} debugfs;
 #endif
 
-	u8 key[0];
+	/*
+	 * key config, must be last because it contains key
+	 * material as variable length member
+	 */
+	struct ieee80211_key_conf conf;
 };
 
 #endif /* IEEE80211_KEY_H */

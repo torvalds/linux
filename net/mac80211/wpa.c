@@ -82,14 +82,14 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 
 	fc = tx->fc;
 
-	if (!tx->key || tx->key->alg != ALG_TKIP || skb->len < 24 ||
+	if (!tx->key || tx->key->conf.alg != ALG_TKIP || skb->len < 24 ||
 	    !WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len))
 		return TXRX_DROP;
 
-	if (!tx->key->force_sw_encrypt &&
+	if (!(tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) &&
 	    !(tx->flags & IEEE80211_TXRXD_FRAGMENTED) &&
 	    !(tx->local->hw.flags & IEEE80211_HW_TKIP_INCLUDE_MMIC) &&
 	    !wpa_test) {
@@ -114,8 +114,8 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 #else
 	authenticator = 1;
 #endif
-	key = &tx->key->key[authenticator ? ALG_TKIP_TEMP_AUTH_TX_MIC_KEY :
-			    ALG_TKIP_TEMP_AUTH_RX_MIC_KEY];
+	key = &tx->key->conf.key[authenticator ? ALG_TKIP_TEMP_AUTH_TX_MIC_KEY :
+				 ALG_TKIP_TEMP_AUTH_RX_MIC_KEY];
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 
@@ -141,12 +141,12 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	if (rx->local->hw.flags & IEEE80211_HW_DEVICE_STRIPS_MIC)
 		return TXRX_CONTINUE;
 
-	if (!rx->key || rx->key->alg != ALG_TKIP ||
+	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) || !WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    !rx->key->force_sw_encrypt) {
+	    !(rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		if (rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
 			if (skb->len < MICHAEL_MIC_LEN)
 				return TXRX_DROP;
@@ -169,8 +169,8 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 #else
 	authenticator = 1;
 #endif
-	key = &rx->key->key[authenticator ? ALG_TKIP_TEMP_AUTH_RX_MIC_KEY :
-			    ALG_TKIP_TEMP_AUTH_TX_MIC_KEY];
+	key = &rx->key->conf.key[authenticator ? ALG_TKIP_TEMP_AUTH_RX_MIC_KEY :
+				 ALG_TKIP_TEMP_AUTH_TX_MIC_KEY];
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
 		if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
@@ -179,7 +179,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
 		       MAC_FMT "\n", rx->dev->name, MAC_ARG(sa));
 
-		mac80211_ev_michael_mic_failure(rx->dev, rx->key->keyidx,
+		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
 						(void *) skb->data);
 		return TXRX_DROP;
 	}
@@ -205,7 +205,11 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 	hdrlen = ieee80211_get_hdrlen(fc);
 	len = skb->len - hdrlen;
 
-	tailneed = !tx->key->force_sw_encrypt ? 0 : TKIP_ICV_LEN;
+	if (tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)
+		tailneed = TKIP_ICV_LEN;
+	else
+		tailneed = 0;
+
 	if ((skb_headroom(skb) < TKIP_IV_LEN ||
 	     skb_tailroom(skb) < tailneed)) {
 		I802_DEBUG_INC(tx->local->tx_expand_skb_head);
@@ -223,7 +227,7 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 	if (key->u.tkip.iv16 == 0)
 		key->u.tkip.iv32++;
 
-	if (!tx->key->force_sw_encrypt) {
+	if (!(tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		u32 flags = tx->local->hw.flags;
 		hdr = (struct ieee80211_hdr *)skb->data;
 
@@ -250,7 +254,7 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 					    ~IEEE80211_TXCTL_TKIP_NEW_PHASE1_KEY;
 		}
 
-		tx->u.tx.control->key_idx = tx->key->hw_key_idx;
+		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
 		return 0;
 	}
 
@@ -275,18 +279,18 @@ ieee80211_tx_h_tkip_encrypt(struct ieee80211_txrx_data *tx)
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (!key || key->alg != ALG_TKIP || !WLAN_FC_DATA_PRESENT(fc))
+	if (!key || key->conf.alg != ALG_TKIP || !WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = TKIP_ICV_LEN;
 	tx->u.tx.control->iv_len = TKIP_IV_LEN;
 	ieee80211_tx_set_iswep(tx);
 
-	if (!tx->key->force_sw_encrypt &&
+	if (!(tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) &&
 	    !(tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) &&
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
-		tx->u.tx.control->key_idx = tx->key->hw_key_idx;
+		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
 		return TXRX_CONTINUE;
 	}
 
@@ -318,7 +322,7 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (!rx->key || rx->key->alg != ALG_TKIP ||
+	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
 		return TXRX_CONTINUE;
@@ -327,7 +331,7 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    !rx->key->force_sw_encrypt) {
+	    !(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		if (!(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV)) {
 			/* Hardware takes care of all processing, including
 			 * replay protection, so no need to continue here. */
@@ -471,7 +475,10 @@ static int ccmp_encrypt_skb(struct ieee80211_txrx_data *tx,
 	hdrlen = ieee80211_get_hdrlen(fc);
 	len = skb->len - hdrlen;
 
-	tailneed = !key->force_sw_encrypt ? 0 : CCMP_MIC_LEN;
+	if (key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)
+		tailneed = CCMP_MIC_LEN;
+	else
+		tailneed = 0;
 
 	if ((skb_headroom(skb) < CCMP_HDR_LEN ||
 	     skb_tailroom(skb) < tailneed)) {
@@ -495,11 +502,11 @@ static int ccmp_encrypt_skb(struct ieee80211_txrx_data *tx,
 			break;
 	}
 
-	ccmp_pn2hdr(pos, pn, key->keyidx);
+	ccmp_pn2hdr(pos, pn, key->conf.keyidx);
 
-	if (!key->force_sw_encrypt) {
+	if (!(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		/* hwaccel - with preallocated room for CCMP header */
-		tx->u.tx.control->key_idx = key->hw_key_idx;
+		tx->u.tx.control->key_idx = key->conf.hw_key_idx;
 		return 0;
 	}
 
@@ -523,18 +530,18 @@ ieee80211_tx_h_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (!key || key->alg != ALG_CCMP || !WLAN_FC_DATA_PRESENT(fc))
+	if (!key || key->conf.alg != ALG_CCMP || !WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = CCMP_MIC_LEN;
 	tx->u.tx.control->iv_len = CCMP_HDR_LEN;
 	ieee80211_tx_set_iswep(tx);
 
-	if (!tx->key->force_sw_encrypt &&
+	if (!(tx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) &&
 	    !(tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV)) {
 		/* hwaccel - with no need for preallocated room for CCMP "
 		 * header or MIC fields */
-		tx->u.tx.control->key_idx = tx->key->hw_key_idx;
+		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
 		return TXRX_CONTINUE;
 	}
 
@@ -569,7 +576,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (!key || key->alg != ALG_CCMP ||
+	if (!key || key->conf.alg != ALG_CCMP ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
 		return TXRX_CONTINUE;
@@ -579,7 +586,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    !key->force_sw_encrypt &&
+	    !(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) &&
 	    !(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV))
 		return TXRX_CONTINUE;
 
@@ -600,7 +607,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	}
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    !key->force_sw_encrypt) {
+	    !(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
 		/* hwaccel has already decrypted frame and verified MIC */
 	} else {
 		u8 *scratch, *b_0, *aad;
