@@ -632,8 +632,7 @@ struct ieee80211_ops {
 	 * selected by the low-level driver.
 	 */
 	int (*set_key)(struct ieee80211_hw *hw, set_key_cmd cmd,
-		       u8 *address, struct ieee80211_key_conf *key,
-		       int static_wep_only);
+		       u8 *address, struct ieee80211_key_conf *key);
 
 	/*
 	 * Set TX key index for default/broadcast keys. This is needed in cases

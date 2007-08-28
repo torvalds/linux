@@ -40,7 +40,7 @@ static void ieee80211_set_hw_encryption(struct net_device *dev,
 
 	if (key && local->ops->set_key) {
 		if (local->ops->set_key(local_to_hw(local), SET_KEY, addr,
-					&key->conf, local->default_wep_only)) {
+					&key->conf)) {
 			key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
 			key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
 		}
@@ -111,7 +111,7 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 	 * possibility of conflict with default keys. This can maybe later be
 	 * optimized by using non-default keys (at least with Atheros ar521x).
 	 */
-	if (!sta && alg == ALG_WEP && !local->default_wep_only &&
+	if (!sta && alg == ALG_WEP &&
 	    sdata->type != IEEE80211_IF_TYPE_IBSS &&
 	    sdata->type != IEEE80211_IF_TYPE_AP) {
 		try_hwaccel = 0;
@@ -148,8 +148,7 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		    key->conf.hw_key_idx != HW_KEY_IDX_INVALID &&
 		    local->ops->set_key &&
 		    local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-					sta_addr, &key->conf,
-					local->default_wep_only)) {
+					sta_addr, &key->conf)) {
 			printk(KERN_DEBUG "%s: set_encrypt - low-level disable"
 			       " failed\n", dev->name);
 			ret = -EINVAL;
@@ -923,96 +922,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 
 	return 0;
 }
-
-static void ieee80211_key_enable_hwaccel(struct ieee80211_local *local,
-					 struct ieee80211_key *key)
-{
-	u8 addr[ETH_ALEN];
-
-	if (!key || key->conf.alg != ALG_WEP ||
-	    !(key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) ||
-	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
-		return;
-
-	memset(addr, 0xff, ETH_ALEN);
-
-	if (local->ops->set_key)
-	    local->ops->set_key(local_to_hw(local),
-				SET_KEY, addr, &key->conf,
-				local->default_wep_only);
-}
-
-
-static void ieee80211_key_disable_hwaccel(struct ieee80211_local *local,
-					  struct ieee80211_key *key)
-{
-	u8 addr[ETH_ALEN];
-
-	if (!key || key->conf.alg != ALG_WEP ||
-	    (key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT) ||
-	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
-		return;
-
-	memset(addr, 0xff, ETH_ALEN);
-	if (local->ops->set_key)
-		local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				    addr, &key->conf,
-				    local->default_wep_only);
-	key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-}
-
-
-static int ieee80211_ioctl_default_wep_only(struct ieee80211_local *local,
-					    int value)
-{
-	int i;
-	struct ieee80211_sub_if_data *sdata;
-
-	local->default_wep_only = value;
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list)
-		for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-			if (value)
-				ieee80211_key_enable_hwaccel(local,
-							     sdata->keys[i]);
-			else
-				ieee80211_key_disable_hwaccel(local,
-							      sdata->keys[i]);
-	read_unlock(&local->sub_if_lock);
-
-	return 0;
-}
-
-
-void ieee80211_update_default_wep_only(struct ieee80211_local *local)
-{
-	int i = 0;
-	struct ieee80211_sub_if_data *sdata;
-
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
-
-		if (sdata->dev == local->mdev)
-			continue;
-
-		/* If there is an AP interface then depend on userspace to
-		   set default_wep_only correctly. */
-		if (sdata->type == IEEE80211_IF_TYPE_AP) {
-			read_unlock(&local->sub_if_lock);
-			return;
-		}
-
-		i++;
-	}
-
-	read_unlock(&local->sub_if_lock);
-
-	if (i <= 1)
-		ieee80211_ioctl_default_wep_only(local, 1);
-	else
-		ieee80211_ioctl_default_wep_only(local, 0);
-}
-
 
 static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 					struct iw_request_info *info,

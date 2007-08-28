@@ -551,9 +551,6 @@ struct ieee80211_local {
 #endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
 
 
-	int default_wep_only; /* only default WEP keys are used with this
-			       * interface; this is used to decide when hwaccel
-			       * can be used with default keys */
 	int total_ps_buffered; /* total number of all buffered unicast and
 				* multicast packets for power saving stations
 				*/
@@ -732,8 +729,6 @@ void ieee80211_key_threshold_notify(struct net_device *dev,
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
-
-void ieee80211_update_default_wep_only(struct ieee80211_local *local);
 
 
 /* Least common multiple of the used rates (in 100 kbps). This is used to

@@ -88,8 +88,6 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 		*new_dev = ndev;
 	write_unlock_bh(&local->sub_if_lock);
 
-	ieee80211_update_default_wep_only(local);
-
 	return 0;
 
 fail:
@@ -154,7 +152,6 @@ void ieee80211_if_del_mgmt(struct ieee80211_local *local)
 void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int oldtype = sdata->type;
 
 	dev->hard_start_xmit = ieee80211_subif_start_xmit;
@@ -205,7 +202,6 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		       dev->name, __FUNCTION__, type);
 	}
 	ieee80211_debugfs_change_if_type(sdata, oldtype);
-	ieee80211_update_default_wep_only(local);
 }
 
 /* Must be called with rtnl lock held. */
@@ -336,7 +332,6 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 			list_del(&sdata->list);
 			write_unlock_bh(&local->sub_if_lock);
 			__ieee80211_if_del(local, sdata);
-			ieee80211_update_default_wep_only(local);
 			return 0;
 		}
 	}
