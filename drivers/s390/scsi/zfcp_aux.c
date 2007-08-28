@@ -1058,7 +1058,6 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	/* mark adapter unusable as long as sysfs registration is not complete */
 	atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
 
-	adapter->ccw_device = ccw_device;
 	dev_set_drvdata(&ccw_device->dev, adapter);
 
 	if (zfcp_sysfs_adapter_create_files(&ccw_device->dev))
