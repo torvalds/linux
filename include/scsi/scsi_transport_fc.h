@@ -632,6 +632,8 @@ struct fc_function_template {
 	unsigned long	show_host_fabric_name:1;
 	unsigned long	show_host_symbolic_name:1;
 	unsigned long	show_host_system_hostname:1;
+
+	unsigned long	disable_target_scan:1;
 };
 
 

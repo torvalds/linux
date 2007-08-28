@@ -2988,10 +2988,12 @@ fc_scsi_scan_rport(struct work_struct *work)
 	struct fc_rport *rport =
 		container_of(work, struct fc_rport, scan_work);
 	struct Scsi_Host *shost = rport_to_shost(rport);
+	struct fc_internal *i = to_fc_internal(shost->transportt);
 	unsigned long flags;
 
 	if ((rport->port_state == FC_PORTSTATE_ONLINE) &&
-	    (rport->roles & FC_PORT_ROLE_FCP_TARGET)) {
+	    (rport->roles & FC_PORT_ROLE_FCP_TARGET) &&
+	    !(i->f->disable_target_scan)) {
 		scsi_scan_target(&rport->dev, rport->channel,
 			rport->scsi_target_id, SCAN_WILD_CARD, 1);
 	}
