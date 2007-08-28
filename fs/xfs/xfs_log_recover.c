@@ -3846,7 +3846,7 @@ xlog_do_recover(
 
 	/* Convert superblock from on-disk format */
 	sbp = &log->l_mp->m_sb;
-	xfs_xlatesb(XFS_BUF_TO_SBP(bp), sbp, 1, XFS_SB_ALL_BITS);
+	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
 	ASSERT(sbp->sb_magicnum == XFS_SB_MAGIC);
 	ASSERT(XFS_SB_GOOD_VERSION(sbp));
 	xfs_buf_relse(bp);
@@ -4024,7 +4024,7 @@ xlog_recover_check_summary(
 	sbbp = xfs_getsb(mp, 0);
 #ifdef XFS_LOUD_RECOVERY
 	sbp = &mp->m_sb;
-	xfs_xlatesb(XFS_BUF_TO_SBP(sbbp), sbp, 1, XFS_SB_ALL_BITS);
+	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(sbbp));
 	cmn_err(CE_NOTE,
 		"xlog_recover_check_summary: sb_icount %Lu itotal %Lu",
 		sbp->sb_icount, itotal);

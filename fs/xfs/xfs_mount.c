@@ -407,36 +407,78 @@ xfs_initialize_perag(
 	return index;
 }
 
+void
+xfs_sb_from_disk(
+	xfs_sb_t	*to,
+	xfs_dsb_t	*from)
+{
+	to->sb_magicnum = be32_to_cpu(from->sb_magicnum);
+	to->sb_blocksize = be32_to_cpu(from->sb_blocksize);
+	to->sb_dblocks = be64_to_cpu(from->sb_dblocks);
+	to->sb_rblocks = be64_to_cpu(from->sb_rblocks);
+	to->sb_rextents = be64_to_cpu(from->sb_rextents);
+	memcpy(&to->sb_uuid, &from->sb_uuid, sizeof(to->sb_uuid));
+	to->sb_logstart = be64_to_cpu(from->sb_logstart);
+	to->sb_rootino = be64_to_cpu(from->sb_rootino);
+	to->sb_rbmino = be64_to_cpu(from->sb_rbmino);
+	to->sb_rsumino = be64_to_cpu(from->sb_rsumino);
+	to->sb_rextsize = be32_to_cpu(from->sb_rextsize);
+	to->sb_agblocks = be32_to_cpu(from->sb_agblocks);
+	to->sb_agcount = be32_to_cpu(from->sb_agcount);
+	to->sb_rbmblocks = be32_to_cpu(from->sb_rbmblocks);
+	to->sb_logblocks = be32_to_cpu(from->sb_logblocks);
+	to->sb_versionnum = be16_to_cpu(from->sb_versionnum);
+	to->sb_sectsize = be16_to_cpu(from->sb_sectsize);
+	to->sb_inodesize = be16_to_cpu(from->sb_inodesize);
+	to->sb_inopblock = be16_to_cpu(from->sb_inopblock);
+	memcpy(&to->sb_fname, &from->sb_fname, sizeof(to->sb_fname));
+	to->sb_blocklog = from->sb_blocklog;
+	to->sb_sectlog = from->sb_sectlog;
+	to->sb_inodelog = from->sb_inodelog;
+	to->sb_inopblog = from->sb_inopblog;
+	to->sb_agblklog = from->sb_agblklog;
+	to->sb_rextslog = from->sb_rextslog;
+	to->sb_inprogress = from->sb_inprogress;
+	to->sb_imax_pct = from->sb_imax_pct;
+	to->sb_icount = be64_to_cpu(from->sb_icount);
+	to->sb_ifree = be64_to_cpu(from->sb_ifree);
+	to->sb_fdblocks = be64_to_cpu(from->sb_fdblocks);
+	to->sb_frextents = be64_to_cpu(from->sb_frextents);
+	to->sb_uquotino = be64_to_cpu(from->sb_uquotino);
+	to->sb_gquotino = be64_to_cpu(from->sb_gquotino);
+	to->sb_qflags = be16_to_cpu(from->sb_qflags);
+	to->sb_flags = from->sb_flags;
+	to->sb_shared_vn = from->sb_shared_vn;
+	to->sb_inoalignmt = be32_to_cpu(from->sb_inoalignmt);
+	to->sb_unit = be32_to_cpu(from->sb_unit);
+	to->sb_width = be32_to_cpu(from->sb_width);
+	to->sb_dirblklog = from->sb_dirblklog;
+	to->sb_logsectlog = from->sb_logsectlog;
+	to->sb_logsectsize = be16_to_cpu(from->sb_logsectsize);
+	to->sb_logsunit = be32_to_cpu(from->sb_logsunit);
+	to->sb_features2 = be32_to_cpu(from->sb_features2);
+}
+
 /*
- * xfs_xlatesb
+ * Copy in core superblock to ondisk one.
  *
- *     data       - on disk version of sb
- *     sb         - a superblock
- *     dir        - conversion direction: <0 - convert sb to buf
- *                                        >0 - convert buf to sb
- *     fields     - which fields to copy (bitmask)
+ * The fields argument is mask of superblock fields to copy.
  */
 void
-xfs_xlatesb(
-	void		*data,
-	xfs_sb_t	*sb,
-	int		dir,
+xfs_sb_to_disk(
+	xfs_dsb_t	*to,
+	xfs_sb_t	*from,
 	__int64_t	fields)
 {
-	xfs_caddr_t	buf_ptr;
-	xfs_caddr_t	mem_ptr;
+	xfs_caddr_t	to_ptr = (xfs_caddr_t)to;
+	xfs_caddr_t	from_ptr = (xfs_caddr_t)from;
 	xfs_sb_field_t	f;
 	int		first;
 	int		size;
 
-	ASSERT(dir);
 	ASSERT(fields);
-
 	if (!fields)
 		return;
-
-	buf_ptr = (xfs_caddr_t)data;
-	mem_ptr = (xfs_caddr_t)sb;
 
 	while (fields) {
 		f = (xfs_sb_field_t)xfs_lowbit64((__uint64_t)fields);
@@ -446,26 +488,20 @@ xfs_xlatesb(
 		ASSERT(xfs_sb_info[f].type == 0 || xfs_sb_info[f].type == 1);
 
 		if (size == 1 || xfs_sb_info[f].type == 1) {
-			if (dir > 0) {
-				memcpy(mem_ptr + first, buf_ptr + first, size);
-			} else {
-				memcpy(buf_ptr + first, mem_ptr + first, size);
-			}
+			memcpy(to_ptr + first, from_ptr + first, size);
 		} else {
 			switch (size) {
 			case 2:
-				INT_XLATE(*(__uint16_t*)(buf_ptr+first),
-					  *(__uint16_t*)(mem_ptr+first),
-					  dir, ARCH_CONVERT);
+				*(__be16 *)(to_ptr + first) =
+					cpu_to_be16(*(__u16 *)(from_ptr + first));
 				break;
 			case 4:
-				INT_XLATE(*(__uint32_t*)(buf_ptr+first),
-					  *(__uint32_t*)(mem_ptr+first),
-					  dir, ARCH_CONVERT);
+				*(__be32 *)(to_ptr + first) =
+					cpu_to_be32(*(__u32 *)(from_ptr + first));
 				break;
 			case 8:
-				INT_XLATE(*(__uint64_t*)(buf_ptr+first),
-					  *(__uint64_t*)(mem_ptr+first), dir, ARCH_CONVERT);
+				*(__be64 *)(to_ptr + first) =
+					cpu_to_be64(*(__u64 *)(from_ptr + first));
 				break;
 			default:
 				ASSERT(0);
@@ -487,7 +523,6 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	unsigned int	sector_size;
 	unsigned int	extra_flags;
 	xfs_buf_t	*bp;
-	xfs_sb_t	*sbp;
 	int		error;
 
 	ASSERT(mp->m_sb_bp == NULL);
@@ -515,8 +550,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * Initialize the mount structure from the superblock.
 	 * But first do some basic consistency checking.
 	 */
-	sbp = XFS_BUF_TO_SBP(bp);
-	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), 1, XFS_SB_ALL_BITS);
+	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
 
 	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
 	if (error) {
@@ -1335,11 +1369,28 @@ xfs_log_sbcount(
 	return 0;
 }
 
+STATIC void
+xfs_mark_shared_ro(
+	xfs_mount_t	*mp,
+	xfs_buf_t	*bp)
+{
+	xfs_dsb_t	*sb = XFS_BUF_TO_SBP(bp);
+	__uint16_t	version;
+
+	if (!(sb->sb_flags & XFS_SBF_READONLY))
+		sb->sb_flags |= XFS_SBF_READONLY;
+
+	version = be16_to_cpu(sb->sb_versionnum);
+	if ((version & XFS_SB_VERSION_NUMBITS) != XFS_SB_VERSION_4 ||
+	    !(version & XFS_SB_VERSION_SHAREDBIT))
+		version |= XFS_SB_VERSION_SHAREDBIT;
+	sb->sb_versionnum = cpu_to_be16(version);
+}
+
 int
 xfs_unmountfs_writesb(xfs_mount_t *mp)
 {
 	xfs_buf_t	*sbp;
-	xfs_sb_t	*sb;
 	int		error = 0;
 
 	/*
@@ -1350,19 +1401,12 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 		XFS_FORCED_SHUTDOWN(mp))) {
 
 		sbp = xfs_getsb(mp, 0);
- 		sb = XFS_BUF_TO_SBP(sbp);
 
 		/*
 		 * mark shared-readonly if desired
 		 */
-		if (mp->m_mk_sharedro) {
-			if (!(sb->sb_flags & XFS_SBF_READONLY))
-				sb->sb_flags |= XFS_SBF_READONLY;
-			if (!XFS_SB_VERSION_HASSHARED(sb))
-				XFS_SB_VERSION_ADDSHARED(sb);
-			xfs_fs_cmn_err(CE_NOTE, mp,
-				"Unmounting, marking shared read-only");
-		}
+		if (mp->m_mk_sharedro)
+			xfs_mark_shared_ro(mp, sbp);
 
 		XFS_BUF_UNDONE(sbp);
 		XFS_BUF_UNREAD(sbp);
@@ -1397,7 +1441,6 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 	int		first;
 	int		last;
 	xfs_mount_t	*mp;
-	xfs_sb_t	*sbp;
 	xfs_sb_field_t	f;
 
 	ASSERT(fields);
@@ -1405,13 +1448,12 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 		return;
 	mp = tp->t_mountp;
 	bp = xfs_trans_getsb(tp, mp, 0);
-	sbp = XFS_BUF_TO_SBP(bp);
 	first = sizeof(xfs_sb_t);
 	last = 0;
 
 	/* translate/copy */
 
-	xfs_xlatesb(XFS_BUF_PTR(bp), &(mp->m_sb), -1, fields);
+	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, fields);
 
 	/* find modified range */
 
