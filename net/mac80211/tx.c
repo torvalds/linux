@@ -1363,15 +1363,17 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	/* TODO: handling for 802.1x authorized/unauthorized port */
 	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 
-	if (likely(sdata->type == IEEE80211_IF_TYPE_AP ||
-		   sdata->type == IEEE80211_IF_TYPE_VLAN)) {
+	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_AP:
+	case IEEE80211_IF_TYPE_VLAN:
 		fc |= IEEE80211_FCTL_FROMDS;
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 24;
-	} else if (sdata->type == IEEE80211_IF_TYPE_WDS) {
+		break;
+	case IEEE80211_IF_TYPE_WDS:
 		fc |= IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS;
 		/* RA TA DA SA */
 		memcpy(hdr.addr1, sdata->u.wds.remote_addr, ETH_ALEN);
@@ -1379,20 +1381,23 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 30;
-	} else if (sdata->type == IEEE80211_IF_TYPE_STA) {
+		break;
+	case IEEE80211_IF_TYPE_STA:
 		fc |= IEEE80211_FCTL_TODS;
 		/* BSSID SA DA */
 		memcpy(hdr.addr1, sdata->u.sta.bssid, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		hdrlen = 24;
-	} else if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
+		break;
+	case IEEE80211_IF_TYPE_IBSS:
 		/* DA SA BSSID */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
 		memcpy(hdr.addr2, skb->data + ETH_ALEN, ETH_ALEN);
 		memcpy(hdr.addr3, sdata->u.sta.bssid, ETH_ALEN);
 		hdrlen = 24;
-	} else {
+		break;
+	default:
 		ret = 0;
 		goto fail;
 	}
