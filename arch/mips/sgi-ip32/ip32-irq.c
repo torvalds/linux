@@ -117,10 +117,18 @@ static void inline flush_mace_bus(void)
 extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
 extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
-struct irqaction memerr_irq = { crime_memerr_intr, IRQF_DISABLED,
-			CPU_MASK_NONE, "CRIME memory error", NULL, NULL };
-struct irqaction cpuerr_irq = { crime_cpuerr_intr, IRQF_DISABLED,
-			CPU_MASK_NONE, "CRIME CPU error", NULL, NULL };
+struct irqaction memerr_irq = {
+	.handler = crime_memerr_intr,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "CRIME memory error",
+};
+struct irqaction cpuerr_irq = {
+	.handler = crime_cpuerr_intr,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "CRIME CPU error",
+};
 
 /*
  * For interrupts wired from a single device to the CPU.  Only the clock

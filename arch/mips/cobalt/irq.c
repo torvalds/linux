@@ -92,7 +92,9 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 static struct irqaction irq_via = {
-	no_action, 0, { { 0, } }, "cascade", NULL, NULL
+	.handler = no_action,
+	.mask = CPU_MASK_NONE,
+	.name = "cascade"
 };
 
 void __init arch_init_irq(void)

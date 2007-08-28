@@ -243,10 +243,12 @@ int toshiba_rbtx4927_irq_nested(int sw_irq)
 	return (sw_irq);
 }
 
-//#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, 0, CPU_MASK_NONE, s, NULL, NULL }
-#define TOSHIBA_RBTX4927_PIC_ACTION(s) { no_action, IRQF_SHARED, CPU_MASK_NONE, s, NULL, NULL }
-static struct irqaction toshiba_rbtx4927_irq_ioc_action =
-TOSHIBA_RBTX4927_PIC_ACTION(TOSHIBA_RBTX4927_IOC_NAME);
+static struct irqaction toshiba_rbtx4927_irq_ioc_action = {
+	.handler	= no_action,
+	.flags		= IRQF_SHARED,
+	.mask		= CPU_MASK_NONE,
+	.name		= TOSHIBA_RBTX4927_IOC_NAME
+};
 
 
 /**********************************************************************************/
