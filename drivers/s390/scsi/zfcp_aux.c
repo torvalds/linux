@@ -1038,6 +1038,10 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	spin_lock_init(&adapter->san_dbf_lock);
 	spin_lock_init(&adapter->scsi_dbf_lock);
 
+	retval = zfcp_adapter_debug_register(adapter);
+	if (retval)
+		goto debug_register_failed;
+
 	/* initialize error recovery stuff */
 
 	rwlock_init(&adapter->erp_lock);
@@ -1084,6 +1088,8 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
  generic_services_failed:
 	zfcp_sysfs_adapter_remove_files(&adapter->ccw_device->dev);
  sysfs_failed:
+	zfcp_adapter_debug_unregister(adapter);
+ debug_register_failed:
 	dev_set_drvdata(&ccw_device->dev, NULL);
 	zfcp_reqlist_free(adapter);
  failed_low_mem_buffers:
@@ -1128,6 +1134,8 @@ zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 		retval = -EBUSY;
 		goto out;
 	}
+
+	zfcp_adapter_debug_unregister(adapter);
 
 	/* remove specified adapter data structure from list */
 	write_lock_irq(&zfcp_data.config_lock);
