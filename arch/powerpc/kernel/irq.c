@@ -487,7 +487,7 @@ __init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
 		host->inval_irq = 0;
 		/* setup us as the host for all legacy interrupts */
 		for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
-			irq_map[i].hwirq = 0;
+			irq_map[i].hwirq = i;
 			smp_wmb();
 			irq_map[i].host = host;
 			smp_wmb();
