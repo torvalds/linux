@@ -308,7 +308,7 @@ static void sun4u_irq_disable(unsigned int virt_irq)
 
 	if (likely(data)) {
 		unsigned long imap = data->imap;
-		u32 tmp = upa_readq(imap);
+		unsigned long tmp = upa_readq(imap);
 
 		tmp &= ~IMAP_VALID;
 		upa_writeq(tmp, imap);
