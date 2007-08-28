@@ -165,7 +165,6 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 		local->ops->sta_table_notification(local_to_hw(local),
 						  local->num_sta);
 	write_unlock_bh(&local->sta_lock);
-	sta->key_idx_compression = HW_KEY_IDX_INVALID;
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Added STA " MAC_FMT "\n",
@@ -224,23 +223,6 @@ void sta_info_free(struct sta_info *sta)
 	}
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		dev_kfree_skb(skb);
-	}
-
-	if (sta->key) {
-		if (local->ops->set_key) {
-			local->ops->set_key(local_to_hw(local),
-					   DISABLE_KEY, sta->addr,
-					   &sta->key->conf);
-		}
-	} else if (sta->key_idx_compression != HW_KEY_IDX_INVALID) {
-		struct ieee80211_key_conf conf;
-		memset(&conf, 0, sizeof(conf));
-		conf.hw_key_idx = sta->key_idx_compression;
-		conf.alg = ALG_NONE;
-		conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-		local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				    sta->addr, &conf);
-		sta->key_idx_compression = HW_KEY_IDX_INVALID;
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG

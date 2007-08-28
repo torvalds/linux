@@ -90,10 +90,6 @@ struct sta_info {
 	int channel_use;
 	int channel_use_raw;
 
-	int key_idx_compression; /* key table index for compression and TX
-				  * filtering; used only if sta->key is not
-				  * set */
-
 	int assoc_ap; /* whether this is an AP that we are
 		       * associated with as a client */
 

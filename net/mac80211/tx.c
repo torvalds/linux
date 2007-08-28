@@ -426,10 +426,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 static ieee80211_txrx_result
 ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 {
-	if (tx->sta)
-		tx->u.tx.control->key_idx = tx->sta->key_idx_compression;
-	else
-		tx->u.tx.control->key_idx = HW_KEY_IDX_INVALID;
+	tx->u.tx.control->key_idx = HW_KEY_IDX_INVALID;
 
 	if (unlikely(tx->u.tx.control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
 		tx->key = NULL;
