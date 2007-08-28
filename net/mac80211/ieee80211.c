@@ -493,7 +493,16 @@ static void ieee80211_if_shutdown(struct net_device *dev)
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
 		del_timer_sync(&sdata->u.sta.timer);
+		/*
+		 * Holding the sub_if_lock for writing here blocks
+		 * out the receive path and makes sure it's not
+		 * currently processing a packet that may get
+		 * added to the queue.
+		 */
+		write_lock_bh(&local->sub_if_lock);
 		skb_queue_purge(&sdata->u.sta.skb_queue);
+		write_unlock_bh(&local->sub_if_lock);
+
 		if (!local->ops->hw_scan &&
 		    local->scan_dev == sdata->dev) {
 			local->sta_scanning = 0;

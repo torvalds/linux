@@ -1380,6 +1380,9 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	list_for_each_entry(sdata, &local->sub_if_list, list) {
 		rx.u.rx.ra_match = 1;
 
+		if (!netif_running(sdata->dev))
+			continue;
+
 		prepres = prepare_for_handlers(sdata, bssid, &rx, hdr);
 		/* prepare_for_handlers can change sta */
 		sta = rx.sta;
