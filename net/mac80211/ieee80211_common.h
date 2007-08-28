@@ -54,7 +54,7 @@ enum ieee80211_msg_type {
 	ieee80211_msg_sta_not_assoc = 7,
 	/* 8 was ieee80211_msg_set_aid_for_sta */
 	ieee80211_msg_key_threshold_notification = 9,
-	ieee80211_msg_radar = 11,
+	/* 11 was ieee80211_msg_radar */
 };
 
 struct ieee80211_msg_key_notification {
