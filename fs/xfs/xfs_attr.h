@@ -159,12 +159,8 @@ struct xfs_da_args;
 /*
  * Overall external interface routines.
  */
-int xfs_attr_get(bhv_desc_t *, const char *, char *, int *, int, struct cred *);
-int xfs_attr_set(bhv_desc_t *, const char *, char *, int, int, struct cred *);
 int xfs_attr_set_int(struct xfs_inode *, const char *, int, char *, int, int);
-int xfs_attr_remove(bhv_desc_t *, const char *, int, struct cred *);
 int xfs_attr_remove_int(struct xfs_inode *, const char *, int, int);
-int xfs_attr_list(bhv_desc_t *, char *, int, int, struct attrlist_cursor_kern *, struct cred *);
 int xfs_attr_list_int(struct xfs_attr_list_context *);
 int xfs_attr_inactive(struct xfs_inode *dp);
 

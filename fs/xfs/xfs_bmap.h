@@ -335,7 +335,7 @@ xfs_bunmapi(
  */
 int						/* error code */
 xfs_getbmap(
-	bhv_desc_t		*bdp,		/* XFS behavior descriptor*/
+	xfs_inode_t		*ip,
 	struct getbmap		*bmv,		/* user bmap structure */
 	void			__user *ap,	/* pointer to user's array */
 	int			iflags);	/* interface flags */

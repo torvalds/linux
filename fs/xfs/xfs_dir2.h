@@ -84,8 +84,6 @@ extern int xfs_dir_replace(struct xfs_trans *tp, struct xfs_inode *dp,
 extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
 				char *name, int namelen);
 extern int xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
-extern int xfs_readdir(bhv_desc_t *dir_bdp, void *dirent, size_t bufsize,
-		       xfs_off_t *offset, filldir_t filldir);
 
 /*
  * Utility routines for v2 directories.

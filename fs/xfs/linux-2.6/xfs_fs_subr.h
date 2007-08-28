@@ -18,12 +18,8 @@
 #ifndef	__XFS_FS_SUBR_H__
 #define __XFS_FS_SUBR_H__
 
-struct cred;
 extern int  fs_noerr(void);
 extern int  fs_nosys(void);
 extern void fs_noval(void);
-extern void fs_tosspages(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
-extern int  fs_flushinval_pages(bhv_desc_t *, xfs_off_t, xfs_off_t, int);
-extern int  fs_flush_pages(bhv_desc_t *, xfs_off_t, xfs_off_t, uint64_t, int);
 
 #endif	/* __XFS_FS_SUBR_H__ */

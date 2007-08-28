@@ -156,10 +156,14 @@ xfs_attr_fetch(xfs_inode_t *ip, const char *name, int namelen,
 }
 
 int
-xfs_attr_get(bhv_desc_t *bdp, const char *name, char *value, int *valuelenp,
-	     int flags, struct cred *cred)
+xfs_attr_get(
+	xfs_inode_t	*ip,
+	const char	*name,
+	char		*value,
+	int		*valuelenp,
+	int		flags,
+	cred_t		*cred)
 {
-	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
 	int		error, namelen;
 
 	XFS_STATS_INC(xs_attr_get);
@@ -417,10 +421,13 @@ out:
 }
 
 int
-xfs_attr_set(bhv_desc_t *bdp, const char *name, char *value, int valuelen, int flags,
-	     struct cred *cred)
+xfs_attr_set(
+	xfs_inode_t	*dp,
+	const char	*name,
+	char		*value,
+	int		valuelen,
+	int		flags)
 {
-	xfs_inode_t	*dp;
 	int             namelen;
 
 	namelen = strlen(name);
@@ -429,7 +436,6 @@ xfs_attr_set(bhv_desc_t *bdp, const char *name, char *value, int valuelen, int f
 
 	XFS_STATS_INC(xs_attr_set);
 
-	dp = XFS_BHVTOI(bdp);
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
 
@@ -563,10 +569,12 @@ out:
 }
 
 int
-xfs_attr_remove(bhv_desc_t *bdp, const char *name, int flags, struct cred *cred)
+xfs_attr_remove(
+	xfs_inode_t	*dp,
+	const char	*name,
+	int		flags)
 {
-	xfs_inode_t         *dp;
-	int                 namelen;
+	int		namelen;
 
 	namelen = strlen(name);
 	if (namelen >= MAXNAMELEN)
@@ -574,7 +582,6 @@ xfs_attr_remove(bhv_desc_t *bdp, const char *name, int flags, struct cred *cred)
 
 	XFS_STATS_INC(xs_attr_remove);
 
-	dp = XFS_BHVTOI(bdp);
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
 
@@ -702,11 +709,14 @@ xfs_attr_kern_list_sizes(xfs_attr_list_context_t *context, attrnames_t *namesp,
  * success.
  */
 int
-xfs_attr_list(bhv_desc_t *bdp, char *buffer, int bufsize, int flags,
-		      attrlist_cursor_kern_t *cursor, struct cred *cred)
+xfs_attr_list(
+	xfs_inode_t	*dp,
+	char		*buffer,
+	int		bufsize,
+	int		flags,
+	attrlist_cursor_kern_t *cursor)
 {
 	xfs_attr_list_context_t context;
-	xfs_inode_t *dp;
 	int error;
 
 	XFS_STATS_INC(xs_attr_list);
@@ -731,7 +741,7 @@ xfs_attr_list(bhv_desc_t *bdp, char *buffer, int bufsize, int flags,
 	/*
 	 * Initialize the output buffer.
 	 */
-	context.dp = dp = XFS_BHVTOI(bdp);
+	context.dp = dp;
 	context.cursor = cursor;
 	context.count = 0;
 	context.dupcnt = 0;

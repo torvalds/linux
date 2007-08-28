@@ -292,18 +292,16 @@ xfs_dir_removename(
  */
 int
 xfs_readdir(
-	bhv_desc_t	*dir_bdp,
+	xfs_inode_t	*dp,
 	void		*dirent,
 	size_t		bufsize,
 	xfs_off_t	*offset,
 	filldir_t	filldir)
 {
-	xfs_inode_t	*dp = XFS_BHVTOI(dir_bdp);
 	int		rval;		/* return value */
 	int		v;		/* type-checking value */
 
-	vn_trace_entry(BHV_TO_VNODE(dir_bdp), __FUNCTION__,
-					       (inst_t *)__return_address);
+	vn_trace_entry(XFS_ITOV(dp), __FUNCTION__, (inst_t *)__return_address);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);

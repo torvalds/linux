@@ -47,6 +47,7 @@
 #include "xfs_utils.h"
 #include "xfs_dfrag.h"
 #include "xfs_fsops.h"
+#include "xfs_vnodeops.h"
 
 #include <linux/capability.h>
 #include <linux/dcache.h>
@@ -436,7 +437,6 @@ xfs_fssetdm_by_handle(
 	struct fsdmidata	fsd;
 	xfs_fsop_setdm_handlereq_t dmhreq;
 	struct inode		*inode;
-	bhv_desc_t		*bdp;
 	bhv_vnode_t		*vp;
 
 	if (!capable(CAP_MKNOD))
@@ -458,8 +458,8 @@ xfs_fssetdm_by_handle(
 		return -XFS_ERROR(EFAULT);
 	}
 
-	bdp = bhv_base_unlocked(VN_BHV_HEAD(vp));
-	error = xfs_set_dmattrs(bdp, fsd.fsd_dmevmask, fsd.fsd_dmstate, NULL);
+	error = xfs_set_dmattrs(xfs_vtoi(vp),
+			fsd.fsd_dmevmask, fsd.fsd_dmstate);
 
 	VN_RELE(vp);
 	if (error)
@@ -676,7 +676,7 @@ xfs_attrmulti_by_handle(
 
 STATIC int
 xfs_ioc_space(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	struct inode		*inode,
 	struct file		*filp,
 	int			flags,
@@ -709,36 +709,30 @@ xfs_ioc_xattr(
 
 STATIC int
 xfs_ioc_getbmap(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	int			flags,
 	unsigned int		cmd,
 	void			__user *arg);
 
 STATIC int
 xfs_ioc_getbmapx(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	void			__user *arg);
 
 int
 xfs_ioctl(
-	bhv_desc_t		*bdp,
-	struct inode		*inode,
+	xfs_inode_t		*ip,
 	struct file		*filp,
 	int			ioflags,
 	unsigned int		cmd,
 	void			__user *arg)
 {
+	struct inode		*inode = filp->f_path.dentry->d_inode;
+	bhv_vnode_t		*vp = vn_from_inode(inode);
+	xfs_mount_t		*mp = ip->i_mount;
 	int			error;
-	bhv_vnode_t		*vp;
-	xfs_inode_t		*ip;
-	xfs_mount_t		*mp;
-
-	vp = vn_from_inode(inode);
 
 	vn_trace_entry(vp, "xfs_ioctl", (inst_t *)__return_address);
-
-	ip = XFS_BHVTOI(bdp);
-	mp = ip->i_mount;
 
 	switch (cmd) {
 
@@ -758,7 +752,7 @@ xfs_ioctl(
 		    !capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		return xfs_ioc_space(bdp, inode, filp, ioflags, cmd, arg);
+		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, arg);
 
 	case XFS_IOC_DIOINFO: {
 		struct dioattr	da;
@@ -801,17 +795,17 @@ xfs_ioctl(
 		if (copy_from_user(&dmi, arg, sizeof(dmi)))
 			return -XFS_ERROR(EFAULT);
 
-		error = xfs_set_dmattrs(bdp, dmi.fsd_dmevmask, dmi.fsd_dmstate,
-							NULL);
+		error = xfs_set_dmattrs(ip, dmi.fsd_dmevmask,
+				dmi.fsd_dmstate);
 		return -error;
 	}
 
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
-		return xfs_ioc_getbmap(bdp, ioflags, cmd, arg);
+		return xfs_ioc_getbmap(ip, ioflags, cmd, arg);
 
 	case XFS_IOC_GETBMAPX:
-		return xfs_ioc_getbmapx(bdp, arg);
+		return xfs_ioc_getbmapx(ip, arg);
 
 	case XFS_IOC_FD_TO_HANDLE:
 	case XFS_IOC_PATH_TO_HANDLE:
@@ -981,7 +975,7 @@ xfs_ioctl(
 
 STATIC int
 xfs_ioc_space(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	struct inode		*inode,
 	struct file		*filp,
 	int			ioflags,
@@ -1009,7 +1003,7 @@ xfs_ioc_space(
 	if (ioflags & IO_INVIS)
 		attr_flags |= ATTR_DMI;
 
-	error = xfs_change_file_space(bdp, cmd, &bf, filp->f_pos,
+	error = xfs_change_file_space(ip, cmd, &bf, filp->f_pos,
 					      NULL, attr_flags);
 	return -error;
 }
@@ -1295,7 +1289,7 @@ xfs_ioc_xattr(
 
 STATIC int
 xfs_ioc_getbmap(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	int			ioflags,
 	unsigned int		cmd,
 	void			__user *arg)
@@ -1314,7 +1308,7 @@ xfs_ioc_getbmap(
 	if (ioflags & IO_INVIS)
 		iflags |= BMV_IF_NO_DMAPI_READ;
 
-	error = xfs_getbmap(bdp, &bm, (struct getbmap __user *)arg+1, iflags);
+	error = xfs_getbmap(ip, &bm, (struct getbmap __user *)arg+1, iflags);
 	if (error)
 		return -error;
 
@@ -1325,7 +1319,7 @@ xfs_ioc_getbmap(
 
 STATIC int
 xfs_ioc_getbmapx(
-	bhv_desc_t		*bdp,
+	struct xfs_inode	*ip,
 	void			__user *arg)
 {
 	struct getbmapx		bmx;
@@ -1352,7 +1346,7 @@ xfs_ioc_getbmapx(
 
 	iflags |= BMV_IF_EXTENDED;
 
-	error = xfs_getbmap(bdp, &bm, (struct getbmapx __user *)arg+1, iflags);
+	error = xfs_getbmap(ip, &bm, (struct getbmapx __user *)arg+1, iflags);
 	if (error)
 		return -error;
 
