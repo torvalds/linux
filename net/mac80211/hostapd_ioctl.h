@@ -59,26 +59,4 @@ struct ieee80211_rate_data {
 	int flags; /* IEEE80211_RATE_ flags */
 };
 
-
-/* ADD_IF, REMOVE_IF, and UPDATE_IF 'type' argument */
-enum {
-	HOSTAP_IF_WDS = 1, HOSTAP_IF_VLAN = 2, HOSTAP_IF_BSS = 3,
-	HOSTAP_IF_STA = 4
-};
-
-struct hostapd_if_wds {
-	u8 remote_addr[ETH_ALEN];
-};
-
-struct hostapd_if_vlan {
-	u8 id;
-};
-
-struct hostapd_if_bss {
-	u8 bssid[ETH_ALEN];
-};
-
-struct hostapd_if_sta {
-};
-
 #endif /* HOSTAPD_IOCTL_H */
