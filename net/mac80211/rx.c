@@ -327,8 +327,15 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	 * frames can also use key indizes like GTKs. Hence, if we don't
 	 * have a PTK/STK we check the key index for a WEP key.
 	 *
+	 * Note that in a regular BSS, multicast frames are sent by the
+	 * AP only, associated stations unicast the frame to the AP first
+	 * which then multicasts it on their behalf.
+	 *
 	 * There is also a slight problem in IBSS mode: GTKs are negotiated
 	 * with each station, that is something we don't currently handle.
+	 * The spec seems to expect that one negotiates the same key with
+	 * every station but there's no such requirement; VLANs could be
+	 * possible.
 	 */
 
 	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
