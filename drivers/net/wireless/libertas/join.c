@@ -17,9 +17,6 @@
 #include "dev.h"
 #include "assoc.h"
 
-/* Supported rates for ad-hoc B mode */
-static u8 adhoc_rates_b[5] = { 0x02, 0x04, 0x0b, 0x16, 0x00 };
-
 /* The firmware needs certain bits masked out of the beacon-derviced capability
  * field when associating/joining to BSSs.
  */
