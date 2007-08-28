@@ -1099,7 +1099,7 @@ static int paranoid_check_peb_ec_hdr(const struct ubi_device *ubi, int pnum)
 	uint32_t crc, hdr_crc;
 	struct ubi_ec_hdr *ec_hdr;
 
-	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
 	if (!ec_hdr)
 		return -ENOMEM;
 
@@ -1179,7 +1179,7 @@ static int paranoid_check_peb_vid_hdr(const struct ubi_device *ubi, int pnum)
 	struct ubi_vid_hdr *vid_hdr;
 	void *p;
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
 		return -ENOMEM;
 

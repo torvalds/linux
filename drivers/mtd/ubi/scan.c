@@ -323,7 +323,7 @@ static int compare_lebs(const struct ubi_device *ubi,
 	} else {
 		pnum = seb->pnum;
 
-		vh = ubi_zalloc_vid_hdr(ubi);
+		vh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 		if (!vh)
 			return -ENOMEM;
 
@@ -948,7 +948,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 	if (!ech)
 		goto out_si;
 
-	vidh = ubi_zalloc_vid_hdr(ubi);
+	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vidh)
 		goto out_ech;
 

@@ -264,7 +264,7 @@ static int create_vtbl(const struct ubi_device *ubi, struct ubi_scan_info *si,
 
 	ubi_msg("create volume table (copy #%d)", copy + 1);
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vid_hdr)
 		return -ENOMEM;
 

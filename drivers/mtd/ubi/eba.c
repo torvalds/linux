@@ -157,7 +157,7 @@ static struct ltree_entry *ltree_add_entry(struct ubi_device *ubi, int vol_id,
 {
 	struct ltree_entry *le, *le1, *le_free;
 
-	le = kmem_cache_alloc(ltree_slab, GFP_KERNEL);
+	le = kmem_cache_alloc(ltree_slab, GFP_NOFS);
 	if (!le)
 		return ERR_PTR(-ENOMEM);
 
@@ -397,7 +397,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 
 retry:
 	if (check) {
-		vid_hdr = ubi_zalloc_vid_hdr(ubi);
+		vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 		if (!vid_hdr) {
 			err = -ENOMEM;
 			goto out_unlock;
@@ -497,7 +497,7 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 	struct ubi_vid_hdr *vid_hdr;
 	unsigned char *new_buf;
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr) {
 		return -ENOMEM;
 	}
@@ -627,7 +627,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, int vol_id, int lnum,
 	 * The logical eraseblock is not mapped. We have to get a free physical
 	 * eraseblock and write the volume identifier header there first.
 	 */
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr) {
 		leb_write_unlock(ubi, vol_id, lnum);
 		return -ENOMEM;
@@ -738,7 +738,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, int vol_id, int lnum,
 	else
 		ubi_assert(len % ubi->min_io_size == 0);
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
 		return -ENOMEM;
 
@@ -844,7 +844,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 	if (ubi->ro_mode)
 		return -EROFS;
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
 		return -ENOMEM;
 

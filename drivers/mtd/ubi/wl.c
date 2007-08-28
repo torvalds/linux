@@ -508,7 +508,7 @@ int ubi_wl_get_peb(struct ubi_device *ubi, int dtype)
 	ubi_assert(dtype == UBI_LONGTERM || dtype == UBI_SHORTTERM ||
 		   dtype == UBI_UNKNOWN);
 
-	pe = kmalloc(sizeof(struct ubi_wl_prot_entry), GFP_KERNEL);
+	pe = kmalloc(sizeof(struct ubi_wl_prot_entry), GFP_NOFS);
 	if (!pe)
 		return -ENOMEM;
 
@@ -645,7 +645,7 @@ static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e, int tortur
 	if (err > 0)
 		return -EINVAL;
 
-	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
 	if (!ec_hdr)
 		return -ENOMEM;
 
@@ -768,7 +768,7 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 	dbg_wl("schedule erasure of PEB %d, EC %d, torture %d",
 	       e->pnum, e->ec, torture);
 
-	wl_wrk = kmalloc(sizeof(struct ubi_work), GFP_KERNEL);
+	wl_wrk = kmalloc(sizeof(struct ubi_work), GFP_NOFS);
 	if (!wl_wrk)
 		return -ENOMEM;
 
@@ -802,7 +802,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	if (cancel)
 		return 0;
 
-	vid_hdr = ubi_zalloc_vid_hdr(ubi);
+	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
 		return -ENOMEM;
 
@@ -1028,7 +1028,7 @@ static int ensure_wear_leveling(struct ubi_device *ubi)
 	ubi->wl_scheduled = 1;
 	spin_unlock(&ubi->wl_lock);
 
-	wrk = kmalloc(sizeof(struct ubi_work), GFP_KERNEL);
+	wrk = kmalloc(sizeof(struct ubi_work), GFP_NOFS);
 	if (!wrk) {
 		err = -ENOMEM;
 		goto out_cancel;
@@ -1631,7 +1631,7 @@ static int paranoid_check_ec(const struct ubi_device *ubi, int pnum, int ec)
 	long long read_ec;
 	struct ubi_ec_hdr *ec_hdr;
 
-	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
+	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
 	if (!ec_hdr)
 		return -ENOMEM;
 

@@ -439,16 +439,18 @@ int ubi_io_write_vid_hdr(const struct ubi_device *ubi, int pnum,
 /**
  * ubi_zalloc_vid_hdr - allocate a volume identifier header object.
  * @ubi: UBI device description object
+ * @gfp_flags: GFP flags to allocate with
  *
  * This function returns a pointer to the newly allocated and zero-filled
  * volume identifier header object in case of success and %NULL in case of
  * failure.
  */
-static inline struct ubi_vid_hdr *ubi_zalloc_vid_hdr(const struct ubi_device *ubi)
+static inline struct ubi_vid_hdr *
+ubi_zalloc_vid_hdr(const struct ubi_device *ubi, gfp_t gfp_flags)
 {
 	void *vid_hdr;
 
-	vid_hdr = kzalloc(ubi->vid_hdr_alsize, GFP_KERNEL);
+	vid_hdr = kzalloc(ubi->vid_hdr_alsize, gfp_flags);
 	if (!vid_hdr)
 		return NULL;
 
