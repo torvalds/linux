@@ -52,6 +52,7 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
+#include <linux/debugfs.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -1005,6 +1006,68 @@ static int irq_late_init(void)
 	return 0;
 }
 arch_initcall(irq_late_init);
+
+#ifdef CONFIG_VIRQ_DEBUG
+static int virq_debug_show(struct seq_file *m, void *private)
+{
+	unsigned long flags;
+	irq_desc_t *desc;
+	const char *p;
+	char none[] = "none";
+	int i;
+
+	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
+		      "chip name", "host name");
+
+	for (i = 1; i < NR_IRQS; i++) {
+		desc = get_irq_desc(i);
+		spin_lock_irqsave(&desc->lock, flags);
+
+		if (desc->action && desc->action->handler) {
+			seq_printf(m, "%5d  ", i);
+			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
+
+			if (desc->chip && desc->chip->typename)
+				p = desc->chip->typename;
+			else
+				p = none;
+			seq_printf(m, "%-15s  ", p);
+
+			if (irq_map[i].host && irq_map[i].host->of_node)
+				p = irq_map[i].host->of_node->full_name;
+			else
+				p = none;
+			seq_printf(m, "%s\n", p);
+		}
+
+		spin_unlock_irqrestore(&desc->lock, flags);
+	}
+
+	return 0;
+}
+
+static int virq_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, virq_debug_show, inode->i_private);
+}
+
+static const struct file_operations virq_debug_fops = {
+	.open = virq_debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init irq_debugfs_init(void)
+{
+	if (debugfs_create_file("virq_mapping", S_IRUGO, powerpc_debugfs_root,
+				 NULL, &virq_debug_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+__initcall(irq_debugfs_init);
+#endif /* CONFIG_VIRQ_DEBUG */
 
 #endif /* CONFIG_PPC_MERGE */
 
