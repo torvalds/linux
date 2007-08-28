@@ -189,10 +189,9 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 		unit->device = NULL;
 		zfcp_erp_unit_failed(unit);
 		zfcp_unit_put(unit);
-	} else {
+	} else
 		ZFCP_LOG_NORMAL("bug: no unit associated with SCSI device at "
 				"address %p\n", sdpnt);
-	}
 }
 
 /* 
@@ -361,12 +360,11 @@ zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, unsigned int id,
 	list_for_each_entry(port, &adapter->port_list_head, list) {
 		if (!port->rport || (id != port->rport->scsi_target_id))
 			continue;
-		list_for_each_entry(unit, &port->unit_list_head, list) {
+		list_for_each_entry(unit, &port->unit_list_head, list)
 			if (lun == unit->scsi_lun) {
 				retval = unit;
 				goto out;
 			}
-		}
 	}
  out:
 	return retval;
