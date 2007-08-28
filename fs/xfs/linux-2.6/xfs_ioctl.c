@@ -349,19 +349,44 @@ xfs_open_by_handle(
 	return new_fd;
 }
 
+/*
+ * This is a copy from fs/namei.c:vfs_readlink(), except for removing it's
+ * unused first argument.
+ */
+STATIC int
+do_readlink(
+	char __user		*buffer,
+	int			buflen,
+	const char		*link)
+{
+        int len;
+
+	len = PTR_ERR(link);
+	if (IS_ERR(link))
+		goto out;
+
+	len = strlen(link);
+	if (len > (unsigned) buflen)
+		len = buflen;
+	if (copy_to_user(buffer, link, len))
+		len = -EFAULT;
+ out:
+	return len;
+}
+
+
 STATIC int
 xfs_readlink_by_handle(
 	xfs_mount_t		*mp,
 	void			__user *arg,
 	struct inode		*parinode)
 {
-	int			error;
-	struct iovec		aiov;
-	struct uio		auio;
 	struct inode		*inode;
 	xfs_fsop_handlereq_t	hreq;
 	bhv_vnode_t		*vp;
 	__u32			olen;
+	void			*link;
+	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
@@ -374,29 +399,31 @@ xfs_readlink_by_handle(
 
 	/* Restrict this handle operation to symlinks only. */
 	if (!S_ISLNK(inode->i_mode)) {
-		VN_RELE(vp);
-		return -XFS_ERROR(EINVAL);
+		error = -XFS_ERROR(EINVAL);
+		goto out_iput;
 	}
 
 	if (copy_from_user(&olen, hreq.ohandlen, sizeof(__u32))) {
-		VN_RELE(vp);
-		return -XFS_ERROR(EFAULT);
+		error = -XFS_ERROR(EFAULT);
+		goto out_iput;
 	}
-	aiov.iov_len	= olen;
-	aiov.iov_base	= hreq.ohandle;
 
-	auio.uio_iov	= (struct kvec *)&aiov;
-	auio.uio_iovcnt	= 1;
-	auio.uio_offset	= 0;
-	auio.uio_segflg	= UIO_USERSPACE;
-	auio.uio_resid	= olen;
+	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
+	if (!link)
+		goto out_iput;
 
-	error = bhv_vop_readlink(vp, &auio, IO_INVIS, NULL);
-	VN_RELE(vp);
+	error = -bhv_vop_readlink(vp, link);
 	if (error)
-		return -error;
+		goto out_kfree;
+	error = do_readlink(hreq.ohandle, olen, link);
+	if (error)
+		goto out_kfree;
 
-	return (olen - auio.uio_resid);
+ out_kfree:
+	kfree(link);
+ out_iput:
+	iput(inode);
+	return error;
 }
 
 STATIC int

@@ -951,6 +951,53 @@ xfs_access(
  */
 #define SYMLINK_MAPS 2
 
+STATIC int
+xfs_readlink_bmap(
+	xfs_inode_t	*ip,
+	char		*link)
+{
+	xfs_mount_t	*mp = ip->i_mount;
+	int		pathlen = ip->i_d.di_size;
+	int             nmaps = SYMLINK_MAPS;
+	xfs_bmbt_irec_t mval[SYMLINK_MAPS];
+	xfs_daddr_t	d;
+	int		byte_cnt;
+	int		n;
+	xfs_buf_t	*bp;
+	int		error = 0;
+
+	error = xfs_bmapi(NULL, ip, 0, XFS_B_TO_FSB(mp, pathlen), 0, NULL, 0,
+			mval, &nmaps, NULL, NULL);
+	if (error)
+		goto out;
+
+	for (n = 0; n < nmaps; n++) {
+		d = XFS_FSB_TO_DADDR(mp, mval[n].br_startblock);
+		byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
+
+		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt), 0);
+		error = XFS_BUF_GETERROR(bp);
+		if (error) {
+			xfs_ioerror_alert("xfs_readlink",
+				  ip->i_mount, bp, XFS_BUF_ADDR(bp));
+			xfs_buf_relse(bp);
+			goto out;
+		}
+		if (pathlen < byte_cnt)
+			byte_cnt = pathlen;
+		pathlen -= byte_cnt;
+
+		memcpy(link, XFS_BUF_PTR(bp), byte_cnt);
+		xfs_buf_relse(bp);
+	}
+
+	link[ip->i_d.di_size] = '\0';
+	error = 0;
+
+ out:
+	return error;
+}
+
 /*
  * xfs_readlink
  *
@@ -958,29 +1005,14 @@ xfs_access(
 STATIC int
 xfs_readlink(
 	bhv_desc_t	*bdp,
-	uio_t		*uiop,
-	int		ioflags,
-	cred_t		*credp)
+	char		*link)
 {
-	xfs_inode_t     *ip;
-	int		count;
-	xfs_off_t	offset;
+	xfs_inode_t     *ip = XFS_BHVTOI(bdp);
+	xfs_mount_t	*mp = ip->i_mount;
 	int		pathlen;
-	bhv_vnode_t	*vp;
 	int		error = 0;
-	xfs_mount_t	*mp;
-	int             nmaps;
-	xfs_bmbt_irec_t mval[SYMLINK_MAPS];
-	xfs_daddr_t	d;
-	int		byte_cnt;
-	int		n;
-	xfs_buf_t	*bp;
 
-	vp = BHV_TO_VNODE(bdp);
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-
-	ip = XFS_BHVTOI(bdp);
-	mp = ip->i_mount;
+	vn_trace_entry(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -988,67 +1020,23 @@ xfs_readlink(
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFLNK);
+	ASSERT(ip->i_d.di_size <= MAXPATHLEN);
 
-	offset = uiop->uio_offset;
-	count = uiop->uio_resid;
-
-	if (offset < 0) {
-		error = XFS_ERROR(EINVAL);
-		goto error_return;
-	}
-	if (count <= 0) {
-		error = 0;
-		goto error_return;
-	}
-
-	/*
-	 * See if the symlink is stored inline.
-	 */
-	pathlen = (int)ip->i_d.di_size;
+	pathlen = ip->i_d.di_size;
+	if (!pathlen)
+		goto out;
 
 	if (ip->i_df.if_flags & XFS_IFINLINE) {
-		error = xfs_uio_read(ip->i_df.if_u1.if_data, pathlen, uiop);
-	}
-	else {
-		/*
-		 * Symlink not inline.  Call bmap to get it in.
-		 */
-		nmaps = SYMLINK_MAPS;
-
-		error = xfs_bmapi(NULL, ip, 0, XFS_B_TO_FSB(mp, pathlen),
-				  0, NULL, 0, mval, &nmaps, NULL, NULL);
-
-		if (error) {
-			goto error_return;
-		}
-
-		for (n = 0; n < nmaps; n++) {
-			d = XFS_FSB_TO_DADDR(mp, mval[n].br_startblock);
-			byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
-			bp = xfs_buf_read(mp->m_ddev_targp, d,
-				      BTOBB(byte_cnt), 0);
-			error = XFS_BUF_GETERROR(bp);
-			if (error) {
-				xfs_ioerror_alert("xfs_readlink",
-					  ip->i_mount, bp, XFS_BUF_ADDR(bp));
-				xfs_buf_relse(bp);
-				goto error_return;
-			}
-			if (pathlen < byte_cnt)
-				byte_cnt = pathlen;
-			pathlen -= byte_cnt;
-
-			error = xfs_uio_read(XFS_BUF_PTR(bp), byte_cnt, uiop);
-			xfs_buf_relse (bp);
-		}
-
+		memcpy(link, ip->i_df.if_u1.if_data, pathlen);
+		link[pathlen] = '\0';
+	} else {
+		error = xfs_readlink_bmap(ip, link);
 	}
 
-error_return:
+ out:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return error;
 }
-
 
 /*
  * xfs_fsync

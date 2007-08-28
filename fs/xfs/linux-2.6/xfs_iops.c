@@ -542,49 +542,25 @@ xfs_vn_follow_link(
 	struct dentry		*dentry,
 	struct nameidata	*nd)
 {
-	bhv_vnode_t		*vp;
-	uio_t			*uio;
-	iovec_t			iov;
-	int			error;
+	bhv_vnode_t		*vp = vn_from_inode(dentry->d_inode);
 	char			*link;
-
-	ASSERT(dentry);
-	ASSERT(nd);
+	int			error = -ENOMEM;
 
 	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
-	if (!link) {
-		nd_set_link(nd, ERR_PTR(-ENOMEM));
-		return NULL;
-	}
+	if (!link)
+		goto out_err;
 
-	uio = kmalloc(sizeof(uio_t), GFP_KERNEL);
-	if (!uio) {
-		kfree(link);
-		nd_set_link(nd, ERR_PTR(-ENOMEM));
-		return NULL;
-	}
-
-	vp = vn_from_inode(dentry->d_inode);
-
-	iov.iov_base = link;
-	iov.iov_len = MAXPATHLEN;
-
-	uio->uio_iov = &iov;
-	uio->uio_offset = 0;
-	uio->uio_segflg = UIO_SYSSPACE;
-	uio->uio_resid = MAXPATHLEN;
-	uio->uio_iovcnt = 1;
-
-	error = bhv_vop_readlink(vp, uio, 0, NULL);
-	if (unlikely(error)) {
-		kfree(link);
-		link = ERR_PTR(-error);
-	} else {
-		link[MAXPATHLEN - uio->uio_resid] = '\0';
-	}
-	kfree(uio);
+	error = -bhv_vop_readlink(vp, link);
+	if (unlikely(error))
+		goto out_kfree;
 
 	nd_set_link(nd, link);
+	return NULL;
+
+ out_kfree:
+	kfree(link);
+ out_err:
+	nd_set_link(nd, ERR_PTR(error));
 	return NULL;
 }
 

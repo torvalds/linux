@@ -18,7 +18,6 @@
 #ifndef __XFS_VNODE_H__
 #define __XFS_VNODE_H__
 
-struct uio;
 struct file;
 struct bhv_vfs;
 struct bhv_vattr;
@@ -165,8 +164,7 @@ typedef int	(*vop_readdir_t)(bhv_desc_t *, void *dirent, size_t bufsize,
 				 xfs_off_t *offset, filldir_t filldir);
 typedef int	(*vop_symlink_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr*,
 				char *, bhv_vnode_t **, struct cred *);
-typedef int	(*vop_readlink_t)(bhv_desc_t *, struct uio *, int,
-				struct cred *);
+typedef int	(*vop_readlink_t)(bhv_desc_t *, char *);
 typedef int	(*vop_fsync_t)(bhv_desc_t *, int, struct cred *,
 				xfs_off_t, xfs_off_t);
 typedef int	(*vop_inactive_t)(bhv_desc_t *, struct cred *);
@@ -271,8 +269,8 @@ typedef struct bhv_vnodeops {
 		VOP(vop_readdir, vp)(VNHEAD(vp),dirent,bufsize,offset,filldir)
 #define	bhv_vop_symlink(dvp,d,vap,tnm,vpp,cr)				\
 		VOP(vop_symlink, dvp)(VNHEAD(dvp),d,vap,tnm,vpp,cr)
-#define	bhv_vop_readlink(vp,uiop,fl,cr)					\
-		VOP(vop_readlink, vp)(VNHEAD(vp),uiop,fl,cr)
+#define	bhv_vop_readlink(vp,link)					\
+		VOP(vop_readlink, vp)(VNHEAD(vp), link)
 #define	bhv_vop_fsync(vp,f,cr,b,e)	VOP(vop_fsync, vp)(VNHEAD(vp),f,cr,b,e)
 #define bhv_vop_inactive(vp,cr)		VOP(vop_inactive, vp)(VNHEAD(vp),cr)
 #define bhv_vop_release(vp)		VOP(vop_release, vp)(VNHEAD(vp))
