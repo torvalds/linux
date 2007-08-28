@@ -11,6 +11,7 @@ __attribute, ATTRIBUTE_KEYW
 __attribute__, ATTRIBUTE_KEYW
 __const, CONST_KEYW
 __const__, CONST_KEYW
+__extension__, EXTENSION_KEYW
 __inline, INLINE_KEYW
 __inline__, INLINE_KEYW
 __signed, SIGNED_KEYW
