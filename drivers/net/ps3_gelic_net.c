@@ -556,7 +556,6 @@ static int gelic_net_stop(struct net_device *netdev)
 {
 	struct gelic_net_card *card = netdev_priv(netdev);
 
-	netif_poll_disable(netdev);
 	netif_stop_queue(netdev);
 
 	/* turn off DMA, force end */
