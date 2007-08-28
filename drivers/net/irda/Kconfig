@@ -176,6 +176,20 @@ config KSDAZZLE_DONGLE
 	  To compile it as a module, choose M here: the module will be called
 	  ksdazzle-sir.
 
+config KS959_DONGLE
+	tristate "KingSun KS-959 IrDA-USB dongle (EXPERIMENTAL)"
+	depends on IRDA && USB && EXPERIMENTAL
+	help
+	  Say Y or M here if you want to build support for the KingSun KS-959
+	  IrDA-USB bridge device driver.
+
+	  This USB bridge does not conform to the IrDA-USB device class
+	  specification, and therefore needs its own specific driver. This
+	  dongle supports SIR speeds only (9600 through 57600 bps).
+
+	  To compile it as a module, choose M here: the module will be called
+	  ks959-sir.
+
 comment "Old SIR device drivers"
 
 config IRPORT_SIR
