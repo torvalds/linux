@@ -563,7 +563,6 @@ struct ieee80211_local {
 	struct local_debugfsdentries {
 		struct dentry *channel;
 		struct dentry *frequency;
-		struct dentry *radar_detect;
 		struct dentry *antenna_sel_tx;
 		struct dentry *antenna_sel_rx;
 		struct dentry *bridge_packets;

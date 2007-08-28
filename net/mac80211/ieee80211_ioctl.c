@@ -1125,12 +1125,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		else
 			sdata->u.sta.wmm_enabled = !!value;
 		break;
-	case PRISM2_PARAM_RADAR_DETECT:
-		local->hw.conf.radar_detect = value;
-		break;
-	case PRISM2_PARAM_SPECTRUM_MGMT:
-		local->hw.conf.spect_mgmt = value;
-		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;

@@ -86,8 +86,6 @@ DEBUGFS_READONLY_FILE(channel, 20, "%d",
 		      local->hw.conf.channel);
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
 		      local->hw.conf.freq);
-DEBUGFS_READONLY_FILE(radar_detect, 20, "%d",
-		      local->hw.conf.radar_detect);
 DEBUGFS_READONLY_FILE(antenna_sel_tx, 20, "%d",
 		      local->hw.conf.antenna_sel_tx);
 DEBUGFS_READONLY_FILE(antenna_sel_rx, 20, "%d",
@@ -302,7 +300,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	DEBUGFS_ADD(channel);
 	DEBUGFS_ADD(frequency);
-	DEBUGFS_ADD(radar_detect);
 	DEBUGFS_ADD(antenna_sel_tx);
 	DEBUGFS_ADD(antenna_sel_rx);
 	DEBUGFS_ADD(bridge_packets);
@@ -366,7 +363,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 {
 	DEBUGFS_DEL(channel);
 	DEBUGFS_DEL(frequency);
-	DEBUGFS_DEL(radar_detect);
 	DEBUGFS_DEL(antenna_sel_tx);
 	DEBUGFS_DEL(antenna_sel_rx);
 	DEBUGFS_DEL(bridge_packets);

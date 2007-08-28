@@ -300,20 +300,6 @@ struct ieee80211_conf {
 	/* 0 = default/diversity, 1 = Ant0, 2 = Ant1 */
 	u8 antenna_sel_tx;
 	u8 antenna_sel_rx;
-
-	/* Following five fields are used for IEEE 802.11H */
-	unsigned int radar_detect;
-	unsigned int spect_mgmt;
-	/* All following fields are currently unused. */
-	unsigned int quiet_duration; /* duration of quiet period */
-	unsigned int quiet_offset; /* how far into the beacon is the quiet
-				    * period */
-	unsigned int quiet_period;
-	u8 radar_firpwr_threshold;
-	u8 radar_rssi_threshold;
-	u8 pulse_height_threshold;
-	u8 pulse_rssi_threshold;
-	u8 pulse_inband_threshold;
 };
 
 /**
