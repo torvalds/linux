@@ -398,11 +398,6 @@ m82xx_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
-static int pci_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return h->of_node == node;
-}
-
 static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
 			    irq_hw_number_t hw)
 {
@@ -418,7 +413,6 @@ static void pci_host_unmap(struct irq_host *h, unsigned int virq)
 }
 
 static struct irq_host_ops pci_pic_host_ops = {
-	.match = pci_pic_host_match,
 	.map = pci_pic_host_map,
 	.unmap = pci_host_unmap,
 };

@@ -215,11 +215,6 @@ out_unlock:
 	spin_unlock(&desc->lock);
 }
 
-static int uic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return h->of_node == node;
-}
-
 static int uic_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
@@ -249,7 +244,6 @@ static int uic_host_xlate(struct irq_host *h, struct device_node *ct,
 }
 
 static struct irq_host_ops uic_host_ops = {
-	.match	= uic_host_match,
 	.map	= uic_host_map,
 	.xlate	= uic_host_xlate,
 };

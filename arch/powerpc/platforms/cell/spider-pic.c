@@ -175,11 +175,6 @@ static struct irq_chip spider_pic = {
 	.set_type = spider_set_irq_type,
 };
 
-static int spider_host_match(struct irq_host *h, struct device_node *node)
-{
-	return h->of_node == node;
-}
-
 static int spider_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
@@ -206,7 +201,6 @@ static int spider_host_xlate(struct irq_host *h, struct device_node *ct,
 }
 
 static struct irq_host_ops spider_host_ops = {
-	.match = spider_host_match,
 	.map = spider_host_map,
 	.xlate = spider_host_xlate,
 };

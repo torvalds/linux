@@ -94,11 +94,6 @@ int cpm_get_irq(void)
 	return irq_linear_revmap(cpm_pic_host, cpm_vec);
 }
 
-static int cpm_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return h->of_node == node;
-}
-
 static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
@@ -126,7 +121,6 @@ static struct irqaction cpm_error_irqaction = {
 };
 
 static struct irq_host_ops cpm_pic_host_ops = {
-	.match = cpm_pic_host_match,
 	.map = cpm_pic_host_map,
 };
 

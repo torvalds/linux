@@ -294,13 +294,7 @@ static int msic_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int msic_host_match(struct irq_host *host, struct device_node *dn)
-{
-	return host->of_node == dn;
-}
-
 static struct irq_host_ops msic_host_ops = {
-	.match	= msic_host_match,
 	.map	= msic_host_map,
 };
 

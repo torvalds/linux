@@ -241,12 +241,6 @@ static struct irq_chip mpc52xx_sdma_irqchip = {
  * irq_host
 */
 
-static int mpc52xx_irqhost_match(struct irq_host *h, struct device_node *node)
-{
-	pr_debug("%s: node=%p\n", __func__, node);
-	return h->of_node == node;
-}
-
 static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
 				 u32 * intspec, unsigned int intsize,
 				 irq_hw_number_t * out_hwirq,
@@ -367,7 +361,6 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 }
 
 static struct irq_host_ops mpc52xx_irqhost_ops = {
-	.match = mpc52xx_irqhost_match,
 	.xlate = mpc52xx_irqhost_xlate,
 	.map = mpc52xx_irqhost_map,
 };

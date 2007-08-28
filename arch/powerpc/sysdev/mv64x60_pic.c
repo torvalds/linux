@@ -202,11 +202,6 @@ static struct irq_chip mv64x60_chip_gpp = {
  * mv64x60_host_ops functions
  */
 
-static int mv64x60_host_match(struct irq_host *h, struct device_node *np)
-{
-	return h->of_node == np;
-}
-
 static struct irq_chip *mv64x60_chips[] = {
 	[MV64x60_LEVEL1_LOW]  = &mv64x60_chip_low,
 	[MV64x60_LEVEL1_HIGH] = &mv64x60_chip_high,
@@ -228,7 +223,6 @@ static int mv64x60_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static struct irq_host_ops mv64x60_host_ops = {
-	.match = mv64x60_host_match,
 	.map   = mv64x60_host_map,
 };
 

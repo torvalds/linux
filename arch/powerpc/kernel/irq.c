@@ -418,6 +418,11 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
+static int default_irq_host_match(struct irq_host *h, struct device_node *np)
+{
+	return h->of_node != NULL && h->of_node == np;
+}
+
 __init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
 				unsigned int revmap_type,
 				unsigned int revmap_arg,
@@ -448,6 +453,9 @@ __init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
 	host->inval_irq = inval_irq;
 	host->ops = ops;
 	host->of_node = of_node;
+
+	if (host->ops->match == NULL)
+		host->ops->match = default_irq_host_match;
 
 	spin_lock_irqsave(&irq_big_lock, flags);
 
@@ -523,7 +531,7 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 */
 	spin_lock_irqsave(&irq_big_lock, flags);
 	list_for_each_entry(h, &irq_hosts, link)
-		if (h->ops->match != NULL && h->ops->match(h, node)) {
+		if (h->ops->match(h, node)) {
 			found = h;
 			break;
 		}

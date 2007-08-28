@@ -119,11 +119,6 @@ unsigned int mpc8xx_get_irq(void)
 
 }
 
-static int mpc8xx_pic_host_match(struct irq_host *h, struct device_node *node)
-{
-	return h->of_node == node;
-}
-
 static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
@@ -157,7 +152,6 @@ static int mpc8xx_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 
 
 static struct irq_host_ops mpc8xx_pic_host_ops = {
-	.match = mpc8xx_pic_host_match,
 	.map = mpc8xx_pic_host_map,
 	.xlate = mpc8xx_pic_host_xlate,
 };
