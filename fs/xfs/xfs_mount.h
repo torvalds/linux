@@ -57,10 +57,7 @@ struct log;
 struct bhv_vfs;
 struct bhv_vnode;
 struct xfs_mount_args;
-struct xfs_ihash;
-struct xfs_chash;
 struct xfs_inode;
-struct xfs_perag;
 struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
@@ -335,8 +332,6 @@ typedef struct xfs_mount {
 	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
 	lock_t			m_agirotor_lock;/* .. and lock protecting it */
 	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
-	size_t			m_ihsize;	/* size of next field */
-	struct xfs_ihash	*m_ihash;	/* fs private inode hash table*/
 	struct xfs_inode	*m_inodes;	/* active inode list */
 	struct list_head	m_del_inodes;	/* inodes to reclaim */
 	mutex_t			m_ilock;	/* inode list mutex */
@@ -458,7 +453,7 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_IDELETE	(1ULL << 18)	/* delete empty inode clusters*/
 #define XFS_MOUNT_SWALLOC	(1ULL << 19)	/* turn on stripe width
 						 * allocation */
-#define XFS_MOUNT_IHASHSIZE	(1ULL << 20)	/* inode hash table size */
+			     /*	(1ULL << 20)	-- currently unused */
 #define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchronous directory ops */
 #define XFS_MOUNT_COMPAT_IOSIZE	(1ULL << 22)	/* don't report large preferred
 						 * I/O size in stat() */
@@ -569,6 +564,21 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 {
 	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
 	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
+}
+
+/*
+ * perag get/put wrappers for eventual ref counting
+ */
+static inline xfs_perag_t *
+xfs_get_perag(struct xfs_mount *mp, xfs_ino_t ino)
+{
+	return &mp->m_perag[XFS_INO_TO_AGNO(mp, ino)];
+}
+
+static inline void
+xfs_put_perag(struct xfs_mount *mp, xfs_perag_t *pag)
+{
+	/* nothing to see here, move along */
 }
 
 /*

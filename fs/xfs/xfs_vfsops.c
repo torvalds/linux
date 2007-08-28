@@ -117,8 +117,8 @@ xfs_init(void)
 	xfs_ili_zone =
 		kmem_zone_init_flags(sizeof(xfs_inode_log_item_t), "xfs_ili",
 					KM_ZONE_SPREAD, NULL);
-	xfs_chashlist_zone =
-		kmem_zone_init_flags(sizeof(xfs_chashlist_t), "xfs_chashlist",
+	xfs_icluster_zone =
+		kmem_zone_init_flags(sizeof(xfs_icluster_t), "xfs_icluster",
 					KM_ZONE_SPREAD, NULL);
 
 	/*
@@ -163,7 +163,7 @@ xfs_cleanup(void)
 	extern kmem_zone_t	*xfs_efd_zone;
 	extern kmem_zone_t	*xfs_efi_zone;
 	extern kmem_zone_t	*xfs_buf_item_zone;
-	extern kmem_zone_t	*xfs_chashlist_zone;
+	extern kmem_zone_t	*xfs_icluster_zone;
 
 	xfs_cleanup_procfs();
 	xfs_sysctl_unregister();
@@ -199,7 +199,7 @@ xfs_cleanup(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_ili_zone);
-	kmem_zone_destroy(xfs_chashlist_zone);
+	kmem_zone_destroy(xfs_icluster_zone);
 }
 
 /*
@@ -246,7 +246,6 @@ xfs_start_flags(
 			ap->logbufsize);
 		return XFS_ERROR(EINVAL);
 	}
-	mp->m_ihsize = ap->ihashsize;
 	mp->m_logbsize = ap->logbufsize;
 	mp->m_fsname_len = strlen(ap->fsname) + 1;
 	mp->m_fsname = kmem_alloc(mp->m_fsname_len, KM_SLEEP);
@@ -293,8 +292,6 @@ xfs_start_flags(
 		mp->m_readio_log = mp->m_writeio_log = ap->iosizelog;
 	}
 
-	if (ap->flags & XFSMNT_IHASHSIZE)
-		mp->m_flags |= XFS_MOUNT_IHASHSIZE;
 	if (ap->flags & XFSMNT_IDELETE)
 		mp->m_flags |= XFS_MOUNT_IDELETE;
 	if (ap->flags & XFSMNT_DIRSYNC)
@@ -1673,7 +1670,6 @@ xfs_vget(
 #define MNTOPT_BSDGROUPS    "bsdgroups"    /* group-ID from parent directory */
 #define MNTOPT_SYSVGROUPS   "sysvgroups"   /* group-ID from current process */
 #define MNTOPT_ALLOCSIZE    "allocsize"    /* preferred allocation size */
-#define MNTOPT_IHASHSIZE    "ihashsize"    /* size of inode hash table */
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
 #define MNTOPT_BARRIER	"barrier"	/* use writer barriers for log write and
 					 * unwritten extent conversion */
@@ -1799,15 +1795,6 @@ xfs_parseargs(
 			iosize = suffix_strtoul(value, &eov, 10);
 			args->flags |= XFSMNT_IOSIZE;
 			args->iosizelog = ffs(iosize) - 1;
-		} else if (!strcmp(this_char, MNTOPT_IHASHSIZE)) {
-			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
-					this_char);
-				return EINVAL;
-			}
-			args->flags |= XFSMNT_IHASHSIZE;
-			args->ihashsize = simple_strtoul(value, &eov, 10);
 		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
 			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
 			vfsp->vfs_flag |= VFS_GRPID;
@@ -1876,6 +1863,9 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
 			args->flags2 |= XFSMNT2_FILESTREAMS;
+		} else if (!strcmp(this_char, "ihashsize")) {
+			cmn_err(CE_WARN,
+	"XFS: ihashsize no longer used, option is deprecated.");
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 			cmn_err(CE_WARN,
@@ -1965,9 +1955,6 @@ xfs_showargs(
 		if (mp->m_flags & xfs_infop->flag)
 			seq_puts(m, xfs_infop->str);
 	}
-
-	if (mp->m_flags & XFS_MOUNT_IHASHSIZE)
-		seq_printf(m, "," MNTOPT_IHASHSIZE "=%d", (int)mp->m_ihsize);
 
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
 		seq_printf(m, "," MNTOPT_ALLOCSIZE "=%dk",

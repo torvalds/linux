@@ -52,7 +52,7 @@
 
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
-kmem_zone_t *xfs_chashlist_zone;
+kmem_zone_t *xfs_icluster_zone;
 
 /*
  * Used in xfs_itruncate().  This is the maximum number of extents
@@ -2182,10 +2182,10 @@ xfs_ifree_cluster(
 	int			i, j, found, pre_flushed;
 	xfs_daddr_t		blkno;
 	xfs_buf_t		*bp;
-	xfs_ihash_t		*ih;
 	xfs_inode_t		*ip, **ip_found;
 	xfs_inode_log_item_t	*iip;
 	xfs_log_item_t		*lip;
+	xfs_perag_t		*pag = xfs_get_perag(mp, inum);
 	SPLDECL(s);
 
 	if (mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp)) {
@@ -2220,23 +2220,20 @@ xfs_ifree_cluster(
 		 */
 		found = 0;
 		for (i = 0; i < ninodes; i++) {
-			ih = XFS_IHASH(mp, inum + i);
-			read_lock(&ih->ih_lock);
-			for (ip = ih->ih_next; ip != NULL; ip = ip->i_next) {
-				if (ip->i_ino == inum + i)
-					break;
-			}
+			read_lock(&pag->pag_ici_lock);
+			ip = radix_tree_lookup(&pag->pag_ici_root,
+					XFS_INO_TO_AGINO(mp, (inum + i)));
 
 			/* Inode not in memory or we found it already,
 			 * nothing to do
 			 */
 			if (!ip || xfs_iflags_test(ip, XFS_ISTALE)) {
-				read_unlock(&ih->ih_lock);
+				read_unlock(&pag->pag_ici_lock);
 				continue;
 			}
 
 			if (xfs_inode_clean(ip)) {
-				read_unlock(&ih->ih_lock);
+				read_unlock(&pag->pag_ici_lock);
 				continue;
 			}
 
@@ -2259,7 +2256,7 @@ xfs_ifree_cluster(
 						ip_found[found++] = ip;
 					}
 				}
-				read_unlock(&ih->ih_lock);
+				read_unlock(&pag->pag_ici_lock);
 				continue;
 			}
 
@@ -2277,8 +2274,7 @@ xfs_ifree_cluster(
 					xfs_iunlock(ip, XFS_ILOCK_EXCL);
 				}
 			}
-
-			read_unlock(&ih->ih_lock);
+			read_unlock(&pag->pag_ici_lock);
 		}
 
 		bp = xfs_trans_get_buf(tp, mp->m_ddev_targp, blkno, 
@@ -2333,6 +2329,7 @@ xfs_ifree_cluster(
 	}
 
 	kmem_free(ip_found, ninodes * sizeof(xfs_inode_t *));
+	xfs_put_perag(mp, pag);
 }
 
 /*
@@ -3050,12 +3047,11 @@ xfs_iflush(
 	xfs_mount_t		*mp;
 	int			error;
 	/* REFERENCED */
-	xfs_chash_t		*ch;
 	xfs_inode_t		*iq;
 	int			clcount;	/* count of inodes clustered */
 	int			bufwasdelwri;
+	struct hlist_node	*entry;
 	enum { INT_DELWRI = (1 << 0), INT_ASYNC = (1 << 1) };
-	SPLDECL(s);
 
 	XFS_STATS_INC(xs_iflush_count);
 
@@ -3169,14 +3165,14 @@ xfs_iflush(
 	 * inode clustering:
 	 * see if other inodes can be gathered into this write
 	 */
-
-	ip->i_chash->chl_buf = bp;
-
-	ch = XFS_CHASH(mp, ip->i_blkno);
-	s = mutex_spinlock(&ch->ch_lock);
+	spin_lock(&ip->i_cluster->icl_lock);
+	ip->i_cluster->icl_buf = bp;
 
 	clcount = 0;
-	for (iq = ip->i_cnext; iq != ip; iq = iq->i_cnext) {
+	hlist_for_each_entry(iq, entry, &ip->i_cluster->icl_inodes, i_cnode) {
+		if (iq == ip)
+			continue;
+
 		/*
 		 * Do an un-protected check to see if the inode is dirty and
 		 * is a candidate for flushing.  These checks will be repeated
@@ -3227,7 +3223,7 @@ xfs_iflush(
 			xfs_iunlock(iq, XFS_ILOCK_SHARED);
 		}
 	}
-	mutex_spinunlock(&ch->ch_lock, s);
+	spin_unlock(&ip->i_cluster->icl_lock);
 
 	if (clcount) {
 		XFS_STATS_INC(xs_icluster_flushcnt);
@@ -3264,7 +3260,7 @@ cluster_corrupt_out:
 	/* Corruption detected in the clustering loop.  Invalidate the
 	 * inode buffer and shut down the filesystem.
 	 */
-	mutex_spinunlock(&ch->ch_lock, s);
+	spin_unlock(&ip->i_cluster->icl_lock);
 
 	/*
 	 * Clean up the buffer.  If it was B_DELWRI, just release it --

@@ -160,11 +160,6 @@ xfs_mount_free(
 	xfs_mount_t	*mp,
 	int		remove_bhv)
 {
-	if (mp->m_ihash)
-		xfs_ihash_free(mp);
-	if (mp->m_chash)
-		xfs_chash_free(mp);
-
 	if (mp->m_perag) {
 		int	agno;
 
@@ -342,6 +337,17 @@ xfs_mount_validate_sb(
 	return 0;
 }
 
+STATIC void
+xfs_initialize_perag_icache(
+	xfs_perag_t	*pag)
+{
+	if (!pag->pag_ici_init) {
+		rwlock_init(&pag->pag_ici_lock);
+		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+		pag->pag_ici_init = 1;
+	}
+}
+
 xfs_agnumber_t
 xfs_initialize_perag(
 	bhv_vfs_t	*vfs,
@@ -396,12 +402,14 @@ xfs_initialize_perag(
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
 				pag->pagf_metadata = 1;
+			xfs_initialize_perag_icache(pag);
 		}
 	} else {
 		/* Setup default behavior for smaller filesystems */
 		for (index = 0; index < agcount; index++) {
 			pag = &mp->m_perag[index];
 			pag->pagi_inodeok = 1;
+			xfs_initialize_perag_icache(pag);
 		}
 	}
 	return index;
@@ -1033,13 +1041,6 @@ xfs_mountfs(
 	xfs_trans_init(mp);
 
 	/*
-	 * Allocate and initialize the inode hash table for this
-	 * file system.
-	 */
-	xfs_ihash_init(mp);
-	xfs_chash_init(mp);
-
-	/*
 	 * Allocate and initialize the per-ag data.
 	 */
 	init_rwsem(&mp->m_peraglock);
@@ -1190,8 +1191,6 @@ xfs_mountfs(
  error3:
 	xfs_log_unmount_dealloc(mp);
  error2:
-	xfs_ihash_free(mp);
-	xfs_chash_free(mp);
 	for (agno = 0; agno < sbp->sb_agcount; agno++)
 		if (mp->m_perag[agno].pagb_list)
 			kmem_free(mp->m_perag[agno].pagb_list,
