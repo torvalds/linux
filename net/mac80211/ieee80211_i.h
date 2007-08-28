@@ -514,12 +514,6 @@ struct ieee80211_local {
 	struct work_struct sta_debugfs_add;
 #endif
 
-	enum {
-		STA_ANTENNA_SEL_AUTO = 0,
-		STA_ANTENNA_SEL_SW_CTRL = 1,
-		STA_ANTENNA_SEL_SW_CTRL_DEBUG = 2
-	} sta_antenna_sel;
-
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	/* TX/RX handler statistics */
 	unsigned int tx_handlers_drop;
@@ -555,10 +549,6 @@ struct ieee80211_local {
 	int total_ps_buffered; /* total number of all buffered unicast and
 				* multicast packets for power saving stations
 				*/
-	int allow_broadcast_always; /* whether to allow TX of broadcast frames
-				     * even when there are no associated STAs
-				     */
-
 	int wifi_wme_noack_test;
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
@@ -585,7 +575,6 @@ struct ieee80211_local {
 		struct dentry *total_ps_buffered;
 		struct dentry *mode;
 		struct dentry *wep_iv;
-		struct dentry *tx_power_reduction;
 		struct dentry *modes;
 		struct dentry *statistics;
 		struct local_debugfsdentries_statsdentries {

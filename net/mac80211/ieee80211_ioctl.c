@@ -1088,23 +1088,8 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		local->next_mode = value;
 		break;
 
-	case PRISM2_PARAM_STA_ANTENNA_SEL:
-		local->sta_antenna_sel = value;
-		break;
-
-	case PRISM2_PARAM_TX_POWER_REDUCTION:
-		if (value < 0)
-			ret = -EINVAL;
-		else
-			local->hw.conf.tx_power_reduction = value;
-		break;
-
 	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
 		local->key_tx_rx_threshold = value;
-		break;
-
-	case PRISM2_PARAM_DEFAULT_WEP_ONLY:
-		ret = ieee80211_ioctl_default_wep_only(local, value);
 		break;
 
 	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
@@ -1187,20 +1172,8 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		*param = local->next_mode;
 		break;
 
-	case PRISM2_PARAM_STA_ANTENNA_SEL:
-		*param = local->sta_antenna_sel;
-		break;
-
-	case PRISM2_PARAM_TX_POWER_REDUCTION:
-		*param = local->hw.conf.tx_power_reduction;
-		break;
-
 	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
 		*param = local->key_tx_rx_threshold;
-		break;
-
-	case PRISM2_PARAM_DEFAULT_WEP_ONLY:
-		*param = local->default_wep_only;
 		break;
 
 	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:

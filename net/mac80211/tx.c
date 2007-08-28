@@ -243,7 +243,6 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	} else {
 		if (unlikely((tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
 			     tx->local->num_sta == 0 &&
-			     !tx->local->allow_broadcast_always &&
 			     tx->sdata->type != IEEE80211_IF_TYPE_IBSS)) {
 			/*
 			 * No associated STAs - no need to send multicast
@@ -959,8 +958,6 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	 */
 	control->power_level = local->hw.conf.power_level;
 	control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
-	if (local->sta_antenna_sel != STA_ANTENNA_SEL_AUTO && tx->sta)
-		control->antenna_sel_tx = tx->sta->antenna_sel_tx;
 
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);

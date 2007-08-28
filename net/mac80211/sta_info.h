@@ -90,10 +90,6 @@ struct sta_info {
 	int channel_use;
 	int channel_use_raw;
 
-	u8 antenna_sel_tx;
-	u8 antenna_sel_rx;
-
-
 	int key_idx_compression; /* key table index for compression and TX
 				  * filtering; used only if sta->key is not
 				  * set */

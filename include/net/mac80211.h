@@ -296,7 +296,6 @@ struct ieee80211_conf {
 	u8 power_level;			/* transmit power limit for current
 					 * regulatory domain; in dBm */
 	u8 antenna_max;			/* maximum antenna gain */
-	short tx_power_reduction; /* in 0.1 dBm */
 
 	/* 0 = default/diversity, 1 = Ant0, 2 = Ant1 */
 	u8 antenna_sel_tx;

@@ -110,9 +110,6 @@ DEBUGFS_READONLY_FILE(mode, 20, "%s",
 		      ieee80211_mode_str(local->hw.conf.phymode));
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#06x",
 		      local->wep_iv & 0xffffff);
-DEBUGFS_READONLY_FILE(tx_power_reduction, 20, "%d.%d dBm",
-		      local->hw.conf.tx_power_reduction / 10,
-		      local->hw.conf.tx_power_reduction % 10);
 DEBUGFS_READONLY_FILE(rate_ctrl_alg, 100, "%s",
 		      local->rate_ctrl ? local->rate_ctrl->ops->name : "<unset>");
 
@@ -317,7 +314,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(mode);
 	DEBUGFS_ADD(wep_iv);
-	DEBUGFS_ADD(tx_power_reduction);
 	DEBUGFS_ADD(modes);
 
 	statsd = debugfs_create_dir("statistics", phyd);
@@ -382,7 +378,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(mode);
 	DEBUGFS_DEL(wep_iv);
-	DEBUGFS_DEL(tx_power_reduction);
 	DEBUGFS_DEL(modes);
 
 	DEBUGFS_STATS_DEL(transmitted_fragment_count);
