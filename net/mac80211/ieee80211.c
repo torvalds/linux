@@ -876,10 +876,15 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	pkt_data->ifindex = control->ifindex;
-	pkt_data->mgmt_iface = (control->type == IEEE80211_IF_TYPE_MGMT);
-	pkt_data->req_tx_status = !!(control->flags & IEEE80211_TXCTL_REQ_TX_STATUS);
-	pkt_data->do_not_encrypt = !!(control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT);
-	pkt_data->requeue = !!(control->flags & IEEE80211_TXCTL_REQUEUE);
+	pkt_data->flags = 0;
+	if (control->flags & IEEE80211_TXCTL_REQ_TX_STATUS)
+		pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
+	if (control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT)
+		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
+	if (control->flags & IEEE80211_TXCTL_REQUEUE)
+		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
+	if (control->type == IEEE80211_IF_TYPE_MGMT)
+		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 	pkt_data->queue = control->queue;
 
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);

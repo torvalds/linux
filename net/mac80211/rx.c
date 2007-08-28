@@ -434,7 +434,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
 		sent++;
-		pkt_data->requeue = 1;
+		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
 		dev_queue_xmit(skb);
 	}
 	while ((skb = skb_dequeue(&sta->ps_tx_buf)) != NULL) {
@@ -446,7 +446,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 		       "since STA not sleeping anymore\n", dev->name,
 		       MAC_ARG(sta->addr), sta->aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-		pkt_data->requeue = 1;
+		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
 		dev_queue_xmit(skb);
 	}
 

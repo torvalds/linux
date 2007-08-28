@@ -1245,11 +1245,11 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 
 	control.ifindex = odev->ifindex;
 	control.type = osdata->type;
-	if (pkt_data->req_tx_status)
+	if (pkt_data->flags & IEEE80211_TXPD_REQ_TX_STATUS)
 		control.flags |= IEEE80211_TXCTL_REQ_TX_STATUS;
-	if (pkt_data->do_not_encrypt)
+	if (pkt_data->flags & IEEE80211_TXPD_DO_NOT_ENCRYPT)
 		control.flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
-	if (pkt_data->requeue)
+	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE)
 		control.flags |= IEEE80211_TXCTL_REQUEUE;
 	control.queue = pkt_data->queue;
 
@@ -1291,8 +1291,7 @@ int ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	/* needed because we set skb device to master */
 	pkt_data->ifindex = dev->ifindex;
 
-	pkt_data->mgmt_iface = 0;
-	pkt_data->do_not_encrypt = 1;
+	pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 
 	/*
 	 * fix up the pointers accounting for the radiotap
@@ -1343,7 +1342,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct ieee80211_hdr hdr;
 	const u8 *encaps_data;
 	int encaps_len, skip_header_bytes;
-	int nh_pos, h_pos, no_encrypt = 0;
+	int nh_pos, h_pos;
 	struct sta_info *sta;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -1487,8 +1486,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = dev->ifindex;
-	pkt_data->mgmt_iface = (sdata->type == IEEE80211_IF_TYPE_MGMT);
-	pkt_data->do_not_encrypt = no_encrypt;
+	if (sdata->type == IEEE80211_IF_TYPE_MGMT)
+		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 
 	skb->dev = local->mdev;
 	sdata->stats.tx_packets++;
@@ -1546,7 +1545,8 @@ int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = sdata->dev->ifindex;
-	pkt_data->mgmt_iface = (sdata->type == IEEE80211_IF_TYPE_MGMT);
+	if (sdata->type == IEEE80211_IF_TYPE_MGMT)
+		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 
 	skb->priority = 20; /* use hardcoded priority for mgmt TX queue */
 	skb->dev = sdata->local->mdev;
@@ -1556,12 +1556,13 @@ int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * to request TX callback for hostapd. BIT(1) is checked.
 	 */
 	if ((fc & BIT(1)) == BIT(1)) {
-		pkt_data->req_tx_status = 1;
+		pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;
 		fc &= ~BIT(1);
 		hdr->frame_control = cpu_to_le16(fc);
 	}
 
-	pkt_data->do_not_encrypt = !(fc & IEEE80211_FCTL_PROTECTED);
+	if (!(fc & IEEE80211_FCTL_PROTECTED))
+		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 
 	sdata->stats.tx_packets++;
 	sdata->stats.tx_bytes += skb->len;

@@ -108,7 +108,7 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 		return IEEE80211_TX_QUEUE_DATA0;
 	}
 
-	if (unlikely(pkt_data->mgmt_iface)) {
+	if (unlikely(pkt_data->flags & IEEE80211_TXPD_MGMT_IFACE)) {
 		/* Data frames from hostapd (mainly, EAPOL) use AC_VO
 		* and they will include QoS control fields if
 		* the target STA is using WME. */
@@ -153,7 +153,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 	struct Qdisc *qdisc;
 	int err, queue;
 
-	if (pkt_data->requeue) {
+	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE) {
 		skb_queue_tail(&q->requeued[pkt_data->queue], skb);
 		qd->q.qlen++;
 		return 0;

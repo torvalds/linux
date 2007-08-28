@@ -155,15 +155,17 @@ struct ieee80211_txrx_data {
 	} u;
 };
 
+/* flags used in struct ieee80211_tx_packet_data.flags */
+#define IEEE80211_TXPD_REQ_TX_STATUS	BIT(0)
+#define IEEE80211_TXPD_DO_NOT_ENCRYPT	BIT(1)
+#define IEEE80211_TXPD_REQUEUE		BIT(2)
+#define IEEE80211_TXPD_MGMT_IFACE	BIT(3)
 /* Stored in sk_buff->cb */
 struct ieee80211_tx_packet_data {
 	int ifindex;
 	unsigned long jiffies;
-	unsigned int req_tx_status:1;
-	unsigned int do_not_encrypt:1;
-	unsigned int requeue:1;
-	unsigned int mgmt_iface:1;
-	unsigned int queue:4;
+	unsigned int flags;
+	u8 queue;
 };
 
 struct ieee80211_tx_stored_packet {

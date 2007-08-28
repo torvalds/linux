@@ -465,8 +465,10 @@ static void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
 	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = sdata->dev->ifindex;
-	pkt_data->mgmt_iface = (sdata->type == IEEE80211_IF_TYPE_MGMT);
-	pkt_data->do_not_encrypt = !encrypt;
+	if (sdata->type == IEEE80211_IF_TYPE_MGMT)
+		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
+	if (!encrypt)
+		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 
 	dev_queue_xmit(skb);
 }
