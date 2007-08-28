@@ -234,7 +234,6 @@ static int ecw2cw(int ecw)
 	return cw - 1;
 }
 
-
 static void ieee80211_sta_wmm_params(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta,
 				     u8 *wmm_param, size_t wmm_param_len)

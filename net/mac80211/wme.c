@@ -125,14 +125,13 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 	}
 
 	/* use the data classifier to determine what 802.1d tag the
-	* data frame has */
+	 * data frame has */
 	skb->priority = classify_1d(skb, qd);
 
-	/* incase we are a client verify acm is not set for this ac */
+	/* in case we are a client verify acm is not set for this ac */
 	while (unlikely(local->wmm_acm & BIT(skb->priority))) {
 		if (wme_downgrade_ac(skb)) {
-			/* No AC with lower priority has acm=0,
-			* drop packet. */
+			/* No AC with lower priority has acm=0, drop packet. */
 			return -1;
 		}
 	}

@@ -550,7 +550,6 @@ ieee80211_tx_h_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 
 	if (tx->u.tx.extra_frag) {
 		int i;
-
 		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
 			if (ccmp_encrypt_skb(tx, tx->u.tx.extra_frag[i], test)
 			    < 0)

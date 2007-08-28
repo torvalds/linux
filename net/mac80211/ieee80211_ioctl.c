@@ -968,6 +968,7 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 			*param = !!(sdata->u.sta.flags &
 					IEEE80211_STA_MIXED_CELL);
 		break;
+
 	case PRISM2_PARAM_WMM_ENABLED:
 		if (sdata->type != IEEE80211_IF_TYPE_STA &&
 		    sdata->type != IEEE80211_IF_TYPE_IBSS)
