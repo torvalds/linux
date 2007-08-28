@@ -336,13 +336,16 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 			if (!rx->key) {
 				if (!rx->u.rx.ra_match)
 					return TXRX_DROP;
-				printk(KERN_DEBUG "%s: RX WEP frame with "
-				       "unknown keyidx %d (A1=" MAC_FMT " A2="
-				       MAC_FMT " A3=" MAC_FMT ")\n",
-				       rx->dev->name, keyidx,
-				       MAC_ARG(hdr->addr1),
-				       MAC_ARG(hdr->addr2),
-				       MAC_ARG(hdr->addr3));
+				if (net_ratelimit())
+					printk(KERN_DEBUG "%s: RX WEP frame "
+					       "with unknown keyidx %d "
+					       "(A1=" MAC_FMT
+					       " A2=" MAC_FMT
+					       " A3=" MAC_FMT ")\n",
+					       rx->dev->name, keyidx,
+					       MAC_ARG(hdr->addr1),
+					       MAC_ARG(hdr->addr2),
+					       MAC_ARG(hdr->addr3));
 				if (!rx->local->apdev)
 					return TXRX_DROP;
 				ieee80211_rx_mgmt(
@@ -526,16 +529,18 @@ ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_CONTINUE;
 
 	if (!rx->key) {
-		printk(KERN_DEBUG "%s: RX WEP frame, but no key set\n",
-		       rx->dev->name);
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: RX WEP frame, but no key set\n",
+			       rx->dev->name);
 		return TXRX_DROP;
 	}
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED) ||
 	    rx->key->force_sw_encrypt) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
-			printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
-			       "failed\n", rx->dev->name);
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
+				       "failed\n", rx->dev->name);
 			return TXRX_DROP;
 		}
 	} else if (rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
@@ -692,12 +697,15 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 		}
 		rpn = rx->key->u.ccmp.rx_pn[rx->u.rx.queue];
 		if (memcmp(pn, rpn, CCMP_PN_LEN) != 0) {
-			printk(KERN_DEBUG "%s: defrag: CCMP PN not sequential"
-			       " A2=" MAC_FMT " PN=%02x%02x%02x%02x%02x%02x "
-			       "(expected %02x%02x%02x%02x%02x%02x)\n",
-			       rx->dev->name, MAC_ARG(hdr->addr2),
-			       rpn[0], rpn[1], rpn[2], rpn[3], rpn[4], rpn[5],
-			       pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: defrag: CCMP PN not "
+				       "sequential A2=" MAC_FMT
+				       " PN=%02x%02x%02x%02x%02x%02x "
+				       "(expected %02x%02x%02x%02x%02x%02x)\n",
+				       rx->dev->name, MAC_ARG(hdr->addr2),
+				       rpn[0], rpn[1], rpn[2], rpn[3], rpn[4],
+				       rpn[5], pn[0], pn[1], pn[2], pn[3],
+				       pn[4], pn[5]);
 			return TXRX_DROP;
 		}
 		memcpy(entry->last_pn, pn, CCMP_PN_LEN);
@@ -875,8 +883,9 @@ ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 		     (rx->key || rx->sdata->drop_unencrypted) &&
 		     (rx->sdata->eapol == 0 ||
 		      !ieee80211_is_eapol(rx->skb)))) {
-		printk(KERN_DEBUG "%s: RX non-WEP frame, but expected "
-		       "encryption\n", rx->dev->name);
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: RX non-WEP frame, but expected "
+			       "encryption\n", rx->dev->name);
 		return TXRX_DROP;
 	}
 	return TXRX_CONTINUE;
@@ -922,10 +931,15 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 
 		if (unlikely(sdata->type != IEEE80211_IF_TYPE_AP &&
 			     sdata->type != IEEE80211_IF_TYPE_VLAN)) {
-			printk(KERN_DEBUG "%s: dropped ToDS frame (BSSID="
-			       MAC_FMT " SA=" MAC_FMT " DA=" MAC_FMT ")\n",
-			       dev->name, MAC_ARG(hdr->addr1),
-			       MAC_ARG(hdr->addr2), MAC_ARG(hdr->addr3));
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: dropped ToDS frame "
+				       "(BSSID=" MAC_FMT
+				       " SA=" MAC_FMT
+				       " DA=" MAC_FMT ")\n",
+				       dev->name,
+				       MAC_ARG(hdr->addr1),
+				       MAC_ARG(hdr->addr2),
+				       MAC_ARG(hdr->addr3));
 			return TXRX_DROP;
 		}
 		break;
@@ -935,12 +949,16 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 		memcpy(src, hdr->addr4, ETH_ALEN);
 
 		if (unlikely(sdata->type != IEEE80211_IF_TYPE_WDS)) {
-			printk(KERN_DEBUG "%s: dropped FromDS&ToDS frame (RA="
-			       MAC_FMT " TA=" MAC_FMT " DA=" MAC_FMT " SA="
-			       MAC_FMT ")\n",
-			       rx->dev->name, MAC_ARG(hdr->addr1),
-			       MAC_ARG(hdr->addr2), MAC_ARG(hdr->addr3),
-			       MAC_ARG(hdr->addr4));
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
+				       "frame (RA=" MAC_FMT
+				       " TA=" MAC_FMT " DA=" MAC_FMT
+				       " SA=" MAC_FMT ")\n",
+				       rx->dev->name,
+				       MAC_ARG(hdr->addr1),
+				       MAC_ARG(hdr->addr2),
+				       MAC_ARG(hdr->addr3),
+				       MAC_ARG(hdr->addr4));
 			return TXRX_DROP;
 		}
 		break;
@@ -1015,15 +1033,16 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 			/* send multicast frames both to higher layers in
 			 * local net stack and back to the wireless media */
 			skb2 = skb_copy(skb, GFP_ATOMIC);
-			if (!skb2)
+			if (!skb2 && net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to clone "
 				       "multicast frame\n", dev->name);
 		} else {
 			struct sta_info *dsta;
 			dsta = sta_info_get(local, skb->data);
 			if (dsta && !dsta->dev) {
-				printk(KERN_DEBUG "Station with null dev "
-				       "structure!\n");
+				if (net_ratelimit())
+					printk(KERN_DEBUG "Station with null "
+					       "dev structure!\n");
 			} else if (dsta && dsta->dev == dev) {
 				/* Destination station is associated to this
 				 * AP, so send the frame directly to it and
@@ -1135,24 +1154,28 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 
 	/* TODO: verify that this is not triggered by fragmented
 	 * frames (hw does not verify MIC for them). */
-	printk(KERN_DEBUG "%s: TKIP hwaccel reported Michael MIC "
-	       "failure from " MAC_FMT " to " MAC_FMT " keyidx=%d\n",
-	       dev->name, MAC_ARG(hdr->addr2), MAC_ARG(hdr->addr1), keyidx);
+	if (net_ratelimit())
+		printk(KERN_DEBUG "%s: TKIP hwaccel reported Michael MIC "
+		       "failure from " MAC_FMT " to " MAC_FMT " keyidx=%d\n",
+		       dev->name, MAC_ARG(hdr->addr2), MAC_ARG(hdr->addr1),
+		       keyidx);
 
 	if (!sta) {
 		/* Some hardware versions seem to generate incorrect
 		 * Michael MIC reports; ignore them to avoid triggering
 		 * countermeasures. */
-		printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-		       "error for unknown address " MAC_FMT "\n",
-		       dev->name, MAC_ARG(hdr->addr2));
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
+			       "error for unknown address " MAC_FMT "\n",
+			       dev->name, MAC_ARG(hdr->addr2));
 		goto ignore;
 	}
 
 	if (!(rx->fc & IEEE80211_FCTL_PROTECTED)) {
-		printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-		       "error for a frame with no ISWEP flag (src "
-		       MAC_FMT ")\n", dev->name, MAC_ARG(hdr->addr2));
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
+			       "error for a frame with no ISWEP flag (src "
+			       MAC_FMT ")\n", dev->name, MAC_ARG(hdr->addr2));
 		goto ignore;
 	}
 
@@ -1164,9 +1187,11 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		 * for group keys and only the AP is sending real multicast
 		 * frames in BSS. */
 		if (keyidx) {
-			printk(KERN_DEBUG "%s: ignored Michael MIC error for "
-			       "a frame with non-zero keyidx (%d) (src " MAC_FMT
-			       ")\n", dev->name, keyidx, MAC_ARG(hdr->addr2));
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: ignored Michael MIC "
+				       "error for a frame with non-zero keyidx"
+				       " (%d) (src " MAC_FMT ")\n", dev->name,
+				       keyidx, MAC_ARG(hdr->addr2));
 			goto ignore;
 		}
 	}
@@ -1174,10 +1199,11 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)) {
-		printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-		       "error for a frame that cannot be encrypted "
-		       "(fc=0x%04x) (src " MAC_FMT ")\n",
-		       dev->name, rx->fc, MAC_ARG(hdr->addr2));
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
+			       "error for a frame that cannot be encrypted "
+			       "(fc=0x%04x) (src " MAC_FMT ")\n",
+			       dev->name, rx->fc, MAC_ARG(hdr->addr2));
 		goto ignore;
 	}
 
