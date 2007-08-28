@@ -904,6 +904,7 @@ struct sched_entity {
 
 	u64			exec_start;
 	u64			sum_exec_runtime;
+	u64			prev_sum_exec_runtime;
 	u64			wait_start_fair;
 	u64			sleep_start_fair;
 

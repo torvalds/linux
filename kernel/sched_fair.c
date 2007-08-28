@@ -668,7 +668,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void
+static int
 __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			  struct sched_entity *curr, unsigned long granularity)
 {
@@ -679,8 +679,11 @@ __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	 * preempt the current task unless the best task has
 	 * a larger than sched_granularity fairness advantage:
 	 */
-	if (__delta > niced_granularity(curr, granularity))
+	if (__delta > niced_granularity(curr, granularity)) {
 		resched_task(rq_of(cfs_rq)->curr);
+		return 1;
+	}
+	return 0;
 }
 
 static inline void
@@ -725,6 +728,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
+	unsigned long gran, ideal_runtime, delta_exec;
 	struct sched_entity *next;
 
 	/*
@@ -741,8 +745,22 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	__check_preempt_curr_fair(cfs_rq, next, curr,
-			sched_granularity(cfs_rq));
+	gran = sched_granularity(cfs_rq);
+	ideal_runtime = niced_granularity(curr,
+		max(sysctl_sched_latency / cfs_rq->nr_running,
+		    (unsigned long)sysctl_sched_min_granularity));
+	/*
+	 * If we executed more than what the latency constraint suggests,
+	 * reduce the rescheduling granularity. This way the total latency
+	 * of how much a task is not scheduled converges to
+	 * sysctl_sched_latency:
+	 */
+	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	if (delta_exec > ideal_runtime)
+		gran = 0;
+
+	if (__check_preempt_curr_fair(cfs_rq, next, curr, gran))
+		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
 }
 
 /**************************************************

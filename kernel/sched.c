@@ -1587,6 +1587,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.wait_start_fair		= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
+	p->se.prev_sum_exec_runtime	= 0;
 	p->se.delta_exec		= 0;
 	p->se.delta_fair_run		= 0;
 	p->se.delta_fair_sleep		= 0;
