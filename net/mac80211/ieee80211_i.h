@@ -277,6 +277,14 @@ struct ieee80211_if_sta {
 };
 
 
+/* flags used in struct ieee80211_sub_if_data.flags */
+#define IEEE80211_SDATA_ALLMULTI	BIT(0)
+#define IEEE80211_SDATA_PROMISC		BIT(1)
+#define IEEE80211_SDATA_USE_PROTECTION	BIT(2) /* CTS protect ERP frames */
+/* use short preamble with IEEE 802.11b: this flag is set when the AP or beacon
+ * generator reports that there are no present stations that cannot support short
+ * preambles */
+#define IEEE80211_SDATA_SHORT_PREAMBLE	BIT(3)
 struct ieee80211_sub_if_data {
 	struct list_head list;
 	unsigned int type;
@@ -287,14 +295,8 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_local *local;
 
 	int mc_count;
-	unsigned int allmulti:1;
-	unsigned int promisc:1;
-	unsigned int use_protection:1; /* CTS protect ERP frames */
 
-	/* use short preamble with IEEE 802.11b: this flag is set when the AP
-	 * or beacon generator reports that there are no present stations that
-	 * cannot support short preambles */
-	unsigned int short_preamble:1;
+	unsigned int flags;
 
 	struct net_device_stats stats;
 	int drop_unencrypted;

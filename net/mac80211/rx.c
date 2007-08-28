@@ -1288,7 +1288,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		} else if (!multicast &&
 			   compare_ether_addr(sdata->dev->dev_addr,
 					      hdr->addr1) != 0) {
-			if (!sdata->promisc)
+			if (!(sdata->flags & IEEE80211_SDATA_PROMISC))
 				return 0;
 			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		}
@@ -1303,7 +1303,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		} else if (!multicast &&
 			   compare_ether_addr(sdata->dev->dev_addr,
 					      hdr->addr1) != 0) {
-			if (!sdata->promisc)
+			if (!(sdata->flags & IEEE80211_SDATA_PROMISC))
 				return 0;
 			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		} else if (!rx->sta)

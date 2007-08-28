@@ -555,23 +555,21 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 	unsigned short flags;
 
 	netif_tx_lock_nested(local->mdev, TX_LOCK_MASTER);
-	if (((dev->flags & IFF_ALLMULTI) != 0) ^ (sdata->allmulti != 0)) {
-		if (sdata->allmulti) {
-			sdata->allmulti = 0;
+	if (((dev->flags & IFF_ALLMULTI) != 0) ^
+	    ((sdata->flags & IEEE80211_SDATA_ALLMULTI) != 0)) {
+		if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
 			local->iff_allmultis--;
-		} else {
-			sdata->allmulti = 1;
+		else
 			local->iff_allmultis++;
-		}
+		sdata->flags ^= IEEE80211_SDATA_ALLMULTI;
 	}
-	if (((dev->flags & IFF_PROMISC) != 0) ^ (sdata->promisc != 0)) {
-		if (sdata->promisc) {
-			sdata->promisc = 0;
+	if (((dev->flags & IFF_PROMISC) != 0) ^
+	    ((sdata->flags & IEEE80211_SDATA_PROMISC) != 0)) {
+		if (sdata->flags & IEEE80211_SDATA_PROMISC)
 			local->iff_promiscs--;
-		} else {
-			sdata->promisc = 1;
+		else
 			local->iff_promiscs++;
-		}
+		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
 	if (dev->mc_count != sdata->mc_count) {
 		local->mc_count = local->mc_count - sdata->mc_count +
@@ -740,16 +738,16 @@ void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (local->ops->erp_ie_changed)
 		local->ops->erp_ie_changed(local_to_hw(local), changes,
-					   sdata->use_protection,
-					   !sdata->short_preamble);
+			!!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION),
+			!(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE));
 }
 
 void ieee80211_reset_erp_info(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata->short_preamble = 0;
-	sdata->use_protection = 0;
+	sdata->flags &= ~(IEEE80211_SDATA_USE_PROTECTION |
+			IEEE80211_SDATA_SHORT_PREAMBLE);
 	ieee80211_erp_info_change_notify(dev,
 					 IEEE80211_ERP_CHANGE_PROTECTION |
 					 IEEE80211_ERP_CHANGE_PREAMBLE);

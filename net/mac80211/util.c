@@ -329,7 +329,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw, int if_id,
 	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
 	erp = ieee80211_is_erp_rate(hw->conf.phymode, rate);
 	dur = ieee80211_frame_duration(local, frame_len, rate,
-				       erp, sdata->short_preamble);
+		       erp, sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE);
 
 	dev_put(bdev);
 	return cpu_to_le16(dur);
@@ -352,7 +352,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw, int if_id,
 		return 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
-	short_preamble = sdata->short_preamble;
+	short_preamble = sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);
@@ -388,7 +388,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw, int if_id,
 		return 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
-	short_preamble = sdata->short_preamble;
+	short_preamble = sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);

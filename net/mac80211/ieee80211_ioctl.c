@@ -1063,8 +1063,12 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
 		if (sdata->type == IEEE80211_IF_TYPE_AP) {
-			sdata->use_protection = !!value;
-			ieee80211_erp_info_change_notify(dev, IEEE80211_ERP_CHANGE_PROTECTION);
+			if (value)
+				sdata->flags |= IEEE80211_SDATA_USE_PROTECTION;
+			else
+				sdata->flags &= ~IEEE80211_SDATA_USE_PROTECTION;
+			ieee80211_erp_info_change_notify(dev,
+					IEEE80211_ERP_CHANGE_PROTECTION);
 		} else {
 			ret = -ENOENT;
 		}
@@ -1072,8 +1076,12 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_PREAMBLE:
 		if (sdata->type != IEEE80211_IF_TYPE_AP) {
-			sdata->short_preamble = !!value;
-			ieee80211_erp_info_change_notify(dev, IEEE80211_ERP_CHANGE_PREAMBLE);
+			if (value)
+				sdata->flags |= IEEE80211_SDATA_SHORT_PREAMBLE;
+			else
+				sdata->flags &= ~IEEE80211_SDATA_SHORT_PREAMBLE;
+			ieee80211_erp_info_change_notify(dev,
+					IEEE80211_ERP_CHANGE_PREAMBLE);
 		} else {
 			ret = -ENOENT;
 		}
@@ -1167,11 +1175,11 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		*param = sdata->use_protection;
+		*param = !!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION);
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
-		*param = sdata->short_preamble;
+		*param = !!(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE);
 		break;
 
 	case PRISM2_PARAM_SHORT_SLOT_TIME:

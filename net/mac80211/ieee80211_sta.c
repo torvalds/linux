@@ -321,7 +321,7 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 	int preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
 	u8 changes = 0;
 
-	if (use_protection != sdata->use_protection) {
+	if (use_protection != !!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: CTS protection %s (BSSID="
 			       MAC_FMT ")\n",
@@ -329,11 +329,14 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 			       use_protection ? "enabled" : "disabled",
 			       MAC_ARG(ifsta->bssid));
 		}
-		sdata->use_protection = use_protection;
+		if (use_protection)
+			sdata->flags |= IEEE80211_SDATA_USE_PROTECTION;
+		else
+			sdata->flags &= ~IEEE80211_SDATA_USE_PROTECTION;
 		changes |= IEEE80211_ERP_CHANGE_PROTECTION;
 	}
 
-	if (!preamble_mode != sdata->short_preamble) {
+	if (preamble_mode != !(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: switched to %s barker preamble"
 			       " (BSSID=" MAC_FMT ")\n",
@@ -342,7 +345,10 @@ static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
 					"short" : "long",
 			       MAC_ARG(ifsta->bssid));
 		}
-		sdata->short_preamble = !preamble_mode;
+		if (preamble_mode)
+			sdata->flags &= ~IEEE80211_SDATA_SHORT_PREAMBLE;
+		else
+			sdata->flags |= IEEE80211_SDATA_SHORT_PREAMBLE;
 		changes |= IEEE80211_ERP_CHANGE_PREAMBLE;
 	}
 
@@ -2307,8 +2313,9 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
-		control.tx_rate = (sdata->short_preamble &&
-				   (rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
+		control.tx_rate =
+			((sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE) &&
+			(rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
 			rate->val2 : rate->val;
 		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 		control.power_level = local->hw.conf.power_level;
