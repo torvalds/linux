@@ -124,6 +124,9 @@ struct irq_host {
 	struct irq_host_ops	*ops;
 	void			*host_data;
 	irq_hw_number_t		inval_irq;
+
+	/* Optional device node pointer */
+	struct device_node	*of_node;
 };
 
 /* The main irq map itself is an array of NR_IRQ entries containing the
@@ -142,7 +145,7 @@ extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
 /**
  * irq_alloc_host - Allocate a new irq_host data structure
- * @node: device-tree node of the interrupt controller
+ * @of_node: optional device-tree node of the interrupt controller
  * @revmap_type: type of reverse mapping to use
  * @revmap_arg: for IRQ_HOST_MAP_LINEAR linear only: size of the map
  * @ops: map/unmap host callbacks
@@ -156,7 +159,8 @@ extern irq_hw_number_t virq_to_hw(unsigned int virq);
  * later during boot automatically (the reverse mapping will use the slow path
  * until that happens).
  */
-extern struct irq_host *irq_alloc_host(unsigned int revmap_type,
+extern struct irq_host *irq_alloc_host(struct device_node *of_node,
+				       unsigned int revmap_type,
 				       unsigned int revmap_arg,
 				       struct irq_host_ops *ops,
 				       irq_hw_number_t inval_irq);

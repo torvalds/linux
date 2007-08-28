@@ -50,7 +50,6 @@ static uint host_end;    /* end + 1 */
 cpm8xx_t *cpmp;          /* Pointer to comm processor space */
 cpic8xx_t *cpic_reg;
 
-static struct device_node *cpm_pic_node;
 static struct irq_host *cpm_pic_host;
 
 static void cpm_mask_irq(unsigned int irq)
@@ -97,7 +96,7 @@ int cpm_get_irq(void)
 
 static int cpm_pic_host_match(struct irq_host *h, struct device_node *node)
 {
-	return cpm_pic_node == node;
+	return h->of_node == node;
 }
 
 static int cpm_pic_host_map(struct irq_host *h, unsigned int virq,
@@ -165,9 +164,8 @@ unsigned int cpm_pic_init(void)
 
 	out_be32(&cpic_reg->cpic_cimr, 0);
 
-	cpm_pic_node = of_node_get(np);
-
-	cpm_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &cpm_pic_host_ops, 64);
+	cpm_pic_host = irq_alloc_host(of_node_get(np), IRQ_HOST_MAP_LINEAR,
+				      64, &cpm_pic_host_ops, 64);
 	if (cpm_pic_host == NULL) {
 		printk(KERN_ERR "CPM2 PIC: failed to allocate irq host!\n");
 		sirq = NO_IRQ;

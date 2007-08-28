@@ -19,7 +19,6 @@
 
 extern int cpm_get_irq(struct pt_regs *regs);
 
-static struct device_node *mpc8xx_pic_node;
 static struct irq_host *mpc8xx_pic_host;
 #define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)
 static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
@@ -122,7 +121,7 @@ unsigned int mpc8xx_get_irq(void)
 
 static int mpc8xx_pic_host_match(struct irq_host *h, struct device_node *node)
 {
-	return mpc8xx_pic_node == node;
+	return h->of_node == node;
 }
 
 static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
@@ -176,22 +175,24 @@ int mpc8xx_pic_init(void)
 		return -ENOMEM;
 	}
 
-	mpc8xx_pic_node = of_node_get(np);
-
 	ret = of_address_to_resource(np, 0, &res);
-	of_node_put(np);
 	if (ret)
-		return ret;
+		goto out;
 
 	siu_reg = (void *)ioremap(res.start, res.end - res.start + 1);
-	if (siu_reg == NULL)
-		return -EINVAL;
+	if (siu_reg == NULL) {
+		ret = -EINVAL;
+		goto out;
+	}
 
-	mpc8xx_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, 64, &mpc8xx_pic_host_ops, 64);
+	mpc8xx_pic_host = irq_alloc_host(of_node_get(np), IRQ_HOST_MAP_LINEAR,
+					 64, &mpc8xx_pic_host_ops, 64);
 	if (mpc8xx_pic_host == NULL) {
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 		ret = -ENOMEM;
 	}
 
+out:
+	of_node_put(np);
 	return ret;
 }

@@ -48,9 +48,6 @@ struct ipic {
 
 	/* The "linux" controller struct */
 	struct irq_chip		hc_irq;
-
-	/* The device node of the interrupt controller */
-	struct device_node	*of_node;
 };
 
 struct ipic_info {

@@ -117,16 +117,17 @@ static int mpic_msi_reserve_dt_hwirqs(struct mpic *mpic)
 	int i, len;
 	const u32 *p;
 
-	p = of_get_property(mpic->of_node, "msi-available-ranges", &len);
+	p = of_get_property(mpic->irqhost->of_node,
+			    "msi-available-ranges", &len);
 	if (!p) {
 		pr_debug("mpic: no msi-available-ranges property found on %s\n",
-			  mpic->of_node->full_name);
+			  mpic->irqhost->of_node->full_name);
 		return -ENODEV;
 	}
 
 	if (len % 8 != 0) {
 		printk(KERN_WARNING "mpic: Malformed msi-available-ranges "
-		       "property on %s\n", mpic->of_node->full_name);
+		       "property on %s\n", mpic->irqhost->of_node->full_name);
 		return -EINVAL;
 	}
 

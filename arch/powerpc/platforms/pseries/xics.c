@@ -540,7 +540,7 @@ static void __init xics_init_host(void)
 		ops = &xics_host_lpar_ops;
 	else
 		ops = &xics_host_direct_ops;
-	xics_host = irq_alloc_host(IRQ_HOST_MAP_TREE, 0, ops,
+	xics_host = irq_alloc_host(NULL, IRQ_HOST_MAP_TREE, 0, ops,
 				   XICS_IRQ_SPURIOUS);
 	BUG_ON(xics_host == NULL);
 	irq_set_default_host(xics_host);

@@ -271,7 +271,7 @@ static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 {
 	rb->dbase = mpic->dcr_base;
 	rb->doff = offset;
-	rb->dhost = dcr_map(mpic->of_node, rb->dbase + rb->doff, size);
+	rb->dhost = dcr_map(mpic->irqhost->of_node, rb->dbase + rb->doff, size);
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
@@ -861,10 +861,8 @@ static struct irq_chip mpic_irq_ht_chip = {
 
 static int mpic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct mpic *mpic = h->host_data;
-
 	/* Exact match, unless mpic node is NULL */
-	return mpic->of_node == NULL || mpic->of_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int mpic_host_map(struct irq_host *h, unsigned int virq,
@@ -985,10 +983,9 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	
 	memset(mpic, 0, sizeof(struct mpic));
 	mpic->name = name;
-	mpic->of_node = of_node_get(node);
 
-	mpic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR, isu_size,
-				       &mpic_host_ops,
+	mpic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+				       isu_size, &mpic_host_ops,
 				       flags & MPIC_LARGE_VECTORS ? 2048 : 256);
 	if (mpic->irqhost == NULL) {
 		of_node_put(node);

@@ -418,10 +418,11 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
-__init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
-						unsigned int revmap_arg,
-						struct irq_host_ops *ops,
-						irq_hw_number_t inval_irq)
+__init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
+				unsigned int revmap_type,
+				unsigned int revmap_arg,
+				struct irq_host_ops *ops,
+				irq_hw_number_t inval_irq)
 {
 	struct irq_host *host;
 	unsigned int size = sizeof(struct irq_host);
@@ -446,6 +447,7 @@ __init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
 	host->revmap_type = revmap_type;
 	host->inval_irq = inval_irq;
 	host->ops = ops;
+	host->of_node = of_node;
 
 	spin_lock_irqsave(&irq_big_lock, flags);
 

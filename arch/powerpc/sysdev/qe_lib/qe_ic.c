@@ -245,10 +245,8 @@ static struct irq_chip qe_ic_irq_chip = {
 
 static int qe_ic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct qe_ic *qe_ic = h->host_data;
-
 	/* Exact match, unless qe_ic node is NULL */
-	return qe_ic->of_node == NULL || qe_ic->of_node == node;
+	return h->of_node == NULL || h->of_node == node;
 }
 
 static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
@@ -352,9 +350,8 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags)
 		return;
 
 	memset(qe_ic, 0, sizeof(struct qe_ic));
-	qe_ic->of_node = of_node_get(node);
 
-	qe_ic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	qe_ic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
 					NR_QE_IC_INTS, &qe_ic_host_ops, 0);
 	if (qe_ic->irqhost == NULL) {
 		of_node_put(node);

@@ -64,7 +64,6 @@
 
 
 struct axon_msic {
-	struct device_node *dn;
 	struct irq_host *irq_host;
 	__le32 *fifo;
 	dcr_host_t dcr_host;
@@ -297,9 +296,7 @@ static int msic_host_map(struct irq_host *h, unsigned int virq,
 
 static int msic_host_match(struct irq_host *host, struct device_node *dn)
 {
-	struct axon_msic *msic = host->host_data;
-
-	return msic->dn == dn;
+	return host->of_node == dn;
 }
 
 static struct irq_host_ops msic_host_ops = {
@@ -314,7 +311,8 @@ static int axon_msi_notify_reboot(struct notifier_block *nb,
 	u32 tmp;
 
 	list_for_each_entry(msic, &axon_msic_list, list) {
-		pr_debug("axon_msi: disabling %s\n", msic->dn->full_name);
+		pr_debug("axon_msi: disabling %s\n",
+			  msic->irq_host->of_node->full_name);
 		tmp  = msic_dcr_read(msic, MSIC_CTRL_REG);
 		tmp &= ~MSIC_CTRL_ENABLE & ~MSIC_CTRL_IRQ_ENABLE;
 		msic_dcr_write(msic, MSIC_CTRL_REG, tmp);
@@ -370,8 +368,8 @@ static int axon_msi_setup_one(struct device_node *dn)
 
 	msic->fifo = page_address(page);
 
-	msic->irq_host = irq_alloc_host(IRQ_HOST_MAP_NOMAP, NR_IRQS,
-					&msic_host_ops, 0);
+	msic->irq_host = irq_alloc_host(of_node_get(dn), IRQ_HOST_MAP_NOMAP,
+					NR_IRQS, &msic_host_ops, 0);
 	if (!msic->irq_host) {
 		printk(KERN_ERR "axon_msi: couldn't allocate irq_host for %s\n",
 		       dn->full_name);
@@ -386,8 +384,6 @@ static int axon_msi_setup_one(struct device_node *dn)
 		       dn->full_name);
 		goto out_free_host;
 	}
-
-	msic->dn = of_node_get(dn);
 
 	set_irq_data(virq, msic);
 	set_irq_chained_handler(virq, axon_msi_cascade);

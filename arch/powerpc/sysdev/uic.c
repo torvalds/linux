@@ -56,9 +56,6 @@ struct uic {
 
 	/* For secondary UICs, the cascade interrupt's irqaction */
 	struct irqaction cascade;
-
-	/* The device node of the interrupt controller */
-	struct device_node *of_node;
 };
 
 static void uic_unmask_irq(unsigned int virq)
@@ -220,8 +217,7 @@ out_unlock:
 
 static int uic_host_match(struct irq_host *h, struct device_node *node)
 {
-	struct uic *uic = h->host_data;
-	return uic->of_node == node;
+	return h->of_node == node;
 }
 
 static int uic_host_map(struct irq_host *h, unsigned int virq,
@@ -291,7 +287,6 @@ static struct uic * __init uic_init_one(struct device_node *node)
 
 	memset(uic, 0, sizeof(*uic));
 	spin_lock_init(&uic->lock);
-	uic->of_node = of_node_get(node);
 	indexp = of_get_property(node, "cell-index", &len);
 	if (!indexp || (len != sizeof(u32))) {
 		printk(KERN_ERR "uic: Device node %s has missing or invalid "
@@ -308,8 +303,8 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	}
 	uic->dcrbase = *dcrreg;
 
-	uic->irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR, NR_UIC_INTS,
-				      &uic_host_ops, -1);
+	uic->irqhost = irq_alloc_host(of_node_get(node), IRQ_HOST_MAP_LINEAR,
+				      NR_UIC_INTS, &uic_host_ops, -1);
 	if (! uic->irqhost) {
 		of_node_put(node);
 		return NULL; /* FIXME: panic? */

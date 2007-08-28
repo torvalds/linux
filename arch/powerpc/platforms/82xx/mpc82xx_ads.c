@@ -61,7 +61,6 @@ static struct {
 
 static unsigned long pci_int_base;
 static struct irq_host *pci_pic_host;
-static struct device_node *pci_pic_node;
 #endif
 
 static void __init mpc82xx_ads_pic_init(void)
@@ -401,7 +400,7 @@ m82xx_pci_irq_demux(unsigned int irq, struct irq_desc *desc)
 
 static int pci_pic_host_match(struct irq_host *h, struct device_node *node)
 {
-	return node == pci_pic_node;
+	return h->of_node == node;
 }
 
 static int pci_pic_host_map(struct irq_host *h, unsigned int virq,
@@ -478,7 +477,6 @@ void m82xx_pci_init_irq(void)
 		iounmap(immap);
 		return;
 	}
-	pci_pic_node = of_node_get(np);
 	/* PCI interrupt controller registers: status and mask */
 	regs = of_get_property(np, "reg", &size);
 	if ((!regs) || (size <= 2)) {
@@ -490,7 +488,6 @@ void m82xx_pci_init_irq(void)
 	    ioremap(regs[0], sizeof(*pci_regs.pci_int_stat_reg));
 	pci_regs.pci_int_mask_reg =
 	    ioremap(regs[1], sizeof(*pci_regs.pci_int_mask_reg));
-	of_node_put(np);
 	/* configure chip select for PCI interrupt controller */
 	immap->im_memctl.memc_br3 = regs[0] | 0x00001801;
 	immap->im_memctl.memc_or3 = 0xffff8010;
@@ -501,7 +498,7 @@ void m82xx_pci_init_irq(void)
 	*pci_regs.pci_int_mask_reg |= 0xfff00000;
 	iounmap(immap);
 	pci_pic_host =
-	    irq_alloc_host(IRQ_HOST_MAP_LINEAR, irq_max - irq_min + 1,
+	    irq_alloc_host(np, IRQ_HOST_MAP_LINEAR, irq_max - irq_min + 1,
 			   &pci_pic_host_ops, irq_max + 1);
 	return;
 }

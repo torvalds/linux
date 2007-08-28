@@ -240,9 +240,6 @@ struct mpic_irq_save {
 /* The instance data of a given MPIC */
 struct mpic
 {
-	/* The device node of the interrupt controller */
-	struct device_node	*of_node;
-
 	/* The remapper for this MPIC */
 	struct irq_host		*irqhost;
 

@@ -242,7 +242,7 @@ void __init beatic_init_IRQ(void)
 	ppc_md.get_irq = beatic_get_irq;
 
 	/* Allocate an irq host */
-	beatic_host = irq_alloc_host(IRQ_HOST_MAP_NOMAP, 0,
+	beatic_host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0,
 					 &beatic_pic_host_ops,
 					 0);
 	BUG_ON(beatic_host == NULL);

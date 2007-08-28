@@ -244,7 +244,7 @@ static struct irq_chip mpc52xx_sdma_irqchip = {
 static int mpc52xx_irqhost_match(struct irq_host *h, struct device_node *node)
 {
 	pr_debug("%s: node=%p\n", __func__, node);
-	return mpc52xx_irqhost->host_data == node;
+	return h->of_node == node;
 }
 
 static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
@@ -419,14 +419,13 @@ void __init mpc52xx_init_irq(void)
 	 * hw irq information provided by the ofw to linux virq
 	 */
 
-	mpc52xx_irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	mpc52xx_irqhost = irq_alloc_host(picnode, IRQ_HOST_MAP_LINEAR,
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
 	                                 &mpc52xx_irqhost_ops, -1);
 
 	if (!mpc52xx_irqhost)
 		panic(__FILE__ ": Cannot allocate the IRQ host\n");
 
-	mpc52xx_irqhost->host_data = picnode;
 	printk(KERN_INFO "MPC52xx PIC is up and running!\n");
 }
 
