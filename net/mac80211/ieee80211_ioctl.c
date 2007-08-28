@@ -1342,22 +1342,12 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 			ret = -EINVAL;
 		else {
 			/*
-			 * TODO: sdata->u.sta.key_mgmt does not match with WE18
-			 * value completely; could consider modifying this to
-			 * be closer to WE18. For now, this value is not really
-			 * used for anything else than Privacy matching, so the
-			 * current code here should be more or less OK.
+			 * Key management was set by wpa_supplicant,
+			 * we only need this to associate to a network
+			 * that has privacy enabled regardless of not
+			 * having a key.
 			 */
-			if (data->value & IW_AUTH_KEY_MGMT_802_1X) {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_WPA_EAP;
-			} else if (data->value & IW_AUTH_KEY_MGMT_PSK) {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_WPA_PSK;
-			} else {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_NONE;
-			}
+			sdata->u.sta.key_management_enabled = !!data->value;
 		}
 		break;
 	case IW_AUTH_80211_AUTH_ALG:

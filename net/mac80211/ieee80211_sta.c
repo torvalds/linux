@@ -716,8 +716,7 @@ static int ieee80211_privacy_mismatch(struct net_device *dev,
 	struct ieee80211_sta_bss *bss;
 	int res = 0;
 
-	if (!ifsta || ifsta->mixed_cell ||
-	    ifsta->key_mgmt != IEEE80211_KEY_MGMT_NONE)
+	if (!ifsta || ifsta->mixed_cell || ifsta->key_management_enabled)
 		return 0;
 
 	bss = ieee80211_rx_bss_get(dev, ifsta->bssid);

@@ -41,14 +41,6 @@ enum {
 	PRISM2_PARAM_MIXED_CELL = 1039,
 };
 
-enum {
-	IEEE80211_KEY_MGMT_NONE = 0,
-	IEEE80211_KEY_MGMT_IEEE8021X = 1,
-	IEEE80211_KEY_MGMT_WPA_PSK = 2,
-	IEEE80211_KEY_MGMT_WPA_EAP = 3,
-};
-
-
 /* Data structures used for get_hw_features ioctl */
 struct hostapd_ioctl_hw_modes_hdr {
 	int mode;
