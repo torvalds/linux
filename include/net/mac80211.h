@@ -568,9 +568,6 @@ struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
 		  struct ieee80211_tx_control *control);
 
-	/* Handler for performing hardware reset. */
-	int (*reset)(struct ieee80211_hw *hw);
-
 	/* Handler that is called when any netdevice attached to the hardware
 	 * device is set UP for the first time. This can be used, e.g., to
 	 * enable interrupts and beacon sending. */
