@@ -821,7 +821,7 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_PREAMBLE:
-		if (sdata->type != IEEE80211_IF_TYPE_AP) {
+		if (sdata->type == IEEE80211_IF_TYPE_AP) {
 			if (value)
 				sdata->flags |= IEEE80211_SDATA_SHORT_PREAMBLE;
 			else
