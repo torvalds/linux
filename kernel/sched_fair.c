@@ -1108,21 +1108,21 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * until it reschedules once. We set up the key so that
 	 * it will preempt the parent:
 	 */
-	p->se.fair_key = current->se.fair_key -
+	se->fair_key = curr->fair_key -
 		niced_granularity(curr, sched_granularity(cfs_rq)) - 1;
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_SKIP_INITIAL)
-		p->se.wait_start_fair = 0;
+		se->wait_start_fair = 0;
 
 	/*
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT) {
-		p->se.wait_runtime = -(sched_granularity(cfs_rq) / 2);
+		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
 		schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	}
 
