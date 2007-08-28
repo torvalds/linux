@@ -19,6 +19,7 @@
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include "tuner-driver.h"
+#include "tda8290.h"
 
 #define UNSET (-1U)
 
@@ -200,6 +201,15 @@ static void tuner_i2c_address_check(struct tuner *t)
 	tuner_warn("====================== WARNING! ======================\n");
 }
 
+static void attach_tda8290(struct tuner *t)
+{
+	struct tda8290_config cfg = {
+		.lna_cfg        = &t->config,
+		.tuner_callback = t->tuner_callback
+	};
+	tda8290_attach(&t->fe, t->i2c.adapter, t->i2c.addr, &cfg);
+}
+
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
 		     int (*tuner_callback) (void *dev, int command,int arg))
@@ -245,8 +255,10 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		microtune_init(t);
 		break;
 	case TUNER_PHILIPS_TDA8290:
-		tda8290_init(t);
+	{
+		attach_tda8290(t);
 		break;
+	}
 	case TUNER_TEA5767:
 		if (tea5767_tuner_init(t) == EINVAL) {
 			t->type = TUNER_ABSENT;
@@ -575,7 +587,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda8290_probe(t) == 0) {
+			if (tda8290_probe(t->i2c.adapter, t->i2c.addr) == 0) {
 				tuner_dbg("chip at addr %x is a tda8290\n", addr);
 			} else {
 				/* Default is being tda9887 */
