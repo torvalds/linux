@@ -100,8 +100,8 @@ DEFINE_SPINLOCK(bcm1480_imr_lock);
 
 void bcm1480_mask_irq(int cpu, int irq)
 {
-	unsigned long flags;
-	u64 cur_ints,hl_spacing;
+	unsigned long flags, hl_spacing;
+	u64 cur_ints;
 
 	spin_lock_irqsave(&bcm1480_imr_lock, flags);
 	hl_spacing = 0;
@@ -117,8 +117,8 @@ void bcm1480_mask_irq(int cpu, int irq)
 
 void bcm1480_unmask_irq(int cpu, int irq)
 {
-	unsigned long flags;
-	u64 cur_ints,hl_spacing;
+	unsigned long flags, hl_spacing;
+	u64 cur_ints;
 
 	spin_lock_irqsave(&bcm1480_imr_lock, flags);
 	hl_spacing = 0;
