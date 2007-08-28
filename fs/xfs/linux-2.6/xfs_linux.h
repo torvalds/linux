@@ -51,7 +51,6 @@
 
 #include <support/ktrace.h>
 #include <support/debug.h>
-#include <support/move.h>
 #include <support/uuid.h>
 
 #include <linux/mm.h>
