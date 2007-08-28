@@ -19,7 +19,6 @@
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "sta_info.h"
-#include "debugfs_key.h"
 #include "debugfs_sta.h"
 
 /* Caller must hold local->sta_lock */
@@ -118,8 +117,6 @@ static void sta_info_release(struct kref *kref)
 	}
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
-	if (sta->key)
-		ieee80211_debugfs_key_sta_del(sta->key, sta);
 	kfree(sta);
 }
 
@@ -230,11 +227,8 @@ void sta_info_free(struct sta_info *sta)
 	       local->mdev->name, MAC_ARG(sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
-	if (sta->key) {
-		ieee80211_debugfs_key_remove(sta->key);
-		ieee80211_key_free(sta->key);
-		sta->key = NULL;
-	}
+	ieee80211_key_free(sta->key);
+	sta->key = NULL;
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);

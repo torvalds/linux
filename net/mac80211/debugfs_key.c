@@ -25,6 +25,7 @@ static ssize_t key_##name##_read(struct file *file,			\
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);	\
 }
 #define KEY_READ_D(name) KEY_READ(name, name, 20, "%d\n")
+#define KEY_READ_X(name) KEY_READ(name, name, 20, "0x%x\n")
 
 #define KEY_OPS(name)							\
 static const struct file_operations key_ ##name## _ops = {		\
@@ -39,7 +40,6 @@ static const struct file_operations key_ ##name## _ops = {		\
 #define KEY_CONF_READ(name, buflen, format_string)			\
 	KEY_READ(conf_##name, conf.name, buflen, format_string)
 #define KEY_CONF_READ_D(name) KEY_CONF_READ(name, 20, "%d\n")
-#define KEY_CONF_READ_X(name) KEY_CONF_READ(name, 20, "0x%x\n")
 
 #define KEY_CONF_OPS(name)						\
 static const struct file_operations key_ ##name## _ops = {		\
@@ -54,7 +54,7 @@ static const struct file_operations key_ ##name## _ops = {		\
 KEY_CONF_FILE(keylen, D);
 KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
-KEY_CONF_FILE(flags, X);
+KEY_FILE(flags, X);
 KEY_FILE(tx_rx_count, D);
 
 static ssize_t key_algorithm_read(struct file *file,

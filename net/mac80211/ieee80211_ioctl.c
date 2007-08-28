@@ -25,28 +25,6 @@
 #include "ieee80211_rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
-#include "debugfs_key.h"
-
-static void ieee80211_set_hw_encryption(struct net_device *dev,
-					struct sta_info *sta, u8 addr[ETH_ALEN],
-					struct ieee80211_key *key)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	/* default to sw encryption; this will be cleared by low-level
-	 * driver if the hw supports requested encryption */
-	if (key)
-		key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-
-	if (key && local->ops->set_key) {
-		if (local->ops->set_key(local_to_hw(local), SET_KEY, addr,
-					&key->conf)) {
-			key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-			key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
-		}
-	}
-}
-
 
 static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 				    int idx, int alg, int set_tx_key,
@@ -55,8 +33,7 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int ret = 0;
 	struct sta_info *sta;
-	struct ieee80211_key *key, *old_key;
-	int try_hwaccel = 1;
+	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -69,16 +46,6 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 			return -EINVAL;
 		}
 		key = sdata->keys[idx];
-
-		/* TODO: consider adding hwaccel support for these; at least
-		 * Atheros key cache should be able to handle this since AP is
-		 * only transmitting frames with default keys. */
-		/* FIX: hw key cache can be used when only one virtual
-		 * STA is associated with each AP. If more than one STA
-		 * is associated to the same AP, software encryption
-		 * must be used. This should be done automatically
-		 * based on configured station devices. For the time
-		 * being, this can be only set at compile time. */
 	} else {
 		set_tx_key = 0;
 		if (idx != 0) {
@@ -101,139 +68,28 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		key = sta->key;
 	}
 
-	/* FIX:
-	 * Cannot configure default hwaccel keys with WEP algorithm, if
-	 * any of the virtual interfaces is using static WEP
-	 * configuration because hwaccel would otherwise try to decrypt
-	 * these frames.
-	 *
-	 * For now, just disable WEP hwaccel for broadcast when there is
-	 * possibility of conflict with default keys. This can maybe later be
-	 * optimized by using non-default keys (at least with Atheros ar521x).
-	 */
-	if (!sta && alg == ALG_WEP &&
-	    sdata->type != IEEE80211_IF_TYPE_IBSS &&
-	    sdata->type != IEEE80211_IF_TYPE_AP) {
-		try_hwaccel = 0;
-	}
-
-	if (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) {
-		/* Software encryption cannot be used with devices that hide
-		 * encryption from the host system, so always try to use
-		 * hardware acceleration with such devices. */
-		try_hwaccel = 1;
-	}
-
-	if ((local->hw.flags & IEEE80211_HW_NO_TKIP_WMM_HWACCEL) &&
-	    alg == ALG_TKIP) {
-		if (sta && (sta->flags & WLAN_STA_WME)) {
-		/* Hardware does not support hwaccel with TKIP when using WMM.
-		 */
-			try_hwaccel = 0;
-		}
-		else if (sdata->type == IEEE80211_IF_TYPE_STA) {
-			sta = sta_info_get(local, sdata->u.sta.bssid);
-			if (sta) {
-				if (sta->flags & WLAN_STA_WME) {
-					try_hwaccel = 0;
-				}
-				sta_info_put(sta);
-				sta = NULL;
-			}
-		}
-	}
-
 	if (alg == ALG_NONE) {
-		if (try_hwaccel && key &&
-		    key->conf.hw_key_idx != HW_KEY_IDX_INVALID &&
-		    local->ops->set_key &&
-		    local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-					sta_addr, &key->conf)) {
-			printk(KERN_DEBUG "%s: set_encrypt - low-level disable"
-			       " failed\n", dev->name);
-			ret = -EINVAL;
-		}
-
-		if (set_tx_key || sdata->default_key == key) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = NULL;
-		}
-		ieee80211_debugfs_key_remove(key);
-		if (sta)
-			sta->key = NULL;
-		else
-			sdata->keys[idx] = NULL;
 		ieee80211_key_free(key);
 		key = NULL;
 	} else {
-		old_key = key;
-		key = ieee80211_key_alloc(sta ? NULL : sdata, idx, key_len,
-					  GFP_KERNEL);
+		/*
+		 * Need to free it before allocating a new one with
+		 * with the same index or the ordering to the driver's
+		 * set_key() callback becomes confused.
+		 */
+		ieee80211_key_free(key);
+		key = ieee80211_key_alloc(sdata, sta, alg, idx, key_len, _key);
 		if (!key) {
 			ret = -ENOMEM;
 			goto err_out;
 		}
-
-		/* default to sw encryption; low-level driver sets these if the
-		 * requested encryption is supported */
-		key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
-		key->conf.flags |= IEEE80211_KEY_FORCE_SW_ENCRYPT;
-
-		key->conf.alg = alg;
-		key->conf.keyidx = idx;
-		key->conf.keylen = key_len;
-		memcpy(key->conf.key, _key, key_len);
-
-		if (alg == ALG_CCMP) {
-			/* Initialize AES key state here as an optimization
-			 * so that it does not need to be initialized for every
-			 * packet. */
-			key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(
-				key->conf.key);
-			if (!key->u.ccmp.tfm) {
-				ret = -ENOMEM;
-				goto err_free;
-			}
-		}
-
-		if (set_tx_key || sdata->default_key == old_key) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = NULL;
-		}
-		ieee80211_debugfs_key_remove(old_key);
-		if (sta)
-			sta->key = key;
-		else
-			sdata->keys[idx] = key;
-		ieee80211_key_free(old_key);
-		ieee80211_debugfs_key_add(local, key);
-		if (sta)
-			ieee80211_debugfs_key_sta_link(key, sta);
-
-		if (try_hwaccel &&
-		    (alg == ALG_WEP || alg == ALG_TKIP || alg == ALG_CCMP))
-			ieee80211_set_hw_encryption(dev, sta, sta_addr, key);
 	}
 
-	if (set_tx_key || (!sta && !sdata->default_key && key)) {
-		sdata->default_key = key;
-		if (key)
-			ieee80211_debugfs_key_add_default(sdata);
+	if (set_tx_key || (!sta && !sdata->default_key && key))
+		ieee80211_set_default_key(sdata, idx);
 
-		if (local->ops->set_key_idx &&
-		    local->ops->set_key_idx(local_to_hw(local), idx))
-			printk(KERN_DEBUG "%s: failed to set TX key idx for "
-			       "low-level driver\n", dev->name);
-	}
-
-	if (sta)
-		sta_info_put(sta);
-
-	return 0;
-
-err_free:
-	ieee80211_key_free(key);
-err_out:
+	ret = 0;
+ err_out:
 	if (sta)
 		sta_info_put(sta);
 	return ret;
@@ -1181,12 +1037,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 		alg = ALG_NONE;
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
-		if (sdata->default_key != sdata->keys[idx]) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = sdata->keys[idx];
-			if (sdata->default_key)
-				ieee80211_debugfs_key_add_default(sdata);
-		}
+		ieee80211_set_default_key(sdata, idx);
 		return 0;
 	}
 
@@ -1232,7 +1083,7 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 	}
 
 	memcpy(key, sdata->keys[idx]->conf.key,
-	       min((int)erq->length, sdata->keys[idx]->conf.keylen));
+	       min_t(int, erq->length, sdata->keys[idx]->conf.keylen));
 	erq->length = sdata->keys[idx]->conf.keylen;
 	erq->flags |= IW_ENCODE_ENABLED;
 

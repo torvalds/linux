@@ -399,19 +399,34 @@ typedef enum {
 	ALG_CCMP,
 } ieee80211_key_alg;
 
+/*
+ * This flag indiciates that the station this key is being
+ * configured for may use QoS. If your hardware cannot handle
+ * that situation it should reject that key.
+ */
+#define IEEE80211_KEY_FLAG_WMM_STA	(1<<0)
+
 struct ieee80211_key_conf {
-	/* shall be changed by the driver to anything but HW_KEY_IDX_INVALID */
+	/*
+	 * To be set by the driver to the key index it would like to
+	 * get in the ieee80211_tx_control.key_idx which defaults
+	 * to HW_KEY_IDX_INVALID so that shouldn't be used.
+	 */
 	int hw_key_idx;
 
+	/* key algorithm, ALG_NONE should never be seen by the driver */
 	ieee80211_key_alg alg;
 
-	int keylen;
+	/* key flags, see above */
+	u8 flags;
 
-#define IEEE80211_KEY_FORCE_SW_ENCRYPT (1<<0) /* to be cleared by low-level
-						 driver */
-	u32 flags; /* key configuration flags defined above */
+	/* key index: 0-3 */
+	s8 keyidx;
 
-	s8 keyidx;			/* WEP key index */
+	/* length of key material */
+	u8 keylen;
+
+	/* the key material */
 	u8 key[0];
 };
 
@@ -419,7 +434,7 @@ struct ieee80211_key_conf {
 #define IEEE80211_SEQ_COUNTER_TX	1
 
 typedef enum {
-	SET_KEY, DISABLE_KEY, REMOVE_ALL_KEYS,
+	SET_KEY, DISABLE_KEY,
 } set_key_cmd;
 
 /* This is driver-visible part of the per-hw state the stack keeps. */
@@ -492,8 +507,7 @@ struct ieee80211_hw {
 
 /* hole at 6 */
 
-	/* Force software encryption for TKIP packets if WMM is enabled. */
-#define IEEE80211_HW_NO_TKIP_WMM_HWACCEL (1<<7)
+/* hole at 7 */
 
 	/*
 	 * Some devices handle Michael MIC internally and do not include MIC in
@@ -627,12 +641,31 @@ struct ieee80211_ops {
 	 *
 	 * This is called to enable hardware acceleration of encryption and
 	 * decryption. The address will be the broadcast address for default
-	 * keys and the other station's hardware address for individual keys.
+	 * keys, the other station's hardware address for individual keys or
+	 * the zero address for keys that will be used only for transmission.
+	 *
+	 * The local_address parameter will always be set to our own address,
+	 * this is only relevant if you support multiple local addresses.
+	 *
 	 * When transmitting, the TX control data will use the hw_key_idx
 	 * selected by the low-level driver.
+	 *
+	 * Return 0 if the key is now in use, -EOPNOTSUPP or -ENOSPC if it
+	 * couldn't be added; if you return 0 then hw_key_idx must be
+	 * assigned to something other than HW_KEY_IDX_INVALID. When the cmd
+	 * is DISABLE_KEY then it must succeed.
+	 *
+	 * This callback can sleep, and is only called between add_interface
+	 * and remove_interface calls, i.e. while the interface with the
+	 * given local_address is enabled.
+	 *
+	 * The ieee80211_key_conf structure pointed to by the key parameter
+	 * is guaranteed to be valid until another call to set_key removes
+	 * it, but it can only be used as a cookie to differentiate keys.
 	 */
 	int (*set_key)(struct ieee80211_hw *hw, set_key_cmd cmd,
-		       u8 *address, struct ieee80211_key_conf *key);
+		       const u8 *local_address, const u8 *address,
+		       struct ieee80211_key_conf *key);
 
 	/*
 	 * Set TX key index for default/broadcast keys. This is needed in cases
@@ -640,6 +673,10 @@ struct ieee80211_ops {
 	 * is not set), in other cases, this function pointer can be set to
 	 * NULL since the IEEE 802.11 module takes care of selecting the key
 	 * index for each TX frame.
+	 *
+	 * TODO: If you use this callback in your driver tell us if you need
+	 *	 any other information from it to make it easier, like the
+	 *	 key_conf instead.
 	 */
 	int (*set_key_idx)(struct ieee80211_hw *hw, int idx);
 

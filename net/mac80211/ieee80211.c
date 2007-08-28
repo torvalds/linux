@@ -442,6 +442,7 @@ static int ieee80211_open(struct net_device *dev)
 	} else {
 		ieee80211_if_config(dev);
 		ieee80211_reset_erp_info(dev);
+		ieee80211_enable_keys(sdata);
 	}
 
 	if (sdata->type == IEEE80211_IF_TYPE_STA &&
@@ -510,6 +511,9 @@ static int ieee80211_stop(struct net_device *dev)
 		local->monitors--;
 		if (!local->monitors)
 			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
+	} else {
+		/* disable all keys for as long as this netdev is down */
+		ieee80211_disable_keys(sdata);
 	}
 
 	local->open_count--;
@@ -908,7 +912,7 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 	}
 
 	if (skb->len >= mic_len &&
-	    (key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT))
+	    !(key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
 		skb_trim(skb, skb->len - mic_len);
 	if (skb->len >= iv_len && skb->len > hdrlen) {
 		memmove(skb->data + iv_len, skb->data, hdrlen);

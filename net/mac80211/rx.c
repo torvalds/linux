@@ -528,7 +528,7 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 
 	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
 	if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) ||
-	    (rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT))
+	    !(rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
 		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 			rx->sta->wep_weak_iv_count++;
 
@@ -553,7 +553,7 @@ ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 	}
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED) ||
-	    (rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)) {
+	    !(rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
@@ -897,8 +897,7 @@ ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 	 * uploaded to the hardware.
 	 */
 	if ((rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) &&
-	    (!rx->key ||
-	     !(rx->key->conf.flags & IEEE80211_KEY_FORCE_SW_ENCRYPT)))
+	    (!rx->key || (rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)))
 		return TXRX_CONTINUE;
 
 	/* Drop unencrypted frames if key is set. */

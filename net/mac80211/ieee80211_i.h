@@ -291,6 +291,9 @@ struct ieee80211_sub_if_data {
 
 	struct wireless_dev wdev;
 
+	/* keys */
+	struct list_head key_list;
+
 	struct net_device *dev;
 	struct ieee80211_local *local;
 
@@ -809,11 +812,6 @@ int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev);
-
-/* key handling */
-struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
-					  int idx, size_t key_len, gfp_t flags);
-void ieee80211_key_free(struct ieee80211_key *key);
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */

@@ -25,6 +25,8 @@ void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 	sdata->eapol = 1;
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
+
+	INIT_LIST_HEAD(&sdata->key_list);
 }
 
 static void ieee80211_if_sdata_deinit(struct ieee80211_sub_if_data *sdata)
@@ -210,25 +212,12 @@ void ieee80211_if_reinit(struct net_device *dev)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
-	int i;
 
 	ASSERT_RTNL();
+
+	ieee80211_free_keys(sdata);
+
 	ieee80211_if_sdata_deinit(sdata);
-	for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-		if (!sdata->keys[i])
-			continue;
-#if 0
-		/* The interface is down at the moment, so there is not
-		 * really much point in disabling the keys at this point. */
-		memset(addr, 0xff, ETH_ALEN);
-		if (local->ops->set_key)
-			local->ops->set_key(local_to_hw(local), DISABLE_KEY, addr,
-					    local->keys[i],
-					    local->default_wep_only);
-#endif
-		ieee80211_key_free(sdata->keys[i]);
-		sdata->keys[i] = NULL;
-	}
 
 	switch (sdata->type) {
 	case IEEE80211_IF_TYPE_AP: {
