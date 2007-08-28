@@ -56,6 +56,8 @@ KEY_CONF_FILE(keyidx, D);
 KEY_CONF_FILE(hw_key_idx, D);
 KEY_FILE(flags, X);
 KEY_FILE(tx_rx_count, D);
+KEY_READ(ifindex, sdata->dev->ifindex, 20, "%d\n");
+KEY_OPS(ifindex);
 
 static ssize_t key_algorithm_read(struct file *file,
 				  char __user *userbuf,
@@ -209,6 +211,7 @@ void ieee80211_debugfs_key_add(struct ieee80211_local *local,
 	DEBUGFS_ADD(rx_spec);
 	DEBUGFS_ADD(replays);
 	DEBUGFS_ADD(key);
+	DEBUGFS_ADD(ifindex);
 };
 
 #define DEBUGFS_DEL(name) \
@@ -229,6 +232,7 @@ void ieee80211_debugfs_key_remove(struct ieee80211_key *key)
 	DEBUGFS_DEL(rx_spec);
 	DEBUGFS_DEL(replays);
 	DEBUGFS_DEL(key);
+	DEBUGFS_DEL(ifindex);
 
 	debugfs_remove(key->debugfs.stalink);
 	key->debugfs.stalink = NULL;

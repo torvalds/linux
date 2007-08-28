@@ -101,6 +101,7 @@ struct ieee80211_key {
 		struct dentry *rx_spec;
 		struct dentry *replays;
 		struct dentry *key;
+		struct dentry *ifindex;
 	} debugfs;
 #endif
 
