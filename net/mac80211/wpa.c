@@ -90,7 +90,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 		return TXRX_DROP;
 
 	if (!tx->key->force_sw_encrypt &&
-	    !tx->fragmented &&
+	    !(tx->flags & IEEE80211_TXRXD_FRAGMENTED) &&
 	    !(tx->local->hw.flags & IEEE80211_HW_TKIP_INCLUDE_MMIC) &&
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for Michael MIC
@@ -154,7 +154,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 		/* Need to verify Michael MIC sometimes in software even when
 		 * hwaccel is used. Atheros ar5212: fragmented frames and QoS
 		 * frames. */
-		if (!rx->fragmented && !wpa_test)
+		if (!(rx->flags & IEEE80211_TXRXD_FRAGMENTED) && !wpa_test)
 			goto remove_mic;
 	}
 
@@ -173,7 +173,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 			    ALG_TKIP_TEMP_AUTH_TX_MIC_KEY];
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
-		if (!rx->u.rx.ra_match)
+		if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 			return TXRX_DROP;
 
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "

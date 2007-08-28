@@ -113,6 +113,15 @@ typedef enum {
 	TXRX_CONTINUE, TXRX_DROP, TXRX_QUEUED
 } ieee80211_txrx_result;
 
+/* flags used in struct ieee80211_txrx_data.flags */
+/* whether the MSDU was fragmented */
+#define IEEE80211_TXRXD_FRAGMENTED		BIT(0)
+#define IEEE80211_TXRXD_TXUNICAST		BIT(1)
+#define IEEE80211_TXRXD_TXPS_BUFFERED		BIT(2)
+#define IEEE80211_TXRXD_TXPROBE_LAST_FRAG	BIT(3)
+#define IEEE80211_TXRXD_RXIN_SCAN		BIT(4)
+/* frame is destined to interface currently processed (incl. multicast frames) */
+#define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
 struct ieee80211_txrx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
@@ -121,13 +130,10 @@ struct ieee80211_txrx_data {
 	struct sta_info *sta;
 	u16 fc, ethertype;
 	struct ieee80211_key *key;
-	unsigned int fragmented:1; /* whether the MSDU was fragmented */
+	unsigned int flags;
 	union {
 		struct {
 			struct ieee80211_tx_control *control;
-			unsigned int unicast:1;
-			unsigned int ps_buffered:1;
-			unsigned int probe_last_frag:1;
 			struct ieee80211_hw_mode *mode;
 			struct ieee80211_rate *rate;
 			/* use this rate (if set) for last fragment; rate can
@@ -147,10 +153,6 @@ struct ieee80211_txrx_data {
 			int sent_ps_buffered;
 			int queue;
 			int load;
-			unsigned int in_scan:1;
-			/* frame is destined to interface currently processed
-			 * (including multicast frames) */
-			unsigned int ra_match:1;
 		} rx;
 	} u;
 };
@@ -176,7 +178,7 @@ struct ieee80211_tx_stored_packet {
 	int last_frag_rateidx;
 	int last_frag_hwrate;
 	struct ieee80211_rate *last_frag_rate;
-	unsigned int last_frag_rate_ctrl_probe:1;
+	unsigned int last_frag_rate_ctrl_probe;
 };
 
 typedef ieee80211_txrx_result (*ieee80211_tx_handler)

@@ -223,12 +223,12 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	     (tx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_PROBE_REQ))
 		return TXRX_DROP;
 
-	if (tx->u.tx.ps_buffered)
+	if (tx->flags & IEEE80211_TXRXD_TXPS_BUFFERED)
 		return TXRX_CONTINUE;
 
 	sta_flags = tx->sta ? tx->sta->flags : 0;
 
-	if (likely(tx->u.tx.unicast)) {
+	if (likely(tx->flags & IEEE80211_TXRXD_TXUNICAST)) {
 		if (unlikely(!(sta_flags & WLAN_STA_ASSOC) &&
 			     tx->sdata->type != IEEE80211_IF_TYPE_IBSS &&
 			     (tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
@@ -410,10 +410,10 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 static ieee80211_txrx_result
 ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 {
-	if (unlikely(tx->u.tx.ps_buffered))
+	if (unlikely(tx->flags & IEEE80211_TXRXD_TXPS_BUFFERED))
 		return TXRX_CONTINUE;
 
-	if (tx->u.tx.unicast)
+	if (tx->flags & IEEE80211_TXRXD_TXUNICAST)
 		return ieee80211_tx_h_unicast_ps_buf(tx);
 	else
 		return ieee80211_tx_h_multicast_ps_buf(tx);
@@ -467,7 +467,7 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 	u8 *pos;
 	int frag_threshold = tx->local->fragmentation_threshold;
 
-	if (!tx->fragmented)
+	if (!(tx->flags & IEEE80211_TXRXD_FRAGMENTED))
 		return TXRX_CONTINUE;
 
 	first = tx->skb;
@@ -604,7 +604,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 					      &extra);
 	if (unlikely(extra.probe != NULL)) {
 		tx->u.tx.control->flags |= IEEE80211_TXCTL_RATE_CTRL_PROBE;
-		tx->u.tx.probe_last_frag = 1;
+		tx->flags |= IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
 		tx->u.tx.control->alt_retry_rate = tx->u.tx.rate->val;
 		tx->u.tx.rate = extra.probe;
 	} else {
@@ -613,11 +613,13 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 	if (!tx->u.tx.rate)
 		return TXRX_DROP;
 	if (tx->u.tx.mode->mode == MODE_IEEE80211G &&
-	    tx->sdata->use_protection && tx->fragmented &&
-	    extra.nonerp) {
+	    tx->sdata->use_protection &&
+	    (tx->flags & IEEE80211_TXRXD_FRAGMENTED) && extra.nonerp) {
 		tx->u.tx.last_frag_rate = tx->u.tx.rate;
-		tx->u.tx.probe_last_frag = extra.probe ? 1 : 0;
-
+		if (extra.probe)
+			tx->flags &= ~IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
+		else
+			tx->flags |= IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
 		tx->u.tx.rate = extra.nonerp;
 		tx->u.tx.control->rate = extra.nonerp;
 		tx->u.tx.control->flags &= ~IEEE80211_TXCTL_RATE_CTRL_PROBE;
@@ -654,7 +656,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 		control->retry_limit = 1;
 	}
 
-	if (tx->fragmented) {
+	if (tx->flags & IEEE80211_TXRXD_FRAGMENTED) {
 		/* Do not use multiple retry rates when sending fragmented
 		 * frames.
 		 * TODO: The last fragment could still use multiple retry
@@ -667,7 +669,8 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	 * for the frame. */
 	if (mode->mode == MODE_IEEE80211G &&
 	    (tx->u.tx.rate->flags & IEEE80211_RATE_ERP) &&
-	    tx->u.tx.unicast && tx->sdata->use_protection &&
+	    (tx->flags & IEEE80211_TXRXD_TXUNICAST) &&
+	    tx->sdata->use_protection &&
 	    !(control->flags & IEEE80211_TXCTL_USE_RTS_CTS))
 		control->flags |= IEEE80211_TXCTL_USE_CTS_PROTECT;
 
@@ -685,8 +688,8 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	 * for remaining fragments will be updated when they are being sent
 	 * to low-level driver in ieee80211_tx(). */
 	dur = ieee80211_duration(tx, is_multicast_ether_addr(hdr->addr1),
-				 tx->fragmented ? tx->u.tx.extra_frag[0]->len :
-				 0);
+				 (tx->flags & IEEE80211_TXRXD_FRAGMENTED) ?
+				 tx->u.tx.extra_frag[0]->len : 0);
 	hdr->duration_id = cpu_to_le16(dur);
 
 	if ((control->flags & IEEE80211_TXCTL_USE_RTS_CTS) ||
@@ -976,15 +979,20 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 
 	tx->u.tx.control = control;
-	tx->u.tx.unicast = !is_multicast_ether_addr(hdr->addr1);
-	if (is_multicast_ether_addr(hdr->addr1))
+	if (is_multicast_ether_addr(hdr->addr1)) {
+		tx->flags &= ~IEEE80211_TXRXD_TXUNICAST;
 		control->flags |= IEEE80211_TXCTL_NO_ACK;
-	else
+	} else {
+		tx->flags |= IEEE80211_TXRXD_TXUNICAST;
 		control->flags &= ~IEEE80211_TXCTL_NO_ACK;
-	tx->fragmented = local->fragmentation_threshold <
-		IEEE80211_MAX_FRAG_THRESHOLD && tx->u.tx.unicast &&
-		skb->len + FCS_LEN > local->fragmentation_threshold &&
-		(!local->ops->set_frag_threshold);
+	}
+	if (local->fragmentation_threshold < IEEE80211_MAX_FRAG_THRESHOLD &&
+	    (tx->flags & IEEE80211_TXRXD_TXUNICAST) &&
+	    skb->len + FCS_LEN > local->fragmentation_threshold &&
+	    !local->ops->set_frag_threshold)
+		tx->flags |= IEEE80211_TXRXD_FRAGMENTED;
+	else
+		tx->flags &= ~IEEE80211_TXRXD_FRAGMENTED;
 	if (!tx->sta)
 		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
 	else if (tx->sta->clear_dst_mask) {
@@ -1055,7 +1063,7 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			if (i == tx->u.tx.num_extra_frag) {
 				control->tx_rate = tx->u.tx.last_frag_hwrate;
 				control->rate = tx->u.tx.last_frag_rate;
-				if (tx->u.tx.probe_last_frag)
+				if (tx->flags & IEEE80211_TXRXD_TXPROBE_LAST_FRAG)
 					control->flags |=
 						IEEE80211_TXCTL_RATE_CTRL_PROBE;
 				else
@@ -1186,7 +1194,8 @@ retry:
 		store->num_extra_frag = tx.u.tx.num_extra_frag;
 		store->last_frag_hwrate = tx.u.tx.last_frag_hwrate;
 		store->last_frag_rate = tx.u.tx.last_frag_rate;
-		store->last_frag_rate_ctrl_probe = tx.u.tx.probe_last_frag;
+		store->last_frag_rate_ctrl_probe =
+			!!(tx.flags & IEEE80211_TXRXD_TXPROBE_LAST_FRAG);
 	}
 	return 0;
 
@@ -1613,7 +1622,9 @@ void ieee80211_tx_pending(unsigned long data)
 		tx.u.tx.num_extra_frag = store->num_extra_frag;
 		tx.u.tx.last_frag_hwrate = store->last_frag_hwrate;
 		tx.u.tx.last_frag_rate = store->last_frag_rate;
-		tx.u.tx.probe_last_frag = store->last_frag_rate_ctrl_probe;
+		tx.flags = 0;
+		if (store->last_frag_rate_ctrl_probe)
+			tx.flags |= IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
 		ret = __ieee80211_tx(local, store->skb, &tx);
 		if (ret) {
 			if (ret == IEEE80211_TX_FRAG_AGAIN)
@@ -1859,7 +1870,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 		dev_kfree_skb_any(skb);
 	}
 	sta = tx.sta;
-	tx.u.tx.ps_buffered = 1;
+	tx.flags |= IEEE80211_TXRXD_TXPS_BUFFERED;
 
 	for (handler = local->tx_handlers; *handler != NULL; handler++) {
 		res = (*handler)(&tx);

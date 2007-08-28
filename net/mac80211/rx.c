@@ -221,7 +221,7 @@ ieee80211_rx_h_passive_scan(struct ieee80211_txrx_data *rx)
 		return TXRX_QUEUED;
 	}
 
-	if (unlikely(rx->u.rx.in_scan)) {
+	if (unlikely(rx->flags & IEEE80211_TXRXD_RXIN_SCAN)) {
 		/* scanning finished during invoking of handlers */
 		I802_DEBUG_INC(local->rx_handlers_drop_passive_scan);
 		return TXRX_DROP;
@@ -241,7 +241,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 		if (unlikely(rx->fc & IEEE80211_FCTL_RETRY &&
 			     rx->sta->last_seq_ctrl[rx->u.rx.queue] ==
 			     hdr->seq_ctrl)) {
-			if (rx->u.rx.ra_match) {
+			if (rx->flags & IEEE80211_TXRXD_RXRA_MATCH) {
 				rx->local->dot11FrameDuplicateCount++;
 				rx->sta->num_duplicates++;
 			}
@@ -259,7 +259,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 	}
 
-	if (!rx->u.rx.ra_match)
+	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		rx->skb->pkt_type = PACKET_OTHERHOST;
 	else if (compare_ether_addr(rx->dev->dev_addr, hdr->addr1) == 0)
 		rx->skb->pkt_type = PACKET_HOST;
@@ -287,7 +287,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 		if ((!(rx->fc & IEEE80211_FCTL_FROMDS) &&
 		     !(rx->fc & IEEE80211_FCTL_TODS) &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)
-		    || !rx->u.rx.ra_match) {
+		    || !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
 			/* Drop IBSS frames and frames for other hosts
 			 * silently. */
 			return TXRX_DROP;
@@ -338,7 +338,7 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	 * No point in finding a key if the frame is neither
 	 * addressed to us nor a multicast frame.
 	 */
-	if (!rx->u.rx.ra_match)
+	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_CONTINUE;
 
 	if (!is_multicast_ether_addr(hdr->addr1) && rx->sta && rx->sta->key) {
@@ -480,7 +480,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_txrx_data *rx)
 		sta->last_rx = jiffies;
 	}
 
-	if (!rx->u.rx.ra_match)
+	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_CONTINUE;
 
 	sta->rx_fragments++;
@@ -522,7 +522,8 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 {
 	if (!rx->sta || !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    !rx->key || rx->key->alg != ALG_WEP || !rx->u.rx.ra_match)
+	    !rx->key || rx->key->alg != ALG_WEP ||
+	    !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_CONTINUE;
 
 	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
@@ -755,7 +756,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 	}
 
 	/* Complete frame has been reassembled - process it now */
-	rx->fragmented = 1;
+	rx->flags |= IEEE80211_TXRXD_FRAGMENTED;
 
  out:
 	if (rx->sta)
@@ -776,7 +777,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 	if (likely(!rx->sta ||
 		   (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_CTL ||
 		   (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_PSPOLL ||
-		   !rx->u.rx.ra_match))
+		   !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH)))
 		return TXRX_CONTINUE;
 
 	skb = skb_dequeue(&rx->sta->tx_filtered);
@@ -860,7 +861,8 @@ static ieee80211_txrx_result
 ieee80211_rx_h_802_1x_pae(struct ieee80211_txrx_data *rx)
 {
 	if (rx->sdata->eapol && ieee80211_is_eapol(rx->skb) &&
-	    rx->sdata->type != IEEE80211_IF_TYPE_STA && rx->u.rx.ra_match) {
+	    rx->sdata->type != IEEE80211_IF_TYPE_STA &&
+	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
 		/* Pass both encrypted and unencrypted EAPOL frames to user
 		 * space for processing. */
 		if (!rx->local->apdev)
@@ -1053,7 +1055,8 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 	sdata->stats.rx_bytes += skb->len;
 
 	if (local->bridge_packets && (sdata->type == IEEE80211_IF_TYPE_AP
-	    || sdata->type == IEEE80211_IF_TYPE_VLAN) && rx->u.rx.ra_match) {
+	    || sdata->type == IEEE80211_IF_TYPE_VLAN) &&
+	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
 		if (is_multicast_ether_addr(skb->data)) {
 			/* send multicast frames both to higher layers in
 			 * local net stack and back to the wireless media */
@@ -1104,7 +1107,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata;
 
-	if (!rx->u.rx.ra_match)
+	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_DROP;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
@@ -1279,30 +1282,30 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (!bssid)
 			return 0;
 		if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
-			if (!rx->u.rx.in_scan)
+			if (!(rx->flags & IEEE80211_TXRXD_RXIN_SCAN))
 				return 0;
-			rx->u.rx.ra_match = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		} else if (!multicast &&
 			   compare_ether_addr(sdata->dev->dev_addr,
 					      hdr->addr1) != 0) {
 			if (!sdata->promisc)
 				return 0;
-			rx->u.rx.ra_match = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		}
 		break;
 	case IEEE80211_IF_TYPE_IBSS:
 		if (!bssid)
 			return 0;
 		if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
-			if (!rx->u.rx.in_scan)
+			if (!(rx->flags & IEEE80211_TXRXD_RXIN_SCAN))
 				return 0;
-			rx->u.rx.ra_match = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		} else if (!multicast &&
 			   compare_ether_addr(sdata->dev->dev_addr,
 					      hdr->addr1) != 0) {
 			if (!sdata->promisc)
 				return 0;
-			rx->u.rx.ra_match = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		} else if (!rx->sta)
 			rx->sta = ieee80211_ibss_add_sta(sdata->dev, rx->skb,
 							 bssid, hdr->addr2);
@@ -1314,11 +1317,12 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->dev->dev_addr)) {
-			if (!rx->u.rx.in_scan)
+			if (!(rx->flags & IEEE80211_TXRXD_RXIN_SCAN))
 				return 0;
-			rx->u.rx.ra_match = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RXRA_MATCH;
 		}
-		if (sdata->dev == sdata->local->mdev && !rx->u.rx.in_scan)
+		if (sdata->dev == sdata->local->mdev &&
+		    !(rx->flags & IEEE80211_TXRXD_RXIN_SCAN))
 			/* do not receive anything via
 			 * master device when not scanning */
 			return 0;
@@ -1384,7 +1388,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	if (unlikely(local->sta_scanning))
-		rx.u.rx.in_scan = 1;
+		rx.flags |= IEEE80211_TXRXD_RXIN_SCAN;
 
 	if (__ieee80211_invoke_rx_handlers(local, local->rx_pre_handlers, &rx,
 					   sta) != TXRX_CONTINUE)
@@ -1394,7 +1398,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skb_push(skb, radiotap_len);
 	if (sta && !sta->assoc_ap && !(sta->flags & WLAN_STA_WDS) &&
 	    !local->iff_promiscs && !is_multicast_ether_addr(hdr->addr1)) {
-		rx.u.rx.ra_match = 1;
+		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 		ieee80211_invoke_rx_handlers(local, local->rx_handlers, &rx,
 					     rx.sta);
 		sta_info_put(sta);
@@ -1405,7 +1409,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	read_lock(&local->sub_if_lock);
 	list_for_each_entry(sdata, &local->sub_if_list, list) {
-		rx.u.rx.ra_match = 1;
+		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 
 		if (!netif_running(sdata->dev))
 			continue;
