@@ -1094,10 +1094,11 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
 static void task_new_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
-	struct sched_entity *se = &p->se;
+	struct sched_entity *se = &p->se, *curr = cfs_rq_curr(cfs_rq);
 
 	sched_info_queued(p);
 
+	update_curr(cfs_rq);
 	update_stats_enqueue(cfs_rq, se);
 	/*
 	 * Child runs first: we let it run before the parent
@@ -1105,7 +1106,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * it will preempt the parent:
 	 */
 	p->se.fair_key = current->se.fair_key -
-		niced_granularity(&rq->curr->se, sched_granularity(cfs_rq)) - 1;
+		niced_granularity(curr, sched_granularity(cfs_rq)) - 1;
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
