@@ -403,18 +403,20 @@ static void ieee80211_sta_send_associnfo(struct net_device *dev,
 
 
 static void ieee80211_set_associated(struct net_device *dev,
-				     struct ieee80211_if_sta *ifsta, int assoc)
+				     struct ieee80211_if_sta *ifsta,
+				     unsigned int assoc)
 {
 	union iwreq_data wrqu;
 
-	if (ifsta->associated == assoc)
+	if (!!(ifsta->flags & IEEE80211_STA_ASSOCIATED) == assoc)
 		return;
-
-	ifsta->associated = assoc;
 
 	if (assoc) {
 		struct ieee80211_sub_if_data *sdata;
 		struct ieee80211_sta_bss *bss;
+
+		ifsta->flags |= IEEE80211_STA_ASSOCIATED;
+
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 		if (sdata->type != IEEE80211_IF_TYPE_STA)
 			return;
@@ -427,11 +429,13 @@ static void ieee80211_set_associated(struct net_device *dev,
 		}
 
 		netif_carrier_on(dev);
-		ifsta->prev_bssid_set = 1;
+		ifsta->flags |= IEEE80211_STA_PREV_BSSID_SET;
 		memcpy(ifsta->prev_bssid, sdata->u.sta.bssid, ETH_ALEN);
 		memcpy(wrqu.ap_addr.sa_data, sdata->u.sta.bssid, ETH_ALEN);
 		ieee80211_sta_send_associnfo(dev, ifsta);
 	} else {
+		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
+
 		netif_carrier_off(dev);
 		ieee80211_reset_erp_info(dev);
 		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
@@ -579,7 +583,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
 
-	if (ifsta->prev_bssid_set) {
+	if (ifsta->flags & IEEE80211_STA_PREV_BSSID_SET) {
 		skb_put(skb, 10);
 		mgmt->frame_control = IEEE80211_FC(IEEE80211_FTYPE_MGMT,
 						   IEEE80211_STYPE_REASSOC_REQ);
@@ -631,7 +635,7 @@ static void ieee80211_send_assoc(struct net_device *dev,
 		memcpy(pos, ifsta->extra_ie, ifsta->extra_ie_len);
 	}
 
-	if (wmm && ifsta->wmm_enabled) {
+	if (wmm && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
@@ -718,7 +722,8 @@ static int ieee80211_privacy_mismatch(struct net_device *dev,
 	struct ieee80211_sta_bss *bss;
 	int res = 0;
 
-	if (!ifsta || ifsta->mixed_cell || ifsta->key_management_enabled)
+	if (!ifsta || (ifsta->flags & IEEE80211_STA_MIXED_CELL) ||
+	    ifsta->key_management_enabled)
 		return 0;
 
 	bss = ieee80211_rx_bss_get(dev, ifsta->bssid);
@@ -786,22 +791,20 @@ static void ieee80211_associated(struct net_device *dev,
 		disassoc = 0;
 		if (time_after(jiffies,
 			       sta->last_rx + IEEE80211_MONITORING_INTERVAL)) {
-			if (ifsta->probereq_poll) {
+			if (ifsta->flags & IEEE80211_STA_PROBEREQ_POLL) {
 				printk(KERN_DEBUG "%s: No ProbeResp from "
 				       "current AP " MAC_FMT " - assume out of "
 				       "range\n",
 				       dev->name, MAC_ARG(ifsta->bssid));
 				disassoc = 1;
 				sta_info_free(sta);
-				ifsta->probereq_poll = 0;
-			} else {
+			} else
 				ieee80211_send_probe_req(dev, ifsta->bssid,
 							 local->scan_ssid,
 							 local->scan_ssid_len);
-				ifsta->probereq_poll = 1;
-			}
+			ifsta->flags ^= IEEE80211_STA_PROBEREQ_POLL;
 		} else {
-			ifsta->probereq_poll = 0;
+			ifsta->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
 			if (time_after(jiffies, ifsta->last_probe +
 				       IEEE80211_PROBE_INTERVAL)) {
 				ifsta->last_probe = jiffies;
@@ -905,7 +908,7 @@ static void ieee80211_auth_completed(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta)
 {
 	printk(KERN_DEBUG "%s: authenticated\n", dev->name);
-	ifsta->authenticated = 1;
+	ifsta->flags |= IEEE80211_STA_AUTHENTICATED;
 	ieee80211_associate(dev, ifsta);
 }
 
@@ -1092,7 +1095,7 @@ static void ieee80211_rx_mgmt_deauth(struct net_device *dev,
 	       " (reason=%d)\n",
 	       dev->name, MAC_ARG(mgmt->sa), reason_code);
 
-	if (ifsta->authenticated) {
+	if (ifsta->flags & IEEE80211_STA_AUTHENTICATED) {
 		printk(KERN_DEBUG "%s: deauthenticated\n", dev->name);
 	}
 
@@ -1105,7 +1108,7 @@ static void ieee80211_rx_mgmt_deauth(struct net_device *dev,
 	}
 
 	ieee80211_set_disassoc(dev, ifsta, 1);
-	ifsta->authenticated = 0;
+	ifsta->flags &= ~IEEE80211_STA_AUTHENTICATED;
 }
 
 
@@ -1137,7 +1140,7 @@ static void ieee80211_rx_mgmt_disassoc(struct net_device *dev,
 	       " (reason=%d)\n",
 	       dev->name, MAC_ARG(mgmt->sa), reason_code);
 
-	if (ifsta->associated)
+	if (ifsta->flags & IEEE80211_STA_ASSOCIATED)
 		printk(KERN_DEBUG "%s: disassociated\n", dev->name);
 
 	if (ifsta->state == IEEE80211_ASSOCIATED) {
@@ -1209,7 +1212,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 		/* if this was a reassociation, ensure we try a "full"
 		 * association next time. This works around some broken APs
 		 * which do not correctly reject reassociation requests. */
-		ifsta->prev_bssid_set = 0;
+		ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		return;
 	}
 
@@ -1296,7 +1299,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 
 	rate_control_rate_init(sta, local);
 
-	if (elems.wmm_param && ifsta->wmm_enabled) {
+	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		sta->flags |= WLAN_STA_WME;
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
 					 elems.wmm_param_len);
@@ -1693,7 +1696,7 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 		return;
 	ifsta = &sdata->u.sta;
 
-	if (!ifsta->associated ||
+	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED) ||
 	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
@@ -1709,7 +1712,7 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 	if (elems.erp_info && elems.erp_info_len >= 1)
 		ieee80211_handle_erp_ie(dev, elems.erp_info[0]);
 
-	if (elems.wmm_param && ifsta->wmm_enabled) {
+	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
 					 elems.wmm_param_len);
 	}
@@ -2076,7 +2079,8 @@ static void ieee80211_sta_reset_auth(struct net_device *dev,
 	printk(KERN_DEBUG "%s: Initial auth_alg=%d\n", dev->name,
 	       ifsta->auth_alg);
 	ifsta->auth_transaction = -1;
-	ifsta->associated = ifsta->auth_tries = ifsta->assoc_tries = 0;
+	ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
+	ifsta->auth_tries = ifsta->assoc_tries = 0;
 	netif_carrier_off(dev);
 }
 
@@ -2090,8 +2094,10 @@ void ieee80211_sta_req_auth(struct net_device *dev,
 	if (sdata->type != IEEE80211_IF_TYPE_STA)
 		return;
 
-	if ((ifsta->bssid_set || ifsta->auto_bssid_sel) &&
-	    (ifsta->ssid_set || ifsta->auto_ssid_sel)) {
+	if ((ifsta->flags & (IEEE80211_STA_BSSID_SET |
+				IEEE80211_STA_AUTO_BSSID_SEL)) &&
+	    (ifsta->flags & (IEEE80211_STA_SSID_SET |
+				IEEE80211_STA_AUTO_SSID_SEL))) {
 		set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
 		queue_work(local->hw.workqueue, &ifsta->work);
 	}
@@ -2105,7 +2111,7 @@ static int ieee80211_sta_match_ssid(struct ieee80211_if_sta *ifsta,
 	if (!memcmp(ifsta->ssid, ssid, ssid_len))
 		return 1;
 
-	if (ifsta->auto_bssid_sel)
+	if (ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL)
 		return 0;
 
 	hidden_ssid = 1;
@@ -2134,8 +2140,8 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 	struct ieee80211_sta_bss *bss, *selected = NULL;
 	int top_rssi = 0, freq;
 
-	if (!ifsta->auto_channel_sel && !ifsta->auto_bssid_sel &&
-	    !ifsta->auto_ssid_sel) {
+	if (!(ifsta->flags & (IEEE80211_STA_AUTO_SSID_SEL |
+	    IEEE80211_STA_AUTO_BSSID_SEL | IEEE80211_STA_AUTO_CHANNEL_SEL))) {
 		ifsta->state = IEEE80211_AUTHENTICATE;
 		ieee80211_sta_reset_auth(dev, ifsta);
 		return 0;
@@ -2151,14 +2157,15 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 		    !!sdata->default_key)
 			continue;
 
-		if (!ifsta->auto_channel_sel && bss->freq != freq)
+		if (!(ifsta->flags & IEEE80211_STA_AUTO_CHANNEL_SEL) &&
+		    bss->freq != freq)
 			continue;
 
-		if (!ifsta->auto_bssid_sel &&
+		if (!(ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL) &&
 		    memcmp(bss->bssid, ifsta->bssid, ETH_ALEN))
 			continue;
 
-		if (!ifsta->auto_ssid_sel &&
+		if (!(ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL) &&
 		    !ieee80211_sta_match_ssid(ifsta, bss->ssid, bss->ssid_len))
 			continue;
 
@@ -2173,7 +2180,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 
 	if (selected) {
 		ieee80211_set_channel(local, -1, selected->freq);
-		if (!ifsta->ssid_set)
+		if (!(ifsta->flags & IEEE80211_STA_SSID_SET))
 			ieee80211_sta_set_ssid(dev, selected->ssid,
 					       selected->ssid_len);
 		ieee80211_sta_set_bssid(dev, selected->bssid);
@@ -2183,7 +2190,7 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 		return 0;
 	} else {
 		if (ifsta->state != IEEE80211_AUTHENTICATE) {
-			if (ifsta->auto_ssid_sel)
+			if (ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL)
 				ieee80211_sta_start_scan(dev, NULL, 0);
 			else
 				ieee80211_sta_start_scan(dev, ifsta->ssid,
@@ -2480,10 +2487,10 @@ static int ieee80211_sta_find_ibss(struct net_device *dev,
 
 		if (time_after(jiffies, ifsta->ibss_join_req +
 			       IEEE80211_IBSS_JOIN_TIMEOUT)) {
-			if (ifsta->create_ibss &&
+			if ((ifsta->flags & IEEE80211_STA_CREATE_IBSS) &&
 			    local->oper_channel->flag & IEEE80211_CHAN_W_IBSS)
 				return ieee80211_sta_create_ibss(dev, ifsta);
-			if (ifsta->create_ibss) {
+			if (ifsta->flags & IEEE80211_STA_CREATE_IBSS) {
 				printk(KERN_DEBUG "%s: IBSS not allowed on the"
 				       " configured channel %d (%d MHz)\n",
 				       dev->name, local->hw.conf.channel,
@@ -2544,13 +2551,17 @@ int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len)
 	ifsta = &sdata->u.sta;
 
 	if (ifsta->ssid_len != len || memcmp(ifsta->ssid, ssid, len) != 0)
-		ifsta->prev_bssid_set = 0;
+		ifsta->flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 	memcpy(ifsta->ssid, ssid, len);
 	memset(ifsta->ssid + len, 0, IEEE80211_MAX_SSID_LEN - len);
 	ifsta->ssid_len = len;
 
-	ifsta->ssid_set = len ? 1 : 0;
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS && !ifsta->bssid_set) {
+	if (len)
+		ifsta->flags |= IEEE80211_STA_SSID_SET;
+	else
+		ifsta->flags &= ~IEEE80211_STA_SSID_SET;
+	if (sdata->type == IEEE80211_IF_TYPE_IBSS &&
+	    !(ifsta->flags & IEEE80211_STA_BSSID_SET)) {
 		ifsta->ibss_join_req = jiffies;
 		ifsta->state = IEEE80211_IBSS_SEARCH;
 		return ieee80211_sta_find_ibss(dev, ifsta);
@@ -2588,10 +2599,11 @@ int ieee80211_sta_set_bssid(struct net_device *dev, u8 *bssid)
 		}
 	}
 
-	if (!is_valid_ether_addr(bssid))
-		ifsta->bssid_set = 0;
+	if (is_valid_ether_addr(bssid))
+		ifsta->flags |= IEEE80211_STA_BSSID_SET;
 	else
-		ifsta->bssid_set = 1;
+		ifsta->flags &= ~IEEE80211_STA_BSSID_SET;
+
 	return 0;
 }
 
@@ -2658,7 +2670,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 			continue;
 
 		if (sdata->type == IEEE80211_IF_TYPE_STA) {
-			if (sdata->u.sta.associated)
+			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)
 				ieee80211_send_nullfunc(local, sdata, 0);
 			ieee80211_sta_timer((unsigned long)sdata);
 		}
@@ -2670,7 +2682,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
-		if (!ifsta->bssid_set ||
+		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
 		    (!ifsta->state == IEEE80211_IBSS_JOINED &&
 		    !ieee80211_sta_active_ibss(dev)))
 			ieee80211_sta_find_ibss(dev, ifsta);
@@ -2812,7 +2824,7 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 
 		netif_stop_queue(sdata->dev);
 		if (sdata->type == IEEE80211_IF_TYPE_STA &&
-		    sdata->u.sta.associated)
+		    (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
 			ieee80211_send_nullfunc(local, sdata, 1);
 	}
 	read_unlock(&local->sub_if_lock);
@@ -3125,7 +3137,7 @@ int ieee80211_sta_disassociate(struct net_device *dev, u16 reason)
 	if (sdata->type != IEEE80211_IF_TYPE_STA)
 		return -EINVAL;
 
-	if (!ifsta->associated)
+	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED))
 		return -1;
 
 	ieee80211_send_disassoc(dev, ifsta, reason);

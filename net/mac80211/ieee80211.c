@@ -354,7 +354,7 @@ static void ieee80211_if_open(struct net_device *dev)
 	switch (sdata->type) {
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
-		sdata->u.sta.prev_bssid_set = 0;
+		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		break;
 	}
 }

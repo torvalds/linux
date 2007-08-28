@@ -187,10 +187,10 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		ifsta->capab = WLAN_CAPABILITY_ESS;
 		ifsta->auth_algs = IEEE80211_AUTH_ALG_OPEN |
 			IEEE80211_AUTH_ALG_SHARED_KEY;
-		ifsta->create_ibss = 1;
-		ifsta->wmm_enabled = 1;
-		ifsta->auto_channel_sel = 1;
-		ifsta->auto_bssid_sel = 1;
+		ifsta->flags |= IEEE80211_STA_CREATE_IBSS |
+			IEEE80211_STA_WMM_ENABLED |
+			IEEE80211_STA_AUTO_BSSID_SEL |
+			IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 		msdata = IEEE80211_DEV_TO_SUB_IF(sdata->local->mdev);
 		sdata->bss = &msdata->u.ap;

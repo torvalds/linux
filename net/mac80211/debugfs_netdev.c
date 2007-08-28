@@ -112,13 +112,13 @@ static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	return scnprintf(buf, buflen, "%s%s%s%s%s%s%s\n",
-			 sdata->u.sta.ssid_set ? "SSID\n" : "",
-			 sdata->u.sta.bssid_set ? "BSSID\n" : "",
-			 sdata->u.sta.prev_bssid_set ? "prev BSSID\n" : "",
-			 sdata->u.sta.authenticated ? "AUTH\n" : "",
-			 sdata->u.sta.associated ? "ASSOC\n" : "",
-			 sdata->u.sta.probereq_poll ? "PROBEREQ POLL\n" : "",
-			 sdata->use_protection ? "CTS prot\n" : "");
+		 sdata->u.sta.flags & IEEE80211_STA_SSID_SET ? "SSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_BSSID_SET ? "BSSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
+		 sdata->use_protection ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 

@@ -270,7 +270,7 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 		int ret = ieee80211_sta_set_extra_ie(dev, extra, data->length);
 		if (ret)
 			return ret;
-		sdata->u.sta.auto_bssid_sel = 0;
+		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		ieee80211_sta_req_auth(dev, &sdata->u.sta);
 		return 0;
 	}
@@ -502,13 +502,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->type == IEEE80211_IF_TYPE_STA)
-		sdata->u.sta.auto_channel_sel = 0;
+		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
 		if (freq->m < 0) {
 			if (sdata->type == IEEE80211_IF_TYPE_STA)
-				sdata->u.sta.auto_channel_sel = 1;
+				sdata->u.sta.flags |=
+					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
 		} else
 			return ieee80211_set_channel(local, freq->m, -1);
@@ -563,7 +564,10 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 			sdata->u.sta.ssid_len = len;
 			return 0;
 		}
-		sdata->u.sta.auto_ssid_sel = !data->flags;
+		if (data->flags)
+			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
+		else
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_SSID_SEL;
 		ret = ieee80211_sta_set_ssid(dev, ssid, len);
 		if (ret)
 			return ret;
@@ -630,13 +634,13 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 			       ETH_ALEN);
 			return 0;
 		}
-		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data)) {
-			sdata->u.sta.auto_bssid_sel = 1;
-			sdata->u.sta.auto_channel_sel = 1;
-		} else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.sta.auto_bssid_sel = 1;
+		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_BSSID_SEL |
+				IEEE80211_STA_AUTO_CHANNEL_SEL;
+		else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_BSSID_SEL;
 		else
-			sdata->u.sta.auto_bssid_sel = 0;
+			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		ret = ieee80211_sta_set_bssid(dev, (u8 *) &ap_addr->sa_data);
 		if (ret)
 			return ret;
@@ -1104,8 +1108,12 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		if (sdata->type != IEEE80211_IF_TYPE_STA &&
 		    sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
-		else
-			sdata->u.sta.mixed_cell = !!value;
+		else {
+			if (value)
+				sdata->u.sta.flags |= IEEE80211_STA_MIXED_CELL;
+			else
+				sdata->u.sta.flags &= ~IEEE80211_STA_MIXED_CELL;
+		}
 		break;
 
 	case PRISM2_PARAM_HW_MODES:
@@ -1115,15 +1123,23 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 	case PRISM2_PARAM_CREATE_IBSS:
 		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
-		else
-			sdata->u.sta.create_ibss = !!value;
+		else {
+			if (value)
+				sdata->u.sta.flags |= IEEE80211_STA_CREATE_IBSS;
+			else
+				sdata->u.sta.flags &= ~IEEE80211_STA_CREATE_IBSS;
+		}
 		break;
 	case PRISM2_PARAM_WMM_ENABLED:
 		if (sdata->type != IEEE80211_IF_TYPE_STA &&
 		    sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
-		else
-			sdata->u.sta.wmm_enabled = !!value;
+		else {
+			if (value)
+				sdata->u.sta.flags |= IEEE80211_STA_WMM_ENABLED;
+			else
+				sdata->u.sta.flags &= ~IEEE80211_STA_WMM_ENABLED;
+		}
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1186,7 +1202,8 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
 		else
-			*param = !!sdata->u.sta.create_ibss;
+			*param = !!(sdata->u.sta.flags &
+					IEEE80211_STA_CREATE_IBSS);
 		break;
 
 	case PRISM2_PARAM_MIXED_CELL:
@@ -1194,14 +1211,16 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		    sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
 		else
-			*param = !!sdata->u.sta.mixed_cell;
+			*param = !!(sdata->u.sta.flags &
+					IEEE80211_STA_MIXED_CELL);
 		break;
 	case PRISM2_PARAM_WMM_ENABLED:
 		if (sdata->type != IEEE80211_IF_TYPE_STA &&
 		    sdata->type != IEEE80211_IF_TYPE_IBSS)
 			ret = -EINVAL;
 		else
-			*param = !!sdata->u.sta.wmm_enabled;
+			*param = !!(sdata->u.sta.flags &
+					IEEE80211_STA_WMM_ENABLED);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

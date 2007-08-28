@@ -217,6 +217,19 @@ struct ieee80211_if_vlan {
 	u8 id;
 };
 
+/* flags used in struct ieee80211_if_sta.flags */
+#define IEEE80211_STA_SSID_SET		BIT(0)
+#define IEEE80211_STA_BSSID_SET		BIT(1)
+#define IEEE80211_STA_PREV_BSSID_SET	BIT(2)
+#define IEEE80211_STA_AUTHENTICATED	BIT(3)
+#define IEEE80211_STA_ASSOCIATED	BIT(4)
+#define IEEE80211_STA_PROBEREQ_POLL	BIT(5)
+#define IEEE80211_STA_CREATE_IBSS	BIT(6)
+#define IEEE80211_STA_MIXED_CELL	BIT(7)
+#define IEEE80211_STA_WMM_ENABLED	BIT(8)
+#define IEEE80211_STA_AUTO_SSID_SEL	BIT(10)
+#define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
+#define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
 struct ieee80211_if_sta {
 	enum {
 		IEEE80211_DISABLED, IEEE80211_AUTHENTICATE,
@@ -239,18 +252,7 @@ struct ieee80211_if_sta {
 
 	int auth_tries, assoc_tries;
 
-	unsigned int ssid_set:1;
-	unsigned int bssid_set:1;
-	unsigned int prev_bssid_set:1;
-	unsigned int authenticated:1;
-	unsigned int associated:1;
-	unsigned int probereq_poll:1;
-	unsigned int create_ibss:1;
-	unsigned int mixed_cell:1;
-	unsigned int wmm_enabled:1;
-	unsigned int auto_ssid_sel:1;
-	unsigned int auto_bssid_sel:1;
-	unsigned int auto_channel_sel:1;
+	unsigned int flags;
 #define IEEE80211_STA_REQ_SCAN 0
 #define IEEE80211_STA_REQ_AUTH 1
 #define IEEE80211_STA_REQ_RUN  2
