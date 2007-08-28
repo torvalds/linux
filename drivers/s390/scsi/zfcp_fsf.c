@@ -3586,17 +3586,17 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 			ZFCP_LOG_DEBUG(
 				"Data did not fit into available buffer(s), "
 			       "waiting for more...\n");
-		retval = -EIO;
-	} else {
-		ZFCP_LOG_NORMAL("error: No truncation implemented but "
-				"required. Shutting down unit "
-				"(adapter %s, port 0x%016Lx, "
-				"unit 0x%016Lx)\n",
-				zfcp_get_busid_by_unit(unit),
-				unit->port->wwpn,
-				unit->fcp_lun);
-		zfcp_erp_unit_shutdown(unit, 0);
-		retval = -EINVAL;
+			retval = -EIO;
+		} else {
+			ZFCP_LOG_NORMAL("error: No truncation implemented but "
+					"required. Shutting down unit "
+					"(adapter %s, port 0x%016Lx, "
+					"unit 0x%016Lx)\n",
+					zfcp_get_busid_by_unit(unit),
+					unit->port->wwpn,
+					unit->fcp_lun);
+			zfcp_erp_unit_shutdown(unit, 0);
+			retval = -EINVAL;
 		}
 		goto no_fit;
 	}
