@@ -18,6 +18,10 @@
 #ifndef	__XFS_INODE_H__
 #define	__XFS_INODE_H__
 
+struct xfs_dinode;
+struct xfs_dinode_core;
+
+
 /*
  * Fork identifiers.
  */
@@ -227,6 +231,43 @@ typedef struct xfs_chash {
  * chain off the mount structure by xfs_sync calls.
  */
 
+typedef struct xfs_ictimestamp {
+	__int32_t	t_sec;		/* timestamp seconds */
+	__int32_t	t_nsec;		/* timestamp nanoseconds */
+} xfs_ictimestamp_t;
+
+/*
+ * NOTE:  This structure must be kept identical to struct xfs_dinode_core
+ * 	  in xfs_dinode.h except for the endianess annotations.
+ */
+typedef struct xfs_icdinode {
+	__uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
+	__uint16_t	di_mode;	/* mode and type of file */
+	__int8_t	di_version;	/* inode version */
+	__int8_t	di_format;	/* format of di_c data */
+	__uint16_t	di_onlink;	/* old number of links to file */
+	__uint32_t	di_uid;		/* owner's user id */
+	__uint32_t	di_gid;		/* owner's group id */
+	__uint32_t	di_nlink;	/* number of links to file */
+	__uint16_t	di_projid;	/* owner's project id */
+	__uint8_t	di_pad[8];	/* unused, zeroed space */
+	__uint16_t	di_flushiter;	/* incremented on flush */
+	xfs_ictimestamp_t di_atime;	/* time last accessed */
+	xfs_ictimestamp_t di_mtime;	/* time last modified */
+	xfs_ictimestamp_t di_ctime;	/* time created/inode modified */
+	xfs_fsize_t	di_size;	/* number of bytes in file */
+	xfs_drfsbno_t	di_nblocks;	/* # of direct & btree blocks used */
+	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
+	xfs_extnum_t	di_nextents;	/* number of extents in data fork */
+	xfs_aextnum_t	di_anextents;	/* number of extents in attribute fork*/
+	__uint8_t	di_forkoff;	/* attr fork offs, <<3 for 64b align */
+	__int8_t	di_aformat;	/* format of attr fork's data */
+	__uint32_t	di_dmevmask;	/* DMIG event mask */
+	__uint16_t	di_dmstate;	/* DMIG state info */
+	__uint16_t	di_flags;	/* random flags, XFS_DIFLAG_... */
+	__uint32_t	di_gen;		/* generation number */
+} xfs_icdinode_t;
+
 typedef struct {
 	struct xfs_ihash	*ip_hash;	/* pointer to hash header */
 	struct xfs_inode	*ip_next;	/* inode hash link forw */
@@ -282,7 +323,7 @@ typedef struct xfs_inode {
 	unsigned int		i_gen;		/* generation count */
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
-	xfs_dinode_core_t	i_d;		/* most of ondisk inode */
+	xfs_icdinode_t		i_d;		/* most of ondisk inode */
 	xfs_chashlist_t		*i_chash;	/* cluster hash list header */
 	struct xfs_inode	*i_cnext;	/* cluster hash link forward */
 	struct xfs_inode	*i_cprev;	/* cluster hash link backward */
@@ -506,7 +547,7 @@ int		xfs_finish_reclaim_all(struct xfs_mount *, int);
  * xfs_inode.c prototypes.
  */
 int		xfs_itobp(struct xfs_mount *, struct xfs_trans *,
-			  xfs_inode_t *, xfs_dinode_t **, struct xfs_buf **,
+			  xfs_inode_t *, struct xfs_dinode **, struct xfs_buf **,
 			  xfs_daddr_t, uint);
 int		xfs_iread(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			  xfs_inode_t **, xfs_daddr_t, uint);
@@ -514,8 +555,11 @@ int		xfs_iread_extents(struct xfs_trans *, xfs_inode_t *, int);
 int		xfs_ialloc(struct xfs_trans *, xfs_inode_t *, mode_t,
 			   xfs_nlink_t, xfs_dev_t, struct cred *, xfs_prid_t,
 			   int, struct xfs_buf **, boolean_t *, xfs_inode_t **);
-void		xfs_xlate_dinode_core(xfs_caddr_t, struct xfs_dinode_core *,
-					int);
+void		xfs_dinode_from_disk(struct xfs_icdinode *,
+				     struct xfs_dinode_core *);
+void		xfs_dinode_to_disk(struct xfs_dinode_core *,
+				   struct xfs_icdinode *);
+
 uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode_core *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,

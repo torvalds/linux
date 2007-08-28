@@ -193,8 +193,8 @@ xfs_inotobp(
 	}
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, 0);
 	di_ok =
-		INT_GET(dip->di_core.di_magic, ARCH_CONVERT) == XFS_DINODE_MAGIC &&
-		XFS_DINODE_GOOD_VERSION(INT_GET(dip->di_core.di_version, ARCH_CONVERT));
+		be16_to_cpu(dip->di_core.di_magic) == XFS_DINODE_MAGIC &&
+		XFS_DINODE_GOOD_VERSION(dip->di_core.di_version);
 	if (unlikely(XFS_TEST_ERROR(!di_ok, mp, XFS_ERRTAG_ITOBP_INOTOBP,
 			XFS_RANDOM_ITOBP_INOTOBP))) {
 		XFS_CORRUPTION_ERROR("xfs_inotobp", XFS_ERRLEVEL_LOW, mp, dip);
@@ -338,8 +338,8 @@ xfs_itobp(
 
 		dip = (xfs_dinode_t *)xfs_buf_offset(bp,
 					(i << mp->m_sb.sb_inodelog));
-		di_ok = INT_GET(dip->di_core.di_magic, ARCH_CONVERT) == XFS_DINODE_MAGIC &&
-			    XFS_DINODE_GOOD_VERSION(INT_GET(dip->di_core.di_version, ARCH_CONVERT));
+		di_ok = be16_to_cpu(dip->di_core.di_magic) == XFS_DINODE_MAGIC &&
+			    XFS_DINODE_GOOD_VERSION(dip->di_core.di_version);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP,
 						XFS_RANDOM_ITOBP_INOTOBP))) {
@@ -353,7 +353,7 @@ xfs_itobp(
 					"daddr %lld #%d (magic=%x)",
 				XFS_BUFTARG_NAME(mp->m_ddev_targp),
 				(unsigned long long)imap.im_blkno, i,
-				INT_GET(dip->di_core.di_magic, ARCH_CONVERT));
+				be16_to_cpu(dip->di_core.di_magic));
 #endif
 			XFS_CORRUPTION_ERROR("xfs_itobp", XFS_ERRLEVEL_HIGH,
 					     mp, dip);
@@ -399,27 +399,26 @@ xfs_iformat(
 		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	error = 0;
 
-	if (unlikely(
-	    INT_GET(dip->di_core.di_nextents, ARCH_CONVERT) +
-		INT_GET(dip->di_core.di_anextents, ARCH_CONVERT) >
-	    INT_GET(dip->di_core.di_nblocks, ARCH_CONVERT))) {
+	if (unlikely(be32_to_cpu(dip->di_core.di_nextents) +
+		     be16_to_cpu(dip->di_core.di_anextents) >
+		     be64_to_cpu(dip->di_core.di_nblocks))) {
 		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 			"corrupt dinode %Lu, extent total = %d, nblocks = %Lu.",
 			(unsigned long long)ip->i_ino,
-			(int)(INT_GET(dip->di_core.di_nextents, ARCH_CONVERT)
-			    + INT_GET(dip->di_core.di_anextents, ARCH_CONVERT)),
+			(int)(be32_to_cpu(dip->di_core.di_nextents) +
+			      be16_to_cpu(dip->di_core.di_anextents)),
 			(unsigned long long)
-			INT_GET(dip->di_core.di_nblocks, ARCH_CONVERT));
+				be64_to_cpu(dip->di_core.di_nblocks));
 		XFS_CORRUPTION_ERROR("xfs_iformat(1)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
-	if (unlikely(INT_GET(dip->di_core.di_forkoff, ARCH_CONVERT) > ip->i_mount->m_sb.sb_inodesize)) {
+	if (unlikely(dip->di_core.di_forkoff > ip->i_mount->m_sb.sb_inodesize)) {
 		xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 			"corrupt dinode %Lu, forkoff = 0x%x.",
 			(unsigned long long)ip->i_ino,
-			(int)(INT_GET(dip->di_core.di_forkoff, ARCH_CONVERT)));
+			dip->di_core.di_forkoff);
 		XFS_CORRUPTION_ERROR("xfs_iformat(2)", XFS_ERRLEVEL_LOW,
 				     ip->i_mount, dip);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -430,25 +429,25 @@ xfs_iformat(
 	case S_IFCHR:
 	case S_IFBLK:
 	case S_IFSOCK:
-		if (unlikely(INT_GET(dip->di_core.di_format, ARCH_CONVERT) != XFS_DINODE_FMT_DEV)) {
+		if (unlikely(dip->di_core.di_format != XFS_DINODE_FMT_DEV)) {
 			XFS_CORRUPTION_ERROR("xfs_iformat(3)", XFS_ERRLEVEL_LOW,
 					      ip->i_mount, dip);
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		ip->i_d.di_size = 0;
 		ip->i_size = 0;
-		ip->i_df.if_u2.if_rdev = INT_GET(dip->di_u.di_dev, ARCH_CONVERT);
+		ip->i_df.if_u2.if_rdev = be32_to_cpu(dip->di_u.di_dev);
 		break;
 
 	case S_IFREG:
 	case S_IFLNK:
 	case S_IFDIR:
-		switch (INT_GET(dip->di_core.di_format, ARCH_CONVERT)) {
+		switch (dip->di_core.di_format) {
 		case XFS_DINODE_FMT_LOCAL:
 			/*
 			 * no local regular files yet
 			 */
-			if (unlikely((INT_GET(dip->di_core.di_mode, ARCH_CONVERT) & S_IFMT) == S_IFREG)) {
+			if (unlikely((be16_to_cpu(dip->di_core.di_mode) & S_IFMT) == S_IFREG)) {
 				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 					"corrupt inode %Lu "
 					"(local format for regular file).",
@@ -459,7 +458,7 @@ xfs_iformat(
 				return XFS_ERROR(EFSCORRUPTED);
 			}
 
-			di_size = INT_GET(dip->di_core.di_size, ARCH_CONVERT);
+			di_size = be64_to_cpu(dip->di_core.di_size);
 			if (unlikely(di_size > XFS_DFORK_DSIZE(dip, ip->i_mount))) {
 				xfs_fs_repair_cmn_err(CE_WARN, ip->i_mount,
 					"corrupt inode %Lu "
@@ -501,7 +500,7 @@ xfs_iformat(
 	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_SLEEP);
 	ip->i_afp->if_ext_max =
 		XFS_IFORK_ASIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
-	switch (INT_GET(dip->di_core.di_aformat, ARCH_CONVERT)) {
+	switch (dip->di_core.di_aformat) {
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
 		size = be16_to_cpu(atp->hdr.totsize);
@@ -709,70 +708,74 @@ xfs_iformat_btree(
 	return 0;
 }
 
-/*
- * xfs_xlate_dinode_core - translate an xfs_inode_core_t between ondisk
- * and native format
- *
- * buf  = on-disk representation
- * dip  = native representation
- * dir  = direction - +ve -> disk to native
- *                    -ve -> native to disk
- */
 void
-xfs_xlate_dinode_core(
-	xfs_caddr_t		buf,
-	xfs_dinode_core_t	*dip,
-	int			dir)
+xfs_dinode_from_disk(
+	xfs_icdinode_t		*to,
+	xfs_dinode_core_t	*from)
 {
-	xfs_dinode_core_t	*buf_core = (xfs_dinode_core_t *)buf;
-	xfs_dinode_core_t	*mem_core = (xfs_dinode_core_t *)dip;
-	xfs_arch_t		arch = ARCH_CONVERT;
+	to->di_magic = be16_to_cpu(from->di_magic);
+	to->di_mode = be16_to_cpu(from->di_mode);
+	to->di_version = from ->di_version;
+	to->di_format = from->di_format;
+	to->di_onlink = be16_to_cpu(from->di_onlink);
+	to->di_uid = be32_to_cpu(from->di_uid);
+	to->di_gid = be32_to_cpu(from->di_gid);
+	to->di_nlink = be32_to_cpu(from->di_nlink);
+	to->di_projid = be16_to_cpu(from->di_projid);
+	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
+	to->di_flushiter = be16_to_cpu(from->di_flushiter);
+	to->di_atime.t_sec = be32_to_cpu(from->di_atime.t_sec);
+	to->di_atime.t_nsec = be32_to_cpu(from->di_atime.t_nsec);
+	to->di_mtime.t_sec = be32_to_cpu(from->di_mtime.t_sec);
+	to->di_mtime.t_nsec = be32_to_cpu(from->di_mtime.t_nsec);
+	to->di_ctime.t_sec = be32_to_cpu(from->di_ctime.t_sec);
+	to->di_ctime.t_nsec = be32_to_cpu(from->di_ctime.t_nsec);
+	to->di_size = be64_to_cpu(from->di_size);
+	to->di_nblocks = be64_to_cpu(from->di_nblocks);
+	to->di_extsize = be32_to_cpu(from->di_extsize);
+	to->di_nextents = be32_to_cpu(from->di_nextents);
+	to->di_anextents = be16_to_cpu(from->di_anextents);
+	to->di_forkoff = from->di_forkoff;
+	to->di_aformat	= from->di_aformat;
+	to->di_dmevmask	= be32_to_cpu(from->di_dmevmask);
+	to->di_dmstate	= be16_to_cpu(from->di_dmstate);
+	to->di_flags	= be16_to_cpu(from->di_flags);
+	to->di_gen	= be32_to_cpu(from->di_gen);
+}
 
-	ASSERT(dir);
-
-	INT_XLATE(buf_core->di_magic, mem_core->di_magic, dir, arch);
-	INT_XLATE(buf_core->di_mode, mem_core->di_mode, dir, arch);
-	INT_XLATE(buf_core->di_version,	mem_core->di_version, dir, arch);
-	INT_XLATE(buf_core->di_format, mem_core->di_format, dir, arch);
-	INT_XLATE(buf_core->di_onlink, mem_core->di_onlink, dir, arch);
-	INT_XLATE(buf_core->di_uid, mem_core->di_uid, dir, arch);
-	INT_XLATE(buf_core->di_gid, mem_core->di_gid, dir, arch);
-	INT_XLATE(buf_core->di_nlink, mem_core->di_nlink, dir, arch);
-	INT_XLATE(buf_core->di_projid, mem_core->di_projid, dir, arch);
-
-	if (dir > 0) {
-		memcpy(mem_core->di_pad, buf_core->di_pad,
-			sizeof(buf_core->di_pad));
-	} else {
-		memcpy(buf_core->di_pad, mem_core->di_pad,
-			sizeof(buf_core->di_pad));
-	}
-
-	INT_XLATE(buf_core->di_flushiter, mem_core->di_flushiter, dir, arch);
-
-	INT_XLATE(buf_core->di_atime.t_sec, mem_core->di_atime.t_sec,
-			dir, arch);
-	INT_XLATE(buf_core->di_atime.t_nsec, mem_core->di_atime.t_nsec,
-			dir, arch);
-	INT_XLATE(buf_core->di_mtime.t_sec, mem_core->di_mtime.t_sec,
-			dir, arch);
-	INT_XLATE(buf_core->di_mtime.t_nsec, mem_core->di_mtime.t_nsec,
-			dir, arch);
-	INT_XLATE(buf_core->di_ctime.t_sec, mem_core->di_ctime.t_sec,
-			dir, arch);
-	INT_XLATE(buf_core->di_ctime.t_nsec, mem_core->di_ctime.t_nsec,
-			dir, arch);
-	INT_XLATE(buf_core->di_size, mem_core->di_size, dir, arch);
-	INT_XLATE(buf_core->di_nblocks, mem_core->di_nblocks, dir, arch);
-	INT_XLATE(buf_core->di_extsize, mem_core->di_extsize, dir, arch);
-	INT_XLATE(buf_core->di_nextents, mem_core->di_nextents, dir, arch);
-	INT_XLATE(buf_core->di_anextents, mem_core->di_anextents, dir, arch);
-	INT_XLATE(buf_core->di_forkoff, mem_core->di_forkoff, dir, arch);
-	INT_XLATE(buf_core->di_aformat, mem_core->di_aformat, dir, arch);
-	INT_XLATE(buf_core->di_dmevmask, mem_core->di_dmevmask, dir, arch);
-	INT_XLATE(buf_core->di_dmstate, mem_core->di_dmstate, dir, arch);
-	INT_XLATE(buf_core->di_flags, mem_core->di_flags, dir, arch);
-	INT_XLATE(buf_core->di_gen, mem_core->di_gen, dir, arch);
+void
+xfs_dinode_to_disk(
+	xfs_dinode_core_t	*to,
+	xfs_icdinode_t		*from)
+{
+	to->di_magic = cpu_to_be16(from->di_magic);
+	to->di_mode = cpu_to_be16(from->di_mode);
+	to->di_version = from ->di_version;
+	to->di_format = from->di_format;
+	to->di_onlink = cpu_to_be16(from->di_onlink);
+	to->di_uid = cpu_to_be32(from->di_uid);
+	to->di_gid = cpu_to_be32(from->di_gid);
+	to->di_nlink = cpu_to_be32(from->di_nlink);
+	to->di_projid = cpu_to_be16(from->di_projid);
+	memcpy(to->di_pad, from->di_pad, sizeof(to->di_pad));
+	to->di_flushiter = cpu_to_be16(from->di_flushiter);
+	to->di_atime.t_sec = cpu_to_be32(from->di_atime.t_sec);
+	to->di_atime.t_nsec = cpu_to_be32(from->di_atime.t_nsec);
+	to->di_mtime.t_sec = cpu_to_be32(from->di_mtime.t_sec);
+	to->di_mtime.t_nsec = cpu_to_be32(from->di_mtime.t_nsec);
+	to->di_ctime.t_sec = cpu_to_be32(from->di_ctime.t_sec);
+	to->di_ctime.t_nsec = cpu_to_be32(from->di_ctime.t_nsec);
+	to->di_size = cpu_to_be64(from->di_size);
+	to->di_nblocks = cpu_to_be64(from->di_nblocks);
+	to->di_extsize = cpu_to_be32(from->di_extsize);
+	to->di_nextents = cpu_to_be32(from->di_nextents);
+	to->di_anextents = cpu_to_be16(from->di_anextents);
+	to->di_forkoff = from->di_forkoff;
+	to->di_aformat = from->di_aformat;
+	to->di_dmevmask = cpu_to_be32(from->di_dmevmask);
+	to->di_dmstate = cpu_to_be16(from->di_dmstate);
+	to->di_flags = cpu_to_be16(from->di_flags);
+	to->di_gen = cpu_to_be32(from->di_gen);
 }
 
 STATIC uint
@@ -819,7 +822,7 @@ uint
 xfs_ip2xflags(
 	xfs_inode_t		*ip)
 {
-	xfs_dinode_core_t	*dic = &ip->i_d;
+	xfs_icdinode_t		*dic = &ip->i_d;
 
 	return _xfs_dic2xflags(dic->di_flags) |
 				(XFS_CFORK_Q(dic) ? XFS_XFLAG_HASATTR : 0);
@@ -829,7 +832,7 @@ uint
 xfs_dic2xflags(
 	xfs_dinode_core_t	*dic)
 {
-	return _xfs_dic2xflags(INT_GET(dic->di_flags, ARCH_CONVERT)) |
+	return _xfs_dic2xflags(be16_to_cpu(dic->di_flags)) |
 				(XFS_CFORK_Q_DISK(dic) ? XFS_XFLAG_HASATTR : 0);
 }
 
@@ -899,14 +902,14 @@ xfs_iread(
 	 * If we got something that isn't an inode it means someone
 	 * (nfs or dmi) has a stale handle.
 	 */
-	if (INT_GET(dip->di_core.di_magic, ARCH_CONVERT) != XFS_DINODE_MAGIC) {
+	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC) {
 		kmem_zone_free(xfs_inode_zone, ip);
 		xfs_trans_brelse(tp, bp);
 #ifdef DEBUG
 		xfs_fs_cmn_err(CE_ALERT, mp, "xfs_iread: "
 				"dip->di_core.di_magic (0x%x) != "
 				"XFS_DINODE_MAGIC (0x%x)",
-				INT_GET(dip->di_core.di_magic, ARCH_CONVERT),
+				be16_to_cpu(dip->di_core.di_magic),
 				XFS_DINODE_MAGIC);
 #endif /* DEBUG */
 		return XFS_ERROR(EINVAL);
@@ -920,8 +923,7 @@ xfs_iread(
 	 * Otherwise, just get the truly permanent information.
 	 */
 	if (dip->di_core.di_mode) {
-		xfs_xlate_dinode_core((xfs_caddr_t)&dip->di_core,
-		     &(ip->i_d), 1);
+		xfs_dinode_from_disk(&ip->i_d, &dip->di_core);
 		error = xfs_iformat(ip, dip);
 		if (error)  {
 			kmem_zone_free(xfs_inode_zone, ip);
@@ -934,10 +936,10 @@ xfs_iread(
 			return error;
 		}
 	} else {
-		ip->i_d.di_magic = INT_GET(dip->di_core.di_magic, ARCH_CONVERT);
-		ip->i_d.di_version = INT_GET(dip->di_core.di_version, ARCH_CONVERT);
-		ip->i_d.di_gen = INT_GET(dip->di_core.di_gen, ARCH_CONVERT);
-		ip->i_d.di_flushiter = INT_GET(dip->di_core.di_flushiter, ARCH_CONVERT);
+		ip->i_d.di_magic = be16_to_cpu(dip->di_core.di_magic);
+		ip->i_d.di_version = dip->di_core.di_version;
+		ip->i_d.di_gen = be32_to_cpu(dip->di_core.di_gen);
+		ip->i_d.di_flushiter = be16_to_cpu(dip->di_core.di_flushiter);
 		/*
 		 * Make sure to pull in the mode here as well in
 		 * case the inode is released without being used.
@@ -1959,8 +1961,7 @@ xfs_iunlink(
 		if (error) {
 			return error;
 		}
-		ASSERT(INT_GET(dip->di_next_unlinked, ARCH_CONVERT) == NULLAGINO);
-		ASSERT(dip->di_next_unlinked);
+		ASSERT(be32_to_cpu(dip->di_next_unlinked) == NULLAGINO);
 		/* both on-disk, don't endian flip twice */
 		dip->di_next_unlinked = agi->agi_unlinked[bucket_index];
 		offset = ip->i_boffset +
@@ -2071,10 +2072,10 @@ xfs_iunlink_remove(
 				error, mp->m_fsname);
 			return error;
 		}
-		next_agino = INT_GET(dip->di_next_unlinked, ARCH_CONVERT);
+		next_agino = be32_to_cpu(dip->di_next_unlinked);
 		ASSERT(next_agino != 0);
 		if (next_agino != NULLAGINO) {
-			INT_SET(dip->di_next_unlinked, ARCH_CONVERT, NULLAGINO);
+			dip->di_next_unlinked = cpu_to_be32(NULLAGINO);
 			offset = ip->i_boffset +
 				offsetof(xfs_dinode_t, di_next_unlinked);
 			xfs_trans_inode_buf(tp, ibp);
@@ -2118,7 +2119,7 @@ xfs_iunlink_remove(
 					error, mp->m_fsname);
 				return error;
 			}
-			next_agino = INT_GET(last_dip->di_next_unlinked, ARCH_CONVERT);
+			next_agino = be32_to_cpu(last_dip->di_next_unlinked);
 			ASSERT(next_agino != NULLAGINO);
 			ASSERT(next_agino != 0);
 		}
@@ -2133,11 +2134,11 @@ xfs_iunlink_remove(
 				error, mp->m_fsname);
 			return error;
 		}
-		next_agino = INT_GET(dip->di_next_unlinked, ARCH_CONVERT);
+		next_agino = be32_to_cpu(dip->di_next_unlinked);
 		ASSERT(next_agino != 0);
 		ASSERT(next_agino != agino);
 		if (next_agino != NULLAGINO) {
-			INT_SET(dip->di_next_unlinked, ARCH_CONVERT, NULLAGINO);
+			dip->di_next_unlinked = cpu_to_be32(NULLAGINO);
 			offset = ip->i_boffset +
 				offsetof(xfs_dinode_t, di_next_unlinked);
 			xfs_trans_inode_buf(tp, ibp);
@@ -2150,7 +2151,7 @@ xfs_iunlink_remove(
 		/*
 		 * Point the previous inode on the list to the next inode.
 		 */
-		INT_SET(last_dip->di_next_unlinked, ARCH_CONVERT, next_agino);
+		last_dip->di_next_unlinked = cpu_to_be32(next_agino);
 		ASSERT(next_agino != 0);
 		offset = last_offset + offsetof(xfs_dinode_t, di_next_unlinked);
 		xfs_trans_inode_buf(tp, last_ibp);
@@ -3009,7 +3010,7 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_DEV:
 		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
-			INT_SET(dip->di_u.di_dev, ARCH_CONVERT, ip->i_df.if_u2.if_rdev);
+			dip->di_u.di_dev = cpu_to_be32(ip->i_df.if_u2.if_rdev);
 		}
 		break;
 
@@ -3358,11 +3359,11 @@ xfs_iflush_int(
 	 */
 	xfs_synchronize_atime(ip);
 
-	if (XFS_TEST_ERROR(INT_GET(dip->di_core.di_magic,ARCH_CONVERT) != XFS_DINODE_MAGIC,
+	if (XFS_TEST_ERROR(be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC,
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
 		xfs_cmn_err(XFS_PTAG_IFLUSH, CE_ALERT, mp,
 		    "xfs_iflush: Bad inode %Lu magic number 0x%x, ptr 0x%p",
-			ip->i_ino, (int) INT_GET(dip->di_core.di_magic, ARCH_CONVERT), dip);
+			ip->i_ino, be16_to_cpu(dip->di_core.di_magic), dip);
 		goto corrupt_out;
 	}
 	if (XFS_TEST_ERROR(ip->i_d.di_magic != XFS_DINODE_MAGIC,
@@ -3425,7 +3426,7 @@ xfs_iflush_int(
 	 * because if the inode is dirty at all the core must
 	 * be.
 	 */
-	xfs_xlate_dinode_core((xfs_caddr_t)&(dip->di_core), &(ip->i_d), -1);
+	xfs_dinode_to_disk(&dip->di_core, &ip->i_d);
 
 	/* Wrap, we never let the log put out DI_MAX_FLUSH */
 	if (ip->i_d.di_flushiter == DI_MAX_FLUSH)
@@ -3445,7 +3446,7 @@ xfs_iflush_int(
 			 * Convert it back.
 			 */
 			ASSERT(ip->i_d.di_nlink <= XFS_MAXLINK_1);
-			INT_SET(dip->di_core.di_onlink, ARCH_CONVERT, ip->i_d.di_nlink);
+			dip->di_core.di_onlink = cpu_to_be16(ip->i_d.di_nlink);
 		} else {
 			/*
 			 * The superblock version has already been bumped,
@@ -3453,7 +3454,7 @@ xfs_iflush_int(
 			 * format permanent.
 			 */
 			ip->i_d.di_version = XFS_DINODE_VERSION_2;
-			INT_SET(dip->di_core.di_version, ARCH_CONVERT, XFS_DINODE_VERSION_2);
+			dip->di_core.di_version =  XFS_DINODE_VERSION_2;
 			ip->i_d.di_onlink = 0;
 			dip->di_core.di_onlink = 0;
 			memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));

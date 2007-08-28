@@ -293,9 +293,9 @@ xfs_ialloc_ag_alloc(
 		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
-			INT_SET(free->di_core.di_magic, ARCH_CONVERT, XFS_DINODE_MAGIC);
-			INT_SET(free->di_core.di_version, ARCH_CONVERT, version);
-			INT_SET(free->di_next_unlinked, ARCH_CONVERT, NULLAGINO);
+			free->di_core.di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
+			free->di_core.di_version = version;
+			free->di_next_unlinked = cpu_to_be32(NULLAGINO);
 			xfs_ialloc_log_di(tp, fbuf, i,
 				XFS_DI_CORE_BITS | XFS_DI_NEXT_UNLINKED);
 		}
