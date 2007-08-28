@@ -1755,8 +1755,9 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 		goto error;
 	}
 
-	emu->page_ptr_table = (void **)vmalloc(emu->max_cache_pages * sizeof(void*));
-	emu->page_addr_table = (unsigned long*)vmalloc(emu->max_cache_pages * sizeof(unsigned long));
+	emu->page_ptr_table = vmalloc(emu->max_cache_pages * sizeof(void *));
+	emu->page_addr_table = vmalloc(emu->max_cache_pages *
+				       sizeof(unsigned long));
 	if (emu->page_ptr_table == NULL || emu->page_addr_table == NULL) {
 		err = -ENOMEM;
 		goto error;
