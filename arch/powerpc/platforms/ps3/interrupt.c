@@ -673,9 +673,16 @@ static int ps3_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
+static int ps3_host_match(struct irq_host *h, struct device_node *np)
+{
+	/* Match all */
+	return 1;
+}
+
 static struct irq_host_ops ps3_host_ops = {
 	.map = ps3_host_map,
 	.unmap = ps3_host_unmap,
+	.match = ps3_host_match,
 };
 
 void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq)

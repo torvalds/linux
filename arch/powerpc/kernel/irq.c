@@ -523,7 +523,7 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 */
 	spin_lock_irqsave(&irq_big_lock, flags);
 	list_for_each_entry(h, &irq_hosts, link)
-		if (h->ops->match == NULL || h->ops->match(h, node)) {
+		if (h->ops->match != NULL && h->ops->match(h, node)) {
 			found = h;
 			break;
 		}

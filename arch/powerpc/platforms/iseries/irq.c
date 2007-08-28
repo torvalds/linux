@@ -346,8 +346,15 @@ static int iseries_irq_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
+static int iseries_irq_host_match(struct irq_host *h, struct device_node *np)
+{
+	/* Match all */
+	return 1;
+}
+
 static struct irq_host_ops iseries_irq_host_ops = {
 	.map = iseries_irq_host_map,
+	.match = iseries_irq_host_match,
 };
 
 /*
