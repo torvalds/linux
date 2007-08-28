@@ -275,58 +275,6 @@ static void ehci_work(struct ehci_hcd *ehci);
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef CONFIG_CPU_FREQ
-
-#include <linux/cpufreq.h>
-
-static void ehci_cpufreq_pause (struct ehci_hcd *ehci)
-{
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ehci->lock, flags);
-	if (!ehci->cpufreq_changing++)
-		qh_inactivate_split_intr_qhs(ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-}
-
-static void ehci_cpufreq_unpause (struct ehci_hcd *ehci)
-{
-	unsigned long	flags;
-
-	spin_lock_irqsave(&ehci->lock, flags);
-	if (!--ehci->cpufreq_changing)
-		qh_reactivate_split_intr_qhs(ehci);
-	spin_unlock_irqrestore(&ehci->lock, flags);
-}
-
-/*
- * ehci_cpufreq_notifier is needed to avoid MMF errors that occur when
- * EHCI controllers that don't cache many uframes get delayed trying to
- * read main memory during CPU frequency transitions.  This can cause
- * split interrupt transactions to not be completed in the required uframe.
- * This has been observed on the Broadcom/ServerWorks HT1000 controller.
- */
-static int ehci_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
-				 void *data)
-{
-	struct ehci_hcd *ehci = container_of(nb, struct ehci_hcd,
-					     cpufreq_transition);
-
-	switch (val) {
-	case CPUFREQ_PRECHANGE:
-		ehci_cpufreq_pause(ehci);
-		break;
-	case CPUFREQ_POSTCHANGE:
-		ehci_cpufreq_unpause(ehci);
-		break;
-	}
-	return 0;
-}
-
-#endif
-
-/*-------------------------------------------------------------------------*/
-
 static void ehci_watchdog (unsigned long param)
 {
 	struct ehci_hcd		*ehci = (struct ehci_hcd *) param;
@@ -460,10 +408,6 @@ static void ehci_stop (struct usb_hcd *hcd)
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	spin_unlock_irq(&ehci->lock);
 
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_unregister_notifier(&ehci->cpufreq_transition,
-				    CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 	/* let companion controllers work when we aren't */
 	ehci_writel(ehci, 0, &ehci->regs->configured_flag);
 
@@ -569,17 +513,6 @@ static int ehci_init(struct usb_hcd *hcd)
 	}
 	ehci->command = temp;
 
-#ifdef CONFIG_CPU_FREQ
-	INIT_LIST_HEAD(&ehci->split_intr_qhs);
-	/*
-	 * If the EHCI controller caches enough uframes, this probably
-	 * isn't needed unless there are so many low/full speed devices
-	 * that the controller's can't cache it all.
-	 */
-	ehci->cpufreq_transition.notifier_call = ehci_cpufreq_notifier;
-	cpufreq_register_notifier(&ehci->cpufreq_transition,
-				  CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 	return 0;
 }
 

@@ -951,10 +951,14 @@ access_uarea (struct task_struct *child, unsigned long addr,
 			return 0;
 
 		      case PT_CR_IPSR:
-			if (write_access)
-				pt->cr_ipsr = ((*data & IPSR_MASK)
+			if (write_access) {
+				unsigned long tmp = *data;
+				/* psr.ri==3 is a reserved value: SDM 2:25 */
+				if ((tmp & IA64_PSR_RI) == IA64_PSR_RI)
+					tmp &= ~IA64_PSR_RI;
+				pt->cr_ipsr = ((tmp & IPSR_MASK)
 					       | (pt->cr_ipsr & ~IPSR_MASK));
-			else
+			} else
 				*data = (pt->cr_ipsr & IPSR_MASK);
 			return 0;
 

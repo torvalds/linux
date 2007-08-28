@@ -139,6 +139,8 @@ static struct pnp_device_id isapnp_devices[] = {
 	{.id = ""}
 };
 
+MODULE_DEVICE_TABLE(pnp, isapnp_devices);
+
 static struct pnp_driver isapnp_driver = {
 	.name		= DRV_NAME,
 	.id_table	= isapnp_devices,

@@ -142,14 +142,15 @@ SECTIONS
         *(.exitcall.exit)
 
 	/* ABI crap starts here */
-	*(.comment)
 	*(.MIPS.options)
-	*(.note)
 	*(.options)
 	*(.pdr)
 	*(.reginfo)
-	*(.mdebug*)
   }
+
+  /* These mark the ABI of the kernel for debuggers.  */
+  .mdebug.abi32 : { KEEP(*(.mdebug.abi32)) }
+  .mdebug.abi64 : { KEEP(*(.mdebug.abi64)) }
 
   /* This is the MIPS specific mdebug section.  */
   .mdebug : { *(.mdebug) }

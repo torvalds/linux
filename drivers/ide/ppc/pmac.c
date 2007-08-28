@@ -604,6 +604,9 @@ out:
 				drive->id->dma_1word |= 0x0101; break;
 			default: break;
 		}
+		if (!drive->init_speed)
+			drive->init_speed = command;
+		drive->current_speed = command;
 	}
 	enable_irq(hwif->irq);
 	return result;
@@ -986,7 +989,6 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 		return ret;
 		
 	pmac_ide_do_update_timings(drive);	
-	drive->current_speed = speed;
 
 	return 0;
 }
@@ -1737,11 +1739,6 @@ pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
 	/* Apply timings to controller */
 	*timings = timing_local[0];
 	*timings2 = timing_local[1];
-	
-	/* Set speed info in drive */
-	drive->current_speed = mode;	
-	if (!drive->init_speed)
-		drive->init_speed = mode;
 
 	return 1;
 }
@@ -1792,11 +1789,6 @@ pmac_ide_udma_enable(ide_drive_t *drive, u16 mode)
 	/* Apply timings to controller */
 	*timings = timing_local[0];
 	*timings2 = timing_local[1];
-
-	/* Set speed info in drive */
-	drive->current_speed = mode;	
-	if (!drive->init_speed)
-		drive->init_speed = mode;
 
 	return 1;
 }

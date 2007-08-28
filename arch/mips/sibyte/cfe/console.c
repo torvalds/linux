@@ -46,7 +46,7 @@ static int cfe_console_setup(struct console *cons, char *str)
 	/* XXXKW think about interaction with 'console=' cmdline arg */
 	/* If none of the console options are configured, the build will break. */
 	if (cfe_getenv("BOOT_CONSOLE", consdev, 32) >= 0) {
-#ifdef CONFIG_SIBYTE_SB1250_DUART
+#ifdef CONFIG_SERIAL_SB1250_DUART
 		if (!strcmp(consdev, "uart0")) {
 			setleds("u0cn");
 		} else if (!strcmp(consdev, "uart1")) {

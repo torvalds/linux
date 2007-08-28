@@ -3,7 +3,10 @@ Version 1.50
 Fix NTLMv2 signing. NFS server mounted over cifs works (if cifs mount is
 done with "serverino" mount option).  Add support for POSIX Unlink
 (helps with certain sharing violation cases when server such as
-Samba supports newer POSIX CIFS Protocol Extensions).
+Samba supports newer POSIX CIFS Protocol Extensions). Add "nounix"
+mount option to allow disabling the CIFS Unix Extensions for just
+that mount. Fix hang on spinlock in find_writable_file (race when
+reopening file after session crash).
 
 Version 1.49
 ------------

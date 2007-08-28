@@ -560,7 +560,7 @@ via_init_dmablit(struct drm_device *dev)
 		blitq->head = 0;
 		blitq->cur = 0;
 		blitq->serviced = 0;
-		blitq->num_free = VIA_NUM_BLIT_SLOTS;
+		blitq->num_free = VIA_NUM_BLIT_SLOTS - 1;
 		blitq->num_outstanding = 0;
 		blitq->is_active = 0;
 		blitq->aborting = 0;

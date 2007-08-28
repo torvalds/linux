@@ -34,19 +34,17 @@
  */
 static int irq_flags(int triggering, int polarity)
 {
-	int flag;
 	if (triggering == ACPI_LEVEL_SENSITIVE) {
 		if (polarity == ACPI_ACTIVE_LOW)
-			flag = IORESOURCE_IRQ_LOWLEVEL;
+			return IORESOURCE_IRQ_LOWLEVEL;
 		else
-			flag = IORESOURCE_IRQ_HIGHLEVEL;
+			return IORESOURCE_IRQ_HIGHLEVEL;
 	} else {
 		if (polarity == ACPI_ACTIVE_LOW)
-			flag = IORESOURCE_IRQ_LOWEDGE;
+			return IORESOURCE_IRQ_LOWEDGE;
 		else
-			flag = IORESOURCE_IRQ_HIGHEDGE;
+			return IORESOURCE_IRQ_HIGHEDGE;
 	}
-	return flag;
 }
 
 static void decode_irq_flags(int flag, int *triggering, int *polarity)
@@ -242,8 +240,7 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_resource_table *res
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 					      void *data)
 {
-	struct pnp_resource_table *res_table =
-	    (struct pnp_resource_table *)data;
+	struct pnp_resource_table *res_table = data;
 	int i;
 
 	switch (res->type) {
@@ -566,8 +563,7 @@ static acpi_status pnpacpi_option_resource(struct acpi_resource *res,
 					   void *data)
 {
 	int priority = 0;
-	struct acpipnp_parse_option_s *parse_data =
-	    (struct acpipnp_parse_option_s *)data;
+	struct acpipnp_parse_option_s *parse_data = data;
 	struct pnp_dev *dev = parse_data->dev;
 	struct pnp_option *option = parse_data->option;
 
@@ -705,7 +701,7 @@ static int pnpacpi_supported_resource(struct acpi_resource *res)
 static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 					   void *data)
 {
-	int *res_cnt = (int *)data;
+	int *res_cnt = data;
 
 	if (pnpacpi_supported_resource(res))
 		(*res_cnt)++;
@@ -714,7 +710,7 @@ static acpi_status pnpacpi_count_resources(struct acpi_resource *res,
 
 static acpi_status pnpacpi_type_resources(struct acpi_resource *res, void *data)
 {
-	struct acpi_resource **resource = (struct acpi_resource **)data;
+	struct acpi_resource **resource = data;
 
 	if (pnpacpi_supported_resource(res)) {
 		(*resource)->type = res->type;
@@ -886,8 +882,7 @@ int pnpacpi_encode_resources(struct pnp_resource_table *res_table,
 	int i = 0;
 	/* pnpacpi_build_resource_template allocates extra mem */
 	int res_cnt = (buffer->length - 1) / sizeof(struct acpi_resource) - 1;
-	struct acpi_resource *resource =
-	    (struct acpi_resource *)buffer->pointer;
+	struct acpi_resource *resource = buffer->pointer;
 	int port = 0, irq = 0, dma = 0, mem = 0;
 
 	pnp_dbg("res cnt %d", res_cnt);

@@ -462,7 +462,9 @@ void free_irq(unsigned int irq, void *dev_id)
 		 * We do this after actually deregistering it, to make sure that
 		 * a 'real' IRQ doesn't run in parallel with our fake
 		 */
+		local_irq_save(flags);
 		handler(irq, dev_id);
+		local_irq_restore(flags);
 	}
 #endif
 }

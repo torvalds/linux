@@ -50,4 +50,30 @@ config BOARD_ATSTK1002_SPI1
 	  GPIO lines and accessed through the J1 jumper block.  Say "y"
 	  here to configure that SPI controller.
 
+config BOARD_ATSTK1002_J2_LED
+	bool
+	default BOARD_ATSTK1002_J2_LED8 || BOARD_ATSTK1002_J2_RGB
+
+choice
+	prompt "LEDs connected to J2:"
+	depends on LEDS_GPIO && !BOARD_ATSTK1002_SW4_CUSTOM
+	optional
+	help
+	  Select this if you have jumpered the J2 jumper block to the
+	  LED0..LED7 amber leds, or to the RGB leds, using a ten-pin
+	  IDC cable.  A default "heartbeat" trigger is provided, but
+	  you can of course override this.
+
+config BOARD_ATSTK1002_J2_LED8
+	bool "LED0..LED7"
+	help
+	  Select this if J2 is jumpered to LED0..LED7 amber leds.
+
+config BOARD_ATSTK1002_J2_RGB
+	bool "RGB leds"
+	help
+	  Select this if J2 is jumpered to the RGB leds.
+
+endchoice
+
 endif	# stk 1002

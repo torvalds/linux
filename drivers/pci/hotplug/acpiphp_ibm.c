@@ -267,7 +267,10 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 
 	if (subevent == 0x80) {
 		dbg("%s: generationg bus event\n", __FUNCTION__);
-		acpi_bus_generate_event(note->device, note->event, detail);
+		acpi_bus_generate_proc_event(note->device, note->event, detail);
+		acpi_bus_generate_netlink_event(note->device->pnp.device_class,
+						  note->device->dev.bus_id,
+						  note->event, detail);
 	} else
 		note->event = event;
 }
@@ -399,7 +402,7 @@ static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 
 	status = acpi_get_object_info(handle, &info_buffer);
 	if (ACPI_FAILURE(status)) {
-		err("%s:  Failed to get device information", __FUNCTION__);
+		err("%s:  Failed to get device information\n", __FUNCTION__);
 		return 0;
 	}
 	info.hardware_id.value[sizeof(info.hardware_id.value) - 1] = '\0';

@@ -5,6 +5,11 @@ menuconfig HID_SUPPORT
 	bool "HID Devices"
 	depends on INPUT
 	default y
+	---help---
+	  Say Y here to get to see options for various computer-human interface
+	  device drivers. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if HID_SUPPORT
 

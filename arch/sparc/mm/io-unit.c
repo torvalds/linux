@@ -66,7 +66,7 @@ iounit_init(int sbi_node, int io_node, struct sbus_bus *sbus)
 	}
 	if(!xpt) panic("Cannot map External Page Table.");
 	
-	sbus->iommu = (struct iommu_struct *)iounit;
+	sbus->ofdev.dev.archdata.iommu = iounit;
 	iounit->page_table = xpt;
 	spin_lock_init(&iounit->lock);
 	
@@ -127,7 +127,7 @@ nexti:	scan = find_next_zero_bit(iounit->bmap, limit, scan);
 static __u32 iounit_get_scsi_one(char *vaddr, unsigned long len, struct sbus_bus *sbus)
 {
 	unsigned long ret, flags;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	
 	spin_lock_irqsave(&iounit->lock, flags);
 	ret = iounit_get_area(iounit, (unsigned long)vaddr, len);
@@ -138,7 +138,7 @@ static __u32 iounit_get_scsi_one(char *vaddr, unsigned long len, struct sbus_bus
 static void iounit_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *sbus)
 {
 	unsigned long flags;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
 	/* FIXME: Cache some resolved pages - often several sg entries are to the same page */
 	spin_lock_irqsave(&iounit->lock, flags);
@@ -153,7 +153,7 @@ static void iounit_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus 
 static void iounit_release_scsi_one(__u32 vaddr, unsigned long len, struct sbus_bus *sbus)
 {
 	unsigned long flags;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	
 	spin_lock_irqsave(&iounit->lock, flags);
 	len = ((vaddr & ~PAGE_MASK) + len + (PAGE_SIZE-1)) >> PAGE_SHIFT;
@@ -168,7 +168,7 @@ static void iounit_release_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_
 {
 	unsigned long flags;
 	unsigned long vaddr, len;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
 	spin_lock_irqsave(&iounit->lock, flags);
 	while (sz != 0) {
@@ -211,7 +211,7 @@ static int iounit_map_dma_area(dma_addr_t *pba, unsigned long va, __u32 addr, in
 			i = ((addr - IOUNIT_DMA_BASE) >> PAGE_SHIFT);
 
 			for_each_sbus(sbus) {
-				struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+				struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
 				iopte = (iopte_t *)(iounit->page_table + i);
 				*iopte = MKIOPTE(__pa(page));
@@ -235,7 +235,7 @@ static void iounit_unmap_dma_area(unsigned long addr, int len)
 static struct page *iounit_translate_dvma(unsigned long addr)
 {
 	struct sbus_bus *sbus = sbus_root;	/* They are all the same */
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	int i;
 	iopte_t *iopte;
 
@@ -279,7 +279,7 @@ __u32 iounit_map_dma_init(struct sbus_bus *sbus, int size)
 	unsigned long rotor, scan, limit;
 	unsigned long flags;
 	__u32 ret;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
         npages = (size + (PAGE_SIZE-1)) >> PAGE_SHIFT;
 	i = 0x0213;
@@ -315,7 +315,7 @@ nexti:	scan = find_next_zero_bit(iounit->bmap, limit, scan);
 __u32 iounit_map_dma_page(__u32 vaddr, void *addr, struct sbus_bus *sbus)
 {
 	int scan = (vaddr - IOUNIT_DMA_BASE) >> PAGE_SHIFT;
-	struct iounit_struct *iounit = (struct iounit_struct *)sbus->iommu;
+	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	
 	iounit->page_table[scan] = MKIOPTE(__pa(((unsigned long)addr) & PAGE_MASK));
 	return vaddr + (((unsigned long)addr) & ~PAGE_MASK);

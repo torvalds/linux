@@ -1190,10 +1190,10 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		if (sendacpi)
-			acpi_bus_generate_event(ibm->acpi->device, event, hkey);
+			acpi_bus_generate_proc_event(ibm->acpi->device, event, hkey);
 	} else {
 		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
-		acpi_bus_generate_event(ibm->acpi->device, event, 0);
+		acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
 	}
 }
 
@@ -2162,22 +2162,27 @@ static void dock_notify(struct ibm_struct *ibm, u32 event)
 	int docked = dock_docked();
 	int pci = ibm->acpi->hid && ibm->acpi->device &&
 		acpi_match_device_ids(ibm->acpi->device, ibm_pci_device_ids);
+	int data;
 
 	if (event == 1 && !pci)	/* 570 */
-		acpi_bus_generate_event(ibm->acpi->device, event, 1);	/* button */
+		data = 1;	/* button */
 	else if (event == 1 && pci)	/* 570 */
-		acpi_bus_generate_event(ibm->acpi->device, event, 3);	/* dock */
+		data = 3;	/* dock */
 	else if (event == 3 && docked)
-		acpi_bus_generate_event(ibm->acpi->device, event, 1);	/* button */
+		data = 1;	/* button */
 	else if (event == 3 && !docked)
-		acpi_bus_generate_event(ibm->acpi->device, event, 2);	/* undock */
+		data = 2;	/* undock */
 	else if (event == 0 && docked)
-		acpi_bus_generate_event(ibm->acpi->device, event, 3);	/* dock */
+		data = 3;	/* dock */
 	else {
 		printk(IBM_ERR "unknown dock event %d, status %d\n",
 		       event, _sta(dock_handle));
-		acpi_bus_generate_event(ibm->acpi->device, event, 0);	/* unknown */
+		data = 0;	/* unknown */
 	}
+	acpi_bus_generate_proc_event(ibm->acpi->device, event, data);
+	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
+					  ibm->acpi->device->dev.bus_id,
+					  event, data);
 }
 
 static int dock_read(char *p)
@@ -2275,7 +2280,10 @@ static int __init bay_init(struct ibm_init_struct *iibm)
 
 static void bay_notify(struct ibm_struct *ibm, u32 event)
 {
-	acpi_bus_generate_event(ibm->acpi->device, event, 0);
+	acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
+	acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
+					  ibm->acpi->device->dev.bus_id,
+					  event, 0);
 }
 
 #define bay_occupied(b) (_sta(b##_handle) & 1)

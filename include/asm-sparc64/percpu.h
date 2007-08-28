@@ -3,6 +3,8 @@
 
 #include <linux/compiler.h>
 
+register unsigned long __local_per_cpu_offset asm("g5");
+
 #ifdef CONFIG_SMP
 
 #define setup_per_cpu_areas()			do { } while (0)
@@ -22,8 +24,6 @@ extern unsigned long __per_cpu_shift;
     __attribute__((__section__(".data.percpu.shared_aligned"))) \
     __typeof__(type) per_cpu__##name				\
     ____cacheline_aligned_in_smp
-
-register unsigned long __local_per_cpu_offset asm("g5");
 
 /* var is in discarded region: offset to particular copy we want */
 #define per_cpu(var, cpu) (*RELOC_HIDE(&per_cpu__##var, __per_cpu_offset(cpu)))

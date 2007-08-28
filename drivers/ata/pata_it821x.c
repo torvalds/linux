@@ -587,7 +587,7 @@ static int it821x_port_start(struct ata_port *ap)
 	itdev->want[1][1] = ATA_ANY;
 	itdev->last_device = -1;
 
-	if (pdev->revision == 0x11) {
+	if (pdev->revision == 0x10) {
 		itdev->timing10 = 1;
 		/* Need to disable ATAPI DMA for this case */
 		if (!itdev->smart)

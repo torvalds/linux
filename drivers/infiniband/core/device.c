@@ -702,7 +702,7 @@ int ib_find_pkey(struct ib_device *device,
 		if (ret)
 			return ret;
 
-		if (pkey == tmp_pkey) {
+		if ((pkey & 0x7fff) == (tmp_pkey & 0x7fff)) {
 			*index = i;
 			return 0;
 		}

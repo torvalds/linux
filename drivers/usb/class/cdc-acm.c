@@ -921,6 +921,10 @@ skip_normal_probe:
 			return -EINVAL;
 		}
 	}
+
+	/* Accept probe requests only for the control interface */
+	if (intf != control_interface)
+		return -ENODEV;
 	
 	if (usb_interface_claimed(data_interface)) { /* valid in this context */
 		dev_dbg(&intf->dev,"The data interface isn't available");
@@ -1109,10 +1113,12 @@ static void acm_disconnect(struct usb_interface *intf)
 		return;
 	}
 	if (acm->country_codes){
-		device_remove_file(&intf->dev, &dev_attr_wCountryCodes);
-		device_remove_file(&intf->dev, &dev_attr_iCountryCodeRelDate);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_wCountryCodes);
+		device_remove_file(&acm->control->dev,
+				&dev_attr_iCountryCodeRelDate);
 	}
-	device_remove_file(&intf->dev, &dev_attr_bmCapabilities);
+	device_remove_file(&acm->control->dev, &dev_attr_bmCapabilities);
 	acm->dev = NULL;
 	usb_set_intfdata(acm->control, NULL);
 	usb_set_intfdata(acm->data, NULL);

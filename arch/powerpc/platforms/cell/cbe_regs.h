@@ -113,10 +113,14 @@ struct cbe_pmd_regs {
 	u64	checkstop_fir;					/* 0x0c00 */
 	u64	recoverable_fir;				/* 0x0c08 */
 	u64	spec_att_mchk_fir;				/* 0x0c10 */
-	u64	fir_mode_reg;					/* 0x0c18 */
+	u32	fir_mode_reg;					/* 0x0c18 */
+	u8	pad_0x0c1c_0x0c20 [4];				/* 0x0c1c */
+#define CBE_PMD_FIR_MODE_M8		0x00800
 	u64	fir_enable_mask;				/* 0x0c20 */
 
-	u8	pad_0x0c28_0x1000 [0x1000 - 0x0c28];		/* 0x0c28 */
+	u8	pad_0x0c28_0x0ca8 [0x0ca8 - 0x0c28];		/* 0x0c28 */
+	u64	ras_esc_0;					/* 0x0ca8 */
+	u8	pad_0x0cb0_0x1000 [0x1000 - 0x0cb0];		/* 0x0cb0 */
 };
 
 extern struct cbe_pmd_regs __iomem *cbe_get_pmd_regs(struct device_node *np);

@@ -653,20 +653,20 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 
 	sprintf(child->name, (is_cardbus ? "PCI CardBus #%02x" : "PCI Bus #%02x"), child->number);
 
+	/* Has only triggered on CardBus, fixup is in yenta_socket */
 	while (bus->parent) {
 		if ((child->subordinate > bus->subordinate) ||
 		    (child->number > bus->subordinate) ||
 		    (child->number < bus->number) ||
 		    (child->subordinate < bus->number)) {
-			printk(KERN_WARNING "PCI: Bus #%02x (-#%02x) is "
-			       "hidden behind%s bridge #%02x (-#%02x)%s\n",
-			       child->number, child->subordinate,
-			       bus->self->transparent ? " transparent" : " ",
-			       bus->number, bus->subordinate,
-			       pcibios_assign_all_busses() ? " " :
-			       " (try 'pci=assign-busses')");
-			printk(KERN_WARNING "Please report the result to "
-			       "<bk@suse.de> to fix this permanently\n");
+			pr_debug("PCI: Bus #%02x (-#%02x) is %s"
+				"hidden behind%s bridge #%02x (-#%02x)\n",
+				child->number, child->subordinate,
+				(bus->number > child->subordinate &&
+				 bus->subordinate < child->number) ?
+					"wholly " : " partially",
+				bus->self->transparent ? " transparent" : " ",
+				bus->number, bus->subordinate);
 		}
 		bus = bus->parent;
 	}

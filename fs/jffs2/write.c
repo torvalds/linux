@@ -566,6 +566,9 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 		struct jffs2_full_dirent **prev = &dir_f->dents;
 		uint32_t nhash = full_name_hash(name, namelen);
 
+		/* We don't actually want to reserve any space, but we do
+		   want to be holding the alloc_sem when we write to flash */
+		down(&c->alloc_sem);
 		down(&dir_f->sem);
 
 		while ((*prev) && (*prev)->nhash <= nhash) {

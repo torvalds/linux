@@ -47,9 +47,6 @@ struct pnp_option *pnp_register_independent_option(struct pnp_dev *dev)
 {
 	struct pnp_option *option;
 
-	if (!dev)
-		return NULL;
-
 	option = pnp_build_option(PNP_RES_PRIORITY_PREFERRED);
 
 	/* this should never happen but if it does we'll try to continue */
@@ -63,9 +60,6 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 						 int priority)
 {
 	struct pnp_option *option;
-
-	if (!dev)
-		return NULL;
 
 	option = pnp_build_option(priority);
 
@@ -82,11 +76,6 @@ struct pnp_option *pnp_register_dependent_option(struct pnp_dev *dev,
 int pnp_register_irq_resource(struct pnp_option *option, struct pnp_irq *data)
 {
 	struct pnp_irq *ptr;
-
-	if (!option)
-		return -EINVAL;
-	if (!data)
-		return -EINVAL;
 
 	ptr = option->irq;
 	while (ptr && ptr->next)
@@ -112,11 +101,6 @@ int pnp_register_dma_resource(struct pnp_option *option, struct pnp_dma *data)
 {
 	struct pnp_dma *ptr;
 
-	if (!option)
-		return -EINVAL;
-	if (!data)
-		return -EINVAL;
-
 	ptr = option->dma;
 	while (ptr && ptr->next)
 		ptr = ptr->next;
@@ -132,11 +116,6 @@ int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
 {
 	struct pnp_port *ptr;
 
-	if (!option)
-		return -EINVAL;
-	if (!data)
-		return -EINVAL;
-
 	ptr = option->port;
 	while (ptr && ptr->next)
 		ptr = ptr->next;
@@ -151,11 +130,6 @@ int pnp_register_port_resource(struct pnp_option *option, struct pnp_port *data)
 int pnp_register_mem_resource(struct pnp_option *option, struct pnp_mem *data)
 {
 	struct pnp_mem *ptr;
-
-	if (!option)
-		return -EINVAL;
-	if (!data)
-		return -EINVAL;
 
 	ptr = option->mem;
 	while (ptr && ptr->next)

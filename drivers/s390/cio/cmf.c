@@ -594,6 +594,9 @@ alloc_cmb (struct ccw_device *cdev)
 			free_pages((unsigned long)mem, get_order(size));
 		} else if (!mem) {
 			/* no luck */
+			printk(KERN_WARNING "cio: failed to allocate area "
+			       "for measuring %d subchannels\n",
+			       cmb_area.num_channels);
 			ret = -ENOMEM;
 			goto out;
 		} else {
@@ -1279,13 +1282,6 @@ init_cmf(void)
 	case CMF_BASIC:
 		format_string = "basic";
 		cmbops = &cmbops_basic;
-		if (cmb_area.num_channels > 4096 || cmb_area.num_channels < 1) {
-			printk(KERN_ERR "cio: Basic channel measurement "
-			       "facility can only use 1 to 4096 devices\n"
-			       KERN_ERR "when the cmf driver is built"
-			       " as a loadable module\n");
-			return 1;
-		}
 		break;
 	case CMF_EXTENDED:
  		format_string = "extended";

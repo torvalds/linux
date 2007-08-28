@@ -58,7 +58,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
-void prom_boot_secondary(int cpu, struct task_struct *idle)
+void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
 
@@ -72,7 +72,7 @@ void prom_boot_secondary(int cpu, struct task_struct *idle)
 /*
  * Code to run on secondary just after probing the CPU
  */
-void prom_init_secondary(void)
+void __cpuinit prom_init_secondary(void)
 {
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
 	extern void bcm1480_smp_init(void);
@@ -89,7 +89,7 @@ void prom_init_secondary(void)
  * Do any tidying up before marking online and running the idle
  * loop
  */
-void prom_smp_finish(void)
+void __cpuinit prom_smp_finish(void)
 {
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
 	extern void bcm1480_smp_finish(void);

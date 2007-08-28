@@ -117,7 +117,10 @@ static int ccw_uevent(struct device *dev, char **envp, int num_envp,
 	snprint_alias(modalias_buf, sizeof(modalias_buf), id, "");
 	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
 			     "MODALIAS=%s", modalias_buf);
-	return ret;
+	if (ret)
+		return ret;
+	envp[i] = NULL;
+	return 0;
 }
 
 struct bus_type ccw_bus_type;

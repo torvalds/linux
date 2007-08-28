@@ -74,13 +74,13 @@
 #include <linux/usb/serial.h>
 
 
-#ifndef CONFIG_USB_SAFE_PADDED
-#define CONFIG_USB_SAFE_PADDED 0
+#ifndef CONFIG_USB_SERIAL_SAFE_PADDED
+#define CONFIG_USB_SERIAL_SAFE_PADDED 0
 #endif
 
 static int debug;
 static int safe = 1;
-static int padded = CONFIG_USB_SAFE_PADDED;
+static int padded = CONFIG_USB_SERIAL_SAFE_PADDED;
 
 #define DRIVER_VERSION "v0.0b"
 #define DRIVER_AUTHOR "sl@lineo.com, tbr@lineo.com"

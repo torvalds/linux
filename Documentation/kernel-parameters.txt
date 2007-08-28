@@ -952,14 +952,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <1-256>
 
 	maxcpus=	[SMP] Maximum number of processors that	an SMP kernel
-			should make use of.
-			Using "nosmp" or "maxcpus=0" will disable SMP
-			entirely (the MPS table probe still happens, though).
-			A command-line option of "maxcpus=<NUM>", where <NUM>
-			is an integer greater than 0, limits the maximum number
-			of CPUs activated in SMP mode to <NUM>.
-			Using "maxcpus=1" on an SMP kernel is the trivial
-			case of an SMP kernel with only one CPU.
+			should make use of.  maxcpus=n : n >= 0 limits the
+			kernel to using 'n' processors.  n=0 is a special case,
+			it is equivalent to "nosmp", which also disables
+			the IO APIC.
 
 	max_addr=[KMG]	[KNL,BOOT,ia64] All physical memory greater than or
 			equal to this physical address is ignored.
@@ -1184,7 +1180,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nosep		[BUGS=X86-32] Disables x86 SYSENTER/SYSEXIT support.
 
-	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel.
+	nosmp		[SMP] Tells an SMP kernel to act as a UP kernel,
+			and disable the IO APIC.  legacy for "maxcpus=0".
 
 	nosoftlockup	[KNL] Disable the soft-lockup detector.
 
@@ -1825,6 +1822,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	thermal.act=	[HW,ACPI]
 			-1: disable all active trip points in all thermal zones
 			<degrees C>: override all lowest active trip points
+
+	thermal.crt=	[HW,ACPI]
+			-1: disable all critical trip points in all thermal zones
+			<degrees C>: lower all critical trip points
 
 	thermal.nocrt=	[HW,ACPI]
 			Set to disable actions on ACPI thermal zone

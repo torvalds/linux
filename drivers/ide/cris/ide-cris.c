@@ -718,6 +718,8 @@ static void tune_cris_ide(ide_drive_t *drive, u8 pio)
 	}
 
 	cris_ide_set_speed(TYPE_PIO, setup, strobe, hold);
+
+	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 static int speed_cris_ide(ide_drive_t *drive, u8 speed)

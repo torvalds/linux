@@ -33,6 +33,7 @@ config MPC8544_DS
 	bool "Freescale MPC8544 DS"
 	select PPC_I8259
 	select DEFAULT_UIMAGE
+	select FSL_ULI1575
 	help
 	  This option enables support for the MPC8544 DS board
 

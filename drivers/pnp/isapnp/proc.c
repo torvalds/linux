@@ -112,33 +112,6 @@ static int isapnp_proc_attach_device(struct pnp_dev *dev)
 	return 0;
 }
 
-#ifdef MODULE
-static int __exit isapnp_proc_detach_device(struct pnp_dev *dev)
-{
-	struct pnp_card *bus = dev->card;
-	struct proc_dir_entry *de;
-	char name[16];
-
-	if (!(de = bus->procdir))
-		return -EINVAL;
-	sprintf(name, "%02x", dev->number);
-	remove_proc_entry(name, de);
-	return 0;
-}
-
-static int __exit isapnp_proc_detach_bus(struct pnp_card *bus)
-{
-	struct proc_dir_entry *de;
-	char name[16];
-
-	if (!(de = bus->procdir))
-		return -EINVAL;
-	sprintf(name, "%02x", bus->number);
-	remove_proc_entry(name, isapnp_proc_bus_dir);
-	return 0;
-}
-#endif				/* MODULE */
-
 int __init isapnp_proc_init(void)
 {
 	struct pnp_dev *dev;
@@ -149,21 +122,3 @@ int __init isapnp_proc_init(void)
 	}
 	return 0;
 }
-
-#ifdef MODULE
-int __exit isapnp_proc_done(void)
-{
-	struct pnp_dev *dev;
-	struct pnp_bus *card;
-
-	isapnp_for_each_dev(dev) {
-		isapnp_proc_detach_device(dev);
-	}
-	isapnp_for_each_card(card) {
-		isapnp_proc_detach_bus(card);
-	}
-	if (isapnp_proc_bus_dir)
-		remove_proc_entry("isapnp", proc_bus);
-	return 0;
-}
-#endif				/* MODULE */

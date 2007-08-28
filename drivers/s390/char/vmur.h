@@ -70,6 +70,7 @@ struct urdev {
 	size_t reclen;			/* Record length for *write* CCWs */
 	int class;			/* VM device class */
 	int io_request_rc;		/* return code from I/O request */
+	atomic_t ref_count;		/* reference counter */
 };
 
 /*

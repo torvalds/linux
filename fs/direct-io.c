@@ -958,36 +958,22 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	ssize_t ret2;
 	size_t bytes;
 
-	dio->bio = NULL;
 	dio->inode = inode;
 	dio->rw = rw;
 	dio->blkbits = blkbits;
 	dio->blkfactor = inode->i_blkbits - blkbits;
-	dio->start_zero_done = 0;
-	dio->size = 0;
 	dio->block_in_file = offset >> blkbits;
-	dio->blocks_available = 0;
-	dio->cur_page = NULL;
 
-	dio->boundary = 0;
-	dio->reap_counter = 0;
 	dio->get_block = get_block;
 	dio->end_io = end_io;
-	dio->map_bh.b_private = NULL;
-	dio->map_bh.b_state = 0;
 	dio->final_block_in_bio = -1;
 	dio->next_block_for_io = -1;
 
-	dio->page_errors = 0;
-	dio->io_error = 0;
-	dio->result = 0;
 	dio->iocb = iocb;
 	dio->i_size = i_size_read(inode);
 
 	spin_lock_init(&dio->bio_lock);
 	dio->refcount = 1;
-	dio->bio_list = NULL;
-	dio->waiter = NULL;
 
 	/*
 	 * In case of non-aligned buffers, we may need 2 more
@@ -995,8 +981,6 @@ direct_io_worker(int rw, struct kiocb *iocb, struct inode *inode,
 	 */
 	if (unlikely(dio->blkfactor))
 		dio->pages_in_io = 2;
-	else
-		dio->pages_in_io = 0;
 
 	for (seg = 0; seg < nr_segs; seg++) {
 		user_addr = (unsigned long)iov[seg].iov_base;
@@ -1184,7 +1168,7 @@ __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 		}
 	}
 
-	dio = kmalloc(sizeof(*dio), GFP_KERNEL);
+	dio = kzalloc(sizeof(*dio), GFP_KERNEL);
 	retval = -ENOMEM;
 	if (!dio)
 		goto out;

@@ -46,6 +46,8 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 #include <linux/kref.h>
+#include <linux/list.h>
+#include <linux/rwsem.h>
 
 #include <asm/atomic.h>
 #include <asm/scatterlist.h>
@@ -730,11 +732,6 @@ struct ib_udata {
 	size_t       inlen;
 	size_t       outlen;
 };
-
-#define IB_UMEM_MAX_PAGE_CHUNK						\
-	((PAGE_SIZE - offsetof(struct ib_umem_chunk, page_list)) /	\
-	 ((void *) &((struct ib_umem_chunk *) 0)->page_list[1] -	\
-	  (void *) &((struct ib_umem_chunk *) 0)->page_list[0]))
 
 struct ib_pd {
 	struct ib_device       *device;

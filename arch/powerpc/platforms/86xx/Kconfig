@@ -7,6 +7,7 @@ config MPC8641_HPCN
 	bool "Freescale MPC8641 HPCN"
 	select PPC_I8259
 	select DEFAULT_UIMAGE
+	select FSL_ULI1575
 	help
 	  This option enables support for the MPC8641 HPCN board.
 

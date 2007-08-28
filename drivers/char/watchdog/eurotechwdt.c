@@ -1,5 +1,5 @@
 /*
- *	Eurotech CPU-1220/1410 on board WDT driver
+ *	Eurotech CPU-1220/1410/1420 on board WDT driver
  *
  *	(c) Copyright 2001 Ascensit <support@ascensit.com>
  *	(c) Copyright 2001 Rodolfo Giometti <giometti@ascensit.com>
@@ -25,6 +25,9 @@
 
 /* Changelog:
  *
+ * 2001 - Rodolfo Giometti
+ *	Initial release
+ *
  * 2002/04/25 - Rob Radez
  *	clean up #includes
  *	clean up locking
@@ -33,11 +36,13 @@
  *	add WDIOC_GETSTATUS and WDIOC_SETOPTIONS ioctls
  *	add expect_close support
  *
- * 2001 - Rodolfo Giometti
- *	Initial release
- *
  * 2002.05.30 - Joel Becker <joel.becker@oracle.com>
  * 	Added Matt Domsch's nowayout module option.
+ */
+
+/*
+ *	The eurotech CPU-1220/1410/1420's watchdog is a part
+ *	of the on-board SUPER I/O device SMSC FDC 37B782.
  */
 
 #include <linux/interrupt.h>

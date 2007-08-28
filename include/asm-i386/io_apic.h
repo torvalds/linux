@@ -150,7 +150,6 @@ extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 
 #else  /* !CONFIG_X86_IO_APIC */
 #define io_apic_assign_pci_irqs 0
-static inline void disable_ioapic_setup(void) { }
 #endif
 
 #endif

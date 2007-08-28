@@ -24,6 +24,7 @@
 #include <asm/s390_ext.h>
 #include <asm/todclk.h>
 #include <asm/vtoc.h>
+#include <asm/diag.h>
 
 #include "dasd_int.h"
 #include "dasd_diag.h"

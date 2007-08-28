@@ -295,6 +295,7 @@ static int epaddr_len(struct nf_conn *ct, const char *dptr,
 static int skp_epaddr_len(struct nf_conn *ct, const char *dptr,
 			  const char *limit, int *shift)
 {
+	const char *start = dptr;
 	int s = *shift;
 
 	/* Search for @, but stop at the end of the line.
@@ -309,8 +310,10 @@ static int skp_epaddr_len(struct nf_conn *ct, const char *dptr,
 	if (dptr <= limit && *dptr == '@') {
 		dptr++;
 		(*shift)++;
-	} else
+	} else {
+		dptr = start;
 		*shift = s;
+	}
 
 	return epaddr_len(ct, dptr, limit, shift);
 }
@@ -330,7 +333,8 @@ int ct_sip_get_info(struct nf_conn *ct,
 
 	while (dptr <= limit) {
 		if ((strncmp(dptr, hnfo->lname, hnfo->lnlen) != 0) &&
-		    (strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
+		    (hnfo->sname == NULL ||
+		     strncmp(dptr, hnfo->sname, hnfo->snlen) != 0)) {
 			dptr++;
 			continue;
 		}

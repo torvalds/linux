@@ -40,6 +40,11 @@
 
 #include "uverbs.h"
 
+#define IB_UMEM_MAX_PAGE_CHUNK						\
+	((PAGE_SIZE - offsetof(struct ib_umem_chunk, page_list)) /	\
+	 ((void *) &((struct ib_umem_chunk *) 0)->page_list[1] -	\
+	  (void *) &((struct ib_umem_chunk *) 0)->page_list[0]))
+
 static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int dirty)
 {
 	struct ib_umem_chunk *chunk, *tmp;

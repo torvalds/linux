@@ -31,7 +31,8 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 static inline void wait_for_init_deassert(atomic_t *deassert)
 {
 #ifdef WAKE_SECONDARY_VIA_INIT
-	while (!atomic_read(deassert));
+	while (!atomic_read(deassert))
+		cpu_relax();
 #endif
 	return;
 }

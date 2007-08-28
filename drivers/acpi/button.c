@@ -284,7 +284,7 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 		}
 		input_sync(input);
 
-		acpi_bus_generate_event(button->device, event,
+		acpi_bus_generate_proc_event(button->device, event,
 					++button->pushed);
 		break;
 	default:

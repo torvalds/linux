@@ -416,7 +416,10 @@ static int ov7670_read(struct i2c_client *c, unsigned char reg,
 static int ov7670_write(struct i2c_client *c, unsigned char reg,
 		unsigned char value)
 {
-	return i2c_smbus_write_byte_data(c, reg, value);
+	int ret = i2c_smbus_write_byte_data(c, reg, value);
+	if (reg == REG_COM7 && (value & COM7_RESET))
+		msleep(2);  /* Wait for reset to run */
+	return ret;
 }
 
 

@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/fsl_devices.h>
 #include <linux/fs_enet_pd.h>

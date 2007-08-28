@@ -1168,7 +1168,7 @@ static int __sock_create(int family, int type, int protocol,
 	module_put(pf->owner);
 	err = security_socket_post_create(sock, family, type, protocol, kern);
 	if (err)
-		goto out_release;
+		goto out_sock_release;
 	*res = sock;
 
 	return 0;

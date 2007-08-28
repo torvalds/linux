@@ -204,7 +204,10 @@ static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		acpi_ac_get_state(ac);
-		acpi_bus_generate_event(device, event, (u32) ac->state);
+		acpi_bus_generate_proc_event(device, event, (u32) ac->state);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event,
+						  (u32) ac->state);
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,

@@ -132,7 +132,7 @@ static void br_stp_start(struct net_bridge *br)
 	} else {
 		br->stp_enabled = BR_KERNEL_STP;
 		printk(KERN_INFO "%s: starting userspace STP failed, "
-				"staring kernel STP\n", br->dev->name);
+				"starting kernel STP\n", br->dev->name);
 
 		/* To start timers on any ports left in blocking */
 		spin_lock_bh(&br->lock);

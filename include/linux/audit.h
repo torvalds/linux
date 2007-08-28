@@ -63,8 +63,8 @@
 #define AUDIT_ADD_RULE		1011	/* Add syscall filtering rule */
 #define AUDIT_DEL_RULE		1012	/* Delete syscall filtering rule */
 #define AUDIT_LIST_RULES	1013	/* List syscall filtering rules */
-#define AUDIT_TTY_GET		1014	/* Get TTY auditing status */
-#define AUDIT_TTY_SET		1015	/* Set TTY auditing status */
+#define AUDIT_TTY_GET		1016	/* Get TTY auditing status */
+#define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */

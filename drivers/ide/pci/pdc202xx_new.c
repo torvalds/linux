@@ -378,6 +378,9 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 	int f, r;
 	u8 pll_ctl0, pll_ctl1;
 
+	if (dma_base == 0)
+		return -EFAULT;
+
 #ifdef CONFIG_PPC_PMAC
 	apple_kiwi_init(dev);
 #endif
@@ -494,14 +497,17 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 	hwif->speedproc = &pdcnew_tune_chipset;
 	hwif->resetproc = &pdcnew_reset;
 
+	hwif->err_stops_fifo = 1;
+
 	hwif->drives[0].autotune = hwif->drives[1].autotune = 1;
+
+	if (hwif->dma_base == 0)
+		return;
 
 	hwif->atapi_dma  = 1;
 
 	hwif->ultra_mask = hwif->cds->udma_mask;
 	hwif->mwdma_mask = 0x07;
-
-	hwif->err_stops_fifo = 1;
 
 	hwif->ide_dma_check = &pdcnew_config_drive_xfer_rate;
 

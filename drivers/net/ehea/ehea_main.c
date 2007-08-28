@@ -76,7 +76,7 @@ MODULE_PARM_DESC(rq1_entries, "Number of entries for Receive Queue 1 "
 MODULE_PARM_DESC(sq_entries, " Number of entries for the Send Queue  "
 		 "[2^x - 1], x = [6..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_SQ) ")");
-MODULE_PARM_DESC(use_mcs, " 0:NAPI, 1:Multiple receive queues, Default = 1 ");
+MODULE_PARM_DESC(use_mcs, " 0:NAPI, 1:Multiple receive queues, Default = 0 ");
 
 static int port_name_cnt = 0;
 static LIST_HEAD(adapter_list);
@@ -2490,7 +2490,7 @@ static ssize_t ehea_show_port_id(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
-	return sprintf(buf, "0x%X", port->logical_port_id);
+	return sprintf(buf, "%d", port->logical_port_id);
 }
 
 static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
@@ -2781,7 +2781,7 @@ static ssize_t ehea_probe_port(struct device *dev,
 
 	u32 logical_port_id;
 
-	sscanf(buf, "%X", &logical_port_id);
+	sscanf(buf, "%d", &logical_port_id);
 
 	port = ehea_get_port(adapter, logical_port_id);
 
@@ -2834,7 +2834,7 @@ static ssize_t ehea_remove_port(struct device *dev,
 	int i;
 	u32 logical_port_id;
 
-	sscanf(buf, "%X", &logical_port_id);
+	sscanf(buf, "%d", &logical_port_id);
 
 	port = ehea_get_port(adapter, logical_port_id);
 

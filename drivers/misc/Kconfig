@@ -5,6 +5,11 @@
 menuconfig MISC_DEVICES
 	bool "Misc devices"
 	default y
+	---help---
+	  Say Y here to get to see options for device drivers from various
+	  different categories. This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
 
 if MISC_DEVICES
 

@@ -256,6 +256,13 @@ struct irq_chip irq_type_sn = {
 	.set_affinity	= sn_set_affinity_irq
 };
 
+ia64_vector sn_irq_to_vector(int irq)
+{
+	if (irq >= IA64_NUM_VECTORS)
+		return 0;
+	return (ia64_vector)irq;
+}
+
 unsigned int sn_local_vector_to_irq(u8 vector)
 {
 	return (CPU_VECTOR_TO_IRQ(smp_processor_id(), vector));
@@ -398,7 +405,10 @@ sn_call_force_intr_provider(struct sn_irq_info *sn_irq_info)
 	struct sn_pcibus_provider *pci_provider;
 
 	pci_provider = sn_pci_provider[sn_irq_info->irq_bridge_type];
-	if (pci_provider && pci_provider->force_interrupt)
+
+	/* Don't force an interrupt if the irq has been disabled */
+	if (!(irq_desc[sn_irq_info->irq_irq].status & IRQ_DISABLED) &&
+	    pci_provider && pci_provider->force_interrupt)
 		(*pci_provider->force_interrupt)(sn_irq_info);
 }
 

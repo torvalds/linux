@@ -2154,7 +2154,11 @@ static int ieee80211_sta_config_auth(struct net_device *dev,
 		return 0;
 	} else {
 		if (ifsta->state != IEEE80211_AUTHENTICATE) {
-			ieee80211_sta_start_scan(dev, NULL, 0);
+			if (ifsta->auto_ssid_sel)
+				ieee80211_sta_start_scan(dev, NULL, 0);
+			else
+				ieee80211_sta_start_scan(dev, ifsta->ssid,
+							 ifsta->ssid_len);
 			ifsta->state = IEEE80211_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
 		} else

@@ -197,6 +197,14 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
+What:	/proc/acpi/event
+When:	February 2008
+Why:	/proc/acpi/event has been replaced by events via the input layer
+	and netlink since 2.6.23.
+Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
 What:	Compaq touchscreen device emulation
 When:	Oct 2007
 Files:	drivers/input/tsdev.c

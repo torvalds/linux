@@ -238,6 +238,7 @@ void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_device *d
 	sd = &dev->ofdev.dev.archdata;
 	sd->prom_node = dp;
 	sd->op = &dev->ofdev;
+	sd->iommu = dev->bus->ofdev.dev.parent->archdata.iommu;
 
 	dev->ofdev.node = dp;
 	dev->ofdev.dev.parent = &dev->bus->ofdev.dev;

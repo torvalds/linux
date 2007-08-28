@@ -1746,10 +1746,8 @@ static void pushbutton_helper_thread(unsigned long data)
 static int event_thread(void* data)
 {
 	struct controller *ctrl;
-	lock_kernel();
+
 	daemonize("phpd_event");
-	
-	unlock_kernel();
 
 	while (1) {
 		dbg("!!!!event_thread sleeping\n");

@@ -554,6 +554,10 @@ done:
 	{
 		struct ipv6_mreq mreq;
 
+		retv = -EPROTO;
+		if (inet_sk(sk)->is_icsk)
+			break;
+
 		retv = -EFAULT;
 		if (copy_from_user(&mreq, optval, sizeof(struct ipv6_mreq)))
 			break;
@@ -820,7 +824,7 @@ static int ipv6_getsockopt_sticky(struct sock *sk, struct ipv6_txoptions *opt,
 		return 0;
 
 	len = min_t(unsigned int, len, ipv6_optlen(hdr));
-	if (copy_to_user(optval, hdr, len));
+	if (copy_to_user(optval, hdr, len))
 		return -EFAULT;
 	return ipv6_optlen(hdr);
 }

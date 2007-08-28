@@ -299,7 +299,7 @@ static inline int check_io_access(struct pt_regs *regs)
 #ifndef CONFIG_FSL_BOOKE
 #define get_mc_reason(regs)	((regs)->dsisr)
 #else
-#define get_mc_reason(regs)	(mfspr(SPRN_MCSR))
+#define get_mc_reason(regs)	(mfspr(SPRN_MCSR) & MCSR_MASK)
 #endif
 #define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		(ESR_PIL | ESR_PUO)
@@ -414,8 +414,6 @@ void machine_check_exception(struct pt_regs *regs)
 		printk("Data Cache Push Parity Error\n");
 	if (reason & MCSR_DCPERR)
 		printk("Data Cache Parity Error\n");
-	if (reason & MCSR_GL_CI)
-		printk("Guarded Load or Cache-Inhibited stwcx.\n");
 	if (reason & MCSR_BUS_IAERR)
 		printk("Bus - Instruction Address Error\n");
 	if (reason & MCSR_BUS_RAERR)

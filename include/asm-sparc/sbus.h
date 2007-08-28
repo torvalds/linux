@@ -68,7 +68,6 @@ struct sbus_dev {
 /* This struct describes the SBus(s) found on this machine. */
 struct sbus_bus {
 	struct of_device	ofdev;
-	void			*iommu;		/* Opaque IOMMU cookie */
 	struct sbus_dev		*devices;	/* Link to devices on this SBus */
 	struct sbus_bus		*next;		/* next SBus, if more than one SBus */
 	int			prom_node;	/* PROM device tree node for this SBus */

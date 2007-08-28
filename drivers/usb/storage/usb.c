@@ -112,13 +112,6 @@ module_param(delay_use, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 
 
-/* These are used to make sure the module doesn't unload before all the
- * threads have exited.
- */
-static atomic_t total_threads = ATOMIC_INIT(0);
-static DECLARE_COMPLETION(threads_gone);
-
-
 /*
  * The entries in this table correspond, line for line,
  * with the entries of us_unusual_dev_list[].
@@ -879,9 +872,6 @@ static void quiesce_and_remove_host(struct us_data *us)
 	usb_stor_stop_transport(us);
 	wake_up(&us->delay_wait);
 
-	/* It doesn't matter if the SCSI-scanning thread is still running.
-	 * The thread will exit when it sees the DISCONNECTING flag. */
-
 	/* queuecommand won't accept any new commands and the control
 	 * thread won't execute a previously-queued command.  If there
 	 * is such a command pending, complete it with an error. */
@@ -891,12 +881,16 @@ static void quiesce_and_remove_host(struct us_data *us)
 		scsi_lock(host);
 		us->srb->scsi_done(us->srb);
 		us->srb = NULL;
+		complete(&us->notify);		/* in case of an abort */
 		scsi_unlock(host);
 	}
 	mutex_unlock(&us->dev_mutex);
 
 	/* Now we own no commands so it's safe to remove the SCSI host */
 	scsi_remove_host(host);
+
+	/* Wait for the SCSI-scanning thread to stop */
+	wait_for_completion(&us->scanning_done);
 }
 
 /* Second stage of disconnect processing: deallocate all resources */
@@ -947,9 +941,8 @@ retry:
 		/* Should we unbind if no devices were detected? */
 	}
 
-	scsi_host_put(us_to_host(us));
 	usb_autopm_put_interface(us->pusb_intf);
-	complete_and_exit(&threads_gone, 0);
+	complete_and_exit(&us->scanning_done, 0);
 }
 
 
@@ -984,6 +977,7 @@ static int storage_probe(struct usb_interface *intf,
 	init_MUTEX_LOCKED(&(us->sema));
 	init_completion(&(us->notify));
 	init_waitqueue_head(&us->delay_wait);
+	init_completion(&us->scanning_done);
 
 	/* Associate the us_data structure with the USB device */
 	result = associate_dev(us, intf);
@@ -1033,11 +1027,6 @@ static int storage_probe(struct usb_interface *intf,
 		goto BadDevice;
 	}
 
-	/* Take a reference to the host for the scanning thread and
-	 * count it among all the threads we have launched.  Then
-	 * start it up. */
-	scsi_host_get(us_to_host(us));
-	atomic_inc(&total_threads);
 	usb_autopm_get_interface(intf); /* dropped in the scanning thread */
 	wake_up_process(th);
 
@@ -1103,16 +1092,6 @@ static void __exit usb_stor_exit(void)
 	 */
 	US_DEBUGP("-- calling usb_deregister()\n");
 	usb_deregister(&usb_storage_driver) ;
-
-	/* Don't return until all of our control and scanning threads
-	 * have exited.  Since each thread signals threads_gone as its
-	 * last act, we have to call wait_for_completion the right number
-	 * of times.
-	 */
-	while (atomic_read(&total_threads) > 0) {
-		wait_for_completion(&threads_gone);
-		atomic_dec(&total_threads);
-	}
 
 	usb_usual_clear_present(USB_US_TYPE_STOR);
 }

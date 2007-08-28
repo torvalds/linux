@@ -784,7 +784,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	strncpy(fe->ops.tuner_ops.info.name, desc->name,
 		sizeof(fe->ops.tuner_ops.info.name));
 	fe->ops.tuner_ops.info.frequency_min = desc->min;
-	fe->ops.tuner_ops.info.frequency_min = desc->max;
+	fe->ops.tuner_ops.info.frequency_max = desc->max;
 	if (!desc->initdata)
 		fe->ops.tuner_ops.init = NULL;
 	if (!desc->sleepdata)

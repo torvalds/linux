@@ -124,6 +124,11 @@ static inline void ia64_resend_irq(unsigned int vector)
 extern irq_desc_t irq_desc[NR_IRQS];
 
 #ifndef CONFIG_IA64_GENERIC
+static inline ia64_vector __ia64_irq_to_vector(int irq)
+{
+	return irq_cfg[irq].vector;
+}
+
 static inline unsigned int
 __ia64_local_vector_to_irq (ia64_vector vec)
 {
@@ -145,7 +150,7 @@ __ia64_local_vector_to_irq (ia64_vector vec)
 static inline ia64_vector
 irq_to_vector (int irq)
 {
-	return irq_cfg[irq].vector;
+	return platform_irq_to_vector(irq);
 }
 
 /*

@@ -563,13 +563,13 @@ static long pdc_read_counter(struct ata_host *host)
 	u32 bccrl, bccrh, bccrlv, bccrhv;
 
 retry:
-	bccrl = readl(mmio_base + PDC_BYTE_COUNT) & 0xffff;
-	bccrh = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
+	bccrl = readl(mmio_base + PDC_BYTE_COUNT) & 0x7fff;
+	bccrh = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0x7fff;
 	rmb();
 
 	/* Read the counter values again for verification */
-	bccrlv = readl(mmio_base + PDC_BYTE_COUNT) & 0xffff;
-	bccrhv = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0xffff;
+	bccrlv = readl(mmio_base + PDC_BYTE_COUNT) & 0x7fff;
+	bccrhv = readl(mmio_base + PDC_BYTE_COUNT + 0x100) & 0x7fff;
 	rmb();
 
 	counter = (bccrh << 15) | bccrl;
@@ -692,15 +692,15 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	struct timeval start_time, end_time;
 	long pll_clock, usec_elapsed;
 
-	/* Read current counter value */
-	start_count = pdc_read_counter(host);
-	do_gettimeofday(&start_time);
-
 	/* Start the test mode */
 	scr = readl(mmio_base + PDC_SYS_CTL);
 	PDPRINTK("scr[%X]\n", scr);
 	writel(scr | (0x01 << 14), mmio_base + PDC_SYS_CTL);
 	readl(mmio_base + PDC_SYS_CTL); /* flush */
+
+	/* Read current counter value */
+	start_count = pdc_read_counter(host);
+	do_gettimeofday(&start_time);
 
 	/* Let the counter run for 100 ms. */
 	mdelay(100);
@@ -719,7 +719,7 @@ static long pdc_detect_pll_input_clock(struct ata_host *host)
 	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
 		(end_time.tv_usec - start_time.tv_usec);
 
-	pll_clock = (start_count - end_count) / 100 *
+	pll_clock = ((start_count - end_count) & 0x3fffffff) / 100 *
 		(100000000 / usec_elapsed);
 
 	PDPRINTK("start[%ld] end[%ld] \n", start_count, end_count);

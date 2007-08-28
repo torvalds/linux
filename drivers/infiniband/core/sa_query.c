@@ -385,9 +385,7 @@ static void update_sm_ah(struct work_struct *work)
 
 	new_ah->pkey_index = 0;
 	if (ib_find_pkey(port->agent->device, port->port_num,
-			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index) &&
-	    ib_find_pkey(port->agent->device, port->port_num,
-			 IB_DEFAULT_PKEY_PARTIAL, &new_ah->pkey_index))
+			 IB_DEFAULT_PKEY_FULL, &new_ah->pkey_index))
 		printk(KERN_ERR "Couldn't find index for default PKey\n");
 
 	memset(&ah_attr, 0, sizeof ah_attr);

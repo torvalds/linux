@@ -1,3 +1,6 @@
+
+obj-$(CONFIG_FSL_ULI1575)	+= fsl_uli1575.o
+
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_PMAC)		+= powermac/
 else

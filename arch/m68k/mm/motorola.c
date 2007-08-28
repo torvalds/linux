@@ -210,11 +210,7 @@ void __init paging_init(void)
 	int i;
 
 #ifdef DEBUG
-	{
-		extern unsigned long availmem;
-		printk ("start of paging_init (%p, %lx)\n",
-			kernel_pg_dir, availmem);
-	}
+	printk ("start of paging_init (%p, %lx)\n", kernel_pg_dir, availmem);
 #endif
 
 	/* Fix the cache mode in the page descriptors for the 680[46]0.  */

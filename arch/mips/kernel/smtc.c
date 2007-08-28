@@ -28,8 +28,6 @@
  * This file should be built into the kernel only if CONFIG_MIPS_MT_SMTC is set.
  */
 
-#define MIPS_CPU_IPI_IRQ	1
-
 #define LOCK_MT_PRA() \
 	local_irq_save(flags); \
 	mtflags = dmt()

@@ -1644,9 +1644,10 @@ static int finish_port_resume(struct usb_device *udev)
 	 * and device drivers will know about any resume quirks.
 	 */
 	if (status == 0) {
+		devstatus = 0;
 		status = usb_get_status(udev, USB_RECIP_DEVICE, 0, &devstatus);
 		if (status >= 0)
-			status = (status == 2 ? 0 : -ENODEV);
+			status = (status > 0 ? 0 : -ENODEV);
 	}
 
 	if (status) {

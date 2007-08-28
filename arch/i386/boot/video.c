@@ -61,7 +61,7 @@ static void store_video_mode(void)
 
 	/* Not all BIOSes are clean with respect to the top bit */
 	boot_params.screen_info.orig_video_mode = ax & 0x7f;
-	boot_params.screen_info.orig_video_page = page;
+	boot_params.screen_info.orig_video_page = page >> 8;
 }
 
 /*

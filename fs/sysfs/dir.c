@@ -762,11 +762,14 @@ static int sysfs_count_nlink(struct sysfs_dirent *sd)
 static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 				struct nameidata *nd)
 {
+	struct dentry *ret = NULL;
 	struct sysfs_dirent * parent_sd = dentry->d_parent->d_fsdata;
 	struct sysfs_dirent * sd;
 	struct bin_attribute *bin_attr;
 	struct inode *inode;
 	int found = 0;
+
+	mutex_lock(&sysfs_mutex);
 
 	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling) {
 		if (sysfs_type(sd) &&
@@ -778,14 +781,14 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	/* no such entry */
 	if (!found)
-		return NULL;
+		goto out_unlock;
 
 	/* attach dentry and inode */
 	inode = sysfs_get_inode(sd);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
-
-	mutex_lock(&sysfs_mutex);
+	if (!inode) {
+		ret = ERR_PTR(-ENOMEM);
+		goto out_unlock;
+	}
 
 	if (inode->i_state & I_NEW) {
 		/* initialize inode according to type */
@@ -815,9 +818,9 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	sysfs_instantiate(dentry, inode);
 	sysfs_attach_dentry(sd, dentry);
 
+ out_unlock:
 	mutex_unlock(&sysfs_mutex);
-
-	return NULL;
+	return ret;
 }
 
 const struct inode_operations sysfs_dir_inode_operations = {
@@ -942,14 +945,14 @@ int sysfs_rename_dir(struct kobject *kobj, struct sysfs_dirent *new_parent_sd,
 	if (error)
 		goto out_drop;
 
+	mutex_lock(&sysfs_mutex);
+
 	dup_name = sd->s_name;
 	sd->s_name = new_name;
 
 	/* move under the new parent */
 	d_add(new_dentry, NULL);
 	d_move(sd->s_dentry, new_dentry);
-
-	mutex_lock(&sysfs_mutex);
 
 	sysfs_unlink_sibling(sd);
 	sysfs_get(new_parent_sd);

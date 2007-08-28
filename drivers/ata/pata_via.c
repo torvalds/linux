@@ -63,7 +63,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_via"
-#define DRV_VERSION "0.3.1"
+#define DRV_VERSION "0.3.2"
 
 /*
  *	The following comes directly from Vojtech Pavlik's ide/pci/via82cxxx
@@ -143,6 +143,9 @@ static int via_cable_override(struct pci_dev *pdev)
 {
 	/* Systems by DMI */
 	if (dmi_check_system(cable_dmi_table))
+		return 1;
+	/* Arima W730-K8/Targa Visionary 811/... */
+	if (pdev->subsystem_vendor == 0x161F && pdev->subsystem_device == 0x2032)
 		return 1;
 	return 0;
 }

@@ -26,6 +26,7 @@ GLOBAL_ENTRY(_start)
 	movl sp = stack_mem+16384-16
 	bsw.1
 	br.call.sptk.many rp=start_bootloader
+0:	nop 0		  /* dummy nop to make unwinding work */
 END(_start)
 
 /*

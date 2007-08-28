@@ -10,6 +10,8 @@
 #include <linux/tiocl.h>
 #include <linux/vt_buffer.h>
 
+struct tty_struct;
+
 extern struct vc_data *sel_cons;
 
 extern void clear_selection(void);

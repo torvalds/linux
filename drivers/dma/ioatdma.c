@@ -191,17 +191,12 @@ static int ioat_dma_alloc_chan_resources(struct dma_chan *chan)
 	int i;
 	LIST_HEAD(tmp_list);
 
-	/*
-	 * In-use bit automatically set by reading chanctrl
-	 * If 0, we got it, if 1, someone else did
-	 */
-	chanctrl = readw(ioat_chan->reg_base + IOAT_CHANCTRL_OFFSET);
-	if (chanctrl & IOAT_CHANCTRL_CHANNEL_IN_USE)
-		return -EBUSY;
+	/* have we already been set up? */
+	if (!list_empty(&ioat_chan->free_desc))
+		return INITIAL_IOAT_DESC_COUNT;
 
         /* Setup register to interrupt and write completion status on error */
-	chanctrl = IOAT_CHANCTRL_CHANNEL_IN_USE |
-		IOAT_CHANCTRL_ERR_INT_EN |
+	chanctrl = IOAT_CHANCTRL_ERR_INT_EN |
 		IOAT_CHANCTRL_ANY_ERR_ABORT_EN |
 		IOAT_CHANCTRL_ERR_COMPLETION_EN;
         writew(chanctrl, ioat_chan->reg_base + IOAT_CHANCTRL_OFFSET);
@@ -282,11 +277,6 @@ static void ioat_dma_free_chan_resources(struct dma_chan *chan)
 			in_use_descs - 1);
 
 	ioat_chan->last_completion = ioat_chan->completion_addr = 0;
-
-	/* Tell hw the chan is free */
-	chanctrl = readw(ioat_chan->reg_base + IOAT_CHANCTRL_OFFSET);
-	chanctrl &= ~IOAT_CHANCTRL_CHANNEL_IN_USE;
-	writew(chanctrl, ioat_chan->reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 static struct dma_async_tx_descriptor *
@@ -347,8 +337,7 @@ ioat_dma_prep_memcpy(struct dma_chan *chan, size_t len, int int_en)
 	new->async_tx.ack = 0; /* client is in control of this ack */
 	new->async_tx.cookie = -EBUSY;
 
-	pci_unmap_len_set(new, src_len, orig_len);
-	pci_unmap_len_set(new, dst_len, orig_len);
+	pci_unmap_len_set(new, len, orig_len);
 	spin_unlock_bh(&ioat_chan->desc_lock);
 
 	return new ? &new->async_tx : NULL;
@@ -423,11 +412,11 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *chan)
 			*/
 			pci_unmap_page(chan->device->pdev,
 					pci_unmap_addr(desc, dst),
-					pci_unmap_len(desc, dst_len),
+					pci_unmap_len(desc, len),
 					PCI_DMA_FROMDEVICE);
 			pci_unmap_page(chan->device->pdev,
 					pci_unmap_addr(desc, src),
-					pci_unmap_len(desc, src_len),
+					pci_unmap_len(desc, len),
 					PCI_DMA_TODEVICE);
 		}
 

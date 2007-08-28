@@ -540,7 +540,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
  ******************************************************************************/
 
 acpi_status
-acpi_get_devices(char *HID,
+acpi_get_devices(const char *HID,
 		 acpi_walk_callback user_function,
 		 void *context, void **return_value)
 {

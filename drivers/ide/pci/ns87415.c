@@ -187,14 +187,6 @@ static int ns87415_ide_dma_setup(ide_drive_t *drive)
 	return 1;
 }
 
-static int ns87415_ide_dma_check (ide_drive_t *drive)
-{
-	if (drive->media != ide_disk)
-		return -1;
-
-	return __ide_dma_check(drive);
-}
-
 static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = hwif->pci_dev;
@@ -266,7 +258,6 @@ static void __devinit init_hwif_ns87415 (ide_hwif_t *hwif)
 
 	outb(0x60, hwif->dma_status);
 	hwif->dma_setup = &ns87415_ide_dma_setup;
-	hwif->ide_dma_check = &ns87415_ide_dma_check;
 	hwif->ide_dma_end = &ns87415_ide_dma_end;
 
 	if (!noautodma)

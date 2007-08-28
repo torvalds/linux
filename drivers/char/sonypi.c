@@ -875,7 +875,7 @@ found:
 
 #ifdef CONFIG_ACPI
 	if (sonypi_acpi_device)
-		acpi_bus_generate_event(sonypi_acpi_device, 1, event);
+		acpi_bus_generate_proc_event(sonypi_acpi_device, 1, event);
 #endif
 
 	kfifo_put(sonypi_device.fifo, (unsigned char *)&event, sizeof(event));

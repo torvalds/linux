@@ -89,11 +89,7 @@ static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 	drive->init_speed = 0;
 
 	if (ide_tune_dma(drive))
-#ifndef CONFIG_HPT34X_AUTODMA
 		return -1;
-#else
-		return 0;
-#endif
 
 	if (ide_use_fast_pio(drive))
 		hpt34x_tune_drive(drive, 255);
@@ -160,9 +156,11 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 	if (!hwif->dma_base)
 		return;
 
+#ifdef CONFIG_HPT34X_AUTODMA
 	hwif->ultra_mask = 0x07;
 	hwif->mwdma_mask = 0x07;
 	hwif->swdma_mask = 0x07;
+#endif
 
 	hwif->ide_dma_check = &hpt34x_config_drive_xfer_rate;
 	if (!noautodma)

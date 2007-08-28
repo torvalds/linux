@@ -738,9 +738,8 @@ const struct consw newport_con = {
 #ifdef MODULE
 static int __init newport_console_init(void)
 {
-
 	if (!sgi_gfxaddr)
-		return NULL;
+		return 0;
 
 	if (!npregs)
 		npregs = (struct newport_regs *)/* ioremap cannot fail */

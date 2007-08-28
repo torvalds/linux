@@ -63,6 +63,7 @@
 ACPI_MODULE_NAME("processor_idle");
 #define ACPI_PROCESSOR_FILE_POWER	"power"
 #define US_TO_PM_TIMER_TICKS(t)		((t * (PM_TIMER_FREQUENCY/1000)) / 1000)
+#define PM_TIMER_TICK_NS		(1000000000ULL/PM_TIMER_FREQUENCY)
 #define C2_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 #define C3_OVERHEAD			4	/* 1us (3.579 ticks per us) */
 static void (*pm_idle_save) (void) __read_mostly;
@@ -462,6 +463,9 @@ static void acpi_processor_idle(void)
 		 * TBD: Can't get time duration while in C1, as resumes
 		 *      go to an ISR rather than here.  Need to instrument
 		 *      base interrupt handler.
+		 *
+		 * Note: the TSC better not stop in C1, sched_clock() will
+		 *       skew otherwise.
 		 */
 		sleep_ticks = 0xFFFFFFFF;
 		break;
@@ -469,6 +473,8 @@ static void acpi_processor_idle(void)
 	case ACPI_STATE_C2:
 		/* Get start time (ticks) */
 		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		/* Tell the scheduler that we are going deep-idle: */
+		sched_clock_idle_sleep_event();
 		/* Invoke C2 */
 		acpi_state_timer_broadcast(pr, cx, 1);
 		acpi_cstate_enter(cx);
@@ -479,17 +485,22 @@ static void acpi_processor_idle(void)
 		/* TSC halts in C2, so notify users */
 		mark_tsc_unstable("possible TSC halt in C2");
 #endif
+		/* Compute time (ticks) that we were actually asleep */
+		sleep_ticks = ticks_elapsed(t1, t2);
+
+		/* Tell the scheduler how much we idled: */
+		sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+
 		/* Re-enable interrupts */
 		local_irq_enable();
+		/* Do not account our idle-switching overhead: */
+		sleep_ticks -= cx->latency_ticks + C2_OVERHEAD;
+
 		current_thread_info()->status |= TS_POLLING;
-		/* Compute time (ticks) that we were actually asleep */
-		sleep_ticks =
-		    ticks_elapsed(t1, t2) - cx->latency_ticks - C2_OVERHEAD;
 		acpi_state_timer_broadcast(pr, cx, 0);
 		break;
 
 	case ACPI_STATE_C3:
-
 		/*
 		 * disable bus master
 		 * bm_check implies we need ARB_DIS
@@ -518,6 +529,8 @@ static void acpi_processor_idle(void)
 		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C3 */
 		acpi_state_timer_broadcast(pr, cx, 1);
+		/* Tell the scheduler that we are going deep-idle: */
+		sched_clock_idle_sleep_event();
 		acpi_cstate_enter(cx);
 		/* Get end time (ticks) */
 		t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
@@ -531,12 +544,17 @@ static void acpi_processor_idle(void)
 		/* TSC halts in C3, so notify users */
 		mark_tsc_unstable("TSC halts in C3");
 #endif
+		/* Compute time (ticks) that we were actually asleep */
+		sleep_ticks = ticks_elapsed(t1, t2);
+		/* Tell the scheduler how much we idled: */
+		sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+
 		/* Re-enable interrupts */
 		local_irq_enable();
+		/* Do not account our idle-switching overhead: */
+		sleep_ticks -= cx->latency_ticks + C3_OVERHEAD;
+
 		current_thread_info()->status |= TS_POLLING;
-		/* Compute time (ticks) that we were actually asleep */
-		sleep_ticks =
-		    ticks_elapsed(t1, t2) - cx->latency_ticks - C3_OVERHEAD;
 		acpi_state_timer_broadcast(pr, cx, 0);
 		break;
 

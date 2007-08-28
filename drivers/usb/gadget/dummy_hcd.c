@@ -34,8 +34,6 @@
  * bypassing some hardware (and driver) issues.  UML could help too.
  */
 
-#define DEBUG
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>

@@ -372,6 +372,10 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 	/* 2000 big enough to fit max user, domain, NOS name etc. */
 	str_area = kmalloc(2000, GFP_KERNEL);
+	if (str_area == NULL) {
+		cifs_small_buf_release(smb_buf);
+		return -ENOMEM;
+	}
 	bcc_ptr = str_area;
 
 	ses->flags &= ~CIFS_SES_LANMAN;

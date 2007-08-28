@@ -112,11 +112,17 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	down_read(&mm->mmap_sem);
 
 	vma = find_vma_prev(mm, address, &prev_vma);
-	if (!vma)
+	if (!vma && !prev_vma )
 		goto bad_area;
 
-	/* find_vma_prev() returns vma such that address < vma->vm_end or NULL */
-	if (address < vma->vm_start)
+        /*
+         * find_vma_prev() returns vma such that address < vma->vm_end or NULL
+         *
+         * May find no vma, but could be that the last vm area is the
+         * register backing store that needs to expand upwards, in
+         * this case vma will be null, but prev_vma will ne non-null
+         */
+        if (( !vma && prev_vma ) || (address < vma->vm_start) )
 		goto check_expansion;
 
   good_area:
@@ -172,6 +178,8 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 
   check_expansion:
 	if (!(prev_vma && (prev_vma->vm_flags & VM_GROWSUP) && (address == prev_vma->vm_end))) {
+		if (!vma)
+			goto bad_area;
 		if (!(vma->vm_flags & VM_GROWSDOWN))
 			goto bad_area;
 		if (REGION_NUMBER(address) != REGION_NUMBER(vma->vm_start)

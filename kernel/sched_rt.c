@@ -207,10 +207,15 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 		return;
 
 	p->time_slice = static_prio_timeslice(p->static_prio);
-	set_tsk_need_resched(p);
 
-	/* put it at the end of the queue: */
-	requeue_task_rt(rq, p);
+	/*
+	 * Requeue to the end of queue if we are not the only element
+	 * on the queue:
+	 */
+	if (p->run_list.prev != p->run_list.next) {
+		requeue_task_rt(rq, p);
+		set_tsk_need_resched(p);
+	}
 }
 
 static struct sched_class rt_sched_class __read_mostly = {

@@ -15,34 +15,42 @@
  *
  *  Scaled math optimizations by Thomas Gleixner
  *  Copyright (C) 2007, Thomas Gleixner <tglx@linutronix.de>
+ *
+ *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
+ *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  */
 
 /*
- * Preemption granularity:
- * (default: 2 msec, units: nanoseconds)
+ * Targeted preemption latency for CPU-bound tasks:
+ * (default: 20ms, units: nanoseconds)
  *
- * NOTE: this granularity value is not the same as the concept of
- * 'timeslice length' - timeslices in CFS will typically be somewhat
- * larger than this value. (to see the precise effective timeslice
- * length of your workload, run vmstat and monitor the context-switches
- * field)
+ * NOTE: this latency value is not the same as the concept of
+ * 'timeslice length' - timeslices in CFS are of variable length.
+ * (to see the precise effective timeslice length of your workload,
+ *  run vmstat and monitor the context-switches field)
  *
  * On SMP systems the value of this is multiplied by the log2 of the
  * number of CPUs. (i.e. factor 2x on 2-way systems, 3x on 4-way
  * systems, 4x on 8-way systems, 5x on 16-way systems, etc.)
+ * Targeted preemption latency for CPU-bound tasks:
  */
-unsigned int sysctl_sched_granularity __read_mostly = 2000000000ULL/HZ;
+unsigned int sysctl_sched_latency __read_mostly = 20000000ULL;
+
+/*
+ * Minimal preemption granularity for CPU-bound tasks:
+ * (default: 2 msec, units: nanoseconds)
+ */
+unsigned int sysctl_sched_min_granularity __read_mostly = 2000000ULL;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 10 msec, units: nanoseconds)
+ * (default: 25 msec, units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
-							10000000000ULL/HZ;
+unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly = 25000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
@@ -52,12 +60,12 @@ unsigned int sysctl_sched_batch_wakeup_granularity __read_mostly =
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000000ULL/HZ;
+unsigned int sysctl_sched_wakeup_granularity __read_mostly = 1000000UL;
 
 unsigned int sysctl_sched_stat_granularity __read_mostly;
 
 /*
- * Initialized in sched_init_granularity():
+ * Initialized in sched_init_granularity() [to 5 times the base granularity]:
  */
 unsigned int sysctl_sched_runtime_limit __read_mostly;
 
@@ -214,6 +222,49 @@ static struct sched_entity *__pick_next_entity(struct cfs_rq *cfs_rq)
  */
 
 /*
+ * Calculate the preemption granularity needed to schedule every
+ * runnable task once per sysctl_sched_latency amount of time.
+ * (down to a sensible low limit on granularity)
+ *
+ * For example, if there are 2 tasks running and latency is 10 msecs,
+ * we switch tasks every 5 msecs. If we have 3 tasks running, we have
+ * to switch tasks every 3.33 msecs to get a 10 msecs observed latency
+ * for each task. We do finer and finer scheduling up to until we
+ * reach the minimum granularity value.
+ *
+ * To achieve this we use the following dynamic-granularity rule:
+ *
+ *    gran = lat/nr - lat/nr/nr
+ *
+ * This comes out of the following equations:
+ *
+ *    kA1 + gran = kB1
+ *    kB2 + gran = kA2
+ *    kA2 = kA1
+ *    kB2 = kB1 - d + d/nr
+ *    lat = d * nr
+ *
+ * Where 'k' is key, 'A' is task A (waiting), 'B' is task B (running),
+ * '1' is start of time, '2' is end of time, 'd' is delay between
+ * 1 and 2 (during which task B was running), 'nr' is number of tasks
+ * running, 'lat' is the the period of each task. ('lat' is the
+ * sched_latency that we aim for.)
+ */
+static long
+sched_granularity(struct cfs_rq *cfs_rq)
+{
+	unsigned int gran = sysctl_sched_latency;
+	unsigned int nr = cfs_rq->nr_running;
+
+	if (nr > 1) {
+		gran = gran/nr - gran/nr/nr;
+		gran = max(gran, sysctl_sched_min_granularity);
+	}
+
+	return gran;
+}
+
+/*
  * We rescale the rescheduling granularity of tasks according to their
  * nice level, but only linearly, not exponentially:
  */
@@ -303,10 +354,10 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	delta_fair = calc_delta_fair(delta_exec, lw);
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
-	if (cfs_rq->sleeper_bonus > sysctl_sched_granularity) {
-		delta = min(cfs_rq->sleeper_bonus, (u64)delta_exec);
-		delta = calc_delta_mine(delta, curr->load.weight, lw);
-		delta = min((u64)delta, cfs_rq->sleeper_bonus);
+	if (cfs_rq->sleeper_bonus > sysctl_sched_latency) {
+		delta = min((u64)delta_mine, cfs_rq->sleeper_bonus);
+		delta = min(delta, (unsigned long)(
+			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
 		cfs_rq->sleeper_bonus -= delta;
 		delta_mine -= delta;
 	}
@@ -494,6 +545,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	unsigned long load = cfs_rq->load.weight, delta_fair;
 	long prev_runtime;
 
+	/*
+	 * Do not boost sleepers if there's too much bonus 'in flight'
+	 * already:
+	 */
+	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
+		return;
+
 	if (sysctl_sched_features & SCHED_FEAT_SLEEPER_LOAD_AVG)
 		load = rq_of(cfs_rq)->cpu_load[2];
 
@@ -513,16 +571,13 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
+	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	delta_fair = se->wait_runtime - prev_runtime;
 
 	/*
 	 * Track the amount of bonus we've given to sleepers:
 	 */
 	cfs_rq->sleeper_bonus += delta_fair;
-	if (unlikely(cfs_rq->sleeper_bonus > sysctl_sched_runtime_limit))
-		cfs_rq->sleeper_bonus = sysctl_sched_runtime_limit;
-
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -686,7 +741,8 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	__check_preempt_curr_fair(cfs_rq, next, curr, sysctl_sched_granularity);
+	__check_preempt_curr_fair(cfs_rq, next, curr,
+			sched_granularity(cfs_rq));
 }
 
 /**************************************************
@@ -1031,7 +1087,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * it will preempt the parent:
 	 */
 	p->se.fair_key = current->se.fair_key -
-		niced_granularity(&rq->curr->se, sysctl_sched_granularity) - 1;
+		niced_granularity(&rq->curr->se, sched_granularity(cfs_rq)) - 1;
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
@@ -1044,7 +1100,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * -granularity/2, so initialize the task with that:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
-		p->se.wait_runtime = -(sysctl_sched_granularity / 2);
+		p->se.wait_runtime = -(sched_granularity(cfs_rq) / 2);
 
 	__enqueue_entity(cfs_rq, se);
 }
@@ -1057,7 +1113,7 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
  */
 static void set_curr_task_fair(struct rq *rq)
 {
-	struct sched_entity *se = &rq->curr.se;
+	struct sched_entity *se = &rq->curr->se;
 
 	for_each_sched_entity(se)
 		set_next_entity(cfs_rq_of(se), se);

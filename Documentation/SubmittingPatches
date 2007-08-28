@@ -560,7 +560,7 @@ NO!!!! No more huge patch bombs to linux-kernel@vger.kernel.org people!
   <http://marc.theaimsgroup.com/?l=linux-kernel&m=112112749912944&w=2>
 
 Kernel Documentation/CodingStyle:
-  <http://sosdg.org/~coywolf/lxr/source/Documentation/CodingStyle>
+  <http://users.sosdg.org/~qiyong/lxr/source/Documentation/CodingStyle>
 
 Linus Torvalds's mail on the canonical patch format:
   <http://lkml.org/lkml/2005/4/7/183>

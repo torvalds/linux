@@ -93,6 +93,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA:
 		ret = generic_ptrace_peekdata(child, addr, data);
+		break;
 
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {

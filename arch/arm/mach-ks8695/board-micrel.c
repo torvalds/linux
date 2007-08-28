@@ -23,24 +23,24 @@
 #include "generic.h"
 
 #ifdef CONFIG_PCI
-static int __init micrel_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+static int micrel_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return KS8695_IRQ_EXTERN0;
 }
 
-static struct ks8695_pci_cfg micrel_pci = {
+static struct ks8695_pci_cfg __initdata micrel_pci = {
 	.mode		= KS8695_MODE_MINIPCI,
 	.map_irq	= micrel_pci_map_irq,
 };
 #endif
 
 
-static void micrel_init(void)
+static void __init micrel_init(void)
 {
 	printk(KERN_INFO "Micrel KS8695 Development Board initializing\n");
 
 #ifdef CONFIG_PCI
-	ks8695_init_pci(&micrel_pci);
+//	ks8695_init_pci(&micrel_pci);
 #endif
 
 	/* Add devices */

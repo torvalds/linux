@@ -1877,9 +1877,16 @@ static struct kmem_cache_node * __init early_kmem_cache_node_alloc(gfp_t gfpflag
 
 	BUG_ON(kmalloc_caches->size < sizeof(struct kmem_cache_node));
 
-	page = new_slab(kmalloc_caches, gfpflags | GFP_THISNODE, node);
+	page = new_slab(kmalloc_caches, gfpflags, node);
 
 	BUG_ON(!page);
+	if (page_to_nid(page) != node) {
+		printk(KERN_ERR "SLUB: Unable to allocate memory from "
+				"node %d\n", node);
+		printk(KERN_ERR "SLUB: Allocating a useless per node structure "
+				"in order to be able to continue\n");
+	}
+
 	n = page->freelist;
 	BUG_ON(!n);
 	page->freelist = get_freepointer(kmalloc_caches, n);
@@ -3112,7 +3119,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 		unsigned long flags;
 		struct page *page;
 
-		if (!atomic_read(&n->nr_slabs))
+		if (!atomic_long_read(&n->nr_slabs))
 			continue;
 
 		spin_lock_irqsave(&n->list_lock, flags);
@@ -3247,7 +3254,7 @@ static unsigned long slab_objects(struct kmem_cache *s,
 		}
 
 		if (flags & SO_FULL) {
-			int full_slabs = atomic_read(&n->nr_slabs)
+			int full_slabs = atomic_long_read(&n->nr_slabs)
 					- per_cpu[node]
 					- n->nr_partial;
 
@@ -3283,7 +3290,7 @@ static int any_slab_objects(struct kmem_cache *s)
 	for_each_node(node) {
 		struct kmem_cache_node *n = get_node(s, node);
 
-		if (n->nr_partial || atomic_read(&n->nr_slabs))
+		if (n->nr_partial || atomic_long_read(&n->nr_slabs))
 			return 1;
 	}
 	return 0;

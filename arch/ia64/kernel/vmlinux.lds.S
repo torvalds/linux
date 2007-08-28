@@ -20,6 +20,8 @@ PHDRS {
   code   PT_LOAD;
   percpu PT_LOAD;
   data   PT_LOAD;
+  note   PT_NOTE;
+  unwind 0x70000001; /* PT_IA_64_UNWIND, but ld doesn't match the name */
 }
 SECTIONS
 {
@@ -62,6 +64,9 @@ SECTIONS
 
   /* Read-only data */
 
+  NOTES :code :note		/* put .notes in text and mark in PT_NOTE  */
+  code_continues : {} :code	/* switch back to regular program...  */
+
   /* Exception table */
   . = ALIGN(16);
   __ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET)
@@ -99,7 +104,8 @@ SECTIONS
 	  __start_unwind = .;
 	  *(.IA_64.unwind*)
 	  __end_unwind = .;
-	}
+	} :code :unwind
+  code_continues2 : {} : code
 
   RODATA
 
@@ -276,10 +282,6 @@ SECTIONS
   .debug_typenames 0 : { *(.debug_typenames) }
   .debug_varnames  0 : { *(.debug_varnames) }
   /* These must appear regardless of  .  */
-  /* Discard them for now since Intel SoftSDV cannot handle them.
-  .comment 0 : { *(.comment) }
-  .note 0 : { *(.note) }
-  */
   /DISCARD/ : { *(.comment) }
   /DISCARD/ : { *(.note) }
 }

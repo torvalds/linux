@@ -818,19 +818,17 @@ static int oti6858_ioctl(struct usb_serial_port *port, struct file *file,
 
 	switch (cmd) {
 		case TCGETS:
-			if (copy_to_user(user_arg, port->tty->termios,
-						sizeof(struct ktermios))) {
+			if (kernel_termios_to_user_termios((struct ktermios __user *)arg,
+							   port->tty->termios))
 				return -EFAULT;
-			}
 			return 0;
 
 		case TCSETS:
 		case TCSETSW:	/* FIXME: this is not the same! */
 		case TCSETSF:	/* FIXME: this is not the same! */
-			if (copy_from_user(port->tty->termios, user_arg,
-						sizeof(struct ktermios))) {
+			if (user_termios_to_kernel_termios(port->tty->termios,
+						(struct ktermios __user *)arg))
 				return -EFAULT;
-			}
 			oti6858_set_termios(port, NULL);
 			return 0;
 

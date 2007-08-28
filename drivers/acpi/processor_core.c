@@ -698,16 +698,23 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
 		acpi_processor_ppc_has_changed(pr);
-		acpi_bus_generate_event(device, event,
+		acpi_bus_generate_proc_event(device, event,
 					pr->performance_platform_limit);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event,
+						  pr->performance_platform_limit);
 		break;
 	case ACPI_PROCESSOR_NOTIFY_POWER:
 		acpi_processor_cst_has_changed(pr);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 		break;
 	case ACPI_PROCESSOR_NOTIFY_THROTTLING:
 		acpi_processor_tstate_has_changed(pr);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		acpi_bus_generate_netlink_event(device->pnp.device_class,
+						  device->dev.bus_id, event, 0);
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));

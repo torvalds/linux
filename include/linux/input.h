@@ -363,6 +363,12 @@ struct input_absinfo {
 
 #define KEY_UNKNOWN		240
 
+#define KEY_VIDEO_NEXT		241	/* drive next video source */
+#define KEY_VIDEO_PREV		242	/* drive previous video source */
+#define KEY_BRIGHTNESS_CYCLE	243	/* brightness up, after max is min */
+#define KEY_BRIGHTNESS_ZERO	244	/* brightness off, use ambient */
+#define KEY_DISPLAY_OFF		245	/* display device to off state */
+
 #define BTN_MISC		0x100
 #define BTN_0			0x100
 #define BTN_1			0x101

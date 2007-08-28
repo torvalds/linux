@@ -19,14 +19,14 @@ SECTIONS
 	*(.gnu.warning)
 	} :text = 0x4e75
 
+  _etext = .;			/* End of text section */
+
   . = ALIGN(16);		/* Exception table */
   __start___ex_table = .;
   __ex_table : { *(__ex_table) }
   __stop___ex_table = .;
 
   RODATA
-
-  _etext = .;			/* End of text section */
 
   .data : {			/* Data */
 	DATA_DATA

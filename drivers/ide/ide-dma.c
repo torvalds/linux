@@ -135,25 +135,6 @@ static const struct drive_list_entry drive_blacklist [] = {
 };
 
 /**
- *	ide_in_drive_list	-	look for drive in black/white list
- *	@id: drive identifier
- *	@drive_table: list to inspect
- *
- *	Look for a drive in the blacklist and the whitelist tables
- *	Returns 1 if the drive is found in the table.
- */
-
-int ide_in_drive_list(struct hd_driveid *id, const struct drive_list_entry *drive_table)
-{
-	for ( ; drive_table->id_model ; drive_table++)
-		if ((!strcmp(drive_table->id_model, id->model)) &&
-		    (!drive_table->id_firmware ||
-		     strstr(id->fw_rev, drive_table->id_firmware)))
-			return 1;
-	return 0;
-}
-
-/**
  *	ide_dma_intr	-	IDE DMA interrupt handler
  *	@drive: the drive the interrupt is for
  *
@@ -349,9 +330,17 @@ EXPORT_SYMBOL_GPL(ide_destroy_dmatable);
  
 static int config_drive_for_dma (ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	struct hd_driveid *id = drive->id;
 
-	if ((id->capability & 1) && drive->hwif->autodma) {
+	/* consult the list of known "bad" drives */
+	if (__ide_dma_bad_drive(drive))
+		return -1;
+
+	if (drive->media != ide_disk && hwif->atapi_dma == 0)
+		return -1;
+
+	if ((id->capability & 1) && drive->autodma) {
 		/*
 		 * Enable DMA on any drive that has
 		 * UltraDMA (mode 0/1/2/3/4/5/6) enabled
@@ -512,20 +501,6 @@ int __ide_dma_on (ide_drive_t *drive)
 }
 
 EXPORT_SYMBOL(__ide_dma_on);
-
-/**
- *	__ide_dma_check		-	check DMA setup
- *	@drive: drive to check
- *
- *	Don't use - due for extermination
- */
- 
-int __ide_dma_check (ide_drive_t *drive)
-{
-	return config_drive_for_dma(drive);
-}
-
-EXPORT_SYMBOL(__ide_dma_check);
 
 /**
  *	ide_dma_setup	-	begin a DMA phase
@@ -1021,7 +996,7 @@ void ide_setup_dma (ide_hwif_t *hwif, unsigned long dma_base, unsigned int num_p
 	if (!hwif->dma_host_on)
 		hwif->dma_host_on = &ide_dma_host_on;
 	if (!hwif->ide_dma_check)
-		hwif->ide_dma_check = &__ide_dma_check;
+		hwif->ide_dma_check = &config_drive_for_dma;
 	if (!hwif->dma_setup)
 		hwif->dma_setup = &ide_dma_setup;
 	if (!hwif->dma_exec_cmd)

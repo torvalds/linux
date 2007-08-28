@@ -319,7 +319,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	static const char fmt[] = "%30s %12lu\n";
 	int i;
 
-	if ((vlandev == NULL) || (!(vlandev->priv_flags & IFF_802_1Q_VLAN)))
+	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN))
 		return 0;
 
 	seq_printf(seq, "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",

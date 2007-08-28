@@ -43,11 +43,7 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  */
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
-#ifdef CONFIG_64BIT_PHYS_ADDR
-#define PGDIR_SHIFT	21
-#else
-#define PGDIR_SHIFT	22
-#endif
+#define PGDIR_SHIFT	(2 * PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
@@ -55,17 +51,11 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
  * Entries per page directory level: we use two-level, so
  * we don't really have any PUD/PMD directory physically.
  */
-#ifdef CONFIG_64BIT_PHYS_ADDR
-#define PGD_ORDER	1
+#define __PGD_ORDER	(32 - 3 * PAGE_SHIFT + PGD_T_LOG2 + PTE_T_LOG2)
+#define PGD_ORDER	(__PGD_ORDER >= 0 ? __PGD_ORDER : 0)
 #define PUD_ORDER	aieeee_attempt_to_allocate_pud
 #define PMD_ORDER	1
 #define PTE_ORDER	0
-#else
-#define PGD_ORDER	0
-#define PUD_ORDER	aieeee_attempt_to_allocate_pud
-#define PMD_ORDER	1
-#define PTE_ORDER	0
-#endif
 
 #define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
 #define PTRS_PER_PTE	((PAGE_SIZE << PTE_ORDER) / sizeof(pte_t))

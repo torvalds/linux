@@ -87,7 +87,7 @@ static inline void set_fs(u16 seg)
 static inline u16 fs(void)
 {
 	u16 seg;
-	asm("movw %%fs,%0" : "=rm" (seg));
+	asm volatile("movw %%fs,%0" : "=rm" (seg));
 	return seg;
 }
 
@@ -98,7 +98,7 @@ static inline void set_gs(u16 seg)
 static inline u16 gs(void)
 {
 	u16 seg;
-	asm("movw %%gs,%0" : "=rm" (seg));
+	asm volatile("movw %%gs,%0" : "=rm" (seg));
 	return seg;
 }
 
@@ -107,19 +107,19 @@ typedef unsigned int addr_t;
 static inline u8 rdfs8(addr_t addr)
 {
 	u8 v;
-	asm("movb %%fs:%1,%0" : "=r" (v) : "m" (*(u8 *)addr));
+	asm volatile("movb %%fs:%1,%0" : "=r" (v) : "m" (*(u8 *)addr));
 	return v;
 }
 static inline u16 rdfs16(addr_t addr)
 {
 	u16 v;
-	asm("movw %%fs:%1,%0" : "=r" (v) : "m" (*(u16 *)addr));
+	asm volatile("movw %%fs:%1,%0" : "=r" (v) : "m" (*(u16 *)addr));
 	return v;
 }
 static inline u32 rdfs32(addr_t addr)
 {
 	u32 v;
-	asm("movl %%fs:%1,%0" : "=r" (v) : "m" (*(u32 *)addr));
+	asm volatile("movl %%fs:%1,%0" : "=r" (v) : "m" (*(u32 *)addr));
 	return v;
 }
 
@@ -139,19 +139,19 @@ static inline void wrfs32(u32 v, addr_t addr)
 static inline u8 rdgs8(addr_t addr)
 {
 	u8 v;
-	asm("movb %%gs:%1,%0" : "=r" (v) : "m" (*(u8 *)addr));
+	asm volatile("movb %%gs:%1,%0" : "=r" (v) : "m" (*(u8 *)addr));
 	return v;
 }
 static inline u16 rdgs16(addr_t addr)
 {
 	u16 v;
-	asm("movw %%gs:%1,%0" : "=r" (v) : "m" (*(u16 *)addr));
+	asm volatile("movw %%gs:%1,%0" : "=r" (v) : "m" (*(u16 *)addr));
 	return v;
 }
 static inline u32 rdgs32(addr_t addr)
 {
 	u32 v;
-	asm("movl %%gs:%1,%0" : "=r" (v) : "m" (*(u32 *)addr));
+	asm volatile("movl %%gs:%1,%0" : "=r" (v) : "m" (*(u32 *)addr));
 	return v;
 }
 
@@ -180,15 +180,15 @@ static inline int memcmp(const void *s1, const void *s2, size_t len)
 static inline int memcmp_fs(const void *s1, addr_t s2, size_t len)
 {
 	u8 diff;
-	asm("fs; repe; cmpsb; setnz %0"
-	    : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	asm volatile("fs; repe; cmpsb; setnz %0"
+		     : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 static inline int memcmp_gs(const void *s1, addr_t s2, size_t len)
 {
 	u8 diff;
-	asm("gs; repe; cmpsb; setnz %0"
-	    : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
+	asm volatile("gs; repe; cmpsb; setnz %0"
+		     : "=qm" (diff), "+D" (s1), "+S" (s2), "+c" (len));
 	return diff;
 }
 

@@ -1,8 +1,6 @@
 /*
  * EHCI HCD (Host Controller Driver) for USB.
  *
- * (C) Copyright 2000-2004 David Brownell <dbrownell@users.sourceforge.net>
- *
  * Bus Glue for AMD Alchemy Au1xxx
  *
  * Based on "ohci-au1xxx.c" by Matt Porter <mporter@kernel.crashing.org>
@@ -196,6 +194,9 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 
 	/*
 	 * basic lifecycle operations
+	 *
+	 * FIXME -- ehci_init() doesn't do enough here.
+	 * See ehci-ppc-soc for a complete implementation.
 	 */
 	.reset = ehci_init,
 	.start = ehci_run,

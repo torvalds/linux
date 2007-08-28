@@ -31,7 +31,7 @@
 #include <linux/list.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
+#include <linux/input.h>
 #include <linux/backlight.h>
 #include <linux/video_output.h>
 #include <asm/uaccess.h>
@@ -138,6 +138,8 @@ struct acpi_video_bus {
 	struct semaphore sem;
 	struct list_head video_device_list;
 	struct proc_dir_entry *dir;
+	struct input_dev *input;
+	char phys[32];	/* for input device */
 };
 
 struct acpi_video_device_flags {
@@ -1764,6 +1766,9 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_video_bus *video = data;
 	struct acpi_device *device = NULL;
+	struct input_dev *input;
+	int keycode;
+
 
 	printk("video bus notify\n");
 
@@ -1771,11 +1776,13 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		return;
 
 	device = video->device;
+	input = video->input;
 
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_SWITCH:	/* User requested a switch,
 					 * most likely via hotkey. */
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
 	case ACPI_VIDEO_NOTIFY_PROBE:	/* User plugged in or removed a video
@@ -1783,21 +1790,37 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		acpi_video_device_enumerate(video);
 		acpi_video_device_rebind(video);
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_SWITCHVIDEOMODE;
 		break;
 
 	case ACPI_VIDEO_NOTIFY_CYCLE:	/* Cycle Display output hotkey pressed. */
+		acpi_video_switch_output(video, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_SWITCHVIDEOMODE;
+		break;
 	case ACPI_VIDEO_NOTIFY_NEXT_OUTPUT:	/* Next Display output hotkey pressed. */
+		acpi_video_switch_output(video, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_VIDEO_NEXT;
+		break;
 	case ACPI_VIDEO_NOTIFY_PREV_OUTPUT:	/* previous Display output hotkey pressed. */
 		acpi_video_switch_output(video, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_VIDEO_PREV;
 		break;
 
 	default:
+		keycode = KEY_UNKNOWN;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
+
+	input_report_key(input, keycode, 1);
+	input_sync(input);
+	input_report_key(input, keycode, 0);
+	input_sync(input);
 
 	return;
 }
@@ -1806,38 +1829,65 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_video_device *video_device = data;
 	struct acpi_device *device = NULL;
+	struct acpi_video_bus *bus;
+	struct input_dev *input;
+	int keycode;
 
 	if (!video_device)
 		return;
 
 	device = video_device->dev;
+	bus = video_device->video;
+	input = bus->input;
 
 	switch (event) {
-	case ACPI_VIDEO_NOTIFY_SWITCH:	/* change in status (cycle output device) */
-	case ACPI_VIDEO_NOTIFY_PROBE:	/* change in status (output device status) */
-		acpi_bus_generate_event(device, event, 0);
-		break;
 	case ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS:	/* Cycle brightness */
+		acpi_video_switch_brightness(video_device, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_BRIGHTNESS_CYCLE;
+		break;
 	case ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS:	/* Increase brightness */
+		acpi_video_switch_brightness(video_device, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_BRIGHTNESSUP;
+		break;
 	case ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS:	/* Decrease brightness */
+		acpi_video_switch_brightness(video_device, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_BRIGHTNESSDOWN;
+		break;
 	case ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS:	/* zero brightnesss */
+		acpi_video_switch_brightness(video_device, event);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_BRIGHTNESS_ZERO;
+		break;
 	case ACPI_VIDEO_NOTIFY_DISPLAY_OFF:	/* display device off */
 		acpi_video_switch_brightness(video_device, event);
-		acpi_bus_generate_event(device, event, 0);
+		acpi_bus_generate_proc_event(device, event, 0);
+		keycode = KEY_DISPLAY_OFF;
 		break;
 	default:
+		keycode = KEY_UNKNOWN;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
+
+	input_report_key(input, keycode, 1);
+	input_sync(input);
+	input_report_key(input, keycode, 0);
+	input_sync(input);
+
 	return;
 }
 
+static int instance;
 static int acpi_video_bus_add(struct acpi_device *device)
 {
 	int result = 0;
 	acpi_status status = 0;
 	struct acpi_video_bus *video = NULL;
+	struct input_dev *input;
 
 
 	if (!device)
@@ -1846,6 +1896,13 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)
 		return -ENOMEM;
+
+	/* a hack to fix the duplicate name "VID" problem on T61 */
+	if (!strcmp(device->pnp.bus_id, "VID")) {
+		if (instance)
+			device->pnp.bus_id[3] = '0' + instance;
+		instance ++;
+	}
 
 	video->device = device;
 	strcpy(acpi_device_name(device), ACPI_VIDEO_BUS_NAME);
@@ -1881,6 +1938,39 @@ static int acpi_video_bus_add(struct acpi_device *device)
 		goto end;
 	}
 
+
+	video->input = input = input_allocate_device();
+
+	snprintf(video->phys, sizeof(video->phys),
+		"%s/video/input0", acpi_device_hid(video->device));
+
+	input->name = acpi_device_name(video->device);
+	input->phys = video->phys;
+	input->id.bustype = BUS_HOST;
+	input->id.product = 0x06;
+	input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_SWITCHVIDEOMODE, input->keybit);
+	set_bit(KEY_VIDEO_NEXT, input->keybit);
+	set_bit(KEY_VIDEO_PREV, input->keybit);
+	set_bit(KEY_BRIGHTNESS_CYCLE, input->keybit);
+	set_bit(KEY_BRIGHTNESSUP, input->keybit);
+	set_bit(KEY_BRIGHTNESSDOWN, input->keybit);
+	set_bit(KEY_BRIGHTNESS_ZERO, input->keybit);
+	set_bit(KEY_DISPLAY_OFF, input->keybit);
+	set_bit(KEY_UNKNOWN, input->keybit);
+	result = input_register_device(input);
+	if (result) {
+		acpi_remove_notify_handler(video->device->handle,
+						ACPI_DEVICE_NOTIFY,
+						acpi_video_bus_notify);
+		acpi_video_bus_stop_devices(video);
+		acpi_video_bus_put_devices(video);
+		kfree(video->attached_array);
+		acpi_video_bus_remove_fs(device);
+		goto end;
+        }
+
+
 	printk(KERN_INFO PREFIX "%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
 	       video->flags.multihead ? "yes" : "no",
@@ -1914,6 +2004,7 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	acpi_video_bus_put_devices(video);
 	acpi_video_bus_remove_fs(device);
 
+	input_unregister_device(video->input);
 	kfree(video->attached_array);
 	kfree(video);
 

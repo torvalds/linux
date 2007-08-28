@@ -312,10 +312,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		struct urb	*urb;
 		u32		token = 0;
 
-		/* ignore QHs that are currently inactive */
-		if (qh->hw_info1 & __constant_cpu_to_le32(QH_INACTIVATE))
-			break;
-
 		qtd = list_entry (entry, struct ehci_qtd, qtd_list);
 		urb = qtd->urb;
 

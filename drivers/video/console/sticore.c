@@ -232,18 +232,14 @@ sti_bmove(struct sti_struct *sti, int src_y, int src_x,
 }
 
 
-/* FIXME: Do we have another solution for this ? */
-static void sti_flush(unsigned long from, unsigned long len)
+static void sti_flush(unsigned long start, unsigned long end)
 {
-	flush_data_cache();
-	flush_kernel_dcache_range(from, len);
-	flush_icache_range(from, from+len);
+	flush_icache_range(start, end);
 }
 
 void __devinit
 sti_rom_copy(unsigned long base, unsigned long count, void *dest)
 {
-	unsigned long dest_len = count;
 	unsigned long dest_start = (unsigned long) dest;
 
 	/* this still needs to be revisited (see arch/parisc/mm/init.c:246) ! */
@@ -260,7 +256,7 @@ sti_rom_copy(unsigned long base, unsigned long count, void *dest)
 		dest++;
 	}
 
-	sti_flush(dest_start, dest_len);
+	sti_flush(dest_start, (unsigned long)dest);
 }
 
 
@@ -663,7 +659,6 @@ sti_bmode_font_raw(struct sti_cooked_font *f)
 static void __devinit
 sti_bmode_rom_copy(unsigned long base, unsigned long count, void *dest)
 {
-	unsigned long dest_len = count;
 	unsigned long dest_start = (unsigned long) dest;
 
 	while (count) {
@@ -672,7 +667,8 @@ sti_bmode_rom_copy(unsigned long base, unsigned long count, void *dest)
 		base += 4;
 		dest++;
 	}
-	sti_flush(dest_start, dest_len);
+
+	sti_flush(dest_start, (unsigned long)dest);
 }
 
 static struct sti_rom * __devinit

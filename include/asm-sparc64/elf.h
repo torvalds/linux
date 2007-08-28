@@ -70,6 +70,7 @@
 #define HWCAP_SPARC_V9		16
 #define HWCAP_SPARC_ULTRA3	32
 #define HWCAP_SPARC_BLKINIT	64
+#define HWCAP_SPARC_N2		128
 
 /*
  * These are used to set parameters in the core dumps.
@@ -155,8 +156,13 @@ static inline unsigned int sparc64_elf_hwcap(void)
 
 	if (tlb_type == cheetah || tlb_type == cheetah_plus)
 		cap |= HWCAP_SPARC_ULTRA3;
-	else if (tlb_type == hypervisor)
-		cap |= HWCAP_SPARC_BLKINIT;
+	else if (tlb_type == hypervisor) {
+		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA1 ||
+		    sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
+			cap |= HWCAP_SPARC_BLKINIT;
+		if (sun4v_chip_type == SUN4V_CHIP_NIAGARA2)
+			cap |= HWCAP_SPARC_N2;
+	}
 
 	return cap;
 }

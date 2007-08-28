@@ -82,6 +82,10 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (dma_mask == 0)
 		dma_mask = DMA_32BIT_MASK;
 
+	/* Device not DMA able */
+	if (dev->dma_mask == NULL)
+		return NULL;
+
 	/* Don't invoke OOM killer */
 	gfp |= __GFP_NORETRY;
 
