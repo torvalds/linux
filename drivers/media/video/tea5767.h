@@ -20,10 +20,28 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+#if defined(CONFIG_TUNER_TEA5767) || (defined(CONFIG_TUNER_TEA5767_MODULE) && defined(MODULE))
 extern int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr);
 
 extern struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 					   struct i2c_adapter* i2c_adap,
 					   u8 i2c_addr);
+#else
+static inline int tea5767_autodetection(struct i2c_adapter* i2c_adap,
+					u8 i2c_addr)
+{
+	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
+	       __FUNCTION__);
+	return -EINVAL;
+}
+
+static inline struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
+						   struct i2c_adapter* i2c_adap,
+						   u8 i2c_addr)
+{
+	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
+	return NULL;
+}
+#endif
 
 #endif /* __TEA5767_H__ */

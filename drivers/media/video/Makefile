@@ -4,10 +4,7 @@
 
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
-			mt20xx.o tda8290.o tea5767.o tda9887.o
-
-tuner-$(CONFIG_TUNER_TEA5761)	+= tea5761.o
+tuner-objs	:=	tuner-core.o tuner-types.o tda9887.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
@@ -83,6 +80,13 @@ obj-$(CONFIG_VIDEO_DPC) += dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
+
+obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
+obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
+obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
+obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
+obj-$(CONFIG_TUNER_TEA5761) += tea5761.o
+
 obj-$(CONFIG_VIDEO_BUF)   += video-buf.o
 obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
