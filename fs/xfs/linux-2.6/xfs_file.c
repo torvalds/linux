@@ -233,74 +233,30 @@ xfs_file_readdir(
 	void		*dirent,
 	filldir_t	filldir)
 {
-	int		error = 0;
-	bhv_vnode_t	*vp = vn_from_inode(filp->f_path.dentry->d_inode);
-	uio_t		uio;
-	iovec_t		iov;
-	int		eof = 0;
-	caddr_t		read_buf;
-	int		namelen, size = 0;
-	size_t		rlen = PAGE_CACHE_SIZE;
-	xfs_off_t	start_offset, curr_offset;
-	xfs_dirent_t	*dbp = NULL;
+	struct inode	*inode = filp->f_path.dentry->d_inode;
+	bhv_vnode_t	*vp = vn_from_inode(inode);
+	int		error;
+	size_t		bufsize;
 
-	/* Try fairly hard to get memory */
-	do {
-		if ((read_buf = kmalloc(rlen, GFP_KERNEL)))
-			break;
-		rlen >>= 1;
-	} while (rlen >= 1024);
+	/*
+	 * The Linux API doesn't pass down the total size of the buffer
+	 * we read into down to the filesystem.  With the filldir concept
+	 * it's not needed for correct information, but the XFS dir2 leaf
+	 * code wants an estimate of the buffer size to calculate it's
+	 * readahead window and size the buffers used for mapping to
+	 * physical blocks.
+	 *
+	 * Try to give it an estimate that's good enough, maybe at some
+	 * point we can change the ->readdir prototype to include the
+	 * buffer size.
+	 */
+	bufsize = (size_t)min_t(loff_t, PAGE_SIZE, inode->i_size);
 
-	if (read_buf == NULL)
-		return -ENOMEM;
-
-	uio.uio_iov = &iov;
-	uio.uio_segflg = UIO_SYSSPACE;
-	curr_offset = filp->f_pos;
-	if (filp->f_pos != 0x7fffffff)
-		uio.uio_offset = filp->f_pos;
-	else
-		uio.uio_offset = 0xffffffff;
-
-	while (!eof) {
-		uio.uio_resid = iov.iov_len = rlen;
-		iov.iov_base = read_buf;
-		uio.uio_iovcnt = 1;
-
-		start_offset = uio.uio_offset;
-
-		error = bhv_vop_readdir(vp, &uio, NULL, &eof);
-		if ((uio.uio_offset == start_offset) || error) {
-			size = 0;
-			break;
-		}
-
-		size = rlen - uio.uio_resid;
-		dbp = (xfs_dirent_t *)read_buf;
-		while (size > 0) {
-			namelen = strlen(dbp->d_name);
-
-			if (filldir(dirent, dbp->d_name, namelen,
-					(loff_t) curr_offset & 0x7fffffff,
-					(ino_t) dbp->d_ino,
-					DT_UNKNOWN)) {
-				goto done;
-			}
-			size -= dbp->d_reclen;
-			curr_offset = (loff_t)dbp->d_off /* & 0x7fffffff */;
-			dbp = (xfs_dirent_t *)((char *)dbp + dbp->d_reclen);
-		}
-	}
-done:
-	if (!error) {
-		if (size == 0)
-			filp->f_pos = uio.uio_offset & 0x7fffffff;
-		else if (dbp)
-			filp->f_pos = curr_offset;
-	}
-
-	kfree(read_buf);
-	return -error;
+	error = bhv_vop_readdir(vp, dirent, bufsize,
+				(xfs_off_t *)&filp->f_pos, filldir);
+	if (error)
+		return -error;
+	return 0;
 }
 
 STATIC int

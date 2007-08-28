@@ -3284,37 +3284,6 @@ xfs_rmdir(
 	goto std_return;
 }
 
-
-/*
- * Read dp's entries starting at uiop->uio_offset and translate them into
- * bufsize bytes worth of struct dirents starting at bufbase.
- */
-STATIC int
-xfs_readdir(
-	bhv_desc_t	*dir_bdp,
-	uio_t		*uiop,
-	cred_t		*credp,
-	int		*eofp)
-{
-	xfs_inode_t	*dp;
-	xfs_trans_t	*tp = NULL;
-	int		error = 0;
-	uint		lock_mode;
-
-	vn_trace_entry(BHV_TO_VNODE(dir_bdp), __FUNCTION__,
-					       (inst_t *)__return_address);
-	dp = XFS_BHVTOI(dir_bdp);
-
-	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
-		return XFS_ERROR(EIO);
-
-	lock_mode = xfs_ilock_map_shared(dp);
-	error = xfs_dir_getdents(tp, dp, uiop, eofp);
-	xfs_iunlock_map_shared(dp, lock_mode);
-	return error;
-}
-
-
 STATIC int
 xfs_symlink(
 	bhv_desc_t		*dir_bdp,

@@ -161,8 +161,8 @@ typedef int	(*vop_rename_t)(bhv_desc_t *, bhv_vname_t *, bhv_vnode_t *,
 typedef int	(*vop_mkdir_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr *,
 				bhv_vnode_t **, struct cred *);
 typedef int	(*vop_rmdir_t)(bhv_desc_t *, bhv_vname_t *, struct cred *);
-typedef int	(*vop_readdir_t)(bhv_desc_t *, struct uio *, struct cred *,
-				int *);
+typedef int	(*vop_readdir_t)(bhv_desc_t *, void *dirent, size_t bufsize,
+				 xfs_off_t *offset, filldir_t filldir);
 typedef int	(*vop_symlink_t)(bhv_desc_t *, bhv_vname_t *, struct bhv_vattr*,
 				char *, bhv_vnode_t **, struct cred *);
 typedef int	(*vop_readlink_t)(bhv_desc_t *, struct uio *, int,
@@ -267,8 +267,8 @@ typedef struct bhv_vnodeops {
 #define	bhv_vop_mkdir(dp,d,vap,vpp,cr)					\
 		VOP(vop_mkdir, dp)(VNHEAD(dp),d,vap,vpp,cr)
 #define	bhv_vop_rmdir(dp,d,cr)	 	VOP(vop_rmdir, dp)(VNHEAD(dp),d,cr)
-#define	bhv_vop_readdir(vp,uiop,cr,eofp)				\
-		VOP(vop_readdir, vp)(VNHEAD(vp),uiop,cr,eofp)
+#define	bhv_vop_readdir(vp,dirent,bufsize,offset,filldir)		\
+		VOP(vop_readdir, vp)(VNHEAD(vp),dirent,bufsize,offset,filldir)
 #define	bhv_vop_symlink(dvp,d,vap,tnm,vpp,cr)				\
 		VOP(vop_symlink, dvp)(VNHEAD(dvp),d,vap,tnm,vpp,cr)
 #define	bhv_vop_readlink(vp,uiop,fl,cr)					\

@@ -232,9 +232,9 @@ extern void xfs_dir2_leaf_compact(struct xfs_da_args *args,
 extern void xfs_dir2_leaf_compact_x1(struct xfs_dabuf *bp, int *indexp,
 				     int *lowstalep, int *highstalep,
 				     int *lowlogp, int *highlogp);
-extern int xfs_dir2_leaf_getdents(struct xfs_trans *tp, struct xfs_inode *dp,
-				  struct uio *uio, int *eofp,
-				  struct xfs_dirent *dbp, xfs_dir2_put_t put);
+extern int xfs_dir2_leaf_getdents(struct xfs_inode *dp, void *dirent,
+				  size_t bufsize, xfs_off_t *offset,
+				  filldir_t filldir);
 extern int xfs_dir2_leaf_init(struct xfs_da_args *args, xfs_dir2_db_t bno,
 			      struct xfs_dabuf **bpp, int magic);
 extern void xfs_dir2_leaf_log_ents(struct xfs_trans *tp, struct xfs_dabuf *bp,
