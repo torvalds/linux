@@ -11,7 +11,7 @@
 #define IEEE80211_KEY_H
 
 #include <linux/types.h>
-#include <linux/kref.h>
+#include <linux/list.h>
 #include <linux/crypto.h>
 #include <net/mac80211.h>
 
@@ -42,8 +42,6 @@
 #define NUM_RX_DATA_QUEUES 17
 
 struct ieee80211_key {
-	struct kref kref;
-
 	union {
 		struct {
 			/* last used TSC */

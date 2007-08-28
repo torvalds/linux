@@ -21,23 +21,16 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, flags);
 	if (!key)
 		return NULL;
-	kref_init(&key->kref);
 	return key;
-}
-
-static void ieee80211_key_release(struct kref *kref)
-{
-	struct ieee80211_key *key;
-
-	key = container_of(kref, struct ieee80211_key, kref);
-	if (key->conf.alg == ALG_CCMP)
-		ieee80211_aes_key_free(key->u.ccmp.tfm);
-	ieee80211_debugfs_key_remove(key);
-	kfree(key);
 }
 
 void ieee80211_key_free(struct ieee80211_key *key)
 {
-	if (key)
-		kref_put(&key->kref, ieee80211_key_release);
+	if (!key)
+		return;
+
+	if (key->conf.alg == ALG_CCMP)
+		ieee80211_aes_key_free(key->u.ccmp.tfm);
+	ieee80211_debugfs_key_remove(key);
+	kfree(key);
 }
