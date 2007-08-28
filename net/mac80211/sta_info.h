@@ -26,6 +26,8 @@
 				    * send and receive non-IEEE 802.1X frames
 				    */
 #define WLAN_STA_SHORT_PREAMBLE BIT(7)
+/* whether this is an AP that we are associated with as a client */
+#define WLAN_STA_ASSOC_AP BIT(8)
 #define WLAN_STA_WME BIT(9)
 #define WLAN_STA_WDS BIT(27)
 
@@ -89,9 +91,6 @@ struct sta_info {
 	unsigned long last_ack;
 	int channel_use;
 	int channel_use_raw;
-
-	int assoc_ap; /* whether this is an AP that we are
-		       * associated with as a client */
 
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	unsigned int wme_rx_queue[NUM_RX_DATA_QUEUES];

@@ -1279,8 +1279,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	}
 
 	sta->dev = dev;
-	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC;
-	sta->assoc_ap = 1;
+	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP;
 
 	rates = 0;
 	mode = local->oper_hw_mode;
