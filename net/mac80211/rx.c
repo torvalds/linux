@@ -346,12 +346,11 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 					       MAC_ARG(hdr->addr1),
 					       MAC_ARG(hdr->addr2),
 					       MAC_ARG(hdr->addr3));
-				if (!rx->local->apdev)
-					return TXRX_DROP;
-				ieee80211_rx_mgmt(
-					rx->local, rx->skb, rx->u.rx.status,
-					ieee80211_msg_wep_frame_unknown_key);
-				return TXRX_QUEUED;
+				/*
+				 * TODO: notify userspace about this
+				 * via cfg/nl80211
+				 */
+				return TXRX_DROP;
 			}
 		}
 	}
