@@ -145,6 +145,27 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 	}
 }
 
+static void tuner_i2c_address_check(struct tuner *t)
+{
+	if ((t->type == UNSET || t->type == TUNER_ABSENT) ||
+	    ((t->i2c.addr < 0x64) || (t->i2c.addr > 0x6f)))
+		return;
+
+	tuner_warn("====================== WARNING! ======================\n");
+	tuner_warn("Support for tuners in i2c address range 0x64 thru 0x6f\n");
+	tuner_warn("will soon be dropped. This message indicates that your\n");
+	tuner_warn("hardware has a %s tuner at i2c address 0x%02x.\n",
+		   t->i2c.name, t->i2c.addr);
+	tuner_warn("To ensure continued support for your device, please\n");
+	tuner_warn("send a copy of this message, along with full dmesg\n");
+	tuner_warn("output to v4l-dvb-maintainer@linuxtv.org\n");
+	tuner_warn("Please use subject line: \"obsolete tuner i2c address.\"\n");
+	tuner_warn("driver: %s, addr: 0x%02x, type: %d (%s)\n",
+		   t->i2c.adapter->name, t->i2c.addr, t->type,
+		   tuners[t->type].name);
+	tuner_warn("====================== WARNING! ======================\n");
+}
+
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
 		     int (*tuner_callback) (void *dev, int command,int arg))
@@ -244,6 +265,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	tuner_dbg("%s %s I2C addr 0x%02x with type %d used for 0x%02x\n",
 		  c->adapter->name, c->driver->driver.name, c->addr << 1, type,
 		  t->mode_mask);
+	tuner_i2c_address_check(t);
 }
 
 /*
