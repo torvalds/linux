@@ -302,9 +302,6 @@ struct ieee80211_conf {
 	u8 antenna_sel_tx;
 	u8 antenna_sel_rx;
 
-	int antenna_def;
-	int antenna_mode;
-
 	/* Following five fields are used for IEEE 802.11H */
 	unsigned int radar_detect;
 	unsigned int spect_mgmt;

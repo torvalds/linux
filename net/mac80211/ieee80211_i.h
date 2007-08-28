@@ -509,8 +509,6 @@ struct ieee80211_local {
 
 	u32 channel_use;
 	u32 channel_use_raw;
-	u32 stat_time;
-	struct timer_list stat_timer;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct work_struct sta_debugfs_add;

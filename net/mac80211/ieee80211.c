@@ -786,42 +786,6 @@ struct dev_mc_list *ieee80211_get_mc_list_item(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_get_mc_list_item);
 
-static void ieee80211_stat_refresh(unsigned long data)
-{
-	struct ieee80211_local *local = (struct ieee80211_local *) data;
-	struct sta_info *sta;
-	struct ieee80211_sub_if_data *sdata;
-
-	if (!local->stat_time)
-		return;
-
-	/* go through all stations */
-	read_lock_bh(&local->sta_lock);
-	list_for_each_entry(sta, &local->sta_list, list) {
-		sta->channel_use = (sta->channel_use_raw / local->stat_time) /
-			CHAN_UTIL_PER_10MS;
-		sta->channel_use_raw = 0;
-	}
-	read_unlock_bh(&local->sta_lock);
-
-	/* go through all subinterfaces */
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
-		sdata->channel_use = (sdata->channel_use_raw /
-				      local->stat_time) / CHAN_UTIL_PER_10MS;
-		sdata->channel_use_raw = 0;
-	}
-	read_unlock(&local->sub_if_lock);
-
-	/* hardware interface */
-	local->channel_use = (local->channel_use_raw /
-			      local->stat_time) / CHAN_UTIL_PER_10MS;
-	local->channel_use_raw = 0;
-
-	local->stat_timer.expires = jiffies + HZ * local->stat_time / 100;
-	add_timer(&local->stat_timer);
-}
-
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb,
 				 struct ieee80211_tx_status *status)
@@ -1260,9 +1224,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	INIT_LIST_HEAD(&local->sub_if_list);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_sta_scan_work);
-	init_timer(&local->stat_timer);
-	local->stat_timer.function = ieee80211_stat_refresh;
-	local->stat_timer.data = (unsigned long) local;
 	ieee80211_rx_bss_list_init(mdev);
 
 	sta_info_init(local);
@@ -1460,9 +1421,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 		__ieee80211_if_del(local, sdata);
 
 	rtnl_unlock();
-
-	if (local->stat_time)
-		del_timer_sync(&local->stat_timer);
 
 	ieee80211_rx_bss_list_deinit(local->mdev);
 	ieee80211_clear_tx_pending(local);

@@ -1075,15 +1075,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		}
 		break;
 
-	case PRISM2_PARAM_STAT_TIME:
-		if (!local->stat_time && value) {
-			local->stat_timer.expires = jiffies + HZ * value / 100;
-			add_timer(&local->stat_timer);
-		} else if (local->stat_time && !value) {
-			del_timer_sync(&local->stat_timer);
-		}
-		local->stat_time = value;
-		break;
 	case PRISM2_PARAM_SHORT_SLOT_TIME:
 		if (value)
 			local->hw.conf.flags |= IEEE80211_CONF_SHORT_SLOT_TIME;
@@ -1095,12 +1086,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_NEXT_MODE:
 		local->next_mode = value;
-		break;
-
-	case PRISM2_PARAM_ANTENNA_MODE:
-		local->hw.conf.antenna_mode = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
 		break;
 
 	case PRISM2_PARAM_STA_ANTENNA_SEL:
@@ -1194,19 +1179,12 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		*param = sdata->short_preamble;
 		break;
 
-	case PRISM2_PARAM_STAT_TIME:
-		*param = local->stat_time;
-		break;
 	case PRISM2_PARAM_SHORT_SLOT_TIME:
 		*param = !!(local->hw.conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME);
 		break;
 
 	case PRISM2_PARAM_NEXT_MODE:
 		*param = local->next_mode;
-		break;
-
-	case PRISM2_PARAM_ANTENNA_MODE:
-		*param = local->hw.conf.antenna_mode;
 		break;
 
 	case PRISM2_PARAM_STA_ANTENNA_SEL:
