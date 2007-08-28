@@ -167,7 +167,7 @@
 #include <asm/div64.h>		/* do_div */
 #include <asm/timex.h>
 
-#define VERSION  "pktgen v2.68: Packet Generator for packet performance testing.\n"
+#define VERSION  "pktgen v2.69: Packet Generator for packet performance testing.\n"
 
 /* The buckets are exponential in 'width' */
 #define LAT_BUCKETS_MAX 32
@@ -384,7 +384,6 @@ struct pktgen_thread {
 	struct list_head th_list;
 	struct task_struct *tsk;
 	char result[512];
-	u32 max_before_softirq;	/* We'll call do_softirq to prevent starvation. */
 
 	/* Field for thread to receive "posted" events terminate, stop ifs etc. */
 
@@ -1761,9 +1760,6 @@ static int pktgen_thread_show(struct seq_file *seq, void *v)
 
 	BUG_ON(!t);
 
-	seq_printf(seq, "Name: %s  max_before_softirq: %d\n",
-		   t->tsk->comm, t->max_before_softirq);
-
 	seq_printf(seq, "Running: ");
 
 	if_lock(t);
@@ -1796,7 +1792,6 @@ static ssize_t pktgen_thread_write(struct file *file,
 	int i = 0, max, len, ret;
 	char name[40];
 	char *pg_result;
-	unsigned long value = 0;
 
 	if (count < 1) {
 		//      sprintf(pg_result, "Wrong command format");
@@ -1870,12 +1865,8 @@ static ssize_t pktgen_thread_write(struct file *file,
 	}
 
 	if (!strcmp(name, "max_before_softirq")) {
-		len = num_arg(&user_buffer[i], 10, &value);
-		mutex_lock(&pktgen_thread_lock);
-		t->max_before_softirq = value;
-		mutex_unlock(&pktgen_thread_lock);
+		sprintf(pg_result, "OK: Note! max_before_softirq is obsoleted -- Do not use");
 		ret = count;
-		sprintf(pg_result, "OK: max_before_softirq=%lu", value);
 		goto out;
 	}
 
@@ -2154,7 +2145,6 @@ static void spin(struct pktgen_dev *pkt_dev, __u64 spin_until_us)
 		if (spin_until_us - now > jiffies_to_usecs(1) + 1)
 			schedule_timeout_interruptible(1);
 		else if (spin_until_us - now > 100) {
-			do_softirq();
 			if (!pkt_dev->running)
 				return;
 			if (need_resched())
@@ -3524,16 +3514,12 @@ static int pktgen_thread_worker(void *arg)
 	struct pktgen_thread *t = arg;
 	struct pktgen_dev *pkt_dev = NULL;
 	int cpu = t->cpu;
-	u32 max_before_softirq;
-	u32 tx_since_softirq = 0;
 
 	BUG_ON(smp_processor_id() != cpu);
 
 	init_waitqueue_head(&t->queue);
 
 	pr_debug("pktgen: starting pktgen/%d:  pid=%d\n", cpu, current->pid);
-
-	max_before_softirq = t->max_before_softirq;
 
 	set_current_state(TASK_INTERRUPTIBLE);
 
@@ -3553,23 +3539,8 @@ static int pktgen_thread_worker(void *arg)
 
 		__set_current_state(TASK_RUNNING);
 
-		if (pkt_dev) {
-
+		if (pkt_dev)
 			pktgen_xmit(pkt_dev);
-
-			/*
-			 * We like to stay RUNNING but must also give
-			 * others fair share.
-			 */
-
-			tx_since_softirq += pkt_dev->last_ok;
-
-			if (tx_since_softirq > max_before_softirq) {
-				if (local_softirq_pending())
-					do_softirq();
-				tx_since_softirq = 0;
-			}
-		}
 
 		if (t->control & T_STOP) {
 			pktgen_stop(t);
