@@ -88,7 +88,7 @@ struct netlink_sock {
 
 static inline struct netlink_sock *nlk_sk(struct sock *sk)
 {
-	return (struct netlink_sock *)sk;
+	return container_of(sk, struct netlink_sock, sk);
 }
 
 struct nl_pid_hash {
