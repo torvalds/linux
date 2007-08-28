@@ -1,7 +1,8 @@
 /*
- *
  * i2c tv tuner chip device driver
  * controls all those simple 4-control-bytes style tuners.
+ *
+ * This "tuner-simple" module was split apart from the original "tuner" module.
  */
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -9,7 +10,14 @@
 #include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/tuner-types.h>
-#include "tuner-driver.h"
+#include "tuner-i2c.h"
+#include "tuner-simple.h"
+
+static int debug = 0;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
+
+#define PREFIX "tuner-simple "
 
 static int offset = 0;
 module_param(offset, int, 0664);
@@ -85,13 +93,18 @@ MODULE_PARM_DESC(offset,"Allows to specify an offset for tuner");
 struct tuner_simple_priv {
 	u16 last_div;
 	struct tuner_i2c_props i2c_props;
+
+	unsigned int type;
+	struct tunertype *tun;
+
+	u32 frequency;
 };
 
 /* ---------------------------------------------------------------------- */
 
-static int tuner_getstatus(struct tuner *t)
+static int tuner_getstatus(struct dvb_frontend *fe)
 {
-	struct tuner_simple_priv *priv = t->priv;
+	struct tuner_simple_priv *priv = fe->tuner_priv;
 	unsigned char byte;
 
 	if (1 != tuner_i2c_xfer_recv(&priv->i2c_props,&byte,1))
@@ -100,18 +113,20 @@ static int tuner_getstatus(struct tuner *t)
 	return byte;
 }
 
-static int tuner_signal(struct tuner *t)
+static int tuner_signal(struct dvb_frontend *fe)
 {
-	return (tuner_getstatus(t) & TUNER_SIGNAL) << 13;
+	return (tuner_getstatus(fe) & TUNER_SIGNAL) << 13;
 }
 
-static int tuner_stereo(struct tuner *t)
+static int tuner_stereo(struct dvb_frontend *fe)
 {
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+
 	int stereo, status;
 
-	status = tuner_getstatus(t);
+	status = tuner_getstatus(fe);
 
-	switch (t->type) {
+	switch (priv->type) {
 		case TUNER_PHILIPS_FM1216ME_MK3:
 		case TUNER_PHILIPS_FM1236_MK3:
 		case TUNER_PHILIPS_FM1256_IH3:
@@ -126,20 +141,38 @@ static int tuner_stereo(struct tuner *t)
 }
 
 
+static int simple_get_status(struct dvb_frontend *fe, u32 *status)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int signal = tuner_signal(fe);
+
+	*status = 0;
+
+	if (signal)
+		*status = TUNER_STATUS_LOCKED;
+	if (tuner_stereo(fe))
+		*status |= TUNER_STATUS_STEREO;
+
+	tuner_dbg("tuner-simple: Signal strength: %d\n", signal);
+
+	return 0;
+}
+
 /* ---------------------------------------------------------------------- */
 
-static void default_set_tv_freq(struct tuner *t, unsigned int freq)
+static int simple_set_tv_freq(struct dvb_frontend *fe,
+			      struct analog_parameters *params)
 {
-	struct tuner_simple_priv *priv = t->priv;
+	struct tuner_simple_priv *priv = fe->tuner_priv;
 	u8 config, cb, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
 	u8 buffer[4];
 	int rc, IFPCoff, i, j;
 	enum param_type desired_type;
-	struct tuner_params *params;
+	struct tuner_params *t_params;
 
-	tun = &tuners[t->type];
+	tun = priv->tun;
 
 	/* IFPCoff = Video Intermediate Frequency - Vif:
 		940  =16*58.75  NTSC/J (Japan)
@@ -153,14 +186,14 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		171.2=16*10.70  FM Radio (at set_radio_freq)
 	*/
 
-	if (t->std == V4L2_STD_NTSC_M_JP) {
+	if (params->std == V4L2_STD_NTSC_M_JP) {
 		IFPCoff      = 940;
 		desired_type = TUNER_PARAM_TYPE_NTSC;
-	} else if ((t->std & V4L2_STD_MN) &&
-		  !(t->std & ~V4L2_STD_MN)) {
+	} else if ((params->std & V4L2_STD_MN) &&
+		  !(params->std & ~V4L2_STD_MN)) {
 		IFPCoff      = 732;
 		desired_type = TUNER_PARAM_TYPE_NTSC;
-	} else if (t->std == V4L2_STD_SECAM_LC) {
+	} else if (params->std == V4L2_STD_SECAM_LC) {
 		IFPCoff      = 543;
 		desired_type = TUNER_PARAM_TYPE_SECAM;
 	} else {
@@ -173,49 +206,49 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 			continue;
 		break;
 	}
-	/* use default tuner_params if desired_type not available */
+	/* use default tuner_t_params if desired_type not available */
 	if (desired_type != tun->params[j].type) {
-		tuner_dbg("IFPCoff = %d: tuner_params undefined for tuner %d\n",
-			  IFPCoff,t->type);
+		tuner_dbg("IFPCoff = %d: tuner_t_params undefined for tuner %d\n",
+			  IFPCoff, priv->type);
 		j = 0;
 	}
-	params = &tun->params[j];
+	t_params = &tun->params[j];
 
-	for (i = 0; i < params->count; i++) {
-		if (freq > params->ranges[i].limit)
+	for (i = 0; i < t_params->count; i++) {
+		if (params->frequency > t_params->ranges[i].limit)
 			continue;
 		break;
 	}
-	if (i == params->count) {
+	if (i == t_params->count) {
 		tuner_dbg("TV frequency out of range (%d > %d)",
-				freq, params->ranges[i - 1].limit);
-		freq = params->ranges[--i].limit;
+				params->frequency, t_params->ranges[i - 1].limit);
+		params->frequency = t_params->ranges[--i].limit;
 	}
-	config = params->ranges[i].config;
-	cb     = params->ranges[i].cb;
+	config = t_params->ranges[i].config;
+	cb     = t_params->ranges[i].cb;
 	/*  i == 0 -> VHF_LO
 	 *  i == 1 -> VHF_HI
 	 *  i == 2 -> UHF     */
 	tuner_dbg("tv: param %d, range %d\n",j,i);
 
-	div=freq + IFPCoff + offset;
+	div=params->frequency + IFPCoff + offset;
 
 	tuner_dbg("Freq= %d.%02d MHz, V_IF=%d.%02d MHz, Offset=%d.%02d MHz, div=%0d\n",
-					freq / 16, freq % 16 * 100 / 16,
+					params->frequency / 16, params->frequency % 16 * 100 / 16,
 					IFPCoff / 16, IFPCoff % 16 * 100 / 16,
 					offset / 16, offset % 16 * 100 / 16,
 					div);
 
 	/* tv norm specific stuff for multi-norm tuners */
-	switch (t->type) {
+	switch (priv->type) {
 	case TUNER_PHILIPS_SECAM: // FI1216MF
 		/* 0x01 -> ??? no change ??? */
 		/* 0x02 -> PAL BDGHI / SECAM L */
 		/* 0x04 -> ??? PAL others / SECAM others ??? */
 		cb &= ~0x03;
-		if (t->std & V4L2_STD_SECAM_L) //also valid for V4L2_STD_SECAM
+		if (params->std & V4L2_STD_SECAM_L) //also valid for V4L2_STD_SECAM
 			cb |= PHILIPS_MF_SET_STD_L;
-		else if (t->std & V4L2_STD_SECAM_LC)
+		else if (params->std & V4L2_STD_SECAM_LC)
 			cb |= PHILIPS_MF_SET_STD_LC;
 		else /* V4L2_STD_B|V4L2_STD_GH */
 			cb |= PHILIPS_MF_SET_STD_BG;
@@ -224,16 +257,16 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 	case TUNER_TEMIC_4046FM5:
 		cb &= ~0x0f;
 
-		if (t->std & V4L2_STD_PAL_BG) {
+		if (params->std & V4L2_STD_PAL_BG) {
 			cb |= TEMIC_SET_PAL_BG;
 
-		} else if (t->std & V4L2_STD_PAL_I) {
+		} else if (params->std & V4L2_STD_PAL_I) {
 			cb |= TEMIC_SET_PAL_I;
 
-		} else if (t->std & V4L2_STD_PAL_DK) {
+		} else if (params->std & V4L2_STD_PAL_DK) {
 			cb |= TEMIC_SET_PAL_DK;
 
-		} else if (t->std & V4L2_STD_SECAM_L) {
+		} else if (params->std & V4L2_STD_SECAM_L) {
 			cb |= TEMIC_SET_PAL_L;
 
 		}
@@ -242,13 +275,13 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 	case TUNER_PHILIPS_FQ1216ME:
 		cb &= ~0x0f;
 
-		if (t->std & (V4L2_STD_PAL_BG|V4L2_STD_PAL_DK)) {
+		if (params->std & (V4L2_STD_PAL_BG|V4L2_STD_PAL_DK)) {
 			cb |= PHILIPS_SET_PAL_BGDK;
 
-		} else if (t->std & V4L2_STD_PAL_I) {
+		} else if (params->std & V4L2_STD_PAL_I) {
 			cb |= PHILIPS_SET_PAL_I;
 
-		} else if (t->std & V4L2_STD_SECAM_L) {
+		} else if (params->std & V4L2_STD_SECAM_L) {
 			cb |= PHILIPS_SET_PAL_L;
 
 		}
@@ -260,7 +293,7 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		/* 0x02 -> NTSC antenna input 1 */
 		/* 0x03 -> NTSC antenna input 2 */
 		cb &= ~0x03;
-		if (!(t->std & V4L2_STD_ATSC))
+		if (!(params->std & V4L2_STD_ATSC))
 			cb |= 2;
 		/* FIXME: input */
 		break;
@@ -280,7 +313,7 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		buffer[2] = 0x17;
 		buffer[3] = 0x00;
 		cb &= ~0x40;
-		if (t->std & V4L2_STD_ATSC) {
+		if (params->std & V4L2_STD_ATSC) {
 			cb |= 0x40;
 			buffer[1] = 0x04;
 		}
@@ -296,7 +329,7 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		break;
 	}
 
-	if (params->cb_first_if_lower_freq && div < priv->last_div) {
+	if (t_params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = config;
 		buffer[1] = cb;
 		buffer[2] = (div>>8) & 0x7f;
@@ -308,42 +341,42 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		buffer[3] = cb;
 	}
 	priv->last_div = div;
-	if (params->has_tda9887) {
+	if (t_params->has_tda9887) {
 		int config = 0;
-		int is_secam_l = (t->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) &&
-			!(t->std & ~(V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC));
+		int is_secam_l = (params->std & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) &&
+			!(params->std & ~(V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC));
 
-		if (t->std == V4L2_STD_SECAM_LC) {
-			if (params->port1_active ^ params->port1_invert_for_secam_lc)
+		if (params->std == V4L2_STD_SECAM_LC) {
+			if (t_params->port1_active ^ t_params->port1_invert_for_secam_lc)
 				config |= TDA9887_PORT1_ACTIVE;
-			if (params->port2_active ^ params->port2_invert_for_secam_lc)
+			if (t_params->port2_active ^ t_params->port2_invert_for_secam_lc)
 				config |= TDA9887_PORT2_ACTIVE;
 		}
 		else {
-			if (params->port1_active)
+			if (t_params->port1_active)
 				config |= TDA9887_PORT1_ACTIVE;
-			if (params->port2_active)
+			if (t_params->port2_active)
 				config |= TDA9887_PORT2_ACTIVE;
 		}
-		if (params->intercarrier_mode)
+		if (t_params->intercarrier_mode)
 			config |= TDA9887_INTERCARRIER;
 		if (is_secam_l) {
-			if (i == 0 && params->default_top_secam_low)
-				config |= TDA9887_TOP(params->default_top_secam_low);
-			else if (i == 1 && params->default_top_secam_mid)
-				config |= TDA9887_TOP(params->default_top_secam_mid);
-			else if (params->default_top_secam_high)
-				config |= TDA9887_TOP(params->default_top_secam_high);
+			if (i == 0 && t_params->default_top_secam_low)
+				config |= TDA9887_TOP(t_params->default_top_secam_low);
+			else if (i == 1 && t_params->default_top_secam_mid)
+				config |= TDA9887_TOP(t_params->default_top_secam_mid);
+			else if (t_params->default_top_secam_high)
+				config |= TDA9887_TOP(t_params->default_top_secam_high);
 		}
 		else {
-			if (i == 0 && params->default_top_low)
-				config |= TDA9887_TOP(params->default_top_low);
-			else if (i == 1 && params->default_top_mid)
-				config |= TDA9887_TOP(params->default_top_mid);
-			else if (params->default_top_high)
-				config |= TDA9887_TOP(params->default_top_high);
+			if (i == 0 && t_params->default_top_low)
+				config |= TDA9887_TOP(t_params->default_top_low);
+			else if (i == 1 && t_params->default_top_mid)
+				config |= TDA9887_TOP(t_params->default_top_mid);
+			else if (t_params->default_top_high)
+				config |= TDA9887_TOP(t_params->default_top_high);
 		}
-		if (params->default_pll_gating_18)
+		if (t_params->default_pll_gating_18)
 			config |= TDA9887_GATING_18;
 		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
 	}
@@ -353,7 +386,7 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
 
-	switch (t->type) {
+	switch (priv->type) {
 	case TUNER_LG_TDVS_H06XF:
 		/* Set the Auxiliary Byte. */
 		buffer[0] = buffer[2];
@@ -374,7 +407,7 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		/* Wait until the PLL locks */
 		for (;;) {
 			if (time_after(jiffies,timeout))
-				return;
+				return 0;
 			if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,&status_byte,1))) {
 				tuner_warn("i2c i/o read error: rc == %d (should be 1)\n",rc);
 				break;
@@ -398,27 +431,30 @@ static void default_set_tv_freq(struct tuner *t, unsigned int freq)
 		break;
 	}
 	}
+	return 0;
 }
 
-static void default_set_radio_freq(struct tuner *t, unsigned int freq)
+static int simple_set_radio_freq(struct dvb_frontend *fe,
+				 struct analog_parameters *params)
 {
 	struct tunertype *tun;
-	struct tuner_simple_priv *priv = t->priv;
+	struct tuner_simple_priv *priv = fe->tuner_priv;
 	u8 buffer[4];
 	u16 div;
 	int rc, j;
-	struct tuner_params *params;
+	struct tuner_params *t_params;
+	unsigned int freq = params->frequency;
 
-	tun = &tuners[t->type];
+	tun = priv->tun;
 
 	for (j = tun->count-1; j > 0; j--)
 		if (tun->params[j].type == TUNER_PARAM_TYPE_RADIO)
 			break;
-	/* default params (j=0) will be used if desired type wasn't found */
-	params = &tun->params[j];
+	/* default t_params (j=0) will be used if desired type wasn't found */
+	t_params = &tun->params[j];
 
 	/* Select Radio 1st IF used */
-	switch (params->radio_if) {
+	switch (t_params->radio_if) {
 	case 0: /* 10.7 MHz */
 		freq += (unsigned int)(10.7*16000);
 		break;
@@ -429,16 +465,16 @@ static void default_set_radio_freq(struct tuner *t, unsigned int freq)
 		freq += (unsigned int)(41.3*16000);
 		break;
 	default:
-		tuner_warn("Unsupported radio_if value %d\n", params->radio_if);
-		return;
+		tuner_warn("Unsupported radio_if value %d\n", t_params->radio_if);
+		return 0;
 	}
 
 	/* Bandswitch byte */
-	switch (t->type) {
+	switch (priv->type) {
 	case TUNER_TENA_9533_DI:
 	case TUNER_YMEC_TVF_5533MF:
-		tuner_dbg ("This tuner doesn't have FM. Most cards have a TEA5767 for FM\n");
-		return;
+		tuner_dbg("This tuner doesn't have FM. Most cards have a TEA5767 for FM\n");
+		return 0;
 	case TUNER_PHILIPS_FM1216ME_MK3:
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FMD1216ME_MK3:
@@ -461,7 +497,7 @@ static void default_set_radio_freq(struct tuner *t, unsigned int freq)
 		break;
 	}
 
-	buffer[2] = (params->ranges[0].config & ~TUNER_RATIO_MASK) |
+	buffer[2] = (t_params->ranges[0].config & ~TUNER_RATIO_MASK) |
 		    TUNER_RATIO_SELECT_50; /* 50 kHz step */
 
 	/* Convert from 1/16 kHz V4L steps to 1/20 MHz (=50 kHz) PLL steps
@@ -469,7 +505,7 @@ static void default_set_radio_freq(struct tuner *t, unsigned int freq)
 	   freq * (1/800) */
 	div = (freq + 400) / 800;
 
-	if (params->cb_first_if_lower_freq && div < priv->last_div) {
+	if (t_params->cb_first_if_lower_freq && div < priv->last_div) {
 		buffer[0] = buffer[2];
 		buffer[1] = buffer[3];
 		buffer[2] = (div>>8) & 0x7f;
@@ -483,60 +519,104 @@ static void default_set_radio_freq(struct tuner *t, unsigned int freq)
 	       buffer[0],buffer[1],buffer[2],buffer[3]);
 	priv->last_div = div;
 
-	if (params->has_tda9887) {
+	if (t_params->has_tda9887) {
 		int config = 0;
-		if (params->port1_active && !params->port1_fm_high_sensitivity)
+		if (t_params->port1_active && !t_params->port1_fm_high_sensitivity)
 			config |= TDA9887_PORT1_ACTIVE;
-		if (params->port2_active && !params->port2_fm_high_sensitivity)
+		if (t_params->port2_active && !t_params->port2_fm_high_sensitivity)
 			config |= TDA9887_PORT2_ACTIVE;
-		if (params->intercarrier_mode)
+		if (t_params->intercarrier_mode)
 			config |= TDA9887_INTERCARRIER;
-/*		if (params->port1_set_for_fm_mono)
+/*		if (t_params->port1_set_for_fm_mono)
 			config &= ~TDA9887_PORT1_ACTIVE;*/
-		if (params->fm_gain_normal)
+		if (t_params->fm_gain_normal)
 			config |= TDA9887_GAIN_NORMAL;
-		if (params->radio_if == 2)
+		if (t_params->radio_if == 2)
 			config |= TDA9887_RIF_41_3;
 		i2c_clients_command(priv->i2c_props.adap, TDA9887_SET_CONFIG, &config);
 	}
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,buffer,4)))
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n",rc);
+
+	return 0;
 }
 
-static void tuner_release(struct tuner *t)
+static int simple_set_params(struct dvb_frontend *fe,
+			     struct analog_parameters *params)
 {
-	kfree(t->priv);
-	t->priv = NULL;
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	switch (params->mode) {
+	case V4L2_TUNER_RADIO:
+		ret = simple_set_radio_freq(fe, params);
+		priv->frequency = params->frequency * 125 / 2;
+		break;
+	case V4L2_TUNER_ANALOG_TV:
+	case V4L2_TUNER_DIGITAL_TV:
+		ret = simple_set_tv_freq(fe, params);
+		priv->frequency = params->frequency * 62500;
+		break;
+	}
+
+	return ret;
 }
 
-static struct tuner_operations simple_tuner_ops = {
-	.set_tv_freq    = default_set_tv_freq,
-	.set_radio_freq = default_set_radio_freq,
-	.has_signal     = tuner_signal,
-	.is_stereo      = tuner_stereo,
-	.release        = tuner_release,
+
+static int simple_release(struct dvb_frontend *fe)
+{
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+
+	return 0;
+}
+
+static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	*frequency = priv->frequency;
+	return 0;
+}
+
+static struct dvb_tuner_ops simple_tuner_ops = {
+	.set_analog_params = simple_set_params,
+	.release        = simple_release,
+	.get_frequency  = simple_get_frequency,
+	.get_status     = simple_get_status,
 };
 
-int default_tuner_init(struct tuner *t)
+struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
+					 struct i2c_adapter *i2c_adap,
+					 u8 i2c_addr,
+					 struct simple_tuner_config *cfg)
 {
 	struct tuner_simple_priv *priv = NULL;
 
 	priv = kzalloc(sizeof(struct tuner_simple_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
-	t->priv = priv;
+		return NULL;
+	fe->tuner_priv = priv;
 
-	priv->i2c_props.addr = t->i2c.addr;
-	priv->i2c_props.adap = t->i2c.adapter;
+	priv->i2c_props.addr = i2c_addr;
+	priv->i2c_props.adap = i2c_adap;
+	priv->type = cfg->type;
+	priv->tun  = cfg->tun;
 
-	tuner_info("type set to %d (%s)\n",
-		   t->type, tuners[t->type].name);
-	strlcpy(t->i2c.name, tuners[t->type].name, sizeof(t->i2c.name));
+	memcpy(&fe->ops.tuner_ops, &simple_tuner_ops, sizeof(struct dvb_tuner_ops));
 
-	memcpy(&t->ops, &simple_tuner_ops, sizeof(struct tuner_operations));
+	tuner_info("type set to %d (%s)\n", cfg->type, cfg->tun->name);
 
-	return 0;
+	strlcpy(fe->ops.tuner_ops.info.name, cfg->tun->name, sizeof(fe->ops.tuner_ops.info.name));
+
+	return fe;
 }
+
+
+EXPORT_SYMBOL_GPL(simple_tuner_attach);
+
+MODULE_DESCRIPTION("Simple 4-control-bytes style tuner driver");
+MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
+MODULE_LICENSE("GPL");
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

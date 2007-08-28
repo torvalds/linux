@@ -17,12 +17,14 @@
 #include <linux/init.h>
 #include <linux/videodev.h>
 #include <media/tuner.h>
+#include <media/tuner-types.h>
 #include <media/v4l2-common.h>
 #include "tuner-driver.h"
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"
 #include "tea5767.h"
+#include "tuner-simple.h"
 
 #define UNSET (-1U)
 
@@ -213,6 +215,15 @@ static void attach_tda8290(struct tuner *t)
 	tda8290_attach(&t->fe, t->i2c.adapter, t->i2c.addr, &cfg);
 }
 
+static void attach_simple_tuner(struct tuner *t)
+{
+	struct simple_tuner_config cfg = {
+		.type = t->type,
+		.tun  = &tuners[t->type]
+	};
+	simple_tuner_attach(&t->fe, t->i2c.adapter, t->i2c.addr, &cfg);
+}
+
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
 		     int (*tuner_callback) (void *dev, int command,int arg))
@@ -290,7 +301,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0x54;
 		i2c_master_send(c, buffer, 4);
-		default_tuner_init(t);
+		attach_simple_tuner(t);
 		break;
 	case TUNER_PHILIPS_TD1316:
 		buffer[0] = 0x0b;
@@ -298,13 +309,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[2] = 0x86;
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
-		default_tuner_init(t);
+		attach_simple_tuner(t);
 		break;
 	case TUNER_TDA9887:
 		tda9887_tuner_init(t);
 		break;
 	default:
-		default_tuner_init(t);
+		attach_simple_tuner(t);
 		break;
 	}
 

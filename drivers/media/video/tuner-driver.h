@@ -72,8 +72,6 @@ struct tuner {
 
 /* ------------------------------------------------------------------------ */
 
-extern int default_tuner_init(struct tuner *t);
-
 extern int tda9887_tuner_init(struct tuner *t);
 
 /* ------------------------------------------------------------------------ */
