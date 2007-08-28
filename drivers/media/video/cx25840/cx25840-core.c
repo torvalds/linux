@@ -133,7 +133,9 @@ static void init_dll1(struct i2c_client *client)
 	cx25840_write(client, 0x159, 0x23);
 	cx25840_write(client, 0x15a, 0x87);
 	cx25840_write(client, 0x15b, 0x06);
+	udelay(10);
 	cx25840_write(client, 0x159, 0xe1);
+	udelay(10);
 	cx25840_write(client, 0x15a, 0x86);
 	cx25840_write(client, 0x159, 0xe0);
 	cx25840_write(client, 0x159, 0xe1);
@@ -147,6 +149,7 @@ static void init_dll2(struct i2c_client *client)
 	cx25840_write(client, 0x15d, 0xe3);
 	cx25840_write(client, 0x15e, 0x86);
 	cx25840_write(client, 0x15f, 0x06);
+	udelay(10);
 	cx25840_write(client, 0x15d, 0xe1);
 	cx25840_write(client, 0x15d, 0xe0);
 	cx25840_write(client, 0x15d, 0xe1);
@@ -165,9 +168,7 @@ static void cx25836_initialize(struct i2c_client *client)
 	/* 3c. */
 	cx25840_and_or(client, 0x159, ~0x02, 0x02);
 	/* 3d. */
-	/* There should be a 10-us delay here, but since the
-	   i2c bus already has a 10-us delay we don't need to do
-	   anything */
+	udelay(10);
 	/* 3e. */
 	cx25840_and_or(client, 0x159, ~0x02, 0x00);
 	/* 3f. */
