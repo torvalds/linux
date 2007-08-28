@@ -77,14 +77,17 @@ static ssize_t key_tx_spec_read(struct file *file, char __user *userbuf,
 	switch (key->alg) {
 	case ALG_WEP:
 		len = scnprintf(buf, sizeof(buf), "\n");
+		break;
 	case ALG_TKIP:
 		len = scnprintf(buf, sizeof(buf), "%08x %04x\n",
 				key->u.tkip.iv32,
 				key->u.tkip.iv16);
+		break;
 	case ALG_CCMP:
 		tpn = key->u.ccmp.tx_pn;
 		len = scnprintf(buf, sizeof(buf), "%02x%02x%02x%02x%02x%02x\n",
 				tpn[0], tpn[1], tpn[2], tpn[3], tpn[4], tpn[5]);
+		break;
 	default:
 		return 0;
 	}
@@ -103,6 +106,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 	switch (key->alg) {
 	case ALG_WEP:
 		len = scnprintf(buf, sizeof(buf), "\n");
+		break;
 	case ALG_TKIP:
 		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
@@ -110,6 +114,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				       key->u.tkip.iv32_rx[i],
 				       key->u.tkip.iv16_rx[i]);
 		len = p - buf;
+		break;
 	case ALG_CCMP:
 		for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
@@ -119,6 +124,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				       rpn[3], rpn[4], rpn[5]);
 		}
 		len = p - buf;
+		break;
 	default:
 		return 0;
 	}
@@ -164,12 +170,14 @@ KEY_OPS(key);
 void ieee80211_debugfs_key_add(struct ieee80211_local *local,
 			       struct ieee80211_key *key)
 {
+	static int keycount;
 	char buf[20];
 
 	if (!local->debugfs.keys)
 		return;
 
-	sprintf(buf, "%d", key->keyidx);
+	sprintf(buf, "%d", keycount);
+	keycount++;
 	key->debugfs.dir = debugfs_create_dir(buf,
 					local->debugfs.keys);
 
@@ -239,7 +247,7 @@ void ieee80211_debugfs_key_sta_link(struct ieee80211_key *key,
 	if (!key->debugfs.dir)
 		return;
 
-	sprintf(buf, "../sta/" MAC_FMT, MAC_ARG(sta->addr));
+	sprintf(buf, "../../stations/" MAC_FMT, MAC_ARG(sta->addr));
 	key->debugfs.stalink =
 		debugfs_create_symlink("station", key->debugfs.dir, buf);
 }
