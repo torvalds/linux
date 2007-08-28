@@ -1121,8 +1121,10 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
+	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT) {
 		p->se.wait_runtime = -(sched_granularity(cfs_rq) / 2);
+		schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
+	}
 
 	__enqueue_entity(cfs_rq, se);
 }
