@@ -489,6 +489,9 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long delta_fair;
 
+	if (unlikely(!se->wait_start_fair))
+		return;
+
 	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
 			(u64)(cfs_rq->fair_clock - se->wait_start_fair));
 
