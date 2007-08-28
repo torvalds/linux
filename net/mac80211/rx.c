@@ -988,9 +988,10 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr3, ETH_ALEN);
 
-		if (sdata->type != IEEE80211_IF_TYPE_STA) {
+		if (sdata->type != IEEE80211_IF_TYPE_STA ||
+		    (is_multicast_ether_addr(dst) &&
+		     !compare_ether_addr(src, dev->dev_addr)))
 			return TXRX_DROP;
-		}
 		break;
 	case 0:
 		/* DA SA BSSID */
