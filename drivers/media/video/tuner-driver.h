@@ -76,9 +76,6 @@ extern int default_tuner_init(struct tuner *t);
 
 extern int tda9887_tuner_init(struct tuner *t);
 
-extern int tea5761_tuner_init(struct tuner *t);
-extern int tea5761_autodetection(struct tuner *t);
-
 extern int tea5767_autodetection(struct tuner *t);
 extern int tea5767_tuner_init(struct tuner *t);
 

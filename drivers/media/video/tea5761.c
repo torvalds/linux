@@ -11,15 +11,19 @@
 #include <linux/delay.h>
 #include <linux/videodev.h>
 #include <media/tuner.h>
-#include "tuner-driver.h"
+#include "tuner-i2c.h"
+#include "tea5761.h"
 
-#define PREFIX "TEA5761 "
+static int debug = 0;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-/* from tuner-core.c */
-extern int tuner_debug;
+#define PREFIX "tea5761 "
 
 struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;
+
+	u32 frequency;
 };
 
 /*****************************************************************************/
@@ -118,11 +122,6 @@ struct tea5761_priv {
 
 /*****************************************************************************/
 
-static void set_tv_freq(struct tuner *t, unsigned int freq)
-{
-	tuner_warn("This tuner doesn't support TV freq.\n");
-}
-
 #define FREQ_OFFSET 0 /* for TEA5767, it is 700 to give the right freq */
 static void tea5761_status_dump(unsigned char *buffer)
 {
@@ -137,16 +136,18 @@ static void tea5761_status_dump(unsigned char *buffer)
 }
 
 /* Freq should be specifyed at 62.5 Hz */
-static void set_radio_freq(struct tuner *t, unsigned int frq)
+static int set_radio_freq(struct dvb_frontend *fe,
+			  struct analog_parameters *params)
 {
-	struct tea5761_priv *priv = t->priv;
+	struct tea5761_priv *priv = fe->tuner_priv;
+	unsigned int frq = params->frequency;
 	unsigned char buffer[7] = {0, 0, 0, 0, 0, 0, 0 };
 	unsigned div;
 	int rc;
 
-	tuner_dbg (PREFIX "radio freq counter %d\n", frq);
+	tuner_dbg("radio freq counter %d\n", frq);
 
-	if (t->mode == T_STANDBY) {
+	if (params->mode == T_STANDBY) {
 		tuner_dbg("TEA5761 set to standby mode\n");
 		buffer[5] |= TEA5761_TNCTRL_MU;
 	} else {
@@ -154,10 +155,9 @@ static void set_radio_freq(struct tuner *t, unsigned int frq)
 	}
 
 
-	if (t->audmode == V4L2_TUNER_MODE_MONO) {
+	if (params->audmode == V4L2_TUNER_MODE_MONO) {
 		tuner_dbg("TEA5761 set to mono\n");
 		buffer[5] |= TEA5761_TNCTRL_MST;
-;
 	} else {
 		tuner_dbg("TEA5761 set to stereo\n");
 	}
@@ -166,18 +166,22 @@ static void set_radio_freq(struct tuner *t, unsigned int frq)
 	buffer[1] = (div >> 8) & 0x3f;
 	buffer[2] = div & 0xff;
 
-	if (tuner_debug)
+	if (debug)
 		tea5761_status_dump(buffer);
 
 	if (7 != (rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 7)))
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
+
+	priv->frequency = frq * 125 / 2;
+
+	return 0;
 }
 
-static int tea5761_signal(struct tuner *t)
+static int tea5761_signal(struct dvb_frontend *fe)
 {
 	unsigned char buffer[16];
 	int rc;
-	struct tea5761_priv *priv = t->priv;
+	struct tea5761_priv *priv = fe->tuner_priv;
 
 	memset(buffer, 0, sizeof(buffer));
 	if (16 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 16)))
@@ -186,11 +190,11 @@ static int tea5761_signal(struct tuner *t)
 	return ((buffer[9] & TEA5761_TUNCHECK_LEV_MASK) << (13 - 4));
 }
 
-static int tea5761_stereo(struct tuner *t)
+static int tea5761_stereo(struct dvb_frontend *fe)
 {
 	unsigned char buffer[16];
 	int rc;
-	struct tea5761_priv *priv = t->priv;
+	struct tea5761_priv *priv = fe->tuner_priv;
 
 	memset(buffer, 0, sizeof(buffer));
 	if (16 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 16)))
@@ -203,58 +207,96 @@ static int tea5761_stereo(struct tuner *t)
 	return (rc ? V4L2_TUNER_SUB_STEREO : 0);
 }
 
-int tea5761_autodetection(struct tuner *t)
+static int tea5761_get_status(struct dvb_frontend *fe, u32 *status)
+{
+	struct tea5761_priv *priv = fe->tuner_priv;
+	int signal = tea5761_signal(fe);
+
+	*status = 0;
+
+	if (signal)
+		*status = TUNER_STATUS_LOCKED;
+	if (tea5761_stereo(fe))
+		*status |= TUNER_STATUS_STEREO;
+
+	tuner_dbg("tea5761: Signal strength: %d\n", signal);
+
+	return 0;
+}
+
+int tea5761_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 {
 	unsigned char buffer[16];
 	int rc;
-	struct tuner_i2c_props i2c = { .adap = t->i2c.adapter, .addr = t->i2c.addr };
+	struct tuner_i2c_props i2c = { .adap = i2c_adap, .addr = i2c_addr };
 
 	if (16 != (rc = tuner_i2c_xfer_recv(&i2c, buffer, 16))) {
-		tuner_warn("it is not a TEA5761. Received %i chars.\n", rc);
+		printk(KERN_WARNING "it is not a TEA5761. Received %i chars.\n", rc);
 		return EINVAL;
 	}
 
 	if (!((buffer[13] != 0x2b) || (buffer[14] != 0x57) || (buffer[15] != 0x061))) {
-		tuner_warn("Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",buffer[13],buffer[14],buffer[15]);
+		printk(KERN_WARNING "Manufacturer ID= 0x%02x, Chip ID = %02x%02x. It is not a TEA5761\n",buffer[13],buffer[14],buffer[15]);
 		return EINVAL;
 	}
-	tuner_warn("TEA5761 detected.\n");
+	printk(KERN_WARNING "TEA5761 detected.\n");
 	return 0;
 }
 
-static void tea5761_release(struct tuner *t)
+static int tea5761_release(struct dvb_frontend *fe)
 {
-	kfree(t->priv);
-	t->priv = NULL;
+	kfree(fe->tuner_priv);
+	fe->tuner_priv = NULL;
+
+	return 0;
 }
 
-static struct tuner_operations tea5761_tuner_ops = {
-	.set_tv_freq    = set_tv_freq,
-	.set_radio_freq = set_radio_freq,
-	.has_signal     = tea5761_signal,
-	.is_stereo      = tea5761_stereo,
-	.release        = tea5761_release,
+static int tea5761_get_frequency(struct dvb_frontend *fe, u32 *frequency)
+{
+	struct tea5761_priv *priv = fe->tuner_priv;
+	*frequency = priv->frequency;
+	return 0;
+}
+
+static struct dvb_tuner_ops tea5761_tuner_ops = {
+	.info = {
+		.name           = "tea5761", // Philips TEA5761HN FM Radio
+	},
+	.set_analog_params = set_radio_freq,
+	.release           = tea5761_release,
+	.get_frequency     = tea5761_get_frequency,
+	.get_status        = tea5761_get_status,
 };
 
-int tea5761_tuner_init(struct tuner *t)
+struct dvb_frontend *tea5761_attach(struct dvb_frontend *fe,
+				    struct i2c_adapter* i2c_adap,
+				    u8 i2c_addr)
 {
 	struct tea5761_priv *priv = NULL;
 
-	if (tea5761_autodetection(t) == EINVAL)
-		return EINVAL;
+	if (tea5761_autodetection(i2c_adap, i2c_addr) == EINVAL)
+		return NULL;
 
 	priv = kzalloc(sizeof(struct tea5761_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
-	t->priv = priv;
+		return NULL;
+	fe->tuner_priv = priv;
 
-	priv->i2c_props.addr = t->i2c.addr;
-	priv->i2c_props.adap = t->i2c.adapter;
+	priv->i2c_props.addr = i2c_addr;
+	priv->i2c_props.adap = i2c_adap;
 
-	tuner_info("type set to %d (%s)\n", t->type, "Philips TEA5761HN FM Radio");
-	strlcpy(t->i2c.name, "tea5761", sizeof(t->i2c.name));
+	memcpy(&fe->ops.tuner_ops, &tea5761_tuner_ops,
+	       sizeof(struct dvb_tuner_ops));
 
-	memcpy(&t->ops, &tea5761_tuner_ops, sizeof(struct tuner_operations));
+	tuner_info("type set to %s\n", "Philips TEA5761HN FM Radio");
 
-	return (0);
+	return fe;
 }
+
+
+EXPORT_SYMBOL_GPL(tea5761_attach);
+EXPORT_SYMBOL_GPL(tea5761_autodetection);
+
+MODULE_DESCRIPTION("Philips TEA5761 FM tuner driver");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_LICENSE("GPL");
