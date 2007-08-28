@@ -463,14 +463,13 @@ struct ieee80211_hw {
 
 	/* TODO: frame_type 802.11/802.3, sw_encryption requirements */
 
-	/* Some wireless LAN chipsets generate beacons in the hardware/firmware
-	 * and others rely on host generated beacons. This option is used to
-	 * configure the upper layer IEEE 802.11 module to generate beacons.
-	 * The low-level driver can use ieee80211_beacon_get() to fetch the
-	 * next beacon frame. */
-#define IEEE80211_HW_HOST_GEN_BEACON (1<<0)
+/* hole at 0 */
 
-	/* The device needs to be supplied with a beacon template only. */
+	/*
+	 * The device only needs to be supplied with a beacon template.
+	 * If you need the host to generate each beacon then don't use
+	 * this flag and use ieee80211_beacon_get().
+	 */
 #define IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE (1<<1)
 
 	/* Some devices handle decryption internally and do not
