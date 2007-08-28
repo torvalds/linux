@@ -1,7 +1,9 @@
 /*
- * Low-level hardware driver -- IEEE 802.11 driver (80211.o) interface
+ * mac80211 <-> driver interface
+ *
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
+ * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -472,10 +474,16 @@ struct ieee80211_hw {
 	 */
 #define IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE (1<<1)
 
-	/* Some devices handle decryption internally and do not
+	/*
+	 * Some devices handle decryption internally and do not
 	 * indicate whether the frame was encrypted (unencrypted frames
 	 * will be dropped by the hardware, unless specifically allowed
-	 * through) */
+	 * through.)
+	 * It is permissible to not handle all encrypted frames and fall
+	 * back to software encryption; however, if this flag is set
+	 * unencrypted frames must be dropped unless the driver is told
+	 * otherwise via the set_ieee8021x() callback.
+	 */
 #define IEEE80211_HW_DEVICE_HIDES_WEP (1<<2)
 
 	/* Whether RX frames passed to ieee80211_rx() include FCS in the end */
@@ -489,6 +497,18 @@ struct ieee80211_hw {
 	 * can fetch them with ieee80211_get_buffered_bc(). */
 #define IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING (1<<4)
 
+	/*
+	 * This flag is only relevant if hardware encryption is used.
+	 * If set, it has two meanings:
+	 *  1) the IV and ICV are present in received frames that have
+	 *     been decrypted (unless IEEE80211_HW_DEVICE_HIDES_WEP is
+	 *     also set)
+	 *  2) on transmission, the IV should be generated in software.
+	 *
+	 * Please let us know if you *don't* use this flag, the stack would
+	 * really like to be able to get the IV to keep key statistics
+	 * accurate.
+	 */
 #define IEEE80211_HW_WEP_INCLUDE_IV (1<<5)
 
 /* hole at 6 */
@@ -496,11 +516,12 @@ struct ieee80211_hw {
 	/* Force software encryption for TKIP packets if WMM is enabled. */
 #define IEEE80211_HW_NO_TKIP_WMM_HWACCEL (1<<7)
 
-	/* Some devices handle Michael MIC internally and do not include MIC in
-	 * the received packets passed up. device_strips_mic must be set
-	 * for such devices. The 'encryption' frame control bit is expected to
-	 * be still set in the IEEE 802.11 header with this option unlike with
-	 * the device_hides_wep configuration option.
+	/*
+	 * Some devices handle Michael MIC internally and do not include MIC in
+	 * the received packets passed up. This flag must be set for such
+	 * devices. The 'encryption' frame control bit is expected to be still
+	 * set in the IEEE 802.11 header with this option unlike with the
+	 * IEEE80211_HW_DEVICE_HIDES_WEP flag.
 	 */
 #define IEEE80211_HW_DEVICE_STRIPS_MIC (1<<8)
 

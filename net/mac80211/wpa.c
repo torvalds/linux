@@ -137,9 +137,10 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 
 	fc = rx->fc;
 
-	/* If device handles decryption totally, skip this check */
-	if ((rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) ||
-	    (rx->local->hw.flags & IEEE80211_HW_DEVICE_STRIPS_MIC))
+	/*
+	 * No way to verify the MIC if the hardware stripped it
+	 */
+	if (rx->local->hw.flags & IEEE80211_HW_DEVICE_STRIPS_MIC)
 		return TXRX_CONTINUE;
 
 	if (!rx->key || rx->key->alg != ALG_TKIP ||

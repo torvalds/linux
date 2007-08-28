@@ -310,52 +310,77 @@ static ieee80211_txrx_result
 ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
-	int always_sta_key;
+	int keyidx;
+	int hdrlen;
 
-	if (rx->sdata->type == IEEE80211_IF_TYPE_STA)
-		always_sta_key = 0;
-	else
-		always_sta_key = 1;
+	/*
+	 * Key selection 101
+	 *
+	 * There are three types of keys:
+	 *  - GTK (group keys)
+	 *  - PTK (pairwise keys)
+	 *  - STK (station-to-station pairwise keys)
+	 *
+	 * When selecting a key, we have to distinguish between multicast
+	 * (including broadcast) and unicast frames, the latter can only
+	 * use PTKs and STKs while the former always use GTKs. Unless, of
+	 * course, actual WEP keys ("pre-RSNA") are used, then unicast
+	 * frames can also use key indizes like GTKs. Hence, if we don't
+	 * have a PTK/STK we check the key index for a WEP key.
+	 *
+	 * There is also a slight problem in IBSS mode: GTKs are negotiated
+	 * with each station, that is something we don't currently handle.
+	 */
 
-	if (rx->sta && rx->sta->key && always_sta_key) {
+	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
+		return TXRX_CONTINUE;
+
+	/*
+	 * No point in finding a key if the frame is neither
+	 * addressed to us nor a multicast frame.
+	 */
+	if (!rx->u.rx.ra_match)
+		return TXRX_CONTINUE;
+
+	if (!is_multicast_ether_addr(hdr->addr1) && rx->sta && rx->sta->key) {
 		rx->key = rx->sta->key;
 	} else {
-		if (rx->sta && rx->sta->key)
-			rx->key = rx->sta->key;
-		else
-			rx->key = rx->sdata->default_key;
+		/*
+		 * The device doesn't give us the IV so we won't be
+		 * able to look up the key. That's ok though, we
+		 * don't need to decrypt the frame, we just won't
+		 * be able to keep statistics accurate.
+		 * Except for key threshold notifications, should
+		 * we somehow allow the driver to tell us which key
+		 * the hardware used if this flag is set?
+		 */
+		if (!(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV))
+			return TXRX_CONTINUE;
 
-		if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) &&
-		    rx->fc & IEEE80211_FCTL_PROTECTED) {
-			int keyidx = ieee80211_wep_get_keyidx(rx->skb);
+		hdrlen = ieee80211_get_hdrlen(rx->fc);
 
-			if (keyidx >= 0 && keyidx < NUM_DEFAULT_KEYS &&
-			    (!rx->sta || !rx->sta->key || keyidx > 0))
-				rx->key = rx->sdata->keys[keyidx];
+		if (rx->skb->len < 8 + hdrlen)
+			return TXRX_DROP; /* TODO: count this? */
 
-			if (!rx->key) {
-				if (!rx->u.rx.ra_match)
-					return TXRX_DROP;
-				if (net_ratelimit())
-					printk(KERN_DEBUG "%s: RX WEP frame "
-					       "with unknown keyidx %d "
-					       "(A1=" MAC_FMT
-					       " A2=" MAC_FMT
-					       " A3=" MAC_FMT ")\n",
-					       rx->dev->name, keyidx,
-					       MAC_ARG(hdr->addr1),
-					       MAC_ARG(hdr->addr2),
-					       MAC_ARG(hdr->addr3));
-				/*
-				 * TODO: notify userspace about this
-				 * via cfg/nl80211
-				 */
-				return TXRX_DROP;
-			}
-		}
+		/*
+		 * no need to call ieee80211_wep_get_keyidx,
+		 * it verifies a bunch of things we've done already
+		 */
+		keyidx = rx->skb->data[hdrlen + 3] >> 6;
+
+		rx->key = rx->sdata->keys[keyidx];
+
+		/*
+		 * RSNA-protected unicast frames should always be sent with
+		 * pairwise or station-to-station keys, but for WEP we allow
+		 * using a key index as well.
+		 */
+		if (rx->key && rx->key->alg != ALG_WEP &&
+		    !is_multicast_ether_addr(hdr->addr1))
+			rx->key = NULL;
 	}
 
-	if (rx->fc & IEEE80211_FCTL_PROTECTED && rx->key && rx->u.rx.ra_match) {
+	if (rx->key) {
 		rx->key->tx_rx_count++;
 		if (unlikely(rx->local->key_tx_rx_threshold &&
 			     rx->key->tx_rx_count >
@@ -516,10 +541,6 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 static ieee80211_txrx_result
 ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 {
-	/* If the device handles decryption totally, skip this test */
-	if (rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP)
-		return TXRX_CONTINUE;
-
 	if ((rx->key && rx->key->alg != ALG_WEP) ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
@@ -871,8 +892,14 @@ ieee80211_rx_h_802_1x_pae(struct ieee80211_txrx_data *rx)
 static ieee80211_txrx_result
 ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 {
-	/*  If the device handles decryption totally, skip this test */
-	if (rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP)
+	/*
+	 * Pass through unencrypted frames if the hardware might have
+	 * decrypted them already without telling us, but that can only
+	 * be true if we either didn't find a key or the found key is
+	 * uploaded to the hardware.
+	 */
+	if ((rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) &&
+	    (!rx->key || !rx->key->force_sw_encrypt))
 		return TXRX_CONTINUE;
 
 	/* Drop unencrypted frames if key is set. */
