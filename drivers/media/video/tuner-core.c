@@ -22,6 +22,7 @@
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"
+#include "tea5767.h"
 
 #define UNSET (-1U)
 
@@ -262,7 +263,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TEA5767:
-		if (tea5767_tuner_init(t) == EINVAL) {
+		if (tea5767_attach(&t->fe, t->i2c.adapter, t->i2c.addr) == NULL) {
 			t->type = TUNER_ABSENT;
 			t->mode_mask = T_UNINITIALIZED;
 			return;
@@ -600,7 +601,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			}
 			break;
 		case 0x60:
-			if (tea5767_autodetection(t) != EINVAL) {
+			if (tea5767_autodetection(t->i2c.adapter, t->i2c.addr) != EINVAL) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
