@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 23
-EXTRAVERSION =-rc3
-NAME = Holy Dancing Manatees, Batman!
+EXTRAVERSION =-rc4
+NAME = Pink Farting Weasel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
