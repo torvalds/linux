@@ -3935,10 +3935,8 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
 
 		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
-		    (CHIP_ID(bp) == CHIP_ID_5706_A1)) {
-			current->state = TASK_UNINTERRUPTIBLE;
-			schedule_timeout(HZ / 50);
-		}
+		    (CHIP_ID(bp) == CHIP_ID_5706_A1))
+			msleep(20);
 
 		/* Reset takes approximate 30 usec */
 		for (i = 0; i < 10; i++) {
