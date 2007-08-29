@@ -1153,7 +1153,7 @@ static int nfs_validate_mount_data(struct nfs_mount_data **options,
 		c = strchr(dev_name, ':');
 		if (c == NULL)
 			return -EINVAL;
-		len = c - dev_name - 1;
+		len = c - dev_name;
 		if (len > sizeof(data->hostname))
 			return -EINVAL;
 		strncpy(data->hostname, dev_name, len);
