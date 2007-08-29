@@ -345,7 +345,7 @@ static int dm_blk_ioctl(struct inode *inode, struct file *file,
 	}
 
 	if (tgt->type->ioctl)
-		r = tgt->type->ioctl(tgt, inode, file, cmd, arg);
+		r = tgt->type->ioctl(tgt, cmd, arg);
 
 out:
 	dm_table_put(map);

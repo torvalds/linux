@@ -110,8 +110,7 @@ static int linear_status(struct dm_target *ti, status_type_t type,
 	return 0;
 }
 
-static int linear_ioctl(struct dm_target *ti, struct inode *inode,
-			struct file *filp, unsigned int cmd,
+static int linear_ioctl(struct dm_target *ti, unsigned int cmd,
 			unsigned long arg)
 {
 	struct linear_c *lc = (struct linear_c *) ti->private;

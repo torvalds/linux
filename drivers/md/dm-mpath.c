@@ -1395,8 +1395,7 @@ error:
 	return -EINVAL;
 }
 
-static int multipath_ioctl(struct dm_target *ti, struct inode *inode,
-			   struct file *filp, unsigned int cmd,
+static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 			   unsigned long arg)
 {
 	struct multipath *m = (struct multipath *) ti->private;
