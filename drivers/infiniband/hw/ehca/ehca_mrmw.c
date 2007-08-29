@@ -846,10 +846,6 @@ struct ib_fmr *ehca_alloc_fmr(struct ib_pd *pd,
 alloc_fmr_exit1:
 	ehca_mr_delete(e_fmr);
 alloc_fmr_exit0:
-	if (IS_ERR(ib_fmr))
-		ehca_err(pd->device, "rc=%lx pd=%p mr_access_flags=%x "
-			 "fmr_attr=%p", PTR_ERR(ib_fmr), pd,
-			 mr_access_flags, fmr_attr);
 	return ib_fmr;
 } /* end ehca_alloc_fmr() */
 

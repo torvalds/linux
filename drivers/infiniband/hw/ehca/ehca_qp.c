@@ -714,8 +714,6 @@ static struct ehca_qp *internal_create_qp(
 	if (qp_type == IB_QPT_GSI) {
 		h_ret = ehca_define_sqp(shca, my_qp, init_attr);
 		if (h_ret != H_SUCCESS) {
-			ehca_err(pd->device, "ehca_define_sqp() failed rc=%lx",
-				 h_ret);
 			ret = ehca2ib_return_code(h_ret);
 			goto create_qp_exit4;
 		}
