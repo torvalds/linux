@@ -59,6 +59,8 @@
 #define   OHCI1394_LinkControl_cycleSource	(1 << 22)
 #define OHCI1394_NodeID                       0x0E8
 #define   OHCI1394_NodeID_idValid             0x80000000
+#define   OHCI1394_NodeID_nodeNumber          0x0000003f
+#define   OHCI1394_NodeID_busNumber           0x0000ffc0
 #define OHCI1394_PhyControl                   0x0EC
 #define   OHCI1394_PhyControl_Read(addr)	(((addr) << 8) | 0x00008000)
 #define   OHCI1394_PhyControl_ReadDone		0x80000000

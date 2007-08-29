@@ -917,10 +917,15 @@ static void bus_reset_tasklet(unsigned long data)
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
-		fw_error("node ID not valid, new bus reset in progress\n");
+		fw_notify("node ID not valid, new bus reset in progress\n");
 		return;
 	}
-	ohci->node_id = reg & 0xffff;
+	if ((reg & OHCI1394_NodeID_nodeNumber) == 63) {
+		fw_notify("malconfigured bus\n");
+		return;
+	}
+	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
+			       OHCI1394_NodeID_nodeNumber);
 
 	/*
 	 * The count in the SelfIDCount register is the number of
