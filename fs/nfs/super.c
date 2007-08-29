@@ -1155,13 +1155,13 @@ static int nfs_validate_mount_data(struct nfs_mount_data **options,
 			return -EINVAL;
 		len = c - dev_name;
 		if (len > sizeof(data->hostname))
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		strncpy(data->hostname, dev_name, len);
 		args.nfs_server.hostname = data->hostname;
 
 		c++;
 		if (strlen(c) > NFS_MAXPATHLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		args.nfs_server.export_path = c;
 
 		status = nfs_try_mount(&args, mntfh);
@@ -1677,7 +1677,7 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 		/* while calculating len, pretend ':' is '\0' */
 		len = c - dev_name;
 		if (len > NFS4_MAXNAMLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		*hostname = kzalloc(len, GFP_KERNEL);
 		if (*hostname == NULL)
 			return -ENOMEM;
@@ -1686,7 +1686,7 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 		c++;			/* step over the ':' */
 		len = strlen(c);
 		if (len > NFS4_MAXPATHLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		*mntpath = kzalloc(len + 1, GFP_KERNEL);
 		if (*mntpath == NULL)
 			return -ENOMEM;
