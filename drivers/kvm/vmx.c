@@ -57,6 +57,7 @@ struct vcpu_vmx {
 		u16           fs_sel, gs_sel, ldt_sel;
 		int           gs_ldt_reload_needed;
 		int           fs_reload_needed;
+		int           guest_efer_loaded;
 	}host_state;
 
 };
@@ -73,8 +74,6 @@ static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
 
 static struct page *vmx_io_bitmap_a;
 static struct page *vmx_io_bitmap_b;
-
-#define EFER_SAVE_RESTORE_BITS ((u64)EFER_SCE)
 
 static struct vmcs_config {
 	int size;
@@ -136,18 +135,6 @@ static void save_msrs(struct kvm_msr_entry *e, int n)
 
 	for (i = 0; i < n; ++i)
 		rdmsrl(e[i].index, e[i].data);
-}
-
-static inline u64 msr_efer_save_restore_bits(struct kvm_msr_entry msr)
-{
-	return (u64)msr.data & EFER_SAVE_RESTORE_BITS;
-}
-
-static inline int msr_efer_need_save_restore(struct vcpu_vmx *vmx)
-{
-	int efer_offset = vmx->msr_offset_efer;
-	return msr_efer_save_restore_bits(vmx->host_msrs[efer_offset]) !=
-		msr_efer_save_restore_bits(vmx->guest_msrs[efer_offset]);
 }
 
 static inline int is_page_fault(u32 intr_info)
@@ -351,14 +338,40 @@ static void reload_tss(void)
 
 static void load_transition_efer(struct vcpu_vmx *vmx)
 {
-	u64 trans_efer;
 	int efer_offset = vmx->msr_offset_efer;
+	u64 host_efer = vmx->host_msrs[efer_offset].data;
+	u64 guest_efer = vmx->guest_msrs[efer_offset].data;
+	u64 ignore_bits;
 
-	trans_efer = vmx->host_msrs[efer_offset].data;
-	trans_efer &= ~EFER_SAVE_RESTORE_BITS;
-	trans_efer |= msr_efer_save_restore_bits(vmx->guest_msrs[efer_offset]);
-	wrmsrl(MSR_EFER, trans_efer);
+	if (efer_offset < 0)
+		return;
+	/*
+	 * NX is emulated; LMA and LME handled by hardware; SCE meaninless
+	 * outside long mode
+	 */
+	ignore_bits = EFER_NX | EFER_SCE;
+#ifdef CONFIG_X86_64
+	ignore_bits |= EFER_LMA | EFER_LME;
+	/* SCE is meaningful only in long mode on Intel */
+	if (guest_efer & EFER_LMA)
+		ignore_bits &= ~(u64)EFER_SCE;
+#endif
+	if ((guest_efer & ~ignore_bits) == (host_efer & ~ignore_bits))
+		return;
+
+	vmx->host_state.guest_efer_loaded = 1;
+	guest_efer &= ~ignore_bits;
+	guest_efer |= host_efer & ignore_bits;
+	wrmsrl(MSR_EFER, guest_efer);
 	vmx->vcpu.stat.efer_reload++;
+}
+
+static void reload_host_efer(struct vcpu_vmx *vmx)
+{
+	if (vmx->host_state.guest_efer_loaded) {
+		vmx->host_state.guest_efer_loaded = 0;
+		load_msrs(vmx->host_msrs + vmx->msr_offset_efer, 1);
+	}
 }
 
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
@@ -406,8 +419,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	}
 #endif
 	load_msrs(vmx->guest_msrs, vmx->save_nmsrs);
-	if (msr_efer_need_save_restore(vmx))
-		load_transition_efer(vmx);
+	load_transition_efer(vmx);
 }
 
 static void vmx_load_host_state(struct vcpu_vmx *vmx)
@@ -436,8 +448,7 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 	reload_tss();
 	save_msrs(vmx->guest_msrs, vmx->save_nmsrs);
 	load_msrs(vmx->host_msrs, vmx->save_nmsrs);
-	if (msr_efer_need_save_restore(vmx))
-		load_msrs(vmx->host_msrs + vmx->msr_offset_efer, 1);
+	reload_host_efer(vmx);
 }
 
 /*
@@ -727,8 +738,10 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 #ifdef CONFIG_X86_64
 	case MSR_EFER:
 		ret = kvm_set_msr_common(vcpu, msr_index, data);
-		if (vmx->host_state.loaded)
+		if (vmx->host_state.loaded) {
+			reload_host_efer(vmx);
 			load_transition_efer(vmx);
+		}
 		break;
 	case MSR_FS_BASE:
 		vmcs_writel(GUEST_FS_BASE, data);
