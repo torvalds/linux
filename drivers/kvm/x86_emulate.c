@@ -123,7 +123,7 @@ static u8 opcode_table[256] = {
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	0, 0, 0, DstMem | SrcNone | ModRM | Mov,
 	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov, DstReg | SrcMem | Mov,
 	ByteOp | DstMem | SrcReg | Mov, DstMem | SrcReg | Mov,
@@ -928,7 +928,8 @@ push:
 		dst.bytes = op_bytes;
 		dst.val = src.val;
 		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
-		dst.ptr = register_address(ctxt->ss_base, _regs[VCPU_REGS_RSP]);
+		dst.ptr = (void *) register_address(ctxt->ss_base,
+							_regs[VCPU_REGS_RSP]);
 		break;
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (modrm_reg) {
@@ -1216,6 +1217,12 @@ special_insn:
 				) == 0)
 			return -1;
 		return 0;
+
+	case 0x9c: /* pushf */
+		src.val =  (unsigned long) _eflags;
+		goto push;
+		break;
+
 	}
 	if (rep_prefix) {
 		if (_regs[VCPU_REGS_RCX] == 0) {
