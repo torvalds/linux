@@ -1095,6 +1095,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	else {
 		inode->i_op = &btrfs_special_inode_operations;
 		init_special_inode(inode, inode->i_mode, rdev);
+		btrfs_update_inode(trans, root, inode);
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
