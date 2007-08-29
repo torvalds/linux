@@ -47,6 +47,8 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 			       struct ocfs2_alloc_context *data_ac,
 			       struct ocfs2_alloc_context *meta_ac,
 			       enum ocfs2_alloc_restarted *reason_ret);
+int ocfs2_extend_no_holes(struct inode *inode, u64 new_i_size,
+			  u64 zero_to);
 int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,

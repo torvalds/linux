@@ -301,11 +301,7 @@ int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
 {
 	int ret;
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-
 	ret = block_prepare_write(page, from, to, ocfs2_get_block);
-
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
 
 	return ret;
 }
@@ -1360,6 +1356,36 @@ out:
 	return ret;
 }
 
+/*
+ * This function only does anything for file systems which can't
+ * handle sparse files.
+ *
+ * What we want to do here is fill in any hole between the current end
+ * of allocation and the end of our write. That way the rest of the
+ * write path can treat it as an non-allocating write, which has no
+ * special case code for sparse/nonsparse files.
+ */
+static int ocfs2_expand_nonsparse_inode(struct inode *inode, loff_t pos,
+					unsigned len,
+					struct ocfs2_write_ctxt *wc)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	loff_t newsize = pos + len;
+
+	if (ocfs2_sparse_alloc(osb))
+		return 0;
+
+	if (newsize <= i_size_read(inode))
+		return 0;
+
+	ret = ocfs2_extend_no_holes(inode, newsize, newsize - len);
+	if (ret)
+		mlog_errno(ret);
+
+	return ret;
+}
+
 int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
@@ -1379,6 +1405,12 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
+	}
+
+	ret = ocfs2_expand_nonsparse_inode(inode, pos, len, wc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
 
 	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc,
