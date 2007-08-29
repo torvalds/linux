@@ -864,6 +864,7 @@ xfs_iread(
 	ip = kmem_zone_zalloc(xfs_inode_zone, KM_SLEEP);
 	ip->i_ino = ino;
 	ip->i_mount = mp;
+	atomic_set(&ip->i_iocount, 0);
 	spin_lock_init(&ip->i_flags_lock);
 
 	/*
@@ -1455,7 +1456,7 @@ xfs_itruncate_start(
 	mp = ip->i_mount;
 	vp = XFS_ITOV(ip);
 
-	vn_iowait(vp);  /* wait for the completion of any pending DIOs */
+	vn_iowait(ip);  /* wait for the completion of any pending DIOs */
 	
 	/*
 	 * Call toss_pages or flushinval_pages to get rid of pages

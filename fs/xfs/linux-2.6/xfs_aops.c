@@ -140,9 +140,11 @@ xfs_destroy_ioend(
 		next = bh->b_private;
 		bh->b_end_io(bh, !ioend->io_error);
 	}
-	if (unlikely(ioend->io_error))
-		vn_ioerror(ioend->io_vnode, ioend->io_error, __FILE__,__LINE__);
-	vn_iowake(ioend->io_vnode);
+	if (unlikely(ioend->io_error)) {
+		vn_ioerror(XFS_I(ioend->io_inode), ioend->io_error,
+				__FILE__,__LINE__);
+	}
+	vn_iowake(XFS_I(ioend->io_inode));
 	mempool_free(ioend, xfs_ioend_pool);
 }
 
@@ -157,13 +159,9 @@ STATIC void
 xfs_setfilesize(
 	xfs_ioend_t		*ioend)
 {
-	xfs_inode_t		*ip;
+	xfs_inode_t		*ip = XFS_I(ioend->io_inode);
 	xfs_fsize_t		isize;
 	xfs_fsize_t		bsize;
-
-	ip = xfs_vtoi(ioend->io_vnode);
-	if (!ip)
-		return;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
 	ASSERT(ioend->io_type != IOMAP_READ);
@@ -228,12 +226,11 @@ xfs_end_bio_unwritten(
 {
 	xfs_ioend_t		*ioend =
 		container_of(work, xfs_ioend_t, io_work);
-	bhv_vnode_t		*vp = ioend->io_vnode;
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
 
 	if (likely(!ioend->io_error)) {
-		xfs_bmap(xfs_vtoi(vp), offset, size,
+		xfs_bmap(XFS_I(ioend->io_inode), offset, size,
 				BMAPI_UNWRITTEN, NULL, NULL);
 		xfs_setfilesize(ioend);
 	}
@@ -277,10 +274,10 @@ xfs_alloc_ioend(
 	ioend->io_error = 0;
 	ioend->io_list = NULL;
 	ioend->io_type = type;
-	ioend->io_vnode = vn_from_inode(inode);
+	ioend->io_inode = inode;
 	ioend->io_buffer_head = NULL;
 	ioend->io_buffer_tail = NULL;
-	atomic_inc(&ioend->io_vnode->v_iocount);
+	atomic_inc(&XFS_I(ioend->io_inode)->i_iocount);
 	ioend->io_offset = 0;
 	ioend->io_size = 0;
 
@@ -506,7 +503,7 @@ xfs_cancel_ioend(
 			unlock_buffer(bh);
 		} while ((bh = next_bh) != NULL);
 
-		vn_iowake(ioend->io_vnode);
+		vn_iowake(XFS_I(ioend->io_inode));
 		mempool_free(ioend, xfs_ioend_pool);
 	} while ((ioend = next) != NULL);
 }

@@ -20,6 +20,17 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
 
+/*
+ * And this gunk is needed for xfs_mount.h"
+ */
+#include "xfs_log.h"
+#include "xfs_trans.h"
+#include "xfs_sb.h"
+#include "xfs_dmapi.h"
+#include "xfs_inum.h"
+#include "xfs_ag.h"
+#include "xfs_mount.h"
+
 uint64_t vn_generation;		/* vnode generation number */
 DEFINE_SPINLOCK(vnumber_lock);
 
@@ -42,19 +53,19 @@ vn_init(void)
 
 void
 vn_iowait(
-	bhv_vnode_t	*vp)
+	xfs_inode_t	*ip)
 {
-	wait_queue_head_t *wq = vptosync(vp);
+	wait_queue_head_t *wq = vptosync(ip);
 
-	wait_event(*wq, (atomic_read(&vp->v_iocount) == 0));
+	wait_event(*wq, (atomic_read(&ip->i_iocount) == 0));
 }
 
 void
 vn_iowake(
-	bhv_vnode_t	*vp)
+	xfs_inode_t	*ip)
 {
-	if (atomic_dec_and_test(&vp->v_iocount))
-		wake_up(vptosync(vp));
+	if (atomic_dec_and_test(&ip->i_iocount))
+		wake_up(vptosync(ip));
 }
 
 /*
@@ -64,12 +75,12 @@ vn_iowake(
  */
 void
 vn_ioerror(
-	bhv_vnode_t	*vp,
+	xfs_inode_t	*ip,
 	int		error,
 	char		*f,
 	int		l)
 {
-	bhv_vfs_t	*vfsp = vfs_from_sb(vp->v_inode.i_sb);
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(ip->i_mount);
 
 	if (unlikely(error == -ENODEV))
 		bhv_vfs_force_shutdown(vfsp, SHUTDOWN_DEVICE_REQ, f, l);
@@ -91,8 +102,6 @@ vn_initialize(
 	spin_unlock(&vnumber_lock);
 
 	ASSERT(VN_CACHED(vp) == 0);
-
-	atomic_set(&vp->v_iocount, 0);
 
 #ifdef	XFS_VNODE_TRACE
 	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);

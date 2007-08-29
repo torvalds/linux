@@ -299,6 +299,7 @@ typedef struct xfs_inode {
 	struct hlist_node	i_cnode;	/* cluster link node */
 
 	xfs_fsize_t		i_size;		/* in-memory size */
+	atomic_t		i_iocount;	/* outstanding I/O count */
 	/* Trace buffers per inode. */
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */

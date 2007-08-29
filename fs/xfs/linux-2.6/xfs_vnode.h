@@ -29,7 +29,6 @@ typedef __u64		bhv_vnumber_t;
 
 typedef struct bhv_vnode {
 	bhv_vnumber_t	v_number;		/* in-core vnode number */
-	atomic_t	v_iocount;		/* outstanding I/O count */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
 #endif
@@ -202,10 +201,13 @@ extern int	vn_revalidate(struct bhv_vnode *);
 extern int	__vn_revalidate(struct bhv_vnode *, bhv_vattr_t *);
 extern void	vn_revalidate_core(struct bhv_vnode *, bhv_vattr_t *);
 
-extern void	vn_iowait(struct bhv_vnode *vp);
-extern void	vn_iowake(struct bhv_vnode *vp);
-
-extern void	vn_ioerror(struct bhv_vnode *vp, int error, char *f, int l);
+/*
+ * Yeah, these don't take vnode anymore at all, all this should be
+ * cleaned up at some point.
+ */
+extern void	vn_iowait(struct xfs_inode *ip);
+extern void	vn_iowake(struct xfs_inode *ip);
+extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
 static inline int vn_count(struct bhv_vnode *vp)
 {

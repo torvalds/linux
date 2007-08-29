@@ -1209,7 +1209,7 @@ xfs_sync_inodes(
 			 * place after this point
 			 */
 			if (flags & SYNC_IOWAIT)
-				vn_iowait(vp);
+				vn_iowait(ip);
 
 			xfs_ilock(ip, XFS_ILOCK_SHARED);
 		}
