@@ -1178,9 +1178,9 @@ qeth_ipaddr_to_string(enum qeth_prot_versions proto, const __u8 *addr,
 		      char *buf)
 {
 	if (proto == QETH_PROT_IPV4)
-		return qeth_ipaddr4_to_string(addr, buf);
+		qeth_ipaddr4_to_string(addr, buf);
 	else if (proto == QETH_PROT_IPV6)
-		return qeth_ipaddr6_to_string(addr, buf);
+		qeth_ipaddr6_to_string(addr, buf);
 }
 
 static inline int
