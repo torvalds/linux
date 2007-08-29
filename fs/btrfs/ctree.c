@@ -266,8 +266,10 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		err = __btrfs_cow_block(trans, root, cur_bh, parent, i,
 					&tmp_bh, search_start,
 					min(8, end_slot - i));
-		if (err)
+		if (err) {
+			brelse(cur_bh);
 			break;
+		}
 		search_start = bh_blocknr(tmp_bh);
 		*last_ret = search_start;
 		if (parent_level == 1)
@@ -881,7 +883,6 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      ins_len, int cow)
 {
 	struct buffer_head *b;
-	struct buffer_head *cow_buf;
 	struct btrfs_node *c;
 	u64 blocknr;
 	int slot;
@@ -905,12 +906,11 @@ again:
 			wret = btrfs_cow_block(trans, root, b,
 					       p->nodes[level + 1],
 					       p->slots[level + 1],
-					       &cow_buf);
+					       &b);
 			if (wret) {
-				btrfs_block_release(root, cow_buf);
+				btrfs_block_release(root, b);
 				return wret;
 			}
-			b = cow_buf;
 			c = btrfs_buffer_node(b);
 		}
 		BUG_ON(!cow && ins_len);
@@ -1075,8 +1075,9 @@ static int balance_node_right(struct btrfs_trans_handle *trans, struct
 
 	max_push = src_nritems / 2 + 1;
 	/* don't try to empty the node */
-	if (max_push > src_nritems)
+	if (max_push >= src_nritems)
 		return 1;
+
 	if (max_push < push_items)
 		push_items = max_push;
 
@@ -1465,6 +1466,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 	ret = btrfs_cow_block(trans, root, t, path->nodes[1], slot - 1, &t);
 	if (ret) {
 		/* we hit -ENOSPC, but it isn't fatal here */
+		btrfs_block_release(root, t);
 		return 1;
 	}
 	left = btrfs_buffer_leaf(t);
