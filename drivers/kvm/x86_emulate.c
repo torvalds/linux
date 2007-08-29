@@ -104,10 +104,11 @@ static u8 opcode_table[256] = {
 	/* 0x58 - 0x5F */
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
-	/* 0x60 - 0x6B */
+	/* 0x60 - 0x67 */
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0x6C - 0x6F */
+	0, 0, 0, 0,
+	/* 0x68 - 0x6F */
+	0, 0, ImplicitOps|Mov, 0,
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x7F */
@@ -918,6 +919,16 @@ done_prefixes:
 		if (mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
 		dst.val = (s32) src.val;
+		break;
+	case 0x6a: /* push imm8 */
+		src.val = 0L;
+		src.val = insn_fetch(s8, 1, _eip);
+push:
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = register_address(ctxt->ss_base, _regs[VCPU_REGS_RSP]);
 		break;
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (modrm_reg) {
