@@ -733,7 +733,8 @@ out:
  */
 static int fixup_tree_root_location(struct btrfs_root *root,
 			     struct btrfs_key *location,
-			     struct btrfs_root **sub_root)
+			     struct btrfs_root **sub_root,
+			     struct dentry *dentry)
 {
 	struct btrfs_path *path;
 	struct btrfs_root_item *ri;
@@ -747,7 +748,9 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	BUG_ON(!path);
 	mutex_lock(&root->fs_info->fs_mutex);
 
-	*sub_root = btrfs_read_fs_root(root->fs_info, location);
+	*sub_root = btrfs_read_fs_root(root->fs_info, location,
+					dentry->d_name.name,
+					dentry->d_name.len);
 	if (IS_ERR(*sub_root))
 		return PTR_ERR(*sub_root);
 
@@ -812,7 +815,8 @@ static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 		return ERR_PTR(ret);
 	inode = NULL;
 	if (location.objectid) {
-		ret = fixup_tree_root_location(root, &location, &sub_root);
+		ret = fixup_tree_root_location(root, &location, &sub_root,
+						dentry);
 		if (ret < 0)
 			return ERR_PTR(ret);
 		if (ret > 0)
@@ -1829,6 +1833,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	btrfs_set_root_blocknr(&root_item, bh_blocknr(subvol));
 	btrfs_set_root_refs(&root_item, 1);
+	btrfs_set_root_blocks_used(&root_item, 0);
 	memset(&root_item.drop_progress, 0, sizeof(root_item.drop_progress));
 	root_item.drop_level = 0;
 	brelse(subvol);
@@ -1865,7 +1870,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail_commit;
 
-	new_root = btrfs_read_fs_root(root->fs_info, &key);
+	new_root = btrfs_read_fs_root(root->fs_info, &key, name, namelen);
 	BUG_ON(!new_root);
 
 	trans = btrfs_start_transaction(new_root, 1);

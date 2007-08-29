@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/buffer_head.h>
 #include <linux/workqueue.h>
+#include <linux/completion.h>
 #include "bit-radix.h"
 
 struct btrfs_trans_handle;
@@ -313,6 +314,8 @@ struct btrfs_fs_info {
 	struct list_head trans_list;
 	struct list_head dead_roots;
 	struct delayed_work trans_work;
+	struct kobject super_kobj;
+	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;
 };
@@ -328,6 +331,8 @@ struct btrfs_root {
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
+	struct kobject root_kobj;
+	struct completion kobj_unregister;
 	u64 objectid;
 	u64 last_trans;
 	u32 blocksize;
@@ -338,6 +343,7 @@ struct btrfs_root {
 	struct btrfs_key defrag_progress;
 	int defrag_running;
 	int defrag_level;
+	char *name;
 };
 
 /* the lower bits in the key flags defines the item type */
@@ -814,6 +820,28 @@ static inline void btrfs_set_root_flags(struct btrfs_root_item *item, u32 val)
 	item->flags = cpu_to_le32(val);
 }
 
+static inline void btrfs_set_root_blocks_used(struct btrfs_root_item *item,
+						   u64 val)
+{
+	item->blocks_used = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_root_blocks_used(struct btrfs_root_item *item)
+{
+	return le64_to_cpu(item->blocks_used);
+}
+
+static inline void btrfs_set_root_block_limit(struct btrfs_root_item *item,
+						u64 val)
+{
+	item->block_limit = cpu_to_le64(val);
+}
+
+static inline u64 btrfs_root_block_limit(struct btrfs_root_item *item)
+{
+	return le64_to_cpu(item->block_limit);
+}
+
 static inline u64 btrfs_super_blocknr(struct btrfs_super_block *s)
 {
 	return le64_to_cpu(s->blocknr);
@@ -1014,6 +1042,23 @@ static inline void btrfs_memmove(struct btrfs_root *root,
 	memmove(dst, src, nr);
 }
 
+static inline int btrfs_set_root_name(struct btrfs_root *root,
+				      const char *name, int len)
+{
+	/* if we already have a name just free it */
+	if (root->name)
+		kfree(root->name);
+
+	root->name = kmalloc(len+1, GFP_KERNEL);
+	if (!root->name)
+		return -ENOMEM;
+
+	memcpy(root->name, name, len);
+	root->name[len] ='\0';
+
+	return 0;
+}
+
 /* helper function to cast into the data area of the leaf. */
 #define btrfs_item_ptr(leaf, slot, type) \
 	((type *)(btrfs_leaf_data(leaf) + \
@@ -1191,4 +1236,13 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 /* tree-defrag.c */
 int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, int cache_only);
+
+/* sysfs.c */
+int btrfs_init_sysfs(void);
+void btrfs_exit_sysfs(void);
+int btrfs_sysfs_add_super(struct btrfs_fs_info *fs);
+int btrfs_sysfs_add_root(struct btrfs_root *root);
+void btrfs_sysfs_del_root(struct btrfs_root *root);
+void btrfs_sysfs_del_super(struct btrfs_fs_info *root);
+
 #endif

@@ -66,7 +66,8 @@ struct buffer_head *btrfs_find_tree_block(struct btrfs_root *root, u64 blocknr);
 int btrfs_csum_data(struct btrfs_root * root, char *data, size_t len,
 		    char *result);
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
-				      struct btrfs_key *location);
+				      struct btrfs_key *location,
+				      const char *name, int namelen);
 struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 					       struct btrfs_key *location);
 u64 bh_blocknr(struct buffer_head *bh);

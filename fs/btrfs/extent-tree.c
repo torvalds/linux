@@ -858,16 +858,23 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_extent_refs(ei, refs);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	if (refs == 0) {
-		u64 super_blocks_used;
+		u64 super_blocks_used, root_blocks_used;
 
 		if (pin) {
 			ret = pin_down_block(root, blocknr, 0);
 			BUG_ON(ret);
 		}
 
+		/* block accounting for super block */
 		super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
 		btrfs_set_super_blocks_used(&info->super_copy,
 					    super_blocks_used - num_blocks);
+
+		/* block accounting for root item */
+		root_blocks_used = btrfs_root_blocks_used(&root->root_item);
+		btrfs_set_root_blocks_used(&root->root_item,
+					   root_blocks_used - num_blocks);
+
 		ret = btrfs_del_item(trans, extent_root, path);
 		if (ret) {
 			return ret;
@@ -1175,7 +1182,7 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	int pending_ret;
-	u64 super_blocks_used;
+	u64 super_blocks_used, root_blocks_used;
 	u64 search_start = 0;
 	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_root *extent_root = info->extent_root;
@@ -1193,9 +1200,15 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
+	/* block accounting for super block */
 	super_blocks_used = btrfs_super_blocks_used(&info->super_copy);
 	btrfs_set_super_blocks_used(&info->super_copy, super_blocks_used +
 				    num_blocks);
+
+	/* block accounting for root item */
+	root_blocks_used = btrfs_root_blocks_used(&root->root_item);
+	btrfs_set_root_blocks_used(&root->root_item, root_blocks_used +
+				   num_blocks);
 
 	if (root == extent_root) {
 		BUG_ON(num_blocks != 1);

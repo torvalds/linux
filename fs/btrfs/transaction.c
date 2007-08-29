@@ -236,6 +236,7 @@ static int wait_for_commit(struct btrfs_root *root,
 struct dirty_root {
 	struct list_head list;
 	struct btrfs_root *root;
+	struct btrfs_root *latest_root;
 };
 
 int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
@@ -278,6 +279,15 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 					btrfs_root_blocknr(&root->root_item));
 				brelse(root->commit_root);
 				root->commit_root = NULL;
+
+				/* make sure to update the root on disk
+				 * so we get any updates to the block used
+				 * counts
+				 */
+				err = btrfs_update_root(trans,
+						root->fs_info->tree_root,
+						&root->root_key,
+						&root->root_item);
 				continue;
 			}
 			dirty = kmalloc(sizeof(*dirty), GFP_NOFS);
@@ -291,6 +301,7 @@ static int add_dirty_roots(struct btrfs_trans_handle *trans,
 
 			memcpy(dirty->root, root, sizeof(*root));
 			dirty->root->node = root->commit_root;
+			dirty->latest_root = root;
 			root->commit_root = NULL;
 
 			root->root_key.offset = root->fs_info->generation;
@@ -384,20 +395,29 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 {
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
+	u64 num_blocks;
+	u64 blocks_used;
 	int ret = 0;
 	int err;
 
 	while(!list_empty(list)) {
+		struct btrfs_root *root;
+
 		mutex_lock(&tree_root->fs_info->fs_mutex);
 		dirty = list_entry(list->next, struct dirty_root, list);
 		list_del_init(&dirty->list);
 
+		num_blocks = btrfs_root_blocks_used(&dirty->root->root_item);
+		root = dirty->latest_root;
+
 		while(1) {
 			trans = btrfs_start_transaction(tree_root, 1);
+
 			ret = btrfs_drop_snapshot(trans, dirty->root);
 			if (ret != -EAGAIN) {
 				break;
 			}
+
 			err = btrfs_update_root(trans,
 					tree_root,
 					&dirty->root->root_key,
@@ -414,9 +434,19 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 			mutex_lock(&tree_root->fs_info->fs_mutex);
 		}
 		BUG_ON(ret);
+
+		num_blocks -= btrfs_root_blocks_used(&dirty->root->root_item);
+		blocks_used = btrfs_root_blocks_used(&root->root_item);
+		if (num_blocks) {
+			record_root_in_trans(root);
+			btrfs_set_root_blocks_used(&root->root_item,
+						   blocks_used - num_blocks);
+		}
 		ret = btrfs_del_root(trans, tree_root, &dirty->root->root_key);
-		if (ret)
+		if (ret) {
+			BUG();
 			break;
+		}
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 
@@ -534,10 +564,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	wake_up(&cur_trans->commit_wait);
 	put_transaction(cur_trans);
 	put_transaction(cur_trans);
+
 	if (root->fs_info->closing)
 		list_splice_init(&root->fs_info->dead_roots, &dirty_fs_roots);
 	else
 		list_splice_init(&dirty_fs_roots, &root->fs_info->dead_roots);
+
 	mutex_unlock(&root->fs_info->trans_mutex);
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 

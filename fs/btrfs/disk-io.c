@@ -294,9 +294,12 @@ static int __setup_root(int blocksize,
 	root->last_trans = 0;
 	root->highest_inode = 0;
 	root->last_inode_alloc = 0;
+	root->name = NULL;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
+	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
+	init_completion(&root->kobj_unregister);
 	root->defrag_running = 0;
 	root->defrag_level = 0;
 	root->root_key.objectid = objectid;
@@ -384,7 +387,8 @@ insert:
 }
 
 struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
-				      struct btrfs_key *location)
+				      struct btrfs_key *location,
+				      const char *name, int namelen)
 {
 	struct btrfs_root *root;
 	int ret;
@@ -405,6 +409,22 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+
+	ret = btrfs_set_root_name(root, name, namelen);
+	if (ret) {
+		brelse(root->node);
+		kfree(root);
+		return ERR_PTR(ret);
+	}
+
+	ret = btrfs_sysfs_add_root(root);
+	if (ret) {
+		brelse(root->node);
+		kfree(root->name);
+		kfree(root);
+		return ERR_PTR(ret);
+	}
+
 	return root;
 }
 
@@ -433,6 +453,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_RADIX_TREE(&fs_info->block_group_data_radix, GFP_KERNEL);
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
+	memset(&fs_info->super_kobj, 0, sizeof(fs_info->super_kobj));
+	init_completion(&fs_info->kobj_unregister);
 	sb_set_blocksize(sb, 4096);
 	fs_info->running_transaction = NULL;
 	fs_info->last_trans_committed = 0;
@@ -500,8 +522,10 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
 	ret = btrfs_find_dead_roots(tree_root);
-	if (ret)
+	if (ret) {
+		mutex_unlock(&fs_info->fs_mutex);
 		goto fail_tree_root;
+	}
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 
@@ -553,12 +577,15 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
+	btrfs_sysfs_del_root(root);
 	if (root->inode)
 		iput(root->inode);
 	if (root->node)
 		brelse(root->node);
 	if (root->commit_root)
 		brelse(root->commit_root);
+	if (root->name)
+		kfree(root->name);
 	kfree(root);
 	return 0;
 }

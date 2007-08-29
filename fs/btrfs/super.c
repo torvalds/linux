@@ -45,12 +45,14 @@ static struct super_operations btrfs_super_ops;
 static void btrfs_put_super (struct super_block * sb)
 {
 	struct btrfs_root *root = btrfs_sb(sb);
+	struct btrfs_fs_info *fs = root->fs_info;
 	int ret;
 
 	ret = close_ctree(root);
 	if (ret) {
 		printk("close ctree returns %d\n", ret);
 	}
+	btrfs_sysfs_del_super(fs);
 	sb->s_fs_info = NULL;
 }
 
@@ -101,6 +103,12 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 		err = -ENOMEM;
 		goto fail_close;
 	}
+
+	/* this does the super kobj at the same time */
+	err = btrfs_sysfs_add_super(tree_root->fs_info);
+	if (err)
+		goto fail_close;
+
 	sb->s_root = root_dentry;
 	btrfs_transaction_queue_work(tree_root, HZ * 30);
 	return 0;
@@ -182,6 +190,11 @@ static struct super_operations btrfs_super_ops = {
 static int __init init_btrfs_fs(void)
 {
 	int err;
+
+	err = btrfs_init_sysfs();
+	if (err)
+		return err;
+
 	btrfs_init_transaction_sys();
 	err = btrfs_init_cachep();
 	if (err)
@@ -196,6 +209,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_destroy_cachep();
 	extent_map_exit();
 	unregister_filesystem(&btrfs_fs_type);
+	btrfs_exit_sysfs();
 }
 
 module_init(init_btrfs_fs)
