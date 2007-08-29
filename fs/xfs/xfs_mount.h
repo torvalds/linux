@@ -66,7 +66,6 @@ struct xfs_swapext;
 struct xfs_mru_cache;
 
 extern struct bhv_vfsops xfs_vfsops;
-extern struct bhv_vnodeops xfs_vnodeops;
 
 #define	AIL_LOCK_T		lock_t
 #define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)

@@ -46,6 +46,7 @@
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
+#include "xfs_vnodeops.h"
 #include "xfs_version.h"
 
 #include <linux/namei.h>
@@ -203,16 +204,15 @@ void
 xfs_initialize_vnode(
 	bhv_desc_t		*bdp,
 	bhv_vnode_t		*vp,
-	bhv_desc_t		*inode_bhv,
+	struct xfs_inode	*ip,
 	int			unlock)
 {
-	xfs_inode_t		*ip = XFS_BHVTOI(inode_bhv);
 	struct inode		*inode = vn_to_inode(vp);
 
-	if (!inode_bhv->bd_vobj) {
+	if (!ip->i_vnode) {
 		vp->v_vfsp = bhvtovfs(bdp);
-		bhv_desc_init(inode_bhv, ip, vp, &xfs_vnodeops);
-		bhv_insert(VN_BHV_HEAD(vp), inode_bhv);
+		ip->i_vnode = vp;
+		inode->i_private = ip;
 	}
 
 	/*
@@ -402,19 +402,23 @@ xfs_fs_write_inode(
 	struct inode		*inode,
 	int			sync)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
 	int			error = 0, flags = FLUSH_INODE;
 
-	if (vp) {
-		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		if (sync) {
-			filemap_fdatawait(inode->i_mapping);
-			flags |= FLUSH_SYNC;
-		}
-		error = bhv_vop_iflush(vp, flags);
-		if (error == EAGAIN)
-			error = sync? bhv_vop_iflush(vp, flags | FLUSH_LOG) : 0;
+	vn_trace_entry(vn_from_inode(inode), __FUNCTION__,
+			(inst_t *)__return_address);
+	if (sync) {
+		filemap_fdatawait(inode->i_mapping);
+		flags |= FLUSH_SYNC;
 	}
+	error = xfs_inode_flush(XFS_I(inode), flags);
+	if (error == EAGAIN) {
+		if (sync)
+			error = xfs_inode_flush(XFS_I(inode),
+						       flags | FLUSH_LOG);
+		else
+			error = 0;
+	}
+
 	return -error;
 }
 
@@ -435,18 +439,18 @@ xfs_fs_clear_inode(
 	 * This can happen because xfs_iget_core calls xfs_idestroy if we
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
-	if (VNHEAD(vp))
-		bhv_vop_inactive(vp, NULL);
+	if (XFS_I(inode))
+		xfs_inactive(XFS_I(inode));
 
 	VN_LOCK(vp);
 	vp->v_flag &= ~VMODIFIED;
 	VN_UNLOCK(vp, 0);
 
-	if (VNHEAD(vp))
-		if (bhv_vop_reclaim(vp))
+	if (XFS_I(inode))
+		if (xfs_reclaim(XFS_I(inode)))
 			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
 
-	ASSERT(VNHEAD(vp) == NULL);
+	ASSERT(XFS_I(inode) == NULL);
 
 #ifdef XFS_VNODE_TRACE
 	ktrace_free(vp->v_trace);

@@ -586,11 +586,8 @@ xfs_rename(
 	/*
 	 * Let interposed file systems know about removed links.
 	 */
-	if (target_ip_dropped) {
-		bhv_vop_link_removed(XFS_ITOV(target_ip), target_dir_vp,
-					target_link_zero);
+	if (target_ip_dropped)
 		IRELE(target_ip);
-	}
 
 	IRELE(src_ip);
 

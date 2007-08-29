@@ -49,6 +49,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_acl.h"
 #include "xfs_rw.h"
+#include "xfs_vnodeops.h"
 
 /*
  * xfs_attr.c
@@ -2512,7 +2513,7 @@ STATIC int
 attr_generic_set(
 	bhv_vnode_t *vp, char *name, void *data, size_t size, int xflags)
 {
-	return -bhv_vop_attr_set(vp, name, data, size, xflags, NULL);
+	return -xfs_attr_set(xfs_vtoi(vp), name, data, size, xflags);
 }
 
 STATIC int
@@ -2521,7 +2522,8 @@ attr_generic_get(
 {
 	int	error, asize = size;
 
-	error = bhv_vop_attr_get(vp, name, data, &asize, xflags, NULL);
+	error = xfs_attr_get(xfs_vtoi(vp), name, data,
+				    &asize, xflags, NULL);
 	if (!error)
 		return asize;
 	return -error;
@@ -2531,7 +2533,7 @@ STATIC int
 attr_generic_remove(
 	bhv_vnode_t *vp, char *name, int xflags)
 {
-	return -bhv_vop_attr_remove(vp, name, xflags, NULL);
+	return -xfs_attr_remove(xfs_vtoi(vp), name, xflags);
 }
 
 STATIC int
@@ -2586,7 +2588,7 @@ attr_generic_list(
 	attrlist_cursor_kern_t	cursor = { 0 };
 	int			error;
 
-	error = bhv_vop_attr_list(vp, data, size, xflags, &cursor, NULL);
+	error = xfs_attr_list(xfs_vtoi(vp), data, size, xflags, &cursor);
 	if (error > 0)
 		return -error;
 	*result = -error;

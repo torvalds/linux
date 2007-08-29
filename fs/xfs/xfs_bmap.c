@@ -53,6 +53,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_buf_item.h"
 #include "xfs_filestream.h"
+#include "xfs_vnodeops.h"
 
 
 #ifdef DEBUG
@@ -5868,7 +5869,8 @@ xfs_getbmap(
 	if (whichfork == XFS_DATA_FORK &&
 		(ip->i_delayed_blks || ip->i_size > ip->i_d.di_size)) {
 		/* xfs_fsize_t last_byte = xfs_file_last_byte(ip); */
-		error = bhv_vop_flush_pages(vp, (xfs_off_t)0, -1, 0, FI_REMAPF);
+		error = xfs_flush_pages(ip, (xfs_off_t)0,
+					       -1, 0, FI_REMAPF);
 	}
 
 	ASSERT(whichfork == XFS_ATTR_FORK || ip->i_delayed_blks == 0);

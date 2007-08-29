@@ -49,6 +49,7 @@
 #include "xfs_quota.h"
 #include "xfs_acl.h"
 #include "xfs_filestream.h"
+#include "xfs_vnodeops.h"
 
 kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
@@ -1267,7 +1268,7 @@ xfs_ialloc(
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
-	bhv_vfs_init_vnode(XFS_MTOVFS(tp->t_mountp), vp, XFS_ITOBHV(ip), 1);
+	bhv_vfs_init_vnode(XFS_MTOVFS(tp->t_mountp), vp, ip, 1);
 
 	*ipp = ip;
 	return 0;
@@ -1489,9 +1490,11 @@ xfs_itruncate_start(
 			 last_byte);
 	if (last_byte > toss_start) {
 		if (flags & XFS_ITRUNC_DEFINITE) {
-			bhv_vop_toss_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
+			xfs_tosspages(ip, toss_start,
+					-1, FI_REMAPF_LOCKED);
 		} else {
-			error = bhv_vop_flushinval_pages(vp, toss_start, -1, FI_REMAPF_LOCKED);
+			error = xfs_flushinval_pages(ip, toss_start,
+					-1, FI_REMAPF_LOCKED);
 		}
 	}
 

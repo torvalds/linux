@@ -16,6 +16,9 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_vnodeops.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_inode.h"
 
 uint64_t vn_generation;		/* vnode generation number */
 DEFINE_SPINLOCK(vnumber_lock);
@@ -90,9 +93,6 @@ vn_initialize(
 
 	ASSERT(VN_CACHED(vp) == 0);
 
-	/* Initialize the first behavior and the behavior chain head. */
-	vn_bhv_head_init(VN_BHV_HEAD(vp), "vnode");
-
 	atomic_set(&vp->v_iocount, 0);
 
 #ifdef	XFS_VNODE_TRACE
@@ -152,7 +152,7 @@ __vn_revalidate(
 
 	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
 	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
-	error = bhv_vop_getattr(vp, vattr, 0, NULL);
+	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
 	if (likely(!error)) {
 		vn_revalidate_core(vp, vattr);
 		VUNMODIFY(vp);

@@ -592,7 +592,7 @@ xfs_setattr(
 		if (!code &&
 		    (ip->i_size != ip->i_d.di_size) &&
 		    (vap->va_size > ip->i_d.di_size)) {
-			code = bhv_vop_flush_pages(XFS_ITOV(ip),
+			code = xfs_flush_pages(ip,
 					ip->i_d.di_size, vap->va_size,
 					XFS_B_ASYNC, FI_NONE);
 		}
@@ -864,10 +864,6 @@ xfs_setattr(
 	 * racing calls to vop_vnode_change.
 	 */
 	mandlock_after = MANDLOCK(vp, ip->i_d.di_mode);
-	if (mandlock_before != mandlock_after) {
-		bhv_vop_vnode_change(vp, VCHANGE_FLAGS_ENF_LOCKING,
-				 mandlock_after);
-	}
 
 	xfs_iunlock(ip, lock_flags);
 
@@ -1544,7 +1540,7 @@ xfs_release(
 		 * be exposed to that problem.
 		 */
 		if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
-			bhv_vop_flush_pages(vp, 0, -1, XFS_B_ASYNC, FI_NONE);
+			xfs_flush_pages(ip, 0, -1, XFS_B_ASYNC, FI_NONE);
 	}
 
 #ifdef HAVE_REFCACHE
@@ -2007,12 +2003,6 @@ xfs_create(
 
 	XFS_QM_DQRELE(mp, udqp);
 	XFS_QM_DQRELE(mp, gdqp);
-
-	/*
-	 * Propagate the fact that the vnode changed after the
-	 * xfs_inode locks have been released.
-	 */
-	bhv_vop_vnode_change(vp, VCHANGE_FLAGS_TRUNCATED, 3);
 
 	*vpp = vp;
 
@@ -2511,11 +2501,6 @@ xfs_remove(
 		xfs_filestream_deassociate(ip);
 
 	vn_trace_exit(XFS_ITOV(ip), __FUNCTION__, (inst_t *)__return_address);
-
-	/*
-	 * Let interposed file systems know about removed links.
-	 */
-	bhv_vop_link_removed(XFS_ITOV(ip), dir_vp, link_zero);
 
 	IRELE(ip);
 
@@ -3146,11 +3131,6 @@ xfs_rmdir(
 	}
 
 
-	/*
-	 * Let interposed file systems know about removed links.
-	 */
-	bhv_vop_link_removed(XFS_ITOV(cdp), dir_vp, last_cdp_link);
-
 	IRELE(cdp);
 
 	/* Fall through to std_return with error = 0 or the errno
@@ -3732,7 +3712,8 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		spin_lock(&ip->i_flags_lock);
 		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		vn_bhv_remove(VN_BHV_HEAD(vp), XFS_ITOBHV(ip));
+		vn_to_inode(vp)->i_private = NULL;
+		ip->i_vnode = NULL;
 		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
 		XFS_MOUNT_IUNLOCK(mp);
@@ -4214,7 +4195,8 @@ xfs_free_file_space(
 	if (VN_CACHED(vp) != 0) {
 		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
 				ctooff(offtoct(ioffset)), -1);
-		error = bhv_vop_flushinval_pages(vp, ctooff(offtoct(ioffset)),
+		error = xfs_flushinval_pages(ip,
+				ctooff(offtoct(ioffset)),
 				-1, FI_REMAPF_LOCKED);
 		if (error)
 			goto out_unlock_iolock;

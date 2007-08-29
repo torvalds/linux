@@ -257,7 +257,7 @@ typedef struct xfs_inode {
 	struct xfs_inode	*i_mprev;	/* ptr to prev inode */
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
 	struct list_head	i_reclaim;	/* reclaim list */
-	struct bhv_desc		i_bhv_desc;	/* inode behavior descriptor*/
+	struct bhv_vnode	*i_vnode;	/* vnode backpointer */
 	struct xfs_dquot	*i_udquot;	/* user dquot */
 	struct xfs_dquot	*i_gdquot;	/* group dquot */
 
@@ -465,12 +465,8 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 #define	XFS_ITRUNC_DEFINITE	0x1
 #define	XFS_ITRUNC_MAYBE	0x2
 
-#define	XFS_ITOV(ip)		BHV_TO_VNODE(XFS_ITOBHV(ip))
-#define	XFS_ITOV_NULL(ip)	BHV_TO_VNODE_NULL(XFS_ITOBHV(ip))
-#define	XFS_ITOBHV(ip)		((struct bhv_desc *)(&((ip)->i_bhv_desc)))
-#define	XFS_BHVTOI(bhvp)	((xfs_inode_t *)((char *)(bhvp) - \
-				(char *)&(((xfs_inode_t *)0)->i_bhv_desc)))
-#define BHV_IS_XFS(bdp)		(BHV_OPS(bdp) == &xfs_vnodeops)
+#define	XFS_ITOV(ip)		((ip)->i_vnode)
+#define	XFS_ITOV_NULL(ip)	((ip)->i_vnode)
 
 /*
  * For multiple groups support: if S_ISGID bit is set in the parent
@@ -556,8 +552,6 @@ uint		xfs_iroundup(uint);
 void		xfs_ichgtime(xfs_inode_t *, int);
 xfs_fsize_t	xfs_file_last_byte(xfs_inode_t *);
 void		xfs_lock_inodes(xfs_inode_t **, int, int, uint);
-
-xfs_inode_t	*xfs_vtoi(struct bhv_vnode *vp);
 
 void		xfs_synchronize_atime(xfs_inode_t *);
 

@@ -25,6 +25,9 @@
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_export.h"
+#include "xfs_vnodeops.h"
+#include "xfs_bmap_btree.h"
+#include "xfs_inode.h"
 
 static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
@@ -161,12 +164,11 @@ xfs_fs_get_parent(
 	struct dentry		*child)
 {
 	int			error;
-	bhv_vnode_t		*vp, *cvp;
+	bhv_vnode_t		*cvp;
 	struct dentry		*parent;
 
 	cvp = NULL;
-	vp = vn_from_inode(child->d_inode);
-	error = bhv_vop_lookup(vp, &dotdot, &cvp, 0, NULL, NULL);
+	error = xfs_lookup(XFS_I(child->d_inode), &dotdot, &cvp);
 	if (unlikely(error))
 		return ERR_PTR(-error);
 

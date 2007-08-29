@@ -342,7 +342,7 @@ finish_inode:
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	bhv_vfs_init_vnode(XFS_MTOVFS(mp), vp, XFS_ITOBHV(ip), 1);
+	bhv_vfs_init_vnode(XFS_MTOVFS(mp), vp, ip, 1);
 
 	return 0;
 }
@@ -536,7 +536,8 @@ xfs_ireclaim(xfs_inode_t *ip)
 	 */
 	vp = XFS_ITOV_NULL(ip);
 	if (vp) {
-		vn_bhv_remove(VN_BHV_HEAD(vp), XFS_ITOBHV(ip));
+		vn_to_inode(vp)->i_private = NULL;
+		ip->i_vnode = NULL;
 	}
 
 	/*

@@ -28,6 +28,7 @@ struct fid;
 struct cred;
 struct seq_file;
 struct super_block;
+struct xfs_inode;
 struct xfs_mount_args;
 
 typedef struct kstatfs	bhv_statvfs_t;
@@ -131,7 +132,7 @@ typedef int	(*vfs_vget_t)(bhv_desc_t *, struct bhv_vnode **, struct fid *);
 typedef int	(*vfs_dmapiops_t)(bhv_desc_t *, caddr_t);
 typedef int	(*vfs_quotactl_t)(bhv_desc_t *, int, int, caddr_t);
 typedef void	(*vfs_init_vnode_t)(bhv_desc_t *,
-				struct bhv_vnode *, bhv_desc_t *, int);
+				struct bhv_vnode *, struct xfs_inode *, int);
 typedef void	(*vfs_force_shutdown_t)(bhv_desc_t *, int, char *, int);
 typedef void	(*vfs_freeze_t)(bhv_desc_t *);
 
@@ -201,7 +202,7 @@ extern int vfs_sync(bhv_desc_t *, int, struct cred *);
 extern int vfs_vget(bhv_desc_t *, struct bhv_vnode **, struct fid *);
 extern int vfs_dmapiops(bhv_desc_t *, caddr_t);
 extern int vfs_quotactl(bhv_desc_t *, int, int, caddr_t);
-extern void vfs_init_vnode(bhv_desc_t *, struct bhv_vnode *, bhv_desc_t *, int);
+extern void vfs_init_vnode(bhv_desc_t *, struct bhv_vnode *, struct xfs_inode *, int);
 extern void vfs_force_shutdown(bhv_desc_t *, int, char *, int);
 extern void vfs_freeze(bhv_desc_t *);
 

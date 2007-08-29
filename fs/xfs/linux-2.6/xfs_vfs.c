@@ -187,7 +187,7 @@ void
 vfs_init_vnode(
 	struct bhv_desc		*bdp,
 	struct bhv_vnode	*vp,
-	struct bhv_desc		*bp,
+	struct xfs_inode	*ip,
 	int			unlock)
 {
 	struct bhv_desc		*next = bdp;
@@ -195,7 +195,7 @@ vfs_init_vnode(
 	ASSERT(next);
 	while (! (bhvtovfsops(next))->vfs_init_vnode)
 		next = BHV_NEXT(next);
-	((*bhvtovfsops(next)->vfs_init_vnode)(next, vp, bp, unlock));
+	((*bhvtovfsops(next)->vfs_init_vnode)(next, vp, ip, unlock));
 }
 
 void

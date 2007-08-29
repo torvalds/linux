@@ -413,7 +413,7 @@ xfs_readlink_by_handle(
 	if (!link)
 		goto out_iput;
 
-	error = -bhv_vop_readlink(vp, link);
+	error = -xfs_readlink(XFS_I(inode), link);
 	if (error)
 		goto out_kfree;
 	error = do_readlink(hreq.ohandle, olen, link);
@@ -497,8 +497,8 @@ xfs_attrlist_by_handle(
 		goto out_vn_rele;
 
 	cursor = (attrlist_cursor_kern_t *)&al_hreq.pos;
-	error = bhv_vop_attr_list(vp, kbuf, al_hreq.buflen, al_hreq.flags,
-					cursor, NULL);
+	error = xfs_attr_list(XFS_I(inode), kbuf, al_hreq.buflen,
+					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
 
@@ -515,7 +515,7 @@ xfs_attrlist_by_handle(
 
 STATIC int
 xfs_attrmulti_attr_get(
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	char			*name,
 	char			__user *ubuf,
 	__uint32_t		*len,
@@ -530,7 +530,7 @@ xfs_attrmulti_attr_get(
 	if (!kbuf)
 		return ENOMEM;
 
-	error = bhv_vop_attr_get(vp, name, kbuf, len, flags, NULL);
+	error = xfs_attr_get(XFS_I(inode), name, kbuf, len, flags, NULL);
 	if (error)
 		goto out_kfree;
 
@@ -544,7 +544,7 @@ xfs_attrmulti_attr_get(
 
 STATIC int
 xfs_attrmulti_attr_set(
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	char			*name,
 	const char		__user *ubuf,
 	__uint32_t		len,
@@ -553,9 +553,9 @@ xfs_attrmulti_attr_set(
 	char			*kbuf;
 	int			error = EFAULT;
 
-	if (IS_RDONLY(&vp->v_inode))
+	if (IS_RDONLY(inode))
 		return -EROFS;
-	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return EPERM;
 	if (len > XATTR_SIZE_MAX)
 		return EINVAL;
@@ -567,7 +567,7 @@ xfs_attrmulti_attr_set(
 	if (copy_from_user(kbuf, ubuf, len))
 		goto out_kfree;
 			
-	error = bhv_vop_attr_set(vp, name, kbuf, len, flags, NULL);
+	error = xfs_attr_set(XFS_I(inode), name, kbuf, len, flags);
 
  out_kfree:
 	kfree(kbuf);
@@ -576,15 +576,15 @@ xfs_attrmulti_attr_set(
 
 STATIC int
 xfs_attrmulti_attr_remove(
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	char			*name,
 	__uint32_t		flags)
 {
-	if (IS_RDONLY(&vp->v_inode))
+	if (IS_RDONLY(inode))
 		return -EROFS;
-	if (IS_IMMUTABLE(&vp->v_inode) || IS_APPEND(&vp->v_inode))
+	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 		return EPERM;
-	return bhv_vop_attr_remove(vp, name, flags, NULL);
+	return xfs_attr_remove(XFS_I(inode), name, flags);
 }
 
 STATIC int
@@ -640,17 +640,17 @@ xfs_attrmulti_by_handle(
 
 		switch (ops[i].am_opcode) {
 		case ATTR_OP_GET:
-			ops[i].am_error = xfs_attrmulti_attr_get(vp,
+			ops[i].am_error = xfs_attrmulti_attr_get(inode,
 					attr_name, ops[i].am_attrvalue,
 					&ops[i].am_length, ops[i].am_flags);
 			break;
 		case ATTR_OP_SET:
-			ops[i].am_error = xfs_attrmulti_attr_set(vp,
+			ops[i].am_error = xfs_attrmulti_attr_set(inode,
 					attr_name, ops[i].am_attrvalue,
 					ops[i].am_length, ops[i].am_flags);
 			break;
 		case ATTR_OP_REMOVE:
-			ops[i].am_error = xfs_attrmulti_attr_remove(vp,
+			ops[i].am_error = xfs_attrmulti_attr_remove(inode,
 					attr_name, ops[i].am_flags);
 			break;
 		default:
@@ -1182,7 +1182,7 @@ xfs_ioc_xattr(
 	case XFS_IOC_FSGETXATTR: {
 		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
 				 XFS_AT_NEXTENTS | XFS_AT_PROJID;
-		error = bhv_vop_getattr(vp, vattr, 0, NULL);
+		error = xfs_getattr(ip, vattr, 0);
 		if (unlikely(error)) {
 			error = -error;
 			break;
@@ -1215,7 +1215,7 @@ xfs_ioc_xattr(
 		vattr->va_extsize = fa.fsx_extsize;
 		vattr->va_projid  = fa.fsx_projid;
 
-		error = bhv_vop_setattr(vp, vattr, attr_flags, NULL);
+		error = xfs_setattr(ip, vattr, attr_flags, NULL);
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 		error = -error;
@@ -1225,7 +1225,7 @@ xfs_ioc_xattr(
 	case XFS_IOC_FSGETXATTRA: {
 		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
 				 XFS_AT_ANEXTENTS | XFS_AT_PROJID;
-		error = bhv_vop_getattr(vp, vattr, 0, NULL);
+		error = xfs_getattr(ip, vattr, 0);
 		if (unlikely(error)) {
 			error = -error;
 			break;
@@ -1271,7 +1271,7 @@ xfs_ioc_xattr(
 		vattr->va_xflags = xfs_merge_ioc_xflags(flags,
 							xfs_ip2xflags(ip));
 
-		error = bhv_vop_setattr(vp, vattr, attr_flags, NULL);
+		error = xfs_setattr(ip, vattr, attr_flags, NULL);
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 		error = -error;

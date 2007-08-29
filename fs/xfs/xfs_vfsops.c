@@ -54,6 +54,8 @@
 #include "xfs_mru_cache.h"
 #include "xfs_filestream.h"
 #include "xfs_fsops.h"
+#include "xfs_vnodeops.h"
+
 
 STATIC int	xfs_sync(bhv_desc_t *, int, cred_t *);
 
@@ -1191,12 +1193,13 @@ xfs_sync_inodes(
 			if (flags & SYNC_CLOSE) {
 				/* Shutdown case. Flush and invalidate. */
 				if (XFS_FORCED_SHUTDOWN(mp))
-					bhv_vop_toss_pages(vp, 0, -1, FI_REMAPF);
+					xfs_tosspages(ip, 0, -1,
+							     FI_REMAPF);
 				else
-					error = bhv_vop_flushinval_pages(vp, 0,
-								-1, FI_REMAPF);
+					error = xfs_flushinval_pages(ip,
+							0, -1, FI_REMAPF);
 			} else if ((flags & SYNC_DELWRI) && VN_DIRTY(vp)) {
-				error = bhv_vop_flush_pages(vp, (xfs_off_t)0,
+				error = xfs_flush_pages(ip, 0,
 							-1, fflag, FI_NONE);
 			}
 
