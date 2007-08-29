@@ -911,13 +911,13 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(string);
 
 			switch (token) {
-			case Opt_udp:
+			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = IPPROTO_UDP;
 				mnt->timeo = 7;
 				mnt->retrans = 5;
 				break;
-			case Opt_tcp:
+			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = IPPROTO_TCP;
 				mnt->timeo = 600;
@@ -936,10 +936,10 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(string);
 
 			switch (token) {
-			case Opt_udp:
+			case Opt_xprt_udp:
 				mnt->mount_server.protocol = IPPROTO_UDP;
 				break;
-			case Opt_tcp:
+			case Opt_xprt_tcp:
 				mnt->mount_server.protocol = IPPROTO_TCP;
 				break;
 			default:
