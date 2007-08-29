@@ -73,7 +73,7 @@ xfs_dir_lookup_int(
 {
 	int		error;
 
-	vn_trace_entry(XFS_ITOV(dp), __FUNCTION__, (inst_t *)__return_address);
+	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
 
 	error = xfs_dir_lookup(NULL, dp, VNAME(dentry), VNAMELEN(dentry), inum);
 	if (!error) {

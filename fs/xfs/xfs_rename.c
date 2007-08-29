@@ -247,8 +247,8 @@ xfs_rename(
 	int		src_namelen = VNAMELEN(src_vname);
 	int		target_namelen = VNAMELEN(target_vname);
 
-	vn_trace_entry(src_dir_vp, "xfs_rename", (inst_t *)__return_address);
-	vn_trace_entry(target_dir_vp, "xfs_rename", (inst_t *)__return_address);
+	vn_trace_entry(src_dp, "xfs_rename", (inst_t *)__return_address);
+	vn_trace_entry(xfs_vtoi(target_dir_vp), "xfs_rename", (inst_t *)__return_address);
 
 	/*
 	 * Find the XFS behavior descriptor for the target directory

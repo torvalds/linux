@@ -301,6 +301,9 @@ typedef struct xfs_inode {
 	xfs_fsize_t		i_size;		/* in-memory size */
 	atomic_t		i_iocount;	/* outstanding I/O count */
 	/* Trace buffers per inode. */
+#ifdef XFS_VNODE_TRACE
+	struct ktrace		*i_trace;	/* general inode trace */
+#endif
 #ifdef XFS_BMAP_TRACE
 	struct ktrace		*i_xtrace;	/* inode extent list trace */
 #endif

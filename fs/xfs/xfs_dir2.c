@@ -301,7 +301,7 @@ xfs_readdir(
 	int		rval;		/* return value */
 	int		v;		/* type-checking value */
 
-	vn_trace_entry(XFS_ITOV(dp), __FUNCTION__, (inst_t *)__return_address);
+	vn_trace_entry(dp, __FUNCTION__, (inst_t *)__return_address);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);

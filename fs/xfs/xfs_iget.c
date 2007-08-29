@@ -157,7 +157,7 @@ again:
 				goto again;
 			}
 
-			vn_trace_exit(vp, "xfs_iget.alloc",
+			vn_trace_exit(ip, "xfs_iget.alloc",
 				(inst_t *)__return_address);
 
 			XFS_STATS_INC(xs_ig_found);
@@ -212,7 +212,7 @@ finish_inode:
 			xfs_ilock(ip, lock_flags);
 
 		xfs_iflags_clear(ip, XFS_ISTALE);
-		vn_trace_exit(vp, "xfs_iget.found",
+		vn_trace_exit(ip, "xfs_iget.found",
 					(inst_t *)__return_address);
 		goto return_ip;
 	}
@@ -234,7 +234,7 @@ finish_inode:
 		return error;
 	}
 
-	vn_trace_exit(vp, "xfs_iget.alloc", (inst_t *)__return_address);
+	vn_trace_exit(ip, "xfs_iget.alloc", (inst_t *)__return_address);
 
 	xfs_inode_lock_init(ip, vp);
 	xfs_iocore_inode_init(ip);
@@ -467,7 +467,7 @@ xfs_iput(xfs_inode_t	*ip,
 {
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
-	vn_trace_entry(vp, "xfs_iput", (inst_t *)__return_address);
+	vn_trace_entry(ip, "xfs_iput", (inst_t *)__return_address);
 	xfs_iunlock(ip, lock_flags);
 	VN_RELE(vp);
 }
@@ -482,7 +482,7 @@ xfs_iput_new(xfs_inode_t	*ip,
 	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	struct inode	*inode = vn_to_inode(vp);
 
-	vn_trace_entry(vp, "xfs_iput_new", (inst_t *)__return_address);
+	vn_trace_entry(ip, "xfs_iput_new", (inst_t *)__return_address);
 
 	if ((ip->i_d.di_mode == 0)) {
 		ASSERT(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));

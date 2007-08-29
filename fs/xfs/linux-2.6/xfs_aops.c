@@ -1526,7 +1526,7 @@ xfs_vm_bmap(
 	struct inode		*inode = (struct inode *)mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 
-	vn_trace_entry(vn_from_inode(inode), __FUNCTION__,
+	vn_trace_entry(XFS_I(inode), __FUNCTION__,
 			(inst_t *)__return_address);
 	xfs_rwlock(ip, VRWLOCK_READ);
 	xfs_flush_pages(ip, (xfs_off_t)0, -1, 0, FI_REMAPF);

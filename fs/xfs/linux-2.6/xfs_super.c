@@ -403,7 +403,7 @@ xfs_fs_write_inode(
 {
 	int			error = 0, flags = FLUSH_INODE;
 
-	vn_trace_entry(vn_from_inode(inode), __FUNCTION__,
+	vn_trace_entry(XFS_I(inode), __FUNCTION__,
 			(inst_t *)__return_address);
 	if (sync) {
 		filemap_fdatawait(inode->i_mapping);
@@ -425,34 +425,27 @@ STATIC void
 xfs_fs_clear_inode(
 	struct inode		*inode)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
-
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-
-	XFS_STATS_INC(vn_rele);
-	XFS_STATS_INC(vn_remove);
-	XFS_STATS_INC(vn_reclaim);
-	XFS_STATS_DEC(vn_active);
+	xfs_inode_t		*ip = XFS_I(inode);
 
 	/*
-	 * This can happen because xfs_iget_core calls xfs_idestroy if we
+	 * ip can be null when xfs_iget_core calls xfs_idestroy if we
 	 * find an inode with di_mode == 0 but without IGET_CREATE set.
 	 */
-	if (XFS_I(inode))
-		xfs_inactive(XFS_I(inode));
+	if (ip) {
+		vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
 
+		XFS_STATS_INC(vn_rele);
+		XFS_STATS_INC(vn_remove);
+		XFS_STATS_INC(vn_reclaim);
+		XFS_STATS_DEC(vn_active);
 
-	if (XFS_I(inode)) {
-		xfs_iflags_clear(XFS_I(inode), XFS_IMODIFIED);
-		if (xfs_reclaim(XFS_I(inode)))
-			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
+		xfs_inactive(ip);
+		xfs_iflags_clear(ip, XFS_IMODIFIED);
+		if (xfs_reclaim(ip))
+			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, inode);
 	}
 
 	ASSERT(XFS_I(inode) == NULL);
-
-#ifdef XFS_VNODE_TRACE
-	ktrace_free(vp->v_trace);
-#endif
 }
 
 /*
@@ -840,7 +833,8 @@ xfs_fs_fill_super(
 	}
 	if ((error = xfs_fs_start_syncd(vfsp)))
 		goto fail_vnrele;
-	vn_trace_exit(rootvp, __FUNCTION__, (inst_t *)__return_address);
+	vn_trace_exit(XFS_I(sb->s_root->d_inode), __FUNCTION__,
+			(inst_t *)__return_address);
 
 	kmem_free(args, sizeof(*args));
 	return 0;

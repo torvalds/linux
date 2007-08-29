@@ -103,11 +103,6 @@ vn_initialize(
 
 	ASSERT(VN_CACHED(vp) == 0);
 
-#ifdef	XFS_VNODE_TRACE
-	vp->v_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
-#endif	/* XFS_VNODE_TRACE */
-
-	vn_trace_exit(vp, __FUNCTION__, (inst_t *)__return_address);
 	return vp;
 }
 
@@ -158,7 +153,7 @@ __vn_revalidate(
 {
 	int		error;
 
-	vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
+	vn_trace_entry(xfs_vtoi(vp), __FUNCTION__, (inst_t *)__return_address);
 	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
 	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
 	if (likely(!error)) {
@@ -196,12 +191,25 @@ vn_hold(
 
 #ifdef	XFS_VNODE_TRACE
 
-#define KTRACE_ENTER(vp, vk, s, line, ra)			\
-	ktrace_enter(	(vp)->v_trace,				\
+/*
+ * Reference count of Linux inode if present, -1 if the xfs_inode
+ * has no associated Linux inode.
+ */
+static inline int xfs_icount(struct xfs_inode *ip)
+{
+	bhv_vnode_t *vp = XFS_ITOV_NULL(ip);
+
+	if (vp)
+		return vn_count(vp);
+	return -1;
+}
+
+#define KTRACE_ENTER(ip, vk, s, line, ra)			\
+	ktrace_enter(	(ip)->i_trace,				\
 /*  0 */		(void *)(__psint_t)(vk),		\
 /*  1 */		(void *)(s),				\
 /*  2 */		(void *)(__psint_t) line,		\
-/*  3 */		(void *)(__psint_t)(vn_count(vp)),	\
+/*  3 */		(void *)(__psint_t)xfs_icount(ip),	\
 /*  4 */		(void *)(ra),				\
 /*  5 */		NULL,					\
 /*  6 */		(void *)(__psint_t)current_cpu(),	\
@@ -213,32 +221,32 @@ vn_hold(
  * Vnode tracing code.
  */
 void
-vn_trace_entry(bhv_vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_entry(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(vp, VNODE_KTRACE_ENTRY, func, 0, ra);
+	KTRACE_ENTER(ip, VNODE_KTRACE_ENTRY, func, 0, ra);
 }
 
 void
-vn_trace_exit(bhv_vnode_t *vp, const char *func, inst_t *ra)
+vn_trace_exit(xfs_inode_t *ip, const char *func, inst_t *ra)
 {
-	KTRACE_ENTER(vp, VNODE_KTRACE_EXIT, func, 0, ra);
+	KTRACE_ENTER(ip, VNODE_KTRACE_EXIT, func, 0, ra);
 }
 
 void
-vn_trace_hold(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_hold(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(vp, VNODE_KTRACE_HOLD, file, line, ra);
+	KTRACE_ENTER(ip, VNODE_KTRACE_HOLD, file, line, ra);
 }
 
 void
-vn_trace_ref(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_ref(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(vp, VNODE_KTRACE_REF, file, line, ra);
+	KTRACE_ENTER(ip, VNODE_KTRACE_REF, file, line, ra);
 }
 
 void
-vn_trace_rele(bhv_vnode_t *vp, char *file, int line, inst_t *ra)
+vn_trace_rele(xfs_inode_t *ip, char *file, int line, inst_t *ra)
 {
-	KTRACE_ENTER(vp, VNODE_KTRACE_RELE, file, line, ra);
+	KTRACE_ENTER(ip, VNODE_KTRACE_RELE, file, line, ra);
 }
 #endif	/* XFS_VNODE_TRACE */

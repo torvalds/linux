@@ -29,9 +29,6 @@ typedef __u64		bhv_vnumber_t;
 
 typedef struct bhv_vnode {
 	bhv_vnumber_t	v_number;		/* in-core vnode number */
-#ifdef XFS_VNODE_TRACE
-	struct ktrace	*v_trace;		/* trace header structure    */
-#endif
 	struct inode	v_inode;		/* Linux inode */
 	/* inode MUST be last */
 } bhv_vnode_t;
@@ -222,9 +219,9 @@ extern bhv_vnode_t	*vn_hold(struct bhv_vnode *);
 #if defined(XFS_VNODE_TRACE)
 #define VN_HOLD(vp)		\
 	((void)vn_hold(vp),	\
-	  vn_trace_hold(vp, __FILE__, __LINE__, (inst_t *)__return_address))
+	  vn_trace_hold(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address))
 #define VN_RELE(vp)		\
-	  (vn_trace_rele(vp, __FILE__, __LINE__, (inst_t *)__return_address), \
+	  (vn_trace_rele(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
 	   iput(vn_to_inode(vp)))
 #else
 #define VN_HOLD(vp)		((void)vn_hold(vp))
@@ -314,21 +311,17 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 #define	VNODE_KTRACE_REF	4
 #define	VNODE_KTRACE_RELE	5
 
-extern void vn_trace_entry(struct bhv_vnode *, const char *, inst_t *);
-extern void vn_trace_exit(struct bhv_vnode *, const char *, inst_t *);
-extern void vn_trace_hold(struct bhv_vnode *, char *, int, inst_t *);
-extern void vn_trace_ref(struct bhv_vnode *, char *, int, inst_t *);
-extern void vn_trace_rele(struct bhv_vnode *, char *, int, inst_t *);
-
-#define	VN_TRACE(vp)		\
-	vn_trace_ref(vp, __FILE__, __LINE__, (inst_t *)__return_address)
+extern void vn_trace_entry(struct xfs_inode *, const char *, inst_t *);
+extern void vn_trace_exit(struct xfs_inode *, const char *, inst_t *);
+extern void vn_trace_hold(struct xfs_inode *, char *, int, inst_t *);
+extern void vn_trace_ref(struct xfs_inode *, char *, int, inst_t *);
+extern void vn_trace_rele(struct xfs_inode *, char *, int, inst_t *);
 #else
 #define	vn_trace_entry(a,b,c)
 #define	vn_trace_exit(a,b,c)
 #define	vn_trace_hold(a,b,c,d)
 #define	vn_trace_ref(a,b,c,d)
 #define	vn_trace_rele(a,b,c,d)
-#define	VN_TRACE(vp)
 #endif
 
 #endif	/* __XFS_VNODE_H__ */

@@ -884,6 +884,9 @@ xfs_iread(
 	 * Initialize inode's trace buffers.
 	 * Do this before xfs_iformat in case it adds entries.
 	 */
+#ifdef	XFS_VNODE_TRACE
+	ip->i_trace = ktrace_alloc(VNODE_TRACE_SIZE, KM_SLEEP);
+#endif
 #ifdef XFS_BMAP_TRACE
 	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_SLEEP);
 #endif
@@ -2729,6 +2732,10 @@ xfs_idestroy(
 	mrfree(&ip->i_lock);
 	mrfree(&ip->i_iolock);
 	freesema(&ip->i_flock);
+
+#ifdef XFS_VNODE_TRACE
+	ktrace_free(ip->i_trace);
+#endif
 #ifdef XFS_BMAP_TRACE
 	ktrace_free(ip->i_xtrace);
 #endif
