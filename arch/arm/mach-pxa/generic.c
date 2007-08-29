@@ -71,6 +71,7 @@ EXPORT_SYMBOL(get_memclk_frequency_10khz);
 /*
  * Handy function to set GPIO alternate functions
  */
+int pxa_last_gpio;
 
 int pxa_gpio_mode(int gpio_mode)
 {
@@ -79,7 +80,7 @@ int pxa_gpio_mode(int gpio_mode)
 	int fn = (gpio_mode & GPIO_MD_MASK_FN) >> 8;
 	int gafr;
 
-	if (gpio > PXA_LAST_GPIO)
+	if (gpio > pxa_last_gpio)
 		return -EINVAL;
 
 	local_irq_save(flags);

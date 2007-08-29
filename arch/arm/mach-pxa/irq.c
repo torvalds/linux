@@ -349,6 +349,8 @@ void __init pxa_init_irq_gpio(int gpio_nr)
 {
 	int irq, i;
 
+	pxa_last_gpio = gpio_nr - 1;
+
 	/* clear all GPIO edge detects */
 	for (i = 0; i < gpio_nr; i += 32) {
 		GFER(i) = 0;

@@ -66,12 +66,6 @@
 #define IRQ_TO_GPIO_2_x(i)	((i) - PXA_GPIO_IRQ_BASE)
 #define IRQ_TO_GPIO(i)	(((i) < IRQ_GPIO(2)) ? ((i) - IRQ_GPIO0) : IRQ_TO_GPIO_2_x(i))
 
-#if defined(CONFIG_PXA25x)
-#define PXA_LAST_GPIO	84
-#elif defined(CONFIG_PXA27x)
-#define PXA_LAST_GPIO	127
-#endif
-
 /*
  * The next 16 interrupts are for board specific purposes.  Since
  * the kernel can only run on one machine at a time, we can re-use
