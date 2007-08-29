@@ -3356,10 +3356,12 @@ out_freeoutq:
 	while (i > 0)
 		kfree(card->qdio.out_qs[--i]);
 	kfree(card->qdio.out_qs);
+	card->qdio.out_qs = NULL;
 out_freepool:
 	qeth_free_buffer_pool(card);
 out_freeinq:
 	kfree(card->qdio.in_q);
+	card->qdio.in_q = NULL;
 out_nomem:
 	atomic_set(&card->qdio.state, QETH_QDIO_UNINITIALIZED);
 	return -ENOMEM;
@@ -3375,16 +3377,20 @@ qeth_free_qdio_buffers(struct qeth_card *card)
 		QETH_QDIO_UNINITIALIZED)
 		return;
 	kfree(card->qdio.in_q);
+	card->qdio.in_q = NULL;
 	/* inbound buffer pool */
 	qeth_free_buffer_pool(card);
 	/* free outbound qdio_qs */
-	for (i = 0; i < card->qdio.no_out_queues; ++i){
-		for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j)
-			qeth_clear_output_buffer(card->qdio.out_qs[i],
-					&card->qdio.out_qs[i]->bufs[j]);
-		kfree(card->qdio.out_qs[i]);
+	if (card->qdio.out_qs) {
+		for (i = 0; i < card->qdio.no_out_queues; ++i) {
+			for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j)
+				qeth_clear_output_buffer(card->qdio.out_qs[i],
+						&card->qdio.out_qs[i]->bufs[j]);
+			kfree(card->qdio.out_qs[i]);
+		}
+		kfree(card->qdio.out_qs);
+		card->qdio.out_qs = NULL;
 	}
-	kfree(card->qdio.out_qs);
 }
 
 static void
@@ -3395,7 +3401,7 @@ qeth_clear_qdio_buffers(struct qeth_card *card)
 	QETH_DBF_TEXT(trace, 2, "clearqdbf");
 	/* clear outbound buffers to free skbs */
 	for (i = 0; i < card->qdio.no_out_queues; ++i)
-		if (card->qdio.out_qs[i]){
+		if (card->qdio.out_qs && card->qdio.out_qs[i]) {
 			for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; ++j)
 				qeth_clear_output_buffer(card->qdio.out_qs[i],
 						&card->qdio.out_qs[i]->bufs[j]);
