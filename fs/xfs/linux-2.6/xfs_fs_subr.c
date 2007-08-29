@@ -61,8 +61,7 @@ xfs_flushinval_pages(
 	int		ret = 0;
 
 	if (VN_CACHED(vp)) {
-		if (VN_TRUNC(vp))
-			VUNTRUNCATE(vp);
+		xfs_iflags_clear(ip, XFS_ITRUNCATED);
 		ret = filemap_write_and_wait(inode->i_mapping);
 		if (!ret)
 			truncate_inode_pages(inode->i_mapping, first);
@@ -84,8 +83,7 @@ xfs_flush_pages(
 	int		ret2;
 
 	if (VN_DIRTY(vp)) {
-		if (VN_TRUNC(vp))
-			VUNTRUNCATE(vp);
+		xfs_iflags_clear(ip, XFS_ITRUNCATED);
 		ret = filemap_fdatawrite(inode->i_mapping);
 		if (flags & XFS_B_ASYNC)
 			return ret;

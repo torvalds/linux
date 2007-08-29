@@ -221,7 +221,7 @@ xfs_init_security(
 	error = xfs_attr_set(XFS_I(ip), name, value,
 			length, ATTR_SECURE);
 	if (!error)
-		VMODIFY(vp);
+		xfs_iflags_set(XFS_I(ip), XFS_IMODIFIED);
 
 	kfree(name);
 	kfree(value);
@@ -327,7 +327,7 @@ xfs_vn_mknod(
 		if (!error) {
 			error = _ACL_INHERIT(vp, &vattr, default_acl);
 			if (!error)
-				VMODIFY(vp);
+				xfs_iflags_set(XFS_I(&vp->v_inode), XFS_IMODIFIED);
 			else
 				xfs_cleanup_inode(dir, vp, dentry, mode);
 		}
@@ -409,7 +409,7 @@ xfs_vn_link(
 	if (unlikely(error)) {
 		VN_RELE(vp);
 	} else {
-		VMODIFY(vn_from_inode(dir));
+		xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
 		xfs_validate_fields(ip, &vattr);
 		d_instantiate(dentry, ip);
 	}

@@ -391,6 +391,9 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 #define XFS_IRECLAIMABLE 0x0020 /* inode can be reclaimed */
 #define XFS_INEW	0x0040
 #define XFS_IFILESTREAM	0x0080	/* inode is in a filestream directory */
+#define XFS_IMODIFIED	0x0100	/* XFS inode state possibly differs */
+				/* to the Linux inode state. */
+#define XFS_ITRUNCATED	0x0200	/* truncated down so flush-on-close */
 
 /*
  * Flags for inode locking.

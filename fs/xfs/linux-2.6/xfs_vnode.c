@@ -84,9 +84,6 @@ vn_initialize(
 	XFS_STATS_INC(vn_active);
 	XFS_STATS_INC(vn_alloc);
 
-	vp->v_flag = VMODIFIED;
-	spinlock_init(&vp->v_lock, "v_lock");
-
 	spin_lock(&vnumber_lock);
 	if (!++vn_generation)	/* v_number shouldn't be zero */
 		vn_generation++;
@@ -157,7 +154,7 @@ __vn_revalidate(
 	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
 	if (likely(!error)) {
 		vn_revalidate_core(vp, vattr);
-		VUNMODIFY(vp);
+		xfs_iflags_clear(xfs_vtoi(vp), XFS_IMODIFIED);
 	}
 	return -error;
 }
@@ -182,10 +179,8 @@ vn_hold(
 
 	XFS_STATS_INC(vn_hold);
 
-	VN_LOCK(vp);
 	inode = igrab(vn_to_inode(vp));
 	ASSERT(inode);
-	VN_UNLOCK(vp, 0);
 
 	return vp;
 }
@@ -199,7 +194,7 @@ vn_hold(
 /*  2 */		(void *)(__psint_t) line,		\
 /*  3 */		(void *)(__psint_t)(vn_count(vp)),	\
 /*  4 */		(void *)(ra),				\
-/*  5 */		(void *)(__psunsigned_t)(vp)->v_flag,	\
+/*  5 */		NULL,					\
 /*  6 */		(void *)(__psint_t)current_cpu(),	\
 /*  7 */		(void *)(__psint_t)current_pid(),	\
 /*  8 */		(void *)__return_address,		\

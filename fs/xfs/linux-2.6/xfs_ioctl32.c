@@ -371,7 +371,6 @@ xfs_compat_ioctl(
 	unsigned long	arg)
 {
 	struct inode	*inode = file->f_path.dentry->d_inode;
-	bhv_vnode_t	*vp = vn_from_inode(inode);
 	int		error;
 
 	switch (cmd) {
@@ -459,7 +458,7 @@ xfs_compat_ioctl(
 	}
 
 	error = xfs_ioctl(XFS_I(inode), file, mode, cmd, (void __user *)arg);
-	VMODIFY(vp);
+	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	return error;
 }

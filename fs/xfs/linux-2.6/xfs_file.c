@@ -193,13 +193,11 @@ xfs_file_fsync(
 	struct dentry	*dentry,
 	int		datasync)
 {
-	bhv_vnode_t	*vp = vn_from_inode(dentry->d_inode);
 	int		flags = FSYNC_WAIT;
 
 	if (datasync)
 		flags |= FSYNC_DATA;
-	if (VN_TRUNC(vp))
-		VUNTRUNCATE(vp);
+	xfs_iflags_clear(XFS_I(dentry->d_inode), XFS_ITRUNCATED);
 	return -xfs_fsync(XFS_I(dentry->d_inode), flags,
 			(xfs_off_t)0, (xfs_off_t)-1);
 }
@@ -277,10 +275,9 @@ xfs_file_ioctl(
 {
 	int		error;
 	struct inode	*inode = filp->f_path.dentry->d_inode;
-	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	error = xfs_ioctl(XFS_I(inode), filp, 0, cmd, (void __user *)p);
-	VMODIFY(vp);
+	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	/* NOTE:  some of the ioctl's return positive #'s as a
 	 *	  byte count indicating success, such as
@@ -299,10 +296,9 @@ xfs_file_ioctl_invis(
 {
 	int		error;
 	struct inode	*inode = filp->f_path.dentry->d_inode;
-	bhv_vnode_t	*vp = vn_from_inode(inode);
 
 	error = xfs_ioctl(XFS_I(inode), filp, IO_INVIS, cmd, (void __user *)p);
-	VMODIFY(vp);
+	xfs_iflags_set(XFS_I(inode), XFS_IMODIFIED);
 
 	/* NOTE:  some of the ioctl's return positive #'s as a
 	 *	  byte count indicating success, such as

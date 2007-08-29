@@ -336,6 +336,7 @@ finish_inode:
 	ASSERT(((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) != 0) ==
 	       ((ip->i_iocore.io_flags & XFS_IOCORE_RT) != 0));
 
+	xfs_iflags_set(ip, XFS_IMODIFIED);
 	*ipp = ip;
 
 	/*

@@ -304,13 +304,13 @@ xfs_map_blocks(
 	xfs_iomap_t		*mapp,
 	int			flags)
 {
-	bhv_vnode_t		*vp = vn_from_inode(inode);
+	xfs_inode_t		*ip = XFS_I(inode);
 	int			error, nmaps = 1;
 
-	error = xfs_bmap(xfs_vtoi(vp), offset, count,
+	error = xfs_bmap(ip, offset, count,
 				flags, mapp, &nmaps);
 	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
-		VMODIFY(vp);
+		xfs_iflags_set(ip, XFS_IMODIFIED);
 	return -error;
 }
 
@@ -1246,10 +1246,7 @@ xfs_vm_writepages(
 	struct address_space	*mapping,
 	struct writeback_control *wbc)
 {
-	struct bhv_vnode	*vp = vn_from_inode(mapping->host);
-
-	if (VN_TRUNC(vp))
-		VUNTRUNCATE(vp);
+	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
 	return generic_writepages(mapping, wbc);
 }
 

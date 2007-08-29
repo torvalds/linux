@@ -27,20 +27,8 @@ struct attrlist_cursor_kern;
 typedef struct dentry	bhv_vname_t;
 typedef __u64		bhv_vnumber_t;
 
-typedef enum bhv_vflags {
-	VMODIFIED	= 0x08,	/* XFS inode state possibly differs */
-				/* to the Linux inode state. */
-	VTRUNCATED	= 0x40,	/* truncated down so flush-on-close */
-} bhv_vflags_t;
-
-/*
- * MP locking protocols:
- *	v_flag, 				VN_LOCK/VN_UNLOCK
- */
 typedef struct bhv_vnode {
-	bhv_vflags_t	v_flag;			/* vnode flags (see above) */
 	bhv_vnumber_t	v_number;		/* in-core vnode number */
-	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
 	atomic_t	v_iocount;		/* outstanding I/O count */
 #ifdef XFS_VNODE_TRACE
 	struct ktrace	*v_trace;		/* trace header structure    */
@@ -255,35 +243,6 @@ static inline struct bhv_vnode *vn_grab(struct bhv_vnode *vp)
 #define VNAME_TO_VNODE(dentry)	(vn_from_inode((dentry)->d_inode))
 
 /*
- * Vnode spinlock manipulation.
- */
-#define VN_LOCK(vp)		mutex_spinlock(&(vp)->v_lock)
-#define VN_UNLOCK(vp, s)	mutex_spinunlock(&(vp)->v_lock, s)
-
-STATIC_INLINE void vn_flagset(struct bhv_vnode *vp, uint flag)
-{
-	spin_lock(&vp->v_lock);
-	vp->v_flag |= flag;
-	spin_unlock(&vp->v_lock);
-}
-
-STATIC_INLINE uint vn_flagclr(struct bhv_vnode *vp, uint flag)
-{
-	uint	cleared;
-
-	spin_lock(&vp->v_lock);
-	cleared = (vp->v_flag & flag);
-	vp->v_flag &= ~flag;
-	spin_unlock(&vp->v_lock);
-	return cleared;
-}
-
-#define VMODIFY(vp)	vn_flagset(vp, VMODIFIED)
-#define VUNMODIFY(vp)	vn_flagclr(vp, VMODIFIED)
-#define VTRUNCATE(vp)	vn_flagset(vp, VTRUNCATED)
-#define VUNTRUNCATE(vp)	vn_flagclr(vp, VTRUNCATED)
-
-/*
  * Dealing with bad inodes
  */
 static inline void vn_mark_bad(struct bhv_vnode *vp)
@@ -322,7 +281,6 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 #define VN_CACHED(vp)	(vn_to_inode(vp)->i_mapping->nrpages)
 #define VN_DIRTY(vp)	mapping_tagged(vn_to_inode(vp)->i_mapping, \
 					PAGECACHE_TAG_DIRTY)
-#define VN_TRUNC(vp)	((vp)->v_flag & VTRUNCATED)
 
 /*
  * Flags to vop_setattr/getattr.

@@ -660,7 +660,7 @@ xfs_setattr(
 			 * vnode and flush it when the file is closed, and
 			 * do not wait the usual (long) time for writeout.
 			 */
-			VTRUNCATE(vp);
+			xfs_iflags_set(ip, XFS_ITRUNCATED);
 		}
 		/*
 		 * Have to do this even if the file's size doesn't change.
@@ -1519,6 +1519,8 @@ xfs_release(
 		return 0;
 
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
+		int truncated;
+
 		/*
 		 * If we are using filestreams, and we have an unlinked
 		 * file that we are processing the last close on, then nothing
@@ -1539,7 +1541,13 @@ xfs_release(
 		 * significantly reducing the time window where we'd otherwise
 		 * be exposed to that problem.
 		 */
-		if (VUNTRUNCATE(vp) && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
+		spin_lock(&ip->i_flags_lock);
+		truncated = __xfs_iflags_test(ip, XFS_ITRUNCATED);
+		if (truncated)
+			ip->i_flags &= ~XFS_ITRUNCATED;
+		spin_unlock(&ip->i_flags_lock);
+
+		if (truncated && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
 			xfs_flush_pages(ip, 0, -1, XFS_B_ASYNC, FI_NONE);
 	}
 

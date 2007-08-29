@@ -197,7 +197,7 @@ xfs_revalidate_inode(
 		inode->i_flags |= S_NOATIME;
 	else
 		inode->i_flags &= ~S_NOATIME;
-	vp->v_flag &= ~VMODIFIED;
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
 }
 
 void
@@ -441,13 +441,12 @@ xfs_fs_clear_inode(
 	if (XFS_I(inode))
 		xfs_inactive(XFS_I(inode));
 
-	VN_LOCK(vp);
-	vp->v_flag &= ~VMODIFIED;
-	VN_UNLOCK(vp, 0);
 
-	if (XFS_I(inode))
+	if (XFS_I(inode)) {
+		xfs_iflags_clear(XFS_I(inode), XFS_IMODIFIED);
 		if (xfs_reclaim(XFS_I(inode)))
 			panic("%s: cannot reclaim 0x%p\n", __FUNCTION__, vp);
+	}
 
 	ASSERT(XFS_I(inode) == NULL);
 
