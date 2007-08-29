@@ -354,7 +354,6 @@ struct ocfs2_insert_type {
 	enum ocfs2_append_type	ins_appending;
 	enum ocfs2_contig_type	ins_contig;
 	int			ins_contig_index;
-	int			ins_free_records;
 	int			ins_tree_depth;
 };
 
@@ -3593,6 +3592,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 				    struct buffer_head *di_bh,
 				    struct buffer_head **last_eb_bh,
 				    struct ocfs2_extent_rec *insert_rec,
+				    int *free_records,
 				    struct ocfs2_insert_type *insert)
 {
 	int ret;
@@ -3633,7 +3633,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 	 * XXX: This test is simplistic, we can search for empty
 	 * extent records too.
 	 */
-	insert->ins_free_records = le16_to_cpu(el->l_count) -
+	*free_records = le16_to_cpu(el->l_count) -
 		le16_to_cpu(el->l_next_free_rec);
 
 	if (!insert->ins_tree_depth) {
@@ -3730,6 +3730,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			struct ocfs2_alloc_context *meta_ac)
 {
 	int status;
+	int uninitialized_var(free_records);
 	struct buffer_head *last_eb_bh = NULL;
 	struct ocfs2_insert_type insert = {0, };
 	struct ocfs2_extent_rec rec;
@@ -3752,7 +3753,7 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	rec.e_flags = flags;
 
 	status = ocfs2_figure_insert_type(inode, fe_bh, &last_eb_bh, &rec,
-					  &insert);
+					  &free_records, &insert);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -3762,9 +3763,9 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	     "Insert.contig_index: %d, Insert.free_records: %d, "
 	     "Insert.tree_depth: %d\n",
 	     insert.ins_appending, insert.ins_contig, insert.ins_contig_index,
-	     insert.ins_free_records, insert.ins_tree_depth);
+	     free_records, insert.ins_tree_depth);
 
-	if (insert.ins_contig == CONTIG_NONE && insert.ins_free_records == 0) {
+	if (insert.ins_contig == CONTIG_NONE && free_records == 0) {
 		status = ocfs2_grow_tree(inode, handle, fe_bh,
 					 &insert.ins_tree_depth, &last_eb_bh,
 					 meta_ac);
@@ -3847,26 +3848,17 @@ leftright:
 
 	if (le16_to_cpu(rightmost_el->l_next_free_rec) ==
 	    le16_to_cpu(rightmost_el->l_count)) {
-		int old_depth = depth;
-
 		ret = ocfs2_grow_tree(inode, handle, di_bh, &depth, last_eb_bh,
 				      meta_ac);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
-
-		if (old_depth != depth) {
-			eb = (struct ocfs2_extent_block *)(*last_eb_bh)->b_data;
-			rightmost_el = &eb->h_list;
-		}
 	}
 
 	memset(&insert, 0, sizeof(struct ocfs2_insert_type));
 	insert.ins_appending = APPEND_NONE;
 	insert.ins_contig = CONTIG_NONE;
-	insert.ins_free_records = le16_to_cpu(rightmost_el->l_count)
-		- le16_to_cpu(rightmost_el->l_next_free_rec);
 	insert.ins_tree_depth = depth;
 
 	insert_range = le32_to_cpu(split_rec.e_cpos) +
@@ -4180,18 +4172,11 @@ static int ocfs2_split_tree(struct inode *inode, struct buffer_head *di_bh,
 
 	if (le16_to_cpu(rightmost_el->l_next_free_rec) ==
 	    le16_to_cpu(rightmost_el->l_count)) {
-		int old_depth = depth;
-
 		ret = ocfs2_grow_tree(inode, handle, di_bh, &depth, &last_eb_bh,
 				      meta_ac);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
-		}
-
-		if (old_depth != depth) {
-			eb = (struct ocfs2_extent_block *)last_eb_bh->b_data;
-			rightmost_el = &eb->h_list;
 		}
 	}
 
@@ -4199,8 +4184,6 @@ static int ocfs2_split_tree(struct inode *inode, struct buffer_head *di_bh,
 	insert.ins_appending = APPEND_NONE;
 	insert.ins_contig = CONTIG_NONE;
 	insert.ins_split = SPLIT_RIGHT;
-	insert.ins_free_records = le16_to_cpu(rightmost_el->l_count)
-		- le16_to_cpu(rightmost_el->l_next_free_rec);
 	insert.ins_tree_depth = depth;
 
 	ret = ocfs2_do_insert_extent(inode, handle, di_bh, &split_rec, &insert);
