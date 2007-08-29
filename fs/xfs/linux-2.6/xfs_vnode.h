@@ -26,28 +26,24 @@ struct attrlist_cursor_kern;
 
 typedef struct dentry	bhv_vname_t;
 typedef __u64		bhv_vnumber_t;
+typedef struct inode	bhv_vnode_t;
 
-typedef struct bhv_vnode {
-	struct inode	v_inode;		/* Linux inode */
-	/* inode MUST be last */
-} bhv_vnode_t;
-
-#define VN_ISLNK(vp)	S_ISLNK((vp)->v_inode.i_mode)
-#define VN_ISREG(vp)	S_ISREG((vp)->v_inode.i_mode)
-#define VN_ISDIR(vp)	S_ISDIR((vp)->v_inode.i_mode)
-#define VN_ISCHR(vp)	S_ISCHR((vp)->v_inode.i_mode)
-#define VN_ISBLK(vp)	S_ISBLK((vp)->v_inode.i_mode)
+#define VN_ISLNK(vp)	S_ISLNK((vp)->i_mode)
+#define VN_ISREG(vp)	S_ISREG((vp)->i_mode)
+#define VN_ISDIR(vp)	S_ISDIR((vp)->i_mode)
+#define VN_ISCHR(vp)	S_ISCHR((vp)->i_mode)
+#define VN_ISBLK(vp)	S_ISBLK((vp)->i_mode)
 
 /*
  * Vnode to Linux inode mapping.
  */
-static inline struct bhv_vnode *vn_from_inode(struct inode *inode)
+static inline bhv_vnode_t *vn_from_inode(struct inode *inode)
 {
-	return container_of(inode, bhv_vnode_t, v_inode);
+	return inode;
 }
-static inline struct inode *vn_to_inode(struct bhv_vnode *vnode)
+static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 {
-	return &vnode->v_inode;
+	return vnode;
 }
 
 /*
@@ -193,9 +189,9 @@ typedef struct bhv_vattr {
 
 extern void	vn_init(void);
 extern bhv_vnode_t	*vn_initialize(struct inode *);
-extern int	vn_revalidate(struct bhv_vnode *);
-extern int	__vn_revalidate(struct bhv_vnode *, bhv_vattr_t *);
-extern void	vn_revalidate_core(struct bhv_vnode *, bhv_vattr_t *);
+extern int	vn_revalidate(bhv_vnode_t *);
+extern int	__vn_revalidate(bhv_vnode_t *, bhv_vattr_t *);
+extern void	vn_revalidate_core(bhv_vnode_t *, bhv_vattr_t *);
 
 /*
  * Yeah, these don't take vnode anymore at all, all this should be
@@ -205,7 +201,7 @@ extern void	vn_iowait(struct xfs_inode *ip);
 extern void	vn_iowake(struct xfs_inode *ip);
 extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
-static inline int vn_count(struct bhv_vnode *vp)
+static inline int vn_count(bhv_vnode_t *vp)
 {
 	return atomic_read(&vn_to_inode(vp)->i_count);
 }
@@ -213,7 +209,7 @@ static inline int vn_count(struct bhv_vnode *vp)
 /*
  * Vnode reference counting functions (and macros for compatibility).
  */
-extern bhv_vnode_t	*vn_hold(struct bhv_vnode *);
+extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
 
 #if defined(XFS_VNODE_TRACE)
 #define VN_HOLD(vp)		\
@@ -227,7 +223,7 @@ extern bhv_vnode_t	*vn_hold(struct bhv_vnode *);
 #define VN_RELE(vp)		(iput(vn_to_inode(vp)))
 #endif
 
-static inline struct bhv_vnode *vn_grab(struct bhv_vnode *vp)
+static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 {
 	struct inode *inode = igrab(vn_to_inode(vp));
 	return inode ? vn_from_inode(inode) : NULL;
@@ -243,12 +239,12 @@ static inline struct bhv_vnode *vn_grab(struct bhv_vnode *vp)
 /*
  * Dealing with bad inodes
  */
-static inline void vn_mark_bad(struct bhv_vnode *vp)
+static inline void vn_mark_bad(bhv_vnode_t *vp)
 {
 	make_bad_inode(vn_to_inode(vp));
 }
 
-static inline int VN_BAD(struct bhv_vnode *vp)
+static inline int VN_BAD(bhv_vnode_t *vp)
 {
 	return is_bad_inode(vn_to_inode(vp));
 }
@@ -258,18 +254,18 @@ static inline int VN_BAD(struct bhv_vnode *vp)
  */
 static inline void vn_atime_to_bstime(bhv_vnode_t *vp, xfs_bstime_t *bs_atime)
 {
-	bs_atime->tv_sec = vp->v_inode.i_atime.tv_sec;
-	bs_atime->tv_nsec = vp->v_inode.i_atime.tv_nsec;
+	bs_atime->tv_sec = vp->i_atime.tv_sec;
+	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
 }
 
 static inline void vn_atime_to_timespec(bhv_vnode_t *vp, struct timespec *ts)
 {
-	*ts = vp->v_inode.i_atime;
+	*ts = vp->i_atime;
 }
 
 static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 {
-	*tt = vp->v_inode.i_atime.tv_sec;
+	*tt = vp->i_atime.tv_sec;
 }
 
 /*

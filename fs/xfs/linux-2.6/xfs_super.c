@@ -781,7 +781,7 @@ xfs_fs_fill_super(
 	void			*data,
 	int			silent)
 {
-	struct bhv_vnode	*rootvp;
+	struct inode		*rootvp;
 	struct bhv_vfs		*vfsp = vfs_allocate(sb);
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
 	struct kstatfs		statvfs;

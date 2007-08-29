@@ -103,7 +103,7 @@ vfs_mntupdate(
 int
 vfs_root(
 	struct bhv_desc		*bdp,
-	struct bhv_vnode	**vpp)
+	bhv_vnode_t		**vpp)
 {
 	struct bhv_desc		*next = bdp;
 
@@ -117,7 +117,7 @@ int
 vfs_statvfs(
 	struct bhv_desc		*bdp,
 	bhv_statvfs_t		*statp,
-	struct bhv_vnode	*vp)
+	bhv_vnode_t		*vp)
 {
 	struct bhv_desc		*next = bdp;
 
@@ -144,7 +144,7 @@ vfs_sync(
 int
 vfs_vget(
 	struct bhv_desc		*bdp,
-	struct bhv_vnode	**vpp,
+	bhv_vnode_t		**vpp,
 	struct fid		*fidp)
 {
 	struct bhv_desc		*next = bdp;
@@ -186,7 +186,7 @@ vfs_quotactl(
 void
 vfs_init_vnode(
 	struct bhv_desc		*bdp,
-	struct bhv_vnode	*vp,
+	bhv_vnode_t		*vp,
 	struct xfs_inode	*ip,
 	int			unlock)
 {

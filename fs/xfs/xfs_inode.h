@@ -106,7 +106,6 @@ typedef struct xfs_ifork {
 
 #ifdef __KERNEL__
 struct bhv_desc;
-struct bhv_vnode;
 struct cred;
 struct ktrace;
 struct xfs_buf;
@@ -257,7 +256,7 @@ typedef struct xfs_inode {
 	struct xfs_inode	*i_mprev;	/* ptr to prev inode */
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
 	struct list_head	i_reclaim;	/* reclaim list */
-	struct bhv_vnode	*i_vnode;	/* vnode backpointer */
+	bhv_vnode_t		*i_vnode;	/* vnode backpointer */
 	struct xfs_dquot	*i_udquot;	/* user dquot */
 	struct xfs_dquot	*i_gdquot;	/* group dquot */
 
@@ -509,7 +508,7 @@ void		xfs_ihash_init(struct xfs_mount *);
 void		xfs_ihash_free(struct xfs_mount *);
 xfs_inode_t	*xfs_inode_incore(struct xfs_mount *, xfs_ino_t,
 				  struct xfs_trans *);
-void            xfs_inode_lock_init(xfs_inode_t *, struct bhv_vnode *);
+void            xfs_inode_lock_init(xfs_inode_t *, bhv_vnode_t *);
 int		xfs_iget(struct xfs_mount *, struct xfs_trans *, xfs_ino_t,
 			 uint, uint, xfs_inode_t **, xfs_daddr_t);
 void		xfs_iput(xfs_inode_t *, uint);

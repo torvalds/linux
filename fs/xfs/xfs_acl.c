@@ -376,11 +376,11 @@ xfs_acl_allow_set(
 	bhv_vattr_t	va;
 	int		error;
 
-	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
+	if (vp->i_flags & (S_IMMUTABLE|S_APPEND))
 		return EPERM;
 	if (kind == _ACL_TYPE_DEFAULT && !VN_ISDIR(vp))
 		return ENOTDIR;
-	if (vp->v_inode.i_sb->s_flags & MS_RDONLY)
+	if (vp->i_sb->s_flags & MS_RDONLY)
 		return EROFS;
 	va.va_mask = XFS_AT_UID;
 	error = xfs_getattr(ip, &va, 0);

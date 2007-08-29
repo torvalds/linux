@@ -55,7 +55,6 @@ typedef struct xfs_trans_reservations {
 struct cred;
 struct log;
 struct bhv_vfs;
-struct bhv_vnode;
 struct xfs_mount_args;
 struct xfs_inode;
 struct xfs_iocore;
@@ -78,15 +77,15 @@ extern struct bhv_vfsops xfs_vfsops;
  * Prototypes and functions for the Data Migration subsystem.
  */
 
-typedef int	(*xfs_send_data_t)(int, struct bhv_vnode *,
+typedef int	(*xfs_send_data_t)(int, bhv_vnode_t *,
 			xfs_off_t, size_t, int, bhv_vrwlock_t *);
 typedef int	(*xfs_send_mmap_t)(struct vm_area_struct *, uint);
-typedef int	(*xfs_send_destroy_t)(struct bhv_vnode *, dm_right_t);
+typedef int	(*xfs_send_destroy_t)(bhv_vnode_t *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct bhv_vfs *,
-			struct bhv_vnode *,
-			dm_right_t, struct bhv_vnode *, dm_right_t,
+			bhv_vnode_t *,
+			dm_right_t, bhv_vnode_t *, dm_right_t,
 			char *, char *, mode_t, int, int);
-typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, struct bhv_vnode *,
+typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, bhv_vnode_t *,
 			dm_right_t, mode_t, int, int);
 
 typedef struct xfs_dmops {

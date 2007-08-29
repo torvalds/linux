@@ -65,9 +65,8 @@ xfs_synchronize_atime(
 
 	vp = XFS_ITOV_NULL(ip);
 	if (vp) {
-		struct inode *inode = &vp->v_inode;
-		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
+		ip->i_d.di_atime.t_sec = (__int32_t)vp->i_atime.tv_sec;
+		ip->i_d.di_atime.t_nsec = (__int32_t)vp->i_atime.tv_nsec;
 	}
 }
 
@@ -327,7 +326,7 @@ xfs_vn_mknod(
 		if (!error) {
 			error = _ACL_INHERIT(vp, &vattr, default_acl);
 			if (!error)
-				xfs_iflags_set(XFS_I(&vp->v_inode), XFS_IMODIFIED);
+				xfs_iflags_set(XFS_I(vp), XFS_IMODIFIED);
 			else
 				xfs_cleanup_inode(dir, vp, dentry, mode);
 		}
