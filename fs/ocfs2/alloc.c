@@ -2807,36 +2807,28 @@ static int ocfs2_try_to_merge_extent(struct inode *inode,
 				     struct ocfs2_merge_ctxt *ctxt)
 
 {
-	int ret = 0, delete_tail_recs = 0;
+	int ret = 0;
 	struct ocfs2_extent_list *el = path_leaf_el(left_path);
 	struct ocfs2_extent_rec *rec = &el->l_recs[split_index];
 
 	BUG_ON(ctxt->c_contig_type == CONTIG_NONE);
 
-	if (ctxt->c_split_covers_rec) {
-		delete_tail_recs++;
-
-		if (ctxt->c_contig_type == CONTIG_LEFTRIGHT ||
-		    ctxt->c_has_empty_extent)
-			delete_tail_recs++;
-
-		if (ctxt->c_has_empty_extent) {
-			/*
-			 * The merge code will need to create an empty
-			 * extent to take the place of the newly
-			 * emptied slot. Remove any pre-existing empty
-			 * extents - having more than one in a leaf is
-			 * illegal.
-			 */
-			ret = ocfs2_rotate_tree_left(inode, handle, left_path,
-						     dealloc);
-			if (ret) {
-				mlog_errno(ret);
-				goto out;
-			}
-			split_index--;
-			rec = &el->l_recs[split_index];
+	if (ctxt->c_split_covers_rec && ctxt->c_has_empty_extent) {
+		/*
+		 * The merge code will need to create an empty
+		 * extent to take the place of the newly
+		 * emptied slot. Remove any pre-existing empty
+		 * extents - having more than one in a leaf is
+		 * illegal.
+		 */
+		ret = ocfs2_rotate_tree_left(inode, handle, left_path,
+					     dealloc);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
 		}
+		split_index--;
+		rec = &el->l_recs[split_index];
 	}
 
 	if (ctxt->c_contig_type == CONTIG_LEFTRIGHT) {
