@@ -65,16 +65,16 @@ int ehca_static_rate   = -1;
 int ehca_scaling_code  = 0;
 int ehca_mr_largepage  = 0;
 
-module_param_named(open_aqp1,     ehca_open_aqp1,     int, 0);
-module_param_named(debug_level,   ehca_debug_level,   int, 0);
-module_param_named(hw_level,      ehca_hw_level,      int, 0);
-module_param_named(nr_ports,      ehca_nr_ports,      int, 0);
-module_param_named(use_hp_mr,     ehca_use_hp_mr,     int, 0);
-module_param_named(port_act_time, ehca_port_act_time, int, 0);
-module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  int, 0);
-module_param_named(static_rate,   ehca_static_rate,   int, 0);
-module_param_named(scaling_code,  ehca_scaling_code,  int, 0);
-module_param_named(mr_largepage,  ehca_mr_largepage,  int, 0);
+module_param_named(open_aqp1,     ehca_open_aqp1,     int, S_IRUGO);
+module_param_named(debug_level,   ehca_debug_level,   int, S_IRUGO);
+module_param_named(hw_level,      ehca_hw_level,      int, S_IRUGO);
+module_param_named(nr_ports,      ehca_nr_ports,      int, S_IRUGO);
+module_param_named(use_hp_mr,     ehca_use_hp_mr,     int, S_IRUGO);
+module_param_named(port_act_time, ehca_port_act_time, int, S_IRUGO);
+module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  int, S_IRUGO);
+module_param_named(static_rate,   ehca_static_rate,   int, S_IRUGO);
+module_param_named(scaling_code,  ehca_scaling_code,  int, S_IRUGO);
+module_param_named(mr_largepage,  ehca_mr_largepage,  int, S_IRUGO);
 
 MODULE_PARM_DESC(open_aqp1,
 		 "AQP1 on startup (0: no (default), 1: yes)");
