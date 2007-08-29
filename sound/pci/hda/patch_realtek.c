@@ -5782,6 +5782,32 @@ static void alc882_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
+/* add mic boosts if needed */
+static int alc_auto_add_mic_boost(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int err;
+	hda_nid_t nid;
+
+	nid = spec->autocfg.input_pins[AUTO_PIN_MIC];
+	if (nid) {
+		err = add_control(spec, ALC_CTL_WIDGET_VOL,
+				  "Mic Boost",
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
+		if (err < 0)
+			return err;
+	}
+	nid = spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC];
+	if (nid) {
+		err = add_control(spec, ALC_CTL_WIDGET_VOL,
+				  "Front Mic Boost",
+				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
+		if (err < 0)
+			return err;
+	}
+	return 0;
+}
+
 /* almost identical with ALC880 parser... */
 static int alc882_parse_auto_config(struct hda_codec *codec)
 {
@@ -5790,10 +5816,17 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 
 	if (err < 0)
 		return err;
-	else if (err > 0)
-		/* hack - override the init verbs */
-		spec->init_verbs[0] = alc882_auto_init_verbs;
-	return err;
+	else if (!err)
+		return 0; /* no config found */
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
+
+	/* hack - override the init verbs */
+	spec->init_verbs[0] = alc882_auto_init_verbs;
+
+	return 1; /* config found */
 }
 
 /* additional initialization for auto-configuration model */
@@ -7270,12 +7303,19 @@ static int alc883_parse_auto_config(struct hda_codec *codec)
 
 	if (err < 0)
 		return err;
-	else if (err > 0)
-		/* hack - override the init verbs */
-		spec->init_verbs[0] = alc883_auto_init_verbs;
+	else if (!err)
+		return 0; /* no config found */
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
+
+	/* hack - override the init verbs */
+	spec->init_verbs[0] = alc883_auto_init_verbs;
 	spec->mixers[spec->num_mixers] = alc883_capture_mixer;
 	spec->num_mixers++;
-	return err;
+
+	return 1; /* config found */
 }
 
 /* additional initialization for auto-configuration model */
@@ -8184,6 +8224,10 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
 
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
+
 	return 1;
 }
 
@@ -8956,6 +9000,10 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	spec->init_verbs[spec->num_init_verbs++] = alc268_volume_init_verbs;
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
 
 	return 1;
 }
@@ -11172,6 +11220,10 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
 
 	return 1;
 }
