@@ -270,8 +270,11 @@ void pin_stack_pages(struct lguest *lg)
 	/* Depending on the CONFIG_4KSTACKS option, the Guest can have one or
 	 * two pages of stack space. */
 	for (i = 0; i < lg->stack_pages; i++)
-		/* The stack grows *upwards*, hence the subtraction */
-		pin_page(lg, lg->esp1 - i * PAGE_SIZE);
+		/* The stack grows *upwards*, so the address we're given is the
+		 * start of the page after the kernel stack.  Subtract one to
+		 * get back onto the first stack page, and keep subtracting to
+		 * get to the rest of the stack pages. */
+		pin_page(lg, lg->esp1 - 1 - i * PAGE_SIZE);
 }
 
 /* Direct traps also mean that we need to know whenever the Guest wants to use
