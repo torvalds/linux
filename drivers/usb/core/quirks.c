@@ -87,6 +87,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x0fca, 0x0004), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	{ USB_DEVICE(0x0fca, 0x0006), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
+	/* Apple iPhone */
+	{ USB_DEVICE(0x05ac, 0x1290), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
 	{ }  /* terminating entry must be last */
 };
 
