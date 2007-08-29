@@ -1243,7 +1243,7 @@ static int paranoid_check_all_ff(struct ubi_device *ubi, int pnum, int offset,
 fail:
 	ubi_err("paranoid check failed for PEB %d", pnum);
 	dbg_msg("hex dump of the %d-%d region", offset, offset + len);
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 4,
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       ubi->dbg_peb_buf, len, 1);
 	err = 1;
 error:

@@ -42,8 +42,8 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 	dbg_msg("data_offset    %d",    be32_to_cpu(ec_hdr->data_offset));
 	dbg_msg("hdr_crc        %#08x", be32_to_cpu(ec_hdr->hdr_crc));
 	dbg_msg("erase counter header hexdump:");
-	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 4,
-		       (void *)ec_hdr, UBI_EC_HDR_SIZE, 1);
+	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
+		       ec_hdr, UBI_EC_HDR_SIZE, 1);
 }
 
 /**
