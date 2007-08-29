@@ -244,7 +244,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	if (search_start) {
 		struct btrfs_block_group_cache *shint;
 		shint = btrfs_lookup_block_group(info, search_start);
-		if (shint->data == data) {
+		if (shint && shint->data == data) {
 			used = btrfs_block_group_used(&shint->item);
 			if (used + shint->pinned <
 			    div_factor(shint->key.offset, factor)) {
@@ -1255,8 +1255,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	struct buffer_head *buf;
 
 	ret = btrfs_alloc_extent(trans, root, root->root_key.objectid,
-				 1, empty_size, hint,
-				 (unsigned long)-1, &ins, 0);
+				 1, empty_size, hint, (u64)-1, &ins, 0);
 	if (ret) {
 		BUG_ON(ret > 0);
 		return ERR_PTR(ret);
