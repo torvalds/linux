@@ -12,6 +12,7 @@
 #define _POWERPC_BOOT_4XX_H_
 
 void ibm4xx_fixup_memsize(void);
+void ibm4xx_denali_fixup_memsize(void);
 void ibm44x_dbcr_reset(void);
 void ibm40x_dbcr_reset(void);
 void ibm4xx_quiesce_eth(u32 *emac0, u32 *emac1);
