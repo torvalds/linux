@@ -280,5 +280,11 @@ config MTD_NAND_PLATFORM
 	  devices. You will need to provide platform-specific functions
 	  via platform_data.
 
+config MTD_ALAUDA
+	tristate "MTD driver for Olympus MAUSB-10 and Fijufilm DPC-R1"
+	depends on MTD_NAND && USB
+	help
+	  These two (and possibly other) Alauda-based cardreaders for
+	  SmartMedia and xD allow raw flash access.
 
 endif # MTD_NAND
