@@ -2,10 +2,10 @@
 # Cryptographic API
 #
 
-obj-$(CONFIG_CRYPTO) += api.o scatterwalk.o cipher.o digest.o compress.o
+obj-$(CONFIG_CRYPTO) += api.o cipher.o digest.o compress.o
 
 crypto_algapi-$(CONFIG_PROC_FS) += proc.o
-crypto_algapi-objs := algapi.o $(crypto_algapi-y)
+crypto_algapi-objs := algapi.o scatterwalk.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
 
 obj-$(CONFIG_CRYPTO_ABLKCIPHER) += ablkcipher.o
