@@ -16,6 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
@@ -26,6 +27,7 @@
 #include <linux/string.h>
 #include <linux/smp_lock.h>
 #include <linux/backing-dev.h>
+#include <linux/mount.h>
 #include <linux/mpage.h>
 #include <linux/swap.h>
 #include <linux/writeback.h>
@@ -145,11 +147,126 @@ static void btrfs_write_super(struct super_block *sb)
 	sb->s_dirt = 0;
 }
 
-static int btrfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+/*
+ * This is almost a copy of get_sb_bdev in fs/super.c.
+ * We need the local copy to allow direct mounting of
+ * subvolumes, but this could be easily integrated back
+ * into the generic version.  --hch
+ */
+
+/* start copy & paste */
+static int set_bdev_super(struct super_block *s, void *data)
 {
-	return get_sb_bdev(fs_type, flags, dev_name, data,
-			   btrfs_fill_super, mnt);
+	s->s_bdev = data;
+	s->s_dev = s->s_bdev->bd_dev;
+	return 0;
+}
+
+static int test_bdev_super(struct super_block *s, void *data)
+{
+	return (void *)s->s_bdev == data;
+}
+
+int btrfs_get_sb_bdev(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data,
+	int (*fill_super)(struct super_block *, void *, int),
+	struct vfsmount *mnt, const char *subvol)
+{
+	struct block_device *bdev = NULL;
+	struct super_block *s;
+	struct dentry *root;
+	int error = 0;
+
+	bdev = open_bdev_excl(dev_name, flags, fs_type);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+
+	/*
+	 * once the super is inserted into the list by sget, s_umount
+	 * will protect the lockfs code from trying to start a snapshot
+	 * while we are mounting
+	 */
+	down(&bdev->bd_mount_sem);
+	s = sget(fs_type, test_bdev_super, set_bdev_super, bdev);
+	up(&bdev->bd_mount_sem);
+	if (IS_ERR(s))
+		goto error_s;
+
+	if (s->s_root) {
+		if ((flags ^ s->s_flags) & MS_RDONLY) {
+			up_write(&s->s_umount);
+			deactivate_super(s);
+			error = -EBUSY;
+			goto error_bdev;
+		}
+
+		close_bdev_excl(bdev);
+	} else {
+		char b[BDEVNAME_SIZE];
+
+		s->s_flags = flags;
+		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
+		sb_set_blocksize(s, block_size(bdev));
+		error = fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		if (error) {
+			up_write(&s->s_umount);
+			deactivate_super(s);
+			goto error;
+		}
+
+		s->s_flags |= MS_ACTIVE;
+	}
+
+	if (subvol) {
+		root = lookup_one_len(subvol, s->s_root, strlen(subvol));
+		if (IS_ERR(root)) {
+			up_write(&s->s_umount);
+			deactivate_super(s);
+			error = PTR_ERR(root);
+			goto error;
+		}
+		if (!root->d_inode) {
+			dput(root);
+			up_write(&s->s_umount);
+			deactivate_super(s);
+			error = -ENXIO;
+			goto error;
+		}
+	} else {
+		root = dget(s->s_root);
+	}
+
+	mnt->mnt_sb = s;
+	mnt->mnt_root = root;
+	return 0;
+
+error_s:
+	error = PTR_ERR(s);
+error_bdev:
+	close_bdev_excl(bdev);
+error:
+	return error;
+}
+/* end copy & paste */
+
+static int btrfs_get_sb(struct file_system_type *fs_type,
+	int flags, const char *identifier, void *data, struct vfsmount *mnt)
+{
+	int ret;
+	char *_identifier = kstrdup(identifier, GFP_KERNEL);
+	char *subvol_name;
+	const char *dev_name;
+
+	subvol_name = _identifier;
+	dev_name = strsep(&subvol_name, ":");
+	if (!dev_name)
+		return -ENOMEM;
+
+	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
+			btrfs_fill_super, mnt,
+			subvol_name ? subvol_name : "default");
+	kfree(_identifier);
+	return ret;
 }
 
 static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
