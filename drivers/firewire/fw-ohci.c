@@ -680,6 +680,9 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 
 	/* FIXME: Document how the locking works. */
 	if (ohci->generation != packet->generation) {
+		if (packet->payload_length > 0)
+			dma_unmap_single(ohci->card.device, payload_bus,
+					 packet->payload_length, DMA_TO_DEVICE);
 		packet->ack = RCODE_GENERATION;
 		return -1;
 	}
