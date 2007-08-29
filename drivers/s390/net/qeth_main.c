@@ -1541,16 +1541,21 @@ qeth_idx_write_cb(struct qeth_channel *channel, struct qeth_cmd_buffer *iob)
 	card = CARD_FROM_CDEV(channel->ccwdev);
 
 	if (!(QETH_IS_IDX_ACT_POS_REPLY(iob->data))) {
-		PRINT_ERR("IDX_ACTIVATE on write channel device %s: negative "
-			  "reply\n", CARD_WDEV_ID(card));
+		if (QETH_IDX_ACT_CAUSE_CODE(iob->data) == 0x19)
+			PRINT_ERR("IDX_ACTIVATE on write channel device %s: "
+				"adapter exclusively used by another host\n",
+				CARD_WDEV_ID(card));
+		else
+			PRINT_ERR("IDX_ACTIVATE on write channel device %s: "
+				"negative reply\n", CARD_WDEV_ID(card));
 		goto out;
 	}
 	memcpy(&temp, QETH_IDX_ACT_FUNC_LEVEL(iob->data), 2);
 	if ((temp & ~0x0100) != qeth_peer_func_level(card->info.func_level)) {
 		PRINT_WARN("IDX_ACTIVATE on write channel device %s: "
-			   "function level mismatch "
-			   "(sent: 0x%x, received: 0x%x)\n",
-			   CARD_WDEV_ID(card), card->info.func_level, temp);
+			"function level mismatch "
+			"(sent: 0x%x, received: 0x%x)\n",
+			CARD_WDEV_ID(card), card->info.func_level, temp);
 		goto out;
 	}
 	channel->state = CH_STATE_UP;
@@ -1596,8 +1601,13 @@ qeth_idx_read_cb(struct qeth_channel *channel, struct qeth_cmd_buffer *iob)
 			goto out;
 	}
 	if (!(QETH_IS_IDX_ACT_POS_REPLY(iob->data))) {
-		PRINT_ERR("IDX_ACTIVATE on read channel device %s: negative "
-			  "reply\n", CARD_RDEV_ID(card));
+		if (QETH_IDX_ACT_CAUSE_CODE(iob->data) == 0x19)
+			PRINT_ERR("IDX_ACTIVATE on read channel device %s: "
+				"adapter exclusively used by another host\n",
+				CARD_RDEV_ID(card));
+		else
+			PRINT_ERR("IDX_ACTIVATE on read channel device %s: "
+				"negative reply\n", CARD_RDEV_ID(card));
 		goto out;
 	}
 
@@ -1612,8 +1622,8 @@ qeth_idx_read_cb(struct qeth_channel *channel, struct qeth_cmd_buffer *iob)
 	memcpy(&temp, QETH_IDX_ACT_FUNC_LEVEL(iob->data), 2);
 	if (temp != qeth_peer_func_level(card->info.func_level)) {
 		PRINT_WARN("IDX_ACTIVATE on read channel device %s: function "
-			   "level mismatch (sent: 0x%x, received: 0x%x)\n",
-			   CARD_RDEV_ID(card), card->info.func_level, temp);
+			"level mismatch (sent: 0x%x, received: 0x%x)\n",
+			CARD_RDEV_ID(card), card->info.func_level, temp);
 		goto out;
 	}
 	memcpy(&card->token.issuer_rm_r,
