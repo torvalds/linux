@@ -80,10 +80,10 @@ config MACH_DECSTATION
 	  If you have one of the following DECstation Models you definitely
 	  want to choose R4xx0 for the CPU Type:
 
-	  	DECstation 5000/50
-	  	DECstation 5000/150
-	  	DECstation 5000/260
-	  	DECsystem 5900/260
+		DECstation 5000/50
+		DECstation 5000/150
+		DECstation 5000/260
+		DECsystem 5900/260
 
 	  otherwise choose R3000.
 
