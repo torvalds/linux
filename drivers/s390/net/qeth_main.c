@@ -2803,13 +2803,16 @@ qeth_queue_input_buffer(struct qeth_card *card, int index)
 		if (newcount < count) {
 			/* we are in memory shortage so we switch back to
 			   traditional skb allocation and drop packages */
-			if (atomic_cmpxchg(&card->force_alloc_skb, 0, 1))
-				printk(KERN_WARNING
-					"qeth: switch to alloc skb\n");
+			if (!atomic_read(&card->force_alloc_skb) &&
+			    net_ratelimit())
+				PRINT_WARN("Switch to alloc skb\n");
+			atomic_set(&card->force_alloc_skb, 3);
 			count = newcount;
 		} else {
-			if (atomic_cmpxchg(&card->force_alloc_skb, 1, 0))
-				printk(KERN_WARNING "qeth: switch to sg\n");
+			if ((atomic_read(&card->force_alloc_skb) == 1) &&
+			    net_ratelimit())
+				PRINT_WARN("Switch to sg\n");
+			atomic_add_unless(&card->force_alloc_skb, -1, 0);
 		}
 
 		/*
