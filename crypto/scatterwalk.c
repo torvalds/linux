@@ -107,3 +107,25 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 	}
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
+
+void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
+			      unsigned int start, unsigned int nbytes, int out)
+{
+	struct scatter_walk walk;
+	unsigned int offset = 0;
+
+	for (;;) {
+		scatterwalk_start(&walk, sg);
+
+		if (start < offset + sg->length)
+			break;
+
+		offset += sg->length;
+		sg = sg_next(sg);
+	}
+
+	scatterwalk_advance(&walk, start - offset);
+	scatterwalk_copychunks(buf, &walk, nbytes, out);
+	scatterwalk_done(&walk, out, 0);
+}
+EXPORT_SYMBOL_GPL(scatterwalk_map_and_copy);
