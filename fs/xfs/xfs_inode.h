@@ -360,6 +360,19 @@ xfs_iflags_test(xfs_inode_t *ip, unsigned short flags)
 	spin_unlock(&ip->i_flags_lock);
 	return ret;
 }
+
+static inline int
+xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
+{
+	int ret;
+
+	spin_lock(&ip->i_flags_lock);
+	ret = ip->i_flags & flags;
+	if (ret)
+		ip->i_flags &= ~flags;
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
 #endif	/* __KERNEL__ */
 
 

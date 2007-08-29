@@ -1541,12 +1541,7 @@ xfs_release(
 		 * significantly reducing the time window where we'd otherwise
 		 * be exposed to that problem.
 		 */
-		spin_lock(&ip->i_flags_lock);
-		truncated = __xfs_iflags_test(ip, XFS_ITRUNCATED);
-		if (truncated)
-			ip->i_flags &= ~XFS_ITRUNCATED;
-		spin_unlock(&ip->i_flags_lock);
-
+		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
 		if (truncated && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
 			xfs_flush_pages(ip, 0, -1, XFS_B_ASYNC, FI_NONE);
 	}
