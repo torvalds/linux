@@ -45,8 +45,7 @@
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-static int paranoid_check_si(const struct ubi_device *ubi,
-			     struct ubi_scan_info *si);
+static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si);
 #else
 #define paranoid_check_si(ubi, si) 0
 #endif
@@ -259,9 +258,8 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
  *     o bit 2 is cleared: the older LEB is not corrupted;
  *     o bit 2 is set: the older LEB is corrupted.
  */
-static int compare_lebs(const struct ubi_device *ubi,
-			const struct ubi_scan_leb *seb, int pnum,
-			const struct ubi_vid_hdr *vid_hdr)
+static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
+			int pnum, const struct ubi_vid_hdr *vid_hdr)
 {
 	void *buf;
 	int len, err, second_is_newer, bitflips = 0, corrupted = 0;
@@ -413,7 +411,7 @@ out_free_vidh:
  * to be picked, while the older one has to be dropped. This function returns
  * zero in case of success and a negative error code in case of failure.
  */
-int ubi_scan_add_used(const struct ubi_device *ubi, struct ubi_scan_info *si,
+int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 		      int pnum, int ec, const struct ubi_vid_hdr *vid_hdr,
 		      int bitflips)
 {
@@ -667,8 +665,8 @@ void ubi_scan_rm_volume(struct ubi_scan_info *si, struct ubi_scan_volume *sv)
  * function returns zero in case of success and a negative error code in case
  * of failure.
  */
-int ubi_scan_erase_peb(const struct ubi_device *ubi,
-		       const struct ubi_scan_info *si, int pnum, int ec)
+int ubi_scan_erase_peb(struct ubi_device *ubi, const struct ubi_scan_info *si,
+		       int pnum, int ec)
 {
 	int err;
 	struct ubi_ec_hdr *ec_hdr;
@@ -712,7 +710,7 @@ out_free:
  * This function returns scanning physical eraseblock information in case of
  * success and an error code in case of failure.
  */
-struct ubi_scan_leb *ubi_scan_get_free_peb(const struct ubi_device *ubi,
+struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
 					   struct ubi_scan_info *si)
 {
 	int err = 0, i;
@@ -1110,8 +1108,7 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
  * This function returns zero if the scanning information is all right, %1 if
  * not and a negative error code if an error occurred.
  */
-static int paranoid_check_si(const struct ubi_device *ubi,
-			     struct ubi_scan_info *si)
+static int paranoid_check_si(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	int pnum, err, vols_found = 0;
 	struct rb_node *rb1, *rb2;

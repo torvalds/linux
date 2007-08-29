@@ -274,6 +274,12 @@ struct ubi_wl_entry;
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
  * not
  * @mtd: MTD device descriptor
+ *
+ * @peb_buf1: a buffer of PEB size used for different purposes
+ * @peb_buf2: another buffer of PEB size used for different purposes
+ * @buf_mutex: proptects @peb_buf1 and @peb_buf2
+ * @dbg_peb_buf:  buffer of PEB size used for debugging
+ * @dbg_buf_mutex: proptects @dbg_peb_buf
  */
 struct ubi_device {
 	struct cdev cdev;
@@ -343,6 +349,14 @@ struct ubi_device {
 	int vid_hdr_shift;
 	int bad_allowed;
 	struct mtd_info *mtd;
+
+	void *peb_buf1;
+	void *peb_buf2;
+	struct mutex buf_mutex;
+#ifdef CONFIG_MTD_UBI_DEBUG
+	void *dbg_peb_buf;
+	struct mutex dbg_buf_mutex;
+#endif
 };
 
 extern struct file_operations ubi_cdev_operations;
@@ -409,18 +423,18 @@ void ubi_wl_close(struct ubi_device *ubi);
 /* io.c */
 int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 		int len);
-int ubi_io_write(const struct ubi_device *ubi, const void *buf, int pnum,
-		 int offset, int len);
-int ubi_io_sync_erase(const struct ubi_device *ubi, int pnum, int torture);
+int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
+		 int len);
+int ubi_io_sync_erase(struct ubi_device *ubi, int pnum, int torture);
 int ubi_io_is_bad(const struct ubi_device *ubi, int pnum);
 int ubi_io_mark_bad(const struct ubi_device *ubi, int pnum);
-int ubi_io_read_ec_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_read_ec_hdr(struct ubi_device *ubi, int pnum,
 		       struct ubi_ec_hdr *ec_hdr, int verbose);
-int ubi_io_write_ec_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_write_ec_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_ec_hdr *ec_hdr);
-int ubi_io_read_vid_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_vid_hdr *vid_hdr, int verbose);
-int ubi_io_write_vid_hdr(const struct ubi_device *ubi, int pnum,
+int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 			 struct ubi_vid_hdr *vid_hdr);
 
 /*
@@ -494,7 +508,7 @@ static inline int ubi_io_read_data(const struct ubi_device *ubi, void *buf,
  * the beginning of the logical eraseblock, not to the beginning of the
  * physical eraseblock.
  */
-static inline int ubi_io_write_data(const struct ubi_device *ubi, const void *buf,
+static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
 				    int pnum, int offset, int len)
 {
 	ubi_assert(offset >= 0);

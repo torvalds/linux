@@ -565,7 +565,7 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 		}
 
 	ubi = ubi_devices[ubi_devices_cnt] = kzalloc(sizeof(struct ubi_device),
-						      GFP_KERNEL);
+						     GFP_KERNEL);
 	if (!ubi) {
 		err = -ENOMEM;
 		goto out_mtd;
@@ -582,6 +582,22 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 	err = io_init(ubi);
 	if (err)
 		goto out_free;
+
+	mutex_init(&ubi->buf_mutex);
+	ubi->peb_buf1 = vmalloc(ubi->peb_size);
+	if (!ubi->peb_buf1)
+		goto out_free;
+
+	ubi->peb_buf2 = vmalloc(ubi->peb_size);
+	if (!ubi->peb_buf2)
+		 goto out_free;
+
+#ifdef CONFIG_MTD_UBI_DEBUG
+	mutex_init(&ubi->dbg_buf_mutex);
+	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
+	if (!ubi->dbg_peb_buf)
+		 goto out_free;
+#endif
 
 	err = attach_by_scanning(ubi);
 	if (err) {
@@ -630,6 +646,11 @@ out_detach:
 	ubi_wl_close(ubi);
 	vfree(ubi->vtbl);
 out_free:
+	vfree(ubi->peb_buf1);
+	vfree(ubi->peb_buf2);
+#ifdef CONFIG_MTD_UBI_DEBUG
+	vfree(ubi->dbg_peb_buf);
+#endif
 	kfree(ubi);
 out_mtd:
 	put_mtd_device(mtd);
@@ -651,6 +672,11 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 	ubi_wl_close(ubi);
 	vfree(ubi->vtbl);
 	put_mtd_device(ubi->mtd);
+	vfree(ubi->peb_buf1);
+	vfree(ubi->peb_buf2);
+#ifdef CONFIG_MTD_UBI_DEBUG
+	vfree(ubi->dbg_peb_buf);
+#endif
 	kfree(ubi_devices[ubi_num]);
 	ubi_devices[ubi_num] = NULL;
 	ubi_devices_cnt -= 1;

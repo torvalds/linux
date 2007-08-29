@@ -495,16 +495,18 @@ static int recover_peb(struct ubi_device *ubi, int pnum, int vol_id, int lnum,
 	int err, idx = vol_id2idx(ubi, vol_id), new_pnum, data_size, tries = 0;
 	struct ubi_volume *vol = ubi->volumes[idx];
 	struct ubi_vid_hdr *vid_hdr;
-	unsigned char *new_buf;
 
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr) {
 		return -ENOMEM;
 	}
 
+	mutex_lock(&ubi->buf_mutex);
+
 retry:
 	new_pnum = ubi_wl_get_peb(ubi, UBI_UNKNOWN);
 	if (new_pnum < 0) {
+		mutex_unlock(&ubi->buf_mutex);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return new_pnum;
 	}
@@ -524,31 +526,22 @@ retry:
 		goto write_error;
 
 	data_size = offset + len;
-	new_buf = vmalloc(data_size);
-	if (!new_buf) {
-		err = -ENOMEM;
-		goto out_put;
-	}
-	memset(new_buf + offset, 0xFF, len);
+	memset(ubi->peb_buf1 + offset, 0xFF, len);
 
 	/* Read everything before the area where the write failure happened */
 	if (offset > 0) {
-		err = ubi_io_read_data(ubi, new_buf, pnum, 0, offset);
-		if (err && err != UBI_IO_BITFLIPS) {
-			vfree(new_buf);
+		err = ubi_io_read_data(ubi, ubi->peb_buf1, pnum, 0, offset);
+		if (err && err != UBI_IO_BITFLIPS)
 			goto out_put;
-		}
 	}
 
-	memcpy(new_buf + offset, buf, len);
+	memcpy(ubi->peb_buf1 + offset, buf, len);
 
-	err = ubi_io_write_data(ubi, new_buf, new_pnum, 0, data_size);
-	if (err) {
-		vfree(new_buf);
+	err = ubi_io_write_data(ubi, ubi->peb_buf1, new_pnum, 0, data_size);
+	if (err)
 		goto write_error;
-	}
 
-	vfree(new_buf);
+	mutex_unlock(&ubi->buf_mutex);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 
 	vol->eba_tbl[lnum] = new_pnum;
@@ -558,6 +551,7 @@ retry:
 	return 0;
 
 out_put:
+	mutex_unlock(&ubi->buf_mutex);
 	ubi_wl_put_peb(ubi, new_pnum, 1);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	return err;
@@ -570,6 +564,7 @@ write_error:
 	ubi_warn("failed to write to PEB %d", new_pnum);
 	ubi_wl_put_peb(ubi, new_pnum, 1);
 	if (++tries > UBI_IO_RETRIES) {
+		mutex_unlock(&ubi->buf_mutex);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return err;
 	}
@@ -965,7 +960,6 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	int err, vol_id, lnum, data_size, aldata_size, pnum, idx;
 	struct ubi_volume *vol;
 	uint32_t crc;
-	void *buf, *buf1 = NULL;
 
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
@@ -979,19 +973,15 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		data_size = aldata_size =
 			    ubi->leb_size - be32_to_cpu(vid_hdr->data_pad);
 
-	buf = vmalloc(aldata_size);
-	if (!buf)
-		return -ENOMEM;
-
 	/*
 	 * We do not want anybody to write to this logical eraseblock while we
 	 * are moving it, so we lock it.
 	 */
 	err = leb_write_lock(ubi, vol_id, lnum);
-	if (err) {
-		vfree(buf);
+	if (err)
 		return err;
-	}
+
+	mutex_lock(&ubi->buf_mutex);
 
 	/*
 	 * But the logical eraseblock might have been put by this time.
@@ -1023,7 +1013,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	/* OK, now the LEB is locked and we can safely start moving it */
 
 	dbg_eba("read %d bytes of data", aldata_size);
-	err = ubi_io_read_data(ubi, buf, from, 0, aldata_size);
+	err = ubi_io_read_data(ubi, ubi->peb_buf1, from, 0, aldata_size);
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
 			 err, from);
@@ -1042,10 +1032,10 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 */
 	if (vid_hdr->vol_type == UBI_VID_DYNAMIC)
 		aldata_size = data_size =
-				ubi_calc_data_len(ubi, buf, data_size);
+			ubi_calc_data_len(ubi, ubi->peb_buf1, data_size);
 
 	cond_resched();
-	crc = crc32(UBI_CRC32_INIT, buf, data_size);
+	crc = crc32(UBI_CRC32_INIT, ubi->peb_buf1, data_size);
 	cond_resched();
 
 	/*
@@ -1076,23 +1066,18 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	if (data_size > 0) {
-		err = ubi_io_write_data(ubi, buf, to, 0, aldata_size);
+		err = ubi_io_write_data(ubi, ubi->peb_buf1, to, 0, aldata_size);
 		if (err)
 			goto out_unlock;
+
+		cond_resched();
 
 		/*
 		 * We've written the data and are going to read it back to make
 		 * sure it was written correctly.
 		 */
-		buf1 = vmalloc(aldata_size);
-		if (!buf1) {
-			err = -ENOMEM;
-			goto out_unlock;
-		}
 
-		cond_resched();
-
-		err = ubi_io_read_data(ubi, buf1, to, 0, aldata_size);
+		err = ubi_io_read_data(ubi, ubi->peb_buf2, to, 0, aldata_size);
 		if (err) {
 			if (err != UBI_IO_BITFLIPS)
 				ubi_warn("cannot read data back from PEB %d",
@@ -1102,7 +1087,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 
 		cond_resched();
 
-		if (memcmp(buf, buf1, aldata_size)) {
+		if (memcmp(ubi->peb_buf1, ubi->peb_buf2, aldata_size)) {
 			ubi_warn("read data back from PEB %d - it is different",
 				 to);
 			goto out_unlock;
@@ -1112,16 +1097,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	ubi_assert(vol->eba_tbl[lnum] == from);
 	vol->eba_tbl[lnum] = to;
 
-	leb_write_unlock(ubi, vol_id, lnum);
-	vfree(buf);
-	vfree(buf1);
-
-	return 0;
-
 out_unlock:
+	mutex_unlock(&ubi->buf_mutex);
 	leb_write_unlock(ubi, vol_id, lnum);
-	vfree(buf);
-	vfree(buf1);
 	return err;
 }
 

@@ -208,7 +208,7 @@ struct ubi_work {
 };
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
-static int paranoid_check_ec(const struct ubi_device *ubi, int pnum, int ec);
+static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec);
 static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 				     struct rb_root *root);
 #else
@@ -1625,7 +1625,7 @@ void ubi_wl_close(struct ubi_device *ubi)
  * is equivalent to @ec, %1 if not, and a negative error code if an error
  * occurred.
  */
-static int paranoid_check_ec(const struct ubi_device *ubi, int pnum, int ec)
+static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
 {
 	int err;
 	long long read_ec;
