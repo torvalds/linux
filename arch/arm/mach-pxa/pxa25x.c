@@ -227,10 +227,52 @@ static void __init pxa25x_init_pm(void)
 }
 #endif
 
+/* PXA25x: supports wakeup from GPIO0..GPIO15 and RTC alarm
+ */
+
+static int pxa25x_set_wake(unsigned int irq, unsigned int on)
+{
+	int gpio = IRQ_TO_GPIO(irq);
+	uint32_t gpio_bit, mask = 0;
+
+	if (gpio >= 0 && gpio <= 15) {
+		gpio_bit = GPIO_bit(gpio);
+		mask = gpio_bit;
+		if (on) {
+			if (GRER(gpio) | gpio_bit)
+				PRER |= gpio_bit;
+			else
+				PRER &= ~gpio_bit;
+
+			if (GFER(gpio) | gpio_bit)
+				PFER |= gpio_bit;
+			else
+				PFER &= ~gpio_bit;
+		}
+		goto set_pwer;
+	}
+
+	if (irq == IRQ_RTCAlrm) {
+		mask = PWER_RTC;
+		goto set_pwer;
+	}
+
+	return -EINVAL;
+
+set_pwer:
+	if (on)
+		PWER |= mask;
+	else
+		PWER &=~mask;
+
+	return 0;
+}
+
 void __init pxa25x_init_irq(void)
 {
 	pxa_init_irq_low();
 	pxa_init_irq_gpio(85);
+	pxa_init_irq_set_wake(pxa25x_set_wake);
 }
 
 static struct platform_device *pxa25x_devices[] __initdata = {

@@ -306,6 +306,69 @@ static void __init pxa27x_init_pm(void)
 }
 #endif
 
+/* PXA27x:  Various gpios can issue wakeup events.  This logic only
+ * handles the simple cases, not the WEMUX2 and WEMUX3 options
+ */
+#define PXA27x_GPIO_NOWAKE_MASK \
+        ((1 << 8) | (1 << 7) | (1 << 6) | (1 << 5) | (1 << 2))
+#define WAKEMASK(gpio) \
+        (((gpio) <= 15) \
+                 ? ((1 << (gpio)) & ~PXA27x_GPIO_NOWAKE_MASK) \
+                 : ((gpio == 35) ? (1 << 24) : 0))
+
+static int pxa27x_set_wake(unsigned int irq, unsigned int on)
+{
+	int gpio = IRQ_TO_GPIO(irq);
+	uint32_t mask;
+
+	if ((gpio >= 0 && gpio <= 15) || (gpio == 35)) {
+		if (WAKEMASK(gpio) == 0)
+			return -EINVAL;
+
+		mask = WAKEMASK(gpio);
+
+		if (on) {
+			if (GRER(gpio) | GPIO_bit(gpio))
+				PRER |= mask;
+			else
+				PRER &= ~mask;
+
+			if (GFER(gpio) | GPIO_bit(gpio))
+				PFER |= mask;
+			else
+				PFER &= ~mask;
+		}
+		goto set_pwer;
+	}
+
+	switch (irq) {
+	case IRQ_RTCAlrm:
+		mask = PWER_RTC;
+		break;
+	case IRQ_USB:
+		mask = 1u << 26;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+set_pwer:
+	if (on)
+		PWER |= mask;
+	else
+		PWER &=~mask;
+
+	return 0;
+}
+
+void __init pxa27x_init_irq(void)
+{
+	pxa_init_irq_low();
+	pxa_init_irq_high();
+	pxa_init_irq_gpio(128);
+	pxa_init_irq_set_wake(pxa27x_set_wake);
+}
+
 /*
  * device registration specific to PXA27x.
  */
@@ -374,13 +437,6 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_i2c_power,
 	&pxa27x_device_ohci,
 };
-
-void __init pxa27x_init_irq(void)
-{
-	pxa_init_irq_low();
-	pxa_init_irq_high();
-	pxa_init_irq_gpio(128);
-}
 
 static int __init pxa27x_init(void)
 {
