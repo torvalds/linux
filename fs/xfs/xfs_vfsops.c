@@ -326,6 +326,8 @@ xfs_start_flags(
 	if (ap->flags2 & XFSMNT2_FILESTREAMS)
 		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 
+	if (ap->flags & XFSMNT_DMAPI)
+		vfs->vfs_flag |= VFS_DMI;
 	return 0;
 }
 
@@ -430,11 +432,13 @@ xfs_mount(
 	ddev = vfsp->vfs_super->s_bdev;
 	logdev = rtdev = NULL;
 
+	error = xfs_dmops_get(mp, args);
+	if (error)
+		return error;
+
 	/*
 	 * Setup xfs_mount function vectors from available behaviors
 	 */
-	p = vfs_bhv_lookup(vfsp, VFS_POSITION_DM);
-	mp->m_dm_ops = p ? *(xfs_dmops_t *) vfs_bhv_custom(p) : xfs_dmcore_stub;
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_QM);
 	mp->m_qm_ops = p ? *(xfs_qmops_t *) vfs_bhv_custom(p) : xfs_qmcore_stub;
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
@@ -537,6 +541,8 @@ xfs_mount(
 	if (error)
 		goto error2;
 
+	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, args->mtpt, args->fsname);
+
 	return 0;
 
 error2:
@@ -550,6 +556,7 @@ error1:
 		xfs_binval(mp->m_rtdev_targp);
 error0:
 	xfs_unmountfs_close(mp, credp);
+	xfs_dmops_put(mp);
 	return error;
 }
 
@@ -640,6 +647,7 @@ out:
 		 * and free the super block buffer & mount structures.
 		 */
 		xfs_unmountfs(mp, credp);
+		xfs_dmops_put(mp);
 		kmem_free(mp, sizeof(xfs_mount_t));
 	}
 
@@ -1688,6 +1696,9 @@ xfs_vget(
 #define MNTOPT_ATTR2	"attr2"		/* do use attr2 attribute format */
 #define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
 #define MNTOPT_FILESTREAM  "filestreams" /* use filestreams allocator */
+#define MNTOPT_DMAPI	"dmapi"		/* DMI enabled (DMAPI / XDSM) */
+#define MNTOPT_XDSM	"xdsm"		/* DMI enabled (DMAPI / XDSM) */
+#define MNTOPT_DMI	"dmi"		/* DMI enabled (DMAPI / XDSM) */
 
 STATIC unsigned long
 suffix_strtoul(char *s, char **endp, unsigned int base)
@@ -1878,6 +1889,12 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
 			args->flags2 |= XFSMNT2_FILESTREAMS;
+		} else if (!strcmp(this_char, MNTOPT_DMAPI)) {
+			args->flags |= XFSMNT_DMAPI;
+		} else if (!strcmp(this_char, MNTOPT_XDSM)) {
+			args->flags |= XFSMNT_DMAPI;
+		} else if (!strcmp(this_char, MNTOPT_DMI)) {
+			args->flags |= XFSMNT_DMAPI;
 		} else if (!strcmp(this_char, "ihashsize")) {
 			cmn_err(CE_WARN,
 	"XFS: ihashsize no longer used, option is deprecated.");
@@ -1906,6 +1923,12 @@ xfs_parseargs(
 	if ((args->flags & XFSMNT_NOALIGN) && (dsunit || dswidth)) {
 		cmn_err(CE_WARN,
 	"XFS: sunit and swidth options incompatible with the noalign option");
+		return EINVAL;
+	}
+
+	if ((args->flags & XFSMNT_DMAPI) && *args->mtpt == '\0') {
+		printk("XFS: %s option needs the mount point option as well\n",
+			MNTOPT_DMAPI);
 		return EINVAL;
 	}
 
@@ -2002,6 +2025,9 @@ xfs_showargs(
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
 
+	if (vfsp->vfs_flag & VFS_DMI)
+		seq_puts(m, "," MNTOPT_DMAPI);
+
 	return 0;
 }
 
@@ -2032,7 +2058,6 @@ bhv_vfsops_t xfs_vfsops = {
 	.vfs_statvfs		= xfs_statvfs,
 	.vfs_sync		= xfs_sync,
 	.vfs_vget		= xfs_vget,
-	.vfs_dmapiops		= (vfs_dmapiops_t)fs_nosys,
 	.vfs_quotactl		= (vfs_quotactl_t)fs_nosys,
 	.vfs_init_vnode		= xfs_initialize_vnode,
 	.vfs_force_shutdown	= xfs_do_force_shutdown,

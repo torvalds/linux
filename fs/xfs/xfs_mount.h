@@ -85,6 +85,8 @@ typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct bhv_vfs *,
 			bhv_vnode_t *,
 			dm_right_t, bhv_vnode_t *, dm_right_t,
 			char *, char *, mode_t, int, int);
+typedef int	(*xfs_send_mount_t)(struct xfs_mount *, dm_right_t,
+			char *, char *);
 typedef void	(*xfs_send_unmount_t)(struct bhv_vfs *, bhv_vnode_t *,
 			dm_right_t, mode_t, int, int);
 
@@ -93,21 +95,24 @@ typedef struct xfs_dmops {
 	xfs_send_mmap_t		xfs_send_mmap;
 	xfs_send_destroy_t	xfs_send_destroy;
 	xfs_send_namesp_t	xfs_send_namesp;
+	xfs_send_mount_t	xfs_send_mount;
 	xfs_send_unmount_t	xfs_send_unmount;
 } xfs_dmops_t;
 
 #define XFS_SEND_DATA(mp, ev,vp,off,len,fl,lock) \
-	(*(mp)->m_dm_ops.xfs_send_data)(ev,vp,off,len,fl,lock)
+	(*(mp)->m_dm_ops->xfs_send_data)(ev,vp,off,len,fl,lock)
 #define XFS_SEND_MMAP(mp, vma,fl) \
-	(*(mp)->m_dm_ops.xfs_send_mmap)(vma,fl)
+	(*(mp)->m_dm_ops->xfs_send_mmap)(vma,fl)
 #define XFS_SEND_DESTROY(mp, vp,right) \
-	(*(mp)->m_dm_ops.xfs_send_destroy)(vp,right)
+	(*(mp)->m_dm_ops->xfs_send_destroy)(vp,right)
 #define XFS_SEND_NAMESP(mp, ev,b1,r1,b2,r2,n1,n2,mode,rval,fl) \
-	(*(mp)->m_dm_ops.xfs_send_namesp)(ev,NULL,b1,r1,b2,r2,n1,n2,mode,rval,fl)
+	(*(mp)->m_dm_ops->xfs_send_namesp)(ev,NULL,b1,r1,b2,r2,n1,n2,mode,rval,fl)
 #define XFS_SEND_PREUNMOUNT(mp, vfs,b1,r1,b2,r2,n1,n2,mode,rval,fl) \
-	(*(mp)->m_dm_ops.xfs_send_namesp)(DM_EVENT_PREUNMOUNT,vfs,b1,r1,b2,r2,n1,n2,mode,rval,fl)
+	(*(mp)->m_dm_ops->xfs_send_namesp)(DM_EVENT_PREUNMOUNT,vfs,b1,r1,b2,r2,n1,n2,mode,rval,fl)
+#define XFS_SEND_MOUNT(mp,right,path,name) \
+	(*(mp)->m_dm_ops->xfs_send_mount)(mp,right,path,name)
 #define XFS_SEND_UNMOUNT(mp, vfsp,vp,right,mode,rval,fl) \
-	(*(mp)->m_dm_ops.xfs_send_unmount)(vfsp,vp,right,mode,rval,fl)
+	(*(mp)->m_dm_ops->xfs_send_unmount)(vfsp,vp,right,mode,rval,fl)
 
 
 /*
@@ -407,7 +412,7 @@ typedef struct xfs_mount {
 	uint			m_chsize;	/* size of next field */
 	struct xfs_chash	*m_chash;	/* fs private inode per-cluster
 						 * hash table */
-	struct xfs_dmops	m_dm_ops;	/* vector of DMI ops */
+	struct xfs_dmops	*m_dm_ops;	/* vector of DMI ops */
 	struct xfs_qmops	m_qm_ops;	/* vector of XQM ops */
 	struct xfs_ioops	m_io_ops;	/* vector of I/O ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
@@ -642,7 +647,10 @@ extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
 extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
 extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
-extern struct xfs_dmops xfs_dmcore_stub;
+extern int	xfs_dmops_get(struct xfs_mount *, struct xfs_mount_args *);
+extern void	xfs_dmops_put(struct xfs_mount *);
+
+extern struct xfs_dmops xfs_dmcore_xfs;
 extern struct xfs_qmops xfs_qmcore_stub;
 extern struct xfs_ioops xfs_iocore_xfs;
 

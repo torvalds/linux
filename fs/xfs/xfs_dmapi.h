@@ -168,7 +168,4 @@ typedef enum {
 			DM_FLAGS_NDELAY : 0)
 #define AT_DELAY_FLAG(f) ((f&ATTR_NONBLOCK) ? DM_FLAGS_NDELAY : 0)
 
-
-extern struct bhv_module_vfsops xfs_dmops;
-
 #endif  /* __XFS_DMAPI_H__ */

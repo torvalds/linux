@@ -156,19 +156,6 @@ vfs_vget(
 }
 
 int
-vfs_dmapiops(
-	struct bhv_desc		*bdp,
-	caddr_t			addr)
-{
-	struct bhv_desc		*next = bdp;
-
-	ASSERT(next);
-	while (! (bhvtovfsops(next))->vfs_dmapiops)
-		next = BHV_NEXT(next);
-	return ((*bhvtovfsops(next)->vfs_dmapiops)(next, addr));
-}
-
-int
 vfs_quotactl(
 	struct bhv_desc		*bdp,
 	int			cmd,
@@ -306,7 +293,6 @@ bhv_remove_all_vfsops(
 	struct xfs_mount	*mp;
 
 	bhv_remove_vfsops(vfsp, VFS_POSITION_QM);
-	bhv_remove_vfsops(vfsp, VFS_POSITION_DM);
 	if (!freebase)
 		return;
 	mp = XFS_VFSTOM(vfsp);
