@@ -1064,6 +1064,12 @@ static inline int btrfs_set_root_name(struct btrfs_root *root,
 	((type *)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset((leaf)->items + (slot))))
 
+/* mount option defines and helpers */
+#define BTRFS_MOUNT_SUBVOL		0x000001
+#define btrfs_clear_opt(o, opt)		o &= ~BTRFS_MOUNT_##opt
+#define btrfs_set_opt(o, opt)		o |= BTRFS_MOUNT_##opt
+#define btrfs_test_opt(sb, opt)		(BTRFS_SB(sb)->s_mount_opt & \
+					 BTRFS_MOUNT_##opt)
 /* extent-tree.c */
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);

@@ -33,6 +33,7 @@
 #include <linux/writeback.h>
 #include <linux/statfs.h>
 #include <linux/compat.h>
+#include <linux/parser.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -56,6 +57,41 @@ static void btrfs_put_super (struct super_block * sb)
 	}
 	btrfs_sysfs_del_super(fs);
 	sb->s_fs_info = NULL;
+}
+
+enum {
+	Opt_subvol, Opt_err,
+};
+
+static match_table_t tokens = {
+	{Opt_subvol, "subvol=%s"},
+	{Opt_err, NULL}
+};
+
+static int parse_options (char * options,
+			  struct btrfs_root *root,
+			  char **subvol_name)
+{
+	char * p;
+	substring_t args[MAX_OPT_ARGS];
+	if (!options)
+		return 1;
+
+	while ((p = strsep (&options, ",")) != NULL) {
+		int token;
+		if (!*p)
+			continue;
+
+		token = match_token(p, tokens, args);
+		switch (token) {
+		case Opt_subvol:
+			*subvol_name = match_strdup(&args[0]);
+			break;
+		default:
+			return 0;
+		}
+	}
+	return 1;
 }
 
 static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
@@ -250,22 +286,15 @@ error:
 /* end copy & paste */
 
 static int btrfs_get_sb(struct file_system_type *fs_type,
-	int flags, const char *identifier, void *data, struct vfsmount *mnt)
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
 	int ret;
-	char *_identifier = kstrdup(identifier, GFP_KERNEL);
-	char *subvol_name;
-	const char *dev_name;
+	char *subvol_name = NULL;
 
-	subvol_name = _identifier;
-	dev_name = strsep(&subvol_name, ":");
-	if (!dev_name)
-		return -ENOMEM;
-
+	parse_options((char *)data, NULL, &subvol_name);
 	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
 			btrfs_fill_super, mnt,
 			subvol_name ? subvol_name : "default");
-	kfree(_identifier);
 	return ret;
 }
 
