@@ -150,7 +150,7 @@ static u8 opcode_table[256] = {
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE8 - 0xEF */
-	0, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
+	ImplicitOps, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, 0,
@@ -1033,6 +1033,26 @@ push:
 	case 0xd2 ... 0xd3:	/* Grp2 */
 		src.val = _regs[VCPU_REGS_RCX];
 		goto grp2;
+	case 0xe8: /* call (near) */ {
+		long int rel;
+		switch (op_bytes) {
+		case 2:
+			rel = insn_fetch(s16, 2, _eip);
+			break;
+		case 4:
+			rel = insn_fetch(s32, 4, _eip);
+			break;
+		case 8:
+			rel = insn_fetch(s64, 8, _eip);
+			break;
+		default:
+			DPRINTF("Call: Invalid op_bytes\n");
+			goto cannot_emulate;
+		}
+		src.val = (unsigned long) _eip;
+		JMP_REL(rel);
+		goto push;
+	}
 	case 0xe9: /* jmp rel */
 	case 0xeb: /* jmp rel short */
 		JMP_REL(src.val);
