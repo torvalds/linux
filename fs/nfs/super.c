@@ -1166,7 +1166,7 @@ static int nfs_validate_mount_data(struct nfs_mount_data **options,
 
 		status = nfs_try_mount(&args, mntfh);
 		if (status)
-			return -EINVAL;
+			return status;
 
 		/*
 		 * Translate to nfs_mount_data, which nfs_fill_super
