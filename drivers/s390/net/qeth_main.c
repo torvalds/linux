@@ -561,7 +561,7 @@ qeth_set_offline(struct ccwgroup_device *cgdev)
 }
 
 static int
-qeth_wait_for_threads(struct qeth_card *card, unsigned long threads);
+qeth_threads_running(struct qeth_card *card, unsigned long threads);
 
 
 static void
@@ -576,8 +576,7 @@ qeth_remove_device(struct ccwgroup_device *cgdev)
 	if (!card)
 		return;
 
-	if (qeth_wait_for_threads(card, 0xffffffff))
-		return;
+	wait_event(card->wait_q, qeth_threads_running(card, 0xffffffff) == 0);
 
 	if (cgdev->state == CCWGROUP_ONLINE){
 		card->use_hard_stop = 1;
