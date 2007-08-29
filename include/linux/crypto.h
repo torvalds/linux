@@ -624,7 +624,8 @@ static inline int crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 	return crt->decrypt(req);
 }
 
-static inline int crypto_ablkcipher_reqsize(struct crypto_ablkcipher *tfm)
+static inline unsigned int crypto_ablkcipher_reqsize(
+	struct crypto_ablkcipher *tfm)
 {
 	return crypto_ablkcipher_crt(tfm)->reqsize;
 }
@@ -766,7 +767,7 @@ static inline int crypto_aead_decrypt(struct aead_request *req)
 	return crypto_aead_crt(crypto_aead_reqtfm(req))->decrypt(req);
 }
 
-static inline int crypto_aead_reqsize(struct crypto_aead *tfm)
+static inline unsigned int crypto_aead_reqsize(struct crypto_aead *tfm)
 {
 	return crypto_aead_crt(tfm)->reqsize;
 }
