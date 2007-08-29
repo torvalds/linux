@@ -264,10 +264,12 @@ static void pq2_platform_fixups(void)
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 4, bd.bi_busfreq);
 
 	node = finddevice("/soc/cpm");
-	if (node) {
+	if (node)
 		setprop(node, "clock-frequency", &bd.bi_cpmfreq, 4);
-		setprop(node, "fsl,brg-frequency", &bd.bi_brgfreq, 4);
-	}
+
+	node = finddevice("/soc/cpm/brg");
+	if (node)
+		setprop(node, "clock-frequency",  &bd.bi_brgfreq, 4);
 
 	update_cs_ranges();
 	fixup_pci();

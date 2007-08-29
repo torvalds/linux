@@ -73,22 +73,26 @@ static u32 brgfreq = -1;
 u32 get_brgfreq(void)
 {
 	struct device_node *node;
+	const unsigned int *prop;
+	int size;
 
 	if (brgfreq != -1)
 		return brgfreq;
 
-	node = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
-	if (!node)
-		node = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
-	if (!node)
-		node = of_find_node_by_type(NULL, "cpm");
+	node = of_find_compatible_node(NULL, NULL, "fsl,cpm-brg");
 	if (node) {
-		int size;
-		const unsigned int *prop;
+		prop = of_get_property(node, "clock-frequency", &size);
+		if (prop && size == 4)
+			brgfreq = *prop;
 
-		prop = of_get_property(node, "fsl,brg-frequency", &size);
-		if (!prop)
-			prop = of_get_property(node, "brg-frequency", &size);
+		of_node_put(node);
+		return brgfreq;
+	}
+
+	/* Legacy device binding -- will go away when no users are left. */
+	node = of_find_node_by_type(NULL, "cpm");
+	if (node) {
+		prop = of_get_property(node, "brg-frequency", &size);
 		if (prop && size == 4)
 			brgfreq = *prop;
 
