@@ -83,6 +83,7 @@ Maintainer: $name
 Standards-Version: 3.6.1
 
 Package: $packagename
+Provides: kernel-image-$version, linux-image-$version
 Architecture: any
 Description: User Mode Linux kernel, version $version
  User-mode Linux is a port of the Linux kernel to its own system call
@@ -104,6 +105,7 @@ Maintainer: $name
 Standards-Version: 3.6.1
 
 Package: $packagename
+Provides: kernel-image-$version, linux-image-$version
 Architecture: any
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
