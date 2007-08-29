@@ -28,7 +28,6 @@ typedef struct dentry	bhv_vname_t;
 typedef __u64		bhv_vnumber_t;
 
 typedef struct bhv_vnode {
-	bhv_vnumber_t	v_number;		/* in-core vnode number */
 	struct inode	v_inode;		/* Linux inode */
 	/* inode MUST be last */
 } bhv_vnode_t;

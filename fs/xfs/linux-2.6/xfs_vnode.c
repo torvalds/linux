@@ -31,8 +31,6 @@
 #include "xfs_ag.h"
 #include "xfs_mount.h"
 
-uint64_t vn_generation;		/* vnode generation number */
-DEFINE_SPINLOCK(vnumber_lock);
 
 /*
  * Dedicated vnode inactive/reclaim sync semaphores.
@@ -94,12 +92,6 @@ vn_initialize(
 
 	XFS_STATS_INC(vn_active);
 	XFS_STATS_INC(vn_alloc);
-
-	spin_lock(&vnumber_lock);
-	if (!++vn_generation)	/* v_number shouldn't be zero */
-		vn_generation++;
-	vp->v_number = vn_generation;
-	spin_unlock(&vnumber_lock);
 
 	ASSERT(VN_CACHED(vp) == 0);
 
