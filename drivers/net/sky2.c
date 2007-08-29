@@ -610,7 +610,6 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
 		onoff = !onoff;
 
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 	if (onoff)
 		/* Turn off phy power saving */
@@ -620,7 +619,6 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 	sky2_pci_read32(hw, PCI_DEV_REG1);
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	udelay(100);
 }
 
@@ -688,11 +686,9 @@ static void sky2_wol_init(struct sky2_port *sky2)
 	sky2_write16(hw, WOL_REGS(port, WOL_CTRL_STAT), ctrl);
 
 	/* Turn on legacy PCI-Express PME mode */
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	reg1 = sky2_pci_read32(hw, PCI_DEV_REG1);
 	reg1 |= PCI_Y2_PME_LEGACY;
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	/* block receiver */
 	sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_RST_SET);
@@ -2438,10 +2434,8 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 			dev_err(&hw->pdev->dev, "PCI hardware error (0x%x)\n",
 			        pci_err);
 
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write16(hw, PCI_STATUS,
 				 pci_err | PCI_STATUS_ERROR_BITS);
-		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	}
 
 	if (status & Y2_IS_PCI_EXP) {
@@ -2455,11 +2449,8 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 				pex_err);
 
 		/* clear the interrupt */
-		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 		sky2_pci_write32(hw, PEX_UNC_ERR_STAT,
 				       0xffffffffUL);
-		sky2_write32(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-
 		if (pex_err & PEX_FATAL_ERRORS) {
 			u32 hwmsk = sky2_read32(hw, B0_HWE_IMSK);
 			hwmsk &= ~Y2_IS_PCI_EXP;
@@ -2804,7 +2795,6 @@ static void sky2_reset(struct sky2_hw *hw)
 	/* clear PCI errors, if any */
 	status = sky2_pci_read16(hw, PCI_STATUS);
 
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
 	sky2_pci_write16(hw, PCI_STATUS, status | PCI_STATUS_ERROR_BITS);
 
 
@@ -2826,8 +2816,6 @@ static void sky2_reset(struct sky2_hw *hw)
 				     GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON
 				     | GMC_BYP_RETR_ON);
 	}
-
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 	/* Clear I2C IRQ noise */
 	sky2_write32(hw, B2_I2C_IRQ, 1);
