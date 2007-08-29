@@ -188,33 +188,21 @@ static struct ibmebus_dev* __devinit ibmebus_register_device_node(
 	struct device_node *dn)
 {
 	struct ibmebus_dev *dev;
-	const char *loc_code;
-	int length;
-
-	loc_code = of_get_property(dn, "ibm,loc-code", NULL);
-	if (!loc_code) {
-                printk(KERN_WARNING "%s: node %s missing 'ibm,loc-code'\n",
-		       __FUNCTION__, dn->name ? dn->name : "<unknown>");
-		return ERR_PTR(-EINVAL);
-        }
-
-	if (strlen(loc_code) == 0) {
-	        printk(KERN_WARNING "%s: 'ibm,loc-code' is invalid\n",
-		       __FUNCTION__);
-		return ERR_PTR(-EINVAL);
-	}
+	int i, len, bus_len;
 
 	dev = kzalloc(sizeof(struct ibmebus_dev), GFP_KERNEL);
-	if (!dev) {
+	if (!dev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	dev->ofdev.node = of_node_get(dn);
 
-	length = strlen(loc_code);
-	memcpy(dev->ofdev.dev.bus_id, loc_code
-		+ (length - min(length, BUS_ID_SIZE - 1)),
-		min(length, BUS_ID_SIZE - 1));
+	len = strlen(dn->full_name + 1);
+	bus_len = min(len, BUS_ID_SIZE - 1);
+	memcpy(dev->ofdev.dev.bus_id, dn->full_name + 1
+	       + (len - bus_len), bus_len);
+	for (i = 0; i < bus_len; i++)
+		if (dev->ofdev.dev.bus_id[i] == '/')
+			dev->ofdev.dev.bus_id[i] = '_';
 
 	/* Register with generic device framework. */
 	if (ibmebus_register_device_common(dev, dn->name) != 0) {
