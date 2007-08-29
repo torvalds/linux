@@ -372,6 +372,7 @@ xfs_acl_allow_set(
 	bhv_vnode_t	*vp,
 	int		kind)
 {
+	xfs_inode_t	*ip = xfs_vtoi(vp);
 	bhv_vattr_t	va;
 	int		error;
 
@@ -379,10 +380,10 @@ xfs_acl_allow_set(
 		return EPERM;
 	if (kind == _ACL_TYPE_DEFAULT && !VN_ISDIR(vp))
 		return ENOTDIR;
-	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
+	if (vp->v_inode.i_sb->s_flags & MS_RDONLY)
 		return EROFS;
 	va.va_mask = XFS_AT_UID;
-	error = xfs_getattr(xfs_vtoi(vp), &va, 0);
+	error = xfs_getattr(ip, &va, 0);
 	if (error)
 		return error;
 	if (va.va_uid != current->fsuid && !capable(CAP_FOWNER))

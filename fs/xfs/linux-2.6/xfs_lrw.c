@@ -621,7 +621,7 @@ xfs_write(
 	io = &xip->i_iocore;
 	mp = io->io_mount;
 
-	vfs_wait_for_freeze(vp->v_vfsp, SB_FREEZE_WRITE);
+	vfs_wait_for_freeze(XFS_MTOVFS(mp), SB_FREEZE_WRITE);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;

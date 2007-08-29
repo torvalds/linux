@@ -69,8 +69,10 @@ vn_ioerror(
 	char		*f,
 	int		l)
 {
+	bhv_vfs_t	*vfsp = vfs_from_sb(vp->v_inode.i_sb);
+
 	if (unlikely(error == -ENODEV))
-		bhv_vfs_force_shutdown(vp->v_vfsp, SHUTDOWN_DEVICE_REQ, f, l);
+		bhv_vfs_force_shutdown(vfsp, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
 bhv_vnode_t *

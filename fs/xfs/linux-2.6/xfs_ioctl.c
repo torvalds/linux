@@ -138,7 +138,8 @@ xfs_find_handle(
 	vp = vn_from_inode(inode);
 
 	/* now we can grab the fsid */
-	memcpy(&handle.ha_fsid, vp->v_vfsp->vfs_altfsid, sizeof(xfs_fsid_t));
+	memcpy(&handle.ha_fsid, XFS_MTOVFS(XFS_I(inode)->i_mount)->vfs_altfsid,
+			sizeof(xfs_fsid_t));
 	hsize = sizeof(xfs_fsid_t);
 
 	if (cmd != XFS_IOC_PATH_TO_FSHANDLE) {

@@ -35,11 +35,10 @@ typedef enum bhv_vflags {
 
 /*
  * MP locking protocols:
- *	v_flag, v_vfsp				VN_LOCK/VN_UNLOCK
+ *	v_flag, 				VN_LOCK/VN_UNLOCK
  */
 typedef struct bhv_vnode {
 	bhv_vflags_t	v_flag;			/* vnode flags (see above) */
-	bhv_vfs_t	*v_vfsp;		/* ptr to containing VFS */
 	bhv_vnumber_t	v_number;		/* in-core vnode number */
 	spinlock_t	v_lock;			/* VN_LOCK/VN_UNLOCK */
 	atomic_t	v_iocount;		/* outstanding I/O count */

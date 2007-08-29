@@ -210,7 +210,6 @@ xfs_initialize_vnode(
 	struct inode		*inode = vn_to_inode(vp);
 
 	if (!ip->i_vnode) {
-		vp->v_vfsp = bhvtovfs(bdp);
 		ip->i_vnode = vp;
 		inode->i_private = ip;
 	}
