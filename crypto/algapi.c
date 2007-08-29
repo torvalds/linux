@@ -439,12 +439,14 @@ EXPORT_SYMBOL_GPL(crypto_unregister_notifier);
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb)
 {
-	struct rtattr *rta = tb[CRYPTOA_TYPE - 1];
+	struct rtattr *rta = tb[0];
 	struct crypto_attr_type *algt;
 
 	if (!rta)
 		return ERR_PTR(-ENOENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*algt))
+		return ERR_PTR(-EINVAL);
+	if (rta->rta_type != CRYPTOA_TYPE)
 		return ERR_PTR(-EINVAL);
 
 	algt = RTA_DATA(rta);
@@ -470,12 +472,14 @@ EXPORT_SYMBOL_GPL(crypto_check_attr_type);
 
 struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask)
 {
-	struct rtattr *rta = tb[CRYPTOA_ALG - 1];
+	struct rtattr *rta = tb[1];
 	struct crypto_attr_alg *alga;
 
 	if (!rta)
 		return ERR_PTR(-ENOENT);
 	if (RTA_PAYLOAD(rta) < sizeof(*alga))
+		return ERR_PTR(-EINVAL);
+	if (rta->rta_type != CRYPTOA_ALG)
 		return ERR_PTR(-EINVAL);
 
 	alga = RTA_DATA(rta);
