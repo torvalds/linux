@@ -640,6 +640,7 @@ out:
 		 * and free the super block buffer & mount structures.
 		 */
 		xfs_unmountfs(mp, credp);
+		kmem_free(mp, sizeof(xfs_mount_t));
 	}
 
 	return XFS_ERROR(error);

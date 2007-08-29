@@ -312,6 +312,7 @@ bhv_remove_all_vfsops(
 	mp = XFS_VFSTOM(vfsp);
 	VFS_REMOVEBHV(vfsp, &mp->m_bhv);
 	xfs_mount_free(mp, 0);
+	kmem_free(mp, sizeof(xfs_mount_t));
 }
 
 void

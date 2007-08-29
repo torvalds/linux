@@ -194,7 +194,6 @@ xfs_mount_free(
 	}
 
 	xfs_icsb_destroy_counters(mp);
-	kmem_free(mp, sizeof(xfs_mount_t));
 }
 
 /*
