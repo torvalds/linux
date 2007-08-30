@@ -648,9 +648,10 @@ static int psmouse_extensions(struct psmouse *psmouse,
 
 /*
  * Reset to defaults in case the device got confused by extended
- * protocol probes. Note that we do full reset becuase some mice
- * put themselves to sleep when see PSMOUSE_RESET_DIS.
+ * protocol probes. Note that we follow up with full reset because
+ * some mice put themselves to sleep when they see PSMOUSE_RESET_DIS.
  */
+	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
 	psmouse_reset(psmouse);
 
 	if (max_proto >= PSMOUSE_IMEX && im_explorer_detect(psmouse, set_properties) == 0)
