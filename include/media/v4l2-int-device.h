@@ -30,65 +30,15 @@
 
 #define V4L2NAMESIZE 32
 
+/*
+ *
+ * The internal V4L2 device interface core.
+ *
+ */
+
 enum v4l2_int_type {
 	v4l2_int_type_master = 1,
 	v4l2_int_type_slave
-};
-
-enum v4l2_int_ioctl_num {
-	/*
-	 *
-	 * "Proper" V4L ioctls, as in struct video_device.
-	 *
-	 */
-	vidioc_int_enum_fmt_cap_num = 1,
-	vidioc_int_g_fmt_cap_num,
-	vidioc_int_s_fmt_cap_num,
-	vidioc_int_try_fmt_cap_num,
-	vidioc_int_queryctrl_num,
-	vidioc_int_g_ctrl_num,
-	vidioc_int_s_ctrl_num,
-	vidioc_int_g_parm_num,
-	vidioc_int_s_parm_num,
-
-	/*
-	 *
-	 * Strictly internal ioctls.
-	 *
-	 */
-	/* Initialise the device when slave attaches to the master. */
-	vidioc_int_dev_init_num = 1000,
-	/* Delinitialise the device at slave detach. */
-	vidioc_int_dev_exit_num,
-	/* Set device power state: 0 is off, non-zero is on. */
-	vidioc_int_s_power_num,
-	/* Get parallel interface clock speed for current settings. */
-	vidioc_int_g_ext_clk_num,
-	/*
-	 * Tell what the parallel interface clock speed actually is.
-	 */
-	vidioc_int_s_ext_clk_num,
-	/* Does the slave need to be reset after VIDIOC_DQBUF? */
-	vidioc_int_g_needs_reset_num,
-
-	/*
-	 *
-	 * VIDIOC_INT_* ioctls.
-	 *
-	 */
-	/* VIDIOC_INT_RESET */
-	vidioc_int_reset_num,
-	/* VIDIOC_INT_INIT */
-	vidioc_int_init_num,
-	/* VIDIOC_INT_G_CHIP_IDENT */
-	vidioc_int_g_chip_ident_num,
-
-	/*
-	 *
-	 * Start of private ioctls.
-	 *
-	 */
-	vidioc_int_priv_start_num = 2000,
 };
 
 struct v4l2_int_device;
@@ -140,6 +90,81 @@ void v4l2_int_device_unregister(struct v4l2_int_device *d);
 
 int v4l2_int_ioctl_0(struct v4l2_int_device *d, int cmd);
 int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg);
+
+/*
+ *
+ * Types and definitions for IOCTL commands.
+ *
+ */
+
+/* Slave interface type. */
+enum v4l2_if_type {
+};
+
+struct v4l2_ifparm {
+	enum v4l2_if_type if_type;
+	union {
+	} u;
+};
+
+/* IOCTL command numbers. */
+enum v4l2_int_ioctl_num {
+	/*
+	 *
+	 * "Proper" V4L ioctls, as in struct video_device.
+	 *
+	 */
+	vidioc_int_enum_fmt_cap_num = 1,
+	vidioc_int_g_fmt_cap_num,
+	vidioc_int_s_fmt_cap_num,
+	vidioc_int_try_fmt_cap_num,
+	vidioc_int_queryctrl_num,
+	vidioc_int_g_ctrl_num,
+	vidioc_int_s_ctrl_num,
+	vidioc_int_g_parm_num,
+	vidioc_int_s_parm_num,
+
+	/*
+	 *
+	 * Strictly internal ioctls.
+	 *
+	 */
+	/* Initialise the device when slave attaches to the master. */
+	vidioc_int_dev_init_num = 1000,
+	/* Delinitialise the device at slave detach. */
+	vidioc_int_dev_exit_num,
+	/* Set device power state: 0 is off, non-zero is on. */
+	vidioc_int_s_power_num,
+	/* Get slave interface parameters. */
+	vidioc_int_g_ifparm_num,
+	/* Get external clock speed for current slave settings. */
+	vidioc_int_g_ext_clk_num,
+	/*
+	 * Tell what the generated interface clock speed actually is.
+	 */
+	vidioc_int_s_ext_clk_num,
+	/* Does the slave need to be reset after VIDIOC_DQBUF? */
+	vidioc_int_g_needs_reset_num,
+
+	/*
+	 *
+	 * VIDIOC_INT_* ioctls.
+	 *
+	 */
+	/* VIDIOC_INT_RESET */
+	vidioc_int_reset_num,
+	/* VIDIOC_INT_INIT */
+	vidioc_int_init_num,
+	/* VIDIOC_INT_G_CHIP_IDENT */
+	vidioc_int_g_chip_ident_num,
+
+	/*
+	 *
+	 * Start of private ioctls.
+	 *
+	 */
+	vidioc_int_priv_start_num = 2000,
+};
 
 /*
  *
@@ -199,6 +224,7 @@ V4L2_INT_WRAPPER_1(s_parm, struct v4l2_streamparm, *);
 V4L2_INT_WRAPPER_0(dev_init);
 V4L2_INT_WRAPPER_0(dev_exit);
 V4L2_INT_WRAPPER_1(s_power, int, );
+V4L2_INT_WRAPPER_1(g_ifparm, struct v4l2_ifparm, *);
 V4L2_INT_WRAPPER_1(s_ext_clk, u32, );
 V4L2_INT_WRAPPER_1(g_ext_clk, u32, *);
 V4L2_INT_WRAPPER_1(g_needs_reset, void, *);
