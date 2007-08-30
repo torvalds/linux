@@ -439,7 +439,6 @@ xfs_mount(
 	cred_t			*credp)
 {
 	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
-	struct bhv_desc		*p;
 	struct block_device	*ddev, *logdev, *rtdev;
 	int			flags = 0, error;
 
@@ -453,11 +452,7 @@ xfs_mount(
 	if (error)
 		return error;
 
-	/*
-	 * Setup xfs_mount function vectors from available behaviors
-	 */
-	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
-	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
+	mp->m_io_ops = xfs_iocore_xfs;
 
 	if (args->flags & XFSMNT_QUIET)
 		flags |= XFS_MFSI_QUIET;
@@ -741,7 +736,7 @@ xfs_mntupdate(
 		}
 	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
 		xfs_filestream_flush(mp);
-		bhv_vfs_sync(vfsp, SYNC_DATA_QUIESCE, NULL);
+		xfs_sync(mp, SYNC_DATA_QUIESCE);
 		xfs_attr_quiesce(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
 	}

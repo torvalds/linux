@@ -64,8 +64,6 @@ struct xfs_extdelta;
 struct xfs_swapext;
 struct xfs_mru_cache;
 
-extern struct bhv_vfsops xfs_vfsops;
-
 #define	AIL_LOCK_T		lock_t
 #define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
 #define	AIL_LOCK_DESTROY(x)	spinlock_destroy(x)
@@ -330,7 +328,7 @@ extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 #endif
 
 typedef struct xfs_mount {
-	bhv_desc_t		m_bhv;		/* vfs xfs behavior */
+	struct bhv_vfs		*m_vfsp;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
 	AIL_LOCK_T		m_ail_lock;	/* fs AIL mutex */
 	xfs_ail_entry_t		m_ail;		/* fs active log item list */
@@ -527,8 +525,10 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 #define XFS_LAST_UNMOUNT_WAS_CLEAN(mp)	\
 				((mp)->m_flags & XFS_MOUNT_WAS_CLEAN)
 #define XFS_FORCED_SHUTDOWN(mp)	((mp)->m_flags & XFS_MOUNT_FS_SHUTDOWN)
+void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
+		int lnnum);
 #define xfs_force_shutdown(m,f)	\
-	bhv_vfs_force_shutdown((XFS_MTOVFS(m)), f, __FILE__, __LINE__)
+	xfs_do_force_shutdown(m, f, __FILE__, __LINE__)
 
 /*
  * Flags for xfs_mountfs
@@ -548,20 +548,13 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 #define	XFS_MTOVFS(mp)		xfs_mtovfs(mp)
 static inline struct bhv_vfs *xfs_mtovfs(xfs_mount_t *mp)
 {
-	return bhvtovfs(&mp->m_bhv);
-}
-
-#define	XFS_BHVTOM(bdp)	xfs_bhvtom(bdp)
-static inline xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp)
-{
-	return (xfs_mount_t *)BHV_PDATA(bdp);
+	return mp->m_vfsp;
 }
 
 #define XFS_VFSTOM(vfs) xfs_vfstom(vfs)
 static inline xfs_mount_t *xfs_vfstom(bhv_vfs_t *vfs)
 {
-	return XFS_BHVTOM(bhv_lookup_range(VFS_BHVHEAD(vfs),
-				VFS_POSITION_XFS, VFS_POSITION_XFS));
+	return vfs->vfs_mount;
 }
 
 #define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)
@@ -633,7 +626,7 @@ typedef struct xfs_mod_sb {
 extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
 extern int	xfs_log_sbcount(xfs_mount_t *, uint);
-extern void	xfs_mount_free(xfs_mount_t *mp, int remove_bhv);
+extern void	xfs_mount_free(xfs_mount_t *mp);
 extern int	xfs_mountfs(struct bhv_vfs *, xfs_mount_t *mp, int);
 extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
 

@@ -78,10 +78,8 @@ vn_ioerror(
 	char		*f,
 	int		l)
 {
-	bhv_vfs_t	*vfsp = XFS_MTOVFS(ip->i_mount);
-
 	if (unlikely(error == -ENODEV))
-		bhv_vfs_force_shutdown(vfsp, SHUTDOWN_DEVICE_REQ, f, l);
+		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
 bhv_vnode_t *

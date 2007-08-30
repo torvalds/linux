@@ -28,6 +28,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
+#include "xfs_vfsops.h"
 
 static struct dentry dotdot = { .d_name.name = "..", .d_name.len = 2, };
 
@@ -143,10 +144,9 @@ xfs_fs_get_dentry(
 	bhv_vnode_t		*vp;
 	struct inode		*inode;
 	struct dentry		*result;
-	bhv_vfs_t		*vfsp = vfs_from_sb(sb);
 	int			error;
 
-	error = bhv_vfs_vget(vfsp, &vp, (fid_t *)data);
+	error = xfs_vget(XFS_M(sb), &vp, (fid_t *)data);
 	if (error || vp == NULL)
 		return ERR_PTR(-ESTALE) ;
 

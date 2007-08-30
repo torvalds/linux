@@ -1272,7 +1272,7 @@ xfs_ialloc(
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
-	bhv_vfs_init_vnode(XFS_MTOVFS(tp->t_mountp), vp, ip, 1);
+	xfs_initialize_vnode(tp->t_mountp, vp, ip);
 
 	*ipp = ip;
 	return 0;

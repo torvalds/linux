@@ -204,7 +204,6 @@ vfs_allocate(
 	struct bhv_vfs		*vfsp;
 
 	vfsp = kmem_zalloc(sizeof(bhv_vfs_t), KM_SLEEP);
-	bhv_head_init(VFS_BHVHEAD(vfsp), "vfs");
 	INIT_LIST_HEAD(&vfsp->vfs_sync_list);
 	spin_lock_init(&vfsp->vfs_sync_lock);
 	init_waitqueue_head(&vfsp->vfs_wait_single_sync_task);
@@ -229,71 +228,5 @@ void
 vfs_deallocate(
 	struct bhv_vfs		*vfsp)
 {
-	bhv_head_destroy(VFS_BHVHEAD(vfsp));
 	kmem_free(vfsp, sizeof(bhv_vfs_t));
-}
-
-void
-vfs_insertops(
-	struct bhv_vfs		*vfsp,
-	struct bhv_module_vfsops *vfsops)
-{
-	struct bhv_desc		*bdp;
-
-	bdp = kmem_alloc(sizeof(struct bhv_desc), KM_SLEEP);
-	bhv_desc_init(bdp, NULL, vfsp, vfsops);
-	bhv_insert(&vfsp->vfs_bh, bdp);
-}
-
-void
-vfs_insertbhv(
-	struct bhv_vfs		*vfsp,
-	struct bhv_desc		*bdp,
-	struct bhv_vfsops	*vfsops,
-	void			*mount)
-{
-	bhv_desc_init(bdp, mount, vfsp, vfsops);
-	bhv_insert_initial(&vfsp->vfs_bh, bdp);
-}
-
-void
-bhv_remove_vfsops(
-	struct bhv_vfs		*vfsp,
-	int			pos)
-{
-	struct bhv_desc		*bhv;
-
-	bhv = bhv_lookup_range(&vfsp->vfs_bh, pos, pos);
-	if (!bhv)
-		return;
-	bhv_remove(&vfsp->vfs_bh, bhv);
-	kmem_free(bhv, sizeof(*bhv));
-}
-
-void
-bhv_remove_all_vfsops(
-	struct bhv_vfs		*vfsp,
-	int			freebase)
-{
-	struct xfs_mount	*mp;
-
-	bhv_remove_vfsops(vfsp, VFS_POSITION_QM);
-	if (!freebase)
-		return;
-	mp = XFS_VFSTOM(vfsp);
-	VFS_REMOVEBHV(vfsp, &mp->m_bhv);
-	xfs_mount_free(mp, 0);
-	kmem_free(mp, sizeof(xfs_mount_t));
-}
-
-void
-bhv_insert_all_vfsops(
-	struct bhv_vfs		*vfsp)
-{
-	struct xfs_mount	*mp;
-
-	mp = xfs_mount_init();
-	vfs_insertbhv(vfsp, &mp->m_bhv, &xfs_vfsops, mp);
-	vfs_insertdmapi(vfsp);
-	vfs_insertquota(vfsp);
 }

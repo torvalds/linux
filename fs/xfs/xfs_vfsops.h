@@ -24,8 +24,5 @@ int xfs_showargs(struct xfs_mount *mp, struct seq_file *m);
 void xfs_freeze(struct xfs_mount *mp);
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);
-struct inode *xfs_get_inode(struct xfs_mount *mp, xfs_ino_t ino, int flags);
-void xfs_initialize_vnode(struct xfs_mount *mp, bhv_vnode_t *vp,
-		struct xfs_inode *ip, int unlock);
 
 #endif /* _XFS_VFSOPS_H */

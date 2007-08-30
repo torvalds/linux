@@ -157,8 +157,7 @@ xfs_mount_init(void)
  */
 void
 xfs_mount_free(
-	xfs_mount_t	*mp,
-	int		remove_bhv)
+	xfs_mount_t	*mp)
 {
 	if (mp->m_perag) {
 		int	agno;
@@ -185,13 +184,6 @@ xfs_mount_free(
 		kmem_free(mp->m_rtname, strlen(mp->m_rtname) + 1);
 	if (mp->m_logname != NULL)
 		kmem_free(mp->m_logname, strlen(mp->m_logname) + 1);
-
-	if (remove_bhv) {
-		struct bhv_vfs	*vfsp = XFS_MTOVFS(mp);
-
-		bhv_remove_all_vfsops(vfsp, 0);
-		VFS_REMOVEBHV(vfsp, &mp->m_bhv);
-	}
 
 	xfs_icsb_destroy_counters(mp);
 }
@@ -1287,7 +1279,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 	xfs_errortag_clearall_umount(fsid, mp->m_fsname, 0);
 #endif
 	XFS_IODONE(vfsp);
-	xfs_mount_free(mp, 1);
+	xfs_mount_free(mp);
 	return 0;
 }
 

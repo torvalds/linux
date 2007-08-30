@@ -18,7 +18,6 @@
 #ifndef __XFS_LRW_H__
 #define __XFS_LRW_H__
 
-struct bhv_desc;
 struct xfs_mount;
 struct xfs_iocore;
 struct xfs_inode;
