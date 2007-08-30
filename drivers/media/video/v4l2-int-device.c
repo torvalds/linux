@@ -143,7 +143,7 @@ static v4l2_int_ioctl_func *find_ioctl(struct v4l2_int_slave *slave, int cmd,
 
 static int no_such_ioctl_0(struct v4l2_int_device *d)
 {
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 int v4l2_int_ioctl_0(struct v4l2_int_device *d, int cmd)
@@ -155,7 +155,7 @@ int v4l2_int_ioctl_0(struct v4l2_int_device *d, int cmd)
 
 static int no_such_ioctl_1(struct v4l2_int_device *d, void *arg)
 {
-	return -EINVAL;
+	return -ENOIOCTLCMD;
 }
 
 int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg)
