@@ -187,12 +187,6 @@ enum v4l2_int_ioctl_num {
 	vidioc_int_s_power_num,
 	/* Get slave interface parameters. */
 	vidioc_int_g_ifparm_num,
-	/* Get external clock speed for current slave settings. */
-	vidioc_int_g_ext_clk_num,
-	/*
-	 * Tell what the generated interface clock speed actually is.
-	 */
-	vidioc_int_s_ext_clk_num,
 	/* Does the slave need to be reset after VIDIOC_DQBUF? */
 	vidioc_int_g_needs_reset_num,
 
@@ -275,8 +269,6 @@ V4L2_INT_WRAPPER_0(dev_init);
 V4L2_INT_WRAPPER_0(dev_exit);
 V4L2_INT_WRAPPER_1(s_power, int, );
 V4L2_INT_WRAPPER_1(g_ifparm, struct v4l2_ifparm, *);
-V4L2_INT_WRAPPER_1(s_ext_clk, u32, );
-V4L2_INT_WRAPPER_1(g_ext_clk, u32, *);
 V4L2_INT_WRAPPER_1(g_needs_reset, void, *);
 
 V4L2_INT_WRAPPER_0(reset);
