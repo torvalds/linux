@@ -2005,7 +2005,8 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
 	/* re-sync apic's tpr */
-	set_cr8(vcpu, kvm_run->cr8);
+	if (!irqchip_in_kernel(vcpu->kvm))
+		set_cr8(vcpu, kvm_run->cr8);
 
 	if (vcpu->pio.cur_count) {
 		r = complete_pio(vcpu);
