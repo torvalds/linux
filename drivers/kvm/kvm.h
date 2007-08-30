@@ -411,8 +411,6 @@ struct kvm {
 	int n_free_mmu_pages;
 	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
-	int memory_config_version;
-	int busy;
 	unsigned long rmap_overflow;
 	struct list_head vm_list;
 	struct file *filp;
