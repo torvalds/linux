@@ -81,17 +81,14 @@ STATIC void	xfs_qm_export_dquot(xfs_mount_t *, xfs_disk_dquot_t *,
  */
 int
 xfs_qm_quotactl(
-	struct bhv_desc *bdp,
+	xfs_mount_t	*mp,
 	int		cmd,
 	int		id,
 	xfs_caddr_t	addr)
 {
-	xfs_mount_t	*mp;
-	bhv_vfs_t	*vfsp;
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 	int		error;
 
-	vfsp = bhvtovfs(bdp);
-	mp = XFS_VFSTOM(vfsp);
 
 	ASSERT(addr != NULL || cmd == Q_XQUOTASYNC);
 

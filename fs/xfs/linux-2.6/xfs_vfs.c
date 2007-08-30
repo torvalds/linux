@@ -155,21 +155,6 @@ vfs_vget(
 	return ((*bhvtovfsops(next)->vfs_vget)(next, vpp, fidp));
 }
 
-int
-vfs_quotactl(
-	struct bhv_desc		*bdp,
-	int			cmd,
-	int			id,
-	caddr_t			addr)
-{
-	struct bhv_desc		*next = bdp;
-
-	ASSERT(next);
-	while (! (bhvtovfsops(next))->vfs_quotactl)
-		next = BHV_NEXT(next);
-	return ((*bhvtovfsops(next)->vfs_quotactl)(next, cmd, id, addr));
-}
-
 void
 vfs_init_vnode(
 	struct bhv_desc		*bdp,

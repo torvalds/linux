@@ -402,6 +402,22 @@ xfs_finish_flags(
 			return XFS_ERROR(EINVAL);
 	}
 
+	if (ap->flags & XFSMNT_UQUOTA) {
+		mp->m_qflags |= (XFS_UQUOTA_ACCT | XFS_UQUOTA_ACTIVE);
+		if (ap->flags & XFSMNT_UQUOTAENF)
+			mp->m_qflags |= XFS_UQUOTA_ENFD;
+	}
+
+	if (ap->flags & XFSMNT_GQUOTA) {
+		mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
+		if (ap->flags & XFSMNT_GQUOTAENF)
+			mp->m_qflags |= XFS_OQUOTA_ENFD;
+	} else if (ap->flags & XFSMNT_PQUOTA) {
+		mp->m_qflags |= (XFS_PQUOTA_ACCT | XFS_PQUOTA_ACTIVE);
+		if (ap->flags & XFSMNT_PQUOTAENF)
+			mp->m_qflags |= XFS_OQUOTA_ENFD;
+	}
+
 	return 0;
 }
 
@@ -435,12 +451,13 @@ xfs_mount(
 	error = xfs_dmops_get(mp, args);
 	if (error)
 		return error;
+	error = xfs_qmops_get(mp, args);
+	if (error)
+		return error;
 
 	/*
 	 * Setup xfs_mount function vectors from available behaviors
 	 */
-	p = vfs_bhv_lookup(vfsp, VFS_POSITION_QM);
-	mp->m_qm_ops = p ? *(xfs_qmops_t *) vfs_bhv_custom(p) : xfs_qmcore_stub;
 	p = vfs_bhv_lookup(vfsp, VFS_POSITION_IO);
 	mp->m_io_ops = p ? *(xfs_ioops_t *) vfs_bhv_custom(p) : xfs_iocore_xfs;
 
@@ -556,6 +573,7 @@ error1:
 		xfs_binval(mp->m_rtdev_targp);
 error0:
 	xfs_unmountfs_close(mp, credp);
+	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
 	return error;
 }
@@ -647,6 +665,7 @@ out:
 		 * and free the super block buffer & mount structures.
 		 */
 		xfs_unmountfs(mp, credp);
+		xfs_qmops_put(mp);
 		xfs_dmops_put(mp);
 		kmem_free(mp, sizeof(xfs_mount_t));
 	}
@@ -887,6 +906,8 @@ xfs_statvfs(
 	xfs_statvfs_fsid(statp, mp);
 	statp->f_namelen = MAXNAMELEN - 1;
 
+	if (vp)
+		XFS_QM_DQSTATVFS(xfs_vtoi(vp), statp);
 	return 0;
 }
 
@@ -941,6 +962,25 @@ xfs_sync(
 	cred_t		*credp)
 {
 	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
+	int		error;
+
+	/*
+	 * Get the Quota Manager to flush the dquots.
+	 *
+	 * If XFS quota support is not enabled or this filesystem
+	 * instance does not use quotas XFS_QM_DQSYNC will always
+	 * return zero.
+	 */
+	error = XFS_QM_DQSYNC(mp, flags);
+	if (error) {
+		/*
+		 * If we got an IO error, we will be shutting down.
+		 * So, there's nothing more for us to do here.
+		 */
+		ASSERT(error != EIO || XFS_FORCED_SHUTDOWN(mp));
+		if (XFS_FORCED_SHUTDOWN(mp))
+			return XFS_ERROR(error);
+	}
 
 	if (flags & SYNC_IOWAIT)
 		xfs_filestream_flush(mp);
@@ -1696,6 +1736,18 @@ xfs_vget(
 #define MNTOPT_ATTR2	"attr2"		/* do use attr2 attribute format */
 #define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
 #define MNTOPT_FILESTREAM  "filestreams" /* use filestreams allocator */
+#define MNTOPT_QUOTA	"quota"		/* disk quotas (user) */
+#define MNTOPT_NOQUOTA	"noquota"	/* no quotas */
+#define MNTOPT_USRQUOTA	"usrquota"	/* user quota enabled */
+#define MNTOPT_GRPQUOTA	"grpquota"	/* group quota enabled */
+#define MNTOPT_PRJQUOTA	"prjquota"	/* project quota enabled */
+#define MNTOPT_UQUOTA	"uquota"	/* user quota (IRIX variant) */
+#define MNTOPT_GQUOTA	"gquota"	/* group quota (IRIX variant) */
+#define MNTOPT_PQUOTA	"pquota"	/* project quota (IRIX variant) */
+#define MNTOPT_UQUOTANOENF "uqnoenforce"/* user quota limit enforcement */
+#define MNTOPT_GQUOTANOENF "gqnoenforce"/* group quota limit enforcement */
+#define MNTOPT_PQUOTANOENF "pqnoenforce"/* project quota limit enforcement */
+#define MNTOPT_QUOTANOENF  "qnoenforce"	/* same as uqnoenforce */
 #define MNTOPT_DMAPI	"dmapi"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_XDSM	"xdsm"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_DMI	"dmi"		/* DMI enabled (DMAPI / XDSM) */
@@ -1889,6 +1941,29 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_ATTR2;
 		} else if (!strcmp(this_char, MNTOPT_FILESTREAM)) {
 			args->flags2 |= XFSMNT2_FILESTREAMS;
+		} else if (!strcmp(this_char, MNTOPT_NOQUOTA)) {
+			args->flags &= ~(XFSMNT_UQUOTAENF|XFSMNT_UQUOTA);
+			args->flags &= ~(XFSMNT_GQUOTAENF|XFSMNT_GQUOTA);
+		} else if (!strcmp(this_char, MNTOPT_QUOTA) ||
+			   !strcmp(this_char, MNTOPT_UQUOTA) ||
+			   !strcmp(this_char, MNTOPT_USRQUOTA)) {
+			args->flags |= XFSMNT_UQUOTA | XFSMNT_UQUOTAENF;
+		} else if (!strcmp(this_char, MNTOPT_QUOTANOENF) ||
+			   !strcmp(this_char, MNTOPT_UQUOTANOENF)) {
+			args->flags |= XFSMNT_UQUOTA;
+			args->flags &= ~XFSMNT_UQUOTAENF;
+		} else if (!strcmp(this_char, MNTOPT_PQUOTA) ||
+			   !strcmp(this_char, MNTOPT_PRJQUOTA)) {
+			args->flags |= XFSMNT_PQUOTA | XFSMNT_PQUOTAENF;
+		} else if (!strcmp(this_char, MNTOPT_PQUOTANOENF)) {
+			args->flags |= XFSMNT_PQUOTA;
+			args->flags &= ~XFSMNT_PQUOTAENF;
+		} else if (!strcmp(this_char, MNTOPT_GQUOTA) ||
+			   !strcmp(this_char, MNTOPT_GRPQUOTA)) {
+			args->flags |= XFSMNT_GQUOTA | XFSMNT_GQUOTAENF;
+		} else if (!strcmp(this_char, MNTOPT_GQUOTANOENF)) {
+			args->flags |= XFSMNT_GQUOTA;
+			args->flags &= ~XFSMNT_GQUOTAENF;
 		} else if (!strcmp(this_char, MNTOPT_DMAPI)) {
 			args->flags |= XFSMNT_DMAPI;
 		} else if (!strcmp(this_char, MNTOPT_XDSM)) {
@@ -1923,6 +1998,12 @@ xfs_parseargs(
 	if ((args->flags & XFSMNT_NOALIGN) && (dsunit || dswidth)) {
 		cmn_err(CE_WARN,
 	"XFS: sunit and swidth options incompatible with the noalign option");
+		return EINVAL;
+	}
+
+	if ((args->flags & XFSMNT_GQUOTA) && (args->flags & XFSMNT_PQUOTA)) {
+		cmn_err(CE_WARN,
+			"XFS: cannot mount with both project and group quota");
 		return EINVAL;
 	}
 
@@ -2025,9 +2106,32 @@ xfs_showargs(
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
 
+	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_UQUOTA_ENFD)
+			seq_puts(m, "," MNTOPT_USRQUOTA);
+		else
+			seq_puts(m, "," MNTOPT_UQUOTANOENF);
+	}
+
+	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_OQUOTA_ENFD)
+			seq_puts(m, "," MNTOPT_PRJQUOTA);
+		else
+			seq_puts(m, "," MNTOPT_PQUOTANOENF);
+	}
+
+	if (mp->m_qflags & XFS_GQUOTA_ACCT) {
+		if (mp->m_qflags & XFS_OQUOTA_ENFD)
+			seq_puts(m, "," MNTOPT_GRPQUOTA);
+		else
+			seq_puts(m, "," MNTOPT_GQUOTANOENF);
+	}
+
+	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
+		seq_puts(m, "," MNTOPT_NOQUOTA);
+
 	if (vfsp->vfs_flag & VFS_DMI)
 		seq_puts(m, "," MNTOPT_DMAPI);
-
 	return 0;
 }
 

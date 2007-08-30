@@ -142,6 +142,9 @@ typedef struct xfs_dquot * (*xfs_dqvopchown_t)(
 			struct xfs_dquot **, struct xfs_dquot *);
 typedef int	(*xfs_dqvopchownresv_t)(struct xfs_trans *, struct xfs_inode *,
 			struct xfs_dquot *, struct xfs_dquot *, uint);
+typedef void	(*xfs_dqstatvfs_t)(struct xfs_inode *, bhv_statvfs_t *);
+typedef int	(*xfs_dqsync_t)(struct xfs_mount *, int flags);
+typedef int	(*xfs_quotactl_t)(struct xfs_mount *, int, int, xfs_caddr_t);
 
 typedef struct xfs_qmops {
 	xfs_qminit_t		xfs_qminit;
@@ -157,35 +160,44 @@ typedef struct xfs_qmops {
 	xfs_dqvoprename_t	xfs_dqvoprename;
 	xfs_dqvopchown_t	xfs_dqvopchown;
 	xfs_dqvopchownresv_t	xfs_dqvopchownresv;
+	xfs_dqstatvfs_t		xfs_dqstatvfs;
+	xfs_dqsync_t		xfs_dqsync;
+	xfs_quotactl_t		xfs_quotactl;
 	struct xfs_dqtrxops	*xfs_dqtrxops;
 } xfs_qmops_t;
 
 #define XFS_QM_INIT(mp, mnt, fl) \
-	(*(mp)->m_qm_ops.xfs_qminit)(mp, mnt, fl)
+	(*(mp)->m_qm_ops->xfs_qminit)(mp, mnt, fl)
 #define XFS_QM_MOUNT(mp, mnt, fl, mfsi_flags) \
-	(*(mp)->m_qm_ops.xfs_qmmount)(mp, mnt, fl, mfsi_flags)
+	(*(mp)->m_qm_ops->xfs_qmmount)(mp, mnt, fl, mfsi_flags)
 #define XFS_QM_UNMOUNT(mp) \
-	(*(mp)->m_qm_ops.xfs_qmunmount)(mp)
+	(*(mp)->m_qm_ops->xfs_qmunmount)(mp)
 #define XFS_QM_DONE(mp) \
-	(*(mp)->m_qm_ops.xfs_qmdone)(mp)
+	(*(mp)->m_qm_ops->xfs_qmdone)(mp)
 #define XFS_QM_DQRELE(mp, dq) \
-	(*(mp)->m_qm_ops.xfs_dqrele)(dq)
+	(*(mp)->m_qm_ops->xfs_dqrele)(dq)
 #define XFS_QM_DQATTACH(mp, ip, fl) \
-	(*(mp)->m_qm_ops.xfs_dqattach)(ip, fl)
+	(*(mp)->m_qm_ops->xfs_dqattach)(ip, fl)
 #define XFS_QM_DQDETACH(mp, ip) \
-	(*(mp)->m_qm_ops.xfs_dqdetach)(ip)
+	(*(mp)->m_qm_ops->xfs_dqdetach)(ip)
 #define XFS_QM_DQPURGEALL(mp, fl) \
-	(*(mp)->m_qm_ops.xfs_dqpurgeall)(mp, fl)
+	(*(mp)->m_qm_ops->xfs_dqpurgeall)(mp, fl)
 #define XFS_QM_DQVOPALLOC(mp, ip, uid, gid, prid, fl, dq1, dq2) \
-	(*(mp)->m_qm_ops.xfs_dqvopalloc)(mp, ip, uid, gid, prid, fl, dq1, dq2)
+	(*(mp)->m_qm_ops->xfs_dqvopalloc)(mp, ip, uid, gid, prid, fl, dq1, dq2)
 #define XFS_QM_DQVOPCREATE(mp, tp, ip, dq1, dq2) \
-	(*(mp)->m_qm_ops.xfs_dqvopcreate)(tp, ip, dq1, dq2)
+	(*(mp)->m_qm_ops->xfs_dqvopcreate)(tp, ip, dq1, dq2)
 #define XFS_QM_DQVOPRENAME(mp, ip) \
-	(*(mp)->m_qm_ops.xfs_dqvoprename)(ip)
+	(*(mp)->m_qm_ops->xfs_dqvoprename)(ip)
 #define XFS_QM_DQVOPCHOWN(mp, tp, ip, dqp, dq) \
-	(*(mp)->m_qm_ops.xfs_dqvopchown)(tp, ip, dqp, dq)
+	(*(mp)->m_qm_ops->xfs_dqvopchown)(tp, ip, dqp, dq)
 #define XFS_QM_DQVOPCHOWNRESV(mp, tp, ip, dq1, dq2, fl) \
-	(*(mp)->m_qm_ops.xfs_dqvopchownresv)(tp, ip, dq1, dq2, fl)
+	(*(mp)->m_qm_ops->xfs_dqvopchownresv)(tp, ip, dq1, dq2, fl)
+#define XFS_QM_DQSTATVFS(ip, statp) \
+	(*(ip)->i_mount->m_qm_ops->xfs_dqstatvfs)(ip, statp)
+#define XFS_QM_DQSYNC(mp, flags) \
+	(*(mp)->m_qm_ops->xfs_dqsync)(mp, flags)
+#define XFS_QM_QUOTACTL(mp, cmd, id, addr) \
+	(*(mp)->m_qm_ops->xfs_quotactl)(mp, cmd, id, addr)
 
 
 /*
@@ -413,7 +425,7 @@ typedef struct xfs_mount {
 	struct xfs_chash	*m_chash;	/* fs private inode per-cluster
 						 * hash table */
 	struct xfs_dmops	*m_dm_ops;	/* vector of DMI ops */
-	struct xfs_qmops	m_qm_ops;	/* vector of XQM ops */
+	struct xfs_qmops	*m_qm_ops;	/* vector of XQM ops */
 	struct xfs_ioops	m_io_ops;	/* vector of I/O ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB
@@ -649,9 +661,10 @@ extern int	xfs_sb_validate_fsb_count(struct xfs_sb *, __uint64_t);
 
 extern int	xfs_dmops_get(struct xfs_mount *, struct xfs_mount_args *);
 extern void	xfs_dmops_put(struct xfs_mount *);
+extern int	xfs_qmops_get(struct xfs_mount *, struct xfs_mount_args *);
+extern void	xfs_qmops_put(struct xfs_mount *);
 
 extern struct xfs_dmops xfs_dmcore_xfs;
-extern struct xfs_qmops xfs_qmcore_stub;
 extern struct xfs_ioops xfs_iocore_xfs;
 
 extern int	xfs_init(void);

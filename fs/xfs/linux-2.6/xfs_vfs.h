@@ -127,7 +127,6 @@ typedef int	(*vfs_statvfs_t)(bhv_desc_t *, bhv_statvfs_t *,
 				struct inode *);
 typedef int	(*vfs_sync_t)(bhv_desc_t *, int, struct cred *);
 typedef int	(*vfs_vget_t)(bhv_desc_t *, struct inode **, struct fid *);
-typedef int	(*vfs_quotactl_t)(bhv_desc_t *, int, int, caddr_t);
 typedef void	(*vfs_init_vnode_t)(bhv_desc_t *,
 				struct inode *, struct xfs_inode *, int);
 typedef void	(*vfs_force_shutdown_t)(bhv_desc_t *, int, char *, int);
@@ -144,7 +143,6 @@ typedef struct bhv_vfsops {
 	vfs_statvfs_t		vfs_statvfs;	/* file system statistics */
 	vfs_sync_t		vfs_sync;	/* flush files */
 	vfs_vget_t		vfs_vget;	/* get vnode from fid */
-	vfs_quotactl_t		vfs_quotactl;	/* disk quota */
 	vfs_init_vnode_t	vfs_init_vnode;	/* initialize a new vnode */
 	vfs_force_shutdown_t	vfs_force_shutdown;	/* crash and burn */
 	vfs_freeze_t		vfs_freeze;	/* freeze fs for snapshot */
@@ -163,7 +161,6 @@ typedef struct bhv_vfsops {
 #define bhv_vfs_statvfs(v, sp,vp)	vfs_statvfs(VFSHEAD(v), sp,vp)
 #define bhv_vfs_sync(v, flag,cr)	vfs_sync(VFSHEAD(v), flag,cr)
 #define bhv_vfs_vget(v, vpp,fidp)	vfs_vget(VFSHEAD(v), vpp,fidp)
-#define bhv_vfs_quotactl(v, c,id,p)	vfs_quotactl(VFSHEAD(v), c,id,p)
 #define bhv_vfs_init_vnode(v, vp,b,ul)	vfs_init_vnode(VFSHEAD(v), vp,b,ul)
 #define bhv_vfs_force_shutdown(v,u,f,l)	vfs_force_shutdown(VFSHEAD(v), u,f,l)
 #define bhv_vfs_freeze(v)		vfs_freeze(VFSHEAD(v))
@@ -180,7 +177,6 @@ typedef struct bhv_vfsops {
 #define bhv_next_vfs_statvfs(b, sp,vp)		vfs_statvfs(b, sp,vp)
 #define bhv_next_vfs_sync(b, flag,cr)		vfs_sync(b, flag,cr)
 #define bhv_next_vfs_vget(b, vpp,fidp)		vfs_vget(b, vpp,fidp)
-#define bhv_next_vfs_quotactl(b, c,id,p)	vfs_quotactl(b, c,id,p)
 #define bhv_next_vfs_init_vnode(b, vp,b2,ul)	vfs_init_vnode(b, vp,b2,ul)
 #define bhv_next_force_shutdown(b, fl,f,l)	vfs_force_shutdown(b, fl,f,l)
 #define bhv_next_vfs_freeze(b)			vfs_freeze(b)
@@ -194,7 +190,6 @@ extern int vfs_root(bhv_desc_t *, struct inode **);
 extern int vfs_statvfs(bhv_desc_t *, bhv_statvfs_t *, struct inode *);
 extern int vfs_sync(bhv_desc_t *, int, struct cred *);
 extern int vfs_vget(bhv_desc_t *, struct inode **, struct fid *);
-extern int vfs_quotactl(bhv_desc_t *, int, int, caddr_t);
 extern void vfs_init_vnode(bhv_desc_t *, struct inode *, struct xfs_inode *, int);
 extern void vfs_force_shutdown(bhv_desc_t *, int, char *, int);
 extern void vfs_freeze(bhv_desc_t *);

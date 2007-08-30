@@ -166,12 +166,11 @@ typedef struct xfs_dquot_acct {
 
 extern void		xfs_qm_destroy_quotainfo(xfs_mount_t *);
 extern int		xfs_qm_mount_quotas(xfs_mount_t *, int);
-extern void		xfs_qm_mount_quotainit(xfs_mount_t *, uint);
 extern int		xfs_qm_quotacheck(xfs_mount_t *);
 extern void		xfs_qm_unmount_quotadestroy(xfs_mount_t *);
 extern int		xfs_qm_unmount_quotas(xfs_mount_t *);
 extern int		xfs_qm_write_sb_changes(xfs_mount_t *, __int64_t);
-extern int		xfs_qm_sync(xfs_mount_t *, short);
+extern int		xfs_qm_sync(xfs_mount_t *, int);
 
 /* dquot stuff */
 extern boolean_t	xfs_qm_dqalloc_incore(xfs_dquot_t **);
@@ -199,7 +198,8 @@ extern void		xfs_qm_freelist_unlink(xfs_dquot_t *);
 extern int		xfs_qm_freelist_lock_nowait(xfs_qm_t *);
 
 /* system call interface */
-extern int		xfs_qm_quotactl(bhv_desc_t *, int, int, xfs_caddr_t);
+extern int		xfs_qm_quotactl(struct xfs_mount *, int, int,
+				xfs_caddr_t);
 
 #ifdef DEBUG
 extern int		xfs_qm_internalqcheck(xfs_mount_t *);
