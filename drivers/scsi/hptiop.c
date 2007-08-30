@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx controller driver for Linux
- * Copyright (C) 2006 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2007 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ MODULE_DESCRIPTION("HighPoint RocketRAID 3xxx SATA Controller Driver");
 
 static char driver_name[] = "hptiop";
 static const char driver_name_long[] = "RocketRAID 3xxx SATA Controller driver";
-static const char driver_ver[] = "v1.0 (060426)";
+static const char driver_ver[] = "v1.2 (070830)";
 
 static void hptiop_host_request_callback(struct hptiop_hba *hba, u32 tag);
 static void hptiop_iop_request_callback(struct hptiop_hba *hba, u32 tag);
@@ -76,7 +76,7 @@ static int iop_wait_ready(struct hpt_iopmu __iomem *iop, u32 millisec)
 
 static void hptiop_request_callback(struct hptiop_hba *hba, u32 tag)
 {
-	if ((tag & IOPMU_QUEUE_MASK_HOST_BITS) == IOPMU_QUEUE_ADDR_HOST_BIT)
+	if (tag & IOPMU_QUEUE_ADDR_HOST_BIT)
 		return hptiop_host_request_callback(hba,
 				tag & ~IOPMU_QUEUE_ADDR_HOST_BIT);
 	else
@@ -323,12 +323,22 @@ static inline void free_req(struct hptiop_hba *hba, struct hptiop_request *req)
 	hba->req_list = req;
 }
 
-static void hptiop_host_request_callback(struct hptiop_hba *hba, u32 tag)
+static void hptiop_host_request_callback(struct hptiop_hba *hba, u32 _tag)
 {
 	struct hpt_iop_request_scsi_command *req;
 	struct scsi_cmnd *scp;
+	u32 tag;
 
-	req = (struct hpt_iop_request_scsi_command *)hba->reqs[tag].req_virt;
+	if (hba->iopintf_v2) {
+		tag = _tag & ~ IOPMU_QUEUE_REQUEST_RESULT_BIT;
+		req = hba->reqs[tag].req_virt;
+		if (likely(_tag & IOPMU_QUEUE_REQUEST_RESULT_BIT))
+			req->header.result = IOP_RESULT_SUCCESS;
+	} else {
+		tag = _tag;
+		req = hba->reqs[tag].req_virt;
+	}
+
 	dprintk("hptiop_host_request_callback: req=%p, type=%d, "
 			"result=%d, context=0x%x tag=%d\n",
 			req, req->header.type, req->header.result,
@@ -497,7 +507,7 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 		goto cmd_done;
 	}
 
-	req = (struct hpt_iop_request_scsi_command *)_req->req_virt;
+	req = _req->req_virt;
 
 	/* build S/G table */
 	sg_count = hptiop_buildsgl(scp, req->sg_list);
@@ -521,8 +531,19 @@ static int hptiop_queuecommand(struct scsi_cmnd *scp,
 
 	memcpy(req->cdb, scp->cmnd, sizeof(req->cdb));
 
-	writel(IOPMU_QUEUE_ADDR_HOST_BIT | _req->req_shifted_phy,
-			&hba->iop->inbound_queue);
+	if (hba->iopintf_v2) {
+		u32 size_bits;
+		if (req->header.size < 256)
+			size_bits = IOPMU_QUEUE_REQUEST_SIZE_BIT;
+		else if (req->header.size < 512)
+			size_bits = IOPMU_QUEUE_ADDR_HOST_BIT;
+		else
+			size_bits = IOPMU_QUEUE_REQUEST_SIZE_BIT |
+						IOPMU_QUEUE_ADDR_HOST_BIT;
+		writel(_req->req_shifted_phy | size_bits, &hba->iop->inbound_queue);
+	} else
+		writel(_req->req_shifted_phy | IOPMU_QUEUE_ADDR_HOST_BIT,
+					&hba->iop->inbound_queue);
 
 	return 0;
 
@@ -688,6 +709,7 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	hba->pcidev = pcidev;
 	hba->host = host;
 	hba->initialized = 0;
+	hba->iopintf_v2 = 0;
 
 	atomic_set(&hba->resetting, 0);
 	atomic_set(&hba->reset_count, 0);
@@ -722,7 +744,12 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	hba->max_request_size = le32_to_cpu(iop_config.request_size);
 	hba->max_sg_descriptors = le32_to_cpu(iop_config.max_sg_count);
 	hba->firmware_version = le32_to_cpu(iop_config.firmware_version);
+	hba->interface_version = le32_to_cpu(iop_config.interface_version);
 	hba->sdram_size = le32_to_cpu(iop_config.sdram_size);
+
+	if (hba->firmware_version > 0x01020000 ||
+			hba->interface_version > 0x01020000)
+		hba->iopintf_v2 = 1;
 
 	host->max_sectors = le32_to_cpu(iop_config.data_transfer_length) >> 9;
 	host->max_id = le32_to_cpu(iop_config.max_devices);
@@ -731,8 +758,15 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	host->cmd_per_lun = le32_to_cpu(iop_config.max_requests);
 	host->max_cmd_len = 16;
 
-	set_config.vbus_id = cpu_to_le32(host->host_no);
+	req_size = sizeof(struct hpt_iop_request_scsi_command)
+		+ sizeof(struct hpt_iopsg) * (hba->max_sg_descriptors - 1);
+	if ((req_size & 0x1f) != 0)
+		req_size = (req_size + 0x1f) & ~0x1f;
+
+	memset(&set_config, 0, sizeof(struct hpt_iop_request_set_config));
 	set_config.iop_id = cpu_to_le32(host->host_no);
+	set_config.vbus_id = cpu_to_le16(host->host_no);
+	set_config.max_host_request_size = cpu_to_le16(req_size);
 
 	if (iop_set_config(hba, &set_config)) {
 		printk(KERN_ERR "scsi%d: set config failed\n",
@@ -750,10 +784,6 @@ static int __devinit hptiop_probe(struct pci_dev *pcidev,
 	}
 
 	/* Allocate request mem */
-	req_size = sizeof(struct hpt_iop_request_scsi_command)
-		+ sizeof(struct hpt_iopsg) * (hba->max_sg_descriptors - 1);
-	if ((req_size& 0x1f) != 0)
-		req_size = (req_size + 0x1f) & ~0x1f;
 
 	dprintk("req_size=%d, max_requests=%d\n", req_size, hba->max_requests);
 
@@ -879,8 +909,10 @@ static void hptiop_remove(struct pci_dev *pcidev)
 }
 
 static struct pci_device_id hptiop_id_table[] = {
-	{ PCI_DEVICE(0x1103, 0x3220) },
-	{ PCI_DEVICE(0x1103, 0x3320) },
+	{ PCI_VDEVICE(TTI, 0x3220) },
+	{ PCI_VDEVICE(TTI, 0x3320) },
+	{ PCI_VDEVICE(TTI, 0x3520) },
+	{ PCI_VDEVICE(TTI, 0x4320) },
 	{},
 };
 
@@ -910,3 +942,4 @@ module_init(hptiop_module_init);
 module_exit(hptiop_module_exit);
 
 MODULE_LICENSE("GPL");
+
