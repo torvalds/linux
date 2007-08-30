@@ -359,7 +359,7 @@ xfs_initialize_perag(
 	/* Clear the mount flag if no inode can overflow 32 bits
 	 * on this filesystem, or if specifically requested..
 	 */
-	if ((vfs->vfs_flag & VFS_32BITINODES) && ino > max_inum) {
+	if ((mp->m_flags & XFS_MOUNT_SMALL_INUMS) && ino > max_inum) {
 		mp->m_flags |= XFS_MOUNT_32BITINODES;
 	} else {
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
@@ -1116,7 +1116,7 @@ xfs_mountfs(
 	 * If fs is not mounted readonly, then update the superblock
 	 * unit and width changes.
 	 */
-	if (update_flags && !(vfsp->vfs_flag & VFS_RDONLY))
+	if (update_flags && !(mp->m_flags & XFS_MOUNT_RDONLY))
 		xfs_mount_log_sbunit(mp, update_flags);
 
 	/*
@@ -1289,7 +1289,7 @@ xfs_fs_writable(xfs_mount_t *mp)
 	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 
 	return !(vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
-		(vfsp->vfs_flag & VFS_RDONLY));
+		(mp->m_flags & XFS_MOUNT_RDONLY));
 }
 
 /*
@@ -1367,7 +1367,7 @@ xfs_unmountfs_writesb(xfs_mount_t *mp)
 	 * skip superblock write if fs is read-only, or
 	 * if we are doing a forced umount.
 	 */
-	if (!(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY ||
+	if (!((mp->m_flags & XFS_MOUNT_RDONLY) ||
 		XFS_FORCED_SHUTDOWN(mp))) {
 
 		sbp = xfs_getsb(mp, 0);

@@ -66,7 +66,7 @@ xfs_mount_reset_sbqflags(xfs_mount_t *mp)
 	 * if the fs is readonly, let the incore superblock run
 	 * with quotas off but don't flush the update out to disk
 	 */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 #ifdef QUOTADEBUG
 	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");

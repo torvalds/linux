@@ -86,9 +86,7 @@ xfs_qm_quotactl(
 	int		id,
 	xfs_caddr_t	addr)
 {
-	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 	int		error;
-
 
 	ASSERT(addr != NULL || cmd == Q_XQUOTASYNC);
 
@@ -102,7 +100,7 @@ xfs_qm_quotactl(
 		 */
 		if (XFS_IS_QUOTA_ON(mp))
 			return XFS_ERROR(EINVAL);
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		return (xfs_qm_scall_trunc_qfiles(mp,
 			       xfs_qm_import_qtype_flags(*(uint *)addr)));
@@ -118,13 +116,13 @@ xfs_qm_quotactl(
 		 * QUOTAON - enabling quota enforcement.
 		 * Quota accounting must be turned on at mount time.
 		 */
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		return (xfs_qm_scall_quotaon(mp,
 					  xfs_qm_import_flags(*(uint *)addr)));
 
 	case Q_XQUOTAOFF:
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		break;
 
@@ -140,7 +138,7 @@ xfs_qm_quotactl(
 
 	switch (cmd) {
 	case Q_XQUOTAOFF:
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		error = xfs_qm_scall_quotaoff(mp,
 					    xfs_qm_import_flags(*(uint *)addr),
@@ -161,19 +159,19 @@ xfs_qm_quotactl(
 		break;
 
 	case Q_XSETQLIM:
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		error = xfs_qm_scall_setqlim(mp, (xfs_dqid_t)id, XFS_DQ_USER,
 					     (fs_disk_quota_t *)addr);
 		break;
 	case Q_XSETGQLIM:
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		error = xfs_qm_scall_setqlim(mp, (xfs_dqid_t)id, XFS_DQ_GROUP,
 					     (fs_disk_quota_t *)addr);
 		break;
 	case Q_XSETPQLIM:
-		if (vfsp->vfs_flag & VFS_RDONLY)
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
 			return XFS_ERROR(EROFS);
 		error = xfs_qm_scall_setqlim(mp, (xfs_dqid_t)id, XFS_DQ_PROJ,
 					     (fs_disk_quota_t *)addr);

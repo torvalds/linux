@@ -259,7 +259,7 @@ xfs_file_mmap(
 	vma->vm_flags |= VM_CAN_NONLINEAR;
 
 #ifdef CONFIG_XFS_DMAPI
-	if (vfs_from_sb(filp->f_path.dentry->d_inode->i_sb)->vfs_flag & VFS_DMI)
+	if (XFS_M(filp->f_path.dentry->d_inode->i_sb)->m_flags & XFS_MOUNT_DMAPI)
 		vma->vm_ops = &xfs_dmapi_file_vm_ops;
 #endif /* CONFIG_XFS_DMAPI */
 
@@ -317,13 +317,13 @@ xfs_vm_mprotect(
 	unsigned int	newflags)
 {
 	struct inode	*inode = vma->vm_file->f_path.dentry->d_inode;
-	bhv_vfs_t	*vfsp = vfs_from_sb(inode->i_sb);
+	struct xfs_mount *mp = XFS_M(inode->i_sb);
 	int		error = 0;
 
-	if (vfsp->vfs_flag & VFS_DMI) {
+	if (mp->m_flags & XFS_MOUNT_DMAPI) {
 		if ((vma->vm_flags & VM_MAYSHARE) &&
 		    (newflags & VM_WRITE) && !(vma->vm_flags & VM_WRITE))
-			error = XFS_SEND_MMAP(XFS_VFSTOM(vfsp), vma, VM_WRITE);
+			error = XFS_SEND_MMAP(mp, vma, VM_WRITE);
 	}
 	return error;
 }
@@ -340,13 +340,13 @@ STATIC int
 xfs_file_open_exec(
 	struct inode	*inode)
 {
-	bhv_vfs_t	*vfsp = vfs_from_sb(inode->i_sb);
+	struct xfs_mount *mp = XFS_M(inode->i_sb);
 
-	if (unlikely(vfsp->vfs_flag & VFS_DMI)) {
+	if (unlikely(mp->m_flags & XFS_MOUNT_DMAPI)) {
 		if (DM_EVENT_ENABLED(XFS_I(inode), DM_EVENT_READ)) {
 			bhv_vnode_t *vp = vn_from_inode(inode);
 
-			return -XFS_SEND_DATA(XFS_VFSTOM(vfsp), DM_EVENT_READ,
+			return -XFS_SEND_DATA(mp, DM_EVENT_READ,
 						vp, 0, 0, 0, NULL);
 		}
 	}

@@ -486,7 +486,7 @@ xfs_log_mount(xfs_mount_t	*mp,
 		cmn_err(CE_NOTE,
 			"!Mounting filesystem \"%s\" in no-recovery mode.  Filesystem will be inconsistent.",
 			mp->m_fsname);
-		ASSERT(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY);
+		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
 
 	mp->m_log = xlog_alloc_log(mp, log_target, blk_offset, num_bblks);
@@ -496,16 +496,15 @@ xfs_log_mount(xfs_mount_t	*mp,
 	 * just worked.
 	 */
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY)) {
-		bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
-		int		error, readonly = (vfsp->vfs_flag & VFS_RDONLY);
+		int		error, readonly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 		if (readonly)
-			vfsp->vfs_flag &= ~VFS_RDONLY;
+			mp->m_flags &= ~XFS_MOUNT_RDONLY;
 
 		error = xlog_recover(mp->m_log);
 
 		if (readonly)
-			vfsp->vfs_flag |= VFS_RDONLY;
+			mp->m_flags |= XFS_MOUNT_RDONLY;
 		if (error) {
 			cmn_err(CE_WARN, "XFS: log mount/recovery failed: error %d", error);
 			xlog_dealloc_log(mp->m_log);
@@ -537,7 +536,7 @@ xfs_log_mount_finish(xfs_mount_t *mp, int mfsi_flags)
 		error = xlog_recover_finish(mp->m_log, mfsi_flags);
 	else {
 		error = 0;
-		ASSERT(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY);
+		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 	}
 
 	return error;
@@ -597,7 +596,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	 * Don't write out unmount record on read-only mounts.
 	 * Or, if we are doing a forced umount (typically because of IO errors).
 	 */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 
 	xfs_log_force(mp, 0, XFS_LOG_FORCE|XFS_LOG_SYNC);

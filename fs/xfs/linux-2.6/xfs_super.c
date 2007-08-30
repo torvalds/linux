@@ -534,7 +534,7 @@ vfs_sync_worker(
 {
 	int		error;
 
-	if (!(vfsp->vfs_flag & VFS_RDONLY))
+	if (!(XFS_VFSTOM(vfsp)->m_flags & XFS_MOUNT_RDONLY))
 		error = xfs_sync(XFS_VFSTOM(vfsp), SYNC_FSDATA | SYNC_BDFLUSH | \
 					SYNC_ATTR | SYNC_REFCACHE | SYNC_SUPER);
 	vfsp->vfs_sync_seq++;
@@ -792,6 +792,9 @@ xfs_fs_fill_super(
 	mp = xfs_mount_init();
 	mp->m_vfsp = vfsp;
 	vfsp->vfs_mount = mp;
+
+	if (sb->s_flags & MS_RDONLY)
+		mp->m_flags |= XFS_MOUNT_RDONLY;
 
 	error = xfs_parseargs(mp, (char *)data, args, 0);
 	if (error)

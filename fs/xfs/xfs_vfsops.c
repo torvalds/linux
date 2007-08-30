@@ -307,7 +307,7 @@ xfs_start_flags(
 	 * no recovery flag requires a read-only mount
 	 */
 	if (ap->flags & XFSMNT_NORECOVERY) {
-		if (!(vfs->vfs_flag & VFS_RDONLY)) {
+		if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
 			cmn_err(CE_WARN,
 	"XFS: tried to mount a FS read-write without recovery!");
 			return XFS_ERROR(EINVAL);
@@ -326,7 +326,7 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_FILESTREAMS;
 
 	if (ap->flags & XFSMNT_DMAPI)
-		vfs->vfs_flag |= VFS_DMI;
+		mp->m_flags |= XFS_MOUNT_DMAPI;
 	return 0;
 }
 
@@ -340,7 +340,7 @@ xfs_finish_flags(
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
-	int			ronly = (vfs->vfs_flag & VFS_RDONLY);
+	int			ronly = (mp->m_flags & XFS_MOUNT_RDONLY);
 
 	/* Fail a mount where the logbuf is smaller then the log stripe */
 	if (XFS_SB_VERSION_HASLOGV2(&mp->m_sb)) {
@@ -589,7 +589,7 @@ xfs_unmount(
 	rvp = XFS_ITOV(rip);
 
 #ifdef HAVE_DMAPI
-	if (vfsp->vfs_flag & VFS_DMI) {
+	if (mp->m_flags & XFS_MOUNT_DMAPI) {
 		error = XFS_SEND_PREUNMOUNT(mp, vfsp,
 				rvp, DM_RIGHT_NULL, rvp, DM_RIGHT_NULL,
 				NULL, NULL, 0, 0,
@@ -723,22 +723,20 @@ xfs_mntupdate(
 	int				*flags,
 	struct xfs_mount_args		*args)
 {
-	struct bhv_vfs			*vfsp = XFS_MTOVFS(mp);
-
 	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
-		if (vfsp->vfs_flag & VFS_RDONLY)
-			vfsp->vfs_flag &= ~VFS_RDONLY;
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
+			mp->m_flags &= ~XFS_MOUNT_RDONLY;
 		if (args->flags & XFSMNT_BARRIER) {
 			mp->m_flags |= XFS_MOUNT_BARRIER;
 			xfs_mountfs_check_barriers(mp);
 		} else {
 			mp->m_flags &= ~XFS_MOUNT_BARRIER;
 		}
-	} else if (!(vfsp->vfs_flag & VFS_RDONLY)) {	/* rw -> ro */
+	} else if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {	/* rw -> ro */
 		xfs_filestream_flush(mp);
 		xfs_sync(mp, SYNC_DATA_QUIESCE);
 		xfs_attr_quiesce(mp);
-		vfsp->vfs_flag |= VFS_RDONLY;
+		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
 	return 0;
 }
@@ -1053,7 +1051,7 @@ xfs_sync_inodes(
 
 	if (bypassed)
 		*bypassed = 0;
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 	error = 0;
 	last_error = 0;
@@ -1766,7 +1764,6 @@ xfs_parseargs(
 	struct xfs_mount_args	*args,
 	int			update)
 {
-	bhv_vfs_t		*vfsp = XFS_MTOVFS(mp);
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
@@ -1859,10 +1856,10 @@ xfs_parseargs(
 			args->iosizelog = ffs(iosize) - 1;
 		} else if (!strcmp(this_char, MNTOPT_GRPID) ||
 			   !strcmp(this_char, MNTOPT_BSDGROUPS)) {
-			vfsp->vfs_flag |= VFS_GRPID;
+			mp->m_flags |= XFS_MOUNT_GRPID;
 		} else if (!strcmp(this_char, MNTOPT_NOGRPID) ||
 			   !strcmp(this_char, MNTOPT_SYSVGROUPS)) {
-			vfsp->vfs_flag &= ~VFS_GRPID;
+			mp->m_flags &= ~XFS_MOUNT_GRPID;
 		} else if (!strcmp(this_char, MNTOPT_WSYNC)) {
 			args->flags |= XFSMNT_WSYNC;
 		} else if (!strcmp(this_char, MNTOPT_OSYNCISOSYNC)) {
@@ -1972,7 +1969,7 @@ xfs_parseargs(
 	}
 
 	if (args->flags & XFSMNT_NORECOVERY) {
-		if ((vfsp->vfs_flag & VFS_RDONLY) == 0) {
+		if ((mp->m_flags & XFS_MOUNT_RDONLY) == 0) {
 			cmn_err(CE_WARN,
 				"XFS: no-recovery mounts must be read-only.");
 			return EINVAL;
@@ -2025,7 +2022,7 @@ xfs_parseargs(
 
 done:
 	if (args->flags & XFSMNT_32BITINODES)
-		vfsp->vfs_flag |= VFS_32BITINODES;
+		mp->m_flags |= XFS_MOUNT_SMALL_INUMS;
 	if (args->flags2)
 		args->flags |= XFSMNT_FLAGS2;
 	return 0;
@@ -2051,7 +2048,6 @@ xfs_showargs(
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
-	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
@@ -2084,9 +2080,9 @@ xfs_showargs(
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
 
-	if (!(vfsp->vfs_flag & VFS_32BITINODES))
+	if (!(mp->m_flags & XFS_MOUNT_SMALL_INUMS))
 		seq_printf(m, "," MNTOPT_64BITINODE);
-	if (vfsp->vfs_flag & VFS_GRPID)
+	if (mp->m_flags & XFS_MOUNT_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
 
 	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
@@ -2113,7 +2109,7 @@ xfs_showargs(
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
 
-	if (vfsp->vfs_flag & VFS_DMI)
+	if (mp->m_flags & XFS_MOUNT_DMAPI)
 		seq_puts(m, "," MNTOPT_DMAPI);
 	return 0;
 }

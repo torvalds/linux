@@ -2417,8 +2417,7 @@ xfs_qm_vop_dqalloc(
 	lockflags = XFS_ILOCK_EXCL;
 	xfs_ilock(ip, lockflags);
 
-	if ((flags & XFS_QMOPT_INHERIT) &&
-	    XFS_INHERIT_GID(ip, XFS_MTOVFS(mp)))
+	if ((flags & XFS_QMOPT_INHERIT) && XFS_INHERIT_GID(ip))
 		gid = ip->i_d.di_gid;
 
 	/*

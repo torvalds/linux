@@ -69,7 +69,7 @@ typedef enum {
 /* Defines for determining if an event message should be sent. */
 #ifdef HAVE_DMAPI
 #define	DM_EVENT_ENABLED(ip, event) ( \
-	unlikely (XFS_MTOVFS((ip)->i_mount)->vfs_flag & VFS_DMI) && \
+	unlikely ((ip)->i_mount->m_flags & XFS_MOUNT_DMAPI) && \
 		( ((ip)->i_d.di_dmevmask & (1 << event)) || \
 		  ((ip)->i_mount->m_dmevmask & (1 << event)) ) \
 	)

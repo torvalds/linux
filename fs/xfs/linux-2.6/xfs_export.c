@@ -102,9 +102,7 @@ xfs_fs_encode_fh(
 	int			len;
 	int			is64 = 0;
 #if XFS_BIG_INUMS
-	bhv_vfs_t		*vfs = vfs_from_sb(inode->i_sb);
-
-	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
+	if (!(XFS_M(inode->i_sb)->m_flags & XFS_MOUNT_SMALL_INUMS)) {
 		/* filesystem may contain 64bit inode numbers */
 		is64 = XFS_FILEID_TYPE_64FLAG;
 	}

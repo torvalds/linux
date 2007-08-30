@@ -492,8 +492,9 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
  * directory, group of new file is set to that of the parent, and
  * new subdirectory gets S_ISGID bit from parent.
  */
-#define XFS_INHERIT_GID(pip, vfsp)	\
-	(((vfsp)->vfs_flag & VFS_GRPID) || ((pip)->i_d.di_mode & S_ISGID))
+#define XFS_INHERIT_GID(pip)	\
+	(((pip)->i_mount->m_flags & XFS_MOUNT_GRPID) || \
+	 ((pip)->i_d.di_mode & S_ISGID))
 
 /*
  * Flags for xfs_iget()

@@ -211,9 +211,6 @@ vfs_allocate(
 	vfsp->vfs_super = sb;
 	sb->s_fs_info = vfsp;
 
-	if (sb->s_flags & MS_RDONLY)
-		vfsp->vfs_flag |= VFS_RDONLY;
-
 	return vfsp;
 }
 

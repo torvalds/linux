@@ -230,7 +230,7 @@ xfs_setattr(
 
 	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
 
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return XFS_ERROR(EROFS);
 
 	/*
@@ -1515,7 +1515,7 @@ xfs_release(
 		return 0;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 
 	if (!XFS_FORCED_SHUTDOWN(mp)) {
@@ -1624,7 +1624,7 @@ xfs_inactive(
 	error = 0;
 
 	/* If this is a read-only mount, don't do this (would generate I/O) */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		goto out;
 
 	if (ip->i_d.di_nlink != 0) {

@@ -43,7 +43,6 @@ typedef struct bhv_vfs_sync_work {
 
 typedef struct bhv_vfs {
 	struct xfs_mount	*vfs_mount;
-	u_int			vfs_flag;	/* flags */
 	struct super_block	*vfs_super;	/* generic superblock pointer */
 	struct task_struct	*vfs_sync_task;	/* generalised sync thread */
 	bhv_vfs_sync_work_t	vfs_sync_work;	/* work item for VFS_SYNC */
@@ -52,13 +51,6 @@ typedef struct bhv_vfs {
 	int			vfs_sync_seq;	/* sync thread generation no. */
 	wait_queue_head_t	vfs_wait_single_sync_task;
 } bhv_vfs_t;
-
-#define VFS_RDONLY		0x0001	/* read-only vfs */
-#define VFS_GRPID		0x0002	/* group-ID assigned from directory */
-#define VFS_DMI			0x0004	/* filesystem has the DMI enabled */
-/* ---- VFS_UMOUNT ----		0x0008	-- unneeded, fixed via kthread APIs */
-#define VFS_32BITINODES		0x0010	/* do not use inums above 32 bits */
-#define VFS_END			0x0010	/* max flag */
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
 #define SYNC_CLOSE		0x0002	/* close file system down */
