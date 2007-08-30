@@ -55,9 +55,8 @@
 #include "xfs_filestream.h"
 #include "xfs_fsops.h"
 #include "xfs_vnodeops.h"
+#include "xfs_vfsops.h"
 
-
-STATIC int	xfs_sync(bhv_desc_t *, int, cred_t *);
 
 int
 xfs_init(void)
@@ -433,15 +432,14 @@ xfs_finish_flags(
  * they are present.  The data subvolume has already been opened by
  * get_sb_bdev() and is stored in vfsp->vfs_super->s_bdev.
  */
-STATIC int
+int
 xfs_mount(
-	struct bhv_desc		*bhvp,
+	struct xfs_mount	*mp,
 	struct xfs_mount_args	*args,
 	cred_t			*credp)
 {
-	struct bhv_vfs		*vfsp = bhvtovfs(bhvp);
+	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
 	struct bhv_desc		*p;
-	struct xfs_mount	*mp = XFS_BHVTOM(bhvp);
 	struct block_device	*ddev, *logdev, *rtdev;
 	int			flags = 0, error;
 
@@ -578,14 +576,13 @@ error0:
 	return error;
 }
 
-STATIC int
+int
 xfs_unmount(
-	bhv_desc_t	*bdp,
+	xfs_mount_t	*mp,
 	int		flags,
 	cred_t		*credp)
 {
-	bhv_vfs_t	*vfsp = bhvtovfs(bdp);
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
+	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 	xfs_inode_t	*rip;
 	bhv_vnode_t	*rvp;
 	int		unmount_event_wanted = 0;
@@ -641,8 +638,7 @@ xfs_unmount(
 	 * referenced vnodes as well.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		error = xfs_sync(&mp->m_bhv,
-			 (SYNC_WAIT | SYNC_CLOSE), credp);
+		error = xfs_sync(mp, SYNC_WAIT | SYNC_CLOSE);
 		ASSERT(error != EFSCORRUPTED);
 	}
 	xfs_unmountfs_needed = 1;
@@ -726,14 +722,13 @@ xfs_attr_quiesce(
 	xfs_unmountfs_writesb(mp);
 }
 
-STATIC int
+int
 xfs_mntupdate(
-	bhv_desc_t			*bdp,
+	struct xfs_mount		*mp,
 	int				*flags,
 	struct xfs_mount_args		*args)
 {
-	bhv_vfs_t	*vfsp = bhvtovfs(bdp);
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
+	struct bhv_vfs			*vfsp = XFS_MTOVFS(mp);
 
 	if (!(*flags & MS_RDONLY)) {			/* rw/ro -> rw */
 		if (vfsp->vfs_flag & VFS_RDONLY)
@@ -843,14 +838,14 @@ fscorrupt_out2:
  * vpp  -- address of the caller's vnode pointer which should be
  *         set to the desired fs root vnode
  */
-STATIC int
+int
 xfs_root(
-	bhv_desc_t	*bdp,
+	xfs_mount_t	*mp,
 	bhv_vnode_t	**vpp)
 {
 	bhv_vnode_t	*vp;
 
-	vp = XFS_ITOV((XFS_BHVTOM(bdp))->m_rootip);
+	vp = XFS_ITOV(mp->m_rootip);
 	VN_HOLD(vp);
 	*vpp = vp;
 	return 0;
@@ -863,19 +858,17 @@ xfs_root(
  * the superblock lock in the mount structure to ensure a consistent
  * snapshot of the counters returned.
  */
-STATIC int
+int
 xfs_statvfs(
-	bhv_desc_t	*bdp,
+	xfs_mount_t	*mp,
 	bhv_statvfs_t	*statp,
 	bhv_vnode_t	*vp)
 {
 	__uint64_t	fakeinos;
 	xfs_extlen_t	lsize;
-	xfs_mount_t	*mp;
 	xfs_sb_t	*sbp;
 	unsigned long	s;
 
-	mp = XFS_BHVTOM(bdp);
 	sbp = &(mp->m_sb);
 
 	statp->f_type = XFS_SB_MAGIC;
@@ -954,14 +947,11 @@ xfs_statvfs(
  *		       filesystem.
  *
  */
-/*ARGSUSED*/
-STATIC int
+int
 xfs_sync(
-	bhv_desc_t	*bdp,
-	int		flags,
-	cred_t		*credp)
+	xfs_mount_t	*mp,
+	int		flags)
 {
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	int		error;
 
 	/*
@@ -1652,13 +1642,12 @@ xfs_syncsub(
 /*
  * xfs_vget - called by DMAPI and NFSD to get vnode from file handle
  */
-STATIC int
+int
 xfs_vget(
-	bhv_desc_t	*bdp,
+	xfs_mount_t	*mp,
 	bhv_vnode_t	**vpp,
 	fid_t		*fidp)
 {
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
 	xfs_fid_t	*xfid = (struct xfs_fid *)fidp;
 	xfs_inode_t	*ip;
 	int		error;
@@ -1775,14 +1764,14 @@ suffix_strtoul(char *s, char **endp, unsigned int base)
 	return simple_strtoul((const char *)s, endp, base) << shift_left_factor;
 }
 
-STATIC int
+int
 xfs_parseargs(
-	struct bhv_desc		*bhv,
+	struct xfs_mount	*mp,
 	char			*options,
 	struct xfs_mount_args	*args,
 	int			update)
 {
-	bhv_vfs_t		*vfsp = bhvtovfs(bhv);
+	bhv_vfs_t		*vfsp = XFS_MTOVFS(mp);
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
@@ -2047,9 +2036,9 @@ done:
 	return 0;
 }
 
-STATIC int
+int
 xfs_showargs(
-	struct bhv_desc		*bhv,
+	struct xfs_mount	*mp,
 	struct seq_file		*m)
 {
 	static struct proc_xfs_info {
@@ -2067,7 +2056,6 @@ xfs_showargs(
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
-	struct xfs_mount	*mp = XFS_BHVTOM(bhv);
 	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
 
 	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
@@ -2142,28 +2130,8 @@ xfs_showargs(
  */
 STATIC void
 xfs_freeze(
-	bhv_desc_t	*bdp)
+	xfs_mount_t	*mp)
 {
-	xfs_mount_t	*mp = XFS_BHVTOM(bdp);
-
 	xfs_attr_quiesce(mp);
 	xfs_fs_log_dummy(mp);
 }
-
-
-bhv_vfsops_t xfs_vfsops = {
-	BHV_IDENTITY_INIT(VFS_BHV_XFS,VFS_POSITION_XFS),
-	.vfs_parseargs		= xfs_parseargs,
-	.vfs_showargs		= xfs_showargs,
-	.vfs_mount		= xfs_mount,
-	.vfs_unmount		= xfs_unmount,
-	.vfs_mntupdate		= xfs_mntupdate,
-	.vfs_root		= xfs_root,
-	.vfs_statvfs		= xfs_statvfs,
-	.vfs_sync		= xfs_sync,
-	.vfs_vget		= xfs_vget,
-	.vfs_quotactl		= (vfs_quotactl_t)fs_nosys,
-	.vfs_init_vnode		= xfs_initialize_vnode,
-	.vfs_force_shutdown	= xfs_do_force_shutdown,
-	.vfs_freeze		= xfs_freeze,
-};

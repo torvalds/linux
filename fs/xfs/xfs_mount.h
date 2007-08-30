@@ -650,7 +650,6 @@ extern struct xfs_buf *xfs_getsb(xfs_mount_t *, int);
 extern int	xfs_readsb(xfs_mount_t *, int);
 extern void	xfs_freesb(xfs_mount_t *);
 extern int	xfs_fs_writable(xfs_mount_t *);
-extern void	xfs_do_force_shutdown(bhv_desc_t *, int, char *, int);
 extern int	xfs_syncsub(xfs_mount_t *, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int *);
 extern xfs_agnumber_t	xfs_initialize_perag(struct bhv_vfs *, xfs_mount_t *,
