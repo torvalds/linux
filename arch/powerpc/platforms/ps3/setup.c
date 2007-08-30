@@ -63,7 +63,8 @@ int ps3_compare_firmware_version(u16 major, u16 minor, u16 rev)
 	x.minor = minor;
 	x.rev = rev;
 
-	return (ps3_firmware_version.raw - x.raw);
+	return (ps3_firmware_version.raw > x.raw) -
+	       (ps3_firmware_version.raw < x.raw);
 }
 EXPORT_SYMBOL_GPL(ps3_compare_firmware_version);
 
