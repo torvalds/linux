@@ -99,11 +99,61 @@ int v4l2_int_ioctl_1(struct v4l2_int_device *d, int cmd, void *arg);
 
 /* Slave interface type. */
 enum v4l2_if_type {
+	/*
+	 * Parallel 8-, 10- or 12-bit interface, used by for example
+	 * on certain image sensors.
+	 */
+	V4L2_IF_TYPE_BT656,
+};
+
+enum v4l2_if_type_bt656_mode {
+	/*
+	 * Modes without Bt synchronisation codes. Separate
+	 * synchronisation signal lines are used.
+	 */
+	V4L2_IF_TYPE_BT656_MODE_NOBT_8BIT,
+	V4L2_IF_TYPE_BT656_MODE_NOBT_10BIT,
+	V4L2_IF_TYPE_BT656_MODE_NOBT_12BIT,
+	/*
+	 * Use Bt synchronisation codes. The vertical and horizontal
+	 * synchronisation is done based on synchronisation codes.
+	 */
+	V4L2_IF_TYPE_BT656_MODE_BT_8BIT,
+	V4L2_IF_TYPE_BT656_MODE_BT_10BIT,
+};
+
+struct v4l2_if_type_bt656 {
+	/*
+	 * 0: Frame begins when vsync is high.
+	 * 1: Frame begins when vsync changes from low to high.
+	 */
+	unsigned frame_start_on_rising_vs:1;
+	/* Use Bt synchronisation codes for sync correction. */
+	unsigned bt_sync_correct:1;
+	/* Swap every two adjacent image data elements. */
+	unsigned swap:1;
+	/* Inverted latch clock polarity from slave. */
+	unsigned latch_clk_inv:1;
+	/* Hs polarity. 0 is active high, 1 active low. */
+	unsigned nobt_hs_inv:1;
+	/* Vs polarity. 0 is active high, 1 active low. */
+	unsigned nobt_vs_inv:1;
+	enum v4l2_if_type_bt656_mode mode;
+	/* Minimum accepted bus clock for slave (in Hz). */
+	u32 clock_min;
+	/* Maximum accepted bus clock for slave. */
+	u32 clock_max;
+	/*
+	 * Current wish of the slave. May only change in response to
+	 * ioctls that affect image capture.
+	 */
+	u32 clock_curr;
 };
 
 struct v4l2_ifparm {
 	enum v4l2_if_type if_type;
 	union {
+		struct v4l2_if_type_bt656 bt656;
 	} u;
 };
 
