@@ -112,7 +112,8 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);
-struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb, u32 type, u32 mask);
+struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask);
+int crypto_attr_u32(struct rtattr *rta, u32 *num);
 struct crypto_instance *crypto_alloc_instance(const char *name,
 					      struct crypto_alg *alg);
 
@@ -169,6 +170,26 @@ static inline void *crypto_ablkcipher_ctx_aligned(struct crypto_ablkcipher *tfm)
 static inline struct aead_alg *crypto_aead_alg(struct crypto_aead *tfm)
 {
 	return &crypto_aead_tfm(tfm)->__crt_alg->cra_aead;
+}
+
+static inline void *crypto_aead_ctx(struct crypto_aead *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
+static inline struct crypto_instance *crypto_aead_alg_instance(
+	struct crypto_aead *aead)
+{
+	return crypto_tfm_alg_instance(&aead->base);
+}
+
+static inline struct crypto_ablkcipher *crypto_spawn_ablkcipher(
+	struct crypto_spawn *spawn)
+{
+	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
+	u32 mask = CRYPTO_ALG_TYPE_MASK;
+
+	return __crypto_ablkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }
 
 static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
@@ -255,6 +276,27 @@ static inline int ablkcipher_tfm_in_queue(struct crypto_queue *queue,
 					  struct crypto_ablkcipher *tfm)
 {
 	return crypto_tfm_in_queue(queue, crypto_ablkcipher_tfm(tfm));
+}
+
+static inline void *aead_request_ctx(struct aead_request *req)
+{
+	return req->__ctx;
+}
+
+static inline void aead_request_complete(struct aead_request *req, int err)
+{
+	req->base.complete(&req->base, err);
+}
+
+static inline u32 aead_request_flags(struct aead_request *req)
+{
+	return req->base.flags;
+}
+
+static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
+						     u32 type, u32 mask)
+{
+	return crypto_attr_alg(tb[1], type, mask);
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */
