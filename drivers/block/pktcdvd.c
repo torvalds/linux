@@ -2819,8 +2819,8 @@ static int pkt_ioctl(struct inode *inode, struct file *file, unsigned int cmd, u
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return blkdev_driver_ioctl(pd->bdev->bd_inode, pd->bdev->bd_disk,
-					file, cmd, arg);
+		return __blkdev_driver_ioctl(pd->bdev, file ? file->f_mode : 0,
+					cmd, arg);
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);

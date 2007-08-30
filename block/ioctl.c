@@ -283,6 +283,37 @@ int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 }
 EXPORT_SYMBOL_GPL(blkdev_driver_ioctl);
 
+int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
+			unsigned cmd, unsigned long arg)
+{
+	struct gendisk *disk = bdev->bd_disk;
+	int ret;
+	/* you bet it'll go away by the end of patch series */
+	struct file fake_file = {};
+	struct dentry fake_dentry = {};
+	fake_file.f_mode = mode;
+	fake_file.f_path.dentry = &fake_dentry;
+	fake_dentry.d_inode = bdev->bd_inode;
+
+	if (disk->fops->unlocked_ioctl)
+		return disk->fops->unlocked_ioctl(&fake_file, cmd, arg);
+
+	if (disk->fops->ioctl) {
+		lock_kernel();
+		ret = disk->fops->ioctl(bdev->bd_inode, &fake_file, cmd, arg);
+		unlock_kernel();
+		return ret;
+	}
+
+	return -ENOTTY;
+}
+/*
+ * For the record: _GPL here is only because somebody decided to slap it
+ * on the previous export.  Sheer idiocy, since it wasn't copyrightable
+ * at all and could be open-coded without any exports by anybody who cares.
+ */
+EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
+
 /*
  * always keep this in sync with compat_blkdev_ioctl() and
  * compat_blkdev_locked_ioctl()

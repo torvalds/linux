@@ -1400,12 +1400,9 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 {
 	struct multipath *m = (struct multipath *) ti->private;
 	struct block_device *bdev = NULL;
+	fmode_t mode = 0;
 	unsigned long flags;
-	struct file fake_file = {};
-	struct dentry fake_dentry = {};
 	int r = 0;
-
-	fake_file.f_path.dentry = &fake_dentry;
 
 	spin_lock_irqsave(&m->lock, flags);
 
@@ -1414,8 +1411,7 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 
 	if (m->current_pgpath) {
 		bdev = m->current_pgpath->path.dev->bdev;
-		fake_dentry.d_inode = bdev->bd_inode;
-		fake_file.f_mode = m->current_pgpath->path.dev->mode;
+		mode = m->current_pgpath->path.dev->mode;
 	}
 
 	if (m->queue_io)
@@ -1425,8 +1421,7 @@ static int multipath_ioctl(struct dm_target *ti, unsigned int cmd,
 
 	spin_unlock_irqrestore(&m->lock, flags);
 
-	return r ? : blkdev_driver_ioctl(bdev->bd_inode, &fake_file,
-					 bdev->bd_disk, cmd, arg);
+	return r ? : __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 
 /*-----------------------------------------------------------------
