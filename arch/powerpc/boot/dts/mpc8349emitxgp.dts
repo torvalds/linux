@@ -114,6 +114,7 @@
 			interrupts = <20 8 21 8 22 8>;
 			interrupt-parent = < &ipic >;
 			phy-handle = < &phy1c >;
+			linux,network-index = <0>;
 		};
 
 		serial@4500 {
