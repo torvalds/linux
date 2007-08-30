@@ -139,7 +139,7 @@ xfs_mount_init(void)
 	AIL_LOCKINIT(&mp->m_ail_lock, "xfs_ail");
 	spinlock_init(&mp->m_sb_lock, "xfs_sb");
 	mutex_init(&mp->m_ilock);
-	initnsema(&mp->m_growlock, 1, "xfs_grow");
+	mutex_init(&mp->m_growlock);
 	/*
 	 * Initialize the AIL.
 	 */
@@ -174,7 +174,7 @@ xfs_mount_free(
 	AIL_LOCK_DESTROY(&mp->m_ail_lock);
 	spinlock_destroy(&mp->m_sb_lock);
 	mutex_destroy(&mp->m_ilock);
-	freesema(&mp->m_growlock);
+	mutex_destroy(&mp->m_growlock);
 	if (mp->m_quotainfo)
 		XFS_QM_DONE(mp);
 
