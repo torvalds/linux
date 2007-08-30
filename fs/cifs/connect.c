@@ -400,9 +400,11 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 		iov.iov_len = 4;
 		smb_msg.msg_control = NULL;
 		smb_msg.msg_controllen = 0;
+		pdu_length = 4; /* enough to get RFC1001 header */
+incomplete_rcv:
 		length =
 		    kernel_recvmsg(csocket, &smb_msg,
-				 &iov, 1, 4, 0 /* BB see socket.h flags */);
+				&iov, 1, pdu_length, 0 /* BB other flags? */);
 
 		if ( kthread_should_stop() ) {
 			break;
@@ -437,13 +439,12 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			wake_up(&server->response_q);
 			continue;
 		} else if (length < 4) {
-			cFYI(1,
-			    ("Frame under four bytes received (%d bytes long)",
+			cFYI(1, ("less than four bytes received (%d bytes)",
 			      length));
+			pdu_length -= length;
 			cifs_reconnect(server);
-			csocket = server->ssocket;
-			wake_up(&server->response_q);
-			continue;
+			msleep(1);
+			goto incomplete_rcv;
 		}
 
 		/* The right amount was read from socket - 4 bytes */
