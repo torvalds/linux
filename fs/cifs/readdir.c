@@ -1067,7 +1067,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		for (i = 0; (i < num_to_fill) && (rc == 0); i++) {
 			if (current_entry == NULL) {
 				/* evaluate whether this case is an error */
-				cERROR(1,("past end of SMB num to fill %d i %d",
+				cERROR(1, ("past SMB end,  num to fill %d i %d",
 					  num_to_fill, i));
 				break;
 			}

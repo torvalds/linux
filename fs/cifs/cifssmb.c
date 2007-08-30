@@ -94,9 +94,8 @@ static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
 	write_lock(&GlobalSMBSeslock);
 	list_for_each_safe(tmp, tmp1, &pTcon->openFileList) {
 		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
-		if (open_file) {
+		if (open_file)
 			open_file->invalidHandle = TRUE;
-		}
 	}
 	write_unlock(&GlobalSMBSeslock);
 	/* BB Add call to invalidate_inodes(sb) for all superblocks mounted
@@ -1112,7 +1111,7 @@ PsxCreat:
 		}
 		memcpy((char *) pRetData,
 			(char *)psx_rsp + sizeof(OPEN_PSX_RSP),
-			sizeof (FILE_UNIX_BASIC_INFO));
+			sizeof(FILE_UNIX_BASIC_INFO));
 	}
 
 psx_create_err:
@@ -1193,9 +1192,9 @@ OldOpenRetry:
 	}
 	if (*pOplock & REQ_OPLOCK)
 		pSMB->OpenFlags = cpu_to_le16(REQ_OPLOCK);
-	else if (*pOplock & REQ_BATCHOPLOCK) {
+	else if (*pOplock & REQ_BATCHOPLOCK)
 		pSMB->OpenFlags = cpu_to_le16(REQ_BATCHOPLOCK);
-	}
+
 	pSMB->OpenFlags |= cpu_to_le16(REQ_MORE_INFO);
 	/* BB fixme add conversion for access_flags to bits 0 - 2 of mode */
 	/* 0 = read
@@ -1310,9 +1309,8 @@ openRetry:
 	}
 	if (*pOplock & REQ_OPLOCK)
 		pSMB->OpenFlags = cpu_to_le32(REQ_OPLOCK);
-	else if (*pOplock & REQ_BATCHOPLOCK) {
+	else if (*pOplock & REQ_BATCHOPLOCK)
 		pSMB->OpenFlags = cpu_to_le32(REQ_BATCHOPLOCK);
-	}
 	pSMB->DesiredAccess = cpu_to_le32(access_flags);
 	pSMB->AllocationSize = 0;
 	/* set file as system file if special file such
@@ -1446,11 +1444,11 @@ CIFSSMBRead(const int xid, struct cifsTconInfo *tcon, const int netfid,
 			*nbytes = 0;
 		} else {
 			pReadData = (char *) (&pSMBr->hdr.Protocol) +
-			    le16_to_cpu(pSMBr->DataOffset);
-/*                      if (rc = copy_to_user(buf, pReadData, data_length)) {
+					le16_to_cpu(pSMBr->DataOffset);
+/*			if (rc = copy_to_user(buf, pReadData, data_length)) {
 				cERROR(1,("Faulting on read rc = %d",rc));
 				rc = -EFAULT;
-                        }*/ /* can not use copy_to_user when using page cache*/
+			}*/ /* can not use copy_to_user when using page cache*/
 			if (*buf)
 				memcpy(*buf, pReadData, data_length);
 		}
@@ -2538,7 +2536,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 		cFYI(1, ("data starts after end of smb"));
 		return -EINVAL;
 	} else if (data_count + *ppdata > end_of_smb) {
-		cFYI(1,("data %p + count %d (%p) ends after end of smb %p start %p",
+		cFYI(1, ("data %p + count %d (%p) ends after end of smb %p start %p",
 			*ppdata, data_count, (data_count + *ppdata),
 			end_of_smb, pSMBr));
 		return -EINVAL;
@@ -2615,7 +2613,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 					reparse_buf->TargetNameOffset +
 					reparse_buf->TargetNameLen) >
 						end_of_smb) {
-					cFYI(1,("reparse buf goes beyond SMB"));
+					cFYI(1, ("reparse buf beyond SMB"));
 					rc = -EIO;
 					goto qreparse_out;
 				}
@@ -3883,12 +3881,10 @@ getDFSRetry:
 	pSMB->hdr.Mid = GetNextMid(ses->server);
 	pSMB->hdr.Tid = ses->ipc_tid;
 	pSMB->hdr.Uid = ses->Suid;
-	if (ses->capabilities & CAP_STATUS32) {
+	if (ses->capabilities & CAP_STATUS32)
 		pSMB->hdr.Flags2 |= SMBFLG2_ERR_STATUS;
-	}
-	if (ses->capabilities & CAP_DFS) {
+	if (ses->capabilities & CAP_DFS)
 		pSMB->hdr.Flags2 |= SMBFLG2_DFS;
-	}
 
 	if (ses->capabilities & CAP_UNICODE) {
 		pSMB->hdr.Flags2 |= SMBFLG2_UNICODE;
@@ -4265,7 +4261,7 @@ QFSAttributeRetry:
 			     *) (((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			memcpy(&tcon->fsAttrInfo, response_data,
-			       sizeof (FILE_SYSTEM_ATTRIBUTE_INFO));
+			       sizeof(FILE_SYSTEM_ATTRIBUTE_INFO));
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -4334,7 +4330,7 @@ QFSDeviceRetry:
 				(((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			memcpy(&tcon->fsDevInfo, response_data,
-			       sizeof (FILE_SYSTEM_DEVICE_INFO));
+			       sizeof(FILE_SYSTEM_DEVICE_INFO));
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -4402,7 +4398,7 @@ QFSUnixRetry:
 			     *) (((char *) &pSMBr->hdr.Protocol) +
 				 data_offset);
 			memcpy(&tcon->fsUnixInfo, response_data,
-			       sizeof (FILE_SYSTEM_UNIX_INFO));
+			       sizeof(FILE_SYSTEM_UNIX_INFO));
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -4612,7 +4608,7 @@ SetEOFRetry:
 		strncpy(pSMB->FileName, fileName, name_len);
 	}
 	params = 6 + name_len;
-	data_count = sizeof (struct file_end_of_file_info);
+	data_count = sizeof(struct file_end_of_file_info);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(4100);
 	pSMB->MaxSetupCount = 0;
@@ -4800,7 +4796,7 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
 
 	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 
-	count = sizeof (FILE_BASIC_INFO);
+	count = sizeof(FILE_BASIC_INFO);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(1000);	/* BB find max SMB PDU from sess */
 	pSMB->SetupCount = 1;
@@ -4871,7 +4867,7 @@ SetTimesRetry:
 	}
 
 	params = 6 + name_len;
-	count = sizeof (FILE_BASIC_INFO);
+	count = sizeof(FILE_BASIC_INFO);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(1000);	/* BB find exact max SMB PDU from sess structure BB */
 	pSMB->MaxSetupCount = 0;
@@ -4900,7 +4896,7 @@ SetTimesRetry:
 		pSMB->InformationLevel = cpu_to_le16(SMB_SET_FILE_BASIC_INFO);
 	pSMB->Reserved4 = 0;
 	pSMB->hdr.smb_buf_length += byte_count;
-	memcpy(data_offset, data, sizeof (FILE_BASIC_INFO));
+	memcpy(data_offset, data, sizeof(FILE_BASIC_INFO));
 	pSMB->ByteCount = cpu_to_le16(byte_count);
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
@@ -5003,7 +4999,7 @@ setPermsRetry:
 	}
 
 	params = 6 + name_len;
-	count = sizeof (FILE_UNIX_BASIC_INFO);
+	count = sizeof(FILE_UNIX_BASIC_INFO);
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(1000);	/* BB find exact max SMB PDU from sess structure BB */
 	pSMB->MaxSetupCount = 0;

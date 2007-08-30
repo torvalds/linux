@@ -385,10 +385,9 @@ asn1_oid_decode(struct asn1_ctx *ctx,
 	unsigned long *optr;
 
 	size = eoc - ctx->pointer + 1;
-	*oid = kmalloc(size * sizeof (unsigned long), GFP_ATOMIC);
-	if (*oid == NULL) {
+	*oid = kmalloc(size * sizeof(unsigned long), GFP_ATOMIC);
+	if (*oid == NULL)
 		return 0;
-	}
 
 	optr = *oid;
 
@@ -581,9 +580,8 @@ decode_negTokenInit(unsigned char *security_blob, int length,
 			return 0;
 		} else if ((cls != ASN1_UNI) || (con != ASN1_CON)
 			   || (tag != ASN1_SEQ)) {
-			cFYI(1,
-			     ("Exit 6 cls = %d con = %d tag = %d end = %p (%d)",
-			      cls, con, tag, end, *end));
+			cFYI(1, ("cls = %d con = %d tag = %d end = %p (%d)",
+				cls, con, tag, end, *end));
 		}
 
 		if (asn1_header_decode(&ctx, &end, &cls, &con, &tag) == 0) {

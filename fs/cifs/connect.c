@@ -124,7 +124,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	struct mid_q_entry *mid_entry;
 
 	spin_lock(&GlobalMid_Lock);
-	if ( kthread_should_stop() ) {
+	if (kthread_should_stop()) {
 		/* the demux thread will exit normally
 		next time through the loop */
 		spin_unlock(&GlobalMid_Lock);
@@ -151,9 +151,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	}
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if ((tcon) && (tcon->ses) && (tcon->ses->server == server)) {
+		if ((tcon) && (tcon->ses) && (tcon->ses->server == server))
 			tcon->tidStatus = CifsNeedReconnect;
-		}
 	}
 	read_unlock(&GlobalSMBSeslock);
 	/* do not want to be sending data on a socket we are freeing */
@@ -187,7 +186,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	up(&server->tcpSem);
 
-	while ( (!kthread_should_stop()) && (server->tcpStatus != CifsGood)) {
+	while ((!kthread_should_stop()) && (server->tcpStatus != CifsGood)) {
 		try_to_freeze();
 		if (server->protocolType == IPV6) {
 			rc = ipv6_connect(&server->addr.sockAddr6,
@@ -204,7 +203,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		} else {
 			atomic_inc(&tcpSesReconnectCount);
 			spin_lock(&GlobalMid_Lock);
-			if ( !kthread_should_stop() )
+			if (!kthread_should_stop())
 				server->tcpStatus = CifsGood;
 			server->sequence_number = 0;
 			spin_unlock(&GlobalMid_Lock);
@@ -358,11 +357,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 	length = tcpSesAllocCount.counter;
 	write_unlock(&GlobalSMBSeslock);
 	complete(&cifsd_complete);
-	if (length  > 1) {
-		mempool_resize(cifs_req_poolp,
-			length + cifs_min_rcv,
-			GFP_KERNEL);
-	}
+	if (length  > 1)
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
+				GFP_KERNEL);
 
 	set_freezable();
 	while (!kthread_should_stop()) {
@@ -378,7 +375,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			}
 		} else if (isLargeBuf) {
 			/* we are reusing a dirty large buf, clear its start */
-			memset(bigbuf, 0, sizeof (struct smb_hdr));
+			memset(bigbuf, 0, sizeof(struct smb_hdr));
 		}
 
 		if (smallbuf == NULL) {
@@ -391,7 +388,7 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 			}
 			/* beginning of smb buffer is cleared in our buf_get */
 		} else /* if existing small buf clear beginning */
-			memset(smallbuf, 0, sizeof (struct smb_hdr));
+			memset(smallbuf, 0, sizeof(struct smb_hdr));
 
 		isLargeBuf = FALSE;
 		isMultiRsp = FALSE;
@@ -406,7 +403,7 @@ incomplete_rcv:
 		    kernel_recvmsg(csocket, &smb_msg,
 				&iov, 1, pdu_length, 0 /* BB other flags? */);
 
-		if ( kthread_should_stop() ) {
+		if (kthread_should_stop()) {
 			break;
 		} else if (server->tcpStatus == CifsNeedReconnect) {
 			cFYI(1, ("Reconnect after server stopped responding"));
@@ -505,7 +502,7 @@ incomplete_rcv:
 
 		/* else we have an SMB response */
 		if ((pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) ||
-			    (pdu_length < sizeof (struct smb_hdr) - 1 - 4)) {
+			    (pdu_length < sizeof(struct smb_hdr) - 1 - 4)) {
 			cERROR(1, ("Invalid size SMB length %d pdu_length %d",
 					length, pdu_length+4));
 			cifs_reconnect(server);
@@ -529,7 +526,7 @@ incomplete_rcv:
 		     total_read += length) {
 			length = kernel_recvmsg(csocket, &smb_msg, &iov, 1,
 						pdu_length - total_read, 0);
-			if ( kthread_should_stop() ||
+			if (kthread_should_stop() ||
 			    (length == -EINTR)) {
 				/* then will exit */
 				reconnect = 2;
@@ -632,9 +629,9 @@ multi_t2_fnd:
 			/* Was previous buf put in mpx struct for multi-rsp? */
 			if (!isMultiRsp) {
 				/* smb buffer will be freed by user thread */
-				if (isLargeBuf) {
+				if (isLargeBuf)
 					bigbuf = NULL;
-				} else
+				else
 					smallbuf = NULL;
 			}
 			wake_up_process(task_to_wake);
@@ -703,9 +700,8 @@ multi_t2_fnd:
 		list_for_each(tmp, &GlobalSMBSessionList) {
 			ses = list_entry(tmp, struct cifsSesInfo,
 					 cifsSessionList);
-			if (ses->server == server) {
+			if (ses->server == server)
 				ses->status = CifsExiting;
-			}
 		}
 
 		spin_lock(&GlobalMid_Lock);
@@ -715,9 +711,8 @@ multi_t2_fnd:
 				cFYI(1, ("Clearing Mid 0x%x - waking up ",
 					 mid_entry->mid));
 				task_to_wake = mid_entry->tsk;
-				if (task_to_wake) {
+				if (task_to_wake)
 					wake_up_process(task_to_wake);
-				}
 			}
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -750,18 +745,15 @@ multi_t2_fnd:
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
-		if (ses->server == server) {
+		if (ses->server == server)
 			ses->server = NULL;
-		}
 	}
 	write_unlock(&GlobalSMBSeslock);
 
 	kfree(server);
-	if (length  > 0) {
-		mempool_resize(cifs_req_poolp,
-			length + cifs_min_rcv,
-			GFP_KERNEL);
-	}
+	if (length  > 0)
+		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
+				GFP_KERNEL);
 
 	return 0;
 }
