@@ -44,8 +44,6 @@ typedef struct bhv_vfs_sync_work {
 typedef struct bhv_vfs {
 	struct xfs_mount	*vfs_mount;
 	u_int			vfs_flag;	/* flags */
-	xfs_fsid_t		vfs_fsid;	/* file system ID */
-	xfs_fsid_t		*vfs_altfsid;	/* An ID fixed for life of FS */
 	struct super_block	*vfs_super;	/* generic superblock pointer */
 	struct task_struct	*vfs_sync_task;	/* generalised sync thread */
 	bhv_vfs_sync_work_t	vfs_sync_work;	/* work item for VFS_SYNC */

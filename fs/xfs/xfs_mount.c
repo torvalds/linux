@@ -875,14 +875,11 @@ xfs_mountfs(
 	 */
 	if ((mfsi_flags & XFS_MFSI_SECOND) == 0 &&
 	    (mp->m_flags & XFS_MOUNT_NOUUID) == 0) {
-		__uint64_t	ret64;
 		if (xfs_uuid_mount(mp)) {
 			error = XFS_ERROR(EINVAL);
 			goto error1;
 		}
 		uuid_mounted=1;
-		ret64 = uuid_hash64(&sbp->sb_uuid);
-		memcpy(&vfsp->vfs_fsid, &ret64, sizeof(ret64));
 	}
 
 	/*
@@ -1007,16 +1004,6 @@ xfs_mountfs(
 	 */
 	uuid_getnodeuniq(&sbp->sb_uuid, mp->m_fixedfsid);
 
-	/*
-	 *  The vfs structure needs to have a file system independent
-	 *  way of checking for the invariant file system ID.  Since it
-	 *  can't look at mount structures it has a pointer to the data
-	 *  in the mount structure.
-	 *
-	 *  File systems that don't support user level file handles (i.e.
-	 *  all of them except for XFS) will leave vfs_altfsid as NULL.
-	 */
-	vfsp->vfs_altfsid = (xfs_fsid_t *)mp->m_fixedfsid;
 	mp->m_dmevmask = 0;	/* not persistent; set after each mount */
 
 	xfs_dir_mount(mp);
@@ -1206,9 +1193,6 @@ int
 xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 {
 	struct bhv_vfs	*vfsp = XFS_MTOVFS(mp);
-#if defined(DEBUG) || defined(INDUCE_IO_ERROR)
-	int64_t		fsid;
-#endif
 	__uint64_t	resblks;
 
 	/*
@@ -1272,11 +1256,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 		xfs_uuid_unmount(mp);
 
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
-	/*
-	 * clear all error tags on this filesystem
-	 */
-	memcpy(&fsid, &vfsp->vfs_fsid, sizeof(int64_t));
-	xfs_errortag_clearall_umount(fsid, mp->m_fsname, 0);
+	xfs_errortag_clearall(mp, 0);
 #endif
 	XFS_IODONE(vfsp);
 	xfs_mount_free(mp);

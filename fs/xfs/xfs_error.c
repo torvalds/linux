@@ -133,10 +133,14 @@ xfs_errortag_add(int error_tag, xfs_mount_t *mp)
 }
 
 int
-xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud)
+xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 {
-	int i;
+	int64_t fsid;
 	int cleared = 0;
+	int i;
+
+	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
+
 
 	for (i = 0; i < XFS_NUM_INJECT_ERROR; i++) {
 		if ((fsid == 0LL || xfs_etest_fsid[i] == fsid) &&
@@ -155,19 +159,9 @@ xfs_errortag_clearall_umount(int64_t fsid, char *fsname, int loud)
 	if (loud || cleared)
 		cmn_err(CE_WARN,
 			"Cleared all XFS error tags for filesystem \"%s\"",
-			fsname);
+			mp->m_fsname);
 
 	return 0;
-}
-
-int
-xfs_errortag_clearall(xfs_mount_t *mp)
-{
-	int64_t fsid;
-
-	memcpy(&fsid, mp->m_fixedfsid, sizeof(xfs_fsid_t));
-
-	return xfs_errortag_clearall_umount(fsid, mp->m_fsname, 1);
 }
 #endif /* DEBUG || INDUCE_IO_ERROR */
 

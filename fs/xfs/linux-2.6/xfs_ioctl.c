@@ -138,7 +138,7 @@ xfs_find_handle(
 	vp = vn_from_inode(inode);
 
 	/* now we can grab the fsid */
-	memcpy(&handle.ha_fsid, XFS_MTOVFS(XFS_I(inode)->i_mount)->vfs_altfsid,
+	memcpy(&handle.ha_fsid, XFS_I(inode)->i_mount->m_fixedfsid,
 			sizeof(xfs_fsid_t));
 	hsize = sizeof(xfs_fsid_t);
 
@@ -966,7 +966,7 @@ xfs_ioctl(
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
-		error = xfs_errortag_clearall(mp);
+		error = xfs_errortag_clearall(mp, 1);
 		return -error;
 
 	default:
