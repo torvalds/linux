@@ -406,8 +406,6 @@ next_slot:
 			keep = 1;
 			WARN_ON(start & (root->blocksize - 1));
 			if (found_extent) {
-				btrfs_drop_extent_cache(inode, key.offset,
-							start - 1 );
 				new_num = (start - key.offset) >>
 					inode->i_blkbits;
 				old_num = btrfs_file_extent_num_blocks(extent);
