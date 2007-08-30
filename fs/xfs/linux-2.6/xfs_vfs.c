@@ -204,9 +204,6 @@ vfs_allocate(
 	struct bhv_vfs		*vfsp;
 
 	vfsp = kmem_zalloc(sizeof(bhv_vfs_t), KM_SLEEP);
-	INIT_LIST_HEAD(&vfsp->vfs_sync_list);
-	spin_lock_init(&vfsp->vfs_sync_lock);
-	init_waitqueue_head(&vfsp->vfs_wait_single_sync_task);
 
 	vfsp->vfs_super = sb;
 	sb->s_fs_info = vfsp;

@@ -433,6 +433,12 @@ typedef struct xfs_mount {
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
 #endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
+	struct task_struct	*m_sync_task;	/* generalised sync thread */
+	bhv_vfs_sync_work_t	m_sync_work;	/* work item for VFS_SYNC */
+	struct list_head	m_sync_list;	/* sync thread work item list */
+	spinlock_t		m_sync_lock;	/* work item list lock */
+	int			m_sync_seq;	/* sync thread generation no. */
+	wait_queue_head_t	m_wait_single_sync_task;
 } xfs_mount_t;
 
 /*

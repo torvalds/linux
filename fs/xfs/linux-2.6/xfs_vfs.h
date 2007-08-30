@@ -36,20 +36,14 @@ typedef struct kstatfs	bhv_statvfs_t;
 
 typedef struct bhv_vfs_sync_work {
 	struct list_head	w_list;
-	struct bhv_vfs		*w_vfs;
+	struct xfs_mount	*w_mount;
 	void			*w_data;	/* syncer routine argument */
-	void			(*w_syncer)(struct bhv_vfs *, void *);
+	void			(*w_syncer)(struct xfs_mount *, void *);
 } bhv_vfs_sync_work_t;
 
 typedef struct bhv_vfs {
 	struct xfs_mount	*vfs_mount;
 	struct super_block	*vfs_super;	/* generic superblock pointer */
-	struct task_struct	*vfs_sync_task;	/* generalised sync thread */
-	bhv_vfs_sync_work_t	vfs_sync_work;	/* work item for VFS_SYNC */
-	struct list_head	vfs_sync_list;	/* sync thread work item list */
-	spinlock_t		vfs_sync_lock;	/* work item list lock */
-	int			vfs_sync_seq;	/* sync thread generation no. */
-	wait_queue_head_t	vfs_wait_single_sync_task;
 } bhv_vfs_t;
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
