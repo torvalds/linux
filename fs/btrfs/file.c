@@ -186,8 +186,16 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		u64 mask = root->blocksize - 1;
 		last_pos_in_file = (isize + mask) & ~mask;
 		hole_size = (start_pos - last_pos_in_file + mask) & ~mask;
-		hole_size >>= inode->i_blkbits;
+
 		if (last_pos_in_file < start_pos) {
+			err = btrfs_drop_extents(trans, root, inode,
+						 last_pos_in_file,
+						 last_pos_in_file + hole_size,
+						 &hint_block);
+			if (err)
+				goto failed;
+
+			hole_size >>= inode->i_blkbits;
 			err = btrfs_insert_file_extent(trans, root,
 						       inode->i_ino,
 						       last_pos_in_file,
@@ -217,13 +225,11 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		struct page *p = pages[0];
 		/* step one, delete the existing extents in this range */
 		/* FIXME blocksize != pagesize */
-		if (start_pos < inode->i_size) {
-			err = btrfs_drop_extents(trans, root, inode, start_pos,
-				 (pos + write_bytes + root->blocksize -1) &
-				 ~((u64)root->blocksize - 1), &hint_block);
-			if (err)
-				goto failed;
-		}
+		err = btrfs_drop_extents(trans, root, inode, start_pos,
+			 (pos + write_bytes + root->blocksize -1) &
+			 ~((u64)root->blocksize - 1), &hint_block);
+		if (err)
+			goto failed;
 
 		err = insert_inline_extent(trans, root, inode, start_pos,
 					   end_pos - start_pos, p, 0);
@@ -400,6 +406,8 @@ next_slot:
 			keep = 1;
 			WARN_ON(start & (root->blocksize - 1));
 			if (found_extent) {
+				btrfs_drop_extent_cache(inode, key.offset,
+							start - 1 );
 				new_num = (start - key.offset) >>
 					inode->i_blkbits;
 				old_num = btrfs_file_extent_num_blocks(extent);
@@ -464,7 +472,7 @@ next_slot:
 
 			if (ret) {
 				btrfs_print_leaf(root, btrfs_buffer_leaf(path->nodes[0]));
-				printk("got %d on inserting %Lu %u %Lu start %Lu end %Lu found %Lu %Lu\n", ret , ins.objectid, ins.flags, ins.offset, start, end, key.offset, extent_end);
+				printk("got %d on inserting %Lu %u %Lu start %Lu end %Lu found %Lu %Lu keep was %d\n", ret , ins.objectid, ins.flags, ins.offset, start, end, key.offset, extent_end, keep);
 			}
 			BUG_ON(ret);
 			extent = btrfs_item_ptr(

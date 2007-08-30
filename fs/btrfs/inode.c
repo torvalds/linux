@@ -721,25 +721,35 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	    attr->ia_valid & ATTR_SIZE && attr->ia_size > inode->i_size) {
 		struct btrfs_trans_handle *trans;
 		struct btrfs_root *root = BTRFS_I(inode)->root;
+		struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+
 		u64 mask = root->blocksize - 1;
 		u64 pos = (inode->i_size + mask) & ~mask;
+		u64 block_end = attr->ia_size | mask;
 		u64 hole_size;
+		u64 alloc_hint;
 
 		if (attr->ia_size <= pos)
 			goto out;
 
 		btrfs_truncate_page(inode->i_mapping, inode->i_size);
 
+		lock_extent(em_tree, pos, block_end, GFP_NOFS);
 		hole_size = (attr->ia_size - pos + mask) & ~mask;
-		hole_size >>= inode->i_blkbits;
 
 		mutex_lock(&root->fs_info->fs_mutex);
 		trans = btrfs_start_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);
+		err = btrfs_drop_extents(trans, root, inode,
+					 pos, pos + hole_size, &alloc_hint);
+
+		hole_size >>= inode->i_blkbits;
+
 		err = btrfs_insert_file_extent(trans, root, inode->i_ino,
 					       pos, 0, 0, hole_size);
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&root->fs_info->fs_mutex);
+		unlock_extent(em_tree, pos, block_end, GFP_NOFS);
 		if (err)
 			return err;
 	}
@@ -1529,13 +1539,13 @@ insert:
 	ret = add_extent_mapping(em_tree, em);
 	if (ret == -EEXIST) {
 		free_extent_map(em);
+		em = NULL;
 		failed_insert++;
 		if (failed_insert > 5) {
 			printk("failing to insert %Lu %Lu\n", start, end);
 			err = -EIO;
 			goto out;
 		}
-		em = NULL;
 		goto again;
 	}
 	err = 0;
@@ -1553,167 +1563,6 @@ out:
 		return ERR_PTR(err);
 	}
 	return em;
-}
-
-
-/*
- * FIBMAP and others want to pass in a fake buffer head.  They need to
- * use BTRFS_GET_BLOCK_NO_DIRECT to make sure we don't try to memcpy
- * any packed file data into the fake bh
- */
-#define BTRFS_GET_BLOCK_NO_CREATE 0
-#define BTRFS_GET_BLOCK_CREATE 1
-#define BTRFS_GET_BLOCK_NO_DIRECT 2
-
-/*
- * FIXME create==1 doe not work.
- */
-static int btrfs_get_block_lock(struct inode *inode, sector_t iblock,
-				struct buffer_head *result, int create)
-{
-	int ret;
-	int err = 0;
-	u64 blocknr;
-	u64 extent_start = 0;
-	u64 extent_end = 0;
-	u64 objectid = inode->i_ino;
-	u32 found_type;
-	u64 alloc_hint = 0;
-	struct btrfs_path *path;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_file_extent_item *item;
-	struct btrfs_leaf *leaf;
-	struct btrfs_disk_key *found_key;
-	struct btrfs_trans_handle *trans = NULL;
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	if (create & BTRFS_GET_BLOCK_CREATE) {
-		/*
-		 * danger!, this only works if the page is properly up
-		 * to date somehow
-		 */
-		trans = btrfs_start_transaction(root, 1);
-		if (!trans) {
-			err = -ENOMEM;
-			goto out;
-		}
-		ret = btrfs_drop_extents(trans, root, inode,
-					 iblock << inode->i_blkbits,
-					 (iblock + 1) << inode->i_blkbits,
-					 &alloc_hint);
-		BUG_ON(ret);
-	}
-
-	ret = btrfs_lookup_file_extent(NULL, root, path,
-				       objectid,
-				       iblock << inode->i_blkbits, 0);
-	if (ret < 0) {
-		err = ret;
-		goto out;
-	}
-
-	if (ret != 0) {
-		if (path->slots[0] == 0) {
-			btrfs_release_path(root, path);
-			goto not_found;
-		}
-		path->slots[0]--;
-	}
-
-	item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]), path->slots[0],
-			      struct btrfs_file_extent_item);
-	leaf = btrfs_buffer_leaf(path->nodes[0]);
-	blocknr = btrfs_file_extent_disk_blocknr(item);
-	blocknr += btrfs_file_extent_offset(item);
-
-	/* are we inside the extent that was found? */
-	found_key = &leaf->items[path->slots[0]].key;
-	found_type = btrfs_disk_key_type(found_key);
-	if (btrfs_disk_key_objectid(found_key) != objectid ||
-	    found_type != BTRFS_EXTENT_DATA_KEY) {
-		extent_end = 0;
-		extent_start = 0;
-		goto not_found;
-	}
-	found_type = btrfs_file_extent_type(item);
-	extent_start = btrfs_disk_key_offset(&leaf->items[path->slots[0]].key);
-	if (found_type == BTRFS_FILE_EXTENT_REG) {
-		extent_start = extent_start >> inode->i_blkbits;
-		extent_end = extent_start + btrfs_file_extent_num_blocks(item);
-		err = 0;
-		if (btrfs_file_extent_disk_blocknr(item) == 0)
-			goto out;
-		if (iblock >= extent_start && iblock < extent_end) {
-			btrfs_map_bh_to_logical(root, result, blocknr +
-						iblock - extent_start);
-			goto out;
-		}
-	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-		char *ptr;
-		char *map;
-		u32 size;
-
-		if (create & BTRFS_GET_BLOCK_NO_DIRECT) {
-			err = -EINVAL;
-			goto out;
-		}
-		size = btrfs_file_extent_inline_len(leaf->items +
-						    path->slots[0]);
-		extent_end = (extent_start + size) >> inode->i_blkbits;
-		extent_start >>= inode->i_blkbits;
-		if (iblock < extent_start || iblock > extent_end) {
-			goto not_found;
-		}
-		ptr = btrfs_file_extent_inline_start(item);
-		map = kmap(result->b_page);
-		memcpy(map, ptr, size);
-		memset(map + size, 0, PAGE_CACHE_SIZE - size);
-		flush_dcache_page(result->b_page);
-		kunmap(result->b_page);
-		set_buffer_uptodate(result);
-		SetPageChecked(result->b_page);
-		btrfs_map_bh_to_logical(root, result, 0);
-	}
-not_found:
-	if (create & BTRFS_GET_BLOCK_CREATE) {
-		struct btrfs_key ins;
-		ret = btrfs_alloc_extent(trans, root, inode->i_ino,
-					 1, 0, alloc_hint, (u64)-1,
-					 &ins, 1);
-		if (ret) {
-			err = ret;
-			goto out;
-		}
-		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
-					       iblock << inode->i_blkbits,
-					       ins.objectid, ins.offset,
-					       ins.offset);
-		if (ret) {
-			err = ret;
-			goto out;
-		}
-		btrfs_map_bh_to_logical(root, result, ins.objectid);
-	}
-out:
-	if (trans) {
-		ret = btrfs_end_transaction(trans, root);
-		if (!err)
-			err = ret;
-	}
-	btrfs_free_path(path);
-	return err;
-}
-
-int btrfs_get_block(struct inode *inode, sector_t iblock,
-		    struct buffer_head *result, int create)
-{
-	int err;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	mutex_lock(&root->fs_info->fs_mutex);
-	err = btrfs_get_block_lock(inode, iblock, result, create);
-	mutex_unlock(&root->fs_info->fs_mutex);
-	return err;
 }
 
 static int btrfs_get_block_bmap(struct inode *inode, sector_t iblock,
@@ -2469,6 +2318,8 @@ static struct address_space_operations btrfs_aops = {
 static struct address_space_operations btrfs_symlink_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
+	.invalidatepage = btrfs_invalidatepage,
+	.releasepage	= btrfs_releasepage,
 };
 
 static struct inode_operations btrfs_file_inode_operations = {

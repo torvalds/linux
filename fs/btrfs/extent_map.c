@@ -77,6 +77,8 @@ EXPORT_SYMBOL(alloc_extent_map);
 
 void free_extent_map(struct extent_map *em)
 {
+	if (!em)
+		return;
 	if (atomic_dec_and_test(&em->refs)) {
 		WARN_ON(em->in_tree);
 		kmem_cache_free(extent_map_cache, em);
@@ -102,6 +104,8 @@ EXPORT_SYMBOL(alloc_extent_state);
 
 void free_extent_state(struct extent_state *state)
 {
+	if (!state)
+		return;
 	if (atomic_dec_and_test(&state->refs)) {
 		WARN_ON(state->in_tree);
 		kmem_cache_free(extent_state_cache, state);
@@ -1395,8 +1399,8 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 
 	if (!PagePrivate(page)) {
 		SetPagePrivate(page);
-		set_page_private(page, 1);
 		WARN_ON(!page->mapping->a_ops->invalidatepage);
+		set_page_private(page, 1);
 		page_cache_get(page);
 	}
 
@@ -1638,7 +1642,8 @@ int extent_invalidatepage(struct extent_map_tree *tree,
 
 	lock_extent(tree, start, end, GFP_NOFS);
 	wait_on_extent_writeback(tree, start, end);
-	clear_extent_bit(tree, start, end, EXTENT_LOCKED | EXTENT_DIRTY,
+	clear_extent_bit(tree, start, end,
+			 EXTENT_LOCKED | EXTENT_DIRTY | EXTENT_DELALLOC,
 			 1, 1, GFP_NOFS);
 	return 0;
 }
