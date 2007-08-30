@@ -470,46 +470,6 @@ static int tcm825x_configure(struct v4l2_int_device *s)
 	return 0;
 }
 
-/*
- * Given the image capture format in pix, the nominal frame period in
- * timeperframe, calculate the required xclk frequency.
- *
- * TCM825X input frequency characteristics are:
- *     Minimum 11.9 MHz, Typical 24.57 MHz and maximum 25/27 MHz
- */
-#define XCLK_MIN 11900000
-#define XCLK_MAX 25000000
-
-static int ioctl_g_ext_clk(struct v4l2_int_device *s, u32 *xclk)
-{
-	struct tcm825x_sensor *sensor = s->priv;
-	struct v4l2_fract *timeperframe = &sensor->timeperframe;
-	u32 tgt_xclk;	/* target xclk */
-	u32 tgt_fps;	/* target frames per secound */
-
-	tgt_fps = timeperframe->denominator / timeperframe->numerator;
-
-	tgt_xclk = (tgt_fps <= HIGH_FPS_MODE_LOWER_LIMIT) ?
-		(2457 * tgt_fps) / MAX_HALF_FPS :
-		(2457 * tgt_fps) / MAX_FPS;
-	tgt_xclk *= 10000;
-
-	tgt_xclk = min(tgt_xclk, (u32)XCLK_MAX);
-	tgt_xclk = max(tgt_xclk, (u32)XCLK_MIN);
-
-	*xclk = tgt_xclk;
-
-	return 0;
-}
-
-static int ioctl_s_ext_clk(struct v4l2_int_device *s, u32 xclk)
-{
-	if (xclk > XCLK_MAX || xclk < XCLK_MIN)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int ioctl_queryctrl(struct v4l2_int_device *s,
 				struct v4l2_queryctrl *qc)
 {
@@ -756,6 +716,41 @@ static int ioctl_s_power(struct v4l2_int_device *s, int on)
 	return sensor->platform_data->power_set(on);
 }
 
+/*
+ * Given the image capture format in pix, the nominal frame period in
+ * timeperframe, calculate the required xclk frequency.
+ *
+ * TCM825X input frequency characteristics are:
+ *     Minimum 11.9 MHz, Typical 24.57 MHz and maximum 25/27 MHz
+ */
+
+static int ioctl_g_ifparm(struct v4l2_int_device *s, struct v4l2_ifparm *p)
+{
+	struct tcm825x_sensor *sensor = s->priv;
+	struct v4l2_fract *timeperframe = &sensor->timeperframe;
+	u32 tgt_xclk;	/* target xclk */
+	u32 tgt_fps;	/* target frames per secound */
+	int rval;
+
+	rval = sensor->platform_data->ifparm(p);
+	if (rval)
+		return rval;
+
+	tgt_fps = timeperframe->denominator / timeperframe->numerator;
+
+	tgt_xclk = (tgt_fps <= HIGH_FPS_MODE_LOWER_LIMIT) ?
+		(2457 * tgt_fps) / MAX_HALF_FPS :
+		(2457 * tgt_fps) / MAX_FPS;
+	tgt_xclk *= 10000;
+
+	tgt_xclk = min(tgt_xclk, (u32)TCM825X_XCLK_MAX);
+	tgt_xclk = max(tgt_xclk, (u32)TCM825X_XCLK_MIN);
+
+	p->u.bt656.clock_curr = tgt_xclk;
+
+	return 0;
+}
+
 static int ioctl_g_needs_reset(struct v4l2_int_device *s, void *buf)
 {
 	struct tcm825x_sensor *sensor = s->priv;
@@ -793,43 +788,39 @@ static int ioctl_dev_init(struct v4l2_int_device *s)
 	return 0;
 }
 
-#define NUM_IOCTLS 17
-
-static struct v4l2_int_ioctl_desc tcm825x_ioctl_desc[NUM_IOCTLS] = {
+static struct v4l2_int_ioctl_desc tcm825x_ioctl_desc[] = {
 	{ vidioc_int_dev_init_num,
-	  (v4l2_int_ioctl_func *)&ioctl_dev_init },
+	  (v4l2_int_ioctl_func *)ioctl_dev_init },
 	{ vidioc_int_dev_exit_num,
-	  (v4l2_int_ioctl_func *)&ioctl_dev_exit },
+	  (v4l2_int_ioctl_func *)ioctl_dev_exit },
 	{ vidioc_int_s_power_num,
-	  (v4l2_int_ioctl_func *)&ioctl_s_power },
-	{ vidioc_int_g_ext_clk_num,
-	  (v4l2_int_ioctl_func *)&ioctl_g_ext_clk },
-	{ vidioc_int_s_ext_clk_num,
-	  (v4l2_int_ioctl_func *)&ioctl_s_ext_clk },
+	  (v4l2_int_ioctl_func *)ioctl_s_power },
+	{ vidioc_int_g_ifparm_num,
+	  (v4l2_int_ioctl_func *)ioctl_g_ifparm },
 	{ vidioc_int_g_needs_reset_num,
-	  (v4l2_int_ioctl_func *)&ioctl_g_needs_reset },
+	  (v4l2_int_ioctl_func *)ioctl_g_needs_reset },
 	{ vidioc_int_reset_num,
-	  (v4l2_int_ioctl_func *)&ioctl_reset },
+	  (v4l2_int_ioctl_func *)ioctl_reset },
 	{ vidioc_int_init_num,
-	  (v4l2_int_ioctl_func *)&ioctl_init },
+	  (v4l2_int_ioctl_func *)ioctl_init },
 	{ vidioc_int_enum_fmt_cap_num,
-	  (v4l2_int_ioctl_func *)&ioctl_enum_fmt_cap },
+	  (v4l2_int_ioctl_func *)ioctl_enum_fmt_cap },
 	{ vidioc_int_try_fmt_cap_num,
-	  (v4l2_int_ioctl_func *)&ioctl_try_fmt_cap },
+	  (v4l2_int_ioctl_func *)ioctl_try_fmt_cap },
 	{ vidioc_int_g_fmt_cap_num,
-	  (v4l2_int_ioctl_func *)&ioctl_g_fmt_cap },
+	  (v4l2_int_ioctl_func *)ioctl_g_fmt_cap },
 	{ vidioc_int_s_fmt_cap_num,
-	  (v4l2_int_ioctl_func *)&ioctl_s_fmt_cap },
+	  (v4l2_int_ioctl_func *)ioctl_s_fmt_cap },
 	{ vidioc_int_g_parm_num,
-	  (v4l2_int_ioctl_func *)&ioctl_g_parm },
+	  (v4l2_int_ioctl_func *)ioctl_g_parm },
 	{ vidioc_int_s_parm_num,
-	  (v4l2_int_ioctl_func *)&ioctl_s_parm },
+	  (v4l2_int_ioctl_func *)ioctl_s_parm },
 	{ vidioc_int_queryctrl_num,
-	  (v4l2_int_ioctl_func *)&ioctl_queryctrl },
+	  (v4l2_int_ioctl_func *)ioctl_queryctrl },
 	{ vidioc_int_g_ctrl_num,
-	  (v4l2_int_ioctl_func *)&ioctl_g_ctrl },
+	  (v4l2_int_ioctl_func *)ioctl_g_ctrl },
 	{ vidioc_int_s_ctrl_num,
-	  (v4l2_int_ioctl_func *)&ioctl_s_ctrl },
+	  (v4l2_int_ioctl_func *)ioctl_s_ctrl },
 };
 
 static struct v4l2_int_slave tcm825x_slave = {
@@ -894,16 +885,16 @@ static int __exit tcm825x_remove(struct i2c_client *client)
 }
 
 static struct i2c_driver tcm825x_i2c_driver = {
-	.driver = {
+	.driver	= {
 		.name = TCM825X_NAME,
 	},
-	.probe = &tcm825x_probe,
-	.remove = __exit_p(&tcm825x_remove),
+	.probe	= tcm825x_probe,
+	.remove	= __exit_p(tcm825x_remove),
 };
 
 static struct tcm825x_sensor tcm825x = {
 	.timeperframe = {
-		.numerator = 1,
+		.numerator   = 1,
 		.denominator = DEFAULT_FPS,
 	},
 };
@@ -911,11 +902,6 @@ static struct tcm825x_sensor tcm825x = {
 static int __init tcm825x_init(void)
 {
 	int rval;
-	int i = 0;
-
-	/* Just an experiment --- don't use *_cb functions yet. */
-	tcm825x_ioctl_desc[i++] = vidioc_int_dev_init_cb(&ioctl_dev_init);
-	BUG_ON(i >= NUM_IOCTLS);
 
 	rval = i2c_add_driver(&tcm825x_i2c_driver);
 	if (rval)

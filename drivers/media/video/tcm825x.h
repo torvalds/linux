@@ -163,6 +163,9 @@ enum pixel_format { YUV422 = 0, RGB565 };
 #define NUM_IMAGE_SIZES 6
 #define NUM_PIXEL_FORMATS 2
 
+#define TCM825X_XCLK_MIN	11900000
+#define TCM825X_XCLK_MAX	25000000
+
 struct capture_size {
 	unsigned long width;
 	unsigned long height;
@@ -178,6 +181,7 @@ struct tcm825x_platform_data {
 	const struct tcm825x_reg *(*default_regs)(void);
 	int (*needs_reset)(struct v4l2_int_device *s, void *buf,
 			   struct v4l2_pix_format *fmt);
+	int (*ifparm)(struct v4l2_ifparm *p);
 };
 
 /* Array of image sizes supported by TCM825X.  These must be ordered from
