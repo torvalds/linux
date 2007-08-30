@@ -679,7 +679,8 @@ const struct adapter_info *t3_get_adapter_info(unsigned int board_id);
 int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data);
 int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data);
 int t3_seeprom_wp(struct adapter *adapter, int enable);
-int t3_check_tpsram_version(struct adapter *adapter);
+int t3_get_tp_version(struct adapter *adapter, u32 *vers);
+int t3_check_tpsram_version(struct adapter *adapter, int *must_load);
 int t3_check_tpsram(struct adapter *adapter, u8 *tp_ram, unsigned int size);
 int t3_set_proto_sram(struct adapter *adap, u8 *data);
 int t3_read_flash(struct adapter *adapter, unsigned int addr,

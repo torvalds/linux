@@ -729,6 +729,7 @@ static void bind_qsets(struct adapter *adap)
 }
 
 #define FW_FNAME "t3fw-%d.%d.%d.bin"
+#define TPSRAM_NAME "t3%c_protocol_sram-%d.%d.%d.bin"
 
 static int upgrade_fw(struct adapter *adap)
 {
@@ -747,6 +748,71 @@ static int upgrade_fw(struct adapter *adap)
 	}
 	ret = t3_load_fw(adap, fw->data, fw->size);
 	release_firmware(fw);
+
+	if (ret == 0)
+		dev_info(dev, "successful upgrade to firmware %d.%d.%d\n",
+			 FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
+	else
+		dev_err(dev, "failed to upgrade to firmware %d.%d.%d\n",
+			FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
+	
+	return ret;
+}
+
+static inline char t3rev2char(struct adapter *adapter)
+{
+	char rev = 0;
+
+	switch(adapter->params.rev) {
+	case T3_REV_B:
+	case T3_REV_B2:
+		rev = 'b';
+		break;
+	}
+	return rev;
+}
+
+int update_tpsram(struct adapter *adap)
+{
+	const struct firmware *tpsram;
+	char buf[64];
+	struct device *dev = &adap->pdev->dev;
+	int ret;
+	char rev;
+	
+	rev = t3rev2char(adap);
+	if (!rev)
+		return 0;
+
+	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev,
+		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+
+	ret = request_firmware(&tpsram, buf, dev);
+	if (ret < 0) {
+		dev_err(dev, "could not load TP SRAM: unable to load %s\n",
+			buf);
+		return ret;
+	}
+	
+	ret = t3_check_tpsram(adap, tpsram->data, tpsram->size);
+	if (ret)
+		goto release_tpsram;	
+
+	ret = t3_set_proto_sram(adap, tpsram->data);
+	if (ret == 0)
+		dev_info(dev,
+			 "successful update of protocol engine "
+			 "to %d.%d.%d\n",
+			 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+	else
+		dev_err(dev, "failed to update of protocol engine %d.%d.%d\n",
+			TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
+	if (ret)
+		dev_err(dev, "loading protocol SRAM failed\n");
+
+release_tpsram:
+	release_firmware(tpsram);
+	
 	return ret;
 }
 
@@ -763,6 +829,7 @@ static int upgrade_fw(struct adapter *adap)
 static int cxgb_up(struct adapter *adap)
 {
 	int err = 0;
+	int must_load;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		err = t3_check_fw_version(adap);
@@ -770,6 +837,13 @@ static int cxgb_up(struct adapter *adap)
 			err = upgrade_fw(adap);
 		if (err)
 			goto out;
+
+		err = t3_check_tpsram_version(adap, &must_load);
+		if (err == -EINVAL) {
+			err = update_tpsram(adap);
+			if (err && must_load)
+				goto out;
+		}
 
 		err = init_dummy_netdevs(adap);
 		if (err)
@@ -1110,8 +1184,10 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 	u32 fw_vers = 0;
+	u32 tp_vers = 0;
 
 	t3_get_fw_version(adapter, &fw_vers);
+	t3_get_tp_version(adapter, &tp_vers);
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
@@ -1120,11 +1196,14 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 		strcpy(info->fw_version, "N/A");
 	else {
 		snprintf(info->fw_version, sizeof(info->fw_version),
-			 "%s %u.%u.%u",
+			 "%s %u.%u.%u TP %u.%u.%u",
 			 G_FW_VERSION_TYPE(fw_vers) ? "T" : "N",
 			 G_FW_VERSION_MAJOR(fw_vers),
 			 G_FW_VERSION_MINOR(fw_vers),
-			 G_FW_VERSION_MICRO(fw_vers));
+			 G_FW_VERSION_MICRO(fw_vers),
+			 G_TP_VERSION_MAJOR(tp_vers),
+			 G_TP_VERSION_MINOR(tp_vers),
+			 G_TP_VERSION_MICRO(tp_vers));
 	}
 }
 
@@ -2107,42 +2186,6 @@ static void cxgb_netpoll(struct net_device *dev)
 }
 #endif
 
-#define TPSRAM_NAME "t3%c_protocol_sram-%d.%d.%d.bin"
-int update_tpsram(struct adapter *adap)
-{
-	const struct firmware *tpsram;
-	char buf[64];
-	struct device *dev = &adap->pdev->dev;
-	int ret;
-	char rev;
-	
-	rev = adap->params.rev == T3_REV_B2 ? 'b' : 'a';
-
-	snprintf(buf, sizeof(buf), TPSRAM_NAME, rev,
-		 TP_VERSION_MAJOR, TP_VERSION_MINOR, TP_VERSION_MICRO);
-
-	ret = request_firmware(&tpsram, buf, dev);
-	if (ret < 0) {
-		dev_err(dev, "could not load TP SRAM: unable to load %s\n",
-			buf);
-		return ret;
-	}
-	
-	ret = t3_check_tpsram(adap, tpsram->data, tpsram->size);
-	if (ret)
-		goto release_tpsram;	
-
-	ret = t3_set_proto_sram(adap, tpsram->data);
-	if (ret)
-		dev_err(dev, "loading protocol SRAM failed\n");
-
-release_tpsram:
-	release_firmware(tpsram);
-	
-	return ret;
-}
-
-
 /*
  * Periodic accumulation of MAC statistics.
  */
@@ -2491,13 +2534,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 		err = -ENODEV;
 		goto out_free_dev;
 	}
-
-	err = t3_check_tpsram_version(adapter);
-	if (err == -EINVAL)
-		err = update_tpsram(adapter);
-
-	if (err)
-		goto out_free_dev;
 		
 	/*
 	 * The card is now ready to go.  If any errors occur during device
