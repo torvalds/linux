@@ -252,6 +252,29 @@ xlog_grant_add_space(struct log *log, int bytes)
 	xlog_grant_add_space_reserve(log, bytes);
 }
 
+static void
+xlog_tic_reset_res(xlog_ticket_t *tic)
+{
+	tic->t_res_num = 0;
+	tic->t_res_arr_sum = 0;
+	tic->t_res_num_ophdrs = 0;
+}
+
+static void
+xlog_tic_add_region(xlog_ticket_t *tic, uint len, uint type)
+{
+	if (tic->t_res_num == XLOG_TIC_LEN_MAX) {
+		/* add to overflow and start again */
+		tic->t_res_o_flow += tic->t_res_arr_sum;
+		tic->t_res_num = 0;
+		tic->t_res_arr_sum = 0;
+	}
+
+	tic->t_res_arr[tic->t_res_num].r_len = len;
+	tic->t_res_arr[tic->t_res_num].r_type = type;
+	tic->t_res_arr_sum += len;
+	tic->t_res_num++;
+}
 
 /*
  * NOTES:
@@ -1764,14 +1787,14 @@ xlog_write(xfs_mount_t *	mp,
     len = 0;
     if (ticket->t_flags & XLOG_TIC_INITED) {    /* acct for start rec of xact */
 	len += sizeof(xlog_op_header_t);
-	XLOG_TIC_ADD_OPHDR(ticket);
+	ticket->t_res_num_ophdrs++;
     }
 
     for (index = 0; index < nentries; index++) {
 	len += sizeof(xlog_op_header_t);	    /* each region gets >= 1 */
-	XLOG_TIC_ADD_OPHDR(ticket);
+	ticket->t_res_num_ophdrs++;
 	len += reg[index].i_len;
-	XLOG_TIC_ADD_REGION(ticket, reg[index].i_len, reg[index].i_type);
+	xlog_tic_add_region(ticket, reg[index].i_len, reg[index].i_type);
     }
     contwr = *start_lsn = 0;
 
@@ -1880,7 +1903,7 @@ xlog_write(xfs_mount_t *	mp,
 		len += sizeof(xlog_op_header_t); /* from splitting of region */
 		/* account for new log op header */
 		ticket->t_curr_res -= sizeof(xlog_op_header_t);
-		XLOG_TIC_ADD_OPHDR(ticket);
+		ticket->t_res_num_ophdrs++;
 	    }
 	    xlog_verify_dest_ptr(log, ptr);
 
@@ -2378,7 +2401,7 @@ restart:
 	 */
 	if (log_offset == 0) {
 		ticket->t_curr_res -= log->l_iclog_hsize;
-		XLOG_TIC_ADD_REGION(ticket,
+		xlog_tic_add_region(ticket,
 				    log->l_iclog_hsize,
 				    XLOG_REG_TYPE_LRHEADER);
 		INT_SET(head->h_cycle, ARCH_CONVERT, log->l_curr_cycle);
@@ -2566,7 +2589,7 @@ xlog_regrant_write_log_space(xlog_t	   *log,
 #endif
 
 	tic->t_curr_res = tic->t_unit_res;
-	XLOG_TIC_RESET_RES(tic);
+	xlog_tic_reset_res(tic);
 
 	if (tic->t_cnt > 0)
 		return 0;
@@ -2707,7 +2730,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 	s = GRANT_LOCK(log);
 	xlog_grant_sub_space(log, ticket->t_curr_res);
 	ticket->t_curr_res = ticket->t_unit_res;
-	XLOG_TIC_RESET_RES(ticket);
+	xlog_tic_reset_res(ticket);
 	xlog_trace_loggrant(log, ticket,
 			    "xlog_regrant_reserve_log_space: sub current res");
 	xlog_verify_grant_head(log, 1);
@@ -2724,7 +2747,7 @@ xlog_regrant_reserve_log_space(xlog_t	     *log,
 	xlog_verify_grant_head(log, 0);
 	GRANT_UNLOCK(log, s);
 	ticket->t_curr_res = ticket->t_unit_res;
-	XLOG_TIC_RESET_RES(ticket);
+	xlog_tic_reset_res(ticket);
 }	/* xlog_regrant_reserve_log_space */
 
 
@@ -3347,7 +3370,7 @@ xlog_ticket_get(xlog_t		*log,
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
 	sv_init(&(tic->t_sema), SV_DEFAULT, "logtick");
 
-	XLOG_TIC_RESET_RES(tic);
+	xlog_tic_reset_res(tic);
 
 	return tic;
 }	/* xlog_ticket_get */

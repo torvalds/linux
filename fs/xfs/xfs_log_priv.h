@@ -249,22 +249,6 @@ typedef __uint32_t xlog_tid_t;
 
 /* Ticket reservation region accounting */ 
 #define XLOG_TIC_LEN_MAX	15
-#define XLOG_TIC_RESET_RES(t) ((t)->t_res_num = \
-				(t)->t_res_arr_sum = (t)->t_res_num_ophdrs = 0)
-#define XLOG_TIC_ADD_OPHDR(t) ((t)->t_res_num_ophdrs++)
-#define XLOG_TIC_ADD_REGION(t, len, type)				\
-	do {								\
-		if ((t)->t_res_num == XLOG_TIC_LEN_MAX) { 		\
-			/* add to overflow and start again */		\
-			(t)->t_res_o_flow += (t)->t_res_arr_sum;	\
-			(t)->t_res_num = 0;				\
-			(t)->t_res_arr_sum = 0;				\
-		}							\
-		(t)->t_res_arr[(t)->t_res_num].r_len = (len);		\
-		(t)->t_res_arr[(t)->t_res_num].r_type = (type);		\
-		(t)->t_res_arr_sum += (len);				\
-		(t)->t_res_num++;					\
-	} while (0)
 
 /*
  * Reservation region
