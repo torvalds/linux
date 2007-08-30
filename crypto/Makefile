@@ -9,6 +9,7 @@ crypto_algapi-objs := algapi.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
 
 obj-$(CONFIG_CRYPTO_ABLKCIPHER) += ablkcipher.o
+obj-$(CONFIG_CRYPTO_AEAD) += aead.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER) += blkcipher.o
 
 crypto_hash-objs := hash.o

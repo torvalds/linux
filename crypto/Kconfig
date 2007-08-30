@@ -28,6 +28,10 @@ config CRYPTO_ABLKCIPHER
 	tristate
 	select CRYPTO_BLKCIPHER
 
+config CRYPTO_AEAD
+	tristate
+	select CRYPTO_ALGAPI
+
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
