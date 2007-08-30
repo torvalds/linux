@@ -264,7 +264,6 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
 	sctp_unrecognized_param_t *unk_param;
-	struct sock *sk;
 	int len;
 
 	/* 6.10 Bundling
@@ -283,16 +282,6 @@ sctp_disposition_t sctp_sf_do_5_1B_init(const struct sctp_endpoint *ep,
 	 * control endpoint, respond with an ABORT.
 	 */
 	if (ep == sctp_sk((sctp_get_ctl_sock()))->ep)
-		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
-
-	sk = ep->base.sk;
-	/* If the endpoint is not listening or if the number of associations
-	 * on the TCP-style socket exceed the max backlog, respond with an
-	 * ABORT.
-	 */
-	if (!sctp_sstate(sk, LISTENING) ||
-	    (sctp_style(sk, TCP) &&
-	     sk_acceptq_is_full(sk)))
 		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 
 	/* 3.1 A packet containing an INIT chunk MUST have a zero Verification
@@ -590,6 +579,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	struct sctp_ulpevent *ev, *ai_ev = NULL;
 	int error = 0;
 	struct sctp_chunk *err_chk_p;
+	struct sock *sk;
 
 	/* If the packet is an OOTB packet which is temporarily on the
 	 * control endpoint, respond with an ABORT.
@@ -604,6 +594,15 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	 */
 	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_chunkhdr_t)))
 		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+
+	/* If the endpoint is not listening or if the number of associations
+	 * on the TCP-style socket exceed the max backlog, respond with an
+	 * ABORT.
+	 */
+	sk = ep->base.sk;
+	if (!sctp_sstate(sk, LISTENING) ||
+	    (sctp_style(sk, TCP) && sk_acceptq_is_full(sk)))
+		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 
 	/* "Decode" the chunk.  We have no optional parameters so we
 	 * are in good shape.
