@@ -57,7 +57,7 @@ void extent_map_tree_init(struct extent_map_tree *tree,
 {
 	tree->map.rb_node = NULL;
 	tree->state.rb_node = NULL;
-	tree->fill_delalloc = NULL;
+	tree->ops = NULL;
 	rwlock_init(&tree->lock);
 	tree->mapping = mapping;
 }
@@ -93,6 +93,7 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 		return state;
 	state->state = 0;
 	state->in_tree = 0;
+	state->private = 0;
 	atomic_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	return state;
@@ -1034,6 +1035,61 @@ int unlock_range(struct extent_map_tree *tree, u64 start, u64 end)
 }
 EXPORT_SYMBOL(unlock_range);
 
+int set_state_private(struct extent_map_tree *tree, u64 start, u64 private)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+	int ret = 0;
+
+	write_lock_irq(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(&tree->state, start);
+	if (!node || IS_ERR(node)) {
+		ret = -ENOENT;
+		goto out;
+	}
+	state = rb_entry(node, struct extent_state, rb_node);
+	if (state->start != start) {
+		ret = -ENOENT;
+		goto out;
+	}
+	state->private = private;
+out:
+	write_unlock_irq(&tree->lock);
+	return ret;
+
+}
+
+int get_state_private(struct extent_map_tree *tree, u64 start, u64 *private)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+	int ret = 0;
+
+	read_lock_irq(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(&tree->state, start);
+	if (!node || IS_ERR(node)) {
+		ret = -ENOENT;
+		goto out;
+	}
+	state = rb_entry(node, struct extent_state, rb_node);
+	if (state->start != start) {
+		ret = -ENOENT;
+		goto out;
+	}
+	*private = state->private;
+out:
+	read_unlock_irq(&tree->lock);
+	return ret;
+}
+
 /*
  * searches a range in the state tree for a given mask.
  * If 'filled' == 1, this returns 1 only if ever extent in the tree
@@ -1185,12 +1241,13 @@ static int end_bio_extent_writepage(struct bio *bio,
 static int end_bio_extent_readpage(struct bio *bio,
 				   unsigned int bytes_done, int err)
 {
-	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
+	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	struct bio_vec *bvec = bio->bi_io_vec + bio->bi_vcnt - 1;
 	struct extent_map_tree *tree = bio->bi_private;
 	u64 start;
 	u64 end;
 	int whole_page;
+	int ret;
 
 	if (bio->bi_size)
 		return 1;
@@ -1208,6 +1265,11 @@ static int end_bio_extent_readpage(struct bio *bio,
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
 
+		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
+			ret = tree->ops->readpage_end_io_hook(page, start, end);
+			if (ret)
+				uptodate = 0;
+		}
 		if (uptodate) {
 			set_extent_uptodate(tree, start, end, GFP_ATOMIC);
 			if (whole_page)
@@ -1388,9 +1450,16 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 			continue;
 		}
 
-		ret = submit_extent_page(READ, tree, page,
-					 sector, iosize, page_offset, bdev,
-					 end_bio_extent_readpage);
+		ret = 0;
+		if (tree->ops && tree->ops->readpage_io_hook) {
+			ret = tree->ops->readpage_io_hook(page, cur,
+							  cur + iosize - 1);
+		}
+		if (!ret) {
+			ret = submit_extent_page(READ, tree, page,
+						 sector, iosize, page_offset,
+						 bdev, end_bio_extent_readpage);
+		}
 		if (ret)
 			SetPageError(page);
 		cur = cur + iosize;
@@ -1462,7 +1531,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 					       &delalloc_end,
 					       128 * 1024 * 1024);
 	if (nr_delalloc) {
-		tree->fill_delalloc(inode, start, delalloc_end);
+		tree->ops->fill_delalloc(inode, start, delalloc_end);
 		if (delalloc_end >= page_end + 1) {
 			clear_extent_bit(tree, page_end + 1, delalloc_end,
 					 EXTENT_LOCKED | EXTENT_DELALLOC,
@@ -1528,12 +1597,17 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			continue;
 		}
 		clear_extent_dirty(tree, cur, cur + iosize - 1, GFP_NOFS);
-		set_range_writeback(tree, cur, cur + iosize - 1);
-		ret = submit_extent_page(WRITE, tree, page,
-					 sector, iosize, page_offset, bdev,
-					 end_bio_extent_writepage);
+		ret = tree->ops->writepage_io_hook(page, cur, cur + iosize - 1);
 		if (ret)
 			SetPageError(page);
+		else {
+			set_range_writeback(tree, cur, cur + iosize - 1);
+			ret = submit_extent_page(WRITE, tree, page, sector,
+						 iosize, page_offset, bdev,
+						 end_bio_extent_writepage);
+			if (ret)
+				SetPageError(page);
+		}
 		cur = cur + iosize;
 		page_offset += iosize;
 		nr++;

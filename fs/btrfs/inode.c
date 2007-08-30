@@ -52,6 +52,7 @@ static struct inode_operations btrfs_file_inode_operations;
 static struct address_space_operations btrfs_aops;
 static struct address_space_operations btrfs_symlink_aops;
 static struct file_operations btrfs_dir_file_operations;
+static struct extent_map_ops btrfs_extent_map_ops;
 
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
@@ -103,6 +104,90 @@ out:
 	return ret;
 }
 
+int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
+{
+	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_trans_handle *trans;
+	char *kaddr;
+	int ret;
+	u64 page_start = page->index << PAGE_CACHE_SHIFT;
+	size_t offset = start - page_start;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	trans = btrfs_start_transaction(root, 1);
+	btrfs_set_trans_block_group(trans, inode);
+	kaddr = kmap(page);
+	btrfs_csum_file_block(trans, root, inode->i_ino,
+			      start, kaddr + offset, end - start + 1);
+	kunmap(page);
+	ret = btrfs_end_transaction(trans, root);
+	BUG_ON(ret);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
+int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
+{
+	int ret = 0;
+	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct btrfs_csum_item *item;
+	struct btrfs_path *path = NULL;
+	u64 private;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	path = btrfs_alloc_path();
+	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
+	if (IS_ERR(item)) {
+		ret = PTR_ERR(item);
+		/* a csum that isn't present is a preallocated region. */
+		if (ret == -ENOENT || ret == -EFBIG)
+			ret = 0;
+		private = 0;
+		goto out;
+	}
+	memcpy((char *)&private, &item->csum, BTRFS_CRC32_SIZE);
+	set_state_private(em_tree, start, private);
+out:
+	if (path)
+		btrfs_free_path(path);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	return ret;
+}
+
+int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
+{
+	char csum[BTRFS_CRC32_SIZE];
+	size_t offset = start - (page->index << PAGE_CACHE_SHIFT);
+	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	char *kaddr;
+	u64 private;
+	int ret;
+
+	ret = get_state_private(em_tree, start, &private);
+	kaddr = kmap_atomic(page, KM_IRQ0);
+	if (ret) {
+		goto zeroit;
+	}
+	ret = btrfs_csum_data(root, kaddr + offset, end - start + 1, csum);
+	BUG_ON(ret);
+	if (memcmp(csum, &private, BTRFS_CRC32_SIZE)) {
+		goto zeroit;
+	}
+	kunmap_atomic(kaddr, KM_IRQ0);
+	return 0;
+
+zeroit:
+	printk("btrfs csum failed ino %lu off %llu\n",
+	       page->mapping->host->i_ino, (unsigned long long)start);
+	memset(kaddr + offset, 1, end - start + 1); flush_dcache_page(page);
+	kunmap_atomic(kaddr, KM_IRQ0);
+	return 0;
+}
 
 void btrfs_read_locked_inode(struct inode *inode)
 {
@@ -155,7 +240,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFREG:
 		inode->i_mapping->a_ops = &btrfs_aops;
-		BTRFS_I(inode)->extent_tree.fill_delalloc = run_delalloc_range;
+		BTRFS_I(inode)->extent_tree.ops = &btrfs_extent_map_ops;
 		inode->i_fop = &btrfs_file_operations;
 		inode->i_op = &btrfs_file_inode_operations;
 		break;
@@ -1148,7 +1233,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree,
 				     inode->i_mapping, GFP_NOFS);
-		BTRFS_I(inode)->extent_tree.fill_delalloc = run_delalloc_range;
+		BTRFS_I(inode)->extent_tree.ops = &btrfs_extent_map_ops;
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
@@ -2286,7 +2371,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		inode->i_op = &btrfs_file_inode_operations;
 		extent_map_tree_init(&BTRFS_I(inode)->extent_tree,
 				     inode->i_mapping, GFP_NOFS);
-		BTRFS_I(inode)->extent_tree.fill_delalloc = run_delalloc_range;
+		BTRFS_I(inode)->extent_tree.ops = &btrfs_extent_map_ops;
 	}
 	dir->i_sb->s_dirt = 1;
 	btrfs_update_inode_block_group(trans, inode);
@@ -2360,6 +2445,13 @@ static struct file_operations btrfs_dir_file_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= btrfs_compat_ioctl,
 #endif
+};
+
+static struct extent_map_ops btrfs_extent_map_ops = {
+	.fill_delalloc = run_delalloc_range,
+	.writepage_io_hook = btrfs_writepage_io_hook,
+	.readpage_io_hook = btrfs_readpage_io_hook,
+	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 };
 
 static struct address_space_operations btrfs_aops = {

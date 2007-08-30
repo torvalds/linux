@@ -6,12 +6,19 @@
 #define EXTENT_MAP_INLINE (u64)-2
 #define EXTENT_MAP_DELALLOC (u64)-1
 
+struct extent_map_ops {
+	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
+	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
+	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
+	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end);
+};
+
 struct extent_map_tree {
 	struct rb_root map;
 	struct rb_root state;
 	struct address_space *mapping;
 	rwlock_t lock;
-	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
+	struct extent_map_ops *ops;
 };
 
 /* note, this must start with the same fields as fs/extent_map.c:tree_entry */
@@ -36,6 +43,10 @@ struct extent_state {
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
+
+	/* for use by the FS */
+	u64 private;
+
 	struct list_head list;
 };
 
@@ -89,4 +100,6 @@ int extent_commit_write(struct extent_map_tree *tree,
 			struct inode *inode, struct page *page,
 			unsigned from, unsigned to);
 int set_range_dirty(struct extent_map_tree *tree, u64 start, u64 end);
+int set_state_private(struct extent_map_tree *tree, u64 start, u64 private);
+int get_state_private(struct extent_map_tree *tree, u64 start, u64 *private);
 #endif
