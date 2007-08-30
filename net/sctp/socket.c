@@ -5203,6 +5203,7 @@ SCTP_STATIC int sctp_seqpacket_listen(struct sock *sk, int backlog)
 
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
+		return 0;
 	}
 
 	/* Return if we are already listening. */
@@ -5250,6 +5251,7 @@ SCTP_STATIC int sctp_stream_listen(struct sock *sk, int backlog)
 
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
+		return 0;
 	}
 
 	if (sctp_sstate(sk, LISTENING))
