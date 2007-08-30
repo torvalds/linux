@@ -369,7 +369,7 @@ xfs_iget(
 	XFS_STATS_INC(xs_ig_attempts);
 
 retry:
-	inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino);
+	inode = iget_locked(mp->m_super, ino);
 	if (inode) {
 		xfs_inode_t	*ip;
 

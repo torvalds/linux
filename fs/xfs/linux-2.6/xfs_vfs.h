@@ -21,7 +21,6 @@
 #include <linux/vfs.h>
 #include "xfs_fs.h"
 
-struct bhv_vfs;
 struct inode;
 
 struct fid;
@@ -40,11 +39,6 @@ typedef struct bhv_vfs_sync_work {
 	void			*w_data;	/* syncer routine argument */
 	void			(*w_syncer)(struct xfs_mount *, void *);
 } bhv_vfs_sync_work_t;
-
-typedef struct bhv_vfs {
-	struct xfs_mount	*vfs_mount;
-	struct super_block	*vfs_super;	/* generic superblock pointer */
-} bhv_vfs_t;
 
 #define SYNC_ATTR		0x0001	/* sync attributes */
 #define SYNC_CLOSE		0x0002	/* close file system down */
@@ -78,11 +72,7 @@ typedef struct bhv_vfs {
 #define SHUTDOWN_REMOTE_REQ	0x0010	/* shutdown came from remote cell */
 #define SHUTDOWN_DEVICE_REQ	0x0020	/* failed all paths to the device */
 
-#define vfs_test_for_freeze(vfs)	((vfs)->vfs_super->s_frozen)
-#define vfs_wait_for_freeze(vfs,l)	vfs_check_frozen((vfs)->vfs_super, (l))
- 
-extern bhv_vfs_t *vfs_allocate(struct super_block *);
-extern bhv_vfs_t *vfs_from_sb(struct super_block *);
-extern void vfs_deallocate(bhv_vfs_t *);
+#define xfs_test_for_freeze(mp)		((mp)->m_super->s_frozen)
+#define xfs_wait_for_freeze(mp,l)	vfs_check_frozen((mp)->m_super, (l))
 
 #endif	/* __XFS_VFS_H__ */

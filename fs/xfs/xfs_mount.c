@@ -341,7 +341,6 @@ xfs_initialize_perag_icache(
 
 xfs_agnumber_t
 xfs_initialize_perag(
-	bhv_vfs_t	*vfs,
 	xfs_mount_t	*mp,
 	xfs_agnumber_t	agcount)
 {
@@ -748,7 +747,6 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
  */
 int
 xfs_mountfs(
-	bhv_vfs_t	*vfsp,
 	xfs_mount_t	*mp,
 	int		mfsi_flags)
 {
@@ -1025,7 +1023,7 @@ xfs_mountfs(
 	mp->m_perag =
 		kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t), KM_SLEEP);
 
-	mp->m_maxagi = xfs_initialize_perag(vfsp, mp, sbp->sb_agcount);
+	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
 
 	/*
 	 * log's mount-time initialization. Perform 1st part recovery if needed
@@ -1192,7 +1190,6 @@ xfs_mountfs(
 int
 xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 {
-	struct bhv_vfs	*vfsp = XFS_MTOVFS(mp);
 	__uint64_t	resblks;
 
 	/*
@@ -1258,7 +1255,7 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
 	xfs_errortag_clearall(mp, 0);
 #endif
-	XFS_IODONE(vfsp);
+	XFS_IODONE(mp);
 	xfs_mount_free(mp);
 	return 0;
 }
@@ -1286,9 +1283,7 @@ xfs_unmountfs_wait(xfs_mount_t *mp)
 int
 xfs_fs_writable(xfs_mount_t *mp)
 {
-	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
-
-	return !(vfs_test_for_freeze(vfsp) || XFS_FORCED_SHUTDOWN(mp) ||
+	return !(xfs_test_for_freeze(mp) || XFS_FORCED_SHUTDOWN(mp) ||
 		(mp->m_flags & XFS_MOUNT_RDONLY));
 }
 

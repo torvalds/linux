@@ -234,7 +234,7 @@ xfs_trans_alloc(
 	xfs_mount_t	*mp,
 	uint		type)
 {
-	vfs_wait_for_freeze(XFS_MTOVFS(mp), SB_FREEZE_TRANS);
+	xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
 	return _xfs_trans_alloc(mp, type);
 }
 
@@ -628,7 +628,7 @@ xfs_trans_apply_sb_deltas(
 				  offsetof(xfs_dsb_t, sb_frextents) +
 				  sizeof(sbp->sb_frextents) - 1);
 
-	XFS_MTOVFS(tp->t_mountp)->vfs_super->s_dirt = 1;
+	tp->t_mountp->m_super->s_dirt = 1;
 }
 
 /*

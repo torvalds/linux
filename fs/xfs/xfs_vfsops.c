@@ -211,7 +211,6 @@ xfs_cleanup(void)
  */
 STATIC int
 xfs_start_flags(
-	struct bhv_vfs		*vfs,
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
@@ -336,7 +335,6 @@ xfs_start_flags(
  */
 STATIC int
 xfs_finish_flags(
-	struct bhv_vfs		*vfs,
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
@@ -438,11 +436,10 @@ xfs_mount(
 	struct xfs_mount_args	*args,
 	cred_t			*credp)
 {
-	struct bhv_vfs		*vfsp = XFS_MTOVFS(mp);
 	struct block_device	*ddev, *logdev, *rtdev;
 	int			flags = 0, error;
 
-	ddev = vfsp->vfs_super->s_bdev;
+	ddev = mp->m_super->s_bdev;
 	logdev = rtdev = NULL;
 
 	error = xfs_dmops_get(mp, args);
@@ -510,13 +507,13 @@ xfs_mount(
 	/*
 	 * Setup flags based on mount(2) options and then the superblock
 	 */
-	error = xfs_start_flags(vfsp, args, mp);
+	error = xfs_start_flags(args, mp);
 	if (error)
 		goto error1;
 	error = xfs_readsb(mp, flags);
 	if (error)
 		goto error1;
-	error = xfs_finish_flags(vfsp, args, mp);
+	error = xfs_finish_flags(args, mp);
 	if (error)
 		goto error2;
 
@@ -547,7 +544,7 @@ xfs_mount(
 	if ((error = xfs_filestream_mount(mp)))
 		goto error2;
 
-	error = XFS_IOINIT(vfsp, args, flags);
+	error = XFS_IOINIT(mp, args, flags);
 	if (error)
 		goto error2;
 
@@ -577,7 +574,6 @@ xfs_unmount(
 	int		flags,
 	cred_t		*credp)
 {
-	bhv_vfs_t	*vfsp = XFS_MTOVFS(mp);
 	xfs_inode_t	*rip;
 	bhv_vnode_t	*rvp;
 	int		unmount_event_wanted = 0;
@@ -590,7 +586,7 @@ xfs_unmount(
 
 #ifdef HAVE_DMAPI
 	if (mp->m_flags & XFS_MOUNT_DMAPI) {
-		error = XFS_SEND_PREUNMOUNT(mp, vfsp,
+		error = XFS_SEND_PREUNMOUNT(mp,
 				rvp, DM_RIGHT_NULL, rvp, DM_RIGHT_NULL,
 				NULL, NULL, 0, 0,
 				(mp->m_dmevmask & (1<<DM_EVENT_PREUNMOUNT))?
@@ -647,7 +643,7 @@ out:
 		/* Note: mp structure must still exist for
 		 * XFS_SEND_UNMOUNT() call.
 		 */
-		XFS_SEND_UNMOUNT(mp, vfsp, error == 0 ? rvp : NULL,
+		XFS_SEND_UNMOUNT(mp, error == 0 ? rvp : NULL,
 			DM_RIGHT_NULL, 0, error, unmount_event_flags);
 	}
 	if (xfs_unmountfs_needed) {

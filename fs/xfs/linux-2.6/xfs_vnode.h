@@ -19,7 +19,6 @@
 #define __XFS_VNODE_H__
 
 struct file;
-struct bhv_vfs;
 struct bhv_vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;

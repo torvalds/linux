@@ -120,7 +120,6 @@ extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern struct export_operations xfs_export_operations;
 
-#define XFS_M(sb) \
-	XFS_VFSTOM(vfs_from_sb(sb))
+#define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 
 #endif	/* __XFS_SUPER_H__ */
