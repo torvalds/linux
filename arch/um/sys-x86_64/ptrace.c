@@ -156,12 +156,6 @@ int is_syscall(unsigned long addr)
 	return(instr == 0x050f);
 }
 
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu )
-{
-	panic("dump_fpu");
-	return(1);
-}
-
 int get_fpregs(unsigned long buf, struct task_struct *child)
 {
 	panic("get_fpregs");
