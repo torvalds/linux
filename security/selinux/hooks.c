@@ -1907,6 +1907,9 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 		spin_unlock_irq(&current->sighand->siglock);
 	}
 
+	/* Always clear parent death signal on SID transitions. */
+	current->pdeath_signal = 0;
+
 	/* Check whether the new SID can inherit resource limits
 	   from the old SID.  If not, reset all soft limits to
 	   the lower of the current task's hard limit and the init
