@@ -820,6 +820,7 @@ static struct scsi_host_template ibmvstgt_sht = {
 	.eh_abort_handler	= ibmvstgt_eh_abort_handler,
 	.shost_attrs		= ibmvstgt_attrs,
 	.proc_name		= TGT_NAME,
+	.supported_mode		= MODE_TARGET,
 };
 
 static int ibmvstgt_probe(struct vio_dev *dev, const struct vio_device_id *id)

@@ -222,7 +222,8 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 		return ERR_PTR(ret);
 	}
 
-	if (ids->roles == SRP_RPORT_ROLE_INITIATOR) {
+	if (shost->active_mode & MODE_TARGET &&
+	    ids->roles == SRP_RPORT_ROLE_INITIATOR) {
 		ret = srp_tgt_it_nexus_create(shost, (unsigned long)rport,
 					      rport->port_id);
 		if (ret) {
@@ -249,10 +250,11 @@ EXPORT_SYMBOL_GPL(srp_rport_add);
 void srp_rport_del(struct srp_rport *rport)
 {
 	struct device *dev = &rport->dev;
+	struct Scsi_Host *shost = dev_to_shost(dev->parent);
 
-	if (rport->roles == SRP_RPORT_ROLE_INITIATOR)
-		srp_tgt_it_nexus_destroy(dev_to_shost(dev->parent),
-					 (unsigned long)rport);
+	if (shost->active_mode & MODE_TARGET &&
+	    rport->roles == SRP_RPORT_ROLE_INITIATOR)
+		srp_tgt_it_nexus_destroy(shost, (unsigned long)rport);
 
 	transport_remove_device(dev);
 	device_del(dev);
