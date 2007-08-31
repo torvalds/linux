@@ -1735,7 +1735,7 @@ static int spi_imx_resume(struct platform_device *pdev)
 
 static struct platform_driver driver = {
 	.driver = {
-		.name = "imx-spi",
+		.name = "spi_imx",
 		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
 	},

@@ -450,6 +450,7 @@ static int __exit txx9spi_remove(struct platform_device *dev)
 	return 0;
 }
 
+MODULE_ALIAS("txx9spi");			/* for platform bus hotplug */
 static struct platform_driver txx9spi_driver = {
 	.remove = __exit_p(txx9spi_remove),
 	.driver = {
