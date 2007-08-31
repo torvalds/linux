@@ -335,17 +335,21 @@ static struct hda_verb stac9205_core_init[] = {
 	{}
 };
 
+#define STAC_INPUT_SOURCE \
+	{ \
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name = "Input Source", \
+		.count = 1, \
+		.info = stac92xx_mux_enum_info, \
+		.get = stac92xx_mux_enum_get, \
+		.put = stac92xx_mux_enum_put, \
+	}
+
+
 static struct snd_kcontrol_new stac9200_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("Capture Volume", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Mux Volume", 0x0c, 0, HDA_OUTPUT),
@@ -353,14 +357,7 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac925x_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x09, 0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Mux Volume", 0x0f, 0, HDA_OUTPUT),
@@ -369,14 +366,7 @@ static struct snd_kcontrol_new stac925x_mixer[] = {
 
 /* This needs to be generated dynamically based on sequence */
 static struct snd_kcontrol_new stac922x_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("Capture Volume", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mux Capture Volume", 0x12, 0x0, HDA_OUTPUT),
@@ -385,28 +375,14 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 
 /* This needs to be generated dynamically based on sequence */
 static struct snd_kcontrol_new stac9227_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x1b, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
 
 static struct snd_kcontrol_new stac927x_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("InMux Capture Volume", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("InVol Capture Volume", 0x18, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("ADCMux Capture Switch", 0x1b, 0x0, HDA_OUTPUT),
@@ -422,14 +398,7 @@ static struct snd_kcontrol_new stac9205_mixer[] = {
 		.get = stac92xx_dmux_enum_get,
 		.put = stac92xx_dmux_enum_put,
 	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 1,
-		.info = stac92xx_mux_enum_info,
-		.get = stac92xx_mux_enum_get,
-		.put = stac92xx_mux_enum_put,
-	},
+	STAC_INPUT_SOURCE,
 	HDA_CODEC_VOLUME("InMux Capture Volume", 0x19, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("InVol Capture Volume", 0x1b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("ADCMux Capture Switch", 0x1d, 0x0, HDA_OUTPUT),
