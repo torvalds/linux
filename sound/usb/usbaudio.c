@@ -1308,7 +1308,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 
 	/* close the old interface */
 	if (subs->interface >= 0 && subs->interface != fmt->iface) {
-		usb_set_interface(subs->dev, subs->interface, 0);
+		if (usb_set_interface(subs->dev, subs->interface, 0) < 0) {
+			snd_printk(KERN_ERR "%d:%d:%d: return to setting 0 failed\n",
+				dev->devnum, fmt->iface, fmt->altsetting);
+			return -EIO;
+		}
 		subs->interface = -1;
 		subs->format = 0;
 	}
