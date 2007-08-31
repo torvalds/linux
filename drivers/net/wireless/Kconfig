@@ -558,6 +558,33 @@ config RTL8187
 
 	  Thanks to Realtek for their support!
 
+config ADM8211
+	tristate "ADMtek ADM8211 support"
+	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
+	select CRC32
+	select EEPROM_93CX6
+	---help---
+	  This driver is for ADM8211A, ADM8211B, and ADM8211C based cards.
+	  These are PCI/mini-PCI/Cardbus 802.11b chips found in cards such as:
+
+	  Xterasys Cardbus XN-2411b
+	  Blitz NetWave Point PC
+	  TrendNet 221pc
+	  Belkin F5D6001
+	  SMC 2635W
+	  Linksys WPC11 v1
+	  Fiberline FL-WL-200X
+	  3com Office Connect (3CRSHPW796)
+	  Corega WLPCIB-11
+	  SMC 2602W V2 EU
+	  D-Link DWL-520 Revision C
+
+	  However, some of these cards have been replaced with other chips
+	  like the RTL8180L (Xterasys Cardbus XN-2411b, Belkin F5D6001) or
+	  the Ralink RT2400 (SMC2635W) without a model number change.
+
+	  Thanks to Infineon-ADMtek for their support of this driver.
+
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
