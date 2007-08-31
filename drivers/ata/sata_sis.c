@@ -43,7 +43,7 @@
 #include "sis.h"
 
 #define DRV_NAME	"sata_sis"
-#define DRV_VERSION	"0.8"
+#define DRV_VERSION	"1.0"
 
 enum {
 	sis_180			= 0,

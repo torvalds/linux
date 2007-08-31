@@ -22,7 +22,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_atiixp"
-#define DRV_VERSION "0.4.5"
+#define DRV_VERSION "0.4.6"
 
 enum {
 	ATIIXP_IDE_PIO_TIMING	= 0x40,

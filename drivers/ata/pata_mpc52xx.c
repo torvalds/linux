@@ -24,7 +24,7 @@
 
 
 #define DRV_NAME	"mpc52xx_ata"
-#define DRV_VERSION	"0.1.0ac2"
+#define DRV_VERSION	"0.1.2"
 
 
 /* Private structures used by the driver */

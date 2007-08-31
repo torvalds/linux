@@ -26,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "ata_generic"
-#define DRV_VERSION "0.2.12"
+#define DRV_VERSION "0.2.13"
 
 /*
  *	A generic parallel ATA driver using libata
