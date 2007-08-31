@@ -359,7 +359,7 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 #define HDSPM_AES32_AUTOSYNC_FROM_AES6 6
 #define HDSPM_AES32_AUTOSYNC_FROM_AES7 7
 #define HDSPM_AES32_AUTOSYNC_FROM_AES8 8
-#define HDSPM_AES32_AUTOSYNC_FROM_NONE -1
+#define HDSPM_AES32_AUTOSYNC_FROM_NONE 9
 
 /*  status2 */
 /* HDSPM_LockAES_bit is given by HDSPM_LockAES >> (AES# - 1) */
@@ -412,6 +412,13 @@ MODULE_SUPPORTED_DEVICE("{{RME HDSPM-MADI}}");
 
 /* revisions >= 230 indicate AES32 card */
 #define HDSPM_AESREVISION 230
+
+/* speed factor modes */
+#define HDSPM_SPEED_SINGLE 0
+#define HDSPM_SPEED_DOUBLE 1
+#define HDSPM_SPEED_QUAD   2
+/* names for speed modes */
+static char *hdspm_speed_names[] = { "single", "double", "quad" };
 
 struct hdspm_midi {
 	struct hdspm *hdspm;
@@ -831,7 +838,7 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 		rate /= 2;
 
 	/* RME says n = 104857600000000, but in the windows MADI driver, I see:
-	   return 104857600000000 / rate; // 100 MHz
+//	return 104857600000000 / rate; // 100 MHz
 	return 110100480000000 / rate; // 105 MHz
         */	   
 	/* n = 104857600000000ULL; */ /*  =  2^20 * 10^8 */
@@ -845,11 +852,10 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 /* dummy set rate lets see what happens */
 static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 {
-	int reject_if_open = 0;
 	int current_rate;
 	int rate_bits;
 	int not_set = 0;
-	int is_single, is_double, is_quad;
+	int current_speed, target_speed;
 
 	/* ASSUMPTION: hdspm->lock is either set, or there is no need for
 	   it (e.g. during module initialization).
@@ -903,66 +909,60 @@ static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 	   changes in the read/write routines.  
 	 */
 
-	is_single = (current_rate <= 48000);
-	is_double = (current_rate > 48000 && current_rate <= 96000);
-	is_quad = (current_rate > 96000);
+	if (current_rate <= 48000)
+		current_speed = HDSPM_SPEED_SINGLE;
+	else if (current_rate <= 96000)
+		current_speed = HDSPM_SPEED_DOUBLE;
+	else
+		current_speed = HDSPM_SPEED_QUAD;
+
+	if (rate <= 48000)
+		target_speed = HDSPM_SPEED_SINGLE;
+	else if (rate <= 96000)
+		target_speed = HDSPM_SPEED_DOUBLE;
+	else
+		target_speed = HDSPM_SPEED_QUAD;
 
 	switch (rate) {
 	case 32000:
-		if (!is_single)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency32KHz;
 		break;
 	case 44100:
-		if (!is_single)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency44_1KHz;
 		break;
 	case 48000:
-		if (!is_single)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency48KHz;
 		break;
 	case 64000:
-		if (!is_double)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency64KHz;
 		break;
 	case 88200:
-		if (!is_double)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency88_2KHz;
 		break;
 	case 96000:
-		if (!is_double)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency96KHz;
 		break;
 	case 128000:
-		if (!is_quad)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency128KHz;
 		break;
 	case 176400:
-		if (!is_quad)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency176_4KHz;
 		break;
 	case 192000:
-		if (!is_quad)
-			reject_if_open = 1;
 		rate_bits = HDSPM_Frequency192KHz;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (reject_if_open
+	if (current_speed != target_speed
 	    && (hdspm->capture_pid >= 0 || hdspm->playback_pid >= 0)) {
 		snd_printk
 		    (KERN_ERR "HDSPM: "
-		     "cannot change between single- and double-speed mode "
+		     "cannot change from %s speed to %s speed mode "
 		     "(capture PID = %d, playback PID = %d)\n",
+		     hdspm_speed_names[current_speed],
+		     hdspm_speed_names[target_speed],
 		     hdspm->capture_pid, hdspm->playback_pid);
 		return -EBUSY;
 	}
@@ -1603,8 +1603,8 @@ static int snd_hdspm_put_clock_source(struct snd_kcontrol *kcontrol,
 	val = ucontrol->value.enumerated.item[0];
 	if (val < 0)
 		val = 0;
-	if (val > 6)
-		val = 6;
+	if (val > 9)
+		val = 9;
 	spin_lock_irq(&hdspm->lock);
 	if (val != hdspm_clock_source(hdspm))
 		change = (hdspm_set_clock_source(hdspm, val) == 0) ? 1 : 0;
@@ -1853,7 +1853,7 @@ static int snd_hdspm_get_autosync_ref(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	ucontrol->value.enumerated.item[0] = hdspm_pref_sync_ref(hdspm);
+	ucontrol->value.enumerated.item[0] = hdspm_autosync_ref(hdspm);
 	return 0;
 }
 
