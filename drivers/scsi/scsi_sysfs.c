@@ -190,6 +190,46 @@ show_shost_state(struct class_device *class_dev, char *buf)
 
 static CLASS_DEVICE_ATTR(state, S_IRUGO | S_IWUSR, show_shost_state, store_shost_state);
 
+static ssize_t
+show_shost_mode(unsigned int mode, char *buf)
+{
+	ssize_t len = 0;
+
+	if (mode & MODE_INITIATOR)
+		len = sprintf(buf, "%s", "Initiator");
+
+	if (mode & MODE_TARGET)
+		len += sprintf(buf + len, "%s%s", len ? ", " : "", "Target");
+
+	len += sprintf(buf + len, "\n");
+
+	return len;
+}
+
+static ssize_t show_shost_supported_mode(struct class_device *class_dev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+
+	if (shost->hostt->supported_mode == MODE_UNKNOWN)
+		return snprintf(buf, 20, "unknown\n");
+	else
+		return show_shost_mode(shost->hostt->supported_mode, buf);
+}
+
+static CLASS_DEVICE_ATTR(supported_mode, S_IRUGO | S_IWUSR, show_shost_supported_mode, NULL);
+
+static ssize_t show_shost_active_mode(struct class_device *class_dev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+
+	if (shost->active_mode == MODE_UNKNOWN)
+		return snprintf(buf, 20, "unknown\n");
+	else
+		return show_shost_mode(shost->active_mode, buf);
+}
+
+static CLASS_DEVICE_ATTR(active_mode, S_IRUGO | S_IWUSR, show_shost_active_mode, NULL);
+
 shost_rd_attr(unique_id, "%u\n");
 shost_rd_attr(host_busy, "%hu\n");
 shost_rd_attr(cmd_per_lun, "%hd\n");
@@ -208,6 +248,8 @@ static struct class_device_attribute *scsi_sysfs_shost_attrs[] = {
 	&class_device_attr_proc_name,
 	&class_device_attr_scan,
 	&class_device_attr_state,
+	&class_device_attr_supported_mode,
+	&class_device_attr_active_mode,
 	NULL
 };
 
