@@ -271,11 +271,6 @@ int omap_dm_timer_get_irq(struct omap_dm_timer *timer)
 
 #if defined(CONFIG_ARCH_OMAP1)
 
-struct clk *omap_dm_timer_get_fclk(struct omap_dm_timer *timer)
-{
-	BUG();
-}
-
 /**
  * omap_dm_timer_modify_idlect_mask - Check if any running timers use ARMXOR
  * @inputmask: current value of idlect mask
