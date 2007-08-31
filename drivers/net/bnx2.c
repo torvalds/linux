@@ -3934,11 +3934,13 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		/* Chip reset. */
 		REG_WR(bp, BNX2_PCICFG_MISC_CONFIG, val);
 
+		/* Reading back any register after chip reset will hang the
+		 * bus on 5706 A0 and A1.  The msleep below provides plenty
+		 * of margin for write posting.
+		 */
 		if ((CHIP_ID(bp) == CHIP_ID_5706_A0) ||
-		    (CHIP_ID(bp) == CHIP_ID_5706_A1)) {
-			current->state = TASK_UNINTERRUPTIBLE;
-			schedule_timeout(HZ / 50);
-		}
+		    (CHIP_ID(bp) == CHIP_ID_5706_A1))
+			msleep(20);
 
 		/* Reset takes approximate 30 usec */
 		for (i = 0; i < 10; i++) {
