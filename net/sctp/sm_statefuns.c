@@ -5176,7 +5176,22 @@ static struct sctp_packet *sctp_ootb_pkt_new(const struct sctp_association *asoc
 	 * association exists, otherwise, use the peer's vtag.
 	 */
 	if (asoc) {
-		vtag = asoc->peer.i.init_tag;
+		/* Special case the INIT-ACK as there is no peer's vtag
+		 * yet.
+		 */
+		switch(chunk->chunk_hdr->type) {
+		case SCTP_CID_INIT_ACK:
+		{
+			sctp_initack_chunk_t *initack;
+
+			initack = (sctp_initack_chunk_t *)chunk->chunk_hdr;
+			vtag = ntohl(initack->init_hdr.init_tag);
+			break;
+		}
+		default:
+			vtag = asoc->peer.i.init_tag;
+			break;
+		}
 	} else {
 		/* Special case the INIT and stale COOKIE_ECHO as there is no
 		 * vtag yet.
