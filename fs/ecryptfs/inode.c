@@ -357,10 +357,6 @@ static struct dentry *ecryptfs_lookup(struct inode *dir, struct dentry *dentry,
 		ecryptfs_printk(KERN_DEBUG, "Is a special file; returning\n");
 		goto out;
 	}
-	if (special_file(lower_inode->i_mode)) {
-		ecryptfs_printk(KERN_DEBUG, "Is a special file; returning\n");
-		goto out;
-	}
 	if (!nd) {
 		ecryptfs_printk(KERN_DEBUG, "We have a NULL nd, just leave"
 				"as we *think* we are about to unlink\n");
