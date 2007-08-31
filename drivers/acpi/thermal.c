@@ -195,6 +195,7 @@ struct acpi_thermal {
 	struct acpi_thermal_trips trips;
 	struct acpi_handle_list devices;
 	struct timer_list timer;
+	struct mutex lock;
 };
 
 static const struct file_operations acpi_thermal_state_fops = {
@@ -721,11 +722,15 @@ static void acpi_thermal_check(void *data)
 		return;
 	}
 
+	/* Check if someone else is already running */
+	if (!mutex_trylock(&tz->lock))
+		return;
+
 	state = tz->state;
 
 	result = acpi_thermal_get_temperature(tz);
 	if (result)
-		return;
+		goto unlock;
 
 	memset(&tz->state, 0, sizeof(tz->state));
 
@@ -816,8 +821,8 @@ static void acpi_thermal_check(void *data)
 			add_timer(&(tz->timer));
 		}
 	}
-
-	return;
+      unlock:
+	mutex_unlock(&tz->lock);
 }
 
 /* --------------------------------------------------------------------------
@@ -1254,7 +1259,7 @@ static int acpi_thermal_add(struct acpi_device *device)
 	strcpy(acpi_device_name(device), ACPI_THERMAL_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_THERMAL_CLASS);
 	acpi_driver_data(device) = tz;
-
+	mutex_init(&tz->lock);
 	result = acpi_thermal_get_info(tz);
 	if (result)
 		goto end;
@@ -1324,7 +1329,7 @@ static int acpi_thermal_remove(struct acpi_device *device, int type)
 	}
 
 	acpi_thermal_remove_fs(device);
-
+	mutex_destroy(&tz->lock);
 	kfree(tz);
 	return 0;
 }
