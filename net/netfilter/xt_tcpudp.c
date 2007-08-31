@@ -188,7 +188,7 @@ udp_checkentry(const char *tablename,
 	       void *matchinfo,
 	       unsigned int hook_mask)
 {
-	const struct xt_tcp *udpinfo = matchinfo;
+	const struct xt_udp *udpinfo = matchinfo;
 
 	/* Must specify no unknown invflags */
 	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
