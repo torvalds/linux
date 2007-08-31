@@ -560,7 +560,7 @@ static u32 tcp_rto_min(struct sock *sk)
 	struct dst_entry *dst = __sk_dst_get(sk);
 	u32 rto_min = TCP_RTO_MIN;
 
-	if (dst_metric_locked(dst, RTAX_RTO_MIN))
+	if (dst && dst_metric_locked(dst, RTAX_RTO_MIN))
 		rto_min = dst->metrics[RTAX_RTO_MIN-1];
 	return rto_min;
 }
