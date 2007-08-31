@@ -264,48 +264,66 @@ static int set_radio_freq(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int tea5767_signal(struct dvb_frontend *fe)
+static int tea5767_read_status(struct dvb_frontend *fe, char *buffer)
 {
-	unsigned char buffer[5];
-	int rc;
 	struct tea5767_priv *priv = fe->tuner_priv;
+	int rc;
 
-	memset(buffer, 0, sizeof(buffer));
-	if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
+	memset(buffer, 0, 5);
+	if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5))) {
 		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
+		return -EREMOTEIO;
+	}
 
-	return ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << 8);
+	return 0;
 }
 
-static int tea5767_stereo(struct dvb_frontend *fe)
+static inline int tea5767_signal(struct dvb_frontend *fe, const char *buffer)
 {
-	unsigned char buffer[5];
-	int rc;
 	struct tea5767_priv *priv = fe->tuner_priv;
 
-	memset(buffer, 0, sizeof(buffer));
-	if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
-		tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
+	int signal = ((buffer[3] & TEA5767_ADC_LEVEL_MASK) << 8);
 
-	rc = buffer[2] & TEA5767_STEREO_MASK;
+	tuner_dbg("Signal strength: %d\n", signal);
 
-	tuner_dbg("radio ST GET = %02x\n", rc);
+	return signal;
+}
 
-	return ((buffer[2] & TEA5767_STEREO_MASK) ? V4L2_TUNER_SUB_STEREO : 0);
+static inline int tea5767_stereo(struct dvb_frontend *fe, const char *buffer)
+{
+	struct tea5767_priv *priv = fe->tuner_priv;
+
+	int stereo = buffer[2] & TEA5767_STEREO_MASK;
+
+	tuner_dbg("Radio ST GET = %02x\n", stereo);
+
+	return (stereo ? V4L2_TUNER_SUB_STEREO : 0);
 }
 
 static int tea5767_get_status(struct dvb_frontend *fe, u32 *status)
 {
-	struct tea5767_priv *priv = fe->tuner_priv;
-	int signal = tea5767_signal(fe);
+	unsigned char buffer[5];
+
 	*status = 0;
 
-	if (signal)
-		*status = TUNER_STATUS_LOCKED;
-	if (tea5767_stereo(fe))
-		*status |= TUNER_STATUS_STEREO;
+	if (0 == tea5767_read_status(fe, buffer)) {
+		if (tea5767_signal(fe, buffer))
+			*status = TUNER_STATUS_LOCKED;
+		if (tea5767_stereo(fe, buffer))
+			*status |= TUNER_STATUS_STEREO;
+	}
 
-	tuner_dbg("tea5767: Signal strength: %d\n", signal);
+	return 0;
+}
+
+static int tea5767_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	unsigned char buffer[5];
+
+	*strength = 0;
+
+	if (0 == tea5767_read_status(fe, buffer))
+		*strength = tea5767_signal(fe, buffer);
 
 	return 0;
 }
@@ -393,6 +411,7 @@ static struct dvb_tuner_ops tea5767_tuner_ops = {
 	.release           = tea5767_release,
 	.get_frequency     = tea5767_get_frequency,
 	.get_status        = tea5767_get_status,
+	.get_rf_strength   = tea5767_get_rf_strength,
 };
 
 struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
