@@ -81,6 +81,7 @@ void free_user_ns(struct kref *kref)
 	struct user_namespace *ns;
 
 	ns = container_of(kref, struct user_namespace, kref);
+	free_uid(ns->root_user);
 	kfree(ns);
 }
 
