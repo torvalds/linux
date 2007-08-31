@@ -540,26 +540,24 @@ static void udf_table_free_blocks(struct super_block *sb,
 			if (epos.offset + adsize > sb->s_blocksize) {
 				loffset = epos.offset;
 				aed->lengthAllocDescs = cpu_to_le32(adsize);
-				sptr = UDF_I_DATA(inode) + epos.offset -
-					udf_file_entry_alloc_offset(inode) +
-					UDF_I_LENEATTR(inode) - adsize;
+				sptr = UDF_I_DATA(table) + epos.offset - adsize;
 				dptr = epos.bh->b_data + sizeof(struct allocExtDesc);
 				memcpy(dptr, sptr, adsize);
 				epos.offset = sizeof(struct allocExtDesc) + adsize;
 			} else {
 				loffset = epos.offset + adsize;
 				aed->lengthAllocDescs = cpu_to_le32(0);
-				sptr = oepos.bh->b_data + epos.offset;
-				epos.offset = sizeof(struct allocExtDesc);
-
 				if (oepos.bh) {
+					sptr = oepos.bh->b_data + epos.offset;
 					aed = (struct allocExtDesc *)oepos.bh->b_data;
 					aed->lengthAllocDescs =
 						cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) + adsize);
 				} else {
+					sptr = UDF_I_DATA(table) + epos.offset;
 					UDF_I_LENALLOC(table) += adsize;
 					mark_inode_dirty(table);
 				}
+				epos.offset = sizeof(struct allocExtDesc);
 			}
 			if (UDF_SB_UDFREV(sb) >= 0x0200)
 				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED, 3, 1,
