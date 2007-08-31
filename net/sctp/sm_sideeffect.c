@@ -1013,8 +1013,9 @@ static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
 		break;
 
 	case SCTP_DISPOSITION_VIOLATION:
-		printk(KERN_ERR "sctp protocol violation state %d "
-		       "chunkid %d\n", state, subtype.chunk);
+		if (net_ratelimit())
+			printk(KERN_ERR "sctp protocol violation state %d "
+			       "chunkid %d\n", state, subtype.chunk);
 		break;
 
 	case SCTP_DISPOSITION_NOT_IMPL:
@@ -1129,6 +1130,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 		case SCTP_CMD_REPORT_FWDTSN:
 			/* Move the Cumulattive TSN Ack ahead. */
 			sctp_tsnmap_skip(&asoc->peer.tsn_map, cmd->obj.u32);
+
+			/* purge the fragmentation queue */
+			sctp_ulpq_reasm_flushtsn(&asoc->ulpq, cmd->obj.u32);
 
 			/* Abort any in progress partial delivery. */
 			sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);

@@ -421,6 +421,13 @@ void sctp_retransmit_mark(struct sctp_outq *q,
 		 */
 		if ((fast_retransmit && (chunk->fast_retransmit > 0)) ||
 		   (!fast_retransmit && !chunk->tsn_gap_acked)) {
+			/* If this chunk was sent less then 1 rto ago, do not
+			 * retransmit this chunk, but give the peer time
+			 * to acknowlege it.
+			 */
+			if ((jiffies - chunk->sent_at) < transport->rto)
+				continue;
+
 			/* RFC 2960 6.2.1 Processing a Received SACK
 			 *
 			 * C) Any time a DATA chunk is marked for

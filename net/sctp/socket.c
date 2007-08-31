@@ -353,6 +353,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	 * The function sctp_get_port_local() does duplicate address
 	 * detection.
 	 */
+	addr->v4.sin_port = htons(snum);
 	if ((ret = sctp_get_port_local(sk, addr))) {
 		if (ret == (long) sk) {
 			/* This endpoint has a conflicting address. */
@@ -5202,6 +5203,7 @@ SCTP_STATIC int sctp_seqpacket_listen(struct sock *sk, int backlog)
 
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
+		return 0;
 	}
 
 	/* Return if we are already listening. */
@@ -5249,6 +5251,7 @@ SCTP_STATIC int sctp_stream_listen(struct sock *sk, int backlog)
 
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
+		return 0;
 	}
 
 	if (sctp_sstate(sk, LISTENING))
