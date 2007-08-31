@@ -102,7 +102,7 @@ struct tuner_simple_priv {
 
 /* ---------------------------------------------------------------------- */
 
-static int tuner_getstatus(struct dvb_frontend *fe)
+static int tuner_read_status(struct dvb_frontend *fe)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
 	unsigned char byte;
@@ -113,47 +113,60 @@ static int tuner_getstatus(struct dvb_frontend *fe)
 	return byte;
 }
 
-static int tuner_signal(struct dvb_frontend *fe)
+static inline int tuner_signal(const int status)
 {
-	return (tuner_getstatus(fe) & TUNER_SIGNAL) << 13;
+	return (status & TUNER_SIGNAL) << 13;
 }
 
-static int tuner_stereo(struct dvb_frontend *fe)
+static inline int tuner_stereo(const int type, const int status)
 {
-	struct tuner_simple_priv *priv = fe->tuner_priv;
-
-	int stereo, status;
-
-	status = tuner_getstatus(fe);
-
-	switch (priv->type) {
+	switch (type) {
 		case TUNER_PHILIPS_FM1216ME_MK3:
 		case TUNER_PHILIPS_FM1236_MK3:
 		case TUNER_PHILIPS_FM1256_IH3:
 		case TUNER_LG_NTSC_TAPE:
-			stereo = ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
-			break;
+			return ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 		default:
-			stereo = status & TUNER_STEREO;
+			return status & TUNER_STEREO;
 	}
+}
 
-	return stereo;
+static inline int tuner_islocked(const int status)
+{
+	return (status & TUNER_FL);
+}
+
+static inline int tuner_afcstatus(const int status)
+{
+	return (status & TUNER_AFC) - 2;
 }
 
 
 static int simple_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	int signal = tuner_signal(fe);
+	int tuner_status = tuner_read_status(fe);
 
 	*status = 0;
 
-	if (signal)
+	if (tuner_islocked(tuner_status))
 		*status = TUNER_STATUS_LOCKED;
-	if (tuner_stereo(fe))
+	if (tuner_stereo(priv->type, tuner_status))
 		*status |= TUNER_STATUS_STEREO;
 
-	tuner_dbg("tuner-simple: Signal strength: %d\n", signal);
+	tuner_dbg("AFC Status: %d\n", tuner_afcstatus(tuner_status));
+
+	return 0;
+}
+
+static int simple_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	struct tuner_simple_priv *priv = fe->tuner_priv;
+	int signal = tuner_signal(tuner_read_status(fe));
+
+	*strength = signal;
+
+	tuner_dbg("Signal strength: %d\n", signal);
 
 	return 0;
 }
@@ -580,9 +593,10 @@ static int simple_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static struct dvb_tuner_ops simple_tuner_ops = {
 	.set_analog_params = simple_set_params,
-	.release        = simple_release,
-	.get_frequency  = simple_get_frequency,
-	.get_status     = simple_get_status,
+	.release           = simple_release,
+	.get_frequency     = simple_get_frequency,
+	.get_status        = simple_get_status,
+	.get_rf_strength   = simple_get_rf_strength,
 };
 
 struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
