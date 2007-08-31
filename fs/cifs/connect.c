@@ -2972,36 +2972,32 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
-			__u16 len =
-			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
+			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
 					  nls_codepage);
-			len *= 2;
+			ln *= 2;
 			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->DomainName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->DomainName.Length =
-			    cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
 			SecurityBlob->UserName.Buffer = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
-			__u16 len =
-			    cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
+			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
 					  nls_codepage);
-			len *= 2;
+			ln *= 2;
 			SecurityBlob->UserName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->UserName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->UserName.Length =
-			    cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->UserName.Length = cpu_to_le16(ln);
 		}
 
 		/* SecurityBlob->WorkstationName.Length =
@@ -3045,33 +3041,32 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
-			__u16 len;
+			__u16 ln;
 			negotiate_flags |= NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED;
 			strncpy(bcc_ptr, domain, 63);
-			len = strnlen(domain, 64);
+			ln = strnlen(domain, 64);
 			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(len);
+			    cpu_to_le16(ln);
 			SecurityBlob->DomainName.Buffer =
 			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->DomainName.Length = cpu_to_le16(len);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
 			SecurityBlob->UserName.Buffer = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
-			__u16 len;
+			__u16 ln;
 			strncpy(bcc_ptr, user, 63);
-			len = strnlen(user, 64);
-			SecurityBlob->UserName.MaximumLength =
-			    cpu_to_le16(len);
+			ln = strnlen(user, 64);
+			SecurityBlob->UserName.MaximumLength = cpu_to_le16(ln);
 			SecurityBlob->UserName.Buffer =
-			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += len;
-			SecurityBlobLength += len;
-			SecurityBlob->UserName.Length = cpu_to_le16(len);
+						cpu_to_le32(SecurityBlobLength);
+			bcc_ptr += ln;
+			SecurityBlobLength += ln;
+			SecurityBlob->UserName.Length = cpu_to_le16(ln);
 		}
 		/* BB fill in our workstation name if known BB */
 
@@ -3138,8 +3133,8 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 					} else {
 						remaining_words = BCC(smb_buffer_response) / 2;
 					}
-					len =
-					    UniStrnlen((wchar_t *) bcc_ptr,remaining_words - 1);
+					len = UniStrnlen((wchar_t *) bcc_ptr,
+							remaining_words - 1);
 /* We look for obvious messed up bcc or strings in response so we do not go off
   the end since (at least) WIN2K and Windows XP have a major bug in not null
   terminating last Unicode string in response  */
@@ -3223,7 +3218,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 						<= BCC(smb_buffer_response)) {
 						if (ses->serverOS)
 							kfree(ses->serverOS);
-						ses->serverOS = kzalloc(len + 1,GFP_KERNEL);
+						ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
 						strncpy(ses->serverOS,bcc_ptr, len);
 
 						bcc_ptr += len;

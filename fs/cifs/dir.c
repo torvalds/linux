@@ -397,7 +397,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode,
 				/* BB Do not bother to decode buf since no
 				   local inode yet to put timestamps in,
 				   but we can reuse it safely */
-				int bytes_written;
+				unsigned int bytes_written;
 				struct win_dev *pdev;
 				pdev = (struct win_dev *)buf;
 				if (S_ISCHR(mode)) {

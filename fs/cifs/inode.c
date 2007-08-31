@@ -1478,7 +1478,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			atomic_dec(&open_file->wrtPending);
 			cFYI(1, ("SetFSize for attrs rc = %d", rc));
 			if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
-				int bytes_written;
+				unsigned int bytes_written;
 				rc = CIFSSMBWrite(xid, pTcon,
 						  nfid, 0, attrs->ia_size,
 						  &bytes_written, NULL, NULL,
@@ -1511,7 +1511,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					int bytes_written;
+					unsigned int bytes_written;
 					rc = CIFSSMBWrite(xid, pTcon,
 							netfid, 0,
 							attrs->ia_size,
