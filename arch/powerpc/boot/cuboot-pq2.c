@@ -15,6 +15,7 @@
 #include "stdio.h"
 #include "cuboot.h"
 #include "io.h"
+#include "fsl-soc.h"
 
 #define TARGET_CPM2
 #define TARGET_HAS_ETH1
@@ -139,23 +140,20 @@ static void fixup_pci(void)
 	u32 *pci_regs[3];
 	u8 *soc_regs;
 	int i, len;
-	void *node, *parent_node, *soc_node;
+	void *node, *parent_node;
 	u32 naddr, nsize, mem_log2;
 
 	node = finddevice("/pci");
 	if (!node || !dt_is_compatible(node, "fsl,pq2-pci"))
 		return;
 
-	soc_node = finddevice("/soc");
-	if (!soc_node || !dt_is_compatible(soc_node, "fsl,pq2-soc"))
-		goto err;
-
 	for (i = 0; i < 3; i++)
 		if (!dt_xlate_reg(node, i,
 		                  (unsigned long *)&pci_regs[i], NULL))
 			goto err;
 
-	if (!dt_xlate_reg(soc_node, 0, (unsigned long *)&soc_regs, NULL))
+	soc_regs = (u8 *)fsl_get_immr();
+	if (!soc_regs)
 		goto err;
 
 	dt_get_reg_format(node, &naddr, &nsize);
