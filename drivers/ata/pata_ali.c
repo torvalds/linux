@@ -34,7 +34,7 @@
 #include <linux/dmi.h>
 
 #define DRV_NAME "pata_ali"
-#define DRV_VERSION "0.7.4"
+#define DRV_VERSION "0.7.5"
 
 /*
  *	Cable special cases

@@ -22,7 +22,7 @@
 #include <linux/pata_platform.h>
 
 #define DRV_NAME "pata_platform"
-#define DRV_VERSION "1.0"
+#define DRV_VERSION "1.1"
 
 static int pio_mask = 1;
 

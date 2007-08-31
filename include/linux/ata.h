@@ -73,6 +73,19 @@ enum {
 	ATA_PIO5		= ATA_PIO4 | (1 << 5),
 	ATA_PIO6		= ATA_PIO5 | (1 << 6),
 
+	ATA_SWDMA0		= (1 << 0),
+	ATA_SWDMA1		= ATA_SWDMA0 | (1 << 1),
+	ATA_SWDMA2		= ATA_SWDMA1 | (1 << 2),
+
+	ATA_SWDMA2_ONLY		= (1 << 2),
+
+	ATA_MWDMA0		= (1 << 0),
+	ATA_MWDMA1		= ATA_MWDMA0 | (1 << 1),
+	ATA_MWDMA2		= ATA_MWDMA1 | (1 << 2),
+
+	ATA_MWDMA12_ONLY	= (1 << 1) | (1 << 2),
+	ATA_MWDMA2_ONLY		= (1 << 2),
+
 	ATA_UDMA0		= (1 << 0),
 	ATA_UDMA1		= ATA_UDMA0 | (1 << 1),
 	ATA_UDMA2		= ATA_UDMA1 | (1 << 2),
