@@ -175,7 +175,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		return -ENOMEM;
 
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len, pgoff))
+		if (prepare_hugepage_range(addr, len))
 			return -EINVAL;
 		return addr;
 	}
