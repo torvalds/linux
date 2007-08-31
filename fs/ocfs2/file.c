@@ -314,7 +314,6 @@ static int ocfs2_orphan_for_truncate(struct ocfs2_super *osb,
 	}
 
 	i_size_write(inode, new_i_size);
-	inode->i_blocks = ocfs2_align_bytes_to_sectors(new_i_size);
 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
 
 	di = (struct ocfs2_dinode *) fe_bh->b_data;
