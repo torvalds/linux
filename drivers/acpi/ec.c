@@ -886,7 +886,8 @@ int __init acpi_ec_ecdt_probe(void)
 		printk(KERN_DEBUG PREFIX "Look up EC in DSDT\n");
 		status = acpi_get_devices(ec_device_ids[0].id, ec_parse_device,
 						boot_ec, NULL);
-		if (ACPI_FAILURE(status))
+		/* Check that acpi_get_devices actually find something */
+		if (ACPI_FAILURE(status) || !boot_ec->handle)
 			goto error;
 	}
 
