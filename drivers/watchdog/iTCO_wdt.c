@@ -600,7 +600,7 @@ static struct miscdevice iTCO_wdt_miscdev = {
  *	Init & exit routines
  */
 
-static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, struct platform_device *dev)
+static int __devinit iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, struct platform_device *dev)
 {
 	int ret;
 	u32 base_address;
@@ -704,7 +704,7 @@ out:
 	return ret;
 }
 
-static void iTCO_wdt_cleanup(void)
+static void __devexit iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -719,7 +719,7 @@ static void iTCO_wdt_cleanup(void)
 	iTCO_wdt_private.ACPIBASE = 0;
 }
 
-static int iTCO_wdt_probe(struct platform_device *dev)
+static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 {
 	int found = 0;
 	struct pci_dev *pdev = NULL;
@@ -745,7 +745,7 @@ static int iTCO_wdt_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int iTCO_wdt_remove(struct platform_device *dev)
+static int __devexit iTCO_wdt_remove(struct platform_device *dev)
 {
 	if (iTCO_wdt_private.ACPIBASE)
 		iTCO_wdt_cleanup();
@@ -763,7 +763,7 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
-	.remove         = iTCO_wdt_remove,
+	.remove         = __devexit_p(iTCO_wdt_remove),
 	.shutdown       = iTCO_wdt_shutdown,
 	.suspend        = iTCO_wdt_suspend,
 	.resume         = iTCO_wdt_resume,
