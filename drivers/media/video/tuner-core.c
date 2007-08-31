@@ -110,6 +110,17 @@ static void fe_standby(struct tuner *t)
 		fe_tuner_ops->sleep(&t->fe);
 }
 
+static int fe_has_signal(struct tuner *t)
+{
+	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+	u16 strength;
+
+	if (fe_tuner_ops->get_rf_strength)
+		fe_tuner_ops->get_rf_strength(&t->fe, &strength);
+
+	return strength;
+}
+
 /* Set tuner frequency,  freq in Units of 62.5kHz = 1/16MHz */
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
@@ -326,6 +337,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->ops.set_radio_freq = fe_set_freq;
 		t->ops.standby        = fe_standby;
 		t->ops.release        = fe_release;
+		t->ops.has_signal     = fe_has_signal;
 	}
 
 	tuner_info("type set to %s\n", t->i2c.name);
@@ -807,12 +819,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					u32 tuner_status;
 
 					fe_tuner_ops->get_status(&t->fe, &tuner_status);
-						if (tuner_status & TUNER_STATUS_STEREO)
-							vt->flags |= VIDEO_TUNER_STEREO_ON;
-						else
-							vt->flags &= ~VIDEO_TUNER_STEREO_ON;
-						vt->signal = tuner_status & TUNER_STATUS_LOCKED
-							? 65535 : 0;
+					if (tuner_status & TUNER_STATUS_STEREO)
+						vt->flags |= VIDEO_TUNER_STEREO_ON;
+					else
+						vt->flags &= ~VIDEO_TUNER_STEREO_ON;
 				} else {
 					if (t->ops.is_stereo) {
 						if (t->ops.is_stereo(t))
@@ -822,9 +832,10 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 							vt->flags &=
 								~VIDEO_TUNER_STEREO_ON;
 					}
-					if (t->ops.has_signal)
-						vt->signal = t->ops.has_signal(t);
 				}
+				if (t->ops.has_signal)
+					vt->signal = t->ops.has_signal(t);
+
 				vt->flags |= VIDEO_TUNER_LOW;	/* Allow freqs at 62.5 Hz */
 
 				vt->rangelow = radio_range[0] * 16000;
@@ -948,15 +959,14 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				fe_tuner_ops->get_status(&t->fe, &tuner_status);
 				tuner->rxsubchans = (tuner_status & TUNER_STATUS_STEREO) ?
 					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
-				tuner->signal = tuner_status & TUNER_STATUS_LOCKED ? 65535 : 0;
 			} else {
 				if (t->ops.is_stereo) {
 					tuner->rxsubchans = t->ops.is_stereo(t) ?
 						V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
 				}
-				if (t->ops.has_signal)
-					tuner->signal = t->ops.has_signal(t);
 			}
+			if (t->ops.has_signal)
+				tuner->signal = t->ops.has_signal(t);
 			tuner->capability |=
 			    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 			tuner->audmode = t->audmode;
