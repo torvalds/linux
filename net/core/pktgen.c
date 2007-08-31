@@ -380,7 +380,6 @@ struct pktgen_thread {
 	/* Field for thread to receive "posted" events terminate, stop ifs etc. */
 
 	u32 control;
-	int pid;
 	int cpu;
 
 	wait_queue_head_t queue;
@@ -3462,8 +3461,6 @@ static int pktgen_thread_worker(void *arg)
 	BUG_ON(smp_processor_id() != cpu);
 
 	init_waitqueue_head(&t->queue);
-
-	t->pid = current->pid;
 
 	pr_debug("pktgen: starting pktgen/%d:  pid=%d\n", cpu, current->pid);
 
