@@ -7746,10 +7746,20 @@ static struct hda_input_mux alc262_HP_capture_source = {
 	.num_items = 5,
 	.items = {
 		{ "Mic", 0x0 },
-		{ "Front Mic", 0x3 },
+		{ "Front Mic", 0x1 },
 		{ "Line", 0x2 },
 		{ "CD", 0x4 },
 		{ "AUX IN", 0x6 },
+	},
+};
+
+static struct hda_input_mux alc262_HP_D7000_capture_source = {
+	.num_items = 4,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Front Mic", 0x2 },
+		{ "Line", 0x1 },
+		{ "CD", 0x4 },
 	},
 };
 
@@ -8357,7 +8367,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
-		.input_mux = &alc262_HP_capture_source,
+		.input_mux = &alc262_HP_D7000_capture_source,
 	},
 	[ALC262_HP_BPC_D7000_WL] = {
 		.mixers = { alc262_HP_BPC_WildWest_mixer,
@@ -8368,7 +8378,7 @@ static struct alc_config_preset alc262_presets[] = {
 		.hp_nid = 0x03,
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
-		.input_mux = &alc262_HP_capture_source,
+		.input_mux = &alc262_HP_D7000_capture_source,
 	},
 	[ALC262_BENQ_ED8] = {
 		.mixers = { alc262_base_mixer },
