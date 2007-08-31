@@ -246,13 +246,12 @@ void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
 
 int iforce_get_id_packet(struct iforce *iforce, char *packet)
 {
-	int status;
-
 	switch (iforce->bus) {
 
-	case IFORCE_USB:
-
+	case IFORCE_USB: {
 #ifdef CONFIG_JOYSTICK_IFORCE_USB
+		int status;
+
 		iforce->cr.bRequest = packet[0];
 		iforce->ctrl->dev = iforce->usbdev;
 
@@ -273,6 +272,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 #else
 		dbg("iforce_get_id_packet: iforce->bus = USB!");
 #endif
+		}
 		break;
 
 	case IFORCE_232:
