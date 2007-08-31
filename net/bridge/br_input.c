@@ -101,9 +101,8 @@ static int br_handle_local_finish(struct sk_buff *skb)
 {
 	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
 
-	if (p && p->state != BR_STATE_DISABLED)
+	if (p)
 		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
-
 	return 0;	 /* process further */
 }
 
