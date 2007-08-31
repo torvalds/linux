@@ -272,6 +272,13 @@ config SCSI_FC_ATTRS
 	  each attached FiberChannel device to sysfs, say Y.
 	  Otherwise, say N.
 
+config SCSI_FC_TGT_ATTRS
+	bool "SCSI target support for FiberChannel Transport Attributes"
+	depends on SCSI_FC_ATTRS
+	depends on SCSI_TGT = y || SCSI_TGT = SCSI_FC_ATTRS
+	help
+		If you want to use SCSI target mode drivers enable this option.
+
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
 	depends on SCSI && NET

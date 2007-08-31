@@ -36,6 +36,7 @@
 #include <net/netlink.h>
 #include <scsi/scsi_netlink_fc.h>
 #include "scsi_priv.h"
+#include "scsi_transport_fc_internal.h"
 
 static int fc_queue_work(struct Scsi_Host *, struct work_struct *);
 static void fc_vport_sched_delete(struct work_struct *work);
@@ -1956,6 +1957,19 @@ static int fc_user_scan(struct Scsi_Host *shost, uint channel,
 	return 0;
 }
 
+static int fc_tsk_mgmt_response(struct Scsi_Host *shost, u64 nexus, u64 tm_id,
+				int result)
+{
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+	return i->f->tsk_mgmt_response(shost, nexus, tm_id, result);
+}
+
+static int fc_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
+{
+	struct fc_internal *i = to_fc_internal(shost->transportt);
+	return i->f->it_nexus_response(shost, nexus, result);
+}
+
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
@@ -1998,6 +2012,10 @@ fc_attach_transport(struct fc_function_template *ft)
 	i->t.eh_timed_out = fc_timed_out;
 
 	i->t.user_scan = fc_user_scan;
+
+	/* target-mode drivers' functions */
+	i->t.tsk_mgmt_response = fc_tsk_mgmt_response;
+	i->t.it_nexus_response = fc_it_nexus_response;
 
 	/*
 	 * Setup SCSI Target Attributes.
@@ -2756,6 +2774,10 @@ fc_remote_port_delete(struct fc_rport  *rport)
 
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
+	if (rport->roles & FC_PORT_ROLE_FCP_INITIATOR &&
+	    shost->active_mode & MODE_TARGET)
+		fc_tgt_it_nexus_destroy(shost, (unsigned long)rport);
+
 	scsi_target_block(&rport->dev);
 
 	/* see if we need to kill io faster than waiting for device loss */
@@ -2796,6 +2818,7 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 	struct fc_host_attrs *fc_host = shost_to_fc_host(shost);
 	unsigned long flags;
 	int create = 0;
+	int ret;
 
 	spin_lock_irqsave(shost->host_lock, flags);
 	if (roles & FC_PORT_ROLE_FCP_TARGET) {
@@ -2804,6 +2827,12 @@ fc_remote_port_rolechg(struct fc_rport  *rport, u32 roles)
 			create = 1;
 		} else if (!(rport->roles & FC_PORT_ROLE_FCP_TARGET))
 			create = 1;
+	} else if (shost->active_mode & MODE_TARGET) {
+		ret = fc_tgt_it_nexus_create(shost, (unsigned long)rport,
+					     (char *)&rport->node_name);
+		if (ret)
+			printk(KERN_ERR "FC Remore Port tgt nexus failed %d\n",
+			       ret);
 	}
 
 	rport->roles = roles;
