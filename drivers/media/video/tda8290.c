@@ -553,27 +553,35 @@ static int tda8290_set_params(struct dvb_frontend *fe,
 static int tda8290_has_signal(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->tuner_priv;
+	int ret;
 
 	unsigned char i2c_get_afc[1] = { 0x1B };
 	unsigned char afc = 0;
 
+	/* for now, report based on afc status */
 	tuner_i2c_xfer_send(&priv->i2c_props, i2c_get_afc, ARRAY_SIZE(i2c_get_afc));
 	tuner_i2c_xfer_recv(&priv->i2c_props, &afc, 1);
-	return (afc & 0x80)? 65535:0;
+
+	ret = (afc & 0x80) ? 65535 : 0;
+
+	tuner_dbg("AFC status: %d\n", ret);
+
+	return ret;
 }
 
 static int tda8290_get_status(struct dvb_frontend *fe, u32 *status)
 {
-	struct tda8290_priv *priv = fe->tuner_priv;
-
-	int signal = tda8290_has_signal(fe);
 	*status = 0;
 
-	/* for now, report based on afc status */
-	if (signal)
+	if (tda8290_has_signal(fe))
 		*status = TUNER_STATUS_LOCKED;
 
-	tuner_dbg("tda8290: AFC status: %d\n", signal);
+	return 0;
+}
+
+static int tda8290_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
+{
+	*strength = tda8290_has_signal(fe);
 
 	return 0;
 }
@@ -656,6 +664,7 @@ static struct dvb_tuner_ops tda8290_tuner_ops = {
 	.release           = tda8290_release,
 	.get_frequency     = tda8290_get_frequency,
 	.get_status        = tda8290_get_status,
+	.get_rf_strength   = tda8290_get_rf_strength,
 };
 
 struct dvb_frontend *tda8290_attach(struct dvb_frontend *fe,
