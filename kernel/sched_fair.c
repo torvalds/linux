@@ -354,7 +354,7 @@ __update_curr(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	delta_fair = calc_delta_fair(delta_exec, lw);
 	delta_mine = calc_delta_mine(delta_exec, curr->load.weight, lw);
 
-	if (cfs_rq->sleeper_bonus > sysctl_sched_latency) {
+	if (cfs_rq->sleeper_bonus > sysctl_sched_min_granularity) {
 		delta = min((u64)delta_mine, cfs_rq->sleeper_bonus);
 		delta = min(delta, (unsigned long)(
 			(long)sysctl_sched_runtime_limit - curr->wait_runtime));
@@ -488,6 +488,9 @@ static void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	unsigned long delta_fair;
+
+	if (unlikely(!se->wait_start_fair))
+		return;
 
 	delta_fair = (unsigned long)min((u64)(2*sysctl_sched_runtime_limit),
 			(u64)(cfs_rq->fair_clock - se->wait_start_fair));
@@ -668,7 +671,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void
+static int
 __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			  struct sched_entity *curr, unsigned long granularity)
 {
@@ -679,8 +682,11 @@ __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	 * preempt the current task unless the best task has
 	 * a larger than sched_granularity fairness advantage:
 	 */
-	if (__delta > niced_granularity(curr, granularity))
+	if (__delta > niced_granularity(curr, granularity)) {
 		resched_task(rq_of(cfs_rq)->curr);
+		return 1;
+	}
+	return 0;
 }
 
 static inline void
@@ -725,6 +731,7 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
+	unsigned long gran, ideal_runtime, delta_exec;
 	struct sched_entity *next;
 
 	/*
@@ -741,8 +748,22 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	__check_preempt_curr_fair(cfs_rq, next, curr,
-			sched_granularity(cfs_rq));
+	gran = sched_granularity(cfs_rq);
+	ideal_runtime = niced_granularity(curr,
+		max(sysctl_sched_latency / cfs_rq->nr_running,
+		    (unsigned long)sysctl_sched_min_granularity));
+	/*
+	 * If we executed more than what the latency constraint suggests,
+	 * reduce the rescheduling granularity. This way the total latency
+	 * of how much a task is not scheduled converges to
+	 * sysctl_sched_latency:
+	 */
+	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	if (delta_exec > ideal_runtime)
+		gran = 0;
+
+	if (__check_preempt_curr_fair(cfs_rq, next, curr, gran))
+		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
 }
 
 /**************************************************
@@ -1076,31 +1097,34 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
 static void task_new_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
-	struct sched_entity *se = &p->se;
+	struct sched_entity *se = &p->se, *curr = cfs_rq_curr(cfs_rq);
 
 	sched_info_queued(p);
 
+	update_curr(cfs_rq);
 	update_stats_enqueue(cfs_rq, se);
 	/*
 	 * Child runs first: we let it run before the parent
 	 * until it reschedules once. We set up the key so that
 	 * it will preempt the parent:
 	 */
-	p->se.fair_key = current->se.fair_key -
-		niced_granularity(&rq->curr->se, sched_granularity(cfs_rq)) - 1;
+	se->fair_key = curr->fair_key -
+		niced_granularity(curr, sched_granularity(cfs_rq)) - 1;
 	/*
 	 * The first wait is dominated by the child-runs-first logic,
 	 * so do not credit it with that waiting time yet:
 	 */
 	if (sysctl_sched_features & SCHED_FEAT_SKIP_INITIAL)
-		p->se.wait_start_fair = 0;
+		se->wait_start_fair = 0;
 
 	/*
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
-		p->se.wait_runtime = -(sched_granularity(cfs_rq) / 2);
+	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT) {
+		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
+		schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
+	}
 
 	__enqueue_entity(cfs_rq, se);
 }
