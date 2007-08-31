@@ -716,25 +716,17 @@ static int gelic_net_kick_txdma(struct gelic_net_card *card,
 				struct gelic_net_descr *descr)
 {
 	int status = 0;
-	int count = 10;
 
 	if (card->tx_dma_progress)
 		return 0;
 
 	if (gelic_net_get_descr_status(descr) == GELIC_NET_DESCR_CARDOWNED) {
 		card->tx_dma_progress = 1;
-		/* sometimes we need retry here */
-		while (count--) {
-			status = lv1_net_start_tx_dma(bus_id(card),
-						      dev_id(card),
-						      descr->bus_addr, 0);
-			if (!status)
-				break;
-		}
-		if (!count)
+		status = lv1_net_start_tx_dma(bus_id(card), dev_id(card),
+					      descr->bus_addr, 0);
+		if (status)
 			dev_info(ctodev(card), "lv1_net_start_txdma failed," \
-				"status=%d %#lx\n",
-				 status, card->irq_status);
+				 "status=%d\n", status);
 	}
 	return status;
 }
