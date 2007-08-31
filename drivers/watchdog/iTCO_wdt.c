@@ -35,10 +35,12 @@
  *	82801GDH (ICH7DH)    : document number 307013-002, 307014-009,
  *	82801GBM (ICH7-M)    : document number 307013-002, 307014-009,
  *	82801GHM (ICH7-M DH) : document number 307013-002, 307014-009,
- *	82801HB  (ICH8)      : document number 313056-002, 313057-004,
- *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
- *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
- *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
+ *	82801HB  (ICH8)      : document number 313056-003, 313057-009,
+ *	82801HR  (ICH8R)     : document number 313056-003, 313057-009,
+ *	82801HBM (ICH8M)     : document number 313056-003, 313057-009,
+ *	82801HH  (ICH8DH)    : document number 313056-003, 313057-009,
+ *	82801HO  (ICH8DO)    : document number 313056-003, 313057-009,
+ *	82801HEM (ICH8M-E)   : document number 313056-003, 313057-009,
  *	82801IB  (ICH9)      : document number 316972-001, 316973-001,
  *	82801IR  (ICH9R)     : document number 316972-001, 316973-001,
  *	82801IH  (ICH9DH)    : document number 316972-001, 316973-001,
@@ -95,8 +97,10 @@ enum iTCO_chipsets {
 	TCO_ICH7M,	/* ICH7-M */
 	TCO_ICH7MDH,	/* ICH7-M DH */
 	TCO_ICH8,	/* ICH8 & ICH8R */
+	TCO_ICH8ME,	/* ICH8M-E */
 	TCO_ICH8DH,	/* ICH8DH */
 	TCO_ICH8DO,	/* ICH8DO */
+	TCO_ICH8M,	/* ICH8M */
 	TCO_ICH9,	/* ICH9 */
 	TCO_ICH9R,	/* ICH9R */
 	TCO_ICH9DH,	/* ICH9DH */
@@ -125,8 +129,10 @@ static struct {
 	{"ICH7-M", 2},
 	{"ICH7-M DH", 2},
 	{"ICH8 or ICH8R", 2},
+	{"ICH8M-E", 2},
 	{"ICH8DH", 2},
 	{"ICH8DO", 2},
+	{"ICH8M", 2},
 	{"ICH9", 2},
 	{"ICH9R", 2},
 	{"ICH9DH", 2},
@@ -168,8 +174,10 @@ static struct pci_device_id iTCO_wdt_pci_tbl[] = {
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_1,		TCO_ICH7M  )},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_31,		TCO_ICH7MDH)},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_0,		TCO_ICH8   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_1,		TCO_ICH8ME )},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_2,		TCO_ICH8DH )},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_3,		TCO_ICH8DO )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_4,		TCO_ICH8M  )},
 	{ ITCO_PCI_DEVICE(0x2918,				TCO_ICH9   )},
 	{ ITCO_PCI_DEVICE(0x2916,				TCO_ICH9R  )},
 	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH9_2,		TCO_ICH9DH )},
