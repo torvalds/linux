@@ -834,7 +834,8 @@ static void ecryptfs_sync_page(struct page *page)
 		ecryptfs_printk(KERN_DEBUG, "find_lock_page failed\n");
 		return;
 	}
-	lower_page->mapping->a_ops->sync_page(lower_page);
+	if (lower_page->mapping->a_ops->sync_page)
+		lower_page->mapping->a_ops->sync_page(lower_page);
 	ecryptfs_printk(KERN_DEBUG, "Unlocking page with index = [0x%.16x]\n",
 			lower_page->index);
 	unlock_page(lower_page);
