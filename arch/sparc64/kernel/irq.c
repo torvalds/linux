@@ -406,6 +406,18 @@ static void sun4v_irq_disable(unsigned int virt_irq)
 }
 
 #ifdef CONFIG_PCI_MSI
+static void sun4u_msi_enable(unsigned int virt_irq)
+{
+	sun4u_irq_enable(virt_irq);
+	unmask_msi_irq(virt_irq);
+}
+
+static void sun4u_msi_disable(unsigned int virt_irq)
+{
+	mask_msi_irq(virt_irq);
+	sun4u_irq_disable(virt_irq);
+}
+
 static void sun4v_msi_enable(unsigned int virt_irq)
 {
 	sun4v_irq_enable(virt_irq);
@@ -583,6 +595,17 @@ static struct irq_chip sun4v_irq_ack = {
 };
 
 #ifdef CONFIG_PCI_MSI
+static struct irq_chip sun4u_msi = {
+	.typename	= "sun4u+msi",
+	.mask		= mask_msi_irq,
+	.unmask		= unmask_msi_irq,
+	.enable		= sun4u_msi_enable,
+	.disable	= sun4u_msi_disable,
+	.ack		= run_pre_handler,
+	.end		= sun4u_irq_end,
+	.set_affinity	= sun4u_set_affinity,
+};
+
 static struct irq_chip sun4v_msi = {
 	.typename	= "sun4v+msi",
 	.mask		= mask_msi_irq,
@@ -628,6 +651,7 @@ void irq_install_pre_handler(int virt_irq,
 	    chip == &sun4v_irq_ack ||
 	    chip == &sun4v_virq_ack
 #ifdef CONFIG_PCI_MSI
+	    || chip == &sun4u_msi
 	    || chip == &sun4v_msi
 #endif
 	    )
@@ -786,6 +810,53 @@ unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 }
 
 void sun4v_destroy_msi(unsigned int virt_irq)
+{
+	virt_irq_free(virt_irq);
+}
+
+unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
+			     unsigned int msi_start, unsigned int msi_end,
+			     unsigned long imap_base, unsigned long iclr_base)
+{
+	struct ino_bucket *bucket;
+	struct irq_handler_data *data;
+	unsigned long sysino;
+	unsigned int devino;
+
+	/* Find a free devino in the given range.  */
+	for (devino = msi_start; devino < msi_end; devino++) {
+		sysino = (portid << 6) | devino;
+		bucket = &ivector_table[sysino];
+		if (!bucket->virt_irq)
+			break;
+	}
+	if (devino >= msi_end)
+		return -ENOSPC;
+
+	sysino = (portid << 6) | devino;
+	bucket = &ivector_table[sysino];
+	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
+	*virt_irq_p = bucket->virt_irq;
+	set_irq_chip(bucket->virt_irq, &sun4u_msi);
+
+	data = get_irq_chip_data(bucket->virt_irq);
+	if (unlikely(data))
+		return devino;
+
+	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
+	if (unlikely(!data)) {
+		virt_irq_free(*virt_irq_p);
+		return -ENOMEM;
+	}
+	set_irq_chip_data(bucket->virt_irq, data);
+
+	data->imap = (imap_base + (devino * 0x8UL));
+	data->iclr = (iclr_base + (devino * 0x8UL));
+
+	return devino;
+}
+
+void sun4u_destroy_msi(unsigned int virt_irq)
 {
 	virt_irq_free(virt_irq);
 }

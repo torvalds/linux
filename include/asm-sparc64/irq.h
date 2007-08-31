@@ -51,6 +51,12 @@ extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 				    unsigned int msi_devino_start,
 				    unsigned int msi_devino_end);
 extern void sun4v_destroy_msi(unsigned int virt_irq);
+extern unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
+				    unsigned int msi_devino_start,
+				    unsigned int msi_devino_end,
+				    unsigned long imap_base,
+				    unsigned long iclr_base);
+extern void sun4u_destroy_msi(unsigned int virt_irq);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
 extern void sparc64_set_msi(unsigned int virt_irq, u32 msi);
