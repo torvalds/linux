@@ -600,10 +600,12 @@ static struct ehca_qp *internal_create_qp(
 
 	if (EHCA_BMASK_GET(HCA_CAP_MINI_QP, shca->hca_cap)
 	    && !(context && udata)) { /* no small QP support in userspace ATM */
-		ehca_determine_small_queue(
-			&parms.squeue, max_send_sge, is_llqp);
-		ehca_determine_small_queue(
-			&parms.rqueue, max_recv_sge, is_llqp);
+		if (HAS_SQ(my_qp))
+			ehca_determine_small_queue(
+				&parms.squeue, max_send_sge, is_llqp);
+		if (HAS_RQ(my_qp))
+			ehca_determine_small_queue(
+				&parms.rqueue, max_recv_sge, is_llqp);
 		parms.qp_storage =
 			(parms.squeue.is_small || parms.rqueue.is_small);
 	}
