@@ -393,7 +393,6 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->host_controller = pbm;
 	sd->prom_node = node;
 	sd->op = of_find_device_by_node(node);
-	sd->msi_num = 0xffffffff;
 
 	sd = &sd->op->dev.archdata;
 	sd->iommu = pbm->iommu;

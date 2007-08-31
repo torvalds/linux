@@ -16,8 +16,6 @@ struct dev_archdata {
 
 	struct device_node	*prom_node;
 	struct of_device	*op;
-
-	unsigned int		msi_num;
 };
 
 #endif /* _ASM_SPARC64_DEVICE_H */
