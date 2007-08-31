@@ -606,28 +606,28 @@ static void snd_hdsp_9652_enable_mixer (struct hdsp *hdsp);
 
 static int hdsp_playback_to_output_key (struct hdsp *hdsp, int in, int out)
 {
-	switch (hdsp->firmware_rev) {
-	case 0xa:
-		return (64 * out) + (32 + (in));
-	case 0x96:
-	case 0x97:
-	case 0x98:
-		return (32 * out) + (16 + (in));
+	switch (hdsp->io_type) {
+	case Multiface:
+	case Digiface:
 	default:
+		return (64 * out) + (32 + (in));
+	case H9632:
+		return (32 * out) + (16 + (in));
+	case H9652:
 		return (52 * out) + (26 + (in));
 	}
 }
 
 static int hdsp_input_to_output_key (struct hdsp *hdsp, int in, int out)
 {
-	switch (hdsp->firmware_rev) {
-	case 0xa:
-		return (64 * out) + in;
-	case 0x96:
-	case 0x97:
-	case 0x98:
-		return (32 * out) + in;
+	switch (hdsp->io_type) {
+	case Multiface:
+	case Digiface:
 	default:
+		return (64 * out) + in;
+	case H9632:
+		return (32 * out) + in;
+	case H9652:
 		return (52 * out) + in;
 	}
 }
