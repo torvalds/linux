@@ -175,10 +175,32 @@ error_data1:
 
 }
 
+static void dispatch_qp_event(struct ehca_shca *shca, struct ehca_qp *qp,
+			      enum ib_event_type event_type)
+{
+	struct ib_event event;
+
+	event.device = &shca->ib_device;
+	event.event = event_type;
+
+	if (qp->ext_type == EQPT_SRQ) {
+		if (!qp->ib_srq.event_handler)
+			return;
+
+		event.element.srq = &qp->ib_srq;
+		qp->ib_srq.event_handler(&event, qp->ib_srq.srq_context);
+	} else {
+		if (!qp->ib_qp.event_handler)
+			return;
+
+		event.element.qp = &qp->ib_qp;
+		qp->ib_qp.event_handler(&event, qp->ib_qp.qp_context);
+	}
+}
+
 static void qp_event_callback(struct ehca_shca *shca, u64 eqe,
 			      enum ib_event_type event_type, int fatal)
 {
-	struct ib_event event;
 	struct ehca_qp *qp;
 	u32 token = EHCA_BMASK_GET(EQE_QP_TOKEN, eqe);
 
@@ -186,30 +208,22 @@ static void qp_event_callback(struct ehca_shca *shca, u64 eqe,
 	qp = idr_find(&ehca_qp_idr, token);
 	read_unlock(&ehca_qp_idr_lock);
 
-
 	if (!qp)
 		return;
 
 	if (fatal)
 		ehca_error_data(shca, qp, qp->ipz_qp_handle.handle);
 
-	event.device = &shca->ib_device;
+	dispatch_qp_event(shca, qp, fatal && qp->ext_type == EQPT_SRQ ?
+			  IB_EVENT_SRQ_ERR : event_type);
 
-	if (qp->ext_type == EQPT_SRQ) {
-		if (!qp->ib_srq.event_handler)
-			return;
-
-		event.event = fatal ? IB_EVENT_SRQ_ERR : event_type;
-		event.element.srq = &qp->ib_srq;
-		qp->ib_srq.event_handler(&event, qp->ib_srq.srq_context);
-	} else {
-		if (!qp->ib_qp.event_handler)
-			return;
-
-		event.event = event_type;
-		event.element.qp = &qp->ib_qp;
-		qp->ib_qp.event_handler(&event, qp->ib_qp.qp_context);
-	}
+	/*
+	 * eHCA only processes one WQE at a time for SRQ base QPs,
+	 * so the last WQE has been processed as soon as the QP enters
+	 * error state.
+	 */
+	if (fatal && qp->ext_type == EQPT_SRQBASE)
+		dispatch_qp_event(shca, qp, IB_EVENT_QP_LAST_WQE_REACHED);
 
 	return;
 }
