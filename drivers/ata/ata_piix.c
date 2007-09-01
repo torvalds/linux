@@ -123,7 +123,6 @@ enum {
 	ich_pata_33		= 1,	/* ICH up to UDMA 33 only */
 	ich_pata_66		= 2,	/* ICH up to 66 Mhz */
 	ich_pata_100		= 3,	/* ICH up to UDMA 100 */
-	/* ICH up to UDMA 133 is not supported */
 	ich5_sata		= 5,
 	ich6_sata		= 6,
 	ich6_sata_ahci		= 7,
@@ -459,7 +458,7 @@ static const struct piix_map_db *piix_map_db_table[] = {
 };
 
 static struct ata_port_info piix_port_info[] = {
-	/* piix_pata_33: 0:  PIIX4 at 33MHz */
+	[piix_pata_33] =	/* PIIX4 at 33MHz */
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS,
@@ -469,7 +468,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_pata_ops,
 	},
 
-	/* ich_pata_33: 1 	ICH0 - ICH at 33Mhz*/
+	[ich_pata_33] = 	/* ICH0 - ICH at 33Mhz*/
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS,
@@ -478,7 +477,8 @@ static struct ata_port_info piix_port_info[] = {
 		.udma_mask	= ATA_UDMA2, /* UDMA33 */
 		.port_ops	= &ich_pata_ops,
 	},
-	/* ich_pata_66: 2 	ICH controllers up to 66MHz */
+
+	[ich_pata_66] = 	/* ICH controllers up to 66MHz */
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS,
@@ -488,7 +488,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &ich_pata_ops,
 	},
 
-	/* ich_pata_100: 3 */
+	[ich_pata_100] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS | PIIX_FLAG_CHECKINTR,
@@ -498,17 +498,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &ich_pata_ops,
 	},
 
-	/* ich_pata_133: 4 - Not supported - */
-	{
-		.sht		= &piix_sht,
-		.flags		= PIIX_PATA_FLAGS | PIIX_FLAG_CHECKINTR,
-		.pio_mask 	= 0x1f,	/* pio 0-4 */
-		.mwdma_mask	= 0x06, /* Check: maybe 0x07  */
-		.udma_mask	= ATA_UDMA6, /* UDMA133 */
-		.port_ops	= &ich_pata_ops,
-	},
-
-	/* ich5_sata: 5 */
+	[ich5_sata] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS,
@@ -518,7 +508,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6_sata: 6 */
+	[ich6_sata] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR,
@@ -528,7 +518,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6_sata_ahci: 7 */
+	[ich6_sata_ahci] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
@@ -539,7 +529,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich6m_sata_ahci: 8 */
+	[ich6m_sata_ahci] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
@@ -550,7 +540,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* ich8_sata_ahci: 9 */
+	[ich8_sata_ahci] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
@@ -561,7 +551,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_sata_ops,
 	},
 
-	/* piix_pata_mwdma: 10:  PIIX3 MWDMA only */
+	[piix_pata_mwdma] = 	/* PIIX3 MWDMA only */
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_PATA_FLAGS,
@@ -570,7 +560,7 @@ static struct ata_port_info piix_port_info[] = {
 		.port_ops	= &piix_pata_ops,
 	},
 
-	/* tolapai_sata_ahci: 11: */
+	[tolapai_sata_ahci] =
 	{
 		.sht		= &piix_sht,
 		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
