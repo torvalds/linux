@@ -119,7 +119,7 @@ static void
 machine_kdump_on_init(void)
 {
 	if (!ia64_kimage) {
-		printk(KERN_NOTICE "machine_kdump_on_init(): "
+		ia64_mca_printk(KERN_NOTICE "machine_kdump_on_init(): "
 				"kdump not configured\n");
 		return;
 	}
