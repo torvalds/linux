@@ -955,7 +955,8 @@ static int piix_broken_suspend(void)
 				DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M500"),
 			},
 		},
-		{ }
+
+		{ }	/* terminate list */
 	};
 	static const char *oemstrs[] = {
 		"Tecra M3,",
@@ -1187,6 +1188,8 @@ static void piix_iocfg_bit18_quirk(struct pci_dev *pdev)
 				DMI_MATCH(DMI_PRODUCT_NAME, "M570U"),
 			},
 		},
+
+		{ }	/* terminate list */
 	};
 	u32 iocfg;
 
