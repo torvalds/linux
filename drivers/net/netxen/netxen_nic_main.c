@@ -639,10 +639,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETXEN_CRB_NORMALIZE(adapter,
 				NETXEN_ROMUSB_GLB_PEGTUNE_DONE));
 		/* Handshake with the card before we register the devices. */
-		writel(0, NETXEN_CRB_NORMALIZE(adapter, CRB_CMDPEG_STATE));
-		netxen_pinit_from_rom(adapter, 0);
-		msleep(1);
-		netxen_load_firmware(adapter);
 		netxen_phantom_init(adapter, NETXEN_NIC_PEG_TUNE);
 	}
 
@@ -750,9 +746,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_nic_disable_int(adapter);
 
-	if (adapter->irq)
-		free_irq(adapter->irq, adapter);
-
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		init_firmware_done++;
 		netxen_free_hw_resources(adapter);
@@ -776,12 +769,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
-	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
-		pci_disable_msi(pdev);
-
 	vfree(adapter->cmd_buf_arr);
-
-	pci_disable_device(pdev);
 
 	if (adapter->portnum == 0) {
 		if (init_firmware_done) {
@@ -833,12 +821,19 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 		}
 	}
 
+	if (adapter->irq)
+		free_irq(adapter->irq, adapter);
+
+	if (adapter->flags & NETXEN_NIC_MSI_ENABLED)
+		pci_disable_msi(pdev);
+
 	iounmap(adapter->ahw.db_base);
 	iounmap(adapter->ahw.pci_base0);
 	iounmap(adapter->ahw.pci_base1);
 	iounmap(adapter->ahw.pci_base2);
 
 	pci_release_regions(pdev);
+	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	free_netdev(netdev);

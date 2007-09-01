@@ -42,9 +42,6 @@
 
 #define T3CNAMSIZ 16
 
-/* Get the t3cdev associated with a net_device */
-#define T3CDEV(netdev) (struct t3cdev *)(netdev->priv)
-
 struct cxgb3_client;
 
 enum t3ctype {
