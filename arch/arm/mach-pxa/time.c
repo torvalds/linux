@@ -23,6 +23,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/mach-types.h>
 
 /*
  * This is PXA's sched_clock implementation. This has a resolution
@@ -186,20 +187,29 @@ static struct irqaction pxa_ost0_irq = {
 
 static void __init pxa_timer_init(void)
 {
+	unsigned long clock_tick_rate;
+
 	OIER = 0;
 	OSSR = OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3;
 
-	set_oscr2ns_scale(CLOCK_TICK_RATE);
+	if (cpu_is_pxa21x() || cpu_is_pxa25x())
+		clock_tick_rate = 3686400;
+	else if (machine_is_mainstone())
+		clock_tick_rate = 3249600;
+	else
+		clock_tick_rate = 3250000;
+
+	set_oscr2ns_scale(clock_tick_rate);
 
 	ckevt_pxa_osmr0.mult =
-		div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
+		div_sc(clock_tick_rate, NSEC_PER_SEC, ckevt_pxa_osmr0.shift);
 	ckevt_pxa_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA, &ckevt_pxa_osmr0) + 1;
 
 	cksrc_pxa_oscr0.mult =
-		clocksource_hz2mult(CLOCK_TICK_RATE, cksrc_pxa_oscr0.shift);
+		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);
 
 	setup_irq(IRQ_OST0, &pxa_ost0_irq);
 
