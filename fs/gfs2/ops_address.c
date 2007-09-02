@@ -616,13 +616,50 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 	return dblock;
 }
 
+static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
+{
+	struct gfs2_bufdata *bd;
+
+	lock_buffer(bh);
+	gfs2_log_lock(sdp);
+	clear_buffer_dirty(bh);
+	bd = bh->b_private;
+	if (bd) {
+		if (!list_empty(&bd->bd_le.le_list)) {
+			if (!buffer_pinned(bh))
+				list_del_init(&bd->bd_le.le_list);
+		}
+	}
+	bh->b_bdev = NULL;
+	clear_buffer_mapped(bh);
+	clear_buffer_req(bh);
+	clear_buffer_new(bh);
+	gfs2_log_unlock(sdp);
+	unlock_buffer(bh);
+}
+
 static void gfs2_invalidatepage(struct page *page, unsigned long offset)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(page->mapping->host);
+	struct buffer_head *bh, *head;
+	unsigned long pos = 0;
+
 	BUG_ON(!PageLocked(page));
 	if (offset == 0)
 		ClearPageChecked(page);
+	if (!page_has_buffers(page))
+		goto out;
 
-	block_invalidatepage(page, offset);
+	bh = head = page_buffers(page);
+	do {
+		if (offset <= pos)
+			gfs2_discard(sdp, bh);
+		pos += bh->b_size;
+		bh = bh->b_this_page;
+	} while (bh != head);
+out:
+	if (offset == 0)
+		try_to_release_page(page, 0);
 }
 
 /**
@@ -732,9 +769,14 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
 			gfs2_assert_warn(sdp, list_empty(&bd->bd_list_tr));
-			bd->bd_bh = NULL;
-			if (!list_empty(&bd->bd_le.le_list))
-				bd = NULL;
+			if (!list_empty(&bd->bd_le.le_list)) {
+				if (!buffer_pinned(bh))
+					list_del_init(&bd->bd_le.le_list);
+				else
+					bd = NULL;
+			}
+			if (bd)
+				bd->bd_bh = NULL;
 			bh->b_private = NULL;
 		}
 		gfs2_log_unlock(sdp);

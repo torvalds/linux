@@ -612,13 +612,13 @@ struct gfs2_sbd {
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
-	unsigned int sd_log_num_jdata;
 
 	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_rg;
 	struct list_head sd_log_le_databuf;
+	struct list_head sd_log_le_ordered;
 
 	unsigned int sd_log_blks_free;
 	struct mutex sd_log_reserve_mutex;

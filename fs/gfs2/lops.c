@@ -555,10 +555,11 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	if (gfs2_is_jdata(ip)) {
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
-		sdp->sd_log_num_jdata++;
+		sdp->sd_log_num_databuf++;
+		list_add(&le->le_list, &sdp->sd_log_le_databuf);
+	} else {
+		list_add(&le->le_list, &sdp->sd_log_le_ordered);
 	}
-	sdp->sd_log_num_databuf++;
-	list_add(&le->le_list, &sdp->sd_log_le_databuf);
 out:
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bd->bd_bh);
@@ -583,114 +584,59 @@ static int gfs2_check_magic(struct buffer_head *bh)
 /**
  * databuf_lo_before_commit - Scan the data buffers, writing as we go
  *
- * Here we scan through the lists of buffers and make the assumption
- * that any buffer thats been pinned is being journaled, and that
- * any unpinned buffer is an ordered write data buffer and therefore
- * will be written back rather than journaled.
  */
+
 static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 {
-	LIST_HEAD(started);
-	struct gfs2_bufdata *bd1 = NULL, *bd2, *bdt;
+	struct gfs2_bufdata *bd1 = NULL, *bd2;
 	struct buffer_head *bh = NULL,*bh1 = NULL;
 	struct gfs2_log_descriptor *ld;
 	unsigned int limit;
-	unsigned int total_dbuf;
-	unsigned int total_jdata;
+	unsigned int total;
 	unsigned int num, n;
 	__be64 *ptr = NULL;
+	int magic;
+
 
 	limit = databuf_limit(sdp);
 
-	/*
-	 * Start writing ordered buffers, write journaled buffers
-	 * into the log along with a header
-	 */
 	gfs2_log_lock(sdp);
-	total_dbuf = sdp->sd_log_num_databuf;
-	total_jdata = sdp->sd_log_num_jdata;
+	total = sdp->sd_log_num_databuf;
 	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf,
 				       bd_le.le_list);
-	while(total_dbuf) {
-		num = total_jdata;
+	while(total) {
+		num = total;
 		if (num > limit)
 			num = limit;
+
+		gfs2_log_unlock(sdp);
+		bh = gfs2_log_get_buf(sdp);
+		gfs2_log_lock(sdp);
+
+		ld = (struct gfs2_log_descriptor *)bh->b_data;
+		ptr = (__be64 *)(bh->b_data + DATABUF_OFFSET);
+		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+		ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
+		ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
+		ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_JDATA);
+		ld->ld_length = cpu_to_be32(num + 1);
+		ld->ld_data1 = cpu_to_be32(num);
+		ld->ld_data2 = cpu_to_be32(0);
+		memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
+
 		n = 0;
-		list_for_each_entry_safe_continue(bd1, bdt,
-						  &sdp->sd_log_le_databuf,
-						  bd_le.le_list) {
-			/* store off the buffer head in a local ptr since
-			 * gfs2_bufdata might change when we drop the log lock
-			 */
+		list_for_each_entry_continue(bd1, &sdp->sd_log_le_databuf,
+					     bd_le.le_list) {
 			bh1 = bd1->bd_bh;
 
-			/* An ordered write buffer */
-			if (bh1 && !buffer_pinned(bh1)) {
-				list_move(&bd1->bd_le.le_list, &started);
-				if (bd1 == bd2) {
-					bd2 = NULL;
-					bd2 = list_prepare_entry(bd2,
-							&sdp->sd_log_le_databuf,
-							bd_le.le_list);
-				}
-				total_dbuf--;
-				if (bh1) {
-					if (buffer_dirty(bh1)) {
-						get_bh(bh1);
-
-						gfs2_log_unlock(sdp);
-
-						ll_rw_block(SWRITE, 1, &bh1);
-						brelse(bh1);
-
-						gfs2_log_lock(sdp);
-					}
-					continue;
-				}
-				continue;
-			} else if (bh1) { /* A journaled buffer */
-				int magic;
-				gfs2_log_unlock(sdp);
-				if (!bh) {
-					bh = gfs2_log_get_buf(sdp);
-					ld = (struct gfs2_log_descriptor *)
-					     bh->b_data;
-					ptr = (__be64 *)(bh->b_data +
-							 DATABUF_OFFSET);
-					ld->ld_header.mh_magic =
-						cpu_to_be32(GFS2_MAGIC);
-					ld->ld_header.mh_type =
-						cpu_to_be32(GFS2_METATYPE_LD);
-					ld->ld_header.mh_format =
-						cpu_to_be32(GFS2_FORMAT_LD);
-					ld->ld_type =
-						cpu_to_be32(GFS2_LOG_DESC_JDATA);
-					ld->ld_length = cpu_to_be32(num + 1);
-					ld->ld_data1 = cpu_to_be32(num);
-					ld->ld_data2 = cpu_to_be32(0);
-					memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
-				}
-				magic = gfs2_check_magic(bh1);
-				*ptr++ = cpu_to_be64(bh1->b_blocknr);
-				*ptr++ = cpu_to_be64((__u64)magic);
-				clear_buffer_escaped(bh1);
-				if (unlikely(magic != 0))
-					set_buffer_escaped(bh1);
-				gfs2_log_lock(sdp);
-				if (++n >= num)
-					break;
-			} else if (!bh1) {
-				total_dbuf--;
-				sdp->sd_log_num_databuf--;
-				list_del_init(&bd1->bd_le.le_list);
-				if (bd1 == bd2) {
-					bd2 = NULL;
-					bd2 = list_prepare_entry(bd2,
-						&sdp->sd_log_le_databuf,
-						bd_le.le_list);
-                                }
-				kmem_cache_free(gfs2_bufdata_cachep, bd1);
-			}
+			magic = gfs2_check_magic(bh1);
+			*ptr++ = cpu_to_be64(bh1->b_blocknr);
+			*ptr++ = cpu_to_be64((__u64)magic);
+			clear_buffer_escaped(bh1);
+			if (unlikely(magic != 0))
+				set_buffer_escaped(bh1);
+			if (++n >= num)
+				break;
 		}
 		gfs2_log_unlock(sdp);
 		if (bh) {
@@ -727,34 +673,10 @@ static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 				break;
 		}
 		bh = NULL;
-		BUG_ON(total_dbuf < num);
-		total_dbuf -= num;
-		total_jdata -= num;
+		BUG_ON(total < num);
+		total -= num;
 	}
 	gfs2_log_unlock(sdp);
-
-	/* Wait on all ordered buffers */
-	while (!list_empty(&started)) {
-		gfs2_log_lock(sdp);
-		bd1 = list_entry(started.next, struct gfs2_bufdata,
-				 bd_le.le_list);
-		list_del_init(&bd1->bd_le.le_list);
-		sdp->sd_log_num_databuf--;
-		bh = bd1->bd_bh;
-		if (bh) {
-			bh->b_private = NULL;
-			get_bh(bh);
-			gfs2_log_unlock(sdp);
-			wait_on_buffer(bh);
-			brelse(bh);
-		} else
-			gfs2_log_unlock(sdp);
-
-		kmem_cache_free(gfs2_bufdata_cachep, bd1);
-	}
-
-	/* We've removed all the ordered write bufs here, so only jdata left */
-	gfs2_assert_warn(sdp, sdp->sd_log_num_databuf == sdp->sd_log_num_jdata);
 }
 
 static int databuf_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
@@ -838,11 +760,9 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
 		list_del_init(&bd->bd_le.le_list);
 		sdp->sd_log_num_databuf--;
-		sdp->sd_log_num_jdata--;
 		gfs2_unpin(sdp, bd->bd_bh, ai);
 	}
 	gfs2_assert_warn(sdp, !sdp->sd_log_num_databuf);
-	gfs2_assert_warn(sdp, !sdp->sd_log_num_jdata);
 }
 
 

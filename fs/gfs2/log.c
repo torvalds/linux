@@ -620,6 +620,57 @@ static void log_flush_commit(struct gfs2_sbd *sdp)
 	}
 }
 
+static void gfs2_ordered_write(struct gfs2_sbd *sdp)
+{
+	struct gfs2_bufdata *bd;
+	struct buffer_head *bh;
+	LIST_HEAD(written);
+
+	gfs2_log_lock(sdp);
+	while (!list_empty(&sdp->sd_log_le_ordered)) {
+		bd = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_bufdata, bd_le.le_list);
+		list_move(&bd->bd_le.le_list, &written);
+		bh = bd->bd_bh;
+		if (!buffer_dirty(bh))
+			continue;
+		get_bh(bh);
+		gfs2_log_unlock(sdp);
+		lock_buffer(bh);
+		if (test_clear_buffer_dirty(bh)) {
+			bh->b_end_io = end_buffer_write_sync;
+			submit_bh(WRITE, bh);
+		} else {
+			unlock_buffer(bh);
+			brelse(bh);
+		}
+		gfs2_log_lock(sdp);
+	}
+	list_splice(&written, &sdp->sd_log_le_ordered);
+	gfs2_log_unlock(sdp);
+}
+
+static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
+{
+	struct gfs2_bufdata *bd;
+	struct buffer_head *bh;
+
+	gfs2_log_lock(sdp);
+	while (!list_empty(&sdp->sd_log_le_ordered)) {
+		bd = list_entry(sdp->sd_log_le_ordered.prev, struct gfs2_bufdata, bd_le.le_list);
+		bh = bd->bd_bh;
+		if (buffer_locked(bh)) {
+			get_bh(bh);
+			gfs2_log_unlock(sdp);
+			wait_on_buffer(bh);
+			brelse(bh);
+			gfs2_log_lock(sdp);
+			continue;
+		}
+		list_del_init(&bd->bd_le.le_list);
+	}
+	gfs2_log_unlock(sdp);
+}
+
 /**
  * gfs2_log_flush - flush incore transaction(s)
  * @sdp: the filesystem
@@ -648,7 +699,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	INIT_LIST_HEAD(&ai->ai_ail2_list);
 
 	gfs2_assert_withdraw(sdp,
-			     sdp->sd_log_num_buf + sdp->sd_log_num_jdata ==
+			     sdp->sd_log_num_buf + sdp->sd_log_num_databuf ==
 			     sdp->sd_log_commited_buf +
 			     sdp->sd_log_commited_databuf);
 	gfs2_assert_withdraw(sdp,
@@ -658,7 +709,10 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	sdp->sd_log_flush_wrapped = 0;
 	ai->ai_first = sdp->sd_log_flush_head;
 
+	gfs2_ordered_write(sdp);
 	lops_before_commit(sdp);
+	gfs2_ordered_wait(sdp);
+
 	if (!list_empty(&sdp->sd_log_flush_list))
 		log_flush_commit(sdp);
 	else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle){
@@ -751,7 +805,6 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_blks_reserved);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_gl);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_buf);
-	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_jdata);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_rg);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_databuf);
