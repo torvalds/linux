@@ -93,10 +93,10 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		map_bh(bh, inode->i_sb, block);
 
 	set_buffer_uptodate(bh);
-	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
-		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 	if (!gfs2_is_jdata(ip))
 		mark_buffer_dirty(bh);
+	if (sdp->sd_args.ar_data == GFS2_DATA_ORDERED || gfs2_is_jdata(ip))
+		gfs2_trans_add_bh(ip->i_gl, bh, 0);
 
 	if (release) {
 		unlock_page(page);
