@@ -1901,6 +1901,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 	}
 	sta = tx.sta;
 	tx.flags |= IEEE80211_TXRXD_TXPS_BUFFERED;
+	tx.u.tx.mode = local->hw.conf.mode;
 
 	for (handler = local->tx_handlers; *handler != NULL; handler++) {
 		res = (*handler)(&tx);
