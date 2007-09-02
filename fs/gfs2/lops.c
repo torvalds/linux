@@ -357,7 +357,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	struct buffer_head *bh;
 	unsigned int offset;
 	struct list_head *head = &sdp->sd_log_le_revoke;
-	struct gfs2_revoke *rv;
+	struct gfs2_bufdata *bd;
 
 	if (!sdp->sd_log_num_revoke)
 		return;
@@ -376,8 +376,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	offset = sizeof(struct gfs2_log_descriptor);
 
 	while (!list_empty(head)) {
-		rv = list_entry(head->next, struct gfs2_revoke, rv_le.le_list);
-		list_del_init(&rv->rv_le.le_list);
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
+		list_del_init(&bd->bd_le.le_list);
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
@@ -392,8 +392,8 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 			offset = sizeof(struct gfs2_meta_header);
 		}
 
-		*(__be64 *)(bh->b_data + offset) = cpu_to_be64(rv->rv_blkno);
-		kfree(rv);
+		*(__be64 *)(bh->b_data + offset) = cpu_to_be64(bd->bd_blkno);
+		kfree(bd);
 
 		offset += sizeof(u64);
 	}

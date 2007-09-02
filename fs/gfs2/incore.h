@@ -114,7 +114,13 @@ struct gfs2_bufdata {
 	struct buffer_head *bd_bh;
 	struct gfs2_glock *bd_gl;
 
-	struct list_head bd_list_tr;
+	union {
+		struct list_head list_tr;
+		u64 blkno;
+	} u;
+#define bd_list_tr u.list_tr
+#define bd_blkno u.blkno
+
 	struct gfs2_log_element bd_le;
 
 	struct gfs2_ail *bd_ail;
@@ -296,11 +302,6 @@ struct gfs2_file {
 	unsigned long f_flags;		/* GFF_... */
 	struct mutex f_fl_mutex;
 	struct gfs2_holder f_fl_gh;
-};
-
-struct gfs2_revoke {
-	struct gfs2_log_element rv_le;
-	u64 rv_blkno;
 };
 
 struct gfs2_revoke_replay {
