@@ -2440,10 +2440,8 @@ sisusb_open(struct inode *inode, struct file *file)
 	struct usb_interface *interface;
 	int subminor = iminor(inode);
 
-	if (!(interface = usb_find_interface(&sisusb_driver, subminor))) {
-		dev_err(&sisusb->sisusb_dev->dev, "Failed to find interface\n");
+	if (!(interface = usb_find_interface(&sisusb_driver, subminor)))
 		return -ENODEV;
-	}
 
 	if (!(sisusb = usb_get_intfdata(interface)))
 		return -ENODEV;
