@@ -136,9 +136,9 @@ static struct clk pxa27x_clks[] = {
 	INIT_CK("LCDCLK", LCD,    &clk_pxa27x_lcd_ops, &pxa_device_fb.dev),
 	INIT_CK("CAMCLK", CAMERA, &clk_pxa27x_lcd_ops, NULL),
 
-	INIT_CKEN("UARTCLK", STUART, 14857000, 1, &pxa_device_stuart.dev),
 	INIT_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
 	INIT_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
 
 	INIT_CKEN("I2SCLK",  I2S,  14682000, 0, &pxa_device_i2s.dev),
 	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),

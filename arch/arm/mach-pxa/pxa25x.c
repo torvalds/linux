@@ -115,8 +115,8 @@ static struct clk pxa25x_clks[] = {
 	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
 	INIT_CKEN("UARTCLK", FFUART, 14745600, 1, &pxa_device_ffuart.dev),
 	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
-	INIT_CKEN("UARTCLK", STUART, 14745600, 1, &pxa_device_stuart.dev),
 	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
+	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
 	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
@@ -126,8 +126,8 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("SSPCLK",  SSP,  3686400,  0, NULL),
 	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
 	INIT_CKEN("NSSPCLK", NSSP, 3686400,  0, NULL),
-	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
 	*/
+	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
 };
 
 #ifdef CONFIG_PM
