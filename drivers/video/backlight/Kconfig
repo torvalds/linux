@@ -51,12 +51,13 @@ config BACKLIGHT_CLASS_DEVICE
 	  select the proper drivers which depend on this option.
 
 config BACKLIGHT_CORGI
-	tristate "Sharp Corgi Backlight Driver (SL Series)"
-	depends on BACKLIGHT_CLASS_DEVICE && PXA_SHARPSL
-	default y
+	tristate "Generic (aka Sharp Corgi) Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
 	help
-	  If you have a Sharp Zaurus SL-C7xx, SL-Cxx00 or SL-6000x say y to enable the
-	  backlight driver.
+	  Say y to enable the generic platform backlight driver previously
+	  known as the Corgi backlight driver. If you have a Sharp Zaurus
+	  SL-C7xx, SL-Cxx00 or SL-6000x say y. Most users can say n.
 
 config BACKLIGHT_LOCOMO
 	tristate "Sharp LOCOMO LCD/Backlight Driver"

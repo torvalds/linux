@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
+#include <linux/backlight.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -222,14 +223,27 @@ struct corgissp_machinfo spitz_ssp_machinfo = {
 /*
  * Spitz Backlight Device
  */
-static struct corgibl_machinfo spitz_bl_machinfo = {
+static void spitz_bl_kick_battery(void)
+{
+	void (*kick_batt)(void);
+
+	kick_batt = symbol_get(sharpsl_battery_kick);
+	if (kick_batt) {
+		kick_batt();
+		symbol_put(sharpsl_battery_kick);
+	}
+}
+
+static struct generic_bl_info spitz_bl_machinfo = {
+	.name = "corgi-bl",
 	.default_intensity = 0x1f,
 	.limit_mask = 0x0b,
 	.max_intensity = 0x2f,
+	.kick_battery = spitz_bl_kick_battery,
 };
 
 static struct platform_device spitzbl_device = {
-	.name		= "corgi-bl",
+	.name		= "generic-bl",
 	.dev		= {
  		.platform_data	= &spitz_bl_machinfo,
 	},
