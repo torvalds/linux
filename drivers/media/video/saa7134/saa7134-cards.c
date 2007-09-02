@@ -1537,18 +1537,18 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			.name = name_comp1,
 			.vmux = 0,
-			.amux = LINE2,
-			.gpio = 0x00,
+			.amux = LINE1,
+			.gpio = 0x02,
 		},{
 			.name = name_comp2,
 			.vmux = 3,
-			.amux = LINE2,
-			.gpio = 0x00,
+			.amux = LINE1,
+			.gpio = 0x02,
 		},{
 			.name = name_svideo,
 			.vmux = 8,
-			.amux = LINE2,
-			.gpio = 0x00,
+			.amux = LINE1,
+			.gpio = 0x02,
 		}},
 		.radio = {
 			.name = name_radio,
