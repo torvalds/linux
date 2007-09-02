@@ -8277,10 +8277,9 @@ static struct iw_statistics *ipw2100_wx_wireless_stats(struct net_device *dev)
 
 static struct iw_handler_def ipw2100_wx_handler_def = {
 	.standard = ipw2100_wx_handlers,
-	.num_standard = sizeof(ipw2100_wx_handlers) / sizeof(iw_handler),
-	.num_private = sizeof(ipw2100_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(ipw2100_private_args) /
-	    sizeof(struct iw_priv_args),
+	.num_standard = ARRAY_SIZE(ipw2100_wx_handlers),
+	.num_private = ARRAY_SIZE(ipw2100_private_handler),
+	.num_private_args = ARRAY_SIZE(ipw2100_private_args),
 	.private = (iw_handler *) ipw2100_private_handler,
 	.private_args = (struct iw_priv_args *)ipw2100_private_args,
 	.get_wireless_stats = ipw2100_wx_wireless_stats,

@@ -1893,7 +1893,7 @@ static const iw_handler	wl3501_handler[] = {
 };
 
 static const struct iw_handler_def wl3501_handler_def = {
-	.num_standard	= sizeof(wl3501_handler) / sizeof(iw_handler),
+	.num_standard	= ARRAY_SIZE(wl3501_handler),
 	.standard	= (iw_handler *)wl3501_handler,
 	.get_wireless_stats = wl3501_get_wireless_stats,
 };

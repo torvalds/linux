@@ -1119,7 +1119,7 @@ static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_2G, 2, "Dual Gb"},
 };
 
-#define NUM_SUPPORTED_BOARDS (sizeof(netxen_boards)/sizeof(struct netxen_brdinfo))
+#define NUM_SUPPORTED_BOARDS ARRAY_SIZE(netxen_boards)
 
 static inline void get_brd_port_by_type(u32 type, int *ports)
 {

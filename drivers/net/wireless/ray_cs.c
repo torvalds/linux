@@ -1567,9 +1567,9 @@ static const struct iw_priv_args	ray_private_args[] = {
 
 static const struct iw_handler_def	ray_handler_def =
 {
-	.num_standard	= sizeof(ray_handler)/sizeof(iw_handler),
-	.num_private	= sizeof(ray_private_handler)/sizeof(iw_handler),
-	.num_private_args = sizeof(ray_private_args)/sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(ray_handler),
+	.num_private	= ARRAY_SIZE(ray_private_handler),
+	.num_private_args = ARRAY_SIZE(ray_private_args),
 	.standard	= ray_handler,
 	.private	= ray_private_handler,
 	.private_args	= ray_private_args,

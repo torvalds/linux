@@ -3976,9 +3976,9 @@ static const iw_handler prism2_private_handler[] =
 
 const struct iw_handler_def hostap_iw_handler_def =
 {
-	.num_standard	= sizeof(prism2_handler) / sizeof(iw_handler),
-	.num_private	= sizeof(prism2_private_handler) / sizeof(iw_handler),
-	.num_private_args = sizeof(prism2_priv) / sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(prism2_handler),
+	.num_private	= ARRAY_SIZE(prism2_private_handler),
+	.num_private_args = ARRAY_SIZE(prism2_priv),
 	.standard	= (iw_handler *) prism2_handler,
 	.private	= (iw_handler *) prism2_private_handler,
 	.private_args	= (struct iw_priv_args *) prism2_priv,

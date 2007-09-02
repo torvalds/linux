@@ -3945,7 +3945,7 @@ create_packet(struct net_device *dev, char *frame, int len)
 static int
 EISA_signature(char *name, struct device *device)
 {
-    int i, status = 0, siglen = sizeof(de4x5_signatures)/sizeof(c_char *);
+    int i, status = 0, siglen = ARRAY_SIZE(de4x5_signatures);
     struct eisa_device *edev;
 
     *name = '\0';
@@ -3966,7 +3966,7 @@ EISA_signature(char *name, struct device *device)
 static int
 PCI_signature(char *name, struct de4x5_private *lp)
 {
-    int i, status = 0, siglen = sizeof(de4x5_signatures)/sizeof(c_char *);
+    int i, status = 0, siglen = ARRAY_SIZE(de4x5_signatures);
 
     if (lp->chipset == DC21040) {
 	strcpy(name, "DE434/5");
@@ -5072,7 +5072,7 @@ mii_get_phy(struct net_device *dev)
 {
     struct de4x5_private *lp = netdev_priv(dev);
     u_long iobase = dev->base_addr;
-    int i, j, k, n, limit=sizeof(phy_info)/sizeof(struct phy_table);
+    int i, j, k, n, limit=ARRAY_SIZE(phy_info);
     int id;
 
     lp->active = 0;

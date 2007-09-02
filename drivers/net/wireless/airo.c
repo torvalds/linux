@@ -7578,9 +7578,9 @@ static const iw_handler		airo_private_handler[] =
 
 static const struct iw_handler_def	airo_handler_def =
 {
-	.num_standard	= sizeof(airo_handler)/sizeof(iw_handler),
-	.num_private	= sizeof(airo_private_handler)/sizeof(iw_handler),
-	.num_private_args = sizeof(airo_private_args)/sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(airo_handler),
+	.num_private	= ARRAY_SIZE(airo_private_handler),
+	.num_private_args = ARRAY_SIZE(airo_private_args),
 	.standard	= airo_handler,
 	.private	= airo_private_handler,
 	.private_args	= airo_private_args,

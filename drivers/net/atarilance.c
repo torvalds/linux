@@ -263,7 +263,7 @@ struct lance_addr {
 									   (highest byte stripped) */
 };
 
-#define	N_LANCE_ADDR	(sizeof(lance_addr_list)/sizeof(*lance_addr_list))
+#define	N_LANCE_ADDR	ARRAY_SIZE(lance_addr_list)
 
 
 /* Definitions for the Lance */

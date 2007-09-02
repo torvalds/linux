@@ -3492,7 +3492,7 @@ bnx2_init_nvram(struct bnx2 *bp)
 	/* Determine the selected interface. */
 	val = REG_RD(bp, BNX2_NVM_CFG1);
 
-	entry_count = sizeof(flash_table) / sizeof(struct flash_spec);
+	entry_count = ARRAY_SIZE(flash_table);
 
 	if (val & 0x40000000) {
 

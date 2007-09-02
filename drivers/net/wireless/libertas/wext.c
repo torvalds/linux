@@ -2149,13 +2149,13 @@ static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
 struct iw_handler_def libertas_handler_def = {
-	.num_standard	= sizeof(wlan_handler) / sizeof(iw_handler),
+	.num_standard	= ARRAY_SIZE(wlan_handler),
 	.standard	= (iw_handler *) wlan_handler,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };
 
 struct iw_handler_def mesh_handler_def = {
-	.num_standard	= sizeof(mesh_wlan_handler) / sizeof(iw_handler),
+	.num_standard	= ARRAY_SIZE(mesh_wlan_handler),
 	.standard	= (iw_handler *) mesh_wlan_handler,
 	.get_wireless_stats = wlan_get_wireless_stats,
 };

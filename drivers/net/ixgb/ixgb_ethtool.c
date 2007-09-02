@@ -94,8 +94,7 @@ static struct ixgb_stats ixgb_gstrings_stats[] = {
 	{"tx_csum_offload_errors", IXGB_STAT(hw_csum_tx_error)}
 };
 
-#define IXGB_STATS_LEN	\
-	sizeof(ixgb_gstrings_stats) / sizeof(struct ixgb_stats)
+#define IXGB_STATS_LEN	ARRAY_SIZE(ixgb_gstrings_stats)
 
 static int
 ixgb_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)

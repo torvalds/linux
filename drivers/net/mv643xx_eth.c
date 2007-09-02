@@ -2680,8 +2680,7 @@ static const struct mv643xx_stats mv643xx_gstrings_stats[] = {
 	{ "late_collision", MV643XX_STAT(mib_counters.late_collision) },
 };
 
-#define MV643XX_STATS_LEN	\
-	sizeof(mv643xx_gstrings_stats) / sizeof(struct mv643xx_stats)
+#define MV643XX_STATS_LEN	ARRAY_SIZE(mv643xx_gstrings_stats)
 
 static void mv643xx_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)

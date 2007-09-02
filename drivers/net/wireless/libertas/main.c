@@ -123,28 +123,28 @@ struct region_cfp_table {
 static struct region_cfp_table region_cfp_table[] = {
 	{0x10,			/*US FCC */
 	 channel_freq_power_US_BG,
-	 sizeof(channel_freq_power_US_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_US_BG),
 	 }
 	,
 	{0x20,			/*CANADA IC */
 	 channel_freq_power_US_BG,
-	 sizeof(channel_freq_power_US_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_US_BG),
 	 }
 	,
 	{0x30, /*EU*/ channel_freq_power_EU_BG,
-	 sizeof(channel_freq_power_EU_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_EU_BG),
 	 }
 	,
 	{0x31, /*SPAIN*/ channel_freq_power_SPN_BG,
-	 sizeof(channel_freq_power_SPN_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_SPN_BG),
 	 }
 	,
 	{0x32, /*FRANCE*/ channel_freq_power_FR_BG,
-	 sizeof(channel_freq_power_FR_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_FR_BG),
 	 }
 	,
 	{0x40, /*JAPAN*/ channel_freq_power_JPN_BG,
-	 sizeof(channel_freq_power_JPN_BG) / sizeof(struct chan_freq_power),
+	 ARRAY_SIZE(channel_freq_power_JPN_BG),
 	 }
 	,
 /*Add new region here */
@@ -1422,7 +1422,7 @@ struct chan_freq_power *libertas_get_region_cfp_table(u8 region, u8 band, int *c
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	end = sizeof(region_cfp_table)/sizeof(struct region_cfp_table);
+	end = ARRAY_SIZE(region_cfp_table);
 
 	for (i = 0; i < end ; i++) {
 		lbs_deb_main("region_cfp_table[i].region=%d\n",

@@ -2719,9 +2719,9 @@ static const iw_handler		wavelan_private_handler[] =
 
 static const struct iw_handler_def	wavelan_handler_def =
 {
-	.num_standard	= sizeof(wavelan_handler)/sizeof(iw_handler),
-	.num_private	= sizeof(wavelan_private_handler)/sizeof(iw_handler),
-	.num_private_args = sizeof(wavelan_private_args)/sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(wavelan_handler),
+	.num_private	= ARRAY_SIZE(wavelan_private_handler),
+	.num_private_args = ARRAY_SIZE(wavelan_private_args),
 	.standard	= wavelan_handler,
 	.private	= wavelan_private_handler,
 	.private_args	= wavelan_private_args,
