@@ -243,7 +243,6 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 	int ut;
 	int offset = 3 - (2*ap->port_no) - adev->devno;
 
-
 	/* Calculate the timing values we require */
 	ata_timing_compute(adev, mode, &t, T, UT);
 
@@ -290,9 +289,17 @@ static void via_do_set_mode(struct ata_port *ap, struct ata_device *adev, int mo
 			ut = t.udma ? (0xe0 | (FIT(t.udma, 2, 9) - 2)) : 0x07;
 			break;
 	}
+
 	/* Set UDMA unless device is not UDMA capable */
-	if (udma_type)
-		pci_write_config_byte(pdev, 0x50 + offset, ut);
+	if (udma_type) {
+		u8 cable80_status;
+
+		/* Get 80-wire cable detection bit */
+		pci_read_config_byte(pdev, 0x50 + offset, &cable80_status);
+		cable80_status &= 0x10;
+
+		pci_write_config_byte(pdev, 0x50 + offset, ut | cable80_status);
+	}
 }
 
 static void via_set_piomode(struct ata_port *ap, struct ata_device *adev)
