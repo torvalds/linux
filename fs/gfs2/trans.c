@@ -144,7 +144,7 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, u64 blkno)
 {
-	struct gfs2_bufdata *bd = kmalloc(sizeof(struct gfs2_bufdata),
+	struct gfs2_bufdata *bd = kmem_cache_alloc(gfs2_bufdata_cachep,
 					  GFP_NOFS | __GFP_NOFAIL);
 	lops_init_le(&bd->bd_le, &gfs2_revoke_lops);
 	bd->bd_blkno = blkno;
@@ -172,7 +172,7 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno)
 
 	if (found) {
 		struct gfs2_trans *tr = current->journal_info;
-		kfree(bd);
+		kmem_cache_free(gfs2_bufdata_cachep, bd);
 		tr->tr_num_revoke_rm++;
 	}
 }

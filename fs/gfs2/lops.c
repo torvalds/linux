@@ -393,7 +393,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 
 		*(__be64 *)(bh->b_data + offset) = cpu_to_be64(bd->bd_blkno);
-		kfree(bd);
+		kmem_cache_free(gfs2_bufdata_cachep, bd);
 
 		offset += sizeof(u64);
 	}
