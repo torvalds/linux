@@ -41,7 +41,6 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	struct list_head *head = &gl->gl_ail_list;
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
-	u64 blkno;
 	int error;
 
 	blocks = atomic_read(&gl->gl_ail_count);
@@ -57,15 +56,12 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		bd = list_entry(head->next, struct gfs2_bufdata,
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
-		blkno = bh->b_blocknr;
-		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
-
 		gfs2_remove_from_ail(NULL, bd);
-		gfs2_log_unlock(sdp);
-
-		gfs2_trans_add_revoke(sdp, blkno);
-
-		gfs2_log_lock(sdp);
+		bd->bd_bh = NULL;
+		bh->b_private = NULL;
+		bd->bd_blkno = bh->b_blocknr;
+		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
+		gfs2_trans_add_revoke(sdp, bd);
 	}
 	gfs2_assert_withdraw(sdp, !atomic_read(&gl->gl_ail_count));
 	gfs2_log_unlock(sdp);

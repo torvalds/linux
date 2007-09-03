@@ -142,12 +142,12 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 	lops_add(sdp, &bd->bd_le);
 }
 
-void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, u64 blkno)
+void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_bufdata *bd = kmem_cache_alloc(gfs2_bufdata_cachep,
-					  GFP_NOFS | __GFP_NOFAIL);
+	BUG_ON(!list_empty(&bd->bd_le.le_list));
+	BUG_ON(!list_empty(&bd->bd_ail_st_list));
+	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
 	lops_init_le(&bd->bd_le, &gfs2_revoke_lops);
-	bd->bd_blkno = blkno;
 	lops_add(sdp, &bd->bd_le);
 }
 
@@ -160,7 +160,7 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno)
 
 	list_for_each_entry(bd, &sdp->sd_log_le_revoke, bd_le.le_list) {
 		if (bd->bd_blkno == blkno) {
-			list_del(&bd->bd_le.le_list);
+			list_del_init(&bd->bd_le.le_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;
 			found = 1;

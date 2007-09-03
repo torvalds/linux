@@ -71,8 +71,8 @@ unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 void gfs2_remove_from_ail(struct address_space *mapping, struct gfs2_bufdata *bd)
 {
 	bd->bd_ail = NULL;
-	list_del(&bd->bd_ail_st_list);
-	list_del(&bd->bd_ail_gl_list);
+	list_del_init(&bd->bd_ail_st_list);
+	list_del_init(&bd->bd_ail_gl_list);
 	atomic_dec(&bd->bd_gl->gl_ail_count);
 	if (mapping)
 		gfs2_meta_cache_flush(GFS2_I(mapping->host));

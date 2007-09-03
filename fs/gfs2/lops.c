@@ -343,11 +343,8 @@ static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	tr = current->journal_info;
 	tr->tr_touched = 1;
 	tr->tr_num_revoke++;
-
-	gfs2_log_lock(sdp);
 	sdp->sd_log_num_revoke++;
 	list_add(&le->le_list, &sdp->sd_log_le_revoke);
-	gfs2_log_unlock(sdp);
 }
 
 static void revoke_lo_before_commit(struct gfs2_sbd *sdp)

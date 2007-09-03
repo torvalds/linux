@@ -313,42 +313,31 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	while (blen) {
 		bh = getbuf(ip->i_gl, bstart, NO_CREATE);
 		if (bh) {
-			struct gfs2_bufdata *bd = bh->b_private;
+			struct gfs2_bufdata *bd;
 
+			lock_buffer(bh);
+			gfs2_log_lock(sdp);
+			bd = bh->b_private;
 			if (test_clear_buffer_pinned(bh)) {
 				struct gfs2_trans *tr = current->journal_info;
-				struct gfs2_inode *bh_ip =
-					GFS2_I(bh->b_page->mapping->host);
-
-				gfs2_log_lock(sdp);
 				list_del_init(&bd->bd_le.le_list);
 				gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 				sdp->sd_log_num_buf--;
-				gfs2_log_unlock(sdp);
-				if (bh_ip->i_inode.i_private != NULL)
-					tr->tr_num_databuf_rm++;
-				else
-					tr->tr_num_buf_rm++;
+				tr->tr_num_buf_rm++;
 				brelse(bh);
 			}
 			if (bd) {
-				gfs2_log_lock(sdp);
 				if (bd->bd_ail) {
-					u64 blkno = bh->b_blocknr;
-					bd->bd_ail = NULL;
-					list_del(&bd->bd_ail_st_list);
-					list_del(&bd->bd_ail_gl_list);
-					atomic_dec(&bd->bd_gl->gl_ail_count);
-					brelse(bh);
-					gfs2_log_unlock(sdp);
-					gfs2_trans_add_revoke(sdp, blkno);
-				} else
-					gfs2_log_unlock(sdp);
+					gfs2_remove_from_ail(NULL, bd);
+					bh->b_private = NULL;
+					bd->bd_bh = NULL;
+					bd->bd_blkno = bh->b_blocknr;
+					gfs2_trans_add_revoke(sdp, bd);
+				}
 			}
-
-			lock_buffer(bh);
 			clear_buffer_dirty(bh);
 			clear_buffer_uptodate(bh);
+			gfs2_log_unlock(sdp);
 			unlock_buffer(bh);
 
 			brelse(bh);
