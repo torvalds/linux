@@ -62,11 +62,11 @@
 #define EOP				(1<<0)
 #define BM_EOP_ERR			(1<<1)
 /* ACC_BMX_CTL */
-#define BM_CTL_EN			0x00000001
-#define BM_CTL_PAUSE			0x00000011
-#define BM_CTL_DIS			0x00000000
-#define BM_CTL_BYTE_ORD_LE		0x00000000
-#define BM_CTL_BYTE_ORD_BE		0x00000100
+#define BM_CTL_EN			0x01
+#define BM_CTL_PAUSE			0x03
+#define BM_CTL_DIS			0x00
+#define BM_CTL_BYTE_ORD_LE		0x00
+#define BM_CTL_BYTE_ORD_BE		0x04
 /* cs5535 specific ac97 codec register defines */
 #define CMD_MASK			0xFF00FFFF
 #define CMD_NEW				0x00010000
