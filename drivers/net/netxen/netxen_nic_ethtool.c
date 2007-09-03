@@ -516,17 +516,17 @@ netxen_nic_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ring)
 	ring->rx_jumbo_pending = 0;
 	for (i = 0; i < MAX_RCV_CTX; ++i) {
 		ring->rx_pending += adapter->recv_ctx[i].
-		    rcv_desc[RCV_DESC_NORMAL_CTXID].rcv_pending;
+		    rcv_desc[RCV_DESC_NORMAL_CTXID].max_rx_desc_count;
 		ring->rx_jumbo_pending += adapter->recv_ctx[i].
-		    rcv_desc[RCV_DESC_JUMBO_CTXID].rcv_pending;
+		    rcv_desc[RCV_DESC_JUMBO_CTXID].max_rx_desc_count;
 	}
+	ring->tx_pending = adapter->max_tx_desc_count;
 
-	ring->rx_max_pending = adapter->max_rx_desc_count;
-	ring->tx_max_pending = adapter->max_tx_desc_count;
-	ring->rx_jumbo_max_pending = adapter->max_jumbo_rx_desc_count;
+	ring->rx_max_pending = MAX_RCV_DESCRIPTORS;
+	ring->tx_max_pending = MAX_CMD_DESCRIPTORS_HOST;
+	ring->rx_jumbo_max_pending = MAX_JUMBO_RCV_DESCRIPTORS;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_mini_pending = 0;
-	ring->rx_jumbo_pending = 0;
 }
 
 static void
@@ -731,6 +731,19 @@ netxen_nic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static u32 netxen_nic_get_rx_csum(struct net_device *dev)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	return adapter->rx_csum;
+}
+
+static int netxen_nic_set_rx_csum(struct net_device *dev, u32 data)
+{
+	struct netxen_adapter *adapter = netdev_priv(dev);
+	adapter->rx_csum = !!data;
+	return 0;
+}
+
 struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_settings = netxen_nic_get_settings,
 	.set_settings = netxen_nic_set_settings,
@@ -751,4 +764,6 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.get_strings = netxen_nic_get_strings,
 	.get_ethtool_stats = netxen_nic_get_ethtool_stats,
 	.get_sset_count = netxen_get_sset_count,
+	.get_rx_csum = netxen_nic_get_rx_csum,
+	.set_rx_csum = netxen_nic_set_rx_csum,
 };

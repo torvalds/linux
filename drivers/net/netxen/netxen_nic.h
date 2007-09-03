@@ -919,7 +919,7 @@ struct netxen_adapter {
 	u16 link_duplex;
 	u16 state;
 	u16 link_autoneg;
-	int rcsum;
+	int rx_csum;
 	int status;
 	spinlock_t stats_lock;
 

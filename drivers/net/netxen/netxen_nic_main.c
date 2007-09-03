@@ -409,6 +409,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* This will be reset for mezz cards  */
 	adapter->portnum = pci_func_id;
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
+	adapter->rx_csum = 1;
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
