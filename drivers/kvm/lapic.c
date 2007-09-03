@@ -312,8 +312,8 @@ static int apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode)
 {
-	int result = 0;
-	int orig_irr;
+	int orig_irr, result = 0;
+	struct kvm_vcpu *vcpu = apic->vcpu;
 
 	switch (delivery_mode) {
 	case APIC_DM_FIXED:
@@ -335,7 +335,13 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		} else
 			apic_clear_vector(vector, apic->regs + APIC_TMR);
 
-		kvm_vcpu_kick(apic->vcpu);
+		if (vcpu->mp_state == VCPU_MP_STATE_RUNNABLE)
+			kvm_vcpu_kick(vcpu);
+		else if (vcpu->mp_state == VCPU_MP_STATE_HALTED) {
+			vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
+			if (waitqueue_active(&vcpu->wq))
+				wake_up_interruptible(&vcpu->wq);
+		}
 
 		result = (orig_irr == 0);
 		break;
@@ -352,11 +358,30 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		break;
 
 	case APIC_DM_INIT:
-		printk(KERN_DEBUG "Ignoring guest INIT\n");
+		if (level) {
+			if (vcpu->mp_state == VCPU_MP_STATE_RUNNABLE)
+				printk(KERN_DEBUG
+				       "INIT on a runnable vcpu %d\n",
+				       vcpu->vcpu_id);
+			vcpu->mp_state = VCPU_MP_STATE_INIT_RECEIVED;
+			kvm_vcpu_kick(vcpu);
+		} else {
+			printk(KERN_DEBUG
+			       "Ignoring de-assert INIT to vcpu %d\n",
+			       vcpu->vcpu_id);
+		}
+
 		break;
 
 	case APIC_DM_STARTUP:
-		printk(KERN_DEBUG "Ignoring guest STARTUP\n");
+		printk(KERN_DEBUG "SIPI to vcpu %d vector 0x%02x\n",
+		       vcpu->vcpu_id, vector);
+		if (vcpu->mp_state == VCPU_MP_STATE_INIT_RECEIVED) {
+			vcpu->sipi_vector = vector;
+			vcpu->mp_state = VCPU_MP_STATE_SIPI_RECEIVED;
+			if (waitqueue_active(&vcpu->wq))
+				wake_up_interruptible(&vcpu->wq);
+		}
 		break;
 
 	default:
@@ -792,7 +817,7 @@ u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_get_base);
 
-static void lapic_reset(struct kvm_vcpu *vcpu)
+void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic;
 	int i;
@@ -839,6 +864,7 @@ static void lapic_reset(struct kvm_vcpu *vcpu)
 		   vcpu, kvm_apic_id(apic),
 		   vcpu->apic_base, apic->base_address);
 }
+EXPORT_SYMBOL_GPL(kvm_lapic_reset);
 
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
 {
@@ -867,7 +893,10 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 
 	atomic_inc(&apic->timer.pending);
 	if (waitqueue_active(q))
+	{
+		apic->vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
 		wake_up_interruptible(q);
+	}
 	if (apic_lvtt_period(apic)) {
 		result = 1;
 		apic->timer.dev.expires = ktime_add_ns(
@@ -928,7 +957,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	apic->base_address = APIC_DEFAULT_PHYS_BASE;
 	vcpu->apic_base = APIC_DEFAULT_PHYS_BASE;
 
-	lapic_reset(vcpu);
+	kvm_lapic_reset(vcpu);
 	apic->dev.read = apic_mmio_read;
 	apic->dev.write = apic_mmio_write;
 	apic->dev.in_range = apic_mmio_range;

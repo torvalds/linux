@@ -326,6 +326,13 @@ struct kvm_vcpu {
 	u64 shadow_efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
+#define VCPU_MP_STATE_RUNNABLE          0
+#define VCPU_MP_STATE_UNINITIALIZED     1
+#define VCPU_MP_STATE_INIT_RECEIVED     2
+#define VCPU_MP_STATE_SIPI_RECEIVED     3
+#define VCPU_MP_STATE_HALTED            4
+	int mp_state;
+	int sipi_vector;
 	u64 ia32_misc_enable_msr;
 
 	struct kvm_mmu mmu;

@@ -249,6 +249,10 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	vcpu->mmu.root_hpa = INVALID_PAGE;
 	vcpu->kvm = kvm;
 	vcpu->vcpu_id = id;
+	if (!irqchip_in_kernel(kvm) || id == 0)
+		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
+	else
+		vcpu->mp_state = VCPU_MP_STATE_UNINITIALIZED;
 	init_waitqueue_head(&vcpu->wq);
 
 	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
@@ -1371,7 +1375,7 @@ EXPORT_SYMBOL_GPL(emulate_instruction);
 /*
  * The vCPU has executed a HLT instruction with in-kernel mode enabled.
  */
-static void kvm_vcpu_kernel_halt(struct kvm_vcpu *vcpu)
+static void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 {
 	DECLARE_WAITQUEUE(wait, current);
 
@@ -1380,24 +1384,28 @@ static void kvm_vcpu_kernel_halt(struct kvm_vcpu *vcpu)
 	/*
 	 * We will block until either an interrupt or a signal wakes us up
 	 */
-	while(!(irqchip_in_kernel(vcpu->kvm) && kvm_cpu_has_interrupt(vcpu))
-	      && !vcpu->irq_summary
-	      && !signal_pending(current)) {
+	while (!kvm_cpu_has_interrupt(vcpu)
+	       && !signal_pending(current)
+	       && vcpu->mp_state != VCPU_MP_STATE_RUNNABLE
+	       && vcpu->mp_state != VCPU_MP_STATE_SIPI_RECEIVED) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		vcpu_put(vcpu);
 		schedule();
 		vcpu_load(vcpu);
 	}
 
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&vcpu->wq, &wait);
-	set_current_state(TASK_RUNNING);
 }
 
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.halt_exits;
 	if (irqchip_in_kernel(vcpu->kvm)) {
-		kvm_vcpu_kernel_halt(vcpu);
+		vcpu->mp_state = VCPU_MP_STATE_HALTED;
+		kvm_vcpu_block(vcpu);
+		if (vcpu->mp_state != VCPU_MP_STATE_RUNNABLE)
+			return -EINTR;
 		return 1;
 	} else {
 		vcpu->run->exit_reason = KVM_EXIT_HLT;
@@ -2000,6 +2008,12 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	sigset_t sigsaved;
 
 	vcpu_load(vcpu);
+
+	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_UNINITIALIZED)) {
+		kvm_vcpu_block(vcpu);
+		vcpu_put(vcpu);
+		return -EAGAIN;
+	}
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);

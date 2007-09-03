@@ -1412,6 +1412,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		goto out;
 	}
 
+	vmx->vcpu.rmode.active = 0;
+
 	vmx->vcpu.regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	set_cr8(&vmx->vcpu, 0);
 	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
@@ -1425,8 +1427,13 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	 * GUEST_CS_BASE should really be 0xffff0000, but VT vm86 mode
 	 * insists on having GUEST_CS_BASE == GUEST_CS_SELECTOR << 4.  Sigh.
 	 */
-	vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
-	vmcs_writel(GUEST_CS_BASE, 0x000f0000);
+	if (vmx->vcpu.vcpu_id == 0) {
+		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
+		vmcs_writel(GUEST_CS_BASE, 0x000f0000);
+	} else {
+		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.sipi_vector << 8);
+		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.sipi_vector << 12);
+	}
 	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
 	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
 
@@ -1451,7 +1458,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(GUEST_SYSENTER_EIP, 0);
 
 	vmcs_writel(GUEST_RFLAGS, 0x02);
-	vmcs_writel(GUEST_RIP, 0xfff0);
+	if (vmx->vcpu.vcpu_id == 0)
+		vmcs_writel(GUEST_RIP, 0xfff0);
+	else
+		vmcs_writel(GUEST_RIP, 0);
 	vmcs_writel(GUEST_RSP, 0);
 
 	//todo: dr0 = dr1 = dr2 = dr3 = 0; dr6 = 0xffff0ff0
@@ -2200,6 +2210,14 @@ static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u8 fail;
 	int r;
+
+	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
+		printk("vcpu %d received sipi with vector # %x\n",
+		       vcpu->vcpu_id, vcpu->sipi_vector);
+		kvm_lapic_reset(vcpu);
+		vmx_vcpu_setup(vmx);
+		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
+	}
 
 preempted:
 	if (vcpu->guest_debug.enabled)
