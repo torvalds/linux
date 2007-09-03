@@ -1479,7 +1479,8 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 	case 3:
 		/* add line-in as side */
 		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 3) {
-			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_LINE];
+			cfg->line_out_pins[cfg->line_outs] =
+				cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
@@ -1487,12 +1488,14 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 	case 2:
 		/* add line-in as clfe and mic as side */
 		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 2) {
-			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_LINE];
+			cfg->line_out_pins[cfg->line_outs] =
+				cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
 		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 3) {
-			cfg->line_out_pins[3] = cfg->input_pins[AUTO_PIN_MIC];
+			cfg->line_out_pins[cfg->line_outs] =
+				cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
 		}
@@ -1500,12 +1503,14 @@ static int stac92xx_add_dyn_out_pins(struct hda_codec *codec, struct auto_pin_cf
 	case 1:
 		/* add line-in as surr and mic as clfe */
 		if (cfg->input_pins[AUTO_PIN_LINE] && num_dacs > 1) {
-			cfg->line_out_pins[1] = cfg->input_pins[AUTO_PIN_LINE];
+			cfg->line_out_pins[cfg->line_outs] =
+				cfg->input_pins[AUTO_PIN_LINE];
 			spec->line_switch = 1;
 			cfg->line_outs++;
 		}
 		if (cfg->input_pins[AUTO_PIN_MIC] && num_dacs > 2) {
-			cfg->line_out_pins[2] = cfg->input_pins[AUTO_PIN_MIC];
+			cfg->line_out_pins[cfg->line_outs] =
+				cfg->input_pins[AUTO_PIN_MIC];
 			spec->mic_switch = 1;
 			cfg->line_outs++;
 		}
