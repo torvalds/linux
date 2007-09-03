@@ -206,7 +206,6 @@ static void process_bm1_irq(struct cs5535audio *cs5535au)
 static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 {
 	u16 acc_irq_stat;
-	u8 bm_stat;
 	unsigned char count;
 	struct cs5535audio *cs5535au = dev_id;
 
@@ -217,7 +216,7 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 
 	if (!acc_irq_stat)
 		return IRQ_NONE;
-	for (count = 0; count < 10; count++) {
+	for (count = 0; count < 4; count++) {
 		if (acc_irq_stat & (1 << count)) {
 			switch (count) {
 			case IRQ_STS:
@@ -232,26 +231,9 @@ static irqreturn_t snd_cs5535audio_interrupt(int irq, void *dev_id)
 			case BM1_IRQ_STS:
 				process_bm1_irq(cs5535au);
 				break;
-			case BM2_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM2_STATUS);
-				break;
-			case BM3_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM3_STATUS);
-				break;
-			case BM4_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM4_STATUS);
-				break;
-			case BM5_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM5_STATUS);
-				break;
-			case BM6_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM6_STATUS);
-				break;
-			case BM7_IRQ_STS:
-				bm_stat = cs_readb(cs5535au, ACC_BM7_STATUS);
-				break;
 			default:
-				snd_printk(KERN_ERR "Unexpected irq src\n");
+				snd_printk(KERN_ERR "Unexpected irq src: "
+						"0x%x\n", acc_irq_stat);
 				break;
 			}
 		}
