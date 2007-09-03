@@ -130,7 +130,7 @@ static int saa7191_write_reg(struct i2c_client *client, u8 reg,
 
 /* the first byte of data must be the first subaddress number (register) */
 static int saa7191_write_block(struct i2c_client *client,
-			       u8 length, u8 *data)
+			       u8 length, const u8 *data)
 {
 	int i;
 	int ret;
@@ -592,7 +592,7 @@ static int saa7191_attach(struct i2c_adapter *adap, int addr, int kind)
 	if (err)
 		goto out_free_decoder;
 
-	err = saa7191_write_block(client, sizeof(initseq), (u8 *)initseq);
+	err = saa7191_write_block(client, sizeof(initseq), initseq);
 	if (err) {
 		printk(KERN_ERR "SAA7191 initialization failed\n");
 		goto out_detach_client;
