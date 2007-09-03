@@ -441,8 +441,10 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	u64 phys_addr = __pa(vmx->vmcs);
 	u64 tsc_this, delta;
 
-	if (vcpu->cpu != cpu)
+	if (vcpu->cpu != cpu) {
 		vcpu_clear(vmx);
+		kvm_migrate_apic_timer(vcpu);
+	}
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
 		u8 error;
