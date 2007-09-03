@@ -2798,7 +2798,7 @@ static int __devinit snd_cmipci_create_fm(struct cmipci *cm, long fm_port)
 	if (!fm_port)
 		goto disable_fm;
 
-	if (cm->chip_version > 33) {
+	if (cm->chip_version >= 39) {
 		/* first try FM regs in PCI port range */
 		iosynth = cm->iobase + CM_REG_FM_PCI;
 		err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
@@ -2990,8 +2990,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		return err;
 	}
 
-	val = 0;
-	if (cm->chip_version > 33 && mpu_port[dev] == 1) {
+	if (cm->chip_version >= 39) {
 		val = snd_cmipci_read_b(cm, CM_REG_MPU_PCI + 1);
 		if (val != 0x00 && val != 0xff) {
 			iomidi = cm->iobase + CM_REG_MPU_PCI;
@@ -2999,6 +2998,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		}
 	}
 	if (!integrated_midi) {
+		val = 0;
 		iomidi = mpu_port[dev];
 		switch (iomidi) {
 		case 0x320: val = CM_VMPU_320; break;
