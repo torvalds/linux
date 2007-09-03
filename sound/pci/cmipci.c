@@ -3012,6 +3012,13 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 			snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
 			/* enable UART */
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
+			if (inb(iomidi + 1) == 0xff) {
+				snd_printk(KERN_ERR "cannot enable MPU-401 port"
+					   " at %#lx\n", iomidi);
+				snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1,
+						     CM_UART_EN);
+				iomidi = 0;
+			}
 		}
 	}
 
