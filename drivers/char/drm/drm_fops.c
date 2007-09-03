@@ -343,7 +343,7 @@ int drm_release(struct inode *inode, struct file *filp)
 		  dev->open_count);
 
 	if (dev->driver->reclaim_buffers_locked && dev->lock.hw_lock) {
-		if (drm_i_have_hw_lock(file_priv)) {
+		if (drm_i_have_hw_lock(dev, file_priv)) {
 			dev->driver->reclaim_buffers_locked(dev, file_priv);
 		} else {
 			unsigned long _end=jiffies + 3*DRM_HZ;
@@ -383,7 +383,7 @@ int drm_release(struct inode *inode, struct file *filp)
 
 	}
 
-	if (drm_i_have_hw_lock(file_priv)) {
+	if (drm_i_have_hw_lock(dev, file_priv)) {
 		DRM_DEBUG("File %p released, freeing lock for context %d\n",
 			  filp, _DRM_LOCKING_CONTEXT(dev->lock.hw_lock->lock));
 

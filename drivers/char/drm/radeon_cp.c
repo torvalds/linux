@@ -1823,24 +1823,20 @@ static int radeon_do_resume_cp(struct drm_device * dev)
 	return 0;
 }
 
-int radeon_cp_init(DRM_IOCTL_ARGS)
+int radeon_cp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_radeon_init_t init;
+	drm_radeon_init_t *init = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_radeon_init_t __user *) data,
-				 sizeof(init));
-
-	if (init.func == RADEON_INIT_R300_CP)
+	if (init->func == RADEON_INIT_R300_CP)
 		r300_init_reg_flags();
 
-	switch (init.func) {
+	switch (init->func) {
 	case RADEON_INIT_CP:
 	case RADEON_INIT_R200_CP:
 	case RADEON_INIT_R300_CP:
-		return radeon_do_init_cp(dev, &init);
+		return radeon_do_init_cp(dev, init);
 	case RADEON_CLEANUP_CP:
 		return radeon_do_cleanup_cp(dev);
 	}
@@ -1848,9 +1844,8 @@ int radeon_cp_init(DRM_IOCTL_ARGS)
 	return -EINVAL;
 }
 
-int radeon_cp_start(DRM_IOCTL_ARGS)
+int radeon_cp_start(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -1874,18 +1869,14 @@ int radeon_cp_start(DRM_IOCTL_ARGS)
 /* Stop the CP.  The engine must have been idled before calling this
  * routine.
  */
-int radeon_cp_stop(DRM_IOCTL_ARGS)
+int radeon_cp_stop(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_cp_stop_t stop;
+	drm_radeon_cp_stop_t *stop = data;
 	int ret;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
-
-	DRM_COPY_FROM_USER_IOCTL(stop, (drm_radeon_cp_stop_t __user *) data,
-				 sizeof(stop));
 
 	if (!dev_priv->cp_running)
 		return 0;
@@ -1893,14 +1884,14 @@ int radeon_cp_stop(DRM_IOCTL_ARGS)
 	/* Flush any pending CP commands.  This ensures any outstanding
 	 * commands are exectuted by the engine before we turn it off.
 	 */
-	if (stop.flush) {
+	if (stop->flush) {
 		radeon_do_cp_flush(dev_priv);
 	}
 
 	/* If we fail to make the engine go idle, we return an error
 	 * code so that the DRM ioctl wrapper can try again.
 	 */
-	if (stop.idle) {
+	if (stop->idle) {
 		ret = radeon_do_cp_idle(dev_priv);
 		if (ret)
 			return ret;
@@ -1963,9 +1954,8 @@ void radeon_do_release(struct drm_device * dev)
 
 /* Just reset the CP ring.  Called as part of an X Server engine reset.
  */
-int radeon_cp_reset(DRM_IOCTL_ARGS)
+int radeon_cp_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -1984,9 +1974,8 @@ int radeon_cp_reset(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int radeon_cp_idle(DRM_IOCTL_ARGS)
+int radeon_cp_idle(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -1997,16 +1986,14 @@ int radeon_cp_idle(DRM_IOCTL_ARGS)
 
 /* Added by Charl P. Botha to call radeon_do_resume_cp().
  */
-int radeon_cp_resume(DRM_IOCTL_ARGS)
+int radeon_cp_resume(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 
 	return radeon_do_resume_cp(dev);
 }
 
-int radeon_engine_reset(DRM_IOCTL_ARGS)
+int radeon_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -2020,7 +2007,7 @@ int radeon_engine_reset(DRM_IOCTL_ARGS)
 
 /* KW: Deprecated to say the least:
  */
-int radeon_fullscreen(DRM_IOCTL_ARGS)
+int radeon_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	return 0;
 }
@@ -2198,41 +2185,35 @@ static int radeon_cp_get_buffers(struct drm_device *dev,
 	return 0;
 }
 
-int radeon_cp_buffers(DRM_IOCTL_ARGS)
+int radeon_cp_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	struct drm_device_dma *dma = dev->dma;
 	int ret = 0;
-	struct drm_dma __user *argp = (void __user *)data;
-	struct drm_dma d;
+	struct drm_dma *d = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(d, argp, sizeof(d));
-
 	/* Please don't send us buffers.
 	 */
-	if (d.send_count != 0) {
+	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d.send_count);
+			  DRM_CURRENTPID, d->send_count);
 		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
 	 */
-	if (d.request_count < 0 || d.request_count > dma->buf_count) {
+	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d.request_count, dma->buf_count);
+			  DRM_CURRENTPID, d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 
-	d.granted_count = 0;
+	d->granted_count = 0;
 
-	if (d.request_count) {
-		ret = radeon_cp_get_buffers(dev, file_priv, &d);
+	if (d->request_count) {
+		ret = radeon_cp_get_buffers(dev, file_priv, d);
 	}
-
-	DRM_COPY_TO_USER_IOCTL(argp, d, sizeof(d));
 
 	return ret;
 }

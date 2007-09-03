@@ -625,21 +625,17 @@ int r128_do_cleanup_cce(struct drm_device * dev)
 	return 0;
 }
 
-int r128_cce_init(DRM_IOCTL_ARGS)
+int r128_cce_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_r128_init_t init;
+	drm_r128_init_t *init = data;
 
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_r128_init_t __user *) data,
-				 sizeof(init));
-
-	switch (init.func) {
+	switch (init->func) {
 	case R128_INIT_CCE:
-		return r128_do_init_cce(dev, &init);
+		return r128_do_init_cce(dev, init);
 	case R128_CLEANUP_CCE:
 		return r128_do_cleanup_cce(dev);
 	}
@@ -647,9 +643,8 @@ int r128_cce_init(DRM_IOCTL_ARGS)
 	return -EINVAL;
 }
 
-int r128_cce_start(DRM_IOCTL_ARGS)
+int r128_cce_start(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -668,30 +663,26 @@ int r128_cce_start(DRM_IOCTL_ARGS)
 /* Stop the CCE.  The engine must have been idled before calling this
  * routine.
  */
-int r128_cce_stop(DRM_IOCTL_ARGS)
+int r128_cce_stop(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
-	drm_r128_cce_stop_t stop;
+	drm_r128_cce_stop_t *stop = data;
 	int ret;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(stop, (drm_r128_cce_stop_t __user *) data,
-				 sizeof(stop));
-
 	/* Flush any pending CCE commands.  This ensures any outstanding
 	 * commands are exectuted by the engine before we turn it off.
 	 */
-	if (stop.flush) {
+	if (stop->flush) {
 		r128_do_cce_flush(dev_priv);
 	}
 
 	/* If we fail to make the engine go idle, we return an error
 	 * code so that the DRM ioctl wrapper can try again.
 	 */
-	if (stop.idle) {
+	if (stop->idle) {
 		ret = r128_do_cce_idle(dev_priv);
 		if (ret)
 			return ret;
@@ -711,9 +702,8 @@ int r128_cce_stop(DRM_IOCTL_ARGS)
 
 /* Just reset the CCE ring.  Called as part of an X Server engine reset.
  */
-int r128_cce_reset(DRM_IOCTL_ARGS)
+int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -732,9 +722,8 @@ int r128_cce_reset(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int r128_cce_idle(DRM_IOCTL_ARGS)
+int r128_cce_idle(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	DRM_DEBUG("\n");
 
@@ -747,9 +736,8 @@ int r128_cce_idle(DRM_IOCTL_ARGS)
 	return r128_do_cce_idle(dev_priv);
 }
 
-int r128_engine_reset(DRM_IOCTL_ARGS)
+int r128_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -757,7 +745,7 @@ int r128_engine_reset(DRM_IOCTL_ARGS)
 	return r128_do_engine_reset(dev);
 }
 
-int r128_fullscreen(DRM_IOCTL_ARGS)
+int r128_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	return -EINVAL;
 }
@@ -912,41 +900,35 @@ static int r128_cce_get_buffers(struct drm_device * dev,
 	return 0;
 }
 
-int r128_cce_buffers(DRM_IOCTL_ARGS)
+int r128_cce_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	struct drm_device_dma *dma = dev->dma;
 	int ret = 0;
-	struct drm_dma __user *argp = (void __user *)data;
-	struct drm_dma d;
+	struct drm_dma *d = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(d, argp, sizeof(d));
-
 	/* Please don't send us buffers.
 	 */
-	if (d.send_count != 0) {
+	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d.send_count);
+			  DRM_CURRENTPID, d->send_count);
 		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
 	 */
-	if (d.request_count < 0 || d.request_count > dma->buf_count) {
+	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d.request_count, dma->buf_count);
+			  DRM_CURRENTPID, d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 
-	d.granted_count = 0;
+	d->granted_count = 0;
 
-	if (d.request_count) {
-		ret = r128_cce_get_buffers(dev, file_priv, &d);
+	if (d->request_count) {
+		ret = r128_cce_get_buffers(dev, file_priv, d);
 	}
-
-	DRM_COPY_TO_USER_IOCTL(argp, d, sizeof(d));
 
 	return ret;
 }

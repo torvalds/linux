@@ -759,36 +759,30 @@ static int mga_do_dma_bootstrap(struct drm_device * dev,
 	return err;
 }
 
-int mga_dma_bootstrap(DRM_IOCTL_ARGS)
+int mga_dma_bootstrap(struct drm_device *dev, void *data,
+		      struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_mga_dma_bootstrap_t bootstrap;
+	drm_mga_dma_bootstrap_t *bootstrap = data;
 	int err;
 	static const int modes[] = { 0, 1, 2, 2, 4, 4, 4, 4 };
 	const drm_mga_private_t *const dev_priv =
 		(drm_mga_private_t *) dev->dev_private;
 
-	DRM_COPY_FROM_USER_IOCTL(bootstrap,
-				 (drm_mga_dma_bootstrap_t __user *) data,
-				 sizeof(bootstrap));
-
-	err = mga_do_dma_bootstrap(dev, &bootstrap);
+	err = mga_do_dma_bootstrap(dev, bootstrap);
 	if (err) {
 		mga_do_cleanup_dma(dev, FULL_CLEANUP);
 		return err;
 	}
 
 	if (dev_priv->agp_textures != NULL) {
-		bootstrap.texture_handle = dev_priv->agp_textures->offset;
-		bootstrap.texture_size = dev_priv->agp_textures->size;
+		bootstrap->texture_handle = dev_priv->agp_textures->offset;
+		bootstrap->texture_size = dev_priv->agp_textures->size;
 	} else {
-		bootstrap.texture_handle = 0;
-		bootstrap.texture_size = 0;
+		bootstrap->texture_handle = 0;
+		bootstrap->texture_size = 0;
 	}
 
-	bootstrap.agp_mode = modes[bootstrap.agp_mode & 0x07];
-	DRM_COPY_TO_USER_IOCTL((drm_mga_dma_bootstrap_t __user *)data,
-			       bootstrap, sizeof(bootstrap));
+	bootstrap->agp_mode = modes[bootstrap->agp_mode & 0x07];
 
 	return err;
 }
@@ -1007,20 +1001,17 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 	return 0;
 }
 
-int mga_dma_init(DRM_IOCTL_ARGS)
+int mga_dma_init(struct drm_device *dev, void *data,
+		 struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_mga_init_t init;
+	drm_mga_init_t *init = data;
 	int err;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_mga_init_t __user *) data,
-				 sizeof(init));
-
-	switch (init.func) {
+	switch (init->func) {
 	case MGA_INIT_DMA:
-		err = mga_do_init_dma(dev, &init);
+		err = mga_do_init_dma(dev, init);
 		if (err) {
 			(void)mga_do_cleanup_dma(dev, FULL_CLEANUP);
 		}
@@ -1036,29 +1027,26 @@ int mga_dma_init(DRM_IOCTL_ARGS)
  * Primary DMA stream management
  */
 
-int mga_dma_flush(DRM_IOCTL_ARGS)
+int mga_dma_flush(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
-	struct drm_lock lock;
+	struct drm_lock *lock = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(lock, (struct drm_lock __user *) data,
-				 sizeof(lock));
-
 	DRM_DEBUG("%s%s%s\n",
-		  (lock.flags & _DRM_LOCK_FLUSH) ? "flush, " : "",
-		  (lock.flags & _DRM_LOCK_FLUSH_ALL) ? "flush all, " : "",
-		  (lock.flags & _DRM_LOCK_QUIESCENT) ? "idle, " : "");
+		  (lock->flags & _DRM_LOCK_FLUSH) ? "flush, " : "",
+		  (lock->flags & _DRM_LOCK_FLUSH_ALL) ? "flush all, " : "",
+		  (lock->flags & _DRM_LOCK_QUIESCENT) ? "idle, " : "");
 
 	WRAP_WAIT_WITH_RETURN(dev_priv);
 
-	if (lock.flags & (_DRM_LOCK_FLUSH | _DRM_LOCK_FLUSH_ALL)) {
+	if (lock->flags & (_DRM_LOCK_FLUSH | _DRM_LOCK_FLUSH_ALL)) {
 		mga_do_dma_flush(dev_priv);
 	}
 
-	if (lock.flags & _DRM_LOCK_QUIESCENT) {
+	if (lock->flags & _DRM_LOCK_QUIESCENT) {
 #if MGA_DMA_DEBUG
 		int ret = mga_do_wait_for_idle(dev_priv);
 		if (ret < 0)
@@ -1072,9 +1060,9 @@ int mga_dma_flush(DRM_IOCTL_ARGS)
 	}
 }
 
-int mga_dma_reset(DRM_IOCTL_ARGS)
+int mga_dma_reset(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -1111,44 +1099,39 @@ static int mga_dma_get_buffers(struct drm_device * dev,
 	return 0;
 }
 
-int mga_dma_buffers(DRM_IOCTL_ARGS)
+int mga_dma_buffers(struct drm_device *dev, void *data,
+		    struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	struct drm_device_dma *dma = dev->dma;
 	drm_mga_private_t *dev_priv = (drm_mga_private_t *) dev->dev_private;
-	struct drm_dma __user *argp = (void __user *)data;
-	struct drm_dma d;
+	struct drm_dma *d = data;
 	int ret = 0;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(d, argp, sizeof(d));
-
 	/* Please don't send us buffers.
 	 */
-	if (d.send_count != 0) {
+	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d.send_count);
+			  DRM_CURRENTPID, d->send_count);
 		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
 	 */
-	if (d.request_count < 0 || d.request_count > dma->buf_count) {
+	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d.request_count, dma->buf_count);
+			  DRM_CURRENTPID, d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 
 	WRAP_TEST_WITH_RETURN(dev_priv);
 
-	d.granted_count = 0;
+	d->granted_count = 0;
 
-	if (d.request_count) {
-		ret = mga_dma_get_buffers(dev, file_priv, &d);
+	if (d->request_count) {
+		ret = mga_dma_get_buffers(dev, file_priv, d);
 	}
-
-	DRM_COPY_TO_USER_IOCTL(argp, d, sizeof(d));
 
 	return ret;
 }

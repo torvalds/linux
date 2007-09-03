@@ -781,18 +781,15 @@ via_dmablit(struct drm_device *dev, drm_via_dmablit_t *xfer)
  */
 
 int
-via_dma_blit_sync( DRM_IOCTL_ARGS )
+via_dma_blit_sync( struct drm_device *dev, void *data, struct drm_file *file_priv )
 {
-	drm_via_blitsync_t sync;
+	drm_via_blitsync_t *sync = data;
 	int err;
-	DRM_DEVICE;
 
-	DRM_COPY_FROM_USER_IOCTL(sync, (drm_via_blitsync_t *)data, sizeof(sync));
-	
-	if (sync.engine >= VIA_NUM_BLIT_ENGINES) 
+	if (sync->engine >= VIA_NUM_BLIT_ENGINES) 
 		return -EINVAL;
 
-	err = via_dmablit_sync(dev, sync.sync_handle, sync.engine);
+	err = via_dmablit_sync(dev, sync->sync_handle, sync->engine);
 
 	if (-EINTR == err)
 		err = -EAGAIN;
@@ -808,17 +805,12 @@ via_dma_blit_sync( DRM_IOCTL_ARGS )
  */
 
 int 
-via_dma_blit( DRM_IOCTL_ARGS )
+via_dma_blit( struct drm_device *dev, void *data, struct drm_file *file_priv )
 {
-	drm_via_dmablit_t xfer;
+	drm_via_dmablit_t *xfer = data;
 	int err;
-	DRM_DEVICE;
 
-	DRM_COPY_FROM_USER_IOCTL(xfer, (drm_via_dmablit_t __user *)data, sizeof(xfer));
-
-	err = via_dmablit(dev, &xfer);
-
-	DRM_COPY_TO_USER_IOCTL((void __user *)data, xfer, sizeof(xfer));
+	err = via_dmablit(dev, xfer);
 
 	return err;
 }

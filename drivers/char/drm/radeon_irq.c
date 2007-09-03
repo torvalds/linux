@@ -196,11 +196,10 @@ int radeon_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence)
 
 /* Needs the lock as it touches the ring.
  */
-int radeon_irq_emit(DRM_IOCTL_ARGS)
+int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_emit_t emit;
+	drm_radeon_irq_emit_t *emit = data;
 	int result;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
@@ -210,12 +209,9 @@ int radeon_irq_emit(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(emit, (drm_radeon_irq_emit_t __user *) data,
-				 sizeof(emit));
-
 	result = radeon_emit_irq(dev);
 
-	if (DRM_COPY_TO_USER(emit.irq_seq, &result, sizeof(int))) {
+	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
@@ -225,21 +221,17 @@ int radeon_irq_emit(DRM_IOCTL_ARGS)
 
 /* Doesn't need the hardware lock.
  */
-int radeon_irq_wait(DRM_IOCTL_ARGS)
+int radeon_irq_wait(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_irq_wait_t irqwait;
+	drm_radeon_irq_wait_t *irqwait = data;
 
 	if (!dev_priv) {
 		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(irqwait, (drm_radeon_irq_wait_t __user *) data,
-				 sizeof(irqwait));
-
-	return radeon_wait_irq(dev, irqwait.irq_seq);
+	return radeon_wait_irq(dev, irqwait->irq_seq);
 }
 
 static void radeon_enable_interrupt(struct drm_device *dev)

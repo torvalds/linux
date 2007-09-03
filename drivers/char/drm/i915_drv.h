@@ -116,7 +116,7 @@ typedef struct drm_i915_private {
 	unsigned int swaps_pending;
 } drm_i915_private_t;
 
-extern drm_ioctl_desc_t i915_ioctls[];
+extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 
 				/* i915_dma.c */
@@ -130,8 +130,10 @@ extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
 
 /* i915_irq.c */
-extern int i915_irq_emit(DRM_IOCTL_ARGS);
-extern int i915_irq_wait(DRM_IOCTL_ARGS);
+extern int i915_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int i915_irq_wait(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 
 extern int i915_driver_vblank_wait(struct drm_device *dev, unsigned int *sequence);
 extern int i915_driver_vblank_wait2(struct drm_device *dev, unsigned int *sequence);
@@ -139,15 +141,22 @@ extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
 extern void i915_driver_irq_postinstall(struct drm_device * dev);
 extern void i915_driver_irq_uninstall(struct drm_device * dev);
-extern int i915_vblank_pipe_set(DRM_IOCTL_ARGS);
-extern int i915_vblank_pipe_get(DRM_IOCTL_ARGS);
-extern int i915_vblank_swap(DRM_IOCTL_ARGS);
+extern int i915_vblank_pipe_set(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+extern int i915_vblank_swap(struct drm_device *dev, void *data,
+			    struct drm_file *file_priv);
 
 /* i915_mem.c */
-extern int i915_mem_alloc(DRM_IOCTL_ARGS);
-extern int i915_mem_free(DRM_IOCTL_ARGS);
-extern int i915_mem_init_heap(DRM_IOCTL_ARGS);
-extern int i915_mem_destroy_heap(DRM_IOCTL_ARGS);
+extern int i915_mem_alloc(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv);
+extern int i915_mem_free(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
+extern int i915_mem_init_heap(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+extern int i915_mem_destroy_heap(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);
 extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(struct drm_device * dev,
 			     struct drm_file *file_priv, struct mem_block *heap);

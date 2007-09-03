@@ -6,8 +6,6 @@
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
 
-/** Ioctl arguments */
-#define DRM_IOCTL_ARGS			struct inode *inode, struct drm_file *file_priv, unsigned int cmd, unsigned long data
 /** Current process ID */
 #define DRM_CURRENTPID			current->pid
 #define DRM_SUSER(p)			capable(CAP_SYS_ADMIN)
@@ -30,8 +28,6 @@
 #define DRM_WRITEMEMORYBARRIER()	wmb()
 /** Read/write memory barrier */
 #define DRM_MEMORYBARRIER()		mb()
-/** DRM device local declaration */
-#define DRM_DEVICE	struct drm_device *dev	= file_priv->head->dev
 
 /** IRQ handler arguments and return type and values */
 #define DRM_IRQ_ARGS		int irq, void *arg

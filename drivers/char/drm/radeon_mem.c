@@ -217,11 +217,10 @@ static struct mem_block **get_heap(drm_radeon_private_t * dev_priv, int region)
 	}
 }
 
-int radeon_mem_alloc(DRM_IOCTL_ARGS)
+int radeon_mem_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_alloc_t alloc;
+	drm_radeon_mem_alloc_t *alloc = data;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -229,25 +228,23 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_radeon_mem_alloc_t __user *) data,
-				 sizeof(alloc));
-
-	heap = get_heap(dev_priv, alloc.region);
+	heap = get_heap(dev_priv, alloc->region);
 	if (!heap || !*heap)
 		return -EFAULT;
 
 	/* Make things easier on ourselves: all allocations at least
 	 * 4k aligned.
 	 */
-	if (alloc.alignment < 12)
-		alloc.alignment = 12;
+	if (alloc->alignment < 12)
+		alloc->alignment = 12;
 
-	block = alloc_block(*heap, alloc.size, alloc.alignment, file_priv);
+	block = alloc_block(*heap, alloc->size, alloc->alignment, file_priv);
 
 	if (!block)
 		return -ENOMEM;
 
-	if (DRM_COPY_TO_USER(alloc.region_offset, &block->start, sizeof(int))) {
+	if (DRM_COPY_TO_USER(alloc->region_offset, &block->start,
+			     sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
@@ -255,11 +252,10 @@ int radeon_mem_alloc(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int radeon_mem_free(DRM_IOCTL_ARGS)
+int radeon_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_free_t memfree;
+	drm_radeon_mem_free_t *memfree = data;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -267,14 +263,11 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_radeon_mem_free_t __user *) data,
-				 sizeof(memfree));
-
-	heap = get_heap(dev_priv, memfree.region);
+	heap = get_heap(dev_priv, memfree->region);
 	if (!heap || !*heap)
 		return -EFAULT;
 
-	block = find_block(*heap, memfree.region_offset);
+	block = find_block(*heap, memfree->region_offset);
 	if (!block)
 		return -EFAULT;
 
@@ -285,11 +278,10 @@ int radeon_mem_free(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int radeon_mem_init_heap(DRM_IOCTL_ARGS)
+int radeon_mem_init_heap(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_radeon_private_t *dev_priv = dev->dev_private;
-	drm_radeon_mem_init_heap_t initheap;
+	drm_radeon_mem_init_heap_t *initheap = data;
 	struct mem_block **heap;
 
 	if (!dev_priv) {
@@ -297,11 +289,7 @@ int radeon_mem_init_heap(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(initheap,
-				 (drm_radeon_mem_init_heap_t __user *) data,
-				 sizeof(initheap));
-
-	heap = get_heap(dev_priv, initheap.region);
+	heap = get_heap(dev_priv, initheap->region);
 	if (!heap)
 		return -EFAULT;
 
@@ -310,5 +298,5 @@ int radeon_mem_init_heap(DRM_IOCTL_ARGS)
 		return -EFAULT;
 	}
 
-	return init_heap(heap, initheap.start, initheap.size);
+	return init_heap(heap, initheap->start, initheap->size);
 }

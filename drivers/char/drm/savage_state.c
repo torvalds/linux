@@ -953,13 +953,12 @@ static int savage_dispatch_draw(drm_savage_private_t * dev_priv,
 	return 0;
 }
 
-int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
+int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	struct drm_device_dma *dma = dev->dma;
 	struct drm_buf *dmabuf;
-	drm_savage_cmdbuf_t cmdbuf;
+	drm_savage_cmdbuf_t *cmdbuf = data;
 	drm_savage_cmd_header_t *kcmd_addr = NULL;
 	drm_savage_cmd_header_t *first_draw_cmd;
 	unsigned int *kvb_addr = NULL;
@@ -971,17 +970,14 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_savage_cmdbuf_t __user *) data,
-				 sizeof(cmdbuf));
-
 	if (dma && dma->buflist) {
-		if (cmdbuf.dma_idx > dma->buf_count) {
+		if (cmdbuf->dma_idx > dma->buf_count) {
 			DRM_ERROR
 			    ("vertex buffer index %u out of range (0-%u)\n",
-			     cmdbuf.dma_idx, dma->buf_count - 1);
+			     cmdbuf->dma_idx, dma->buf_count - 1);
 			return -EINVAL;
 		}
-		dmabuf = dma->buflist[cmdbuf.dma_idx];
+		dmabuf = dma->buflist[cmdbuf->dma_idx];
 	} else {
 		dmabuf = NULL;
 	}
@@ -991,47 +987,47 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 	 * COPY_FROM_USER_UNCHECKED when done in other drivers, and is correct
 	 * for locking on FreeBSD.
 	 */
-	if (cmdbuf.size) {
-		kcmd_addr = drm_alloc(cmdbuf.size * 8, DRM_MEM_DRIVER);
+	if (cmdbuf->size) {
+		kcmd_addr = drm_alloc(cmdbuf->size * 8, DRM_MEM_DRIVER);
 		if (kcmd_addr == NULL)
 			return -ENOMEM;
 
-		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf.cmd_addr,
-				       cmdbuf.size * 8))
+		if (DRM_COPY_FROM_USER(kcmd_addr, cmdbuf->cmd_addr,
+				       cmdbuf->size * 8))
 		{
-			drm_free(kcmd_addr, cmdbuf.size * 8, DRM_MEM_DRIVER);
+			drm_free(kcmd_addr, cmdbuf->size * 8, DRM_MEM_DRIVER);
 			return -EFAULT;
 		}
-		cmdbuf.cmd_addr = kcmd_addr;
+		cmdbuf->cmd_addr = kcmd_addr;
 	}
-	if (cmdbuf.vb_size) {
-		kvb_addr = drm_alloc(cmdbuf.vb_size, DRM_MEM_DRIVER);
+	if (cmdbuf->vb_size) {
+		kvb_addr = drm_alloc(cmdbuf->vb_size, DRM_MEM_DRIVER);
 		if (kvb_addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
 		}
 
-		if (DRM_COPY_FROM_USER(kvb_addr, cmdbuf.vb_addr,
-				       cmdbuf.vb_size)) {
+		if (DRM_COPY_FROM_USER(kvb_addr, cmdbuf->vb_addr,
+				       cmdbuf->vb_size)) {
 			ret = -EFAULT;
 			goto done;
 		}
-		cmdbuf.vb_addr = kvb_addr;
+		cmdbuf->vb_addr = kvb_addr;
 	}
-	if (cmdbuf.nbox) {
-		kbox_addr = drm_alloc(cmdbuf.nbox * sizeof(struct drm_clip_rect),
+	if (cmdbuf->nbox) {
+		kbox_addr = drm_alloc(cmdbuf->nbox * sizeof(struct drm_clip_rect),
 				       DRM_MEM_DRIVER);
 		if (kbox_addr == NULL) {
 			ret = -ENOMEM;
 			goto done;
 		}
 
-		if (DRM_COPY_FROM_USER(kbox_addr, cmdbuf.box_addr,
-				       cmdbuf.nbox * sizeof(struct drm_clip_rect))) {
+		if (DRM_COPY_FROM_USER(kbox_addr, cmdbuf->box_addr,
+				       cmdbuf->nbox * sizeof(struct drm_clip_rect))) {
 			ret = -EFAULT;
 			goto done;
 		}
-	cmdbuf.box_addr = kbox_addr;
+	cmdbuf->box_addr = kbox_addr;
 	}
 
 	/* Make sure writes to DMA buffers are finished before sending
@@ -1044,10 +1040,10 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	i = 0;
 	first_draw_cmd = NULL;
-	while (i < cmdbuf.size) {
+	while (i < cmdbuf->size) {
 		drm_savage_cmd_header_t cmd_header;
-		cmd_header = *(drm_savage_cmd_header_t *)cmdbuf.cmd_addr;
-		cmdbuf.cmd_addr++;
+		cmd_header = *(drm_savage_cmd_header_t *)cmdbuf->cmd_addr;
+		cmdbuf->cmd_addr++;
 		i++;
 
 		/* Group drawing commands with same state to minimize
@@ -1057,7 +1053,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 		case SAVAGE_CMD_DMA_IDX:
 		case SAVAGE_CMD_VB_IDX:
 			j = (cmd_header.idx.count + 3) / 4;
-			if (i + j > cmdbuf.size) {
+			if (i + j > cmdbuf->size) {
 				DRM_ERROR("indexed drawing command extends "
 					  "beyond end of command buffer\n");
 				DMA_FLUSH();
@@ -1067,18 +1063,18 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 		case SAVAGE_CMD_DMA_PRIM:
 		case SAVAGE_CMD_VB_PRIM:
 			if (!first_draw_cmd)
-				first_draw_cmd = cmdbuf.cmd_addr - 1;
-			cmdbuf.cmd_addr += j;
+				first_draw_cmd = cmdbuf->cmd_addr - 1;
+			cmdbuf->cmd_addr += j;
 			i += j;
 			break;
 		default:
 			if (first_draw_cmd) {
 				ret = savage_dispatch_draw(
 				      dev_priv, first_draw_cmd,
-				      cmdbuf.cmd_addr - 1,
-				      dmabuf, cmdbuf.vb_addr, cmdbuf.vb_size,
-				      cmdbuf.vb_stride,
-				      cmdbuf.nbox, cmdbuf.box_addr);
+				      cmdbuf->cmd_addr - 1,
+				      dmabuf, cmdbuf->vb_addr, cmdbuf->vb_size,
+				      cmdbuf->vb_stride,
+				      cmdbuf->nbox, cmdbuf->box_addr);
 				if (ret != 0)
 					return ret;
 				first_draw_cmd = NULL;
@@ -1090,7 +1086,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 		switch (cmd_header.cmd.cmd) {
 		case SAVAGE_CMD_STATE:
 			j = (cmd_header.state.count + 1) / 2;
-			if (i + j > cmdbuf.size) {
+			if (i + j > cmdbuf->size) {
 				DRM_ERROR("command SAVAGE_CMD_STATE extends "
 					  "beyond end of command buffer\n");
 				DMA_FLUSH();
@@ -1098,12 +1094,12 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 				goto done;
 			}
 			ret = savage_dispatch_state(dev_priv, &cmd_header,
-				(const uint32_t *)cmdbuf.cmd_addr);
-			cmdbuf.cmd_addr += j;
+				(const uint32_t *)cmdbuf->cmd_addr);
+			cmdbuf->cmd_addr += j;
 			i += j;
 			break;
 		case SAVAGE_CMD_CLEAR:
-			if (i + 1 > cmdbuf.size) {
+			if (i + 1 > cmdbuf->size) {
 				DRM_ERROR("command SAVAGE_CMD_CLEAR extends "
 					  "beyond end of command buffer\n");
 				DMA_FLUSH();
@@ -1111,17 +1107,19 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 				goto done;
 			}
 			ret = savage_dispatch_clear(dev_priv, &cmd_header,
-						    cmdbuf.cmd_addr,
-						    cmdbuf.nbox, cmdbuf.box_addr);
-			cmdbuf.cmd_addr++;
+						    cmdbuf->cmd_addr,
+						    cmdbuf->nbox,
+						    cmdbuf->box_addr);
+			cmdbuf->cmd_addr++;
 			i++;
 			break;
 		case SAVAGE_CMD_SWAP:
-			ret = savage_dispatch_swap(dev_priv, cmdbuf.nbox,
-						   cmdbuf.box_addr);
+			ret = savage_dispatch_swap(dev_priv, cmdbuf->nbox,
+						   cmdbuf->box_addr);
 			break;
 		default:
-			DRM_ERROR("invalid command 0x%x\n", cmd_header.cmd.cmd);
+			DRM_ERROR("invalid command 0x%x\n",
+				  cmd_header.cmd.cmd);
 			DMA_FLUSH();
 			ret = -EINVAL;
 			goto done;
@@ -1135,9 +1133,9 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	if (first_draw_cmd) {
 		ret = savage_dispatch_draw (
-			dev_priv, first_draw_cmd, cmdbuf.cmd_addr, dmabuf,
-			cmdbuf.vb_addr, cmdbuf.vb_size, cmdbuf.vb_stride,
-			cmdbuf.nbox, cmdbuf.box_addr);
+			dev_priv, first_draw_cmd, cmdbuf->cmd_addr, dmabuf,
+			cmdbuf->vb_addr, cmdbuf->vb_size, cmdbuf->vb_stride,
+			cmdbuf->nbox, cmdbuf->box_addr);
 		if (ret != 0) {
 			DMA_FLUSH();
 			goto done;
@@ -1146,7 +1144,7 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 	DMA_FLUSH();
 
-	if (dmabuf && cmdbuf.discard) {
+	if (dmabuf && cmdbuf->discard) {
 		drm_savage_buf_priv_t *buf_priv = dmabuf->dev_private;
 		uint16_t event;
 		event = savage_bci_emit_event(dev_priv, SAVAGE_WAIT_3D);
@@ -1156,9 +1154,9 @@ int savage_bci_cmdbuf(DRM_IOCTL_ARGS)
 
 done:
 	/* If we didn't need to allocate them, these'll be NULL */
-	drm_free(kcmd_addr, cmdbuf.size * 8, DRM_MEM_DRIVER);
-	drm_free(kvb_addr, cmdbuf.vb_size, DRM_MEM_DRIVER);
-	drm_free(kbox_addr, cmdbuf.nbox * sizeof(struct drm_clip_rect),
+	drm_free(kcmd_addr, cmdbuf->size * 8, DRM_MEM_DRIVER);
+	drm_free(kvb_addr, cmdbuf->vb_size, DRM_MEM_DRIVER);
+	drm_free(kbox_addr, cmdbuf->nbox * sizeof(struct drm_clip_rect),
 		 DRM_MEM_DRIVER);
 
 	return ret;

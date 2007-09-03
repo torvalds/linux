@@ -48,31 +48,26 @@ static int drm_notifier(void *priv);
  *
  * Add the current task to the lock wait queue, and attempt to take to lock.
  */
-int drm_lock(struct inode *inode, struct drm_file *file_priv,
-	     unsigned int cmd, unsigned long arg)
+int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
 	DECLARE_WAITQUEUE(entry, current);
-	struct drm_lock lock;
+	struct drm_lock *lock = data;
 	int ret = 0;
 
 	++file_priv->lock_count;
 
-	if (copy_from_user(&lock, (struct drm_lock __user *) arg, sizeof(lock)))
-		return -EFAULT;
-
-	if (lock.context == DRM_KERNEL_CONTEXT) {
+	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
-			  current->pid, lock.context);
+			  current->pid, lock->context);
 		return -EINVAL;
 	}
 
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
-		  lock.context, current->pid,
-		  dev->lock.hw_lock->lock, lock.flags);
+		  lock->context, current->pid,
+		  dev->lock.hw_lock->lock, lock->flags);
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE))
-		if (lock.context < 0)
+		if (lock->context < 0)
 			return -EINVAL;
 
 	add_wait_queue(&dev->lock.lock_queue, &entry);
@@ -86,7 +81,7 @@ int drm_lock(struct inode *inode, struct drm_file *file_priv,
 			ret = -EINTR;
 			break;
 		}
-		if (drm_lock_take(&dev->lock, lock.context)) {
+		if (drm_lock_take(&dev->lock, lock->context)) {
 			dev->lock.file_priv = file_priv;
 			dev->lock.lock_time = jiffies;
 			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
@@ -106,7 +101,8 @@ int drm_lock(struct inode *inode, struct drm_file *file_priv,
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&dev->lock.lock_queue, &entry);
 
-	DRM_DEBUG( "%d %s\n", lock.context, ret ? "interrupted" : "has lock" );
+	DRM_DEBUG("%d %s\n", lock->context,
+		  ret ? "interrupted" : "has lock");
 	if (ret) return ret;
 
 	sigemptyset(&dev->sigmask);
@@ -114,24 +110,26 @@ int drm_lock(struct inode *inode, struct drm_file *file_priv,
 	sigaddset(&dev->sigmask, SIGTSTP);
 	sigaddset(&dev->sigmask, SIGTTIN);
 	sigaddset(&dev->sigmask, SIGTTOU);
-	dev->sigdata.context = lock.context;
+	dev->sigdata.context = lock->context;
 	dev->sigdata.lock = dev->lock.hw_lock;
 	block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
 
-	if (dev->driver->dma_ready && (lock.flags & _DRM_LOCK_READY))
+	if (dev->driver->dma_ready && (lock->flags & _DRM_LOCK_READY))
 		dev->driver->dma_ready(dev);
 
-	if (dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT)) {
+	if (dev->driver->dma_quiescent && (lock->flags & _DRM_LOCK_QUIESCENT))
+	{
 		if (dev->driver->dma_quiescent(dev)) {
-			DRM_DEBUG("%d waiting for DMA quiescent\n", lock.context);
+			DRM_DEBUG("%d waiting for DMA quiescent\n",
+				  lock->context);
 			return -EBUSY;
 		}
 	}
 
 	if (dev->driver->kernel_context_switch &&
-	    dev->last_context != lock.context) {
+	    dev->last_context != lock->context) {
 		dev->driver->kernel_context_switch(dev, dev->last_context,
-						   lock.context);
+						   lock->context);
 	}
 
 	return 0;
@@ -148,19 +146,14 @@ int drm_lock(struct inode *inode, struct drm_file *file_priv,
  *
  * Transfer and free the lock.
  */
-int drm_unlock(struct inode *inode, struct drm_file *file_priv,
-	       unsigned int cmd, unsigned long arg)
+int drm_unlock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_lock lock;
+	struct drm_lock *lock = data;
 	unsigned long irqflags;
 
-	if (copy_from_user(&lock, (struct drm_lock __user *) arg, sizeof(lock)))
-		return -EFAULT;
-
-	if (lock.context == DRM_KERNEL_CONTEXT) {
+	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
-			  current->pid, lock.context);
+			  current->pid, lock->context);
 		return -EINVAL;
 	}
 
@@ -182,7 +175,7 @@ int drm_unlock(struct inode *inode, struct drm_file *file_priv,
 	if (dev->driver->kernel_context_switch_unlock)
 		dev->driver->kernel_context_switch_unlock(dev);
 	else {
-		if (drm_lock_free(&dev->lock,lock.context)) {
+		if (drm_lock_free(&dev->lock,lock->context)) {
 			/* FIXME: Should really bail out here. */
 		}
 	}
@@ -388,10 +381,8 @@ void drm_idlelock_release(struct drm_lock_data *lock_data)
 EXPORT_SYMBOL(drm_idlelock_release);
 
 
-int drm_i_have_hw_lock(struct drm_file *file_priv)
+int drm_i_have_hw_lock(struct drm_device *dev, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-
 	return (file_priv->lock_count && dev->lock.hw_lock &&
 		_DRM_LOCK_IS_HELD(dev->lock.hw_lock->lock) &&
 		dev->lock.file_priv == file_priv);

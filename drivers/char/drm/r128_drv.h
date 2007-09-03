@@ -129,18 +129,18 @@ typedef struct drm_r128_buf_priv {
 	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
 
-extern drm_ioctl_desc_t r128_ioctls[];
+extern struct drm_ioctl_desc r128_ioctls[];
 extern int r128_max_ioctl;
 
 				/* r128_cce.c */
-extern int r128_cce_init(DRM_IOCTL_ARGS);
-extern int r128_cce_start(DRM_IOCTL_ARGS);
-extern int r128_cce_stop(DRM_IOCTL_ARGS);
-extern int r128_cce_reset(DRM_IOCTL_ARGS);
-extern int r128_cce_idle(DRM_IOCTL_ARGS);
-extern int r128_engine_reset(DRM_IOCTL_ARGS);
-extern int r128_fullscreen(DRM_IOCTL_ARGS);
-extern int r128_cce_buffers(DRM_IOCTL_ARGS);
+extern int r128_cce_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_start(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_stop(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_reset(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_idle(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_engine_reset(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_fullscreen(struct drm_device *dev, void *data, struct drm_file *file_priv);
+extern int r128_cce_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern void r128_freelist_reset(struct drm_device * dev);
 

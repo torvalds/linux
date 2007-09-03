@@ -331,11 +331,9 @@ void via_driver_irq_uninstall(struct drm_device * dev)
 	}
 }
 
-int via_wait_irq(DRM_IOCTL_ARGS)
+int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_irqwait_t __user *argp = (void __user *)data;
-	drm_via_irqwait_t irqwait;
+	drm_via_irqwait_t *irqwait = data;
 	struct timeval now;
 	int ret = 0;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
@@ -345,40 +343,37 @@ int via_wait_irq(DRM_IOCTL_ARGS)
 	if (!dev->irq)
 		return -EINVAL;
 
-	DRM_COPY_FROM_USER_IOCTL(irqwait, argp, sizeof(irqwait));
-	if (irqwait.request.irq >= dev_priv->num_irqs) {
+	if (irqwait->request.irq >= dev_priv->num_irqs) {
 		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
-			  irqwait.request.irq);
+			  irqwait->request.irq);
 		return -EINVAL;
 	}
 
-	cur_irq += irqwait.request.irq;
+	cur_irq += irqwait->request.irq;
 
-	switch (irqwait.request.type & ~VIA_IRQ_FLAGS_MASK) {
+	switch (irqwait->request.type & ~VIA_IRQ_FLAGS_MASK) {
 	case VIA_IRQ_RELATIVE:
-		irqwait.request.sequence += atomic_read(&cur_irq->irq_received);
-		irqwait.request.type &= ~_DRM_VBLANK_RELATIVE;
+		irqwait->request.sequence += atomic_read(&cur_irq->irq_received);
+		irqwait->request.type &= ~_DRM_VBLANK_RELATIVE;
 	case VIA_IRQ_ABSOLUTE:
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (irqwait.request.type & VIA_IRQ_SIGNAL) {
+	if (irqwait->request.type & VIA_IRQ_SIGNAL) {
 		DRM_ERROR("%s Signals on Via IRQs not implemented yet.\n",
 			  __FUNCTION__);
 		return -EINVAL;
 	}
 
-	force_sequence = (irqwait.request.type & VIA_IRQ_FORCE_SEQUENCE);
+	force_sequence = (irqwait->request.type & VIA_IRQ_FORCE_SEQUENCE);
 
-	ret = via_driver_irq_wait(dev, irqwait.request.irq, force_sequence,
-				  &irqwait.request.sequence);
+	ret = via_driver_irq_wait(dev, irqwait->request.irq, force_sequence,
+				  &irqwait->request.sequence);
 	do_gettimeofday(&now);
-	irqwait.reply.tval_sec = now.tv_sec;
-	irqwait.reply.tval_usec = now.tv_usec;
-
-	DRM_COPY_TO_USER_IOCTL(argp, irqwait, sizeof(irqwait));
+	irqwait->reply.tval_sec = now.tv_sec;
+	irqwait->reply.tval_usec = now.tv_usec;
 
 	return ret;
 }

@@ -71,19 +71,16 @@ int drm_agp_info(struct drm_device *dev, struct drm_agp_info *info)
 
 EXPORT_SYMBOL(drm_agp_info);
 
-int drm_agp_info_ioctl(struct inode *inode, struct drm_file *file_priv,
-		       unsigned int cmd, unsigned long arg)
+int drm_agp_info_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_info info;
+	struct drm_agp_info *info = data;
 	int err;
 
-	err = drm_agp_info(dev, &info);
+	err = drm_agp_info(dev, info);
 	if (err)
 		return err;
 
-	if (copy_to_user((struct drm_agp_info __user *) arg, &info, sizeof(info)))
-		return -EFAULT;
 	return 0;
 }
 
@@ -122,8 +119,8 @@ EXPORT_SYMBOL(drm_agp_acquire);
  * Verifies the AGP device hasn't been acquired before and calls
  * \c agp_backend_acquire.
  */
-int drm_agp_acquire_ioctl(struct inode *inode, struct drm_file *file_priv,
-			  unsigned int cmd, unsigned long arg)
+int drm_agp_acquire_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv)
 {
 	return drm_agp_acquire((struct drm_device *) file_priv->head->dev);
 }
@@ -146,11 +143,9 @@ int drm_agp_release(struct drm_device * dev)
 }
 EXPORT_SYMBOL(drm_agp_release);
 
-int drm_agp_release_ioctl(struct inode *inode, struct drm_file *file_priv,
-			  unsigned int cmd, unsigned long arg)
+int drm_agp_release_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-
 	return drm_agp_release(dev);
 }
 
@@ -178,16 +173,12 @@ int drm_agp_enable(struct drm_device * dev, struct drm_agp_mode mode)
 
 EXPORT_SYMBOL(drm_agp_enable);
 
-int drm_agp_enable_ioctl(struct inode *inode, struct drm_file *file_priv,
-			 unsigned int cmd, unsigned long arg)
+int drm_agp_enable_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_mode mode;
+	struct drm_agp_mode *mode = data;
 
-	if (copy_from_user(&mode, (struct drm_agp_mode __user *) arg, sizeof(mode)))
-		return -EFAULT;
-
-	return drm_agp_enable(dev, mode);
+	return drm_agp_enable(dev, *mode);
 }
 
 /**
@@ -236,34 +227,13 @@ int drm_agp_alloc(struct drm_device *dev, struct drm_agp_buffer *request)
 }
 EXPORT_SYMBOL(drm_agp_alloc);
 
-int drm_agp_alloc_ioctl(struct inode *inode, struct drm_file *file_priv,
-			unsigned int cmd, unsigned long arg)
+
+int drm_agp_alloc_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_buffer request;
-	struct drm_agp_buffer __user *argp = (void __user *)arg;
-	int err;
+	struct drm_agp_buffer *request = data;
 
-	if (copy_from_user(&request, argp, sizeof(request)))
-		return -EFAULT;
-
-	err = drm_agp_alloc(dev, &request);
-	if (err)
-		return err;
-
-	if (copy_to_user(argp, &request, sizeof(request))) {
-		struct drm_agp_mem *entry;
-		list_for_each_entry(entry, &dev->agp->memory, head) {
-			if (entry->handle == request.handle)
-				break;
-		}
-		list_del(&entry->head);
-		drm_free_agp(entry->memory, entry->pages);
-		drm_free(entry, sizeof(*entry), DRM_MEM_AGPLISTS);
-		return -EFAULT;
-	}
-
-	return 0;
+	return drm_agp_alloc(dev, request);
 }
 
 /**
@@ -317,17 +287,13 @@ int drm_agp_unbind(struct drm_device *dev, struct drm_agp_binding *request)
 }
 EXPORT_SYMBOL(drm_agp_unbind);
 
-int drm_agp_unbind_ioctl(struct inode *inode, struct drm_file *file_priv,
-			 unsigned int cmd, unsigned long arg)
+
+int drm_agp_unbind_ioctl(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_binding request;
+	struct drm_agp_binding *request = data;
 
-	if (copy_from_user
-	    (&request, (struct drm_agp_binding __user *) arg, sizeof(request)))
-		return -EFAULT;
-
-	return drm_agp_unbind(dev, &request);
+	return drm_agp_unbind(dev, request);
 }
 
 /**
@@ -365,17 +331,13 @@ int drm_agp_bind(struct drm_device *dev, struct drm_agp_binding *request)
 }
 EXPORT_SYMBOL(drm_agp_bind);
 
-int drm_agp_bind_ioctl(struct inode *inode, struct drm_file *file_priv,
-		       unsigned int cmd, unsigned long arg)
+
+int drm_agp_bind_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_binding request;
+	struct drm_agp_binding *request = data;
 
-	if (copy_from_user
-	    (&request, (struct drm_agp_binding __user *) arg, sizeof(request)))
-		return -EFAULT;
-
-	return drm_agp_bind(dev, &request);
+	return drm_agp_bind(dev, request);
 }
 
 /**
@@ -411,17 +373,14 @@ int drm_agp_free(struct drm_device *dev, struct drm_agp_buffer *request)
 }
 EXPORT_SYMBOL(drm_agp_free);
 
-int drm_agp_free_ioctl(struct inode *inode, struct drm_file *file_priv,
-		       unsigned int cmd, unsigned long arg)
+
+
+int drm_agp_free_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
-	struct drm_device *dev = file_priv->head->dev;
-	struct drm_agp_buffer request;
+	struct drm_agp_buffer *request = data;
 
-	if (copy_from_user
-	    (&request, (struct drm_agp_buffer __user *) arg, sizeof(request)))
-		return -EFAULT;
-
-	return drm_agp_free(dev, &request);
+	return drm_agp_free(dev, request);
 }
 
 /**

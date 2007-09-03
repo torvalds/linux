@@ -268,11 +268,11 @@ static struct mem_block **get_heap(drm_i915_private_t * dev_priv, int region)
 
 /* IOCTL HANDLERS */
 
-int i915_mem_alloc(DRM_IOCTL_ARGS)
+int i915_mem_alloc(struct drm_device *dev, void *data,
+		   struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_mem_alloc_t alloc;
+	drm_i915_mem_alloc_t *alloc = data;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -280,27 +280,25 @@ int i915_mem_alloc(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(alloc, (drm_i915_mem_alloc_t __user *) data,
-				 sizeof(alloc));
-
-	heap = get_heap(dev_priv, alloc.region);
+	heap = get_heap(dev_priv, alloc->region);
 	if (!heap || !*heap)
 		return -EFAULT;
 
 	/* Make things easier on ourselves: all allocations at least
 	 * 4k aligned.
 	 */
-	if (alloc.alignment < 12)
-		alloc.alignment = 12;
+	if (alloc->alignment < 12)
+		alloc->alignment = 12;
 
-	block = alloc_block(*heap, alloc.size, alloc.alignment, file_priv);
+	block = alloc_block(*heap, alloc->size, alloc->alignment, file_priv);
 
 	if (!block)
 		return -ENOMEM;
 
 	mark_block(dev, block, 1);
 
-	if (DRM_COPY_TO_USER(alloc.region_offset, &block->start, sizeof(int))) {
+	if (DRM_COPY_TO_USER(alloc->region_offset, &block->start,
+			     sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
@@ -308,11 +306,11 @@ int i915_mem_alloc(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int i915_mem_free(DRM_IOCTL_ARGS)
+int i915_mem_free(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_mem_free_t memfree;
+	drm_i915_mem_free_t *memfree = data;
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
@@ -320,14 +318,11 @@ int i915_mem_free(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(memfree, (drm_i915_mem_free_t __user *) data,
-				 sizeof(memfree));
-
-	heap = get_heap(dev_priv, memfree.region);
+	heap = get_heap(dev_priv, memfree->region);
 	if (!heap || !*heap)
 		return -EFAULT;
 
-	block = find_block(*heap, memfree.region_offset);
+	block = find_block(*heap, memfree->region_offset);
 	if (!block)
 		return -EFAULT;
 
@@ -339,11 +334,11 @@ int i915_mem_free(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-int i915_mem_init_heap(DRM_IOCTL_ARGS)
+int i915_mem_init_heap(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_mem_init_heap_t initheap;
+	drm_i915_mem_init_heap_t *initheap = data;
 	struct mem_block **heap;
 
 	if (!dev_priv) {
@@ -351,11 +346,7 @@ int i915_mem_init_heap(DRM_IOCTL_ARGS)
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(initheap,
-				 (drm_i915_mem_init_heap_t __user *) data,
-				 sizeof(initheap));
-
-	heap = get_heap(dev_priv, initheap.region);
+	heap = get_heap(dev_priv, initheap->region);
 	if (!heap)
 		return -EFAULT;
 
@@ -364,14 +355,14 @@ int i915_mem_init_heap(DRM_IOCTL_ARGS)
 		return -EFAULT;
 	}
 
-	return init_heap(heap, initheap.start, initheap.size);
+	return init_heap(heap, initheap->start, initheap->size);
 }
 
-int i915_mem_destroy_heap( DRM_IOCTL_ARGS )
+int i915_mem_destroy_heap( struct drm_device *dev, void *data,
+			   struct drm_file *file_priv )
 {
-	DRM_DEVICE;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_mem_destroy_heap_t destroyheap;
+	drm_i915_mem_destroy_heap_t *destroyheap = data;
 	struct mem_block **heap;
 
 	if ( !dev_priv ) {
@@ -379,10 +370,7 @@ int i915_mem_destroy_heap( DRM_IOCTL_ARGS )
 		return -EINVAL;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL( destroyheap, (drm_i915_mem_destroy_heap_t *)data,
-				  sizeof(destroyheap) );
-
-	heap = get_heap( dev_priv, destroyheap.region );
+	heap = get_heap( dev_priv, destroyheap->region );
 	if (!heap) {
 		DRM_ERROR("get_heap failed");
 		return -EFAULT;

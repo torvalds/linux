@@ -928,19 +928,15 @@ static int savage_do_cleanup_bci(struct drm_device * dev)
 	return 0;
 }
 
-static int savage_bci_init(DRM_IOCTL_ARGS)
+static int savage_bci_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_savage_init_t init;
+	drm_savage_init_t *init = data;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_savage_init_t __user *) data,
-				 sizeof(init));
-
-	switch (init.func) {
+	switch (init->func) {
 	case SAVAGE_INIT_BCI:
-		return savage_do_init_bci(dev, &init);
+		return savage_do_init_bci(dev, init);
 	case SAVAGE_CLEANUP_BCI:
 		return savage_do_cleanup_bci(dev);
 	}
@@ -948,31 +944,25 @@ static int savage_bci_init(DRM_IOCTL_ARGS)
 	return -EINVAL;
 }
 
-static int savage_bci_event_emit(DRM_IOCTL_ARGS)
+static int savage_bci_event_emit(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_savage_private_t *dev_priv = dev->dev_private;
-	drm_savage_event_emit_t event;
+	drm_savage_event_emit_t *event = data;
 
 	DRM_DEBUG("\n");
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(event, (drm_savage_event_emit_t __user *) data,
-				 sizeof(event));
+	event->count = savage_bci_emit_event(dev_priv, event->flags);
+	event->count |= dev_priv->event_wrap << 16;
 
-	event.count = savage_bci_emit_event(dev_priv, event.flags);
-	event.count |= dev_priv->event_wrap << 16;
-	DRM_COPY_TO_USER_IOCTL((drm_savage_event_emit_t __user *) data,
-			       event, sizeof(event));
 	return 0;
 }
 
-static int savage_bci_event_wait(DRM_IOCTL_ARGS)
+static int savage_bci_event_wait(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_savage_private_t *dev_priv = dev->dev_private;
-	drm_savage_event_wait_t event;
+	drm_savage_event_wait_t *event = data;
 	unsigned int event_e, hw_e;
 	unsigned int event_w, hw_w;
 
@@ -990,8 +980,8 @@ static int savage_bci_event_wait(DRM_IOCTL_ARGS)
 	if (hw_e > dev_priv->event_counter)
 		hw_w--;		/* hardware hasn't passed the last wrap yet */
 
-	event_e = event.count & 0xffff;
-	event_w = event.count >> 16;
+	event_e = event->count & 0xffff;
+	event_w = event->count >> 16;
 
 	/* Don't need to wait if
 	 * - event counter wrapped since the event was emitted or
@@ -1033,40 +1023,35 @@ static int savage_bci_get_buffers(struct drm_device *dev,
 	return 0;
 }
 
-int savage_bci_buffers(DRM_IOCTL_ARGS)
+int savage_bci_buffers(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	struct drm_device_dma *dma = dev->dma;
-	struct drm_dma d;
+	struct drm_dma *d = data;
 	int ret = 0;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(d, (struct drm_dma __user *) data, sizeof(d));
-
 	/* Please don't send us buffers.
 	 */
-	if (d.send_count != 0) {
+	if (d->send_count != 0) {
 		DRM_ERROR("Process %d trying to send %d buffers via drmDMA\n",
-			  DRM_CURRENTPID, d.send_count);
+			  DRM_CURRENTPID, d->send_count);
 		return -EINVAL;
 	}
 
 	/* We'll send you buffers.
 	 */
-	if (d.request_count < 0 || d.request_count > dma->buf_count) {
+	if (d->request_count < 0 || d->request_count > dma->buf_count) {
 		DRM_ERROR("Process %d trying to get %d buffers (of %d max)\n",
-			  DRM_CURRENTPID, d.request_count, dma->buf_count);
+			  DRM_CURRENTPID, d->request_count, dma->buf_count);
 		return -EINVAL;
 	}
 
-	d.granted_count = 0;
+	d->granted_count = 0;
 
-	if (d.request_count) {
-		ret = savage_bci_get_buffers(dev, file_priv, &d);
+	if (d->request_count) {
+		ret = savage_bci_get_buffers(dev, file_priv, d);
 	}
-
-	DRM_COPY_TO_USER_IOCTL((struct drm_dma __user *) data, d, sizeof(d));
 
 	return ret;
 }
@@ -1103,11 +1088,11 @@ void savage_reclaim_buffers(struct drm_device *dev, struct drm_file *file_priv)
 	drm_core_reclaim_buffers(dev, file_priv);
 }
 
-drm_ioctl_desc_t savage_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_INIT)] = {savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_CMDBUF)] = {savage_bci_cmdbuf, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_EMIT)] = {savage_bci_event_emit, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_SAVAGE_BCI_EVENT_WAIT)] = {savage_bci_event_wait, DRM_AUTH},
+struct drm_ioctl_desc savage_ioctls[] = {
+	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_INIT, savage_bci_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_CMDBUF, savage_bci_cmdbuf, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_EVENT_EMIT, savage_bci_event_emit, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_SAVAGE_BCI_EVENT_WAIT, savage_bci_event_wait, DRM_AUTH),
 };
 
 int savage_max_ioctl = DRM_ARRAY_SIZE(savage_ioctls);

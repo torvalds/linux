@@ -227,22 +227,18 @@ static int via_initialize(struct drm_device * dev,
 	return 0;
 }
 
-static int via_dma_init(DRM_IOCTL_ARGS)
+static int via_dma_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
-	drm_via_dma_init_t init;
+	drm_via_dma_init_t *init = data;
 	int retcode = 0;
 
-	DRM_COPY_FROM_USER_IOCTL(init, (drm_via_dma_init_t __user *) data,
-				 sizeof(init));
-
-	switch (init.func) {
+	switch (init->func) {
 	case VIA_INIT_DMA:
 		if (!DRM_SUSER(DRM_CURPROC))
 			retcode = -EPERM;
 		else
-			retcode = via_initialize(dev, dev_priv, &init);
+			retcode = via_initialize(dev, dev_priv, init);
 		break;
 	case VIA_CLEANUP_DMA:
 		if (!DRM_SUSER(DRM_CURPROC))
@@ -326,29 +322,25 @@ int via_driver_dma_quiescent(struct drm_device * dev)
 	return 0;
 }
 
-static int via_flush_ioctl(DRM_IOCTL_ARGS)
+static int via_flush_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	return via_driver_dma_quiescent(dev);
 }
 
-static int via_cmdbuffer(DRM_IOCTL_ARGS)
+static int via_cmdbuffer(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_cmdbuffer_t cmdbuf;
+	drm_via_cmdbuffer_t *cmdbuf = data;
 	int ret;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
-				 sizeof(cmdbuf));
+	DRM_DEBUG("via cmdbuffer, buf %p size %lu\n", cmdbuf->buf,
+		  cmdbuf->size);
 
-	DRM_DEBUG("via cmdbuffer, buf %p size %lu\n", cmdbuf.buf, cmdbuf.size);
-
-	ret = via_dispatch_cmdbuffer(dev, &cmdbuf);
+	ret = via_dispatch_cmdbuffer(dev, cmdbuf);
 	if (ret) {
 		return ret;
 	}
@@ -380,21 +372,17 @@ static int via_dispatch_pci_cmdbuffer(struct drm_device * dev,
 	return ret;
 }
 
-static int via_pci_cmdbuffer(DRM_IOCTL_ARGS)
+static int via_pci_cmdbuffer(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_cmdbuffer_t cmdbuf;
+	drm_via_cmdbuffer_t *cmdbuf = data;
 	int ret;
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_COPY_FROM_USER_IOCTL(cmdbuf, (drm_via_cmdbuffer_t __user *) data,
-				 sizeof(cmdbuf));
+	DRM_DEBUG("via_pci_cmdbuffer, buf %p size %lu\n", cmdbuf->buf,
+		  cmdbuf->size);
 
-	DRM_DEBUG("via_pci_cmdbuffer, buf %p size %lu\n", cmdbuf.buf,
-		  cmdbuf.size);
-
-	ret = via_dispatch_pci_cmdbuffer(dev, &cmdbuf);
+	ret = via_dispatch_pci_cmdbuffer(dev, cmdbuf);
 	if (ret) {
 		return ret;
 	}
@@ -653,10 +641,9 @@ static void via_cmdbuf_reset(drm_via_private_t * dev_priv)
  * User interface to the space and lag functions.
  */
 
-static int via_cmdbuf_size(DRM_IOCTL_ARGS)
+static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
-	DRM_DEVICE;
-	drm_via_cmdbuf_size_t d_siz;
+	drm_via_cmdbuf_size_t *d_siz = data;
 	int ret = 0;
 	uint32_t tmp_size, count;
 	drm_via_private_t *dev_priv;
@@ -672,16 +659,13 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 		return -EFAULT;
 	}
 
-	DRM_COPY_FROM_USER_IOCTL(d_siz, (drm_via_cmdbuf_size_t __user *) data,
-				 sizeof(d_siz));
-
 	count = 1000000;
-	tmp_size = d_siz.size;
-	switch (d_siz.func) {
+	tmp_size = d_siz->size;
+	switch (d_siz->func) {
 	case VIA_CMDBUF_SPACE:
-		while (((tmp_size = via_cmdbuf_space(dev_priv)) < d_siz.size)
+		while (((tmp_size = via_cmdbuf_space(dev_priv)) < d_siz->size)
 		       && count--) {
-			if (!d_siz.wait) {
+			if (!d_siz->wait) {
 				break;
 			}
 		}
@@ -691,9 +675,9 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 		}
 		break;
 	case VIA_CMDBUF_LAG:
-		while (((tmp_size = via_cmdbuf_lag(dev_priv)) > d_siz.size)
+		while (((tmp_size = via_cmdbuf_lag(dev_priv)) > d_siz->size)
 		       && count--) {
-			if (!d_siz.wait) {
+			if (!d_siz->wait) {
 				break;
 			}
 		}
@@ -705,28 +689,26 @@ static int via_cmdbuf_size(DRM_IOCTL_ARGS)
 	default:
 		ret = -EFAULT;
 	}
-	d_siz.size = tmp_size;
+	d_siz->size = tmp_size;
 
-	DRM_COPY_TO_USER_IOCTL((drm_via_cmdbuf_size_t __user *) data, d_siz,
-			       sizeof(d_siz));
 	return ret;
 }
 
-drm_ioctl_desc_t via_ioctls[] = {
-	[DRM_IOCTL_NR(DRM_VIA_ALLOCMEM)] = {via_mem_alloc, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_FREEMEM)] = {via_mem_free, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_AGP_INIT)] = {via_agp_init, DRM_AUTH|DRM_MASTER},
-	[DRM_IOCTL_NR(DRM_VIA_FB_INIT)] = {via_fb_init, DRM_AUTH|DRM_MASTER},
-	[DRM_IOCTL_NR(DRM_VIA_MAP_INIT)] = {via_map_init, DRM_AUTH|DRM_MASTER},
-	[DRM_IOCTL_NR(DRM_VIA_DEC_FUTEX)] = {via_decoder_futex, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_DMA_INIT)] = {via_dma_init, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_CMDBUFFER)] = {via_cmdbuffer, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_FLUSH)] = {via_flush_ioctl, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_PCICMD)] = {via_pci_cmdbuffer, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_CMDBUF_SIZE)] = {via_cmdbuf_size, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_WAIT_IRQ)] = {via_wait_irq, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_DMA_BLIT)] = {via_dma_blit, DRM_AUTH},
-	[DRM_IOCTL_NR(DRM_VIA_BLIT_SYNC)] = {via_dma_blit_sync, DRM_AUTH}
+struct drm_ioctl_desc via_ioctls[] = {
+	DRM_IOCTL_DEF(DRM_VIA_ALLOCMEM, via_mem_alloc, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_FREEMEM, via_mem_free, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_AGP_INIT, via_agp_init, DRM_AUTH|DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_VIA_FB_INIT, via_fb_init, DRM_AUTH|DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_VIA_MAP_INIT, via_map_init, DRM_AUTH|DRM_MASTER),
+	DRM_IOCTL_DEF(DRM_VIA_DEC_FUTEX, via_decoder_futex, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_DMA_INIT, via_dma_init, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_CMDBUFFER, via_cmdbuffer, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_FLUSH, via_flush_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_PCICMD, via_pci_cmdbuffer, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_CMDBUF_SIZE, via_cmdbuf_size, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_WAIT_IRQ, via_wait_irq, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_DMA_BLIT, via_dma_blit, DRM_AUTH),
+	DRM_IOCTL_DEF(DRM_VIA_BLIT_SYNC, via_dma_blit_sync, DRM_AUTH)
 };
 
 int via_max_ioctl = DRM_ARRAY_SIZE(via_ioctls);
