@@ -413,6 +413,7 @@ struct kvm {
 	struct kvm_io_bus pio_bus;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
+	int round_robin_prev_vcpu;
 };
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)

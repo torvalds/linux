@@ -371,12 +371,35 @@ struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 				       unsigned long bitmap)
 {
 	int vcpu_id;
+	int last;
+	int next;
+	struct kvm_lapic *apic;
 
-	/* TODO for real round robin */
-	vcpu_id = fls(bitmap) - 1;
-	if (vcpu_id < 0)
-		printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
-	return kvm->vcpus[vcpu_id]->apic;
+	last = kvm->round_robin_prev_vcpu;
+	next = last;
+
+	do {
+		if (++next == KVM_MAX_VCPUS)
+			next = 0;
+		if (kvm->vcpus[next] == NULL || !test_bit(next, &bitmap))
+			continue;
+		apic = kvm->vcpus[next]->apic;
+		if (apic && apic_enabled(apic))
+			break;
+		apic = NULL;
+	} while (next != last);
+	kvm->round_robin_prev_vcpu = next;
+
+	if (!apic) {
+		vcpu_id = ffs(bitmap) - 1;
+		if (vcpu_id < 0) {
+			vcpu_id = 0;
+			printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
+		}
+		apic = kvm->vcpus[vcpu_id]->apic;
+	}
+
+	return apic;
 }
 
 static void apic_set_eoi(struct kvm_lapic *apic)
