@@ -90,7 +90,8 @@ upper VID bits share their pins with voltage inputs (in5 and in6) so you
 can't have both on a given board.
 
 The IT8716F, IT8718F and later IT8712F revisions have support for
-2 additional fans. They are not yet supported by the driver.
+2 additional fans. They are supported by the driver for the IT8716F and
+IT8718F but not for the IT8712F
 
 The IT8716F and IT8718F, and late IT8712F and IT8705F also have optional
 16-bit tachometer counters for fans 1 to 3. This is better (no more fan
