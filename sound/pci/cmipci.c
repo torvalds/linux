@@ -2852,6 +2852,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	unsigned int val;
 	long iomidi;
 	int integrated_midi = 0;
+	char modelstr[16];
 	int pcm_index, pcm_spdif_index;
 	static struct pci_device_id intel_82437vx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437VX) },
@@ -2951,12 +2952,8 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 		break;
 	}
 
-	sprintf(card->shortname, "C-Media %s", card->driver);
 	if (cm->chip_version < 68) {
 		val = pci->device < 0x110 ? 8338 : 8738;
-		sprintf(card->longname,
-			"C-Media CMI%d (model %d) at 0x%lx, irq %i",
-			val, cm->chip_version, cm->iobase, cm->irq);
 	} else {
 		switch (snd_cmipci_read_b(cm, CM_REG_INT_HLDCLR + 3) & 0x03) {
 		case 0:
@@ -2981,9 +2978,14 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 				break;
 			}
 		}
-		sprintf(card->longname, "C-Media CMI%d at 0x%lx, irq %i",
-			val, cm->iobase, cm->irq);
 	}
+	sprintf(card->shortname, "C-Media CMI%d", val);
+	if (cm->chip_version < 68)
+		sprintf(modelstr, " (model %d)", cm->chip_version);
+	else
+		modelstr[0] = '\0';
+	sprintf(card->longname, "%s%s at %#lx, irq %i",
+		card->shortname, modelstr, cm->iobase, cm->irq);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, cm, &ops)) < 0) {
 		snd_cmipci_free(cm);
