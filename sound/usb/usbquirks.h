@@ -1777,13 +1777,14 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* */
 {
-	/* Serato Scratch Live DJ Box */
+	/* aka. Serato Scratch Live DJ Box */
 	USB_DEVICE(0x13e5, 0x0001),
-	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk)
-	{
-		.ifnum = QUIRK_ANY_INTERFACE,
-		.type = QUIRK_AUDIO_STANDARD_INTERFACE
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Rane",
+		.product_name = "SL-1",
+		.ifnum = QUIRK_NO_INTERFACE
 	}
 },
 
