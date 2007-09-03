@@ -1331,7 +1331,9 @@ static void svm_intr_assist(struct vcpu_svm *svm)
 {
 	struct vmcb *vmcb = svm->vmcb;
 	int intr_vector = -1;
+	struct kvm_vcpu *vcpu = &svm->vcpu;
 
+	kvm_inject_pending_timer_irqs(vcpu);
 	if ((vmcb->control.exit_int_info & SVM_EVTINJ_VALID) &&
 	    ((vmcb->control.exit_int_info & SVM_EVTINJ_TYPE_MASK) == 0)) {
 		intr_vector = vmcb->control.exit_int_info &
@@ -1344,7 +1346,7 @@ static void svm_intr_assist(struct vcpu_svm *svm)
 	if (vmcb->control.int_ctl & V_IRQ_MASK)
 		return;
 
-	if (!kvm_cpu_has_interrupt(&svm->vcpu))
+	if (!kvm_cpu_has_interrupt(vcpu))
 		return;
 
 	if (!(vmcb->save.rflags & X86_EFLAGS_IF) ||
@@ -1356,8 +1358,9 @@ static void svm_intr_assist(struct vcpu_svm *svm)
 		return;
 	}
 	/* Okay, we can deliver the interrupt: grab it and update PIC state. */
-	intr_vector = kvm_cpu_get_interrupt(&svm->vcpu);
+	intr_vector = kvm_cpu_get_interrupt(vcpu);
 	svm_inject_irq(svm, intr_vector);
+	kvm_timer_intr_post(vcpu, intr_vector);
 }
 
 static void kvm_reput_irq(struct vcpu_svm *svm)

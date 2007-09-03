@@ -313,6 +313,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 			     int vector, int level, int trig_mode)
 {
 	int result = 0;
+	int orig_irr;
 
 	switch (delivery_mode) {
 	case APIC_DM_FIXED:
@@ -321,7 +322,8 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		if (unlikely(!apic_enabled(apic)))
 			break;
 
-		if (apic_test_and_set_irr(vector, apic) && trig_mode) {
+		orig_irr = apic_test_and_set_irr(vector, apic);
+		if (orig_irr && trig_mode) {
 			apic_debug("level trig mode repeatedly for vector %d",
 				   vector);
 			break;
@@ -335,7 +337,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 
 		kvm_vcpu_kick(apic->vcpu);
 
-		result = 1;
+		result = (orig_irr == 0);
 		break;
 
 	case APIC_DM_REMRD:
@@ -831,36 +833,31 @@ EXPORT_SYMBOL_GPL(kvm_lapic_enabled);
  * timer interface
  *----------------------------------------------------------------------
  */
+
+/* TODO: make sure __apic_timer_fn runs in current pCPU */
 static int __apic_timer_fn(struct kvm_lapic *apic)
 {
-	u32 vector;
 	int result = 0;
+	wait_queue_head_t *q = &apic->vcpu->wq;
 
-	if (unlikely(!apic_enabled(apic) ||
-		     !apic_lvt_enabled(apic, APIC_LVTT))) {
-		apic_debug("%s: time interrupt although apic is down\n",
-			   __FUNCTION__);
-		return 0;
-	}
-
-	vector = apic_lvt_vector(apic, APIC_LVTT);
-	apic->timer.last_update = apic->timer.dev.expires;
 	atomic_inc(&apic->timer.pending);
-	__apic_accept_irq(apic, APIC_DM_FIXED, vector, 1, 0);
-
+	if (waitqueue_active(q))
+		wake_up_interruptible(q);
 	if (apic_lvtt_period(apic)) {
-		u32 offset;
-		u32 tmict = apic_get_reg(apic, APIC_TMICT);
-
-		offset = APIC_BUS_CYCLE_NS * apic->timer.divide_count * tmict;
-
 		result = 1;
 		apic->timer.dev.expires = ktime_add_ns(
 					apic->timer.dev.expires,
 					apic->timer.period);
 	}
-
 	return result;
+}
+
+static int __inject_apic_timer_irq(struct kvm_lapic *apic)
+{
+	int vector;
+
+	vector = apic_lvt_vector(apic, APIC_LVTT);
+	return __apic_accept_irq(apic, APIC_DM_FIXED, vector, 1, 0);
 }
 
 static enum hrtimer_restart apic_timer_fn(struct hrtimer *data)
@@ -933,6 +930,27 @@ int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu)
 	    ((highest_irr & 0xF0) <= apic_get_reg(apic, APIC_PROCPRI)))
 		return -1;
 	return highest_irr;
+}
+
+void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->apic;
+
+	if (apic && apic_lvt_enabled(apic, APIC_LVTT) &&
+		atomic_read(&apic->timer.pending) > 0) {
+		if (__inject_apic_timer_irq(apic))
+			atomic_dec(&apic->timer.pending);
+	}
+}
+
+void kvm_apic_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
+{
+	struct kvm_lapic *apic = vcpu->apic;
+
+	if (apic && apic_lvt_vector(apic, APIC_LVTT) == vec)
+		apic->timer.last_update = ktime_add_ns(
+				apic->timer.last_update,
+				apic->timer.period);
 }
 
 int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)

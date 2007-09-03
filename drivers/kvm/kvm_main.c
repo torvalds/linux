@@ -283,6 +283,8 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvm_mmu_destroy(vcpu);
+	if (vcpu->apic)
+		hrtimer_cancel(&vcpu->apic->timer.dev);
 	kvm_free_apic(vcpu->apic);
 	free_page((unsigned long)vcpu->pio_data);
 	free_page((unsigned long)vcpu->run);

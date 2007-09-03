@@ -154,5 +154,9 @@ int kvm_ioapic_init(struct kvm *kvm);
 void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu);
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu);
+void kvm_apic_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
+void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
+void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
+void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu);
 
 #endif
