@@ -2195,8 +2195,10 @@ static void hda_power_work(struct work_struct *work)
 	struct hda_codec *codec =
 		container_of(work, struct hda_codec, power_work.work);
 
-	if (!codec->power_on || codec->power_count)
+	if (!codec->power_on || codec->power_count) {
+		codec->power_transition = 0;
 		return;
+	}
 
 	hda_call_codec_suspend(codec);
 	if (codec->bus->ops.pm_notify)
