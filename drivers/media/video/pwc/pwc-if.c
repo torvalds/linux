@@ -1243,7 +1243,7 @@ static int pwc_video_close(struct inode *inode, struct file *file)
 				PWC_ERROR("Failed to power down camera (%d)\n", i);
 		}
 		pdev->vopen--;
-		PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", i);
+		PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", pdev->vopen);
 	} else {
 		pwc_cleanup(pdev);
 		/* Free memory (don't set pdev to 0 just yet) */
