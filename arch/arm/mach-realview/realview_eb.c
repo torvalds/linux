@@ -165,7 +165,7 @@ static void __init gic_init_irq(void)
 #endif
 	gic_dist_init(0, __io_address(REALVIEW_GIC_DIST_BASE), 29);
 	gic_cpu_init(0, __io_address(REALVIEW_GIC_CPU_BASE));
-#ifdef CONFIG_REALVIEW_MPCORE
+#if defined(CONFIG_REALVIEW_MPCORE) && !defined(CONFIG_REALVIEW_MPCORE_REVB)
 	gic_dist_init(1, __io_address(REALVIEW_GIC1_DIST_BASE), 64);
 	gic_cpu_init(1, __io_address(REALVIEW_GIC1_CPU_BASE));
 	gic_cascade_irq(1, IRQ_EB_IRQ1);
