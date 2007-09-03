@@ -217,6 +217,9 @@ void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 0x10)
 		fam10h_check_enable_mmcfg();
 
+	if (c->x86 == 0x10)
+		amd_enable_pci_ext_cfg(c);
+
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;
 
