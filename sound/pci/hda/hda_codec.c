@@ -2787,7 +2787,6 @@ int snd_hda_suspend(struct hda_bus *bus, pm_message_t state)
 	return 0;
 }
 
-#ifndef CONFIG_SND_HDA_POWER_SAVE
 /**
  * snd_hda_resume - resume the codecs
  * @bus: the HDA bus
@@ -2803,10 +2802,21 @@ int snd_hda_resume(struct hda_bus *bus)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		hda_call_codec_resume(codec);
+		if (snd_hda_codec_needs_resume(codec))
+			hda_call_codec_resume(codec);
 	}
 	return 0;
 }
-#endif /* !CONFIG_SND_HDA_POWER_SAVE */
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+int snd_hda_codecs_inuse(struct hda_bus *bus)
+{
+	struct hda_codec *codec;
 
+	list_for_each_entry(codec, &bus->codec_list, list) {
+		if (snd_hda_codec_needs_resume(codec))
+			return 1;
+	}
+	return 0;
+}
+#endif
 #endif

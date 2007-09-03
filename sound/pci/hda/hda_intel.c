@@ -1586,11 +1586,11 @@ static int azx_resume(struct pci_dev *pci)
 	if (azx_acquire_irq(chip, 1) < 0)
 		return -EIO;
 	azx_init_pci(chip);
-#ifndef CONFIG_SND_HDA_POWER_SAVE
-	/* the explicit resume is needed only when POWER_SAVE isn't set */
-	azx_init_chip(chip);
+
+	if (snd_hda_codecs_inuse(chip->bus))
+		azx_init_chip(chip);
+
 	snd_hda_resume(chip->bus);
-#endif
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;
 }
