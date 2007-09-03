@@ -409,14 +409,16 @@ acpi_video_device_lcd_query_levels(struct acpi_video_device *device,
 static int
 acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 {
-	int status;
+	int status = AE_OK;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 
 
 	arg0.integer.value = level;
-	status = acpi_evaluate_object(device->dev->handle, "_BCM", &args, NULL);
-
+	if (device->cap._BCM)
+		status = acpi_evaluate_object(device->dev->handle, "_BCM",
+					      &args, NULL);
+	device->brightness->curr = level;
 	printk(KERN_DEBUG "set_level status: %x\n", status);
 	return status;
 }
@@ -425,11 +427,11 @@ static int
 acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 					unsigned long *level)
 {
-	int status;
-
-	status = acpi_evaluate_integer(device->dev->handle, "_BQC", NULL, level);
-
-	return status;
+	if (device->cap._BQC)
+		return acpi_evaluate_integer(device->dev->handle, "_BQC", NULL,
+					     level);
+	*level = device->brightness->curr;
+	return AE_OK;
 }
 
 static int
