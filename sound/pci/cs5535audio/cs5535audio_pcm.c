@@ -161,6 +161,7 @@ static int cs5535audio_build_dma_packets(struct cs5535audio *cs5535au,
 	jmpprd_addr = cpu_to_le32(lastdesc->addr +
 				  (sizeof(struct cs5535audio_dma_desc)*periods));
 
+	dma->substream = substream;
 	dma->period_bytes = period_bytes;
 	dma->periods = periods;
 	spin_lock_irq(&cs5535au->reg_lock);
@@ -238,6 +239,7 @@ static void cs5535audio_clear_dma_packets(struct cs5535audio *cs5535au,
 {
 	snd_dma_free_pages(&dma->desc_buf);
 	dma->desc_buf.area = NULL;
+	dma->substream = NULL;
 }
 
 static int snd_cs5535audio_hw_params(struct snd_pcm_substream *substream,
