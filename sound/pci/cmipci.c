@@ -135,11 +135,14 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_ADCDACLEN_280	0x00003000
 
 #define CM_CH1_SRATE_176K	0x00000800
+#define CM_CH1_SRATE_96K	0x00000800	/* model 055? */
 #define CM_CH1_SRATE_88K	0x00000400
 #define CM_CH0_SRATE_176K	0x00000200
+#define CM_CH0_SRATE_96K	0x00000200	/* model 055? */
 #define CM_CH0_SRATE_88K	0x00000100
 
 #define CM_SPDIF_INVERSE2	0x00000080	/* model 055? */
+#define CM_DBLSPDS		0x00000040
 
 #define CM_CH1FMT_MASK		0x0000000C
 #define CM_CH1FMT_SHIFT		2
@@ -812,6 +815,16 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 		val &= ~CM_CH0FMT_MASK;
 		val |= rec->fmt << CM_CH0FMT_SHIFT;
 	}
+	if (cm->chip_version == 68) {
+		if (runtime->rate == 88200)
+			val |= CM_CH0_SRATE_88K << (rec->ch * 2);
+		else
+			val &= ~(CM_CH0_SRATE_88K << (rec->ch * 2));
+		if (runtime->rate == 96000)
+			val |= CM_CH0_SRATE_96K << (rec->ch * 2);
+		else
+			val &= ~(CM_CH0_SRATE_96K << (rec->ch * 2));
+	}
 	snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
 	//snd_printd("cmipci: chformat = %08x\n", val);
 
@@ -1198,15 +1211,19 @@ static int setup_spdif_playback(struct cmipci *cm, struct snd_pcm_substream *sub
 			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_PLAYBACK_SPDF);
 		setup_ac3(cm, subs, do_ac3, rate);
 
-		if (rate == 48000)
+		if (rate == 48000 || rate == 96000)
 			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_SPDIF48K | CM_SPDF_AC97);
 		else
 			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPDIF48K | CM_SPDF_AC97);
-
+		if (rate > 48000)
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
 	} else {
 		/* they are controlled via "IEC958 Output Switch" */
 		/* snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_ENSPDOUT); */
 		/* snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_SPDO2DAC); */
+		snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
 		snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_PLAYBACK_SPDF);
 		setup_ac3(cm, subs, 0, 0);
 	}
@@ -1226,7 +1243,7 @@ static int snd_cmipci_playback_prepare(struct snd_pcm_substream *substream)
 	int rate = substream->runtime->rate;
 	int err, do_spdif, do_ac3 = 0;
 
-	do_spdif = ((rate == 44100 || rate == 48000) &&
+	do_spdif = (rate >= 44100 &&
 		    substream->runtime->format == SNDRV_PCM_FORMAT_S16_LE &&
 		    substream->runtime->channels == 2);
 	if (do_spdif && cm->can_ac3_hw) 
@@ -1514,6 +1531,11 @@ static int snd_cmipci_playback_open(struct snd_pcm_substream *substream)
 	if ((err = open_device_check(cm, CM_OPEN_PLAYBACK, substream)) < 0)
 		return err;
 	runtime->hw = snd_cmipci_playback;
+	if (cm->chip_version == 68) {
+		runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+				     SNDRV_PCM_RATE_96000;
+		runtime->hw.rate_max = 96000;
+	}
 	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	cm->dig_pcm_status = cm->dig_status;
 	return 0;
@@ -1556,6 +1578,11 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 			else if (cm->max_channels == 8)
 				snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, &hw_constraints_channels_8);
 		}
+		if (cm->chip_version == 68) {
+			runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+					     SNDRV_PCM_RATE_96000;
+			runtime->hw.rate_max = 96000;
+		}
 		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	}
 	mutex_unlock(&cm->open_mutex);
@@ -1574,6 +1601,11 @@ static int snd_cmipci_playback_spdif_open(struct snd_pcm_substream *substream)
 		runtime->hw = snd_cmipci_playback_spdif;
 		if (cm->chip_version >= 37)
 			runtime->hw.formats |= SNDRV_PCM_FMTBIT_S32_LE;
+		if (cm->chip_version == 68) {
+			runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+					     SNDRV_PCM_RATE_96000;
+			runtime->hw.rate_max = 96000;
+		}
 	} else {
 		runtime->hw = snd_cmipci_playback_iec958_subframe;
 	}
