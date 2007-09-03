@@ -106,7 +106,6 @@ struct cs5535audio_dma {
 	struct snd_pcm_substream *substream;
 	unsigned int buf_addr, buf_bytes;
 	unsigned int period_bytes, periods;
-	int suspended;
 	u32 saved_prd;
 };
 

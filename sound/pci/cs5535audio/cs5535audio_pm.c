@@ -64,13 +64,13 @@ int snd_cs5535audio_suspend(struct pci_dev *pci, pm_message_t state)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < NUM_CS5535AUDIO_DMAS; i++) {
-		struct cs5535audio_dma *dma = &cs5535au->dmas[i];
-		if (dma && dma->substream && !dma->suspended) 
-			dma->saved_prd = dma->ops->read_prd(cs5535au);
-	}
 	snd_pcm_suspend_all(cs5535au->pcm);
 	snd_ac97_suspend(cs5535au->ac97);
+	for (i = 0; i < NUM_CS5535AUDIO_DMAS; i++) {
+		struct cs5535audio_dma *dma = &cs5535au->dmas[i];
+		if (dma && dma->substream)
+			dma->saved_prd = dma->ops->read_prd(cs5535au);
+	}
 	/* save important regs, then disable aclink in hw */
 	snd_cs5535audio_stop_hardware(cs5535au);
 
@@ -112,17 +112,17 @@ int snd_cs5535audio_resume(struct pci_dev *pci)
 	if (!timeout)
 		snd_printk(KERN_ERR "Failure getting AC Link ready\n");
 
-	/* we depend on ac97 to perform the codec power up */
-	snd_ac97_resume(cs5535au->ac97);
 	/* set up rate regs, dma. actual initiation is done in trig */
 	for (i = 0; i < NUM_CS5535AUDIO_DMAS; i++) {
 		struct cs5535audio_dma *dma = &cs5535au->dmas[i];
-		if (dma && dma->substream && dma->suspended) {
+		if (dma && dma->substream) {
 			dma->substream->ops->prepare(dma->substream);
 			dma->ops->setup_prd(cs5535au, dma->saved_prd);
 		}
 	}
-		
+
+	/* we depend on ac97 to perform the codec power up */
+	snd_ac97_resume(cs5535au->ac97);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	return 0;

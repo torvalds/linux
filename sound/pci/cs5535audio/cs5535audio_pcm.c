@@ -297,14 +297,12 @@ static int snd_cs5535audio_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
 		dma->ops->enable_dma(cs5535au);
-		dma->suspended = 0;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		dma->ops->disable_dma(cs5535au);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		dma->ops->disable_dma(cs5535au);
-		dma->suspended = 1;
 		break;
 	default:
 		snd_printk(KERN_ERR "unhandled trigger\n");
