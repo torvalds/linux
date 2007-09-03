@@ -146,6 +146,7 @@ struct sigmatel_spec {
 
 	/* i/o switches */
 	unsigned int io_switch[2];
+	unsigned int clfe_swap;
 
 	struct hda_pcm pcm_rec[2];	/* PCM information */
 
@@ -1406,6 +1407,36 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
         return 1;
 }
 
+#define stac92xx_clfe_switch_info snd_ctl_boolean_mono_info
+
+static int stac92xx_clfe_switch_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+
+	ucontrol->value.integer.value[0] = spec->clfe_swap;
+	return 0;
+}
+
+static int stac92xx_clfe_switch_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	hda_nid_t nid = kcontrol->private_value & 0xff;
+
+	if (spec->clfe_swap == ucontrol->value.integer.value[0])
+		return 0;
+
+	spec->clfe_swap = ucontrol->value.integer.value[0];
+
+	snd_hda_codec_write_cache(codec, nid, 0, AC_VERB_SET_EAPD_BTLENABLE,
+		spec->clfe_swap ? 0x4 : 0x0);
+
+	return 1;
+}
+
 #define STAC_CODEC_IO_SWITCH(xname, xpval) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	  .name = xname, \
@@ -1416,17 +1447,28 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
           .private_value = xpval, \
 	}
 
+#define STAC_CODEC_CLFE_SWITCH(xname, xpval) \
+	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	  .name = xname, \
+	  .index = 0, \
+	  .info = stac92xx_clfe_switch_info, \
+	  .get = stac92xx_clfe_switch_get, \
+	  .put = stac92xx_clfe_switch_put, \
+	  .private_value = xpval, \
+	}
 
 enum {
 	STAC_CTL_WIDGET_VOL,
 	STAC_CTL_WIDGET_MUTE,
 	STAC_CTL_WIDGET_IO_SWITCH,
+	STAC_CTL_WIDGET_CLFE_SWITCH
 };
 
 static struct snd_kcontrol_new stac92xx_control_templates[] = {
 	HDA_CODEC_VOLUME(NULL, 0, 0, 0),
 	HDA_CODEC_MUTE(NULL, 0, 0, 0),
 	STAC_CODEC_IO_SWITCH(NULL, 0),
+	STAC_CODEC_CLFE_SWITCH(NULL, 0),
 };
 
 /* add dynamic controls */
@@ -1620,7 +1662,7 @@ static int create_controls(struct sigmatel_spec *spec, const char *pfx, hda_nid_
 }
 
 /* add playback controls from the parsed DAC table */
-static int stac92xx_auto_create_multi_out_ctls(struct sigmatel_spec *spec,
+static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 					       const struct auto_pin_cfg *cfg)
 {
 	static const char *chname[4] = {
@@ -1628,6 +1670,10 @@ static int stac92xx_auto_create_multi_out_ctls(struct sigmatel_spec *spec,
 	};
 	hda_nid_t nid;
 	int i, err;
+
+	struct sigmatel_spec *spec = codec->spec;
+	unsigned int wid_caps;
+
 
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (!spec->multiout.dac_nids[i])
@@ -1643,6 +1689,18 @@ static int stac92xx_auto_create_multi_out_ctls(struct sigmatel_spec *spec,
 			err = create_controls(spec, "LFE", nid, 2);
 			if (err < 0)
 				return err;
+
+			wid_caps = get_wcaps(codec, nid);
+
+			if (wid_caps & AC_WCAP_LR_SWAP) {
+				err = stac92xx_add_control(spec,
+					STAC_CTL_WIDGET_CLFE_SWITCH,
+					"Swap Center/LFE Playback Switch", nid);
+
+				if (err < 0)
+					return err;
+			}
+
 		} else {
 			err = create_controls(spec, chname[i], nid, 3);
 			if (err < 0)
@@ -1895,9 +1953,19 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		if ((err = stac92xx_auto_fill_dac_nids(codec, &spec->autocfg)) < 0)
 			return err;
 
-	if ((err = stac92xx_auto_create_multi_out_ctls(spec, &spec->autocfg)) < 0 ||
-	    (err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg)) < 0 ||
-	    (err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg)) < 0)
+	err = stac92xx_auto_create_multi_out_ctls(codec, &spec->autocfg);
+
+	if (err < 0)
+		return err;
+
+	err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg);
+
+	if (err < 0)
+		return err;
+
+	err = stac92xx_auto_create_analog_input_ctls(codec, &spec->autocfg);
+
+	if (err < 0)
 		return err;
 
 	if (spec->num_dmics > 0)
