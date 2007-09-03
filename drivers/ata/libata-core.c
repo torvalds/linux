@@ -915,7 +915,6 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
  *	ata_set_max_sectors - Set max sectors
  *	@dev: target device
  *	@new_sectors: new max sectors value to set for the device
- *	@res_sectors: result max sectors
  *
  *	Set max sectors of @dev to @new_sectors.
  *
@@ -924,8 +923,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
  *	previous non-volatile SET_MAX) by the drive.  -EIO on other
  *	errors.
  */
-static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors,
-			       u64 *res_sectors)
+static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 {
 	unsigned int err_mask;
 	struct ata_taskfile tf;
@@ -964,11 +962,6 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors,
 		return -EIO;
 	}
 
-	if (lba48)
-		*res_sectors = ata_tf_to_lba48(&tf);
-	else
-		*res_sectors = ata_tf_to_lba(&tf);
-
 	return 0;
 }
 
@@ -979,41 +972,93 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors,
  *	Read the size of an LBA28 or LBA48 disk with HPA features and resize
  *	it if required to the full size of the media. The caller must check
  *	the drive has the HPA feature set enabled.
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
  */
-
-static u64 ata_hpa_resize(struct ata_device *dev)
+static int ata_hpa_resize(struct ata_device *dev)
 {
-	u64 sectors = dev->n_sectors;
-	u64 hpa_sectors;
+	struct ata_eh_context *ehc = &dev->link->eh_context;
+	int print_info = ehc->i.flags & ATA_EHI_PRINTINFO;
+	u64 sectors = ata_id_n_sectors(dev->id);
+	u64 native_sectors;
 	int rc;
 
-	rc = ata_read_native_max_address(dev, &hpa_sectors);
-	if (rc)
+	/* do we need to do it? */
+	if (dev->class != ATA_DEV_ATA ||
+	    !ata_id_has_lba(dev->id) || !ata_id_hpa_enabled(dev->id) ||
+	    (dev->horkage & ATA_HORKAGE_BROKEN_HPA))
 		return 0;
 
-	if (hpa_sectors > sectors) {
-		ata_dev_printk(dev, KERN_INFO,
-			"Host Protected Area detected:\n"
-			"\tcurrent size: %lld sectors\n"
-			"\tnative size: %lld sectors\n",
-			(long long)sectors, (long long)hpa_sectors);
+	/* read native max address */
+	rc = ata_read_native_max_address(dev, &native_sectors);
+	if (rc) {
+		/* If HPA isn't going to be unlocked, skip HPA
+		 * resizing from the next try.
+		 */
+		if (!ata_ignore_hpa) {
+			ata_dev_printk(dev, KERN_WARNING, "HPA support seems "
+				       "broken, will skip HPA handling\n");
+			dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
 
-		if (ata_ignore_hpa) {
-			rc = ata_set_max_sectors(dev, hpa_sectors, &hpa_sectors);
-
-			if (rc == 0) {
-				ata_dev_printk(dev, KERN_INFO, "native size "
-					"increased to %lld sectors\n",
-					(long long)hpa_sectors);
-				return hpa_sectors;
-			}
+			/* we can continue if device aborted the command */
+			if (rc == -EACCES)
+				rc = 0;
 		}
-	} else if (hpa_sectors < sectors)
-		ata_dev_printk(dev, KERN_WARNING, "%s 1: hpa sectors (%lld) "
-			       "is smaller than sectors (%lld)\n", __FUNCTION__,
-			       (long long)hpa_sectors, (long long)sectors);
 
-	return sectors;
+		return rc;
+	}
+
+	/* nothing to do? */
+	if (native_sectors <= sectors || !ata_ignore_hpa) {
+		if (!print_info || native_sectors == sectors)
+			return 0;
+
+		if (native_sectors > sectors)
+			ata_dev_printk(dev, KERN_INFO,
+				"HPA detected: current %llu, native %llu\n",
+				(unsigned long long)sectors,
+				(unsigned long long)native_sectors);
+		else if (native_sectors < sectors)
+			ata_dev_printk(dev, KERN_WARNING,
+				"native sectors (%llu) is smaller than "
+				"sectors (%llu)\n",
+				(unsigned long long)native_sectors,
+				(unsigned long long)sectors);
+		return 0;
+	}
+
+	/* let's unlock HPA */
+	rc = ata_set_max_sectors(dev, native_sectors);
+	if (rc == -EACCES) {
+		/* if device aborted the command, skip HPA resizing */
+		ata_dev_printk(dev, KERN_WARNING, "device aborted resize "
+			       "(%llu -> %llu), skipping HPA handling\n",
+			       (unsigned long long)sectors,
+			       (unsigned long long)native_sectors);
+		dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
+		return 0;
+	} else if (rc)
+		return rc;
+
+	/* re-read IDENTIFY data */
+	rc = ata_dev_reread_id(dev, 0);
+	if (rc) {
+		ata_dev_printk(dev, KERN_ERR, "failed to re-read IDENTIFY "
+			       "data after HPA resizing\n");
+		return rc;
+	}
+
+	if (print_info) {
+		u64 new_sectors = ata_id_n_sectors(dev->id);
+		ata_dev_printk(dev, KERN_INFO,
+			"HPA unlocked: %llu -> %llu, native %llu\n",
+			(unsigned long long)sectors,
+			(unsigned long long)new_sectors,
+			(unsigned long long)native_sectors);
+	}
+
+	return 0;
 }
 
 /**
@@ -1837,6 +1882,11 @@ int ata_dev_configure(struct ata_device *dev)
 	if (rc)
 		return rc;
 
+	/* massage HPA, do it early as it might change IDENTIFY data */
+	rc = ata_hpa_resize(dev);
+	if (rc)
+		return rc;
+
 	/* print device capabilities */
 	if (ata_msg_probe(ap))
 		ata_dev_printk(dev, KERN_DEBUG,
@@ -1903,10 +1953,6 @@ int ata_dev_configure(struct ata_device *dev)
 				    ata_id_has_flush_ext(id))
 					dev->flags |= ATA_DFLAG_FLUSH_EXT;
 			}
-
-			if (!(dev->horkage & ATA_HORKAGE_BROKEN_HPA) &&
-			    ata_id_hpa_enabled(dev->id))
- 				dev->n_sectors = ata_hpa_resize(dev);
 
 			/* config NCQ */
 			ata_dev_config_ncq(dev, ncq_desc, sizeof(ncq_desc));
