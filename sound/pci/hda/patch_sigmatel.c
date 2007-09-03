@@ -2061,9 +2061,9 @@ static void enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 			      unsigned int event)
 {
 	if (get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP)
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_UNSOLICITED_ENABLE,
-				    (AC_USRSP_EN | event));
+		snd_hda_codec_write_cache(codec, nid, 0,
+					  AC_VERB_SET_UNSOLICITED_ENABLE,
+					  (AC_USRSP_EN | event));
 }
 
 static int stac92xx_init(struct hda_codec *codec)
@@ -2236,10 +2236,19 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 #ifdef SND_HDA_NEEDS_RESUME
 static int stac92xx_resume(struct hda_codec *codec)
 {
+	struct sigmatel_spec *spec = codec->spec;
+
 	stac92xx_set_config_regs(codec);
-	stac92xx_init(codec);
+	snd_hda_sequence_write(codec, spec->init);
+	if (spec->gpio_mute) {
+		stac922x_gpio_mute(codec, 0, 0);
+		stac922x_gpio_mute(codec, 1, 0);
+	}
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
+	/* invoke unsolicited event to reset the HP state */
+	if (spec->hp_detect)
+		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
 	return 0;
 }
 #endif
