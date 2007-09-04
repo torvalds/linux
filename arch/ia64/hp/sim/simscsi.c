@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/timer.h>
 #include <asm/irq.h>
+#include "hpsim_ssc.h"
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -58,8 +59,6 @@ struct disk_stat {
 	int fd;
 	unsigned count;
 };
-
-extern long ia64_ssc (long arg0, long arg1, long arg2, long arg3, int nr);
 
 static int desc[16] = {
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
