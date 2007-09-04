@@ -70,6 +70,10 @@ static const struct usb_device_id usb_quirk_list[] = {
 	{ USB_DEVICE(0x05cc, 0x2267), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Ultima Electronics Corp.*/
 	{ USB_DEVICE(0x05d8, 0x4005), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
+	/* Genesys USB-to-IDE */
+	{ USB_DEVICE(0x0503, 0x0702), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
 	/* Agfa Snapscan1212u */
 	{ USB_DEVICE(0x06bd, 0x2061), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Seagate RSS LLC */
