@@ -333,12 +333,6 @@ static int attach_inform(struct i2c_client *client)
 		client->driver->driver.name, client->addr, client->name);
 
 	switch (client->addr<<1) {
-	case 0xa0:
-		tm6000_i2c_eeprom(dev, eedata, sizeof(eedata)-1);
-		eedata[sizeof(eedata)]='\0';
-
-		printk("Board string ID = %s\n",eedata);
-		return 0;
 	case 0xb0:
 		request_module("tvaudio");
 		return 0;
