@@ -75,6 +75,7 @@ struct sgiseeq_init_block { /* Note the name ;-) */
 
 struct sgiseeq_private {
 	struct sgiseeq_init_block *srings;
+	dma_addr_t srings_dma;
 
 	/* Ptrs to the descriptors in uncached space. */
 	struct sgiseeq_rx_desc *rx_desc;
@@ -643,13 +644,20 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	sp = netdev_priv(dev);
 
 	/* Make private data page aligned */
-	sr = (struct sgiseeq_init_block *) get_zeroed_page(GFP_KERNEL);
+	sr = dma_alloc_coherent(&pdev->dev, sizeof(*sp->srings),
+				&sp->srings_dma, GFP_KERNEL);
 	if (!sr) {
 		printk(KERN_ERR "Sgiseeq: Page alloc failed, aborting.\n");
 		err = -ENOMEM;
 		goto err_out_free_dev;
 	}
 	sp->srings = sr;
+	sp->rx_desc = sp->srings->rxvector;
+	sp->tx_desc = sp->srings->txvector;
+
+	/* A couple calculations now, saves many cycles later. */
+	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
+	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
 
 	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 
@@ -661,19 +669,6 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	sp->hregs = &hpcregs->ethregs;
 	sp->name = sgiseeqstr;
 	sp->mode = SEEQ_RCMD_RBCAST;
-
-	sp->rx_desc = (struct sgiseeq_rx_desc *)
-	              CKSEG1ADDR(ALIGNED(&sp->srings->rxvector[0]));
-	dma_cache_wback_inv((unsigned long)&sp->srings->rxvector,
-	                    sizeof(sp->srings->rxvector));
-	sp->tx_desc = (struct sgiseeq_tx_desc *)
-	              CKSEG1ADDR(ALIGNED(&sp->srings->txvector[0]));
-	dma_cache_wback_inv((unsigned long)&sp->srings->txvector,
-	                    sizeof(sp->srings->txvector));
-
-	/* A couple calculations now, saves many cycles later. */
-	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
-	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
 
 	/* Setup PIO and DMA transfer timing */
 	sp->hregs->pconfig = 0x161;
@@ -732,7 +727,8 @@ static int __exit sgiseeq_remove(struct platform_device *pdev)
 	struct sgiseeq_private *sp = netdev_priv(dev);
 
 	unregister_netdev(dev);
-	free_page((unsigned long) sp->srings);
+	dma_free_coherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
+	                  sp->srings_dma);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
 
