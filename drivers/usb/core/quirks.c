@@ -28,6 +28,8 @@
  * devices is broken...
  */
 static const struct usb_device_id usb_quirk_list[] = {
+	/* CBM - Flash disk */
+	{ USB_DEVICE(0x0204, 0x6025), .driver_info = USB_QUIRK_RESET_RESUME },
 	/* HP 5300/5370C scanner */
 	{ USB_DEVICE(0x03f0, 0x0701), .driver_info = USB_QUIRK_STRING_FETCH_255 },
 	/* Hewlett-Packard PhotoSmart 720 / PhotoSmart 935 (storage) */
