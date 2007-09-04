@@ -76,6 +76,12 @@ static const struct usb_device_id usb_quirk_list[] = {
 	/* Genesys USB-to-IDE */
 	{ USB_DEVICE(0x0503, 0x0702), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 
+	/* INTEL VALUE SSD */
+	{ USB_DEVICE(0x8086, 0xf1a5), .driver_info = USB_QUIRK_RESET_RESUME },
+
+	/* M-Systems Flash Disk Pioneers */
+	{ USB_DEVICE(0x08ec, 0x1000), .driver_info = USB_QUIRK_RESET_RESUME },
+
 	/* Agfa Snapscan1212u */
 	{ USB_DEVICE(0x06bd, 0x2061), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
 	/* Seagate RSS LLC */
@@ -99,6 +105,9 @@ static const struct usb_device_id usb_quirk_list[] = {
 
 	/* Apple iPhone */
 	{ USB_DEVICE(0x05ac, 0x1290), .driver_info = USB_QUIRK_NO_AUTOSUSPEND },
+
+	/* SKYMEDI USB_DRIVE */
+	{ USB_DEVICE(0x1516, 0x8628), .driver_info = USB_QUIRK_RESET_RESUME },
 
 	{ }  /* terminating entry must be last */
 };
