@@ -316,7 +316,7 @@ static void nfs_invalidate_page(struct page *page, unsigned long offset)
 	if (offset != 0)
 		return;
 	/* Cancel any unstarted writes on this page */
-	nfs_wb_page_priority(page->mapping->host, page, FLUSH_INVALIDATE);
+	nfs_wb_page_cancel(page->mapping->host, page);
 }
 
 static int nfs_release_page(struct page *page, gfp_t gfp)

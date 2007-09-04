@@ -176,7 +176,7 @@ static void nfs_expire_automounts(struct work_struct *work)
 void nfs_release_automount_timer(void)
 {
 	if (list_empty(&nfs_automount_list))
-		cancel_delayed_work_sync(&nfs_automount_task);
+		cancel_delayed_work(&nfs_automount_task);
 }
 
 /*

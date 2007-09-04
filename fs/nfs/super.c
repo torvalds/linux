@@ -911,13 +911,13 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(string);
 
 			switch (token) {
-			case Opt_udp:
+			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = IPPROTO_UDP;
 				mnt->timeo = 7;
 				mnt->retrans = 5;
 				break;
-			case Opt_tcp:
+			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = IPPROTO_TCP;
 				mnt->timeo = 600;
@@ -936,10 +936,10 @@ static int nfs_parse_mount_options(char *raw,
 			kfree(string);
 
 			switch (token) {
-			case Opt_udp:
+			case Opt_xprt_udp:
 				mnt->mount_server.protocol = IPPROTO_UDP;
 				break;
-			case Opt_tcp:
+			case Opt_xprt_tcp:
 				mnt->mount_server.protocol = IPPROTO_TCP;
 				break;
 			default:
@@ -1153,20 +1153,20 @@ static int nfs_validate_mount_data(struct nfs_mount_data **options,
 		c = strchr(dev_name, ':');
 		if (c == NULL)
 			return -EINVAL;
-		len = c - dev_name - 1;
+		len = c - dev_name;
 		if (len > sizeof(data->hostname))
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		strncpy(data->hostname, dev_name, len);
 		args.nfs_server.hostname = data->hostname;
 
 		c++;
 		if (strlen(c) > NFS_MAXPATHLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		args.nfs_server.export_path = c;
 
 		status = nfs_try_mount(&args, mntfh);
 		if (status)
-			return -EINVAL;
+			return status;
 
 		/*
 		 * Translate to nfs_mount_data, which nfs_fill_super
@@ -1677,7 +1677,7 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 		/* while calculating len, pretend ':' is '\0' */
 		len = c - dev_name;
 		if (len > NFS4_MAXNAMLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		*hostname = kzalloc(len, GFP_KERNEL);
 		if (*hostname == NULL)
 			return -ENOMEM;
@@ -1686,7 +1686,7 @@ static int nfs4_validate_mount_data(struct nfs4_mount_data **options,
 		c++;			/* step over the ':' */
 		len = strlen(c);
 		if (len > NFS4_MAXPATHLEN)
-			return -EINVAL;
+			return -ENAMETOOLONG;
 		*mntpath = kzalloc(len + 1, GFP_KERNEL);
 		if (*mntpath == NULL)
 			return -ENOMEM;

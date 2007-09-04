@@ -1396,6 +1396,50 @@ out:
 	return ret;
 }
 
+int nfs_wb_page_cancel(struct inode *inode, struct page *page)
+{
+	struct nfs_page *req;
+	loff_t range_start = page_offset(page);
+	loff_t range_end = range_start + (loff_t)(PAGE_CACHE_SIZE - 1);
+	struct writeback_control wbc = {
+		.bdi = page->mapping->backing_dev_info,
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = LONG_MAX,
+		.range_start = range_start,
+		.range_end = range_end,
+	};
+	int ret = 0;
+
+	BUG_ON(!PageLocked(page));
+	for (;;) {
+		req = nfs_page_find_request(page);
+		if (req == NULL)
+			goto out;
+		if (test_bit(PG_NEED_COMMIT, &req->wb_flags)) {
+			nfs_release_request(req);
+			break;
+		}
+		if (nfs_lock_request_dontget(req)) {
+			nfs_inode_remove_request(req);
+			/*
+			 * In case nfs_inode_remove_request has marked the
+			 * page as being dirty
+			 */
+			cancel_dirty_page(page, PAGE_CACHE_SIZE);
+			nfs_unlock_request(req);
+			break;
+		}
+		ret = nfs_wait_on_request(req);
+		if (ret < 0)
+			goto out;
+	}
+	if (!PagePrivate(page))
+		return 0;
+	ret = nfs_sync_mapping_wait(page->mapping, &wbc, FLUSH_INVALIDATE);
+out:
+	return ret;
+}
+
 int nfs_wb_page_priority(struct inode *inode, struct page *page, int how)
 {
 	loff_t range_start = page_offset(page);
