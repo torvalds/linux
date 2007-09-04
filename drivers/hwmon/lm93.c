@@ -2078,8 +2078,8 @@ static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf,"%d\n",LM93_VID_FROM_REG(data->vid[nr]));
 }
 
-static SENSOR_DEVICE_ATTR(vid1, S_IRUGO, show_vid, NULL, 0);
-static SENSOR_DEVICE_ATTR(vid2, S_IRUGO, show_vid, NULL, 1);
+static SENSOR_DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL, 0);
+static SENSOR_DEVICE_ATTR(cpu1_vid, S_IRUGO, show_vid, NULL, 1);
 
 static ssize_t show_prochot(struct device *dev, struct device_attribute *attr,
 				char *buf)
@@ -2431,8 +2431,8 @@ static struct attribute *lm93_attrs[] = {
 	&sensor_dev_attr_pwm2_auto_spinup_time.dev_attr.attr,
 	&dev_attr_pwm_auto_prochot_ramp.attr,
 	&dev_attr_pwm_auto_vrdhot_ramp.attr,
-	&sensor_dev_attr_vid1.dev_attr.attr,
-	&sensor_dev_attr_vid2.dev_attr.attr,
+	&sensor_dev_attr_cpu0_vid.dev_attr.attr,
+	&sensor_dev_attr_cpu1_vid.dev_attr.attr,
 	&sensor_dev_attr_prochot1.dev_attr.attr,
 	&sensor_dev_attr_prochot2.dev_attr.attr,
 	&sensor_dev_attr_prochot1_avg.dev_attr.attr,
