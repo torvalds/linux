@@ -1001,8 +1001,8 @@ static int dummy_urb_enqueue (
 	if (!timer_pending (&dum->timer))
 		mod_timer (&dum->timer, jiffies + 1);
 
-	spin_unlock_irqrestore (&dum->lock, flags);
  done:
+	spin_unlock_irqrestore(&dum->lock, flags);
 	return rc;
 }
 
