@@ -252,7 +252,7 @@ static int __init s3c2443_add_sub(unsigned int base,
 	return 0;
 }
 
-static int s3c2443_irq_add(struct sys_device *sysdev)
+static int __init s3c2443_irq_add(struct sys_device *sysdev)
 {
 	printk("S3C2443: IRQ Support\n");
 
@@ -280,7 +280,7 @@ static struct sysdev_driver s3c2443_irq_driver = {
 	.add		= s3c2443_irq_add,
 };
 
-static int s3c2443_irq_init(void)
+static int __init s3c2443_irq_init(void)
 {
 	return sysdev_driver_register(&s3c2443_sysclass, &s3c2443_irq_driver);
 }
