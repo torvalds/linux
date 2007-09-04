@@ -711,6 +711,7 @@ static void acpi_thermal_check(void *data)
 	int result = 0;
 	struct acpi_thermal *tz = data;
 	unsigned long sleep_time = 0;
+	unsigned long timeout_jiffies = 0;
 	int i = 0;
 	struct acpi_thermal_state state;
 
@@ -787,10 +788,13 @@ static void acpi_thermal_check(void *data)
 	 * a thermal event occurs).  Note that _TSP and _TZD values are
 	 * given in 1/10th seconds (we must covert to milliseconds).
 	 */
-	if (tz->state.passive)
+	if (tz->state.passive) {
 		sleep_time = tz->trips.passive.tsp * 100;
-	else if (tz->polling_frequency > 0)
+		timeout_jiffies =  jiffies + (HZ * sleep_time) / 1000;
+	} else if (tz->polling_frequency > 0) {
 		sleep_time = tz->polling_frequency * 100;
+		timeout_jiffies =  round_jiffies(jiffies + (HZ * sleep_time) / 1000);
+	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "%s: temperature[%lu] sleep[%lu]\n",
 			  tz->name, tz->temperature, sleep_time));
@@ -804,12 +808,11 @@ static void acpi_thermal_check(void *data)
 			del_timer(&(tz->timer));
 	} else {
 		if (timer_pending(&(tz->timer)))
-			mod_timer(&(tz->timer),
-					jiffies + (HZ * sleep_time) / 1000);
+			mod_timer(&(tz->timer), timeout_jiffies);
 		else {
 			tz->timer.data = (unsigned long)tz;
 			tz->timer.function = acpi_thermal_run;
-			tz->timer.expires = jiffies + (HZ * sleep_time) / 1000;
+			tz->timer.expires = timeout_jiffies;
 			add_timer(&(tz->timer));
 		}
 	}
