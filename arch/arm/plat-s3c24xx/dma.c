@@ -1372,7 +1372,7 @@ int __init s3c24xx_dma_init(unsigned int channels, unsigned int irq,
 	return ret;
 }
 
-int s3c2410_dma_init(void)
+int __init s3c2410_dma_init(void)
 {
 	return s3c24xx_dma_init(4, IRQ_DMA0, 0x40);
 }
