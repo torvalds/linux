@@ -4106,7 +4106,7 @@ W83791D HARDWARE MONITORING DRIVER
 P:	Charles Spirakis
 M:	bezaur@gmail.com
 L:	lm-sensors@lm-sensors.org
-S:	Maintained
+S:	Odd Fixes
 
 W83793 HARDWARE MONITORING DRIVER
 P:	Rudolf Marek

@@ -75,46 +75,64 @@ Voltage sensors (also known as IN sensors) report their values in millivolts.
 An alarm is triggered if the voltage has crossed a programmable minimum
 or maximum limit.
 
-The bit ordering for the alarm "realtime status register" and the
-"beep enable registers" are different.
+The w83791d has a global bit used to enable beeping from the speaker when an
+alarm is triggered as well as a bitmask to enable or disable the beep for
+specific alarms. You need both the global beep enable bit and the
+corresponding beep bit to be on for a triggered alarm to sound a beep.
 
-in0 (VCORE)  :  alarms: 0x000001 beep_enable: 0x000001
-in1 (VINR0)  :  alarms: 0x000002 beep_enable: 0x002000 <== mismatch
-in2 (+3.3VIN):  alarms: 0x000004 beep_enable: 0x000004
-in3 (5VDD)   :  alarms: 0x000008 beep_enable: 0x000008
-in4 (+12VIN) :  alarms: 0x000100 beep_enable: 0x000100
-in5 (-12VIN) :  alarms: 0x000200 beep_enable: 0x000200
-in6 (-5VIN)  :  alarms: 0x000400 beep_enable: 0x000400
-in7 (VSB)    :  alarms: 0x080000 beep_enable: 0x010000 <== mismatch
-in8 (VBAT)   :  alarms: 0x100000 beep_enable: 0x020000 <== mismatch
-in9 (VINR1)  :  alarms: 0x004000 beep_enable: 0x004000
-temp1        :  alarms: 0x000010 beep_enable: 0x000010
-temp2        :  alarms: 0x000020 beep_enable: 0x000020
-temp3        :  alarms: 0x002000 beep_enable: 0x000002 <== mismatch
-fan1         :  alarms: 0x000040 beep_enable: 0x000040
-fan2         :  alarms: 0x000080 beep_enable: 0x000080
-fan3         :  alarms: 0x000800 beep_enable: 0x000800
-fan4         :  alarms: 0x200000 beep_enable: 0x200000
-fan5         :  alarms: 0x400000 beep_enable: 0x400000
-tart1        :  alarms: 0x010000 beep_enable: 0x040000 <== mismatch
-tart2        :  alarms: 0x020000 beep_enable: 0x080000 <== mismatch
-tart3        :  alarms: 0x040000 beep_enable: 0x100000 <== mismatch
-case_open    :  alarms: 0x001000 beep_enable: 0x001000
-user_enable  :  alarms: -------- beep_enable: 0x800000
+The sysfs interface to the gloabal enable is via the sysfs beep_enable file.
+This file is used for both legacy and new code.
 
-*** NOTE: It is the responsibility of user-space code to handle the fact
-that the beep enable and alarm bits are in different positions when using that
-feature of the chip.
+The sysfs interface to the beep bitmask has migrated from the original legacy
+method of a single sysfs beep_mask file to a newer method using multiple
+*_beep files as described in .../Documentation/hwmon/sysfs-interface.
 
-When an alarm goes off, you can be warned by a beeping signal through your
-computer speaker. It is possible to enable all beeping globally, or only
-the beeping for some alarms.
+A similar change has occured for the bitmap corresponding to the alarms. The
+original legacy method used a single sysfs alarms file containing a bitmap
+of triggered alarms. The newer method uses multiple sysfs *_alarm files
+(again following the pattern described in sysfs-interface).
 
-The driver only reads the chip values each 3 seconds; reading them more
-often will do no harm, but will return 'old' values.
+Since both methods read and write the underlying hardware, they can be used
+interchangeably and changes in one will automatically be reflected by
+the other. If you use the legacy bitmask method, your user-space code is
+responsible for handling the fact that the alarms and beep_mask bitmaps
+are not the same (see the table below).
+
+NOTE: All new code should be written to use the newer sysfs-interface
+specification as that avoids bitmap problems and is the preferred interface
+going forward.
+
+The driver reads the hardware chip values at most once every three seconds.
+User mode code requesting values more often will receive cached values.
+
+Alarms bitmap vs. beep_mask bitmask
+------------------------------------
+For legacy code using the alarms and beep_mask files:
+
+in0 (VCORE)  :  alarms: 0x000001 beep_mask: 0x000001
+in1 (VINR0)  :  alarms: 0x000002 beep_mask: 0x002000 <== mismatch
+in2 (+3.3VIN):  alarms: 0x000004 beep_mask: 0x000004
+in3 (5VDD)   :  alarms: 0x000008 beep_mask: 0x000008
+in4 (+12VIN) :  alarms: 0x000100 beep_mask: 0x000100
+in5 (-12VIN) :  alarms: 0x000200 beep_mask: 0x000200
+in6 (-5VIN)  :  alarms: 0x000400 beep_mask: 0x000400
+in7 (VSB)    :  alarms: 0x080000 beep_mask: 0x010000 <== mismatch
+in8 (VBAT)   :  alarms: 0x100000 beep_mask: 0x020000 <== mismatch
+in9 (VINR1)  :  alarms: 0x004000 beep_mask: 0x004000
+temp1        :  alarms: 0x000010 beep_mask: 0x000010
+temp2        :  alarms: 0x000020 beep_mask: 0x000020
+temp3        :  alarms: 0x002000 beep_mask: 0x000002 <== mismatch
+fan1         :  alarms: 0x000040 beep_mask: 0x000040
+fan2         :  alarms: 0x000080 beep_mask: 0x000080
+fan3         :  alarms: 0x000800 beep_mask: 0x000800
+fan4         :  alarms: 0x200000 beep_mask: 0x200000
+fan5         :  alarms: 0x400000 beep_mask: 0x400000
+tart1        :  alarms: 0x010000 beep_mask: 0x040000 <== mismatch
+tart2        :  alarms: 0x020000 beep_mask: 0x080000 <== mismatch
+tart3        :  alarms: 0x040000 beep_mask: 0x100000 <== mismatch
+case_open    :  alarms: 0x001000 beep_mask: 0x001000
+global_enable:  alarms: -------- beep_mask: 0x800000 (modified via beep_enable)
 
 W83791D TODO:
 ---------------
-Provide a patch for per-file alarms and beep enables as defined in the hwmon
-	documentation (Documentation/hwmon/sysfs-interface)
 Provide a patch for smart-fan control (still need appropriate motherboard/fans)
