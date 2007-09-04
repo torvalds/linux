@@ -800,10 +800,35 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	return !(present & SDHCI_WRITE_PROTECT);
 }
 
+static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct sdhci_host *host;
+	unsigned long flags;
+	u32 ier;
+
+	host = mmc_priv(mmc);
+
+	spin_lock_irqsave(&host->lock, flags);
+
+	ier = readl(host->ioaddr + SDHCI_INT_ENABLE);
+
+	ier &= ~SDHCI_INT_CARD_INT;
+	if (enable)
+		ier |= SDHCI_INT_CARD_INT;
+
+	writel(ier, host->ioaddr + SDHCI_INT_ENABLE);
+	writel(ier, host->ioaddr + SDHCI_SIGNAL_ENABLE);
+
+	mmiowb();
+
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
 static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
 	.get_ro		= sdhci_get_ro,
+	.enable_sdio_irq = sdhci_enable_sdio_irq,
 };
 
 /*****************************************************************************\
@@ -1012,6 +1037,7 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	irqreturn_t result;
 	struct sdhci_host* host = dev_id;
 	u32 intmask;
+	int cardint = 0;
 
 	spin_lock(&host->lock);
 
@@ -1056,6 +1082,11 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 
 	intmask &= ~SDHCI_INT_BUS_POWER;
 
+	if (intmask & SDHCI_INT_CARD_INT)
+		cardint = 1;
+
+	intmask &= ~SDHCI_INT_CARD_INT;
+
 	if (intmask) {
 		printk(KERN_ERR "%s: Unexpected interrupt 0x%08x.\n",
 			mmc_hostname(host->mmc), intmask);
@@ -1069,6 +1100,12 @@ static irqreturn_t sdhci_irq(int irq, void *dev_id)
 	mmiowb();
 out:
 	spin_unlock(&host->lock);
+
+	/*
+	 * We have to delay this as it calls back into the driver.
+	 */
+	if (cardint)
+		mmc_signal_sdio_irq(host->mmc);
 
 	return result;
 }
@@ -1309,7 +1346,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 	mmc->ops = &sdhci_ops;
 	mmc->f_min = host->max_clk / 256;
 	mmc->f_max = host->max_clk;
-	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE;
+	mmc->caps = MMC_CAP_4_BIT_DATA | MMC_CAP_MULTIWRITE | MMC_CAP_SDIO_IRQ;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
 		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
