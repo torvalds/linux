@@ -122,6 +122,7 @@ struct tm6000_core {
 	int				devno;		/* marks the number of this device */
 
 	v4l2_std_id                     norm;           /* Current norm */
+	int				width,height;	/* Selected resolution */
 
 	enum tm6000_core_state		state;
 
@@ -204,6 +205,7 @@ int tm6000_init_after_firmware (struct tm6000_core *dev);
 
 int tm6000_init_analog_mode (struct tm6000_core *dev);
 int tm6000_init_digital_mode (struct tm6000_core *dev);
+void tm6000_get_std_res(struct tm6000_core *dev);
 int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm);
 int tm6000_set_audio_bitrate (struct tm6000_core *dev, int bitrate);
 

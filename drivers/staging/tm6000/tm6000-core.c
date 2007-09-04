@@ -421,9 +421,24 @@ REG   PAL   PAL_M PAL_N SECAM NTSC  Comp. PAL  PAL_M PAL_N SECAM NTSC
 0x3f  0x00  0x00  0x00  0x00  0x00
 */
 
+
+void tm6000_get_std_res(struct tm6000_core *dev)
+{
+	/* Currently, those are the only supported resoltions */
+	if (dev->norm & V4L2_STD_525_60) {
+		dev->height=480;
+	} else {
+		dev->height=576;
+	}
+	dev->width=720;
+
+printk("tm6000: res= %dx%d\n",dev->width,dev->height);
+}
+
 int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm)
 {
 	dev->norm=*norm;
+	tm6000_get_std_res(dev);
 
 	/* HACK: Should use, instead, the common code!!! */
 	if (*norm & V4L2_STD_PAL_M) {

@@ -125,7 +125,7 @@ static LIST_HEAD(tm6000_corelist);
    ------------------------------------------------------------------*/
 
 #define norm_maxw(a) 720
-#define norm_maxh(a) 480
+#define norm_maxh(a) 576
 
 //#define norm_minw(a) norm_maxw(a)
 #define norm_minw(a) norm_maxw(a)
@@ -758,15 +758,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 	BUG_ON(NULL == fh->fmt);
 
-	if (fh->width  < norm_minw(core) || fh->width  > norm_maxw(core) ||
-	    fh->height < norm_minh(core) || fh->height > norm_maxh(core)) {
-		dprintk(dev, V4L2_DEBUG_QUEUE, "Window size (%dx%d) is out of "
-				"supported range\n", fh->width, fh->height);
-		dprintk(dev, V4L2_DEBUG_QUEUE, "Valid range is from (%dx%d) to "
-				"(%dx%d)\n", norm_minw(core), norm_minh(core),
-				norm_maxw(core),norm_maxh(core));
-		return -EINVAL;
-	}
 
 	/* FIXME: It assumes depth=2 */
 	/* The only currently supported format is 16 bits/pixel */
@@ -993,17 +984,10 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	if (f->fmt.pix.width  < norm_minw(core))
-		f->fmt.pix.width = norm_minw(core);
+	tm6000_get_std_res (dev);
 
-	if (f->fmt.pix.width  > norm_maxw(core))
-		f->fmt.pix.width = norm_maxw(core);
-
-	if (f->fmt.pix.height < norm_minh(core))
-		f->fmt.pix.height = norm_minh(core);
-
-	if (f->fmt.pix.height > norm_maxh(core))
-		f->fmt.pix.height = norm_maxh(core);
+	f->fmt.pix.width  = dev->width;
+	f->fmt.pix.height = dev->height;
 
 	f->fmt.pix.width &= ~0x01;
 
@@ -1385,8 +1369,11 @@ static int tm6000_open(struct inode *inode, struct file *file)
 	dev->fourcc  = format[0].fourcc;
 
 	fh->fmt      = format_by_fourcc(dev->fourcc);
-	fh->width    = norm_maxw();
-	fh->height   = norm_maxh();
+
+	tm6000_get_std_res (dev);
+
+	fh->width    = dev->width;
+	fh->height   = dev->height;
 
 	dprintk(dev, V4L2_DEBUG_OPEN, "Open: fh=0x%08lx, dev=0x%08lx, "
 						"dev->vidq=0x%08lx\n",
