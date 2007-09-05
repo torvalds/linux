@@ -127,8 +127,8 @@ enum {				/* adapter interrupt-maintained statistics */
 
 enum {
 	TP_VERSION_MAJOR	= 1,
-	TP_VERSION_MINOR	= 0,
-	TP_VERSION_MICRO	= 44
+	TP_VERSION_MINOR	= 1,
+	TP_VERSION_MICRO	= 0
 };
 
 #define S_TP_VERSION_MAJOR		16
