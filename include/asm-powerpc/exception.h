@@ -282,7 +282,9 @@ label##_common:						\
 	EXCEPTION_PROLOG_COMMON(trap, PACA_EXGEN);	\
 	FINISH_NAP;					\
 	DISABLE_INTS;					\
+BEGIN_FTR_SECTION					\
 	bl	.ppc64_runlatch_on;			\
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)			\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;		\
 	bl	hdlr;					\
 	b	.ret_from_except_lite

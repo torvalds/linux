@@ -656,7 +656,9 @@ hardware_interrupt_common:
 	FINISH_NAP
 hardware_interrupt_entry:
 	DISABLE_INTS
+BEGIN_FTR_SECTION
 	bl	.ppc64_runlatch_on
+END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.do_IRQ
 	b	.ret_from_except_lite
