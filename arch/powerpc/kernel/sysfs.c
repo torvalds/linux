@@ -440,12 +440,14 @@ int cpu_add_sysdev_attr_group(struct attribute_group *attrs)
 {
 	int cpu;
 	struct sys_device *sysdev;
+	int ret;
 
 	mutex_lock(&cpu_mutex);
 
 	for_each_possible_cpu(cpu) {
 		sysdev = get_cpu_sysdev(cpu);
-		sysfs_create_group(&sysdev->kobj, attrs);
+		ret = sysfs_create_group(&sysdev->kobj, attrs);
+		WARN_ON(ret != 0);
 	}
 
 	mutex_unlock(&cpu_mutex);
