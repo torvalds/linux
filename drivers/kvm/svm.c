@@ -724,14 +724,6 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 	var->unusable = !var->present;
 }
 
-static void svm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
-{
-	struct vmcb_seg *s = svm_seg(vcpu, VCPU_SREG_CS);
-
-	*db = (s->attrib >> SVM_SELECTOR_DB_SHIFT) & 1;
-	*l = (s->attrib >> SVM_SELECTOR_L_SHIFT) & 1;
-}
-
 static void svm_get_idt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1771,7 +1763,7 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.get_segment_base = svm_get_segment_base,
 	.get_segment = svm_get_segment,
 	.set_segment = svm_set_segment,
-	.get_cs_db_l_bits = svm_get_cs_db_l_bits,
+	.get_cs_db_l_bits = kvm_get_cs_db_l_bits,
 	.decache_cr4_guest_bits = svm_decache_cr4_guest_bits,
 	.set_cr0 = svm_set_cr0,
 	.set_cr3 = svm_set_cr3,
