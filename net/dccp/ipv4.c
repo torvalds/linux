@@ -381,7 +381,6 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 {
 	struct inet_request_sock *ireq;
 	struct inet_sock *newinet;
-	struct dccp_sock *newdp;
 	struct sock *newsk;
 
 	if (sk_acceptq_is_full(sk))
@@ -396,7 +395,6 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	sk_setup_caps(newsk, dst);
 
-	newdp		   = dccp_sk(newsk);
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
 	newinet->daddr	   = ireq->rmt_addr;
