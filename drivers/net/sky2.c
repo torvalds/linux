@@ -149,6 +149,8 @@ static const char *yukon2_name[] = {
 	"FE",		/* 0xb7 */
 };
 
+static void sky2_set_multicast(struct net_device *dev);
+
 /* Access to external PHY */
 static int gm_phy_write(struct sky2_hw *hw, unsigned port, u16 reg, u16 val)
 {
@@ -2900,8 +2902,10 @@ static int sky2_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 	sky2->autoneg = ecmd->autoneg;
 	sky2->advertising = ecmd->advertising;
 
-	if (netif_running(dev))
+	if (netif_running(dev)) {
 		sky2_phy_reinit(sky2);
+		sky2_set_multicast(dev);
+	}
 
 	return 0;
 }
@@ -2994,6 +2998,7 @@ static int sky2_nway_reset(struct net_device *dev)
 		return -EINVAL;
 
 	sky2_phy_reinit(sky2);
+	sky2_set_multicast(dev);
 
 	return 0;
 }
@@ -4171,6 +4176,8 @@ static int sky2_resume(struct pci_dev *pdev)
 				dev_close(dev);
 				goto out;
 			}
+
+			sky2_set_multicast(dev);
 		}
 	}
 
