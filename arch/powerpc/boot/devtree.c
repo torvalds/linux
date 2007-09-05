@@ -100,12 +100,14 @@ void __dt_fixup_mac_addresses(u32 startindex, ...)
 		devp = find_node_by_prop_value(NULL, "linux,network-index",
 					       (void*)&index, sizeof(index));
 
-		printf("ENET%d: local-mac-address <-"
-		       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
-		       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+		if (devp) {
+			printf("ENET%d: local-mac-address <-"
+			       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
+			       addr[0], addr[1], addr[2],
+			       addr[3], addr[4], addr[5]);
 
-		if (devp)
 			setprop(devp, "local-mac-address", addr, 6);
+		}
 
 		index++;
 	}
