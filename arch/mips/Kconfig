@@ -688,6 +688,9 @@ config ARCH_MAY_HAVE_PC_FDC
 config BOOT_RAW
 	bool
 
+config CFE
+	bool
+
 config DMA_COHERENT
 	bool
 

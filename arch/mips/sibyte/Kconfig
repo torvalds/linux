@@ -124,6 +124,7 @@ config SB1_CERR_STALL
 config SIBYTE_CFE
 	bool "Booting from CFE"
 	depends on SIBYTE_SB1xxx_SOC
+	select CFE
 	select SYS_HAS_EARLY_PRINTK
 	help
 	  Make use of the CFE API for enumerating available memory,

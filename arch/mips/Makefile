@@ -149,6 +149,7 @@ endif
 # Firmware support
 #
 libs-$(CONFIG_ARC)		+= arch/mips/arc/
+libs-$(CONFIG_CFE)		+= arch/mips/fw/cfe/
 libs-$(CONFIG_SIBYTE_CFE)	+= arch/mips/sibyte/cfe/
 
 #

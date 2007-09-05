@@ -4,8 +4,8 @@
 
 #include <asm/sibyte/board.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 extern int cfe_cons_handle;
 

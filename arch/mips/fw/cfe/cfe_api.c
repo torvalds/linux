@@ -30,7 +30,7 @@
     *
     ********************************************************************* */
 
-#include "cfe_api.h"
+#include <asm/fw/cfe/cfe_api.h>
 #include "cfe_api_int.h"
 
 /* Cast from a native pointer to a cfe_xptr_t and back.	 */

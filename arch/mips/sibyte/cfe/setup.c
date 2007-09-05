@@ -29,8 +29,8 @@
 #include <asm/reboot.h>
 #include <asm/sibyte/board.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 /* Max ram addressable in 32-bit segments */
 #ifdef CONFIG_64BIT
