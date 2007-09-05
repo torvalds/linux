@@ -194,6 +194,8 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_add(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
+
+	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static inline void
@@ -205,6 +207,8 @@ __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
+
+	schedstat_add(cfs_rq, wait_runtime, -se->wait_runtime);
 }
 
 static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
@@ -574,7 +578,6 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	delta_fair = se->wait_runtime - prev_runtime;
 
 	/*
@@ -662,7 +665,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
 				se->block_start = rq_of(cfs_rq)->clock;
 		}
-		cfs_rq->wait_runtime -= se->wait_runtime;
 #endif
 	}
 	__dequeue_entity(cfs_rq, se);
@@ -1121,10 +1123,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT) {
+	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
 		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
-		schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
-	}
 
 	__enqueue_entity(cfs_rq, se);
 }

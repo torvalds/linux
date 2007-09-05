@@ -858,7 +858,6 @@ static void dec_nr_running(struct task_struct *p, struct rq *rq)
 
 static void set_load_weight(struct task_struct *p)
 {
-	task_rq(p)->cfs.wait_runtime -= p->se.wait_runtime;
 	p->se.wait_runtime = 0;
 
 	if (task_has_rt_policy(p)) {
