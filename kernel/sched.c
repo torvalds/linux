@@ -668,7 +668,7 @@ static u64 div64_likely32(u64 divident, unsigned long divisor)
 /*
  * Shift right and round:
  */
-#define RSR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
+#define SRR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
 
 static unsigned long
 calc_delta_mine(unsigned long delta_exec, unsigned long weight,
@@ -684,10 +684,10 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 	 * Check whether we'd overflow the 64-bit multiplication:
 	 */
 	if (unlikely(tmp > WMULT_CONST))
-		tmp = RSR(RSR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
+		tmp = SRR(SRR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
 			WMULT_SHIFT/2);
 	else
-		tmp = RSR(tmp * lw->inv_weight, WMULT_SHIFT);
+		tmp = SRR(tmp * lw->inv_weight, WMULT_SHIFT);
 
 	return (unsigned long)min(tmp, (u64)(unsigned long)LONG_MAX);
 }
