@@ -1358,6 +1358,10 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
+	if (t3_read_reg(adapter, A_PCIE_INT_CAUSE) & F_PEXERR)
+		CH_ALERT(adapter, "PEX error code 0x%x\n",
+			 t3_read_reg(adapter, A_PCIE_PEX_ERR));
+
 	if (t3_handle_intr_status(adapter, A_PCIE_INT_CAUSE, PCIE_INTR_MASK,
 				  pcie_intr_info, adapter->irq_stats))
 		t3_fatal_err(adapter);
@@ -1809,6 +1813,8 @@ void t3_intr_clear(struct adapter *adapter)
 	for (i = 0; i < ARRAY_SIZE(cause_reg_addr); ++i)
 		t3_write_reg(adapter, cause_reg_addr[i], 0xffffffff);
 
+	if (is_pcie(adapter))
+		t3_write_reg(adapter, A_PCIE_PEX_ERR, 0xffffffff);
 	t3_write_reg(adapter, A_PL_INT_CAUSE0, 0xffffffff);
 	t3_read_reg(adapter, A_PL_INT_CAUSE0);	/* flush */
 }
