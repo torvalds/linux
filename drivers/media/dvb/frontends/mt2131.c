@@ -91,17 +91,6 @@ static int mt2131_writeregs(struct mt2131_priv *priv,u8 *buf, u8 len)
 	return 0;
 }
 
-static int mt2131_set_gpo(struct dvb_frontend *fe, u8 val)
-{
-	struct mt2131_priv *priv = fe->tuner_priv;
-	u8 v;
-
-	mt2131_readreg(priv, 0x07, &v);
-	mt2131_writereg(priv, 0x07, (v & 0xfe) | (val & 0x01));
-
-	return 0;
-}
-
 static int mt2131_set_params(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *params)
 {
