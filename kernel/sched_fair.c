@@ -291,7 +291,7 @@ niced_granularity(struct sched_entity *curr, unsigned long granularity)
 	/*
 	 * It will always fit into 'long':
 	 */
-	return (long) (tmp >> WMULT_SHIFT);
+	return (long) (tmp >> (WMULT_SHIFT-NICE_0_SHIFT));
 }
 
 static inline void
