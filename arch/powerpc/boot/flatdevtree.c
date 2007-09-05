@@ -975,3 +975,62 @@ void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name)
 	}
 	return NULL;
 }
+
+/* Returns the start of the path within the provided buffer, or NULL on
+ * error.
+ */
+char *ft_get_path(struct ft_cxt *cxt, const void *phandle,
+                  char *buf, int len)
+{
+	const char *path_comp[FT_MAX_DEPTH];
+	struct ft_atom atom;
+	char *p, *next, *pos;
+	int depth = 0, i;
+	void *node;
+
+	node = ft_node_ph2node(cxt, phandle);
+	if (node == NULL)
+		return NULL;
+
+	p = ft_root_node(cxt);
+
+	while ((next = ft_next(cxt, p, &atom)) != NULL) {
+		switch (atom.tag) {
+		case OF_DT_BEGIN_NODE:
+			path_comp[depth++] = atom.name;
+			if (p == node)
+				goto found;
+
+			break;
+
+		case OF_DT_END_NODE:
+			if (--depth == 0)
+				return NULL;
+		}
+
+		p = next;
+	}
+
+found:
+	pos = buf;
+	for (i = 1; i < depth; i++) {
+		int this_len;
+
+		if (len <= 1)
+			return NULL;
+
+		*pos++ = '/';
+		len--;
+
+		strncpy(pos, path_comp[i], len);
+
+		if (pos[len - 1] != 0)
+			return NULL;
+
+		this_len = strlen(pos);
+		len -= this_len;
+		pos += this_len;
+	}
+
+	return buf;
+}

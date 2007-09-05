@@ -108,5 +108,6 @@ void *ft_find_node_by_prop_value(struct ft_cxt *cxt, const void *prev,
                                  const char *propname, const char *propval,
                                  int proplen);
 void *ft_create_node(struct ft_cxt *cxt, const void *parent, const char *name);
+char *ft_get_path(struct ft_cxt *cxt, const void *phandle, char *buf, int len);
 
 #endif /* FLATDEVTREE_H */

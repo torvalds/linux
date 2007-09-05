@@ -47,6 +47,7 @@ struct dt_ops {
 	                                 const char *propname,
 	                                 const char *propval, int proplen);
 	unsigned long (*finalize)(void);
+	char *(*get_path)(const void *phandle, char *buf, int len);
 };
 extern struct dt_ops dt_ops;
 
@@ -168,6 +169,14 @@ static inline void *find_node_by_linuxphandle(const u32 linuxphandle)
 {
 	return find_node_by_prop_value(NULL, "linux,phandle",
 			(char *)&linuxphandle, sizeof(u32));
+}
+
+static inline char *get_path(const void *phandle, char *buf, int len)
+{
+	if (dt_ops.get_path)
+		return dt_ops.get_path(phandle, buf, len);
+
+	return NULL;
 }
 
 static inline void *malloc(unsigned long size)
