@@ -452,6 +452,7 @@ int t3_mac_enable(struct cmac *mac, int which)
 						A_XGM_TX_SPI4_SOP_EOP_CNT +
 						oft)));
 		mac->rx_mcnt = s->rx_frames;
+		mac->rx_pause = s->rx_pause;
 		mac->rx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_RX_SPI4_SOP_EOP_CNT +
 						oft)));
@@ -504,7 +505,7 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 	tx_xcnt = 1;		/* By default tx_xcnt is making progress */
 	tx_tcnt = mac->tx_tcnt;	/* If tx_mcnt is progressing ignore tx_tcnt */
 	rx_xcnt = 1;		/* By default rx_xcnt is making progress */
-	if (tx_mcnt == mac->tx_mcnt) {
+	if (tx_mcnt == mac->tx_mcnt && mac->rx_pause == s->rx_pause) {
 		tx_xcnt = (G_TXSPI4SOPCNT(t3_read_reg(adap,
 						A_XGM_TX_SPI4_SOP_EOP_CNT +
 					       	mac->offset)));
@@ -560,6 +561,7 @@ out:
 	mac->tx_mcnt = s->tx_frames;
 	mac->rx_xcnt = rx_xcnt;
 	mac->rx_mcnt = s->rx_frames;
+	mac->rx_pause = s->rx_pause;
 	if (status == 1) {
 		t3_write_reg(adap, A_XGM_TX_CTRL + mac->offset, 0);
 		t3_read_reg(adap, A_XGM_TX_CTRL + mac->offset);  /* flush */

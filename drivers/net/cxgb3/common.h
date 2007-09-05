@@ -513,6 +513,7 @@ struct cmac {
 	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
+	u64 rx_pause;
 	struct mac_stats stats;
 };
 
