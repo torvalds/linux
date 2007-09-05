@@ -797,11 +797,12 @@ static int cxgb_up(struct adapter *adap)
 	int must_load;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
-		err = t3_check_fw_version(adap);
-		if (err == -EINVAL)
+		err = t3_check_fw_version(adap, &must_load);
+		if (err == -EINVAL) {
 			err = upgrade_fw(adap);
-		if (err)
-			goto out;
+			if (err && must_load)
+				goto out;
+		}
 
 		err = t3_check_tpsram_version(adap, &must_load);
 		if (err == -EINVAL) {
