@@ -331,8 +331,8 @@ static int cx23885_risc_decode(u32 risc)
 		[ RISC_WRITECR >> 28 ] = "writecr",
 	};
 	static int incr[16] = {
-		[ RISC_WRITE   >> 28 ] = 3, // 2
-		[ RISC_JUMP    >> 28 ] = 3, // 2
+		[ RISC_WRITE   >> 28 ] = 3,
+		[ RISC_JUMP    >> 28 ] = 3,
 		[ RISC_SKIP    >> 28 ] = 1,
 		[ RISC_SYNC    >> 28 ] = 1,
 		[ RISC_WRITERM >> 28 ] = 3,
@@ -629,6 +629,10 @@ static int cx23885_pci_quirks(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __FUNCTION__);
 
+	/* The cx23885 bridge has a weird bug which causes NMI to be asserted
+	 * when DMA begins if RDR_TLCTL0 bit4 is not cleared. It does not
+	 * occur on the cx23887 bridge.
+	 */
 	if(dev->bridge == CX23885_BRIDGE_885)
 		cx_clear(RDR_TLCTL0, 1 << 4);
 
