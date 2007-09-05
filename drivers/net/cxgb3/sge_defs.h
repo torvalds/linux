@@ -106,6 +106,10 @@
 #define V_CQ_GEN(x) ((x) << S_CQ_GEN)
 #define F_CQ_GEN    V_CQ_GEN(1U)
 
+#define S_CQ_ERR    30
+#define V_CQ_ERR(x) ((x) << S_CQ_ERR)
+#define F_CQ_ERR    V_CQ_ERR(1U)
+
 #define S_CQ_OVERFLOW_MODE    31
 #define V_CQ_OVERFLOW_MODE(x) ((x) << S_CQ_OVERFLOW_MODE)
 #define F_CQ_OVERFLOW_MODE    V_CQ_OVERFLOW_MODE(1U)

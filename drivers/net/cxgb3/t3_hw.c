@@ -2046,7 +2046,8 @@ int t3_sge_init_cqcntxt(struct adapter *adapter, unsigned int id, u64 base_addr,
 	base_addr >>= 32;
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA2,
 		     V_CQ_BASE_HI((u32) base_addr) | V_CQ_RSPQ(rspq) |
-		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode));
+		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode) |
+		     V_CQ_ERR(ovfl_mode));
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA3, V_CQ_CREDITS(credits) |
 		     V_CQ_CREDIT_THRES(credit_thres));
 	return t3_sge_write_context(adapter, id, F_CQ);
