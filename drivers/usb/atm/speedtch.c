@@ -251,7 +251,6 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 {
 	unsigned char *buffer;
 	struct usbatm_data *usbatm = instance->usbatm;
-	struct usb_interface *intf;
 	struct usb_device *usb_dev = usbatm->usb_dev;
 	int actual_length;
 	int ret = 0;
@@ -265,7 +264,7 @@ static int speedtch_upload_firmware(struct speedtch_instance_data *instance,
 		goto out;
 	}
 
-	if (!(intf = usb_ifnum_to_if(usb_dev, 2))) {
+	if (!usb_ifnum_to_if(usb_dev, 2)) {
 		ret = -ENODEV;
 		usb_dbg(usbatm, "%s: interface not found!\n", __func__);
 		goto out_free;
