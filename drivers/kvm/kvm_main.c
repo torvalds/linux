@@ -543,6 +543,7 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		return;
 	}
 	kvm_arch_ops->set_cr4(vcpu, cr4);
+	vcpu->cr4 = cr4;
 	mutex_lock(&vcpu->kvm->lock);
 	kvm_mmu_reset_context(vcpu);
 	mutex_unlock(&vcpu->kvm->lock);
@@ -1238,10 +1239,8 @@ int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
 
 int emulate_clts(struct kvm_vcpu *vcpu)
 {
-	unsigned long cr0;
-
-	cr0 = vcpu->cr0 & ~X86_CR0_TS;
-	kvm_arch_ops->set_cr0(vcpu, cr0);
+	vcpu->cr0 &= ~X86_CR0_TS;
+	kvm_arch_ops->set_cr0(vcpu, vcpu->cr0);
 	return X86EMUL_CONTINUE;
 }
 
@@ -2226,6 +2225,7 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	kvm_arch_ops->decache_cr4_guest_bits(vcpu);
 
 	mmu_reset_needed |= vcpu->cr0 != sregs->cr0;
+	vcpu->cr0 = sregs->cr0;
 	kvm_arch_ops->set_cr0(vcpu, sregs->cr0);
 
 	mmu_reset_needed |= vcpu->cr4 != sregs->cr4;
