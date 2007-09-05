@@ -33,7 +33,7 @@
 #include "s5h1409.h"
 #include "mt2131.h"
 
-static unsigned int debug = 2;
+static unsigned int debug = 0;
 
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg)
@@ -105,8 +105,6 @@ static struct s5h1409_config hauppauge_hvr1250_config = {
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING
 };
-
-
 
 static struct mt2131_config hauppauge_hvr1800lp_rev2_tunerconfig = {
 	0x61

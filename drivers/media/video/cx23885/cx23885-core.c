@@ -368,11 +368,13 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 			break;
 		buf = list_entry(q->active.next,
 				 struct cx23885_buffer, vb.queue);
+
 		/* count comes from the hw and is is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
 		 * up to 32767 buffers in flight... */
 		if ((s16) (count - buf->count) < 0)
 			break;
+
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
@@ -910,7 +912,6 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	/* write and jump need and extra dword */
 	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
 	instructions += 2;
-	//if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*12)) < 0)
 		return rc;
 
@@ -945,7 +946,6 @@ int cx23885_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	instructions  = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 1;
 
-	//if ((rc = btcx_riscmem_alloc(pci,risc,instructions*8)) < 0)
 	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*12)) < 0)
 		return rc;
 
@@ -970,7 +970,6 @@ int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 	/* write risc instructions */
 	rp = risc->cpu;
-	//*(rp++) = cpu_to_le32(RISC_WRITECR  | RISC_IRQ2 | RISC_IMM);
 	*(rp++) = cpu_to_le32(RISC_WRITECR  | RISC_IRQ2);
 	*(rp++) = cpu_to_le32(reg);
 	*(rp++) = cpu_to_le32(value);
@@ -1018,15 +1017,10 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 		return -EINVAL;
 	}
 
-	// FIXME: review the need for these two lines
-	dprintk( 1, "%s() doing .dvb\n", __FUNCTION__);
 	udelay(100);
 
 	cx_write(port->reg_hw_sop_ctrl, 0x47 << 16 | 188 << 4);
 	cx_write(port->reg_ts_clk_en, port->ts_clk_en_val);
-
-	// FIXME: review the need for this
-	cx_write(GPIO2, 0x00);
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
@@ -1037,7 +1031,6 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 			__FUNCTION__);
 		break;
 	default:
-		// FIXME
 		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
 	}
 
@@ -1058,39 +1051,11 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 		cx_set(PCI_INT_MSK, dev->pci_irqmask | port->pci_irqmask);
 		break;
 	default:
-		// FIXME: generate a sensible switch-default message
 		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
 	}
 
-	dprintk(1, "%s() Register Dump\n", __FUNCTION__);
-	dprintk(1, "%s() set port ts_int_msk, now %x\n", __FUNCTION__, cx_read(port->reg_ts_int_msk) );
-	dprintk(1, "%s() DEV_CNTRL2      0x%08x\n", __FUNCTION__, cx_read(DEV_CNTRL2) );
-	dprintk(1, "%s() PCI_INT_MSK     0x%08x\n", __FUNCTION__, cx_read(PCI_INT_MSK) );
-	dprintk(1, "%s() VID_A_INT_MSK   0x%08x\n", __FUNCTION__, cx_read(VID_A_INT_MSK) );
-	dprintk(1, "%s() VID_B_INT_MSK   0x%08x\n", __FUNCTION__, cx_read(VID_B_INT_MSK) );
-	dprintk(1, "%s() VID_C_INT_MSK   0x%08x\n", __FUNCTION__, cx_read(VID_C_INT_MSK) );
-	dprintk(1, "%s() VID_A_DMA_CTL   0x%08x\n", __FUNCTION__, cx_read(VID_A_DMA_CTL) );
-	dprintk(1, "%s() VID_B_DMA_CTL   0x%08x\n", __FUNCTION__, cx_read(VID_B_DMA_CTL) );
-	dprintk(1, "%s() VID_C_DMA_CTL   0x%08x\n", __FUNCTION__, cx_read(VID_C_DMA_CTL) );
-	dprintk(1, "%s() AUD_INT_INT_MSK 0x%08x\n", __FUNCTION__, cx_read(AUDIO_INT_INT_MSK) );
-	dprintk(1, "%s() AUD_INT_DMA_CTL 0x%08x\n", __FUNCTION__, cx_read(AUD_INT_DMA_CTL) );
-	dprintk(1, "%s() AUD_EXT_INT_MSK 0x%08x\n", __FUNCTION__, cx_read(AUDIO_EXT_INT_MSK) );
-	dprintk(1, "%s() AUD_EXT_DMA_CTL 0x%08x\n", __FUNCTION__, cx_read(AUD_EXT_DMA_CTL) );
-
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enable RISC controller */
 
-	dprintk(1, "%s() set dev_cntrl2, now %x\n", __FUNCTION__, cx_read(DEV_CNTRL2) );
-	dprintk(1, "%s() VID_C_DMA_CTL   , now %x\n", __FUNCTION__, cx_read(port->reg_dma_ctl) );
-	dprintk(1, "%s() VID_C_DMA_CTL   , now %x\n", __FUNCTION__, cx_read(VID_C_DMA_CTL) );
-	dprintk(1, "%s() PAD_CTRL %x\n", __FUNCTION__, cx_read(PAD_CTRL) );
-	dprintk(1, "%s() GPIO2 %x\n", __FUNCTION__, cx_read(GPIO2) );
-	dprintk(1, "%s() VID_C_LN_LNGTH  , now %x\n", __FUNCTION__, cx_read(port->reg_lngth) );
-	dprintk(1, "%s() VID_C_HW_SOP_CTL, now %x\n", __FUNCTION__, cx_read(port->reg_hw_sop_ctrl) );
-	dprintk(1, "%s() VID_C_GEN_CTL   , now %x\n", __FUNCTION__, cx_read(port->reg_gen_ctrl) );
-	dprintk(1, "%s() VID_C_SOP_STATUS, now %x\n", __FUNCTION__, cx_read(VID_C_SOP_STATUS) );
-	dprintk(1, "%s() VID_C_TS_CLK_EN , now %x\n", __FUNCTION__, cx_read(VID_C_TS_CLK_EN) );
-	dprintk(1, "%s() VID_C_FIFO_OVLST, now %x\n", __FUNCTION__, cx_read(VID_C_FIFO_OVFL_STAT) );
-	dprintk(1, "%s() VID_C_INT_MSTAT , now 0x%08x\n", __FUNCTION__, cx_read(VID_C_INT_MSTAT) );
 	return 0;
 }
 
@@ -1220,7 +1185,6 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 		mod_timer(&cx88q->timeout, jiffies + BUFFER_TIMEOUT);
 		dprintk(1, "[%p/%d] %s - first active\n",
 			buf, buf->vb.i, __FUNCTION__);
-
 	} else {
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx23885_buffer,

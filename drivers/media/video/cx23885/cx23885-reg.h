@@ -22,7 +22,6 @@
 #ifndef _CX23885_REG_H_
 #define _CX23885_REG_H_
 
-
 /*
 Address Map
 0x00000000 -> 0x00009000   TX SRAM  (Fifos)
@@ -50,8 +49,6 @@ Channel manager Data Structure entry = 20 DWORD
   5  InstructionQueueSize
 ...  Reserved
  19  Reserved
-
-
 */
 
 /* Risc Instructions */
@@ -70,14 +67,8 @@ Channel manager Data Structure entry = 20 DWORD
 #define RISC_WRITERM		 0xB0000000
 #define RISC_WRITECM		 0xC0000000
 #define RISC_WRITECR		 0xD0000000
-
-
-/* Do we need these? */
 #define RISC_WRITEC		 0x50000000
 #define RISC_READC		 0xA0000000
-
-/* Is this used? */
-#define RISC_IMM		 0x00000001
 
 
 /* Audio and Video Core */

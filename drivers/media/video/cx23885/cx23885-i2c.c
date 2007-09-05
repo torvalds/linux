@@ -130,7 +130,6 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		if (cnt < msg->len-1 || !last)
 			ctrl |= I2C_NOSTOP | I2C_EXTEND;
 
-		//printk("addr = 0x%08x  wdata = 0x%08x  ctrl = 0x%08x\n", addr, wdata, ctrl);
 		cx_write(bus->reg_addr, addr);
 		cx_write(bus->reg_wdata, wdata);
 		cx_write(bus->reg_ctrl, ctrl);
@@ -297,7 +296,6 @@ static struct i2c_adapter cx23885_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_CX23885,
 	.algo              = &cx23885_i2c_algo_template,
-//	.class             = I2C_CLASS_TV_ANALOG,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
 };
@@ -348,6 +346,7 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 	strlcpy(bus->i2c_adap.name, bus->dev->name,
 		sizeof(bus->i2c_adap.name));
+
 	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
 	i2c_add_adapter(&bus->i2c_adap);

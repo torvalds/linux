@@ -172,7 +172,6 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 
 	tveeprom_hauppauge_analog(&dev->i2c_bus[0].i2c_client, &tv, eeprom_data);
 
-
 	/* Make sure we support the board model */
 	switch (tv.model)
 	{
