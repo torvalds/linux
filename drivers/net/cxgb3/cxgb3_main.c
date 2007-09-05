@@ -733,6 +733,9 @@ static inline char t3rev2char(struct adapter *adapter)
 	case T3_REV_B2:
 		rev = 'b';
 		break;
+	case T3_REV_C:
+		rev = 'c';
+		break;
 	}
 	return rev;
 }

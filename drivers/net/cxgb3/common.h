@@ -438,6 +438,7 @@ enum {					    /* chip revisions */
 	T3_REV_A  = 0,
 	T3_REV_B  = 2,
 	T3_REV_B2 = 3,
+	T3_REV_C  = 4,
 };
 
 struct trace_params {
