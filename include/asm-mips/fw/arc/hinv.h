@@ -5,7 +5,7 @@
 #define _ASM_ARC_HINV_H
 
 #include <asm/sgidefs.h>
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 
 /* configuration query defines */
 typedef enum configclass {

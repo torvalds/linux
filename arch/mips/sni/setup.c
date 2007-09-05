@@ -15,7 +15,7 @@
 #include <linux/screen_info.h>
 
 #ifdef CONFIG_ARC
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #endif
 

@@ -11,7 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 
 PCHAR __init

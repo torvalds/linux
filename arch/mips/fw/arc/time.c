@@ -9,7 +9,7 @@
  */
 #include <linux/init.h>
 
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 
 struct linux_tinfo * __init

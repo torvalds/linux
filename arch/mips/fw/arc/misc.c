@@ -14,7 +14,7 @@
 
 #include <asm/bcache.h>
 
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 #include <asm/sgialib.h>
 #include <asm/bootinfo.h>
 #include <asm/system.h>

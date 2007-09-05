@@ -13,7 +13,7 @@
 #define _ASM_SGIARCS_H
 
 #include <asm/types.h>
-#include <asm/arc/types.h>
+#include <asm/fw/arc/types.h>
 
 /* Various ARCS error codes. */
 #define PROM_ESUCCESS                   0x00
