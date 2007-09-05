@@ -1251,25 +1251,6 @@ static void cx23885_timeout(unsigned long data)
 	do_cancel_buffers(port, "timeout", 1);
 }
 
-#define PCI_MSK_APB_DMA   (1 << 12)
-#define PCI_MSK_AL_WR     (1 << 11)
-#define PCI_MSK_AL_RD     (1 << 10)
-#define PCI_MSK_RISC_WR   (1 <<  9)
-#define PCI_MSK_RISC_RD   (1 <<  8)
-
-#define PCI_MSK_AUD_EXT   (1 <<  4)
-#define PCI_MSK_AUD_INT   (1 <<  3)
-#define PCI_MSK_VID_C     (1 <<  2)
-#define PCI_MSK_VID_B     (1 <<  1)
-#define PCI_MSK_VID_A      1
-
-#define VID_C_MSK_BAD_PKT (1 << 20)
-#define VID_C_MSK_OPC_ERR (1 << 16)
-#define VID_C_MSK_SYNC    (1 << 12)
-#define VID_C_MSK_OF      (1 <<  8)
-#define VID_C_MSK_RISCI2  (1 <<  4)
-#define VID_C_MSK_RISCI1   1
-
 static irqreturn_t cx23885_irq(int irq, void *dev_id)
 {
 	struct cx23885_dev *dev = dev_id;
