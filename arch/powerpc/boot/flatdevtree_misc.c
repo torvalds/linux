@@ -18,7 +18,7 @@ static struct ft_cxt cxt;
 
 static void *fdtm_finddevice(const char *name)
 {
-	return ft_find_device(&cxt, name);
+	return ft_find_device(&cxt, NULL, name);
 }
 
 static int fdtm_getprop(const void *phandle, const char *propname,

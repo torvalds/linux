@@ -76,7 +76,7 @@ struct ft_cxt {
 	unsigned int nodes_used;
 };
 
-int ft_begin_node(struct ft_cxt *cxt, const char *name);
+char *ft_begin_node(struct ft_cxt *cxt, const char *name);
 void ft_end_node(struct ft_cxt *cxt);
 
 void ft_begin_tree(struct ft_cxt *cxt);
@@ -96,9 +96,8 @@ int ft_add_rsvmap(struct ft_cxt *cxt, u64 physaddr, u64 size);
 
 void ft_dump_blob(const void *bphp);
 void ft_merge_blob(struct ft_cxt *cxt, void *blob);
-void *ft_find_device(struct ft_cxt *cxt, const char *srch_path);
-void *ft_find_device_rel(struct ft_cxt *cxt, const void *top,
-                         const char *srch_path);
+void *ft_find_device(struct ft_cxt *cxt, const void *top,
+                     const char *srch_path);
 void *ft_find_descendent(struct ft_cxt *cxt, void *top, const char *srch_path);
 int ft_get_prop(struct ft_cxt *cxt, const void *phandle, const char *propname,
 		void *buf, const unsigned int buflen);
