@@ -563,8 +563,8 @@ static unsigned int ref9200_pin_configs[8] = {
     102801E8
 */
 static unsigned int dell9200_d21_pin_configs[8] = {
-	0x400001f0, 0x400001f1, 0x01a19021, 0x90100140,
-	0x01813122, 0x02214030, 0x01014010, 0x02a19020,
+	0x400001f0, 0x400001f1, 0x02214030, 0x01014010, 
+	0x02a19020, 0x01a19021, 0x90100140, 0x01813122,
 };
 
 /* 
@@ -573,8 +573,8 @@ static unsigned int dell9200_d21_pin_configs[8] = {
     102801C1
 */
 static unsigned int dell9200_d22_pin_configs[8] = {
-	0x400001f0, 0x400001f1, 0x02a19021, 0x90100140,
-	0x400001f2, 0x0221401f, 0x01014010, 0x01813020,
+	0x400001f0, 0x400001f1, 0x0221401f, 0x01014010, 
+	0x01813020, 0x02a19021, 0x90100140, 0x400001f2,
 };
 
 /* 
@@ -587,8 +587,8 @@ static unsigned int dell9200_d22_pin_configs[8] = {
     102801E3
 */
 static unsigned int dell9200_d23_pin_configs[8] = {
-	0x400001f0, 0x400001f1, 0x01a19021, 0x90100140,
-	0x400001f2, 0x0221401f, 0x01014010, 0x01813020,
+	0x400001f0, 0x400001f1, 0x0221401f, 0x01014010, 
+	0x01813020, 0x01a19021, 0x90100140, 0x400001f2, 
 };
 
 
@@ -598,8 +598,8 @@ static unsigned int dell9200_d23_pin_configs[8] = {
     102801D8 (Dell Inspiron 640m)
 */
 static unsigned int dell9200_m21_pin_configs[8] = {
-	0x40c003fa, 0x03441340, 0x03a11020, 0x401003fc,
-	0x403003fd, 0x0321121f, 0x0321121f, 0x408003fb,
+	0x40c003fa, 0x03441340, 0x0321121f, 0x90170310,
+	0x408003fb, 0x03a11020, 0x401003fc, 0x403003fd,
 };
 
 /* 
@@ -611,8 +611,8 @@ static unsigned int dell9200_m21_pin_configs[8] = {
     102801D6 
 */
 static unsigned int dell9200_m22_pin_configs[8] = {
-	0x40c003fa, 0x0144131f, 0x03A11020, 0x401003fb, 
-	0x40f000fc, 0x0321121f, 0x90170310, 0x90a70321, 
+	0x40c003fa, 0x0144131f, 0x0321121f, 0x90170310, 
+	0x90a70321, 0x03a11020, 0x401003fb, 0x40f000fc,
 };
 
 /* 
@@ -633,8 +633,8 @@ static unsigned int dell9200_m23_pin_configs[8] = {
     102801D3
 */
 static unsigned int dell9200_m24_pin_configs[8] = {
-	0x40c003fa, 0x404003fb, 0x03a11020, 0x401003fd, 
-	0x403003fe, 0x0321121f, 0x90170310, 0x408003fc,
+	0x40c003fa, 0x404003fb, 0x0321121f, 0x90170310, 
+	0x408003fc, 0x03a11020, 0x401003fd, 0x403003fe, 
 };
 
 /*
@@ -644,8 +644,8 @@ static unsigned int dell9200_m24_pin_configs[8] = {
     102801EF
 */
 static unsigned int dell9200_m25_pin_configs[8] = {
-	0x40c003fa, 0x01441340, 0x04a11020, 0x401003fc,
-	0x403003fd, 0x0421121f, 0x90170310, 0x408003fb,
+	0x40c003fa, 0x01441340, 0x0421121f, 0x90170310, 
+	0x408003fb, 0x04a11020, 0x401003fc, 0x403003fd,
 };
 
 /*
@@ -654,8 +654,8 @@ static unsigned int dell9200_m25_pin_configs[8] = {
     102801F6
 */
 static unsigned int dell9200_m26_pin_configs[8] = {
-	0x40c003fa, 0x404003fb, 0x04a11020, 0x401003fd,
-	0x403003fe, 0x0421121f, 0x90170310, 0x408003fc,
+	0x40c003fa, 0x404003fb, 0x0421121f, 0x90170310, 
+	0x408003fc, 0x04a11020, 0x401003fd, 0x403003fe,
 };
 
 /*
@@ -663,8 +663,8 @@ static unsigned int dell9200_m26_pin_configs[8] = {
     102801CD (Dell Inspiron E1705/9400)
 */
 static unsigned int dell9200_m27_pin_configs[8] = {
-	0x40c003fa, 0x01441340, 0x04a11020, 0x90170310,
-	0x40f003fc, 0x0421121f, 0x90170310, 0x408003fb,
+	0x40c003fa, 0x01441340, 0x0421121f, 0x90170310,
+	0x90170310, 0x04a11020, 0x90170310, 0x40f003fc,
 };
 
 
