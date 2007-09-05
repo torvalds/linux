@@ -10,6 +10,7 @@
  *  - Gunze AHL61
  *  - DMC TSC-10/25
  *  - IRTOUCHSYSTEMS/UNITOP
+ *  - IdealTEK URTC1000
  *
  * Copyright (C) 2004-2006 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -92,7 +93,7 @@ struct usbtouch_usb {
 };
 
 
-#if defined(CONFIG_TOUCHSCREEN_USB_EGALAX) || defined(CONFIG_TOUCHSCREEN_USB_ETURBO)
+#if defined(CONFIG_TOUCHSCREEN_USB_EGALAX) || defined(CONFIG_TOUCHSCREEN_USB_ETURBO) || defined(CONFIG_TOUCHSCREEN_USB_IDEALTEK)
 #define MULTI_PACKET
 #endif
 
@@ -112,6 +113,7 @@ enum {
 	DEVTYPE_GUNZE,
 	DEVTYPE_DMC_TSC10,
 	DEVTYPE_IRTOUCH,
+	DEVTYPE_IDEALTEK,
 };
 
 static struct usb_device_id usbtouch_devices[] = {
@@ -155,6 +157,10 @@ static struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_IRTOUCH
 	{USB_DEVICE(0x595a, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
 	{USB_DEVICE(0x6615, 0x0001), .driver_info = DEVTYPE_IRTOUCH},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
+	{USB_DEVICE(0x1391, 0x1000), .driver_info = DEVTYPE_IDEALTEK},
 #endif
 
 	{}
@@ -438,6 +444,43 @@ static int irtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 
 
 /*****************************************************************************
+ * IdealTEK URTC1000 Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
+static int idealtek_get_pkt_len(unsigned char *buf, int len)
+{
+	if (buf[0] & 0x80)
+		return 5;
+	if (buf[0] == 0x01)
+		return len;
+	return 0;
+}
+
+static int idealtek_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	switch (pkt[0] & 0x98) {
+	case 0x88:
+		/* touch data in IdealTEK mode */
+		dev->x = (pkt[1] << 5) | (pkt[2] >> 2);
+		dev->y = (pkt[3] << 5) | (pkt[4] >> 2);
+		dev->touch = (pkt[0] & 0x40) ? 1 : 0;
+		return 1;
+
+	case 0x98:
+		/* touch data in MT emulation mode */
+		dev->x = (pkt[2] << 5) | (pkt[1] >> 2);
+		dev->y = (pkt[4] << 5) | (pkt[3] >> 2);
+		dev->touch = (pkt[0] & 0x40) ? 1 : 0;
+		return 1;
+
+	default:
+		return 0;
+	}
+}
+#endif
+
+
+/*****************************************************************************
  * the different device descriptors
  */
 static struct usbtouch_device_info usbtouch_dev_info[] = {
@@ -535,6 +578,20 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x0fff,
 		.rept_size	= 8,
 		.read_data	= irtouch_read_data,
+	},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
+	[DEVTYPE_IDEALTEK] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x0fff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x0fff,
+		.rept_size	= 8,
+		.flags		= USBTOUCH_FLG_BUFFER,
+		.process_pkt	= usbtouch_process_multi,
+		.get_pkt_len	= idealtek_get_pkt_len,
+		.read_data	= idealtek_read_data,
 	},
 #endif
 };
