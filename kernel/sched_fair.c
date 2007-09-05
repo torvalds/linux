@@ -684,10 +684,8 @@ __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	 * preempt the current task unless the best task has
 	 * a larger than sched_granularity fairness advantage:
 	 */
-	if (__delta > niced_granularity(curr, granularity)) {
+	if (__delta > niced_granularity(curr, granularity))
 		resched_task(rq_of(cfs_rq)->curr);
-		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
-	}
 }
 
 static inline void
@@ -703,6 +701,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_stats_wait_end(cfs_rq, se);
 	update_stats_curr_start(cfs_rq, se);
 	set_cfs_rq_curr(cfs_rq, se);
+	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
