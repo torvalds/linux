@@ -1463,6 +1463,17 @@ UNUSUAL_DEV(  0x1210, 0x0003, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_RESIDUE ),
 
+/* Reported by fangxiaozhi <fangxiaozhi60675@huawei.com>
+ * and by linlei <linlei83@huawei.com>
+ * Patch reworked by Johann Wilhelm <johann.wilhelm@student.tugraz.at>
+ * This brings the HUAWEI E220 devices into multi-port mode
+ */
+UNUSUAL_DEV( 0x12d1, 0x1003, 0x0000, 0x0000,
+		"HUAWEI MOBILE",
+		"Mass Storage",
+		US_SC_DEVICE, US_PR_DEVICE, usb_stor_huawei_e220_init,
+		0),
+
 /* Reported by Vilius Bilinkevicius <vilisas AT xxx DOT lt) */
 UNUSUAL_DEV(  0x132b, 0x000b, 0x0001, 0x0001,
 		"Minolta",
