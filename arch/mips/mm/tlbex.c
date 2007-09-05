@@ -78,7 +78,7 @@ enum fields
 	SET = 0x200
 };
 
-#define OP_MASK		0x2f
+#define OP_MASK		0x3f
 #define OP_SH		26
 #define RS_MASK		0x1f
 #define RS_SH		21
@@ -92,7 +92,7 @@ enum fields
 #define IMM_SH		0
 #define JIMM_MASK	0x3ffffff
 #define JIMM_SH		0
-#define FUNC_MASK	0x2f
+#define FUNC_MASK	0x3f
 #define FUNC_SH		0
 #define SET_MASK	0x7
 #define SET_SH		0
