@@ -376,6 +376,7 @@ struct ipath_devdata {
 	dma_addr_t *ipath_physshadow;
 	/* lock to workaround chip bug 9437 */
 	spinlock_t ipath_tid_lock;
+	spinlock_t ipath_sendctrl_lock;
 
 	/*
 	 * IPATH_STATUS_*,

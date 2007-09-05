@@ -479,9 +479,14 @@ done:
 
 static void want_buffer(struct ipath_devdata *dd)
 {
-	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /**

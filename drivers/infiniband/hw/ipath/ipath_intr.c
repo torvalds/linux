@@ -795,6 +795,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 {
 	int i, im;
 	__le64 val;
+	unsigned long flags;
 
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
@@ -813,11 +814,14 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 			 dd->ipath_control);
 
 	/* ensure pio avail updates continue */
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 		 dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		 dd->ipath_sendctrl);
+			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * We just enabled pioavailupdate, so dma copy is almost certainly
@@ -922,6 +926,7 @@ static noinline void ipath_bad_regread(struct ipath_devdata *dd)
 
 static void handle_layer_pioavail(struct ipath_devdata *dd)
 {
+	unsigned long flags;
 	int ret;
 
 	ret = ipath_ib_piobufavail(dd->verbs_dev);
@@ -930,9 +935,12 @@ static void handle_layer_pioavail(struct ipath_devdata *dd)
 
 	return;
 set:
-	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /*
@@ -1168,9 +1176,14 @@ irqreturn_t ipath_intr(int irq, void *data)
 		handle_urcv(dd, istat);
 
 	if (istat & INFINIPATH_I_SPIOBUFAVAIL) {
-		clear_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+		unsigned long flags;
+
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl &= ~INFINIPATH_S_PIOINTBUFAVAIL;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 dd->ipath_sendctrl);
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 		handle_layer_pioavail(dd);
 	}

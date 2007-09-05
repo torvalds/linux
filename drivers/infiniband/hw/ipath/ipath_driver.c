@@ -803,31 +803,37 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 			  unsigned cnt)
 {
 	unsigned i, last = first + cnt;
-	u64 sendctrl, sendorig;
+	unsigned long flags;
 
 	ipath_cdbg(PKT, "disarm %u PIObufs first=%u\n", cnt, first);
-	sendorig = dd->ipath_sendctrl;
 	for (i = first; i < last; i++) {
-		sendctrl = sendorig  | INFINIPATH_S_DISARM |
-			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT);
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		/*
+		 * The disarm-related bits are write-only, so it
+		 * is ok to OR them in with our copy of sendctrl
+		 * while we hold the lock.
+		 */
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 sendctrl);
+			dd->ipath_sendctrl | INFINIPATH_S_DISARM |
+			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT));
+		/* can't disarm bufs back-to-back per iba7220 spec */
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 	}
 
 	/*
-	 * Write it again with current value, in case ipath_sendctrl changed
-	 * while we were looping; no critical bits that would require
-	 * locking.
-	 *
-	 * disable PIOAVAILUPD, then re-enable, reading scratch in
+	 * Disable PIOAVAILUPD, then re-enable, reading scratch in
 	 * between.  This seems to avoid a chip timing race that causes
-	 * pioavail updates to memory to stop.
+	 * pioavail updates to memory to stop.  We xor as we don't
+	 * know the state of the bit when we're called.
 	 */
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 sendorig & ~INFINIPATH_S_PIOBUFAVAILUPD);
-	sendorig = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		dd->ipath_sendctrl ^ INFINIPATH_S_PIOBUFAVAILUPD);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /**
@@ -2056,6 +2062,8 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
  */
 void ipath_shutdown_device(struct ipath_devdata *dd)
 {
+	unsigned long flags;
+
 	ipath_dbg("Shutting down the device\n");
 
 	dd->ipath_flags |= IPATH_LINKUNK;
@@ -2076,9 +2084,13 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 * gracefully stop all sends allowing any in progress to trickle out
 	 * first.
 	 */
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, 0ULL);
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl = 0;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
 	/* flush it */
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+
 	/*
 	 * enough for anything that's going to trickle out to have actually
 	 * done so.

@@ -2149,11 +2149,15 @@ static int ipath_get_slave_info(struct ipath_portdata *pd,
 
 static int ipath_force_pio_avail_update(struct ipath_devdata *dd)
 {
-	u64 reg = dd->ipath_sendctrl;
+	unsigned long flags;
 
-	clear_bit(IPATH_S_PIOBUFAVAILUPD, &reg);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, reg);
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
+		dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	return 0;
 }

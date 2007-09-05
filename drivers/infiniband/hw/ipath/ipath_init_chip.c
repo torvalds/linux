@@ -345,7 +345,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 		       dd->ipath_piobcnt2k, dd->ipath_pio2kbase);
 
 	spin_lock_init(&dd->ipath_tid_lock);
-
+	spin_lock_init(&dd->ipath_sendctrl_lock);
 	spin_lock_init(&dd->ipath_gpio_lock);
 	spin_lock_init(&dd->ipath_eep_st_lock);
 	mutex_init(&dd->ipath_eep_lock);
@@ -372,9 +372,9 @@ static int init_chip_reset(struct ipath_devdata *dd,
 	*pdp = dd->ipath_pd[0];
 	/* ensure chip does no sends or receives while we re-initialize */
 	dd->ipath_control = dd->ipath_sendctrl = dd->ipath_rcvctrl = 0U;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl, 0);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, 0);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl, dd->ipath_rcvctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, dd->ipath_control);
 
 	rtmp = ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
 	if (dd->ipath_portcnt != rtmp)
@@ -487,6 +487,7 @@ static void enable_chip(struct ipath_devdata *dd,
 			struct ipath_portdata *pd, int reinit)
 {
 	u32 val;
+	unsigned long flags;
 	int i;
 
 	if (!reinit)
@@ -495,11 +496,13 @@ static void enable_chip(struct ipath_devdata *dd,
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	/* Enable PIO send, and update of PIOavail regs to memory. */
 	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE |
 		INFINIPATH_S_PIOBUFAVAILUPD;
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 dd->ipath_sendctrl);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * enable port 0 receive, and receive interrupt.  other ports
@@ -696,6 +699,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	u64 val;
 	struct ipath_portdata *pd = NULL; /* keep gcc4 happy */
 	gfp_t gfp_flags = GFP_USER | __GFP_COMP;
+	unsigned long flags;
 
 	ret = init_housekeeping(dd, &pd, reinit);
 	if (ret)
@@ -827,8 +831,12 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_hwerrclear,
 			 ~0ULL&~INFINIPATH_HWE_MEMBISTFAILED);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control, 0ULL);
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 INFINIPATH_S_PIOENABLE);
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl = INFINIPATH_S_PIOENABLE;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * before error clears, since we expect serdes pll errors during
