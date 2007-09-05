@@ -958,6 +958,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
 	STAC9200
 	  ref		Reference board
+	  dell-d21	Dell (unknown)
+	  dell-d22	Dell (unknown)
+	  dell-d23	Dell (unknown)
 	  dell-m21	Dell Inspiron 630m, Dell Inspiron 640m
 	  dell-m22	Dell Latitude D620, Dell Latitude D820
 	  dell-m23	Dell XPS M1710, Dell Precision M90
