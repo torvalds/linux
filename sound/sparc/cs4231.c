@@ -1865,8 +1865,6 @@ static int snd_cs4231_sbus_free(struct snd_cs4231 *chip)
 	if (chip->port)
 		sbus_iounmap(chip->port, chip->regs_size);
 
-	kfree(chip);
-
 	return 0;
 }
 
@@ -2036,8 +2034,6 @@ static int snd_cs4231_ebus_free(struct snd_cs4231 *chip)
 
 	if (chip->port)
 		iounmap(chip->port);
-
-	kfree(chip);
 
 	return 0;
 }
