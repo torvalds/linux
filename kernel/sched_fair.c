@@ -673,7 +673,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static int
+static void
 __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			  struct sched_entity *curr, unsigned long granularity)
 {
@@ -686,9 +686,8 @@ __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	 */
 	if (__delta > niced_granularity(curr, granularity)) {
 		resched_task(rq_of(cfs_rq)->curr);
-		return 1;
+		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
 	}
-	return 0;
 }
 
 static inline void
@@ -764,8 +763,7 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (delta_exec > ideal_runtime)
 		gran = 0;
 
-	if (__check_preempt_curr_fair(cfs_rq, next, curr, gran))
-		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
+	__check_preempt_curr_fair(cfs_rq, next, curr, gran);
 }
 
 /**************************************************
