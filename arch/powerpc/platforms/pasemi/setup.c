@@ -115,8 +115,6 @@ void __init pas_setup_arch(void)
 	/* Remap SDC register for doing reset */
 	/* XXXOJN This should maybe come out of the device tree */
 	reset_reg = ioremap(0xfc101100, 4);
-
-	pasemi_idle_init();
 }
 
 static int __init pas_setup_mce_regs(void)
