@@ -274,7 +274,6 @@ static void clear_singlestep(struct task_struct *child)
 void ptrace_disable(struct task_struct *child)
 { 
 	clear_singlestep(child);
-	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
 
