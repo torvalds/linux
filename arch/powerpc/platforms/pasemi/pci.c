@@ -175,3 +175,12 @@ void __init pas_pci_init(void)
 	/* Use the common resource allocation mechanism */
 	pci_probe_only = 1;
 }
+
+void __iomem *pasemi_pci_getcfgaddr(struct pci_dev *dev, int offset)
+{
+	struct pci_controller *hose;
+
+	hose = pci_bus_to_host(bus);
+
+	return pa_pxp_cfg_addr(hose, hose->number, dev->devfn, int offset)
+}
