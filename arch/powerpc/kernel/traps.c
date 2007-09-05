@@ -324,15 +324,6 @@ static inline int check_io_access(struct pt_regs *regs)
 #define clear_single_step(regs)	((regs)->msr &= ~MSR_SE)
 #endif
 
-/*
- * This is "fall-back" implementation for configurations
- * which don't provide platform-specific machine check info
- */
-void __attribute__ ((weak))
-platform_machine_check(struct pt_regs *regs)
-{
-}
-
 void machine_check_exception(struct pt_regs *regs)
 {
 	int recover = 0;
@@ -479,12 +470,6 @@ void machine_check_exception(struct pt_regs *regs)
 		printk("Unknown values in msr\n");
 	}
 #endif /* CONFIG_4xx */
-
-	/*
-	 * Optional platform-provided routine to print out
-	 * additional info, e.g. bus error registers.
-	 */
-	platform_machine_check(regs);
 
 	if (debugger_fault_handler(regs))
 		return;
