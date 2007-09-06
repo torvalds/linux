@@ -818,20 +818,6 @@ config EMMA2RH
 config SERIAL_RM9000
 	bool
 
-#
-# Unfortunately not all GT64120 systems run the chip at the same clock.
-# As the user for the clock rate and try to minimize the available options.
-#
-choice
-	prompt "Galileo Chip Clock"
-	depends on MOMENCO_OCELOT
-	default SYSCLK_100 if MOMENCO_OCELOT
-
-config SYSCLK_100
-	bool "100" if MOMENCO_OCELOT
-
-endchoice
-
 config ARC32
 	bool
 
