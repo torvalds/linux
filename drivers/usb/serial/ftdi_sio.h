@@ -534,6 +534,14 @@
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
 
+
+/*
+ * The Mobility Lab (TML)
+ * Submitted by Pierre Castella
+ */
+#define TML_VID			0x1B91	/* Vendor ID */
+#define TML_USB_SERIAL_PID	0x0064	/* USB - Serial Converter */
+
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */
 #define FTDI_SIO_MODEM_CTRL 	1 /* Set the modem control register */
