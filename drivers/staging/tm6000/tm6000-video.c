@@ -1102,6 +1102,10 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *norm)
 	struct tm6000_core *dev = fh->dev;
 
 	rc=tm6000_set_standard (dev, norm);
+
+	fh->width  = dev->width;
+	fh->height = dev->height;
+
 	if (rc<0)
 		return rc;
 
