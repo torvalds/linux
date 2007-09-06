@@ -155,6 +155,7 @@ enum {
 	ALC882_W2JC,
 	ALC882_TARGA,
 	ALC882_ASUS_A7J,
+	ALC882_ASUS_A7M,
 	ALC885_MACPRO,
 	ALC885_MBP3,
 	ALC885_IMAC24,
@@ -5022,6 +5023,22 @@ static struct snd_kcontrol_new alc882_asus_a7j_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc882_asus_a7m_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
+
 static struct snd_kcontrol_new alc882_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -5373,6 +5390,24 @@ static struct hda_verb alc882_asus_a7j_verbs[] = {
 	{ } /* end */
 };
 
+static struct hda_verb alc882_asus_a7m_verbs[] = {
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+        
+	{0x14, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
+	{0x16, AC_VERB_SET_CONNECT_SEL, 0x00}, /* Front */
+
+	{0x18, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01}, /* line/surround */
+	{0x1b, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
+ 	{ } /* end */
+};
+
 static void alc882_gpio_mute(struct hda_codec *codec, int pin, int muted)
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
@@ -5563,6 +5598,7 @@ static struct snd_pci_quirk alc882_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1462, 0x28fb, "Targa T8", ALC882_TARGA), /* MSI-1049 T8  */
 	SND_PCI_QUIRK(0x161f, 0x2054, "Arima W820", ALC882_ARIMA),
 	SND_PCI_QUIRK(0x1043, 0x060d, "Asus A7J", ALC882_ASUS_A7J),
+	SND_PCI_QUIRK(0x1043, 0x13c2, "Asus A7M", ALC882_ASUS_A7M),
 	SND_PCI_QUIRK(0x1043, 0x817f, "Asus P5LD2", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x81d8, "Asus P5WD", ALC882_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x1971, "Asus W2JC", ALC882_W2JC),
@@ -5680,6 +5716,19 @@ static struct alc_config_preset alc882_presets[] = {
 		.adc_nids = alc882_adc_nids,
 		.num_channel_mode = ARRAY_SIZE(alc882_3ST_6ch_modes),
 		.channel_mode = alc882_3ST_6ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc882_capture_source,
+	},	
+	[ALC882_ASUS_A7M] = {
+		.mixers = { alc882_asus_a7m_mixer, alc882_chmode_mixer },
+		.init_verbs = { alc882_init_verbs, alc882_eapd_verbs,
+				alc880_gpio1_init_verbs,
+				alc882_asus_a7m_verbs },
+		.num_dacs = ARRAY_SIZE(alc882_dac_nids),
+		.dac_nids = alc882_dac_nids,
+		.dig_out_nid = ALC882_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc880_threestack_modes),
+		.channel_mode = alc880_threestack_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc882_capture_source,
 	},	
