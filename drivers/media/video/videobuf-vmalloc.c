@@ -372,6 +372,7 @@ void videobuf_vmalloc_free (struct videobuf_buffer *buf)
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
 	vfree(mem->vmalloc);
+	mem->vmalloc=NULL;
 
 	return;
 }
