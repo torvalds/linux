@@ -1605,7 +1605,8 @@ static void e100_watchdog(unsigned long data)
 	else
 		nic->flags &= ~ich_10h_workaround;
 
-	mod_timer(&nic->watchdog, jiffies + E100_WATCHDOG_PERIOD);
+	mod_timer(&nic->watchdog,
+		  round_jiffies(jiffies + E100_WATCHDOG_PERIOD));
 }
 
 static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
