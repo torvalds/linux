@@ -1025,18 +1025,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	cx_write(port->reg_hw_sop_ctrl, 0x47 << 16 | 188 << 4);
 	cx_write(port->reg_ts_clk_en, port->ts_clk_en_val);
-
-	switch (dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800:
-		cx_write(port->reg_vld_misc, 0x00);
-		dprintk(1, "%s() Configuring HVR1800/lp/1500 board\n",
-			__FUNCTION__);
-		break;
-	default:
-		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
-	}
+	cx_write(port->reg_vld_misc, 0x00);
 
 	cx_write(port->reg_gen_ctrl, port->gen_ctrl_val);
 	udelay(100);
