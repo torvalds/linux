@@ -1015,9 +1015,12 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	/* write TS length to chip */
 	cx_write(port->reg_lngth, buf->vb.width);
 
-	if (!(cx23885_boards[dev->board].portc & CX23885_MPEG_DVB)) {
-		printk( "%s() Failed. Unsupported value in .portc (0x%08x)\n",
-			__FUNCTION__, cx23885_boards[dev->board].portc );
+	if ( (!(cx23885_boards[dev->board].portb & CX23885_MPEG_DVB)) &&
+		(!(cx23885_boards[dev->board].portc & CX23885_MPEG_DVB)) ) {
+		printk( "%s() Failed. Unsupported value in .portb/c (0x%08x)/(0x%08x)\n",
+			__FUNCTION__,
+			cx23885_boards[dev->board].portb,
+			cx23885_boards[dev->board].portc );
 		return -EINVAL;
 	}
 

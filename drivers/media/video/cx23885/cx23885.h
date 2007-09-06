@@ -86,12 +86,14 @@ struct cx23885_input {
 	u32             gpio0, gpio1, gpio2, gpio3;
 };
 
+typedef enum {
+	CX23885_MPEG_UNDEFINED = 0,
+	CX23885_MPEG_DVB
+} port_t;
+
 struct cx23885_board {
 	char                    *name;
-	enum {
-		CX23885_MPEG_UNDEFINED = 0,
-		CX23885_MPEG_DVB
-	} portc;
+	port_t			portb, portc;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
 };
 
