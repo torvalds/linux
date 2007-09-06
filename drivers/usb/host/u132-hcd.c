@@ -183,7 +183,7 @@ struct u132_ring {
 struct u132 {
         struct kref kref;
         struct list_head u132_list;
-        struct semaphore sw_lock;
+        struct mutex sw_lock;
         struct semaphore scheduler_lock;
         struct u132_platform_data *board;
         struct platform_device *platform_dev;
@@ -492,20 +492,20 @@ static void u132_hcd_monitor_work(struct work_struct *work)
                 return;
         } else {
                 int retval;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 retval = read_roothub_info(u132);
                 if (retval) {
                         struct usb_hcd *hcd = u132_to_hcd(u132);
                         u132_disable(u132);
                         u132->going = 1;
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         usb_hc_died(hcd);
                         ftdi_elan_gone_away(u132->platform_dev);
                         u132_monitor_put_kref(u132);
                         return;
                 } else {
                         u132_monitor_requeue_work(u132, 500);
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         return;
                 }
         }
@@ -1802,10 +1802,10 @@ static void u132_hcd_stop(struct usb_hcd *hcd)
                 dev_err(&u132->platform_dev->dev, "device hcd=%p is being remov"
                         "ed\n", hcd);
         } else {
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 msleep(100);
                 u132_power(u132, 0);
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
         }
 }
 
@@ -1827,7 +1827,7 @@ static int u132_hcd_start(struct usb_hcd *hcd)
                         (pdev->dev.platform_data))->vendor;
                 u16 device = ((struct u132_platform_data *)
                         (pdev->dev.platform_data))->device;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 msleep(10);
                 if (vendor == PCI_VENDOR_ID_AMD && device == 0x740c) {
                         u132->flags = OHCI_QUIRK_AMD756;
@@ -1842,7 +1842,7 @@ static int u132_hcd_start(struct usb_hcd *hcd)
                         u132->going = 1;
                 }
                 msleep(100);
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         } else {
                 dev_err(&u132->platform_dev->dev, "platform_device missing\n");
@@ -1862,13 +1862,13 @@ static int u132_hcd_reset(struct usb_hcd *hcd)
                 return -ESHUTDOWN;
         } else {
                 int retval;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 retval = u132_init(u132);
                 if (retval) {
                         u132_disable(u132);
                         u132->going = 1;
                 }
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         }
 }
@@ -2865,7 +2865,7 @@ static int u132_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
                 return -ESHUTDOWN;
         } else {
                 int retval = 0;
-                down(&u132->sw_lock);
+                mutex_lock(&u132->sw_lock);
                 switch (typeReq) {
                 case ClearHubFeature:
                         switch (wValue) {
@@ -2928,7 +2928,7 @@ static int u132_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
                       stall:retval = -EPIPE;
                         break;
                 }
-                up(&u132->sw_lock);
+                mutex_unlock(&u132->sw_lock);
                 return retval;
         }
 }
@@ -3064,7 +3064,7 @@ static int __devexit u132_remove(struct platform_device *pdev)
                         dev_err(&u132->platform_dev->dev, "removing device u132"
 				".%d\n", u132->sequence_num);
                         msleep(100);
-                        down(&u132->sw_lock);
+                        mutex_lock(&u132->sw_lock);
                         u132_monitor_cancel_work(u132);
                         while (rings-- > 0) {
                                 struct u132_ring *ring = &u132->ring[rings];
@@ -3077,7 +3077,7 @@ static int __devexit u132_remove(struct platform_device *pdev)
                         u132->going += 1;
                         printk(KERN_INFO "removing device u132.%d\n",
                                 u132->sequence_num);
-                        up(&u132->sw_lock);
+                        mutex_unlock(&u132->sw_lock);
                         usb_remove_hcd(hcd);
                         u132_u132_put_kref(u132);
                         return 0;
@@ -3097,7 +3097,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
         u132->platform_dev = pdev;
         u132->power = 0;
         u132->reset = 0;
-        init_MUTEX(&u132->sw_lock);
+        mutex_init(&u132->sw_lock);
         init_MUTEX(&u132->scheduler_lock);
         while (rings-- > 0) {
                 struct u132_ring *ring = &u132->ring[rings];
@@ -3107,7 +3107,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
                 ring->curr_endp = NULL;
                 INIT_DELAYED_WORK(&ring->scheduler,
 				  u132_hcd_ring_work_scheduler);
-        } down(&u132->sw_lock);
+        } mutex_lock(&u132->sw_lock);
         INIT_DELAYED_WORK(&u132->monitor, u132_hcd_monitor_work);
         while (ports-- > 0) {
                 struct u132_port *port = &u132->port[ports];
@@ -3137,7 +3137,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
         while (endps-- > 0) {
                 u132->endp[endps] = NULL;
         }
-        up(&u132->sw_lock);
+        mutex_unlock(&u132->sw_lock);
         return;
 }
 
