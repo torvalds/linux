@@ -149,6 +149,7 @@ int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
 int kvm_apic_set_irq(struct kvm_lapic *apic, u8 vec, u8 trig);
+void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu);
 int kvm_ioapic_init(struct kvm *kvm);
 void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
 

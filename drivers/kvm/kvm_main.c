@@ -2642,6 +2642,27 @@ static int kvm_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	return 0;
 }
 
+static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
+				    struct kvm_lapic_state *s)
+{
+	vcpu_load(vcpu);
+	memcpy(s->regs, vcpu->apic->regs, sizeof *s);
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
+static int kvm_vcpu_ioctl_set_lapic(struct kvm_vcpu *vcpu,
+				    struct kvm_lapic_state *s)
+{
+	vcpu_load(vcpu);
+	memcpy(vcpu->apic->regs, s->regs, sizeof *s);
+	kvm_apic_post_state_restore(vcpu);
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 static long kvm_vcpu_ioctl(struct file *filp,
 			   unsigned int ioctl, unsigned long arg)
 {
@@ -2806,6 +2827,31 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&fpu, argp, sizeof fpu))
 			goto out;
 		r = kvm_vcpu_ioctl_set_fpu(vcpu, &fpu);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_GET_LAPIC: {
+		struct kvm_lapic_state lapic;
+
+		memset(&lapic, 0, sizeof lapic);
+		r = kvm_vcpu_ioctl_get_lapic(vcpu, &lapic);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &lapic, sizeof lapic))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_LAPIC: {
+		struct kvm_lapic_state lapic;
+
+		r = -EFAULT;
+		if (copy_from_user(&lapic, argp, sizeof lapic))
+			goto out;
+		r = kvm_vcpu_ioctl_set_lapic(vcpu, &lapic);;
 		if (r)
 			goto out;
 		r = 0;

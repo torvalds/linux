@@ -208,6 +208,12 @@ struct kvm_fpu {
 	__u32 pad2;
 };
 
+/* for KVM_GET_LAPIC and KVM_SET_LAPIC */
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
 struct kvm_segment {
 	__u64 base;
 	__u32 limit;
@@ -380,5 +386,7 @@ struct kvm_signal_mask {
 #define KVM_SET_SIGNAL_MASK       _IOW(KVMIO,  0x8b, struct kvm_signal_mask)
 #define KVM_GET_FPU               _IOR(KVMIO,  0x8c, struct kvm_fpu)
 #define KVM_SET_FPU               _IOW(KVMIO,  0x8d, struct kvm_fpu)
+#define KVM_GET_LAPIC             _IOR(KVMIO,  0x8e, struct kvm_lapic_state)
+#define KVM_SET_LAPIC             _IOW(KVMIO,  0x8f, struct kvm_lapic_state)
 
 #endif

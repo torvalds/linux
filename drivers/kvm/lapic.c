@@ -931,3 +931,16 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 	apic_clear_irr(vector, apic);
 	return vector;
 }
+
+void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->apic;
+
+	apic->base_address = vcpu->apic_base &
+			     MSR_IA32_APICBASE_BASE;
+	apic_set_reg(apic, APIC_LVR, APIC_VERSION);
+	apic_update_ppr(apic);
+	hrtimer_cancel(&apic->timer.dev);
+	update_divide_count(apic);
+	start_apic_timer(apic);
+}
