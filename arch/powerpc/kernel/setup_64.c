@@ -181,9 +181,9 @@ void __init early_setup(unsigned long dt_ptr)
  	DBG(" -> early_setup(), dt_ptr: 0x%lx\n", dt_ptr);
 
 	/*
-	 * Do early initializations using the flattened device
-	 * tree, like retreiving the physical memory map or
-	 * calculating/retreiving the hash table size
+	 * Do early initialization using the flattened device
+	 * tree, such as retrieving the physical memory map or
+	 * calculating/retrieving the hash table size.
 	 */
 	early_init_devtree(__va(dt_ptr));
 

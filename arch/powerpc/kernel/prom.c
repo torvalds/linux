@@ -430,9 +430,11 @@ static int __init early_parse_mem(char *p)
 }
 early_param("mem", early_parse_mem);
 
-/*
- * The device tree may be allocated below our memory limit, or inside the
- * crash kernel region for kdump. If so, move it out now.
+/**
+ * move_device_tree - move tree to an unused area, if needed.
+ *
+ * The device tree may be allocated beyond our memory limit, or inside the
+ * crash kernel region for kdump. If so, move it out of the way.
  */
 static void move_device_tree(void)
 {
