@@ -70,7 +70,7 @@ static unsigned int rates[14] = {
 };
 
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count = 14,
+	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
 };
@@ -99,24 +99,32 @@ static unsigned char snd_ad1848_original_image[16] =
  *  Basic I/O functions
  */
 
+static void snd_ad1848_wait(struct snd_ad1848 *chip)
+{
+	int timeout;
+
+	for (timeout = 250; timeout > 0; timeout--) {
+		if ((inb(AD1848P(chip, REGSEL)) & AD1848_INIT) == 0)
+			break;
+		udelay(100);
+	}
+}
+
 void snd_ad1848_out(struct snd_ad1848 *chip,
 			   unsigned char reg,
 			   unsigned char value)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
+		snd_printk(KERN_WARNING "auto calibration time out - "
+			   "reg = 0x%x, value = 0x%x\n", reg, value);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	outb(chip->image[reg] = value, AD1848P(chip, REG));
 	mb();
-#if 0
-	printk("codec out - reg 0x%x = 0x%x\n", chip->mce_bit | reg, value);
-#endif
+	snd_printdd("codec out - reg 0x%x = 0x%x\n",
+			chip->mce_bit | reg, value);
 }
 
 EXPORT_SYMBOL(snd_ad1848_out);
@@ -124,10 +132,7 @@ EXPORT_SYMBOL(snd_ad1848_out);
 static void snd_ad1848_dout(struct snd_ad1848 *chip,
 			    unsigned char reg, unsigned char value)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	outb(value, AD1848P(chip, REG));
 	mb();
@@ -135,13 +140,11 @@ static void snd_ad1848_dout(struct snd_ad1848 *chip,
 
 static unsigned char snd_ad1848_in(struct snd_ad1848 *chip, unsigned char reg)
 {
-	int timeout;
-
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
-		snd_printk(KERN_WARNING "auto calibration time out - reg = 0x%x\n", reg);
+		snd_printk(KERN_WARNING "auto calibration time out - "
+			   "reg = 0x%x\n", reg);
 #endif
 	outb(chip->mce_bit | reg, AD1848P(chip, REGSEL));
 	mb();
@@ -183,8 +186,7 @@ static void snd_ad1848_mce_up(struct snd_ad1848 *chip)
 	unsigned long flags;
 	int timeout;
 
-	for (timeout = 250; timeout > 0 && (inb(AD1848P(chip, REGSEL)) & AD1848_INIT); timeout--)
-		udelay(100);
+	snd_ad1848_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (inb(AD1848P(chip, REGSEL)) & AD1848_INIT)
 		snd_printk(KERN_WARNING "mce_up - auto calibration time out (0)\n");
@@ -319,11 +321,11 @@ static unsigned char snd_ad1848_get_rate(unsigned int rate)
 {
 	int i;
 
-	for (i = 0; i < 14; i++)
+	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (rate == rates[i])
 			return freq_bits[i];
 	snd_BUG();
-	return freq_bits[13];
+	return freq_bits[ARRAY_SIZE(rates) - 1];
 }
 
 static int snd_ad1848_ioctl(struct snd_pcm_substream *substream,
