@@ -140,7 +140,6 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 
 	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
-
 	pages = PAGE_ALIGN(vb->size) >> PAGE_SHIFT;
 
 	/* Currently, doesn't support V4L2_MEMORY_OVERLAY */
@@ -153,7 +152,7 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 	/* FIXME: should be tested with kernel mmap mem */
 	mem->vmalloc=vmalloc_user (PAGE_ALIGN(vb->size));
 	if (NULL == mem->vmalloc) {
-		dprintk(1,"vmalloc (%d pages) failed\n",pages);
+		printk(KERN_ERR "vmalloc (%d pages) failed\n",pages);
 		return -ENOMEM;
 	}
 
