@@ -39,6 +39,7 @@
 #include <linux/parser.h>
 #include <linux/crc32.h>
 #include <linux/debugfs.h>
+#include <linux/mount.h>
 
 #include <cluster/nodemanager.h>
 
@@ -91,6 +92,7 @@ struct mount_options
 static int ocfs2_parse_options(struct super_block *sb, char *options,
 			       struct mount_options *mopt,
 			       int is_remount);
+static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt);
 static void ocfs2_put_super(struct super_block *sb);
 static int ocfs2_mount_volume(struct super_block *sb);
 static int ocfs2_remount(struct super_block *sb, int *flags, char *data);
@@ -133,6 +135,7 @@ static const struct super_operations ocfs2_sops = {
 	.write_super	= ocfs2_write_super,
 	.put_super	= ocfs2_put_super,
 	.remount_fs	= ocfs2_remount,
+	.show_options   = ocfs2_show_options,
 };
 
 enum {
@@ -828,6 +831,41 @@ static int ocfs2_parse_options(struct super_block *sb,
 bail:
 	mlog_exit(status);
 	return status;
+}
+
+static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
+{
+	struct ocfs2_super *osb = OCFS2_SB(mnt->mnt_sb);
+	unsigned long opts = osb->s_mount_opt;
+
+	if (opts & OCFS2_MOUNT_HB_LOCAL)
+		seq_printf(s, ",_netdev,heartbeat=local");
+	else
+		seq_printf(s, ",heartbeat=none");
+
+	if (opts & OCFS2_MOUNT_NOINTR)
+		seq_printf(s, ",nointr");
+
+	if (opts & OCFS2_MOUNT_DATA_WRITEBACK)
+		seq_printf(s, ",data=writeback");
+	else
+		seq_printf(s, ",data=ordered");
+
+	if (opts & OCFS2_MOUNT_BARRIER)
+		seq_printf(s, ",barrier=1");
+
+	if (opts & OCFS2_MOUNT_ERRORS_PANIC)
+		seq_printf(s, ",errors=panic");
+	else
+		seq_printf(s, ",errors=remount-ro");
+
+	if (osb->preferred_slot != OCFS2_INVALID_SLOT)
+		seq_printf(s, ",preferred_slot=%d", osb->preferred_slot);
+
+	if (osb->s_atime_quantum != OCFS2_DEFAULT_ATIME_QUANTUM)
+		seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
+
+	return 0;
 }
 
 static int __init ocfs2_init(void)
