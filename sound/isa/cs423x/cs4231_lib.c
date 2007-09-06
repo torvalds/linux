@@ -74,7 +74,7 @@ static unsigned int rates[14] = {
 };
 
 static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
-	.count = 14,
+	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
 };
@@ -134,29 +134,31 @@ static inline u8 cs4231_inb(struct snd_cs4231 *chip, u8 offset)
 	return inb(chip->port + offset);
 }
 
-static void snd_cs4231_outm(struct snd_cs4231 *chip, unsigned char reg,
-			    unsigned char mask, unsigned char value)
+static void snd_cs4231_wait(struct snd_cs4231 *chip)
 {
 	int timeout;
-	unsigned char tmp;
 
 	for (timeout = 250;
 	     timeout > 0 && (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT);
 	     timeout--)
 	     	udelay(100);
+}
+
+static void snd_cs4231_outm(struct snd_cs4231 *chip, unsigned char reg,
+			    unsigned char mask, unsigned char value)
+{
+	unsigned char tmp = (chip->image[reg] & mask) | value;
+
+	snd_cs4231_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
 		snd_printk("outm: auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
 #endif
-	if (chip->calibrate_mute) {
-		chip->image[reg] &= mask;
-		chip->image[reg] |= value;
-	} else {
+	chip->image[reg] = tmp;
+	if (!chip->calibrate_mute) {
 		cs4231_outb(chip, CS4231P(REGSEL), chip->mce_bit | reg);
-		mb();
-		tmp = (chip->image[reg] & mask) | value;
+		wmb();
 		cs4231_outb(chip, CS4231P(REG), tmp);
-		chip->image[reg] = tmp;
 		mb();
 	}
 }
@@ -176,12 +178,7 @@ static void snd_cs4231_dout(struct snd_cs4231 *chip, unsigned char reg, unsigned
 
 void snd_cs4231_out(struct snd_cs4231 *chip, unsigned char reg, unsigned char value)
 {
-	int timeout;
-
-	for (timeout = 250;
-	     timeout > 0 && (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT);
-	     timeout--)
-	     	udelay(100);
+	snd_cs4231_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
 		snd_printk("out: auto calibration time out - reg = 0x%x, value = 0x%x\n", reg, value);
@@ -190,19 +187,13 @@ void snd_cs4231_out(struct snd_cs4231 *chip, unsigned char reg, unsigned char va
 	cs4231_outb(chip, CS4231P(REG), value);
 	chip->image[reg] = value;
 	mb();
-#if 0
-	printk("codec out - reg 0x%x = 0x%x\n", chip->mce_bit | reg, value);
-#endif
+	snd_printdd("codec out - reg 0x%x = 0x%x\n",
+			chip->mce_bit | reg, value);
 }
 
 unsigned char snd_cs4231_in(struct snd_cs4231 *chip, unsigned char reg)
 {
-	int timeout;
-
-	for (timeout = 250;
-	     timeout > 0 && (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT);
-	     timeout--)
-	     	udelay(100);
+	snd_cs4231_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
 		snd_printk("in: auto calibration time out - reg = 0x%x\n", reg);
@@ -304,8 +295,7 @@ void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 	unsigned long flags;
 	int timeout;
 
-	for (timeout = 250; timeout > 0 && (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT); timeout--)
-		udelay(100);
+	snd_cs4231_wait(chip);
 #ifdef CONFIG_SND_DEBUG
 	if (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
 		snd_printk("mce_up - auto calibration time out (0)\n");
@@ -459,11 +449,11 @@ static unsigned char snd_cs4231_get_rate(unsigned int rate)
 {
 	int i;
 
-	for (i = 0; i < 14; i++)
+	for (i = 0; i < ARRAY_SIZE(rates); i++)
 		if (rate == rates[i])
 			return freq_bits[i];
 	// snd_BUG();
-	return freq_bits[13];
+	return freq_bits[ARRAY_SIZE(rates) - 1];
 }
 
 static unsigned char snd_cs4231_get_format(struct snd_cs4231 *chip,
