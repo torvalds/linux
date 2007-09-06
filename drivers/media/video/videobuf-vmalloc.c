@@ -84,9 +84,11 @@ videobuf_vm_close(struct vm_area_struct *vma)
 
 			if (mem->map != map)
 				continue;
+
+			q->ops->buf_release(q,q->bufs[i]);
+
 			mem->map   = NULL;
 			q->bufs[i]->baddr = 0;
-			q->ops->buf_release(q,q->bufs[i]);
 		}
 		mutex_unlock(&q->lock);
 		kfree(map);
