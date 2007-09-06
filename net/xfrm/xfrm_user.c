@@ -214,23 +214,6 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	return 0;
 }
 
-static int attach_encap_tmpl(struct xfrm_encap_tmpl **encapp, struct nlattr *rta)
-{
-	struct xfrm_encap_tmpl *p, *uencap;
-
-	if (!rta)
-		return 0;
-
-	uencap = nla_data(rta);
-	p = kmemdup(uencap, sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	*encapp = p;
-	return 0;
-}
-
-
 static inline int xfrm_user_sec_ctx_size(struct xfrm_sec_ctx *xfrm_ctx)
 {
 	int len = 0;
@@ -240,33 +223,6 @@ static inline int xfrm_user_sec_ctx_size(struct xfrm_sec_ctx *xfrm_ctx)
 		len += xfrm_ctx->ctx_len;
 	}
 	return len;
-}
-
-static int attach_sec_ctx(struct xfrm_state *x, struct nlattr *u_arg)
-{
-	struct xfrm_user_sec_ctx *uctx;
-
-	if (!u_arg)
-		return 0;
-
-	uctx = nla_data(u_arg);
-	return security_xfrm_state_alloc(x, uctx);
-}
-
-static int attach_one_addr(xfrm_address_t **addrpp, struct nlattr *rta)
-{
-	xfrm_address_t *p, *uaddrp;
-
-	if (!rta)
-		return 0;
-
-	uaddrp = nla_data(rta);
-	p = kmemdup(uaddrp, sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	*addrpp = p;
-	return 0;
 }
 
 static void copy_from_user_state(struct xfrm_state *x, struct xfrm_usersa_info *p)
@@ -348,15 +304,27 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 				   xfrm_calg_get_byname,
 				   attrs[XFRMA_ALG_COMP])))
 		goto error;
-	if ((err = attach_encap_tmpl(&x->encap, attrs[XFRMA_ENCAP])))
-		goto error;
-	if ((err = attach_one_addr(&x->coaddr, attrs[XFRMA_COADDR])))
-		goto error;
+
+	if (attrs[XFRMA_ENCAP]) {
+		x->encap = kmemdup(nla_data(attrs[XFRMA_ENCAP]),
+				   sizeof(*x->encap), GFP_KERNEL);
+		if (x->encap == NULL)
+			goto error;
+	}
+
+	if (attrs[XFRMA_COADDR]) {
+		x->coaddr = kmemdup(nla_data(attrs[XFRMA_COADDR]),
+				    sizeof(*x->coaddr), GFP_KERNEL);
+		if (x->coaddr == NULL)
+			goto error;
+	}
+
 	err = xfrm_init_state(x);
 	if (err)
 		goto error;
 
-	if ((err = attach_sec_ctx(x, attrs[XFRMA_SEC_CTX])))
+	if (attrs[XFRMA_SEC_CTX] &&
+	    security_xfrm_state_alloc(x, nla_data(attrs[XFRMA_SEC_CTX])))
 		goto error;
 
 	x->km.seq = p->seq;
