@@ -66,7 +66,7 @@
 #include <sound/control.h>
 #include <sound/initval.h>
 
-#include <asm/prom.h>
+#include <linux/of.h>
 #include <asm/sbus.h>
 #include <asm/atomic.h>
 
