@@ -640,11 +640,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	h->tp_snaplen = snaplen;
 	h->tp_mac = macoff;
 	h->tp_net = netoff;
-	if (skb->tstamp.tv64 == 0) {
-		__net_timestamp(skb);
-		sock_enable_timestamp(sk);
-	}
-	tv = ktime_to_timeval(skb->tstamp);
+	if (skb->tstamp.tv64)
+		tv = ktime_to_timeval(skb->tstamp);
+	else
+		do_gettimeofday(&tv);
 	h->tp_sec = tv.tv_sec;
 	h->tp_usec = tv.tv_usec;
 
