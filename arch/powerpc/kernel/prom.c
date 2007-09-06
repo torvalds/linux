@@ -779,13 +779,13 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 #ifdef CONFIG_KEXEC
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
-       if (lprop)
-               crashk_res.start = *lprop;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-base", NULL);
+	if (lprop)
+		crashk_res.start = *lprop;
 
-       lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
-       if (lprop)
-               crashk_res.end = crashk_res.start + *lprop - 1;
+	lprop = (u64*)of_get_flat_dt_prop(node, "linux,crashkernel-size", NULL);
+	if (lprop)
+		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
 
 	early_init_dt_check_for_initrd(node);
