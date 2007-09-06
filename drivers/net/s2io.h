@@ -802,6 +802,13 @@ struct lro {
 	u8		saw_ts;
 };
 
+/* These flags represent the devices temporary state */
+enum s2io_device_state_t
+{
+	__S2IO_STATE_LINK_TASK=0,
+	__S2IO_STATE_CARD_UP
+};
+
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
 	int rxd_mode;
@@ -880,10 +887,6 @@ struct s2io_nic {
 
 	int task_flag;
 	unsigned long long start_time;
-#define CARD_DOWN 1
-#define CARD_UP 2
-	atomic_t card_state;
-	volatile unsigned long link_state;
 	struct vlan_group *vlgrp;
 #define MSIX_FLG                0xA5
 	struct msix_entry *entries;
@@ -906,6 +909,7 @@ struct s2io_nic {
 	unsigned long	sending_both;
 	u8		lro;
 	u16		lro_max_aggr_per_sess;
+	volatile unsigned long state;
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 	u64		general_int_mask;

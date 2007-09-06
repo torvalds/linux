@@ -130,6 +130,11 @@ static inline int rx_buffer_level(struct s2io_nic * sp, int rxb_size, int ring)
 	return 0;
 }
 
+static inline int is_s2io_card_up(const struct s2io_nic * sp)
+{
+	return test_bit(__S2IO_STATE_CARD_UP, &sp->state);
+}
+
 /* Ethtool related variables and Macros. */
 static char s2io_gstrings[][ETH_GSTRING_LEN] = {
 	"Register test\t(offline)",
@@ -2711,6 +2716,12 @@ static int s2io_poll(struct napi_struct *napi, int budget)
 	int i;
 
 	atomic_inc(&nic->isr_cnt);
+
+	if (!is_s2io_card_up(nic)) {
+		atomic_dec(&nic->isr_cnt);
+		return 0;
+	}
+
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 
@@ -2837,12 +2848,6 @@ static void rx_intr_handler(struct ring_info *ring_data)
 	struct RxD3* rxdp3;
 
 	spin_lock(&nic->rx_lock);
-	if (atomic_read(&nic->card_state) == CARD_DOWN) {
-		DBG_PRINT(INTR_DBG, "%s: %s going down for reset\n",
-			  __FUNCTION__, dev->name);
-		spin_unlock(&nic->rx_lock);
-		return;
-	}
 
 	get_info = ring_data->rx_curr_get_info;
 	get_block = get_info.block_index;
@@ -3990,7 +3995,7 @@ static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 }
 
 	spin_lock_irqsave(&sp->tx_lock, flags);
-	if (atomic_read(&sp->card_state) == CARD_DOWN) {
+	if (!is_s2io_card_up(sp)) {
 		DBG_PRINT(TX_DBG, "%s: Card going down for reset\n",
 			  dev->name);
 		spin_unlock_irqrestore(&sp->tx_lock, flags);
@@ -4184,6 +4189,11 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 
 	atomic_inc(&sp->isr_cnt);
 
+	if (!is_s2io_card_up(sp)) {
+		atomic_dec(&sp->isr_cnt);
+		return IRQ_HANDLED;
+	}
+
 	rx_intr_handler(ring);
 	s2io_chk_rx_buffers(sp, ring->ring_no);
 
@@ -4197,6 +4207,12 @@ static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 	struct s2io_nic *sp = fifo->nic;
 
 	atomic_inc(&sp->isr_cnt);
+
+	if (!is_s2io_card_up(sp)) {
+		atomic_dec(&sp->isr_cnt);
+		return IRQ_HANDLED;
+	}
+
 	tx_intr_handler(fifo);
 	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
@@ -4305,7 +4321,7 @@ static void s2io_handle_errors(void * dev_id)
 	struct swStat *sw_stat = &sp->mac_control.stats_info->sw_stat;
 	struct xpakStat *stats = &sp->mac_control.stats_info->xpak_stat;
 
-	if (unlikely(atomic_read(&sp->card_state) == CARD_DOWN))
+	if (!is_s2io_card_up(sp))
 		return;
 
 	if (pci_channel_offline(sp->pdev))
@@ -4576,6 +4592,12 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	atomic_inc(&sp->isr_cnt);
+
+	if (!is_s2io_card_up(sp)) {
+		atomic_dec(&sp->isr_cnt);
+		return IRQ_NONE;
+	}
+
 	mac_control = &sp->mac_control;
 	config = &sp->config;
 
@@ -4664,7 +4686,7 @@ static void s2io_updt_stats(struct s2io_nic *sp)
 	u64 val64;
 	int cnt = 0;
 
-	if (atomic_read(&sp->card_state) == CARD_UP) {
+	if (is_s2io_card_up(sp)) {
 		/* Apprx 30us on a 133 MHz bus */
 		val64 = SET_UPDT_CLICKS(10) |
 			STAT_CFG_ONE_SHOT_EN | STAT_CFG_STAT_EN;
@@ -6460,7 +6482,7 @@ static void s2io_set_link(struct work_struct *work)
 	if (!netif_running(dev))
 		goto out_unlock;
 
-	if (test_and_set_bit(0, &(nic->link_state))) {
+	if (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(nic->state))) {
 		/* The card is being reset, no point doing anything */
 		goto out_unlock;
 	}
@@ -6516,7 +6538,7 @@ static void s2io_set_link(struct work_struct *work)
 		writeq(val64, &bar0->adapter_control);
 		s2io_link(nic, LINK_DOWN);
 	}
-	clear_bit(0, &(nic->link_state));
+	clear_bit(__S2IO_STATE_LINK_TASK, &(nic->state));
 
 out_unlock:
 	rtnl_unlock();
@@ -6825,10 +6847,10 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 
 	del_timer_sync(&sp->alarm_timer);
 	/* If s2io_set_link task is executing, wait till it completes. */
-	while (test_and_set_bit(0, &(sp->link_state))) {
+	while (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(sp->state))) {
 		msleep(50);
 	}
-	atomic_set(&sp->card_state, CARD_DOWN);
+	clear_bit(__S2IO_STATE_CARD_UP, &sp->state);
 
 	/* disable Tx and Rx traffic on the NIC */
 	if (do_io)
@@ -6879,7 +6901,7 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	free_rx_buffers(sp);
 	spin_unlock_irqrestore(&sp->rx_lock, flags);
 
-	clear_bit(0, &(sp->link_state));
+	clear_bit(__S2IO_STATE_LINK_TASK, &(sp->state));
 }
 
 static void s2io_card_down(struct s2io_nic * sp)
@@ -6972,8 +6994,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 		en_dis_able_nic_intrs(sp, interruptible, ENABLE_INTRS);
 	}
 
-
-	atomic_set(&sp->card_state, CARD_UP);
+	set_bit(__S2IO_STATE_CARD_UP, &sp->state);
 	return 0;
 }
 
@@ -7701,9 +7722,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * Initialize the tasklet status and link state flags
 	 * and the card state parameter
 	 */
-	atomic_set(&(sp->card_state), 0);
 	sp->tasklet_status = 0;
-	sp->link_state = 0;
+	sp->state = 0;
 
 	/* Initialize spinlocks */
 	spin_lock_init(&sp->tx_lock);
