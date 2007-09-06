@@ -931,6 +931,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack, shared surrounds
 	  laptop	2-channel only (FSC V2060, Samsung M50)
 	  laptop-eapd	2-channel with EAPD (Samsung R65, ASUS A6J)
+	  laptop-automute 2-channel with EAPD and HP-automute (Lenovo N100)
 	  ultra		2-channel with EAPD (Samsung Ultra tablet PC)
 
 	AD1988
