@@ -892,8 +892,9 @@ static void free_shared_mem(struct s2io_nic *nic)
 					k++;
 				}
 				kfree(mac_control->rings[i].ba[j]);
-				nic->mac_control.stats_info->sw_stat.mem_freed 				+= (sizeof(struct buffAdd) * 
-				(rxd_count[nic->rxd_mode] + 1));
+				nic->mac_control.stats_info->sw_stat.mem_freed +=
+					(sizeof(struct buffAdd) *
+					(rxd_count[nic->rxd_mode] + 1));
 			}
 			kfree(mac_control->rings[i].ba);
 			nic->mac_control.stats_info->sw_stat.mem_freed += 
@@ -1731,7 +1732,150 @@ static int s2io_link_fault_indication(struct s2io_nic *nic)
 	else
 		return MAC_RMAC_ERR_TIMER;
 }
+/**
+ *  do_s2io_write_bits -  update alarm bits in alarm register
+ *  @value: alarm bits
+ *  @flag: interrupt status
+ *  @addr: address value
+ *  Description: update alarm bits in alarm register
+ *  Return Value:
+ *  NONE.
+ */
+static void do_s2io_write_bits(u64 value, int flag, void __iomem *addr)
+{
+	u64 temp64;
 
+	temp64 = readq(addr);
+
+	if(flag == ENABLE_INTRS)
+		temp64 &= ~((u64) value);
+	else
+		temp64 |= ((u64) value);
+	writeq(temp64, addr);
+}
+
+void en_dis_err_alarms(struct s2io_nic *nic, u16 mask, int flag)
+{
+	struct XENA_dev_config __iomem *bar0 = nic->bar0;
+	register u64 gen_int_mask = 0;
+
+	if (mask & TX_DMA_INTR) {
+
+		gen_int_mask |= TXDMA_INT_M;
+
+		do_s2io_write_bits(TXDMA_TDA_INT | TXDMA_PFC_INT |
+				TXDMA_PCC_INT | TXDMA_TTI_INT |
+				TXDMA_LSO_INT | TXDMA_TPA_INT |
+				TXDMA_SM_INT, flag, &bar0->txdma_int_mask);
+
+		do_s2io_write_bits(PFC_ECC_DB_ERR | PFC_SM_ERR_ALARM |
+				PFC_MISC_0_ERR | PFC_MISC_1_ERR |
+				PFC_PCIX_ERR | PFC_ECC_SG_ERR, flag,
+				&bar0->pfc_err_mask);
+
+		do_s2io_write_bits(TDA_Fn_ECC_DB_ERR | TDA_SM0_ERR_ALARM |
+				TDA_SM1_ERR_ALARM | TDA_Fn_ECC_SG_ERR |
+				TDA_PCIX_ERR, flag, &bar0->tda_err_mask);
+
+		do_s2io_write_bits(PCC_FB_ECC_DB_ERR | PCC_TXB_ECC_DB_ERR |
+				PCC_SM_ERR_ALARM | PCC_WR_ERR_ALARM |
+				PCC_N_SERR | PCC_6_COF_OV_ERR |
+				PCC_7_COF_OV_ERR | PCC_6_LSO_OV_ERR |
+				PCC_7_LSO_OV_ERR | PCC_FB_ECC_SG_ERR |
+				PCC_TXB_ECC_SG_ERR, flag, &bar0->pcc_err_mask);
+
+		do_s2io_write_bits(TTI_SM_ERR_ALARM | TTI_ECC_SG_ERR |
+				TTI_ECC_DB_ERR, flag, &bar0->tti_err_mask);
+
+		do_s2io_write_bits(LSO6_ABORT | LSO7_ABORT |
+				LSO6_SM_ERR_ALARM | LSO7_SM_ERR_ALARM |
+				LSO6_SEND_OFLOW | LSO7_SEND_OFLOW,
+				flag, &bar0->lso_err_mask);
+
+		do_s2io_write_bits(TPA_SM_ERR_ALARM | TPA_TX_FRM_DROP,
+				flag, &bar0->tpa_err_mask);
+
+		do_s2io_write_bits(SM_SM_ERR_ALARM, flag, &bar0->sm_err_mask);
+
+	}
+
+	if (mask & TX_MAC_INTR) {
+		gen_int_mask |= TXMAC_INT_M;
+		do_s2io_write_bits(MAC_INT_STATUS_TMAC_INT, flag,
+				&bar0->mac_int_mask);
+		do_s2io_write_bits(TMAC_TX_BUF_OVRN | TMAC_TX_SM_ERR |
+				TMAC_ECC_SG_ERR | TMAC_ECC_DB_ERR |
+				TMAC_DESC_ECC_SG_ERR | TMAC_DESC_ECC_DB_ERR,
+				flag, &bar0->mac_tmac_err_mask);
+	}
+
+	if (mask & TX_XGXS_INTR) {
+		gen_int_mask |= TXXGXS_INT_M;
+		do_s2io_write_bits(XGXS_INT_STATUS_TXGXS, flag,
+				&bar0->xgxs_int_mask);
+		do_s2io_write_bits(TXGXS_ESTORE_UFLOW | TXGXS_TX_SM_ERR |
+				TXGXS_ECC_SG_ERR | TXGXS_ECC_DB_ERR,
+				flag, &bar0->xgxs_txgxs_err_mask);
+	}
+
+	if (mask & RX_DMA_INTR) {
+		gen_int_mask |= RXDMA_INT_M;
+		do_s2io_write_bits(RXDMA_INT_RC_INT_M | RXDMA_INT_RPA_INT_M |
+				RXDMA_INT_RDA_INT_M | RXDMA_INT_RTI_INT_M,
+				flag, &bar0->rxdma_int_mask);
+		do_s2io_write_bits(RC_PRCn_ECC_DB_ERR | RC_FTC_ECC_DB_ERR |
+				RC_PRCn_SM_ERR_ALARM | RC_FTC_SM_ERR_ALARM |
+				RC_PRCn_ECC_SG_ERR | RC_FTC_ECC_SG_ERR |
+				RC_RDA_FAIL_WR_Rn, flag, &bar0->rc_err_mask);
+		do_s2io_write_bits(PRC_PCI_AB_RD_Rn | PRC_PCI_AB_WR_Rn |
+				PRC_PCI_AB_F_WR_Rn | PRC_PCI_DP_RD_Rn |
+				PRC_PCI_DP_WR_Rn | PRC_PCI_DP_F_WR_Rn, flag,
+				&bar0->prc_pcix_err_mask);
+		do_s2io_write_bits(RPA_SM_ERR_ALARM | RPA_CREDIT_ERR |
+				RPA_ECC_SG_ERR | RPA_ECC_DB_ERR, flag,
+				&bar0->rpa_err_mask);
+		do_s2io_write_bits(RDA_RXDn_ECC_DB_ERR | RDA_FRM_ECC_DB_N_AERR |
+				RDA_SM1_ERR_ALARM | RDA_SM0_ERR_ALARM |
+				RDA_RXD_ECC_DB_SERR | RDA_RXDn_ECC_SG_ERR |
+				RDA_FRM_ECC_SG_ERR | RDA_MISC_ERR|RDA_PCIX_ERR,
+				flag, &bar0->rda_err_mask);
+		do_s2io_write_bits(RTI_SM_ERR_ALARM |
+				RTI_ECC_SG_ERR | RTI_ECC_DB_ERR,
+				flag, &bar0->rti_err_mask);
+	}
+
+	if (mask & RX_MAC_INTR) {
+		gen_int_mask |= RXMAC_INT_M;
+		do_s2io_write_bits(MAC_INT_STATUS_RMAC_INT, flag,
+				&bar0->mac_int_mask);
+		do_s2io_write_bits(RMAC_RX_BUFF_OVRN | RMAC_RX_SM_ERR |
+				RMAC_UNUSED_INT | RMAC_SINGLE_ECC_ERR |
+				RMAC_DOUBLE_ECC_ERR |
+				RMAC_LINK_STATE_CHANGE_INT,
+				flag, &bar0->mac_rmac_err_mask);
+	}
+
+	if (mask & RX_XGXS_INTR)
+	{
+		gen_int_mask |= RXXGXS_INT_M;
+		do_s2io_write_bits(XGXS_INT_STATUS_RXGXS, flag,
+				&bar0->xgxs_int_mask);
+		do_s2io_write_bits(RXGXS_ESTORE_OFLOW | RXGXS_RX_SM_ERR, flag,
+				&bar0->xgxs_rxgxs_err_mask);
+	}
+
+	if (mask & MC_INTR) {
+		gen_int_mask |= MC_INT_M;
+		do_s2io_write_bits(MC_INT_MASK_MC_INT, flag, &bar0->mc_int_mask);
+		do_s2io_write_bits(MC_ERR_REG_SM_ERR | MC_ERR_REG_ECC_ALL_SNG |
+				MC_ERR_REG_ECC_ALL_DBL | PLL_LOCK_N, flag,
+				&bar0->mc_err_mask);
+	}
+	nic->general_int_mask = gen_int_mask;
+
+	/* Remove this line when alarm interrupts are enabled */
+	nic->general_int_mask = 0;
+}
 /**
  *  en_dis_able_nic_intrs - Enable or Disable the interrupts
  *  @nic: device private variable,
@@ -1746,17 +1890,16 @@ static int s2io_link_fault_indication(struct s2io_nic *nic)
 static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
-	register u64 val64 = 0, temp64 = 0;
+	register u64 temp64 = 0, intr_mask = 0;
+
+	intr_mask = nic->general_int_mask;
 
 	/*  Top level interrupt classification */
 	/*  PIC Interrupts */
-	if ((mask & (TX_PIC_INTR | RX_PIC_INTR))) {
+	if (mask & TX_PIC_INTR) {
 		/*  Enable PIC Intrs in the general intr mask register */
-		val64 = TXPIC_INT_M;
+		intr_mask |= TXPIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/*
 			 * If Hercules adapter enable GPIO otherwise
 			 * disable all PCIX, Flash, MDIO, IIC and GPIO
@@ -1765,64 +1908,25 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 */
 			if (s2io_link_fault_indication(nic) ==
 					LINK_UP_DOWN_INTERRUPT ) {
-				temp64 = readq(&bar0->pic_int_mask);
-				temp64 &= ~((u64) PIC_INT_GPIO);
-				writeq(temp64, &bar0->pic_int_mask);
-				temp64 = readq(&bar0->gpio_int_mask);
-				temp64 &= ~((u64) GPIO_INT_MASK_LINK_UP);
-				writeq(temp64, &bar0->gpio_int_mask);
-			} else {
+				do_s2io_write_bits(PIC_INT_GPIO, flag,
+						&bar0->pic_int_mask);
+				do_s2io_write_bits(GPIO_INT_MASK_LINK_UP, flag,
+						&bar0->gpio_int_mask);
+			} else
 				writeq(DISABLE_ALL_INTRS, &bar0->pic_int_mask);
-			}
-			/*
-			 * No MSI Support is available presently, so TTI and
-			 * RTI interrupts are also disabled.
-			 */
 		} else if (flag == DISABLE_INTRS) {
 			/*
 			 * Disable PIC Intrs in the general
 			 * intr mask register
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->pic_int_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
-		}
-	}
-
-	/*  MAC Interrupts */
-	/*  Enabling/Disabling MAC interrupts */
-	if (mask & (TX_MAC_INTR | RX_MAC_INTR)) {
-		val64 = TXMAC_INT_M | RXMAC_INT_M;
-		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
-			/*
-			 * All MAC block error interrupts are disabled for now
-			 * TODO
-			 */
-		} else if (flag == DISABLE_INTRS) {
-			/*
-			 * Disable MAC Intrs in the general intr mask register
-			 */
-			writeq(DISABLE_ALL_INTRS, &bar0->mac_int_mask);
-			writeq(DISABLE_ALL_INTRS,
-			       &bar0->mac_rmac_err_mask);
-
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
 
 	/*  Tx traffic interrupts */
 	if (mask & TX_TRAFFIC_INTR) {
-		val64 = TXTRAFFIC_INT_M;
+		intr_mask |= TXTRAFFIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/*
 			 * Enable all the Tx side interrupts
 			 * writing 0 Enables all 64 TX interrupt levels
@@ -1834,19 +1938,13 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 * register.
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->tx_traffic_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
 
 	/*  Rx traffic interrupts */
 	if (mask & RX_TRAFFIC_INTR) {
-		val64 = RXTRAFFIC_INT_M;
+		intr_mask |= RXTRAFFIC_INT_M;
 		if (flag == ENABLE_INTRS) {
-			temp64 = readq(&bar0->general_int_mask);
-			temp64 &= ~((u64) val64);
-			writeq(temp64, &bar0->general_int_mask);
 			/* writing 0 Enables all 8 RX interrupt levels */
 			writeq(0x0, &bar0->rx_traffic_mask);
 		} else if (flag == DISABLE_INTRS) {
@@ -1855,11 +1953,17 @@ static void en_dis_able_nic_intrs(struct s2io_nic *nic, u16 mask, int flag)
 			 * register.
 			 */
 			writeq(DISABLE_ALL_INTRS, &bar0->rx_traffic_mask);
-			temp64 = readq(&bar0->general_int_mask);
-			val64 |= temp64;
-			writeq(val64, &bar0->general_int_mask);
 		}
 	}
+
+	temp64 = readq(&bar0->general_int_mask);
+	if (flag == ENABLE_INTRS)
+		temp64 &= ~((u64) intr_mask);
+	else
+		temp64 = DISABLE_ALL_INTRS;
+	writeq(temp64, &bar0->general_int_mask);
+
+	nic->general_int_mask = readq(&bar0->general_int_mask);
 }
 
 /**
@@ -2063,14 +2167,6 @@ static int start_nic(struct s2io_nic *nic)
 	writeq(val64, &bar0->adapter_control);
 
 	/*
-	 * Clearing any possible Link state change interrupts that
-	 * could have popped up just before Enabling the card.
-	 */
-	val64 = readq(&bar0->mac_rmac_err_reg);
-	if (val64)
-		writeq(val64, &bar0->mac_rmac_err_reg);
-
-	/*
 	 * Verify if the device is ready to be enabled, if so enable
 	 * it.
 	 */
@@ -2223,9 +2319,9 @@ static void stop_nic(struct s2io_nic *nic)
 	config = &nic->config;
 
 	/*  Disable all interrupts */
+	en_dis_err_alarms(nic, ENA_ALL_INTRS, DISABLE_INTRS);
 	interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
-	interruptible |= TX_PIC_INTR | RX_PIC_INTR;
-	interruptible |= TX_MAC_INTR | RX_MAC_INTR;
+	interruptible |= TX_PIC_INTR;
 	en_dis_able_nic_intrs(nic, interruptible, DISABLE_INTRS);
 
 	/* Clearing Adapter_En bit of ADAPTER_CONTROL Register */
@@ -6666,12 +6762,12 @@ static int s2io_card_up(struct s2io_nic * sp)
 	tasklet_init(&sp->task, s2io_tasklet, (unsigned long) dev);
 
 	/*  Enable select interrupts */
+	en_dis_err_alarms(sp, ENA_ALL_INTRS, ENABLE_INTRS);
 	if (sp->intr_type != INTA)
 		en_dis_able_nic_intrs(sp, ENA_ALL_INTRS, DISABLE_INTRS);
 	else {
 		interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
-		interruptible |= TX_PIC_INTR | RX_PIC_INTR;
-		interruptible |= TX_MAC_INTR | RX_MAC_INTR;
+		interruptible |= TX_PIC_INTR;
 		en_dis_able_nic_intrs(sp, interruptible, ENABLE_INTRS);
 	}
 
