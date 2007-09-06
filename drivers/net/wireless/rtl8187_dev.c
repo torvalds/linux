@@ -606,8 +606,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	priv->mode = IEEE80211_IF_TYPE_MGMT;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_WEP_INCLUDE_IV |
-		     IEEE80211_HW_DATA_NULLFUNC_ACK;
+		     IEEE80211_HW_WEP_INCLUDE_IV;
 	dev->extra_tx_headroom = sizeof(struct rtl8187_tx_hdr);
 	dev->queues = 1;
 	dev->max_rssi = 65;

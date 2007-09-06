@@ -491,8 +491,7 @@ struct ieee80211_hw {
 
 #define IEEE80211_HW_WEP_INCLUDE_IV (1<<5)
 
-	/* will data nullfunc frames get proper TX status callback */
-#define IEEE80211_HW_DATA_NULLFUNC_ACK (1<<6)
+/* hole at 6 */
 
 	/* Force software encryption for TKIP packets if WMM is enabled. */
 #define IEEE80211_HW_NO_TKIP_WMM_HWACCEL (1<<7)
