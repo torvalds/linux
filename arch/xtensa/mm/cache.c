@@ -180,9 +180,9 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t pte)
 #else
 	if (!PageReserved(page) && !test_bit(PG_arch_1, &page->flags)
 	    && (vma->vm_flags & VM_EXEC) != 0) {
-		unsigned long vaddr = addr & PAGE_MASK;
-		__flush_dcache_page(vaddr);
-		__invalidate_icache_page(vaddr);
+	    	unsigned long paddr = (unsigned long) page_address(page);
+		__flush_dcache_page(paddr);
+		__invalidate_icache_page(paddr);
 		set_bit(PG_arch_1, &page->flags);
 	}
 #endif
