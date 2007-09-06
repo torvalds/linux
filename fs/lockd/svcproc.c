@@ -118,7 +118,7 @@ nlmsvc_proc_test(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept test requests during grace period */
-	if (nlmsvc_grace_period) {
+	if (locks_in_grace()) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rc;
 	}
@@ -153,7 +153,7 @@ nlmsvc_proc_lock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept new lock requests during grace period */
-	if (nlmsvc_grace_period && !argp->reclaim) {
+	if (locks_in_grace() && !argp->reclaim) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rc;
 	}
@@ -199,7 +199,7 @@ nlmsvc_proc_cancel(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept requests during grace period */
-	if (nlmsvc_grace_period) {
+	if (locks_in_grace()) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rpc_success;
 	}
@@ -232,7 +232,7 @@ nlmsvc_proc_unlock(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept new lock requests during grace period */
-	if (nlmsvc_grace_period) {
+	if (locks_in_grace()) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rpc_success;
 	}
@@ -373,7 +373,7 @@ nlmsvc_proc_share(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept new lock requests during grace period */
-	if (nlmsvc_grace_period && !argp->reclaim) {
+	if (locks_in_grace() && !argp->reclaim) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rpc_success;
 	}
@@ -406,7 +406,7 @@ nlmsvc_proc_unshare(struct svc_rqst *rqstp, struct nlm_args *argp,
 	resp->cookie = argp->cookie;
 
 	/* Don't accept requests during grace period */
-	if (nlmsvc_grace_period) {
+	if (locks_in_grace()) {
 		resp->status = nlm_lck_denied_grace_period;
 		return rpc_success;
 	}

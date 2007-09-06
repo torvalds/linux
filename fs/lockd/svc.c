@@ -51,7 +51,6 @@ static DEFINE_MUTEX(nlmsvc_mutex);
 static unsigned int		nlmsvc_users;
 static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
-int				nlmsvc_grace_period;
 unsigned long			nlmsvc_timeout;
 
 /*
@@ -85,30 +84,21 @@ static unsigned long get_lockd_grace_period(void)
 		return nlm_timeout * 5 * HZ;
 }
 
-unsigned long get_nfs_grace_period(void)
-{
-	unsigned long lockdgrace = get_lockd_grace_period();
-	unsigned long nfsdgrace = 0;
-
-	if (nlmsvc_ops)
-		nfsdgrace = nlmsvc_ops->get_grace_period();
-
-	return max(lockdgrace, nfsdgrace);
-}
-EXPORT_SYMBOL(get_nfs_grace_period);
+static struct lock_manager lockd_manager = {
+};
 
 static void grace_ender(struct work_struct *not_used)
 {
-	nlmsvc_grace_period = 0;
+	locks_end_grace(&lockd_manager);
 }
 
 static DECLARE_DELAYED_WORK(grace_period_end, grace_ender);
 
 static void set_grace_period(void)
 {
-	unsigned long grace_period = get_nfs_grace_period() + jiffies;
+	unsigned long grace_period = get_lockd_grace_period();
 
-	nlmsvc_grace_period = 1;
+	locks_start_grace(&lockd_manager);
 	cancel_delayed_work_sync(&grace_period_end);
 	schedule_delayed_work(&grace_period_end, grace_period);
 }

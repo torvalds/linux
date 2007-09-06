@@ -61,7 +61,6 @@
 static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
 static time_t boot_time;
-static int in_grace = 1;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
 static u32 current_delegid = 1;
@@ -1640,7 +1639,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 		case NFS4_OPEN_CLAIM_NULL:
 			/* Let's not give out any delegations till everyone's
 			 * had the chance to reclaim theirs.... */
-			if (nfs4_in_grace())
+			if (locks_in_grace())
 				goto out;
 			if (!atomic_read(&cb->cb_set) || !sop->so_confirmed)
 				goto out;
@@ -1816,12 +1815,15 @@ out:
 	return status;
 }
 
+struct lock_manager nfsd4_manager = {
+};
+
 static void
-end_grace(void)
+nfsd4_end_grace(void)
 {
 	dprintk("NFSD: end of grace period\n");
 	nfsd4_recdir_purge_old();
-	in_grace = 0;
+	locks_end_grace(&nfsd4_manager);
 }
 
 static time_t
@@ -1838,8 +1840,8 @@ nfs4_laundromat(void)
 	nfs4_lock_state();
 
 	dprintk("NFSD: laundromat service - starting\n");
-	if (in_grace)
-		end_grace();
+	if (locks_in_grace())
+		nfsd4_end_grace();
 	list_for_each_safe(pos, next, &client_lru) {
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (time_after((unsigned long)clp->cl_time, (unsigned long)cutoff)) {
@@ -1974,7 +1976,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 		return nfserr_bad_stateid;
 	else if (ONE_STATEID(stateid) && (flags & RD_STATE))
 		return nfs_ok;
-	else if (nfs4_in_grace()) {
+	else if (locks_in_grace()) {
 		/* Answer in remaining cases depends on existance of
 		 * conflicting state; so we must wait out the grace period. */
 		return nfserr_grace;
@@ -1993,7 +1995,7 @@ check_special_stateids(svc_fh *current_fh, stateid_t *stateid, int flags)
 static inline int
 io_during_grace_disallowed(struct inode *inode, int flags)
 {
-	return nfs4_in_grace() && (flags & (RD_STATE | WR_STATE))
+	return locks_in_grace() && (flags & (RD_STATE | WR_STATE))
 		&& mandatory_lock(inode);
 }
 
@@ -2693,10 +2695,10 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	filp = lock_stp->st_vfs_file;
 
 	status = nfserr_grace;
-	if (nfs4_in_grace() && !lock->lk_reclaim)
+	if (locks_in_grace() && !lock->lk_reclaim)
 		goto out;
 	status = nfserr_no_grace;
-	if (!nfs4_in_grace() && lock->lk_reclaim)
+	if (!locks_in_grace() && lock->lk_reclaim)
 		goto out;
 
 	locks_init_lock(&file_lock);
@@ -2779,7 +2781,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int error;
 	__be32 status;
 
-	if (nfs4_in_grace())
+	if (locks_in_grace())
 		return nfserr_grace;
 
 	if (check_lock_length(lockt->lt_offset, lockt->lt_length))
@@ -3192,9 +3194,9 @@ __nfs4_state_start(void)
 	unsigned long grace_time;
 
 	boot_time = get_seconds();
-	grace_time = get_nfs_grace_period();
+	grace_time = get_nfs4_grace_period();
 	lease_time = user_lease_time;
-	in_grace = 1;
+	locks_start_grace(&nfsd4_manager);
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       grace_time/HZ);
 	laundry_wq = create_singlethread_workqueue("nfsd4");
@@ -3211,12 +3213,6 @@ nfs4_state_start(void)
 	__nfs4_state_start();
 	nfs4_init = 1;
 	return;
-}
-
-int
-nfs4_in_grace(void)
-{
-	return in_grace;
 }
 
 time_t
