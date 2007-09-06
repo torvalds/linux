@@ -450,6 +450,9 @@ int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 	__wsum csum;
 	int chunk = skb->len - hlen;
 
+	if (!chunk)
+		return 0;
+
 	/* Skip filled elements.
 	 * Pretty silly, look at memcpy_toiovec, though 8)
 	 */
