@@ -9,10 +9,6 @@
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
  * any warranty of any kind, whether express or implied.
- *
- * To build:
- *   dtc -I dts -O asm -o ebony.S -b 0 ebony.dts
- *   dtc -I dts -O dtb -o ebony.dtb -b 0 ebony.dts
  */
 
 / {

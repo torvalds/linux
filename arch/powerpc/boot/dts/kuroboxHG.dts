@@ -15,9 +15,6 @@
 
 XXXX add flash parts, rtc, ??
 
-build with: "dtc -f -I dts -O dtb -o kuroboxHG.dtb -V 16 kuroboxHG.dts"
-
-
  */
 
 / {

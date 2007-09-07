@@ -9,10 +9,6 @@
  *
  * Property values that are labeled as "Default" will be updated by bootwrapper
  * if it can determine the exact PrPMC type.
- *
- * To build:
- *   dtc -I dts -O asm -o prpmc2800.S -b 0 prpmc2800.dts
- *   dtc -I dts -O dtb -o prpmc2800.dtb -b 0 prpmc2800.dts
  */
 
 / {
