@@ -39,6 +39,7 @@
 #include <sound/pcm_params.h>
 #include <sound/control.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "cx88.h"
 #include "cx88-reg.h"
@@ -605,12 +606,17 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
+static const DECLARE_TLV_DB_SCALE(snd_cx88_db_scale, -6300, 100, 0);
+
 static struct snd_kcontrol_new snd_cx88_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 	.name = "Playback Volume",
 	.info = snd_cx88_volume_info,
 	.get = snd_cx88_volume_get,
 	.put = snd_cx88_volume_put,
+	.tlv.p = snd_cx88_db_scale,
 };
 
 static int snd_cx88_switch_get(struct snd_kcontrol *kcontrol,
