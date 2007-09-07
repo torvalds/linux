@@ -2965,6 +2965,7 @@ sctp_disposition_t sctp_sf_tabort_8_4_8(const struct sctp_endpoint *ep,
 
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
 
+		sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 		return SCTP_DISPOSITION_CONSUME;
 	}
 
@@ -3148,11 +3149,9 @@ sctp_disposition_t sctp_sf_ootb(const struct sctp_endpoint *ep,
 	} while (ch_end < skb_tail_pointer(skb));
 
 	if (ootb_shut_ack)
-		sctp_sf_shut_8_4_5(ep, asoc, type, arg, commands);
+		return sctp_sf_shut_8_4_5(ep, asoc, type, arg, commands);
 	else
-		sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
-
-	return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+		return sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 }
 
 /*
@@ -3218,7 +3217,11 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(const struct sctp_endpoint *ep,
 		if (!sctp_chunk_length_valid(chunk, sizeof(sctp_chunkhdr_t)))
 			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 
-		return SCTP_DISPOSITION_CONSUME;
+		/* We need to discard the rest of the packet to prevent
+		 * potential bomming attacks from additional bundled chunks.
+		 * This is documented in SCTP Threats ID.
+		 */
+		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
 	}
 
 	return SCTP_DISPOSITION_NOMEM;
