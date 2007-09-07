@@ -29,7 +29,8 @@ struct dvb_pll_desc {
 	u32  min;
 	u32  max;
 	u32  iffreq;
-	void (*set)(u8 *buf, const struct dvb_frontend_parameters *params);
+	void (*set)(struct dvb_frontend *fe, u8 *buf,
+		    const struct dvb_frontend_parameters *params);
 	u8   *initdata;
 	u8   *sleepdata;
 	int  count;
@@ -89,7 +90,7 @@ static struct dvb_pll_desc dvb_pll_thomson_dtt7610 = {
 	},
 };
 
-static void thomson_dtt759x_bw(u8 *buf,
+static void thomson_dtt759x_bw(struct dvb_frontend *fe, u8 *buf,
 			       const struct dvb_frontend_parameters *params)
 {
 	if (BANDWIDTH_7_MHZ == params->u.ofdm.bandwidth)
@@ -210,7 +211,8 @@ static struct dvb_pll_desc dvb_pll_env57h1xd5 = {
 /* Philips TDA6650/TDA6651
  * used in Panasonic ENV77H11D5
  */
-static void tda665x_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void tda665x_bw(struct dvb_frontend *fe, u8 *buf,
+		       const struct dvb_frontend_parameters *params)
 {
 	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 0x08;
@@ -243,7 +245,8 @@ static struct dvb_pll_desc dvb_pll_tda665x = {
 /* Infineon TUA6034
  * used in LG TDTP E102P
  */
-static void tua6034_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void tua6034_bw(struct dvb_frontend *fe, u8 *buf,
+		       const struct dvb_frontend_parameters *params)
 {
 	if (BANDWIDTH_7_MHZ != params->u.ofdm.bandwidth)
 		buf[3] |= 0x08;
@@ -283,7 +286,8 @@ static struct dvb_pll_desc dvb_pll_lg_tdvs_h06xf = {
 /* Philips FMD1216ME
  * used in Medion Hybrid PCMCIA card and USB Box
  */
-static void fmd1216me_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void fmd1216me_bw(struct dvb_frontend *fe, u8 *buf,
+			 const struct dvb_frontend_parameters *params)
 {
 	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ &&
 	    params->frequency >= 158870000)
@@ -313,7 +317,8 @@ static struct dvb_pll_desc dvb_pll_fmd1216me = {
 /* ALPS TDED4
  * used in Nebula-Cards and USB boxes
  */
-static void tded4_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void tded4_bw(struct dvb_frontend *fe, u8 *buf,
+		     const struct dvb_frontend_parameters *params)
 {
 	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[3] |= 0x04;
@@ -354,7 +359,8 @@ static struct dvb_pll_desc dvb_pll_tdhu2 = {
 /* Philips TUV1236D
  * used in ATI HDTV Wonder
  */
-static void tuv1236d_rf(u8 *buf, const struct dvb_frontend_parameters *params)
+static void tuv1236d_rf(struct dvb_frontend *fe, u8 *buf,
+			const struct dvb_frontend_parameters *params)
 {
 	switch (params->u.vsb.modulation) {
 		case QAM_64:
@@ -420,7 +426,8 @@ static struct dvb_pll_desc dvb_pll_philips_sd1878_tda8261 = {
 /*
  * Philips TD1316 Tuner.
  */
-static void td1316_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void td1316_bw(struct dvb_frontend *fe, u8 *buf,
+		      const struct dvb_frontend_parameters *params)
 {
 	u8 band;
 
@@ -474,7 +481,8 @@ static struct dvb_pll_desc dvb_pll_thomson_fe6600 = {
 	}
 };
 
-static void opera1_bw(u8 *buf, const struct dvb_frontend_parameters *params)
+static void opera1_bw(struct dvb_frontend *fe, u8 *buf,
+		      const struct dvb_frontend_parameters *params)
 {
 	if (params->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
 		buf[2] |= 0x08;
@@ -567,9 +575,11 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-static int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
+static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 			     const struct dvb_frontend_parameters *params)
 {
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	struct dvb_pll_desc *desc = priv->pll_desc;
 	u32 div;
 	int i;
 
@@ -597,7 +607,7 @@ static int dvb_pll_configure(struct dvb_pll_desc *desc, u8 *buf,
 	buf[3] = desc->entries[i].cb;
 
 	if (desc->set)
-		desc->set(buf, params);
+		desc->set(fe, buf, params);
 
 	if (debug)
 		printk("pll: %s: div=%d | buf=0x%02x,0x%02x,0x%02x,0x%02x\n",
@@ -654,7 +664,7 @@ static int dvb_pll_set_params(struct dvb_frontend *fe,
 	if (priv->i2c == NULL)
 		return -EINVAL;
 
-	if ((result = dvb_pll_configure(priv->pll_desc, buf, params)) < 0)
+	if ((result = dvb_pll_configure(fe, buf, params)) < 0)
 		return result;
 	else
 		frequency = result;
@@ -682,7 +692,7 @@ static int dvb_pll_calc_regs(struct dvb_frontend *fe,
 	if (buf_len < 5)
 		return -EINVAL;
 
-	if ((result = dvb_pll_configure(priv->pll_desc, buf+1, params)) < 0)
+	if ((result = dvb_pll_configure(fe, buf+1, params)) < 0)
 		return result;
 	else
 		frequency = result;
