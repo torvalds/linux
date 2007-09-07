@@ -552,7 +552,7 @@ static int snd_cx88_capture_volume_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 1;
+	info->count = 2;
 	info->value.integer.min = 0;
 	info->value.integer.max = 0x3f;
 
@@ -565,8 +565,12 @@ static int snd_cx88_capture_volume_get(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
+	int vol = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f),
+	    bal = cx_read(AUD_BAL_CTL);
 
-	value->value.integer.value[0] = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f);
+	value->value.integer.value[(bal & 0x40) ? 0 : 1] = vol;
+	vol -= (bal & 0x3f);
+	value->value.integer.value[(bal & 0x40) ? 1 : 0] = vol < 0 ? 0 : vol;
 
 	return 0;
 }
@@ -577,19 +581,31 @@ static int snd_cx88_capture_volume_put(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
-	int v;
-	u32 old_control;
+	int v, b;
+	int changed = 0;
+	u32 old;
 
+	b = value->value.integer.value[1] - value->value.integer.value[0];
+	if (b < 0) {
+	    v = 0x3f - value->value.integer.value[0];
+	    b = (-b) | 0x40;
+	} else {
+	    v = 0x3f - value->value.integer.value[1];
+	}
 	/* Do we really know this will always be called with IRQs on? */
 	spin_lock_irq(&chip->reg_lock);
-
-	old_control = 0x3f - (cx_read(AUD_VOL_CTL) & 0x3f);
-	v = 0x3f - (value->value.integer.value[0] & 0x3f);
-	cx_andor(AUD_VOL_CTL, 0x3f, v);
-
+	old = cx_read(AUD_VOL_CTL);
+	if (v != (old & 0x3f)) {
+	    cx_write(AUD_VOL_CTL, (old & ~0x3f) | v);
+	    changed = 1;
+	}
+	if (cx_read(AUD_BAL_CTL) != b) {
+	    cx_write(AUD_BAL_CTL, b);
+	    changed = 1;
+	}
 	spin_unlock_irq(&chip->reg_lock);
 
-	return v != old_control;
+	return changed;
 }
 
 static struct snd_kcontrol_new snd_cx88_capture_volume = {
@@ -746,17 +762,12 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 		return (err);
 
 	err = snd_cx88_pcm(chip, 0, "CX88 Digital");
-
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
+	if (err < 0)
+		goto error;
 
 	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_capture_volume, chip));
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
+	if (err < 0)
+		goto error;
 
 	strcpy (card->driver, "CX88x");
 	sprintf(card->shortname, "Conexant CX%x", pci->device);
@@ -768,14 +779,16 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 	       card->driver,devno);
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return (err);
-	}
+	if (err < 0)
+		goto error;
 	pci_set_drvdata(pci,card);
 
 	devno++;
 	return 0;
+
+error:
+	snd_card_free(card);
+	return err;
 }
 /*
  * ALSA destructor
