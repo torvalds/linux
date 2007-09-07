@@ -1599,8 +1599,10 @@ static int snd_cmipci_playback_spdif_open(struct snd_pcm_substream *substream)
 		return err;
 	if (cm->can_ac3_hw) {
 		runtime->hw = snd_cmipci_playback_spdif;
-		if (cm->chip_version >= 37)
+		if (cm->chip_version >= 37) {
 			runtime->hw.formats |= SNDRV_PCM_FMTBIT_S32_LE;
+			snd_pcm_hw_constraint_msbits(runtime, 0, 32, 24);
+		}
 		if (cm->chip_version == 68) {
 			runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
 					     SNDRV_PCM_RATE_96000;
