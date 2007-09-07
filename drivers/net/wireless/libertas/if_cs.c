@@ -248,22 +248,26 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 	lbs_deb_enter(LBS_DEB_CS);
 
 	int_cause = if_cs_read16(card, IF_CS_C_INT_CAUSE);
-	switch (int_cause) {
-	case 0x0000:
-		/* not for us */
+	if(int_cause == 0x0) {
+		/* Not for us */
 		return IRQ_NONE;
-	case 0xffff:
-		/* if one reads junk, then probably the card was removed */
+
+	} else if(int_cause == 0xffff) {
+		/* Read in junk, the card has probably been removed */
 		card->priv->adapter->surpriseremoved = 1;
-		break;
-	case IF_CS_H_IC_TX_OVER:
-		if (card->priv->adapter->connect_status == LIBERTAS_CONNECTED)
-			netif_wake_queue(card->priv->dev);
-		/* fallthrought */
-	default:
+
+	} else {
+		if(int_cause & IF_CS_H_IC_TX_OVER) {
+			card->priv->dnld_sent = DNLD_RES_RECEIVED;
+			if (!card->priv->adapter->cur_cmd)
+				wake_up_interruptible(&card->priv->waitq);
+
+			if (card->priv->adapter->connect_status == LIBERTAS_CONNECTED)
+				netif_wake_queue(card->priv->dev);
+		}
+
 		/* clear interrupt */
 		if_cs_write16(card, IF_CS_C_INT_CAUSE, int_cause & IF_CS_C_IC_MASK);
-		if_cs_disable_ints(card);
 	}
 
 	libertas_interrupt(card->priv->dev);
@@ -652,7 +656,6 @@ static int if_cs_get_int_status(wlan_private *priv, u8 *ireg)
 	if_cs_write16(card, IF_CS_C_INT_CAUSE, int_cause);
 
 	*ireg = if_cs_read16(card, IF_CS_C_STATUS) & IF_CS_C_S_MASK;
-	if_cs_enable_ints(card);
 
 	if (!*ireg)
 		goto sbi_get_int_status_exit;
@@ -841,7 +844,6 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	       p_dev->irq.AssignedIRQ, p_dev->io.BasePort1,
 	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
 
-	if_cs_enable_ints(card);
 
 	/* Load the firmware early, before calling into libertas.ko */
 	ret = if_cs_prog_helper(card);
@@ -873,6 +875,8 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		lbs_pr_err("error in request_irq\n");
 		goto out3;
 	}
+
+	if_cs_enable_ints(card);
 
 	/* And finally bring the card up */
 	if (libertas_start_card(priv) != 0) {
@@ -909,6 +913,7 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 
 	libertas_stop_card(card->priv);
 	libertas_remove_card(card->priv);
+	if_cs_disable_ints(card);
 	if_cs_release(p_dev);
 	kfree(card);
 
