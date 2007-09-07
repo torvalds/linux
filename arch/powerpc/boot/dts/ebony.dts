@@ -138,13 +138,16 @@
 				interrupt-parent = <&UIC1>;
 
 				small-flash@0,80000 {
-					device_type = "rom";
-					compatible = "direct-mapped";
-					probe-type = "JEDEC";
+					compatible = "jedec-flash";
 					bank-width = <1>;
-					partitions = <0 80000>;
-					partition-names = "OpenBIOS";
 					reg = <0 80000 80000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "OpenBIOS";
+						reg = <0 80000>;
+						read-only;
+					};
 				};
 
 				ds1743@1,0 {
@@ -154,14 +157,19 @@
 				};
 
 				large-flash@2,0 {
-					device_type = "rom";
-					compatible = "direct-mapped";
-					probe-type = "JEDEC";
+					compatible = "jedec-flash";
 					bank-width = <1>;
-					partitions = <0 380000
-						      380000 80000>;
-					partition-names = "fs", "firmware";
 					reg = <2 0 400000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "fs";
+						reg = <0 380000>;
+					};
+					partition@380000 {
+						label = "firmware";
+						reg = <380000 80000>;
+					};
 				};
 
 				ir@3,0 {
