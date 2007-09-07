@@ -114,7 +114,6 @@ sctp_state_fn_t sctp_sf_do_4_C;
 sctp_state_fn_t sctp_sf_eat_data_6_2;
 sctp_state_fn_t sctp_sf_eat_data_fast_4_4;
 sctp_state_fn_t sctp_sf_eat_sack_6_2;
-sctp_state_fn_t sctp_sf_tabort_8_4_8;
 sctp_state_fn_t sctp_sf_operr_notify;
 sctp_state_fn_t sctp_sf_t1_init_timer_expire;
 sctp_state_fn_t sctp_sf_t1_cookie_timer_expire;
