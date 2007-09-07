@@ -467,7 +467,7 @@ reopen_error_exit:
 int cifs_close(struct inode *inode, struct file *file)
 {
 	int rc = 0;
-	int xid;
+	int xid, timeout;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
 	struct cifsFileInfo *pSMBFile =
@@ -485,9 +485,9 @@ int cifs_close(struct inode *inode, struct file *file)
 			/* no sense reconnecting to close a file that is
 			   already closed */
 			if (pTcon->tidStatus != CifsNeedReconnect) {
-				int timeout = 2;
+				timeout = 2;
 				while ((atomic_read(&pSMBFile->wrtPending) != 0)
-					 && (timeout < 1000) ) {
+					&& (timeout <= 2048)) {
 					/* Give write a better chance to get to
 					server ahead of the close.  We do not
 					want to add a wait_q here as it would
@@ -522,6 +522,23 @@ int cifs_close(struct inode *inode, struct file *file)
 		list_del(&pSMBFile->flist);
 		list_del(&pSMBFile->tlist);
 		write_unlock(&GlobalSMBSeslock);
+		timeout = 10;
+		/* We waited above to give the SMBWrite a chance to issue
+		   on the wire (so we do not get SMBWrite returning EBADF
+		   if writepages is racing with close.  Note that writepages
+		   does not specify a file handle, so it is possible for a file
+		   to be opened twice, and the application close the "wrong"
+		   file handle - in these cases we delay long enough to allow
+		   the SMBWrite to get on the wire before the SMB Close.
+		   We allow total wait here over 45 seconds, more than
+		   oplock break time, and more than enough to allow any write
+		   to complete on the server, or to time out on the client */
+		while ((atomic_read(&pSMBFile->wrtPending) != 0)
+				&& (timeout <= 50000)) {
+			cERROR(1, ("writes pending, delay free of handle"));
+			msleep(timeout);
+			timeout *= 8;
+		}
 		kfree(pSMBFile->search_resume_name);
 		kfree(file->private_data);
 		file->private_data = NULL;
@@ -1031,21 +1048,23 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			atomic_inc(&open_file->wrtPending);
 			read_unlock(&GlobalSMBSeslock);
-			if ((open_file->invalidHandle) &&
-			   (!open_file->closePend) /* BB fixme -since the second clause can not be true remove it BB */) {
+			if (open_file->invalidHandle) {
 				rc = cifs_reopen_file(open_file->pfile, FALSE);
 				/* if it fails, try another handle - might be */
 				/* dangerous to hold up writepages with retry */
 				if (rc) {
-					cFYI(1,
-					      ("failed on reopen file in wp"));
+					cFYI(1, ("wp failed on reopen file"));
 					read_lock(&GlobalSMBSeslock);
 					/* can not use this handle, no write
 					pending on this one after all */
-					atomic_dec
-					     (&open_file->wrtPending);
+					atomic_dec(&open_file->wrtPending);
 					continue;
 				}
+			}
+			if (open_file->closePend) {
+				read_lock(&GlobalSMBSeslock);
+				atomic_dec(&open_file->wrtPending);
+				continue;
 			}
 			return open_file;
 		}
