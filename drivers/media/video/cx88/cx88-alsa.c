@@ -82,6 +82,7 @@ typedef struct cx88_audio_dev snd_cx88_card_t;
 
 
 
+
 /****************************************************************************
 			Module global static vars
  ****************************************************************************/
@@ -545,8 +546,8 @@ static int __devinit snd_cx88_pcm(snd_cx88_card_t *chip, int device, char *name)
 /****************************************************************************
 				CONTROL INTERFACE
  ****************************************************************************/
-static int snd_cx88_capture_volume_info(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_info *info)
+static int snd_cx88_volume_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *info)
 {
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 2;
@@ -556,9 +557,8 @@ static int snd_cx88_capture_volume_info(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/* OK - TODO: test it */
-static int snd_cx88_capture_volume_get(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_value *value)
+static int snd_cx88_volume_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
@@ -573,8 +573,8 @@ static int snd_cx88_capture_volume_get(struct snd_kcontrol *kcontrol,
 }
 
 /* OK - TODO: test it */
-static int snd_cx88_capture_volume_put(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_value *value)
+static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
@@ -605,14 +605,62 @@ static int snd_cx88_capture_volume_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_cx88_capture_volume = {
+static struct snd_kcontrol_new snd_cx88_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Capture Volume",
-	.info = snd_cx88_capture_volume_info,
-	.get = snd_cx88_capture_volume_get,
-	.put = snd_cx88_capture_volume_put,
+	.name = "Playback Volume",
+	.info = snd_cx88_volume_info,
+	.get = snd_cx88_volume_get,
+	.put = snd_cx88_volume_put,
 };
 
+static int snd_cx88_switch_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *value)
+{
+	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
+	struct cx88_core *core = chip->core;
+	u32 bit = kcontrol->private_value;
+
+	value->value.integer.value[0] = !(cx_read(AUD_VOL_CTL) & bit);
+	return 0;
+}
+
+static int snd_cx88_switch_put(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_value *value)
+{
+	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
+	struct cx88_core *core = chip->core;
+	u32 bit = kcontrol->private_value;
+	int ret = 0;
+	u32 vol;
+
+	spin_lock_irq(&chip->reg_lock);
+	vol = cx_read(AUD_VOL_CTL);
+	if (value->value.integer.value[0] != !(vol & bit)) {
+		vol ^= bit;
+		cx_write(AUD_VOL_CTL, vol);
+		ret = 1;
+	}
+	spin_unlock_irq(&chip->reg_lock);
+	return ret;
+}
+
+static struct snd_kcontrol_new snd_cx88_dac_switch = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Playback Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = snd_cx88_switch_get,
+	.put = snd_cx88_switch_put,
+	.private_value = (1<<8),
+};
+
+static struct snd_kcontrol_new snd_cx88_source_switch = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Capture Switch",
+	.info = snd_ctl_boolean_mono_info,
+	.get = snd_cx88_switch_get,
+	.put = snd_cx88_switch_put,
+	.private_value = (1<<6),
+};
 
 /****************************************************************************
 			Basic Flow for Sound Devices
@@ -762,7 +810,13 @@ static int __devinit cx88_audio_initdev(struct pci_dev *pci,
 	if (err < 0)
 		goto error;
 
-	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_capture_volume, chip));
+	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_volume, chip));
+	if (err < 0)
+		goto error;
+	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_dac_switch, chip));
+	if (err < 0)
+		goto error;
+	err = snd_ctl_add(card, snd_ctl_new1(&snd_cx88_source_switch, chip));
 	if (err < 0)
 		goto error;
 
