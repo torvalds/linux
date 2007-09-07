@@ -830,18 +830,22 @@ struct ocfs2_write_ctxt {
 	struct ocfs2_cached_dealloc_ctxt w_dealloc;
 };
 
-static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
+void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages)
 {
 	int i;
 
-	for(i = 0; i < wc->w_num_pages; i++) {
-		if (wc->w_pages[i] == NULL)
-			continue;
-
-		unlock_page(wc->w_pages[i]);
-		mark_page_accessed(wc->w_pages[i]);
-		page_cache_release(wc->w_pages[i]);
+	for(i = 0; i < num_pages; i++) {
+		if (pages[i]) {
+			unlock_page(pages[i]);
+			mark_page_accessed(pages[i]);
+			page_cache_release(pages[i]);
+		}
 	}
+}
+
+static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
+{
+	ocfs2_unlock_and_free_pages(wc->w_pages, wc->w_num_pages);
 
 	brelse(wc->w_di_bh);
 	kfree(wc);
