@@ -13,6 +13,8 @@
 #include <net/ieee80211.h>
 #include <net/iw_handler.h>
 
+#include <asm/unaligned.h>
+
 #include "host.h"
 #include "decl.h"
 #include "dev.h"
@@ -888,7 +890,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
-		beaconsize = le16_to_cpup((void *)*pbeaconinfo);
+		beaconsize = le16_to_cpu(get_unaligned((u16 *)*pbeaconinfo));
 		*bytesleft -= sizeof(beaconsize);
 		*pbeaconinfo += sizeof(beaconsize);
 	}
@@ -1698,10 +1700,10 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(pscan->bssdescriptsize);
+	bytesleft = le16_to_cpu(get_unaligned((u16*)&pscan->bssdescriptsize));
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
-	scanrespsize = le16_to_cpu(resp->size);
+	scanrespsize = le16_to_cpu(get_unaligned((u16*)&resp->size));
 	lbs_deb_scan("SCAN_RESP: returned %d AP before parsing\n",
 	       pscan->nr_sets);
 
