@@ -2321,6 +2321,13 @@ void dlm_hb_node_down_cb(struct o2nm_node *node, int idx, void *data)
 	if (!dlm_grab(dlm))
 		return;
 
+	/*
+	 * This will notify any dlm users that a node in our domain
+	 * went away without notifying us first.
+	 */
+	if (test_bit(idx, dlm->domain_map))
+		dlm_fire_domain_eviction_callbacks(dlm, idx);
+
 	spin_lock(&dlm->spinlock);
 	__dlm_hb_node_down(dlm, idx);
 	spin_unlock(&dlm->spinlock);
