@@ -52,6 +52,11 @@ static unsigned int input[DVB_PLL_MAX] = { [ 0 ... (DVB_PLL_MAX-1) ] = 0 };
 module_param_array(input, int, NULL, 0644);
 MODULE_PARM_DESC(input,"specify rf input choice, 0 for autoselect (default)");
 
+static unsigned int id[DVB_PLL_MAX] =
+	{ [ 0 ... (DVB_PLL_MAX-1) ] = DVB_PLL_UNDEFINED };
+module_param_array(id, int, NULL, 0644);
+MODULE_PARM_DESC(id, "force pll id to use (DEBUG ONLY)");
+
 /* ----------------------------------------------------------- */
 
 struct dvb_pll_desc {
@@ -794,6 +799,10 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	int ret;
 	struct dvb_pll_desc *desc;
 
+	if ((id[dvb_pll_devcount] > DVB_PLL_UNDEFINED) &&
+	    (id[dvb_pll_devcount] < ARRAY_SIZE(pll_list)))
+		pll_desc_id = id[dvb_pll_devcount];
+
 	BUG_ON(pll_desc_id < 1 || pll_desc_id >= ARRAY_SIZE(pll_list));
 
 	desc = pll_list[pll_desc_id];
@@ -836,7 +845,10 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		printk("dvb-pll[%d]", priv->nr);
 		if (i2c != NULL)
 			printk(" %d-%04x", i2c_adapter_id(i2c), pll_addr);
-		printk(": id# %d (%s) attached\n", pll_desc_id, desc->name);
+		printk(": id# %d (%s) attached, %s\n", pll_desc_id, desc->name,
+		       id[priv->nr] == pll_desc_id ?
+				"insmod option" : "autodetected");
+
 	}
 
 	return fe;
