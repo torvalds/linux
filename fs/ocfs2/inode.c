@@ -514,6 +514,10 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 
 	fe = (struct ocfs2_dinode *) fe_bh->b_data;
 
+	/*
+	 * This check will also skip truncate of inodes with inline
+	 * data and fast symlinks.
+	 */
 	if (fe->i_clusters) {
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {

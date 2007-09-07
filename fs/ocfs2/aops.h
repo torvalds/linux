@@ -61,6 +61,10 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     struct page **pagep, void **fsdata,
 			     struct buffer_head *di_bh, struct page *mmap_page);
 
+int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+			   struct buffer_head *di_bh);
+int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size);
+
 /* all ocfs2_dio_end_io()'s fault */
 #define ocfs2_iocb_is_rw_locked(iocb) \
 	test_bit(0, (unsigned long *)&iocb->private)

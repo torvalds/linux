@@ -3726,6 +3726,8 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 	struct ocfs2_insert_type insert = {0, };
 	struct ocfs2_extent_rec rec;
 
+	BUG_ON(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL);
+
 	mlog(0, "add %u clusters at position %u to inode %llu\n",
 	     new_clusters, cpos, (unsigned long long)OCFS2_I(inode)->ip_blkno);
 
@@ -5826,6 +5828,174 @@ out:
 	return ret;
 }
 
+static void ocfs2_zero_dinode_id2(struct inode *inode, struct ocfs2_dinode *di)
+{
+	unsigned int blocksize = 1 << inode->i_sb->s_blocksize_bits;
+
+	memset(&di->id2, 0, blocksize - offsetof(struct ocfs2_dinode, id2));
+}
+
+void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di)
+{
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_inline_data *idata = &di->id2.i_data;
+
+	spin_lock(&oi->ip_lock);
+	oi->ip_dyn_features |= OCFS2_INLINE_DATA_FL;
+	di->i_dyn_features = cpu_to_le16(oi->ip_dyn_features);
+	spin_unlock(&oi->ip_lock);
+
+	/*
+	 * We clear the entire i_data structure here so that all
+	 * fields can be properly initialized.
+	 */
+	ocfs2_zero_dinode_id2(inode, di);
+
+	idata->id_count = cpu_to_le16(ocfs2_max_inline_data(inode->i_sb));
+}
+
+int ocfs2_convert_inline_data_to_extents(struct inode *inode,
+					 struct buffer_head *di_bh)
+{
+	int ret, i, has_data, num_pages = 0;
+	handle_t *handle;
+	u64 uninitialized_var(block);
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct ocfs2_extent_list *el = &di->id2.i_list;
+	struct ocfs2_alloc_context *data_ac = NULL;
+	struct page **pages = NULL;
+	loff_t end = osb->s_clustersize;
+
+	has_data = i_size_read(inode) ? 1 : 0;
+
+	if (has_data) {
+		pages = kcalloc(ocfs2_pages_per_cluster(osb->sb),
+				sizeof(struct page *), GFP_NOFS);
+		if (pages == NULL) {
+			ret = -ENOMEM;
+			mlog_errno(ret);
+			goto out;
+		}
+
+		ret = ocfs2_reserve_clusters(osb, 1, &data_ac);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_INLINE_TO_EXTENTS_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_unlock;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	if (has_data) {
+		u32 bit_off, num;
+		unsigned int page_end;
+		u64 phys;
+
+		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
+					   &num);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+
+		/*
+		 * Save two copies, one for insert, and one that can
+		 * be changed by ocfs2_map_and_dirty_page() below.
+		 */
+		block = phys = ocfs2_clusters_to_blocks(inode->i_sb, bit_off);
+
+		/*
+		 * Non sparse file systems zero on extend, so no need
+		 * to do that now.
+		 */
+		if (!ocfs2_sparse_alloc(osb) &&
+		    PAGE_CACHE_SIZE < osb->s_clustersize)
+			end = PAGE_CACHE_SIZE;
+
+		ret = ocfs2_grab_eof_pages(inode, 0, end, pages, &num_pages);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+
+		/*
+		 * This should populate the 1st page for us and mark
+		 * it up to date.
+		 */
+		ret = ocfs2_read_inline_data(inode, pages[0], di_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+
+		page_end = PAGE_CACHE_SIZE;
+		if (PAGE_CACHE_SIZE > osb->s_clustersize)
+			page_end = osb->s_clustersize;
+
+		for (i = 0; i < num_pages; i++)
+			ocfs2_map_and_dirty_page(inode, handle, 0, page_end,
+						 pages[i], i > 0, &phys);
+	}
+
+	spin_lock(&oi->ip_lock);
+	oi->ip_dyn_features &= ~OCFS2_INLINE_DATA_FL;
+	di->i_dyn_features = cpu_to_le16(oi->ip_dyn_features);
+	spin_unlock(&oi->ip_lock);
+
+	ocfs2_zero_dinode_id2(inode, di);
+
+	el->l_tree_depth = 0;
+	el->l_next_free_rec = 0;
+	el->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(inode->i_sb));
+
+	ocfs2_journal_dirty(handle, di_bh);
+
+	if (has_data) {
+		/*
+		 * An error at this point should be extremely rare. If
+		 * this proves to be false, we could always re-build
+		 * the in-inode data from our pages.
+		 */
+		ret = ocfs2_insert_extent(osb, handle, inode, di_bh,
+					  0, block, 1, 0, NULL);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+
+		inode->i_blocks = ocfs2_inode_sector_count(inode);
+	}
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out_unlock:
+	if (data_ac)
+		ocfs2_free_alloc_context(data_ac);
+
+out:
+	if (pages) {
+		ocfs2_unlock_and_free_pages(pages, num_pages);
+		kfree(pages);
+	}
+
+	return ret;
+}
+
 /*
  * It is expected, that by the time you call this function,
  * inode->i_size and fe->i_size have been adjusted.
@@ -6049,6 +6219,81 @@ bail:
 	}
 	mlog_exit_void();
 	return status;
+}
+
+/*
+ * 'start' is inclusive, 'end' is not.
+ */
+int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
+			  unsigned int start, unsigned int end, int trunc)
+{
+	int ret;
+	unsigned int numbytes;
+	handle_t *handle;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	struct ocfs2_inline_data *idata = &di->id2.i_data;
+
+	if (end > i_size_read(inode))
+		end = i_size_read(inode);
+
+	BUG_ON(start >= end);
+
+	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) ||
+	    !(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL) ||
+	    !ocfs2_supports_inline_data(osb)) {
+		ocfs2_error(inode->i_sb,
+			    "Inline data flags for inode %llu don't agree! "
+			    "Disk: 0x%x, Memory: 0x%x, Superblock: 0x%x\n",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			    le16_to_cpu(di->i_dyn_features),
+			    OCFS2_I(inode)->ip_dyn_features,
+			    osb->s_feature_incompat);
+		ret = -EROFS;
+		goto out;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	numbytes = end - start;
+	memset(idata->id_data + start, 0, numbytes);
+
+	/*
+	 * No need to worry about the data page here - it's been
+	 * truncated already and inline data doesn't need it for
+	 * pushing zero's to disk, so we'll let readpage pick it up
+	 * later.
+	 */
+	if (trunc) {
+		i_size_write(inode, start);
+		di->i_size = cpu_to_le64(start);
+	}
+
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
+	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+
+	di->i_ctime = di->i_mtime = cpu_to_le64(inode->i_ctime.tv_sec);
+	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
+
+	ocfs2_journal_dirty(handle, di_bh);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out:
+	return ret;
 }
 
 static void ocfs2_free_truncate_context(struct ocfs2_truncate_context *tc)

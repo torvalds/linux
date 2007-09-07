@@ -397,6 +397,15 @@ static int ocfs2_truncate_file(struct inode *inode,
 	unmap_mapping_range(inode->i_mapping, new_i_size + PAGE_SIZE - 1, 0, 1);
 	truncate_inode_pages(inode->i_mapping, new_i_size);
 
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		status = ocfs2_truncate_inline(inode, di_bh, new_i_size,
+					       i_size_read(inode), 0);
+		if (status)
+			mlog_errno(status);
+
+		goto bail_unlock_data;
+	}
+
 	/* alright, we're going to need to do a full blown alloc size
 	 * change. Orphan the inode so that recovery can complete the
 	 * truncate if necessary. This does the task of marking
@@ -908,7 +917,8 @@ static int ocfs2_extend_file(struct inode *inode,
 			     struct buffer_head *di_bh,
 			     u64 new_i_size)
 {
-	int ret = 0;
+	int ret = 0, data_locked = 0;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	BUG_ON(!di_bh);
 
@@ -920,7 +930,17 @@ static int ocfs2_extend_file(struct inode *inode,
   		goto out;
 	BUG_ON(new_i_size < i_size_read(inode));
 
-	if (ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+	/*
+	 * Fall through for converting inline data, even if the fs
+	 * supports sparse files.
+	 *
+	 * The check for inline data here is legal - nobody can add
+	 * the feature since we have i_mutex. We must check it again
+	 * after acquiring ip_alloc_sem though, as paths like mmap
+	 * might have raced us to converting the inode to extents.
+	 */
+	if (!(oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+	    && ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
 		goto out_update_size;
 
 	/* 
@@ -935,6 +955,7 @@ static int ocfs2_extend_file(struct inode *inode,
 		mlog_errno(ret);
 		goto out;
 	}
+	data_locked = 1;
 
 	/*
 	 * The alloc sem blocks people in read/write from reading our
@@ -942,9 +963,31 @@ static int ocfs2_extend_file(struct inode *inode,
 	 * i_mutex to block other extend/truncate calls while we're
 	 * here.
 	 */
-	down_write(&OCFS2_I(inode)->ip_alloc_sem);
-	ret = ocfs2_extend_no_holes(inode, new_i_size, new_i_size);
-	up_write(&OCFS2_I(inode)->ip_alloc_sem);
+	down_write(&oi->ip_alloc_sem);
+
+	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		/*
+		 * We can optimize small extends by keeping the inodes
+		 * inline data.
+		 */
+		if (ocfs2_size_fits_inline_data(di_bh, new_i_size)) {
+			up_write(&oi->ip_alloc_sem);
+			goto out_update_size;
+		}
+
+		ret = ocfs2_convert_inline_data_to_extents(inode, di_bh);
+		if (ret) {
+			up_write(&oi->ip_alloc_sem);
+
+			mlog_errno(ret);
+			goto out_unlock;
+		}
+	}
+
+	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+		ret = ocfs2_extend_no_holes(inode, new_i_size, new_i_size);
+
+	up_write(&oi->ip_alloc_sem);
 
 	if (ret < 0) {
 		mlog_errno(ret);
@@ -957,7 +1000,7 @@ out_update_size:
 		mlog_errno(ret);
 
 out_unlock:
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb)))
+	if (data_locked)
 		ocfs2_data_unlock(inode, 1);
 
 out:
@@ -1231,6 +1274,31 @@ static int ocfs2_allocate_unwritten_extents(struct inode *inode,
 {
 	int ret;
 	u32 cpos, phys_cpos, clusters, alloc_size;
+	u64 end = start + len;
+	struct buffer_head *di_bh = NULL;
+
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		ret = ocfs2_read_block(OCFS2_SB(inode->i_sb),
+				       OCFS2_I(inode)->ip_blkno, &di_bh,
+				       OCFS2_BH_CACHED, inode);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/*
+		 * Nothing to do if the requested reservation range
+		 * fits within the inode.
+		 */
+		if (ocfs2_size_fits_inline_data(di_bh, end))
+			goto out;
+
+		ret = ocfs2_convert_inline_data_to_extents(inode, di_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
 
 	/*
 	 * We consider both start and len to be inclusive.
@@ -1276,6 +1344,8 @@ next:
 
 	ret = 0;
 out:
+
+	brelse(di_bh);
 	return ret;
 }
 
@@ -1456,6 +1526,14 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 
 	if (byte_len == 0)
 		return 0;
+
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		ret = ocfs2_truncate_inline(inode, di_bh, byte_start,
+					    byte_start + byte_len, 1);
+		if (ret)
+			mlog_errno(ret);
+		return ret;
+	}
 
 	trunc_start = ocfs2_clusters_for_bytes(osb->sb, byte_start);
 	trunc_len = (byte_start + byte_len) >> osb->s_clustersize_bits;
@@ -1757,6 +1835,15 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 		 */
 		if (!direct_io || !(*direct_io))
 			break;
+
+		/*
+		 * There's no sane way to do direct writes to an inode
+		 * with inline data.
+		 */
+		if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+			*direct_io = 0;
+			break;
+		}
 
 		/*
 		 * Allowing concurrent direct writes means
