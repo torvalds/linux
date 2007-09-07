@@ -24,6 +24,36 @@
 
 #include "dvb-pll.h"
 
+struct dvb_pll_priv {
+	/* pll number */
+	int nr;
+
+	/* i2c details */
+	int pll_i2c_address;
+	struct i2c_adapter *i2c;
+
+	/* the PLL descriptor */
+	struct dvb_pll_desc *pll_desc;
+
+	/* cached frequency/bandwidth */
+	u32 frequency;
+	u32 bandwidth;
+};
+
+#define DVB_PLL_MAX 16
+
+static unsigned int dvb_pll_devcount;
+
+static int debug = 0;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
+
+static unsigned int input[DVB_PLL_MAX] = { [ 0 ... (DVB_PLL_MAX-1) ] = 0 };
+module_param_array(input, int, NULL, 0644);
+MODULE_PARM_DESC(input,"specify rf input choice, 0 for autoselect (default)");
+
+/* ----------------------------------------------------------- */
+
 struct dvb_pll_desc {
 	char *name;
 	u32  min;
@@ -362,14 +392,32 @@ static struct dvb_pll_desc dvb_pll_tdhu2 = {
 static void tuv1236d_rf(struct dvb_frontend *fe, u8 *buf,
 			const struct dvb_frontend_parameters *params)
 {
-	switch (params->u.vsb.modulation) {
-		case QAM_64:
-		case QAM_256:
+	struct dvb_pll_priv *priv = fe->tuner_priv;
+	unsigned int new_rf = input[priv->nr];
+
+	if ((new_rf == 0) || (new_rf > 2)) {
+		switch (params->u.vsb.modulation) {
+			case QAM_64:
+			case QAM_256:
+				new_rf = 1;
+				break;
+			case VSB_8:
+			default:
+				new_rf = 2;
+		}
+	}
+
+	switch (new_rf) {
+		case 1:
 			buf[3] |= 0x08;
 			break;
-		case VSB_8:
-		default:
+		case 2:
 			buf[3] &= ~0x08;
+			break;
+		default:
+			printk(KERN_WARNING
+			       "%s: unhandled rf input selection: %d",
+			       __FUNCTION__, new_rf);
 	}
 }
 
@@ -554,31 +602,7 @@ static struct dvb_pll_desc *pll_list[] = {
 };
 
 /* ----------------------------------------------------------- */
-
-struct dvb_pll_priv {
-	/* pll number */
-	int nr;
-
-	/* i2c details */
-	int pll_i2c_address;
-	struct i2c_adapter *i2c;
-
-	/* the PLL descriptor */
-	struct dvb_pll_desc *pll_desc;
-
-	/* cached frequency/bandwidth */
-	u32 frequency;
-	u32 bandwidth;
-};
-
-/* ----------------------------------------------------------- */
 /* code                                                        */
-
-static int debug = 0;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "enable verbose debug messages");
-
-static unsigned int dvb_pll_devcount;
 
 static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 			     const struct dvb_frontend_parameters *params)
