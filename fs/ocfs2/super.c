@@ -81,8 +81,15 @@ static struct dentry *ocfs2_debugfs_root = NULL;
 MODULE_AUTHOR("Oracle");
 MODULE_LICENSE("GPL");
 
+struct mount_options
+{
+	unsigned long	mount_opt;
+	unsigned int	atime_quantum;
+	signed short	slot;
+};
+
 static int ocfs2_parse_options(struct super_block *sb, char *options,
-			       unsigned long *mount_opt, s16 *slot,
+			       struct mount_options *mopt,
 			       int is_remount);
 static void ocfs2_put_super(struct super_block *sb);
 static int ocfs2_mount_volume(struct super_block *sb);
@@ -367,24 +374,23 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 {
 	int incompat_features;
 	int ret = 0;
-	unsigned long parsed_options;
-	s16 slot;
+	struct mount_options parsed_options;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
-	if (!ocfs2_parse_options(sb, data, &parsed_options, &slot, 1)) {
+	if (!ocfs2_parse_options(sb, data, &parsed_options, 1)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_HB_LOCAL) !=
-	    (parsed_options & OCFS2_MOUNT_HB_LOCAL)) {
+	    (parsed_options.mount_opt & OCFS2_MOUNT_HB_LOCAL)) {
 		ret = -EINVAL;
 		mlog(ML_ERROR, "Cannot change heartbeat mode on remount\n");
 		goto out;
 	}
 
 	if ((osb->s_mount_opt & OCFS2_MOUNT_DATA_WRITEBACK) !=
-	    (parsed_options & OCFS2_MOUNT_DATA_WRITEBACK)) {
+	    (parsed_options.mount_opt & OCFS2_MOUNT_DATA_WRITEBACK)) {
 		ret = -EINVAL;
 		mlog(ML_ERROR, "Cannot change data mode on remount\n");
 		goto out;
@@ -435,7 +441,9 @@ unlock_osb:
 
 		/* Only save off the new mount options in case of a successful
 		 * remount. */
-		osb->s_mount_opt = parsed_options;
+		osb->s_mount_opt = parsed_options.mount_opt;
+		osb->s_atime_quantum = parsed_options.atime_quantum;
+		osb->preferred_slot = parsed_options.slot;
 	}
 out:
 	return ret;
@@ -547,8 +555,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct dentry *root;
 	int status, sector_size;
-	unsigned long parsed_opt;
-	s16 slot;
+	struct mount_options parsed_options;
 	struct inode *inode = NULL;
 	struct ocfs2_super *osb = NULL;
 	struct buffer_head *bh = NULL;
@@ -556,14 +563,14 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
-	if (!ocfs2_parse_options(sb, data, &parsed_opt, &slot, 0)) {
+	if (!ocfs2_parse_options(sb, data, &parsed_options, 0)) {
 		status = -EINVAL;
 		goto read_super_error;
 	}
 
 	/* for now we only have one cluster/node, make sure we see it
 	 * in the heartbeat universe */
-	if (parsed_opt & OCFS2_MOUNT_HB_LOCAL) {
+	if (parsed_options.mount_opt & OCFS2_MOUNT_HB_LOCAL) {
 		if (!o2hb_check_local_node_heartbeating()) {
 			status = -EINVAL;
 			goto read_super_error;
@@ -585,8 +592,9 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	brelse(bh);
 	bh = NULL;
-	osb->s_mount_opt = parsed_opt;
-	osb->preferred_slot = slot;
+	osb->s_mount_opt = parsed_options.mount_opt;
+	osb->s_atime_quantum = parsed_options.atime_quantum;
+	osb->preferred_slot = parsed_options.slot;
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
@@ -728,8 +736,7 @@ static struct file_system_type ocfs2_fs_type = {
 
 static int ocfs2_parse_options(struct super_block *sb,
 			       char *options,
-			       unsigned long *mount_opt,
-			       s16 *slot,
+			       struct mount_options *mopt,
 			       int is_remount)
 {
 	int status;
@@ -738,8 +745,9 @@ static int ocfs2_parse_options(struct super_block *sb,
 	mlog_entry("remount: %d, options: \"%s\"\n", is_remount,
 		   options ? options : "(none)");
 
-	*mount_opt = 0;
-	*slot = OCFS2_INVALID_SLOT;
+	mopt->mount_opt = 0;
+	mopt->atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
+	mopt->slot = OCFS2_INVALID_SLOT;
 
 	if (!options) {
 		status = 1;
@@ -749,7 +757,6 @@ static int ocfs2_parse_options(struct super_block *sb,
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token, option;
 		substring_t args[MAX_OPT_ARGS];
-		struct ocfs2_super * osb = OCFS2_SB(sb);
 
 		if (!*p)
 			continue;
@@ -757,10 +764,10 @@ static int ocfs2_parse_options(struct super_block *sb,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_hb_local:
-			*mount_opt |= OCFS2_MOUNT_HB_LOCAL;
+			mopt->mount_opt |= OCFS2_MOUNT_HB_LOCAL;
 			break;
 		case Opt_hb_none:
-			*mount_opt &= ~OCFS2_MOUNT_HB_LOCAL;
+			mopt->mount_opt &= ~OCFS2_MOUNT_HB_LOCAL;
 			break;
 		case Opt_barrier:
 			if (match_int(&args[0], &option)) {
@@ -768,27 +775,27 @@ static int ocfs2_parse_options(struct super_block *sb,
 				goto bail;
 			}
 			if (option)
-				*mount_opt |= OCFS2_MOUNT_BARRIER;
+				mopt->mount_opt |= OCFS2_MOUNT_BARRIER;
 			else
-				*mount_opt &= ~OCFS2_MOUNT_BARRIER;
+				mopt->mount_opt &= ~OCFS2_MOUNT_BARRIER;
 			break;
 		case Opt_intr:
-			*mount_opt &= ~OCFS2_MOUNT_NOINTR;
+			mopt->mount_opt &= ~OCFS2_MOUNT_NOINTR;
 			break;
 		case Opt_nointr:
-			*mount_opt |= OCFS2_MOUNT_NOINTR;
+			mopt->mount_opt |= OCFS2_MOUNT_NOINTR;
 			break;
 		case Opt_err_panic:
-			*mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
+			mopt->mount_opt |= OCFS2_MOUNT_ERRORS_PANIC;
 			break;
 		case Opt_err_ro:
-			*mount_opt &= ~OCFS2_MOUNT_ERRORS_PANIC;
+			mopt->mount_opt &= ~OCFS2_MOUNT_ERRORS_PANIC;
 			break;
 		case Opt_data_ordered:
-			*mount_opt &= ~OCFS2_MOUNT_DATA_WRITEBACK;
+			mopt->mount_opt &= ~OCFS2_MOUNT_DATA_WRITEBACK;
 			break;
 		case Opt_data_writeback:
-			*mount_opt |= OCFS2_MOUNT_DATA_WRITEBACK;
+			mopt->mount_opt |= OCFS2_MOUNT_DATA_WRITEBACK;
 			break;
 		case Opt_atime_quantum:
 			if (match_int(&args[0], &option)) {
@@ -796,9 +803,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 				goto bail;
 			}
 			if (option >= 0)
-				osb->s_atime_quantum = option;
-			else
-				osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
+				mopt->atime_quantum = option;
 			break;
 		case Opt_slot:
 			option = 0;
@@ -807,7 +812,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 				goto bail;
 			}
 			if (option)
-				*slot = (s16)option;
+				mopt->slot = (s16)option;
 			break;
 		default:
 			mlog(ML_ERROR,
