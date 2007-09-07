@@ -23,7 +23,7 @@
 #include "44x.h"
 
 static struct of_device_id bamboo_of_bus[] = {
-	{ .compatible = "ibm,plb", },
+	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
 	{},
