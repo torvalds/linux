@@ -402,10 +402,12 @@ static struct sk_buff *if_cs_receive_data(wlan_private *priv)
 	}
 
 	//TODO: skb = dev_alloc_skb(len+ETH_FRAME_LEN+MRVDRV_SNAP_HEADER_LEN+EXTRA_LEN);
-	skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
+	skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE + 2);
 	if (!skb)
 		goto out;
-	data = skb_put(skb, len);
+	skb_put(skb, len);
+	skb_reserve(skb, 2);/* 16 byte align */
+	data = skb->data;
 
 	/* read even number of bytes, then odd byte if necessary */
 	if_cs_read16_rep(priv->card, IF_CS_H_READ, data, len/sizeof(u16));
