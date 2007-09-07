@@ -241,6 +241,7 @@ int ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
 	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
+	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 
 	inode->i_version = 1;
 	inode->i_generation = le32_to_cpu(fe->i_generation);
@@ -1220,6 +1221,7 @@ int ocfs2_mark_inode_dirty(handle_t *handle,
 	fe->i_clusters = cpu_to_le32(OCFS2_I(inode)->ip_clusters);
 	ocfs2_get_inode_flags(OCFS2_I(inode));
 	fe->i_attr = cpu_to_le32(OCFS2_I(inode)->ip_attr);
+	fe->i_dyn_features = cpu_to_le16(OCFS2_I(inode)->ip_dyn_features);
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 
 	fe->i_size = cpu_to_le64(i_size_read(inode));
@@ -1257,6 +1259,7 @@ void ocfs2_refresh_inode(struct inode *inode,
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
 	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
+	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 	ocfs2_set_inode_flags(inode);
 	i_size_write(inode, le64_to_cpu(fe->i_size));
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);

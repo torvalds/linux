@@ -51,6 +51,7 @@ struct ocfs2_inode_info
 
 	u32				ip_flags; /* see below */
 	u32				ip_attr; /* inode attributes */
+	u16				ip_dyn_features;
 
 	/* protected by recovery_lock. */
 	struct inode			*ip_next_orphan;
