@@ -137,6 +137,16 @@ config MPIC_U3_HT_IRQS
 	depends on PPC_MAPLE
 	default y
 
+config MPIC_BROKEN_REGREAD
+	bool
+	depends on MPIC
+	help
+	  This option enables a MPIC driver workaround for some chips
+	  that have a bug that causes some interrupt source information
+	  to not read back properly. It is safe to use on other chips as
+	  well, but enabling it uses about 8KB of memory to keep copies
+	  of the register contents in software.
+
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
 	bool

@@ -306,6 +306,10 @@ struct mpic
 	unsigned long		*hwirq_bitmap;
 #endif
 
+#ifdef CONFIG_MPIC_BROKEN_REGREAD
+	u32			isu_reg0_shadow[MPIC_MAX_IRQ_SOURCES];
+#endif
+
 	/* link */
 	struct mpic		*next;
 
