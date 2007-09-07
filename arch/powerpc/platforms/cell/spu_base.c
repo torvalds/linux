@@ -236,10 +236,21 @@ static irqreturn_t
 spu_irq_class_0(int irq, void *data)
 {
 	struct spu *spu;
+	unsigned long stat, mask;
 
 	spu = data;
-	spu->class_0_pending = 1;
+
+	mask = spu_int_mask_get(spu, 0);
+	stat = spu_int_stat_get(spu, 0);
+	stat &= mask;
+
+	spin_lock(&spu->register_lock);
+	spu->class_0_pending |= stat;
+	spin_unlock(&spu->register_lock);
+
 	spu->stop_callback(spu);
+
+	spu_int_stat_clear(spu, 0, stat);
 
 	return IRQ_HANDLED;
 }
@@ -247,16 +258,12 @@ spu_irq_class_0(int irq, void *data)
 int
 spu_irq_class_0_bottom(struct spu *spu)
 {
-	unsigned long stat, mask;
 	unsigned long flags;
-
-	spu->class_0_pending = 0;
+	unsigned long stat;
 
 	spin_lock_irqsave(&spu->register_lock, flags);
-	mask = spu_int_mask_get(spu, 0);
-	stat = spu_int_stat_get(spu, 0);
-
-	stat &= mask;
+	stat = spu->class_0_pending;
+	spu->class_0_pending = 0;
 
 	if (stat & 1) /* invalid DMA alignment */
 		__spu_trap_dma_align(spu);
@@ -267,7 +274,6 @@ spu_irq_class_0_bottom(struct spu *spu)
 	if (stat & 4) /* error on SPU */
 		__spu_trap_error(spu);
 
-	spu_int_stat_clear(spu, 0, stat);
 	spin_unlock_irqrestore(&spu->register_lock, flags);
 
 	return (stat & 0x7) ? -EIO : 0;
