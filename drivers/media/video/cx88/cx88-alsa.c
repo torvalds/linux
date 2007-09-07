@@ -53,13 +53,9 @@
 	Data type declarations - Can be moded to a header file later
  ****************************************************************************/
 
-/* These can be replaced after done */
-#define MIXER_ADDR_LAST MAX_CX88_INPUT
-
 struct cx88_audio_dev {
 	struct cx88_core           *core;
 	struct cx88_dmaqueue       q;
-	u64 starttime;
 
 	/* pci i/o */
 	struct pci_dev             *pci;
@@ -77,9 +73,6 @@ struct cx88_audio_dev {
 	unsigned int               num_periods;
 
 	struct videobuf_dmabuf     dma_risc;
-
-	int                        mixer_volume[MIXER_ADDR_LAST+1][2];
-	int                        capture_source[MIXER_ADDR_LAST+1][2];
 
 	struct cx88_buffer	   *buf;
 
