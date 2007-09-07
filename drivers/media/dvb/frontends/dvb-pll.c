@@ -556,6 +556,9 @@ static struct dvb_pll_desc *pll_list[] = {
 /* ----------------------------------------------------------- */
 
 struct dvb_pll_priv {
+	/* pll number */
+	int nr;
+
 	/* i2c details */
 	int pll_i2c_address;
 	struct i2c_adapter *i2c;
@@ -574,6 +577,8 @@ struct dvb_pll_priv {
 static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
+
+static unsigned int dvb_pll_devcount;
 
 static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 			     const struct dvb_frontend_parameters *params)
@@ -787,6 +792,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	priv->pll_i2c_address = pll_addr;
 	priv->i2c = i2c;
 	priv->pll_desc = desc;
+	priv->nr = dvb_pll_devcount++;
 
 	memcpy(&fe->ops.tuner_ops, &dvb_pll_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
@@ -801,6 +807,14 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 		fe->ops.tuner_ops.sleep = NULL;
 
 	fe->tuner_priv = priv;
+
+	if (debug) {
+		printk("dvb-pll[%d]", priv->nr);
+		if (i2c != NULL)
+			printk(" %d-%04x", i2c_adapter_id(i2c), pll_addr);
+		printk(": id# %d (%s) attached\n", pll_desc_id, desc->name);
+	}
+
 	return fe;
 }
 EXPORT_SYMBOL(dvb_pll_attach);
