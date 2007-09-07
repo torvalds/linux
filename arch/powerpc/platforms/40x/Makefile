@@ -1,1 +1,1 @@
-# empty makefile so make clean works
+obj-$(CONFIG_WALNUT) += walnut.o

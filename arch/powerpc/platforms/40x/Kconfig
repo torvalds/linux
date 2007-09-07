@@ -53,13 +53,13 @@
 #	help
 #	  This option enables support for the IBM PPC405GPr evaluation board.
 
-#config WALNUT
-#	bool "Walnut"
-#	depends on 40x
-#	default y
-#	select 405GP
-#	help
-#	  This option enables support for the IBM PPC405GP evaluation board.
+config WALNUT
+	bool "Walnut"
+	depends on 40x
+	default y
+	select 405GP
+	help
+	  This option enables support for the IBM PPC405GP evaluation board.
 
 #config XILINX_ML300
 #	bool "Xilinx-ML300"

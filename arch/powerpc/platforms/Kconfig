@@ -59,7 +59,7 @@ source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
-#source "arch/powerpc/platforms/4xx/Kconfig
+source "arch/powerpc/platforms/40x/Kconfig"
 
 config PPC_NATIVE
 	bool
