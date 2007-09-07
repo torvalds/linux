@@ -377,7 +377,7 @@ static struct snd_pcm_hardware snd_bt87x_analog_hw = {
 
 static int snd_bt87x_set_digital_hw(struct snd_bt87x *chip, struct snd_pcm_runtime *runtime)
 {
-	chip->reg_control |= CTL_DA_IOM_DA;
+	chip->reg_control |= CTL_DA_IOM_DA | CTL_A_PWRDN;
 	runtime->hw = snd_bt87x_digital_hw;
 	runtime->hw.rates = snd_pcm_rate_to_rate_bit(chip->board.dig_rate);
 	runtime->hw.rate_min = chip->board.dig_rate;
@@ -398,7 +398,7 @@ static int snd_bt87x_set_analog_hw(struct snd_bt87x *chip, struct snd_pcm_runtim
 		.rats = &analog_clock
 	};
 
-	chip->reg_control &= ~CTL_DA_IOM_DA;
+	chip->reg_control &= ~(CTL_DA_IOM_DA | CTL_A_PWRDN);
 	runtime->hw = snd_bt87x_analog_hw;
 	return snd_pcm_hw_constraint_ratnums(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
 					     &constraint_rates);
@@ -436,6 +436,11 @@ _error:
 static int snd_bt87x_close(struct snd_pcm_substream *substream)
 {
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
+
+	spin_lock_irq(&chip->reg_lock);
+	chip->reg_control |= CTL_A_PWRDN;
+	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
+	spin_unlock_irq(&chip->reg_lock);
 
 	chip->substream = NULL;
 	clear_bit(0, &chip->opened);
@@ -751,7 +756,8 @@ static int __devinit snd_bt87x_create(struct snd_card *card,
 		goto fail;
 	}
 
-	chip->reg_control = CTL_DA_ES2 | CTL_PKTP_16 | (15 << CTL_DA_SDR_SHIFT);
+	chip->reg_control = CTL_A_PWRDN | CTL_DA_ES2 |
+			    CTL_PKTP_16 | (15 << CTL_DA_SDR_SHIFT);
 	chip->interrupt_mask = MY_INTERRUPTS;
 	snd_bt87x_writel(chip, REG_GPIO_DMA_CTL, chip->reg_control);
 	snd_bt87x_writel(chip, REG_INT_MASK, 0);
