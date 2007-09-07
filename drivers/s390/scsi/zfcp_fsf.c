@@ -80,10 +80,10 @@ static const char zfcp_act_subtable_type[5][8] = {
 /*
  * function:	zfcp_fsf_req_alloc
  *
- * purpose:     Obtains an fsf_req and potentially a qtcb (for all but 
+ * purpose:     Obtains an fsf_req and potentially a qtcb (for all but
  *              unsolicited requests) via helper functions
  *              Does some initial fsf request set-up.
- *              
+ *
  * returns:	pointer to allocated fsf_req if successfull
  *              NULL otherwise
  *
@@ -192,7 +192,7 @@ void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *adapter)
  * returns:	0 - success
  *		!0 - failure
  *
- * context:	
+ * context:
  */
 int
 zfcp_fsf_req_complete(struct zfcp_fsf_req *fsf_req)
@@ -214,8 +214,8 @@ zfcp_fsf_req_complete(struct zfcp_fsf_req *fsf_req)
 	}
 
 	/*
-	 * fsf_req may be deleted due to waking up functions, so 
-	 * cleanup is saved here and used later 
+	 * fsf_req may be deleted due to waking up functions, so
+	 * cleanup is saved here and used later
 	 */
 	if (likely(fsf_req->status & ZFCP_STATUS_FSFREQ_CLEANUP))
 		cleanup = 1;
@@ -259,9 +259,9 @@ zfcp_fsf_req_complete(struct zfcp_fsf_req *fsf_req)
  *		and initiates appropriate actions
  *		(usually calling FSF command specific handlers)
  *
- * returns:	
+ * returns:
  *
- * context:	
+ * context:
  *
  * locks:
  */
@@ -638,7 +638,7 @@ zfcp_fsf_link_down_info_eval(struct zfcp_adapter *adapter,
  *
  * purpose:	calls the appropriate command specific handler
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_req_dispatch(struct zfcp_fsf_req *fsf_req)
@@ -854,7 +854,7 @@ zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *fsf_req)
  *
  * purpose:	is called for finished Open Port command
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
@@ -1088,7 +1088,7 @@ zfcp_fsf_status_read_handler(struct zfcp_fsf_req *fsf_req)
  * returns:	address of initiated FSF request
  *		NULL - request could not be initiated
  *
- * FIXME(design): should be watched by a timeout !!! 
+ * FIXME(design): should be watched by a timeout !!!
  * FIXME(design) shouldn't this be modified to return an int
  *               also...don't know how though
  */
@@ -1157,7 +1157,7 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
  *
  * purpose:	is called for finished Abort FCP Command request
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
@@ -2437,10 +2437,10 @@ zfcp_fsf_exchange_port_data_handler(struct zfcp_fsf_req *fsf_req)
 /*
  * function:    zfcp_fsf_open_port
  *
- * purpose:	
+ * purpose:
  *
  * returns:	address of initiated FSF request
- *		NULL - request could not be initiated 
+ *		NULL - request could not be initiated
  */
 int
 zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
@@ -2501,7 +2501,7 @@ zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
  *
  * purpose:	is called for finished Open Port command
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_open_port_handler(struct zfcp_fsf_req *fsf_req)
@@ -3103,7 +3103,7 @@ zfcp_fsf_open_unit(struct zfcp_erp_action *erp_action)
  *
  * purpose:	is called for finished Open LUN command
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
@@ -3366,7 +3366,7 @@ zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *fsf_req)
  * purpose:
  *
  * returns:	address of fsf_req - request successfully initiated
- *		NULL - 
+ *		NULL -
  *
  * assumptions: This routine does not check whether the associated
  *              remote port/lun has already been opened. This should be
@@ -3828,7 +3828,7 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
  *
  * purpose:	is called for finished Send FCP Command
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
@@ -4065,7 +4065,7 @@ zfcp_fsf_send_fcp_command_handler(struct zfcp_fsf_req *fsf_req)
  *
  * purpose:	evaluates FCP_RSP IU
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
@@ -4293,7 +4293,7 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
  *
  * purpose:	evaluates FCP_RSP IU
  *
- * returns:	
+ * returns:
  */
 static int
 zfcp_fsf_send_fcp_command_task_management_handler(struct zfcp_fsf_req *fsf_req)
@@ -4736,7 +4736,7 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	INIT_LIST_HEAD(&fsf_req->list);
 	init_timer(&fsf_req->timer);
 
-	/* initialize waitqueue which may be used to wait on 
+	/* initialize waitqueue which may be used to wait on
 	   this request completion */
 	init_waitqueue_head(&fsf_req->completion_wq);
 

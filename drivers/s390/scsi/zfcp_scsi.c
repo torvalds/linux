@@ -1,22 +1,22 @@
-/* 
+/*
  * This file is part of the zfcp device driver for
  * FCP adapters for IBM System z9 and zSeries.
  *
  * (C) Copyright IBM Corp. 2002, 2006
- * 
- * This program is free software; you can redistribute it and/or modify 
- * it under the terms of the GNU General Public License as published by 
- * the Free Software Foundation; either version 2, or (at your option) 
- * any later version. 
- * 
- * This program is distributed in the hope that it will be useful, 
- * but WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the 
- * GNU General Public License for more details. 
- * 
- * You should have received a copy of the GNU General Public License 
- * along with this program; if not, write to the Free Software 
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define ZFCP_LOG_AREA			ZFCP_LOG_AREA_SCSI
@@ -101,7 +101,7 @@ zfcp_get_fcp_dl_ptr(struct fcp_cmnd_iu * fcp_cmd)
 		((unsigned char *) fcp_cmd +
 		 sizeof (struct fcp_cmnd_iu) + additional_length);
 	/*
-	 * fcp_dl_addr = start address of fcp_cmnd structure + 
+	 * fcp_dl_addr = start address of fcp_cmnd structure +
 	 * size of fixed part + size of dynamically sized add_dcp_cdb field
 	 * SEE FCP-2 documentation
 	 */
@@ -194,7 +194,7 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 				"address %p\n", sdpnt);
 }
 
-/* 
+/*
  * called from scsi midlayer to allow finetuning of a device.
  */
 static int
@@ -372,7 +372,7 @@ zfcp_unit_lookup(struct zfcp_adapter *adapter, int channel, unsigned int id,
 
 /**
  * zfcp_scsi_eh_abort_handler - abort the specified SCSI command
- * @scpnt: pointer to scsi_cmnd to be aborted 
+ * @scpnt: pointer to scsi_cmnd to be aborted
  * Return: SUCCESS - command has been aborted and cleaned up in internal
  *          bookkeeping, SCSI stack won't be called for aborted command
  *         FAILED - otherwise

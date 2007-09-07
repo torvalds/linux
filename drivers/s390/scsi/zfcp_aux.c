@@ -891,7 +891,7 @@ zfcp_unit_dequeue(struct zfcp_unit *unit)
 /*
  * Allocates a combined QTCB/fsf_req buffer for erp actions and fcp/SCSI
  * commands.
- * It also genrates fcp-nameserver request/response buffer and unsolicited 
+ * It also genrates fcp-nameserver request/response buffer and unsolicited
  * status read fsf_req buffers.
  *
  * locks:       must only be called with zfcp_data.config_sema taken
@@ -982,7 +982,7 @@ zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	struct zfcp_adapter *adapter;
 
 	/*
-	 * Note: It is safe to release the list_lock, as any list changes 
+	 * Note: It is safe to release the list_lock, as any list changes
 	 * are protected by the config_sema, which must be held to get here
 	 */
 

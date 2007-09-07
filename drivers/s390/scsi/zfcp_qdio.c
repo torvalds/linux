@@ -174,10 +174,9 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
                 * That is why we need to clear the link-down flag
                 * which is set again in case we have missed by a mile.
                 */
-               zfcp_erp_adapter_reopen(
-                       adapter, 
-                       ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
-                       ZFCP_STATUS_COMMON_ERP_FAILED);
+		zfcp_erp_adapter_reopen(adapter,
+				       ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
+				       ZFCP_STATUS_COMMON_ERP_FAILED);
 	}
 	return retval;
 }
