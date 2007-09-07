@@ -617,11 +617,12 @@ static int if_cs_host_to_card(wlan_private *priv, u8 type, u8 *buf, u16 nb)
 
 	switch (type) {
 	case MVMS_DAT:
-		priv->dnld_sent = DNLD_CMD_SENT;
+		priv->dnld_sent = DNLD_DATA_SENT;
 		if_cs_send_data(priv, buf, nb);
 		ret = 0;
 		break;
 	case MVMS_CMD:
+		priv->dnld_sent = DNLD_CMD_SENT;
 		ret = if_cs_send_cmd(priv, buf, nb);
 		break;
 	default:
