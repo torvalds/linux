@@ -191,7 +191,11 @@ struct ipath_mmap_info {
 struct ipath_cq_wc {
 	u32 head;		/* index of next entry to fill */
 	u32 tail;		/* index of next ib_poll_cq() entry */
-	struct ib_uverbs_wc queue[1]; /* this is actually size ibcq.cqe + 1 */
+	union {
+		/* these are actually size ibcq.cqe + 1 */
+		struct ib_uverbs_wc uqueue[0];
+		struct ib_wc kqueue[0];
+	};
 };
 
 /*
