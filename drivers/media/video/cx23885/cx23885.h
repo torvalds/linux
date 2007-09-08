@@ -68,6 +68,11 @@ enum cx23885_itype {
 	CX23885_RADIO,
 };
 
+enum cx23885_src_sel_type {
+	CX23885_SRC_SEL_EXT_656_VIDEO = 0,
+	CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO
+};
+
 /* buffer for one video frame */
 struct cx23885_buffer {
 	/* common v4l buffer stuff -- must be first */
@@ -162,6 +167,7 @@ struct cx23885_tsport {
 	u32                        reg_vld_misc;
 	u32                        reg_ts_clk_en;
 	u32                        reg_ts_int_msk;
+	u32                        reg_src_sel;
 
 	/* Default register vals */
 	int                        pci_irqmask;
@@ -169,6 +175,7 @@ struct cx23885_tsport {
 	u32                        ts_int_msk_val;
 	u32                        gen_ctrl_val;
 	u32                        ts_clk_en_val;
+	u32                        src_sel_val;
 };
 
 struct cx23885_dev {

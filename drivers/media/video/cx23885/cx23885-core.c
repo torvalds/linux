@@ -100,12 +100,12 @@ struct sram_channel cx23885_sram_channels[] = {
 		.cnt2_reg	= DMA2_CNT2,
 	},
 	[SRAM_CH03] = {
-		.name		= "ch3",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
+		.name		= "TS1 B",
+		.cmds_start	= 0x100A0,
+		.ctrl_start	= 0x10780,
+		.cdt		= 0x10400,
+		.fifo_start	= 0x5000,
+		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA3_PTR1,
 		.ptr2_reg	= DMA3_PTR2,
 		.cnt1_reg	= DMA3_CNT1,
@@ -596,7 +596,7 @@ void cx23885_reset(struct cx23885_dev *dev)
 
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH01 ], 188*4, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH02 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH03 ], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH03 ], 188*4, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH04 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH05 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH06 ], 188*4, 0);
@@ -679,6 +679,39 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	atomic_inc(&dev->refcount);
 
 	dev->nr = cx23885_devcount++;
+	sprintf(dev->name, "cx23885[%d]", dev->nr);
+
+	mutex_lock(&devlist);
+	list_add_tail(&dev->devlist, &cx23885_devlist);
+	mutex_unlock(&devlist);
+
+	/* Configure the internal memory */
+	if(dev->pci->device == 0x8880) {
+		dev->bridge = CX23885_BRIDGE_887;
+		dev->sram_channels = cx23887_sram_channels;
+	} else
+	if(dev->pci->device == 0x8852) {
+		dev->bridge = CX23885_BRIDGE_885;
+		dev->sram_channels = cx23885_sram_channels;
+	} else
+		BUG();
+
+	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n",
+		__FUNCTION__, dev->bridge);
+
+	/* board config */
+	dev->board = UNSET;
+	if (card[dev->nr] < cx23885_bcount)
+		dev->board = card[dev->nr];
+	for (i = 0; UNSET == dev->board  &&  i < cx23885_idcount; i++)
+		if (dev->pci->subsystem_vendor == cx23885_subids[i].subvendor &&
+		    dev->pci->subsystem_device == cx23885_subids[i].subdevice)
+			dev->board = cx23885_subids[i].card;
+	if (UNSET == dev->board) {
+		dev->board = CX23885_BOARD_UNKNOWN;
+		cx23885_card_list(dev);
+	}
+
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);
 	dev->pci_irqmask = 0x001f00;
@@ -717,37 +750,12 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	spin_lock_init(&dev->ts2.slock);
 	dev->ts2.dev = dev;
 	dev->ts2.nr = 2;
-	dev->ts2.sram_chno = SRAM_CH06;
+
 	INIT_LIST_HEAD(&dev->ts2.mpegq.active);
 	INIT_LIST_HEAD(&dev->ts2.mpegq.queued);
 	dev->ts2.mpegq.timeout.function = cx23885_timeout;
 	dev->ts2.mpegq.timeout.data     = (unsigned long)&dev->ts2;
 	init_timer(&dev->ts2.mpegq.timeout);
-
-	dev->ts2.reg_gpcnt = VID_C_GPCNT;
-	dev->ts2.reg_gpcnt_ctl = VID_C_GPCNT_CTL;
-	dev->ts2.reg_dma_ctl = VID_C_DMA_CTL;
-	dev->ts2.reg_lngth = VID_C_LNGTH;
-	dev->ts2.reg_hw_sop_ctrl = VID_C_HW_SOP_CTL;
-	dev->ts2.reg_gen_ctrl = VID_C_GEN_CTL;
-	dev->ts2.reg_bd_pkt_status = VID_C_BD_PKT_STATUS;
-	dev->ts2.reg_sop_status = VID_C_SOP_STATUS;
-	dev->ts2.reg_fifo_ovfl_stat = VID_C_FIFO_OVFL_STAT;
-	dev->ts2.reg_vld_misc = VID_C_VLD_MISC;
-	dev->ts2.reg_ts_clk_en = VID_C_TS_CLK_EN;
-	dev->ts2.reg_ts_int_msk = VID_C_INT_MSK;
-
-	// FIXME: Make this board specific
-	dev->ts2.pci_irqmask = 0x04; /* TS Port 2 bit */
-	dev->ts2.dma_ctl_val = 0x11; /* Enable RISC controller and Fifo */
-	dev->ts2.ts_int_msk_val = 0x1111; /* TS port bits for RISC */
-	dev->ts2.gen_ctrl_val = 0xc; /* Serial bus + punctured clock */
-	dev->ts2.ts_clk_en_val = 0x1; /* Enable TS_CLK */
-
-	cx23885_risc_stopper(dev->pci, &dev->ts2.mpegq.stopper,
-			     dev->ts2.reg_dma_ctl, dev->ts2.dma_ctl_val, 0x00);
-
-	sprintf(dev->name, "cx23885[%d]", dev->nr);
 
 	if (get_resources(dev) < 0) {
 		printk(KERN_ERR "CORE %s No more PCIe resources for "
@@ -759,45 +767,17 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		goto fail_free;
 	}
 
-	mutex_lock(&devlist);
-	list_add_tail(&dev->devlist, &cx23885_devlist);
-	mutex_unlock(&devlist);
-
 	/* PCIe stuff */
 	dev->lmmio = ioremap(pci_resource_start(dev->pci,0),
 			     pci_resource_len(dev->pci,0));
 
 	dev->bmmio = (u8 __iomem *)dev->lmmio;
 
-	/* board config */
-	dev->board = UNSET;
-	if (card[dev->nr] < cx23885_bcount)
-		dev->board = card[dev->nr];
-	for (i = 0; UNSET == dev->board  &&  i < cx23885_idcount; i++)
-		if (dev->pci->subsystem_vendor == cx23885_subids[i].subvendor &&
-		    dev->pci->subsystem_device == cx23885_subids[i].subdevice)
-			dev->board = cx23885_subids[i].card;
-	if (UNSET == dev->board) {
-		dev->board = CX23885_BOARD_UNKNOWN;
-		cx23885_card_list(dev);
-	}
 	printk(KERN_INFO "CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 	       dev->name, dev->pci->subsystem_vendor,
 	       dev->pci->subsystem_device, cx23885_boards[dev->board].name,
 	       dev->board, card[dev->nr] == dev->board ?
 	       "insmod option" : "autodetected");
-
-	/* Configure the internal memory */
-	if(dev->pci->device == 0x8880) {
-		dev->bridge = CX23885_BRIDGE_887;
-		dev->sram_channels = cx23887_sram_channels;
-	} else
-	if(dev->pci->device == 0x8852) {
-		dev->bridge = CX23885_BRIDGE_885;
-		dev->sram_channels = cx23885_sram_channels;
-	}
-	dprintk(1, "%s() Memory configured for PCIe bridge type %d\n",
-		__FUNCTION__, dev->bridge);
 
 	cx23885_pci_quirks(dev);
 
@@ -812,6 +792,38 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_card_setup(dev);
 	cx23885_ir_init(dev);
 
+	switch (dev->board) {
+	default:
+		dev->ts2.reg_gpcnt          = VID_C_GPCNT;
+		dev->ts2.reg_gpcnt_ctl      = VID_C_GPCNT_CTL;
+		dev->ts2.reg_dma_ctl        = VID_C_DMA_CTL;
+		dev->ts2.reg_lngth          = VID_C_LNGTH;
+		dev->ts2.reg_hw_sop_ctrl    = VID_C_HW_SOP_CTL;
+		dev->ts2.reg_gen_ctrl       = VID_C_GEN_CTL;
+		dev->ts2.reg_bd_pkt_status  = VID_C_BD_PKT_STATUS;
+		dev->ts2.reg_sop_status     = VID_C_SOP_STATUS;
+		dev->ts2.reg_fifo_ovfl_stat = VID_C_FIFO_OVFL_STAT;
+		dev->ts2.reg_vld_misc       = VID_C_VLD_MISC;
+		dev->ts2.reg_ts_clk_en      = VID_C_TS_CLK_EN;
+		dev->ts2.reg_ts_int_msk     = VID_C_INT_MSK;
+		dev->ts2.reg_src_sel        = 0;
+
+		// FIXME: Make this board specific
+		dev->ts2.pci_irqmask = 0x04; /* TS Port 2 bit */
+		dev->ts2.dma_ctl_val = 0x11; /* Enable RISC controller and Fifo */
+		dev->ts2.ts_int_msk_val = 0x1111; /* TS port bits for RISC */
+		dev->ts2.gen_ctrl_val = 0xc; /* Serial bus + punctured clock */
+		dev->ts2.ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		dev->ts2.src_sel_val = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+
+		// Drive this from cards.c (portb/c) and move it outside of this switch
+		dev->ts2.sram_chno = SRAM_CH06;
+	}
+
+	cx23885_risc_stopper(dev->pci, &dev->ts2.mpegq.stopper,
+			     dev->ts2.reg_dma_ctl, dev->ts2.dma_ctl_val, 0x00);
+
+	// FIXME: This should only be called if ts2 is being used, driven by cards.c
 	if (cx23885_dvb_register(&dev->ts2) < 0) {
 		printk(KERN_ERR "%s() Failed to register dvb adapters\n",
 		       __FUNCTION__);
@@ -1026,13 +1038,17 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	udelay(100);
 
+	/* If the port supports SRC SELECT, configure it */
+	if(port->reg_src_sel)
+		cx_write(port->reg_src_sel, port->src_sel_val);
+
 	cx_write(port->reg_hw_sop_ctrl, 0x47 << 16 | 188 << 4);
 	cx_write(port->reg_ts_clk_en, port->ts_clk_en_val);
 	cx_write(port->reg_vld_misc, 0x00);
-
 	cx_write(port->reg_gen_ctrl, port->gen_ctrl_val);
 	udelay(100);
 
+	// NOTE: this is 2 (reserved) for portb, does it matter?
 	/* reset counter to zero */
 	cx_write(port->reg_gpcnt_ctl, 3);
 	q->count = 1;
@@ -1047,7 +1063,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 		cx_set(PCI_INT_MSK, dev->pci_irqmask | port->pci_irqmask);
 		break;
 	default:
-		printk(KERN_ERR "%s() error, default case", __FUNCTION__ );
+		BUG();
 	}
 
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enable RISC controller */
