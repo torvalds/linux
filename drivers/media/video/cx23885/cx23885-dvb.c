@@ -82,6 +82,15 @@ static struct videobuf_queue_ops dvb_qops = {
 static struct s5h1409_config hauppauge_generic_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_ON,
+	.if_freq       = 44000,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
+};
+
+static struct s5h1409_config hauppauge_hvr1800lp_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
 	.if_freq       = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
@@ -103,9 +112,18 @@ static int dvb_register(struct cx23885_tsport *port)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_generic_config,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			dvb_attach(mt2131_attach, port->dvb.frontend,
+				   &dev->i2c_bus[0].i2c_adap,
+				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&hauppauge_hvr1800lp_config,
 						&dev->i2c_bus[0].i2c_adap);
 		if (port->dvb.frontend != NULL) {
 			dvb_attach(mt2131_attach, port->dvb.frontend,
