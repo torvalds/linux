@@ -665,7 +665,8 @@ static int tuner_probe(struct i2c_adapter *adap)
 	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
 	 * and an RTC at 0x6f which can get corrupted if probed.
 	 */
-	if (adap->id == I2C_HW_B_CX2388x) {
+	if ((adap->id == I2C_HW_B_CX2388x) ||
+	    (adap->id == I2C_HW_B_CX23885)) {
 		unsigned int i = 0;
 
 		while (i < I2C_CLIENT_MAX_OPTS && ignore[i] != I2C_CLIENT_END)

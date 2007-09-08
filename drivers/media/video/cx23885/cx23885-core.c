@@ -793,6 +793,32 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_ir_init(dev);
 
 	switch (dev->board) {
+	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
+		dev->ts2.reg_gpcnt          = VID_B_GPCNT;
+		dev->ts2.reg_gpcnt_ctl      = VID_B_GPCNT_CTL;
+		dev->ts2.reg_dma_ctl        = VID_B_DMA_CTL;
+		dev->ts2.reg_lngth          = VID_B_LNGTH;
+		dev->ts2.reg_hw_sop_ctrl    = VID_B_HW_SOP_CTL;
+		dev->ts2.reg_gen_ctrl       = VID_B_GEN_CTL;
+		dev->ts2.reg_bd_pkt_status  = VID_B_BD_PKT_STATUS;
+		dev->ts2.reg_sop_status     = VID_B_SOP_STATUS;
+		dev->ts2.reg_fifo_ovfl_stat = VID_B_FIFO_OVFL_STAT;
+		dev->ts2.reg_vld_misc       = VID_B_VLD_MISC;
+		dev->ts2.reg_ts_clk_en      = VID_B_TS_CLK_EN;
+		dev->ts2.reg_ts_int_msk     = VID_B_INT_MSK;
+		dev->ts2.reg_src_sel        = VID_B_SRC_SEL;
+
+		// FIXME: Make this board specific
+		dev->ts2.pci_irqmask = 0x02; /* TS Port 2 bit */
+		dev->ts2.dma_ctl_val = 0x11; /* Enable RISC controller and Fifo */
+		dev->ts2.ts_int_msk_val = 0x1111; /* TS port bits for RISC */
+		dev->ts2.gen_ctrl_val = 0xc; /* Serial bus + punctured clock */
+		dev->ts2.ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		dev->ts2.src_sel_val = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+
+		// Drive this from cards.c (portb/c) and move it outside of this switch
+		dev->ts2.sram_chno = SRAM_CH03;
+		break;
 	default:
 		dev->ts2.reg_gpcnt          = VID_C_GPCNT;
 		dev->ts2.reg_gpcnt_ctl      = VID_C_GPCNT_CTL;

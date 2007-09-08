@@ -507,6 +507,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	static const int probe_cx88[] = { 0x18, 0x6b, 0x71, -1 };
+	static const int probe_cx23885[] = { 0x6b, -1 };
 	const int *probe = NULL;
 	struct i2c_client c;
 	unsigned char buf;
@@ -527,6 +528,8 @@ static int ir_probe(struct i2c_adapter *adap)
 		break;
 	case I2C_HW_B_CX2388x:
 		probe = probe_cx88;
+	case I2C_HW_B_CX23885:
+		probe = probe_cx23885;
 		break;
 	}
 	if (NULL == probe)

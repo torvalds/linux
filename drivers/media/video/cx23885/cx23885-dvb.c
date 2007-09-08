@@ -32,6 +32,8 @@
 
 #include "s5h1409.h"
 #include "mt2131.h"
+#include "lgdt330x.h"
+#include "dvb-pll.h"
 
 static unsigned int debug = 0;
 
@@ -101,6 +103,12 @@ static struct mt2131_config hauppauge_generic_tunerconfig = {
 	0x61
 };
 
+static struct lgdt330x_config fusionhdtv_5_express = {
+	.demod_address = 0x0e,
+	.demod_chip = LGDT3303,
+	.serial_mpeg = 0x40,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -129,6 +137,16 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(mt2131_attach, port->dvb.frontend,
 				   &dev->i2c_bus[0].i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
+		port->dvb.frontend = dvb_attach(lgdt330x_attach,
+						&fusionhdtv_5_express,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			dvb_attach(dvb_pll_attach, port->dvb.frontend,
+				   0x61, &dev->i2c_bus[0].i2c_adap,
+				   DVB_PLL_LG_TDVS_H06XF);
 		}
 		break;
 	default:

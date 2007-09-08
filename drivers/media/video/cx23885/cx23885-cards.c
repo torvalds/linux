@@ -109,6 +109,10 @@ struct cx23885_board cx23885_boards[] = {
 			.gpio0  = 0xff02,
 		}},
 	},
+	[CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP] = {
+		.name		= "DViCO FusionHDTV5 Express",
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -136,6 +140,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x7911,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1250,
+	},{
+		.subvendor = 0x18ac,
+		.subdevice = 0xd500,
+		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
