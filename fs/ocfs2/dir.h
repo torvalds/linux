@@ -26,6 +26,31 @@
 #ifndef OCFS2_DIR_H
 #define OCFS2_DIR_H
 
+struct buffer_head *ocfs2_find_entry(const char *name,
+				     int namelen,
+				     struct inode *dir,
+				     struct ocfs2_dir_entry **res_dir);
+int ocfs2_delete_entry(handle_t *handle,
+		       struct inode *dir,
+		       struct ocfs2_dir_entry *de_del,
+		       struct buffer_head *bh);
+int __ocfs2_add_entry(handle_t *handle,
+		      struct inode *dir,
+		      const char *name, int namelen,
+		      struct inode *inode, u64 blkno,
+		      struct buffer_head *parent_fe_bh,
+		      struct buffer_head *insert_bh);
+static inline int ocfs2_add_entry(handle_t *handle,
+				  struct dentry *dentry,
+				  struct inode *inode, u64 blkno,
+				  struct buffer_head *parent_fe_bh,
+				  struct buffer_head *insert_bh)
+{
+	return __ocfs2_add_entry(handle, dentry->d_parent->d_inode,
+				 dentry->d_name.name, dentry->d_name.len,
+				 inode, blkno, parent_fe_bh, insert_bh);
+}
+
 int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,
 			      int namelen);
@@ -44,11 +69,16 @@ int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 				 int namelen,
 				 struct buffer_head **ret_de_bh);
 struct ocfs2_alloc_context;
-int ocfs2_do_extend_dir(struct super_block *sb,
-			handle_t *handle,
-			struct inode *dir,
-			struct buffer_head *parent_fe_bh,
-			struct ocfs2_alloc_context *data_ac,
-			struct ocfs2_alloc_context *meta_ac,
-			struct buffer_head **new_bh);
+int ocfs2_fill_new_dir(struct ocfs2_super *osb,
+		       handle_t *handle,
+		       struct inode *parent,
+		       struct inode *inode,
+		       struct buffer_head *fe_bh,
+		       struct ocfs2_alloc_context *data_ac);
+
+int ocfs2_check_dir_entry(struct inode *dir,
+			  struct ocfs2_dir_entry *de,
+			  struct buffer_head *bh,
+			  unsigned long offset);
+
 #endif /* OCFS2_DIR_H */
