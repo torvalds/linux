@@ -237,6 +237,13 @@ Channel manager Data Structure entry = 20 DWORD
 #define VID_B_INT_MSTAT	0x00040038
 #define VID_B_INT_SSTAT	0x0004003C
 
+#define VID_B_MSK_BAD_PKT (1 << 20)
+#define VID_B_MSK_OPC_ERR (1 << 16)
+#define VID_B_MSK_SYNC    (1 << 12)
+#define VID_B_MSK_OF      (1 <<  8)
+#define VID_B_MSK_RISCI2  (1 <<  4)
+#define VID_B_MSK_RISCI1   1
+
 #define VID_C_MSK_BAD_PKT (1 << 20)
 #define VID_C_MSK_OPC_ERR (1 << 16)
 #define VID_C_MSK_SYNC    (1 << 12)
@@ -344,8 +351,8 @@ Channel manager Data Structure entry = 20 DWORD
 #define VBI_B_DMA		0x00130108
 #define VID_B_GPCNT		0x00130120
 #define VBI_B_GPCNT		0x00130124
-#define VID_B_GPCNT_CTL		0x00130130
-#define VBI_B_GPCNT_CTL		0x00130134
+#define VID_B_GPCNT_CTL		0x00130134
+#define VBI_B_GPCNT_CTL		0x00130138
 #define VID_B_DMA_CTL		0x00130140
 #define VID_B_SRC_SEL		0x00130144
 #define VID_B_LNGTH		0x00130150
