@@ -111,7 +111,7 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP] = {
 		.name		= "DViCO FusionHDTV5 Express",
-		.portc		= CX23885_MPEG_DVB,
+		.portb		= CX23885_MPEG_DVB,
 	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
@@ -197,8 +197,43 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 			dev->name, tv.model);
 }
 
+void cx23885_gpio_setup(struct cx23885_dev *dev)
+{
+	switch(dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		/* GPIO-0 cx24227 demodulator reset */
+		cx_set(GP0_IO, 0x00010001); /* Bring the part out of reset */
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+		/* GPIO-0 656_CLK */
+		/* GPIO-1 656_D0 */
+		/* GPIO-2 8295A Reset */
+		/* GPIO-3-10 cx23417 data0-7 */
+		/* GPIO-11-14 cx23417 addr0-3 */
+		/* GPIO-15-18 cx23417 READY, CS, RD, WR */
+		/* GPIO-19 IR_RX */
+		// FIXME: Analog requires the tuner is brought out of reset
+		break;
+	}
+}
+
+int cx23885_ir_init(struct cx23885_dev *dev)
+{
+	switch (dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+		/* FIXME: Implement me */
+		break;
+	}
+
+	return 0;
+}
+
 void cx23885_card_setup(struct cx23885_dev *dev)
 {
+	struct cx23885_tsport *ts1 = &dev->ts1;
+	struct cx23885_tsport *ts2 = &dev->ts2;
+
 	static u8 eeprom[256];
 
 	if (dev->i2c_bus[0].i2c_rc == 0) {
@@ -215,6 +250,22 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 			hauppauge_eeprom(dev, eeprom+0x80);
 		break;
 	}
+
+	switch (dev->board) {
+	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
+		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
+		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
+	default:
+		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
+		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+	}
+
 }
 
 /* ------------------------------------------------------------------ */

@@ -160,6 +160,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	}
 
 	/* Put the analog decoder in standby to keep it quiet */
+	/* Assumption here: analog decoder is only on i2c bus 0 */
 	cx23885_call_i2c_clients (&dev->i2c_bus[0], TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
@@ -180,8 +181,6 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 		dev->pci_slot);
 
 	err = -ENODEV;
-	if (!(cx23885_boards[dev->board].portc & CX23885_MPEG_DVB))
-		goto fail_core;
 
 	/* dvb stuff */
 	printk("%s: cx23885 based dvb card\n", dev->name);
@@ -192,7 +191,6 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 	if (err != 0)
 		printk("%s() dvb_register failed err = %d\n", __FUNCTION__, err);
 
- fail_core:
 	return err;
 }
 

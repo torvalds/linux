@@ -168,6 +168,7 @@ struct cx23885_tsport {
 	u32                        reg_vld_misc;
 	u32                        reg_ts_clk_en;
 	u32                        reg_ts_int_msk;
+	u32                        reg_ts_int_stat;
 	u32                        reg_src_sel;
 
 	/* Default register vals */
@@ -201,7 +202,7 @@ struct cx23885_dev {
 	unsigned int               board;
 	char                       name[32];
 
-	struct cx23885_tsport      ts2;
+	struct cx23885_tsport      ts1, ts2;
 
 	/* sram configuration */
 	struct sram_channel        *sram_channels;
@@ -269,6 +270,8 @@ extern struct cx23885_subid cx23885_subids[];
 extern const unsigned int cx23885_idcount;
 
 extern void cx23885_card_list(struct cx23885_dev *dev);
+extern int  cx23885_ir_init(struct cx23885_dev *dev);
+extern void cx23885_gpio_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup(struct cx23885_dev *dev);
 extern void cx23885_card_setup_pre_i2c(struct cx23885_dev *dev);
 

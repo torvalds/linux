@@ -250,14 +250,16 @@ Channel manager Data Structure entry = 20 DWORD
 #define VID_C_MSK_OF      (1 <<  8)
 #define VID_C_MSK_RISCI2  (1 <<  4)
 #define VID_C_MSK_RISCI1   1
-#define VID_C_INT_MSK	0x00040040
 
-#define VID_C_MSK_BAD_PKT (1 << 20)
-#define VID_C_MSK_OPC_ERR (1 << 16)
-#define VID_C_MSK_SYNC    (1 << 12)
-#define VID_C_MSK_OF      (1 <<  8)
-#define VID_C_MSK_RISCI2  (1 <<  4)
-#define VID_C_MSK_RISCI1   1
+/* A superset for testing purposes */
+#define VID_BC_MSK_BAD_PKT (1 << 20)
+#define VID_BC_MSK_OPC_ERR (1 << 16)
+#define VID_BC_MSK_SYNC    (1 << 12)
+#define VID_BC_MSK_OF      (1 <<  8)
+#define VID_BC_MSK_RISCI2  (1 <<  4)
+#define VID_BC_MSK_RISCI1   1
+
+#define VID_C_INT_MSK	0x00040040
 #define VID_C_INT_STAT	0x00040044
 #define VID_C_INT_MSTAT	0x00040048
 #define VID_C_INT_SSTAT	0x0004004C

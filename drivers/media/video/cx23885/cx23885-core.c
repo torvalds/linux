@@ -604,24 +604,7 @@ void cx23885_reset(struct cx23885_dev *dev)
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH08 ], 128, 0);
 	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH09 ], 128, 0);
 
-	switch(dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-		/* GPIO-0 cx24227 demodulator reset */
-		dprintk( 1, "%s() Configuring HVR1250 GPIO's\n", __FUNCTION__);
-		cx_set(GP0_IO, 0x00010001); /* Bring the part out of reset */
-		break;
-	case CX23885_BOARD_HAUPPAUGE_HVR1800:
-		/* GPIO-0 656_CLK */
-		/* GPIO-1 656_D0 */
-		/* GPIO-2 8295A Reset */
-		/* GPIO-3-10 cx23417 data0-7 */
-		/* GPIO-11-14 cx23417 addr0-3 */
-		/* GPIO-15-18 cx23417 READY, CS, RD, WR */
-		/* GPIO-19 IR_RX */
-		dprintk( 1, "%s() Configuring HVR1800 GPIO's\n", __FUNCTION__);
-		// FIXME: Analog requires the tuner is brought out of reset
-		break;
-	}
+	cx23885_gpio_setup(dev);
 }
 
 
@@ -656,16 +639,67 @@ static void cx23885_timeout(unsigned long data);
 int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 			 u32 reg, u32 mask, u32 value);
 
-static int cx23885_ir_init(struct cx23885_dev *dev)
+static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *port, int portno)
 {
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s(portno=%d)\n", __FUNCTION__, portno);
 
-	switch (dev->board) {
-	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800:
-		dprintk(1, "%s() FIXME - Implement IR support\n", __FUNCTION__);
+	/* Transport bus init dma queue  - Common settings */
+	port->dma_ctl_val        = 0x11; /* Enable RISC controller and Fifo */
+	port->ts_int_msk_val     = 0x1111; /* TS port bits for RISC */
+
+	spin_lock_init(&port->slock);
+	port->dev = dev;
+	port->nr = portno;
+
+	INIT_LIST_HEAD(&port->mpegq.active);
+	INIT_LIST_HEAD(&port->mpegq.queued);
+	port->mpegq.timeout.function = cx23885_timeout;
+	port->mpegq.timeout.data = (unsigned long)port;
+	init_timer(&port->mpegq.timeout);
+
+	switch(portno) {
+	case 1:
+		port->reg_gpcnt          = VID_B_GPCNT;
+		port->reg_gpcnt_ctl      = VID_B_GPCNT_CTL;
+		port->reg_dma_ctl        = VID_B_DMA_CTL;
+		port->reg_lngth          = VID_B_LNGTH;
+		port->reg_hw_sop_ctrl    = VID_B_HW_SOP_CTL;
+		port->reg_gen_ctrl       = VID_B_GEN_CTL;
+		port->reg_bd_pkt_status  = VID_B_BD_PKT_STATUS;
+		port->reg_sop_status     = VID_B_SOP_STATUS;
+		port->reg_fifo_ovfl_stat = VID_B_FIFO_OVFL_STAT;
+		port->reg_vld_misc       = VID_B_VLD_MISC;
+		port->reg_ts_clk_en      = VID_B_TS_CLK_EN;
+		port->reg_src_sel        = VID_B_SRC_SEL;
+		port->reg_ts_int_msk     = VID_B_INT_MSK;
+		port->reg_ts_int_stat   = VID_B_INT_STAT;
+		port->sram_chno          = SRAM_CH03; /* VID_B */
+		port->pci_irqmask        = 0x02; /* VID_B bit1 */
 		break;
+	case 2:
+		port->reg_gpcnt          = VID_C_GPCNT;
+		port->reg_gpcnt_ctl      = VID_C_GPCNT_CTL;
+		port->reg_dma_ctl        = VID_C_DMA_CTL;
+		port->reg_lngth          = VID_C_LNGTH;
+		port->reg_hw_sop_ctrl    = VID_C_HW_SOP_CTL;
+		port->reg_gen_ctrl       = VID_C_GEN_CTL;
+		port->reg_bd_pkt_status  = VID_C_BD_PKT_STATUS;
+		port->reg_sop_status     = VID_C_SOP_STATUS;
+		port->reg_fifo_ovfl_stat = VID_C_FIFO_OVFL_STAT;
+		port->reg_vld_misc       = VID_C_VLD_MISC;
+		port->reg_ts_clk_en      = VID_C_TS_CLK_EN;
+		port->reg_src_sel        = 0;
+		port->reg_ts_int_msk     = VID_C_INT_MSK;
+		port->reg_ts_int_stat    = VID_C_INT_STAT;
+		port->sram_chno          = SRAM_CH06; /* VID_C */
+		port->pci_irqmask        = 0x04; /* VID_C bit2 */
+		break;
+	default:
+		BUG();
 	}
+
+	cx23885_risc_stopper(dev->pci, &port->mpegq.stopper,
+		     port->reg_dma_ctl, port->dma_ctl_val, 0x00);
 
 	return 0;
 }
@@ -746,16 +780,11 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->i2c_bus[2].reg_wdata = I2C3_WDATA;
 	dev->i2c_bus[2].i2c_period = (0x07 << 24); /* 1.95MHz */
 
-	/* Transport bus init dma queue */
-	spin_lock_init(&dev->ts2.slock);
-	dev->ts2.dev = dev;
-	dev->ts2.nr = 2;
+	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
+		cx23885_init_tsport(dev, &dev->ts1, 1);
 
-	INIT_LIST_HEAD(&dev->ts2.mpegq.active);
-	INIT_LIST_HEAD(&dev->ts2.mpegq.queued);
-	dev->ts2.mpegq.timeout.function = cx23885_timeout;
-	dev->ts2.mpegq.timeout.data     = (unsigned long)&dev->ts2;
-	init_timer(&dev->ts2.mpegq.timeout);
+	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
+		cx23885_init_tsport(dev, &dev->ts2, 2);
 
 	if (get_resources(dev) < 0) {
 		printk(KERN_ERR "CORE %s No more PCIe resources for "
@@ -788,71 +817,21 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_i2c_register(&dev->i2c_bus[1]);
 	cx23885_i2c_register(&dev->i2c_bus[2]);
 	cx23885_call_i2c_clients (&dev->i2c_bus[0], TUNER_SET_STANDBY, NULL);
-
 	cx23885_card_setup(dev);
 	cx23885_ir_init(dev);
 
-	switch (dev->board) {
-	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
-		dev->ts2.reg_gpcnt          = VID_B_GPCNT;
-		dev->ts2.reg_gpcnt_ctl      = VID_B_GPCNT_CTL;
-		dev->ts2.reg_dma_ctl        = VID_B_DMA_CTL;
-		dev->ts2.reg_lngth          = VID_B_LNGTH;
-		dev->ts2.reg_hw_sop_ctrl    = VID_B_HW_SOP_CTL;
-		dev->ts2.reg_gen_ctrl       = VID_B_GEN_CTL;
-		dev->ts2.reg_bd_pkt_status  = VID_B_BD_PKT_STATUS;
-		dev->ts2.reg_sop_status     = VID_B_SOP_STATUS;
-		dev->ts2.reg_fifo_ovfl_stat = VID_B_FIFO_OVFL_STAT;
-		dev->ts2.reg_vld_misc       = VID_B_VLD_MISC;
-		dev->ts2.reg_ts_clk_en      = VID_B_TS_CLK_EN;
-		dev->ts2.reg_ts_int_msk     = VID_B_INT_MSK;
-		dev->ts2.reg_src_sel        = VID_B_SRC_SEL;
-
-		// FIXME: Make this board specific
-		dev->ts2.pci_irqmask = 0x02; /* TS Port 2 bit */
-		dev->ts2.dma_ctl_val = 0x11; /* Enable RISC controller and Fifo */
-		dev->ts2.ts_int_msk_val = 0x1111; /* TS port bits for RISC */
-		dev->ts2.gen_ctrl_val = 0xc; /* Serial bus + punctured clock */
-		dev->ts2.ts_clk_en_val = 0x1; /* Enable TS_CLK */
-		dev->ts2.src_sel_val = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
-
-		// Drive this from cards.c (portb/c) and move it outside of this switch
-		dev->ts2.sram_chno = SRAM_CH03;
-		break;
-	default:
-		dev->ts2.reg_gpcnt          = VID_C_GPCNT;
-		dev->ts2.reg_gpcnt_ctl      = VID_C_GPCNT_CTL;
-		dev->ts2.reg_dma_ctl        = VID_C_DMA_CTL;
-		dev->ts2.reg_lngth          = VID_C_LNGTH;
-		dev->ts2.reg_hw_sop_ctrl    = VID_C_HW_SOP_CTL;
-		dev->ts2.reg_gen_ctrl       = VID_C_GEN_CTL;
-		dev->ts2.reg_bd_pkt_status  = VID_C_BD_PKT_STATUS;
-		dev->ts2.reg_sop_status     = VID_C_SOP_STATUS;
-		dev->ts2.reg_fifo_ovfl_stat = VID_C_FIFO_OVFL_STAT;
-		dev->ts2.reg_vld_misc       = VID_C_VLD_MISC;
-		dev->ts2.reg_ts_clk_en      = VID_C_TS_CLK_EN;
-		dev->ts2.reg_ts_int_msk     = VID_C_INT_MSK;
-		dev->ts2.reg_src_sel        = 0;
-
-		// FIXME: Make this board specific
-		dev->ts2.pci_irqmask = 0x04; /* TS Port 2 bit */
-		dev->ts2.dma_ctl_val = 0x11; /* Enable RISC controller and Fifo */
-		dev->ts2.ts_int_msk_val = 0x1111; /* TS port bits for RISC */
-		dev->ts2.gen_ctrl_val = 0xc; /* Serial bus + punctured clock */
-		dev->ts2.ts_clk_en_val = 0x1; /* Enable TS_CLK */
-		dev->ts2.src_sel_val = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
-
-		// Drive this from cards.c (portb/c) and move it outside of this switch
-		dev->ts2.sram_chno = SRAM_CH06;
+	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
+		if (cx23885_dvb_register(&dev->ts1) < 0) {
+			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
+			       __FUNCTION__);
+		}
 	}
 
-	cx23885_risc_stopper(dev->pci, &dev->ts2.mpegq.stopper,
-			     dev->ts2.reg_dma_ctl, dev->ts2.dma_ctl_val, 0x00);
-
-	// FIXME: This should only be called if ts2 is being used, driven by cards.c
-	if (cx23885_dvb_register(&dev->ts2) < 0) {
-		printk(KERN_ERR "%s() Failed to register dvb adapters\n",
-		       __FUNCTION__);
+	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
+		if (cx23885_dvb_register(&dev->ts2) < 0) {
+			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_C\n",
+			       __FUNCTION__);
+		}
 	}
 
 	return 0;
@@ -870,7 +849,12 @@ void cx23885_dev_unregister(struct cx23885_dev *dev)
 	if (!atomic_dec_and_test(&dev->refcount))
 		return;
 
-	cx23885_dvb_unregister(&dev->ts2);
+	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
+		cx23885_dvb_unregister(&dev->ts1);
+
+	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
+		cx23885_dvb_unregister(&dev->ts2);
+
 	cx23885_i2c_unregister(&dev->i2c_bus[2]);
 	cx23885_i2c_unregister(&dev->i2c_bus[1]);
 	cx23885_i2c_unregister(&dev->i2c_bus[0]);
@@ -1289,14 +1273,66 @@ static void cx23885_timeout(unsigned long data)
 	do_cancel_buffers(port, "timeout", 1);
 }
 
+static int cx23885_irq_ts(struct cx23885_tsport *port, u32 status)
+{
+	struct cx23885_dev *dev = port->dev;
+	int handled = 0;
+	u32 count;
+
+	if ( (status & VID_BC_MSK_OPC_ERR) ||
+	     (status & VID_BC_MSK_BAD_PKT) ||
+	     (status & VID_BC_MSK_SYNC) ||
+	     (status & VID_BC_MSK_OF))
+	{
+		if (status & VID_BC_MSK_OPC_ERR)
+			dprintk(7, " (VID_BC_MSK_OPC_ERR 0x%08x)\n", VID_BC_MSK_OPC_ERR);
+		if (status & VID_BC_MSK_BAD_PKT)
+			dprintk(7, " (VID_BC_MSK_BAD_PKT 0x%08x)\n", VID_BC_MSK_BAD_PKT);
+		if (status & VID_BC_MSK_SYNC)
+			dprintk(7, " (VID_BC_MSK_SYNC    0x%08x)\n", VID_BC_MSK_SYNC);
+		if (status & VID_BC_MSK_OF)
+			dprintk(7, " (VID_BC_MSK_OF      0x%08x)\n", VID_BC_MSK_OF);
+
+		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
+
+		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
+		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
+
+	} else if (status & VID_BC_MSK_RISCI1) {
+
+		dprintk(7, " (RISCI1            0x%08x)\n", VID_BC_MSK_RISCI1);
+
+		spin_lock(&port->slock);
+		count = cx_read(port->reg_gpcnt);
+		cx23885_wakeup(port, &port->mpegq, count);
+		spin_unlock(&port->slock);
+
+	} else if (status & VID_BC_MSK_RISCI2) {
+
+		dprintk(7, " (RISCI2            0x%08x)\n", VID_BC_MSK_RISCI2);
+
+		spin_lock(&port->slock);
+		cx23885_restart_queue(port, &port->mpegq);
+		spin_unlock(&port->slock);
+
+	}
+	if (status) {
+		cx_write(port->reg_ts_int_stat, status);
+		handled = 1;
+	}
+
+	return handled;
+}
+
 static irqreturn_t cx23885_irq(int irq, void *dev_id)
 {
 	struct cx23885_dev *dev = dev_id;
-	struct cx23885_tsport *port = &dev->ts2;
+	struct cx23885_tsport *ts1 = &dev->ts1;
+	struct cx23885_tsport *ts2 = &dev->ts2;
 	u32 pci_status, pci_mask;
 	u32 ts1_status, ts1_mask;
 	u32 ts2_status, ts2_mask;
-	int count = 0, handled = 0;
+	int ts1_count = 0, ts2_count = 0, handled = 0;
 
 	pci_status = cx_read(PCI_INT_STAT);
 	pci_mask = cx_read(PCI_INT_MSK);
@@ -1308,10 +1344,11 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	if ( (pci_status == 0) && (ts2_status == 0) && (ts1_status == 0) )
 		goto out;
 
-	count = cx_read(port->reg_gpcnt);
+	ts1_count = cx_read(ts1->reg_gpcnt);
+	ts2_count = cx_read(ts2->reg_gpcnt);
 	dprintk(7, "pci_status: 0x%08x  pci_mask: 0x%08x\n", pci_status, pci_mask );
-	dprintk(7, "ts1_status: 0x%08x  ts1_mask: 0x%08x count: 0x%x\n", ts1_status, ts1_mask, count );
-	dprintk(7, "ts2_status: 0x%08x  ts2_mask: 0x%08x count: 0x%x\n", ts2_status, ts2_mask, count );
+	dprintk(7, "ts1_status: 0x%08x  ts1_mask: 0x%08x count: 0x%x\n", ts1_status, ts1_mask, ts1_count );
+	dprintk(7, "ts2_status: 0x%08x  ts2_mask: 0x%08x count: 0x%x\n", ts2_status, ts2_mask, ts2_count );
 
 	if ( (pci_status & PCI_MSK_RISC_RD) ||
 	     (pci_status & PCI_MSK_RISC_WR) ||
@@ -1348,90 +1385,11 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 
 	}
 
-	if ( (ts1_status & VID_B_MSK_OPC_ERR) ||
-	     (ts1_status & VID_B_MSK_BAD_PKT) ||
-	     (ts1_status & VID_B_MSK_SYNC) ||
-	     (ts1_status & VID_B_MSK_OF))
-	{
-		if (ts1_status & VID_B_MSK_OPC_ERR)
-			dprintk(7, " (VID_B_MSK_OPC_ERR 0x%08x)\n", VID_B_MSK_OPC_ERR);
-		if (ts1_status & VID_B_MSK_BAD_PKT)
-			dprintk(7, " (VID_B_MSK_BAD_PKT 0x%08x)\n", VID_B_MSK_BAD_PKT);
-		if (ts1_status & VID_B_MSK_SYNC)
-			dprintk(7, " (VID_B_MSK_SYNC    0x%08x)\n", VID_B_MSK_SYNC);
-		if (ts1_status & VID_B_MSK_OF)
-			dprintk(7, " (VID_B_MSK_OF      0x%08x)\n", VID_B_MSK_OF);
+	if (ts1_status)
+		handled += cx23885_irq_ts(ts1, ts1_status);
 
-		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
-
-		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
-		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
-
-	} else if (ts1_status & VID_B_MSK_RISCI1) {
-
-		dprintk(7, " (RISCI1            0x%08x)\n", VID_B_MSK_RISCI1);
-
-		spin_lock(&port->slock);
-		count = cx_read(port->reg_gpcnt);
-		cx23885_wakeup(port, &port->mpegq, count);
-		spin_unlock(&port->slock);
-
-	} else if (ts1_status & VID_B_MSK_RISCI2) {
-
-		dprintk(7, " (RISCI2            0x%08x)\n", VID_B_MSK_RISCI2);
-
-		spin_lock(&port->slock);
-		cx23885_restart_queue(port, &port->mpegq);
-		spin_unlock(&port->slock);
-
-	}
-	if (ts1_status) {
-		cx_write(VID_B_INT_STAT, ts1_status);
-		handled = 1;
-	}
-
-	if ( (ts2_status & VID_C_MSK_OPC_ERR) ||
-	     (ts2_status & VID_C_MSK_BAD_PKT) ||
-	     (ts2_status & VID_C_MSK_SYNC) ||
-	     (ts2_status & VID_C_MSK_OF))
-	{
-		if (ts2_status & VID_C_MSK_OPC_ERR)
-			dprintk(7, " (VID_C_MSK_OPC_ERR 0x%08x)\n", VID_C_MSK_OPC_ERR);
-		if (ts2_status & VID_C_MSK_BAD_PKT)
-			dprintk(7, " (VID_C_MSK_BAD_PKT 0x%08x)\n", VID_C_MSK_BAD_PKT);
-		if (ts2_status & VID_C_MSK_SYNC)
-			dprintk(7, " (VID_C_MSK_SYNC    0x%08x)\n", VID_C_MSK_SYNC);
-		if (ts2_status & VID_C_MSK_OF)
-			dprintk(7, " (VID_C_MSK_OF      0x%08x)\n", VID_C_MSK_OF);
-
-		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
-
-		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
-		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
-
-	} else if (ts2_status & VID_C_MSK_RISCI1) {
-
-		dprintk(7, " (RISCI1            0x%08x)\n", VID_C_MSK_RISCI1);
-
-		spin_lock(&port->slock);
-		count = cx_read(port->reg_gpcnt);
-		cx23885_wakeup(port, &port->mpegq, count);
-		spin_unlock(&port->slock);
-
-	} else if (ts2_status & VID_C_MSK_RISCI2) {
-
-		dprintk(7, " (RISCI2            0x%08x)\n", VID_C_MSK_RISCI2);
-
-		spin_lock(&port->slock);
-		cx23885_restart_queue(port, &port->mpegq);
-		spin_unlock(&port->slock);
-
-	}
-
-	if (ts2_status) {
-		cx_write(VID_C_INT_STAT, ts2_status);
-		handled = 1;
-	}
+	if (ts2_status)
+		handled += cx23885_irq_ts(ts2, ts2_status);
 
 	if (handled)
 		cx_write(PCI_INT_STAT, pci_status);
