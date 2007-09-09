@@ -66,7 +66,8 @@ static int ch341_control_in(struct usb_device *dev,
 	return r;
 }
 
-int ch341_set_baudrate(struct usb_device *dev, struct ch341_private *priv)
+static int ch341_set_baudrate(struct usb_device *dev,
+			      struct ch341_private *priv)
 {
 	short a, b;
 	int r;
@@ -108,14 +109,15 @@ int ch341_set_baudrate(struct usb_device *dev, struct ch341_private *priv)
 	return r;
 }
 
-int ch341_set_handshake(struct usb_device *dev, struct ch341_private *priv)
+static int ch341_set_handshake(struct usb_device *dev,
+			       struct ch341_private *priv)
 {
 	dbg("ch341_set_handshake(%d,%d)", priv->dtr, priv->rts);
 	return ch341_control_out(dev, 0xa4,
 		~((priv->dtr?1<<5:0)|(priv->rts?1<<6:0)), 0);
 }
 
-int ch341_get_status(struct usb_device *dev)
+static int ch341_get_status(struct usb_device *dev)
 {
 	char *buffer;
 	int r;
@@ -142,7 +144,7 @@ out:	kfree(buffer);
 
 /* -------------------------------------------------------------------------- */
 
-int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
+static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 {
 	char *buffer;
 	int r;
