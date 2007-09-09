@@ -161,7 +161,7 @@ static void platform_device_release(struct device *dev)
  *	Create a platform device object which can have other objects attached
  *	to it, and which will have attached objects freed when it is released.
  */
-struct platform_device *platform_device_alloc(const char *name, unsigned int id)
+struct platform_device *platform_device_alloc(const char *name, int id)
 {
 	struct platform_object *pa;
 
@@ -245,7 +245,8 @@ int platform_device_add(struct platform_device *pdev)
 	pdev->dev.bus = &platform_bus_type;
 
 	if (pdev->id != -1)
-		snprintf(pdev->dev.bus_id, BUS_ID_SIZE, "%s.%u", pdev->name, pdev->id);
+		snprintf(pdev->dev.bus_id, BUS_ID_SIZE, "%s.%d", pdev->name,
+			 pdev->id);
 	else
 		strlcpy(pdev->dev.bus_id, pdev->name, BUS_ID_SIZE);
 
@@ -359,7 +360,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *	the Linux driver model.  In particular, when such drivers are built
  *	as modules, they can't be "hotplugged".
  */
-struct platform_device *platform_device_register_simple(char *name, unsigned int id,
+struct platform_device *platform_device_register_simple(char *name, int id,
 							struct resource *res, unsigned int num)
 {
 	struct platform_device *pdev;
