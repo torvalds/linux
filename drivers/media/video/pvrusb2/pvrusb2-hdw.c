@@ -1143,6 +1143,13 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 			fw_files_24xxx, ARRAY_SIZE(fw_files_24xxx)
 		},
 	};
+
+	if ((hdw->hdw_type >= ARRAY_SIZE(fw_file_defs)) ||
+	    (!fw_file_defs[hdw->hdw_type].lst)) {
+		hdw->fw1_state = FW1_STATE_OK;
+		return 0;
+	}
+
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
 
 	trace_firmware("pvr2_upload_firmware1");
@@ -1223,6 +1230,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	static const char *fw_files[] = {
 		CX2341X_FIRM_ENC_FILENAME,
 	};
+
+	if ((hdw->hdw_type != PVR2_HDW_TYPE_29XXX) &&
+	    (hdw->hdw_type != PVR2_HDW_TYPE_24XXX)) {
+		return 0;
+	}
 
 	trace_firmware("pvr2_upload_firmware2");
 
@@ -1742,29 +1754,35 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	struct pvr2_ctrl *cptr;
 	int reloadFl = 0;
-	if (!reloadFl) {
-		reloadFl = (hdw->usb_intf->cur_altsetting->desc.bNumEndpoints
-			    == 0);
+	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
+	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+		if (!reloadFl) {
+			reloadFl =
+				(hdw->usb_intf->cur_altsetting->desc.bNumEndpoints
+				 == 0);
+			if (reloadFl) {
+				pvr2_trace(PVR2_TRACE_INIT,
+					   "USB endpoint config looks strange"
+					   "; possibly firmware needs to be"
+					   " loaded");
+			}
+		}
+		if (!reloadFl) {
+			reloadFl = !pvr2_hdw_check_firmware(hdw);
+			if (reloadFl) {
+				pvr2_trace(PVR2_TRACE_INIT,
+					   "Check for FX2 firmware failed"
+					   "; possibly firmware needs to be"
+					   " loaded");
+			}
+		}
 		if (reloadFl) {
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "USB endpoint config looks strange"
-				   "; possibly firmware needs to be loaded");
+			if (pvr2_upload_firmware1(hdw) != 0) {
+				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+					   "Failure uploading firmware1");
+			}
+			return;
 		}
-	}
-	if (!reloadFl) {
-		reloadFl = !pvr2_hdw_check_firmware(hdw);
-		if (reloadFl) {
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "Check for FX2 firmware failed"
-				   "; possibly firmware needs to be loaded");
-		}
-	}
-	if (reloadFl) {
-		if (pvr2_upload_firmware1(hdw) != 0) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Failure uploading firmware1");
-		}
-		return;
 	}
 	hdw->fw1_state = FW1_STATE_OK;
 
@@ -1773,17 +1791,25 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	for (idx = 0; idx < pvr2_client_lists[hdw->hdw_type].cnt; idx++) {
-		request_module(pvr2_client_lists[hdw->hdw_type].lst[idx]);
+	if (hdw->hdw_type < ARRAY_SIZE(pvr2_client_lists)) {
+		for (idx = 0;
+		     idx < pvr2_client_lists[hdw->hdw_type].cnt;
+		     idx++) {
+			request_module(
+				pvr2_client_lists[hdw->hdw_type].lst[idx]);
+		}
 	}
 
-	pvr2_hdw_cmd_powerup(hdw);
-	if (!pvr2_hdw_dev_ok(hdw)) return;
+	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
+	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+		pvr2_hdw_cmd_powerup(hdw);
+		if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	if (pvr2_upload_firmware2(hdw)){
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,"device unstable!!");
-		pvr2_hdw_render_useless(hdw);
-		return;
+		if (pvr2_upload_firmware2(hdw)){
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,"device unstable!!");
+			pvr2_hdw_render_useless(hdw);
+			return;
+		}
 	}
 
 	// This step MUST happen after the earlier powerup step.
