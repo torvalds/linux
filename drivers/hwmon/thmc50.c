@@ -47,10 +47,10 @@ I2C_CLIENT_MODULE_PARM(adm1022_temp3, "List of adapter,address pairs "
 #define THMC50_REG_DIE_CODE			0x3F
 #define THMC50_REG_ANALOG_OUT			0x19
 /*
- * We use mirror status register for reading alarms
- * so ACPI can use the primary status register.
+ * The mirror status register cannot be used as
+ * reading it does not clear alarms.
  */
-#define THMC50_REG_INTR_MIRROR			0x4C
+#define THMC50_REG_INTR				0x41
 
 const static u8 THMC50_REG_TEMP[] = { 0x27, 0x26, 0x20 };
 const static u8 THMC50_REG_TEMP_MIN[] = { 0x3A, 0x38, 0x2C };
@@ -441,7 +441,7 @@ static struct thmc50_data *thmc50_update_device(struct device *dev)
 		data->analog_out =
 		    i2c_smbus_read_byte_data(client, THMC50_REG_ANALOG_OUT);
 		data->alarms =
-		    i2c_smbus_read_byte_data(client, THMC50_REG_INTR_MIRROR);
+		    i2c_smbus_read_byte_data(client, THMC50_REG_INTR);
 		data->last_updated = jiffies;
 		data->valid = 1;
 	}
