@@ -3176,23 +3176,24 @@ static void asc_scsi_done(struct scsi_cmnd *scp)
  * in the 'scp' result field.
  */
 static int
-advansys_queuecommand(struct scsi_cmnd *scp, void (*done) (struct scsi_cmnd *))
+advansys_queuecommand(struct scsi_cmnd *scp, void (*done)(struct scsi_cmnd *))
 {
-	struct Scsi_Host *shost;
-	asc_board_t *boardp;
-	ulong flags;
+	struct Scsi_Host *shost = scp->device->host;
+	asc_board_t *boardp = ASC_BOARDP(shost);
+	unsigned long flags;
 	int asc_res, result = 0;
 
-	shost = scp->device->host;
-	boardp = ASC_BOARDP(shost);
 	ASC_STATS(shost, queuecommand);
-
-	/* host_lock taken by mid-level prior to call but need to protect */
-	/* against own ISR */
-	spin_lock_irqsave(&boardp->lock, flags);
-
 	scp->scsi_done = done;
+
+	/*
+	 * host_lock taken by mid-level prior to call, but need
+	 * to protect against own ISR
+	 */
+	spin_lock_irqsave(&boardp->lock, flags);
 	asc_res = asc_execute_scsi_cmnd(scp);
+	spin_unlock_irqrestore(&boardp->lock, flags);
+
 	switch (asc_res) {
 	case ASC_NOERROR:
 		break;
@@ -3201,11 +3202,9 @@ advansys_queuecommand(struct scsi_cmnd *scp, void (*done) (struct scsi_cmnd *))
 		break;
 	case ASC_ERROR:
 	default:
-		/* Interrupts could be enabled here. */
 		asc_scsi_done(scp);
 		break;
 	}
-	spin_unlock_irqrestore(&boardp->lock, flags);
 
 	return result;
 }
