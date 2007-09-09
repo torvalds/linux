@@ -881,11 +881,6 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *svm_data)
 	svm->vmcb->control.asid = svm_data->next_asid++;
 }
 
-static void svm_invlpg(struct kvm_vcpu *vcpu, gva_t address)
-{
-	invlpga(address, to_svm(vcpu)->vmcb->control.asid); // is needed?
-}
-
 static unsigned long svm_get_dr(struct kvm_vcpu *vcpu, int dr)
 {
 	return to_svm(vcpu)->db_regs[dr];
@@ -1795,7 +1790,6 @@ static struct kvm_arch_ops svm_arch_ops = {
 	.get_rflags = svm_get_rflags,
 	.set_rflags = svm_set_rflags,
 
-	.invlpg = svm_invlpg,
 	.tlb_flush = svm_flush_tlb,
 	.inject_page_fault = svm_inject_page_fault,
 
