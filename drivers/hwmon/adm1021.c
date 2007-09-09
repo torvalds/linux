@@ -147,6 +147,14 @@ static ssize_t show_temp_min(struct device *dev,
 	return sprintf(buf, "%d\n", 1000 * data->temp_min[index]);
 }
 
+static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	int index = to_sensor_dev_attr(attr)->index;
+	struct adm1021_data *data = adm1021_update_device(dev);
+	return sprintf(buf, "%u\n", (data->alarms >> index) & 1);
+}
+
 static ssize_t show_alarms(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -203,6 +211,12 @@ static SENSOR_DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_temp_max,
 			  set_temp_max, 1);
 static SENSOR_DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_temp_min,
 			  set_temp_min, 1);
+static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
+static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL, 5);
+static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
+
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 
 static int adm1021_attach_adapter(struct i2c_adapter *adapter)
@@ -219,6 +233,11 @@ static struct attribute *adm1021_attributes[] = {
 	&sensor_dev_attr_temp2_max.dev_attr.attr,
 	&sensor_dev_attr_temp2_min.dev_attr.attr,
 	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_min_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
 	&dev_attr_alarms.attr,
 	NULL
 };
