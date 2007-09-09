@@ -112,6 +112,7 @@ static struct lgdt330x_config fusionhdtv_5_express = {
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
+	struct cx23885_i2c *i2c_bus = NULL;
 
 	/* init struct videobuf_dvb */
 	port->dvb.name = dev->name;
@@ -120,33 +121,35 @@ static int dvb_register(struct cx23885_tsport *port)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_generic_config,
-						&dev->i2c_bus[0].i2c_adap);
+						&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL) {
 			dvb_attach(mt2131_attach, port->dvb.frontend,
-				   &dev->i2c_bus[0].i2c_adap,
+				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
+		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_hvr1800lp_config,
-						&dev->i2c_bus[0].i2c_adap);
+						&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL) {
 			dvb_attach(mt2131_attach, port->dvb.frontend,
-				   &dev->i2c_bus[0].i2c_adap,
+				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
 		}
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
+		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(lgdt330x_attach,
 						&fusionhdtv_5_express,
-						&dev->i2c_bus[0].i2c_adap);
+						&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL) {
-			dvb_attach(dvb_pll_attach, port->dvb.frontend,
-				   0x61, &dev->i2c_bus[0].i2c_adap,
-				   DVB_PLL_LG_TDVS_H06XF);
+			dvb_attach(dvb_pll_attach, port->dvb.frontend, 0x61,
+				   &i2c_bus->i2c_adap, DVB_PLL_LG_TDVS_H06XF);
 		}
 		break;
 	default:
@@ -160,8 +163,7 @@ static int dvb_register(struct cx23885_tsport *port)
 	}
 
 	/* Put the analog decoder in standby to keep it quiet */
-	/* Assumption here: analog decoder is only on i2c bus 0 */
-	cx23885_call_i2c_clients (&dev->i2c_bus[0], TUNER_SET_STANDBY, NULL);
+	cx23885_call_i2c_clients(i2c_bus, TUNER_SET_STANDBY, NULL);
 
 	/* register everything */
 	return videobuf_dvb_register(&port->dvb, THIS_MODULE, port,
