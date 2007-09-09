@@ -2172,6 +2172,7 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 {
+	if (!hdw) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_destroy: hdw=%p",hdw);
 	if (hdw->fw_buffer) {
 		kfree(hdw->fw_buffer);
