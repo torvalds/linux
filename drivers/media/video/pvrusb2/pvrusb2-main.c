@@ -41,6 +41,7 @@
 
 #define DEFAULT_DEBUG_MASK (PVR2_TRACE_ERROR_LEGS| \
 			    PVR2_TRACE_INFO| \
+			    PVR2_TRACE_STD| \
 			    PVR2_TRACE_TOLERANCE| \
 			    PVR2_TRACE_TRAP| \
 			    0)

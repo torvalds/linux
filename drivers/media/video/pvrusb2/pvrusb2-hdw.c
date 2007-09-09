@@ -1741,7 +1741,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	std1 = get_default_standard(hdw);
 
 	bcnt = pvr2_std_id_to_str(buf,sizeof(buf),hdw->std_mask_eeprom);
-	pvr2_trace(PVR2_TRACE_INIT,
+	pvr2_trace(PVR2_TRACE_STD,
 		   "Supported video standard(s) reported by eeprom: %.*s",
 		   bcnt,buf);
 
@@ -1750,7 +1750,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	std2 = std1 & ~hdw->std_mask_avail;
 	if (std2) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std2);
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Expanding supported video standards"
 			   " to include: %.*s",
 			   bcnt,buf);
@@ -1761,7 +1761,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 
 	if (std1) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std1);
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Initial video standard forced to %.*s",
 			   bcnt,buf);
 		hdw->std_mask_cur = std1;
@@ -1781,7 +1781,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 			     hdw->std_mask_eeprom)) continue;
 			bcnt = pvr2_std_id_to_str(buf,sizeof(buf),
 						  std_eeprom_maps[idx].std);
-			pvr2_trace(PVR2_TRACE_INIT,
+			pvr2_trace(PVR2_TRACE_STD,
 				   "Initial video standard guessed as %.*s",
 				   bcnt,buf);
 			hdw->std_mask_cur = std_eeprom_maps[idx].std;
@@ -1796,7 +1796,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 		hdw->std_enum_cur = 1;
 		hdw->std_mask_cur = hdw->std_defs[hdw->std_enum_cur-1].id;
 		hdw->std_dirty = !0;
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Initial video standard auto-selected to %s",
 			   hdw->std_defs[hdw->std_enum_cur-1].name);
 		return;
