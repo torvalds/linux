@@ -274,7 +274,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 			access_bits &= ~PT_WRITABLE_MASK;
 			if (is_writeble_pte(spte)) {
 				spte &= ~PT_WRITABLE_MASK;
-				kvm_arch_ops->tlb_flush(vcpu);
+				kvm_x86_ops->tlb_flush(vcpu);
 			}
 			if (write_fault)
 				*ptwrite = 1;

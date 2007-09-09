@@ -441,7 +441,7 @@ struct descriptor_table {
 	unsigned long base;
 } __attribute__((packed));
 
-struct kvm_arch_ops {
+struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
 	void (*hardware_enable)(void *dummy);      /* __init */
@@ -499,7 +499,7 @@ struct kvm_arch_ops {
 	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
 };
 
-extern struct kvm_arch_ops *kvm_arch_ops;
+extern struct kvm_x86_ops *kvm_x86_ops;
 
 /* The guest did something we don't support. */
 #define pr_unimpl(vcpu, fmt, ...)					\
@@ -515,9 +515,9 @@ extern struct kvm_arch_ops *kvm_arch_ops;
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
-int kvm_init_arch(struct kvm_arch_ops *ops, unsigned int vcpu_size,
+int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		  struct module *module);
-void kvm_exit_arch(void);
+void kvm_exit_x86(void);
 
 int kvm_mmu_module_init(void);
 void kvm_mmu_module_exit(void);

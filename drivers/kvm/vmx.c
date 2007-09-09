@@ -2548,7 +2548,7 @@ static void __init vmx_check_processor_compat(void *rtn)
 	}
 }
 
-static struct kvm_arch_ops vmx_arch_ops = {
+static struct kvm_x86_ops vmx_x86_ops = {
 	.cpu_has_kvm_support = cpu_has_kvm_support,
 	.disabled_by_bios = vmx_disabled_by_bios,
 	.hardware_setup = hardware_setup,
@@ -2627,7 +2627,7 @@ static int __init vmx_init(void)
 	memset(iova, 0xff, PAGE_SIZE);
 	kunmap(vmx_io_bitmap_b);
 
-	r = kvm_init_arch(&vmx_arch_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
+	r = kvm_init_x86(&vmx_x86_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
 	if (r)
 		goto out1;
 
@@ -2645,7 +2645,7 @@ static void __exit vmx_exit(void)
 	__free_page(vmx_io_bitmap_b);
 	__free_page(vmx_io_bitmap_a);
 
-	kvm_exit_arch();
+	kvm_exit_x86();
 }
 
 module_init(vmx_init)
