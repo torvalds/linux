@@ -531,7 +531,7 @@ static int alloc_mad(struct ib_sa_query *query, gfp_t gfp_mask)
 					    query->sm_ah->pkey_index,
 					    0, IB_MGMT_SA_HDR, IB_MGMT_SA_DATA,
 					    gfp_mask);
-	if (!query->mad_buf) {
+	if (IS_ERR(query->mad_buf)) {
 		kref_put(&query->sm_ah->ref, free_sm_ah);
 		return -ENOMEM;
 	}
