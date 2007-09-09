@@ -384,14 +384,6 @@ config MTD_REDWOOD
 	  Redwood board. If you have one of these boards and would like to
 	  use the flash chips on it, say 'Y'.
 
-config MTD_OCELOT
-	tristate "Momenco Ocelot boot flash device"
-	depends on MOMENCO_OCELOT
-	help
-	  This enables access routines for the boot flash device and for the
-	  NVRAM on the Momenco Ocelot board. If you have one of these boards
-	  and would like access to either of these, say 'Y'.
-
 config MTD_SOLUTIONENGINE
 	tristate "CFI Flash device mapped on Hitachi SolutionEngine"
 	depends on SUPERH && MTD_CFI && MTD_REDBOOT_PARTS
