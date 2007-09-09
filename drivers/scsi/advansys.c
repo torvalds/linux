@@ -520,14 +520,6 @@ typedef struct asc_risc_sg_list_q {
 #define ASCQ_ERR_ISR_RE_ENTRY         0x1A
 #define ASCQ_ERR_CRITICAL_RE_ENTRY    0x1B
 #define ASCQ_ERR_ISR_ON_CRITICAL      0x1C
-#define ASCQ_ERR_SG_LIST_ODD_ADDRESS  0x1D
-#define ASCQ_ERR_XFER_ADDRESS_TOO_BIG 0x1E
-#define ASCQ_ERR_SCSIQ_NULL_PTR       0x1F
-#define ASCQ_ERR_SCSIQ_BAD_NEXT_PTR   0x20
-#define ASCQ_ERR_GET_NUM_OF_FREE_Q    0x21
-#define ASCQ_ERR_SEND_SCSI_Q          0x22
-#define ASCQ_ERR_HOST_REQ_RISC_HALT   0x23
-#define ASCQ_ERR_RESET_SDTR           0x24
 
 /*
  * Warning code values are set in ASC_DVC_VAR  'warn_code'.
@@ -7578,10 +7570,6 @@ static int AscExeScsiQueue(ASC_DVC_VAR *asc_dvc, ASC_SCSI_Q *scsiq)
 	sg_head = scsiq->sg_head;
 	if (asc_dvc->err_code != 0)
 		return (ERR);
-	if (scsiq == (ASC_SCSI_Q *)0L) {
-		AscSetLibErrorCode(asc_dvc, ASCQ_ERR_SCSIQ_NULL_PTR);
-		return (ERR);
-	}
 	scsiq->q1.q_no = 0;
 	if ((scsiq->q2.tag_code & ASC_TAG_FLAG_EXTRA_BYTES) == 0) {
 		scsiq->q1.extra_bytes = 0;
