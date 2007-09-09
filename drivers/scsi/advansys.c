@@ -210,8 +210,14 @@ typedef unsigned char uchar;
 #define ASC_SCSI_WIDTH_BIT_SET  0xFF
 #define ASC_MAX_SENSE_LEN   32
 #define ASC_MIN_SENSE_LEN   14
-#define ASC_MAX_CDB_LEN     12
 #define ASC_SCSI_RESET_HOLD_TIME_US  60
+
+/*
+ * Narrow boards only support 12-byte commands, while wide boards
+ * extend to 16-byte commands.
+ */
+#define ASC_MAX_CDB_LEN     12
+#define ADV_MAX_CDB_LEN     16
 
 /*
  * Inquiry SPC-2 SPI Byte 1 EVPD (Enable Vital Product Data)
@@ -1188,12 +1194,6 @@ static const char *advansys_info(struct Scsi_Host *shost);
 #define ADV_MEM_WRITEDW(addr, dword) writel(dword, addr)
 
 #define ADV_CARRIER_COUNT (ASC_DEF_MAX_HOST_QNG + 15)
-
-/*
- * For wide  boards a CDB length maximum of 16 bytes
- * is supported.
- */
-#define ADV_MAX_CDB_LEN     16
 
 /*
  * Define total number of simultaneous maximum element scatter-gather
@@ -3856,17 +3856,7 @@ static int asc_build_req(asc_board_t *boardp, struct scsi_cmnd *scp)
 
 	/*
 	 * Build the ASC_SCSI_Q request.
-	 *
-	 * For narrow boards a CDB length maximum of 12 bytes
-	 * is supported.
 	 */
-	if (scp->cmd_len > ASC_MAX_CDB_LEN) {
-		ASC_PRINT3("asc_build_req: board %d: cmd_len %d > "
-			"ASC_MAX_CDB_LEN %d\n", boardp->id, scp->cmd_len,
-			ASC_MAX_CDB_LEN);
-		scp->result = HOST_BYTE(DID_ERROR);
-		return ASC_ERROR;
-	}
 	asc_scsi_q.cdbptr = &scp->cmnd[0];
 	asc_scsi_q.q2.cdb_len = scp->cmd_len;
 	asc_scsi_q.q1.target_id = ASC_TID_TO_TARGET_ID(scp->device->id);
@@ -4029,18 +4019,7 @@ adv_build_req(asc_board_t *boardp, struct scsi_cmnd *scp,
 	 * Build the ADV_SCSI_REQ_Q request.
 	 */
 
-	/*
-	 * Set CDB length and copy it to the request structure.
-	 * For wide  boards a CDB length maximum of 16 bytes
-	 * is supported.
-	 */
-	if (scp->cmd_len > ADV_MAX_CDB_LEN) {
-		ASC_PRINT3
-		    ("adv_build_req: board %d: cmd_len %d > ADV_MAX_CDB_LEN  %d\n",
-		     boardp->id, scp->cmd_len, ADV_MAX_CDB_LEN);
-		scp->result = HOST_BYTE(DID_ERROR);
-		return ASC_ERROR;
-	}
+	/* Set CDB length and copy it to the request structure.  */
 	scsiqp->cdb_len = scp->cmd_len;
 	/* Copy first 12 CDB bytes to cdb[]. */
 	for (i = 0; i < scp->cmd_len && i < 12; i++) {
@@ -14834,6 +14813,7 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	if (ASC_NARROW_BOARD(boardp)) {
 		shost->max_id = ASC_MAX_TID + 1;
 		shost->max_lun = ASC_MAX_LUN + 1;
+		shost->max_cmd_len = ASC_MAX_CDB_LEN;
 
 		shost->io_port = asc_dvc_varp->iop_base;
 		boardp->asc_n_io_port = ASC_IOADR_GAP;
@@ -14844,6 +14824,7 @@ advansys_board_found(int iop, struct device *dev, int bus_type)
 	} else {
 		shost->max_id = ADV_MAX_TID + 1;
 		shost->max_lun = ADV_MAX_LUN + 1;
+		shost->max_cmd_len = ADV_MAX_CDB_LEN;
 
 		/*
 		 * Save the I/O Port address and length even though
