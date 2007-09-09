@@ -1694,6 +1694,44 @@ static int pvr2_hdw_check_firmware(struct pvr2_hdw *hdw)
 	return result == 0;
 }
 
+struct pvr2_std_hack {
+	v4l2_std_id pat;  /* Pattern to match */
+	v4l2_std_id msk;  /* Which bits we care about */
+	v4l2_std_id std;  /* What additional standards or default to set */
+};
+
+/* This data structure labels specific combinations of standards from
+   tveeprom that we'll try to recognize.  If we recognize one, then assume
+   a specified default standard to use.  This is here because tveeprom only
+   tells us about available standards not the intended default standard (if
+   any) for the device in question.  We guess the default based on what has
+   been reported as available.  Note that this is only for guessing a
+   default - which can always be overridden explicitly - and if the user
+   has otherwise named a default then that default will always be used in
+   place of this table. */
+const static struct pvr2_std_hack std_eeprom_maps[] = {
+	{	/* PAL(B/G) */
+		.pat = V4L2_STD_B|V4L2_STD_GH,
+		.std = V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_PAL_G,
+	},
+	{	/* NTSC(M) */
+		.pat = V4L2_STD_MN,
+		.std = V4L2_STD_NTSC_M,
+	},
+	{	/* PAL(I) */
+		.pat = V4L2_STD_PAL_I,
+		.std = V4L2_STD_PAL_I,
+	},
+	{	/* SECAM(L/L') */
+		.pat = V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC,
+		.std = V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC,
+	},
+	{	/* PAL(D/D1/K) */
+		.pat = V4L2_STD_DK,
+		.std = V4L2_STD_PAL_D/V4L2_STD_PAL_D1|V4L2_STD_PAL_K,
+	},
+};
+
 static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 {
 	char buf[40];
@@ -1730,6 +1768,27 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 		hdw->std_dirty = !0;
 		pvr2_hdw_internal_find_stdenum(hdw);
 		return;
+	}
+
+	{
+		unsigned int idx;
+		for (idx = 0; idx < ARRAY_SIZE(std_eeprom_maps); idx++) {
+			if (std_eeprom_maps[idx].msk ?
+			    ((std_eeprom_maps[idx].pat ^
+			     hdw->std_mask_eeprom) &
+			     std_eeprom_maps[idx].msk) :
+			    (std_eeprom_maps[idx].pat !=
+			     hdw->std_mask_eeprom)) continue;
+			bcnt = pvr2_std_id_to_str(buf,sizeof(buf),
+						  std_eeprom_maps[idx].std);
+			pvr2_trace(PVR2_TRACE_INIT,
+				   "Initial video standard guessed as %.*s",
+				   bcnt,buf);
+			hdw->std_mask_cur = std_eeprom_maps[idx].std;
+			hdw->std_dirty = !0;
+			pvr2_hdw_internal_find_stdenum(hdw);
+			return;
+		}
 	}
 
 	if (hdw->std_enum_cnt > 1) {
