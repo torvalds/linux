@@ -2605,7 +2605,85 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
-void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
+
+/* Grab EEPROM contents, needed for direct method. */
+#define EEPROM_SIZE 8192
+#define trace_eeprom(...) pvr2_trace(PVR2_TRACE_EEPROM,__VA_ARGS__)
+static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
+{
+	struct i2c_msg msg[2];
+	u8 *eeprom;
+	u8 iadd[2];
+	u8 addr;
+	u16 eepromSize;
+	unsigned int offs;
+	int ret;
+	int mode16 = 0;
+	unsigned pcnt,tcnt;
+	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
+	if (!eeprom) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Failed to allocate memory"
+			   " required to read eeprom");
+		return NULL;
+	}
+
+	trace_eeprom("Value for eeprom addr from controller was 0x%x",
+		     hdw->eeprom_addr);
+	addr = hdw->eeprom_addr;
+	/* Seems that if the high bit is set, then the *real* eeprom
+	   address is shifted right now bit position (noticed this in
+	   newer PVR USB2 hardware) */
+	if (addr & 0x80) addr >>= 1;
+
+	/* FX2 documentation states that a 16bit-addressed eeprom is
+	   expected if the I2C address is an odd number (yeah, this is
+	   strange but it's what they do) */
+	mode16 = (addr & 1);
+	eepromSize = (mode16 ? EEPROM_SIZE : 256);
+	trace_eeprom("Examining %d byte eeprom at location 0x%x"
+		     " using %d bit addressing",eepromSize,addr,
+		     mode16 ? 16 : 8);
+
+	msg[0].addr = addr;
+	msg[0].flags = 0;
+	msg[0].len = mode16 ? 2 : 1;
+	msg[0].buf = iadd;
+	msg[1].addr = addr;
+	msg[1].flags = I2C_M_RD;
+
+	/* We have to do the actual eeprom data fetch ourselves, because
+	   (1) we're only fetching part of the eeprom, and (2) if we were
+	   getting the whole thing our I2C driver can't grab it in one
+	   pass - which is what tveeprom is otherwise going to attempt */
+	memset(eeprom,0,EEPROM_SIZE);
+	for (tcnt = 0; tcnt < EEPROM_SIZE; tcnt += pcnt) {
+		pcnt = 16;
+		if (pcnt + tcnt > EEPROM_SIZE) pcnt = EEPROM_SIZE-tcnt;
+		offs = tcnt + (eepromSize - EEPROM_SIZE);
+		if (mode16) {
+			iadd[0] = offs >> 8;
+			iadd[1] = offs;
+		} else {
+			iadd[0] = offs;
+		}
+		msg[1].len = pcnt;
+		msg[1].buf = eeprom+tcnt;
+		if ((ret = i2c_transfer(&hdw->i2c_adap,
+					msg,ARRAY_SIZE(msg))) != 2) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "eeprom fetch set offs err=%d",ret);
+			kfree(eeprom);
+			return NULL;
+		}
+	}
+	return eeprom;
+}
+
+
+void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
+				int prom_flag,
+				int enable_flag)
 {
 	int ret;
 	u16 address;
@@ -2619,37 +2697,59 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
 			kfree(hdw->fw_buffer);
 			hdw->fw_buffer = NULL;
 			hdw->fw_size = 0;
-			/* Now release the CPU.  It will disconnect and
-			   reconnect later. */
-			pvr2_hdw_cpureset_assert(hdw,0);
+			if (hdw->fw_cpu_flag) {
+				/* Now release the CPU.  It will disconnect
+				   and reconnect later. */
+				pvr2_hdw_cpureset_assert(hdw,0);
+			}
 			break;
 		}
 
-		pvr2_trace(PVR2_TRACE_FIRMWARE,
-			   "Preparing to suck out CPU firmware");
-		hdw->fw_size = 0x2000;
-		hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
-		if (!hdw->fw_buffer) {
-			hdw->fw_size = 0;
-			break;
+		hdw->fw_cpu_flag = (prom_flag == 0);
+		if (hdw->fw_cpu_flag) {
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Preparing to suck out CPU firmware");
+			hdw->fw_size = 0x2000;
+			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
+			if (!hdw->fw_buffer) {
+				hdw->fw_size = 0;
+				break;
+			}
+
+			/* We have to hold the CPU during firmware upload. */
+			pvr2_hdw_cpureset_assert(hdw,1);
+
+			/* download the firmware from address 0000-1fff in 2048
+			   (=0x800) bytes chunk. */
+
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Grabbing CPU firmware");
+			pipe = usb_rcvctrlpipe(hdw->usb_dev, 0);
+			for(address = 0; address < hdw->fw_size;
+			    address += 0x800) {
+				ret = usb_control_msg(hdw->usb_dev,pipe,
+						      0xa0,0xc0,
+						      address,0,
+						      hdw->fw_buffer+address,
+						      0x800,HZ);
+				if (ret < 0) break;
+			}
+
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Done grabbing CPU firmware");
+		} else {
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Sucking down EEPROM contents");
+			hdw->fw_buffer = pvr2_full_eeprom_fetch(hdw);
+			if (!hdw->fw_buffer) {
+				pvr2_trace(PVR2_TRACE_FIRMWARE,
+					   "EEPROM content suck failed.");
+				break;
+			}
+			hdw->fw_size = EEPROM_SIZE;
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Done sucking down EEPROM contents");
 		}
-
-		/* We have to hold the CPU during firmware upload. */
-		pvr2_hdw_cpureset_assert(hdw,1);
-
-		/* download the firmware from address 0000-1fff in 2048
-		   (=0x800) bytes chunk. */
-
-		pvr2_trace(PVR2_TRACE_FIRMWARE,"Grabbing CPU firmware");
-		pipe = usb_rcvctrlpipe(hdw->usb_dev, 0);
-		for(address = 0; address < hdw->fw_size; address += 0x800) {
-			ret = usb_control_msg(hdw->usb_dev,pipe,0xa0,0xc0,
-					      address,0,
-					      hdw->fw_buffer+address,0x800,HZ);
-			if (ret < 0) break;
-		}
-
-		pvr2_trace(PVR2_TRACE_FIRMWARE,"Done grabbing CPU firmware");
 
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
