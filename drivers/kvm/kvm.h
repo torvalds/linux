@@ -539,8 +539,6 @@ static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
 hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva);
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
-void kvm_emulator_want_group7_invlpg(void);
-
 extern hpa_t bad_page_address;
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);

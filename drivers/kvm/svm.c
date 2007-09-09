@@ -376,8 +376,6 @@ static __init int svm_hardware_setup(void)
 	void *iopm_va, *msrpm_va;
 	int r;
 
-	kvm_emulator_want_group7_invlpg();
-
 	iopm_pages = alloc_pages(GFP_KERNEL, IOPM_ALLOC_ORDER);
 
 	if (!iopm_pages)

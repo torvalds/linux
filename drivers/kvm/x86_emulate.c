@@ -213,19 +213,6 @@ static u16 twobyte_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-/*
- * Tell the emulator that of the Group 7 instructions (sgdt, lidt, etc.) we
- * are interested only in invlpg and not in any of the rest.
- *
- * invlpg is a special instruction in that the data it references may not
- * be mapped.
- */
-void kvm_emulator_want_group7_invlpg(void)
-{
-	twobyte_table[1] &= ~SrcMem;
-}
-EXPORT_SYMBOL_GPL(kvm_emulator_want_group7_invlpg);
-
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
 	enum { OP_REG, OP_MEM, OP_IMM } type;
@@ -791,6 +778,9 @@ done_prefixes:
 		goto srcmem_common;
 	case SrcMem:
 		src.bytes = (d & ByteOp) ? 1 : op_bytes;
+		/* Don't fetch the address for invlpg: it could be unmapped. */
+		if (twobyte && b == 0x01 && modrm_reg == 7)
+			break;
 	      srcmem_common:
 		src.type = OP_MEM;
 		src.ptr = (unsigned long *)cr2;
