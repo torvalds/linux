@@ -750,18 +750,16 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		cmd->SCp.phase++;
 
 	case 4:		/* Phase 4 - Setup scatter/gather buffers */
-		if (cmd->use_sg) {
-			/* if many buffers are available, start filling the first */
-			cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
+		if (scsi_bufflen(cmd)) {
+			cmd->SCp.buffer = scsi_sglist(cmd);
 			cmd->SCp.this_residual = cmd->SCp.buffer->length;
 			cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		} else {
-			/* else fill the only available buffer */
 			cmd->SCp.buffer = NULL;
-			cmd->SCp.this_residual = cmd->request_bufflen;
-			cmd->SCp.ptr = cmd->request_buffer;
+			cmd->SCp.this_residual = 0;
+			cmd->SCp.ptr = NULL;
 		}
-		cmd->SCp.buffers_residual = cmd->use_sg - 1;
+		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.phase++;
 
 	case 5:		/* Phase 5 - Data transfer stage */
