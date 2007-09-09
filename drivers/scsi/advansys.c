@@ -16985,7 +16985,7 @@ static struct isa_driver advansys_vlb_driver = {
 	.remove		= __devexit_p(advansys_isa_remove),
 	.driver = {
 		.owner	= THIS_MODULE,
-		.name	= "advansys",
+		.name	= "advansys_vlb",
 	},
 };
 
