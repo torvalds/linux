@@ -389,10 +389,6 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 		ret = -EINVAL;
 		goto done;
 	}
-	if ((msgs[0].flags & I2C_M_NOSTART)) {
-		trace_i2c("i2c refusing I2C_M_NOSTART");
-		goto done;
-	}
 	if (msgs[0].addr < PVR2_I2C_FUNC_CNT) {
 		funcp = hdw->i2c_func[msgs[0].addr];
 	}
@@ -494,14 +490,12 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 			cnt = msgs[idx].len;
 			printk(KERN_INFO
 			       "pvrusb2 i2c xfer %u/%u:"
-			       " addr=0x%x len=%d %s%s",
+			       " addr=0x%x len=%d %s",
 			       idx+1,num,
 			       msgs[idx].addr,
 			       cnt,
 			       (msgs[idx].flags & I2C_M_RD ?
-				"read" : "write"),
-			       (msgs[idx].flags & I2C_M_NOSTART ?
-				" nostart" : ""));
+				"read" : "write"));
 			if ((ret > 0) || !(msgs[idx].flags & I2C_M_RD)) {
 				if (cnt > 8) cnt = 8;
 				printk(" [");
@@ -534,7 +528,7 @@ static int pvr2_i2c_control(struct i2c_adapter *adapter,
 
 static u32 pvr2_i2c_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C | I2C_FUNC_SMBUS_BYTE_DATA;
+	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
 static int pvr2_i2c_core_singleton(struct i2c_client *cp,
