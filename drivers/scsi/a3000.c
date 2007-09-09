@@ -70,12 +70,8 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 	if (!dir_in) {
 	    /* copy to bounce buffer for a write */
-	    if (cmd->use_sg) {
-		memcpy (HDATA(a3000_host)->dma_bounce_buffer,
-			cmd->SCp.ptr, cmd->SCp.this_residual);
-	    } else
-		memcpy (HDATA(a3000_host)->dma_bounce_buffer,
-			cmd->request_buffer, cmd->request_bufflen);
+	    memcpy (HDATA(a3000_host)->dma_bounce_buffer,
+		cmd->SCp.ptr, cmd->SCp.this_residual);
 	}
 
 	addr = virt_to_bus(HDATA(a3000_host)->dma_bounce_buffer);
@@ -146,7 +142,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 
     /* copy from a bounce buffer, if necessary */
     if (status && HDATA(instance)->dma_bounce_buffer) {
-	if (SCpnt && SCpnt->use_sg) {
+	if (SCpnt) {
 	    if (HDATA(instance)->dma_dir && SCpnt)
 		memcpy (SCpnt->SCp.ptr,
 			HDATA(instance)->dma_bounce_buffer,
@@ -155,11 +151,6 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	    HDATA(instance)->dma_bounce_buffer = NULL;
 	    HDATA(instance)->dma_bounce_len = 0;
 	} else {
-	    if (HDATA(instance)->dma_dir && SCpnt)
-		memcpy (SCpnt->request_buffer,
-			HDATA(instance)->dma_bounce_buffer,
-			SCpnt->request_bufflen);
-
 	    kfree (HDATA(instance)->dma_bounce_buffer);
 	    HDATA(instance)->dma_bounce_buffer = NULL;
 	    HDATA(instance)->dma_bounce_len = 0;
