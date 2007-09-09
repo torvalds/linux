@@ -40,7 +40,7 @@ struct dvb_pll_priv {
 	u32 bandwidth;
 };
 
-#define DVB_PLL_MAX 16
+#define DVB_PLL_MAX 64
 
 static unsigned int dvb_pll_devcount;
 
