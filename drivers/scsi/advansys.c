@@ -3281,25 +3281,6 @@ advansys_queuecommand(struct scsi_cmnd *scp, void (*done) (struct scsi_cmnd *))
 	/* against own ISR */
 	spin_lock_irqsave(&boardp->lock, flags);
 
-	/*
-	 * Block new commands while handling a reset or abort request.
-	 */
-	if (boardp->flags & ASC_HOST_IN_RESET) {
-		ASC_DBG1(1,
-			 "advansys_queuecommand: scp 0x%lx blocked for reset request\n",
-			 (ulong)scp);
-		scp->result = HOST_BYTE(DID_RESET);
-
-		/*
-		 * Add blocked requests to the board's 'done' queue. The queued
-		 * requests will be completed at the end of the abort or reset
-		 * handling.
-		 */
-		asc_enqueue(&boardp->done, scp, ASC_BACK);
-		spin_unlock_irqrestore(&boardp->lock, flags);
-		return 0;
-	}
-
 	scp->scsi_done = done;
 	asc_res = asc_execute_scsi_cmnd(scp);
 	switch (asc_res) {
