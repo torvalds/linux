@@ -37,6 +37,7 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/compat.h>
 #include <linux/socket.h>
 #include <linux/ioctl.h>
 #include <net/sock.h>
@@ -342,9 +343,23 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 
 	if (mask & HCI_CMSG_TSTAMP) {
 		struct timeval tv;
+		void *data;
+		int len;
 
 		skb_get_timestamp(skb, &tv);
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
+
+		if (msg->msg_flags & MSG_CMSG_COMPAT) {
+			struct compat_timeval ctv;
+			ctv.tv_sec = tv.tv_sec;
+			ctv.tv_usec = tv.tv_usec;
+			data = &ctv;
+			len = sizeof(ctv);
+		} else {
+			data = &tv;
+			len = sizeof(tv);
+		}
+
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, len, data);
 	}
 }
 
