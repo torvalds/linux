@@ -841,7 +841,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 
 	fe->tuner_priv = priv;
 
-	if (debug) {
+	if ((debug) || (id[priv->nr] == pll_desc_id)) {
 		printk("dvb-pll[%d]", priv->nr);
 		if (i2c != NULL)
 			printk(" %d-%04x", i2c_adapter_id(i2c), pll_addr);
