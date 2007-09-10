@@ -1041,14 +1041,30 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
  * XXX: as far as I can tell, changing the NFS program number is not
  *      supported in the NFS client.
  */
-static int nfs_validate_mount_data(struct nfs_mount_data **options,
+static int nfs_validate_mount_data(void *options,
+				   struct nfs_parsed_mount_data *args,
 				   struct nfs_fh *mntfh,
 				   const char *dev_name)
 {
-	struct nfs_mount_data *data = *options;
+	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
 
 	if (data == NULL)
 		goto out_no_data;
+
+	memset(args, 0, sizeof(*args));
+	args->flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP);
+	args->rsize		= NFS_MAX_FILE_IO_SIZE;
+	args->wsize		= NFS_MAX_FILE_IO_SIZE;
+	args->timeo		= 600;
+	args->retrans		= 2;
+	args->acregmin		= 3;
+	args->acregmax		= 60;
+	args->acdirmin		= 30;
+	args->acdirmax		= 60;
+	args->mount_server.protocol = IPPROTO_UDP;
+	args->mount_server.program = NFS_MNT_PROGRAM;
+	args->nfs_server.protocol = IPPROTO_TCP;
+	args->nfs_server.program = NFS_PROGRAM;
 
 	switch (data->version) {
 	case 1:
@@ -1078,90 +1094,67 @@ static int nfs_validate_mount_data(struct nfs_mount_data **options,
 		if (mntfh->size < sizeof(mntfh->data))
 			memset(mntfh->data + mntfh->size, 0,
 			       sizeof(mntfh->data) - mntfh->size);
+		/*
+		 * Translate to nfs_parsed_mount_data, which nfs_fill_super
+		 * can deal with.
+		 */
+		args->flags		= data->flags;
+		args->rsize		= data->rsize;
+		args->wsize		= data->wsize;
+		args->flags		= data->flags;
+		args->timeo		= data->timeo;
+		args->retrans		= data->retrans;
+		args->acregmin		= data->acregmin;
+		args->acregmax		= data->acregmax;
+		args->acdirmin		= data->acdirmin;
+		args->acdirmax		= data->acdirmax;
+		args->nfs_server.address = data->addr;
+		if (!(data->flags & NFS_MOUNT_TCP))
+			args->nfs_server.protocol = IPPROTO_UDP;
+		/* N.B. caller will free nfs_server.hostname in all cases */
+		args->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
+		args->namlen		= data->namlen;
+		args->bsize		= data->bsize;
+		args->auth_flavors[0]	= data->pseudoflavor;
 		break;
 	default: {
 		unsigned int len;
 		char *c;
 		int status;
-		struct nfs_parsed_mount_data args = {
-			.flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP),
-			.rsize		= NFS_MAX_FILE_IO_SIZE,
-			.wsize		= NFS_MAX_FILE_IO_SIZE,
-			.timeo		= 600,
-			.retrans	= 2,
-			.acregmin	= 3,
-			.acregmax	= 60,
-			.acdirmin	= 30,
-			.acdirmax	= 60,
-			.mount_server.protocol = IPPROTO_UDP,
-			.mount_server.program = NFS_MNT_PROGRAM,
-			.nfs_server.protocol = IPPROTO_TCP,
-			.nfs_server.program = NFS_PROGRAM,
-		};
 
-		if (nfs_parse_mount_options((char *) *options, &args) == 0)
+		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
-
-		data = kzalloc(sizeof(*data), GFP_KERNEL);
-		if (data == NULL)
-			return -ENOMEM;
-
-		/*
-		 * NB: after this point, caller will free "data"
-		 * if we return an error
-		 */
-		*options = data;
 
 		c = strchr(dev_name, ':');
 		if (c == NULL)
 			return -EINVAL;
 		len = c - dev_name;
-		if (len > sizeof(data->hostname))
-			return -ENAMETOOLONG;
-		strncpy(data->hostname, dev_name, len);
-		args.nfs_server.hostname = data->hostname;
+		/* N.B. caller will free nfs_server.hostname in all cases */
+		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
 
 		c++;
 		if (strlen(c) > NFS_MAXPATHLEN)
 			return -ENAMETOOLONG;
-		args.nfs_server.export_path = c;
+		args->nfs_server.export_path = c;
 
-		status = nfs_try_mount(&args, mntfh);
+		status = nfs_try_mount(args, mntfh);
 		if (status)
 			return status;
-
-		/*
-		 * Translate to nfs_mount_data, which nfs_fill_super
-		 * can deal with.
-		 */
-		data->version		= 6;
-		data->flags		= args.flags;
-		data->rsize		= args.rsize;
-		data->wsize		= args.wsize;
-		data->timeo		= args.timeo;
-		data->retrans		= args.retrans;
-		data->acregmin		= args.acregmin;
-		data->acregmax		= args.acregmax;
-		data->acdirmin		= args.acdirmin;
-		data->acdirmax		= args.acdirmax;
-		data->addr		= args.nfs_server.address;
-		data->namlen		= args.namlen;
-		data->bsize		= args.bsize;
-		data->pseudoflavor	= args.auth_flavors[0];
 
 		break;
 		}
 	}
 
-	if (!(data->flags & NFS_MOUNT_SECFLAVOUR))
-		data->pseudoflavor = RPC_AUTH_UNIX;
+	if (!(args->flags & NFS_MOUNT_SECFLAVOUR))
+		args->auth_flavors[0] = RPC_AUTH_UNIX;
 
 #ifndef CONFIG_NFS_V3
-	if (data->flags & NFS_MOUNT_VER3)
+	if (args->flags & NFS_MOUNT_VER3)
 		goto out_v3_not_compiled;
 #endif /* !CONFIG_NFS_V3 */
 
-	if (!nfs_verify_server_address((struct sockaddr *) &data->addr))
+	if (!nfs_verify_server_address((struct sockaddr *)
+						&args->nfs_server.address))
 		goto out_no_address;
 
 	return 0;
@@ -1220,7 +1213,8 @@ static inline void nfs_initialise_sb(struct super_block *sb)
 /*
  * Finish setting up an NFS2/3 superblock
  */
-static void nfs_fill_super(struct super_block *sb, struct nfs_mount_data *data)
+static void nfs_fill_super(struct super_block *sb,
+			   struct nfs_parsed_mount_data *data)
 {
 	struct nfs_server *server = NFS_SB(sb);
 
@@ -1341,7 +1335,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	struct nfs_server *server = NULL;
 	struct super_block *s;
 	struct nfs_fh mntfh;
-	struct nfs_mount_data *data = raw_data;
+	struct nfs_parsed_mount_data data;
 	struct dentry *mntroot;
 	int (*compare_super)(struct super_block *, void *) = nfs_compare_super;
 	struct nfs_sb_mountdata sb_mntdata = {
@@ -1350,12 +1344,12 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	int error;
 
 	/* Validate the mount data */
-	error = nfs_validate_mount_data(&data, &mntfh, dev_name);
+	error = nfs_validate_mount_data(raw_data, &data, &mntfh, dev_name);
 	if (error < 0)
 		goto out;
 
 	/* Get a volume representation */
-	server = nfs_create_server(data, &mntfh);
+	server = nfs_create_server(&data, &mntfh);
 	if (IS_ERR(server)) {
 		error = PTR_ERR(server);
 		goto out;
@@ -1379,7 +1373,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 
 	if (!s->s_root) {
 		/* initial superblock/root creation */
-		nfs_fill_super(s, data);
+		nfs_fill_super(s, &data);
 	}
 
 	mntroot = nfs_get_root(s, &mntfh);
@@ -1394,8 +1388,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	error = 0;
 
 out:
-	if (data != raw_data)
-		kfree(data);
+	kfree(data.nfs_server.hostname);
 	return error;
 
 out_err_nosb:

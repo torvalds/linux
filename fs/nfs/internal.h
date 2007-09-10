@@ -5,7 +5,6 @@
 #include <linux/mount.h>
 
 struct nfs_string;
-struct nfs_mount_data;
 struct nfs4_mount_data;
 
 /* Maximum number of readahead requests
@@ -65,8 +64,9 @@ extern struct rpc_program nfs_program;
 
 extern void nfs_put_client(struct nfs_client *);
 extern struct nfs_client *nfs_find_client(const struct sockaddr_in *, int);
-extern struct nfs_server *nfs_create_server(const struct nfs_mount_data *,
-					    struct nfs_fh *);
+extern struct nfs_server *nfs_create_server(
+					const struct nfs_parsed_mount_data *,
+					struct nfs_fh *);
 extern struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *,
 					     const char *,
 					     const struct sockaddr_in *,
