@@ -43,6 +43,7 @@ struct vmcs {
 struct vcpu_vmx {
 	struct kvm_vcpu       vcpu;
 	int                   launched;
+	u8                    fail;
 	struct kvm_msr_entry *guest_msrs;
 	struct kvm_msr_entry *host_msrs;
 	int                   nmsrs;
@@ -2099,6 +2100,14 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	u32 vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 	u32 exit_reason = vmcs_read32(VM_EXIT_REASON);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	if (unlikely(vmx->fail)) {
+		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		kvm_run->fail_entry.hardware_entry_failure_reason
+			= vmcs_read32(VM_INSTRUCTION_ERROR);
+		return 0;
+	}
 
 	if ( (vectoring_info & VECTORING_INFO_VALID_MASK) &&
 				exit_reason != EXIT_REASON_EXCEPTION_NMI )
@@ -2208,7 +2217,6 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u8 fail;
 	int r;
 
 	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
@@ -2352,7 +2360,7 @@ again:
 		"pop %%ecx; popa \n\t"
 #endif
 		"setbe %0 \n\t"
-	      : "=q" (fail)
+	      : "=q" (vmx->fail)
 	      : "r"(vmx->launched), "d"((unsigned long)HOST_RSP),
 		"c"(vcpu),
 		[rax]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_RAX])),
@@ -2387,13 +2395,6 @@ again:
 
 	preempt_enable();
 
-	if (unlikely(fail)) {
-		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-		kvm_run->fail_entry.hardware_entry_failure_reason
-			= vmcs_read32(VM_INSTRUCTION_ERROR);
-		r = 0;
-		goto out;
-	}
 	/*
 	 * Profile KVM exit RIPs:
 	 */
