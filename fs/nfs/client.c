@@ -908,7 +908,7 @@ error:
  * Create a version 4 volume record
  */
 static int nfs4_init_server(struct nfs_server *server,
-		const struct nfs4_mount_data *data, rpc_authflavor_t authflavour)
+		const struct nfs_parsed_mount_data *data)
 {
 	int error;
 
@@ -928,7 +928,7 @@ static int nfs4_init_server(struct nfs_server *server,
 	server->acdirmin = data->acdirmin * HZ;
 	server->acdirmax = data->acdirmax * HZ;
 
-	error = nfs_init_server_rpcclient(server, authflavour);
+	error = nfs_init_server_rpcclient(server, data->auth_flavors[0]);
 
 	/* Done */
 	dprintk("<-- nfs4_init_server() = %d\n", error);
@@ -939,12 +939,7 @@ static int nfs4_init_server(struct nfs_server *server,
  * Create a version 4 volume record
  * - keyed on server and FSID
  */
-struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
-				      const char *hostname,
-				      const struct sockaddr_in *addr,
-				      const char *mntpath,
-				      const char *ip_addr,
-				      rpc_authflavor_t authflavour,
+struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 				      struct nfs_fh *mntfh)
 {
 	struct nfs_fattr fattr;
@@ -958,13 +953,18 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 		return ERR_PTR(-ENOMEM);
 
 	/* Get a client record */
-	error = nfs4_set_client(server, hostname, addr, ip_addr, authflavour,
-			data->proto, data->timeo, data->retrans);
+	error = nfs4_set_client(server,
+			data->nfs_server.hostname,
+			&data->nfs_server.address,
+			data->client_address,
+			data->auth_flavors[0],
+			data->nfs_server.protocol,
+			data->timeo, data->retrans);
 	if (error < 0)
 		goto error;
 
 	/* set up the general RPC client */
-	error = nfs4_init_server(server, data, authflavour);
+	error = nfs4_init_server(server, data);
 	if (error < 0)
 		goto error;
 
@@ -973,7 +973,7 @@ struct nfs_server *nfs4_create_server(const struct nfs4_mount_data *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs4_path_walk(server, mntfh, mntpath);
+	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);
 	if (error < 0)
 		goto error;
 
