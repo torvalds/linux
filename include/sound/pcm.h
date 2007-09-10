@@ -791,13 +791,13 @@ static inline struct snd_interval *hw_param_interval(struct snd_pcm_hw_params *p
 static inline const struct snd_mask *hw_param_mask_c(const struct snd_pcm_hw_params *params,
 					     snd_pcm_hw_param_t var)
 {
-	return (const struct snd_mask *)hw_param_mask((struct snd_pcm_hw_params*) params, var);
+	return &params->masks[var - SNDRV_PCM_HW_PARAM_FIRST_MASK];
 }
 
 static inline const struct snd_interval *hw_param_interval_c(const struct snd_pcm_hw_params *params,
 						     snd_pcm_hw_param_t var)
 {
-	return (const struct snd_interval *)hw_param_interval((struct snd_pcm_hw_params*) params, var);
+	return &params->intervals[var - SNDRV_PCM_HW_PARAM_FIRST_INTERVAL];
 }
 
 #define params_access(p) snd_mask_min(hw_param_mask((p), SNDRV_PCM_HW_PARAM_ACCESS))
