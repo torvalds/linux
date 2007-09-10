@@ -34,6 +34,7 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/xprtsock.h>
+#include <linux/sunrpc/xprtrdma.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -68,7 +69,7 @@ enum {
 	Opt_ac, Opt_noac,
 	Opt_lock, Opt_nolock,
 	Opt_v2, Opt_v3,
-	Opt_udp, Opt_tcp,
+	Opt_udp, Opt_tcp, Opt_rdma,
 	Opt_acl, Opt_noacl,
 	Opt_rdirplus, Opt_nordirplus,
 	Opt_sharecache, Opt_nosharecache,
@@ -114,6 +115,7 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_v3, "v3" },
 	{ Opt_udp, "udp" },
 	{ Opt_tcp, "tcp" },
+	{ Opt_rdma, "rdma" },
 	{ Opt_acl, "acl" },
 	{ Opt_noacl, "noacl" },
 	{ Opt_rdirplus, "rdirplus" },
@@ -153,7 +155,7 @@ static match_table_t nfs_mount_option_tokens = {
 };
 
 enum {
-	Opt_xprt_udp, Opt_xprt_tcp,
+	Opt_xprt_udp, Opt_xprt_tcp, Opt_xprt_rdma,
 
 	Opt_xprt_err
 };
@@ -161,6 +163,7 @@ enum {
 static match_table_t nfs_xprt_protocol_tokens = {
 	{ Opt_xprt_udp, "udp" },
 	{ Opt_xprt_tcp, "tcp" },
+	{ Opt_xprt_rdma, "rdma" },
 
 	{ Opt_xprt_err, NULL }
 };
@@ -668,6 +671,12 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->timeo = 600;
 			mnt->retrans = 2;
 			break;
+		case Opt_rdma:
+			mnt->flags |= NFS_MOUNT_TCP; /* for side protocols */
+			mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
+			mnt->timeo = 600;
+			mnt->retrans = 2;
+			break;
 		case Opt_acl:
 			mnt->flags &= ~NFS_MOUNT_NOACL;
 			break;
@@ -883,6 +892,13 @@ static int nfs_parse_mount_options(char *raw,
 				mnt->timeo = 600;
 				mnt->retrans = 2;
 				break;
+			case Opt_xprt_rdma:
+				/* vector side protocols to TCP */
+				mnt->flags |= NFS_MOUNT_TCP;
+				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
+				mnt->timeo = 600;
+				mnt->retrans = 2;
+				break;
 			default:
 				goto out_unrec_xprt;
 			}
@@ -902,6 +918,7 @@ static int nfs_parse_mount_options(char *raw,
 			case Opt_xprt_tcp:
 				mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
+			case Opt_xprt_rdma: /* not used for side protocols */
 			default:
 				goto out_unrec_xprt;
 			}

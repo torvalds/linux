@@ -24,6 +24,7 @@
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
 #include <linux/sunrpc/xprtsock.h>
+#include <linux/sunrpc/xprtrdma.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -342,6 +343,7 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 
 	switch (proto) {
 	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_RDMA:
 		if (!to->to_initval)
 			to->to_initval = 60 * HZ;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
