@@ -93,26 +93,6 @@ enum {
 #define RPCB_MAXADDRLEN		(128u)
 
 /*
- * r_netid
- *
- * Quoting RFC 3530, section 2.2:
- *
- * For TCP over IPv4 the value of r_netid is the string "tcp".  For UDP
- * over IPv4 the value of r_netid is the string "udp".
- *
- * ...
- *
- * For TCP over IPv6 the value of r_netid is the string "tcp6".  For UDP
- * over IPv6 the value of r_netid is the string "udp6".
- */
-#define RPCB_NETID_UDP	"\165\144\160"		/* "udp" */
-#define RPCB_NETID_TCP	"\164\143\160"		/* "tcp" */
-#define RPCB_NETID_UDP6	"\165\144\160\066"	/* "udp6" */
-#define RPCB_NETID_TCP6	"\164\143\160\066"	/* "tcp6" */
-
-#define RPCB_MAXNETIDLEN	(4u)
-
-/*
  * r_owner
  *
  * The "owner" is allowed to unset a service in the rpcbind database.
@@ -408,8 +388,8 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_prot = xprt->prot;
 	map->r_port = 0;
 	map->r_xprt = xprt_get(xprt);
-	map->r_netid = (xprt->prot == IPPROTO_TCP) ? RPCB_NETID_TCP :
-						   RPCB_NETID_UDP;
+	map->r_netid = (xprt->prot == IPPROTO_TCP) ? RPCBIND_NETID_TCP :
+						     RPCBIND_NETID_UDP;
 	memcpy(map->r_addr,
 	       rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR),
 	       sizeof(map->r_addr));
@@ -587,7 +567,7 @@ out_err:
 #define RPCB_port_sz		(1u)
 #define RPCB_boolean_sz		(1u)
 
-#define RPCB_netid_sz		(1+XDR_QUADLEN(RPCB_MAXNETIDLEN))
+#define RPCB_netid_sz		(1+XDR_QUADLEN(RPCBIND_MAXNETIDLEN))
 #define RPCB_addr_sz		(1+XDR_QUADLEN(RPCB_MAXADDRLEN))
 #define RPCB_ownerstring_sz	(1+XDR_QUADLEN(RPCB_MAXOWNERLEN))
 
