@@ -1179,8 +1179,6 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	else
 		keyidx = -1;
 
-	/* TODO: verify that this is not triggered by fragmented
-	 * frames (hw does not verify MIC for them). */
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: TKIP hwaccel reported Michael MIC "
 		       "failure from " MAC_FMT " to " MAC_FMT " keyidx=%d\n",
@@ -1188,9 +1186,10 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		       keyidx);
 
 	if (!sta) {
-		/* Some hardware versions seem to generate incorrect
-		 * Michael MIC reports; ignore them to avoid triggering
-		 * countermeasures. */
+		/*
+		 * Some hardware seem to generate incorrect Michael MIC
+		 * reports; ignore them to avoid triggering countermeasures.
+		 */
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
 			       "error for unknown address " MAC_FMT "\n",
@@ -1201,16 +1200,18 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	if (!(rx->fc & IEEE80211_FCTL_PROTECTED)) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-			       "error for a frame with no ISWEP flag (src "
+			       "error for a frame with no PROTECTED flag (src "
 			       MAC_FMT ")\n", dev->name, MAC_ARG(hdr->addr2));
 		goto ignore;
 	}
 
 	if (rx->sdata->type == IEEE80211_IF_TYPE_AP && keyidx) {
-		/* AP with Pairwise keys support should never receive Michael
-		 * MIC errors for non-zero keyidx because these are reserved
-		 * for group keys and only the AP is sending real multicast
-		 * frames in BSS. */
+		/*
+		 * APs with pairwise keys should never receive Michael MIC
+		 * errors for non-zero keyidx because these are reserved for
+		 * group keys and only the AP is sending real multicast
+		 * frames in the BSS.
+		 */
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored Michael MIC error for "
 			       "a frame with non-zero keyidx (%d)"
@@ -1229,10 +1230,6 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 			       dev->name, rx->fc, MAC_ARG(hdr->addr2));
 		goto ignore;
 	}
-
-	/* TODO: consider verifying the MIC error report with software
-	 * implementation if we get too many spurious reports from the
-	 * hardware. */
 
 	mac80211_ev_michael_mic_failure(rx->dev, keyidx, hdr);
  ignore:
