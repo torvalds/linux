@@ -1014,6 +1014,11 @@ int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb)
 		goto done;
 	}
 
+	if (unlikely(!urb->dev->can_submit)) {
+		rc = -EHOSTUNREACH;
+		goto done;
+	}
+
 	/*
 	 * Check the host controller's state and add the URB to the
 	 * endpoint's queue.

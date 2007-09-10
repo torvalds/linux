@@ -383,6 +383,7 @@ struct usb_device {
 	u8 portnum;			/* Parent port number (origin 1) */
 	u8 level;			/* Number of USB hub ancestors */
 
+	unsigned can_submit:1;		/* URBs may be submitted */
 	unsigned discon_suspended:1;	/* Disconnected while suspended */
 	unsigned have_langid:1;		/* whether string_langid is valid */
 	unsigned authorized:1;		/* Policy has determined we can use it */

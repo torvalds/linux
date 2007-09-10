@@ -1102,9 +1102,16 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		if (udev->auto_pm)
 			autosuspend_check(udev);
 
-	/* If the suspend succeeded, propagate it up the tree */
+	/* If the suspend succeeded then prevent any more URB submissions,
+	 * flush any outstanding URBs, and propagate the suspend up the tree.
+	 */
 	} else {
 		cancel_delayed_work(&udev->autosuspend);
+		udev->can_submit = 0;
+		for (i = 0; i < 16; ++i) {
+			usb_hcd_flush_endpoint(udev, udev->ep_out[i]);
+			usb_hcd_flush_endpoint(udev, udev->ep_in[i]);
+		}
 		if (parent)
 			usb_autosuspend_device(parent);
 	}
@@ -1154,6 +1161,7 @@ static int usb_resume_both(struct usb_device *udev)
 		status = -ENODEV;
 		goto done;
 	}
+	udev->can_submit = 1;
 
 	/* Propagate the resume up the tree, if necessary */
 	if (udev->state == USB_STATE_SUSPENDED) {

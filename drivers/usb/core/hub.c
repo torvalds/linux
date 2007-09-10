@@ -1955,14 +1955,7 @@ static int hub_suspend(struct usb_interface *intf, pm_message_t msg)
 		struct usb_device	*udev;
 
 		udev = hdev->children [port1-1];
-		if (udev && msg.event == PM_EVENT_SUSPEND &&
-#ifdef	CONFIG_USB_SUSPEND
-				udev->state != USB_STATE_SUSPENDED
-#else
-				udev->dev.power.power_state.event
-					== PM_EVENT_ON
-#endif
-				) {
+		if (udev && udev->can_submit) {
 			if (!hdev->auto_pm)
 				dev_dbg(&intf->dev, "port %d nyet suspended\n",
 						port1);
