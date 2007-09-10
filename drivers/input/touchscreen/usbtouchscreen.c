@@ -402,7 +402,8 @@ static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 	                      TSC10_RATE_150, 0, buf, 2, USB_CTRL_SET_TIMEOUT);
 	if (ret < 0)
 		return ret;
-	if (buf[0] != 0x06 || buf[1] != 0x00)
+	if ((buf[0] != 0x06 || buf[1] != 0x00) &&
+	    (buf[0] != 0x15 || buf[1] != 0x01))
 		return -ENODEV;
 
 	/* start sending data */
