@@ -10,6 +10,12 @@
 #include <linux/blkdev.h>
 #include "extent_map.h"
 
+/* temporary define until extent_map moves out of btrfs */
+struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
+				       unsigned long extra_flags,
+				       void (*ctor)(void *, struct kmem_cache *,
+						    unsigned long));
+
 static struct kmem_cache *extent_map_cache;
 static struct kmem_cache *extent_state_cache;
 
@@ -32,14 +38,12 @@ struct tree_entry {
 
 void __init extent_map_init(void)
 {
-	extent_map_cache = kmem_cache_create("extent_map",
-					    sizeof(struct extent_map), 0,
-					    SLAB_RECLAIM_ACCOUNT |
+	extent_map_cache = btrfs_cache_create("extent_map",
+					    sizeof(struct extent_map),
 					    SLAB_DESTROY_BY_RCU,
 					    NULL);
-	extent_state_cache = kmem_cache_create("extent_state",
-					    sizeof(struct extent_state), 0,
-					    SLAB_RECLAIM_ACCOUNT |
+	extent_state_cache = btrfs_cache_create("extent_state",
+					    sizeof(struct extent_state),
 					    SLAB_DESTROY_BY_RCU,
 					    NULL);
 }

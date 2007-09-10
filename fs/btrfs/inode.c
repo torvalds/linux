@@ -1904,6 +1904,70 @@ fail:
 	return ret;
 }
 
+static unsigned long force_ra(struct address_space *mapping,
+			      struct file_ra_state *ra, struct file *file,
+			      pgoff_t offset, pgoff_t last_index)
+{
+	pgoff_t req_size;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+	req_size = last_index - offset + 1;
+	offset = page_cache_readahead(mapping, ra, file, offset, req_size);
+	return offset;
+#else
+	req_size = min(last_index - offset + 1, (pgoff_t)128);
+	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
+	return offset + req_size;
+#endif
+}
+
+int btrfs_defrag_file(struct file *file) {
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct page *page;
+	unsigned long last_index;
+	unsigned long ra_index = 0;
+	u64 page_start;
+	u64 page_end;
+	unsigned long i;
+
+	mutex_lock(&inode->i_mutex);
+	last_index = inode->i_size >> PAGE_CACHE_SHIFT;
+	for (i = 0; i <= last_index; i++) {
+		if (i == ra_index) {
+			ra_index = force_ra(inode->i_mapping, &file->f_ra,
+					    file, ra_index, last_index);
+		}
+		page = grab_cache_page(inode->i_mapping, i);
+		if (!page)
+			goto out_unlock;
+		if (!PageUptodate(page)) {
+			btrfs_readpage(NULL, page);
+			lock_page(page);
+			if (!PageUptodate(page)) {
+				unlock_page(page);
+				page_cache_release(page);
+				goto out_unlock;
+			}
+		}
+		page_start = page->index << PAGE_CACHE_SHIFT;
+		page_end = page_start + PAGE_CACHE_SIZE - 1;
+
+		lock_extent(em_tree, page_start, page_end, GFP_NOFS);
+		set_extent_delalloc(em_tree, page_start,
+				    page_end, GFP_NOFS);
+		unlock_extent(em_tree, page_start, page_end, GFP_NOFS);
+		set_page_dirty(page);
+		unlock_page(page);
+		page_cache_release(page);
+		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
+	}
+
+out_unlock:
+	mutex_unlock(&inode->i_mutex);
+	return 0;
+}
+
 int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		cmd, unsigned long arg)
 {
@@ -1948,10 +2012,14 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 		break;
 
 	case BTRFS_IOC_DEFRAG:
-		mutex_lock(&root->fs_info->fs_mutex);
-		btrfs_defrag_root(root, 0);
-		btrfs_defrag_root(root->fs_info->extent_root, 0);
-		mutex_unlock(&root->fs_info->fs_mutex);
+		if (S_ISDIR(inode->i_mode)) {
+			mutex_lock(&root->fs_info->fs_mutex);
+			btrfs_defrag_root(root, 0);
+			btrfs_defrag_root(root->fs_info->extent_root, 0);
+			mutex_unlock(&root->fs_info->fs_mutex);
+		} else if (S_ISREG(inode->i_mode)) {
+			btrfs_defrag_file(filp);
+		}
 		ret = 0;
 		break;
 	default:
@@ -2018,7 +2086,7 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_path_cachep);
 }
 
-static struct kmem_cache *cache_create(const char *name, size_t size,
+struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
 				       unsigned long extra_flags,
 				       void (*ctor)(void *, struct kmem_cache *,
 						    unsigned long))
@@ -2033,27 +2101,28 @@ static struct kmem_cache *cache_create(const char *name, size_t size,
 
 int btrfs_init_cachep(void)
 {
-	btrfs_inode_cachep = cache_create("btrfs_inode_cache",
+	btrfs_inode_cachep = btrfs_cache_create("btrfs_inode_cache",
 					  sizeof(struct btrfs_inode),
 					  0, init_once);
 	if (!btrfs_inode_cachep)
 		goto fail;
-	btrfs_trans_handle_cachep = cache_create("btrfs_trans_handle_cache",
-					     sizeof(struct btrfs_trans_handle),
-					     0, NULL);
+	btrfs_trans_handle_cachep =
+			btrfs_cache_create("btrfs_trans_handle_cache",
+					   sizeof(struct btrfs_trans_handle),
+					   0, NULL);
 	if (!btrfs_trans_handle_cachep)
 		goto fail;
-	btrfs_transaction_cachep = cache_create("btrfs_transaction_cache",
+	btrfs_transaction_cachep = btrfs_cache_create("btrfs_transaction_cache",
 					     sizeof(struct btrfs_transaction),
 					     0, NULL);
 	if (!btrfs_transaction_cachep)
 		goto fail;
-	btrfs_path_cachep = cache_create("btrfs_path_cache",
+	btrfs_path_cachep = btrfs_cache_create("btrfs_path_cache",
 					 sizeof(struct btrfs_transaction),
 					 0, NULL);
 	if (!btrfs_path_cachep)
 		goto fail;
-	btrfs_bit_radix_cachep = cache_create("btrfs_radix", 256,
+	btrfs_bit_radix_cachep = btrfs_cache_create("btrfs_radix", 256,
 					      SLAB_DESTROY_BY_RCU, NULL);
 	if (!btrfs_bit_radix_cachep)
 		goto fail;

@@ -217,6 +217,9 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
+	if (buffer_defrag_done(parent))
+		return 0;
+
 	parent_node = btrfs_buffer_node(parent);
 	parent_nritems = btrfs_header_nritems(&parent_node->header);
 	parent_level = btrfs_header_level(&parent_node->header);
@@ -274,6 +277,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		*last_ret = search_start;
 		if (parent_level == 1)
 			clear_buffer_defrag(tmp_bh);
+		set_buffer_defrag_done(tmp_bh);
 		brelse(tmp_bh);
 	}
 	return err;
