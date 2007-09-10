@@ -925,38 +925,6 @@ static void __init quirk_eisa_bridge(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_82375,	quirk_eisa_bridge );
 
-/*
- * On the MSI-K8T-Neo2Fir Board, the internal Soundcard is disabled
- * when a PCI-Soundcard is added. The BIOS only gives Options
- * "Disabled" and "AUTO". This Quirk Sets the corresponding
- * Register-Value to enable the Soundcard.
- *
- * FIXME: Presently this quirk will run on anything that has an 8237
- * which isn't correct, we need to check DMI tables or something in
- * order to make sure it only runs on the MSI-K8T-Neo2Fir.  Because it
- * runs everywhere at present we suppress the printk output in most
- * irrelevant cases.
- */
-static void k8t_sound_hostbridge(struct pci_dev *dev)
-{
-	unsigned char val;
-
-	pci_read_config_byte(dev, 0x50, &val);
-	if (val == 0xc8) {
-		/* Assume it's probably a MSI-K8T-Neo2Fir */
-		printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, attempting to turn soundcard ON\n");
-		pci_write_config_byte(dev, 0x50, val & (~0x40));
-
-		/* Verify the Change for Status output */
-		pci_read_config_byte(dev, 0x50, &val);
-		if (val & 0x40)
-			printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, soundcard still off\n");
-		else
-			printk(KERN_INFO "PCI: MSI-K8T-Neo2Fir, soundcard on\n");
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_hostbridge);
-DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237, k8t_sound_hostbridge);
 
 /*
  * On ASUS P4B boards, the SMBus PCI Device within the ICH2/4 southbridge
