@@ -207,5 +207,7 @@ define_machine(mpc85xx_mds) {
 	.restart	= mpc85xx_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
+#ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
 };
