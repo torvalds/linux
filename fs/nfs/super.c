@@ -432,8 +432,6 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 	};
 	const struct proc_nfs_info *nfs_infop;
 	struct nfs_client *clp = nfss->nfs_client;
-	char buf[12];
-	const char *proto;
 
 	seq_printf(m, ",vers=%d", clp->rpc_ops->version);
 	seq_printf(m, ",rsize=%d", nfss->rsize);
@@ -452,18 +450,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss, 
 		else
 			seq_puts(m, nfs_infop->nostr);
 	}
-	switch (nfss->client->cl_xprt->prot) {
-		case IPPROTO_TCP:
-			proto = "tcp";
-			break;
-		case IPPROTO_UDP:
-			proto = "udp";
-			break;
-		default:
-			snprintf(buf, sizeof(buf), "%u", nfss->client->cl_xprt->prot);
-			proto = buf;
-	}
-	seq_printf(m, ",proto=%s", proto);
+	seq_printf(m, ",proto=%s",
+		   rpc_peeraddr2str(nfss->client, RPC_DISPLAY_PROTO));
 	seq_printf(m, ",timeo=%lu", 10U * clp->retrans_timeo / HZ);
 	seq_printf(m, ",retrans=%u", clp->retrans_count);
 	seq_printf(m, ",sec=%s", nfs_pseudoflavour_to_name(nfss->client->cl_auth->au_flavor));
