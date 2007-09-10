@@ -200,7 +200,7 @@ struct rpc_xprt {
 	char *			address_strings[RPC_DISPLAY_MAX];
 };
 
-struct rpc_xprtsock_create {
+struct xprt_create {
 	int			proto;		/* IPPROTO_UDP or IPPROTO_TCP */
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
@@ -212,7 +212,7 @@ struct xprt_class {
 	struct list_head	list;
 	unsigned short		family;
 	int			protocol;
-	struct rpc_xprt *	(*setup)(struct rpc_xprtsock_create *);
+	struct rpc_xprt *	(*setup)(struct xprt_create *);
 	struct module		*owner;
 	char			name[32];
 };
@@ -225,7 +225,7 @@ void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long
 /*
  * Generic internal transport functions
  */
-struct rpc_xprt *	xprt_create_transport(struct rpc_xprtsock_create *args);
+struct rpc_xprt		*xprt_create_transport(struct xprt_create *args);
 void			xprt_connect(struct rpc_task *task);
 void			xprt_reserve(struct rpc_task *task);
 int			xprt_reserve_xprt(struct rpc_task *task);
@@ -265,8 +265,8 @@ void			xprt_disconnect(struct rpc_xprt *xprt);
 /*
  * Socket transport setup operations
  */
-struct rpc_xprt *	xs_setup_udp(struct rpc_xprtsock_create *args);
-struct rpc_xprt *	xs_setup_tcp(struct rpc_xprtsock_create *args);
+struct rpc_xprt		*xs_setup_udp(struct xprt_create *args);
+struct rpc_xprt		*xs_setup_tcp(struct xprt_create *args);
 int			init_socket_xprt(void);
 void			cleanup_socket_xprt(void);
 

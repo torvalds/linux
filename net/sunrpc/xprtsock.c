@@ -1784,7 +1784,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
-static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args,
+static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 				      unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
@@ -1826,7 +1826,7 @@ static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args,
  * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
+struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 {
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
@@ -1892,7 +1892,7 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
  * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
+struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 {
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;

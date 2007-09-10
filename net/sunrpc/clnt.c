@@ -240,7 +240,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 {
 	struct rpc_xprt *xprt;
 	struct rpc_clnt *clnt;
-	struct rpc_xprtsock_create xprtargs = {
+	struct xprt_create xprtargs = {
 		.proto = args->protocol,
 		.srcaddr = args->saddress,
 		.dstaddr = args->address,

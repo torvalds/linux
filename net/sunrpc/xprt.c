@@ -979,7 +979,7 @@ void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long i
  * @args: rpc transport creation arguments
  *
  */
-struct rpc_xprt *xprt_create_transport(struct rpc_xprtsock_create *args)
+struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 {
 	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
