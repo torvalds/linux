@@ -316,9 +316,7 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 	int timeout;
 
 	snd_cs4231_busy_wait(chip);
-#if 0
-	printk("(1) timeout = %i\n", timeout);
-#endif
+
 #ifdef CONFIG_SND_DEBUG
 	if (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT)
 		snd_printk("mce_down [0x%lx] - auto calibration time out (0)\n", (long)CS4231P(REGSEL));
@@ -342,9 +340,9 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
 	 */
 	msleep(1);
-#if 0
-	printk("(2) jiffies = %li\n", jiffies);
-#endif
+
+	snd_printdd("(1) jiffies = %lu\n", jiffies);
+
 	/* in 10 ms increments, check condition, up to 250 ms */
 	timeout = 25;
 	while (snd_cs4231_in(chip, CS4231_TEST_INIT) & CS4231_CALIB_IN_PROGRESS) {
@@ -354,9 +352,9 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 		}
 		msleep(10);
 	}
-#if 0
-	printk("(3) jiffies = %li\n", jiffies);
-#endif
+
+	snd_printdd("(2) jiffies = %lu\n", jiffies);
+
 	/* in 10 ms increments, check condition, up to 100 ms */
 	timeout = 10;
 	while (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT) {
@@ -366,10 +364,9 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 		}
 		msleep(10);
 	}
-#if 0
-	printk("(4) jiffies = %li\n", jiffies);
-	snd_printk("mce_down - exit = 0x%x\n", cs4231_inb(chip, CS4231P(REGSEL)));
-#endif
+
+	snd_printdd("(3) jiffies = %lu\n", jiffies);
+	snd_printd("mce_down - exit = 0x%x\n", cs4231_inb(chip, CS4231P(REGSEL)));
 }
 
 static unsigned int snd_cs4231_get_count(unsigned char format, unsigned int size)
