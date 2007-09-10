@@ -206,8 +206,13 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 	 */
 	if (!udev->parent)
 		rc = hcd_bus_suspend(udev);
+
+	/* Non-root devices don't need to do anything for FREEZE or PRETHAW */
+	else if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_PRETHAW)
+		rc = 0;
 	else
 		rc = usb_port_suspend(udev);
+
 	return rc;
 }
 
