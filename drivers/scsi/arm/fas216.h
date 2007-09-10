@@ -16,6 +16,8 @@
 #define NO_IRQ 255
 #endif
 
+#include <scsi/scsi_eh.h>
+
 #include "queue.h"
 #include "msgqueue.h"
 
@@ -311,6 +313,7 @@ typedef struct {
 
 	/* miscellaneous */
 	int			internal_done;		/* flag to indicate request done */
+	struct scsi_eh_save	*ses;		/* holds request sense restore info */
 	unsigned long		magic_end;
 } FAS216_Info;
 
