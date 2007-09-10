@@ -294,19 +294,24 @@ static unsigned int cs4270_read_reg_cache(struct snd_soc_codec *codec,
 static int cs4270_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
 			    unsigned int value)
 {
+	u8 *cache = codec->reg_cache;
+
 	if ((reg < CS4270_FIRSTREG) || (reg > CS4270_LASTREG))
 		return -EIO;
 
-	if (i2c_smbus_write_byte_data(codec->control_data, reg, value) == 0) {
+	/* Only perform an I2C operation if the new value is different */
+	if (cache[reg - CS4270_FIRSTREG] != value) {
+		struct i2c_client *client = codec->control_data;
+		if (i2c_smbus_write_byte_data(client, reg, value)) {
+			printk(KERN_ERR "cs4270: I2C write failed\n");
+			return -EIO;
+		}
+
 		/* We've written to the hardware, so update the cache */
-		u8 *cache = codec->reg_cache;
 		cache[reg - CS4270_FIRSTREG] = value;
-		return 0;
-	} else {
-		printk(KERN_ERR "cs4270: I2C write of register %u failed\n",
-			reg);
-		return -EIO;
 	}
+
+	return 0;
 }
 
 /*
@@ -521,7 +526,7 @@ static int cs4270_i2c_detach(struct i2c_client *client)
 /* A list of non-DAPM controls that the CS4270 supports */
 static const struct snd_kcontrol_new cs4270_snd_controls[] = {
 	SOC_DOUBLE_R("Master Playback Volume",
-		CS4270_VOLA, CS4270_VOLB, 0, 0xFF, 0)
+		CS4270_VOLA, CS4270_VOLB, 0, 0xFF, 1)
 };
 
 static struct i2c_driver cs4270_i2c_driver = {
