@@ -422,44 +422,39 @@ static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 		spin_unlock_irqrestore(&chip->lock, flags);
 		return;
 	}
-	snd_cs4231_busy_wait(chip);
 
-	/* calibration process */
+	/*
+	 * Wait for (possible -- during init auto-calibration may not be set)
+	 * calibration process to start. Needs upto 5 sample periods on AD1848
+	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
+	 */
+	msleep(1);
 
-	snd_cs4231_ready(chip);
-	snd_cs4231_ready(chip);
-	timeout = snd_cs4231_in(chip, CS4231_TEST_INIT);
-	if ((timeout & CS4231_CALIB_IN_PROGRESS) == 0) {
-		snd_printd("cs4231_mce_down - auto calibration time out (1)\n");
-		spin_unlock_irqrestore(&chip->lock, flags);
-		return;
-	}
-
-	/* in 10ms increments, check condition, up to 250ms */
-	timeout = 25;
+	/* check condition up to 250ms */
+	timeout = msecs_to_jiffies(250);
 	while (snd_cs4231_in(chip, CS4231_TEST_INIT) &
 		CS4231_CALIB_IN_PROGRESS) {
 
 		spin_unlock_irqrestore(&chip->lock, flags);
-		if (--timeout < 0) {
+		if (timeout <= 0) {
 			snd_printk("mce_down - "
 				   "auto calibration time out (2)\n");
 			return;
 		}
-		msleep(10);
+		timeout = schedule_timeout(timeout);
 		spin_lock_irqsave(&chip->lock, flags);
 	}
 
-	/* in 10ms increments, check condition, up to 100ms */
-	timeout = 10;
+	/* check condition up to 100ms */
+	timeout = msecs_to_jiffies(100);
 	while (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT) {
 		spin_unlock_irqrestore(&chip->lock, flags);
-		if (--timeout < 0) {
+		if (timeout <= 0) {
 			snd_printk("mce_down - "
 				   "auto calibration time out (3)\n");
 			return;
 		}
-		msleep(10);
+		timeout = schedule_timeout(timeout);
 		spin_lock_irqsave(&chip->lock, flags);
 	}
 	spin_unlock_irqrestore(&chip->lock, flags);
