@@ -267,7 +267,6 @@ static void ep_device_release(struct device *dev)
 {
 	struct ep_device *ep_dev = to_ep_device(dev);
 
-	dev_dbg(dev, "%s called for %s\n", __FUNCTION__, dev->bus_id);
 	endpoint_free_minor(ep_dev);
 	kfree(ep_dev);
 }
