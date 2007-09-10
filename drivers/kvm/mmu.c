@@ -202,15 +202,14 @@ static void set_shadow_pte(u64 *sptep, u64 spte)
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
-				  struct kmem_cache *base_cache, int min,
-				  gfp_t gfp_flags)
+				  struct kmem_cache *base_cache, int min)
 {
 	void *obj;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		obj = kmem_cache_zalloc(base_cache, gfp_flags);
+		obj = kmem_cache_zalloc(base_cache, GFP_KERNEL);
 		if (!obj)
 			return -ENOMEM;
 		cache->objects[cache->nobjs++] = obj;
@@ -225,14 +224,14 @@ static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 }
 
 static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
-				       int min, gfp_t gfp_flags)
+				       int min)
 {
 	struct page *page;
 
 	if (cache->nobjs >= min)
 		return 0;
 	while (cache->nobjs < ARRAY_SIZE(cache->objects)) {
-		page = alloc_page(gfp_flags);
+		page = alloc_page(GFP_KERNEL);
 		if (!page)
 			return -ENOMEM;
 		set_page_private(page, 0);
@@ -247,38 +246,25 @@ static void mmu_free_memory_cache_page(struct kvm_mmu_memory_cache *mc)
 		free_page((unsigned long)mc->objects[--mc->nobjs]);
 }
 
-static int __mmu_topup_memory_caches(struct kvm_vcpu *vcpu, gfp_t gfp_flags)
-{
-	int r;
-
-	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
-				   pte_chain_cache, 4, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
-				   rmap_desc_cache, 1, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache_page(&vcpu->mmu_page_cache, 4, gfp_flags);
-	if (r)
-		goto out;
-	r = mmu_topup_memory_cache(&vcpu->mmu_page_header_cache,
-				   mmu_page_header_cache, 4, gfp_flags);
-out:
-	return r;
-}
-
 static int mmu_topup_memory_caches(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	r = __mmu_topup_memory_caches(vcpu, GFP_NOWAIT);
 	kvm_mmu_free_some_pages(vcpu);
-	if (r < 0) {
-		mutex_unlock(&vcpu->kvm->lock);
-		r = __mmu_topup_memory_caches(vcpu, GFP_KERNEL);
-		mutex_lock(&vcpu->kvm->lock);
-	}
+	r = mmu_topup_memory_cache(&vcpu->mmu_pte_chain_cache,
+				   pte_chain_cache, 4);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache(&vcpu->mmu_rmap_desc_cache,
+				   rmap_desc_cache, 1);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache_page(&vcpu->mmu_page_cache, 4);
+	if (r)
+		goto out;
+	r = mmu_topup_memory_cache(&vcpu->mmu_page_header_cache,
+				   mmu_page_header_cache, 4);
+out:
 	return r;
 }
 
