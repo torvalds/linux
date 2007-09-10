@@ -80,10 +80,10 @@ config MACH_DECSTATION
 	  If you have one of the following DECstation Models you definitely
 	  want to choose R4xx0 for the CPU Type:
 
-	  	DECstation 5000/50
-	  	DECstation 5000/150
-	  	DECstation 5000/260
-	  	DECsystem 5900/260
+		DECstation 5000/50
+		DECstation 5000/150
+		DECstation 5000/260
+		DECsystem 5900/260
 
 	  otherwise choose R3000.
 
@@ -817,20 +817,6 @@ config EMMA2RH
 
 config SERIAL_RM9000
 	bool
-
-#
-# Unfortunately not all GT64120 systems run the chip at the same clock.
-# As the user for the clock rate and try to minimize the available options.
-#
-choice
-	prompt "Galileo Chip Clock"
-	depends on MOMENCO_OCELOT
-	default SYSCLK_100 if MOMENCO_OCELOT
-
-config SYSCLK_100
-	bool "100" if MOMENCO_OCELOT
-
-endchoice
 
 config ARC32
 	bool

@@ -35,7 +35,7 @@ static inline unsigned long dma_addr_to_virt(dma_addr_t dma_addr)
 static inline int cpu_is_noncoherent_r10000(struct device *dev)
 {
 	return !plat_device_is_coherent(dev) &&
-	       (current_cpu_data.cputype == CPU_R10000 &&
+	       (current_cpu_data.cputype == CPU_R10000 ||
 	       current_cpu_data.cputype == CPU_R12000);
 }
 
