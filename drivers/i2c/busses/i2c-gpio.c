@@ -147,7 +147,7 @@ static int __init i2c_gpio_probe(struct platform_device *pdev)
 	 * The reason to do so is to avoid sysfs names that only make
 	 * sense when there are multiple adapters.
 	 */
-	adap->nr = pdev->id >= 0 ? pdev->id : 0;
+	adap->nr = (pdev->id != -1) ? pdev->id : 0;
 	ret = i2c_bit_add_numbered_bus(adap);
 	if (ret)
 		goto err_add_bus;
