@@ -25,7 +25,6 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/profile.h>
 #include <linux/sched.h>
 
 #include <asm/io.h>
@@ -355,8 +354,10 @@ static void load_transition_efer(struct vcpu_vmx *vmx)
 	vmx->vcpu.stat.efer_reload++;
 }
 
-static void vmx_save_host_state(struct vcpu_vmx *vmx)
+static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
 	if (vmx->host_state.loaded)
 		return;
 
@@ -1598,6 +1599,13 @@ out:
 	return ret;
 }
 
+static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	vmx_vcpu_setup(vmx);
+}
+
 static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
 {
 	u16 ent[2];
@@ -2019,20 +2027,6 @@ static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
-static void post_kvm_run_save(struct kvm_vcpu *vcpu,
-			      struct kvm_run *kvm_run)
-{
-	kvm_run->if_flag = (vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) != 0;
-	kvm_run->cr8 = get_cr8(vcpu);
-	kvm_run->apic_base = kvm_get_apic_base(vcpu);
-	if (irqchip_in_kernel(vcpu->kvm))
-		kvm_run->ready_for_interrupt_injection = 1;
-	else
-		kvm_run->ready_for_interrupt_injection =
-					(vcpu->interrupt_window_open &&
-					 vcpu->irq_summary == 0);
-}
-
 static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 				   struct kvm_run *kvm_run)
 {
@@ -2123,21 +2117,6 @@ static int kvm_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-/*
- * Check if userspace requested an interrupt window, and that the
- * interrupt window is open.
- *
- * No need to exit to userspace if we already have an interrupt queued.
- */
-static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
-					  struct kvm_run *kvm_run)
-{
-	return (!vcpu->irq_summary &&
-		kvm_run->request_interrupt_window &&
-		vcpu->interrupt_window_open &&
-		(vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF));
-}
-
 static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 {
 }
@@ -2214,58 +2193,14 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		enable_irq_window(vcpu);
 }
 
-static int vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	int r;
-
-	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
-		printk("vcpu %d received sipi with vector # %x\n",
-		       vcpu->vcpu_id, vcpu->sipi_vector);
-		kvm_lapic_reset(vcpu);
-		vmx_vcpu_setup(vmx);
-		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
-	}
-
-preempted:
-	if (vcpu->guest_debug.enabled)
-		kvm_guest_debug_pre(vcpu);
-
-again:
-	r = kvm_mmu_reload(vcpu);
-	if (unlikely(r))
-		goto out;
-
-	preempt_disable();
-
-	vmx_save_host_state(vmx);
-	kvm_load_guest_fpu(vcpu);
 
 	/*
 	 * Loading guest fpu may have cleared host cr0.ts
 	 */
 	vmcs_writel(HOST_CR0, read_cr0());
-
-	local_irq_disable();
-
-	if (signal_pending(current)) {
-		local_irq_enable();
-		preempt_enable();
-		r = -EINTR;
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		++vcpu->stat.signal_exits;
-		goto out;
-	}
-
-	if (irqchip_in_kernel(vcpu->kvm))
-		vmx_intr_assist(vcpu);
-	else if (!vcpu->mmio_read_completed)
-		do_interrupt_requests(vcpu, kvm_run);
-
-	vcpu->guest_mode = 1;
-	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
-		    vmx_flush_tlb(vcpu);
 
 	asm (
 		/* Store host registers */
@@ -2383,46 +2318,10 @@ again:
 		[cr2]"i"(offsetof(struct kvm_vcpu, cr2))
 	      : "cc", "memory" );
 
-	vcpu->guest_mode = 0;
-	local_irq_enable();
-
-	++vcpu->stat.exits;
-
 	vcpu->interrupt_window_open = (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
 
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
-
-	preempt_enable();
-
-	/*
-	 * Profile KVM exit RIPs:
-	 */
-	if (unlikely(prof_on == KVM_PROFILING))
-		profile_hit(KVM_PROFILING, (void *)vmcs_readl(GUEST_RIP));
-
-	r = kvm_handle_exit(kvm_run, vcpu);
-	if (r > 0) {
-		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-			r = -EINTR;
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			++vcpu->stat.request_irq_exits;
-			goto out;
-		}
-		if (!need_resched()) {
-			++vcpu->stat.light_exits;
-			goto again;
-		}
-	}
-
-out:
-	if (r > 0) {
-		kvm_resched(vcpu);
-		goto preempted;
-	}
-
-	post_kvm_run_save(vcpu, kvm_run);
-	return r;
 }
 
 static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,
@@ -2560,12 +2459,15 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,
+	.vcpu_reset = vmx_vcpu_reset,
 
+	.prepare_guest_switch = vmx_save_host_state,
 	.vcpu_load = vmx_vcpu_load,
 	.vcpu_put = vmx_vcpu_put,
 	.vcpu_decache = vmx_vcpu_decache,
 
 	.set_guest_debug = set_guest_debug,
+	.guest_debug_pre = kvm_guest_debug_pre,
 	.get_msr = vmx_get_msr,
 	.set_msr = vmx_set_msr,
 	.get_segment_base = vmx_get_segment_base,
@@ -2594,10 +2496,13 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.inject_gp = vmx_inject_gp,
 
 	.run = vmx_vcpu_run,
+	.handle_exit = kvm_handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = vmx_patch_hypercall,
 	.get_irq = vmx_get_irq,
 	.set_irq = vmx_inject_irq,
+	.inject_pending_irq = vmx_intr_assist,
+	.inject_pending_vectors = do_interrupt_requests,
 };
 
 static int __init vmx_init(void)

@@ -453,13 +453,16 @@ struct kvm_x86_ops {
 	/* Create, but do not attach this VCPU */
 	struct kvm_vcpu *(*vcpu_create)(struct kvm *kvm, unsigned id);
 	void (*vcpu_free)(struct kvm_vcpu *vcpu);
+	void (*vcpu_reset)(struct kvm_vcpu *vcpu);
 
+	void (*prepare_guest_switch)(struct kvm_vcpu *vcpu);
 	void (*vcpu_load)(struct kvm_vcpu *vcpu, int cpu);
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 	void (*vcpu_decache)(struct kvm_vcpu *vcpu);
 
 	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
 			       struct kvm_debug_guest *dbg);
+	void (*guest_debug_pre)(struct kvm_vcpu *vcpu);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);
@@ -491,12 +494,16 @@ struct kvm_x86_ops {
 
 	void (*inject_gp)(struct kvm_vcpu *vcpu, unsigned err_code);
 
-	int (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
+	void (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
+	int (*handle_exit)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
 	int (*get_irq)(struct kvm_vcpu *vcpu);
 	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
+	void (*inject_pending_irq)(struct kvm_vcpu *vcpu);
+	void (*inject_pending_vectors)(struct kvm_vcpu *vcpu,
+				       struct kvm_run *run);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;

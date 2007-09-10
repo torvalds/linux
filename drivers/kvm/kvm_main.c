@@ -38,6 +38,7 @@
 #include <linux/cpumask.h>
 #include <linux/smp.h>
 #include <linux/anon_inodes.h>
+#include <linux/profile.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -1970,6 +1971,127 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
 
+/*
+ * Check if userspace requested an interrupt window, and that the
+ * interrupt window is open.
+ *
+ * No need to exit to userspace if we already have an interrupt queued.
+ */
+static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
+					  struct kvm_run *kvm_run)
+{
+	return (!vcpu->irq_summary &&
+		kvm_run->request_interrupt_window &&
+		vcpu->interrupt_window_open &&
+		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF));
+}
+
+static void post_kvm_run_save(struct kvm_vcpu *vcpu,
+			      struct kvm_run *kvm_run)
+{
+	kvm_run->if_flag = (kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF) != 0;
+	kvm_run->cr8 = get_cr8(vcpu);
+	kvm_run->apic_base = kvm_get_apic_base(vcpu);
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_run->ready_for_interrupt_injection = 1;
+	else
+		kvm_run->ready_for_interrupt_injection =
+					(vcpu->interrupt_window_open &&
+					 vcpu->irq_summary == 0);
+}
+
+static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	int r;
+
+	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
+		printk("vcpu %d received sipi with vector # %x\n",
+		       vcpu->vcpu_id, vcpu->sipi_vector);
+		kvm_lapic_reset(vcpu);
+		kvm_x86_ops->vcpu_reset(vcpu);
+		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
+	}
+
+preempted:
+	if (vcpu->guest_debug.enabled)
+		kvm_x86_ops->guest_debug_pre(vcpu);
+
+again:
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		goto out;
+
+	preempt_disable();
+
+	kvm_x86_ops->prepare_guest_switch(vcpu);
+	kvm_load_guest_fpu(vcpu);
+
+	local_irq_disable();
+
+	if (signal_pending(current)) {
+		local_irq_enable();
+		preempt_enable();
+		r = -EINTR;
+		kvm_run->exit_reason = KVM_EXIT_INTR;
+		++vcpu->stat.signal_exits;
+		goto out;
+	}
+
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_x86_ops->inject_pending_irq(vcpu);
+	else if (!vcpu->mmio_read_completed)
+		kvm_x86_ops->inject_pending_vectors(vcpu, kvm_run);
+
+	vcpu->guest_mode = 1;
+
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
+			kvm_x86_ops->tlb_flush(vcpu);
+
+	kvm_x86_ops->run(vcpu, kvm_run);
+
+	vcpu->guest_mode = 0;
+	local_irq_enable();
+
+	++vcpu->stat.exits;
+
+	preempt_enable();
+
+	/*
+	 * Profile KVM exit RIPs:
+	 */
+	if (unlikely(prof_on == KVM_PROFILING)) {
+		kvm_x86_ops->cache_regs(vcpu);
+		profile_hit(KVM_PROFILING, (void *)vcpu->rip);
+	}
+
+	r = kvm_x86_ops->handle_exit(kvm_run, vcpu);
+
+	if (r > 0) {
+		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
+			r = -EINTR;
+			kvm_run->exit_reason = KVM_EXIT_INTR;
+			++vcpu->stat.request_irq_exits;
+			goto out;
+		}
+		if (!need_resched()) {
+			++vcpu->stat.light_exits;
+			goto again;
+		}
+	}
+
+out:
+	if (r > 0) {
+		kvm_resched(vcpu);
+		goto preempted;
+	}
+
+	post_kvm_run_save(vcpu, kvm_run);
+
+	return r;
+}
+
+
 static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -2017,7 +2139,7 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_x86_ops->decache_regs(vcpu);
 	}
 
-	r = kvm_x86_ops->run(vcpu, kvm_run);
+	r = __vcpu_run(vcpu, kvm_run);
 
 out:
 	if (vcpu->sigset_active)

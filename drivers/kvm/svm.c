@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
-#include <linux/profile.h>
 #include <linux/sched.h>
 
 #include <asm/desc.h>
@@ -49,6 +48,8 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_NPT  (1 << 0)
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_DEATURE_SVML (1 << 2)
+
+static void kvm_reput_irq(struct vcpu_svm *svm);
 
 static inline struct vcpu_svm *to_svm(struct kvm_vcpu *vcpu)
 {
@@ -553,6 +554,13 @@ static void init_vmcb(struct vmcb *vmcb)
 	save->cr0 = 0x00000010 | X86_CR0_PG | X86_CR0_WP;
 	save->cr4 = X86_CR4_PAE;
 	/* rdx = ?? */
+}
+
+static void svm_vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	init_vmcb(svm->vmcb);
 }
 
 static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
@@ -1252,9 +1260,19 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 };
 
 
-static int handle_exit(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	u32 exit_code = svm->vmcb->control.exit_code;
+
+	kvm_reput_irq(svm);
+
+	if (svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
+		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		kvm_run->fail_entry.hardware_entry_failure_reason
+			= svm->vmcb->control.exit_code;
+		return 0;
+	}
 
 	if (is_external_interrupt(svm->vmcb->control.exit_int_info) &&
 	    exit_code != SVM_EXIT_EXCP_BASE + PF_VECTOR)
@@ -1313,11 +1331,11 @@ static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
 	svm_inject_irq(svm, irq);
 }
 
-static void svm_intr_assist(struct vcpu_svm *svm)
+static void svm_intr_assist(struct kvm_vcpu *vcpu)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
 	int intr_vector = -1;
-	struct kvm_vcpu *vcpu = &svm->vcpu;
 
 	kvm_inject_pending_timer_irqs(vcpu);
 	if ((vmcb->control.exit_int_info & SVM_EVTINJ_VALID) &&
@@ -1376,9 +1394,10 @@ static void svm_do_inject_vector(struct vcpu_svm *svm)
 	svm_inject_irq(svm, irq);
 }
 
-static void do_interrupt_requests(struct vcpu_svm *svm,
+static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 				       struct kvm_run *kvm_run)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb_control_area *control = &svm->vmcb->control;
 
 	svm->vcpu.interrupt_window_open =
@@ -1399,35 +1418,6 @@ static void do_interrupt_requests(struct vcpu_svm *svm,
 		control->intercept |= 1ULL << INTERCEPT_VINTR;
 	} else
 		control->intercept &= ~(1ULL << INTERCEPT_VINTR);
-}
-
-static void post_kvm_run_save(struct vcpu_svm *svm,
-			      struct kvm_run *kvm_run)
-{
-	if (irqchip_in_kernel(svm->vcpu.kvm))
-		kvm_run->ready_for_interrupt_injection = 1;
-	else
-		kvm_run->ready_for_interrupt_injection =
-					 (svm->vcpu.interrupt_window_open &&
-					  svm->vcpu.irq_summary == 0);
-	kvm_run->if_flag = (svm->vmcb->save.rflags & X86_EFLAGS_IF) != 0;
-	kvm_run->cr8 = get_cr8(&svm->vcpu);
-	kvm_run->apic_base = kvm_get_apic_base(&svm->vcpu);
-}
-
-/*
- * Check if userspace requested an interrupt window, and that the
- * interrupt window is open.
- *
- * No need to exit to userspace if we already have an interrupt queued.
- */
-static int dm_request_for_irq_injection(struct vcpu_svm *svm,
-					  struct kvm_run *kvm_run)
-{
-	return (!svm->vcpu.irq_summary &&
-		kvm_run->request_interrupt_window &&
-		svm->vcpu.interrupt_window_open &&
-		(svm->vmcb->save.rflags & X86_EFLAGS_IF));
 }
 
 static void save_db_regs(unsigned long *db_regs)
@@ -1451,38 +1441,16 @@ static void svm_flush_tlb(struct kvm_vcpu *vcpu)
 	force_new_asid(vcpu);
 }
 
-static int svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
+{
+}
+
+static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u16 fs_selector;
 	u16 gs_selector;
 	u16 ldt_selector;
-	int r;
-
-again:
-	r = kvm_mmu_reload(vcpu);
-	if (unlikely(r))
-		return r;
-
-	clgi();
-
-	if (signal_pending(current)) {
-		stgi();
-		++vcpu->stat.signal_exits;
-		post_kvm_run_save(svm, kvm_run);
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		return -EINTR;
-	}
-
-	if (irqchip_in_kernel(vcpu->kvm))
-		svm_intr_assist(svm);
-	else if (!vcpu->mmio_read_completed)
-		do_interrupt_requests(svm, kvm_run);
-
-	vcpu->guest_mode = 1;
-	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_TLB_FLUSH, &vcpu->requests))
-		    svm_flush_tlb(vcpu);
 
 	pre_svm_run(svm);
 
@@ -1501,10 +1469,9 @@ again:
 		load_db_regs(svm->db_regs);
 	}
 
-	if (vcpu->fpu_active) {
-		fx_save(&vcpu->host_fx_image);
-		fx_restore(&vcpu->guest_fx_image);
-	}
+	clgi();
+
+	local_irq_enable();
 
 	asm volatile (
 #ifdef CONFIG_X86_64
@@ -1612,12 +1579,9 @@ again:
 #endif
 		: "cc", "memory" );
 
-	vcpu->guest_mode = 0;
+	local_irq_disable();
 
-	if (vcpu->fpu_active) {
-		fx_save(&vcpu->guest_fx_image);
-		fx_restore(&vcpu->host_fx_image);
-	}
+	stgi();
 
 	if ((svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(svm->host_db_regs);
@@ -1635,40 +1599,7 @@ again:
 
 	reload_tss(vcpu);
 
-	/*
-	 * Profile KVM exit RIPs:
-	 */
-	if (unlikely(prof_on == KVM_PROFILING))
-		profile_hit(KVM_PROFILING,
-			(void *)(unsigned long)svm->vmcb->save.rip);
-
-	stgi();
-
-	kvm_reput_irq(svm);
-
 	svm->next_rip = 0;
-
-	if (svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
-		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
-		kvm_run->fail_entry.hardware_entry_failure_reason
-			= svm->vmcb->control.exit_code;
-		post_kvm_run_save(svm, kvm_run);
-		return 0;
-	}
-
-	r = handle_exit(svm, kvm_run);
-	if (r > 0) {
-		if (dm_request_for_irq_injection(svm, kvm_run)) {
-			++vcpu->stat.request_irq_exits;
-			post_kvm_run_save(svm, kvm_run);
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			return -EINTR;
-		}
-		kvm_resched(vcpu);
-		goto again;
-	}
-	post_kvm_run_save(svm, kvm_run);
-	return r;
 }
 
 static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
@@ -1752,7 +1683,9 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.vcpu_create = svm_create_vcpu,
 	.vcpu_free = svm_free_vcpu,
+	.vcpu_reset = svm_vcpu_reset,
 
+	.prepare_guest_switch = svm_prepare_guest_switch,
 	.vcpu_load = svm_vcpu_load,
 	.vcpu_put = svm_vcpu_put,
 	.vcpu_decache = svm_vcpu_decache,
@@ -1786,10 +1719,13 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.inject_gp = svm_inject_gp,
 
 	.run = svm_vcpu_run,
+	.handle_exit = handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = svm_patch_hypercall,
 	.get_irq = svm_get_irq,
 	.set_irq = svm_set_irq,
+	.inject_pending_irq = svm_intr_assist,
+	.inject_pending_vectors = do_interrupt_requests,
 };
 
 static int __init svm_init(void)
