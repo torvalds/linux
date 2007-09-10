@@ -219,7 +219,9 @@ extern int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags);
 extern int usb_hcd_unlink_urb (struct urb *urb, int status);
 extern void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb,
 		int status);
-extern void usb_hcd_endpoint_disable (struct usb_device *udev,
+extern void usb_hcd_flush_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep);
+extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern int usb_hcd_get_frame_number (struct usb_device *udev);
 

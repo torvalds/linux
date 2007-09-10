@@ -1289,24 +1289,22 @@ EXPORT_SYMBOL (usb_hcd_giveback_urb);
 
 /*-------------------------------------------------------------------------*/
 
-/* disables the endpoint: cancels any pending urbs, then synchronizes with
- * the hcd to make sure all endpoint state is gone from hardware, and then
- * waits until the endpoint's queue is completely drained. use for
- * set_configuration, set_interface, driver removal, physical disconnect.
- *
- * example:  a qh stored in ep->hcpriv, holding state related to endpoint
- * type, maxpacket size, toggle, halt status, and scheduling.
+/* Cancel all URBs pending on this endpoint and wait for the endpoint's
+ * queue to drain completely.  The caller must first insure that no more
+ * URBs can be submitted for this endpoint.
  */
-void usb_hcd_endpoint_disable (struct usb_device *udev,
+void usb_hcd_flush_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
 	struct usb_hcd		*hcd;
 	struct urb		*urb;
 
+	if (!ep)
+		return;
 	might_sleep();
 	hcd = bus_to_hcd(udev->bus);
 
-	/* ep is already gone from udev->ep_{in,out}[]; no more submits */
+	/* No more submits can occur */
 rescan:
 	spin_lock_irq(&hcd_urb_list_lock);
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
@@ -1345,18 +1343,7 @@ rescan:
 	}
 	spin_unlock_irq(&hcd_urb_list_lock);
 
-	/* synchronize with the hardware, so old configuration state
-	 * clears out immediately (and will be freed).
-	 */
-	if (hcd->driver->endpoint_disable)
-		hcd->driver->endpoint_disable (hcd, ep);
-
-	/* Wait until the endpoint queue is completely empty.  Most HCDs
-	 * will have done this already in their endpoint_disable method,
-	 * but some might not.  And there could be root-hub control URBs
-	 * still pending since they aren't affected by the HCDs'
-	 * endpoint_disable methods.
-	 */
+	/* Wait until the endpoint queue is completely empty */
 	while (!list_empty (&ep->urb_list)) {
 		spin_lock_irq(&hcd_urb_list_lock);
 
@@ -1374,6 +1361,25 @@ rescan:
 			usb_put_urb (urb);
 		}
 	}
+}
+
+/* Disables the endpoint: synchronizes with the hcd to make sure all
+ * endpoint state is gone from hardware.  usb_hcd_flush_endpoint() must
+ * have been called previously.  Use for set_configuration, set_interface,
+ * driver removal, physical disconnect.
+ *
+ * example:  a qh stored in ep->hcpriv, holding state related to endpoint
+ * type, maxpacket size, toggle, halt status, and scheduling.
+ */
+void usb_hcd_disable_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	struct usb_hcd		*hcd;
+
+	might_sleep();
+	hcd = bus_to_hcd(udev->bus);
+	if (hcd->driver->endpoint_disable)
+		hcd->driver->endpoint_disable(hcd, ep);
 }
 
 /*-------------------------------------------------------------------------*/

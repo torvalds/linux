@@ -1017,7 +1017,8 @@ void usb_disable_endpoint(struct usb_device *dev, unsigned int epaddr)
 	}
 	if (ep) {
 		ep->enabled = 0;
-		usb_hcd_endpoint_disable(dev, ep);
+		usb_hcd_flush_endpoint(dev, ep);
+		usb_hcd_disable_endpoint(dev, ep);
 	}
 }
 
