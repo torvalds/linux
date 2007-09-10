@@ -1856,6 +1856,7 @@ static int nfs4_xdr_enc_read(struct rpc_rqst *req, __be32 *p, struct nfs_readarg
 	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS4_dec_read_sz) << 2;
 	xdr_inline_pages(&req->rq_rcv_buf, replen,
 			 args->pages, args->pgbase, args->count);
+	req->rq_rcv_buf.flags |= XDRBUF_READ;
 out:
 	return status;
 }
@@ -1932,6 +1933,7 @@ static int nfs4_xdr_enc_write(struct rpc_rqst *req, __be32 *p, struct nfs_writea
 	status = encode_write(&xdr, args);
 	if (status)
 		goto out;
+	req->rq_snd_buf.flags |= XDRBUF_WRITE;
 	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;

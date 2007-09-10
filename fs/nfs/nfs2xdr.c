@@ -251,6 +251,7 @@ nfs_xdr_readargs(struct rpc_rqst *req, __be32 *p, struct nfs_readargs *args)
 	replen = (RPC_REPHDRSIZE + auth->au_rslack + NFS_readres_sz) << 2;
 	xdr_inline_pages(&req->rq_rcv_buf, replen,
 			 args->pages, args->pgbase, count);
+	req->rq_rcv_buf.flags |= XDRBUF_READ;
 	return 0;
 }
 
@@ -313,6 +314,7 @@ nfs_xdr_writeargs(struct rpc_rqst *req, __be32 *p, struct nfs_writeargs *args)
 
 	/* Copy the page array */
 	xdr_encode_pages(sndbuf, args->pages, args->pgbase, count);
+	sndbuf->flags |= XDRBUF_WRITE;
 	return 0;
 }
 
