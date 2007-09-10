@@ -10,6 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/serial.h>
+#include <linux/io.h>
 #include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -282,24 +283,66 @@ static DECLARE_INTC_DESC(intc_desc_irl0123, "sh7785-irl0123", vectors_irl0123,
 static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7785-irl4567", vectors_irl4567,
 			 NULL, NULL, mask_registers, NULL, NULL);
 
+#define INTC_ICR0	0xffd00000
+#define INTC_INTMSK0	0xffd00044
+#define INTC_INTMSK1	0xffd00048
+#define INTC_INTMSK2	0xffd40080
+#define INTC_INTMSKCLR1	0xffd00068
+#define INTC_INTMSKCLR2	0xffd40084
+
 void __init plat_irq_setup(void)
 {
+	/* disable IRQ3-0 + IRQ7-4 */
+	ctrl_outl(0xff000000, INTC_INTMSK0);
+
+	/* disable IRL3-0 + IRL7-4 */
+	ctrl_outl(0xc0000000, INTC_INTMSK1);
+	ctrl_outl(0xfffefffe, INTC_INTMSK2);
+
+	/* select IRL mode for IRL3-0 + IRL7-4 */
+	ctrl_outl(ctrl_inl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
+
+	/* disable holding function, ie enable "SH-4 Mode" */
+	ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00200000, INTC_ICR0);
+
 	register_intc_controller(&intc_desc);
 }
 
 void __init plat_irq_setup_pins(int mode)
 {
+	ctrl_outl(0xc0000000, INTC_INTMSKCLR1);
+	ctrl_outl(0xfffefffe, INTC_INTMSKCLR2);
+	return;
+
 	switch (mode) {
 	case IRQ_MODE_IRQ7654:
+		/* select IRQ mode for IRL7-4 */
+		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00400000, INTC_ICR0);
 		register_intc_controller(&intc_desc_irq4567);
 		break;
 	case IRQ_MODE_IRQ3210:
+		/* select IRQ mode for IRL3-0 */
+		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00800000, INTC_ICR0);
 		register_intc_controller(&intc_desc_irq0123);
 		break;
 	case IRQ_MODE_IRL7654:
-		register_intc_controller(&intc_desc_irl4567);
+		/* enable IRL7-4 but don't provide any masking */
+		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		ctrl_outl(0x0000fffe, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL3210:
+		/* enable IRL0-3 but don't provide any masking */
+		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+		break;
+	case IRQ_MODE_IRL7654_MASK:
+		/* enable IRL7-4 and mask using cpu intc controller */
+		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		register_intc_controller(&intc_desc_irl4567);
+		break;
+	case IRQ_MODE_IRL3210_MASK:
+		/* enable IRL0-3 and mask using cpu intc controller */
+		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_desc_irl0123);
 		break;
 	default:

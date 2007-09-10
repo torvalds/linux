@@ -95,6 +95,7 @@ int intc_set_priority(unsigned int irq, unsigned int prio);
 void __init plat_irq_setup(void);
 
 enum { IRQ_MODE_IRQ, IRQ_MODE_IRQ7654, IRQ_MODE_IRQ3210,
+       IRQ_MODE_IRL7654_MASK, IRQ_MODE_IRL3210_MASK,
        IRQ_MODE_IRL7654, IRQ_MODE_IRL3210 };
 void __init plat_irq_setup_pins(int mode);
 
