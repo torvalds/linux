@@ -668,7 +668,7 @@ static u64 div64_likely32(u64 divident, unsigned long divisor)
 /*
  * Shift right and round:
  */
-#define RSR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
+#define SRR(x, y) (((x) + (1UL << ((y) - 1))) >> (y))
 
 static unsigned long
 calc_delta_mine(unsigned long delta_exec, unsigned long weight,
@@ -684,10 +684,10 @@ calc_delta_mine(unsigned long delta_exec, unsigned long weight,
 	 * Check whether we'd overflow the 64-bit multiplication:
 	 */
 	if (unlikely(tmp > WMULT_CONST))
-		tmp = RSR(RSR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
+		tmp = SRR(SRR(tmp, WMULT_SHIFT/2) * lw->inv_weight,
 			WMULT_SHIFT/2);
 	else
-		tmp = RSR(tmp * lw->inv_weight, WMULT_SHIFT);
+		tmp = SRR(tmp * lw->inv_weight, WMULT_SHIFT);
 
 	return (unsigned long)min(tmp, (u64)(unsigned long)LONG_MAX);
 }
@@ -858,7 +858,6 @@ static void dec_nr_running(struct task_struct *p, struct rq *rq)
 
 static void set_load_weight(struct task_struct *p)
 {
-	task_rq(p)->cfs.wait_runtime -= p->se.wait_runtime;
 	p->se.wait_runtime = 0;
 
 	if (task_has_rt_policy(p)) {
@@ -2512,7 +2511,7 @@ group_next:
 	 * a think about bumping its value to force at least one task to be
 	 * moved
 	 */
-	if (*imbalance + SCHED_LOAD_SCALE_FUZZ < busiest_load_per_task) {
+	if (*imbalance < busiest_load_per_task) {
 		unsigned long tmp, pwr_now, pwr_move;
 		unsigned int imbn;
 
@@ -2564,10 +2563,8 @@ small_imbalance:
 		pwr_move /= SCHED_LOAD_SCALE;
 
 		/* Move if we gain throughput */
-		if (pwr_move <= pwr_now)
-			goto out_balanced;
-
-		*imbalance = busiest_load_per_task;
+		if (pwr_move > pwr_now)
+			*imbalance = busiest_load_per_task;
 	}
 
 	return busiest;

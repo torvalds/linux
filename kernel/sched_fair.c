@@ -194,6 +194,8 @@ __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_add(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running++;
 	se->on_rq = 1;
+
+	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 }
 
 static inline void
@@ -205,6 +207,8 @@ __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_load_sub(&cfs_rq->load, se->load.weight);
 	cfs_rq->nr_running--;
 	se->on_rq = 0;
+
+	schedstat_add(cfs_rq, wait_runtime, -se->wait_runtime);
 }
 
 static inline struct rb_node *first_fair(struct cfs_rq *cfs_rq)
@@ -291,7 +295,7 @@ niced_granularity(struct sched_entity *curr, unsigned long granularity)
 	/*
 	 * It will always fit into 'long':
 	 */
-	return (long) (tmp >> WMULT_SHIFT);
+	return (long) (tmp >> (WMULT_SHIFT-NICE_0_SHIFT));
 }
 
 static inline void
@@ -574,7 +578,6 @@ static void __enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 	prev_runtime = se->wait_runtime;
 	__add_wait_runtime(cfs_rq, se, delta_fair);
-	schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
 	delta_fair = se->wait_runtime - prev_runtime;
 
 	/*
@@ -662,7 +665,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 			if (tsk->state & TASK_UNINTERRUPTIBLE)
 				se->block_start = rq_of(cfs_rq)->clock;
 		}
-		cfs_rq->wait_runtime -= se->wait_runtime;
 #endif
 	}
 	__dequeue_entity(cfs_rq, se);
@@ -671,22 +673,39 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static int
+static void
 __check_preempt_curr_fair(struct cfs_rq *cfs_rq, struct sched_entity *se,
 			  struct sched_entity *curr, unsigned long granularity)
 {
 	s64 __delta = curr->fair_key - se->fair_key;
+	unsigned long ideal_runtime, delta_exec;
+
+	/*
+	 * ideal_runtime is compared against sum_exec_runtime, which is
+	 * walltime, hence do not scale.
+	 */
+	ideal_runtime = max(sysctl_sched_latency / cfs_rq->nr_running,
+			(unsigned long)sysctl_sched_min_granularity);
+
+	/*
+	 * If we executed more than what the latency constraint suggests,
+	 * reduce the rescheduling granularity. This way the total latency
+	 * of how much a task is not scheduled converges to
+	 * sysctl_sched_latency:
+	 */
+	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	if (delta_exec > ideal_runtime)
+		granularity = 0;
 
 	/*
 	 * Take scheduling granularity into account - do not
 	 * preempt the current task unless the best task has
 	 * a larger than sched_granularity fairness advantage:
+	 *
+	 * scale granularity as key space is in fair_clock.
 	 */
-	if (__delta > niced_granularity(curr, granularity)) {
+	if (__delta > niced_granularity(curr, granularity))
 		resched_task(rq_of(cfs_rq)->curr);
-		return 1;
-	}
-	return 0;
 }
 
 static inline void
@@ -702,6 +721,7 @@ set_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	update_stats_wait_end(cfs_rq, se);
 	update_stats_curr_start(cfs_rq, se);
 	set_cfs_rq_curr(cfs_rq, se);
+	se->prev_sum_exec_runtime = se->sum_exec_runtime;
 }
 
 static struct sched_entity *pick_next_entity(struct cfs_rq *cfs_rq)
@@ -731,7 +751,6 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 
 static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 {
-	unsigned long gran, ideal_runtime, delta_exec;
 	struct sched_entity *next;
 
 	/*
@@ -748,22 +767,8 @@ static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (next == curr)
 		return;
 
-	gran = sched_granularity(cfs_rq);
-	ideal_runtime = niced_granularity(curr,
-		max(sysctl_sched_latency / cfs_rq->nr_running,
-		    (unsigned long)sysctl_sched_min_granularity));
-	/*
-	 * If we executed more than what the latency constraint suggests,
-	 * reduce the rescheduling granularity. This way the total latency
-	 * of how much a task is not scheduled converges to
-	 * sysctl_sched_latency:
-	 */
-	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	if (delta_exec > ideal_runtime)
-		gran = 0;
-
-	if (__check_preempt_curr_fair(cfs_rq, next, curr, gran))
-		curr->prev_sum_exec_runtime = curr->sum_exec_runtime;
+	__check_preempt_curr_fair(cfs_rq, next, curr,
+			sched_granularity(cfs_rq));
 }
 
 /**************************************************
@@ -1121,10 +1126,8 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	 * The statistical average of wait_runtime is about
 	 * -granularity/2, so initialize the task with that:
 	 */
-	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT) {
+	if (sysctl_sched_features & SCHED_FEAT_START_DEBIT)
 		se->wait_runtime = -(sched_granularity(cfs_rq) / 2);
-		schedstat_add(cfs_rq, wait_runtime, se->wait_runtime);
-	}
 
 	__enqueue_entity(cfs_rq, se);
 }
