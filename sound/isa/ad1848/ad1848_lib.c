@@ -239,7 +239,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 #if 0
 	printk("(2) jiffies = %li\n", jiffies);
 #endif
-	time = HZ / 4;
+	time = msecs_to_jiffies(250);
 	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		if (time <= 0) {
@@ -252,7 +252,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 #if 0
 	printk("(3) jiffies = %li\n", jiffies);
 #endif
-	time = HZ / 10;
+	time = msecs_to_jiffies(100);
 	while (inb(AD1848P(chip, REGSEL)) & AD1848_INIT) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		if (time <= 0) {
