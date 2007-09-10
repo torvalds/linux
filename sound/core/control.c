@@ -716,8 +716,6 @@ int snd_ctl_elem_read(struct snd_card *card, struct snd_ctl_elem_value *control)
 	return result;
 }
 
-EXPORT_SYMBOL(snd_ctl_elem_read);
-
 static int snd_ctl_elem_read_user(struct snd_card *card,
 				  struct snd_ctl_elem_value __user *_control)
 {
@@ -780,8 +778,6 @@ int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 	up_read(&card->controls_rwsem);
 	return result;
 }
-
-EXPORT_SYMBOL(snd_ctl_elem_write);
 
 static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 				   struct snd_ctl_elem_value __user *_control)
