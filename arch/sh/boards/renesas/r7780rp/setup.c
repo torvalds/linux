@@ -31,8 +31,8 @@ static struct resource r8a66597_usb_host_resources[] = {
 	},
 	[1] = {
 		.name	= "r8a66597_hcd",
-		.start	= 11,		/* irq number */
-		.end	= 11,
+		.start	= IRQ_EXT1,		/* irq number */
+		.end	= IRQ_EXT1,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -57,8 +57,8 @@ static struct resource m66592_usb_peripheral_resources[] = {
 	},
 	[1] = {
 		.name	= "m66592_udc",
-		.start	= 9,		/* irq number */
-		.end	= 9,
+		.start	= IRQ_EXT4,		/* irq number */
+		.end	= IRQ_EXT4,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -86,11 +86,7 @@ static struct resource cf_ide_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
-#ifdef CONFIG_SH_R7780RP
-		.start	= 4,
-#else
-		.start	= 1,
-#endif
+		.start	= IRQ_CF,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -225,12 +221,50 @@ static void __init highlander_setup(char **cmdline_p)
 	pm_power_off = r7780rp_power_off;
 }
 
+static unsigned char irl2irq[HL_NR_IRL];
+
+int highlander_irq_demux(int irq)
+{
+	if (irq >= HL_NR_IRL || !irl2irq[irq])
+		return irq;
+
+	return irl2irq[irq];
+}
+
+void __init highlander_init_irq(void)
+{
+	unsigned char *ucp = NULL;
+
+	do {
+#ifdef CONFIG_SH_R7780MP
+		ucp = highlander_init_irq_r7780mp();
+		if (ucp)
+			break;
+#endif
+#ifdef CONFIG_SH_R7785RP
+		ucp = highlander_init_irq_r7785rp();
+		if (ucp)
+			break;
+#endif
+#ifdef CONFIG_SH_R7780RP
+		highlander_init_irq_r7780rp();
+		ucp = irl2irq;
+		break;
+#endif
+	} while (0);
+
+	if (ucp) {
+		plat_irq_setup_pins(IRQ_MODE_IRL3210);
+		memcpy(irl2irq, ucp, HL_NR_IRL);
+	}
+}
+
 /*
  * The Machine Vector
  */
 static struct sh_machine_vector mv_highlander __initmv = {
 	.mv_name		= "Highlander",
-	.mv_nr_irqs		= 109,
 	.mv_setup		= highlander_setup,
 	.mv_init_irq		= highlander_init_irq,
+	.mv_irq_demux		= highlander_irq_demux,
 };

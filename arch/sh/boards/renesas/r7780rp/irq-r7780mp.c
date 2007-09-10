@@ -1,5 +1,5 @@
 /*
- * Renesas Solutions Highlander R7785RP Support.
+ * Renesas Solutions Highlander R7780MP Support.
  *
  * Copyright (C) 2002  Atom Create Engineering Co., Ltd.
  * Copyright (C) 2006  Paul Mundt
@@ -20,46 +20,42 @@ enum {
 	/* board specific interrupt sources */
 	AX88796,          /* Ethernet controller */
 	CF,               /* Compact Flash */
+	PSW,              /* Push Switch */
+	EXT1,             /* EXT1n IRQ */
+	EXT4,             /* EXT4n IRQ */
 };
 
 static struct intc_vect vectors[] __initdata = {
 	INTC_IRQ(CF, IRQ_CF),
+	INTC_IRQ(PSW, IRQ_PSW),
 	INTC_IRQ(AX88796, IRQ_AX88796),
+	INTC_IRQ(EXT1, IRQ_EXT1),
+	INTC_IRQ(EXT4, IRQ_EXT4),
 };
 
 static struct intc_mask_reg mask_registers[] __initdata = {
-	{ 0xa4000010, 0, 16, /* IRLMCR1 */
-	  { 0, 0, 0, 0, CF, AX88796, 0, 0,
-	    0, 0, 0, 0, 0, 0, 0, 0 } },
+	{ 0xa4000000, 0, 16, /* IRLMSK */
+	  { 0, 0, 0, 0, CF, 0, 0, 0,
+	    0, 0, 0, EXT4, 0, EXT1, PSW, AX88796 } },
 };
 
 static unsigned char irl2irq[HL_NR_IRL] __initdata = {
 	0, IRQ_CF, 0, 0,
 	0, 0, 0, 0,
-	0, 0, IRQ_AX88796, 0,
-	0, 0, 0,
+	0, IRQ_EXT4, 0, IRQ_EXT1,
+	0, IRQ_AX88796, IRQ_PSW,
 };
 
-static DECLARE_INTC_DESC(intc_desc, "r7785rp", vectors,
+static DECLARE_INTC_DESC(intc_desc, "r7780mp", vectors,
 			 NULL, NULL, mask_registers, NULL, NULL);
 
-unsigned char * __init highlander_init_irq_r7785rp(void)
+unsigned char * __init highlander_init_irq_r7780mp(void)
 {
-	if ((ctrl_inw(0xa4000158) & 0xf000) != 0x1000)
-		return NULL;
+	if ((ctrl_inw(0xa4000700) & 0xf000) == 0x2000) {
+		printk(KERN_INFO "Using r7780mp interrupt controller.\n");
+		register_intc_controller(&intc_desc);
+		return irl2irq;
+	}
 
-	printk(KERN_INFO "Using r7785rp interrupt controller.\n");
-
-	ctrl_outw(0x0000, PA_IRLSSR1);	/* FPGA IRLSSR1(CF_CD clear) */
-
-	/* Setup the FPGA IRL */
-	ctrl_outw(0x0000, PA_IRLPRA);	/* FPGA IRLA */
-	ctrl_outw(0xe598, PA_IRLPRB);	/* FPGA IRLB */
-	ctrl_outw(0x7060, PA_IRLPRC);	/* FPGA IRLC */
-	ctrl_outw(0x0000, PA_IRLPRD);	/* FPGA IRLD */
-	ctrl_outw(0x4321, PA_IRLPRE);	/* FPGA IRLE */
-	ctrl_outw(0x0000, PA_IRLPRF);	/* FPGA IRLF */
-
-	register_intc_controller(&intc_desc);
-	return irl2irq;
+	return NULL;
 }
