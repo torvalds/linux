@@ -18,8 +18,8 @@
       </affiliation>
      </author>
 
-     <date>July 26, 2007</date>
-     <edition>0.3.6.1</edition>
+     <date>September 10, 2007</date>
+     <edition>0.3.7</edition>
 
     <abstract>
       <para>
@@ -3473,6 +3473,13 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
+      The <structfield>tlv</structfield> field can be used to provide
+      metadata about the control; see the
+      <link linkend="control-interface-tlv">
+      <citetitle>Metadata</citetitle></link> subsection.
+      </para>
+
+      <para>
         The other three are
 	<link linkend="control-interface-callbacks"><citetitle>
 	callback functions</citetitle></link>.
@@ -3868,6 +3875,56 @@ struct _snd_pcm_runtime {
       to be notified.
       You can find some examples in <filename>es1938.c</filename> or
       <filename>es1968.c</filename> for hardware volume interrupts. 
+      </para>
+    </section>
+
+    <section id="control-interface-tlv">
+      <title>Metadata</title>
+      <para>
+      To provide information about the dB values of a mixer control, use
+      on of the <constant>DECLARE_TLV_xxx</constant> macros from
+      <filename>&lt;sound/tlv.h&gt;</filename> to define a variable
+      containing this information, set the<structfield>tlv.p
+      </structfield> field to point to this variable, and include the
+      <constant>SNDRV_CTL_ELEM_ACCESS_TLV_READ</constant> flag in the
+      <structfield>access</structfield> field; like this:
+      <informalexample>
+        <programlisting>
+<![CDATA[
+  static DECLARE_TLV_DB_SCALE(db_scale_my_control, -4050, 150, 0);
+
+  static struct snd_kcontrol_new my_control __devinitdata = {
+          ...
+          .access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+                    SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+          ...
+          .tlv.p = db_scale_my_control,
+  };
+]]>
+        </programlisting>
+      </informalexample>
+      </para>
+
+      <para>
+      The <function>DECLARE_TLV_DB_SCALE</function> macro defines
+      information about a mixer control where each step in the control's
+      value changes the dB value by a constant dB amount.
+      The first parameter is the name of the variable to be defined.
+      The second parameter is the minimum value, in units of 0.01 dB.
+      The third parameter is the step size, in units of 0.01 dB.
+      Set the fourth parameter to 1 if the minimum value actually mutes
+      the control.
+      </para>
+
+      <para>
+      The <function>DECLARE_TLV_DB_LINEAR</function> macro defines
+      information about a mixer control where the control's value affects
+      the output linearly.
+      The first parameter is the name of the variable to be defined.
+      The second parameter is the minimum value, in units of 0.01 dB.
+      The third parameter is the maximum value, in units of 0.01 dB.
+      If the minimum value mutes the control, set the second parameter to
+      <constant>TLV_DB_GAIN_MUTE</constant>.
       </para>
     </section>
 
