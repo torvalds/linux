@@ -19,23 +19,9 @@
 
 #ifdef __KERNEL__
 
-extern unsigned int xprt_udp_slot_table_entries;
-extern unsigned int xprt_tcp_slot_table_entries;
-
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
-
-/*
- * Parameters for choosing a free port
- */
-extern unsigned int xprt_min_resvport;
-extern unsigned int xprt_max_resvport;
-
-#define RPC_MIN_RESVPORT	(1U)
-#define RPC_MAX_RESVPORT	(65535U)
-#define RPC_DEF_MIN_RESVPORT	(665U)
-#define RPC_DEF_MAX_RESVPORT	(1023U)
 
 /*
  * This describes a timeout strategy
@@ -261,14 +247,6 @@ struct rpc_rqst *	xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid);
 void			xprt_complete_rqst(struct rpc_task *task, int copied);
 void			xprt_release_rqst_cong(struct rpc_task *task);
 void			xprt_disconnect(struct rpc_xprt *xprt);
-
-/*
- * Socket transport setup operations
- */
-struct rpc_xprt		*xs_setup_udp(struct xprt_create *args);
-struct rpc_xprt		*xs_setup_tcp(struct xprt_create *args);
-int			init_socket_xprt(void);
-void			cleanup_socket_xprt(void);
 
 /*
  * Reserved bit positions in xprt->state
