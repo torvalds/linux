@@ -2977,8 +2977,8 @@ qla1280_64bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 						cpu_to_le32(pci_dma_hi32(dma_handle)),
 						cpu_to_le32(pci_dma_lo32(dma_handle)),
 						cpu_to_le32(sg_dma_len(s)));
-					remseg--;
 				}
+				remseg -= cnt;
 				dprintk(5, "qla1280_64bit_start_scsi: "
 					"continuation packet data - b %i, t "
 					"%i, l %i \n", SCSI_BUS_32(cmd),
@@ -3250,6 +3250,8 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 
 				/* Load continuation entry data segments. */
 				for_each_sg(sg, s, remseg, cnt) {
+					if (cnt == 7)
+						break;
 					*dword_ptr++ =
 						cpu_to_le32(pci_dma_lo32(sg_dma_address(s)));
 					*dword_ptr++ =
@@ -3260,6 +3262,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 						cpu_to_le32(pci_dma_lo32(sg_dma_address(s))),
 						cpu_to_le32(sg_dma_len(s)));
 				}
+				remseg -= cnt;
 				dprintk(5, "qla1280_32bit_start_scsi: "
 					"continuation packet data - "
 					"scsi(%i:%i:%i)\n", SCSI_BUS_32(cmd),
