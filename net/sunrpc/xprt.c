@@ -983,19 +983,23 @@ struct rpc_xprt *xprt_create_transport(struct rpc_xprtsock_create *args)
 {
 	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
+	struct xprt_class *t;
 
-	switch (args->proto) {
-	case IPPROTO_UDP:
-		xprt = xs_setup_udp(args);
-		break;
-	case IPPROTO_TCP:
-		xprt = xs_setup_tcp(args);
-		break;
-	default:
-		printk(KERN_ERR "RPC: unrecognized transport protocol: %d\n",
-				args->proto);
-		return ERR_PTR(-EIO);
+	spin_lock(&xprt_list_lock);
+	list_for_each_entry(t, &xprt_list, list) {
+		if ((t->family == args->dstaddr->sa_family) &&
+		    (t->protocol == args->proto)) {
+			spin_unlock(&xprt_list_lock);
+			goto found;
+		}
 	}
+	spin_unlock(&xprt_list_lock);
+	printk(KERN_ERR "RPC: transport (%u/%d) not supported\n",
+			args->dstaddr->sa_family, args->proto);
+	return ERR_PTR(-EIO);
+
+found:
+	xprt = t->setup(args);
 	if (IS_ERR(xprt)) {
 		dprintk("RPC:       xprt_create_transport: failed, %ld\n",
 				-PTR_ERR(xprt));

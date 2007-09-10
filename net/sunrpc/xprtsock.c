@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/capability.h>
 #include <linux/pagemap.h>
 #include <linux/errno.h>
@@ -777,6 +778,7 @@ static void xs_destroy(struct rpc_xprt *xprt)
 	xs_free_peer_addresses(xprt);
 	kfree(xprt->slot);
 	kfree(xprt);
+	module_put(THIS_MODULE);
 }
 
 static inline struct rpc_xprt *xprt_from_sock(struct sock *sk)
@@ -1782,7 +1784,8 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.print_stats		= xs_tcp_print_stats,
 };
 
-static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args, unsigned int slot_table_size)
+static struct rpc_xprt *xs_setup_xprt(struct rpc_xprtsock_create *args,
+				      unsigned int slot_table_size)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *new;
@@ -1876,7 +1879,12 @@ struct rpc_xprt *xs_setup_udp(struct rpc_xprtsock_create *args)
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
-	return xprt;
+	if (try_module_get(THIS_MODULE))
+		return xprt;
+
+	kfree(xprt->slot);
+	kfree(xprt);
+	return ERR_PTR(-EINVAL);
 }
 
 /**
@@ -1934,11 +1942,34 @@ struct rpc_xprt *xs_setup_tcp(struct rpc_xprtsock_create *args)
 	dprintk("RPC:       set up transport to address %s\n",
 			xprt->address_strings[RPC_DISPLAY_ALL]);
 
-	return xprt;
+	if (try_module_get(THIS_MODULE))
+		return xprt;
+
+	kfree(xprt->slot);
+	kfree(xprt);
+	return ERR_PTR(-EINVAL);
 }
 
+static struct xprt_class	xs_udp_transport = {
+	.list		= LIST_HEAD_INIT(xs_udp_transport.list),
+	.name		= "udp",
+	.owner		= THIS_MODULE,
+	.family		= AF_INET,
+	.protocol	= IPPROTO_UDP,
+	.setup		= xs_setup_udp,
+};
+
+static struct xprt_class	xs_tcp_transport = {
+	.list		= LIST_HEAD_INIT(xs_tcp_transport.list),
+	.name		= "tcp",
+	.owner		= THIS_MODULE,
+	.family		= AF_INET,
+	.protocol	= IPPROTO_TCP,
+	.setup		= xs_setup_tcp,
+};
+
 /**
- * init_socket_xprt - set up xprtsock's sysctls
+ * init_socket_xprt - set up xprtsock's sysctls, register with RPC client
  *
  */
 int init_socket_xprt(void)
@@ -1948,11 +1979,14 @@ int init_socket_xprt(void)
 		sunrpc_table_header = register_sysctl_table(sunrpc_table);
 #endif
 
+	xprt_register_transport(&xs_udp_transport);
+	xprt_register_transport(&xs_tcp_transport);
+
 	return 0;
 }
 
 /**
- * cleanup_socket_xprt - remove xprtsock's sysctls
+ * cleanup_socket_xprt - remove xprtsock's sysctls, unregister
  *
  */
 void cleanup_socket_xprt(void)
@@ -1963,4 +1997,7 @@ void cleanup_socket_xprt(void)
 		sunrpc_table_header = NULL;
 	}
 #endif
+
+	xprt_unregister_transport(&xs_udp_transport);
+	xprt_unregister_transport(&xs_tcp_transport);
 }
