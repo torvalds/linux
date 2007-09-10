@@ -777,6 +777,7 @@ void *rpc_malloc(struct rpc_task *task, size_t size)
 			task->tk_pid, size, buf);
 	return &buf->data;
 }
+EXPORT_SYMBOL_GPL(rpc_malloc);
 
 /**
  * rpc_free - free buffer allocated via rpc_malloc
@@ -802,6 +803,7 @@ void rpc_free(void *buffer)
 	else
 		kfree(buf);
 }
+EXPORT_SYMBOL_GPL(rpc_free);
 
 /*
  * Creation and deletion of RPC task structures

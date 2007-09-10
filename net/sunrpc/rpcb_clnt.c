@@ -415,6 +415,7 @@ bailout_nofree:
 bailout_nowake:
 	task->tk_status = status;
 }
+EXPORT_SYMBOL_GPL(rpcb_getport_async);
 
 /*
  * Rpcbind child task calls this callback via tk_exit.

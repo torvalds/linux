@@ -118,6 +118,7 @@ out_sleep:
 		rpc_sleep_on(&xprt->sending, task, NULL, NULL);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xprt_reserve_xprt);
 
 static void xprt_clear_locked(struct rpc_xprt *xprt)
 {
@@ -167,6 +168,7 @@ out_sleep:
 		rpc_sleep_on(&xprt->sending, task, NULL, NULL);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xprt_reserve_xprt_cong);
 
 static inline int xprt_lock_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
@@ -246,6 +248,7 @@ void xprt_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 		__xprt_lock_write_next(xprt);
 	}
 }
+EXPORT_SYMBOL_GPL(xprt_release_xprt);
 
 /**
  * xprt_release_xprt_cong - allow other requests to use a transport
@@ -262,6 +265,7 @@ void xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 		__xprt_lock_write_next_cong(xprt);
 	}
 }
+EXPORT_SYMBOL_GPL(xprt_release_xprt_cong);
 
 static inline void xprt_release_write(struct rpc_xprt *xprt, struct rpc_task *task)
 {
@@ -314,6 +318,7 @@ void xprt_release_rqst_cong(struct rpc_task *task)
 {
 	__xprt_put_cong(task->tk_xprt, task->tk_rqstp);
 }
+EXPORT_SYMBOL_GPL(xprt_release_rqst_cong);
 
 /**
  * xprt_adjust_cwnd - adjust transport congestion window
@@ -345,6 +350,7 @@ void xprt_adjust_cwnd(struct rpc_task *task, int result)
 	xprt->cwnd = cwnd;
 	__xprt_put_cong(xprt, req);
 }
+EXPORT_SYMBOL_GPL(xprt_adjust_cwnd);
 
 /**
  * xprt_wake_pending_tasks - wake all tasks on a transport's pending queue
@@ -359,6 +365,7 @@ void xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status)
 	else
 		rpc_wake_up(&xprt->pending);
 }
+EXPORT_SYMBOL_GPL(xprt_wake_pending_tasks);
 
 /**
  * xprt_wait_for_buffer_space - wait for transport output buffer to clear
@@ -373,6 +380,7 @@ void xprt_wait_for_buffer_space(struct rpc_task *task)
 	task->tk_timeout = req->rq_timeout;
 	rpc_sleep_on(&xprt->pending, task, NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(xprt_wait_for_buffer_space);
 
 /**
  * xprt_write_space - wake the task waiting for transport output buffer space
@@ -393,6 +401,7 @@ void xprt_write_space(struct rpc_xprt *xprt)
 	}
 	spin_unlock_bh(&xprt->transport_lock);
 }
+EXPORT_SYMBOL_GPL(xprt_write_space);
 
 /**
  * xprt_set_retrans_timeout_def - set a request's retransmit timeout
@@ -406,6 +415,7 @@ void xprt_set_retrans_timeout_def(struct rpc_task *task)
 {
 	task->tk_timeout = task->tk_rqstp->rq_timeout;
 }
+EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_def);
 
 /*
  * xprt_set_retrans_timeout_rtt - set a request's retransmit timeout
@@ -425,6 +435,7 @@ void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
 	if (task->tk_timeout > max_timeout || task->tk_timeout == 0)
 		task->tk_timeout = max_timeout;
 }
+EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_rtt);
 
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
@@ -500,6 +511,7 @@ void xprt_disconnect(struct rpc_xprt *xprt)
 	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
+EXPORT_SYMBOL_GPL(xprt_disconnect);
 
 static void
 xprt_init_autodisconnect(unsigned long data)
@@ -610,6 +622,7 @@ struct rpc_rqst *xprt_lookup_rqst(struct rpc_xprt *xprt, __be32 xid)
 	xprt->stat.bad_xids++;
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(xprt_lookup_rqst);
 
 /**
  * xprt_update_rtt - update an RPC client's RTT state after receiving a reply
@@ -629,6 +642,7 @@ void xprt_update_rtt(struct rpc_task *task)
 		rpc_set_timeo(rtt, timer, req->rq_ntrans - 1);
 	}
 }
+EXPORT_SYMBOL_GPL(xprt_update_rtt);
 
 /**
  * xprt_complete_rqst - called when reply processing is complete
@@ -653,6 +667,7 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 	req->rq_received = req->rq_private_buf.len = copied;
 	rpc_wake_up_task(task);
 }
+EXPORT_SYMBOL_GPL(xprt_complete_rqst);
 
 static void xprt_timer(struct rpc_task *task)
 {
