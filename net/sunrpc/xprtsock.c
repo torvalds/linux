@@ -1955,8 +1955,7 @@ static struct xprt_class	xs_udp_transport = {
 	.list		= LIST_HEAD_INIT(xs_udp_transport.list),
 	.name		= "udp",
 	.owner		= THIS_MODULE,
-	.family		= AF_INET,
-	.protocol	= IPPROTO_UDP,
+	.ident		= IPPROTO_UDP,
 	.setup		= xs_setup_udp,
 };
 
@@ -1964,8 +1963,7 @@ static struct xprt_class	xs_tcp_transport = {
 	.list		= LIST_HEAD_INIT(xs_tcp_transport.list),
 	.name		= "tcp",
 	.owner		= THIS_MODULE,
-	.family		= AF_INET,
-	.protocol	= IPPROTO_TCP,
+	.ident		= IPPROTO_TCP,
 	.setup		= xs_setup_tcp,
 };
 

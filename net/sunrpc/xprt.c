@@ -104,7 +104,7 @@ int xprt_register_transport(struct xprt_class *transport)
 	spin_lock(&xprt_list_lock);
 	list_for_each_entry(t, &xprt_list, list) {
 		/* don't register the same transport class twice */
-		if (t == transport)
+		if (t->ident == transport->ident)
 			goto out;
 	}
 
@@ -987,15 +987,13 @@ struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
 
 	spin_lock(&xprt_list_lock);
 	list_for_each_entry(t, &xprt_list, list) {
-		if ((t->family == args->dstaddr->sa_family) &&
-		    (t->protocol == args->proto)) {
+		if (t->ident == args->ident) {
 			spin_unlock(&xprt_list_lock);
 			goto found;
 		}
 	}
 	spin_unlock(&xprt_list_lock);
-	printk(KERN_ERR "RPC: transport (%u/%d) not supported\n",
-			args->dstaddr->sa_family, args->proto);
+	printk(KERN_ERR "RPC: transport (%d) not supported\n", args->ident);
 	return ERR_PTR(-EIO);
 
 found:

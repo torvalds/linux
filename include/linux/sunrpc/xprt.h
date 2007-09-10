@@ -187,7 +187,7 @@ struct rpc_xprt {
 };
 
 struct xprt_create {
-	int			proto;		/* IPPROTO_UDP or IPPROTO_TCP */
+	int			ident;		/* XPRT_TRANSPORT identifier */
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
@@ -196,8 +196,7 @@ struct xprt_create {
 
 struct xprt_class {
 	struct list_head	list;
-	unsigned short		family;
-	int			protocol;
+	int			ident;		/* XPRT_TRANSPORT identifier */
 	struct rpc_xprt *	(*setup)(struct xprt_create *);
 	struct module		*owner;
 	char			name[32];
