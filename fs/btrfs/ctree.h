@@ -333,6 +333,7 @@ struct btrfs_root {
 	struct inode *inode;
 	struct kobject root_kobj;
 	struct completion kobj_unregister;
+	struct rw_semaphore snap_sem;
 	u64 objectid;
 	u64 last_trans;
 	u32 blocksize;

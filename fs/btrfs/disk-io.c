@@ -300,6 +300,7 @@ static int __setup_root(int blocksize,
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
 	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
 	init_completion(&root->kobj_unregister);
+	init_rwsem(&root->snap_sem);
 	root->defrag_running = 0;
 	root->defrag_level = 0;
 	root->root_key.objectid = objectid;

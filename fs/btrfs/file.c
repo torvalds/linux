@@ -160,6 +160,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	num_blocks = (write_bytes + pos - start_pos + root->blocksize - 1) >>
 			inode->i_blkbits;
 
+	down_read(&BTRFS_I(inode)->root->snap_sem);
 	end_of_last_block = start_pos + (num_blocks << inode->i_blkbits) - 1;
 	lock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -250,6 +251,7 @@ out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	unlock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
 	free_extent_map(em);
+	up_read(&BTRFS_I(inode)->root->snap_sem);
 	return err;
 }
 

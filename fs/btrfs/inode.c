@@ -686,6 +686,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 	if ((offset & (blocksize - 1)) == 0)
 		goto out;
 
+	down_read(&BTRFS_I(inode)->root->snap_sem);
 	ret = -ENOMEM;
 	page = grab_cache_page(mapping, index);
 	if (!page)
@@ -704,6 +705,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 
 	unlock_page(page);
 	page_cache_release(page);
+	up_read(&BTRFS_I(inode)->root->snap_sem);
 out:
 	return ret;
 }
@@ -1668,6 +1670,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	int ret = -EINVAL;
 	u64 page_start;
 
+	down_read(&BTRFS_I(inode)->root->snap_sem);
 	lock_page(page);
 	wait_on_page_writeback(page);
 	size = i_size_read(inode);
@@ -1688,6 +1691,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	ret = btrfs_cow_one_page(inode, page, end);
 
 out_unlock:
+	up_read(&BTRFS_I(inode)->root->snap_sem);
 	unlock_page(page);
 	return ret;
 }
@@ -1851,6 +1855,10 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (!root->ref_cows)
 		return -EINVAL;
 
+	down_write(&root->snap_sem);
+	freeze_bdev(root->fs_info->sb->s_bdev);
+	thaw_bdev(root->fs_info->sb->s_bdev, root->fs_info->sb);
+
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
@@ -1894,12 +1902,12 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_inc_root_ref(trans, root);
 	if (ret)
 		goto fail;
-
 fail:
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
 	mutex_unlock(&root->fs_info->fs_mutex);
+	up_write(&root->snap_sem);
 	btrfs_btree_balance_dirty(root);
 	return ret;
 }
