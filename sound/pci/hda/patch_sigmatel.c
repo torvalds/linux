@@ -1185,6 +1185,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 		      "Dell Precision", STAC_9205_M43xx),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01f9,
 		      "Dell Precision", STAC_9205_DELL_M43),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x021b,
+		      "Dell Precision", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fa,
 		      "Dell Precision", STAC_9205_DELL_M43),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x01fc,
