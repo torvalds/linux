@@ -343,26 +343,29 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 
 	snd_printdd("(1) jiffies = %lu\n", jiffies);
 
-	/* in 10 ms increments, check condition, up to 250 ms */
-	timeout = 25;
-	while (snd_cs4231_in(chip, CS4231_TEST_INIT) & CS4231_CALIB_IN_PROGRESS) {
-		if (--timeout < 0) {
-			snd_printk("mce_down - auto calibration time out (2)\n");
+	/* check condition up to 250 ms */
+	timeout = msecs_to_jiffies(250);
+	while (snd_cs4231_in(chip, CS4231_TEST_INIT) &
+		CS4231_CALIB_IN_PROGRESS) {
+
+		if (timeout <= 0) {
+			snd_printk(KERN_ERR "mce_down - "
+					"auto calibration time out (2)\n");
 			return;
 		}
-		msleep(10);
+		timeout = schedule_timeout(timeout);
 	}
 
 	snd_printdd("(2) jiffies = %lu\n", jiffies);
 
-	/* in 10 ms increments, check condition, up to 100 ms */
-	timeout = 10;
+	/* check condition up to 100 ms */
+	timeout = msecs_to_jiffies(100);
 	while (cs4231_inb(chip, CS4231P(REGSEL)) & CS4231_INIT) {
-		if (--timeout < 0) {
+		if (timeout <= 0) {
 			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
 			return;
 		}
-		msleep(10);
+		timeout = schedule_timeout(timeout);
 	}
 
 	snd_printdd("(3) jiffies = %lu\n", jiffies);
