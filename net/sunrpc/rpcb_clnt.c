@@ -388,8 +388,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_prot = xprt->prot;
 	map->r_port = 0;
 	map->r_xprt = xprt_get(xprt);
-	map->r_netid = (xprt->prot == IPPROTO_TCP) ? RPCBIND_NETID_TCP :
-						     RPCBIND_NETID_UDP;
+	map->r_netid = rpc_peeraddr2str(clnt, RPC_DISPLAY_NETID);
 	memcpy(map->r_addr,
 	       rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR),
 	       sizeof(map->r_addr));

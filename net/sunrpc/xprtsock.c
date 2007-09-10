@@ -337,6 +337,10 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 				ntohs(addr->sin_port) & 0xff);
 	}
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
+
+	xprt->address_strings[RPC_DISPLAY_NETID] =
+		kstrdup(xprt->prot == IPPROTO_UDP ?
+			RPCBIND_NETID_UDP : RPCBIND_NETID_TCP, GFP_KERNEL);
 }
 
 static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
@@ -398,6 +402,10 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
 				ntohs(addr->sin6_port) & 0xff);
 	}
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
+
+	xprt->address_strings[RPC_DISPLAY_NETID] =
+		kstrdup(xprt->prot == IPPROTO_UDP ?
+			RPCBIND_NETID_UDP6 : RPCBIND_NETID_TCP6, GFP_KERNEL);
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
