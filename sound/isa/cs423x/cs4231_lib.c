@@ -336,16 +336,14 @@ void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 	}
 	snd_cs4231_busy_wait(chip);
 
-	/* calibration process */
-
-	for (timeout = 500; timeout > 0 && (snd_cs4231_in(chip, CS4231_TEST_INIT) & CS4231_CALIB_IN_PROGRESS) == 0; timeout--)
-		udelay(10);
-	if ((snd_cs4231_in(chip, CS4231_TEST_INIT) & CS4231_CALIB_IN_PROGRESS) == 0) {
-		snd_printd("cs4231_mce_down - auto calibration time out (1)\n");
-		return;
-	}
+	/*
+	 * Wait for (possible -- during init auto-calibration may not be set)
+	 * calibration process to start. Needs upto 5 sample periods on AD1848
+	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
+	 */
+	msleep(1);
 #if 0
-	printk("(2) timeout = %i, jiffies = %li\n", timeout, jiffies);
+	printk("(2) jiffies = %li\n", jiffies);
 #endif
 	/* in 10 ms increments, check condition, up to 250 ms */
 	timeout = 25;

@@ -229,16 +229,15 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		return;
 	}
-	/* calibration process */
 
-	for (timeout = 500; timeout > 0 && (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) == 0; timeout--);
-	if ((snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) == 0) {
-		snd_printd("mce_down - auto calibration time out (1)\n");
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		return;
-	}
+	/*
+	 * Wait for (possible -- during init auto-calibration may not be set)
+	 * calibration process to start. Needs upto 5 sample periods on AD1848
+	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
+	 */
+	msleep(1);
 #if 0
-	printk("(2) timeout = %i, jiffies = %li\n", timeout, jiffies);
+	printk("(2) jiffies = %li\n", jiffies);
 #endif
 	time = HZ / 4;
 	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
