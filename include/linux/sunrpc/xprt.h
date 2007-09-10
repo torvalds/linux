@@ -208,6 +208,15 @@ struct rpc_xprtsock_create {
 	struct rpc_timeout *	timeout;	/* optional timeout parameters */
 };
 
+struct xprt_class {
+	struct list_head	list;
+	unsigned short		family;
+	int			protocol;
+	struct rpc_xprt *	(*setup)(struct rpc_xprtsock_create *);
+	struct module		*owner;
+	char			name[32];
+};
+
 /*
  * Transport operations used by ULPs
  */
@@ -239,6 +248,8 @@ static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *
 /*
  * Transport switch helper functions
  */
+int			xprt_register_transport(struct xprt_class *type);
+int			xprt_unregister_transport(struct xprt_class *type);
 void			xprt_set_retrans_timeout_def(struct rpc_task *task);
 void			xprt_set_retrans_timeout_rtt(struct rpc_task *task);
 void			xprt_wake_pending_tasks(struct rpc_xprt *xprt, int status);
