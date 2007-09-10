@@ -10,6 +10,7 @@
 #include <linux/utsname.h>
 #include <linux/kernel.h>
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/lockd/lockd.h>
 #include <linux/lockd/sm_inter.h>
@@ -132,7 +133,7 @@ nsm_create(void)
 		.sin_port	= 0,
 	};
 	struct rpc_create_args args = {
-		.protocol	= IPPROTO_UDP,
+		.protocol	= XPRT_TRANSPORT_UDP,
 		.address	= (struct sockaddr *)&sin,
 		.addrsize	= sizeof(sin),
 		.servername	= "localhost",

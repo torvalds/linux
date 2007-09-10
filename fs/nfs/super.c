@@ -33,6 +33,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -669,13 +670,13 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
-			mnt->nfs_server.protocol = IPPROTO_UDP;
+			mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 			mnt->timeo = 7;
 			mnt->retrans = 5;
 			break;
 		case Opt_tcp:
 			mnt->flags |= NFS_MOUNT_TCP;
-			mnt->nfs_server.protocol = IPPROTO_TCP;
+			mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 			mnt->timeo = 600;
 			mnt->retrans = 2;
 			break;
@@ -884,13 +885,13 @@ static int nfs_parse_mount_options(char *raw,
 			switch (token) {
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
-				mnt->nfs_server.protocol = IPPROTO_UDP;
+				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 				mnt->timeo = 7;
 				mnt->retrans = 5;
 				break;
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
-				mnt->nfs_server.protocol = IPPROTO_TCP;
+				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 				mnt->timeo = 600;
 				mnt->retrans = 2;
 				break;
@@ -908,10 +909,10 @@ static int nfs_parse_mount_options(char *raw,
 
 			switch (token) {
 			case Opt_xprt_udp:
-				mnt->mount_server.protocol = IPPROTO_UDP;
+				mnt->mount_server.protocol = XPRT_TRANSPORT_UDP;
 				break;
 			case Opt_xprt_tcp:
-				mnt->mount_server.protocol = IPPROTO_TCP;
+				mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
 				break;
 			default:
 				goto out_unrec_xprt;
@@ -1061,9 +1062,9 @@ static int nfs_validate_mount_data(void *options,
 	args->acregmax		= 60;
 	args->acdirmin		= 30;
 	args->acdirmax		= 60;
-	args->mount_server.protocol = IPPROTO_UDP;
+	args->mount_server.protocol = XPRT_TRANSPORT_UDP;
 	args->mount_server.program = NFS_MNT_PROGRAM;
-	args->nfs_server.protocol = IPPROTO_TCP;
+	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 	args->nfs_server.program = NFS_PROGRAM;
 
 	switch (data->version) {
@@ -1110,7 +1111,7 @@ static int nfs_validate_mount_data(void *options,
 		args->acdirmax		= data->acdirmax;
 		args->nfs_server.address = data->addr;
 		if (!(data->flags & NFS_MOUNT_TCP))
-			args->nfs_server.protocol = IPPROTO_UDP;
+			args->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 		/* N.B. caller will free nfs_server.hostname in all cases */
 		args->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
 		args->namlen		= data->namlen;
@@ -1533,7 +1534,7 @@ static int nfs4_validate_mount_data(void *options,
 	args->acregmax		= 60;
 	args->acdirmin		= 30;
 	args->acdirmax		= 60;
-	args->nfs_server.protocol = IPPROTO_TCP;
+	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 
 	switch (data->version) {
 	case 1:

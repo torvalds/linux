@@ -23,6 +23,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/metrics.h>
+#include <linux/sunrpc/xprtsock.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_mount.h>
 #include <linux/nfs4_mount.h>
@@ -340,7 +341,7 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_retries = 2;
 
 	switch (proto) {
-	case IPPROTO_TCP:
+	case XPRT_TRANSPORT_TCP:
 		if (!to->to_initval)
 			to->to_initval = 60 * HZ;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
@@ -349,7 +350,7 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
 		to->to_exponential = 0;
 		break;
-	case IPPROTO_UDP:
+	case XPRT_TRANSPORT_UDP:
 	default:
 		if (!to->to_initval)
 			to->to_initval = 11 * HZ / 10;
