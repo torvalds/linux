@@ -58,37 +58,6 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
-
-struct nfs_parsed_mount_data {
-	int			flags;
-	int			rsize, wsize;
-	int			timeo, retrans;
-	int			acregmin, acregmax,
-				acdirmin, acdirmax;
-	int			namlen;
-	unsigned int		bsize;
-	unsigned int		auth_flavor_len;
-	rpc_authflavor_t	auth_flavors[1];
-	char			*client_address;
-
-	struct {
-		struct sockaddr_in	address;
-		char			*hostname;
-		unsigned int		program;
-		unsigned int		version;
-		unsigned short		port;
-		int			protocol;
-	} mount_server;
-
-	struct {
-		struct sockaddr_in	address;
-		char			*hostname;
-		char			*export_path;
-		unsigned int		program;
-		int			protocol;
-	} nfs_server;
-};
-
 enum {
 	/* Mount options that take no arguments */
 	Opt_soft, Opt_hard,
