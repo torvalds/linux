@@ -736,7 +736,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 				 * so fail our DAD process
 				 */
 				addrconf_dad_failure(ifp);
-				goto out;
+				return;
 			} else {
 				/*
 				 * This is not a dad solicitation.

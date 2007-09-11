@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.80"
-#define DRV_MODULE_RELDATE	"August 2, 2007"
+#define DRV_MODULE_VERSION	"3.81"
+#define DRV_MODULE_RELDATE	"September 5, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -7127,6 +7127,10 @@ static int tg3_open(struct net_device *dev)
 		} else if (pci_enable_msi(tp->pdev) == 0) {
 			u32 msi_mode;
 
+			/* Hardware bug - MSI won't work if INTX disabled. */
+			if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+				pci_intx(tp->pdev, 1);
+
 			msi_mode = tr32(MSGINT_MODE);
 			tw32(MSGINT_MODE, msi_mode | MSGINT_MODE_ENABLE);
 			tp->tg3_flags2 |= TG3_FLG2_USING_MSI;
@@ -12171,6 +12175,11 @@ static int tg3_resume(struct pci_dev *pdev)
 	err = tg3_set_power_state(tp, PCI_D0);
 	if (err)
 		return err;
+
+	/* Hardware bug - MSI won't work if INTX disabled. */
+	if ((tp->tg3_flags2 & TG3_FLG2_5780_CLASS) &&
+	    (tp->tg3_flags2 & TG3_FLG2_USING_MSI))
+		pci_intx(tp->pdev, 1);
 
 	netif_device_attach(dev);
 
