@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <linux/bcd.h>
 #include <linux/rtc-v3020.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 
@@ -47,6 +48,7 @@ static void v3020_set_reg(struct v3020 *chip, unsigned char address,
 	for (i = 0; i < 4; i++) {
 		writel((tmp & 1) << chip->leftshift, chip->ioaddress);
 		tmp >>= 1;
+		udelay(1);
 	}
 
 	/* Commands dont have data */
@@ -54,6 +56,7 @@ static void v3020_set_reg(struct v3020 *chip, unsigned char address,
 		for (i = 0; i < 8; i++) {
 			writel((data & 1) << chip->leftshift, chip->ioaddress);
 			data >>= 1;
+			udelay(1);
 		}
 	}
 }
@@ -66,12 +69,14 @@ static unsigned char v3020_get_reg(struct v3020 *chip, unsigned char address)
 	for (i = 0; i < 4; i++) {
 		writel((address & 1) << chip->leftshift, chip->ioaddress);
 		address >>= 1;
+		udelay(1);
 	}
 
 	for (i = 0; i < 8; i++) {
 		data >>= 1;
 		if (readl(chip->ioaddress) & (1 << chip->leftshift))
 			data |= 0x80;
+		udelay(1);
 	}
 
 	return data;
@@ -95,7 +100,7 @@ static int v3020_read_time(struct device *dev, struct rtc_time *dt)
 	tmp = v3020_get_reg(chip, V3020_MONTH_DAY);
 	dt->tm_mday	= BCD2BIN(tmp);
 	tmp = v3020_get_reg(chip, V3020_MONTH);
-	dt->tm_mon	= BCD2BIN(tmp);
+	dt->tm_mon    = BCD2BIN(tmp) - 1;
 	tmp = v3020_get_reg(chip, V3020_WEEK_DAY);
 	dt->tm_wday	= BCD2BIN(tmp);
 	tmp = v3020_get_reg(chip, V3020_YEAR);
@@ -135,7 +140,7 @@ static int v3020_set_time(struct device *dev, struct rtc_time *dt)
 	v3020_set_reg(chip, V3020_MINUTES, 	BIN2BCD(dt->tm_min));
 	v3020_set_reg(chip, V3020_HOURS, 	BIN2BCD(dt->tm_hour));
 	v3020_set_reg(chip, V3020_MONTH_DAY,	BIN2BCD(dt->tm_mday));
-	v3020_set_reg(chip, V3020_MONTH, 	BIN2BCD(dt->tm_mon));
+	v3020_set_reg(chip, V3020_MONTH,     BIN2BCD(dt->tm_mon + 1));
 	v3020_set_reg(chip, V3020_WEEK_DAY, 	BIN2BCD(dt->tm_wday));
 	v3020_set_reg(chip, V3020_YEAR, 	BIN2BCD(dt->tm_year % 100));
 
