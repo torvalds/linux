@@ -127,7 +127,14 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_auth		*auth;
 	int err;
-	int len;
+	size_t len;
+
+	/* sanity check the name before trying to print it */
+	err = -EINVAL;
+	len = strlen(servname);
+	if (len > RPC_MAXNETNAMELEN)
+		goto out_no_rpciod;
+	len++;
 
 	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
 			program->name, servname, xprt);
@@ -148,7 +155,6 @@ static struct rpc_clnt * rpc_new_client(struct rpc_xprt *xprt, char *servname, s
 	clnt->cl_parent = clnt;
 
 	clnt->cl_server = clnt->cl_inline_name;
-	len = strlen(servname) + 1;
 	if (len > sizeof(clnt->cl_inline_name)) {
 		char *buf = kmalloc(len, GFP_KERNEL);
 		if (buf != 0)
