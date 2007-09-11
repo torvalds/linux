@@ -62,8 +62,9 @@ static __be32 *nlm_decode_cookie(__be32 *p, struct nlm_cookie *c)
 	}
 	else 
 	{
-		printk(KERN_NOTICE
-			"lockd: bad cookie size %d (only cookies under %d bytes are supported.)\n", len, NLM_MAXCOOKIELEN);
+		dprintk("lockd: bad cookie size %d (only cookies under "
+			"%d bytes are supported.)\n",
+				len, NLM_MAXCOOKIELEN);
 		return NULL;
 	}
 	return p;
@@ -84,8 +85,7 @@ nlm_decode_fh(__be32 *p, struct nfs_fh *f)
 	unsigned int	len;
 
 	if ((len = ntohl(*p++)) != NFS2_FHSIZE) {
-		printk(KERN_NOTICE
-			"lockd: bad fhandle size %d (should be %d)\n",
+		dprintk("lockd: bad fhandle size %d (should be %d)\n",
 			len, NFS2_FHSIZE);
 		return NULL;
 	}
