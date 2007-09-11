@@ -513,7 +513,7 @@ static struct ehca_qp *internal_create_qp(
 			} else if (init_attr->cap.max_send_wr > 255) {
 				ehca_err(pd->device,
 					 "Invalid Number of "
-					 "ax_send_wr=%x for UD QP_TYPE=%x",
+					 "max_send_wr=%x for UD QP_TYPE=%x",
 					 init_attr->cap.max_send_wr, qp_type);
 				return ERR_PTR(-EINVAL);
 			}
@@ -523,6 +523,18 @@ static struct ehca_qp *internal_create_qp(
 				 qp_type);
 			return ERR_PTR(-EINVAL);
 			break;
+		}
+	} else {
+		int max_sge = (qp_type == IB_QPT_UD || qp_type == IB_QPT_SMI
+			       || qp_type == IB_QPT_GSI) ? 250 : 252;
+
+		if (init_attr->cap.max_send_sge > max_sge
+		    || init_attr->cap.max_recv_sge > max_sge) {
+			ehca_err(pd->device, "Invalid number of SGEs requested "
+				 "send_sge=%x recv_sge=%x max_sge=%x",
+				 init_attr->cap.max_send_sge,
+				 init_attr->cap.max_recv_sge, max_sge);
+			return ERR_PTR(-EINVAL);
 		}
 	}
 
