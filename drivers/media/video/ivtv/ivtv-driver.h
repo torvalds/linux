@@ -63,9 +63,8 @@
 #include <media/tuner.h>
 #include <media/cx2341x.h>
 
-/* #define HAVE_XC3028 1 */
-
 #include <media/ivtv.h>
+
 
 #define IVTV_ENCODER_OFFSET	0x00000000
 #define IVTV_ENCODER_SIZE	0x00800000	/* Last half isn't needed 0x01000000 */
@@ -114,12 +113,10 @@ extern const u32 yuv_offset[4];
 #define IVTV_CARD_GOTVIEW_PCI_DVD2   15	/* GotView PCI DVD2 */
 #define IVTV_CARD_YUAN_MPC622        16	/* Yuan MPC622 miniPCI */
 #define IVTV_CARD_DCTMTVP1 	     17 /* DIGITAL COWBOY DCT-MTVP1 */
-#ifdef HAVE_XC3028
-#define IVTV_CARD_PG600V2	     18 /* Yuan PG600V2/GotView PCI DVD Lite/Club3D ZAP-TV1x01 */
-#define IVTV_CARD_LAST 		     18
-#else
-#define IVTV_CARD_LAST 		     17
-#endif
+#define IVTV_CARD_PG600V2	     18 /* Yuan PG600V2/GotView PCI DVD Lite */
+#define IVTV_CARD_CLUB3D	     19 /* Club3D ZAP-TV1x01 */
+#define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
+#define IVTV_CARD_LAST 		     20
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -705,6 +702,7 @@ struct ivtv {
 	u8 nof_audio_inputs;	/* number of audio inputs */
 	u32 v4l2_cap;		/* V4L2 capabilities of card */
 	u32 hw_flags; 		/* Hardware description of the board */
+	int tunerid;		/* Userspace tuner ID for experimental Xceive tuner support */
 
 	/* controlling Video decoder function */
 	int (*video_dec_func)(struct ivtv *, unsigned int, void *);

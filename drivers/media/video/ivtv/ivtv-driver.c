@@ -177,9 +177,9 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t16 = GOTVIEW PCI DVD2 Deluxe\n"
 		 "\t\t\t17 = Yuan MPC622\n"
 		 "\t\t\t18 = Digital Cowboy DCT-MTVP1\n"
-#ifdef HAVE_XC3028
-		 "\t\t\t19 = Yuan PG600V2/GotView PCI DVD Lite/Club3D ZAP-TV1x01\n"
-#endif
+		 "\t\t\t19 = Yuan PG600V2/GotView PCI DVD Lite\n"
+		 "\t\t\t20 = Club3D ZAP-TV1x01\n"
+		 "\t\t\t21 = AverTV MCE 116 Plus\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -821,11 +821,13 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	/* load modules */
 #ifndef CONFIG_VIDEO_TUNER
 	if (hw & IVTV_HW_TUNER) {
-		ivtv_request_module(itv, "tuner");
-#ifdef HAVE_XC3028
-		if (itv->options.tuner == TUNER_XCEIVE_XC3028)
-			ivtv_request_module(itv, "xc3028-tuner");
-#endif
+		if (itv->options.tuner == TUNER_XCEIVE_XC3028) {
+			IVTV_INFO("Xceive tuner not yet supported, only composite and S-Video inputs will be available\n");
+			itv->tunerid = 1;
+		}
+		else {
+			ivtv_request_module(itv, "tuner");
+		}
 	}
 #endif
 #ifndef CONFIG_VIDEO_CX25840
@@ -1130,19 +1132,12 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->options.radio > 0)
 		itv->v4l2_cap |= V4L2_CAP_RADIO;
 
-	if (itv->options.tuner > -1) {
+	if (itv->options.tuner > -1 && itv->tunerid == 0) {
 		struct tuner_setup setup;
 
 		setup.addr = ADDR_UNSET;
 		setup.type = itv->options.tuner;
 		setup.mode_mask = T_ANALOG_TV;  /* matches TV tuners */
-#ifdef HAVE_XC3028
-		setup.initmode = V4L2_TUNER_ANALOG_TV;
-		if (itv->options.tuner == TUNER_XCEIVE_XC3028) {
-			setup.gpio_write = ivtv_reset_tuner_gpio;
-			setup.gpio_priv = itv;
-		}
-#endif
 		ivtv_call_i2c_clients(itv, TUNER_SET_TYPE_ADDR, &setup);
 	}
 

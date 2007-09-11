@@ -21,5 +21,5 @@
 /* GPIO stuff */
 void ivtv_gpio_init(struct ivtv *itv);
 void ivtv_reset_ir_gpio(struct ivtv *itv);
-int ivtv_reset_tuner_gpio(enum v4l2_tuner_type mode, void *priv, int ptr);
+int ivtv_reset_tuner_gpio(void *dev, int cmd, int value);
 int ivtv_gpio(struct ivtv *itv, unsigned int command, void *arg);
