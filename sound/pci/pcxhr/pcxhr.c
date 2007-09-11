@@ -664,6 +664,7 @@ static int pcxhr_trigger(struct snd_pcm_substream *subs, int cmd)
 			if (pcxhr_update_r_buffer(stream))
 				return -EINVAL;
 
+			stream->status = PCXHR_STREAM_STATUS_SCHEDULE_RUN;
 			if (pcxhr_set_stream_state(stream))
 				return -EINVAL;
 			stream->status = PCXHR_STREAM_STATUS_RUNNING;
