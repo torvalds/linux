@@ -401,6 +401,7 @@ static void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 {
 	unsigned long flags;
+	unsigned long end_time;
 	int timeout;
 
 	spin_lock_irqsave(&chip->lock, flags);
@@ -431,30 +432,30 @@ static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 	msleep(1);
 
 	/* check condition up to 250ms */
-	timeout = msecs_to_jiffies(250);
+	end_time = jiffies + msecs_to_jiffies(250);
 	while (snd_cs4231_in(chip, CS4231_TEST_INIT) &
 		CS4231_CALIB_IN_PROGRESS) {
 
 		spin_unlock_irqrestore(&chip->lock, flags);
-		if (timeout <= 0) {
+		if (time_after(jiffies, end_time)) {
 			snd_printk("mce_down - "
 				   "auto calibration time out (2)\n");
 			return;
 		}
-		timeout = schedule_timeout(timeout);
+		msleep(1);
 		spin_lock_irqsave(&chip->lock, flags);
 	}
 
 	/* check condition up to 100ms */
-	timeout = msecs_to_jiffies(100);
+	end_time = jiffies + msecs_to_jiffies(100);
 	while (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT) {
 		spin_unlock_irqrestore(&chip->lock, flags);
-		if (timeout <= 0) {
+		if (time_after(jiffies, end_time)) {
 			snd_printk("mce_down - "
 				   "auto calibration time out (3)\n");
 			return;
 		}
-		timeout = schedule_timeout(timeout);
+		msleep(1);
 		spin_lock_irqsave(&chip->lock, flags);
 	}
 	spin_unlock_irqrestore(&chip->lock, flags);
