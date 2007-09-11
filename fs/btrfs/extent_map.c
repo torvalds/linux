@@ -714,28 +714,6 @@ again:
 	}
 	/*
 	 * | ---- desired range ---- |
-	 *                        | state |
-	 * We need to split the extent, and set the bit
-	 * on the first half
-	 */
-	if (state->start <= end && state->end > end) {
-		set = state->state & bits;
-		if (exclusive && set) {
-			*failed_start = start;
-			err = -EEXIST;
-			goto out;
-		}
-		err = split_state(tree, state, prealloc, end + 1);
-		BUG_ON(err == -EEXIST);
-
-		prealloc->state |= bits;
-		merge_state(tree, prealloc);
-		prealloc = NULL;
-		goto out;
-	}
-
-	/*
-	 * | ---- desired range ---- |
 	 *     | state | or               | state |
 	 *
 	 * There's a hole, we need to insert something in it and
@@ -756,6 +734,28 @@ again:
 		start = this_end + 1;
 		goto search_again;
 	}
+	/*
+	 * | ---- desired range ---- |
+	 *                        | state |
+	 * We need to split the extent, and set the bit
+	 * on the first half
+	 */
+	if (state->start <= end && state->end > end) {
+		set = state->state & bits;
+		if (exclusive && set) {
+			*failed_start = start;
+			err = -EEXIST;
+			goto out;
+		}
+		err = split_state(tree, state, prealloc, end + 1);
+		BUG_ON(err == -EEXIST);
+
+		prealloc->state |= bits;
+		merge_state(tree, prealloc);
+		prealloc = NULL;
+		goto out;
+	}
+
 	goto search_again;
 
 out:
