@@ -6035,6 +6035,7 @@ void ata_dev_init(struct ata_device *dev)
 	 */
 	spin_lock_irqsave(ap->lock, flags);
 	dev->flags &= ~ATA_DFLAG_INIT_MASK;
+	dev->horkage = 0;
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	memset((void *)dev + ATA_DEVICE_CLEAR_OFFSET, 0,
