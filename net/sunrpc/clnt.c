@@ -436,7 +436,7 @@ rpc_release_client(struct rpc_clnt *clnt)
  */
 struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 				      struct rpc_program *program,
-				      int vers)
+				      u32 vers)
 {
 	struct rpc_clnt *clnt;
 	struct rpc_version *version;
