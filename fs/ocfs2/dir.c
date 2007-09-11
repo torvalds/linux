@@ -512,7 +512,7 @@ revalidate:
 				error = filldir(priv, de->name,
 						de->name_len,
 						*f_pos,
-						ino_from_blkno(sb, le64_to_cpu(de->inode)),
+						le64_to_cpu(de->inode),
 						d_type);
 				if (error)
 					break;
