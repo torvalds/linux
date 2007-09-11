@@ -377,7 +377,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	}
 	if (info[xprt->bind_index].rpc_proc == NULL) {
 		xprt->bind_index = 0;
-		status = -EACCES;	/* tell caller to try again later */
+		status = -EPFNOSUPPORT;
 		dprintk("RPC: %5u %s: no more getport versions available\n",
 			task->tk_pid, __FUNCTION__);
 		goto bailout_nofree;

@@ -940,7 +940,7 @@ call_bind(struct rpc_task *task)
 static void
 call_bind_status(struct rpc_task *task)
 {
-	int status = -EACCES;
+	int status = -EIO;
 
 	if (task->tk_status >= 0) {
 		dprint_status(task);
@@ -966,6 +966,7 @@ call_bind_status(struct rpc_task *task)
 				task->tk_pid);
 		goto retry_timeout;
 	case -EPFNOSUPPORT:
+		/* server doesn't support any rpcbind version we know of */
 		dprintk("RPC: %5u remote rpcbind service unavailable\n",
 				task->tk_pid);
 		break;
@@ -978,7 +979,6 @@ call_bind_status(struct rpc_task *task)
 	default:
 		dprintk("RPC: %5u unrecognized rpcbind error (%d)\n",
 				task->tk_pid, -task->tk_status);
-		status = -EIO;
 	}
 
 	rpc_exit(task, status);
