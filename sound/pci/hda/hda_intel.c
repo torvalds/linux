@@ -687,6 +687,9 @@ static int azx_reset(struct azx *chip)
 {
 	int count;
 
+	/* clear STATESTS */
+	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
+
 	/* reset controller */
 	azx_writel(chip, GCTL, azx_readl(chip, GCTL) & ~ICH6_GCTL_RESET);
 
