@@ -352,7 +352,7 @@ int ehca_modify_port(struct ib_device *ibdev,
 	hret = hipz_h_modify_port(shca->ipz_hca_handle, port,
 				  cap, props->init_type, port_modify_mask);
 	if (hret != H_SUCCESS) {
-		ehca_err(&shca->ib_device, "Modify port failed  hret=%lx",
+		ehca_err(&shca->ib_device, "Modify port failed  h_ret=%li",
 			 hret);
 		ret = -EINVAL;
 	}

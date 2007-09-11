@@ -273,7 +273,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 
 	h_ret = hipz_h_query_hca(shca->ipz_hca_handle, rblock);
 	if (h_ret != H_SUCCESS) {
-		ehca_gen_err("Cannot query device properties. h_ret=%lx",
+		ehca_gen_err("Cannot query device properties. h_ret=%li",
 			     h_ret);
 		ret = -EPERM;
 		goto sense_attributes1;
@@ -332,7 +332,7 @@ int ehca_sense_attributes(struct ehca_shca *shca)
 	port = (struct hipz_query_port *)rblock;
 	h_ret = hipz_h_query_port(shca->ipz_hca_handle, 1, port);
 	if (h_ret != H_SUCCESS) {
-		ehca_gen_err("Cannot query port properties. h_ret=%lx",
+		ehca_gen_err("Cannot query port properties. h_ret=%li",
 			     h_ret);
 		ret = -EPERM;
 		goto sense_attributes1;
@@ -526,13 +526,13 @@ static int ehca_destroy_aqp1(struct ehca_sport *sport)
 
 	ret = ib_destroy_qp(sport->ibqp_aqp1);
 	if (ret) {
-		ehca_gen_err("Cannot destroy AQP1 QP. ret=%x", ret);
+		ehca_gen_err("Cannot destroy AQP1 QP. ret=%i", ret);
 		return ret;
 	}
 
 	ret = ib_destroy_cq(sport->ibcq_aqp1);
 	if (ret)
-		ehca_gen_err("Cannot destroy AQP1 CQ. ret=%x", ret);
+		ehca_gen_err("Cannot destroy AQP1 CQ. ret=%i", ret);
 
 	return ret;
 }
@@ -728,7 +728,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	ret = ehca_reg_internal_maxmr(shca, shca->pd, &shca->maxmr);
 
 	if (ret) {
-		ehca_err(&shca->ib_device, "Cannot create internal MR ret=%x",
+		ehca_err(&shca->ib_device, "Cannot create internal MR ret=%i",
 			 ret);
 		goto probe5;
 	}
@@ -736,7 +736,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	ret = ib_register_device(&shca->ib_device);
 	if (ret) {
 		ehca_err(&shca->ib_device,
-			 "ib_register_device() failed ret=%x", ret);
+			 "ib_register_device() failed ret=%i", ret);
 		goto probe6;
 	}
 
@@ -777,7 +777,7 @@ probe8:
 	ret = ehca_destroy_aqp1(&shca->sport[0]);
 	if (ret)
 		ehca_err(&shca->ib_device,
-			 "Cannot destroy AQP1 for port 1. ret=%x", ret);
+			 "Cannot destroy AQP1 for port 1. ret=%i", ret);
 
 probe7:
 	ib_unregister_device(&shca->ib_device);
@@ -826,7 +826,7 @@ static int __devexit ehca_remove(struct ibmebus_dev *dev)
 			if (ret)
 				ehca_err(&shca->ib_device,
 					 "Cannot destroy AQP1 for port %x "
-					 "ret=%x", ret, i);
+					 "ret=%i", ret, i);
 		}
 	}
 
@@ -835,20 +835,20 @@ static int __devexit ehca_remove(struct ibmebus_dev *dev)
 	ret = ehca_dereg_internal_maxmr(shca);
 	if (ret)
 		ehca_err(&shca->ib_device,
-			 "Cannot destroy internal MR. ret=%x", ret);
+			 "Cannot destroy internal MR. ret=%i", ret);
 
 	ret = ehca_dealloc_pd(&shca->pd->ib_pd);
 	if (ret)
 		ehca_err(&shca->ib_device,
-			 "Cannot destroy internal PD. ret=%x", ret);
+			 "Cannot destroy internal PD. ret=%i", ret);
 
 	ret = ehca_destroy_eq(shca, &shca->eq);
 	if (ret)
-		ehca_err(&shca->ib_device, "Cannot destroy EQ. ret=%x", ret);
+		ehca_err(&shca->ib_device, "Cannot destroy EQ. ret=%i", ret);
 
 	ret = ehca_destroy_eq(shca, &shca->neq);
 	if (ret)
-		ehca_err(&shca->ib_device, "Canot destroy NEQ. ret=%x", ret);
+		ehca_err(&shca->ib_device, "Canot destroy NEQ. ret=%i", ret);
 
 	ib_dealloc_device(&shca->ib_device);
 

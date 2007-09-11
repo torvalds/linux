@@ -238,7 +238,7 @@ u64 hipz_h_alloc_resource_eq(const struct ipz_adapter_handle adapter_handle,
 	*eq_ist = (u32)outs[5];
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resource - ret=%lx ", ret);
+		ehca_gen_err("Not enough resource - ret=%li ", ret);
 
 	return ret;
 }
@@ -276,7 +276,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 		hcp_galpas_ctor(&cq->galpas, outs[5], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -351,7 +351,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 		hcp_galpas_ctor(&parms->galpas, outs[6], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -546,7 +546,7 @@ u64 hipz_h_modify_qp(const struct ipz_adapter_handle adapter_handle,
 				0, 0, 0, 0, 0);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Insufficient resources ret=%lx", ret);
+		ehca_gen_err("Insufficient resources ret=%li", ret);
 
 	return ret;
 }
@@ -582,7 +582,7 @@ u64 hipz_h_destroy_qp(const struct ipz_adapter_handle adapter_handle,
 				qp->ipz_qp_handle.handle,  /* r6 */
 				0, 0, 0, 0, 0, 0);
 	if (ret == H_HARDWARE)
-		ehca_gen_err("HCA not operational. ret=%lx", ret);
+		ehca_gen_err("HCA not operational. ret=%li", ret);
 
 	ret = ehca_plpar_hcall_norets(H_FREE_RESOURCE,
 				      adapter_handle.handle,     /* r4 */
@@ -590,7 +590,7 @@ u64 hipz_h_destroy_qp(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("Resource still in use. ret=%lx", ret);
+		ehca_gen_err("Resource still in use. ret=%li", ret);
 
 	return ret;
 }
@@ -625,7 +625,7 @@ u64 hipz_h_define_aqp1(const struct ipz_adapter_handle adapter_handle,
 	*bma_qp_nr = (u32)outs[1];
 
 	if (ret == H_ALIAS_EXIST)
-		ehca_gen_err("AQP1 already exists. ret=%lx", ret);
+		ehca_gen_err("AQP1 already exists. ret=%li", ret);
 
 	return ret;
 }
@@ -647,7 +647,7 @@ u64 hipz_h_attach_mcqp(const struct ipz_adapter_handle adapter_handle,
 				      0, 0);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -686,7 +686,7 @@ u64 hipz_h_destroy_cq(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("H_FREE_RESOURCE failed ret=%lx ", ret);
+		ehca_gen_err("H_FREE_RESOURCE failed ret=%li ", ret);
 
 	return ret;
 }
@@ -708,7 +708,7 @@ u64 hipz_h_destroy_eq(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("Resource in use. ret=%lx ", ret);
+		ehca_gen_err("Resource in use. ret=%li ", ret);
 
 	return ret;
 }
