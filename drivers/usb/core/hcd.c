@@ -807,13 +807,13 @@ static int usb_register_bus(struct usb_bus *bus)
 	}
 	set_bit (busnum, busmap.busmap);
 	bus->busnum = busnum;
-	bus->class_dev = class_device_create(usb_host_class, NULL, MKDEV(0,0),
-					     bus->controller, "usb_host%d",
-					     busnum);
-	result = PTR_ERR(bus->class_dev);
-	if (IS_ERR(bus->class_dev))
+
+	bus->dev = device_create(usb_host_class, bus->controller, MKDEV(0, 0),
+				 "usb_host%d", busnum);
+	result = PTR_ERR(bus->dev);
+	if (IS_ERR(bus->dev))
 		goto error_create_class_dev;
-	class_set_devdata(bus->class_dev, bus);
+	dev_set_drvdata(bus->dev, bus);
 
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
@@ -857,7 +857,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 
 	clear_bit (bus->busnum, busmap.busmap);
 
-	class_device_unregister(bus->class_dev);
+	device_unregister(bus->dev);
 }
 
 /**

@@ -442,7 +442,7 @@ done:
 }
 
 static ssize_t
-show_async (struct class_device *class_dev, char *buf)
+show_async(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
@@ -454,7 +454,7 @@ show_async (struct class_device *class_dev, char *buf)
 
 	*buf = 0;
 
-	bus = class_get_devdata(class_dev);
+	bus = dev_get_drvdata(dev);
 	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -479,12 +479,12 @@ show_async (struct class_device *class_dev, char *buf)
 
 	return strlen (buf);
 }
-static CLASS_DEVICE_ATTR (async, S_IRUGO, show_async, NULL);
+static DEVICE_ATTR(async, S_IRUGO, show_async, NULL);
 
 #define DBG_SCHED_LIMIT 64
 
 static ssize_t
-show_periodic (struct class_device *class_dev, char *buf)
+show_periodic(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
@@ -500,7 +500,7 @@ show_periodic (struct class_device *class_dev, char *buf)
 		return 0;
 	seen_count = 0;
 
-	bus = class_get_devdata(class_dev);
+	bus = dev_get_drvdata(dev);
 	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -623,12 +623,12 @@ show_periodic (struct class_device *class_dev, char *buf)
 
 	return PAGE_SIZE - size;
 }
-static CLASS_DEVICE_ATTR (periodic, S_IRUGO, show_periodic, NULL);
+static DEVICE_ATTR(periodic, S_IRUGO, show_periodic, NULL);
 
 #undef DBG_SCHED_LIMIT
 
 static ssize_t
-show_registers (struct class_device *class_dev, char *buf)
+show_registers(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct usb_bus		*bus;
 	struct usb_hcd		*hcd;
@@ -639,7 +639,7 @@ show_registers (struct class_device *class_dev, char *buf)
 	static char		fmt [] = "%*s\n";
 	static char		label [] = "";
 
-	bus = class_get_devdata(class_dev);
+	bus = dev_get_drvdata(dev);
 	hcd = bus_to_hcd(bus);
 	ehci = hcd_to_ehci (hcd);
 	next = buf;
@@ -789,25 +789,25 @@ done:
 
 	return PAGE_SIZE - size;
 }
-static CLASS_DEVICE_ATTR (registers, S_IRUGO, show_registers, NULL);
+static DEVICE_ATTR(registers, S_IRUGO, show_registers, NULL);
 
 static inline void create_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
+	struct device *dev = ehci_to_hcd(ehci)->self.dev;
 	int retval;
 
-	retval = class_device_create_file(cldev, &class_device_attr_async);
-	retval = class_device_create_file(cldev, &class_device_attr_periodic);
-	retval = class_device_create_file(cldev, &class_device_attr_registers);
+	retval = device_create_file(dev, &dev_attr_async);
+	retval = device_create_file(dev, &dev_attr_periodic);
+	retval = device_create_file(dev, &dev_attr_registers);
 }
 
 static inline void remove_debug_files (struct ehci_hcd *ehci)
 {
-	struct class_device *cldev = ehci_to_hcd(ehci)->self.class_dev;
+	struct device *dev = ehci_to_hcd(ehci)->self.dev;
 
-	class_device_remove_file(cldev, &class_device_attr_async);
-	class_device_remove_file(cldev, &class_device_attr_periodic);
-	class_device_remove_file(cldev, &class_device_attr_registers);
+	device_remove_file(dev, &dev_attr_async);
+	device_remove_file(dev, &dev_attr_periodic);
+	device_remove_file(dev, &dev_attr_registers);
 }
 
 #endif /* STUB_DEBUG_FILES */
