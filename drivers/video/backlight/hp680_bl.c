@@ -125,8 +125,8 @@ static int hp680bl_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bd = platform_get_drvdata(pdev);
 
-	hp680bl_data.brightness = 0;
-	hp680bl_data.power = 0;
+	bd->props.brightness = 0;
+	bd->props.power = 0;
 	hp680bl_send_intensity(bd);
 
 	backlight_device_unregister(bd);
