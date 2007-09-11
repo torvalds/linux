@@ -174,7 +174,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	hint_block = 0;
 
 	if ((end_of_last_block & 4095) == 0) {
-		printk("strange end of last %Lu %lu %Lu\n", start_pos, write_bytes, end_of_last_block);
+		printk("strange end of last %Lu %zu %Lu\n", start_pos, write_bytes, end_of_last_block);
 	}
 	set_extent_uptodate(em_tree, start_pos, end_of_last_block, GFP_NOFS);
 
