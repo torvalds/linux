@@ -1309,7 +1309,7 @@ static int __init sci_console_init(void)
 console_initcall(sci_console_init);
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
-#ifdef CONFIG_SH_KGDB
+#ifdef CONFIG_SH_KGDB_CONSOLE
 /*
  * FIXME: Most of this can go away.. at the moment, we rely on
  * arch/sh/kernel/setup.c to do the command line parsing for kgdb, though
@@ -1367,9 +1367,7 @@ int __init kgdb_console_setup(struct console *co, char *options)
 
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
-#endif /* CONFIG_SH_KGDB */
 
-#ifdef CONFIG_SH_KGDB_CONSOLE
 static struct console kgdb_console = {
 	.name		= "ttySC",
 	.device		= uart_console_device,
