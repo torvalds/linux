@@ -34,7 +34,7 @@ static struct resource cf_ide_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start = 93,
+		.start = 77,
 		.flags = IORESOURCE_IRQ,
 	},
 };
