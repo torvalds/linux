@@ -269,9 +269,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_NONPRIVPORT)
 		xprt->resvport = 0;
 
-	dprintk("RPC:       creating %s client for %s (xprt %p)\n",
-			args->program->name, args->servername, xprt);
-
 	clnt = rpc_new_client(xprt, args->servername, args->program,
 				args->version, args->authflavor);
 	if (IS_ERR(clnt))
