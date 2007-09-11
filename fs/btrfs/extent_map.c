@@ -456,6 +456,7 @@ int clear_extent_bit(struct extent_map_tree *tree, u64 start, u64 end,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
+	unsigned long flags;
 	int err;
 	int set = 0;
 
@@ -466,7 +467,7 @@ again:
 			return -ENOMEM;
 	}
 
-	write_lock_irq(&tree->lock);
+	write_lock_irqsave(&tree->lock, flags);
 	/*
 	 * this search will find the extents that end after
 	 * our range starts
@@ -533,7 +534,7 @@ again:
 	goto search_again;
 
 out:
-	write_unlock_irq(&tree->lock);
+	write_unlock_irqrestore(&tree->lock, flags);
 	if (prealloc)
 		free_extent_state(prealloc);
 
@@ -542,7 +543,7 @@ out:
 search_again:
 	if (start >= end)
 		goto out;
-	write_unlock_irq(&tree->lock);
+	write_unlock_irqrestore(&tree->lock, flags);
 	if (mask & __GFP_WAIT)
 		cond_resched();
 	goto again;
@@ -628,6 +629,7 @@ int set_extent_bit(struct extent_map_tree *tree, u64 start, u64 end, int bits,
 	struct extent_state *state;
 	struct extent_state *prealloc = NULL;
 	struct rb_node *node;
+	unsigned long flags;
 	int err = 0;
 	int set;
 	u64 last_start;
@@ -639,7 +641,7 @@ again:
 			return -ENOMEM;
 	}
 
-	write_lock_irq(&tree->lock);
+	write_lock_irqsave(&tree->lock, flags);
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
@@ -759,7 +761,7 @@ again:
 	goto search_again;
 
 out:
-	write_unlock_irq(&tree->lock);
+	write_unlock_irqrestore(&tree->lock, flags);
 	if (prealloc)
 		free_extent_state(prealloc);
 
@@ -768,7 +770,7 @@ out:
 search_again:
 	if (start > end)
 		goto out;
-	write_unlock_irq(&tree->lock);
+	write_unlock_irqrestore(&tree->lock, flags);
 	if (mask & __GFP_WAIT)
 		cond_resched();
 	goto again;
