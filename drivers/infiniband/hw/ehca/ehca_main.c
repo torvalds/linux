@@ -49,10 +49,12 @@
 #include "ehca_tools.h"
 #include "hcp_if.h"
 
+#define HCAD_VERSION "0024"
+
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
-MODULE_VERSION("SVNEHCA_0023");
+MODULE_VERSION(HCAD_VERSION);
 
 int ehca_open_aqp1     = 0;
 int ehca_debug_level   = 0;
@@ -909,7 +911,7 @@ int __init ehca_module_init(void)
 	int ret;
 
 	printk(KERN_INFO "eHCA Infiniband Device Driver "
-	       "(Rel.: SVNEHCA_0023)\n");
+	       "(Version " HCAD_VERSION ")\n");
 
 	ret = ehca_create_comp_pool();
 	if (ret) {
