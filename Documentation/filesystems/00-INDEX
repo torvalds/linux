@@ -32,6 +32,8 @@ directory-locking
 	- info about the locking scheme used for directory operations.
 dlmfs.txt
 	- info on the userspace interface to the OCFS2 DLM.
+ecryptfs.txt
+	- docs on eCryptfs: stacked cryptographic filesystem for Linux.
 ext2.txt
 	- info, mount options and specifications for the Ext2 filesystem.
 ext3.txt
