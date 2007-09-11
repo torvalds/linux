@@ -239,7 +239,9 @@ struct dirty_root {
 	struct btrfs_root *latest_root;
 };
 
-int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
+int btrfs_add_dead_root(struct btrfs_root *root,
+			struct btrfs_root *latest,
+			struct list_head *dead_list)
 {
 	struct dirty_root *dirty;
 
@@ -247,6 +249,7 @@ int btrfs_add_dead_root(struct btrfs_root *root, struct list_head *dead_list)
 	if (!dirty)
 		return -ENOMEM;
 	dirty->root = root;
+	dirty->latest_root = latest;
 	list_add(&dirty->list, dead_list);
 	return 0;
 }
@@ -412,7 +415,6 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 
 		while(1) {
 			trans = btrfs_start_transaction(tree_root, 1);
-
 			ret = btrfs_drop_snapshot(trans, dirty->root);
 			if (ret != -EAGAIN) {
 				break;

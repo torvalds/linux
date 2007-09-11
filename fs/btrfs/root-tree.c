@@ -93,7 +93,8 @@ int btrfs_insert_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret;
 }
 
-int btrfs_find_dead_roots(struct btrfs_root *root)
+int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid,
+			  struct btrfs_root *latest)
 {
 	struct btrfs_root *dead_root;
 	struct btrfs_item *item;
@@ -105,7 +106,7 @@ int btrfs_find_dead_roots(struct btrfs_root *root)
 	struct btrfs_leaf *leaf;
 	int slot;
 
-	key.objectid = 0;
+	key.objectid = objectid;
 	key.flags = 0;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 	key.offset = 0;
@@ -131,15 +132,24 @@ int btrfs_find_dead_roots(struct btrfs_root *root)
 		btrfs_disk_key_to_cpu(&key, &item->key);
 		if (btrfs_key_type(&key) != BTRFS_ROOT_ITEM_KEY)
 			goto next;
+
+		if (key.objectid < objectid)
+			goto next;
+
+		if (key.objectid > objectid)
+			break;
+
 		ri = btrfs_item_ptr(leaf, slot, struct btrfs_root_item);
 		if (btrfs_root_refs(ri) != 0)
 			goto next;
+
 		dead_root = btrfs_read_fs_root_no_radix(root->fs_info, &key);
 		if (IS_ERR(dead_root)) {
 			ret = PTR_ERR(dead_root);
 			goto err;
 		}
-		ret = btrfs_add_dead_root(dead_root,
+
+		ret = btrfs_add_dead_root(dead_root, latest,
 					  &root->fs_info->dead_roots);
 		if (ret)
 			goto err;

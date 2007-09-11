@@ -426,6 +426,10 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		return ERR_PTR(ret);
 	}
 
+	ret = btrfs_find_dead_roots(fs_info->tree_root,
+				    root->root_key.objectid, root);
+	BUG_ON(ret);
+
 	return root;
 }
 
@@ -522,11 +526,6 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	btrfs_read_block_groups(extent_root);
 
 	fs_info->generation = btrfs_super_generation(disk_super) + 1;
-	ret = btrfs_find_dead_roots(tree_root);
-	if (ret) {
-		mutex_unlock(&fs_info->fs_mutex);
-		goto fail_tree_root;
-	}
 	mutex_unlock(&fs_info->fs_mutex);
 	return tree_root;
 
