@@ -11,6 +11,7 @@
 #include <linux/string.h>
 #include <linux/stat.h>
 #include <linux/completion.h>
+#include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/limits.h>
 #include <linux/init.h>
@@ -232,7 +233,7 @@ static ssize_t proc_reg_write(struct file *file, const char __user *buf, size_t 
 static unsigned int proc_reg_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
-	unsigned int rv = 0;
+	unsigned int rv = DEFAULT_POLLMASK;
 	unsigned int (*poll)(struct file *, struct poll_table_struct *);
 
 	spin_lock(&pde->pde_unload_lock);
