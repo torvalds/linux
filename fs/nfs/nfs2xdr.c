@@ -271,7 +271,7 @@ nfs_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 	res->eof = 0;
 	hdrlen = (u8 *) p - (u8 *) iov->iov_base;
 	if (iov->iov_len < hdrlen) {
-		printk(KERN_WARNING "NFS: READ reply header overflowed:"
+		dprintk("NFS: READ reply header overflowed:"
 				"length %d > %Zu\n", hdrlen, iov->iov_len);
 		return -errno_NFSERR_IO;
 	} else if (iov->iov_len != hdrlen) {
@@ -281,7 +281,7 @@ nfs_xdr_readres(struct rpc_rqst *req, __be32 *p, struct nfs_readres *res)
 
 	recvd = req->rq_rcv_buf.len - hdrlen;
 	if (count > recvd) {
-		printk(KERN_WARNING "NFS: server cheating in read reply: "
+		dprintk("NFS: server cheating in read reply: "
 			"count %d > recvd %d\n", count, recvd);
 		count = recvd;
 	}
@@ -431,7 +431,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 
 	hdrlen = (u8 *) p - (u8 *) iov->iov_base;
 	if (iov->iov_len < hdrlen) {
-		printk(KERN_WARNING "NFS: READDIR reply header overflowed:"
+		dprintk("NFS: READDIR reply header overflowed:"
 				"length %d > %Zu\n", hdrlen, iov->iov_len);
 		return -errno_NFSERR_IO;
 	} else if (iov->iov_len != hdrlen) {
@@ -454,7 +454,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 		len = ntohl(*p++);
 		p += XDR_QUADLEN(len) + 1;	/* name plus cookie */
 		if (len > NFS2_MAXNAMLEN) {
-			printk(KERN_WARNING "NFS: giant filename in readdir (len 0x%x)!\n",
+			dprintk("NFS: giant filename in readdir (len 0x%x)!\n",
 						len);
 			goto err_unmap;
 		}
@@ -471,7 +471,7 @@ nfs_xdr_readdirres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	entry[0] = entry[1] = 0;
 	/* truncate listing ? */
 	if (!nr) {
-		printk(KERN_NOTICE "NFS: readdir reply truncated!\n");
+		dprintk("NFS: readdir reply truncated!\n");
 		entry[1] = 1;
 	}
 	goto out;
@@ -583,12 +583,12 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	/* Convert length of symlink */
 	len = ntohl(*p++);
 	if (len >= rcvbuf->page_len || len <= 0) {
-		dprintk(KERN_WARNING "nfs: server returned giant symlink!\n");
+		dprintk("nfs: server returned giant symlink!\n");
 		return -ENAMETOOLONG;
 	}
 	hdrlen = (u8 *) p - (u8 *) iov->iov_base;
 	if (iov->iov_len < hdrlen) {
-		printk(KERN_WARNING "NFS: READLINK reply header overflowed:"
+		dprintk("NFS: READLINK reply header overflowed:"
 				"length %d > %Zu\n", hdrlen, iov->iov_len);
 		return -errno_NFSERR_IO;
 	} else if (iov->iov_len != hdrlen) {
@@ -597,7 +597,7 @@ nfs_xdr_readlinkres(struct rpc_rqst *req, __be32 *p, void *dummy)
 	}
 	recvd = req->rq_rcv_buf.len - hdrlen;
 	if (recvd < len) {
-		printk(KERN_WARNING "NFS: server cheating in readlink reply: "
+		dprintk("NFS: server cheating in readlink reply: "
 				"count %u > recvd %u\n", len, recvd);
 		return -EIO;
 	}
@@ -695,7 +695,7 @@ nfs_stat_to_errno(int stat)
 		if (nfs_errtbl[i].stat == stat)
 			return nfs_errtbl[i].errno;
 	}
-	printk(KERN_ERR "nfs_stat_to_errno: bad nfs status return value: %d\n", stat);
+	dprintk("nfs_stat_to_errno: bad nfs status return value: %d\n", stat);
 	return nfs_errtbl[i].errno;
 }
 
