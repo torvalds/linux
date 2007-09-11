@@ -114,8 +114,8 @@ static unsigned long dosample(void)
 	} while (msb);
 
 	/* Stop the counter. */
-	writeb(sgint->tcword, (SGINT_TCWORD_CNT2 | SGINT_TCWORD_CALL |
-			       SGINT_TCWORD_MSWST));
+	writeb(SGINT_TCWORD_CNT2 | SGINT_TCWORD_CALL | SGINT_TCWORD_MSWST,
+	       &sgint->tcword);
 	/*
 	 * Return the difference, this is how far the r4k counter increments
 	 * for every 1/HZ seconds. We round off the nearest 1 MHz of master
