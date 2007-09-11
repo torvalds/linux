@@ -41,3 +41,7 @@ static int __init sh7343_devices_setup(void)
 				    ARRAY_SIZE(sh7343_devices));
 }
 __initcall(sh7343_devices_setup);
+
+void __init plat_irq_setup(void)
+{
+}
