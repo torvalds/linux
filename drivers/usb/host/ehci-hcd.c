@@ -33,6 +33,7 @@
 #include <linux/usb.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
+#include <linux/debugfs.h>
 
 #include "../core/hcd.h"
 
@@ -978,15 +979,30 @@ static int __init ehci_hcd_init(void)
 		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
 		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));
 
+#ifdef DEBUG
+	ehci_debug_root = debugfs_create_dir("ehci", NULL);
+	if (!ehci_debug_root)
+		return -ENOENT;
+#endif
+
 #ifdef PLATFORM_DRIVER
 	retval = platform_driver_register(&PLATFORM_DRIVER);
-	if (retval < 0)
+	if (retval < 0) {
+#ifdef DEBUG
+		debugfs_remove(ehci_debug_root);
+		ehci_debug_root = NULL;
+#endif
 		return retval;
+	}
 #endif
 
 #ifdef PCI_DRIVER
 	retval = pci_register_driver(&PCI_DRIVER);
 	if (retval < 0) {
+#ifdef DEBUG
+		debugfs_remove(ehci_debug_root);
+		ehci_debug_root = NULL;
+#endif
 #ifdef PLATFORM_DRIVER
 		platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
@@ -997,6 +1013,10 @@ static int __init ehci_hcd_init(void)
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ehci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
 	if (retval < 0) {
+#ifdef DEBUG
+		debugfs_remove(ehci_debug_root);
+		ehci_debug_root = NULL;
+#endif
 #ifdef PLATFORM_DRIVER
 		platform_driver_unregister(&PLATFORM_DRIVER);
 #endif
@@ -1021,6 +1041,9 @@ static void __exit ehci_hcd_cleanup(void)
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+#endif
+#ifdef DEBUG
+	debugfs_remove(ehci_debug_root);
 #endif
 }
 module_exit(ehci_hcd_cleanup);

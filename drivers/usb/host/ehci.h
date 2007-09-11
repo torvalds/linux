@@ -127,6 +127,14 @@ struct ehci_hcd {			/* one per controller */
 #else
 #	define COUNT(x) do {} while (0)
 #endif
+
+	/* debug files */
+#ifdef DEBUG
+	struct dentry		*debug_dir;
+	struct dentry		*debug_async;
+	struct dentry		*debug_periodic;
+	struct dentry		*debug_registers;
+#endif
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
