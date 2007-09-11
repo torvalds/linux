@@ -341,7 +341,7 @@ static long __devinit detect_pll_input_clock(unsigned long dma_base)
 	 */
 	usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 +
 		(end_time.tv_usec - start_time.tv_usec);
-	pll_input = ((start_count - end_count) & 0x3ffffff) / 10 *
+	pll_input = ((start_count - end_count) & 0x3fffffff) / 10 *
 		(10000000 / usec_elapsed);
 
 	DBG("start[%ld] end[%ld]\n", start_count, end_count);
