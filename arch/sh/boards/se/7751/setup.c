@@ -41,7 +41,6 @@ static struct platform_device heartbeat_device = {
 };
 
 static struct platform_device *se7751_devices[] __initdata = {
-	&smc91x_device,
 	&heartbeat_device,
 };
 
