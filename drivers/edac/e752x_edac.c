@@ -967,7 +967,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!force_function_unhide && !(stat8 & (1 << 5))) {
 		printk(KERN_INFO "Contact your BIOS vendor to see if the "
 			"E752x error registers can be safely un-hidden\n");
-		return -ENOMEM;
+		return -ENODEV;
 	}
 	stat8 |= (1 << 5);
 	pci_write_config_byte(pdev, E752X_DEVPRES1, stat8);
