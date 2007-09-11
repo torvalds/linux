@@ -18,6 +18,7 @@ config CPU_SH4
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
 	select CPU_HAS_PTEA if (!CPU_SUBTYPE_ST40 && !CPU_SH4A) || CPU_SHX2
+	select CPU_HAS_FPU if !CPU_SH4AL_DSP
 
 config CPU_SH4A
 	bool

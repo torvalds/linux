@@ -118,7 +118,7 @@ endchoice
 
 config SH_FPU
 	bool "FPU support"
-	depends on CPU_SH4
+	depends on CPU_HAS_FPU
 	default y
 	help
 	  Selecting this option will enable support for SH processors that
@@ -197,6 +197,9 @@ config CPU_HAS_PTEA
 	bool
 
 config CPU_HAS_DSP
+	bool
+
+config CPU_HAS_FPU
 	bool
 
 endmenu
