@@ -1502,7 +1502,6 @@ typedef struct {
 	uint8_t node_name[WWN_SIZE];
 	uint8_t port_name[WWN_SIZE];
 	uint8_t fabric_port_name[WWN_SIZE];
-	uint16_t fp_speeds;
 	uint16_t fp_speed;
 } sw_info_t;
 

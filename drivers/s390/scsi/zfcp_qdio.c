@@ -640,13 +640,9 @@ int
 zfcp_qdio_sbals_from_scsicmnd(struct zfcp_fsf_req *fsf_req,
 			      unsigned long sbtype, struct scsi_cmnd *scsi_cmnd)
 {
-	if (scsi_sg_count(scsi_cmnd))
-		return zfcp_qdio_sbals_from_sg(fsf_req,	sbtype,
-					       scsi_sglist(scsi_cmnd),
-					       scsi_sg_count(scsi_cmnd),
-					       ZFCP_MAX_SBALS_PER_REQ);
-	else
-		return 0;
+	return zfcp_qdio_sbals_from_sg(fsf_req,	sbtype, scsi_sglist(scsi_cmnd),
+				       scsi_sg_count(scsi_cmnd),
+				       ZFCP_MAX_SBALS_PER_REQ);
 }
 
 /**
