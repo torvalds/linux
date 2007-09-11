@@ -1231,6 +1231,8 @@ static int end_bio_extent_writepage(struct bio *bio,
 			end_page_writeback(page);
 		else
 			check_page_writeback(tree, page);
+		if (tree->ops && tree->ops->writepage_end_io_hook)
+			tree->ops->writepage_end_io_hook(page, start, end);
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);

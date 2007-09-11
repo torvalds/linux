@@ -11,6 +11,7 @@ struct extent_map_ops {
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end);
+	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end);
 };
 
 struct extent_map_tree {
