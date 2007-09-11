@@ -1607,7 +1607,12 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			continue;
 		}
 		clear_extent_dirty(tree, cur, cur + iosize - 1, GFP_NOFS);
-		ret = tree->ops->writepage_io_hook(page, cur, cur + iosize - 1);
+		if (tree->ops && tree->ops->writepage_io_hook) {
+			ret = tree->ops->writepage_io_hook(page, cur,
+						cur + iosize - 1);
+		} else {
+			ret = 0;
+		}
 		if (ret)
 			SetPageError(page);
 		else {
