@@ -84,6 +84,10 @@
 #define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
 #define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
 
+#define HCALL4_REGS_FORMAT "r4=%lx r5=%lx r6=%lx r7=%lx"
+#define HCALL7_REGS_FORMAT HCALL4_REGS_FORMAT " r8=%lx r9=%lx r10=%lx"
+#define HCALL9_REGS_FORMAT HCALL7_REGS_FORMAT " r11=%lx r12=%lx"
+
 static DEFINE_SPINLOCK(hcall_lock);
 
 static u32 get_longbusy_msecs(int longbusy_rc)
@@ -118,8 +122,7 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 	long ret;
 	int i, sleep_msecs;
 
-	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
-		     "arg5=%lx arg6=%lx arg7=%lx",
+	ehca_gen_dbg("opcode=%lx " HCALL7_REGS_FORMAT,
 		     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 
 	for (i = 0; i < 5; i++) {
@@ -133,16 +136,13 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 		}
 
 		if (ret < H_SUCCESS)
-			ehca_gen_err("opcode=%lx ret=%lx"
-				     " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				     " arg5=%lx arg6=%lx arg7=%lx ",
-				     opcode, ret,
-				     arg1, arg2, arg3, arg4, arg5,
-				     arg6, arg7);
+			ehca_gen_err("opcode=%lx ret=%li " HCALL7_REGS_FORMAT,
+				     opcode, ret, arg1, arg2, arg3,
+				     arg4, arg5, arg6, arg7);
+		else
+			ehca_gen_dbg("opcode=%lx ret=%li", opcode, ret);
 
-		ehca_gen_dbg("opcode=%lx ret=%lx", opcode, ret);
 		return ret;
-
 	}
 
 	return H_BUSY;
@@ -164,10 +164,8 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 	int i, sleep_msecs, lock_is_set = 0;
 	unsigned long flags = 0;
 
-	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
-		     "arg5=%lx arg6=%lx arg7=%lx arg8=%lx arg9=%lx",
-		     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
-		     arg8, arg9);
+	ehca_gen_dbg("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT, opcode,
+		     arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
 
 	for (i = 0; i < 5; i++) {
 		if ((opcode == H_ALLOC_RESOURCE) && (arg2 == 5)) {
@@ -188,26 +186,19 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 			continue;
 		}
 
-		if (ret < H_SUCCESS)
-			ehca_gen_err("opcode=%lx ret=%lx"
-				     " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				     " arg5=%lx arg6=%lx arg7=%lx arg8=%lx"
-				     " arg9=%lx"
-				     " out1=%lx out2=%lx out3=%lx out4=%lx"
-				     " out5=%lx out6=%lx out7=%lx out8=%lx"
-				     " out9=%lx",
-				     opcode, ret,
-				     arg1, arg2, arg3, arg4, arg5,
-				     arg6, arg7, arg8, arg9,
-				     outs[0], outs[1], outs[2], outs[3],
+		if (ret < H_SUCCESS) {
+			ehca_gen_err("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT,
+				     opcode, arg1, arg2, arg3, arg4, arg5,
+				     arg6, arg7, arg8, arg9);
+			ehca_gen_err("OUTPUT -- ret=%li " HCALL9_REGS_FORMAT,
+				     ret, outs[0], outs[1], outs[2], outs[3],
 				     outs[4], outs[5], outs[6], outs[7],
 				     outs[8]);
-
-		ehca_gen_dbg("opcode=%lx ret=%lx out1=%lx out2=%lx out3=%lx "
-			     "out4=%lx out5=%lx out6=%lx out7=%lx out8=%lx "
-			     "out9=%lx",
-			     opcode, ret, outs[0], outs[1], outs[2], outs[3],
-			     outs[4], outs[5], outs[6], outs[7], outs[8]);
+		} else
+			ehca_gen_dbg("OUTPUT -- ret=%li " HCALL9_REGS_FORMAT,
+				     ret, outs[0], outs[1], outs[2], outs[3],
+				     outs[4], outs[5], outs[6], outs[7],
+				     outs[8]);
 		return ret;
 	}
 
