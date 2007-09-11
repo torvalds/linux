@@ -102,7 +102,8 @@ check_filename(char *str, int len, __be32 err)
 out:						\
 	return status;				\
 xdr_error:					\
-	printk(KERN_NOTICE "xdr error! (%s:%d)\n", __FILE__, __LINE__);	\
+	dprintk("NFSD: xdr error (%s:%d)\n",	\
+			__FILE__, __LINE__);	\
 	status = nfserr_bad_xdr;		\
 	goto out
 
@@ -124,7 +125,8 @@ xdr_error:					\
 	if (!(x = (p==argp->tmp || p == argp->tmpp) ? \
  		savemem(argp, p, nbytes) :	\
  		(char *)p)) {			\
-		printk(KERN_NOTICE "xdr error! (%s:%d)\n", __FILE__, __LINE__); \
+		dprintk("NFSD: xdr error (%s:%d)\n", \
+				__FILE__, __LINE__); \
 		goto xdr_error;			\
 		}				\
 	p += XDR_QUADLEN(nbytes);		\
@@ -140,7 +142,8 @@ xdr_error:					\
 		p = argp->p;			\
 		argp->p += XDR_QUADLEN(nbytes);	\
 	} else if (!(p = read_buf(argp, nbytes))) { \
-		printk(KERN_NOTICE "xdr error! (%s:%d)\n", __FILE__, __LINE__); \
+		dprintk("NFSD: xdr error (%s:%d)\n", \
+				__FILE__, __LINE__); \
 		goto xdr_error;			\
 	}					\
 } while (0)
@@ -948,7 +951,8 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	 */
 	avail = (char*)argp->end - (char*)argp->p;
 	if (avail + argp->pagelen < write->wr_buflen) {
-		printk(KERN_NOTICE "xdr error! (%s:%d)\n", __FILE__, __LINE__); 
+		dprintk("NFSD: xdr error (%s:%d)\n",
+				__FILE__, __LINE__);
 		goto xdr_error;
 	}
 	argp->rqstp->rq_vec[0].iov_base = p;
@@ -1019,7 +1023,7 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		argp->ops = kmalloc(argp->opcnt * sizeof(*argp->ops), GFP_KERNEL);
 		if (!argp->ops) {
 			argp->ops = argp->iops;
-			printk(KERN_INFO "nfsd: couldn't allocate room for COMPOUND\n");
+			dprintk("nfsd: couldn't allocate room for COMPOUND\n");
 			goto xdr_error;
 		}
 	}
@@ -1326,7 +1330,7 @@ static char *nfsd4_path(struct svc_rqst *rqstp, struct svc_export *exp, __be32 *
 	path = exp->ex_path;
 
 	if (strncmp(path, rootpath, strlen(rootpath))) {
-		printk("nfsd: fs_locations failed;"
+		dprintk("nfsd: fs_locations failed;"
 			"%s is not contained in %s\n", path, rootpath);
 		*stat = nfserr_notsupp;
 		return NULL;
