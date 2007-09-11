@@ -2296,6 +2296,7 @@ static struct nf_sockopt_ops ipt_sockopts = {
 #ifdef CONFIG_COMPAT
 	.compat_get	= compat_do_ipt_get_ctl,
 #endif
+	.owner		= THIS_MODULE,
 };
 
 static struct xt_match icmp_matchstruct __read_mostly = {

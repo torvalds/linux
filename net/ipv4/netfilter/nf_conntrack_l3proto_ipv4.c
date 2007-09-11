@@ -399,6 +399,7 @@ static struct nf_sockopt_ops so_getorigdst = {
 	.get_optmin	= SO_ORIGINAL_DST,
 	.get_optmax	= SO_ORIGINAL_DST+1,
 	.get		= &getorigdst,
+	.owner		= THIS_MODULE,
 };
 
 struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {

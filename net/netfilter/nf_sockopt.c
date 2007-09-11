@@ -55,18 +55,7 @@ EXPORT_SYMBOL(nf_register_sockopt);
 
 void nf_unregister_sockopt(struct nf_sockopt_ops *reg)
 {
-	/* No point being interruptible: we're probably in cleanup_module() */
- restart:
 	mutex_lock(&nf_sockopt_mutex);
-	if (reg->use != 0) {
-		/* To be woken by nf_sockopt call... */
-		/* FIXME: Stuart Young's name appears gratuitously. */
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		reg->cleanup_task = current;
-		mutex_unlock(&nf_sockopt_mutex);
-		schedule();
-		goto restart;
-	}
 	list_del(&reg->list);
 	mutex_unlock(&nf_sockopt_mutex);
 }
@@ -86,10 +75,11 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	list_for_each(i, &nf_sockopts) {
 		ops = (struct nf_sockopt_ops *)i;
 		if (ops->pf == pf) {
+			if (!try_module_get(ops->owner))
+				goto out_nosup;
 			if (get) {
 				if (val >= ops->get_optmin
 				    && val < ops->get_optmax) {
-					ops->use++;
 					mutex_unlock(&nf_sockopt_mutex);
 					ret = ops->get(sk, val, opt, len);
 					goto out;
@@ -97,23 +87,20 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 			} else {
 				if (val >= ops->set_optmin
 				    && val < ops->set_optmax) {
-					ops->use++;
 					mutex_unlock(&nf_sockopt_mutex);
 					ret = ops->set(sk, val, opt, *len);
 					goto out;
 				}
 			}
+			module_put(ops->owner);
 		}
 	}
+ out_nosup:
 	mutex_unlock(&nf_sockopt_mutex);
 	return -ENOPROTOOPT;
 
  out:
-	mutex_lock(&nf_sockopt_mutex);
-	ops->use--;
-	if (ops->cleanup_task)
-		wake_up_process(ops->cleanup_task);
-	mutex_unlock(&nf_sockopt_mutex);
+	module_put(ops->owner);
 	return ret;
 }
 
@@ -144,10 +131,12 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 	list_for_each(i, &nf_sockopts) {
 		ops = (struct nf_sockopt_ops *)i;
 		if (ops->pf == pf) {
+			if (!try_module_get(ops->owner))
+				goto out_nosup;
+
 			if (get) {
 				if (val >= ops->get_optmin
 				    && val < ops->get_optmax) {
-					ops->use++;
 					mutex_unlock(&nf_sockopt_mutex);
 					if (ops->compat_get)
 						ret = ops->compat_get(sk,
@@ -160,7 +149,6 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 			} else {
 				if (val >= ops->set_optmin
 				    && val < ops->set_optmax) {
-					ops->use++;
 					mutex_unlock(&nf_sockopt_mutex);
 					if (ops->compat_set)
 						ret = ops->compat_set(sk,
@@ -171,17 +159,15 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 					goto out;
 				}
 			}
+			module_put(ops->owner);
 		}
 	}
+ out_nosup:
 	mutex_unlock(&nf_sockopt_mutex);
 	return -ENOPROTOOPT;
 
  out:
-	mutex_lock(&nf_sockopt_mutex);
-	ops->use--;
-	if (ops->cleanup_task)
-		wake_up_process(ops->cleanup_task);
-	mutex_unlock(&nf_sockopt_mutex);
+	module_put(ops->owner);
 	return ret;
 }
 
