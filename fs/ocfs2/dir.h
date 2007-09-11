@@ -61,6 +61,8 @@ int ocfs2_find_files_on_disk(const char *name,
 			     struct inode *inode,
 			     struct buffer_head **dirent_bh,
 			     struct ocfs2_dir_entry **dirent);
+int ocfs2_lookup_ino_from_name(struct inode *dir, const char *name,
+			       int namelen, u64 *blkno);
 int ocfs2_readdir(struct file *filp, void *dirent, filldir_t filldir);
 int ocfs2_dir_foreach(struct inode *inode, loff_t *f_pos, void *priv,
 		      filldir_t filldir);

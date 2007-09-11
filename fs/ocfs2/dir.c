@@ -628,6 +628,23 @@ leave:
 	return status;
 }
 
+/*
+ * Convenience function for callers which just want the block number
+ * mapped to a name and don't require the full dirent info, etc.
+ */
+int ocfs2_lookup_ino_from_name(struct inode *dir, const char *name,
+			       int namelen, u64 *blkno)
+{
+	int ret;
+	struct buffer_head *bh = NULL;
+	struct ocfs2_dir_entry *dirent = NULL;
+
+	ret = ocfs2_find_files_on_disk(name, namelen, blkno, dir, &bh, &dirent);
+	brelse(bh);
+
+	return ret;
+}
+
 /* Check for a name within a directory.
  *
  * Return 0 if the name does not exist

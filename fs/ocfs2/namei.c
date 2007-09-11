@@ -101,10 +101,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 {
 	int status;
 	u64 blkno;
-	struct buffer_head *dirent_bh = NULL;
 	struct inode *inode = NULL;
 	struct dentry *ret;
-	struct ocfs2_dir_entry *dirent;
 	struct ocfs2_inode_info *oi;
 
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", dir, dentry,
@@ -126,9 +124,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
-	status = ocfs2_find_files_on_disk(dentry->d_name.name,
-					  dentry->d_name.len, &blkno,
-					  dir, &dirent_bh, &dirent);
+	status = ocfs2_lookup_ino_from_name(dir, dentry->d_name.name,
+					    dentry->d_name.len, &blkno);
 	if (status < 0)
 		goto bail_add;
 
@@ -183,8 +180,6 @@ bail_unlock:
 	ocfs2_meta_unlock(dir, 0);
 
 bail:
-	if (dirent_bh)
-		brelse(dirent_bh);
 
 	mlog_exit_ptr(ret);
 
