@@ -34,17 +34,16 @@ void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 	/* even !CONFIG_PREEMPT needs this, for in_atomic in do_page_fault */
 	pagefault_disable();
 
-	idx = type + KM_TYPE_NR*smp_processor_id();
-	BUG_ON(!pte_none(*(kmap_pte-idx)));
-
 	if (!PageHighMem(page))
 		return page_address(page);
 
+	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	BUG_ON(!pte_none(*(kmap_pte-idx)));
 	set_pte(kmap_pte-idx, mk_pte(page, prot));
 	arch_flush_lazy_mmu_mode();
 
-	return (void*) vaddr;
+	return (void *)vaddr;
 }
 
 void *kmap_atomic(struct page *page, enum km_type type)
