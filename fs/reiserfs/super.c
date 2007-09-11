@@ -1915,8 +1915,11 @@ static int reiserfs_release_dquot(struct dquot *dquot)
 	ret =
 	    journal_begin(&th, dquot->dq_sb,
 			  REISERFS_QUOTA_DEL_BLOCKS(dquot->dq_sb));
-	if (ret)
+	if (ret) {
+		/* Release dquot anyway to avoid endless cycle in dqput() */
+		dquot_release(dquot);
 		goto out;
+	}
 	ret = dquot_release(dquot);
 	err =
 	    journal_end(&th, dquot->dq_sb,
@@ -2067,6 +2070,12 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 	size_t towrite = len;
 	struct buffer_head tmp_bh, *bh;
 
+	if (!current->journal_info) {
+		printk(KERN_WARNING "reiserfs: Quota write (off=%Lu, len=%Lu)"
+			" cancelled because transaction is not started.\n",
+			(unsigned long long)off, (unsigned long long)len);
+		return -EIO;
+	}
 	mutex_lock_nested(&inode->i_mutex, I_MUTEX_QUOTA);
 	while (towrite > 0) {
 		tocopy = sb->s_blocksize - offset < towrite ?
@@ -2098,7 +2107,7 @@ static ssize_t reiserfs_quota_write(struct super_block *sb, int type,
 		data += tocopy;
 		blk++;
 	}
-      out:
+out:
 	if (len == towrite)
 		return err;
 	if (inode->i_size < off + len - towrite)
