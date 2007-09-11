@@ -410,7 +410,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_xprt = xprt_get(xprt);
 	map->r_netid = (xprt->prot == IPPROTO_TCP) ? RPCB_NETID_TCP :
 						   RPCB_NETID_UDP;
-	memcpy(&map->r_addr,
+	memcpy(map->r_addr,
 	       rpc_peeraddr2str(rpcb_clnt, RPC_DISPLAY_UNIVERSAL_ADDR),
 	       sizeof(map->r_addr));
 	map->r_owner = RPCB_OWNER_STRING;	/* ignored for GETADDR */
