@@ -733,6 +733,15 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 	lock_kernel();
 	if (request->fl_flags & FL_ACCESS)
 		goto find_conflict;
+
+	if (request->fl_type != F_UNLCK) {
+		error = -ENOMEM;
+		new_fl = locks_alloc_lock();
+		if (new_fl == NULL)
+			goto out;
+		error = 0;
+	}
+
 	for_each_lock(inode, before) {
 		struct file_lock *fl = *before;
 		if (IS_POSIX(fl))
@@ -754,10 +763,6 @@ static int flock_lock_file(struct file *filp, struct file_lock *request)
 		goto out;
 	}
 
-	error = -ENOMEM;
-	new_fl = locks_alloc_lock();
-	if (new_fl == NULL)
-		goto out;
 	/*
 	 * If a higher-priority process was blocked on the old file lock,
 	 * give it the opportunity to lock the file.
