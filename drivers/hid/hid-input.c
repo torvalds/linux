@@ -1112,6 +1112,9 @@ int hidinput_connect(struct hid_device *hid)
 	int i, j, k;
 	int max_report_type = HID_OUTPUT_REPORT;
 
+	if (hid->quirks & HID_QUIRK_IGNORE_HIDINPUT)
+		return -1;
+
 	INIT_LIST_HEAD(&hid->inputs);
 
 	for (i = 0; i < hid->maxcollection; i++)

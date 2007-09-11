@@ -276,6 +276,7 @@ struct hid_item {
 #define HID_QUIRK_HIDINPUT			0x00200000
 #define HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL	0x00400000
 #define HID_QUIRK_LOGITECH_EXPANDED_KEYMAP	0x00800000
+#define HID_QUIRK_IGNORE_HIDINPUT		0x01000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
