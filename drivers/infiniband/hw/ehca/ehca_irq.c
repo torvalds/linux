@@ -294,8 +294,8 @@ static void parse_identifier(struct ehca_shca *shca, u64 eqe)
 	case 0x11: /* unaffiliated access error */
 		ehca_err(&shca->ib_device, "Unaffiliated access error.");
 		break;
-	case 0x12: /* path migrating error */
-		ehca_err(&shca->ib_device, "Path migration error.");
+	case 0x12: /* path migrating */
+		ehca_err(&shca->ib_device, "Path migrating.");
 		break;
 	case 0x13: /* interface trace stopped */
 		ehca_err(&shca->ib_device, "Interface trace stopped.");

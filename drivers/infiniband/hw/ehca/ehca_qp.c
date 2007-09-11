@@ -1165,6 +1165,13 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (attr_mask & IB_QP_PKEY_INDEX) {
+		if (attr->pkey_index >= 16) {
+			ret = -EINVAL;
+			ehca_err(ibqp->device, "Invalid pkey_index=%x. "
+				 "ehca_qp=%p qp_num=%x max_pkey_index=f",
+				 attr->pkey_index, my_qp, ibqp->qp_num);
+			goto modify_qp_exit2;
+		}
 		mqpcb->prim_p_key_idx = attr->pkey_index;
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_PRIM_P_KEY_IDX, 1);
 	}
@@ -1273,50 +1280,78 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		int ehca_mult = ib_rate_to_mult(
 			shca->sport[my_qp->init_attr.port_num].rate);
 
-		mqpcb->dlid_al = attr->alt_ah_attr.dlid;
-		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_DLID_AL, 1);
-		mqpcb->source_path_bits_al = attr->alt_ah_attr.src_path_bits;
-		update_mask |=
-			EHCA_BMASK_SET(MQPCB_MASK_SOURCE_PATH_BITS_AL, 1);
-		mqpcb->service_level_al = attr->alt_ah_attr.sl;
-		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SERVICE_LEVEL_AL, 1);
+		if (attr->alt_port_num < 1
+		    || attr->alt_port_num > shca->num_ports) {
+			ret = -EINVAL;
+			ehca_err(ibqp->device, "Invalid alt_port=%x. "
+				 "ehca_qp=%p qp_num=%x num_ports=%x",
+				 attr->alt_port_num, my_qp, ibqp->qp_num,
+				 shca->num_ports);
+			goto modify_qp_exit2;
+		}
+		mqpcb->alt_phys_port = attr->alt_port_num;
 
-		if (ah_mult < ehca_mult)
-			mqpcb->max_static_rate = (ah_mult > 0) ?
-			((ehca_mult - 1) / ah_mult) : 0;
+		if (attr->alt_pkey_index >= 16) {
+			ret = -EINVAL;
+			ehca_err(ibqp->device, "Invalid alt_pkey_index=%x. "
+				 "ehca_qp=%p qp_num=%x max_pkey_index=f",
+				 attr->pkey_index, my_qp, ibqp->qp_num);
+			goto modify_qp_exit2;
+		}
+		mqpcb->alt_p_key_idx = attr->alt_pkey_index;
+
+		mqpcb->timeout_al = attr->alt_timeout;
+		mqpcb->dlid_al = attr->alt_ah_attr.dlid;
+		mqpcb->source_path_bits_al = attr->alt_ah_attr.src_path_bits;
+		mqpcb->service_level_al = attr->alt_ah_attr.sl;
+
+		if (ah_mult > 0 && ah_mult < ehca_mult)
+			mqpcb->max_static_rate_al = (ehca_mult - 1) / ah_mult;
 		else
 			mqpcb->max_static_rate_al = 0;
 
-		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_MAX_STATIC_RATE_AL, 1);
+		/* OpenIB doesn't support alternate retry counts - copy them */
+		mqpcb->retry_count_al = mqpcb->retry_count;
+		mqpcb->rnr_retry_count_al = mqpcb->rnr_retry_count;
+
+		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_ALT_PHYS_PORT, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_ALT_P_KEY_IDX, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_TIMEOUT_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_DLID_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_SOURCE_PATH_BITS_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_SERVICE_LEVEL_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_MAX_STATIC_RATE_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_RETRY_COUNT_AL, 1)
+			| EHCA_BMASK_SET(MQPCB_MASK_RNR_RETRY_COUNT_AL, 1);
+
+		/*
+		 * Always supply the GRH flag, even if it's zero, to give the
+		 * hypervisor a clear "yes" or "no" instead of a "perhaps"
+		 */
+		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG_AL, 1);
 
 		/*
 		 * only if GRH is TRUE we might consider SOURCE_GID_IDX
 		 * and DEST_GID otherwise phype will return H_ATTR_PARM!!!
 		 */
 		if (attr->alt_ah_attr.ah_flags == IB_AH_GRH) {
-			mqpcb->send_grh_flag_al = 1 << 31;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_SEND_GRH_FLAG_AL, 1);
-			mqpcb->source_gid_idx_al =
-				attr->alt_ah_attr.grh.sgid_index;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_SOURCE_GID_IDX_AL, 1);
+			mqpcb->send_grh_flag_al = 1;
 
 			for (cnt = 0; cnt < 16; cnt++)
 				mqpcb->dest_gid_al.byte[cnt] =
 					attr->alt_ah_attr.grh.dgid.raw[cnt];
-
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_DEST_GID_AL, 1);
+			mqpcb->source_gid_idx_al =
+				attr->alt_ah_attr.grh.sgid_index;
 			mqpcb->flow_label_al = attr->alt_ah_attr.grh.flow_label;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_FLOW_LABEL_AL, 1);
 			mqpcb->hop_limit_al = attr->alt_ah_attr.grh.hop_limit;
-			update_mask |=
-				EHCA_BMASK_SET(MQPCB_MASK_HOP_LIMIT_AL, 1);
 			mqpcb->traffic_class_al =
 				attr->alt_ah_attr.grh.traffic_class;
+
 			update_mask |=
+				EHCA_BMASK_SET(MQPCB_MASK_SOURCE_GID_IDX_AL, 1)
+				| EHCA_BMASK_SET(MQPCB_MASK_DEST_GID_AL, 1)
+				| EHCA_BMASK_SET(MQPCB_MASK_FLOW_LABEL_AL, 1)
+				| EHCA_BMASK_SET(MQPCB_MASK_HOP_LIMIT_AL, 1) |
 				EHCA_BMASK_SET(MQPCB_MASK_TRAFFIC_CLASS_AL, 1);
 		}
 	}
@@ -1338,7 +1373,14 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE) {
-		mqpcb->path_migration_state = attr->path_mig_state;
+		if (attr->path_mig_state != IB_MIG_REARM
+		    && attr->path_mig_state != IB_MIG_MIGRATED) {
+			ret = -EINVAL;
+			ehca_err(ibqp->device, "Invalid mig_state=%x",
+				 attr->path_mig_state);
+			goto modify_qp_exit2;
+		}
+		mqpcb->path_migration_state = attr->path_mig_state + 1;
 		update_mask |=
 			EHCA_BMASK_SET(MQPCB_MASK_PATH_MIGRATION_STATE, 1);
 	}
@@ -1506,7 +1548,7 @@ int ehca_query_qp(struct ib_qp *qp,
 
 	qp_attr->qkey = qpcb->qkey;
 	qp_attr->path_mtu = qpcb->path_mtu;
-	qp_attr->path_mig_state = qpcb->path_migration_state;
+	qp_attr->path_mig_state = qpcb->path_migration_state - 1;
 	qp_attr->rq_psn = qpcb->receive_psn;
 	qp_attr->sq_psn = qpcb->send_psn;
 	qp_attr->min_rnr_timer = qpcb->min_rnr_nak_timer_field;
