@@ -611,7 +611,7 @@ config SERIAL_BFIN
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
-	depends on SERIAL_BFIN
+	depends on SERIAL_BFIN=y
 	select SERIAL_CORE_CONSOLE
 
 choice
@@ -832,10 +832,10 @@ config SERIAL_MUX
 	    4. Change the kernel command console parameter to: console=ttyB0
 
 config SERIAL_MUX_CONSOLE
-        bool "Support for console on serial MUX"
-        depends on SERIAL_MUX
+	bool "Support for console on serial MUX"
+	depends on SERIAL_MUX=y
 	select SERIAL_CORE_CONSOLE
-        default y
+	default y
 
 config PDC_CONSOLE
 	bool "PDC software console support"
