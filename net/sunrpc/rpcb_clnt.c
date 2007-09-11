@@ -528,12 +528,19 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 
 	*portp = 0;
 	addr_len = ntohl(*p++);
-	if (addr_len > RPCB_MAXADDRLEN)			/* sanity */
-		return -EINVAL;
 
-	dprintk("RPC:       rpcb_decode_getaddr returned string: '%s'\n",
-			(char *) p);
+	/*
+	 * Simple sanity check.  The smallest possible universal
+	 * address is an IPv4 address string containing 11 bytes.
+	 */
+	if (addr_len < 11 || addr_len > RPCB_MAXADDRLEN)
+		goto out_err;
 
+	/*
+	 * Start at the end and walk backwards until the first dot
+	 * is encountered.  When the second dot is found, we have
+	 * both parts of the port number.
+	 */
 	addr = (char *)p;
 	val = 0;
 	first = 1;
@@ -555,8 +562,19 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 		}
 	}
 
+	/*
+	 * Simple sanity check.  If we never saw a dot in the reply,
+	 * then this was probably just garbage.
+	 */
+	if (first)
+		goto out_err;
+
 	dprintk("RPC:       rpcb_decode_getaddr port=%u\n", *portp);
 	return 0;
+
+out_err:
+	dprintk("RPC:       rpcbind server returned malformed reply\n");
+	return -EIO;
 }
 
 #define RPCB_program_sz		(1u)
