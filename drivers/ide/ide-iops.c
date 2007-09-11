@@ -615,8 +615,7 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 	if (hwif->cbl != ATA_CBL_PATA80 && !ivb)
 		goto no_80w;
 
-	/* Check for SATA but only if we are ATA5 or higher */
-	if (id->hw_config == 0 && (id->major_rev_num & 0x7FE0))
+	if (ide_dev_is_sata(id))
 		return 1;
 
 	/*
