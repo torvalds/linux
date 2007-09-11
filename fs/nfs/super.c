@@ -1027,15 +1027,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		sin = args->mount_server.address;
 	else
 		sin = args->nfs_server.address;
-	if (args->mount_server.port == 0) {
-		status = rpcb_getport_sync(&sin,
-					   args->mount_server.program,
-					   args->mount_server.version,
-					   args->mount_server.protocol);
-		if (status < 0)
-			goto out_err;
-		sin.sin_port = htons(status);
-	} else
+	if (args->mount_server.port != 0)
 		sin.sin_port = htons(args->mount_server.port);
 
 	/*
@@ -1049,14 +1041,11 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 			   args->mount_server.version,
 			   args->mount_server.protocol,
 			   root_fh);
-	if (status < 0)
-		goto out_err;
+	if (status == 0)
+		return 0;
 
-	return status;
-
-out_err:
-	dfprintk(MOUNT, "NFS: unable to contact server on host "
-		 NIPQUAD_FMT "\n", NIPQUAD(sin.sin_addr.s_addr));
+	dfprintk(MOUNT, "NFS: unable to mount server " NIPQUAD_FMT
+			", error %d\n", NIPQUAD(sin.sin_addr.s_addr), status);
 	return status;
 }
 
