@@ -166,7 +166,6 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		write_lock_irqsave(&ehca_cq_idr_lock, flags);
 		ret = idr_get_new(&ehca_cq_idr, my_cq, &my_cq->token);
 		write_unlock_irqrestore(&ehca_cq_idr_lock, flags);
-
 	} while (ret == -EAGAIN);
 
 	if (ret) {
@@ -174,6 +173,12 @@ struct ib_cq *ehca_create_cq(struct ib_device *device, int cqe, int comp_vector,
 		ehca_err(device, "Can't allocate new idr entry. device=%p",
 			 device);
 		goto create_cq_exit1;
+	}
+
+	if (my_cq->token > 0x1FFFFFF) {
+		cq = ERR_PTR(-ENOMEM);
+		ehca_err(device, "Invalid number of cq. device=%p", device);
+		goto create_cq_exit2;
 	}
 
 	/*

@@ -164,7 +164,7 @@ static int ehca_mmap_cq(struct vm_area_struct *vma, struct ehca_cq *cq,
 	int ret;
 
 	switch (rsrc_type) {
-	case 1: /* galpa fw handle */
+	case 0: /* galpa fw handle */
 		ehca_dbg(cq->ib_cq.device, "cq_num=%x fw", cq->cq_number);
 		ret = ehca_mmap_fw(vma, &cq->galpas, &cq->mm_count_galpa);
 		if (unlikely(ret)) {
@@ -175,7 +175,7 @@ static int ehca_mmap_cq(struct vm_area_struct *vma, struct ehca_cq *cq,
 		}
 		break;
 
-	case 2: /* cq queue_addr */
+	case 1: /* cq queue_addr */
 		ehca_dbg(cq->ib_cq.device, "cq_num=%x queue", cq->cq_number);
 		ret = ehca_mmap_queue(vma, &cq->ipz_queue, &cq->mm_count_queue);
 		if (unlikely(ret)) {
@@ -201,7 +201,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 	int ret;
 
 	switch (rsrc_type) {
-	case 1: /* galpa fw handle */
+	case 0: /* galpa fw handle */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x fw", qp->ib_qp.qp_num);
 		ret = ehca_mmap_fw(vma, &qp->galpas, &qp->mm_count_galpa);
 		if (unlikely(ret)) {
@@ -212,7 +212,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		}
 		break;
 
-	case 2: /* qp rqueue_addr */
+	case 1: /* qp rqueue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x rqueue",
 			 qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_rqueue,
@@ -225,7 +225,7 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 		}
 		break;
 
-	case 3: /* qp squeue_addr */
+	case 2: /* qp squeue_addr */
 		ehca_dbg(qp->ib_qp.device, "qp_num=%x squeue",
 			 qp->ib_qp.qp_num);
 		ret = ehca_mmap_queue(vma, &qp->ipz_squeue,
@@ -249,10 +249,10 @@ static int ehca_mmap_qp(struct vm_area_struct *vma, struct ehca_qp *qp,
 
 int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 {
-	u64 fileoffset = vma->vm_pgoff << PAGE_SHIFT;
-	u32 idr_handle = fileoffset >> 32;
-	u32 q_type = (fileoffset >> 28) & 0xF;	  /* CQ, QP,...        */
-	u32 rsrc_type = (fileoffset >> 24) & 0xF; /* sq,rq,cmnd_window */
+	u64 fileoffset = vma->vm_pgoff;
+	u32 idr_handle = fileoffset & 0x1FFFFFF;
+	u32 q_type = (fileoffset >> 27) & 0x1;	  /* CQ, QP,...        */
+	u32 rsrc_type = (fileoffset >> 25) & 0x3; /* sq,rq,cmnd_window */
 	u32 cur_pid = current->tgid;
 	u32 ret;
 	struct ehca_cq *cq;
@@ -261,7 +261,7 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct ib_uobject *uobject;
 
 	switch (q_type) {
-	case  1: /* CQ */
+	case  0: /* CQ */
 		read_lock(&ehca_cq_idr_lock);
 		cq = idr_find(&ehca_cq_idr, idr_handle);
 		read_unlock(&ehca_cq_idr_lock);
@@ -289,7 +289,7 @@ int ehca_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		}
 		break;
 
-	case 2: /* QP */
+	case 1: /* QP */
 		read_lock(&ehca_qp_idr_lock);
 		qp = idr_find(&ehca_qp_idr, idr_handle);
 		read_unlock(&ehca_qp_idr_lock);

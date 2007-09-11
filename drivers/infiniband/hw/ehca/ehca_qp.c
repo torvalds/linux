@@ -557,7 +557,6 @@ static struct ehca_qp *internal_create_qp(
 		write_lock_irqsave(&ehca_qp_idr_lock, flags);
 		ret = idr_get_new(&ehca_qp_idr, my_qp, &my_qp->token);
 		write_unlock_irqrestore(&ehca_qp_idr_lock, flags);
-
 	} while (ret == -EAGAIN);
 
 	if (ret) {
@@ -566,11 +565,17 @@ static struct ehca_qp *internal_create_qp(
 		goto create_qp_exit0;
 	}
 
+	if (my_qp->token > 0x1FFFFFF) {
+		ret = -EINVAL;
+		ehca_err(pd->device, "Invalid number of qp");
+		goto create_qp_exit1;
+	}
+
 	parms.servicetype = ibqptype2servicetype(qp_type);
 	if (parms.servicetype < 0) {
 		ret = -EINVAL;
 		ehca_err(pd->device, "Invalid qp_type=%x", qp_type);
-		goto create_qp_exit0;
+		goto create_qp_exit1;
 	}
 
 	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
