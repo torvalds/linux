@@ -446,6 +446,10 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 	struct rpc_xprt *xprt = map->r_xprt;
 	int status = child->tk_status;
 
+	/* Garbage reply: retry with a lesser rpcbind version */
+	if (status == -EIO)
+		status = -EPROTONOSUPPORT;
+
 	/* rpcbind server doesn't support this rpcbind protocol version */
 	if (status == -EPROTONOSUPPORT)
 		xprt->bind_index++;
