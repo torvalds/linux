@@ -273,6 +273,7 @@ static inline void queue2resp(struct ipzu_queue_resp *resp,
 	resp->queue_length = queue->queue_length;
 	resp->pagesize = queue->pagesize;
 	resp->toggle_state = queue->toggle_state;
+	resp->offset = queue->offset;
 }
 
 /*
@@ -598,8 +599,7 @@ static struct ehca_qp *internal_create_qp(
 	parms.squeue.max_sge = max_send_sge;
 	parms.rqueue.max_sge = max_recv_sge;
 
-	if (EHCA_BMASK_GET(HCA_CAP_MINI_QP, shca->hca_cap)
-	    && !(context && udata)) { /* no small QP support in userspace ATM */
+	if (EHCA_BMASK_GET(HCA_CAP_MINI_QP, shca->hca_cap)) {
 		if (HAS_SQ(my_qp))
 			ehca_determine_small_queue(
 				&parms.squeue, max_send_sge, is_llqp);
@@ -739,8 +739,7 @@ static struct ehca_qp *internal_create_qp(
 		resp.ext_type = my_qp->ext_type;
 		resp.qkey = my_qp->qkey;
 		resp.real_qp_num = my_qp->real_qp_num;
-		resp.ipz_rqueue.offset = my_qp->ipz_rqueue.offset;
-		resp.ipz_squeue.offset = my_qp->ipz_squeue.offset;
+
 		if (HAS_SQ(my_qp))
 			queue2resp(&resp.ipz_squeue, &my_qp->ipz_squeue);
 		if (HAS_RQ(my_qp))
