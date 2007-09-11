@@ -27,6 +27,7 @@ static int dmte_irq_map[] = {
 #if defined(CONFIG_CPU_SUBTYPE_SH7720)  ||	\
     defined(CONFIG_CPU_SUBTYPE_SH7751R) ||	\
     defined(CONFIG_CPU_SUBTYPE_SH7760)  ||	\
+    defined(CONFIG_CPU_SUBTYPE_SH7709)  ||	\
     defined(CONFIG_CPU_SUBTYPE_SH7780)
 	DMTE4_IRQ,
 	DMTE5_IRQ,
