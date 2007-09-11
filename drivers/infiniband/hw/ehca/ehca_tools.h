@@ -98,15 +98,12 @@ extern int ehca_debug_level;
 	} while (0)
 
 #define ehca_gen_warn(format, arg...) \
-	do { \
-		if (unlikely(ehca_debug_level)) \
-			printk(KERN_INFO "PU%04x EHCA_WARN:%s " format "\n", \
-			       get_paca()->paca_index, __FUNCTION__, ## arg); \
-	} while (0)
+	printk(KERN_INFO "PU%04x EHCA_WARN:%s " format "\n", \
+	       get_paca()->paca_index, __FUNCTION__, ## arg)
 
 #define ehca_gen_err(format, arg...) \
 	printk(KERN_ERR "PU%04x EHCA_ERR:%s " format "\n", \
-		get_paca()->paca_index, __FUNCTION__, ## arg)
+	       get_paca()->paca_index, __FUNCTION__, ## arg)
 
 /**
  * ehca_dmp - printk a memory block, whose length is n*8 bytes.
