@@ -87,14 +87,10 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 	if (iph == NULL)
 		return -NF_DROP;
 
-	/* Never happen */
-	if (iph->frag_off & htons(IP_OFFSET)) {
-		if (net_ratelimit()) {
-			printk(KERN_ERR "ipv4_get_l4proto: Frag of proto %u\n",
-			iph->protocol);
-		}
+	/* Conntrack defragments packets, we might still see fragments
+	 * inside ICMP packets though. */
+	if (iph->frag_off & htons(IP_OFFSET))
 		return -NF_DROP;
-	}
 
 	*dataoff = nhoff + (iph->ihl << 2);
 	*protonum = iph->protocol;
