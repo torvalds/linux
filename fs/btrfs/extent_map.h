@@ -99,6 +99,8 @@ int extent_prepare_write(struct extent_map_tree *tree,
 int extent_commit_write(struct extent_map_tree *tree,
 			struct inode *inode, struct page *page,
 			unsigned from, unsigned to);
+sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
+		get_extent_t *get_extent);
 int set_range_dirty(struct extent_map_tree *tree, u64 start, u64 end);
 int set_state_private(struct extent_map_tree *tree, u64 start, u64 private);
 int get_state_private(struct extent_map_tree *tree, u64 start, u64 *private);

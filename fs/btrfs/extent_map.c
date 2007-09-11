@@ -1816,3 +1816,22 @@ int try_release_extent_mapping(struct extent_map_tree *tree, struct page *page)
 }
 EXPORT_SYMBOL(try_release_extent_mapping);
 
+sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
+		get_extent_t *get_extent)
+{
+	struct inode *inode = mapping->host;
+	u64 start = iblock << inode->i_blkbits;
+	u64 end = start + (1 << inode->i_blkbits) - 1;
+	struct extent_map *em;
+
+	em = get_extent(inode, NULL, 0, start, end, 0);
+	if (!em || IS_ERR(em))
+		return 0;
+
+	// XXX(hch): block 0 is valid in some cases, e.g. XFS RT device
+	if (em->block_start == EXTENT_MAP_INLINE ||
+	    em->block_start == 0)
+	    	return 0;
+
+	return (em->block_start + start - em->start) >> inode->i_blkbits;
+}

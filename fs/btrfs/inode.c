@@ -1567,28 +1567,9 @@ out:
 	return em;
 }
 
-static int btrfs_get_block_bmap(struct inode *inode, sector_t iblock,
-			   struct buffer_head *result, int create)
+static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 start = iblock << inode->i_blkbits;
-	u64 end = start + root->blocksize -1;
-	struct extent_map *em;
-
-	em = btrfs_get_extent(inode, NULL, 0, start, end, 0);
-	if (em && !IS_ERR(em) && em->block_start != EXTENT_MAP_INLINE &&
-	    em->block_start != 0) {
-		u64 offset;
-		offset = start - em->start;
-		start = (em->block_start + offset) >> inode->i_blkbits;
-		btrfs_map_bh_to_logical(root, result, start);
-	}
-	return 0;
-}
-
-static sector_t btrfs_bmap(struct address_space *as, sector_t block)
-{
-	return generic_block_bmap(as, block, btrfs_get_block_bmap);
+	return extent_bmap(mapping, iblock, btrfs_get_extent);
 }
 
 static int btrfs_prepare_write(struct file *file, struct page *page,
