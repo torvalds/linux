@@ -81,10 +81,10 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 			       struct ocfs2_alloc_context *meta_ac,
 			       struct buffer_head **new_bh);
 
-int ocfs2_check_dir_entry(struct inode * dir,
-			  struct ocfs2_dir_entry * de,
-			  struct buffer_head * bh,
-			  unsigned long offset)
+static int ocfs2_check_dir_entry(struct inode * dir,
+				 struct ocfs2_dir_entry * de,
+				 struct buffer_head * bh,
+				 unsigned long offset)
 {
 	const char *error_msg = NULL;
 	const int rlen = le16_to_cpu(de->rec_len);
@@ -529,6 +529,26 @@ revalidate:
 	stored = 0;
 out:
 	return stored;
+}
+
+/*
+ * This is intended to be called from inside other kernel functions,
+ * so we fake some arguments.
+ */
+int ocfs2_dir_foreach(struct inode *inode, loff_t *f_pos, void *priv,
+		      filldir_t filldir)
+{
+	int ret = 0;
+	unsigned long version = inode->i_version;
+
+	while (*f_pos < i_size_read(inode)) {
+		ret = ocfs2_dir_foreach_blk(inode, &version, f_pos, priv,
+					    filldir);
+		if (ret)
+			break;
+	}
+
+	return 0;
 }
 
 /*

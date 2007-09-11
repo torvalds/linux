@@ -62,6 +62,8 @@ int ocfs2_find_files_on_disk(const char *name,
 			     struct buffer_head **dirent_bh,
 			     struct ocfs2_dir_entry **dirent);
 int ocfs2_readdir(struct file *filp, void *dirent, filldir_t filldir);
+int ocfs2_dir_foreach(struct inode *inode, loff_t *f_pos, void *priv,
+		      filldir_t filldir);
 int ocfs2_prepare_dir_for_insert(struct ocfs2_super *osb,
 				 struct inode *dir,
 				 struct buffer_head *parent_fe_bh,
@@ -75,10 +77,5 @@ int ocfs2_fill_new_dir(struct ocfs2_super *osb,
 		       struct inode *inode,
 		       struct buffer_head *fe_bh,
 		       struct ocfs2_alloc_context *data_ac);
-
-int ocfs2_check_dir_entry(struct inode *dir,
-			  struct ocfs2_dir_entry *de,
-			  struct buffer_head *bh,
-			  unsigned long offset);
 
 #endif /* OCFS2_DIR_H */
