@@ -12,6 +12,7 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
+#include <linux/signal.h>
 #include <asm/system.h>
 #include <asm/ptrace.h>
 #include <asm/kgdb.h>
