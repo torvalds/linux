@@ -341,7 +341,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	BUG_ON(clnt->cl_parent != clnt);
 
 	if (xprt_test_and_set_binding(xprt)) {
-		status = -EACCES;		/* tell caller to check again */
+		status = -EAGAIN;	/* tell caller to check again */
 		dprintk("RPC: %5u %s: waiting for another binder\n",
 			task->tk_pid, __FUNCTION__);
 		goto bailout_nowake;
