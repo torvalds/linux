@@ -73,6 +73,7 @@ struct nfs_parsed_mount_data {
 
 	struct {
 		struct sockaddr_in	address;
+		char			*hostname;
 		unsigned int		program;
 		unsigned int		version;
 		unsigned short		port;
@@ -116,7 +117,7 @@ enum {
 
 	/* Mount options that take string arguments */
 	Opt_sec, Opt_proto, Opt_mountproto,
-	Opt_addr, Opt_mounthost, Opt_clientaddr,
+	Opt_addr, Opt_mountaddr, Opt_clientaddr,
 
 	/* Mount options that are ignored */
 	Opt_userspace, Opt_deprecated,
@@ -175,7 +176,8 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_mountproto, "mountproto=%s" },
 	{ Opt_addr, "addr=%s" },
 	{ Opt_clientaddr, "clientaddr=%s" },
-	{ Opt_mounthost, "mounthost=%s" },
+	{ Opt_userspace, "mounthost=%s" },
+	{ Opt_mountaddr, "mountaddr=%s" },
 
 	{ Opt_err, NULL }
 };
@@ -961,7 +963,7 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			mnt->client_address = string;
 			break;
-		case Opt_mounthost:
+		case Opt_mountaddr:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
