@@ -138,7 +138,7 @@ static void free_dynids(struct usb_serial_driver *drv)
 static struct driver_attribute drv_attrs[] = {
 	__ATTR_NULL,
 };
-static inline void free_dynids(struct usb_driver *drv)
+static inline void free_dynids(struct usb_serial_driver *drv)
 {
 }
 #endif

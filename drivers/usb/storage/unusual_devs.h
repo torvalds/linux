@@ -348,6 +348,13 @@ UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0101,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Ortwin Glueck <odi@odi.ch> */
+UNUSUAL_DEV(  0x04b0, 0x0413, 0x0110, 0x0110,
+		"NIKON",
+		"NIKON DSC D40",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
@@ -897,6 +904,22 @@ UNUSUAL_DEV(  0x069b, 0x3004, 0x0001, 0x0001,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/* Reported by Massimiliano Ghilardi <massimiliano.ghilardi@gmail.com>
+ * This USB MP3/AVI player device fails and disconnects if more than 128
+ * sectors (64kB) are read/written in a single command, and may be present
+ * at least in the following products:
+ *   "Magnex Digital Video Panel DVP 1800"
+ *   "MP4 AIGO 4GB SLOT SD"
+ *   "Teclast TL-C260 MP3"
+ *   "i.Meizu PMP MP3/MP4"
+ *   "Speed MV8 MP4 Audio Player"
+ */
+UNUSUAL_DEV(  0x071b, 0x3203, 0x0100, 0x0100,
+		"RockChip",
+		"ROCK MP3",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64),
+
 /* Reported by Olivier Blondeau <zeitoun@gmail.com> */
 UNUSUAL_DEV(  0x0727, 0x0306, 0x0100, 0x0100,
 		"ATMEL",
@@ -1392,6 +1415,13 @@ UNUSUAL_DEV(  0x0fce, 0xe030, 0x0000, 0x0000,
 		"P990i",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Ricardo Barberis <ricardo@dattatec.com> */
+UNUSUAL_DEV(  0x0fce, 0xe092, 0x0000, 0x0000,
+		"Sony Ericsson",
+		"P1i",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
 
 /* Reported by Emmanuel Vasilakis <evas@forthnet.gr> */
 UNUSUAL_DEV(  0x0fce, 0xe031, 0x0000, 0x0000,

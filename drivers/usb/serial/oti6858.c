@@ -817,21 +817,6 @@ static int oti6858_ioctl(struct usb_serial_port *port, struct file *file,
 				__FUNCTION__, port->number, cmd, arg);
 
 	switch (cmd) {
-		case TCGETS:
-			if (kernel_termios_to_user_termios((struct ktermios __user *)arg,
-							   port->tty->termios))
-				return -EFAULT;
-			return 0;
-
-		case TCSETS:
-		case TCSETSW:	/* FIXME: this is not the same! */
-		case TCSETSF:	/* FIXME: this is not the same! */
-			if (user_termios_to_kernel_termios(port->tty->termios,
-						(struct ktermios __user *)arg))
-				return -EFAULT;
-			oti6858_set_termios(port, NULL);
-			return 0;
-
 		case TCFLSH:
 			/* FIXME */
 			return 0;
