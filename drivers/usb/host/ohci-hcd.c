@@ -36,6 +36,7 @@
 #include <linux/dmapool.h>
 #include <linux/reboot.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1068,6 +1069,14 @@ static int __init ohci_hcd_mod_init(void)
 	pr_debug ("%s: block sizes: ed %Zd td %Zd\n", hcd_name,
 		sizeof (struct ed), sizeof (struct td));
 
+#ifdef DEBUG
+	ohci_debug_root = debugfs_create_dir("ohci", NULL);
+	if (!ohci_debug_root) {
+		retval = -ENOENT;
+		goto error_debug;
+	}
+#endif
+
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ohci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
 	if (retval < 0)
@@ -1130,6 +1139,12 @@ static int __init ohci_hcd_mod_init(void)
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
  error_ps3:
 #endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
+	ohci_debug_root = NULL;
+ error_debug:
+#endif
+
 	return retval;
 }
 module_init(ohci_hcd_mod_init);
@@ -1153,6 +1168,9 @@ static void __exit ohci_hcd_mod_exit(void)
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ohci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+#endif
+#ifdef DEBUG
+	debugfs_remove(ohci_debug_root);
 #endif
 }
 module_exit(ohci_hcd_mod_exit);
