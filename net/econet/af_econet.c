@@ -1122,6 +1122,9 @@ static int econet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct net_device *dev = (struct net_device *)data;
 	struct ec_device *edev;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch (msg) {
 	case NETDEV_UNREGISTER:
 		/* A device has gone down - kill any data we hold for it. */

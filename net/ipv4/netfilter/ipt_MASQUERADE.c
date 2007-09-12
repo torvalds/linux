@@ -125,6 +125,9 @@ static int masq_device_event(struct notifier_block *this,
 {
 	const struct net_device *dev = ptr;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (event == NETDEV_DOWN) {
 		/* Device was downed.  Search entire table for
 		   conntracks which were associated with that device,

@@ -1051,6 +1051,9 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	struct net_device *dev = ptr;
 	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	ASSERT_RTNL();
 
 	if (!in_dev) {

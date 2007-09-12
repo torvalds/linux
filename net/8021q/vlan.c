@@ -31,6 +31,7 @@
 #include <net/arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/notifier.h>
+#include <net/net_namespace.h>
 
 #include <linux/if_vlan.h>
 #include "vlan.h"
@@ -602,6 +603,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	struct vlan_group *grp = __vlan_find_group(dev->ifindex);
 	int i, flgs;
 	struct net_device *vlandev;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	if (!grp)
 		goto out;

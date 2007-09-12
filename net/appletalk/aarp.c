@@ -333,6 +333,9 @@ static int aarp_device_event(struct notifier_block *this, unsigned long event,
 	struct net_device *dev = ptr;
 	int ct;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (event == NETDEV_DOWN) {
 		write_lock_bh(&aarp_lock);
 

@@ -394,6 +394,9 @@ static int lapbeth_device_event(struct notifier_block *this,
 	struct lapbethdev *lapbeth;
 	struct net_device *dev = ptr;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (!dev_is_ethdev(dev))
 		return NOTIFY_DONE;
 

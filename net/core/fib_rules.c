@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <net/net_namespace.h>
 #include <net/fib_rules.h>
 
 static LIST_HEAD(rules_ops);
@@ -595,6 +596,9 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = ptr;
 	struct fib_rules_ops *ops;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	ASSERT_RTNL();
 	rcu_read_lock();

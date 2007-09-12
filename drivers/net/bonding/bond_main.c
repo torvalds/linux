@@ -3299,6 +3299,9 @@ static int bond_netdev_event(struct notifier_block *this, unsigned long event, v
 {
 	struct net_device *event_dev = (struct net_device *)ptr;
 
+	if (event_dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	dprintk("event_dev: %s, event: %lx\n",
 		(event_dev ? event_dev->name : "None"),
 		event);

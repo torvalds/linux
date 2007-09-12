@@ -1525,6 +1525,9 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 {
 	struct net_device *dev = ptr;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch (event) {
 	case NETDEV_CHANGEADDR:
 		neigh_changeaddr(&nd_tbl, dev);

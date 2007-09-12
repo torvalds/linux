@@ -109,6 +109,9 @@ static int hdlc_device_event(struct notifier_block *this, unsigned long event,
 	unsigned long flags;
 	int on;
  
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (dev->get_stats != hdlc_get_stats)
 		return NOTIFY_DONE; /* not an HDLC device */
  

@@ -1477,6 +1477,9 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct hlist_node *node;
 	struct net_device *dev = data;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	read_lock(&packet_sklist_lock);
 	sk_for_each(sk, node, &packet_sklist) {
 		struct packet_sock *po = pkt_sk(sk);

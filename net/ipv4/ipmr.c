@@ -1083,13 +1083,18 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 
 static int ipmr_device_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
+	struct net_device *dev = ptr;
 	struct vif_device *v;
 	int ct;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 	v=&vif_table[0];
 	for (ct=0;ct<maxvif;ct++,v++) {
-		if (v->dev==ptr)
+		if (v->dev==dev)
 			vif_delete(ct);
 	}
 	return NOTIFY_DONE;

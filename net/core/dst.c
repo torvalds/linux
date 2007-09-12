@@ -15,6 +15,7 @@
 #include <linux/skbuff.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <net/net_namespace.h>
 
 #include <net/dst.h>
 
@@ -251,6 +252,9 @@ static int dst_dev_event(struct notifier_block *this, unsigned long event, void 
 {
 	struct net_device *dev = ptr;
 	struct dst_entry *dst;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:

@@ -198,6 +198,9 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	while ((eb_ptr->dev != dev)) {
 		if (++eb_ptr == stop)
 			return NOTIFY_DONE;	/* couldn't find device */

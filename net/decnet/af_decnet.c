@@ -2089,6 +2089,9 @@ static int dn_device_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *dev = (struct net_device *)ptr;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch(event) {
 		case NETDEV_UP:
 			dn_dev_up(dev);

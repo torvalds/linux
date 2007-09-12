@@ -956,6 +956,10 @@ static int mpoa_event_listener(struct notifier_block *mpoa_notifier, unsigned lo
 	struct lec_priv *priv;
 
 	dev = (struct net_device *)dev_ptr;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	if (dev->name == NULL || strncmp(dev->name, "lec", 3))
 		return NOTIFY_DONE; /* we are only interested in lec:s */
 

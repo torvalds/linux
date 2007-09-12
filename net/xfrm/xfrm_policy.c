@@ -2236,6 +2236,11 @@ static void xfrm_policy_unlock_afinfo(struct xfrm_policy_afinfo *afinfo)
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
+	struct net_device *dev = ptr;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	switch (event) {
 	case NETDEV_DOWN:
 		xfrm_flush_bundles();
