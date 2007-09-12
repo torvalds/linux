@@ -728,7 +728,7 @@ EXPORT_SYMBOL_GPL(device_reprobe);
 
 struct bus_type *get_bus(struct bus_type *bus)
 {
-	return bus ? container_of(subsys_get(&bus->subsys),
+	return bus ? container_of(kset_get(&bus->subsys),
 				struct bus_type, subsys) : NULL;
 }
 

@@ -679,7 +679,7 @@ int subsys_create_file(struct kset *s, struct subsys_attribute *a)
 	if (!s || !a)
 		return -EINVAL;
 
-	if (subsys_get(s)) {
+	if (kset_get(s)) {
 		error = sysfs_create_file(&s->kobj, &a->attr);
 		kset_put(s);
 	}

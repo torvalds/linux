@@ -231,13 +231,6 @@ extern void subsystem_init(struct kset *);
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
 
-static inline struct kset *subsys_get(struct kset *s)
-{
-	if (s)
-		return kset_get(s);
-	return NULL;
-}
-
 struct subsys_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kset *, char *);

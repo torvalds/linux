@@ -93,7 +93,7 @@ void class_remove_file(struct class * cls, const struct class_attribute * attr)
 static struct class *class_get(struct class *cls)
 {
 	if (cls)
-		return container_of(subsys_get(&cls->subsys), struct class, subsys);
+		return container_of(kset_get(&cls->subsys), struct class, subsys);
 	return NULL;
 }
 
