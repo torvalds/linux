@@ -487,7 +487,7 @@ static int rtm_to_fib_config(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	nlmsg_for_each_attr(attr, nlh, sizeof(struct rtmsg), remaining) {
-		switch (attr->nla_type) {
+		switch (nla_type(attr)) {
 		case RTA_DST:
 			cfg->fc_dst = nla_get_be32(attr);
 			break;

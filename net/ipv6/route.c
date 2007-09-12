@@ -1279,7 +1279,7 @@ install_route:
 		int remaining;
 
 		nla_for_each_attr(nla, cfg->fc_mx, cfg->fc_mx_len, remaining) {
-			int type = nla->nla_type;
+			int type = nla_type(nla);
 
 			if (type) {
 				if (type > RTAX_MAX) {

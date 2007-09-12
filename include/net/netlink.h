@@ -667,6 +667,15 @@ static inline int nla_padlen(int payload)
 }
 
 /**
+ * nla_type - attribute type
+ * @nla: netlink attribute
+ */
+static inline int nla_type(const struct nlattr *nla)
+{
+	return nla->nla_type & NLA_TYPE_MASK;
+}
+
+/**
  * nla_data - head of payload
  * @nla: netlink attribute
  */

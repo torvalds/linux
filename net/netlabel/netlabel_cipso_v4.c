@@ -130,7 +130,7 @@ static int netlbl_cipsov4_add_common(struct genl_info *info,
 		return -EINVAL;
 
 	nla_for_each_nested(nla, info->attrs[NLBL_CIPSOV4_A_TAGLST], nla_rem)
-		if (nla->nla_type == NLBL_CIPSOV4_A_TAG) {
+		if (nla_type(nla) == NLBL_CIPSOV4_A_TAG) {
 			if (iter >= CIPSO_V4_TAG_MAXCNT)
 				return -EINVAL;
 			doi_def->tags[iter++] = nla_get_u8(nla);
@@ -192,13 +192,13 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 	nla_for_each_nested(nla_a,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
-		if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSLVL) {
+		if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSLVL) {
 			if (nla_validate_nested(nla_a,
 					    NLBL_CIPSOV4_A_MAX,
 					    netlbl_cipsov4_genl_policy) != 0)
 					goto add_std_failure;
 			nla_for_each_nested(nla_b, nla_a, nla_b_rem)
-				switch (nla_b->nla_type) {
+				switch (nla_type(nla_b)) {
 				case NLBL_CIPSOV4_A_MLSLVLLOC:
 					if (nla_get_u32(nla_b) >
 					    CIPSO_V4_MAX_LOC_LVLS)
@@ -240,7 +240,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 	nla_for_each_nested(nla_a,
 			    info->attrs[NLBL_CIPSOV4_A_MLSLVLLST],
 			    nla_a_rem)
-		if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSLVL) {
+		if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSLVL) {
 			struct nlattr *lvl_loc;
 			struct nlattr *lvl_rem;
 
@@ -265,13 +265,13 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 		nla_for_each_nested(nla_a,
 				    info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
 				    nla_a_rem)
-			if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSCAT) {
+			if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSCAT) {
 				if (nla_validate_nested(nla_a,
 					      NLBL_CIPSOV4_A_MAX,
 					      netlbl_cipsov4_genl_policy) != 0)
 					goto add_std_failure;
 				nla_for_each_nested(nla_b, nla_a, nla_b_rem)
-					switch (nla_b->nla_type) {
+					switch (nla_type(nla_b)) {
 					case NLBL_CIPSOV4_A_MLSCATLOC:
 						if (nla_get_u32(nla_b) >
 						    CIPSO_V4_MAX_LOC_CATS)
@@ -315,7 +315,7 @@ static int netlbl_cipsov4_add_std(struct genl_info *info)
 		nla_for_each_nested(nla_a,
 				    info->attrs[NLBL_CIPSOV4_A_MLSCATLST],
 				    nla_a_rem)
-			if (nla_a->nla_type == NLBL_CIPSOV4_A_MLSCAT) {
+			if (nla_type(nla_a) == NLBL_CIPSOV4_A_MLSCAT) {
 				struct nlattr *cat_loc;
 				struct nlattr *cat_rem;
 
