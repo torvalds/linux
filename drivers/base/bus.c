@@ -734,7 +734,7 @@ struct bus_type *get_bus(struct bus_type *bus)
 
 void put_bus(struct bus_type * bus)
 {
-	subsys_put(&bus->subsys);
+	kset_put(&bus->subsys);
 }
 
 

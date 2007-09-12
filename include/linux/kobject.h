@@ -238,11 +238,6 @@ static inline struct kset *subsys_get(struct kset *s)
 	return NULL;
 }
 
-static inline void subsys_put(struct kset *s)
-{
-	kset_put(s);
-}
-
 struct subsys_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kset *, char *);

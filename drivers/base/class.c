@@ -100,7 +100,7 @@ static struct class *class_get(struct class *cls)
 static void class_put(struct class * cls)
 {
 	if (cls)
-		subsys_put(&cls->subsys);
+		kset_put(&cls->subsys);
 }
 
 
