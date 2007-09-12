@@ -767,7 +767,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 			 le16_to_cpu(udev->descriptor.idProduct));
 
 	usb_make_path(udev, usbtouch->phys, sizeof(usbtouch->phys));
-	strlcpy(usbtouch->phys, "/input0", sizeof(usbtouch->phys));
+	strlcat(usbtouch->phys, "/input0", sizeof(usbtouch->phys));
 
 	input_dev->name = usbtouch->name;
 	input_dev->phys = usbtouch->phys;
