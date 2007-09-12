@@ -170,7 +170,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 	if (!(kobj = kobject_get(kobj)))
 		return -ENOENT;
 	if (!kobj->k_name)
-		kobj->k_name = kobj->name;
+		kobject_set_name(kobj, "NO_NAME");
 	if (!*kobj->k_name) {
 		pr_debug("kobject attempted to be registered with no name!\n");
 		WARN_ON(1);
@@ -181,7 +181,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 
 	pr_debug("kobject %s: registering. parent: %s, set: %s\n",
 		 kobject_name(kobj), parent ? kobject_name(parent) : "<NULL>", 
-		 kobj->kset ? kobj->kset->kobj.name : "<NULL>" );
+		 kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>" );
 
 	if (kobj->kset) {
 		spin_lock(&kobj->kset->list_lock);
@@ -255,53 +255,49 @@ int kobject_register(struct kobject * kobj)
 int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
 {
 	int error = 0;
-	int limit = KOBJ_NAME_LEN;
+	int limit;
 	int need;
 	va_list args;
-	char * name;
+	char *name;
 
-	/* 
-	 * First, try the static array 
-	 */
-	va_start(args,fmt);
-	need = vsnprintf(kobj->name,limit,fmt,args);
+	/* find out how big a buffer we need */
+	name = kmalloc(1024, GFP_KERNEL);
+	if (!name) {
+		error = -ENOMEM;
+		goto done;
+	}
+	va_start(args, fmt);
+	need = vsnprintf(name, 1024, fmt, args);
 	va_end(args);
-	if (need < limit) 
-		name = kobj->name;
-	else {
-		/* 
-		 * Need more space? Allocate it and try again 
-		 */
-		limit = need + 1;
-		name = kmalloc(limit,GFP_KERNEL);
-		if (!name) {
-			error = -ENOMEM;
-			goto Done;
-		}
-		va_start(args,fmt);
-		need = vsnprintf(name,limit,fmt,args);
-		va_end(args);
+	kfree(name);
 
-		/* Still? Give up. */
-		if (need >= limit) {
-			kfree(name);
-			error = -EFAULT;
-			goto Done;
-		}
+	/* Allocate the new space and copy the string in */
+	limit = need + 1;
+	name = kmalloc(limit, GFP_KERNEL);
+	if (!name) {
+		error = -ENOMEM;
+		goto done;
+	}
+	va_start(args, fmt);
+	need = vsnprintf(name, limit, fmt, args);
+	va_end(args);
+
+	/* something wrong with the string we copied? */
+	if (need >= limit) {
+		kfree(name);
+		error = -EFAULT;
+		goto done;
 	}
 
 	/* Free the old name, if necessary. */
-	if (kobj->k_name && kobj->k_name != kobj->name)
-		kfree(kobj->k_name);
+	kfree(kobj->k_name);
 
 	/* Now, set the new name */
 	kobj->k_name = name;
- Done:
+done:
 	return error;
 }
-
 EXPORT_SYMBOL(kobject_set_name);
-
 
 /**
  *	kobject_rename - change the name of an object
@@ -477,13 +473,16 @@ void kobject_cleanup(struct kobject * kobj)
 	struct kobj_type * t = get_ktype(kobj);
 	struct kset * s = kobj->kset;
 	struct kobject * parent = kobj->parent;
+	const char *name = kobj->k_name;
 
 	pr_debug("kobject %s: cleaning up\n",kobject_name(kobj));
-	if (kobj->k_name != kobj->name)
-		kfree(kobj->k_name);
-	kobj->k_name = NULL;
-	if (t && t->release)
+	if (t && t->release) {
 		t->release(kobj);
+		/* If we have a release function, we can guess that this was
+		 * not a statically allocated kobject, so we should be safe to
+		 * free the name */
+		kfree(name);
+	}
 	if (s)
 		kset_put(s);
 	kobject_put(parent);

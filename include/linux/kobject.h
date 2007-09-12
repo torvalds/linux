@@ -63,7 +63,6 @@ extern const char *kobject_actions[];
 
 struct kobject {
 	const char		* k_name;
-	char			name[KOBJ_NAME_LEN];
 	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		* parent;
@@ -188,18 +187,18 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
  * Use this when initializing an embedded kset with no other 
  * fields to initialize.
  */
-#define set_kset_name(str)	.kset = { .kobj = { .name = str } }
+#define set_kset_name(str)	.kset = { .kobj = { .k_name = str } }
 
 
 #define decl_subsys(_name,_type,_uevent_ops) \
 struct kset _name##_subsys = { \
-	.kobj = { .name = __stringify(_name) }, \
+	.kobj = { .k_name = __stringify(_name) }, \
 	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
 #define decl_subsys_name(_varname,_name,_type,_uevent_ops) \
 struct kset _varname##_subsys = { \
-	.kobj = { .name = __stringify(_name) }, \
+	.kobj = { .k_name = __stringify(_name) }, \
 	.ktype = _type, \
 	.uevent_ops =_uevent_ops, \
 }
