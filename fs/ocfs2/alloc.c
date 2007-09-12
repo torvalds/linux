@@ -5602,6 +5602,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 				      clusters_to_del;
 	spin_unlock(&OCFS2_I(inode)->ip_lock);
 	le32_add_cpu(&fe->i_clusters, -clusters_to_del);
+	inode->i_blocks = ocfs2_inode_sector_count(inode);
 
 	status = ocfs2_trim_tree(inode, path, handle, tc,
 				 clusters_to_del, &delete_blk);
