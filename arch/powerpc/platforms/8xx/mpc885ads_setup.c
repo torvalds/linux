@@ -426,9 +426,14 @@ static int __init mpc885ads_probe(void)
 
 define_machine(mpc885_ads)
 {
-.name = "MPC885 ADS",.probe = mpc885ads_probe,.setup_arch =
-	    mpc885ads_setup_arch,.init_IRQ =
-	    m8xx_pic_init,.show_cpuinfo = mpc8xx_show_cpuinfo,.get_irq =
-	    mpc8xx_get_irq,.restart = mpc8xx_restart,.calibrate_decr =
-	    mpc8xx_calibrate_decr,.set_rtc_time =
-	    mpc8xx_set_rtc_time,.get_rtc_time = mpc8xx_get_rtc_time,};
+	.name            = "MPC885 ADS",
+	.probe           = mpc885ads_probe,
+	.setup_arch      = mpc885ads_setup_arch,
+	.init_IRQ        = m8xx_pic_init,
+	.show_cpuinfo    = mpc8xx_show_cpuinfo,
+	.get_irq         = mpc8xx_get_irq,
+	.restart         = mpc8xx_restart,
+	.calibrate_decr  = mpc8xx_calibrate_decr,
+	.set_rtc_time    = mpc8xx_set_rtc_time,
+	.get_rtc_time    = mpc8xx_get_rtc_time,
+};
