@@ -1013,7 +1013,7 @@ again:
 		goto again;
 	}
 
-	new_dentry = lookup_one_len(kobj->name, new_parent, strlen(kobj->name));
+	new_dentry = lookup_one_len(kobject_name(kobj), new_parent, strlen(kobject_name(kobj)));
 	if (IS_ERR(new_dentry)) {
 		error = PTR_ERR(new_dentry);
 		goto out_unlock;

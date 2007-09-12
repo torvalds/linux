@@ -1183,7 +1183,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 					 pool_count[i], pool_size[i],
 					 pool_active[i]);
 		kobj->parent = &dev->dev.kobj;
-		sprintf(kobj->name, "pool%d", i);
+		kobject_set_name(kobj, "pool%d", i);
 		kobj->ktype = &ktype_veth_pool;
 		kobject_register(kobj);
 	}

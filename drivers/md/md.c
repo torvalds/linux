@@ -3076,8 +3076,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	mddev->gendisk = disk;
 	mutex_unlock(&disks_mutex);
 	mddev->kobj.parent = &disk->kobj;
-	mddev->kobj.k_name = NULL;
-	snprintf(mddev->kobj.name, KOBJ_NAME_LEN, "%s", "md");
+	kobject_set_name(&mddev->kobj, "%s", "md");
 	mddev->kobj.ktype = &md_ktype;
 	if (kobject_register(&mddev->kobj))
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
