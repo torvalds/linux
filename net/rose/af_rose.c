@@ -26,6 +26,7 @@
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/stat.h>
+#include <net/net_namespace.h>
 #include <net/ax25.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -1576,10 +1577,10 @@ static int __init rose_proto_init(void)
 
 	rose_add_loopback_neigh();
 
-	proc_net_fops_create("rose", S_IRUGO, &rose_info_fops);
-	proc_net_fops_create("rose_neigh", S_IRUGO, &rose_neigh_fops);
-	proc_net_fops_create("rose_nodes", S_IRUGO, &rose_nodes_fops);
-	proc_net_fops_create("rose_routes", S_IRUGO, &rose_routes_fops);
+	proc_net_fops_create(&init_net, "rose", S_IRUGO, &rose_info_fops);
+	proc_net_fops_create(&init_net, "rose_neigh", S_IRUGO, &rose_neigh_fops);
+	proc_net_fops_create(&init_net, "rose_nodes", S_IRUGO, &rose_nodes_fops);
+	proc_net_fops_create(&init_net, "rose_routes", S_IRUGO, &rose_routes_fops);
 out:
 	return rc;
 fail:
@@ -1606,10 +1607,10 @@ static void __exit rose_exit(void)
 {
 	int i;
 
-	proc_net_remove("rose");
-	proc_net_remove("rose_neigh");
-	proc_net_remove("rose_nodes");
-	proc_net_remove("rose_routes");
+	proc_net_remove(&init_net, "rose");
+	proc_net_remove(&init_net, "rose_neigh");
+	proc_net_remove(&init_net, "rose_nodes");
+	proc_net_remove(&init_net, "rose_routes");
 	rose_loopback_clear();
 
 	rose_rt_free();

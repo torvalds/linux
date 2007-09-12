@@ -47,6 +47,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <net/net_namespace.h>
 #include <asm/semaphore.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
@@ -97,7 +98,7 @@ static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 static struct kobj_type ktype_veth_pool;
 
 #ifdef CONFIG_PROC_FS
-#define IBMVETH_PROC_DIR "net/ibmveth"
+#define IBMVETH_PROC_DIR "ibmveth"
 static struct proc_dir_entry *ibmveth_proc_dir;
 #endif
 
@@ -1091,7 +1092,7 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 #ifdef CONFIG_PROC_FS
 static void ibmveth_proc_register_driver(void)
 {
-	ibmveth_proc_dir = proc_mkdir(IBMVETH_PROC_DIR, NULL);
+	ibmveth_proc_dir = proc_mkdir(IBMVETH_PROC_DIR, init_net.proc_net);
 	if (ibmveth_proc_dir) {
 		SET_MODULE_OWNER(ibmveth_proc_dir);
 	}
@@ -1099,7 +1100,7 @@ static void ibmveth_proc_register_driver(void)
 
 static void ibmveth_proc_unregister_driver(void)
 {
-	remove_proc_entry(IBMVETH_PROC_DIR, NULL);
+	remove_proc_entry(IBMVETH_PROC_DIR, init_net.proc_net);
 }
 
 static void *ibmveth_seq_start(struct seq_file *seq, loff_t *pos)

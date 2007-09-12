@@ -44,6 +44,7 @@
 #include <linux/seq_file.h>
 #endif
 
+#include <net/net_namespace.h>
 #include <net/snmp.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
@@ -2561,11 +2562,11 @@ void __init ip6_route_init(void)
 
 	fib6_init();
 #ifdef 	CONFIG_PROC_FS
-	p = proc_net_create("ipv6_route", 0, rt6_proc_info);
+	p = proc_net_create(&init_net, "ipv6_route", 0, rt6_proc_info);
 	if (p)
 		p->owner = THIS_MODULE;
 
-	proc_net_fops_create("rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
+	proc_net_fops_create(&init_net, "rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
 #endif
 #ifdef CONFIG_XFRM
 	xfrm6_init();
@@ -2585,8 +2586,8 @@ void ip6_route_cleanup(void)
 	fib6_rules_cleanup();
 #endif
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("ipv6_route");
-	proc_net_remove("rt6_stats");
+	proc_net_remove(&init_net, "ipv6_route");
+	proc_net_remove(&init_net, "rt6_stats");
 #endif
 #ifdef CONFIG_XFRM
 	xfrm6_fini();

@@ -78,6 +78,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 
 #include <asm/uaccess.h>
@@ -1042,7 +1043,7 @@ static int __init pppoe_proc_init(void)
 {
 	struct proc_dir_entry *p;
 
-	p = create_proc_entry("net/pppoe", S_IRUGO, NULL);
+	p = create_proc_entry("pppoe", S_IRUGO, init_net.proc_net);
 	if (!p)
 		return -ENOMEM;
 
@@ -1113,7 +1114,7 @@ static void __exit pppoe_exit(void)
 	dev_remove_pack(&pppoes_ptype);
 	dev_remove_pack(&pppoed_ptype);
 	unregister_netdevice_notifier(&pppoe_notifier);
-	remove_proc_entry("net/pppoe", NULL);
+	remove_proc_entry("pppoe", init_net.proc_net);
 	proto_unregister(&pppoe_sk_proto);
 }
 

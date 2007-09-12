@@ -21,6 +21,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 
 #include <net/ipv6.h>
@@ -690,7 +691,7 @@ static const struct file_operations ip6fl_seq_fops = {
 void ip6_flowlabel_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops);
+	proc_net_fops_create(&init_net, "ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops);
 #endif
 }
 
@@ -698,6 +699,6 @@ void ip6_flowlabel_cleanup(void)
 {
 	del_timer(&ip6_fl_gc_timer);
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("ip6_flowlabel");
+	proc_net_remove(&init_net, "ip6_flowlabel");
 #endif
 }

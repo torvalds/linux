@@ -41,6 +41,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <linux/skbuff.h>
@@ -254,7 +255,7 @@ static const struct file_operations dev_mc_seq_fops = {
 
 void __init dev_mcast_init(void)
 {
-	proc_net_fops_create("dev_mcast", 0, &dev_mc_seq_fops);
+	proc_net_fops_create(&init_net, "dev_mcast", 0, &dev_mc_seq_fops);
 }
 
 EXPORT_SYMBOL(dev_mc_add);

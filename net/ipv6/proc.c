@@ -23,6 +23,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/stddef.h>
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp.h>
@@ -231,22 +232,22 @@ int __init ipv6_misc_proc_init(void)
 {
 	int rc = 0;
 
-	if (!proc_net_fops_create("snmp6", S_IRUGO, &snmp6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "snmp6", S_IRUGO, &snmp6_seq_fops))
 		goto proc_snmp6_fail;
 
-	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", proc_net);
+	proc_net_devsnmp6 = proc_mkdir("dev_snmp6", init_net.proc_net);
 	if (!proc_net_devsnmp6)
 		goto proc_dev_snmp6_fail;
 
-	if (!proc_net_fops_create("sockstat6", S_IRUGO, &sockstat6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "sockstat6", S_IRUGO, &sockstat6_seq_fops))
 		goto proc_sockstat6_fail;
 out:
 	return rc;
 
 proc_sockstat6_fail:
-	proc_net_remove("dev_snmp6");
+	proc_net_remove(&init_net, "dev_snmp6");
 proc_dev_snmp6_fail:
-	proc_net_remove("snmp6");
+	proc_net_remove(&init_net, "snmp6");
 proc_snmp6_fail:
 	rc = -ENOMEM;
 	goto out;
@@ -254,8 +255,8 @@ proc_snmp6_fail:
 
 void ipv6_misc_proc_exit(void)
 {
-	proc_net_remove("sockstat6");
-	proc_net_remove("dev_snmp6");
-	proc_net_remove("snmp6");
+	proc_net_remove(&init_net, "sockstat6");
+	proc_net_remove(&init_net, "dev_snmp6");
+	proc_net_remove(&init_net, "snmp6");
 }
 

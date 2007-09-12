@@ -24,6 +24,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
+#include <net/net_namespace.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
 #include <net/ieee80211_crypt.h>
@@ -1093,8 +1094,8 @@ struct proc_dir_entry *hostap_proc;
 
 static int __init hostap_init(void)
 {
-	if (proc_net != NULL) {
-		hostap_proc = proc_mkdir("hostap", proc_net);
+	if (init_net.proc_net != NULL) {
+		hostap_proc = proc_mkdir("hostap", init_net.proc_net);
 		if (!hostap_proc)
 			printk(KERN_WARNING "Failed to mkdir "
 			       "/proc/net/hostap\n");
@@ -1109,7 +1110,7 @@ static void __exit hostap_exit(void)
 {
 	if (hostap_proc != NULL) {
 		hostap_proc = NULL;
-		remove_proc_entry("hostap", proc_net);
+		remove_proc_entry("hostap", init_net.proc_net);
 	}
 }
 

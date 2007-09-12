@@ -75,6 +75,7 @@
 #include <linux/if_vlan.h>
 #include <linux/if_bonding.h>
 #include <net/route.h>
+#include <net/net_namespace.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 #include "bond_alb.h"
@@ -3144,7 +3145,7 @@ static void bond_create_proc_dir(void)
 {
 	int len = strlen(DRV_NAME);
 
-	for (bond_proc_dir = proc_net->subdir; bond_proc_dir;
+	for (bond_proc_dir = init_net.proc_net->subdir; bond_proc_dir;
 	     bond_proc_dir = bond_proc_dir->next) {
 		if ((bond_proc_dir->namelen == len) &&
 		    !memcmp(bond_proc_dir->name, DRV_NAME, len)) {
@@ -3153,7 +3154,7 @@ static void bond_create_proc_dir(void)
 	}
 
 	if (!bond_proc_dir) {
-		bond_proc_dir = proc_mkdir(DRV_NAME, proc_net);
+		bond_proc_dir = proc_mkdir(DRV_NAME, init_net.proc_net);
 		if (bond_proc_dir) {
 			bond_proc_dir->owner = THIS_MODULE;
 		} else {
@@ -3188,7 +3189,7 @@ static void bond_destroy_proc_dir(void)
 			bond_proc_dir->owner = NULL;
 		}
 	} else {
-		remove_proc_entry(DRV_NAME, proc_net);
+		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		bond_proc_dir = NULL;
 	}
 }

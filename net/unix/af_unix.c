@@ -103,6 +103,7 @@
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <net/af_unix.h>
@@ -2135,7 +2136,7 @@ static int __init af_unix_init(void)
 
 	sock_register(&unix_family_ops);
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("unix", 0, &unix_seq_fops);
+	proc_net_fops_create(&init_net, "unix", 0, &unix_seq_fops);
 #endif
 	unix_sysctl_register();
 out:
@@ -2146,7 +2147,7 @@ static void __exit af_unix_exit(void)
 {
 	sock_unregister(PF_UNIX);
 	unix_sysctl_unregister();
-	proc_net_remove("unix");
+	proc_net_remove(&init_net, "unix");
 	proto_unregister(&unix_proto);
 }
 

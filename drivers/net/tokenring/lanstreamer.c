@@ -123,6 +123,7 @@
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
 
+#include <net/net_namespace.h>
 #include <net/checksum.h>
 
 #include <asm/io.h>
@@ -250,7 +251,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 #if STREAMER_NETWORK_MONITOR
 #ifdef CONFIG_PROC_FS
 	if (!dev_streamer)
-		create_proc_read_entry("net/streamer_tr", 0, 0,
+		create_proc_read_entry("streamer_tr", 0, init_net.proc_net,
 					streamer_proc_info, NULL); 
 	streamer_priv->next = dev_streamer;
 	dev_streamer = streamer_priv;
@@ -423,7 +424,7 @@ static void __devexit streamer_remove_one(struct pci_dev *pdev)
 			}
 		}
 		if (!dev_streamer)
-			remove_proc_entry("net/streamer_tr", NULL);
+			remove_proc_entry("streamer_tr", init_net.proc_net);
 	}
 #endif
 #endif

@@ -92,6 +92,7 @@
 #include <linux/etherdevice.h>
 #include <linux/notifier.h>
 #include <linux/skbuff.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <linux/rtnetlink.h>
 #include <linux/proc_fs.h>
@@ -2556,24 +2557,24 @@ static int __init dev_proc_init(void)
 {
 	int rc = -ENOMEM;
 
-	if (!proc_net_fops_create("dev", S_IRUGO, &dev_seq_fops))
+	if (!proc_net_fops_create(&init_net, "dev", S_IRUGO, &dev_seq_fops))
 		goto out;
-	if (!proc_net_fops_create("softnet_stat", S_IRUGO, &softnet_seq_fops))
+	if (!proc_net_fops_create(&init_net, "softnet_stat", S_IRUGO, &softnet_seq_fops))
 		goto out_dev;
-	if (!proc_net_fops_create("ptype", S_IRUGO, &ptype_seq_fops))
-		goto out_dev2;
+	if (!proc_net_fops_create(&init_net, "ptype", S_IRUGO, &ptype_seq_fops))
+		goto out_softnet;
 
 	if (wext_proc_init())
-		goto out_softnet;
+		goto out_ptype;
 	rc = 0;
 out:
 	return rc;
+out_ptype:
+	proc_net_remove(&init_net, "ptype");
 out_softnet:
-	proc_net_remove("ptype");
-out_dev2:
-	proc_net_remove("softnet_stat");
+	proc_net_remove(&init_net, "softnet_stat");
 out_dev:
-	proc_net_remove("dev");
+	proc_net_remove(&init_net, "dev");
 	goto out;
 }
 #else

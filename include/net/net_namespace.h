@@ -8,6 +8,7 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 
+struct proc_dir_entry;
 struct net {
 	atomic_t		count;		/* To decided when the network
 						 *  namespace should be freed.
@@ -17,6 +18,10 @@ struct net {
 						 */
 	struct list_head	list;		/* list of network namespaces */
 	struct work_struct	work;		/* work struct for freeing */
+
+	struct proc_dir_entry 	*proc_net;
+	struct proc_dir_entry 	*proc_net_stat;
+	struct proc_dir_entry 	*proc_net_root;
 };
 
 extern struct net init_net;

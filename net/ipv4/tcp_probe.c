@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/ktime.h>
 #include <linux/time.h>
+#include <net/net_namespace.h>
 
 #include <net/tcp.h>
 
@@ -228,7 +229,7 @@ static __init int tcpprobe_init(void)
 	if (!tcp_probe.log)
 		goto err0;
 
-	if (!proc_net_fops_create(procname, S_IRUSR, &tcpprobe_fops))
+	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &tcpprobe_fops))
 		goto err0;
 
 	ret = register_jprobe(&tcp_jprobe);
@@ -238,7 +239,7 @@ static __init int tcpprobe_init(void)
 	pr_info("TCP probe registered (port=%d)\n", port);
 	return 0;
  err1:
-	proc_net_remove(procname);
+	proc_net_remove(&init_net, procname);
  err0:
 	kfree(tcp_probe.log);
 	return ret;
@@ -247,7 +248,7 @@ module_init(tcpprobe_init);
 
 static __exit void tcpprobe_exit(void)
 {
-	proc_net_remove(procname);
+	proc_net_remove(&init_net, procname);
 	unregister_jprobe(&tcp_jprobe);
 	kfree(tcp_probe.log);
 }

@@ -152,6 +152,7 @@
 #include <linux/wait.h>
 #include <linux/etherdevice.h>
 #include <linux/kthread.h>
+#include <net/net_namespace.h>
 #include <net/checksum.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -3808,7 +3809,7 @@ static int __init pg_init(void)
 
 	printk(KERN_INFO "%s", version);
 
-	pg_proc_dir = proc_mkdir(PG_PROC_DIR, proc_net);
+	pg_proc_dir = proc_mkdir(PG_PROC_DIR, init_net.proc_net);
 	if (!pg_proc_dir)
 		return -ENODEV;
 	pg_proc_dir->owner = THIS_MODULE;
@@ -3817,7 +3818,7 @@ static int __init pg_init(void)
 	if (pe == NULL) {
 		printk(KERN_ERR "pktgen: ERROR: cannot create %s "
 		       "procfs entry.\n", PGCTRL);
-		proc_net_remove(PG_PROC_DIR);
+		proc_net_remove(&init_net, PG_PROC_DIR);
 		return -EINVAL;
 	}
 
@@ -3841,7 +3842,7 @@ static int __init pg_init(void)
 		       "all threads\n");
 		unregister_netdevice_notifier(&pktgen_notifier_block);
 		remove_proc_entry(PGCTRL, pg_proc_dir);
-		proc_net_remove(PG_PROC_DIR);
+		proc_net_remove(&init_net, PG_PROC_DIR);
 		return -ENODEV;
 	}
 
@@ -3868,7 +3869,7 @@ static void __exit pg_cleanup(void)
 
 	/* Clean up proc file system */
 	remove_proc_entry(PGCTRL, pg_proc_dir);
-	proc_net_remove(PG_PROC_DIR);
+	proc_net_remove(&init_net, PG_PROC_DIR);
 }
 
 module_init(pg_init);

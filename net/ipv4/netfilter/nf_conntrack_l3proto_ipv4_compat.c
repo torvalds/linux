@@ -11,6 +11,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/percpu.h>
+#include <net/net_namespace.h>
 
 #include <linux/netfilter.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -408,16 +409,16 @@ int __init nf_conntrack_ipv4_compat_init(void)
 {
 	struct proc_dir_entry *proc, *proc_exp, *proc_stat;
 
-	proc = proc_net_fops_create("ip_conntrack", 0440, &ct_file_ops);
+	proc = proc_net_fops_create(&init_net, "ip_conntrack", 0440, &ct_file_ops);
 	if (!proc)
 		goto err1;
 
-	proc_exp = proc_net_fops_create("ip_conntrack_expect", 0440,
+	proc_exp = proc_net_fops_create(&init_net, "ip_conntrack_expect", 0440,
 					&ip_exp_file_ops);
 	if (!proc_exp)
 		goto err2;
 
-	proc_stat = create_proc_entry("ip_conntrack", S_IRUGO, proc_net_stat);
+	proc_stat = create_proc_entry("ip_conntrack", S_IRUGO, init_net.proc_net_stat);
 	if (!proc_stat)
 		goto err3;
 
@@ -427,16 +428,16 @@ int __init nf_conntrack_ipv4_compat_init(void)
 	return 0;
 
 err3:
-	proc_net_remove("ip_conntrack_expect");
+	proc_net_remove(&init_net, "ip_conntrack_expect");
 err2:
-	proc_net_remove("ip_conntrack");
+	proc_net_remove(&init_net, "ip_conntrack");
 err1:
 	return -ENOMEM;
 }
 
 void __exit nf_conntrack_ipv4_compat_fini(void)
 {
-	remove_proc_entry("ip_conntrack", proc_net_stat);
-	proc_net_remove("ip_conntrack_expect");
-	proc_net_remove("ip_conntrack");
+	remove_proc_entry("ip_conntrack", init_net.proc_net_stat);
+	proc_net_remove(&init_net, "ip_conntrack_expect");
+	proc_net_remove(&init_net, "ip_conntrack");
 }

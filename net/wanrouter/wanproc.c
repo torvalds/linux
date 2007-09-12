@@ -29,6 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
 
+#include <net/net_namespace.h>
 #include <asm/io.h>
 
 #define PROC_STATS_FORMAT "%30s: %12lu\n"
@@ -287,7 +288,7 @@ static const struct file_operations wandev_fops = {
 int __init wanrouter_proc_init(void)
 {
 	struct proc_dir_entry *p;
-	proc_router = proc_mkdir(ROUTER_NAME, proc_net);
+	proc_router = proc_mkdir(ROUTER_NAME, init_net.proc_net);
 	if (!proc_router)
 		goto fail;
 
@@ -303,7 +304,7 @@ int __init wanrouter_proc_init(void)
 fail_stat:
 	remove_proc_entry("config", proc_router);
 fail_config:
-	remove_proc_entry(ROUTER_NAME, proc_net);
+	remove_proc_entry(ROUTER_NAME, init_net.proc_net);
 fail:
 	return -ENOMEM;
 }
@@ -316,7 +317,7 @@ void wanrouter_proc_cleanup(void)
 {
 	remove_proc_entry("config", proc_router);
 	remove_proc_entry("status", proc_router);
-	remove_proc_entry(ROUTER_NAME, proc_net);
+	remove_proc_entry(ROUTER_NAME, init_net.proc_net);
 }
 
 /*

@@ -93,6 +93,7 @@
 #include <linux/if_arp.h>		/* ARPHRD_ETHER */
 #include <linux/etherdevice.h>		/* compare_ether_addr */
 #include <linux/interrupt.h>
+#include <net/net_namespace.h>
 
 #include <linux/wireless.h>		/* Pretty obvious */
 #include <net/iw_handler.h>		/* New driver API */
@@ -686,7 +687,7 @@ static const struct file_operations wireless_seq_fops = {
 int __init wext_proc_init(void)
 {
 	/* Create /proc/net/wireless entry */
-	if (!proc_net_fops_create("wireless", S_IRUGO, &wireless_seq_fops))
+	if (!proc_net_fops_create(&init_net, "wireless", S_IRUGO, &wireless_seq_fops))
 		return -ENOMEM;
 
 	return 0;

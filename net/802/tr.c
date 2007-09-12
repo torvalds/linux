@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <net/arp.h>
+#include <net/net_namespace.h>
 
 static void tr_add_rif_info(struct trh_hdr *trh, struct net_device *dev);
 static void rif_check_expire(unsigned long dummy);
@@ -639,7 +640,7 @@ static int __init rif_init(void)
 	rif_timer.function = rif_check_expire;
 	add_timer(&rif_timer);
 
-	proc_net_fops_create("tr_rif", S_IRUGO, &rif_seq_fops);
+	proc_net_fops_create(&init_net, "tr_rif", S_IRUGO, &rif_seq_fops);
 	return 0;
 }
 

@@ -59,6 +59,7 @@
 #include <linux/in_route.h>
 #include <linux/route.h>
 #include <linux/skbuff.h>
+#include <net/net_namespace.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <linux/gfp.h>
@@ -928,13 +929,13 @@ static const struct file_operations raw_seq_fops = {
 
 int __init raw_proc_init(void)
 {
-	if (!proc_net_fops_create("raw", S_IRUGO, &raw_seq_fops))
+	if (!proc_net_fops_create(&init_net, "raw", S_IRUGO, &raw_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 void __init raw_proc_exit(void)
 {
-	proc_net_remove("raw");
+	proc_net_remove(&init_net, "raw");
 }
 #endif /* CONFIG_PROC_FS */

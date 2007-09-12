@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 
@@ -578,7 +579,7 @@ static const struct file_operations ac6_seq_fops = {
 
 int __init ac6_proc_init(void)
 {
-	if (!proc_net_fops_create("anycast6", S_IRUGO, &ac6_seq_fops))
+	if (!proc_net_fops_create(&init_net, "anycast6", S_IRUGO, &ac6_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -586,7 +587,7 @@ int __init ac6_proc_init(void)
 
 void ac6_proc_exit(void)
 {
-	proc_net_remove("anycast6");
+	proc_net_remove(&init_net, "anycast6");
 }
 #endif
 

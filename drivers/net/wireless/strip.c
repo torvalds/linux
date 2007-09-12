@@ -107,6 +107,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/serialP.h>
 #include <linux/rcupdate.h>
 #include <net/arp.h>
+#include <net/net_namespace.h>
 
 #include <linux/ip.h>
 #include <linux/tcp.h>
@@ -2787,7 +2788,7 @@ static int __init strip_init_driver(void)
 	/*
 	 * Register the status file with /proc
 	 */
-	proc_net_fops_create("strip", S_IFREG | S_IRUGO, &strip_seq_fops);
+	proc_net_fops_create(&init_net, "strip", S_IFREG | S_IRUGO, &strip_seq_fops);
 
 	return status;
 }
@@ -2809,7 +2810,7 @@ static void __exit strip_exit_driver(void)
 	}
 
 	/* Unregister with the /proc/net file here. */
-	proc_net_remove("strip");
+	proc_net_remove(&init_net, "strip");
 
 	if ((i = tty_unregister_ldisc(N_STRIP)))
 		printk(KERN_ERR "STRIP: can't unregister line discipline (err = %d)\n", i);

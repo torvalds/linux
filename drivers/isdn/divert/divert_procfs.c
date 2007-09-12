@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #endif
 #include <linux/isdnif.h>
+#include <net/net_namespace.h>
 #include "isdn_divert.h"
 
 
@@ -284,12 +285,12 @@ divert_dev_init(void)
 	init_waitqueue_head(&rd_queue);
 
 #ifdef CONFIG_PROC_FS
-	isdn_proc_entry = proc_mkdir("net/isdn", NULL);
+	isdn_proc_entry = proc_mkdir("isdn", init_net.proc_net);
 	if (!isdn_proc_entry)
 		return (-1);
 	isdn_divert_entry = create_proc_entry("divert", S_IFREG | S_IRUGO, isdn_proc_entry);
 	if (!isdn_divert_entry) {
-		remove_proc_entry("net/isdn", NULL);
+		remove_proc_entry("isdn", init_net.proc_net);
 		return (-1);
 	}
 	isdn_divert_entry->proc_fops = &isdn_fops; 
@@ -309,7 +310,7 @@ divert_dev_deinit(void)
 
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("divert", isdn_proc_entry);
-	remove_proc_entry("net/isdn", NULL);
+	remove_proc_entry("isdn", init_net.proc_net);
 #endif	/* CONFIG_PROC_FS */
 
 	return (0);

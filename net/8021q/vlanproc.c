@@ -33,6 +33,7 @@
 #include <linux/fs.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <net/net_namespace.h>
 #include "vlanproc.h"
 #include "vlan.h"
 
@@ -143,7 +144,7 @@ void vlan_proc_cleanup(void)
 		remove_proc_entry(name_conf, proc_vlan_dir);
 
 	if (proc_vlan_dir)
-		proc_net_remove(name_root);
+		proc_net_remove(&init_net, name_root);
 
 	/* Dynamically added entries should be cleaned up as their vlan_device
 	 * is removed, so we should not have to take care of it here...
@@ -156,7 +157,7 @@ void vlan_proc_cleanup(void)
 
 int __init vlan_proc_init(void)
 {
-	proc_vlan_dir = proc_mkdir(name_root, proc_net);
+	proc_vlan_dir = proc_mkdir(name_root, init_net.proc_net);
 	if (proc_vlan_dir) {
 		proc_vlan_conf = create_proc_entry(name_conf,
 						   S_IFREG|S_IRUSR|S_IWUSR,

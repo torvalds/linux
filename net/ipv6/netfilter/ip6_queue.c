@@ -24,6 +24,7 @@
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 #include <linux/mutex.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
@@ -664,7 +665,7 @@ static int __init ip6_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
-	proc = proc_net_create(IPQ_PROC_FS_NAME, 0, ipq_get_info);
+	proc = proc_net_create(&init_net, IPQ_PROC_FS_NAME, 0, ipq_get_info);
 	if (proc)
 		proc->owner = THIS_MODULE;
 	else {
@@ -685,7 +686,7 @@ static int __init ip6_queue_init(void)
 cleanup_sysctl:
 	unregister_sysctl_table(ipq_sysctl_header);
 	unregister_netdevice_notifier(&ipq_dev_notifier);
-	proc_net_remove(IPQ_PROC_FS_NAME);
+	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
 
 cleanup_ipqnl:
 	sock_release(ipqnl->sk_socket);
@@ -705,7 +706,7 @@ static void __exit ip6_queue_fini(void)
 
 	unregister_sysctl_table(ipq_sysctl_header);
 	unregister_netdevice_notifier(&ipq_dev_notifier);
-	proc_net_remove(IPQ_PROC_FS_NAME);
+	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
 
 	sock_release(ipqnl->sk_socket);
 	mutex_lock(&ipqnl_mutex);

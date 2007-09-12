@@ -26,6 +26,7 @@
 #include <linux/in6.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <net/net_namespace.h>
 #include <net/xfrm.h>
 
 #include <net/sock.h>
@@ -3776,7 +3777,7 @@ static struct xfrm_mgr pfkeyv2_mgr =
 static void __exit ipsec_pfkey_exit(void)
 {
 	xfrm_unregister_km(&pfkeyv2_mgr);
-	remove_proc_entry("net/pfkey", NULL);
+	remove_proc_entry("pfkey", init_net.proc_net);
 	sock_unregister(PF_KEY);
 	proto_unregister(&key_proto);
 }
@@ -3793,7 +3794,7 @@ static int __init ipsec_pfkey_init(void)
 		goto out_unregister_key_proto;
 #ifdef CONFIG_PROC_FS
 	err = -ENOMEM;
-	if (create_proc_read_entry("net/pfkey", 0, NULL, pfkey_read_proc, NULL) == NULL)
+	if (create_proc_read_entry("pfkey", 0, init_net.proc_net, pfkey_read_proc, NULL) == NULL)
 		goto out_sock_unregister;
 #endif
 	err = xfrm_register_km(&pfkeyv2_mgr);

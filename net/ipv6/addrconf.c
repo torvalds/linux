@@ -62,6 +62,7 @@
 #include <linux/notifier.h>
 #include <linux/string.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 
@@ -2827,14 +2828,14 @@ static const struct file_operations if6_fops = {
 
 int __init if6_proc_init(void)
 {
-	if (!proc_net_fops_create("if_inet6", S_IRUGO, &if6_fops))
+	if (!proc_net_fops_create(&init_net, "if_inet6", S_IRUGO, &if6_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 void if6_proc_exit(void)
 {
-	proc_net_remove("if_inet6");
+	proc_net_remove(&init_net, "if_inet6");
 }
 #endif	/* CONFIG_PROC_FS */
 
@@ -4293,6 +4294,6 @@ void __exit addrconf_cleanup(void)
 	rtnl_unlock();
 
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("if_inet6");
+	proc_net_remove(&init_net, "if_inet6");
 #endif
 }

@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/x25.h>
 
@@ -301,7 +302,7 @@ int __init x25_proc_init(void)
 	struct proc_dir_entry *p;
 	int rc = -ENOMEM;
 
-	x25_proc_dir = proc_mkdir("x25", proc_net);
+	x25_proc_dir = proc_mkdir("x25", init_net.proc_net);
 	if (!x25_proc_dir)
 		goto out;
 
@@ -328,7 +329,7 @@ out_forward:
 out_socket:
 	remove_proc_entry("route", x25_proc_dir);
 out_route:
-	remove_proc_entry("x25", proc_net);
+	remove_proc_entry("x25", init_net.proc_net);
 	goto out;
 }
 
@@ -337,7 +338,7 @@ void __exit x25_proc_exit(void)
 	remove_proc_entry("forward", x25_proc_dir);
 	remove_proc_entry("route", x25_proc_dir);
 	remove_proc_entry("socket", x25_proc_dir);
-	remove_proc_entry("x25", proc_net);
+	remove_proc_entry("x25", init_net.proc_net);
 }
 
 #else /* CONFIG_PROC_FS */

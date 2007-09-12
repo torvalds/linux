@@ -57,6 +57,7 @@
 #include <linux/selinux.h>
 #include <linux/mutex.h>
 
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/scm.h>
 #include <net/netlink.h>
@@ -1927,7 +1928,7 @@ static int __init netlink_proto_init(void)
 
 	sock_register(&netlink_family_ops);
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create("netlink", 0, &netlink_seq_fops);
+	proc_net_fops_create(&init_net, "netlink", 0, &netlink_seq_fops);
 #endif
 	/* The netlink device handler may be needed early. */
 	rtnetlink_init();

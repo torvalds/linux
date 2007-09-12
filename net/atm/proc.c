@@ -22,6 +22,7 @@
 #include <linux/netdevice.h>
 #include <linux/atmclip.h>
 #include <linux/init.h> /* for __init */
+#include <net/net_namespace.h>
 #include <net/atmclip.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -475,7 +476,7 @@ static void atm_proc_dirs_remove(void)
 		if (e->dirent)
 			remove_proc_entry(e->name, atm_proc_root);
 	}
-	remove_proc_entry("net/atm", NULL);
+	remove_proc_entry("atm", init_net.proc_net);
 }
 
 int __init atm_proc_init(void)
@@ -483,7 +484,7 @@ int __init atm_proc_init(void)
 	static struct atm_proc_entry *e;
 	int ret;
 
-	atm_proc_root = proc_mkdir("net/atm",NULL);
+	atm_proc_root = proc_mkdir("atm", init_net.proc_net);
 	if (!atm_proc_root)
 		goto err_out;
 	for (e = atm_proc_ents; e->name; e++) {

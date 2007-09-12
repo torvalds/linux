@@ -34,6 +34,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 #include <linux/types.h>
+#include <net/net_namespace.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/tcp.h>
@@ -383,20 +384,20 @@ int __init ip_misc_proc_init(void)
 {
 	int rc = 0;
 
-	if (!proc_net_fops_create("netstat", S_IRUGO, &netstat_seq_fops))
+	if (!proc_net_fops_create(&init_net, "netstat", S_IRUGO, &netstat_seq_fops))
 		goto out_netstat;
 
-	if (!proc_net_fops_create("snmp", S_IRUGO, &snmp_seq_fops))
+	if (!proc_net_fops_create(&init_net, "snmp", S_IRUGO, &snmp_seq_fops))
 		goto out_snmp;
 
-	if (!proc_net_fops_create("sockstat", S_IRUGO, &sockstat_seq_fops))
+	if (!proc_net_fops_create(&init_net, "sockstat", S_IRUGO, &sockstat_seq_fops))
 		goto out_sockstat;
 out:
 	return rc;
 out_sockstat:
-	proc_net_remove("snmp");
+	proc_net_remove(&init_net, "snmp");
 out_snmp:
-	proc_net_remove("netstat");
+	proc_net_remove(&init_net, "netstat");
 out_netstat:
 	rc = -ENOMEM;
 	goto out;

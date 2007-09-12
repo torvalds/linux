@@ -102,6 +102,7 @@
 #include <linux/jiffies.h>
 
 #include <net/checksum.h>
+#include <net/net_namespace.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -268,9 +269,9 @@ static int __devinit olympic_probe(struct pci_dev *pdev, const struct pci_device
 	printk("Olympic: %s registered as: %s\n",olympic_priv->olympic_card_name,dev->name);
 	if (olympic_priv->olympic_network_monitor) { /* Must go after register_netdev as we need the device name */ 
 		char proc_name[20] ; 
-		strcpy(proc_name,"net/olympic_") ; 
+		strcpy(proc_name,"olympic_") ;
 		strcat(proc_name,dev->name) ; 
-		create_proc_read_entry(proc_name,0,NULL,olympic_proc_info,(void *)dev) ; 
+		create_proc_read_entry(proc_name,0,init_net.proc_net,olympic_proc_info,(void *)dev) ;
 		printk("Olympic: Network Monitor information: /proc/%s\n",proc_name); 
 	}
 	return  0 ;
@@ -1752,9 +1753,9 @@ static void __devexit olympic_remove_one(struct pci_dev *pdev)
 
 	if (olympic_priv->olympic_network_monitor) { 
 		char proc_name[20] ; 
-		strcpy(proc_name,"net/olympic_") ; 
+		strcpy(proc_name,"olympic_") ;
 		strcat(proc_name,dev->name) ;
-		remove_proc_entry(proc_name,NULL); 
+		remove_proc_entry(proc_name,init_net.proc_net);
 	}
 	unregister_netdev(dev) ; 
 	iounmap(olympic_priv->olympic_mmio) ; 

@@ -103,6 +103,7 @@
 #include <linux/sysctl.h>
 #endif
 
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/route.h>
@@ -1400,7 +1401,7 @@ static const struct file_operations arp_seq_fops = {
 
 static int __init arp_proc_init(void)
 {
-	if (!proc_net_fops_create("arp", S_IRUGO, &arp_seq_fops))
+	if (!proc_net_fops_create(&init_net, "arp", S_IRUGO, &arp_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
