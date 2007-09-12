@@ -744,7 +744,7 @@ static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
 {
 	struct device_node *child;
 	const u32 *reg;
-	int reglen, devfn;
+	int reglen, devfn, prev_devfn;
 	struct pci_dev *dev;
 
 	if (ofpci_verbose)
@@ -752,13 +752,24 @@ static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
 		       node->full_name, bus->number);
 
 	child = NULL;
+	prev_devfn = -1;
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		if (ofpci_verbose)
 			printk("  * %s\n", child->full_name);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
 			continue;
+
 		devfn = (reg[0] >> 8) & 0xff;
+
+		/* This is a workaround for some device trees
+		 * which list PCI devices twice.  On the V100
+		 * for example, device number 3 is listed twice.
+		 * Once as "pm" and once again as "lomp".
+		 */
+		if (devfn == prev_devfn)
+			continue;
+		prev_devfn = devfn;
 
 		/* create a new pci_dev for this device */
 		dev = of_create_pci_dev(pbm, child, bus, devfn, 0);
