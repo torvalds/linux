@@ -446,7 +446,7 @@ static int __devinit cn_init(void)
 	dev->id.idx = cn_idx;
 	dev->id.val = cn_val;
 
-	dev->nls = netlink_kernel_create(NETLINK_CONNECTOR,
+	dev->nls = netlink_kernel_create(&init_net, NETLINK_CONNECTOR,
 					 CN_NETLINK_USERS + 0xf,
 					 dev->input, NULL, THIS_MODULE);
 	if (!dev->nls)

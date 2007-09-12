@@ -27,6 +27,8 @@
 
 #define MAX_LINKS 32		
 
+struct net;
+
 struct sockaddr_nl
 {
 	sa_family_t	nl_family;	/* AF_NETLINK	*/
@@ -157,7 +159,8 @@ struct netlink_skb_parms
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
-extern struct sock *netlink_kernel_create(int unit, unsigned int groups,
+extern struct sock *netlink_kernel_create(struct net *net,
+					  int unit,unsigned int groups,
 					  void (*input)(struct sock *sk, int len),
 					  struct mutex *cb_mutex,
 					  struct module *module);
@@ -206,6 +209,7 @@ struct netlink_callback
 
 struct netlink_notify
 {
+	struct net *net;
 	int pid;
 	int protocol;
 };

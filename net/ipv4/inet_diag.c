@@ -897,8 +897,8 @@ static int __init inet_diag_init(void)
 	if (!inet_diag_table)
 		goto out;
 
-	idiagnl = netlink_kernel_create(NETLINK_INET_DIAG, 0, inet_diag_rcv,
-					NULL, THIS_MODULE);
+	idiagnl = netlink_kernel_create(&init_net, NETLINK_INET_DIAG, 0,
+					inet_diag_rcv, NULL, THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
 	err = 0;

@@ -579,7 +579,7 @@ ipq_rcv_nl_event(struct notifier_block *this,
 	if (event == NETLINK_URELEASE &&
 	    n->protocol == NETLINK_FIREWALL && n->pid) {
 		write_lock_bh(&queue_lock);
-		if (n->pid == peer_pid)
+		if ((n->net == &init_net) && (n->pid == peer_pid))
 			__ipq_reset();
 		write_unlock_bh(&queue_lock);
 	}
@@ -671,8 +671,8 @@ static int __init ip_queue_init(void)
 	struct proc_dir_entry *proc;
 
 	netlink_register_notifier(&ipq_nl_notifier);
-	ipqnl = netlink_kernel_create(NETLINK_FIREWALL, 0, ipq_rcv_sk,
-				      NULL, THIS_MODULE);
+	ipqnl = netlink_kernel_create(&init_net, NETLINK_FIREWALL, 0,
+				      ipq_rcv_sk, NULL, THIS_MODULE);
 	if (ipqnl == NULL) {
 		printk(KERN_ERR "ip_queue: failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;

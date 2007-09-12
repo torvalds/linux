@@ -227,7 +227,7 @@ int ecryptfs_init_netlink(void)
 {
 	int rc;
 
-	ecryptfs_nl_sock = netlink_kernel_create(NETLINK_ECRYPTFS, 0,
+	ecryptfs_nl_sock = netlink_kernel_create(&init_net, NETLINK_ECRYPTFS, 0,
 						 ecryptfs_receive_nl_message,
 						 NULL, THIS_MODULE);
 	if (!ecryptfs_nl_sock) {

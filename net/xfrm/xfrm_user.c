@@ -2399,7 +2399,7 @@ static int __init xfrm_user_init(void)
 
 	printk(KERN_INFO "Initializing XFRM netlink socket\n");
 
-	nlsk = netlink_kernel_create(NETLINK_XFRM, XFRMNLGRP_MAX,
+	nlsk = netlink_kernel_create(&init_net, NETLINK_XFRM, XFRMNLGRP_MAX,
 				     xfrm_netlink_rcv, NULL, THIS_MODULE);
 	if (nlsk == NULL)
 		return -ENOMEM;

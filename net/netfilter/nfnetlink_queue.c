@@ -765,7 +765,8 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 			struct hlist_head *head = &instance_table[i];
 
 			hlist_for_each_entry_safe(inst, tmp, t2, head, hlist) {
-				if (n->pid == inst->peer_pid)
+				if ((n->net == &init_net) &&
+				    (n->pid == inst->peer_pid))
 					__instance_destroy(inst);
 			}
 		}

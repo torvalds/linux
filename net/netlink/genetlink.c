@@ -782,8 +782,8 @@ static int __init genl_init(void)
 	netlink_set_nonroot(NETLINK_GENERIC, NL_NONROOT_RECV);
 
 	/* we'll bump the group number right afterwards */
-	genl_sock = netlink_kernel_create(NETLINK_GENERIC, 0, genl_rcv,
-					  NULL, THIS_MODULE);
+	genl_sock = netlink_kernel_create(&init_net, NETLINK_GENERIC, 0,
+					  genl_rcv, NULL, THIS_MODULE);
 	if (genl_sock == NULL)
 		panic("GENL: Cannot initialize generic netlink\n");
 

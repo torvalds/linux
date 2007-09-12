@@ -167,7 +167,7 @@ scsi_netlink_init(void)
 		return;
 	}
 
-	scsi_nl_sock = netlink_kernel_create(NETLINK_SCSITRANSPORT,
+	scsi_nl_sock = netlink_kernel_create(&init_net, NETLINK_SCSITRANSPORT,
 				SCSI_NL_GRP_CNT, scsi_nl_rcv, NULL,
 				THIS_MODULE);
 	if (!scsi_nl_sock) {

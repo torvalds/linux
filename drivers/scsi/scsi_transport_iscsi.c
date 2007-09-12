@@ -1523,7 +1523,7 @@ static __init int iscsi_transport_init(void)
 	if (err)
 		goto unregister_conn_class;
 
-	nls = netlink_kernel_create(NETLINK_ISCSI, 1, iscsi_if_rx, NULL,
+	nls = netlink_kernel_create(&init_net, NETLINK_ISCSI, 1, iscsi_if_rx, NULL,
 			THIS_MODULE);
 	if (!nls) {
 		err = -ENOBUFS;
