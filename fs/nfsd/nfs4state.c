@@ -358,9 +358,22 @@ alloc_client(struct xdr_netobj name)
 	return clp;
 }
 
+static void
+shutdown_callback_client(struct nfs4_client *clp)
+{
+	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
+
+	/* shutdown rpc client, ending any outstanding recall rpcs */
+	if (clnt) {
+		clp->cl_callback.cb_client = NULL;
+		rpc_shutdown_client(clnt);
+	}
+}
+
 static inline void
 free_client(struct nfs4_client *clp)
 {
+	shutdown_callback_client(clp);
 	if (clp->cl_cred.cr_group_info)
 		put_group_info(clp->cl_cred.cr_group_info);
 	kfree(clp->cl_name.data);
@@ -375,18 +388,6 @@ put_nfs4_client(struct nfs4_client *clp)
 }
 
 static void
-shutdown_callback_client(struct nfs4_client *clp)
-{
-	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
-
-	/* shutdown rpc client, ending any outstanding recall rpcs */
-	if (clnt) {
-		clp->cl_callback.cb_client = NULL;
-		rpc_shutdown_client(clnt);
-	}
-}
-
-static void
 expire_client(struct nfs4_client *clp)
 {
 	struct nfs4_stateowner *sop;
@@ -395,8 +396,6 @@ expire_client(struct nfs4_client *clp)
 
 	dprintk("NFSD: expire_client cl_count %d\n",
 	                    atomic_read(&clp->cl_count));
-
-	shutdown_callback_client(clp);
 
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&recall_lock);
