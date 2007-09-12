@@ -112,9 +112,9 @@ extern int sysctl_sctp_mem[3];
 extern int sysctl_sctp_rmem[3];
 extern int sysctl_sctp_wmem[3];
 
-int sctp_memory_pressure;
-atomic_t sctp_memory_allocated;
-atomic_t sctp_sockets_allocated;
+static int sctp_memory_pressure;
+static atomic_t sctp_memory_allocated;
+static atomic_t sctp_sockets_allocated;
 
 static void sctp_enter_memory_pressure(void)
 {
