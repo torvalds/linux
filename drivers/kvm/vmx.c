@@ -1840,12 +1840,12 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	u64 exit_qualification;
+	unsigned long exit_qualification;
 	int size, down, in, string, rep;
 	unsigned port;
 
 	++vcpu->stat.io_exits;
-	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	string = (exit_qualification & 16) != 0;
 
 	if (string) {
@@ -1877,11 +1877,11 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 
 static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	u64 exit_qualification;
+	unsigned long exit_qualification;
 	int cr;
 	int reg;
 
-	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	cr = exit_qualification & 15;
 	reg = (exit_qualification >> 8) & 15;
 	switch ((exit_qualification >> 4) & 3) {
@@ -1950,7 +1950,7 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	u64 exit_qualification;
+	unsigned long exit_qualification;
 	unsigned long val;
 	int dr, reg;
 
@@ -1958,7 +1958,7 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	 * FIXME: this code assumes the host is debugging the guest.
 	 *        need to deal with guest debugging itself too.
 	 */
-	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
+	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	dr = exit_qualification & 7;
 	reg = (exit_qualification >> 8) & 15;
 	vcpu_load_rsp_rip(vcpu);
