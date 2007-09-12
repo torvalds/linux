@@ -332,7 +332,7 @@ void __init setup_arch(char **cmdline_p)
 		       CPU, bfin_revid());
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
-	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu Mhz System Clock\n",
+	printk(KERN_INFO "Processor Speed: %lu MHz core clock and %lu MHz System Clock\n",
 	       cclk / 1000000,  sclk / 1000000);
 
 	if (ANOMALY_05000273 && (cclk >> 1) <= sclk)
