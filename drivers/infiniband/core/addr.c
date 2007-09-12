@@ -161,8 +161,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 	if (ip_route_output_key(&rt, &fl))
 		return;
 
-	arp_send(ARPOP_REQUEST, ETH_P_ARP, rt->rt_gateway, rt->idev->dev,
-		 rt->rt_src, NULL, rt->idev->dev->dev_addr, NULL);
+	neigh_event_send(rt->u.dst.neighbour, NULL);
 	ip_rt_put(rt);
 }
 
