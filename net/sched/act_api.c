@@ -68,7 +68,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 	int err = 0, index = -1,i = 0, s_i = 0, n_i = 0;
 	struct rtattr *r ;
 
-	read_lock(hinfo->lock);
+	read_lock_bh(hinfo->lock);
 
 	s_i = cb->args[0];
 
@@ -96,7 +96,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 	}
 done:
-	read_unlock(hinfo->lock);
+	read_unlock_bh(hinfo->lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
@@ -156,13 +156,13 @@ struct tcf_common *tcf_hash_lookup(u32 index, struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p;
 
-	read_lock(hinfo->lock);
+	read_lock_bh(hinfo->lock);
 	for (p = hinfo->htab[tcf_hash(index, hinfo->hmask)]; p;
 	     p = p->tcfc_next) {
 		if (p->tcfc_index == index)
 			break;
 	}
-	read_unlock(hinfo->lock);
+	read_unlock_bh(hinfo->lock);
 
 	return p;
 }
