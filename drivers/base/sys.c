@@ -139,7 +139,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
 	cls->kset.kobj.parent = &system_subsys.kobj;
-	kset_set_kset_s(cls, system_subsys);
+	cls->kset.kobj.kset = &system_subsys;
 	return kset_register(&cls->kset);
 }
 
