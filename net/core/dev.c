@@ -208,6 +208,34 @@ static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 	return &net->dev_index_head[ifindex & ((1 << NETDEV_HASHBITS) - 1)];
 }
 
+/* Device list insertion */
+static int list_netdevice(struct net_device *dev)
+{
+	struct net *net = dev->nd_net;
+
+	ASSERT_RTNL();
+
+	write_lock_bh(&dev_base_lock);
+	list_add_tail(&dev->dev_list, &net->dev_base_head);
+	hlist_add_head(&dev->name_hlist, dev_name_hash(net, dev->name));
+	hlist_add_head(&dev->index_hlist, dev_index_hash(net, dev->ifindex));
+	write_unlock_bh(&dev_base_lock);
+	return 0;
+}
+
+/* Device list removal */
+static void unlist_netdevice(struct net_device *dev)
+{
+	ASSERT_RTNL();
+
+	/* Unlink dev from the device chain */
+	write_lock_bh(&dev_base_lock);
+	list_del(&dev->dev_list);
+	hlist_del(&dev->name_hlist);
+	hlist_del(&dev->index_hlist);
+	write_unlock_bh(&dev_base_lock);
+}
+
 /*
  *	Our notifier list
  */
@@ -3571,12 +3599,8 @@ int register_netdevice(struct net_device *dev)
 	set_bit(__LINK_STATE_PRESENT, &dev->state);
 
 	dev_init_scheduler(dev);
-	write_lock_bh(&dev_base_lock);
-	list_add_tail(&dev->dev_list, &net->dev_base_head);
-	hlist_add_head(&dev->name_hlist, head);
-	hlist_add_head(&dev->index_hlist, dev_index_hash(net, dev->ifindex));
 	dev_hold(dev);
-	write_unlock_bh(&dev_base_lock);
+	list_netdevice(dev);
 
 	/* Notify protocols, that a new device appeared. */
 	ret = raw_notifier_call_chain(&netdev_chain, NETDEV_REGISTER, dev);
@@ -3883,11 +3907,7 @@ void unregister_netdevice(struct net_device *dev)
 		dev_close(dev);
 
 	/* And unlink it from device chain. */
-	write_lock_bh(&dev_base_lock);
-	list_del(&dev->dev_list);
-	hlist_del(&dev->name_hlist);
-	hlist_del(&dev->index_hlist);
-	write_unlock_bh(&dev_base_lock);
+	unlist_netdevice(dev);
 
 	dev->reg_state = NETREG_UNREGISTERING;
 
@@ -3944,6 +3964,122 @@ void unregister_netdev(struct net_device *dev)
 }
 
 EXPORT_SYMBOL(unregister_netdev);
+
+/**
+ *	dev_change_net_namespace - move device to different nethost namespace
+ *	@dev: device
+ *	@net: network namespace
+ *	@pat: If not NULL name pattern to try if the current device name
+ *	      is already taken in the destination network namespace.
+ *
+ *	This function shuts down a device interface and moves it
+ *	to a new network namespace. On success 0 is returned, on
+ *	a failure a netagive errno code is returned.
+ *
+ *	Callers must hold the rtnl semaphore.
+ */
+
+int dev_change_net_namespace(struct net_device *dev, struct net *net, const char *pat)
+{
+	char buf[IFNAMSIZ];
+	const char *destname;
+	int err;
+
+	ASSERT_RTNL();
+
+	/* Don't allow namespace local devices to be moved. */
+	err = -EINVAL;
+	if (dev->features & NETIF_F_NETNS_LOCAL)
+		goto out;
+
+	/* Ensure the device has been registrered */
+	err = -EINVAL;
+	if (dev->reg_state != NETREG_REGISTERED)
+		goto out;
+
+	/* Get out if there is nothing todo */
+	err = 0;
+	if (dev->nd_net == net)
+		goto out;
+
+	/* Pick the destination device name, and ensure
+	 * we can use it in the destination network namespace.
+	 */
+	err = -EEXIST;
+	destname = dev->name;
+	if (__dev_get_by_name(net, destname)) {
+		/* We get here if we can't use the current device name */
+		if (!pat)
+			goto out;
+		if (!dev_valid_name(pat))
+			goto out;
+		if (strchr(pat, '%')) {
+			if (__dev_alloc_name(net, pat, buf) < 0)
+				goto out;
+			destname = buf;
+		} else
+			destname = pat;
+		if (__dev_get_by_name(net, destname))
+			goto out;
+	}
+
+	/*
+	 * And now a mini version of register_netdevice unregister_netdevice.
+	 */
+
+	/* If device is running close it first. */
+	if (dev->flags & IFF_UP)
+		dev_close(dev);
+
+	/* And unlink it from device chain */
+	err = -ENODEV;
+	unlist_netdevice(dev);
+
+	synchronize_net();
+
+	/* Shutdown queueing discipline. */
+	dev_shutdown(dev);
+
+	/* Notify protocols, that we are about to destroy
+	   this device. They should clean all the things.
+	*/
+	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+
+	/*
+	 *	Flush the unicast and multicast chains
+	 */
+	dev_addr_discard(dev);
+
+	/* Actually switch the network namespace */
+	dev->nd_net = net;
+
+	/* Assign the new device name */
+	if (destname != dev->name)
+		strcpy(dev->name, destname);
+
+	/* If there is an ifindex conflict assign a new one */
+	if (__dev_get_by_index(net, dev->ifindex)) {
+		int iflink = (dev->iflink == dev->ifindex);
+		dev->ifindex = dev_new_index(net);
+		if (iflink)
+			dev->iflink = dev->ifindex;
+	}
+
+	/* Fixup sysfs */
+	err = device_rename(&dev->dev, dev->name);
+	BUG_ON(err);
+
+	/* Add the device back in the hashes */
+	list_netdevice(dev);
+
+	/* Notify protocols, that a new device appeared. */
+	call_netdevice_notifiers(NETDEV_REGISTER, dev);
+
+	synchronize_net();
+	err = 0;
+out:
+	return err;
+}
 
 static int dev_cpu_callback(struct notifier_block *nfb,
 			    unsigned long action,
@@ -4177,6 +4313,36 @@ static struct pernet_operations netdev_net_ops = {
 	.exit = netdev_exit,
 };
 
+static void default_device_exit(struct net *net)
+{
+	struct net_device *dev, *next;
+	/*
+	 * Push all migratable of the network devices back to the
+	 * initial network namespace
+	 */
+	rtnl_lock();
+	for_each_netdev_safe(net, dev, next) {
+		int err;
+
+		/* Ignore unmoveable devices (i.e. loopback) */
+		if (dev->features & NETIF_F_NETNS_LOCAL)
+			continue;
+
+		/* Push remaing network devices to init_net */
+		err = dev_change_net_namespace(dev, &init_net, "dev%d");
+		if (err) {
+			printk(KERN_WARNING "%s: failed to move %s to init_net: %d\n",
+				__func__, dev->name, err);
+			unregister_netdevice(dev);
+		}
+	}
+	rtnl_unlock();
+}
+
+static struct pernet_operations default_device_ops = {
+	.exit = default_device_exit,
+};
+
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
  *	unhooks any devices that fail to initialise (normally hardware not
@@ -4205,6 +4371,9 @@ static int __init net_dev_init(void)
 		INIT_LIST_HEAD(&ptype_base[i]);
 
 	if (register_pernet_subsys(&netdev_net_ops))
+		goto out;
+
+	if (register_pernet_device(&default_device_ops))
 		goto out;
 
 	/*

@@ -222,7 +222,8 @@ struct net_device loopback_dev = {
 				  | NETIF_F_TSO
 #endif
 				  | NETIF_F_NO_CSUM | NETIF_F_HIGHDMA
-				  | NETIF_F_LLTX,
+				  | NETIF_F_LLTX
+				  | NETIF_F_NETNS_LOCAL,
 	.ethtool_ops		= &loopback_ethtool_ops,
 };
 
