@@ -193,7 +193,7 @@ config SND_ES18XX
 
 config SND_SC6000
 	tristate "Gallant SC-6000, Audio Excel DSP 16"
-	depends on SND
+	depends on SND && HAS_IOPORT
 	select SND_AD1848_LIB
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
