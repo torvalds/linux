@@ -34,7 +34,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 		};
 	};
 
@@ -51,7 +50,6 @@
 	soc8568@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00100000>;
@@ -258,7 +256,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                         big-endian;
@@ -449,7 +446,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;
-			built-in;
 			big-endian;
 			interrupts = <2e 2 2e 2>; //high:30 low:30
 			interrupt-parent = <&mpic>;

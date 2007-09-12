@@ -43,7 +43,6 @@
 	mv64x60@f1000000 { /* Marvell Discovery */
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <1>;
 		model = "mv64360";			/* Default */
 		compatible = "marvell,mv64x60";
 		clock-frequency = <7f28155>;		/* 133.333333 MHz */

@@ -34,7 +34,6 @@
 			timebase-frequency = <3EF1480>;
 			bus-frequency = <FBC5200>;
 			clock-frequency = <1F78A400>;
-			32-bit;
 		};
 	};
 
@@ -51,7 +50,6 @@
 	soc8360@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00000200>;
@@ -178,7 +176,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <700 100>;
-			built-in;
 			device_type = "ipic";
 		};
 
@@ -364,7 +361,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;
-			built-in;
 			big-endian;
 			interrupts = <20 8 21 8>; //high:32 low:33
 			interrupt-parent = < &ipic >;

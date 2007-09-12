@@ -37,7 +37,6 @@
 			timebase-frequency = <0>;	// from bootloader
 			bus-frequency = <0>;		// from bootloader
 			clock-frequency = <0>;		// from bootloader
-			32-bit;
 		};
 	};
 
@@ -50,10 +49,9 @@
 		model = "fsl,mpc5200";
 		compatible = "mpc5200";
 		revision = "";			// from bootloader
-		#interrupt-cells = <3>;
 		device_type = "soc";
-		ranges = <0 f0000000 f0010000>;
-		reg = <f0000000 00010000>;
+		ranges = <0 f0000000 0000c000>;
+		reg = <f0000000 00000100>;
 		bus-frequency = <0>;		// from bootloader
 		system-frequency = <0>;		// from bootloader
 
@@ -69,7 +67,6 @@
 			device_type = "interrupt-controller";
 			compatible = "mpc5200-pic";
 			reg = <500 80>;
-			built-in;
 		};
 
 		gpt@600 {	// General Purpose Timer

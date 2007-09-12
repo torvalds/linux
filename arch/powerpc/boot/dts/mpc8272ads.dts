@@ -29,7 +29,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 		};
 	};
 
@@ -38,7 +37,6 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <f8200000 f8200004>;
-		built-in;
 		device_type = "pci-pic";
 	};
 
@@ -56,7 +54,6 @@
 	soc8272@f0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <00000000 f0000000 00053000>;
 		reg = <f0000000 10000>;
@@ -118,7 +115,6 @@
 		cpm@f0000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			#interrupt-cells = <2>;
 			device_type = "cpm";
 			model = "CPM2";
 			ranges = <00000000 00000000 20000>;
@@ -161,7 +157,6 @@
 			#interrupt-cells = <2>;
 			interrupt-controller;
 			reg = <10c00 80>;
-			built-in;
 			device_type = "cpm-pic";
 			compatible = "CPM2";
 		};

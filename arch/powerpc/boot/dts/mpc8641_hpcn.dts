@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	// 33 MHz, from uboot
 			bus-frequency = <0>;		// From uboot
 			clock-frequency = <0>;		// From uboot
-			32-bit;
 		};
 		PowerPC,8641@1 {
 			device_type = "cpu";
@@ -42,7 +41,6 @@
 			timebase-frequency = <0>;	// 33 MHz, from uboot
 			bus-frequency = <0>;		// From uboot
 			clock-frequency = <0>;		// From uboot
-			32-bit;
 		};
 	};
 
@@ -54,7 +52,6 @@
 	soc8641@f8000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <00001000 f8001000 000ff000
 			  80000000 80000000 20000000
@@ -291,12 +288,10 @@
 							reg = <1 20 2
 							       1 a0 2
 							       1 4d0 2>;
-							clock-frequency = <0>;
 							interrupt-controller;
 							device_type = "interrupt-controller";
 							#address-cells = <0>;
 							#interrupt-cells = <2>;
-							built-in;
 							compatible = "chrp,iic";
 							interrupts = <9 2>;
 							interrupt-parent =
@@ -366,7 +361,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 			big-endian;

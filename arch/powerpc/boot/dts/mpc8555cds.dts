@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	//  33 MHz, from uboot
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
-			32-bit;
 		};
 	};
 
@@ -42,7 +41,6 @@
 	soc8555@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00100000>;	// CCSRBAR 1M
@@ -197,15 +195,12 @@
 			device_type = "pci";
 
 			i8259@19000 {
-				clock-frequency = <0>;
 				interrupt-controller;
 				device_type = "interrupt-controller";
 				reg = <19000 0 0 0 1>;
 				#address-cells = <0>;
 				#interrupt-cells = <2>;
-				built-in;
 				compatible = "chrp,iic";
-				big-endian;
 				interrupts = <1>;
 				interrupt-parent = <&pci1>;
 			};
@@ -240,7 +235,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                         big-endian;

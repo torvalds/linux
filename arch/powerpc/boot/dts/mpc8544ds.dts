@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 		};
 	};
 
@@ -42,7 +41,6 @@
 	soc8544@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 
 
@@ -295,12 +293,10 @@
 							reg = <1 20 2
 							       1 a0 2
 							       1 4d0 2>;
-							clock-frequency = <0>;
 							interrupt-controller;
 							device_type = "interrupt-controller";
 							#address-cells = <0>;
 							#interrupt-cells = <2>;
-							built-in;
 							compatible = "chrp,iic";
 							interrupts = <9 2>;
 							interrupt-parent = <&mpic>;
@@ -350,7 +346,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 			big-endian;

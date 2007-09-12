@@ -30,7 +30,6 @@
 			timebase-frequency = <0>;	//  33 MHz, from uboot
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
-			32-bit;
 		};
 	};
 
@@ -42,7 +41,6 @@
 	soc8548@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <00001000 e0001000 000ff000
 			  80000000 80000000 10000000
@@ -318,7 +316,6 @@
 					interrupt-parent = <&i8259>;
 
 					i8259: interrupt-controller@20 {
-						clock-frequency = <0>;
 						interrupt-controller;
 						device_type = "interrupt-controller";
 						reg = <1 20 2
@@ -326,7 +323,6 @@
 						       1 4d0 2>;
 						#address-cells = <0>;
 						#interrupt-cells = <2>;
-						built-in;
 						compatible = "chrp,iic";
 						interrupts = <0 1>;
 						interrupt-parent = <&mpic>;
@@ -394,7 +390,6 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
                         big-endian;
