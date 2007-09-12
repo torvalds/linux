@@ -41,7 +41,8 @@
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 
-struct net;
+#include <net/net_namespace.h>
+
 struct vlan_group;
 struct ethtool_ops;
 struct netpoll_info;
@@ -753,23 +754,21 @@ extern rwlock_t				dev_base_lock;		/* Device list lock */
 		list_for_each_entry_continue(d, &(net)->dev_base_head, dev_list)
 #define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
 
-#define next_net_device(d) 						\
-({									\
-	struct net_device *dev = d;					\
-	struct list_head *lh;						\
-	struct net *net;						\
-									\
-	net = dev->nd_net;						\
-	lh = dev->dev_list.next;					\
-	lh == &net->dev_base_head ? NULL : net_device_entry(lh);	\
-})
+static inline struct net_device *next_net_device(struct net_device *dev)
+{
+	struct list_head *lh;
+	struct net *net;
 
-#define first_net_device(N)					\
-({								\
-	struct net *NET = (N);					\
-	list_empty(&NET->dev_base_head) ? NULL :		\
-		net_device_entry(NET->dev_base_head.next);	\
-})
+	net = dev->nd_net;
+	lh = dev->dev_list.next;
+	return lh == &net->dev_base_head ? NULL : net_device_entry(lh);
+}
+
+static inline struct net_device *first_net_device(struct net *net)
+{
+	return list_empty(&net->dev_base_head) ? NULL :
+		net_device_entry(net->dev_base_head.next);
+}
 
 extern int 			netdev_boot_setup_check(struct net_device *dev);
 extern unsigned long		netdev_boot_base(const char *prefix, int unit);
