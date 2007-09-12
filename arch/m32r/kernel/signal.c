@@ -36,7 +36,7 @@ sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
 		  unsigned long r2, unsigned long r3, unsigned long r4,
 		  unsigned long r5, unsigned long r6, struct pt_regs *regs)
 {
-	sigset_t saveset, newset;
+	sigset_t newset;
 
 	/* XXX: Don't preclude handling different sized sigset_t's.  */
 	if (sigsetsize != sizeof(sigset_t))
@@ -44,21 +44,18 @@ sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize,
 
 	if (copy_from_user(&newset, unewset, sizeof(newset)))
 		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
+	sigdelsetmask(&newset, sigmask(SIGKILL)|sigmask(SIGSTOP));
 
 	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
+	current->saved_sigmask = current->blocked;
 	current->blocked = newset;
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	regs->r0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return regs->r0;
-	}
+	current->state = TASK_INTERRUPTIBLE;
+	schedule();
+	set_thread_flag(TIF_RESTORE_SIGMASK);
+	return -ERESTARTNOHAND;
 }
 
 asmlinkage int
