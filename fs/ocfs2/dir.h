@@ -54,7 +54,7 @@ static inline int ocfs2_add_entry(handle_t *handle,
 int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,
 			      int namelen);
-int ocfs2_empty_dir(struct inode *inode);  /* FIXME: to namei.c */
+int ocfs2_empty_dir(struct inode *inode);
 int ocfs2_find_files_on_disk(const char *name,
 			     int namelen,
 			     u64 *blkno,

@@ -660,67 +660,61 @@ bail:
 	return ret;
 }
 
+struct ocfs2_empty_dir_priv {
+	unsigned seen_dot;
+	unsigned seen_dot_dot;
+	unsigned seen_other;
+};
+static int ocfs2_empty_dir_filldir(void *priv, const char *name, int name_len,
+				   loff_t pos, u64 ino, unsigned type)
+{
+	struct ocfs2_empty_dir_priv *p = priv;
+
+	/*
+	 * Check the positions of "." and ".." records to be sure
+	 * they're in the correct place.
+	 */
+	if (name_len == 1 && !strncmp(".", name, 1) && pos == 0) {
+		p->seen_dot = 1;
+		return 0;
+	}
+
+	if (name_len == 2 && !strncmp("..", name, 2) &&
+	    pos == OCFS2_DIR_REC_LEN(1)) {
+		p->seen_dot_dot = 1;
+		return 0;
+	}
+
+	p->seen_other = 1;
+	return 1;
+}
 /*
  * routine to check that the specified directory is empty (for rmdir)
+ *
+ * Returns 1 if dir is empty, zero otherwise.
  */
 int ocfs2_empty_dir(struct inode *inode)
 {
-	unsigned long offset;
-	struct buffer_head * bh;
-	struct ocfs2_dir_entry * de, * de1;
-	struct super_block * sb;
-	int err;
+	int ret;
+	loff_t start = 0;
+	struct ocfs2_empty_dir_priv priv;
 
-	sb = inode->i_sb;
-	if ((i_size_read(inode) <
-	     (OCFS2_DIR_REC_LEN(1) + OCFS2_DIR_REC_LEN(2))) ||
-	    !(bh = ocfs2_bread(inode, 0, &err, 0))) {
-	    	mlog(ML_ERROR, "bad directory (dir #%llu) - no data block\n",
+	memset(&priv, 0, sizeof(priv));
+
+	ret = ocfs2_dir_foreach(inode, &start, &priv, ocfs2_empty_dir_filldir);
+	if (ret)
+		mlog_errno(ret);
+
+	if (!priv.seen_dot || !priv.seen_dot_dot) {
+		mlog(ML_ERROR, "bad directory (dir #%llu) - no `.' or `..'\n",
 		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		/*
+		 * XXX: Is it really safe to allow an unlink to continue?
+		 */
 		return 1;
 	}
 
-	de = (struct ocfs2_dir_entry *) bh->b_data;
-	de1 = (struct ocfs2_dir_entry *)
-			((char *)de + le16_to_cpu(de->rec_len));
-	if ((le64_to_cpu(de->inode) != OCFS2_I(inode)->ip_blkno) ||
-			!le64_to_cpu(de1->inode) ||
-			strcmp(".", de->name) ||
-			strcmp("..", de1->name)) {
-	    	mlog(ML_ERROR, "bad directory (dir #%llu) - no `.' or `..'\n",
-		     (unsigned long long)OCFS2_I(inode)->ip_blkno);
-		brelse(bh);
-		return 1;
-	}
-	offset = le16_to_cpu(de->rec_len) + le16_to_cpu(de1->rec_len);
-	de = (struct ocfs2_dir_entry *)((char *)de1 + le16_to_cpu(de1->rec_len));
-	while (offset < i_size_read(inode) ) {
-		if (!bh || (void *)de >= (void *)(bh->b_data + sb->s_blocksize)) {
-			brelse(bh);
-			bh = ocfs2_bread(inode,
-					 offset >> sb->s_blocksize_bits, &err, 0);
-			if (!bh) {
-				mlog(ML_ERROR, "dir %llu has a hole at %lu\n",
-				     (unsigned long long)OCFS2_I(inode)->ip_blkno, offset);
-				offset += sb->s_blocksize;
-				continue;
-			}
-			de = (struct ocfs2_dir_entry *) bh->b_data;
-		}
-		if (!ocfs2_check_dir_entry(inode, de, bh, offset)) {
-			brelse(bh);
-			return 1;
-		}
-		if (le64_to_cpu(de->inode)) {
-			brelse(bh);
-			return 0;
-		}
-		offset += le16_to_cpu(de->rec_len);
-		de = (struct ocfs2_dir_entry *)
-			((char *)de + le16_to_cpu(de->rec_len));
-	}
-	brelse(bh);
-	return 1;
+	return !priv.seen_other;
 }
 
 int ocfs2_fill_new_dir(struct ocfs2_super *osb,
