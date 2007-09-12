@@ -80,6 +80,24 @@
 		_id == 0x411;				\
 	})
 
+#define __cpu_is_pxa300(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x688;				\
+	 })
+
+#define __cpu_is_pxa310(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x689;				\
+	 })
+
+#define __cpu_is_pxa320(id)				\
+	({						\
+		unsigned int _id = (id) >> 4 & 0xfff;	\
+		_id == 0x603 || _id == 0x682;		\
+	 })
+
 #define cpu_is_pxa21x()					\
 	({						\
 		unsigned int id = read_cpuid(CPUID_ID);	\
@@ -97,6 +115,53 @@
 		unsigned int id = read_cpuid(CPUID_ID);	\
 		__cpu_is_pxa27x(id);			\
 	})
+
+#define cpu_is_pxa300()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa300(id);			\
+	 })
+
+#define cpu_is_pxa310()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa310(id);			\
+	 })
+
+#define cpu_is_pxa320()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa320(id);			\
+	 })
+
+/*
+ * CPUID Core Generation Bit
+ * <= 0x2 for pxa21x/pxa25x/pxa26x/pxa27x
+ * == 0x3 for pxa300/pxa310/pxa320
+ */
+#define __cpu_is_pxa2xx(id)				\
+	({						\
+		unsigned int _id = (id) >> 13 & 0x7;	\
+		_id <= 0x2;				\
+	 })
+
+#define __cpu_is_pxa3xx(id)				\
+	({						\
+		unsigned int _id = (id) >> 13 & 0x7;	\
+		_id == 0x3;				\
+	 })
+
+#define cpu_is_pxa2xx()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa2xx(id);			\
+	 })
+
+#define cpu_is_pxa3xx()					\
+	({						\
+		unsigned int id = read_cpuid(CPUID_ID);	\
+		__cpu_is_pxa3xx(id);			\
+	 })
 
 /*
  * Handy routine to set GPIO alternate functions
