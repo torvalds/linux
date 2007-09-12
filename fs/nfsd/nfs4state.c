@@ -1354,8 +1354,12 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	/* only place dl_time is set. protected by lock_kernel*/
 	dp->dl_time = get_seconds();
 
-	/* XXX need to merge NFSD_LEASE_TIME with fs/locks.c:lease_break_time */
-	fl->fl_break_time = jiffies + NFSD_LEASE_TIME * HZ;
+	/*
+	 * We don't want the locks code to timeout the lease for us;
+	 * we'll remove it ourself if the delegation isn't returned
+	 * in time.
+	 */
+	fl->fl_break_time = 0;
 
 	t = kthread_run(do_recall, dp, "%s", "nfs4_cb_recall");
 	if (IS_ERR(t)) {
