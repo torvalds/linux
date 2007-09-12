@@ -839,6 +839,26 @@ err_chunk:
 	return retval;
 }
 
+/* Append bytes to the end of a parameter.  Will panic if chunk is not big
+ * enough.
+ */
+static void *sctp_addto_param(struct sctp_chunk *chunk, int len,
+			      const void *data)
+{
+	void *target;
+	int chunklen = ntohs(chunk->chunk_hdr->length);
+
+	target = skb_put(chunk->skb, len);
+
+	memcpy(target, data, len);
+
+	/* Adjust the chunk length field.  */
+	chunk->chunk_hdr->length = htons(chunklen + len);
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
+
+	return target;
+}
+
 /* Make an ABORT chunk with a PROTOCOL VIOLATION cause code. */
 struct sctp_chunk *sctp_make_abort_violation(
 	const struct sctp_association *asoc,
@@ -1141,25 +1161,6 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);
-	chunk->chunk_end = skb_tail_pointer(chunk->skb);
-
-	return target;
-}
-
-/* Append bytes to the end of a parameter.  Will panic if chunk is not big
- * enough.
- */
-void *sctp_addto_param(struct sctp_chunk *chunk, int len, const void *data)
-{
-	void *target;
-	int chunklen = ntohs(chunk->chunk_hdr->length);
-
-	target = skb_put(chunk->skb, len);
-
-	memcpy(target, data, len);
-
-	/* Adjust the chunk length field.  */
-	chunk->chunk_hdr->length = htons(chunklen + len);
 	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
