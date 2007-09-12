@@ -960,7 +960,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		++svm->vcpu.stat.mmio_exits;
 		return 0;
 	case EMULATE_FAIL:
-		vcpu_printf(&svm->vcpu, "%s: emulate fail\n", __FUNCTION__);
+		kvm_report_emulation_failure(&svm->vcpu, "pagetable");
 		break;
 	default:
 		BUG();

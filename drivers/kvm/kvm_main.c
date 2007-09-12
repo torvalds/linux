@@ -1240,25 +1240,25 @@ int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long value)
 	return X86EMUL_CONTINUE;
 }
 
-static void report_emulation_failure(struct x86_emulate_ctxt *ctxt)
+void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 {
 	static int reported;
 	u8 opcodes[4];
-	unsigned long rip = ctxt->vcpu->rip;
+	unsigned long rip = vcpu->rip;
 	unsigned long rip_linear;
 
-	rip_linear = rip + get_segment_base(ctxt->vcpu, VCPU_SREG_CS);
+	rip_linear = rip + get_segment_base(vcpu, VCPU_SREG_CS);
 
 	if (reported)
 		return;
 
-	emulator_read_std(rip_linear, (void *)opcodes, 4, ctxt->vcpu);
+	emulator_read_std(rip_linear, (void *)opcodes, 4, vcpu);
 
-	printk(KERN_ERR "emulation failed but !mmio_needed?"
-	       " rip %lx %02x %02x %02x %02x\n",
-	       rip, opcodes[0], opcodes[1], opcodes[2], opcodes[3]);
+	printk(KERN_ERR "emulation failed (%s) rip %lx %02x %02x %02x %02x\n",
+	       context, rip, opcodes[0], opcodes[1], opcodes[2], opcodes[3]);
 	reported = 1;
 }
+EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
 
 struct x86_emulate_ops emulate_ops = {
 	.read_std            = emulator_read_std,
@@ -1323,7 +1323,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 			return EMULATE_DONE;
 		if (!vcpu->mmio_needed) {
-			report_emulation_failure(&emulate_ctxt);
+			kvm_report_emulation_failure(vcpu, "mmio");
 			return EMULATE_FAIL;
 		}
 		return EMULATE_DO_MMIO;

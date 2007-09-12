@@ -558,6 +558,7 @@ enum emulation_result {
 
 int emulate_instruction(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			unsigned long cr2, u16 error_code);
+void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lmsw(struct kvm_vcpu *vcpu, unsigned long msw,

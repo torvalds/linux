@@ -1798,7 +1798,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			++vcpu->stat.mmio_exits;
 			return 0;
 		 case EMULATE_FAIL:
-			vcpu_printf(vcpu, "%s: emulate fail\n", __FUNCTION__);
+			kvm_report_emulation_failure(vcpu, "pagetable");
 			break;
 		default:
 			BUG();
