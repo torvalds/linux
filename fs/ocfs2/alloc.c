@@ -361,7 +361,6 @@ struct ocfs2_merge_ctxt {
 	enum ocfs2_contig_type	c_contig_type;
 	int			c_has_empty_extent;
 	int			c_split_covers_rec;
-	int			c_used_tail_recs;
 };
 
 /*
@@ -3999,11 +3998,6 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 	} else
 		rightmost_el = path_root_el(path);
 
-	ctxt.c_used_tail_recs = le16_to_cpu(rightmost_el->l_next_free_rec);
-	if (ctxt.c_used_tail_recs > 0 &&
-	    ocfs2_is_empty_extent(&rightmost_el->l_recs[0]))
-		ctxt.c_used_tail_recs--;
-
 	if (rec->e_cpos == split_rec->e_cpos &&
 	    rec->e_leaf_clusters == split_rec->e_leaf_clusters)
 		ctxt.c_split_covers_rec = 1;
@@ -4012,10 +4006,9 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 
 	ctxt.c_has_empty_extent = ocfs2_is_empty_extent(&el->l_recs[0]);
 
-	mlog(0, "index: %d, contig: %u, used_tail_recs: %u, "
-	     "has_empty: %u, split_covers: %u\n", split_index,
-	     ctxt.c_contig_type, ctxt.c_used_tail_recs,
-	     ctxt.c_has_empty_extent, ctxt.c_split_covers_rec);
+	mlog(0, "index: %d, contig: %u, has_empty: %u, split_covers: %u\n",
+	     split_index, ctxt.c_contig_type, ctxt.c_has_empty_extent,
+	     ctxt.c_split_covers_rec);
 
 	if (ctxt.c_contig_type == CONTIG_NONE) {
 		if (ctxt.c_split_covers_rec)
