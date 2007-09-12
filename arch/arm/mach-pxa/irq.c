@@ -65,7 +65,7 @@ void __init pxa_init_irq_low(void)
 	}
 }
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 
 /*
  * This is for the second set of internal IRQs as found on the PXA27x.

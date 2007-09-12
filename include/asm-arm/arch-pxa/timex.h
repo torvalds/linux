@@ -21,4 +21,6 @@
 #else
 #define CLOCK_TICK_RATE 3250000
 #endif
+#else
+#define CLOCK_TICK_RATE 3250000
 #endif

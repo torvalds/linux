@@ -6,6 +6,9 @@
 obj-y				+= clock.o generic.o irq.o dma.o time.o
 obj-$(CONFIG_PXA25x)		+= pxa25x.o
 obj-$(CONFIG_PXA27x)		+= pxa27x.o
+obj-$(CONFIG_PXA3xx)		+= pxa3xx.o mfp.o
+obj-$(CONFIG_CPU_PXA300)	+= pxa300.o
+obj-$(CONFIG_CPU_PXA320)	+= pxa320.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
@@ -19,6 +22,12 @@ obj-$(CONFIG_MACH_AKITA)	+= akita-ioexp.o
 obj-$(CONFIG_MACH_POODLE)	+= poodle.o corgi_ssp.o
 obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
+
+ifeq ($(CONFIG_MACH_ZYLONITE),y)
+  obj-y				+= zylonite.o
+  obj-$(CONFIG_CPU_PXA300)	+= zylonite_pxa300.o
+  obj-$(CONFIG_CPU_PXA320)	+= zylonite_pxa320.o
+endif
 
 # Support for blinky lights
 led-y := leds.o
