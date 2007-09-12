@@ -3725,6 +3725,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev = (struct net_device *)
 		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 	dev->padded = (char *)dev - (char *)p;
+	dev->nd_net = &init_net;
 
 	if (sizeof_priv) {
 		dev->priv = ((char *)dev +
