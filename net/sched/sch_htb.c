@@ -132,10 +132,8 @@ struct htb_class {
 static inline long L2T(struct htb_class *cl, struct qdisc_rate_table *rate,
 			   int size)
 {
-	int slot = size >> rate->rate.cell_log;
-	if (slot > 255)
-		return (rate->data[255]*(slot >> 8) + rate->data[slot & 0xFF]);
-	return rate->data[slot];
+	long result = qdisc_l2t(rate, size);
+	return result;
 }
 
 struct htb_sched {
