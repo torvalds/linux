@@ -715,8 +715,7 @@ next_task:
 }
 
 /* Try to create a FLOCK lock on filp. We always insert new FLOCK locks
- * at the head of the list, but that's secret knowledge known only to
- * flock_lock_file and posix_lock_file.
+ * after any leases, but before any posix locks.
  *
  * Note that if called with an FL_EXISTS argument, the caller may determine
  * whether or not a lock was successfully freed by testing the return
