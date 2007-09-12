@@ -1060,6 +1060,8 @@ int dev_open(struct net_device *dev)
  */
 int dev_close(struct net_device *dev)
 {
+	might_sleep();
+
 	if (!(dev->flags & IFF_UP))
 		return 0;
 
