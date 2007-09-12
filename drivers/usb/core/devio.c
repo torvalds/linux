@@ -1576,6 +1576,7 @@ static unsigned int usbdev_poll(struct file *file, struct poll_table_struct *wai
 }
 
 const struct file_operations usbdev_file_operations = {
+	.owner = 	THIS_MODULE,
 	.llseek =	usbdev_lseek,
 	.read =		usbdev_read,
 	.poll =		usbdev_poll,
@@ -1625,10 +1626,7 @@ static struct notifier_block usbdev_nb = {
 };
 #endif
 
-static struct cdev usb_device_cdev = {
-	.kobj   = {.name = "usb_device", },
-	.owner  = THIS_MODULE,
-};
+static struct cdev usb_device_cdev;
 
 int __init usb_devio_init(void)
 {

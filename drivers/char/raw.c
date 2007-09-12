@@ -255,10 +255,7 @@ static const struct file_operations raw_ctl_fops = {
 	.owner	=	THIS_MODULE,
 };
 
-static struct cdev raw_cdev = {
-	.kobj	=	{.name = "raw", },
-	.owner	=	THIS_MODULE,
-};
+static struct cdev raw_cdev;
 
 static int __init raw_init(void)
 {
