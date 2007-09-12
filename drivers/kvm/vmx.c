@@ -170,6 +170,16 @@ static inline int is_external_interrupt(u32 intr_info)
 		== (INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
 }
 
+static inline int cpu_has_vmx_tpr_shadow(void)
+{
+	return (vmcs_config.cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW);
+}
+
+static inline int vm_need_tpr_shadow(struct kvm *kvm)
+{
+	return ((cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm)));
+}
+
 static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
@@ -888,10 +898,19 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_USE_IO_BITMAPS |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING;
+#ifdef CONFIG_X86_64
+	opt = CPU_BASED_TPR_SHADOW;
+#else
 	opt = 0;
+#endif
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
 				&_cpu_based_exec_control) < 0)
 		return -EIO;
+#ifdef CONFIG_X86_64
+	if ((_cpu_based_exec_control & CPU_BASED_TPR_SHADOW))
+		_cpu_based_exec_control &= ~CPU_BASED_CR8_LOAD_EXITING &
+					   ~CPU_BASED_CR8_STORE_EXITING;
+#endif
 
 	min = 0;
 #ifdef CONFIG_X86_64
@@ -1384,6 +1403,7 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	int ret = 0;
 	unsigned long kvm_vmx_return;
 	u64 msr;
+	u32 exec_control;
 
 	if (!init_rmode_tss(vmx->vcpu.kvm)) {
 		ret = -ENOMEM;
@@ -1459,8 +1479,16 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	/* Control */
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL,
 		vmcs_config.pin_based_exec_ctrl);
-	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL,
-		vmcs_config.cpu_based_exec_ctrl);
+
+	exec_control = vmcs_config.cpu_based_exec_ctrl;
+	if (!vm_need_tpr_shadow(vmx->vcpu.kvm)) {
+		exec_control &= ~CPU_BASED_TPR_SHADOW;
+#ifdef CONFIG_X86_64
+		exec_control |= CPU_BASED_CR8_STORE_EXITING |
+				CPU_BASED_CR8_LOAD_EXITING;
+#endif
+	}
+	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, 0);
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, 0);
@@ -1532,8 +1560,11 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
 
 #ifdef CONFIG_X86_64
-	vmcs_writel(VIRTUAL_APIC_PAGE_ADDR, 0);
-	vmcs_writel(TPR_THRESHOLD, 0);
+	vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
+	if (vm_need_tpr_shadow(vmx->vcpu.kvm))
+		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
+			     page_to_phys(vmx->vcpu.apic->regs_page));
+	vmcs_write32(TPR_THRESHOLD, 0);
 #endif
 
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
@@ -1969,6 +2000,12 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int handle_tpr_below_threshold(struct kvm_vcpu *vcpu,
+				      struct kvm_run *kvm_run)
+{
+	return 1;
+}
+
 static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 			      struct kvm_run *kvm_run)
 {
@@ -2036,6 +2073,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
 	[EXIT_REASON_HLT]                     = handle_halt,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
+	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold
 };
 
 static const int kvm_vmx_max_exit_handlers =
@@ -2083,6 +2121,23 @@ static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 {
 }
 
+static void update_tpr_threshold(struct kvm_vcpu *vcpu)
+{
+	int max_irr, tpr;
+
+	if (!vm_need_tpr_shadow(vcpu->kvm))
+		return;
+
+	if (!kvm_lapic_enabled(vcpu) ||
+	    ((max_irr = kvm_lapic_find_highest_irr(vcpu)) == -1)) {
+		vmcs_write32(TPR_THRESHOLD, 0);
+		return;
+	}
+
+	tpr = (kvm_lapic_get_cr8(vcpu) & 0x0f) << 4;
+	vmcs_write32(TPR_THRESHOLD, (max_irr > tpr) ? tpr >> 4 : max_irr >> 4);
+}
+
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
@@ -2096,6 +2151,8 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 {
 	u32 idtv_info_field, intr_info_field;
 	int has_ext_irq, interrupt_window_open;
+
+	update_tpr_threshold(vcpu);
 
 	has_ext_irq = kvm_cpu_has_interrupt(vcpu);
 	intr_info_field = vmcs_read32(VM_ENTRY_INTR_INFO_FIELD);

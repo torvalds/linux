@@ -170,6 +170,19 @@ static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 	return result;
 }
 
+int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	int highest_irr;
+
+	if (!apic)
+		return 0;
+	highest_irr = apic_find_highest_irr(apic);
+
+	return highest_irr;
+}
+EXPORT_SYMBOL_GPL(kvm_lapic_find_highest_irr);
+
 int kvm_apic_set_irq(struct kvm_lapic *apic, u8 vec, u8 trig)
 {
 	if (!apic_test_and_set_irr(vec, apic)) {
@@ -483,6 +496,7 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 		break;
 
 	default:
+		apic_update_ppr(apic);
 		val = apic_get_reg(apic, offset);
 		break;
 	}
@@ -723,6 +737,7 @@ u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 
 	return (tpr & 0xf0) >> 4;
 }
+EXPORT_SYMBOL_GPL(kvm_lapic_get_cr8);
 
 void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 {
@@ -809,6 +824,7 @@ int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(kvm_lapic_enabled);
 
 /*
  *----------------------------------------------------------------------
@@ -911,6 +927,7 @@ int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu)
 	if (!apic || !apic_enabled(apic))
 		return -1;
 
+	apic_update_ppr(apic);
 	highest_irr = apic_find_highest_irr(apic);
 	if ((highest_irr == -1) ||
 	    ((highest_irr & 0xF0) <= apic_get_reg(apic, APIC_PROCPRI)))

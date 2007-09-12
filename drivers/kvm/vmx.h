@@ -213,6 +213,7 @@ enum vmcs_field {
 #define EXIT_REASON_MSR_READ            31
 #define EXIT_REASON_MSR_WRITE           32
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
+#define EXIT_REASON_TPR_BELOW_THRESHOLD 43
 
 /*
  * Interruption-information format
