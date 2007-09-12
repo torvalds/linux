@@ -225,6 +225,7 @@ struct net_device loopback_dev = {
 				  | NETIF_F_LLTX
 				  | NETIF_F_NETNS_LOCAL,
 	.ethtool_ops		= &loopback_ethtool_ops,
+	.nd_net                 = &init_net,
 };
 
 /* Setup and register the loopback device. */
