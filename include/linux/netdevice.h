@@ -41,6 +41,7 @@
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 
+struct net;
 struct vlan_group;
 struct ethtool_ops;
 struct netpoll_info;
@@ -662,6 +663,9 @@ struct net_device
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	void                    (*poll_controller)(struct net_device *dev);
 #endif
+
+	/* Network namespace this network device is inside */
+	struct net		*nd_net;
 
 	/* bridge stuff */
 	struct net_bridge_port	*br_port;
