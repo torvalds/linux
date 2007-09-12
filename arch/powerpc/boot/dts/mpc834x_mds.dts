@@ -183,126 +183,6 @@
 			interrupt-parent = < &ipic >;
 		};
 
-		pci@8500 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-					/* IDSEL 0x11 */
-					 8800 0 0 1 &ipic 14 8
-					 8800 0 0 2 &ipic 15 8
-					 8800 0 0 3 &ipic 16 8
-					 8800 0 0 4 &ipic 17 8
-
-					/* IDSEL 0x12 */
-					 9000 0 0 1 &ipic 16 8
-					 9000 0 0 2 &ipic 17 8
-					 9000 0 0 3 &ipic 14 8
-					 9000 0 0 4 &ipic 15 8
-
-					/* IDSEL 0x13 */
-					 9800 0 0 1 &ipic 17 8
-					 9800 0 0 2 &ipic 14 8
-					 9800 0 0 3 &ipic 15 8
-					 9800 0 0 4 &ipic 16 8
-
-					/* IDSEL 0x15 */
-					 a800 0 0 1 &ipic 14 8
-					 a800 0 0 2 &ipic 15 8
-					 a800 0 0 3 &ipic 16 8
-					 a800 0 0 4 &ipic 17 8
-
-					/* IDSEL 0x16 */
-					 b000 0 0 1 &ipic 17 8
-					 b000 0 0 2 &ipic 14 8
-					 b000 0 0 3 &ipic 15 8
-					 b000 0 0 4 &ipic 16 8
-
-					/* IDSEL 0x17 */
-					 b800 0 0 1 &ipic 16 8
-					 b800 0 0 2 &ipic 17 8
-					 b800 0 0 3 &ipic 14 8
-					 b800 0 0 4 &ipic 15 8
-
-					/* IDSEL 0x18 */
-					 c000 0 0 1 &ipic 15 8
-					 c000 0 0 2 &ipic 16 8
-					 c000 0 0 3 &ipic 17 8
-					 c000 0 0 4 &ipic 14 8>;
-			interrupt-parent = < &ipic >;
-			interrupts = <42 8>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 90000000 90000000 0 10000000
-				  42000000 0 80000000 80000000 0 10000000
-				  01000000 0 00000000 e2000000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8500 100>;
-			compatible = "fsl,mpc8349-pci";
-			device_type = "pci";
-		};
-
-		pci@8600 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-					/* IDSEL 0x11 */
-					 8800 0 0 1 &ipic 14 8
-					 8800 0 0 2 &ipic 15 8
-					 8800 0 0 3 &ipic 16 8
-					 8800 0 0 4 &ipic 17 8
-
-					/* IDSEL 0x12 */
-					 9000 0 0 1 &ipic 16 8
-					 9000 0 0 2 &ipic 17 8
-					 9000 0 0 3 &ipic 14 8
-					 9000 0 0 4 &ipic 15 8
-
-					/* IDSEL 0x13 */
-					 9800 0 0 1 &ipic 17 8
-					 9800 0 0 2 &ipic 14 8
-					 9800 0 0 3 &ipic 15 8
-					 9800 0 0 4 &ipic 16 8
-
-					/* IDSEL 0x15 */
-					 a800 0 0 1 &ipic 14 8
-					 a800 0 0 2 &ipic 15 8
-					 a800 0 0 3 &ipic 16 8
-					 a800 0 0 4 &ipic 17 8
-
-					/* IDSEL 0x16 */
-					 b000 0 0 1 &ipic 17 8
-					 b000 0 0 2 &ipic 14 8
-					 b000 0 0 3 &ipic 15 8
-					 b000 0 0 4 &ipic 16 8
-
-					/* IDSEL 0x17 */
-					 b800 0 0 1 &ipic 16 8
-					 b800 0 0 2 &ipic 17 8
-					 b800 0 0 3 &ipic 14 8
-					 b800 0 0 4 &ipic 15 8
-
-					/* IDSEL 0x18 */
-					 c000 0 0 1 &ipic 15 8
-					 c000 0 0 2 &ipic 16 8
-					 c000 0 0 3 &ipic 17 8
-					 c000 0 0 4 &ipic 14 8>;
-			interrupt-parent = < &ipic >;
-			interrupts = <42 8>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 b0000000 b0000000 0 10000000
-				  42000000 0 a0000000 a0000000 0 10000000
-				  01000000 0 00000000 e2100000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8600 100>;
-			compatible = "fsl,mpc8349-pci";
-			device_type = "pci";
-		};
-
 		/* May need to remove if on a part without crypto engine */
 		crypto@30000 {
 			device_type = "crypto";
@@ -332,5 +212,125 @@
 			reg = <700 100>;
 			device_type = "ipic";
 		};
+	};
+
+	pci@e0008500 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+				/* IDSEL 0x11 */
+				 8800 0 0 1 &ipic 14 8
+				 8800 0 0 2 &ipic 15 8
+				 8800 0 0 3 &ipic 16 8
+				 8800 0 0 4 &ipic 17 8
+
+				/* IDSEL 0x12 */
+				 9000 0 0 1 &ipic 16 8
+				 9000 0 0 2 &ipic 17 8
+				 9000 0 0 3 &ipic 14 8
+				 9000 0 0 4 &ipic 15 8
+
+				/* IDSEL 0x13 */
+				 9800 0 0 1 &ipic 17 8
+				 9800 0 0 2 &ipic 14 8
+				 9800 0 0 3 &ipic 15 8
+				 9800 0 0 4 &ipic 16 8
+
+				/* IDSEL 0x15 */
+				 a800 0 0 1 &ipic 14 8
+				 a800 0 0 2 &ipic 15 8
+				 a800 0 0 3 &ipic 16 8
+				 a800 0 0 4 &ipic 17 8
+
+				/* IDSEL 0x16 */
+				 b000 0 0 1 &ipic 17 8
+				 b000 0 0 2 &ipic 14 8
+				 b000 0 0 3 &ipic 15 8
+				 b000 0 0 4 &ipic 16 8
+
+				/* IDSEL 0x17 */
+				 b800 0 0 1 &ipic 16 8
+				 b800 0 0 2 &ipic 17 8
+				 b800 0 0 3 &ipic 14 8
+				 b800 0 0 4 &ipic 15 8
+
+				/* IDSEL 0x18 */
+				 c000 0 0 1 &ipic 15 8
+				 c000 0 0 2 &ipic 16 8
+				 c000 0 0 3 &ipic 17 8
+				 c000 0 0 4 &ipic 14 8>;
+		interrupt-parent = < &ipic >;
+		interrupts = <42 8>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 90000000 90000000 0 10000000
+			  42000000 0 80000000 80000000 0 10000000
+			  01000000 0 00000000 e2000000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008500 100>;
+		compatible = "fsl,mpc8349-pci";
+		device_type = "pci";
+	};
+
+	pci@e0008600 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+				/* IDSEL 0x11 */
+				 8800 0 0 1 &ipic 14 8
+				 8800 0 0 2 &ipic 15 8
+				 8800 0 0 3 &ipic 16 8
+				 8800 0 0 4 &ipic 17 8
+
+				/* IDSEL 0x12 */
+				 9000 0 0 1 &ipic 16 8
+				 9000 0 0 2 &ipic 17 8
+				 9000 0 0 3 &ipic 14 8
+				 9000 0 0 4 &ipic 15 8
+
+				/* IDSEL 0x13 */
+				 9800 0 0 1 &ipic 17 8
+				 9800 0 0 2 &ipic 14 8
+				 9800 0 0 3 &ipic 15 8
+				 9800 0 0 4 &ipic 16 8
+
+				/* IDSEL 0x15 */
+				 a800 0 0 1 &ipic 14 8
+				 a800 0 0 2 &ipic 15 8
+				 a800 0 0 3 &ipic 16 8
+				 a800 0 0 4 &ipic 17 8
+
+				/* IDSEL 0x16 */
+				 b000 0 0 1 &ipic 17 8
+				 b000 0 0 2 &ipic 14 8
+				 b000 0 0 3 &ipic 15 8
+				 b000 0 0 4 &ipic 16 8
+
+				/* IDSEL 0x17 */
+				 b800 0 0 1 &ipic 16 8
+				 b800 0 0 2 &ipic 17 8
+				 b800 0 0 3 &ipic 14 8
+				 b800 0 0 4 &ipic 15 8
+
+				/* IDSEL 0x18 */
+				 c000 0 0 1 &ipic 15 8
+				 c000 0 0 2 &ipic 16 8
+				 c000 0 0 3 &ipic 17 8
+				 c000 0 0 4 &ipic 14 8>;
+		interrupt-parent = < &ipic >;
+		interrupts = <42 8>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 b0000000 b0000000 0 10000000
+			  42000000 0 a0000000 a0000000 0 10000000
+			  01000000 0 00000000 e2100000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008600 100>;
+		compatible = "fsl,mpc8349-pci";
+		device_type = "pci";
 	};
 };
