@@ -32,10 +32,12 @@ void net_unlock(void)
 	mutex_unlock(&net_list_mutex);
 }
 
+#if 0
 static struct net *net_alloc(void)
 {
 	return kmem_cache_alloc(net_cachep, GFP_KERNEL);
 }
+#endif
 
 static void net_free(struct net *net)
 {
