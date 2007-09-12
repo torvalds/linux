@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.23-rc4
-# Mon Sep 10 19:47:53 2007
+# Tue Sep 11 19:42:44 2007
 #
 CONFIG_SUPERH=y
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
@@ -351,10 +351,10 @@ CONFIG_SCSI_LOWLEVEL=y
 CONFIG_ATA=y
 # CONFIG_ATA_NONSTANDARD is not set
 # CONFIG_PATA_LEGACY is not set
-CONFIG_PATA_PCMCIA=y
+# CONFIG_PATA_PCMCIA is not set
 # CONFIG_PATA_QDI is not set
 # CONFIG_PATA_WINBOND_VLB is not set
-# CONFIG_PATA_PLATFORM is not set
+CONFIG_PATA_PLATFORM=y
 # CONFIG_MD is not set
 # CONFIG_PHONE is not set
 
@@ -462,20 +462,7 @@ CONFIG_DEVPORT=y
 # CONFIG_SPI_MASTER is not set
 # CONFIG_W1 is not set
 # CONFIG_POWER_SUPPLY is not set
-CONFIG_HWMON=y
-# CONFIG_HWMON_VID is not set
-# CONFIG_SENSORS_ABITUGURU is not set
-# CONFIG_SENSORS_ABITUGURU3 is not set
-# CONFIG_SENSORS_F71805F is not set
-# CONFIG_SENSORS_IT87 is not set
-# CONFIG_SENSORS_PC87360 is not set
-# CONFIG_SENSORS_PC87427 is not set
-# CONFIG_SENSORS_SMSC47M1 is not set
-# CONFIG_SENSORS_SMSC47B397 is not set
-# CONFIG_SENSORS_VT1211 is not set
-# CONFIG_SENSORS_W83627HF is not set
-# CONFIG_SENSORS_W83627EHF is not set
-# CONFIG_HWMON_DEBUG_CHIP is not set
+# CONFIG_HWMON is not set
 
 #
 # Multifunction device drivers
@@ -745,7 +732,6 @@ CONFIG_ENABLE_MUST_CHECK=y
 # CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_SH_STANDARD_BIOS is not set
 # CONFIG_EARLY_SCIF_CONSOLE is not set
-# CONFIG_EARLY_PRINTK is not set
 # CONFIG_SH_KGDB is not set
 
 #
