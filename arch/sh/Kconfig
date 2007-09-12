@@ -395,11 +395,18 @@ config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
 
+config SH_MAGIC_PANEL_R2
+	bool "Magic Panel R2"
+	depends on CPU_SUBTYPE_SH7720
+	help
+	  Select Magic Panel R2 if configuring for Magic Panel R2.
+
 endmenu
 
 source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
+source "arch/sh/boards/magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"
 
