@@ -178,7 +178,9 @@ define_machine(mpc8544_ds) {
 	.probe			= mpc8544_ds_probe,
 	.setup_arch		= mpc8544_ds_setup_arch,
 	.init_IRQ		= mpc8544_ds_pic_init,
+#ifdef CONFIG_PCI
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
 	.get_irq		= mpic_get_irq,
 	.restart		= mpc85xx_restart,
 	.calibrate_decr		= generic_calibrate_decr,

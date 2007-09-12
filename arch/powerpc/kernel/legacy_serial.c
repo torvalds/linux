@@ -493,7 +493,7 @@ static int __init serial_dev_init(void)
 
 	return platform_device_register(&serial_device);
 }
-arch_initcall(serial_dev_init);
+device_initcall(serial_dev_init);
 
 
 /*

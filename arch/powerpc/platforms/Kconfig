@@ -285,6 +285,7 @@ config AXON_RAM
 config FSL_ULI1575
 	bool
 	default n
+	select GENERIC_ISA_DMA
 	help
 	  Supports for the ULI1575 PCIe south bridge that exists on some
 	  Freescale reference boards. The boards all use the ULI in pretty
