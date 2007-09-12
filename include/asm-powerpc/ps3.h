@@ -229,6 +229,9 @@ enum lv1_result {
 	LV1_INVALID_CLASS_ID            = -21,
 	LV1_CONSTRAINT_NOT_SATISFIED    = -22,
 	LV1_ALIGNMENT_ERROR             = -23,
+	LV1_HARDWARE_ERROR              = -24,
+	LV1_INVALID_DATA_FORMAT         = -25,
+	LV1_INVALID_OPERATION           = -26,
 	LV1_INTERNAL_ERROR              = -32768,
 };
 
@@ -284,6 +287,12 @@ static inline const char* ps3_result(int result)
 		return "LV1_CONSTRAINT_NOT_SATISFIED (-22)";
 	case LV1_ALIGNMENT_ERROR:
 		return "LV1_ALIGNMENT_ERROR (-23)";
+	case LV1_HARDWARE_ERROR:
+		return "LV1_HARDWARE_ERROR (-24)";
+	case LV1_INVALID_DATA_FORMAT:
+		return "LV1_INVALID_DATA_FORMAT (-25)";
+	case LV1_INVALID_OPERATION:
+		return "LV1_INVALID_OPERATION (-26)";
 	case LV1_INTERNAL_ERROR:
 		return "LV1_INTERNAL_ERROR (-32768)";
 	default:
