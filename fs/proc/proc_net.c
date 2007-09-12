@@ -31,6 +31,7 @@ struct proc_dir_entry *proc_net_create(struct net *net,
 {
 	return create_proc_info_entry(name,mode, net->proc_net, get_info);
 }
+EXPORT_SYMBOL_GPL(proc_net_create);
 
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops)
@@ -42,12 +43,13 @@ struct proc_dir_entry *proc_net_fops_create(struct net *net,
 		res->proc_fops = fops;
 	return res;
 }
+EXPORT_SYMBOL_GPL(proc_net_fops_create);
 
 void proc_net_remove(struct net *net, const char *name)
 {
 	remove_proc_entry(name, net->proc_net);
 }
-
+EXPORT_SYMBOL_GPL(proc_net_remove);
 
 static struct proc_dir_entry *proc_net_shadow;
 
