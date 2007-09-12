@@ -149,7 +149,7 @@ int class_register(struct class * cls)
 	if (error)
 		return error;
 
-	subsys_set_kset(cls, class_subsys);
+	cls->subsys.kobj.kset = &class_subsys;
 
 	error = subsystem_register(&cls->subsys);
 	if (!error) {

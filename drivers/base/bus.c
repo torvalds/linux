@@ -823,7 +823,8 @@ int bus_register(struct bus_type * bus)
 	if (retval)
 		goto out;
 
-	subsys_set_kset(bus, bus_subsys);
+	bus->subsys.kobj.kset = &bus_subsys;
+
 	retval = subsystem_register(&bus->subsys);
 	if (retval)
 		goto out;
