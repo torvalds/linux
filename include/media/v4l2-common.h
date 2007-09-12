@@ -104,6 +104,17 @@ int v4l2_chip_match_host(u32 id_type, u32 chip_id);
 
 /* ------------------------------------------------------------------------- */
 
+/* Helper function for I2C legacy drivers */
+
+struct i2c_driver;
+struct i2c_adapter;
+struct i2c_client;
+
+int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
+		const char *name, int (*probe)(struct i2c_client *));
+
+/* ------------------------------------------------------------------------- */
+
 /* Internal ioctls */
 
 /* VIDIOC_INT_DECODE_VBI_LINE */
