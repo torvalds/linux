@@ -330,8 +330,6 @@ inline fastcall void raise_softirq_irqoff(unsigned int nr)
 		wakeup_softirqd();
 }
 
-EXPORT_SYMBOL(raise_softirq_irqoff);
-
 void fastcall raise_softirq(unsigned int nr)
 {
 	unsigned long flags;
