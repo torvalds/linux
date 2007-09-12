@@ -43,7 +43,6 @@
 #define GT_PCI_MEM_SIZE	0x02000000UL
 #define GT_PCI_IO_BASE	0x11000000UL
 #define GT_PCI_IO_SIZE	0x02000000UL
-#define GT_ISA_IO_BASE	PCI_IO_BASE
 
 /*
  * PCI interrupts will come in on either the INTA or INTD interrups lines,
