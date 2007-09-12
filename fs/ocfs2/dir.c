@@ -271,6 +271,28 @@ cleanup_and_exit:
 	return ret;
 }
 
+int ocfs2_update_entry(struct inode *dir, handle_t *handle,
+		       struct buffer_head *de_bh, struct ocfs2_dir_entry *de,
+		       struct inode *new_entry_inode)
+{
+	int ret;
+
+	ret = ocfs2_journal_access(handle, dir, de_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	de->inode = cpu_to_le64(OCFS2_I(new_entry_inode)->ip_blkno);
+	ocfs2_set_de_type(de, new_entry_inode->i_mode);
+
+	ocfs2_journal_dirty(handle, de_bh);
+
+out:
+	return ret;
+}
+
 /*
  * ocfs2_delete_entry deletes a directory entry by merging it with the
  * previous entry

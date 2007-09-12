@@ -50,6 +50,9 @@ static inline int ocfs2_add_entry(handle_t *handle,
 				 dentry->d_name.name, dentry->d_name.len,
 				 inode, blkno, parent_fe_bh, insert_bh);
 }
+int ocfs2_update_entry(struct inode *dir, handle_t *handle,
+		       struct buffer_head *de_bh, struct ocfs2_dir_entry *de,
+		       struct inode *new_entry_inode);
 
 int ocfs2_check_dir_for_entry(struct inode *dir,
 			      const char *name,

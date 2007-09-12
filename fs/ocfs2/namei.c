@@ -933,11 +933,6 @@ static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
 		ocfs2_meta_unlock(inode2, 1);
 }
 
-#define PARENT_INO(buffer) \
-	((struct ocfs2_dir_entry *) \
-	 ((char *)buffer + \
-	  le16_to_cpu(((struct ocfs2_dir_entry *)buffer)->rec_len)))->inode
-
 static int ocfs2_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
@@ -959,8 +954,8 @@ static int ocfs2_rename(struct inode *old_dir,
 	handle_t *handle = NULL;
 	struct buffer_head *old_dir_bh = NULL;
 	struct buffer_head *new_dir_bh = NULL;
-	struct ocfs2_dir_entry *old_de = NULL, *new_de = NULL; // dirent for old_dentry
-							       // and new_dentry
+	struct ocfs2_dir_entry *old_inode_dot_dot_de = NULL, *old_de = NULL,
+		*new_de = NULL;
 	struct buffer_head *new_de_bh = NULL, *old_de_bh = NULL; // bhs for above
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
@@ -1044,19 +1039,26 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 
 	if (S_ISDIR(old_inode->i_mode)) {
-		status = -EIO;
-		old_inode_de_bh = ocfs2_bread(old_inode, 0, &status, 0);
-		if (!old_inode_de_bh)
-			goto bail;
+		u64 old_inode_parent;
 
-		status = -EIO;
-		if (le64_to_cpu(PARENT_INO(old_inode_de_bh->b_data)) !=
-		    OCFS2_I(old_dir)->ip_blkno)
+		status = ocfs2_find_files_on_disk("..", 2, &old_inode_parent,
+						  old_inode, &old_inode_de_bh,
+						  &old_inode_dot_dot_de);
+		if (status) {
+			status = -EIO;
 			goto bail;
-		status = -EMLINK;
-		if (!new_inode && new_dir!=old_dir &&
-		    new_dir->i_nlink >= OCFS2_LINK_MAX)
+		}
+
+		if (old_inode_parent != OCFS2_I(old_dir)->ip_blkno) {
+			status = -EIO;
 			goto bail;
+		}
+
+		if (!new_inode && new_dir != old_dir &&
+		    new_dir->i_nlink >= OCFS2_LINK_MAX) {
+			status = -EMLINK;
+			goto bail;
+		}
 	}
 
 	status = -ENOENT;
@@ -1206,20 +1208,13 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 
 		/* change the dirent to point to the correct inode */
-		status = ocfs2_journal_access(handle, new_dir, new_de_bh,
-					      OCFS2_JOURNAL_ACCESS_WRITE);
+		status = ocfs2_update_entry(new_dir, handle, new_de_bh,
+					    new_de, old_inode);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
 		}
-		new_de->inode = cpu_to_le64(OCFS2_I(old_inode)->ip_blkno);
-		new_de->file_type = old_de->file_type;
 		new_dir->i_version++;
-		status = ocfs2_journal_dirty(handle, new_de_bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
 
 		if (S_ISDIR(new_inode->i_mode))
 			newfe->i_links_count = 0;
@@ -1268,12 +1263,8 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME;
 	if (old_inode_de_bh) {
-		status = ocfs2_journal_access(handle, old_inode,
-					     old_inode_de_bh,
-					     OCFS2_JOURNAL_ACCESS_WRITE);
-		PARENT_INO(old_inode_de_bh->b_data) =
-			cpu_to_le64(OCFS2_I(new_dir)->ip_blkno);
-		status = ocfs2_journal_dirty(handle, old_inode_de_bh);
+		status = ocfs2_update_entry(old_inode, handle, old_inode_de_bh,
+					    old_inode_dot_dot_de, new_dir);
 		old_dir->i_nlink--;
 		if (new_inode) {
 			new_inode->i_nlink--;
