@@ -330,15 +330,16 @@ static void aarp_expire_timeout(unsigned long unused)
 static int aarp_device_event(struct notifier_block *this, unsigned long event,
 			     void *ptr)
 {
+	struct net_device *dev = ptr;
 	int ct;
 
 	if (event == NETDEV_DOWN) {
 		write_lock_bh(&aarp_lock);
 
 		for (ct = 0; ct < AARP_HASH_SIZE; ct++) {
-			__aarp_expire_device(&resolved[ct], ptr);
-			__aarp_expire_device(&unresolved[ct], ptr);
-			__aarp_expire_device(&proxies[ct], ptr);
+			__aarp_expire_device(&resolved[ct], dev);
+			__aarp_expire_device(&unresolved[ct], dev);
+			__aarp_expire_device(&proxies[ct], dev);
 		}
 
 		write_unlock_bh(&aarp_lock);
