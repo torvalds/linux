@@ -56,8 +56,6 @@ static struct chan_waitqueues {
 	struct mutex mutex;
 } channel_wqs[RTLX_CHANNELS];
 
-static struct irqaction irq;
-static int irq_num;
 static struct vpe_notifications notify;
 static int sp_stopping = 0;
 
