@@ -2390,6 +2390,12 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_vcpu;
 
+	if (irqchip_in_kernel(kvm)) {
+		err = kvm_create_lapic(&vmx->vcpu);
+		if (err < 0)
+			goto free_vcpu;
+	}
+
 	vmx->guest_msrs = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!vmx->guest_msrs) {
 		err = -ENOMEM;

@@ -324,6 +324,7 @@ struct kvm_vcpu {
 	u64 pdptrs[4]; /* pae */
 	u64 shadow_efer;
 	u64 apic_base;
+	struct kvm_lapic *apic;    /* kernel irqchip context */
 	u64 ia32_misc_enable_msr;
 
 	struct kvm_mmu mmu;
@@ -569,8 +570,6 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr0);
 void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr0);
 void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr0);
 unsigned long get_cr8(struct kvm_vcpu *vcpu);
-u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
-void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
 void lmsw(struct kvm_vcpu *vcpu, unsigned long msw);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);

@@ -34,7 +34,7 @@ struct kvm_memory_alias {
 	__u64 target_phys_addr;
 };
 
-/* for KVM_SET_IRQ_LEVEL */
+/* for KVM_IRQ_LINE */
 struct kvm_irq_level {
 	/*
 	 * ACPI gsi notion of irq.
@@ -297,7 +297,7 @@ struct kvm_signal_mask {
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
-#define KVM_IRQ_LINE		  _IO(KVMIO,  0x61)
+#define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
 
 /*
  * ioctls for vcpu fds

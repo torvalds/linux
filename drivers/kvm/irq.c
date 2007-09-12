@@ -30,14 +30,13 @@
  */
 int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 {
-	struct kvm_pic *s = pic_irqchip(v->kvm);
+	struct kvm_pic *s;
 
-	if (s->output)	/* PIC */
-		return 1;
-	/*
-	 * TODO: APIC
-	 */
-	return 0;
+	if (kvm_apic_has_interrupt(v) == -1) {	/* LAPIC */
+		s = pic_irqchip(v->kvm);	/* PIC */
+		return s->output;
+	}
+	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 
@@ -46,16 +45,36 @@ EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
  */
 int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 {
-	struct kvm_pic *s = pic_irqchip(v->kvm);
+	struct kvm_pic *s;
 	int vector;
 
-	s->output = 0;
-	vector = kvm_pic_read_irq(s);
-	if (vector != -1)
-		return vector;
-	/*
-	 * TODO: APIC
-	 */
-	return -1;
+	vector = kvm_get_apic_interrupt(v);	/* APIC */
+	if (vector == -1) {
+		s = pic_irqchip(v->kvm);
+		s->output = 0;		/* PIC */
+		vector = kvm_pic_read_irq(s);
+	}
+	return vector;
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
+
+static void vcpu_kick_intr(void *info)
+{
+#ifdef DEBUG
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)info;
+	printk(KERN_DEBUG "vcpu_kick_intr %p \n", vcpu);
+#endif
+}
+
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	int ipi_pcpu = vcpu->cpu;
+
+	if (vcpu->guest_mode)
+		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
+}
+
+void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
+{
+	/* TODO: for kernel IOAPIC */
+}

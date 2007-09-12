@@ -281,6 +281,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu)
 {
 	kvm_mmu_destroy(vcpu);
+	kvm_free_apic(vcpu->apic);
 	free_page((unsigned long)vcpu->pio_data);
 	free_page((unsigned long)vcpu->run);
 }
@@ -598,25 +599,38 @@ void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 		inject_gp(vcpu);
 		return;
 	}
-	vcpu->cr8 = cr8;
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_lapic_set_tpr(vcpu, cr8);
+	else
+		vcpu->cr8 = cr8;
 }
 EXPORT_SYMBOL_GPL(set_cr8);
 
 unsigned long get_cr8(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr8;
+	if (irqchip_in_kernel(vcpu->kvm))
+		return kvm_lapic_get_cr8(vcpu);
+	else
+		return vcpu->cr8;
 }
 EXPORT_SYMBOL_GPL(get_cr8);
 
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
 {
-	return vcpu->apic_base;
+	if (irqchip_in_kernel(vcpu->kvm))
+		return vcpu->apic_base;
+	else
+		return vcpu->apic_base;
 }
 EXPORT_SYMBOL_GPL(kvm_get_apic_base);
 
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
 {
-	vcpu->apic_base = data;
+	/* TODO: reserve bits check */
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_lapic_set_base(vcpu, data);
+	else
+		vcpu->apic_base = data;
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
@@ -986,15 +1000,31 @@ static int emulator_write_std(unsigned long addr,
 	return X86EMUL_UNHANDLEABLE;
 }
 
+/*
+ * Only apic need an MMIO device hook, so shortcut now..
+ */
+static struct kvm_io_device *vcpu_find_pervcpu_dev(struct kvm_vcpu *vcpu,
+						gpa_t addr)
+{
+	struct kvm_io_device *dev;
+
+	if (vcpu->apic) {
+		dev = &vcpu->apic->dev;
+		if (dev->in_range(dev, addr))
+			return dev;
+	}
+	return NULL;
+}
+
 static struct kvm_io_device *vcpu_find_mmio_dev(struct kvm_vcpu *vcpu,
 						gpa_t addr)
 {
-	/*
-	 * Note that its important to have this wrapper function because
-	 * in the very near future we will be checking for MMIOs against
-	 * the LAPIC as well as the general MMIO bus
-	 */
-	return kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+	struct kvm_io_device *dev;
+
+	dev = vcpu_find_pervcpu_dev(vcpu, addr);
+	if (dev == NULL)
+		dev = kvm_io_bus_find_dev(&vcpu->kvm->mmio_bus, addr);
+	return dev;
 }
 
 static struct kvm_io_device *vcpu_find_pio_dev(struct kvm_vcpu *vcpu,
@@ -2256,6 +2286,8 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 {
 	if (irq->irq < 0 || irq->irq >= 256)
 		return -EINVAL;
+	if (irqchip_in_kernel(vcpu->kvm))
+		return -ENXIO;
 	vcpu_load(vcpu);
 
 	set_bit(irq->irq, vcpu->irq_pending);

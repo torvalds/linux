@@ -573,6 +573,12 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	if (err)
 		goto free_svm;
 
+	if (irqchip_in_kernel(kvm)) {
+		err = kvm_create_lapic(&svm->vcpu);
+		if (err < 0)
+			goto free_svm;
+	}
+
 	page = alloc_page(GFP_KERNEL);
 	if (!page) {
 		err = -ENOMEM;
