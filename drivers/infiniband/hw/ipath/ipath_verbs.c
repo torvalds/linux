@@ -513,7 +513,7 @@ void ipath_ib_rcv(struct ipath_ibdev *dev, void *rhdr, void *data,
 	/* Check for a valid destination LID (see ch. 7.11.1). */
 	lid = be16_to_cpu(hdr->lrh[1]);
 	if (lid < IPATH_MULTICAST_LID_BASE) {
-		lid &= ~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+		lid &= ~((1 << dev->dd->ipath_lmc) - 1);
 		if (unlikely(lid != dev->dd->ipath_lid)) {
 			dev->rcv_errors++;
 			goto bail;
@@ -1152,7 +1152,7 @@ static int ipath_query_port(struct ib_device *ibdev,
 
 	memset(props, 0, sizeof(*props));
 	props->lid = lid ? lid : __constant_be16_to_cpu(IB_LID_PERMISSIVE);
-	props->lmc = dev->mkeyprot_resv_lmc & 7;
+	props->lmc = dd->ipath_lmc;
 	props->sm_lid = dev->sm_lid;
 	props->sm_sl = dev->sm_sl;
 	ibcstat = dd->ipath_lastibcstat;

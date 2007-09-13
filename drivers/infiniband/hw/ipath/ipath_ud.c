@@ -236,10 +236,10 @@ static void ipath_ud_loopback(struct ipath_qp *sqp, struct ipath_swqe *swqe)
 	wc.pkey_index = 0;
 	wc.slid = dev->dd->ipath_lid |
 		(ah_attr->src_path_bits &
-		 ((1 << (dev->mkeyprot_resv_lmc & 7)) - 1));
+		 ((1 << dev->dd->ipath_lmc) - 1));
 	wc.sl = ah_attr->sl;
 	wc.dlid_path_bits =
-		ah_attr->dlid & ((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+		ah_attr->dlid & ((1 << dev->dd->ipath_lmc) - 1);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
 	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
@@ -289,7 +289,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	} else {
 		dev->n_unicast_xmit++;
 		lid = ah_attr->dlid &
-			~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+			~((1 << dev->dd->ipath_lmc) - 1);
 		if (unlikely(lid == dev->dd->ipath_lid)) {
 			ipath_ud_loopback(qp, wqe);
 			goto done;
@@ -341,7 +341,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 	lid = dev->dd->ipath_lid;
 	if (lid) {
 		lid |= ah_attr->src_path_bits &
-			((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+			((1 << dev->dd->ipath_lmc) - 1);
 		qp->s_hdr.lrh[3] = cpu_to_be16(lid);
 	} else
 		qp->s_hdr.lrh[3] = IB_LID_PERMISSIVE;
@@ -551,7 +551,7 @@ void ipath_ud_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 	 * Save the LMC lower bits if the destination LID is a unicast LID.
 	 */
 	wc.dlid_path_bits = dlid >= IPATH_MULTICAST_LID_BASE ? 0 :
-		dlid & ((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+		dlid & ((1 << dev->dd->ipath_lmc) - 1);
 	wc.port_num = 1;
 	/* Signal completion event if the solicited bit is set. */
 	ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,

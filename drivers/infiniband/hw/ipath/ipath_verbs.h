@@ -501,7 +501,7 @@ struct ipath_ibdev {
 	int ib_unit;		/* This is the device number */
 	u16 sm_lid;		/* in host order */
 	u8 sm_sl;
-	u8 mkeyprot_resv_lmc;
+	u8 mkeyprot;
 	/* non-zero when timer is set */
 	unsigned long mkey_lease_timeout;
 
