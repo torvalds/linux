@@ -46,6 +46,9 @@
 #include <linux/err.h>
 #include "ubi.h"
 
+/* Number of physical eraseblocks reserved for atomic LEB change operation */
+#define EBA_RESERVED_PEBS 1
+
 /**
  * struct ltree_entry - an entry in the lock tree.
  * @rb: links RB-tree nodes
@@ -827,6 +830,9 @@ write_error:
  * data, which has to be aligned. This function guarantees that in case of an
  * unclean reboot the old contents is preserved. Returns zero in case of
  * success and a negative error code in case of failure.
+ *
+ * UBI reserves one LEB for the "atomic LEB change" operation, so only one
+ * LEB change may be done at a time. This is ensured by @ubi->alc_mutex.
  */
 int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 			      const void *buf, int len, int dtype)
@@ -843,11 +849,10 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 	if (!vid_hdr)
 		return -ENOMEM;
 
+	mutex_lock(&ubi->alc_mutex);
 	err = leb_write_lock(ubi, vol_id, lnum);
-	if (err) {
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		return err;
-	}
+	if (err)
+		goto out_mutex;
 
 	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
 	vid_hdr->vol_id = cpu_to_be32(vol_id);
@@ -864,9 +869,8 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
 retry:
 	pnum = ubi_wl_get_peb(ubi, dtype);
 	if (pnum < 0) {
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		leb_write_unlock(ubi, vol_id, lnum);
-		return pnum;
+		err = pnum;
+		goto out_leb_unlock;
 	}
 
 	dbg_eba("change LEB %d:%d, PEB %d, write VID hdr to PEB %d",
@@ -888,17 +892,18 @@ retry:
 
 	if (vol->eba_tbl[lnum] >= 0) {
 		err = ubi_wl_put_peb(ubi, vol->eba_tbl[lnum], 1);
-		if (err) {
-			ubi_free_vid_hdr(ubi, vid_hdr);
-			leb_write_unlock(ubi, vol_id, lnum);
-			return err;
-		}
+		if (err)
+			goto out_leb_unlock;
 	}
 
 	vol->eba_tbl[lnum] = pnum;
+
+out_leb_unlock:
 	leb_write_unlock(ubi, vol_id, lnum);
+out_mutex:
+	mutex_unlock(&ubi->alc_mutex);
 	ubi_free_vid_hdr(ubi, vid_hdr);
-	return 0;
+	return err;
 
 write_error:
 	if (err != -EIO || !ubi->bad_allowed) {
@@ -908,17 +913,13 @@ write_error:
 		 * mode just in case.
 		 */
 		ubi_ro_mode(ubi);
-		leb_write_unlock(ubi, vol_id, lnum);
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		return err;
+		goto out_leb_unlock;
 	}
 
 	err = ubi_wl_put_peb(ubi, pnum, 1);
 	if (err || ++tries > UBI_IO_RETRIES) {
 		ubi_ro_mode(ubi);
-		leb_write_unlock(ubi, vol_id, lnum);
-		ubi_free_vid_hdr(ubi, vid_hdr);
-		return err;
+		goto out_leb_unlock;
 	}
 
 	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
@@ -1122,6 +1123,7 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	dbg_eba("initialize EBA unit");
 
 	spin_lock_init(&ubi->ltree_lock);
+	mutex_init(&ubi->alc_mutex);
 	ubi->ltree = RB_ROOT;
 
 	if (ubi_devices_cnt == 0) {
@@ -1182,6 +1184,14 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		ubi->avail_pebs -= ubi->beb_rsvd_pebs;
 		ubi->rsvd_pebs  += ubi->beb_rsvd_pebs;
 	}
+
+	if (ubi->avail_pebs < EBA_RESERVED_PEBS) {
+		ubi_err("no enough physical eraseblocks (%d, need %d)",
+			ubi->avail_pebs, EBA_RESERVED_PEBS);
+		goto out_free;
+	}
+	ubi->avail_pebs -= EBA_RESERVED_PEBS;
+	ubi->rsvd_pebs += EBA_RESERVED_PEBS;
 
 	dbg_eba("EBA unit is initialized");
 	return 0;

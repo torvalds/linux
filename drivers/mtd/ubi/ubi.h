@@ -221,14 +221,15 @@ struct ubi_wl_entry;
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
+ * @vtbl_mutex: protects on-flash volume table
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
  *
- * global_sqnum: global sequence number
+ * @global_sqnum: global sequence number
  * @ltree_lock: protects the lock tree and @global_sqnum
  * @ltree: the lock tree
- * @vtbl_mutex: protects on-flash volume table
+ * @alc_mutex: serializes "atomic LEB change" operations
  *
  * @used: RB-tree of used physical eraseblocks
  * @free: RB-tree of free physical eraseblocks
@@ -308,6 +309,7 @@ struct ubi_device {
 	unsigned long long global_sqnum;
 	spinlock_t ltree_lock;
 	struct rb_root ltree;
+	struct mutex alc_mutex;
 
 	/* Wear-leveling unit's stuff */
 	struct rb_root used;
