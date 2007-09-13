@@ -59,7 +59,7 @@ static struct platform_device *hp6xx_devices[] __initdata = {
 static void __init hp6xx_init_irq(void)
 {
 	/* Gets touchscreen and powerbutton IRQ working */
-	plat_irq_setup(IRQ_MODE_IRQ);
+	plat_irq_setup_pins(IRQ_MODE_IRQ);
 }
 
 static int __init hp6xx_devices_setup(void)
