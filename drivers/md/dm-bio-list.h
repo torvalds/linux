@@ -9,6 +9,8 @@
 
 #include <linux/bio.h>
 
+#ifdef CONFIG_BLOCK
+
 struct bio_list {
 	struct bio *head;
 	struct bio *tail;
@@ -106,4 +108,5 @@ static inline struct bio *bio_list_get(struct bio_list *bl)
 	return bio;
 }
 
+#endif /* CONFIG_BLOCK */
 #endif
