@@ -30,6 +30,11 @@
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
 
+static void bus_put(struct bus_type *bus)
+{
+	kset_put(&bus->subsys);
+}
+
 static ssize_t
 drv_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
@@ -124,7 +129,7 @@ int bus_create_file(struct bus_type * bus, struct bus_attribute * attr)
 	int error;
 	if (get_bus(bus)) {
 		error = sysfs_create_file(&bus->subsys.kobj, &attr->attr);
-		put_bus(bus);
+		bus_put(bus);
 	} else
 		error = -EINVAL;
 	return error;
@@ -134,7 +139,7 @@ void bus_remove_file(struct bus_type * bus, struct bus_attribute * attr)
 {
 	if (get_bus(bus)) {
 		sysfs_remove_file(&bus->subsys.kobj, &attr->attr);
-		put_bus(bus);
+		bus_put(bus);
 	}
 }
 
@@ -186,7 +191,7 @@ static ssize_t driver_unbind(struct device_driver *drv,
 		err = count;
 	}
 	put_device(dev);
-	put_bus(bus);
+	bus_put(bus);
 	return err;
 }
 static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
@@ -219,7 +224,7 @@ static ssize_t driver_bind(struct device_driver *drv,
 			err = -ENODEV;
 	}
 	put_device(dev);
-	put_bus(bus);
+	bus_put(bus);
 	return err;
 }
 static DRIVER_ATTR(bind, S_IWUSR, NULL, driver_bind);
@@ -459,7 +464,7 @@ out_subsys:
 out_id:
 	device_remove_attrs(bus, dev);
 out_put:
-	put_bus(dev->bus);
+	bus_put(dev->bus);
 	return error;
 }
 
@@ -509,7 +514,7 @@ void bus_remove_device(struct device * dev)
 		}
 		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
-		put_bus(dev->bus);
+		bus_put(dev->bus);
 	}
 }
 
@@ -646,7 +651,7 @@ int bus_add_driver(struct device_driver *drv)
 out_unregister:
 	kobject_unregister(&drv->kobj);
 out_put_bus:
-	put_bus(bus);
+	bus_put(bus);
 	return error;
 }
 
@@ -671,7 +676,7 @@ void bus_remove_driver(struct device_driver * drv)
 	driver_detach(drv);
 	module_remove_driver(drv);
 	kobject_unregister(&drv->kobj);
-	put_bus(drv->bus);
+	bus_put(drv->bus);
 }
 
 
@@ -731,12 +736,6 @@ struct bus_type *get_bus(struct bus_type *bus)
 	return bus ? container_of(kset_get(&bus->subsys),
 				struct bus_type, subsys) : NULL;
 }
-
-void put_bus(struct bus_type * bus)
-{
-	kset_put(&bus->subsys);
-}
-
 
 /**
  *	find_bus - locate bus by name.
@@ -874,7 +873,7 @@ out:
  *	@bus:	bus.
  *
  *	Unregister the child subsystems and the bus itself.
- *	Finally, we call put_bus() to release the refcount
+ *	Finally, we call bus_put() to release the refcount
  */
 void bus_unregister(struct bus_type * bus)
 {
