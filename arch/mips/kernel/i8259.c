@@ -30,8 +30,10 @@
 
 static int i8259A_auto_eoi = -1;
 DEFINE_SPINLOCK(i8259A_lock);
-/* some platforms call this... */
-void mask_and_ack_8259A(unsigned int);
+static void disable_8259A_irq(unsigned int irq);
+static void enable_8259A_irq(unsigned int irq);
+static void mask_and_ack_8259A(unsigned int irq);
+static void init_8259A(int auto_eoi);
 
 static struct irq_chip i8259A_chip = {
 	.name		= "XT-PIC",
@@ -56,7 +58,7 @@ static unsigned int cached_irq_mask = 0xffff;
 #define cached_master_mask	(cached_irq_mask)
 #define cached_slave_mask	(cached_irq_mask >> 8)
 
-void disable_8259A_irq(unsigned int irq)
+static void disable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask;
 	unsigned long flags;
@@ -72,7 +74,7 @@ void disable_8259A_irq(unsigned int irq)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void enable_8259A_irq(unsigned int irq)
+static void enable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask;
 	unsigned long flags;
@@ -142,7 +144,7 @@ static inline int i8259A_irq_real(unsigned int irq)
  * first, _then_ send the EOI, and the order of EOI
  * to the two 8259s is important!
  */
-void mask_and_ack_8259A(unsigned int irq)
+static void mask_and_ack_8259A(unsigned int irq)
 {
 	unsigned int irqmask;
 	unsigned long flags;
@@ -256,7 +258,7 @@ static int __init i8259A_init_sysfs(void)
 
 device_initcall(i8259A_init_sysfs);
 
-void init_8259A(int auto_eoi)
+static void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
