@@ -51,6 +51,7 @@
 
 #define NUM_CHUNKS(length, chunk_size) \
 	(((length) + (chunk_size - 1)) / (chunk_size))
+
 /* max number of rpages (per hcall register_rpages) */
 #define MAX_RPAGES 512
 
@@ -63,6 +64,11 @@ enum ehca_mr_pgsize {
 	EHCA_MR_PGSIZE1M  = 0x100000L,
 	EHCA_MR_PGSIZE16M = 0x1000000L
 };
+
+#define EHCA_MR_PGSHIFT4K  12
+#define EHCA_MR_PGSHIFT64K 16
+#define EHCA_MR_PGSHIFT1M  20
+#define EHCA_MR_PGSHIFT16M 24
 
 static u32 ehca_encode_hwpage_size(u32 pgsize)
 {
@@ -347,17 +353,16 @@ struct ib_mr *ehca_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	/* select proper hw_pgsize */
 	if (ehca_mr_largepage &&
 	    (shca->hca_cap_mr_pgsize & HCA_CAP_MR_PGSIZE_16M)) {
-		if (length <= EHCA_MR_PGSIZE4K
-		    && PAGE_SIZE == EHCA_MR_PGSIZE4K)
-			hwpage_size = EHCA_MR_PGSIZE4K;
-		else if (length <= EHCA_MR_PGSIZE64K)
-			hwpage_size = EHCA_MR_PGSIZE64K;
-		else if (length <= EHCA_MR_PGSIZE1M)
-			hwpage_size = EHCA_MR_PGSIZE1M;
-		else
-			hwpage_size = EHCA_MR_PGSIZE16M;
+		int page_shift = PAGE_SHIFT;
+		if (e_mr->umem->hugetlb) {
+			/* determine page_shift, clamp between 4K and 16M */
+			page_shift = (fls64(length - 1) + 3) & ~3;
+			page_shift = min(max(page_shift, EHCA_MR_PGSHIFT4K),
+					 EHCA_MR_PGSHIFT16M);
+		}
+		hwpage_size = 1UL << page_shift;
 	} else
-		hwpage_size = EHCA_MR_PGSIZE4K;
+		hwpage_size = EHCA_MR_PGSIZE4K; /* ehca1 only supports 4k */
 	ehca_dbg(pd->device, "hwpage_size=%lx", hwpage_size);
 
 reg_user_mr_fallback:
