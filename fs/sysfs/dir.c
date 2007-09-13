@@ -428,8 +428,12 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  */
 int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 {
-	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name))
+	if (sysfs_find_dirent(acxt->parent_sd, sd->s_name)) {
+		printk(KERN_WARNING "sysfs: duplicate filename '%s' "
+		       "can not be created\n", sd->s_name);
+		WARN_ON(1);
 		return -EEXIST;
+	}
 
 	sd->s_parent = sysfs_get(acxt->parent_sd);
 
