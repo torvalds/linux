@@ -919,6 +919,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			goto mkdir_out;
 		}
 
+		mode &= ~current->fs->umask;
 		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
 				mode, NULL /* netfid */, pInfo, &oplock,
 				full_path, cifs_sb->local_nls,
