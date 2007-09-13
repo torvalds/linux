@@ -2818,9 +2818,9 @@ static void hub_events(void)
 				clear_hub_feature(hdev, C_HUB_LOCAL_POWER);
 				if (hubstatus & HUB_STATUS_LOCAL_POWER)
 					/* FIXME: Is this always true? */
-					hub->limited_power = 0;
-				else
 					hub->limited_power = 1;
+				else
+					hub->limited_power = 0;
 			}
 			if (hubchange & HUB_CHANGE_OVERCURRENT) {
 				dev_dbg (hub_dev, "overcurrent change\n");
