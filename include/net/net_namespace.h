@@ -28,7 +28,14 @@ struct net {
 	struct hlist_head	*dev_index_head;
 };
 
+#ifdef CONFIG_NET
+/* Init's network namespace */
 extern struct net init_net;
+#define INIT_NET_NS(net_ns) .net_ns = &init_net,
+#else
+#define INIT_NET_NS(net_ns)
+#endif
+
 extern struct list_head net_namespace_list;
 
 extern void __put_net(struct net *net);
