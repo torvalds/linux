@@ -29,6 +29,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -57,8 +58,7 @@ static int cs53l32a_read(struct i2c_client *client, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
-			    void *arg)
+static int cs53l32a_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct v4l2_routing *route = arg;
 	struct v4l2_control *ctrl = arg;
@@ -134,27 +134,17 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd,
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static struct i2c_driver i2c_driver;
-
-static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
+static int cs53l32a_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	int i;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
@@ -179,55 +169,13 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 
 		v4l_dbg(1, debug, client, "Read Reg %d %02x\n", i, v);
 	}
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int cs53l32a_probe(struct i2c_adapter *adapter)
-{
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, cs53l32a_attach);
-	return 0;
-}
-
-static int cs53l32a_detach(struct i2c_client *client)
-{
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-	kfree(client);
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "cs53l32a",
-	},
-	.id = I2C_DRIVERID_CS53L32A,
-	.attach_adapter = cs53l32a_probe,
-	.detach_client = cs53l32a_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "cs53l32a",
+	.driverid = I2C_DRIVERID_CS53L32A,
 	.command = cs53l32a_command,
+	.probe = cs53l32a_probe,
 };
 
-
-static int __init cs53l32a_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit cs53l32a_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(cs53l32a_init_module);
-module_exit(cs53l32a_cleanup_module);
