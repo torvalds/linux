@@ -184,13 +184,15 @@ static int storage_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
-
 	/* Wait until no command is running */
 	mutex_lock(&us->dev_mutex);
 
+	US_DEBUGP("%s\n", __FUNCTION__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_SUSPEND);
+
+	/* When runtime PM is working, we'll set a flag to indicate
+	 * whether we should autoresume when a SCSI request arrives. */
 
 	mutex_unlock(&us->dev_mutex);
 	return 0;
@@ -200,11 +202,13 @@ static int storage_resume(struct usb_interface *iface)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
-	US_DEBUGP("%s\n", __FUNCTION__);
+	mutex_lock(&us->dev_mutex);
 
+	US_DEBUGP("%s\n", __FUNCTION__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
 
+	mutex_unlock(&us->dev_mutex);
 	return 0;
 }
 
@@ -302,7 +306,6 @@ static int usb_stor_control_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
-	int autopm_rc;
 
 	for(;;) {
 		US_DEBUGP("*** thread sleeping.\n");
@@ -310,9 +313,6 @@ static int usb_stor_control_thread(void * __us)
 			break;
 			
 		US_DEBUGP("*** thread awakened.\n");
-
-		/* Autoresume the device */
-		autopm_rc = usb_autopm_get_interface(us->pusb_intf);
 
 		/* lock the device pointers */
 		mutex_lock(&(us->dev_mutex));
@@ -372,12 +372,6 @@ static int usb_stor_control_thread(void * __us)
 			us->srb->result = SAM_STAT_GOOD;
 		}
 
-		/* Did the autoresume fail? */
-		else if (autopm_rc < 0) {
-			US_DEBUGP("Could not wake device\n");
-			us->srb->result = DID_ERROR << 16;
-		}
-
 		/* we've got a command, let's do it! */
 		else {
 			US_DEBUG(usb_stor_show_command(us->srb));
@@ -420,10 +414,6 @@ SkipForAbort:
 
 		/* unlock the device pointers */
 		mutex_unlock(&us->dev_mutex);
-
-		/* Start an autosuspend */
-		if (autopm_rc == 0)
-			usb_autopm_put_interface(us->pusb_intf);
 	} /* for (;;) */
 
 	/* Wait until we are told to stop */
@@ -941,7 +931,6 @@ retry:
 		/* Should we unbind if no devices were detected? */
 	}
 
-	usb_autopm_put_interface(us->pusb_intf);
 	complete_and_exit(&us->scanning_done, 0);
 }
 
@@ -1027,7 +1016,6 @@ static int storage_probe(struct usb_interface *intf,
 		goto BadDevice;
 	}
 
-	usb_autopm_get_interface(intf); /* dropped in the scanning thread */
 	wake_up_process(th);
 
 	return 0;
@@ -1065,7 +1053,6 @@ static struct usb_driver usb_storage_driver = {
 	.pre_reset =	storage_pre_reset,
 	.post_reset =	storage_post_reset,
 	.id_table =	storage_usb_ids,
-	.supports_autosuspend = 1,
 };
 
 static int __init usb_stor_init(void)
