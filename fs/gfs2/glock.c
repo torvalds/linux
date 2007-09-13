@@ -716,12 +716,8 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 		gl->gl_demote_time = jiffies;
 		if (remote && gl->gl_ops->go_type == LM_TYPE_IOPEN &&
 		    gl->gl_object) {
-			struct inode *inode = igrab(gl->gl_object);
+			gfs2_glock_schedule_for_reclaim(gl);
 			spin_unlock(&gl->gl_spin);
-			if (inode) {
-				d_prune_aliases(inode);
-				iput(inode);
-			}
 			return;
 		}
 	} else if (gl->gl_demote_state != LM_ST_UNLOCKED &&
