@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/param.h>
+#include <linux/profile.h>
 #include <linux/time.h>
 #include <linux/timex.h>
 #include <linux/smp.h>
