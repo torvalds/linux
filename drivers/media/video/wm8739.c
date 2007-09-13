@@ -30,6 +30,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("wm8739 driver");
 MODULE_AUTHOR("T. Adachi, Hans Verkuil");
@@ -259,27 +260,11 @@ static int wm8739_command(struct i2c_client *client, unsigned int cmd, void *arg
 
 /* i2c implementation */
 
-static struct i2c_driver i2c_driver;
-
-static int wm8739_attach(struct i2c_adapter *adapter, int address, int kind)
+static int wm8739_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct wm8739_state *state;
 
-	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
-	snprintf(client->name, sizeof(client->name) - 1, "wm8739");
-
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8739_state), GFP_KERNEL);
 	if (state == NULL) {
@@ -306,56 +291,20 @@ static int wm8739_attach(struct i2c_adapter *adapter, int address, int kind)
 					 /* normal, 256fs, 48KHz sampling rate */
 	wm8739_write(client, R9, 0x001); /* activate */
 	wm8739_set_audio(client); 	 /* set volume/mute */
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int wm8739_probe(struct i2c_adapter *adapter)
+static int wm8739_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, wm8739_attach);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
-static int wm8739_detach(struct i2c_client *client)
-{
-	struct wm8739_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
-
-	kfree(state);
-	kfree(client);
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "wm8739",
-	},
-	.id = I2C_DRIVERID_WM8739,
-	.attach_adapter = wm8739_probe,
-	.detach_client  = wm8739_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "wm8739",
+	.driverid = I2C_DRIVERID_WM8739,
 	.command = wm8739_command,
+	.probe = wm8739_probe,
+	.remove = wm8739_remove,
 };
 
-
-static int __init wm8739_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit wm8739_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(wm8739_init_module);
-module_exit(wm8739_cleanup_module);
