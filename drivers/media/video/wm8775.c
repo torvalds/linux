@@ -34,6 +34,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
@@ -43,6 +44,7 @@ static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
 
 
 I2C_CLIENT_INSMOD;
+
 
 /* ----------------------------------------------------------------------- */
 
@@ -76,8 +78,7 @@ static int wm8775_write(struct i2c_client *client, int reg, u16 val)
 	return -1;
 }
 
-static int wm8775_command(struct i2c_client *client, unsigned int cmd,
-			  void *arg)
+static int wm8775_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct wm8775_state *state = i2c_get_clientdata(client);
 	struct v4l2_routing *route = arg;
@@ -159,31 +160,18 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static struct i2c_driver i2c_driver;
-
-static int wm8775_attach(struct i2c_adapter *adapter, int address, int kind)
+static int wm8775_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct wm8775_state *state;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
-	snprintf(client->name, sizeof(client->name) - 1, "wm8775");
-
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8775_state), GFP_KERNEL);
 	if (state == NULL) {
-		kfree(client);
 		return -ENOMEM;
 	}
 	state->input = 2;
@@ -208,56 +196,20 @@ static int wm8775_attach(struct i2c_adapter *adapter, int address, int kind)
 	wm8775_write(client, R20, 0x07a);	/* Transient window 4ms, lower PGA gain */
 	/* limit -1dB */
 	wm8775_write(client, R21, 0x102);	/* LRBOTH = 1, use input 2. */
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int wm8775_probe(struct i2c_adapter *adapter)
+static int wm8775_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, wm8775_attach);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
-static int wm8775_detach(struct i2c_client *client)
-{
-	struct wm8775_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-	kfree(state);
-	kfree(client);
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "wm8775",
-	},
-	.id             = I2C_DRIVERID_WM8775,
-	.attach_adapter = wm8775_probe,
-	.detach_client  = wm8775_detach,
-	.command        = wm8775_command,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "wm8775",
+	.driverid = I2C_DRIVERID_WM8775,
+	.command = wm8775_command,
+	.probe = wm8775_probe,
+	.remove = wm8775_remove,
 };
 
-
-static int __init wm8775_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit wm8775_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(wm8775_init_module);
-module_exit(wm8775_cleanup_module);
