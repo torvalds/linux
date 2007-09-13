@@ -110,7 +110,7 @@ static const struct sctp_paramhdr prsctp_param = {
  * abort chunk.
  */
 void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
-		      const void *payload, size_t paylen)
+		      size_t paylen)
 {
 	sctp_errhdr_t err;
 	__u16 len;
@@ -120,7 +120,6 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 	len = sizeof(sctp_errhdr_t) + paylen;
 	err.length  = htons(len);
 	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
-	sctp_addto_chunk(chunk, paylen, payload);
 }
 
 /* 3.3.2 Initiation (INIT) (1)
@@ -780,8 +779,8 @@ struct sctp_chunk *sctp_make_abort_no_data(
 
 	/* Put the tsn back into network byte order.  */
 	payload = htonl(tsn);
-	sctp_init_cause(retval, SCTP_ERROR_NO_DATA, (const void *)&payload,
-			sizeof(payload));
+	sctp_init_cause(retval, SCTP_ERROR_NO_DATA, sizeof(payload));
+	sctp_addto_chunk(retval, sizeof(payload), (const void *)&payload);
 
 	/* RFC 2960 6.4 Multi-homed SCTP Endpoints
 	 *
@@ -823,7 +822,8 @@ struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
 			goto err_copy;
 	}
 
-	sctp_init_cause(retval, SCTP_ERROR_USER_ABORT, payload, paylen);
+	sctp_init_cause(retval, SCTP_ERROR_USER_ABORT, paylen);
+	sctp_addto_chunk(retval, paylen, payload);
 
 	if (paylen)
 		kfree(payload);
@@ -850,15 +850,17 @@ struct sctp_chunk *sctp_make_abort_violation(
 	struct sctp_paramhdr phdr;
 
 	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t) + paylen
-					+ sizeof(sctp_chunkhdr_t));
+					+ sizeof(sctp_paramhdr_t));
 	if (!retval)
 		goto end;
 
-	sctp_init_cause(retval, SCTP_ERROR_PROTO_VIOLATION, payload, paylen);
+	sctp_init_cause(retval, SCTP_ERROR_PROTO_VIOLATION, paylen
+					+ sizeof(sctp_paramhdr_t));
 
 	phdr.type = htons(chunk->chunk_hdr->type);
 	phdr.length = chunk->chunk_hdr->length;
-	sctp_addto_chunk(retval, sizeof(sctp_paramhdr_t), &phdr);
+	sctp_addto_chunk(retval, paylen, payload);
+	sctp_addto_param(retval, sizeof(sctp_paramhdr_t), &phdr);
 
 end:
 	return retval;
@@ -955,7 +957,8 @@ struct sctp_chunk *sctp_make_op_error(const struct sctp_association *asoc,
 	if (!retval)
 		goto nodata;
 
-	sctp_init_cause(retval, cause_code, payload, paylen);
+	sctp_init_cause(retval, cause_code, paylen);
+	sctp_addto_chunk(retval, paylen, payload);
 
 nodata:
 	return retval;
@@ -1128,7 +1131,7 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 	void *target;
 	void *padding;
 	int chunklen = ntohs(chunk->chunk_hdr->length);
-	int padlen = chunklen % 4;
+	int padlen = WORD_ROUND(chunklen) - chunklen;
 
 	padding = skb_put(chunk->skb, padlen);
 	target = skb_put(chunk->skb, len);
@@ -1138,6 +1141,25 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 
 	/* Adjust the chunk length field.  */
 	chunk->chunk_hdr->length = htons(chunklen + padlen + len);
+	chunk->chunk_end = skb_tail_pointer(chunk->skb);
+
+	return target;
+}
+
+/* Append bytes to the end of a parameter.  Will panic if chunk is not big
+ * enough.
+ */
+void *sctp_addto_param(struct sctp_chunk *chunk, int len, const void *data)
+{
+	void *target;
+	int chunklen = ntohs(chunk->chunk_hdr->length);
+
+	target = skb_put(chunk->skb, len);
+
+	memcpy(target, data, len);
+
+	/* Adjust the chunk length field.  */
+	chunk->chunk_hdr->length = htons(chunklen + len);
 	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
@@ -1174,25 +1196,36 @@ out:
  */
 void sctp_chunk_assign_ssn(struct sctp_chunk *chunk)
 {
+	struct sctp_datamsg *msg;
+	struct sctp_chunk *lchunk;
+	struct sctp_stream *stream;
 	__u16 ssn;
 	__u16 sid;
 
 	if (chunk->has_ssn)
 		return;
 
-	/* This is the last possible instant to assign a SSN. */
-	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
-		ssn = 0;
-	} else {
-		sid = ntohs(chunk->subh.data_hdr->stream);
-		if (chunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG)
-			ssn = sctp_ssn_next(&chunk->asoc->ssnmap->out, sid);
-		else
-			ssn = sctp_ssn_peek(&chunk->asoc->ssnmap->out, sid);
-	}
+	/* All fragments will be on the same stream */
+	sid = ntohs(chunk->subh.data_hdr->stream);
+	stream = &chunk->asoc->ssnmap->out;
 
-	chunk->subh.data_hdr->ssn = htons(ssn);
-	chunk->has_ssn = 1;
+	/* Now assign the sequence number to the entire message.
+	 * All fragments must have the same stream sequence number.
+	 */
+	msg = chunk->msg;
+	list_for_each_entry(lchunk, &msg->chunks, frag_list) {
+		if (lchunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
+			ssn = 0;
+		} else {
+			if (lchunk->chunk_hdr->flags & SCTP_DATA_LAST_FRAG)
+				ssn = sctp_ssn_next(stream, sid);
+			else
+				ssn = sctp_ssn_peek(stream, sid);
+		}
+
+		lchunk->subh.data_hdr->ssn = htons(ssn);
+		lchunk->has_ssn = 1;
+	}
 }
 
 /* Helper function to assign a TSN if needed.  This assumes that both
@@ -1466,7 +1499,8 @@ no_hmac:
 			__be32 n = htonl(usecs);
 
 			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
-					&n, sizeof(n));
+					sizeof(n));
+			sctp_addto_chunk(*errp, sizeof(n), &n);
 			*error = -SCTP_IERROR_STALE_COOKIE;
 		} else
 			*error = -SCTP_IERROR_NOMEM;
@@ -1556,7 +1590,8 @@ static int sctp_process_missing_param(const struct sctp_association *asoc,
 		report.num_missing = htonl(1);
 		report.type = paramtype;
 		sctp_init_cause(*errp, SCTP_ERROR_MISS_PARAM,
-				&report, sizeof(report));
+				sizeof(report));
+		sctp_addto_chunk(*errp, sizeof(report), &report);
 	}
 
 	/* Stop processing this chunk. */
@@ -1574,7 +1609,7 @@ static int sctp_process_inv_mandatory(const struct sctp_association *asoc,
 		*errp = sctp_make_op_error_space(asoc, chunk, 0);
 
 	if (*errp)
-		sctp_init_cause(*errp, SCTP_ERROR_INV_PARAM, NULL, 0);
+		sctp_init_cause(*errp, SCTP_ERROR_INV_PARAM, 0);
 
 	/* Stop processing this chunk. */
 	return 0;
@@ -1595,9 +1630,10 @@ static int sctp_process_inv_paramlength(const struct sctp_association *asoc,
 		*errp = sctp_make_op_error_space(asoc, chunk, payload_len);
 
 	if (*errp) {
-		sctp_init_cause(*errp, SCTP_ERROR_PROTO_VIOLATION, error,
-				sizeof(error));
-		sctp_addto_chunk(*errp, sizeof(sctp_paramhdr_t), param);
+		sctp_init_cause(*errp, SCTP_ERROR_PROTO_VIOLATION,
+				sizeof(error) + sizeof(sctp_paramhdr_t));
+		sctp_addto_chunk(*errp, sizeof(error), error);
+		sctp_addto_param(*errp, sizeof(sctp_paramhdr_t), param);
 	}
 
 	return 0;
@@ -1618,9 +1654,10 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	if (!*errp)
 		*errp = sctp_make_op_error_space(asoc, chunk, len);
 
-	if (*errp)
-		sctp_init_cause(*errp, SCTP_ERROR_DNS_FAILED,
-				param.v, len);
+	if (*errp) {
+		sctp_init_cause(*errp, SCTP_ERROR_DNS_FAILED, len);
+		sctp_addto_chunk(*errp, len, param.v);
+	}
 
 	/* Stop processing this chunk. */
 	return 0;
@@ -1672,10 +1709,13 @@ static int sctp_process_unk_param(const struct sctp_association *asoc,
 			*errp = sctp_make_op_error_space(asoc, chunk,
 					ntohs(chunk->chunk_hdr->length));
 
-		if (*errp)
+		if (*errp) {
 			sctp_init_cause(*errp, SCTP_ERROR_UNKNOWN_PARAM,
-					param.v,
 					WORD_ROUND(ntohs(param.p->length)));
+			sctp_addto_chunk(*errp,
+					WORD_ROUND(ntohs(param.p->length)),
+					param.v);
+		}
 
 		break;
 	case SCTP_PARAM_ACTION_SKIP:
@@ -1690,8 +1730,10 @@ static int sctp_process_unk_param(const struct sctp_association *asoc,
 
 		if (*errp) {
 			sctp_init_cause(*errp, SCTP_ERROR_UNKNOWN_PARAM,
-					param.v,
 					WORD_ROUND(ntohs(param.p->length)));
+			sctp_addto_chunk(*errp,
+					WORD_ROUND(ntohs(param.p->length)),
+					param.v);
 		} else {
 			/* If there is no memory for generating the ERROR
 			 * report as specified, an ABORT will be triggered
@@ -1791,7 +1833,7 @@ int sctp_verify_init(const struct sctp_association *asoc,
 	 * VIOLATION error.  We build the ERROR chunk here and let the normal
 	 * error handling code build and send the packet.
 	 */
-	if (param.v < (void*)chunk->chunk_end - sizeof(sctp_paramhdr_t)) {
+	if (param.v != (void*)chunk->chunk_end) {
 		sctp_process_inv_paramlength(asoc, param.p, chunk, errp);
 		return 0;
 	}

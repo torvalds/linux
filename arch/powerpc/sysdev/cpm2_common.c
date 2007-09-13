@@ -102,7 +102,7 @@ cpm_setbrg(uint brg, uint rate)
 		brg -= 4;
 	}
 	bp += brg;
-	*bp = ((BRG_UART_CLK / rate) << 1) | CPM_BRG_EN;
+	out_be32(bp, (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN);
 
 	cpm2_unmap(bp);
 }

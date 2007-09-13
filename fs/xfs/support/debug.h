@@ -34,10 +34,10 @@ extern void cmn_err(int, char *, ...)
 extern void assfail(char *expr, char *f, int l);
 
 #define ASSERT_ALWAYS(expr)	\
-	(unlikely((expr) != 0) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
+	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
 #ifndef DEBUG
-# define ASSERT(expr)	((void)0)
+#define ASSERT(expr)	((void)0)
 
 #ifndef STATIC
 # define STATIC static noinline
@@ -49,8 +49,10 @@ extern void assfail(char *expr, char *f, int l);
 
 #else /* DEBUG */
 
-# define ASSERT(expr)	ASSERT_ALWAYS(expr)
-# include <linux/random.h>
+#include <linux/random.h>
+
+#define ASSERT(expr)	\
+	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
 #ifndef STATIC
 # define STATIC noinline

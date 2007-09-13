@@ -1108,7 +1108,7 @@ static void __init txx9_spi_init(unsigned long base, int irq)
 			.flags	= IORESOURCE_IRQ,
 		},
 	};
-	platform_device_register_simple("txx9spi", 0,
+	platform_device_register_simple("spi_txx9", 0,
 					res, ARRAY_SIZE(res));
 }
 

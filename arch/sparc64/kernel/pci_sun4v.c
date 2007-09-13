@@ -940,13 +940,13 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 	if (msi_num < 0)
 		return msi_num;
 
-	devino = sun4v_build_msi(pbm->devhandle, virt_irq_p,
-				 pbm->msiq_first_devino,
-				 (pbm->msiq_first_devino +
-				  pbm->msiq_num));
-	err = -ENOMEM;
-	if (!devino)
+	err = sun4v_build_msi(pbm->devhandle, virt_irq_p,
+			      pbm->msiq_first_devino,
+			      (pbm->msiq_first_devino +
+			       pbm->msiq_num));
+	if (err < 0)
 		goto out_err;
+	devino = err;
 
 	msiqid = ((devino - pbm->msiq_first_devino) +
 		  pbm->msiq_first);
@@ -971,7 +971,7 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 	if (pci_sun4v_msi_setvalid(pbm->devhandle, msi_num, HV_MSIVALID_VALID))
 		goto out_err;
 
-	pdev->dev.archdata.msi_num = msi_num;
+	sparc64_set_msi(*virt_irq_p, msi_num);
 
 	if (entry->msi_attrib.is_64) {
 		msg.address_hi = pbm->msi64_start >> 32;
@@ -993,8 +993,6 @@ static int pci_sun4v_setup_msi_irq(unsigned int *virt_irq_p,
 
 out_err:
 	free_msi(pbm, msi_num);
-	sun4v_destroy_msi(*virt_irq_p);
-	*virt_irq_p = 0;
 	return err;
 
 }
@@ -1006,7 +1004,7 @@ static void pci_sun4v_teardown_msi_irq(unsigned int virt_irq,
 	unsigned long msiqid, err;
 	unsigned int msi_num;
 
-	msi_num = pdev->dev.archdata.msi_num;
+	msi_num = sparc64_get_msi(virt_irq);
 	err = pci_sun4v_msi_getmsiq(pbm->devhandle, msi_num, &msiqid);
 	if (err) {
 		printk(KERN_ERR "%s: getmsiq gives error %lu\n",

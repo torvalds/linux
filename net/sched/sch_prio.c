@@ -44,7 +44,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	if (TC_H_MAJ(skb->priority) != sch->handle) {
 		err = tc_classify(skb, q->filter_list, &res);
 #ifdef CONFIG_NET_CLS_ACT
-		switch (tc_classify(skb, q->filter_list, &res)) {
+		switch (err) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
 			*qerr = NET_XMIT_SUCCESS;

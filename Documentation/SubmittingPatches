@@ -126,7 +126,7 @@ the reviewers time and will get your patch rejected, probably
 without even being read.
 
 At a minimum you should check your patches with the patch style
-checker prior to submission (scripts/patchcheck.pl).  You should
+checker prior to submission (scripts/checkpatch.pl).  You should
 be able to justify all violations that remain in your patch.
 
 

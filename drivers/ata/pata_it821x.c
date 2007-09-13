@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.3.7"
+#define DRV_VERSION "0.3.8"
 
 struct it821x_dev
 {
@@ -532,6 +532,10 @@ static int it821x_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct it821x_dev *itdev = ap->private_data;
+
+	/* Only use dma for transfers to/from the media. */
+	if (qc->nbytes < 2048)
+		return -EOPNOTSUPP;
 
 	/* No ATAPI DMA in smart mode */
 	if (itdev->smart)

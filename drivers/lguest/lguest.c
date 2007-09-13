@@ -964,11 +964,12 @@ __init void lguest_init(void *boot)
 {
 	/* Copy boot parameters first: the Launcher put the physical location
 	 * in %esi, and head.S converted that to a virtual address and handed
-	 * it to us. */
-	memcpy(&boot_params, boot, PARAM_SIZE);
+	 * it to us.  We use "__memcpy" because "memcpy" sometimes tries to do
+	 * tricky things to go faster, and we're not ready for that. */
+	__memcpy(&boot_params, boot, PARAM_SIZE);
 	/* The boot parameters also tell us where the command-line is: save
 	 * that, too. */
-	memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
+	__memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
 	       COMMAND_LINE_SIZE);
 
 	/* We're under lguest, paravirt is enabled, and we're running at

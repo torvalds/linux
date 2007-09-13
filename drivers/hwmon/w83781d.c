@@ -1746,7 +1746,7 @@ w83781d_isa_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
-		.end	= address + W83781D_EXTENT,
+		.end	= address + W83781D_EXTENT - 1,
 		.name	= "w83781d",
 		.flags	= IORESOURCE_IO,
 	};

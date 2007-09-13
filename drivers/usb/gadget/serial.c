@@ -1691,14 +1691,12 @@ static int gs_setup_class(struct usb_gadget *gadget,
 
 	switch (ctrl->bRequest) {
 	case USB_CDC_REQ_SET_LINE_CODING:
-		ret = min(wLength,
-			(u16)sizeof(struct usb_cdc_line_coding));
-		if (port) {
-			spin_lock(&port->port_lock);
-			memcpy(&port->port_line_coding, req->buf, ret);
-			spin_unlock(&port->port_lock);
-		}
-		ret = 0;
+		/* FIXME Submit req to read the data; have its completion
+		 * handler copy that data to port->port_line_coding (iff
+		 * it's valid) and maybe pass it on.  Until then, fail.
+		 */
+		printk(KERN_WARNING "gs_setup: set_line_coding "
+				"unuspported\n");
 		break;
 
 	case USB_CDC_REQ_GET_LINE_CODING:
@@ -1713,11 +1711,18 @@ static int gs_setup_class(struct usb_gadget *gadget,
 		break;
 
 	case USB_CDC_REQ_SET_CONTROL_LINE_STATE:
-		ret = 0;
+		/* FIXME Submit req to read the data; have its completion
+		 * handler use that to set the state (iff it's valid) and
+		 * maybe pass it on.  Until then, fail.
+		 */
+		printk(KERN_WARNING "gs_setup: set_control_line_state "
+				"unuspported\n");
 		break;
 
 	default:
-		printk(KERN_ERR "gs_setup: unknown class request, type=%02x, request=%02x, value=%04x, index=%04x, length=%d\n",
+		printk(KERN_ERR "gs_setup: unknown class request, "
+				"type=%02x, request=%02x, value=%04x, "
+				"index=%04x, length=%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			wValue, wIndex, wLength);
 		break;

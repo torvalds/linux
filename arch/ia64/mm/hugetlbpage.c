@@ -75,10 +75,8 @@ int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep)
  * Don't actually need to do any preparation, but need to make sure
  * the address is in the right region.
  */
-int prepare_hugepage_range(unsigned long addr, unsigned long len, pgoff_t pgoff)
+int prepare_hugepage_range(unsigned long addr, unsigned long len)
 {
-	if (pgoff & (~HPAGE_MASK >> PAGE_SHIFT))
-		return -EINVAL;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
 	if (addr & ~HPAGE_MASK)
@@ -151,7 +149,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, u
 
 	/* Handle MAP_FIXED */
 	if (flags & MAP_FIXED) {
-		if (prepare_hugepage_range(addr, len, pgoff))
+		if (prepare_hugepage_range(addr, len))
 			return -EINVAL;
 		return addr;
 	}

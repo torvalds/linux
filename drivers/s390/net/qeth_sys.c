@@ -1760,10 +1760,10 @@ qeth_remove_device_attributes(struct device *dev)
 {
 	struct qeth_card *card = dev->driver_data;
 
-	if (card->info.type == QETH_CARD_TYPE_OSN)
-		return sysfs_remove_group(&dev->kobj,
-					  &qeth_osn_device_attr_group);
-
+	if (card->info.type == QETH_CARD_TYPE_OSN) {
+		sysfs_remove_group(&dev->kobj, &qeth_osn_device_attr_group);
+		return;
+	}
 	sysfs_remove_group(&dev->kobj, &qeth_device_attr_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_ipato_group);
 	sysfs_remove_group(&dev->kobj, &qeth_device_vipa_group);

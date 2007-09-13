@@ -610,7 +610,7 @@ static int pci_netmos_init(struct pci_dev *dev)
 /* enable IO_Space bit */
 #define ITE_887x_POSIO_ENABLE		(1 << 31)
 
-static int __devinit pci_ite887x_init(struct pci_dev *dev)
+static int pci_ite887x_init(struct pci_dev *dev)
 {
 	/* inta_addr are the configuration addresses of the ITE */
 	static const short inta_addr[] = { 0x2a0, 0x2c0, 0x220, 0x240, 0x1e0,

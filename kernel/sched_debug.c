@@ -283,4 +283,5 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.wait_runtime_overruns = p->se.wait_runtime_underruns = 0;
 #endif
 	p->se.sum_exec_runtime = 0;
+	p->se.prev_sum_exec_runtime	= 0;
 }

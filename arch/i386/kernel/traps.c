@@ -100,36 +100,45 @@ asmlinkage void machine_check(void);
 int kstack_depth_to_print = 24;
 static unsigned int code_bytes = 64;
 
-static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
+static inline int valid_stack_ptr(struct thread_info *tinfo, void *p, unsigned size)
 {
 	return	p > (void *)tinfo &&
-		p < (void *)tinfo + THREAD_SIZE - 3;
+		p <= (void *)tinfo + THREAD_SIZE - size;
 }
+
+/* The form of the top of the frame on the stack */
+struct stack_frame {
+	struct stack_frame *next_frame;
+	unsigned long return_address;
+};
 
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				unsigned long *stack, unsigned long ebp,
 				struct stacktrace_ops *ops, void *data)
 {
-	unsigned long addr;
-
 #ifdef	CONFIG_FRAME_POINTER
-	while (valid_stack_ptr(tinfo, (void *)ebp)) {
-		unsigned long new_ebp;
-		addr = *(unsigned long *)(ebp + 4);
+	struct stack_frame *frame = (struct stack_frame *)ebp;
+	while (valid_stack_ptr(tinfo, frame, sizeof(*frame))) {
+		struct stack_frame *next;
+		unsigned long addr;
+
+		addr = frame->return_address;
 		ops->address(data, addr);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function). Also,
 		 * we can never allow a frame pointer to
 		 * move downwards!
-	 	 */
-	 	new_ebp = *(unsigned long *)ebp;
-		if (new_ebp <= ebp)
+		 */
+		next = frame->next_frame;
+		if (next <= frame)
 			break;
-		ebp = new_ebp;
+		frame = next;
 	}
 #else
-	while (valid_stack_ptr(tinfo, stack)) {
+	while (valid_stack_ptr(tinfo, stack, sizeof(*stack))) {
+		unsigned long addr;
+
 		addr = *stack++;
 		if (__kernel_text_address(addr))
 			ops->address(data, addr);

@@ -2345,6 +2345,8 @@ static int __cpuinit process_zones(int cpu)
 	return 0;
 bad:
 	for_each_zone(dzone) {
+		if (!populated_zone(dzone))
+			continue;
 		if (dzone == zone)
 			break;
 		kfree(zone_pcp(dzone, cpu));

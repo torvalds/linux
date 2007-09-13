@@ -30,6 +30,7 @@
 #include <linux/init_task.h>
 #include <linux/module.h>
 #include <linux/mqueue.h>
+#include <linux/fs.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>

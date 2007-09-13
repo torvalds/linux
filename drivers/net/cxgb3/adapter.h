@@ -50,7 +50,9 @@ typedef irqreturn_t(*intr_handler_t) (int, void *);
 
 struct vlan_group;
 
+struct adapter;
 struct port_info {
+	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
 	const struct port_type_info *port_type;
 	u8 port_id;

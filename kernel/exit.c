@@ -975,6 +975,7 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (unlikely(tsk->audit_context))
 		audit_free(tsk);
 
+	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);
 
 	exit_mm(tsk);
@@ -996,7 +997,6 @@ fastcall NORET_TYPE void do_exit(long code)
 	if (tsk->binfmt)
 		module_put(tsk->binfmt->module);
 
-	tsk->exit_code = code;
 	proc_exit_connector(tsk);
 	exit_task_namespaces(tsk);
 	exit_notify(tsk);

@@ -904,11 +904,11 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 			ddr_mn_window = window;
 			writel(window, PCI_OFFSET_SECOND_RANGE(adapter,
 							       NETXEN_PCIX_PH_REG
-							       (PCIX_MN_WINDOW)));
+							       (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
 			/* MUST make sure window is set before we forge on... */
 			readl(PCI_OFFSET_SECOND_RANGE(adapter,
 						      NETXEN_PCIX_PH_REG
-						      (PCIX_MN_WINDOW)));
+						      (PCIX_MN_WINDOW(adapter->ahw.pci_func))));
 		}
 		addr -= (window * NETXEN_WINDOW_ONE);
 		addr += NETXEN_PCI_DDR_NET;
@@ -929,11 +929,11 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 			writel((window << 22),
 			       PCI_OFFSET_SECOND_RANGE(adapter,
 						       NETXEN_PCIX_PH_REG
-						       (PCIX_SN_WINDOW)));
+						       (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
 			/* MUST make sure window is set before we forge on... */
 			readl(PCI_OFFSET_SECOND_RANGE(adapter,
 						      NETXEN_PCIX_PH_REG
-						      (PCIX_SN_WINDOW)));
+						      (PCIX_SN_WINDOW(adapter->ahw.pci_func))));
 		}
 		addr -= (window * 0x400000);
 		addr += NETXEN_PCI_QDR_NET;

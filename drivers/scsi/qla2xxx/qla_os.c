@@ -1564,7 +1564,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
 	unsigned long	flags = 0;
-	char pci_info[20];
+	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
 

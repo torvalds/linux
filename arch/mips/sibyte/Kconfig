@@ -48,7 +48,6 @@ config SIBYTE_BCM1x55
 
 config SIBYTE_SB1xxx_SOC
 	bool
-	depends on EXPERIMENTAL
 	select DMA_COHERENT
 	select SIBYTE_CFE
 	select SWAP_IO_SPACE

@@ -116,7 +116,6 @@ static inline void singlestep_disable(struct task_struct *child)
 void ptrace_disable(struct task_struct *child)
 {
 	singlestep_disable(child);
-	clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)

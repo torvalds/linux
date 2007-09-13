@@ -141,6 +141,7 @@ static int __init pcibios_init(void)
 
 		bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
 		hose->bus = bus;
+		need_domain_info = need_domain_info || hose->index;
 		hose->need_domain_info = need_domain_info;
 		if (bus) {
 			next_busno = bus->subordinate + 1;

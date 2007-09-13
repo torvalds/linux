@@ -75,7 +75,7 @@ extern int edac_debug_level;
 #define edac_debug_printk(level, fmt, arg...)                            \
 	do {                                                             \
 		if (level <= edac_debug_level)                           \
-			edac_printk(KERN_EMERG, EDAC_DEBUG, fmt, ##arg); \
+			edac_printk(KERN_DEBUG, EDAC_DEBUG, fmt, ##arg); \
 	} while(0)
 
 #define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )

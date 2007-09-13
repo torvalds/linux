@@ -41,7 +41,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_cs5520"
-#define DRV_VERSION	"0.6.5"
+#define DRV_VERSION	"0.6.6"
 
 struct pio_clocks
 {

@@ -48,10 +48,18 @@ static u64 __init find_spu_unit_number(struct device_node *spe)
 {
 	const unsigned int *prop;
 	int proplen;
+
+	/* new device trees should provide the physical-id attribute */
 	prop = of_get_property(spe, "physical-id", &proplen);
 	if (proplen == 4)
 		return (u64)*prop;
 
+	/* celleb device tree provides the unit-id */
+	prop = of_get_property(spe, "unit-id", &proplen);
+	if (proplen == 4)
+		return (u64)*prop;
+
+	/* legacy device trees provide the id in the reg attribute */
 	prop = of_get_property(spe, "reg", &proplen);
 	if (proplen == 4)
 		return (u64)*prop;

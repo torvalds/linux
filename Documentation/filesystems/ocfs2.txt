@@ -28,11 +28,7 @@ Manish Singh  <manish.singh@oracle.com>
 Caveats
 =======
 Features which OCFS2 does not support yet:
-	- sparse files
 	- extended attributes
-	- shared writable mmap
-	- loopback is supported, but data written will not
-	  be cluster coherent.
 	- quotas
 	- cluster aware flock
 	- cluster aware lockf
@@ -57,3 +53,12 @@ nointr			Do not allow signals to interrupt cluster
 atime_quantum=60(*)	OCFS2 will not update atime unless this number
 			of seconds has passed since the last update.
 			Set to zero to always update atime.
+data=ordered	(*)	All data are forced directly out to the main file
+			system prior to its metadata being committed to the
+			journal.
+data=writeback		Data ordering is not preserved, data may be written
+			into the main file system after its metadata has been
+			committed to the journal.
+preferred_slot=0(*)	During mount, try to use this filesystem slot first. If
+			it is in use by another node, the first empty one found
+			will be chosen. Invalid values will be ignored.

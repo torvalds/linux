@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.23-rc1-powerpc-ebony-mtd
-# Mon Jul 30 15:47:59 2007
+# Linux kernel version: 2.6.23-rc4
+# Thu Aug 30 16:34:11 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -49,15 +49,11 @@ CONFIG_PPC_DCR=y
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
-# Code maturity level options
+# General setup
 #
 CONFIG_EXPERIMENTAL=y
 CONFIG_BROKEN_ON_SMP=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
-
-#
-# General setup
-#
 CONFIG_LOCALVERSION=""
 CONFIG_LOCALVERSION_AUTO=y
 CONFIG_SWAP=y
@@ -146,6 +142,7 @@ CONFIG_440GP=y
 # CONFIG_GENERIC_IOMAP is not set
 # CONFIG_CPU_FREQ is not set
 # CONFIG_CPM2 is not set
+# CONFIG_FSL_ULI1575 is not set
 
 #
 # Kernel options
@@ -603,10 +600,6 @@ CONFIG_USB_ARCH_HAS_EHCI=y
 # CONFIG_NEW_LEDS is not set
 # CONFIG_INFINIBAND is not set
 # CONFIG_EDAC is not set
-
-#
-# Real Time Clock
-#
 # CONFIG_RTC_CLASS is not set
 
 #
@@ -844,4 +837,4 @@ CONFIG_CRYPTO_DES=y
 # CONFIG_CRYPTO_CRC32C is not set
 # CONFIG_CRYPTO_CAMELLIA is not set
 # CONFIG_CRYPTO_TEST is not set
-CONFIG_CRYPTO_HW=y
+# CONFIG_CRYPTO_HW is not set

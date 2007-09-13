@@ -611,6 +611,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	int rc = 0;
 	int *result = NULL;
 	struct page *newpage = get_new_page(page, private, &result);
+	int rcu_locked = 0;
 
 	if (!newpage)
 		return -ENOMEM;
@@ -636,8 +637,13 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	 * we cannot notice that anon_vma is freed while we migrates a page.
 	 * This rcu_read_lock() delays freeing anon_vma pointer until the end
 	 * of migration. File cache pages are no problem because of page_lock()
+	 * File Caches may use write_page() or lock_page() in migration, then,
+	 * just care Anon page here.
 	 */
-	rcu_read_lock();
+	if (PageAnon(page)) {
+		rcu_read_lock();
+		rcu_locked = 1;
+	}
 	/*
 	 * This is a corner case handling.
 	 * When a new swap-cache is read into, it is linked to LRU
@@ -656,7 +662,8 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	if (rc)
 		remove_migration_ptes(page, page);
 rcu_unlock:
-	rcu_read_unlock();
+	if (rcu_locked)
+		rcu_read_unlock();
 
 unlock:
 

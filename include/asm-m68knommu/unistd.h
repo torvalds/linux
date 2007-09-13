@@ -314,10 +314,20 @@
 #define __NR_tee		308
 #define __NR_vmsplice		309
 #define __NR_move_pages		310
+#define __NR_sched_setaffinity	311
+#define __NR_sched_getaffinity	312
+#define __NR_kexec_load		313
+#define __NR_getcpu		314
+#define __NR_epoll_pwait	315
+#define __NR_utimensat		316
+#define __NR_signalfd		317
+#define __NR_timerfd		318
+#define __NR_eventfd		319
+#define __NR_fallocate		320
 
 #ifdef __KERNEL__
 
-#define NR_syscalls		311
+#define NR_syscalls		321
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

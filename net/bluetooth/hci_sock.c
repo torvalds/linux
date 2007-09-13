@@ -37,6 +37,7 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/compat.h>
 #include <linux/socket.h>
 #include <linux/ioctl.h>
 #include <net/sock.h>
@@ -70,15 +71,15 @@ static struct hci_sec_filter hci_sec_filter = {
 	{
 		{ 0x0 },
 		/* OGF_LINK_CTL */
-		{ 0xbe000006, 0x00000001, 0x000000, 0x00 },
+		{ 0xbe000006, 0x00000001, 0x00000000, 0x00 },
 		/* OGF_LINK_POLICY */
-		{ 0x00005200, 0x00000000, 0x000000, 0x00 },
+		{ 0x00005200, 0x00000000, 0x00000000, 0x00 },
 		/* OGF_HOST_CTL */
-		{ 0xaab00200, 0x2b402aaa, 0x020154, 0x00 },
+		{ 0xaab00200, 0x2b402aaa, 0x05220154, 0x00 },
 		/* OGF_INFO_PARAM */
-		{ 0x000002be, 0x00000000, 0x000000, 0x00 },
+		{ 0x000002be, 0x00000000, 0x00000000, 0x00 },
 		/* OGF_STATUS_PARAM */
-		{ 0x000000ea, 0x00000000, 0x000000, 0x00 }
+		{ 0x000000ea, 0x00000000, 0x00000000, 0x00 }
 	}
 };
 
@@ -342,9 +343,24 @@ static inline void hci_sock_cmsg(struct sock *sk, struct msghdr *msg, struct sk_
 
 	if (mask & HCI_CMSG_TSTAMP) {
 		struct timeval tv;
+		void *data;
+		int len;
 
 		skb_get_timestamp(skb, &tv);
-		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, sizeof(tv), &tv);
+
+		data = &tv;
+		len = sizeof(tv);
+#ifdef CONFIG_COMPAT
+		if (msg->msg_flags & MSG_CMSG_COMPAT) {
+			struct compat_timeval ctv;
+			ctv.tv_sec = tv.tv_sec;
+			ctv.tv_usec = tv.tv_usec;
+			data = &ctv;
+			len = sizeof(ctv);
+		}
+#endif
+
+		put_cmsg(msg, SOL_HCI, HCI_CMSG_TSTAMP, len, data);
 	}
 }
 

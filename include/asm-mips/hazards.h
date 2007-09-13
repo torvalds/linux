@@ -172,6 +172,7 @@ ASMMACRO(tlb_probe_hazard,
 	 nop; nop; nop
 	)
 ASMMACRO(irq_enable_hazard,
+	 _ssnop; _ssnop; _ssnop;
 	)
 ASMMACRO(irq_disable_hazard,
 	nop; nop; nop

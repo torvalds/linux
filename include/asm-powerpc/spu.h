@@ -130,6 +130,7 @@ struct spu {
 	u64 flags;
 	u64 dar;
 	u64 dsisr;
+	u64 class_0_pending;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
@@ -138,7 +139,6 @@ struct spu {
 	unsigned long long timestamp;
 	pid_t pid;
 	pid_t tgid;
-	int class_0_pending;
 	spinlock_t register_lock;
 
 	void (* wbox_callback)(struct spu *spu);

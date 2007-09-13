@@ -816,19 +816,15 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 	struct list_head *l;
 	struct pci_driver *d;
 	
-	list_for_each(l, &ide_pci_drivers)
-	{
+	list_for_each(l, &ide_pci_drivers) {
 		d = list_entry(l, struct pci_driver, node);
-		if(d->id_table)
-		{
-			const struct pci_device_id *id = pci_match_id(d->id_table, dev);
-			if(id != NULL)
-			{
-				if(d->probe(dev, id) >= 0)
-				{
-					dev->driver = d;
-					return 1;
-				}
+		if (d->id_table) {
+			const struct pci_device_id *id = pci_match_id(d->id_table,
+								      dev);
+			if (id != NULL && d->probe(dev, id) >= 0) {
+				dev->driver = d;
+				pci_dev_get(dev);
+				return 1;
 			}
 		}
 	}
@@ -851,15 +847,13 @@ void __init ide_scan_pcibus (int scan_direction)
 	struct list_head *l, *n;
 
 	pre_init = 0;
-	if (!scan_direction) {
-		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	if (!scan_direction)
+		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
 			ide_scan_pcidev(dev);
-		}
-	} else {
-		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	else
+		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID, dev))
+		       != NULL)
 			ide_scan_pcidev(dev);
-		}
-	}
 	
 	/*
 	 *	Hand the drivers over to the PCI layer now we
@@ -869,12 +863,9 @@ void __init ide_scan_pcibus (int scan_direction)
 	list_for_each_safe(l, n, &ide_pci_drivers) {
 		list_del(l);
 		d = list_entry(l, struct pci_driver, node);
-		if (__pci_register_driver(d, d->driver.owner,
-					d->driver.mod_name)) {
-			printk(KERN_ERR "%s: failed to register driver "
-					"for %s\n", __FUNCTION__,
-					 d->driver.mod_name);
-		}
+		if (__pci_register_driver(d, d->driver.owner, d->driver.mod_name))
+			printk(KERN_ERR "%s: failed to register driver for %s\n",
+			       __FUNCTION__, d->driver.mod_name);
 	}
 }
 #endif

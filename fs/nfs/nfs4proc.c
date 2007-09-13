@@ -646,7 +646,7 @@ static int _nfs4_do_open_reclaim(struct nfs_open_context *ctx, struct nfs4_state
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(state->inode)->delegation);
 	if (delegation != NULL && (delegation->flags & NFS_DELEGATION_NEED_RECLAIM) != 0)
-		delegation_type = delegation->flags;
+		delegation_type = delegation->type;
 	rcu_read_unlock();
 	opendata->o_arg.u.delegation_type = delegation_type;
 	status = nfs4_open_recover(opendata, state);
@@ -1434,7 +1434,7 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	}
 	res = d_add_unique(dentry, igrab(state->inode));
 	if (res != NULL)
-		dentry = res;
+		path.dentry = res;
 	nfs4_intent_set_file(nd, &path, state);
 	return res;
 }

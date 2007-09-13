@@ -727,7 +727,12 @@ void sctp_assoc_control_transport(struct sctp_association *asoc,
 		break;
 
 	case SCTP_TRANSPORT_DOWN:
-		transport->state = SCTP_INACTIVE;
+		/* if the transort was never confirmed, do not transition it
+		 * to inactive state.
+		 */
+		if (transport->state != SCTP_UNCONFIRMED)
+			transport->state = SCTP_INACTIVE;
+
 		spc_state = SCTP_ADDR_UNREACHABLE;
 		break;
 

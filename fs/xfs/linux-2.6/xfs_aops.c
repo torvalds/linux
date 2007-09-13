@@ -652,7 +652,7 @@ xfs_probe_cluster(
 
 		for (i = 0; i < pagevec_count(&pvec); i++) {
 			struct page *page = pvec.pages[i];
-			size_t pg_offset, len = 0;
+			size_t pg_offset, pg_len = 0;
 
 			if (tindex == tlast) {
 				pg_offset =
@@ -665,16 +665,16 @@ xfs_probe_cluster(
 				pg_offset = PAGE_CACHE_SIZE;
 
 			if (page->index == tindex && !TestSetPageLocked(page)) {
-				len = xfs_probe_page(page, pg_offset, mapped);
+				pg_len = xfs_probe_page(page, pg_offset, mapped);
 				unlock_page(page);
 			}
 
-			if (!len) {
+			if (!pg_len) {
 				done = 1;
 				break;
 			}
 
-			total += len;
+			total += pg_len;
 			tindex++;
 		}
 

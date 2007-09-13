@@ -16,21 +16,21 @@
 #include <asm/ptrace.h>
 
 /* IMAP/ICLR register defines */
-#define IMAP_VALID		0x80000000	/* IRQ Enabled		*/
-#define IMAP_TID_UPA		0x7c000000	/* UPA TargetID		*/
-#define IMAP_TID_JBUS		0x7c000000	/* JBUS TargetID	*/
+#define IMAP_VALID		0x80000000UL	/* IRQ Enabled		*/
+#define IMAP_TID_UPA		0x7c000000UL	/* UPA TargetID		*/
+#define IMAP_TID_JBUS		0x7c000000UL	/* JBUS TargetID	*/
 #define IMAP_TID_SHIFT		26
-#define IMAP_AID_SAFARI		0x7c000000	/* Safari AgentID	*/
+#define IMAP_AID_SAFARI		0x7c000000UL	/* Safari AgentID	*/
 #define IMAP_AID_SHIFT		26
-#define IMAP_NID_SAFARI		0x03e00000	/* Safari NodeID	*/
+#define IMAP_NID_SAFARI		0x03e00000UL	/* Safari NodeID	*/
 #define IMAP_NID_SHIFT		21
-#define IMAP_IGN		0x000007c0	/* IRQ Group Number	*/
-#define IMAP_INO		0x0000003f	/* IRQ Number		*/
-#define IMAP_INR		0x000007ff	/* Full interrupt number*/
+#define IMAP_IGN		0x000007c0UL	/* IRQ Group Number	*/
+#define IMAP_INO		0x0000003fUL	/* IRQ Number		*/
+#define IMAP_INR		0x000007ffUL	/* Full interrupt number*/
 
-#define ICLR_IDLE		0x00000000	/* Idle state		*/
-#define ICLR_TRANSMIT		0x00000001	/* Transmit state	*/
-#define ICLR_PENDING		0x00000003	/* Pending state	*/
+#define ICLR_IDLE		0x00000000UL	/* Idle state		*/
+#define ICLR_TRANSMIT		0x00000001UL	/* Transmit state	*/
+#define ICLR_PENDING		0x00000003UL	/* Pending state	*/
 
 /* The largest number of unique interrupt sources we support.
  * If this needs to ever be larger than 255, you need to change
@@ -52,6 +52,9 @@ extern unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 				    unsigned int msi_devino_end);
 extern void sun4v_destroy_msi(unsigned int virt_irq);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
+
+extern void sparc64_set_msi(unsigned int virt_irq, u32 msi);
+extern u32 sparc64_get_msi(unsigned int virt_irq);
 
 extern void fixup_irqs(void);
 

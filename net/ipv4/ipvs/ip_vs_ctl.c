@@ -2339,6 +2339,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
 	.get_optmin	= IP_VS_BASE_CTL,
 	.get_optmax	= IP_VS_SO_GET_MAX+1,
 	.get		= do_ip_vs_get_ctl,
+	.owner		= THIS_MODULE,
 };
 
 

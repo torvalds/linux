@@ -1366,7 +1366,7 @@ xlog_recover_add_to_cont_trans(
 	int			old_len;
 
 	item = trans->r_itemq;
-	if (item == 0) {
+	if (item == NULL) {
 		/* finish copying rest of trans header */
 		xlog_recover_add_item(&trans->r_itemq);
 		ptr = (xfs_caddr_t) &trans->r_theader +
@@ -1412,7 +1412,7 @@ xlog_recover_add_to_trans(
 	if (!len)
 		return 0;
 	item = trans->r_itemq;
-	if (item == 0) {
+	if (item == NULL) {
 		ASSERT(*(uint *)dp == XFS_TRANS_HEADER_MAGIC);
 		if (len == sizeof(xfs_trans_header_t))
 			xlog_recover_add_item(&trans->r_itemq);
@@ -1467,12 +1467,12 @@ xlog_recover_unlink_tid(
 	xlog_recover_t		*tp;
 	int			found = 0;
 
-	ASSERT(trans != 0);
+	ASSERT(trans != NULL);
 	if (trans == *q) {
 		*q = (*q)->r_next;
 	} else {
 		tp = *q;
-		while (tp != 0) {
+		while (tp) {
 			if (tp->r_next == trans) {
 				found = 1;
 				break;
@@ -1495,7 +1495,7 @@ xlog_recover_insert_item_backq(
 	xlog_recover_item_t	**q,
 	xlog_recover_item_t	*item)
 {
-	if (*q == 0) {
+	if (*q == NULL) {
 		item->ri_prev = item->ri_next = item;
 		*q = item;
 	} else {
@@ -1899,7 +1899,7 @@ xlog_recover_do_reg_buffer(
 			break;
 		nbits = xfs_contig_bits(data_map, map_size, bit);
 		ASSERT(nbits > 0);
-		ASSERT(item->ri_buf[i].i_addr != 0);
+		ASSERT(item->ri_buf[i].i_addr != NULL);
 		ASSERT(item->ri_buf[i].i_len % XFS_BLI_CHUNK == 0);
 		ASSERT(XFS_BUF_COUNT(bp) >=
 		       ((uint)bit << XFS_BLI_SHIFT)+(nbits<<XFS_BLI_SHIFT));

@@ -217,7 +217,26 @@ struct irq_handler_data {
 	void		(*pre_handler)(unsigned int, void *, void *);
 	void		*pre_handler_arg1;
 	void		*pre_handler_arg2;
+
+	u32		msi;
 };
+
+void sparc64_set_msi(unsigned int virt_irq, u32 msi)
+{
+	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+
+	if (data)
+		data->msi = msi;
+}
+
+u32 sparc64_get_msi(unsigned int virt_irq)
+{
+	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+
+	if (data)
+		return data->msi;
+	return 0xffffffff;
+}
 
 static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
 {
@@ -308,7 +327,7 @@ static void sun4u_irq_disable(unsigned int virt_irq)
 
 	if (likely(data)) {
 		unsigned long imap = data->imap;
-		u32 tmp = upa_readq(imap);
+		unsigned long tmp = upa_readq(imap);
 
 		tmp &= ~IMAP_VALID;
 		upa_writeq(tmp, imap);
@@ -741,7 +760,7 @@ unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 			break;
 	}
 	if (devino >= msi_end)
-		return 0;
+		return -ENOSPC;
 
 	sysino = sun4v_devino_to_sysino(devhandle, devino);
 	bucket = &ivector_table[sysino];
@@ -755,8 +774,8 @@ unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
 
 	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
 	if (unlikely(!data)) {
-		prom_printf("IRQ: kzalloc(irq_handler_data) failed.\n");
-		prom_halt();
+		virt_irq_free(*virt_irq_p);
+		return -ENOMEM;
 	}
 	set_irq_chip_data(bucket->virt_irq, data);
 

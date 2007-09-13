@@ -955,6 +955,11 @@ asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 		goto out;
 	}
 
+	if (!nodes_subset(new, node_online_map)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	err = security_task_movememory(task);
 	if (err)
 		goto out;
