@@ -100,10 +100,10 @@ struct ehca_sport {
 	struct ehca_sma_attr saved_attr;
 };
 
-#define HCA_CAP_MR_PGSIZE_4K  1
-#define HCA_CAP_MR_PGSIZE_64K 2
-#define HCA_CAP_MR_PGSIZE_1M  4
-#define HCA_CAP_MR_PGSIZE_16M 8
+#define HCA_CAP_MR_PGSIZE_4K  0x80000000
+#define HCA_CAP_MR_PGSIZE_64K 0x40000000
+#define HCA_CAP_MR_PGSIZE_1M  0x20000000
+#define HCA_CAP_MR_PGSIZE_16M 0x10000000
 
 struct ehca_shca {
 	struct ib_device ib_device;
