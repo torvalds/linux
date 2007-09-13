@@ -12,32 +12,6 @@
 #ifndef __ASM_COBALT_H
 #define __ASM_COBALT_H
 
-#include <irq.h>
-
-/*
- * i8259 legacy interrupts used on Cobalt:
- *
- *     8  - RTC
- *     9  - PCI
- *    14  - IDE0
- *    15  - IDE1
- */
-#define COBALT_QUBE_SLOT_IRQ	9
-
-/*
- * CPU IRQs  are 16 ... 23
- */
-#define COBALT_CPU_IRQ		MIPS_CPU_IRQ_BASE
-
-#define COBALT_GALILEO_IRQ	(COBALT_CPU_IRQ + 2)
-#define COBALT_RAQ_SCSI_IRQ	(COBALT_CPU_IRQ + 3)
-#define COBALT_ETH0_IRQ		(COBALT_CPU_IRQ + 3)
-#define COBALT_QUBE1_ETH0_IRQ	(COBALT_CPU_IRQ + 4)
-#define COBALT_ETH1_IRQ		(COBALT_CPU_IRQ + 4)
-#define COBALT_SERIAL_IRQ	(COBALT_CPU_IRQ + 5)
-#define COBALT_SCSI_IRQ         (COBALT_CPU_IRQ + 5)
-#define COBALT_VIA_IRQ		(COBALT_CPU_IRQ + 6)	/* Chained to VIA ISA bridge */
-
 /*
  * PCI configuration space manifest constants.  These are wired into
  * the board layout according to the PCI spec to enable the software

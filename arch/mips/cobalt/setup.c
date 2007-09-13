@@ -20,6 +20,7 @@
 #include <asm/gt64120.h>
 
 #include <cobalt.h>
+#include <irq.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
@@ -45,14 +46,10 @@ void __init plat_timer_setup(struct irqaction *irq)
 	/* Load timer value for HZ (TCLK is 50MHz) */
 	GT_WRITE(GT_TC0_OFS, 50*1000*1000 / HZ);
 
-	/* Enable timer */
+	/* Enable timer0 */
 	GT_WRITE(GT_TC_CONTROL_OFS, GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
 
-	/* Register interrupt */
-	setup_irq(COBALT_GALILEO_IRQ, irq);
-
-	/* Enable interrupt */
-	GT_WRITE(GT_INTRMASK_OFS, GT_INTR_T0EXP_MSK | GT_READ(GT_INTRMASK_OFS));
+	setup_irq(GT641XX_TIMER0_IRQ, irq);
 }
 
 /*

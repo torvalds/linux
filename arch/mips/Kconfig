@@ -64,6 +64,7 @@ config MIPS_COBALT
 	select HW_HAS_PCI
 	select I8259
 	select IRQ_CPU
+	select IRQ_GT641XX
 	select PCI_GT64XXX_PCI0
 	select SYS_HAS_CPU_NEVADA
 	select SYS_HAS_EARLY_PRINTK
@@ -804,6 +805,9 @@ config IRQ_MSP_CIC
 	bool
 
 config IRQ_TXX9
+	bool
+
+config IRQ_GT641XX
 	bool
 
 config MIPS_BOARDS_GEN
