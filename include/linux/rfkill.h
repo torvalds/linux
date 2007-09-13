@@ -31,13 +31,11 @@
  * enum rfkill_type - type of rfkill switch.
  * RFKILL_TYPE_WLAN: switch is no a Wireless network devices.
  * RFKILL_TYPE_BlUETOOTH: switch is on a bluetooth device.
- * RFKILL_TYPE_IRDA: switch is on an infrared devices.
  */
 enum rfkill_type {
-	RFKILL_TYPE_WLAN = 0,
-	RFKILL_TYPE_BLUETOOTH = 1,
-	RFKILL_TYPE_IRDA = 2,
-	RFKILL_TYPE_MAX = 3,
+	RFKILL_TYPE_WLAN ,
+	RFKILL_TYPE_BLUETOOTH,
+	RFKILL_TYPE_MAX,
 };
 
 enum rfkill_state {

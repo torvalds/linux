@@ -5,7 +5,7 @@ menuconfig RFKILL
 	tristate "RF switch subsystem support"
 	help
 	  Say Y here if you want to have control over RF switches
-	  found on many WiFi, Bluetooth and IRDA cards.
+	  found on many WiFi and Bluetooth cards.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rfkill.
