@@ -351,6 +351,30 @@
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_RT_SIGACTION
 
+#define __IGNORE_lchown
+#define __IGNORE_setuid
+#define __IGNORE_getuid
+#define __IGNORE_setgid
+#define __IGNORE_getgid
+#define __IGNORE_geteuid
+#define __IGNORE_getegid
+#define __IGNORE_fcntl
+#define __IGNORE_setreuid
+#define __IGNORE_setregid
+#define __IGNORE_getrlimit
+#define __IGNORE_getgroups
+#define __IGNORE_setgroups
+#define __IGNORE_select
+#define __IGNORE_mmap
+#define __IGNORE_fchown
+#define __IGNORE_setfsuid
+#define __IGNORE_setfsgid
+#define __IGNORE_setresuid
+#define __IGNORE_getresuid
+#define __IGNORE_setresgid
+#define __IGNORE_getresgid
+#define __IGNORE_chown
+
 /*
  * "Conditional" syscalls
  *
