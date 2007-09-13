@@ -3094,9 +3094,12 @@ static void myri10ge_remove(struct pci_dev *pdev)
 }
 
 #define PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E 	0x0008
+#define PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E_9	0x0009
 
 static struct pci_device_id myri10ge_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_MYRICOM, PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E)},
+	{PCI_DEVICE
+	 (PCI_VENDOR_ID_MYRICOM, PCI_DEVICE_ID_MYRICOM_MYRI10GE_Z8E_9)},
 	{0},
 };
 
