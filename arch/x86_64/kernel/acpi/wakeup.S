@@ -81,7 +81,7 @@ wakeup_code:
 	testl	$2, realmode_flags - wakeup_code
 	jz	1f
 	mov	video_mode - wakeup_code, %ax
-	call	mode_seta
+	call	mode_set
 1:
 
  	movw	$0xb800, %ax
@@ -291,51 +291,30 @@ no_longmode:
 #define VIDEO_FIRST_V7 0x0900
 
 # Setting of user mode (AX=mode ID) => CF=success
+
+# For now, we only handle VESA modes (0x0200..0x03ff).  To handle other
+# modes, we should probably compile in the video code from the boot
+# directory.
 .code16
-mode_seta:
+mode_set:
 	movw	%ax, %bx
-#if 0
-	cmpb	$0xff, %ah
-	jz	setalias
+	subb	$VIDEO_FIRST_VESA>>8, %bh
+	cmpb	$2, %bh
+	jb	check_vesa
 
-	testb	$VIDEO_RECALC>>8, %ah
-	jnz	_setrec
-
-	cmpb	$VIDEO_FIRST_RESOLUTION>>8, %ah
-	jnc	setres
-	
-	cmpb	$VIDEO_FIRST_SPECIAL>>8, %ah
-	jz	setspc
-
-	cmpb	$VIDEO_FIRST_V7>>8, %ah
-	jz	setv7
-#endif
-	
-	cmpb	$VIDEO_FIRST_VESA>>8, %ah
-	jnc	check_vesaa
-#if 0	
-	orb	%ah, %ah
-	jz	setmenu
-#endif
-	
-	decb	%ah
-#	jz	setbios				  Add bios modes later
-
-setbada:	clc
+setbad:
+	clc
 	ret
 
-check_vesaa:
-	subb	$VIDEO_FIRST_VESA>>8, %bh
+check_vesa:
 	orw	$0x4000, %bx			# Use linear frame buffer
 	movw	$0x4f02, %ax			# VESA BIOS mode set call
 	int	$0x10
 	cmpw	$0x004f, %ax			# AL=4f if implemented
-	jnz	_setbada				# AH=0 if OK
+	jnz	setbad				# AH=0 if OK
 
 	stc
 	ret
-
-_setbada: jmp setbada
 
 wakeup_stack_begin:	# Stack grows down
 
