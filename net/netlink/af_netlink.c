@@ -1859,7 +1859,11 @@ static int netlink_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = iter;
-	iter->net = get_net(PROC_NET(inode));
+	iter->net = get_proc_net(inode);
+	if (!iter->net) {
+		seq_release_private(inode, file);
+		return -ENXIO;
+	}
 	return 0;
 }
 

@@ -51,6 +51,12 @@ void proc_net_remove(struct net *net, const char *name)
 }
 EXPORT_SYMBOL_GPL(proc_net_remove);
 
+struct net *get_proc_net(const struct inode *inode)
+{
+	return maybe_get_net(PDE_NET(PDE(inode)));
+}
+EXPORT_SYMBOL_GPL(get_proc_net);
+
 static struct proc_dir_entry *proc_net_shadow;
 
 static struct dentry *proc_net_shadow_dentry(struct dentry *parent,

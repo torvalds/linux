@@ -246,7 +246,11 @@ static int dev_mc_seq_open(struct inode *inode, struct file *file)
 	res = seq_open(file, &dev_mc_seq_ops);
 	if (!res) {
 		seq = file->private_data;
-		seq->private = get_net(PROC_NET(inode));
+		seq->private = get_proc_net(inode);
+		if (!seq->private) {
+			seq_release(inode, file);
+			res = -ENXIO;
+		}
 	}
 	return res;
 }

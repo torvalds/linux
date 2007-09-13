@@ -46,6 +46,18 @@ static inline struct net *get_net(struct net *net)
 	return net;
 }
 
+static inline struct net *maybe_get_net(struct net *net)
+{
+	/* Used when we know struct net exists but we
+	 * aren't guaranteed a previous reference count
+	 * exists.  If the reference count is zero this
+	 * function fails and returns NULL.
+	 */
+	if (!atomic_inc_not_zero(&net->count))
+		net = NULL;
+	return net;
+}
+
 static inline void put_net(struct net *net)
 {
 	if (atomic_dec_and_test(&net->count))
