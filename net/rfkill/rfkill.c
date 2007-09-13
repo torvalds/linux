@@ -106,6 +106,9 @@ static ssize_t rfkill_type_show(struct device *dev,
 	case RFKILL_TYPE_BLUETOOTH:
 		type = "bluetooth";
 		break;
+	case RFKILL_TYPE_UWB:
+		type = "ultrawideband";
+		break;
 	default:
 		BUG();
 	}
