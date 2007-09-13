@@ -220,17 +220,6 @@ static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 static struct kmem_cache *wl_entries_slab;
 
 /**
- * tree_empty - a helper function to check if an RB-tree is empty.
- * @root: the root of the tree
- *
- * This function returns non-zero if the RB-tree is empty and zero if not.
- */
-static inline int tree_empty(struct rb_root *root)
-{
-	return root->rb_node == NULL;
-}
-
-/**
  * wl_tree_add - add a wear-leveling entry to a WL RB-tree.
  * @e: the wear-leveling entry to add
  * @root: the root of the tree
@@ -264,45 +253,6 @@ static void wl_tree_add(struct ubi_wl_entry *e, struct rb_root *root)
 
 	rb_link_node(&e->rb, parent, p);
 	rb_insert_color(&e->rb, root);
-}
-
-
-/*
- * Helper functions to add and delete wear-leveling entries from different
- * trees.
- */
-
-static void free_tree_add(struct ubi_device *ubi, struct ubi_wl_entry *e)
-{
-	wl_tree_add(e, &ubi->free);
-}
-static inline void used_tree_add(struct ubi_device *ubi,
-				 struct ubi_wl_entry *e)
-{
-	wl_tree_add(e, &ubi->used);
-}
-static inline void scrub_tree_add(struct ubi_device *ubi,
-				  struct ubi_wl_entry *e)
-{
-	wl_tree_add(e, &ubi->scrub);
-}
-static inline void free_tree_del(struct ubi_device *ubi,
-				 struct ubi_wl_entry *e)
-{
-	paranoid_check_in_wl_tree(e, &ubi->free);
-	rb_erase(&e->rb, &ubi->free);
-}
-static inline void used_tree_del(struct ubi_device *ubi,
-				 struct ubi_wl_entry *e)
-{
-	paranoid_check_in_wl_tree(e, &ubi->used);
-	rb_erase(&e->rb, &ubi->used);
-}
-static inline void scrub_tree_del(struct ubi_device *ubi,
-				  struct ubi_wl_entry *e)
-{
-	paranoid_check_in_wl_tree(e, &ubi->scrub);
-	rb_erase(&e->rb, &ubi->scrub);
 }
 
 /**
@@ -358,7 +308,7 @@ static int produce_free_peb(struct ubi_device *ubi)
 	int err;
 
 	spin_lock(&ubi->wl_lock);
-	while (tree_empty(&ubi->free)) {
+	while (!ubi->free.rb_node) {
 		spin_unlock(&ubi->wl_lock);
 
 		dbg_wl("do one work synchronously");
@@ -514,7 +464,7 @@ int ubi_wl_get_peb(struct ubi_device *ubi, int dtype)
 
 retry:
 	spin_lock(&ubi->wl_lock);
-	if (tree_empty(&ubi->free)) {
+	if (!ubi->free.rb_node) {
 		if (ubi->works_count == 0) {
 			ubi_assert(list_empty(&ubi->works));
 			ubi_err("no free eraseblocks");
@@ -585,7 +535,8 @@ retry:
 	 * Move the physical eraseblock to the protection trees where it will
 	 * be protected from being moved for some time.
 	 */
-	free_tree_del(ubi, e);
+	paranoid_check_in_wl_tree(e, &ubi->free);
+	rb_erase(&e->rb, &ubi->free);
 	prot_tree_add(ubi, e, pe, protect);
 
 	dbg_wl("PEB %d EC %d, protection %d", e->pnum, e->ec, protect);
@@ -704,7 +655,7 @@ static void check_protection_over(struct ubi_device *ubi)
 	 */
 	while (1) {
 		spin_lock(&ubi->wl_lock);
-		if (tree_empty(&ubi->prot.aec)) {
+		if (!ubi->prot.aec.rb_node) {
 			spin_unlock(&ubi->wl_lock);
 			break;
 		}
@@ -721,7 +672,7 @@ static void check_protection_over(struct ubi_device *ubi)
 		       pe->e->pnum, ubi->abs_ec, pe->abs_ec);
 		rb_erase(&pe->rb_aec, &ubi->prot.aec);
 		rb_erase(&pe->rb_pnum, &ubi->prot.pnum);
-		used_tree_add(ubi, pe->e);
+		wl_tree_add(pe->e, &ubi->used);
 		spin_unlock(&ubi->wl_lock);
 
 		kfree(pe);
@@ -812,8 +763,8 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	 * Only one WL worker at a time is supported at this implementation, so
 	 * make sure a PEB is not being moved already.
 	 */
-	if (ubi->move_to || tree_empty(&ubi->free) ||
-	    (tree_empty(&ubi->used) && tree_empty(&ubi->scrub))) {
+	if (ubi->move_to || !ubi->free.rb_node ||
+	    (!ubi->used.rb_node && !ubi->scrub.rb_node)) {
 		/*
 		 * Only one WL worker at a time is supported at this
 		 * implementation, so if a LEB is already being moved, cancel.
@@ -828,14 +779,14 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 * triggered again.
 		 */
 		dbg_wl("cancel WL, a list is empty: free %d, used %d",
-		       tree_empty(&ubi->free), tree_empty(&ubi->used));
+		       !ubi->free.rb_node, !ubi->used.rb_node);
 		ubi->wl_scheduled = 0;
 		spin_unlock(&ubi->wl_lock);
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		return 0;
 	}
 
-	if (tree_empty(&ubi->scrub)) {
+	if (!ubi->scrub.rb_node) {
 		/*
 		 * Now pick the least worn-out used physical eraseblock and a
 		 * highly worn-out free physical eraseblock. If the erase
@@ -852,17 +803,20 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			ubi_free_vid_hdr(ubi, vid_hdr);
 			return 0;
 		}
-		used_tree_del(ubi, e1);
+		paranoid_check_in_wl_tree(e1, &ubi->used);
+		rb_erase(&e1->rb, &ubi->used);
 		dbg_wl("move PEB %d EC %d to PEB %d EC %d",
 		       e1->pnum, e1->ec, e2->pnum, e2->ec);
 	} else {
 		e1 = rb_entry(rb_first(&ubi->scrub), struct ubi_wl_entry, rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
-		scrub_tree_del(ubi, e1);
+		paranoid_check_in_wl_tree(e1, &ubi->scrub);
+	rb_erase(&e1->rb, &ubi->scrub);
 		dbg_wl("scrub PEB %d to PEB %d", e1->pnum, e2->pnum);
 	}
 
-	free_tree_del(ubi, e2);
+	paranoid_check_in_wl_tree(e2, &ubi->free);
+	rb_erase(&e2->rb, &ubi->free);
 	ubi_assert(!ubi->move_from && !ubi->move_to);
 	ubi_assert(!ubi->move_to_put && !ubi->move_from_put);
 	ubi->move_from = e1;
@@ -908,7 +862,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi_free_vid_hdr(ubi, vid_hdr);
 	spin_lock(&ubi->wl_lock);
 	if (!ubi->move_to_put)
-		used_tree_add(ubi, e2);
+		wl_tree_add(e2, &ubi->used);
 	else
 		put = 1;
 	ubi->move_from = ubi->move_to = NULL;
@@ -953,7 +907,7 @@ error:
 	if (ubi->move_from_put)
 		put = 1;
 	else
-		used_tree_add(ubi, e1);
+		wl_tree_add(e1, &ubi->used);
 	ubi->move_from = ubi->move_to = NULL;
 	ubi->move_from_put = ubi->move_to_put = 0;
 	spin_unlock(&ubi->wl_lock);
@@ -1005,8 +959,8 @@ static int ensure_wear_leveling(struct ubi_device *ubi)
 	 * If the ubi->scrub tree is not empty, scrubbing is needed, and the
 	 * the WL worker has to be scheduled anyway.
 	 */
-	if (tree_empty(&ubi->scrub)) {
-		if (tree_empty(&ubi->used) || tree_empty(&ubi->free))
+	if (!ubi->scrub.rb_node) {
+		if (!ubi->used.rb_node || !ubi->free.rb_node)
 			/* No physical eraseblocks - no deal */
 			goto out_unlock;
 
@@ -1079,7 +1033,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 
 		spin_lock(&ubi->wl_lock);
 		ubi->abs_ec += 1;
-		free_tree_add(ubi, e);
+		wl_tree_add(e, &ubi->free);
 		spin_unlock(&ubi->wl_lock);
 
 		/*
@@ -1212,11 +1166,13 @@ int ubi_wl_put_peb(struct ubi_device *ubi, int pnum, int torture)
 		spin_unlock(&ubi->wl_lock);
 		return 0;
 	} else {
-		if (in_wl_tree(e, &ubi->used))
-			used_tree_del(ubi, e);
-		else if (in_wl_tree(e, &ubi->scrub))
-			scrub_tree_del(ubi, e);
-		else
+		if (in_wl_tree(e, &ubi->used)) {
+			paranoid_check_in_wl_tree(e, &ubi->used);
+			rb_erase(&e->rb, &ubi->used);
+		} else if (in_wl_tree(e, &ubi->scrub)) {
+			paranoid_check_in_wl_tree(e, &ubi->scrub);
+			rb_erase(&e->rb, &ubi->scrub);
+		} else
 			prot_tree_del(ubi, e->pnum);
 	}
 	spin_unlock(&ubi->wl_lock);
@@ -1224,7 +1180,7 @@ int ubi_wl_put_peb(struct ubi_device *ubi, int pnum, int torture)
 	err = schedule_erase(ubi, e, torture);
 	if (err) {
 		spin_lock(&ubi->wl_lock);
-		used_tree_add(ubi, e);
+		wl_tree_add(e, &ubi->used);
 		spin_unlock(&ubi->wl_lock);
 	}
 
@@ -1268,12 +1224,13 @@ retry:
 		goto retry;
 	}
 
-	if (in_wl_tree(e, &ubi->used))
-		used_tree_del(ubi, e);
-	else
+	if (in_wl_tree(e, &ubi->used)) {
+		paranoid_check_in_wl_tree(e, &ubi->used);
+		rb_erase(&e->rb, &ubi->used);
+	} else
 		prot_tree_del(ubi, pnum);
 
-	scrub_tree_add(ubi, e);
+	wl_tree_add(e, &ubi->scrub);
 	spin_unlock(&ubi->wl_lock);
 
 	/*
@@ -1489,7 +1446,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		e->pnum = seb->pnum;
 		e->ec = seb->ec;
 		ubi_assert(e->ec >= 0);
-		free_tree_add(ubi, e);
+		wl_tree_add(e, &ubi->free);
 		ubi->lookuptbl[e->pnum] = e;
 	}
 
@@ -1523,16 +1480,16 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 			if (!seb->scrub) {
 				dbg_wl("add PEB %d EC %d to the used tree",
 				       e->pnum, e->ec);
-				used_tree_add(ubi, e);
+				wl_tree_add(e, &ubi->used);
 			} else {
 				dbg_wl("add PEB %d EC %d to the scrub tree",
 				       e->pnum, e->ec);
-				scrub_tree_add(ubi, e);
+				wl_tree_add(e, &ubi->scrub);
 			}
 		}
 	}
 
-	if (WL_RESERVED_PEBS > ubi->avail_pebs) {
+	if (ubi->avail_pebs < WL_RESERVED_PEBS) {
 		ubi_err("no enough physical eraseblocks (%d, need %d)",
 			ubi->avail_pebs, WL_RESERVED_PEBS);
 		goto out_free;
