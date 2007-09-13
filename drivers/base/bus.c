@@ -30,6 +30,12 @@
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
 
+static struct bus_type *bus_get(struct bus_type *bus)
+{
+	return bus ? container_of(kset_get(&bus->subsys),
+				struct bus_type, subsys) : NULL;
+}
+
 static void bus_put(struct bus_type *bus)
 {
 	kset_put(&bus->subsys);
@@ -127,7 +133,7 @@ static struct sysfs_ops bus_sysfs_ops = {
 int bus_create_file(struct bus_type * bus, struct bus_attribute * attr)
 {
 	int error;
-	if (get_bus(bus)) {
+	if (bus_get(bus)) {
 		error = sysfs_create_file(&bus->subsys.kobj, &attr->attr);
 		bus_put(bus);
 	} else
@@ -137,7 +143,7 @@ int bus_create_file(struct bus_type * bus, struct bus_attribute * attr)
 
 void bus_remove_file(struct bus_type * bus, struct bus_attribute * attr)
 {
-	if (get_bus(bus)) {
+	if (bus_get(bus)) {
 		sysfs_remove_file(&bus->subsys.kobj, &attr->attr);
 		bus_put(bus);
 	}
@@ -177,7 +183,7 @@ static int driver_helper(struct device *dev, void *data)
 static ssize_t driver_unbind(struct device_driver *drv,
 			     const char *buf, size_t count)
 {
-	struct bus_type *bus = get_bus(drv->bus);
+	struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
 	int err = -ENODEV;
 
@@ -204,7 +210,7 @@ static DRIVER_ATTR(unbind, S_IWUSR, NULL, driver_unbind);
 static ssize_t driver_bind(struct device_driver *drv,
 			   const char *buf, size_t count)
 {
-	struct bus_type *bus = get_bus(drv->bus);
+	struct bus_type *bus = bus_get(drv->bus);
 	struct device *dev;
 	int err = -ENODEV;
 
@@ -435,7 +441,7 @@ static inline void remove_deprecated_bus_links(struct device *dev) { }
  */
 int bus_add_device(struct device * dev)
 {
-	struct bus_type * bus = get_bus(dev->bus);
+	struct bus_type * bus = bus_get(dev->bus);
 	int error = 0;
 
 	if (bus) {
@@ -611,7 +617,7 @@ static inline void remove_probe_files(struct bus_type *bus) {}
  */
 int bus_add_driver(struct device_driver *drv)
 {
-	struct bus_type * bus = get_bus(drv->bus);
+	struct bus_type * bus = bus_get(drv->bus);
 	int error = 0;
 
 	if (!bus)
@@ -730,12 +736,6 @@ int device_reprobe(struct device *dev)
 	return bus_rescan_devices_helper(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(device_reprobe);
-
-struct bus_type *get_bus(struct bus_type *bus)
-{
-	return bus ? container_of(kset_get(&bus->subsys),
-				struct bus_type, subsys) : NULL;
-}
 
 /**
  *	find_bus - locate bus by name.
