@@ -52,9 +52,9 @@
  *
  * This is all going to change RSN when we add bi_recs.......  -- Dan
  */
-	.text
-_GLOBAL(_stext)
-_GLOBAL(_start)
+	.section	.text.head, "ax"
+_ENTRY(_stext);
+_ENTRY(_start);
 
 	/* Save parameters we are passed.
 	*/
@@ -89,9 +89,9 @@ turn_on_mmu:
  */
 	. = 0xc0
 crit_save:
-_GLOBAL(crit_r10)
+_ENTRY(crit_r10)
 	.space	4
-_GLOBAL(crit_r11)
+_ENTRY(crit_r11)
 	.space	4
 
 /*
@@ -814,7 +814,7 @@ finish_tlb_load:
  * The PowerPC 4xx family of processors do not have an FPU, so this just
  * returns.
  */
-_GLOBAL(giveup_fpu)
+_ENTRY(giveup_fpu)
 	blr
 
 /* This is where the main kernel code starts.

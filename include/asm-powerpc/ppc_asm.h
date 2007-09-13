@@ -209,6 +209,10 @@ GLUE(.,name):
 
 #else /* 32-bit */
 
+#define _ENTRY(n)	\
+	.globl n;	\
+n:
+
 #define _GLOBAL(n)	\
 	.text;		\
 	.stabs __stringify(n:F-1),N_FUN,0,0,n;\

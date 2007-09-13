@@ -38,12 +38,9 @@
 #else
 #define DO_8xx_CPU6(val, reg)
 #endif
-	.text
-	.globl	_stext
-_stext:
-	.text
-	.globl	_start
-_start:
+	.section	.text.head, "ax"
+_ENTRY(_stext);
+_ENTRY(_start);
 
 /* MPC8xx
  * This port was done on an MBX board with an 860.  Right now I only

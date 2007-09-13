@@ -48,20 +48,17 @@
 	mtspr	SPRN_DBAT##n##L,RB;	\
 1:
 
-	.text
+	.section	.text.head, "ax"
 	.stabs	"arch/powerpc/kernel/",N_SO,0,0,0f
 	.stabs	"head_32.S",N_SO,0,0,0f
 0:
-	.globl	_stext
-_stext:
+_ENTRY(_stext);
 
 /*
  * _start is defined this way because the XCOFF loader in the OpenFirmware
  * on the powermac expects the entry point to be a procedure descriptor.
  */
-	.text
-	.globl	_start
-_start:
+_ENTRY(_start);
 	/*
 	 * These are here for legacy reasons, the kernel used to
 	 * need to look like a coff function entry for the pmac
@@ -841,7 +838,7 @@ relocate_kernel:
  * r3 = dest addr, r4 = source addr, r5 = copy limit, r6 = start offset
  * on exit, r3, r4, r5 are unchanged, r6 is updated to be >= r5.
  */
-_GLOBAL(copy_and_flush)
+_ENTRY(copy_and_flush)
 	addi	r5,r5,-4
 	addi	r6,r6,-4
 4:	li	r0,L1_CACHE_BYTES/4
@@ -954,9 +951,9 @@ __secondary_start:
  * included in CONFIG_6xx
  */
 #if !defined(CONFIG_6xx)
-_GLOBAL(__save_cpu_setup)
+_ENTRY(__save_cpu_setup)
 	blr
-_GLOBAL(__restore_cpu_setup)
+_ENTRY(__restore_cpu_setup)
 	blr
 #endif /* !defined(CONFIG_6xx) */
 
@@ -1080,7 +1077,7 @@ start_here:
 /*
  * Set up the segment registers for a new context.
  */
-_GLOBAL(set_context)
+_ENTRY(set_context)
 	mulli	r3,r3,897	/* multiply context by skew factor */
 	rlwinm	r3,r3,4,8,27	/* VSID = (context & 0xfffff) << 4 */
 	addis	r3,r3,0x6000	/* Set Ks, Ku bits */
