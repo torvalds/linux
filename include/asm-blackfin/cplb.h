@@ -30,7 +30,8 @@
 #ifndef _CPLB_H
 #define _CPLB_H
 
-# include <asm/blackfin.h>
+#include <asm/blackfin.h>
+#include <asm/mach/anomaly.h>
 
 #define SDRAM_IGENERIC    (CPLB_L1_CHBL | CPLB_USER_RD | CPLB_VALID | CPLB_PORTPRIO)
 #define SDRAM_IKERNEL     (SDRAM_IGENERIC | CPLB_LOCK)
@@ -54,6 +55,7 @@
 #endif
 
 #define L1_DMEMORY       (CPLB_LOCK | CPLB_COMMON)
+#define L2_MEMORY        (CPLB_COMMON)
 #define SDRAM_DNON_CHBL  (CPLB_COMMON)
 #define SDRAM_EBIU       (CPLB_COMMON)
 #define SDRAM_OOPS       (CPLB_VALID | ANOMALY_05000158_WORKAROUND | CPLB_LOCK | CPLB_DIRTY)
