@@ -669,9 +669,13 @@ int set_fpexc_mode(struct task_struct *tsk, unsigned int val)
 	 * mode (asyn, precise, disabled) for 'Classic' FP. */
 	if (val & PR_FP_EXC_SW_ENABLE) {
 #ifdef CONFIG_SPE
-		tsk->thread.fpexc_mode = val &
-			(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
-		return 0;
+		if (cpu_has_feature(CPU_FTR_SPE)) {
+			tsk->thread.fpexc_mode = val &
+				(PR_FP_EXC_SW_ENABLE | PR_FP_ALL_EXCEPT);
+			return 0;
+		} else {
+			return -EINVAL;
+		}
 #else
 		return -EINVAL;
 #endif
@@ -697,7 +701,10 @@ int get_fpexc_mode(struct task_struct *tsk, unsigned long adr)
 
 	if (tsk->thread.fpexc_mode & PR_FP_EXC_SW_ENABLE)
 #ifdef CONFIG_SPE
-		val = tsk->thread.fpexc_mode;
+		if (cpu_has_feature(CPU_FTR_SPE))
+			val = tsk->thread.fpexc_mode;
+		else
+			return -EINVAL;
 #else
 		return -EINVAL;
 #endif

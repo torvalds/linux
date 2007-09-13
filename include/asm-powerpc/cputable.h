@@ -136,6 +136,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_REAL_LE			ASM_CONST(0x0000000000400000)
 #define CPU_FTR_FPU_UNAVAILABLE		ASM_CONST(0x0000000000800000)
 #define CPU_FTR_UNIFIED_ID_CACHE	ASM_CONST(0x0000000001000000)
+#define CPU_FTR_SPE			ASM_CONST(0x0000000002000000)
 
 /*
  * Add the 64-bit processor unique features in the top half of the word;
@@ -178,6 +179,21 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #else
 #define CPU_FTR_ALTIVEC_COMP	0
 #define PPC_FEATURE_HAS_ALTIVEC_COMP    0
+#endif
+
+/* We only set the spe features if the kernel was compiled with spe
+ * support
+ */
+#ifdef CONFIG_SPE
+#define CPU_FTR_SPE_COMP	CPU_FTR_SPE
+#define PPC_FEATURE_HAS_SPE_COMP PPC_FEATURE_HAS_SPE
+#define PPC_FEATURE_HAS_EFP_SINGLE_COMP PPC_FEATURE_HAS_EFP_SINGLE
+#define PPC_FEATURE_HAS_EFP_DOUBLE_COMP PPC_FEATURE_HAS_EFP_DOUBLE
+#else
+#define CPU_FTR_SPE_COMP	0
+#define PPC_FEATURE_HAS_SPE_COMP    0
+#define PPC_FEATURE_HAS_EFP_SINGLE_COMP 0
+#define PPC_FEATURE_HAS_EFP_DOUBLE_COMP 0
 #endif
 
 /* We need to mark all pages as being coherent if we're SMP or we
@@ -310,10 +326,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTRS_8XX	(CPU_FTR_USE_TB)
 #define CPU_FTRS_40X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN)
 #define CPU_FTRS_44X	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN)
-#define CPU_FTRS_E200	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN | \
-	    CPU_FTR_COHERENT_ICACHE | CPU_FTR_UNIFIED_ID_CACHE)
-#define CPU_FTRS_E500	(CPU_FTR_USE_TB | CPU_FTR_NODSISRALIGN)
-#define CPU_FTRS_E500_2	(CPU_FTR_USE_TB | \
+#define CPU_FTRS_E200	(CPU_FTR_USE_TB | CPU_FTR_SPE_COMP | \
+	    CPU_FTR_NODSISRALIGN | CPU_FTR_COHERENT_ICACHE | \
+	    CPU_FTR_UNIFIED_ID_CACHE)
+#define CPU_FTRS_E500	(CPU_FTR_USE_TB | CPU_FTR_SPE_COMP | \
+	    CPU_FTR_NODSISRALIGN)
+#define CPU_FTRS_E500_2	(CPU_FTR_USE_TB | CPU_FTR_SPE_COMP | \
 	    CPU_FTR_BIG_PHYS | CPU_FTR_NODSISRALIGN)
 #define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
 

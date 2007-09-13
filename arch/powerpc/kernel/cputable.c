@@ -68,15 +68,6 @@ extern void __restore_cpu_ppc970(void);
 #define COMMON_USER_BOOKE	(PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU | \
 				 PPC_FEATURE_BOOKE)
 
-/* We only set the spe features if the kernel was compiled with
- * spe support
- */
-#ifdef CONFIG_SPE
-#define PPC_FEATURE_SPE_COMP	PPC_FEATURE_HAS_SPE
-#else
-#define PPC_FEATURE_SPE_COMP	0
-#endif
-
 static struct cpu_spec cpu_specs[] = {
 #ifdef CONFIG_PPC64
 	{	/* Power3 */
@@ -1261,8 +1252,8 @@ static struct cpu_spec cpu_specs[] = {
 		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E200,
 		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_SPE_COMP |
-			PPC_FEATURE_HAS_EFP_SINGLE |
+			PPC_FEATURE_HAS_SPE_COMP |
+			PPC_FEATURE_HAS_EFP_SINGLE_COMP |
 			PPC_FEATURE_UNIFIED_CACHE,
 		.dcache_bsize		= 32,
 		.platform		= "ppc5554",
@@ -1274,8 +1265,8 @@ static struct cpu_spec cpu_specs[] = {
 		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500,
 		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_SPE_COMP |
-			PPC_FEATURE_HAS_EFP_SINGLE,
+			PPC_FEATURE_HAS_SPE_COMP |
+			PPC_FEATURE_HAS_EFP_SINGLE_COMP,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,
@@ -1290,9 +1281,9 @@ static struct cpu_spec cpu_specs[] = {
 		/* xxx - galak: add CPU_FTR_MAYBE_CAN_DOZE */
 		.cpu_features		= CPU_FTRS_E500_2,
 		.cpu_user_features	= COMMON_USER_BOOKE |
-			PPC_FEATURE_SPE_COMP |
-			PPC_FEATURE_HAS_EFP_SINGLE |
-			PPC_FEATURE_HAS_EFP_DOUBLE,
+			PPC_FEATURE_HAS_SPE_COMP |
+			PPC_FEATURE_HAS_EFP_SINGLE_COMP |
+			PPC_FEATURE_HAS_EFP_DOUBLE_COMP,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.num_pmcs		= 4,

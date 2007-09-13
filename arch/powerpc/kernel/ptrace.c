@@ -576,8 +576,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #ifdef CONFIG_SPE
 	case PTRACE_GETEVRREGS:
 		/* Get the child spe register state. */
-		if (child->thread.regs->msr & MSR_SPE)
-			giveup_spe(child);
+		flush_spe_to_thread(child);
 		ret = get_evrregs((unsigned long __user *)data, child);
 		break;
 
@@ -585,8 +584,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		/* Set the child spe register state. */
 		/* this is to clear the MSR_SPE bit to force a reload
 		 * of register state from memory */
-		if (child->thread.regs->msr & MSR_SPE)
-			giveup_spe(child);
+		flush_spe_to_thread(child);
 		ret = set_evrregs(child, (unsigned long __user *)data);
 		break;
 #endif
