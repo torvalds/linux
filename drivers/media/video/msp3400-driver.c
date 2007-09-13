@@ -53,6 +53,7 @@
 #include <linux/videodev.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/tvaudio.h>
 #include <media/msp3400.h>
 #include <linux/kthread.h>
@@ -783,7 +784,6 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static int msp_suspend(struct i2c_client *client, pm_message_t state)
 {
-
 	v4l_dbg(1, msp_debug, client, "suspend\n");
 	msp_reset(client);
 	return 0;
@@ -791,7 +791,6 @@ static int msp_suspend(struct i2c_client *client, pm_message_t state)
 
 static int msp_resume(struct i2c_client *client)
 {
-
 	v4l_dbg(1, msp_debug, client, "resume\n");
 	msp_wake_thread(client);
 	return 0;
@@ -799,11 +798,8 @@ static int msp_resume(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver;
-
-static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
+static int msp_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct msp_state *state;
 	int (*thread_func)(void *data) = NULL;
 	int msp_hard;
@@ -812,24 +808,15 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	int msp_product, msp_prod_hi, msp_prod_lo;
 	int msp_rom;
 
-	client = kzalloc(sizeof(*client), GFP_KERNEL);
-	if (!client)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
 	snprintf(client->name, sizeof(client->name) - 1, "msp3400");
 
 	if (msp_reset(client) == -1) {
 		v4l_dbg(1, msp_debug, client, "msp3400 not found\n");
-		kfree(client);
 		return 0;
 	}
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state) {
-		kfree(client);
 		return -ENOMEM;
 	}
 
@@ -857,7 +844,6 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
 		v4l_dbg(1, msp_debug, client, "not an msp3400 (cannot read chip version)\n");
 		kfree(state);
-		kfree(client);
 		return 0;
 	}
 
@@ -919,7 +905,7 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* hello world :-) */
-	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name, address << 1, adapter->name);
+	v4l_info(client, "%s found @ 0x%x (%s)\n", client->name, client->addr << 1, client->adapter->name);
 	v4l_info(client, "%s ", client->name);
 	if (state->has_nicam && state->has_radio)
 		printk("supports nicam and radio, ");
@@ -954,24 +940,12 @@ static int msp_attach(struct i2c_adapter *adapter, int address, int kind)
 			v4l_warn(client, "kernel_thread() failed\n");
 		msp_wake_thread(client);
 	}
-
-	/* done */
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int msp_probe(struct i2c_adapter *adapter)
-{
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, msp_attach);
-	return 0;
-}
-
-static int msp_detach(struct i2c_client *client)
+static int msp_remove(struct i2c_client *client)
 {
 	struct msp_state *state = i2c_get_clientdata(client);
-	int err;
 
 	/* shutdown control thread */
 	if (state->kthread) {
@@ -980,43 +954,22 @@ static int msp_detach(struct i2c_client *client)
 	}
 	msp_reset(client);
 
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-
 	kfree(state);
-	kfree(client);
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.id             = I2C_DRIVERID_MSP3400,
-	.attach_adapter = msp_probe,
-	.detach_client  = msp_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "msp3400",
+	.driverid = I2C_DRIVERID_MSP3400,
+	.command = msp_command,
+	.probe = msp_probe,
+	.remove = msp_remove,
 	.suspend = msp_suspend,
-	.resume  = msp_resume,
-	.command        = msp_command,
-	.driver = {
-		.name    = "msp3400",
-	},
+	.resume = msp_resume,
 };
 
-static int __init msp3400_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit msp3400_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(msp3400_init_module);
-module_exit(msp3400_cleanup_module);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
