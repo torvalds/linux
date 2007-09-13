@@ -6,9 +6,7 @@
  * Copyright (C) 2007  Paul Mundt
  *
  * Hitachi 7206 SolutionEngine Support.
- *
  */
-
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/se7206.h>
@@ -81,24 +79,18 @@ static struct sh_machine_vector mv_se __initmv = {
 	.mv_nr_irqs		= 256,
 	.mv_inb			= se7206_inb,
 	.mv_inw			= se7206_inw,
-	.mv_inl			= se7206_inl,
 	.mv_outb		= se7206_outb,
 	.mv_outw		= se7206_outw,
-	.mv_outl		= se7206_outl,
 
 	.mv_inb_p		= se7206_inb_p,
 	.mv_inw_p		= se7206_inw,
-	.mv_inl_p		= se7206_inl,
 	.mv_outb_p		= se7206_outb_p,
 	.mv_outw_p		= se7206_outw,
-	.mv_outl_p		= se7206_outl,
 
 	.mv_insb		= se7206_insb,
 	.mv_insw		= se7206_insw,
-	.mv_insl		= se7206_insl,
 	.mv_outsb		= se7206_outsb,
 	.mv_outsw		= se7206_outsw,
-	.mv_outsl		= se7206_outsl,
 
 	.mv_init_irq		= init_se7206_IRQ,
 };
