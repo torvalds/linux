@@ -675,6 +675,12 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 		return;
 }
 
+#ifdef CONFIG_CPU_MIPSR2
+extern void spram_config(void);
+#else
+static inline void spram_config(void) {}
+#endif
+
 static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
@@ -712,6 +718,8 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c)
 		c->cputype = CPU_74K;
 		break;
 	}
+
+	spram_config();
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c)
