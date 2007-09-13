@@ -486,6 +486,7 @@ out_put_cred:
 	/* Success or failure, now we're either waiting for lease expiration
 	 * or deleg_return. */
 	dprintk("NFSD: nfs4_cb_recall: dp %p dl_flock %p dl_count %d\n",dp, dp->dl_flock, atomic_read(&dp->dl_count));
+	put_nfs4_client(clp);
 	nfs4_put_delegation(dp);
 	return;
 }

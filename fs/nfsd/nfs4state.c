@@ -1345,6 +1345,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	 * lock) we know the server hasn't removed the lease yet, we know
 	 * it's safe to take a reference: */
 	atomic_inc(&dp->dl_count);
+	atomic_inc(&dp->dl_client->cl_count);
 
 	spin_lock(&recall_lock);
 	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);
@@ -1367,6 +1368,7 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 		printk(KERN_INFO "NFSD: Callback thread failed for "
 			"for client (clientid %08x/%08x)\n",
 			clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
+		put_nfs4_client(dp->dl_client);
 		nfs4_put_delegation(dp);
 	}
 }
