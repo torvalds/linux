@@ -55,6 +55,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/saa7127.h>
 
 static int debug = 0;
@@ -662,31 +663,19 @@ static int saa7127_command(struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7127;
-
-/* ----------------------------------------------------------------------- */
-
-static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
+static int saa7127_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct saa7127_state *state;
 	struct v4l2_sliced_vbi_data vbi = { 0, 0, 0, 0 };  /* set to disabled */
 	int read_result = 0;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_saa7127;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
-	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n", client->addr << 1);
 
 	/* First test register 0: Bits 5-7 are a version ID (should be 0),
 	   and bit 2 should also be 0.
@@ -696,13 +685,11 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	if ((saa7127_read(client, 0) & 0xe4) != 0 ||
 			(saa7127_read(client, 0x29) & 0x3f) != 0x1d) {
 		v4l_dbg(1, debug, client, "saa7127 not found\n");
-		kfree(client);
 		return 0;
 	}
 	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
 
 	if (state == NULL) {
-		kfree(client);
 		return (-ENOMEM);
 	}
 
@@ -731,78 +718,34 @@ static int saa7127_attach(struct i2c_adapter *adapter, int address, int kind)
 	read_result = saa7127_read(client, SAA7129_REG_FADE_KEY_COL2);
 	saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, 0xaa);
 	if (saa7127_read(client, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
-		v4l_info(client, "saa7129 found @ 0x%x (%s)\n", address << 1, adapter->name);
+		v4l_info(client, "saa7129 found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 		saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, read_result);
 		saa7127_write_inittab(client, saa7129_init_config_extra);
 		state->ident = V4L2_IDENT_SAA7129;
 	} else {
-		v4l_info(client, "saa7127 found @ 0x%x (%s)\n", address << 1, adapter->name);
+		v4l_info(client, "saa7127 found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 		state->ident = V4L2_IDENT_SAA7127;
 	}
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static int saa7127_probe(struct i2c_adapter *adapter)
+static int saa7127_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, saa7127_attach);
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static int saa7127_detach(struct i2c_client *client)
-{
-	struct saa7127_state *state = i2c_get_clientdata(client);
-	int err;
-
 	/* Turn off TV output */
 	saa7127_set_video_enable(client, 0);
-
-	err = i2c_detach_client(client);
-
-	if (err) {
-		return err;
-	}
-
-	kfree(state);
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7127 = {
-	.driver = {
-		.name = "saa7127",
-	},
-	.id = I2C_DRIVERID_SAA7127,
-	.attach_adapter = saa7127_probe,
-	.detach_client = saa7127_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa7127",
+	.driverid = I2C_DRIVERID_SAA7127,
 	.command = saa7127_command,
+	.probe = saa7127_probe,
+	.remove = saa7127_remove,
 };
 
-
-/* ----------------------------------------------------------------------- */
-
-static int __init saa7127_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver_saa7127);
-}
-
-/* ----------------------------------------------------------------------- */
-
-static void __exit saa7127_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver_saa7127);
-}
-
-/* ----------------------------------------------------------------------- */
-
-module_init(saa7127_init_module);
-module_exit(saa7127_cleanup_module);
