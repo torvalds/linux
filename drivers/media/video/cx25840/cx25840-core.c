@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/cx25840.h>
 
 #include "cx25840-core.h"
@@ -122,8 +123,6 @@ int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned and_mask,
 
 static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,
 						enum cx25840_audio_input aud_input);
-static void log_audio_status(struct i2c_client *client);
-static void log_video_status(struct i2c_client *client);
 
 /* ----------------------------------------------------------------------- */
 
@@ -641,6 +640,200 @@ static int set_v4lfmt(struct i2c_client *client, struct v4l2_format *fmt)
 
 /* ----------------------------------------------------------------------- */
 
+static void log_video_status(struct i2c_client *client)
+{
+	static const char *const fmt_strs[] = {
+		"0x0",
+		"NTSC-M", "NTSC-J", "NTSC-4.43",
+		"PAL-BDGHI", "PAL-M", "PAL-N", "PAL-Nc", "PAL-60",
+		"0x9", "0xA", "0xB",
+		"SECAM",
+		"0xD", "0xE", "0xF"
+	};
+
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	u8 vidfmt_sel = cx25840_read(client, 0x400) & 0xf;
+	u8 gen_stat1 = cx25840_read(client, 0x40d);
+	u8 gen_stat2 = cx25840_read(client, 0x40e);
+	int vid_input = state->vid_input;
+
+	v4l_info(client, "Video signal:              %spresent\n",
+		    (gen_stat2 & 0x20) ? "" : "not ");
+	v4l_info(client, "Detected format:           %s\n",
+		    fmt_strs[gen_stat1 & 0xf]);
+
+	v4l_info(client, "Specified standard:        %s\n",
+		    vidfmt_sel ? fmt_strs[vidfmt_sel] : "automatic detection");
+
+	if (vid_input >= CX25840_COMPOSITE1 &&
+	    vid_input <= CX25840_COMPOSITE8) {
+		v4l_info(client, "Specified video input:     Composite %d\n",
+			vid_input - CX25840_COMPOSITE1 + 1);
+	} else {
+		v4l_info(client, "Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
+			(vid_input & 0xf0) >> 4, (vid_input & 0xf00) >> 8);
+	}
+
+	v4l_info(client, "Specified audioclock freq: %d Hz\n", state->audclk_freq);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static void log_audio_status(struct i2c_client *client)
+{
+	struct cx25840_state *state = i2c_get_clientdata(client);
+	u8 download_ctl = cx25840_read(client, 0x803);
+	u8 mod_det_stat0 = cx25840_read(client, 0x804);
+	u8 mod_det_stat1 = cx25840_read(client, 0x805);
+	u8 audio_config = cx25840_read(client, 0x808);
+	u8 pref_mode = cx25840_read(client, 0x809);
+	u8 afc0 = cx25840_read(client, 0x80b);
+	u8 mute_ctl = cx25840_read(client, 0x8d3);
+	int aud_input = state->aud_input;
+	char *p;
+
+	switch (mod_det_stat0) {
+	case 0x00: p = "mono"; break;
+	case 0x01: p = "stereo"; break;
+	case 0x02: p = "dual"; break;
+	case 0x04: p = "tri"; break;
+	case 0x10: p = "mono with SAP"; break;
+	case 0x11: p = "stereo with SAP"; break;
+	case 0x12: p = "dual with SAP"; break;
+	case 0x14: p = "tri with SAP"; break;
+	case 0xfe: p = "forced mode"; break;
+	default: p = "not defined";
+	}
+	v4l_info(client, "Detected audio mode:       %s\n", p);
+
+	switch (mod_det_stat1) {
+	case 0x00: p = "not defined"; break;
+	case 0x01: p = "EIAJ"; break;
+	case 0x02: p = "A2-M"; break;
+	case 0x03: p = "A2-BG"; break;
+	case 0x04: p = "A2-DK1"; break;
+	case 0x05: p = "A2-DK2"; break;
+	case 0x06: p = "A2-DK3"; break;
+	case 0x07: p = "A1 (6.0 MHz FM Mono)"; break;
+	case 0x08: p = "AM-L"; break;
+	case 0x09: p = "NICAM-BG"; break;
+	case 0x0a: p = "NICAM-DK"; break;
+	case 0x0b: p = "NICAM-I"; break;
+	case 0x0c: p = "NICAM-L"; break;
+	case 0x0d: p = "BTSC/EIAJ/A2-M Mono (4.5 MHz FMMono)"; break;
+	case 0x0e: p = "IF FM Radio"; break;
+	case 0x0f: p = "BTSC"; break;
+	case 0x10: p = "high-deviation FM"; break;
+	case 0x11: p = "very high-deviation FM"; break;
+	case 0xfd: p = "unknown audio standard"; break;
+	case 0xfe: p = "forced audio standard"; break;
+	case 0xff: p = "no detected audio standard"; break;
+	default: p = "not defined";
+	}
+	v4l_info(client, "Detected audio standard:   %s\n", p);
+	v4l_info(client, "Audio muted:               %s\n",
+		    (state->unmute_volume >= 0) ? "yes" : "no");
+	v4l_info(client, "Audio microcontroller:     %s\n",
+		    (download_ctl & 0x10) ?
+				((mute_ctl & 0x2) ? "detecting" : "running") : "stopped");
+
+	switch (audio_config >> 4) {
+	case 0x00: p = "undefined"; break;
+	case 0x01: p = "BTSC"; break;
+	case 0x02: p = "EIAJ"; break;
+	case 0x03: p = "A2-M"; break;
+	case 0x04: p = "A2-BG"; break;
+	case 0x05: p = "A2-DK1"; break;
+	case 0x06: p = "A2-DK2"; break;
+	case 0x07: p = "A2-DK3"; break;
+	case 0x08: p = "A1 (6.0 MHz FM Mono)"; break;
+	case 0x09: p = "AM-L"; break;
+	case 0x0a: p = "NICAM-BG"; break;
+	case 0x0b: p = "NICAM-DK"; break;
+	case 0x0c: p = "NICAM-I"; break;
+	case 0x0d: p = "NICAM-L"; break;
+	case 0x0e: p = "FM radio"; break;
+	case 0x0f: p = "automatic detection"; break;
+	default: p = "undefined";
+	}
+	v4l_info(client, "Configured audio standard: %s\n", p);
+
+	if ((audio_config >> 4) < 0xF) {
+		switch (audio_config & 0xF) {
+		case 0x00: p = "MONO1 (LANGUAGE A/Mono L+R channel for BTSC, EIAJ, A2)"; break;
+		case 0x01: p = "MONO2 (LANGUAGE B)"; break;
+		case 0x02: p = "MONO3 (STEREO forced MONO)"; break;
+		case 0x03: p = "MONO4 (NICAM ANALOG-Language C/Analog Fallback)"; break;
+		case 0x04: p = "STEREO"; break;
+		case 0x05: p = "DUAL1 (AB)"; break;
+		case 0x06: p = "DUAL2 (AC) (FM)"; break;
+		case 0x07: p = "DUAL3 (BC) (FM)"; break;
+		case 0x08: p = "DUAL4 (AC) (AM)"; break;
+		case 0x09: p = "DUAL5 (BC) (AM)"; break;
+		case 0x0a: p = "SAP"; break;
+		default: p = "undefined";
+		}
+		v4l_info(client, "Configured audio mode:     %s\n", p);
+	} else {
+		switch (audio_config & 0xF) {
+		case 0x00: p = "BG"; break;
+		case 0x01: p = "DK1"; break;
+		case 0x02: p = "DK2"; break;
+		case 0x03: p = "DK3"; break;
+		case 0x04: p = "I"; break;
+		case 0x05: p = "L"; break;
+		case 0x06: p = "BTSC"; break;
+		case 0x07: p = "EIAJ"; break;
+		case 0x08: p = "A2-M"; break;
+		case 0x09: p = "FM Radio"; break;
+		case 0x0f: p = "automatic standard and mode detection"; break;
+		default: p = "undefined";
+		}
+		v4l_info(client, "Configured audio system:   %s\n", p);
+	}
+
+	if (aud_input) {
+		v4l_info(client, "Specified audio input:     Tuner (In%d)\n", aud_input);
+	} else {
+		v4l_info(client, "Specified audio input:     External\n");
+	}
+
+	switch (pref_mode & 0xf) {
+	case 0: p = "mono/language A"; break;
+	case 1: p = "language B"; break;
+	case 2: p = "language C"; break;
+	case 3: p = "analog fallback"; break;
+	case 4: p = "stereo"; break;
+	case 5: p = "language AC"; break;
+	case 6: p = "language BC"; break;
+	case 7: p = "language AB"; break;
+	default: p = "undefined";
+	}
+	v4l_info(client, "Preferred audio mode:      %s\n", p);
+
+	if ((audio_config & 0xf) == 0xf) {
+		switch ((afc0 >> 3) & 0x3) {
+		case 0: p = "system DK"; break;
+		case 1: p = "system L"; break;
+		case 2: p = "autodetect"; break;
+		default: p = "undefined";
+		}
+		v4l_info(client, "Selected 65 MHz format:    %s\n", p);
+
+		switch (afc0 & 0x7) {
+		case 0: p = "chroma"; break;
+		case 1: p = "BTSC"; break;
+		case 2: p = "EIAJ"; break;
+		case 3: p = "A2-M"; break;
+		case 4: p = "autodetect"; break;
+		default: p = "undefined";
+		}
+		v4l_info(client, "Selected 45 MHz format:    %s\n", p);
+	}
+}
+
+/* ----------------------------------------------------------------------- */
+
 static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 			   void *arg)
 {
@@ -879,30 +1072,11 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_cx25840;
-
-static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
-				 int kind)
+static int cx25840_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct cx25840_state *state;
 	u32 id;
 	u16 device_id;
-
-	/* Check if the adapter supports the needed features
-	 * Not until kernel version 2.6.11 did the bit-algo
-	 * correctly report that it would do an I2C-level xfer */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
-		return 0;
-
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_cx25840;
-	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
 	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
 
@@ -919,13 +1093,11 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	}
 	else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		kfree(client);
 		return 0;
 	}
 
 	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
 	if (state == NULL) {
-		kfree(client);
 		return -ENOMEM;
 	}
 
@@ -948,251 +1120,19 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int cx25840_attach_adapter(struct i2c_adapter *adapter)
+static int cx25840_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, &cx25840_detect_client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
-static int cx25840_detach_client(struct i2c_client *client)
-{
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-
-	kfree(state);
-	kfree(client);
-
-	return 0;
-}
-
-/* ----------------------------------------------------------------------- */
-
-static struct i2c_driver i2c_driver_cx25840 = {
-	.driver = {
-		.name = "cx25840",
-	},
-	.id = I2C_DRIVERID_CX25840,
-	.attach_adapter = cx25840_attach_adapter,
-	.detach_client = cx25840_detach_client,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "cx25840",
+	.driverid = I2C_DRIVERID_CX25840,
 	.command = cx25840_command,
+	.probe = cx25840_probe,
+	.remove = cx25840_remove,
 };
-
-
-static int __init m__init(void)
-{
-	return i2c_add_driver(&i2c_driver_cx25840);
-}
-
-static void __exit m__exit(void)
-{
-	i2c_del_driver(&i2c_driver_cx25840);
-}
-
-module_init(m__init);
-module_exit(m__exit);
-
-/* ----------------------------------------------------------------------- */
-
-static void log_video_status(struct i2c_client *client)
-{
-	static const char *const fmt_strs[] = {
-		"0x0",
-		"NTSC-M", "NTSC-J", "NTSC-4.43",
-		"PAL-BDGHI", "PAL-M", "PAL-N", "PAL-Nc", "PAL-60",
-		"0x9", "0xA", "0xB",
-		"SECAM",
-		"0xD", "0xE", "0xF"
-	};
-
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	u8 vidfmt_sel = cx25840_read(client, 0x400) & 0xf;
-	u8 gen_stat1 = cx25840_read(client, 0x40d);
-	u8 gen_stat2 = cx25840_read(client, 0x40e);
-	int vid_input = state->vid_input;
-
-	v4l_info(client, "Video signal:              %spresent\n",
-		    (gen_stat2 & 0x20) ? "" : "not ");
-	v4l_info(client, "Detected format:           %s\n",
-		    fmt_strs[gen_stat1 & 0xf]);
-
-	v4l_info(client, "Specified standard:        %s\n",
-		    vidfmt_sel ? fmt_strs[vidfmt_sel] : "automatic detection");
-
-	if (vid_input >= CX25840_COMPOSITE1 &&
-	    vid_input <= CX25840_COMPOSITE8) {
-		v4l_info(client, "Specified video input:     Composite %d\n",
-			vid_input - CX25840_COMPOSITE1 + 1);
-	} else {
-		v4l_info(client, "Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
-			(vid_input & 0xf0) >> 4, (vid_input & 0xf00) >> 8);
-	}
-
-	v4l_info(client, "Specified audioclock freq: %d Hz\n", state->audclk_freq);
-}
-
-/* ----------------------------------------------------------------------- */
-
-static void log_audio_status(struct i2c_client *client)
-{
-	struct cx25840_state *state = i2c_get_clientdata(client);
-	u8 download_ctl = cx25840_read(client, 0x803);
-	u8 mod_det_stat0 = cx25840_read(client, 0x804);
-	u8 mod_det_stat1 = cx25840_read(client, 0x805);
-	u8 audio_config = cx25840_read(client, 0x808);
-	u8 pref_mode = cx25840_read(client, 0x809);
-	u8 afc0 = cx25840_read(client, 0x80b);
-	u8 mute_ctl = cx25840_read(client, 0x8d3);
-	int aud_input = state->aud_input;
-	char *p;
-
-	switch (mod_det_stat0) {
-	case 0x00: p = "mono"; break;
-	case 0x01: p = "stereo"; break;
-	case 0x02: p = "dual"; break;
-	case 0x04: p = "tri"; break;
-	case 0x10: p = "mono with SAP"; break;
-	case 0x11: p = "stereo with SAP"; break;
-	case 0x12: p = "dual with SAP"; break;
-	case 0x14: p = "tri with SAP"; break;
-	case 0xfe: p = "forced mode"; break;
-	default: p = "not defined";
-	}
-	v4l_info(client, "Detected audio mode:       %s\n", p);
-
-	switch (mod_det_stat1) {
-	case 0x00: p = "not defined"; break;
-	case 0x01: p = "EIAJ"; break;
-	case 0x02: p = "A2-M"; break;
-	case 0x03: p = "A2-BG"; break;
-	case 0x04: p = "A2-DK1"; break;
-	case 0x05: p = "A2-DK2"; break;
-	case 0x06: p = "A2-DK3"; break;
-	case 0x07: p = "A1 (6.0 MHz FM Mono)"; break;
-	case 0x08: p = "AM-L"; break;
-	case 0x09: p = "NICAM-BG"; break;
-	case 0x0a: p = "NICAM-DK"; break;
-	case 0x0b: p = "NICAM-I"; break;
-	case 0x0c: p = "NICAM-L"; break;
-	case 0x0d: p = "BTSC/EIAJ/A2-M Mono (4.5 MHz FMMono)"; break;
-	case 0x0e: p = "IF FM Radio"; break;
-	case 0x0f: p = "BTSC"; break;
-	case 0x10: p = "high-deviation FM"; break;
-	case 0x11: p = "very high-deviation FM"; break;
-	case 0xfd: p = "unknown audio standard"; break;
-	case 0xfe: p = "forced audio standard"; break;
-	case 0xff: p = "no detected audio standard"; break;
-	default: p = "not defined";
-	}
-	v4l_info(client, "Detected audio standard:   %s\n", p);
-	v4l_info(client, "Audio muted:               %s\n",
-		    (state->unmute_volume >= 0) ? "yes" : "no");
-	v4l_info(client, "Audio microcontroller:     %s\n",
-		    (download_ctl & 0x10) ?
-				((mute_ctl & 0x2) ? "detecting" : "running") : "stopped");
-
-	switch (audio_config >> 4) {
-	case 0x00: p = "undefined"; break;
-	case 0x01: p = "BTSC"; break;
-	case 0x02: p = "EIAJ"; break;
-	case 0x03: p = "A2-M"; break;
-	case 0x04: p = "A2-BG"; break;
-	case 0x05: p = "A2-DK1"; break;
-	case 0x06: p = "A2-DK2"; break;
-	case 0x07: p = "A2-DK3"; break;
-	case 0x08: p = "A1 (6.0 MHz FM Mono)"; break;
-	case 0x09: p = "AM-L"; break;
-	case 0x0a: p = "NICAM-BG"; break;
-	case 0x0b: p = "NICAM-DK"; break;
-	case 0x0c: p = "NICAM-I"; break;
-	case 0x0d: p = "NICAM-L"; break;
-	case 0x0e: p = "FM radio"; break;
-	case 0x0f: p = "automatic detection"; break;
-	default: p = "undefined";
-	}
-	v4l_info(client, "Configured audio standard: %s\n", p);
-
-	if ((audio_config >> 4) < 0xF) {
-		switch (audio_config & 0xF) {
-		case 0x00: p = "MONO1 (LANGUAGE A/Mono L+R channel for BTSC, EIAJ, A2)"; break;
-		case 0x01: p = "MONO2 (LANGUAGE B)"; break;
-		case 0x02: p = "MONO3 (STEREO forced MONO)"; break;
-		case 0x03: p = "MONO4 (NICAM ANALOG-Language C/Analog Fallback)"; break;
-		case 0x04: p = "STEREO"; break;
-		case 0x05: p = "DUAL1 (AB)"; break;
-		case 0x06: p = "DUAL2 (AC) (FM)"; break;
-		case 0x07: p = "DUAL3 (BC) (FM)"; break;
-		case 0x08: p = "DUAL4 (AC) (AM)"; break;
-		case 0x09: p = "DUAL5 (BC) (AM)"; break;
-		case 0x0a: p = "SAP"; break;
-		default: p = "undefined";
-		}
-		v4l_info(client, "Configured audio mode:     %s\n", p);
-	} else {
-		switch (audio_config & 0xF) {
-		case 0x00: p = "BG"; break;
-		case 0x01: p = "DK1"; break;
-		case 0x02: p = "DK2"; break;
-		case 0x03: p = "DK3"; break;
-		case 0x04: p = "I"; break;
-		case 0x05: p = "L"; break;
-		case 0x06: p = "BTSC"; break;
-		case 0x07: p = "EIAJ"; break;
-		case 0x08: p = "A2-M"; break;
-		case 0x09: p = "FM Radio"; break;
-		case 0x0f: p = "automatic standard and mode detection"; break;
-		default: p = "undefined";
-		}
-		v4l_info(client, "Configured audio system:   %s\n", p);
-	}
-
-	if (aud_input) {
-		v4l_info(client, "Specified audio input:     Tuner (In%d)\n", aud_input);
-	} else {
-		v4l_info(client, "Specified audio input:     External\n");
-	}
-
-	switch (pref_mode & 0xf) {
-	case 0: p = "mono/language A"; break;
-	case 1: p = "language B"; break;
-	case 2: p = "language C"; break;
-	case 3: p = "analog fallback"; break;
-	case 4: p = "stereo"; break;
-	case 5: p = "language AC"; break;
-	case 6: p = "language BC"; break;
-	case 7: p = "language AB"; break;
-	default: p = "undefined";
-	}
-	v4l_info(client, "Preferred audio mode:      %s\n", p);
-
-	if ((audio_config & 0xf) == 0xf) {
-		switch ((afc0 >> 3) & 0x3) {
-		case 0: p = "system DK"; break;
-		case 1: p = "system L"; break;
-		case 2: p = "autodetect"; break;
-		default: p = "undefined";
-		}
-		v4l_info(client, "Selected 65 MHz format:    %s\n", p);
-
-		switch (afc0 & 0x7) {
-		case 0: p = "chroma"; break;
-		case 1: p = "BTSC"; break;
-		case 2: p = "EIAJ"; break;
-		case 3: p = "A2-M"; break;
-		case 4: p = "autodetect"; break;
-		default: p = "undefined";
-		}
-		v4l_info(client, "Selected 45 MHz format:    %s\n", p);
-	}
-}
