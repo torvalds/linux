@@ -287,6 +287,16 @@ static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant BL685c G1"),
 		},
 	},
+#ifdef __i386__
+	{
+		.callback = assign_all_busses,
+		.ident = "Compaq EVO N800c",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "EVO N800c"),
+		},
+	},
+#endif
 	{}
 };
 
