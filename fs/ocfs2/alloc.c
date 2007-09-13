@@ -5835,6 +5835,15 @@ static void ocfs2_zero_dinode_id2(struct inode *inode, struct ocfs2_dinode *di)
 	memset(&di->id2, 0, blocksize - offsetof(struct ocfs2_dinode, id2));
 }
 
+void ocfs2_dinode_new_extent_list(struct inode *inode,
+				  struct ocfs2_dinode *di)
+{
+	ocfs2_zero_dinode_id2(inode, di);
+	di->id2.i_list.l_tree_depth = 0;
+	di->id2.i_list.l_next_free_rec = 0;
+	di->id2.i_list.l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(inode->i_sb));
+}
+
 void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
@@ -5863,7 +5872,6 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
-	struct ocfs2_extent_list *el = &di->id2.i_list;
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct page **pages = NULL;
 	loff_t end = osb->s_clustersize;
@@ -5956,11 +5964,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 	di->i_dyn_features = cpu_to_le16(oi->ip_dyn_features);
 	spin_unlock(&oi->ip_lock);
 
-	ocfs2_zero_dinode_id2(inode, di);
-
-	el->l_tree_depth = 0;
-	el->l_next_free_rec = 0;
-	el->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(inode->i_sb));
+	ocfs2_dinode_new_extent_list(inode, di);
 
 	ocfs2_journal_dirty(handle, di_bh);
 

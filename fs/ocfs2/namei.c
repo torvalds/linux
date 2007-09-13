@@ -250,9 +250,8 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	/* are we making a directory? If so, reserve a cluster for his
-	 * 1st extent. */
-	if (S_ISDIR(mode)) {
+	/* Reserve a cluster if creating an extent based directory. */
+	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb)) {
 		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
@@ -449,10 +448,21 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 		cpu_to_le32(CURRENT_TIME.tv_nsec);
 	fe->i_dtime = 0;
 
-	fel = &fe->id2.i_list;
-	fel->l_tree_depth = 0;
-	fel->l_next_free_rec = 0;
-	fel->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(osb->sb));
+	/*
+	 * If supported, directories start with inline data.
+	 */
+	if (S_ISDIR(mode) && ocfs2_supports_inline_data(osb)) {
+		u16 feat = le16_to_cpu(fe->i_dyn_features);
+
+		fe->i_dyn_features = cpu_to_le16(feat | OCFS2_INLINE_DATA_FL);
+
+		fe->id2.i_data.id_count = cpu_to_le16(ocfs2_max_inline_data(osb->sb));
+	} else {
+		fel = &fe->id2.i_list;
+		fel->l_tree_depth = 0;
+		fel->l_next_free_rec = 0;
+		fel->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(osb->sb));
+	}
 
 	status = ocfs2_journal_dirty(handle, *new_fe_bh);
 	if (status < 0) {
@@ -950,7 +960,7 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *old_inode_bh = NULL;
 	struct buffer_head *insert_entry_bh = NULL;
 	struct ocfs2_super *osb = NULL;
-	u64 newfe_blkno;
+	u64 newfe_blkno, old_de_ino;
 	handle_t *handle = NULL;
 	struct buffer_head *old_dir_bh = NULL;
 	struct buffer_head *new_dir_bh = NULL;
@@ -1061,12 +1071,13 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 	}
 
-	status = -ENOENT;
-	old_de_bh = ocfs2_find_entry(old_dentry->d_name.name,
-				     old_dentry->d_name.len,
-				     old_dir, &old_de);
-	if (!old_de_bh)
+	status = ocfs2_lookup_ino_from_name(old_dir, old_dentry->d_name.name,
+					    old_dentry->d_name.len,
+					    &old_de_ino);
+	if (status) {
+		status = -ENOENT;
 		goto bail;
+	}
 
 	/*
 	 *  Check for inode number is _not_ due to possible IO errors.
@@ -1074,8 +1085,10 @@ static int ocfs2_rename(struct inode *old_dir,
 	 *  and merrily kill the link to whatever was created under the
 	 *  same name. Goodbye sticky bit ;-<
 	 */
-	if (le64_to_cpu(old_de->inode) != OCFS2_I(old_inode)->ip_blkno)
+	if (old_de_ino != OCFS2_I(old_inode)->ip_blkno) {
+		status = -ENOENT;
 		goto bail;
+	}
 
 	/* check if the target already exists (in which case we need
 	 * to delete it */
@@ -1250,7 +1263,21 @@ static int ocfs2_rename(struct inode *old_dir,
 	} else
 		mlog_errno(status);
 
-	/* now that the name has been added to new_dir, remove the old name */
+	/*
+	 * Now that the name has been added to new_dir, remove the old name.
+	 *
+	 * We don't keep any directory entry context around until now
+	 * because the insert might have changed the type of directory
+	 * we're dealing with.
+	 */
+	old_de_bh = ocfs2_find_entry(old_dentry->d_name.name,
+				     old_dentry->d_name.len,
+				     old_dir, &old_de);
+	if (!old_de_bh) {
+		status = -EIO;
+		goto bail;
+	}
+
 	status = ocfs2_delete_entry(handle, old_dir, old_de, old_de_bh);
 	if (status < 0) {
 		mlog_errno(status);
