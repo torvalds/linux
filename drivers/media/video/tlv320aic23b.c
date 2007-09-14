@@ -31,6 +31,7 @@
 #include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 MODULE_DESCRIPTION("tlv320aic23b driver");
 MODULE_AUTHOR("Scott Alfter, Ulf Eklund, Hans Verkuil");
@@ -126,31 +127,18 @@ static int tlv320aic23b_command(struct i2c_client *client, unsigned int cmd,
  * concerning the addresses: i2c wants 7 bit (without the r/w bit), so '>>1'
  */
 
-static struct i2c_driver i2c_driver;
-
-static int tlv320aic23b_attach(struct i2c_adapter *adapter, int address, int kind)
+static int tlv320aic23b_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct tlv320aic23b_state *state;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
-	snprintf(client->name, sizeof(client->name) - 1, "tlv320aic23b");
-
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct tlv320aic23b_state), GFP_KERNEL);
 	if (state == NULL) {
-		kfree(client);
 		return -ENOMEM;
 	}
 	state->muted = 0;
@@ -163,55 +151,22 @@ static int tlv320aic23b_attach(struct i2c_adapter *adapter, int address, int kin
 	tlv320aic23b_write(client, 0, 0x119);   /* set gain on both channels to +3.0 dB */
 	tlv320aic23b_write(client, 8, 0x000);   /* set sample rate to 48 kHz */
 	tlv320aic23b_write(client, 9, 0x001);   /* activate digital interface */
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int tlv320aic23b_probe(struct i2c_adapter *adapter)
+static int tlv320aic23b_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, tlv320aic23b_attach);
-	return 0;
-}
-
-static int tlv320aic23b_detach(struct i2c_client *client)
-{
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-	kfree(client);
-
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "tlv320aic23b",
-	},
-	.id             = I2C_DRIVERID_TLV320AIC23B,
-	.attach_adapter = tlv320aic23b_probe,
-	.detach_client  = tlv320aic23b_detach,
-	.command        = tlv320aic23b_command,
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "tlv320aic23b",
+	.driverid = I2C_DRIVERID_TLV320AIC23B,
+	.command = tlv320aic23b_command,
+	.probe = tlv320aic23b_probe,
+	.remove = tlv320aic23b_remove,
 };
-
-
-static int __init tlv320aic23b_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit tlv320aic23b_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(tlv320aic23b_init_module);
-module_exit(tlv320aic23b_cleanup_module);
