@@ -44,22 +44,21 @@ struct pci_range pci_ranges_buf[MAX_PROP_LEN / sizeof(struct pci_range)];
  * some don't set up the PCI PIC at all, so we assume the device tree is
  * sane and update the BRx registers appropriately.
  *
- * For any node defined as compatible with fsl,pq2-chipselect,
- * #address/#size must be 2/1 for chipselect bus, 1/1 for parent bus,
- * and ranges must be for whole chip selects.
+ * For any node defined as compatible with fsl,pq2-localbus,
+ * #address/#size must be 2/1 for the localbus, and 1/1 for the parent bus.
+ * Ranges must be for whole chip selects.
  */
 static void update_cs_ranges(void)
 {
-	u32 ctrl_ph;
-	void *ctrl_node, *bus_node, *parent_node;
+	void *bus_node, *parent_node;
 	u32 *ctrl_addr;
 	unsigned long ctrl_size;
 	u32 naddr, nsize;
 	int len;
 	int i;
 
-	bus_node = finddevice("/chipselect");
-	if (!bus_node || !dt_is_compatible(bus_node, "fsl,pq2-chipselect"))
+	bus_node = finddevice("/localbus");
+	if (!bus_node || !dt_is_compatible(bus_node, "fsl,pq2-localbus"))
 		return;
 
 	dt_get_reg_format(bus_node, &naddr, &nsize);
@@ -74,19 +73,7 @@ static void update_cs_ranges(void)
 	if (naddr != 1 || nsize != 1)
 		goto err;
 
-	len = getprop(bus_node, "fsl,ctrl", &ctrl_ph, 4);
-	if (len != 4)
-		goto err;
-
-	ctrl_node = find_node_by_prop_value(NULL, "linux,phandle",
-	                                    (char *)&ctrl_ph, 4);
-	if (!ctrl_node)
-		goto err;
-
-	if (!dt_is_compatible(ctrl_node, "fsl,pq2-chipselect-ctrl"))
-		goto err;
-
-	if (!dt_xlate_reg(ctrl_node, 0, (unsigned long *)&ctrl_addr,
+	if (!dt_xlate_reg(bus_node, 0, (unsigned long *)&ctrl_addr,
 	                  &ctrl_size))
 		goto err;
 
@@ -123,7 +110,7 @@ static void update_cs_ranges(void)
 	return;
 
 err:
-	printf("Bad /chipselect or fsl,pq2-chipselect-ctrl node\r\n");
+	printf("Bad /localbus node\r\n");
 }
 
 /* Older u-boots don't set PCI up properly.  Update the hardware to match
