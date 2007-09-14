@@ -16,10 +16,11 @@ else
 # Normal Makefile
 
 KERNELDIR := /lib/modules/`uname -r`/build
-all::
+all:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules
-modules_install::
+modules_install:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` modules_install
-clean::
+clean:
 	$(MAKE) -C $(KERNELDIR) M=`pwd` clean
+
 endif
