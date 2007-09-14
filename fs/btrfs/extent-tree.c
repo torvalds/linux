@@ -39,6 +39,7 @@ static int cache_block_group(struct btrfs_root *root,
 	u64 i;
 	u64 last = 0;
 	u64 hole_size;
+	u64 first_free;
 	int found = 0;
 
 	root = root->fs_info->extent_root;
@@ -51,16 +52,22 @@ static int cache_block_group(struct btrfs_root *root,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
 	path->reada = 2;
+	first_free = block_group->key.objectid;
 	key.objectid = block_group->key.objectid;
 	key.flags = 0;
 	key.offset = 0;
+
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+
 	if (ret < 0)
 		return ret;
+
 	if (ret && path->slots[0] > 0)
 		path->slots[0]--;
+
 	while(1) {
 		leaf = btrfs_buffer_leaf(path->nodes[0]);
 		slot = path->slots[0];
@@ -71,50 +78,48 @@ static int cache_block_group(struct btrfs_root *root,
 			if (ret == 0) {
 				continue;
 			} else {
-				if (found) {
-					hole_size = block_group->key.objectid +
-						block_group->key.offset - last;
-				} else {
-					last = block_group->key.objectid;
-					hole_size = block_group->key.offset;
-				}
-				for (i = 0; i < hole_size; i++) {
-					set_radix_bit(extent_radix,
-						      last + i);
-				}
 				break;
 			}
 		}
+
 		btrfs_disk_key_to_cpu(&key, &leaf->items[slot].key);
+		if (key.objectid < block_group->key.objectid) {
+			if (key.objectid + key.offset > first_free)
+				first_free = key.objectid + key.offset;
+			goto next;
+		}
+
 		if (key.objectid >= block_group->key.objectid +
 		    block_group->key.offset) {
-			if (found) {
-				hole_size = block_group->key.objectid +
-					block_group->key.offset - last;
-			} else {
-				last = block_group->key.objectid;
-				hole_size = block_group->key.offset;
+			break;
+		}
+
+		if (btrfs_key_type(&key) == BTRFS_EXTENT_ITEM_KEY) {
+			if (!found) {
+				last = first_free;
+				found = 1;
 			}
+			hole_size = key.objectid - last;
 			for (i = 0; i < hole_size; i++) {
 				set_radix_bit(extent_radix, last + i);
 			}
-			break;
+			last = key.objectid + key.offset;
 		}
-		if (btrfs_key_type(&key) == BTRFS_EXTENT_ITEM_KEY) {
-			if (!found) {
-				last = key.objectid + key.offset;
-				found = 1;
-			} else {
-				hole_size = key.objectid - last;
-				for (i = 0; i < hole_size; i++) {
-					set_radix_bit(extent_radix, last + i);
-				}
-				last = key.objectid + key.offset;
-			}
-		}
+next:
 		path->slots[0]++;
 	}
 
+	if (!found)
+		last = first_free;
+	if (block_group->key.objectid +
+	    block_group->key.offset > last) {
+		hole_size = block_group->key.objectid +
+			block_group->key.offset - last;
+		for (i = 0; i < hole_size; i++) {
+			set_radix_bit(extent_radix,
+					last + i);
+		}
+	}
 	block_group->cached = 1;
 err:
 	btrfs_free_path(path);
