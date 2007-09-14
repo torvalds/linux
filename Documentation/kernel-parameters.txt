@@ -1,5 +1,5 @@
-                          Kernel Parameters
-                          ~~~~~~~~~~~~~~~~~
+			  Kernel Parameters
+			  ~~~~~~~~~~~~~~~~~
 
 The following is a consolidated list of the kernel parameters as implemented
 (mostly) by the __setup() macro and sorted into English Dictionary order
@@ -467,9 +467,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	cpcihp_generic=	[HW,PCI] Generic port I/O CompactPCI driver
 			Format:
 			<first_slot>,<last_slot>,<port>,<enum_bit>[,<debug>]
-
-	cpia_pp=	[HW,PPT]
-			Format: { parport<nr> | auto | none }
 
 	crashkernel=nn[KMG]@ss[KMG]
 			[KNL] Reserve a chunk of physical memory to
@@ -1465,7 +1462,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	reboot=		[BUGS=X86-32,BUGS=ARM,BUGS=IA-64] Rebooting mode
 			Format: <reboot_mode>[,<reboot_mode2>[,...]]
-			See arch/*/kernel/reboot.c or arch/*/kernel/process.c			
+			See arch/*/kernel/reboot.c or arch/*/kernel/process.c
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
@@ -1553,12 +1550,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	selinux_compat_net =
 			[SELINUX] Set initial selinux_compat_net flag value.
-                        Format: { "0" | "1" }
-                        0 -- use new secmark-based packet controls
-                        1 -- use legacy packet controls
-                        Default value is 0 (preferred).
-                        Value can be changed at runtime via
-                        /selinux/compat_net.
+			Format: { "0" | "1" }
+			0 -- use new secmark-based packet controls
+			1 -- use legacy packet controls
+			Default value is 0 (preferred).
+			Value can be changed at runtime via
+			/selinux/compat_net.
 
 	serialnumber	[BUGS=X86-32]
 
@@ -1957,7 +1954,7 @@ and is between 256 and 4096 characters. It is defined in the file
 	norandmaps	Don't use address space randomization
 			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
 
- 	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
+	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
 			This is useful to get more information why
 			you got a "dwarf2 unwinder stuck"
 
