@@ -137,6 +137,10 @@
 			dcr-reg = <012 2>;
 			#address-cells = <2>;
 			#size-cells = <1>;
+			/* The ranges property is supplied by the bootwrapper
+			 * and is based on the firmware's configuration of the
+			 * EBC bridge
+			 */
 			clock-frequency = <0>; /* Filled in by zImage */
 
 			sram@0,0 {
@@ -144,13 +148,16 @@
 			};
 
 			flash@0,80000 {
-				device_type = "rom";
-				compatible = "direct-mapped";
-				probe-type = "JEDEC";
+				compatible = "jedec-flash";
 				bank-width = <1>;
-				partitions = <0 80000>;
-				partition-names = "OpenBIOS";
 				reg = <0 80000 80000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				partition@0 {
+					label = "OpenBIOS";
+					reg = <0 80000>;
+					read-only;
+				};
 			};
 
 			ds1743@1,0 {
