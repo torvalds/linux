@@ -838,20 +838,19 @@ retry:
 
 	/* Handle various SYNC-type writes */
 	if ((file->f_flags & O_SYNC) || IS_SYNC(inode)) {
-		error = xfs_write_sync_logforce(mp, xip);
-		if (error)
-			goto out_unlock_internal;
-
+		int error2;
 		xfs_rwunlock(xip, locktype);
 		if (need_i_mutex)
 			mutex_unlock(&inode->i_mutex);
-
-		error = sync_page_range(inode, mapping, pos, ret);
+		error2 = sync_page_range(inode, mapping, pos, ret);
 		if (!error)
-			error = -ret;
+			error = error2;
 		if (need_i_mutex)
 			mutex_lock(&inode->i_mutex);
 		xfs_rwlock(xip, locktype);
+		error2 = xfs_write_sync_logforce(mp, xip);
+		if (!error)
+			error = error2;
 	}
 
  out_unlock_internal:
