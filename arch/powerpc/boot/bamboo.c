@@ -24,8 +24,7 @@
 #include "4xx.h"
 #include "44x.h"
 
-extern char _dtb_start[];
-extern char _dtb_end[];
+static u8 *bamboo_mac0, *bamboo_mac1;
 
 static void bamboo_fixups(void)
 {
@@ -34,12 +33,15 @@ static void bamboo_fixups(void)
 	ibm440ep_fixup_clocks(sysclk, 11059200);
 	ibm4xx_fixup_memsize();
 	ibm4xx_quiesce_eth((u32 *)0xef600e00, (u32 *)0xef600f00);
+	dt_fixup_mac_addresses(bamboo_mac0, bamboo_mac1);
 }
 
-void bamboo_init(void)
+void bamboo_init(void *mac0, void *mac1)
 {
 	platform_ops.fixups = bamboo_fixups;
 	platform_ops.exit = ibm44x_dbcr_reset;
+	bamboo_mac0 = mac0;
+	bamboo_mac1 = mac1;
 	ft_init(_dtb_start, 0, 32);
 	serial_console_init();
 }
