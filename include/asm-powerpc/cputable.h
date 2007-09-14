@@ -196,12 +196,12 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define PPC_FEATURE_HAS_EFP_DOUBLE_COMP 0
 #endif
 
-/* We need to mark all pages as being coherent if we're SMP or we
- * have a 74[45]x and an MPC107 host bridge. Also 83xx requires
- * it for PCI "streaming/prefetch" to work properly.
+/* We need to mark all pages as being coherent if we're SMP or we have a
+ * 74[45]x and an MPC107 host bridge. Also 83xx and PowerQUICC II
+ * require it for PCI "streaming/prefetch" to work properly.
  */
 #if defined(CONFIG_SMP) || defined(CONFIG_MPC10X_BRIDGE) \
-	|| defined(CONFIG_PPC_83xx)
+	|| defined(CONFIG_PPC_83xx) || defined(CONFIG_8260)
 #define CPU_FTR_COMMON                  CPU_FTR_NEED_COHERENT
 #else
 #define CPU_FTR_COMMON                  0
@@ -313,7 +313,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 	    CPU_FTR_PPC_LE)
 #define CPU_FTRS_82XX	(CPU_FTR_COMMON | \
 	    CPU_FTR_MAYBE_CAN_DOZE | CPU_FTR_USE_TB)
-#define CPU_FTRS_G2_LE	(CPU_FTR_MAYBE_CAN_DOZE | \
+#define CPU_FTRS_G2_LE	(CPU_FTR_COMMON | CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_USE_TB | CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_HAS_HIGH_BATS)
 #define CPU_FTRS_E300	(CPU_FTR_MAYBE_CAN_DOZE | \
 	    CPU_FTR_USE_TB | CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_HAS_HIGH_BATS | \
