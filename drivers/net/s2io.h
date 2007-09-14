@@ -1047,7 +1047,7 @@ static void s2io_link(struct s2io_nic * sp, int link);
 static void s2io_reset(struct s2io_nic * sp);
 static int s2io_poll(struct napi_struct *napi, int budget);
 static void s2io_init_pci(struct s2io_nic * sp);
-static int s2io_set_mac_addr(struct net_device *dev, u8 * addr);
+static int do_s2io_prog_unicast(struct net_device *dev, u8 *addr);
 static void s2io_alarm_handle(unsigned long data);
 static irqreturn_t
 s2io_msix_ring_handle(int irq, void *dev_id);
