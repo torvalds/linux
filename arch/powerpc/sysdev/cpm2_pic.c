@@ -48,7 +48,7 @@
 #define CPM2_IRQ_PORTC15	48
 #define CPM2_IRQ_PORTC0		63
 
-static intctl_cpm2_t *cpm2_intctl;
+static intctl_cpm2_t __iomem *cpm2_intctl;
 
 static struct irq_host *cpm2_pic_host;
 #define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)

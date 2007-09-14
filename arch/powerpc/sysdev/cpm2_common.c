@@ -33,6 +33,8 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mpc8260.h>
@@ -45,13 +47,12 @@
 #include <sysdev/fsl_soc.h>
 
 static void cpm2_dpinit(void);
-cpm_cpm2_t	*cpmp;		/* Pointer to comm processor space */
+cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor space */
 
 /* We allocate this here because it is used almost exclusively for
  * the communication processor devices.
  */
-cpm2_map_t *cpm2_immr;
-intctl_cpm2_t *cpm2_intctl;
+cpm2_map_t __iomem *cpm2_immr;
 
 #define CPM_MAP_SIZE	(0x40000)	/* 256k - the PQ3 reserve this amount
 					   of space for CPM as it is larger
@@ -60,8 +61,11 @@ intctl_cpm2_t *cpm2_intctl;
 void
 cpm2_reset(void)
 {
-	cpm2_immr = (cpm2_map_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
-	cpm2_intctl = cpm2_map(im_intctl);
+#ifdef CONFIG_PPC_85xx
+	cpm2_immr = ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+#else
+	cpm2_immr = ioremap(get_immrbase(), CPM_MAP_SIZE);
+#endif
 
 	/* Reclaim the DP memory for our use.
 	 */
@@ -91,7 +95,7 @@ cpm2_reset(void)
 void
 cpm_setbrg(uint brg, uint rate)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
 
 	/* This is good enough to get SMCs running.....
 	*/
@@ -113,7 +117,8 @@ cpm_setbrg(uint brg, uint rate)
 void
 cpm2_fastbrg(uint brg, uint rate, int div16)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
+	u32 val;
 
 	if (brg < 4) {
 		bp = cpm2_map_size(im_brgc1, 16);
@@ -123,10 +128,11 @@ cpm2_fastbrg(uint brg, uint rate, int div16)
 		brg -= 4;
 	}
 	bp += brg;
-	*bp = ((BRG_INT_CLK / rate) << 1) | CPM_BRG_EN;
+	val = ((BRG_INT_CLK / rate) << 1) | CPM_BRG_EN;
 	if (div16)
-		*bp |= CPM_BRG_DIV16;
+		val |= CPM_BRG_DIV16;
 
+	out_be32(bp, val);
 	cpm2_unmap(bp);
 }
 
@@ -135,8 +141,8 @@ int cpm2_clk_setup(enum cpm_clk_target target, int clock, int mode)
 	int ret = 0;
 	int shift;
 	int i, bits = 0;
-	cpmux_t *im_cpmux;
-	u32 *reg;
+	cpmux_t __iomem *im_cpmux;
+	u32 __iomem *reg;
 	u32 mask = 7;
 	u8 clk_map [24][3] = {
 		{CPM_CLK_FCC1, CPM_BRG5, 0},
@@ -228,13 +234,33 @@ static spinlock_t cpm_dpmem_lock;
  * until the memory subsystem goes up... */
 static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
-static u8* im_dprambase;
+static u8 __iomem *im_dprambase;
 
 static void cpm2_dpinit(void)
 {
-	spin_lock_init(&cpm_dpmem_lock);
+	struct resource r;
 
-	im_dprambase = ioremap(CPM_MAP_ADDR, CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE);
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
+	if (!np)
+		panic("Cannot find CPM2 node");
+
+	if (of_address_to_resource(np, 1, &r))
+		panic("Cannot get CPM2 resource 1");
+
+	of_node_put(np);
+#else
+	r.start = CPM_MAP_ADDR;
+	r.end = r.start + CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE - 1;
+#endif
+
+	im_dprambase = ioremap(r.start, r.end - r.start + 1);
+	if (!im_dprambase)
+		panic("Cannot map DPRAM");
+
+	spin_lock_init(&cpm_dpmem_lock);
 
 	/* initialize the info header */
 	rh_init(&cpm_dpmem_info, 1,
@@ -248,7 +274,7 @@ static void cpm2_dpinit(void)
 	 * varies with the processor and the microcode patches activated.
 	 * But the following should be at least safe.
 	 */
-	rh_attach_region(&cpm_dpmem_info, CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
+	rh_attach_region(&cpm_dpmem_info, 0, r.end - r.start + 1);
 }
 
 /* This function returns an index into the DPRAM area.

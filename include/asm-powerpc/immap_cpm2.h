@@ -10,6 +10,8 @@
 #ifndef __IMMAP_CPM2__
 #define __IMMAP_CPM2__
 
+#include <linux/types.h>
+
 /* System configuration registers.
 */
 typedef	struct sys_82xx_conf {
@@ -642,7 +644,7 @@ typedef struct immap {
 	u8		res11[4096];
 } cpm2_map_t;
 
-extern cpm2_map_t	*cpm2_immr;
+extern cpm2_map_t __iomem *cpm2_immr;
 
 #endif /* __IMMAP_CPM2__ */
 #endif /* __KERNEL__ */

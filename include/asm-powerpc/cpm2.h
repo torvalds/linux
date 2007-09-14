@@ -107,7 +107,7 @@
 /* Export the base address of the communication processor registers
  * and dual port ram.
  */
-extern		cpm_cpm2_t	*cpmp;	 /* Pointer to comm processor */
+extern cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor */
 
 extern unsigned long cpm_dpalloc(uint size, uint align);
 extern int cpm_dpfree(unsigned long offset);
