@@ -1085,6 +1085,12 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 
 	bqt->tag_index[tag] = NULL;
 
+	/*
+	 * We use test_and_clear_bit's memory ordering properties here.
+	 * The tag_map bit acts as a lock for tag_index[bit], so we need
+	 * a barrer before clearing the bit (precisely: release semantics).
+	 * Could use clear_bit_unlock when it is merged.
+	 */
 	if (unlikely(!test_and_clear_bit(tag, bqt->tag_map))) {
 		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
 		       __FUNCTION__, tag);
@@ -1137,6 +1143,10 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 			return 1;
 
 	} while (test_and_set_bit(tag, bqt->tag_map));
+	/*
+	 * We rely on test_and_set_bit providing lock memory ordering semantics
+	 * (could use test_and_set_bit_lock when it is merged).
+	 */
 
 	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
