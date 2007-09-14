@@ -882,11 +882,10 @@ back_from_confirm:
 			ip6_flush_pending_frames(sk);
 		else if (!(msg->msg_flags & MSG_MORE))
 			err = rawv6_push_pending_frames(sk, &fl, rp);
+		release_sock(sk);
 	}
 done:
 	dst_release(dst);
-	if (!inet->hdrincl)
-		release_sock(sk);
 out:
 	fl6_sock_release(flowlabel);
 	return err<0?err:len;
