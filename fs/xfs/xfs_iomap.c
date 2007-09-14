@@ -193,7 +193,7 @@ xfs_iomap(
 
 	switch (flags &
 		(BMAPI_READ | BMAPI_WRITE | BMAPI_ALLOCATE |
-		 BMAPI_UNWRITTEN | BMAPI_DEVICE)) {
+		 BMAPI_UNWRITTEN)) {
 	case BMAPI_READ:
 		xfs_iomap_enter_trace(XFS_IOMAP_READ_ENTER, io, offset, count);
 		lockmode = XFS_LCK_MAP_SHARED(mp, io);
@@ -220,13 +220,6 @@ xfs_iomap(
 		break;
 	case BMAPI_UNWRITTEN:
 		goto phase2;
-	case BMAPI_DEVICE:
-		lockmode = XFS_LCK_MAP_SHARED(mp, io);
-		iomapp->iomap_target = io->io_flags & XFS_IOCORE_RT ?
-			mp->m_rtdev_targp : mp->m_ddev_targp;
-		error = 0;
-		*niomaps = 1;
-		goto out;
 	default:
 		BUG();
 	}

@@ -43,7 +43,6 @@ typedef enum {
 	BMAPI_MMAP = (1 << 6),		/* allocate for mmap write */
 	BMAPI_SYNC = (1 << 7),		/* sync write to flush delalloc space */
 	BMAPI_TRYLOCK = (1 << 8),	/* non-blocking request */
-	BMAPI_DEVICE = (1 << 9),	/* we only want to know the device */
 } bmapi_flags_t;
 
 
