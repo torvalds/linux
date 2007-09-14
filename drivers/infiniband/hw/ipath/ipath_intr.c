@@ -688,17 +688,9 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 					chkerrpkts = 1;
 				dd->ipath_lastrcvhdrqtails[i] = tl;
 				pd->port_hdrqfull++;
-				if (test_bit(IPATH_PORT_WAITING_OVERFLOW,
-					     &pd->port_flag)) {
-					clear_bit(
-					  IPATH_PORT_WAITING_OVERFLOW,
-					  &pd->port_flag);
-					set_bit(
-					  IPATH_PORT_WAITING_OVERFLOW,
-					  &pd->int_flag);
-					wake_up_interruptible(
-					  &pd->port_wait);
-				}
+				/* flush hdrqfull so that poll() sees it */
+				wmb();
+				wake_up_interruptible(&pd->port_wait);
 			}
 		}
 	}
@@ -960,6 +952,8 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	int i;
 	int rcvdint = 0;
 
+	/* test_bit below needs this... */
+	rmb();
 	portr = ((istat >> INFINIPATH_I_RCVAVAIL_SHIFT) &
 		 dd->ipath_i_rcvavail_mask)
 		| ((istat >> INFINIPATH_I_RCVURG_SHIFT) &
@@ -967,22 +961,15 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	for (i = 1; i < dd->ipath_cfgports; i++) {
 		struct ipath_portdata *pd = dd->ipath_pd[i];
 		if (portr & (1 << i) && pd && pd->port_cnt) {
-			if (test_bit(IPATH_PORT_WAITING_RCV,
-				     &pd->port_flag)) {
-				clear_bit(IPATH_PORT_WAITING_RCV,
-					  &pd->port_flag);
-				set_bit(IPATH_PORT_WAITING_RCV,
-					&pd->int_flag);
+			if (test_and_clear_bit(IPATH_PORT_WAITING_RCV,
+					       &pd->port_flag)) {
 				clear_bit(i + INFINIPATH_R_INTRAVAIL_SHIFT,
 					  &dd->ipath_rcvctrl);
 				wake_up_interruptible(&pd->port_wait);
 				rcvdint = 1;
-			} else if (test_bit(IPATH_PORT_WAITING_URG,
-					    &pd->port_flag)) {
-				clear_bit(IPATH_PORT_WAITING_URG,
-					  &pd->port_flag);
-				set_bit(IPATH_PORT_WAITING_URG,
-					&pd->int_flag);
+			} else if (test_and_clear_bit(IPATH_PORT_WAITING_URG,
+						      &pd->port_flag)) {
+				pd->port_urgent++;
 				wake_up_interruptible(&pd->port_wait);
 			}
 		}
