@@ -1754,7 +1754,7 @@ static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 
 static int acpi_video_bus_start_devices(struct acpi_video_bus *video)
 {
-	return acpi_video_bus_DOS(video, 1, 0);
+	return acpi_video_bus_DOS(video, 0, 0);
 }
 
 static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
