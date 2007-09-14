@@ -561,7 +561,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		int fifo_len = config->tx_cfg[i].fifo_len;
 		int list_holder_size = fifo_len * sizeof(struct list_info_hold);
-		mac_control->fifos[i].list_info = kmalloc(list_holder_size,
+		mac_control->fifos[i].list_info = kzalloc(list_holder_size,
 							  GFP_KERNEL);
 		if (!mac_control->fifos[i].list_info) {
 			DBG_PRINT(INFO_DBG,
@@ -569,7 +569,6 @@ static int init_shared_mem(struct s2io_nic *nic)
 			return -ENOMEM;
 		}
 		mem_allocated += list_holder_size;
-		memset(mac_control->fifos[i].list_info, 0, list_holder_size);
 	}
 	for (i = 0; i < config->tx_fifo_num; i++) {
 		int page_num = TXD_MEM_PAGE_CNT(config->tx_cfg[i].fifo_len,
@@ -3661,9 +3660,9 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	u16 msi_control; /* Temp variable */
 	int ret, i, j, msix_indx = 1;
 
-	nic->entries = kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry),
+	nic->entries = kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct msix_entry),
 			       GFP_KERNEL);
-	if (nic->entries == NULL) {
+	if (!nic->entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", \
 			__FUNCTION__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
@@ -3671,12 +3670,11 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 	nic->mac_control.stats_info->sw_stat.mem_allocated 
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
-	memset(nic->entries, 0,MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 
 	nic->s2io_entries =
-		kmalloc(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry),
+		kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct s2io_msix_entry),
 				   GFP_KERNEL);
-	if (nic->s2io_entries == NULL) {
+	if (!nic->s2io_entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", 
 			__FUNCTION__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
@@ -3687,8 +3685,6 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 	 nic->mac_control.stats_info->sw_stat.mem_allocated 
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
-	memset(nic->s2io_entries, 0,
-	       MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 
 	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
 		nic->entries[i].entry = i;
