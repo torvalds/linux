@@ -13,6 +13,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/rcupdate.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 
@@ -311,6 +312,7 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	int keyidx;
 	int hdrlen;
+	struct ieee80211_key *stakey = NULL;
 
 	/*
 	 * Key selection 101
@@ -348,8 +350,11 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
 		return TXRX_CONTINUE;
 
-	if (!is_multicast_ether_addr(hdr->addr1) && rx->sta && rx->sta->key) {
-		rx->key = rx->sta->key;
+	if (rx->sta)
+		stakey = rcu_dereference(rx->sta->key);
+
+	if (!is_multicast_ether_addr(hdr->addr1) && stakey) {
+		rx->key = stakey;
 	} else {
 		/*
 		 * The device doesn't give us the IV so we won't be
@@ -374,7 +379,7 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 		 */
 		keyidx = rx->skb->data[hdrlen + 3] >> 6;
 
-		rx->key = rx->sdata->keys[keyidx];
+		rx->key = rcu_dereference(rx->sdata->keys[keyidx]);
 
 		/*
 		 * RSNA-protected unicast frames should always be sent with
@@ -1364,6 +1369,12 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		skb_pull(skb, radiotap_len);
 	}
 
+	/*
+	 * key references are protected using RCU and this requires that
+	 * we are in a read-site RCU section during receive processing
+	 */
+	rcu_read_lock();
+
 	hdr = (struct ieee80211_hdr *) skb->data;
 	memset(&rx, 0, sizeof(rx));
 	rx.skb = skb;
@@ -1404,6 +1415,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		ieee80211_invoke_rx_handlers(local, local->rx_handlers, &rx,
 					     rx.sta);
 		sta_info_put(sta);
+		rcu_read_unlock();
 		return;
 	}
 
@@ -1465,6 +1477,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	read_unlock(&local->sub_if_lock);
 
  end:
+	rcu_read_unlock();
+
 	if (sta)
 		sta_info_put(sta);
 }

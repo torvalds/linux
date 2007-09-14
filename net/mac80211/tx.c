@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/bitmap.h>
+#include <linux/rcupdate.h>
 #include <net/net_namespace.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
@@ -427,14 +428,16 @@ ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 static ieee80211_txrx_result
 ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 {
+	struct ieee80211_key *key;
+
 	tx->u.tx.control->key_idx = HW_KEY_IDX_INVALID;
 
 	if (unlikely(tx->u.tx.control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
 		tx->key = NULL;
-	else if (tx->sta && tx->sta->key)
-		tx->key = tx->sta->key;
-	else if (tx->sdata->default_key)
-		tx->key = tx->sdata->default_key;
+	else if (tx->sta && (key = rcu_dereference(tx->sta->key)))
+		tx->key = key;
+	else if ((key = rcu_dereference(tx->sdata->default_key)))
+		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
 		 !(tx->sdata->eapol && ieee80211_is_eapol(tx->skb))) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
@@ -1112,6 +1115,12 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 	}
 
+	/*
+	 * key references are protected using RCU and this requires that
+	 * we are in a read-site RCU section during receive processing
+	 */
+	rcu_read_lock();
+
 	sta = tx.sta;
 	tx.u.tx.mgmt_interface = mgmt;
 	tx.u.tx.mode = local->hw.conf.mode;
@@ -1139,6 +1148,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 
 	if (unlikely(res == TXRX_QUEUED)) {
 		I802_DEBUG_INC(local->tx_handlers_queued);
+		rcu_read_unlock();
 		return 0;
 	}
 
@@ -1196,6 +1206,7 @@ retry:
 		store->last_frag_rate_ctrl_probe =
 			!!(tx.flags & IEEE80211_TXRXD_TXPROBE_LAST_FRAG);
 	}
+	rcu_read_unlock();
 	return 0;
 
  drop:
@@ -1205,6 +1216,7 @@ retry:
 		if (tx.u.tx.extra_frag[i])
 			dev_kfree_skb(tx.u.tx.extra_frag[i]);
 	kfree(tx.u.tx.extra_frag);
+	rcu_read_unlock();
 	return 0;
 }
 

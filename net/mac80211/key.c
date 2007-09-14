@@ -12,6 +12,7 @@
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 #include <linux/list.h>
+#include <linux/rcupdate.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "debugfs_key.h"
@@ -120,6 +121,7 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_key *key;
 
+	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS);
 	BUG_ON(alg == ALG_NONE);
 
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, GFP_KERNEL);
@@ -157,9 +159,15 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_debugfs_key_add(key->local, key);
 
+	/* remove key first */
+	if (sta)
+		ieee80211_key_free(sta->key);
+	else
+		ieee80211_key_free(sdata->keys[idx]);
+
 	if (sta) {
 		ieee80211_debugfs_key_sta_link(key, sta);
-		sta->key = key;
+
 		/*
 		 * some hardware cannot handle TKIP with QoS, so
 		 * we indicate whether QoS could be in use.
@@ -179,20 +187,18 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 				sta_info_put(ap);
 			}
 		}
-
-		if (idx >= 0 && idx < NUM_DEFAULT_KEYS) {
-			if (!sdata->keys[idx])
-				sdata->keys[idx] = key;
-			else
-				WARN_ON(1);
-		} else
-			WARN_ON(1);
 	}
 
-	list_add(&key->list, &sdata->key_list);
-
+	/* enable hwaccel if appropriate */
 	if (netif_running(key->sdata->dev))
 		ieee80211_key_enable_hw_accel(key);
+
+	if (sta)
+		rcu_assign_pointer(sta->key, key);
+	else
+		rcu_assign_pointer(sdata->keys[idx], key);
+
+	list_add(&key->list, &sdata->key_list);
 
 	return key;
 }
@@ -202,19 +208,24 @@ void ieee80211_key_free(struct ieee80211_key *key)
 	if (!key)
 		return;
 
-	ieee80211_key_disable_hw_accel(key);
-
 	if (key->sta) {
-		key->sta->key = NULL;
+		rcu_assign_pointer(key->sta->key, NULL);
 	} else {
 		if (key->sdata->default_key == key)
 			ieee80211_set_default_key(key->sdata, -1);
 		if (key->conf.keyidx >= 0 &&
 		    key->conf.keyidx < NUM_DEFAULT_KEYS)
-			key->sdata->keys[key->conf.keyidx] = NULL;
+			rcu_assign_pointer(key->sdata->keys[key->conf.keyidx],
+					   NULL);
 		else
 			WARN_ON(1);
 	}
+
+	/* wait for all key users to complete */
+	synchronize_rcu();
+
+	/* remove from hwaccel if appropriate */
+	ieee80211_key_disable_hw_accel(key);
 
 	if (key->conf.alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
@@ -235,7 +246,7 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
 	if (sdata->default_key != key) {
 		ieee80211_debugfs_key_remove_default(sdata);
 
-		sdata->default_key = key;
+		rcu_assign_pointer(sdata->default_key, key);
 
 		if (sdata->default_key)
 			ieee80211_debugfs_key_add_default(sdata);

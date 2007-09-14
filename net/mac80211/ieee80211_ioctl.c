@@ -73,11 +73,8 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		key = NULL;
 	} else {
 		/*
-		 * Need to free it before allocating a new one with
-		 * with the same index or the ordering to the driver's
-		 * set_key() callback becomes confused.
+		 * Automatically frees any old key if present.
 		 */
-		ieee80211_key_free(key);
 		key = ieee80211_key_alloc(sdata, sta, alg, idx, key_len, _key);
 		if (!key) {
 			ret = -ENOMEM;
