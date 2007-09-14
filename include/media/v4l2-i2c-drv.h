@@ -29,6 +29,7 @@ struct v4l2_i2c_driver_data {
 	int (*remove)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client, pm_message_t state);
 	int (*resume)(struct i2c_client *client);
+	int (*legacy_probe)(struct i2c_adapter *adapter);
 	int legacy_class;
 };
 

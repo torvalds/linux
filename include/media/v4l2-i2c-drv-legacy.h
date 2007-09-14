@@ -29,6 +29,7 @@ struct v4l2_i2c_driver_data {
 	int (*remove)(struct i2c_client *client);
 	int (*suspend)(struct i2c_client *client, pm_message_t state);
 	int (*resume)(struct i2c_client *client);
+	int (*legacy_probe)(struct i2c_adapter *adapter);
 	int legacy_class;
 };
 
@@ -45,6 +46,11 @@ static int v4l2_i2c_drv_attach_legacy(struct i2c_adapter *adapter, int address, 
 
 static int v4l2_i2c_drv_probe_legacy(struct i2c_adapter *adapter)
 {
+	if (v4l2_i2c_data.legacy_probe) {
+		if (v4l2_i2c_data.legacy_probe(adapter))
+			return i2c_probe(adapter, &addr_data, v4l2_i2c_drv_attach_legacy);
+		return 0;
+	}
 	if (adapter->class & v4l2_i2c_data.legacy_class)
 		return i2c_probe(adapter, &addr_data, v4l2_i2c_drv_attach_legacy);
 	return 0;
