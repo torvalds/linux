@@ -665,6 +665,7 @@ err:
 
 arch_initcall(fsl_usb_of_init);
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 #ifdef CONFIG_CPM2
 
 extern void init_scc_ioports(struct fs_uart_platform_info*);
@@ -1204,6 +1205,7 @@ err:
 arch_initcall(cpm_smc_uart_of_init);
 
 #endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_CPM_NEW_BINDING */
 
 int __init fsl_spi_init(struct spi_board_info *board_infos,
 			unsigned int num_board_infos,

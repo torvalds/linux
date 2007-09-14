@@ -1510,7 +1510,10 @@ platforms are moved over to use the flattened-device-tree model.
 
    i) Freescale QUICC Engine module (QE)
    This represents qe module that is installed on PowerQUICC II Pro.
-   Hopefully it will merge backward compatibility with CPM/CPM2.
+
+   NOTE:  This is an interim binding; it should be updated to fit
+   in with the CPM binding later in this document.
+
    Basically, it is a bus of devices, that could act more or less
    as a complete entity (UCC, USB etc ). All of them should be siblings on
    the "root" qe node, using the common properties from there.
@@ -1846,6 +1849,172 @@ platforms are moved over to use the flattened-device-tree model.
 		compatible = "fsl,mpc8548-guts";
 		reg = <e0000 1000>;
 		fsl,has-rstcr;
+	};
+
+   l) Freescale Communications Processor Module
+
+   NOTE: This is an interim binding, and will likely change slightly,
+   as more devices are supported.  The QE bindings especially are
+   incomplete.
+
+   i) Root CPM node
+
+   Properties:
+   - compatible : "fsl,cpm1", "fsl,cpm2", or "fsl,qe".
+   - reg : The first resource is a 48-byte region beginning with
+           CPCR.  The second is the available general-purpose
+           DPRAM.
+
+   Example:
+	cpm@119c0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		compatible = "fsl,mpc8272-cpm", "fsl,cpm2";
+		reg = <119c0 30 0 2000>;
+	}
+
+   ii) Properties common to mulitple CPM/QE devices
+
+   - fsl,cpm-command : This value is ORed with the opcode and command flag
+                       to specify the device on which a CPM command operates.
+
+   - fsl,cpm-brg : Indicates which baud rate generator the device
+                   is associated with.  If absent, an unused BRG
+                   should be dynamically allocated.  If zero, the
+                   device uses an external clock rather than a BRG.
+
+   - reg : Unless otherwise specified, the first resource represents the
+           scc/fcc/ucc registers, and the second represents the device's
+           parameter RAM region (if it has one).
+
+   iii) Serial
+
+   Currently defined compatibles:
+   - fsl,cpm1-smc-uart
+   - fsl,cpm2-smc-uart
+   - fsl,cpm1-scc-uart
+   - fsl,cpm2-scc-uart
+   - fsl,qe-uart
+
+   Example:
+
+	serial@11a00 {
+		device_type = "serial";
+		compatible = "fsl,mpc8272-scc-uart",
+		             "fsl,cpm2-scc-uart";
+		reg = <11a00 20 8000 100>;
+		interrupts = <28 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-brg = <1>;
+		fsl,cpm-command = <00800000>;
+	};
+
+   iii) Network
+
+   Currently defined compatibles:
+   - fsl,cpm1-scc-enet
+   - fsl,cpm2-scc-enet
+   - fsl,cpm1-fec-enet
+   - fsl,cpm2-fcc-enet (third resource is GFEMR)
+   - fsl,qe-enet
+
+   Example:
+
+	ethernet@11300 {
+		device_type = "network";
+		compatible = "fsl,mpc8272-fcc-enet",
+		             "fsl,cpm2-fcc-enet";
+		reg = <11300 20 8400 100 11390 1>;
+		local-mac-address = [ 00 00 00 00 00 00 ];
+		interrupts = <20 8>;
+		interrupt-parent = <&PIC>;
+		phy-handle = <&PHY0>;
+		linux,network-index = <0>;
+		fsl,cpm-command = <12000300>;
+	};
+
+   iv) MDIO
+
+   Currently defined compatibles:
+   fsl,pq1-fec-mdio (reg is same as first resource of FEC device)
+   fsl,cpm2-mdio-bitbang (reg is port C registers)
+
+   Properties for fsl,cpm2-mdio-bitbang:
+   fsl,mdio-pin : pin of port C controlling mdio data
+   fsl,mdc-pin : pin of port C controlling mdio clock
+
+   Example:
+
+	mdio@10d40 {
+		device_type = "mdio";
+		compatible = "fsl,mpc8272ads-mdio-bitbang",
+		             "fsl,mpc8272-mdio-bitbang",
+		             "fsl,cpm2-mdio-bitbang";
+		reg = <10d40 14>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		fsl,mdio-pin = <12>;
+		fsl,mdc-pin = <13>;
+	};
+
+   v) Baud Rate Generators
+
+   Currently defined compatibles:
+   fsl,cpm-brg
+   fsl,cpm1-brg
+   fsl,cpm2-brg
+
+   Properties:
+   - reg : There may be an arbitrary number of reg resources; BRG
+     numbers are assigned to these in order.
+   - clock-frequency : Specifies the base frequency driving
+     the BRG.
+
+   Example:
+
+	brg@119f0 {
+		compatible = "fsl,mpc8272-brg",
+		             "fsl,cpm2-brg",
+		             "fsl,cpm-brg";
+		reg = <119f0 10 115f0 10>;
+		clock-frequency = <d#25000000>;
+	};
+
+   vi) Interrupt Controllers
+
+   Currently defined compatibles:
+   - fsl,cpm1-pic
+     - only one interrupt cell
+   - fsl,pq1-pic
+   - fsl,cpm2-pic
+     - second interrupt cell is level/sense:
+       - 2 is falling edge
+       - 8 is active low
+
+   Example:
+
+	interrupt-controller@10c00 {
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <10c00 80>;
+		compatible = "mpc8272-pic", "fsl,cpm2-pic";
+	};
+
+   vii) USB (Universal Serial Bus Controller)
+
+   Properties:
+   - compatible : "fsl,cpm1-usb", "fsl,cpm2-usb", "fsl,qe-usb"
+
+   Example:
+	usb@11bc0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,cpm2-usb";
+		reg = <11b60 18 8b00 100>;
+		interrupts = <b 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-command = <2e600000>;
 	};
 
    More devices will be defined as this spec matures.

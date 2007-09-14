@@ -279,6 +279,17 @@ config CPM2
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
 
+config PPC_CPM_NEW_BINDING
+	bool
+	depends on CPM1 || CPM2
+	help
+	  Select this if your board has been converted to use the new
+	  device tree bindings for CPM, and no longer needs the
+	  ioport callbacks or the platform device glue code.
+
+	  The fs_enet and cpm_uart drivers will be built as
+	  of_platform devices.
+
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"
 	depends on PPC_IBM_CELL_BLADE
