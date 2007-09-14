@@ -191,9 +191,7 @@ xfs_iomap(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	switch (flags &
-		(BMAPI_READ | BMAPI_WRITE | BMAPI_ALLOCATE |
-		 BMAPI_UNWRITTEN)) {
+	switch (flags & (BMAPI_READ | BMAPI_WRITE | BMAPI_ALLOCATE)) {
 	case BMAPI_READ:
 		xfs_iomap_enter_trace(XFS_IOMAP_READ_ENTER, io, offset, count);
 		lockmode = XFS_LCK_MAP_SHARED(mp, io);
@@ -218,8 +216,6 @@ xfs_iomap(
 			XFS_ILOCK(mp, io, lockmode);
 		}
 		break;
-	case BMAPI_UNWRITTEN:
-		goto phase2;
 	default:
 		BUG();
 	}
@@ -238,8 +234,7 @@ xfs_iomap(
 	if (error)
 		goto out;
 
-phase2:
-	switch (flags & (BMAPI_WRITE|BMAPI_ALLOCATE|BMAPI_UNWRITTEN)) {
+	switch (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)) {
 	case BMAPI_WRITE:
 		/* If we found an extent, return it */
 		if (nimaps &&
@@ -276,11 +271,6 @@ phase2:
 
 		error = XFS_IOMAP_WRITE_ALLOCATE(mp, io, offset, count,
 						 &imap, &nimaps);
-		break;
-	case BMAPI_UNWRITTEN:
-		lockmode = 0;
-		error = XFS_IOMAP_WRITE_UNWRITTEN(mp, io, offset, count);
-		nimaps = 0;
 		break;
 	}
 

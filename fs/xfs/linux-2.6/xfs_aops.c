@@ -238,12 +238,13 @@ xfs_end_bio_unwritten(
 {
 	xfs_ioend_t		*ioend =
 		container_of(work, xfs_ioend_t, io_work);
+	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
 
 	if (likely(!ioend->io_error)) {
-		xfs_bmap(XFS_I(ioend->io_inode), offset, size,
-				BMAPI_UNWRITTEN, NULL, NULL);
+		if (!XFS_FORCED_SHUTDOWN(ip->i_mount))
+			xfs_iomap_write_unwritten(ip, offset, size);
 		xfs_setfilesize(ioend);
 	}
 	xfs_destroy_ioend(ioend);

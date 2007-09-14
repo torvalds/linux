@@ -36,7 +36,6 @@ typedef enum {
 	BMAPI_READ = (1 << 0),		/* read extents */
 	BMAPI_WRITE = (1 << 1),		/* create extents */
 	BMAPI_ALLOCATE = (1 << 2),	/* delayed allocate to real extents */
-	BMAPI_UNWRITTEN  = (1 << 3),	/* unwritten extents to real extents */
 	/* modifiers */
 	BMAPI_IGNSTATE = (1 << 4),	/* ignore unwritten state on read */
 	BMAPI_DIRECT = (1 << 5),	/* direct instead of buffered write */
