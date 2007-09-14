@@ -236,7 +236,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 					   end_pos - start_pos, p, 0);
 		BUG_ON(err);
 		em->start = start_pos;
-		em->end = end_pos;
+		em->end = end_pos - 1;
 		em->block_start = EXTENT_MAP_INLINE;
 		em->block_end = EXTENT_MAP_INLINE;
 		add_extent_mapping(em_tree, em);
