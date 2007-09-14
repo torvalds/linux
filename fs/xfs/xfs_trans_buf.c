@@ -966,6 +966,7 @@ xfs_trans_inode_alloc_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_INODE_ALLOC_BUF;
+	bip->bli_format.blf_flags |= XFS_BLI_INODE_NEW_BUF;
 }
 
 
