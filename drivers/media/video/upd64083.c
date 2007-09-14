@@ -27,6 +27,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/upd64083.h>
 
 MODULE_DESCRIPTION("uPD64083 driver");
@@ -171,32 +172,18 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 
 /* i2c implementation */
 
-static struct i2c_driver i2c_driver;
-
-static int upd64083_attach(struct i2c_adapter *adapter, int address, int kind)
+static int upd64083_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct upd64083_state *state;
 	int i;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return 0;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL) {
-		return -ENOMEM;
-	}
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
-	snprintf(client->name, sizeof(client->name) - 1, "uPD64083");
-
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct upd64083_state), GFP_KERNEL);
 	if (state == NULL) {
-		kfree(client);
 		return -ENOMEM;
 	}
 	i2c_set_clientdata(client, state);
@@ -207,53 +194,22 @@ static int upd64083_attach(struct i2c_adapter *adapter, int address, int kind)
 	for (i = 0; i < TOT_REGS; i++) {
 		upd64083_write(client, i, state->regs[i]);
 	}
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int upd64083_probe(struct i2c_adapter *adapter)
+static int upd64083_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, upd64083_attach);
-	return 0;
-}
-
-static int upd64083_detach(struct i2c_client *client)
-{
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
-
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "upd64083",
-	},
-	.id = I2C_DRIVERID_UPD64083,
-	.attach_adapter = upd64083_probe,
-	.detach_client  = upd64083_detach,
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "upd64083",
+	.driverid = I2C_DRIVERID_UPD64083,
 	.command = upd64083_command,
+	.probe = upd64083_probe,
+	.remove = upd64083_remove,
 };
-
-
-static int __init upd64083_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit upd64083_exit_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(upd64083_init_module);
-module_exit(upd64083_exit_module);
