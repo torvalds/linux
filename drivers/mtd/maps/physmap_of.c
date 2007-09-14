@@ -142,6 +142,8 @@ static int __devinit process_partitions(struct physmap_flash_info *info,
 		}
 	} else {
 		nr_parts = parse_obsolete_partitions(dev, info, dp);
+		if (nr_parts == -ENOENT)
+			nr_parts = 0;
 	}
 
 	if (nr_parts < 0)
