@@ -1957,65 +1957,77 @@ out_unlock:
 	return 0;
 }
 
-long btrfs_ioctl(struct file *file, unsigned int
-		cmd, unsigned long arg)
+static int btrfs_ioctl_snap_create(struct btrfs_root *root, void __user *arg)
+{
+	struct btrfs_ioctl_vol_args vol_args;
+	struct btrfs_dir_item *di;
+	struct btrfs_path *path;
+	int namelen;
+	u64 root_dirid;
+
+	if (copy_from_user(&vol_args, arg, sizeof(vol_args)))
+		return -EFAULT;
+	
+	namelen = strlen(vol_args.name);
+	if (namelen > BTRFS_VOL_NAME_MAX)
+		return -EINVAL;
+	if (strchr(vol_args.name, '/'))
+		return -EINVAL;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
+	mutex_lock(&root->fs_info->fs_mutex);
+	di = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
+			    path, root_dirid,
+			    vol_args.name, namelen, 0);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	btrfs_free_path(path);
+	if (di && !IS_ERR(di))
+		return -EEXIST;
+	if (IS_ERR(di))
+		return PTR_ERR(di);
+
+	if (root == root->fs_info->tree_root)
+		return create_subvol(root, vol_args.name, namelen);
+	return create_snapshot(root, vol_args.name, namelen);
+}
+
+static int btrfs_ioctl_defrag(struct file *file)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_ioctl_vol_args vol_args;
-	int ret = 0;
-	struct btrfs_dir_item *di;
-	int namelen;
-	struct btrfs_path *path;
-	u64 root_dirid;
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFDIR:
+		mutex_lock(&root->fs_info->fs_mutex);
+		btrfs_defrag_root(root, 0);
+		btrfs_defrag_root(root->fs_info->extent_root, 0);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		break;
+	case S_IFREG:
+		btrfs_defrag_file(file);
+		break;
+	}
+
+	return 0;
+}
+
+long btrfs_ioctl(struct file *file, unsigned int
+		cmd, unsigned long arg)
+{
+	struct btrfs_root *root = BTRFS_I(file->f_path.dentry->d_inode)->root;
 
 	switch (cmd) {
 	case BTRFS_IOC_SNAP_CREATE:
-		if (copy_from_user(&vol_args,
-				   (struct btrfs_ioctl_vol_args __user *)arg,
-				   sizeof(vol_args)))
-			return -EFAULT;
-		namelen = strlen(vol_args.name);
-		if (namelen > BTRFS_VOL_NAME_MAX)
-			return -EINVAL;
-		if (strchr(vol_args.name, '/'))
-			return -EINVAL;
-		path = btrfs_alloc_path();
-		if (!path)
-			return -ENOMEM;
-		root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
-		mutex_lock(&root->fs_info->fs_mutex);
-		di = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
-				    path, root_dirid,
-				    vol_args.name, namelen, 0);
-		mutex_unlock(&root->fs_info->fs_mutex);
-		btrfs_free_path(path);
-		if (di && !IS_ERR(di))
-			return -EEXIST;
-		if (IS_ERR(di))
-			return PTR_ERR(di);
-
-		if (root == root->fs_info->tree_root)
-			ret = create_subvol(root, vol_args.name, namelen);
-		else
-			ret = create_snapshot(root, vol_args.name, namelen);
-		break;
-
+		return btrfs_ioctl_snap_create(root, (void __user *)arg);
 	case BTRFS_IOC_DEFRAG:
-		if (S_ISDIR(inode->i_mode)) {
-			mutex_lock(&root->fs_info->fs_mutex);
-			btrfs_defrag_root(root, 0);
-			btrfs_defrag_root(root->fs_info->extent_root, 0);
-			mutex_unlock(&root->fs_info->fs_mutex);
-		} else if (S_ISREG(inode->i_mode)) {
-			btrfs_defrag_file(file);
-		}
-		ret = 0;
-		break;
-	default:
-		return -ENOTTY;
+		return btrfs_ioctl_defrag(file);
 	}
-	return ret;
+
+	return -ENOTTY;
 }
 
 /*
