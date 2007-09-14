@@ -33,6 +33,16 @@ config MPC885ADS
 	  The MPC885ADS is meant to serve as a platform for s/w and h/w
 	  development around the MPC885 processor family.
 
+config PPC_EP88XC
+	bool "Embedded Planet EP88xC (a.k.a. CWH-PPC-885XN-VE)"
+	select CPM1
+	select PPC_CPM_NEW_BINDING
+	help
+	  This enables support for the Embedded Planet EP88xC board.
+
+	  This board is also resold by Freescale as the QUICCStart
+	  MPC885 Evaluation System and/or the CWH-PPC-885XN-VE.
+
 endchoice
 
 menu "Freescale Ethernet driver platform-specific options"
