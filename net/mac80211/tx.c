@@ -959,8 +959,6 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	tx->dev = dev; /* use original interface */
 	tx->local = local;
 	tx->sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	tx->sta = sta_info_get(local, hdr->addr1);
-	tx->fc = le16_to_cpu(hdr->frame_control);
 
 	/*
 	 * set defaults for things that can be set by
@@ -985,6 +983,8 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		res = TXRX_QUEUED; /* indication it was monitor packet */
 	}
 
+	tx->sta = sta_info_get(local, hdr->addr1);
+	tx->fc = le16_to_cpu(hdr->frame_control);
 	tx->u.tx.control = control;
 	if (is_multicast_ether_addr(hdr->addr1)) {
 		tx->flags &= ~IEEE80211_TXRXD_TXUNICAST;
