@@ -732,10 +732,10 @@ struct file_operations btrfs_file_operations = {
 	.write		= btrfs_file_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,
-	.ioctl		= btrfs_ioctl,
 	.fsync		= btrfs_sync_file,
+	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= btrfs_compat_ioctl,
+	.compat_ioctl	= btrfs_ioctl,
 #endif
 };
 

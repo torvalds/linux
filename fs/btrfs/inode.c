@@ -1957,9 +1957,10 @@ out_unlock:
 	return 0;
 }
 
-int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
+long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_ioctl_vol_args vol_args;
 	int ret = 0;
@@ -2007,7 +2008,7 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 			btrfs_defrag_root(root->fs_info->extent_root, 0);
 			mutex_unlock(&root->fs_info->fs_mutex);
 		} else if (S_ISREG(inode->i_mode)) {
-			btrfs_defrag_file(filp);
+			btrfs_defrag_file(file);
 		}
 		ret = 0;
 		break;
@@ -2016,20 +2017,6 @@ int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int
 	}
 	return ret;
 }
-
-#ifdef CONFIG_COMPAT
-long btrfs_compat_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long arg)
-{
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int ret;
-	lock_kernel();
-	ret = btrfs_ioctl(inode, file, cmd, (unsigned long) compat_ptr(arg));
-	unlock_kernel();
-	return ret;
-
-}
-#endif
 
 /*
  * Called inside transaction, so use GFP_NOFS
@@ -2341,9 +2328,9 @@ static struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= btrfs_readdir,
-	.ioctl		= btrfs_ioctl,
+	.unlocked_ioctl	= btrfs_ioctl,
 #ifdef CONFIG_COMPAT
-	.compat_ioctl	= btrfs_compat_ioctl,
+	.compat_ioctl	= btrfs_ioctl,
 #endif
 };
 

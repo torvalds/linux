@@ -1219,10 +1219,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb);
 void btrfs_destroy_inode(struct inode *inode);
 int btrfs_init_cachep(void);
 void btrfs_destroy_cachep(void);
-int btrfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg);
-long btrfs_compat_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long arg);
+long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root);
 int btrfs_commit_write(struct file *file, struct page *page,
