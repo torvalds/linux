@@ -142,19 +142,35 @@
 				interrupt-parent = <&UIC1>;
 
 				nor_flash@0,0 {
-					device_type = "rom";
-					compatible = "direct-mapped";
-					probe-type = "CFI";
+					compatible = "amd,s29gl256n", "cfi-flash";
 					bank-width = <2>;
-					partitions = <	0	180000
-							180000	200000
-							380000	3aa0000
-							3e20000	140000
-							3f60000	40000
-							3fa0000	60000>;
-					partition-names = "Kernel", "ramdisk", "file system",
-								"kozio", "env", "u-boot";
 					reg = <0 000000 4000000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "Kernel";
+						reg = <0 180000>;
+					};
+					partition@180000 {
+						label = "ramdisk";
+						reg = <180000 200000>;
+					};
+					partition@380000 {
+						label = "file system";
+						reg = <380000 3aa0000>;
+					};
+					partition@3e20000 {
+						label = "kozio";
+						reg = <3e20000 140000>;
+					};
+					partition@3f60000 {
+						label = "env";
+						reg = <3f60000 40000>;
+					};
+					partition@3fa0000 {
+						label = "u-boot";
+						reg = <3fa0000 60000>;
+					};
 				};
 
 			};
