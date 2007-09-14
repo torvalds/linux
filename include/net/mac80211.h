@@ -240,6 +240,8 @@ struct ieee80211_rx_status {
 #define RX_FLAG_MMIC_ERROR	(1<<0)
 #define RX_FLAG_DECRYPTED	(1<<1)
 #define RX_FLAG_RADIOTAP	(1<<2)
+#define RX_FLAG_MMIC_STRIPPED	(1<<3)
+#define RX_FLAG_IV_STRIPPED	(1<<4)
 	int flag;
 };
 
@@ -402,6 +404,16 @@ typedef enum {
  * that situation it should reject that key.
  */
 #define IEEE80211_KEY_FLAG_WMM_STA	(1<<0)
+/*
+ * This flag should be set by the driver if it requires
+ * IV generation in software for this key.
+ */
+#define IEEE80211_KEY_FLAG_GENERATE_IV	(1<<1)
+/*
+ * This flag should be set by the driver if it requires
+ * MMIC generation in software for this key.
+ */
+#define IEEE80211_KEY_FLAG_GENERATE_MMIC (1<<2)
 
 struct ieee80211_key_conf {
 	/*
@@ -465,17 +477,7 @@ struct ieee80211_hw {
 	 */
 #define IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE (1<<1)
 
-	/*
-	 * Some devices handle decryption internally and do not
-	 * indicate whether the frame was encrypted (unencrypted frames
-	 * will be dropped by the hardware, unless specifically allowed
-	 * through.)
-	 * It is permissible to not handle all encrypted frames and fall
-	 * back to software encryption; however, if this flag is set
-	 * unencrypted frames must be dropped unless the driver is told
-	 * otherwise via the set_ieee8021x() callback.
-	 */
-#define IEEE80211_HW_DEVICE_HIDES_WEP (1<<2)
+/* hole at 2 */
 
 	/* Whether RX frames passed to ieee80211_rx() include FCS in the end */
 #define IEEE80211_HW_RX_INCLUDES_FCS (1<<3)
@@ -488,32 +490,13 @@ struct ieee80211_hw {
 	 * can fetch them with ieee80211_get_buffered_bc(). */
 #define IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING (1<<4)
 
-	/*
-	 * This flag is only relevant if hardware encryption is used.
-	 * If set, it has two meanings:
-	 *  1) the IV and ICV are present in received frames that have
-	 *     been decrypted (unless IEEE80211_HW_DEVICE_HIDES_WEP is
-	 *     also set)
-	 *  2) on transmission, the IV should be generated in software.
-	 *
-	 * Please let us know if you *don't* use this flag, the stack would
-	 * really like to be able to get the IV to keep key statistics
-	 * accurate.
-	 */
-#define IEEE80211_HW_WEP_INCLUDE_IV (1<<5)
+/* hole at 5 */
 
 /* hole at 6 */
 
 /* hole at 7 */
 
-	/*
-	 * Some devices handle Michael MIC internally and do not include MIC in
-	 * the received packets passed up. This flag must be set for such
-	 * devices. The 'encryption' frame control bit is expected to be still
-	 * set in the IEEE 802.11 header with this option unlike with the
-	 * IEEE80211_HW_DEVICE_HIDES_WEP flag.
-	 */
-#define IEEE80211_HW_DEVICE_STRIPS_MIC (1<<8)
+/* hole at 8 */
 
 	/* Device is capable of performing full monitor mode even during
 	 * normal operation. */
@@ -527,8 +510,6 @@ struct ieee80211_hw {
 	 * specified in the device's EEPROM */
 #define IEEE80211_HW_DEFAULT_REG_DOMAIN_CONFIGURED (1<<11)
 
-	/* calculate Michael MIC for an MSDU when doing hwcrypto */
-#define IEEE80211_HW_TKIP_INCLUDE_MMIC (1<<12)
 	/* Do TKIP phase1 key mixing in stack to support cards only do
 	 * phase2 key mixing when doing hwcrypto */
 #define IEEE80211_HW_TKIP_REQ_PHASE1_KEY (1<<13)

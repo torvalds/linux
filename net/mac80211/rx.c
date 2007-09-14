@@ -363,7 +363,8 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 		 * we somehow allow the driver to tell us which key
 		 * the hardware used if this flag is set?
 		 */
-		if (!(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV))
+		if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
+		    (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED))
 			return TXRX_CONTINUE;
 
 		hdrlen = ieee80211_get_hdrlen(rx->fc);
@@ -534,8 +535,8 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 		return TXRX_CONTINUE;
 
 	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
-	if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) ||
-	    !(rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+	if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) ||
+	    !(rx->u.rx.status->flag & RX_FLAG_DECRYPTED))
 		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 			rx->sta->wep_weak_iv_count++;
 
@@ -559,15 +560,14 @@ ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 	}
 
-	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED) ||
-	    !(rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
+	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
 				       "failed\n", rx->dev->name);
 			return TXRX_DROP;
 		}
-	} else if (rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
+	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		skb_trim(rx->skb, rx->skb->len - 4);
@@ -898,13 +898,10 @@ static ieee80211_txrx_result
 ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 {
 	/*
-	 * Pass through unencrypted frames if the hardware might have
-	 * decrypted them already without telling us, but that can only
-	 * be true if we either didn't find a key or the found key is
-	 * uploaded to the hardware.
+	 * Pass through unencrypted frames if the hardware has
+	 * decrypted them already.
 	 */
-	if ((rx->local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) &&
-	    (!rx->key || (rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)))
+	if (rx->u.rx.status->flag & RX_FLAG_DECRYPTED)
 		return TXRX_CONTINUE;
 
 	/* Drop unencrypted frames if key is set. */
@@ -1212,8 +1209,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		goto ignore;
 	}
 
-	if ((rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) &&
-	    rx->sdata->type == IEEE80211_IF_TYPE_AP && keyidx) {
+	if (rx->sdata->type == IEEE80211_IF_TYPE_AP && keyidx) {
 		/* AP with Pairwise keys support should never receive Michael
 		 * MIC errors for non-zero keyidx because these are reserved
 		 * for group keys and only the AP is sending real multicast

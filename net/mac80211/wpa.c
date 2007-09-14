@@ -91,7 +91,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->flags & IEEE80211_TXRXD_FRAGMENTED) &&
-	    !(tx->local->hw.flags & IEEE80211_HW_TKIP_INCLUDE_MMIC) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) &&
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for Michael MIC
 		 */
@@ -138,25 +138,12 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	/*
 	 * No way to verify the MIC if the hardware stripped it
 	 */
-	if (rx->local->hw.flags & IEEE80211_HW_DEVICE_STRIPS_MIC)
+	if (rx->u.rx.status->flag & RX_FLAG_MMIC_STRIPPED)
 		return TXRX_CONTINUE;
 
 	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) || !WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
-
-	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    (rx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
-		if (rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
-			if (skb->len < MICHAEL_MIC_LEN)
-				return TXRX_DROP;
-		}
-		/* Need to verify Michael MIC sometimes in software even when
-		 * hwaccel is used. Atheros ar5212: fragmented frames and QoS
-		 * frames. */
-		if (!(rx->flags & IEEE80211_TXRXD_FRAGMENTED) && !wpa_test)
-			goto remove_mic;
-	}
 
 	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len)
 	    || data_len < MICHAEL_MIC_LEN)
@@ -184,7 +171,6 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 	}
 
- remove_mic:
 	/* remove Michael MIC from payload */
 	skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 
@@ -287,7 +273,7 @@ ieee80211_tx_h_tkip_encrypt(struct ieee80211_txrx_data *tx)
 	ieee80211_tx_set_iswep(tx);
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) &&
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
@@ -330,11 +316,13 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	if (!rx->sta || skb->len - hdrlen < 12)
 		return TXRX_DROP;
 
-	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
-		if (!(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV)) {
-			/* Hardware takes care of all processing, including
-			 * replay protection, so no need to continue here. */
+	if (rx->u.rx.status->flag & RX_FLAG_DECRYPTED) {
+		if (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) {
+			/*
+			 * Hardware took care of all processing, including
+			 * replay protection, and stripped the ICV/IV so
+			 * we cannot do any checks here.
+			 */
 			return TXRX_CONTINUE;
 		}
 
@@ -538,7 +526,7 @@ ieee80211_tx_h_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 	ieee80211_tx_set_iswep(tx);
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV)) {
+	    !(tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
 		/* hwaccel - with no need for preallocated room for CCMP "
 		 * header or MIC fields */
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
@@ -585,8 +573,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
-	    !(rx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV))
+	    (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED))
 		return TXRX_CONTINUE;
 
 	(void) ccmp_hdr2pn(pn, skb->data + hdrlen);
@@ -605,10 +592,8 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 	}
 
-	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
-	    (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
-		/* hwaccel has already decrypted frame and verified MIC */
-	} else {
+	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
+		/* hardware didn't decrypt/verify MIC */
 		u8 *scratch, *b_0, *aad;
 
 		scratch = key->u.ccmp.rx_crypto_buf;

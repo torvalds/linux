@@ -545,9 +545,8 @@ static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
 			return -1;
 	} else {
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
-		if (tx->local->hw.flags & IEEE80211_HW_WEP_INCLUDE_IV) {
-			if (ieee80211_wep_add_iv(tx->local, skb, tx->key) ==
-			    NULL)
+		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
+			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
 				return -1;
 		}
 	}
