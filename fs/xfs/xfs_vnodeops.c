@@ -3466,23 +3466,14 @@ std_return:
 }
 
 
-/*
- * xfs_fid2
- *
- * A fid routine that takes a pointer to a previously allocated
- * fid structure (like xfs_fast_fid) but uses a 64 bit inode number.
- */
 int
 xfs_fid2(
 	xfs_inode_t	*ip,
-	fid_t		*fidp)
+	xfs_fid_t	*xfid)
 {
-	xfs_fid2_t	*xfid = (xfs_fid2_t *)fidp;
-
 	vn_trace_entry(ip, __FUNCTION__, (inst_t *)__return_address);
-	ASSERT(sizeof(fid_t) >= sizeof(xfs_fid2_t));
 
-	xfid->fid_len = sizeof(xfs_fid2_t) - sizeof(xfid->fid_len);
+	xfid->fid_len = sizeof(xfs_fid_t) - sizeof(xfid->fid_len);
 	xfid->fid_pad = 0;
 	/*
 	 * use memcpy because the inode is a long long and there's no

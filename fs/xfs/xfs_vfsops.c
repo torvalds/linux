@@ -1635,9 +1635,8 @@ int
 xfs_vget(
 	xfs_mount_t	*mp,
 	bhv_vnode_t	**vpp,
-	fid_t		*fidp)
+	xfs_fid_t	*xfid)
 {
-	xfs_fid_t	*xfid = (struct xfs_fid *)fidp;
 	xfs_inode_t	*ip;
 	int		error;
 	xfs_ino_t	ino;
@@ -1647,11 +1646,11 @@ xfs_vget(
 	 * Invalid.  Since handles can be created in user space and passed in
 	 * via gethandle(), this is not cause for a panic.
 	 */
-	if (xfid->xfs_fid_len != sizeof(*xfid) - sizeof(xfid->xfs_fid_len))
+	if (xfid->fid_len != sizeof(*xfid) - sizeof(xfid->fid_len))
 		return XFS_ERROR(EINVAL);
 
-	ino  = xfid->xfs_fid_ino;
-	igen = xfid->xfs_fid_gen;
+	ino  = xfid->fid_ino;
+	igen = xfid->fid_gen;
 
 	/*
 	 * NFS can sometimes send requests for ino 0.  Fail them gracefully.

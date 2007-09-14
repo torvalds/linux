@@ -39,7 +39,7 @@ int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 int xfs_symlink(struct xfs_inode *dp, bhv_vname_t *dentry,
 		char *target_path, mode_t mode, bhv_vnode_t **vpp,
 		struct cred *credp);
-int xfs_fid2(struct xfs_inode *ip, fid_t	*fidp);
+int xfs_fid2(struct xfs_inode *ip, struct xfs_fid *xfid);
 int xfs_rwlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);
 void xfs_rwunlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);
 int xfs_inode_flush(struct xfs_inode *ip, int flags);
