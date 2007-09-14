@@ -174,14 +174,6 @@ static int clock_hang_reported[NR_CPUS];
 
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
 
-/* Initialize shared TLB - the should probably migrate to smtc_setup_cpus() */
-
-void __init sanitize_tlb_entries(void)
-{
-	printk("Deprecated sanitize_tlb_entries() invoked\n");
-}
-
-
 /*
  * Configure shared TLB - VPC configuration bit must be set by caller
  */

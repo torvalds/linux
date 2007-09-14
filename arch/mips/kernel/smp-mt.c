@@ -58,53 +58,6 @@ static void dump_mtregisters(int vpe, int tc)
 }
 #endif
 
-void __init sanitize_tlb_entries(void)
-{
-	int i, tlbsiz;
-	unsigned long mvpconf0, ncpu;
-
-	if (!cpu_has_mipsmt)
-		return;
-
-	/* Enable VPC */
-	set_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	back_to_back_c0_hazard();
-
-	/* Disable TLB sharing */
-	clear_c0_mvpcontrol(MVPCONTROL_STLB);
-
-	mvpconf0 = read_c0_mvpconf0();
-
-	printk(KERN_INFO "MVPConf0 0x%lx TLBS %lx PTLBE %ld\n", mvpconf0,
-		   (mvpconf0 & MVPCONF0_TLBS) >> MVPCONF0_TLBS_SHIFT,
-			   (mvpconf0 & MVPCONF0_PTLBE) >> MVPCONF0_PTLBE_SHIFT);
-
-	tlbsiz = (mvpconf0 & MVPCONF0_PTLBE) >> MVPCONF0_PTLBE_SHIFT;
-	ncpu = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
-
-	printk(" tlbsiz %d ncpu %ld\n", tlbsiz, ncpu);
-
-	if (tlbsiz > 0) {
-		/* share them out across the vpe's */
-		tlbsiz /= ncpu;
-
-		printk(KERN_INFO "setting Config1.MMU_size to %d\n", tlbsiz);
-
-		for (i = 0; i < ncpu; i++) {
-			settc(i);
-
-			if (i == 0)
-				write_c0_config1((read_c0_config1() & ~(0x3f << 25)) | (tlbsiz << 25));
-			else
-				write_vpe_c0_config1((read_vpe_c0_config1() & ~(0x3f << 25)) |
-						   (tlbsiz << 25));
-		}
-	}
-
-	clear_c0_mvpcontrol(MVPCONTROL_VPC);
-}
-
 static void ipi_resched_dispatch(void)
 {
 	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
