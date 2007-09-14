@@ -465,6 +465,14 @@ int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, str
 
 	up(&f->sem);
 	jffs2_complete_reservation(c);
+
+	ret = jffs2_init_security(&f->vfs_inode, &dir_f->vfs_inode);
+	if (ret)
+		return ret;
+	ret = jffs2_init_acl_post(&f->vfs_inode);
+	if (ret)
+		return ret;
+
 	ret = jffs2_reserve_space(c, sizeof(*rd)+namelen, &alloclen,
 				ALLOC_NORMAL, JFFS2_SUMMARY_DIRENT_SIZE(namelen));
 
