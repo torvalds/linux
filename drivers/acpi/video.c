@@ -417,7 +417,6 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 	arg0.integer.value = level;
 	status = acpi_evaluate_object(device->dev->handle, "_BCM", &args, NULL);
 
-	printk(KERN_DEBUG "set_level status: %x\n", status);
 	return status;
 }
 
