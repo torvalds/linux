@@ -1264,14 +1264,15 @@ static void send_to_sock(struct connection *con)
 		if (len) {
 			ret = sendpage(con->sock, e->page, offset, len,
 				       msg_flags);
-			if (ret == -EAGAIN || ret == 0)
+			if (ret == -EAGAIN || ret == 0) {
+				cond_resched();
 				goto out;
+			}
 			if (ret <= 0)
 				goto send_error;
-		} else {
+		}
 			/* Don't starve people filling buffers */
 			cond_resched();
-		}
 
 		spin_lock(&con->writequeue_lock);
 		e->offset += ret;
