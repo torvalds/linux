@@ -24,14 +24,14 @@ static int tda9887_debug;
 module_param_named(debug, tda9887_debug, int, 0644);
 
 #define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
-			i2c_adapter_id(priv->t->i2c.adapter), \
-			priv->t->i2c.addr, ##arg); } while (0)
+	printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c->name, \
+			i2c_adapter_id(priv->t->i2c->adapter), \
+			priv->t->i2c->addr, ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (tda9887_debug) \
-		printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
-			i2c_adapter_id(priv->t->i2c.adapter), \
-			priv->t->i2c.addr, ##arg); } while (0)
+		printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c->name, \
+			i2c_adapter_id(priv->t->i2c->adapter), \
+			priv->t->i2c->addr, ##arg); } while (0)
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
@@ -651,14 +651,14 @@ int tda9887_attach(struct tuner *t)
 		return -ENOMEM;
 	t->fe.analog_demod_priv = priv;
 
-	priv->i2c_props.addr = t->i2c.addr;
-	priv->i2c_props.adap = t->i2c.adapter;
+	priv->i2c_props.addr = t->i2c->addr;
+	priv->i2c_props.adap = t->i2c->adapter;
 	priv->t = t;
 
-	strlcpy(t->i2c.name, "tda9887", sizeof(t->i2c.name));
+	strlcpy(t->i2c->name, "tda9887", sizeof(t->i2c->name));
 
-	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
-						t->i2c.driver->driver.name);
+	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c->addr,
+		     t->i2c->driver->driver.name);
 
 	t->fe.ops.analog_demod_ops = &tda9887_tuner_ops;
 

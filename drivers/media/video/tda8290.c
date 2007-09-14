@@ -608,22 +608,22 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	switch (priv->ver) {
 	case TDA8290 | TDA8275:
-		strlcpy(t->i2c.name, "tda8290+75", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8290+75", sizeof(t->i2c->name));
 		break;
 	case TDA8295 | TDA8275:
-		strlcpy(t->i2c.name, "tda8295+75", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8295+75", sizeof(t->i2c->name));
 		break;
 	case TDA8290 | TDA8275A:
-		strlcpy(t->i2c.name, "tda8290+75a", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8290+75a", sizeof(t->i2c->name));
 		break;
 	case TDA8295 | TDA8275A:
-		strlcpy(t->i2c.name, "tda8295+75a", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8295+75a", sizeof(t->i2c->name));
 		break;
 	case TDA8290 | TDA18271:
-		strlcpy(t->i2c.name, "tda8290+18271", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8290+18271", sizeof(t->i2c->name));
 		break;
 	case TDA8295 | TDA18271:
-		strlcpy(t->i2c.name, "tda8295+18271", sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, "tda8295+18271", sizeof(t->i2c->name));
 		break;
 	default:
 		return -EINVAL;
@@ -665,8 +665,8 @@ int tda829x_attach(struct tuner *t)
 		return -ENOMEM;
 	fe->analog_demod_priv = priv;
 
-	priv->i2c_props.addr     = t->i2c.addr;
-	priv->i2c_props.adap     = t->i2c.adapter;
+	priv->i2c_props.addr     = t->i2c->addr;
+	priv->i2c_props.adap     = t->i2c->adapter;
 	priv->cfg.config         = &t->config;
 	priv->cfg.tuner_callback = t->tuner_callback;
 	priv->t = t;
@@ -696,7 +696,7 @@ int tda829x_attach(struct tuner *t)
 	} else if (priv->ver & TDA8295)
 		tda8295_init_if(fe);
 
-	tuner_info("type set to %s\n", t->i2c.name);
+	tuner_info("type set to %s\n", t->i2c->name);
 
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
@@ -707,8 +707,8 @@ EXPORT_SYMBOL_GPL(tda829x_attach);
 int tda8290_probe(struct tuner *t)
 {
 	struct tuner_i2c_props i2c_props = {
-		.adap = t->i2c.adapter,
-		.addr = t->i2c.addr
+		.adap = t->i2c->adapter,
+		.addr = t->i2c->addr
 	};
 
 	unsigned char soft_reset[]   = { 0x00, 0x00 };

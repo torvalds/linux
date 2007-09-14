@@ -226,20 +226,20 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 static void tuner_i2c_address_check(struct tuner *t)
 {
 	if ((t->type == UNSET || t->type == TUNER_ABSENT) ||
-	    ((t->i2c.addr < 0x64) || (t->i2c.addr > 0x6f)))
+	    ((t->i2c->addr < 0x64) || (t->i2c->addr > 0x6f)))
 		return;
 
 	tuner_warn("====================== WARNING! ======================\n");
 	tuner_warn("Support for tuners in i2c address range 0x64 thru 0x6f\n");
 	tuner_warn("will soon be dropped. This message indicates that your\n");
 	tuner_warn("hardware has a %s tuner at i2c address 0x%02x.\n",
-		   t->i2c.name, t->i2c.addr);
+		   t->i2c->name, t->i2c->addr);
 	tuner_warn("To ensure continued support for your device, please\n");
 	tuner_warn("send a copy of this message, along with full dmesg\n");
 	tuner_warn("output to v4l-dvb-maintainer@linuxtv.org\n");
 	tuner_warn("Please use subject line: \"obsolete tuner i2c address.\"\n");
 	tuner_warn("driver: %s, addr: 0x%02x, type: %d (%s)\n",
-		   t->i2c.adapter->name, t->i2c.addr, t->type,
+		   t->i2c->adapter->name, t->i2c->addr, t->type,
 		   tuners[t->type].name);
 	tuner_warn("====================== WARNING! ======================\n");
 }
@@ -250,7 +250,7 @@ static void attach_simple_tuner(struct tuner *t)
 		.type = t->type,
 		.tun  = &tuners[t->type]
 	};
-	simple_tuner_attach(&t->fe, t->i2c.adapter, t->i2c.addr, &cfg);
+	simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
 }
 
 static void set_type(struct i2c_client *c, unsigned int type,
@@ -292,7 +292,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	switch (t->type) {
 	case TUNER_MT2032:
-		microtune_attach(&t->fe, t->i2c.adapter, t->i2c.addr);
+		microtune_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
@@ -300,7 +300,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TEA5767:
-		if (tea5767_attach(&t->fe, t->i2c.adapter, t->i2c.addr) == NULL) {
+		if (tea5767_attach(&t->fe, t->i2c->adapter, t->i2c->addr) == NULL) {
 			t->type = TUNER_ABSENT;
 			t->mode_mask = T_UNINITIALIZED;
 			return;
@@ -308,7 +308,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->mode_mask = T_RADIO;
 		break;
 	case TUNER_TEA5761:
-		if (tea5761_attach(&t->fe, t->i2c.adapter, t->i2c.addr) == NULL) {
+		if (tea5761_attach(&t->fe, t->i2c->adapter, t->i2c->addr) == NULL) {
 			t->type = TUNER_ABSENT;
 			t->mode_mask = T_UNINITIALIZED;
 			return;
@@ -348,13 +348,14 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	if (((NULL == ops) ||
 	     ((NULL == ops->set_tv_freq) && (NULL == ops->set_radio_freq))) &&
 	    (fe_tuner_ops->set_analog_params)) {
-		strlcpy(t->i2c.name, fe_tuner_ops->info.name, sizeof(t->i2c.name));
+		strlcpy(t->i2c->name, fe_tuner_ops->info.name,
+			sizeof(t->i2c->name));
 
 		t->fe.ops.analog_demod_ops = &tuner_core_ops;
 		t->fe.analog_demod_priv = t;
 	}
 
-	tuner_info("type set to %s\n", t->i2c.name);
+	tuner_info("type set to %s\n", t->i2c->name);
 
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
@@ -579,16 +580,23 @@ static unsigned default_mode_mask;
  */
 static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 {
+	struct i2c_client *client;
 	struct tuner *t;
 
-	client_template.adapter = adap;
-	client_template.addr = addr;
+	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (NULL == client)
+		return -ENOMEM;
 
 	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
-	if (NULL == t)
+	if (NULL == t) {
+		kfree(client);
 		return -ENOMEM;
-	memcpy(&t->i2c, &client_template, sizeof(struct i2c_client));
-	i2c_set_clientdata(&t->i2c, t);
+	}
+	t->i2c = client;
+	client_template.adapter = adap;
+	client_template.addr = addr;
+	memcpy(client, &client_template, sizeof(struct i2c_client));
+	i2c_set_clientdata(client, t);
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
@@ -598,7 +606,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		int i,rc;
 
 		memset(buffer, 0, sizeof(buffer));
-		rc = i2c_master_recv(&t->i2c, buffer, sizeof(buffer));
+		rc = i2c_master_recv(client, buffer, sizeof(buffer));
 		tuner_info("I2C RECV = ");
 		for (i=0;i<rc;i++)
 			printk("%02x ",buffer[i]);
@@ -612,7 +620,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	if (!no_autodetect) {
 		switch (addr) {
 		case 0x10:
-			if (tea5761_autodetection(t->i2c.adapter, t->i2c.addr) != EINVAL) {
+			if (tea5761_autodetection(t->i2c->adapter, t->i2c->addr) != EINVAL) {
 				t->type = TUNER_TEA5761;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
@@ -639,7 +647,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			}
 			break;
 		case 0x60:
-			if (tea5767_autodetection(t->i2c.adapter, t->i2c.addr) != EINVAL) {
+			if (tea5767_autodetection(t->i2c->adapter, t->i2c->addr) != EINVAL) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
@@ -664,8 +672,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* Should be just before return */
 register_client:
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
-	i2c_attach_client (&t->i2c);
-	set_type (&t->i2c,t->type, t->mode_mask, t->config, t->tuner_callback);
+	i2c_attach_client (client);
+	set_type (client,t->type, t->mode_mask, t->config, t->tuner_callback);
 	return 0;
 }
 
@@ -711,7 +719,7 @@ static int tuner_detach(struct i2c_client *client)
 	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 	int err;
 
-	err = i2c_detach_client(&t->i2c);
+	err = i2c_detach_client(t->i2c);
 	if (err) {
 		tuner_warn
 		    ("Client deregistration failed, client not detached.\n");
@@ -722,6 +730,7 @@ static int tuner_detach(struct i2c_client *client)
 		ops->release(&t->fe);
 
 	kfree(t);
+	kfree(client);
 	return 0;
 }
 
@@ -770,7 +779,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
 	if (tuner_debug>1)
-		v4l_i2c_print_ioctl(&(t->i2c),cmd);
+		v4l_i2c_print_ioctl(client,cmd);
 
 	switch (cmd) {
 	/* --- configuration --- */
