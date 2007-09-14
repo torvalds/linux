@@ -112,6 +112,8 @@ int avc_has_perm(u32 ssid, u32 tsid,
                  u16 tclass, u32 requested,
                  struct avc_audit_data *auditdata);
 
+u32 avc_policy_seqno(void);
+
 #define AVC_CALLBACK_GRANT		1
 #define AVC_CALLBACK_TRY_REVOKE		2
 #define AVC_CALLBACK_REVOKE		4

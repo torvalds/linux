@@ -504,6 +504,13 @@ struct request_sock;
  *	@file contains the file structure being received.
  *	Return 0 if permission is granted.
  *
+ * Security hook for dentry
+ *
+ * @dentry_open
+ *	Save open-time permission checking state for later use upon
+ *	file_permission, and recheck access if anything has changed
+ *	since inode_permission.
+ *
  * Security hooks for task operations.
  *
  * @task_create:
@@ -1256,6 +1263,7 @@ struct security_operations {
 	int (*file_send_sigiotask) (struct task_struct * tsk,
 				    struct fown_struct * fown, int sig);
 	int (*file_receive) (struct file * file);
+	int (*dentry_open)  (struct file *file);
 
 	int (*task_create) (unsigned long clone_flags);
 	int (*task_alloc_security) (struct task_struct * p);
@@ -1862,6 +1870,11 @@ static inline int security_file_send_sigiotask (struct task_struct *tsk,
 static inline int security_file_receive (struct file *file)
 {
 	return security_ops->file_receive (file);
+}
+
+static inline int security_dentry_open (struct file *file)
+{
+	return security_ops->dentry_open (file);
 }
 
 static inline int security_task_create (unsigned long clone_flags)
@@ -2542,6 +2555,11 @@ static inline int security_file_send_sigiotask (struct task_struct *tsk,
 }
 
 static inline int security_file_receive (struct file *file)
+{
+	return 0;
+}
+
+static inline int security_dentry_open (struct file *file)
 {
 	return 0;
 }
