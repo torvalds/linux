@@ -1487,7 +1487,20 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		nh_pos += encaps_len;
 		h_pos += encaps_len;
 	}
-	memcpy(skb_push(skb, hdrlen), &hdr, hdrlen);
+
+	if (fc & IEEE80211_STYPE_QOS_DATA) {
+		__le16 *qos_control;
+
+		qos_control = (__le16*) skb_push(skb, 2);
+		memcpy(skb_push(skb, hdrlen - 2), &hdr, hdrlen - 2);
+		/*
+		 * Maybe we could actually set some fields here, for now just
+		 * initialise to zero to indicate no special operation.
+		 */
+		*qos_control = 0;
+	} else
+		memcpy(skb_push(skb, hdrlen), &hdr, hdrlen);
+
 	nh_pos += hdrlen;
 	h_pos += hdrlen;
 
