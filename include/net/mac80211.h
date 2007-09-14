@@ -73,14 +73,13 @@ struct ieee80211_channel {
 #define IEEE80211_RATE_SUPPORTED 0x00000010
 #define IEEE80211_RATE_OFDM 0x00000020
 #define IEEE80211_RATE_CCK 0x00000040
-#define IEEE80211_RATE_TURBO 0x00000080
 #define IEEE80211_RATE_MANDATORY 0x00000100
 
 #define IEEE80211_RATE_CCK_2 (IEEE80211_RATE_CCK | IEEE80211_RATE_PREAMBLE2)
 #define IEEE80211_RATE_MODULATION(f) \
 	(f & (IEEE80211_RATE_CCK | IEEE80211_RATE_OFDM))
 
-/* Low-level driver should set PREAMBLE2, OFDM, CCK, and TURBO flags.
+/* Low-level driver should set PREAMBLE2, OFDM and CCK flags.
  * BASIC, SUPPORTED, ERP, and MANDATORY flags are set in 80211.o based on the
  * configuration. */
 struct ieee80211_rate {
@@ -101,12 +100,10 @@ struct ieee80211_rate {
 
 /* 802.11g is backwards-compatible with 802.11b, so a wlan card can
  * actually be both in 11b and 11g modes at the same time. */
-enum {
+enum ieee80211_phymode {
 	MODE_IEEE80211A, /* IEEE 802.11a */
 	MODE_IEEE80211B, /* IEEE 802.11b only */
-	MODE_ATHEROS_TURBO, /* Atheros Turbo mode (2x.11a at 5 GHz) */
 	MODE_IEEE80211G, /* IEEE 802.11g (and 802.11b compatibility) */
-	MODE_ATHEROS_TURBOG, /* Atheros Turbo mode (2x.11g at 2.4 GHz) */
 
 	/* keep last */
 	NUM_IEEE80211_MODES

@@ -94,8 +94,6 @@ ieee80211_rx_h_load_stats(struct ieee80211_txrx_data *rx)
 	 * 1 usec = 1/8 * (1080 / 10) = 13.5 */
 
 	if (mode->mode == MODE_IEEE80211A ||
-	    mode->mode == MODE_ATHEROS_TURBO ||
-	    mode->mode == MODE_ATHEROS_TURBOG ||
 	    (mode->mode == MODE_IEEE80211G &&
 	     rate->flags & IEEE80211_RATE_ERP))
 		hdrtime = CHAN_UTIL_HDR_SHORT;

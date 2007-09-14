@@ -93,11 +93,6 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 			if (rate->rate == 10 || rate->rate == 20)
 				rate->flags |= IEEE80211_RATE_BASIC;
 			break;
-		case MODE_ATHEROS_TURBO:
-			if (rate->rate == 120 || rate->rate == 240 ||
-			    rate->rate == 480)
-				rate->flags |= IEEE80211_RATE_BASIC;
-			break;
 		case MODE_IEEE80211G:
 			if (rate->rate == 10 || rate->rate == 20 ||
 			    rate->rate == 55 || rate->rate == 110)
@@ -115,8 +110,6 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 		case MODE_IEEE80211B:
 			if (rate->rate == 10)
 				rate->flags |= IEEE80211_RATE_MANDATORY;
-			break;
-		case MODE_ATHEROS_TURBO:
 			break;
 		case MODE_IEEE80211G:
 			if (rate->rate == 10 || rate->rate == 20 ||
@@ -273,8 +266,7 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 	 * DIV_ROUND_UP() operations.
 	 */
 
-	if (local->hw.conf.phymode == MODE_IEEE80211A || erp ||
-	    local->hw.conf.phymode == MODE_ATHEROS_TURBO) {
+	if (local->hw.conf.phymode == MODE_IEEE80211A || erp) {
 		/*
 		 * OFDM:
 		 *
@@ -288,7 +280,6 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 		 * 802.11g - 19.8.4: aSIFSTime = 10 usec +
 		 *	signal ext = 6 usec
 		 */
-		/* FIX: Atheros Turbo may have different (shorter) duration? */
 		dur = 16; /* SIFS + signal ext */
 		dur += 16; /* 17.3.2.3: T_PREAMBLE = 16 usec */
 		dur += 4; /* 17.3.2.3: T_SIGNAL = 4 usec */

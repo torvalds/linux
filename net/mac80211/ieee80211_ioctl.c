@@ -26,6 +26,41 @@
 #include "wpa.h"
 #include "aes_ccm.h"
 
+
+/*
+ * Wow. This ioctl interface is such crap, it's tied
+ * to internal definitions. I hope it dies soon.
+ */
+static int mode_to_hostapd_mode(enum ieee80211_phymode mode)
+{
+	switch (mode) {
+	case MODE_IEEE80211A:
+		return 0;
+	case MODE_IEEE80211B:
+		return 1;
+	case MODE_IEEE80211G:
+		return 3;
+	case NUM_IEEE80211_MODES:
+		WARN_ON(1);
+		break;
+	}
+	WARN_ON(1);
+	return -1;
+}
+
+static enum ieee80211_phymode hostapd_mode_to_mode(int hostapd_mode)
+{
+	switch (hostapd_mode) {
+	case 0:
+		return MODE_IEEE80211A;
+	case 1:
+		return MODE_IEEE80211B;
+	case 3:
+		return MODE_IEEE80211G;
+	}
+	return NUM_IEEE80211_MODES;
+}
+
 static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 				    int idx, int alg, int set_tx_key,
 				    const u8 *_key, size_t key_len)
@@ -140,9 +175,6 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 		break;
 	case MODE_IEEE80211G:
 		strcpy(name, "IEEE 802.11g");
-		break;
-	case MODE_ATHEROS_TURBO:
-		strcpy(name, "5GHz Turbo");
 		break;
 	default:
 		strcpy(name, "IEEE 802.11");
@@ -594,9 +626,6 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 		struct ieee80211_rate *rates = &mode->rates[i];
 		int this_rate = rates->rate;
 
-		if (mode->mode == MODE_ATHEROS_TURBO ||
-		    mode->mode == MODE_ATHEROS_TURBOG)
-			this_rate *= 2;
 		if (target_rate == this_rate) {
 			sdata->bss->max_ratectrl_rateidx = i;
 			if (rate->fixed)
@@ -786,6 +815,7 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 	int param = *i;
 	int value = *(i + 1);
 	int ret = 0;
+	int mode;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -840,7 +870,7 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_NEXT_MODE:
-		local->next_mode = value;
+		local->next_mode = hostapd_mode_to_mode(value);
 		break;
 
 	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
@@ -868,7 +898,15 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_HW_MODES:
-		local->enabled_modes = value;
+		mode = 1;
+		local->enabled_modes = 0;
+		while (value) {
+			if (value & 1)
+				local->enabled_modes |=
+					hostapd_mode_to_mode(mode);
+			mode <<= 1;
+			value >>= 1;
+		}
 		break;
 
 	case PRISM2_PARAM_CREATE_IBSS:
@@ -909,6 +947,7 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata;
 	int *param = (int *) extra;
 	int ret = 0;
+	int mode;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -946,7 +985,13 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 		break;
 
 	case PRISM2_PARAM_HW_MODES:
-		*param = local->enabled_modes;
+		mode = 0;
+		*param = 0;
+		while (mode < NUM_IEEE80211_MODES) {
+			if (local->enabled_modes & (1<<mode))
+				*param |= mode_to_hostapd_mode(1<<mode);
+			mode++;
+		}
 		break;
 
 	case PRISM2_PARAM_CREATE_IBSS:

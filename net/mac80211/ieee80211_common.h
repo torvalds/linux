@@ -73,8 +73,6 @@ enum ieee80211_phytype {
 	ieee80211_phytype_ofdm_dot11_g   = 6,
 	ieee80211_phytype_pbcc_dot11_g   = 7,
 	ieee80211_phytype_ofdm_dot11_a   = 8,
-	ieee80211_phytype_dsss_dot11_turbog = 255,
-	ieee80211_phytype_dsss_dot11_turbo = 256,
 };
 
 enum ieee80211_ssi_type {

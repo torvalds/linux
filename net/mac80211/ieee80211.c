@@ -118,10 +118,6 @@ ieee80211_fill_frame_info(struct ieee80211_local *local,
 		case MODE_IEEE80211G:
 			fi->phytype = htonl(ieee80211_phytype_pbcc_dot11_g);
 			break;
-		case MODE_ATHEROS_TURBO:
-			fi->phytype =
-				htonl(ieee80211_phytype_dsss_dot11_turbo);
-			break;
 		default:
 			fi->phytype = htonl(0xAAAAAAAA);
 			break;
@@ -1225,7 +1221,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->long_retry_limit = 4;
 	local->hw.conf.radio_enabled = 1;
 
-	local->enabled_modes = (unsigned int) -1;
+	local->enabled_modes = ~0;
 
 	INIT_LIST_HEAD(&local->modes_list);
 
