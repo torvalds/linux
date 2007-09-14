@@ -2214,13 +2214,6 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 		ret = btrfs_unlink_trans(trans, root, new_dir, new_dentry);
 		if (ret)
 			goto out_fail;
-		if (S_ISDIR(new_inode->i_mode))
-			clear_nlink(new_inode);
-		else
-			drop_nlink(new_inode);
-		ret = btrfs_update_inode(trans, root, new_inode);
-		if (ret)
-			goto out_fail;
 	}
 	ret = btrfs_add_link(trans, new_dentry, old_inode);
 	if (ret)
