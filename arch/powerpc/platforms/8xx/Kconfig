@@ -26,6 +26,7 @@ config MPC86XADS
 config MPC885ADS
 	bool "MPC885ADS"
 	select CPM1
+	select PPC_CPM_NEW_BINDING
 	help
 	  Freescale Semiconductor MPC885 Application Development System (ADS).
 	  Also known as DUET.
