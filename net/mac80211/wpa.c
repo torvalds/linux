@@ -214,7 +214,6 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 		key->u.tkip.iv32++;
 
 	if (tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) {
-		u32 flags = tx->local->hw.flags;
 		hdr = (struct ieee80211_hdr *)skb->data;
 
 		/* hwaccel - with preallocated room for IV */
@@ -223,22 +222,6 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 				      (u8) (((key->u.tkip.iv16 >> 8) | 0x20) &
 					    0x7f),
 				      (u8) key->u.tkip.iv16);
-
-		if (flags & IEEE80211_HW_TKIP_REQ_PHASE2_KEY)
-			ieee80211_tkip_gen_rc4key(key, hdr->addr2,
-						  tx->u.tx.control->tkip_key);
-		else if (flags & IEEE80211_HW_TKIP_REQ_PHASE1_KEY) {
-			if (key->u.tkip.iv16 == 0 ||
-			    !key->u.tkip.tx_initialized) {
-				ieee80211_tkip_gen_phase1key(key, hdr->addr2,
-					    (u16 *)tx->u.tx.control->tkip_key);
-				key->u.tkip.tx_initialized = 1;
-				tx->u.tx.control->flags |=
-					    IEEE80211_TXCTL_TKIP_NEW_PHASE1_KEY;
-			} else
-				tx->u.tx.control->flags &=
-					    ~IEEE80211_TXCTL_TKIP_NEW_PHASE1_KEY;
-		}
 
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
 		return 0;
