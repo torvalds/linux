@@ -250,10 +250,6 @@ void ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata, int idx)
 
 		if (sdata->default_key)
 			ieee80211_debugfs_key_add_default(sdata);
-
-		if (sdata->local->ops->set_key_idx)
-			sdata->local->ops->set_key_idx(
-				local_to_hw(sdata->local), idx);
 	}
 }
 

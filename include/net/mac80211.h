@@ -645,19 +645,6 @@ struct ieee80211_ops {
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
 
-	/*
-	 * Set TX key index for default/broadcast keys. This is needed in cases
-	 * where wlan card is doing full WEP/TKIP encapsulation (wep_include_iv
-	 * is not set), in other cases, this function pointer can be set to
-	 * NULL since the IEEE 802.11 module takes care of selecting the key
-	 * index for each TX frame.
-	 *
-	 * TODO: If you use this callback in your driver tell us if you need
-	 *	 any other information from it to make it easier, like the
-	 *	 key_conf instead.
-	 */
-	int (*set_key_idx)(struct ieee80211_hw *hw, int idx);
-
 	/* Enable/disable IEEE 802.1X. This item requests wlan card to pass
 	 * unencrypted EAPOL-Key frames even when encryption is configured.
 	 * If the wlan card does not require such a configuration, this
