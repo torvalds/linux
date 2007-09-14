@@ -53,7 +53,5 @@
 #define SIU_INT_SCC3		((uint)0x2a+CPM_IRQ_OFFSET)
 #define SIU_INT_SCC4		((uint)0x2b+CPM_IRQ_OFFSET)
 
-void m82xx_pci_init_irq(void);
-
 #endif /* __MACH_ADS8260_DEFS */
 #endif /* __KERNEL__ */

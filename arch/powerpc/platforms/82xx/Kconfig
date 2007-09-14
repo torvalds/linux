@@ -10,6 +10,8 @@ config MPC8272_ADS
 	select 8272
 	select 8260
 	select FSL_SOC
+	select PQ2_ADS_PCI_PIC if PCI
+	select PPC_CPM_NEW_BINDING
 	help
 	  This option enables support for the MPC8272 ADS board
 
@@ -34,3 +36,6 @@ config 8272
 	help
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
+
+config PQ2_ADS_PCI_PIC
+	bool
