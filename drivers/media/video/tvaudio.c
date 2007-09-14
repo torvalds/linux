@@ -31,6 +31,7 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 
 #include <media/i2c-addr.h>
 
@@ -109,7 +110,7 @@ static struct CHIPDESC chiplist[];
 
 /* current state of the chip */
 struct CHIPSTATE {
-	struct i2c_client c;
+	struct i2c_client *c;
 
 	/* index into CHIPDESC array */
 	int type;
@@ -145,10 +146,6 @@ static unsigned short normal_i2c[] = {
 	I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
-static struct i2c_driver driver;
-static struct i2c_client client_template;
-
-
 /* ---------------------------------------------------------------------- */
 /* i2c I/O functions                                                      */
 
@@ -157,24 +154,24 @@ static int chip_write(struct CHIPSTATE *chip, int subaddr, int val)
 	unsigned char buffer[2];
 
 	if (-1 == subaddr) {
-		v4l_dbg(1, debug, &chip->c, "%s: chip_write: 0x%x\n",
-			chip->c.name, val);
+		v4l_dbg(1, debug, chip->c, "%s: chip_write: 0x%x\n",
+			chip->c->name, val);
 		chip->shadow.bytes[1] = val;
 		buffer[0] = val;
-		if (1 != i2c_master_send(&chip->c,buffer,1)) {
-			v4l_warn(&chip->c, "%s: I/O error (write 0x%x)\n",
-				chip->c.name, val);
+		if (1 != i2c_master_send(chip->c,buffer,1)) {
+			v4l_warn(chip->c, "%s: I/O error (write 0x%x)\n",
+				chip->c->name, val);
 			return -1;
 		}
 	} else {
-		v4l_dbg(1, debug, &chip->c, "%s: chip_write: reg%d=0x%x\n",
-			chip->c.name, subaddr, val);
+		v4l_dbg(1, debug, chip->c, "%s: chip_write: reg%d=0x%x\n",
+			chip->c->name, subaddr, val);
 		chip->shadow.bytes[subaddr+1] = val;
 		buffer[0] = subaddr;
 		buffer[1] = val;
-		if (2 != i2c_master_send(&chip->c,buffer,2)) {
-			v4l_warn(&chip->c, "%s: I/O error (write reg%d=0x%x)\n",
-			chip->c.name, subaddr, val);
+		if (2 != i2c_master_send(chip->c,buffer,2)) {
+			v4l_warn(chip->c, "%s: I/O error (write reg%d=0x%x)\n",
+			chip->c->name, subaddr, val);
 			return -1;
 		}
 	}
@@ -197,12 +194,12 @@ static int chip_read(struct CHIPSTATE *chip)
 {
 	unsigned char buffer;
 
-	if (1 != i2c_master_recv(&chip->c,&buffer,1)) {
-		v4l_warn(&chip->c, "%s: I/O error (read)\n",
-		chip->c.name);
+	if (1 != i2c_master_recv(chip->c,&buffer,1)) {
+		v4l_warn(chip->c, "%s: I/O error (read)\n",
+		chip->c->name);
 		return -1;
 	}
-	v4l_dbg(1, debug, &chip->c, "%s: chip_read: 0x%x\n",chip->c.name, buffer);
+	v4l_dbg(1, debug, chip->c, "%s: chip_read: 0x%x\n",chip->c->name, buffer);
 	return buffer;
 }
 
@@ -211,17 +208,17 @@ static int chip_read2(struct CHIPSTATE *chip, int subaddr)
 	unsigned char write[1];
 	unsigned char read[1];
 	struct i2c_msg msgs[2] = {
-		{ chip->c.addr, 0,        1, write },
-		{ chip->c.addr, I2C_M_RD, 1, read  }
+		{ chip->c->addr, 0,        1, write },
+		{ chip->c->addr, I2C_M_RD, 1, read  }
 	};
 	write[0] = subaddr;
 
-	if (2 != i2c_transfer(chip->c.adapter,msgs,2)) {
-		v4l_warn(&chip->c, "%s: I/O error (read2)\n", chip->c.name);
+	if (2 != i2c_transfer(chip->c->adapter,msgs,2)) {
+		v4l_warn(chip->c, "%s: I/O error (read2)\n", chip->c->name);
 		return -1;
 	}
-	v4l_dbg(1, debug, &chip->c, "%s: chip_read2: reg%d=0x%x\n",
-		chip->c.name, subaddr,read[0]);
+	v4l_dbg(1, debug, chip->c, "%s: chip_read2: reg%d=0x%x\n",
+		chip->c->name, subaddr,read[0]);
 	return read[0];
 }
 
@@ -233,8 +230,8 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 		return 0;
 
 	/* update our shadow register set; print bytes if (debug > 0) */
-	v4l_dbg(1, debug, &chip->c, "%s: chip_cmd(%s): reg=%d, data:",
-		chip->c.name, name,cmd->bytes[0]);
+	v4l_dbg(1, debug, chip->c, "%s: chip_cmd(%s): reg=%d, data:",
+		chip->c->name, name,cmd->bytes[0]);
 	for (i = 1; i < cmd->count; i++) {
 		if (debug)
 			printk(" 0x%x",cmd->bytes[i]);
@@ -244,8 +241,8 @@ static int chip_cmd(struct CHIPSTATE *chip, char *name, audiocmd *cmd)
 		printk("\n");
 
 	/* send data to the chip */
-	if (cmd->count != i2c_master_send(&chip->c,cmd->bytes,cmd->count)) {
-		v4l_warn(&chip->c, "%s: I/O error (%s)\n", chip->c.name, name);
+	if (cmd->count != i2c_master_send(chip->c,cmd->bytes,cmd->count)) {
+		v4l_warn(chip->c, "%s: I/O error (%s)\n", chip->c->name, name);
 		return -1;
 	}
 	return 0;
@@ -269,7 +266,7 @@ static int chip_thread(void *data)
 	struct CHIPSTATE *chip = data;
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	v4l_dbg(1, debug, &chip->c, "%s: thread started\n", chip->c.name);
+	v4l_dbg(1, debug, chip->c, "%s: thread started\n", chip->c->name);
 	set_freezable();
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -279,7 +276,7 @@ static int chip_thread(void *data)
 		try_to_freeze();
 		if (kthread_should_stop())
 			break;
-		v4l_dbg(1, debug, &chip->c, "%s: thread wakeup\n", chip->c.name);
+		v4l_dbg(1, debug, chip->c, "%s: thread wakeup\n", chip->c->name);
 
 		/* don't do anything for radio or if mode != auto */
 		if (chip->radio || chip->mode != 0)
@@ -292,7 +289,7 @@ static int chip_thread(void *data)
 		mod_timer(&chip->wt, jiffies+msecs_to_jiffies(2000));
 	}
 
-	v4l_dbg(1, debug, &chip->c, "%s: thread exiting\n", chip->c.name);
+	v4l_dbg(1, debug, chip->c, "%s: thread exiting\n", chip->c->name);
 	return 0;
 }
 
@@ -304,7 +301,7 @@ static void generic_checkmode(struct CHIPSTATE *chip)
 	if (mode == chip->prevmode)
 	return;
 
-	v4l_dbg(1, debug, &chip->c, "%s: thread checkmode\n", chip->c.name);
+	v4l_dbg(1, debug, chip->c, "%s: thread checkmode\n", chip->c->name);
 	chip->prevmode = mode;
 
 	if (mode & V4L2_TUNER_MODE_STEREO)
@@ -353,7 +350,7 @@ static int tda9840_getmode(struct CHIPSTATE *chip)
 	if (val & TDA9840_ST_STEREO)
 		mode |= V4L2_TUNER_MODE_STEREO;
 
-	v4l_dbg(1, debug, &chip->c, "tda9840_getmode(): raw chip read: %d, return: %d\n",
+	v4l_dbg(1, debug, chip->c, "tda9840_getmode(): raw chip read: %d, return: %d\n",
 		val, mode);
 	return mode;
 }
@@ -657,7 +654,7 @@ static int tda9873_getmode(struct CHIPSTATE *chip)
 		mode |= V4L2_TUNER_MODE_STEREO;
 	if (val & TDA9873_DUAL)
 		mode |= V4L2_TUNER_MODE_LANG1 | V4L2_TUNER_MODE_LANG2;
-	v4l_dbg(1, debug, &chip->c, "tda9873_getmode(): raw chip read: %d, return: %d\n",
+	v4l_dbg(1, debug, chip->c, "tda9873_getmode(): raw chip read: %d, return: %d\n",
 		val, mode);
 	return mode;
 }
@@ -668,12 +665,12 @@ static void tda9873_setmode(struct CHIPSTATE *chip, int mode)
 	/*	int adj_data = chip->shadow.bytes[TDA9873_AD+1] ; */
 
 	if ((sw_data & TDA9873_INP_MASK) != TDA9873_INTERNAL) {
-		v4l_dbg(1, debug, &chip->c, "tda9873_setmode(): external input\n");
+		v4l_dbg(1, debug, chip->c, "tda9873_setmode(): external input\n");
 		return;
 	}
 
-	v4l_dbg(1, debug, &chip->c, "tda9873_setmode(): chip->shadow.bytes[%d] = %d\n", TDA9873_SW+1, chip->shadow.bytes[TDA9873_SW+1]);
-	v4l_dbg(1, debug, &chip->c, "tda9873_setmode(): sw_data  = %d\n", sw_data);
+	v4l_dbg(1, debug, chip->c, "tda9873_setmode(): chip->shadow.bytes[%d] = %d\n", TDA9873_SW+1, chip->shadow.bytes[TDA9873_SW+1]);
+	v4l_dbg(1, debug, chip->c, "tda9873_setmode(): sw_data  = %d\n", sw_data);
 
 	switch (mode) {
 	case V4L2_TUNER_MODE_MONO:
@@ -694,7 +691,7 @@ static void tda9873_setmode(struct CHIPSTATE *chip, int mode)
 	}
 
 	chip_write(chip, TDA9873_SW, sw_data);
-	v4l_dbg(1, debug, &chip->c, "tda9873_setmode(): req. mode %d; chip_write: %d\n",
+	v4l_dbg(1, debug, chip->c, "tda9873_setmode(): req. mode %d; chip_write: %d\n",
 		mode, sw_data);
 }
 
@@ -833,7 +830,7 @@ static int tda9874a_setup(struct CHIPSTATE *chip)
 		chip_write(chip, TDA9874A_SDACOSR, (tda9874a_mode) ? 0x81:0x80);
 		chip_write(chip, TDA9874A_AOSR, 0x00); /* or 0x10 */
 	}
-	v4l_dbg(1, debug, &chip->c, "tda9874a_setup(): %s [0x%02X].\n",
+	v4l_dbg(1, debug, chip->c, "tda9874a_setup(): %s [0x%02X].\n",
 		tda9874a_modelist[tda9874a_STD].name,tda9874a_STD);
 	return 1;
 }
@@ -876,7 +873,7 @@ static int tda9874a_getmode(struct CHIPSTATE *chip)
 			mode |= V4L2_TUNER_MODE_LANG1 | V4L2_TUNER_MODE_LANG2;
 	}
 
-	v4l_dbg(1, debug, &chip->c, "tda9874a_getmode(): DSR=0x%X, NSR=0x%X, NECR=0x%X, return: %d.\n",
+	v4l_dbg(1, debug, chip->c, "tda9874a_getmode(): DSR=0x%X, NSR=0x%X, NECR=0x%X, return: %d.\n",
 		 dsr, nsr, necr, mode);
 	return mode;
 }
@@ -922,7 +919,7 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 		chip_write(chip, TDA9874A_AOSR, aosr);
 		chip_write(chip, TDA9874A_MDACOSR, mdacosr);
 
-		v4l_dbg(1, debug, &chip->c, "tda9874a_setmode(): req. mode %d; AOSR=0x%X, MDACOSR=0x%X.\n",
+		v4l_dbg(1, debug, chip->c, "tda9874a_setmode(): req. mode %d; AOSR=0x%X, MDACOSR=0x%X.\n",
 			mode, aosr, mdacosr);
 
 	} else { /* dic == 0x07 */
@@ -957,7 +954,7 @@ static void tda9874a_setmode(struct CHIPSTATE *chip, int mode)
 		chip_write(chip, TDA9874A_FMMR, fmmr);
 		chip_write(chip, TDA9874A_AOSR, aosr);
 
-		v4l_dbg(1, debug, &chip->c, "tda9874a_setmode(): req. mode %d; FMMR=0x%X, AOSR=0x%X.\n",
+		v4l_dbg(1, debug, chip->c, "tda9874a_setmode(): req. mode %d; FMMR=0x%X, AOSR=0x%X.\n",
 			mode, fmmr, aosr);
 	}
 }
@@ -971,10 +968,10 @@ static int tda9874a_checkit(struct CHIPSTATE *chip)
 	if(-1 == (sic = chip_read2(chip,TDA9874A_SIC)))
 		return 0;
 
-	v4l_dbg(1, debug, &chip->c, "tda9874a_checkit(): DIC=0x%X, SIC=0x%X.\n", dic, sic);
+	v4l_dbg(1, debug, chip->c, "tda9874a_checkit(): DIC=0x%X, SIC=0x%X.\n", dic, sic);
 
 	if((dic == 0x11)||(dic == 0x07)) {
-		v4l_info(&chip->c, "found tda9874%s.\n", (dic == 0x11) ? "a":"h");
+		v4l_info(chip->c, "found tda9874%s.\n", (dic == 0x11) ? "a":"h");
 		tda9874a_dic = dic;	/* remember device id. */
 		return 1;
 	}
@@ -1097,7 +1094,7 @@ static int tda8425_initialize(struct CHIPSTATE *chip)
 	int inputmap[4] = { /* tuner	*/ TDA8425_S1_CH2, /* radio  */ TDA8425_S1_CH1,
 			    /* extern	*/ TDA8425_S1_CH1, /* intern */ TDA8425_S1_OFF};
 
-	if (chip->c.adapter->id == I2C_HW_B_RIVA) {
+	if (chip->c->adapter->id == I2C_HW_B_RIVA) {
 		memcpy (desc->inputmap, inputmap, sizeof (inputmap));
 	}
 	return 0;
@@ -1185,7 +1182,7 @@ static int ta8874z_getmode(struct CHIPSTATE *chip)
 	}else if (!(val & TA8874Z_B0)){
 		mode |= V4L2_TUNER_MODE_STEREO;
 	}
-	/* v4l_dbg(1, debug, &chip->c, "ta8874z_getmode(): raw chip read: 0x%02x, return: 0x%02x\n", val, mode); */
+	/* v4l_dbg(1, debug, chip->c, "ta8874z_getmode(): raw chip read: 0x%02x, return: 0x%02x\n", val, mode); */
 	return mode;
 }
 
@@ -1198,7 +1195,7 @@ static void ta8874z_setmode(struct CHIPSTATE *chip, int mode)
 {
 	int update = 1;
 	audiocmd *t = NULL;
-	v4l_dbg(1, debug, &chip->c, "ta8874z_setmode(): mode: 0x%02x\n", mode);
+	v4l_dbg(1, debug, chip->c, "ta8874z_setmode(): mode: 0x%02x\n", mode);
 
 	switch(mode){
 	case V4L2_TUNER_MODE_MONO:
@@ -1464,51 +1461,55 @@ static struct CHIPDESC chiplist[] = {
 /* ---------------------------------------------------------------------- */
 /* i2c registration                                                       */
 
-static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
+static int chip_probe(struct i2c_client *client)
 {
 	struct CHIPSTATE *chip;
 	struct CHIPDESC  *desc;
 
+	if (debug) {
+		printk(KERN_INFO "tvaudio: TV audio decoder + audio/video mux driver\n");
+		printk(KERN_INFO "tvaudio: known chips: ");
+		for (desc = chiplist; desc->name != NULL; desc++)
+			printk("%s%s", (desc == chiplist) ? "" : ", ", desc->name);
+		printk("\n");
+	}
+
 	chip = kzalloc(sizeof(*chip),GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
-	memcpy(&chip->c,&client_template,sizeof(struct i2c_client));
-	chip->c.adapter = adap;
-	chip->c.addr = addr;
-	i2c_set_clientdata(&chip->c, chip);
+	chip->c = client;
+	i2c_set_clientdata(client, chip);
 
 	/* find description for the chip */
-	v4l_dbg(1, debug, &chip->c, "chip found @ 0x%x\n", addr<<1);
+	v4l_dbg(1, debug, client, "chip found @ 0x%x\n", client->addr<<1);
 	for (desc = chiplist; desc->name != NULL; desc++) {
 		if (0 == *(desc->insmodopt))
 			continue;
-		if (addr < desc->addr_lo ||
-		    addr > desc->addr_hi)
+		if (client->addr < desc->addr_lo ||
+		    client->addr > desc->addr_hi)
 			continue;
 		if (desc->checkit && !desc->checkit(chip))
 			continue;
 		break;
 	}
 	if (desc->name == NULL) {
-		v4l_dbg(1, debug, &chip->c, "no matching chip description found\n");
+		v4l_dbg(1, debug, client, "no matching chip description found\n");
 		return -EIO;
 	}
-	v4l_info(&chip->c, "%s found @ 0x%x (%s)\n", desc->name, addr<<1, adap->name);
+	v4l_info(client, "%s found @ 0x%x (%s)\n", desc->name, client->addr<<1, client->adapter->name);
 	if (desc->flags) {
-		v4l_dbg(1, debug, &chip->c, "matches:%s%s%s.\n",
+		v4l_dbg(1, debug, client, "matches:%s%s%s.\n",
 			(desc->flags & CHIP_HAS_VOLUME)     ? " volume"      : "",
 			(desc->flags & CHIP_HAS_BASSTREBLE) ? " bass/treble" : "",
 			(desc->flags & CHIP_HAS_INPUTSEL)   ? " audiomux"    : "");
 	}
 
 	/* fill required data structures */
-	strcpy(chip->c.name, desc->name);
+	strcpy(client->name, desc->name);
 	chip->type = desc-chiplist;
 	chip->shadow.count = desc->registers+1;
 	chip->prevmode = -1;
 	chip->audmode = V4L2_TUNER_MODE_LANG1;
-	/* register */
-	i2c_attach_client(&chip->c);
 
 	/* initialization  */
 	if (desc->initialize != NULL)
@@ -1535,28 +1536,17 @@ static int chip_attach(struct i2c_adapter *adap, int addr, int kind)
 		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
 		chip->wt.data     = (unsigned long)chip;
-		chip->thread = kthread_run(chip_thread, chip, chip->c.name);
+		chip->thread = kthread_run(chip_thread, chip, chip->c->name);
 		if (IS_ERR(chip->thread)) {
-			v4l_warn(&chip->c, "%s: failed to create kthread\n",
-			       chip->c.name);
+			v4l_warn(chip->c, "%s: failed to create kthread\n",
+			       chip->c->name);
 			chip->thread = NULL;
 		}
 	}
 	return 0;
 }
 
-static int chip_probe(struct i2c_adapter *adap)
-{
-	/* don't attach on saa7146 based cards,
-	   because dedicated drivers are used */
-	if ((adap->id == I2C_HW_SAA7146))
-		return 0;
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, chip_attach);
-	return 0;
-}
-
-static int chip_detach(struct i2c_client *client)
+static int chip_remove(struct i2c_client *client)
 {
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 
@@ -1567,7 +1557,6 @@ static int chip_detach(struct i2c_client *client)
 		chip->thread = NULL;
 	}
 
-	i2c_detach_client(&chip->c);
 	kfree(chip);
 	return 0;
 }
@@ -1693,7 +1682,7 @@ static int chip_command(struct i2c_client *client,
 	struct CHIPSTATE *chip = i2c_get_clientdata(client);
 	struct CHIPDESC  *desc = chiplist + chip->type;
 
-	v4l_dbg(1, debug, &chip->c, "%s: chip_command 0x%x\n", chip->c.name, cmd);
+	v4l_dbg(1, debug, chip->c, "%s: chip_command 0x%x\n", chip->c->name, cmd);
 
 	switch (cmd) {
 	case AUDC_SET_RADIO:
@@ -1830,44 +1819,25 @@ static int chip_command(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_driver driver = {
-	.driver = {
-		.name    = "tvaudio",
-	},
-	.id              = I2C_DRIVERID_TVAUDIO,
-	.attach_adapter  = chip_probe,
-	.detach_client   = chip_detach,
-	.command         = chip_command,
-};
-
-static struct i2c_client client_template =
+static int chip_legacy_probe(struct i2c_adapter *adap)
 {
-	.name       = "(unset)",
-	.driver     = &driver,
-};
-
-static int __init audiochip_init_module(void)
-{
-	struct CHIPDESC  *desc;
-
-	if (debug) {
-		printk(KERN_INFO "tvaudio: TV audio decoder + audio/video mux driver\n");
-		printk(KERN_INFO "tvaudio: known chips: ");
-		for (desc = chiplist; desc->name != NULL; desc++)
-			printk("%s%s", (desc == chiplist) ? "" : ", ", desc->name);
-		printk("\n");
-	}
-
-	return i2c_add_driver(&driver);
+	/* don't attach on saa7146 based cards,
+	   because dedicated drivers are used */
+	if ((adap->id == I2C_HW_SAA7146))
+		return 0;
+	if (adap->class & I2C_CLASS_TV_ANALOG)
+		return 1;
+	return 0;
 }
 
-static void __exit audiochip_cleanup_module(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(audiochip_init_module);
-module_exit(audiochip_cleanup_module);
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "tvaudio",
+	.driverid = I2C_DRIVERID_TVAUDIO,
+	.command = chip_command,
+	.probe = chip_probe,
+	.remove = chip_remove,
+	.legacy_probe = chip_legacy_probe,
+};
 
 /*
  * Local variables:
