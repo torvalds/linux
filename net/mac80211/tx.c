@@ -430,8 +430,6 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_key *key;
 
-	tx->u.tx.control->key_idx = HW_KEY_IDX_INVALID;
-
 	if (unlikely(tx->u.tx.control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
 		tx->key = NULL;
 	else if (tx->sta && (key = rcu_dereference(tx->sta->key)))
@@ -442,8 +440,10 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 		 !(tx->sdata->eapol && ieee80211_is_eapol(tx->skb))) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TXRX_DROP;
-	} else
+	} else {
 		tx->key = NULL;
+		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
+	}
 
 	if (tx->key) {
 		tx->key->tx_rx_count++;
@@ -724,6 +724,15 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 		}
 	}
 
+	/*
+	 * Tell hardware to not encrypt when we had sw crypto.
+	 * Because we use the same flag to internally indicate that
+	 * no (software) encryption should be done, we have to set it
+	 * after all crypto handlers.
+	 */
+	if (tx->key && !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
+
 	return TXRX_CONTINUE;
 }
 
@@ -833,7 +842,6 @@ __ieee80211_parse_tx_radiotap(
 	 */
 
 	control->retry_limit = 1; /* no retry */
-	control->key_idx = HW_KEY_IDX_INVALID;
 	control->flags &= ~(IEEE80211_TXCTL_USE_RTS_CTS |
 			    IEEE80211_TXCTL_USE_CTS_PROTECT);
 	control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT |

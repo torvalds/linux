@@ -73,8 +73,6 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				       key->sdata->dev->dev_addr, addr,
 				       &key->conf);
 
-	WARN_ON(!ret && (key->conf.hw_key_idx == HW_KEY_IDX_INVALID));
-
 	if (!ret)
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
 
@@ -109,7 +107,6 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 		       key->conf.keyidx, MAC_ARG(addr), ret);
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
-	key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
 }
 
 struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
@@ -132,7 +129,6 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 	 * Default to software encryption; we'll later upload the
 	 * key to the hardware if possible.
 	 */
-	key->conf.hw_key_idx = HW_KEY_IDX_INVALID;
 	key->conf.flags = 0;
 	key->flags = 0;
 

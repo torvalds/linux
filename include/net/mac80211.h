@@ -164,7 +164,6 @@ struct ieee80211_low_level_stats {
 /* Transmit control fields. This data structure is passed to low-level driver
  * with each TX frame. The low-level driver is responsible for configuring
  * the hardware to use given values (depending on what is supported). */
-#define HW_KEY_IDX_INVALID -1
 
 struct ieee80211_tx_control {
 	int tx_rate; /* Transmit rate, given as the hw specific value for the
@@ -197,13 +196,13 @@ struct ieee80211_tx_control {
 						  * long retry value */
 	u32 flags;			       /* tx control flags defined
 						* above */
+	u8 key_idx;		/* keyidx from hw->set_key(), undefined if
+				 * IEEE80211_TXCTL_DO_NOT_ENCRYPT is set */
 	u8 retry_limit;		/* 1 = only first attempt, 2 = one retry, ..
 				 * This could be used when set_retry_limit
 				 * is not implemented by the driver */
 	u8 power_level;		/* per-packet transmit power level, in dBm */
 	u8 antenna_sel_tx; 	/* 0 = default/diversity, 1 = Ant0, 2 = Ant1 */
-	s8 key_idx;		/* HW_KEY_IDX_INVALID = do not encrypt,
-				 * other values: keyidx from hw->set_key() */
 	u8 icv_len;		/* length of the ICV/MIC field in octets */
 	u8 iv_len;		/* length of the IV field in octets */
 	u8 tkip_key[16];	/* generated phase2/phase1 key for hw TKIP */
@@ -467,8 +466,7 @@ enum ieee80211_key_flags {
  *
  * @hw_key_idx: To be set by the driver, this is the key index the driver
  *	wants to be given when a frame is transmitted and needs to be
- *	encrypted in hardware. It defaults to %HW_KEY_IDX_INVALID which
- *	the driver may not use.
+ *	encrypted in hardware.
  * @alg: The key algorithm.
  * @flags: key flags, see &enum ieee80211_key_flags.
  * @keyidx: the key index (0-3)
@@ -476,8 +474,8 @@ enum ieee80211_key_flags {
  * @key: key material
  */
 struct ieee80211_key_conf {
-	int hw_key_idx;
 	ieee80211_key_alg alg;
+	u8 hw_key_idx;
 	u8 flags;
 	s8 keyidx;
 	u8 keylen;
@@ -686,9 +684,10 @@ struct ieee80211_ops {
 	 * selected by the low-level driver.
 	 *
 	 * Return 0 if the key is now in use, -EOPNOTSUPP or -ENOSPC if it
-	 * couldn't be added; if you return 0 then hw_key_idx must be
-	 * assigned to something other than HW_KEY_IDX_INVALID. When the cmd
-	 * is DISABLE_KEY then it must succeed.
+	 * couldn't be added; if you return 0 then hw_key_idx must be assigned
+	 * to the hardware key index, you are free to use the full u8 range.
+	 *
+	 * When the cmd is DISABLE_KEY then it must succeed.
 	 *
 	 * Note that it is permissible to not decrypt a frame even if a key
 	 * for it has been uploaded to hardware, the stack will not make any
