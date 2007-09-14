@@ -1763,18 +1763,7 @@ xfs_parseargs(
 	char			*this_char, *value, *eov;
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
-
-	/*
-	 * Applications using DMI filesystems often expect the
-	 * inode generation number to be monotonically increasing.
-	 * If we delete inode chunks we break this assumption, so
-	 * keep unused inode chunks on disk for DMI filesystems
-	 * until we come up with a better solution.
-	 * Note that if "ikeep" or "noikeep" mount options are
-	 * supplied, then they are honored.
-	 */
-	if (!(args->flags & XFSMNT_DMAPI))
-		args->flags |= XFSMNT_IDELETE;
+	int			ikeep = 0;
 
 	args->flags |= XFSMNT_BARRIER;
 	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
@@ -1905,6 +1894,7 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOBARRIER)) {
 			args->flags &= ~XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
+			ikeep = 1;
 			args->flags &= ~XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
 			args->flags |= XFSMNT_IDELETE;
@@ -2002,6 +1992,18 @@ xfs_parseargs(
 			dswidth, dsunit);
 		return EINVAL;
 	}
+
+	/*
+	 * Applications using DMI filesystems often expect the
+	 * inode generation number to be monotonically increasing.
+	 * If we delete inode chunks we break this assumption, so
+	 * keep unused inode chunks on disk for DMI filesystems
+	 * until we come up with a better solution.
+	 * Note that if "ikeep" or "noikeep" mount options are
+	 * supplied, then they are honored.
+	 */
+	if (!(args->flags & XFSMNT_DMAPI) && !ikeep)
+		args->flags |= XFSMNT_IDELETE;
 
 	if ((args->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
 		if (dsunit) {
