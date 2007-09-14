@@ -66,7 +66,7 @@
 /* Export the base address of the communication processor registers
  * and dual port ram.
  */
-extern	cpm8xx_t	*cpmp;		/* Pointer to comm processor */
+extern cpm8xx_t __iomem *cpmp; /* Pointer to comm processor */
 extern unsigned long cpm_dpalloc(uint size, uint align);
 extern int cpm_dpfree(unsigned long offset);
 extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
@@ -688,5 +688,7 @@ typedef struct risc_timer_pram {
 
 extern void cpm_install_handler(int vec, void (*handler)(void *), void *dev_id);
 extern void cpm_free_handler(int vec);
+
+#define IMAP_ADDR		(get_immrbase())
 
 #endif /* __CPM_8XX__ */

@@ -29,9 +29,6 @@
 #define CFG_PHYDEV_ADDR		((uint)0xff0a0000)
 #define BCSR5			((uint)(CFG_PHYDEV_ADDR + 0x300))
 
-#define IMAP_ADDR		(get_immrbase())
-#define IMAP_SIZE		((uint)(64 * 1024))
-
 #define MPC8xx_CPM_OFFSET	(0x9c0)
 #define CPM_MAP_ADDR		(get_immrbase() + MPC8xx_CPM_OFFSET)
 #define CPM_IRQ_OFFSET		16     // for compability with cpm_uart driver

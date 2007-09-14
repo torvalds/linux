@@ -38,14 +38,7 @@
 #include <asm/fs_pd.h>
 #include <asm/prom.h>
 
-extern void cpm_reset(void);
-extern void mpc8xx_show_cpuinfo(struct seq_file *);
-extern void mpc8xx_restart(char *cmd);
-extern void mpc8xx_calibrate_decr(void);
-extern int mpc8xx_set_rtc_time(struct rtc_time *tm);
-extern void mpc8xx_get_rtc_time(struct rtc_time *tm);
-extern void m8xx_pic_init(void);
-extern unsigned int mpc8xx_get_irq(void);
+#include <sysdev/commproc.h>
 
 static void init_smc1_uart_ioports(struct fs_uart_platform_info *fpi);
 static void init_smc2_uart_ioports(struct fs_uart_platform_info *fpi);
@@ -430,7 +423,6 @@ define_machine(mpc885_ads)
 	.probe           = mpc885ads_probe,
 	.setup_arch      = mpc885ads_setup_arch,
 	.init_IRQ        = m8xx_pic_init,
-	.show_cpuinfo    = mpc8xx_show_cpuinfo,
 	.get_irq         = mpc8xx_get_irq,
 	.restart         = mpc8xx_restart,
 	.calibrate_decr  = mpc8xx_calibrate_decr,

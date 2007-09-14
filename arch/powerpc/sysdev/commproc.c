@@ -47,8 +47,9 @@
 static void m8xx_cpm_dpinit(void);
 static uint host_buffer; /* One page of host buffer */
 static uint host_end;    /* end + 1 */
-cpm8xx_t *cpmp;          /* Pointer to comm processor space */
-cpic8xx_t *cpic_reg;
+cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
+immap_t __iomem *mpc8xx_immr;
+static cpic8xx_t __iomem *cpic_reg;
 
 static struct irq_host *cpm_pic_host;
 
@@ -133,16 +134,19 @@ unsigned int cpm_pic_init(void)
 
 	pr_debug("cpm_pic_init\n");
 
-	np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1-pic");
+	if (np == NULL)
+		np = of_find_compatible_node(NULL, "cpm-pic", "CPM");
 	if (np == NULL) {
 		printk(KERN_ERR "CPM PIC init: can not find cpm-pic node\n");
 		return sirq;
 	}
+
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret)
 		goto end;
 
-	cpic_reg = (void *)ioremap(res.start, res.end - res.start + 1);
+	cpic_reg = ioremap(res.start, res.end - res.start + 1);
 	if (cpic_reg == NULL)
 		goto end;
 
@@ -165,14 +169,16 @@ unsigned int cpm_pic_init(void)
 		sirq = NO_IRQ;
 		goto end;
 	}
-	of_node_put(np);
 
 	/* Install our own error handler. */
-	np = of_find_node_by_type(NULL, "cpm");
+	np = of_find_compatible_node(NULL, NULL, "fsl,cpm1");
+	if (np == NULL)
+		np = of_find_node_by_type(NULL, "cpm");
 	if (np == NULL) {
 		printk(KERN_ERR "CPM PIC init: can not find cpm node\n");
 		goto end;
 	}
+
 	eirq = irq_of_parse_and_map(np, 0);
 	if (eirq == NO_IRQ)
 		goto end;
@@ -189,21 +195,28 @@ end:
 
 void cpm_reset(void)
 {
-	cpm8xx_t *commproc;
-	sysconf8xx_t *siu_conf;
+	sysconf8xx_t __iomem *siu_conf;
 
-	commproc = (cpm8xx_t *)ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
+	mpc8xx_immr = ioremap(get_immrbase(), 0x4000);
+	if (!mpc8xx_immr) {
+		printk(KERN_CRIT "Could not map IMMR\n");
+		return;
+	}
 
-#ifdef CONFIG_UCODE_PATCH
+	cpmp = &mpc8xx_immr->im_cpm;
+
+#ifndef CONFIG_PPC_EARLY_DEBUG_CPM
 	/* Perform a reset.
 	*/
-	out_be16(&commproc->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);
+	out_be16(&cpmp->cp_cpcr, CPM_CR_RST | CPM_CR_FLG);
 
 	/* Wait for it.
 	*/
-	while (in_be16(&commproc->cp_cpcr) & CPM_CR_FLG);
+	while (in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG);
+#endif
 
-	cpm_load_patch(commproc);
+#ifdef CONFIG_UCODE_PATCH
+	cpm_load_patch(cpmp);
 #endif
 
 	/* Set SDMA Bus Request priority 5.
@@ -212,16 +225,12 @@ void cpm_reset(void)
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
 	 */
-	siu_conf = (sysconf8xx_t*)immr_map(im_siu_conf);
+	siu_conf = immr_map(im_siu_conf);
 	out_be32(&siu_conf->sc_sdcr, 1);
 	immr_unmap(siu_conf);
 
 	/* Reclaim the DP memory for our use. */
 	m8xx_cpm_dpinit();
-
-	/* Tell everyone where the comm processor resides.
-	*/
-	cpmp = commproc;
 }
 
 /* We used to do this earlier, but have to postpone as long as possible
@@ -271,20 +280,20 @@ m8xx_cpm_hostalloc(uint size)
 void
 cpm_setbrg(uint brg, uint rate)
 {
-	volatile uint	*bp;
+	u32 __iomem *bp;
 
 	/* This is good enough to get SMCs running.....
 	*/
-	bp = (uint *)&cpmp->cp_brgc1;
+	bp = &cpmp->cp_brgc1;
 	bp += brg;
 	/* The BRG has a 12-bit counter.  For really slow baud rates (or
 	 * really fast processors), we may have to further divide by 16.
 	 */
 	if (((BRG_UART_CLK / rate) - 1) < 4096)
-		*bp = (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN;
+		out_be32(bp, (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN);
 	else
-		*bp = (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
-						CPM_BRG_EN | CPM_BRG_DIV16;
+		out_be32(bp, (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
+		             CPM_BRG_EN | CPM_BRG_DIV16);
 }
 
 /*
@@ -299,15 +308,15 @@ static rh_block_t cpm_boot_dpmem_rh_block[16];
 static rh_info_t cpm_dpmem_info;
 
 #define CPM_DPMEM_ALIGNMENT	8
-static u8 *dpram_vbase;
-static uint dpram_pbase;
+static u8 __iomem *dpram_vbase;
+static phys_addr_t dpram_pbase;
 
-void m8xx_cpm_dpinit(void)
+static void m8xx_cpm_dpinit(void)
 {
 	spin_lock_init(&cpm_dpmem_lock);
 
-	dpram_vbase = immr_map_size(im_cpm.cp_dpmem, CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE);
-	dpram_pbase = (uint)&((immap_t *)IMAP_ADDR)->im_cpm.cp_dpmem;
+	dpram_vbase = cpmp->cp_dpmem;
+	dpram_pbase = get_immrbase() + offsetof(immap_t, im_cpm.cp_dpmem);
 
 	/* Initialize the info header */
 	rh_init(&cpm_dpmem_info, CPM_DPMEM_ALIGNMENT,
@@ -383,7 +392,7 @@ void *cpm_dpram_addr(unsigned long offset)
 }
 EXPORT_SYMBOL(cpm_dpram_addr);
 
-uint cpm_dpram_phys(u8* addr)
+uint cpm_dpram_phys(u8 *addr)
 {
 	return (dpram_pbase + (uint)(addr - dpram_vbase));
 }

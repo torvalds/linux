@@ -45,22 +45,11 @@
 #include <asm/8xx_immap.h>
 #include <asm/mpc8xx.h>
 
-#define immr_map(member)						\
-({									\
-	u32 offset = offsetof(immap_t, member);				\
-	void *addr = ioremap (IMAP_ADDR + offset,			\
-			      sizeof( ((immap_t*)0)->member));		\
-	addr;								\
-})
+extern immap_t __iomem *mpc8xx_immr;
 
-#define immr_map_size(member, size)					\
-({									\
-	u32 offset = offsetof(immap_t, member);				\
-	void *addr = ioremap (IMAP_ADDR + offset, size);		\
-	addr;								\
-})
-
-#define immr_unmap(addr)		iounmap(addr)
+#define immr_map(member) (&mpc8xx_immr->member)
+#define immr_map_size(member, size) (&mpc8xx_immr->member)
+#define immr_unmap(addr) do {} while (0)
 #endif
 
 static inline int uart_baudrate(void)
