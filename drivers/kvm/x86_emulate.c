@@ -188,7 +188,10 @@ static u16 twobyte_table[256] = {
 	/* 0x70 - 0x7F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x80 - 0x8F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
@@ -477,6 +480,41 @@ static int read_descriptor(struct x86_emulate_ctxt *ctxt,
 	rc = ops->read_std((unsigned long)ptr + 2, address, op_bytes,
 			   ctxt->vcpu);
 	return rc;
+}
+
+static int test_cc(unsigned int condition, unsigned int flags)
+{
+	int rc = 0;
+
+	switch ((condition & 15) >> 1) {
+	case 0: /* o */
+		rc |= (flags & EFLG_OF);
+		break;
+	case 1: /* b/c/nae */
+		rc |= (flags & EFLG_CF);
+		break;
+	case 2: /* z/e */
+		rc |= (flags & EFLG_ZF);
+		break;
+	case 3: /* be/na */
+		rc |= (flags & (EFLG_CF|EFLG_ZF));
+		break;
+	case 4: /* s */
+		rc |= (flags & EFLG_SF);
+		break;
+	case 5: /* p/pe */
+		rc |= (flags & EFLG_PF);
+		break;
+	case 7: /* le/ng */
+		rc |= (flags & EFLG_ZF);
+		/* fall through */
+	case 6: /* l/nge */
+		rc |= (!(flags & EFLG_SF) != !(flags & EFLG_OF));
+		break;
+	}
+
+	/* Odd condition identifiers (lsb == 1) have inverted sense. */
+	return (!!rc ^ (condition & 1));
 }
 
 int
@@ -1486,6 +1524,27 @@ twobyte_special_insn:
 		}
 		rc = X86EMUL_CONTINUE;
 		break;
+	case 0x80 ... 0x8f: /* jnz rel, etc*/ {
+		long int rel;
+
+		switch (op_bytes) {
+		case 2:
+			rel = insn_fetch(s16, 2, _eip);
+			break;
+		case 4:
+			rel = insn_fetch(s32, 4, _eip);
+			break;
+		case 8:
+			rel = insn_fetch(s64, 8, _eip);
+			break;
+		default:
+			DPRINTF("jnz: Invalid op_bytes\n");
+			goto cannot_emulate;
+		}
+		if (test_cc(b, _eflags))
+			JMP_REL(rel);
+		break;
+	}
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
 		{
 			u64 old, new;
