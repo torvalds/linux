@@ -213,7 +213,8 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 				 tcon->treeName, atomic_read(&tcon->useCount));
 		buf += length;
 		if (tcon->nativeFileSystem) {
-			length = sprintf("Type: %s ", tcon->nativeFileSystem);
+			length = sprintf(buf, "Type: %s ",
+					 tcon->nativeFileSystem);
 			buf += length;
 		}
 		length = sprintf(buf, "DevInfo: 0x%x Attributes: 0x%x"
