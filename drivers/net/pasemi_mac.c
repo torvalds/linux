@@ -1186,7 +1186,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_napi_add(dev, &mac->napi, pasemi_mac_poll, 64);
 
-	dev->features = NETIF_F_HW_CSUM;
+	dev->features = NETIF_F_HW_CSUM | NETIF_F_LLTX;
 
 	/* These should come out of the device tree eventually */
 	mac->dma_txch = index;
