@@ -111,8 +111,12 @@ static u8 opcode_table[256] = {
 	0, 0, ImplicitOps|Mov, 0,
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
-	/* 0x70 - 0x7F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	/* 0x70 - 0x77 */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	/* 0x78 - 0x7F */
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
+	ImplicitOps, ImplicitOps, ImplicitOps, ImplicitOps,
 	/* 0x80 - 0x87 */
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
@@ -1268,6 +1272,13 @@ special_insn:
 				) == 0)
 			return -1;
 		return 0;
+	case 0x70 ... 0x7f: /* jcc (short) */ {
+		int rel = insn_fetch(s8, 1, _eip);
+
+		if (test_cc(b, _eflags))
+		JMP_REL(rel);
+		break;
+	}
 	case 0x9c: /* pushf */
 		src.val =  (unsigned long) _eflags;
 		goto push;
