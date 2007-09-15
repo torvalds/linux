@@ -906,11 +906,6 @@ struct s2io_nic {
 	unsigned long	sending_both;
 	u8		lro;
 	u16		lro_max_aggr_per_sess;
-
-#define INTA	0
-#define MSI_X	2
-	u8 intr_type;
-
 	spinlock_t	rx_lock;
 	atomic_t	isr_cnt;
 	u64		general_int_mask;

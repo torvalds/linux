@@ -1611,7 +1611,7 @@ static int init_nic(struct s2io_nic *nic)
 
 		val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
 		    RTI_DATA2_MEM_RX_UFC_B(0x2) ;
-		if (nic->intr_type == MSI_X)
+		if (nic->config.intr_type == MSI_X)
 		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
 				RTI_DATA2_MEM_RX_UFC_D(0x40));
 		else
@@ -1749,7 +1749,7 @@ static int init_nic(struct s2io_nic *nic)
 
 static int s2io_link_fault_indication(struct s2io_nic *nic)
 {
-	if (nic->intr_type != INTA)
+	if (nic->config.intr_type != INTA)
 		return MAC_RMAC_ERR_TIMER;
 	if (nic->device_type == XFRAME_II_DEVICE)
 		return LINK_UP_DOWN_INTERRUPT;
@@ -3549,7 +3549,7 @@ static int s2io_set_swapper(struct s2io_nic * sp)
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
-	if (sp->intr_type == INTA)
+	if (sp->config.intr_type == INTA)
 		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #else
@@ -3572,7 +3572,7 @@ static int s2io_set_swapper(struct s2io_nic * sp)
 		 SWAPPER_CTRL_RXF_W_FE |
 		 SWAPPER_CTRL_XMSI_FE |
 		 SWAPPER_CTRL_STATS_FE | SWAPPER_CTRL_STATS_SE);
-	if (sp->intr_type == INTA)
+	if (sp->config.intr_type == INTA)
 		val64 |= SWAPPER_CTRL_XMSI_SE;
 	writeq(val64, &bar0->swapper_ctrl);
 #endif
@@ -3848,7 +3848,7 @@ static int s2io_open(struct net_device *dev)
 
 	napi_enable(&sp->napi);
 
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		int ret = s2io_enable_msi_x(sp);
 
 		if (!ret) {
@@ -3880,12 +3880,12 @@ static int s2io_open(struct net_device *dev)
 			DBG_PRINT(ERR_DBG,
 			  "%s: MSI-X requested but failed to enable\n",
 			  dev->name);
-			sp->intr_type = INTA;
+			sp->config.intr_type = INTA;
 		}
 	}
 
 	/* NAPI doesn't work well with MSI(X) */
-	 if (sp->intr_type != INTA) {
+	 if (sp->config.intr_type != INTA) {
 		if(sp->config.napi)
 			sp->config.napi = 0;
 	}
@@ -3910,7 +3910,7 @@ static int s2io_open(struct net_device *dev)
 
 hw_init_failed:
 	napi_disable(&sp->napi);
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		if (sp->entries) {
 			kfree(sp->entries);
 			sp->mac_control.stats_info->sw_stat.mem_freed 
@@ -6697,18 +6697,18 @@ static int s2io_add_isr(struct s2io_nic * sp)
 	struct net_device *dev = sp->dev;
 	int err = 0;
 
-	if (sp->intr_type == MSI_X)
+	if (sp->config.intr_type == MSI_X)
 		ret = s2io_enable_msi_x(sp);
 	if (ret) {
 		DBG_PRINT(ERR_DBG, "%s: Defaulting to INTA\n", dev->name);
-		sp->intr_type = INTA;
+		sp->config.intr_type = INTA;
 	}
 
 	/* Store the values of the MSIX table in the struct s2io_nic structure */
 	store_xmsi_data(sp);
 
 	/* After proper initialization of H/W, register ISR */
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		int i, msix_tx_cnt=0,msix_rx_cnt=0;
 
 		for (i=1; (sp->s2io_entries[i].in_use == MSIX_FLG); i++) {
@@ -6760,7 +6760,7 @@ static int s2io_add_isr(struct s2io_nic * sp)
 		printk("MSI-X-TX %d entries enabled\n",msix_tx_cnt);
 		printk("MSI-X-RX %d entries enabled\n",msix_rx_cnt);
 	}
-	if (sp->intr_type == INTA) {
+	if (sp->config.intr_type == INTA) {
 		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
 				sp->name, dev);
 		if (err) {
@@ -6777,7 +6777,7 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 	struct net_device *dev = sp->dev;
 	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
-	if (sp->intr_type == MSI_X) {
+	if (sp->config.intr_type == MSI_X) {
 		int i;
 		u16 msi_control;
 
@@ -6950,7 +6950,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	/* Add interrupt service routine */
 	if (s2io_add_isr(sp) != 0) {
-		if (sp->intr_type == MSI_X)
+		if (sp->config.intr_type == MSI_X)
 			s2io_rem_isr(sp);
 		s2io_reset(sp);
 		free_rx_buffers(sp);
@@ -6964,7 +6964,7 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	/*  Enable select interrupts */
 	en_dis_err_alarms(sp, ENA_ALL_INTRS, ENABLE_INTRS);
-	if (sp->intr_type != INTA)
+	if (sp->config.intr_type != INTA)
 		en_dis_able_nic_intrs(sp, ENA_ALL_INTRS, DISABLE_INTRS);
 	else {
 		interruptible = TX_TRAFFIC_INTR | RX_TRAFFIC_INTR;
@@ -7491,7 +7491,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (rx_ring_mode == 2)
 		sp->rxd_mode = RXD_MODE_3B;
 
-	sp->intr_type = dev_intr_type;
+	sp->config.intr_type = dev_intr_type;
 
 	if ((pdev->device == PCI_DEVICE_ID_HERC_WIN) ||
 		(pdev->device == PCI_DEVICE_ID_HERC_UNI))
@@ -7770,7 +7770,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 
 	if (napi)
 		DBG_PRINT(ERR_DBG, "%s: NAPI enabled\n", dev->name);
-	switch(sp->intr_type) {
+	switch(sp->config.intr_type) {
 		case INTA:
 		    DBG_PRINT(ERR_DBG, "%s: Interrupt type INTA\n", dev->name);
 		    break;
