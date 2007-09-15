@@ -1815,8 +1815,6 @@ static int complete_pio(struct kvm_vcpu *vcpu)
 	io->count -= io->cur_count;
 	io->cur_count = 0;
 
-	if (!io->count)
-		kvm_x86_ops->skip_emulated_instruction(vcpu);
 	return 0;
 }
 
@@ -1875,6 +1873,8 @@ int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	kvm_x86_ops->cache_regs(vcpu);
 	memcpy(vcpu->pio_data, &vcpu->regs[VCPU_REGS_RAX], 4);
 	kvm_x86_ops->decache_regs(vcpu);
+
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
 
 	pio_dev = vcpu_find_pio_dev(vcpu, port);
 	if (pio_dev) {
@@ -1937,6 +1937,9 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	}
 	vcpu->run->io.count = now;
 	vcpu->pio.cur_count = now;
+
+	if (vcpu->pio.cur_count == vcpu->pio.count)
+		kvm_x86_ops->skip_emulated_instruction(vcpu);
 
 	for (i = 0; i < nr_pages; ++i) {
 		mutex_lock(&vcpu->kvm->lock);
