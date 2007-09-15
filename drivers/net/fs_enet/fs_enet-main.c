@@ -956,7 +956,6 @@ static struct net_device *fs_init_instance(struct device *dev,
 	SET_MODULE_OWNER(ndev);
 
 	fep = netdev_priv(ndev);
-	memset(fep, 0, privsize);	/* clear everything */
 
 	fep->dev = dev;
 	dev_set_drvdata(dev, ndev);

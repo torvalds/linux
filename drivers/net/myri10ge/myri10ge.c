@@ -2956,7 +2956,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	mgp = netdev_priv(netdev);
-	memset(mgp, 0, sizeof(*mgp));
 	mgp->dev = netdev;
 	netif_napi_add(netdev, &mgp->napi,
 		       myri10ge_poll, myri10ge_napi_weight);

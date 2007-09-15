@@ -1335,7 +1335,6 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	memset(lp, 0, sizeof(*lp));
 
 	if (sparc_lance_debug && version_printed++ == 0)
 		printk (KERN_INFO "%s", version);

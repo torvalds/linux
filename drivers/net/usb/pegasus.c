@@ -1306,7 +1306,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	}
 
 	pegasus = netdev_priv(net);
-	memset(pegasus, 0, sizeof (struct pegasus));
 	pegasus->dev_index = dev_index;
 	init_waitqueue_head(&pegasus->ctrl_wait);
 
