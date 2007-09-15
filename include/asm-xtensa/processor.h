@@ -33,7 +33,7 @@
  * the 1 GB requirement applies to the stack as well.
  */
 
-#define TASK_SIZE	0x40000000
+#define TASK_SIZE	__XTENSA_UL_CONST(0x40000000)
 
 /*
  * General exception cause assigned to debug exceptions. Debug exceptions go

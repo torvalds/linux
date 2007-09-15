@@ -27,7 +27,12 @@ platform-$(CONFIG_XTENSA_PLATFORM_ISS)		:= iss
 PLATFORM = $(platform-y)
 export PLATFORM
 
-CFLAGS		+= -pipe -mlongcalls
+# temporarily until string.h is fixed
+cflags-y += -ffreestanding
+
+cflags-y += -pipe -mlongcalls
+
+CFLAGS  += $(cflags-y)
 
 KBUILD_DEFCONFIG := iss_defconfig
 
