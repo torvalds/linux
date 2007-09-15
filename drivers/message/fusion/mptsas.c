@@ -506,15 +506,15 @@ static VirtTarget *
 mptsas_find_vtarget(MPT_ADAPTER *ioc, u8 channel, u8 id)
 {
 	struct scsi_device 		*sdev;
-	VirtDevice			*vdev;
+	VirtDevice			*vdevice;
 	VirtTarget 			*vtarget = NULL;
 
 	shost_for_each_device(sdev, ioc->sh) {
-		if ((vdev = sdev->hostdata) == NULL)
+		if ((vdevice = sdev->hostdata) == NULL)
 			continue;
-		if (vdev->vtarget->id == id &&
-		    vdev->vtarget->channel == channel)
-			vtarget = vdev->vtarget;
+		if (vdevice->vtarget->id == id &&
+		    vdevice->vtarget->channel == channel)
+			vtarget = vdevice->vtarget;
 	}
 	return vtarget;
 }
@@ -943,18 +943,18 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 	struct scsi_target 	*starget;
 	int 			i;
 
-	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
-	if (!vdev) {
+	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kzalloc(%zd) FAILED!\n",
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 	starget = scsi_target(sdev);
-	vdev->vtarget = starget->hostdata;
+	vdevice->vtarget = starget->hostdata;
 
 	if (sdev->channel == MPTSAS_RAID_CHANNEL)
 		goto out;
@@ -966,7 +966,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 			if (p->phy_info[i].attached.sas_address !=
 					rphy->identify.sas_address)
 				continue;
-			vdev->lun = sdev->lun;
+			vdevice->lun = sdev->lun;
 			/*
 			 * Exposing hidden raid components
 			 */
@@ -980,21 +980,21 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	}
 	mutex_unlock(&hd->ioc->sas_topology_mutex);
 
-	kfree(vdev);
+	kfree(vdevice);
 	return -ENXIO;
 
  out:
-	vdev->vtarget->num_luns++;
-	sdev->hostdata = vdev;
+	vdevice->vtarget->num_luns++;
+	sdev->hostdata = vdevice;
 	return 0;
 }
 
 static int
 mptsas_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
-	VirtDevice	*vdev = SCpnt->device->hostdata;
+	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
-	if (!vdev || !vdev->vtarget || vdev->vtarget->deleted) {
+	if (!vdevice || !vdevice->vtarget || vdevice->vtarget->deleted) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;

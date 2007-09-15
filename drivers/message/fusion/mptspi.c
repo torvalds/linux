@@ -698,26 +698,26 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 {
 	MPT_SCSI_HOST *hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
 	VirtTarget		*vtarget;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 	struct scsi_target 	*starget;
 
 	if (sdev->channel == 1 &&
 		mptscsih_is_phys_disk(hd->ioc, 0, sdev->id) == 0)
 			return -ENXIO;
 
-	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
-	if (!vdev) {
+	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 
-	vdev->lun = sdev->lun;
-	sdev->hostdata = vdev;
+	vdevice->lun = sdev->lun;
+	sdev->hostdata = vdevice;
 
 	starget = scsi_target(sdev);
 	vtarget = starget->hostdata;
-	vdev->vtarget = vtarget;
+	vdevice->vtarget = vtarget;
 	vtarget->num_luns++;
 
 	if (sdev->channel == 1)
@@ -758,9 +758,9 @@ static int
 mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
 	struct _MPT_SCSI_HOST *hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
-	VirtDevice	*vdev = SCpnt->device->hostdata;
+	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
-	if (!vdev || !vdev->vtarget) {
+	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;

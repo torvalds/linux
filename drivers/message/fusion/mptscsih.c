@@ -644,7 +644,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 	SCSIIORequest_t	*pScsiReq;
 	SCSIIOReply_t	*pScsiReply;
 	u16		 req_idx, req_idx_MR;
-	VirtDevice	 *vdev;
+	VirtDevice	 *vdevice;
 	VirtTarget	 *vtarget;
 
 	hd = (MPT_SCSI_HOST *) ioc->sh->hostdata;
@@ -770,10 +770,10 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			if (hd->sel_timeout[pScsiReq->TargetID] < 0xFFFF)
 				hd->sel_timeout[pScsiReq->TargetID]++;
 
-			vdev = sc->device->hostdata;
-			if (!vdev)
+			vdevice = sc->device->hostdata;
+			if (!vdevice)
 				break;
-			vtarget = vdev->vtarget;
+			vtarget = vdevice->vtarget;
 			if (vtarget->tflags & MPT_TARGET_FLAGS_LED_ON) {
 				mptscsih_issue_sep_command(ioc, vtarget,
 				    MPI_SEP_REQ_SLOTSTATUS_UNCONFIGURED);
@@ -1359,7 +1359,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	MPT_SCSI_HOST		*hd;
 	MPT_FRAME_HDR		*mf;
 	SCSIIORequest_t		*pScsiReq;
-	VirtDevice		*vdev = SCpnt->device->hostdata;
+	VirtDevice		*vdevice = SCpnt->device->hostdata;
 	int	 lun;
 	u32	 datalen;
 	u32	 scsictl;
@@ -1416,8 +1416,8 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	/* Default to untagged. Once a target structure has been allocated,
 	 * use the Inquiry data to determine if device supports tagged.
 	 */
-	if (vdev
-	    && (vdev->vtarget->tflags & MPT_TARGET_FLAGS_Q_YES)
+	if (vdevice
+	    && (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_Q_YES)
 	    && (SCpnt->device->tagged_supported)) {
 		scsictl = scsidir | MPI_SCSIIO_CONTROL_SIMPLEQ;
 	} else {
@@ -1426,10 +1426,10 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 
 	/* Use the above information to set up the message frame
 	 */
-	pScsiReq->TargetID = (u8) vdev->vtarget->id;
-	pScsiReq->Bus = vdev->vtarget->channel;
+	pScsiReq->TargetID = (u8) vdevice->vtarget->id;
+	pScsiReq->Bus = vdevice->vtarget->channel;
 	pScsiReq->ChainOffset = 0;
-	if (vdev->vtarget->tflags &  MPT_TARGET_FLAGS_RAID_COMPONENT)
+	if (vdevice->vtarget->tflags &  MPT_TARGET_FLAGS_RAID_COMPONENT)
 		pScsiReq->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
 	else
 		pScsiReq->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
@@ -1968,7 +1968,7 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 {
 	MPT_SCSI_HOST	*hd;
 	int		 retval;
-	VirtDevice	 *vdev;
+	VirtDevice	 *vdevice;
 	MPT_ADAPTER	*ioc;
 
 	/* If we can't locate our host adapter structure, return FAILED status.
@@ -1987,9 +1987,9 @@ mptscsih_bus_reset(struct scsi_cmnd * SCpnt)
 	if (hd->timeouts < -1)
 		hd->timeouts++;
 
-	vdev = SCpnt->device->hostdata;
+	vdevice = SCpnt->device->hostdata;
 	retval = mptscsih_TMHandler(hd, MPI_SCSITASKMGMT_TASKTYPE_RESET_BUS,
-	    vdev->vtarget->channel, 0, 0, 0, mptscsih_get_tm_timeout(ioc));
+	    vdevice->vtarget->channel, 0, 0, 0, mptscsih_get_tm_timeout(ioc));
 
 	printk(MYIOC_s_INFO_FMT "bus reset: %s (sc=%p)\n",
 	    ioc->name, ((retval == 0) ? "SUCCESS" : "FAILED" ), SCpnt);
@@ -2503,14 +2503,14 @@ slave_configure_exit:
 static void
 mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR *mf, SCSIIOReply_t *pScsiReply)
 {
-	VirtDevice	*vdev;
+	VirtDevice	*vdevice;
 	SCSIIORequest_t	*pReq;
 	u32		 sense_count = le32_to_cpu(pScsiReply->SenseCount);
 
 	/* Get target structure
 	 */
 	pReq = (SCSIIORequest_t *) mf;
-	vdev = sc->device->hostdata;
+	vdevice = sc->device->hostdata;
 
 	if (sense_count) {
 		u8 *sense_data;
@@ -2524,7 +2524,7 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 		/* Log SMART data (asc = 0x5D, non-IM case only) if required.
 		 */
 		if ((hd->ioc->events) && (hd->ioc->eventTypes & (1 << MPI_EVENT_SCSI_DEVICE_STATUS_CHANGE))) {
-			if ((sense_data[12] == 0x5D) && (vdev->vtarget->raidVolume == 0)) {
+			if ((sense_data[12] == 0x5D) && (vdevice->vtarget->raidVolume == 0)) {
 				int idx;
 				MPT_ADAPTER *ioc = hd->ioc;
 
@@ -2542,8 +2542,8 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 				if (hd->ioc->pcidev->vendor ==
 				    PCI_VENDOR_ID_IBM) {
 					mptscsih_issue_sep_command(hd->ioc,
-					    vdev->vtarget, MPI_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
-					vdev->vtarget->tflags |=
+					    vdevice->vtarget, MPI_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
+					vdevice->vtarget->tflags |=
 					    MPT_TARGET_FLAGS_LED_ON;
 				}
 			}

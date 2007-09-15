@@ -213,7 +213,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
 		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
-			"port state %d, vdev %p.\n", caller,
+			"port state %d, vdevice %p.\n", caller,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, ready,
@@ -470,7 +470,7 @@ mptfc_register_dev(MPT_ADAPTER *ioc, int channel, FCDevicePage0_t *pg0)
 			/*
 			 * if already mapped, remap here.  If not mapped,
 			 * target_alloc will allocate vtarget and map,
-			 * slave_alloc will fill in vdev from vtarget.
+			 * slave_alloc will fill in vdevice from vtarget.
 			 */
 			if (ri->starget) {
 				vtarget = ri->starget->hostdata;
@@ -602,7 +602,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 {
 	MPT_SCSI_HOST		*hd;
 	VirtTarget		*vtarget;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 	struct scsi_target	*starget;
 	struct fc_rport		*rport;
 
@@ -615,15 +615,15 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 
 	hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
 
-	vdev = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
-	if (!vdev) {
+	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
+	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
 				hd->ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 
 
-	sdev->hostdata = vdev;
+	sdev->hostdata = vdevice;
 	vtarget = starget->hostdata;
 
 	if (vtarget->num_luns == 0) {
@@ -631,8 +631,8 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 	}
 
-	vdev->vtarget = vtarget;
-	vdev->lun = sdev->lun;
+	vdevice->vtarget = vtarget;
+	vdevice->lun = sdev->lun;
 
 	vtarget->num_luns++;
 
@@ -648,9 +648,9 @@ mptfc_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	struct mptfc_rport_info	*ri;
 	struct fc_rport	*rport = starget_to_rport(scsi_target(SCpnt->device));
 	int		err;
-	VirtDevice	*vdev = SCpnt->device->hostdata;
+	VirtDevice	*vdevice = SCpnt->device->hostdata;
 
-	if (!vdev || !vdev->vtarget) {
+	if (!vdevice || !vdevice->vtarget) {
 		SCpnt->result = DID_NO_CONNECT << 16;
 		done(SCpnt);
 		return 0;

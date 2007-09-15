@@ -1175,7 +1175,7 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	int			cim_rev;
 	u8			revision;
 	struct scsi_device 	*sdev;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 
 	/* Add of PCI INFO results in unaligned access for
 	 * IA64 and Sparc. Reset long to int. Return no PCI
@@ -1270,8 +1270,8 @@ mptctl_getiocinfo (unsigned long arg, unsigned int data_size)
 	karg->numDevices = 0;
 	if (ioc->sh) {
 		shost_for_each_device(sdev, ioc->sh) {
-			vdev = sdev->hostdata;
-			if (vdev->vtarget->tflags &
+			vdevice = sdev->hostdata;
+			if (vdevice->vtarget->tflags &
 			    MPT_TARGET_FLAGS_RAID_COMPONENT)
 				continue;
 			karg->numDevices++;
@@ -1322,7 +1322,7 @@ mptctl_gettargetinfo (unsigned long arg)
 	struct mpt_ioctl_targetinfo __user *uarg = (void __user *) arg;
 	struct mpt_ioctl_targetinfo karg;
 	MPT_ADAPTER		*ioc;
-	VirtDevice		*vdev;
+	VirtDevice		*vdevice;
 	char			*pmem;
 	int			*pdata;
 	int			iocnum;
@@ -1391,13 +1391,13 @@ mptctl_gettargetinfo (unsigned long arg)
 		shost_for_each_device(sdev, ioc->sh) {
 			if (!maxWordsLeft)
 				continue;
-			vdev = sdev->hostdata;
-			if (vdev->vtarget->tflags &
+			vdevice = sdev->hostdata;
+			if (vdevice->vtarget->tflags &
 			    MPT_TARGET_FLAGS_RAID_COMPONENT)
 				continue;
-			lun = (vdev->vtarget->raidVolume) ? 0x80 : vdev->lun;
-			*pdata = (((u8)lun << 16) + (vdev->vtarget->channel << 8) +
-			    (vdev->vtarget->id ));
+			lun = (vdevice->vtarget->raidVolume) ? 0x80 : vdevice->lun;
+			*pdata = (((u8)lun << 16) + (vdevice->vtarget->channel << 8) +
+			    (vdevice->vtarget->id ));
 			pdata++;
 			numDevices++;
 			--maxWordsLeft;
