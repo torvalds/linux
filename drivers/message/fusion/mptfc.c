@@ -204,7 +204,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 			"DID_IMM_RETRY, deferring %s recovery.\n",
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-			SCpnt->device->id,SCpnt->device->lun,caller));
+			SCpnt->device->id, SCpnt->device->lun, caller));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
 	}
@@ -216,7 +216,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 			"port state %d, vdev %p.\n", caller,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-			SCpnt->device->id,SCpnt->device->lun,ready,
+			SCpnt->device->id, SCpnt->device->lun, ready,
 			SCpnt->device->hostdata));
 		return FAILED;
 	}
@@ -224,7 +224,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 		"%s.%d: %d:%d, executing recovery.\n", caller,
 		((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
 		((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
-		SCpnt->device->id,SCpnt->device->lun));
+		SCpnt->device->id, SCpnt->device->lun));
 	return (*func)(SCpnt);
 }
 
@@ -1320,8 +1320,8 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sh->transportt = mptfc_transport_template;
 	error = scsi_add_host (sh, &ioc->pcidev->dev);
 	if(error) {
-		dprintk(ioc, printk(KERN_ERR MYNAM
-		  "scsi_add_host failed\n"));
+		dprintk(ioc, printk(MYIOC_s_ERR_FMT
+		  "scsi_add_host failed\n", ioc->name));
 		goto out_mptfc_probe;
 	}
 

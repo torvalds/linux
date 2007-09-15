@@ -139,8 +139,9 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 					factor = MPT_ULTRA320;
 					if (scsi_device_qas(sdev)) {
 						ddvprintk(hd->ioc,
-						printk(KERN_DEBUG "Enabling QAS due to "
-						"byte56=%02x on id=%d!\n", scsi_device_qas(sdev), id));
+						printk(MYIOC_s_DEBUG_FMT "Enabling QAS due to "
+						"byte56=%02x on id=%d!\n", hd->ioc->name,
+						scsi_device_qas(sdev), id));
 						noQas = 0;
 					}
 					if (sdev->type == TYPE_TAPE &&
@@ -227,8 +228,8 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 		/* Disable QAS in a mixed configuration case
 		 */
 
-		ddvprintk(hd->ioc, printk(KERN_DEBUG
-			"Disabling QAS due to noQas=%02x on id=%d!\n", noQas, id));
+		ddvprintk(hd->ioc, printk(MYIOC_s_DEBUG_FMT
+			"Disabling QAS due to noQas=%02x on id=%d!\n", hd->ioc->name, noQas, id));
 	}
 }
 
@@ -302,7 +303,7 @@ mptspi_writeIOCPage4(MPT_SCSI_HOST *hd, u8 channel , u8 id)
 
 	ddvprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		"writeIOCPage4: MaxSEP=%d ActiveSEP=%d id=%d bus=%d\n",
-			ioc->name, IOCPage4Ptr->MaxSEP, IOCPage4Ptr->ActiveSEP, id, channel));
+		ioc->name, IOCPage4Ptr->MaxSEP, IOCPage4Ptr->ActiveSEP, id, channel));
 
 	mpt_put_msg_frame(ioc->DoneCtx, ioc, mf);
 
@@ -425,8 +426,8 @@ static int mptspi_target_alloc(struct scsi_target *starget)
 	if (starget->channel == 0 &&
 	    mptspi_is_raid(hd, starget->id)) {
 		vtarget->raidVolume = 1;
-		ddvprintk(hd->ioc, printk(KERN_DEBUG
-		    "RAID Volume @ channel=%d id=%d\n", starget->channel,
+		ddvprintk(hd->ioc, printk(MYIOC_s_DEBUG_FMT
+		    "RAID Volume @ channel=%d id=%d\n", hd->ioc->name, starget->channel,
 		    starget->id));
 	}
 
@@ -532,7 +533,8 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 
 	pg0 = dma_alloc_coherent(&ioc->pcidev->dev, size, &pg0_dma, GFP_KERNEL);
 	if (pg0 == NULL) {
-		starget_printk(KERN_ERR, starget, "dma_alloc_coherent for parameters failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, starget,
+		    "dma_alloc_coherent for parameters failed\n", ioc->name);
 		return -EINVAL;
 	}
 
@@ -552,7 +554,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	cfg.pageAddr = starget->id;
 
 	if (mpt_config(ioc, &cfg)) {
-		starget_printk(KERN_ERR, starget, "mpt_config failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, starget, "mpt_config failed\n", ioc->name);
 		goto out_free;
 	}
 	err = 0;
@@ -673,8 +675,8 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 	/* If this is a piece of a RAID, then quiesce first */
 	if (sdev->channel == 1 &&
 	    mptscsih_quiesce_raid(hd, 1, vtarget->channel, vtarget->id) < 0) {
-		starget_printk(KERN_ERR, scsi_target(sdev),
-			       "Integrated RAID quiesce failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, scsi_target(sdev),
+		    "Integrated RAID quiesce failed\n", hd->ioc->name);
 		return;
 	}
 
@@ -684,8 +686,8 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 
 	if (sdev->channel == 1 &&
 	    mptscsih_quiesce_raid(hd, 0, vtarget->channel, vtarget->id) < 0)
-		starget_printk(KERN_ERR, scsi_target(sdev),
-			       "Integrated RAID resume failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, scsi_target(sdev),
+		    "Integrated RAID resume failed\n", hd->ioc->name);
 
 	mptspi_read_parameters(sdev->sdev_target);
 	spi_display_xfer_agreement(sdev->sdev_target);
@@ -847,7 +849,8 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 
 	pg1 = dma_alloc_coherent(&ioc->pcidev->dev, size, &pg1_dma, GFP_KERNEL);
 	if (pg1 == NULL) {
-		starget_printk(KERN_ERR, starget, "dma_alloc_coherent for parameters failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, starget,
+		    "dma_alloc_coherent for parameters failed\n", ioc->name);
 		return -EINVAL;
 	}
 
@@ -876,7 +879,8 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 	mptspi_print_write_nego(hd, starget, le32_to_cpu(pg1->RequestedParameters));
 
 	if (mpt_config(ioc, &cfg)) {
-		starget_printk(KERN_ERR, starget, "mpt_config failed\n");
+		starget_printk(MYIOC_s_ERR_FMT, starget,
+		    "mpt_config failed\n", ioc->name);
 		goto out_free;
 	}
 	err = 0;
@@ -1092,12 +1096,12 @@ static void mpt_work_wrapper(struct work_struct *work)
 		if(vtarget->id != disk)
 			continue;
 
-		starget_printk(KERN_INFO, vtarget->starget,
-			       "Integrated RAID requests DV of new device\n");
+		starget_printk(MYIOC_s_INFO_FMT, vtarget->starget,
+		    "Integrated RAID requests DV of new device\n", hd->ioc->name);
 		mptspi_dv_device(hd, sdev);
 	}
-	shost_printk(KERN_INFO, shost,
-		     "Integrated RAID detects new device %d\n", disk);
+	shost_printk(MYIOC_s_INFO_FMT, shost,
+	    "Integrated RAID detects new device %d\n", hd->ioc->name, disk);
 	scsi_scan_target(&hd->ioc->sh->shost_gendev, 1, disk, 0, 1);
 }
 
@@ -1107,9 +1111,9 @@ static void mpt_dv_raid(struct _MPT_SCSI_HOST *hd, int disk)
 	struct work_queue_wrapper *wqw = kmalloc(sizeof(*wqw), GFP_ATOMIC);
 
 	if (!wqw) {
-		shost_printk(KERN_ERR, hd->ioc->sh,
-			     "Failed to act on RAID event for physical disk %d\n",
-			   disk);
+		shost_printk(MYIOC_s_ERR_FMT, hd->ioc->sh,
+		    "Failed to act on RAID event for physical disk %d\n",
+		    hd->ioc->name, disk);
 		return;
 	}
 	INIT_WORK(&wqw->work, mpt_work_wrapper);
@@ -1418,7 +1422,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	if (numSGE < sh->sg_tablesize) {
 		/* Reset this value */
-		dprintk(ioc, printk(MYIOC_s_INFO_FMT
+		dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		  "Resetting sg_tablesize to %d from %d\n",
 		  ioc->name, numSGE, sh->sg_tablesize));
 		sh->sg_tablesize = numSGE;
@@ -1484,8 +1488,8 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	error = scsi_add_host (sh, &ioc->pcidev->dev);
 	if(error) {
-		dprintk(ioc, printk(KERN_ERR MYNAM
-		  "scsi_add_host failed\n"));
+		dprintk(ioc, printk(MYIOC_s_ERR_FMT
+		  "scsi_add_host failed\n", ioc->name));
 		goto out_mptspi_probe;
 	}
 
