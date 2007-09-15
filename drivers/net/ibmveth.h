@@ -67,6 +67,21 @@ static inline long h_send_logical_lan(unsigned long unit_address,
 	return rc;
 }
 
+static inline long h_illan_attributes(unsigned long unit_address,
+				      unsigned long reset_mask, unsigned long set_mask,
+				      unsigned long *ret_attributes)
+{
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	rc = plpar_hcall(H_ILLAN_ATTRIBUTES, retbuf, unit_address,
+			 reset_mask, set_mask);
+
+	*ret_attributes = retbuf[0];
+
+	return rc;
+}
+
 #define h_multicast_ctrl(ua, cmd, mac) \
   plpar_hcall_norets(H_MULTICAST_CTRL, ua, cmd, mac)
 
@@ -142,7 +157,9 @@ struct ibmveth_adapter {
 struct ibmveth_buf_desc_fields {
     u32 valid : 1;
     u32 toggle : 1;
-    u32 reserved : 6;
+    u32 reserved : 4;
+    u32 no_csum : 1;
+    u32 csum_good : 1;
     u32 length : 24;
     u32 address;
 };
@@ -152,10 +169,30 @@ union ibmveth_buf_desc {
     struct ibmveth_buf_desc_fields fields;
 };
 
+struct ibmveth_illan_attributes_fields {
+	u32 reserved;
+	u32 reserved2 : 18;
+	u32 csum_offload_padded_pkt_support : 1;
+	u32 reserved3 : 1;
+	u32 trunk_priority : 4;
+	u32 reserved4 : 5;
+	u32 tcp_csum_offload_ipv6 : 1;
+	u32 tcp_csum_offload_ipv4 : 1;
+	u32 active_trunk : 1;
+};
+
+union ibmveth_illan_attributes {
+	u64 desc;
+	struct ibmveth_illan_attributes_fields fields;
+};
+
 struct ibmveth_rx_q_entry {
     u16 toggle : 1;
     u16 valid : 1;
-    u16 reserved : 14;
+    u16 reserved : 4;
+    u16 no_csum : 1;
+    u16 csum_good : 1;
+    u16 reserved2 : 8;
     u16 offset;
     u32 length;
     u64 correlator;

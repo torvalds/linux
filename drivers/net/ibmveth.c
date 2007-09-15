@@ -47,6 +47,8 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <linux/in.h>
+#include <linux/ip.h>
 #include <net/net_namespace.h>
 #include <asm/semaphore.h>
 #include <asm/hvcall.h>
@@ -130,6 +132,11 @@ static inline int ibmveth_rxq_frame_offset(struct ibmveth_adapter *adapter)
 static inline int ibmveth_rxq_frame_length(struct ibmveth_adapter *adapter)
 {
 	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].length);
+}
+
+static inline int ibmveth_rxq_csum_good(struct ibmveth_adapter *adapter)
+{
+	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].csum_good);
 }
 
 /* setup the initial settings for a buffer pool */
@@ -695,6 +702,24 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 					desc[0].fields.length, DMA_TO_DEVICE);
 	desc[0].fields.valid   = 1;
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    ip_hdr(skb)->protocol != IPPROTO_TCP && skb_checksum_help(skb)) {
+		ibmveth_error_printk("tx: failed to checksum packet\n");
+		tx_dropped++;
+		goto out;
+	}
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		unsigned char *buf = skb_transport_header(skb) + skb->csum_offset;
+
+		desc[0].fields.no_csum = 1;
+		desc[0].fields.csum_good = 1;
+
+		/* Need to zero out the checksum */
+		buf[0] = 0;
+		buf[1] = 0;
+	}
+
 	if(dma_mapping_error(desc[0].fields.address)) {
 		ibmveth_error_printk("tx: unable to map initial fragment\n");
 		tx_map_failed++;
@@ -713,6 +738,10 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 				frag->size, DMA_TO_DEVICE);
 		desc[curfrag+1].fields.length = frag->size;
 		desc[curfrag+1].fields.valid  = 1;
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			desc[curfrag+1].fields.no_csum = 1;
+			desc[curfrag+1].fields.csum_good = 1;
+		}
 
 		if(dma_mapping_error(desc[curfrag+1].fields.address)) {
 			ibmveth_error_printk("tx: unable to map fragment %d\n", curfrag);
@@ -801,7 +830,11 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 		} else {
 			int length = ibmveth_rxq_frame_length(adapter);
 			int offset = ibmveth_rxq_frame_offset(adapter);
+			int csum_good = ibmveth_rxq_csum_good(adapter);
+
 			skb = ibmveth_rxq_get_buffer(adapter);
+			if (csum_good)
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 			ibmveth_rxq_harvest_buffer(adapter);
 
@@ -962,8 +995,10 @@ static void ibmveth_poll_controller(struct net_device *dev)
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
+	long ret;
 	struct net_device *netdev;
 	struct ibmveth_adapter *adapter;
+	union ibmveth_illan_attributes set_attr, ret_attr;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -1056,6 +1091,24 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	adapter->rx_queue.queue_dma = DMA_ERROR_CODE;
 
 	ibmveth_debug_printk("registering netdev...\n");
+
+	ret = h_illan_attributes(dev->unit_address, 0, 0, &ret_attr.desc);
+
+	if (ret == H_SUCCESS && !ret_attr.fields.active_trunk &&
+	    !ret_attr.fields.trunk_priority &&
+	    ret_attr.fields.csum_offload_padded_pkt_support) {
+		set_attr.desc = 0;
+		set_attr.fields.tcp_csum_offload_ipv4 = 1;
+
+		ret = h_illan_attributes(dev->unit_address, 0, set_attr.desc,
+					 &ret_attr.desc);
+
+		if (ret == H_SUCCESS)
+			netdev->features |= NETIF_F_IP_CSUM;
+		else
+			ret = h_illan_attributes(dev->unit_address, set_attr.desc,
+						 0, &ret_attr.desc);
+	}
 
 	rc = register_netdev(netdev);
 
