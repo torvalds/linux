@@ -125,7 +125,7 @@ static u8 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, 0, 0, DstMem | SrcNone | ModRM | Mov,
+	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, 0, 0, 0,
 	/* 0xA0 - 0xA7 */
@@ -1022,6 +1022,9 @@ push:
 		break;
 	case 0x88 ... 0x8b:	/* mov */
 		goto mov;
+	case 0x8d: /* lea r16/r32, m */
+		dst.val = modrm_val;
+		break;
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		/* 64-bit mode: POP always pops a 64-bit operand. */
 		if (mode == X86EMUL_MODE_PROT64)
