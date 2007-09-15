@@ -59,7 +59,10 @@
 
 struct class_device_attribute *arcmsr_host_attrs[];
 
-static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj,
+					     struct bin_attribute *bin,
+					     char *buf, loff_t off,
+					     size_t count)
 {
 	struct class_device *cdev = container_of(kobj,struct class_device,kobj);
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -102,7 +105,10 @@ static ssize_t arcmsr_sysfs_iop_message_read(struct kobject *kobj, char *buf, lo
 	return (allxfer_len);
 }
 
-static ssize_t arcmsr_sysfs_iop_message_write(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t arcmsr_sysfs_iop_message_write(struct kobject *kobj,
+					      struct bin_attribute *bin,
+					      char *buf, loff_t off,
+					      size_t count)
 {
 	struct class_device *cdev = container_of(kobj,struct class_device,kobj);
 	struct Scsi_Host *host = class_to_shost(cdev);
@@ -147,7 +153,10 @@ static ssize_t arcmsr_sysfs_iop_message_write(struct kobject *kobj, char *buf, l
 	}
 }
 
-static ssize_t arcmsr_sysfs_iop_message_clear(struct kobject *kobj, char *buf, loff_t off, size_t count)
+static ssize_t arcmsr_sysfs_iop_message_clear(struct kobject *kobj,
+					      struct bin_attribute *bin,
+					      char *buf, loff_t off,
+					      size_t count)
 {
 	struct class_device *cdev = container_of(kobj,struct class_device,kobj);
 	struct Scsi_Host *host = class_to_shost(cdev);

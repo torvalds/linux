@@ -97,9 +97,6 @@ static void arcmsr_flush_hba_cache(struct AdapterControlBlock *acb);
 static void arcmsr_flush_hbb_cache(struct AdapterControlBlock *acb);
 static const char *arcmsr_info(struct Scsi_Host *);
 static irqreturn_t arcmsr_interrupt(struct AdapterControlBlock *acb);
-static pci_ers_result_t arcmsr_pci_error_detected(struct pci_dev *pdev,
-						pci_channel_state_t state);
-static pci_ers_result_t arcmsr_pci_slot_reset(struct pci_dev *pdev);
 static int arcmsr_adjust_disk_queue_depth(struct scsi_device *sdev,
 								int queue_depth)
 {
@@ -326,7 +323,7 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 
 		reg = (struct MessageUnit_B *)(dma_coherent +
 		ARCMSR_MAX_FREECCB_NUM * sizeof(struct CommandControlBlock));
-		acb->pmu = (struct MessageUnit_B *)reg;
+		acb->pmu = (struct MessageUnit *)reg;
 		mem_base0 = ioremap(pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0));
 		mem_base1 = ioremap(pci_resource_start(pdev, 2),
