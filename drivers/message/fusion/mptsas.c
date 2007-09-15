@@ -846,13 +846,14 @@ mptsas_target_alloc(struct scsi_target *starget)
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
 	int 			 i;
+	MPT_ADAPTER		*ioc = hd->ioc;
 
 	vtarget = kzalloc(sizeof(VirtTarget), GFP_KERNEL);
 	if (!vtarget)
 		return -ENOMEM;
 
 	vtarget->starget = starget;
-	vtarget->ioc_id = hd->ioc->id;
+	vtarget->ioc_id = ioc->id;
 	vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 	id = starget->id;
 	channel = 0;
@@ -861,15 +862,15 @@ mptsas_target_alloc(struct scsi_target *starget)
 	 * RAID volumes placed beyond the last expected port.
 	 */
 	if (starget->channel == MPTSAS_RAID_CHANNEL) {
-		for (i=0; i < hd->ioc->raid_data.pIocPg2->NumActiveVolumes; i++)
-			if (id == hd->ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID)
-				channel = hd->ioc->raid_data.pIocPg2->RaidVolume[i].VolumeBus;
+		for (i=0; i < ioc->raid_data.pIocPg2->NumActiveVolumes; i++)
+			if (id == ioc->raid_data.pIocPg2->RaidVolume[i].VolumeID)
+				channel = ioc->raid_data.pIocPg2->RaidVolume[i].VolumeBus;
 		goto out;
 	}
 
 	rphy = dev_to_rphy(starget->dev.parent);
-	mutex_lock(&hd->ioc->sas_topology_mutex);
-	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry(p, &ioc->sas_topology, list) {
 		for (i = 0; i < p->num_phys; i++) {
 			if (p->phy_info[i].attached.sas_address !=
 					rphy->identify.sas_address)
@@ -881,18 +882,18 @@ mptsas_target_alloc(struct scsi_target *starget)
 			/*
 			 * Exposing hidden raid components
 			 */
-			if (mptscsih_is_phys_disk(hd->ioc, channel, id)) {
-				id = mptscsih_raid_id_to_num(hd->ioc,
+			if (mptscsih_is_phys_disk(ioc, channel, id)) {
+				id = mptscsih_raid_id_to_num(ioc,
 						channel, id);
 				vtarget->tflags |=
 				    MPT_TARGET_FLAGS_RAID_COMPONENT;
 				p->phy_info[i].attached.phys_disk_num = id;
 			}
-			mutex_unlock(&hd->ioc->sas_topology_mutex);
+			mutex_unlock(&ioc->sas_topology_mutex);
 			goto out;
 		}
 	}
-	mutex_unlock(&hd->ioc->sas_topology_mutex);
+	mutex_unlock(&ioc->sas_topology_mutex);
 
 	kfree(vtarget);
 	return -ENXIO;
@@ -912,6 +913,7 @@ mptsas_target_destroy(struct scsi_target *starget)
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
 	int 			 i;
+	MPT_ADAPTER *ioc = hd->ioc;
 
 	if (!starget->hostdata)
 		return;
@@ -920,7 +922,7 @@ mptsas_target_destroy(struct scsi_target *starget)
 		goto out;
 
 	rphy = dev_to_rphy(starget->dev.parent);
-	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
+	list_for_each_entry(p, &ioc->sas_topology, list) {
 		for (i = 0; i < p->num_phys; i++) {
 			if (p->phy_info[i].attached.sas_address !=
 					rphy->identify.sas_address)
@@ -946,11 +948,12 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 	VirtDevice		*vdevice;
 	struct scsi_target 	*starget;
 	int 			i;
+	MPT_ADAPTER *ioc = hd->ioc;
 
 	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kzalloc(%zd) FAILED!\n",
-				hd->ioc->name, sizeof(VirtDevice));
+				ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 	starget = scsi_target(sdev);
@@ -960,8 +963,8 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 		goto out;
 
 	rphy = dev_to_rphy(sdev->sdev_target->dev.parent);
-	mutex_lock(&hd->ioc->sas_topology_mutex);
-	list_for_each_entry(p, &hd->ioc->sas_topology, list) {
+	mutex_lock(&ioc->sas_topology_mutex);
+	list_for_each_entry(p, &ioc->sas_topology, list) {
 		for (i = 0; i < p->num_phys; i++) {
 			if (p->phy_info[i].attached.sas_address !=
 					rphy->identify.sas_address)
@@ -970,15 +973,15 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 			/*
 			 * Exposing hidden raid components
 			 */
-			if (mptscsih_is_phys_disk(hd->ioc,
+			if (mptscsih_is_phys_disk(ioc,
 			    p->phy_info[i].attached.channel,
 			    p->phy_info[i].attached.id))
 				sdev->no_uld_attach = 1;
-			mutex_unlock(&hd->ioc->sas_topology_mutex);
+			mutex_unlock(&ioc->sas_topology_mutex);
 			goto out;
 		}
 	}
-	mutex_unlock(&hd->ioc->sas_topology_mutex);
+	mutex_unlock(&ioc->sas_topology_mutex);
 
 	kfree(vdevice);
 	return -ENXIO;

@@ -194,12 +194,14 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	struct fc_rport		*rport = starget_to_rport(scsi_target(sdev));
 	unsigned long		flags;
 	int			ready;
+	MPT_ADAPTER 		*ioc;
 
 	hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
+	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
 	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
-		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %d:%d, port status is "
 			"DID_IMM_RETRY, deferring %s recovery.\n",
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
@@ -211,7 +213,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
 	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
-		dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
 			"port state %d, vdevice %p.\n", caller,
 			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
@@ -220,7 +222,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 			SCpnt->device->hostdata));
 		return FAILED;
 	}
-	dfcprintk (hd->ioc, printk(MYIOC_s_DEBUG_FMT
+	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 		"%s.%d: %d:%d, executing recovery.\n", caller,
 		((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
 		((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
@@ -605,7 +607,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	VirtDevice		*vdevice;
 	struct scsi_target	*starget;
 	struct fc_rport		*rport;
-
+	MPT_ADAPTER 		*ioc;
 
 	starget = scsi_target(sdev);
 	rport = starget_to_rport(starget);
@@ -614,11 +616,12 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 		return -ENXIO;
 
 	hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
+	ioc = hd->ioc;
 
 	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdevice) {
 		printk(MYIOC_s_ERR_FMT "slave_alloc kmalloc(%zd) FAILED!\n",
-				hd->ioc->name, sizeof(VirtDevice));
+				ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
 
@@ -627,7 +630,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	vtarget = starget->hostdata;
 
 	if (vtarget->num_luns == 0) {
-		vtarget->ioc_id = hd->ioc->id;
+		vtarget->ioc_id = ioc->id;
 		vtarget->tflags = MPT_TARGET_FLAGS_Q_YES;
 	}
 
@@ -637,7 +640,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	vtarget->num_luns++;
 
 
-	mptfc_dump_lun_info(hd->ioc, rport, sdev, vtarget);
+	mptfc_dump_lun_info(ioc, rport, sdev, vtarget);
 
 	return 0;
 }
