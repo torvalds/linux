@@ -209,13 +209,15 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		i++;
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
-		length =
-		    sprintf(buf,
-			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x "
-			    "Attributes: 0x%x\nPathComponentMax: %d Status: %d",
-			    i, tcon->treeName,
-			    atomic_read(&tcon->useCount),
-			    tcon->nativeFileSystem,
+		length = sprintf(buf, "\n%d) %s Uses: %d ", i,
+				 tcon->treeName, atomic_read(&tcon->useCount));
+		buf += length;
+		if (tcon->nativeFileSystem) {
+			length = sprintf("Type: %s ", tcon->nativeFileSystem);
+			buf += length;
+		}
+		length = sprintf(buf, "DevInfo: 0x%x Attributes: 0x%x"
+				 "\nPathComponentMax: %d Status: %d",
 			    le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 			    le32_to_cpu(tcon->fsAttrInfo.Attributes),
 			    le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
