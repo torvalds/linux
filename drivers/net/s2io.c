@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.1"
+#define DRV_VERSION "2.0.26.2"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -2715,12 +2715,8 @@ static int s2io_poll(struct napi_struct *napi, int budget)
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	int i;
 
-	atomic_inc(&nic->isr_cnt);
-
-	if (!is_s2io_card_up(nic)) {
-		atomic_dec(&nic->isr_cnt);
+	if (!is_s2io_card_up(nic))
 		return 0;
-	}
 
 	mac_control = &nic->mac_control;
 	config = &nic->config;
@@ -2752,7 +2748,6 @@ static int s2io_poll(struct napi_struct *napi, int budget)
 	/* Re enable the Rx interrupts. */
 	writeq(0x0, &bar0->rx_traffic_mask);
 	readl(&bar0->rx_traffic_mask);
-	atomic_dec(&nic->isr_cnt);
 	return pkt_cnt;
 
 no_rx:
@@ -2763,7 +2758,6 @@ no_rx:
 			break;
 		}
 	}
-	atomic_dec(&nic->isr_cnt);
 	return pkt_cnt;
 }
 
@@ -2791,7 +2785,6 @@ static void s2io_netpoll(struct net_device *dev)
 
 	disable_irq(dev->irq);
 
-	atomic_inc(&nic->isr_cnt);
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 
@@ -2816,7 +2809,6 @@ static void s2io_netpoll(struct net_device *dev)
 			break;
 		}
 	}
-	atomic_dec(&nic->isr_cnt);
 	enable_irq(dev->irq);
 	return;
 }
@@ -4187,17 +4179,12 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 	struct ring_info *ring = (struct ring_info *)dev_id;
 	struct s2io_nic *sp = ring->nic;
 
-	atomic_inc(&sp->isr_cnt);
-
-	if (!is_s2io_card_up(sp)) {
-		atomic_dec(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
 		return IRQ_HANDLED;
-	}
 
 	rx_intr_handler(ring);
 	s2io_chk_rx_buffers(sp, ring->ring_no);
 
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 
@@ -4206,15 +4193,10 @@ static irqreturn_t s2io_msix_fifo_handle(int irq, void *dev_id)
 	struct fifo_info *fifo = (struct fifo_info *)dev_id;
 	struct s2io_nic *sp = fifo->nic;
 
-	atomic_inc(&sp->isr_cnt);
-
-	if (!is_s2io_card_up(sp)) {
-		atomic_dec(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
 		return IRQ_HANDLED;
-	}
 
 	tx_intr_handler(fifo);
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 static void s2io_txpic_intr_handle(struct s2io_nic *sp)
@@ -4591,12 +4573,8 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 	if (pci_channel_offline(sp->pdev))
 		return IRQ_NONE;
 
-	atomic_inc(&sp->isr_cnt);
-
-	if (!is_s2io_card_up(sp)) {
-		atomic_dec(&sp->isr_cnt);
+	if (!is_s2io_card_up(sp))
 		return IRQ_NONE;
-	}
 
 	mac_control = &sp->mac_control;
 	config = &sp->config;
@@ -4607,73 +4585,75 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 	 * 1. Rx of packet.
 	 * 2. Tx complete.
 	 * 3. Link down.
-	 * 4. Error in any functional blocks of the NIC.
 	 */
 	reason = readq(&bar0->general_int_status);
 
-	if (!reason) {
-		/* The interrupt was not raised by us. */
-		atomic_dec(&sp->isr_cnt);
-		return IRQ_NONE;
-	}
-	else if (unlikely(reason == S2IO_MINUS_ONE) ) {
-		/* Disable device and get out */
-		atomic_dec(&sp->isr_cnt);
-		return IRQ_NONE;
+	if (unlikely(reason == S2IO_MINUS_ONE) ) {
+		/* Nothing much can be done. Get out */
+		return IRQ_HANDLED;
 	}
 
-	if (napi) {
-		if (reason & GEN_INTR_RXTRAFFIC) {
-			if (likely (netif_rx_schedule_prep(dev, &sp->napi))) {
-				__netif_rx_schedule(dev, &sp->napi);
-				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_mask);
+	if (reason & (GEN_INTR_RXTRAFFIC |
+		GEN_INTR_TXTRAFFIC | GEN_INTR_TXPIC))
+	{
+		writeq(S2IO_MINUS_ONE, &bar0->general_int_mask);
+
+		if (config->napi) {
+			if (reason & GEN_INTR_RXTRAFFIC) {
+				if (likely(netif_rx_schedule_prep(dev,
+							&sp->napi))) {
+					__netif_rx_schedule(dev, &sp->napi);
+					writeq(S2IO_MINUS_ONE,
+					       &bar0->rx_traffic_mask);
+				} else
+					writeq(S2IO_MINUS_ONE,
+					       &bar0->rx_traffic_int);
 			}
-			else
+		} else {
+			/*
+			 * rx_traffic_int reg is an R1 register, writing all 1's
+			 * will ensure that the actual interrupt causing bit
+			 * get's cleared and hence a read can be avoided.
+			 */
+			if (reason & GEN_INTR_RXTRAFFIC)
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
+
+			for (i = 0; i < config->rx_ring_num; i++)
+				rx_intr_handler(&mac_control->rings[i]);
 		}
-	} else {
+
 		/*
-		 * Rx handler is called by default, without checking for the
-		 * cause of interrupt.
-		 * rx_traffic_int reg is an R1 register, writing all 1's
+		 * tx_traffic_int reg is an R1 register, writing all 1's
 		 * will ensure that the actual interrupt causing bit get's
 		 * cleared and hence a read can be avoided.
 		 */
-		if (reason & GEN_INTR_RXTRAFFIC)
-			writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
+		if (reason & GEN_INTR_TXTRAFFIC)
+			writeq(S2IO_MINUS_ONE, &bar0->tx_traffic_int);
 
-		for (i = 0; i < config->rx_ring_num; i++) {
-			rx_intr_handler(&mac_control->rings[i]);
+		for (i = 0; i < config->tx_fifo_num; i++)
+			tx_intr_handler(&mac_control->fifos[i]);
+
+		if (reason & GEN_INTR_TXPIC)
+			s2io_txpic_intr_handle(sp);
+
+		/*
+		 * Reallocate the buffers from the interrupt handler itself.
+		 */
+		if (!config->napi) {
+			for (i = 0; i < config->rx_ring_num; i++)
+				s2io_chk_rx_buffers(sp, i);
 		}
+		writeq(sp->general_int_mask, &bar0->general_int_mask);
+		readl(&bar0->general_int_status);
+
+		return IRQ_HANDLED;
+
+	}
+	else if (!reason) {
+		/* The interrupt was not raised by us */
+		return IRQ_NONE;
 	}
 
-	/*
-	 * tx_traffic_int reg is an R1 register, writing all 1's
-	 * will ensure that the actual interrupt causing bit get's
-	 * cleared and hence a read can be avoided.
-	 */
-	if (reason & GEN_INTR_TXTRAFFIC)
-		writeq(S2IO_MINUS_ONE, &bar0->tx_traffic_int);
-
-	for (i = 0; i < config->tx_fifo_num; i++)
-		tx_intr_handler(&mac_control->fifos[i]);
-
-	if (reason & GEN_INTR_TXPIC)
-		s2io_txpic_intr_handle(sp);
-	/*
-	 * If the Rx buffer count is below the panic threshold then
-	 * reallocate the buffers from the interrupt handler itself,
-	 * else schedule a tasklet to reallocate the buffers.
-	 */
-	if (!napi) {
-		for (i = 0; i < config->rx_ring_num; i++)
-			s2io_chk_rx_buffers(sp, i);
-	}
-
-	writeq(0, &bar0->general_int_mask);
-	readl(&bar0->general_int_status);
-
-	atomic_dec(&sp->isr_cnt);
 	return IRQ_HANDLED;
 }
 
@@ -6795,7 +6775,6 @@ static int s2io_add_isr(struct s2io_nic * sp)
 }
 static void s2io_rem_isr(struct s2io_nic * sp)
 {
-	int cnt = 0;
 	struct net_device *dev = sp->dev;
 	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
 
@@ -6808,6 +6787,7 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 			int vector = sp->entries[i].vector;
 			void *arg = sp->s2io_entries[i].arg;
 
+			synchronize_irq(vector);
 			free_irq(vector, arg);
 		}
 
@@ -6826,16 +6806,9 @@ static void s2io_rem_isr(struct s2io_nic * sp)
 
 		pci_disable_msix(sp->pdev);
 	} else {
+		synchronize_irq(sp->pdev->irq);
 		free_irq(sp->pdev->irq, dev);
 	}
-	/* Waiting till all Interrupt handlers are complete */
-	cnt = 0;
-	do {
-		msleep(10);
-		if (!atomic_read(&sp->isr_cnt))
-			break;
-		cnt++;
-	} while(cnt < 5);
 }
 
 static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
@@ -7365,19 +7338,12 @@ static int s2io_verify_parm(struct pci_dev *pdev, u8 *dev_intr_type)
 	if (*dev_intr_type != INTA)
 		napi = 0;
 
-#ifndef CONFIG_PCI_MSI
-	if (*dev_intr_type != INTA) {
-		DBG_PRINT(ERR_DBG, "s2io: This kernel does not support"
-			  "MSI/MSI-X. Defaulting to INTA\n");
-		*dev_intr_type = INTA;
-	}
-#else
 	if ((*dev_intr_type != INTA) && (*dev_intr_type != MSI_X)) {
 		DBG_PRINT(ERR_DBG, "s2io: Wrong intr_type requested. "
 			  "Defaulting to INTA\n");
 		*dev_intr_type = INTA;
 	}
-#endif
+
 	if ((*dev_intr_type == MSI_X) &&
 			((pdev->device != PCI_DEVICE_ID_HERC_WIN) &&
 			(pdev->device != PCI_DEVICE_ID_HERC_UNI))) {
@@ -7535,6 +7501,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	mac_control = &sp->mac_control;
 	config = &sp->config;
 
+	config->napi = napi;
+
 	/* Tx side parameters. */
 	config->tx_fifo_num = tx_fifo_num;
 	for (i = 0; i < MAX_TX_FIFOS; i++) {
@@ -7581,9 +7549,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/* Initialize Ring buffer parameters. */
 	for (i = 0; i < config->rx_ring_num; i++)
 		atomic_set(&sp->rx_bufs_left[i], 0);
-
-	/* Initialize the number of ISRs currently running */
-	atomic_set(&sp->isr_cnt, 0);
 
 	/*  initialize the shared memory used by the NIC and the host */
 	if (init_shared_mem(sp)) {

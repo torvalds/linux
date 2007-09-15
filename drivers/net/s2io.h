@@ -911,7 +911,6 @@ struct s2io_nic {
 	u16		lro_max_aggr_per_sess;
 	volatile unsigned long state;
 	spinlock_t	rx_lock;
-	atomic_t	isr_cnt;
 	u64		general_int_mask;
 	u64 *ufo_in_band_v;
 #define VPD_STRING_LEN 80
