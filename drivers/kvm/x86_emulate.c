@@ -978,19 +978,8 @@ push:
 		dst.val = src.val;
 		lock_prefix = 1;
 		break;
-	case 0xa0 ... 0xa1:	/* mov */
-		dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
-		dst.val = src.val;
-		_eip += ad_bytes;	/* skip src displacement */
-		break;
-	case 0xa2 ... 0xa3:	/* mov */
-		dst.val = (unsigned long)_regs[VCPU_REGS_RAX];
-		_eip += ad_bytes;	/* skip dst displacement */
-		break;
 	case 0x88 ... 0x8b:	/* mov */
-	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
-		dst.val = src.val;
-		break;
+		goto mov;
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		/* 64-bit mode: POP always pops a 64-bit operand. */
 		if (mode == X86EMUL_MODE_PROT64)
@@ -1000,6 +989,15 @@ push:
 					&dst.val, dst.bytes, ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(_regs[VCPU_REGS_RSP], dst.bytes);
+		break;
+	case 0xa0 ... 0xa1:	/* mov */
+		dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
+		dst.val = src.val;
+		_eip += ad_bytes;	/* skip src displacement */
+		break;
+	case 0xa2 ... 0xa3:	/* mov */
+		dst.val = (unsigned long)_regs[VCPU_REGS_RAX];
+		_eip += ad_bytes;	/* skip dst displacement */
 		break;
 	case 0xc0 ... 0xc1:
 	      grp2:		/* Grp2 */
@@ -1027,6 +1025,10 @@ push:
 			emulate_2op_SrcB("sar", src, dst, _eflags);
 			break;
 		}
+		break;
+	case 0xc6 ... 0xc7:	/* mov (sole member of Grp11) */
+	mov:
+		dst.val = src.val;
 		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		src.val = 1;
@@ -1186,6 +1188,17 @@ special_insn:
 		dst.ptr = (void *) register_address(
 			ctxt->ss_base, _regs[VCPU_REGS_RSP]);
 		break;
+	case 0x58 ... 0x5f: /* pop reg */
+		dst.ptr = (unsigned long *)&_regs[b & 0x7];
+	pop_instruction:
+		if ((rc = ops->read_std(register_address(ctxt->ss_base,
+			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt->vcpu))
+			!= 0)
+			goto done;
+
+		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
+		no_wb = 1; /* Disable writeback. */
+		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
 		 if (kvm_emulate_pio_string(ctxt->vcpu, NULL,
@@ -1217,12 +1230,15 @@ special_insn:
 				) == 0)
 			return -1;
 		return 0;
-
 	case 0x9c: /* pushf */
 		src.val =  (unsigned long) _eflags;
 		goto push;
-		break;
-
+	case 0xc3: /* ret */
+		dst.ptr = &_eip;
+		goto pop_instruction;
+	case 0xf4:              /* hlt */
+		ctxt->vcpu->halt_request = 1;
+		goto done;
 	}
 	if (rep_prefix) {
 		if (_regs[VCPU_REGS_RCX] == 0) {
@@ -1271,24 +1287,7 @@ special_insn:
 	case 0xae ... 0xaf:	/* scas */
 		DPRINTF("Urk! I don't handle SCAS.\n");
 		goto cannot_emulate;
-	case 0xf4:              /* hlt */
-		ctxt->vcpu->halt_request = 1;
-		goto done;
-	case 0xc3: /* ret */
-		dst.ptr = &_eip;
-		goto pop_instruction;
-	case 0x58 ... 0x5f: /* pop reg */
-		dst.ptr = (unsigned long *)&_regs[b & 0x7];
 
-pop_instruction:
-		if ((rc = ops->read_std(register_address(ctxt->ss_base,
-			_regs[VCPU_REGS_RSP]), dst.ptr, op_bytes, ctxt->vcpu))
-			!= 0)
-			goto done;
-
-		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
-		no_wb = 1; /* Disable writeback. */
-		break;
 	}
 	goto writeback;
 
@@ -1382,6 +1381,16 @@ twobyte_insn:
 		/* Odd cmov opcodes (lsb == 1) have inverted sense. */
 		no_wb ^= b & 1;
 		break;
+	case 0xa3:
+	      bt:		/* bt */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("bt", src, dst, _eflags);
+		break;
+	case 0xab:
+	      bts:		/* bts */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("bts", src, dst, _eflags);
+		break;
 	case 0xb0 ... 0xb1:	/* cmpxchg */
 		/*
 		 * Save real source value, then compare EAX against
@@ -1399,29 +1408,14 @@ twobyte_insn:
 			dst.ptr = (unsigned long *)&_regs[VCPU_REGS_RAX];
 		}
 		break;
-	case 0xa3:
-	      bt:		/* bt */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("bt", src, dst, _eflags);
-		break;
 	case 0xb3:
 	      btr:		/* btr */
 		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
 		emulate_2op_SrcV_nobyte("btr", src, dst, _eflags);
 		break;
-	case 0xab:
-	      bts:		/* bts */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("bts", src, dst, _eflags);
-		break;
 	case 0xb6 ... 0xb7:	/* movzx */
 		dst.bytes = op_bytes;
 		dst.val = (d & ByteOp) ? (u8) src.val : (u16) src.val;
-		break;
-	case 0xbb:
-	      btc:		/* btc */
-		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
-		emulate_2op_SrcV_nobyte("btc", src, dst, _eflags);
 		break;
 	case 0xba:		/* Grp8 */
 		switch (modrm_reg & 3) {
@@ -1435,6 +1429,11 @@ twobyte_insn:
 			goto btc;
 		}
 		break;
+	case 0xbb:
+	      btc:		/* btc */
+		src.val &= (dst.bytes << 3) - 1; /* only subword offset */
+		emulate_2op_SrcV_nobyte("btc", src, dst, _eflags);
+		break;
 	case 0xbe ... 0xbf:	/* movsx */
 		dst.bytes = op_bytes;
 		dst.val = (d & ByteOp) ? (s8) src.val : (s16) src.val;
@@ -1446,13 +1445,13 @@ twobyte_special_insn:
 	/* Disable writeback. */
 	no_wb = 1;
 	switch (b) {
+	case 0x06:
+		emulate_clts(ctxt->vcpu);
+		break;
 	case 0x09:		/* wbinvd */
 		break;
 	case 0x0d:		/* GrpP (prefetch) */
 	case 0x18:		/* Grp16 (prefetch/nop) */
-		break;
-	case 0x06:
-		emulate_clts(ctxt->vcpu);
 		break;
 	case 0x20: /* mov cr, reg */
 		if (modrm_mod != 3)
