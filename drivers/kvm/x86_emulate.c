@@ -1148,6 +1148,12 @@ push:
 		case 1:	/* dec */
 			emulate_1op("dec", dst, _eflags);
 			break;
+		case 4: /* jmp abs */
+			if (b == 0xff)
+				_eip = dst.val;
+			else
+				goto cannot_emulate;
+			break;
 		case 6:	/* push */
 			/* 64-bit mode: PUSH always pushes a 64-bit operand. */
 			if (mode == X86EMUL_MODE_PROT64) {
