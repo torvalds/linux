@@ -52,6 +52,9 @@ struct pasemi_mac_rxring {
 
 struct pasemi_mac {
 	struct net_device *netdev;
+	void __iomem *regs;
+	void __iomem *dma_regs;
+	void __iomem *iob_regs;
 	struct pci_dev *pdev;
 	struct pci_dev *dma_pdev;
 	struct pci_dev *iob_pdev;
