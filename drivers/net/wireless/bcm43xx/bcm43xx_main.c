@@ -3183,6 +3183,9 @@ static void bcm43xx_periodic_work_handler(struct work_struct *work)
 	unsigned long orig_trans_start = 0;
 
 	mutex_lock(&bcm->mutex);
+	/* keep from doing and rearming periodic work if shutting down */
+	if (bcm43xx_status(bcm) == BCM43xx_STAT_UNINIT)
+		goto unlock_mutex;
 	if (unlikely(bcm->periodic_state % 60 == 0)) {
 		/* Periodic work will take a long time, so we want it to
 		 * be preemtible.
@@ -3228,12 +3231,8 @@ static void bcm43xx_periodic_work_handler(struct work_struct *work)
 	mmiowb();
 	bcm->periodic_state++;
 	spin_unlock_irqrestore(&bcm->irq_lock, flags);
+unlock_mutex:
 	mutex_unlock(&bcm->mutex);
-}
-
-void bcm43xx_periodic_tasks_delete(struct bcm43xx_private *bcm)
-{
-	cancel_rearming_delayed_work(&bcm->periodic_work);
 }
 
 void bcm43xx_periodic_tasks_setup(struct bcm43xx_private *bcm)
@@ -3285,6 +3284,14 @@ static int bcm43xx_rng_init(struct bcm43xx_private *bcm)
 	return err;
 }
 
+void bcm43xx_cancel_work(struct bcm43xx_private *bcm)
+{
+	/* The system must be unlocked when this routine is entered.
+	 * If not, the next 2 steps may deadlock */
+	cancel_work_sync(&bcm->restart_work);
+	cancel_delayed_work_sync(&bcm->periodic_work);
+}
+
 static int bcm43xx_shutdown_all_wireless_cores(struct bcm43xx_private *bcm)
 {
 	int ret = 0;
@@ -3321,7 +3328,12 @@ static void bcm43xx_free_board(struct bcm43xx_private *bcm)
 {
 	bcm43xx_rng_exit(bcm);
 	bcm43xx_sysfs_unregister(bcm);
-	bcm43xx_periodic_tasks_delete(bcm);
+
+	mutex_lock(&(bcm)->mutex);
+	bcm43xx_set_status(bcm, BCM43xx_STAT_UNINIT);
+	mutex_unlock(&(bcm)->mutex);
+
+	bcm43xx_cancel_work(bcm);
 
 	mutex_lock(&(bcm)->mutex);
 	bcm43xx_shutdown_all_wireless_cores(bcm);
@@ -4016,7 +4028,7 @@ static int bcm43xx_net_stop(struct net_device *net_dev)
 	err = bcm43xx_disable_interrupts_sync(bcm);
 	assert(!err);
 	bcm43xx_free_board(bcm);
-	flush_scheduled_work();
+	bcm43xx_cancel_work(bcm);
 
 	return 0;
 }
@@ -4148,9 +4160,9 @@ static void bcm43xx_chip_reset(struct work_struct *work)
 	struct bcm43xx_phyinfo *phy;
 	int err = -ENODEV;
 
+	bcm43xx_cancel_work(bcm);
 	mutex_lock(&(bcm)->mutex);
 	if (bcm43xx_status(bcm) == BCM43xx_STAT_INITIALIZED) {
-		bcm43xx_periodic_tasks_delete(bcm);
 		phy = bcm43xx_current_phy(bcm);
 		err = bcm43xx_select_wireless_core(bcm, phy->type);
 		if (!err)

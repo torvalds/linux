@@ -2311,8 +2311,10 @@ static int do_wireless_ioctl(unsigned int fd, unsigned int cmd, unsigned long ar
 	struct iwreq __user *iwr_u;
 	struct iw_point __user *iwp;
 	struct compat_iw_point __user *iwp_u;
-	compat_caddr_t pointer;
+	compat_caddr_t pointer_u;
+	void __user *pointer;
 	__u16 length, flags;
+	int ret;
 
 	iwr_u = compat_ptr(arg);
 	iwp_u = (struct compat_iw_point __user *) &iwr_u->u.data;
@@ -2330,17 +2332,29 @@ static int do_wireless_ioctl(unsigned int fd, unsigned int cmd, unsigned long ar
 			   sizeof(iwr->ifr_ifrn.ifrn_name)))
 		return -EFAULT;
 
-	if (__get_user(pointer, &iwp_u->pointer) ||
+	if (__get_user(pointer_u, &iwp_u->pointer) ||
 	    __get_user(length, &iwp_u->length) ||
 	    __get_user(flags, &iwp_u->flags))
 		return -EFAULT;
 
-	if (__put_user(compat_ptr(pointer), &iwp->pointer) ||
+	if (__put_user(compat_ptr(pointer_u), &iwp->pointer) ||
 	    __put_user(length, &iwp->length) ||
 	    __put_user(flags, &iwp->flags))
 		return -EFAULT;
 
-	return sys_ioctl(fd, cmd, (unsigned long) iwr);
+	ret = sys_ioctl(fd, cmd, (unsigned long) iwr);
+
+	if (__get_user(pointer, &iwp->pointer) ||
+	    __get_user(length, &iwp->length) ||
+	    __get_user(flags, &iwp->flags))
+		return -EFAULT;
+
+	if (__put_user(ptr_to_compat(pointer), &iwp_u->pointer) ||
+	    __put_user(length, &iwp_u->length) ||
+	    __put_user(flags, &iwp_u->flags))
+		return -EFAULT;
+
+	return ret;
 }
 
 /* Since old style bridge ioctl's endup using SIOCDEVPRIVATE
