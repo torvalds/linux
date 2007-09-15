@@ -127,7 +127,7 @@ static u8 opcode_table[256] = {
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
 	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov,
 	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, ImplicitOps, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov, DstReg | SrcMem | Mov,
 	ByteOp | DstMem | SrcReg | Mov, DstMem | SrcReg | Mov,
@@ -1293,6 +1293,9 @@ special_insn:
 	case 0x9c: /* pushf */
 		src.val =  (unsigned long) _eflags;
 		goto push;
+	case 0x9d: /* popf */
+		dst.ptr = (unsigned long *) &_eflags;
+		goto pop_instruction;
 	case 0xc3: /* ret */
 		dst.ptr = &_eip;
 		goto pop_instruction;
