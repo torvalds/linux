@@ -1078,6 +1078,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 	struct net_device *dev = mac->netdev;
 	int pkts;
 
+	pasemi_mac_clean_tx(mac);
 	pkts = pasemi_mac_clean_rx(mac, budget);
 	if (pkts < budget) {
 		/* all done, no more packets present */
