@@ -412,6 +412,10 @@ struct config_param {
 	struct tx_fifo_config tx_cfg[MAX_TX_FIFOS];	/*Per-Tx FIFO config */
 	u32 max_txds;		/*Max no. of Tx buffer descriptor per TxDL */
 	u64 tx_intr_type;
+#define INTA	0
+#define MSI_X	2
+	u8 intr_type;
+
 	/* Specifies if Tx Intr is UTILZ or PER_LIST type. */
 
 /* Rx Side */
@@ -862,6 +866,8 @@ struct s2io_nic {
 	struct vlan_group *vlgrp;
 #define MSIX_FLG                0xA5
 	struct msix_entry *entries;
+	int msi_detected;
+	wait_queue_head_t msi_wait;
 	struct s2io_msix_entry *s2io_entries;
 	char desc[MAX_REQUESTED_MSI_X][25];
 

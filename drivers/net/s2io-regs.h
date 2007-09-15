@@ -220,7 +220,7 @@ struct XENA_dev_config {
 	u64 scheduled_int_ctrl;
 #define SCHED_INT_CTRL_TIMER_EN                BIT(0)
 #define SCHED_INT_CTRL_ONE_SHOT                BIT(1)
-#define SCHED_INT_CTRL_INT2MSI                 TBD
+#define SCHED_INT_CTRL_INT2MSI(val)		vBIT(val,10,6)
 #define SCHED_INT_PERIOD                       TBD
 
 	u64 txreqtimeout;
