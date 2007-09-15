@@ -827,6 +827,7 @@ done_prefixes:
 	      srcmem_common:
 		src.type = OP_MEM;
 		src.ptr = (unsigned long *)cr2;
+		src.val = 0;
 		if ((rc = ops->read_emulated((unsigned long)src.ptr,
 					     &src.val, src.bytes, ctxt->vcpu)) != 0)
 			goto done;
@@ -891,6 +892,7 @@ done_prefixes:
 		dst.type = OP_MEM;
 		dst.ptr = (unsigned long *)cr2;
 		dst.bytes = (d & ByteOp) ? 1 : op_bytes;
+		dst.val = 0;
 		if (d & BitOp) {
 			unsigned long mask = ~(dst.bytes * 8 - 1);
 
