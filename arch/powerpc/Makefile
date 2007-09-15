@@ -92,6 +92,10 @@ else
 endif
 endif
 
+ifeq ($(CONFIG_TUNE_CELL),y)
+	CFLAGS += $(call cc-option,-mtune=cell)
+endif
+
 # No AltiVec instruction when building kernel
 CFLAGS += $(call cc-option,-mno-altivec)
 
