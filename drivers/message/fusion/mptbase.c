@@ -305,7 +305,7 @@ mpt_turbo_reply(MPT_ADAPTER *ioc, u32 pa)
 
 	/*  Check for (valid) IO callback!  */
 	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
-			MptCallbacks[cb_idx] == NULL) {
+		MptCallbacks[cb_idx] == NULL) {
 		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
 				__FUNCTION__, ioc->name, cb_idx);
 		goto out;
@@ -369,7 +369,7 @@ mpt_reply(MPT_ADAPTER *ioc, u32 pa)
 
 	/*  Check for (valid) IO callback!  */
 	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS ||
-			MptCallbacks[cb_idx] == NULL) {
+		MptCallbacks[cb_idx] == NULL) {
 		printk(MYIOC_s_WARN_FMT "%s: Invalid cb_idx (%d)!\n",
 				__FUNCTION__, ioc->name, cb_idx);
 		freeme = 0;
@@ -621,7 +621,7 @@ mpt_register(MPT_CALLBACK cbfunc, MPT_DRIVER_CLASS dclass)
 void
 mpt_deregister(u8 cb_idx)
 {
-	if (cb_idx  && (cb_idx < MPT_MAX_PROTOCOL_DRIVERS)) {
+	if (cb_idx && (cb_idx < MPT_MAX_PROTOCOL_DRIVERS)) {
 		MptCallbacks[cb_idx] = NULL;
 		MptDriverClass[cb_idx] = MPTUNKNOWN_DRIVER;
 		MptEvHandlers[cb_idx] = NULL;
@@ -645,7 +645,7 @@ mpt_deregister(u8 cb_idx)
 int
 mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc)
 {
-	if (!cb_idx  || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
+	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
 		return -1;
 
 	MptEvHandlers[cb_idx] = ev_cbfunc;
@@ -665,7 +665,7 @@ mpt_event_register(u8 cb_idx, MPT_EVHANDLER ev_cbfunc)
 void
 mpt_event_deregister(u8 cb_idx)
 {
-	if (!cb_idx  || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
+	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
 		return;
 
 	MptEvHandlers[cb_idx] = NULL;
@@ -722,7 +722,7 @@ mpt_device_driver_register(struct mpt_pci_driver * dd_cbfunc, u8 cb_idx)
 	MPT_ADAPTER	*ioc;
 	const struct pci_device_id *id;
 
-	if (!cb_idx  || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
+	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
 		return -EINVAL;
 
 	MptDeviceDriverHandlers[cb_idx] = dd_cbfunc;
@@ -749,7 +749,7 @@ mpt_device_driver_deregister(u8 cb_idx)
 	struct mpt_pci_driver *dd_cbfunc;
 	MPT_ADAPTER	*ioc;
 
-	if (!cb_idx  || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
+	if (!cb_idx || cb_idx >= MPT_MAX_PROTOCOL_DRIVERS)
 		return;
 
 	dd_cbfunc = MptDeviceDriverHandlers[cb_idx];
@@ -1681,7 +1681,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* call per device driver probe entry point */
-	for(cb_idx=0; cb_idx<MPT_MAX_PROTOCOL_DRIVERS; cb_idx++) {
+	for(cb_idx = 0; cb_idx < MPT_MAX_PROTOCOL_DRIVERS; cb_idx++) {
 		if(MptDeviceDriverHandlers[cb_idx] &&
 		  MptDeviceDriverHandlers[cb_idx]->probe) {
 			MptDeviceDriverHandlers[cb_idx]->probe(pdev,id);
@@ -1731,7 +1731,7 @@ mpt_detach(struct pci_dev *pdev)
 	remove_proc_entry(pname, NULL);
 
 	/* call per device driver remove entry point */
-	for(cb_idx=0; cb_idx<MPT_MAX_PROTOCOL_DRIVERS; cb_idx++) {
+	for(cb_idx = 0; cb_idx < MPT_MAX_PROTOCOL_DRIVERS; cb_idx++) {
 		if(MptDeviceDriverHandlers[cb_idx] &&
 		  MptDeviceDriverHandlers[cb_idx]->remove) {
 			MptDeviceDriverHandlers[cb_idx]->remove(pdev);
@@ -5933,7 +5933,7 @@ procmpt_version_read(char *buf, char **start, off_t offset, int request, int *eo
 	len += sprintf(buf+len, "  Fusion MPT base driver\n");
 
 	scsi = fc = sas = lan = ctl = targ = dmp = 0;
-	for (cb_idx=MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
+	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
 		drvname = NULL;
 		if (MptCallbacks[cb_idx]) {
 			switch (MptDriverClass[cb_idx]) {
@@ -6676,7 +6676,7 @@ ProcessEventNotification(MPT_ADAPTER *ioc, EventNotificationReply_t *pEventReply
 	/*
 	 *  Call each currently registered protocol event handler.
 	 */
-	for (cb_idx=MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
+	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
 		if (MptEvHandlers[cb_idx]) {
 			devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Routing Event to event handler #%d\n",
 					ioc->name, cb_idx));
