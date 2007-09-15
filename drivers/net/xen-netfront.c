@@ -1617,11 +1617,8 @@ static void backend_changed(struct xenbus_device *dev,
 
 static struct ethtool_ops xennet_ethtool_ops =
 {
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = xennet_set_sg,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = xennet_set_tso,
 	.get_link = ethtool_op_get_link,
 };

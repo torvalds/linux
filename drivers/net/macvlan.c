@@ -282,10 +282,6 @@ static u32 macvlan_ethtool_get_rx_csum(struct net_device *dev)
 static const struct ethtool_ops macvlan_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= macvlan_ethtool_get_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_tso		= ethtool_op_get_tso,
-	.get_ufo		= ethtool_op_get_ufo,
-	.get_sg			= ethtool_op_get_sg,
 	.get_drvinfo		= macvlan_ethtool_get_drvinfo,
 };
 

@@ -1634,9 +1634,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.set_pauseparam = set_pauseparam,
 	.get_rx_csum = get_rx_csum,
 	.set_rx_csum = set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = ethtool_op_set_sg,
 	.get_link = ethtool_op_get_link,
 	.get_strings = get_strings,
@@ -1647,7 +1645,6 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs_len = get_regs_len,
 	.get_regs = get_regs,
 	.get_wol = get_wol,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = ethtool_op_set_tso,
 };
 

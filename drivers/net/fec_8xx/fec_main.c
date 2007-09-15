@@ -1041,9 +1041,7 @@ static const struct ethtool_ops fec_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
 	.get_msglevel	= fec_get_msglevel,
 	.set_msglevel	= fec_set_msglevel,
-	.get_tx_csum	= ethtool_op_get_tx_csum,
 	.set_tx_csum	= ethtool_op_set_tx_csum,	/* local! */
-	.get_sg		= ethtool_op_get_sg,
 	.set_sg		= ethtool_op_set_sg,
 	.get_regs	= fec_get_regs,
 };

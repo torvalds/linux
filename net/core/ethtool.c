@@ -893,21 +893,27 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GTXCSUM:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       dev->ethtool_ops->get_tx_csum);
+				       (dev->ethtool_ops->get_tx_csum ?
+					dev->ethtool_ops->get_tx_csum :
+					ethtool_op_get_tx_csum));
 		break;
 	case ETHTOOL_STXCSUM:
 		rc = ethtool_set_tx_csum(dev, useraddr);
 		break;
 	case ETHTOOL_GSG:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       dev->ethtool_ops->get_sg);
+				       (dev->ethtool_ops->get_sg ?
+					dev->ethtool_ops->get_sg :
+					ethtool_op_get_sg));
 		break;
 	case ETHTOOL_SSG:
 		rc = ethtool_set_sg(dev, useraddr);
 		break;
 	case ETHTOOL_GTSO:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       dev->ethtool_ops->get_tso);
+				       (dev->ethtool_ops->get_tso ?
+					dev->ethtool_ops->get_tso :
+					ethtool_op_get_tso));
 		break;
 	case ETHTOOL_STSO:
 		rc = ethtool_set_tso(dev, useraddr);
@@ -929,7 +935,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GUFO:
 		rc = ethtool_get_value(dev, useraddr, ethcmd,
-				       dev->ethtool_ops->get_ufo);
+				       (dev->ethtool_ops->get_ufo ?
+					dev->ethtool_ops->get_ufo :
+					ethtool_op_get_ufo));
 		break;
 	case ETHTOOL_SUFO:
 		rc = ethtool_set_ufo(dev, useraddr);

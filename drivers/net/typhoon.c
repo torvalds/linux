@@ -1236,11 +1236,8 @@ static const struct ethtool_ops typhoon_ethtool_ops = {
 	.set_wol		= typhoon_set_wol,
 	.get_link		= ethtool_op_get_link,
 	.get_rx_csum		= typhoon_get_rx_csum,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.set_tx_csum		= ethtool_op_set_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
-	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_ringparam		= typhoon_get_ringparam,
 };

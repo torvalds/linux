@@ -1494,8 +1494,6 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_link		= netdev_get_link,
 	.get_msglevel		= netdev_get_msglevel,
 	.set_msglevel		= netdev_set_msglevel,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.begin			= ethtool_begin,
 	.complete		= ethtool_complete
 };

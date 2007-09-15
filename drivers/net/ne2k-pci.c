@@ -635,8 +635,6 @@ static void ne2k_pci_get_drvinfo(struct net_device *dev,
 
 static const struct ethtool_ops ne2k_pci_ethtool_ops = {
 	.get_drvinfo		= ne2k_pci_get_drvinfo,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
 };
 
 static void __devexit ne2k_pci_remove_one (struct pci_dev *pdev)

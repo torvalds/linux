@@ -1396,13 +1396,9 @@ static struct ethtool_ops sc92031_ethtool_ops = {
 	.set_wol		= sc92031_ethtool_set_wol,
 	.nway_reset		= sc92031_ethtool_nway_reset,
 	.get_link		= ethtool_op_get_link,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tso		= ethtool_op_get_tso,
 	.get_strings		= sc92031_ethtool_get_strings,
 	.get_stats_count	= sc92031_ethtool_get_stats_count,
 	.get_ethtool_stats	= sc92031_ethtool_get_ethtool_stats,
-	.get_ufo		= ethtool_op_get_ufo,
 };
 
 static int __devinit sc92031_probe(struct pci_dev *pdev,

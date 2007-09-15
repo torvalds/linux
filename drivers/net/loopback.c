@@ -192,7 +192,6 @@ static u32 always_on(struct net_device *dev)
 
 static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= always_on,
-	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_tx_csum		= always_on,
 	.get_sg			= always_on,

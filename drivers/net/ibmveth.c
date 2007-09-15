@@ -821,15 +821,11 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.get_link		= netdev_get_link,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
 	.set_tx_csum		= ibmveth_set_tx_csum,
 	.get_rx_csum		= ibmveth_get_rx_csum,
 	.set_rx_csum		= ibmveth_set_rx_csum,
-	.get_tso			= ethtool_op_get_tso,
-	.get_ufo			= ethtool_op_get_ufo,
 	.get_strings		= ibmveth_get_strings,
-	.get_stats_count		= ibmveth_get_stats_count,
+	.get_stats_count	= ibmveth_get_stats_count,
 	.get_ethtool_stats	= ibmveth_get_ethtool_stats,
 };
 

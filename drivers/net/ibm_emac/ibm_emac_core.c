@@ -1900,8 +1900,6 @@ static const struct ethtool_ops emac_ethtool_ops = {
 	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
 
 	.get_link = ethtool_op_get_link,
-	.get_tx_csum = ethtool_op_get_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 };
 
 static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
