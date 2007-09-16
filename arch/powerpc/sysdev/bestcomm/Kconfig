@@ -16,3 +16,10 @@ config PPC_BESTCOMM
 	  If you want to use drivers that require DMA operations,
 	  answer Y or M. Otherwise say N.
 
+config PPC_BESTCOMM_ATA
+	tristate "Bestcomm ATA task support"
+	depends on PPC_BESTCOMM
+	default n
+	help
+	  This option enables the support for the ATA task.
+
