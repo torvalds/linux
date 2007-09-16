@@ -860,7 +860,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	/* Copy the data if there is no space for the header or if it's
 	 * read-only.
 	 */
-	if (skb_cow(skb, sizeof(*ph) + dev->hard_header_len))
+	if (skb_cow_head(skb, sizeof(*ph) + dev->hard_header_len))
 		goto abort;
 
 	__skb_push(skb, sizeof(*ph));
