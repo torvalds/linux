@@ -172,6 +172,18 @@ tun_net_mclist(struct net_device *dev)
 	}
 }
 
+#define MIN_MTU 68
+#define MAX_MTU 65535
+
+static int
+tun_net_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if (new_mtu < MIN_MTU || new_mtu + dev->hard_header_len > MAX_MTU)
+		return -EINVAL;
+	dev->mtu = new_mtu;
+	return 0;
+}
+
 /* Initialize net device. */
 static void tun_net_init(struct net_device *dev)
 {
@@ -183,6 +195,7 @@ static void tun_net_init(struct net_device *dev)
 		dev->hard_header_len = 0;
 		dev->addr_len = 0;
 		dev->mtu = 1500;
+		dev->change_mtu = tun_net_change_mtu;
 
 		/* Zero header length */
 		dev->type = ARPHRD_NONE;
@@ -195,6 +208,7 @@ static void tun_net_init(struct net_device *dev)
 		dev->set_multicast_list = tun_net_mclist;
 
 		ether_setup(dev);
+		dev->change_mtu = tun_net_change_mtu;
 
 		/* random address already created for us by tun_set_iff, use it */
 		memcpy(dev->dev_addr, tun->dev_addr, min(sizeof(tun->dev_addr), sizeof(dev->dev_addr)) );
