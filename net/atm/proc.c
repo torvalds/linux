@@ -176,7 +176,7 @@ static void pvc_info(struct seq_file *seq, struct atm_vcc *vcc)
 
 	seq_printf(seq, "%3d %3d %5d %-3s %7d %-5s %7d %-6s",
 	    vcc->dev->number,vcc->vpi,vcc->vci,
-	    vcc->qos.aal >= sizeof(aal_name)/sizeof(aal_name[0]) ? "err" :
+	    vcc->qos.aal >= ARRAY_SIZE(aal_name) ? "err" :
 	    aal_name[vcc->qos.aal],vcc->qos.rxtp.min_pcr,
 	    class_name[vcc->qos.rxtp.traffic_class],vcc->qos.txtp.min_pcr,
 	    class_name[vcc->qos.txtp.traffic_class]);
