@@ -76,8 +76,6 @@ static struct fib4_rule local_rule = {
 	},
 };
 
-static LIST_HEAD(fib4_rules);
-
 #ifdef CONFIG_NET_CLS_ROUTE
 u32 fib_rules_tclass(struct fib_result *res)
 {
@@ -279,9 +277,9 @@ static u32 fib4_rule_default_pref(void)
 	struct list_head *pos;
 	struct fib_rule *rule;
 
-	if (!list_empty(&fib4_rules)) {
-		pos = fib4_rules.next;
-		if (pos->next != &fib4_rules) {
+	if (!list_empty(&fib4_rules_ops.rules_list)) {
+		pos = fib4_rules_ops.rules_list.next;
+		if (pos->next != &fib4_rules_ops.rules_list) {
 			rule = list_entry(pos->next, struct fib_rule, list);
 			if (rule->pref)
 				return rule->pref - 1;
@@ -317,15 +315,15 @@ static struct fib_rules_ops fib4_rules_ops = {
 	.flush_cache	= fib4_rule_flush_cache,
 	.nlgroup	= RTNLGRP_IPV4_RULE,
 	.policy		= fib4_rule_policy,
-	.rules_list	= &fib4_rules,
+	.rules_list	= LIST_HEAD_INIT(fib4_rules_ops.rules_list),
 	.owner		= THIS_MODULE,
 };
 
 void __init fib4_rules_init(void)
 {
-	list_add_tail(&local_rule.common.list, &fib4_rules);
-	list_add_tail(&main_rule.common.list, &fib4_rules);
-	list_add_tail(&default_rule.common.list, &fib4_rules);
+	list_add_tail(&local_rule.common.list, &fib4_rules_ops.rules_list);
+	list_add_tail(&main_rule.common.list, &fib4_rules_ops.rules_list);
+	list_add_tail(&default_rule.common.list, &fib4_rules_ops.rules_list);
 
 	fib_rules_register(&fib4_rules_ops);
 }

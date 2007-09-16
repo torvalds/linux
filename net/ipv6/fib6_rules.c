@@ -50,8 +50,6 @@ static struct fib6_rule local_rule = {
 	},
 };
 
-static LIST_HEAD(fib6_rules);
-
 struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 				   pol_lookup_t lookup)
 {
@@ -268,14 +266,14 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.nlmsg_payload		= fib6_rule_nlmsg_payload,
 	.nlgroup		= RTNLGRP_IPV6_RULE,
 	.policy			= fib6_rule_policy,
-	.rules_list		= &fib6_rules,
+	.rules_list		= LIST_HEAD_INIT(fib6_rules_ops.rules_list),
 	.owner			= THIS_MODULE,
 };
 
 void __init fib6_rules_init(void)
 {
-	list_add_tail(&local_rule.common.list, &fib6_rules);
-	list_add_tail(&main_rule.common.list, &fib6_rules);
+	list_add_tail(&local_rule.common.list, &fib6_rules_ops.rules_list);
+	list_add_tail(&main_rule.common.list, &fib6_rules_ops.rules_list);
 
 	fib_rules_register(&fib6_rules_ops);
 }

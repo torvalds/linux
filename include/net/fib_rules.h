@@ -65,7 +65,7 @@ struct fib_rules_ops
 
 	int			nlgroup;
 	const struct nla_policy	*policy;
-	struct list_head	*rules_list;
+	struct list_head	rules_list;
 	struct module		*owner;
 };
 
