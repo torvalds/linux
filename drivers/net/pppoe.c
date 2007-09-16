@@ -848,18 +848,11 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 {
 	struct pppox_sock *po = pppox_sk(sk);
 	struct net_device *dev = po->pppoe_dev;
-	struct pppoe_hdr hdr;
 	struct pppoe_hdr *ph;
 	int data_len = skb->len;
 
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
 		goto abort;
-
-	hdr.ver	= 1;
-	hdr.type = 1;
-	hdr.code = 0;
-	hdr.sid	= po->num;
-	hdr.length = htons(skb->len);
 
 	if (!dev)
 		goto abort;
@@ -870,12 +863,17 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	if (skb_cow(skb, sizeof(*ph) + dev->hard_header_len))
 		goto abort;
 
-	ph = (struct pppoe_hdr *) skb_push(skb, sizeof(struct pppoe_hdr));
-	memcpy(ph, &hdr, sizeof(struct pppoe_hdr));
-	skb->protocol = __constant_htons(ETH_P_PPP_SES);
-
+	__skb_push(skb, sizeof(*ph));
 	skb_reset_network_header(skb);
 
+	ph = pppoe_hdr(skb);
+	ph->ver	= 1;
+	ph->type = 1;
+	ph->code = 0;
+	ph->sid	= po->num;
+	ph->length = htons(data_len);
+
+	skb->protocol = __constant_htons(ETH_P_PPP_SES);
 	skb->dev = dev;
 
 	dev->hard_header(skb, dev, ETH_P_PPP_SES,
