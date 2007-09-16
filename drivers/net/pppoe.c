@@ -850,9 +850,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	struct net_device *dev = po->pppoe_dev;
 	struct pppoe_hdr hdr;
 	struct pppoe_hdr *ph;
-	int headroom = skb_headroom(skb);
 	int data_len = skb->len;
-	struct sk_buff *skb2;
 
 	if (sock_flag(sk, SOCK_DEAD) || !(sk->sk_state & PPPOX_CONNECTED))
 		goto abort;
@@ -866,53 +864,31 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	if (!dev)
 		goto abort;
 
-	/* Copy the skb if there is no space for the header. */
-	if (headroom < (sizeof(struct pppoe_hdr) + dev->hard_header_len)) {
-		skb2 = dev_alloc_skb(32+skb->len +
-				     sizeof(struct pppoe_hdr) +
-				     dev->hard_header_len);
-
-		if (skb2 == NULL)
-			goto abort;
-
-		skb_reserve(skb2, dev->hard_header_len + sizeof(struct pppoe_hdr));
-		skb_copy_from_linear_data(skb, skb_put(skb2, skb->len),
-					  skb->len);
-	} else {
-		/* Make a clone so as to not disturb the original skb,
-		 * give dev_queue_xmit something it can free.
-		 */
-		skb2 = skb_clone(skb, GFP_ATOMIC);
-
-		if (skb2 == NULL)
-			goto abort;
-	}
-
-	ph = (struct pppoe_hdr *) skb_push(skb2, sizeof(struct pppoe_hdr));
-	memcpy(ph, &hdr, sizeof(struct pppoe_hdr));
-	skb2->protocol = __constant_htons(ETH_P_PPP_SES);
-
-	skb_reset_network_header(skb2);
-
-	skb2->dev = dev;
-
-	dev->hard_header(skb2, dev, ETH_P_PPP_SES,
-			 po->pppoe_pa.remote, NULL, data_len);
-
-	/* We're transmitting skb2, and assuming that dev_queue_xmit
-	 * will free it.  The generic ppp layer however, is expecting
-	 * that we give back 'skb' (not 'skb2') in case of failure,
-	 * but free it in case of success.
+	/* Copy the data if there is no space for the header or if it's
+	 * read-only.
 	 */
-
-	if (dev_queue_xmit(skb2) < 0)
+	if (skb_cow(skb, sizeof(*ph) + dev->hard_header_len))
 		goto abort;
 
-	kfree_skb(skb);
+	ph = (struct pppoe_hdr *) skb_push(skb, sizeof(struct pppoe_hdr));
+	memcpy(ph, &hdr, sizeof(struct pppoe_hdr));
+	skb->protocol = __constant_htons(ETH_P_PPP_SES);
+
+	skb_reset_network_header(skb);
+
+	skb->dev = dev;
+
+	dev->hard_header(skb, dev, ETH_P_PPP_SES,
+			 po->pppoe_pa.remote, NULL, data_len);
+
+	if (dev_queue_xmit(skb) < 0)
+		goto abort;
+
 	return 1;
 
 abort:
-	return 0;
+	kfree_skb(skb);
+	return 1;
 }
 
 
