@@ -385,11 +385,11 @@ static int pppoe_rcv(struct sk_buff *skb,
 	struct pppoe_hdr *ph;
 	struct pppox_sock *po;
 
-	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
-		goto drop;
-
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
+
+	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
+		goto drop;
 
 	ph = pppoe_hdr(skb);
 
