@@ -2146,7 +2146,7 @@ void bcm43xx_radio_turn_off(struct bcm43xx_private *bcm)
 	} else
 		bcm43xx_phy_write(bcm, 0x0015, 0xAA00);
 	radio->enabled = 0;
-	dprintk(KERN_INFO PFX "Radio turned off\n");
+	dprintk(KERN_INFO PFX "Radio initialized\n");
 	bcm43xx_leds_update(bcm, 0);
 }
 
