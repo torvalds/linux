@@ -1222,7 +1222,7 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&mp->lock, flags);
 
 	eth_tx_submit_descs_for_skb(mp, skb);
-	stats->tx_bytes = skb->len;
+	stats->tx_bytes += skb->len;
 	stats->tx_packets++;
 	dev->trans_start = jiffies;
 

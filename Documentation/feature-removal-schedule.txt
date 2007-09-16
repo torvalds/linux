@@ -298,3 +298,11 @@ Why:	All mthca hardware also supports MSI-X, which provides
 Who:	Roland Dreier <rolandd@cisco.com>
 
 ---------------------------
+
+What:   sk98lin network driver
+When:   Feburary 2008
+Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
+	replaced by the skge driver. 
+Who:    Stephen Hemminger <shemminger@linux-foundation.org>
+
+---------------------------
