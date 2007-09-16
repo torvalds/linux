@@ -30,3 +30,10 @@ config PPC_BESTCOMM_FEC
 	help
 	  This option enables the support for the FEC tasks.
 
+config PPC_BESTCOMM_GEN_BD
+	tristate "Bestcomm GenBD tasks support"
+	depends on PPC_BESTCOMM
+	default n
+	help
+	  This option enables the support for the GenBD tasks.
+
