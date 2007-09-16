@@ -37,6 +37,7 @@ static struct pci_device_id p54p_table[] __devinitdata = {
 	{ PCI_DEVICE(0x1260, 0x3877) },
 	/* Intersil PRISM Javelin/Xbow Wireless LAN adapter */
 	{ PCI_DEVICE(0x1260, 0x3886) },
+	{ },
 };
 
 MODULE_DEVICE_TABLE(pci, p54p_table);
