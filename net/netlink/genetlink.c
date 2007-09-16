@@ -485,7 +485,7 @@ static void genl_rcv(struct sock *sk, int len)
 	do {
 		if (genl_trylock())
 			return;
-		netlink_run_queue(sk, &qlen, genl_rcv_msg);
+		qlen = netlink_run_queue(sk, qlen, genl_rcv_msg);
 		genl_unlock();
 	} while (qlen && genl_sock && genl_sock->sk_receive_queue.qlen);
 }

@@ -1887,7 +1887,7 @@ static void xfrm_netlink_rcv(struct sock *sk, int len)
 
 	do {
 		mutex_lock(&xfrm_cfg_mutex);
-		netlink_run_queue(sk, &qlen, &xfrm_user_rcv_msg);
+		qlen = netlink_run_queue(sk, qlen, &xfrm_user_rcv_msg);
 		mutex_unlock(&xfrm_cfg_mutex);
 
 	} while (qlen);

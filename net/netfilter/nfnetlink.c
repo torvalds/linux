@@ -248,7 +248,7 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 	do {
 		if (nfnl_trylock())
 			return;
-		netlink_run_queue(sk, &qlen, nfnetlink_rcv_msg);
+		qlen = netlink_run_queue(sk, qlen, nfnetlink_rcv_msg);
 		__nfnl_unlock();
 	} while (qlen);
 }

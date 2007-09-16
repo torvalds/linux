@@ -845,7 +845,7 @@ static void inet_diag_rcv(struct sock *sk, int len)
 
 	do {
 		mutex_lock(&inet_diag_mutex);
-		netlink_run_queue(sk, &qlen, &inet_diag_rcv_msg);
+		qlen = netlink_run_queue(sk, qlen, &inet_diag_rcv_msg);
 		mutex_unlock(&inet_diag_mutex);
 	} while (qlen);
 }

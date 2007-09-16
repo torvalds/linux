@@ -1320,7 +1320,7 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 
 	do {
 		mutex_lock(&rtnl_mutex);
-		netlink_run_queue(sk, &qlen, &rtnetlink_rcv_msg);
+		qlen = netlink_run_queue(sk, qlen, &rtnetlink_rcv_msg);
 		mutex_unlock(&rtnl_mutex);
 
 		netdev_run_todo();

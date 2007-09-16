@@ -1629,7 +1629,7 @@ skip:
 /**
  * nelink_run_queue - Process netlink receive queue.
  * @sk: Netlink socket containing the queue
- * @qlen: Place to store queue length upon entry
+ * @qlen: Initial queue length
  * @cb: Callback function invoked for each netlink message found
  *
  * Processes as much as there was in the queue upon entry and invokes
@@ -1639,35 +1639,37 @@ skip:
  * returns with a qlen != 0.
  *
  * qlen must be initialized to 0 before the initial entry, afterwards
- * the function may be called repeatedly until qlen reaches 0.
+ * the function may be called repeatedly until the returned qlen is 0.
  *
  * The callback function may return -EINTR to signal that processing
  * of netlink messages shall be interrupted. In this case the message
  * currently being processed will NOT be requeued onto the receive
  * queue.
  */
-void netlink_run_queue(struct sock *sk, unsigned int *qlen,
-		       int (*cb)(struct sk_buff *, struct nlmsghdr *))
+unsigned int netlink_run_queue(struct sock *sk, unsigned int qlen,
+			       int (*cb)(struct sk_buff *, struct nlmsghdr *))
 {
 	struct sk_buff *skb;
 
-	if (!*qlen || *qlen > skb_queue_len(&sk->sk_receive_queue))
-		*qlen = skb_queue_len(&sk->sk_receive_queue);
+	if (!qlen || qlen > skb_queue_len(&sk->sk_receive_queue))
+		qlen = skb_queue_len(&sk->sk_receive_queue);
 
-	for (; *qlen; (*qlen)--) {
+	for (; qlen; qlen--) {
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		if (netlink_rcv_skb(skb, cb)) {
 			if (skb->len)
 				skb_queue_head(&sk->sk_receive_queue, skb);
 			else {
 				kfree_skb(skb);
-				(*qlen)--;
+				qlen--;
 			}
 			break;
 		}
 
 		kfree_skb(skb);
 	}
+
+	return qlen;
 }
 
 /**
