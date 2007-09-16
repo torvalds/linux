@@ -52,14 +52,9 @@ static int int_max = INT_MAX;
 static long sack_timer_min = 1;
 static long sack_timer_max = 500;
 
-int sysctl_sctp_mem[3];
-int sysctl_sctp_rmem[3];
-int sysctl_sctp_wmem[3];
-
-/*
- * per assoc memory limitationf for sends
- */
-int sysctl_sctp_wmem[3];
+extern int sysctl_sctp_mem[3];
+extern int sysctl_sctp_rmem[3];
+extern int sysctl_sctp_wmem[3];
 
 static ctl_table sctp_table[] = {
 	{
