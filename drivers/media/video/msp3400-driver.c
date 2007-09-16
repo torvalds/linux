@@ -812,7 +812,7 @@ static int msp_probe(struct i2c_client *client)
 
 	if (msp_reset(client) == -1) {
 		v4l_dbg(1, msp_debug, client, "msp3400 not found\n");
-		return 0;
+		return -ENODEV;
 	}
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
@@ -844,7 +844,7 @@ static int msp_probe(struct i2c_client *client)
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
 		v4l_dbg(1, msp_debug, client, "not an msp3400 (cannot read chip version)\n");
 		kfree(state);
-		return 0;
+		return -ENODEV;
 	}
 
 	msp_set_audio(client);

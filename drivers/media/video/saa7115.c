@@ -1459,7 +1459,7 @@ static int saa7115_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+		return -EIO;
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
@@ -1478,7 +1478,7 @@ static int saa7115_probe(struct i2c_client *client)
 	if (memcmp(name, "1f711", 5)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
 			client->addr << 1, name);
-		return 0;
+		return -ENODEV;
 	}
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);

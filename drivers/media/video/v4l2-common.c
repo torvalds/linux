@@ -1037,7 +1037,7 @@ int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver 
 	else {
 		kfree(client);
 	}
-	return err;
+	return err != -ENOMEM ? 0 : err;
 }
 
 /* ----------------------------------------------------------------- */

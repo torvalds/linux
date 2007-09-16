@@ -1078,6 +1078,10 @@ static int cx25840_probe(struct i2c_client *client)
 	u32 id;
 	u16 device_id;
 
+	/* Check if the adapter supports the needed features */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
+
 	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
@@ -1093,7 +1097,7 @@ static int cx25840_probe(struct i2c_client *client)
 	}
 	else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		return 0;
+		return -ENODEV;
 	}
 
 	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);

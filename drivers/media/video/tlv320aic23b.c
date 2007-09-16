@@ -133,7 +133,7 @@ static int tlv320aic23b_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+		return -EIO;
 
 	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 

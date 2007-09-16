@@ -671,7 +671,7 @@ static int saa7127_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+		return -EIO;
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
@@ -685,12 +685,12 @@ static int saa7127_probe(struct i2c_client *client)
 	if ((saa7127_read(client, 0) & 0xe4) != 0 ||
 			(saa7127_read(client, 0x29) & 0x3f) != 0x1d) {
 		v4l_dbg(1, debug, client, "saa7127 not found\n");
-		return 0;
+		return -ENODEV;
 	}
 	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
 
 	if (state == NULL) {
-		return (-ENOMEM);
+		return -ENOMEM;
 	}
 
 	i2c_set_clientdata(client, state);

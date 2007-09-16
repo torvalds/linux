@@ -264,6 +264,10 @@ static int wm8739_probe(struct i2c_client *client)
 {
 	struct wm8739_state *state;
 
+	/* Check if the adapter supports the needed features */
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
+
 	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8739_state), GFP_KERNEL);

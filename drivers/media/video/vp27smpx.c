@@ -131,7 +131,7 @@ static int vp27smpx_probe(struct i2c_client *client)
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+		return -EIO;
 
 	snprintf(client->name, sizeof(client->name) - 1, "vp27smpx");
 
