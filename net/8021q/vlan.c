@@ -562,8 +562,6 @@ static int register_vlan_device(struct net_device *real_dev,
 	if (err < 0)
 		goto out_free_newdev;
 
-	/* Account for reference in struct vlan_dev_info */
-	dev_hold(real_dev);
 #ifdef VLAN_DEBUG
 	printk(VLAN_DBG "Allocated new device successfully, returning.\n");
 #endif
