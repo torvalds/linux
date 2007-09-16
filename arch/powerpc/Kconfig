@@ -698,3 +698,7 @@ source "crypto/Kconfig"
 config PPC_CLOCK
 	bool
 	default n
+
+config PPC_LIB_RHEAP
+	bool
+
