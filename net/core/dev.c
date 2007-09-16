@@ -4268,32 +4268,39 @@ int netdev_compute_features(unsigned long all, unsigned long one)
 }
 EXPORT_SYMBOL(netdev_compute_features);
 
+static struct hlist_head *netdev_create_hash(void)
+{
+	int i;
+	struct hlist_head *hash;
+
+	hash = kmalloc(sizeof(*hash) * NETDEV_HASHENTRIES, GFP_KERNEL);
+	if (hash != NULL)
+		for (i = 0; i < NETDEV_HASHENTRIES; i++)
+			INIT_HLIST_HEAD(&hash[i]);
+
+	return hash;
+}
+
 /* Initialize per network namespace state */
 static int netdev_init(struct net *net)
 {
-	int i;
 	INIT_LIST_HEAD(&net->dev_base_head);
 	rwlock_init(&dev_base_lock);
 
-	net->dev_name_head = kmalloc(
-		sizeof(*net->dev_name_head)*NETDEV_HASHENTRIES, GFP_KERNEL);
-	if (!net->dev_name_head)
-		return -ENOMEM;
+	net->dev_name_head = netdev_create_hash();
+	if (net->dev_name_head == NULL)
+		goto err_name;
 
-	net->dev_index_head = kmalloc(
-		sizeof(*net->dev_index_head)*NETDEV_HASHENTRIES, GFP_KERNEL);
-	if (!net->dev_index_head) {
-		kfree(net->dev_name_head);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < NETDEV_HASHENTRIES; i++)
-		INIT_HLIST_HEAD(&net->dev_name_head[i]);
-
-	for (i = 0; i < NETDEV_HASHENTRIES; i++)
-		INIT_HLIST_HEAD(&net->dev_index_head[i]);
+	net->dev_index_head = netdev_create_hash();
+	if (net->dev_index_head == NULL)
+		goto err_idx;
 
 	return 0;
+
+err_idx:
+	kfree(net->dev_name_head);
+err_name:
+	return -ENOMEM;
 }
 
 static void netdev_exit(struct net *net)
