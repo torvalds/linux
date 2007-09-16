@@ -1155,7 +1155,9 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 		       __u8 use_as_src, gfp_t gfp);
-int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
+int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
+			void (*rcu_call)(struct rcu_head *,
+					  void (*func)(struct rcu_head *)));
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -1226,9 +1228,6 @@ struct sctp_ep_common {
 	 * bind_addr.address_list is our set of local IP addresses.
 	 */
 	struct sctp_bind_addr bind_addr;
-
-	/* Protection during address list comparisons. */
-	rwlock_t   addr_lock;
 };
 
 

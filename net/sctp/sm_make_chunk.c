@@ -1531,7 +1531,7 @@ no_hmac:
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
 		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
-				   GFP_ATOMIC);
+				GFP_ATOMIC);
 	}
 
 	retval->next_tsn = retval->c.initial_tsn;
@@ -2613,22 +2613,16 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
-		sctp_local_bh_disable();
-		sctp_write_lock(&asoc->base.addr_lock);
-		list_for_each(pos, &bp->address_list) {
-			saddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+		/* This is always done in BH context with a socket lock
+		 * held, so the list can not change.
+		 */
+		list_for_each_entry(saddr, &bp->address_list, list) {
 			if (sctp_cmp_addr_exact(&saddr->a, &addr))
 				saddr->use_as_src = 1;
 		}
-		sctp_write_unlock(&asoc->base.addr_lock);
-		sctp_local_bh_enable();
 		break;
 	case SCTP_PARAM_DEL_IP:
-		sctp_local_bh_disable();
-		sctp_write_lock(&asoc->base.addr_lock);
-		retval = sctp_del_bind_addr(bp, &addr);
-		sctp_write_unlock(&asoc->base.addr_lock);
-		sctp_local_bh_enable();
+		retval = sctp_del_bind_addr(bp, &addr, call_rcu_bh);
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
 			transport = list_entry(pos, struct sctp_transport,
 						 transports);

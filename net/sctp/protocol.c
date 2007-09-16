@@ -224,7 +224,7 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
 				error = sctp_add_bind_addr(bp, &addr->a, 1,
-							   GFP_ATOMIC);
+						    GFP_ATOMIC);
 				if (error)
 					goto end_copy;
 			}
@@ -428,9 +428,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	struct rtable *rt;
 	struct flowi fl;
 	struct sctp_bind_addr *bp;
-	rwlock_t *addr_lock;
 	struct sctp_sockaddr_entry *laddr;
-	struct list_head *pos;
 	struct dst_entry *dst = NULL;
 	union sctp_addr dst_saddr;
 
@@ -459,23 +457,20 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		goto out;
 
 	bp = &asoc->base.bind_addr;
-	addr_lock = &asoc->base.addr_lock;
 
 	if (dst) {
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
-		sctp_read_lock(addr_lock);
-		list_for_each(pos, &bp->address_list) {
-			laddr = list_entry(pos, struct sctp_sockaddr_entry,
-					   list);
-			if (!laddr->use_as_src)
+		rcu_read_lock();
+		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+			if (!laddr->valid || !laddr->use_as_src)
 				continue;
 			sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
 		}
-		sctp_read_unlock(addr_lock);
+		rcu_read_unlock();
 
 		/* None of the bound addresses match the source address of the
 		 * dst. So release it.
@@ -487,10 +482,10 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	/* Walk through the bind address list and try to get a dst that
 	 * matches a bind address as the source address.
 	 */
-	sctp_read_lock(addr_lock);
-	list_for_each(pos, &bp->address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
 		if ((laddr->use_as_src) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
@@ -502,7 +497,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	}
 
 out_unlock:
-	sctp_read_unlock(addr_lock);
+	rcu_read_unlock();
 out:
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%u.%u.%u.%u, rt_src:%u.%u.%u.%u\n",
