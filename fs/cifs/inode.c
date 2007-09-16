@@ -930,8 +930,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			d_drop(direntry);
 		} else {
 			int obj_type;
-			if (pInfo->Type == -1) /* no return info - go query */
+			if (pInfo->Type == -1) /* no return info - go query */ {
+				kfree(pInfo);
 				goto mkdir_get_info;
+			}
 /*BB check (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID ) to see if need
 	to set uid/gid */
 			inc_nlink(inode);
@@ -941,8 +943,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				direntry->d_op = &cifs_dentry_ops;
 
 			newinode = new_inode(inode->i_sb);
-			if (newinode == NULL)
+			if (newinode == NULL) {
+				kfree(pInfo);
 				goto mkdir_get_info;
+			}
 			/* Is an i_ino of zero legal? */
 			/* Are there sanity checks we can use to ensure that
 			   the server is really filling in that field? */
