@@ -217,6 +217,7 @@ static void change_clocksource(void)
 }
 #else
 static inline void change_clocksource(void) { }
+static inline s64 __get_nsec_offset(void) { return 0; }
 #endif
 
 /**
@@ -280,6 +281,8 @@ void __init timekeeping_init(void)
 static int timekeeping_suspended;
 /* time in seconds when suspend began */
 static unsigned long timekeeping_suspend_time;
+/* xtime offset when we went into suspend */
+static s64 timekeeping_suspend_nsecs;
 
 /**
  * timekeeping_resume - Resumes the generic timekeeping subsystem.
@@ -305,6 +308,8 @@ static int timekeeping_resume(struct sys_device *dev)
 		wall_to_monotonic.tv_sec -= sleep_length;
 		total_sleep_time += sleep_length;
 	}
+	/* Make sure that we have the correct xtime reference */
+	timespec_add_ns(&xtime, timekeeping_suspend_nsecs);
 	/* re-base the last cycle value */
 	clock->cycle_last = clocksource_read(clock);
 	clock->error = 0;
@@ -328,6 +333,8 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 	timekeeping_suspend_time = read_persistent_clock();
 
 	write_seqlock_irqsave(&xtime_lock, flags);
+	/* Get the current xtime offset */
+	timekeeping_suspend_nsecs = __get_nsec_offset();
 	timekeeping_suspended = 1;
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
