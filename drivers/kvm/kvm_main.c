@@ -3501,7 +3501,9 @@ int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 	kvm_preempt_ops.sched_in = kvm_sched_in;
 	kvm_preempt_ops.sched_out = kvm_sched_out;
 
-	return r;
+	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
+
+	return 0;
 
 out_free:
 	kmem_cache_destroy(kvm_vcpu_cache);

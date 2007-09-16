@@ -31,6 +31,7 @@
 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT64_LEVEL_MASK(level)
+	#define PT_LEVEL_BITS PT64_LEVEL_BITS
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
 	#else
@@ -45,6 +46,7 @@
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
 	#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
+	#define PT_LEVEL_BITS PT32_LEVEL_BITS
 	#define PT_MAX_FULL_LEVELS 2
 #else
 	#error Invalid PTTYPE value
@@ -211,12 +213,12 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 {
 	hpa_t paddr;
 	int dirty = gpte & PT_DIRTY_MASK;
-	u64 spte = *shadow_pte;
-	int was_rmapped = is_rmap_pte(spte);
+	u64 spte;
+	int was_rmapped = is_rmap_pte(*shadow_pte);
 
 	pgprintk("%s: spte %llx gpte %llx access %llx write_fault %d"
 		 " user_fault %d gfn %lx\n",
-		 __FUNCTION__, spte, (u64)gpte, access_bits,
+		 __FUNCTION__, *shadow_pte, (u64)gpte, access_bits,
 		 write_fault, user_fault, gfn);
 
 	if (write_fault && !dirty) {
@@ -236,7 +238,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	}
 
-	spte |= PT_PRESENT_MASK | PT_ACCESSED_MASK | PT_DIRTY_MASK;
+	spte = PT_PRESENT_MASK | PT_ACCESSED_MASK | PT_DIRTY_MASK;
 	spte |= gpte & PT64_NX_MASK;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
@@ -248,10 +250,8 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		spte |= PT_USER_MASK;
 
 	if (is_error_hpa(paddr)) {
-		spte |= gaddr;
-		spte |= PT_SHADOW_IO_MARK;
-		spte &= ~PT_PRESENT_MASK;
-		set_shadow_pte(shadow_pte, spte);
+		set_shadow_pte(shadow_pte,
+			       shadow_trap_nonpresent_pte | PT_SHADOW_IO_MARK);
 		return;
 	}
 
@@ -286,6 +286,7 @@ unshadowed:
 	if (access_bits & PT_WRITABLE_MASK)
 		mark_page_dirty(vcpu->kvm, gaddr >> PAGE_SHIFT);
 
+	pgprintk("%s: setting spte %llx\n", __FUNCTION__, spte);
 	set_shadow_pte(shadow_pte, spte);
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
 	if (!was_rmapped)
@@ -304,14 +305,18 @@ static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
-			      u64 *spte, const void *pte, int bytes)
+			      u64 *spte, const void *pte, int bytes,
+			      int offset_in_pte)
 {
 	pt_element_t gpte;
 
-	if (bytes < sizeof(pt_element_t))
-		return;
 	gpte = *(const pt_element_t *)pte;
-	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK))
+	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
+		if (!offset_in_pte && !is_present_pte(gpte))
+			set_shadow_pte(spte, shadow_notrap_nonpresent_pte);
+		return;
+	}
+	if (bytes < sizeof(pt_element_t))
 		return;
 	pgprintk("%s: gpte %llx spte %p\n", __FUNCTION__, (u64)gpte, spte);
 	FNAME(set_pte)(vcpu, gpte, spte, PT_USER_MASK | PT_WRITABLE_MASK, 0,
@@ -368,7 +373,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		unsigned hugepage_access = 0;
 
 		shadow_ent = ((u64 *)__va(shadow_addr)) + index;
-		if (is_present_pte(*shadow_ent) || is_io_pte(*shadow_ent)) {
+		if (is_shadow_present_pte(*shadow_ent)) {
 			if (level == PT_PAGE_TABLE_LEVEL)
 				break;
 			shadow_addr = *shadow_ent & PT64_BASE_ADDR_MASK;
@@ -500,6 +505,26 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 	return gpa;
 }
 
+static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
+				 struct kvm_mmu_page *sp)
+{
+	int i;
+	pt_element_t *gpt;
+
+	if (sp->role.metaphysical || PTTYPE == 32) {
+		nonpaging_prefetch_page(vcpu, sp);
+		return;
+	}
+
+	gpt = kmap_atomic(gfn_to_page(vcpu->kvm, sp->gfn), KM_USER0);
+	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
+		if (is_present_pte(gpt[i]))
+			sp->spt[i] = shadow_trap_nonpresent_pte;
+		else
+			sp->spt[i] = shadow_notrap_nonpresent_pte;
+	kunmap_atomic(gpt, KM_USER0);
+}
+
 #undef pt_element_t
 #undef guest_walker
 #undef FNAME
@@ -508,4 +533,5 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 #undef SHADOW_PT_INDEX
 #undef PT_LEVEL_MASK
 #undef PT_DIR_BASE_ADDR_MASK
+#undef PT_LEVEL_BITS
 #undef PT_MAX_FULL_LEVELS
