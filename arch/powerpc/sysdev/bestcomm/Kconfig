@@ -1,0 +1,18 @@
+#
+# Kconfig options for Bestcomm
+#
+
+config PPC_BESTCOMM
+	tristate "Bestcomm DMA engine support"
+	depends on PPC_MPC52xx
+	default n
+	select PPC_LIB_RHEAP
+	help
+	  BestComm is the name of the communication coprocessor found
+	  on the Freescale MPC5200 family of processor. It's usage is
+	  optionnal for some drivers (like ATA), but required for
+	  others (like FEC).
+
+	  If you want to use drivers that require DMA operations,
+	  answer Y or M. Otherwise say N.
+

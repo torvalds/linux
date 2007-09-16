@@ -315,4 +315,6 @@ config FSL_ULI1575
 config CPM
 	bool
 
+source "arch/powerpc/sysdev/bestcomm/Kconfig"
+
 endmenu
