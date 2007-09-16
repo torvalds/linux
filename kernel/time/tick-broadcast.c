@@ -382,12 +382,23 @@ static int tick_broadcast_set_event(ktime_t expires, int force)
 
 int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 {
+	int cpu = smp_processor_id();
+
+	/*
+	 * If the CPU is marked for broadcast, enforce oneshot
+	 * broadcast mode. The jinxed VAIO does not resume otherwise.
+	 * No idea why it ends up in a lower C State during resume
+	 * without notifying the clock events layer.
+	 */
+	if (cpu_isset(cpu, tick_broadcast_mask))
+		cpu_set(cpu, tick_broadcast_oneshot_mask);
+
 	clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
 
 	if(!cpus_empty(tick_broadcast_oneshot_mask))
 		tick_broadcast_set_event(ktime_get(), 1);
 
-	return cpu_isset(smp_processor_id(), tick_broadcast_oneshot_mask);
+	return cpu_isset(cpu, tick_broadcast_oneshot_mask);
 }
 
 /*
