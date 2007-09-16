@@ -719,6 +719,9 @@ static int __init init_ipv6_mibs(void)
 	if (snmp_mib_init((void **)icmpv6_statistics, sizeof (struct icmpv6_mib),
 			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp_mib;
+	if (snmp_mib_init((void **)icmpv6msg_statistics,
+	    sizeof (struct icmpv6msg_mib), __alignof__(struct icmpv6_mib)) < 0)
+		goto err_icmpmsg_mib;
 	if (snmp_mib_init((void **)udp_stats_in6, sizeof (struct udp_mib),
 			  __alignof__(struct udp_mib)) < 0)
 		goto err_udp_mib;
@@ -730,6 +733,8 @@ static int __init init_ipv6_mibs(void)
 err_udplite_mib:
 	snmp_mib_free((void **)udp_stats_in6);
 err_udp_mib:
+	snmp_mib_free((void **)icmpv6msg_statistics);
+err_icmpmsg_mib:
 	snmp_mib_free((void **)icmpv6_statistics);
 err_icmp_mib:
 	snmp_mib_free((void **)ipv6_statistics);

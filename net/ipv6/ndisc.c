@@ -431,7 +431,7 @@ static void __ndisc_send(struct net_device *dev,
 			 struct neighbour *neigh,
 			 struct in6_addr *daddr, struct in6_addr *saddr,
 			 struct icmp6hdr *icmp6h, struct in6_addr *target,
-			 int llinfo, int icmp6_mib_outnd)
+			 int llinfo)
 {
 	struct flowi fl;
 	struct dst_entry *dst;
@@ -441,9 +441,11 @@ static void __ndisc_send(struct net_device *dev,
 	struct inet6_dev *idev;
 	int len;
 	int err;
-	u8 *opt;
+	u8 *opt, type;
 
-	ndisc_flow_init(&fl, icmp6h->icmp6_type, saddr, daddr,
+	type = icmp6h->icmp6_type;
+
+	ndisc_flow_init(&fl, type, saddr, daddr,
 			dev->ifindex);
 
 	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
@@ -504,7 +506,7 @@ static void __ndisc_send(struct net_device *dev,
 
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
 	if (!err) {
-		ICMP6_INC_STATS(idev, icmp6_mib_outnd);
+		ICMP6MSGOUT_INC_STATS(idev, type);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
 	}
 
@@ -542,8 +544,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 
 	__ndisc_send(dev, neigh, daddr, src_addr,
 		     &icmp6h, solicited_addr,
-		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0,
-		     ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS);
+		     inc_opt ? ND_OPT_TARGET_LL_ADDR : 0);
 }
 
 void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
@@ -564,8 +565,7 @@ void ndisc_send_ns(struct net_device *dev, struct neighbour *neigh,
 
 	__ndisc_send(dev, neigh, daddr, saddr,
 		     &icmp6h, solicit,
-		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0,
-		     ICMP6_MIB_OUTNEIGHBORSOLICITS);
+		     !ipv6_addr_any(saddr) ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
 
 void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
@@ -599,8 +599,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 #endif
 	__ndisc_send(dev, NULL, daddr, saddr,
 		     &icmp6h, NULL,
-		     send_sllao ? ND_OPT_SOURCE_LL_ADDR : 0,
-		     ICMP6_MIB_OUTROUTERSOLICITS);
+		     send_sllao ? ND_OPT_SOURCE_LL_ADDR : 0);
 }
 
 
@@ -1455,7 +1454,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, buff, NULL, dst->dev, dst_output);
 	if (!err) {
-		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTREDIRECTS);
+		ICMP6MSGOUT_INC_STATS(idev, NDISC_REDIRECT);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
 	}
 

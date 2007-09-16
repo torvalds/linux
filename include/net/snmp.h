@@ -88,6 +88,12 @@ struct icmpv6_mib {
 	unsigned long	mibs[ICMP6_MIB_MAX];
 } __SNMP_MIB_ALIGN__;
 
+#define ICMP6MSG_MIB_MAX  __ICMP6MSG_MIB_MAX
+struct icmpv6msg_mib {
+	unsigned long	mibs[ICMP6MSG_MIB_MAX];
+} __SNMP_MIB_ALIGN__;
+
+
 /* TCP */
 #define TCP_MIB_MAX	__TCP_MIB_MAX
 struct tcp_mib {

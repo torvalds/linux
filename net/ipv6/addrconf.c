@@ -261,9 +261,15 @@ static int snmp6_alloc_dev(struct inet6_dev *idev)
 			  sizeof(struct icmpv6_mib),
 			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp;
+	if (snmp_mib_init((void **)idev->stats.icmpv6msg,
+			  sizeof(struct icmpv6msg_mib),
+			  __alignof__(struct icmpv6msg_mib)) < 0)
+		goto err_icmpmsg;
 
 	return 0;
 
+err_icmpmsg:
+	snmp_mib_free((void **)idev->stats.icmpv6);
 err_icmp:
 	snmp_mib_free((void **)idev->stats.ipv6);
 err_ip:
@@ -272,6 +278,7 @@ err_ip:
 
 static int snmp6_free_dev(struct inet6_dev *idev)
 {
+	snmp_mib_free((void **)idev->stats.icmpv6msg);
 	snmp_mib_free((void **)idev->stats.icmpv6);
 	snmp_mib_free((void **)idev->stats.ipv6);
 	return 0;

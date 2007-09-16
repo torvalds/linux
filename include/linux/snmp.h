@@ -91,34 +91,11 @@ enum
 	ICMP6_MIB_NUM = 0,
 	ICMP6_MIB_INMSGS,			/* InMsgs */
 	ICMP6_MIB_INERRORS,			/* InErrors */
-	ICMP6_MIB_INDESTUNREACHS,		/* InDestUnreachs */
-	ICMP6_MIB_INPKTTOOBIGS,			/* InPktTooBigs */
-	ICMP6_MIB_INTIMEEXCDS,			/* InTimeExcds */
-	ICMP6_MIB_INPARMPROBLEMS,		/* InParmProblems */
-	ICMP6_MIB_INECHOS,			/* InEchos */
-	ICMP6_MIB_INECHOREPLIES,		/* InEchoReplies */
-	ICMP6_MIB_INGROUPMEMBQUERIES,		/* InGroupMembQueries */
-	ICMP6_MIB_INGROUPMEMBRESPONSES,		/* InGroupMembResponses */
-	ICMP6_MIB_INGROUPMEMBREDUCTIONS,	/* InGroupMembReductions */
-	ICMP6_MIB_INROUTERSOLICITS,		/* InRouterSolicits */
-	ICMP6_MIB_INROUTERADVERTISEMENTS,	/* InRouterAdvertisements */
-	ICMP6_MIB_INNEIGHBORSOLICITS,		/* InNeighborSolicits */
-	ICMP6_MIB_INNEIGHBORADVERTISEMENTS,	/* InNeighborAdvertisements */
-	ICMP6_MIB_INREDIRECTS,			/* InRedirects */
 	ICMP6_MIB_OUTMSGS,			/* OutMsgs */
-	ICMP6_MIB_OUTDESTUNREACHS,		/* OutDestUnreachs */
-	ICMP6_MIB_OUTPKTTOOBIGS,		/* OutPktTooBigs */
-	ICMP6_MIB_OUTTIMEEXCDS,			/* OutTimeExcds */
-	ICMP6_MIB_OUTPARMPROBLEMS,		/* OutParmProblems */
-	ICMP6_MIB_OUTECHOREPLIES,		/* OutEchoReplies */
-	ICMP6_MIB_OUTROUTERSOLICITS,		/* OutRouterSolicits */
-	ICMP6_MIB_OUTNEIGHBORSOLICITS,		/* OutNeighborSolicits */
-	ICMP6_MIB_OUTNEIGHBORADVERTISEMENTS,	/* OutNeighborAdvertisements */
-	ICMP6_MIB_OUTREDIRECTS,			/* OutRedirects */
-	ICMP6_MIB_OUTGROUPMEMBRESPONSES,	/* OutGroupMembResponses */
-	ICMP6_MIB_OUTGROUPMEMBREDUCTIONS,	/* OutGroupMembReductions */
 	__ICMP6_MIB_MAX
 };
+
+#define __ICMP6MSG_MIB_MAX 512 /* Out+In for all 8-bit ICMPv6 types */
 
 /* tcp mib definitions */
 /*
