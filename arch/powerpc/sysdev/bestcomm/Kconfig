@@ -23,3 +23,10 @@ config PPC_BESTCOMM_ATA
 	help
 	  This option enables the support for the ATA task.
 
+config PPC_BESTCOMM_FEC
+	tristate "Bestcomm FEC tasks support"
+	depends on PPC_BESTCOMM
+	default n
+	help
+	  This option enables the support for the FEC tasks.
+

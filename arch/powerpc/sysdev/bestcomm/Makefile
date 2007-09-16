@@ -4,7 +4,9 @@
 
 bestcomm-core-objs	:= bestcomm.o sram.o
 bestcomm-ata-objs	:= ata.o bcom_ata_task.o
+bestcomm-fec-objs	:= fec.o bcom_fec_rx_task.o bcom_fec_tx_task.o
 
 obj-$(CONFIG_PPC_BESTCOMM)		+= bestcomm-core.o
 obj-$(CONFIG_PPC_BESTCOMM_ATA)		+= bestcomm-ata.o
+obj-$(CONFIG_PPC_BESTCOMM_FEC)		+= bestcomm-fec.o
  
