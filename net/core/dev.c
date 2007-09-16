@@ -1574,18 +1574,6 @@ out_kfree_skb:
 	return 0;
 }
 
-#define HARD_TX_LOCK(dev, cpu) {			\
-	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		netif_tx_lock(dev);			\
-	}						\
-}
-
-#define HARD_TX_UNLOCK(dev) {				\
-	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		netif_tx_unlock(dev);			\
-	}						\
-}
-
 /**
  *	dev_queue_xmit - transmit a buffer
  *	@skb: buffer to transmit

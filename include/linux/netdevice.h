@@ -1265,10 +1265,15 @@ static inline void netif_rx_complete(struct net_device *dev,
  *
  * Get network device transmit lock
  */
-static inline void netif_tx_lock(struct net_device *dev)
+static inline void __netif_tx_lock(struct net_device *dev, int cpu)
 {
 	spin_lock(&dev->_xmit_lock);
-	dev->xmit_lock_owner = smp_processor_id();
+	dev->xmit_lock_owner = cpu;
+}
+
+static inline void netif_tx_lock(struct net_device *dev)
+{
+	__netif_tx_lock(dev, smp_processor_id());
 }
 
 static inline void netif_tx_lock_bh(struct net_device *dev)
@@ -1295,6 +1300,18 @@ static inline void netif_tx_unlock_bh(struct net_device *dev)
 {
 	dev->xmit_lock_owner = -1;
 	spin_unlock_bh(&dev->_xmit_lock);
+}
+
+#define HARD_TX_LOCK(dev, cpu) {			\
+	if ((dev->features & NETIF_F_LLTX) == 0) {	\
+		__netif_tx_lock(dev, cpu);			\
+	}						\
+}
+
+#define HARD_TX_UNLOCK(dev) {				\
+	if ((dev->features & NETIF_F_LLTX) == 0) {	\
+		netif_tx_unlock(dev);			\
+	}						\
 }
 
 static inline void netif_tx_disable(struct net_device *dev)
