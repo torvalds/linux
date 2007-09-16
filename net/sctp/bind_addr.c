@@ -163,8 +163,10 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 		addr->a.v4.sin_port = htons(bp->port);
 
 	addr->use_as_src = use_as_src;
+	addr->valid = 1;
 
 	INIT_LIST_HEAD(&addr->list);
+	INIT_RCU_HEAD(&addr->rcu);
 	list_add_tail(&addr->list, &bp->address_list);
 	SCTP_DBG_OBJCNT_INC(addr);
 

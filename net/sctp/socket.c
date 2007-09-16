@@ -4057,9 +4057,9 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 					       int __user *optlen)
 {
 	sctp_assoc_t id;
+	struct list_head *pos;
 	struct sctp_bind_addr *bp;
 	struct sctp_association *asoc;
-	struct list_head *pos, *temp;
 	struct sctp_sockaddr_entry *addr;
 	rwlock_t *addr_lock;
 	int cnt = 0;
@@ -4096,15 +4096,19 @@ static int sctp_getsockopt_local_addrs_num_old(struct sock *sk, int len,
 		addr = list_entry(bp->address_list.next,
 				  struct sctp_sockaddr_entry, list);
 		if (sctp_is_any(&addr->a)) {
-			list_for_each_safe(pos, temp, &sctp_local_addr_list) {
-				addr = list_entry(pos,
-						  struct sctp_sockaddr_entry,
-						  list);
+			rcu_read_lock();
+			list_for_each_entry_rcu(addr,
+						&sctp_local_addr_list, list) {
+				if (!addr->valid)
+					continue;
+
 				if ((PF_INET == sk->sk_family) &&
 				    (AF_INET6 == addr->a.sa.sa_family))
 					continue;
+
 				cnt++;
 			}
+			rcu_read_unlock();
 		} else {
 			cnt = 1;
 		}
@@ -4127,14 +4131,16 @@ static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
 					int max_addrs, void *to,
 					int *bytes_copied)
 {
-	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
 	union sctp_addr temp;
 	int cnt = 0;
 	int addrlen;
 
-	list_for_each_safe(pos, next, &sctp_local_addr_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(addr, &sctp_local_addr_list, list) {
+		if (!addr->valid)
+			continue;
+
 		if ((PF_INET == sk->sk_family) &&
 		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
@@ -4149,6 +4155,7 @@ static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
 		cnt ++;
 		if (cnt >= max_addrs) break;
 	}
+	rcu_read_unlock();
 
 	return cnt;
 }
@@ -4156,14 +4163,16 @@ static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
 static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 			    size_t space_left, int *bytes_copied)
 {
-	struct list_head *pos, *next;
 	struct sctp_sockaddr_entry *addr;
 	union sctp_addr temp;
 	int cnt = 0;
 	int addrlen;
 
-	list_for_each_safe(pos, next, &sctp_local_addr_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(addr, &sctp_local_addr_list, list) {
+		if (!addr->valid)
+			continue;
+
 		if ((PF_INET == sk->sk_family) &&
 		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
@@ -4171,8 +4180,10 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
-		if (space_left < addrlen)
-			return -ENOMEM;
+		if (space_left < addrlen) {
+			cnt =  -ENOMEM;
+			break;
+		}
 		memcpy(to, &temp, addrlen);
 
 		to += addrlen;
@@ -4180,6 +4191,7 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		space_left -= addrlen;
 		*bytes_copied += addrlen;
 	}
+	rcu_read_unlock();
 
 	return cnt;
 }

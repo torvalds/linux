@@ -207,6 +207,9 @@ extern struct sctp_globals {
 	 * It is a list of sctp_sockaddr_entry.
 	 */
 	struct list_head local_addr_list;
+
+	/* Lock that protects the local_addr_list writers */
+	spinlock_t addr_list_lock;
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
@@ -242,6 +245,7 @@ extern struct sctp_globals {
 #define sctp_port_alloc_lock		(sctp_globals.port_alloc_lock)
 #define sctp_port_hashtable		(sctp_globals.port_hashtable)
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
+#define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 
@@ -737,8 +741,10 @@ const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
 struct sctp_sockaddr_entry {
 	struct list_head list;
+	struct rcu_head	rcu;
 	union sctp_addr a;
 	__u8 use_as_src;
+	__u8 valid;
 };
 
 typedef struct sctp_chunk *(sctp_packet_phandler_t)(struct sctp_association *);
