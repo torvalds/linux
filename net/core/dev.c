@@ -1206,9 +1206,9 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
  *	are as for raw_notifier_call_chain().
  */
 
-int call_netdevice_notifiers(unsigned long val, void *v)
+int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
-	return raw_notifier_call_chain(&netdev_chain, val, v);
+	return raw_notifier_call_chain(&netdev_chain, val, dev);
 }
 
 /* When > 0 there are consumers of rx skb time stamps */
