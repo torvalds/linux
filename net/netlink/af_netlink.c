@@ -1969,7 +1969,7 @@ static int __init netlink_proto_init(void)
 
 	order = get_bitmask_order(max) - 1 + PAGE_SHIFT;
 	max = (1UL << order) / sizeof(struct hlist_head);
-	order = get_bitmask_order(max > UINT_MAX ? UINT_MAX : max) - 1;
+	order = get_bitmask_order(min(max, (unsigned long)UINT_MAX)) - 1;
 
 	for (i = 0; i < MAX_LINKS; i++) {
 		struct nl_pid_hash *hash = &nl_table[i].hash;
