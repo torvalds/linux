@@ -440,6 +440,7 @@ union sctp_params {
 	struct sctp_ipv6addr_param *v6;
 	union sctp_addr_param *addr;
 	struct sctp_adaptation_ind_param *aind;
+	struct sctp_supported_ext_param *ext;
 };
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.

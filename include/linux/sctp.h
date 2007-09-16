@@ -180,6 +180,9 @@ typedef enum {
 	SCTP_PARAM_SUPPORTED_ADDRESS_TYPES	= __constant_htons(12),
 	SCTP_PARAM_ECN_CAPABLE			= __constant_htons(0x8000),
 
+	/* Add-IP: Supported Extensions, Section 4.2 */
+	SCTP_PARAM_SUPPORTED_EXT	= __constant_htons(0x8008),
+
 	/* PR-SCTP Sec 3.1 */
 	SCTP_PARAM_FWD_TSN_SUPPORT	= __constant_htons(0xc000),
 
@@ -295,6 +298,12 @@ typedef struct sctp_adaptation_ind_param {
 	struct sctp_paramhdr param_hdr;
 	__be32 adaptation_ind;
 } __attribute__((packed)) sctp_adaptation_ind_param_t;
+
+/* ADDIP Section 4.2.7 Supported Extensions Parameter */
+typedef struct sctp_supported_ext_param {
+	struct sctp_paramhdr param_hdr;
+	__u8 chunks[0];
+} __attribute__((packed)) sctp_supported_ext_param_t;
 
 /* RFC 2960.  Section 3.3.3 Initiation Acknowledgement (INIT ACK) (2):
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
