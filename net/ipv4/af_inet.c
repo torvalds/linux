@@ -942,7 +942,7 @@ static struct inet_protosw inetsw_array[] =
        }
 };
 
-#define INETSW_ARRAY_LEN (sizeof(inetsw_array) / sizeof(struct inet_protosw))
+#define INETSW_ARRAY_LEN ARRAY_SIZE(inetsw_array)
 
 void inet_register_protosw(struct inet_protosw *p)
 {
