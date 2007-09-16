@@ -1949,7 +1949,7 @@ static int __init netlink_proto_init(void)
 {
 	struct sk_buff *dummy_skb;
 	int i;
-	unsigned long max;
+	unsigned long limit;
 	unsigned int order;
 	int err = proto_register(&netlink_proto, 0);
 
@@ -1963,13 +1963,13 @@ static int __init netlink_proto_init(void)
 		goto panic;
 
 	if (num_physpages >= (128 * 1024))
-		max = num_physpages >> (21 - PAGE_SHIFT);
+		limit = num_physpages >> (21 - PAGE_SHIFT);
 	else
-		max = num_physpages >> (23 - PAGE_SHIFT);
+		limit = num_physpages >> (23 - PAGE_SHIFT);
 
-	order = get_bitmask_order(max) - 1 + PAGE_SHIFT;
-	max = (1UL << order) / sizeof(struct hlist_head);
-	order = get_bitmask_order(min(max, (unsigned long)UINT_MAX)) - 1;
+	order = get_bitmask_order(limit) - 1 + PAGE_SHIFT;
+	limit = (1UL << order) / sizeof(struct hlist_head);
+	order = get_bitmask_order(min(limit, (unsigned long)UINT_MAX)) - 1;
 
 	for (i = 0; i < MAX_LINKS; i++) {
 		struct nl_pid_hash *hash = &nl_table[i].hash;
