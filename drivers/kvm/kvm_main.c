@@ -39,6 +39,7 @@
 #include <linux/smp.h>
 #include <linux/anon_inodes.h>
 #include <linux/profile.h>
+#include <linux/kvm_para.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -1362,51 +1363,61 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
-int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run)
+int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
-	unsigned long nr, a0, a1, a2, a3, a4, a5, ret;
+	unsigned long nr, a0, a1, a2, a3, ret;
 
 	kvm_x86_ops->cache_regs(vcpu);
-	ret = -KVM_EINVAL;
-#ifdef CONFIG_X86_64
-	if (is_long_mode(vcpu)) {
-		nr = vcpu->regs[VCPU_REGS_RAX];
-		a0 = vcpu->regs[VCPU_REGS_RDI];
-		a1 = vcpu->regs[VCPU_REGS_RSI];
-		a2 = vcpu->regs[VCPU_REGS_RDX];
-		a3 = vcpu->regs[VCPU_REGS_RCX];
-		a4 = vcpu->regs[VCPU_REGS_R8];
-		a5 = vcpu->regs[VCPU_REGS_R9];
-	} else
-#endif
-	{
-		nr = vcpu->regs[VCPU_REGS_RBX] & -1u;
-		a0 = vcpu->regs[VCPU_REGS_RAX] & -1u;
-		a1 = vcpu->regs[VCPU_REGS_RCX] & -1u;
-		a2 = vcpu->regs[VCPU_REGS_RDX] & -1u;
-		a3 = vcpu->regs[VCPU_REGS_RSI] & -1u;
-		a4 = vcpu->regs[VCPU_REGS_RDI] & -1u;
-		a5 = vcpu->regs[VCPU_REGS_RBP] & -1u;
+
+	nr = vcpu->regs[VCPU_REGS_RAX];
+	a0 = vcpu->regs[VCPU_REGS_RBX];
+	a1 = vcpu->regs[VCPU_REGS_RCX];
+	a2 = vcpu->regs[VCPU_REGS_RDX];
+	a3 = vcpu->regs[VCPU_REGS_RSI];
+
+	if (!is_long_mode(vcpu)) {
+		nr &= 0xFFFFFFFF;
+		a0 &= 0xFFFFFFFF;
+		a1 &= 0xFFFFFFFF;
+		a2 &= 0xFFFFFFFF;
+		a3 &= 0xFFFFFFFF;
 	}
+
 	switch (nr) {
 	default:
-		run->hypercall.nr = nr;
-		run->hypercall.args[0] = a0;
-		run->hypercall.args[1] = a1;
-		run->hypercall.args[2] = a2;
-		run->hypercall.args[3] = a3;
-		run->hypercall.args[4] = a4;
-		run->hypercall.args[5] = a5;
-		run->hypercall.ret = ret;
-		run->hypercall.longmode = is_long_mode(vcpu);
-		kvm_x86_ops->decache_regs(vcpu);
-		return 0;
+		ret = -KVM_ENOSYS;
+		break;
 	}
 	vcpu->regs[VCPU_REGS_RAX] = ret;
 	kvm_x86_ops->decache_regs(vcpu);
-	return 1;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_hypercall);
+EXPORT_SYMBOL_GPL(kvm_emulate_hypercall);
+
+int kvm_fix_hypercall(struct kvm_vcpu *vcpu)
+{
+	char instruction[3];
+	int ret = 0;
+
+	mutex_lock(&vcpu->kvm->lock);
+
+	/*
+	 * Blow out the MMU to ensure that no other VCPU has an active mapping
+	 * to ensure that the updated hypercall appears atomically across all
+	 * VCPUs.
+	 */
+	kvm_mmu_zap_all(vcpu->kvm);
+
+	kvm_x86_ops->cache_regs(vcpu);
+	kvm_x86_ops->patch_hypercall(vcpu, instruction);
+	if (emulator_write_emulated(vcpu->rip, instruction, 3, vcpu)
+	    != X86EMUL_CONTINUE)
+		ret = -EFAULT;
+
+	mutex_unlock(&vcpu->kvm->lock);
+
+	return ret;
+}
 
 static u64 mk_cr_64(u64 curr_cr, u32 new_val)
 {
@@ -1472,75 +1483,6 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
 	}
-}
-
-/*
- * Register the para guest with the host:
- */
-static int vcpu_register_para(struct kvm_vcpu *vcpu, gpa_t para_state_gpa)
-{
-	struct kvm_vcpu_para_state *para_state;
-	hpa_t para_state_hpa, hypercall_hpa;
-	struct page *para_state_page;
-	unsigned char *hypercall;
-	gpa_t hypercall_gpa;
-
-	printk(KERN_DEBUG "kvm: guest trying to enter paravirtual mode\n");
-	printk(KERN_DEBUG ".... para_state_gpa: %08Lx\n", para_state_gpa);
-
-	/*
-	 * Needs to be page aligned:
-	 */
-	if (para_state_gpa != PAGE_ALIGN(para_state_gpa))
-		goto err_gp;
-
-	para_state_hpa = gpa_to_hpa(vcpu, para_state_gpa);
-	printk(KERN_DEBUG ".... para_state_hpa: %08Lx\n", para_state_hpa);
-	if (is_error_hpa(para_state_hpa))
-		goto err_gp;
-
-	mark_page_dirty(vcpu->kvm, para_state_gpa >> PAGE_SHIFT);
-	para_state_page = pfn_to_page(para_state_hpa >> PAGE_SHIFT);
-	para_state = kmap(para_state_page);
-
-	printk(KERN_DEBUG "....  guest version: %d\n", para_state->guest_version);
-	printk(KERN_DEBUG "....           size: %d\n", para_state->size);
-
-	para_state->host_version = KVM_PARA_API_VERSION;
-	/*
-	 * We cannot support guests that try to register themselves
-	 * with a newer API version than the host supports:
-	 */
-	if (para_state->guest_version > KVM_PARA_API_VERSION) {
-		para_state->ret = -KVM_EINVAL;
-		goto err_kunmap_skip;
-	}
-
-	hypercall_gpa = para_state->hypercall_gpa;
-	hypercall_hpa = gpa_to_hpa(vcpu, hypercall_gpa);
-	printk(KERN_DEBUG ".... hypercall_hpa: %08Lx\n", hypercall_hpa);
-	if (is_error_hpa(hypercall_hpa)) {
-		para_state->ret = -KVM_EINVAL;
-		goto err_kunmap_skip;
-	}
-
-	printk(KERN_DEBUG "kvm: para guest successfully registered.\n");
-	vcpu->para_state_page = para_state_page;
-	vcpu->para_state_gpa = para_state_gpa;
-	vcpu->hypercall_gpa = hypercall_gpa;
-
-	mark_page_dirty(vcpu->kvm, hypercall_gpa >> PAGE_SHIFT);
-	hypercall = kmap_atomic(pfn_to_page(hypercall_hpa >> PAGE_SHIFT),
-				KM_USER1) + (hypercall_hpa & ~PAGE_MASK);
-	kvm_x86_ops->patch_hypercall(vcpu, hypercall);
-	kunmap_atomic(hypercall, KM_USER1);
-
-	para_state->ret = 0;
-err_kunmap_skip:
-	kunmap(para_state_page);
-	return 0;
-err_gp:
-	return 1;
 }
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
@@ -1656,12 +1598,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_IA32_MISC_ENABLE:
 		vcpu->ia32_misc_enable_msr = data;
 		break;
-	/*
-	 * This is the 'probe whether the host is KVM' logic:
-	 */
-	case MSR_KVM_API_MAGIC:
-		return vcpu_register_para(vcpu, data);
-
 	default:
 		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x\n", msr);
 		return 1;

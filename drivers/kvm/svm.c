@@ -476,7 +476,8 @@ static void init_vmcb(struct vmcb *vmcb)
 					INTERCEPT_DR5_MASK |
 					INTERCEPT_DR7_MASK;
 
-	control->intercept_exceptions = 1 << PF_VECTOR;
+	control->intercept_exceptions = (1 << PF_VECTOR) |
+					(1 << UD_VECTOR);
 
 
 	control->intercept = 	(1ULL << INTERCEPT_INTR) |
@@ -979,6 +980,17 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 0;
 }
 
+static int ud_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	int er;
+
+	er = emulate_instruction(&svm->vcpu, kvm_run, 0, 0);
+	if (er != EMULATE_DONE)
+		inject_ud(&svm->vcpu);
+
+	return 1;
+}
+
 static int nm_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	svm->vmcb->control.intercept_exceptions &= ~(1 << NM_VECTOR);
@@ -1045,7 +1057,8 @@ static int vmmcall_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	svm->next_rip = svm->vmcb->save.rip + 3;
 	skip_emulated_instruction(&svm->vcpu);
-	return kvm_hypercall(&svm->vcpu, kvm_run);
+	kvm_emulate_hypercall(&svm->vcpu);
+	return 1;
 }
 
 static int invalid_op_interception(struct vcpu_svm *svm,
@@ -1241,6 +1254,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_WRITE_DR3]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR5]			= emulate_on_interception,
 	[SVM_EXIT_WRITE_DR7]			= emulate_on_interception,
+	[SVM_EXIT_EXCP_BASE + UD_VECTOR]	= ud_interception,
 	[SVM_EXIT_EXCP_BASE + PF_VECTOR] 	= pf_interception,
 	[SVM_EXIT_EXCP_BASE + NM_VECTOR] 	= nm_interception,
 	[SVM_EXIT_INTR] 			= nop_on_interception,
@@ -1675,7 +1689,6 @@ svm_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[0] = 0x0f;
 	hypercall[1] = 0x01;
 	hypercall[2] = 0xd9;
-	hypercall[3] = 0xc3;
 }
 
 static void svm_check_processor_compat(void *rtn)

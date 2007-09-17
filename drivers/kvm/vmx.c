@@ -164,6 +164,13 @@ static inline int is_no_device(u32 intr_info)
 		(INTR_TYPE_EXCEPTION | NM_VECTOR | INTR_INFO_VALID_MASK);
 }
 
+static inline int is_invalid_opcode(u32 intr_info)
+{
+	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
+			     INTR_INFO_VALID_MASK)) ==
+		(INTR_TYPE_EXCEPTION | UD_VECTOR | INTR_INFO_VALID_MASK);
+}
+
 static inline int is_external_interrupt(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -315,7 +322,7 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 {
 	u32 eb;
 
-	eb = 1u << PF_VECTOR;
+	eb = (1u << PF_VECTOR) | (1u << UD_VECTOR);
 	if (!vcpu->fpu_active)
 		eb |= 1u << NM_VECTOR;
 	if (vcpu->guest_debug.enabled)
@@ -557,6 +564,14 @@ static void vmx_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
 		     GP_VECTOR |
 		     INTR_TYPE_EXCEPTION |
 		     INTR_INFO_DELIEVER_CODE_MASK |
+		     INTR_INFO_VALID_MASK);
+}
+
+static void vmx_inject_ud(struct kvm_vcpu *vcpu)
+{
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+		     UD_VECTOR |
+		     INTR_TYPE_EXCEPTION |
 		     INTR_INFO_VALID_MASK);
 }
 
@@ -1771,6 +1786,14 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return 1;
 	}
 
+	if (is_invalid_opcode(intr_info)) {
+		er = emulate_instruction(vcpu, kvm_run, 0, 0);
+		if (er != EMULATE_DONE)
+			vmx_inject_ud(vcpu);
+
+		return 1;
+	}
+
 	error_code = 0;
 	rip = vmcs_readl(GUEST_RIP);
 	if (intr_info & INTR_INFO_DELIEVER_CODE_MASK)
@@ -1873,7 +1896,6 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[0] = 0x0f;
 	hypercall[1] = 0x01;
 	hypercall[2] = 0xc1;
-	hypercall[3] = 0xc3;
 }
 
 static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -2059,7 +2081,8 @@ static int handle_halt(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	skip_emulated_instruction(vcpu);
-	return kvm_hypercall(vcpu, kvm_run);
+	kvm_emulate_hypercall(vcpu);
+	return 1;
 }
 
 /*

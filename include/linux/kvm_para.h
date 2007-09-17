@@ -1,73 +1,110 @@
 #ifndef __LINUX_KVM_PARA_H
 #define __LINUX_KVM_PARA_H
 
-/*
- * Guest OS interface for KVM paravirtualization
+/* This CPUID returns the signature 'KVMKVMKVM' in ebx, ecx, and edx.  It
+ * should be used to determine that a VM is running under KVM.
+ */
+#define KVM_CPUID_SIGNATURE	0x40000000
+
+/* This CPUID returns a feature bitmap in eax.  Before enabling a particular
+ * paravirtualization, the appropriate feature bit should be checked.
+ */
+#define KVM_CPUID_FEATURES	0x40000001
+
+/* Return values for hypercalls */
+#define KVM_ENOSYS		1000
+
+#ifdef __KERNEL__
+#include <asm/processor.h>
+
+/* This instruction is vmcall.  On non-VT architectures, it will generate a
+ * trap that we will then rewrite to the appropriate instruction.
+ */
+#define KVM_HYPERCALL ".byte 0x0f,0x01,0xc1"
+
+/* For KVM hypercalls, a three-byte sequence of either the vmrun or the vmmrun
+ * instruction.  The hypervisor may replace it with something else but only the
+ * instructions are guaranteed to be supported.
  *
- * Note: this interface is totally experimental, and is certain to change
- *       as we make progress.
+ * Up to four arguments may be passed in rbx, rcx, rdx, and rsi respectively.
+ * The hypercall number should be placed in rax and the return value will be
+ * placed in rax.  No other registers will be clobbered unless explicited
+ * noted by the particular hypercall.
  */
 
-/*
- * Per-VCPU descriptor area shared between guest and host. Writable to
- * both guest and host. Registered with the host by the guest when
- * a guest acknowledges paravirtual mode.
- *
- * NOTE: all addresses are guest-physical addresses (gpa), to make it
- * easier for the hypervisor to map between the various addresses.
- */
-struct kvm_vcpu_para_state {
-	/*
-	 * API version information for compatibility. If there's any support
-	 * mismatch (too old host trying to execute too new guest) then
-	 * the host will deny entry into paravirtual mode. Any other
-	 * combination (new host + old guest and new host + new guest)
-	 * is supposed to work - new host versions will support all old
-	 * guest API versions.
-	 */
-	u32 guest_version;
-	u32 host_version;
-	u32 size;
-	u32 ret;
+static inline long kvm_hypercall0(unsigned int nr)
+{
+	long ret;
+	asm volatile(KVM_HYPERCALL
+		     : "=a"(ret)
+		     : "a"(nr));
+	return ret;
+}
 
-	/*
-	 * The address of the vm exit instruction (VMCALL or VMMCALL),
-	 * which the host will patch according to the CPU model the
-	 * VM runs on:
-	 */
-	u64 hypercall_gpa;
+static inline long kvm_hypercall1(unsigned int nr, unsigned long p1)
+{
+	long ret;
+	asm volatile(KVM_HYPERCALL
+		     : "=a"(ret)
+		     : "a"(nr), "b"(p1));
+	return ret;
+}
 
-} __attribute__ ((aligned(PAGE_SIZE)));
+static inline long kvm_hypercall2(unsigned int nr, unsigned long p1,
+				  unsigned long p2)
+{
+	long ret;
+	asm volatile(KVM_HYPERCALL
+		     : "=a"(ret)
+		     : "a"(nr), "b"(p1), "c"(p2));
+	return ret;
+}
 
-#define KVM_PARA_API_VERSION 1
+static inline long kvm_hypercall3(unsigned int nr, unsigned long p1,
+				  unsigned long p2, unsigned long p3)
+{
+	long ret;
+	asm volatile(KVM_HYPERCALL
+		     : "=a"(ret)
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3));
+	return ret;
+}
 
-/*
- * This is used for an RDMSR's ECX parameter to probe for a KVM host.
- * Hopefully no CPU vendor will use up this number. This is placed well
- * out of way of the typical space occupied by CPU vendors' MSR indices,
- * and we think (or at least hope) it wont be occupied in the future
- * either.
- */
-#define MSR_KVM_API_MAGIC 0x87655678
+static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
+				  unsigned long p2, unsigned long p3,
+				  unsigned long p4)
+{
+	long ret;
+	asm volatile(KVM_HYPERCALL
+		     : "=a"(ret)
+		     : "a"(nr), "b"(p1), "c"(p2), "d"(p3), "S"(p4));
+	return ret;
+}
 
-#define KVM_EINVAL 1
+static inline int kvm_para_available(void)
+{
+	unsigned int eax, ebx, ecx, edx;
+	char signature[13];
 
-/*
- * Hypercall calling convention:
- *
- * Each hypercall may have 0-6 parameters.
- *
- * 64-bit hypercall index is in RAX, goes from 0 to __NR_hypercalls-1
- *
- * 64-bit parameters 1-6 are in the standard gcc x86_64 calling convention
- * order: RDI, RSI, RDX, RCX, R8, R9.
- *
- * 32-bit index is EBX, parameters are: EAX, ECX, EDX, ESI, EDI, EBP.
- * (the first 3 are according to the gcc regparm calling convention)
- *
- * No registers are clobbered by the hypercall, except that the
- * return value is in RAX.
- */
-#define __NR_hypercalls			0
+	cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
+	memcpy(signature + 0, &ebx, 4);
+	memcpy(signature + 4, &ecx, 4);
+	memcpy(signature + 8, &edx, 4);
+	signature[12] = 0;
+
+	if (strcmp(signature, "KVMKVMKVM") == 0)
+		return 1;
+
+	return 0;
+}
+
+static inline int kvm_para_has_feature(unsigned int feature)
+{
+	if (cpuid_eax(KVM_CPUID_FEATURES) & (1UL << feature))
+		return 1;
+	return 0;
+}
+
+#endif
 
 #endif

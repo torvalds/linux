@@ -46,6 +46,7 @@
 #define KVM_MAX_CPUID_ENTRIES 40
 
 #define DE_VECTOR 0
+#define UD_VECTOR 6
 #define NM_VECTOR 7
 #define DF_VECTOR 8
 #define TS_VECTOR 10
@@ -317,9 +318,6 @@ struct kvm_vcpu {
 	unsigned long cr0;
 	unsigned long cr2;
 	unsigned long cr3;
-	gpa_t para_state_gpa;
-	struct page *para_state_page;
-	gpa_t hypercall_gpa;
 	unsigned long cr4;
 	unsigned long cr8;
 	u64 pdptrs[4]; /* pae */
@@ -622,7 +620,9 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu);
 int kvm_mmu_load(struct kvm_vcpu *vcpu);
 void kvm_mmu_unload(struct kvm_vcpu *vcpu);
 
-int kvm_hypercall(struct kvm_vcpu *vcpu, struct kvm_run *run);
+int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
+
+int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
 static inline void kvm_guest_enter(void)
 {
