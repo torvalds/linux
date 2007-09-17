@@ -33,8 +33,11 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 	struct kvm_pic *s;
 
 	if (kvm_apic_has_interrupt(v) == -1) {	/* LAPIC */
-		s = pic_irqchip(v->kvm);	/* PIC */
-		return s->output;
+		if (kvm_apic_accept_pic_intr(v)) {
+			s = pic_irqchip(v->kvm);	/* PIC */
+			return s->output;
+		} else
+			return 0;
 	}
 	return 1;
 }
@@ -50,9 +53,11 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 
 	vector = kvm_get_apic_interrupt(v);	/* APIC */
 	if (vector == -1) {
-		s = pic_irqchip(v->kvm);
-		s->output = 0;		/* PIC */
-		vector = kvm_pic_read_irq(s);
+		if (kvm_apic_accept_pic_intr(v)) {
+			s = pic_irqchip(v->kvm);
+			s->output = 0;		/* PIC */
+			vector = kvm_pic_read_irq(s);
+		}
 	}
 	return vector;
 }
