@@ -235,6 +235,10 @@ struct ieee80211_tx_control {
  * @RX_FLAG_IV_STRIPPED: The IV/ICV are stripped from this frame.
  *	If this flag is set, the stack cannot do any replay detection
  *	hence the driver or hardware will have to do that.
+ * @RX_FLAG_FAILED_FCS_CRC: Set this flag if the FCS check failed on
+ *	the frame.
+ * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
+ *	the frame.
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -242,6 +246,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_RADIOTAP	= 1<<2,
 	RX_FLAG_MMIC_STRIPPED	= 1<<3,
 	RX_FLAG_IV_STRIPPED	= 1<<4,
+	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
+	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
 };
 
 /**

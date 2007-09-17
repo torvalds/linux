@@ -145,6 +145,8 @@ ieee80211_rx_monitor(struct net_device *dev, struct sk_buff *skb,
 		__le16 chan_freq;
 		__le16 chan_flags;
 		u8 antsignal;
+		u8 padding_for_rxflags;
+		__le16 rx_flags;
 	} __attribute__ ((packed)) *rthdr;
 
 	skb->dev = dev;
@@ -167,12 +169,21 @@ ieee80211_rx_monitor(struct net_device *dev, struct sk_buff *skb,
 		cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
 			    (1 << IEEE80211_RADIOTAP_RATE) |
 			    (1 << IEEE80211_RADIOTAP_CHANNEL) |
-			    (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL));
+			    (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |
+			    (1 << IEEE80211_RADIOTAP_RX_FLAGS));
 	rthdr->flags = local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS ?
 		       IEEE80211_RADIOTAP_F_FCS : 0;
+
+	/* FIXME: when radiotap gets a 'bad PLCP' flag use it here */
+	rthdr->rx_flags = 0;
+	if (status->flag &
+	    (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
+		rthdr->rx_flags |= cpu_to_le16(IEEE80211_RADIOTAP_F_RX_BADFCS);
+
 	rate = ieee80211_get_rate(local, status->phymode, status->rate);
 	if (rate)
 		rthdr->rate = rate->rate / 5;
+
 	rthdr->chan_freq = cpu_to_le16(status->freq);
 	rthdr->chan_flags =
 		status->phymode == MODE_IEEE80211A ?
@@ -199,6 +210,15 @@ ieee80211_rx_h_monitor(struct ieee80211_txrx_data *rx)
 		ieee80211_rx_monitor(rx->dev, rx->skb, rx->u.rx.status);
 		return TXRX_QUEUED;
 	}
+
+	/*
+	 * Drop frames with failed FCS/PLCP checksums here, they are only
+	 * relevant for monitor mode, the rest of the stack should never
+	 * see them.
+	 */
+	if (rx->u.rx.status->flag &
+	    (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
+		return TXRX_DROP;
 
 	if (rx->u.rx.status->flag & RX_FLAG_RADIOTAP)
 		skb_pull(rx->skb, ieee80211_get_radiotap_len(rx->skb->data));
@@ -1360,6 +1380,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_sub_if_data *prev = NULL;
 	struct sk_buff *skb_new;
 	u8 *bssid;
+	int bogon;
 
 	if (status->flag & RX_FLAG_RADIOTAP) {
 		radiotap_len = ieee80211_get_radiotap_len(skb->data);
@@ -1380,10 +1401,15 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	rx.u.rx.status = status;
 	rx.fc = skb->len >= 2 ? le16_to_cpu(hdr->frame_control) : 0;
 	type = rx.fc & IEEE80211_FCTL_FTYPE;
-	if (type == IEEE80211_FTYPE_DATA || type == IEEE80211_FTYPE_MGMT)
+
+	bogon = status->flag & (RX_FLAG_FAILED_FCS_CRC |
+				RX_FLAG_FAILED_PLCP_CRC);
+
+	if (!bogon && (type == IEEE80211_FTYPE_DATA ||
+		       type == IEEE80211_FTYPE_MGMT))
 		local->dot11ReceivedFragmentCount++;
 
-	if (skb->len >= 16) {
+	if (!bogon && skb->len >= 16) {
 		sta = rx.sta = sta_info_get(local, hdr->addr2);
 		if (sta) {
 			rx.dev = rx.sta->dev;
