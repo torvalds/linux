@@ -2665,7 +2665,7 @@ static void __devinit query_chip(struct cmipci *cm)
 			else
 				cm->can_ac3_hw = 1;
 			break;
-		case 1:
+		case CM_CHIP_037:
 			cm->chip_version = 37;
 			cm->can_ac3_hw = 1;
 			break;
