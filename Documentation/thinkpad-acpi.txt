@@ -1,7 +1,7 @@
 		     ThinkPad ACPI Extras Driver
 
-                            Version 0.15
-                           July 1st, 2007
+                            Version 0.16
+                          August 2nd, 2007
 
                Borislav Deianov <borislav@users.sf.net>
              Henrique de Moraes Holschuh <hmh@hmh.eng.br>
@@ -161,20 +161,22 @@ system.  Enabling the hotkey functionality of thinkpad-acpi signals the
 firmware that such a driver is present, and modifies how the ThinkPad
 firmware will behave in many situations.
 
+The driver enables the hot key feature automatically when loaded.  The
+feature can later be disabled and enabled back at runtime.  The driver
+will also restore the hot key feature to its previous state and mask
+when it is unloaded.
+
 When the hotkey feature is enabled and the hot key mask is set (see
-below), the various hot keys either generate ACPI events in the
-following format:
+below), the driver will report HKEY events in the following format:
 
 	ibm/hotkey HKEY 00000080 0000xxxx
 
-or events over the input layer.  The input layer support accepts the
-standard IOCTLs to remap the keycodes assigned to each hotkey.
+Some of these events refer to hot key presses, but not all.
 
-When the input device is open, the driver will suppress any ACPI hot key
-events that get translated into a meaningful input layer event, in order
-to avoid sending duplicate events to userspace.  Hot keys that are
-mapped to KEY_RESERVED in the keymap are not translated, and will always
-generate an ACPI ibm/hotkey HKEY event, and no input layer events.
+The driver will generate events over the input layer for hot keys and
+radio switches, and over the ACPI netlink layer for other events.  The
+input layer support accepts the standard IOCTLs to remap the keycodes
+assigned to each hot key.
 
 The hot key bit mask allows some control over which hot keys generate
 events.  If a key is "masked" (bit set to 0 in the mask), the firmware
@@ -255,6 +257,20 @@ sysfs notes:
 		attribute will read 0 if the switch is in the "radios
 		disabled" postition, and 1 if the switch is in the
 		"radios enabled" position.
+
+	hotkey_report_mode:
+		Returns the state of the procfs ACPI event report mode
+		filter for hot keys.  If it is set to 1 (the default),
+		all hot key presses are reported both through the input
+		layer and also as ACPI events through procfs (but not
+		through netlink).  If it is set to 2, hot key presses
+		are reported only through the input layer.
+
+		This attribute is read-only in kernels 2.6.23 or later,
+		and read-write on earlier kernels.
+
+		May return -EPERM (write access locked out by module
+		parameter) or -EACCES (read-only).
 
 input layer notes:
 
@@ -393,20 +409,62 @@ unknown by the driver if the ThinkPad firmware triggered these events on
 hot key press or release, but the firmware will do it for either one, not
 both.
 
-If a key is mapped to KEY_RESERVED, it generates no input events at all,
-and it may generate a legacy thinkpad-acpi ACPI hotkey event.
-
+If a key is mapped to KEY_RESERVED, it generates no input events at all.
 If a key is mapped to KEY_UNKNOWN, it generates an input event that
-includes an scan code, and it may also generate a legacy thinkpad-acpi
-ACPI hotkey event.
-
-If a key is mapped to anything else, it will only generate legacy
-thinkpad-acpi ACPI hotkey events if nobody has opened the input device.
+includes an scan code.  If a key is mapped to anything else, it will
+generate input device EV_KEY events.
 
 Non hot-key ACPI HKEY event map:
 0x5001		Lid closed
 0x5002		Lid opened
 0x7000		Radio Switch may have changed state
+
+The above events are not propagated by the driver, except for legacy
+compatibility purposes when hotkey_report_mode is set to 1.
+
+Compatibility notes:
+
+ibm-acpi and thinkpad-acpi 0.15 (mainline kernels before 2.6.23) never
+supported the input layer, and sent events over the procfs ACPI event
+interface.
+
+To avoid sending duplicate events over the input layer and the ACPI
+event interface, thinkpad-acpi 0.16 implements a module parameter
+(hotkey_report_mode), and also a sysfs device attribute with the same
+name.
+
+Make no mistake here: userspace is expected to switch to using the input
+layer interface of thinkpad-acpi, together with the ACPI netlink event
+interface in kernels 2.6.23 and later, or with the ACPI procfs event
+interface in kernels 2.6.22 and earlier.
+
+If no hotkey_report_mode module parameter is specified (or it is set to
+zero), the driver defaults to mode 1 (see below), and on kernels 2.6.22
+and earlier, also allows one to change the hotkey_report_mode through
+sysfs.  In kernels 2.6.23 and later, where the netlink ACPI event
+interface is available, hotkey_report_mode cannot be changed through
+sysfs (it is read-only).
+
+If the hotkey_report_mode module parameter is set to 1 or 2, it cannot
+be changed later through sysfs (any writes will return -EPERM to signal
+that hotkey_report_mode was locked.  On 2.6.23 and later, where
+hotkey_report_mode cannot be changed at all, writes will return -EACES).
+
+hotkey_report_mode set to 1 makes the driver export through the procfs
+ACPI event interface all hot key presses (which are *also* sent to the
+input layer).  This is a legacy compatibility behaviour, and it is also
+the default mode of operation for the driver.
+
+hotkey_report_mode set to 2 makes the driver filter out the hot key
+presses from the procfs ACPI event interface, so these events will only
+be sent through the input layer.  Userspace that has been updated to use
+the thinkpad-acpi input layer interface should set hotkey_report_mode to
+2.
+
+Hot key press events are never sent to the ACPI netlink event interface.
+Really up-to-date userspace under kernel 2.6.23 and later is to use the
+netlink interface and the input layer interface, and don't bother at all
+with hotkey_report_mode.
 
 
 Bluetooth
