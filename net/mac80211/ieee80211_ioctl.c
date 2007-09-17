@@ -912,10 +912,6 @@ static int ieee80211_ioctl_prism2_param(struct net_device *dev,
 		local->next_mode = hostapd_mode_to_mode(value);
 		break;
 
-	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
-		local->key_tx_rx_threshold = value;
-		break;
-
 	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
 		local->wifi_wme_noack_test = value;
 		break;
@@ -1009,10 +1005,6 @@ static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
 
 	case PRISM2_PARAM_NEXT_MODE:
 		*param = local->next_mode;
-		break;
-
-	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
-		*param = local->key_tx_rx_threshold;
 		break;
 
 	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:

@@ -90,8 +90,6 @@ DEBUGFS_READONLY_FILE(antenna_sel_rx, 20, "%d",
 		      local->hw.conf.antenna_sel_rx);
 DEBUGFS_READONLY_FILE(bridge_packets, 20, "%d",
 		      local->bridge_packets);
-DEBUGFS_READONLY_FILE(key_tx_rx_threshold, 20, "%d",
-		      local->key_tx_rx_threshold);
 DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
 		      local->rts_threshold);
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
@@ -301,7 +299,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(antenna_sel_tx);
 	DEBUGFS_ADD(antenna_sel_rx);
 	DEBUGFS_ADD(bridge_packets);
-	DEBUGFS_ADD(key_tx_rx_threshold);
 	DEBUGFS_ADD(rts_threshold);
 	DEBUGFS_ADD(fragmentation_threshold);
 	DEBUGFS_ADD(short_retry_limit);
@@ -364,7 +361,6 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(antenna_sel_tx);
 	DEBUGFS_DEL(antenna_sel_rx);
 	DEBUGFS_DEL(bridge_packets);
-	DEBUGFS_DEL(key_tx_rx_threshold);
 	DEBUGFS_DEL(rts_threshold);
 	DEBUGFS_DEL(fragmentation_threshold);
 	DEBUGFS_DEL(short_retry_limit);

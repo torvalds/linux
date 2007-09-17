@@ -451,12 +451,7 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 
 	if (tx->key) {
 		tx->key->tx_rx_count++;
-		if (unlikely(tx->local->key_tx_rx_threshold &&
-			     tx->key->tx_rx_count >
-			     tx->local->key_tx_rx_threshold)) {
-			ieee80211_key_threshold_notify(tx->dev, tx->key,
-						       tx->sta);
-		}
+		/* TODO: add threshold stuff again */
 	}
 
 	return TXRX_CONTINUE;

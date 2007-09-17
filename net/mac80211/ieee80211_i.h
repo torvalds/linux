@@ -465,9 +465,6 @@ struct ieee80211_local {
 	struct crypto_blkcipher *wep_tx_tfm;
 	struct crypto_blkcipher *wep_rx_tfm;
 	u32 wep_iv;
-	int key_tx_rx_threshold; /* number of times any key can be used in TX
-				  * or RX before generating a rekey
-				  * notification; 0 = notification disabled. */
 
 	int bridge_packets; /* bridge packets between associated stations and
 			     * deliver multicast frames both back to wireless
@@ -573,7 +570,6 @@ struct ieee80211_local {
 		struct dentry *antenna_sel_tx;
 		struct dentry *antenna_sel_rx;
 		struct dentry *bridge_packets;
-		struct dentry *key_tx_rx_threshold;
 		struct dentry *rts_threshold;
 		struct dentry *fragmentation_threshold;
 		struct dentry *short_retry_limit;
@@ -724,9 +720,6 @@ void ieee80211_if_setup(struct net_device *dev);
 void ieee80211_if_mgmt_setup(struct net_device *dev);
 struct ieee80211_rate *ieee80211_get_rate(struct ieee80211_local *local,
 					  int phymode, int hwrate);
-void ieee80211_key_threshold_notify(struct net_device *dev,
-				    struct ieee80211_key *key,
-				    struct sta_info *sta);
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
