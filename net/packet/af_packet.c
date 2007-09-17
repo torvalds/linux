@@ -252,6 +252,9 @@ static int packet_rcv_spkt(struct sk_buff *skb, struct net_device *dev,  struct 
 	struct sock *sk;
 	struct sockaddr_pkt *spkt;
 
+	if (dev->nd_net != &init_net)
+		goto out;
+
 	/*
 	 *	When we registered the protocol we saved the socket in the data
 	 *	field for just this event.
@@ -452,6 +455,9 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	int skb_len = skb->len;
 	unsigned int snaplen, res;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;
 
@@ -567,6 +573,9 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	unsigned short macoff, netoff;
 	struct sk_buff *copy_skb = NULL;
 	struct timeval tv;
+
+	if (dev->nd_net != &init_net)
+		goto drop;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
 		goto drop;

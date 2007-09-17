@@ -1065,6 +1065,9 @@ static int econet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 	struct sock *sk;
 	struct ec_device *edev = dev->ec_ptr;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;
 

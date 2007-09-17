@@ -173,6 +173,9 @@ static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	struct ethhdr *eth;
 	struct bpqdev *bpq;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
 

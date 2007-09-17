@@ -389,6 +389,9 @@ static int pppoe_rcv(struct sk_buff *skb,
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
 		goto drop;
 
@@ -417,6 +420,9 @@ static int pppoe_disc_rcv(struct sk_buff *skb,
 {
 	struct pppoe_hdr *ph;
 	struct pppox_sock *po;
+
+	if (dev->nd_net != &init_net)
+		goto abort;
 
 	if (!pskb_may_pull(skb, sizeof(struct pppoe_hdr)))
 		goto abort;

@@ -713,6 +713,9 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 	struct atalk_addr sa, *ma, da;
 	struct atalk_iface *ifa;
 
+	if (dev->nd_net != &init_net)
+		goto out0;
+
 	/* We only do Ethernet SNAP AARP. */
 	if (dev->type != ARPHRD_ETHER)
 		goto out0;

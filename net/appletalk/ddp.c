@@ -1403,6 +1403,9 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	int origlen;
 	__u16 len_hops;
 
+	if (dev->nd_net != &init_net)
+		goto freeit;
+
 	/* Don't mangle buffer if shared */
 	if (!(skb = skb_share_check(skb, GFP_ATOMIC)))
 		goto out;
@@ -1488,6 +1491,9 @@ freeit:
 static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 		     struct packet_type *pt, struct net_device *orig_dev)
 {
+	if (dev->nd_net != &init_net)
+		goto freeit;
+
 	/* Expand any short form frames */
 	if (skb_mac_header(skb)[2] == 1) {
 		struct ddpehdr *ddp;

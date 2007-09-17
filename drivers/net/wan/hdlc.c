@@ -36,6 +36,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/notifier.h>
 #include <linux/hdlc.h>
+#include <net/net_namespace.h>
 
 
 static const char* version = "HDLC support module revision 1.21";
@@ -66,6 +67,12 @@ static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
 		    struct packet_type *p, struct net_device *orig_dev)
 {
 	struct hdlc_device_desc *desc = dev_to_desc(dev);
+
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return 0;
+	}
+
 	if (desc->netif_rx)
 		return desc->netif_rx(skb);
 

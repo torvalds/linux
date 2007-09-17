@@ -29,6 +29,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_bonding.h>
 #include <linux/pkt_sched.h>
+#include <net/net_namespace.h>
 #include "bonding.h"
 #include "bond_3ad.h"
 
@@ -2447,6 +2448,9 @@ int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct pac
 	struct bonding *bond = dev->priv;
 	struct slave *slave = NULL;
 	int ret = NET_RX_DROP;
+
+	if (dev->nd_net != &init_net)
+		goto out;
 
 	if (!(dev->flags & IFF_MASTER))
 		goto out;

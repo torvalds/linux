@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/netdevice.h>
 #include <linux/moduleparam.h>
+#include <net/net_namespace.h>
 #include <asm/unaligned.h>
 #include "aoe.h"
 
@@ -113,6 +114,9 @@ aoenet_rcv(struct sk_buff *skb, struct net_device *ifp, struct packet_type *pt, 
 {
 	struct aoe_hdr *h;
 	u32 n;
+
+	if (ifp->nd_net != &init_net)
+		goto exit;
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (skb == NULL)

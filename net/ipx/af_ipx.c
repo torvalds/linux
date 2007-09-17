@@ -1647,6 +1647,9 @@ static int ipx_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 	u16 ipx_pktsize;
 	int rc = 0;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	/* Not ours */
 	if (skb->pkt_type == PACKET_OTHERHOST)
 		goto drop;

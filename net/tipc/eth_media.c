@@ -38,6 +38,7 @@
 #include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc_msg.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 
 #define MAX_ETH_BEARERS		2
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
@@ -99,6 +100,11 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
 	u32 size;
+
+	if (dev->nd_net != &init_net) {
+		kfree_skb(buf);
+		return 0;
+	}
 
 	if (likely(eb_ptr->bearer)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {

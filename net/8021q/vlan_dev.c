@@ -122,6 +122,11 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	unsigned short vlan_TCI;
 	__be16 proto;
 
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return -1;
+	}
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return -1;
 

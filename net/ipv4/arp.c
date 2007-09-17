@@ -932,6 +932,9 @@ static int arp_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct arphdr *arp;
 
+	if (dev->nd_net != &init_net)
+		goto freeskb;
+
 	/* ARP header, plus 2 device addresses, plus 2 IP addresses.  */
 	if (!pskb_may_pull(skb, (sizeof(struct arphdr) +
 				 (2 * dev->addr_len) +

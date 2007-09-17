@@ -91,6 +91,9 @@ static int lapbeth_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	int len, err;
 	struct lapbethdev *lapbeth;
 
+	if (dev->nd_net != &init_net)
+		goto drop;
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
 

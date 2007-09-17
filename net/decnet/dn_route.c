@@ -584,6 +584,9 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 	struct dn_dev *dn = (struct dn_dev *)dev->dn_ptr;
 	unsigned char padlen = 0;
 
+	if (dev->nd_net != &init_net)
+		goto dump_it;
+
 	if (dn == NULL)
 		goto dump_it;
 
