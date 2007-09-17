@@ -431,15 +431,13 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 
 struct cmipci_pcm {
 	struct snd_pcm_substream *substream;
-	int running;		/* dac/adc running? */
+	u8 running;		/* dac/adc running? */
+	u8 fmt;			/* format bits */
+	u8 is_dac;
 	unsigned int dma_size;	/* in frames */
-	unsigned int period_size;	/* in frames */
+	unsigned int shift;
+	unsigned int ch;	/* channel (0/1) */
 	unsigned int offset;	/* physical address of the buffer */
-	unsigned int fmt;	/* format bits */
-	int ch;			/* channel (0/1) */
-	unsigned int is_dac;		/* is dac? */
-	int bytes_per_frame;
-	int shift;
 };
 
 /* mixer elements toggled/resumed during ac3 playback */
@@ -785,6 +783,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 				 struct snd_pcm_substream *substream)
 {
 	unsigned int reg, freq, val;
+	unsigned int period_size;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	rec->fmt = 0;
@@ -804,11 +803,11 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	rec->offset = runtime->dma_addr;
 	/* buffer and period sizes in frame */
 	rec->dma_size = runtime->buffer_size << rec->shift;
-	rec->period_size = runtime->period_size << rec->shift;
+	period_size = runtime->period_size << rec->shift;
 	if (runtime->channels > 2) {
 		/* multi-channels */
 		rec->dma_size = (rec->dma_size * runtime->channels) / 2;
-		rec->period_size = (rec->period_size * runtime->channels) / 2;
+		period_size = (period_size * runtime->channels) / 2;
 	}
 
 	spin_lock_irq(&cm->reg_lock);
@@ -819,7 +818,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	/* program sample counts */
 	reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
 	snd_cmipci_write_w(cm, reg, rec->dma_size - 1);
-	snd_cmipci_write_w(cm, reg + 2, rec->period_size - 1);
+	snd_cmipci_write_w(cm, reg + 2, period_size - 1);
 
 	/* set adc/dac flag */
 	val = rec->ch ? CM_CHADC1 : CM_CHADC0;
@@ -875,7 +874,7 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
  * PCM trigger/stop
  */
 static int snd_cmipci_pcm_trigger(struct cmipci *cm, struct cmipci_pcm *rec,
-				  struct snd_pcm_substream *substream, int cmd)
+				  int cmd)
 {
 	unsigned int inthld, chen, reset, pause;
 	int result = 0;
@@ -955,7 +954,7 @@ static int snd_cmipci_playback_trigger(struct snd_pcm_substream *substream,
 				       int cmd)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
-	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_PLAY], substream, cmd);
+	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_PLAY], cmd);
 }
 
 static snd_pcm_uframes_t snd_cmipci_playback_pointer(struct snd_pcm_substream *substream)
@@ -974,7 +973,7 @@ static int snd_cmipci_capture_trigger(struct snd_pcm_substream *substream,
 				     int cmd)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
-	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_CAPT], substream, cmd);
+	return snd_cmipci_pcm_trigger(cm, &cm->channel[CM_CH_CAPT], cmd);
 }
 
 static snd_pcm_uframes_t snd_cmipci_capture_pointer(struct snd_pcm_substream *substream)
