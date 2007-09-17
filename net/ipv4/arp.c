@@ -981,7 +981,7 @@ static int arp_req_set(struct arpreq *r, struct net_device * dev)
 		if (mask && mask != htonl(0xFFFFFFFF))
 			return -EINVAL;
 		if (!dev && (r->arp_flags & ATF_COM)) {
-			dev = dev_getbyhwaddr(r->arp_ha.sa_family, r->arp_ha.sa_data);
+			dev = dev_getbyhwaddr(&init_net, r->arp_ha.sa_family, r->arp_ha.sa_data);
 			if (!dev)
 				return -ENODEV;
 		}
@@ -1169,7 +1169,7 @@ int arp_ioctl(unsigned int cmd, void __user *arg)
 	rtnl_lock();
 	if (r.arp_dev[0]) {
 		err = -ENODEV;
-		if ((dev = __dev_get_by_name(r.arp_dev)) == NULL)
+		if ((dev = __dev_get_by_name(&init_net, r.arp_dev)) == NULL)
 			goto out;
 
 		/* Mmmm... It is wrong... ARPHRD_NETROM==0 */

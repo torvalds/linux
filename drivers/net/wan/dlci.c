@@ -361,7 +361,7 @@ static int dlci_add(struct dlci_add *dlci)
 
 
 	/* validate slave device */
-	slave = dev_get_by_name(dlci->devname);
+	slave = dev_get_by_name(&init_net, dlci->devname);
 	if (!slave)
 		return -ENODEV;
 
@@ -427,7 +427,7 @@ static int dlci_del(struct dlci_add *dlci)
 	int			err;
 
 	/* validate slave device */
-	master = __dev_get_by_name(dlci->devname);
+	master = __dev_get_by_name(&init_net, dlci->devname);
 	if (!master)
 		return(-ENODEV);
 

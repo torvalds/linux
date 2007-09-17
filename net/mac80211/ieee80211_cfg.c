@@ -8,6 +8,7 @@
 
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
+#include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "ieee80211_cfg.h"
@@ -50,7 +51,7 @@ static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
 		return -ENODEV;
 
-	dev = dev_get_by_index(ifindex);
+	dev = dev_get_by_index(&init_net, ifindex);
 	if (!dev)
 		return 0;
 

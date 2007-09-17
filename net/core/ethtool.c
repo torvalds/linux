@@ -779,9 +779,9 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 
 /* The main entry point in this file.  Called from net/core/dev.c */
 
-int dev_ethtool(struct ifreq *ifr)
+int dev_ethtool(struct net *net, struct ifreq *ifr)
 {
-	struct net_device *dev = __dev_get_by_name(ifr->ifr_name);
+	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
 	void __user *useraddr = ifr->ifr_data;
 	u32 ethcmd;
 	int rc;

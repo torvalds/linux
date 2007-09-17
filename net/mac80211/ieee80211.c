@@ -21,6 +21,7 @@
 #include <linux/wireless.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitmap.h>
+#include <net/net_namespace.h>
 #include <net/cfg80211.h>
 
 #include "ieee80211_common.h"

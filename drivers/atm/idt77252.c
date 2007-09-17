@@ -3576,7 +3576,7 @@ init_card(struct atm_dev *dev)
 	 * XXX: <hack>
 	 */
 	sprintf(tname, "eth%d", card->index);
-	tmp = dev_get_by_name(tname);	/* jhs: was "tmp = dev_get(tname);" */
+	tmp = dev_get_by_name(&init_net, tname);	/* jhs: was "tmp = dev_get(tname);" */
 	if (tmp) {
 		memcpy(card->atmdev->esi, tmp->dev_addr, 6);
 

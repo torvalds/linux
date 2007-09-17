@@ -989,7 +989,7 @@ static int ipxitf_create(struct ipx_interface_definition *idef)
 	if (intrfc)
 		ipxitf_put(intrfc);
 
-	dev = dev_get_by_name(idef->ipx_device);
+	dev = dev_get_by_name(&init_net, idef->ipx_device);
 	rc = -ENODEV;
 	if (!dev)
 		goto out;
@@ -1097,7 +1097,7 @@ static int ipxitf_delete(struct ipx_interface_definition *idef)
 	if (!dlink_type)
 		goto out;
 
-	dev = __dev_get_by_name(idef->ipx_device);
+	dev = __dev_get_by_name(&init_net, idef->ipx_device);
 	rc = -ENODEV;
 	if (!dev)
 		goto out;
@@ -1192,7 +1192,7 @@ static int ipxitf_ioctl(unsigned int cmd, void __user *arg)
 		if (copy_from_user(&ifr, arg, sizeof(ifr)))
 			break;
 		sipx = (struct sockaddr_ipx *)&ifr.ifr_addr;
-		dev  = __dev_get_by_name(ifr.ifr_name);
+		dev  = __dev_get_by_name(&init_net, ifr.ifr_name);
 		rc   = -ENODEV;
 		if (!dev)
 			break;

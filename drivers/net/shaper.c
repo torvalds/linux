@@ -86,6 +86,7 @@
 
 #include <net/dst.h>
 #include <net/arp.h>
+#include <net/net_namespace.h>
 
 struct shaper_cb {
 	unsigned long	shapeclock;		/* Time it should go out */
@@ -488,7 +489,7 @@ static int shaper_ioctl(struct net_device *dev,  struct ifreq *ifr, int cmd)
 	{
 		case SHAPER_SET_DEV:
 		{
-			struct net_device *them=__dev_get_by_name(ss->ss_name);
+			struct net_device *them=__dev_get_by_name(&init_net, ss->ss_name);
 			if(them==NULL)
 				return -ENODEV;
 			if(sh->dev)

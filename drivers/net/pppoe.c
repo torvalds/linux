@@ -216,7 +216,7 @@ static inline struct pppox_sock *get_item_by_addr(struct sockaddr_pppox *sp)
 	struct net_device *dev;
 	int ifindex;
 
-	dev = dev_get_by_name(sp->sa_addr.pppoe.dev);
+	dev = dev_get_by_name(&init_net, sp->sa_addr.pppoe.dev);
 	if(!dev)
 		return NULL;
 	ifindex = dev->ifindex;
@@ -603,7 +603,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	/* Don't re-bind if sid==0 */
 	if (sp->sa_addr.pppoe.sid != 0) {
-		dev = dev_get_by_name(sp->sa_addr.pppoe.dev);
+		dev = dev_get_by_name(&init_net, sp->sa_addr.pppoe.dev);
 
 		error = -ENODEV;
 		if (!dev)

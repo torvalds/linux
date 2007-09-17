@@ -3719,7 +3719,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 	}
 
 	down_write(&(bonding_rwsem));
-	slave_dev = dev_get_by_name(ifr->ifr_slave);
+	slave_dev = dev_get_by_name(&init_net, ifr->ifr_slave);
 
 	dprintk("slave_dev=%p: \n", slave_dev);
 

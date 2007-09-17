@@ -602,7 +602,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				dev_put(dev);
 			}
 		} else
-			dev = __dev_get_by_index(mreq.imr_ifindex);
+			dev = __dev_get_by_index(&init_net, mreq.imr_ifindex);
 
 
 		err = -EADDRNOTAVAIL;

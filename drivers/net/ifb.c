@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <net/pkt_sched.h>
+#include <net/net_namespace.h>
 
 #define TX_TIMEOUT  (2*HZ)
 
@@ -97,7 +98,7 @@ static void ri_tasklet(unsigned long dev)
 		stats->tx_packets++;
 		stats->tx_bytes +=skb->len;
 
-		skb->dev = __dev_get_by_index(skb->iif);
+		skb->dev = __dev_get_by_index(&init_net, skb->iif);
 		if (!skb->dev) {
 			dev_kfree_skb(skb);
 			stats->tx_dropped++;

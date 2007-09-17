@@ -244,7 +244,7 @@ static struct net_device *find_lec_by_itfnum(int itf)
 	char name[IFNAMSIZ];
 
 	sprintf(name, "lec%d", itf);
-	dev = dev_get_by_name(name);
+	dev = dev_get_by_name(&init_net, name);
 
 	return dev;
 }

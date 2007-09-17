@@ -367,6 +367,7 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
+	struct net *net = sk->sk_net;
 	char devname[IFNAMSIZ];
 	int index;
 
@@ -395,7 +396,7 @@ static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
 	if (devname[0] == '\0') {
 		index = 0;
 	} else {
-		struct net_device *dev = dev_get_by_name(devname);
+		struct net_device *dev = dev_get_by_name(net, devname);
 
 		ret = -ENODEV;
 		if (!dev)

@@ -62,6 +62,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_tun.h>
 #include <linux/crc32.h>
+#include <net/net_namespace.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -475,7 +476,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		     !capable(CAP_NET_ADMIN))
 			return -EPERM;
 	}
-	else if (__dev_get_by_name(ifr->ifr_name))
+	else if (__dev_get_by_name(&init_net, ifr->ifr_name))
 		return -EINVAL;
 	else {
 		char *name;

@@ -542,7 +542,7 @@ done:
 		if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
 			goto e_inval;
 
-		if (__dev_get_by_index(val) == NULL) {
+		if (__dev_get_by_index(&init_net, val) == NULL) {
 			retv = -ENODEV;
 			break;
 		}

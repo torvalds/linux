@@ -741,44 +741,48 @@ struct packet_type {
 #include <linux/notifier.h>
 
 extern struct net_device		loopback_dev;		/* The loopback */
-extern struct list_head			dev_base_head;		/* All devices */
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
-#define for_each_netdev(d)		\
-		list_for_each_entry(d, &dev_base_head, dev_list)
-#define for_each_netdev_safe(d, n)	\
-		list_for_each_entry_safe(d, n, &dev_base_head, dev_list)
-#define for_each_netdev_continue(d)		\
-		list_for_each_entry_continue(d, &dev_base_head, dev_list)
+
+#define for_each_netdev(net, d)		\
+		list_for_each_entry(d, &(net)->dev_base_head, dev_list)
+#define for_each_netdev_safe(net, d, n)	\
+		list_for_each_entry_safe(d, n, &(net)->dev_base_head, dev_list)
+#define for_each_netdev_continue(net, d)		\
+		list_for_each_entry_continue(d, &(net)->dev_base_head, dev_list)
 #define net_device_entry(lh)	list_entry(lh, struct net_device, dev_list)
 
-static inline struct net_device *next_net_device(struct net_device *dev)
-{
-	struct list_head *lh;
+#define next_net_device(d) 						\
+({									\
+	struct net_device *dev = d;					\
+	struct list_head *lh;						\
+	struct net *net;						\
+									\
+	net = dev->nd_net;						\
+	lh = dev->dev_list.next;					\
+	lh == &net->dev_base_head ? NULL : net_device_entry(lh);	\
+})
 
-	lh = dev->dev_list.next;
-	return lh == &dev_base_head ? NULL : net_device_entry(lh);
-}
-
-static inline struct net_device *first_net_device(void)
-{
-	return list_empty(&dev_base_head) ? NULL :
-		net_device_entry(dev_base_head.next);
-}
+#define first_net_device(N)					\
+({								\
+	struct net *NET = (N);					\
+	list_empty(&NET->dev_base_head) ? NULL :		\
+		net_device_entry(NET->dev_base_head.next);	\
+})
 
 extern int 			netdev_boot_setup_check(struct net_device *dev);
 extern unsigned long		netdev_boot_base(const char *prefix, int unit);
-extern struct net_device    *dev_getbyhwaddr(unsigned short type, char *hwaddr);
-extern struct net_device *dev_getfirstbyhwtype(unsigned short type);
-extern struct net_device *__dev_getfirstbyhwtype(unsigned short type);
+extern struct net_device    *dev_getbyhwaddr(struct net *net, unsigned short type, char *hwaddr);
+extern struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type);
+extern struct net_device *__dev_getfirstbyhwtype(struct net *net, unsigned short type);
 extern void		dev_add_pack(struct packet_type *pt);
 extern void		dev_remove_pack(struct packet_type *pt);
 extern void		__dev_remove_pack(struct packet_type *pt);
 
-extern struct net_device	*dev_get_by_flags(unsigned short flags,
+extern struct net_device	*dev_get_by_flags(struct net *net, unsigned short flags,
 						  unsigned short mask);
-extern struct net_device	*dev_get_by_name(const char *name);
-extern struct net_device	*__dev_get_by_name(const char *name);
+extern struct net_device	*dev_get_by_name(struct net *net, const char *name);
+extern struct net_device	*__dev_get_by_name(struct net *net, const char *name);
 extern int		dev_alloc_name(struct net_device *dev, const char *name);
 extern int		dev_open(struct net_device *dev);
 extern int		dev_close(struct net_device *dev);
@@ -790,8 +794,8 @@ extern void		synchronize_net(void);
 extern int 		register_netdevice_notifier(struct notifier_block *nb);
 extern int		unregister_netdevice_notifier(struct notifier_block *nb);
 extern int		call_netdevice_notifiers(unsigned long val, void *v);
-extern struct net_device	*dev_get_by_index(int ifindex);
-extern struct net_device	*__dev_get_by_index(int ifindex);
+extern struct net_device	*dev_get_by_index(struct net *net, int ifindex);
+extern struct net_device	*__dev_get_by_index(struct net *net, int ifindex);
 extern int		dev_restart(struct net_device *dev);
 #ifdef CONFIG_NETPOLL_TRAP
 extern int		netpoll_trap(void);
@@ -1007,8 +1011,8 @@ extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
-extern int		dev_ioctl(unsigned int cmd, void __user *);
-extern int		dev_ethtool(struct ifreq *);
+extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
+extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
 extern int		dev_change_flags(struct net_device *, unsigned);
 extern int		dev_change_name(struct net_device *, char *);
@@ -1327,7 +1331,7 @@ extern void		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
-extern void		dev_load(const char *name);
+extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
 extern int		netdev_max_backlog;
 extern int		weight_p;

@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <net/net_namespace.h>
 #include <net/llc.h>
 
 LIST_HEAD(llc_sap_list);
@@ -162,7 +163,7 @@ static int __init llc_init(void)
 {
 	struct net_device *dev;
 
-	dev = first_net_device();
+	dev = first_net_device(&init_net);
 	if (dev != NULL)
 		dev = next_net_device(dev);
 

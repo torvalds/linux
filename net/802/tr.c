@@ -533,7 +533,7 @@ static int rif_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 		     "if     TR address       TTL   rcf   routing segments\n");
 	else {
-		struct net_device *dev = dev_get_by_index(entry->iface);
+		struct net_device *dev = dev_get_by_index(&init_net, entry->iface);
 		long ttl = (long) (entry->last_used + sysctl_tr_rif_timeout)
 				- (long) jiffies;
 

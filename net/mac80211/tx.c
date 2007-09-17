@@ -17,6 +17,7 @@
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
 #include <linux/bitmap.h>
+#include <net/net_namespace.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
 #include <net/mac80211.h>
@@ -1018,7 +1019,7 @@ static int inline ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	struct net_device *dev;
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
-	dev = dev_get_by_index(pkt_data->ifindex);
+	dev = dev_get_by_index(&init_net, pkt_data->ifindex);
 	if (unlikely(dev && !is_ieee80211_device(dev, mdev))) {
 		dev_put(dev);
 		dev = NULL;
@@ -1226,7 +1227,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 	memset(&control, 0, sizeof(struct ieee80211_tx_control));
 
 	if (pkt_data->ifindex)
-		odev = dev_get_by_index(pkt_data->ifindex);
+		odev = dev_get_by_index(&init_net, pkt_data->ifindex);
 	if (unlikely(odev && !is_ieee80211_device(odev, dev))) {
 		dev_put(odev);
 		odev = NULL;
@@ -1722,7 +1723,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 	u8 *b_head, *b_tail;
 	int bh_len, bt_len;
 
-	bdev = dev_get_by_index(if_id);
+	bdev = dev_get_by_index(&init_net, if_id);
 	if (bdev) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
 		ap = &sdata->u.ap;
@@ -1836,7 +1837,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
 
-	bdev = dev_get_by_index(if_id);
+	bdev = dev_get_by_index(&init_net, if_id);
 	if (bdev) {
 		sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
 		bss = &sdata->u.ap;

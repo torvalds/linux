@@ -22,6 +22,10 @@ struct net {
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 	struct proc_dir_entry 	*proc_net_root;
+
+	struct list_head 	dev_base_head;
+	struct hlist_head 	*dev_name_head;
+	struct hlist_head	*dev_index_head;
 };
 
 extern struct net init_net;

@@ -306,10 +306,13 @@ EXPORT_SYMBOL_GPL(rtnl_link_register);
 void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
 	struct net_device *dev, *n;
+	struct net *net;
 
-	for_each_netdev_safe(dev, n) {
-		if (dev->rtnl_link_ops == ops)
-			ops->dellink(dev);
+	for_each_net(net) {
+		for_each_netdev_safe(net, dev, n) {
+			if (dev->rtnl_link_ops == ops)
+				ops->dellink(dev);
+		}
 	}
 	list_del(&ops->list);
 }
@@ -693,12 +696,13 @@ nla_put_failure:
 
 static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx;
 	int s_idx = cb->args[0];
 	struct net_device *dev;
 
 	idx = 0;
-	for_each_netdev(dev) {
+	for_each_netdev(net, dev) {
 		if (idx < s_idx)
 			goto cont;
 		if (rtnl_fill_ifinfo(skb, dev, RTM_NEWLINK,
@@ -858,6 +862,7 @@ errout:
 
 static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifinfomsg *ifm;
 	struct net_device *dev;
 	int err;
@@ -876,9 +881,9 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	err = -EINVAL;
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = dev_get_by_index(ifm->ifi_index);
+		dev = dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME])
-		dev = dev_get_by_name(ifname);
+		dev = dev_get_by_name(net, ifname);
 	else
 		goto errout;
 
@@ -904,6 +909,7 @@ errout:
 
 static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
@@ -920,9 +926,9 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = __dev_get_by_index(ifm->ifi_index);
+		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (tb[IFLA_IFNAME])
-		dev = __dev_get_by_name(ifname);
+		dev = __dev_get_by_name(net, ifname);
 	else
 		return -EINVAL;
 
@@ -937,7 +943,7 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
-struct net_device *rtnl_create_link(char *ifname,
+struct net_device *rtnl_create_link(struct net *net, char *ifname,
 		const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
 	int err;
@@ -954,6 +960,7 @@ struct net_device *rtnl_create_link(char *ifname,
 			goto err_free;
 	}
 
+	dev->nd_net = net;
 	dev->rtnl_link_ops = ops;
 
 	if (tb[IFLA_MTU])
@@ -981,6 +988,7 @@ err:
 
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	const struct rtnl_link_ops *ops;
 	struct net_device *dev;
 	struct ifinfomsg *ifm;
@@ -1004,9 +1012,9 @@ replay:
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
-		dev = __dev_get_by_index(ifm->ifi_index);
+		dev = __dev_get_by_index(net, ifm->ifi_index);
 	else if (ifname[0])
-		dev = __dev_get_by_name(ifname);
+		dev = __dev_get_by_name(net, ifname);
 	else
 		dev = NULL;
 
@@ -1092,7 +1100,7 @@ replay:
 		if (!ifname[0])
 			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
 
-		dev = rtnl_create_link(ifname, ops, tb);
+		dev = rtnl_create_link(net, ifname, ops, tb);
 
 		if (IS_ERR(dev))
 			err = PTR_ERR(dev);
@@ -1109,6 +1117,7 @@ replay:
 
 static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifinfomsg *ifm;
 	struct nlattr *tb[IFLA_MAX+1];
 	struct net_device *dev = NULL;
@@ -1121,7 +1130,7 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0) {
-		dev = dev_get_by_index(ifm->ifi_index);
+		dev = dev_get_by_index(net, ifm->ifi_index);
 		if (dev == NULL)
 			return -ENODEV;
 	} else

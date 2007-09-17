@@ -193,7 +193,7 @@ static int __init ic_open_devs(void)
 	if (dev_change_flags(&loopback_dev, loopback_dev.flags | IFF_UP) < 0)
 		printk(KERN_ERR "IP-Config: Failed to open %s\n", loopback_dev.name);
 
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if (dev == &loopback_dev)
 			continue;
 		if (user_dev_name[0] ? !strcmp(dev->name, user_dev_name) :

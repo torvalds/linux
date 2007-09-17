@@ -190,25 +190,22 @@ static struct net_dma net_dma = {
  * unregister_netdevice(), which must be called with the rtnl
  * semaphore held.
  */
-LIST_HEAD(dev_base_head);
 DEFINE_RWLOCK(dev_base_lock);
 
-EXPORT_SYMBOL(dev_base_head);
 EXPORT_SYMBOL(dev_base_lock);
 
 #define NETDEV_HASHBITS	8
-static struct hlist_head dev_name_head[1<<NETDEV_HASHBITS];
-static struct hlist_head dev_index_head[1<<NETDEV_HASHBITS];
+#define NETDEV_HASHENTRIES (1 << NETDEV_HASHBITS)
 
-static inline struct hlist_head *dev_name_hash(const char *name)
+static inline struct hlist_head *dev_name_hash(struct net *net, const char *name)
 {
 	unsigned hash = full_name_hash(name, strnlen(name, IFNAMSIZ));
-	return &dev_name_head[hash & ((1<<NETDEV_HASHBITS)-1)];
+	return &net->dev_name_head[hash & ((1 << NETDEV_HASHBITS) - 1)];
 }
 
-static inline struct hlist_head *dev_index_hash(int ifindex)
+static inline struct hlist_head *dev_index_hash(struct net *net, int ifindex)
 {
-	return &dev_index_head[ifindex & ((1<<NETDEV_HASHBITS)-1)];
+	return &net->dev_index_head[ifindex & ((1 << NETDEV_HASHBITS) - 1)];
 }
 
 /*
@@ -492,7 +489,7 @@ unsigned long netdev_boot_base(const char *prefix, int unit)
 	 * If device already registered then return base of 1
 	 * to indicate not to probe for this interface
 	 */
-	if (__dev_get_by_name(name))
+	if (__dev_get_by_name(&init_net, name))
 		return 1;
 
 	for (i = 0; i < NETDEV_BOOT_SETUP_MAX; i++)
@@ -547,11 +544,11 @@ __setup("netdev=", netdev_boot_setup);
  *	careful with locks.
  */
 
-struct net_device *__dev_get_by_name(const char *name)
+struct net_device *__dev_get_by_name(struct net *net, const char *name)
 {
 	struct hlist_node *p;
 
-	hlist_for_each(p, dev_name_hash(name)) {
+	hlist_for_each(p, dev_name_hash(net, name)) {
 		struct net_device *dev
 			= hlist_entry(p, struct net_device, name_hlist);
 		if (!strncmp(dev->name, name, IFNAMSIZ))
@@ -571,12 +568,12 @@ struct net_device *__dev_get_by_name(const char *name)
  *	matching device is found.
  */
 
-struct net_device *dev_get_by_name(const char *name)
+struct net_device *dev_get_by_name(struct net *net, const char *name)
 {
 	struct net_device *dev;
 
 	read_lock(&dev_base_lock);
-	dev = __dev_get_by_name(name);
+	dev = __dev_get_by_name(net, name);
 	if (dev)
 		dev_hold(dev);
 	read_unlock(&dev_base_lock);
@@ -594,11 +591,11 @@ struct net_device *dev_get_by_name(const char *name)
  *	or @dev_base_lock.
  */
 
-struct net_device *__dev_get_by_index(int ifindex)
+struct net_device *__dev_get_by_index(struct net *net, int ifindex)
 {
 	struct hlist_node *p;
 
-	hlist_for_each(p, dev_index_hash(ifindex)) {
+	hlist_for_each(p, dev_index_hash(net, ifindex)) {
 		struct net_device *dev
 			= hlist_entry(p, struct net_device, index_hlist);
 		if (dev->ifindex == ifindex)
@@ -618,12 +615,12 @@ struct net_device *__dev_get_by_index(int ifindex)
  *	dev_put to indicate they have finished with it.
  */
 
-struct net_device *dev_get_by_index(int ifindex)
+struct net_device *dev_get_by_index(struct net *net, int ifindex)
 {
 	struct net_device *dev;
 
 	read_lock(&dev_base_lock);
-	dev = __dev_get_by_index(ifindex);
+	dev = __dev_get_by_index(net, ifindex);
 	if (dev)
 		dev_hold(dev);
 	read_unlock(&dev_base_lock);
@@ -644,13 +641,13 @@ struct net_device *dev_get_by_index(int ifindex)
  *	If the API was consistent this would be __dev_get_by_hwaddr
  */
 
-struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
+struct net_device *dev_getbyhwaddr(struct net *net, unsigned short type, char *ha)
 {
 	struct net_device *dev;
 
 	ASSERT_RTNL();
 
-	for_each_netdev(dev)
+	for_each_netdev(&init_net, dev)
 		if (dev->type == type &&
 		    !memcmp(dev->dev_addr, ha, dev->addr_len))
 			return dev;
@@ -660,12 +657,12 @@ struct net_device *dev_getbyhwaddr(unsigned short type, char *ha)
 
 EXPORT_SYMBOL(dev_getbyhwaddr);
 
-struct net_device *__dev_getfirstbyhwtype(unsigned short type)
+struct net_device *__dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {
 	struct net_device *dev;
 
 	ASSERT_RTNL();
-	for_each_netdev(dev)
+	for_each_netdev(net, dev)
 		if (dev->type == type)
 			return dev;
 
@@ -674,12 +671,12 @@ struct net_device *__dev_getfirstbyhwtype(unsigned short type)
 
 EXPORT_SYMBOL(__dev_getfirstbyhwtype);
 
-struct net_device *dev_getfirstbyhwtype(unsigned short type)
+struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {
 	struct net_device *dev;
 
 	rtnl_lock();
-	dev = __dev_getfirstbyhwtype(type);
+	dev = __dev_getfirstbyhwtype(net, type);
 	if (dev)
 		dev_hold(dev);
 	rtnl_unlock();
@@ -699,13 +696,13 @@ EXPORT_SYMBOL(dev_getfirstbyhwtype);
  *	dev_put to indicate they have finished with it.
  */
 
-struct net_device * dev_get_by_flags(unsigned short if_flags, unsigned short mask)
+struct net_device * dev_get_by_flags(struct net *net, unsigned short if_flags, unsigned short mask)
 {
 	struct net_device *dev, *ret;
 
 	ret = NULL;
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(net, dev) {
 		if (((dev->flags ^ if_flags) & mask) == 0) {
 			dev_hold(dev);
 			ret = dev;
@@ -763,6 +760,10 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 	const int max_netdevices = 8*PAGE_SIZE;
 	long *inuse;
 	struct net_device *d;
+	struct net *net;
+
+	BUG_ON(!dev->nd_net);
+	net = dev->nd_net;
 
 	p = strnchr(name, IFNAMSIZ-1, '%');
 	if (p) {
@@ -779,7 +780,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 		if (!inuse)
 			return -ENOMEM;
 
-		for_each_netdev(d) {
+		for_each_netdev(net, d) {
 			if (!sscanf(d->name, name, &i))
 				continue;
 			if (i < 0 || i >= max_netdevices)
@@ -796,7 +797,7 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 	}
 
 	snprintf(buf, sizeof(buf), name, i);
-	if (!__dev_get_by_name(buf)) {
+	if (!__dev_get_by_name(net, buf)) {
 		strlcpy(dev->name, buf, IFNAMSIZ);
 		return i;
 	}
@@ -822,9 +823,12 @@ int dev_change_name(struct net_device *dev, char *newname)
 	char oldname[IFNAMSIZ];
 	int err = 0;
 	int ret;
+	struct net *net;
 
 	ASSERT_RTNL();
+	BUG_ON(!dev->nd_net);
 
+	net = dev->nd_net;
 	if (dev->flags & IFF_UP)
 		return -EBUSY;
 
@@ -839,7 +843,7 @@ int dev_change_name(struct net_device *dev, char *newname)
 			return err;
 		strcpy(newname, dev->name);
 	}
-	else if (__dev_get_by_name(newname))
+	else if (__dev_get_by_name(net, newname))
 		return -EEXIST;
 	else
 		strlcpy(dev->name, newname, IFNAMSIZ);
@@ -849,7 +853,7 @@ rollback:
 
 	write_lock_bh(&dev_base_lock);
 	hlist_del(&dev->name_hlist);
-	hlist_add_head(&dev->name_hlist, dev_name_hash(dev->name));
+	hlist_add_head(&dev->name_hlist, dev_name_hash(net, dev->name));
 	write_unlock_bh(&dev_base_lock);
 
 	ret = raw_notifier_call_chain(&netdev_chain, NETDEV_CHANGENAME, dev);
@@ -908,12 +912,12 @@ void netdev_state_change(struct net_device *dev)
  *	available in this kernel then it becomes a nop.
  */
 
-void dev_load(const char *name)
+void dev_load(struct net *net, const char *name)
 {
 	struct net_device *dev;
 
 	read_lock(&dev_base_lock);
-	dev = __dev_get_by_name(name);
+	dev = __dev_get_by_name(net, name);
 	read_unlock(&dev_base_lock);
 
 	if (!dev && capable(CAP_SYS_MODULE))
@@ -1052,6 +1056,8 @@ int dev_close(struct net_device *dev)
 }
 
 
+static int dev_boot_phase = 1;
+
 /*
  *	Device change register/unregister. These are not inline or static
  *	as we export them to the world.
@@ -1075,23 +1081,27 @@ int register_netdevice_notifier(struct notifier_block *nb)
 {
 	struct net_device *dev;
 	struct net_device *last;
+	struct net *net;
 	int err;
 
 	rtnl_lock();
 	err = raw_notifier_chain_register(&netdev_chain, nb);
 	if (err)
 		goto unlock;
+	if (dev_boot_phase)
+		goto unlock;
+	for_each_net(net) {
+		for_each_netdev(net, dev) {
+			err = nb->notifier_call(nb, NETDEV_REGISTER, dev);
+			err = notifier_to_errno(err);
+			if (err)
+				goto rollback;
 
-	for_each_netdev(dev) {
-		err = nb->notifier_call(nb, NETDEV_REGISTER, dev);
-		err = notifier_to_errno(err);
-		if (err)
-			goto rollback;
+			if (!(dev->flags & IFF_UP))
+				continue;
 
-		if (!(dev->flags & IFF_UP))
-			continue;
-
-		nb->notifier_call(nb, NETDEV_UP, dev);
+			nb->notifier_call(nb, NETDEV_UP, dev);
+		}
 	}
 
 unlock:
@@ -1100,15 +1110,17 @@ unlock:
 
 rollback:
 	last = dev;
-	for_each_netdev(dev) {
-		if (dev == last)
-			break;
+	for_each_net(net) {
+		for_each_netdev(net, dev) {
+			if (dev == last)
+				break;
 
-		if (dev->flags & IFF_UP) {
-			nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
-			nb->notifier_call(nb, NETDEV_DOWN, dev);
+			if (dev->flags & IFF_UP) {
+				nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
+				nb->notifier_call(nb, NETDEV_DOWN, dev);
+			}
+			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
 		}
-		nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
 	}
 	goto unlock;
 }
@@ -2187,7 +2199,7 @@ int register_gifconf(unsigned int family, gifconf_func_t * gifconf)
  *	match.  --pb
  */
 
-static int dev_ifname(struct ifreq __user *arg)
+static int dev_ifname(struct net *net, struct ifreq __user *arg)
 {
 	struct net_device *dev;
 	struct ifreq ifr;
@@ -2200,7 +2212,7 @@ static int dev_ifname(struct ifreq __user *arg)
 		return -EFAULT;
 
 	read_lock(&dev_base_lock);
-	dev = __dev_get_by_index(ifr.ifr_ifindex);
+	dev = __dev_get_by_index(net, ifr.ifr_ifindex);
 	if (!dev) {
 		read_unlock(&dev_base_lock);
 		return -ENODEV;
@@ -2220,7 +2232,7 @@ static int dev_ifname(struct ifreq __user *arg)
  *	Thus we will need a 'compatibility mode'.
  */
 
-static int dev_ifconf(char __user *arg)
+static int dev_ifconf(struct net *net, char __user *arg)
 {
 	struct ifconf ifc;
 	struct net_device *dev;
@@ -2244,7 +2256,7 @@ static int dev_ifconf(char __user *arg)
 	 */
 
 	total = 0;
-	for_each_netdev(dev) {
+	for_each_netdev(net, dev) {
 		for (i = 0; i < NPROTO; i++) {
 			if (gifconf_list[i]) {
 				int done;
@@ -2278,6 +2290,7 @@ static int dev_ifconf(char __user *arg)
  */
 void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 {
+	struct net *net = seq->private;
 	loff_t off;
 	struct net_device *dev;
 
@@ -2286,7 +2299,7 @@ void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 		return SEQ_START_TOKEN;
 
 	off = 1;
-	for_each_netdev(dev)
+	for_each_netdev(net, dev)
 		if (off++ == *pos)
 			return dev;
 
@@ -2295,9 +2308,10 @@ void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 
 void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
+	struct net *net = seq->private;
 	++*pos;
 	return v == SEQ_START_TOKEN ?
-		first_net_device() : next_net_device((struct net_device *)v);
+		first_net_device(net) : next_net_device((struct net_device *)v);
 }
 
 void dev_seq_stop(struct seq_file *seq, void *v)
@@ -2393,7 +2407,22 @@ static const struct seq_operations dev_seq_ops = {
 
 static int dev_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &dev_seq_ops);
+	struct seq_file *seq;
+	int res;
+	res =  seq_open(file, &dev_seq_ops);
+	if (!res) {
+		seq = file->private_data;
+		seq->private = get_net(PROC_NET(inode));
+	}
+	return res;
+}
+
+static int dev_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct net *net = seq->private;
+	put_net(net);
+	return seq_release(inode, file);
 }
 
 static const struct file_operations dev_seq_fops = {
@@ -2401,7 +2430,7 @@ static const struct file_operations dev_seq_fops = {
 	.open    = dev_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = dev_seq_release,
 };
 
 static const struct seq_operations softnet_seq_ops = {
@@ -2553,29 +2582,48 @@ static const struct file_operations ptype_seq_fops = {
 };
 
 
-static int __init dev_proc_init(void)
+static int dev_proc_net_init(struct net *net)
 {
 	int rc = -ENOMEM;
 
-	if (!proc_net_fops_create(&init_net, "dev", S_IRUGO, &dev_seq_fops))
+	if (!proc_net_fops_create(net, "dev", S_IRUGO, &dev_seq_fops))
 		goto out;
-	if (!proc_net_fops_create(&init_net, "softnet_stat", S_IRUGO, &softnet_seq_fops))
+	if (!proc_net_fops_create(net, "softnet_stat", S_IRUGO, &softnet_seq_fops))
 		goto out_dev;
-	if (!proc_net_fops_create(&init_net, "ptype", S_IRUGO, &ptype_seq_fops))
+	if (!proc_net_fops_create(net, "ptype", S_IRUGO, &ptype_seq_fops))
 		goto out_softnet;
 
-	if (wext_proc_init())
+	if (wext_proc_init(net))
 		goto out_ptype;
 	rc = 0;
 out:
 	return rc;
 out_ptype:
-	proc_net_remove(&init_net, "ptype");
+	proc_net_remove(net, "ptype");
 out_softnet:
-	proc_net_remove(&init_net, "softnet_stat");
+	proc_net_remove(net, "softnet_stat");
 out_dev:
-	proc_net_remove(&init_net, "dev");
+	proc_net_remove(net, "dev");
 	goto out;
+}
+
+static void dev_proc_net_exit(struct net *net)
+{
+	wext_proc_exit(net);
+
+	proc_net_remove(net, "ptype");
+	proc_net_remove(net, "softnet_stat");
+	proc_net_remove(net, "dev");
+}
+
+static struct pernet_operations dev_proc_ops = {
+	.init = dev_proc_net_init,
+	.exit = dev_proc_net_exit,
+};
+
+static int __init dev_proc_init(void)
+{
+	return register_pernet_subsys(&dev_proc_ops);
 }
 #else
 #define dev_proc_init() 0
@@ -3011,10 +3059,10 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa)
 /*
  *	Perform the SIOCxIFxxx calls.
  */
-static int dev_ifsioc(struct ifreq *ifr, unsigned int cmd)
+static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 {
 	int err;
-	struct net_device *dev = __dev_get_by_name(ifr->ifr_name);
+	struct net_device *dev = __dev_get_by_name(net, ifr->ifr_name);
 
 	if (!dev)
 		return -ENODEV;
@@ -3167,7 +3215,7 @@ static int dev_ifsioc(struct ifreq *ifr, unsigned int cmd)
  *	positive or a negative errno code on error.
  */
 
-int dev_ioctl(unsigned int cmd, void __user *arg)
+int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 {
 	struct ifreq ifr;
 	int ret;
@@ -3180,12 +3228,12 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 
 	if (cmd == SIOCGIFCONF) {
 		rtnl_lock();
-		ret = dev_ifconf((char __user *) arg);
+		ret = dev_ifconf(net, (char __user *) arg);
 		rtnl_unlock();
 		return ret;
 	}
 	if (cmd == SIOCGIFNAME)
-		return dev_ifname((struct ifreq __user *)arg);
+		return dev_ifname(net, (struct ifreq __user *)arg);
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
@@ -3215,9 +3263,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 		case SIOCGIFMAP:
 		case SIOCGIFINDEX:
 		case SIOCGIFTXQLEN:
-			dev_load(ifr.ifr_name);
+			dev_load(net, ifr.ifr_name);
 			read_lock(&dev_base_lock);
-			ret = dev_ifsioc(&ifr, cmd);
+			ret = dev_ifsioc(net, &ifr, cmd);
 			read_unlock(&dev_base_lock);
 			if (!ret) {
 				if (colon)
@@ -3229,9 +3277,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 			return ret;
 
 		case SIOCETHTOOL:
-			dev_load(ifr.ifr_name);
+			dev_load(net, ifr.ifr_name);
 			rtnl_lock();
-			ret = dev_ethtool(&ifr);
+			ret = dev_ethtool(net, &ifr);
 			rtnl_unlock();
 			if (!ret) {
 				if (colon)
@@ -3253,9 +3301,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 		case SIOCSIFNAME:
 			if (!capable(CAP_NET_ADMIN))
 				return -EPERM;
-			dev_load(ifr.ifr_name);
+			dev_load(net, ifr.ifr_name);
 			rtnl_lock();
-			ret = dev_ifsioc(&ifr, cmd);
+			ret = dev_ifsioc(net, &ifr, cmd);
 			rtnl_unlock();
 			if (!ret) {
 				if (colon)
@@ -3294,9 +3342,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 			/* fall through */
 		case SIOCBONDSLAVEINFOQUERY:
 		case SIOCBONDINFOQUERY:
-			dev_load(ifr.ifr_name);
+			dev_load(net, ifr.ifr_name);
 			rtnl_lock();
-			ret = dev_ifsioc(&ifr, cmd);
+			ret = dev_ifsioc(net, &ifr, cmd);
 			rtnl_unlock();
 			return ret;
 
@@ -3316,9 +3364,9 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 			if (cmd == SIOCWANDEV ||
 			    (cmd >= SIOCDEVPRIVATE &&
 			     cmd <= SIOCDEVPRIVATE + 15)) {
-				dev_load(ifr.ifr_name);
+				dev_load(net, ifr.ifr_name);
 				rtnl_lock();
-				ret = dev_ifsioc(&ifr, cmd);
+				ret = dev_ifsioc(net, &ifr, cmd);
 				rtnl_unlock();
 				if (!ret && copy_to_user(arg, &ifr,
 							 sizeof(struct ifreq)))
@@ -3327,7 +3375,7 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
 			}
 			/* Take care of Wireless Extensions */
 			if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST)
-				return wext_handle_ioctl(&ifr, cmd, arg);
+				return wext_handle_ioctl(net, &ifr, cmd, arg);
 			return -EINVAL;
 	}
 }
@@ -3340,18 +3388,16 @@ int dev_ioctl(unsigned int cmd, void __user *arg)
  *	number.  The caller must hold the rtnl semaphore or the
  *	dev_base_lock to be sure it remains unique.
  */
-static int dev_new_index(void)
+static int dev_new_index(struct net *net)
 {
 	static int ifindex;
 	for (;;) {
 		if (++ifindex <= 0)
 			ifindex = 1;
-		if (!__dev_get_by_index(ifindex))
+		if (!__dev_get_by_index(net, ifindex))
 			return ifindex;
 	}
 }
-
-static int dev_boot_phase = 1;
 
 /* Delayed registration/unregisteration */
 static DEFINE_SPINLOCK(net_todo_list_lock);
@@ -3386,6 +3432,7 @@ int register_netdevice(struct net_device *dev)
 	struct hlist_head *head;
 	struct hlist_node *p;
 	int ret;
+	struct net *net;
 
 	BUG_ON(dev_boot_phase);
 	ASSERT_RTNL();
@@ -3394,6 +3441,8 @@ int register_netdevice(struct net_device *dev)
 
 	/* When net_device's are persistent, this will be fatal. */
 	BUG_ON(dev->reg_state != NETREG_UNINITIALIZED);
+	BUG_ON(!dev->nd_net);
+	net = dev->nd_net;
 
 	spin_lock_init(&dev->queue_lock);
 	spin_lock_init(&dev->_xmit_lock);
@@ -3418,12 +3467,12 @@ int register_netdevice(struct net_device *dev)
 		goto err_uninit;
 	}
 
-	dev->ifindex = dev_new_index();
+	dev->ifindex = dev_new_index(net);
 	if (dev->iflink == -1)
 		dev->iflink = dev->ifindex;
 
 	/* Check for existence of name */
-	head = dev_name_hash(dev->name);
+	head = dev_name_hash(net, dev->name);
 	hlist_for_each(p, head) {
 		struct net_device *d
 			= hlist_entry(p, struct net_device, name_hlist);
@@ -3501,9 +3550,9 @@ int register_netdevice(struct net_device *dev)
 
 	dev_init_scheduler(dev);
 	write_lock_bh(&dev_base_lock);
-	list_add_tail(&dev->dev_list, &dev_base_head);
+	list_add_tail(&dev->dev_list, &net->dev_base_head);
 	hlist_add_head(&dev->name_hlist, head);
-	hlist_add_head(&dev->index_hlist, dev_index_hash(dev->ifindex));
+	hlist_add_head(&dev->index_hlist, dev_index_hash(net, dev->ifindex));
 	dev_hold(dev);
 	write_unlock_bh(&dev_base_lock);
 
@@ -4067,6 +4116,45 @@ int netdev_compute_features(unsigned long all, unsigned long one)
 }
 EXPORT_SYMBOL(netdev_compute_features);
 
+/* Initialize per network namespace state */
+static int netdev_init(struct net *net)
+{
+	int i;
+	INIT_LIST_HEAD(&net->dev_base_head);
+	rwlock_init(&dev_base_lock);
+
+	net->dev_name_head = kmalloc(
+		sizeof(*net->dev_name_head)*NETDEV_HASHENTRIES, GFP_KERNEL);
+	if (!net->dev_name_head)
+		return -ENOMEM;
+
+	net->dev_index_head = kmalloc(
+		sizeof(*net->dev_index_head)*NETDEV_HASHENTRIES, GFP_KERNEL);
+	if (!net->dev_index_head) {
+		kfree(net->dev_name_head);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < NETDEV_HASHENTRIES; i++)
+		INIT_HLIST_HEAD(&net->dev_name_head[i]);
+
+	for (i = 0; i < NETDEV_HASHENTRIES; i++)
+		INIT_HLIST_HEAD(&net->dev_index_head[i]);
+
+	return 0;
+}
+
+static void netdev_exit(struct net *net)
+{
+	kfree(net->dev_name_head);
+	kfree(net->dev_index_head);
+}
+
+static struct pernet_operations netdev_net_ops = {
+	.init = netdev_init,
+	.exit = netdev_exit,
+};
+
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
  *	unhooks any devices that fail to initialise (normally hardware not
@@ -4094,11 +4182,8 @@ static int __init net_dev_init(void)
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&ptype_base[i]);
 
-	for (i = 0; i < ARRAY_SIZE(dev_name_head); i++)
-		INIT_HLIST_HEAD(&dev_name_head[i]);
-
-	for (i = 0; i < ARRAY_SIZE(dev_index_head); i++)
-		INIT_HLIST_HEAD(&dev_index_head[i]);
+	if (register_pernet_subsys(&netdev_net_ops))
+		goto out;
 
 	/*
 	 *	Initialise the packet receive queues.

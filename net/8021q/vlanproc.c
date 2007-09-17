@@ -254,7 +254,7 @@ static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 
@@ -273,9 +273,9 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 	dev = (struct net_device *)v;
 	if (v == SEQ_START_TOKEN)
-		dev = net_device_entry(&dev_base_head);
+		dev = net_device_entry(&init_net.dev_base_head);
 
-	for_each_netdev_continue(dev) {
+	for_each_netdev_continue(&init_net, dev) {
 		if (!is_vlan_dev(dev))
 			continue;
 

@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/bitmap.h>
+#include <net/net_namespace.h>
 #include <net/cfg80211.h>
 
 #include "ieee80211_i.h"
@@ -318,7 +319,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw, int if_id,
 					size_t frame_len, int rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct net_device *bdev = dev_get_by_index(if_id);
+	struct net_device *bdev = dev_get_by_index(&init_net, if_id);
 	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
 	int erp;
@@ -342,7 +343,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw, int if_id,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct net_device *bdev = dev_get_by_index(if_id);
+	struct net_device *bdev = dev_get_by_index(&init_net, if_id);
 	struct ieee80211_sub_if_data *sdata;
 	int short_preamble;
 	int erp;
@@ -378,7 +379,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw, int if_id,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct net_device *bdev = dev_get_by_index(if_id);
+	struct net_device *bdev = dev_get_by_index(&init_net, if_id);
 	struct ieee80211_sub_if_data *sdata;
 	int short_preamble;
 	int erp;
