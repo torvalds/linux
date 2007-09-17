@@ -40,6 +40,7 @@ static struct irq_chip mpic_u3msi_chip = {
 	.unmask		= mpic_u3msi_unmask_irq,
 	.eoi		= mpic_end_irq,
 	.set_type	= mpic_set_irq_type,
+	.set_affinity	= mpic_set_affinity,
 	.typename	= "MPIC-U3MSI",
 };
 
