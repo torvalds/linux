@@ -105,4 +105,5 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 int set_range_dirty(struct extent_map_tree *tree, u64 start, u64 end);
 int set_state_private(struct extent_map_tree *tree, u64 start, u64 private);
 int get_state_private(struct extent_map_tree *tree, u64 start, u64 *private);
+void set_page_extent_mapped(struct page *page);
 #endif

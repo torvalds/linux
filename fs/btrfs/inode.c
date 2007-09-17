@@ -652,12 +652,7 @@ static int btrfs_cow_one_page(struct inode *inode, struct page *page,
 	u64 page_start = page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
 
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		set_page_private(page, 1);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		page_cache_get(page);
-	}
+	set_page_extent_mapped(page);
 
 	lock_extent(em_tree, page_start, page_end, GFP_NOFS);
 	set_extent_delalloc(&BTRFS_I(inode)->extent_tree, page_start,

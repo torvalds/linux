@@ -1379,6 +1379,16 @@ static int submit_extent_page(int rw, struct extent_map_tree *tree,
 	return ret;
 }
 
+void set_page_extent_mapped(struct page *page)
+{
+	if (!PagePrivate(page)) {
+		SetPagePrivate(page);
+		WARN_ON(!page->mapping->a_ops->invalidatepage);
+		set_page_private(page, 1);
+		page_cache_get(page);
+	}
+}
+
 /*
  * basic readpage implementation.  Locked extent state structs are inserted
  * into the tree that are removed when the IO is done (by the end_io
@@ -1405,12 +1415,7 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 	size_t iosize;
 	size_t blocksize = inode->i_sb->s_blocksize;
 
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		set_page_private(page, 1);
-		page_cache_get(page);
-	}
+	set_page_extent_mapped(page);
 
 	end = page_end;
 	lock_extent(tree, start, end, GFP_NOFS);
@@ -1531,12 +1536,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			       PAGE_CACHE_SIZE - offset, KM_USER0);
 	}
 
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		set_page_private(page, 1);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		page_cache_get(page);
-	}
+	set_page_extent_mapped(page);
 
 	lock_extent(tree, start, page_end, GFP_NOFS);
 	nr_delalloc = find_lock_delalloc_range(tree, start, page_end + 1,
@@ -1672,13 +1672,7 @@ int extent_commit_write(struct extent_map_tree *tree,
 {
 	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
 
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		set_page_private(page, 1);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		page_cache_get(page);
-	}
-
+	set_page_extent_mapped(page);
 	set_page_dirty(page);
 
 	if (pos > inode->i_size) {
@@ -1709,12 +1703,8 @@ int extent_prepare_write(struct extent_map_tree *tree,
 	int ret = 0;
 	int isnew;
 
-	if (!PagePrivate(page)) {
-		SetPagePrivate(page);
-		set_page_private(page, 1);
-		WARN_ON(!page->mapping->a_ops->invalidatepage);
-		page_cache_get(page);
-	}
+	set_page_extent_mapped(page);
+
 	block_start = (page_start + from) & ~((u64)blocksize - 1);
 	block_end = (page_start + to - 1) | (blocksize - 1);
 	orig_block_start = block_start;

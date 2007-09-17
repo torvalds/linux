@@ -543,12 +543,7 @@ static int prepare_pages(struct btrfs_root *root,
 		}
 		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
 		wait_on_page_writeback(pages[i]);
-		if (!PagePrivate(pages[i])) {
-			SetPagePrivate(pages[i]);
-			set_page_private(pages[i], 1);
-			WARN_ON(!pages[i]->mapping->a_ops->invalidatepage);
-			page_cache_get(pages[i]);
-		}
+		set_page_extent_mapped(pages[i]);
 		WARN_ON(!PageLocked(pages[i]));
 	}
 	return 0;
