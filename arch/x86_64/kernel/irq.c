@@ -210,4 +210,3 @@ asmlinkage void do_softirq(void)
 	}
  	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(do_softirq);
