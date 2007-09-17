@@ -1540,11 +1540,3 @@ empty_zero_page:
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PAGE_SIZE
-
-/*
- * This space gets a copy of optional info passed to us by the bootstrap
- * Used to pass parameters into the kernel like root=/dev/sda1, etc.
- */
-	.globl	cmd_line
-cmd_line:
-	.space	COMMAND_LINE_SIZE

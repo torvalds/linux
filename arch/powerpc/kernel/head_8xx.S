@@ -832,14 +832,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	4096
 
-/*
- * This space gets a copy of optional info passed to us by the bootstrap
- * Used to pass parameters into the kernel like root=/dev/sda1, etc.
- */
-	.globl	cmd_line
-cmd_line:
-	.space	512
-
 /* Room for two PTE table poiners, usually the kernel and current user
  * pointer to their respective root page table (pgdir).
  */

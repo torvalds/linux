@@ -1297,14 +1297,6 @@ empty_zero_page:
 swapper_pg_dir:
 	.space	4096
 
-/*
- * This space gets a copy of optional info passed to us by the bootstrap
- * Used to pass parameters into the kernel like root=/dev/sda1, etc.
- */
-	.globl	cmd_line
-cmd_line:
-	.space	512
-
 	.globl intercept_table
 intercept_table:
 	.long 0, 0, i0x200, i0x300, i0x400, 0, i0x600, i0x700

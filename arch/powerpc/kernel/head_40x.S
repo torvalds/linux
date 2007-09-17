@@ -1006,13 +1006,6 @@ critical_stack_top:
 	.globl	exception_stack_top
 exception_stack_top:
 
-/* This space gets a copy of optional info passed to us by the bootstrap
- * which is used to pass parameters into the kernel like root=/dev/sda1, etc.
- */
-	.globl	cmd_line
-cmd_line:
-	.space	512
-
 /* Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.
  */
