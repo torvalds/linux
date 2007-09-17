@@ -642,10 +642,8 @@ snd_emu10k1_look_for_ctl(struct snd_emu10k1 *emu, struct snd_ctl_elem_id *id)
 {
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_kcontrol *kcontrol;
-	struct list_head *list;
-	
-	list_for_each(list, &emu->fx8010.gpr_ctl) {
-		ctl = emu10k1_gpr_ctl(list);
+
+	list_for_each_entry(ctl, &emu->fx8010.gpr_ctl, list) {
 		kcontrol = ctl->kcontrol;
 		if (kcontrol->id.iface == id->iface &&
 		    !strcmp(kcontrol->id.name, id->name) &&
@@ -895,14 +893,12 @@ static int snd_emu10k1_list_controls(struct snd_emu10k1 *emu,
 	struct snd_emu10k1_fx8010_control_gpr *gctl;
 	struct snd_emu10k1_fx8010_ctl *ctl;
 	struct snd_ctl_elem_id *id;
-	struct list_head *list;
 
 	gctl = kmalloc(sizeof(*gctl), GFP_KERNEL);
 	if (! gctl)
 		return -ENOMEM;
 
-	list_for_each(list, &emu->fx8010.gpr_ctl) {
-		ctl = emu10k1_gpr_ctl(list);
+	list_for_each_entry(ctl, &emu->fx8010.gpr_ctl, list) {
 		total++;
 		if (icode->gpr_list_controls &&
 		    i < icode->gpr_list_control_count) {

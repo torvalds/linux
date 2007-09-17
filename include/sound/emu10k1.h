@@ -1408,8 +1408,6 @@ struct snd_emu10k1_fx8010 {
 	struct snd_emu10k1_fx8010_irq *irq_handlers;
 };
 
-#define emu10k1_gpr_ctl(n) list_entry(n, struct snd_emu10k1_fx8010_ctl, list)
-
 struct snd_emu10k1_midi {
 	struct snd_emu10k1 *emu;
 	struct snd_rawmidi *rmidi;
