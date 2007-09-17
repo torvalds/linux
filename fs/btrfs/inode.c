@@ -2127,7 +2127,7 @@ int btrfs_init_cachep(void)
 	if (!btrfs_transaction_cachep)
 		goto fail;
 	btrfs_path_cachep = btrfs_cache_create("btrfs_path_cache",
-					 sizeof(struct btrfs_transaction),
+					 sizeof(struct btrfs_path),
 					 0, NULL);
 	if (!btrfs_path_cachep)
 		goto fail;
