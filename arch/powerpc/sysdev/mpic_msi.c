@@ -9,7 +9,6 @@
  */
 
 #include <linux/irq.h>
-#include <linux/bootmem.h>
 #include <linux/bitmap.h>
 #include <linux/msi.h>
 #include <asm/mpic.h>
@@ -152,10 +151,7 @@ int mpic_msi_init_allocator(struct mpic *mpic)
 	size = BITS_TO_LONGS(mpic->irq_count) * sizeof(long);
 	pr_debug("mpic: allocator bitmap size is 0x%x bytes\n", size);
 
-	if (mem_init_done)
-		mpic->hwirq_bitmap = kmalloc(size, GFP_KERNEL);
-	else
-		mpic->hwirq_bitmap = alloc_bootmem(size);
+	mpic->hwirq_bitmap = alloc_maybe_bootmem(size, GFP_KERNEL);
 
 	if (!mpic->hwirq_bitmap) {
 		pr_debug("mpic: ENOMEM allocating allocator bitmap!\n");
