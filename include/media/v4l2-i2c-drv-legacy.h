@@ -58,12 +58,14 @@ static int v4l2_i2c_drv_probe_legacy(struct i2c_adapter *adapter)
 
 static int v4l2_i2c_drv_detach_legacy(struct i2c_client *client)
 {
-	int err = i2c_detach_client(client);
+	int err;
 
-	if (err)
-		return err;
 	if (v4l2_i2c_data.remove)
 		v4l2_i2c_data.remove(client);
+
+	err = i2c_detach_client(client);
+	if (err)
+		return err;
 	kfree(client);
 
 	return 0;
