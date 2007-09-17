@@ -69,7 +69,6 @@ struct axon_msic {
 	dcr_host_t dcr_host;
 	struct list_head list;
 	u32 read_offset;
-	u32 dcr_base;
 };
 
 static LIST_HEAD(axon_msic_list);
@@ -78,12 +77,12 @@ static void msic_dcr_write(struct axon_msic *msic, unsigned int dcr_n, u32 val)
 {
 	pr_debug("axon_msi: dcr_write(0x%x, 0x%x)\n", val, dcr_n);
 
-	dcr_write(msic->dcr_host, msic->dcr_base + dcr_n, val);
+	dcr_write(msic->dcr_host, msic->dcr_host.base + dcr_n, val);
 }
 
 static u32 msic_dcr_read(struct axon_msic *msic, unsigned int dcr_n)
 {
-	return dcr_read(msic->dcr_host, msic->dcr_base + dcr_n);
+	return dcr_read(msic->dcr_host, msic->dcr_host.base + dcr_n);
 }
 
 static void axon_msi_cascade(unsigned int irq, struct irq_desc *desc)
@@ -324,7 +323,7 @@ static int axon_msi_setup_one(struct device_node *dn)
 	struct page *page;
 	struct axon_msic *msic;
 	unsigned int virq;
-	int dcr_len;
+	int dcr_base, dcr_len;
 
 	pr_debug("axon_msi: setting up dn %s\n", dn->full_name);
 
@@ -335,17 +334,17 @@ static int axon_msi_setup_one(struct device_node *dn)
 		goto out;
 	}
 
-	msic->dcr_base = dcr_resource_start(dn, 0);
+	dcr_base = dcr_resource_start(dn, 0);
 	dcr_len = dcr_resource_len(dn, 0);
 
-	if (msic->dcr_base == 0 || dcr_len == 0) {
+	if (dcr_base == 0 || dcr_len == 0) {
 		printk(KERN_ERR
 		       "axon_msi: couldn't parse dcr properties on %s\n",
 			dn->full_name);
 		goto out;
 	}
 
-	msic->dcr_host = dcr_map(dn, msic->dcr_base, dcr_len);
+	msic->dcr_host = dcr_map(dn, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(msic->dcr_host)) {
 		printk(KERN_ERR "axon_msi: dcr_map failed for %s\n",
 		       dn->full_name);
