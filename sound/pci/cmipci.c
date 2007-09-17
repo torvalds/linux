@@ -2652,19 +2652,18 @@ static void snd_cmipci_proc_read(struct snd_info_entry *entry,
 				 struct snd_info_buffer *buffer)
 {
 	struct cmipci *cm = entry->private_data;
-	int i;
+	int i, v;
 	
-	snd_iprintf(buffer, "%s\n\n", cm->card->longname);
-	for (i = 0; i < 0x40; i++) {
-		int v = inb(cm->iobase + i);
+	snd_iprintf(buffer, "%s\n", cm->card->longname);
+	for (i = 0; i < 0x94; i++) {
+		if (i == 0x28)
+			i = 0x90;
+		v = inb(cm->iobase + i);
 		if (i % 4 == 0)
-			snd_iprintf(buffer, "%02x: ", i);
-		snd_iprintf(buffer, "%02x", v);
-		if (i % 4 == 3)
-			snd_iprintf(buffer, "\n");
-		else
-			snd_iprintf(buffer, " ");
+			snd_iprintf(buffer, "\n%02x:", i);
+		snd_iprintf(buffer, " %02x", v);
 	}
+	snd_iprintf(buffer, "\n");
 }
 
 static void __devinit snd_cmipci_proc_init(struct cmipci *cm)
