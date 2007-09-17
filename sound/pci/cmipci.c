@@ -434,6 +434,7 @@ struct cmipci_pcm {
 	u8 running;		/* dac/adc running? */
 	u8 fmt;			/* format bits */
 	u8 is_dac;
+	u8 needs_silencing;
 	unsigned int dma_size;	/* in frames */
 	unsigned int shift;
 	unsigned int ch;	/* channel (0/1) */
@@ -903,6 +904,7 @@ static int snd_cmipci_pcm_trigger(struct cmipci *cm, struct cmipci_pcm *rec,
 		cm->ctrl &= ~chen;
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl | reset);
 		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~reset);
+		rec->needs_silencing = rec->is_dac;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -1304,11 +1306,75 @@ static int snd_cmipci_playback_spdif_prepare(struct snd_pcm_substream *substream
 	return snd_cmipci_pcm_prepare(cm, &cm->channel[CM_CH_PLAY], substream);
 }
 
+/*
+ * Apparently, the samples last played on channel A stay in some buffer, even
+ * after the channel is reset, and get added to the data for the rear DACs when
+ * playing a multichannel stream on channel B.  This is likely to generate
+ * wraparounds and thus distortions.
+ * To avoid this, we play at least one zero sample after the actual stream has
+ * stopped.
+ */
+static void snd_cmipci_silence_hack(struct cmipci *cm, struct cmipci_pcm *rec)
+{
+	struct snd_pcm_runtime *runtime = rec->substream->runtime;
+	unsigned int reg, val;
+
+	if (rec->needs_silencing && runtime && runtime->dma_area) {
+		/* set up a small silence buffer */
+		memset(runtime->dma_area, 0, PAGE_SIZE);
+		reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
+		val = ((PAGE_SIZE / 4) - 1) | (((PAGE_SIZE / 4) / 2 - 1) << 16);
+		snd_cmipci_write(cm, reg, val);
+	
+		/* configure for 16 bits, 2 channels, 8 kHz */
+		if (runtime->channels > 2)
+			set_dac_channels(cm, rec, 2);
+		spin_lock_irq(&cm->reg_lock);
+		val = snd_cmipci_read(cm, CM_REG_FUNCTRL1);
+		val &= ~(CM_ASFC_MASK << (rec->ch * 3));
+		val |= (4 << CM_ASFC_SHIFT) << (rec->ch * 3);
+		snd_cmipci_write(cm, CM_REG_FUNCTRL1, val);
+		val = snd_cmipci_read(cm, CM_REG_CHFORMAT);
+		val &= ~(CM_CH0FMT_MASK << (rec->ch * 2));
+		val |= (3 << CM_CH0FMT_SHIFT) << (rec->ch * 2);
+		if (cm->chip_version == 68) {
+			val &= ~(CM_CH0_SRATE_88K << (rec->ch * 2));
+			val &= ~(CM_CH0_SRATE_96K << (rec->ch * 2));
+		}
+		snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
+	
+		/* start stream (we don't need interrupts) */
+		cm->ctrl |= CM_CHEN0 << rec->ch;
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl);
+		spin_unlock_irq(&cm->reg_lock);
+
+		msleep(1);
+
+		/* stop and reset stream */
+		spin_lock_irq(&cm->reg_lock);
+		cm->ctrl &= ~(CM_CHEN0 << rec->ch);
+		val = CM_RST_CH0 << rec->ch;
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl | val);
+		snd_cmipci_write(cm, CM_REG_FUNCTRL0, cm->ctrl & ~val);
+		spin_unlock_irq(&cm->reg_lock);
+
+		rec->needs_silencing = 0;
+	}
+}
+
 static int snd_cmipci_playback_hw_free(struct snd_pcm_substream *substream)
 {
 	struct cmipci *cm = snd_pcm_substream_chip(substream);
 	setup_spdif_playback(cm, substream, 0, 0);
 	restore_mixer_state(cm);
+	snd_cmipci_silence_hack(cm, &cm->channel[0]);
+	return snd_cmipci_hw_free(substream);
+}
+
+static int snd_cmipci_playback2_hw_free(struct snd_pcm_substream *substream)
+{
+	struct cmipci *cm = snd_pcm_substream_chip(substream);
+	snd_cmipci_silence_hack(cm, &cm->channel[1]);
 	return snd_cmipci_hw_free(substream);
 }
 
@@ -1736,7 +1802,7 @@ static struct snd_pcm_ops snd_cmipci_playback2_ops = {
 	.close =	snd_cmipci_playback2_close,
 	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_cmipci_playback2_hw_params,
-	.hw_free =	snd_cmipci_hw_free,
+	.hw_free =	snd_cmipci_playback2_hw_free,
 	.prepare =	snd_cmipci_capture_prepare,	/* channel B */
 	.trigger =	snd_cmipci_capture_trigger,	/* channel B */
 	.pointer =	snd_cmipci_capture_pointer,	/* channel B */
