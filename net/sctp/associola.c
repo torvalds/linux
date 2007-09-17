@@ -415,6 +415,9 @@ void sctp_association_free(struct sctp_association *asoc)
 
 	/* Free peer's cached cookie. */
 	kfree(asoc->peer.cookie);
+	kfree(asoc->peer.peer_random);
+	kfree(asoc->peer.peer_chunks);
+	kfree(asoc->peer.peer_hmacs);
 
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
@@ -1145,7 +1148,23 @@ void sctp_assoc_update(struct sctp_association *asoc,
 		}
 	}
 
-	/* SCTP-AUTH: XXX something needs to be done here*/
+	/* SCTP-AUTH: Save the peer parameters from the new assocaitions
+	 * and also move the association shared keys over
+	 */
+	kfree(asoc->peer.peer_random);
+	asoc->peer.peer_random = new->peer.peer_random;
+	new->peer.peer_random = NULL;
+
+	kfree(asoc->peer.peer_chunks);
+	asoc->peer.peer_chunks = new->peer.peer_chunks;
+	new->peer.peer_chunks = NULL;
+
+	kfree(asoc->peer.peer_hmacs);
+	asoc->peer.peer_hmacs = new->peer.peer_hmacs;
+	new->peer.peer_hmacs = NULL;
+
+	sctp_auth_key_put(asoc->asoc_shared_key);
+	sctp_auth_asoc_init_active_key(asoc, GFP_ATOMIC);
 }
 
 /* Update the retran path for sending a retransmitted packet.

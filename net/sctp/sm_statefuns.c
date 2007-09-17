@@ -549,6 +549,11 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_COOKIE_ECHOED));
 
+	/* SCTP-AUTH: genereate the assocition shared keys so that
+	 * we can potentially signe the COOKIE-ECHO.
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_ASSOC_SHKEY, SCTP_NULL());
+
 	/* 5.1 C) "A" shall then send the State Cookie received in the
 	 * INIT ACK chunk in a COOKIE ECHO chunk, ...
 	 */
@@ -684,6 +689,14 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	if (!sctp_process_init(new_asoc, chunk->chunk_hdr->type,
 			       &chunk->subh.cookie_hdr->c.peer_addr,
 			       peer_init, GFP_ATOMIC))
+		goto nomem_init;
+
+	/* SCTP-AUTH:  Now that we've populate required fields in
+	 * sctp_process_init, set up the assocaition shared keys as
+	 * necessary so that we can potentially authenticate the ACK
+	 */
+	error = sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC);
+	if (error)
 		goto nomem_init;
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
@@ -1247,6 +1260,26 @@ static void sctp_tietags_populate(struct sctp_association *new_asoc,
 	new_asoc->c.initial_tsn         = asoc->c.initial_tsn;
 }
 
+static void sctp_auth_params_populate(struct sctp_association *new_asoc,
+				    const struct sctp_association *asoc)
+{
+	/* Only perform this if AUTH extension is enabled */
+	if (!sctp_auth_enable)
+		return;
+
+	/* We need to provide the same parameter information as
+	 * was in the original INIT.  This means that we need to copy
+	 * the HMACS, CHUNKS, and RANDOM parameter from the original
+	 * assocaition.
+	 */
+	memcpy(new_asoc->c.auth_random, asoc->c.auth_random,
+		sizeof(asoc->c.auth_random));
+	memcpy(new_asoc->c.auth_hmacs, asoc->c.auth_hmacs,
+		sizeof(asoc->c.auth_hmacs));
+	memcpy(new_asoc->c.auth_chunks, asoc->c.auth_chunks,
+		sizeof(asoc->c.auth_chunks));
+}
+
 /*
  * Compare vtag/tietag values to determine unexpected COOKIE-ECHO
  * handling action.
@@ -1403,6 +1436,8 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	}
 
 	sctp_tietags_populate(new_asoc, asoc);
+
+	sctp_auth_params_populate(new_asoc, asoc);
 
 	/* B) "Z" shall respond immediately with an INIT ACK chunk.  */
 

@@ -1524,6 +1524,11 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			sctp_cmd_adaptation_ind(commands, asoc);
 			break;
 
+		case SCTP_CMD_ASSOC_SHKEY:
+			error = sctp_auth_asoc_init_active_key(asoc,
+						GFP_ATOMIC);
+			break;
+
 		default:
 			printk(KERN_WARNING "Impossible command: %u, %p\n",
 			       cmd->verb, cmd->obj.ptr);
