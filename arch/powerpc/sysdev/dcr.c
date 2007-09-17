@@ -104,7 +104,7 @@ u64 of_translate_dcr_address(struct device_node *dev,
 dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 		   unsigned int dcr_c)
 {
-	dcr_host_t ret = { .token = NULL, .stride = 0 };
+	dcr_host_t ret = { .token = NULL, .stride = 0, .base = dcr_n };
 	u64 addr;
 
 	pr_debug("dcr_map(%s, 0x%x, 0x%x)\n",
