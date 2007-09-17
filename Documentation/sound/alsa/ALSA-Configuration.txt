@@ -1679,7 +1679,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     port	- Port # (0x220 or 0x240)
     mss_port	- MSS Port # (0x530 or 0xe80)
     irq		- IRQ # (5,7,9,10,11)
-    mpu_irq	- MPU-401 IRQ # (ditto)
+    mpu_irq	- MPU-401 IRQ # (5,7,9,10) ,0 - no MPU-401 irq
     dma		- DMA # (1,3,0)
 
     This module supports multiple cards.
