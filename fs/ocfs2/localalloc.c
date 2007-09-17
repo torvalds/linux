@@ -524,13 +524,12 @@ bail:
 int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 				 handle_t *handle,
 				 struct ocfs2_alloc_context *ac,
-				 u32 min_bits,
+				 u32 bits_wanted,
 				 u32 *bit_off,
 				 u32 *num_bits)
 {
 	int status, start;
 	struct inode *local_alloc_inode;
-	u32 bits_wanted;
 	void *bitmap;
 	struct ocfs2_dinode *alloc;
 	struct ocfs2_local_alloc *la;
@@ -538,7 +537,6 @@ int ocfs2_claim_local_alloc_bits(struct ocfs2_super *osb,
 	mlog_entry_void();
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_LOCAL);
 
-	bits_wanted = ac->ac_bits_wanted - ac->ac_bits_given;
 	local_alloc_inode = ac->ac_inode;
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
 	la = OCFS2_LOCAL_ALLOC(alloc);

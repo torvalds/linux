@@ -491,8 +491,8 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 		goto leave;
 	}
 
-	status = ocfs2_claim_clusters(osb, handle, data_ac, 1,
-				      &bit_off, &num_bits);
+	status = __ocfs2_claim_clusters(osb, handle, data_ac, 1,
+					clusters_to_add, &bit_off, &num_bits);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
