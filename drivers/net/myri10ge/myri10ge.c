@@ -48,6 +48,7 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
+#include <linux/inet_lro.h>
 #include <linux/ip.h>
 #include <linux/inet.h>
 #include <linux/in.h>
@@ -62,6 +63,8 @@
 #include <linux/io.h>
 #include <linux/log2.h>
 #include <net/checksum.h>
+#include <net/ip.h>
+#include <net/tcp.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -89,6 +92,8 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define MYRI10GE_EEPROM_STRINGS_SIZE 256
 #define MYRI10GE_MAX_SEND_DESC_TSO ((65536 / 2048) * 2)
+#define MYRI10GE_MAX_LRO_DESCRIPTORS 8
+#define MYRI10GE_LRO_MAX_PKTS 64
 
 #define MYRI10GE_NO_CONFIRM_DATA htonl(0xffffffff)
 #define MYRI10GE_NO_RESPONSE_RESULT 0xffffffff
@@ -151,6 +156,8 @@ struct myri10ge_rx_done {
 	dma_addr_t bus;
 	int cnt;
 	int idx;
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[MYRI10GE_MAX_LRO_DESCRIPTORS];
 };
 
 struct myri10ge_priv {
@@ -277,6 +284,14 @@ MODULE_PARM_DESC(myri10ge_max_irq_loops,
 static int myri10ge_debug = -1;	/* defaults above */
 module_param(myri10ge_debug, int, 0);
 MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
+
+static int myri10ge_lro = 1;
+module_param(myri10ge_lro, int, S_IRUGO);
+MODULE_PARM_DESC(myri10ge_lro, "Enable large receive offload\n");
+
+static int myri10ge_lro_max_pkts = MYRI10GE_LRO_MAX_PKTS;
+module_param(myri10ge_lro_max_pkts, int, S_IRUGO);
+MODULE_PARM_DESC(myri10ge_lro, "Number of LRO packets to be aggregated\n");
 
 static int myri10ge_fill_thresh = 256;
 module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
@@ -1021,6 +1036,15 @@ myri10ge_rx_done(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 		remainder -= MYRI10GE_ALLOC_SIZE;
 	}
 
+	if (mgp->csum_flag && myri10ge_lro) {
+		rx_frags[0].page_offset += MXGEFW_PAD;
+		rx_frags[0].size -= MXGEFW_PAD;
+		len -= MXGEFW_PAD;
+		lro_receive_frags(&mgp->rx_done.lro_mgr, rx_frags,
+				  len, len, (void *)(unsigned long)csum, csum);
+		return 1;
+	}
+
 	hlen = MYRI10GE_HLEN > len ? len : MYRI10GE_HLEN;
 
 	/* allocate an skb to attach the page(s) to. */
@@ -1135,6 +1159,9 @@ static inline int myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int budget)
 	rx_done->cnt = cnt;
 	mgp->stats.rx_packets += rx_packets;
 	mgp->stats.rx_bytes += rx_bytes;
+
+	if (myri10ge_lro)
+		lro_flush_all(&rx_done->lro_mgr);
 
 	/* restock receive rings if needed */
 	if (mgp->rx_small.fill_cnt - mgp->rx_small.cnt < myri10ge_fill_thresh)
@@ -1373,7 +1400,8 @@ static const char myri10ge_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"dropped_pause", "dropped_bad_phy", "dropped_bad_crc32",
 	"dropped_unicast_filtered", "dropped_multicast_filtered",
 	"dropped_runt", "dropped_overrun", "dropped_no_small_buffer",
-	"dropped_no_big_buffer"
+	"dropped_no_big_buffer", "LRO aggregated", "LRO flushed",
+	"LRO avg aggr", "LRO no_desc"
 };
 
 #define MYRI10GE_NET_STATS_LEN      21
@@ -1439,6 +1467,14 @@ myri10ge_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_overrun);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_no_small_buffer);
 	data[i++] = (unsigned int)ntohl(mgp->fw_stats->dropped_no_big_buffer);
+	data[i++] = mgp->rx_done.lro_mgr.stats.aggregated;
+	data[i++] = mgp->rx_done.lro_mgr.stats.flushed;
+	if (mgp->rx_done.lro_mgr.stats.flushed)
+		data[i++] = mgp->rx_done.lro_mgr.stats.aggregated /
+		    mgp->rx_done.lro_mgr.stats.flushed;
+	else
+		data[i++] = 0;
+	data[i++] = mgp->rx_done.lro_mgr.stats.no_desc;
 }
 
 static void myri10ge_set_msglevel(struct net_device *netdev, u32 value)
@@ -1712,10 +1748,69 @@ static void myri10ge_free_irq(struct myri10ge_priv *mgp)
 		pci_disable_msi(pdev);
 }
 
+static int
+myri10ge_get_frag_header(struct skb_frag_struct *frag, void **mac_hdr,
+			 void **ip_hdr, void **tcpudp_hdr,
+			 u64 * hdr_flags, void *priv)
+{
+	struct ethhdr *eh;
+	struct vlan_ethhdr *veh;
+	struct iphdr *iph;
+	u8 *va = page_address(frag->page) + frag->page_offset;
+	unsigned long ll_hlen;
+	__wsum csum = (__wsum) (unsigned long)priv;
+
+	/* find the mac header, aborting if not IPv4 */
+
+	eh = (struct ethhdr *)va;
+	*mac_hdr = eh;
+	ll_hlen = ETH_HLEN;
+	if (eh->h_proto != htons(ETH_P_IP)) {
+		if (eh->h_proto == htons(ETH_P_8021Q)) {
+			veh = (struct vlan_ethhdr *)va;
+			if (veh->h_vlan_encapsulated_proto != htons(ETH_P_IP))
+				return -1;
+
+			ll_hlen += VLAN_HLEN;
+
+			/*
+			 *  HW checksum starts ETH_HLEN bytes into
+			 *  frame, so we must subtract off the VLAN
+			 *  header's checksum before csum can be used
+			 */
+			csum = csum_sub(csum, csum_partial(va + ETH_HLEN,
+							   VLAN_HLEN, 0));
+		} else {
+			return -1;
+		}
+	}
+	*hdr_flags = LRO_IPV4;
+
+	iph = (struct iphdr *)(va + ll_hlen);
+	*ip_hdr = iph;
+	if (iph->protocol != IPPROTO_TCP)
+		return -1;
+	*hdr_flags |= LRO_TCP;
+	*tcpudp_hdr = (u8 *) (*ip_hdr) + (iph->ihl << 2);
+
+	/* verify the IP checksum */
+	if (unlikely(ip_fast_csum((u8 *) iph, iph->ihl)))
+		return -1;
+
+	/* verify the  checksum */
+	if (unlikely(csum_tcpudp_magic(iph->saddr, iph->daddr,
+				       ntohs(iph->tot_len) - (iph->ihl << 2),
+				       IPPROTO_TCP, csum)))
+		return -1;
+
+	return 0;
+}
+
 static int myri10ge_open(struct net_device *dev)
 {
 	struct myri10ge_priv *mgp;
 	struct myri10ge_cmd cmd;
+	struct net_lro_mgr *lro_mgr;
 	int status, big_pow2;
 
 	mgp = netdev_priv(dev);
@@ -1846,6 +1941,18 @@ static int myri10ge_open(struct net_device *dev)
 
 	mgp->link_state = htonl(~0U);
 	mgp->rdma_tags_available = 15;
+
+	lro_mgr = &mgp->rx_done.lro_mgr;
+	lro_mgr->dev = dev;
+	lro_mgr->features = LRO_F_NAPI;
+	lro_mgr->ip_summed = CHECKSUM_COMPLETE;
+	lro_mgr->ip_summed_aggr = CHECKSUM_UNNECESSARY;
+	lro_mgr->max_desc = MYRI10GE_MAX_LRO_DESCRIPTORS;
+	lro_mgr->lro_arr = mgp->rx_done.lro_desc;
+	lro_mgr->get_frag_header = myri10ge_get_frag_header;
+	lro_mgr->max_aggr = myri10ge_lro_max_pkts;
+	if (lro_mgr->max_aggr > MAX_SKB_FRAGS)
+		lro_mgr->max_aggr = MAX_SKB_FRAGS;
 
 	napi_enable(&mgp->napi);	/* must happen prior to any irq */
 
