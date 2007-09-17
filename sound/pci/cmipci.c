@@ -2986,6 +2986,10 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 #else
 	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
 #endif
+	if (cm->chip_version) {
+		snd_cmipci_write_b(cm, CM_REG_EXT_MISC, 0x20); /* magic */
+		snd_cmipci_write_b(cm, CM_REG_EXT_MISC + 1, 0x09); /* more magic */
+	}
 	/* Set Bus Master Request */
 	snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_BREQ);
 
