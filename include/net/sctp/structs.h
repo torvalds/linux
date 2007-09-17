@@ -798,6 +798,9 @@ struct sctp_packet {
 	/* This packet contains an AUTH chunk */
 	__u8 has_auth;
 
+	/* This packet contains at least 1 DATA chunk */
+	__u8 has_data;
+
 	/* SCTP cannot fragment this packet. So let ip fragment it. */
 	__u8 ipfragok;
 
