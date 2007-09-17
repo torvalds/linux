@@ -206,7 +206,6 @@ void btrfs_read_locked_inode(struct inode *inode)
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret) {
-		btrfs_free_path(path);
 		goto make_bad;
 	}
 	inode_item = btrfs_item_ptr(btrfs_buffer_leaf(path->nodes[0]),
@@ -1536,7 +1535,7 @@ again:
 		flush_dcache_page(result->b_page);
 		kunmap(page);
 		set_extent_uptodate(em_tree, extent_start,
-				    extent_end, GFP_NOFS);
+				    extent_end - 1, GFP_NOFS);
 		goto insert;
 	} else {
 		printk("unkknown found_type %d\n", found_type);
