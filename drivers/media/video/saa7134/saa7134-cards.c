@@ -32,6 +32,7 @@ static char name_mute[]    = "mute";
 static char name_radio[]   = "Radio";
 static char name_tv[]      = "Television";
 static char name_tv_mono[] = "TV (mono only)";
+static char name_comp[]    = "Composite";
 static char name_comp1[]   = "Composite1";
 static char name_comp2[]   = "Composite2";
 static char name_comp3[]   = "Composite3";
@@ -1535,12 +1536,7 @@ struct saa7134_board saa7134_boards[] = {
 			.tv   = 1,
 			.gpio = 0x00,
 		},{
-			.name = name_comp1,
-			.vmux = 0,
-			.amux = LINE1,
-			.gpio = 0x02,
-		},{
-			.name = name_comp2,
+			.name = name_comp,
 			.vmux = 3,
 			.amux = LINE1,
 			.gpio = 0x02,
