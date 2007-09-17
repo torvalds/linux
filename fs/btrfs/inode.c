@@ -595,6 +595,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 			   btrfs_file_extent_type(fi) !=
 			   BTRFS_FILE_EXTENT_INLINE) {
 			u64 num_dec;
+			extent_start = btrfs_file_extent_disk_blocknr(fi);
 			if (!del_item) {
 				u64 orig_num_blocks =
 					btrfs_file_extent_num_blocks(fi);
@@ -604,12 +605,13 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				extent_num_blocks >>= inode->i_blkbits;
 				btrfs_set_file_extent_num_blocks(fi,
 							 extent_num_blocks);
-				inode->i_blocks -= (orig_num_blocks -
-					extent_num_blocks) << 3;
+				num_dec = (orig_num_blocks -
+					   extent_num_blocks) << 3;
+				if (extent_start != 0) {
+					inode->i_blocks -= num_dec;
+				}
 				btrfs_mark_buffer_dirty(path->nodes[0]);
 			} else {
-				extent_start =
-					btrfs_file_extent_disk_blocknr(fi);
 				extent_num_blocks =
 					btrfs_file_extent_disk_num_blocks(fi);
 				/* FIXME blocksize != 4096 */
