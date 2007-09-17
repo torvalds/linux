@@ -1393,7 +1393,6 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 
 static int __devinit azx_pcm_create(struct azx *chip)
 {
-	struct list_head *p;
 	struct hda_codec *codec;
 	int c, err;
 	int pcm_dev;
@@ -1404,8 +1403,7 @@ static int __devinit azx_pcm_create(struct azx *chip)
 
 	/* create audio PCMs */
 	pcm_dev = 0;
-	list_for_each(p, &chip->bus->codec_list) {
-		codec = list_entry(p, struct hda_codec, list);
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
 		for (c = 0; c < codec->num_pcms; c++) {
 			if (codec->pcm_info[c].is_modem)
 				continue; /* create later */
@@ -1424,8 +1422,7 @@ static int __devinit azx_pcm_create(struct azx *chip)
 
 	/* create modem PCMs */
 	pcm_dev = AZX_MAX_AUDIO_PCMS;
-	list_for_each(p, &chip->bus->codec_list) {
-		codec = list_entry(p, struct hda_codec, list);
+	list_for_each_entry(codec, &chip->bus->codec_list, list) {
 		for (c = 0; c < codec->num_pcms; c++) {
 			if (!codec->pcm_info[c].is_modem)
 				continue; /* already created */

@@ -95,13 +95,12 @@ struct hda_gspec {
 static void snd_hda_generic_free(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
-	struct list_head *p, *n;
+	struct hda_gnode *node, *n;
 
 	if (! spec)
 		return;
 	/* free all widgets */
-	list_for_each_safe(p, n, &spec->nid_list) {
-		struct hda_gnode *node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry_safe(node, n, &spec->nid_list, list) {
 		if (node->conn_list != node->slist)
 			kfree(node->conn_list);
 		kfree(node);
@@ -203,11 +202,9 @@ static int build_afg_tree(struct hda_codec *codec)
 /* FIXME: should avoid the braindead linear search */
 static struct hda_gnode *hda_get_node(struct hda_gspec *spec, hda_nid_t nid)
 {
-	struct list_head *p;
 	struct hda_gnode *node;
 
-	list_for_each(p, &spec->nid_list) {
-		node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry(node, &spec->nid_list, list) {
 		if (node->nid == nid)
 			return node;
 	}
@@ -260,11 +257,9 @@ static int select_input_connection(struct hda_codec *codec, struct hda_gnode *no
  */
 static void clear_check_flags(struct hda_gspec *spec)
 {
-	struct list_head *p;
 	struct hda_gnode *node;
 
-	list_for_each(p, &spec->nid_list) {
-		node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry(node, &spec->nid_list, list) {
 		node->checked = 0;
 	}
 }
@@ -347,12 +342,10 @@ static struct hda_gnode *parse_output_jack(struct hda_codec *codec,
 					   struct hda_gspec *spec,
 					   int jack_type)
 {
-	struct list_head *p;
 	struct hda_gnode *node;
 	int err;
 
-	list_for_each(p, &spec->nid_list) {
-		node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry(node, &spec->nid_list, list) {
 		if (node->type != AC_WID_PIN)
 			continue;
 		/* output capable? */
@@ -664,7 +657,6 @@ static int parse_input_path(struct hda_codec *codec, struct hda_gnode *adc_node)
 static int parse_input(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
-	struct list_head *p;
 	struct hda_gnode *node;
 	int err;
 
@@ -673,8 +665,7 @@ static int parse_input(struct hda_codec *codec)
 	 * If it reaches to certain input PINs, we take it as the
 	 * input path.
 	 */
-	list_for_each(p, &spec->nid_list) {
-		node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry(node, &spec->nid_list, list) {
 		if (node->wid_caps & AC_WCAP_DIGITAL)
 			continue; /* skip SPDIF */
 		if (node->type == AC_WID_AUD_IN) {
@@ -943,7 +934,6 @@ static int parse_loopback_path(struct hda_codec *codec, struct hda_gspec *spec,
 static int build_loopback_controls(struct hda_codec *codec)
 {
 	struct hda_gspec *spec = codec->spec;
-	struct list_head *p;
 	struct hda_gnode *node;
 	int err;
 	const char *type;
@@ -951,8 +941,7 @@ static int build_loopback_controls(struct hda_codec *codec)
 	if (! spec->out_pin_node[0])
 		return 0;
 
-	list_for_each(p, &spec->nid_list) {
-		node = list_entry(p, struct hda_gnode, list);
+	list_for_each_entry(node, &spec->nid_list, list) {
 		if (node->type != AC_WID_PIN)
 			continue;
 		/* input capable? */
