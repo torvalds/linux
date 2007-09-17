@@ -352,6 +352,7 @@ static int __devinit sc6000_init_board(char __iomem *vport, int irq, int dma,
 		return err;
 	}
 
+	memset(answer, 0, sizeof(answer));
 	err = sc6000_dsp_get_answer(vport, GET_DSP_COPYRIGHT, answer, 15);
 	if (err <= 0) {
 		snd_printk(KERN_ERR "sc6000_dsp_copyright: failed!\n");
@@ -530,7 +531,7 @@ static int __devinit snd_sc6000_probe(struct device *devptr, unsigned int dev)
 		snd_printk(KERN_ERR PFX
 			   "SC-6000 port I/O port region is already in use.\n");
 		err = -EBUSY;
-		goto err_unmap2;
+		goto err_unmap1;
 	}
 	vmss_port = devm_ioport_map(devptr, mss_port[dev], 4);
 	if (!vport) {
