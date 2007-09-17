@@ -25,6 +25,7 @@
 
 #include <sound/driver.h>
 #include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/isa.h>
 #include <linux/io.h>
 #include <asm/dma.h>
