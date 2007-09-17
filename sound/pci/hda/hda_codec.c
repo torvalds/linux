@@ -35,7 +35,7 @@
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 /* define this option here to hide as static */
-static int power_save = 10;
+static int power_save = CONFIG_SND_HDA_POWER_SAVE_DEFAULT;
 module_param(power_save, int, 0644);
 MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
 		 "(in second, 0 = disable).");

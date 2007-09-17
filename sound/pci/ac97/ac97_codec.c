@@ -49,7 +49,7 @@ module_param(enable_loopback, bool, 0444);
 MODULE_PARM_DESC(enable_loopback, "Enable AC97 ADC/DAC Loopback Control");
 
 #ifdef CONFIG_SND_AC97_POWER_SAVE
-static int power_save;
+static int power_save = CONFIG_SND_AC97_POWER_SAVE_DEFAULT;
 module_param(power_save, bool, 0644);
 MODULE_PARM_DESC(power_save, "Enable AC97 power-saving control");
 #endif

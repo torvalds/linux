@@ -589,6 +589,14 @@ config SND_HDA_POWER_SAVE
 	  HD-audio driver.  The power-saving timeout can be configured
 	  via power_save option or over sysfs on-the-fly.
 
+config SND_HDA_POWER_SAVE_DEFAULT
+	int "Default time-out for HD-audio power-save mode"
+	depends on SND_HDA_POWER_SAVE
+	default 0
+	help
+	  The default time-out value in seconds for HD-audio automatic
+	  power-save mode.  0 means to disable the power-save mode.
+
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
 	depends on SND
@@ -887,5 +895,12 @@ config SND_AC97_POWER_SAVE
 	  The mode is activated by passing power_save=1 option to
 	  snd-ac97-codec driver.  You can toggle it dynamically over
 	  sysfs, too.
+
+config SND_AC97_POWER_SAVE_DEFAULT
+	int "Default time-out for AC97 power-save mode"
+	depends on SND_AC97_POWER_SAVE
+	default 0
+	  The default time-out value in seconds for AC97 automatic
+	  power-save mode.  0 means to disable the power-save mode.
 
 endmenu
