@@ -314,12 +314,15 @@ extern void xfs_itrace_rele(struct xfs_inode *, char *, int, inst_t *);
 	_xfs_itrace_entry(ip, __FUNCTION__, (inst_t *)__return_address)
 #define xfs_itrace_exit(ip)	\
 	_xfs_itrace_exit(ip, __FUNCTION__, (inst_t *)__return_address)
+#define xfs_itrace_exit_tag(ip, tag)	\
+	_xfs_itrace_exit(ip, tag, (inst_t *)__return_address)
 #define xfs_itrace_ref(ip)	\
 	_xfs_itrace_ref(ip, __FILE__, __LINE__, (inst_t *)__return_address)
 
 #else
 #define	xfs_itrace_entry(a)
 #define	xfs_itrace_exit(a)
+#define	xfs_itrace_exit_tag(a, b)
 #define	xfs_itrace_hold(a, b, c, d)
 #define	xfs_itrace_ref(a)
 #define	xfs_itrace_rele(a, b, c, d)

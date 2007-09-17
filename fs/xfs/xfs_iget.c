@@ -157,8 +157,7 @@ again:
 				goto again;
 			}
 
-			_xfs_itrace_exit(ip, "xfs_iget.alloc",
-				(inst_t *)__return_address);
+			xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
 			XFS_STATS_INC(xs_ig_found);
 
@@ -212,8 +211,7 @@ finish_inode:
 			xfs_ilock(ip, lock_flags);
 
 		xfs_iflags_clear(ip, XFS_ISTALE);
-		_xfs_itrace_exit(ip, "xfs_iget.found",
-					(inst_t *)__return_address);
+		xfs_itrace_exit_tag(ip, "xfs_iget.found");
 		goto return_ip;
 	}
 
@@ -234,7 +232,7 @@ finish_inode:
 		return error;
 	}
 
-	_xfs_itrace_exit(ip, "xfs_iget.alloc", (inst_t *)__return_address);
+	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
 	xfs_inode_lock_init(ip, vp);
 	xfs_iocore_inode_init(ip);
