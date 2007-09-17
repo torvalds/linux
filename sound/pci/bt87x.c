@@ -149,6 +149,7 @@ MODULE_PARM_DESC(load_all, "Allow to load the non-whitelisted cards");
 
 /* Cards with configuration information */
 enum snd_bt87x_boardid {
+	SND_BT87X_BOARD_UNKNOWN,
 	SND_BT87X_BOARD_GENERIC,	/* both an & dig interfaces, 32kHz */
 	SND_BT87X_BOARD_ANALOG,		/* board with no external A/D */
 	SND_BT87X_BOARD_OSPREY2x0,
@@ -165,6 +166,9 @@ struct snd_bt87x_board {
 };
 
 static const __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
+	[SND_BT87X_BOARD_UNKNOWN] = {
+		.dig_rate = 32000, /* just a guess */
+	},
 	[SND_BT87X_BOARD_GENERIC] = {
 		.dig_rate = 32000,
 	},
@@ -861,7 +865,7 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	snd_printk(KERN_DEBUG "please mail id, board name, and, "
 		   "if it works, the correct digital_rate option to "
 		   "<alsa-devel@alsa-project.org>\n");
-	return SND_BT87X_BOARD_GENERIC;
+	return SND_BT87X_BOARD_UNKNOWN;
 }
 
 static int __devinit snd_bt87x_probe(struct pci_dev *pci,
@@ -959,8 +963,8 @@ static void __devexit snd_bt87x_remove(struct pci_dev *pci)
 /* default entries for all Bt87x cards - it's not exported */
 /* driver_data is set to 0 to call detection */
 static struct pci_device_id snd_bt87x_default_ids[] __devinitdata = {
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, GENERIC),
-	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, GENERIC),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_878, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
+	BT_DEVICE(PCI_DEVICE_ID_BROOKTREE_879, PCI_ANY_ID, PCI_ANY_ID, UNKNOWN),
 	{ }
 };
 
