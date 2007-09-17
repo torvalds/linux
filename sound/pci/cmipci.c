@@ -604,6 +604,9 @@ static unsigned int rates[] = { 5512, 11025, 22050, 44100, 8000, 16000, 32000, 4
 static unsigned int snd_cmipci_rate_freq(unsigned int rate)
 {
 	unsigned int i;
+
+	if (rate > 48000)
+		rate /= 2;
 	for (i = 0; i < ARRAY_SIZE(rates); i++) {
 		if (rates[i] == rate)
 			return i;
