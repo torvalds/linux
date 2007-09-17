@@ -91,7 +91,7 @@ struct swStat {
 	unsigned long long serious_err_cnt;
 	unsigned long long soft_reset_cnt;
 	unsigned long long fifo_full_cnt;
-	unsigned long long ring_full_cnt;
+	unsigned long long ring_full_cnt[8];
 	/* LRO statistics */
 	unsigned long long clubbed_frms_cnt;
 	unsigned long long sending_both;
@@ -126,6 +126,26 @@ struct swStat {
 	unsigned long long rx_buf_size_err_cnt;
 	unsigned long long rx_rxd_corrupt_cnt;
 	unsigned long long rx_unkn_err_cnt;
+
+	/* Error/alarm statistics*/
+	unsigned long long tda_err_cnt;
+	unsigned long long pfc_err_cnt;
+	unsigned long long pcc_err_cnt;
+	unsigned long long tti_err_cnt;
+	unsigned long long lso_err_cnt;
+	unsigned long long tpa_err_cnt;
+	unsigned long long sm_err_cnt;
+	unsigned long long mac_tmac_err_cnt;
+	unsigned long long mac_rmac_err_cnt;
+	unsigned long long xgxs_txgxs_err_cnt;
+	unsigned long long xgxs_rxgxs_err_cnt;
+	unsigned long long rc_err_cnt;
+	unsigned long long prc_pcix_err_cnt;
+	unsigned long long rpa_err_cnt;
+	unsigned long long rda_err_cnt;
+	unsigned long long rti_err_cnt;
+	unsigned long long mc_err_cnt;
+
 };
 
 /* Xpak releated alarm and warnings */
@@ -1018,7 +1038,7 @@ static void free_shared_mem(struct s2io_nic *sp);
 static int init_nic(struct s2io_nic *nic);
 static void rx_intr_handler(struct ring_info *ring_data);
 static void tx_intr_handler(struct fifo_info *fifo_data);
-static void alarm_intr_handler(struct s2io_nic *sp);
+static void s2io_handle_errors(void * dev_id);
 
 static int s2io_starter(void);
 static void s2io_closer(void);
