@@ -82,6 +82,8 @@ enum
 	__ICMP_MIB_MAX
 };
 
+#define __ICMPMSG_MIB_MAX 512	/* Out+In for all 8-bit ICMP types */
+
 /* icmp6 mib definitions */
 /*
  * RFC 2466:  ICMPv6-MIB

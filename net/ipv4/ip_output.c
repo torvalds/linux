@@ -1261,6 +1261,10 @@ int ip_push_pending_frames(struct sock *sk)
 	skb->priority = sk->sk_priority;
 	skb->dst = dst_clone(&rt->u.dst);
 
+	if (iph->protocol == IPPROTO_ICMP)
+		icmp_out_count(((struct icmphdr *)
+			skb_transport_header(skb))->type);
+
 	/* Netfilter gets whole the not fragmented skb. */
 	err = NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL,
 		      skb->dst->dev, dst_output);
