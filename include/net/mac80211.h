@@ -322,8 +322,7 @@ struct ieee80211_conf {
 
 #define IEEE80211_CONF_SHORT_SLOT_TIME	(1<<0) /* use IEEE 802.11g Short Slot
 						* Time */
-#define IEEE80211_CONF_SSID_HIDDEN	(1<<1) /* do not broadcast the ssid */
-#define IEEE80211_CONF_RADIOTAP		(1<<2) /* use radiotap if supported
+#define IEEE80211_CONF_RADIOTAP		(1<<1) /* use radiotap if supported
 						  check this bit at RX time */
 	u32 flags;			/* configuration flags defined above */
 
