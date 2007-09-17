@@ -205,7 +205,7 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 {
 	unsigned long flags;
 	int timeout;
-	signed long time;
+	unsigned long end_time;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (timeout = 5; timeout > 0; timeout--)
@@ -240,27 +240,27 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 
 	snd_printdd("(2) jiffies = %lu\n", jiffies);
 
-	time = msecs_to_jiffies(250);
+	end_time = jiffies + msecs_to_jiffies(250);
 	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time <= 0) {
+		if (time_after(jiffies, end_time)) {
 			snd_printk(KERN_ERR "mce_down - auto calibration time out (2)\n");
 			return;
 		}
-		time = schedule_timeout(time);
+		msleep(1);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 
 	snd_printdd("(3) jiffies = %lu\n", jiffies);
 
-	time = msecs_to_jiffies(100);
+	end_time = jiffies + msecs_to_jiffies(100);
 	while (inb(AD1848P(chip, REGSEL)) & AD1848_INIT) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time <= 0) {
+		if (time_after(jiffies, end_time)) {
 			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
 			return;
 		}
-		time = schedule_timeout(time);
+		msleep(1);
 		spin_lock_irqsave(&chip->reg_lock, flags);
 	}
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
