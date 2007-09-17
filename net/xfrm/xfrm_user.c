@@ -30,7 +30,6 @@
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 #include <linux/in6.h>
 #endif
-#include <linux/audit.h>
 
 static inline int alg_len(struct xfrm_algo *alg)
 {
@@ -371,8 +370,8 @@ static int xfrm_add_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	else
 		err = xfrm_state_update(x);
 
-	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-		       AUDIT_MAC_IPSEC_ADDSA, err ? 0 : 1, NULL, x);
+	xfrm_audit_state_add(x, err ? 0 : 1, NETLINK_CB(skb).loginuid,
+			     NETLINK_CB(skb).sid);
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -451,8 +450,8 @@ static int xfrm_del_sa(struct sk_buff *skb, struct nlmsghdr *nlh,
 	km_state_notify(x, &c);
 
 out:
-	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
+	xfrm_audit_state_delete(x, err ? 0 : 1, NETLINK_CB(skb).loginuid,
+				NETLINK_CB(skb).sid);
 	xfrm_state_put(x);
 	return err;
 }
@@ -1067,8 +1066,8 @@ static int xfrm_add_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 	 * a type XFRM_MSG_UPDPOLICY - JHS */
 	excl = nlh->nlmsg_type == XFRM_MSG_NEWPOLICY;
 	err = xfrm_policy_insert(p->dir, xp, excl);
-	xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+	xfrm_audit_policy_add(xp, err ? 0 : 1, NETLINK_CB(skb).loginuid,
+			      NETLINK_CB(skb).sid);
 
 	if (err) {
 		security_xfrm_policy_free(xp);
@@ -1290,8 +1289,9 @@ static int xfrm_get_policy(struct sk_buff *skb, struct nlmsghdr *nlh,
 					    NETLINK_CB(skb).pid);
 		}
 	} else {
-		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-			       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+		xfrm_audit_policy_delete(xp, err ? 0 : 1,
+					 NETLINK_CB(skb).loginuid,
+					 NETLINK_CB(skb).sid);
 
 		if (err != 0)
 			goto out;
@@ -1523,8 +1523,8 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	err = 0;
 	if (up->hard) {
 		xfrm_policy_delete(xp, p->dir);
-		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-				AUDIT_MAC_IPSEC_DELSPD, 1, xp, NULL);
+		xfrm_audit_policy_delete(xp, 1, NETLINK_CB(skb).loginuid,
+					 NETLINK_CB(skb).sid);
 
 	} else {
 		// reset the timers here?
@@ -1559,8 +1559,8 @@ static int xfrm_add_sa_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (ue->hard) {
 		__xfrm_state_delete(x);
-		xfrm_audit_log(NETLINK_CB(skb).loginuid, NETLINK_CB(skb).sid,
-			       AUDIT_MAC_IPSEC_DELSA, 1, NULL, x);
+		xfrm_audit_state_delete(x, 1, NETLINK_CB(skb).loginuid,
+					NETLINK_CB(skb).sid);
 	}
 	err = 0;
 out:

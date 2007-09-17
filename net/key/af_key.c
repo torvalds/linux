@@ -27,7 +27,6 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <net/xfrm.h>
-#include <linux/audit.h>
 
 #include <net/sock.h>
 
@@ -1454,8 +1453,8 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	else
 		err = xfrm_state_update(x);
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_ADDSA, err ? 0 : 1, NULL, x);
+	xfrm_audit_state_add(x, err ? 0 : 1,
+			     audit_get_loginuid(current->audit_context), 0);
 
 	if (err < 0) {
 		x->km.state = XFRM_STATE_DEAD;
@@ -1508,8 +1507,8 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
 out:
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_DELSA, err ? 0 : 1, NULL, x);
+	xfrm_audit_state_delete(x, err ? 0 : 1,
+			       audit_get_loginuid(current->audit_context), 0);
 	xfrm_state_put(x);
 
 	return err;
@@ -2261,8 +2260,8 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	err = xfrm_policy_insert(pol->sadb_x_policy_dir-1, xp,
 				 hdr->sadb_msg_type != SADB_X_SPDUPDATE);
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_ADDSPD, err ? 0 : 1, xp, NULL);
+	xfrm_audit_policy_add(xp, err ? 0 : 1,
+			     audit_get_loginuid(current->audit_context), 0);
 
 	if (err)
 		goto out;
@@ -2345,8 +2344,8 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, struct sadb_msg
 	if (xp == NULL)
 		return -ENOENT;
 
-	xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-		       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+	xfrm_audit_policy_delete(xp, err ? 0 : 1,
+				audit_get_loginuid(current->audit_context), 0);
 
 	if (err)
 		goto out;
@@ -2606,8 +2605,8 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 		return -ENOENT;
 
 	if (delete) {
-		xfrm_audit_log(audit_get_loginuid(current->audit_context), 0,
-			       AUDIT_MAC_IPSEC_DELSPD, err ? 0 : 1, xp, NULL);
+		xfrm_audit_policy_delete(xp, err ? 0 : 1,
+				audit_get_loginuid(current->audit_context), 0);
 
 		if (err)
 			goto out;

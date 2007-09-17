@@ -108,10 +108,11 @@
 #define AUDIT_MAC_CIPSOV4_DEL	1408	/* NetLabel: del CIPSOv4 DOI entry */
 #define AUDIT_MAC_MAP_ADD	1409	/* NetLabel: add LSM domain mapping */
 #define AUDIT_MAC_MAP_DEL	1410	/* NetLabel: del LSM domain mapping */
-#define AUDIT_MAC_IPSEC_ADDSA	1411	/* Add a XFRM state */
-#define AUDIT_MAC_IPSEC_DELSA	1412	/* Delete a XFRM state */
-#define AUDIT_MAC_IPSEC_ADDSPD	1413	/* Add a XFRM policy */
-#define AUDIT_MAC_IPSEC_DELSPD	1414	/* Delete a XFRM policy */
+#define AUDIT_MAC_IPSEC_ADDSA	1411	/* Not used */
+#define AUDIT_MAC_IPSEC_DELSA	1412	/* Not used  */
+#define AUDIT_MAC_IPSEC_ADDSPD	1413	/* Not used */
+#define AUDIT_MAC_IPSEC_DELSPD	1414	/* Not used */
+#define AUDIT_MAC_IPSEC_EVENT	1415	/* Audit an IPSec event */
 
 #define AUDIT_FIRST_KERN_ANOM_MSG   1700
 #define AUDIT_LAST_KERN_ANOM_MSG    1799

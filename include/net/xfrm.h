@@ -12,6 +12,7 @@
 #include <linux/ipsec.h>
 #include <linux/in6.h>
 #include <linux/mutex.h>
+#include <linux/audit.h>
 
 #include <net/sock.h>
 #include <net/dst.h>
@@ -421,15 +422,46 @@ extern unsigned int xfrm_policy_count[XFRM_POLICY_MAX*2];
 /* Audit Information */
 struct xfrm_audit
 {
-	uid_t	loginuid;
+	u32	loginuid;
 	u32	secid;
 };
 
 #ifdef CONFIG_AUDITSYSCALL
-extern void xfrm_audit_log(uid_t auid, u32 secid, int type, int result,
-		    struct xfrm_policy *xp, struct xfrm_state *x);
+static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 sid)
+{
+	struct audit_buffer *audit_buf = NULL;
+	char *secctx;
+	u32 secctx_len;
+
+	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC,
+			      AUDIT_MAC_IPSEC_EVENT);
+	if (audit_buf == NULL)
+		return NULL;
+
+	audit_log_format(audit_buf, "auid=%u", auid);
+
+	if (sid != 0 &&
+	    security_secid_to_secctx(sid, &secctx, &secctx_len) == 0) {
+		audit_log_format(audit_buf, " subj=%s", secctx);
+		security_release_secctx(secctx, secctx_len);
+	} else
+		audit_log_task_context(audit_buf);
+	return audit_buf;
+}
+
+extern void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
+				  u32 auid, u32 sid);
+extern void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
+				  u32 auid, u32 sid);
+extern void xfrm_audit_state_add(struct xfrm_state *x, int result,
+				 u32 auid, u32 sid);
+extern void xfrm_audit_state_delete(struct xfrm_state *x, int result,
+				    u32 auid, u32 sid);
 #else
-#define xfrm_audit_log(a,s,t,r,p,x) do { ; } while (0)
+#define xfrm_audit_policy_add(x, r, a, s)	do { ; } while (0)
+#define xfrm_audit_policy_delete(x, r, a, s)	do { ; } while (0)
+#define xfrm_audit_state_add(x, r, a, s)	do { ; } while (0)
+#define xfrm_audit_state_delete(x, r, a, s)	do { ; } while (0)
 #endif /* CONFIG_AUDITSYSCALL */
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
