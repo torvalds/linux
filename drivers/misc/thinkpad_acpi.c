@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define IBM_VERSION "0.15"
+#define IBM_VERSION "0.16"
 #define TPACPI_SYSFS_VERSION 0x010000
 
 /*
@@ -906,9 +906,26 @@ static ssize_t hotkey_radio_sw_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_radio_sw =
 	__ATTR(hotkey_radio_sw, S_IRUGO, hotkey_radio_sw_show, NULL);
 
+/* sysfs hotkey report_mode -------------------------------------------- */
+static ssize_t hotkey_report_mode_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		(hotkey_report_mode != 0) ? hotkey_report_mode : 1);
+}
+
+static struct device_attribute dev_attr_hotkey_report_mode =
+	__ATTR(hotkey_report_mode, S_IRUGO, hotkey_report_mode_show, NULL);
+
 /* --------------------------------------------------------------------- */
 
-static struct attribute *hotkey_mask_attributes[] = {
+static struct attribute *hotkey_attributes[] __initdata = {
+	&dev_attr_hotkey_enable.attr,
+	&dev_attr_hotkey_report_mode.attr,
+};
+
+static struct attribute *hotkey_mask_attributes[] __initdata = {
 	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
@@ -987,11 +1004,12 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(7, NULL);
+		hotkey_dev_attributes = create_attr_set(8, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
-		res = add_to_attr_set(hotkey_dev_attributes,
-				&dev_attr_hotkey_enable.attr);
+		res = add_many_to_attr_set(hotkey_dev_attributes,
+				hotkey_attributes,
+				ARRAY_SIZE(hotkey_attributes));
 		if (res)
 			return res;
 
@@ -1055,11 +1073,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				TPACPI_HOTKEY_MAP_SIZE);
 		}
 
-#ifndef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
-		for (i = 0; i < 12; i++)
-			hotkey_keycode_map[i] = KEY_UNKNOWN;
-#endif /* ! CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
-
 		set_bit(EV_KEY, tpacpi_inputdev->evbit);
 		set_bit(EV_MSC, tpacpi_inputdev->evbit);
 		set_bit(MSC_SCAN, tpacpi_inputdev->mscbit);
@@ -1081,14 +1094,17 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			set_bit(SW_RADIO, tpacpi_inputdev->swbit);
 		}
 
-#ifdef CONFIG_THINKPAD_ACPI_INPUT_ENABLED
 		dbg_printk(TPACPI_DBG_INIT,
 				"enabling hot key handling\n");
 		res = hotkey_set(1, (hotkey_all_mask & ~hotkey_reserved_mask)
 					| hotkey_orig_mask);
 		if (res)
 			return res;
-#endif /* CONFIG_THINKPAD_ACPI_INPUT_ENABLED */
+
+		dbg_printk(TPACPI_DBG_INIT,
+				"legacy hot key reporting over procfs %s\n",
+				(hotkey_report_mode < 2) ?
+					"enabled" : "disabled");
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -1142,58 +1158,65 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
 	unsigned int keycode, scancode;
-	int sendacpi = 1;
+	int send_acpi_ev = 0;
 
 	if (event == 0x80 && acpi_evalf(hkey_handle, &hkey, "MHKP", "d")) {
-		if (tpacpi_inputdev->users > 0) {
-			switch (hkey >> 12) {
-			case 1:
-				/* 0x1000-0x1FFF: key presses */
-				scancode = hkey & 0xfff;
-				if (scancode > 0 && scancode < 0x21) {
-					scancode--;
-					keycode = hotkey_keycode_map[scancode];
-					tpacpi_input_send_key(scancode, keycode);
-					sendacpi = (keycode == KEY_RESERVED
-						|| keycode == KEY_UNKNOWN);
-				} else {
-					printk(IBM_ERR
-					       "hotkey 0x%04x out of range for keyboard map\n",
-					       hkey);
-				}
-				break;
-			case 5:
-				/* 0x5000-0x5FFF: LID */
-				/* we don't handle it through this path, just
-				 * eat up known LID events */
-				if (hkey != 0x5001 && hkey != 0x5002) {
-					printk(IBM_ERR
-						"unknown LID-related hotkey event: 0x%04x\n",
-						hkey);
-				}
-				break;
-			case 7:
-				/* 0x7000-0x7FFF: misc */
-				if (tp_features.hotkey_wlsw && hkey == 0x7000) {
-						tpacpi_input_send_radiosw();
-						sendacpi = 0;
-					break;
-				}
-				/* fallthrough to default */
-			default:
-				/* case 2: dock-related */
-				/*	0x2305 - T43 waking up due to bay lever eject while aslept */
-				/* case 3: ultra-bay related. maybe bay in dock? */
-				/*	0x3003 - T43 after wake up by bay lever eject (0x2305) */
-				printk(IBM_NOTICE "unhandled hotkey event 0x%04x\n", hkey);
+		switch (hkey >> 12) {
+		case 1:
+			/* 0x1000-0x1FFF: key presses */
+			scancode = hkey & 0xfff;
+			if (scancode > 0 && scancode < 0x21) {
+				scancode--;
+				keycode = hotkey_keycode_map[scancode];
+				tpacpi_input_send_key(scancode, keycode);
+			} else {
+				printk(IBM_ERR
+				       "hotkey 0x%04x out of range for keyboard map\n",
+				       hkey);
+				send_acpi_ev = 1;
 			}
+			break;
+		case 5:
+			/* 0x5000-0x5FFF: LID */
+			/* we don't handle it through this path, just
+			 * eat up known LID events */
+			if (hkey != 0x5001 && hkey != 0x5002) {
+				printk(IBM_ERR
+					"unknown LID-related hotkey event: 0x%04x\n",
+					hkey);
+				send_acpi_ev = 1;
+			}
+			break;
+		case 7:
+			/* 0x7000-0x7FFF: misc */
+			if (tp_features.hotkey_wlsw && hkey == 0x7000) {
+				tpacpi_input_send_radiosw();
+				break;
+			}
+			/* fallthrough to default */
+		default:
+			/* case 2: dock-related */
+			/*	0x2305 - T43 waking up due to bay lever eject while aslept */
+			/* case 3: ultra-bay related. maybe bay in dock? */
+			/*	0x3003 - T43 after wake up by bay lever eject (0x2305) */
+			printk(IBM_NOTICE "unhandled HKEY event 0x%04x\n", hkey);
+			send_acpi_ev = 1;
 		}
-
-		if (sendacpi)
-			acpi_bus_generate_proc_event(ibm->acpi->device, event, hkey);
 	} else {
 		printk(IBM_ERR "unknown hotkey notification event %d\n", event);
-		acpi_bus_generate_proc_event(ibm->acpi->device, event, 0);
+		hkey = 0;
+		send_acpi_ev = 1;
+	}
+
+	/* Legacy events */
+	if (send_acpi_ev || hotkey_report_mode < 2)
+		acpi_bus_generate_proc_event(ibm->acpi->device, event, hkey);
+
+	/* netlink events */
+	if (send_acpi_ev) {
+		acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
+						ibm->acpi->device->dev.bus_id,
+						event, hkey);
 	}
 }
 
@@ -4623,6 +4646,9 @@ module_param_named(fan_control, fan_control_allowed, bool, 0);
 static int brightness_mode;
 module_param_named(brightness_mode, brightness_mode, int, 0);
 
+static unsigned int hotkey_report_mode;
+module_param(hotkey_report_mode, uint, 0);
+
 #define IBM_PARAM(feature) \
 	module_param_call(feature, set_ibm_param, NULL, NULL, 0)
 
@@ -4647,6 +4673,10 @@ IBM_PARAM(fan);
 static int __init thinkpad_acpi_module_init(void)
 {
 	int ret, i;
+
+	/* Parameter checking */
+	if (hotkey_report_mode > 2)
+		return -EINVAL;
 
 	/* Driver-level probe */
 
