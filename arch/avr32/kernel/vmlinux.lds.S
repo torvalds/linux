@@ -9,6 +9,8 @@
  */
 #define LOAD_OFFSET 0x00000000
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/cache.h>
+#include <asm/thread_info.h>
 
 OUTPUT_FORMAT("elf32-avr32", "elf32-avr32", "elf32-avr32")
 OUTPUT_ARCH(avr32)
@@ -58,7 +60,7 @@ SECTIONS
 			*(.init.ramfs)
 		__initramfs_end = .;
 #endif
-		. = ALIGN(4096);
+		. = ALIGN(PAGE_SIZE);
 		__init_end = .;
 	}
 
@@ -96,7 +98,7 @@ SECTIONS
 
 	RODATA
 
-	. = ALIGN(8192);
+	. = ALIGN(THREAD_SIZE);
 
 	.data		: AT(ADDR(.data) - LOAD_OFFSET) {
 		_data = .;
@@ -107,7 +109,7 @@ SECTIONS
 		*(.data.init_task)
 
 		/* Then, the cacheline aligned data */
-		. = ALIGN(32);
+		. = ALIGN(L1_CACHE_BYTES);
 		*(.data.cacheline_aligned)
 
 		/* And the rest... */
