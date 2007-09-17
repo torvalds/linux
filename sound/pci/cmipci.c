@@ -2971,6 +2971,8 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 #endif
 
 	/* initialize codec registers */
+	snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_RESET);
+	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_RESET);
 	snd_cmipci_write(cm, CM_REG_INT_HLDCLR, 0);	/* disable ints */
 	snd_cmipci_ch_reset(cm, CM_CH_PLAY);
 	snd_cmipci_ch_reset(cm, CM_CH_CAPT);
