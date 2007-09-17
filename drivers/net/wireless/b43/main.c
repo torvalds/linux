@@ -92,14 +92,6 @@ static char modparam_fwpostfix[16];
 module_param_string(fwpostfix, modparam_fwpostfix, 16, 0444);
 MODULE_PARM_DESC(fwpostfix, "Postfix for the .fw files to load.");
 
-static int modparam_mon_keep_bad;
-module_param_named(mon_keep_bad, modparam_mon_keep_bad, int, 0444);
-MODULE_PARM_DESC(mon_keep_bad, "Keep bad frames in monitor mode");
-
-static int modparam_mon_keep_badplcp;
-module_param_named(mon_keep_badplcp, modparam_mon_keep_bad, int, 0444);
-MODULE_PARM_DESC(mon_keep_badplcp, "Keep frames with bad PLCP in monitor mode");
-
 static int modparam_hwpctl;
 module_param_named(hwpctl, modparam_hwpctl, int, 0444);
 MODULE_PARM_DESC(hwpctl, "Enable hardware-side power control (default off)");
@@ -561,15 +553,10 @@ static void b43_write_mac_bssid_templates(struct b43_wldev *dev)
 	}
 }
 
-static void b43_upload_card_macaddress(struct b43_wldev *dev,
-				       const u8 * mac_addr)
+static void b43_upload_card_macaddress(struct b43_wldev *dev)
 {
-	if (mac_addr)
-		memcpy(dev->wl->mac_addr, mac_addr, ETH_ALEN);
-	else
-		memset(dev->wl->mac_addr, 0, ETH_ALEN);
 	b43_write_mac_bssid_templates(dev);
-	b43_macfilter_set(dev, B43_MACFILTER_SELF, mac_addr);
+	b43_macfilter_set(dev, B43_MACFILTER_SELF, dev->wl->mac_addr);
 }
 
 static void b43_set_slot_time(struct b43_wldev *dev, u16 slot_time)
@@ -2052,33 +2039,25 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 	ctl &= ~B43_MACCTL_KEEP_BADPLCP;
 	ctl &= ~B43_MACCTL_KEEP_BAD;
 	ctl &= ~B43_MACCTL_PROMISC;
+	ctl &= ~B43_MACCTL_BEACPROMISC;
 	ctl |= B43_MACCTL_INFRA;
 
-	if (wl->operating) {
-		switch (wl->if_type) {
-		case IEEE80211_IF_TYPE_AP:
-			ctl |= B43_MACCTL_AP;
-			break;
-		case IEEE80211_IF_TYPE_IBSS:
-			ctl &= ~B43_MACCTL_INFRA;
-			break;
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_MNTR:
-		case IEEE80211_IF_TYPE_WDS:
-			break;
-		default:
-			B43_WARN_ON(1);
-		}
-	}
-	if (wl->monitor) {
+	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
+		ctl |= B43_MACCTL_AP;
+	else if (b43_is_mode(wl, IEEE80211_IF_TYPE_IBSS))
+		ctl &= ~B43_MACCTL_INFRA;
+
+	if (wl->filter_flags & FIF_CONTROL)
 		ctl |= B43_MACCTL_KEEP_CTL;
-		if (modparam_mon_keep_bad)
-			ctl |= B43_MACCTL_KEEP_BAD;
-		if (modparam_mon_keep_badplcp)
-			ctl |= B43_MACCTL_KEEP_BADPLCP;
-	}
-	if (wl->promisc)
+	if (wl->filter_flags & FIF_FCSFAIL)
+		ctl |= B43_MACCTL_KEEP_BAD;
+	if (wl->filter_flags & FIF_PLCPFAIL)
+		ctl |= B43_MACCTL_KEEP_BADPLCP;
+	if (wl->filter_flags & FIF_PROMISC_IN_BSS)
 		ctl |= B43_MACCTL_PROMISC;
+	if (wl->filter_flags & FIF_BCN_PRBRESP_PROMISC)
+		ctl |= B43_MACCTL_BEACPROMISC;
+
 	/* Workaround: On old hardware the HW-MAC-address-filter
 	 * doesn't work properly, so always run promisc in filter
 	 * it in software. */
@@ -2254,9 +2233,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 		    & ~B43_MACCTL_INFRA);
 	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
 		    | B43_MACCTL_INFRA);
-	/* Let beacons come through */
-	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
-		    | B43_MACCTL_BEACPROMISC);
 
 	if (b43_using_pio(dev)) {
 		b43_write32(dev, 0x0210, 0x00000100);
@@ -2899,9 +2875,9 @@ static int b43_dev_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	return err;
 }
 
-static int b43_dev_set_key(struct ieee80211_hw *hw,
-			   set_key_cmd cmd, const u8 *local_addr,
-			   const u8 *addr, struct ieee80211_key_conf *key)
+static int b43_dev_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+			   const u8 *local_addr, const u8 *addr,
+			   struct ieee80211_key_conf *key)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
@@ -3003,21 +2979,40 @@ out:
 	return err;
 }
 
-static void b43_set_multicast_list(struct ieee80211_hw *hw,
-				   unsigned short netflags, int mc_count)
+static void b43_configure_filter(struct ieee80211_hw *hw,
+				 unsigned int changed, unsigned int *fflags,
+				 int mc_count, struct dev_addr_list *mc_list)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
 	unsigned long flags;
 
-	if (!dev)
+	if (!dev) {
+		*fflags = 0;
 		return;
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	if (wl->promisc != !!(netflags & IFF_PROMISC)) {
-		wl->promisc = !!(netflags & IFF_PROMISC);
-		if (b43_status(dev) >= B43_STAT_INITIALIZED)
-			b43_adjust_opmode(dev);
 	}
+
+	spin_lock_irqsave(&wl->irq_lock, flags);
+	*fflags &= FIF_PROMISC_IN_BSS |
+		  FIF_ALLMULTI |
+		  FIF_FCSFAIL |
+		  FIF_PLCPFAIL |
+		  FIF_CONTROL |
+		  FIF_OTHER_BSS |
+		  FIF_BCN_PRBRESP_PROMISC;
+
+	changed &= FIF_PROMISC_IN_BSS |
+		   FIF_ALLMULTI |
+		   FIF_FCSFAIL |
+		   FIF_PLCPFAIL |
+		   FIF_CONTROL |
+		   FIF_OTHER_BSS |
+		   FIF_BCN_PRBRESP_PROMISC;
+
+	wl->filter_flags = *fflags;
+
+	if (changed && b43_status(dev) >= B43_STAT_INITIALIZED)
+		b43_adjust_opmode(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 }
 
@@ -3032,21 +3027,19 @@ static int b43_config_interface(struct ieee80211_hw *hw,
 		return -ENODEV;
 	mutex_lock(&wl->mutex);
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	if (conf->type != IEEE80211_IF_TYPE_MNTR) {
-		B43_WARN_ON(wl->if_id != if_id);
-		if (conf->bssid)
-			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
-		else
-			memset(wl->bssid, 0, ETH_ALEN);
-		if (b43_status(dev) >= B43_STAT_INITIALIZED) {
-			if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
-				B43_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
-				b43_set_ssid(dev, conf->ssid, conf->ssid_len);
-				if (conf->beacon)
-					b43_refresh_templates(dev, conf->beacon);
-			}
-			b43_write_mac_bssid_templates(dev);
+	B43_WARN_ON(wl->if_id != if_id);
+	if (conf->bssid)
+		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
+	else
+		memset(wl->bssid, 0, ETH_ALEN);
+	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
+		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
+			B43_WARN_ON(conf->type != IEEE80211_IF_TYPE_AP);
+			b43_set_ssid(dev, conf->ssid, conf->ssid_len);
+			if (conf->beacon)
+				b43_refresh_templates(dev, conf->beacon);
 		}
+		b43_write_mac_bssid_templates(dev);
 	}
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 	mutex_unlock(&wl->mutex);
@@ -3472,7 +3465,8 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 
 	ssb_bus_powerup(bus, 1);	/* Enable dynamic PCTL */
 	memset(wl->bssid, 0, ETH_ALEN);
-	b43_upload_card_macaddress(dev, NULL);
+	memset(wl->mac_addr, 0, ETH_ALEN);
+	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
 	b43_rng_init(wl);
 
@@ -3502,46 +3496,34 @@ static int b43_add_interface(struct ieee80211_hw *hw,
 	struct b43_wldev *dev;
 	unsigned long flags;
 	int err = -EOPNOTSUPP;
-	int did_init = 0;
+
+	/* TODO: allow WDS/AP devices to coexist */
+
+	if (conf->type != IEEE80211_IF_TYPE_AP &&
+	    conf->type != IEEE80211_IF_TYPE_STA &&
+	    conf->type != IEEE80211_IF_TYPE_WDS &&
+	    conf->type != IEEE80211_IF_TYPE_IBSS)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);
-	if ((conf->type != IEEE80211_IF_TYPE_MNTR) && wl->operating)
+	if (wl->operating)
 		goto out_mutex_unlock;
 
 	b43dbg(wl, "Adding Interface type %d\n", conf->type);
 
 	dev = wl->current_dev;
-	if (b43_status(dev) < B43_STAT_INITIALIZED) {
-		err = b43_wireless_core_init(dev);
-		if (err)
-			goto out_mutex_unlock;
-		did_init = 1;
-	}
-	if (b43_status(dev) < B43_STAT_STARTED) {
-		err = b43_wireless_core_start(dev);
-		if (err) {
-			if (did_init)
-				b43_wireless_core_exit(dev);
-			goto out_mutex_unlock;
-		}
-	}
+	wl->operating = 1;
+	wl->if_id = conf->if_id;
+	wl->if_type = conf->type;
+	memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
 
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	switch (conf->type) {
-	case IEEE80211_IF_TYPE_MNTR:
-		wl->monitor++;
-		break;
-	default:
-		wl->operating = 1;
-		wl->if_id = conf->if_id;
-		wl->if_type = conf->type;
-		b43_upload_card_macaddress(dev, conf->mac_addr);
-	}
 	b43_adjust_opmode(dev);
+	b43_upload_card_macaddress(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	err = 0;
-      out_mutex_unlock:
+ out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
 
 	return err;
@@ -3551,34 +3533,67 @@ static void b43_remove_interface(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct b43_wldev *dev;
+	struct b43_wldev *dev = wl->current_dev;
 	unsigned long flags;
 
 	b43dbg(wl, "Removing Interface type %d\n", conf->type);
 
 	mutex_lock(&wl->mutex);
-	if (conf->type == IEEE80211_IF_TYPE_MNTR) {
-		wl->monitor--;
-		B43_WARN_ON(wl->monitor < 0);
-	} else {
-		B43_WARN_ON(!wl->operating);
-		wl->operating = 0;
+
+	B43_WARN_ON(!wl->operating);
+	B43_WARN_ON(wl->if_id != conf->if_id);
+
+	wl->operating = 0;
+
+	spin_lock_irqsave(&wl->irq_lock, flags);
+	b43_adjust_opmode(dev);
+	memset(wl->mac_addr, 0, ETH_ALEN);
+	b43_upload_card_macaddress(dev);
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
+
+	mutex_unlock(&wl->mutex);
+}
+
+static int b43_start(struct ieee80211_hw *hw)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev = wl->current_dev;
+	int did_init = 0;
+	int err;
+
+	mutex_lock(&wl->mutex);
+
+	if (b43_status(dev) < B43_STAT_INITIALIZED) {
+		err = b43_wireless_core_init(dev);
+		if (err)
+			goto out_mutex_unlock;
+		did_init = 1;
 	}
 
-	dev = wl->current_dev;
-	if (!wl->operating && wl->monitor == 0) {
-		/* No interface left. */
-		if (b43_status(dev) >= B43_STAT_STARTED)
-			b43_wireless_core_stop(dev);
-		b43_wireless_core_exit(dev);
-	} else {
-		/* Just monitor interfaces left. */
-		spin_lock_irqsave(&wl->irq_lock, flags);
-		b43_adjust_opmode(dev);
-		if (!wl->operating)
-			b43_upload_card_macaddress(dev, NULL);
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
+	if (b43_status(dev) < B43_STAT_STARTED) {
+		err = b43_wireless_core_start(dev);
+		if (err) {
+			if (did_init)
+				b43_wireless_core_exit(dev);
+			goto out_mutex_unlock;
+		}
 	}
+
+ out_mutex_unlock:
+	mutex_unlock(&wl->mutex);
+
+	return err;
+}
+
+void b43_stop(struct ieee80211_hw *hw)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev = wl->current_dev;
+
+	mutex_lock(&wl->mutex);
+	if (b43_status(dev) >= B43_STAT_STARTED)
+		b43_wireless_core_stop(dev);
+	b43_wireless_core_exit(dev);
 	mutex_unlock(&wl->mutex);
 }
 
@@ -3589,10 +3604,12 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.remove_interface = b43_remove_interface,
 	.config = b43_dev_config,
 	.config_interface = b43_config_interface,
-	.set_multicast_list = b43_set_multicast_list,
+	.configure_filter = b43_configure_filter,
 	.set_key = b43_dev_set_key,
 	.get_stats = b43_get_stats,
 	.get_tx_stats = b43_get_tx_stats,
+	.start = b43_start,
+	.stop = b43_stop,
 };
 
 /* Hard-reset the chip. Do not call this directly.
@@ -3930,8 +3947,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	}
 
 	/* fill hw info */
-	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
-	    IEEE80211_HW_MONITOR_DURING_OPER;
+	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
 	hw->max_signal = 100;
 	hw->max_rssi = -110;
 	hw->max_noise = -110;

@@ -294,9 +294,6 @@ struct interface {
 
 	/*
 	 * Current working type (IEEE80211_IF_TYPE_*).
-	 * This excludes the type IEEE80211_IF_TYPE_MNTR
-	 * since that is counted seperately in the monitor_count
-	 * field.
 	 * When set to INVALID_INTERFACE, no interface is configured.
 	 */
 	int type;
@@ -314,18 +311,8 @@ struct interface {
 
 	/*
 	 * Store the packet filter mode for the current interface.
-	 * monitor mode always disabled filtering. But in such
-	 * cases we still need to store the value here in case
-	 * the monitor mode interfaces are removed, while a
-	 * non-monitor mode interface remains.
 	 */
-	unsigned short filter;
-
-	/*
-	 * Monitor mode count, the number of interfaces
-	 * in monitor mode that that have been added.
-	 */
-	unsigned short monitor_count;
+	unsigned int filter;
 };
 
 static inline int is_interface_present(struct interface *intf)
@@ -333,9 +320,9 @@ static inline int is_interface_present(struct interface *intf)
 	return !!intf->id;
 }
 
-static inline int is_monitor_present(struct interface *intf)
+static inline int is_interface_type(struct interface *intf, int type)
 {
-	return !!intf->monitor_count;
+	return intf->type == type;
 }
 
 /*
@@ -402,7 +389,7 @@ struct rt2x00lib_ops {
 	 */
 	void (*write_tx_desc) (struct rt2x00_dev *rt2x00dev,
 			       struct data_desc *txd,
-			       struct data_entry_desc *desc,
+			       struct txdata_entry_desc *desc,
 			       struct ieee80211_hdr *ieee80211hdr,
 			       unsigned int length,
 			       struct ieee80211_tx_control *control);
@@ -415,8 +402,8 @@ struct rt2x00lib_ops {
 	/*
 	 * RX control handlers
 	 */
-	int (*fill_rxdone) (struct data_entry *entry,
-			    int *signal, int *rssi, int *ofdm, int *size);
+	void (*fill_rxdone) (struct data_entry *entry,
+			     struct rxdata_entry_desc *desc);
 
 	/*
 	 * Configuration handlers.
@@ -511,11 +498,10 @@ struct rt2x00_dev {
 #define DEVICE_INITIALIZED		3
 #define DEVICE_INITIALIZED_HW		4
 #define REQUIRE_FIRMWARE		5
-#define PACKET_FILTER_SCHEDULED		6
-#define PACKET_FILTER_PENDING		7
+/* Hole: Add new Flag here */
 #define INTERFACE_RESUME		8
 #define INTERFACE_ENABLED		9
-#define INTERFACE_ENABLED_MONITOR	10
+/* Hole: Add new Flag here */
 #define REQUIRE_BEACON_RING		11
 #define DEVICE_SUPPORT_HW_BUTTON	12
 #define CONFIG_FRAME_TYPE		13
@@ -606,9 +592,10 @@ struct rt2x00_dev {
 	struct ieee80211_rx_status rx_status;
 
 	/*
-	 * Beacon scheduled work.
+	 * Scheduled work.
 	 */
 	struct work_struct beacon_work;
+	struct work_struct filter_work;
 
 	/*
 	 * Data ring arrays for RX, TX and Beacon.
@@ -760,7 +747,7 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct data_entry *entry,
 		      const int status, const int retry);
 void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
-		      const int signal, const int rssi, const int ofdm);
+		      struct rxdata_entry_desc *desc);
 
 /*
  * TX descriptor initializer
@@ -785,8 +772,6 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
 int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
 			       struct ieee80211_if_conf *conf);
-void rt2x00mac_set_multicast_list(struct ieee80211_hw *hw,
-				  unsigned short flags, int mc_count);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,

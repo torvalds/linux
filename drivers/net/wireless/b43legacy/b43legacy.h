@@ -179,6 +179,7 @@
 #define B43legacy_MACCTL_IHR_ENABLED	0x00000400 /* IHR Region Enabled */
 #define B43legacy_MACCTL_INFRA		0x00020000 /* Infrastructure mode */
 #define B43legacy_MACCTL_AP		0x00040000 /* AccessPoint mode */
+#define B43legacy_MACCTL_BEACPROMISC	0x00100000 /* Beacon Promiscuous */
 #define B43legacy_MACCTL_KEEP_BADPLCP	0x00200000 /* Keep bad PLCP frames */
 #define B43legacy_MACCTL_KEEP_CTL	0x00400000 /* Keep control frames */
 #define B43legacy_MACCTL_KEEP_BAD	0x00800000 /* Keep bad frames (FCS) */
@@ -570,25 +571,20 @@ struct b43legacy_wl {
 	 * at a time. General information about this interface follows.
 	 */
 
-	/* Opaque ID of the operating interface (!= monitor
-	 * interface) from the ieee80211 subsystem.
-	 * Do not modify.
+	/* Opaque ID of the operating interface from the ieee80211
+	 * subsystem. Do not modify.
 	 */
 	int if_id;
 	/* MAC address (can be NULL). */
-	const u8 *mac_addr;
+	u8 mac_addr[ETH_ALEN];
 	/* Current BSSID (can be NULL). */
-	const u8 *bssid;
+	u8 bssid[ETH_ALEN];
 	/* Interface type. (IEEE80211_IF_TYPE_XXX) */
 	int if_type;
-	/* Counter of active monitor interfaces. */
-	int monitor;
 	/* Is the card operating in AP, STA or IBSS mode? */
 	bool operating;
-	/* Promisc mode active?
-	 * Note that (monitor != 0) implies promisc.
-	 */
-	bool promisc;
+	/* filter flags */
+	unsigned int filter_flags;
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
@@ -753,8 +749,6 @@ struct b43legacy_wldev *dev_to_b43legacy_wldev(struct device *dev)
 static inline
 int b43legacy_is_mode(struct b43legacy_wl *wl, int type)
 {
-	if (type == IEEE80211_IF_TYPE_MNTR)
-		return !!(wl->monitor);
 	return (wl->operating &&
 		wl->if_type == type);
 }

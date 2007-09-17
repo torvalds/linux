@@ -176,46 +176,26 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct interface *intf = &rt2x00dev->interface;
-	int retval;
 
 	/*
 	 * We only support 1 non-monitor interface.
 	 */
-	if (conf->type != IEEE80211_IF_TYPE_MNTR && is_interface_present(intf))
+	if (is_interface_present(intf))
 		return -ENOBUFS;
 
-	/*
-	 * HACK: Placeholder until start/stop handler has been
-	 * added to the mac80211 callback functions structure.
-	 */
-	retval = rt2x00mac_start(hw);
-	if (retval)
-		return retval;
+	intf->id = conf->if_id;
+	intf->type = conf->type;
+	if (conf->type == IEEE80211_IF_TYPE_AP)
+		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
+	memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
 
 	/*
-	 * We support muliple monitor mode interfaces.
-	 * All we need to do is increase the monitor_count.
-	 */
-	if (conf->type == IEEE80211_IF_TYPE_MNTR) {
-		intf->monitor_count++;
-	} else {
-		intf->id = conf->if_id;
-		intf->type = conf->type;
-		if (conf->type == IEEE80211_IF_TYPE_AP)
-			memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
-		memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
-		intf->filter = 0;
-	}
-
-	/*
-	 * Configure interface.
 	 * The MAC adddress must be configured after the device
-	 * has been initialized. Else the device can reset the
-	 * MAC registers.
+	 * has been initialized. Otherwise the device can reset
+	 * the MAC registers.
 	 */
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_type(rt2x00dev, conf->type);
-	rt2x00lib_config_packet_filter(rt2x00dev, intf->filter);
 
 	return 0;
 }
@@ -230,22 +210,13 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	/*
 	 * We only support 1 non-monitor interface.
 	 */
-	if (conf->type != IEEE80211_IF_TYPE_MNTR && !is_interface_present(intf))
+	if (!is_interface_present(intf))
 		return;
 
-	/*
-	 * When removing an monitor interface, decrease monitor_count.
-	 * For non-monitor interfaces, all interface data needs to be reset.
-	 */
-	if (conf->type == IEEE80211_IF_TYPE_MNTR) {
-		intf->monitor_count--;
-	} else if (intf->type == conf->type) {
-		intf->id = 0;
-		intf->type = INVALID_INTERFACE;
-		memset(&intf->bssid, 0x00, ETH_ALEN);
-		memset(&intf->mac, 0x00, ETH_ALEN);
-		intf->filter = 0;
-	}
+	intf->id = 0;
+	intf->type = INVALID_INTERFACE;
+	memset(&intf->bssid, 0x00, ETH_ALEN);
+	memset(&intf->mac, 0x00, ETH_ALEN);
 
 	/*
 	 * Make sure the bssid and mac address registers
@@ -254,12 +225,6 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
 	rt2x00lib_config_type(rt2x00dev, intf->type);
-
-	/*
-	 * HACK: Placeholder untill start/stop handler has been
-	 * added to the mac80211 callback functions structure.
-	 */
-	rt2x00mac_stop(hw);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 
@@ -290,14 +255,6 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	rt2x00lib_config(rt2x00dev, conf);
 
 	/*
-	 * If promisc mode cannot be configured in irq context,
-	 * then it is now the time to configure it.
-	 */
-	if (test_bit(PACKET_FILTER_SCHEDULED, &rt2x00dev->flags))
-		rt2x00lib_config_packet_filter(rt2x00dev,
-					       rt2x00dev->interface.filter);
-
-	/*
 	 * Reenable RX only if the radio should be on.
 	 */
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
@@ -326,13 +283,10 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		return 0;
 
 	/*
-	 * Monitor mode does not need configuring.
 	 * If the given type does not match the configured type,
 	 * there has been a problem.
 	 */
-	if (conf->type == IEEE80211_IF_TYPE_MNTR)
-		return 0;
-	else if (conf->type != intf->type)
+	if (conf->type != intf->type)
 		return -EINVAL;
 
 	/*
@@ -359,36 +313,6 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
 	return status;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_config_interface);
-
-void rt2x00mac_set_multicast_list(struct ieee80211_hw *hw,
-				  unsigned short flags, int mc_count)
-{
-	struct rt2x00_dev *rt2x00dev = hw->priv;
-
-	/*
-	 * Check if the new state is different then the old state.
-	 */
-	if (rt2x00dev->interface.filter == flags)
-		return;
-
-	rt2x00dev->interface.filter = flags;
-
-	/*
-	 * Raise the pending bit to indicate the
-	 * packet filter should be updated.
-	 */
-	__set_bit(PACKET_FILTER_PENDING, &rt2x00dev->flags);
-
-	/*
-	 * Check if Packet filter actions are allowed in
-	 * atomic context. If not, raise the pending flag and
-	 * let it be.
-	 */
-	if (!test_bit(PACKET_FILTER_SCHEDULED, &rt2x00dev->flags) ||
-	    !in_atomic())
-		rt2x00lib_config_packet_filter(rt2x00dev, flags);
-}
-EXPORT_SYMBOL_GPL(rt2x00mac_set_multicast_list);
 
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats)

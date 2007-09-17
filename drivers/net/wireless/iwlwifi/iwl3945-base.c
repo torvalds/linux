@@ -6870,7 +6870,7 @@ static void iwl_bg_scan_completed(struct work_struct *work)
  *
  *****************************************************************************/
 
-static int iwl_mac_open(struct ieee80211_hw *hw)
+static int iwl_mac_start(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -6889,7 +6889,7 @@ static int iwl_mac_open(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static int iwl_mac_stop(struct ieee80211_hw *hw)
+static void iwl_mac_stop(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = hw->priv;
 
@@ -6898,8 +6898,6 @@ static int iwl_mac_stop(struct ieee80211_hw *hw)
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
 	IWL_DEBUG_MAC80211("leave\n");
-
-	return 0;
 }
 
 static int iwl_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -7115,6 +7113,8 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 	if (conf == NULL)
 		return -EIO;
 
+	/* XXX: this MUST use conf->mac_addr */
+
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
 	    (!conf->beacon || !conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
@@ -7129,8 +7129,13 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		IWL_DEBUG_MAC80211("bssid: %s\n",
 				   print_mac(mac, conf->bssid));
 
+/*
+ * very dubious code was here; the probe filtering flag is never set:
+ *
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
 	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
+ */
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211("leave - scanning\n");
 		mutex_unlock(&priv->mutex);
 		return 0;
@@ -7203,6 +7208,18 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 	mutex_unlock(&priv->mutex);
 
 	return 0;
+}
+
+static void iwl_configure_filter(struct ieee80211_hw *hw,
+				 unsigned int changed_flags,
+				 unsigned int *total_flags,
+				 int mc_count, struct dev_addr_list *mc_list)
+{
+	/*
+	 * XXX: dummy
+	 * see also iwl_connection_init_rx_config
+	 */
+	*total_flags = 0;
 }
 
 static void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -8265,12 +8282,13 @@ static struct attribute_group iwl_attribute_group = {
 
 static struct ieee80211_ops iwl_hw_ops = {
 	.tx = iwl_mac_tx,
-	.open = iwl_mac_open,
+	.start = iwl_mac_start,
 	.stop = iwl_mac_stop,
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
 	.config = iwl_mac_config,
 	.config_interface = iwl_mac_config_interface,
+	.configure_filter = iwl_configure_filter,
 	.set_key = iwl_mac_set_key,
 	.get_stats = iwl_mac_get_stats,
 	.get_tx_stats = iwl_mac_get_tx_stats,

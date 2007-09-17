@@ -46,72 +46,24 @@ void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 		rt2x00dev->ops->lib->config_bssid(rt2x00dev, bssid);
 }
 
-void rt2x00lib_config_packet_filter(struct rt2x00_dev *rt2x00dev, int filter)
-{
-	/*
-	 * Only configure the device when something has changed,
-	 * or if we are in RESUME state in which case all configuration
-	 * will be forced upon the device.
-	 */
-	if (!test_bit(INTERFACE_RESUME, &rt2x00dev->flags) &&
-	    !test_bit(PACKET_FILTER_PENDING, &rt2x00dev->flags))
-		return;
-
-	/*
-	 * Write configuration to device and clear the update flag.
-	 */
-	rt2x00dev->ops->lib->config_packet_filter(rt2x00dev, filter);
-	__clear_bit(PACKET_FILTER_PENDING, &rt2x00dev->flags);
-}
-
 void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, int type)
 {
 	struct interface *intf = &rt2x00dev->interface;
 
-	/*
-	 * Fallback when a invalid interface is attempted to
-	 * be configured. If a monitor interface is present,
-	 * we are going configure that, otherwise exit.
-	 */
-	if (type == INVALID_INTERFACE) {
-		if (is_monitor_present(intf))
-			type = IEEE80211_IF_TYPE_MNTR;
-		else
-			return;
-	}
-
-	/*
-	 * Only configure the device when something has changed,
-	 * or if we are in RESUME state in which case all configuration
-	 * will be forced upon the device.
-	 */
 	if (!test_bit(INTERFACE_RESUME, &rt2x00dev->flags) &&
-	    (!(is_interface_present(intf) ^
-	       test_bit(INTERFACE_ENABLED, &rt2x00dev->flags)) &&
-	     !(is_monitor_present(intf) ^
-	       test_bit(INTERFACE_ENABLED_MONITOR, &rt2x00dev->flags))))
+	    (!!test_bit(INTERFACE_ENABLED, &rt2x00dev->flags) ==
+	     !!is_interface_present(intf)))
 		return;
 
-	/*
-	 * Configure device.
-	 */
 	rt2x00dev->ops->lib->config_type(rt2x00dev, type);
 
 	/*
 	 * Update the configuration flags.
 	 */
-	if (type != IEEE80211_IF_TYPE_MNTR) {
-		if (is_interface_present(intf))
-			__set_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
-		else
-			__clear_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
-	} else {
-		if (is_monitor_present(intf))
-			__set_bit(INTERFACE_ENABLED_MONITOR, &rt2x00dev->flags);
-		else
-			__clear_bit(INTERFACE_ENABLED_MONITOR,
-				    &rt2x00dev->flags);
-	}
+	if (is_interface_present(intf))
+		__set_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
+	else
+		__clear_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev, struct ieee80211_conf *conf)

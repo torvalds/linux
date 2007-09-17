@@ -52,7 +52,8 @@ struct p54_common {
 	int (*open)(struct ieee80211_hw *dev);
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
-	u8 *mac_addr;
+	u8 mac_addr[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
 	struct pda_channel_output_limit *output_limit;

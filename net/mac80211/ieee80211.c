@@ -53,6 +53,38 @@ static int header_parse_80211(const struct sk_buff *skb, unsigned char *haddr)
 	return ETH_ALEN;
 }
 
+/* must be called under mdev tx lock */
+static void ieee80211_configure_filter(struct ieee80211_local *local)
+{
+	unsigned int changed_flags;
+	unsigned int new_flags = 0;
+
+	if (local->iff_promiscs)
+		new_flags |= FIF_PROMISC_IN_BSS;
+
+	if (local->iff_allmultis)
+		new_flags |= FIF_ALLMULTI;
+
+	if (local->monitors)
+		new_flags |= FIF_CONTROL |
+			     FIF_OTHER_BSS |
+			     FIF_BCN_PRBRESP_PROMISC;
+
+	changed_flags = local->filter_flags ^ new_flags;
+
+	/* be a bit nasty */
+	new_flags |= (1<<31);
+
+	local->ops->configure_filter(local_to_hw(local),
+				     changed_flags, &new_flags,
+				     local->mdev->mc_count,
+				     local->mdev->mc_list);
+
+	WARN_ON(new_flags & (1<<31));
+
+	local->filter_flags = new_flags & ~(1<<31);
+}
+
 /* master interface */
 
 static int ieee80211_master_open(struct net_device *dev)
@@ -84,6 +116,13 @@ static int ieee80211_master_stop(struct net_device *dev)
 	read_unlock(&local->sub_if_lock);
 
 	return 0;
+}
+
+static void ieee80211_master_set_multicast_list(struct net_device *dev)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	ieee80211_configure_filter(local);
 }
 
 /* management interface */
@@ -267,49 +306,6 @@ static inline int identical_mac_addr_allowed(int type1, int type2)
 		  type2 == IEEE80211_IF_TYPE_VLAN)));
 }
 
-/* Check if running monitor interfaces should go to a "soft monitor" mode
- * and switch them if necessary. */
-static inline void ieee80211_start_soft_monitor(struct ieee80211_local *local)
-{
-	struct ieee80211_if_init_conf conf;
-
-	if (local->open_count && local->open_count == local->monitors &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER) &&
-	    local->ops->remove_interface) {
-		conf.if_id = -1;
-		conf.type = IEEE80211_IF_TYPE_MNTR;
-		conf.mac_addr = NULL;
-		local->ops->remove_interface(local_to_hw(local), &conf);
-	}
-}
-
-/* Check if running monitor interfaces should go to a "hard monitor" mode
- * and switch them if necessary. */
-static void ieee80211_start_hard_monitor(struct ieee80211_local *local)
-{
-	struct ieee80211_if_init_conf conf;
-
-	if (local->open_count && local->open_count == local->monitors &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER)) {
-		conf.if_id = -1;
-		conf.type = IEEE80211_IF_TYPE_MNTR;
-		conf.mac_addr = NULL;
-		local->ops->add_interface(local_to_hw(local), &conf);
-	}
-}
-
-static void ieee80211_if_open(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (sdata->type) {
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
-		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
-		break;
-	}
-}
-
 static int ieee80211_open(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata, *nsdata;
@@ -335,84 +331,96 @@ static int ieee80211_open(struct net_device *dev)
 	    is_zero_ether_addr(sdata->u.wds.remote_addr))
 		return -ENOLINK;
 
-	if (sdata->type == IEEE80211_IF_TYPE_MNTR && local->open_count &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER)) {
-		/* run the interface in a "soft monitor" mode */
-		local->monitors++;
-		local->open_count++;
-		local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-		return 0;
-	}
-	ieee80211_if_open(dev);
-	ieee80211_start_soft_monitor(local);
-
-	conf.if_id = dev->ifindex;
-	conf.type = sdata->type;
-	if (sdata->type == IEEE80211_IF_TYPE_MNTR)
-		conf.mac_addr = NULL;
-	else
-		conf.mac_addr = dev->dev_addr;
-	res = local->ops->add_interface(local_to_hw(local), &conf);
-	if (res) {
-		if (sdata->type == IEEE80211_IF_TYPE_MNTR)
-			ieee80211_start_hard_monitor(local);
-		return res;
-	}
-
 	if (local->open_count == 0) {
 		res = 0;
-		tasklet_enable(&local->tx_pending_tasklet);
-		tasklet_enable(&local->tasklet);
-		if (local->ops->open)
-			res = local->ops->open(local_to_hw(local));
-		if (res == 0) {
-			res = dev_open(local->mdev);
-			if (res) {
-				if (local->ops->stop)
-					local->ops->stop(local_to_hw(local));
-			} else {
-				res = ieee80211_hw_config(local);
-				if (res && local->ops->stop)
-					local->ops->stop(local_to_hw(local));
-				else if (!res && local->apdev)
-					dev_open(local->apdev);
-			}
-		}
-		if (res) {
-			if (local->ops->remove_interface)
-				local->ops->remove_interface(local_to_hw(local),
-							    &conf);
+		if (local->ops->start)
+			res = local->ops->start(local_to_hw(local));
+		if (res)
 			return res;
-		}
 	}
-	local->open_count++;
 
-	if (sdata->type == IEEE80211_IF_TYPE_MNTR) {
+	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_MNTR:
+		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
-		local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-	} else {
+		if (local->monitors == 1) {
+			netif_tx_lock_bh(local->mdev);
+			ieee80211_configure_filter(local);
+			netif_tx_unlock_bh(local->mdev);
+
+			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
+			ieee80211_hw_config(local);
+		}
+		break;
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
+		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
+		/* fall through */
+	default:
+		conf.if_id = dev->ifindex;
+		conf.type = sdata->type;
+		conf.mac_addr = dev->dev_addr;
+		res = local->ops->add_interface(local_to_hw(local), &conf);
+		if (res && !local->open_count && local->ops->stop)
+			local->ops->stop(local_to_hw(local));
+		if (res)
+			return res;
+
 		ieee80211_if_config(dev);
 		ieee80211_reset_erp_info(dev);
 		ieee80211_enable_keys(sdata);
+
+		if (sdata->type == IEEE80211_IF_TYPE_STA &&
+		    !local->user_space_mlme)
+			netif_carrier_off(dev);
+		else
+			netif_carrier_on(dev);
 	}
 
-	if (sdata->type == IEEE80211_IF_TYPE_STA &&
-	    !local->user_space_mlme)
-		netif_carrier_off(dev);
-	else
-		netif_carrier_on(dev);
+	if (local->open_count == 0) {
+		res = dev_open(local->mdev);
+		WARN_ON(res);
+		if (local->apdev) {
+			res = dev_open(local->apdev);
+			WARN_ON(res);
+		}
+		tasklet_enable(&local->tx_pending_tasklet);
+		tasklet_enable(&local->tasklet);
+	}
+
+	local->open_count++;
 
 	netif_start_queue(dev);
+
 	return 0;
 }
 
-static void ieee80211_if_shutdown(struct net_device *dev)
+static int ieee80211_stop(struct net_device *dev)
 {
+	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_if_init_conf conf;
 
-	ASSERT_RTNL();
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	netif_stop_queue(dev);
+
+	dev_mc_unsync(local->mdev, dev);
+
+	local->open_count--;
+
 	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_MNTR:
+		local->monitors--;
+		if (local->monitors == 0) {
+			netif_tx_lock_bh(local->mdev);
+			ieee80211_configure_filter(local);
+			netif_tx_unlock_bh(local->mdev);
+
+			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
+			ieee80211_hw_config(local);
+		}
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
@@ -433,116 +441,61 @@ static void ieee80211_if_shutdown(struct net_device *dev)
 			cancel_delayed_work(&local->scan_work);
 		}
 		flush_workqueue(local->hw.workqueue);
-		break;
-	}
-}
-
-static int ieee80211_stop(struct net_device *dev)
-{
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	if (sdata->type == IEEE80211_IF_TYPE_MNTR &&
-	    local->open_count > 1 &&
-	    !(local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER)) {
-		/* remove "soft monitor" interface */
-		local->open_count--;
-		local->monitors--;
-		if (!local->monitors)
-			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
-		return 0;
-	}
-
-	netif_stop_queue(dev);
-	ieee80211_if_shutdown(dev);
-
-	if (sdata->type == IEEE80211_IF_TYPE_MNTR) {
-		local->monitors--;
-		if (!local->monitors)
-			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
-	} else {
-		/* disable all keys for as long as this netdev is down */
-		ieee80211_disable_keys(sdata);
-	}
-
-	local->open_count--;
-	if (local->open_count == 0) {
-		if (netif_running(local->mdev))
-			dev_close(local->mdev);
-		if (local->apdev)
-			dev_close(local->apdev);
-		if (local->ops->stop)
-			local->ops->stop(local_to_hw(local));
-		tasklet_disable(&local->tx_pending_tasklet);
-		tasklet_disable(&local->tasklet);
-	}
-	if (local->ops->remove_interface) {
-		struct ieee80211_if_init_conf conf;
-
+		/* fall through */
+	default:
 		conf.if_id = dev->ifindex;
 		conf.type = sdata->type;
 		conf.mac_addr = dev->dev_addr;
+		/* disable all keys for as long as this netdev is down */
+		ieee80211_disable_keys(sdata);
 		local->ops->remove_interface(local_to_hw(local), &conf);
 	}
 
-	ieee80211_start_hard_monitor(local);
+	if (local->open_count == 0) {
+		if (netif_running(local->mdev))
+			dev_close(local->mdev);
+
+		if (local->apdev)
+			dev_close(local->apdev);
+
+		if (local->ops->stop)
+			local->ops->stop(local_to_hw(local));
+
+		tasklet_disable(&local->tx_pending_tasklet);
+		tasklet_disable(&local->tasklet);
+	}
 
 	return 0;
-}
-
-enum netif_tx_lock_class {
-	TX_LOCK_NORMAL,
-	TX_LOCK_MASTER,
-};
-
-static inline void netif_tx_lock_nested(struct net_device *dev, int subclass)
-{
-	spin_lock_nested(&dev->_xmit_lock, subclass);
-	dev->xmit_lock_owner = smp_processor_id();
 }
 
 static void ieee80211_set_multicast_list(struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	unsigned short flags;
+	int allmulti, promisc, sdata_allmulti, sdata_promisc;
 
-	netif_tx_lock_nested(local->mdev, TX_LOCK_MASTER);
-	if (((dev->flags & IFF_ALLMULTI) != 0) ^
-	    ((sdata->flags & IEEE80211_SDATA_ALLMULTI) != 0)) {
-		if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
-			local->iff_allmultis--;
-		else
+	allmulti = !!(dev->flags & IFF_ALLMULTI);
+	promisc = !!(dev->flags & IFF_PROMISC);
+	sdata_allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
+	sdata_promisc = sdata->flags & IEEE80211_SDATA_PROMISC;
+
+	if (allmulti != sdata_allmulti) {
+		if (dev->flags & IFF_ALLMULTI)
 			local->iff_allmultis++;
+		else
+			local->iff_allmultis--;
 		sdata->flags ^= IEEE80211_SDATA_ALLMULTI;
 	}
-	if (((dev->flags & IFF_PROMISC) != 0) ^
-	    ((sdata->flags & IEEE80211_SDATA_PROMISC) != 0)) {
-		if (sdata->flags & IEEE80211_SDATA_PROMISC)
-			local->iff_promiscs--;
-		else
+
+	if (promisc != sdata_promisc) {
+		if (dev->flags & IFF_PROMISC)
 			local->iff_promiscs++;
+		else
+			local->iff_promiscs--;
 		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
-	if (dev->mc_count != sdata->mc_count) {
-		local->mc_count = local->mc_count - sdata->mc_count +
-				  dev->mc_count;
-		sdata->mc_count = dev->mc_count;
-	}
-	if (local->ops->set_multicast_list) {
-		flags = local->mdev->flags;
-		if (local->iff_allmultis)
-			flags |= IFF_ALLMULTI;
-		if (local->iff_promiscs)
-			flags |= IFF_PROMISC;
-		read_lock(&local->sub_if_lock);
-		local->ops->set_multicast_list(local_to_hw(local), flags,
-					      local->mc_count);
-		read_unlock(&local->sub_if_lock);
-	}
-	netif_tx_unlock(local->mdev);
+
+	dev_mc_sync(local->mdev, dev);
 }
 
 static const struct header_ops ieee80211_header_ops = {
@@ -612,7 +565,6 @@ static int __ieee80211_if_config(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_if_conf conf;
-	static u8 scan_bssid[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 	if (!local->ops->config_interface || !netif_running(dev))
 		return 0;
@@ -621,11 +573,7 @@ static int __ieee80211_if_config(struct net_device *dev,
 	conf.type = sdata->type;
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
-		if (local->sta_scanning &&
-		    local->scan_dev == dev)
-			conf.bssid = scan_bssid;
-		else
-			conf.bssid = sdata->u.sta.bssid;
+		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
 		conf.generic_elem = sdata->u.sta.extra_ie;
@@ -721,37 +669,6 @@ void ieee80211_reset_erp_info(struct net_device *dev)
 					 IEEE80211_ERP_CHANGE_PROTECTION |
 					 IEEE80211_ERP_CHANGE_PREAMBLE);
 }
-
-struct dev_mc_list *ieee80211_get_mc_list_item(struct ieee80211_hw *hw,
-					       struct dev_mc_list *prev,
-					       void **ptr)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata = *ptr;
-	struct dev_mc_list *mc;
-
-	if (!prev) {
-		WARN_ON(sdata);
-		sdata = NULL;
-	}
-	if (!prev || !prev->next) {
-		if (sdata)
-			sdata = list_entry(sdata->list.next,
-					   struct ieee80211_sub_if_data, list);
-		else
-			sdata = list_entry(local->sub_if_list.next,
-					   struct ieee80211_sub_if_data, list);
-		if (&sdata->list != &local->sub_if_list)
-			mc = sdata->dev->mc_list;
-		else
-			mc = NULL;
-	} else
-		mc = prev->next;
-
-	*ptr = sdata;
-	return mc;
-}
-EXPORT_SYMBOL(ieee80211_get_mc_list_item);
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
 				 struct sk_buff *skb,
@@ -1158,8 +1075,12 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			   NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 
 	BUG_ON(!ops->tx);
+	BUG_ON(!ops->start);
+	BUG_ON(!ops->stop);
 	BUG_ON(!ops->config);
 	BUG_ON(!ops->add_interface);
+	BUG_ON(!ops->remove_interface);
+	BUG_ON(!ops->configure_filter);
 	local->ops = ops;
 
 	/* for now, mdev needs sub_if_data :/ */
@@ -1206,6 +1127,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mdev->stop = ieee80211_master_stop;
 	mdev->type = ARPHRD_IEEE80211;
 	mdev->header_ops = &ieee80211_header_ops;
+	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
 	sdata->type = IEEE80211_IF_TYPE_AP;
 	sdata->dev = mdev;

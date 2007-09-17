@@ -45,11 +45,9 @@ static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
 		return 0;
 
 	/*
-	 * Only continue if we have an active interface,
-	 * either monitor or non-monitor should be present.
+	 * Only continue if we have an active interface.
 	 */
-	if (!is_interface_present(&rt2x00dev->interface) &&
-	    !is_monitor_present(&rt2x00dev->interface))
+	if (!is_interface_present(&rt2x00dev->interface))
 		return 0;
 
 	if (state == RFKILL_STATE_ON) {

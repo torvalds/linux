@@ -220,11 +220,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct data_ring *ring = entry->ring;
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
 	struct sk_buff *skb;
-	int retval;
-	int signal;
-	int rssi;
-	int ofdm;
-	int size;
+	struct rxdata_entry_desc desc;
 	int frame_size;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -239,10 +235,8 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	if (urb->actual_length < entry->ring->desc_size || urb->status)
 		goto skip_entry;
 
-	retval = rt2x00dev->ops->lib->fill_rxdone(entry, &signal, &rssi,
-						  &ofdm, &size);
-	if (retval)
-		goto skip_entry;
+	memset(&desc, 0x00, sizeof(desc));
+	rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
 	/*
 	 * Allocate a new sk buffer to replace the current one.
@@ -261,12 +255,12 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Trim the skb_buffer to only contain the valid
 	 * frame data (so ignore the device's descriptor).
 	 */
-	skb_trim(entry->skb, size);
+	skb_trim(entry->skb, desc.size);
 
 	/*
 	 * Send the frame to rt2x00lib for further processing.
 	 */
-	rt2x00lib_rxdone(entry, entry->skb, signal, rssi, ofdm);
+	rt2x00lib_rxdone(entry, entry->skb, &desc);
 
 	/*
 	 * Replace current entry's skb with the newly allocated one,

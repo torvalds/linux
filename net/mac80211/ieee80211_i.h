@@ -297,8 +297,6 @@ struct ieee80211_sub_if_data {
 	struct net_device *dev;
 	struct ieee80211_local *local;
 
-	int mc_count;
-
 	unsigned int flags;
 
 	int drop_unencrypted;
@@ -411,6 +409,7 @@ struct ieee80211_local {
 	struct net_device *apdev; /* wlan#ap - management frames (hostapd) */
 	int open_count;
 	int monitors;
+	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
 	u8 wstats_flags;
 	int tx_headroom; /* required headroom for hardware/radiotap */

@@ -467,7 +467,6 @@ enum ieee80211_if_types {
  * @mac_addr: pointer to MAC address of the interface. This pointer is valid
  *	until the interface is removed (i.e. it cannot be used after
  *	remove_interface() callback was called for this interface).
- *	This pointer will be %NULL for monitor interfaces, be careful.
  *
  * This structure is used in add_interface() and remove_interface()
  * callbacks of &struct ieee80211_hw.
@@ -653,13 +652,9 @@ struct ieee80211_hw {
 
 /* hole at 8 */
 
-	/* Device is capable of performing full monitor mode even during
-	 * normal operation. */
-#define IEEE80211_HW_MONITOR_DURING_OPER (1<<9)
+/* hole at 9 */
 
-	/* Device does not need BSSID filter set to broadcast in order to
-	 * receive all probe responses while scanning */
-#define IEEE80211_HW_NO_PROBE_FILTERING (1<<10)
+/* hole at 10 */
 
 	/* Channels are already configured to the default regulatory domain
 	 * specified in the device's EEPROM */
@@ -694,6 +689,39 @@ static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 	memcpy(hw->wiphy->perm_addr, addr, ETH_ALEN);
 }
 
+/*
+ * flags for change_filter_flags()
+ *
+ * Note that e.g. if PROMISC_IN_BSS is unset then
+ * you should still do MAC address filtering if
+ * possible even if OTHER_BSS is set to indicate
+ * no BSSID filtering should be done.
+ */
+/*
+ * promiscuous mode within your BSS,
+ * think of the BSS as your network segment and then this corresponds
+ * to the regular ethernet device promiscuous mode
+ */
+#define FIF_PROMISC_IN_BSS	0x01
+/* show all multicast frames */
+#define FIF_ALLMULTI		0x02
+/* show frames with failed FCS, but set RX_FLAG_FAILED_FCS_CRC for them */
+#define FIF_FCSFAIL		0x04
+/* show frames with failed PLCP CRC, but set RX_FLAG_FAILED_PLCP_CRC for them */
+#define FIF_PLCPFAIL		0x08
+/*
+ * This flag is set during scanning to indicate to the hardware
+ * that it should not filter beacons or probe responses by BSSID.
+ */
+#define FIF_BCN_PRBRESP_PROMISC	0x10
+/*
+ * show control frames, if PROMISC_IN_BSS is not set then
+ * only those addressed to this station
+ */
+#define FIF_CONTROL		0x20
+/* show frames from other BSSes */
+#define FIF_OTHER_BSS		0x40
+
 /* Configuration block used by the low-level driver to tell the 802.11 code
  * about supported hardware features and to pass function pointers to callback
  * functions. */
@@ -706,32 +734,55 @@ struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
 		  struct ieee80211_tx_control *control);
 
-	/* Handler that is called when any netdevice attached to the hardware
-	 * device is set UP for the first time. This can be used, e.g., to
-	 * enable interrupts and beacon sending. */
-	int (*open)(struct ieee80211_hw *hw);
+	/*
+	 * Called before the first netdevice attached to the hardware
+	 * is enabled. This should turn on the hardware and must turn on
+	 * frame reception (for possibly enabled monitor interfaces.)
+	 * Returns negative error codes, these may be seen in userspace,
+	 * or zero.
+	 * When the device is started it should not have a MAC address
+	 * to avoid acknowledging frames before a non-monitor device
+	 * is added.
+	 *
+	 * Must be implemented.
+	 */
+	int (*start)(struct ieee80211_hw *hw);
 
-	/* Handler that is called when the last netdevice attached to the
-	 * hardware device is set DOWN. This can be used, e.g., to disable
-	 * interrupts and beacon sending. */
-	int (*stop)(struct ieee80211_hw *hw);
+	/*
+	 * Called after last netdevice attached to the hardware
+	 * is disabled. This should turn off the hardware (at least
+	 * it must turn off frame reception.)
+	 * May be called right after add_interface if that rejects
+	 * an interface.
+	 *
+	 * Must be implemented.
+	 */
+	void (*stop)(struct ieee80211_hw *hw);
 
-	/* Handler for asking a driver if a new interface can be added (or,
-	 * more exactly, set UP). If the handler returns zero, the interface
-	 * is added. Driver should perform any initialization it needs prior
-	 * to returning zero. By returning non-zero addition of the interface
-	 * is inhibited. Unless monitor_during_oper is set, it is guaranteed
-	 * that monitor interfaces and normal interfaces are mutually
-	 * exclusive. If assigned, the open() handler is called after
-	 * add_interface() if this is the first device added. The
-	 * add_interface() callback has to be assigned because it is the only
-	 * way to obtain the requested MAC address for any interface.
+	/*
+	 * Called when a netdevice attached to the hardware is enabled.
+	 * Because it is not called for monitor mode devices, open()
+	 * and stop() must be implemented.
+	 * The driver should perform any initialization it needs before
+	 * the device can be enabled. The initial configuration for the
+	 * interface is given in the conf parameter.
+	 *
+	 * Must be implemented.
 	 */
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_if_init_conf *conf);
 
-	/* Notify a driver that an interface is going down. The stop() handler
-	 * is called prior to this if this is a last interface. */
+	/*
+	 * Notifies a driver that an interface is going down. The stop() handler
+	 * is called after this if it is the last interface and no monitor
+	 * interfaces are present.
+	 * When all interfaces are removed, the MAC address in the hardware
+	 * must be cleared so the device no longer acknowledges packets,
+	 * the mac_addr member of the conf structure is, however, set to the
+	 * MAC address of the device going away.
+	 *
+	 * Hence, this callback must be implemented.
+	 */
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
 
@@ -744,15 +795,21 @@ struct ieee80211_ops {
 	int (*config_interface)(struct ieee80211_hw *hw,
 				int if_id, struct ieee80211_if_conf *conf);
 
-	/* ieee80211 drivers do not have access to the &struct net_device
-	 * that is (are) connected with their device. Hence (and because
-	 * we need to combine the multicast lists and flags for multiple
-	 * virtual interfaces), they cannot assign set_multicast_list.
-	 * The parameters here replace dev->flags and dev->mc_count,
-	 * dev->mc_list is replaced by calling ieee80211_get_mc_list_item.
-	 * Must be atomic. */
-	void (*set_multicast_list)(struct ieee80211_hw *hw,
-				   unsigned short flags, int mc_count);
+	/*
+	 * Configure the device's RX filter.
+	 *
+	 * The multicast address filter must be changed if the hardware flags
+	 * indicate that one is present.
+	 *
+	 * All unsupported flags in 'total_flags' must be cleared,
+	 * clear all bits except those you honoured.
+	 *
+	 * The callback must be implemented and must be atomic.
+	 */
+	void (*configure_filter)(struct ieee80211_hw *hw,
+				 unsigned int changed_flags,
+				 unsigned int *total_flags,
+				 int mc_count, struct dev_addr_list *mc_list);
 
 	/* Set TIM bit handler. If the hardware/firmware takes care of beacon
 	 * generation, IEEE 802.11 code uses this function to tell the
@@ -1154,24 +1211,6 @@ void ieee80211_stop_queues(struct ieee80211_hw *hw);
  * Drivers should use this function instead of netif_wake_queue.
  */
 void ieee80211_wake_queues(struct ieee80211_hw *hw);
-
-/**
- * ieee80211_get_mc_list_item - iteration over items in multicast list
- * @hw: pointer as obtained from ieee80211_alloc_hw().
- * @prev: value returned by previous call to ieee80211_get_mc_list_item() or
- *	NULL to start a new iteration.
- * @ptr: pointer to buffer of void * type for internal usage of
- *	ieee80211_get_mc_list_item().
- *
- * Iterates over items in multicast list of given device. To get the first
- * item, pass NULL in @prev and in *@ptr. In subsequent calls, pass the
- * value returned by previous call in @prev. Don't alter *@ptr during
- * iteration. When there are no more items, NULL is returned.
- */
-struct dev_mc_list *
-ieee80211_get_mc_list_item(struct ieee80211_hw *hw,
-			   struct dev_mc_list *prev,
-			   void **ptr);
 
 /* called by driver to notify scan status completed */
 void ieee80211_scan_completed(struct ieee80211_hw *hw);

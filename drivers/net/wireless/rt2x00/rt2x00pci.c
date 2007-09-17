@@ -124,47 +124,40 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct data_entry *entry;
 	struct data_desc *rxd;
 	struct sk_buff *skb;
-	u32 desc;
-	int retval;
-	int signal;
-	int rssi;
-	int ofdm;
-	int size;
+	struct rxdata_entry_desc desc;
+	u32 word;
 
 	while (1) {
 		entry = rt2x00_get_data_entry(ring);
 		rxd = entry->priv;
-		rt2x00_desc_read(rxd, 0, &desc);
+		rt2x00_desc_read(rxd, 0, &word);
 
-		if (rt2x00_get_field32(desc, RXD_ENTRY_OWNER_NIC))
+		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
 			break;
 
-		retval = rt2x00dev->ops->lib->fill_rxdone(entry, &signal,
-							  &rssi, &ofdm, &size);
-		if (retval)
-			goto skip_entry;
+		memset(&desc, 0x00, sizeof(desc));
+		rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
 		/*
 		 * Allocate the sk_buffer, initialize it and copy
 		 * all data into it.
 		 */
-		skb = dev_alloc_skb(size + NET_IP_ALIGN);
+		skb = dev_alloc_skb(desc.size + NET_IP_ALIGN);
 		if (!skb)
 			return;
 
 		skb_reserve(skb, NET_IP_ALIGN);
-		skb_put(skb, size);
-		memcpy(skb->data, entry->data_addr, size);
+		skb_put(skb, desc.size);
+		memcpy(skb->data, entry->data_addr, desc.size);
 
 		/*
 		 * Send the frame to rt2x00lib for further processing.
 		 */
-		rt2x00lib_rxdone(entry, skb, signal, rssi, ofdm);
+		rt2x00lib_rxdone(entry, skb, &desc);
 
-skip_entry:
 		if (test_bit(DEVICE_ENABLED_RADIO, &ring->rt2x00dev->flags)) {
-			rt2x00_set_field32(&desc, RXD_ENTRY_OWNER_NIC, 1);
-			rt2x00_desc_write(rxd, 0, desc);
+			rt2x00_set_field32(&word, RXD_ENTRY_OWNER_NIC, 1);
+			rt2x00_desc_write(rxd, 0, word);
 		}
 
 		rt2x00_ring_index_inc(ring);

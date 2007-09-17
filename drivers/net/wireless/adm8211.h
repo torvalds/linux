@@ -612,7 +612,6 @@ struct adm8211_priv {
 	u8 bssid[ETH_ALEN];
 	u8 ssid[32];
 	size_t ssid_len;
-	u8 *mac_addr;
 
 	u8 soft_rx_crc;
 	u8 retry_limit;

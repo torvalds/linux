@@ -293,23 +293,9 @@ static void rt73usb_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 	rt73usb_register_multiwrite(rt2x00dev, MAC_CSR4, &reg, sizeof(reg));
 }
 
-static void rt73usb_config_packet_filter(struct rt2x00_dev *rt2x00dev,
-					 const unsigned int filter)
-{
-	int promisc = !!(filter & IFF_PROMISC);
-	int multicast = !!(filter & IFF_MULTICAST);
-	int broadcast = !!(filter & IFF_BROADCAST);
-	u32 reg;
-
-	rt73usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_NOT_TO_ME, !promisc);
-	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_MULTICAST, !multicast);
-	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_BORADCAST, !broadcast);
-	rt73usb_register_write(rt2x00dev, TXRX_CSR0, reg);
-}
-
 static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 {
+	struct interface *intf = &rt2x00dev->interface;
 	u32 reg;
 
 	/*
@@ -325,56 +311,19 @@ static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 	rt73usb_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
 
 	/*
-	 * Apply hardware packet filter.
-	 */
-	rt73usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
-
-	if (!is_monitor_present(&rt2x00dev->interface) &&
-	    (type == IEEE80211_IF_TYPE_IBSS || type == IEEE80211_IF_TYPE_STA))
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_TO_DS, 1);
-	else
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_TO_DS, 0);
-
-	/*
-	 * If there is a non-monitor interface present
-	 * the packet should be strict (even if a monitor interface is present!).
-	 * When there is only 1 interface present which is in monitor mode
-	 * we should start accepting _all_ frames.
-	 */
-	if (is_interface_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CRC, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_PHYSICAL, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CONTROL, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_VERSION_ERROR, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_ACK_CTS, 1);
-	} else if (is_monitor_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CRC, 0);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_PHYSICAL, 0);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CONTROL, 0);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_VERSION_ERROR, 0);
-		rt2x00_set_field32(&reg, TXRX_CSR0_DROP_ACK_CTS, 0);
-	}
-
-	rt73usb_register_write(rt2x00dev, TXRX_CSR0, reg);
-
-	/*
 	 * Enable synchronisation.
 	 */
 	rt73usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	if (is_interface_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-		rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
-	}
-
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	if (type == IEEE80211_IF_TYPE_IBSS || type == IEEE80211_IF_TYPE_AP)
+	if (is_interface_type(intf, IEEE80211_IF_TYPE_IBSS) ||
+	    is_interface_type(intf, IEEE80211_IF_TYPE_AP))
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 2);
-	else if (type == IEEE80211_IF_TYPE_STA)
+	else if (is_interface_type(intf, IEEE80211_IF_TYPE_STA))
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 1);
-	else if (is_monitor_present(&rt2x00dev->interface) &&
-		 !is_interface_present(&rt2x00dev->interface))
+	else
 		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 0);
-
 	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
@@ -1301,7 +1250,7 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  */
 static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				  struct data_desc *txd,
-				  struct data_entry_desc *desc,
+				  struct txdata_entry_desc *desc,
 				  struct ieee80211_hdr *ieee80211hdr,
 				  unsigned int length,
 				  struct ieee80211_tx_control *control)
@@ -1429,8 +1378,8 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 	return rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_AGC) * 2 - offset;
 }
 
-static int rt73usb_fill_rxdone(struct data_entry *entry,
-			       int *signal, int *rssi, int *ofdm, int *size)
+static void rt73usb_fill_rxdone(struct data_entry *entry,
+			        struct rxdata_entry_desc *desc)
 {
 	struct data_desc *rxd = (struct data_desc *)entry->skb->data;
 	u32 word0;
@@ -1439,24 +1388,24 @@ static int rt73usb_fill_rxdone(struct data_entry *entry,
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 1, &word1);
 
-	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR) ||
-	    rt2x00_get_field32(word0, RXD_W0_CIPHER_ERROR))
-		return -EINVAL;
+	desc->flags = 0;
+	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
+		desc->flags |= RX_FLAG_FAILED_FCS_CRC;
 
 	/*
 	 * Obtain the status about this packet.
 	 */
-	*signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
-	*rssi = rt73usb_agc_to_rssi(entry->ring->rt2x00dev, word1);
-	*ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
-	*size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
+	desc->signal = rt2x00_get_field32(word1, RXD_W1_SIGNAL);
+	desc->rssi = rt73usb_agc_to_rssi(entry->ring->rt2x00dev, word1);
+	desc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
+	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 
 	/*
 	 * Pull the skb to clear the descriptor area.
 	 */
 	skb_pull(entry->skb, entry->ring->desc_size);
 
-	return 0;
+	return;
 }
 
 /*
@@ -1802,9 +1751,7 @@ static void rt73usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->hw->flags =
 	    IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE |
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_MONITOR_DURING_OPER |
-	    IEEE80211_HW_NO_PROBE_FILTERING;
+	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
 	rt2x00dev->hw->extra_tx_headroom = TXD_DESC_SIZE;
 	rt2x00dev->hw->max_signal = MAX_SIGNAL;
 	rt2x00dev->hw->max_rssi = MAX_RX_SSI;
@@ -1878,11 +1825,9 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	rt73usb_probe_hw_mode(rt2x00dev);
 
 	/*
-	 * USB devices require scheduled packet filter toggling
 	 * This device requires firmware
 	 */
 	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->flags);
-	__set_bit(PACKET_FILTER_SCHEDULED, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -1895,6 +1840,83 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 /*
  * IEEE80211 stack callback functions.
  */
+static void rt73usb_configure_filter(struct ieee80211_hw *hw,
+				     unsigned int changed_flags,
+				     unsigned int *total_flags,
+				     int mc_count,
+				     struct dev_addr_list *mc_list)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct interface *intf = &rt2x00dev->interface;
+	u32 reg;
+
+	/*
+	 * Mask off any flags we are going to ignore from
+	 * the total_flags field.
+	 */
+	*total_flags &=
+	    FIF_ALLMULTI |
+	    FIF_FCSFAIL |
+	    FIF_PLCPFAIL |
+	    FIF_CONTROL |
+	    FIF_OTHER_BSS |
+	    FIF_PROMISC_IN_BSS;
+
+	/*
+	 * Apply some rules to the filters:
+	 * - Some filters imply different filters to be set.
+	 * - Some things we can't filter out at all.
+	 * - Some filters are set based on interface type.
+	 */
+	if (mc_count)
+		*total_flags |= FIF_ALLMULTI;
+	if (changed_flags & FIF_OTHER_BSS ||
+	    changed_flags & FIF_PROMISC_IN_BSS)
+		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
+	if (is_interface_type(intf, IEEE80211_IF_TYPE_AP))
+		*total_flags |= FIF_PROMISC_IN_BSS;
+
+	/*
+	 * Check if there is any work left for us.
+	 */
+	if (intf->filter == *total_flags)
+		return;
+	intf->filter = *total_flags;
+
+	/*
+	 * When in atomic context, reschedule and let rt2x00lib
+	 * call this function again.
+	 */
+	if (in_atomic()) {
+		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->filter_work);
+		return;
+	}
+
+	/*
+	 * Start configuration steps.
+	 * Note that the version error will always be dropped
+	 * and broadcast frames will always be accepted since
+	 * there is no filter for it at this time.
+	 */
+	rt73usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CRC,
+			   !(*total_flags & FIF_FCSFAIL));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_PHYSICAL,
+			   !(*total_flags & FIF_PLCPFAIL));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_CONTROL,
+			   !(*total_flags & FIF_CONTROL));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_NOT_TO_ME,
+			   !(*total_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_TO_DS,
+			   !(*total_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_VERSION_ERROR, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_MULTICAST,
+			   !(*total_flags & FIF_ALLMULTI));
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_BROADCAST, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR0_DROP_ACK_CTS, 1);
+	rt73usb_register_write(rt2x00dev, TXRX_CSR0, reg);
+}
+
 static int rt73usb_set_retry_limit(struct ieee80211_hw *hw,
 				   u32 short_retry, u32 long_retry)
 {
@@ -1977,11 +1999,13 @@ int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
+	.start			= rt2x00mac_start,
+	.stop			= rt2x00mac_stop,
 	.add_interface		= rt2x00mac_add_interface,
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.config_interface	= rt2x00mac_config_interface,
-	.set_multicast_list	= rt2x00mac_set_multicast_list,
+	.configure_filter	= rt73usb_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt73usb_set_retry_limit,
 	.conf_tx		= rt2x00mac_conf_tx,
@@ -2012,7 +2036,6 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_mac_addr	= rt73usb_config_mac_addr,
 	.config_bssid		= rt73usb_config_bssid,
-	.config_packet_filter	= rt73usb_config_packet_filter,
 	.config_type		= rt73usb_config_type,
 	.config			= rt73usb_config,
 };

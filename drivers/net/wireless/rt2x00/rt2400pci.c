@@ -277,53 +277,12 @@ static void rt2400pci_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 	rt2x00pci_register_multiwrite(rt2x00dev, CSR5, &reg, sizeof(reg));
 }
 
-static void rt2400pci_config_packet_filter(struct rt2x00_dev *rt2x00dev,
-					   const unsigned int filter)
-{
-	int promisc = !!(filter & IFF_PROMISC);
-	u32 reg;
-
-	rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
-	rt2x00_set_field32(&reg, RXCSR0_DROP_NOT_TO_ME, !promisc);
-	rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
-}
-
 static void rt2400pci_config_type(struct rt2x00_dev *rt2x00dev, int type)
 {
+	struct interface *intf = &rt2x00dev->interface;
 	u32 reg;
 
 	rt2x00pci_register_write(rt2x00dev, CSR14, 0);
-
-	/*
-	 * Apply hardware packet filter.
-	 */
-	rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
-
-	if (!is_monitor_present(&rt2x00dev->interface) &&
-	    (type == IEEE80211_IF_TYPE_IBSS || type == IEEE80211_IF_TYPE_STA))
-		rt2x00_set_field32(&reg, RXCSR0_DROP_TODS, 1);
-	else
-		rt2x00_set_field32(&reg, RXCSR0_DROP_TODS, 0);
-
-	/*
-	 * If there is a non-monitor interface present
-	 * the packet should be strict (even if a monitor interface is present!).
-	 * When there is only 1 interface present which is in monitor mode
-	 * we should start accepting _all_ frames.
-	 */
-	if (is_interface_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, RXCSR0_DROP_CRC, 1);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_PHYSICAL, 1);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_CONTROL, 1);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_VERSION_ERROR, 1);
-	} else if (is_monitor_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, RXCSR0_DROP_CRC, 0);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_PHYSICAL, 0);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_CONTROL, 0);
-		rt2x00_set_field32(&reg, RXCSR0_DROP_VERSION_ERROR, 0);
-	}
-
-	rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
 
 	/*
 	 * Enable beacon config
@@ -337,20 +296,16 @@ static void rt2400pci_config_type(struct rt2x00_dev *rt2x00dev, int type)
 	 * Enable synchronisation.
 	 */
 	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-	if (is_interface_present(&rt2x00dev->interface)) {
-		rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-		rt2x00_set_field32(&reg, CSR14_TBCN, 1);
-	}
-
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 1);
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
-	if (type == IEEE80211_IF_TYPE_IBSS || type == IEEE80211_IF_TYPE_AP)
+	if (is_interface_type(intf, IEEE80211_IF_TYPE_IBSS) ||
+	    is_interface_type(intf, IEEE80211_IF_TYPE_AP))
 		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 2);
-	else if (type == IEEE80211_IF_TYPE_STA)
+	else if (is_interface_type(intf, IEEE80211_IF_TYPE_STA))
 		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 1);
-	else if (is_monitor_present(&rt2x00dev->interface) &&
-		 !is_interface_present(&rt2x00dev->interface))
+	else
 		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 0);
-
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
@@ -1104,7 +1059,7 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
  */
 static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct data_desc *txd,
-				    struct data_entry_desc *desc,
+				    struct txdata_entry_desc *desc,
 				    struct ieee80211_hdr *ieee80211hdr,
 				    unsigned int length,
 				    struct ieee80211_tx_control *control)
@@ -1200,8 +1155,8 @@ static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 /*
  * RX control handlers
  */
-static int rt2400pci_fill_rxdone(struct data_entry *entry,
-				 int *signal, int *rssi, int *ofdm, int *size)
+static void rt2400pci_fill_rxdone(struct data_entry *entry,
+				  struct rxdata_entry_desc *desc)
 {
 	struct data_desc *rxd = entry->priv;
 	u32 word0;
@@ -1210,20 +1165,20 @@ static int rt2400pci_fill_rxdone(struct data_entry *entry,
 	rt2x00_desc_read(rxd, 0, &word0);
 	rt2x00_desc_read(rxd, 2, &word2);
 
-	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR) ||
-	    rt2x00_get_field32(word0, RXD_W0_PHYSICAL_ERROR))
-		return -EINVAL;
+	desc->flags = 0;
+	if (rt2x00_get_field32(word0, RXD_W0_CRC_ERROR))
+		desc->flags |= RX_FLAG_FAILED_FCS_CRC;
+	if (rt2x00_get_field32(word0, RXD_W0_PHYSICAL_ERROR))
+		desc->flags |= RX_FLAG_FAILED_PLCP_CRC;
 
 	/*
 	 * Obtain the status about this packet.
 	 */
-	*signal = rt2x00_get_field32(word2, RXD_W2_SIGNAL);
-	*rssi = rt2x00_get_field32(word2, RXD_W2_RSSI) -
+	desc->signal = rt2x00_get_field32(word2, RXD_W2_SIGNAL);
+	desc->rssi = rt2x00_get_field32(word2, RXD_W2_RSSI) -
 	    entry->ring->rt2x00dev->rssi_offset;
-	*ofdm = 0;
-	*size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
-
-	return 0;
+	desc->ofdm = 0;
+	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 }
 
 /*
@@ -1460,10 +1415,7 @@ static void rt2400pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all hw fields.
 	 */
-	rt2x00dev->hw->flags =
-	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-	    IEEE80211_HW_MONITOR_DURING_OPER |
-	    IEEE80211_HW_NO_PROBE_FILTERING;
+	rt2x00dev->hw->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
 	rt2x00dev->hw->extra_tx_headroom = 0;
 	rt2x00dev->hw->max_signal = MAX_SIGNAL;
 	rt2x00dev->hw->max_rssi = MAX_RX_SSI;
@@ -1530,6 +1482,68 @@ static int rt2400pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 /*
  * IEEE80211 stack callback functions.
  */
+static void rt2400pci_configure_filter(struct ieee80211_hw *hw,
+				       unsigned int changed_flags,
+				       unsigned int *total_flags,
+				       int mc_count,
+				       struct dev_addr_list *mc_list)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct interface *intf = &rt2x00dev->interface;
+	u32 reg;
+
+	/*
+	 * Mask off any flags we are going to ignore from
+	 * the total_flags field.
+	 */
+	*total_flags &=
+	    FIF_ALLMULTI |
+	    FIF_FCSFAIL |
+	    FIF_PLCPFAIL |
+	    FIF_CONTROL |
+	    FIF_OTHER_BSS |
+	    FIF_PROMISC_IN_BSS;
+
+	/*
+	 * Apply some rules to the filters:
+	 * - Some filters imply different filters to be set.
+	 * - Some things we can't filter out at all.
+	 * - Some filters are set based on interface type.
+	 */
+	*total_flags |= FIF_ALLMULTI;
+	if (changed_flags & FIF_OTHER_BSS ||
+	    changed_flags & FIF_PROMISC_IN_BSS)
+		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
+	if (is_interface_type(intf, IEEE80211_IF_TYPE_AP))
+		*total_flags |= FIF_PROMISC_IN_BSS;
+
+	/*
+	 * Check if there is any work left for us.
+	 */
+	if (intf->filter == *total_flags)
+		return;
+	intf->filter = *total_flags;
+
+	/*
+	 * Start configuration steps.
+	 * Note that the version error will always be dropped
+	 * since there is no filter for it at this time.
+	 */
+	rt2x00pci_register_read(rt2x00dev, RXCSR0, &reg);
+	rt2x00_set_field32(&reg, RXCSR0_DROP_CRC,
+			   !(*total_flags & FIF_FCSFAIL));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_PHYSICAL,
+			   !(*total_flags & FIF_PLCPFAIL));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_CONTROL,
+			   !(*total_flags & FIF_CONTROL));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_NOT_TO_ME,
+			   !(*total_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_TODS,
+			   !(*total_flags & FIF_PROMISC_IN_BSS));
+	rt2x00_set_field32(&reg, RXCSR0_DROP_VERSION_ERROR, 1);
+	rt2x00pci_register_write(rt2x00dev, RXCSR0, reg);
+}
+
 static int rt2400pci_set_retry_limit(struct ieee80211_hw *hw,
 				     u32 short_retry, u32 long_retry)
 {
@@ -1602,11 +1616,13 @@ static int rt2400pci_tx_last_beacon(struct ieee80211_hw *hw)
 
 static const struct ieee80211_ops rt2400pci_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
+	.start			= rt2x00mac_start,
+	.stop			= rt2x00mac_stop,
 	.add_interface		= rt2x00mac_add_interface,
 	.remove_interface	= rt2x00mac_remove_interface,
 	.config			= rt2x00mac_config,
 	.config_interface	= rt2x00mac_config_interface,
-	.set_multicast_list	= rt2x00mac_set_multicast_list,
+	.configure_filter	= rt2400pci_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt2400pci_set_retry_limit,
 	.conf_tx		= rt2400pci_conf_tx,
@@ -1635,7 +1651,6 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.fill_rxdone		= rt2400pci_fill_rxdone,
 	.config_mac_addr	= rt2400pci_config_mac_addr,
 	.config_bssid		= rt2400pci_config_bssid,
-	.config_packet_filter	= rt2400pci_config_packet_filter,
 	.config_type		= rt2400pci_config_type,
 	.config			= rt2400pci_config,
 };

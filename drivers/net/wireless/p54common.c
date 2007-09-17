@@ -774,15 +774,39 @@ static void p54_set_vdcf(struct ieee80211_hw *dev)
 	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*vdcf), 0);
 }
 
-static int p54_add_interface(struct ieee80211_hw *dev,
-			     struct ieee80211_if_init_conf *conf)
+static int p54_start(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	int err;
 
-	/* NOTE: using IEEE80211_IF_TYPE_MGMT to indicate no mode selected */
-	if (priv->mode != IEEE80211_IF_TYPE_MGMT)
-		return -1;
+	err = priv->open(dev);
+	if (!err)
+		priv->mode = IEEE80211_IF_TYPE_MNTR;
+
+	return err;
+}
+
+static void p54_stop(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct sk_buff *skb;
+	while ((skb = skb_dequeue(&priv->tx_queue))) {
+		struct memrecord *range = (struct memrecord *)&skb->cb;
+		if (range->control)
+			kfree(range->control);
+		kfree_skb(skb);
+	}
+	priv->stop(dev);
+	priv->mode = IEEE80211_IF_TYPE_MGMT;
+}
+
+static int p54_add_interface(struct ieee80211_hw *dev,
+			     struct ieee80211_if_init_conf *conf)
+{
+	struct p54_common *priv = dev->priv;
+
+	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+		return -EOPNOTSUPP;
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
@@ -792,22 +816,17 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
-	priv->mac_addr = conf->mac_addr;
-
-	err = priv->open(dev);
-	if (err) {
-		priv->mode = IEEE80211_IF_TYPE_MGMT;
-		skb_queue_purge(&priv->tx_queue);
-		return err;
-	}
+	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 
 	p54_set_filter(dev, 0, priv->mac_addr, NULL, 0, 1, 0, 0xF642);
 	p54_set_filter(dev, 0, priv->mac_addr, NULL, 1, 0, 0, 0xF642);
-	p54_set_vdcf(dev);
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
 		p54_set_filter(dev, 1, priv->mac_addr, NULL, 0, 0x15F, 0x1F4, 0);
+		break;
+	default:
+		BUG();	/* impossible */
 		break;
 	}
 
@@ -820,15 +839,9 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct p54_common *priv = dev->priv;
-	struct sk_buff *skb;
-	while ((skb = skb_dequeue(&priv->tx_queue))) {
-		struct memrecord *range = (struct memrecord *)&skb->cb;
-		if (range->control)
-			kfree(range->control);
-		kfree_skb(skb);
-	}
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
-	priv->stop(dev);
+	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	memset(priv->mac_addr, 0, ETH_ALEN);
+	p54_set_filter(dev, 0, priv->mac_addr, NULL, 2, 0, 0, 0);
 }
 
 static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -848,7 +861,27 @@ static int p54_config_interface(struct ieee80211_hw *dev, int if_id,
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 0, 1, 0, 0xF642);
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 2, 0, 0, 0);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
+	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	return 0;
+}
+
+static void p54_configure_filter(struct ieee80211_hw *dev,
+				 unsigned int changed_flags,
+				 unsigned int *total_flags,
+				 int mc_count, struct dev_mc_list *mclist)
+{
+	struct p54_common *priv = dev->priv;
+
+	*total_flags &= FIF_BCN_PRBRESP_PROMISC;
+
+	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
+		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
+			p54_set_filter(dev, 0, priv->mac_addr,
+				       NULL, 2, 0, 0, 0);
+		else
+			p54_set_filter(dev, 0, priv->mac_addr,
+				       priv->bssid, 2, 0, 0, 0);
+	}
 }
 
 static int p54_conf_tx(struct ieee80211_hw *dev, int queue,
@@ -893,10 +926,13 @@ static int p54_get_tx_stats(struct ieee80211_hw *dev,
 
 static const struct ieee80211_ops p54_ops = {
 	.tx			= p54_tx,
+	.start			= p54_start,
+	.stop			= p54_stop,
 	.add_interface		= p54_add_interface,
 	.remove_interface	= p54_remove_interface,
 	.config			= p54_config,
 	.config_interface	= p54_config_interface,
+	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
 	.get_tx_stats		= p54_get_tx_stats

@@ -135,10 +135,12 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/*
-	 * Stop beacon generation.
+	 * Stop all scheduled work.
 	 */
 	if (work_pending(&rt2x00dev->beacon_work))
 		cancel_work_sync(&rt2x00dev->beacon_work);
+	if (work_pending(&rt2x00dev->filter_work))
+		cancel_work_sync(&rt2x00dev->filter_work);
 
 	/*
 	 * Stop the TX queues.
@@ -257,6 +259,17 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 			   LINK_TUNE_INTERVAL);
 }
 
+static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, filter_work);
+
+	rt2x00dev->ops->hw->configure_filter(rt2x00dev->hw,
+					     rt2x00dev->interface.filter,
+					     &rt2x00dev->interface.filter,
+					     0, NULL);
+}
+
 /*
  * Interrupt context handlers.
  */
@@ -337,7 +350,7 @@ void rt2x00lib_txdone(struct data_entry *entry,
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
 void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
-		      const int signal, const int rssi, const int ofdm)
+		      struct rxdata_entry_desc *desc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->ring->rt2x00dev;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
@@ -358,22 +371,24 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 		 * the signal is the PLCP value. If it was received with
 		 * a CCK bitrate the signal is the rate in 0.5kbit/s.
 		 */
-		if (!ofdm)
+		if (!desc->ofdm)
 			val = DEVICE_GET_RATE_FIELD(rate->val, RATE);
 		else
 			val = DEVICE_GET_RATE_FIELD(rate->val, PLCP);
 
-		if (val == signal) {
+		if (val == desc->signal) {
 			val = rate->val;
 			break;
 		}
 	}
 
-	rt2x00_update_link_rssi(&rt2x00dev->link, rssi);
+	rt2x00_update_link_rssi(&rt2x00dev->link, desc->rssi);
 	rt2x00dev->link.rx_success++;
 	rx_status->rate = val;
-	rx_status->signal = rt2x00lib_calculate_link_signal(rt2x00dev, rssi);
-	rx_status->ssi = rssi;
+	rx_status->signal =
+	    rt2x00lib_calculate_link_signal(rt2x00dev, desc->rssi);
+	rx_status->ssi = desc->rssi;
+	rx_status->flag = desc->flags;
 
 	/*
 	 * Send frame to mac80211
@@ -391,7 +406,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			     unsigned int length,
 			     struct ieee80211_tx_control *control)
 {
-	struct data_entry_desc desc;
+	struct txdata_entry_desc desc;
 	struct data_ring *ring;
 	int tx_rate;
 	int bitrate;
@@ -956,6 +971,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 * Initialize configuration work.
 	 */
 	INIT_WORK(&rt2x00dev->beacon_work, rt2x00lib_beacondone_scheduled);
+	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00lib_link_tuner);
 
 	/*
@@ -1098,7 +1114,6 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
 	rt2x00lib_config_type(rt2x00dev, intf->type);
-	rt2x00lib_config_packet_filter(rt2x00dev, intf->filter);
 
 	/*
 	 * When in Master or Ad-hoc mode,

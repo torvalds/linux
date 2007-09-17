@@ -41,11 +41,24 @@ struct data_desc {
 };
 
 /*
- * data_entry_desc
+ * rxdata_entry_desc
+ * Summary of information that has been read from the
+ * RX frame descriptor.
+ */
+struct rxdata_entry_desc {
+	int signal;
+	int rssi;
+	int ofdm;
+	int size;
+	int flags;
+};
+
+/*
+ * txdata_entry_desc
  * Summary of information that should be written into the
  * descriptor for sending a TX frame.
  */
-struct data_entry_desc {
+struct txdata_entry_desc {
 	unsigned long flags;
 #define ENTRY_TXDONE		1
 #define ENTRY_TXD_RTS_FRAME	2
