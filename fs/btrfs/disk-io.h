@@ -80,7 +80,7 @@ int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   u64 num_blocks);
 int btrfs_map_bh_to_logical(struct btrfs_root *root, struct buffer_head *bh,
 			     u64 logical);
-void btrfs_btree_balance_dirty(struct btrfs_root *root);
+void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr);
 int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root);
 void btrfs_mark_buffer_dirty(struct buffer_head *bh);
 #endif

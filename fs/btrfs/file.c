@@ -655,7 +655,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		num_written += write_bytes;
 
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, num_pages);
-		btrfs_btree_balance_dirty(root);
+		btrfs_btree_balance_dirty(root, 1);
 		cond_resched();
 	}
 	mutex_unlock(&inode->i_mutex);

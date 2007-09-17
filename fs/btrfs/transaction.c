@@ -18,6 +18,7 @@
 
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/writeback.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -340,6 +341,7 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	struct btrfs_fs_info *info = root->fs_info;
 	int ret;
 	struct btrfs_trans_handle *trans;
+	unsigned long nr;
 
 	if (root->defrag_running)
 		return 0;
@@ -348,10 +350,11 @@ int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 	while (1) {
 		root->defrag_running = 1;
 		ret = btrfs_defrag_leaves(trans, root, cacheonly);
+		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&info->fs_mutex);
 
-		btrfs_btree_balance_dirty(root);
+		btrfs_btree_balance_dirty(info->tree_root, nr);
 		cond_resched();
 
 		mutex_lock(&info->fs_mutex);
@@ -398,6 +401,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 {
 	struct dirty_root *dirty;
 	struct btrfs_trans_handle *trans;
+	unsigned long nr;
 	u64 num_blocks;
 	u64 blocks_used;
 	int ret = 0;
@@ -426,11 +430,11 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 					&dirty->root->root_item);
 			if (err)
 				ret = err;
+			nr = trans->blocks_used;
 			ret = btrfs_end_transaction(trans, tree_root);
 			BUG_ON(ret);
 			mutex_unlock(&tree_root->fs_info->fs_mutex);
-
-			btrfs_btree_balance_dirty(tree_root);
+			btrfs_btree_balance_dirty(tree_root, nr);
 			schedule();
 
 			mutex_lock(&tree_root->fs_info->fs_mutex);
@@ -449,13 +453,15 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 			BUG();
 			break;
 		}
+		nr = trans->blocks_used;
 		ret = btrfs_end_transaction(trans, tree_root);
 		BUG_ON(ret);
 
 		kfree(dirty->root);
 		kfree(dirty);
 		mutex_unlock(&tree_root->fs_info->fs_mutex);
-		btrfs_btree_balance_dirty(tree_root);
+
+		btrfs_btree_balance_dirty(tree_root, nr);
 		schedule();
 	}
 	return ret;

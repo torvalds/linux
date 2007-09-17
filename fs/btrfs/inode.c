@@ -387,15 +387,17 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct btrfs_root *root;
 	struct btrfs_trans_handle *trans;
 	int ret;
+	unsigned long nr;
 
 	root = BTRFS_I(dir)->root;
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 	ret = btrfs_unlink_trans(trans, root, dir, dentry);
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
@@ -412,6 +414,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	int found_type;
 	struct btrfs_leaf *leaf;
 	char *goodnames = "..";
+	unsigned long nr;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -467,8 +470,9 @@ out:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	mutex_unlock(&root->fs_info->fs_mutex);
+	nr = trans->blocks_used;
 	ret = btrfs_end_transaction(trans, root);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	if (ret && !err)
 		err = ret;
 	return err;
@@ -764,6 +768,7 @@ void btrfs_delete_inode(struct inode *inode)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	unsigned long nr;
 	int ret;
 
 	truncate_inode_pages(&inode->i_data, 0);
@@ -780,15 +785,17 @@ void btrfs_delete_inode(struct inode *inode)
 	ret = btrfs_free_inode(trans, root, inode);
 	if (ret)
 		goto no_delete_lock;
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return;
 
 no_delete_lock:
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 no_delete:
 	clear_inode(inode);
 }
@@ -1165,6 +1172,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	int err;
 	int drop_inode = 0;
 	u64 objectid;
+	unsigned long nr;
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -1198,6 +1206,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 	btrfs_update_inode_block_group(trans, inode);
 	btrfs_update_inode_block_group(trans, dir);
 out_unlock:
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 
@@ -1205,7 +1214,7 @@ out_unlock:
 		inode_dec_link_count(inode);
 		iput(inode);
 	}
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return err;
 }
 
@@ -1217,6 +1226,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	struct inode *inode;
 	int err;
 	int drop_inode = 0;
+	unsigned long nr;
 	u64 objectid;
 
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -1251,6 +1261,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 	btrfs_update_inode_block_group(trans, inode);
 	btrfs_update_inode_block_group(trans, dir);
 out_unlock:
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 
@@ -1258,7 +1269,7 @@ out_unlock:
 		inode_dec_link_count(inode);
 		iput(inode);
 	}
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return err;
 }
 
@@ -1268,6 +1279,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct inode *inode = old_dentry->d_inode;
+	unsigned long nr;
 	int err;
 	int drop_inode = 0;
 
@@ -1288,6 +1300,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (err)
 		drop_inode = 1;
 
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 
@@ -1295,7 +1308,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 		inode_dec_link_count(inode);
 		iput(inode);
 	}
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return err;
 }
 
@@ -1336,6 +1349,7 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int err = 0;
 	int drop_on_err = 0;
 	u64 objectid;
+	unsigned long nr = 1;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
@@ -1380,12 +1394,13 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	btrfs_update_inode_block_group(trans, dir);
 
 out_fail:
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	if (drop_on_err)
 		iput(inode);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return err;
 }
 
@@ -1682,6 +1697,7 @@ static void btrfs_truncate(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 	struct btrfs_trans_handle *trans;
+	unsigned long nr;
 
 	if (!S_ISREG(inode->i_mode))
 		return;
@@ -1697,10 +1713,11 @@ static void btrfs_truncate(struct inode *inode)
 	/* FIXME, add redo link to tree so we don't leak on crash */
 	ret = btrfs_truncate_in_trans(trans, root, inode);
 	btrfs_update_inode(trans, root, inode);
+	nr = trans->blocks_used;
 	ret = btrfs_end_transaction(trans, root);
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 }
 
 int btrfs_commit_write(struct file *file, struct page *page,
@@ -1725,6 +1742,7 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	int err;
 	u64 objectid;
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
+	unsigned long nr = 1;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
@@ -1814,12 +1832,13 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail;
 fail:
+	nr = trans->blocks_used;
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
 fail_commit:
 	mutex_unlock(&root->fs_info->fs_mutex);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
@@ -1832,6 +1851,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	int ret;
 	int err;
 	u64 objectid;
+	unsigned long nr;
 
 	if (!root->ref_cows)
 		return -EINVAL;
@@ -1884,12 +1904,13 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail;
 fail:
+	nr = trans->blocks_used;
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
 	mutex_unlock(&root->fs_info->fs_mutex);
 	up_write(&root->snap_sem);
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
 
@@ -2240,6 +2261,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	int datasize;
 	char *ptr;
 	struct btrfs_file_extent_item *ei;
+	unsigned long nr;
 
 	name_len = strlen(symname) + 1;
 	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
@@ -2309,13 +2331,14 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		drop_inode = 1;
 
 out_unlock:
+	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
 		iput(inode);
 	}
-	btrfs_btree_balance_dirty(root);
+	btrfs_btree_balance_dirty(root, nr);
 	return err;
 }
 

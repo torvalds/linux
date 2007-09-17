@@ -1275,6 +1275,7 @@ struct buffer_head *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	set_buffer_checked(buf);
 	set_buffer_defrag(buf);
 	set_radix_bit(&trans->transaction->dirty_pages, buf->b_page->index);
+	trans->blocks_used++;
 	return buf;
 }
 
