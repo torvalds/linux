@@ -1111,20 +1111,9 @@ check_pending:
 	btrfs_release_path(root, path);
 	BUG_ON(ins->objectid < search_start);
 
-	if (ins->objectid + num_blocks >= search_end) {
-		if (full_scan) {
-			ret = -ENOSPC;
-			goto error;
-		}
-		search_start = orig_search_start;
-		if (wrapped) {
-			if (!full_scan)
-				total_needed -= empty_size;
-			full_scan = 1;
-		} else
-			wrapped = 1;
-		goto new_group;
-	}
+	if (ins->objectid + num_blocks >= search_end)
+		goto enospc;
+
 	for (test_block = ins->objectid;
 	     test_block < ins->objectid + num_blocks; test_block++) {
 		if (test_radix_bit(&info->pinned_radix, test_block) ||
@@ -1149,6 +1138,7 @@ check_pending:
 
 new_group:
 	if (search_start + num_blocks >= search_end) {
+enospc:
 		search_start = orig_search_start;
 		if (full_scan) {
 			ret = -ENOSPC;
