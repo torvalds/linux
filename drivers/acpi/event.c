@@ -240,7 +240,7 @@ int acpi_bus_generate_netlink_event(const char *device_class,
 	return 0;
 }
 
-EXPORT_SYMBOL(acpi_generate_netlink_event);
+EXPORT_SYMBOL(acpi_bus_generate_netlink_event);
 
 static int acpi_event_genetlink_init(void)
 {
