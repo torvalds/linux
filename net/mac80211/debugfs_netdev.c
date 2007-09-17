@@ -162,9 +162,6 @@ __IEEE80211_IF_FILE(beacon_tail_len);
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
-/* VLAN attributes */
-IEEE80211_IF_FILE(vlan_id, u.vlan.id, DEC);
-
 #define DEBUGFS_ADD(name, type)\
 	sdata->debugfs.type.name = debugfs_create_file(#name, 0444,\
 		sdata->debugfsdir, sdata, &name##_ops);
@@ -223,7 +220,6 @@ static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted, vlan);
 	DEBUGFS_ADD(eapol, vlan);
 	DEBUGFS_ADD(ieee8021_x, vlan);
-	DEBUGFS_ADD(vlan_id, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -317,7 +313,6 @@ static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(drop_unencrypted, vlan);
 	DEBUGFS_DEL(eapol, vlan);
 	DEBUGFS_DEL(ieee8021_x, vlan);
-	DEBUGFS_DEL(vlan_id, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)

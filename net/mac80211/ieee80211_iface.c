@@ -164,6 +164,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->bss = NULL;
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
+		sdata->u.vlan.ap = NULL;
 		break;
 	case IEEE80211_IF_TYPE_AP:
 		sdata->u.ap.dtim_period = 2;
@@ -171,6 +172,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->u.ap.max_ratectrl_rateidx = -1;
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
 		sdata->bss = &sdata->u.ap;
+		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS: {
@@ -283,6 +285,9 @@ void ieee80211_if_reinit(struct net_device *dev)
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
 		dev->type = ARPHRD_ETHER;
+		break;
+	case IEEE80211_IF_TYPE_VLAN:
+		sdata->u.vlan.ap = NULL;
 		break;
 	}
 

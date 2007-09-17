@@ -191,6 +191,8 @@ struct ieee80211_if_ap {
 	u8 *beacon_head, *beacon_tail;
 	int beacon_head_len, beacon_tail_len;
 
+	struct list_head vlans;
+
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	size_t ssid_len;
 	u8 *generic_elem;
@@ -214,7 +216,8 @@ struct ieee80211_if_wds {
 };
 
 struct ieee80211_if_vlan {
-	u8 id;
+	struct ieee80211_sub_if_data *ap;
+	struct list_head list;
 };
 
 /* flags used in struct ieee80211_if_sta.flags */
@@ -377,7 +380,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *drop_unencrypted;
 			struct dentry *eapol;
 			struct dentry *ieee8021_x;
-			struct dentry *vlan_id;
 		} vlan;
 		struct {
 			struct dentry *mode;

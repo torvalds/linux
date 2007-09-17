@@ -314,22 +314,43 @@ static int ieee80211_open(struct net_device *dev)
 	int res;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
 	read_lock(&local->sub_if_lock);
 	list_for_each_entry(nsdata, &local->sub_if_list, list) {
 		struct net_device *ndev = nsdata->dev;
 
 		if (ndev != dev && ndev != local->mdev && netif_running(ndev) &&
-		    compare_ether_addr(dev->dev_addr, ndev->dev_addr) == 0 &&
-		    !identical_mac_addr_allowed(sdata->type, nsdata->type)) {
-			read_unlock(&local->sub_if_lock);
-			return -ENOTUNIQ;
+		    compare_ether_addr(dev->dev_addr, ndev->dev_addr) == 0) {
+			/*
+			 * check whether it may have the same address
+			 */
+			if (!identical_mac_addr_allowed(sdata->type,
+							nsdata->type)) {
+				read_unlock(&local->sub_if_lock);
+				return -ENOTUNIQ;
+			}
+
+			/*
+			 * can only add VLANs to enabled APs
+			 */
+			if (sdata->type == IEEE80211_IF_TYPE_VLAN &&
+			    nsdata->type == IEEE80211_IF_TYPE_AP &&
+			    netif_running(nsdata->dev))
+				sdata->u.vlan.ap = nsdata;
 		}
 	}
 	read_unlock(&local->sub_if_lock);
 
-	if (sdata->type == IEEE80211_IF_TYPE_WDS &&
-	    is_zero_ether_addr(sdata->u.wds.remote_addr))
-		return -ENOLINK;
+	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_WDS:
+		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
+			return -ENOLINK;
+		break;
+	case IEEE80211_IF_TYPE_VLAN:
+		if (!sdata->u.vlan.ap)
+			return -ENOLINK;
+		break;
+	}
 
 	if (local->open_count == 0) {
 		res = 0;
@@ -340,6 +361,10 @@ static int ieee80211_open(struct net_device *dev)
 	}
 
 	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_VLAN:
+		list_add(&sdata->u.vlan.list, &sdata->u.vlan.ap->u.ap.vlans);
+		/* no need to tell driver */
+		break;
 	case IEEE80211_IF_TYPE_MNTR:
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
@@ -407,9 +432,24 @@ static int ieee80211_stop(struct net_device *dev)
 
 	dev_mc_unsync(local->mdev, dev);
 
+	/* down all dependent devices, that is VLANs */
+	if (sdata->type == IEEE80211_IF_TYPE_AP) {
+		struct ieee80211_sub_if_data *vlan, *tmp;
+
+		list_for_each_entry_safe(vlan, tmp, &sdata->u.ap.vlans,
+					 u.vlan.list)
+			dev_close(vlan->dev);
+		WARN_ON(!list_empty(&sdata->u.ap.vlans));
+	}
+
 	local->open_count--;
 
 	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_VLAN:
+		list_del(&sdata->u.vlan.list);
+		sdata->u.vlan.ap = NULL;
+		/* no need to tell driver */
+		break;
 	case IEEE80211_IF_TYPE_MNTR:
 		local->monitors--;
 		if (local->monitors == 0) {
