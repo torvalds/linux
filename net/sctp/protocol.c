@@ -1185,6 +1185,9 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Enable PR-SCTP by default. */
 	sctp_prsctp_enable = 1;
 
+	/* Disable AUTH by default. */
+	sctp_auth_enable = 0;
+
 	sctp_sysctl_register();
 
 	INIT_LIST_HEAD(&sctp_address_families);

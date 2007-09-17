@@ -79,7 +79,9 @@ struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
 	packet->vtag = vtag;
 	packet->has_cookie_echo = 0;
 	packet->has_sack = 0;
+	packet->has_auth = 0;
 	packet->ipfragok = 0;
+	packet->auth = NULL;
 
 	if (ecn_capable && sctp_packet_empty(packet)) {
 		chunk = sctp_get_ecne_prepend(packet->transport->asoc);
@@ -121,8 +123,10 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->vtag = 0;
 	packet->has_cookie_echo = 0;
 	packet->has_sack = 0;
+	packet->has_auth = 0;
 	packet->ipfragok = 0;
 	packet->malloced = 0;
+	packet->auth = NULL;
 	return packet;
 }
 
