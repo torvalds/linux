@@ -925,7 +925,10 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				full_path, cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc) {
+		if (rc == -EOPNOTSUPP) {
+			kfree(pInfo);
+			goto mkdir_retry_old;
+		} else if (rc) {
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
@@ -977,7 +980,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 		kfree(pInfo);
 		goto mkdir_out;
 	}
-
+mkdir_retry_old:
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
 	rc = CIFSSMBMkDir(xid, pTcon, full_path, cifs_sb->local_nls,
 			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
