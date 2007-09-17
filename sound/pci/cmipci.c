@@ -738,48 +738,37 @@ static struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
 static int set_dac_channels(struct cmipci *cm, struct cmipci_pcm *rec, int channels)
 {
 	if (channels > 2) {
-		if (! cm->can_multi_ch)
+		if (!cm->can_multi_ch || !rec->ch)
 			return -EINVAL;
 		if (rec->fmt != 0x03) /* stereo 16bit only */
 			return -EINVAL;
+	}
 
+	if (cm->can_multi_ch) {
 		spin_lock_irq(&cm->reg_lock);
-		snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
-		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
-		if (channels > 4) {
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
-			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
+		if (channels > 2) {
+			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
+			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
 		} else {
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
-			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
-		}
-		if (channels >= 6) {
-			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-		} else {
-			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-		}
-		if (cm->chip_version == 68) {
-			if (channels == 8) {
-				snd_cmipci_set_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
-			} else {
-				snd_cmipci_clear_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
-			}
-		}
-		spin_unlock_irq(&cm->reg_lock);
-
-	} else {
-		if (cm->can_multi_ch) {
-			spin_lock_irq(&cm->reg_lock);
 			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_NXCHG);
-			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
+		}
+		if (channels == 8)
+			snd_cmipci_set_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
+		if (channels == 6) {
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
+			snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
+		} else {
 			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D5C);
 			snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CHB3D6C);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_ENCENTER);
-			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_XCHGDAC);
-			spin_unlock_irq(&cm->reg_lock);
 		}
+		if (channels == 4)
+			snd_cmipci_set_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_CHB3D);
+		spin_unlock_irq(&cm->reg_lock);
 	}
 	return 0;
 }
