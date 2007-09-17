@@ -43,6 +43,7 @@
 struct sctp_endpoint;
 struct sctp_association;
 struct sctp_authkey;
+struct sctp_hmacalgo;
 
 /*
  * Define a generic struct that will hold all the info
@@ -109,4 +110,19 @@ int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc);
 void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 			    struct sk_buff *skb,
 			    struct sctp_auth_chunk *auth, gfp_t gfp);
+
+/* API Helpers */
+int sctp_auth_ep_add_chunkid(struct sctp_endpoint *ep, __u8 chunk_id);
+int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
+			    struct sctp_hmacalgo *hmacs);
+int sctp_auth_set_key(struct sctp_endpoint *ep,
+		      struct sctp_association *asoc,
+		      struct sctp_authkey *auth_key);
+int sctp_auth_set_active_key(struct sctp_endpoint *ep,
+		      struct sctp_association *asoc,
+		      __u16 key_id);
+int sctp_auth_del_key_id(struct sctp_endpoint *ep,
+		      struct sctp_association *asoc,
+		      __u16 key_id);
+
 #endif

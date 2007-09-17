@@ -3848,6 +3848,19 @@ sctp_disposition_t sctp_sf_eat_auth(const struct sctp_endpoint *ep,
 			break;
 	}
 
+	if (asoc->active_key_id != ntohs(auth_hdr->shkey_id)) {
+		struct sctp_ulpevent *ev;
+
+		ev = sctp_ulpevent_make_authkey(asoc, ntohs(auth_hdr->shkey_id),
+				    SCTP_AUTH_NEWKEY, GFP_ATOMIC);
+
+		if (!ev)
+			return -ENOMEM;
+
+		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
+				SCTP_ULPEVENT(ev));
+	}
+
 	return SCTP_DISPOSITION_CONSUME;
 }
 

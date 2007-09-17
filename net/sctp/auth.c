@@ -743,3 +743,196 @@ free:
 	if (free_key)
 		sctp_auth_key_put(asoc_key);
 }
+
+/* API Helpers */
+
+/* Add a chunk to the endpoint authenticated chunk list */
+int sctp_auth_ep_add_chunkid(struct sctp_endpoint *ep, __u8 chunk_id)
+{
+	struct sctp_chunks_param *p = ep->auth_chunk_list;
+	__u16 nchunks;
+	__u16 param_len;
+
+	/* If this chunk is already specified, we are done */
+	if (__sctp_auth_cid(chunk_id, p))
+		return 0;
+
+	/* Check if we can add this chunk to the array */
+	param_len = ntohs(p->param_hdr.length);
+	nchunks = param_len - sizeof(sctp_paramhdr_t);
+	if (nchunks == SCTP_NUM_CHUNK_TYPES)
+		return -EINVAL;
+
+	p->chunks[nchunks] = chunk_id;
+	p->param_hdr.length = htons(param_len + 1);
+	return 0;
+}
+
+/* Add hmac identifires to the endpoint list of supported hmac ids */
+int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
+			   struct sctp_hmacalgo *hmacs)
+{
+	int has_sha1 = 0;
+	__u16 id;
+	int i;
+
+	/* Scan the list looking for unsupported id.  Also make sure that
+	 * SHA1 is specified.
+	 */
+	for (i = 0; i < hmacs->shmac_num_idents; i++) {
+		id = hmacs->shmac_idents[i];
+
+		if (SCTP_AUTH_HMAC_ID_SHA1 == id)
+			has_sha1 = 1;
+
+		if (!sctp_hmac_list[id].hmac_name)
+			return -EOPNOTSUPP;
+	}
+
+	if (!has_sha1)
+		return -EINVAL;
+
+	memcpy(ep->auth_hmacs_list->hmac_ids, &hmacs->shmac_idents[0],
+		hmacs->shmac_num_idents * sizeof(__u16));
+	ep->auth_hmacs_list->param_hdr.length = htons(sizeof(sctp_paramhdr_t) +
+				hmacs->shmac_num_idents * sizeof(__u16));
+	return 0;
+}
+
+/* Set a new shared key on either endpoint or association.  If the
+ * the key with a same ID already exists, replace the key (remove the
+ * old key and add a new one).
+ */
+int sctp_auth_set_key(struct sctp_endpoint *ep,
+		      struct sctp_association *asoc,
+		      struct sctp_authkey *auth_key)
+{
+	struct sctp_shared_key *cur_key = NULL;
+	struct sctp_auth_bytes *key;
+	struct list_head *sh_keys;
+	int replace = 0;
+
+	/* Try to find the given key id to see if
+	 * we are doing a replace, or adding a new key
+	 */
+	if (asoc)
+		sh_keys = &asoc->endpoint_shared_keys;
+	else
+		sh_keys = &ep->endpoint_shared_keys;
+
+	key_for_each(cur_key, sh_keys) {
+		if (cur_key->key_id == auth_key->sca_keynumber) {
+			replace = 1;
+			break;
+		}
+	}
+
+	/* If we are not replacing a key id, we need to allocate
+	 * a shared key.
+	 */
+	if (!replace) {
+		cur_key = sctp_auth_shkey_create(auth_key->sca_keynumber,
+						 GFP_KERNEL);
+		if (!cur_key)
+			return -ENOMEM;
+	}
+
+	/* Create a new key data based on the info passed in */
+	key = sctp_auth_create_key(auth_key->sca_keylen, GFP_KERNEL);
+	if (!key)
+		goto nomem;
+
+	memcpy(key->data, &auth_key->sca_key[0], auth_key->sca_keylen);
+
+	/* If we are replacing, remove the old keys data from the
+	 * key id.  If we are adding new key id, add it to the
+	 * list.
+	 */
+	if (replace)
+		sctp_auth_key_put(cur_key->key);
+	else
+		list_add(&cur_key->key_list, sh_keys);
+
+	cur_key->key = key;
+	sctp_auth_key_hold(key);
+
+	return 0;
+nomem:
+	if (!replace)
+		sctp_auth_shkey_free(cur_key);
+
+	return -ENOMEM;
+}
+
+int sctp_auth_set_active_key(struct sctp_endpoint *ep,
+			     struct sctp_association *asoc,
+			     __u16  key_id)
+{
+	struct sctp_shared_key *key;
+	struct list_head *sh_keys;
+	int found = 0;
+
+	/* The key identifier MUST correst to an existing key */
+	if (asoc)
+		sh_keys = &asoc->endpoint_shared_keys;
+	else
+		sh_keys = &ep->endpoint_shared_keys;
+
+	key_for_each(key, sh_keys) {
+		if (key->key_id == key_id) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	if (asoc) {
+		asoc->active_key_id = key_id;
+		sctp_auth_asoc_init_active_key(asoc, GFP_KERNEL);
+	} else
+		ep->active_key_id = key_id;
+
+	return 0;
+}
+
+int sctp_auth_del_key_id(struct sctp_endpoint *ep,
+			 struct sctp_association *asoc,
+			 __u16  key_id)
+{
+	struct sctp_shared_key *key;
+	struct list_head *sh_keys;
+	int found = 0;
+
+	/* The key identifier MUST NOT be the current active key
+	 * The key identifier MUST correst to an existing key
+	 */
+	if (asoc) {
+		if (asoc->active_key_id == key_id)
+			return -EINVAL;
+
+		sh_keys = &asoc->endpoint_shared_keys;
+	} else {
+		if (ep->active_key_id == key_id)
+			return -EINVAL;
+
+		sh_keys = &ep->endpoint_shared_keys;
+	}
+
+	key_for_each(key, sh_keys) {
+		if (key->key_id == key_id) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	/* Delete the shared key */
+	list_del_init(&key->key_list);
+	sctp_auth_shkey_free(key);
+
+	return 0;
+}

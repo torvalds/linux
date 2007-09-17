@@ -813,6 +813,43 @@ fail:
 	return NULL;
 }
 
+struct sctp_ulpevent *sctp_ulpevent_make_authkey(
+	const struct sctp_association *asoc, __u16 key_id,
+	__u32 indication, gfp_t gfp)
+{
+	struct sctp_ulpevent *event;
+	struct sctp_authkey_event *ak;
+	struct sk_buff *skb;
+
+	event = sctp_ulpevent_new(sizeof(struct sctp_authkey_event),
+				  MSG_NOTIFICATION, gfp);
+	if (!event)
+		goto fail;
+
+	skb = sctp_event2skb(event);
+	ak = (struct sctp_authkey_event *)
+		skb_put(skb, sizeof(struct sctp_authkey_event));
+
+	ak->auth_type = SCTP_AUTHENTICATION_EVENT;
+	ak->auth_flags = 0;
+	ak->auth_length = sizeof(struct sctp_authkey_event);
+
+	ak->auth_keynumber = key_id;
+	ak->auth_altkeynumber = 0;
+	ak->auth_indication = indication;
+
+	/*
+	 * The association id field, holds the identifier for the association.
+	 */
+	sctp_ulpevent_set_owner(event, asoc);
+	ak->auth_assoc_id = sctp_assoc2id(asoc);
+
+	return event;
+fail:
+	return NULL;
+}
+
+
 /* Return the notification type, assuming this is a notification
  * event.
  */
