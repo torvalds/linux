@@ -718,19 +718,19 @@ static int snd_cmipci_hw_free(struct snd_pcm_substream *substream)
 /*
  */
 
-static unsigned int hw_channels[] = {1, 2, 4, 5, 6, 8};
+static unsigned int hw_channels[] = {1, 2, 4, 6, 8};
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_4 = {
 	.count = 3,
 	.list = hw_channels,
 	.mask = 0,
 };
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_6 = {
-	.count = 5,
+	.count = 4,
 	.list = hw_channels,
 	.mask = 0,
 };
 static struct snd_pcm_hw_constraint_list hw_constraints_channels_8 = {
-	.count = 6,
+	.count = 5,
 	.list = hw_channels,
 	.mask = 0,
 };
