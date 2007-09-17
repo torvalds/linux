@@ -125,7 +125,7 @@ static struct axon_msic *find_msi_translator(struct pci_dev *dev)
 	const phandle *ph;
 	struct axon_msic *msic = NULL;
 
-	dn = pci_device_to_OF_node(dev);
+	dn = of_node_get(pci_device_to_OF_node(dev));
 	if (!dn) {
 		dev_dbg(&dev->dev, "axon_msi: no pci_dn found\n");
 		return NULL;
@@ -182,7 +182,7 @@ static int setup_msi_msg_address(struct pci_dev *dev, struct msi_msg *msg)
 	int len;
 	const u32 *prop;
 
-	dn = pci_device_to_OF_node(dev);
+	dn = of_node_get(pci_device_to_OF_node(dev));
 	if (!dn) {
 		dev_dbg(&dev->dev, "axon_msi: no pci_dn found\n");
 		return -ENODEV;
