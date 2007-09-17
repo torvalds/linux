@@ -1543,6 +1543,7 @@ struct sctp_association {
 		__u8    asconf_capable;  /* Does peer support ADDIP? */
 		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
 		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
+		__u8	addip_capable;	 /* Can peer do ADD-IP */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 

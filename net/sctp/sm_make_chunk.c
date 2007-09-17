@@ -1851,7 +1851,8 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 			    break;
 		    case SCTP_CID_ASCONF:
 		    case SCTP_CID_ASCONF_ACK:
-			    /* don't need to do anything for ASCONF */
+			    asoc->peer.addip_capable = 1;
+			    break;
 		    default:
 			    break;
 		}
@@ -2136,6 +2137,16 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 	if (asoc->peer.auth_capable && (!asoc->peer.peer_random ||
 					!asoc->peer.peer_hmacs))
 		asoc->peer.auth_capable = 0;
+
+
+	/* If the peer claims support for ADD-IP without support
+	 * for AUTH, disable support for ADD-IP.
+	 */
+	if (asoc->peer.addip_capable && !asoc->peer.auth_capable) {
+		asoc->peer.addip_disabled_mask |= (SCTP_PARAM_ADD_IP |
+						  SCTP_PARAM_DEL_IP |
+						  SCTP_PARAM_SET_PRIMARY);
+	}
 
 	/* Walk list of transports, removing transports in the UNKNOWN state. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
