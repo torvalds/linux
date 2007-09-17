@@ -898,7 +898,6 @@ static int __init qec_ether_init(struct sbus_dev *sdev)
 	/* Stop this QE. */
 	qe_stop(qe);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 
 	dev->open = qe_open;

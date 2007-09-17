@@ -4900,7 +4900,6 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_disable_pdev;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = pci_request_regions(pdev, dev->name);

@@ -416,7 +416,6 @@ dm9000_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	PRINTK2("dm9000_probe()");

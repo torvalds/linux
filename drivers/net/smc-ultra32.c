@@ -132,8 +132,6 @@ struct net_device * __init ultra32_probe(int unit)
 		netdev_boot_setup_check(dev);
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	irq = dev->irq;
 
 	/* EISA spec allows for up to 16 slots, but 8 is typical. */

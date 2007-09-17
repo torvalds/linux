@@ -2870,7 +2870,6 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->base_addr = port;
 
 	SET_NETDEV_DEV(dev, dmdev);
-	SET_MODULE_OWNER(dev);
 
 	reset_card (dev, 1);
 	msleep(400);

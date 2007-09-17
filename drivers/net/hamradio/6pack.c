@@ -345,8 +345,6 @@ static void sp_setup(struct net_device *dev)
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
 	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
 
-	SET_MODULE_OWNER(dev);
-
 	dev->flags		= 0;
 }
 

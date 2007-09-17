@@ -432,7 +432,6 @@ static __init void teql_master_setup(struct net_device *dev)
 	dev->tx_queue_len	= 100;
 	dev->flags		= IFF_NOARP;
 	dev->hard_header_len	= LL_MAX_HEADER;
-	SET_MODULE_OWNER(dev);
 }
 
 static LIST_HEAD(master_dev_list);

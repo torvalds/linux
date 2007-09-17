@@ -1152,8 +1152,6 @@ err_fw:
 
 	INIT_DELAYED_WORK(&kaweth->lowmem_work, kaweth_resubmit_tl);
 
-	SET_MODULE_OWNER(netdev);
-
 	usb_set_intfdata(intf, kaweth);
 
 #if 0

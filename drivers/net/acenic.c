@@ -465,7 +465,6 @@ static int __devinit acenic_probe_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ap = dev->priv;

@@ -191,8 +191,6 @@ struct net_device * __init mac89x0_probe(int unit)
 		netdev_boot_setup_check(dev);
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (once_is_enough)
 		goto out;
 	once_is_enough = 1;

@@ -1387,8 +1387,6 @@ static int __init elplus_setup(struct net_device *dev)
 	unsigned long cookie = 0;
 	int err = -ENODEV;
 
-	SET_MODULE_OWNER(dev);
-
 	/*
 	 *  setup adapter structure
 	 */

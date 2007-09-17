@@ -143,7 +143,6 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		rc = -ENOMEM;
 		goto err_release;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
 	mp = dev->priv;

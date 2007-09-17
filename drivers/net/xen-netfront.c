@@ -1176,7 +1176,6 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	netdev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(netdev, &xennet_ethtool_ops);
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	np->netdev = netdev;

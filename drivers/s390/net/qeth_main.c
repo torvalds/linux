@@ -6649,7 +6649,6 @@ qeth_netdev_init(struct net_device *dev)
 	dev->mtu = card->info.initial_mtu;
 	if (card->info.type != QETH_CARD_TYPE_OSN)
 		SET_ETHTOOL_OPS(dev, &qeth_ethtool_ops);
-	SET_MODULE_OWNER(dev);
 	return 0;
 }
 

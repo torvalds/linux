@@ -225,8 +225,6 @@ struct net_device * __init at1700_probe(int unit)
 		dev->irq = irq;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff) {	/* Check a single specified location. */
 		err = at1700_probe1(dev, io);
 	} else if (io != 0) {	/* Don't probe at all. */

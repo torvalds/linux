@@ -2680,7 +2680,6 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	dev = alloc_etherdev(sizeof(struct happy_meal));
 	if (!dev)
 		goto err_out;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 
 	if (hme_version_printed++ == 0)
@@ -3022,7 +3021,6 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	err = -ENOMEM;
 	if (!dev)
 		goto err_out;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (hme_version_printed++ == 0)

@@ -327,8 +327,6 @@ struct net_device * __init el16_probe(int unit)
 		mem_start = dev->mem_start & 15;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff) 	/* Check a single specified location. */
 		err = el16_probe1(dev, io);
 	else if (io != 0)

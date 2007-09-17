@@ -2181,7 +2181,6 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto release_1;
 	}
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;

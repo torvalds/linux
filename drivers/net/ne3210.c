@@ -106,7 +106,6 @@ static int __init ne3210_eisa_probe (struct device *device)
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, device);
 	device->driver_data = dev;
 	ioaddr = edev->base_addr;

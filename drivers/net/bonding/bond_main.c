@@ -4674,8 +4674,6 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 		goto out_netdev;
 	}
 
-	SET_MODULE_OWNER(bond_dev);
-
 	res = register_netdevice(bond_dev);
 	if (res < 0) {
 		goto out_bond;

@@ -299,7 +299,6 @@ static int __init atp_probe1(long ioaddr)
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 
 	/* Find the IRQ used by triggering an interrupt. */
 	write_reg_byte(ioaddr, CMR2, 0x01);			/* No accept mode, IRQ out. */

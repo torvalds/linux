@@ -1988,7 +1988,6 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	spin_lock_init(&dev->misc_lock);
 	dev->pci_dev = pci_dev;
 
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pci_dev->dev);
 
 	INIT_WORK(&dev->tq_refill, queue_refill);

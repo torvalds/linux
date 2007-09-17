@@ -1607,7 +1607,6 @@ tsi108_init_one(struct platform_device *pdev)
 	 */
 
 	dev->features = NETIF_F_HIGHDMA;
-	SET_MODULE_OWNER(dev);
 
 	spin_lock_init(&data->txlock);
 	spin_lock_init(&data->misclock);

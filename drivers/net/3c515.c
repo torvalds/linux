@@ -501,8 +501,6 @@ static struct net_device *corkscrew_scan(int unit)
 		netdev_boot_setup_check(dev);
 	}
 
-	SET_MODULE_OWNER(dev);
-
 #ifdef __ISAPNP__
 	if(nopnp == 1)
 		goto no_pnp;

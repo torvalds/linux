@@ -1584,8 +1584,6 @@ static int vlsi_irda_init(struct net_device *ndev)
 	vlsi_irda_dev_t *idev = ndev->priv;
 	struct pci_dev *pdev = idev->pdev;
 
-	SET_MODULE_OWNER(ndev);
-
 	ndev->irq = pdev->irq;
 	ndev->base_addr = pci_resource_start(pdev,0);
 

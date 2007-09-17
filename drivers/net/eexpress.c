@@ -341,8 +341,6 @@ static int __init do_express_probe(struct net_device *dev)
 	int dev_irq = dev->irq;
 	int err;
 
-	SET_MODULE_OWNER(dev);
-
 	dev->if_port = 0xff; /* not set */
 
 #ifdef CONFIG_MCA_LEGACY

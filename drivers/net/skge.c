@@ -3549,7 +3549,6 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 		return NULL;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->open = skge_up;
 	dev->stop = skge_down;

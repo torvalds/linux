@@ -2604,7 +2604,6 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_free_res;
 	}
 
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	if (use_io)

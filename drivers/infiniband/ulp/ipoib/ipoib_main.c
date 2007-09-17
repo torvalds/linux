@@ -978,8 +978,6 @@ static void ipoib_setup(struct net_device *dev)
 
 	netif_carrier_off(dev);
 
-	SET_MODULE_OWNER(dev);
-
 	priv->dev = dev;
 
 	spin_lock_init(&priv->lock);

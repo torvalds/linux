@@ -744,8 +744,6 @@ struct net_device * __init smc_init(int unit)
 		irq = dev->irq;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff) {	/* Check a single specified location. */
 		err = smc_probe(dev, io);
 	} else if (io != 0) {	/* Don't probe at all. */

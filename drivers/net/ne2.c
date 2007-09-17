@@ -251,8 +251,6 @@ static int __init do_ne2_probe(struct net_device *dev)
 	int i;
 	int adapter_found = 0;
 
-	SET_MODULE_OWNER(dev);
-
 	/* Do not check any supplied i/o locations.
 	   POS registers usually don't fail :) */
 

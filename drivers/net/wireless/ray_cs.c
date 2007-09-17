@@ -356,7 +356,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
     dev->set_multicast_list = &set_multicast_list;
 
     DEBUG(2,"ray_cs ray_attach calling ether_setup.)\n");
-    SET_MODULE_OWNER(dev);
     dev->init = &ray_dev_init;
     dev->open = &ray_open;
     dev->stop = &ray_dev_close;

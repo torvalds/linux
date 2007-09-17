@@ -628,7 +628,6 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	if (!net)
 		goto err_out1;
 
-	SET_MODULE_OWNER(net);
 	SET_NETDEV_DEV(net, &intf->dev);
 	kingsun = netdev_priv(net);
 	kingsun->netdev = net;

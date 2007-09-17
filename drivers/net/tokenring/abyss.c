@@ -116,8 +116,6 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
-
 	if (!request_region(pci_ioaddr, ABYSS_IO_EXTENT, dev->name)) {
 		ret = -EBUSY;
 		goto err_out_trdev;

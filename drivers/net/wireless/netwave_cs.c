@@ -412,7 +412,6 @@ static int netwave_probe(struct pcmcia_device *link)
     spin_lock_init(&priv->spinlock);
 
     /* Netwave specific entries in the device structure */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &netwave_start_xmit;
     dev->get_stats  = &netwave_get_stats;
     dev->set_multicast_list = &set_multicast_list;

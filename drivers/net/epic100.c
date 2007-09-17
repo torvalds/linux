@@ -352,7 +352,6 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 		dev_err(&pdev->dev, "no memory for eth device\n");
 		goto err_out_free_res;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef USE_IO_OPS

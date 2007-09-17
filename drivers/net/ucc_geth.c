@@ -3957,7 +3957,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	/* Set the dev->base_addr to the gfar reg region */
 	dev->base_addr = (unsigned long)(ug_info->uf_info.regs);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, device);
 
 	/* Fill in the dev structure */

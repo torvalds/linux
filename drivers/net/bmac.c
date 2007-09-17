@@ -1291,7 +1291,6 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 	}
 
 	bp = netdev_priv(dev);
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 	macio_set_drvdata(mdev, dev);
 

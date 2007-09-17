@@ -329,7 +329,6 @@ static void lapbeth_setup(struct net_device *dev)
 	dev->hard_header_len = 3;
 	dev->mtu             = 1000;
 	dev->addr_len        = 0;
-	SET_MODULE_OWNER(dev);
 }
 
 /*

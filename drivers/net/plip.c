@@ -1278,7 +1278,6 @@ static void plip_attach (struct parport *port)
 
 		strcpy(dev->name, name);
 
-		SET_MODULE_OWNER(dev);
 		dev->irq = port->irq;
 		dev->base_addr = port->base;
 		if (port->irq == -1) {

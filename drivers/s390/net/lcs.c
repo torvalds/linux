@@ -2145,7 +2145,6 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	card->dev->stop = lcs_stop_device;
 	card->dev->hard_start_xmit = lcs_start_xmit;
 	card->dev->get_stats = lcs_getstats;
-	SET_MODULE_OWNER(dev);
 	memcpy(card->dev->dev_addr, card->mac, LCS_MAC_LENGTH);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))

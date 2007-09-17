@@ -508,7 +508,6 @@ static int cycx_netdevice_init(struct net_device *dev)
 
 	/* Set transmit buffer queue length */
 	dev->tx_queue_len	= 10;
-	SET_MODULE_OWNER(dev);
 
 	/* Initialize socket buffers */
 	cycx_x25_set_chan_state(dev, WAN_DISCONNECTED);

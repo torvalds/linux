@@ -1962,7 +1962,6 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 	dev->ndev = ndev;
 	dev->ldev = &ocpdev->dev;
 	dev->def = ocpdev->def;
-	SET_MODULE_OWNER(ndev);
 
 	/* Find MAL device we are connected to */
 	maldev =

@@ -1036,7 +1036,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 			goto out_free_dev;
 		}
 
-		SET_MODULE_OWNER(netdev);
 		SET_NETDEV_DEV(netdev, &pdev->dev);
 
 		if (!adapter) {

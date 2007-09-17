@@ -1234,7 +1234,6 @@ struct net_device * __init i82596_probe(int unit)
 	DEB(DEB_PROBE,printk(KERN_INFO "%s", version));
 
 	/* The 82596-specific entries in the device structure. */
-	SET_MODULE_OWNER(dev);
 	dev->open = i596_open;
 	dev->stop = i596_close;
 	dev->hard_start_xmit = i596_start_xmit;

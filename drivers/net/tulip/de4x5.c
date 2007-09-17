@@ -1261,7 +1261,6 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     }
 
     /* The DE4X5-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     SET_NETDEV_DEV(dev, gendev);
     dev->open = &de4x5_open;
     dev->hard_start_xmit = &de4x5_queue_pkt;

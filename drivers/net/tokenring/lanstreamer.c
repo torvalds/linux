@@ -245,7 +245,6 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	streamer_priv = netdev_priv(dev);
 
 #if STREAMER_NETWORK_MONITOR

@@ -264,7 +264,6 @@ static int __init ultramca_probe(struct device *gen_dev)
 	if(!dev)
 		return -ENODEV;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, gen_dev);
 	mca_device_set_name(mca_dev, smc_mca_adapter_names[adapter]);
 	mca_device_set_claim(mca_dev, 1);

@@ -898,8 +898,6 @@ static int mcs_probe(struct usb_interface *intf,
 
 	IRDA_DEBUG(1, "MCS7780 USB-IrDA bridge found at %d.\n", udev->devnum);
 
-	/* what is it realy for? */
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &intf->dev);
 
 	ret = usb_reset_configuration(udev);

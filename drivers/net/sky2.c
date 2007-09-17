@@ -3924,7 +3924,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 		return NULL;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->irq = hw->pdev->irq;
 	dev->open = sky2_up;

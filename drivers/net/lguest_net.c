@@ -460,8 +460,6 @@ static int lguestnet_probe(struct lguest_device *lgdev)
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
-
 	/* Ethernet defaults with some changes */
 	ether_setup(dev);
 	dev->set_mac_address = NULL;

@@ -908,7 +908,6 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 	if (version_printed++ == 0)
 		printk(version);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 
 	mp = (struct myri_eth *) dev->priv;

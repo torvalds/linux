@@ -1157,8 +1157,6 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 	priv->infra_open = 0;
 	priv->hotplug_device = dmdev;
 
-	SET_MODULE_OWNER(dev);
-
 	/* Setup the OS Interface to our functions */
 	dev->open = libertas_open;
 	dev->hard_start_xmit = libertas_pre_start_xmit;
@@ -1339,8 +1337,6 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 	}
 	mesh_dev->priv = priv;
 	priv->mesh_dev = mesh_dev;
-
-	SET_MODULE_OWNER(mesh_dev);
 
 	mesh_dev->open = libertas_mesh_open;
 	mesh_dev->hard_start_xmit = libertas_mesh_pre_start_xmit;

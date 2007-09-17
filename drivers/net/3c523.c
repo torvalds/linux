@@ -423,7 +423,6 @@ static int __init do_elmc_probe(struct net_device *dev)
 	int retval;
 	struct priv *pr = dev->priv;
 
-	SET_MODULE_OWNER(dev);
 	if (MCA_bus == 0) {
 		return -ENODEV;
 	}

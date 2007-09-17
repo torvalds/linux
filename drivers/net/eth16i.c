@@ -436,8 +436,6 @@ static int __init do_eth16i_probe(struct net_device *dev)
 	int ioaddr;
 	int base_addr = dev->base_addr;
 
-	SET_MODULE_OWNER(dev);
-
 	if(eth16i_debug > 4)
 		printk(KERN_DEBUG "Probing started for %s\n", cardname);
 

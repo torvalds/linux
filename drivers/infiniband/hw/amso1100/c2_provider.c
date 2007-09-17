@@ -715,7 +715,6 @@ static int c2_pseudo_change_mtu(struct net_device *netdev, int new_mtu)
 
 static void setup(struct net_device *netdev)
 {
-	SET_MODULE_OWNER(netdev);
 	netdev->open = c2_pseudo_up;
 	netdev->stop = c2_pseudo_down;
 	netdev->hard_start_xmit = c2_pseudo_xmit_frame;

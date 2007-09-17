@@ -109,7 +109,6 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 
 	rrpriv = netdev_priv(dev);
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_request_regions(pdev, "rrunner")) {

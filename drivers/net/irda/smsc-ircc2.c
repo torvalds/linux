@@ -519,8 +519,6 @@ static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u
 		goto err_out1;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	dev->hard_start_xmit = smsc_ircc_hard_xmit_sir;
 #if SMSC_IRCC2_C_NET_TIMEOUT
 	dev->tx_timeout	     = smsc_ircc_timeout;

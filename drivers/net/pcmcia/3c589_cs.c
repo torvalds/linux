@@ -197,7 +197,6 @@ static int tc589_probe(struct pcmcia_device *link)
     link->conf.ConfigIndex = 1;
 
     /* The EL3-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &el3_start_xmit;
     dev->set_config = &el3_config;
     dev->get_stats = &el3_get_stats;

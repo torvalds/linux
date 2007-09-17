@@ -1036,7 +1036,6 @@ static int __devinit vortex_probe1(struct device *gendev,
 		printk (KERN_ERR PFX "unable to allocate etherdev, aborting\n");
 		goto out;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, gendev);
 	vp = netdev_priv(dev);
 

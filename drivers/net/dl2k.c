@@ -116,7 +116,6 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENOMEM;
 		goto err_out_res;
 	}
-	SET_MODULE_OWNER (dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef MEM_MAPPING

@@ -1103,7 +1103,6 @@ int fec_8xx_init_one(const struct fec_platform_info *fpi,
 		err = -ENOMEM;
 		goto err;
 	}
-	SET_MODULE_OWNER(dev);
 
 	fep = netdev_priv(dev);
 	fep->dev = dev;

@@ -685,7 +685,6 @@ static int __devinit tc35815_init_one (struct pci_dev *pdev,
 		dev_err(&pdev->dev, "unable to alloc new ethernet\n");
 		return -ENOMEM;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = dev->priv;
 	lp->dev = dev;

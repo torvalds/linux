@@ -171,7 +171,6 @@ void br_dev_setup(struct net_device *dev)
 	dev->set_multicast_list = br_dev_set_multicast_list;
 	dev->change_mtu = br_change_mtu;
 	dev->destructor = free_netdev;
-	SET_MODULE_OWNER(dev);
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->stop = br_dev_stop;
 	dev->tx_queue_len = 0;

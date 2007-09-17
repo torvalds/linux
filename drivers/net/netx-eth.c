@@ -390,7 +390,6 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto exit;
 	}
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	platform_set_drvdata(pdev, ndev);

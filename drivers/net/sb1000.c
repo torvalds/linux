@@ -189,7 +189,6 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	 */
 	dev->flags = IFF_POINTOPOINT|IFF_NOARP;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (sb1000_debug > 0)

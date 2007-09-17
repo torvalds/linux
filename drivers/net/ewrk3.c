@@ -356,7 +356,6 @@ struct net_device * __init ewrk3_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	SET_MODULE_OWNER(dev);
 
 	err = ewrk3_probe1(dev, dev->base_addr, dev->irq);
 	if (err)

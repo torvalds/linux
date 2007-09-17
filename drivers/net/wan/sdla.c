@@ -1603,7 +1603,6 @@ static void setup_sdla(struct net_device *dev)
 
 	netdev_boot_setup_check(dev);
 
-	SET_MODULE_OWNER(dev);
 	dev->flags		= 0;
 	dev->type		= 0xFFFF;
 	dev->hard_header_len	= 0;

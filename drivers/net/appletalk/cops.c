@@ -235,8 +235,6 @@ struct net_device * __init cops_probe(int unit)
 		base_addr = dev->base_addr = io;
 	}
 
-	SET_MODULE_OWNER(dev);
-
 	if (base_addr > 0x1ff) {    /* Check a single specified location. */
 		err = cops_probe1(dev, base_addr);
 	} else if (base_addr != 0) { /* Don't probe at all. */

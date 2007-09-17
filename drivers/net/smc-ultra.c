@@ -142,8 +142,6 @@ static int __init do_ultra_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = &ultra_poll;
 #endif

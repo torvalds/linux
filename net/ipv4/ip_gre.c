@@ -1132,7 +1132,6 @@ static int ipgre_close(struct net_device *dev)
 
 static void ipgre_tunnel_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->uninit		= ipgre_tunnel_uninit;
 	dev->destructor 	= free_netdev;
 	dev->hard_start_xmit	= ipgre_tunnel_xmit;

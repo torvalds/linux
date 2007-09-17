@@ -115,7 +115,6 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	dev = alloc_trdev(sizeof(struct net_local));
 	if (!dev)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 
 	if (!request_region(pci_ioaddr, TMS_PCI_IO_EXTENT, dev->name)) {
 		ret = -EBUSY;

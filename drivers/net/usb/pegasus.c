@@ -1321,7 +1321,6 @@ static int pegasus_probe(struct usb_interface *intf,
 	pegasus->intf = intf;
 	pegasus->usb = dev;
 	pegasus->net = net;
-	SET_MODULE_OWNER(net);
 	net->open = pegasus_open;
 	net->stop = pegasus_close;
 	net->watchdog_timeo = PEGASUS_TX_TIMEOUT;

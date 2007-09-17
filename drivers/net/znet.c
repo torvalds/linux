@@ -388,8 +388,6 @@ static int __init znet_probe (void)
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER (dev);
-
 	znet = dev->priv;
 
 	netinfo = (struct netidblk *)p;

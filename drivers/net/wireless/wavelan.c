@@ -4177,7 +4177,6 @@ static int __init wavelan_config(struct net_device *dev, unsigned short ioaddr)
 	/* Init spinlock */
 	spin_lock_init(&lp->spinlock);
 
-	SET_MODULE_OWNER(dev);
 	dev->open = wavelan_open;
 	dev->stop = wavelan_close;
 	dev->hard_start_xmit = wavelan_packet_xmit;

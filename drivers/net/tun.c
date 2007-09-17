@@ -435,7 +435,6 @@ static void tun_setup(struct net_device *dev)
 	tun->owner = -1;
 	tun->group = -1;
 
-	SET_MODULE_OWNER(dev);
 	dev->open = tun_net_open;
 	dev->hard_start_xmit = tun_net_xmit;
 	dev->stop = tun_net_close;

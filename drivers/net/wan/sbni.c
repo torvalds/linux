@@ -216,8 +216,6 @@ static void __init sbni_devsetup(struct net_device *dev)
 	dev->get_stats		= &sbni_get_stats;
 	dev->set_multicast_list	= &set_multicast_list;
 	dev->do_ioctl		= &sbni_ioctl;
-
-	SET_MODULE_OWNER( dev );
 }
 
 int __init sbni_probe(int unit)

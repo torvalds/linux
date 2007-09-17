@@ -233,7 +233,6 @@ struct net_device *zd_netdev_alloc(struct usb_interface *intf)
 		return NULL;
 	}
 
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &intf->dev);
 
 	dev_dbg_f(&intf->dev, "netdev->flags %#06hx\n", netdev->flags);

@@ -183,7 +183,6 @@ static int __devinit ariadne_init_one(struct zorro_dev *z,
 	return -ENOMEM;
     }
 
-    SET_MODULE_OWNER(dev);
     priv = netdev_priv(dev);
 
     r1->name = dev->name;

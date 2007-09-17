@@ -191,8 +191,6 @@ static int __init do_ne_probe(struct net_device *dev)
 	int orig_irq = dev->irq;
 #endif
 
-	SET_MODULE_OWNER(dev);
-
 	/* First check any supplied i/o locations. User knows best. <cough> */
 	if (base_addr > 0x1ff)	/* Check a single specified location. */
 		return ne_probe1(dev, base_addr);

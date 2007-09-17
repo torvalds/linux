@@ -613,7 +613,6 @@ static int __devinit hamachi_init_one (struct pci_dev *pdev,
 	if (!dev)
 		goto err_out_iounmap;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 #ifdef TX_CHECKSUM

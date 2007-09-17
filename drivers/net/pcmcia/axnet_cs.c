@@ -1728,9 +1728,6 @@ static void axdev_setup(struct net_device *dev)
 	if (ei_debug > 1)
 		printk(version_8390);
     
-	SET_MODULE_OWNER(dev);
-
-		
 	ei_local = (struct ei_device *)netdev_priv(dev);
 	spin_lock_init(&ei_local->page_lock);
     

@@ -336,7 +336,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The SMC91c92-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &smc_start_xmit;
     dev->get_stats = &smc_get_stats;
     dev->set_config = &s9k_config;

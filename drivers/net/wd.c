@@ -93,8 +93,6 @@ static int __init do_wd_probe(struct net_device *dev)
 	int mem_start = dev->mem_start;
 	int mem_end = dev->mem_end;
 
-	SET_MODULE_OWNER(dev);
-
 	if (base_addr > 0x1ff) {	/* Check a user specified location. */
 		r = request_region(base_addr, WD_IO_EXTENT, "wd-probe");
 		if ( r == NULL)

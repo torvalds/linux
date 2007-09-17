@@ -2508,8 +2508,6 @@ static void strip_dev_setup(struct net_device *dev)
 	 * Finish setting up the DEVICE info.
 	 */
 
-	SET_MODULE_OWNER(dev);
-
 	dev->trans_start = 0;
 	dev->last_rx = 0;
 	dev->tx_queue_len = 30;	/* Drop after 30 frames queued */

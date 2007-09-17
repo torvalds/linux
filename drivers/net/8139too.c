@@ -766,7 +766,6 @@ static int __devinit rtl8139_init_board (struct pci_dev *pdev,
 		dev_err(&pdev->dev, "Unable to alloc new net device\n");
 		return -ENOMEM;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);

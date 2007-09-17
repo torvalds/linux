@@ -65,7 +65,6 @@ static struct net_device * __init ipddp_init(void)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	SET_MODULE_OWNER(dev);
 	strcpy(dev->name, "ipddp%d");
 
 	if (version_printed++ == 0)

@@ -237,7 +237,6 @@ static struct ip_tunnel * ipip_tunnel_locate(struct ip_tunnel_parm *parms, int c
 		return NULL;
 
 	nt = netdev_priv(dev);
-	SET_MODULE_OWNER(dev);
 	dev->init = ipip_tunnel_init;
 	nt->parms = *parms;
 
@@ -775,7 +774,6 @@ static int ipip_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 
 static void ipip_tunnel_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->uninit		= ipip_tunnel_uninit;
 	dev->hard_start_xmit	= ipip_tunnel_xmit;
 	dev->get_stats		= ipip_tunnel_get_stats;

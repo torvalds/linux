@@ -823,8 +823,6 @@ struct net_device * __init de620_probe(int unit)
 	if (!dev)
 		goto out;
 
-	SET_MODULE_OWNER(dev);
-
 	spin_lock_init(&de620_lock);
 
 	/*

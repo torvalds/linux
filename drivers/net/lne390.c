@@ -111,8 +111,6 @@ static int __init do_lne390_probe(struct net_device *dev)
 	int mem_start = dev->mem_start;
 	int ret;
 
-	SET_MODULE_OWNER(dev);
-
 	if (ioaddr > 0x1ff) {		/* Check a single specified location. */
 		if (!request_region(ioaddr, LNE390_IO_EXTENT, DRV_NAME))
 			return -EBUSY;

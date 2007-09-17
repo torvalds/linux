@@ -143,7 +143,6 @@ static int __init setup_card(struct net_device *dev, struct device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
 	if (dev->base_addr)	/* probe specific location */
 		err = sk_isa_probe1(dev, dev->base_addr);
 	else {

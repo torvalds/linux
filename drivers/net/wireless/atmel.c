@@ -1603,7 +1603,6 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
 	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5] );
 
-	SET_MODULE_OWNER(dev);
 	return dev;
 
 err_out_res:

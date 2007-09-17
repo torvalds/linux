@@ -474,7 +474,6 @@ static int nmclan_probe(struct pcmcia_device *link)
 
     lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &mace_start_xmit;
     dev->set_config = &mace_config;
     dev->get_stats = &mace_get_stats;

@@ -517,7 +517,6 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	int eeprom_buff[CHKSUM_LEN];
 	int retval;
 
-	SET_MODULE_OWNER(dev);
 	/* Initialize the device structure. */
 	if (!modular) {
 		memset(lp, 0, sizeof(*lp));

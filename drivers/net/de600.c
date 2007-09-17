@@ -394,7 +394,6 @@ static struct net_device * __init de600_probe(void)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	SET_MODULE_OWNER(dev);
 
 	if (!request_region(DE600_IO, 3, "de600")) {
 		printk(KERN_WARNING "DE600: port 0x%x busy\n", DE600_IO);

@@ -168,7 +168,6 @@ static int __devinit madgemc_probe(struct device *device)
 		goto getout;
 	}
 
-	SET_MODULE_OWNER(dev);
 	dev->dma = 0;
 
 	card = kmalloc(sizeof(struct card_info), GFP_KERNEL);

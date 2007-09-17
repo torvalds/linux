@@ -883,7 +883,6 @@ static int __devinit lmc_init_one(struct pci_dev *pdev,
     dev->base_addr = pci_resource_start(pdev, 0);
     dev->irq = pdev->irq;
 
-    SET_MODULE_OWNER(dev);
     SET_NETDEV_DEV(dev, &pdev->dev);
 
     /*

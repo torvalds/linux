@@ -953,7 +953,6 @@ static struct net_device *fs_init_instance(struct device *dev,
 		err = -ENOMEM;
 		goto err;
 	}
-	SET_MODULE_OWNER(ndev);
 
 	fep = netdev_priv(ndev);
 

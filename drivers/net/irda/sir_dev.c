@@ -913,8 +913,6 @@ struct sir_dev * sirdev_get_instance(const struct sir_driver *drv, const char *n
 	dev->drv = drv;
 	dev->netdev = ndev;
 
-	SET_MODULE_OWNER(ndev);
-
 	/* Override the network functions we need to use */
 	ndev->hard_start_xmit = sirdev_hard_xmit;
 	ndev->open = sirdev_open;

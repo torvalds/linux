@@ -604,7 +604,6 @@ static int __devinit netdrv_init_board (struct pci_dev *pdev,
 		DPRINTK ("EXIT, returning -ENOMEM\n");
 		return -ENOMEM;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	tp = dev->priv;
 

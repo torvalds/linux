@@ -1087,7 +1087,6 @@ static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
 	dev = alloc_etherdev(sizeof(struct bigmac));
 	if (!dev)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 
 	if (version_printed++ == 0)
 		printk(KERN_INFO "%s", version);

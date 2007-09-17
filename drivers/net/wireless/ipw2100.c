@@ -6239,8 +6239,6 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 
 	IPW_DEBUG_INFO("Attempting to register device...\n");
 
-	SET_MODULE_OWNER(dev);
-
 	printk(KERN_INFO DRV_NAME
 	       ": Detected Intel PRO/Wireless 2100 Network Connection\n");
 

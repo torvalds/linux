@@ -135,8 +135,6 @@ struct net_device * __init ni5010_probe(int unit)
 
 	PRINTK2((KERN_DEBUG "%s: Entering ni5010_probe\n", dev->name));
 
-	SET_MODULE_OWNER(dev);
-
 	if (io > 0x1ff)	{	/* Check a single specified location. */
 		err = ni5010_probe1(dev, io);
 	} else if (io != 0) {	/* Don't probe at all. */

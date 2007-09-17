@@ -148,7 +148,6 @@ struct net_device * __init apne_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	SET_MODULE_OWNER(dev);
 
 	/* disable pcmcia irq for readtuple */
 	pcmcia_disable_irq();

@@ -1457,7 +1457,6 @@ no_link_test:
 		lp->dregs = NULL;
 
 	lp->dev = dev;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &sdev->ofdev.dev);
 	dev->open = &lance_open;
 	dev->stop = &lance_close;

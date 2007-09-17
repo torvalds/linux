@@ -533,8 +533,6 @@ static void __init shaper_setup(struct net_device *dev)
 	 *	Set up the shaper.
 	 */
 
-	SET_MODULE_OWNER(dev);
-
 	shaper_init_priv(dev);
 
 	dev->open		= shaper_open;

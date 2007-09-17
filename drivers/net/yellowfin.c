@@ -392,7 +392,6 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 		printk (KERN_ERR PFX "cannot allocate ethernet device\n");
 		return -ENOMEM;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	np = netdev_priv(dev);

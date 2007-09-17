@@ -1046,8 +1046,6 @@ struct net_device * __init ltpc_probe(void)
 	if (!dev)
 		goto out;
 
-	SET_MODULE_OWNER(dev);
-
 	/* probe for the I/O port address */
 	
 	if (io != 0x240 && request_region(0x220,8,"ltpc")) {

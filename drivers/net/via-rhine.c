@@ -702,7 +702,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 		printk(KERN_ERR "alloc_etherdev failed\n");
 		goto err_out;
 	}
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	rp = netdev_priv(dev);

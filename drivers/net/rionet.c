@@ -471,8 +471,6 @@ static int rionet_setup_netdev(struct rio_mport *mport)
 	ndev->features = NETIF_F_LLTX;
 	SET_ETHTOOL_OPS(ndev, &rionet_ethtool_ops);
 
-	SET_MODULE_OWNER(ndev);
-
 	spin_lock_init(&rnet->lock);
 	spin_lock_init(&rnet->tx_lock);
 

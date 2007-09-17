@@ -702,7 +702,6 @@ static inline void *netdev_priv(const struct net_device *dev)
 	return dev->priv;
 }
 
-#define SET_MODULE_OWNER(dev) do { } while (0)
 /* Set the sysfs physical device reference for the network logical device
  * if set prior to registration will cause a symlink during initialization.
  */

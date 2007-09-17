@@ -1421,7 +1421,6 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 		goto err_out_0;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);

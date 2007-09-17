@@ -714,7 +714,6 @@ static int ipip6_tunnel_change_mtu(struct net_device *dev, int new_mtu)
 
 static void ipip6_tunnel_setup(struct net_device *dev)
 {
-	SET_MODULE_OWNER(dev);
 	dev->uninit		= ipip6_tunnel_uninit;
 	dev->destructor 	= free_netdev;
 	dev->hard_start_xmit	= ipip6_tunnel_xmit;

@@ -2212,7 +2212,6 @@ static int smc_drv_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out_release_io;
 	}
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;

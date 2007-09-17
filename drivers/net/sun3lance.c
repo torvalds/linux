@@ -274,7 +274,6 @@ struct net_device * __init sun3lance_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-	SET_MODULE_OWNER(dev);
 
 	if (!lance_probe(dev))
 		goto out;

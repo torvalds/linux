@@ -537,8 +537,6 @@ static int __init do_eepro_probe(struct net_device *dev)
 	int base_addr = dev->base_addr;
 	int irq = dev->irq;
 
-	SET_MODULE_OWNER(dev);
-
 #ifdef PnPWakeup
 	/* XXXX for multiple cards should this only be run once? */
 
@@ -593,8 +591,6 @@ struct net_device * __init eepro_probe(int unit)
 
 	if (!dev)
 		return ERR_PTR(-ENODEV);
-
-	SET_MODULE_OWNER(dev);
 
 	sprintf(dev->name, "eth%d", unit);
 	netdev_boot_setup_check(dev);

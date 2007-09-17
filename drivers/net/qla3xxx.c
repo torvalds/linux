@@ -4011,7 +4011,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 		goto err_out_free_regions;
 	}
 
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	pci_set_drvdata(pdev, ndev);

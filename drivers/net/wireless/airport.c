@@ -197,7 +197,6 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 		return -EBUSY;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &mdev->ofdev.dev);
 
 	macio_set_drvdata(mdev, dev);
