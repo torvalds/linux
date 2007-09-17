@@ -95,30 +95,34 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CHADC0		0x00000001	/* ch0, 0:playback, 1:record */
 
 #define CM_REG_FUNCTRL1		0x04
-#define CM_ASFC_MASK		0x0000E000	/* ADC sampling frequency */
-#define CM_ASFC_SHIFT		13
-#define CM_DSFC_MASK		0x00001C00	/* DAC sampling frequency */
-#define CM_DSFC_SHIFT		10
+#define CM_DSFC_MASK		0x0000E000	/* channel 1 (DAC?) sampling frequency */
+#define CM_DSFC_SHIFT		13
+#define CM_ASFC_MASK		0x00001C00	/* channel 0 (ADC?) sampling frequency */
+#define CM_ASFC_SHIFT		10
 #define CM_SPDF_1		0x00000200	/* SPDIF IN/OUT at channel B */
 #define CM_SPDF_0		0x00000100	/* SPDIF OUT only channel A */
-#define CM_SPDFLOOP		0x00000080	/* ext. SPDIIF/OUT -> IN loopback */
+#define CM_SPDFLOOP		0x00000080	/* ext. SPDIIF/IN -> OUT loopback */
 #define CM_SPDO2DAC		0x00000040	/* SPDIF/OUT can be heard from internal DAC */
 #define CM_INTRM		0x00000020	/* master control block (MCB) interrupt enabled */
 #define CM_BREQ			0x00000010	/* bus master enabled */
 #define CM_VOICE_EN		0x00000008	/* legacy voice (SB16,FM) */
-#define CM_UART_EN		0x00000004	/* UART */
-#define CM_JYSTK_EN		0x00000002	/* joy stick */
+#define CM_UART_EN		0x00000004	/* legacy UART */
+#define CM_JYSTK_EN		0x00000002	/* legacy joystick */
+#define CM_ZVPORT		0x00000001	/* ZVPORT */
 
 #define CM_REG_CHFORMAT		0x08
 
 #define CM_CHB3D5C		0x80000000	/* 5,6 channels */
+#define CM_FMOFFSET2		0x40000000	/* initial FM PCM offset 2 when Fmute=1 */
 #define CM_CHB3D		0x20000000	/* 4 channels */
 
 #define CM_CHIP_MASK1		0x1f000000
 #define CM_CHIP_037		0x01000000
-
-#define CM_SPDIF_SELECT1	0x00080000	/* for model <= 037 ? */
+#define CM_SETLAT48		0x00800000	/* set latency timer 48h */
+#define CM_EDGEIRQ		0x00400000	/* emulated edge trigger legacy IRQ */
+#define CM_SPD24SEL39		0x00200000	/* 24-bit spdif: model 039 */
 #define CM_AC3EN1		0x00100000	/* enable AC3: model 037 */
+#define CM_SPDIF_SELECT1	0x00080000	/* for model <= 037 ? */
 #define CM_SPD24SEL		0x00020000	/* 24bit spdif: model 037 */
 /* #define CM_SPDIF_INVERSE	0x00010000 */ /* ??? */
 
@@ -128,11 +132,17 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_ADCBITLEN_14		0x00008000
 #define CM_ADCBITLEN_13		0x0000C000
 
-#define CM_ADCDACLEN_MASK	0x00003000
+#define CM_ADCDACLEN_MASK	0x00003000	/* model 037 */
 #define CM_ADCDACLEN_060	0x00000000
 #define CM_ADCDACLEN_066	0x00001000
 #define CM_ADCDACLEN_130	0x00002000
 #define CM_ADCDACLEN_280	0x00003000
+
+#define CM_ADCDLEN_MASK		0x00003000	/* model 039 */
+#define CM_ADCDLEN_ORIGINAL	0x00000000
+#define CM_ADCDLEN_EXTRA	0x00001000
+#define CM_ADCDLEN_24K		0x00002000
+#define CM_ADCDLEN_WEIGHT	0x00003000
 
 #define CM_CH1_SRATE_176K	0x00000800
 #define CM_CH1_SRATE_96K	0x00000800	/* model 055? */
@@ -142,24 +152,25 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CH0_SRATE_88K	0x00000100
 
 #define CM_SPDIF_INVERSE2	0x00000080	/* model 055? */
-#define CM_DBLSPDS		0x00000040
+#define CM_DBLSPDS		0x00000040	/* double SPDIF sample rate 88.2/96 */
+#define CM_POLVALID		0x00000020	/* inverse SPDIF/IN valid bit */
+#define CM_SPDLOCKED		0x00000010
 
-#define CM_CH1FMT_MASK		0x0000000C
+#define CM_CH1FMT_MASK		0x0000000C	/* bit 3: 16 bits, bit 2: stereo */
 #define CM_CH1FMT_SHIFT		2
-#define CM_CH0FMT_MASK		0x00000003
+#define CM_CH0FMT_MASK		0x00000003	/* bit 1: 16 bits, bit 0: stereo */
 #define CM_CH0FMT_SHIFT		0
 
 #define CM_REG_INT_HLDCLR	0x0C
 #define CM_CHIP_MASK2		0xff000000
+#define CM_CHIP_8768		0x20000000
+#define CM_CHIP_055		0x08000000
 #define CM_CHIP_039		0x04000000
 #define CM_CHIP_039_6CH		0x01000000
-#define CM_CHIP_055		0x08000000
-#define CM_CHIP_8768		0x20000000
+#define CM_UNKNOWN_INT_EN	0x00080000	/* ? */
 #define CM_TDMA_INT_EN		0x00040000
 #define CM_CH1_INT_EN		0x00020000
 #define CM_CH0_INT_EN		0x00010000
-#define CM_INT_HOLD		0x00000002
-#define CM_INT_CLEAR		0x00000001
 
 #define CM_REG_INT_STATUS	0x10
 #define CM_INTR			0x80000000
@@ -178,12 +189,13 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_CHINT0		0x00000001
 
 #define CM_REG_LEGACY_CTRL	0x14
-#define CM_NXCHG		0x80000000	/* h/w multi channels? */
+#define CM_NXCHG		0x80000000	/* don't map base reg dword->sample */
 #define CM_VMPU_MASK		0x60000000	/* MPU401 i/o port address */
 #define CM_VMPU_330		0x00000000
 #define CM_VMPU_320		0x20000000
 #define CM_VMPU_310		0x40000000
 #define CM_VMPU_300		0x60000000
+#define CM_ENWR8237		0x10000000	/* enable bus master to write 8237 base reg */
 #define CM_VSBSEL_MASK		0x0C000000	/* SB16 base address */
 #define CM_VSBSEL_220		0x00000000
 #define CM_VSBSEL_240		0x04000000
@@ -194,44 +206,74 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_FMSEL_3C8		0x01000000
 #define CM_FMSEL_3E0		0x02000000
 #define CM_FMSEL_3E8		0x03000000
-#define CM_ENSPDOUT		0x00800000	/* enable XPDIF/OUT to I/O interface */
-#define CM_SPDCOPYRHT		0x00400000	/* set copyright spdif in/out */
+#define CM_ENSPDOUT		0x00800000	/* enable XSPDIF/OUT to I/O interface */
+#define CM_SPDCOPYRHT		0x00400000	/* spdif in/out copyright bit */
 #define CM_DAC2SPDO		0x00200000	/* enable wave+fm_midi -> SPDIF/OUT */
-#define CM_SETRETRY		0x00010000	/* 0: legacy i/o wait (default), 1: legacy i/o bus retry */
+#define CM_INVIDWEN		0x00100000	/* internal vendor ID write enable, model 039? */
+#define CM_SETRETRY		0x00100000	/* 0: legacy i/o wait (default), 1: legacy i/o bus retry */
+#define CM_C_EEACCESS		0x00080000	/* direct programming eeprom regs */
+#define CM_C_EECS		0x00040000
+#define CM_C_EEDI46		0x00020000
+#define CM_C_EECK46		0x00010000
 #define CM_CHB3D6C		0x00008000	/* 5.1 channels support */
-#define CM_LINE_AS_BASS		0x00006000	/* use line-in as bass */
+#define CM_CENTR2LIN		0x00004000	/* line-in as center out */
+#define CM_BASE2LIN		0x00002000	/* line-in as bass out */
+#define CM_EXBASEN		0x00001000	/* external bass input enable */
 
 #define CM_REG_MISC_CTRL	0x18
-#define CM_PWD			0x80000000
+#define CM_PWD			0x80000000	/* power down */
 #define CM_RESET		0x40000000
-#define CM_SFIL_MASK		0x30000000
-#define CM_TXVX			0x08000000
-#define CM_N4SPK3D		0x04000000	/* 4ch output */
+#define CM_SFIL_MASK		0x30000000	/* filter control at front end DAC, model 037? */
+#define CM_VMGAIN		0x10000000	/* analog master amp +6dB, model 039? */
+#define CM_TXVX			0x08000000	/* model 037? */
+#define CM_N4SPK3D		0x04000000	/* copy front to rear */
 #define CM_SPDO5V		0x02000000	/* 5V spdif output (1 = 0.5v (coax)) */
 #define CM_SPDIF48K		0x01000000	/* write */
 #define CM_SPATUS48K		0x01000000	/* read */
-#define CM_ENDBDAC		0x00800000	/* enable dual dac */
+#define CM_ENDBDAC		0x00800000	/* enable double dac */
 #define CM_XCHGDAC		0x00400000	/* 0: front=ch0, 1: front=ch1 */
 #define CM_SPD32SEL		0x00200000	/* 0: 16bit SPDIF, 1: 32bit */
-#define CM_SPDFLOOPI		0x00100000	/* int. SPDIF-IN -> int. OUT */
-#define CM_FM_EN		0x00080000	/* enalbe FM */
+#define CM_SPDFLOOPI		0x00100000	/* int. SPDIF-OUT -> int. IN */
+#define CM_FM_EN		0x00080000	/* enable legacy FM */
 #define CM_AC3EN2		0x00040000	/* enable AC3: model 039 */
-#define CM_VIDWPDSB		0x00010000 
+#define CM_ENWRASID		0x00010000	/* choose writable internal SUBID (audio) */
+#define CM_VIDWPDSB		0x00010000	/* model 037? */
 #define CM_SPDF_AC97		0x00008000	/* 0: SPDIF/OUT 44.1K, 1: 48K */
-#define CM_MASK_EN		0x00004000
-#define CM_VIDWPPRT		0x00002000
-#define CM_SFILENB		0x00001000
-#define CM_MMODE_MASK		0x00000E00
+#define CM_MASK_EN		0x00004000	/* activate channel mask on legacy DMA */
+#define CM_ENWRMSID		0x00002000	/* choose writable internal SUBID (modem) */
+#define CM_VIDWPPRT		0x00002000	/* model 037? */
+#define CM_SFILENB		0x00001000	/* filter stepping at front end DAC, model 037? */
+#define CM_MMODE_MASK		0x00000E00	/* model DAA interface mode */
 #define CM_SPDIF_SELECT2	0x00000100	/* for model > 039 ? */
 #define CM_ENCENTER		0x00000080
-#define CM_FLINKON		0x00000040
-#define CM_FLINKOFF		0x00000020
-#define CM_MIDSMP		0x00000010
-#define CM_UPDDMA_MASK		0x0000000C
-#define CM_TWAIT_MASK		0x00000003
+#define CM_FLINKON		0x00000080	/* force modem link detection on, model 037 */
+#define CM_MUTECH1		0x00000040	/* mute PCI ch1 to DAC */
+#define CM_FLINKOFF		0x00000040	/* force modem link detection off, model 037 */
+#define CM_UNKNOWN_18_5		0x00000020	/* ? */
+#define CM_MIDSMP		0x00000010	/* 1/2 interpolation at front end DAC */
+#define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update notification */
+#define CM_UPDDMA_2048		0x00000000
+#define CM_UPDDMA_1024		0x00000004
+#define CM_UPDDMA_512		0x00000008
+#define CM_UPDDMA_256		0x0000000C		
+#define CM_TWAIT_MASK		0x00000003	/* model 037 */
+#define CM_TWAIT1		0x00000002	/* FM i/o cycle, 0: 48, 1: 64 PCICLKs */
+#define CM_TWAIT0		0x00000001	/* i/o cycle, 0: 4, 1: 6 PCICLKs */
+
+#define CM_REG_TDMA_POSITION	0x1C
+#define CM_TDMA_CNT_MASK	0xFFFF0000	/* current byte/word count */
+#define CM_TDMA_ADR_MASK	0x0000FFFF	/* current address */
 
 	/* byte */
 #define CM_REG_MIXER0		0x20
+#define CM_REG_SBVR		0x20		/* write: sb16 version */
+#define CM_REG_DEV		0x20		/* read: hardware device version */
+
+#define CM_REG_MIXER21		0x21
+#define CM_UNKNOWN_21_MASK	0x78		/* ? */
+#define CM_X_ADPCM		0x04		/* SB16 ADPCM enable */
+#define CM_PROINV		0x02		/* SBPro left/right channel switching */
+#define CM_X_SB16		0x01		/* SB16 compatible */
 
 #define CM_REG_SB16_DATA	0x22
 #define CM_REG_SB16_ADDR	0x23
@@ -246,8 +288,8 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_FMMUTE_SHIFT		7
 #define CM_WSMUTE		0x40	/* mute PCM */
 #define CM_WSMUTE_SHIFT		6
-#define CM_SPK4			0x20	/* lin-in -> rear line out */
-#define CM_SPK4_SHIFT		5
+#define CM_REAR2LIN		0x20	/* lin-in -> rear line out */
+#define CM_REAR2LIN_SHIFT	5
 #define CM_REAR2FRONT		0x10	/* exchange rear/front */
 #define CM_REAR2FRONT_SHIFT	4
 #define CM_WAVEINL		0x08	/* digital wave rec. left chan */
@@ -279,12 +321,13 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_VAUXR_MASK		0x0f
 
 #define CM_REG_MISC		0x27
+#define CM_UNKNOWN_27_MASK	0xd8	/* ? */
 #define CM_XGPO1		0x20
 // #define CM_XGPBIO		0x04
 #define CM_MIC_CENTER_LFE	0x04	/* mic as center/lfe out? (model 039 or later?) */
 #define CM_SPDIF_INVERSE	0x04	/* spdif input phase inverse (model 037) */
 #define CM_SPDVALID		0x02	/* spdif input valid check */
-#define CM_DMAUTO		0x01
+#define CM_DMAUTO		0x01	/* SB16 DMA auto detect */
 
 #define CM_REG_AC97		0x28	/* hmmm.. do we have ac97 link? */
 /*
@@ -325,18 +368,20 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 /*
  * extended registers
  */
-#define CM_REG_CH0_FRAME1	0x80	/* base address */
-#define CM_REG_CH0_FRAME2	0x84
+#define CM_REG_CH0_FRAME1	0x80	/* write: base address */
+#define CM_REG_CH0_FRAME2	0x84	/* read: current address */
 #define CM_REG_CH1_FRAME1	0x88	/* 0-15: count of samples at bus master; buffer size */
 #define CM_REG_CH1_FRAME2	0x8C	/* 16-31: count of samples at codec; fragment size */
+
 #define CM_REG_EXT_MISC		0x90
-#define CM_REG_MISC_CTRL_8768	0x92	/* reg. name the same as 0x18 */
-#define CM_CHB3D8C		0x20	/* 7.1 channels support */
-#define CM_SPD32FMT		0x10	/* SPDIF/IN 32k */
-#define CM_ADC2SPDIF		0x08	/* ADC output to SPDIF/OUT */
-#define CM_SHAREADC		0x04	/* DAC in ADC as Center/LFE */
-#define CM_REALTCMP		0x02	/* monitor the CMPL/CMPR of ADC */
-#define CM_INVLRCK		0x01	/* invert ZVPORT's LRCK */
+#define CM_ADC48K44K		0x10000000	/* ADC parameters group, 0: 44k, 1: 48k */
+#define CM_CHB3D8C		0x00200000	/* 7.1 channels support */
+#define CM_SPD32FMT		0x00100000	/* SPDIF/IN 32k sample rate */
+#define CM_ADC2SPDIF		0x00080000	/* ADC output to SPDIF/OUT */
+#define CM_SHAREADC		0x00040000	/* DAC in ADC as Center/LFE */
+#define CM_REALTCMP		0x00020000	/* monitor the CMPL/CMPR of ADC */
+#define CM_INVLRCK		0x00010000	/* invert ZVPORT's LRCK */
+#define CM_UNKNOWN_90_MASK	0x0000FFFF	/* ? */
 
 /*
  * size of i/o region
@@ -717,9 +762,9 @@ static int set_dac_channels(struct cmipci *cm, struct cmipci_pcm *rec, int chann
 		}
 		if (cm->chip_version == 68) {
 			if (channels == 8) {
-				snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL_8768, CM_CHB3D8C);
+				snd_cmipci_set_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
 			} else {
-				snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL_8768, CM_CHB3D8C);
+				snd_cmipci_clear_bit(cm, CM_REG_EXT_MISC, CM_CHB3D8C);
 			}
 		}
 		spin_unlock_irq(&cm->reg_lock);
@@ -797,11 +842,11 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	freq = snd_cmipci_rate_freq(runtime->rate);
 	val = snd_cmipci_read(cm, CM_REG_FUNCTRL1);
 	if (rec->ch) {
-		val &= ~CM_ASFC_MASK;
-		val |= (freq << CM_ASFC_SHIFT) & CM_ASFC_MASK;
-	} else {
 		val &= ~CM_DSFC_MASK;
 		val |= (freq << CM_DSFC_SHIFT) & CM_DSFC_MASK;
+	} else {
+		val &= ~CM_ASFC_MASK;
+		val |= (freq << CM_ASFC_SHIFT) & CM_ASFC_MASK;
 	}
 	snd_cmipci_write(cm, CM_REG_FUNCTRL1, val);
 	//snd_printd("cmipci: functrl1 = %08x\n", val);
@@ -2284,8 +2329,8 @@ DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, 0, 0, 0); /* rever
 DEFINE_SWITCH_ARG(exchange_dac, CM_REG_MISC_CTRL, CM_XCHGDAC, CM_XCHGDAC, 0, 0);
 #endif
 DEFINE_BIT_SWITCH_ARG(fourch, CM_REG_MISC_CTRL, CM_N4SPK3D, 0, 0);
-// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_SPK4, 1, 0);
-// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS, 0, 0);
+// DEFINE_BIT_SWITCH_ARG(line_rear, CM_REG_MIXER1, CM_REAR2LIN, 1, 0);
+// DEFINE_BIT_SWITCH_ARG(line_bass, CM_REG_LEGACY_CTRL, CM_CENTR2LIN|CM_BASE2LIN, 0, 0);
 // DEFINE_BIT_SWITCH_ARG(joystick, CM_REG_FUNCTRL1, CM_JYSTK_EN, 0, 0); /* now module option */
 DEFINE_SWITCH_ARG(modem, CM_REG_MISC_CTRL, CM_FLINKON|CM_FLINKOFF, CM_FLINKON, 0, 0);
 
@@ -2355,11 +2400,11 @@ static inline unsigned int get_line_in_mode(struct cmipci *cm)
 	unsigned int val;
 	if (cm->chip_version >= 39) {
 		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL);
-		if (val & CM_LINE_AS_BASS)
+		if (val & (CM_CENTR2LIN | CM_BASE2LIN))
 			return 2;
 	}
 	val = snd_cmipci_read_b(cm, CM_REG_MIXER1);
-	if (val & CM_SPK4)
+	if (val & CM_REAR2LIN)
 		return 1;
 	return 0;
 }
@@ -2383,13 +2428,13 @@ static int snd_cmipci_line_in_mode_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&cm->reg_lock);
 	if (ucontrol->value.enumerated.item[0] == 2)
-		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+		change = snd_cmipci_set_bit(cm, CM_REG_LEGACY_CTRL, CM_CENTR2LIN | CM_BASE2LIN);
 	else
-		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_LINE_AS_BASS);
+		change = snd_cmipci_clear_bit(cm, CM_REG_LEGACY_CTRL, CM_CENTR2LIN | CM_BASE2LIN);
 	if (ucontrol->value.enumerated.item[0] == 1)
-		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+		change |= snd_cmipci_set_bit_b(cm, CM_REG_MIXER1, CM_REAR2LIN);
 	else
-		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_SPK4);
+		change |= snd_cmipci_clear_bit_b(cm, CM_REG_MIXER1, CM_REAR2LIN);
 	spin_unlock_irq(&cm->reg_lock);
 	return change;
 }
