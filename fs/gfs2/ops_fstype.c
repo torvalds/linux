@@ -89,7 +89,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
 	init_rwsem(&sdp->sd_log_flush_lock);
-	INIT_LIST_HEAD(&sdp->sd_log_flush_list);
+	atomic_set(&sdp->sd_log_in_flight, 0);
+	init_waitqueue_head(&sdp->sd_log_flush_wait);
 
 	INIT_LIST_HEAD(&sdp->sd_revoke_list);
 

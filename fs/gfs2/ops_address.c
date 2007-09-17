@@ -414,7 +414,8 @@ static int gfs2_prepare_write(struct file *file, struct page *page,
 	if (ind_blocks || data_blocks)
 		rblocks += RES_STATFS + RES_QUOTA;
 
-	error = gfs2_trans_begin(sdp, rblocks, 0);
+	error = gfs2_trans_begin(sdp, rblocks,
+				 PAGE_CACHE_SIZE/sdp->sd_sb.sb_bsize);
 	if (error)
 		goto out_trans_fail;
 
@@ -625,10 +626,10 @@ static void gfs2_discard(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	clear_buffer_dirty(bh);
 	bd = bh->b_private;
 	if (bd) {
-		if (!list_empty(&bd->bd_le.le_list)) {
-			if (!buffer_pinned(bh))
-				list_del_init(&bd->bd_le.le_list);
-		}
+		if (!list_empty(&bd->bd_le.le_list) && !buffer_pinned(bh))
+			list_del_init(&bd->bd_le.le_list);
+		else
+			gfs2_remove_from_journal(bh, current->journal_info, 0);
 	}
 	bh->b_bdev = NULL;
 	clear_buffer_mapped(bh);

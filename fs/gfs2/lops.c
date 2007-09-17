@@ -91,6 +91,39 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	unlock_buffer(bh);
 }
 
+
+static inline struct gfs2_log_descriptor *bh_log_desc(struct buffer_head *bh)
+{
+	return (struct gfs2_log_descriptor *)bh->b_data;
+}
+
+static inline __be64 *bh_log_ptr(struct buffer_head *bh)
+{
+	struct gfs2_log_descriptor *ld = bh_log_desc(bh);
+	return (__force __be64 *)(ld + 1);
+}
+
+static inline __be64 *bh_ptr_end(struct buffer_head *bh)
+{
+	return (__force __be64 *)(bh->b_data + bh->b_size);
+}
+
+
+static struct buffer_head *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type)
+{
+	struct buffer_head *bh = gfs2_log_get_buf(sdp);
+	struct gfs2_log_descriptor *ld = bh_log_desc(bh);
+	ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
+	ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
+	ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
+	ld->ld_type = cpu_to_be32(ld_type);
+	ld->ld_length = 0;
+	ld->ld_data1 = 0;
+	ld->ld_data2 = 0;
+	memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
+	return bh;
+}
+
 static void __glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_glock *gl;
@@ -181,7 +214,6 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 	struct gfs2_log_descriptor *ld;
 	struct gfs2_bufdata *bd1 = NULL, *bd2;
 	unsigned int total;
-	unsigned int offset = BUF_OFFSET;
 	unsigned int limit;
 	unsigned int num;
 	unsigned n;
@@ -198,18 +230,12 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		if (total > limit)
 			num = limit;
 		gfs2_log_unlock(sdp);
-		bh = gfs2_log_get_buf(sdp);
+		bh = gfs2_get_log_desc(sdp, GFS2_LOG_DESC_METADATA);
 		gfs2_log_lock(sdp);
-		ld = (struct gfs2_log_descriptor *)bh->b_data;
-		ptr = (__be64 *)(bh->b_data + offset);
-		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-		ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
-		ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
-		ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_METADATA);
+		ld = bh_log_desc(bh);
+		ptr = bh_log_ptr(bh);
 		ld->ld_length = cpu_to_be32(num + 1);
 		ld->ld_data1 = cpu_to_be32(num);
-		ld->ld_data2 = cpu_to_be32(0);
-		memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
 
 		n = 0;
 		list_for_each_entry_continue(bd1, &sdp->sd_log_le_buf,
@@ -220,17 +246,17 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 
 		gfs2_log_unlock(sdp);
-		set_buffer_dirty(bh);
-		ll_rw_block(WRITE, 1, &bh);
+		submit_bh(WRITE, bh);
 		gfs2_log_lock(sdp);
 
 		n = 0;
 		list_for_each_entry_continue(bd2, &sdp->sd_log_le_buf,
 					     bd_le.le_list) {
+			get_bh(bd2->bd_bh);
 			gfs2_log_unlock(sdp);
+			lock_buffer(bd2->bd_bh);
 			bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
-			set_buffer_dirty(bh);
-			ll_rw_block(WRITE, 1, &bh);
+			submit_bh(WRITE, bh);
 			gfs2_log_lock(sdp);
 			if (++n >= num)
 				break;
@@ -359,17 +385,11 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	if (!sdp->sd_log_num_revoke)
 		return;
 
-	bh = gfs2_log_get_buf(sdp);
-	ld = (struct gfs2_log_descriptor *)bh->b_data;
-	ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-	ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
-	ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
-	ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_REVOKE);
+	bh = gfs2_get_log_desc(sdp, GFS2_LOG_DESC_REVOKE);
+	ld = bh_log_desc(bh);
 	ld->ld_length = cpu_to_be32(gfs2_struct2blk(sdp, sdp->sd_log_num_revoke,
 						    sizeof(u64)));
 	ld->ld_data1 = cpu_to_be32(sdp->sd_log_num_revoke);
-	ld->ld_data2 = cpu_to_be32(0);
-	memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
 	offset = sizeof(struct gfs2_log_descriptor);
 
 	while (!list_empty(head)) {
@@ -378,8 +398,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
-			set_buffer_dirty(bh);
-			ll_rw_block(WRITE, 1, &bh);
+			submit_bh(WRITE, bh);
 
 			bh = gfs2_log_get_buf(sdp);
 			mh = (struct gfs2_meta_header *)bh->b_data;
@@ -396,8 +415,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 
-	set_buffer_dirty(bh);
-	ll_rw_block(WRITE, 1, &bh);
+	submit_bh(WRITE, bh);
 }
 
 static void revoke_lo_before_scan(struct gfs2_jdesc *jd,
@@ -562,20 +580,70 @@ out:
 	unlock_buffer(bd->bd_bh);
 }
 
-static int gfs2_check_magic(struct buffer_head *bh)
+static void gfs2_check_magic(struct buffer_head *bh)
 {
-	struct page *page = bh->b_page;
 	void *kaddr;
 	__be32 *ptr;
-	int rv = 0;
 
-	kaddr = kmap_atomic(page, KM_USER0);
+	clear_buffer_escaped(bh);
+	kaddr = kmap_atomic(bh->b_page, KM_USER0);
 	ptr = kaddr + bh_offset(bh);
 	if (*ptr == cpu_to_be32(GFS2_MAGIC))
-		rv = 1;
+		set_buffer_escaped(bh);
 	kunmap_atomic(kaddr, KM_USER0);
+}
 
-	return rv;
+static void gfs2_write_blocks(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			      struct list_head *list, struct list_head *done,
+			      unsigned int n)
+{
+	struct buffer_head *bh1;
+	struct gfs2_log_descriptor *ld;
+	struct gfs2_bufdata *bd;
+	__be64 *ptr;
+
+	if (!bh)
+		return;
+
+	ld = bh_log_desc(bh);
+	ld->ld_length = cpu_to_be32(n + 1);
+	ld->ld_data1 = cpu_to_be32(n);
+
+	ptr = bh_log_ptr(bh);
+	
+	get_bh(bh);
+	submit_bh(WRITE, bh);
+	gfs2_log_lock(sdp);
+	while(!list_empty(list)) {
+		bd = list_entry(list->next, struct gfs2_bufdata, bd_le.le_list);
+		list_move_tail(&bd->bd_le.le_list, done);
+		get_bh(bd->bd_bh);
+		while (be64_to_cpu(*ptr) != bd->bd_bh->b_blocknr) {
+			gfs2_log_incr_head(sdp);
+			ptr += 2;
+		}
+		gfs2_log_unlock(sdp);
+		lock_buffer(bd->bd_bh);
+		if (buffer_escaped(bd->bd_bh)) {
+			void *kaddr;
+			bh1 = gfs2_log_get_buf(sdp);
+			kaddr = kmap_atomic(bd->bd_bh->b_page, KM_USER0);
+			memcpy(bh1->b_data, kaddr + bh_offset(bd->bd_bh),
+			       bh1->b_size);
+			kunmap_atomic(kaddr, KM_USER0);
+			*(__be32 *)bh1->b_data = 0;
+			clear_buffer_escaped(bd->bd_bh);
+			unlock_buffer(bd->bd_bh);
+			brelse(bd->bd_bh);
+		} else {
+			bh1 = gfs2_log_fake_buf(sdp, bd->bd_bh);
+		}
+		submit_bh(WRITE, bh1);
+		gfs2_log_lock(sdp);
+		ptr += 2;
+	}
+	gfs2_log_unlock(sdp);
+	brelse(bh);
 }
 
 /**
@@ -585,94 +653,36 @@ static int gfs2_check_magic(struct buffer_head *bh)
 
 static void databuf_lo_before_commit(struct gfs2_sbd *sdp)
 {
-	struct gfs2_bufdata *bd1 = NULL, *bd2;
-	struct buffer_head *bh = NULL,*bh1 = NULL;
-	struct gfs2_log_descriptor *ld;
-	unsigned int limit;
-	unsigned int total;
-	unsigned int num, n;
-	__be64 *ptr = NULL;
-	int magic;
-
-
-	limit = databuf_limit(sdp);
+	struct gfs2_bufdata *bd = NULL;
+	struct buffer_head *bh = NULL;
+	unsigned int n = 0;
+	__be64 *ptr = NULL, *end = NULL;
+	LIST_HEAD(processed);
+	LIST_HEAD(in_progress);
 
 	gfs2_log_lock(sdp);
-	total = sdp->sd_log_num_databuf;
-	bd2 = bd1 = list_prepare_entry(bd1, &sdp->sd_log_le_databuf,
-				       bd_le.le_list);
-	while(total) {
-		num = total;
-		if (num > limit)
-			num = limit;
-
-		gfs2_log_unlock(sdp);
-		bh = gfs2_log_get_buf(sdp);
-		gfs2_log_lock(sdp);
-
-		ld = (struct gfs2_log_descriptor *)bh->b_data;
-		ptr = (__be64 *)(bh->b_data + DATABUF_OFFSET);
-		ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
-		ld->ld_header.mh_type = cpu_to_be32(GFS2_METATYPE_LD);
-		ld->ld_header.mh_format = cpu_to_be32(GFS2_FORMAT_LD);
-		ld->ld_type = cpu_to_be32(GFS2_LOG_DESC_JDATA);
-		ld->ld_length = cpu_to_be32(num + 1);
-		ld->ld_data1 = cpu_to_be32(num);
-		ld->ld_data2 = cpu_to_be32(0);
-		memset(ld->ld_reserved, 0, sizeof(ld->ld_reserved));
-
-		n = 0;
-		list_for_each_entry_continue(bd1, &sdp->sd_log_le_databuf,
-					     bd_le.le_list) {
-			bh1 = bd1->bd_bh;
-
-			magic = gfs2_check_magic(bh1);
-			*ptr++ = cpu_to_be64(bh1->b_blocknr);
-			*ptr++ = cpu_to_be64((__u64)magic);
-			clear_buffer_escaped(bh1);
-			if (unlikely(magic != 0))
-				set_buffer_escaped(bh1);
-			if (++n >= num)
-				break;
-		}
-		gfs2_log_unlock(sdp);
-		if (bh) {
-			set_buffer_dirty(bh);
-			ll_rw_block(WRITE, 1, &bh);
-			bh = NULL;
-			ptr = NULL;
-		}
-		n = 0;
-		gfs2_log_lock(sdp);
-		list_for_each_entry_continue(bd2, &sdp->sd_log_le_databuf,
-					     bd_le.le_list) {
-			if (!bd2->bd_bh)
-				continue;
-			/* copy buffer if it needs escaping */
+	while (!list_empty(&sdp->sd_log_le_databuf)) {
+		if (ptr == end) {
 			gfs2_log_unlock(sdp);
-			if (unlikely(buffer_escaped(bd2->bd_bh))) {
-				void *kaddr;
-				struct page *page = bd2->bd_bh->b_page;
-				bh = gfs2_log_get_buf(sdp);
-				kaddr = kmap_atomic(page, KM_USER0);
-				memcpy(bh->b_data,
-				       kaddr + bh_offset(bd2->bd_bh),
-				       sdp->sd_sb.sb_bsize);
-				kunmap_atomic(kaddr, KM_USER0);
-				*(__be32 *)bh->b_data = 0;
-			} else {
-				bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
-			}
-			set_buffer_dirty(bh);
-			ll_rw_block(WRITE, 1, &bh);
+			gfs2_write_blocks(sdp, bh, &in_progress, &processed, n);
+			n = 0;
+			bh = gfs2_get_log_desc(sdp, GFS2_LOG_DESC_JDATA);
+			ptr = bh_log_ptr(bh);
+			end = bh_ptr_end(bh) - 1;
 			gfs2_log_lock(sdp);
-			if (++n >= num)
-				break;
+			continue;
 		}
-		bh = NULL;
-		BUG_ON(total < num);
-		total -= num;
+		bd = list_entry(sdp->sd_log_le_databuf.next, struct gfs2_bufdata, bd_le.le_list);
+		list_move_tail(&bd->bd_le.le_list, &in_progress);
+		gfs2_check_magic(bd->bd_bh);
+		*ptr++ = cpu_to_be64(bd->bd_bh->b_blocknr);
+		*ptr++ = cpu_to_be64(buffer_escaped(bh) ? 1 : 0);
+		n++;
 	}
+	gfs2_log_unlock(sdp);
+	gfs2_write_blocks(sdp, bh, &in_progress, &processed, n);
+	gfs2_log_lock(sdp);
+	list_splice(&processed, &sdp->sd_log_le_databuf);
 	gfs2_log_unlock(sdp);
 }
 
@@ -807,10 +817,10 @@ const struct gfs2_log_operations gfs2_databuf_lops = {
 
 const struct gfs2_log_operations *gfs2_log_ops[] = {
 	&gfs2_glock_lops,
-	&gfs2_buf_lops,
-	&gfs2_revoke_lops,
-	&gfs2_rg_lops,
 	&gfs2_databuf_lops,
+	&gfs2_buf_lops,
+	&gfs2_rg_lops,
+	&gfs2_revoke_lops,
 	NULL,
 };
 

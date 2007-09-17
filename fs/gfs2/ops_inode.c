@@ -905,11 +905,16 @@ static int gfs2_permission(struct inode *inode, int mask, struct nameidata *nd)
 static int setattr_size(struct inode *inode, struct iattr *attr)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 
 	if (attr->ia_size != ip->i_di.di_size) {
-		error = vmtruncate(inode, attr->ia_size);
+		error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 		if (error)
+			return error;
+		error = vmtruncate(inode, attr->ia_size);
+		gfs2_trans_end(sdp);
+		if (error) 
 			return error;
 	}
 

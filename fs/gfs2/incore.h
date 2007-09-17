@@ -341,12 +341,6 @@ struct gfs2_quota_data {
 	unsigned long qd_last_touched;
 };
 
-struct gfs2_log_buf {
-	struct list_head lb_list;
-	struct buffer_head *lb_bh;
-	struct buffer_head *lb_real;
-};
-
 struct gfs2_trans {
 	unsigned long tr_ip;
 
@@ -631,7 +625,8 @@ struct gfs2_sbd {
 
 	unsigned long sd_log_flush_time;
 	struct rw_semaphore sd_log_flush_lock;
-	struct list_head sd_log_flush_list;
+	atomic_t sd_log_in_flight;
+	wait_queue_head_t sd_log_flush_wait;
 
 	unsigned int sd_log_flush_head;
 	u64 sd_log_flush_wrapped;
