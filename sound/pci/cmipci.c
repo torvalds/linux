@@ -1623,14 +1623,14 @@ static int snd_cmipci_playback2_open(struct snd_pcm_substream *substream)
 			else if (cm->max_channels == 8)
 				snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS, &hw_constraints_channels_8);
 		}
-		if (cm->chip_version == 68) {
-			runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
-					     SNDRV_PCM_RATE_96000;
-			runtime->hw.rate_max = 96000;
-		}
-		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	}
 	mutex_unlock(&cm->open_mutex);
+	if (cm->chip_version == 68) {
+		runtime->hw.rates |= SNDRV_PCM_RATE_88200 |
+				     SNDRV_PCM_RATE_96000;
+		runtime->hw.rate_max = 96000;
+	}
+	snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, 0, 0x10000);
 	return 0;
 }
 
