@@ -1380,6 +1380,12 @@ twobyte_insn:
 			u16 size;
 			unsigned long address;
 
+		case 0: /* vmcall */
+			if (modrm_mod != 3 || modrm_rm != 1)
+				goto cannot_emulate;
+
+			/* nop */
+			break;
 		case 2: /* lgdt */
 			rc = read_descriptor(ctxt, ops, src.ptr,
 					     &size, &address, op_bytes);
@@ -1387,12 +1393,17 @@ twobyte_insn:
 				goto done;
 			realmode_lgdt(ctxt->vcpu, size, address);
 			break;
-		case 3: /* lidt */
-			rc = read_descriptor(ctxt, ops, src.ptr,
-					     &size, &address, op_bytes);
-			if (rc)
-				goto done;
-			realmode_lidt(ctxt->vcpu, size, address);
+		case 3: /* lidt/vmmcall */
+			if (modrm_mod == 3 && modrm_rm == 1) {
+				/* nop */
+			} else {
+				rc = read_descriptor(ctxt, ops, src.ptr,
+						     &size, &address,
+						     op_bytes);
+				if (rc)
+					goto done;
+				realmode_lidt(ctxt->vcpu, size, address);
+			}
 			break;
 		case 4: /* smsw */
 			if (modrm_mod != 3)
