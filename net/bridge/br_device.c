@@ -41,11 +41,11 @@ int br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb, ETH_HLEN);
 
 	if (dest[0] & 1)
-		br_flood_deliver(br, skb, 0);
+		br_flood_deliver(br, skb);
 	else if ((dst = __br_fdb_get(br, dest)) != NULL)
 		br_deliver(dst->dst, skb);
 	else
-		br_flood_deliver(br, skb, 0);
+		br_flood_deliver(br, skb);
 
 	return 0;
 }

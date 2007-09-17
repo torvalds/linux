@@ -56,7 +56,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
 	struct rtattr *r;
 
-	read_lock(&police_lock);
+	read_lock_bh(&police_lock);
 
 	s_i = cb->args[0];
 
@@ -85,7 +85,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 		}
 	}
 done:
-	read_unlock(&police_lock);
+	read_unlock_bh(&police_lock);
 	if (n_i)
 		cb->args[0] += n_i;
 	return n_i;
