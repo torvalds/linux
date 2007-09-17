@@ -6087,6 +6087,18 @@ static struct hda_verb alc883_3ST_ch2_init[] = {
 };
 
 /*
+ * 4ch mode
+ */
+static struct hda_verb alc883_3ST_ch4_init[] = {
+	{ 0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80 },
+	{ 0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE },
+	{ 0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{ 0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE },
+	{ 0x1a, AC_VERB_SET_CONNECT_SEL, 0x01 },
+	{ } /* end */
+};
+
+/*
  * 6ch mode
  */
 static struct hda_verb alc883_3ST_ch6_init[] = {
@@ -6099,8 +6111,9 @@ static struct hda_verb alc883_3ST_ch6_init[] = {
 	{ } /* end */
 };
 
-static struct hda_channel_mode alc883_3ST_6ch_modes[2] = {
+static struct hda_channel_mode alc883_3ST_6ch_modes[3] = {
 	{ 2, alc883_3ST_ch2_init },
+	{ 4, alc883_3ST_ch4_init },
 	{ 6, alc883_3ST_ch6_init },
 };
 
