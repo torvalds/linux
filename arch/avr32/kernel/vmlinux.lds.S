@@ -64,7 +64,6 @@ SECTIONS
 		__init_end = .;
 	}
 
-	. = ALIGN(8192);
 	.text		: AT(ADDR(.text) - LOAD_OFFSET) {
 		_evba = .;
 		_text = .;
