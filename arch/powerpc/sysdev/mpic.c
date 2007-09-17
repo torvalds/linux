@@ -156,8 +156,7 @@ static inline u32 _mpic_read(enum mpic_reg_type type,
 	switch(type) {
 #ifdef CONFIG_PPC_DCR
 	case mpic_access_dcr:
-		return dcr_read(rb->dhost,
-				rb->dbase + reg + rb->doff);
+		return dcr_read(rb->dhost, rb->dhost.base + reg);
 #endif
 	case mpic_access_mmio_be:
 		return in_be32(rb->base + (reg >> 2));
@@ -174,8 +173,7 @@ static inline void _mpic_write(enum mpic_reg_type type,
 	switch(type) {
 #ifdef CONFIG_PPC_DCR
 	case mpic_access_dcr:
-		return dcr_write(rb->dhost,
-				 rb->dbase + reg + rb->doff, value);
+		return dcr_write(rb->dhost, rb->dhost.base + reg, value);
 #endif
 	case mpic_access_mmio_be:
 		return out_be32(rb->base + (reg >> 2), value);
@@ -279,9 +277,11 @@ static void _mpic_map_mmio(struct mpic *mpic, unsigned long phys_addr,
 static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 			  unsigned int offset, unsigned int size)
 {
-	rb->dbase = mpic->dcr_base;
-	rb->doff = offset;
-	rb->dhost = dcr_map(mpic->irqhost->of_node, rb->dbase + rb->doff, size);
+	const u32 *dbasep;
+
+	dbasep = of_get_property(mpic->irqhost->of_node, "dcr-reg", NULL);
+
+	rb->dhost = dcr_map(mpic->irqhost->of_node, *dbasep + offset, size);
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
@@ -1075,20 +1075,14 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	BUG_ON(paddr == 0 && node == NULL);
 
 	/* If no physical address passed in, check if it's dcr based */
-	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL)
-		mpic->flags |= MPIC_USES_DCR;
-
+	if (paddr == 0 && of_get_property(node, "dcr-reg", NULL) != NULL) {
 #ifdef CONFIG_PPC_DCR
-	if (mpic->flags & MPIC_USES_DCR) {
-		const u32 *dbasep;
-		dbasep = of_get_property(node, "dcr-reg", NULL);
-		BUG_ON(dbasep == NULL);
-		mpic->dcr_base = *dbasep;
+		mpic->flags |= MPIC_USES_DCR;
 		mpic->reg_type = mpic_access_dcr;
-	}
 #else
-	BUG_ON (mpic->flags & MPIC_USES_DCR);
+		BUG();
 #endif /* CONFIG_PPC_DCR */
+	}
 
 	/* If the MPIC is not DCR based, and no physical address was passed
 	 * in, try to obtain one

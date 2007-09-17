@@ -224,8 +224,6 @@ struct mpic_reg_bank {
 	u32 __iomem	*base;
 #ifdef CONFIG_PPC_DCR
 	dcr_host_t	dhost;
-	unsigned int	dbase;
-	unsigned int	doff;
 #endif /* CONFIG_PPC_DCR */
 };
 
@@ -288,10 +286,6 @@ struct mpic
 	struct mpic_reg_bank	tmregs;
 	struct mpic_reg_bank	cpuregs[MPIC_MAX_CPUS];
 	struct mpic_reg_bank	isus[MPIC_MAX_ISU];
-
-#ifdef CONFIG_PPC_DCR
-	unsigned int		dcr_base;
-#endif
 
 	/* Protected sources */
 	unsigned long		*protected;
