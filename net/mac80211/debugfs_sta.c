@@ -61,7 +61,6 @@ static const struct file_operations sta_ ##name## _ops = {		\
 
 STA_FILE(aid, aid, D);
 STA_FILE(dev, dev->name, S);
-STA_FILE(vlan_id, vlan_id, D);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
 STA_FILE(rx_bytes, rx_bytes, LU);

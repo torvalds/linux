@@ -97,8 +97,6 @@ struct sta_info {
 	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];
 #endif /* CONFIG_MAC80211_DEBUG_COUNTERS */
 
-	int vlan_id;
-
 	u16 listen_interval;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
