@@ -109,7 +109,7 @@ void snd_seq_instr_list_free(struct snd_seq_kinstr_list **list_ptr)
 			spin_lock_irqsave(&list->lock, flags);
 			while (instr->use) {
 				spin_unlock_irqrestore(&list->lock, flags);
-				schedule_timeout(1);
+				schedule_timeout_uninterruptible(1);
 				spin_lock_irqsave(&list->lock, flags);
 			}				
 			spin_unlock_irqrestore(&list->lock, flags);
@@ -198,8 +198,10 @@ int snd_seq_instr_list_free_cond(struct snd_seq_kinstr_list *list,
 		while (flist) {
 			instr = flist;
 			flist = instr->next;
-			while (instr->use)
-				schedule_timeout(1);
+			while (instr->use) {
+				schedule_timeout_uninterruptible(1);
+				barrier();
+			}
 			if (snd_seq_instr_free(instr, atomic)<0)
 				snd_printk(KERN_WARNING "instrument free problem\n");
 			instr = next;
@@ -555,7 +557,7 @@ static int instr_free(struct snd_seq_kinstr_ops *ops,
 					   SNDRV_SEQ_INSTR_NOTIFY_REMOVE);
 		while (instr->use) {
 			spin_unlock_irqrestore(&list->lock, flags);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 			spin_lock_irqsave(&list->lock, flags);
 		}				
 		spin_unlock_irqrestore(&list->lock, flags);
