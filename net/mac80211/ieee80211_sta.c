@@ -108,11 +108,10 @@ struct ieee802_11_elems {
 	u8 wmm_param_len;
 };
 
-typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
+enum ParseRes { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 };
 
-
-static ParseRes ieee802_11_parse_elems(u8 *start, size_t len,
-				       struct ieee802_11_elems *elems)
+static enum ParseRes ieee802_11_parse_elems(u8 *start, size_t len,
+					    struct ieee802_11_elems *elems)
 {
 	size_t left = len;
 	u8 *pos = start;
