@@ -884,7 +884,7 @@ static struct inode *try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked)
 			continue;
 		*last_unlinked = no_addr;
 		inode = gfs2_inode_lookup(rgd->rd_sbd->sd_vfs, DT_UNKNOWN,
-					  no_addr, -1);
+					  no_addr, -1, 1);
 		if (!IS_ERR(inode))
 			return inode;
 	}

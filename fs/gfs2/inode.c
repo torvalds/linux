@@ -77,6 +77,49 @@ static struct inode *gfs2_iget(struct super_block *sb, u64 no_addr)
 	return iget5_locked(sb, hash, iget_test, iget_set, &no_addr);
 }
 
+struct gfs2_skip_data {
+	u64	no_addr;
+	int	skipped;
+};
+
+static int iget_skip_test(struct inode *inode, void *opaque)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_skip_data *data = opaque;
+
+	if (ip->i_no_addr == data->no_addr && inode->i_private != NULL){
+		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+			data->skipped = 1;
+			return 0;
+		}
+		return 1;
+	}
+	return 0;
+}
+
+static int iget_skip_set(struct inode *inode, void *opaque)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_skip_data *data = opaque;
+
+	if (data->skipped)
+		return 1;
+	inode->i_ino = (unsigned long)(data->no_addr);
+	ip->i_no_addr = data->no_addr;
+	return 0;
+}
+
+static struct inode *gfs2_iget_skip(struct super_block *sb,
+				    u64 no_addr)
+{
+	struct gfs2_skip_data data;
+	unsigned long hash = (unsigned long)no_addr;
+
+	data.no_addr = no_addr;
+	data.skipped = 0;
+	return iget5_locked(sb, hash, iget_skip_test, iget_skip_set, &data);
+}
+
 /**
  * GFS2 lookup code fills in vfs inode contents based on info obtained
  * from directory entry inside gfs2_inode_lookup(). This has caused issues
@@ -112,6 +155,7 @@ void gfs2_set_iop(struct inode *inode)
  * @sb: The super block
  * @no_addr: The inode number
  * @type: The type of the inode
+ * @skip_freeing: set this not return an inode if it is currently being freed.
  *
  * Returns: A VFS inode, or an error
  */
@@ -119,12 +163,18 @@ void gfs2_set_iop(struct inode *inode)
 struct inode *gfs2_inode_lookup(struct super_block *sb, 
 				unsigned int type,
 				u64 no_addr,
-				u64 no_formal_ino)
+				u64 no_formal_ino, int skip_freeing)
 {
-	struct inode *inode = gfs2_iget(sb, no_addr);
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct inode *inode;
+	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl;
 	int error;
+
+	if (skip_freeing)
+		inode = gfs2_iget_skip(sb, no_addr);
+	else
+		inode = gfs2_iget(sb, no_addr);
+	ip = GFS2_I(inode);
 
 	if (!inode)
 		return ERR_PTR(-ENOBUFS);
@@ -949,7 +999,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 
 	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode),
 					inum.no_addr,
-					inum.no_formal_ino);
+					inum.no_formal_ino, 0);
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 
