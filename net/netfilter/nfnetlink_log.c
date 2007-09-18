@@ -58,7 +58,6 @@ struct nfulnl_instance {
 
 	unsigned int qlen;		/* number of nlmsgs in skb */
 	struct sk_buff *skb;		/* pre-allocatd skb */
-	struct nlmsghdr *lastnlh;	/* netlink header of last msg in skb */
 	struct timer_list timer;
 	int peer_pid;			/* PID of the peer process */
 
@@ -345,10 +344,12 @@ static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size,
 static int
 __nfulnl_send(struct nfulnl_instance *inst)
 {
-	int status;
+	int status = -1;
 
 	if (inst->qlen > 1)
-		inst->lastnlh->nlmsg_type = NLMSG_DONE;
+		NLMSG_PUT(inst->skb, 0, 0,
+			  NLMSG_DONE,
+			  sizeof(struct nfgenmsg));
 
 	status = nfnetlink_unicast(inst->skb, inst->peer_pid, MSG_DONTWAIT);
 	if (status < 0) {
@@ -358,8 +359,8 @@ __nfulnl_send(struct nfulnl_instance *inst)
 
 	inst->qlen = 0;
 	inst->skb = NULL;
-	inst->lastnlh = NULL;
 
+nlmsg_failure:
 	return status;
 }
 
@@ -538,7 +539,6 @@ __build_packet_message(struct nfulnl_instance *inst,
 	}
 
 	nlh->nlmsg_len = inst->skb->tail - old_tail;
-	inst->lastnlh = nlh;
 	return 0;
 
 nlmsg_failure:
@@ -644,7 +644,8 @@ nfulnl_log_packet(unsigned int pf,
 	}
 
 	if (inst->qlen >= qthreshold ||
-	    (inst->skb && size > skb_tailroom(inst->skb))) {
+	    (inst->skb && size >
+	     skb_tailroom(inst->skb) - sizeof(struct nfgenmsg))) {
 		/* either the queue len is too high or we don't have
 		 * enough room in the skb left. flush to userspace. */
 		UDEBUG("flushing old skb\n");
