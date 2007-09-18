@@ -30,6 +30,8 @@ port2adr(unsigned int port)
 		return (volatile __u16 *) (PA_MRSHPC + (port - 0x2000));
 	else if (port >= 0x300 && port < 0x310)
 		return (volatile __u16 *) (PA_SMSC + (port - 0x300));
+
+	return (volatile __u16 *)port;
 }
 
 unsigned char se7206_inb(unsigned long port)
