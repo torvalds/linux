@@ -98,6 +98,9 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 			    rate->rate == 55 || rate->rate == 110)
 				rate->flags |= IEEE80211_RATE_BASIC;
 			break;
+		case NUM_IEEE80211_MODES:
+			/* not useful */
+			break;
 		}
 
 		/* Set ERP and MANDATORY flags based on phymode */
@@ -117,6 +120,9 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 			    rate->rate == 60 || rate->rate == 120 ||
 			    rate->rate == 240)
 				rate->flags |= IEEE80211_RATE_MANDATORY;
+			break;
+		case NUM_IEEE80211_MODES:
+			/* not useful */
 			break;
 		}
 		if (ieee80211_is_erp_rate(mode->mode, rate->rate))
