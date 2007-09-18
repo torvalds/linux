@@ -906,7 +906,9 @@ void SoftwareEmulation(struct pt_regs *regs)
 {
 	extern int do_mathemu(struct pt_regs *);
 	extern int Soft_emulate_8xx(struct pt_regs *);
+#if defined(CONFIG_MATH_EMULATION) || defined(CONFIG_8XX_MINIMAL_FPEMU)
 	int errcode;
+#endif
 
 	CHECK_FULL_REGS(regs);
 
@@ -936,7 +938,7 @@ void SoftwareEmulation(struct pt_regs *regs)
 		return;
 	}
 
-#else
+#elif defined(CONFIG_8XX_MINIMAL_FPEMU)
 	errcode = Soft_emulate_8xx(regs);
 	switch (errcode) {
 	case 0:
@@ -949,6 +951,8 @@ void SoftwareEmulation(struct pt_regs *regs)
 		_exception(SIGSEGV, regs, SEGV_MAPERR, regs->nip);
 		return;
 	}
+#else
+	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 #endif
 }
 #endif /* CONFIG_8xx */

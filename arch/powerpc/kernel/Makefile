@@ -75,6 +75,8 @@ obj-$(CONFIG_KEXEC)		+= machine_kexec.o crash.o \
 obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
+obj-$(CONFIG_8XX_MINIMAL_FPEMU) += softemu8xx.o
+
 ifneq ($(CONFIG_PPC_INDIRECT_IO),y)
 obj-y				+= iomap.o
 endif
