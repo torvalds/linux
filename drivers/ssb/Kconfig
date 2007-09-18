@@ -1,0 +1,117 @@
+menu "Sonics Silicon Backplane"
+
+config SSB_POSSIBLE
+	bool
+	depends on HAS_IOMEM
+	default y
+
+config SSB
+	tristate "Sonics Silicon Backplane support"
+	depends on SSB_POSSIBLE
+	help
+	  Support for the Sonics Silicon Backplane bus.
+	  You only need to enable this option, if you are
+	  configuring a kernel for an embedded system with
+	  this bus.
+	  It will be auto-selected if needed in other
+	  environments.
+
+	  The module will be called ssb.
+
+	  If unsure, say N.
+
+config SSB_PCIHOST_POSSIBLE
+	bool
+	depends on SSB && PCI
+	default y
+
+config SSB_PCIHOST
+	bool "Support for SSB on PCI-bus host"
+	depends on SSB_PCIHOST_POSSIBLE
+	default y
+	help
+	  Support for a Sonics Silicon Backplane on top
+	  of a PCI device.
+
+	  If unsure, say Y
+
+config SSB_PCMCIAHOST_POSSIBLE
+	bool
+	depends on SSB && PCMCIA && EXPERIMENTAL
+	default y
+
+config SSB_PCMCIAHOST
+	bool "Support for SSB on PCMCIA-bus host (EXPERIMENTAL)"
+	depends on SSB_PCMCIAHOST_POSSIBLE
+	help
+	  Support for a Sonics Silicon Backplane on top
+	  of a PCMCIA device.
+
+	  If unsure, say N
+
+config SSB_SILENT
+	bool "No SSB kernel messages"
+	depends on SSB && EMBEDDED
+	help
+	  This option turns off all Sonics Silicon Backplane printks.
+	  Note that you won't be able to identify problems, once
+	  messages are turned off.
+	  This might only be desired for production kernels on
+	  embedded devices to reduce the kernel size.
+
+	  Say N
+
+config SSB_DEBUG
+	bool "SSB debugging"
+	depends on SSB && !SSB_SILENT
+	help
+	  This turns on additional runtime checks and debugging
+	  messages. Turn this on for SSB troubleshooting.
+
+	  If unsure, say N
+
+config SSB_SERIAL
+	bool
+	depends on SSB
+	# ChipCommon and ExtIf serial support routines.
+
+config SSB_DRIVER_PCICORE_POSSIBLE
+	bool
+	depends on SSB_PCIHOST
+	default y
+
+config SSB_DRIVER_PCICORE
+	bool "SSB PCI core driver"
+	depends on SSB_DRIVER_PCICORE_POSSIBLE
+	help
+	  Driver for the Sonics Silicon Backplane attached
+	  Broadcom PCI core.
+
+	  If unsure, say Y
+
+config SSB_PCICORE_HOSTMODE
+	bool "Hostmode support for SSB PCI core (EXPERIMENTAL)"
+	depends on SSB_DRIVER_PCICORE && SSB_DRIVER_MIPS && EXPERIMENTAL
+	help
+	  PCIcore hostmode operation (external PCI bus).
+
+config SSB_DRIVER_MIPS
+	bool "SSB Broadcom MIPS core driver (EXPERIMENTAL)"
+	depends on SSB && MIPS && EXPERIMENTAL
+	select SSB_SERIAL
+	help
+	  Driver for the Sonics Silicon Backplane attached
+	  Broadcom MIPS core.
+
+	  If unsure, say N
+
+config SSB_DRIVER_EXTIF
+	bool "SSB Broadcom EXTIF core driver (EXPERIMENTAL)"
+	depends on SSB_DRIVER_MIPS && EXPERIMENTAL
+	help
+	  Driver for the Sonics Silicon Backplane attached
+	  Broadcom EXTIF core.
+
+	  If unsure, say N
+
+endmenu

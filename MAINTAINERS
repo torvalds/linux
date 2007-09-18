@@ -3446,6 +3446,12 @@ M:	tsbogend@alpha.franken.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+SONICS SILICON BACKPLANE DRIVER (SSB)
+P:	Michael Buesch
+M:	mb@bu3sch.de
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SONY VAIO CONTROL DEVICE DRIVER
 P:	Mattia Dongili
 M:	malattia@linux.it
