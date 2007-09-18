@@ -165,6 +165,15 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
+config IP1000
+       tristate "IP1000 Gigabit Ethernet support"
+       depends on PCI && EXPERIMENTAL
+       ---help---
+         This driver supports IP1000 gigabit Ethernet cards.
+
+         To compile this driver as a module, choose M here: the module
+         will be called ipg.  This is recommended.
+
 source "drivers/net/arcnet/Kconfig"
 
 source "drivers/net/phy/Kconfig"

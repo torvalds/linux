@@ -2081,6 +2081,16 @@ P:	Juanjo Ciarlante
 M:	jjciarla@raiz.uncu.edu.ar
 S:	Maintained
 
+IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
+P:	Francois Romieu
+M:	romieu@fr.zoreil.com
+P:	Sorbica Shieh
+M:	sorbica@icplus.com.tw
+P:	Jesse Huang
+M:	jesse@icplus.com.tw
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 IPATH DRIVER:
 P:	Arthur Jones
 M:	infinipath@qlogic.com
