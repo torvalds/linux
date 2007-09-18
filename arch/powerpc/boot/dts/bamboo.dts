@@ -94,7 +94,7 @@
 			compatible = "ibm,mcmal-440ep", "ibm,mcmal-440gp", "ibm,mcmal";
 			dcr-reg = <180 62>;
 			num-tx-chans = <4>;
-			num-rx-chans = <4>;
+			num-rx-chans = <2>;
 			interrupt-parent = <&MAL0>;
 			interrupts = <0 1 2 3 4>;
 			#interrupt-cells = <1>;
