@@ -259,7 +259,7 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 	struct thmc50_data *data;
 	struct device *dev;
 	int err = 0;
-	const char *type_name = "";
+	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		pr_debug("thmc50: detect failed, "
@@ -309,13 +309,9 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 		pr_debug("thmc50: Detection of THMC50/ADM1022 failed\n");
 		goto exit_free;
 	}
-	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
-		 type_name, (revision >> 4) - 0xc, revision & 0xf);
 	data->type = kind;
 
-	if (kind == thmc50)
-		type_name = "thmc50";
-	else if (kind == adm1022) {
+	if (kind == adm1022) {
 		int id = i2c_adapter_id(client->adapter);
 		int i;
 
@@ -328,7 +324,11 @@ static int thmc50_detect(struct i2c_adapter *adapter, int address, int kind)
 				data->has_temp3 = 1;
 				break;
 			}
+	} else {
+		type_name = "thmc50";
 	}
+	pr_debug("thmc50: Detected %s (version %x, revision %x)\n",
+		 type_name, (revision >> 4) - 0xc, revision & 0xf);
 
 	/* Fill in the remaining client fields & put it into the global list */
 	strlcpy(client->name, type_name, I2C_NAME_SIZE);
