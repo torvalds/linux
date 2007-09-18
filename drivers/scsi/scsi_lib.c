@@ -34,6 +34,13 @@
 #define SG_MEMPOOL_NR		ARRAY_SIZE(scsi_sg_pools)
 #define SG_MEMPOOL_SIZE		2
 
+/*
+ * The maximum number of SG segments that we will put inside a scatterlist
+ * (unless chaining is used). Should ideally fit inside a single page, to
+ * avoid a higher order allocation.
+ */
+#define SCSI_MAX_SG_SEGMENTS	128
+
 struct scsi_host_sg_pool {
 	size_t		size;
 	char		*name;
@@ -45,9 +52,15 @@ struct scsi_host_sg_pool {
 static struct scsi_host_sg_pool scsi_sg_pools[] = {
 	SP(8),
 	SP(16),
+#if (SCSI_MAX_SG_SEGMENTS > 16)
 	SP(32),
+#if (SCSI_MAX_SG_SEGMENTS > 32)
 	SP(64),
+#if (SCSI_MAX_SG_SEGMENTS > 64)
 	SP(128),
+#endif
+#endif
+#endif
 };
 #undef SP
 
@@ -685,13 +698,6 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int uptodate,
 }
 
 /*
- * The maximum number of SG segments that we will put inside a scatterlist
- * (unless chaining is used). Should ideally fit inside a single page, to
- * avoid a higher order allocation.
- */
-#define SCSI_MAX_SG_SEGMENTS	128
-
-/*
  * Like SCSI_MAX_SG_SEGMENTS, but for archs that have sg chaining. This limit
  * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
  */
@@ -708,15 +714,21 @@ static inline unsigned int scsi_sgtable_index(unsigned short nents)
 	case 9 ... 16:
 		index = 1;
 		break;
+#if (SCSI_MAX_SG_SEGMENTS > 16)
 	case 17 ... 32:
 		index = 2;
 		break;
+#if (SCSI_MAX_SG_SEGMENTS > 32)
 	case 33 ... 64:
 		index = 3;
 		break;
-	case 65 ... SCSI_MAX_SG_SEGMENTS:
+#if (SCSI_MAX_SG_SEGMENTS > 64)
+	case 65 ... 128:
 		index = 4;
 		break;
+#endif
+#endif
+#endif
 	default:
 		printk(KERN_ERR "scsi: bad segment count=%d\n", nents);
 		BUG();
