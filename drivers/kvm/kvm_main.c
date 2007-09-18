@@ -554,14 +554,11 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 				inject_gp(vcpu);
 				return;
 			}
-		} else {
-			if (cr3 & CR3_NONPAE_RESERVED_BITS) {
-				printk(KERN_DEBUG
-				       "set_cr3: #GP, reserved bits\n");
-				inject_gp(vcpu);
-				return;
-			}
 		}
+		/*
+		 * We don't check reserved bits in nonpae mode, because
+		 * this isn't enforced, and VMware depends on this.
+		 */
 	}
 
 	mutex_lock(&vcpu->kvm->lock);
