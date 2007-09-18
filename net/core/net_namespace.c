@@ -56,7 +56,6 @@ static void net_free(struct net *net)
 static void cleanup_net(struct work_struct *work)
 {
 	struct pernet_operations *ops;
-	struct list_head *ptr;
 	struct net *net;
 
 	net = container_of(work, struct net, work);
@@ -69,8 +68,7 @@ static void cleanup_net(struct work_struct *work)
 	net_unlock();
 
 	/* Run all of the network namespace exit methods */
-	list_for_each_prev(ptr, &pernet_list) {
-		ops = list_entry(ptr, struct pernet_operations, list);
+	list_for_each_entry_reverse(ops, &pernet_list, list) {
 		if (ops->exit)
 			ops->exit(net);
 	}
@@ -102,7 +100,6 @@ static int setup_net(struct net *net)
 {
 	/* Must be called with net_mutex held */
 	struct pernet_operations *ops;
-	struct list_head *ptr;
 	int error;
 
 	memset(net, 0, sizeof(struct net));
@@ -110,8 +107,7 @@ static int setup_net(struct net *net)
 	atomic_set(&net->use_count, 0);
 
 	error = 0;
-	list_for_each(ptr, &pernet_list) {
-		ops = list_entry(ptr, struct pernet_operations, list);
+	list_for_each_entry(ops, &pernet_list, list) {
 		if (ops->init) {
 			error = ops->init(net);
 			if (error < 0)
@@ -120,12 +116,12 @@ static int setup_net(struct net *net)
 	}
 out:
 	return error;
+
 out_undo:
 	/* Walk through the list backwards calling the exit functions
 	 * for the pernet modules whose init functions did not fail.
 	 */
-	for (ptr = ptr->prev; ptr != &pernet_list; ptr = ptr->prev) {
-		ops = list_entry(ptr, struct pernet_operations, list);
+	list_for_each_entry_continue_reverse(ops, &pernet_list, list) {
 		if (ops->exit)
 			ops->exit(net);
 	}
