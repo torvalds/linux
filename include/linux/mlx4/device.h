@@ -49,6 +49,10 @@ enum {
 };
 
 enum {
+	MLX4_BOARD_ID_LEN = 64
+};
+
+enum {
 	MLX4_DEV_CAP_FLAG_RC		= 1 <<  0,
 	MLX4_DEV_CAP_FLAG_UC		= 1 <<  1,
 	MLX4_DEV_CAP_FLAG_UD		= 1 <<  2,
@@ -272,6 +276,8 @@ struct mlx4_dev {
 	unsigned long		flags;
 	struct mlx4_caps	caps;
 	struct radix_tree_root	qp_table_tree;
+	u32			rev_id;
+	char			board_id[MLX4_BOARD_ID_LEN];
 };
 
 struct mlx4_init_port_param {

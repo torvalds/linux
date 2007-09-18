@@ -524,8 +524,8 @@ static int __devinit mlx4_init_hca(struct mlx4_dev *dev)
 	}
 
 	priv->eq_table.inta_pin = adapter.inta_pin;
-	priv->rev_id		= adapter.revision_id;
-	memcpy(priv->board_id, adapter.board_id, sizeof priv->board_id);
+	dev->rev_id		= adapter.revision_id;
+	memcpy(dev->board_id, adapter.board_id, sizeof dev->board_id);
 
 	return 0;
 
