@@ -14,6 +14,7 @@
 #include <linux/linkage.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/bitops.h>
 
 #include <asm/bcache.h>
@@ -1216,9 +1217,25 @@ void au1x00_fixup_config_od(void)
 	}
 }
 
+static int __cpuinitdata cca = -1;
+
+static int __init cca_setup(char *str)
+{
+	get_option(&str, &cca);
+
+	return 1;
+}
+
+__setup("cca=", cca_setup);
+
 static void __cpuinit coherency_setup(void)
 {
-	change_c0_config(CONF_CM_CMASK, CONF_CM_DEFAULT);
+	if (cca < 0 || cca > 7)
+		cca = read_c0_config() & CONF_CM_CMASK;
+	_page_cachable_default = cca << _CACHE_SHIFT;
+
+	pr_debug("Using cache attribute %d\n", cca);
+	change_c0_config(CONF_CM_CMASK, cca);
 
 	/*
 	 * c0_status.cu=0 specifies that updates by the sc instruction use
