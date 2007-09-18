@@ -1326,12 +1326,14 @@ static struct sock *pppol2tp_prepare_tunnel_socket(int fd, u16 tunnel_id,
 		goto err;
 	}
 
+	sk = sock->sk;
+
 	/* Quick sanity checks */
-	err = -ESOCKTNOSUPPORT;
-	if (sock->type != SOCK_DGRAM) {
+	err = -EPROTONOSUPPORT;
+	if (sk->sk_protocol != IPPROTO_UDP) {
 		PRINTK(-1, PPPOL2TP_MSG_CONTROL, KERN_ERR,
-		       "tunl %hu: fd %d wrong type, got %d, expected %d\n",
-		       tunnel_id, fd, sock->type, SOCK_DGRAM);
+		       "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+		       tunnel_id, fd, sk->sk_protocol, IPPROTO_UDP);
 		goto err;
 	}
 	err = -EAFNOSUPPORT;
@@ -1343,7 +1345,6 @@ static struct sock *pppol2tp_prepare_tunnel_socket(int fd, u16 tunnel_id,
 	}
 
 	err = -ENOTCONN;
-	sk = sock->sk;
 
 	/* Check if this socket has already been prepped */
 	tunnel = (struct pppol2tp_tunnel *)sk->sk_user_data;
