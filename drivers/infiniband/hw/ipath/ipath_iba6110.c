@@ -1599,8 +1599,10 @@ static int ipath_ht_get_base_info(struct ipath_portdata *pd, void *kbase)
 {
 	struct ipath_base_info *kinfo = kbase;
 
-	kinfo->spi_runtime_flags |= IPATH_RUNTIME_HT |
-		IPATH_RUNTIME_RCVHDR_COPY;
+	kinfo->spi_runtime_flags |= IPATH_RUNTIME_HT;
+
+	if (pd->port_dd->ipath_minrev < 4)
+		kinfo->spi_runtime_flags |= IPATH_RUNTIME_RCVHDR_COPY;
 
 	return 0;
 }
