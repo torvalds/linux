@@ -551,12 +551,12 @@ struct ieee80211_if_conf {
  * @ALG_TKIP: TKIP
  * @ALG_CCMP: CCMP (AES)
  */
-typedef enum ieee80211_key_alg {
+enum ieee80211_key_alg {
 	ALG_NONE,
 	ALG_WEP,
 	ALG_TKIP,
 	ALG_CCMP,
-} ieee80211_key_alg;
+};
 
 
 /**
@@ -596,7 +596,7 @@ enum ieee80211_key_flags {
  * @key: key material
  */
 struct ieee80211_key_conf {
-	ieee80211_key_alg alg;
+	enum ieee80211_key_alg alg;
 	u8 hw_key_idx;
 	u8 flags;
 	s8 keyidx;
@@ -616,9 +616,9 @@ struct ieee80211_key_conf {
  * @SET_KEY: a key is set
  * @DISABLE_KEY: a key must be disabled
  */
-typedef enum set_key_cmd {
+enum set_key_cmd {
 	SET_KEY, DISABLE_KEY,
-} set_key_cmd;
+};
 
 
 /**
@@ -1014,7 +1014,7 @@ struct ieee80211_ops {
 				 unsigned int *total_flags,
 				 int mc_count, struct dev_addr_list *mc_list);
 	int (*set_tim)(struct ieee80211_hw *hw, int aid, int set);
-	int (*set_key)(struct ieee80211_hw *hw, set_key_cmd cmd,
+	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
 	int (*set_ieee8021x)(struct ieee80211_hw *hw, int use_ieee8021x);

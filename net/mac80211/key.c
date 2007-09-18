@@ -113,7 +113,7 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 					  struct sta_info *sta,
-					  ieee80211_key_alg alg,
+					  enum ieee80211_key_alg alg,
 					  int idx,
 					  size_t key_len,
 					  const u8 *key_data)

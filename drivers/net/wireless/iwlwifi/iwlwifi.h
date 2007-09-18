@@ -412,7 +412,7 @@ struct iwl_tid_data {
 };
 
 struct iwl_hw_key {
-	ieee80211_key_alg alg;
+	enum ieee80211_key_alg alg;
 	int keylen;
 	u8 key[32];
 };

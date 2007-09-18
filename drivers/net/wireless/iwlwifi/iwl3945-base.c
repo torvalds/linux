@@ -7293,7 +7293,7 @@ out_unlock:
 	return rc;
 }
 
-static int iwl_mac_set_key(struct ieee80211_hw *hw, set_key_cmd cmd,
+static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			   const u8 *local_addr, const u8 *addr,
 			   struct ieee80211_key_conf *key)
 {
