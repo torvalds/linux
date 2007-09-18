@@ -17,7 +17,7 @@ mac80211-objs := \
 	regdomain.o \
 	tkip.o \
 	aes_ccm.o \
-	ieee80211_cfg.o \
+	cfg.o \
 	rx.o \
 	tx.o \
 	key.o \
