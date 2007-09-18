@@ -198,7 +198,7 @@ UNUSUAL_DEV(  0x0421, 0x044e, 0x0100, 0x0100,
 		US_FL_IGNORE_RESIDUE | US_FL_FIX_CAPACITY ),
 
 /* Reported by Bardur Arantsson <bardur@scientician.net> */
-UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0370,
+UNUSUAL_DEV(  0x0421, 0x047c, 0x0370, 0x0610,
 		"Nokia",
 		"6131",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
