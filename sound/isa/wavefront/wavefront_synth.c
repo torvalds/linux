@@ -1768,7 +1768,7 @@ snd_wavefront_interrupt_bits (int irq)
 
 static void __devinit
 wavefront_should_cause_interrupt (snd_wavefront_t *dev, 
-				  int val, int port, int timeout)
+				  int val, int port, unsigned long timeout)
 
 {
 	wait_queue_t wait;
@@ -1779,11 +1779,9 @@ wavefront_should_cause_interrupt (snd_wavefront_t *dev,
 	dev->irq_ok = 0;
 	outb (val,port);
 	spin_unlock_irq(&dev->irq_lock);
-	while (1) {
-		if ((timeout = schedule_timeout(timeout)) == 0)
-			return;
-		if (dev->irq_ok)
-			return;
+	while (!dev->irq_ok && time_before(jiffies, timeout)) {
+		schedule_timeout_uninterruptible(1);
+		barrier();
 	}
 }
 

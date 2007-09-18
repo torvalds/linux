@@ -401,7 +401,7 @@ static int obp_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));
@@ -428,7 +428,7 @@ static int host_startup_ack(struct soundscape *s, unsigned timeout)
 		unsigned long flags;
 		unsigned char x;
 
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 
 		spin_lock_irqsave(&s->lock, flags);
 		x = inb(HOST_DATA_IO(s->io_base));

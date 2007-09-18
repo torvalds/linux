@@ -84,7 +84,6 @@ static int snd_ymfpci_codec_ready(struct snd_ymfpci *chip, int secondary)
 	do {
 		if ((snd_ymfpci_readw(chip, reg) & 0x8000) == 0)
 			return 0;
-		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	snd_printk(KERN_ERR "codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
