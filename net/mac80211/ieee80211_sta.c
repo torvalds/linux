@@ -3104,7 +3104,7 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 	}
 
 	printk(KERN_DEBUG "%s: Adding new IBSS station %s (dev=%s)\n",
-	       local->mdev->name, print_mac(mac, addr), dev->name);
+	       wiphy_name(local->hw.wiphy), print_mac(mac, addr), dev->name);
 
 	sta = sta_info_add(local, dev, addr, GFP_ATOMIC);
 	if (!sta)

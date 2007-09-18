@@ -152,7 +152,7 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	ref = rate_control_alloc(name, local);
 	if (!ref) {
 		printk(KERN_WARNING "%s: Failed to select rate control "
-		       "algorithm\n", local->mdev->name);
+		       "algorithm\n", wiphy_name(local->hw.wiphy));
 		return -ENOENT;
 	}
 
@@ -164,7 +164,7 @@ int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 	}
 
 	printk(KERN_DEBUG "%s: Selected rate control "
-	       "algorithm '%s'\n", local->mdev->name,
+	       "algorithm '%s'\n", wiphy_name(local->hw.wiphy),
 	       ref->ops->name);
 
 

@@ -324,7 +324,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 
 	local->total_ps_buffered = total;
 	printk(KERN_DEBUG "%s: PS buffers full - purged %d frames\n",
-	       local->mdev->name, purged);
+	       wiphy_name(local->hw.wiphy), purged);
 }
 
 static inline ieee80211_txrx_result
@@ -1049,7 +1049,8 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 		return IEEE80211_TX_AGAIN;
 	}
 	if (skb) {
-		ieee80211_dump_frame(local->mdev->name, "TX to low-level driver", skb);
+		ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
+				     "TX to low-level driver", skb);
 		ret = local->ops->tx(local_to_hw(local), skb, control);
 		if (ret)
 			return IEEE80211_TX_AGAIN;
@@ -1077,7 +1078,7 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 						~IEEE80211_TXCTL_RATE_CTRL_PROBE;
 			}
 
-			ieee80211_dump_frame(local->mdev->name,
+			ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
 					     "TX to low-level driver",
 					     tx->u.tx.extra_frag[i]);
 			ret = local->ops->tx(local_to_hw(local),
@@ -1799,7 +1800,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 		if (!rate) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: ieee80211_beacon_get: no rate "
-				       "found\n", local->mdev->name);
+				       "found\n", wiphy_name(local->hw.wiphy));
 			}
 			dev_kfree_skb(skb);
 			return NULL;

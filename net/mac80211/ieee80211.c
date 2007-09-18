@@ -814,7 +814,7 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			break;
 		default: /* should never get here! */
 			printk(KERN_ERR "%s: Unknown message type (%d)\n",
-			       local->mdev->name, skb->pkt_type);
+			       wiphy_name(local->hw.wiphy), skb->pkt_type);
 			dev_kfree_skb(skb);
 			break;
 		}
@@ -904,7 +904,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (!status) {
 		printk(KERN_ERR
 		       "%s: ieee80211_tx_status called with NULL status\n",
-		       local->mdev->name);
+		       wiphy_name(local->hw.wiphy));
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -961,7 +961,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 					printk(KERN_DEBUG "%s: dropped TX "
 					       "filtered frame queue_len=%d "
 					       "PS=%d @%lu\n",
-					       local->mdev->name,
+					       wiphy_name(local->hw.wiphy),
 					       skb_queue_len(
 						       &sta->tx_filtered),
 					       !!(sta->flags & WLAN_STA_PS),
@@ -1282,7 +1282,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	result = ieee80211_init_rate_ctrl_alg(local, NULL);
 	if (result < 0) {
 		printk(KERN_DEBUG "%s: Failed to initialize rate control "
-		       "algorithm\n", local->mdev->name);
+		       "algorithm\n", wiphy_name(local->hw.wiphy));
 		goto fail_rate;
 	}
 
@@ -1290,7 +1290,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (result < 0) {
 		printk(KERN_DEBUG "%s: Failed to initialize wep\n",
-		       local->mdev->name);
+		       wiphy_name(local->hw.wiphy));
 		goto fail_wep;
 	}
 
@@ -1301,7 +1301,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				  IEEE80211_IF_TYPE_STA);
 	if (result)
 		printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
-		       local->mdev->name);
+		       wiphy_name(local->hw.wiphy));
 
 	local->reg_state = IEEE80211_DEV_REGISTERED;
 	rtnl_unlock();
@@ -1401,7 +1401,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	if (skb_queue_len(&local->skb_queue)
 			|| skb_queue_len(&local->skb_queue_unreliable))
 		printk(KERN_WARNING "%s: skb_queue not empty\n",
-		       local->mdev->name);
+		       wiphy_name(local->hw.wiphy));
 	skb_queue_purge(&local->skb_queue);
 	skb_queue_purge(&local->skb_queue_unreliable);
 

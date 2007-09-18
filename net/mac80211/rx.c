@@ -1474,7 +1474,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to copy "
 				       "multicast frame for %s",
-				       local->mdev->name, prev->dev->name);
+				       wiphy_name(local->hw.wiphy),
+				       prev->dev->name);
 			continue;
 		}
 		rx.skb = skb_new;

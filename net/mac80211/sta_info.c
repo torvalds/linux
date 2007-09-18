@@ -166,7 +166,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Added STA %s\n",
-	       local->mdev->name, print_mac(mac, addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mac, addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -226,7 +226,7 @@ void sta_info_free(struct sta_info *sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Removed STA %s\n",
-	       local->mdev->name, print_mac(mac, sta->addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	ieee80211_key_free(sta->key);
