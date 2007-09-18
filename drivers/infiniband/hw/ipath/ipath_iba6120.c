@@ -1348,7 +1348,8 @@ static int ipath_pe_get_base_info(struct ipath_portdata *pd, void *kbase)
 	dd = pd->port_dd;
 
 done:
-	kinfo->spi_runtime_flags |= IPATH_RUNTIME_PCIE;
+	kinfo->spi_runtime_flags |= IPATH_RUNTIME_PCIE |
+		IPATH_RUNTIME_FORCE_PIOAVAIL | IPATH_RUNTIME_PIO_REGSWAPPED;
 	return 0;
 }
 
