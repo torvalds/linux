@@ -207,6 +207,8 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
+#include "x86_emulate.h"
+
 struct kvm_pio_request {
 	unsigned long count;
 	int cur_count;
@@ -380,6 +382,10 @@ struct kvm_vcpu {
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry cpuid_entries[KVM_MAX_CPUID_ENTRIES];
+
+	/* emulate context */
+
+	struct x86_emulate_ctxt emulate_ctxt;
 };
 
 struct kvm_mem_alias {
@@ -555,7 +561,7 @@ enum emulation_result {
 };
 
 int emulate_instruction(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			unsigned long cr2, u16 error_code);
+			unsigned long cr2, u16 error_code, int no_decode);
 void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);

@@ -913,9 +913,18 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	unsigned long cr2 = ctxt->cr2;
 	int no_wb = 0;
 	u64 msr_data;
+	unsigned long saved_eip = 0;
 	unsigned long _eflags = ctxt->eflags;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = 0;
+
+	/* Shadow copy of register state. Committed on successful emulation.
+	 * NOTE: we can copy them from vcpu as x86_decode_insn() doesn't
+	 * modify them.
+	 */
+
+	memcpy(c->regs, ctxt->vcpu->regs, sizeof c->regs);
+	saved_eip = c->eip;
 
 	if ((c->d & ModRM) && (c->modrm_mod != 3))
 		cr2 = c->modrm_ea;
@@ -1250,7 +1259,11 @@ writeback:
 	ctxt->vcpu->rip = c->eip;
 
 done:
-	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
+	if (rc == X86EMUL_UNHANDLEABLE) {
+		c->eip = saved_eip;
+		return -1;
+	}
+	return 0;
 
 special_insn:
 	if (c->twobyte)
@@ -1305,8 +1318,10 @@ push:
 				register_address(ctxt->es_base,
 						 c->regs[VCPU_REGS_RDI]),
 				c->rep_prefix,
-				c->regs[VCPU_REGS_RDX]) == 0)
+				c->regs[VCPU_REGS_RDX]) == 0) {
+			c->eip = saved_eip;
 			return -1;
+		}
 		return 0;
 	case 0x6e:		/* outsb */
 	case 0x6f:		/* outsw/outsd */
@@ -1321,8 +1336,10 @@ push:
 							ctxt->ds_base,
 						 c->regs[VCPU_REGS_RSI]),
 				c->rep_prefix,
-				c->regs[VCPU_REGS_RDX]) == 0)
+				c->regs[VCPU_REGS_RDX]) == 0) {
+			c->eip = saved_eip;
 			return -1;
+		}
 		return 0;
 	case 0x70 ... 0x7f: /* jcc (short) */ {
 		int rel = insn_fetch(s8, 1, c->eip);
@@ -1711,5 +1728,6 @@ twobyte_special_insn:
 
 cannot_emulate:
 	DPRINTF("Cannot emulate %02x\n", c->b);
+	c->eip = saved_eip;
 	return -1;
 }

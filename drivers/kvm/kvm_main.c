@@ -1251,45 +1251,56 @@ struct x86_emulate_ops emulate_ops = {
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			struct kvm_run *run,
 			unsigned long cr2,
-			u16 error_code)
+			u16 error_code,
+			int no_decode)
 {
-	struct x86_emulate_ctxt emulate_ctxt;
-	int r;
-	int cs_db, cs_l;
+	int r = 0;
 
 	vcpu->mmio_fault_cr2 = cr2;
 	kvm_x86_ops->cache_regs(vcpu);
 
-	kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
-
-	emulate_ctxt.vcpu = vcpu;
-	emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
-	emulate_ctxt.cr2 = cr2;
-	emulate_ctxt.mode = (emulate_ctxt.eflags & X86_EFLAGS_VM)
-		? X86EMUL_MODE_REAL : cs_l
-		? X86EMUL_MODE_PROT64 :	cs_db
-		? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
-
-	if (emulate_ctxt.mode == X86EMUL_MODE_PROT64) {
-		emulate_ctxt.cs_base = 0;
-		emulate_ctxt.ds_base = 0;
-		emulate_ctxt.es_base = 0;
-		emulate_ctxt.ss_base = 0;
-	} else {
-		emulate_ctxt.cs_base = get_segment_base(vcpu, VCPU_SREG_CS);
-		emulate_ctxt.ds_base = get_segment_base(vcpu, VCPU_SREG_DS);
-		emulate_ctxt.es_base = get_segment_base(vcpu, VCPU_SREG_ES);
-		emulate_ctxt.ss_base = get_segment_base(vcpu, VCPU_SREG_SS);
-	}
-
-	emulate_ctxt.gs_base = get_segment_base(vcpu, VCPU_SREG_GS);
-	emulate_ctxt.fs_base = get_segment_base(vcpu, VCPU_SREG_FS);
-
 	vcpu->mmio_is_write = 0;
 	vcpu->pio.string = 0;
-	r = x86_decode_insn(&emulate_ctxt, &emulate_ops);
+
+	if (!no_decode) {
+		int cs_db, cs_l;
+		kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
+
+		vcpu->emulate_ctxt.vcpu = vcpu;
+		vcpu->emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
+		vcpu->emulate_ctxt.cr2 = cr2;
+		vcpu->emulate_ctxt.mode =
+			(vcpu->emulate_ctxt.eflags & X86_EFLAGS_VM)
+			? X86EMUL_MODE_REAL : cs_l
+			? X86EMUL_MODE_PROT64 :	cs_db
+			? X86EMUL_MODE_PROT32 : X86EMUL_MODE_PROT16;
+
+		if (vcpu->emulate_ctxt.mode == X86EMUL_MODE_PROT64) {
+			vcpu->emulate_ctxt.cs_base = 0;
+			vcpu->emulate_ctxt.ds_base = 0;
+			vcpu->emulate_ctxt.es_base = 0;
+			vcpu->emulate_ctxt.ss_base = 0;
+		} else {
+			vcpu->emulate_ctxt.cs_base =
+					get_segment_base(vcpu, VCPU_SREG_CS);
+			vcpu->emulate_ctxt.ds_base =
+					get_segment_base(vcpu, VCPU_SREG_DS);
+			vcpu->emulate_ctxt.es_base =
+					get_segment_base(vcpu, VCPU_SREG_ES);
+			vcpu->emulate_ctxt.ss_base =
+					get_segment_base(vcpu, VCPU_SREG_SS);
+		}
+
+		vcpu->emulate_ctxt.gs_base =
+					get_segment_base(vcpu, VCPU_SREG_GS);
+		vcpu->emulate_ctxt.fs_base =
+					get_segment_base(vcpu, VCPU_SREG_FS);
+
+		r = x86_decode_insn(&vcpu->emulate_ctxt, &emulate_ops);
+	}
+
 	if (r == 0)
-		r = x86_emulate_insn(&emulate_ctxt, &emulate_ops);
+		r = x86_emulate_insn(&vcpu->emulate_ctxt, &emulate_ops);
 
 	if (vcpu->pio.string)
 		return EMULATE_DO_MMIO;
@@ -1313,7 +1324,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	kvm_x86_ops->decache_regs(vcpu);
-	kvm_x86_ops->set_rflags(vcpu, emulate_ctxt.eflags);
+	kvm_x86_ops->set_rflags(vcpu, vcpu->emulate_ctxt.eflags);
 
 	if (vcpu->mmio_is_write) {
 		vcpu->mmio_needed = 0;
@@ -2055,7 +2066,7 @@ static int kvm_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
 		r = emulate_instruction(vcpu, kvm_run,
-					vcpu->mmio_fault_cr2, 0);
+					vcpu->mmio_fault_cr2, 0, 1);
 		if (r == EMULATE_DO_MMIO) {
 			/*
 			 * Read-modify-write.  Back to userspace.

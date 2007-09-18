@@ -1750,7 +1750,7 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 	 * Cause the #SS fault with 0 error code in VM86 mode.
 	 */
 	if (((vec == GP_VECTOR) || (vec == SS_VECTOR)) && err_code == 0)
-		if (emulate_instruction(vcpu, NULL, 0, 0) == EMULATE_DONE)
+		if (emulate_instruction(vcpu, NULL, 0, 0, 0) == EMULATE_DONE)
 			return 1;
 	return 0;
 }
@@ -1787,7 +1787,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (is_invalid_opcode(intr_info)) {
-		er = emulate_instruction(vcpu, kvm_run, 0, 0);
+		er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
 		if (er != EMULATE_DONE)
 			vmx_inject_ud(vcpu);
 
@@ -1812,7 +1812,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			return 1;
 		}
 
-		er = emulate_instruction(vcpu, kvm_run, cr2, error_code);
+		er = emulate_instruction(vcpu, kvm_run, cr2, error_code, 0);
 		mutex_unlock(&vcpu->kvm->lock);
 
 		switch (er) {
@@ -1873,7 +1873,8 @@ static int handle_io(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	string = (exit_qualification & 16) != 0;
 
 	if (string) {
-		if (emulate_instruction(vcpu, kvm_run, 0, 0) == EMULATE_DO_MMIO)
+		if (emulate_instruction(vcpu,
+					kvm_run, 0, 0, 0) == EMULATE_DO_MMIO)
 			return 0;
 		return 1;
 	}

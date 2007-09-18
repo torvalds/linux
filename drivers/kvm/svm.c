@@ -960,7 +960,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		return 1;
 	}
 	er = emulate_instruction(&svm->vcpu, kvm_run, fault_address,
-				 error_code);
+				 error_code, 0);
 	mutex_unlock(&kvm->lock);
 
 	switch (er) {
@@ -984,7 +984,7 @@ static int ud_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	int er;
 
-	er = emulate_instruction(&svm->vcpu, kvm_run, 0, 0);
+	er = emulate_instruction(&svm->vcpu, kvm_run, 0, 0, 0);
 	if (er != EMULATE_DONE)
 		inject_ud(&svm->vcpu);
 
@@ -1027,7 +1027,8 @@ static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	string = (io_info & SVM_IOIO_STR_MASK) != 0;
 
 	if (string) {
-		if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0) == EMULATE_DO_MMIO)
+		if (emulate_instruction(&svm->vcpu,
+					kvm_run, 0, 0, 0) == EMULATE_DO_MMIO)
 			return 0;
 		return 1;
 	}
@@ -1086,7 +1087,7 @@ static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int emulate_on_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
-	if (emulate_instruction(&svm->vcpu, NULL, 0, 0) != EMULATE_DONE)
+	if (emulate_instruction(&svm->vcpu, NULL, 0, 0, 0) != EMULATE_DONE)
 		pr_unimpl(&svm->vcpu, "%s: failed\n", __FUNCTION__);
 	return 1;
 }
