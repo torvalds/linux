@@ -107,8 +107,8 @@
 		MAL0: mcmal {
 			compatible = "ibm,mcmal-440epx", "ibm,mcmal2";
 			dcr-reg = <180 62>;
-			num-tx-chans = <4>;
-			num-rx-chans = <4>;
+			num-tx-chans = <2>;
+			num-rx-chans = <2>;
 			interrupt-parent = <&MAL0>;
 			interrupts = <0 1 2 3 4>;
 			#interrupt-cells = <1>;
@@ -255,7 +255,7 @@
 				reg = <ef600e00 70>;
 				local-mac-address = [000000000000];
 				mal-device = <&MAL0>;
-				mal-tx-channel = <0 1>;
+				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
 				max-frame-size = <5dc>;
@@ -281,7 +281,7 @@
 				reg = <ef600f00 70>;
 				local-mac-address = [000000000000];
 				mal-device = <&MAL0>;
-				mal-tx-channel = <2 3>;
+				mal-tx-channel = <1>;
 				mal-rx-channel = <1>;
 				cell-index = <1>;
 				max-frame-size = <5dc>;
