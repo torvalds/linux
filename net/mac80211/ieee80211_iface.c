@@ -79,16 +79,15 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	ieee80211_debugfs_add_netdev(sdata);
 	ieee80211_if_set_type(ndev, type);
 
-	write_lock_bh(&local->sub_if_lock);
+	/* we're under RTNL so all this is fine */
 	if (unlikely(local->reg_state == IEEE80211_DEV_UNREGISTERED)) {
-		write_unlock_bh(&local->sub_if_lock);
 		__ieee80211_if_del(local, sdata);
 		return -ENODEV;
 	}
-	list_add(&sdata->list, &local->sub_if_list);
+	list_add_tail_rcu(&sdata->list, &local->interfaces);
+
 	if (new_dev)
 		*new_dev = ndev;
-	write_unlock_bh(&local->sub_if_lock);
 
 	return 0;
 
@@ -226,22 +225,22 @@ void ieee80211_if_reinit(struct net_device *dev)
 		/* Remove all virtual interfaces that use this BSS
 		 * as their sdata->bss */
 		struct ieee80211_sub_if_data *tsdata, *n;
-		LIST_HEAD(tmp_list);
 
-		write_lock_bh(&local->sub_if_lock);
-		list_for_each_entry_safe(tsdata, n, &local->sub_if_list, list) {
+		list_for_each_entry_safe(tsdata, n, &local->interfaces, list) {
 			if (tsdata != sdata && tsdata->bss == &sdata->u.ap) {
 				printk(KERN_DEBUG "%s: removing virtual "
 				       "interface %s because its BSS interface"
 				       " is being removed\n",
 				       sdata->dev->name, tsdata->dev->name);
-				list_move_tail(&tsdata->list, &tmp_list);
+				list_del_rcu(&tsdata->list);
+				/*
+				 * We have lots of time and can afford
+				 * to sync for each interface
+				 */
+				synchronize_rcu();
+				__ieee80211_if_del(local, tsdata);
 			}
 		}
-		write_unlock_bh(&local->sub_if_lock);
-
-		list_for_each_entry_safe(tsdata, n, &tmp_list, list)
-			__ieee80211_if_del(local, tsdata);
 
 		kfree(sdata->u.ap.beacon_head);
 		kfree(sdata->u.ap.beacon_tail);
@@ -318,18 +317,16 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 
 	ASSERT_RTNL();
 
-	write_lock_bh(&local->sub_if_lock);
-	list_for_each_entry_safe(sdata, n, &local->sub_if_list, list) {
+	list_for_each_entry_safe(sdata, n, &local->interfaces, list) {
 		if ((sdata->type == id || id == -1) &&
 		    strcmp(name, sdata->dev->name) == 0 &&
 		    sdata->dev != local->mdev) {
-			list_del(&sdata->list);
-			write_unlock_bh(&local->sub_if_lock);
+			list_del_rcu(&sdata->list);
+			synchronize_rcu();
 			__ieee80211_if_del(local, sdata);
 			return 0;
 		}
 	}
-	write_unlock_bh(&local->sub_if_lock);
 	return -ENODEV;
 }
 

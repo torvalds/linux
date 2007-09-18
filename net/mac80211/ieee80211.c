@@ -93,14 +93,13 @@ static int ieee80211_master_open(struct net_device *dev)
 	struct ieee80211_sub_if_data *sdata;
 	int res = -EOPNOTSUPP;
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	/* we hold the RTNL here so can safely walk the list */
+	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->dev != dev && netif_running(sdata->dev)) {
 			res = 0;
 			break;
 		}
 	}
-	read_unlock(&local->sub_if_lock);
 	return res;
 }
 
@@ -109,11 +108,10 @@ static int ieee80211_master_stop(struct net_device *dev)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list)
+	/* we hold the RTNL here so can safely walk the list */
+	list_for_each_entry(sdata, &local->interfaces, list)
 		if (sdata->dev != dev && netif_running(sdata->dev))
 			dev_close(sdata->dev);
-	read_unlock(&local->sub_if_lock);
 
 	return 0;
 }
@@ -315,8 +313,8 @@ static int ieee80211_open(struct net_device *dev)
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(nsdata, &local->sub_if_list, list) {
+	/* we hold the RTNL here so can safely walk the list */
+	list_for_each_entry(nsdata, &local->interfaces, list) {
 		struct net_device *ndev = nsdata->dev;
 
 		if (ndev != dev && ndev != local->mdev && netif_running(ndev) &&
@@ -325,10 +323,8 @@ static int ieee80211_open(struct net_device *dev)
 			 * check whether it may have the same address
 			 */
 			if (!identical_mac_addr_allowed(sdata->type,
-							nsdata->type)) {
-				read_unlock(&local->sub_if_lock);
+							nsdata->type))
 				return -ENOTUNIQ;
-			}
 
 			/*
 			 * can only add VLANs to enabled APs
@@ -339,7 +335,6 @@ static int ieee80211_open(struct net_device *dev)
 				sdata->u.vlan.ap = nsdata;
 		}
 	}
-	read_unlock(&local->sub_if_lock);
 
 	switch (sdata->type) {
 	case IEEE80211_IF_TYPE_WDS:
@@ -466,14 +461,13 @@ static int ieee80211_stop(struct net_device *dev)
 		sdata->u.sta.state = IEEE80211_DISABLED;
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
-		 * Holding the sub_if_lock for writing here blocks
-		 * out the receive path and makes sure it's not
-		 * currently processing a packet that may get
-		 * added to the queue.
+		 * When we get here, the interface is marked down.
+		 * Call synchronize_rcu() to wait for the RX path
+		 * should it be using the interface and enqueuing
+		 * frames at this very time on another CPU.
 		 */
-		write_lock_bh(&local->sub_if_lock);
+		synchronize_rcu();
 		skb_queue_purge(&sdata->u.sta.skb_queue);
-		write_unlock_bh(&local->sub_if_lock);
 
 		if (!local->ops->hw_scan &&
 		    local->scan_dev == sdata->dev) {
@@ -1033,9 +1027,9 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	rthdr->data_retries = status->retry_count;
 
-	read_lock(&local->sub_if_lock);
+	rcu_read_lock();
 	monitors = local->monitors;
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		/*
 		 * Using the monitors counter is possibly racy, but
 		 * if the value is wrong we simply either clone the skb
@@ -1051,7 +1045,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 				continue;
 			monitors--;
 			if (monitors)
-				skb2 = skb_clone(skb, GFP_KERNEL);
+				skb2 = skb_clone(skb, GFP_ATOMIC);
 			else
 				skb2 = NULL;
 			skb->dev = sdata->dev;
@@ -1066,7 +1060,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		}
 	}
  out:
-	read_unlock(&local->sub_if_lock);
+	rcu_read_unlock();
 	if (skb)
 		dev_kfree_skb(skb);
 }
@@ -1154,8 +1148,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_LIST_HEAD(&local->modes_list);
 
-	rwlock_init(&local->sub_if_lock);
-	INIT_LIST_HEAD(&local->sub_if_list);
+	INIT_LIST_HEAD(&local->interfaces);
 
 	INIT_DELAYED_WORK(&local->scan_work, ieee80211_sta_scan_work);
 	ieee80211_rx_bss_list_init(mdev);
@@ -1175,7 +1168,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	sdata->u.ap.force_unicast_rateidx = -1;
 	sdata->u.ap.max_ratectrl_rateidx = -1;
 	ieee80211_if_sdata_init(sdata);
-	list_add_tail(&sdata->list, &local->sub_if_list);
+	/* no RCU needed since we're still during init phase */
+	list_add_tail(&sdata->list, &local->interfaces);
 
 	tasklet_init(&local->tx_pending_tasklet, ieee80211_tx_pending,
 		     (unsigned long)local);
@@ -1334,7 +1328,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata, *tmp;
-	struct list_head tmp_list;
 	int i;
 
 	tasklet_kill(&local->tx_pending_tasklet);
@@ -1348,11 +1341,12 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	if (local->apdev)
 		ieee80211_if_del_mgmt(local);
 
-	write_lock_bh(&local->sub_if_lock);
-	list_replace_init(&local->sub_if_list, &tmp_list);
-	write_unlock_bh(&local->sub_if_lock);
-
-	list_for_each_entry_safe(sdata, tmp, &tmp_list, list)
+	/*
+	 * At this point, interface list manipulations are fine
+	 * because the driver cannot be handing us frames any
+	 * more and the tasklet is killed.
+	 */
+	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list)
 		__ieee80211_if_del(local, sdata);
 
 	rtnl_unlock();

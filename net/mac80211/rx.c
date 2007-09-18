@@ -1383,8 +1383,9 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	/*
-	 * key references are protected using RCU and this requires that
-	 * we are in a read-site RCU section during receive processing
+	 * key references and virtual interfaces are protected using RCU
+	 * and this requires that we are in a read-side RCU section during
+	 * receive processing
 	 */
 	rcu_read_lock();
 
@@ -1439,8 +1440,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	bssid = ieee80211_get_bssid(hdr, skb->len - radiotap_len);
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 
 		if (!netif_running(sdata->dev))
@@ -1493,7 +1493,6 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 					     &rx, sta);
 	} else
 		dev_kfree_skb(skb);
-	read_unlock(&local->sub_if_lock);
 
  end:
 	rcu_read_unlock();

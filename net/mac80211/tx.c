@@ -295,8 +295,12 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	/*
+	 * virtual interfaces are protected by RCU
+	 */
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ieee80211_if_ap *ap;
 		if (sdata->dev == local->mdev ||
 		    sdata->type != IEEE80211_IF_TYPE_AP)
@@ -309,7 +313,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 		}
 		total += skb_queue_len(&ap->ps_bc_buf);
 	}
-	read_unlock(&local->sub_if_lock);
+	rcu_read_unlock();
 
 	read_lock_bh(&local->sta_lock);
 	list_for_each_entry(sta, &local->sta_list, list) {

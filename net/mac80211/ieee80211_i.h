@@ -475,9 +475,8 @@ struct ieee80211_local {
 	ieee80211_rx_handler *rx_handlers;
 	ieee80211_tx_handler *tx_handlers;
 
-	rwlock_t sub_if_lock; /* Protects sub_if_list. Cannot be taken under
-			       * sta_bss_lock or sta_lock. */
-	struct list_head sub_if_list;
+	struct list_head interfaces;
+
 	int sta_scanning;
 	int scan_channel_idx;
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;

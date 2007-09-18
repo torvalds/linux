@@ -2676,8 +2676,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	memset(&wrqu, 0, sizeof(wrqu));
 	wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 
 		/* No need to wake the master device. */
 		if (sdata->dev == local->mdev)
@@ -2691,7 +2691,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 		netif_wake_queue(sdata->dev);
 	}
-	read_unlock(&local->sub_if_lock);
+	rcu_read_unlock();
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
@@ -2828,8 +2828,8 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 
 	local->sta_scanning = 1;
 
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 
 		/* Don't stop the master interface, otherwise we can't transmit
 		 * probes! */
@@ -2841,7 +2841,7 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 		    (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
 			ieee80211_send_nullfunc(local, sdata, 1);
 	}
-	read_unlock(&local->sub_if_lock);
+	rcu_read_unlock();
 
 	if (ssid) {
 		local->scan_ssid_len = ssid_len;
