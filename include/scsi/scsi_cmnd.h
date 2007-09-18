@@ -69,7 +69,6 @@ struct scsi_cmnd {
 
 	/* These elements define the operation we ultimately want to perform */
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
-	unsigned short sglist_len;	/* size of malloc'd scatter-gather list */
 	unsigned short __use_sg;
 
 	unsigned underflow;	/* Return error if less than

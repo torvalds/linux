@@ -769,10 +769,8 @@ struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 		/*
 		 * first loop through, set initial index and return value
 		 */
-		if (!ret) {
-			cmd->sglist_len = index;
+		if (!ret)
 			ret = sgl;
-		}
 
 		/*
 		 * chain previous sglist, if any. we know the previous
@@ -825,8 +823,6 @@ void scsi_free_sgtable(struct scsi_cmnd *cmd)
 	struct scatterlist *sgl = cmd->request_buffer;
 	struct scsi_host_sg_pool *sgp;
 
-	BUG_ON(cmd->sglist_len >= SG_MEMPOOL_NR);
-
 	/*
 	 * if this is the biggest size sglist, check if we have
 	 * chained parts we need to free
@@ -861,9 +857,10 @@ void scsi_free_sgtable(struct scsi_cmnd *cmd)
 		 * Restore original, will be freed below
 		 */
 		sgl = cmd->request_buffer;
-	}
+		sgp = scsi_sg_pools + SG_MEMPOOL_NR - 1;
+	} else
+		sgp = scsi_sg_pools + scsi_sgtable_index(cmd->__use_sg);
 
-	sgp = scsi_sg_pools + cmd->sglist_len;
 	mempool_free(sgl, sgp->pool);
 }
 
