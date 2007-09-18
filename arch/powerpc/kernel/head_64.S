@@ -341,6 +341,7 @@ slb_miss_user_pseries:
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
 
+#ifdef CONFIG_PPC_PSERIES
 /*
  * Vectors for the FWNMI option.  Share common code.
  */
@@ -357,6 +358,8 @@ machine_check_fwnmi:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
 	EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(PACA_EXMC, machine_check_common)
+
+#endif /* CONFIG_PPC_PSERIES */
 
 /*** Common interrupt handlers ***/
 
@@ -1012,6 +1015,7 @@ _GLOBAL(do_stab_bolted)
 initial_stab:
 	.space	4096
 
+#ifdef CONFIG_PPC_PSERIES
 /*
  * Data area reserved for FWNMI option.
  * This address (0x7000) is fixed by the RPA.
@@ -1019,6 +1023,7 @@ initial_stab:
 	.= 0x7000
 	.globl fwnmi_data_area
 fwnmi_data_area:
+#endif /* CONFIG_PPC_PSERIES */
 
 	/* iSeries does not use the FWNMI stuff, so it is safe to put
 	 * this here, even if we later allow kernels that will boot on
@@ -1043,7 +1048,9 @@ xLparMap:
 
 #endif /* CONFIG_PPC_ISERIES */
 
+#ifdef CONFIG_PPC_PSERIES
         . = 0x8000
+#endif /* CONFIG_PPC_PSERIES */
 
 /*
  * On pSeries and most other platforms, secondary processors spin
