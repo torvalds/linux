@@ -335,7 +335,7 @@ static void fs_enet_tx(struct net_device *dev)
 	int dirtyidx, do_wake, do_restart;
 	u16 sc;
 
-	spin_lock(&fep->lock);
+	spin_lock(&fep->tx_lock);
 	bdp = fep->dirty_tx;
 
 	do_wake = do_restart = 0;
@@ -415,7 +415,7 @@ static void fs_enet_tx(struct net_device *dev)
 	if (do_restart)
 		(*fep->ops->tx_restart)(dev);
 
-	spin_unlock(&fep->lock);
+	spin_unlock(&fep->tx_lock);
 
 	if (do_wake)
 		netif_wake_queue(dev);
@@ -818,7 +818,9 @@ static int fs_enet_close(struct net_device *dev)
 	phy_stop(fep->phydev);
 
 	spin_lock_irqsave(&fep->lock, flags);
+	spin_lock(&fep->tx_lock);
 	(*fep->ops->stop)(dev);
+	spin_unlock(&fep->tx_lock);
 	spin_unlock_irqrestore(&fep->lock, flags);
 
 	/* release any irqs */
