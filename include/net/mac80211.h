@@ -260,9 +260,6 @@ struct ieee80211_tx_control {
 	u8 iv_len;		/* length of the IV field in octets */
 	u8 queue;		/* hardware queue to use for this frame;
 				 * 0 = highest, hw->queues-1 = lowest */
-	u8 sw_retry_attempt;	/* number of times hw has tried to
-				 * transmit frame (not incl. hw retries) */
-
 	struct ieee80211_rate *rate;		/* internal 80211.o rate */
 	struct ieee80211_rate *rts_rate;	/* internal 80211.o rate
 						 * for RTS/CTS */
