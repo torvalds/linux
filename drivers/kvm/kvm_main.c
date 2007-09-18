@@ -1287,7 +1287,10 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 	vcpu->mmio_is_write = 0;
 	vcpu->pio.string = 0;
-	r = x86_emulate_memop(&emulate_ctxt, &emulate_ops);
+	r = x86_decode_insn(&emulate_ctxt, &emulate_ops);
+	if (r == 0)
+		r = x86_emulate_insn(&emulate_ctxt, &emulate_ops);
+
 	if (vcpu->pio.string)
 		return EMULATE_DO_MMIO;
 

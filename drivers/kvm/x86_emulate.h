@@ -178,12 +178,9 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-/*
- * x86_emulate_memop: Emulate an instruction that faulted attempting to
- *                    read/write a 'special' memory area.
- * Returns -1 on failure, 0 on success.
- */
-int x86_emulate_memop(struct x86_emulate_ctxt *ctxt,
-		      struct x86_emulate_ops *ops);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
+		    struct x86_emulate_ops *ops);
+int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
+		     struct x86_emulate_ops *ops);
 
 #endif				/* __X86_EMULATE_H__ */

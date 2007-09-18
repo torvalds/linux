@@ -908,18 +908,14 @@ done:
 }
 
 int
-x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	unsigned long cr2 = ctxt->cr2;
 	int no_wb = 0;
 	u64 msr_data;
 	unsigned long _eflags = ctxt->eflags;
 	struct decode_cache *c = &ctxt->decode;
-	int rc;
-
-	rc = x86_decode_insn(ctxt, ops);
-	if (rc)
-		return rc;
+	int rc = 0;
 
 	if ((c->d & ModRM) && (c->modrm_mod != 3))
 		cr2 = c->modrm_ea;
