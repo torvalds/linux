@@ -2661,6 +2661,12 @@ config MLX4_DEBUG
 	  debug_level module parameter (which can also be set after
 	  the driver is loaded through sysfs).
 
+config TEHUTI
+	tristate "Tehuti Networks 10G Ethernet"
+	depends on PCI
+	help
+	  Tehuti Networks 10G Ethernet NIC
+
 endif # NETDEV_10000
 
 source "drivers/net/tokenring/Kconfig"
