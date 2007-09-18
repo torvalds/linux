@@ -444,7 +444,6 @@ struct config_param {
 #define MAX_RX_BLOCKS_PER_RING  150
 
 	struct rx_ring_config rx_cfg[MAX_RX_RINGS];	/*Per-Rx Ring config */
-	u8 bimodal;		/*Flag for setting bimodal interrupts*/
 
 #define HEADER_ETHERNET_II_802_3_SIZE 14
 #define HEADER_802_2_SIZE              3

@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.2"
+#define DRV_VERSION "2.0.26.4"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -452,7 +452,6 @@ S2IO_PARM_INT(mc_pause_threshold_q4q7, 187);
 S2IO_PARM_INT(shared_splits, 0);
 S2IO_PARM_INT(tmac_util_period, 5);
 S2IO_PARM_INT(rmac_util_period, 5);
-S2IO_PARM_INT(bimodal, 0);
 S2IO_PARM_INT(l3l4hdr_size, 128);
 /* Frequency of Rx desc syncs expressed as power of 2 */
 S2IO_PARM_INT(rxsync_frequency, 3);
@@ -699,7 +698,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 						  GFP_KERNEL);
 			if (!rx_blocks->rxds)
 				return -ENOMEM;
-			mem_allocated += 
+			mem_allocated +=
 			(sizeof(struct rxd_info)* rxd_count[nic->rxd_mode]);
 			for (l=0; l<rxd_count[nic->rxd_mode];l++) {
 				rx_blocks->rxds[l].virt_addr =
@@ -761,7 +760,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 					    (BUF0_LEN + ALIGN_SIZE, GFP_KERNEL);
 					if (!ba->ba_0_org)
 						return -ENOMEM;
-					mem_allocated += 
+					mem_allocated +=
 						(BUF0_LEN + ALIGN_SIZE);
 					tmp = (unsigned long)ba->ba_0_org;
 					tmp += ALIGN_SIZE;
@@ -772,7 +771,7 @@ static int init_shared_mem(struct s2io_nic *nic)
 					    (BUF1_LEN + ALIGN_SIZE, GFP_KERNEL);
 					if (!ba->ba_1_org)
 						return -ENOMEM;
-					mem_allocated 
+					mem_allocated
 						+= (BUF1_LEN + ALIGN_SIZE);
 					tmp = (unsigned long) ba->ba_1_org;
 					tmp += ALIGN_SIZE;
@@ -857,7 +856,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    mac_control->fifos[i].
 					    list_info[mem_blks].
 					    list_phy_addr);
-			nic->mac_control.stats_info->sw_stat.mem_freed 
+			nic->mac_control.stats_info->sw_stat.mem_freed
 						+= PAGE_SIZE;
 		}
 		/* If we got a zero DMA address during allocation,
@@ -872,11 +871,11 @@ static void free_shared_mem(struct s2io_nic *nic)
 				dev->name);
 			DBG_PRINT(INIT_DBG, "Virtual address %p\n",
 				mac_control->zerodma_virt_addr);
-			nic->mac_control.stats_info->sw_stat.mem_freed 
+			nic->mac_control.stats_info->sw_stat.mem_freed
 						+= PAGE_SIZE;
 		}
 		kfree(mac_control->fifos[i].list_info);
-		nic->mac_control.stats_info->sw_stat.mem_freed += 
+		nic->mac_control.stats_info->sw_stat.mem_freed +=
 		(nic->config.tx_cfg[i].fifo_len *sizeof(struct list_info_hold));
 	}
 
@@ -894,7 +893,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 					    tmp_v_addr, tmp_p_addr);
 			nic->mac_control.stats_info->sw_stat.mem_freed += size;
 			kfree(mac_control->rings[i].rx_blocks[j].rxds);
-			nic->mac_control.stats_info->sw_stat.mem_freed += 
+			nic->mac_control.stats_info->sw_stat.mem_freed +=
 			( sizeof(struct rxd_info)* rxd_count[nic->rxd_mode]);
 		}
 	}
@@ -925,7 +924,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 					(rxd_count[nic->rxd_mode] + 1));
 			}
 			kfree(mac_control->rings[i].ba);
-			nic->mac_control.stats_info->sw_stat.mem_freed += 
+			nic->mac_control.stats_info->sw_stat.mem_freed +=
 			(sizeof(struct buffAdd *) * blk_cnt);
 		}
 	}
@@ -935,12 +934,12 @@ static void free_shared_mem(struct s2io_nic *nic)
 				    mac_control->stats_mem_sz,
 				    mac_control->stats_mem,
 				    mac_control->stats_mem_phy);
-		nic->mac_control.stats_info->sw_stat.mem_freed += 
+		nic->mac_control.stats_info->sw_stat.mem_freed +=
 			mac_control->stats_mem_sz;
 	}
 	if (nic->ufo_in_band_v) {
 		kfree(nic->ufo_in_band_v);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (ufo_size * sizeof(u64));
 	}
 }
@@ -1485,7 +1484,7 @@ static int init_nic(struct s2io_nic *nic)
 				&bar0->rts_frm_len_n[i]);
 		}
 	}
-	
+
 	/* Disable differentiated services steering logic */
 	for (i = 0; i < 64; i++) {
 		if (rts_ds_steer(nic, i, 0) == FAILURE) {
@@ -1565,90 +1564,57 @@ static int init_nic(struct s2io_nic *nic)
 		time++;
 	}
 
-	if (nic->config.bimodal) {
-		int k = 0;
-		for (k = 0; k < config->rx_ring_num; k++) {
-			val64 = TTI_CMD_MEM_WE | TTI_CMD_MEM_STROBE_NEW_CMD;
-			val64 |= TTI_CMD_MEM_OFFSET(0x38+k);
-			writeq(val64, &bar0->tti_command_mem);
+	/* RTI Initialization */
+	if (nic->device_type == XFRAME_II_DEVICE) {
+		/*
+		 * Programmed to generate Apprx 500 Intrs per
+		 * second
+		 */
+		int count = (nic->config.bus_speed * 125)/4;
+		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
+	} else
+		val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
+	val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
+		 RTI_DATA1_MEM_RX_URNG_B(0x10) |
+		 RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
+
+	writeq(val64, &bar0->rti_data1_mem);
+
+	val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
+		RTI_DATA2_MEM_RX_UFC_B(0x2) ;
+	if (nic->config.intr_type == MSI_X)
+	    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
+			RTI_DATA2_MEM_RX_UFC_D(0x40));
+	else
+	    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x40) | \
+			RTI_DATA2_MEM_RX_UFC_D(0x80));
+	writeq(val64, &bar0->rti_data2_mem);
+
+	for (i = 0; i < config->rx_ring_num; i++) {
+		val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD
+				| RTI_CMD_MEM_OFFSET(i);
+		writeq(val64, &bar0->rti_command_mem);
 
 		/*
-		 * Once the operation completes, the Strobe bit of the command
-		 * register will be reset. We poll for this particular condition
-		 * We wait for a maximum of 500ms for the operation to complete,
-		 * if it's not complete by then we return error.
-		*/
-			time = 0;
-			while (TRUE) {
-				val64 = readq(&bar0->tti_command_mem);
-				if (!(val64 & TTI_CMD_MEM_STROBE_NEW_CMD)) {
-					break;
-				}
-				if (time > 10) {
-					DBG_PRINT(ERR_DBG,
-						"%s: TTI init Failed\n",
-					dev->name);
-					return -1;
-				}
-				time++;
-				msleep(50);
+		 * Once the operation completes, the Strobe bit of the
+		 * command register will be reset. We poll for this
+		 * particular condition. We wait for a maximum of 500ms
+		 * for the operation to complete, if it's not complete
+		 * by then we return error.
+		 */
+		time = 0;
+		while (TRUE) {
+			val64 = readq(&bar0->rti_command_mem);
+			if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD))
+				break;
+
+			if (time > 10) {
+				DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
+					  dev->name);
+				return -1;
 			}
-		}
-	} else {
-
-		/* RTI Initialization */
-		if (nic->device_type == XFRAME_II_DEVICE) {
-			/*
-			 * Programmed to generate Apprx 500 Intrs per
-			 * second
-			 */
-			int count = (nic->config.bus_speed * 125)/4;
-			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(count);
-		} else {
-			val64 = RTI_DATA1_MEM_RX_TIMER_VAL(0xFFF);
-		}
-		val64 |= RTI_DATA1_MEM_RX_URNG_A(0xA) |
-		    RTI_DATA1_MEM_RX_URNG_B(0x10) |
-		    RTI_DATA1_MEM_RX_URNG_C(0x30) | RTI_DATA1_MEM_RX_TIMER_AC_EN;
-
-		writeq(val64, &bar0->rti_data1_mem);
-
-		val64 = RTI_DATA2_MEM_RX_UFC_A(0x1) |
-		    RTI_DATA2_MEM_RX_UFC_B(0x2) ;
-		if (nic->config.intr_type == MSI_X)
-		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x20) | \
-				RTI_DATA2_MEM_RX_UFC_D(0x40));
-		else
-		    val64 |= (RTI_DATA2_MEM_RX_UFC_C(0x40) | \
-				RTI_DATA2_MEM_RX_UFC_D(0x80));
-		writeq(val64, &bar0->rti_data2_mem);
-
-		for (i = 0; i < config->rx_ring_num; i++) {
-			val64 = RTI_CMD_MEM_WE | RTI_CMD_MEM_STROBE_NEW_CMD
-					| RTI_CMD_MEM_OFFSET(i);
-			writeq(val64, &bar0->rti_command_mem);
-
-			/*
-			 * Once the operation completes, the Strobe bit of the
-			 * command register will be reset. We poll for this
-			 * particular condition. We wait for a maximum of 500ms
-			 * for the operation to complete, if it's not complete
-			 * by then we return error.
-			 */
-			time = 0;
-			while (TRUE) {
-				val64 = readq(&bar0->rti_command_mem);
-				if (!(val64 & RTI_CMD_MEM_STROBE_NEW_CMD)) {
-					break;
-				}
-				if (time > 10) {
-					DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
-						  dev->name);
-					return -1;
-				}
-				time++;
-				msleep(50);
-			}
+			time++;
+			msleep(50);
 		}
 	}
 
@@ -2005,7 +1971,7 @@ static int verify_pcc_quiescent(struct s2io_nic *sp, int flag)
 	int ret = 0, herc;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
 	u64 val64 = readq(&bar0->adapter_status);
-	
+
 	herc = (sp->device_type == XFRAME_II_DEVICE);
 
 	if (flag == FALSE) {
@@ -2151,8 +2117,6 @@ static int start_nic(struct s2io_nic *nic)
 		       &bar0->prc_rxd0_n[i]);
 
 		val64 = readq(&bar0->prc_ctrl_n[i]);
-		if (nic->config.bimodal)
-			val64 |= PRC_CTRL_BIMODAL_INTERRUPT;
 		if (nic->rxd_mode == RXD_MODE_1)
 			val64 |= PRC_CTRL_RC_ENABLED;
 		else
@@ -2312,7 +2276,7 @@ static void free_tx_buffers(struct s2io_nic *nic)
 			mac_control->fifos[i].list_info[j].list_virt_addr;
 			skb = s2io_txdl_getskb(&mac_control->fifos[i], txdp, j);
 			if (skb) {
-				nic->mac_control.stats_info->sw_stat.mem_freed 
+				nic->mac_control.stats_info->sw_stat.mem_freed
 					+= skb->truesize;
 				dev_kfree_skb(skb);
 				cnt++;
@@ -2477,7 +2441,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				mem_alloc_fail_cnt++;
 			return -ENOMEM ;
 		}
-		nic->mac_control.stats_info->sw_stat.mem_allocated 
+		nic->mac_control.stats_info->sw_stat.mem_allocated
 			+= skb->truesize;
 		if (nic->rxd_mode == RXD_MODE_1) {
 			/* 1 buffer mode - normal operation mode */
@@ -2492,7 +2456,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 				DMA_ERROR_CODE))
 				goto pci_map_failed;
 
-			rxdp->Control_2 = 
+			rxdp->Control_2 =
 				SET_BUFFER0_SIZE_1(size - NET_IP_ALIGN);
 
 		} else if (nic->rxd_mode == RXD_MODE_3B) {
@@ -3406,7 +3370,7 @@ static void s2io_reset(struct s2io_nic * sp)
 
 	/* Reset device statistics maintained by OS */
 	memset(&sp->stats, 0, sizeof (struct net_device_stats));
-	
+
 	up_cnt = sp->mac_control.stats_info->sw_stat.link_up_cnt;
 	down_cnt = sp->mac_control.stats_info->sw_stat.link_down_cnt;
 	up_time = sp->mac_control.stats_info->sw_stat.link_up_time;
@@ -3668,22 +3632,22 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		return -ENOMEM;
 	}
-	nic->mac_control.stats_info->sw_stat.mem_allocated 
+	nic->mac_control.stats_info->sw_stat.mem_allocated
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 
 	nic->s2io_entries =
 		kcalloc(MAX_REQUESTED_MSI_X, sizeof(struct s2io_msix_entry),
 				   GFP_KERNEL);
 	if (!nic->s2io_entries) {
-		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", 
+		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n",
 			__FUNCTION__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		kfree(nic->entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		return -ENOMEM;
 	}
-	 nic->mac_control.stats_info->sw_stat.mem_allocated 
+	 nic->mac_control.stats_info->sw_stat.mem_allocated
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 
 	for (i=0; i< MAX_REQUESTED_MSI_X; i++) {
@@ -3702,27 +3666,15 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	}
 	writeq(tx_mat, &bar0->tx_mat0_n[0]);
 
-	if (!nic->config.bimodal) {
-		rx_mat = readq(&bar0->rx_mat);
-		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
-			rx_mat |= RX_MAT_SET(j, msix_indx);
-			nic->s2io_entries[msix_indx].arg 
-				= &nic->mac_control.rings[j];
-			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
-			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
-		}
-		writeq(rx_mat, &bar0->rx_mat);
-	} else {
-		tx_mat = readq(&bar0->tx_mat0_n[7]);
-		for (j=0; j<nic->config.rx_ring_num; j++, msix_indx++) {
-			tx_mat |= TX_MAT_SET(i, msix_indx);
-			nic->s2io_entries[msix_indx].arg 
-				= &nic->mac_control.rings[j];
-			nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
-			nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
-		}
-		writeq(tx_mat, &bar0->tx_mat0_n[7]);
+	rx_mat = readq(&bar0->rx_mat);
+	for (j = 0; j < nic->config.rx_ring_num; j++, msix_indx++) {
+		rx_mat |= RX_MAT_SET(j, msix_indx);
+		nic->s2io_entries[msix_indx].arg
+			= &nic->mac_control.rings[j];
+		nic->s2io_entries[msix_indx].type = MSIX_RING_TYPE;
+		nic->s2io_entries[msix_indx].in_use = MSIX_FLG;
 	}
+	writeq(rx_mat, &bar0->rx_mat);
 
 	nic->avail_msix_vectors = 0;
 	ret = pci_enable_msix(nic->pdev, nic->entries, MAX_REQUESTED_MSI_X);
@@ -3734,10 +3686,10 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	if (ret) {
 		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
 		kfree(nic->entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		kfree(nic->s2io_entries);
-		nic->mac_control.stats_info->sw_stat.mem_freed 
+		nic->mac_control.stats_info->sw_stat.mem_freed
 		+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 		nic->entries = NULL;
 		nic->s2io_entries = NULL;
@@ -3906,12 +3858,12 @@ hw_init_failed:
 	if (sp->config.intr_type == MSI_X) {
 		if (sp->entries) {
 			kfree(sp->entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
 		}
 		if (sp->s2io_entries) {
 			kfree(sp->s2io_entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 			+= (MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
 		}
 	}
@@ -4676,7 +4628,7 @@ static void s2io_updt_stats(struct s2io_nic *sp)
 			if (cnt == 5)
 				break; /* Updt failed */
 		} while(1);
-	} 
+	}
 }
 
 /**
@@ -5165,13 +5117,13 @@ static void s2io_ethtool_gringparam(struct net_device *dev,
 		ering->rx_max_pending = MAX_RX_DESC_2;
 
 	ering->tx_max_pending = MAX_TX_DESC;
-	for (i = 0 ; i < sp->config.tx_fifo_num ; i++) 
+	for (i = 0 ; i < sp->config.tx_fifo_num ; i++)
 		tx_desc_count += sp->config.tx_cfg[i].fifo_len;
-	
+
 	DBG_PRINT(INFO_DBG,"\nmax txds : %d\n",sp->config.max_txds);
 	ering->tx_pending = tx_desc_count;
 	rx_desc_count = 0;
-	for (i = 0 ; i < sp->config.rx_ring_num ; i++) 
+	for (i = 0 ; i < sp->config.rx_ring_num ; i++)
 		rx_desc_count += sp->config.rx_cfg[i].num_rxd;
 
 	ering->rx_pending = rx_desc_count;
@@ -6539,7 +6491,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 					mem_alloc_fail_cnt++;
 				return -ENOMEM ;
 			}
-			sp->mac_control.stats_info->sw_stat.mem_allocated 
+			sp->mac_control.stats_info->sw_stat.mem_allocated
 				+= (*skb)->truesize;
 			/* storing the mapped addr in a temp variable
 			 * such it will be used for next rxd whose
@@ -6572,7 +6524,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 					mem_alloc_fail_cnt++;
 				return -ENOMEM;
 			}
-			sp->mac_control.stats_info->sw_stat.mem_allocated 
+			sp->mac_control.stats_info->sw_stat.mem_allocated
 				+= (*skb)->truesize;
 			rxdp3->Buffer2_ptr = *temp2 =
 				pci_map_single(sp->pdev, (*skb)->data,
@@ -7107,7 +7059,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 			DBG_PRINT(ERR_DBG, "%s: Rx error Value: 0x%x\n",
 				dev->name, err_mask);
 			sp->stats.rx_crc_errors++;
-			sp->mac_control.stats_info->sw_stat.mem_freed 
+			sp->mac_control.stats_info->sw_stat.mem_freed
 				+= skb->truesize;
 			dev_kfree_skb(skb);
 			atomic_dec(&sp->rx_bufs_left[ring_no]);
@@ -7261,13 +7213,13 @@ static void s2io_link(struct s2io_nic * sp, int link)
 			DBG_PRINT(ERR_DBG, "%s: Link down\n", dev->name);
 			netif_carrier_off(dev);
 			if(sp->mac_control.stats_info->sw_stat.link_up_cnt)
-			sp->mac_control.stats_info->sw_stat.link_up_time = 
+			sp->mac_control.stats_info->sw_stat.link_up_time =
 				jiffies - sp->start_time;
 			sp->mac_control.stats_info->sw_stat.link_down_cnt++;
 		} else {
 			DBG_PRINT(ERR_DBG, "%s: Link Up\n", dev->name);
 			if (sp->mac_control.stats_info->sw_stat.link_down_cnt)
-			sp->mac_control.stats_info->sw_stat.link_down_time = 
+			sp->mac_control.stats_info->sw_stat.link_down_time =
 				jiffies - sp->start_time;
 			sp->mac_control.stats_info->sw_stat.link_up_cnt++;
 			netif_carrier_on(dev);
@@ -7751,14 +7703,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 					" enabled\n", dev->name);
 	/* Initialize device name */
 	sprintf(sp->name, "%s Neterion %s", dev->name, sp->product_name);
-
-	/* Initialize bimodal Interrupts */
-	sp->config.bimodal = bimodal;
-	if (!(sp->device_type & XFRAME_II_DEVICE) && bimodal) {
-		sp->config.bimodal = 0;
-		DBG_PRINT(ERR_DBG,"%s:Bimodal intr not supported by Xframe I\n",
-			dev->name);
-	}
 
 	/*
 	 * Make Link state as off at this point, when the Link change
