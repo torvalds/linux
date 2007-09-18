@@ -112,6 +112,36 @@ struct x86_emulate_ops {
 
 };
 
+/* Type, address-of, and value of an instruction's operand. */
+struct operand {
+	enum { OP_REG, OP_MEM, OP_IMM } type;
+	unsigned int bytes;
+	unsigned long val, orig_val, *ptr;
+};
+
+struct decode_cache {
+	u8 twobyte;
+	u8 b;
+	u8 lock_prefix;
+	u8 rep_prefix;
+	u8 op_bytes;
+	u8 ad_bytes;
+	struct operand src;
+	struct operand dst;
+	unsigned long *override_base;
+	unsigned int d;
+	unsigned long regs[NR_VCPU_REGS];
+	unsigned long eip;
+	/* modrm */
+	u8 modrm;
+	u8 modrm_mod;
+	u8 modrm_reg;
+	u8 modrm_rm;
+	u8 use_modrm_ea;
+	unsigned long modrm_ea;
+	unsigned long modrm_val;
+};
+
 struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
@@ -129,6 +159,10 @@ struct x86_emulate_ctxt {
 	unsigned long ss_base;
 	unsigned long gs_base;
 	unsigned long fs_base;
+
+	/* decode cache */
+
+	struct decode_cache decode;
 };
 
 /* Execution mode, passed to the emulator. */
