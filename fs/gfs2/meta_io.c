@@ -374,10 +374,10 @@ void gfs2_meta_cache_flush(struct gfs2_inode *ip)
 
 	for (x = 0; x < GFS2_MAX_META_HEIGHT; x++) {
 		bh_slot = &ip->i_cache[x];
-		if (!*bh_slot)
-			break;
-		brelse(*bh_slot);
-		*bh_slot = NULL;
+		if (*bh_slot) {
+			brelse(*bh_slot);
+			*bh_slot = NULL;
+		}
 	}
 
 	spin_unlock(&ip->i_spin);

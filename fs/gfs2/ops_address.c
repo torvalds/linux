@@ -90,7 +90,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 	error = gfs2_block_map(inode, lblock, 0, bh_result);
 	if (error)
 		return error;
-	if (bh_result->b_blocknr == 0)
+	if (!buffer_mapped(bh_result))
 		return -EIO;
 	return 0;
 }
