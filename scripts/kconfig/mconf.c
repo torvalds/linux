@@ -481,6 +481,14 @@ static void build_conf(struct menu *menu)
 				if (single_menu_mode && menu->data)
 					goto conf_childs;
 				return;
+			case P_COMMENT:
+				if (prompt) {
+					child_count++;
+					item_make("   %*c*** %s ***", indent + 1, ' ', prompt);
+					item_set_tag(':');
+					item_set_data(menu);
+				}
+				break;
 			default:
 				if (prompt) {
 					child_count++;
