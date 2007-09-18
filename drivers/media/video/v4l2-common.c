@@ -1028,13 +1028,12 @@ int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver 
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = driver;
-	snprintf(client->name, sizeof(client->name) - 1, name);
+	strlcpy(client->name, name, sizeof(client->name));
 
 	err = probe(client);
 	if (err == 0) {
 		i2c_attach_client(client);
-	}
-	else {
+	} else {
 		kfree(client);
 	}
 	return err != -ENOMEM ? 0 : err;
