@@ -517,20 +517,16 @@ static int test_cc(unsigned int condition, unsigned int flags)
 }
 
 int
-x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	u8 sib, rex_prefix = 0;
 	unsigned int i;
 	int rc = 0;
-	unsigned long cr2 = ctxt->cr2;
 	int mode = ctxt->mode;
 	int index_reg = 0, base_reg = 0, scale, rip_relative = 0;
-	int no_wb = 0;
-	u64 msr_data;
 
 	/* Shadow copy of register state. Committed on successful emulation. */
-	unsigned long _eflags = ctxt->eflags;
 
 	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->vcpu->rip;
@@ -622,8 +618,10 @@ done_prefixes:
 		}
 
 		/* Unrecognised? */
-		if (c->d == 0)
-			goto cannot_emulate;
+		if (c->d == 0) {
+			DPRINTF("Cannot emulate %02x\n", c->b);
+			return -1;
+		}
 	}
 
 	/* ModRM and SIB bytes. */
@@ -776,7 +774,6 @@ done_prefixes:
 		}
 		if (c->ad_bytes != 8)
 			c->modrm_ea = (u32)c->modrm_ea;
-		cr2 = c->modrm_ea;
 	modrm_done:
 		;
 	}
@@ -838,13 +835,6 @@ done_prefixes:
 			break;
 		}
 		c->src.type = OP_MEM;
-		c->src.ptr = (unsigned long *)cr2;
-		c->src.val = 0;
-		if ((rc = ops->read_emulated((unsigned long)c->src.ptr,
-					   &c->src.val,
-					   c->src.bytes, ctxt->vcpu)) != 0)
-			goto done;
-		c->src.orig_val = c->src.val;
 		break;
 	case SrcImm:
 		c->src.type = OP_IMM;
@@ -877,7 +867,7 @@ done_prefixes:
 	switch (c->d & DstMask) {
 	case ImplicitOps:
 		/* Special instructions do their own operand decoding. */
-		goto special_insn;
+		return 0;
 	case DstReg:
 		c->dst.type = OP_REG;
 		if ((c->d & ByteOp)
@@ -905,14 +895,54 @@ done_prefixes:
 		}
 		break;
 	case DstMem:
-		c->dst.type = OP_MEM;
-		c->dst.ptr = (unsigned long *)cr2;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.val = 0;
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->dst.type = OP_REG;
 			break;
 		}
+		c->dst.type = OP_MEM;
+		break;
+	}
+
+done:
+	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
+}
+
+int
+x86_emulate_memop(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
+{
+	unsigned long cr2 = ctxt->cr2;
+	int no_wb = 0;
+	u64 msr_data;
+	unsigned long _eflags = ctxt->eflags;
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	rc = x86_decode_insn(ctxt, ops);
+	if (rc)
+		return rc;
+
+	if ((c->d & ModRM) && (c->modrm_mod != 3))
+		cr2 = c->modrm_ea;
+
+	if (c->src.type == OP_MEM) {
+		c->src.ptr = (unsigned long *)cr2;
+		c->src.val = 0;
+		if ((rc = ops->read_emulated((unsigned long)c->src.ptr,
+					     &c->src.val,
+					     c->src.bytes,
+					     ctxt->vcpu)) != 0)
+			goto done;
+		c->src.orig_val = c->src.val;
+	}
+
+	if ((c->d & DstMask) == ImplicitOps)
+		goto special_insn;
+
+
+	if (c->dst.type == OP_MEM) {
+		c->dst.ptr = (unsigned long *)cr2;
+		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->dst.val = 0;
 		if (c->d & BitOp) {
 			unsigned long mask = ~(c->dst.bytes * 8 - 1);
 
@@ -925,7 +955,6 @@ done_prefixes:
 					   &c->dst.val,
 					  c->dst.bytes, ctxt->vcpu)) != 0))
 			goto done;
-		break;
 	}
 	c->dst.orig_val = c->dst.val;
 
@@ -983,7 +1012,7 @@ done_prefixes:
 		emulate_2op_SrcV("cmp", c->src, c->dst, _eflags);
 		break;
 	case 0x63:		/* movsxd */
-		if (mode != X86EMUL_MODE_PROT64)
+		if (ctxt->mode != X86EMUL_MODE_PROT64)
 			goto cannot_emulate;
 		c->dst.val = (s32) c->src.val;
 		break;
@@ -1041,7 +1070,7 @@ done_prefixes:
 		break;
 	case 0x8f:		/* pop (sole member of Grp1a) */
 		/* 64-bit mode: POP always pops a 64-bit operand. */
-		if (mode == X86EMUL_MODE_PROT64)
+		if (ctxt->mode == X86EMUL_MODE_PROT64)
 			c->dst.bytes = 8;
 		if ((rc = ops->read_std(register_address(
 						   ctxt->ss_base,
@@ -1152,7 +1181,7 @@ done_prefixes:
 			break;
 		case 6:	/* push */
 			/* 64-bit mode: PUSH always pushes a 64-bit operand. */
-			if (mode == X86EMUL_MODE_PROT64) {
+			if (ctxt->mode == X86EMUL_MODE_PROT64) {
 				c->dst.bytes = 8;
 				if ((rc = ops->read_std(
 						 (unsigned long)c->dst.ptr,
