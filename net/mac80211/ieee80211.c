@@ -31,7 +31,7 @@
 #include "wme.h"
 #include "aes_ccm.h"
 #include "ieee80211_led.h"
-#include "ieee80211_cfg.h"
+#include "cfg.h"
 #include "debugfs.h"
 #include "debugfs_netdev.h"
 

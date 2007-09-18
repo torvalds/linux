@@ -11,7 +11,7 @@
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
-#include "ieee80211_cfg.h"
+#include "cfg.h"
 
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 			       enum nl80211_iftype type)
