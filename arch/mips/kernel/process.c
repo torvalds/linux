@@ -231,8 +231,8 @@ long kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.cp0_epc = (unsigned long) kernel_thread_helper;
 	regs.cp0_status = read_c0_status();
 #if defined(CONFIG_CPU_R3000) || defined(CONFIG_CPU_TX39XX)
-	regs.cp0_status &= ~(ST0_KUP | ST0_IEC);
-	regs.cp0_status |= ST0_IEP;
+	regs.cp0_status = (regs.cp0_status & ~(ST0_KUP | ST0_IEP | ST0_IEC)) |
+			  ((regs.cp0_status & (ST0_KUC | ST0_IEC)) << 2);
 #else
 	regs.cp0_status |= ST0_EXL;
 #endif
