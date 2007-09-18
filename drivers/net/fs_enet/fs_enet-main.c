@@ -1,17 +1,17 @@
 /*
  * Combined Ethernet driver for Motorola MPC8xx and MPC82xx.
  *
- * Copyright (c) 2003 Intracom S.A. 
+ * Copyright (c) 2003 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
- * 
- * 2005 (c) MontaVista Software, Inc. 
+ *
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * Heavily based on original FEC driver by Dan Malek <dan@embeddededge.com>
  * and modifications by Joakim Tjernlund <joakim.tjernlund@lumentis.se>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -59,6 +59,9 @@ module_param(fs_enet_debug, int, 0);
 MODULE_PARM_DESC(fs_enet_debug,
 		 "Freescale bitmapped debugging message enable value");
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void fs_enet_netpoll(struct net_device *dev);
+#endif
 
 static void fs_set_multicast_list(struct net_device *dev)
 {
@@ -104,7 +107,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 			       dev->name);
 
 		/*
-		 * Check for errors. 
+		 * Check for errors.
 		 */
 		if (sc & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_CL |
 			  BD_ENET_RX_NO | BD_ENET_RX_CR | BD_ENET_RX_OV)) {
@@ -181,7 +184,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 		CBDW_SC(bdp, (sc & ~BD_ENET_RX_STATS) | BD_ENET_RX_EMPTY);
 
 		/*
-		 * Update BD pointer to next entry. 
+		 * Update BD pointer to next entry.
 		 */
 		if ((sc & BD_ENET_RX_WRAP) == 0)
 			bdp++;
@@ -234,7 +237,7 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 			       dev->name);
 
 		/*
-		 * Check for errors. 
+		 * Check for errors.
 		 */
 		if (sc & (BD_ENET_RX_LG | BD_ENET_RX_SH | BD_ENET_RX_CL |
 			  BD_ENET_RX_NO | BD_ENET_RX_CR | BD_ENET_RX_OV)) {
@@ -312,7 +315,7 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 		CBDW_SC(bdp, (sc & ~BD_ENET_RX_STATS) | BD_ENET_RX_EMPTY);
 
 		/*
-		 * Update BD pointer to next entry. 
+		 * Update BD pointer to next entry.
 		 */
 		if ((sc & BD_ENET_RX_WRAP) == 0)
 			bdp++;
@@ -349,7 +352,7 @@ static void fs_enet_tx(struct net_device *dev)
 		skb = fep->tx_skbuff[dirtyidx];
 
 		/*
-		 * Check for errors. 
+		 * Check for errors.
 		 */
 		if (sc & (BD_ENET_TX_HB | BD_ENET_TX_LC |
 			  BD_ENET_TX_RL | BD_ENET_TX_UN | BD_ENET_TX_CSL)) {
@@ -389,13 +392,13 @@ static void fs_enet_tx(struct net_device *dev)
 				skb->len, DMA_TO_DEVICE);
 
 		/*
-		 * Free the sk buffer associated with this last transmit. 
+		 * Free the sk buffer associated with this last transmit.
 		 */
 		dev_kfree_skb_irq(skb);
 		fep->tx_skbuff[dirtyidx] = NULL;
 
 		/*
-		 * Update pointer to next buffer descriptor to be transmitted. 
+		 * Update pointer to next buffer descriptor to be transmitted.
 		 */
 		if ((sc & BD_ENET_TX_WRAP) == 0)
 			bdp++;
@@ -491,7 +494,7 @@ void fs_init_bds(struct net_device *dev)
 	fep->cur_rx = fep->rx_bd_base;
 
 	/*
-	 * Initialize the receive buffer descriptors. 
+	 * Initialize the receive buffer descriptors.
 	 */
 	for (i = 0, bdp = fep->rx_bd_base; i < fep->rx_ring; i++, bdp++) {
 		skb = dev_alloc_skb(ENET_RX_FRSIZE);
@@ -511,7 +514,7 @@ void fs_init_bds(struct net_device *dev)
 			((i < fep->rx_ring - 1) ? 0 : BD_SC_WRAP));
 	}
 	/*
-	 * if we failed, fillup remainder 
+	 * if we failed, fillup remainder
 	 */
 	for (; i < fep->rx_ring; i++, bdp++) {
 		fep->rx_skbuff[i] = NULL;
@@ -519,7 +522,7 @@ void fs_init_bds(struct net_device *dev)
 	}
 
 	/*
-	 * ...and the same for transmit.  
+	 * ...and the same for transmit.
 	 */
 	for (i = 0, bdp = fep->tx_bd_base; i < fep->tx_ring; i++, bdp++) {
 		fep->tx_skbuff[i] = NULL;
@@ -537,7 +540,7 @@ void fs_cleanup_bds(struct net_device *dev)
 	int i;
 
 	/*
-	 * Reset SKB transmit buffers.  
+	 * Reset SKB transmit buffers.
 	 */
 	for (i = 0, bdp = fep->tx_bd_base; i < fep->tx_ring; i++, bdp++) {
 		if ((skb = fep->tx_skbuff[i]) == NULL)
@@ -552,7 +555,7 @@ void fs_cleanup_bds(struct net_device *dev)
 	}
 
 	/*
-	 * Reset SKB receive buffers 
+	 * Reset SKB receive buffers
 	 */
 	for (i = 0, bdp = fep->rx_bd_base; i < fep->rx_ring; i++, bdp++) {
 		if ((skb = fep->rx_skbuff[i]) == NULL)
@@ -582,7 +585,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&fep->tx_lock, flags);
 
 	/*
-	 * Fill in a Tx ring entry 
+	 * Fill in a Tx ring entry
 	 */
 	bdp = fep->cur_tx;
 
@@ -601,19 +604,19 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	curidx = bdp - fep->tx_bd_base;
 	/*
-	 * Clear all of the status flags. 
+	 * Clear all of the status flags.
 	 */
 	CBDC_SC(bdp, BD_ENET_TX_STATS);
 
 	/*
-	 * Save skb pointer. 
+	 * Save skb pointer.
 	 */
 	fep->tx_skbuff[curidx] = skb;
 
 	fep->stats.tx_bytes += skb->len;
 
 	/*
-	 * Push the data cache so the CPM does not get stale memory data. 
+	 * Push the data cache so the CPM does not get stale memory data.
 	 */
 	CBDW_BUFADDR(bdp, dma_map_single(fep->dev,
 				skb->data, skb->len, DMA_TO_DEVICE));
@@ -622,7 +625,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->trans_start = jiffies;
 
 	/*
-	 * If this was the last BD in the ring, start at the beginning again. 
+	 * If this was the last BD in the ring, start at the beginning again.
 	 */
 	if ((CBDR_SC(bdp) & BD_ENET_TX_WRAP) == 0)
 		fep->cur_tx++;
@@ -1003,13 +1006,13 @@ static struct net_device *fs_init_instance(struct device *dev,
 	spin_lock_init(&fep->tx_lock);
 
 	/*
-	 * Set the Ethernet address. 
+	 * Set the Ethernet address.
 	 */
 	for (i = 0; i < 6; i++)
 		ndev->dev_addr[i] = fpi->macaddr[i];
-	
+
 	r = (*fep->ops->allocate_bd)(ndev);
-	
+
 	if (fep->ring_base == NULL) {
 		printk(KERN_ERR DRV_MODULE_NAME
 		       ": %s buffer descriptor alloc failed (%d).\n", ndev->name, r);
@@ -1028,7 +1031,7 @@ static struct net_device *fs_init_instance(struct device *dev,
 	fep->rx_ring = fpi->rx_ring;
 
 	/*
-	 * The FEC Ethernet specific entries in the device structure. 
+	 * The FEC Ethernet specific entries in the device structure.
 	 */
 	ndev->open = fs_enet_open;
 	ndev->hard_start_xmit = fs_enet_start_xmit;
@@ -1037,6 +1040,11 @@ static struct net_device *fs_init_instance(struct device *dev,
 	ndev->stop = fs_enet_close;
 	ndev->get_stats = fs_enet_get_stats;
 	ndev->set_multicast_list = fs_set_multicast_list;
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	ndev->poll_controller = fs_enet_netpoll;
+#endif
+
 	netif_napi_add(ndev, &fep->napi,
 		       fs_enet_rx_napi, fpi->napi_weight);
 
@@ -1251,7 +1259,7 @@ static int __init fs_init(void)
 err:
 	cleanup_immap();
 	return r;
-	
+
 }
 
 static void __exit fs_cleanup(void)
@@ -1261,6 +1269,15 @@ static void __exit fs_cleanup(void)
 	driver_unregister(&fs_enet_scc_driver);
 	cleanup_immap();
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void fs_enet_netpoll(struct net_device *dev)
+{
+       disable_irq(dev->irq);
+       fs_enet_interrupt(dev->irq, dev, NULL);
+       enable_irq(dev->irq);
+}
+#endif
 
 /**************************************************************************************/
 

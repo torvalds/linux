@@ -1,14 +1,14 @@
 /*
  * Freescale Ethernet controllers
  *
- * Copyright (c) 2005 Intracom S.A. 
+ * Copyright (c) 2005 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
  *
- * 2005 (c) MontaVista Software, Inc. 
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -95,9 +95,9 @@ static int whack_reset(fec_t * fecp)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-	struct platform_device *pdev = to_platform_device(fep->dev); 
+	struct platform_device *pdev = to_platform_device(fep->dev);
 	struct resource	*r;
-	
+
 	/* Fill out IRQ field */
 	fep->interrupt = platform_get_irq_byname(pdev,"interrupt");
 	if (fep->interrupt < 0)
@@ -110,7 +110,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		return -EINVAL;
 
 	return 0;
-	
+
 }
 
 #define FEC_NAPI_RX_EVENT_MSK	(FEC_ENET_RXF | FEC_ENET_RXB)
@@ -141,7 +141,7 @@ static int allocate_bd(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	const struct fs_platform_info *fpi = fep->fpi;
-	
+
 	fep->ring_base = dma_alloc_coherent(fep->dev,
 					    (fpi->tx_ring + fpi->rx_ring) *
 					    sizeof(cbd_t), &fep->ring_mem_addr,
@@ -280,13 +280,13 @@ static void restart(struct net_device *dev)
 	FW(fecp, addr_high, addrlo);
 
 	/*
-	 * Reset all multicast. 
+	 * Reset all multicast.
 	 */
 	FW(fecp, hash_table_high, fep->fec.hthi);
 	FW(fecp, hash_table_low, fep->fec.htlo);
 
 	/*
-	 * Set maximum receive buffer size. 
+	 * Set maximum receive buffer size.
 	 */
 	FW(fecp, r_buff_size, PKT_MAXBLR_SIZE);
 	FW(fecp, r_hash, PKT_MAXBUF_SIZE);
@@ -296,7 +296,7 @@ static void restart(struct net_device *dev)
 	tx_bd_base_phys = rx_bd_base_phys + sizeof(cbd_t) * fpi->rx_ring;
 
 	/*
-	 * Set receive and transmit descriptor base. 
+	 * Set receive and transmit descriptor base.
 	 */
 	FW(fecp, r_des_start, rx_bd_base_phys);
 	FW(fecp, x_des_start, tx_bd_base_phys);
@@ -304,7 +304,7 @@ static void restart(struct net_device *dev)
 	fs_init_bds(dev);
 
 	/*
-	 * Enable big endian and don't care about SDMA FC. 
+	 * Enable big endian and don't care about SDMA FC.
 	 */
 	FW(fecp, fun_code, 0x78000000);
 
@@ -366,13 +366,13 @@ static void restart(struct net_device *dev)
 	}
 
 	/*
-	 * Enable interrupts we wish to service. 
+	 * Enable interrupts we wish to service.
 	 */
 	FW(fecp, imask, FEC_ENET_TXF | FEC_ENET_TXB |
 	   FEC_ENET_RXF | FEC_ENET_RXB);
 
 	/*
-	 * And last, enable the transmit and receive processing. 
+	 * And last, enable the transmit and receive processing.
 	 */
 	FW(fecp, ecntrl, FEC_ECNTRL_PINMUX | FEC_ECNTRL_ETHER_EN);
 	FW(fecp, r_des_active, 0x01000000);
@@ -401,7 +401,7 @@ static void stop(struct net_device *dev)
 		       ": %s FEC timeout on graceful transmit stop\n",
 		       dev->name);
 	/*
-	 * Disable FEC. Let only MII interrupts. 
+	 * Disable FEC. Let only MII interrupts.
 	 */
 	FW(fecp, imask, 0);
 	FC(fecp, ecntrl, FEC_ECNTRL_ETHER_EN);

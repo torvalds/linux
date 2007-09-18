@@ -1,14 +1,14 @@
 /*
  * Ethernet on Serial Communications Controller (SCC) driver for Motorola MPC8xx and MPC82xx.
  *
- * Copyright (c) 2003 Intracom S.A. 
+ * Copyright (c) 2003 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
- * 
- * 2005 (c) MontaVista Software, Inc. 
+ *
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -82,7 +82,7 @@
 #define SCC_MAX_MULTICAST_ADDRS	64
 
 /*
- * Delay to wait for SCC reset command to complete (in us) 
+ * Delay to wait for SCC reset command to complete (in us)
  */
 #define SCC_RESET_DELAY		50
 #define MAX_CR_CMD_LOOPS	10000
@@ -189,7 +189,7 @@ static void cleanup_data(struct net_device *dev)
 }
 
 static void set_promiscuous_mode(struct net_device *dev)
-{				
+{
 	struct fs_enet_private *fep = netdev_priv(dev);
 	scc_t *sccp = fep->scc.sccp;
 
@@ -323,7 +323,7 @@ static void restart(struct net_device *dev)
 	W16(ep, sen_iaddr3, 0);
 	W16(ep, sen_iaddr4, 0);
 
-	/* set address 
+	/* set address
 	 */
 	mac = dev->dev_addr;
 	paddrh = ((u16) mac[5] << 8) | mac[4];
@@ -345,7 +345,7 @@ static void restart(struct net_device *dev)
 
 	W16(sccp, scc_scce, 0xffff);
 
-	/* Enable interrupts we wish to service. 
+	/* Enable interrupts we wish to service.
 	 */
 	W16(sccp, scc_sccm, SCCE_ENET_TXE | SCCE_ENET_RXF | SCCE_ENET_TXB);
 
@@ -373,7 +373,7 @@ static void restart(struct net_device *dev)
 	S32(sccp, scc_gsmrl, SCC_GSMRL_ENR | SCC_GSMRL_ENT);
 }
 
-static void stop(struct net_device *dev)	
+static void stop(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	scc_t *sccp = fep->scc.sccp;

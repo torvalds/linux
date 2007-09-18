@@ -1,14 +1,14 @@
 /*
  * FCC driver for Motorola MPC82xx (PQ2).
  *
- * Copyright (c) 2003 Intracom S.A. 
+ * Copyright (c) 2003 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
  *
- * 2005 (c) MontaVista Software, Inc. 
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -92,7 +92,7 @@ static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 mcn, u32 op)
 	u32 v;
 	int i;
 
-	/* Currently I don't know what feature call will look like. But 
+	/* Currently I don't know what feature call will look like. But
 	   I guess there'd be something like do_cpm_cmd() which will require page & sblock */
 	v = mk_cr_cmd(fpi->cp_page, fpi->cp_block, mcn, op);
 	W32(cpmp, cp_cpcr, v | CPM_CR_FLG);
@@ -548,7 +548,7 @@ int get_regs_len(struct net_device *dev)
  * down.  We now issue a restart transmit.  Since the
  * errors close the BD and update the pointers, the restart
  * _should_ pick up without having to reset any of our
- * pointers either.  Also, To workaround 8260 device erratum 
+ * pointers either.  Also, To workaround 8260 device erratum
  * CPM37, we must disable and then re-enable the transmitter
  * following a Late Collision, Underrun, or Retry Limit error.
  */
