@@ -238,14 +238,14 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 
 /* syscalls implemented in spufs */
 struct file;
-extern struct spufs_calls {
+struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
 					unsigned int flags, mode_t mode,
 					struct file *neighbor);
 	asmlinkage long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	struct module *owner;
-} spufs_calls;
+};
 
 /* coredump calls implemented in spufs */
 struct spu_coredump_calls {
@@ -274,18 +274,8 @@ struct spu_coredump_calls {
 #define SPU_CREATE_FLAG_ALL		0x003f /* mask of all valid flags */
 
 
-#ifdef CONFIG_SPU_FS_MODULE
 int register_spu_syscalls(struct spufs_calls *calls);
 void unregister_spu_syscalls(struct spufs_calls *calls);
-#else
-static inline int register_spu_syscalls(struct spufs_calls *calls)
-{
-	return 0;
-}
-static inline void unregister_spu_syscalls(struct spufs_calls *calls)
-{
-}
-#endif /* MODULE */
 
 int register_arch_coredump_calls(struct spu_coredump_calls *calls);
 void unregister_arch_coredump_calls(struct spu_coredump_calls *calls);

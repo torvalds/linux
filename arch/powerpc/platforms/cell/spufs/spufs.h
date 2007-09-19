@@ -200,6 +200,7 @@ extern struct tree_descr spufs_dir_contents[];
 extern struct tree_descr spufs_dir_nosched_contents[];
 
 /* system call implementation */
+extern struct spufs_calls spufs_calls;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(struct nameidata *nd, unsigned int flags,
 			mode_t mode, struct file *filp);
