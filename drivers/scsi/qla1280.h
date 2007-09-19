@@ -91,8 +91,8 @@
 #define INVALID_HANDLE			(MAX_OUTSTANDING_COMMANDS + 2)
 
 /* ISP request and response entry counts (37-65535) */
-#define REQUEST_ENTRY_CNT		256 /* Number of request entries. */
-#define RESPONSE_ENTRY_CNT		16  /* Number of response entries. */
+#define REQUEST_ENTRY_CNT		255 /* Number of request entries. */
+#define RESPONSE_ENTRY_CNT		63  /* Number of response entries. */
 
 /*
  * SCSI Request Block structure  (sp)  that is placed
