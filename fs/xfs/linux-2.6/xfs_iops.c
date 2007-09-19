@@ -179,18 +179,19 @@ xfs_ichgtime_fast(
  */
 STATIC void
 xfs_validate_fields(
-	struct inode	*ip,
-	bhv_vattr_t	*vattr)
+	struct inode		*inode)
 {
-	vattr->va_mask = XFS_AT_NLINK|XFS_AT_SIZE|XFS_AT_NBLOCKS;
-	if (!xfs_getattr(XFS_I(ip), vattr, ATTR_LAZY)) {
-		ip->i_nlink = vattr->va_nlink;
-		ip->i_blocks = vattr->va_nblocks;
+	struct xfs_inode	*ip = XFS_I(inode);
+	loff_t size;
 
-		/* we're under i_sem so i_size can't change under us */
-		if (i_size_read(ip) != vattr->va_size)
-			i_size_write(ip, vattr->va_size);
-	}
+	inode->i_nlink = ip->i_d.di_nlink;
+	inode->i_blocks =
+		XFS_FSB_TO_BB(ip->i_mount, ip->i_d.di_nblocks +
+					   ip->i_delayed_blks);
+	/* we're under i_sem so i_size can't change under us */
+	size = XFS_ISIZE(ip);
+	if (i_size_read(inode) != size)
+		i_size_write(inode, size);
 }
 
 /*
@@ -334,9 +335,9 @@ xfs_vn_mknod(
 		if (S_ISCHR(mode) || S_ISBLK(mode))
 			ip->i_rdev = rdev;
 		else if (S_ISDIR(mode))
-			xfs_validate_fields(ip, &vattr);
+			xfs_validate_fields(ip);
 		d_instantiate(dentry, ip);
-		xfs_validate_fields(dir, &vattr);
+		xfs_validate_fields(dir);
 	}
 	return -error;
 }
@@ -391,7 +392,6 @@ xfs_vn_link(
 {
 	struct inode	*ip;	/* inode of guy being linked to */
 	bhv_vnode_t	*vp;	/* vp of name being linked */
-	bhv_vattr_t	vattr;
 	int		error;
 
 	ip = old_dentry->d_inode;	/* inode being linked to */
@@ -403,7 +403,7 @@ xfs_vn_link(
 		VN_RELE(vp);
 	} else {
 		xfs_iflags_set(XFS_I(dir), XFS_IMODIFIED);
-		xfs_validate_fields(ip, &vattr);
+		xfs_validate_fields(ip);
 		d_instantiate(dentry, ip);
 	}
 	return -error;
@@ -415,15 +415,14 @@ xfs_vn_unlink(
 	struct dentry	*dentry)
 {
 	struct inode	*inode;
-	bhv_vattr_t	vattr;
 	int		error;
 
 	inode = dentry->d_inode;
 
 	error = xfs_remove(XFS_I(dir), dentry);
 	if (likely(!error)) {
-		xfs_validate_fields(dir, &vattr);	/* size needs update */
-		xfs_validate_fields(inode, &vattr);
+		xfs_validate_fields(dir);	/* size needs update */
+		xfs_validate_fields(inode);
 	}
 	return -error;
 }
@@ -451,8 +450,8 @@ xfs_vn_symlink(
 		if (likely(!error)) {
 			ip = vn_to_inode(cvp);
 			d_instantiate(dentry, ip);
-			xfs_validate_fields(dir, &va);
-			xfs_validate_fields(ip, &va);
+			xfs_validate_fields(dir);
+			xfs_validate_fields(ip);
 		} else {
 			xfs_cleanup_inode(dir, cvp, dentry, 0);
 		}
@@ -466,13 +465,12 @@ xfs_vn_rmdir(
 	struct dentry	*dentry)
 {
 	struct inode	*inode = dentry->d_inode;
-	bhv_vattr_t	vattr;
 	int		error;
 
 	error = xfs_rmdir(XFS_I(dir), dentry);
 	if (likely(!error)) {
-		xfs_validate_fields(inode, &vattr);
-		xfs_validate_fields(dir, &vattr);
+		xfs_validate_fields(inode);
+		xfs_validate_fields(dir);
 	}
 	return -error;
 }
@@ -486,7 +484,6 @@ xfs_vn_rename(
 {
 	struct inode	*new_inode = ndentry->d_inode;
 	bhv_vnode_t	*tvp;	/* target directory */
-	bhv_vattr_t	vattr;
 	int		error;
 
 	tvp = vn_from_inode(ndir);
@@ -494,10 +491,10 @@ xfs_vn_rename(
 	error = xfs_rename(XFS_I(odir), odentry, tvp, ndentry);
 	if (likely(!error)) {
 		if (new_inode)
-			xfs_validate_fields(new_inode, &vattr);
-		xfs_validate_fields(odir, &vattr);
+			xfs_validate_fields(new_inode);
+		xfs_validate_fields(odir);
 		if (ndir != odir)
-			xfs_validate_fields(ndir, &vattr);
+			xfs_validate_fields(ndir);
 	}
 	return -error;
 }
