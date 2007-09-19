@@ -62,7 +62,7 @@ static inline void uid_hash_insert(struct user_struct *up, struct hlist_head *ha
 
 static inline void uid_hash_remove(struct user_struct *up)
 {
-	hlist_del(&up->uidhash_node);
+	hlist_del_init(&up->uidhash_node);
 }
 
 static inline struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
@@ -199,6 +199,30 @@ void switch_uid(struct user_struct *new_user)
 	suid_keys(current);
 }
 
+void release_uids(struct user_namespace *ns)
+{
+	int i;
+	unsigned long flags;
+	struct hlist_head *head;
+	struct hlist_node *nd;
+
+	spin_lock_irqsave(&uidhash_lock, flags);
+	/*
+	 * collapse the chains so that the user_struct-s will
+	 * be still alive, but not in hashes. subsequent free_uid()
+	 * will free them.
+	 */
+	for (i = 0; i < UIDHASH_SZ; i++) {
+		head = ns->uidhash_table + i;
+		while (!hlist_empty(head)) {
+			nd = head->first;
+			hlist_del_init(nd);
+		}
+	}
+	spin_unlock_irqrestore(&uidhash_lock, flags);
+
+	free_uid(ns->root_user);
+}
 
 static int __init uid_cache_init(void)
 {
