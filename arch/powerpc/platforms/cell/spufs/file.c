@@ -199,9 +199,9 @@ static int spufs_mem_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 #ifdef CONFIG_SPU_FS_64K_LS
-unsigned long spufs_get_unmapped_area(struct file *file, unsigned long addr,
-				      unsigned long len, unsigned long pgoff,
-				      unsigned long flags)
+static unsigned long spufs_get_unmapped_area(struct file *file,
+		unsigned long addr, unsigned long len, unsigned long pgoff,
+		unsigned long flags)
 {
 	struct spu_context	*ctx = file->private_data;
 	struct spu_state	*csa = &ctx->csa;

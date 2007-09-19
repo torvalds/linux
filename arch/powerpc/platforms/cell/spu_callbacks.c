@@ -33,7 +33,7 @@
  *	mbind, mq_open, ipc, ...
  */
 
-void *spu_syscall_table[] = {
+static void *spu_syscall_table[] = {
 #define SYSCALL(func)		sys_ni_syscall,
 #define COMPAT_SYS(func)	sys_ni_syscall,
 #define PPC_SYS(func)		sys_ni_syscall,
