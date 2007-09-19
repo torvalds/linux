@@ -236,7 +236,9 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 	 * calibration process to start. Needs upto 5 sample periods on AD1848
 	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
 	 */
+	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	msleep(1);
+	spin_lock_irqsave(&chip->reg_lock, flags);
 
 	snd_printdd("(2) jiffies = %lu\n", jiffies);
 
