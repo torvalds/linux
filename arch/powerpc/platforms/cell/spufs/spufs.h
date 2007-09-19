@@ -296,7 +296,7 @@ struct spufs_coredump_reader {
 	char *name;
 	ssize_t (*read)(struct spu_context *ctx,
 			char __user *buffer, size_t size, loff_t *pos);
-	u64 (*get)(void *data);
+	u64 (*get)(struct spu_context *ctx);
 	size_t size;
 };
 extern struct spufs_coredump_reader spufs_coredump_read[];

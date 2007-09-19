@@ -1085,9 +1085,8 @@ static void spufs_signal1_type_set(void *data, u64 val)
 	spu_release(ctx);
 }
 
-static u64 __spufs_signal1_type_get(void *data)
+static u64 __spufs_signal1_type_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	return ctx->ops->signal1_type_get(ctx);
 }
 
@@ -1097,7 +1096,7 @@ static u64 spufs_signal1_type_get(void *data)
 	u64 ret;
 
 	spu_acquire(ctx);
-	ret = __spufs_signal1_type_get(data);
+	ret = __spufs_signal1_type_get(ctx);
 	spu_release(ctx);
 
 	return ret;
@@ -1114,9 +1113,8 @@ static void spufs_signal2_type_set(void *data, u64 val)
 	spu_release(ctx);
 }
 
-static u64 __spufs_signal2_type_get(void *data)
+static u64 __spufs_signal2_type_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	return ctx->ops->signal2_type_get(ctx);
 }
 
@@ -1126,7 +1124,7 @@ static u64 spufs_signal2_type_get(void *data)
 	u64 ret;
 
 	spu_acquire(ctx);
-	ret = __spufs_signal2_type_get(data);
+	ret = __spufs_signal2_type_get(ctx);
 	spu_release(ctx);
 
 	return ret;
@@ -1629,9 +1627,8 @@ static void spufs_decr_set(void *data, u64 val)
 	spu_release_saved(ctx);
 }
 
-static u64 __spufs_decr_get(void *data)
+static u64 __spufs_decr_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	return lscsa->decr.slot[0];
 }
@@ -1641,7 +1638,7 @@ static u64 spufs_decr_get(void *data)
 	struct spu_context *ctx = data;
 	u64 ret;
 	spu_acquire_saved(ctx);
-	ret = __spufs_decr_get(data);
+	ret = __spufs_decr_get(ctx);
 	spu_release_saved(ctx);
 	return ret;
 }
@@ -1659,9 +1656,8 @@ static void spufs_decr_status_set(void *data, u64 val)
 	spu_release_saved(ctx);
 }
 
-static u64 __spufs_decr_status_get(void *data)
+static u64 __spufs_decr_status_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	if (ctx->csa.priv2.mfc_control_RW & MFC_CNTL_DECREMENTER_RUNNING)
 		return SPU_DECR_STATUS_RUNNING;
 	else
@@ -1673,7 +1669,7 @@ static u64 spufs_decr_status_get(void *data)
 	struct spu_context *ctx = data;
 	u64 ret;
 	spu_acquire_saved(ctx);
-	ret = __spufs_decr_status_get(data);
+	ret = __spufs_decr_status_get(ctx);
 	spu_release_saved(ctx);
 	return ret;
 }
@@ -1689,9 +1685,8 @@ static void spufs_event_mask_set(void *data, u64 val)
 	spu_release_saved(ctx);
 }
 
-static u64 __spufs_event_mask_get(void *data)
+static u64 __spufs_event_mask_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
 	return lscsa->event_mask.slot[0];
 }
@@ -1701,16 +1696,15 @@ static u64 spufs_event_mask_get(void *data)
 	struct spu_context *ctx = data;
 	u64 ret;
 	spu_acquire_saved(ctx);
-	ret = __spufs_event_mask_get(data);
+	ret = __spufs_event_mask_get(ctx);
 	spu_release_saved(ctx);
 	return ret;
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_event_mask_ops, spufs_event_mask_get,
 			spufs_event_mask_set, "0x%llx\n")
 
-static u64 __spufs_event_status_get(void *data)
+static u64 __spufs_event_status_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	struct spu_state *state = &ctx->csa;
 	u64 stat;
 	stat = state->spu_chnlcnt_RW[0];
@@ -1725,7 +1719,7 @@ static u64 spufs_event_status_get(void *data)
 	u64 ret = 0;
 
 	spu_acquire_saved(ctx);
-	ret = __spufs_event_status_get(data);
+	ret = __spufs_event_status_get(ctx);
 	spu_release_saved(ctx);
 	return ret;
 }
@@ -1770,16 +1764,15 @@ static u64 spufs_id_get(void *data)
 }
 DEFINE_SIMPLE_ATTRIBUTE(spufs_id_ops, spufs_id_get, NULL, "0x%llx\n")
 
-static u64 __spufs_object_id_get(void *data)
+static u64 __spufs_object_id_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	return ctx->object_id;
 }
 
 static u64 spufs_object_id_get(void *data)
 {
 	/* FIXME: Should there really be no locking here? */
-	return __spufs_object_id_get(data);
+	return __spufs_object_id_get((struct spu_context *)data);
 }
 
 static void spufs_object_id_set(void *data, u64 id)
@@ -1791,9 +1784,8 @@ static void spufs_object_id_set(void *data, u64 id)
 DEFINE_SIMPLE_ATTRIBUTE(spufs_object_id_ops, spufs_object_id_get,
 		spufs_object_id_set, "0x%llx\n");
 
-static u64 __spufs_lslr_get(void *data)
+static u64 __spufs_lslr_get(struct spu_context *ctx)
 {
-	struct spu_context *ctx = data;
 	return ctx->csa.priv2.spu_lslr_RW;
 }
 
@@ -1803,7 +1795,7 @@ static u64 spufs_lslr_get(void *data)
 	u64 ret;
 
 	spu_acquire_saved(ctx);
-	ret = __spufs_lslr_get(data);
+	ret = __spufs_lslr_get(ctx);
 	spu_release_saved(ctx);
 
 	return ret;
