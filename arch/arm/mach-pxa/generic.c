@@ -123,7 +123,7 @@ EXPORT_SYMBOL(pxa_gpio_set_value);
 /*
  * Routine to safely enable or disable a clock in the CKEN
  */
-void pxa_set_cken(int clock, int enable)
+void __pxa_set_cken(int clock, int enable)
 {
 	unsigned long flags;
 	local_irq_save(flags);
@@ -136,7 +136,7 @@ void pxa_set_cken(int clock, int enable)
 	local_irq_restore(flags);
 }
 
-EXPORT_SYMBOL(pxa_set_cken);
+EXPORT_SYMBOL(__pxa_set_cken);
 
 /*
  * Intel PXA2xx internal register mapping.
