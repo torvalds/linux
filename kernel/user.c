@@ -55,21 +55,22 @@ struct user_struct root_user = {
 /*
  * These routines must be called with the uidhash spinlock held!
  */
-static inline void uid_hash_insert(struct user_struct *up, struct list_head *hashent)
+static inline void uid_hash_insert(struct user_struct *up, struct hlist_head *hashent)
 {
-	list_add(&up->uidhash_list, hashent);
+	hlist_add_head(&up->uidhash_node, hashent);
 }
 
 static inline void uid_hash_remove(struct user_struct *up)
 {
-	list_del(&up->uidhash_list);
+	hlist_del(&up->uidhash_node);
 }
 
-static inline struct user_struct *uid_hash_find(uid_t uid, struct list_head *hashent)
+static inline struct user_struct *uid_hash_find(uid_t uid, struct hlist_head *hashent)
 {
 	struct user_struct *user;
+	struct hlist_node *h;
 
-	list_for_each_entry(user, hashent, uidhash_list) {
+	hlist_for_each_entry(user, h, hashent, uidhash_node) {
 		if(user->uid == uid) {
 			atomic_inc(&user->__count);
 			return user;
@@ -118,7 +119,7 @@ void free_uid(struct user_struct *up)
 
 struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 {
-	struct list_head *hashent = uidhashentry(ns, uid);
+	struct hlist_head *hashent = uidhashentry(ns, uid);
 	struct user_struct *up;
 
 	spin_lock_irq(&uidhash_lock);
@@ -207,7 +208,7 @@ static int __init uid_cache_init(void)
 			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 
 	for(n = 0; n < UIDHASH_SZ; ++n)
-		INIT_LIST_HEAD(init_user_ns.uidhash_table + n);
+		INIT_HLIST_HEAD(init_user_ns.uidhash_table + n);
 
 	/* Insert the root user immediately (init already runs as root) */
 	spin_lock_irq(&uidhash_lock);

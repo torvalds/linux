@@ -39,7 +39,7 @@ static struct user_namespace *clone_user_ns(struct user_namespace *old_ns)
 	kref_init(&ns->kref);
 
 	for (n = 0; n < UIDHASH_SZ; ++n)
-		INIT_LIST_HEAD(ns->uidhash_table + n);
+		INIT_HLIST_HEAD(ns->uidhash_table + n);
 
 	/* Insert new root user.  */
 	ns->root_user = alloc_uid(ns, 0);
