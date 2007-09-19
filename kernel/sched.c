@@ -4550,10 +4550,7 @@ asmlinkage long sys_sched_yield(void)
 	struct rq *rq = this_rq_lock();
 
 	schedstat_inc(rq, yld_cnt);
-	if (unlikely(rq->nr_running == 1))
-		schedstat_inc(rq, yld_act_empty);
-	else
-		current->sched_class->yield_task(rq, current);
+	current->sched_class->yield_task(rq, current);
 
 	/*
 	 * Since we are going to call schedule() anyway, there's

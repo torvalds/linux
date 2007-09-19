@@ -43,6 +43,14 @@ unsigned int sysctl_sched_latency __read_mostly = 20000000ULL;
 unsigned int sysctl_sched_min_granularity __read_mostly = 2000000ULL;
 
 /*
+ * sys_sched_yield() compat mode
+ *
+ * This option switches the agressive yield implementation of the
+ * old scheduler back on.
+ */
+unsigned int __read_mostly sysctl_sched_compat_yield;
+
+/*
  * SCHED_BATCH wake-up granularity.
  * (default: 25 msec, units: nanoseconds)
  *
@@ -897,19 +905,62 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 }
 
 /*
- * sched_yield() support is very simple - we dequeue and enqueue
+ * sched_yield() support is very simple - we dequeue and enqueue.
+ *
+ * If compat_yield is turned on then we requeue to the end of the tree.
  */
 static void yield_task_fair(struct rq *rq, struct task_struct *p)
 {
 	struct cfs_rq *cfs_rq = task_cfs_rq(p);
+	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
+	struct sched_entity *rightmost, *se = &p->se;
+	struct rb_node *parent;
 
-	__update_rq_clock(rq);
 	/*
-	 * Dequeue and enqueue the task to update its
-	 * position within the tree:
+	 * Are we the only task in the tree?
 	 */
-	dequeue_entity(cfs_rq, &p->se, 0);
-	enqueue_entity(cfs_rq, &p->se, 0);
+	if (unlikely(cfs_rq->nr_running == 1))
+		return;
+
+	if (likely(!sysctl_sched_compat_yield)) {
+		__update_rq_clock(rq);
+		/*
+		 * Dequeue and enqueue the task to update its
+		 * position within the tree:
+		 */
+		dequeue_entity(cfs_rq, &p->se, 0);
+		enqueue_entity(cfs_rq, &p->se, 0);
+
+		return;
+	}
+	/*
+	 * Find the rightmost entry in the rbtree:
+	 */
+	do {
+		parent = *link;
+		link = &parent->rb_right;
+	} while (*link);
+
+	rightmost = rb_entry(parent, struct sched_entity, run_node);
+	/*
+	 * Already in the rightmost position?
+	 */
+	if (unlikely(rightmost == se))
+		return;
+
+	/*
+	 * Minimally necessary key value to be last in the tree:
+	 */
+	se->fair_key = rightmost->fair_key + 1;
+
+	if (cfs_rq->rb_leftmost == &se->run_node)
+		cfs_rq->rb_leftmost = rb_next(&se->run_node);
+	/*
+	 * Relink the task to the rightmost position:
+	 */
+	rb_erase(&se->run_node, &cfs_rq->tasks_timeline);
+	rb_link_node(&se->run_node, parent, link);
+	rb_insert_color(&se->run_node, &cfs_rq->tasks_timeline);
 }
 
 /*
