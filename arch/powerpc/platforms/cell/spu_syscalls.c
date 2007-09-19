@@ -2,6 +2,7 @@
  * SPU file system -- system call stubs
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
+ * (C) Copyright 2006-2007, IBM Corporation
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
  *
@@ -109,6 +110,35 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 
 	spufs_calls_put(calls);
 	return ret;
+}
+
+int arch_notes_size(void)
+{
+	struct spufs_calls *calls;
+	int ret;
+
+	calls = spufs_calls_get();
+	if (!calls)
+		return 0;
+
+	ret = calls->coredump_extra_notes_size();
+
+	spufs_calls_put(calls);
+
+	return ret;
+}
+
+void arch_write_notes(struct file *file)
+{
+	struct spufs_calls *calls;
+
+	calls = spufs_calls_get();
+	if (!calls)
+		return;
+
+	calls->coredump_extra_notes_write(file);
+
+	spufs_calls_put(calls);
 }
 
 int register_spu_syscalls(struct spufs_calls *calls)

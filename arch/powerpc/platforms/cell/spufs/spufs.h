@@ -204,6 +204,10 @@ extern struct spufs_calls spufs_calls;
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *status);
 long spufs_create(struct nameidata *nd, unsigned int flags,
 			mode_t mode, struct file *filp);
+/* ELF coredump callbacks for writing SPU ELF notes */
+extern int spufs_coredump_extra_notes_size(void);
+extern void spufs_coredump_extra_notes_write(struct file *file);
+
 extern const struct file_operations spufs_context_fops;
 
 /* gang management */

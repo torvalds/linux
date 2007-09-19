@@ -122,7 +122,7 @@ static struct spu_context *coredump_next_context(int *fd)
 	return ctx;
 }
 
-static int spufs_arch_notes_size(void)
+int spufs_coredump_extra_notes_size(void)
 {
 	struct spu_context *ctx;
 	int size = 0, rc, fd;
@@ -185,7 +185,7 @@ out:
 	free_page((unsigned long)buf);
 }
 
-static void spufs_arch_write_notes(struct file *file)
+void spufs_coredump_extra_notes_write(struct file *file)
 {
 	struct spu_context *ctx;
 	int fd, j;
@@ -200,9 +200,3 @@ static void spufs_arch_write_notes(struct file *file)
 		spu_release_saved(ctx);
 	}
 }
-
-struct spu_coredump_calls spufs_coredump_calls = {
-	.arch_notes_size = spufs_arch_notes_size,
-	.arch_write_notes = spufs_arch_write_notes,
-	.owner = THIS_MODULE,
-};

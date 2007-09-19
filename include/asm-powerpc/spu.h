@@ -244,13 +244,8 @@ struct spufs_calls {
 					struct file *neighbor);
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
-	struct module *owner;
-};
-
-/* coredump calls implemented in spufs */
-struct spu_coredump_calls {
-	asmlinkage int (*arch_notes_size)(void);
-	asmlinkage void (*arch_write_notes)(struct file *file);
+	int (*coredump_extra_notes_size)(void);
+	void (*coredump_extra_notes_write)(struct file *file);
 	struct module *owner;
 };
 
@@ -276,9 +271,6 @@ struct spu_coredump_calls {
 
 int register_spu_syscalls(struct spufs_calls *calls);
 void unregister_spu_syscalls(struct spufs_calls *calls);
-
-int register_arch_coredump_calls(struct spu_coredump_calls *calls);
-void unregister_arch_coredump_calls(struct spu_coredump_calls *calls);
 
 int spu_add_sysdev_attr(struct sysdev_attribute *attr);
 void spu_remove_sysdev_attr(struct sysdev_attribute *attr);

@@ -790,16 +790,11 @@ static int __init spufs_init(void)
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
 		goto out_fs;
-	ret = register_arch_coredump_calls(&spufs_coredump_calls);
-	if (ret)
-		goto out_syscalls;
 
 	spufs_init_isolated_loader();
 
 	return 0;
 
-out_syscalls:
-	unregister_spu_syscalls(&spufs_calls);
 out_fs:
 	unregister_filesystem(&spufs_type);
 out_sched:
@@ -815,7 +810,6 @@ static void __exit spufs_exit(void)
 {
 	spu_sched_exit();
 	spufs_exit_isolated_loader();
-	unregister_arch_coredump_calls(&spufs_coredump_calls);
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
 	kmem_cache_destroy(spufs_inode_cache);
