@@ -239,7 +239,7 @@ static void snapshot_tb_and_purr(void *data)
 	struct cpu_purr_data *p = &__get_cpu_var(cpu_purr_data);
 
 	local_irq_save(flags);
-	p->tb = mftb();
+	p->tb = get_tb_or_rtc();
 	p->purr = mfspr(SPRN_PURR);
 	wmb();
 	p->initialized = 1;
@@ -317,7 +317,7 @@ static void snapshot_purr(void)
  */
 void snapshot_timebase(void)
 {
-	__get_cpu_var(last_jiffy) = get_tb();
+	__get_cpu_var(last_jiffy) = get_tb_or_rtc();
 	snapshot_purr();
 }
 
@@ -684,6 +684,8 @@ void timer_interrupt(struct pt_regs * regs)
 
 		write_seqlock(&xtime_lock);
 		tb_next_jiffy = tb_last_jiffy + tb_ticks_per_jiffy;
+		if (__USE_RTC() && tb_next_jiffy >= 1000000000)
+			tb_next_jiffy -= 1000000000;
 		if (per_cpu(last_jiffy, cpu) >= tb_next_jiffy) {
 			tb_last_jiffy = tb_next_jiffy;
 			do_timer(1);
@@ -977,7 +979,7 @@ void __init time_init(void)
 	tb_to_ns_scale = scale;
 	tb_to_ns_shift = shift;
 	/* Save the current timebase to pretty up CONFIG_PRINTK_TIME */
-	boot_tb = get_tb();
+	boot_tb = get_tb_or_rtc();
 
 	tm = get_boot_time();
 
