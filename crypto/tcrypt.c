@@ -955,6 +955,10 @@ static void do_test(void)
 			    AES_LRW_ENC_TEST_VECTORS);
 		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
 			    AES_LRW_DEC_TEST_VECTORS);
+		test_cipher("xts(aes)", ENCRYPT, aes_xts_enc_tv_template,
+			    AES_XTS_ENC_TEST_VECTORS);
+		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
+			    AES_XTS_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,
@@ -1138,6 +1142,10 @@ static void do_test(void)
 			    AES_LRW_ENC_TEST_VECTORS);
 		test_cipher("lrw(aes)", DECRYPT, aes_lrw_dec_tv_template,
 			    AES_LRW_DEC_TEST_VECTORS);
+		test_cipher("xts(aes)", ENCRYPT, aes_xts_enc_tv_template,
+			    AES_XTS_ENC_TEST_VECTORS);
+		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
+			    AES_XTS_DEC_TEST_VECTORS);
 		break;
 
 	case 11:
@@ -1313,6 +1321,10 @@ static void do_test(void)
 				  aes_lrw_speed_template);
 		test_cipher_speed("lrw(aes)", DECRYPT, sec, NULL, 0,
 				  aes_lrw_speed_template);
+		test_cipher_speed("xts(aes)", ENCRYPT, sec, NULL, 0,
+				  aes_xts_speed_template);
+		test_cipher_speed("xts(aes)", DECRYPT, sec, NULL, 0,
+				  aes_xts_speed_template);
 		break;
 
 	case 201:
