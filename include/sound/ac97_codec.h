@@ -345,9 +345,9 @@
 #define AC97_ALC650_GPIO_STATUS		0x78
 #define AC97_ALC650_CLOCK		0x7a
 
-/* specific - Yamaha YMF753 */
-#define AC97_YMF753_DIT_CTRL2	0x66	/* DIT Control 2 */
-#define AC97_YMF753_3D_MODE_SEL	0x68	/* 3D Mode Select */
+/* specific - Yamaha YMF7x3 */
+#define AC97_YMF7X3_DIT_CTRL	0x66	/* DIT Control (YMF743) / 2 (YMF753) */
+#define AC97_YMF7X3_3D_MODE_SEL	0x68	/* 3D Mode Select */
 
 /* specific - C-Media */
 #define AC97_CM9738_VENDOR_CTRL	0x5a
