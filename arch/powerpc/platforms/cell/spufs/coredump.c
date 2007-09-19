@@ -109,15 +109,10 @@ static int spufs_ctx_note_size(struct spufs_ctx_info *ctx_info)
 	return total;
 }
 
-static int spufs_add_one_context(struct file *file, int dfd)
+static int spufs_add_one_context(struct spu_context *ctx, int dfd)
 {
-	struct spu_context *ctx;
 	struct spufs_ctx_info *ctx_info;
 	int size;
-
-	ctx = SPUFS_I(file->f_dentry->d_inode)->i_ctx;
-	if (ctx->flags & SPU_CREATE_NOSCHED)
-		return 0;
 
 	ctx_info = kzalloc(sizeof(*ctx_info), GFP_KERNEL);
 	if (unlikely(!ctx_info))
@@ -142,22 +137,45 @@ static int spufs_add_one_context(struct file *file, int dfd)
  * internal functionality to dump them without needing to actually
  * open the files.
  */
-static int spufs_arch_notes_size(void)
+static struct spu_context *coredump_next_context(int *fd)
 {
 	struct fdtable *fdt = files_fdtable(current->files);
-	int size = 0, fd;
+	struct file *file;
+	struct spu_context *ctx = NULL;
 
-	for (fd = 0; fd < fdt->max_fds; fd++) {
-		if (FD_ISSET(fd, fdt->open_fds)) {
-			struct file *file = fcheck(fd);
+	for (; *fd < fdt->max_fds; (*fd)++) {
+		if (!FD_ISSET(*fd, fdt->open_fds))
+			continue;
 
-			if (file && file->f_op == &spufs_context_fops) {
-				int rval = spufs_add_one_context(file, fd);
-				if (rval < 0)
-					break;
-				size += rval;
-			}
-		}
+		file = fcheck(*fd);
+
+		if (!file || file->f_op != &spufs_context_fops)
+			continue;
+
+		ctx = SPUFS_I(file->f_dentry->d_inode)->i_ctx;
+		if (ctx->flags & SPU_CREATE_NOSCHED)
+			continue;
+
+		/* start searching the next fd next time we're called */
+		(*fd)++;
+		break;
+	}
+
+	return ctx;
+}
+
+static int spufs_arch_notes_size(void)
+{
+	struct spu_context *ctx;
+	int size = 0, rc, fd;
+
+	fd = 0;
+	while ((ctx = coredump_next_context(&fd)) != NULL) {
+		rc = spufs_add_one_context(ctx, fd);
+		if (rc < 0)
+			break;
+
+		size += rc;
 	}
 
 	return size;
