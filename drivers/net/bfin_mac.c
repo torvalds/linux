@@ -463,7 +463,7 @@ void setup_system_regs(struct net_device *dev)
 	bfin_write_DMA1_Y_MODIFY(0);
 }
 
-void setup_mac_addr(u8 * mac_addr)
+static void setup_mac_addr(u8 *mac_addr)
 {
 	u32 addr_low = le32_to_cpu(*(__le32 *) & mac_addr[0]);
 	u16 addr_hi = le16_to_cpu(*(__le16 *) & mac_addr[4]);
@@ -471,6 +471,16 @@ void setup_mac_addr(u8 * mac_addr)
 	/* this depends on a little-endian machine */
 	bfin_write_EMAC_ADDRLO(addr_low);
 	bfin_write_EMAC_ADDRHI(addr_hi);
+}
+
+static int bf537mac_set_mac_address(struct net_device *dev, void *p)
+{
+	struct sockaddr *addr = p;
+	if (netif_running(dev))
+		return -EBUSY;
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	setup_mac_addr(dev->dev_addr);
+	return 0;
 }
 
 static void adjust_tx_list(void)
@@ -876,6 +886,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	dev->open = bf537mac_open;
 	dev->stop = bf537mac_close;
 	dev->hard_start_xmit = bf537mac_hard_start_xmit;
+	dev->set_mac_address = bf537mac_set_mac_address;
 	dev->tx_timeout = bf537mac_timeout;
 	dev->set_multicast_list = bf537mac_set_multicast_list;
 #ifdef CONFIG_NET_POLL_CONTROLLER
