@@ -239,10 +239,10 @@ extern long spu_sys_callback(struct spu_syscall_block *s);
 /* syscalls implemented in spufs */
 struct file;
 struct spufs_calls {
-	asmlinkage long (*create_thread)(const char __user *name,
+	long (*create_thread)(const char __user *name,
 					unsigned int flags, mode_t mode,
 					struct file *neighbor);
-	asmlinkage long (*spu_run)(struct file *filp, __u32 __user *unpc,
+	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	struct module *owner;
 };
