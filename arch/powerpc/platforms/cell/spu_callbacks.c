@@ -2,7 +2,7 @@
  * System call callback functions for SPUs
  */
 
-#define DEBUG
+#undef DEBUG
 
 #include <linux/kallsyms.h>
 #include <linux/module.h>
