@@ -132,19 +132,17 @@ int elf_coredump_extra_notes_size(void)
 int elf_coredump_extra_notes_write(struct file *file, loff_t *foffset)
 {
 	struct spufs_calls *calls;
+	int ret;
 
 	calls = spufs_calls_get();
 	if (!calls)
 		return 0;
 
-	calls->coredump_extra_notes_write(file);
+	ret = calls->coredump_extra_notes_write(file, foffset);
 
 	spufs_calls_put(calls);
 
-	/* Fudge foffset for now */
-	*foffset = file->f_pos;
-
-	return 0;
+	return ret;
 }
 
 int register_spu_syscalls(struct spufs_calls *calls)

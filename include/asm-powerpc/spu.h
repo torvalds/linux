@@ -245,7 +245,7 @@ struct spufs_calls {
 	long (*spu_run)(struct file *filp, __u32 __user *unpc,
 						__u32 __user *ustatus);
 	int (*coredump_extra_notes_size)(void);
-	void (*coredump_extra_notes_write)(struct file *file);
+	int (*coredump_extra_notes_write)(struct file *file, loff_t *foffset);
 	struct module *owner;
 };
 
