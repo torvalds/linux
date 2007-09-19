@@ -185,22 +185,101 @@ static void inline buffer_filled (struct tm6000_core *dev,
 /*
  * Identify the tm5600/6000 buffer header type and properly handles
  */
-static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
-			struct urb *urb, struct tm6000_buffer **buf)
+static u8 *copy_packet (struct urb *urb, u32 header, u8 *data, u8 *endp,
+			u8 *out_p, struct tm6000_buffer **buf)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	u8 *ptr=data, *endp=data+len;
+	u8 *ptr=data;
 	u8 c;
 	unsigned int cmd, cpysize, pktsize, size, field, block, line, pos=0;
-	unsigned long header;
-	int rc=0;
 
 	/* FIXME: this is the hardcoded window size
 	 */
 	unsigned int linesize=720*2;
 
 //static int last_line=-2;
+
+	if (!dev->isoc_ctl.cmd) {
+		c=(header>>24) & 0xff;
+
+		/* split the header fields */
+		size  = (((header & 0x7e)<<1) -1) *4;
+		block = (header>>7) & 0xf;
+		field = (header>>11) & 0x1;
+		line  = (header>>12) & 0x1ff;
+		cmd   = (header>>21) & 0x7;
+
+		/* Validates header fields */
+		if(size>TM6000_URB_MSG_LEN)
+			size=TM6000_URB_MSG_LEN;
+		if(block>=8)
+			cmd = TM6000_URB_MSG_ERR;
+
+		/* FIXME: Mounts the image as field0+field1
+		 * It should, instead, check if the user selected
+		 * entrelaced or non-entrelaced mode
+		 */
+		pos=((line<<1)+field)*linesize+
+					block*TM6000_URB_MSG_LEN;
+
+		/* Don't allow to write out of the buffer */
+		if (pos+TM6000_URB_MSG_LEN > (*buf)->vb.size)
+			cmd = TM6000_URB_MSG_ERR;
+
+		/* Prints debug info */
+		dprintk(dev, V4L2_DEBUG_ISOC, "size=%d, num=%d, "
+				" line=%d, field=%d\n",
+				size, block, line, field);
+
+		pktsize = TM6000_URB_MSG_LEN;
+/////////////////////////////
+/// nao seria size???
+
+	} else {
+		/* Continue the last copy */
+		cmd = dev->isoc_ctl.cmd;
+		size= dev->isoc_ctl.size;
+		pos = dev->isoc_ctl.pos;
+		pktsize = dev->isoc_ctl.pktsize;
+	}
+
+	cpysize=(endp-ptr>size)?size:endp-ptr;
+
+	if (cpysize) {
+		/* handles each different URB message */
+		switch(cmd) {
+		case TM6000_URB_MSG_VIDEO:
+			/* Fills video buffer */
+			bufcpy(*buf,&out_p[pos],ptr,cpysize);
+			break;
+		}
+	}
+	if (cpysize<size) {
+		/* End of URB packet, but cmd processing is not
+		 * complete. Preserve the state for a next packet
+		 */
+		dev->isoc_ctl.pos = pos+cpysize;
+		dev->isoc_ctl.size= size-cpysize;
+		dev->isoc_ctl.cmd = cmd;
+		dev->isoc_ctl.pktsize = pktsize-cpysize;
+		ptr+=cpysize;
+	} else {
+		dev->isoc_ctl.cmd = 0;
+		ptr+=pktsize;
+	}
+
+	return ptr;
+}
+
+static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
+			struct urb *urb, struct tm6000_buffer **buf)
+{
+	struct tm6000_dmaqueue  *dma_q = urb->context;
+	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
+	u8 *ptr=data, *endp=data+len;
+	u32 header=0;
+	int rc=0;
 
 	for (ptr=data; ptr<endp;) {
 		if (!dev->isoc_ctl.cmd) {
@@ -217,77 +296,10 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 			/* Get message header */
 			header=*(unsigned long *)ptr;
 			ptr+=4;
-			c=(header>>24) & 0xff;
-
-			/* split the header fields */
-			size  = (((header & 0x7e)<<1) -1) *4;
-			block = (header>>7) & 0xf;
-			field = (header>>11) & 0x1;
-			line  = (header>>12) & 0x1ff;
-			cmd   = (header>>21) & 0x7;
-
-			/* FIXME: Maximum possible line is 511.
-			 * This doesn't seem to be enough for PAL standards
-			 */
-
-			/* Validates header fields */
-			if(size>TM6000_URB_MSG_LEN)
-				size=TM6000_URB_MSG_LEN;
-			if(block>=8)
-				cmd = TM6000_URB_MSG_ERR;
-
-			/* FIXME: Mounts the image as field0+field1
-			 * It should, instead, check if the user selected
-			 * entrelaced or non-entrelaced mode
-			 */
-			pos=((line<<1)+field)*linesize+
-						block*TM6000_URB_MSG_LEN;
-
-
-
-			/* Don't allow to write out of the buffer */
-			if (pos+TM6000_URB_MSG_LEN > (*buf)->vb.size)
-				cmd = TM6000_URB_MSG_ERR;
-
-			/* Prints debug info */
-			dprintk(dev, V4L2_DEBUG_ISOC, "size=%d, num=%d, "
-					" line=%d, field=%d\n",
-					size, block, line, field);
-
-			dev->isoc_ctl.cmd  = cmd;
-			dev->isoc_ctl.size = size;
-			dev->isoc_ctl.pos  = pos;
-			dev->isoc_ctl.pktsize = pktsize = TM6000_URB_MSG_LEN;
-		} else {
-			cmd = dev->isoc_ctl.cmd;
-			size= dev->isoc_ctl.size;
-			pos = dev->isoc_ctl.pos;
-			pktsize = dev->isoc_ctl.pktsize;
 		}
-		cpysize=(endp-ptr>size)?size:endp-ptr;
 
-		if (cpysize) {
-			/* handles each different URB message */
-			switch(cmd) {
-			case TM6000_URB_MSG_VIDEO:
-				/* Fills video buffer */
-				bufcpy(*buf,&out_p[pos],ptr,cpysize);
-			break;
-			}
-		}
-		if (cpysize<size) {
-			/* End of URB packet, but cmd processing is not
-			 * complete. Preserve the state for a next packet
-			 */
-			dev->isoc_ctl.pos = pos+cpysize;
-			dev->isoc_ctl.size= size-cpysize;
-			dev->isoc_ctl.cmd = cmd;
-			dev->isoc_ctl.pktsize = pktsize-cpysize;
-			ptr+=cpysize;
-		} else {
-			dev->isoc_ctl.cmd = 0;
-			ptr+=pktsize;
-		}
+		/* Copy or continue last copy */
+		ptr=copy_packet(urb,header,ptr,endp,out_p,buf);
 	}
 
 	return rc;
@@ -809,7 +821,6 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 		/* Round to an enough number of URBs */
 		urbsize=(urbsize+dev->max_isoc_in-1)/dev->max_isoc_in;
-
 
 printk("Allocating %d packets to handle %lu size\n",  urbsize,buf->vb.size);
 
