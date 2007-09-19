@@ -474,7 +474,7 @@ static DECLARE_TRANSPORT_CLASS(fc_vport_class,
  */
 static unsigned int fc_dev_loss_tmo = 60;		/* seconds */
 
-module_param_named(dev_loss_tmo, fc_dev_loss_tmo, int, S_IRUGO|S_IWUSR);
+module_param_named(dev_loss_tmo, fc_dev_loss_tmo, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dev_loss_tmo,
 		 "Maximum number of seconds that the FC transport should"
 		 " insulate the loss of a remote port. Once this value is"
