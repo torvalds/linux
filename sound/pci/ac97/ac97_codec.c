@@ -176,7 +176,7 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x574d4C09, 0xffffffff, "WM9709",		NULL,		NULL},
 { 0x574d4C12, 0xffffffff, "WM9711,WM9712",	patch_wolfson11, NULL},
 { 0x574d4c13, 0xffffffff, "WM9713,WM9714",	patch_wolfson13, NULL, AC97_DEFAULT_POWER_OFF},
-{ 0x594d4800, 0xffffffff, "YMF743",		NULL,		NULL },
+{ 0x594d4800, 0xffffffff, "YMF743",		patch_yamaha_ymf743,	NULL },
 { 0x594d4802, 0xffffffff, "YMF752",		NULL,		NULL },
 { 0x594d4803, 0xffffffff, "YMF753",		patch_yamaha_ymf753,	NULL },
 { 0x83847600, 0xffffffff, "STAC9700,83,84",	patch_sigmatel_stac9700,	NULL },
@@ -779,6 +779,12 @@ static int snd_ac97_spdif_default_put(struct snd_kcontrol *kcontrol, struct snd_
 		change |= snd_ac97_update_bits_nolock(ac97, AC97_CXR_AUDIO_MISC, 
 						      AC97_CXR_SPDIF_MASK | AC97_CXR_COPYRGT,
 						      v);
+	} else if (ac97->id == AC97_ID_YMF743) {
+		change |= snd_ac97_update_bits_nolock(ac97,
+						      AC97_YMF7X3_DIT_CTRL,
+						      0xff38,
+						      ((val << 4) & 0xff00) |
+						      ((val << 2) & 0x0038));
 	} else {
 		unsigned short extst = snd_ac97_read_cache(ac97, AC97_EXTENDED_STATUS);
 		snd_ac97_update_bits_nolock(ac97, AC97_EXTENDED_STATUS, AC97_EA_SPDIF, 0); /* turn off */
@@ -1375,7 +1381,8 @@ static int snd_ac97_mixer_build(struct snd_ac97 * ac97)
 			for (idx = 0; idx < 2; idx++) {
 				if ((err = snd_ctl_add(card, kctl = snd_ac97_cnew(&snd_ac97_controls_tone[idx], ac97))) < 0)
 					return err;
-				if (ac97->id == AC97_ID_YMF753) {
+				if (ac97->id == AC97_ID_YMF743 ||
+				    ac97->id == AC97_ID_YMF753) {
 					kctl->private_value &= ~(0xff << 16);
 					kctl->private_value |= 7 << 16;
 				}

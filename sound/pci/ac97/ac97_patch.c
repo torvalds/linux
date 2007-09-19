@@ -204,6 +204,7 @@ static inline int is_shared_micin(struct snd_ac97 *ac97)
 
 
 /* The following snd_ac97_ymf753_... items added by David Shust (dshust@shustring.com) */
+/* Modified for YMF743 by Keita Maehara <maehara@debian.org> */
 
 /* It is possible to indicate to the Yamaha YMF7x3 the type of
    speakers being used. */
@@ -298,6 +299,74 @@ static int snd_ac97_ymf7x3_spdif_source_put(struct snd_kcontrol *kcontrol,
 	return snd_ac97_update_bits(ac97, AC97_YMF7X3_DIT_CTRL, 0x0002, val);
 }
 
+static int patch_yamaha_ymf7x3_3d(struct snd_ac97 *ac97)
+{
+	struct snd_kcontrol *kctl;
+	int err;
+
+	kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97);
+	err = snd_ctl_add(ac97->bus->card, kctl);
+	if (err < 0)
+		return err;
+	strcpy(kctl->id.name, "3D Control - Wide");
+	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 9, 7, 0);
+	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
+	err = snd_ctl_add(ac97->bus->card,
+			  snd_ac97_cnew(&snd_ac97_ymf7x3_controls_speaker,
+					ac97));
+	if (err < 0)
+		return err;
+	snd_ac97_write_cache(ac97, AC97_YMF7X3_3D_MODE_SEL, 0x0c00);
+	return 0;
+}
+
+static const struct snd_kcontrol_new snd_ac97_yamaha_ymf743_controls_spdif[3] =
+{
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", PLAYBACK, SWITCH),
+		    AC97_YMF7X3_DIT_CTRL, 0, 1, 0),
+	{
+		.iface	= SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name	= SNDRV_CTL_NAME_IEC958("", PLAYBACK, NONE) "Source",
+		.info	= snd_ac97_ymf7x3_spdif_source_info,
+		.get	= snd_ac97_ymf7x3_spdif_source_get,
+		.put	= snd_ac97_ymf7x3_spdif_source_put,
+	},
+	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
+		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
+};
+
+static int patch_yamaha_ymf743_build_spdif(struct snd_ac97 *ac97)
+{
+	int err;
+
+	err = patch_build_controls(ac97, &snd_ac97_controls_spdif[0], 3);
+	if (err < 0)
+		return err;
+	err = patch_build_controls(ac97,
+				   snd_ac97_yamaha_ymf743_controls_spdif, 3);
+	if (err < 0)
+		return err;
+	/* set default PCM S/PDIF params */
+	/* PCM audio,no copyright,no preemphasis,PCM coder,original */
+	snd_ac97_write_cache(ac97, AC97_YMF7X3_DIT_CTRL, 0xa201);
+	return 0;
+}
+
+static struct snd_ac97_build_ops patch_yamaha_ymf743_ops = {
+	.build_spdif	= patch_yamaha_ymf743_build_spdif,
+	.build_3d	= patch_yamaha_ymf7x3_3d,
+};
+
+static int patch_yamaha_ymf743(struct snd_ac97 *ac97)
+{
+	ac97->build_ops = &patch_yamaha_ymf743_ops;
+	ac97->caps |= AC97_BC_BASS_TREBLE;
+	ac97->caps |= 0x04 << 10; /* Yamaha 3D enhancement */
+	ac97->rates[AC97_RATES_SPDIF] = SNDRV_PCM_RATE_48000; /* 48k only */
+	ac97->ext_id |= AC97_EI_SPDIF; /* force the detection of spdif */
+	return 0;
+}
+
 /* The AC'97 spec states that the S/PDIF signal is to be output at pin 48.
    The YMF753 will output the S/PDIF signal to pin 43, 47 (EAPD), or 48.
    By default, no output pin is selected, and the S/PDIF signal is not output.
@@ -357,28 +426,6 @@ static const struct snd_kcontrol_new snd_ac97_ymf753_controls_spdif[3] = {
 	AC97_SINGLE(SNDRV_CTL_NAME_IEC958("", NONE, NONE) "Mute",
 		    AC97_YMF7X3_DIT_CTRL, 2, 1, 1)
 };
-
-static int patch_yamaha_ymf7x3_3d(struct snd_ac97 *ac97)
-{
-	struct snd_kcontrol *kctl;
-	int err;
-
-	kctl = snd_ac97_cnew(&snd_ac97_controls_3d[0], ac97);
-	err = snd_ctl_add(ac97->bus->card, kctl);
-	if (err < 0)
-		return err;
-	strcpy(kctl->id.name, "3D Control - Wide");
-	kctl->private_value = AC97_SINGLE_VALUE(AC97_3D_CONTROL, 9, 7, 0);
-	snd_ac97_write_cache(ac97, AC97_3D_CONTROL, 0x0000);
-
-	err = snd_ctl_add(ac97->bus->card,
-			  snd_ac97_cnew(&snd_ac97_ymf7x3_controls_speaker,
-					ac97));
-	if (err < 0)
-		return err;
-	snd_ac97_write_cache(ac97, AC97_YMF7X3_3D_MODE_SEL, 0x0c00);
-	return 0;
-}
 
 static int patch_yamaha_ymf753_post_spdif(struct snd_ac97 * ac97)
 {
