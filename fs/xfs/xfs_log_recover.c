@@ -1874,6 +1874,7 @@ xlog_recover_do_inode_buffer(
 /*ARGSUSED*/
 STATIC void
 xlog_recover_do_reg_buffer(
+	xfs_mount_t		*mp,
 	xlog_recover_item_t	*item,
 	xfs_buf_t		*bp,
 	xfs_buf_log_format_t	*buf_f)
@@ -1884,6 +1885,50 @@ xlog_recover_do_reg_buffer(
 	unsigned int		*data_map = NULL;
 	unsigned int		map_size = 0;
 	int                     error;
+	int			stale_buf = 1;
+
+	/*
+	 * Scan through the on-disk inode buffer and attempt to
+	 * determine if it has been written to since it was logged.
+	 *
+	 * - If any of the magic numbers are incorrect then the buffer is stale
+	 * - If any of the modes are non-zero then the buffer is not stale
+	 * - If all of the modes are zero and at least one of the generation
+	 *   counts is non-zero then the buffer is stale
+	 *
+	 * If the end result is a stale buffer then the log buffer is replayed
+	 * otherwise it is skipped.
+	 *
+	 * This heuristic is not perfect.  It can be improved by scanning the
+	 * entire inode chunk for evidence that any of the inode clusters have
+	 * been updated.  To fix this problem completely we will need a major
+	 * architectural change to the logging system.
+	 */
+	if (buf_f->blf_flags & XFS_BLI_INODE_NEW_BUF) {
+		xfs_dinode_t    *dip;
+		int             inodes_per_buf;
+		int		mode_count = 0;
+		int		gen_count = 0;
+
+		stale_buf = 0;
+		inodes_per_buf = XFS_BUF_COUNT(bp) >> mp->m_sb.sb_inodelog;
+		for (i = 0; i < inodes_per_buf; i++) {
+			dip = (xfs_dinode_t *)xfs_buf_offset(bp,
+				i * mp->m_sb.sb_inodesize);
+			if (be16_to_cpu(dip->di_core.di_magic) !=
+					XFS_DINODE_MAGIC) {
+				stale_buf = 1;
+				break;
+			}
+			if (be16_to_cpu(dip->di_core.di_mode))
+				mode_count++;
+			if (be16_to_cpu(dip->di_core.di_gen))
+				gen_count++;
+		}
+
+		if (!mode_count && gen_count)
+			stale_buf = 1;
+	}
 
 	switch (buf_f->blf_type) {
 	case XFS_LI_BUF:
@@ -1917,7 +1962,7 @@ xlog_recover_do_reg_buffer(
 					       -1, 0, XFS_QMOPT_DOWARN,
 					       "dquot_buf_recover");
 		}
-		if (!error)
+		if (!error && stale_buf)
 			memcpy(xfs_buf_offset(bp,
 				(uint)bit << XFS_BLI_SHIFT),	/* dest */
 				item->ri_buf[i].i_addr,		/* source */
@@ -2089,7 +2134,7 @@ xlog_recover_do_dquot_buffer(
 	if (log->l_quotaoffs_flag & type)
 		return;
 
-	xlog_recover_do_reg_buffer(item, bp, buf_f);
+	xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 }
 
 /*
@@ -2190,7 +2235,7 @@ xlog_recover_do_buffer_trans(
 		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
-		xlog_recover_do_reg_buffer(item, bp, buf_f);
+		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);
 	}
 	if (error)
 		return XFS_ERROR(error);

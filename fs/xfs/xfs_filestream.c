@@ -467,8 +467,7 @@ void
 xfs_filestream_flush(
 	xfs_mount_t	*mp)
 {
-	/* point in time flush, so keep the reaper running */
-	xfs_mru_cache_flush(mp->m_filestream, 1);
+	xfs_mru_cache_flush(mp->m_filestream);
 }
 
 /*
