@@ -672,7 +672,7 @@ static void bf537mac_poll(struct net_device *dev)
 }
 #endif				/* CONFIG_NET_POLL_CONTROLLER */
 
-static void bf537mac_reset(void)
+static void bf537mac_disable(void)
 {
 	unsigned int opmode;
 
@@ -730,7 +730,7 @@ static void bf537mac_timeout(struct net_device *dev)
 {
 	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
 
-	bf537mac_reset();
+	bf537mac_disable();
 
 	/* reset tx queue */
 	tx_list_tail = tx_list_head->next;
@@ -810,7 +810,7 @@ static int bf537mac_open(struct net_device *dev)
 
 	bf537mac_setphy(dev);
 	setup_system_regs(dev);
-	bf537mac_reset();
+	bf537mac_disable();
 	bf537mac_enable(dev);
 
 	pr_debug("hardware init finished\n");
@@ -968,15 +968,30 @@ static int bfin_mac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM
+static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+
+	if (netif_running(net_dev))
+		bf537mac_close(net_dev);
+
 	return 0;
 }
 
 static int bfin_mac_resume(struct platform_device *pdev)
 {
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+
+	if (netif_running(net_dev))
+		bf537mac_open(net_dev);
+
 	return 0;
 }
+#else
+#define bfin_mac_suspend NULL
+#define bfin_mac_resume NULL
+#endif	/* CONFIG_PM */
 
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,
