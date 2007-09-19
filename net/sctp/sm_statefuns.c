@@ -117,6 +117,13 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
+static sctp_disposition_t sctp_sf_violation_paramlen(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands);
+
 static sctp_disposition_t sctp_sf_violation_ctsn(
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
@@ -3296,8 +3303,11 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 {
 	struct sctp_chunk	*chunk = arg;
 	struct sctp_chunk	*asconf_ack = NULL;
+	struct sctp_paramhdr	*err_param = NULL;
 	sctp_addiphdr_t		*hdr;
+	union sctp_addr_param	*addr_param;
 	__u32			serial;
+	int			length;
 
 	if (!sctp_vtag_verify(chunk, asoc)) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_BAD_TAG,
@@ -3312,6 +3322,20 @@ sctp_disposition_t sctp_sf_do_asconf(const struct sctp_endpoint *ep,
 
 	hdr = (sctp_addiphdr_t *)chunk->skb->data;
 	serial = ntohl(hdr->serial);
+
+	addr_param = (union sctp_addr_param *)hdr->params;
+	length = ntohs(addr_param->p.length);
+	if (length < sizeof(sctp_paramhdr_t))
+		return sctp_sf_violation_paramlen(ep, asoc, type,
+			   (void *)addr_param, commands);
+
+	/* Verify the ASCONF chunk before processing it. */
+	if (!sctp_verify_asconf(asoc,
+	    (sctp_paramhdr_t *)((void *)addr_param + length),
+	    (void *)chunk->chunk_end,
+	    &err_param))
+		return sctp_sf_violation_paramlen(ep, asoc, type,
+			   (void *)&err_param, commands);
 
 	/* ADDIP 4.2 C1) Compare the value of the serial number to the value
 	 * the endpoint stored in a new association variable
@@ -3367,6 +3391,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 	struct sctp_chunk	*asconf_ack = arg;
 	struct sctp_chunk	*last_asconf = asoc->addip_last_asconf;
 	struct sctp_chunk	*abort;
+	struct sctp_paramhdr	*err_param = NULL;
 	sctp_addiphdr_t		*addip_hdr;
 	__u32			sent_serial, rcvd_serial;
 
@@ -3383,6 +3408,14 @@ sctp_disposition_t sctp_sf_do_asconf_ack(const struct sctp_endpoint *ep,
 
 	addip_hdr = (sctp_addiphdr_t *)asconf_ack->skb->data;
 	rcvd_serial = ntohl(addip_hdr->serial);
+
+	/* Verify the ASCONF-ACK chunk before processing it. */
+	if (!sctp_verify_asconf(asoc,
+	    (sctp_paramhdr_t *)addip_hdr->params,
+	    (void *)asconf_ack->chunk_end,
+	    &err_param))
+		return sctp_sf_violation_paramlen(ep, asoc, type,
+			   (void *)&err_param, commands);
 
 	if (last_asconf) {
 		addip_hdr = (sctp_addiphdr_t *)last_asconf->subh.addip_hdr;
@@ -3865,6 +3898,23 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 				     sctp_cmd_seq_t *commands)
 {
 	char err_str[]="The following chunk had invalid length:";
+
+	return sctp_sf_abort_violation(ep, asoc, arg, commands, err_str,
+					sizeof(err_str));
+}
+
+/*
+ * Handle a protocol violation when the parameter length is invalid.
+ * "Invalid" length is identified as smaller then the minimal length a
+ * given parameter can be.
+ */
+static sctp_disposition_t sctp_sf_violation_paramlen(
+				     const struct sctp_endpoint *ep,
+				     const struct sctp_association *asoc,
+				     const sctp_subtype_t type,
+				     void *arg,
+				     sctp_cmd_seq_t *commands) {
+	char err_str[] = "The following parameter had invalid length:";
 
 	return sctp_sf_abort_violation(ep, asoc, arg, commands, err_str,
 					sizeof(err_str));
