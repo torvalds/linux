@@ -71,12 +71,12 @@ config LOGITECH_FF
 	  force feedback.
 
 config PANTHERLORD_FF
-	bool "PantherLord USB/PS2 2in1 Adapter support"
+	bool "PantherLord/GreenAsia based device support"
 	depends on HID_FF
 	select INPUT_FF_MEMLESS if USB_HID
 	help
-	  Say Y here if you have a PantherLord USB/PS2 2in1 Adapter and want
-	  to enable force feedback support for it.
+	  Say Y here if you have a PantherLord/GreenAsia based game controller
+	  or adapter and want to enable force feedback support for it.
 
 config THRUSTMASTER_FF
 	bool "ThrustMaster devices support (EXPERIMENTAL)"

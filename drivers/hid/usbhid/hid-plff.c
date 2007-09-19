@@ -1,5 +1,15 @@
 /*
- *  Force feedback support for PantherLord USB/PS2 2in1 Adapter devices
+ *  Force feedback support for PantherLord/GreenAsia based devices
+ *
+ *  The devices are distributed under various names and the same USB device ID
+ *  can be used in both adapters and actual game controllers.
+ *
+ *  0810:0001 "Twin USB Joystick"
+ *   - tested with PantherLord USB/PS2 2in1 Adapter
+ *   - contains two reports, one for each port (HID_QUIRK_MULTI_INPUT)
+ *
+ *  0e8f:0003 "GreenAsia Inc.    USB Joystick     "
+ *   - tested with Köng Gaming gamepad
  *
  *  Copyright (c) 2007 Anssi Hannula <anssi.hannula@gmail.com>
  */
@@ -67,11 +77,11 @@ int hid_plff_init(struct hid_device *hid)
 	struct input_dev *dev;
 	int error;
 
-	/* The device contains 2 output reports (one for each
-	   HID_QUIRK_MULTI_INPUT device), both containing 1 field, which
-	   contains 4 ff00.0002 usages and 4 16bit absolute values.
+	/* The device contains one output report per physical device, all
+	   containing 1 field, which contains 4 ff00.0002 usages and 4 16bit
+	   absolute values.
 
-	   The 2 input reports also contain a field which contains
+	   The input reports also contain a field which contains
 	   8 ff00.0001 usages and 8 boolean values. Their meaning is
 	   currently unknown. */
 
@@ -122,8 +132,8 @@ int hid_plff_init(struct hid_device *hid)
 		usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
 	}
 
-	printk(KERN_INFO "hid-plff: Force feedback for PantherLord USB/PS2 "
-	       "2in1 Adapters by Anssi Hannula <anssi.hannula@gmail.com>\n");
+	printk(KERN_INFO "hid-plff: Force feedback for PantherLord/GreenAsia "
+	       "devices by Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;
 }
