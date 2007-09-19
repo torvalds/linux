@@ -212,7 +212,7 @@ static u8 *copy_packet (struct urb *urb, u32 header, u8 *data, u8 *endp,
 
 		/* Validates header fields */
 		if(size>TM6000_URB_MSG_LEN)
-			size=TM6000_URB_MSG_LEN;
+			size = TM6000_URB_MSG_LEN;
 		if(block>=8)
 			cmd = TM6000_URB_MSG_ERR;
 
@@ -220,8 +220,7 @@ static u8 *copy_packet (struct urb *urb, u32 header, u8 *data, u8 *endp,
 		 * It should, instead, check if the user selected
 		 * entrelaced or non-entrelaced mode
 		 */
-		pos=((line<<1)+field)*linesize+
-					block*TM6000_URB_MSG_LEN;
+		pos=((line<<1)+field)*linesize+block*TM6000_URB_MSG_LEN;
 
 		/* Don't allow to write out of the buffer */
 		if (pos+TM6000_URB_MSG_LEN > (*buf)->vb.size)
@@ -231,6 +230,7 @@ static u8 *copy_packet (struct urb *urb, u32 header, u8 *data, u8 *endp,
 		dprintk(dev, V4L2_DEBUG_ISOC, "size=%d, num=%d, "
 				" line=%d, field=%d\n",
 				size, block, line, field);
+
 
 		pktsize = TM6000_URB_MSG_LEN;
 /////////////////////////////
@@ -251,8 +251,9 @@ static u8 *copy_packet (struct urb *urb, u32 header, u8 *data, u8 *endp,
 		switch(cmd) {
 		case TM6000_URB_MSG_VIDEO:
 			/* Fills video buffer */
-			bufcpy(*buf,&out_p[pos],ptr,cpysize);
-			break;
+			if (__copy_to_user(&out_p[pos],ptr,cpysize)!=0)
+				tm6000_err("copy_to_user failed.\n");
+		break;
 		}
 	}
 	if (cpysize<size) {
@@ -278,26 +279,54 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
 	u8 *ptr=data, *endp=data+len;
-	u32 header=0;
+	unsigned long header=0;
 	int rc=0;
 
 	for (ptr=data; ptr<endp;) {
 		if (!dev->isoc_ctl.cmd) {
-			/* Seek for sync */
-			for (ptr+=3;ptr<endp;ptr++) {
-				if (*ptr==0x47) {
-					ptr-=3;
-					break;
+			u8 *p=(u8 *)&dev->isoc_ctl.tmp_buf;
+			/* FIXME: This seems very complex
+			 * It just recovers up to 3 bytes of the header that
+			 * might be at the previous packet
+			 */
+			if (dev->isoc_ctl.tmp_buf_len) {
+				while (dev->isoc_ctl.tmp_buf_len) {
+					if ( *(ptr+3-dev->isoc_ctl.tmp_buf_len) == 0x47) {
+						break;
+					}
+					p++;
+					dev->isoc_ctl.tmp_buf_len--;
+				}
+				if (dev->isoc_ctl.tmp_buf_len) {
+					memcpy (&header,p,
+						dev->isoc_ctl.tmp_buf_len);
+					memcpy (((u8 *)header)+
+						dev->isoc_ctl.tmp_buf,
+						ptr,
+						4-dev->isoc_ctl.tmp_buf_len);
+					ptr+=4-dev->isoc_ctl.tmp_buf_len;
+					goto HEADER;
 				}
 			}
-			if (ptr>=endp)
+			/* Seek for sync */
+			for (;ptr<endp-3;ptr++) {
+				if (*(ptr+3)==0x47)
+					break;
+			}
+
+			if (ptr+3>=endp) {
+				dev->isoc_ctl.tmp_buf_len=endp-ptr;
+				memcpy (&dev->isoc_ctl.tmp_buf,ptr,
+					dev->isoc_ctl.tmp_buf_len);
+				dev->isoc_ctl.cmd=0;
 				return rc;
+			}
 
 			/* Get message header */
 			header=*(unsigned long *)ptr;
 			ptr+=4;
 		}
-
+HEADER:
 		/* Copy or continue last copy */
 		ptr=copy_packet(urb,header,ptr,endp,out_p,buf);
 	}
@@ -581,7 +610,8 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			tm6000_err ("unable to allocate %i bytes for transfer"
-					" buffer %i\n", sb_size, i);
+					" buffer %i, in int=%i\n",
+					sb_size, i, in_interrupt());
 			tm6000_uninit_isoc(dev);
 			return -ENOMEM;
 		}

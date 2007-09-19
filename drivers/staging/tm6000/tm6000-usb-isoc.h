@@ -38,4 +38,7 @@ struct usb_isoc_ctl {
 
 		/* Last field: ODD or EVEN? */
 	int				field;
+
+	u32				tmp_buf;
+	int				tmp_buf_len;
 };
