@@ -119,7 +119,7 @@ void (*handlers[_NSIG])(int sig, struct sigcontext *sc);
 
 void handle_signal(int sig, struct sigcontext *sc)
 {
-	unsigned long pending = 0;
+	unsigned long pending = 1UL << sig;
 
 	do {
 		int nested, bail;
@@ -134,7 +134,7 @@ void handle_signal(int sig, struct sigcontext *sc)
 		 * have to return, and the upper handler will deal
 		 * with this interrupt.
 		 */
-		bail = to_irq_stack(sig, &pending);
+		bail = to_irq_stack(&pending);
 		if(bail)
 			return;
 
