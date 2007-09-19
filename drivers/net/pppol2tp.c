@@ -962,7 +962,6 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	int data_len = skb->len;
 	struct inet_sock *inet;
 	__wsum csum = 0;
-	struct sk_buff *skb2 = NULL;
 	struct udphdr *uh;
 	unsigned int len;
 
@@ -993,41 +992,30 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	 */
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		sizeof(struct udphdr) + hdr_len + sizeof(ppph);
-	if (skb_headroom(skb) < headroom) {
-		skb2 = skb_realloc_headroom(skb, headroom);
-		if (skb2 == NULL)
-			goto abort;
-	} else
-		skb2 = skb;
-
-	/* Check that the socket has room */
-	if (atomic_read(&sk_tun->sk_wmem_alloc) < sk_tun->sk_sndbuf)
-		skb_set_owner_w(skb2, sk_tun);
-	else
-		goto discard;
+	if (skb_cow_head(skb, headroom))
+		goto abort;
 
 	/* Setup PPP header */
-	skb_push(skb2, sizeof(ppph));
-	skb2->data[0] = ppph[0];
-	skb2->data[1] = ppph[1];
+	__skb_push(skb, sizeof(ppph));
+	skb->data[0] = ppph[0];
+	skb->data[1] = ppph[1];
 
 	/* Setup L2TP header */
-	skb_push(skb2, hdr_len);
-	pppol2tp_build_l2tp_header(session, skb2->data);
+	pppol2tp_build_l2tp_header(session, __skb_push(skb, hdr_len));
 
 	/* Setup UDP header */
 	inet = inet_sk(sk_tun);
-	skb_push(skb2, sizeof(struct udphdr));
-	skb_reset_transport_header(skb2);
-	uh = (struct udphdr *) skb2->data;
+	__skb_push(skb, sizeof(*uh));
+	skb_reset_transport_header(skb);
+	uh = udp_hdr(skb);
 	uh->source = inet->sport;
 	uh->dest = inet->dport;
 	uh->len = htons(sizeof(struct udphdr) + hdr_len + sizeof(ppph) + data_len);
 	uh->check = 0;
 
-	/* Calculate UDP checksum if configured to do so */
+	/* *BROKEN* Calculate UDP checksum if configured to do so */
 	if (sk_tun->sk_no_check != UDP_CSUM_NOXMIT)
-		csum = udp_csum_outgoing(sk_tun, skb2);
+		csum = udp_csum_outgoing(sk_tun, skb);
 
 	/* Debug */
 	if (session->send_seq)
@@ -1040,7 +1028,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 	if (session->debug & PPPOL2TP_MSG_DATA) {
 		int i;
-		unsigned char *datap = skb2->data;
+		unsigned char *datap = skb->data;
 
 		printk(KERN_DEBUG "%s: xmit:", session->name);
 		for (i = 0; i < data_len; i++) {
@@ -1053,18 +1041,18 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		printk("\n");
 	}
 
-	memset(&(IPCB(skb2)->opt), 0, sizeof(IPCB(skb2)->opt));
-	IPCB(skb2)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
-			       IPSKB_REROUTED);
-	nf_reset(skb2);
+	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
+			      IPSKB_REROUTED);
+	nf_reset(skb);
 
 	/* Get routing info from the tunnel socket */
-	dst_release(skb2->dst);
-	skb2->dst = sk_dst_get(sk_tun);
+	dst_release(skb->dst);
+	skb->dst = sk_dst_get(sk_tun);
 
 	/* Queue the packet to IP for output */
-	len = skb2->len;
-	rc = ip_queue_xmit(skb2, 1);
+	len = skb->len;
+	rc = ip_queue_xmit(skb, 1);
 
 	/* Update stats */
 	if (rc >= 0) {
@@ -1077,17 +1065,12 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		session->stats.tx_errors++;
 	}
 
-	/* Free the original skb */
-	kfree_skb(skb);
-
 	return 1;
 
-discard:
-	/* Free the new skb. Caller will free original skb. */
-	if (skb2 != skb)
-		kfree_skb(skb2);
 abort:
-	return 0;
+	/* Free the original skb */
+	kfree_skb(skb);
+	return 1;
 }
 
 /*****************************************************************************
