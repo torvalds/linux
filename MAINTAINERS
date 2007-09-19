@@ -1894,6 +1894,11 @@ M:	Gadi Oxman <gadio@netvision.net.il>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+IDE-SCSI DRIVER
+L:	linux-ide@vger.kernel.org
+L:	linux-scsi@vger.kernel.org
+S:	Orphan
+
 IEEE 1394 SUBSYSTEM
 P:	Ben Collins
 M:	ben.collins@ubuntu.com
