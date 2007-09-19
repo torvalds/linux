@@ -76,8 +76,8 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc, __u32 __user *ustatus)
 }
 #endif
 
-static asmlinkage long do_spu_create(const char __user *pathname,
-		unsigned int flags, mode_t mode, struct file *neighbor)
+static long do_spu_create(const char __user *pathname, unsigned int flags,
+		mode_t mode, struct file *neighbor)
 {
 	char *tmp;
 	int ret;
