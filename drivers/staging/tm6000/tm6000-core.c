@@ -442,6 +442,7 @@ int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm)
 
 	/* HACK: Should use, instead, the common code!!! */
 	if (*norm & V4L2_STD_PAL_M) {
+printk("calling PAL/M hack\n");
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xdf, 0x1f);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe2, 0x00);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe8, 0x0f);
@@ -472,6 +473,42 @@ int tm6000_set_standard (struct tm6000_core *dev, v4l2_std_id *norm)
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x04, 0xdc);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x0d, 0x07);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x3f, 0x00);
+		return 0;
+	}
+
+	if (*norm & V4L2_STD_PAL) {
+printk("calling PAL hack\n");
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xdf, 0x1f);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe2, 0x00);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe8, 0x0f);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xeb, 0x60);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xd5, 0x5f);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe3, 0x00);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xe5, 0x00);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x3f, 0x01);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00, 0x32);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x01, 0x0e);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x02, 0x5f);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x03, 0x02);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x07, 0x01);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x18, 0x25);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x19, 0xd5);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1a, 0x63);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1b, 0x50);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1c, 0x1c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1d, 0xcc);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1e, 0xcc);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x1f, 0xcd);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x2e, 0x8c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x30, 0x2c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x31, 0xc1);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x33, 0x0c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x35, 0x1c);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x82, 0x52);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x04, 0xdc);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x0d, 0x07);
+		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x3f, 0x00);
+
 		return 0;
 	}
 
