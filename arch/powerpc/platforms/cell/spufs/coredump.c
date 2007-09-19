@@ -135,7 +135,9 @@ static int spufs_arch_notes_size(void)
 
 	fd = 0;
 	while ((ctx = coredump_next_context(&fd)) != NULL) {
+		spu_acquire_saved(ctx);
 		rc = spufs_ctx_note_size(ctx, fd);
+		spu_release_saved(ctx);
 		if (rc < 0)
 			break;
 
