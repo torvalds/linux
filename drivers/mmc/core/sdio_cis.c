@@ -23,6 +23,54 @@
 #include "sdio_cis.h"
 #include "sdio_ops.h"
 
+static int cistpl_vers_1(struct mmc_card *card, struct sdio_func *func,
+			 const unsigned char *buf, unsigned size)
+{
+	unsigned i, nr_strings;
+	char **buffer, *string;
+
+	buf += 2;
+	size -= 2;
+
+	nr_strings = 0;
+	for (i = 0; i < size; i++) {
+		if (buf[i] == 0xff)
+			break;
+		if (buf[i] == 0)
+			nr_strings++;
+	}
+
+	if (buf[i-1] != '\0') {
+		printk(KERN_WARNING "SDIO: ignoring broken CISTPL_VERS_1\n");
+		return 0;
+	}
+
+	size = i;
+
+	buffer = kzalloc(sizeof(char*) * nr_strings + size, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	string = (char*)(buffer + nr_strings);
+
+	for (i = 0; i < nr_strings; i++) {
+		buffer[i] = string;
+		strcpy(string, buf);
+		string += strlen(string) + 1;
+		buf += strlen(buf) + 1;
+	}
+
+	if (func) {
+		func->num_info = nr_strings;
+		func->info = (const char**)buffer;
+	} else {
+		card->num_info = nr_strings;
+		card->info = (const char**)buffer;
+	}
+
+	return 0;
+}
+
 static int cistpl_manfid(struct mmc_card *card, struct sdio_func *func,
 			 const unsigned char *buf, unsigned size)
 {
@@ -119,7 +167,7 @@ struct cis_tpl {
 };
 
 static const struct cis_tpl cis_tpl_list[] = {
-	{	0x15,	3,	/* cistpl_vers_1 */	},
+	{	0x15,	3,	cistpl_vers_1		},
 	{	0x20,	4,	cistpl_manfid		},
 	{	0x21,	2,	/* cistpl_funcid */	},
 	{	0x22,	0,	cistpl_funce		},

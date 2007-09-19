@@ -51,6 +51,9 @@ struct sdio_func {
 
 	u8			tmpbuf[4];	/* DMA:able scratch buffer */
 
+	unsigned		num_info;	/* number of info strings */
+	const char		**info;		/* info strings */
+
 	struct sdio_func_tuple *tuples;
 };
 
