@@ -31,15 +31,19 @@ static DEFINE_MUTEX(spu_coredump_mutex);
 
 int arch_notes_size(void)
 {
-	long ret;
+	int ret;
 
-	ret = -ENOSYS;
 	mutex_lock(&spu_coredump_mutex);
+
 	if (spu_coredump_calls && try_module_get(spu_coredump_calls->owner)) {
 		ret = spu_coredump_calls->arch_notes_size();
 		module_put(spu_coredump_calls->owner);
+	} else {
+		ret = 0;
 	}
+
 	mutex_unlock(&spu_coredump_mutex);
+
 	return ret;
 }
 
