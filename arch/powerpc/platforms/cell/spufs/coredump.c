@@ -66,11 +66,6 @@ static int spufs_dump_seek(struct file *file, loff_t off)
 	return 1;
 }
 
-static u64 ctx_ls_size(struct spu_context *ctx)
-{
-	return ctx->csa.priv2.spu_lslr_RW + 1;
-}
-
 static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 {
 	int i, sz, total = 0;
@@ -85,10 +80,7 @@ static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 
 		total += sizeof(struct elf_note);
 		total += roundup(strlen(fullname) + 1, 4);
-		if (!strcmp(name, "mem"))
-			total += roundup(ctx_ls_size(ctx), 4);
-		else
-			total += roundup(sz, 4);
+		total += roundup(sz, 4);
 	}
 
 	return total;
@@ -164,11 +156,7 @@ static void spufs_arch_write_note(struct spu_context *ctx, int i,
 		return;
 
 	name = spufs_coredump_read[i].name;
-
-	if (!strcmp(name, "mem"))
-		sz = ctx_ls_size(ctx);
-	else
-		sz = spufs_coredump_read[i].size;
+	sz = spufs_coredump_read[i].size;
 
 	sprintf(fullname, "SPU/%d/%s", dfd, name);
 	en.n_namesz = strlen(fullname) + 1;
