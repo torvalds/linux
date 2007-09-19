@@ -31,7 +31,7 @@
 
 #include "spufs.h"
 
-static ssize_t do_coredump_read(int num, struct spu_context *ctx, void __user *buffer,
+static ssize_t do_coredump_read(int num, struct spu_context *ctx, void *buffer,
 				size_t size, loff_t *off)
 {
 	u64 data;
@@ -41,8 +41,10 @@ static ssize_t do_coredump_read(int num, struct spu_context *ctx, void __user *b
 		return spufs_coredump_read[num].read(ctx, buffer, size, off);
 
 	data = spufs_coredump_read[num].get(ctx);
-	ret = copy_to_user(buffer, &data, 8);
-	return ret ? -EFAULT : 8;
+	ret = snprintf(buffer, size, "0x%.16lx", data);
+	if (ret >= size)
+		return size;
+	return ++ret; /* count trailing NULL */
 }
 
 /*
