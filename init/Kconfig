@@ -488,6 +488,7 @@ config SIGNALFD
 config TIMERFD
 	bool "Enable timerfd() system call" if EMBEDDED
 	select ANON_INODES
+	depends on BROKEN
 	default y
 	help
 	  Enable the timerfd() system call that allows to receive timer
