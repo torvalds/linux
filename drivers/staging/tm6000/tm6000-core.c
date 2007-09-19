@@ -722,9 +722,11 @@ printk("Original value=%d\n",val);
 	switch (bitrate) {
 	case 44100:
 		val|=0xd0;
+		dev->audio_bitrate=bitrate;
 		break;
 	case 48000:
 		val|=0x60;
+		dev->audio_bitrate=bitrate;
 		break;
 	}
 	val=tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xeb, val);

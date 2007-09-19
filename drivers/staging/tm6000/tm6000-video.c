@@ -566,8 +566,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		dev->isoc_ctl.urb[i] = urb;
 
 		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->udev,
-			sb_size, GFP_KERNEL,
-			&dev->isoc_ctl.urb[i]->transfer_dma);
+			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			tm6000_err ("unable to allocate %i bytes for transfer"
 					" buffer %i\n", sb_size, i);
@@ -787,14 +786,32 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		urb_init=1;
 
 	if (urb_init) {
-		/* Should allocate/request at least h
-		   res x v res x 2 bytes/pixel */
-		urbsize=(buf->vb.size+dev->max_isoc_in-1)/dev->max_isoc_in;
+		/* memory for video
+		   Should be at least
+		   Vres x Vres x 2 bytes/pixel by frame */
+		urbsize=buf->vb.size;
 
-		 /* Hack to allocate memory for Video + Audio */
-		/* FIXME: should also consider header ovehead of
-		   4 bytes/180 bytes */
-		urbsize+=((48000*4+24)/25+dev->max_isoc_in-1)/dev->max_isoc_in;
+		 /* memory for audio
+		    Should be at least
+		    bitrate * 2 channels * 2 bytes / frame rate */
+		if (dev->norm & V4L2_STD_525_60) {
+			urbsize+=(dev->audio_bitrate*4+29)/30;
+		} else {
+			urbsize+=(dev->audio_bitrate*4+24)/25;
+		}
+
+		/* each audio frame seeems to have a frame number
+		   with 2 bytes */
+		urbsize+=2;
+
+		/* Add 4 bytes by each 180 bytes frame */
+		urbsize+=((urbsize+179)/180)*4;
+
+		/* Round to an enough number of URBs */
+		urbsize=(urbsize+dev->max_isoc_in-1)/dev->max_isoc_in;
+
+
+printk("Allocating %d packets to handle %lu size\n",  urbsize,buf->vb.size);
 
 		dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d packets to handle "
 					"%lu size\n", urbsize,buf->vb.size);

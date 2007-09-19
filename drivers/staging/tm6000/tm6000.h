@@ -137,6 +137,7 @@ struct tm6000_core {
 	/* Demodulator configuration */
 	int				demod_addr;	/* demodulator address */
 
+	int				audio_bitrate;
 	/* i2c i/o */
 	struct i2c_adapter		i2c_adap;
 	struct i2c_client		i2c_client;
