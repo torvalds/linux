@@ -67,13 +67,9 @@ static inline void uid_hash_remove(struct user_struct *up)
 
 static inline struct user_struct *uid_hash_find(uid_t uid, struct list_head *hashent)
 {
-	struct list_head *up;
+	struct user_struct *user;
 
-	list_for_each(up, hashent) {
-		struct user_struct *user;
-
-		user = list_entry(up, struct user_struct, uidhash_list);
-
+	list_for_each_entry(user, hashent, uidhash_list) {
 		if(user->uid == uid) {
 			atomic_inc(&user->__count);
 			return user;
