@@ -1211,12 +1211,42 @@ static void set_datagram_seg(struct mlx4_wqe_datagram_seg *dseg,
 	dseg->qkey = cpu_to_be32(wr->wr.ud.remote_qkey);
 }
 
-static void set_data_seg(struct mlx4_wqe_data_seg *dseg,
-			 struct ib_sge *sg)
+static void set_mlx_icrc_seg(void *dseg)
 {
-	dseg->byte_count = cpu_to_be32(sg->length);
+	u32 *t = dseg;
+	struct mlx4_wqe_inline_seg *iseg = dseg;
+
+	t[1] = 0;
+
+	/*
+	 * Need a barrier here before writing the byte_count field to
+	 * make sure that all the data is visible before the
+	 * byte_count field is set.  Otherwise, if the segment begins
+	 * a new cacheline, the HCA prefetcher could grab the 64-byte
+	 * chunk and get a valid (!= * 0xffffffff) byte count but
+	 * stale data, and end up sending the wrong data.
+	 */
+	wmb();
+
+	iseg->byte_count = cpu_to_be32((1 << 31) | 4);
+}
+
+static void set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
+{
 	dseg->lkey       = cpu_to_be32(sg->lkey);
 	dseg->addr       = cpu_to_be64(sg->addr);
+
+	/*
+	 * Need a barrier here before writing the byte_count field to
+	 * make sure that all the data is visible before the
+	 * byte_count field is set.  Otherwise, if the segment begins
+	 * a new cacheline, the HCA prefetcher could grab the 64-byte
+	 * chunk and get a valid (!= * 0xffffffff) byte count but
+	 * stale data, and end up sending the wrong data.
+	 */
+	wmb();
+
+	dseg->byte_count = cpu_to_be32(sg->length);
 }
 
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
@@ -1225,6 +1255,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	struct mlx4_ib_qp *qp = to_mqp(ibqp);
 	void *wqe;
 	struct mlx4_wqe_ctrl_seg *ctrl;
+	struct mlx4_wqe_data_seg *dseg;
 	unsigned long flags;
 	int nreq;
 	int err = 0;
@@ -1324,21 +1355,26 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			break;
 		}
 
-		for (i = 0; i < wr->num_sge; ++i) {
-			set_data_seg(wqe, wr->sg_list + i);
+		/*
+		 * Write data segments in reverse order, so as to
+		 * overwrite cacheline stamp last within each
+		 * cacheline.  This avoids issues with WQE
+		 * prefetching.
+		 */
 
-			wqe  += sizeof (struct mlx4_wqe_data_seg);
-			size += sizeof (struct mlx4_wqe_data_seg) / 16;
-		}
+		dseg = wqe;
+		dseg += wr->num_sge - 1;
+		size += wr->num_sge * (sizeof (struct mlx4_wqe_data_seg) / 16);
 
 		/* Add one more inline data segment for ICRC for MLX sends */
-		if (qp->ibqp.qp_type == IB_QPT_SMI || qp->ibqp.qp_type == IB_QPT_GSI) {
-			((struct mlx4_wqe_inline_seg *) wqe)->byte_count =
-				cpu_to_be32((1 << 31) | 4);
-			((u32 *) wqe)[1] = 0;
-			wqe  += sizeof (struct mlx4_wqe_data_seg);
+		if (unlikely(qp->ibqp.qp_type == IB_QPT_SMI ||
+			     qp->ibqp.qp_type == IB_QPT_GSI)) {
+			set_mlx_icrc_seg(dseg + 1);
 			size += sizeof (struct mlx4_wqe_data_seg) / 16;
 		}
+
+		for (i = wr->num_sge - 1; i >= 0; --i, --dseg)
+			set_data_seg(dseg, wr->sg_list + i);
 
 		ctrl->fence_size = (wr->send_flags & IB_SEND_FENCE ?
 				    MLX4_WQE_CTRL_FENCE : 0) | size;
