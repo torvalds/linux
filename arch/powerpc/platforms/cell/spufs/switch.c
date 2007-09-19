@@ -1559,15 +1559,15 @@ static inline void restore_decr_wrapped(struct spu_state *csa, struct spu *spu)
 	 *     "wrapped" flag is set, OR in a '1' to
 	 *     CSA.SPU_Event_Status[Tm].
 	 */
-	if (csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) {
-		csa->spu_chnldata_RW[0] |= 0x20;
-	}
-	if ((csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED) &&
-	    (csa->spu_chnlcnt_RW[0] == 0 &&
-	     ((csa->spu_chnldata_RW[2] & 0x20) == 0x0) &&
-	     ((csa->spu_chnldata_RW[0] & 0x20) != 0x1))) {
+	if (!(csa->lscsa->decr_status.slot[0] & SPU_DECR_STATUS_WRAPPED))
+		return;
+
+	if ((csa->spu_chnlcnt_RW[0] == 0) &&
+	    (csa->spu_chnldata_RW[1] & 0x20) &&
+	    !(csa->spu_chnldata_RW[0] & 0x20))
 		csa->spu_chnlcnt_RW[0] = 1;
-	}
+
+	csa->spu_chnldata_RW[0] |= 0x20;
 }
 
 static inline void restore_ch_part1(struct spu_state *csa, struct spu *spu)
