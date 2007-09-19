@@ -345,8 +345,7 @@ void ssb_chipco_timing_init(struct ssb_chipcommon *cc,
 }
 
 /* Set chip watchdog reset timer to fire in 'ticks' backplane cycles */
-void
-ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
+void ssb_chipco_watchdog_timer_set(struct ssb_chipcommon *cc, u32 ticks)
 {
 	/* instant NMI */
 	chipco_write32(cc, SSB_CHIPCO_WATCHDOG, ticks);
@@ -359,12 +358,12 @@ u32 ssb_chipco_gpio_in(struct ssb_chipcommon *cc, u32 mask)
 
 void ssb_chipco_gpio_out(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
+	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUT, mask, value);
 }
 
 void ssb_chipco_gpio_outen(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
-	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
+	chipco_write32_masked(cc, SSB_CHIPCO_GPIOOUTEN, mask, value);
 }
 
 #ifdef CONFIG_SSB_SERIAL

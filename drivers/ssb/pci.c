@@ -306,15 +306,15 @@ static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
 	SPEX(pci_pid, SSB_SPROM1_PID, 0xFFFF, 0);
 	for (i = 0; i < 3; i++) {
 		v = in[SPOFF(SSB_SPROM1_IL0MAC) + i];
-		*(((u16 *)out->il0mac) + i) = cpu_to_be16(v);
+		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
 	for (i = 0; i < 3; i++) {
 		v = in[SPOFF(SSB_SPROM1_ET0MAC) + i];
-		*(((u16 *)out->et0mac) + i) = cpu_to_be16(v);
+		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
 	}
 	for (i = 0; i < 3; i++) {
 		v = in[SPOFF(SSB_SPROM1_ET1MAC) + i];
-		*(((u16 *)out->et1mac) + i) = cpu_to_be16(v);
+		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
 	}
 	SPEX(et0phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0A, 0);
 	SPEX(et1phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1A,
@@ -352,7 +352,7 @@ static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
 	     SSB_SPROM1_AGAIN_BG_SHIFT);
 	for (i = 0; i < 4; i++) {
 		v = in[SPOFF(SSB_SPROM1_OEM) + i];
-		*(((u16 *)out->oem) + i) = cpu_to_le16(v);
+		*(((__le16 *)out->oem) + i) = cpu_to_le16(v);
 	}
 }
 
@@ -374,7 +374,7 @@ static void sprom_extract_r2(struct ssb_sprom_r2 *out, const u16 *in)
 	SPEX(ofdm_pwr_off, SSB_SPROM2_OPO, SSB_SPROM2_OPO_VALUE, 0);
 	for (i = 0; i < 4; i++) {
 		v = in[SPOFF(SSB_SPROM2_CCODE) + i];
-		*(((u16 *)out->country_str) + i) = cpu_to_le16(v);
+		*(((__le16 *)out->country_str) + i) = cpu_to_le16(v);
 	}
 }
 
