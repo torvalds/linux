@@ -2086,6 +2086,8 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
 	ipath_cancel_sends(dd, 0);
 
+	signal_ib_event(dd, IB_EVENT_PORT_ERR);
+
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,

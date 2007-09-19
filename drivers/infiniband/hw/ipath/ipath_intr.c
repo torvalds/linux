@@ -275,6 +275,16 @@ static char *ib_linkstate(u32 linkstate)
 	return ret;
 }
 
+void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev)
+{
+	struct ib_event event;
+
+	event.device = &dd->verbs_dev->ibdev;
+	event.element.port_num = 1;
+	event.event = ev;
+	ib_dispatch_event(&event);
+}
+
 static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 				     ipath_err_t errs, int noprint)
 {
@@ -373,6 +383,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 	dd->ipath_ibpollcnt = 0;	/* some state other than 2 or 3 */
 	ipath_stats.sps_iblink++;
 	if (ltstate != INFINIPATH_IBCS_LT_STATE_LINKUP) {
+		if (dd->ipath_flags & IPATH_LINKACTIVE)
+			signal_ib_event(dd, IB_EVENT_PORT_ERR);
 		dd->ipath_flags |= IPATH_LINKDOWN;
 		dd->ipath_flags &= ~(IPATH_LINKUNK | IPATH_LINKINIT
 				     | IPATH_LINKACTIVE |
@@ -405,7 +417,10 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 		*dd->ipath_statusp |=
 			IPATH_STATUS_IB_READY | IPATH_STATUS_IB_CONF;
 		dd->ipath_f_setextled(dd, lstate, ltstate);
+		signal_ib_event(dd, IB_EVENT_PORT_ACTIVE);
 	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_INIT) {
+		if (dd->ipath_flags & IPATH_LINKACTIVE)
+			signal_ib_event(dd, IB_EVENT_PORT_ERR);
 		/*
 		 * set INIT and DOWN.  Down is checked by most of the other
 		 * code, but INIT is useful to know in a few places.
@@ -418,6 +433,8 @@ static void handle_e_ibstatuschanged(struct ipath_devdata *dd,
 					| IPATH_STATUS_IB_READY);
 		dd->ipath_f_setextled(dd, lstate, ltstate);
 	} else if ((val & IPATH_IBSTATE_MASK) == IPATH_IBSTATE_ARM) {
+		if (dd->ipath_flags & IPATH_LINKACTIVE)
+			signal_ib_event(dd, IB_EVENT_PORT_ERR);
 		dd->ipath_flags |= IPATH_LINKARMED;
 		dd->ipath_flags &=
 			~(IPATH_LINKUNK | IPATH_LINKDOWN | IPATH_LINKINIT |

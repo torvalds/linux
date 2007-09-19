@@ -948,6 +948,7 @@ bail:
 int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 		     u32 hdrwords, struct ipath_sge_state *ss, u32 len)
 {
+	struct ipath_devdata *dd = to_idev(qp->ibqp.device)->dd;
 	u32 plen;
 	int ret;
 	u32 dwords = (len + 3) >> 2;
@@ -955,8 +956,15 @@ int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 	/* +1 is for the qword padding of pbc */
 	plen = hdrwords + dwords + 1;
 
-	ret = ipath_verbs_send_pio(qp, (u32 *) hdr, hdrwords,
-				   ss, len, plen, dwords);
+	/* Drop non-VL15 packets if we are not in the active state */
+	if (!(dd->ipath_flags & IPATH_LINKACTIVE) &&
+	    qp->ibqp.qp_type != IB_QPT_SMI) {
+		if (qp->s_wqe)
+			ipath_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
+		ret = 0;
+	} else
+		ret = ipath_verbs_send_pio(qp, (u32 *) hdr, hdrwords,
+					   ss, len, plen, dwords);
 
 	return ret;
 }

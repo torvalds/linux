@@ -570,26 +570,16 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		else
 			goto err;
 		ipath_set_linkstate(dd, lstate);
-		if (flags & IPATH_LINKACTIVE) {
-			event.event = IB_EVENT_PORT_ERR;
-			ib_dispatch_event(&event);
-		}
 		break;
 	case IB_PORT_ARMED:
 		if (!(flags & (IPATH_LINKINIT | IPATH_LINKACTIVE)))
 			break;
 		ipath_set_linkstate(dd, IPATH_IB_LINKARM);
-		if (flags & IPATH_LINKACTIVE) {
-			event.event = IB_EVENT_PORT_ERR;
-			ib_dispatch_event(&event);
-		}
 		break;
 	case IB_PORT_ACTIVE:
 		if (!(flags & IPATH_LINKARMED))
 			break;
 		ipath_set_linkstate(dd, IPATH_IB_LINKACTIVE);
-		event.event = IB_EVENT_PORT_ACTIVE;
-		ib_dispatch_event(&event);
 		break;
 	default:
 		/* XXX We have already partially updated our state! */

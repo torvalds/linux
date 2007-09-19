@@ -42,6 +42,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
+#include <rdma/ib_verbs.h>
 
 #include "ipath_common.h"
 #include "ipath_debug.h"
@@ -775,6 +776,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
+void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but
