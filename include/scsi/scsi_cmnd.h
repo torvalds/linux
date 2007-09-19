@@ -39,14 +39,12 @@ struct scsi_cmnd {
 	 * A SCSI Command is assigned a nonzero serial_number before passed
 	 * to the driver's queue command function.  The serial_number is
 	 * cleared when scsi_done is entered indicating that the command
-	 * has been completed.  It currently doesn't have much use other
-	 * than printk's.  Some lldd's use this number for other purposes.
-	 * It's almost certain that such usages are either incorrect or
-	 * meaningless.  Please kill all usages other than printk's.  Also,
-	 * as this number is always identical to ->pid, please convert
-	 * printk's to use ->pid, so that we can kill this field.
+	 * has been completed.  It is a bug for LLDDs to use this number
+	 * for purposes other than printk (and even that is only useful
+	 * for debugging).
 	 */
 	unsigned long serial_number;
+
 	/*
 	 * This is set to jiffies as it was when the command was first
 	 * allocated.  It is used to time how long the command has
@@ -116,7 +114,6 @@ struct scsi_cmnd {
 	int result;		/* Status code from lower level driver */
 
 	unsigned char tag;	/* SCSI-II queued command tag */
-	unsigned long pid;	/* Process ID, starts at 0. Unique per host. */
 };
 
 extern struct scsi_cmnd *scsi_get_command(struct scsi_device *, gfp_t);

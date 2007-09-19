@@ -1681,12 +1681,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 
 	init_timer(&scmd->eh_timeout);
 
-	/*
-	 * Sometimes the command can get back into the timer chain,
-	 * so use the pid as an identifier.
-	 */
-	scmd->pid			= 0;
-
 	spin_lock_irqsave(shost->host_lock, flags);
 	shost->tmf_in_progress = 1;
 	spin_unlock_irqrestore(shost->host_lock, flags);

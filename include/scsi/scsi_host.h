@@ -580,7 +580,7 @@ struct Scsi_Host {
 	 * Used to assign serial numbers to the cmds.
 	 * Protected by the host lock.
 	 */
-	unsigned long cmd_serial_number, cmd_pid; 
+	unsigned long cmd_serial_number;
 	
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
