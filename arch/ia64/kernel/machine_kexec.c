@@ -79,7 +79,6 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	relocate_new_kernel_t rnk;
 	void *pal_addr = efi_get_pal_addr();
 	unsigned long code_addr = (unsigned long)page_address(image->control_code_page);
-	unsigned long vector;
 	int ii;
 
 	BUG_ON(!image);
@@ -107,11 +106,8 @@ static void ia64_machine_kexec(struct unw_frame_info *info, void *arg)
 	/* unmask TPR and clear any pending interrupts */
 	ia64_setreg(_IA64_REG_CR_TPR, 0);
 	ia64_srlz_d();
-	vector = ia64_get_ivr();
-	while (vector != IA64_SPURIOUS_INT_VECTOR) {
+	while (ia64_get_ivr() != IA64_SPURIOUS_INT_VECTOR)
 		ia64_eoi();
-		vector = ia64_get_ivr();
-	}
 	platform_kernel_launch_event();
 	rnk = (relocate_new_kernel_t)&code_addr;
 	(*rnk)(image->head, image->start, ia64_boot_param,
