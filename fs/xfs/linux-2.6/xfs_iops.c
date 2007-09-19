@@ -636,7 +636,7 @@ xfs_vn_setattr(
 
 	error = xfs_setattr(XFS_I(inode), &vattr, flags, NULL);
 	if (likely(!error))
-		__vn_revalidate(vn_from_inode(inode), &vattr);
+		vn_revalidate(vn_from_inode(inode));
 	return -error;
 }
 

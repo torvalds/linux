@@ -189,8 +189,6 @@ typedef struct bhv_vattr {
 extern void	vn_init(void);
 extern bhv_vnode_t	*vn_initialize(struct inode *);
 extern int	vn_revalidate(bhv_vnode_t *);
-extern int	__vn_revalidate(bhv_vnode_t *, bhv_vattr_t *);
-extern void	vn_revalidate_core(bhv_vnode_t *, bhv_vattr_t *);
 
 /*
  * Yeah, these don't take vnode anymore at all, all this should be

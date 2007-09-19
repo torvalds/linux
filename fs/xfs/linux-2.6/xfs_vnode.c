@@ -97,69 +97,57 @@ vn_initialize(
 }
 
 /*
- * Revalidate the Linux inode from the vattr.
+ * Revalidate the Linux inode from the XFS inode.
  * Note: i_size _not_ updated; we must hold the inode
  * semaphore when doing that - callers responsibility.
  */
-void
-vn_revalidate_core(
-	bhv_vnode_t	*vp,
-	bhv_vattr_t	*vap)
+int
+vn_revalidate(
+	bhv_vnode_t		*vp)
 {
-	struct inode	*inode = vn_to_inode(vp);
+	struct inode		*inode = vn_to_inode(vp);
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned long		xflags;
 
-	inode->i_mode	    = vap->va_mode;
-	inode->i_nlink	    = vap->va_nlink;
-	inode->i_uid	    = vap->va_uid;
-	inode->i_gid	    = vap->va_gid;
-	inode->i_blocks	    = vap->va_nblocks;
-	inode->i_mtime	    = vap->va_mtime;
-	inode->i_ctime	    = vap->va_ctime;
-	if (vap->va_xflags & XFS_XFLAG_IMMUTABLE)
+	xfs_itrace_entry(ip);
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	inode->i_mode	    = ip->i_d.di_mode;
+	inode->i_nlink	    = ip->i_d.di_nlink;
+	inode->i_uid	    = ip->i_d.di_uid;
+	inode->i_gid	    = ip->i_d.di_gid;
+	inode->i_blocks	    =
+		XFS_FSB_TO_BB(mp, ip->i_d.di_nblocks + ip->i_delayed_blks);
+	inode->i_mtime.tv_sec = ip->i_d.di_mtime.t_sec;
+	inode->i_mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;
+	inode->i_ctime.tv_sec = ip->i_d.di_ctime.t_sec;
+	inode->i_ctime.tv_nsec = ip->i_d.di_ctime.t_nsec;
+
+	xflags = xfs_ip2xflags(ip);
+	if (xflags & XFS_XFLAG_IMMUTABLE)
 		inode->i_flags |= S_IMMUTABLE;
 	else
 		inode->i_flags &= ~S_IMMUTABLE;
-	if (vap->va_xflags & XFS_XFLAG_APPEND)
+	if (xflags & XFS_XFLAG_APPEND)
 		inode->i_flags |= S_APPEND;
 	else
 		inode->i_flags &= ~S_APPEND;
-	if (vap->va_xflags & XFS_XFLAG_SYNC)
+	if (xflags & XFS_XFLAG_SYNC)
 		inode->i_flags |= S_SYNC;
 	else
 		inode->i_flags &= ~S_SYNC;
-	if (vap->va_xflags & XFS_XFLAG_NOATIME)
+	if (xflags & XFS_XFLAG_NOATIME)
 		inode->i_flags |= S_NOATIME;
 	else
 		inode->i_flags &= ~S_NOATIME;
-}
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-/*
- * Revalidate the Linux inode from the vnode.
- */
-int
-__vn_revalidate(
-	bhv_vnode_t	*vp,
-	bhv_vattr_t	*vattr)
-{
-	int		error;
-
-	xfs_itrace_entry(xfs_vtoi(vp));
-	vattr->va_mask = XFS_AT_STAT | XFS_AT_XFLAGS;
-	error = xfs_getattr(xfs_vtoi(vp), vattr, 0);
-	if (likely(!error)) {
-		vn_revalidate_core(vp, vattr);
-		xfs_iflags_clear(xfs_vtoi(vp), XFS_IMODIFIED);
-	}
-	return -error;
-}
-
-int
-vn_revalidate(
-	bhv_vnode_t	*vp)
-{
-	bhv_vattr_t	vattr;
-
-	return __vn_revalidate(vp, &vattr);
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
+	return 0;
 }
 
 /*

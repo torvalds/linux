@@ -1236,7 +1236,7 @@ xfs_ioc_xattr(
 
 		error = xfs_setattr(ip, vattr, attr_flags, NULL);
 		if (likely(!error))
-			__vn_revalidate(vp, vattr);	/* update flags */
+			vn_revalidate(vp);	/* update flags */
 		error = -error;
 		break;
 	}
@@ -1271,7 +1271,7 @@ xfs_ioc_xattr(
 
 		error = xfs_setattr(ip, vattr, attr_flags, NULL);
 		if (likely(!error))
-			__vn_revalidate(vp, vattr);	/* update flags */
+			vn_revalidate(vp);	/* update flags */
 		error = -error;
 		break;
 	}
