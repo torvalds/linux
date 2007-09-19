@@ -176,6 +176,7 @@ void b43_leds_update(struct b43_wldev *dev, int activity)
 	unsigned long interval = 0;
 	u16 ledctl;
 	unsigned long flags;
+	bool radio_enabled = (phy->radio_on && dev->radio_hw_enable);
 
 	spin_lock_irqsave(&dev->wl->leds_lock, flags);
 	ledctl = b43_read16(dev, B43_MMIO_GPIO_CONTROL);
@@ -195,21 +196,19 @@ void b43_leds_update(struct b43_wldev *dev, int activity)
 			turn_on = activity;
 			break;
 		case B43_LED_RADIO_ALL:
-			turn_on = phy->radio_on && b43_is_hw_radio_enabled(dev);
+			turn_on = radio_enabled;
 			break;
 		case B43_LED_RADIO_A:
-			turn_on = (phy->radio_on && b43_is_hw_radio_enabled(dev)
-				   && phy->type == B43_PHYTYPE_A);
+			turn_on = (radio_enabled && phy->type == B43_PHYTYPE_A);
 			break;
 		case B43_LED_RADIO_B:
-			turn_on = (phy->radio_on && b43_is_hw_radio_enabled(dev)
-				   && (phy->type == B43_PHYTYPE_B
-				       || phy->type == B43_PHYTYPE_G));
+			turn_on = (radio_enabled &&
+				   (phy->type == B43_PHYTYPE_B
+				    || phy->type == B43_PHYTYPE_G));
 			break;
 		case B43_LED_MODE_BG:
 			if (phy->type == B43_PHYTYPE_G
-			    && b43_is_hw_radio_enabled(dev)
-			    && 1 /*FIXME: using G rates. */ )
+			    && radio_enabled)
 				turn_on = 1;
 			break;
 		case B43_LED_TRANSFER:

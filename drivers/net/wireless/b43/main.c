@@ -2175,6 +2175,21 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRPHYCTL, tmp);
 }
 
+/* Returns TRUE, if the radio is enabled in hardware. */
+static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
+{
+	if (dev->phy.rev >= 3) {
+		if (!(b43_read32(dev, B43_MMIO_RADIO_HWENABLED_HI)
+		      & B43_MMIO_RADIO_HWENABLED_HI_MASK))
+			return 1;
+	} else {
+		if (b43_read16(dev, B43_MMIO_RADIO_HWENABLED_LO)
+		    & B43_MMIO_RADIO_HWENABLED_LO_MASK)
+			return 1;
+	}
+	return 0;
+}
+
 /* This is the opposite of b43_chip_init() */
 static void b43_chip_exit(struct b43_wldev *dev)
 {
@@ -2214,7 +2229,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_radio_turn_on(dev);
 	dev->radio_hw_enable = b43_is_hw_radio_enabled(dev);
 	b43dbg(dev->wl, "Radio %s by hardware\n",
-	       (dev->radio_hw_enable == 0) ? "disabled" : "enabled");
+	       dev->radio_hw_enable ? "enabled" : "disabled");
 
 	b43_write16(dev, 0x03E6, 0x0000);
 	err = b43_phy_init(dev);
@@ -2373,14 +2388,14 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 
 static void b43_periodic_every1sec(struct b43_wldev *dev)
 {
-	int radio_hw_enable;
+	bool radio_hw_enable;
 
 	/* check if radio hardware enabled status changed */
 	radio_hw_enable = b43_is_hw_radio_enabled(dev);
 	if (unlikely(dev->radio_hw_enable != radio_hw_enable)) {
 		dev->radio_hw_enable = radio_hw_enable;
-		b43dbg(dev->wl, "Radio hardware status changed to %s\n",
-		       (radio_hw_enable == 0) ? "disabled" : "enabled");
+		b43info(dev->wl, "Radio hardware status changed to %s\n",
+			radio_hw_enable ? "ENABLED" : "DISABLED");
 		b43_leds_update(dev, 0);
 	}
 }
