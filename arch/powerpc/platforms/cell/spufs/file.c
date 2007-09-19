@@ -2250,7 +2250,5 @@ struct spufs_coredump_reader spufs_coredump_read[] = {
 	{ "proxydma_info", __spufs_proxydma_info_read,
 			   NULL, sizeof(struct spu_proxydma_info)},
 	{ "object-id", NULL, __spufs_object_id_get, 19 },
-	{ },
+	{ NULL },
 };
-int spufs_coredump_num_notes = ARRAY_SIZE(spufs_coredump_read) - 1;
-

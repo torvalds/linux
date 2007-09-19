@@ -72,7 +72,7 @@ static int spufs_ctx_note_size(struct spu_context *ctx, int dfd)
 	char *name;
 	char fullname[80];
 
-	for (i = 0; spufs_coredump_read[i].name; i++) {
+	for (i = 0; spufs_coredump_read[i].name != NULL; i++) {
 		name = spufs_coredump_read[i].name;
 		sz = spufs_coredump_read[i].size;
 
@@ -194,7 +194,7 @@ static void spufs_arch_write_notes(struct file *file)
 	while ((ctx = coredump_next_context(&fd)) != NULL) {
 		spu_acquire_saved(ctx);
 
-		for (j = 0; j < spufs_coredump_num_notes; j++)
+		for (j = 0; spufs_coredump_read[j].name != NULL; j++)
 			spufs_arch_write_note(ctx, j, file, fd);
 
 		spu_release_saved(ctx);
