@@ -930,18 +930,11 @@ static void ocfs2_write_failure(struct inode *inode,
 				loff_t user_pos, unsigned user_len)
 {
 	int i;
-	unsigned from, to;
+	unsigned from = user_pos & (PAGE_CACHE_SIZE - 1),
+		to = user_pos + user_len;
 	struct page *tmppage;
 
-	ocfs2_zero_new_buffers(wc->w_target_page, user_pos, user_len);
-
-	if (wc->w_large_pages) {
-		from = wc->w_target_from;
-		to = wc->w_target_to;
-	} else {
-		from = 0;
-		to = PAGE_CACHE_SIZE;
-	}
+	ocfs2_zero_new_buffers(wc->w_target_page, from, to);
 
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
@@ -991,9 +984,6 @@ static int ocfs2_prepare_page_for_write(struct inode *inode, u64 *p_blkno,
 			map_from = cluster_start;
 			map_to = cluster_end;
 		}
-
-		wc->w_target_from = map_from;
-		wc->w_target_to = map_to;
 	} else {
 		/*
 		 * If we haven't allocated the new page yet, we
