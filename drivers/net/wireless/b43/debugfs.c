@@ -223,15 +223,10 @@ out:
 static int txpower_g_write_file(struct b43_wldev *dev,
 				const char *buf, size_t count)
 {
-	unsigned long flags;
 	unsigned long phy_flags;
-	int err = 0;
 
-	spin_lock_irqsave(&dev->wl->irq_lock, flags);
-	if (dev->phy.type != B43_PHYTYPE_G) {
-		err = -ENODEV;
-		goto out_unlock;
-	}
+	if (dev->phy.type != B43_PHYTYPE_G)
+		return -ENODEV;
 	if ((count >= 4) && (memcmp(buf, "auto", 4) == 0)) {
 		/* Automatic control */
 		dev->phy.manual_txpower_control = 0;
@@ -240,10 +235,8 @@ static int txpower_g_write_file(struct b43_wldev *dev,
 		int bbatt = 0, rfatt = 0, txmix = 0, pa2db = 0, pa3db = 0;
 		/* Manual control */
 		if (sscanf(buf, "%d %d %d %d %d", &bbatt, &rfatt,
-			   &txmix, &pa2db, &pa3db) != 5) {
-			err = -EINVAL;
-			goto out_unlock;
-		}
+			   &txmix, &pa2db, &pa3db) != 5)
+			return -EINVAL;
 		b43_put_attenuation_into_ranges(dev, &bbatt, &rfatt);
 		dev->phy.manual_txpower_control = 1;
 		dev->phy.bbatt.att = bbatt;
@@ -262,10 +255,8 @@ static int txpower_g_write_file(struct b43_wldev *dev,
 		b43_radio_unlock(dev);
 		b43_phy_unlock(dev, phy_flags);
 	}
-out_unlock:
-	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 
-	return err;
+	return 0;
 }
 
 /* wl->irq_lock is locked */
