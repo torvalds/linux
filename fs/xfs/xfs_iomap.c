@@ -135,14 +135,10 @@ xfs_imap_to_bmap(
 	int		flags)
 {
 	xfs_mount_t	*mp;
-	xfs_fsize_t	nisize;
 	int		pbm;
 	xfs_fsblock_t	start_block;
 
 	mp = io->io_mount;
-	nisize = XFS_SIZE(mp, io);
-	if (io->io_new_size > nisize)
-		nisize = io->io_new_size;
 
 	for (pbm = 0; imaps && pbm < iomaps; imaps--, iomapp++, imap++, pbm++) {
 		iomapp->iomap_offset = XFS_FSB_TO_B(mp, imap->br_startoff);
@@ -167,10 +163,6 @@ xfs_imap_to_bmap(
 			iomapp->iomap_bn = XFS_FSB_TO_DB_IO(io, start_block);
 			if (ISUNWRITTEN(imap))
 				iomapp->iomap_flags |= IOMAP_UNWRITTEN;
-		}
-
-		if ((iomapp->iomap_offset + iomapp->iomap_bsize) >= nisize) {
-			iomapp->iomap_flags |= IOMAP_EOF;
 		}
 
 		offset += iomapp->iomap_bsize - iomapp->iomap_delta;
