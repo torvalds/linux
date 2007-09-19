@@ -1648,9 +1648,6 @@ static int sky2_down(struct net_device *dev)
 	if (netif_msg_ifdown(sky2))
 		printk(KERN_INFO PFX "%s: disabling interface\n", dev->name);
 
-	if (netif_carrier_ok(dev) && --hw->active == 0)
-		del_timer(&hw->watchdog_timer);
-
 	/* Stop more packets from being queued */
 	netif_stop_queue(dev);
 
@@ -1775,9 +1772,7 @@ static void sky2_link_up(struct sky2_port *sky2)
 
 	netif_carrier_on(sky2->netdev);
 
-	if (hw->active++ == 0)
-		mod_timer(&hw->watchdog_timer, jiffies + 1);
-
+	mod_timer(&hw->watchdog_timer, jiffies + 1);
 
 	/* Turn on link LED */
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG),
@@ -1827,11 +1822,6 @@ static void sky2_link_down(struct sky2_port *sky2)
 	gma_write16(hw, port, GM_GP_CTRL, reg);
 
 	netif_carrier_off(sky2->netdev);
-
-	/* Stop watchdog if both ports are not active */
-	if (--hw->active == 0)
-		del_timer(&hw->watchdog_timer);
-
 
 	/* Turn on link LED */
 	sky2_write8(hw, SK_REG(port, LNK_LED_REG), LINKLED_OFF);
@@ -2484,20 +2474,72 @@ static void sky2_le_error(struct sky2_hw *hw, unsigned port,
 	sky2_write32(hw, Q_ADDR(q, Q_CSR), BMU_CLR_IRQ_CHK);
 }
 
-/* Check for lost IRQ once a second */
+static int sky2_rx_hung(struct net_device *dev)
+{
+	struct sky2_port *sky2 = netdev_priv(dev);
+	struct sky2_hw *hw = sky2->hw;
+	unsigned port = sky2->port;
+	unsigned rxq = rxqaddr[port];
+	u32 mac_rp = sky2_read32(hw, SK_REG(port, RX_GMF_RP));
+	u8 mac_lev = sky2_read8(hw, SK_REG(port, RX_GMF_RLEV));
+	u8 fifo_rp = sky2_read8(hw, Q_ADDR(rxq, Q_RP));
+	u8 fifo_lev = sky2_read8(hw, Q_ADDR(rxq, Q_RL));
+
+	/* If idle and MAC or PCI is stuck */
+	if (sky2->check.last == dev->last_rx &&
+	    ((mac_rp == sky2->check.mac_rp &&
+	      mac_lev != 0 && mac_lev >= sky2->check.mac_lev) ||
+	     /* Check if the PCI RX hang */
+	     (fifo_rp == sky2->check.fifo_rp &&
+	      fifo_lev != 0 && fifo_lev >= sky2->check.fifo_lev))) {
+		printk(KERN_DEBUG PFX "%s: hung mac %d:%d fifo %d (%d:%d)\n",
+		       dev->name, mac_lev, mac_rp, fifo_lev, fifo_rp,
+		       sky2_read8(hw, Q_ADDR(rxq, Q_WP)));
+		return 1;
+	} else {
+		sky2->check.last = dev->last_rx;
+		sky2->check.mac_rp = mac_rp;
+		sky2->check.mac_lev = mac_lev;
+		sky2->check.fifo_rp = fifo_rp;
+		sky2->check.fifo_lev = fifo_lev;
+		return 0;
+	}
+}
+
 static void sky2_watchdog(unsigned long arg)
 {
 	struct sky2_hw *hw = (struct sky2_hw *) arg;
+	struct net_device *dev;
 
+	/* Check for lost IRQ once a second */
 	if (sky2_read32(hw, B0_ISRC)) {
-		struct net_device *dev = hw->dev[0];
-
+		dev = hw->dev[0];
 		if (__netif_rx_schedule_prep(dev))
 			__netif_rx_schedule(dev);
+	} else {
+		int i, active = 0;
+
+		for (i = 0; i < hw->ports; i++) {
+			dev = hw->dev[i];
+			if (!netif_running(dev))
+				continue;
+			++active;
+
+			/* For chips with Rx FIFO, check if stuck */
+			if ((hw->flags & SKY2_HW_RAMBUFFER) &&
+			     sky2_rx_hung(dev)) {
+				pr_info(PFX "%s: receiver hang detected\n",
+					dev->name);
+				schedule_work(&hw->restart_work);
+				return;
+			}
+		}
+
+		if (active == 0)
+			return;
 	}
 
-	if (hw->active > 0)
-		mod_timer(&hw->watchdog_timer, round_jiffies(jiffies + HZ));
+	mod_timer(&hw->watchdog_timer, round_jiffies(jiffies + HZ));
 }
 
 /* Hardware/software error handling */

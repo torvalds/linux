@@ -2027,6 +2027,14 @@ struct sky2_port {
 	u16		     rx_tag;
 	struct vlan_group    *vlgrp;
 #endif
+	struct {
+		unsigned long last;
+		u32	mac_rp;
+		u8	mac_lev;
+		u8	fifo_rp;
+		u8	fifo_lev;
+	} check;
+
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
@@ -2064,7 +2072,6 @@ struct sky2_hw {
 	u8		     chip_rev;
 	u8		     pmd_type;
 	u8		     ports;
-	u8		     active;
 
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
