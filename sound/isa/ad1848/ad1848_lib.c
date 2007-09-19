@@ -203,9 +203,8 @@ static void snd_ad1848_mce_up(struct snd_ad1848 *chip)
 
 static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 {
-	unsigned long flags;
-	int timeout;
-	unsigned long end_time;
+	unsigned long flags, timeout;
+	int reg;
 
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (timeout = 5; timeout > 0; timeout--)
@@ -222,50 +221,36 @@ static void snd_ad1848_mce_down(struct snd_ad1848 *chip)
 #endif
 
 	chip->mce_bit &= ~AD1848_MCE;
-	timeout = inb(AD1848P(chip, REGSEL));
-	outb(chip->mce_bit | (timeout & 0x1f), AD1848P(chip, REGSEL));
-	if (timeout == 0x80)
+	reg = inb(AD1848P(chip, REGSEL));
+	outb(chip->mce_bit | (reg & 0x1f), AD1848P(chip, REGSEL));
+	if (reg == 0x80)
 		snd_printk(KERN_WARNING "mce_down [0x%lx]: serious init problem - codec still busy\n", chip->port);
-	if ((timeout & AD1848_MCE) == 0) {
+	if ((reg & AD1848_MCE) == 0) {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
 		return;
 	}
 
 	/*
-	 * Wait for (possible -- during init auto-calibration may not be set)
-	 * calibration process to start. Needs upto 5 sample periods on AD1848
-	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
+	 * Wait for auto-calibration (AC) process to finish, i.e. ACI to go low.
+	 * It may take up to 5 sample periods (at most 907 us @ 5.5125 kHz) for
+	 * the process to _start_, so it is important to wait at least that long
+	 * before checking.  Otherwise we might think AC has finished when it
+	 * has in fact not begun.  It could take 128 (no AC) or 384 (AC) cycles
+	 * for ACI to drop.  This gives a wait of at most 70 ms with a more
+	 * typical value of 3-9 ms.
 	 */
-	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	msleep(1);
-	spin_lock_irqsave(&chip->reg_lock, flags);
-
-	snd_printdd("(2) jiffies = %lu\n", jiffies);
-
-	end_time = jiffies + msecs_to_jiffies(250);
-	while (snd_ad1848_in(chip, AD1848_TEST_INIT) & AD1848_CALIB_IN_PROGRESS) {
+	timeout = jiffies + msecs_to_jiffies(250);
+	do {
 		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time_after(jiffies, end_time)) {
-			snd_printk(KERN_ERR "mce_down - auto calibration time out (2)\n");
-			return;
-		}
 		msleep(1);
 		spin_lock_irqsave(&chip->reg_lock, flags);
-	}
-
-	snd_printdd("(3) jiffies = %lu\n", jiffies);
-
-	end_time = jiffies + msecs_to_jiffies(100);
-	while (inb(AD1848P(chip, REGSEL)) & AD1848_INIT) {
-		spin_unlock_irqrestore(&chip->reg_lock, flags);
-		if (time_after(jiffies, end_time)) {
-			snd_printk(KERN_ERR "mce_down - auto calibration time out (3)\n");
-			return;
-		}
-		msleep(1);
-		spin_lock_irqsave(&chip->reg_lock, flags);
-	}
+		reg = snd_ad1848_in(chip, AD1848_TEST_INIT) &
+		      AD1848_CALIB_IN_PROGRESS;
+	} while (reg && time_before(jiffies, timeout));
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
+	if (reg)
+		snd_printk(KERN_ERR
+			   "mce_down - auto calibration time out (2)\n");
 
 	snd_printdd("(4) jiffies = %lu\n", jiffies);
 	snd_printd("mce_down - exit = 0x%x\n", inb(AD1848P(chip, REGSEL)));
