@@ -531,7 +531,7 @@ static u16 ssb_pci_read16(struct ssb_device *dev, u16 offset)
 		if (unlikely(ssb_pci_switch_core(bus, dev)))
 			return 0xFFFF;
 	}
-	return readw(bus->mmio + offset);
+	return ioread16(bus->mmio + offset);
 }
 
 static u32 ssb_pci_read32(struct ssb_device *dev, u16 offset)
@@ -544,7 +544,7 @@ static u32 ssb_pci_read32(struct ssb_device *dev, u16 offset)
 		if (unlikely(ssb_pci_switch_core(bus, dev)))
 			return 0xFFFFFFFF;
 	}
-	return readl(bus->mmio + offset);
+	return ioread32(bus->mmio + offset);
 }
 
 static void ssb_pci_write16(struct ssb_device *dev, u16 offset, u16 value)
@@ -557,7 +557,7 @@ static void ssb_pci_write16(struct ssb_device *dev, u16 offset, u16 value)
 		if (unlikely(ssb_pci_switch_core(bus, dev)))
 			return;
 	}
-	writew(value, bus->mmio + offset);
+	iowrite16(value, bus->mmio + offset);
 }
 
 static void ssb_pci_write32(struct ssb_device *dev, u16 offset, u32 value)
@@ -570,7 +570,7 @@ static void ssb_pci_write32(struct ssb_device *dev, u16 offset, u32 value)
 		if (unlikely(ssb_pci_switch_core(bus, dev)))
 			return;
 	}
-	writel(value, bus->mmio + offset);
+	iowrite32(value, bus->mmio + offset);
 }
 
 /* Not "static", as it's used in main.c */
