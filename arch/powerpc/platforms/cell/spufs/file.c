@@ -1606,12 +1606,17 @@ static void spufs_npc_set(void *data, u64 val)
 	spu_release(ctx);
 }
 
+static u64 __spufs_npc_get(struct spu_context *ctx)
+{
+	return ctx->ops->npc_read(ctx);
+}
+
 static u64 spufs_npc_get(void *data)
 {
 	struct spu_context *ctx = data;
 	u64 ret;
 	spu_acquire(ctx);
-	ret = ctx->ops->npc_read(ctx);
+	ret = __spufs_npc_get(ctx);
 	spu_release(ctx);
 	return ret;
 }
@@ -2242,5 +2247,6 @@ struct spufs_coredump_reader spufs_coredump_read[] = {
 	{ "proxydma_info", __spufs_proxydma_info_read,
 			   NULL, sizeof(struct spu_proxydma_info)},
 	{ "object-id", NULL, __spufs_object_id_get, 19 },
+	{ "npc", NULL, __spufs_npc_get, 19 },
 	{ NULL },
 };
