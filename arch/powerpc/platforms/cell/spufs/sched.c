@@ -579,7 +579,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 		list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list) {
 			struct spu_context *tmp = spu->ctx;
 
-			if (tmp->prio > ctx->prio &&
+			if (tmp && tmp->prio > ctx->prio &&
 			    (!victim || tmp->prio > victim->prio))
 				victim = spu->ctx;
 		}
@@ -611,9 +611,9 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			mutex_lock(&cbe_spu_info[node].list_mutex);
 			cbe_spu_info[node].nr_active--;
+			spu_unbind_context(spu, victim);
 			mutex_unlock(&cbe_spu_info[node].list_mutex);
 
-			spu_unbind_context(spu, victim);
 			victim->stats.invol_ctx_switch++;
 			spu->stats.invol_ctx_switch++;
 			mutex_unlock(&victim->state_mutex);
