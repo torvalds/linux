@@ -2146,19 +2146,6 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 }
 EXPORT_SYMBOL_GPL(spu_restore);
 
-/**
- * spu_harvest - SPU harvest (reset) operation
- * @spu: pointer to SPU iomem structure.
- *
- * Perform SPU harvest (reset) operation.
- */
-void spu_harvest(struct spu *spu)
-{
-	acquire_spu_lock(spu);
-	harvest(NULL, spu);
-	release_spu_lock(spu);
-}
-
 static void init_prob(struct spu_state *csa)
 {
 	csa->spu_chnlcnt_RW[9] = 1;
