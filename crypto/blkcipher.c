@@ -65,7 +65,7 @@ static inline void blkcipher_unmap_dst(struct blkcipher_walk *walk)
 static inline u8 *blkcipher_get_spot(u8 *start, unsigned int len)
 {
 	u8 *end_page = (u8 *)(((unsigned long)(start + len - 1)) & PAGE_MASK);
-	return start > end_page ? start : end_page;
+	return max(start, end_page);
 }
 
 static inline unsigned int blkcipher_done_slow(struct crypto_blkcipher *tfm,
