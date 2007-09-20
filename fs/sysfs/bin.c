@@ -1,9 +1,15 @@
 /*
- * bin.c - binary file operations for sysfs.
+ * fs/sysfs/bin.c - sysfs binary file implementation
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Matthew Wilcox
  * Copyright (c) 2004 Silicon Graphics, Inc.
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ *
+ * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
 #undef DEBUG

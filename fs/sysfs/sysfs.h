@@ -1,3 +1,13 @@
+/*
+ * fs/sysfs/sysfs.h - sysfs internal header file
+ *
+ * Copyright (c) 2001-3 Patrick Mochel
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ */
+
 struct sysfs_open_dirent;
 
 /* type-specific structures for sysfs_dirent->s_* union members */

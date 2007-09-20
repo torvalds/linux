@@ -1,5 +1,13 @@
 /*
- * mount.c - operations for initializing and mounting sysfs.
+ * fs/sysfs/symlink.c - operations for initializing and mounting sysfs
+ *
+ * Copyright (c) 2001-3 Patrick Mochel
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ *
+ * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
 #define DEBUG 
