@@ -121,10 +121,12 @@ void b43_generate_plcp_hdr(struct b43_plcp_hdr4 *plcp,
 	__u8 *raw = plcp->raw;
 
 	if (b43_is_ofdm_rate(bitrate)) {
-		*data = b43_plcp_get_ratecode_ofdm(bitrate);
+		u32 d;
+
+		d = b43_plcp_get_ratecode_ofdm(bitrate);
 		B43_WARN_ON(octets & 0xF000);
-		*data |= (octets << 5);
-		*data = cpu_to_le32(*data);
+		d |= (octets << 5);
+		*data = cpu_to_le32(d);
 	} else {
 		u32 plen;
 

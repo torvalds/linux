@@ -1062,7 +1062,7 @@ static void handle_irq_noise(struct b43_wldev *dev)
 	B43_WARN_ON(!dev->noisecalc.calculation_running);
 	if (dev->noisecalc.channel_at_start != phy->channel)
 		goto drop_calculation;
-	*((u32 *) noise) = cpu_to_le32(b43_jssi_read(dev));
+	*((__le32 *)noise) = cpu_to_le32(b43_jssi_read(dev));
 	if (noise[0] == 0x7F || noise[1] == 0x7F ||
 	    noise[2] == 0x7F || noise[3] == 0x7F)
 		goto generate_new;
@@ -1598,8 +1598,7 @@ static int do_request_fw(struct b43_wldev *dev,
 			 const char *name,
 			 const struct firmware **fw)
 {
-	const size_t plen = sizeof(modparam_fwpostfix) + 32;
-	char path[plen];
+	char path[sizeof(modparam_fwpostfix) + 32];
 	struct b43_fw_header *hdr;
 	u32 size;
 	int err;

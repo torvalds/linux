@@ -60,7 +60,7 @@ static u16 tx_get_next_word(const u8 * txhdr,
 		source = packet;
 		i -= txhdr_size;
 	}
-	ret = le16_to_cpu(*((u16 *) (source + i)));
+	ret = le16_to_cpu(*((__le16 *)(source + i)));
 	*pos += 2;
 
 	return ret;
@@ -104,7 +104,7 @@ static u16 generate_cookie(struct b43_pioqueue *queue,
 			   struct b43_pio_txpacket *packet)
 {
 	u16 cookie = 0x0000;
-	int packetindex;
+	u16 packetindex;
 
 	/* We use the upper 4 bits for the PIO
 	 * controller ID and the lower 12 bits
@@ -125,7 +125,7 @@ static u16 generate_cookie(struct b43_pioqueue *queue,
 	default:
 		B43_WARN_ON(1);
 	}
-	packetindex = pio_txpacket_getindex(packet);
+	packetindex = packet->index;
 	B43_WARN_ON(packetindex & ~0x0FFF);
 	cookie |= (u16) packetindex;
 
@@ -286,6 +286,7 @@ static void setup_txqueues(struct b43_pioqueue *queue)
 
 		packet->queue = queue;
 		INIT_LIST_HEAD(&packet->list);
+		packet->index = i;
 
 		list_add(&packet->list, &queue->txfree);
 	}
@@ -518,9 +519,10 @@ static void pio_rx_error(struct b43_pioqueue *queue,
 
 void b43_pio_rx(struct b43_pioqueue *queue)
 {
-	u16 preamble[21] = { 0 };
+	__le16 preamble[21] = { 0 };
 	struct b43_rxhdr_fw4 *rxhdr;
-	u16 tmp, len, macstat;
+	u16 tmp, len;
+	u32 macstat;
 	int i, preamble_readwords;
 	struct sk_buff *skb;
 
@@ -537,7 +539,7 @@ void b43_pio_rx(struct b43_pioqueue *queue)
 	}
 	b43dbg(queue->dev->wl, "PIO RX timed out\n");
 	return;
-      data_ready:
+data_ready:
 
 	len = b43_pio_read(queue, B43_PIO_RXDATA);
 	if (unlikely(len > 0x700)) {
@@ -558,7 +560,7 @@ void b43_pio_rx(struct b43_pioqueue *queue)
 		preamble[i + 1] = cpu_to_le16(tmp);
 	}
 	rxhdr = (struct b43_rxhdr_fw4 *)preamble;
-	macstat = le16_to_cpu(rxhdr->mac_status);
+	macstat = le32_to_cpu(rxhdr->mac_status);
 	if (macstat & B43_RX_MAC_FCSERR) {
 		pio_rx_error(queue,
 			     (queue->mmio_base == B43_MMIO_PIO1_BASE),
@@ -583,7 +585,7 @@ void b43_pio_rx(struct b43_pioqueue *queue)
 	skb_put(skb, len);
 	for (i = 0; i < len - 1; i += 2) {
 		tmp = b43_pio_read(queue, B43_PIO_RXDATA);
-		*((u16 *) (skb->data + i)) = cpu_to_le16(tmp);
+		*((__le16 *)(skb->data + i)) = cpu_to_le16(tmp);
 	}
 	if (len % 2) {
 		tmp = b43_pio_read(queue, B43_PIO_RXDATA);

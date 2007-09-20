@@ -39,7 +39,7 @@
 
 
 /* The root directory. */
-struct dentry *rootdir;
+static struct dentry *rootdir;
 
 struct b43_debugfs_fops {
 	ssize_t (*read)(struct b43_wldev *dev, char *buf, size_t bufsize);
@@ -76,7 +76,8 @@ struct b43_dfs_file * fops_to_dfs_file(struct b43_wldev *dev,
 
 
 /* wl->irq_lock is locked */
-ssize_t tsf_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t tsf_read_file(struct b43_wldev *dev,
+			     char *buf, size_t bufsize)
 {
 	ssize_t count = 0;
 	u64 tsf;
@@ -90,7 +91,8 @@ ssize_t tsf_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
 }
 
 /* wl->irq_lock is locked */
-int tsf_write_file(struct b43_wldev *dev, const char *buf, size_t count)
+static int tsf_write_file(struct b43_wldev *dev,
+			  const char *buf, size_t count)
 {
 	u64 tsf;
 
@@ -102,7 +104,8 @@ int tsf_write_file(struct b43_wldev *dev, const char *buf, size_t count)
 }
 
 /* wl->irq_lock is locked */
-ssize_t ucode_regs_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t ucode_regs_read_file(struct b43_wldev *dev,
+				    char *buf, size_t bufsize)
 {
 	ssize_t count = 0;
 	int i;
@@ -116,7 +119,8 @@ ssize_t ucode_regs_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
 }
 
 /* wl->irq_lock is locked */
-ssize_t shm_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t shm_read_file(struct b43_wldev *dev,
+			     char *buf, size_t bufsize)
 {
 	ssize_t count = 0;
 	int i;
@@ -135,7 +139,8 @@ ssize_t shm_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
 	return count;
 }
 
-ssize_t txstat_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t txstat_read_file(struct b43_wldev *dev,
+				char *buf, size_t bufsize)
 {
 	struct b43_txstatus_log *log = &dev->dfsentry->txstatlog;
 	ssize_t count = 0;
@@ -182,7 +187,8 @@ out_unlock:
 	return count;
 }
 
-ssize_t txpower_g_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t txpower_g_read_file(struct b43_wldev *dev,
+				   char *buf, size_t bufsize)
 {
 	ssize_t count = 0;
 
@@ -214,7 +220,8 @@ out:
 	return count;
 }
 
-int txpower_g_write_file(struct b43_wldev *dev, const char *buf, size_t count)
+static int txpower_g_write_file(struct b43_wldev *dev,
+				const char *buf, size_t count)
 {
 	unsigned long flags;
 	unsigned long phy_flags;
@@ -262,7 +269,8 @@ out_unlock:
 }
 
 /* wl->irq_lock is locked */
-int restart_write_file(struct b43_wldev *dev, const char *buf, size_t count)
+static int restart_write_file(struct b43_wldev *dev,
+			      const char *buf, size_t count)
 {
 	int err = 0;
 
@@ -294,7 +302,8 @@ static ssize_t append_lo_table(ssize_t count, char *buf, const size_t bufsize,
 	return count;
 }
 
-ssize_t loctls_read_file(struct b43_wldev *dev, char *buf, size_t bufsize)
+static ssize_t loctls_read_file(struct b43_wldev *dev,
+				char *buf, size_t bufsize)
 {
 	ssize_t count = 0;
 	struct b43_txpower_lo_control *lo;
@@ -383,6 +392,8 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 			err = -ENOMEM;
 			goto out_unlock;
 		}
+		/* Sparse warns about the following memset, because it has a big
+		 * size value. That warning is bogus, so I will ignore it. --mb */
 		memset(buf, 0, bufsize);
 		if (dfops->take_irqlock) {
 			spin_lock_irq(&dev->wl->irq_lock);

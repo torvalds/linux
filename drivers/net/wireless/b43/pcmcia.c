@@ -21,6 +21,8 @@
 
 */
 
+#include "pcmcia.h"
+
 #include <linux/ssb/ssb.h>
 
 #include <pcmcia/cs_types.h>
@@ -29,6 +31,7 @@
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
 #include <pcmcia/cisreg.h>
+
 
 static /*const */ struct pcmcia_device_id b43_pcmcia_tbl[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x2D0, 0x448),

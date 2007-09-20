@@ -32,14 +32,13 @@
 static void b43_led_changestate(struct b43_led *led)
 {
 	struct b43_wldev *dev = led->dev;
-	const int index = b43_led_index(led);
-	const u16 mask = (1 << index);
+	const int index = led->index;
 	u16 ledctl;
 
 	B43_WARN_ON(!(index >= 0 && index < B43_NR_LEDS));
 	B43_WARN_ON(!led->blink_interval);
 	ledctl = b43_read16(dev, B43_MMIO_GPIO_CONTROL);
-	ledctl = (ledctl & mask) ? (ledctl & ~mask) : (ledctl | mask);
+	ledctl ^= (1 << index);
 	b43_write16(dev, B43_MMIO_GPIO_CONTROL, ledctl);
 }
 
@@ -70,7 +69,7 @@ static void b43_led_blink_start(struct b43_led *led, unsigned long interval)
 static void b43_led_blink_stop(struct b43_led *led, int sync)
 {
 	struct b43_wldev *dev = led->dev;
-	const int index = b43_led_index(led);
+	const int index = led->index;
 	u16 ledctl;
 
 	if (!led->blink_interval)
@@ -139,6 +138,7 @@ int b43_leds_init(struct b43_wldev *dev)
 
 	for (i = 0; i < B43_NR_LEDS; i++) {
 		led = &(dev->leds[i]);
+		led->index = i;
 		led->dev = dev;
 		setup_timer(&led->blink_timer,
 			    b43_led_blink, (unsigned long)led);

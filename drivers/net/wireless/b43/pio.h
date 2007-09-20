@@ -39,9 +39,8 @@ struct b43_pio_txpacket {
 	struct sk_buff *skb;
 	struct ieee80211_tx_status txstat;
 	struct list_head list;
+	u16 index; /* Index in the tx_packets_cache */
 };
-
-#define pio_txpacket_getindex(packet) ((int)((packet) - (packet)->queue->tx_packets_cache))
 
 struct b43_pioqueue {
 	struct b43_wldev *dev;

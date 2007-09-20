@@ -5,14 +5,14 @@
 #include <linux/timer.h>
 
 struct b43_led {
-	u8 behaviour:7;
-	u8 activelow:1;
-
+	u8 behaviour;
+	bool activelow;
+	/* Index in the "leds" array in b43_wldev */
+	u8 index;
 	struct b43_wldev *dev;
 	struct timer_list blink_timer;
 	unsigned long blink_interval;
 };
-#define b43_led_index(led)	((int)((led) - (led)->dev->leds))
 
 /* Delay between state changes when blinking in jiffies */
 #define B43_LEDBLINK_SLOW		(HZ / 1)
