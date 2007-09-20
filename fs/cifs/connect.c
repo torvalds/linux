@@ -1750,7 +1750,7 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 					   "mounting with the Unix Extensions\n"
 					   "disabled, if problems are found, "
 					   "by specifying the nounix mount "
-					   "option.");
+					   "option."));
 
 		}
 	}
