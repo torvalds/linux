@@ -34,6 +34,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 	int		status;
 	unsigned long	flags;
 	unsigned long	iter;
+	uint16_t	hccr;
 	uint16_t	mb[4];
 
 	ha = (scsi_qla_host_t *) dev_id;
@@ -48,7 +49,23 @@ qla2100_intr_handler(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (iter = 50; iter--; ) {
-		if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
+		hccr = RD_REG_WORD(&reg->hccr);
+		if (hccr & HCCR_RISC_PAUSE) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
+			/*
+			 * Issue a "HARD" reset in order for the RISC interrupt
+			 * bit to be cleared.  Schedule a big hammmer to get
+			 * out of the RISC PAUSED state.
+			 */
+			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
+			RD_REG_WORD(&reg->hccr);
+
+			ha->isp_ops->fw_dump(ha, 1);
+			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
+			break;
+		} else if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
 			break;
 
 		if (RD_REG_WORD(&reg->semaphore) & BIT_0) {
@@ -127,6 +144,9 @@ qla2300_intr_handler(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
 		if (stat & HSR_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_WORD(&reg->hccr);
 			if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
 				qla_printk(KERN_INFO, ha, "Parity error -- "
@@ -1499,6 +1519,9 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_DWORD(&reg->hccr);
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
@@ -1633,6 +1656,9 @@ qla24xx_msix_default(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
+			if (pci_channel_offline(ha->pdev))
+				break;
+
 			hccr = RD_REG_DWORD(&reg->hccr);
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "

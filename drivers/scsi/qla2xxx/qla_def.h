@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/aer.h>
 #include <asm/semaphore.h>
 
 #include <scsi/scsi.h>
