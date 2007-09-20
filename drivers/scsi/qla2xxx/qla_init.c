@@ -849,7 +849,8 @@ qla2x00_resize_request_q(scsi_qla_host_t *ha)
 		return;
 
 	/* Retrieve IOCB counts available to the firmware. */
-	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt);
+	rval = qla2x00_get_resource_cnts(ha, NULL, NULL, NULL, &fw_iocb_cnt,
+	    &ha->max_npiv_vports);
 	if (rval)
 		return;
 	/* No point in continuing if current settings are sufficient. */
@@ -916,9 +917,15 @@ qla2x00_setup_chip(scsi_qla_host_t *ha)
 				    &ha->fw_attributes, &ha->fw_memory_size);
 				qla2x00_resize_request_q(ha);
 				ha->flags.npiv_supported = 0;
-				if (IS_QLA24XX(ha) &&
-				    (ha->fw_attributes & BIT_2))
+				if ((IS_QLA24XX(ha) || IS_QLA25XX(ha)) &&
+				    (ha->fw_attributes & BIT_2)) {
 					ha->flags.npiv_supported = 1;
+					if ((!ha->max_npiv_vports) ||
+					    ((ha->max_npiv_vports + 1) %
+					    MAX_MULTI_ID_FABRIC))
+						ha->max_npiv_vports =
+						    MAX_NUM_VPORT_FABRIC;
+				}
 
 				if (ql2xallocfwdump)
 					qla2x00_alloc_fw_dump(ha);
@@ -1155,8 +1162,7 @@ qla2x00_init_rings(scsi_qla_host_t *ha)
 
 	DEBUG(printk("scsi(%ld): Issue init firmware.\n", ha->host_no));
 
-	mid_init_cb->count = MAX_NUM_VPORT_FABRIC;
-	ha->max_npiv_vports = MAX_NUM_VPORT_FABRIC;
+	mid_init_cb->count = ha->max_npiv_vports;
 
 	rval = qla2x00_init_firmware(ha, ha->init_cb_size);
 	if (rval) {

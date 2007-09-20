@@ -1250,6 +1250,6 @@ qla2x00_init_host_attr(scsi_qla_host_t *ha)
 	fc_host_node_name(ha->host) = wwn_to_u64(ha->node_name);
 	fc_host_port_name(ha->host) = wwn_to_u64(ha->port_name);
 	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
-	fc_host_max_npiv_vports(ha->host) = MAX_NUM_VPORT_FABRIC;
+	fc_host_max_npiv_vports(ha->host) = ha->max_npiv_vports;;
 	fc_host_npiv_vports_inuse(ha->host) = ha->cur_vport_count;
 }

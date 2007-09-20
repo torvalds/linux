@@ -2534,7 +2534,7 @@ typedef struct scsi_qla_host {
 #define VP_ERR_FAB_NORESOURCES	3
 #define VP_ERR_FAB_LOGOUT	4
 #define VP_ERR_ADAP_NORESOURCES	5
-	int		max_npiv_vports;	/* 63 or 125 per topoloty */
+	uint16_t	max_npiv_vports;	/* 63 or 125 per topoloty */
 	int		cur_vport_count;
 } scsi_qla_host_t;
 
