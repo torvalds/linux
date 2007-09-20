@@ -270,7 +270,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			q->tail = x;
 		}
 	}
-	if (++sch->q.qlen < q->limit-1) {
+	if (++sch->q.qlen <= q->limit) {
 		sch->bstats.bytes += skb->len;
 		sch->bstats.packets++;
 		return 0;
@@ -306,7 +306,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 			q->tail = x;
 		}
 	}
-	if (++sch->q.qlen < q->limit - 1) {
+	if (++sch->q.qlen <= q->limit) {
 		sch->qstats.requeues++;
 		return 0;
 	}
@@ -391,10 +391,10 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 	q->quantum = ctl->quantum ? : psched_mtu(sch->dev);
 	q->perturb_period = ctl->perturb_period*HZ;
 	if (ctl->limit)
-		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH);
+		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 2);
 
 	qlen = sch->q.qlen;
-	while (sch->q.qlen >= q->limit-1)
+	while (sch->q.qlen > q->limit)
 		sfq_drop(sch);
 	qdisc_tree_decrease_qlen(sch, qlen - sch->q.qlen);
 
@@ -423,7 +423,7 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 		q->dep[i+SFQ_DEPTH].next = i+SFQ_DEPTH;
 		q->dep[i+SFQ_DEPTH].prev = i+SFQ_DEPTH;
 	}
-	q->limit = SFQ_DEPTH;
+	q->limit = SFQ_DEPTH - 2;
 	q->max_depth = 0;
 	q->tail = SFQ_DEPTH;
 	if (opt == NULL) {

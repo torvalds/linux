@@ -491,44 +491,46 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 	u16 hdrflags;
 	u16 tunnel_id, session_id;
 	int length;
-	struct udphdr *uh;
+	int offset;
 
 	tunnel = pppol2tp_sock_to_tunnel(sock);
 	if (tunnel == NULL)
 		goto error;
 
+	/* UDP always verifies the packet length. */
+	__skb_pull(skb, sizeof(struct udphdr));
+
 	/* Short packet? */
-	if (skb->len < sizeof(struct udphdr)) {
+	if (!pskb_may_pull(skb, 12)) {
 		PRINTK(tunnel->debug, PPPOL2TP_MSG_DATA, KERN_INFO,
 		       "%s: recv short packet (len=%d)\n", tunnel->name, skb->len);
 		goto error;
 	}
 
 	/* Point to L2TP header */
-	ptr = skb->data + sizeof(struct udphdr);
+	ptr = skb->data;
 
 	/* Get L2TP header flags */
 	hdrflags = ntohs(*(__be16*)ptr);
 
 	/* Trace packet contents, if enabled */
 	if (tunnel->debug & PPPOL2TP_MSG_DATA) {
+		length = min(16u, skb->len);
+		if (!pskb_may_pull(skb, length))
+			goto error;
+
 		printk(KERN_DEBUG "%s: recv: ", tunnel->name);
 
-		for (length = 0; length < 16; length++)
-			printk(" %02X", ptr[length]);
+		offset = 0;
+		do {
+			printk(" %02X", ptr[offset]);
+		} while (++offset < length);
+
 		printk("\n");
 	}
 
 	/* Get length of L2TP packet */
-	uh = (struct udphdr *) skb_transport_header(skb);
-	length = ntohs(uh->len) - sizeof(struct udphdr);
-
-	/* Too short? */
-	if (length < 12) {
-		PRINTK(tunnel->debug, PPPOL2TP_MSG_DATA, KERN_INFO,
-		       "%s: recv short L2TP packet (len=%d)\n", tunnel->name, length);
-		goto error;
-	}
+	length = skb->len;
 
 	/* If type is control packet, it is handled by userspace. */
 	if (hdrflags & L2TP_HDRFLAG_T) {
@@ -606,7 +608,6 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 			       "%s: recv data has no seq numbers when required. "
 			       "Discarding\n", session->name);
 			session->stats.rx_seq_discards++;
-			session->stats.rx_errors++;
 			goto discard;
 		}
 
@@ -625,7 +626,6 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 			       "%s: recv data has no seq numbers when required. "
 			       "Discarding\n", session->name);
 			session->stats.rx_seq_discards++;
-			session->stats.rx_errors++;
 			goto discard;
 		}
 
@@ -634,10 +634,14 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 	}
 
 	/* If offset bit set, skip it. */
-	if (hdrflags & L2TP_HDRFLAG_O)
-		ptr += 2 + ntohs(*(__be16 *) ptr);
+	if (hdrflags & L2TP_HDRFLAG_O) {
+		offset = ntohs(*(__be16 *)ptr);
+		skb->transport_header += 2 + offset;
+		if (!pskb_may_pull(skb, skb_transport_offset(skb) + 2))
+			goto discard;
+	}
 
-	skb_pull(skb, ptr - skb->data);
+	__skb_pull(skb, skb_transport_offset(skb));
 
 	/* Skip PPP header, if present.	 In testing, Microsoft L2TP clients
 	 * don't send the PPP header (PPP header compression enabled), but
@@ -673,7 +677,6 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 			 */
 			if (PPPOL2TP_SKB_CB(skb)->ns != session->nr) {
 				session->stats.rx_seq_discards++;
-				session->stats.rx_errors++;
 				PRINTK(session->debug, PPPOL2TP_MSG_SEQ, KERN_DEBUG,
 				       "%s: oos pkt %hu len %d discarded, "
 				       "waiting for %hu, reorder_q_len=%d\n",
@@ -698,6 +701,7 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 	return 0;
 
 discard:
+	session->stats.rx_errors++;
 	kfree_skb(skb);
 	sock_put(session->sock);
 
@@ -958,7 +962,6 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	int data_len = skb->len;
 	struct inet_sock *inet;
 	__wsum csum = 0;
-	struct sk_buff *skb2 = NULL;
 	struct udphdr *uh;
 	unsigned int len;
 
@@ -989,41 +992,30 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 	 */
 	headroom = NET_SKB_PAD + sizeof(struct iphdr) +
 		sizeof(struct udphdr) + hdr_len + sizeof(ppph);
-	if (skb_headroom(skb) < headroom) {
-		skb2 = skb_realloc_headroom(skb, headroom);
-		if (skb2 == NULL)
-			goto abort;
-	} else
-		skb2 = skb;
-
-	/* Check that the socket has room */
-	if (atomic_read(&sk_tun->sk_wmem_alloc) < sk_tun->sk_sndbuf)
-		skb_set_owner_w(skb2, sk_tun);
-	else
-		goto discard;
+	if (skb_cow_head(skb, headroom))
+		goto abort;
 
 	/* Setup PPP header */
-	skb_push(skb2, sizeof(ppph));
-	skb2->data[0] = ppph[0];
-	skb2->data[1] = ppph[1];
+	__skb_push(skb, sizeof(ppph));
+	skb->data[0] = ppph[0];
+	skb->data[1] = ppph[1];
 
 	/* Setup L2TP header */
-	skb_push(skb2, hdr_len);
-	pppol2tp_build_l2tp_header(session, skb2->data);
+	pppol2tp_build_l2tp_header(session, __skb_push(skb, hdr_len));
 
 	/* Setup UDP header */
 	inet = inet_sk(sk_tun);
-	skb_push(skb2, sizeof(struct udphdr));
-	skb_reset_transport_header(skb2);
-	uh = (struct udphdr *) skb2->data;
+	__skb_push(skb, sizeof(*uh));
+	skb_reset_transport_header(skb);
+	uh = udp_hdr(skb);
 	uh->source = inet->sport;
 	uh->dest = inet->dport;
 	uh->len = htons(sizeof(struct udphdr) + hdr_len + sizeof(ppph) + data_len);
 	uh->check = 0;
 
-	/* Calculate UDP checksum if configured to do so */
+	/* *BROKEN* Calculate UDP checksum if configured to do so */
 	if (sk_tun->sk_no_check != UDP_CSUM_NOXMIT)
-		csum = udp_csum_outgoing(sk_tun, skb2);
+		csum = udp_csum_outgoing(sk_tun, skb);
 
 	/* Debug */
 	if (session->send_seq)
@@ -1036,7 +1028,7 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 
 	if (session->debug & PPPOL2TP_MSG_DATA) {
 		int i;
-		unsigned char *datap = skb2->data;
+		unsigned char *datap = skb->data;
 
 		printk(KERN_DEBUG "%s: xmit:", session->name);
 		for (i = 0; i < data_len; i++) {
@@ -1049,18 +1041,18 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		printk("\n");
 	}
 
-	memset(&(IPCB(skb2)->opt), 0, sizeof(IPCB(skb2)->opt));
-	IPCB(skb2)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
-			       IPSKB_REROUTED);
-	nf_reset(skb2);
+	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
+	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
+			      IPSKB_REROUTED);
+	nf_reset(skb);
 
 	/* Get routing info from the tunnel socket */
-	dst_release(skb2->dst);
-	skb2->dst = sk_dst_get(sk_tun);
+	dst_release(skb->dst);
+	skb->dst = sk_dst_get(sk_tun);
 
 	/* Queue the packet to IP for output */
-	len = skb2->len;
-	rc = ip_queue_xmit(skb2, 1);
+	len = skb->len;
+	rc = ip_queue_xmit(skb, 1);
 
 	/* Update stats */
 	if (rc >= 0) {
@@ -1073,17 +1065,12 @@ static int pppol2tp_xmit(struct ppp_channel *chan, struct sk_buff *skb)
 		session->stats.tx_errors++;
 	}
 
-	/* Free the original skb */
-	kfree_skb(skb);
-
 	return 1;
 
-discard:
-	/* Free the new skb. Caller will free original skb. */
-	if (skb2 != skb)
-		kfree_skb(skb2);
 abort:
-	return 0;
+	/* Free the original skb */
+	kfree_skb(skb);
+	return 1;
 }
 
 /*****************************************************************************
@@ -1326,12 +1313,14 @@ static struct sock *pppol2tp_prepare_tunnel_socket(int fd, u16 tunnel_id,
 		goto err;
 	}
 
+	sk = sock->sk;
+
 	/* Quick sanity checks */
-	err = -ESOCKTNOSUPPORT;
-	if (sock->type != SOCK_DGRAM) {
+	err = -EPROTONOSUPPORT;
+	if (sk->sk_protocol != IPPROTO_UDP) {
 		PRINTK(-1, PPPOL2TP_MSG_CONTROL, KERN_ERR,
-		       "tunl %hu: fd %d wrong type, got %d, expected %d\n",
-		       tunnel_id, fd, sock->type, SOCK_DGRAM);
+		       "tunl %hu: fd %d wrong protocol, got %d, expected %d\n",
+		       tunnel_id, fd, sk->sk_protocol, IPPROTO_UDP);
 		goto err;
 	}
 	err = -EAFNOSUPPORT;
@@ -1343,7 +1332,6 @@ static struct sock *pppol2tp_prepare_tunnel_socket(int fd, u16 tunnel_id,
 	}
 
 	err = -ENOTCONN;
-	sk = sock->sk;
 
 	/* Check if this socket has already been prepped */
 	tunnel = (struct pppol2tp_tunnel *)sk->sk_user_data;

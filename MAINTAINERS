@@ -2622,8 +2622,8 @@ P:	Harald Welte
 P:	Jozsef Kadlecsik
 P:	Patrick McHardy
 M:	kaber@trash.net
-L:	netfilter-devel@lists.netfilter.org
-L:	netfilter@lists.netfilter.org (subscribers-only)
+L:	netfilter-devel@vger.kernel.org
+L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
@@ -2676,7 +2676,7 @@ M:	jmorris@namei.org
 P:	Hideaki YOSHIFUJI
 M:	yoshfuji@linux-ipv6.org
 P:	Patrick McHardy
-M:	kaber@coreworks.de
+M:	kaber@trash.net
 L:	netdev@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
