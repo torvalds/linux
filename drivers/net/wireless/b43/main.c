@@ -2874,6 +2874,21 @@ static int b43_dev_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP))
 		b43_set_beacon_int(dev, conf->beacon_int);
 
+	if (!!conf->radio_enabled != phy->radio_on) {
+		if (conf->radio_enabled) {
+			b43_radio_turn_on(dev);
+			b43info(dev->wl, "Radio turned on by software\n");
+			if (!dev->radio_hw_enable) {
+				b43info(dev->wl, "The hardware RF-kill button "
+					"still turns the radio physically off. "
+					"Press the button to turn it on.\n");
+			}
+		} else {
+			b43_radio_turn_off(dev);
+			b43info(dev->wl, "Radio turned off by software\n");
+		}
+	}
+
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43_interrupt_enable(dev, savedirqs);
 	mmiowb();
@@ -3217,6 +3232,8 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	phy->aci_enable = 0;
 	phy->aci_wlan_automatic = 0;
 	phy->aci_hw_rssi = 0;
+
+	phy->radio_off_context.valid = 0;
 
 	lo = phy->lo_control;
 	if (lo) {

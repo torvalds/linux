@@ -459,7 +459,6 @@ struct b43_phy {
 	u16 radio_ver;		/* Radio version */
 	u8 radio_rev;		/* Radio revision */
 
-	bool radio_on;		/* Radio switched on/off */
 	bool locked;		/* Only used in b43_phy_{un}lock() */
 	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
@@ -467,6 +466,16 @@ struct b43_phy {
 	bool aci_enable;
 	bool aci_wlan_automatic;
 	bool aci_hw_rssi;
+
+	/* Radio switched on/off */
+	bool radio_on;
+	struct {
+		/* Values saved when turning the radio off.
+		 * They are needed when turning it on again. */
+		bool valid;
+		u16 rfover;
+		u16 rfoverval;
+	} radio_off_context;
 
 	u16 minlowsig[2];
 	u16 minlowsigpos[2];
