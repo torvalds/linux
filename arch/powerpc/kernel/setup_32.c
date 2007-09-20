@@ -10,7 +10,9 @@
 #include <linux/reboot.h>
 #include <linux/delay.h>
 #include <linux/initrd.h>
+#if defined(CONFIG_IDE) || defined(CONFIG_IDE_MODULE)
 #include <linux/ide.h>
+#endif
 #include <linux/tty.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
@@ -49,7 +51,10 @@
 
 extern void bootx_init(unsigned long r4, unsigned long phys);
 
+#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
 struct ide_machdep_calls ppc_ide_md;
+EXPORT_SYMBOL(ppc_ide_md);
+#endif
 
 int boot_cpuid;
 EXPORT_SYMBOL_GPL(boot_cpuid);
