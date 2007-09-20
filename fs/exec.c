@@ -50,7 +50,6 @@
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
-#include <linux/signalfd.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -784,7 +783,6 @@ static int de_thread(struct task_struct *tsk)
 	 * and we can just re-use it all.
 	 */
 	if (atomic_read(&oldsighand->count) <= 1) {
-		signalfd_detach(tsk);
 		exit_itimers(sig);
 		return 0;
 	}
@@ -923,7 +921,6 @@ static int de_thread(struct task_struct *tsk)
 	sig->flags = 0;
 
 no_thread_group:
-	signalfd_detach(tsk);
 	exit_itimers(sig);
 	if (leader)
 		release_task(leader);
