@@ -84,7 +84,8 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	u32 wdata, addr, ctrl;
 	int retval, cnt;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s(msg->len=%d, last=%d)\n", __FUNCTION__, msg->len, last);
+
 	/* Deal with i2c probe functions with zero payload */
 	if (msg->len == 0) {
 		cx_write(bus->reg_addr, msg->addr << 25);
@@ -127,7 +128,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		wdata = msg->buf[cnt];
 		ctrl = bus->i2c_period | (1 << 12) | (1 << 2);
 
-		if (cnt < msg->len-1 || !last)
+		if (cnt < msg->len - 1)
 			ctrl |= I2C_NOSTOP | I2C_EXTEND;
 
 		cx_write(bus->reg_addr, addr);
@@ -162,7 +163,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 	u32 ctrl, cnt;
 	int retval;
 
-	dprintk(1, "%s()\n", __FUNCTION__);
+	dprintk(1, "%s(msg->len=%d, last=%d)\n", __FUNCTION__, msg->len, last);
 
 	/* Deal with i2c probe functions with zero payload */
 	if (msg->len == 0) {
@@ -178,11 +179,14 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		return 0;
 	}
 
+	if (i2c_debug)
+		printk(" <R %02x", (msg->addr << 1) + 1);
+
 	for(cnt = 0; cnt < msg->len; cnt++) {
 
 		ctrl = bus->i2c_period | (1 << 12) | (1 << 2) | 1;
 
-		if (cnt < msg->len-1 || !last)
+		if (cnt < msg->len - 1)
 			ctrl |= I2C_NOSTOP | I2C_EXTEND;
 
 		cx_write(bus->reg_addr, msg->addr << 25);
@@ -195,9 +199,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 			goto eio;
 		msg->buf[cnt] = cx_read(bus->reg_rdata) & 0xff;
 		if (i2c_debug) {
-			if (!(ctrl & I2C_NOSTOP))
-				printk(" <R %02x", (msg->addr << 1) +1);
-			printk(" =%02x", msg->buf[cnt]);
+			printk(" %02x", msg->buf[cnt]);
 			if (!(ctrl & I2C_NOSTOP))
 				printk(" >\n");
 		}
