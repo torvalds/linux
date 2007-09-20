@@ -663,3 +663,7 @@ config KEYS_COMPAT
 	default y
 
 source "crypto/Kconfig"
+
+config PPC_CLOCK
+	bool
+	default n
