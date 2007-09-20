@@ -942,7 +942,9 @@ struct device_reg_24xx {
 	uint16_t mailbox31;
 
 	uint32_t iobase_window;
-	uint32_t unused_4[8];		/* Gap. */
+	uint32_t unused_4;		/* Gap. */
+	uint32_t iobase_c8;
+	uint32_t unused_4_1[6];		/* Gap. */
 	uint32_t iobase_q;
 	uint32_t unused_5[2];		/* Gap. */
 	uint32_t iobase_select;

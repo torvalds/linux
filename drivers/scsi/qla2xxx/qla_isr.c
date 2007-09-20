@@ -6,6 +6,7 @@
  */
 #include "qla_def.h"
 
+#include <linux/delay.h>
 #include <scsi/scsi_tcq.h>
 
 static void qla2x00_mbx_completion(scsi_qla_host_t *, uint16_t);
@@ -1484,6 +1485,52 @@ qla24xx_process_response_queue(struct scsi_qla_host *ha)
 	WRT_REG_DWORD(&reg->rsp_q_out, ha->rsp_ring_index);
 }
 
+static void
+qla2xxx_check_risc_status(scsi_qla_host_t *ha)
+{
+	int rval;
+	uint32_t cnt;
+	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
+
+	if (!IS_QLA25XX(ha))
+		return;
+
+	rval = QLA_SUCCESS;
+	WRT_REG_DWORD(&reg->iobase_addr, 0x7C00);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_window, 0x0001);
+	for (cnt = 10000; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt) {
+			WRT_REG_DWORD(&reg->iobase_window, 0x0001);
+			udelay(10);
+		} else
+			rval = QLA_FUNCTION_TIMEOUT;
+	}
+	if (rval == QLA_SUCCESS)
+		goto next_test;
+
+	WRT_REG_DWORD(&reg->iobase_window, 0x0003);
+	for (cnt = 100; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt) {
+			WRT_REG_DWORD(&reg->iobase_window, 0x0003);
+			udelay(10);
+		} else
+			rval = QLA_FUNCTION_TIMEOUT;
+	}
+	if (rval != QLA_SUCCESS)
+		goto done;
+
+next_test:
+	if (RD_REG_DWORD(&reg->iobase_c8) & BIT_3)
+		qla_printk(KERN_INFO, ha, "Additional code -- 0x55AA.\n");
+
+done:
+	WRT_REG_DWORD(&reg->iobase_window, 0x0000);
+	RD_REG_DWORD(&reg->iobase_window);
+}
+
 /**
  * qla24xx_intr_handler() - Process interrupts for the ISP23xx and ISP63xx.
  * @irq:
@@ -1526,6 +1573,9 @@ qla24xx_intr_handler(int irq, void *dev_id)
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
 			    "Dumping firmware!\n", hccr);
+
+			qla2xxx_check_risc_status(ha);
+
 			ha->isp_ops->fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
@@ -1663,6 +1713,9 @@ qla24xx_msix_default(int irq, void *dev_id)
 
 			qla_printk(KERN_INFO, ha, "RISC paused -- HCCR=%x, "
 			    "Dumping firmware!\n", hccr);
+
+			qla2xxx_check_risc_status(ha);
+
 			ha->isp_ops->fw_dump(ha, 1);
 			set_bit(ISP_ABORT_NEEDED, &ha->dpc_flags);
 			break;
