@@ -331,6 +331,12 @@ static struct i2c_driver_device i2c_devices[] __initdata = {
 	{"ricoh,rs5c372b", "rtc-rs5c372", "rs5c372b",},
 	{"ricoh,rv5c386",  "rtc-rs5c372", "rv5c386",},
 	{"ricoh,rv5c387a", "rtc-rs5c372", "rv5c387a",},
+	{"dallas,ds1307",  "rtc-ds1307",  "ds1307",},
+	{"dallas,ds1337",  "rtc-ds1307",  "ds1337",},
+	{"dallas,ds1338",  "rtc-ds1307",  "ds1338",},
+	{"dallas,ds1339",  "rtc-ds1307",  "ds1339",},
+	{"dallas,ds1340",  "rtc-ds1307",  "ds1340",},
+	{"stm,m41t00",     "rtc-ds1307",  "m41t00"},
 };
 
 static int __init of_find_i2c_driver(struct device_node *node,
