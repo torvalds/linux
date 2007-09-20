@@ -108,26 +108,17 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 	return;
 }
 
-static void u3msi_compose_msi_msg(struct pci_dev *pdev, int virq,
-				  struct msi_msg *msg)
-{
-	u64 addr;
-
-	addr = find_ht_magic_addr(pdev);
-	msg->address_lo = addr & 0xFFFFFFFF;
-	msg->address_hi = addr >> 32;
-	msg->data = virq_to_hw(virq);
-
-	pr_debug("u3msi: allocated virq 0x%x (hw 0x%lx) at address 0x%lx\n",
-		 virq, virq_to_hw(virq), addr);
-}
-
 static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	irq_hw_number_t hwirq;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
+	u64 addr;
+
+	addr = find_ht_magic_addr(pdev);
+	msg.address_lo = addr & 0xFFFFFFFF;
+	msg.address_hi = addr >> 32;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = mpic_msi_alloc_hwirqs(msi_mpic, 1);
@@ -147,7 +138,10 @@ static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		set_irq_chip(virq, &mpic_u3msi_chip);
 		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		u3msi_compose_msi_msg(pdev, virq, &msg);
+		pr_debug("u3msi: allocated virq 0x%x (hw 0x%lx) addr 0x%lx\n",
+			  virq, hwirq, addr);
+
+		msg.data = hwirq;
 		write_msi_msg(virq, &msg);
 
 		hwirq++;
