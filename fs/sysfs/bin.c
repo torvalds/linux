@@ -193,9 +193,8 @@ static int open(struct inode * inode, struct file * file)
 	mutex_init(&bb->mutex);
 	file->private_data = bb;
 
-	/* open succeeded, put active reference and pin attr_sd */
+	/* open succeeded, put active reference */
 	sysfs_put_active(attr_sd);
-	sysfs_get(attr_sd);
 	return 0;
 
  err_out:
@@ -211,7 +210,6 @@ static int release(struct inode * inode, struct file * file)
 
 	if (bb->mmapped)
 		sysfs_put_active_two(attr_sd);
-	sysfs_put(attr_sd);
 	kfree(bb->buffer);
 	kfree(bb);
 	return 0;

@@ -298,9 +298,8 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	buffer->ops = ops;
 	file->private_data = buffer;
 
-	/* open succeeded, put active references and pin attr_sd */
+	/* open succeeded, put active references */
 	sysfs_put_active_two(attr_sd);
-	sysfs_get(attr_sd);
 	return 0;
 
  err_out:
@@ -310,10 +309,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 
 static int sysfs_release(struct inode * inode, struct file * filp)
 {
-	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
 	struct sysfs_buffer *buffer = filp->private_data;
-
-	sysfs_put(attr_sd);
 
 	if (buffer) {
 		if (buffer->page)
