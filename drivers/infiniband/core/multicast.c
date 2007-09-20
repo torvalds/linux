@@ -196,7 +196,7 @@ static void queue_join(struct mcast_member *member)
 	unsigned long flags;
 
 	spin_lock_irqsave(&group->lock, flags);
-	list_add(&member->list, &group->pending_list);
+	list_add_tail(&member->list, &group->pending_list);
 	if (group->state == MCAST_IDLE) {
 		group->state = MCAST_BUSY;
 		atomic_inc(&group->refcount);
