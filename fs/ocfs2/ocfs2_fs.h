@@ -111,6 +111,17 @@
 #define OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC	0x0010
 
 /*
+ * Tunefs sets this incompat flag before starting an operation which
+ * would require cleanup on abort. This is done to protect users from
+ * inadvertently mounting the fs after an aborted run without
+ * fsck-ing.
+ *
+ * s_tunefs_flags on the super block describes precisely which
+ * operations were in progress.
+ */
+#define OCFS2_FEATURE_INCOMPAT_TUNEFS_INPROG	0x0020
+
+/*
  * backup superblock flag is used to indicate that this volume
  * has backup superblocks.
  */
@@ -128,6 +139,11 @@
 
 /* the max backup superblock nums */
 #define OCFS2_MAX_BACKUP_SUPERBLOCKS	6
+
+/*
+ * Flags on ocfs2_super_block.s_tunefs_flags
+ */
+#define OCFS2_TUNEFS_INPROG_REMOVE_SLOT		0x0001	/* Removing slots */
 
 /*
  * Flags on ocfs2_dinode.i_flags
@@ -447,8 +463,8 @@ struct ocfs2_super_block {
 	__le32 s_clustersize_bits;	/* Clustersize for this fs */
 /*40*/	__le16 s_max_slots;		/* Max number of simultaneous mounts
 					   before tunefs required */
-	__le16 s_reserved1;
-	__le32 s_reserved2;
+	__le16 s_tunefs_flag;
+	__le32 s_reserved1;
 	__le64 s_first_cluster_group;	/* Block offset of 1st cluster
 					 * group header */
 /*50*/	__u8  s_label[OCFS2_MAX_VOL_LABEL_LEN];	/* Label for mounting, etc. */
