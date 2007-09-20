@@ -2227,9 +2227,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (err)
 		goto err_gpio_cleanup;
 	b43_radio_turn_on(dev);
-	dev->radio_hw_enable = b43_is_hw_radio_enabled(dev);
-	b43dbg(dev->wl, "Radio %s by hardware\n",
-	       dev->radio_hw_enable ? "enabled" : "disabled");
 
 	b43_write16(dev, 0x03E6, 0x0000);
 	err = b43_phy_init(dev);
@@ -3252,6 +3249,9 @@ static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 {
 	/* Flags */
 	dev->reg124_set_0x4 = 0;
+	/* Assume the radio is enabled. If it's not enabled, the state will
+	 * immediately get fixed on the first periodic work run. */
+	dev->radio_hw_enable = 1;
 
 	/* Stats */
 	memset(&dev->stats, 0, sizeof(dev->stats));
