@@ -1671,7 +1671,7 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->high_seq = tp->frto_highmark;
 	TCP_ECN_queue_cwr(tp);
 
-	tcp_clear_all_retrans_hints(tp);
+	tcp_clear_retrans_hints_partial(tp);
 }
 
 void tcp_clear_retrans(struct tcp_sock *tp)
@@ -1711,10 +1711,14 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tp->bytes_acked = 0;
 	tcp_clear_retrans(tp);
 
-	/* Push undo marker, if it was plain RTO and nothing
-	 * was retransmitted. */
-	if (!how)
+	if (!how) {
+		/* Push undo marker, if it was plain RTO and nothing
+		 * was retransmitted. */
 		tp->undo_marker = tp->snd_una;
+		tcp_clear_retrans_hints_partial(tp);
+	} else {
+		tcp_clear_all_retrans_hints(tp);
+	}
 
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
@@ -1741,8 +1745,6 @@ void tcp_enter_loss(struct sock *sk, int how)
 	TCP_ECN_queue_cwr(tp);
 	/* Abort FRTO algorithm if one is in progress */
 	tp->frto_counter = 0;
-
-	tcp_clear_all_retrans_hints(tp);
 }
 
 static int tcp_check_sack_reneging(struct sock *sk)
