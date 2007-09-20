@@ -107,59 +107,44 @@ static struct scsi_host_template driver_template;
 static int eata_pio_proc_info(struct Scsi_Host *shost, char *buffer, char **start, off_t offset,
 			      int length, int rw)
 {
-    static u8 buff[512];
-    int size, len = 0;
-    off_t begin = 0, pos = 0;
+	int len = 0;
+	off_t begin = 0, pos = 0;
 
-    if (rw)
-    	return -ENOSYS;
-    if (offset == 0)
-	memset(buff, 0, sizeof(buff));
+	if (rw)
+		return -ENOSYS;
 
-    size = sprintf(buffer+len, "EATA (Extended Attachment) PIO driver version: "
+	len += sprintf(buffer+len, "EATA (Extended Attachment) PIO driver version: "
 		   "%d.%d%s\n",VER_MAJOR, VER_MINOR, VER_SUB);
-    len += size; pos = begin + len;
-    size = sprintf(buffer + len, "queued commands:     %10ld\n"
+	len += sprintf(buffer + len, "queued commands:     %10ld\n"
 		   "processed interrupts:%10ld\n", queue_counter, int_counter);
-    len += size; pos = begin + len;
-    
-    size = sprintf(buffer + len, "\nscsi%-2d: HBA %.10s\n",
+	len += sprintf(buffer + len, "\nscsi%-2d: HBA %.10s\n",
 		   shost->host_no, SD(shost)->name);
-    len += size; 
-    pos = begin + len;
-    size = sprintf(buffer + len, "Firmware revision: v%s\n", 
+	len += sprintf(buffer + len, "Firmware revision: v%s\n",
 		   SD(shost)->revision);
-    len += size;
-    pos = begin + len;
-    size = sprintf(buffer + len, "IO: PIO\n");
-    len += size; 
-    pos = begin + len;
-    size = sprintf(buffer + len, "Base IO : %#.4x\n", (u32) shost->base);
-    len += size; 
-    pos = begin + len;
-    size = sprintf(buffer + len, "Host Bus: %s\n", 
+	len += sprintf(buffer + len, "IO: PIO\n");
+	len += sprintf(buffer + len, "Base IO : %#.4x\n", (u32) shost->base);
+	len += sprintf(buffer + len, "Host Bus: %s\n",
 		   (SD(shost)->bustype == 'P')?"PCI ":
 		   (SD(shost)->bustype == 'E')?"EISA":"ISA ");
     
-    len += size; 
-    pos = begin + len;
+	pos = begin + len;
     
-    if (pos < offset) {
-	len = 0;
-	begin = pos;
-    }
-    if (pos > offset + length)
-	goto stop_output;
+	if (pos < offset) {
+		len = 0;
+		begin = pos;
+	}
+	if (pos > offset + length)
+		goto stop_output;
     
- stop_output:
-    DBG(DBG_PROC, printk("2pos: %ld offset: %ld len: %d\n", pos, offset, len));
-    *start=buffer+(offset-begin);   /* Start of wanted data */
-    len-=(offset-begin);            /* Start slop */
-    if(len>length)
-	len = length;               /* Ending slop */
-    DBG(DBG_PROC, printk("3pos: %ld offset: %ld len: %d\n", pos, offset, len));
+stop_output:
+	DBG(DBG_PROC, printk("2pos: %ld offset: %ld len: %d\n", pos, offset, len));
+	*start = buffer + (offset - begin);   /* Start of wanted data */
+	len -= (offset - begin);            /* Start slop */
+	if (len > length)
+		len = length;               /* Ending slop */
+	DBG(DBG_PROC, printk("3pos: %ld offset: %ld len: %d\n", pos, offset, len));
     
-    return (len);     
+	return len;
 }
 
 static int eata_pio_release(struct Scsi_Host *sh)
@@ -438,7 +423,7 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 			"returning DID_BUS_BUSY, done.\n", cmd->pid);
 		done(cmd);
 		cp->status = FREE;
-		return (0);
+		return 0;
 	}
 	/* FIXME: timeout */
 	while (!(inb(base + HA_RSTATUS) & HA_SDRQ))
@@ -452,7 +437,7 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 		"Queued base %#.4lx pid: %ld "
 		"slot %d irq %d\n", sh->base, cmd->pid, y, sh->irq));
 
-	return (0);
+	return 0;
 }
 
 static int eata_pio_abort(struct scsi_cmnd *cmd)
@@ -589,23 +574,28 @@ static char *get_pio_board_data(unsigned long base, unsigned int irq, unsigned i
 	cp.cp_cdb[5] = 0;
 
 	if (eata_pio_send_command(base, EATA_CMD_PIO_SEND_CP))
-		return (NULL);
-	while (!(inb(base + HA_RSTATUS) & HA_SDRQ));
+		return NULL;
+
+	while (!(inb(base + HA_RSTATUS) & HA_SDRQ))
+		cpu_relax();
+
 	outsw(base + HA_RDATA, &cp, cplen);
 	outb(EATA_CMD_PIO_TRUNC, base + HA_WCOMMAND);
 	for (z = 0; z < cppadlen; z++)
 		outw(0, base + HA_RDATA);
 
-	while (inb(base + HA_RSTATUS) & HA_SBUSY);
+	while (inb(base + HA_RSTATUS) & HA_SBUSY)
+		cpu_relax();
+
 	if (inb(base + HA_RSTATUS) & HA_SERROR)
-		return (NULL);
+		return NULL;
 	else if (!(inb(base + HA_RSTATUS) & HA_SDRQ))
-		return (NULL);
+		return NULL;
 	else {
 		insw(base + HA_RDATA, &buff, 127);
 		while (inb(base + HA_RSTATUS) & HA_SDRQ)
 			inw(base + HA_RDATA);
-		return (buff);
+		return buff;
 	}
 }
 
