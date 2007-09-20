@@ -363,7 +363,7 @@ qla2x00_do_dpc_all_vps(scsi_qla_host_t *ha)
 int
 qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *) fc_vport->shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha;
 	uint8_t port_name[WWN_SIZE];
 
@@ -397,7 +397,7 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 scsi_qla_host_t *
 qla24xx_create_vhost(struct fc_vport *fc_vport)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *) fc_vport->shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(fc_vport->shost);
 	scsi_qla_host_t *vha;
 	struct Scsi_Host *host;
 
@@ -409,7 +409,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 		return(NULL);
 	}
 
-	vha = (scsi_qla_host_t *)host->hostdata;
+	vha = shost_priv(host);
 
 	/* clone the parent hba */
 	memcpy(vha, ha, sizeof (scsi_qla_host_t));

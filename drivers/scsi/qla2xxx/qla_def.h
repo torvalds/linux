@@ -2545,8 +2545,6 @@ typedef struct scsi_qla_host {
 	 test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) || \
 	 atomic_read(&ha->loop_state) == LOOP_DOWN)
 
-#define to_qla_host(x)		((scsi_qla_host_t *) (x)->hostdata)
-
 #define qla_printk(level, ha, format, arg...) \
 	dev_printk(level , &((ha)->pdev->dev) , format , ## arg)
 

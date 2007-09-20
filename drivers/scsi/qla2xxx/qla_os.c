@@ -379,7 +379,7 @@ qla2x00_get_new_sp(scsi_qla_host_t *ha, fc_port_t *fcport,
 static int
 qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
@@ -445,7 +445,7 @@ qc_fail_command:
 static int
 qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
@@ -663,7 +663,7 @@ qla2x00_block_error_handler(struct scsi_cmnd *cmnd)
 static int
 qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	srb_t *sp;
 	int ret, i;
 	unsigned int id, lun;
@@ -803,7 +803,7 @@ qla2x00_eh_wait_for_pending_target_commands(scsi_qla_host_t *ha, unsigned int t)
 static int
 qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id, lun;
@@ -932,7 +932,7 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha)
 static int
 qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	scsi_qla_host_t *pha = to_qla_parent(ha);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
@@ -992,7 +992,7 @@ eh_bus_reset_done:
 static int
 qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 {
-	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
+	scsi_qla_host_t *ha = shost_priv(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
 	int ret = FAILED;
 	unsigned int id, lun;
@@ -1142,7 +1142,7 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 static int
 qla2xxx_slave_configure(struct scsi_device *sdev)
 {
-	scsi_qla_host_t *ha = to_qla_host(sdev->host);
+	scsi_qla_host_t *ha = shost_priv(sdev->host);
 	struct fc_rport *rport = starget_to_rport(sdev->sdev_target);
 
 	if (sdev->tagged_supported)
@@ -1543,7 +1543,7 @@ iospace_error_exit:
 static void
 qla2xxx_scan_start(struct Scsi_Host *shost)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(shost);
 
 	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
@@ -1553,7 +1553,7 @@ qla2xxx_scan_start(struct Scsi_Host *shost)
 static int
 qla2xxx_scan_finished(struct Scsi_Host *shost, unsigned long time)
 {
-	scsi_qla_host_t *ha = (scsi_qla_host_t *)shost->hostdata;
+	scsi_qla_host_t *ha = shost_priv(shost);
 
 	if (!ha->host)
 		return 1;
@@ -1600,7 +1600,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Clear our data area */
-	ha = (scsi_qla_host_t *)host->hostdata;
+	ha = shost_priv(host);
 	memset(ha, 0, sizeof(scsi_qla_host_t));
 
 	ha->pdev = pdev;

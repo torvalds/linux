@@ -1402,7 +1402,7 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	struct scsi_qla_host *ha;
 	srb_t *sp;
 
-	ha = (struct scsi_qla_host *)cmd->device->host->hostdata;
+	ha = shost_priv(cmd->device->host);
 
 	sp = (srb_t *) cmd->SCp.ptr;
 	printk("SCSI Command @=0x%p, Handle=0x%p\n", cmd, cmd->host_scribble);
