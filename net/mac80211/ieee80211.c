@@ -704,7 +704,12 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 
 	local->hw.conf.channel = chan->chan;
 	local->hw.conf.channel_val = chan->val;
-	local->hw.conf.power_level = chan->power_level;
+	if (!local->hw.conf.power_level) {
+		local->hw.conf.power_level = chan->power_level;
+	} else {
+		local->hw.conf.power_level = min(chan->power_level,
+						 local->hw.conf.power_level);
+	}
 	local->hw.conf.freq = chan->freq;
 	local->hw.conf.phymode = mode->mode;
 	local->hw.conf.antenna_max = chan->antenna_max;

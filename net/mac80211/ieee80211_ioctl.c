@@ -666,6 +666,38 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	return 0;
 }
 
+static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
+				      struct iw_request_info *info,
+				      union iwreq_data *data, char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	bool need_reconfig = 0;
+
+	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
+		return -EINVAL;
+	if (data->txpower.flags & IW_TXPOW_RANGE)
+		return -EINVAL;
+	if (!data->txpower.fixed)
+		return -EINVAL;
+
+	if (local->hw.conf.power_level != data->txpower.value) {
+		local->hw.conf.power_level = data->txpower.value;
+		need_reconfig = 1;
+	}
+	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
+		local->hw.conf.radio_enabled = !(data->txpower.disabled);
+		need_reconfig = 1;
+	}
+	if (need_reconfig) {
+		ieee80211_hw_config(local);
+		/* The return value of hw_config is not of big interest here,
+		 * as it doesn't say that it failed because of _this_ config
+		 * change or something else. Ignore it. */
+	}
+
+	return 0;
+}
+
 static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
 				   struct iw_request_info *info,
 				   union iwreq_data *data, char *extra)
@@ -1339,7 +1371,7 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwrts,		/* SIOCGIWRTS */
 	(iw_handler) ieee80211_ioctl_siwfrag,		/* SIOCSIWFRAG */
 	(iw_handler) ieee80211_ioctl_giwfrag,		/* SIOCGIWFRAG */
-	(iw_handler) NULL,				/* SIOCSIWTXPOW */
+	(iw_handler) ieee80211_ioctl_siwtxpower,	/* SIOCSIWTXPOW */
 	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
 	(iw_handler) ieee80211_ioctl_siwretry,		/* SIOCSIWRETRY */
 	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
