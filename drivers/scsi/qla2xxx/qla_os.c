@@ -2437,7 +2437,6 @@ qla2x00_do_dpc(void *data)
 				if (atomic_read(&fcport->state) != FCS_ONLINE &&
 				    fcport->login_retry) {
 
-					fcport->login_retry--;
 					if (fcport->flags & FCF_FABRIC_DEVICE) {
 						if (fcport->flags &
 						    FCF_TAPE_PRESENT)
@@ -2453,6 +2452,7 @@ qla2x00_do_dpc(void *data)
 						    qla2x00_local_device_login(
 							ha, fcport);
 
+					fcport->login_retry--;
 					if (status == QLA_SUCCESS) {
 						fcport->old_loop_id = fcport->loop_id;
 
@@ -2470,6 +2470,8 @@ qla2x00_do_dpc(void *data)
 					} else {
 						fcport->login_retry = 0;
 					}
+					if (fcport->login_retry == 0)
+						fcport->loop_id = FC_NO_LOOP_ID;
 				}
 				if (test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags))
 					break;
