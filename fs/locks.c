@@ -1343,6 +1343,7 @@ int fcntl_getlease(struct file *filp)
 int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 {
 	struct file_lock *fl, **before, **my_before = NULL, *lease;
+	struct file_lock *new_fl = NULL;
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	int error, rdlease_count = 0, wrlease_count = 0;
@@ -1367,6 +1368,11 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	if ((arg == F_WRLCK)
 	    && ((atomic_read(&dentry->d_count) > 1)
 		|| (atomic_read(&inode->i_count) > 1)))
+		goto out;
+
+	error = -ENOMEM;
+	new_fl = locks_alloc_lock();
+	if (new_fl == NULL)
 		goto out;
 
 	/*
@@ -1411,18 +1417,15 @@ int generic_setlease(struct file *filp, long arg, struct file_lock **flp)
 	if (!leases_enable)
 		goto out;
 
-	error = -ENOMEM;
-	fl = locks_alloc_lock();
-	if (fl == NULL)
-		goto out;
+	locks_copy_lock(new_fl, lease);
+	locks_insert_lock(before, new_fl);
 
-	locks_copy_lock(fl, lease);
+	*flp = new_fl;
+	return 0;
 
-	locks_insert_lock(before, fl);
-
-	*flp = fl;
-	error = 0;
 out:
+	if (new_fl != NULL)
+		locks_free_lock(new_fl);
 	return error;
 }
 EXPORT_SYMBOL(generic_setlease);
