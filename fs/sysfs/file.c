@@ -3,7 +3,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/fsnotify.h>
 #include <linux/kobject.h>
 #include <linux/namei.h>
 #include <linux/poll.h>
@@ -453,44 +452,6 @@ int sysfs_add_file_to_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
 
-
-/**
- * sysfs_update_file - update the modified timestamp on an object attribute.
- * @kobj: object we're acting for.
- * @attr: attribute descriptor.
- */
-int sysfs_update_file(struct kobject * kobj, const struct attribute * attr)
-{
-	struct sysfs_dirent *victim_sd = NULL;
-	struct dentry *victim = NULL;
-	int rc;
-
-	rc = -ENOENT;
-	victim_sd = sysfs_get_dirent(kobj->sd, attr->name);
-	if (!victim_sd)
-		goto out;
-
-	mutex_lock(&sysfs_rename_mutex);
-	victim = sysfs_get_dentry(victim_sd);
-	mutex_unlock(&sysfs_rename_mutex);
-	if (IS_ERR(victim)) {
-		rc = PTR_ERR(victim);
-		victim = NULL;
-		goto out;
-	}
-
-	mutex_lock(&victim->d_inode->i_mutex);
-	victim->d_inode->i_mtime = CURRENT_TIME;
-	fsnotify_modify(victim);
-	mutex_unlock(&victim->d_inode->i_mutex);
-	rc = 0;
- out:
-	dput(victim);
-	sysfs_put(victim_sd);
-	return rc;
-}
-
-
 /**
  * sysfs_chmod_file - update the modified mode value on an object attribute.
  * @kobj: object we're acting for.
@@ -641,4 +602,3 @@ EXPORT_SYMBOL_GPL(sysfs_schedule_callback);
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_file);
-EXPORT_SYMBOL_GPL(sysfs_update_file);

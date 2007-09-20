@@ -87,8 +87,6 @@ int __must_check sysfs_move_dir(struct kobject *kobj,
 
 int __must_check sysfs_create_file(struct kobject *kobj,
 				   const struct attribute *attr);
-int __must_check sysfs_update_file(struct kobject *kobj,
-				   const struct attribute *attr);
 int __must_check sysfs_chmod_file(struct kobject *kobj, struct attribute *attr,
 				  mode_t mode);
 void sysfs_remove_file(struct kobject *kobj, const struct attribute *attr);
@@ -149,11 +147,6 @@ static inline int sysfs_create_file(struct kobject *kobj,
 	return 0;
 }
 
-static inline int sysfs_update_file(struct kobject *kobj,
-				    const struct attribute *attr)
-{
-	return 0;
-}
 static inline int sysfs_chmod_file(struct kobject *kobj,
 				   struct attribute *attr, mode_t mode)
 {
