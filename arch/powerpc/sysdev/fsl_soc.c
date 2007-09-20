@@ -363,7 +363,7 @@ static void __init of_register_i2c_devices(struct device_node *adap_node,
 
 		addr = of_get_property(node, "reg", &len);
 		if (!addr || len < sizeof(int) || *addr > (1 << 10) - 1) {
-			printk(KERN_WARNING "fsl_ioc.c: invalid i2c device entry\n");
+			printk(KERN_WARNING "fsl_soc.c: invalid i2c device entry\n");
 			continue;
 		}
 
