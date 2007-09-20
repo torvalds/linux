@@ -192,8 +192,8 @@ config PATA_AMD
 	  If unsure, say N.
 
 config PATA_ARTOP
-	tristate "ARTOP 6210/6260 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "ARTOP 6210/6260 PATA support"
+	depends on PCI
 	help
 	  This option enables support for ARTOP PATA controllers.
 
@@ -209,8 +209,8 @@ config PATA_AT32
 	  If unsure, say N.
 
 config PATA_ATIIXP
-	tristate "ATI PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "ATI PATA support"
+	depends on PCI
 	help
 	  This option enables support for the ATI ATA interfaces
 	  found on the many ATI chipsets.
@@ -228,8 +228,8 @@ config PATA_CMD640_PCI
 	  If unsure, say N.
 
 config PATA_CMD64X
-	tristate "CMD64x PATA support (Very Experimental)"
-	depends on PCI&& EXPERIMENTAL
+	tristate "CMD64x PATA support"
+	depends on PCI
 	help
 	  This option enables support for the CMD64x series chips
 	  except for the CMD640.
@@ -291,8 +291,8 @@ config ATA_GENERIC
 	  If unsure, say N.
 
 config PATA_HPT366
-	tristate "HPT 366/368 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "HPT 366/368 PATA support"
+	depends on PCI
 	help
 	  This option enables support for the HPT 366 and 368
 	  PATA controllers via the new ATA layer.
