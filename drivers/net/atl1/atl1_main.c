@@ -2209,8 +2209,14 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 		return err;
 
 	/*
-	 * 64-bit DMA currently has data corruption problems, so let's just
-	 * use 32-bit DMA for now.  This is a big hack that is probably wrong.
+	 * The atl1 chip can DMA to 64-bit addresses, but it uses a single
+	 * shared register for the high 32 bits, so only a single, aligned,
+	 * 4 GB physical address range can be used at a time.
+	 *
+	 * Supporting 64-bit DMA on this hardware is more trouble than it's
+	 * worth.  It is far easier to limit to 32-bit DMA than update
+	 * various kernel subsystems to support the mechanics required by a
+	 * fixed-high-32-bit system.
 	 */
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (err) {
