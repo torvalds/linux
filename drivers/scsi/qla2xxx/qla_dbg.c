@@ -1072,6 +1072,7 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	}
 	fw = &ha->fw_dump->isp.isp25;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
+	ha->fw_dump->version = __constant_htonl(2);
 
 	fw->host_status = htonl(RD_REG_DWORD(&reg->host_status));
 
@@ -1079,6 +1080,23 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	rval = qla24xx_pause_risc(reg);
 	if (rval != QLA_SUCCESS)
 		goto qla25xx_fw_dump_failed_0;
+
+	/* Host/Risc registers. */
+	iter_reg = fw->host_risc_reg;
+	iter_reg = qla24xx_read_window(reg, 0x7000, 16, iter_reg);
+	qla24xx_read_window(reg, 0x7010, 16, iter_reg);
+
+	/* PCIe registers. */
+	WRT_REG_DWORD(&reg->iobase_addr, 0x7C00);
+	RD_REG_DWORD(&reg->iobase_addr);
+	WRT_REG_DWORD(&reg->iobase_window, 0x01);
+	dmp_reg = &reg->iobase_c4;
+	fw->pcie_regs[0] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[1] = htonl(RD_REG_DWORD(dmp_reg++));
+	fw->pcie_regs[2] = htonl(RD_REG_DWORD(dmp_reg));
+	fw->pcie_regs[3] = htonl(RD_REG_DWORD(&reg->iobase_window));
+	WRT_REG_DWORD(&reg->iobase_window, 0x00);
+	RD_REG_DWORD(&reg->iobase_window);
 
 	/* Host interface registers. */
 	dmp_reg = &reg->flash_addr;

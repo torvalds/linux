@@ -215,6 +215,8 @@ struct qla24xx_fw_dump {
 
 struct qla25xx_fw_dump {
 	uint32_t host_status;
+	uint32_t host_risc_reg[32];
+	uint32_t pcie_regs[4];
 	uint32_t host_reg[32];
 	uint32_t shadow_reg[11];
 	uint32_t risc_io_reg;
