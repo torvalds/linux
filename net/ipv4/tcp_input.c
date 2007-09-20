@@ -1667,7 +1667,7 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->high_seq = tp->frto_highmark;
 	TCP_ECN_queue_cwr(tp);
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 }
 
 void tcp_clear_retrans(struct tcp_sock *tp)
@@ -1738,7 +1738,7 @@ void tcp_enter_loss(struct sock *sk, int how)
 	/* Abort FRTO algorithm if one is in progress */
 	tp->frto_counter = 0;
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 }
 
 static int tcp_check_sack_reneging(struct sock *sk)
@@ -2103,7 +2103,7 @@ static void tcp_undo_cwr(struct sock *sk, const int undo)
 
 	/* There is something screwy going on with the retrans hints after
 	   an undo */
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 }
 
 static inline int tcp_may_undo(struct tcp_sock *tp)
@@ -2196,7 +2196,7 @@ static int tcp_try_undo_loss(struct sock *sk)
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 		}
 
-		clear_all_retrans_hints(tp);
+		tcp_clear_all_retrans_hints(tp);
 
 		DBGUNDO(sk, "partial loss");
 		tp->lost_out = 0;
@@ -2656,7 +2656,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tp->packets_out -= tcp_skb_pcount(skb);
 		tcp_unlink_write_queue(skb, sk);
 		sk_stream_free_skb(sk, skb);
-		clear_all_retrans_hints(tp);
+		tcp_clear_all_retrans_hints(tp);
 	}
 
 	if (acked&FLAG_ACKED) {

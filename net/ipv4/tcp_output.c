@@ -687,7 +687,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 
 	BUG_ON(len > skb->len);
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;
@@ -1719,7 +1719,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		       tcp_skb_pcount(next_skb) != 1);
 
 		/* changing transmit queue under us so clear hints */
-		clear_all_retrans_hints(tp);
+		tcp_clear_all_retrans_hints(tp);
 
 		/* Ok.	We will be able to collapse the packet. */
 		tcp_unlink_write_queue(next_skb, sk);
@@ -1792,7 +1792,7 @@ void tcp_simple_retransmit(struct sock *sk)
 		}
 	}
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 
 	if (!lost)
 		return;
