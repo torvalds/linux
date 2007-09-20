@@ -39,8 +39,8 @@ struct sysfs_dirent {
 	}			s_elem;
 
 	unsigned int		s_flags;
-	umode_t			s_mode;
 	ino_t			s_ino;
+	umode_t			s_mode;
 	struct iattr		*s_iattr;
 	atomic_t		s_event;
 };
