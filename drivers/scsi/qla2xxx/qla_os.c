@@ -1384,7 +1384,7 @@ static struct isp_operations qla25xx_isp_ops = {
 	.beacon_on		= qla24xx_beacon_on,
 	.beacon_off		= qla24xx_beacon_off,
 	.beacon_blink		= qla24xx_beacon_blink,
-	.read_optrom		= qla24xx_read_optrom_data,
+	.read_optrom		= qla25xx_read_optrom_data,
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
 };

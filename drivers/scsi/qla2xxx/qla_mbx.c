@@ -2980,3 +2980,51 @@ qla2x00_send_change_request(scsi_qla_host_t *ha, uint16_t format,
 
 	return rval;
 }
+
+int
+qla2x00_dump_ram(scsi_qla_host_t *ha, dma_addr_t req_dma, uint32_t addr,
+    uint32_t size)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	if (MSW(addr) || IS_FWI2_CAPABLE(ha)) {
+		mcp->mb[0] = MBC_DUMP_RISC_RAM_EXTENDED;
+		mcp->mb[8] = MSW(addr);
+		mcp->out_mb = MBX_8|MBX_0;
+	} else {
+		mcp->mb[0] = MBC_DUMP_RISC_RAM;
+		mcp->out_mb = MBX_0;
+	}
+	mcp->mb[1] = LSW(addr);
+	mcp->mb[2] = MSW(req_dma);
+	mcp->mb[3] = LSW(req_dma);
+	mcp->mb[6] = MSW(MSD(req_dma));
+	mcp->mb[7] = LSW(MSD(req_dma));
+	mcp->out_mb |= MBX_7|MBX_6|MBX_3|MBX_2|MBX_1;
+	if (IS_FWI2_CAPABLE(ha)) {
+		mcp->mb[4] = MSW(size);
+		mcp->mb[5] = LSW(size);
+		mcp->out_mb |= MBX_5|MBX_4;
+	} else {
+		mcp->mb[4] = LSW(size);
+		mcp->out_mb |= MBX_4;
+	}
+
+	mcp->in_mb = MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x.\n", __func__,
+		    ha->host_no, rval, mcp->mb[0]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
+
+	return rval;
+}
