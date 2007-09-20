@@ -14,7 +14,7 @@
 #include "ieee80211_cfg.h"
 
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
-			       unsigned int type)
+			       enum nl80211_iftype type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	int itype;
