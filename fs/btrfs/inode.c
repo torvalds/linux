@@ -1505,13 +1505,13 @@ again:
 
 		size = btrfs_file_extent_inline_len(leaf->items +
 						    path->slots[0]);
-		extent_end = extent_start + size;
+		extent_end = extent_start | ((u64)root->blocksize - 1);
 		if (start < extent_start || start >= extent_end) {
 			em->start = start;
 			if (start < extent_start) {
 				if (end < extent_start)
 					goto not_found;
-				em->end = extent_end - 1;
+				em->end = extent_end;
 			} else {
 				em->end = end;
 			}
@@ -1520,17 +1520,19 @@ again:
 		em->block_start = EXTENT_MAP_INLINE;
 		em->block_end = EXTENT_MAP_INLINE;
 		em->start = extent_start;
-		em->end = extent_end - 1;
+		em->end = extent_end;
 		if (!page) {
 			goto insert;
 		}
 		ptr = btrfs_file_extent_inline_start(item);
 		map = kmap(page);
 		memcpy(map + page_offset, ptr, size);
-		flush_dcache_page(result->b_page);
+		memset(map + page_offset + size, 0,
+		       root->blocksize - (page_offset + size));
+		flush_dcache_page(page);
 		kunmap(page);
 		set_extent_uptodate(em_tree, extent_start,
-				    extent_end - 1, GFP_NOFS);
+				    extent_end, GFP_NOFS);
 		goto insert;
 	} else {
 		printk("unkknown found_type %d\n", found_type);
