@@ -1135,30 +1135,27 @@ no_mod:
 static void
 ia64_wait_for_slaves(int monarch, const char *type)
 {
-	int c, wait = 0, missing = 0;
-	for_each_online_cpu(c) {
-		if (c == monarch)
-			continue;
-		if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE) {
-			udelay(1000);		/* short wait first */
-			wait = 1;
-			break;
+	int c, i , wait;
+
+	/*
+	 * wait 5 seconds total for slaves (arbitrary)
+	 */
+	for (i = 0; i < 5000; i++) {
+		wait = 0;
+		for_each_online_cpu(c) {
+			if (c == monarch)
+				continue;
+			if (ia64_mc_info.imi_rendez_checkin[c]
+					== IA64_MCA_RENDEZ_CHECKIN_NOTDONE) {
+				udelay(1000);		/* short wait */
+				wait = 1;
+				break;
+			}
 		}
+		if (!wait)
+			goto all_in;
 	}
-	if (!wait)
-		goto all_in;
-	for_each_online_cpu(c) {
-		if (c == monarch)
-			continue;
-		if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE) {
-			udelay(5*1000000);	/* wait 5 seconds for slaves (arbitrary) */
-			if (ia64_mc_info.imi_rendez_checkin[c] == IA64_MCA_RENDEZ_CHECKIN_NOTDONE)
-				missing = 1;
-			break;
-		}
-	}
-	if (!missing)
-		goto all_in;
+
 	/*
 	 * Maybe slave(s) dead. Print buffered messages immediately.
 	 */
