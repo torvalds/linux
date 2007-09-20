@@ -189,29 +189,22 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 
 	if (rc != nvec) {
 		pr_debug("rtas_msi: rtas_change_msi() failed\n");
-
-		/*
-		 * In case of an error it's not clear whether the device is
-		 * left with MSI enabled or not, so we explicitly disable.
-		 */
-		goto out_free;
+		return rc;
 	}
 
 	i = 0;
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = rtas_query_irq_number(pdn, i);
 		if (hwirq < 0) {
-			rc = hwirq;
 			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);
-			goto out_free;
+			return hwirq;
 		}
 
 		virq = irq_create_mapping(NULL, hwirq);
 
 		if (virq == NO_IRQ) {
 			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);
-			rc = -ENOSPC;
-			goto out_free;
+			return -ENOSPC;
 		}
 
 		dev_dbg(&pdev->dev, "rtas_msi: allocated virq %d\n", virq);
@@ -220,10 +213,6 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	}
 
 	return 0;
-
- out_free:
-	rtas_teardown_msi_irqs(pdev);
-	return rc;
 }
 
 static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)
