@@ -104,7 +104,7 @@ qla24xx_find_vhost_by_name(scsi_qla_host_t *ha, uint8_t *port_name)
  *
  * Context:
  */
-void
+static void
 qla2x00_mark_vp_devices_dead(scsi_qla_host_t *vha)
 {
 	fc_port_t *fcport;
@@ -179,37 +179,7 @@ enable_failed:
 	return 1;
 }
 
-/**
- * qla24xx_modify_vport() -  Modifies the virtual fabric port's configuration
- * @ha: HA context
- * @vp: pointer to buffer of virtual port parameters.
- * @ret_code: return error code:
- *
- * Returns the virtual port id, or MAX_VSAN_ID, if couldn't create.
- */
-uint32_t
-qla24xx_modify_vhba(scsi_qla_host_t *ha, vport_params_t *vp, uint32_t *vp_id)
-{
-	scsi_qla_host_t *vha;
-
-	vha = qla24xx_find_vhost_by_name(ha, vp->port_name);
-	if (!vha) {
-		*vp_id = MAX_NUM_VPORT_LOOP;
-		return VP_RET_CODE_WWPN;
-	}
-
-	if (qla24xx_enable_vp(vha)) {
-		scsi_host_put(vha->host);
-		qla2x00_mem_free(vha);
-		*vp_id = MAX_NUM_VPORT_LOOP;
-		return VP_RET_CODE_RESOURCES;
-	}
-
-	*vp_id = vha->vp_idx;
-	return VP_RET_CODE_OK;
-}
-
-void
+static void
 qla24xx_configure_vp(scsi_qla_host_t *vha)
 {
 	struct fc_vport *fc_vport;
