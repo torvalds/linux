@@ -183,7 +183,7 @@ int nf_bridge_copy_header(struct sk_buff *skb)
 	int err;
 	int header_size = ETH_HLEN + nf_bridge_encap_header_len(skb);
 
-	err = skb_cow(skb, header_size);
+	err = skb_cow_head(skb, header_size);
 	if (err)
 		return err;
 

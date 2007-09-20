@@ -511,7 +511,7 @@ static void intel_i830_init_gtt_entries(void)
 		 */
 		if (IS_G33)
 			size = 0;
-		switch (gmch_ctrl & I830_GMCH_GMS_MASK) {
+		switch (gmch_ctrl & I855_GMCH_GMS_MASK) {
 		case I855_GMCH_GMS_STOLEN_1M:
 			gtt_entries = MB(1) - KB(size);
 			break;

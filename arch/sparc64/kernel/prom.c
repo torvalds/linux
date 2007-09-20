@@ -1583,8 +1583,12 @@ static void __init of_fill_in_cpu_data(void)
 		ncpus_probed++;
 
 #ifdef CONFIG_SMP
-		if (cpuid >= NR_CPUS)
+		if (cpuid >= NR_CPUS) {
+			printk(KERN_WARNING "Ignoring CPU %d which is "
+			       ">= NR_CPUS (%d)\n",
+			       cpuid, NR_CPUS);
 			continue;
+		}
 #else
 		/* On uniprocessor we only want the values for the
 		 * real physical cpu the kernel booted onto, however

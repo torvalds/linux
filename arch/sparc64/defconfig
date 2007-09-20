@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.23-rc1
-# Sun Jul 22 19:24:37 2007
+# Linux kernel version: 2.6.23-rc6
+# Sun Sep 16 09:52:11 2007
 #
 CONFIG_SPARC=y
 CONFIG_SPARC64=y
@@ -32,15 +32,11 @@ CONFIG_HZ=100
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
-# Code maturity level options
+# General setup
 #
 CONFIG_EXPERIMENTAL=y
 CONFIG_BROKEN_ON_SMP=y
 CONFIG_INIT_ENV_ARG_LIMIT=32
-
-#
-# General setup
-#
 CONFIG_LOCALVERSION=""
 # CONFIG_LOCALVERSION_AUTO is not set
 CONFIG_SWAP=y
@@ -555,6 +551,7 @@ CONFIG_E1000_NAPI=y
 # CONFIG_SIS190 is not set
 # CONFIG_SKGE is not set
 # CONFIG_SKY2 is not set
+# CONFIG_SK98LIN is not set
 # CONFIG_VIA_VELOCITY is not set
 CONFIG_TIGON3=m
 CONFIG_BNX2=m
@@ -809,6 +806,7 @@ CONFIG_HWMON=y
 # CONFIG_SENSORS_SMSC47M1 is not set
 # CONFIG_SENSORS_SMSC47M192 is not set
 # CONFIG_SENSORS_SMSC47B397 is not set
+# CONFIG_SENSORS_THMC50 is not set
 # CONFIG_SENSORS_VIA686A is not set
 # CONFIG_SENSORS_VT1211 is not set
 # CONFIG_SENSORS_VT8231 is not set
@@ -1162,10 +1160,6 @@ CONFIG_USB_STORAGE=m
 # CONFIG_MMC is not set
 # CONFIG_NEW_LEDS is not set
 # CONFIG_INFINIBAND is not set
-
-#
-# Real Time Clock
-#
 # CONFIG_RTC_CLASS is not set
 
 #

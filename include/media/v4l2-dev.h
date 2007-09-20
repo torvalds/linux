@@ -337,6 +337,9 @@ void *priv;
 	struct class_device class_dev; /* sysfs */
 };
 
+/* Class-dev to video-device */
+#define to_video_device(cd) container_of(cd, struct video_device, class_dev)
+
 /* Version 2 functions */
 extern int video_register_device(struct video_device *vfd, int type, int nr);
 void video_unregister_device(struct video_device *);
@@ -354,11 +357,9 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 			  int (*func)(struct inode *inode, struct file *file,
 				      unsigned int cmd, void *arg));
 
-
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 #include <linux/mm.h>
 
-#define to_video_device(cd) container_of(cd, struct video_device, class_dev)
 static inline int __must_check
 video_device_create_file(struct video_device *vfd,
 			 struct class_device_attribute *attr)

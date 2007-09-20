@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2004  Maciej W. Rozycki
+ * Copyright (C) 2003, 2004, 2007  Maciej W. Rozycki
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,7 +29,7 @@ static inline void align_mod(const int align, const int mod)
 		".endr\n\t"
 		".set	pop"
 		:
-		: "rn" (align), "rn" (mod));
+		: GCC_IMM_ASM (align), GCC_IMM_ASM (mod));
 }
 
 static inline void mult_sh_align_mod(long *v1, long *v2, long *w,

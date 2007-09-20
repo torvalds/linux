@@ -152,4 +152,10 @@ void usb_detect_quirks(struct usb_device *udev)
 	/* do any special quirk handling here if needed */
 	if (udev->quirks & USB_QUIRK_NO_AUTOSUSPEND)
 		usb_autosuspend_quirk(udev);
+
+	/* By default, disable autosuspend for all non-hubs */
+#ifdef	CONFIG_USB_SUSPEND
+	if (udev->descriptor.bDeviceClass != USB_CLASS_HUB)
+		udev->autosuspend_delay = -1;
+#endif
 }

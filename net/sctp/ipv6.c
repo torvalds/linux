@@ -77,13 +77,18 @@
 
 #include <asm/uaccess.h>
 
-/* Event handler for inet6 address addition/deletion events.  */
+/* Event handler for inet6 address addition/deletion events.
+ * The sctp_local_addr_list needs to be protocted by a spin lock since
+ * multiple notifiers (say IPv4 and IPv6) may be running at the same
+ * time and thus corrupt the list.
+ * The reader side is protected with RCU.
+ */
 static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 				void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
-	struct sctp_sockaddr_entry *addr;
-	struct list_head *pos, *temp;
+	struct sctp_sockaddr_entry *addr = NULL;
+	struct sctp_sockaddr_entry *temp;
 
 	switch (ev) {
 	case NETDEV_UP:
@@ -94,19 +99,26 @@ static int sctp_inet6addr_event(struct notifier_block *this, unsigned long ev,
 			memcpy(&addr->a.v6.sin6_addr, &ifa->addr,
 				 sizeof(struct in6_addr));
 			addr->a.v6.sin6_scope_id = ifa->idev->dev->ifindex;
-			list_add_tail(&addr->list, &sctp_local_addr_list);
+			addr->valid = 1;
+			spin_lock_bh(&sctp_local_addr_lock);
+			list_add_tail_rcu(&addr->list, &sctp_local_addr_list);
+			spin_unlock_bh(&sctp_local_addr_lock);
 		}
 		break;
 	case NETDEV_DOWN:
-		list_for_each_safe(pos, temp, &sctp_local_addr_list) {
-			addr = list_entry(pos, struct sctp_sockaddr_entry, list);
-			if (ipv6_addr_equal(&addr->a.v6.sin6_addr, &ifa->addr)) {
-				list_del(pos);
-				kfree(addr);
+		spin_lock_bh(&sctp_local_addr_lock);
+		list_for_each_entry_safe(addr, temp,
+					&sctp_local_addr_list, list) {
+			if (ipv6_addr_equal(&addr->a.v6.sin6_addr,
+					     &ifa->addr)) {
+				addr->valid = 0;
+				list_del_rcu(&addr->list);
 				break;
 			}
 		}
-
+		spin_unlock_bh(&sctp_local_addr_lock);
+		if (addr && !addr->valid)
+			call_rcu(&addr->rcu, sctp_local_addr_free);
 		break;
 	}
 
@@ -290,9 +302,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 			      union sctp_addr *saddr)
 {
 	struct sctp_bind_addr *bp;
-	rwlock_t *addr_lock;
 	struct sctp_sockaddr_entry *laddr;
-	struct list_head *pos;
 	sctp_scope_t scope;
 	union sctp_addr *baddr = NULL;
 	__u8 matchlen = 0;
@@ -312,14 +322,14 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	scope = sctp_scope(daddr);
 
 	bp = &asoc->base.bind_addr;
-	addr_lock = &asoc->base.addr_lock;
 
 	/* Go through the bind address list and find the best source address
 	 * that matches the scope of the destination address.
 	 */
-	sctp_read_lock(addr_lock);
-	list_for_each(pos, &bp->address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
 		if ((laddr->use_as_src) &&
 		    (laddr->a.sa.sa_family == AF_INET6) &&
 		    (scope <= sctp_scope(&laddr->a))) {
@@ -341,7 +351,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 		       __FUNCTION__, asoc, NIP6(daddr->v6.sin6_addr));
 	}
 
-	sctp_read_unlock(addr_lock);
+	rcu_read_unlock();
 }
 
 /* Make a copy of all potential local addresses. */
@@ -367,7 +377,9 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 			addr->a.v6.sin6_port = 0;
 			addr->a.v6.sin6_addr = ifp->addr;
 			addr->a.v6.sin6_scope_id = dev->ifindex;
+			addr->valid = 1;
 			INIT_LIST_HEAD(&addr->list);
+			INIT_RCU_HEAD(&addr->rcu);
 			list_add_tail(&addr->list, addrlist);
 		}
 	}

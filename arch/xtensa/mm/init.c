@@ -15,40 +15,24 @@
  * Kevin Chea
  */
 
-#include <linux/init.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/ptrace.h>
 #include <linux/bootmem.h>
 #include <linux/swap.h>
+#include <linux/mman.h>
+#include <linux/nodemask.h>
+#include <linux/mm.h>
+#include <linux/slab.h>
 
 #include <asm/pgtable.h>
 #include <asm/bootparam.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-#include <asm/tlbflush.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
-
-#define DEBUG 0
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
-//static DEFINE_SPINLOCK(tlb_lock);
-
-/*
- * This flag is used to indicate that the page was mapped and modified in
- * kernel space, so the cache is probably dirty at that address.
- * If cache aliasing is enabled and the page color mismatches, update_mmu_cache
- * synchronizes the caches if this bit is set.
- */
-
-#define PG_cache_clean PG_arch_1
 
 /* References to section boundaries */
 
@@ -323,228 +307,22 @@ void show_mem(void)
 	printk("%d free pages\n", free);
 }
 
-/* ------------------------------------------------------------------------- */
+struct kmem_cache *pgtable_cache __read_mostly;
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE)
-
-/*
- * With cache aliasing, the page color of the page in kernel space and user
- * space might mismatch. We temporarily map the page to a different virtual
- * address with the same color and clear the page there.
- */
-
-void clear_user_page(void *kaddr, unsigned long vaddr, struct page* page)
+static void pgd_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
+	pte_t* ptep = (pte_t*)addr;
+	int i;
 
-  	/*  There shouldn't be any entries for this page. */
+	for (i = 0; i < 1024; i++, ptep++)
+		pte_clear(NULL, 0, ptep);
 
-	__flush_invalidate_dcache_page_phys(__pa(page_address(page)));
-
-	if (!PAGE_COLOR_EQ(vaddr, kaddr)) {
-		unsigned long v, p;
-
-		/* Temporarily map page to DTLB_WAY_DCACHE_ALIAS0. */
-
-		spin_lock(&tlb_lock);
-
-		p = (unsigned long)pte_val((mk_pte(page,PAGE_KERNEL)));
-		kaddr = (void*)PAGE_COLOR_MAP0(vaddr);
-		v = (unsigned long)kaddr | DTLB_WAY_DCACHE_ALIAS0;
-		__asm__ __volatile__("wdtlb %0,%1; dsync" : :"a" (p), "a" (v));
-
-		clear_page(kaddr);
-
-		spin_unlock(&tlb_lock);
-	} else {
-		clear_page(kaddr);
-	}
-
-	/* We need to make sure that i$ and d$ are coherent. */
-
-	clear_bit(PG_cache_clean, &page->flags);
 }
 
-/*
- * With cache aliasing, we have to make sure that the page color of the page
- * in kernel space matches that of the virtual user address before we read
- * the page. If the page color differ, we create a temporary DTLB entry with
- * the corrent page color and use this 'temporary' address as the source.
- * We then use the same approach as in clear_user_page and copy the data
- * to the kernel space and clear the PG_cache_clean bit to synchronize caches
- * later.
- *
- * Note:
- * Instead of using another 'way' for the temporary DTLB entry, we could
- * probably use the same entry that points to the kernel address (after
- * saving the original value and restoring it when we are done).
- */
-
-void copy_user_page(void* to, void* from, unsigned long vaddr,
-    		    struct page* to_page)
+void __init pgtable_cache_init(void)
 {
-	/* There shouldn't be any entries for the new page. */
-
-	__flush_invalidate_dcache_page_phys(__pa(page_address(to_page)));
-
-	spin_lock(&tlb_lock);
-
-	if (!PAGE_COLOR_EQ(vaddr, from)) {
-		unsigned long v, p, t;
-
-		__asm__ __volatile__ ("pdtlb %1,%2; rdtlb1 %0,%1"
-				      : "=a"(p), "=a"(t) : "a"(from));
-		from = (void*)PAGE_COLOR_MAP0(vaddr);
-		v = (unsigned long)from | DTLB_WAY_DCACHE_ALIAS0;
-		__asm__ __volatile__ ("wdtlb %0,%1; dsync" ::"a" (p), "a" (v));
-	}
-
-	if (!PAGE_COLOR_EQ(vaddr, to)) {
-		unsigned long v, p;
-
-		p = (unsigned long)pte_val((mk_pte(to_page,PAGE_KERNEL)));
-		to = (void*)PAGE_COLOR_MAP1(vaddr);
-		v = (unsigned long)to | DTLB_WAY_DCACHE_ALIAS1;
-		__asm__ __volatile__ ("wdtlb %0,%1; dsync" ::"a" (p), "a" (v));
-	}
-	copy_page(to, from);
-
-	spin_unlock(&tlb_lock);
-
-	/* We need to make sure that i$ and d$ are coherent. */
-
-	clear_bit(PG_cache_clean, &to_page->flags);
+	pgtable_cache = kmem_cache_create("pgd",
+			PAGE_SIZE, PAGE_SIZE,
+			SLAB_HWCACHE_ALIGN,
+			pgd_ctor);
 }
-
-
-
-/*
- * Any time the kernel writes to a user page cache page, or it is about to
- * read from a page cache page this routine is called.
- *
- * Note:
- * The kernel currently only provides one architecture bit in the page
- * flags that we use for I$/D$ coherency. Maybe, in future, we can
- * use a sepearte bit for deferred dcache aliasing:
- * If the page is not mapped yet, we only need to set a flag,
- * if mapped, we need to invalidate the page.
- */
-// FIXME: we probably need this for WB caches not only for Page Coloring..
-
-void flush_dcache_page(struct page *page)
-{
-	unsigned long addr = __pa(page_address(page));
-	struct address_space *mapping = page_mapping(page);
-
-	__flush_invalidate_dcache_page_phys(addr);
-
-	if (!test_bit(PG_cache_clean, &page->flags))
-		return;
-
-	/* If this page hasn't been mapped, yet, handle I$/D$ coherency later.*/
-#if 0
-	if (mapping && !mapping_mapped(mapping))
-		clear_bit(PG_cache_clean, &page->flags);
-	else
-#endif
-		__invalidate_icache_page_phys(addr);
-}
-
-void flush_cache_range(struct vm_area_struct* vma, unsigned long s,
-		       unsigned long e)
-{
-	__flush_invalidate_cache_all();
-}
-
-void flush_cache_page(struct vm_area_struct* vma, unsigned long address,
-    		      unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
-
-	/* Remove any entry for the old mapping. */
-
-	if (current->active_mm == vma->vm_mm) {
-		unsigned long addr = __pa(page_address(page));
-		__flush_invalidate_dcache_page_phys(addr);
-		if ((vma->vm_flags & VM_EXEC) != 0)
-			__invalidate_icache_page_phys(addr);
-	} else {
-		BUG();
-	}
-}
-
-#endif	/* (DCACHE_WAY_SIZE > PAGE_SIZE) */
-
-
-pte_t* pte_alloc_one_kernel (struct mm_struct* mm, unsigned long addr)
-{
-	pte_t* pte = (pte_t*)__get_free_pages(GFP_KERNEL|__GFP_REPEAT, 0);
-	if (likely(pte)) {
-	       	pte_t* ptep = (pte_t*)(pte_val(*pte) + PAGE_OFFSET);
-		int i;
-		for (i = 0; i < 1024; i++, ptep++)
-			pte_clear(mm, addr, ptep);
-	}
-	return pte;
-}
-
-struct page* pte_alloc_one(struct mm_struct *mm, unsigned long addr)
-{
-	struct page *page;
-
-	page = alloc_pages(GFP_KERNEL | __GFP_REPEAT, 0);
-
-	if (likely(page)) {
-		pte_t* ptep = kmap_atomic(page, KM_USER0);
-		int i;
-
-		for (i = 0; i < 1024; i++, ptep++)
-			pte_clear(mm, addr, ptep);
-
-		kunmap_atomic(ptep, KM_USER0);
-	}
-	return page;
-}
-
-
-/*
- * Handle D$/I$ coherency.
- *
- * Note:
- * We only have one architecture bit for the page flags, so we cannot handle
- * cache aliasing, yet.
- */
-
-void
-update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t pte)
-{
-	unsigned long pfn = pte_pfn(pte);
-	struct page *page;
-	unsigned long vaddr = addr & PAGE_MASK;
-
-	if (!pfn_valid(pfn))
-		return;
-
-	page = pfn_to_page(pfn);
-
-	invalidate_itlb_mapping(addr);
-	invalidate_dtlb_mapping(addr);
-
-	/* We have a new mapping. Use it. */
-
-	write_dtlb_entry(pte, dtlb_probe(addr));
-
-	/* If the processor can execute from this page, synchronize D$/I$. */
-
-	if ((vma->vm_flags & VM_EXEC) != 0) {
-
-		write_itlb_entry(pte, itlb_probe(addr));
-
-		/* Synchronize caches, if not clean. */
-
-		if (!test_and_set_bit(PG_cache_clean, &page->flags)) {
-			__flush_dcache_page(vaddr);
-			__invalidate_icache_page(vaddr);
-		}
-	}
-}
-

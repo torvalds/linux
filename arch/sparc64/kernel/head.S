@@ -98,7 +98,7 @@ sparc64_boot:
 	.globl	prom_boot_mapped_pc, prom_boot_mapping_mode
 	.globl	prom_boot_mapping_phys_high, prom_boot_mapping_phys_low
 	.globl	prom_compatible_name, prom_cpu_path, prom_cpu_compatible
-	.globl	is_sun4v, sun4v_chip_type
+	.globl	is_sun4v, sun4v_chip_type, prom_set_trap_table_name
 prom_peer_name:
 	.asciz	"peer"
 prom_compatible_name:
@@ -121,6 +121,8 @@ prom_map_name:
 	.asciz	"map"
 prom_unmap_name:
 	.asciz	"unmap"
+prom_set_trap_table_name:
+	.asciz	"SUNW,set-trap-table"
 prom_sun4v_name:
 	.asciz	"sun4v"
 prom_niagara_prefix:
@@ -691,15 +693,38 @@ setup_trap_table:
 	sethi	%hi(kern_base), %g3
 	ldx	[%g3 + %lo(kern_base)], %g3
 	add	%g2, %g3, %o1
+	sethi	%hi(sparc64_ttable_tl0), %o0
 
-	call	prom_set_trap_table_sun4v
-	 sethi	%hi(sparc64_ttable_tl0), %o0
+	set	prom_set_trap_table_name, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x00]
+	mov	2, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x08]
+	mov	0, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x10]
+	stx	%o0, [%sp + 2047 + 128 + 0x18]
+	stx	%o1, [%sp + 2047 + 128 + 0x20]
+	sethi	%hi(p1275buf), %g2
+	or	%g2, %lo(p1275buf), %g2
+	ldx	[%g2 + 0x08], %o1
+	call	%o1
+	 add	%sp, (2047 + 128), %o0
 
 	ba,pt	%xcc, 2f
 	 nop
 
-1:	call	prom_set_trap_table
-	 sethi	%hi(sparc64_ttable_tl0), %o0
+1:	sethi	%hi(sparc64_ttable_tl0), %o0
+	set	prom_set_trap_table_name, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x00]
+	mov	1, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x08]
+	mov	0, %g2
+	stx	%g2, [%sp + 2047 + 128 + 0x10]
+	stx	%o0, [%sp + 2047 + 128 + 0x18]
+	sethi	%hi(p1275buf), %g2
+	or	%g2, %lo(p1275buf), %g2
+	ldx	[%g2 + 0x08], %o1
+	call	%o1
+	 add	%sp, (2047 + 128), %o0
 
 	/* Start using proper page size encodings in ctx register.  */
 2:	sethi	%hi(sparc64_kern_pri_context), %g3

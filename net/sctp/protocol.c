@@ -153,6 +153,9 @@ static void sctp_v4_copy_addrlist(struct list_head *addrlist,
 			addr->a.v4.sin_family = AF_INET;
 			addr->a.v4.sin_port = 0;
 			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
+			addr->valid = 1;
+			INIT_LIST_HEAD(&addr->list);
+			INIT_RCU_HEAD(&addr->rcu);
 			list_add_tail(&addr->list, addrlist);
 		}
 	}
@@ -192,16 +195,24 @@ static void sctp_free_local_addr_list(void)
 	}
 }
 
+void sctp_local_addr_free(struct rcu_head *head)
+{
+	struct sctp_sockaddr_entry *e = container_of(head,
+				struct sctp_sockaddr_entry, rcu);
+	kfree(e);
+}
+
 /* Copy the local addresses which are valid for 'scope' into 'bp'.  */
 int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      gfp_t gfp, int copy_flags)
 {
 	struct sctp_sockaddr_entry *addr;
 	int error = 0;
-	struct list_head *pos, *temp;
 
-	list_for_each_safe(pos, temp, &sctp_local_addr_list) {
-		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+	rcu_read_lock();
+	list_for_each_entry_rcu(addr, &sctp_local_addr_list, list) {
+		if (!addr->valid)
+			continue;
 		if (sctp_in_scope(&addr->a, scope)) {
 			/* Now that the address is in scope, check to see if
 			 * the address type is really supported by the local
@@ -213,7 +224,7 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 			      (copy_flags & SCTP_ADDR6_ALLOWED) &&
 			      (copy_flags & SCTP_ADDR6_PEERSUPP)))) {
 				error = sctp_add_bind_addr(bp, &addr->a, 1,
-							   GFP_ATOMIC);
+						    GFP_ATOMIC);
 				if (error)
 					goto end_copy;
 			}
@@ -221,6 +232,7 @@ int sctp_copy_local_addr_list(struct sctp_bind_addr *bp, sctp_scope_t scope,
 	}
 
 end_copy:
+	rcu_read_unlock();
 	return error;
 }
 
@@ -416,9 +428,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	struct rtable *rt;
 	struct flowi fl;
 	struct sctp_bind_addr *bp;
-	rwlock_t *addr_lock;
 	struct sctp_sockaddr_entry *laddr;
-	struct list_head *pos;
 	struct dst_entry *dst = NULL;
 	union sctp_addr dst_saddr;
 
@@ -447,23 +457,20 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		goto out;
 
 	bp = &asoc->base.bind_addr;
-	addr_lock = &asoc->base.addr_lock;
 
 	if (dst) {
 		/* Walk through the bind address list and look for a bind
 		 * address that matches the source address of the returned dst.
 		 */
-		sctp_read_lock(addr_lock);
-		list_for_each(pos, &bp->address_list) {
-			laddr = list_entry(pos, struct sctp_sockaddr_entry,
-					   list);
-			if (!laddr->use_as_src)
+		rcu_read_lock();
+		list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+			if (!laddr->valid || !laddr->use_as_src)
 				continue;
 			sctp_v4_dst_saddr(&dst_saddr, dst, htons(bp->port));
 			if (sctp_v4_cmp_addr(&dst_saddr, &laddr->a))
 				goto out_unlock;
 		}
-		sctp_read_unlock(addr_lock);
+		rcu_read_unlock();
 
 		/* None of the bound addresses match the source address of the
 		 * dst. So release it.
@@ -475,10 +482,10 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	/* Walk through the bind address list and try to get a dst that
 	 * matches a bind address as the source address.
 	 */
-	sctp_read_lock(addr_lock);
-	list_for_each(pos, &bp->address_list) {
-		laddr = list_entry(pos, struct sctp_sockaddr_entry, list);
-
+	rcu_read_lock();
+	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
+		if (!laddr->valid)
+			continue;
 		if ((laddr->use_as_src) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
@@ -490,7 +497,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 	}
 
 out_unlock:
-	sctp_read_unlock(addr_lock);
+	rcu_read_unlock();
 out:
 	if (dst)
 		SCTP_DEBUG_PRINTK("rt_dst:%u.%u.%u.%u, rt_src:%u.%u.%u.%u\n",
@@ -600,13 +607,18 @@ static void sctp_v4_seq_dump_addr(struct seq_file *seq, union sctp_addr *addr)
 	seq_printf(seq, "%d.%d.%d.%d ", NIPQUAD(addr->v4.sin_addr));
 }
 
-/* Event handler for inet address addition/deletion events.  */
+/* Event handler for inet address addition/deletion events.
+ * The sctp_local_addr_list needs to be protocted by a spin lock since
+ * multiple notifiers (say IPv4 and IPv6) may be running at the same
+ * time and thus corrupt the list.
+ * The reader side is protected with RCU.
+ */
 static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 			       void *ptr)
 {
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
-	struct sctp_sockaddr_entry *addr;
-	struct list_head *pos, *temp;
+	struct sctp_sockaddr_entry *addr = NULL;
+	struct sctp_sockaddr_entry *temp;
 
 	switch (ev) {
 	case NETDEV_UP:
@@ -615,19 +627,25 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 			addr->a.v4.sin_family = AF_INET;
 			addr->a.v4.sin_port = 0;
 			addr->a.v4.sin_addr.s_addr = ifa->ifa_local;
-			list_add_tail(&addr->list, &sctp_local_addr_list);
+			addr->valid = 1;
+			spin_lock_bh(&sctp_local_addr_lock);
+			list_add_tail_rcu(&addr->list, &sctp_local_addr_list);
+			spin_unlock_bh(&sctp_local_addr_lock);
 		}
 		break;
 	case NETDEV_DOWN:
-		list_for_each_safe(pos, temp, &sctp_local_addr_list) {
-			addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+		spin_lock_bh(&sctp_local_addr_lock);
+		list_for_each_entry_safe(addr, temp,
+					&sctp_local_addr_list, list) {
 			if (addr->a.v4.sin_addr.s_addr == ifa->ifa_local) {
-				list_del(pos);
-				kfree(addr);
+				addr->valid = 0;
+				list_del_rcu(&addr->list);
 				break;
 			}
 		}
-
+		spin_unlock_bh(&sctp_local_addr_lock);
+		if (addr && !addr->valid)
+			call_rcu(&addr->rcu, sctp_local_addr_free);
 		break;
 	}
 
@@ -1160,6 +1178,7 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Initialize the local address list. */
 	INIT_LIST_HEAD(&sctp_local_addr_list);
+	spin_lock_init(&sctp_local_addr_lock);
 	sctp_get_local_addr_list();
 
 	/* Register notifier for inet address additions/deletions. */
@@ -1227,6 +1246,9 @@ SCTP_STATIC __exit void sctp_exit(void)
 	sctp_v6_del_protocol();
 	inet_del_protocol(&sctp_protocol, IPPROTO_SCTP);
 
+	/* Unregister notifier for inet address additions/deletions. */
+	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
+
 	/* Free the local address list.  */
 	sctp_free_local_addr_list();
 
@@ -1239,9 +1261,6 @@ SCTP_STATIC __exit void sctp_exit(void)
 	/* Unregister with socket layer. */
 	inet_unregister_protosw(&sctp_stream_protosw);
 	inet_unregister_protosw(&sctp_seqpacket_protosw);
-
-	/* Unregister notifier for inet address additions/deletions. */
-	unregister_inetaddr_notifier(&sctp_inetaddr_notifier);
 
 	sctp_sysctl_unregister();
 	list_del(&sctp_ipv4_specific.list);

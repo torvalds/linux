@@ -816,7 +816,8 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id cafe_nand_tbl[] = {
-	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MEMORY_FLASH << 8, 0xFFFF0 }
+	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MEMORY_FLASH << 8, 0xFFFF0 },
+	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(pci, cafe_nand_tbl);

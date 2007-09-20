@@ -190,7 +190,9 @@ static void ivtv_update_pgm_info(struct ivtv *itv)
 		int idx = (itv->pgm_info_write_idx + i) % itv->pgm_info_num;
 		struct v4l2_enc_idx_entry *e = itv->pgm_info + idx;
 		u32 addr = itv->pgm_info_offset + 4 + idx * 24;
-		const int mapping[] = { V4L2_ENC_IDX_FRAME_P, V4L2_ENC_IDX_FRAME_I, V4L2_ENC_IDX_FRAME_B, 0 };
+		const int mapping[8] = { -1, V4L2_ENC_IDX_FRAME_I, V4L2_ENC_IDX_FRAME_P, -1,
+			V4L2_ENC_IDX_FRAME_B, -1, -1, -1 };
+					// 1=I, 2=P, 4=B
 
 		e->offset = read_enc(addr + 4) + ((u64)read_enc(addr + 8) << 32);
 		if (e->offset > itv->mpg_data_received) {
@@ -199,7 +201,7 @@ static void ivtv_update_pgm_info(struct ivtv *itv)
 		e->offset += itv->vbi_data_inserted;
 		e->length = read_enc(addr);
 		e->pts = read_enc(addr + 16) + ((u64)(read_enc(addr + 20) & 1) << 32);
-		e->flags = mapping[read_enc(addr + 12) & 3];
+		e->flags = mapping[read_enc(addr + 12) & 7];
 		i++;
 	}
 	itv->pgm_info_write_idx = (itv->pgm_info_write_idx + i) % itv->pgm_info_num;

@@ -181,6 +181,7 @@ static void tpacpi_remove_driver_attributes(struct device_driver *drv);
 static int experimental;
 static u32 dbg_level;
 static int force_load;
+static unsigned int hotkey_report_mode;
 
 static int thinkpad_acpi_module_init(void);
 static void thinkpad_acpi_module_exit(void);

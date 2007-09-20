@@ -518,13 +518,13 @@ int init_aio_irq(int irq, char *name, irq_handler_t handler)
 
 static unsigned long pending_mask;
 
-unsigned long to_irq_stack(int sig, unsigned long *mask_out)
+unsigned long to_irq_stack(unsigned long *mask_out)
 {
 	struct thread_info *ti;
 	unsigned long mask, old;
 	int nested;
 
-	mask = xchg(&pending_mask, 1 << sig);
+	mask = xchg(&pending_mask, *mask_out);
 	if(mask != 0){
 		/* If any interrupts come in at this point, we want to
 		 * make sure that their bits aren't lost by our
@@ -534,7 +534,7 @@ unsigned long to_irq_stack(int sig, unsigned long *mask_out)
 		 * and pending_mask contains a bit for each interrupt
 		 * that came in.
 		 */
-		old = 1 << sig;
+		old = *mask_out;
 		do {
 			old |= mask;
 			mask = xchg(&pending_mask, old);
@@ -550,6 +550,7 @@ unsigned long to_irq_stack(int sig, unsigned long *mask_out)
 
 		task = cpu_tasks[ti->cpu].task;
 		tti = task_thread_info(task);
+
 		*ti = *tti;
 		ti->real_thread = tti;
 		task->stack = ti;

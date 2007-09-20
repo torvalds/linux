@@ -32,11 +32,9 @@ typedef struct xfs_mru_cache
 	unsigned int		grp_time;  /* Time period spanned by grps.  */
 	unsigned int		lru_grp;   /* Group containing time zero.   */
 	unsigned long		time_zero; /* Time first element was added. */
-	unsigned long		next_reap; /* Time that the reaper should
-					      next do something. */
-	unsigned int		reap_all;  /* if set, reap all lists */
 	xfs_mru_cache_free_func_t free_func; /* Function pointer for freeing. */
 	struct delayed_work	work;      /* Workqueue data for reaping.   */
+	unsigned int		queued;	   /* work has been queued */
 } xfs_mru_cache_t;
 
 int xfs_mru_cache_init(void);
@@ -44,7 +42,7 @@ void xfs_mru_cache_uninit(void);
 int xfs_mru_cache_create(struct xfs_mru_cache **mrup, unsigned int lifetime_ms,
 			     unsigned int grp_count,
 			     xfs_mru_cache_free_func_t free_func);
-void xfs_mru_cache_flush(xfs_mru_cache_t *mru, int restart);
+void xfs_mru_cache_flush(xfs_mru_cache_t *mru);
 void xfs_mru_cache_destroy(struct xfs_mru_cache *mru);
 int xfs_mru_cache_insert(struct xfs_mru_cache *mru, unsigned long key,
 				void *value);

@@ -1441,17 +1441,14 @@ static void
 spider_net_handle_error_irq(struct spider_net_card *card, u32 status_reg)
 {
 	u32 error_reg1, error_reg2;
-	u32 mask_reg1, mask_reg2;
 	u32 i;
 	int show_error = 1;
 
 	error_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1STS);
 	error_reg2 = spider_net_read_reg(card, SPIDER_NET_GHIINT2STS);
-	mask_reg1 = spider_net_read_reg(card, SPIDER_NET_GHIINT1MSK);
-	mask_reg2 = spider_net_read_reg(card,SPIDER_NET_GHIINT2MSK);
 
-	error_reg1 &= mask_reg1;
-	error_reg2 &= mask_reg2;
+	error_reg1 &= SPIDER_NET_INT1_MASK_VALUE;
+	error_reg2 &= SPIDER_NET_INT2_MASK_VALUE;
 
 	/* check GHIINT0STS ************************************/
 	if (status_reg)
@@ -1679,11 +1676,10 @@ spider_net_interrupt(int irq, void *ptr)
 {
 	struct net_device *netdev = ptr;
 	struct spider_net_card *card = netdev_priv(netdev);
-	u32 status_reg, mask_reg;
+	u32 status_reg;
 
 	status_reg = spider_net_read_reg(card, SPIDER_NET_GHIINT0STS);
-	mask_reg = spider_net_read_reg(card, SPIDER_NET_GHIINT0MSK);
-	status_reg &= mask_reg;
+	status_reg &= SPIDER_NET_INT0_MASK_VALUE;
 
 	if (!status_reg)
 		return IRQ_NONE;

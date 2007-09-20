@@ -149,6 +149,11 @@ static inline u64 get_tb(void)
 }
 #endif /* !CONFIG_PPC64 */
 
+static inline u64 get_tb_or_rtc(void)
+{
+	return __USE_RTC() ? get_rtc() : get_tb();
+}
+
 static inline void set_tb(unsigned int upper, unsigned int lower)
 {
 	mtspr(SPRN_TBWL, 0);

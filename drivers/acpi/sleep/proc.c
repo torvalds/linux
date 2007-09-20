@@ -23,7 +23,7 @@
  */
 
 ACPI_MODULE_NAME("sleep")
-#ifdef	CONFIG_ACPI_PROCFS_SLEEP
+#ifdef	CONFIG_ACPI_PROCFS
 static int acpi_system_sleep_seq_show(struct seq_file *seq, void *offset)
 {
 	int i;
@@ -76,7 +76,7 @@ acpi_system_write_sleep(struct file *file,
       Done:
 	return error ? error : count;
 }
-#endif				/* CONFIG_ACPI_PROCFS_SLEEP */
+#endif				/* CONFIG_ACPI_PROCFS */
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || !defined(CONFIG_X86)
 /* use /sys/class/rtc/rtcX/wakealarm instead; it's not ACPI-specific */
@@ -471,7 +471,7 @@ static const struct file_operations acpi_system_wakeup_device_fops = {
 	.release = single_release,
 };
 
-#ifdef	CONFIG_ACPI_PROCFS_SLEEP
+#ifdef	CONFIG_ACPI_PROCFS
 static const struct file_operations acpi_system_sleep_fops = {
 	.open = acpi_system_sleep_open_fs,
 	.read = seq_read,
@@ -479,7 +479,7 @@ static const struct file_operations acpi_system_sleep_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
-#endif				/* CONFIG_ACPI_PROCFS_SLEEP */
+#endif				/* CONFIG_ACPI_PROCFS */
 
 #ifdef	HAVE_ACPI_LEGACY_ALARM
 static const struct file_operations acpi_system_alarm_fops = {
@@ -506,7 +506,7 @@ static int __init acpi_sleep_proc_init(void)
 	if (acpi_disabled)
 		return 0;
 
-#ifdef	CONFIG_ACPI_PROCFS_SLEEP
+#ifdef	CONFIG_ACPI_PROCFS
 	/* 'sleep' [R/W] */
 	entry =
 	    create_proc_entry("sleep", S_IFREG | S_IRUGO | S_IWUSR,
