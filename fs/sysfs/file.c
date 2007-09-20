@@ -311,11 +311,10 @@ static int sysfs_release(struct inode * inode, struct file * filp)
 {
 	struct sysfs_buffer *buffer = filp->private_data;
 
-	if (buffer) {
-		if (buffer->page)
-			free_page((unsigned long)buffer->page);
-		kfree(buffer);
-	}
+	if (buffer->page)
+		free_page((unsigned long)buffer->page);
+	kfree(buffer);
+
 	return 0;
 }
 
