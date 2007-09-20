@@ -229,6 +229,12 @@ int snd_cs8427_create(struct snd_i2c_bus *bus,
 	snd_i2c_lock(bus);
 	err = snd_cs8427_reg_read(device, CS8427_REG_ID_AND_VER);
 	if (err != CS8427_VER8427A) {
+		/* give second chance */
+		snd_printk(KERN_WARNING "invalid CS8427 signature 0x%x: "
+			   "let me try again...\n", err);
+		err = snd_cs8427_reg_read(device, CS8427_REG_ID_AND_VER);
+	}
+	if (err != CS8427_VER8427A) {
 		snd_i2c_unlock(bus);
 		snd_printk(KERN_ERR "unable to find CS8427 signature "
 			   "(expected 0x%x, read 0x%x),\n",
