@@ -470,18 +470,24 @@ enum {
 	CHIP_ID_YUKON_EX   = 0xb5, /* Chip ID for YUKON-2 Extreme */
 	CHIP_ID_YUKON_EC   = 0xb6, /* Chip ID for YUKON-2 EC */
  	CHIP_ID_YUKON_FE   = 0xb7, /* Chip ID for YUKON-2 FE */
-
+ 	CHIP_ID_YUKON_FE_P = 0xb8, /* Chip ID for YUKON-2 FE+ */
+};
+enum yukon_ec_rev {
 	CHIP_REV_YU_EC_A1    = 0,  /* Chip Rev. for Yukon-EC A1/A0 */
 	CHIP_REV_YU_EC_A2    = 1,  /* Chip Rev. for Yukon-EC A2 */
 	CHIP_REV_YU_EC_A3    = 2,  /* Chip Rev. for Yukon-EC A3 */
-
+};
+enum yukon_ec_u_rev {
 	CHIP_REV_YU_EC_U_A0  = 1,
 	CHIP_REV_YU_EC_U_A1  = 2,
 	CHIP_REV_YU_EC_U_B0  = 3,
-
+};
+enum yukon_fe_rev {
 	CHIP_REV_YU_FE_A1    = 1,
 	CHIP_REV_YU_FE_A2    = 2,
-
+};
+enum yukon_fe_p_rev {
+	CHIP_REV_YU_FE2_A0   = 0,
 };
 enum yukon_ex_rev {
 	CHIP_REV_YU_EX_A0    = 1,
@@ -1668,7 +1674,7 @@ enum {
 
 /* Receive Frame Status Encoding */
 enum {
-	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
+	GMR_FS_LEN	= 0x7fff<<16, /* Bit 30..16:	Rx Frame Length */
 	GMR_FS_VLAN	= 1<<13, /* VLAN Packet */
 	GMR_FS_JABBER	= 1<<12, /* Jabber Packet */
 	GMR_FS_UN_SIZE	= 1<<11, /* Undersize Packet */
@@ -1729,6 +1735,10 @@ enum {
 	GMF_RX_CTRL_DEF	= GMF_OPER_ON | GMF_RX_F_FL_ON,
 };
 
+/*	TX_GMF_EA		32 bit	Tx GMAC FIFO End Address */
+enum {
+	TX_DYN_WM_ENA	= 3,	/* Yukon-FE+ specific */
+};
 
 /*	TX_GMF_CTRL_T	32 bit	Tx GMAC FIFO Control/Test */
 enum {
@@ -2017,6 +2027,14 @@ struct sky2_port {
 	u16		     rx_tag;
 	struct vlan_group    *vlgrp;
 #endif
+	struct {
+		unsigned long last;
+		u32	mac_rp;
+		u8	mac_lev;
+		u8	fifo_rp;
+		u8	fifo_lev;
+	} check;
+
 
 	dma_addr_t	     rx_le_map;
 	dma_addr_t	     tx_le_map;
@@ -2040,12 +2058,20 @@ struct sky2_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
 	struct net_device    *dev[2];
+	unsigned long	     flags;
+#define SKY2_HW_USE_MSI		0x00000001
+#define SKY2_HW_FIBRE_PHY	0x00000002
+#define SKY2_HW_GIGABIT		0x00000004
+#define SKY2_HW_NEWER_PHY	0x00000008
+#define SKY2_HW_RAMBUFFER	0x00000010	/* chip has RAM FIFO */
+#define SKY2_HW_NEW_LE		0x00000020	/* new LSOv2 format */
+#define SKY2_HW_AUTO_TX_SUM	0x00000040	/* new IP decode for Tx */
+#define SKY2_HW_ADV_POWER_CTL	0x00000080	/* additional PHY power regs */
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
 	u8		     pmd_type;
 	u8		     ports;
-	u8		     active;
 
 	struct sky2_status_le *st_le;
 	u32		     st_idx;
@@ -2053,13 +2079,12 @@ struct sky2_hw {
 
 	struct timer_list    watchdog_timer;
 	struct work_struct   restart_work;
-	int		     msi;
 	wait_queue_head_t    msi_wait;
 };
 
 static inline int sky2_is_copper(const struct sky2_hw *hw)
 {
-	return !(hw->pmd_type == 'L' || hw->pmd_type == 'S' || hw->pmd_type == 'P');
+	return !(hw->flags & SKY2_HW_FIBRE_PHY);
 }
 
 /* Register accessor for memory mapped device */

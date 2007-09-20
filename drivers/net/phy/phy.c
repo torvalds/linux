@@ -409,6 +409,7 @@ int phy_mii_ioctl(struct phy_device *phydev,
 
 	return 0;
 }
+EXPORT_SYMBOL(phy_mii_ioctl);
 
 /**
  * phy_start_aneg - start auto-negotiation for this PHY device
