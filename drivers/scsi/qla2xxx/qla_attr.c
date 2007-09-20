@@ -175,10 +175,10 @@ qla2x00_sysfs_read_optrom(struct kobject *kobj,
 
 	if (ha->optrom_state != QLA_SREADING)
 		return 0;
-	if (off > ha->optrom_size)
+	if (off > ha->optrom_region_size)
 		return 0;
-	if (off + count > ha->optrom_size)
-		count = ha->optrom_size - off;
+	if (off + count > ha->optrom_region_size)
+		count = ha->optrom_region_size - off;
 
 	memcpy(buf, &ha->optrom_buffer[off], count);
 
@@ -195,10 +195,10 @@ qla2x00_sysfs_write_optrom(struct kobject *kobj,
 
 	if (ha->optrom_state != QLA_SWRITING)
 		return -EINVAL;
-	if (off > ha->optrom_size)
+	if (off > ha->optrom_region_size)
 		return -ERANGE;
-	if (off + count > ha->optrom_size)
-		count = ha->optrom_size - off;
+	if (off + count > ha->optrom_region_size)
+		count = ha->optrom_region_size - off;
 
 	memcpy(&ha->optrom_buffer[off], buf, count);
 
@@ -222,12 +222,16 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
-	int val;
+	uint32_t start = 0;
+	uint32_t size = ha->optrom_size;
+	int val, valid;
 
 	if (off)
 		return 0;
 
-	if (sscanf(buf, "%d", &val) != 1)
+	if (sscanf(buf, "%d:%x:%x", &val, &start, &size) < 1)
+		return -EINVAL;
+	if (start > ha->optrom_size)
 		return -EINVAL;
 
 	switch (val) {
@@ -237,6 +241,11 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 			break;
 
 		ha->optrom_state = QLA_SWAITING;
+
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Freeing flash region allocation -- 0x%x bytes.\n",
+		    ha->optrom_region_size));
+
 		vfree(ha->optrom_buffer);
 		ha->optrom_buffer = NULL;
 		break;
@@ -244,44 +253,107 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		if (ha->optrom_state != QLA_SWAITING)
 			break;
 
+		if (start & 0xfff) {
+			qla_printk(KERN_WARNING, ha,
+			    "Invalid start region 0x%x/0x%x.\n", start, size);
+			return -EINVAL;
+		}
+
+		ha->optrom_region_start = start;
+		ha->optrom_region_size = start + size > ha->optrom_size ?
+		    ha->optrom_size - start : size;
+
 		ha->optrom_state = QLA_SREADING;
-		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		ha->optrom_buffer = vmalloc(ha->optrom_region_size);
 		if (ha->optrom_buffer == NULL) {
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to allocate memory for optrom retrieval "
-			    "(%x).\n", ha->optrom_size);
+			    "(%x).\n", ha->optrom_region_size);
 
 			ha->optrom_state = QLA_SWAITING;
 			return count;
 		}
 
-		memset(ha->optrom_buffer, 0, ha->optrom_size);
-		ha->isp_ops->read_optrom(ha, ha->optrom_buffer, 0,
-		    ha->optrom_size);
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Reading flash region -- 0x%x/0x%x.\n",
+		    ha->optrom_region_start, ha->optrom_region_size));
+
+		memset(ha->optrom_buffer, 0, ha->optrom_region_size);
+		ha->isp_ops->read_optrom(ha, ha->optrom_buffer,
+		    ha->optrom_region_start, ha->optrom_region_size);
 		break;
 	case 2:
 		if (ha->optrom_state != QLA_SWAITING)
 			break;
 
+		/*
+		 * We need to be more restrictive on which FLASH regions are
+		 * allowed to be updated via user-space.  Regions accessible
+		 * via this method include:
+		 *
+		 * ISP21xx/ISP22xx/ISP23xx type boards:
+		 *
+		 * 	0x000000 -> 0x020000 -- Boot code.
+		 *
+		 * ISP2322/ISP24xx type boards:
+		 *
+		 * 	0x000000 -> 0x07ffff -- Boot code.
+		 * 	0x080000 -> 0x0fffff -- Firmware.
+		 *
+		 * ISP25xx type boards:
+		 *
+		 * 	0x000000 -> 0x07ffff -- Boot code.
+		 * 	0x080000 -> 0x0fffff -- Firmware.
+		 * 	0x120000 -> 0x12ffff -- VPD and HBA parameters.
+		 */
+		valid = 0;
+		if (ha->optrom_size == OPTROM_SIZE_2300 && start == 0)
+			valid = 1;
+		else if (start == (FA_BOOT_CODE_ADDR*4) ||
+		    start == (FA_RISC_CODE_ADDR*4))
+			valid = 1;
+		else if (IS_QLA25XX(ha) && start == (FA_VPD_NVRAM_ADDR*4))
+		    valid = 1;
+		if (!valid) {
+			qla_printk(KERN_WARNING, ha,
+			    "Invalid start region 0x%x/0x%x.\n", start, size);
+			return -EINVAL;
+		}
+
+		ha->optrom_region_start = start;
+		ha->optrom_region_size = start + size > ha->optrom_size ?
+		    ha->optrom_size - start : size;
+
 		ha->optrom_state = QLA_SWRITING;
-		ha->optrom_buffer = (uint8_t *)vmalloc(ha->optrom_size);
+		ha->optrom_buffer = vmalloc(ha->optrom_region_size);
 		if (ha->optrom_buffer == NULL) {
 			qla_printk(KERN_WARNING, ha,
 			    "Unable to allocate memory for optrom update "
-			    "(%x).\n", ha->optrom_size);
+			    "(%x).\n", ha->optrom_region_size);
 
 			ha->optrom_state = QLA_SWAITING;
 			return count;
 		}
-		memset(ha->optrom_buffer, 0, ha->optrom_size);
+
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Staging flash region write -- 0x%x/0x%x.\n",
+		    ha->optrom_region_start, ha->optrom_region_size));
+
+		memset(ha->optrom_buffer, 0, ha->optrom_region_size);
 		break;
 	case 3:
 		if (ha->optrom_state != QLA_SWRITING)
 			break;
 
-		ha->isp_ops->write_optrom(ha, ha->optrom_buffer, 0,
-		    ha->optrom_size);
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "Writing flash region -- 0x%x/0x%x.\n",
+		    ha->optrom_region_start, ha->optrom_region_size));
+
+		ha->isp_ops->write_optrom(ha, ha->optrom_buffer,
+		    ha->optrom_region_start, ha->optrom_region_size);
 		break;
+	default:
+		count = -EINVAL;
 	}
 	return count;
 }

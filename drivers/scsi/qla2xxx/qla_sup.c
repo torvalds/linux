@@ -559,7 +559,7 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 	ret = QLA_SUCCESS;
 
 	/* Prepare burst-capable write on supported ISPs. */
-	if (IS_QLA25XX(ha) && !(faddr & ~OPTROM_BURST_SIZE) &&
+	if (IS_QLA25XX(ha) && !(faddr & 0xfff) &&
 	    dwords > OPTROM_BURST_DWORDS) {
 		optrom = dma_alloc_coherent(&ha->pdev->dev, OPTROM_BURST_SIZE,
 		    &optrom_dma, GFP_KERNEL);
@@ -1824,7 +1824,7 @@ qla25xx_read_optrom_data(struct scsi_qla_host *ha, uint8_t *buf,
 	uint8_t *pbuf;
 	uint32_t faddr, left, burst;
 
-	if (offset & ~OPTROM_BURST_SIZE)
+	if (offset & 0xfff)
 		goto slow_read;
 	if (length < OPTROM_BURST_SIZE)
 		goto slow_read;

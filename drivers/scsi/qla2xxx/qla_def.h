@@ -2478,6 +2478,8 @@ typedef struct scsi_qla_host {
 #define QLA_SWAITING	0
 #define QLA_SREADING	1
 #define QLA_SWRITING	2
+	uint32_t	optrom_region_start;
+	uint32_t	optrom_region_size;
 
         /* PCI expansion ROM image information. */
 #define ROM_CODE_TYPE_BIOS	0

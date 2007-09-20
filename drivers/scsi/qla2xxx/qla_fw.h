@@ -779,6 +779,8 @@ struct device_reg_24xx {
 #define FA_NVRAM_VPD_SIZE	0x200
 #define FA_NVRAM_VPD0_ADDR	0x00
 #define FA_NVRAM_VPD1_ADDR	0x100
+
+#define FA_BOOT_CODE_ADDR	0x00000
 					/*
 					 * RISC code begins at offset 512KB
 					 * within flash. Consisting of two
