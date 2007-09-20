@@ -172,19 +172,16 @@ qla24xx_pause_risc(struct device_reg_24xx __iomem *reg)
 	int rval = QLA_SUCCESS;
 	uint32_t cnt;
 
-	if ((RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0) {
-		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET |
-		    HCCRX_CLR_HOST_INT);
-		RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
-		WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-		for (cnt = 30000;
-		    (RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0 &&
-		    rval == QLA_SUCCESS; cnt--) {
-			if (cnt)
-				udelay(100);
-			else
-				rval = QLA_FUNCTION_TIMEOUT;
-		}
+	if (RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE)
+		return rval;
+
+	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
+	for (cnt = 30000; (RD_REG_DWORD(&reg->hccr) & HCCRX_RISC_PAUSE) == 0 &&
+	    rval == QLA_SUCCESS; cnt--) {
+		if (cnt)
+			udelay(100);
+		else
+			rval = QLA_FUNCTION_TIMEOUT;
 	}
 
 	return rval;
