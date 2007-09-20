@@ -86,7 +86,7 @@ int sysfs_create_link(struct kobject * kobj, struct kobject * target, const char
 	if (!sd)
 		goto out_put;
 
-	sd->s_elem.symlink.target_sd = target_sd;
+	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
 	sysfs_addrm_start(&acxt, parent_sd);
@@ -142,7 +142,7 @@ static int sysfs_getlink(struct dentry *dentry, char * path)
 {
 	struct sysfs_dirent *sd = dentry->d_fsdata;
 	struct sysfs_dirent *parent_sd = sd->s_parent;
-	struct sysfs_dirent *target_sd = sd->s_elem.symlink.target_sd;
+	struct sysfs_dirent *target_sd = sd->s_symlink.target_sd;
 	int error;
 
 	mutex_lock(&sysfs_mutex);

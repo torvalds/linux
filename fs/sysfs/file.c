@@ -73,7 +73,7 @@ struct sysfs_buffer {
 static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	struct sysfs_ops * ops = buffer->ops;
 	int ret = 0;
 	ssize_t count;
@@ -88,7 +88,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 		return -ENODEV;
 
 	buffer->event = atomic_read(&attr_sd->s_event);
-	count = ops->show(kobj, attr_sd->s_elem.attr.attr, buffer->page);
+	count = ops->show(kobj, attr_sd->s_attr.attr, buffer->page);
 
 	sysfs_put_active_two(attr_sd);
 
@@ -188,7 +188,7 @@ static int
 flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	struct sysfs_ops * ops = buffer->ops;
 	int rc;
 
@@ -196,7 +196,7 @@ flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t 
 	if (!sysfs_get_active_two(attr_sd))
 		return -ENODEV;
 
-	rc = ops->store(kobj, attr_sd->s_elem.attr.attr, buffer->page, count);
+	rc = ops->store(kobj, attr_sd->s_attr.attr, buffer->page, count);
 
 	sysfs_put_active_two(attr_sd);
 
@@ -240,7 +240,7 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	struct sysfs_buffer * buffer;
 	struct sysfs_ops * ops = NULL;
 	int error;
@@ -336,7 +336,7 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_buffer * buffer = filp->private_data;
 	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 
 	/* need parent for the kobj, grab both */
 	if (!sysfs_get_active_two(attr_sd))
@@ -396,7 +396,7 @@ int sysfs_add_file(struct sysfs_dirent *dir_sd, const struct attribute *attr,
 	sd = sysfs_new_dirent(attr->name, mode, type);
 	if (!sd)
 		return -ENOMEM;
-	sd->s_elem.attr.attr = (void *)attr;
+	sd->s_attr.attr = (void *)attr;
 
 	sysfs_addrm_start(&acxt, dir_sd);
 	rc = sysfs_add_one(&acxt, sd);

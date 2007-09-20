@@ -32,11 +32,11 @@ struct sysfs_dirent {
 	const char		*s_name;
 
 	union {
-		struct sysfs_elem_dir		dir;
-		struct sysfs_elem_symlink	symlink;
-		struct sysfs_elem_attr		attr;
-		struct sysfs_elem_bin_attr	bin_attr;
-	}			s_elem;
+		struct sysfs_elem_dir		s_dir;
+		struct sysfs_elem_symlink	s_symlink;
+		struct sysfs_elem_attr		s_attr;
+		struct sysfs_elem_bin_attr	s_bin_attr;
+	};
 
 	unsigned int		s_flags;
 	ino_t			s_ino;

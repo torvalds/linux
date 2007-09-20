@@ -30,8 +30,8 @@ static int
 fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
@@ -87,8 +87,8 @@ static int
 flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
@@ -140,8 +140,8 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct bin_buffer *bb = file->private_data;
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	mutex_lock(&bb->mutex);
@@ -167,7 +167,7 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 static int open(struct inode * inode, struct file * file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct bin_buffer *bb = NULL;
 	int error;
 

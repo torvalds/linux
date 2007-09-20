@@ -273,7 +273,7 @@ void release_sysfs_dirent(struct sysfs_dirent * sd)
 	parent_sd = sd->s_parent;
 
 	if (sysfs_type(sd) == SYSFS_KOBJ_LINK)
-		sysfs_put(sd->s_elem.symlink.target_sd);
+		sysfs_put(sd->s_symlink.target_sd);
 	if (sysfs_type(sd) & SYSFS_COPY_NAME)
 		kfree(sd->s_name);
 	kfree(sd->s_iattr);
@@ -630,7 +630,7 @@ static int create_dir(struct kobject *kobj, struct sysfs_dirent *parent_sd,
 	sd = sysfs_new_dirent(name, mode, SYSFS_DIR);
 	if (!sd)
 		return -ENOMEM;
-	sd->s_elem.dir.kobj = kobj;
+	sd->s_dir.kobj = kobj;
 
 	/* link in */
 	sysfs_addrm_start(&acxt, parent_sd);
