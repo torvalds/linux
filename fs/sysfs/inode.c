@@ -127,7 +127,7 @@ static int sysfs_count_nlink(struct sysfs_dirent *sd)
 	struct sysfs_dirent *child;
 	int nr = 0;
 
-	for (child = sd->s_children; child; child = child->s_sibling)
+	for (child = sd->s_dir.children; child; child = child->s_sibling)
 		if (sysfs_type(child) == SYSFS_DIR)
 			nr++;
 

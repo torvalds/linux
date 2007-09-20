@@ -1,6 +1,8 @@
 /* type-specific structures for sysfs_dirent->s_* union members */
 struct sysfs_elem_dir {
 	struct kobject		*kobj;
+	/* children list starts here and goes through sd->s_sibling */
+	struct sysfs_dirent	*children;
 };
 
 struct sysfs_elem_symlink {
@@ -28,7 +30,6 @@ struct sysfs_dirent {
 	atomic_t		s_active;
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
-	struct sysfs_dirent	*s_children;
 	const char		*s_name;
 
 	union {

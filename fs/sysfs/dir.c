@@ -26,7 +26,7 @@ static DEFINE_IDA(sysfs_ino_ida);
  *	@sd: sysfs_dirent of interest
  *
  *	Link @sd into its sibling list which starts from
- *	sd->s_parent->s_children.
+ *	sd->s_parent->s_dir.children.
  *
  *	Locking:
  *	mutex_lock(sysfs_mutex)
@@ -40,9 +40,9 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
 
 	/* Store directory entries in order by ino.  This allows
 	 * readdir to properly restart without having to add a
-	 * cursor into the s_children list.
+	 * cursor into the s_dir.children list.
 	 */
-	for (pos = &parent_sd->s_children; *pos; pos = &(*pos)->s_sibling) {
+	for (pos = &parent_sd->s_dir.children; *pos; pos = &(*pos)->s_sibling) {
 		if (sd->s_ino < (*pos)->s_ino)
 			break;
 	}
@@ -55,7 +55,7 @@ static void sysfs_link_sibling(struct sysfs_dirent *sd)
  *	@sd: sysfs_dirent of interest
  *
  *	Unlink @sd from its sibling list which starts from
- *	sd->s_parent->s_children.
+ *	sd->s_parent->s_dir.children.
  *
  *	Locking:
  *	mutex_lock(sysfs_mutex)
@@ -64,7 +64,8 @@ static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
 	struct sysfs_dirent **pos;
 
-	for (pos = &sd->s_parent->s_children; *pos; pos = &(*pos)->s_sibling) {
+	for (pos = &sd->s_parent->s_dir.children; *pos;
+	     pos = &(*pos)->s_sibling) {
 		if (*pos == sd) {
 			*pos = sd->s_sibling;
 			sd->s_sibling = NULL;
@@ -570,7 +571,7 @@ struct sysfs_dirent *sysfs_find_dirent(struct sysfs_dirent *parent_sd,
 {
 	struct sysfs_dirent *sd;
 
-	for (sd = parent_sd->s_children; sd; sd = sd->s_sibling)
+	for (sd = parent_sd->s_dir.children; sd; sd = sd->s_sibling)
 		if (!strcmp(sd->s_name, name))
 			return sd;
 	return NULL;
@@ -722,7 +723,7 @@ static void __sysfs_remove_dir(struct sysfs_dirent *dir_sd)
 
 	pr_debug("sysfs %s: removing dir\n", dir_sd->s_name);
 	sysfs_addrm_start(&acxt, dir_sd);
-	pos = &dir_sd->s_children;
+	pos = &dir_sd->s_dir.children;
 	while (*pos) {
 		struct sysfs_dirent *sd = *pos;
 
@@ -922,7 +923,7 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		mutex_lock(&sysfs_mutex);
 
 		/* Skip the dentries we have already reported */
-		pos = parent_sd->s_children;
+		pos = parent_sd->s_dir.children;
 		while (pos && (filp->f_pos > pos->s_ino))
 			pos = pos->s_sibling;
 
