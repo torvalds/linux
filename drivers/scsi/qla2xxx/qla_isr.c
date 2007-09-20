@@ -1679,7 +1679,6 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	qla24xx_process_response_queue(ha);
 
 	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-	RD_REG_DWORD_RELAXED(&reg->hccr);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -1693,7 +1692,6 @@ qla24xx_msix_default(int irq, void *dev_id)
 	struct device_reg_24xx __iomem *reg;
 	int		status;
 	unsigned long	flags;
-	unsigned long	iter;
 	uint32_t	stat;
 	uint32_t	hccr;
 	uint16_t	mb[4];
@@ -1703,7 +1701,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	status = 0;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (iter = 50; iter--; ) {
+	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
 			if (pci_channel_offline(ha->pdev))
@@ -1748,8 +1746,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		RD_REG_DWORD_RELAXED(&reg->hccr);
-	}
+	} while (0);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
