@@ -62,6 +62,8 @@ static spinlock_t sysfs_open_dirent_lock = SPIN_LOCK_UNLOCKED;
 
 struct sysfs_open_dirent {
 	atomic_t		refcnt;
+	atomic_t		event;
+	wait_queue_head_t	poll;
 	struct list_head	buffers; /* goes through sysfs_buffer.list */
 };
 
@@ -104,7 +106,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 	if (!sysfs_get_active_two(attr_sd))
 		return -ENODEV;
 
-	buffer->event = atomic_read(&attr_sd->s_event);
+	buffer->event = atomic_read(&attr_sd->s_attr.open->event);
 	count = ops->show(kobj, attr_sd->s_attr.attr, buffer->page);
 
 	sysfs_put_active_two(attr_sd);
@@ -301,6 +303,8 @@ static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
 		return -ENOMEM;
 
 	atomic_set(&new_od->refcnt, 0);
+	atomic_set(&new_od->event, 1);
+	init_waitqueue_head(&new_od->poll);
 	INIT_LIST_HEAD(&new_od->buffers);
 	goto retry;
 }
@@ -443,17 +447,17 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 {
 	struct sysfs_buffer * buffer = filp->private_data;
 	struct sysfs_dirent *attr_sd = filp->f_path.dentry->d_fsdata;
-	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
+	struct sysfs_open_dirent *od = attr_sd->s_attr.open;
 
 	/* need parent for the kobj, grab both */
 	if (!sysfs_get_active_two(attr_sd))
 		goto trigger;
 
-	poll_wait(filp, &kobj->poll, wait);
+	poll_wait(filp, &od->poll, wait);
 
 	sysfs_put_active_two(attr_sd);
 
-	if (buffer->event != atomic_read(&attr_sd->s_event))
+	if (buffer->event != atomic_read(&od->event))
 		goto trigger;
 
 	return 0;
@@ -474,8 +478,17 @@ void sysfs_notify(struct kobject *k, char *dir, char *attr)
 	if (sd && attr)
 		sd = sysfs_find_dirent(sd, attr);
 	if (sd) {
-		atomic_inc(&sd->s_event);
-		wake_up_interruptible(&k->poll);
+		struct sysfs_open_dirent *od;
+
+		spin_lock(&sysfs_open_dirent_lock);
+
+		od = sd->s_attr.open;
+		if (od) {
+			atomic_inc(&od->event);
+			wake_up_interruptible(&od->poll);
+		}
+
+		spin_unlock(&sysfs_open_dirent_lock);
 	}
 
 	mutex_unlock(&sysfs_mutex);

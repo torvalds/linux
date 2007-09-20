@@ -318,7 +318,6 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_active, 0);
-	atomic_set(&sd->s_event, 1);
 
 	sd->s_name = name;
 	sd->s_mode = mode;

@@ -46,7 +46,6 @@ struct sysfs_dirent {
 	ino_t			s_ino;
 	umode_t			s_mode;
 	struct iattr		*s_iattr;
-	atomic_t		s_event;
 };
 
 #define SD_DEACTIVATED_BIAS		INT_MIN

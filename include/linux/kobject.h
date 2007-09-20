@@ -66,7 +66,6 @@ struct kobject {
 	struct kset		* kset;
 	struct kobj_type	* ktype;
 	struct sysfs_dirent	* sd;
-	wait_queue_head_t	poll;
 };
 
 extern int kobject_set_name(struct kobject *, const char *, ...)
