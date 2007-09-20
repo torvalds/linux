@@ -2132,15 +2132,9 @@ qla2x00_iidma_fcport(scsi_qla_host_t *ha, fc_port_t *fcport)
 	if (!IS_IIDMA_CAPABLE(ha))
 		return;
 
-	if (fcport->fp_speed == PORT_SPEED_UNKNOWN) {
-		DEBUG2(printk("scsi(%ld): %02x%02x%02x%02x%02x%02x%02x%02x -- "
-		    "unsupported FM port operating speed.\n",
-		    ha->host_no, fcport->port_name[0], fcport->port_name[1],
-		    fcport->port_name[2], fcport->port_name[3],
-		    fcport->port_name[4], fcport->port_name[5],
-		    fcport->port_name[6], fcport->port_name[7]));
+	if (fcport->fp_speed == PORT_SPEED_UNKNOWN ||
+	    fcport->fp_speed > ha->link_data_rate)
 		return;
-	}
 
 	rval = qla2x00_set_idma_speed(ha, fcport->loop_id, fcport->fp_speed,
 	    mb);
