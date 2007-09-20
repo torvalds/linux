@@ -332,21 +332,6 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 	return NULL;
 }
 
-/**
- *	sysfs_attach_dentry - associate sysfs_dirent with dentry
- *	@sd: target sysfs_dirent
- *	@dentry: dentry to associate
- *
- *	LOCKING:
- *	mutex_lock(sysfs_mutex)
- */
-static void sysfs_attach_dentry(struct sysfs_dirent *sd, struct dentry *dentry)
-{
-	dentry->d_op = &sysfs_dentry_ops;
-	dentry->d_fsdata = sysfs_get(sd);
-	d_rehash(dentry);
-}
-
 static int sysfs_ilookup_test(struct inode *inode, void *arg)
 {
 	struct sysfs_dirent *sd = arg;
@@ -696,8 +681,11 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out_unlock;
 	}
 
+	/* instantiate and hash dentry */
+	dentry->d_op = &sysfs_dentry_ops;
+	dentry->d_fsdata = sysfs_get(sd);
 	d_instantiate(dentry, inode);
-	sysfs_attach_dentry(sd, dentry);
+	d_rehash(dentry);
 
  out_unlock:
 	mutex_unlock(&sysfs_mutex);
