@@ -747,7 +747,7 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 	struct gfs2_bufdata *bd;
 
 	if (!page_has_buffers(page))
-		goto out;
+		return 0;
 
 	gfs2_log_lock(sdp);
 	head = bh = page_buffers(page);
@@ -787,7 +787,6 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bh = bh->b_this_page;
 	} while (bh != head);
 
-out:
 	return try_to_free_buffers(page);
 cannot_release:
 	gfs2_log_unlock(sdp);
