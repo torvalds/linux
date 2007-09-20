@@ -1742,7 +1742,16 @@ void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 			cFYI(1, ("very large write cap"));
 #endif /* CIFS_DEBUG2 */
 		if (CIFSSMBSetFSUnixInfo(xid, tcon, cap)) {
-			cFYI(1, ("setting capabilities failed"));
+			if (vol_info == NULL)
+				cFYI(1, ("resetting capabilities failed"));
+			else
+				cERROR(1, ("Negotiating Unix capabilities "
+					   "with the server failed.  Consider "
+					   "mounting with the Unix Extensions\n"
+					   "disabled, if problems are found, "
+					   "by specifying the nounix mount "
+					   "option.");
+
 		}
 	}
 }
