@@ -410,10 +410,8 @@ void sysfs_addrm_start(struct sysfs_addrm_cxt *acxt,
  *	@sd: sysfs_dirent to be added
  *
  *	Get @acxt->parent_sd and set sd->s_parent to it and increment
- *	nlink of parent inode if @sd is a directory.  @sd is NOT
- *	linked into the children list of the parent.  The caller
- *	should invoke sysfs_link_sibling() after this function
- *	completes if @sd needs to be on the children list.
+ *	nlink of parent inode if @sd is a directory and link into the
+ *	children list of the parent.
  *
  *	This function should be called between calls to
  *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
@@ -453,9 +451,7 @@ int sysfs_add_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
  *	@sd: sysfs_dirent to be added
  *
  *	Mark @sd removed and drop nlink of parent inode if @sd is a
- *	directory.  @sd is NOT unlinked from the children list of the
- *	parent.  The caller is repsonsible for removing @sd from the
- *	children list before calling this function.
+ *	directory.  @sd is unlinked from the children list.
  *
  *	This function should be called between calls to
  *	sysfs_addrm_start() and sysfs_addrm_finish() and should be
