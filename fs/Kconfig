@@ -1730,7 +1730,7 @@ config SUNRPC_GSS
 
 config SUNRPC_XPRT_RDMA
 	tristate "RDMA transport for sunrpc (EXPERIMENTAL)"
-	depends on SUNRPC && EXPERIMENTAL
+	depends on SUNRPC && INFINIBAND && EXPERIMENTAL
 	default m
 	help
 	  Adds a client RPC transport for supporting kernel NFS over RDMA
