@@ -391,7 +391,8 @@ qla2x00_execute_fw(scsi_qla_host_t *ha, uint32_t risc_addr)
 		mcp->mb[1] = MSW(risc_addr);
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
-		mcp->out_mb |= MBX_3|MBX_2|MBX_1;
+		mcp->mb[4] = 0;
+		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
 		mcp->in_mb |= MBX_1;
 	} else {
 		mcp->mb[1] = LSW(risc_addr);
