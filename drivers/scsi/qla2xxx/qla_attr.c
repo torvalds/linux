@@ -146,7 +146,7 @@ qla2x00_sysfs_write_nvram(struct kobject *kobj,
 	/* Write NVRAM. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	ha->isp_ops->write_nvram(ha, (uint8_t *)buf, ha->nvram_base, count);
-	ha->isp_ops->read_nvram(ha, (uint8_t *)&ha->nvram, ha->nvram_base,
+	ha->isp_ops->read_nvram(ha, (uint8_t *)ha->nvram, ha->nvram_base,
 	    count);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
