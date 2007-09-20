@@ -171,8 +171,8 @@ static int open(struct inode * inode, struct file * file)
 	struct bin_buffer *bb = NULL;
 	int error;
 
-	/* need attr_sd for attr */
-	if (!sysfs_get_active(attr_sd))
+	/* binary file operations requires both @sd and its parent */
+	if (!sysfs_get_active_two(attr_sd))
 		return -ENODEV;
 
 	error = -EACCES;
@@ -193,12 +193,12 @@ static int open(struct inode * inode, struct file * file)
 	mutex_init(&bb->mutex);
 	file->private_data = bb;
 
-	/* open succeeded, put active reference */
-	sysfs_put_active(attr_sd);
+	/* open succeeded, put active references */
+	sysfs_put_active_two(attr_sd);
 	return 0;
 
  err_out:
-	sysfs_put_active(attr_sd);
+	sysfs_put_active_two(attr_sd);
 	kfree(bb);
 	return error;
 }
