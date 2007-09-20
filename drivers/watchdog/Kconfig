@@ -610,6 +610,12 @@ config WDT_RM9K_GPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called rm9k_wdt.
 
+config AR7_WDT
+	tristate "TI AR7 Watchdog Timer"
+	depends on AR7
+	help
+	  Hardware driver for the TI AR7 Watchdog Timer.
+
 # PARISC Architecture
 
 # POWERPC Architecture
