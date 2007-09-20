@@ -1,3 +1,5 @@
+struct sysfs_open_dirent;
+
 /* type-specific structures for sysfs_dirent->s_* union members */
 struct sysfs_elem_dir {
 	struct kobject		*kobj;
@@ -11,6 +13,7 @@ struct sysfs_elem_symlink {
 
 struct sysfs_elem_attr {
 	struct attribute	*attr;
+	struct sysfs_open_dirent *open;
 };
 
 struct sysfs_elem_bin_attr {

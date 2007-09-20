@@ -49,6 +49,22 @@ static struct sysfs_ops subsys_sysfs_ops = {
 	.store	= subsys_attr_store,
 };
 
+/*
+ * There's one sysfs_buffer for each open file and one
+ * sysfs_open_dirent for each sysfs_dirent with one or more open
+ * files.
+ *
+ * filp->private_data points to sysfs_buffer and
+ * sysfs_dirent->s_attr.open points to sysfs_open_dirent.  s_attr.open
+ * is protected by sysfs_open_dirent_lock.
+ */
+static spinlock_t sysfs_open_dirent_lock = SPIN_LOCK_UNLOCKED;
+
+struct sysfs_open_dirent {
+	atomic_t		refcnt;
+	struct list_head	buffers; /* goes through sysfs_buffer.list */
+};
+
 struct sysfs_buffer {
 	size_t			count;
 	loff_t			pos;
@@ -57,6 +73,7 @@ struct sysfs_buffer {
 	struct mutex		mutex;
 	int			needs_read_fill;
 	int			event;
+	struct list_head	list;
 };
 
 /**
@@ -237,6 +254,86 @@ sysfs_write_file(struct file *file, const char __user *buf, size_t count, loff_t
 	return len;
 }
 
+/**
+ *	sysfs_get_open_dirent - get or create sysfs_open_dirent
+ *	@sd: target sysfs_dirent
+ *	@buffer: sysfs_buffer for this instance of open
+ *
+ *	If @sd->s_attr.open exists, increment its reference count;
+ *	otherwise, create one.  @buffer is chained to the buffers
+ *	list.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno on failure.
+ */
+static int sysfs_get_open_dirent(struct sysfs_dirent *sd,
+				 struct sysfs_buffer *buffer)
+{
+	struct sysfs_open_dirent *od, *new_od = NULL;
+
+ retry:
+	spin_lock(&sysfs_open_dirent_lock);
+
+	if (!sd->s_attr.open && new_od) {
+		sd->s_attr.open = new_od;
+		new_od = NULL;
+	}
+
+	od = sd->s_attr.open;
+	if (od) {
+		atomic_inc(&od->refcnt);
+		list_add_tail(&buffer->list, &od->buffers);
+	}
+
+	spin_unlock(&sysfs_open_dirent_lock);
+
+	if (od) {
+		kfree(new_od);
+		return 0;
+	}
+
+	/* not there, initialize a new one and retry */
+	new_od = kmalloc(sizeof(*new_od), GFP_KERNEL);
+	if (!new_od)
+		return -ENOMEM;
+
+	atomic_set(&new_od->refcnt, 0);
+	INIT_LIST_HEAD(&new_od->buffers);
+	goto retry;
+}
+
+/**
+ *	sysfs_put_open_dirent - put sysfs_open_dirent
+ *	@sd: target sysfs_dirent
+ *	@buffer: associated sysfs_buffer
+ *
+ *	Put @sd->s_attr.open and unlink @buffer from the buffers list.
+ *	If reference count reaches zero, disassociate and free it.
+ *
+ *	LOCKING:
+ *	None.
+ */
+static void sysfs_put_open_dirent(struct sysfs_dirent *sd,
+				  struct sysfs_buffer *buffer)
+{
+	struct sysfs_open_dirent *od = sd->s_attr.open;
+
+	spin_lock(&sysfs_open_dirent_lock);
+
+	list_del(&buffer->list);
+	if (atomic_dec_and_test(&od->refcnt))
+		sd->s_attr.open = NULL;
+	else
+		od = NULL;
+
+	spin_unlock(&sysfs_open_dirent_lock);
+
+	kfree(od);
+}
+
 static int sysfs_open_file(struct inode *inode, struct file *file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
@@ -298,18 +395,28 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	buffer->ops = ops;
 	file->private_data = buffer;
 
+	/* make sure we have open dirent struct */
+	error = sysfs_get_open_dirent(attr_sd, buffer);
+	if (error)
+		goto err_free;
+
 	/* open succeeded, put active references */
 	sysfs_put_active_two(attr_sd);
 	return 0;
 
+ err_free:
+	kfree(buffer);
  err_out:
 	sysfs_put_active_two(attr_sd);
 	return error;
 }
 
-static int sysfs_release(struct inode * inode, struct file * filp)
+static int sysfs_release(struct inode *inode, struct file *filp)
 {
+	struct sysfs_dirent *sd = filp->f_path.dentry->d_fsdata;
 	struct sysfs_buffer *buffer = filp->private_data;
+
+	sysfs_put_open_dirent(sd, buffer);
 
 	if (buffer->page)
 		free_page((unsigned long)buffer->page);
