@@ -2525,55 +2525,49 @@ static void tcp_rearm_rto(struct sock *sk)
 	}
 }
 
+/* If we get here, the whole TSO packet has not been acked. */
 static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
-	__u32 seq = tp->snd_una;
-	__u32 packets_acked;
+	u32 packets_acked;
 
-	/* If we get here, the whole TSO packet has not been
-	 * acked.
-	 */
-	BUG_ON(!after(scb->end_seq, seq));
+	BUG_ON(!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una));
 
 	packets_acked = tcp_skb_pcount(skb);
-	if (tcp_trim_head(sk, skb, seq - scb->seq))
+	if (tcp_trim_head(sk, skb, tp->snd_una - TCP_SKB_CB(skb)->seq))
 		return 0;
 	packets_acked -= tcp_skb_pcount(skb);
 
 	if (packets_acked) {
 		BUG_ON(tcp_skb_pcount(skb) == 0);
-		BUG_ON(!before(scb->seq, scb->end_seq));
+		BUG_ON(!before(TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq));
 	}
 
 	return packets_acked;
 }
 
-/* Remove acknowledged frames from the retransmission queue. */
-static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
+/* Remove acknowledged frames from the retransmission queue. If our packet
+ * is before the ack sequence we can discard it as it's confirmed to have
+ * arrived at the other end.
+ */
+static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sk_buff *skb;
-	__u32 now = tcp_time_stamp;
+	u32 now = tcp_time_stamp;
 	int fully_acked = 1;
-	int acked = 0;
+	int flag = 0;
 	int prior_packets = tp->packets_out;
-	__s32 seq_rtt = -1;
+	s32 seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
 
-	while ((skb = tcp_write_queue_head(sk)) &&
-	       skb != tcp_send_head(sk)) {
+	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		u32 end_seq;
 		u32 packets_acked;
-		__u8 sacked = scb->sacked;
+		u8 sacked = scb->sacked;
 
-		/* If our packet is before the ack sequence we can
-		 * discard it as it's confirmed to have arrived at
-		 * the other end.
-		 */
 		if (after(scb->end_seq, tp->snd_una)) {
 			if (tcp_skb_pcount(skb) == 1 ||
 			    !after(tp->snd_una, scb->seq))
@@ -2598,38 +2592,38 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		 * quickly.  This is severely frowned upon behavior.
 		 */
 		if (!(scb->flags & TCPCB_FLAG_SYN)) {
-			acked |= FLAG_DATA_ACKED;
+			flag |= FLAG_DATA_ACKED;
 		} else {
-			acked |= FLAG_SYN_ACKED;
+			flag |= FLAG_SYN_ACKED;
 			tp->retrans_stamp = 0;
 		}
 
 		/* MTU probing checks */
-		if (fully_acked && icsk->icsk_mtup.probe_size) {
-			if (!after(tp->mtu_probe.probe_seq_end, TCP_SKB_CB(skb)->end_seq)) {
-				tcp_mtup_probe_success(sk, skb);
-			}
+		if (fully_acked && icsk->icsk_mtup.probe_size &&
+		    !after(tp->mtu_probe.probe_seq_end, scb->end_seq)) {
+			tcp_mtup_probe_success(sk, skb);
 		}
 
 		if (sacked) {
 			if (sacked & TCPCB_RETRANS) {
 				if (sacked & TCPCB_SACKED_RETRANS)
 					tp->retrans_out -= packets_acked;
-				acked |= FLAG_RETRANS_DATA_ACKED;
+				flag |= FLAG_RETRANS_DATA_ACKED;
 				seq_rtt = -1;
 			} else if (seq_rtt < 0) {
 				seq_rtt = now - scb->when;
 				if (fully_acked)
 					last_ackt = skb->tstamp;
 			}
+
 			if (sacked & TCPCB_SACKED_ACKED)
 				tp->sacked_out -= packets_acked;
 			if (sacked & TCPCB_LOST)
 				tp->lost_out -= packets_acked;
-			if (sacked & TCPCB_URG) {
-				if (tp->urg_mode && !before(end_seq, tp->snd_up))
-					tp->urg_mode = 0;
-			}
+
+			if ((sacked & TCPCB_URG) && tp->urg_mode &&
+			    !before(end_seq, tp->snd_up))
+				tp->urg_mode = 0;
 		} else if (seq_rtt < 0) {
 			seq_rtt = now - scb->when;
 			if (fully_acked)
@@ -2645,12 +2639,12 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tcp_clear_all_retrans_hints(tp);
 	}
 
-	if (acked&FLAG_ACKED) {
+	if (flag & FLAG_ACKED) {
 		u32 pkts_acked = prior_packets - tp->packets_out;
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
 
-		tcp_ack_update_rtt(sk, acked, seq_rtt);
+		tcp_ack_update_rtt(sk, flag, seq_rtt);
 		tcp_rearm_rto(sk);
 
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
@@ -2664,7 +2658,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			s32 rtt_us = -1;
 
 			/* Is the ACK triggering packet unambiguous? */
-			if (!(acked & FLAG_RETRANS_DATA_ACKED)) {
+			if (!(flag & FLAG_RETRANS_DATA_ACKED)) {
 				/* High resolution needed and available? */
 				if (ca_ops->flags & TCP_CONG_RTT_STAMP &&
 				    !ktime_equal(last_ackt,
@@ -2703,7 +2697,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 	}
 #endif
 	*seq_rtt_p = seq_rtt;
-	return acked;
+	return flag;
 }
 
 static void tcp_ack_probe(struct sock *sk)
