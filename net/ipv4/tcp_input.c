@@ -104,6 +104,7 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_ONLY_ORIG_SACKED	0x200 /* SACKs only non-rexmit sent before RTO */
 #define FLAG_SND_UNA_ADVANCED	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
 #define FLAG_DSACKING_ACK	0x800 /* SACK blocks contained DSACK info */
+#define FLAG_NONHEAD_RETRANS_ACKED	0x1000 /* Non-head rexmitted data was ACKed */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
 #define FLAG_NOT_DUP		(FLAG_DATA|FLAG_WIN_UPDATE|FLAG_ACKED)
@@ -1594,6 +1595,8 @@ void tcp_enter_frto(struct sock *sk)
 	tp->undo_retrans = 0;
 
 	skb = tcp_write_queue_head(sk);
+	if (TCP_SKB_CB(skb)->sacked & TCPCB_RETRANS)
+		tp->undo_marker = 0;
 	if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) {
 		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		tp->retrans_out -= tcp_skb_pcount(skb);
@@ -1643,6 +1646,8 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 			/* ...enter this if branch just for the first segment */
 			flag |= FLAG_DATA_ACKED;
 		} else {
+			if (TCP_SKB_CB(skb)->sacked & TCPCB_RETRANS)
+				tp->undo_marker = 0;
 			TCP_SKB_CB(skb)->sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
 		}
 
@@ -1658,7 +1663,6 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->snd_cwnd = tcp_packets_in_flight(tp) + allowed_segments;
 	tp->snd_cwnd_cnt = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
-	tp->undo_marker = 0;
 	tp->frto_counter = 0;
 
 	tp->reordering = min_t(unsigned int, tp->reordering,
@@ -2584,20 +2588,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 			end_seq = scb->end_seq;
 		}
 
-		/* Initial outgoing SYN's get put onto the write_queue
-		 * just like anything else we transmit.  It is not
-		 * true data, and if we misinform our callers that
-		 * this ACK acks real data, we will erroneously exit
-		 * connection startup slow start one packet too
-		 * quickly.  This is severely frowned upon behavior.
-		 */
-		if (!(scb->flags & TCPCB_FLAG_SYN)) {
-			flag |= FLAG_DATA_ACKED;
-		} else {
-			flag |= FLAG_SYN_ACKED;
-			tp->retrans_stamp = 0;
-		}
-
 		/* MTU probing checks */
 		if (fully_acked && icsk->icsk_mtup.probe_size &&
 		    !after(tp->mtu_probe.probe_seq_end, scb->end_seq)) {
@@ -2610,6 +2600,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 					tp->retrans_out -= packets_acked;
 				flag |= FLAG_RETRANS_DATA_ACKED;
 				seq_rtt = -1;
+				if ((flag & FLAG_DATA_ACKED) ||
+				    (packets_acked > 1))
+					flag |= FLAG_NONHEAD_RETRANS_ACKED;
 			} else if (seq_rtt < 0) {
 				seq_rtt = now - scb->when;
 				if (fully_acked)
@@ -2630,6 +2623,20 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 				last_ackt = skb->tstamp;
 		}
 		tp->packets_out -= packets_acked;
+
+		/* Initial outgoing SYN's get put onto the write_queue
+		 * just like anything else we transmit.  It is not
+		 * true data, and if we misinform our callers that
+		 * this ACK acks real data, we will erroneously exit
+		 * connection startup slow start one packet too
+		 * quickly.  This is severely frowned upon behavior.
+		 */
+		if (!(scb->flags & TCPCB_FLAG_SYN)) {
+			flag |= FLAG_DATA_ACKED;
+		} else {
+			flag |= FLAG_SYN_ACKED;
+			tp->retrans_stamp = 0;
+		}
 
 		if (!fully_acked)
 			break;
@@ -2852,6 +2859,10 @@ static int tcp_process_frto(struct sock *sk, int flag)
 	if (flag&FLAG_DATA_ACKED)
 		inet_csk(sk)->icsk_retransmits = 0;
 
+	if ((flag & FLAG_NONHEAD_RETRANS_ACKED) ||
+	    ((tp->frto_counter >= 2) && (flag & FLAG_RETRANS_DATA_ACKED)))
+		tp->undo_marker = 0;
+
 	if (!before(tp->snd_una, tp->frto_highmark)) {
 		tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 2 : 3), flag);
 		return 1;
@@ -2916,6 +2927,7 @@ static int tcp_process_frto(struct sock *sk, int flag)
 			break;
 		}
 		tp->frto_counter = 0;
+		tp->undo_marker = 0;
 	}
 	return 0;
 }
