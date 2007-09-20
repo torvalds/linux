@@ -521,10 +521,19 @@ int sysfs_chmod_file(struct kobject *kobj, struct attribute *attr, mode_t mode)
 	}
 
 	inode = victim->d_inode;
+
 	mutex_lock(&inode->i_mutex);
+
 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
 	rc = notify_change(victim, &newattrs);
+
+	if (rc == 0) {
+		mutex_lock(&sysfs_mutex);
+		victim_sd->s_mode = newattrs.ia_mode;
+		mutex_unlock(&sysfs_mutex);
+	}
+
 	mutex_unlock(&inode->i_mutex);
  out:
 	dput(victim);
