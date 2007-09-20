@@ -157,11 +157,6 @@ static void sysfs_init_inode(struct sysfs_dirent *sd, struct inode *inode)
 
 	/* initialize inode according to type */
 	switch (sysfs_type(sd)) {
-	case SYSFS_ROOT:
-		inode->i_op = &sysfs_dir_inode_operations;
-		inode->i_fop = &sysfs_dir_operations;
-		inc_nlink(inode); /* directory, account for "." */
-		break;
 	case SYSFS_DIR:
 		inode->i_op = &sysfs_dir_inode_operations;
 		inode->i_fop = &sysfs_dir_operations;
