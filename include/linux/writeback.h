@@ -5,6 +5,7 @@
 #define WRITEBACK_H
 
 #include <linux/sched.h>
+#include <linux/fs.h>
 
 struct backing_dev_info;
 
