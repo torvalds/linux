@@ -39,6 +39,8 @@
 
 extern struct kset devices_subsys; /* needed for vio_find_name() */
 
+static struct bus_type vio_bus_type;
+
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
 	.type = "",
@@ -388,7 +390,7 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 	return 0;
 }
 
-struct bus_type vio_bus_type = {
+static struct bus_type vio_bus_type = {
 	.name = "vio",
 	.dev_attrs = vio_dev_attrs,
 	.uevent = vio_hotplug,
