@@ -950,8 +950,11 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 		tf.hob_lbal = (new_sectors >> 24) & 0xff;
 		tf.hob_lbam = (new_sectors >> 32) & 0xff;
 		tf.hob_lbah = (new_sectors >> 40) & 0xff;
-	} else
+	} else {
 		tf.command = ATA_CMD_SET_MAX;
+
+		tf.device |= (new_sectors >> 24) & 0xf;
+	}
 
 	tf.protocol |= ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
