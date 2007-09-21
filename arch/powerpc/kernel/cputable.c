@@ -1319,17 +1319,18 @@ struct cpu_spec *identify_cpu(unsigned long offset, unsigned int pvr)
 	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++)
 		if ((pvr & s->pvr_mask) == s->pvr_value) {
 			*cur = cpu_specs + i;
-#ifdef CONFIG_PPC64
-			/* ppc64 expects identify_cpu to also call setup_cpu
-			 * for that processor. I will consolidate that at a
-			 * later time, for now, just use our friend #ifdef.
+#if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
+			/* ppc64 and booke expect identify_cpu to also call 
+			 * setup_cpu for that processor. I will consolidate
+			 * that at a later time, for now, just use #ifdef.
 			 * we also don't need to PTRRELOC the function pointer
-			 * on ppc64 as we are running at 0 in real mode.
+			 * on ppc64 and booke as we are running at 0 in real
+			 * mode on ppc64 and reloc_offset is always 0 on booke.
 			 */
 			if (s->cpu_setup) {
 				s->cpu_setup(offset, s);
 			}
-#endif /* CONFIG_PPC64 */
+#endif /* CONFIG_PPC64 || CONFIG_BOOKE */
 			return s;
 		}
 	BUG();
