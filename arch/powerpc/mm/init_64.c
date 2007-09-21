@@ -113,6 +113,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
+#ifdef CONFIG_PROC_KCORE
 static struct kcore_list kcore_vmem;
 
 static int __init setup_kcore(void)
@@ -139,6 +140,7 @@ static int __init setup_kcore(void)
 	return 0;
 }
 module_init(setup_kcore);
+#endif
 
 static void zero_ctor(void *addr, struct kmem_cache *cache, unsigned long flags)
 {
