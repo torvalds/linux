@@ -12,13 +12,18 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/ide.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/map.h>
 #include <asm/magicpanelr2.h>
 #include <asm/heartbeat.h>
 
 #define LAN9115_READY	(ctrl_inl(0xA8000084UL) & 0x00000001UL)
+
+/* Prefer cmdline over RedBoot */
+static const char *probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 /* Wait until reset finished. Timeout is 100ms. */
 static int __init ethernet_reset_finished(void)
@@ -270,13 +275,90 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
+static struct mtd_partition *parsed_partitions;
+
+static struct mtd_partition mpr2_partitions[] = {
+	/* Reserved for bootloader, read-only */
+	{
+		.name = "Bootloader",
+		.offset = 0x00000000UL,
+		.size = MPR2_MTD_BOOTLOADER_SIZE,
+		.mask_flags = MTD_WRITEABLE,
+	},
+	/* Reserved for kernel image */
+	{
+		.name = "Kernel",
+		.offset = MTDPART_OFS_NXTBLK,
+		.size = MPR2_MTD_KERNEL_SIZE,
+	},
+	/* Rest is used for Flash FS */
+	{
+		.name = "Flash_FS",
+		.offset = MTDPART_OFS_NXTBLK,
+		.size = MTDPART_SIZ_FULL,
+	}
+};
+
+static struct physmap_flash_data flash_data = {
+	.width		= 2,
+};
+
+static struct resource flash_resource = {
+	.start		= 0x00000000,
+	.end		= 0x2000000UL,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device flash_device = {
+	.name		= "physmap-flash",
+	.id		= -1,
+	.resource	= &flash_resource,
+	.num_resources	= 1,
+	.dev		= {
+		.platform_data = &flash_data,
+	},
+};
+
+static struct mtd_info *flash_mtd;
+
+static struct map_info mpr2_flash_map = {
+	.name = "Magic Panel R2 Flash",
+	.size = 0x2000000UL,
+	.bankwidth = 2,
+};
+
+static void __init set_mtd_partitions(void)
+{
+	int nr_parts = 0;
+
+	simple_map_init(&mpr2_flash_map);
+	flash_mtd = do_map_probe("cfi_probe", &mpr2_flash_map);
+	nr_parts = parse_mtd_partitions(flash_mtd, probes,
+					&parsed_partitions, 0);
+	/* If there is no partition table, used the hard coded table */
+	if (nr_parts <= 0) {
+		flash_data.parts = mpr2_partitions;
+		flash_data.nr_parts = ARRAY_SIZE(mpr2_partitions);
+	} else {
+		flash_data.nr_parts = nr_parts;
+		flash_data.parts = parsed_partitions;
+	}
+}
+
+/*
+ * Add all resources to the platform_device
+ */
+
 static struct platform_device *mpr2_devices[] __initdata = {
 	&heartbeat_device,
 	&smc911x_device,
+	&flash_device,
 };
+
 
 static int __init mpr2_devices_setup(void)
 {
+	set_mtd_partitions();
 	return platform_add_devices(mpr2_devices, ARRAY_SIZE(mpr2_devices));
 }
 device_initcall(mpr2_devices_setup);
@@ -308,5 +390,5 @@ static void __init init_mpr2_IRQ(void)
 static struct sh_machine_vector mv_mpr2 __initmv = {
 	.mv_name		= "mpr2",
 	.mv_setup		= mpr2_setup,
-	.mv_init_irq 		= init_mpr2_IRQ,
+	.mv_init_irq		= init_mpr2_IRQ,
 };
