@@ -29,6 +29,12 @@ config MMU
 config GENERIC_CMOS_UPDATE
 	def_bool y
 
+config GENERIC_TIME
+	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
 config GENERIC_HARDIRQS
 	bool
 	default y
