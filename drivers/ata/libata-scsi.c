@@ -71,11 +71,10 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 #define ALL_SUB_MPAGES 0xff
 
 
-static const u8 def_rw_recovery_mpage[] = {
+static const u8 def_rw_recovery_mpage[RW_RECOVERY_MPAGE_LEN] = {
 	RW_RECOVERY_MPAGE,
 	RW_RECOVERY_MPAGE_LEN - 2,
-	(1 << 7) |	/* AWRE, sat-r06 say it shall be 0 */
-	    (1 << 6),	/* ARRE (auto read reallocation) */
+	(1 << 7),	/* AWRE */
 	0,		/* read retry count */
 	0, 0, 0, 0,
 	0,		/* write retry count */
