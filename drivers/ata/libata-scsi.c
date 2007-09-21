@@ -2920,14 +2920,9 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	args.done = done;
 
 	switch(scsicmd[0]) {
-		/* no-op's, complete with success */
-		case SYNCHRONIZE_CACHE:
-		case REZERO_UNIT:
-		case SEEK_6:
-		case SEEK_10:
-		case TEST_UNIT_READY:
-		case FORMAT_UNIT:		/* FIXME: correct? */
-			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
+		/* TODO: worth improving? */
+		case FORMAT_UNIT:
+			ata_scsi_invalid_field(cmd, done);
 			break;
 
 		case INQUIRY:
@@ -2983,6 +2978,20 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			ata_scsi_set_sense(cmd, 0, 0, 0);
 			cmd->result = (DRIVER_SENSE << 24);
 			done(cmd);
+			break;
+
+		/* if we reach this, then writeback caching is disabled,
+		 * turning this into a no-op.
+		 */
+		case SYNCHRONIZE_CACHE:
+			/* fall through */
+
+		/* no-op's, complete with success */
+		case REZERO_UNIT:
+		case SEEK_6:
+		case SEEK_10:
+		case TEST_UNIT_READY:
+			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 			break;
 
 		case SEND_DIAGNOSTIC:
