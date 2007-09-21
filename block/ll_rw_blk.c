@@ -3630,15 +3630,83 @@ void end_that_request_last(struct request *req, int uptodate)
 
 EXPORT_SYMBOL(end_that_request_last);
 
-void end_request(struct request *req, int uptodate)
+static inline void __end_request(struct request *rq, int uptodate,
+				 unsigned int nr_bytes, int dequeue)
 {
-	if (!end_that_request_first(req, uptodate, req->hard_cur_sectors)) {
-		add_disk_randomness(req->rq_disk);
-		blkdev_dequeue_request(req);
-		end_that_request_last(req, uptodate);
+	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
+		if (dequeue)
+			blkdev_dequeue_request(rq);
+		add_disk_randomness(rq->rq_disk);
+		end_that_request_last(rq, uptodate);
 	}
 }
 
+static unsigned int rq_byte_size(struct request *rq)
+{
+	if (blk_fs_request(rq))
+		return rq->hard_nr_sectors << 9;
+
+	return rq->data_len;
+}
+
+/**
+ * end_queued_request - end all I/O on a queued request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends all I/O on a request, and removes it from the block layer queues.
+ *     Not suitable for normal IO completion, unless the driver still has
+ *     the request attached to the block layer.
+ *
+ **/
+void end_queued_request(struct request *rq, int uptodate)
+{
+	__end_request(rq, uptodate, rq_byte_size(rq), 1);
+}
+EXPORT_SYMBOL(end_queued_request);
+
+/**
+ * end_dequeued_request - end all I/O on a dequeued request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends all I/O on a request. The request must already have been
+ *     dequeued using blkdev_dequeue_request(), as is normally the case
+ *     for most drivers.
+ *
+ **/
+void end_dequeued_request(struct request *rq, int uptodate)
+{
+	__end_request(rq, uptodate, rq_byte_size(rq), 0);
+}
+EXPORT_SYMBOL(end_dequeued_request);
+
+
+/**
+ * end_request - end I/O on the current segment of the request
+ * @rq:		the request being processed
+ * @uptodate:	error value or 0/1 uptodate flag
+ *
+ * Description:
+ *     Ends I/O on the current segment of a request. If that is the only
+ *     remaining segment, the request is also completed and freed.
+ *
+ *     This is a remnant of how older block drivers handled IO completions.
+ *     Modern drivers typically end IO on the full request in one go, unless
+ *     they have a residual value to account for. For that case this function
+ *     isn't really useful, unless the residual just happens to be the
+ *     full current segment. In other words, don't use this function in new
+ *     code. Either use end_request_completely(), or the
+ *     end_that_request_chunk() (along with end_that_request_last()) for
+ *     partial completions.
+ *
+ **/
+void end_request(struct request *req, int uptodate)
+{
+	__end_request(req, uptodate, req->hard_cur_sectors << 9, 1);
+}
 EXPORT_SYMBOL(end_request);
 
 static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,

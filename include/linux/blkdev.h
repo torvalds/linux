@@ -729,7 +729,9 @@ static inline void blk_run_address_space(struct address_space *mapping)
 extern int end_that_request_first(struct request *, int, int);
 extern int end_that_request_chunk(struct request *, int, int);
 extern void end_that_request_last(struct request *, int);
-extern void end_request(struct request *req, int uptodate);
+extern void end_request(struct request *, int);
+extern void end_queued_request(struct request *, int);
+extern void end_dequeued_request(struct request *, int);
 extern void blk_complete_request(struct request *);
 
 /*
