@@ -527,7 +527,7 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 {
 	struct stb6100_state *state = NULL;
 
-	state = kmalloc(sizeof (struct stb6100_state), GFP_KERNEL);
+	state = kzalloc(sizeof (struct stb6100_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error;
 
