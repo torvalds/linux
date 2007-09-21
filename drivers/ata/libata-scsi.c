@@ -2912,6 +2912,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 {
 	struct ata_scsi_args args;
 	const u8 *scsicmd = cmd->cmnd;
+	u8 tmp8;
 
 	args.dev = dev;
 	args.id = dev->id;
@@ -2926,7 +2927,6 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 		case SEEK_10:
 		case TEST_UNIT_READY:
 		case FORMAT_UNIT:		/* FIXME: correct? */
-		case SEND_DIAGNOSTIC:		/* FIXME: correct? */
 			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 			break;
 
@@ -2979,8 +2979,19 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			ata_scsi_rbuf_fill(&args, ata_scsiop_report_luns);
 			break;
 
-		/* mandatory commands we haven't implemented yet */
 		case REQUEST_SENSE:
+			ata_scsi_set_sense(cmd, 0, 0, 0);
+			cmd->result = (DRIVER_SENSE << 24);
+			done(cmd);
+			break;
+
+		case SEND_DIAGNOSTIC:
+			tmp8 = scsicmd[1] & ~(1 << 3);
+			if ((tmp8 == 0x4) && (!scsicmd[3]) && (!scsicmd[4]))
+				ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
+			else
+				ata_scsi_invalid_field(cmd, done);
+			break;
 
 		/* all other commands */
 		default:
