@@ -35,6 +35,7 @@ unsigned int soc_type;
 EXPORT_SYMBOL(soc_type);
 unsigned int periph_rev;
 unsigned int zbbus_mhz;
+EXPORT_SYMBOL(zbbus_mhz);
 
 static unsigned int part_type;
 
