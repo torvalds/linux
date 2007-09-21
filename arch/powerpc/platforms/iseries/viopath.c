@@ -596,7 +596,7 @@ int viopath_close(HvLpIndex remoteLp, int subtype, int numReq)
 		numOpen += viopathStatus[remoteLp].users[i];
 
 	if ((viopathStatus[remoteLp].isOpen) && (numOpen == 0)) {
-		printk(VIOPATH_KERN_INFO "closing connection to partition %d",
+		printk(VIOPATH_KERN_INFO "closing connection to partition %d\n",
 				remoteLp);
 
 		HvCallEvent_closeLpEventPath(remoteLp,
