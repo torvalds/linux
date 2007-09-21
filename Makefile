@@ -118,12 +118,17 @@ $(if $(KBUILD_OUTPUT),, \
 # Check that OUTPUT directory is not the same as where we have kernel src
 $(if $(filter-out $(KBUILD_OUTPUT),$(shell /bin/pwd)),, \
      $(error Output directory (O=...) specifies kernel src dir))
-PHONY += $(MAKECMDGOALS)
 
-$(filter-out _all,$(MAKECMDGOALS)) _all:
+PHONY += $(MAKECMDGOALS) sub-make
+
+$(filter-out _all sub-make,$(MAKECMDGOALS)) _all: sub-make
+	$(Q)@:
+
+sub-make: FORCE
 	$(if $(KBUILD_VERBOSE:1=),@)$(MAKE) -C $(KBUILD_OUTPUT) \
 	KBUILD_SRC=$(CURDIR) \
-	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile $@
+	KBUILD_EXTMOD="$(KBUILD_EXTMOD)" -f $(CURDIR)/Makefile \
+	$(filter-out _all sub-make,$(MAKECMDGOALS))
 
 # Leave processing to above invocation of make
 skip-makefile := 1

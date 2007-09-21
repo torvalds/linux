@@ -26,11 +26,13 @@ MAKEFLAGS += --no-print-directory
 
 .PHONY: all \$(MAKECMDGOALS)
 
+all	:= \$(filter-out all Makefile,\$(MAKECMDGOALS))
+
 all:
-	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT)
+	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT) \$(all)
 
 Makefile:;
 
-\$(filter-out all Makefile,\$(MAKECMDGOALS)) %/:
-	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT) \$@
+\$(all) %/: all
+	@:
 EOF
