@@ -534,11 +534,11 @@ struct dvb_frontend *stb6100_attach(struct dvb_frontend *fe,
 	state->config		= config;
 	state->i2c		= i2c;
 	state->frontend		= fe;
-	state->reference	= config->refclock;
+	state->reference	= config->refclock / 1000; /* kHz */
 	fe->tuner_priv		= state;
 	fe->ops.tuner_ops	= stb6100_ops;
 
-	printk("%s: Attaching\n", __func__);
+	printk("%s: Attaching STB6100 \n", __func__);
 	return fe;
 
 error:
@@ -552,7 +552,6 @@ static int stb6100_release(struct dvb_frontend *fe)
 	struct stb6100_state *state = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
-	memset(&fe->ops.tuner_ops, 0, sizeof (fe->ops.tuner_ops));
 	kfree(state);
 
 	return 0;
