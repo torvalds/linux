@@ -215,7 +215,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 						 GPIO2, GPIO1, GPIO0, IRM } },
 	{ 0xfe410090, 0xfe4100a0, 32, 4, /* CnICIPRI / CnICIPRICLR */
 	  { INTICI7, INTICI6, INTICI5, INTICI4,
-	    INTICI3, INTICI2, INTICI1, INTICI0 } },
+	    INTICI3, INTICI2, INTICI1, INTICI0 }, INTC_SMP(4, 4) },
 };
 
 static DECLARE_INTC_DESC(intc_desc, "shx3", vectors, groups, priorities,
