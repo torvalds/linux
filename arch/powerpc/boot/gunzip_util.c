@@ -78,6 +78,7 @@ void gunzip_start(struct gunzip_state *state, void *src, int srclen)
 			fatal("inflateInit2 returned %d\n\r", r);
 	}
 
+	state->s.total_in = hdrlen;
 	state->s.next_in = src + hdrlen;
 	state->s.avail_in = srclen - hdrlen;
 }
