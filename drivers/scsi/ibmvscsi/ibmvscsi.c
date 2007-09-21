@@ -70,6 +70,7 @@
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <asm/firmware.h>
 #include <asm/vio.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -91,6 +92,8 @@ static int max_requests = IBMVSCSI_MAX_REQUESTS_DEFAULT;
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
 #define IBMVSCSI_VERSION "1.5.8"
+
+static struct ibmvscsi_ops *ibmvscsi_ops;
 
 MODULE_DESCRIPTION("IBM Virtual SCSI");
 MODULE_AUTHOR("Dave Boutcher");
@@ -509,8 +512,8 @@ static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
 	atomic_set(&hostdata->request_limit, 0);
 
 	purge_requests(hostdata, DID_ERROR);
-	if ((ibmvscsi_reset_crq_queue(&hostdata->queue, hostdata)) ||
-	    (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0)) ||
+	if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata)) ||
+	    (ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0)) ||
 	    (vio_enable_interrupts(to_vio_dev(hostdata->dev)))) {
 		atomic_set(&hostdata->request_limit, -1);
 		dev_err(hostdata->dev, "error after reset\n");
@@ -615,7 +618,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	}
 
 	if ((rc =
-	     ibmvscsi_send_crq(hostdata, crq_as_u64[0], crq_as_u64[1])) != 0) {
+	     ibmvscsi_ops->send_crq(hostdata, crq_as_u64[0], crq_as_u64[1])) != 0) {
 		list_del(&evt_struct->list);
 		del_timer(&evt_struct->timer);
 
@@ -1214,8 +1217,8 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 		case 0x01:	/* Initialization message */
 			dev_info(hostdata->dev, "partner initialized\n");
 			/* Send back a response */
-			if ((rc = ibmvscsi_send_crq(hostdata,
-						    0xC002000000000000LL, 0)) == 0) {
+			if ((rc = ibmvscsi_ops->send_crq(hostdata,
+							 0xC002000000000000LL, 0)) == 0) {
 				/* Now login */
 				send_srp_login(hostdata);
 			} else {
@@ -1240,10 +1243,10 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			/* We need to re-setup the interpartition connection */
 			dev_info(hostdata->dev, "Re-enabling adapter!\n");
 			purge_requests(hostdata, DID_REQUEUE);
-			if ((ibmvscsi_reenable_crq_queue(&hostdata->queue,
-							hostdata)) ||
-			    (ibmvscsi_send_crq(hostdata,
-					       0xC001000000000000LL, 0))) {
+			if ((ibmvscsi_ops->reenable_crq_queue(&hostdata->queue,
+							      hostdata)) ||
+			    (ibmvscsi_ops->send_crq(hostdata,
+						    0xC001000000000000LL, 0))) {
 					atomic_set(&hostdata->request_limit,
 						   -1);
 					dev_err(hostdata->dev, "error after enable\n");
@@ -1253,10 +1256,10 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 				crq->format);
 
 			purge_requests(hostdata, DID_ERROR);
-			if ((ibmvscsi_reset_crq_queue(&hostdata->queue,
-							hostdata)) ||
-			    (ibmvscsi_send_crq(hostdata,
-					       0xC001000000000000LL, 0))) {
+			if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue,
+							   hostdata)) ||
+			    (ibmvscsi_ops->send_crq(hostdata,
+						    0xC001000000000000LL, 0))) {
 					atomic_set(&hostdata->request_limit,
 						   -1);
 					dev_err(hostdata->dev, "error after reset\n");
@@ -1579,7 +1582,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	atomic_set(&hostdata->request_limit, -1);
 	hostdata->host->max_sectors = 32 * 8; /* default max I/O 32 pages */
 
-	rc = ibmvscsi_init_crq_queue(&hostdata->queue, hostdata, max_requests);
+	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_requests);
 	if (rc != 0 && rc != H_RESOURCE) {
 		dev_err(&vdev->dev, "couldn't initialize crq. rc=%d\n", rc);
 		goto init_crq_failed;
@@ -1608,7 +1611,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	 * to fail if the other end is not acive.  In that case we don't
 	 * want to scan
 	 */
-	if (ibmvscsi_send_crq(hostdata, 0xC001000000000000LL, 0) == 0
+	if (ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0) == 0
 	    || rc == H_RESOURCE) {
 		/*
 		 * Wait around max init_timeout secs for the adapter to finish
@@ -1636,7 +1639,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
       add_host_failed:
 	release_event_pool(&hostdata->pool, hostdata);
       init_pool_failed:
-	ibmvscsi_release_crq_queue(&hostdata->queue, hostdata, max_requests);
+	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata, max_requests);
       init_crq_failed:
 	scsi_host_put(host);
       scsi_host_alloc_failed:
@@ -1647,8 +1650,8 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
 {
 	struct ibmvscsi_host_data *hostdata = vdev->dev.driver_data;
 	release_event_pool(&hostdata->pool, hostdata);
-	ibmvscsi_release_crq_queue(&hostdata->queue, hostdata,
-				   max_requests);
+	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata,
+					max_requests);
 
 	srp_remove_host(hostdata->host);
 	scsi_remove_host(hostdata->host);
@@ -1683,6 +1686,13 @@ static struct srp_function_template ibmvscsi_transport_functions = {
 int __init ibmvscsi_module_init(void)
 {
 	int ret;
+
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		ibmvscsi_ops = &iseriesvscsi_ops;
+	else if (firmware_has_feature(FW_FEATURE_VIO))
+		ibmvscsi_ops = &rpavscsi_ops;
+	else
+		return -ENODEV;
 
 	ibmvscsi_transport_template =
 		srp_attach_transport(&ibmvscsi_transport_functions);

@@ -98,21 +98,25 @@ struct ibmvscsi_host_data {
 };
 
 /* routines for managing a command/response queue */
-int ibmvscsi_init_crq_queue(struct crq_queue *queue,
-			    struct ibmvscsi_host_data *hostdata,
-			    int max_requests);
-void ibmvscsi_release_crq_queue(struct crq_queue *queue,
-				struct ibmvscsi_host_data *hostdata,
-				int max_requests);
-int ibmvscsi_reset_crq_queue(struct crq_queue *queue,
-			      struct ibmvscsi_host_data *hostdata);
-
-int ibmvscsi_reenable_crq_queue(struct crq_queue *queue,
-				struct ibmvscsi_host_data *hostdata);
-
 void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			 struct ibmvscsi_host_data *hostdata);
-int ibmvscsi_send_crq(struct ibmvscsi_host_data *hostdata,
-		      u64 word1, u64 word2);
+
+struct ibmvscsi_ops {
+	int (*init_crq_queue)(struct crq_queue *queue,
+			      struct ibmvscsi_host_data *hostdata,
+			      int max_requests);
+	void (*release_crq_queue)(struct crq_queue *queue,
+				  struct ibmvscsi_host_data *hostdata,
+				  int max_requests);
+	int (*reset_crq_queue)(struct crq_queue *queue,
+			       struct ibmvscsi_host_data *hostdata);
+	int (*reenable_crq_queue)(struct crq_queue *queue,
+				  struct ibmvscsi_host_data *hostdata);
+	int (*send_crq)(struct ibmvscsi_host_data *hostdata,
+		       u64 word1, u64 word2);
+};
+
+extern struct ibmvscsi_ops iseriesvscsi_ops;
+extern struct ibmvscsi_ops rpavscsi_ops;
 
 #endif				/* IBMVSCSI_H */
