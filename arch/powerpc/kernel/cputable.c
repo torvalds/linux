@@ -31,6 +31,8 @@ EXPORT_SYMBOL(cur_cpu_spec);
  * and ppc64
  */
 #ifdef CONFIG_PPC32
+extern void __setup_cpu_440ep(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_440epx(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_603(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_604(unsigned long offset, struct cpu_spec* spec);
 extern void __setup_cpu_750(unsigned long offset, struct cpu_spec* spec);
@@ -1111,6 +1113,7 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_440ep,
 		.platform		= "ppc440",
 	},
 	{
@@ -1121,6 +1124,7 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_440ep,
 		.platform		= "ppc440",
 	},
 	{ /* 440EPX */
@@ -1131,6 +1135,8 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_440epx,
+		.platform		= "ppc440",
 	},
 	{ /* 440GRX */
 		.pvr_mask		= 0xf0000ffb,

@@ -17,3 +17,17 @@
 #include <asm/cputable.h>
 #include <asm/ppc_asm.h>
 
+_GLOBAL(__setup_cpu_440ep)
+	b	__init_fpu_44x
+_GLOBAL(__setup_cpu_440epx)
+	b	__init_fpu_44x
+
+/* enable APU between CPU and FPU */
+_GLOBAL(__init_fpu_44x)
+	mfspr	r3,SPRN_CCR0
+	/* Clear DAPUIB flag in CCR0 */
+	rlwinm	r3,r3,0,12,10
+	mtspr	SPRN_CCR0,r3
+	isync
+	blr
+
