@@ -4,6 +4,10 @@
 
 mainmenu "Linux/PowerPC Kernel Configuration"
 
+config WORD_SIZE
+	int
+	default 32
+
 config MMU
 	bool
 	default y

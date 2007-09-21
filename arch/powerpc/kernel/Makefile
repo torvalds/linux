@@ -38,10 +38,10 @@ obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
-obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o
-obj32-$(CONFIG_HIBERNATION) += swsusp_32.o
-obj64-$(CONFIG_HIBERNATION) += swsusp_64.o swsusp_asm64.o
-obj32-$(CONFIG_MODULES)		+= module_32.o
+obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o \
+				   swsusp_$(CONFIG_WORD_SIZE).o
+obj64-$(CONFIG_HIBERNATION)	+= swsusp_asm64.o
+obj-$(CONFIG_MODULES)		+= module_$(CONFIG_WORD_SIZE).o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -54,9 +54,10 @@ extra-$(CONFIG_8xx)		:= head_8xx.o
 extra-y				+= vmlinux.lds
 
 obj-y				+= time.o prom.o traps.o setup-common.o \
-				   udbg.o misc.o io.o
-obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o
-obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
+				   udbg.o misc.o io.o \
+				   misc_$(CONFIG_WORD_SIZE).o
+obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o
+obj-$(CONFIG_PPC64)		+= dma_64.o iommu.o
 obj-$(CONFIG_PPC_MULTIPLATFORM)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
@@ -64,16 +65,12 @@ obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_PPC_UDBG_16550)	+= legacy_serial.o udbg_16550.o
 
-module-$(CONFIG_PPC64)		+= module_64.o
-obj-$(CONFIG_MODULES)		+= $(module-y)
-
-pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o isa-bridge.o
-pci32-$(CONFIG_PPC32)		:= pci_32.o
-obj-$(CONFIG_PCI)		+= $(pci64-y) $(pci32-y) pci-common.o
+pci64-$(CONFIG_PPC64)		+= pci_dn.o isa-bridge.o
+obj-$(CONFIG_PCI)		+= pci_$(CONFIG_WORD_SIZE).o $(pci64-y) \
+				   pci-common.o
 obj-$(CONFIG_PCI_MSI)		+= msi.o
-kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o
-kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
-obj-$(CONFIG_KEXEC)		+= machine_kexec.o crash.o $(kexec-y)
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o crash.o \
+				   machine_kexec_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_AUDIT)		+= audit.o
 obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
@@ -87,7 +84,6 @@ smpobj-$(CONFIG_SMP)		+= smp.o
 
 endif
 
-obj-$(CONFIG_PPC32)		+= $(obj32-y)
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o

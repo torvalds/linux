@@ -39,7 +39,6 @@ KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
 
 ifeq ($(CONFIG_PPC64),y)
 OLDARCH	:= ppc64
-SZ	:= 64
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
@@ -49,16 +48,21 @@ endif
 
 else
 OLDARCH	:= ppc
-SZ	:= 32
+endif
+
+# It seems there are times we use this Makefile without
+# including the config file, but this replicates the old behaviour
+ifeq ($(CONFIG_WORD_SIZE),)
+CONFIG_WORD_SIZE := 32
 endif
 
 UTS_MACHINE := $(OLDARCH)
 
 ifeq ($(HAS_BIARCH),y)
-override AS	+= -a$(SZ)
-override LD	+= -m elf$(SZ)ppc
-override CC	+= -m$(SZ)
-override AR	:= GNUTARGET=elf$(SZ)-powerpc $(AR)
+override AS	+= -a$(CONFIG_WORD_SIZE)
+override LD	+= -m elf$(CONFIG_WORD_SIZE)ppc
+override CC	+= -m$(CONFIG_WORD_SIZE)
+override AR	:= GNUTARGET=elf$(CONFIG_WORD_SIZE)-powerpc $(AR)
 endif
 
 LDFLAGS_vmlinux	:= -Bstatic
@@ -72,7 +76,7 @@ AFLAGS		+= $(AFLAGS-y)
 CFLAGS		+= -msoft-float -pipe $(CFLAGS-y)
 CPP		= $(CC) -E $(CFLAGS)
 
-CHECKFLAGS	+= -m$(SZ) -D__powerpc__ -D__powerpc$(SZ)__
+CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
 
 ifeq ($(CONFIG_PPC64),y)
 GCC_BROKEN_VEC	:= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo "y"; fi)
@@ -120,8 +124,7 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
 
-head-y				:= arch/powerpc/kernel/head_32.o
-head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
+head-y				:= arch/powerpc/kernel/head_$(CONFIG_WORD_SIZE).o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
 head-$(CONFIG_40x)		:= arch/powerpc/kernel/head_40x.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
