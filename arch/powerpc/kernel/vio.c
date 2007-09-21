@@ -317,11 +317,8 @@ static int __init vio_bus_init(void)
 		 * the device tree. Drivers will associate with them later.
 		 */
 		for (of_node = node_vroot->child; of_node != NULL;
-				of_node = of_node->sibling) {
-			printk(KERN_DEBUG "%s: processing %p\n",
-					__FUNCTION__, of_node);
+				of_node = of_node->sibling)
 			vio_register_device_node(of_node);
-		}
 		of_node_put(node_vroot);
 	}
 
