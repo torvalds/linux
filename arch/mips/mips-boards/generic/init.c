@@ -295,15 +295,21 @@ void __init prom_init(void)
 			break;
 		case MIPS_REVISION_CORID_CORE_MSC:
 		case MIPS_REVISION_CORID_CORE_FPGA2:
-		case MIPS_REVISION_CORID_CORE_FPGA3:
-		case MIPS_REVISION_CORID_CORE_FPGA4:
 		case MIPS_REVISION_CORID_CORE_24K:
-		case MIPS_REVISION_CORID_CORE_EMUL_MSC:
+			/*
+			 * SOCit/ROCit support is essentially identical
+			 * but make an attempt to distinguish them
+			 */
 			mips_revision_sconid = MIPS_REVISION_SCON_SOCIT;
 			break;
+		case MIPS_REVISION_CORID_CORE_FPGA3:
+		case MIPS_REVISION_CORID_CORE_FPGA4:
+		case MIPS_REVISION_CORID_CORE_FPGA5:
+		case MIPS_REVISION_CORID_CORE_EMUL_MSC:
 		default:
-			mips_display_message("CC Error");
-			while (1);   /* We die here... */
+			/* See above */
+			mips_revision_sconid = MIPS_REVISION_SCON_ROCIT;
+			break;
 		}
 	}
 
