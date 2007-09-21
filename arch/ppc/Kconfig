@@ -1016,7 +1016,7 @@ config CMDLINE
 	  some command-line options at build time by entering them here.  In
 	  most cases you will need to specify the root device here.
 
-if !44x || BROKEN
+if BROKEN
 source kernel/power/Kconfig
 endif
 
