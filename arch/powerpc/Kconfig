@@ -35,6 +35,9 @@ config GENERIC_TIME
 config GENERIC_TIME_VSYSCALL
 	def_bool y
 
+config GENERIC_CLOCKEVENTS
+	def_bool y
+
 config GENERIC_HARDIRQS
 	bool
 	default y

@@ -245,6 +245,7 @@ extern void snapshot_timebases(void);
 #define snapshot_timebases()			do { } while (0)
 #endif
 
+extern void secondary_cpu_time_init(void);
 extern void iSeries_time_init_early(void);
 
 #endif /* __KERNEL__ */

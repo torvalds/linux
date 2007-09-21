@@ -569,6 +569,8 @@ int __devinit start_secondary(void *unused)
 	if (system_state > SYSTEM_BOOTING)
 		snapshot_timebase();
 
+	secondary_cpu_time_init();
+
 	spin_lock(&call_lock);
 	cpu_set(cpu, cpu_online_map);
 	spin_unlock(&call_lock);
