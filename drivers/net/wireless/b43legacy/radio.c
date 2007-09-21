@@ -1767,6 +1767,17 @@ int b43legacy_radio_selectchannel(struct b43legacy_wldev *dev,
 {
 	struct b43legacy_phy *phy = &dev->phy;
 
+	if (channel == 0xFF) {
+		switch (phy->type) {
+		case B43legacy_PHYTYPE_B:
+		case B43legacy_PHYTYPE_G:
+			channel = B43legacy_RADIO_DEFAULT_CHANNEL_BG;
+			break;
+		default:
+			B43legacy_WARN_ON(1);
+		}
+	}
+
 /* TODO: Check if channel is valid - return -EINVAL if not */
 	if (synthetic_pu_workaround)
 		b43legacy_synth_pu_workaround(dev, channel);
@@ -2070,6 +2081,7 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_phy *phy = &dev->phy;
 	int err;
+	u8 channel;
 
 	might_sleep();
 
@@ -2083,15 +2095,24 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x0015, 0xCC00);
 		b43legacy_phy_write(dev, 0x0015,
 				    (phy->gmode ? 0x00C0 : 0x0000));
+		if (phy->radio_off_context.valid) {
+			/* Restore the RFover values. */
+			b43legacy_phy_write(dev, B43legacy_PHY_RFOVER,
+					    phy->radio_off_context.rfover);
+			b43legacy_phy_write(dev, B43legacy_PHY_RFOVERVAL,
+					    phy->radio_off_context.rfoverval);
+			phy->radio_off_context.valid = 0;
+		}
+		channel = phy->channel;
 		err = b43legacy_radio_selectchannel(dev,
 					B43legacy_RADIO_DEFAULT_CHANNEL_BG, 1);
-		B43legacy_WARN_ON(err != 0);
+		err |= b43legacy_radio_selectchannel(dev, channel, 0);
+		B43legacy_WARN_ON(err);
 		break;
 	default:
 		B43legacy_BUG_ON(1);
 	}
 	phy->radio_on = 1;
-	b43legacydbg(dev->wl, "Radio turned on\n");
 	b43legacy_leds_update(dev, 0);
 }
 
@@ -2100,10 +2121,16 @@ void b43legacy_radio_turn_off(struct b43legacy_wldev *dev)
 	struct b43legacy_phy *phy = &dev->phy;
 
 	if (phy->type == B43legacy_PHYTYPE_G && dev->dev->id.revision >= 5) {
-		b43legacy_phy_write(dev, 0x0811, b43legacy_phy_read(dev, 0x0811)
-				    | 0x008C);
-		b43legacy_phy_write(dev, 0x0812, b43legacy_phy_read(dev, 0x0812)
-				    & 0xFF73);
+		u16 rfover, rfoverval;
+
+		rfover = b43legacy_phy_read(dev, B43legacy_PHY_RFOVER);
+		rfoverval = b43legacy_phy_read(dev, B43legacy_PHY_RFOVERVAL);
+		phy->radio_off_context.rfover = rfover;
+		phy->radio_off_context.rfoverval = rfoverval;
+		phy->radio_off_context.valid = 1;
+		b43legacy_phy_write(dev, B43legacy_PHY_RFOVER, rfover | 0x008C);
+		b43legacy_phy_write(dev, B43legacy_PHY_RFOVERVAL,
+				    rfoverval & 0xFF73);
 	} else
 		b43legacy_phy_write(dev, 0x0015, 0xAA00);
 	phy->radio_on = 0;

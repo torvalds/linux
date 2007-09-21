@@ -462,12 +462,7 @@ static void b43legacy_phy_initb2(struct b43legacy_wldev *dev)
 		val -= 0x0202;
 	}
 	b43legacy_phy_write(dev, 0x03E4, 0x3000);
-	if (phy->channel == 0xFF)
-		b43legacy_radio_selectchannel(dev,
-					B43legacy_RADIO_DEFAULT_CHANNEL_BG,
-					0);
-	else
-		b43legacy_radio_selectchannel(dev, phy->channel, 0);
+	b43legacy_radio_selectchannel(dev, phy->channel, 0);
 	if (phy->radio_ver != 0x2050) {
 		b43legacy_radio_write16(dev, 0x0075, 0x0080);
 		b43legacy_radio_write16(dev, 0x0079, 0x0081);
@@ -516,12 +511,7 @@ static void b43legacy_phy_initb4(struct b43legacy_wldev *dev)
 		val -= 0x0202;
 	}
 	b43legacy_phy_write(dev, 0x03E4, 0x3000);
-	if (phy->channel == 0xFF)
-		b43legacy_radio_selectchannel(dev,
-					B43legacy_RADIO_DEFAULT_CHANNEL_BG,
-					0);
-	else
-		b43legacy_radio_selectchannel(dev, phy->channel, 0);
+	b43legacy_radio_selectchannel(dev, phy->channel, 0);
 	if (phy->radio_ver != 0x2050) {
 		b43legacy_radio_write16(dev, 0x0075, 0x0080);
 		b43legacy_radio_write16(dev, 0x0079, 0x0081);

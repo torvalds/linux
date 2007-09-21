@@ -2660,6 +2660,22 @@ static int b43legacy_dev_config(struct ieee80211_hw *hw,
 		b43legacy_set_beacon_int(dev, conf->beacon_int);
 
 
+	if (!!conf->radio_enabled != phy->radio_on) {
+		if (conf->radio_enabled) {
+			b43legacy_radio_turn_on(dev);
+			b43legacyinfo(dev->wl, "Radio turned on by software\n");
+			if (!dev->radio_hw_enable)
+				b43legacyinfo(dev->wl, "The hardware RF-kill"
+					      " button still turns the radio"
+					      " physically off. Press the"
+					      " button to turn it on.\n");
+		} else {
+			b43legacy_radio_turn_off(dev);
+			b43legacyinfo(dev->wl, "Radio turned off by"
+				      " software\n");
+		}
+	}
+
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43legacy_interrupt_enable(dev, savedirqs);
 	mmiowb();
