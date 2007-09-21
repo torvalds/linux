@@ -194,13 +194,10 @@ int gunzip_finish(struct gunzip_state *state, void *dst, int dstlen)
 {
 	int len;
 
+	len = gunzip_partial(state, dst, dstlen);
+
 	if (state->s.workspace) {
-		len = gunzip_partial(state, dst, dstlen);
 		zlib_inflateEnd(&state->s);
-	} else {
-		/* uncompressed image */
-		len = min(state->s.avail_in, (unsigned)dstlen);
-		memcpy(dst, state->s.next_in, len);
 	}
 
 	return len;
