@@ -2134,7 +2134,7 @@ void b43legacy_radio_turn_off(struct b43legacy_wldev *dev)
 	} else
 		b43legacy_phy_write(dev, 0x0015, 0xAA00);
 	phy->radio_on = 0;
-	b43legacydbg(dev->wl, "Radio turned off\n");
+	b43legacydbg(dev->wl, "Radio initialized\n");
 	b43legacy_leds_update(dev, 0);
 }
 

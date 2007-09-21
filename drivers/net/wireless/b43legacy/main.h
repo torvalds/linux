@@ -97,26 +97,6 @@ int b43legacy_is_ofdm_rate(int rate)
 	return !b43legacy_is_cck_rate(rate);
 }
 
-static inline
-int b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
-{
-	/* function to return state of hardware enable of radio
-	 * returns 0 if radio disabled, 1 if radio enabled
-	 */
-	struct b43legacy_phy *phy = &dev->phy;
-
-	if (phy->rev >= 3)
-		return ((b43legacy_read32(dev,
-				B43legacy_MMIO_RADIO_HWENABLED_HI)
-				& B43legacy_MMIO_RADIO_HWENABLED_HI_MASK)
-				== 0) ? 1 : 0;
-	else
-		return ((b43legacy_read16(dev,
-				B43legacy_MMIO_RADIO_HWENABLED_LO)
-				& B43legacy_MMIO_RADIO_HWENABLED_LO_MASK)
-				== 0) ? 0 : 1;
-}
-
 void b43legacy_tsf_read(struct b43legacy_wldev *dev, u64 *tsf);
 void b43legacy_tsf_write(struct b43legacy_wldev *dev, u64 tsf);
 

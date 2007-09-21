@@ -2007,6 +2007,21 @@ static void b43legacy_mgmtframe_txantenna(struct b43legacy_wldev *dev,
 			      B43legacy_SHM_SH_PRPHYCTL, tmp);
 }
 
+/* Returns TRUE, if the radio is enabled in hardware. */
+static bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
+{
+	if (dev->phy.rev >= 3) {
+		if (!(b43legacy_read32(dev, B43legacy_MMIO_RADIO_HWENABLED_HI)
+		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
+			return 1;
+	} else {
+		if (b43legacy_read16(dev, B43legacy_MMIO_RADIO_HWENABLED_LO)
+		    & B43legacy_MMIO_RADIO_HWENABLED_LO_MASK)
+			return 1;
+	}
+	return 0;
+}
+
 /* This is the opposite of b43legacy_chip_init() */
 static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 {
@@ -2046,9 +2061,6 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	if (err)
 		goto err_gpio_cleanup;
 	b43legacy_radio_turn_on(dev);
-	dev->radio_hw_enable = b43legacy_is_hw_radio_enabled(dev);
-	b43legacyinfo(dev->wl, "Radio %s by hardware\n",
-	       (dev->radio_hw_enable == 0) ? "disabled" : "enabled");
 
 	b43legacy_write16(dev, 0x03E6, 0x0000);
 	err = b43legacy_phy_init(dev);
@@ -2170,14 +2182,14 @@ static void b43legacy_periodic_every15sec(struct b43legacy_wldev *dev)
 
 static void b43legacy_periodic_every1sec(struct b43legacy_wldev *dev)
 {
-	int radio_hw_enable;
+	bool radio_hw_enable;
 
 	/* check if radio hardware enabled status changed */
 	radio_hw_enable = b43legacy_is_hw_radio_enabled(dev);
 	if (unlikely(dev->radio_hw_enable != radio_hw_enable)) {
 		dev->radio_hw_enable = radio_hw_enable;
 		b43legacyinfo(dev->wl, "Radio hardware status changed to %s\n",
-		       (radio_hw_enable == 0) ? "disabled" : "enabled");
+		       (radio_hw_enable) ? "enabled" : "disabled");
 		b43legacy_leds_update(dev, 0);
 	}
 }
@@ -2933,6 +2945,9 @@ static void setup_struct_phy_for_init(struct b43legacy_wldev *dev,
 
 	/* Flags */
 	phy->locked = 0;
+	/* Assume the radio is enabled. If it's not enabled, the state will
+	 * immediately get fixed on the first periodic work run. */
+	dev->radio_hw_enable = 1;
 
 	phy->savedpctlreg = 0xFFFF;
 	phy->aci_enable = 0;
