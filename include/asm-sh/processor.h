@@ -73,15 +73,10 @@ struct sh_cpuinfo {
 	unsigned long flags;
 } __attribute__ ((aligned(SMP_CACHE_BYTES)));
 
-extern struct sh_cpuinfo boot_cpu_data;
-
-#ifdef CONFIG_SMP
 extern struct sh_cpuinfo cpu_data[];
+#define boot_cpu_data cpu_data[0]
 #define current_cpu_data cpu_data[smp_processor_id()]
-#else
-#define cpu_data (&boot_cpu_data)
-#define current_cpu_data boot_cpu_data
-#endif
+#define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
 /*
  * User space process size: 2GB.

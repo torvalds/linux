@@ -43,7 +43,6 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__copy_user);
-EXPORT_SYMBOL(boot_cpu_data);
 
 #ifdef CONFIG_MMU
 EXPORT_SYMBOL(get_vm_area);

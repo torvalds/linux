@@ -42,7 +42,13 @@ extern void * __rd_start, * __rd_end;
  * This value will be used at the very early stage of serial setup.
  * The bigger value means no problem.
  */
-struct sh_cpuinfo boot_cpu_data = { CPU_SH_NONE, 10000000, };
+struct sh_cpuinfo cpu_data[NR_CPUS] __read_mostly = {
+	[0] = {
+		.type			= CPU_SH_NONE,
+		.loops_per_jiffy	= 10000000,
+	},
+};
+EXPORT_SYMBOL(cpu_data);
 
 /*
  * The machine vector. First entry in .machvec.init, or clobbered by
