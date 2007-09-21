@@ -3531,7 +3531,7 @@ static int e1000_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		/* handle pci_map_single() error in e1000_tx_map */
 		dev_kfree_skb_any(skb);
 		spin_unlock_irqrestore(&adapter->tx_queue_lock, irq_flags);
-		return NETDEV_TX_BUSY;
+		return NETDEV_TX_OK;
 	}
 
 	e1000_tx_queue(adapter, tx_flags, count);
