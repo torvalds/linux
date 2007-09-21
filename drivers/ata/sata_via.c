@@ -57,7 +57,6 @@ enum {
 	SATA_CHAN_ENAB		= 0x40, /* SATA channel enable */
 	SATA_INT_GATE		= 0x41, /* SATA interrupt gating */
 	SATA_NATIVE_MODE	= 0x42, /* Native mode enable */
-	SATA_PATA_SHARING	= 0x49, /* PATA/SATA sharing func ctrl */
 	PATA_UDMA_TIMING	= 0xB3, /* PATA timing for DMA/ cable detect */
 	PATA_PIO_TIMING		= 0xAB, /* PATA timing register */
 
@@ -68,7 +67,6 @@ enum {
 	NATIVE_MODE_ALL		= (1 << 7) | (1 << 6) | (1 << 5) | (1 << 4),
 
 	SATA_EXT_PHY		= (1 << 6), /* 0==use PATA, 1==ext phy */
-	SATA_2DEV		= (1 << 5), /* SATA is master/slave */
 };
 
 static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
@@ -508,7 +506,6 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host;
 	int board_id = (int) ent->driver_data;
 	const int *bar_sizes;
-	u8 tmp8;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
@@ -517,19 +514,10 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	if (board_id == vt6420) {
-		pci_read_config_byte(pdev, SATA_PATA_SHARING, &tmp8);
-		if (tmp8 & SATA_2DEV) {
-			dev_printk(KERN_ERR, &pdev->dev,
-				   "SATA master/slave not supported (0x%x)\n",
-		       		   (int) tmp8);
-			return -EIO;
-		}
-
+	if (board_id == vt6420)
 		bar_sizes = &svia_bar_sizes[0];
-	} else {
+	else
 		bar_sizes = &vt6421_bar_sizes[0];
-	}
 
 	for (i = 0; i < ARRAY_SIZE(svia_bar_sizes); i++)
 		if ((pci_resource_start(pdev, i) == 0) ||
