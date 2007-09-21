@@ -333,12 +333,14 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 	if (interrupt & ONENAND_INT_READ) {
 		int ecc = this->read_word(this->base + ONENAND_REG_ECC_STATUS);
 		if (ecc) {
-			printk(KERN_ERR "onenand_wait: ECC error = 0x%04x\n", ecc);
 			if (ecc & ONENAND_ECC_2BIT_ALL) {
+				printk(KERN_ERR "onenand_wait: ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.failed++;
 				return ecc;
-			} else if (ecc & ONENAND_ECC_1BIT_ALL)
+			} else if (ecc & ONENAND_ECC_1BIT_ALL) {
+				printk(KERN_INFO "onenand_wait: correctable ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.corrected++;
+			}
 		}
 	} else if (state == FL_READING) {
 		printk(KERN_ERR "onenand_wait: read timeout! ctrl=0x%04x intr=0x%04x\n", ctrl, interrupt);
@@ -805,14 +807,14 @@ static int onenand_transfer_auto_oob(struct mtd_info *mtd, uint8_t *buf, int col
 }
 
 /**
- * onenand_read_ops - [OneNAND Interface] OneNAND read main and/or out-of-band
+ * onenand_read_ops_nolock - [OneNAND Interface] OneNAND read main and/or out-of-band
  * @param mtd		MTD device structure
  * @param from		offset to read from
  * @param ops:		oob operation description structure
  *
  * OneNAND read main and/or out-of-band data
  */
-static int onenand_read_ops(struct mtd_info *mtd, loff_t from,
+static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 				struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
@@ -826,7 +828,7 @@ static int onenand_read_ops(struct mtd_info *mtd, loff_t from,
 	int ret = 0, boundary = 0;
 	int writesize = this->writesize;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read_ops: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read_ops_nolock: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
 
 	if (ops->mode == MTD_OOB_AUTO)
 		oobsize = this->ecclayout->oobavail;
@@ -837,14 +839,11 @@ static int onenand_read_ops(struct mtd_info *mtd, loff_t from,
 
 	/* Do not allow reads past end of device */
 	if ((from + len) > mtd->size) {
-		printk(KERN_ERR "onenand_read_ops: Attempt read beyond end of device\n");
+		printk(KERN_ERR "onenand_read_ops_nolock: Attempt read beyond end of device\n");
 		ops->retlen = 0;
 		ops->oobretlen = 0;
 		return -EINVAL;
 	}
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_READING);
 
 	stats = mtd->ecc_stats;
 
@@ -916,9 +915,6 @@ static int onenand_read_ops(struct mtd_info *mtd, loff_t from,
  		onenand_update_bufferram(mtd, from, !ret);
  	}
 
-	/* Deselect and wake up anyone waiting on the device */
-	onenand_release_device(mtd);
-
 	/*
 	 * Return success, if no ECC failures, else -EBADMSG
 	 * fs driver will take care of that, because
@@ -937,14 +933,14 @@ static int onenand_read_ops(struct mtd_info *mtd, loff_t from,
 }
 
 /**
- * onenand_do_read_oob - [MTD Interface] OneNAND read out-of-band
+ * onenand_read_oob_nolock - [MTD Interface] OneNAND read out-of-band
  * @param mtd		MTD device structure
  * @param from		offset to read from
  * @param ops:		oob operation description structure
  *
  * OneNAND read out-of-band data from the spare area
  */
-static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
+static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
@@ -956,7 +952,7 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	from += ops->ooboffs;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read_oob: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_read_oob_nolock: from = 0x%08x, len = %i\n", (unsigned int) from, (int) len);
 
 	/* Initialize return length value */
 	ops->oobretlen = 0;
@@ -969,7 +965,7 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	column = from & (mtd->oobsize - 1);
 
 	if (unlikely(column >= oobsize)) {
-		printk(KERN_ERR "onenand_read_oob: Attempted to start read outside oob\n");
+		printk(KERN_ERR "onenand_read_oob_nolock: Attempted to start read outside oob\n");
 		return -EINVAL;
 	}
 
@@ -977,12 +973,9 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	if (unlikely(from >= mtd->size ||
 		     column + len > ((mtd->size >> this->page_shift) -
 				     (from >> this->page_shift)) * oobsize)) {
-		printk(KERN_ERR "onenand_read_oob: Attempted to read beyond end of device\n");
+		printk(KERN_ERR "onenand_read_oob_nolock: Attempted to read beyond end of device\n");
 		return -EINVAL;
 	}
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_READING);
 
 	while (read < len) {
 		cond_resched();
@@ -1003,7 +996,7 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
 			this->read_bufferram(mtd, ONENAND_SPARERAM, buf, column, thislen);
 
 		if (ret) {
-			printk(KERN_ERR "onenand_read_oob: read failed = 0x%x\n", ret);
+			printk(KERN_ERR "onenand_read_oob_nolock: read failed = 0x%x\n", ret);
 			break;
 		}
 
@@ -1021,9 +1014,6 @@ static int onenand_do_read_oob(struct mtd_info *mtd, loff_t from,
 			column = 0;
 		}
 	}
-
-	/* Deselect and wake up anyone waiting on the device */
-	onenand_release_device(mtd);
 
 	ops->oobretlen = read;
 	return ret;
@@ -1050,9 +1040,11 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	};
 	int ret;
 
-	ret = onenand_read_ops(mtd, from, &ops);
-	*retlen = ops.retlen;
+	onenand_get_device(mtd, FL_READING);
+	ret = onenand_read_ops_nolock(mtd, from, &ops);
+	onenand_release_device(mtd);
 
+	*retlen = ops.retlen;
 	return ret;
 }
 
@@ -1067,6 +1059,8 @@ static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
 static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 			    struct mtd_oob_ops *ops)
 {
+	int ret;
+
 	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
@@ -1077,10 +1071,14 @@ static int onenand_read_oob(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	}
 
+	onenand_get_device(mtd, FL_READING);
 	if (ops->datbuf)
-		return onenand_read_ops(mtd, from, ops);
+		ret = onenand_read_ops_nolock(mtd, from, ops);
+	else
+		ret = onenand_read_oob_nolock(mtd, from, ops);
+	onenand_release_device(mtd);
 
-	return onenand_do_read_oob(mtd, from, ops);
+	return ret;
 }
 
 /**
@@ -1317,14 +1315,14 @@ static int onenand_fill_auto_oob(struct mtd_info *mtd, u_char *oob_buf,
 }
 
 /**
- * onenand_write_ops - [OneNAND Interface] write main and/or out-of-band
+ * onenand_write_ops_nolock - [OneNAND Interface] write main and/or out-of-band
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param ops		oob operation description structure
  *
  * Write main and/or oob with ECC
  */
-static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
+static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 				struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
@@ -1337,7 +1335,7 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
 	u_char *oobbuf;
 	int ret = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_ops_nolock: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
 	ops->retlen = 0;
@@ -1345,13 +1343,13 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
 
 	/* Do not allow writes past end of device */
 	if (unlikely((to + len) > mtd->size)) {
-		printk(KERN_ERR "onenand_write: Attempt write to past end of device\n");
+		printk(KERN_ERR "onenand_write_ops_nolock: Attempt write to past end of device\n");
 		return -EINVAL;
 	}
 
 	/* Reject writes, which are not page aligned */
         if (unlikely(NOTALIGNED(to)) || unlikely(NOTALIGNED(len))) {
-                printk(KERN_ERR "onenand_write: Attempt to write not page aligned data\n");
+                printk(KERN_ERR "onenand_write_ops_nolock: Attempt to write not page aligned data\n");
                 return -EINVAL;
         }
 
@@ -1363,9 +1361,6 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
 	oobcolumn = to & (mtd->oobsize - 1);
 
 	column = to & (mtd->writesize - 1);
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_WRITING);
 
 	/* Loop until all data write */
 	while (written < len) {
@@ -1419,14 +1414,14 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
 		}
 
 		if (ret) {
-			printk(KERN_ERR "onenand_write: write filaed %d\n", ret);
+			printk(KERN_ERR "onenand_write_ops_nolock: write filaed %d\n", ret);
 			break;
 		}
 
 		/* Only check verify write turn on */
 		ret = onenand_verify(mtd, (u_char *) wbuf, to, thislen);
 		if (ret) {
-			printk(KERN_ERR "onenand_write: verify failed %d\n", ret);
+			printk(KERN_ERR "onenand_write_ops_nolock: verify failed %d\n", ret);
 			break;
 		}
 
@@ -1450,7 +1445,7 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
 
 
 /**
- * onenand_do_write_oob - [Internal] OneNAND write out-of-band
+ * onenand_write_oob_nolock - [Internal] OneNAND write out-of-band
  * @param mtd		MTD device structure
  * @param to		offset to write to
  * @param len		number of bytes to write
@@ -1460,8 +1455,8 @@ static int onenand_write_ops(struct mtd_info *mtd, loff_t to,
  *
  * OneNAND write out-of-band
  */
-static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
-				struct mtd_oob_ops *ops)
+static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
+				    struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
 	int column, ret = 0, oobsize;
@@ -1473,7 +1468,7 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
 
 	to += ops->ooboffs;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_oob: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
+	DEBUG(MTD_DEBUG_LEVEL3, "onenand_write_oob_nolock: to = 0x%08x, len = %i\n", (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
 	ops->oobretlen = 0;
@@ -1486,13 +1481,13 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	column = to & (mtd->oobsize - 1);
 
 	if (unlikely(column >= oobsize)) {
-		printk(KERN_ERR "onenand_write_oob: Attempted to start write outside oob\n");
+		printk(KERN_ERR "onenand_write_oob_nolock: Attempted to start write outside oob\n");
 		return -EINVAL;
 	}
 
 	/* For compatibility with NAND: Do not allow write past end of page */
 	if (unlikely(column + len > oobsize)) {
-		printk(KERN_ERR "onenand_write_oob: "
+		printk(KERN_ERR "onenand_write_oob_nolock: "
 		      "Attempt to write past end of page\n");
 		return -EINVAL;
 	}
@@ -1501,12 +1496,9 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	if (unlikely(to >= mtd->size ||
 		     column + len > ((mtd->size >> this->page_shift) -
 				     (to >> this->page_shift)) * oobsize)) {
-		printk(KERN_ERR "onenand_write_oob: Attempted to write past end of device\n");
+		printk(KERN_ERR "onenand_write_oob_nolock: Attempted to write past end of device\n");
 		return -EINVAL;
 	}
-
-	/* Grab the lock and see if the device is available */
-	onenand_get_device(mtd, FL_WRITING);
 
 	oobbuf = this->oob_buf;
 
@@ -1537,13 +1529,13 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
 
 		ret = this->wait(mtd, FL_WRITING);
 		if (ret) {
-			printk(KERN_ERR "onenand_write_oob: write failed %d\n", ret);
+			printk(KERN_ERR "onenand_write_oob_nolock: write failed %d\n", ret);
 			break;
 		}
 
 		ret = onenand_verify_oob(mtd, oobbuf, to);
 		if (ret) {
-			printk(KERN_ERR "onenand_write_oob: verify failed %d\n", ret);
+			printk(KERN_ERR "onenand_write_oob_nolock: verify failed %d\n", ret);
 			break;
 		}
 
@@ -1555,9 +1547,6 @@ static int onenand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		buf += thislen;
 		column = 0;
 	}
-
-	/* Deselect and wake up anyone waiting on the device */
-	onenand_release_device(mtd);
 
 	ops->oobretlen = written;
 
@@ -1585,9 +1574,11 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 	};
 	int ret;
 
-	ret = onenand_write_ops(mtd, to, &ops);
-	*retlen = ops.retlen;
+	onenand_get_device(mtd, FL_WRITING);
+	ret = onenand_write_ops_nolock(mtd, to, &ops);
+	onenand_release_device(mtd);
 
+	*retlen = ops.retlen;
 	return ret;
 }
 
@@ -1600,6 +1591,8 @@ static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
 static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 			     struct mtd_oob_ops *ops)
 {
+	int ret;
+
 	switch (ops->mode) {
 	case MTD_OOB_PLACE:
 	case MTD_OOB_AUTO:
@@ -1610,23 +1603,26 @@ static int onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
+	onenand_get_device(mtd, FL_WRITING);
 	if (ops->datbuf)
-		return onenand_write_ops(mtd, to, ops);
+		ret = onenand_write_ops_nolock(mtd, to, ops);
+	else
+		ret = onenand_write_oob_nolock(mtd, to, ops);
+	onenand_release_device(mtd);
 
-	return onenand_do_write_oob(mtd, to, ops);
+	return ret;
 }
 
 /**
- * onenand_block_checkbad - [GENERIC] Check if a block is marked bad
+ * onenand_block_isbad_nolock - [GENERIC] Check if a block is marked bad
  * @param mtd		MTD device structure
  * @param ofs		offset from device start
- * @param getchip	0, if the chip is already selected
  * @param allowbbt	1, if its allowed to access the bbt area
  *
  * Check, if the block is bad. Either by reading the bad block table or
  * calling of the scan function.
  */
-static int onenand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip, int allowbbt)
+static int onenand_block_isbad_nolock(struct mtd_info *mtd, loff_t ofs, int allowbbt)
 {
 	struct onenand_chip *this = mtd->priv;
 	struct bbm_info *bbm = this->bbm;
@@ -1687,7 +1683,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 		cond_resched();
 
 		/* Check if we have a bad block, we do not erase bad blocks */
-		if (onenand_block_checkbad(mtd, addr, 0, 0)) {
+		if (onenand_block_isbad_nolock(mtd, addr, 0)) {
 			printk (KERN_WARNING "onenand_erase: attempt to erase a bad block at addr 0x%08x\n", (unsigned int) addr);
 			instr->state = MTD_ERASE_FAILED;
 			goto erase_exit;
@@ -1751,11 +1747,16 @@ static void onenand_sync(struct mtd_info *mtd)
  */
 static int onenand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
+	int ret;
+
 	/* Check for invalid offset */
 	if (ofs > mtd->size)
 		return -EINVAL;
 
-	return onenand_block_checkbad(mtd, ofs, 1, 0);
+	onenand_get_device(mtd, FL_READING);
+	ret = onenand_block_isbad_nolock(mtd, ofs, 0);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -1786,7 +1787,7 @@ static int onenand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 
         /* We write two bytes, so we dont have to mess with 16 bit access */
         ofs += mtd->oobsize + (bbm->badblockpos & ~0x01);
-        return onenand_do_write_oob(mtd, ofs, &ops);
+        return onenand_write_oob_nolock(mtd, ofs, &ops);
 }
 
 /**
@@ -1809,7 +1810,10 @@ static int onenand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		return ret;
 	}
 
-	return this->block_markbad(mtd, ofs);
+	onenand_get_device(mtd, FL_WRITING);
+	ret = this->block_markbad(mtd, ofs);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -2008,13 +2012,19 @@ static int do_otp_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
+	struct mtd_oob_ops ops = {
+		.len	= len,
+		.ooblen	= 0,
+		.datbuf	= buf,
+		.oobbuf	= NULL,
+	};
 	int ret;
 
 	/* Enter OTP access mode */
 	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
 	this->wait(mtd, FL_OTPING);
 
-	ret = mtd->read(mtd, from, len, retlen, buf);
+	ret = onenand_read_ops_nolock(mtd, from, &ops);
 
 	/* Exit OTP access mode */
 	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
@@ -2026,19 +2036,20 @@ static int do_otp_read(struct mtd_info *mtd, loff_t from, size_t len,
 /**
  * do_otp_write - [DEFAULT] Write OTP block area
  * @param mtd		MTD device structure
- * @param from		The offset to write
+ * @param to		The offset to write
  * @param len		number of bytes to write
  * @param retlen	pointer to variable to store the number of write bytes
  * @param buf		the databuffer to put/get data
  *
  * Write OTP block area.
  */
-static int do_otp_write(struct mtd_info *mtd, loff_t from, size_t len,
+static int do_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
 	unsigned char *pbuf = buf;
 	int ret;
+	struct mtd_oob_ops ops;
 
 	/* Force buffer page aligned */
 	if (len < mtd->writesize) {
@@ -2052,7 +2063,12 @@ static int do_otp_write(struct mtd_info *mtd, loff_t from, size_t len,
 	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
 	this->wait(mtd, FL_OTPING);
 
-	ret = mtd->write(mtd, from, len, retlen, pbuf);
+	ops.len = len;
+	ops.ooblen = 0;
+	ops.databuf = pbuf;
+	ops.oobbuf = NULL;
+	ret = onenand_write_ops_nolock(mtd, to, &ops);
+	*retlen = ops.retlen;
 
 	/* Exit OTP access mode */
 	this->command(mtd, ONENAND_CMD_RESET, 0, 0);
@@ -2087,7 +2103,7 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 	this->command(mtd, ONENAND_CMD_OTP_ACCESS, 0, 0);
 	this->wait(mtd, FL_OTPING);
 
-	ret = onenand_do_write_oob(mtd, from, &ops);
+	ret = onenand_write_oob_nolock(mtd, from, &ops);
 
 	*retlen = ops.oobretlen;
 
@@ -2136,13 +2152,16 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 	if (((mtd->writesize * otp_pages) - (from + len)) < 0)
 		return 0;
 
+	onenand_get_device(mtd, FL_OTPING);
 	while (len > 0 && otp_pages > 0) {
 		if (!action) {	/* OTP Info functions */
 			struct otp_info *otpinfo;
 
 			len -= sizeof(struct otp_info);
-			if (len <= 0)
-				return -ENOSPC;
+			if (len <= 0) {
+				ret = -ENOSPC;
+				break;
+			}
 
 			otpinfo = (struct otp_info *) buf;
 			otpinfo->start = from;
@@ -2162,13 +2181,14 @@ static int onenand_otp_walk(struct mtd_info *mtd, loff_t from, size_t len,
 			len -= size;
 			*retlen += size;
 
-			if (ret < 0)
-				return ret;
+			if (ret)
+				break;
 		}
 		otp_pages--;
 	}
+	onenand_release_device(mtd);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -2364,7 +2384,7 @@ static void onenand_print_device_info(int device, int version)
                 (16 << density),
                 vcc ? "2.65/3.3" : "1.8",
                 device);
-	printk(KERN_DEBUG "OneNAND version = 0x%04x\n", version);
+	printk(KERN_INFO "OneNAND version = 0x%04x\n", version);
 }
 
 static const struct onenand_manufacturers onenand_manuf_ids[] = {
