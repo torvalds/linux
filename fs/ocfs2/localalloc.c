@@ -514,8 +514,10 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 	ac->ac_bh = osb->local_alloc_bh;
 	status = 0;
 bail:
-	if (status < 0 && local_alloc_inode)
+	if (status < 0 && local_alloc_inode) {
+		mutex_unlock(&local_alloc_inode->i_mutex);
 		iput(local_alloc_inode);
+	}
 
 	mlog_exit(status);
 	return status;
