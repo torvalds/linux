@@ -103,6 +103,8 @@ enum sel_inos {
 	SEL_MEMBER,	/* compute polyinstantiation membership decision */
 	SEL_CHECKREQPROT, /* check requested protection, not kernel-applied one */
 	SEL_COMPAT_NET,	/* whether to use old compat network packet controls */
+	SEL_REJECT_UNKNOWN, /* export unknown reject handling to userspace */
+	SEL_DENY_UNKNOWN, /* export unknown deny handling to userspace */
 	SEL_INO_NEXT,	/* The next inode number to use */
 };
 
@@ -175,6 +177,23 @@ out:
 static const struct file_operations sel_enforce_ops = {
 	.read		= sel_read_enforce,
 	.write		= sel_write_enforce,
+};
+
+static ssize_t sel_read_handle_unknown(struct file *filp, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	char tmpbuf[TMPBUFLEN];
+	ssize_t length;
+	ino_t ino = filp->f_path.dentry->d_inode->i_ino;
+	int handle_unknown = (ino == SEL_REJECT_UNKNOWN) ?
+		security_get_reject_unknown() : !security_get_allow_unknown();
+
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", handle_unknown);
+	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static const struct file_operations sel_handle_unknown_ops = {
+	.read		= sel_read_handle_unknown,
 };
 
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
@@ -309,6 +328,11 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 		length = count;
 
 out1:
+
+	printk(KERN_INFO "SELinux: policy loaded with handle_unknown=%s\n",
+	       (security_get_reject_unknown() ? "reject" :
+		(security_get_allow_unknown() ? "allow" : "deny")));
+
 	audit_log(current->audit_context, GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
 		"policy loaded auid=%u",
 		audit_get_loginuid(current->audit_context));
@@ -1575,6 +1599,8 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		[SEL_MEMBER] = {"member", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_CHECKREQPROT] = {"checkreqprot", &sel_checkreqprot_ops, S_IRUGO|S_IWUSR},
 		[SEL_COMPAT_NET] = {"compat_net", &sel_compat_net_ops, S_IRUGO|S_IWUSR},
+		[SEL_REJECT_UNKNOWN] = {"reject_unknown", &sel_handle_unknown_ops, S_IRUGO},
+		[SEL_DENY_UNKNOWN] = {"deny_unknown", &sel_handle_unknown_ops, S_IRUGO},
 		/* last one */ {""}
 	};
 	ret = simple_fill_super(sb, SELINUX_MAGIC, selinux_files);
