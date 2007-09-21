@@ -11,6 +11,8 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/io.h>
+#include <linux/mm.h>
+#include <asm/mmzone.h>
 #include <asm/sci.h>
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -348,4 +350,10 @@ void __init plat_irq_setup_pins(int mode)
 	default:
 		BUG();
 	}
+}
+
+void __init plat_mem_setup(void)
+{
+	/* Register the URAM space as Node 1 */
+	setup_bootmem_node(1, 0x055f0000, 0x05610000);
 }
