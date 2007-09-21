@@ -45,12 +45,12 @@ static void __init voyagergx_serial_init(void)
 static struct resource cf_ide_resources[] = {
 	[0] = {
 		.start	= PA_AREA5_IO + 0x1000,
-		.end	= PA_AREA5_IO + 0x1000 + 0x08 - 1,
+		.end	= PA_AREA5_IO + 0x1000 + 0x10 - 0x2,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
 		.start	= PA_AREA5_IO + 0x80c,
-		.end	= PA_AREA5_IO + 0x80c + 0x16 - 1,
+		.end	= PA_AREA5_IO + 0x80c,
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
@@ -141,19 +141,12 @@ static struct platform_device *rts7751r2d_devices[] __initdata = {
 	&uart_device,
 	&sm501_device,
 #endif
+	&cf_ide_device,
 	&heartbeat_device,
 };
 
 static int __init rts7751r2d_devices_setup(void)
 {
-	int ret;
-
-	if (ctrl_inw(PA_BVERREG) == 0x10) { /* R2D-PLUS */
-		ret = platform_device_register(&cf_ide_device);
-		if (ret)
-			return ret;
-	}
-
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
@@ -162,6 +155,34 @@ __initcall(rts7751r2d_devices_setup);
 static void rts7751r2d_power_off(void)
 {
 	ctrl_outw(0x0001, PA_POWOFF);
+}
+
+static inline unsigned char is_ide_ioaddr(unsigned long addr)
+{
+	return ((cf_ide_resources[0].start <= addr &&
+		 addr <= cf_ide_resources[0].end) ||
+		(cf_ide_resources[1].start <= addr &&
+		 addr <= cf_ide_resources[1].end));
+}
+
+static void rts7751r2d_writeb(u8 b, void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		ctrl_outw((u16)b, tmp);
+	else
+		ctrl_outb(b, tmp);
+}
+
+static u8 rts7751r2d_readb(void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		return ctrl_inw(tmp) & 0xff;
+	else
+		return ctrl_inb(tmp);
 }
 
 /*
@@ -188,10 +209,10 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_name		= "RTS7751R2D",
 	.mv_setup		= rts7751r2d_setup,
-
 	.mv_init_irq		= init_rts7751r2d_IRQ,
 	.mv_irq_demux		= rts7751r2d_irq_demux,
-
+	.mv_writeb		= rts7751r2d_writeb,
+	.mv_readb		= rts7751r2d_readb,
 #if defined(CONFIG_MFD_SM501) && defined(CONFIG_USB_OHCI_HCD)
 	.mv_consistent_alloc	= voyagergx_consistent_alloc,
 	.mv_consistent_free	= voyagergx_consistent_free,
