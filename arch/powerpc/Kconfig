@@ -26,6 +26,9 @@ config MMU
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+	def_bool y
+
 config GENERIC_HARDIRQS
 	bool
 	default y
