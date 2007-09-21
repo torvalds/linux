@@ -900,6 +900,7 @@ config SND_AC97_POWER_SAVE_DEFAULT
 	int "Default time-out for AC97 power-save mode"
 	depends on SND_AC97_POWER_SAVE
 	default 0
+	help
 	  The default time-out value in seconds for AC97 automatic
 	  power-save mode.  0 means to disable the power-save mode.
 
