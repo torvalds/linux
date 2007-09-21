@@ -52,11 +52,8 @@ static void level_mask_and_ack_msc_irq(unsigned int irq)
 	mask_msc_irq(irq);
 	if (!cpu_has_veic)
 		MSCIC_WRITE(MSC01_IC_EOI, 0);
-#ifdef CONFIG_MIPS_MT_SMTC
 	/* This actually needs to be a call into platform code */
-	if (irq_hwmask[irq] & ST0_IM)
-		set_c0_status(irq_hwmask[irq] & ST0_IM);
-#endif /* CONFIG_MIPS_MT_SMTC */
+	smtc_im_ack_irq(irq);
 }
 
 /*
@@ -73,10 +70,7 @@ static void edge_mask_and_ack_msc_irq(unsigned int irq)
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r | ~MSC01_IC_SUP_EDGE_BIT);
 		MSCIC_WRITE(MSC01_IC_SUP+irq*8, r);
 	}
-#ifdef CONFIG_MIPS_MT_SMTC
-	if (irq_hwmask[irq] & ST0_IM)
-		set_c0_status(irq_hwmask[irq] & ST0_IM);
-#endif /* CONFIG_MIPS_MT_SMTC */
+	smtc_im_ack_irq(irq);
 }
 
 /*
