@@ -266,6 +266,7 @@ void disable_hlt(void);
 void enable_hlt(void);
 
 void default_idle(void);
+void per_cpu_trap_init(void);
 
 asmlinkage void break_point_trap(void);
 asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,

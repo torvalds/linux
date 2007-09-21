@@ -54,8 +54,8 @@ ENTRY(_stext)
 	mov.l	1f, r0		! MD=1, RB=0, BL=0, IMASK=0xF
 	ldc	r0, sr
 	!			Initialize global interrupt mask
-	mov	#0, r0
 #ifdef CONFIG_CPU_HAS_SR_RB
+	mov	#0, r0
 	ldc	r0, r6_bank
 #endif
 	
@@ -72,15 +72,18 @@ ENTRY(_stext)
 	!
 	mov.l	2f, r0
 	mov	r0, r15		! Set initial r15 (stack pointer)
-	mov	#(THREAD_SIZE >> 10), r1
-	shll8	r1		! r1 = THREAD_SIZE
-	shll2	r1
-	sub	r1, r0		!
 #ifdef CONFIG_CPU_HAS_SR_RB
+	mov.l	7f, r0
 	ldc	r0, r7_bank	! ... and initial thread_info
 #endif
 	
 	!			Clear BSS area
+#ifdef CONFIG_SMP	
+	mov.l	3f, r0
+	cmp/eq	#0, r0		! skip clear if set to zero
+	bt	10f
+#endif
+	
 	mov.l	3f, r1
 	add	#4, r1
 	mov.l	4f, r2
@@ -89,13 +92,14 @@ ENTRY(_stext)
 	bf/s	9b		! while (r1 < r2)
 	 mov.l	r0,@-r2
 
+10:		
 	!			Additional CPU initialization
 	mov.l	6f, r0
 	jsr	@r0
 	 nop
 
 	SYNCO()			! Wait for pending instructions..
-
+	
 	!			Start kernel
 	mov.l	5f, r0
 	jmp	@r0
@@ -107,8 +111,10 @@ ENTRY(_stext)
 #else
 1:	.long	0x400080F0		! MD=1, RB=0, BL=0, FD=1, IMASK=0xF
 #endif
+ENTRY(stack_start)
 2:	.long	init_thread_union+THREAD_SIZE
 3:	.long	__bss_start
 4:	.long	_end
 5:	.long	start_kernel
 6:	.long	sh_cpu_init
+7:	.long	init_thread_union

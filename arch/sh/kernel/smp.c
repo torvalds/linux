@@ -3,68 +3,40 @@
  *
  * SMP support for the SuperH processors.
  *
- * Copyright (C) 2002, 2003 Paul Mundt
+ * Copyright (C) 2002 - 2007 Paul Mundt
+ * Copyright (C) 2006 - 2007 Akio Idehara
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/err.h>
 #include <linux/cache.h>
 #include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/spinlock.h>
-#include <linux/threads.h>
+#include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/time.h>
-#include <linux/timex.h>
-#include <linux/sched.h>
-#include <linux/module.h>
-
+#include <linux/interrupt.h>
 #include <asm/atomic.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
+#include <asm/cacheflush.h>
+#include <asm/sections.h>
 
-/*
- * This was written with the Sega Saturn (SMP SH-2 7604) in mind,
- * but is designed to be usable regardless if there's an MMU
- * present or not.
- */
-struct sh_cpuinfo cpu_data[NR_CPUS];
-
-extern void per_cpu_trap_init(void);
+int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
+int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 
 cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 
 cpumask_t cpu_online_map;
 EXPORT_SYMBOL(cpu_online_map);
+
 static atomic_t cpus_booted = ATOMIC_INIT(0);
-
-/* These are defined by the board-specific code. */
-
-/*
- * Cause the function described by call_data to be executed on the passed
- * cpu.  When the function has finished, increment the finished field of
- * call_data.
- */
-void __smp_send_ipi(unsigned int cpu, unsigned int action);
-
-/*
- * Find the number of available processors
- */
-unsigned int __smp_probe_cpus(void);
-
-/*
- * Start a particular processor
- */
-void __smp_slave_init(unsigned int cpu);
 
 /*
  * Run specified function on a particular processor.
@@ -73,74 +45,123 @@ void __smp_call_function(unsigned int cpu);
 
 static inline void __init smp_store_cpu_info(unsigned int cpu)
 {
-	cpu_data[cpu].loops_per_jiffy = loops_per_jiffy;
+	struct sh_cpuinfo *c = cpu_data + cpu;
+
+	c->loops_per_jiffy = loops_per_jiffy;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int cpu = smp_processor_id();
-	int i;
 
-	atomic_set(&cpus_booted, 1);
-	smp_store_cpu_info(cpu);
-	
-	for (i = 0; i < __smp_probe_cpus(); i++)
-		cpu_set(i, cpu_possible_map);
+	init_new_context(current, &init_mm);
+	current_thread_info()->cpu = cpu;
+	plat_prepare_cpus(max_cpus);
+
+#ifndef CONFIG_HOTPLUG_CPU
+	cpu_present_map = cpu_possible_map;
+#endif
 }
 
 void __devinit smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+	__cpu_number_map[0] = cpu;
+	__cpu_logical_map[0] = cpu;
+
 	cpu_set(cpu, cpu_online_map);
 	cpu_set(cpu, cpu_possible_map);
 }
 
-int __cpu_up(unsigned int cpu)
+asmlinkage void __cpuinit start_secondary(void)
 {
-	struct task_struct *tsk;
+	unsigned int cpu;
+	struct mm_struct *mm = &init_mm;
 
-	tsk = fork_idle(cpu);
+	atomic_inc(&mm->mm_count);
+	atomic_inc(&mm->mm_users);
+	current->active_mm = mm;
+	BUG_ON(current->mm);
+	enter_lazy_tlb(mm, current);
 
-	if (IS_ERR(tsk))
-		panic("Failed forking idle task for cpu %d\n", cpu);
-	
-	task_thread_info(tsk)->cpu = cpu;
+	per_cpu_trap_init();
+
+	preempt_disable();
+
+	local_irq_enable();
+
+	calibrate_delay();
+
+	cpu = smp_processor_id();
+	smp_store_cpu_info(cpu);
 
 	cpu_set(cpu, cpu_online_map);
 
-	return 0;
+	cpu_idle();
 }
 
-int start_secondary(void *unused)
+extern struct {
+	unsigned long sp;
+	unsigned long bss_start;
+	unsigned long bss_end;
+	void *start_kernel_fn;
+	void *cpu_init_fn;
+	void *thread_info;
+} stack_start;
+
+int __cpuinit __cpu_up(unsigned int cpu)
 {
-	unsigned int cpu;
+	struct task_struct *tsk;
+	unsigned long timeout;
 
-	cpu = smp_processor_id();
+	tsk = fork_idle(cpu);
+	if (IS_ERR(tsk)) {
+		printk(KERN_ERR "Failed forking idle task for cpu %d\n", cpu);
+		return PTR_ERR(tsk);
+	}
 
-	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
+	/* Fill in data in head.S for secondary cpus */
+	stack_start.sp = tsk->thread.sp;
+	stack_start.thread_info = tsk->stack;
+	stack_start.bss_start = 0; /* don't clear bss for secondary cpus */
+	stack_start.start_kernel_fn = start_secondary;
 
-	smp_store_cpu_info(cpu);
+	flush_cache_all();
 
-	__smp_slave_init(cpu);
-	preempt_disable();
-	per_cpu_trap_init();
-	
-	atomic_inc(&cpus_booted);
+	plat_start_cpu(cpu, (unsigned long)_stext);
 
-	cpu_idle();
-	return 0;
+	timeout = jiffies + HZ;
+	while (time_before(jiffies, timeout)) {
+		if (cpu_online(cpu))
+			break;
+
+		udelay(10);
+	}
+
+	if (cpu_online(cpu))
+		return 0;
+
+	return -ENOENT;
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	smp_mb();
+	unsigned long bogosum = 0;
+	int cpu;
+
+	for_each_online_cpu(cpu)
+		bogosum += cpu_data[cpu].loops_per_jiffy;
+
+	printk(KERN_INFO "SMP: Total of %d processors activated "
+	       "(%lu.%02lu BogoMIPS).\n", num_online_cpus(),
+	       bogosum / (500000/HZ),
+	       (bogosum / (5000/HZ)) % 100);
 }
 
 void smp_send_reschedule(int cpu)
 {
-	__smp_send_ipi(cpu, SMP_MSG_RESCHEDULE);
+	plat_send_ipi(cpu, SMP_MSG_RESCHEDULE);
 }
 
 static void stop_this_cpu(void *unused)
@@ -156,7 +177,6 @@ void smp_send_stop(void)
 {
 	smp_call_function(stop_this_cpu, 0, 1, 0);
 }
-
 
 struct smp_fn_call_struct smp_fn_call = {
 	.lock		= SPIN_LOCK_UNLOCKED,
@@ -175,9 +195,6 @@ int smp_call_function(void (*func)(void *info), void *info, int retry, int wait)
 	unsigned int nr_cpus = atomic_read(&cpus_booted);
 	int i;
 
-	if (nr_cpus < 2)
-		return 0;
-
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
 
@@ -189,7 +206,7 @@ int smp_call_function(void (*func)(void *info), void *info, int retry, int wait)
 
 	for (i = 0; i < nr_cpus; i++)
 		if (i != smp_processor_id())
-			__smp_call_function(i);
+			plat_send_ipi(i, SMP_MSG_FUNCTION);
 
 	if (wait)
 		while (atomic_read(&smp_fn_call.finished) != (nr_cpus - 1));

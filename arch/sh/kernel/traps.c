@@ -807,12 +807,13 @@ static inline void __init gdb_vbr_init(void)
 }
 #endif
 
-void __init per_cpu_trap_init(void)
+void __cpuinit per_cpu_trap_init(void)
 {
 	extern void *vbr_base;
 
 #ifdef CONFIG_SH_STANDARD_BIOS
-	gdb_vbr_init();
+	if (raw_smp_processor_id() == 0)
+		gdb_vbr_init();
 #endif
 
 	/* NOTE: The VBR value should be at P1
