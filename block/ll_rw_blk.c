@@ -30,6 +30,7 @@
 #include <linux/cpu.h>
 #include <linux/blktrace_api.h>
 #include <linux/fault-inject.h>
+#include <linux/scatterlist.h>
 
 /*
  * for max sense size
@@ -1318,9 +1319,10 @@ static int blk_hw_contig_segment(struct request_queue *q, struct bio *bio,
  * must make sure sg can hold rq->nr_phys_segments entries
  */
 int blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		  struct scatterlist *sg)
+		  struct scatterlist *sglist)
 {
 	struct bio_vec *bvec, *bvprv;
+	struct scatterlist *next_sg, *sg;
 	struct req_iterator iter;
 	int nsegs, cluster;
 
@@ -1331,11 +1333,12 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * for each bio in rq
 	 */
 	bvprv = NULL;
+	sg = next_sg = &sglist[0];
 	rq_for_each_segment(bvec, rq, iter) {
 		int nbytes = bvec->bv_len;
 
 		if (bvprv && cluster) {
-			if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
+			if (sg->length + nbytes > q->max_segment_size)
 				goto new_segment;
 
 			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
@@ -1343,14 +1346,15 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
 				goto new_segment;
 
-			sg[nsegs - 1].length += nbytes;
+			sg->length += nbytes;
 		} else {
 new_segment:
-			memset(&sg[nsegs],0,sizeof(struct scatterlist));
-			sg[nsegs].page = bvec->bv_page;
-			sg[nsegs].length = nbytes;
-			sg[nsegs].offset = bvec->bv_offset;
+			sg = next_sg;
+			next_sg = sg_next(sg);
 
+			sg->page = bvec->bv_page;
+			sg->length = nbytes;
+			sg->offset = bvec->bv_offset;
 			nsegs++;
 		}
 		bvprv = bvec;
