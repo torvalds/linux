@@ -165,7 +165,7 @@ static inline unsigned char is_ide_ioaddr(unsigned long addr)
 		 addr <= cf_ide_resources[1].end));
 }
 
-static void rts7751r2d_writeb(u8 b, void __iomem *addr)
+void rts7751r2d_writeb(u8 b, void __iomem *addr)
 {
 	unsigned long tmp = (unsigned long __force)addr;
 
@@ -175,7 +175,7 @@ static void rts7751r2d_writeb(u8 b, void __iomem *addr)
 		ctrl_outb(b, tmp);
 }
 
-static u8 rts7751r2d_readb(void __iomem *addr)
+u8 rts7751r2d_readb(void __iomem *addr)
 {
 	unsigned long tmp = (unsigned long __force)addr;
 
