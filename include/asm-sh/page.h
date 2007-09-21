@@ -88,6 +88,7 @@ extern void __copy_user_page(void *to, void *from, void *orig_to);
 #ifdef CONFIG_X2TLB
 typedef struct { unsigned long pte_low, pte_high; } pte_t;
 typedef struct { unsigned long long pgprot; } pgprot_t;
+typedef struct { unsigned long long pgd; } pgd_t;
 #define pte_val(x) \
 	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
 #define __pte(x) \
@@ -95,11 +96,10 @@ typedef struct { unsigned long long pgprot; } pgprot_t;
 #else
 typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long pgd; } pgd_t;
 #define pte_val(x)	((x).pte_low)
 #define __pte(x) ((pte_t) { (x) } )
 #endif
-
-typedef struct { unsigned long pgd; } pgd_t;
 
 #define pgd_val(x)	((x).pgd)
 #define pgprot_val(x)	((x).pgprot)

@@ -4,27 +4,14 @@
  * SH-4 specific TLB operations
  *
  * Copyright (C) 1999  Niibe Yutaka
- * Copyright (C) 2002  Paul Mundt
+ * Copyright (C) 2002 - 2007 Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
-#include <linux/signal.h>
-#include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/ptrace.h>
-#include <linux/mman.h>
 #include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/smp_lock.h>
-#include <linux/interrupt.h>
-
+#include <linux/io.h>
 #include <asm/system.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -62,12 +49,22 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	vpn = (address & MMU_VPN_MASK) | get_asid();
 	ctrl_outl(vpn, MMU_PTEH);
 
-	pteval = pte_val(pte);
+	pteval = pte.pte_low;
 
 	/* Set PTEA register */
+#ifdef CONFIG_X2TLB
+	/*
+	 * For the extended mode TLB this is trivial, only the ESZ and
+	 * EPR bits need to be written out to PTEA, with the remainder of
+	 * the protection bits (with the exception of the compat-mode SZ
+	 * and PR bits, which are cleared) being written out in PTEL.
+	 */
+	ctrl_outl(pte.pte_high, MMU_PTEA);
+#else
 	if (cpu_data->flags & CPU_HAS_PTEA)
 		/* TODO: make this look less hacky */
 		ctrl_outl(((pteval >> 28) & 0xe) | (pteval & 0x1), MMU_PTEA);
+#endif
 
 	/* Set PTEL register */
 	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
@@ -98,4 +95,3 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	ctrl_outl(data, addr);
 	back_to_P1();
 }
-
