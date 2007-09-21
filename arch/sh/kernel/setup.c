@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/kexec.h>
 #include <linux/module.h>
+#include <linux/smp.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -278,6 +279,10 @@ void __init setup_arch(char **cmdline_p)
 		sh_mv.mv_setup(cmdline_p);
 
 	paging_init();
+
+#ifdef CONFIG_SMP
+	plat_smp_setup();
+#endif
 }
 
 static const char *cpu_name[] = {
