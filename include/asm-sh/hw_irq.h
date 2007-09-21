@@ -50,17 +50,29 @@ struct intc_group {
 struct intc_mask_reg {
 	unsigned long set_reg, clr_reg, reg_width;
 	intc_enum enum_ids[32];
+#ifdef CONFIG_SMP
+	unsigned long smp;
+#endif
 };
 
 struct intc_prio_reg {
 	unsigned long set_reg, clr_reg, reg_width, field_width;
 	intc_enum enum_ids[16];
+#ifdef CONFIG_SMP
+	unsigned long smp;
+#endif
 };
 
 struct intc_sense_reg {
 	unsigned long reg, reg_width, field_width;
 	intc_enum enum_ids[16];
 };
+
+#ifdef CONFIG_SMP
+#define INTC_SMP(stride, nr) .smp = (stride) | ((nr) << 8)
+#else
+#define INTC_SMP(stride, nr)
+#endif
 
 struct intc_desc {
 	struct intc_vect *vectors;

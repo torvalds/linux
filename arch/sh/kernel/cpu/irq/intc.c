@@ -40,6 +40,9 @@ struct intc_handle_int {
 
 struct intc_desc_int {
 	unsigned long *reg;
+#ifdef CONFIG_SMP
+	unsigned long *smp;
+#endif
 	unsigned int nr_reg;
 	struct intc_handle_int *prio;
 	unsigned int nr_prio;
@@ -47,6 +50,16 @@ struct intc_desc_int {
 	unsigned int nr_sense;
 	struct irq_chip chip;
 };
+
+#ifdef CONFIG_SMP
+#define IS_SMP(x) x.smp
+#define INTC_REG(d, x, c) (d->reg[(x)] + ((d->smp[(x)] & 0xff) * c))
+#define SMP_NR(d, x) ((d->smp[(x)] >> 8) ? (d->smp[(x)] >> 8) : 1)
+#else
+#define IS_SMP(x) 0
+#define INTC_REG(d, x, c) (d->reg[(x)])
+#define SMP_NR(d, x) 1
+#endif
 
 static unsigned int intc_prio_level[NR_IRQS]; /* for now */
 
@@ -177,11 +190,14 @@ static void (*intc_disable_fns[])(unsigned long addr,
 static inline void _intc_enable(unsigned int irq, unsigned long handle)
 {
 	struct intc_desc_int *d = get_intc_desc(irq);
-	unsigned long addr = d->reg[_INTC_ADDR_E(handle)];
+	unsigned long addr;
+	unsigned int cpu;
 
-	intc_enable_fns[_INTC_MODE(handle)](addr, handle,
-					    intc_reg_fns[_INTC_FN(handle)],
-					    irq);
+	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_E(handle)); cpu++) {
+		addr = INTC_REG(d, _INTC_ADDR_E(handle), cpu);
+		intc_enable_fns[_INTC_MODE(handle)](addr, handle, intc_reg_fns\
+						    [_INTC_FN(handle)], irq);
+	}
 }
 
 static void intc_enable(unsigned int irq)
@@ -191,13 +207,16 @@ static void intc_enable(unsigned int irq)
 
 static void intc_disable(unsigned int irq)
 {
-	struct intc_desc_int *desc = get_intc_desc(irq);
+	struct intc_desc_int *d = get_intc_desc(irq);
 	unsigned long handle = (unsigned long) get_irq_chip_data(irq);
-	unsigned long addr = desc->reg[_INTC_ADDR_D(handle)];
+	unsigned long addr;
+	unsigned int cpu;
 
-	intc_disable_fns[_INTC_MODE(handle)](addr, handle,
-					     intc_reg_fns[_INTC_FN(handle)],
-					     irq);
+	for (cpu = 0; cpu < SMP_NR(d, _INTC_ADDR_D(handle)); cpu++) {
+		addr = INTC_REG(d, _INTC_ADDR_D(handle), cpu);
+		intc_disable_fns[_INTC_MODE(handle)](addr, handle,intc_reg_fns\
+						     [_INTC_FN(handle)], irq);
+	}
 }
 
 static struct intc_handle_int *intc_find_irq(struct intc_handle_int *hp,
@@ -276,7 +295,7 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 
 	ihp = intc_find_irq(d->sense, d->nr_sense, irq);
 	if (ihp) {
-		addr = d->reg[_INTC_ADDR_E(ihp->handle)];
+		addr = INTC_REG(d, _INTC_ADDR_E(ihp->handle), 0);
 		intc_reg_fns[_INTC_FN(ihp->handle)](addr, ihp->handle, value);
 	}
 	return 0;
@@ -536,9 +555,26 @@ static void __init intc_register_irq(struct intc_desc *desc,
 	d->chip.mask(irq);
 }
 
+static unsigned int __init save_reg(struct intc_desc_int *d,
+				    unsigned int cnt,
+				    unsigned long value,
+				    unsigned int smp)
+{
+	if (value) {
+		d->reg[cnt] = value;
+#ifdef CONFIG_SMP
+		d->smp[cnt] = smp;
+#endif
+		return 1;
+	}
+
+	return 0;
+}
+
+
 void __init register_intc_controller(struct intc_desc *desc)
 {
-	unsigned int i, k;
+	unsigned int i, k, smp;
 	struct intc_desc_int *d;
 
 	d = alloc_bootmem(sizeof(*d));
@@ -548,14 +584,16 @@ void __init register_intc_controller(struct intc_desc *desc)
 	d->nr_reg += desc->sense_regs ? desc->nr_sense_regs : 0;
 
 	d->reg = alloc_bootmem(d->nr_reg * sizeof(*d->reg));
+#ifdef CONFIG_SMP
+	d->smp = alloc_bootmem(d->nr_reg * sizeof(*d->smp));
+#endif
 	k = 0;
 
 	if (desc->mask_regs) {
 		for (i = 0; i < desc->nr_mask_regs; i++) {
-			if (desc->mask_regs[i].set_reg)
-				d->reg[k++] = desc->mask_regs[i].set_reg;
-			if (desc->mask_regs[i].clr_reg)
-				d->reg[k++] = desc->mask_regs[i].clr_reg;
+			smp = IS_SMP(desc->mask_regs[i]);
+			k += save_reg(d, k, desc->mask_regs[i].set_reg, smp);
+			k += save_reg(d, k, desc->mask_regs[i].clr_reg, smp);
 		}
 	}
 
@@ -563,10 +601,9 @@ void __init register_intc_controller(struct intc_desc *desc)
 		d->prio = alloc_bootmem(desc->nr_vectors * sizeof(*d->prio));
 
 		for (i = 0; i < desc->nr_prio_regs; i++) {
-			if (desc->prio_regs[i].set_reg)
-				d->reg[k++] = desc->prio_regs[i].set_reg;
-			if (desc->prio_regs[i].clr_reg)
-				d->reg[k++] = desc->prio_regs[i].clr_reg;
+			smp = IS_SMP(desc->prio_regs[i]);
+			k += save_reg(d, k, desc->prio_regs[i].set_reg, smp);
+			k += save_reg(d, k, desc->prio_regs[i].clr_reg, smp);
 		}
 	}
 
@@ -574,8 +611,7 @@ void __init register_intc_controller(struct intc_desc *desc)
 		d->sense = alloc_bootmem(desc->nr_vectors * sizeof(*d->sense));
 
 		for (i = 0; i < desc->nr_sense_regs; i++) {
-			if (desc->sense_regs[i].reg)
-				d->reg[k++] = desc->sense_regs[i].reg;
+			k += save_reg(d, k, desc->sense_regs[i].reg, 0);
 		}
 	}
 
