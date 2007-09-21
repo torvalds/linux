@@ -666,6 +666,17 @@ config SUPERHYWAY
 	tristate "SuperHyway Bus support"
 	depends on CPU_SUBTYPE_SH4_202
 
+config MAPLE
+       bool "Maple Bus support"
+       depends on SH_DREAMCAST
+       help
+         The Maple Bus is SEGA's serial communication bus for peripherals
+         on the Dreamcast. Without this bus support you won't be able to
+         get your Dreamcast keyboard etc to work, so most users
+         probably want to say 'Y' here, unless you are only using the
+         Dreamcast with a serial line terminal or a remote network
+         connection.
+
 config CF_ENABLER
 	bool "Compact Flash Enabler support"
 	depends on SOLUTION_ENGINE || SH_SH03
