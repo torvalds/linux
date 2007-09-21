@@ -107,6 +107,7 @@ struct iss_net_private {
 
 static int errno;
 
+static int __simc (int a, int b, int c, int d, int e, int f) __attribute__((__noinline__));
 static int __simc (int a, int b, int c, int d, int e, int f)
 {
 	int ret;
