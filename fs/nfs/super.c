@@ -1541,7 +1541,7 @@ static int nfs4_validate_mount_data(void *options,
 			goto out_no_address;
 		if (copy_from_user(&args->nfs_server.address,
 				   data->host_addr,
-				   sizeof(&args->nfs_server.address)))
+				   sizeof(args->nfs_server.address)))
 			return -EFAULT;
 		if (args->nfs_server.address.sin_port == 0)
 			args->nfs_server.address.sin_port = htons(NFS_PORT);
@@ -1554,9 +1554,9 @@ static int nfs4_validate_mount_data(void *options,
 			args->auth_flavors[0] = RPC_AUTH_UNIX;
 			break;
 		case 1:
-			if (copy_from_user(args->auth_flavors,
+			if (copy_from_user(&args->auth_flavors[0],
 					   data->auth_flavours,
-					   sizeof(args->auth_flavors)))
+					   sizeof(args->auth_flavors[0])))
 				return -EFAULT;
 			break;
 		default:
