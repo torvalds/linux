@@ -64,6 +64,12 @@ static void __init iommu_vio_init(void)
 		printk("Virtual Bus VETH TCE table failed.\n");
 	if (!iommu_init_table(&vio_iommu_table, -1))
 		printk("Virtual Bus VIO TCE table failed.\n");
+	vio_bus_device.dev.archdata.dma_ops = &dma_iommu_ops;
+	vio_bus_device.dev.archdata.dma_data = &vio_iommu_table;
+}
+#else
+static void __init iommu_vio_init(void)
+{
 }
 #endif
 
@@ -282,14 +288,8 @@ static int __init vio_bus_init(void)
 	int err;
 	struct device_node *node_vroot;
 
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		iommu_vio_init();
-		vio_bus_device.dev.archdata.dma_ops = &dma_iommu_ops;
-		vio_bus_device.dev.archdata.dma_data = &vio_iommu_table;
-		iSeries_vio_dev = &vio_bus_device.dev;
-	}
-#endif /* CONFIG_PPC_ISERIES */
 
 	err = bus_register(&vio_bus_type);
 	if (err) {
