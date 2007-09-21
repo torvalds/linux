@@ -1419,7 +1419,7 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 			/* Set the Nominal frequency to the found frequency offset for the next reacquire*/
 			reg = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_NOM_FREQ);
 			STB0899_SETFIELD_VAL(CRL_NOM_FREQ, reg, offsetfreq);
-			stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, offsetfreq);
+			stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, reg);
 			stb0899_dvbs2_reacquire(state);
 			internal->status = stb0899_dvbs2_get_fec_status(state, searchTime);
 			i++;
@@ -1450,7 +1450,7 @@ enum stb0899_status stb0899_dvbs2_algo(struct stb0899_state *state)
 					/* Set the Nominal frequency to the found frequency offset for the next reacquire*/
 					reg = STB0899_READ_S2REG(STB0899_S2DEMOD, CRL_NOM_FREQ);
 					STB0899_SETFIELD_VAL(CRL_NOM_FREQ, reg, offsetfreq);
-					stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, offsetfreq);
+					stb0899_write_s2reg(state, STB0899_S2DEMOD, STB0899_BASE_CRL_NOM_FREQ, STB0899_OFF0_CRL_NOM_FREQ, reg);
 
 					stb0899_dvbs2_reacquire(state);
 					internal->status = stb0899_dvbs2_get_fec_status(state, searchTime);
