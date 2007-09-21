@@ -205,3 +205,143 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
+static void flush_tlb_all_ipi(void *info)
+{
+	local_flush_tlb_all();
+}
+
+void flush_tlb_all(void)
+{
+	on_each_cpu(flush_tlb_all_ipi, 0, 1, 1);
+}
+
+static void flush_tlb_mm_ipi(void *mm)
+{
+	local_flush_tlb_mm((struct mm_struct *)mm);
+}
+
+/*
+ * The following tlb flush calls are invoked when old translations are
+ * being torn down, or pte attributes are changing. For single threaded
+ * address spaces, a new context is obtained on the current cpu, and tlb
+ * context on other cpus are invalidated to force a new context allocation
+ * at switch_mm time, should the mm ever be used on other cpus. For
+ * multithreaded address spaces, intercpu interrupts have to be sent.
+ * Another case where intercpu interrupts are required is when the target
+ * mm might be active on another cpu (eg debuggers doing the flushes on
+ * behalf of debugees, kswapd stealing pages from another process etc).
+ * Kanoj 07/00.
+ */
+
+void flush_tlb_mm(struct mm_struct *mm)
+{
+	preempt_disable();
+
+	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
+		smp_call_function(flush_tlb_mm_ipi, (void *)mm, 1, 1);
+	} else {
+		int i;
+		for (i = 0; i < num_online_cpus(); i++)
+			if (smp_processor_id() != i)
+				cpu_context(i, mm) = 0;
+	}
+	local_flush_tlb_mm(mm);
+
+	preempt_enable();
+}
+
+struct flush_tlb_data {
+	struct vm_area_struct *vma;
+	unsigned long addr1;
+	unsigned long addr2;
+};
+
+static void flush_tlb_range_ipi(void *info)
+{
+	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+
+	local_flush_tlb_range(fd->vma, fd->addr1, fd->addr2);
+}
+
+void flush_tlb_range(struct vm_area_struct *vma,
+		     unsigned long start, unsigned long end)
+{
+	struct mm_struct *mm = vma->vm_mm;
+
+	preempt_disable();
+	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
+		struct flush_tlb_data fd;
+
+		fd.vma = vma;
+		fd.addr1 = start;
+		fd.addr2 = end;
+		smp_call_function(flush_tlb_range_ipi, (void *)&fd, 1, 1);
+	} else {
+		int i;
+		for (i = 0; i < num_online_cpus(); i++)
+			if (smp_processor_id() != i)
+				cpu_context(i, mm) = 0;
+	}
+	local_flush_tlb_range(vma, start, end);
+	preempt_enable();
+}
+
+static void flush_tlb_kernel_range_ipi(void *info)
+{
+	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+
+	local_flush_tlb_kernel_range(fd->addr1, fd->addr2);
+}
+
+void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+{
+	struct flush_tlb_data fd;
+
+	fd.addr1 = start;
+	fd.addr2 = end;
+	on_each_cpu(flush_tlb_kernel_range_ipi, (void *)&fd, 1, 1);
+}
+
+static void flush_tlb_page_ipi(void *info)
+{
+	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+
+	local_flush_tlb_page(fd->vma, fd->addr1);
+}
+
+void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+{
+	preempt_disable();
+	if ((atomic_read(&vma->vm_mm->mm_users) != 1) ||
+	    (current->mm != vma->vm_mm)) {
+		struct flush_tlb_data fd;
+
+		fd.vma = vma;
+		fd.addr1 = page;
+		smp_call_function(flush_tlb_page_ipi, (void *)&fd, 1, 1);
+	} else {
+		int i;
+		for (i = 0; i < num_online_cpus(); i++)
+			if (smp_processor_id() != i)
+				cpu_context(i, vma->vm_mm) = 0;
+	}
+	local_flush_tlb_page(vma, page);
+	preempt_enable();
+}
+
+static void flush_tlb_one_ipi(void *info)
+{
+	struct flush_tlb_data *fd = (struct flush_tlb_data *)info;
+	local_flush_tlb_one(fd->addr1, fd->addr2);
+}
+
+void flush_tlb_one(unsigned long asid, unsigned long vaddr)
+{
+	struct flush_tlb_data fd;
+
+	fd.addr1 = asid;
+	fd.addr2 = vaddr;
+
+	smp_call_function(flush_tlb_one_ipi, (void *)&fd, 1, 1);
+	local_flush_tlb_one(asid, vaddr);
+}
