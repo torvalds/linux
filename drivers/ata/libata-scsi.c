@@ -1831,8 +1831,9 @@ unsigned int ata_scsiop_inq_89(struct ata_scsi_args *args, u8 *rbuf,
 	pbuf[2] = (0x238 >> 8);		/* page size fixed at 238h */
 	pbuf[3] = (0x238 & 0xff);
 
-	memcpy(&pbuf[8], "ATA     ", 8);
-	ata_id_string(args->id, &pbuf[16], ATA_ID_PROD, 16);
+	memcpy(&pbuf[8], "linux   ", 8);
+	memcpy(&pbuf[16], "libata          ", 16);
+	memcpy(&pbuf[32], DRV_VERSION, 4);
 	ata_id_string(args->id, &pbuf[32], ATA_ID_FW_REV, 4);
 
 	/* we don't store the ATA device signature, so we fake it */
