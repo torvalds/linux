@@ -603,16 +603,17 @@ static unsigned int scc_bus_softreset(struct ata_port *ap, unsigned int devmask,
  *	Note: Original code is ata_std_softreset().
  */
 
-static int scc_std_softreset (struct ata_port *ap, unsigned int *classes,
-                              unsigned long deadline)
+static int scc_std_softreset(struct ata_link *link, unsigned int *classes,
+                             unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
 	unsigned int devmask = 0, err_mask;
 	u8 err;
 
 	DPRINTK("ENTER\n");
 
-	if (ata_link_offline(&ap->link)) {
+	if (ata_link_offline(link)) {
 		classes[0] = ATA_DEV_NONE;
 		goto out;
 	}
@@ -703,7 +704,7 @@ static void scc_bmdma_stop (struct ata_queued_cmd *qc)
 			printk(KERN_WARNING "%s: Internal Bus Error\n", DRV_NAME);
 			out_be32(bmid_base + SCC_DMA_INTST, INTSTS_BMSINT);
 			/* TBD: SW reset */
-			scc_std_softreset(ap, &classes, deadline);
+			scc_std_softreset(&ap->link, &classes, deadline);
 			continue;
 		}
 
@@ -742,7 +743,7 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 	void __iomem *mmio = ap->ioaddr.bmdma_addr;
 	u8 host_stat = in_be32(mmio + SCC_DMA_STATUS);
 	u32 int_status = in_be32(mmio + SCC_DMA_INTST);
-	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->active_tag);
+	struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
 	static int retry = 0;
 
 	/* return if IOS_SS is cleared */
@@ -871,10 +872,10 @@ static void scc_bmdma_freeze (struct ata_port *ap)
  *	@deadline: deadline jiffies for the operation
  */
 
-static int scc_pata_prereset(struct ata_port *ap, unsigned long deadline)
+static int scc_pata_prereset(struct ata_link *link, unsigned long deadline)
 {
-	ap->cbl = ATA_CBL_PATA80;
-	return ata_std_prereset(ap, deadline);
+	link->ap->cbl = ATA_CBL_PATA80;
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -885,8 +886,10 @@ static int scc_pata_prereset(struct ata_port *ap, unsigned long deadline)
  *	Note: Original code is ata_std_postreset().
  */
 
-static void scc_std_postreset (struct ata_port *ap, unsigned int *classes)
+static void scc_std_postreset(struct ata_link *link, unsigned int *classes)
 {
+	struct ata_port *ap = link->ap;
+
 	DPRINTK("ENTER\n");
 
 	/* is double-select really necessary? */
