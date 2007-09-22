@@ -229,9 +229,8 @@ static u8 bars[8][3] = {
 #define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
 #define TSTAMP_MIN_X 64
 
-
 static void gen_line(char *basep,int inipos,int wmax,
-		     int hmax, int line, char *timestr)
+		     int hmax, int line, int count, char *timestr)
 {
 	int  w,i,j,pos=inipos,y;
 	char *p,*s;
@@ -242,9 +241,10 @@ static void gen_line(char *basep,int inipos,int wmax,
 
 	/* Generate a standard color bar pattern */
 	for (w=0;w<wmax;w++) {
-		r=bars[w*7/wmax][0];
-		g=bars[w*7/wmax][1];
-		b=bars[w*7/wmax][2];
+		int colorpos=((w+count)*8/(wmax+1)) % 8;
+		r=bars[colorpos][0];
+		g=bars[colorpos][1];
+		b=bars[colorpos][2];
 
 		for (color=0;color<4;color++) {
 			p=basep+pos;
@@ -327,17 +327,22 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	struct timeval ts;
 	char *tmpbuf = kmalloc(wmax*2,GFP_KERNEL);
 	void *vbuf=videobuf_to_vmalloc (&buf->vb);
+	/* FIXME: move to dev struct */
+	static int mv_count=0;
 
 	if (!tmpbuf)
 		return;
 
 	for (h=0;h<hmax;h++) {
-		gen_line(tmpbuf,0,wmax,hmax,h,dev->timestr);
+		gen_line(tmpbuf,0,wmax,hmax,h,mv_count,
+			 dev->timestr);
 		/* FIXME: replacing to __copy_to_user */
 		if (copy_to_user(vbuf+pos,tmpbuf,wmax*2)!=0)
 			dprintk(2,"vivifill copy_to_user failed.\n");
 		pos += wmax*2;
 	}
+
+	mv_count++;
 
 	kfree(tmpbuf);
 
