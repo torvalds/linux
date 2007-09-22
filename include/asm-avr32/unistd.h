@@ -303,6 +303,19 @@
 #ifdef __KERNEL__
 #define NR_syscalls		282
 
+/* Old stuff */
+#define __IGNORE_uselib
+#define __IGNORE_mmap
+
+/* NUMA stuff */
+#define __IGNORE_mbind
+#define __IGNORE_get_mempolicy
+#define __IGNORE_set_mempolicy
+#define __IGNORE_migrate_pages
+#define __IGNORE_move_pages
+
+/* SMP stuff */
+#define __IGNORE_getcpu
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_STAT64
