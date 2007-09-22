@@ -143,10 +143,12 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 			printk("%s: I/O Error\n", __func__);
 			return err;
 		}
-		if (status == 1)
+		if (status == 1) {
 			printk("%s: Tuner Phase locked: status=%d\n", __func__, status);
-		else
+			state->frequency = frequency; /* cache last successful */
+		} else {
 			printk("%s: No Phase lock: status=%d\n", __func__, status);
+		}
 	} else {
 		printk("%s: Unknown parameter (param=%d)\n", __func__, param);
 		return -EINVAL;
