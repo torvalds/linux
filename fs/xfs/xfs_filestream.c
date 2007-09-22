@@ -350,9 +350,10 @@ _xfs_filestream_update_ag(
 /* xfs_fstrm_free_func(): callback for freeing cached stream items. */
 void
 xfs_fstrm_free_func(
-	xfs_ino_t	ino,
-	fstrm_item_t	*item)
+	unsigned long	ino,
+	void		*data)
 {
+	fstrm_item_t	*item  = (fstrm_item_t *)data;
 	xfs_inode_t	*ip = item->ip;
 	int ref;
 
@@ -438,7 +439,7 @@ xfs_filestream_mount(
 	grp_count = 10;
 
 	err = xfs_mru_cache_create(&mp->m_filestream, lifetime, grp_count,
-	                     (xfs_mru_cache_free_func_t)xfs_fstrm_free_func);
+	                     xfs_fstrm_free_func);
 
 	return err;
 }

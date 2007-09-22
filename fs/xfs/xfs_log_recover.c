@@ -1920,9 +1920,9 @@ xlog_recover_do_reg_buffer(
 				stale_buf = 1;
 				break;
 			}
-			if (be16_to_cpu(dip->di_core.di_mode))
+			if (dip->di_core.di_mode)
 				mode_count++;
-			if (be16_to_cpu(dip->di_core.di_gen))
+			if (dip->di_core.di_gen)
 				gen_count++;
 		}
 
