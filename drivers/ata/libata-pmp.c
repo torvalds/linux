@@ -70,6 +70,36 @@ static int sata_pmp_write(struct ata_link *link, int reg, u32 val)
 }
 
 /**
+ *	sata_pmp_qc_defer_cmd_switch - qc_defer for command switching PMP
+ *	@qc: ATA command in question
+ *
+ *	A host which has command switching PMP support cannot issue
+ *	commands to multiple links simultaneously.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	ATA_DEFER_* if deferring is needed, 0 otherwise.
+ */
+int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc)
+{
+	struct ata_link *link = qc->dev->link;
+	struct ata_port *ap = link->ap;
+
+	if (ap->excl_link == NULL || ap->excl_link == link) {
+		if (ap->nr_active_links == 0 || ata_link_active(link)) {
+			qc->flags |= ATA_QCFLAG_CLEAR_EXCL;
+			return ata_std_qc_defer(qc);
+		}
+
+		ap->excl_link = link;
+	}
+
+	return ATA_DEFER_PORT;
+}
+
+/**
  *	sata_pmp_read_init_tf - initialize TF for PMP read
  *	@tf: taskfile to initialize
  *	@dev: PMP dev

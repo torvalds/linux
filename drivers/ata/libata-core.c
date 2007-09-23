@@ -7303,6 +7303,7 @@ EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
 
+EXPORT_SYMBOL_GPL(sata_pmp_qc_defer_cmd_switch);
 EXPORT_SYMBOL_GPL(sata_pmp_read_init_tf);
 EXPORT_SYMBOL_GPL(sata_pmp_read_val);
 EXPORT_SYMBOL_GPL(sata_pmp_write_init_tf);

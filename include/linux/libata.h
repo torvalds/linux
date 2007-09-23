@@ -947,6 +947,7 @@ extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
 /*
  * PMP
  */
+extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
 extern void sata_pmp_read_init_tf(struct ata_taskfile *tf,
 				  struct ata_device *dev, int pmp, int reg);
 extern u32 sata_pmp_read_val(const struct ata_taskfile *tf);
