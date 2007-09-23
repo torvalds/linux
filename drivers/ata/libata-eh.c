@@ -2335,7 +2335,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		struct ata_eh_context *ehc = &link->eh_context;
 
 		ata_link_for_each_dev(dev, link) {
-			ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
+			if (link->flags & ATA_LFLAG_NO_RETRY)
+				ehc->tries[dev->devno] = 1;
+			else
+				ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
 
 			/* collect port action mask recorded in dev actions */
 			ehc->i.action |= ehc->i.dev_action[dev->devno] &
