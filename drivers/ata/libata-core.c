@@ -2010,7 +2010,8 @@ int ata_dev_configure(struct ata_device *dev)
 
 	/* ATAPI-specific feature tests */
 	else if (dev->class == ATA_DEV_ATAPI) {
-		char *cdb_intr_string = "";
+		const char *cdb_intr_string = "";
+		const char *atapi_an_string = "";
 
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
@@ -2026,16 +2027,19 @@ int ata_dev_configure(struct ata_device *dev)
 		 * check to see if this ATAPI device supports
 		 * Asynchronous Notification
 		 */
-		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_AN(id)) {
-			int err;
+		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id)) {
+			unsigned int err_mask;
+
 			/* issue SET feature command to turn this on */
-			err = ata_dev_set_AN(dev, SETFEATURES_SATA_ENABLE);
-			if (err)
+			err_mask = ata_dev_set_AN(dev, SETFEATURES_SATA_ENABLE);
+			if (err_mask)
 				ata_dev_printk(dev, KERN_ERR,
-						"unable to set AN, err %x\n",
-						err);
-			else
+					"failed to enable ATAPI AN "
+					"(err_mask=0x%x)\n", err_mask);
+			else {
 				dev->flags |= ATA_DFLAG_AN;
+				atapi_an_string = ", ATAPI AN";
+			}
 		}
 
 		if (ata_id_cdb_intr(dev->id)) {
@@ -2046,10 +2050,10 @@ int ata_dev_configure(struct ata_device *dev)
 		/* print device info to dmesg */
 		if (ata_msg_drv(ap) && print_info)
 			ata_dev_printk(dev, KERN_INFO,
-				       "ATAPI: %s, %s, max %s%s\n",
+				       "ATAPI: %s, %s, max %s%s%s\n",
 				       modelbuf, fwrevbuf,
 				       ata_mode_string(xfer_mask),
-				       cdb_intr_string);
+				       cdb_intr_string, atapi_an_string);
 	}
 
 	/* determine max_sectors */

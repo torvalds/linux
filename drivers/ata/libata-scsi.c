@@ -3238,12 +3238,13 @@ static void ata_scsi_handle_link_detach(struct ata_link *link)
  *	event.
  *
  * 	LOCKING:
- * 	interrupt context, may not sleep.
+ * 	spin_lock_irqsave(host lock)
  */
-void ata_scsi_media_change_notify(struct ata_device *atadev)
+void ata_scsi_media_change_notify(struct ata_device *dev)
 {
 #ifdef OTHER_AN_PATCHES_HAVE_BEEN_APPLIED
-	scsi_device_event_notify(atadev->sdev, SDEV_MEDIA_CHANGE);
+	if (dev->sdev)
+		scsi_device_event_notify(dev->sdev, SDEV_MEDIA_CHANGE);
 #endif
 }
 EXPORT_SYMBOL_GPL(ata_scsi_media_change_notify);

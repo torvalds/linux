@@ -168,7 +168,7 @@ enum {
 
 	DEF_PORT_IRQ		= PORT_IRQ_COMPLETE | PORT_IRQ_ERROR |
 				  PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG |
-				  PORT_IRQ_UNK_FIS,
+				  PORT_IRQ_UNK_FIS | PORT_IRQ_SDB_NOTIFY,
 
 	/* bits[27:16] are unmasked (raw) */
 	PORT_IRQ_RAW_SHIFT	= 16,
@@ -237,7 +237,8 @@ enum {
 	/* host flags */
 	SIL24_COMMON_FLAGS	= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
-				  ATA_FLAG_NCQ | ATA_FLAG_ACPI_SATA,
+				  ATA_FLAG_NCQ | ATA_FLAG_ACPI_SATA |
+				  ATA_FLAG_AN,
 	SIL24_COMMON_LFLAGS	= ATA_LFLAG_SKIP_D2H_BSY,
 	SIL24_FLAG_PCIX_IRQ_WOC	= (1 << 24), /* IRQ loss errata on PCI-X */
 
@@ -817,6 +818,14 @@ static void sil24_error_intr(struct ata_port *ap)
 	ata_ehi_clear_desc(ehi);
 
 	ata_ehi_push_desc(ehi, "irq_stat 0x%08x", irq_stat);
+
+	if (irq_stat & PORT_IRQ_SDB_NOTIFY) {
+		struct ata_device *dev = ap->link.device;
+
+		ata_ehi_push_desc(ehi, "SDB notify");
+		if (dev->flags & ATA_DFLAG_AN)
+			ata_scsi_media_change_notify(dev);
+	}
 
 	if (irq_stat & (PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG)) {
 		ata_ehi_hotplugged(ehi);
