@@ -821,11 +821,8 @@ static void sil24_error_intr(struct ata_port *ap)
 	ata_ehi_push_desc(ehi, "irq_stat 0x%08x", irq_stat);
 
 	if (irq_stat & PORT_IRQ_SDB_NOTIFY) {
-		struct ata_device *dev = ap->link.device;
-
 		ata_ehi_push_desc(ehi, "SDB notify");
-		if (dev->flags & ATA_DFLAG_AN)
-			ata_scsi_media_change_notify(dev);
+		sata_async_notification(ap);
 	}
 
 	if (irq_stat & (PORT_IRQ_PHYRDY_CHG | PORT_IRQ_DEV_XCHG)) {

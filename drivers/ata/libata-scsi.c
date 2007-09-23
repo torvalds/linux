@@ -3244,7 +3244,6 @@ void ata_scsi_media_change_notify(struct ata_device *dev)
 		scsi_device_event_notify(dev->sdev, SDEV_MEDIA_CHANGE);
 #endif
 }
-EXPORT_SYMBOL_GPL(ata_scsi_media_change_notify);
 
 /**
  *	ata_scsi_hotplug - SCSI part of hotplug

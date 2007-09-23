@@ -2016,6 +2016,7 @@ int ata_dev_configure(struct ata_device *dev)
 	else if (dev->class == ATA_DEV_ATAPI) {
 		const char *cdb_intr_string = "";
 		const char *atapi_an_string = "";
+		u32 sntf;
 
 		rc = atapi_cdb_len(id);
 		if ((rc < 12) || (rc > ATAPI_CDB_LEN)) {
@@ -2027,11 +2028,14 @@ int ata_dev_configure(struct ata_device *dev)
 		}
 		dev->cdb_len = (unsigned int) rc;
 
-		/*
-		 * check to see if this ATAPI device supports
-		 * Asynchronous Notification
+		/* Enable ATAPI AN if both the host and device have
+		 * the support.  If PMP is attached, SNTF is required
+		 * to enable ATAPI AN to discern between PHY status
+		 * changed notifications and ATAPI ANs.
 		 */
-		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id)) {
+		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id) &&
+		    (!ap->nr_pmp_links ||
+		     sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf) == 0)) {
 			unsigned int err_mask;
 
 			/* issue SET feature command to turn this on */
@@ -7248,6 +7252,7 @@ EXPORT_SYMBOL_GPL(ata_port_schedule_eh);
 EXPORT_SYMBOL_GPL(ata_link_abort);
 EXPORT_SYMBOL_GPL(ata_port_abort);
 EXPORT_SYMBOL_GPL(ata_port_freeze);
+EXPORT_SYMBOL_GPL(sata_async_notification);
 EXPORT_SYMBOL_GPL(ata_eh_freeze_port);
 EXPORT_SYMBOL_GPL(ata_eh_thaw_port);
 EXPORT_SYMBOL_GPL(ata_eh_qc_complete);
