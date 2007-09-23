@@ -238,7 +238,12 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
 	}
 
-	spte = PT_PRESENT_MASK | PT_ACCESSED_MASK | PT_DIRTY_MASK;
+	/*
+	 * We don't set the accessed bit, since we sometimes want to see
+	 * whether the guest actually used the pte (in order to detect
+	 * demand paging).
+	 */
+	spte = PT_PRESENT_MASK | PT_DIRTY_MASK;
 	spte |= gpte & PT64_NX_MASK;
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
@@ -291,6 +296,8 @@ unshadowed:
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
 	if (!was_rmapped)
 		rmap_add(vcpu, shadow_pte);
+	if (!ptwrite || !*ptwrite)
+		vcpu->last_pte_updated = shadow_pte;
 }
 
 static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,

@@ -346,6 +346,7 @@ struct kvm_vcpu {
 
 	gfn_t last_pt_write_gfn;
 	int   last_pt_write_count;
+	u64  *last_pte_updated;
 
 	struct kvm_guest_debug guest_debug;
 
