@@ -393,6 +393,7 @@ static const struct ata_port_operations sil24_ops = {
 
 	.tf_read		= sil24_tf_read,
 
+	.qc_defer		= ata_std_qc_defer,
 	.qc_prep		= sil24_qc_prep,
 	.qc_issue		= sil24_qc_issue,
 

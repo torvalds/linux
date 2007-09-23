@@ -749,6 +749,13 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
+
+	/* Schedule policy is determined by ->qc_defer() callback and
+	 * it needs to see every deferred qc.  Set dev_blocked to 1 to
+	 * prevent SCSI midlayer from automatically deferring
+	 * requests.
+	 */
+	sdev->max_device_blocked = 1;
 }
 
 static void ata_scsi_dev_config(struct scsi_device *sdev,
@@ -1416,37 +1423,6 @@ static void ata_scsi_qc_complete(struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_scmd_need_defer - Check whether we need to defer scmd
- *	@dev: ATA device to which the command is addressed
- *	@is_io: Is the command IO (and thus possibly NCQ)?
- *
- *	NCQ and non-NCQ commands cannot run together.  As upper layer
- *	only knows the queue depth, we are responsible for maintaining
- *	exclusion.  This function checks whether a new command can be
- *	issued to @dev.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- *	RETURNS:
- *	1 if deferring is needed, 0 otherwise.
- */
-static int ata_scmd_need_defer(struct ata_device *dev, int is_io)
-{
-	struct ata_link *link = dev->link;
-	int is_ncq = is_io && ata_ncq_enabled(dev);
-
-	if (is_ncq) {
-		if (!ata_tag_valid(link->active_tag))
-			return 0;
-	} else {
-		if (!ata_tag_valid(link->active_tag) && !link->sactive)
-			return 0;
-	}
-	return 1;
-}
-
-/**
  *	ata_scsi_translate - Translate then issue SCSI command to ATA device
  *	@dev: ATA device to which the command is addressed
  *	@cmd: SCSI command to execute
@@ -1477,13 +1453,11 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *),
 			      ata_xlat_func_t xlat_func)
 {
+	struct ata_port *ap = dev->link->ap;
 	struct ata_queued_cmd *qc;
-	int is_io = xlat_func == ata_scsi_rw_xlat;
+	int rc;
 
 	VPRINTK("ENTER\n");
-
-	if (unlikely(ata_scmd_need_defer(dev, is_io)))
-		goto defer;
 
 	qc = ata_scsi_qc_new(dev, cmd, done);
 	if (!qc)
@@ -1508,6 +1482,11 @@ static int ata_scsi_translate(struct ata_device *dev, struct scsi_cmnd *cmd,
 	if (xlat_func(qc))
 		goto early_finish;
 
+	if (ap->ops->qc_defer) {
+		if ((rc = ap->ops->qc_defer(qc)))
+			goto defer;
+	}
+
 	/* select device, send command to hardware */
 	ata_qc_issue(qc);
 
@@ -1529,8 +1508,12 @@ err_mem:
 	return 0;
 
 defer:
+	ata_qc_free(qc);
 	DPRINTK("EXIT - defer\n");
-	return SCSI_MLQUEUE_DEVICE_BUSY;
+	if (rc == ATA_DEFER_LINK)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	else
+		return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 /**
@@ -3033,6 +3016,13 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		shost->max_lun = 1;
 		shost->max_channel = 1;
 		shost->max_cmd_len = 16;
+
+		/* Schedule policy is determined by ->qc_defer()
+		 * callback and it needs to see every deferred qc.
+		 * Set host_blocked to 1 to prevent SCSI midlayer from
+		 * automatically deferring requests.
+		 */
+		shost->max_host_blocked = 1;
 
 		rc = scsi_add_host(ap->scsi_host, ap->host->dev);
 		if (rc)
