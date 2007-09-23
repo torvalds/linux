@@ -3865,6 +3865,9 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "IOMEGA  ZIP 250       ATAPI", NULL,	ATA_HORKAGE_NODMA }, /* temporary fix */
 	{ "IOMEGA  ZIP 250       ATAPI       Floppy",
 				NULL,		ATA_HORKAGE_NODMA },
+	/* Odd clown on sil3726/4726 PMPs */
+	{ "Config  Disk",	NULL,		ATA_HORKAGE_NODMA |
+						ATA_HORKAGE_SKIP_PM },
 
 	/* Weird ATAPI devices */
 	{ "TORiSAN DVD-ROM DRD-N216", NULL,	ATA_HORKAGE_MAX_SEC_128 },
@@ -7250,6 +7253,14 @@ EXPORT_SYMBOL_GPL(ata_pci_device_resume);
 EXPORT_SYMBOL_GPL(ata_pci_default_filter);
 EXPORT_SYMBOL_GPL(ata_pci_clear_simplex);
 #endif /* CONFIG_PCI */
+
+EXPORT_SYMBOL_GPL(sata_pmp_read_init_tf);
+EXPORT_SYMBOL_GPL(sata_pmp_read_val);
+EXPORT_SYMBOL_GPL(sata_pmp_write_init_tf);
+EXPORT_SYMBOL_GPL(sata_pmp_std_prereset);
+EXPORT_SYMBOL_GPL(sata_pmp_std_hardreset);
+EXPORT_SYMBOL_GPL(sata_pmp_std_postreset);
+EXPORT_SYMBOL_GPL(sata_pmp_do_eh);
 
 EXPORT_SYMBOL_GPL(__ata_ehi_push_desc);
 EXPORT_SYMBOL_GPL(ata_ehi_push_desc);

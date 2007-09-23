@@ -945,6 +945,25 @@ extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
 #endif /* CONFIG_PCI */
 
 /*
+ * PMP
+ */
+extern void sata_pmp_read_init_tf(struct ata_taskfile *tf,
+				  struct ata_device *dev, int pmp, int reg);
+extern u32 sata_pmp_read_val(const struct ata_taskfile *tf);
+extern void sata_pmp_write_init_tf(struct ata_taskfile *tf,
+				   struct ata_device *dev,
+				   int pmp, int reg, u32 val);
+extern int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline);
+extern int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
+				  unsigned long deadline);
+extern void sata_pmp_std_postreset(struct ata_link *link, unsigned int *class);
+extern void sata_pmp_do_eh(struct ata_port *ap,
+		ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
+		ata_reset_fn_t hardreset, ata_postreset_fn_t postreset,
+		ata_prereset_fn_t pmp_prereset, ata_reset_fn_t pmp_softreset,
+		ata_reset_fn_t pmp_hardreset, ata_postreset_fn_t pmp_postreset);
+
+/*
  * EH
  */
 extern void ata_eng_timeout(struct ata_port *ap);
