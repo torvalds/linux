@@ -2209,6 +2209,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			readid_flags |= ATA_READID_POSTRESET;
 
 		if ((action & ATA_EH_REVALIDATE) && ata_dev_enabled(dev)) {
+			WARN_ON(dev->class == ATA_DEV_PMP);
+
 			if (ata_link_offline(link)) {
 				rc = -EIO;
 				goto err;
@@ -2234,8 +2236,11 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			   ata_class_enabled(ehc->classes[dev->devno])) {
 			dev->class = ehc->classes[dev->devno];
 
-			rc = ata_dev_read_id(dev, &dev->class, readid_flags,
-					     dev->id);
+			if (dev->class == ATA_DEV_PMP)
+				rc = sata_pmp_attach(dev);
+			else
+				rc = ata_dev_read_id(dev, &dev->class,
+						     readid_flags, dev->id);
 			switch (rc) {
 			case 0:
 				new_mask |= 1 << dev->devno;
@@ -2264,7 +2269,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	 * device detection messages backwards.
 	 */
 	ata_link_for_each_dev(dev, link) {
-		if (!(new_mask & (1 << dev->devno)))
+		if (!(new_mask & (1 << dev->devno)) ||
+		    dev->class == ATA_DEV_PMP)
 			continue;
 
 		ehc->i.flags |= ATA_EHI_PRINTINFO;
@@ -2520,6 +2526,12 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		rc = ata_eh_revalidate_and_attach(link, &dev);
 		if (rc)
 			goto dev_fail;
+
+		/* if PMP got attached, return, pmp EH will take care of it */
+		if (link->device->class == ATA_DEV_PMP) {
+			ehc->i.action = 0;
+			return 0;
+		}
 
 		/* configure transfer mode if necessary */
 		if (ehc->i.flags & ATA_EHI_SETMODE) {

@@ -670,27 +670,47 @@ static unsigned int ata_devchk(struct ata_port *ap, unsigned int device)
  *	None.
  *
  *	RETURNS:
- *	Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, or %ATA_DEV_UNKNOWN
- *	the event of failure.
+ *	Device type, %ATA_DEV_ATA, %ATA_DEV_ATAPI, %ATA_DEV_PMP or
+ *	%ATA_DEV_UNKNOWN the event of failure.
  */
-
 unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 {
 	/* Apple's open source Darwin code hints that some devices only
 	 * put a proper signature into the LBA mid/high registers,
 	 * So, we only check those.  It's sufficient for uniqueness.
+	 *
+	 * ATA/ATAPI-7 (d1532v1r1: Feb. 19, 2003) specified separate
+	 * signatures for ATA and ATAPI devices attached on SerialATA,
+	 * 0x3c/0xc3 and 0x69/0x96 respectively.  However, SerialATA
+	 * spec has never mentioned about using different signatures
+	 * for ATA/ATAPI devices.  Then, Serial ATA II: Port
+	 * Multiplier specification began to use 0x69/0x96 to identify
+	 * port multpliers and 0x3c/0xc3 to identify SEMB device.
+	 * ATA/ATAPI-7 dropped descriptions about 0x3c/0xc3 and
+	 * 0x69/0x96 shortly and described them as reserved for
+	 * SerialATA.
+	 *
+	 * We follow the current spec and consider that 0x69/0x96
+	 * identifies a port multiplier and 0x3c/0xc3 a SEMB device.
 	 */
-
-	if (((tf->lbam == 0) && (tf->lbah == 0)) ||
-	    ((tf->lbam == 0x3c) && (tf->lbah == 0xc3))) {
+	if ((tf->lbam == 0) && (tf->lbah == 0)) {
 		DPRINTK("found ATA device by sig\n");
 		return ATA_DEV_ATA;
 	}
 
-	if (((tf->lbam == 0x14) && (tf->lbah == 0xeb)) ||
-	    ((tf->lbam == 0x69) && (tf->lbah == 0x96))) {
+	if ((tf->lbam == 0x14) && (tf->lbah == 0xeb)) {
 		DPRINTK("found ATAPI device by sig\n");
 		return ATA_DEV_ATAPI;
+	}
+
+	if ((tf->lbam == 0x69) && (tf->lbah == 0x96)) {
+		DPRINTK("found PMP device by sig\n");
+		return ATA_DEV_PMP;
+	}
+
+	if ((tf->lbam == 0x3c) && (tf->lbah == 0xc3)) {
+		printk("ata: SEMB device ignored\n");
+		return ATA_DEV_SEMB_UNSUP; /* not yet */
 	}
 
 	DPRINTK("unknown device\n");
@@ -3426,6 +3446,12 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 	    (link->flags & ATA_LFLAG_HRST_TO_RESUME))
 		ehc->i.action |= ATA_EH_HARDRESET;
 
+	/* Some PMPs don't work with only SRST, force hardreset if PMP
+	 * is supported.
+	 */
+	if (ap->flags & ATA_FLAG_PMP)
+		ehc->i.action |= ATA_EH_HARDRESET;
+
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
@@ -3615,6 +3641,16 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* wait a while before checking status, see SRST for more info */
 	msleep(150);
+
+	/* If PMP is supported, we have to do follow-up SRST.  Note
+	 * that some PMPs don't send D2H Reg FIS after hardreset at
+	 * all if the first port is empty.  Wait for it just for a
+	 * second and request follow-up SRST.
+	 */
+	if (ap->flags & ATA_FLAG_PMP) {
+		ata_wait_ready(ap, jiffies + HZ);
+		return -EAGAIN;
+	}
 
 	rc = ata_wait_ready(ap, deadline);
 	/* link occupied, -ENODEV too is an error */
@@ -5966,22 +6002,26 @@ int sata_scr_valid(struct ata_link *link)
  *	@val: Place to store read value
  *
  *	Read SCR register @reg of @link into *@val.  This function is
- *	guaranteed to succeed if the cable type of the port is SATA
- *	and the port implements ->scr_read.
+ *	guaranteed to succeed if @link is ap->link, the cable type of
+ *	the port is SATA and the port implements ->scr_read.
  *
  *	LOCKING:
- *	None.
+ *	None if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
  *	0 on success, negative errno on failure.
  */
 int sata_scr_read(struct ata_link *link, int reg, u32 *val)
 {
-	struct ata_port *ap = link->ap;
+	if (ata_is_host_link(link)) {
+		struct ata_port *ap = link->ap;
 
-	if (sata_scr_valid(link))
-		return ap->ops->scr_read(ap, reg, val);
-	return -EOPNOTSUPP;
+		if (sata_scr_valid(link))
+			return ap->ops->scr_read(ap, reg, val);
+		return -EOPNOTSUPP;
+	}
+
+	return sata_pmp_scr_read(link, reg, val);
 }
 
 /**
@@ -5991,22 +6031,26 @@ int sata_scr_read(struct ata_link *link, int reg, u32 *val)
  *	@val: value to write
  *
  *	Write @val to SCR register @reg of @link.  This function is
- *	guaranteed to succeed if the cable type of the port is SATA
- *	and the port implements ->scr_read.
+ *	guaranteed to succeed if @link is ap->link, the cable type of
+ *	the port is SATA and the port implements ->scr_read.
  *
  *	LOCKING:
- *	None.
+ *	None if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
  *	0 on success, negative errno on failure.
  */
 int sata_scr_write(struct ata_link *link, int reg, u32 val)
 {
-	struct ata_port *ap = link->ap;
+	if (ata_is_host_link(link)) {
+		struct ata_port *ap = link->ap;
 
-	if (sata_scr_valid(link))
-		return ap->ops->scr_write(ap, reg, val);
-	return -EOPNOTSUPP;
+		if (sata_scr_valid(link))
+			return ap->ops->scr_write(ap, reg, val);
+		return -EOPNOTSUPP;
+	}
+
+	return sata_pmp_scr_write(link, reg, val);
 }
 
 /**
@@ -6019,23 +6063,27 @@ int sata_scr_write(struct ata_link *link, int reg, u32 val)
  *	function performs flush after writing to the register.
  *
  *	LOCKING:
- *	None.
+ *	None if @link is ap->link.  Kernel thread context otherwise.
  *
  *	RETURNS:
  *	0 on success, negative errno on failure.
  */
 int sata_scr_write_flush(struct ata_link *link, int reg, u32 val)
 {
-	struct ata_port *ap = link->ap;
-	int rc;
+	if (ata_is_host_link(link)) {
+		struct ata_port *ap = link->ap;
+		int rc;
 
-	if (sata_scr_valid(link)) {
-		rc = ap->ops->scr_write(ap, reg, val);
-		if (rc == 0)
-			rc = ap->ops->scr_read(ap, reg, &val);
-		return rc;
+		if (sata_scr_valid(link)) {
+			rc = ap->ops->scr_write(ap, reg, val);
+			if (rc == 0)
+				rc = ap->ops->scr_read(ap, reg, &val);
+			return rc;
+		}
+		return -EOPNOTSUPP;
 	}
-	return -EOPNOTSUPP;
+
+	return sata_pmp_scr_write(link, reg, val);
 }
 
 /**
@@ -6424,6 +6472,7 @@ static void ata_host_release(struct device *gendev, void *res)
 		if (ap->scsi_host)
 			scsi_host_put(ap->scsi_host);
 
+		kfree(ap->pmp_link);
 		kfree(ap);
 		host->ports[i] = NULL;
 	}
