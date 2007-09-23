@@ -40,12 +40,40 @@ static int is_pci_dev(struct device *dev)
 	return (dev->bus == &pci_bus_type);
 }
 
-static void ata_acpi_associate_sata_port(struct ata_port *ap)
+/**
+ * ata_acpi_associate_sata_port - associate SATA port with ACPI objects
+ * @ap: target SATA port
+ *
+ * Look up ACPI objects associated with @ap and initialize acpi_handle
+ * fields of @ap, the port and devices accordingly.
+ *
+ * LOCKING:
+ * EH context.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+void ata_acpi_associate_sata_port(struct ata_port *ap)
 {
-	acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
+	WARN_ON(!(ap->flags & ATA_FLAG_ACPI_SATA));
 
-	ap->link.device->acpi_handle =
-		acpi_get_child(ap->host->acpi_handle, adr);
+	if (!ap->nr_pmp_links) {
+		acpi_integer adr = SATA_ADR(ap->port_no, NO_PORT_MULT);
+
+		ap->link.device->acpi_handle =
+			acpi_get_child(ap->host->acpi_handle, adr);
+	} else {
+		struct ata_link *link;
+
+		ap->link.device->acpi_handle = NULL;
+
+		ata_port_for_each_link(link, ap) {
+			acpi_integer adr = SATA_ADR(ap->port_no, link->pmp);
+
+			link->device->acpi_handle =
+				acpi_get_child(ap->host->acpi_handle, adr);
+		}
+	}
 }
 
 static void ata_acpi_associate_ide_port(struct ata_port *ap)
