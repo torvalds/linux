@@ -1197,6 +1197,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 	u32 hkey;
 	unsigned int keycode, scancode;
 	int send_acpi_ev;
+	int ignore_acpi_ev;
 
 	if (event != 0x80) {
 		printk(IBM_ERR "unknown HKEY notification event %d\n", event);
@@ -1219,6 +1220,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		send_acpi_ev = 0;
+		ignore_acpi_ev = 0;
 
 		switch (hkey >> 12) {
 		case 1:
@@ -1244,6 +1246,8 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				       "unknown LID-related HKEY event: 0x%04x\n",
 				       hkey);
 				send_acpi_ev = 1;
+			} else {
+				ignore_acpi_ev = 1;
 			}
 			break;
 		case 7:
@@ -1263,11 +1267,12 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		/* Legacy events */
-		if (send_acpi_ev || hotkey_report_mode < 2)
+		if (!ignore_acpi_ev && (send_acpi_ev || hotkey_report_mode < 2)) {
 			acpi_bus_generate_proc_event(ibm->acpi->device, event, hkey);
+		}
 
 		/* netlink events */
-		if (send_acpi_ev) {
+		if (!ignore_acpi_ev && send_acpi_ev) {
 			acpi_bus_generate_netlink_event(ibm->acpi->device->pnp.device_class,
 							ibm->acpi->device->dev.bus_id,
 							event, hkey);
