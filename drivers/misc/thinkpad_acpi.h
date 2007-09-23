@@ -252,6 +252,7 @@ static struct {
 	u32 platform_drv_registered:1;
 	u32 platform_drv_attrs_registered:1;
 	u32 sensors_pdrv_registered:1;
+	u32 sensors_pdrv_attrs_registered:1;
 	u32 sensors_pdev_attrs_registered:1;
 } tp_features;
 
