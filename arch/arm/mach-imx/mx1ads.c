@@ -116,7 +116,7 @@ static struct platform_device *devices[] __initdata = {
 };
 
 #ifdef CONFIG_MMC_IMX
-static int mx1ads_mmc_card_present(void)
+static int mx1ads_mmc_card_present(struct device *dev)
 {
 	/* MMC/SD Card Detect is PB 20 on MX1ADS V1.0.7 */
 	return (SSR(1) & (1 << 20) ? 0 : 1);

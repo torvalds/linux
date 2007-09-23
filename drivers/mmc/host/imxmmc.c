@@ -884,9 +884,21 @@ static void imxmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 }
 
+static int imxmci_get_ro(struct mmc_host *mmc)
+{
+	struct imxmci_host *host = mmc_priv(mmc);
+
+	if (host->pdata && host->pdata->get_ro)
+		return host->pdata->get_ro(mmc_dev(mmc));
+	/* Host doesn't support read only detection so assume writeable */
+	return 0;
+}
+
+
 static const struct mmc_host_ops imxmci_ops = {
 	.request	= imxmci_request,
 	.set_ios	= imxmci_set_ios,
+	.get_ro		= imxmci_get_ro,
 };
 
 static struct resource *platform_device_resource(struct platform_device *dev, unsigned int mask, int nr)
@@ -913,7 +925,7 @@ static void imxmci_check_status(unsigned long data)
 {
 	struct imxmci_host *host = (struct imxmci_host *)data;
 
-	if( host->pdata->card_present() != host->present ) {
+	if( host->pdata->card_present(mmc_dev(host->mmc)) != host->present ) {
 		host->present ^= 1;
 		dev_info(mmc_dev(host->mmc), "card %s\n",
 		      host->present ? "inserted" : "removed");
@@ -1022,7 +1034,7 @@ static int imxmci_probe(struct platform_device *pdev)
 	if (ret)
 		goto out;
 
-	host->present = host->pdata->card_present();
+	host->present = host->pdata->card_present(mmc_dev(mmc));
 	init_timer(&host->timer);
 	host->timer.data = (unsigned long)host;
 	host->timer.function = imxmci_check_status;
