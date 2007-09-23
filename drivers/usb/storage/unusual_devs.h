@@ -341,6 +341,13 @@ UNUSUAL_DEV(  0x04b0, 0x040d, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Graber and Mike Pagano <mpagano-kernel@mpagano.com> */
+UNUSUAL_DEV(  0x04b0, 0x040f, 0x0200, 0x0200,
+       "NIKON",
+       "NIKON DSC D200",
+       US_SC_DEVICE, US_PR_DEVICE, NULL,
+       US_FL_FIX_CAPACITY),
+
 /* Reported by Emil Larsson <emil@swip.net> */
 UNUSUAL_DEV(  0x04b0, 0x0411, 0x0100, 0x0101,
 		"NIKON",
