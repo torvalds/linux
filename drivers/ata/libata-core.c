@@ -6218,7 +6218,7 @@ void ata_dev_init(struct ata_device *dev)
  *	LOCKING:
  *	Kernel thread context (may sleep)
  */
-static void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
+void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
 {
 	int i;
 
@@ -6253,7 +6253,7 @@ static void ata_link_init(struct ata_port *ap, struct ata_link *link, int pmp)
  *	RETURNS:
  *	0 on success, -errno on failure.
  */
-static int sata_link_init_spd(struct ata_link *link)
+int sata_link_init_spd(struct ata_link *link)
 {
 	u32 scontrol, spd;
 	int rc;
