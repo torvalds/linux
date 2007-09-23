@@ -210,3 +210,24 @@
 #define IRQ_LOCOMO_GPIO_BASE	(IRQ_BOARD_START + 1)
 #define IRQ_LOCOMO_LT_BASE	(IRQ_BOARD_START + 2)
 #define IRQ_LOCOMO_SPI_BASE	(IRQ_BOARD_START + 3)
+
+/* ITE8152 irqs */
+/* add IT8152 IRQs beyond BOARD_END */
+#ifdef CONFIG_PCI_HOST_ITE8152
+#define IT8152_IRQ(x)   (IRQ_GPIO(IRQ_BOARD_END) + 1 + (x))
+
+/* IRQ-sources in 3 groups - local devices, LPC (serial), and external PCI */
+#define IT8152_LD_IRQ_COUNT     9
+#define IT8152_LP_IRQ_COUNT     16
+#define IT8152_PD_IRQ_COUNT     15
+
+/* Priorities: */
+#define IT8152_PD_IRQ(i)        IT8152_IRQ(i)
+#define IT8152_LP_IRQ(i)        (IT8152_IRQ(i) + IT8152_PD_IRQ_COUNT)
+#define IT8152_LD_IRQ(i)        (IT8152_IRQ(i) + IT8152_PD_IRQ_COUNT + IT8152_LP_IRQ_COUNT)
+
+#define IT8152_LAST_IRQ         IT8152_LD_IRQ(IT8152_LD_IRQ_COUNT - 1)
+
+#undef NR_IRQS
+#define NR_IRQS (IT8152_LAST_IRQ+1)
+#endif

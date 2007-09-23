@@ -63,6 +63,11 @@ config MACH_ZYLONITE
 	bool "PXA3xx Development Platform"
 	select PXA3xx
 
+config MACH_ARMCORE
+	bool "CompuLab CM-X270 modules"
+	select PXA27x
+	select IWMMXT
+
 endchoice
 
 if PXA_SHARPSL
