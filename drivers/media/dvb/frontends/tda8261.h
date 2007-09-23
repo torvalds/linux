@@ -15,11 +15,8 @@ struct tda8261_config {
 	enum tda8261_step	step_size;
 };
 
-/* move out from here! */
-static const struct tda8261_config sd1878c_config = {
-//	.name		= "SD1878C",
-	.addr		= 0x60,
-	.step_size	= TDA8261_STEP_1000 /* kHz */
-};
+extern struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
+					   const struct tda8261_config *config,
+					   struct i2c_adapter *i2c);
 
 #endif// __TDA8261_H

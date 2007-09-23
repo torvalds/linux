@@ -26,9 +26,9 @@
 #include "tda8261.h"
 
 struct tda8261_state {
-	struct dvb_frontend	*fe;
-	struct i2c_adapter	*i2c;
-	struct tda8261_config	*config;
+	struct dvb_frontend		*fe;
+	struct i2c_adapter		*i2c;
+	const struct tda8261_config	*config;
 
 	/* state cache */
 	u32 frequency;
@@ -37,7 +37,7 @@ struct tda8261_state {
 
 static int tda8261_read(struct tda8261_state *state, u8 *buf)
 {
-	struct tda8261_config *config = state->config;
+	const struct tda8261_config *config = state->config;
 	int err = 0;
 	struct i2c_msg msg[] = {
 		{ .addr	= config->addr, .flags = 0,	  .buf = NULL, .len = 0 },
@@ -52,7 +52,7 @@ static int tda8261_read(struct tda8261_state *state, u8 *buf)
 
 static int tda8261_write(struct tda8261_state *state, u8 *buf)
 {
-	struct tda8261_config *config = state->config;
+	const struct tda8261_config *config = state->config;
 	int err = 0;
 	struct i2c_msg msg = { .addr = config->addr, .flags = 0, .buf = buf, .len = 4 };
 
@@ -111,7 +111,7 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 			     struct tuner_state *tstate)
 {
 	struct tda8261_state *state = fe->tuner_priv;
-	struct tda8261_config *config = state->config;
+	const struct tda8261_config *config = state->config;
 	u32 frequency, N, status = 0;
 	u8 buf[4];
 	int err = 0;
@@ -182,7 +182,7 @@ static struct dvb_tuner_ops tda8261_ops = {
 };
 
 struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
-				    struct tda8261_config *config,
+				    const struct tda8261_config *config,
 				    struct i2c_adapter *i2c)
 {
 	struct tda8261_state *state = NULL;
