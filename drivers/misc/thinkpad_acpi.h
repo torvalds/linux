@@ -233,22 +233,22 @@ struct ibm_init_struct {
 
 static struct {
 #ifdef CONFIG_THINKPAD_ACPI_BAY
-	u16 bay_status:1;
-	u16 bay_eject:1;
-	u16 bay_status2:1;
-	u16 bay_eject2:1;
+	u32 bay_status:1;
+	u32 bay_eject:1;
+	u32 bay_status2:1;
+	u32 bay_eject2:1;
 #endif
-	u16 bluetooth:1;
-	u16 hotkey:1;
-	u16 hotkey_mask:1;
-	u16 hotkey_wlsw:1;
-	u16 light:1;
-	u16 light_status:1;
-	u16 wan:1;
-	u16 fan_ctrl_status_undef:1;
-	u16 input_device_registered:1;
-	u16 platform_drv_registered:1;
-	u16 platform_drv_attrs_registered:1;
+	u32 bluetooth:1;
+	u32 hotkey:1;
+	u32 hotkey_mask:1;
+	u32 hotkey_wlsw:1;
+	u32 light:1;
+	u32 light_status:1;
+	u32 wan:1;
+	u32 fan_ctrl_status_undef:1;
+	u32 input_device_registered:1;
+	u32 platform_drv_registered:1;
+	u32 platform_drv_attrs_registered:1;
 } tp_features;
 
 struct thinkpad_id_data {
