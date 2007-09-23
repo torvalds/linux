@@ -2003,6 +2003,8 @@ static int ata_eh_followup_srst_needed(struct ata_link *link,
 		return 1;
 	if (rc != 0)
 		return 0;
+	if ((link->ap->flags & ATA_FLAG_PMP) && ata_is_host_link(link))
+		return 1;
 	if (classify && !(link->flags & ATA_LFLAG_ASSUME_CLASS) &&
 	    classes[0] == ATA_DEV_UNKNOWN)
 		return 1;
