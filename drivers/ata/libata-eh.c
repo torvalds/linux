@@ -2050,7 +2050,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	if (rc == -EAGAIN)
 		rc = 0;
 
-	if (rc && try < ARRAY_SIZE(ata_eh_reset_timeouts)) {
+	if (rc && rc != -ERESTART && try < ARRAY_SIZE(ata_eh_reset_timeouts)) {
 		unsigned long now = jiffies;
 
 		if (time_before(now, deadline)) {
