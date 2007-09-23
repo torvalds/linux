@@ -2846,7 +2846,7 @@ static int ata_dev_set_mode(struct ata_device *dev)
 	}
 
 	ehc->i.flags |= ATA_EHI_POST_SETMODE;
-	rc = ata_dev_revalidate(dev, 0);
+	rc = ata_dev_revalidate(dev, ATA_DEV_UNKNOWN, 0);
 	ehc->i.flags &= ~ATA_EHI_POST_SETMODE;
 	if (rc)
 		return rc;
@@ -3750,6 +3750,7 @@ int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
 /**
  *	ata_dev_revalidate - Revalidate ATA device
  *	@dev: device to revalidate
+ *	@new_class: new class code
  *	@readid_flags: read ID flags
  *
  *	Re-read IDENTIFY page, make sure @dev is still attached to the
@@ -3761,13 +3762,23 @@ int ata_dev_reread_id(struct ata_device *dev, unsigned int readid_flags)
  *	RETURNS:
  *	0 on success, negative errno otherwise
  */
-int ata_dev_revalidate(struct ata_device *dev, unsigned int readid_flags)
+int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
+		       unsigned int readid_flags)
 {
 	u64 n_sectors = dev->n_sectors;
 	int rc;
 
 	if (!ata_dev_enabled(dev))
 		return -ENODEV;
+
+	/* fail early if !ATA && !ATAPI to avoid issuing [P]IDENTIFY to PMP */
+	if (ata_class_enabled(new_class) &&
+	    new_class != ATA_DEV_ATA && new_class != ATA_DEV_ATAPI) {
+		ata_dev_printk(dev, KERN_INFO, "class mismatch %u != %u\n",
+			       dev->class, new_class);
+		rc = -ENODEV;
+		goto fail;
+	}
 
 	/* re-read ID */
 	rc = ata_dev_reread_id(dev, readid_flags);

@@ -2104,7 +2104,8 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 			}
 
 			ata_eh_about_to_do(link, dev, ATA_EH_REVALIDATE);
-			rc = ata_dev_revalidate(dev, readid_flags);
+			rc = ata_dev_revalidate(dev, ehc->classes[dev->devno],
+						readid_flags);
 			if (rc)
 				goto err;
 
