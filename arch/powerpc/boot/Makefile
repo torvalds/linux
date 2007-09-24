@@ -33,6 +33,7 @@ BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
 
 $(obj)/4xx.o: BOOTCFLAGS += -mcpu=440
 $(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
+$(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
 
 zlib       := inffast.c inflate.c inftrees.c
 zlibheader := inffast.h inffixed.h inflate.h inftrees.h infutil.h
