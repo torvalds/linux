@@ -39,11 +39,6 @@ static unsigned int rx_ring_size __read_mostly = 16;
 module_param(tx_ring_size, uint, 0);
 module_param(rx_ring_size, uint, 0);
 
-static const char version[] = KERN_INFO "adm8211: "
-"Copyright 2003, Jouni Malinen <j@w1.fi>; "
-"Copyright 2004-2007, Michael Wu <flamingice@sourmilk.net>\n";
-
-
 static struct pci_device_id adm8211_pci_id_table[] __devinitdata = {
 	/* ADMtek ADM8211 */
 	{ PCI_DEVICE(0x10B7, 0x6000) }, /* 3Com 3CRSHPW796 */
@@ -1794,12 +1789,6 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	u8 perm_addr[ETH_ALEN];
 	DECLARE_MAC_BUF(mac);
 
-#ifndef MODULE
-	static unsigned int cardidx;
-	if (!cardidx++)
-		printk(version);
-#endif
-
 	err = pci_enable_device(pdev);
 	if (err) {
 		printk(KERN_ERR "%s (adm8211): Cannot enable new PCI device\n",
@@ -2051,10 +2040,6 @@ static struct pci_driver adm8211_driver = {
 
 static int __init adm8211_init(void)
 {
-#ifdef MODULE
-	printk(version);
-#endif
-
 	return pci_register_driver(&adm8211_driver);
 }
 
