@@ -395,10 +395,9 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 				       unsigned long bitmap)
 {
-	int vcpu_id;
 	int last;
 	int next;
-	struct kvm_lapic *apic;
+	struct kvm_lapic *apic = NULL;
 
 	last = kvm->round_robin_prev_vcpu;
 	next = last;
@@ -415,14 +414,8 @@ struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 	} while (next != last);
 	kvm->round_robin_prev_vcpu = next;
 
-	if (!apic) {
-		vcpu_id = ffs(bitmap) - 1;
-		if (vcpu_id < 0) {
-			vcpu_id = 0;
-			printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
-		}
-		apic = kvm->vcpus[vcpu_id]->apic;
-	}
+	if (!apic)
+		printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
 
 	return apic;
 }
