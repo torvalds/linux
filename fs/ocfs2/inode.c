@@ -49,7 +49,6 @@
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
-#include "vote.h"
 
 #include "buffer_head_io.h"
 
@@ -718,8 +717,8 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	}
 
 	/* we do this while holding the orphan dir lock because we
-	 * don't want recovery being run from another node to vote for
-	 * an inode delete on us -- this will result in two nodes
+	 * don't want recovery being run from another node to try an
+	 * inode delete underneath us -- this will result in two nodes
 	 * truncating the same file! */
 	status = ocfs2_truncate_for_delete(osb, inode, di_bh);
 	if (status < 0) {
@@ -744,7 +743,7 @@ bail:
 }
 
 /* There is a series of simple checks that should be done before a
- * vote is even considered. Encapsulate those in this function. */
+ * trylock is even considered. Encapsulate those in this function. */
 static int ocfs2_inode_is_valid_to_delete(struct inode *inode)
 {
 	int ret = 0;
@@ -758,14 +757,14 @@ static int ocfs2_inode_is_valid_to_delete(struct inode *inode)
 		goto bail;
 	}
 
-	/* If we're coming from process_vote we can't go into our own
+	/* If we're coming from downconvert_thread we can't go into our own
 	 * voting [hello, deadlock city!], so unforuntately we just
 	 * have to skip deleting this guy. That's OK though because
 	 * the node who's doing the actual deleting should handle it
 	 * anyway. */
-	if (current == osb->vote_task) {
+	if (current == osb->dc_task) {
 		mlog(0, "Skipping delete of %lu because we're currently "
-		     "in process_vote\n", inode->i_ino);
+		     "in downconvert\n", inode->i_ino);
 		goto bail;
 	}
 
@@ -779,10 +778,9 @@ static int ocfs2_inode_is_valid_to_delete(struct inode *inode)
 		goto bail_unlock;
 	}
 
-	/* If we have voted "yes" on the wipe of this inode for
-	 * another node, it will be marked here so we can safely skip
-	 * it. Recovery will cleanup any inodes we might inadvertantly
-	 * skip here. */
+	/* If we have allowd wipe of this inode for another node, it
+	 * will be marked here so we can safely skip it. Recovery will
+	 * cleanup any inodes we might inadvertantly skip here. */
 	if (oi->ip_flags & OCFS2_INODE_SKIP_DELETE) {
 		mlog(0, "Skipping delete of %lu because another node "
 		     "has done this for us.\n", inode->i_ino);
@@ -929,7 +927,7 @@ void ocfs2_delete_inode(struct inode *inode)
 
 	/* Lock down the inode. This gives us an up to date view of
 	 * it's metadata (for verification), and allows us to
-	 * serialize delete_inode votes. 
+	 * serialize delete_inode on multiple nodes.
 	 *
 	 * Even though we might be doing a truncate, we don't take the
 	 * allocation lock here as it won't be needed - nobody will
@@ -947,15 +945,15 @@ void ocfs2_delete_inode(struct inode *inode)
 	 * before we go ahead and wipe the inode. */
 	status = ocfs2_query_inode_wipe(inode, di_bh, &wipe);
 	if (!wipe || status < 0) {
-		/* Error and inode busy vote both mean we won't be
+		/* Error and remote inode busy both mean we won't be
 		 * removing the inode, so they take almost the same
 		 * path. */
 		if (status < 0)
 			mlog_errno(status);
 
-		/* Someone in the cluster has voted to not wipe this
-		 * inode, or it was never completely orphaned. Write
-		 * out the pages and exit now. */
+		/* Someone in the cluster has disallowed a wipe of
+		 * this inode, or it was never completely
+		 * orphaned. Write out the pages and exit now. */
 		ocfs2_cleanup_delete_inode(inode, 1);
 		goto bail_unlock_inode;
 	}
@@ -1008,12 +1006,12 @@ void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
 			"Inode=%lu\n", inode->i_ino);
 
-	/* For remove delete_inode vote, we hold open lock before,
-	 * now it is time to unlock PR and EX open locks. */
+	/* To preven remote deletes we hold open lock before, now it
+	 * is time to unlock PR and EX open locks. */
 	ocfs2_open_unlock(inode);
 
 	/* Do these before all the other work so that we don't bounce
-	 * the vote thread while waiting to destroy the locks. */
+	 * the downconvert thread while waiting to destroy the locks. */
 	ocfs2_mark_lockres_freeing(&oi->ip_rw_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_meta_lockres);
 	ocfs2_mark_lockres_freeing(&oi->ip_data_lockres);

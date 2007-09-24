@@ -60,7 +60,6 @@
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
-#include "vote.h"
 
 #include "buffer_head_io.h"
 
@@ -176,7 +175,7 @@ bail_unlock:
 	/* Don't drop the cluster lock until *after* the d_add --
 	 * unlink on another node will message us to remove that
 	 * dentry under this lock so otherwise we can race this with
-	 * the vote thread and have a stale dentry. */
+	 * the downconvert thread and have a stale dentry. */
 	ocfs2_meta_unlock(dir, 0);
 
 bail:
@@ -765,7 +764,7 @@ static int ocfs2_unlink(struct inode *dir,
 
 	status = ocfs2_remote_dentry_delete(dentry);
 	if (status < 0) {
-		/* This vote should succeed under all normal
+		/* This remote delete should succeed under all normal
 		 * circumstances. */
 		mlog_errno(status);
 		goto leave;
@@ -1031,8 +1030,9 @@ static int ocfs2_rename(struct inode *old_dir,
 
 	/*
 	 * Aside from allowing a meta data update, the locking here
-	 * also ensures that the vote thread on other nodes won't have
-	 * to concurrently downconvert the inode and the dentry locks.
+	 * also ensures that the downconvert thread on other nodes
+	 * won't have to concurrently downconvert the inode and the
+	 * dentry locks.
 	 */
 	status = ocfs2_meta_lock(old_inode, &old_inode_bh, 1);
 	if (status < 0) {

@@ -44,7 +44,6 @@
 #include "localalloc.h"
 #include "slot_map.h"
 #include "super.h"
-#include "vote.h"
 #include "sysfile.h"
 
 #include "buffer_head_io.h"
@@ -103,7 +102,7 @@ static int ocfs2_commit_cache(struct ocfs2_super *osb)
 	mlog(0, "commit_thread: flushed transaction %lu (%u handles)\n",
 	     journal->j_trans_id, flushed);
 
-	ocfs2_kick_vote_thread(osb);
+	ocfs2_wake_downconvert_thread(osb);
 	wake_up(&journal->j_checkpointed);
 finally:
 	mlog_exit(status);
@@ -883,8 +882,8 @@ restart:
 	ocfs2_super_unlock(osb, 1);
 
 	/* We always run recovery on our own orphan dir - the dead
-	 * node(s) may have voted "no" on an inode delete earlier. A
-	 * revote is therefore required. */
+	 * node(s) may have disallowd a previos inode delete. Re-processing
+	 * is therefore required. */
 	ocfs2_queue_recovery_completion(osb->journal, osb->slot_num, NULL,
 					NULL);
 
@@ -1380,10 +1379,10 @@ static int ocfs2_recover_orphans(struct ocfs2_super *osb,
 		iter = oi->ip_next_orphan;
 
 		spin_lock(&oi->ip_lock);
-		/* Delete voting may have set these on the assumption
-		 * that the other node would wipe them successfully.
-		 * If they are still in the node's orphan dir, we need
-		 * to reset that state. */
+		/* The remote delete code may have set these on the
+		 * assumption that the other node would wipe them
+		 * successfully.  If they are still in the node's
+		 * orphan dir, we need to reset that state. */
 		oi->ip_flags &= ~(OCFS2_INODE_DELETED|OCFS2_INODE_SKIP_DELETE);
 
 		/* Set the proper information to get us going into

@@ -65,7 +65,6 @@
 #include "sysfile.h"
 #include "uptodate.h"
 #include "ver.h"
-#include "vote.h"
 
 #include "buffer_head_io.h"
 
@@ -1123,13 +1122,6 @@ static int ocfs2_mount_volume(struct super_block *sb)
 		goto leave;
 	}
 
-	/* requires vote_thread to be running. */
-	status = ocfs2_register_net_handlers(osb);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	status = ocfs2_super_lock(osb, 1);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1143,8 +1135,6 @@ static int ocfs2_mount_volume(struct super_block *sb)
 		mlog_errno(status);
 		goto leave;
 	}
-
-	ocfs2_populate_mounted_map(osb);
 
 	/* load all node-local system inodes */
 	status = ocfs2_init_local_system_inodes(osb);
@@ -1167,15 +1157,6 @@ static int ocfs2_mount_volume(struct super_block *sb)
 
 	if (ocfs2_mount_local(osb))
 		goto leave;
-
-	/* This should be sent *after* we recovered our journal as it
-	 * will cause other nodes to unmark us as needing
-	 * recovery. However, we need to send it *before* dropping the
-	 * super block lock as otherwise their recovery threads might
-	 * try to clean us up while we're live! */
-	status = ocfs2_request_mount_vote(osb);
-	if (status < 0)
-		mlog_errno(status);
 
 leave:
 	if (unlock_super)
@@ -1234,10 +1215,6 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 			mlog_errno(tmp);
 			return;
 		}
-
-		tmp = ocfs2_request_umount_vote(osb);
-		if (tmp < 0)
-			mlog_errno(tmp);
 	}
 
 	if (osb->slot_num != OCFS2_INVALID_SLOT)
@@ -1248,11 +1225,8 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	ocfs2_release_system_inodes(osb);
 
-	if (osb->dlm) {
-		ocfs2_unregister_net_handlers(osb);
-
+	if (osb->dlm)
 		ocfs2_dlm_shutdown(osb);
-	}
 
 	debugfs_remove(osb->osb_debug_root);
 
@@ -1336,19 +1310,13 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	osb->s_sectsize_bits = blksize_bits(sector_size);
 	BUG_ON(!osb->s_sectsize_bits);
 
-	osb->net_response_ids = 0;
-	spin_lock_init(&osb->net_response_lock);
-	INIT_LIST_HEAD(&osb->net_response_list);
-
-	INIT_LIST_HEAD(&osb->osb_net_handlers);
 	init_waitqueue_head(&osb->recovery_event);
-	spin_lock_init(&osb->vote_task_lock);
-	init_waitqueue_head(&osb->vote_event);
-	osb->vote_work_sequence = 0;
-	osb->vote_wake_sequence = 0;
+	spin_lock_init(&osb->dc_task_lock);
+	init_waitqueue_head(&osb->dc_event);
+	osb->dc_work_sequence = 0;
+	osb->dc_wake_sequence = 0;
 	INIT_LIST_HEAD(&osb->blocked_lock_list);
 	osb->blocked_lock_count = 0;
-	INIT_LIST_HEAD(&osb->vote_list);
 	spin_lock_init(&osb->osb_lock);
 
 	atomic_set(&osb->alloc_stats.moves, 0);
@@ -1488,7 +1456,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 
 	memcpy(&uuid_net_key, di->id2.i_super.s_uuid, sizeof(uuid_net_key));
-	osb->net_key = le32_to_cpu(uuid_net_key);
 
 	strncpy(osb->vol_label, di->id2.i_super.s_label, 63);
 	osb->vol_label[63] = '\0';

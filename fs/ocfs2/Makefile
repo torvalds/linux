@@ -27,8 +27,7 @@ ocfs2-objs := \
 	symlink.o 		\
 	sysfile.o 		\
 	uptodate.o		\
-	ver.o 			\
-	vote.o
+	ver.o
 
 obj-$(CONFIG_OCFS2_FS) += cluster/
 obj-$(CONFIG_OCFS2_FS) += dlm/

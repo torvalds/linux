@@ -189,9 +189,7 @@ struct ocfs2_super
 	struct ocfs2_slot_info *slot_info;
 
 	spinlock_t node_map_lock;
-	struct ocfs2_node_map mounted_map;
 	struct ocfs2_node_map recovery_map;
-	struct ocfs2_node_map umount_map;
 
 	u64 root_blkno;
 	u64 system_dir_blkno;
@@ -254,27 +252,14 @@ struct ocfs2_super
 
 	wait_queue_head_t recovery_event;
 
-	spinlock_t vote_task_lock;
-	struct task_struct *vote_task;
-	wait_queue_head_t vote_event;
-	unsigned long vote_wake_sequence;
-	unsigned long vote_work_sequence;
+	spinlock_t dc_task_lock;
+	struct task_struct *dc_task;
+	wait_queue_head_t dc_event;
+	unsigned long dc_wake_sequence;
+	unsigned long dc_work_sequence;
 
 	struct list_head blocked_lock_list;
 	unsigned long blocked_lock_count;
-
-	struct list_head vote_list;
-	int vote_count;
-
-	u32 net_key;
-	spinlock_t net_response_lock;
-	unsigned int net_response_ids;
-	struct list_head net_response_list;
-
-	struct o2hb_callback_func osb_hb_up;
-	struct o2hb_callback_func osb_hb_down;
-
-	struct list_head	osb_net_handlers;
 
 	wait_queue_head_t		osb_mount_event;
 

@@ -41,7 +41,6 @@
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
-#include "vote.h"
 
 #include "buffer_head_io.h"
 
@@ -58,9 +57,7 @@ static void __ocfs2_node_map_set(struct ocfs2_node_map *target,
 void ocfs2_init_node_maps(struct ocfs2_super *osb)
 {
 	spin_lock_init(&osb->node_map_lock);
-	ocfs2_node_map_init(&osb->mounted_map);
 	ocfs2_node_map_init(&osb->recovery_map);
-	ocfs2_node_map_init(&osb->umount_map);
 	ocfs2_node_map_init(&osb->osb_recovering_orphan_dirs);
 }
 
@@ -82,8 +79,6 @@ static void ocfs2_do_node_down(int node_num,
 	}
 
 	ocfs2_recovery_thread(osb, node_num);
-
-	ocfs2_remove_node_from_vote_queues(osb, node_num);
 }
 
 /* Called from the dlm when it's about to evict a node. We may also
@@ -267,8 +262,6 @@ int ocfs2_recovery_map_set(struct ocfs2_super *osb,
 	int set = 0;
 
 	spin_lock(&osb->node_map_lock);
-
-	__ocfs2_node_map_clear_bit(&osb->mounted_map, num);
 
 	if (!test_bit(num, osb->recovery_map.map)) {
 	    __ocfs2_node_map_set_bit(&osb->recovery_map, num);

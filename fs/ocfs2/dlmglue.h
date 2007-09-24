@@ -54,7 +54,7 @@ struct ocfs2_meta_lvb {
 #define OCFS2_META_LOCK_RECOVERY	(0x01)
 /* Instruct the dlm not to queue ourselves on the other node. */
 #define OCFS2_META_LOCK_NOQUEUE		(0x02)
-/* don't block waiting for the vote thread, instead return -EAGAIN */
+/* don't block waiting for the downconvert thread, instead return -EAGAIN */
 #define OCFS2_LOCK_NONBLOCK		(0x04)
 
 int ocfs2_dlm_init(struct ocfs2_super *osb);
@@ -112,9 +112,10 @@ void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres);
 void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
 			       struct ocfs2_lock_res *lockres);
 
-/* for the vote thread */
+/* for the downconvert thread */
 void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 				struct ocfs2_lock_res *lockres);
+void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb);
 
 struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);
 void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
