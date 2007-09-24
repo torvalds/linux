@@ -1251,7 +1251,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			u16 error_code,
 			int no_decode)
 {
-	int r = 0;
+	int r;
 
 	vcpu->mmio_fault_cr2 = cr2;
 	kvm_x86_ops->cache_regs(vcpu);
@@ -1294,10 +1294,14 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 					get_segment_base(vcpu, VCPU_SREG_FS);
 
 		r = x86_decode_insn(&vcpu->emulate_ctxt, &emulate_ops);
+		if (r)  {
+			if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
+				return EMULATE_DONE;
+			return EMULATE_FAIL;
+		}
 	}
 
-	if (r == 0)
-		r = x86_emulate_insn(&vcpu->emulate_ctxt, &emulate_ops);
+	r = x86_emulate_insn(&vcpu->emulate_ctxt, &emulate_ops);
 
 	if (vcpu->pio.string)
 		return EMULATE_DO_MMIO;
