@@ -12,8 +12,6 @@ obj-$(CONFIG_SH7705_CACHE_32KB)	+= cache-sh7705.o
 endif
 
 mmu-y			:= tlb-nommu.o pg-nommu.o
-mmu-$(CONFIG_CPU_SH3)	+= fault-nommu.o
-mmu-$(CONFIG_CPU_SH4)	+= fault-nommu.o
 mmu-$(CONFIG_MMU)	:= fault.o clear_page.o copy_page.o tlb-flush.o	\
 			   ioremap.o
 
