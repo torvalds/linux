@@ -1027,8 +1027,10 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 		sin = args->mount_server.address;
 	else
 		sin = args->nfs_server.address;
-	if (args->mount_server.port != 0)
-		sin.sin_port = htons(args->mount_server.port);
+	/*
+	 * autobind will be used if mount_server.port == 0
+	 */
+	sin.sin_port = htons(args->mount_server.port);
 
 	/*
 	 * Now ask the mount server to map our export path
