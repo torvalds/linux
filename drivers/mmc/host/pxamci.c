@@ -444,9 +444,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	mmc->max_seg_size = PAGE_SIZE;
 
 	/*
-	 * Block length register is 10 bits.
+	 * Block length register is only 10 bits before PXA27x.
 	 */
-	mmc->max_blk_size = 1023;
+	mmc->max_blk_size = (cpu_is_pxa21x() || cpu_is_pxa25x()) ? 1023 : 2048;
 
 	/*
 	 * Block count register is 16 bits.
