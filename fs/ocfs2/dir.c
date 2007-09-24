@@ -588,7 +588,7 @@ bail:
 static int ocfs2_dir_foreach_blk_id(struct inode *inode,
 				    unsigned long *f_version,
 				    loff_t *f_pos, void *priv,
-				    filldir_t filldir)
+				    filldir_t filldir, int *filldir_err)
 {
 	int ret, i, filldir_ret;
 	unsigned long offset = *f_pos;
@@ -659,8 +659,11 @@ revalidate:
 					      *f_pos,
 					      le64_to_cpu(de->inode),
 					      d_type);
-			if (filldir_ret)
+			if (filldir_ret) {
+				if (filldir_err)
+					*filldir_err = filldir_ret;
 				break;
+			}
 			if (version != *f_version)
 				goto revalidate;
 		}
@@ -676,7 +679,7 @@ out:
 static int ocfs2_dir_foreach_blk_el(struct inode *inode,
 				    unsigned long *f_version,
 				    loff_t *f_pos, void *priv,
-				    filldir_t filldir)
+				    filldir_t filldir, int *filldir_err)
 {
 	int error = 0;
 	unsigned long offset, blk, last_ra_blk = 0;
@@ -775,8 +778,11 @@ revalidate:
 						*f_pos,
 						le64_to_cpu(de->inode),
 						d_type);
-				if (error)
+				if (error) {
+					if (filldir_err)
+						*filldir_err = error;
 					break;
+				}
 				if (version != *f_version)
 					goto revalidate;
 				stored ++;
@@ -793,13 +799,15 @@ out:
 }
 
 static int ocfs2_dir_foreach_blk(struct inode *inode, unsigned long *f_version,
-				 loff_t *f_pos, void *priv, filldir_t filldir)
+				 loff_t *f_pos, void *priv, filldir_t filldir,
+				 int *filldir_err)
 {
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return ocfs2_dir_foreach_blk_id(inode, f_version, f_pos, priv,
-						filldir);
+						filldir, filldir_err);
 
-	return ocfs2_dir_foreach_blk_el(inode, f_version, f_pos, priv, filldir);
+	return ocfs2_dir_foreach_blk_el(inode, f_version, f_pos, priv, filldir,
+					filldir_err);
 }
 
 /*
@@ -809,15 +817,18 @@ static int ocfs2_dir_foreach_blk(struct inode *inode, unsigned long *f_version,
 int ocfs2_dir_foreach(struct inode *inode, loff_t *f_pos, void *priv,
 		      filldir_t filldir)
 {
-	int ret = 0;
+	int ret = 0, filldir_err = 0;
 	unsigned long version = inode->i_version;
 
 	while (*f_pos < i_size_read(inode)) {
 		ret = ocfs2_dir_foreach_blk(inode, &version, f_pos, priv,
-					    filldir);
-		if (ret)
+					    filldir, &filldir_err);
+		if (ret || filldir_err)
 			break;
 	}
+
+	if (ret > 0)
+		ret = -EIO;
 
 	return 0;
 }
@@ -852,7 +863,7 @@ int ocfs2_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	}
 
 	error = ocfs2_dir_foreach_blk(inode, &filp->f_version, &filp->f_pos,
-				      dirent, filldir);
+				      dirent, filldir, NULL);
 
 	ocfs2_meta_unlock(inode, lock_level);
 
