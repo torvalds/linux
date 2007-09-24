@@ -666,11 +666,6 @@ static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
 	dentry->d_time = verf;
 }
 
-static void nfs_refresh_verifier(struct dentry * dentry, unsigned long verf)
-{
-	nfs_set_verifier(dentry, verf);
-}
-
 /*
  * Return the intent data that applies to this particular path component
  *
@@ -794,7 +789,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if ((error = nfs_refresh_inode(inode, &fattr)) != 0)
 		goto out_bad;
 
-	nfs_refresh_verifier(dentry, verifier);
+	nfs_set_verifier(dentry, verifier);
  out_valid:
 	unlock_kernel();
 	dput(parent);
@@ -1093,7 +1088,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	verifier = nfs_save_change_attribute(dir);
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
 	if (!ret)
-		nfs_refresh_verifier(dentry, verifier);
+		nfs_set_verifier(dentry, verifier);
 	unlock_kernel();
 out:
 	dput(parent);
@@ -1169,10 +1164,8 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		dentry = alias;
 	}
 
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
-	return dentry;
 out_renew:
-	nfs_refresh_verifier(dentry, nfs_save_change_attribute(dir));
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	return dentry;
 }
 
@@ -1695,7 +1688,8 @@ out:
 		d_rehash(rehash);
 	if (!error) {
 		d_move(old_dentry, new_dentry);
-		nfs_refresh_verifier(new_dentry, nfs_save_change_attribute(new_dir));
+		nfs_set_verifier(new_dentry,
+					nfs_save_change_attribute(new_dir));
 	}
 
 	/* new dentry created? */
