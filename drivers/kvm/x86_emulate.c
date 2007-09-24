@@ -1629,6 +1629,7 @@ twobyte_insn:
 		break;
 	case 0xa3:
 	      bt:		/* bt */
+		c->dst.type = OP_NONE;
 		/* only subword offset */
 		c->src.val &= (c->dst.bytes << 3) - 1;
 		emulate_2op_SrcV_nobyte("bt", c->src, c->dst, ctxt->eflags);
