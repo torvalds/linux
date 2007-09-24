@@ -37,14 +37,15 @@ struct tda8261_state {
 
 static int tda8261_read(struct tda8261_state *state, u8 *buf)
 {
+	struct dvb_frontend *fe = state->fe;
 	const struct tda8261_config *config = state->config;
 	int err = 0;
-	struct i2c_msg msg[] = {
-		{ .addr	= config->addr, .flags = 0,	  .buf = NULL, .len = 0 },
-		{ .addr	= config->addr, .flags = I2C_M_RD,.buf = buf,  .len = 1 }
-	};
+	struct i2c_msg msg = { .addr	= config->addr, .flags = I2C_M_RD,.buf = buf,  .len = 2 };
 
-	if ((err = i2c_transfer(state->i2c, msg, 2)) != 2)
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
+	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1)
 		printk("%s: read error, err=%d\n", __func__, err);
 
 	return err;
@@ -52,12 +53,16 @@ static int tda8261_read(struct tda8261_state *state, u8 *buf)
 
 static int tda8261_write(struct tda8261_state *state, u8 *buf)
 {
+	struct dvb_frontend *fe = state->fe;
 	const struct tda8261_config *config = state->config;
 	int err = 0;
 	struct i2c_msg msg = { .addr = config->addr, .flags = 0, .buf = buf, .len = 4 };
 
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
+
 	if ((err = i2c_transfer(state->i2c, &msg, 1)) != 1)
-		printk("%s: read error, err=%d\n", __func__, err);
+		printk("%s: write error, err=%d\n", __func__, err);
 
 	return err;
 }
@@ -124,20 +129,21 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 		 */
 		frequency = tstate->frequency;
 		N = (frequency + (div_tab[config->step_size] - 1)) / div_tab[config->step_size];
+		printk("%s: Step size=%d, Divider=%d, PG=0x%02x (%d)\n",
+			__func__, config->step_size, div_tab[config->step_size], N, N);
+
 		buf[0] = (N >> 8) & 0xff;
 		buf[1] = N & 0xff;
-		buf[2] = (0x08 << 4) | ((ref_div[config->step_size] & 0x07) << 1);
+		buf[2] = (0x01 << 7) | ((ref_div[config->step_size] & 0x07) << 1);
 		buf[3] = 0xc0;
 		/* Set params */
-		printk("%s: Frequency=%d, Sending[ %02x %02x %02x %02x ]\n",
-			__func__, frequency, buf[0], buf[1], buf[2], buf[3]);
-
 		if ((err = tda8261_write(state, buf)) < 0) {
 			printk("%s: I/O Error\n", __func__);
 			return err;
 		}
 		/* sleep for some time */
-		msleep(100);
+		printk("%s: Waiting to Phase LOCK\n", __func__);
+		msleep(20);
 		/* check status */
 		if ((err = tda8261_get_status(fe, &status)) < 0) {
 			printk("%s: I/O Error\n", __func__);
@@ -145,7 +151,7 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 		}
 		if (status == 1) {
 			printk("%s: Tuner Phase locked: status=%d\n", __func__, status);
-			state->frequency = frequency; /* cache last successful */
+			state->frequency = frequency; /* cache successful state */
 		} else {
 			printk("%s: No Phase lock: status=%d\n", __func__, status);
 		}
@@ -202,7 +208,6 @@ struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
 //	printk("%s: Attaching %s TDA8261 8PSK/QPSK tuner\n",
 //		__func__, fe->ops.tuner_ops.tuner_name);
 	printk("%s: Attaching TDA8261 8PSK/QPSK tuner\n", __func__);
-
 
 	return fe;
 
