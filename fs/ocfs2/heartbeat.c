@@ -30,9 +30,6 @@
 #include <linux/highmem.h>
 #include <linux/kmod.h>
 
-#include <cluster/heartbeat.h>
-#include <cluster/nodemanager.h>
-
 #include <dlm/dlmapi.h>
 
 #define MLOG_MASK_PREFIX ML_SUPER
@@ -47,9 +44,6 @@
 #include "vote.h"
 
 #include "buffer_head_io.h"
-
-#define OCFS2_HB_NODE_DOWN_PRI     (0x0000002)
-#define OCFS2_HB_NODE_UP_PRI	   OCFS2_HB_NODE_DOWN_PRI
 
 static inline void __ocfs2_node_map_set_bit(struct ocfs2_node_map *map,
 					    int bit);
@@ -87,24 +81,9 @@ static void ocfs2_do_node_down(int node_num,
 		return;
 	}
 
-	if (ocfs2_node_map_test_bit(osb, &osb->umount_map, node_num)) {
-		/* If a node is in the umount map, then we've been
-		 * expecting him to go down and we know ahead of time
-		 * that recovery is not necessary. */
-		ocfs2_node_map_clear_bit(osb, &osb->umount_map, node_num);
-		return;
-	}
-
 	ocfs2_recovery_thread(osb, node_num);
 
 	ocfs2_remove_node_from_vote_queues(osb, node_num);
-}
-
-static void ocfs2_hb_node_down_cb(struct o2nm_node *node,
-				  int node_num,
-				  void *data)
-{
-	ocfs2_do_node_down(node_num, (struct ocfs2_super *) data);
 }
 
 /* Called from the dlm when it's about to evict a node. We may also
@@ -121,65 +100,13 @@ static void ocfs2_dlm_eviction_cb(int node_num,
 	ocfs2_do_node_down(node_num, osb);
 }
 
-static void ocfs2_hb_node_up_cb(struct o2nm_node *node,
-				int node_num,
-				void *data)
-{
-	struct ocfs2_super *osb = data;
-
-	BUG_ON(osb->node_num == node_num);
-
-	mlog(0, "node up event for %d\n", node_num);
-	ocfs2_node_map_clear_bit(osb, &osb->umount_map, node_num);
-}
-
 void ocfs2_setup_hb_callbacks(struct ocfs2_super *osb)
 {
-	o2hb_setup_callback(&osb->osb_hb_down, O2HB_NODE_DOWN_CB,
-			    ocfs2_hb_node_down_cb, osb,
-			    OCFS2_HB_NODE_DOWN_PRI);
-
-	o2hb_setup_callback(&osb->osb_hb_up, O2HB_NODE_UP_CB,
-			    ocfs2_hb_node_up_cb, osb, OCFS2_HB_NODE_UP_PRI);
-
 	/* Not exactly a heartbeat callback, but leads to essentially
 	 * the same path so we set it up here. */
 	dlm_setup_eviction_cb(&osb->osb_eviction_cb,
 			      ocfs2_dlm_eviction_cb,
 			      osb);
-}
-
-/* Most functions here are just stubs for now... */
-int ocfs2_register_hb_callbacks(struct ocfs2_super *osb)
-{
-	int status;
-
-	if (ocfs2_mount_local(osb))
-		return 0;
-
-	status = o2hb_register_callback(osb->uuid_str, &osb->osb_hb_down);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	status = o2hb_register_callback(osb->uuid_str, &osb->osb_hb_up);
-	if (status < 0) {
-		mlog_errno(status);
-		o2hb_unregister_callback(osb->uuid_str, &osb->osb_hb_down);
-	}
-
-bail:
-	return status;
-}
-
-void ocfs2_clear_hb_callbacks(struct ocfs2_super *osb)
-{
-	if (ocfs2_mount_local(osb))
-		return;
-
-	o2hb_unregister_callback(osb->uuid_str, &osb->osb_hb_down);
-	o2hb_unregister_callback(osb->uuid_str, &osb->osb_hb_up);
 }
 
 void ocfs2_stop_heartbeat(struct ocfs2_super *osb)

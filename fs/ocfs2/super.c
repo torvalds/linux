@@ -1117,12 +1117,6 @@ static int ocfs2_mount_volume(struct super_block *sb)
 		goto leave;
 	}
 
-	status = ocfs2_register_hb_callbacks(osb);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	status = ocfs2_dlm_init(osb);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1259,8 +1253,6 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 		ocfs2_dlm_shutdown(osb);
 	}
-
-	ocfs2_clear_hb_callbacks(osb);
 
 	debugfs_remove(osb->osb_debug_root);
 
