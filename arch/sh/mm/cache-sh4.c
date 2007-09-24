@@ -2,7 +2,7 @@
  * arch/sh/mm/cache-sh4.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2001 - 2006  Paul Mundt
+ * Copyright (C) 2001 - 2007  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -44,7 +44,7 @@ static void (*__flush_dcache_segment_fn)(unsigned long, unsigned long) =
 static void compute_alias(struct cache_info *c)
 {
 	c->alias_mask = ((c->sets - 1) << c->entry_shift) & ~(PAGE_SIZE - 1);
-	c->n_aliases = (c->alias_mask >> PAGE_SHIFT) + 1;
+	c->n_aliases = c->alias_mask ? (c->alias_mask >> PAGE_SHIFT) + 1 : 0;
 }
 
 static void __init emit_cache_params(void)
