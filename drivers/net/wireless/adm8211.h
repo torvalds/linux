@@ -416,7 +416,7 @@ struct adm8211_desc {
 #define TDES1_CONTROL_RBS1	(0x00000fff)
 
 /* SRAM offsets */
-#define ADM8211_SRAM(x) (priv->revid < ADM8211_REV_BA ? \
+#define ADM8211_SRAM(x) (priv->pdev->revision < ADM8211_REV_BA ? \
         ADM8211_SRAM_A_ ## x : ADM8211_SRAM_B_ ## x)
 
 #define ADM8211_SRAM_INDIV_KEY   0x0000
@@ -622,8 +622,6 @@ struct adm8211_priv {
 	u8 lnags_threshold;
 	struct adm8211_eeprom *eeprom;
 	size_t eeprom_len;
-
-	u8 revid;
 
 	u32 nar;
 
