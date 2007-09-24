@@ -458,51 +458,45 @@ do {									   \
 
 	struct ieee80211_hw *dev = dev_id;
 	struct adm8211_priv *priv = dev->priv;
-	unsigned int count = 0;
-	u32 stsr;
+	u32 stsr = ADM8211_CSR_READ(STSR);
+	ADM8211_CSR_WRITE(STSR, stsr);
+	if (stsr == 0xffffffff)
+		return IRQ_HANDLED;
 
-	do {
-		stsr = ADM8211_CSR_READ(STSR);
-		ADM8211_CSR_WRITE(STSR, stsr);
-		if (stsr == 0xffffffff)
-			return IRQ_HANDLED;
+	if (!(stsr & (ADM8211_STSR_NISS | ADM8211_STSR_AISS)))
+		return IRQ_HANDLED;
 
-		if (!(stsr & (ADM8211_STSR_NISS | ADM8211_STSR_AISS)))
-			break;
+	if (stsr & ADM8211_STSR_RCI)
+		adm8211_interrupt_rci(dev);
+	if (stsr & ADM8211_STSR_TCI)
+		adm8211_interrupt_tci(dev);
 
-		if (stsr & ADM8211_STSR_RCI)
-			adm8211_interrupt_rci(dev);
-		if (stsr & ADM8211_STSR_TCI)
-			adm8211_interrupt_tci(dev);
+	/*ADM8211_INT(LinkOn);*/
+	/*ADM8211_INT(LinkOff);*/
 
-		/*ADM8211_INT(LinkOn);*/
-		/*ADM8211_INT(LinkOff);*/
+	ADM8211_INT(PCF);
+	ADM8211_INT(BCNTC);
+	ADM8211_INT(GPINT);
+	ADM8211_INT(ATIMTC);
+	ADM8211_INT(TSFTF);
+	ADM8211_INT(TSCZ);
+	ADM8211_INT(SQL);
+	ADM8211_INT(WEPTD);
+	ADM8211_INT(ATIME);
+	/*ADM8211_INT(TBTT);*/
+	ADM8211_INT(TEIS);
+	ADM8211_INT(FBE);
+	ADM8211_INT(REIS);
+	ADM8211_INT(GPTT);
+	ADM8211_INT(RPS);
+	ADM8211_INT(RDU);
+	ADM8211_INT(TUF);
+	/*ADM8211_INT(TRT);*/
+	/*ADM8211_INT(TLT);*/
+	/*ADM8211_INT(TDU);*/
+	ADM8211_INT(TPS);
 
-		ADM8211_INT(PCF);
-		ADM8211_INT(BCNTC);
-		ADM8211_INT(GPINT);
-		ADM8211_INT(ATIMTC);
-		ADM8211_INT(TSFTF);
-		ADM8211_INT(TSCZ);
-		ADM8211_INT(SQL);
-		ADM8211_INT(WEPTD);
-		ADM8211_INT(ATIME);
-		/*ADM8211_INT(TBTT);*/
-		ADM8211_INT(TEIS);
-		ADM8211_INT(FBE);
-		ADM8211_INT(REIS);
-		ADM8211_INT(GPTT);
-		ADM8211_INT(RPS);
-		ADM8211_INT(RDU);
-		ADM8211_INT(TUF);
-		/*ADM8211_INT(TRT);*/
-		/*ADM8211_INT(TLT);*/
-		/*ADM8211_INT(TDU);*/
-		ADM8211_INT(TPS);
-
-	} while (count++ < 20);
-
-	return IRQ_RETVAL(count);
+	return IRQ_HANDLED;
 
 #undef ADM8211_INT
 }
