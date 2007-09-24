@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>
+#include <linux/leds.h>
 #include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
@@ -92,6 +93,8 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 		cmd->error = 0;
 		host->ops->request(host, mrq);
 	} else {
+		led_trigger_event(host->led, LED_OFF);
+
 		pr_debug("%s: req done (CMD%u): %d: %08x %08x %08x %08x\n",
 			mmc_hostname(host), cmd->opcode, err,
 			cmd->resp[0], cmd->resp[1],
@@ -145,6 +148,8 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	}
 
 	WARN_ON(!host->claimed);
+
+	led_trigger_event(host->led, LED_FULL);
 
 	mrq->cmd->error = 0;
 	mrq->cmd->mrq = mrq;

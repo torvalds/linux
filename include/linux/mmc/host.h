@@ -10,6 +10,8 @@
 #ifndef LINUX_MMC_HOST_H
 #define LINUX_MMC_HOST_H
 
+#include <linux/leds.h>
+
 #include <linux/mmc/core.h>
 
 struct mmc_ios {
@@ -132,6 +134,10 @@ struct mmc_host {
 	unsigned int		sdio_irqs;
 	struct task_struct	*sdio_irq_thread;
 	atomic_t		sdio_irq_thread_abort;
+
+#ifdef CONFIG_LEDS_TRIGGERS
+	struct led_trigger	*led;		/* activity led */
+#endif
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
