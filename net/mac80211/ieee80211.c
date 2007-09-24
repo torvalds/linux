@@ -678,7 +678,7 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 	       local->hw.conf.phymode);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
-	if (local->ops->config)
+	if (local->open_count)
 		ret = local->ops->config(local_to_hw(local), &local->hw.conf);
 
 	return ret;
