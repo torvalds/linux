@@ -70,6 +70,20 @@ static void __init emit_cache_params(void)
 		boot_cpu_data.dcache.alias_mask,
 		boot_cpu_data.dcache.n_aliases);
 
+	/*
+	 * Emit Secondary Cache parameters if the CPU has a probed L2.
+	 */
+	if (boot_cpu_data.flags & CPU_HAS_L2_CACHE) {
+		printk("S-cache : n_ways=%d n_sets=%d way_incr=%d\n",
+			boot_cpu_data.scache.ways,
+			boot_cpu_data.scache.sets,
+			boot_cpu_data.scache.way_incr);
+		printk("S-cache : entry_mask=0x%08x alias_mask=0x%08x n_aliases=%d\n",
+			boot_cpu_data.scache.entry_mask,
+			boot_cpu_data.scache.alias_mask,
+			boot_cpu_data.scache.n_aliases);
+	}
+
 	if (!__flush_dcache_segment_fn)
 		panic("unknown number of cache ways\n");
 }
@@ -81,6 +95,7 @@ void __init p3_cache_init(void)
 {
 	compute_alias(&boot_cpu_data.icache);
 	compute_alias(&boot_cpu_data.dcache);
+	compute_alias(&boot_cpu_data.scache);
 
 	switch (boot_cpu_data.dcache.ways) {
 	case 1:
