@@ -1283,8 +1283,7 @@ static void adm8211_set_bssid(struct ieee80211_hw *dev, const u8 *bssid)
 	struct adm8211_priv *priv = dev->priv;
 	u32 reg;
 
-	reg = bssid[0] | (bssid[1] << 8) | (bssid[2] << 16) | (bssid[3] << 24);
-	ADM8211_CSR_WRITE(BSSID0, reg);
+	ADM8211_CSR_WRITE(BSSID0, le32_to_cpu(*(__le32 *)bssid));
 	reg = ADM8211_CSR_READ(ABDA1);
 	reg &= 0x0000ffff;
 	reg |= (bssid[4] << 16) | (bssid[5] << 24);
@@ -1414,8 +1413,8 @@ static int adm8211_add_interface(struct ieee80211_hw *dev,
 
 	ADM8211_IDLE();
 
-	ADM8211_CSR_WRITE(PAR0, *(u32 *)conf->mac_addr);
-	ADM8211_CSR_WRITE(PAR1, *(u16 *)(conf->mac_addr + 4));
+	ADM8211_CSR_WRITE(PAR0, le32_to_cpu(*(__le32 *)conf->mac_addr));
+	ADM8211_CSR_WRITE(PAR1, le16_to_cpu(*(__le16 *)(conf->mac_addr + 4)));
 
 	adm8211_update_mode(dev);
 
