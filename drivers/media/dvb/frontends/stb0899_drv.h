@@ -44,12 +44,20 @@ struct stb0899_s2_reg {
 	u32	data;
 };
 
+enum stb0899_inversion {
+	IQ_SWAP_OFF	= 0,
+	IQ_SWAP_ON,
+	IQ_SWAP_AUTO
+};
+
 struct stb0899_config {
 	const struct stb0899_s1_reg	*init_dev;
 	const struct stb0899_s2_reg	*init_s2_demod;
 	const struct stb0899_s1_reg	*init_s1_demod;
 	const struct stb0899_s2_reg	*init_s2_fec;
 	const struct stb0899_s1_reg	*init_tst;
+
+	enum stb0899_inversion		inversion;
 
 	u32	xtal_freq;
 
@@ -65,7 +73,7 @@ struct stb0899_config {
 	u8	data_fifo_mode;
 	u8	out_rate_comp;
 	u8	i2c_repeater;
-	int	inversion;
+//	int	inversion;
 
 	u32	esno_ave;
 	u32	esno_quant;

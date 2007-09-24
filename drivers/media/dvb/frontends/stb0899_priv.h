@@ -137,12 +137,6 @@ enum stb0899_frame {
 	STB0899_SHORT_FRAME
 };
 
-enum stb0899_inversion {
-	IQ_SWAP_OFF	= 0,
-	IQ_SWAP_ON,
-	IQ_SWAP_AUTO
-};
-
 enum stb0899_alpha {
 	RRC_20,
 	RRC_25,
