@@ -8,7 +8,7 @@
 #include <linux/vmalloc.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
-
+#include <asm/sections.h>
 #include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -149,3 +149,4 @@ EXPORT_SYMBOL(csum_ipv6_magic);
 #endif
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(__clear_user);
+EXPORT_SYMBOL(_ebss);

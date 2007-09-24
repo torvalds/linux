@@ -107,6 +107,7 @@ SECTIONS
   	*(.bss.page_aligned)
   	*(.bss)
 	. = ALIGN(4);
+	_ebss = .;			/* uClinux MTD sucks */
 	_end = . ;
   }
 
