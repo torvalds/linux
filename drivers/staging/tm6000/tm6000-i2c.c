@@ -299,9 +299,10 @@ static int tm6000_tuner_callback(void *ptr, int command, int arg)
 		case 0:
 			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
 					dev->tuner_reset_gpio, 0x00);
-			msleep(10);
+			msleep(130);
 			tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
 					dev->tuner_reset_gpio, 0x01);
+			msleep(130);
 			break;
 		case 1:
 			tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT,
@@ -314,9 +315,10 @@ static int tm6000_tuner_callback(void *ptr, int command, int arg)
 						TM6000_GPIO_CLK, 0);
 			if (rc<0)
 				return rc;
-			msleep(10);
+			msleep(100);
 			rc=tm6000_set_reg (dev, REQ_03_SET_GET_MCU_PIN,
 						TM6000_GPIO_CLK, 1);
+			msleep(100);
 			break;
 		}
 	}

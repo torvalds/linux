@@ -226,12 +226,17 @@ int tm6000_init_digital_mode (struct tm6000_core *dev)
 	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d1, 0xd8);
 	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d2, 0xc0);
 	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00d6, 0x60);
+
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e2, 0x0c);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00e8, 0xff);
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x00eb, 0x08);
 	msleep(50);
 
 	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
+	msleep(50);
 	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x01);
+	msleep(50);
 	tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
-
 	msleep(100);
 
 	return 0;

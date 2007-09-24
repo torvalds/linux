@@ -61,10 +61,6 @@ int tm6000_start_stream(struct tm6000_core *dev)
 
 	tm6000_init_digital_mode(dev);
 
-// 	ret = usb_set_interface(dev->udev, 0, 1);
-// 	if (ret<0)
-// 		return ret;
-
 /*
 	ret = tm6000_set_led_status(tm6000_dev, 0x1);
 	if(ret < 0) {
@@ -94,10 +90,17 @@ int tm6000_start_stream(struct tm6000_core *dev)
 						 dvb->bulk_urb->transfer_buffer,
 						 maxPaketSize,
 						 tm6000_urb_received, dev);
+
+	ret = usb_set_interface(dev->udev, 0, 1);
+	if(ret < 0) {
+		printk(KERN_ERR "tm6000: error %i in %s during set interface\n", ret, __FUNCTION__);
+		return ret;
+	}
+
 	ret = usb_clear_halt(dev->udev, pipe);
 	if(ret < 0) {
 		printk(KERN_ERR "tm6000: error %i in %s during pipe reset\n",ret,__FUNCTION__);
-// 		return ret;
+		return ret;
 	}
 	else {
 		printk(KERN_ERR "tm6000: pipe resetted\n");
@@ -121,9 +124,15 @@ int tm6000_start_stream(struct tm6000_core *dev)
 
 void tm6000_stop_stream(struct tm6000_core *dev)
 {
+	int ret;
 	struct tm6000_dvb *dvb = dev->dvb;
 
 // 	tm6000_set_led_status(tm6000_dev, 0x0);
+
+	ret = usb_set_interface(dev->udev, 0, 0);
+	if(ret < 0) {
+		printk(KERN_ERR "tm6000: error %i in %s during set interface\n",ret,__FUNCTION__);
+	}
 
 	if(dvb->bulk_urb) {
 		usb_kill_urb(dvb->bulk_urb);

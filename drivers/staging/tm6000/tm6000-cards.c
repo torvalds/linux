@@ -37,6 +37,7 @@
 #define TM5600_BOARD_10MOONS_UT330		4
 #define TM6000_BOARD_ADSTECH_DUAL_TV		5
 #define TM6000_BOARD_FREECOM_AND_SIMILAR	6
+#define TM6000_BOARD_ADSTECH_MINI_DUAL_TV	7
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -54,7 +55,6 @@ struct tm6000_board {
 	int             demod_addr;     /* demodulator address */
 	int		gpio_addr_tun_reset;	/* GPIO used for tuner reset */
 };
-
 
 struct tm6000_board tm6000_boards[] = {
 	[TM6000_BOARD_UNKNOWN] = {
@@ -118,8 +118,22 @@ struct tm6000_board tm6000_boards[] = {
 	},
 	[TM6000_BOARD_FREECOM_AND_SIMILAR] = {
 		.name         = "Freecom Hybrid Stick / Moka DVB-T Receiver Dual",
-		.tuner_type   = TUNER_XC2028,
+		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
 		.tuner_addr   = 0xc2,
+		.demod_addr   = 0x1e,
+		.caps = {
+			.has_tuner    = 1,
+			.has_dvb      = 1,
+			.has_zl10353  = 1,
+			.has_eeprom   = 0,
+			.has_remote   = 1,
+		},
+		.gpio_addr_tun_reset = TM6000_GPIO_4,
+	},
+	[TM6000_BOARD_ADSTECH_MINI_DUAL_TV] = {
+		.name         = "ADSTECH Mini Dual TV USB",
+		.tuner_type   = TUNER_XC2028, /* has a XC3028 */
+		.tuner_addr   = 0xc8,
 		.demod_addr   = 0x1e,
 		.caps = {
 			.has_tuner    = 1,
@@ -136,6 +150,7 @@ struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_10MOONS_UT821 },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
 	{ USB_DEVICE(0x14aa, 0x0620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
+	{ USB_DEVICE(0x06e1, 0xb339), .driver_info = TM6000_BOARD_ADSTECH_MINI_DUAL_TV },
 	{ },
 };
 
