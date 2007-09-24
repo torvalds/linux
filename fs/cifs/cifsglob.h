@@ -19,6 +19,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include "cifs_fs_sb.h"
+#include "cifsacl.h"
 /*
  * The sizes of various internal tables and strings
  */
@@ -113,6 +114,17 @@ struct mac_key {
 			struct ntlmv2_resp resp;
 		} ntlmv2;
 	} data;
+};
+
+struct cifs_cred {
+	int uid;
+	int gid;
+	int mode;
+	int cecount;
+	struct cifs_sid osid;
+	struct cifs_sid gsid;
+	struct cifs_ntace *ntaces;
+	struct cifs_ace *aces;
 };
 
 /*

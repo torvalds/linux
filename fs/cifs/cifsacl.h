@@ -22,12 +22,42 @@
 #ifndef _CIFSACL_H
 #define _CIFSACL_H
 
+struct cifs_ntsd {
+	__u16 revision; /* revision level */
+	__u16 type;
+	__u32 osidoffset;
+	__u32 gsidoffset;
+	__u32 sacloffset;
+	__u32 dacloffset;
+} __attribute__((packed));
+
 struct cifs_sid {
 	__u8 revision; /* revision level */
-	__u8 num_subauths;
+	__u8 num_auth;
 	__u8 authority[6];
 	__u32 sub_auth[4];
-	/* next sub_auth if any ... */
+	__u32 rid;
+} __attribute__((packed));
+
+struct cifs_acl {
+	__u16 revision; /* revision level */
+	__u16 size;
+	__u32 num_aces;
+} __attribute__((packed));
+
+struct cifs_ntace {
+	__u8 type;
+	__u8 flags;
+	__u16 size;
+	__u32 access_req;
+} __attribute__((packed));
+
+struct cifs_ace {
+	__u8 revision; /* revision level */
+	__u8 num_auth;
+	__u8 authority[6];
+	__u32 sub_auth[4];
+	__u32 rid;
 } __attribute__((packed));
 
 /* everyone */
