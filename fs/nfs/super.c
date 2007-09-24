@@ -1100,6 +1100,10 @@ static int nfs_validate_mount_data(void *options,
 		if (mntfh->size < sizeof(mntfh->data))
 			memset(mntfh->data + mntfh->size, 0,
 			       sizeof(mntfh->data) - mntfh->size);
+
+		if (!nfs_verify_server_address((struct sockaddr *) &data->addr))
+			goto out_no_address;
+
 		/*
 		 * Translate to nfs_parsed_mount_data, which nfs_fill_super
 		 * can deal with.
@@ -1131,6 +1135,10 @@ static int nfs_validate_mount_data(void *options,
 		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
 
+		if (!nfs_verify_server_address((struct sockaddr *)
+						&args->nfs_server.address))
+			goto out_no_address;
+
 		c = strchr(dev_name, ':');
 		if (c == NULL)
 			return -EINVAL;
@@ -1158,10 +1166,6 @@ static int nfs_validate_mount_data(void *options,
 	if (args->flags & NFS_MOUNT_VER3)
 		goto out_v3_not_compiled;
 #endif /* !CONFIG_NFS_V3 */
-
-	if (!nfs_verify_server_address((struct sockaddr *)
-						&args->nfs_server.address))
-		goto out_no_address;
 
 	return 0;
 
