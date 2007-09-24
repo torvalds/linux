@@ -1016,8 +1016,7 @@ done:
 }
 
 static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
-			       struct x86_emulate_ops *ops,
-			       int *no_wb)
+			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
@@ -1055,7 +1054,7 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 				    c->dst.bytes, ctxt->vcpu);
 		if (rc != 0)
 			return rc;
-		*no_wb = 1;
+		c->dst.type = OP_NONE;
 		break;
 	default:
 		DPRINTF("Cannot emulate %02x\n", c->b);
@@ -1137,6 +1136,10 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 					ctxt->vcpu);
 		if (rc != 0)
 			return rc;
+		break;
+	case OP_NONE:
+		/* no writeback */
+		break;
 	default:
 		break;
 	}
@@ -1147,7 +1150,6 @@ int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	unsigned long cr2 = ctxt->cr2;
-	int no_wb = 0;
 	u64 msr_data;
 	unsigned long saved_eip = 0;
 	struct decode_cache *c = &ctxt->decode;
@@ -1344,18 +1346,16 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 			goto done;
 		break;
 	case 0xfe ... 0xff:	/* Grp4/Grp5 */
-		rc = emulate_grp45(ctxt, ops, &no_wb);
+		rc = emulate_grp45(ctxt, ops);
 		if (rc != 0)
 			goto done;
 		break;
 	}
 
 writeback:
-	if (!no_wb) {
-		rc = writeback(ctxt, ops);
-		if (rc != 0)
-			goto done;
-	}
+	rc = writeback(ctxt, ops);
+	if (rc != 0)
+		goto done;
 
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->regs, c->regs, sizeof c->regs);
@@ -1395,7 +1395,7 @@ special_insn:
 
 		register_address_increment(c->regs[VCPU_REGS_RSP],
 					   c->op_bytes);
-		no_wb = 1; /* Disable writeback. */
+		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0x6a: /* push imm8 */
 		c->src.val = 0L;
@@ -1538,7 +1538,7 @@ special_insn:
 	case 0xe9: /* jmp rel */
 	case 0xeb: /* jmp rel short */
 		JMP_REL(c->src.val);
-		no_wb = 1; /* Disable writeback. */
+		c->dst.type = OP_NONE; /* Disable writeback. */
 		break;
 
 
@@ -1548,8 +1548,6 @@ special_insn:
 twobyte_insn:
 	switch (c->b) {
 	case 0x01: /* lgdt, lidt, lmsw */
-		/* Disable writeback. */
-		no_wb = 1;
 		switch (c->modrm_reg) {
 			u16 size;
 			unsigned long address;
@@ -1604,56 +1602,30 @@ twobyte_insn:
 		default:
 			goto cannot_emulate;
 		}
+		/* Disable writeback. */
+		c->dst.type = OP_NONE;
 		break;
 	case 0x21: /* mov from dr to reg */
-		no_wb = 1;
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
 		rc = emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]);
+		if (rc)
+			goto cannot_emulate;
+		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x23: /* mov from reg to dr */
-		no_wb = 1;
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
 		rc = emulator_set_dr(ctxt, c->modrm_reg,
 				     c->regs[c->modrm_rm]);
+		if (rc)
+			goto cannot_emulate;
+		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		c->dst.val = c->dst.orig_val = c->src.val;
-		no_wb = 1;
-		/*
-		 * First, assume we're decoding an even cmov opcode
-		 * (lsb == 0).
-		 */
-		switch ((c->b & 15) >> 1) {
-		case 0:	/* cmovo */
-			no_wb = (ctxt->eflags & EFLG_OF) ? 0 : 1;
-			break;
-		case 1:	/* cmovb/cmovc/cmovnae */
-			no_wb = (ctxt->eflags & EFLG_CF) ? 0 : 1;
-			break;
-		case 2:	/* cmovz/cmove */
-			no_wb = (ctxt->eflags & EFLG_ZF) ? 0 : 1;
-			break;
-		case 3:	/* cmovbe/cmovna */
-			no_wb = (ctxt->eflags & (EFLG_CF | EFLG_ZF)) ? 0 : 1;
-			break;
-		case 4:	/* cmovs */
-			no_wb = (ctxt->eflags & EFLG_SF) ? 0 : 1;
-			break;
-		case 5:	/* cmovp/cmovpe */
-			no_wb = (ctxt->eflags & EFLG_PF) ? 0 : 1;
-			break;
-		case 7:	/* cmovle/cmovng */
-			no_wb = (ctxt->eflags & EFLG_ZF) ? 0 : 1;
-			/* fall through */
-		case 6:	/* cmovl/cmovnge */
-			no_wb &= (!(ctxt->eflags & EFLG_SF) !=
-			      !(ctxt->eflags & EFLG_OF)) ? 0 : 1;
-			break;
-		}
-		/* Odd cmov opcodes (lsb == 1) have inverted sense. */
-		no_wb ^= c->b & 1;
+		if (!test_cc(c->b, ctxt->eflags))
+			c->dst.type = OP_NONE; /* no writeback */
 		break;
 	case 0xa3:
 	      bt:		/* bt */
@@ -1727,8 +1699,6 @@ twobyte_insn:
 	goto writeback;
 
 twobyte_special_insn:
-	/* Disable writeback. */
-	no_wb = 1;
 	switch (c->b) {
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
@@ -1802,6 +1772,8 @@ twobyte_special_insn:
 			goto done;
 		break;
 	}
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
 	goto writeback;
 
 cannot_emulate:

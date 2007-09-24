@@ -114,7 +114,7 @@ struct x86_emulate_ops {
 
 /* Type, address-of, and value of an instruction's operand. */
 struct operand {
-	enum { OP_REG, OP_MEM, OP_IMM } type;
+	enum { OP_REG, OP_MEM, OP_IMM, OP_NONE } type;
 	unsigned int bytes;
 	unsigned long val, orig_val, *ptr;
 };
