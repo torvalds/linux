@@ -78,6 +78,7 @@
 		};
 
 		ethernet@6200 {
+			linux,network-index = <0>;
 			#size-cells = <0>;
 			device_type = "network";
 			compatible = "tsi108-ethernet";
@@ -90,6 +91,7 @@
 		};
 
 		ethernet@6600 {
+			linux,network-index = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -182,6 +184,9 @@
 				interrupt-parent = <&mpic>;
 			};
 		};
+	};
+	chosen {
+		linux,stdout-path = "/tsi108@c0000000/serial@7808";
 	};
 
 };
