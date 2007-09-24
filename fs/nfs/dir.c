@@ -872,8 +872,6 @@ static void nfs_dentry_iput(struct dentry *dentry, struct inode *inode)
 		nfs_complete_unlink(dentry, inode);
 		unlock_kernel();
 	}
-	/* When creating a negative dentry, we want to renew d_time */
-	nfs_renew_times(dentry);
 	iput(inode);
 }
 
