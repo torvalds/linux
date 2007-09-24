@@ -24,7 +24,6 @@
 
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
-#include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mipsregs.h>
