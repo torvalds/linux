@@ -88,29 +88,32 @@ void dt_fixup_clock(const char *path, u32 freq)
 	}
 }
 
+void dt_fixup_mac_address(u32 index, const u8 *addr)
+{
+	void *devp = find_node_by_prop_value(NULL, "linux,network-index",
+	                                     (void*)&index, sizeof(index));
+
+	if (devp) {
+		printf("ENET%d: local-mac-address <-"
+		       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
+		       addr[0], addr[1], addr[2],
+		       addr[3], addr[4], addr[5]);
+
+		setprop(devp, "local-mac-address", addr, 6);
+	}
+}
+
 void __dt_fixup_mac_addresses(u32 startindex, ...)
 {
 	va_list ap;
 	u32 index = startindex;
-	void *devp;
 	const u8 *addr;
 
 	va_start(ap, startindex);
-	while ((addr = va_arg(ap, const u8 *))) {
-		devp = find_node_by_prop_value(NULL, "linux,network-index",
-					       (void*)&index, sizeof(index));
 
-		if (devp) {
-			printf("ENET%d: local-mac-address <-"
-			       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
-			       addr[0], addr[1], addr[2],
-			       addr[3], addr[4], addr[5]);
+	while ((addr = va_arg(ap, const u8 *)))
+		dt_fixup_mac_address(index++, addr);
 
-			setprop(devp, "local-mac-address", addr, 6);
-		}
-
-		index++;
-	}
 	va_end(ap);
 }
 
