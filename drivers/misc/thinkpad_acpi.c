@@ -22,7 +22,7 @@
  */
 
 #define IBM_VERSION "0.16"
-#define TPACPI_SYSFS_VERSION 0x010000
+#define TPACPI_SYSFS_VERSION 0x020000
 
 /*
  *  Changelog:
@@ -526,6 +526,7 @@ static char *next_cmd(char **cmds)
  ****************************************************************************/
 
 static struct platform_device *tpacpi_pdev;
+static struct platform_device *tpacpi_sensors_pdev;
 static struct class_device *tpacpi_hwmon;
 static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
@@ -553,6 +554,12 @@ static struct platform_driver tpacpi_pdriver = {
 	.resume = tpacpi_resume_handler,
 };
 
+static struct platform_driver tpacpi_hwmon_pdriver = {
+	.driver = {
+		.name = IBM_HWMON_DRVR_NAME,
+		.owner = THIS_MODULE,
+	},
+};
 
 /*************************************************************************
  * thinkpad-acpi driver attributes
@@ -2872,7 +2879,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 
 	switch(thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 				&thermal_temp_input16_group);
 		if (res)
 			return res;
@@ -2880,7 +2887,7 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		res = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+		res = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 				&thermal_temp_input8_group);
 		if (res)
 			return res;
@@ -2897,13 +2904,13 @@ static void thermal_exit(void)
 {
 	switch(thermal_read_mode) {
 	case TPACPI_THERMAL_TPEC_16:
-		sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
 				   &thermal_temp_input16_group);
 		break;
 	case TPACPI_THERMAL_TPEC_8:
 	case TPACPI_THERMAL_ACPI_TMP07:
 	case TPACPI_THERMAL_ACPI_UPDT:
-		sysfs_remove_group(&tpacpi_pdev->dev.kobj,
+		sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj,
 				   &thermal_temp_input16_group);
 		break;
 	case TPACPI_THERMAL_NONE:
@@ -3686,7 +3693,7 @@ static struct device_attribute dev_attr_fan_fan1_input =
 	__ATTR(fan1_input, S_IRUGO,
 		fan_fan1_input_show, NULL);
 
-/* sysfs fan fan_watchdog (driver) ------------------------------------- */
+/* sysfs fan fan_watchdog (hwmon driver) ------------------------------- */
 static ssize_t fan_fan_watchdog_show(struct device_driver *drv,
 				     char *buf)
 {
@@ -3828,10 +3835,10 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 
 	if (fan_status_access_mode != TPACPI_FAN_NONE ||
 	    fan_control_access_mode != TPACPI_FAN_WR_NONE) {
-		rc = sysfs_create_group(&tpacpi_pdev->dev.kobj,
+		rc = sysfs_create_group(&tpacpi_sensors_pdev->dev.kobj,
 					 &fan_attr_group);
 		if (!(rc < 0))
-			rc = driver_create_file(&tpacpi_pdriver.driver,
+			rc = driver_create_file(&tpacpi_hwmon_pdriver.driver,
 					&driver_attr_fan_watchdog);
 		if (rc < 0)
 			return rc;
@@ -3914,8 +3921,8 @@ static void fan_exit(void)
 	vdbg_printk(TPACPI_DBG_EXIT, "cancelling any pending fan watchdog tasks\n");
 
 	/* FIXME: can we really do this unconditionally? */
-	sysfs_remove_group(&tpacpi_pdev->dev.kobj, &fan_attr_group);
-	driver_remove_file(&tpacpi_pdriver.driver, &driver_attr_fan_watchdog);
+	sysfs_remove_group(&tpacpi_sensors_pdev->dev.kobj, &fan_attr_group);
+	driver_remove_file(&tpacpi_hwmon_pdriver.driver, &driver_attr_fan_watchdog);
 
 	cancel_delayed_work(&fan_watchdog_task);
 	flush_scheduled_work();
@@ -4366,6 +4373,19 @@ static struct ibm_struct fan_driver_data = {
  ****************************************************************************
  ****************************************************************************/
 
+/* sysfs name ---------------------------------------------------------- */
+static ssize_t thinkpad_acpi_pdev_name_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s\n", IBM_NAME);
+}
+
+static struct device_attribute dev_attr_thinkpad_acpi_pdev_name =
+	__ATTR(name, S_IRUGO, thinkpad_acpi_pdev_name_show, NULL);
+
+/* --------------------------------------------------------------------- */
+
 /* /proc support */
 static struct proc_dir_entry *proc_dir;
 
@@ -4768,11 +4788,19 @@ static int __init thinkpad_acpi_module_init(void)
 
 	ret = platform_driver_register(&tpacpi_pdriver);
 	if (ret) {
-		printk(IBM_ERR "unable to register platform driver\n");
+		printk(IBM_ERR "unable to register main platform driver\n");
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
 	tp_features.platform_drv_registered = 1;
+
+	ret = platform_driver_register(&tpacpi_hwmon_pdriver);
+	if (ret) {
+		printk(IBM_ERR "unable to register hwmon platform driver\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.sensors_pdrv_registered = 1;
 
 	ret = tpacpi_create_driver_attributes(&tpacpi_pdriver.driver);
 	if (ret) {
@@ -4793,7 +4821,26 @@ static int __init thinkpad_acpi_module_init(void)
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	tpacpi_hwmon = hwmon_device_register(&tpacpi_pdev->dev);
+	tpacpi_sensors_pdev = platform_device_register_simple(
+							IBM_HWMON_DRVR_NAME,
+							-1, NULL, 0);
+	if (IS_ERR(tpacpi_sensors_pdev)) {
+		ret = PTR_ERR(tpacpi_sensors_pdev);
+		tpacpi_sensors_pdev = NULL;
+		printk(IBM_ERR "unable to register hwmon platform device\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	ret = device_create_file(&tpacpi_sensors_pdev->dev,
+				 &dev_attr_thinkpad_acpi_pdev_name);
+	if (ret) {
+		printk(IBM_ERR
+			"unable to create sysfs hwmon device attributes\n");
+		thinkpad_acpi_module_exit();
+		return ret;
+	}
+	tp_features.sensors_pdev_attrs_registered = 1;
+	tpacpi_hwmon = hwmon_device_register(&tpacpi_sensors_pdev->dev);
 	if (IS_ERR(tpacpi_hwmon)) {
 		ret = PTR_ERR(tpacpi_hwmon);
 		tpacpi_hwmon = NULL;
@@ -4864,11 +4911,19 @@ static void thinkpad_acpi_module_exit(void)
 	if (tpacpi_hwmon)
 		hwmon_device_unregister(tpacpi_hwmon);
 
+	if (tp_features.sensors_pdev_attrs_registered)
+		device_remove_file(&tpacpi_sensors_pdev->dev,
+				   &dev_attr_thinkpad_acpi_pdev_name);
+	if (tpacpi_sensors_pdev)
+		platform_device_unregister(tpacpi_sensors_pdev);
 	if (tpacpi_pdev)
 		platform_device_unregister(tpacpi_pdev);
 
 	if (tp_features.platform_drv_attrs_registered)
 		tpacpi_remove_driver_attributes(&tpacpi_pdriver.driver);
+
+	if (tp_features.sensors_pdrv_registered)
+		platform_driver_unregister(&tpacpi_hwmon_pdriver);
 
 	if (tp_features.platform_drv_registered)
 		platform_driver_unregister(&tpacpi_pdriver);
