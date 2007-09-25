@@ -125,8 +125,11 @@ static struct platform_device ngw_gpio_leds = {
 };
 
 static struct i2c_gpio_platform_data i2c_gpio_data = {
-	.sda_pin	= GPIO_PIN_PA(6),
-	.scl_pin	= GPIO_PIN_PA(7),
+	.sda_pin		= GPIO_PIN_PA(6),
+	.scl_pin		= GPIO_PIN_PA(7),
+	.sda_is_open_drain	= 1,
+	.scl_is_open_drain	= 1,
+	.udelay			= 2,	/* close to 100 kHz */
 };
 
 static struct platform_device i2c_gpio_device = {
@@ -162,8 +165,10 @@ static int __init atngw100_init(void)
 	}
 	platform_device_register(&ngw_gpio_leds);
 
-	at32_select_gpio(i2c_gpio_data.sda_pin, 0);
-	at32_select_gpio(i2c_gpio_data.scl_pin, 0);
+	at32_select_gpio(i2c_gpio_data.sda_pin,
+		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
+	at32_select_gpio(i2c_gpio_data.scl_pin,
+		AT32_GPIOF_MULTIDRV | AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
 	platform_device_register(&i2c_gpio_device);
 
 	return 0;
