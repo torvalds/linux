@@ -27,9 +27,11 @@
 
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
+#include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <bcm47xx.h>
+#include <asm/fw/cfe/cfe_api.h>
 
 struct ssb_bus ssb_bcm47xx;
 EXPORT_SYMBOL(ssb_bcm47xx);
@@ -53,12 +55,55 @@ static void bcm47xx_machine_halt(void)
 		cpu_relax();
 }
 
+static void str2eaddr(char *str, char *dest)
+{
+	int i = 0;
+
+	if (str == NULL) {
+		memset(dest, 0, 6);
+		return;
+	}
+
+	for (;;) {
+		dest[i++] = (char) simple_strtoul(str, NULL, 16);
+		str += 2;
+		if (!*str++ || i == 6)
+			break;
+	}
+}
+
 static int bcm47xx_get_invariants(struct ssb_bus *bus,
 				   struct ssb_init_invariants *iv)
 {
-	/* TODO: fill ssb_init_invariants using boardtype/boardrev
-	 * CFE environment variables.
-	 */
+	char buf[100];
+
+	/* Fill boardinfo structure */
+	memset(&(iv->boardinfo), 0 , sizeof(struct ssb_boardinfo));
+
+	if (cfe_getenv("boardvendor", buf, sizeof(buf)) >= 0)
+		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
+	if (cfe_getenv("boardtype", buf, sizeof(buf)) >= 0)
+		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
+	if (cfe_getenv("boardrev", buf, sizeof(buf)) >= 0)
+		iv->boardinfo.rev = (u16)simple_strtoul(buf, NULL, 0);
+
+	/* Fill sprom structure */
+	memset(&(iv->sprom), 0, sizeof(struct ssb_sprom));
+	iv->sprom.revision = 3;
+
+	if (cfe_getenv("et0macaddr", buf, sizeof(buf)) >= 0)
+		str2eaddr(buf, iv->sprom.r1.et0mac);
+	if (cfe_getenv("et1macaddr", buf, sizeof(buf)) >= 0)
+		str2eaddr(buf, iv->sprom.r1.et1mac);
+	if (cfe_getenv("et0phyaddr", buf, sizeof(buf)) >= 0)
+		iv->sprom.r1.et0phyaddr = simple_strtoul(buf, NULL, 10);
+	if (cfe_getenv("et1phyaddr", buf, sizeof(buf)) >= 0)
+		iv->sprom.r1.et1phyaddr = simple_strtoul(buf, NULL, 10);
+	if (cfe_getenv("et0mdcport", buf, sizeof(buf)) >= 0)
+		iv->sprom.r1.et0mdcport = simple_strtoul(buf, NULL, 10);
+	if (cfe_getenv("et1mdcport", buf, sizeof(buf)) >= 0)
+		iv->sprom.r1.et1mdcport = simple_strtoul(buf, NULL, 10);
+
 	return 0;
 }
 

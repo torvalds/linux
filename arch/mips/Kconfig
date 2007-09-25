@@ -55,6 +55,8 @@ config BCM47XX
 	select SSB
 	select SSB_DRIVER_MIPS
 	select GENERIC_GPIO
+	select SYS_HAS_EARLY_PRINTK
+	select CFE
 	help
 	 Support for BCM47XX based boards
 
