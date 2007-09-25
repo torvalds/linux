@@ -242,14 +242,18 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	rt2x00dev->low_level_stats.dot11FCSErrorCount +=
 	    rt2x00dev->link.rx_failed;
 
-	rt2x00lib_precalculate_link_signal(&rt2x00dev->link);
-
 	/*
 	 * Only perform the link tuning when Link tuning
 	 * has been enabled (This could have been disabled from the EEPROM).
 	 */
 	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev);
+
+	/*
+	 * Precalculate a portion of the link signal which is
+	 * in based on the tx/rx success/failure counters.
+	 */
+	rt2x00lib_precalculate_link_signal(&rt2x00dev->link);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
