@@ -431,6 +431,7 @@ static int w1_uevent(struct device *dev, char **envp, int num_envp,
 	err = add_uevent_var(envp, num_envp, &cur_index, buffer, buffer_size,
 			&cur_len, "W1_SLAVE_ID=%024LX",
 			(unsigned long long)sl->reg_num.id);
+	envp[cur_index] = NULL;
 	if (err)
 		return err;
 
