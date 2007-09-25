@@ -2477,7 +2477,7 @@ static void rt61pci_reset_tsf(struct ieee80211_hw *hw)
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR13, 0);
 }
 
-int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
+static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
