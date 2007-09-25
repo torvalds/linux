@@ -298,7 +298,7 @@ static irqreturn_t pxamci_irq(int irq, void *devid)
 	unsigned int ireg;
 	int handled = 0;
 
-	ireg = readl(host->base + MMC_I_REG);
+	ireg = readl(host->base + MMC_I_REG) & ~readl(host->base + MMC_I_MASK);
 
 	if (ireg) {
 		unsigned stat = readl(host->base + MMC_STAT);
