@@ -142,12 +142,11 @@ static irqreturn_t lgb_irq(int irq, void *_bd)
  * return the total length. */
 static unsigned int req_to_dma(struct request *req, struct lguest_dma *dma)
 {
-	unsigned int i = 0, idx, len = 0;
-	struct bio *bio;
+	unsigned int i = 0, len = 0;
+	struct req_iterator iter;
+	struct bio_vec *bvec;
 
-	rq_for_each_bio(bio, req) {
-		struct bio_vec *bvec;
-		bio_for_each_segment(bvec, bio, idx) {
+	rq_for_each_segment(bvec, req, iter) {
 			/* We told the block layer not to give us too many. */
 			BUG_ON(i == LGUEST_MAX_DMA_SECTIONS);
 			/* If we had a zero-length segment, it would look like
@@ -160,7 +159,6 @@ static unsigned int req_to_dma(struct request *req, struct lguest_dma *dma)
 			dma->len[i] = bvec->bv_len;
 			len += bvec->bv_len;
 			i++;
-		}
 	}
 	/* If the array isn't full, we mark the end with a 0 length */
 	if (i < LGUEST_MAX_DMA_SECTIONS)

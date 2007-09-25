@@ -150,9 +150,8 @@ static int blkif_queue_request(struct request *req)
 	struct blkfront_info *info = req->rq_disk->private_data;
 	unsigned long buffer_mfn;
 	struct blkif_request *ring_req;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct bio_vec *bvec;
-	int idx;
 	unsigned long id;
 	unsigned int fsect, lsect;
 	int ref;
@@ -186,8 +185,7 @@ static int blkif_queue_request(struct request *req)
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
 
 	ring_req->nr_segments = 0;
-	rq_for_each_bio (bio, req) {
-		bio_for_each_segment (bvec, bio, idx) {
+	rq_for_each_segment(bvec, req, iter) {
 			BUG_ON(ring_req->nr_segments
 			       == BLKIF_MAX_SEGMENTS_PER_REQUEST);
 			buffer_mfn = pfn_to_mfn(page_to_pfn(bvec->bv_page));
@@ -213,7 +211,6 @@ static int blkif_queue_request(struct request *req)
 					.last_sect  = lsect };
 
 			ring_req->nr_segments++;
-		}
 	}
 
 	info->ring.req_prod_pvt++;

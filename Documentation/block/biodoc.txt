@@ -477,9 +477,9 @@ With this multipage bio design:
   the same bi_io_vec array, but with the index and size accordingly modified)
 - A linked list of bios is used as before for unrelated merges (*) - this
   avoids reallocs and makes independent completions easier to handle.
-- Code that traverses the req list needs to make a distinction between
-  segments of a request (bio_for_each_segment) and the distinct completion
-  units/bios (rq_for_each_bio).
+- Code that traverses the req list can find all the segments of a bio
+  by using rq_for_each_segment.  This handles the fact that a request
+  has multiple bios, each of which can have multiple segments.
 - Drivers which can't process a large bio in one shot can use the bi_idx
   field to keep track of the next bio_vec entry to process.
   (e.g a 1MB bio_vec needs to be handled in max 128kB chunks for IDE)
@@ -664,14 +664,14 @@ in lvm or md.
 
 3.2.1 Traversing segments and completion units in a request
 
-The macros bio_for_each_segment() and rq_for_each_bio() should be used for
-traversing the bios in the request list (drivers should avoid directly
-trying to do it themselves). Using these helpers should also make it easier
-to cope with block changes in the future.
+The macro rq_for_each_segment() should be used for traversing the bios
+in the request list (drivers should avoid directly trying to do it
+themselves). Using these helpers should also make it easier to cope
+with block changes in the future.
 
-	rq_for_each_bio(bio, rq)
-		bio_for_each_segment(bio_vec, bio, i)
-			/* bio_vec is now current segment */
+	struct req_iterator iter;
+	rq_for_each_segment(bio_vec, rq, iter)
+		/* bio_vec is now current segment */
 
 I/O completion callbacks are per-bio rather than per-segment, so drivers
 that traverse bio chains on completion need to keep that in mind. Drivers
