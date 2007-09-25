@@ -237,6 +237,13 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	    container_of(work, struct rt2x00_dev, link.work.work);
 
 	/*
+	 * When the radio is shutting down we should
+	 * immediately cease all link tuning.
+	 */
+	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	/*
 	 * Update statistics.
 	 */
 	rt2x00dev->ops->lib->link_stats(rt2x00dev);
