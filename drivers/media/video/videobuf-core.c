@@ -880,6 +880,9 @@ int videobuf_mmap_free(struct videobuf_queue *q)
 	int i;
 	int rc;
 
+	if (!q)
+		return 0;
+
 	MAGIC_CHECK(q->int_ops->magic,MAGIC_QTYPE_OPS);
 
 	rc  = CALL(q,mmap_free,q);
