@@ -22,8 +22,9 @@
 	jmp lguest_init
 
 /*G:055 We create a macro which puts the assembler code between lgstart_ and
- * lgend_ markers.  These templates end up in the .init.text section, so they
- * are discarded after boot. */
+ * lgend_ markers.  These templates are put in the .text section: they can't be
+ * discarded after boot as we may need to patch modules, too. */
+.text
 #define LGUEST_PATCH(name, insns...)			\
 	lgstart_##name:	insns; lgend_##name:;		\
 	.globl lgstart_##name; .globl lgend_##name
@@ -34,7 +35,6 @@ LGUEST_PATCH(popf, movl %eax, lguest_data+LGUEST_DATA_irq_enabled)
 LGUEST_PATCH(pushf, movl lguest_data+LGUEST_DATA_irq_enabled, %eax)
 /*:*/
 
-.text
 /* These demark the EIP range where host should never deliver interrupts. */
 .global lguest_noirq_start
 .global lguest_noirq_end
