@@ -99,12 +99,12 @@ vfp_support_entry:
 	DBGSTR1	"save old state %p", r4
 	cmp	r4, #0
 	beq	no_old_VFP_process
+	VFPFSTMIA r4, r5		@ save the working registers
 	VFPFMRX	r5, FPSCR		@ current status
 	tst	r1, #FPEXC_EX		@ is there additional state to save?
 	VFPFMRX	r6, FPINST, NE		@ FPINST (only if FPEXC.EX is set)
 	tstne	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
 	VFPFMRX	r8, FPINST2, NE		@ FPINST2 if needed (and present)
-	VFPFSTMIA r4 			@ save the working registers
 	stmia	r4, {r1, r5, r6, r8}	@ save FPEXC, FPSCR, FPINST, FPINST2
 					@ and point r4 at the word at the
 					@ start of the register dump
@@ -114,7 +114,7 @@ no_old_VFP_process:
 	DBGSTR1	"load state %p", r10
 	str	r10, [r3, r11, lsl #2]	@ update the last_VFP_context pointer
 					@ Load the saved state back into the VFP
-	VFPFLDMIA r10	 		@ reload the working registers while
+	VFPFLDMIA r10, r5		@ reload the working registers while
 					@ FPEXC is in a safe state
 	ldmia	r10, {r1, r5, r6, r8}	@ load FPEXC, FPSCR, FPINST, FPINST2
 	tst	r1, #FPEXC_EX		@ is there additional state to restore?
@@ -174,12 +174,12 @@ vfp_save_state:
 	@ r0 - save location
 	@ r1 - FPEXC
 	DBGSTR1	"save VFP state %p", r0
+	VFPFSTMIA r0, r2		@ save the working registers
 	VFPFMRX	r2, FPSCR		@ current status
 	tst	r1, #FPEXC_EX		@ is there additional state to save?
 	VFPFMRX	r3, FPINST, NE		@ FPINST (only if FPEXC.EX is set)
 	tstne	r1, #FPEXC_FP2V		@ is there an FPINST2 to read?
 	VFPFMRX	r12, FPINST2, NE	@ FPINST2 if needed (and present)
-	VFPFSTMIA r0 			@ save the working registers
 	stmia	r0, {r1, r2, r3, r12}	@ save FPEXC, FPSCR, FPINST, FPINST2
 	mov	pc, lr
 #endif
@@ -217,8 +217,15 @@ vfp_get_double:
 	fmrrd	r0, r1, d\dr
 	mov	pc, lr
 	.endr
+#ifdef CONFIG_VFPv3
+	@ d16 - d31 registers
+	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	mrrc	p11, 3, r0, r1, c\dr	@ fmrrd	r0, r1, d\dr
+	mov	pc, lr
+	.endr
+#endif
 
-	@ virtual register 16 for compare with zero
+	@ virtual register 16 (or 32 if VFPv3) for compare with zero
 	mov	r0, #0
 	mov	r1, #0
 	mov	pc, lr
@@ -231,3 +238,10 @@ vfp_put_double:
 	fmdrr	d\dr, r0, r1
 	mov	pc, lr
 	.endr
+#ifdef CONFIG_VFPv3
+	@ d16 - d31 registers
+	.irp	dr,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+	mcrr	p11, 3, r1, r2, c\dr	@ fmdrr	r1, r2, d\dr
+	mov	pc, lr
+	.endr
+#endif

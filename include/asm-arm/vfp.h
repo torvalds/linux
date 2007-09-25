@@ -7,6 +7,8 @@
 
 #define FPSID			cr0
 #define FPSCR			cr1
+#define MVFR1			cr6
+#define MVFR0			cr7
 #define FPEXC			cr8
 #define FPINST			cr9
 #define FPINST2			cr10
@@ -69,6 +71,10 @@
 #define FPSCR_UFC		(1<<3)
 #define FPSCR_IXC		(1<<4)
 #define FPSCR_IDC		(1<<7)
+
+/* MVFR0 bits */
+#define MVFR0_A_SIMD_BIT	(0)
+#define MVFR0_A_SIMD_MASK	(0xf << MVFR0_A_SIMD_BIT)
 
 /* Bit patterns for decoding the packaged operation descriptors */
 #define VFPOPDESC_LENGTH_BIT	(9)
