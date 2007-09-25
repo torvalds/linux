@@ -309,6 +309,10 @@ static irqreturn_t pxamci_irq(int irq, void *devid)
 			handled |= pxamci_cmd_done(host, stat);
 		if (ireg & DATA_TRAN_DONE)
 			handled |= pxamci_data_done(host, stat);
+		if (ireg & SDIO_INT) {
+			mmc_signal_sdio_irq(host->mmc);
+			handled = 1;
+		}
 	}
 
 	return IRQ_RETVAL(handled);
@@ -391,10 +395,21 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		 host->clkrt, host->cmdat);
 }
 
+static void pxamci_enable_sdio_irq(struct mmc_host *host, int enable)
+{
+	struct pxamci_host *pxa_host = mmc_priv(host);
+
+	if (enable)
+		pxamci_enable_irq(pxa_host, SDIO_INT);
+	else
+		pxamci_disable_irq(pxa_host, SDIO_INT);
+}
+
 static const struct mmc_host_ops pxamci_ops = {
-	.request	= pxamci_request,
-	.get_ro		= pxamci_get_ro,
-	.set_ios	= pxamci_set_ios,
+	.request		= pxamci_request,
+	.get_ro			= pxamci_get_ro,
+	.set_ios		= pxamci_set_ios,
+	.enable_sdio_irq	= pxamci_enable_sdio_irq,
 };
 
 static void pxamci_dma_irq(int dma, void *devid)
@@ -466,8 +481,11 @@ static int pxamci_probe(struct platform_device *pdev)
 			 host->pdata->ocr_mask :
 			 MMC_VDD_32_33|MMC_VDD_33_34;
 	mmc->caps = 0;
-	if (!cpu_is_pxa21x() && !cpu_is_pxa25x())
-		mmc->caps |= MMC_CAP_4_BIT_DATA;
+	host->cmdat = 0;
+	if (!cpu_is_pxa21x() && !cpu_is_pxa25x()) {
+		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+		host->cmdat |= CMDAT_SDIO_INT_EN;
+	}
 
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
 	if (!host->sg_cpu) {
