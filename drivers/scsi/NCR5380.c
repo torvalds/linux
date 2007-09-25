@@ -2133,7 +2133,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 				sink = 1;
 				do_abort(instance);
 				cmd->result = DID_ERROR << 16;
-				cmd->done(cmd);
+				cmd->scsi_done(cmd);
 				return;
 #endif
 				/* 
@@ -2196,7 +2196,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance) {
 						sink = 1;
 						do_abort(instance);
 						cmd->result = DID_ERROR << 16;
-						cmd->done(cmd);
+						cmd->scsi_done(cmd);
 						/* XXX - need to source or sink data here, as appropriate */
 					} else
 						cmd->SCp.this_residual -= transfersize - len;
@@ -2740,7 +2740,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
 			tmp->host_scribble = NULL;
 			tmp->result = DID_ABORT << 16;
 			dprintk(NDEBUG_ABORT, ("scsi%d : abort removed command from issue queue.\n", instance->host_no));
-			tmp->done(tmp);
+			tmp->scsi_done(tmp);
 			return SUCCESS;
 		}
 #if (NDEBUG  & NDEBUG_ABORT)
@@ -2805,7 +2805,7 @@ static int NCR5380_abort(Scsi_Cmnd * cmd) {
 					*prev = (Scsi_Cmnd *) tmp->host_scribble;
 					tmp->host_scribble = NULL;
 					tmp->result = DID_ABORT << 16;
-					tmp->done(tmp);
+					tmp->scsi_done(tmp);
 					return SUCCESS;
 				}
 		}

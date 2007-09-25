@@ -1385,7 +1385,7 @@ int esp_abort(Scsi_Cmnd *SCptr)
 				this->host_scribble = NULL;
 				esp_release_dmabufs(esp, this);
 				this->result = DID_ABORT << 16;
-				this->done(this);
+				this->scsi_done(this);
 				if(don)
 					esp->dma_ints_on(esp);
 				return SUCCESS;

@@ -2055,7 +2055,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 		sink = 1;
 		do_abort(instance);
 		cmd->result = DID_ERROR  << 16;
-		cmd->done(cmd);
+		cmd->scsi_done(cmd);
 		return;
 #endif
 	    case PHASE_DATAIN:
@@ -2115,7 +2115,7 @@ static void NCR5380_information_transfer (struct Scsi_Host *instance)
 			sink = 1;
 			do_abort(instance);
 			cmd->result = DID_ERROR  << 16;
-			cmd->done(cmd);
+			cmd->scsi_done(cmd);
 			/* XXX - need to source or sink data here, as appropriate */
 		    } else {
 #ifdef REAL_DMA
