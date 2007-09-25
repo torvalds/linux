@@ -908,6 +908,8 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_4KSC:
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_BCM3302:
+	case CPU_BCM4710:
 	case CPU_LOONGSON2:
 		if (m4kc_tlbp_war())
 			i_nop(p);

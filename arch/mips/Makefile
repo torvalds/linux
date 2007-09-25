@@ -535,6 +535,13 @@ libs-$(CONFIG_SIBYTE_BIGSUR)	+= arch/mips/sibyte/swarm/
 load-$(CONFIG_SIBYTE_BIGSUR)	:= 0xffffffff80100000
 
 #
+# Broadcom BCM47XX boards
+#
+core-$(CONFIG_BCM47XX)		+= arch/mips/bcm47xx/
+cflags-$(CONFIG_BCM47XX)	+= -Iinclude/asm-mips/mach-bcm47xx
+load-$(CONFIG_BCM47XX)		:= 0xffffffff80001000
+
+#
 # SNI RM
 #
 core-$(CONFIG_SNI_RM)		+= arch/mips/sni/

@@ -82,6 +82,8 @@ static const char *cpu_name[] = {
 	[CPU_VR4181]	= "NEC VR4181",
 	[CPU_VR4181A]	= "NEC VR4181A",
 	[CPU_SR71000]	= "Sandcraft SR71000",
+	[CPU_BCM3302]	= "Broadcom BCM3302",
+	[CPU_BCM4710]	= "Broadcom BCM4710",
 	[CPU_PR4450]	= "Philips PR4450",
 	[CPU_LOONGSON2]	= "ICT Loongson-2",
 };

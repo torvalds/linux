@@ -159,6 +159,7 @@ static inline void check_wait(void)
 	case CPU_5KC:
 	case CPU_25KF:
 	case CPU_PR4450:
+	case CPU_BCM3302:
 		cpu_wait = r4k_wait;
 		break;
 
@@ -793,6 +794,22 @@ static inline void cpu_probe_philips(struct cpuinfo_mips *c)
 }
 
 
+static inline void cpu_probe_broadcom(struct cpuinfo_mips *c)
+{
+	decode_configs(c);
+	switch (c->processor_id & 0xff00) {
+	case PRID_IMP_BCM3302:
+		c->cputype = CPU_BCM3302;
+		break;
+	case PRID_IMP_BCM4710:
+		c->cputype = CPU_BCM4710;
+		break;
+	default:
+		c->cputype = CPU_UNKNOWN;
+		break;
+	}
+}
+
 __init void cpu_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
@@ -814,6 +831,9 @@ __init void cpu_probe(void)
 		break;
 	case PRID_COMP_SIBYTE:
 		cpu_probe_sibyte(c);
+		break;
+	case PRID_COMP_BROADCOM:
+		cpu_probe_broadcom(c);
 		break;
 	case PRID_COMP_SANDCRAFT:
 		cpu_probe_sandcraft(c);

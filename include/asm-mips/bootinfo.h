@@ -215,6 +215,12 @@
 #define MACH_GROUP_WINDRIVER   28	/* Windriver boards */
 #define MACH_WRPPMC             1
 
+/*
+ * Valid machtype for group Broadcom
+ */
+#define MACH_GROUP_BRCM		23	/* Broadcom			*/
+#define  MACH_BCM47XX		1	/* Broadcom BCM47XX		*/
+
 #define CL_SIZE			COMMAND_LINE_SIZE
 
 const char *get_system_type(void);

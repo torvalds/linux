@@ -106,6 +106,13 @@
 #define PRID_IMP_SR71000        0x0400
 
 /*
+ * These are the PRID's for when 23:16 == PRID_COMP_BROADCOM
+ */
+
+#define PRID_IMP_BCM4710	0x4000
+#define PRID_IMP_BCM3302	0x9000
+
+/*
  * Definitions for 7:0 on legacy processors
  */
 
@@ -217,8 +224,9 @@
 #define CPU_R14000		64
 #define CPU_LOONGSON1           65
 #define CPU_LOONGSON2           66
-
-#define CPU_LAST		66
+#define CPU_BCM3302		67
+#define CPU_BCM4710		68
+#define CPU_LAST		68
 
 /*
  * ISA Level encodings
