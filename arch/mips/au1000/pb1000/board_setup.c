@@ -54,7 +54,7 @@ void __init board_setup(void)
 	au_writel(0, SYS_PINSTATERD);
 	udelay(100);
 
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	/* zero and disable FREQ2 */
 	sys_freqctrl = au_readl(SYS_FREQCTRL0);
 	sys_freqctrl &= ~0xFFF00000;
@@ -102,7 +102,7 @@ void __init board_setup(void)
 	/*
 	 * Route 48MHz FREQ2 into USB Host and/or Device
 	 */
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	sys_clksrc |= ((4<<12) | (0<<11) | (0<<10));
 #endif
 	au_writel(sys_clksrc, SYS_CLKSRC);
@@ -116,7 +116,7 @@ void __init board_setup(void)
 	au_writel(pin_func, SYS_PINFUNC);
 	au_writel(0x2800, SYS_TRIOUTCLR);
 	au_writel(0x0030, SYS_OUTPUTCLR);
-#endif // defined (CONFIG_USB_OHCI)
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 	// make gpio 15 an input (for interrupt line)
 	pin_func = au_readl(SYS_PINFUNC) & (u32)(~0x100);

@@ -54,7 +54,7 @@ void __init board_setup(void)
 	au_writel(0, SYS_PININPUTEN);
 	udelay(100);
 
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	{
 		u32 pin_func, sys_freqctrl, sys_clksrc;
 
@@ -98,7 +98,7 @@ void __init board_setup(void)
 		pin_func |= 0x8000;
 		au_writel(pin_func, SYS_PINFUNC);
 	}
-#endif // defined (CONFIG_USB_OHCI)
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 	/* Enable sys bus clock divider when IDLE state or no bus activity. */
 	au_writel(au_readl(SYS_POWERCTRL) | (0x3 << 5), SYS_POWERCTRL);
