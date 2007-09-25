@@ -70,44 +70,30 @@ ieee80211softmac_wx_set_essid(struct net_device *net_dev,
 			      char *extra)
 {
 	struct ieee80211softmac_device *sm = ieee80211_priv(net_dev);
-	struct ieee80211softmac_network *n;
 	struct ieee80211softmac_auth_queue_item *authptr;
 	int length = 0;
 
 check_assoc_again:
 	mutex_lock(&sm->associnfo.mutex);
-	/* Check if we're already associating to this or another network
-	 * If it's another network, cancel and start over with our new network
-	 * If it's our network, ignore the change, we're already doing it!
-	 */
 	if((sm->associnfo.associating || sm->associnfo.associated) &&
 	   (data->essid.flags && data->essid.length)) {
-		/* Get the associating network */
-		n = ieee80211softmac_get_network_by_bssid(sm, sm->associnfo.bssid);
-		if(n && n->essid.len == data->essid.length &&
-		   !memcmp(n->essid.data, extra, n->essid.len)) {
-			dprintk(KERN_INFO PFX "Already associating or associated to "MAC_FMT"\n",
-				MAC_ARG(sm->associnfo.bssid));
-			goto out;
-		} else {
-			dprintk(KERN_INFO PFX "Canceling existing associate request!\n");
-			/* Cancel assoc work */
-			cancel_delayed_work(&sm->associnfo.work);
-			/* We don't have to do this, but it's a little cleaner */
-			list_for_each_entry(authptr, &sm->auth_queue, list)
-				cancel_delayed_work(&authptr->work);
-			sm->associnfo.bssvalid = 0;
-			sm->associnfo.bssfixed = 0;
-			sm->associnfo.associating = 0;
-			sm->associnfo.associated = 0;
-			/* We must unlock to avoid deadlocks with the assoc workqueue
-			 * on the associnfo.mutex */
-			mutex_unlock(&sm->associnfo.mutex);
-			flush_scheduled_work();
-			/* Avoid race! Check assoc status again. Maybe someone started an
-			 * association while we flushed. */
-			goto check_assoc_again;
-		}
+		dprintk(KERN_INFO PFX "Canceling existing associate request!\n");
+		/* Cancel assoc work */
+		cancel_delayed_work(&sm->associnfo.work);
+		/* We don't have to do this, but it's a little cleaner */
+		list_for_each_entry(authptr, &sm->auth_queue, list)
+			cancel_delayed_work(&authptr->work);
+		sm->associnfo.bssvalid = 0;
+		sm->associnfo.bssfixed = 0;
+		sm->associnfo.associating = 0;
+		sm->associnfo.associated = 0;
+		/* We must unlock to avoid deadlocks with the assoc workqueue
+		 * on the associnfo.mutex */
+		mutex_unlock(&sm->associnfo.mutex);
+		flush_scheduled_work();
+		/* Avoid race! Check assoc status again. Maybe someone started an
+		 * association while we flushed. */
+		goto check_assoc_again;
 	}
 
 	sm->associnfo.static_essid = 0;
@@ -153,13 +139,13 @@ ieee80211softmac_wx_get_essid(struct net_device *net_dev,
 		data->essid.length = sm->associnfo.req_essid.len;
 		data->essid.flags = 1;  /* active */
 		memcpy(extra, sm->associnfo.req_essid.data, sm->associnfo.req_essid.len);
-	}
-
+		dprintk(KERN_INFO PFX "Getting essid from req_essid\n");
+	} else if (sm->associnfo.associated || sm->associnfo.associating) {
 	/* If we're associating/associated, return that */
-	if (sm->associnfo.associated || sm->associnfo.associating) {
 		data->essid.length = sm->associnfo.associate_essid.len;
 		data->essid.flags = 1;  /* active */
 		memcpy(extra, sm->associnfo.associate_essid.data, sm->associnfo.associate_essid.len);
+		dprintk(KERN_INFO PFX "Getting essid from associate_essid\n");
 	}
 	mutex_unlock(&sm->associnfo.mutex);
 
