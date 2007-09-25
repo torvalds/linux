@@ -338,6 +338,16 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		if (!(hw->flags & SKY2_HW_GIGABIT)) {
 			/* enable automatic crossover */
 			ctrl |= PHY_M_PC_MDI_XMODE(PHY_M_PC_ENA_AUTO) >> 1;
+
+			if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
+			    hw->chip_rev == CHIP_REV_YU_FE2_A0) {
+				u16 spec;
+
+				/* Enable Class A driver for FE+ A0 */
+				spec = gm_phy_read(hw, port, PHY_MARV_FE_SPEC_2);
+				spec |= PHY_M_FESC_SEL_CL_A;
+				gm_phy_write(hw, port, PHY_MARV_FE_SPEC_2, spec);
+			}
 		} else {
 			/* disable energy detect */
 			ctrl &= ~PHY_M_PC_EN_DET_MSK;
