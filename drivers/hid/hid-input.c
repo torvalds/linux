@@ -762,12 +762,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				switch(usage->hid & HID_USAGE) {
 					case 0xff05:
 						set_bit(EV_REP, input->evbit);
-						map_key_clear(BTN_0);
-						set_bit(BTN_1, input->keybit);
-						set_bit(BTN_2, input->keybit);
-						set_bit(BTN_3, input->keybit);
-						set_bit(BTN_4, input->keybit);
-						set_bit(BTN_5, input->keybit);
+						map_key_clear(KEY_F13);
+						set_bit(KEY_F14, input->keybit);
+						set_bit(KEY_F15, input->keybit);
+						set_bit(KEY_F16, input->keybit);
+						set_bit(KEY_F17, input->keybit);
+						set_bit(KEY_F18, input->keybit);
 					default:	goto ignore;
 				}
 			} else {
@@ -1034,11 +1034,11 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		int key = 0;
 		static int last_key = 0;
 		switch (value) {
-			case 0x01: key = BTN_1; break;
-			case 0x02: key = BTN_2; break;
-			case 0x04: key = BTN_3; break;
-			case 0x08: key = BTN_4; break;
-			case 0x10: key = BTN_5; break;
+			case 0x01: key = KEY_F14; break;
+			case 0x02: key = KEY_F15; break;
+			case 0x04: key = KEY_F16; break;
+			case 0x08: key = KEY_F17; break;
+			case 0x10: key = KEY_F18; break;
 			default: break;
 		}
 		if (key) {
