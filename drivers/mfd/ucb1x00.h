@@ -120,7 +120,7 @@ struct ucb1x00 {
 	u16			irq_fal_enbl;
 	u16			irq_ris_enbl;
 	struct ucb1x00_irq	irq_handler[16];
-	struct class_device	cdev;
+	struct device		dev;
 	struct list_head	node;
 	struct list_head	devs;
 };
@@ -144,7 +144,7 @@ struct ucb1x00_driver {
 	int	(*resume)(struct ucb1x00_dev *dev);
 };
 
-#define classdev_to_ucb1x00(cd)	container_of(cd, struct ucb1x00, cdev)
+#define classdev_to_ucb1x00(cd)	container_of(cd, struct ucb1x00, dev)
 
 int ucb1x00_register_driver(struct ucb1x00_driver *);
 void ucb1x00_unregister_driver(struct ucb1x00_driver *);
