@@ -269,7 +269,7 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
 	return rt2x00_get_field32(reg, MAC_CSR13_BIT5);;
 }
-#endif /* CONFIG_RT2400PCI_RFKILL */
+#endif /* CONFIG_RT61PCI_RFKILL */
 
 /*
  * Configuration handlers.

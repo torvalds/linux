@@ -244,7 +244,7 @@ static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, GPIOCSR, &reg);
 	return rt2x00_get_field32(reg, GPIOCSR_BIT0);
 }
-#endif /* CONFIG_RT2400PCI_RFKILL */
+#endif /* CONFIG_RT2500PCI_RFKILL */
 
 /*
  * Configuration handlers.
