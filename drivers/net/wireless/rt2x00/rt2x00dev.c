@@ -80,8 +80,7 @@ static void rt2x00lib_start_link_tuner(struct rt2x00_dev *rt2x00dev)
 
 static void rt2x00lib_stop_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
-	if (delayed_work_pending(&rt2x00dev->link.work))
-		cancel_rearming_delayed_work(&rt2x00dev->link.work);
+	cancel_delayed_work_sync(&rt2x00dev->link.work);
 }
 
 void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
