@@ -32,7 +32,7 @@ config DEBUG_VERBOSE
 	  Most people should say N here.
 
 config DEBUG_MMRS
-	bool "Generate Blackfin MMR tree"
+	tristate "Generate Blackfin MMR tree"
 	select DEBUG_FS
 	help
 	  Create a tree of Blackfin MMRs via the debugfs tree.  If
