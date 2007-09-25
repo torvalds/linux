@@ -395,8 +395,7 @@ static int __init cosa_init(void)
 		goto out_chrdev;
 	}
 	for (i=0; i<nr_cards; i++) {
-		class_device_create(cosa_class, NULL, MKDEV(cosa_major, i),
-				NULL, "cosa%d", i);
+		device_create(cosa_class, NULL, MKDEV(cosa_major, i), "cosa%d", i);
 	}
 	err = 0;
 	goto out;
@@ -415,7 +414,7 @@ static void __exit cosa_exit(void)
 	printk(KERN_INFO "Unloading the cosa module\n");
 
 	for (i=0; i<nr_cards; i++)
-		class_device_destroy(cosa_class, MKDEV(cosa_major, i));
+		device_destroy(cosa_class, MKDEV(cosa_major, i));
 	class_destroy(cosa_class);
 	for (cosa=cosa_cards; nr_cards--; cosa++) {
 		/* Clean up the per-channel data */
