@@ -362,8 +362,8 @@ static int init_coda_psdev(void)
 		goto out_chrdev;
 	}		
 	for (i = 0; i < MAX_CODADEVS; i++)
-		class_device_create(coda_psdev_class, NULL,
-				MKDEV(CODA_PSDEV_MAJOR,i), NULL, "cfs%d", i);
+		device_create(coda_psdev_class, NULL,
+			      MKDEV(CODA_PSDEV_MAJOR,i), "cfs%d", i);
 	coda_sysctl_init();
 	goto out;
 
@@ -405,7 +405,7 @@ static int __init init_coda(void)
 	return 0;
 out:
 	for (i = 0; i < MAX_CODADEVS; i++)
-		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
+		device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
 	class_destroy(coda_psdev_class);
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
@@ -424,7 +424,7 @@ static void __exit exit_coda(void)
                 printk("coda: failed to unregister filesystem\n");
         }
 	for (i = 0; i < MAX_CODADEVS; i++)
-		class_device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
+		device_destroy(coda_psdev_class, MKDEV(CODA_PSDEV_MAJOR, i));
 	class_destroy(coda_psdev_class);
 	unregister_chrdev(CODA_PSDEV_MAJOR, "coda");
 	coda_sysctl_clean();
