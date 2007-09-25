@@ -21,6 +21,13 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+#include <linux/fs.h>
+#include "cifspdu.h"
+#include "cifsglob.h"
+#include "cifsproto.h"
+#include "cifs_debug.h"
+#include "cifsacl.h"
+
 /* security id for everyone */
 static const struct cifs_sid sid_everyone =
 		{1, 1, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0}};
@@ -51,7 +58,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 /* Convert CIFS ACL to POSIX form */
 int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len)
 {
-	int i;
+	int i, rc;
 	int num_aces = 0;
 	int acl_size;
 	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
