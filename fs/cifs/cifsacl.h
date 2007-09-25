@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsacl.h
  *
- *   Copyright (c) International Business Machines  Corp., 2005
+ *   Copyright (c) International Business Machines  Corp., 2007
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify

@@ -310,6 +310,7 @@ extern void setup_ntlmv2_rsp(struct cifsSesInfo *, char *,
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 extern void calc_lanman_hash(struct cifsSesInfo *ses, char *lnm_session_key);
 #endif /* CIFS_WEAK_PW_HASH */
+extern int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len);
 extern int CIFSSMBCopy(int xid,
 			struct cifsTconInfo *source_tcon,
 			const char *fromName,
