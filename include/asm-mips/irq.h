@@ -24,7 +24,30 @@ static inline int irq_canonicalize(int irq)
 #define irq_canonicalize(irq) (irq)	/* Sane hardware, sane code ... */
 #endif
 
+#ifdef CONFIG_MIPS_MT_SMTC
+
+struct irqaction;
+
+extern unsigned long irq_hwmask[];
+extern int setup_irq_smtc(unsigned int irq, struct irqaction * new,
+                          unsigned long hwmask);
+
+static inline void smtc_im_ack_irq(unsigned int irq)
+{
+	if (irq_hwmask[irq] & ST0_IM)
+		set_c0_status(irq_hwmask[irq] & ST0_IM);
+}
+
+#else
+
+static inline void smtc_im_ack_irq(unsigned int irq)
+{
+}
+
+#endif /* CONFIG_MIPS_MT_SMTC */
+
 #ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
+
 /*
  * Clear interrupt mask handling "backstop" if irq_hwmask
  * entry so indicates. This implies that the ack() or end()
@@ -38,6 +61,7 @@ do {									\
 		                   ~(irq_hwmask[irq] & 0x0000ff00));	\
 } while (0)
 #else
+
 #define __DO_IRQ_SMTC_HOOK(irq) do { } while (0)
 #endif
 
@@ -59,14 +83,6 @@ do {									\
 
 extern void arch_init_irq(void);
 extern void spurious_interrupt(void);
-
-#ifdef CONFIG_MIPS_MT_SMTC
-struct irqaction;
-
-extern unsigned long irq_hwmask[];
-extern int setup_irq_smtc(unsigned int irq, struct irqaction * new,
-                          unsigned long hwmask);
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 extern int allocate_irqno(void);
 extern void alloc_legacy_irqno(void);
