@@ -692,6 +692,9 @@ static const struct file_operations gdth_fops = {
     .release = gdth_close,
 };
 
+#define GDTH_MAGIC	0xc2e7c389	/* I got it from /dev/urandom */
+#define IS_GDTH_INTERNAL_CMD(scp)	(scp->underflow == GDTH_MAGIC)
+
 #include "gdth_proc.h"
 #include "gdth_proc.c"
 
@@ -715,7 +718,7 @@ static void gdth_scsi_done(struct scsi_cmnd *scp)
 {
     TRACE2(("gdth_scsi_done()\n"));
 
-    if (scp->request)
+    if (IS_GDTH_INTERNAL_CMD(scp))
         complete((struct completion *)scp->request);
 }
 
@@ -738,7 +741,7 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
     scp->cmd_len = 12;
     memcpy(scp->cmnd, cmnd, 12);
     scp->SCp.this_residual = IOCTL_PRI;   /* priority */
-    scp->done = gdth_scsi_done; /* some fn. test this */
+    scp->underflow = GDTH_MAGIC;
     gdth_queuecommand(scp, gdth_scsi_done);
     wait_for_completion(&wait);
 
@@ -2355,7 +2358,7 @@ static void gdth_putq(int hanum,Scsi_Cmnd *scp,unchar priority)
     ha = HADATA(gdth_ctr_tab[hanum]);
     spin_lock_irqsave(&ha->smp_lock, flags);
 
-    if (scp->done != gdth_scsi_done) {
+    if (!IS_GDTH_INTERNAL_CMD(scp)) {
         scp->SCp.this_residual = (int)priority;
         b = virt_ctr ? NUMDATA(scp->device->host)->busnum:scp->device->channel;
         t = scp->device->id;
@@ -2418,7 +2421,7 @@ static void gdth_next(int hanum)
     for (nscp = pscp = ha->req_first; nscp; nscp = (Scsi_Cmnd *)nscp->SCp.ptr) {
         if (nscp != pscp && nscp != (Scsi_Cmnd *)pscp->SCp.ptr)
             pscp = (Scsi_Cmnd *)pscp->SCp.ptr;
-        if (nscp->done != gdth_scsi_done) {
+        if (!IS_GDTH_INTERNAL_CMD(nscp)) {
             b = virt_ctr ?
                 NUMDATA(nscp->device->host)->busnum : nscp->device->channel;
             t = nscp->device->id;
@@ -2444,7 +2447,7 @@ static void gdth_next(int hanum)
             firsttime = FALSE;
         }
 
-        if (nscp->done != gdth_scsi_done) {
+        if (!IS_GDTH_INTERNAL_CMD(nscp)) {
         if (nscp->SCp.phase == -1) {
             nscp->SCp.phase = CACHESERVICE;           /* default: cache svc. */ 
             if (nscp->cmnd[0] == TEST_UNIT_READY) {
@@ -2507,7 +2510,7 @@ static void gdth_next(int hanum)
                 else
                     nscp->scsi_done(nscp);
             }
-        } else if (nscp->done == gdth_scsi_done) {
+        } else if (IS_GDTH_INTERNAL_CMD(nscp)) {
             if (!(cmd_index=gdth_special_cmd(hanum,nscp)))
                 this_cmd = FALSE;
             next_cmd = FALSE;
@@ -3848,7 +3851,7 @@ static int gdth_sync_event(int hanum,int service,unchar index,Scsi_Cmnd *scp)
                     scp->sense_buffer[2] = NOT_READY;
                     scp->result = (DID_OK << 16) | (CHECK_CONDITION << 1);
                 }
-                if (scp->done != gdth_scsi_done) {
+                if (!IS_GDTH_INTERNAL_CMD(scp)) {
                     ha->dvr.size = sizeof(ha->dvr.eu.sync);
                     ha->dvr.eu.sync.ionode  = hanum;
                     ha->dvr.eu.sync.service = service;
@@ -4945,7 +4948,7 @@ static int gdth_queuecommand(Scsi_Cmnd *scp,void (*done)(Scsi_Cmnd *))
 #endif
 
     priority = DEFAULT_PRI;
-    if (scp->done == gdth_scsi_done)
+    if (IS_GDTH_INTERNAL_CMD(scp))
         priority = scp->SCp.this_residual;
     else
         gdth_update_timeout(hanum, scp, scp->timeout_per_command * 6);

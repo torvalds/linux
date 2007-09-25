@@ -805,7 +805,7 @@ static void gdth_stop_timeout(int hanum, int busnum, int id)
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        if (scp->done != gdth_scsi_done) {
+        if (!IS_GDTH_INTERNAL_CMD(scp)) {
             b = virt_ctr ?
                 NUMDATA(scp->device->host)->busnum : scp->device->channel;
             t = scp->device->id;
@@ -829,7 +829,7 @@ static void gdth_start_timeout(int hanum, int busnum, int id)
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
-        if (scp->done != gdth_scsi_done) {
+        if (!IS_GDTH_INTERNAL_CMD(scp)) {
             b = virt_ctr ?
                 NUMDATA(scp->device->host)->busnum : scp->device->channel;
             t = scp->device->id;
