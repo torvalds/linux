@@ -559,6 +559,9 @@ void xen_exit_mmap(struct mm_struct *mm)
 	put_cpu();
 
 	spin_lock(&mm->page_table_lock);
-	xen_pgd_unpin(mm->pgd);
+
+	/* pgd may not be pinned in the error exit path of execve */
+	if (PagePinned(virt_to_page(mm->pgd)))
+		xen_pgd_unpin(mm->pgd);
 	spin_unlock(&mm->page_table_lock);
 }
