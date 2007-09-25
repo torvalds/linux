@@ -521,7 +521,6 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	u8 sib, rex_prefix = 0;
-	unsigned int i;
 	int rc = 0;
 	int mode = ctxt->mode;
 	int index_reg = 0, base_reg = 0, scale, rip_relative = 0;
@@ -551,7 +550,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	/* Legacy prefixes. */
-	for (i = 0; i < 8; i++) {
+	for (;;) {
 		switch (c->b = insn_fetch(u8, 1, c->eip)) {
 		case 0x66:	/* operand-size override */
 			c->op_bytes ^= 6;	/* switch between 2/4 bytes */
@@ -582,6 +581,11 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		case 0x36:	/* SS override */
 			c->override_base = &ctxt->ss_base;
 			break;
+		case 0x40 ... 0x4f: /* REX */
+			if (mode != X86EMUL_MODE_PROT64)
+				goto done_prefixes;
+			rex_prefix = c->b;
+			continue;
 		case 0xf0:	/* LOCK */
 			c->lock_prefix = 1;
 			break;
@@ -592,19 +596,21 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		default:
 			goto done_prefixes;
 		}
+
+		/* Any legacy prefix after a REX prefix nullifies its effect. */
+
+		rex_prefix = 0;
 	}
 
 done_prefixes:
 
 	/* REX prefix. */
-	if ((mode == X86EMUL_MODE_PROT64) && ((c->b & 0xf0) == 0x40)) {
-		rex_prefix = c->b;
-		if (c->b & 8)
+	if (rex_prefix) {
+		if (rex_prefix & 8)
 			c->op_bytes = 8;	/* REX.W */
-		c->modrm_reg = (c->b & 4) << 1;	/* REX.R */
-		index_reg = (c->b & 2) << 2; /* REX.X */
-		c->modrm_rm = base_reg = (c->b & 1) << 3; /* REG.B */
-		c->b = insn_fetch(u8, 1, c->eip);
+		c->modrm_reg = (rex_prefix & 4) << 1;	/* REX.R */
+		index_reg = (rex_prefix & 2) << 2; /* REX.X */
+		c->modrm_rm = base_reg = (rex_prefix & 1) << 3; /* REG.B */
 	}
 
 	/* Opcode byte(s). */
