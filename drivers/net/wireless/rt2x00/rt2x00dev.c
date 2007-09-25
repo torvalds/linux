@@ -85,6 +85,9 @@ static void rt2x00lib_stop_link_tuner(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
 {
+	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
 	rt2x00lib_stop_link_tuner(rt2x00dev);
 	rt2x00lib_start_link_tuner(rt2x00dev);
 }
