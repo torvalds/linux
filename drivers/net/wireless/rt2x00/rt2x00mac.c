@@ -82,6 +82,17 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u16 frame_control;
 
 	/*
+	 * Mac80211 might be calling this function while we are trying
+	 * to remove the device or perhaps suspending it.
+	 * Note that we can only stop the TX queues inside the TX path
+	 * due to possible race conditions in mac80211.
+	 */
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags)) {
+		ieee80211_stop_queues(hw);
+		return 0;
+	}
+
+	/*
 	 * Determine which ring to put packet on.
 	 */
 	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
@@ -126,14 +137,15 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	int status;
 
-	if (test_bit(DEVICE_INITIALIZED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
+	    test_bit(DEVICE_STARTED, &rt2x00dev->flags))
 		return 0;
 
 	/*
 	 * If this is the first interface which is added,
 	 * we should load the firmware now.
 	 */
-	if (test_bit(REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
+	if (test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
 		status = rt2x00lib_load_firmware(rt2x00dev);
 		if (status)
 			return status;
@@ -155,6 +167,8 @@ int rt2x00mac_start(struct ieee80211_hw *hw)
 		return status;
 	}
 
+	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
@@ -163,11 +177,16 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
+		return;
+
 	/*
 	 * Perhaps we can add something smarter here,
 	 * but for now just disabling the radio should do.
 	 */
 	rt2x00lib_disable_radio(rt2x00dev);
+
+	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
 
@@ -178,9 +197,12 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	struct interface *intf = &rt2x00dev->interface;
 
 	/*
-	 * We only support 1 non-monitor interface.
+	 * Don't allow interfaces to be added while
+	 * either the device has disappeared or when
+	 * another interface is already present.
 	 */
-	if (is_interface_present(intf))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
+	    is_interface_present(intf))
 		return -ENOBUFS;
 
 	intf->id = conf->if_id;
@@ -208,9 +230,12 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	struct interface *intf = &rt2x00dev->interface;
 
 	/*
-	 * We only support 1 non-monitor interface.
+	 * Don't allow interfaces to be remove while
+	 * either the device has disappeared or when
+	 * no interface is present.
 	 */
-	if (!is_interface_present(intf))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
+	    !is_interface_present(intf))
 		return;
 
 	intf->id = 0;
@@ -233,12 +258,10 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
 	/*
-	 * If the device is not initialized we shouldn't accept
-	 * any configuration changes. Mac80211 might be calling
-	 * this function while we are trying to remove the device
-	 * or perhaps suspending it.
+	 * Mac80211 might be calling this function while we are trying
+	 * to remove the device or perhaps suspending it.
 	 */
-	if (!test_bit(DEVICE_INITIALIZED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
 	/*
@@ -252,7 +275,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 			rt2x00lib_toggle_rx(rt2x00dev, 0);
 	}
 
-	rt2x00lib_config(rt2x00dev, conf);
+	rt2x00lib_config(rt2x00dev, conf, 0);
 
 	/*
 	 * Reenable RX only if the radio should be on.
@@ -274,12 +297,10 @@ int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
 	int status;
 
 	/*
-	 * If the device is not initialized we shouldn't accept
-	 * any configuration changes. Mac80211 might be calling
-	 * this function while we are trying to remove the device
-	 * or perhaps suspending it.
+	 * Mac80211 might be calling this function while we are trying
+	 * to remove the device or perhaps suspending it.
 	 */
-	if (!test_bit(DEVICE_INITIALIZED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
 	/*

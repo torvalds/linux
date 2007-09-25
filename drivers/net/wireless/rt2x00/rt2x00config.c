@@ -48,33 +48,20 @@ void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 
 void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, int type)
 {
-	struct interface *intf = &rt2x00dev->interface;
-
-	if (!test_bit(INTERFACE_RESUME, &rt2x00dev->flags) &&
-	    (!!test_bit(INTERFACE_ENABLED, &rt2x00dev->flags) ==
-	     !!is_interface_present(intf)))
-		return;
-
-	rt2x00dev->ops->lib->config_type(rt2x00dev, type);
-
-	/*
-	 * Update the configuration flags.
-	 */
-	if (is_interface_present(intf))
-		__set_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
-	else
-		__clear_bit(INTERFACE_ENABLED, &rt2x00dev->flags);
+	if (type != INVALID_INTERFACE)
+		rt2x00dev->ops->lib->config_type(rt2x00dev, type);
 }
 
-void rt2x00lib_config(struct rt2x00_dev *rt2x00dev, struct ieee80211_conf *conf)
+void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
+		      struct ieee80211_conf *conf, const int force_config)
 {
 	int flags = 0;
 
 	/*
-	 * If we are in RESUME state we should
-	 * force all configuration options.
+	 * In some situations we want to force all configurations
+	 * to be reloaded (When resuming for instance).
 	 */
-	if (test_bit(INTERFACE_RESUME, &rt2x00dev->flags)) {
+	if (force_config) {
 		flags = CONFIG_UPDATE_ALL;
 		goto config;
 	}

@@ -45,9 +45,9 @@ static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
 		return 0;
 
 	/*
-	 * Only continue if we have an active interface.
+	 * Only continue if there are enabled interfaces.
 	 */
-	if (!is_interface_present(&rt2x00dev->interface))
+	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
 		return 0;
 
 	if (state == RFKILL_STATE_ON) {
@@ -76,7 +76,7 @@ int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
 
-	if (!test_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return 0;
 
 	retval = rfkill_register(rt2x00dev->rfkill);
@@ -97,7 +97,7 @@ int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
 	input_unregister_polled_device(rt2x00dev->poll_dev);
@@ -108,7 +108,7 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 {
 	struct device *device = wiphy_dev(rt2x00dev->hw->wiphy);
 
-	if (!test_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return 0;
 
 	rt2x00dev->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
@@ -138,7 +138,7 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
 	input_free_polled_device(rt2x00dev->poll_dev);

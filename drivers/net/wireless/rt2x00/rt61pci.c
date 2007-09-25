@@ -2105,7 +2105,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * Detect if this device has an hardware controlled radio.
 	 */
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
-		__set_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
 
 	/*
 	 * Read frequency offset and RF programming sequence.
@@ -2360,7 +2360,7 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware
 	 */
-	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

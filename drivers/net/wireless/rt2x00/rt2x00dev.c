@@ -40,7 +40,7 @@
 struct data_ring *rt2x00lib_get_ring(struct rt2x00_dev *rt2x00dev,
 				     const unsigned int queue)
 {
-	int beacon = test_bit(REQUIRE_BEACON_RING, &rt2x00dev->flags);
+	int beacon = test_bit(DRIVER_REQUIRE_BEACON_RING, &rt2x00dev->flags);
 
 	/*
 	 * Check if we are requesting a reqular TX ring,
@@ -102,7 +102,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * And check if the hardware button has been disabled.
 	 */
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    (test_bit(DEVICE_SUPPORT_HW_BUTTON, &rt2x00dev->flags) &&
+	    (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) &&
 	     !test_bit(DEVICE_ENABLED_RADIO_HW, &rt2x00dev->flags)))
 		return 0;
 
@@ -161,6 +161,9 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, int enable)
 {
 	enum dev_state state = enable ? STATE_RADIO_RX_ON : STATE_RADIO_RX_OFF;
+
+	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
 
 	/*
 	 * When we are disabling the RX, we should also stop the link tuner.
@@ -721,7 +724,7 @@ exit:
 
 static void rt2x00lib_remove_hw(struct rt2x00_dev *rt2x00dev)
 {
-	if (test_bit(DEVICE_INITIALIZED_HW, &rt2x00dev->flags))
+	if (test_bit(DEVICE_REGISTERED_HW, &rt2x00dev->flags))
 		ieee80211_unregister_hw(rt2x00dev->hw);
 
 	if (likely(rt2x00dev->hwmodes)) {
@@ -753,7 +756,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		return status;
 	}
 
-	__set_bit(DEVICE_INITIALIZED_HW, &rt2x00dev->flags);
+	__set_bit(DEVICE_REGISTERED_HW, &rt2x00dev->flags);
 
 	return 0;
 }
@@ -810,7 +813,7 @@ static int rt2x00lib_alloc_ring_entries(struct rt2x00_dev *rt2x00dev)
 			return -ENOMEM;
 	}
 
-	if (!test_bit(REQUIRE_BEACON_RING, &rt2x00dev->flags))
+	if (!test_bit(DRIVER_REQUIRE_BEACON_RING, &rt2x00dev->flags))
 		return 0;
 
 	/*
@@ -919,7 +922,7 @@ static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 	 * Atim: 1 (if required)
 	 */
 	rt2x00dev->data_rings = 1 + rt2x00dev->hw->queues +
-	    (2 * test_bit(REQUIRE_BEACON_RING, &rt2x00dev->flags));
+	    (2 * test_bit(DRIVER_REQUIRE_BEACON_RING, &rt2x00dev->flags));
 
 	ring = kzalloc(rt2x00dev->data_rings * sizeof(*ring), GFP_KERNEL);
 	if (!ring) {
@@ -932,7 +935,7 @@ static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00dev->rx = ring;
 	rt2x00dev->tx = &rt2x00dev->rx[1];
-	if (test_bit(REQUIRE_BEACON_RING, &rt2x00dev->flags))
+	if (test_bit(DRIVER_REQUIRE_BEACON_RING, &rt2x00dev->flags))
 		rt2x00dev->bcn = &rt2x00dev->tx[rt2x00dev->hw->queues];
 
 	/*
@@ -1011,6 +1014,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	rt2x00debug_register(rt2x00dev);
 
+	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
+
 	return 0;
 
 exit:
@@ -1022,6 +1027,8 @@ EXPORT_SYMBOL_GPL(rt2x00lib_probe_dev);
 
 void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 {
+	__clear_bit(DEVICE_PRESENT, &rt2x00dev->flags);
+
 	/*
 	 * Disable radio.
 	 */
@@ -1068,6 +1075,13 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	int retval;
 
 	NOTICE(rt2x00dev, "Going to sleep.\n");
+	__clear_bit(DEVICE_PRESENT, &rt2x00dev->flags);
+
+	/*
+	 * Only continue if mac80211 has open interfaces.
+	 */
+	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		goto exit;
 
 	/*
 	 * Disable radio and unitialize all items
@@ -1077,6 +1091,7 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	rt2x00lib_uninitialize(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
+exit:
 	/*
 	 * Set device mode to sleep for power management.
 	 */
@@ -1094,12 +1109,18 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	int retval;
 
 	NOTICE(rt2x00dev, "Waking up.\n");
-	__set_bit(INTERFACE_RESUME, &rt2x00dev->flags);
+	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
 
 	/*
 	 * Open the debugfs entry.
 	 */
 	rt2x00debug_register(rt2x00dev);
+
+	/*
+	 * Only continue if mac80211 has open interfaces.
+	 */
+	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return 0;
 
 	/*
 	 * Reinitialize device and all active interfaces.
@@ -1111,13 +1132,21 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reconfigure device.
 	 */
-	retval = rt2x00mac_config(rt2x00dev->hw, &rt2x00dev->hw->conf);
-	if (retval)
-		goto exit;
+	rt2x00lib_config(rt2x00dev, &rt2x00dev->hw->conf, 1);
+	if (!rt2x00dev->hw->conf.radio_enabled)
+		rt2x00lib_disable_radio(rt2x00dev);
 
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
 	rt2x00lib_config_type(rt2x00dev, intf->type);
+
+	/*
+	 * It is possible that during that mac80211 has attempted
+	 * to send frames while we were suspending or resuming.
+	 * In that case we have disabled the TX queue and should
+	 * now enable it again
+	 */
+	ieee80211_start_queues(rt2x00dev->hw);
 
 	/*
 	 * When in Master or Ad-hoc mode,
@@ -1127,16 +1156,12 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	    intf->type == IEEE80211_IF_TYPE_IBSS)
 		rt2x00lib_beacondone(rt2x00dev);
 
-	__clear_bit(INTERFACE_RESUME, &rt2x00dev->flags);
-
 	return 0;
 
 exit:
 	rt2x00lib_disable_radio(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
-
-	__clear_bit(INTERFACE_RESUME, &rt2x00dev->flags);
 
 	return retval;
 }

@@ -1827,7 +1827,7 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware
 	 */
-	__set_bit(REQUIRE_FIRMWARE, &rt2x00dev->flags);
+	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

@@ -493,24 +493,21 @@ struct rt2x00_dev {
 	 * of the device capabilities are stored.
 	 */
 	unsigned long flags;
-#define DEVICE_ENABLED_RADIO		1
-#define DEVICE_ENABLED_RADIO_HW		2
+#define DEVICE_PRESENT			1
+#define DEVICE_REGISTERED_HW		2
 #define DEVICE_INITIALIZED		3
-#define DEVICE_INITIALIZED_HW		4
-#define REQUIRE_FIRMWARE		5
-/* Hole: Add new Flag here */
-#define INTERFACE_RESUME		8
-#define INTERFACE_ENABLED		9
-/* Hole: Add new Flag here */
-#define REQUIRE_BEACON_RING		11
-#define DEVICE_SUPPORT_HW_BUTTON	12
-#define CONFIG_FRAME_TYPE		13
-#define CONFIG_RF_SEQUENCE		14
-/* Hole: Add new Flag here */
-#define CONFIG_EXTERNAL_LNA_A		16
-#define CONFIG_EXTERNAL_LNA_BG		17
-#define CONFIG_DOUBLE_ANTENNA		18
-#define CONFIG_DISABLE_LINK_TUNING	19
+#define DEVICE_STARTED			4
+#define DEVICE_ENABLED_RADIO		5
+#define DEVICE_ENABLED_RADIO_HW		6
+#define DRIVER_REQUIRE_FIRMWARE		7
+#define DRIVER_REQUIRE_BEACON_RING	8
+#define CONFIG_SUPPORT_HW_BUTTON	9
+#define CONFIG_FRAME_TYPE		10
+#define CONFIG_RF_SEQUENCE		11
+#define CONFIG_EXTERNAL_LNA_A		12
+#define CONFIG_EXTERNAL_LNA_BG		13
+#define CONFIG_DOUBLE_ANTENNA		14
+#define CONFIG_DISABLE_LINK_TUNING	15
 
 	/*
 	 * Chipset identification.
