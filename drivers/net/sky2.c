@@ -338,6 +338,16 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 		if (!(hw->flags & SKY2_HW_GIGABIT)) {
 			/* enable automatic crossover */
 			ctrl |= PHY_M_PC_MDI_XMODE(PHY_M_PC_ENA_AUTO) >> 1;
+
+			if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
+			    hw->chip_rev == CHIP_REV_YU_FE2_A0) {
+				u16 spec;
+
+				/* Enable Class A driver for FE+ A0 */
+				spec = gm_phy_read(hw, port, PHY_MARV_FE_SPEC_2);
+				spec |= PHY_M_FESC_SEL_CL_A;
+				gm_phy_write(hw, port, PHY_MARV_FE_SPEC_2, spec);
+			}
 		} else {
 			/* disable energy detect */
 			ctrl &= ~PHY_M_PC_EN_DET_MSK;
@@ -816,7 +826,8 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_RST_CLR);
 	sky2_write16(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_OPER_ON);
 
-	if (!(hw->flags & SKY2_HW_RAMBUFFER)) {
+	/* On chips without ram buffer, pause is controled by MAC level */
+	if (sky2_read8(hw, B2_E_0) == 0) {
 		sky2_write8(hw, SK_REG(port, RX_GMF_LP_THR), 768/8);
 		sky2_write8(hw, SK_REG(port, RX_GMF_UP_THR), 1024/8);
 
@@ -1271,7 +1282,7 @@ static int sky2_up(struct net_device *dev)
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
-	u32 imask;
+	u32 imask, ramsize;
 	int cap, err = -ENOMEM;
 	struct net_device *otherdev = hw->dev[sky2->port^1];
 
@@ -1326,13 +1337,12 @@ static int sky2_up(struct net_device *dev)
 
 	sky2_mac_init(hw, port);
 
-	if (hw->flags & SKY2_HW_RAMBUFFER) {
-		/* Register is number of 4K blocks on internal RAM buffer. */
-		u32 ramsize = sky2_read8(hw, B2_E_0) * 4;
+	/* Register is number of 4K blocks on internal RAM buffer. */
+	ramsize = sky2_read8(hw, B2_E_0) * 4;
+	if (ramsize > 0) {
 		u32 rxspace;
 
-		printk(KERN_DEBUG PFX "%s: ram buffer %dK\n", dev->name, ramsize);
-
+		pr_debug(PFX "%s: ram buffer %dK\n", dev->name, ramsize);
 		if (ramsize < 16)
 			rxspace = ramsize / 2;
 		else
@@ -1995,7 +2005,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 
 	synchronize_irq(hw->pdev->irq);
 
-	if (!(hw->flags & SKY2_HW_RAMBUFFER))
+	if (sky2_read8(hw, B2_E_0) == 0)
 		sky2_set_tx_stfwd(hw, port);
 
 	ctl = gma_read16(hw, port, GM_GP_CTRL);
@@ -2526,7 +2536,7 @@ static void sky2_watchdog(unsigned long arg)
 			++active;
 
 			/* For chips with Rx FIFO, check if stuck */
-			if ((hw->flags & SKY2_HW_RAMBUFFER) &&
+			if ((hw->flags & SKY2_HW_FIFO_HANG_CHECK) &&
 			     sky2_rx_hung(dev)) {
 				pr_info(PFX "%s: receiver hang detected\n",
 					dev->name);
@@ -2684,8 +2694,10 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 	switch(hw->chip_id) {
 	case CHIP_ID_YUKON_XL:
 		hw->flags = SKY2_HW_GIGABIT
-			| SKY2_HW_NEWER_PHY
-			| SKY2_HW_RAMBUFFER;
+			| SKY2_HW_NEWER_PHY;
+		if (hw->chip_rev < 3)
+			hw->flags |= SKY2_HW_FIFO_HANG_CHECK;
+
 		break;
 
 	case CHIP_ID_YUKON_EC_U:
@@ -2711,11 +2723,10 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			dev_err(&hw->pdev->dev, "unsupported revision Yukon-EC rev A1\n");
 			return -EOPNOTSUPP;
 		}
-		hw->flags = SKY2_HW_GIGABIT | SKY2_HW_RAMBUFFER;
+		hw->flags = SKY2_HW_GIGABIT | SKY2_HW_FIFO_HANG_CHECK;
 		break;
 
 	case CHIP_ID_YUKON_FE:
-		hw->flags = SKY2_HW_RAMBUFFER;
 		break;
 
 	case CHIP_ID_YUKON_FE_P:
