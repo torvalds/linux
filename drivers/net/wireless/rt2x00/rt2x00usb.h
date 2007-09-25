@@ -44,7 +44,7 @@
  */
 #define REGISTER_BUSY_COUNT		5
 #define REGISTER_BUSY_DELAY		100
-#define REGISTER_TIMEOUT		20
+#define REGISTER_TIMEOUT		500
 #define REGISTER_TIMEOUT_FIRMWARE	1000
 
 /*
@@ -95,7 +95,7 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 			     const u8 request, const u8 requesttype,
 			     const u16 offset, const u16 value,
 			     void *buffer, const u16 buffer_length,
-			     u16 timeout);
+			     const int timeout);
 
 /*
  * Used to read/write from/to the device.
@@ -110,7 +110,7 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
-				  const u16 buffer_length, u16 timeout);
+				  const u16 buffer_length, const int timeout);
 
 /*
  * Simple wrapper around rt2x00usb_vendor_request to write a single
@@ -122,7 +122,7 @@ static inline int rt2x00usb_vendor_request_sw(const struct rt2x00_dev
 					      const u8 request,
 					      const u16 offset,
 					      const u16 value,
-					      int timeout)
+					      const int timeout)
 {
 	return rt2x00usb_vendor_request(rt2x00dev, request,
 					USB_VENDOR_REQUEST_OUT, offset,

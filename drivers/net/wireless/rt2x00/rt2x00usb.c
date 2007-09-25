@@ -42,7 +42,7 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 			     const u8 request, const u8 requesttype,
 			     const u16 offset, const u16 value,
 			     void *buffer, const u16 buffer_length,
-			     u16 timeout)
+			     const int timeout)
 {
 	struct usb_device *usb_dev =
 	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
@@ -60,12 +60,10 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 			return 0;
 
 		/*
-		 * Check for errors,
-		 * -ETIMEDOUT: We need a bit more time to complete.
+		 * Check for errors
 		 * -ENODEV: Device has disappeared, no point continuing.
+		 * All other errors: Try again.
 		 */
-		if (status == -ETIMEDOUT)
-			timeout *= 2;
 		else if (status == -ENODEV)
 			break;
 	}
@@ -81,7 +79,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request);
 int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
-				  const u16 buffer_length, u16 timeout)
+				  const u16 buffer_length, const int timeout)
 {
 	int status;
 
