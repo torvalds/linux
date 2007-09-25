@@ -284,7 +284,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	host->data = NULL;
 	if (host->mrq->stop) {
 		pxamci_stop_clock(host);
-		pxamci_start_cmd(host, host->mrq->stop, 0);
+		pxamci_start_cmd(host, host->mrq->stop, host->cmdat);
 	} else {
 		pxamci_finish_request(host, host->mrq);
 	}
@@ -382,6 +382,11 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->cmdat |= CMDAT_INIT;
 	}
 
+	if (ios->bus_width == MMC_BUS_WIDTH_4)
+		host->cmdat |= CMDAT_SD_4DAT;
+	else
+		host->cmdat &= ~CMDAT_SD_4DAT;
+
 	pr_debug("PXAMCI: clkrt = %x cmdat = %x\n",
 		 host->clkrt, host->cmdat);
 }
@@ -460,6 +465,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	mmc->ocr_avail = host->pdata ?
 			 host->pdata->ocr_mask :
 			 MMC_VDD_32_33|MMC_VDD_33_34;
+	mmc->caps = 0;
+	if (!cpu_is_pxa21x() && !cpu_is_pxa25x())
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
 	if (!host->sg_cpu) {
