@@ -183,6 +183,9 @@ static char ehea_ethtool_stats_keys[][ETH_GSTRING_LEN] = {
 	{"PR5 free_swqes"},
 	{"PR6 free_swqes"},
 	{"PR7 free_swqes"},
+	{"LRO aggregated"},
+	{"LRO flushed"},
+	{"LRO no_desc"},
 };
 
 static void ehea_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -238,6 +241,18 @@ static void ehea_get_ethtool_stats(struct net_device *dev,
 
 	for (k = 0; k < 8; k++)
 		data[i++] = atomic_read(&port->port_res[k].swqe_avail);
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.aggregated;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.flushed;
+	data[i++] = tmp;
+
+	for (k = 0, tmp = 0; k < EHEA_MAX_PORT_RES; k++)
+		tmp |= port->port_res[k].lro_mgr.stats.no_desc;
+	data[i++] = tmp;
 
 }
 

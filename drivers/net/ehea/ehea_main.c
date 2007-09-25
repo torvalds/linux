@@ -52,6 +52,8 @@ static int rq2_entries = EHEA_DEF_ENTRIES_RQ2;
 static int rq3_entries = EHEA_DEF_ENTRIES_RQ3;
 static int sq_entries = EHEA_DEF_ENTRIES_SQ;
 static int use_mcs = 0;
+static int use_lro = 0;
+static int lro_max_aggr = EHEA_LRO_MAX_AGGR;
 static int num_tx_qps = EHEA_NUM_TX_QP;
 static int prop_carrier_state = 0;
 
@@ -62,6 +64,8 @@ module_param(rq3_entries, int, 0);
 module_param(sq_entries, int, 0);
 module_param(prop_carrier_state, int, 0);
 module_param(use_mcs, int, 0);
+module_param(use_lro, int, 0);
+module_param(lro_max_aggr, int, 0);
 module_param(num_tx_qps, int, 0);
 
 MODULE_PARM_DESC(num_tx_qps, "Number of TX-QPS");
@@ -81,6 +85,11 @@ MODULE_PARM_DESC(sq_entries, " Number of entries for the Send Queue  "
 		 "[2^x - 1], x = [6..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_SQ) ")");
 MODULE_PARM_DESC(use_mcs, " 0:NAPI, 1:Multiple receive queues, Default = 0 ");
+
+MODULE_PARM_DESC(lro_max_aggr, " LRO: Max packets to be aggregated. Default = "
+		 __MODULE_STRING(EHEA_LRO_MAX_AGGR));
+MODULE_PARM_DESC(use_lro, " Large Receive Offload, 1: enable, 0: disable, "
+		 "Default = 0");
 
 static int port_name_cnt = 0;
 static LIST_HEAD(adapter_list);
@@ -393,6 +402,60 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 	return 0;
 }
 
+static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
+		       void **tcph, u64 *hdr_flags, void *priv)
+{
+	struct ehea_cqe *cqe = priv;
+	unsigned int ip_len;
+	struct iphdr *iph;
+
+	/* non tcp/udp packets */
+	if (!cqe->header_length)
+		return -1;
+
+	/* non tcp packet */
+	skb_reset_network_header(skb);
+	iph = ip_hdr(skb);
+	if (iph->protocol != IPPROTO_TCP)
+		return -1;
+
+	ip_len = ip_hdrlen(skb);
+	skb_set_transport_header(skb, ip_len);
+	*tcph = tcp_hdr(skb);
+
+	/* check if ip header and tcp header are complete */
+	if (iph->tot_len < ip_len + tcp_hdrlen(skb))
+		return -1;
+
+	*hdr_flags = LRO_IPV4 | LRO_TCP;
+	*iphdr = iph;
+
+	return 0;
+}
+
+static void ehea_proc_skb(struct ehea_port_res *pr, struct ehea_cqe *cqe,
+			  struct sk_buff *skb)
+{
+	int vlan_extracted = (cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
+		&& pr->port->vgrp;
+
+	if (use_lro) {
+		if (vlan_extracted)
+			lro_vlan_hwaccel_receive_skb(&pr->lro_mgr, skb,
+						     pr->port->vgrp,
+						     cqe->vlan_tag,
+						     cqe);
+		else
+			lro_receive_skb(&pr->lro_mgr, skb, cqe);
+	} else {
+		if (vlan_extracted)
+			vlan_hwaccel_receive_skb(skb, pr->port->vgrp,
+						 cqe->vlan_tag);
+		else
+			netif_receive_skb(skb);
+	}
+}
+
 static int ehea_proc_rwqes(struct net_device *dev,
 			   struct ehea_port_res *pr,
 			   int budget)
@@ -462,13 +525,7 @@ static int ehea_proc_rwqes(struct net_device *dev,
 				processed_rq3++;
 			}
 
-			if ((cqe->status & EHEA_CQE_VLAN_TAG_XTRACT)
-			    && port->vgrp)
-				vlan_hwaccel_receive_skb(skb, port->vgrp,
-							 cqe->vlan_tag);
-			else
-				netif_receive_skb(skb);
-
+			ehea_proc_skb(pr, cqe, skb);
 			dev->last_rx = jiffies;
 		} else {
 			pr->p_stats.poll_receive_errors++;
@@ -480,6 +537,8 @@ static int ehea_proc_rwqes(struct net_device *dev,
 		}
 		cqe = ehea_poll_rq1(qp, &wqe_index);
 	}
+	if (use_lro)
+		lro_flush_all(&pr->lro_mgr);
 
 	pr->rx_packets += processed;
 
@@ -1230,6 +1289,15 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 	kfree(init_attr);
 
 	netif_napi_add(pr->port->netdev, &pr->napi, ehea_poll, 64);
+
+	pr->lro_mgr.max_aggr = pr->port->lro_max_aggr;
+	pr->lro_mgr.max_desc = MAX_LRO_DESCRIPTORS;
+	pr->lro_mgr.lro_arr = pr->lro_desc;
+	pr->lro_mgr.get_skb_header = get_skb_hdr;
+	pr->lro_mgr.features = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
+	pr->lro_mgr.dev = port->netdev;
+	pr->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
+	pr->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 
 	ret = 0;
 	goto out;
@@ -2681,6 +2749,8 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 		ehea_error("register_netdev failed. ret=%d", ret);
 		goto out_dereg_bc;
 	}
+
+	port->lro_max_aggr = lro_max_aggr;
 
 	ret = ehea_get_jumboframe_status(port, &jumbo);
 	if (ret)
