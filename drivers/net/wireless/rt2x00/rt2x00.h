@@ -159,8 +159,8 @@ struct rt2x00_chip {
 #define RT2460		0x0101
 #define RT2560		0x0201
 #define RT2570		0x1201
-#define RT2561		0x0301
-#define RT2561s		0x0302
+#define RT2561s		0x0301	/* Turbo */
+#define RT2561		0x0302
 #define RT2661		0x0401
 #define RT2571		0x1300
 
