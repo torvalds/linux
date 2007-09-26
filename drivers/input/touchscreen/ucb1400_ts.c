@@ -130,8 +130,7 @@ static unsigned int ucb1400_adc_read(struct ucb1400 *ucb, u16 adc_channel)
 		if (val & UCB_ADC_DAT_VALID)
 			break;
 		/* yield to other processes */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	return UCB_ADC_DAT_VALUE(val);
