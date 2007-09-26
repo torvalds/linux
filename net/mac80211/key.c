@@ -121,7 +121,6 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_key *key;
 
 	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS);
-	BUG_ON(alg == ALG_NONE);
 
 	key = kzalloc(sizeof(struct ieee80211_key) + key_len, GFP_KERNEL);
 	if (!key)

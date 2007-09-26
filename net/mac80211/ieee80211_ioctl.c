@@ -27,8 +27,9 @@
 
 
 static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
-				    int idx, int alg, int set_tx_key,
-				    const u8 *_key, size_t key_len)
+				    int idx, int alg, int remove,
+				    int set_tx_key, const u8 *_key,
+				    size_t key_len)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int ret = 0;
@@ -75,7 +76,7 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		key = sta->key;
 	}
 
-	if (alg == ALG_NONE) {
+	if (remove) {
 		ieee80211_key_free(key);
 		key = NULL;
 	} else {
@@ -827,6 +828,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata;
 	int idx, i, alg = ALG_WEP;
 	u8 bcaddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	int remove = 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -845,7 +847,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 		idx--;
 
 	if (erq->flags & IW_ENCODE_DISABLED)
-		alg = ALG_NONE;
+		remove = 1;
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
 		ieee80211_set_default_key(sdata, idx);
@@ -854,7 +856,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 
 	return ieee80211_set_encryption(
 		dev, bcaddr,
-		idx, alg,
+		idx, alg, remove,
 		!sdata->default_key,
 		keybuf, erq->length);
 }
@@ -1005,11 +1007,11 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
-	int alg, idx, i;
+	int uninitialized_var(alg), idx, i, remove = 0;
 
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_NONE:
-		alg = ALG_NONE;
+		remove = 1;
 		break;
 	case IW_ENCODE_ALG_WEP:
 		alg = ALG_WEP;
@@ -1025,7 +1027,7 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 	}
 
 	if (erq->flags & IW_ENCODE_DISABLED)
-		alg = ALG_NONE;
+		remove = 1;
 
 	idx = erq->flags & IW_ENCODE_INDEX;
 	if (idx < 1 || idx > 4) {
@@ -1044,6 +1046,7 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 		idx--;
 
 	return ieee80211_set_encryption(dev, ext->addr.sa_data, idx, alg,
+					remove,
 					ext->ext_flags &
 					IW_ENCODE_EXT_SET_TX_KEY,
 					ext->key, ext->key_len);

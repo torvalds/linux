@@ -532,9 +532,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 		return ieee80211_crypto_tkip_decrypt(rx);
 	case ALG_CCMP:
 		return ieee80211_crypto_ccmp_decrypt(rx);
-	case ALG_NONE:
-		WARN_ON(1);
-		return TXRX_CONTINUE;
 	}
 
 	/* not reached */

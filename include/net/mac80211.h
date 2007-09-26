@@ -541,13 +541,11 @@ struct ieee80211_if_conf {
 
 /**
  * enum ieee80211_key_alg - key algorithm
- * @ALG_NONE: Unset key algorithm, will never be passed to the driver
  * @ALG_WEP: WEP40 or WEP104
  * @ALG_TKIP: TKIP
  * @ALG_CCMP: CCMP (AES)
  */
 enum ieee80211_key_alg {
-	ALG_NONE,
 	ALG_WEP,
 	ALG_TKIP,
 	ALG_CCMP,

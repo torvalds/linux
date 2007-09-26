@@ -2827,9 +2827,6 @@ static int b43_dev_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!dev)
 		return -ENODEV;
 	switch (key->alg) {
-	case ALG_NONE:
-		algorithm = B43_SEC_ALGO_NONE;
-		break;
 	case ALG_WEP:
 		if (key->keylen == 5)
 			algorithm = B43_SEC_ALGO_WEP40;

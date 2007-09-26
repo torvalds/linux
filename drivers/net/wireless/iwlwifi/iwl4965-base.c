@@ -2663,10 +2663,6 @@ static void iwl_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 			     "with key %d\n", ctl->key_idx);
 		break;
 
-	case ALG_NONE:
-		IWL_DEBUG_TX("Tx packet in the clear (encrypt requested).\n");
-		break;
-
 	default:
 		printk(KERN_ERR "Unknown encode alg %d\n", keyinfo->alg);
 		break;
