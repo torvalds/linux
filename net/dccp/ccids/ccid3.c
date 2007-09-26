@@ -302,8 +302,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	ktime_t now = ktime_get_real();
 	s64 delay;
 
-	BUG_ON(hctx == NULL);
-
 	/*
 	 * This function is called only for Data and DataAck packets. Sending
 	 * zero-sized Data(Ack)s is theoretically possible, but for congestion
@@ -383,8 +381,6 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct dccp_tx_hist_entry *packet;
 
-	BUG_ON(hctx == NULL);
-
 	ccid3_hc_tx_update_s(hctx, len);
 
 	packet = dccp_tx_hist_entry_new(ccid3_tx_hist, GFP_ATOMIC);
@@ -408,8 +404,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
-
-	BUG_ON(hctx == NULL);
 
 	/* we are only interested in ACKs */
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
@@ -551,8 +545,6 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
 
-	BUG_ON(hctx == NULL);
-
 	opt_recv = &hctx->ccid3hctx_options_received;
 
 	if (opt_recv->ccid3or_seqno != dp->dccps_gsr) {
@@ -626,8 +618,6 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
-	BUG_ON(hctx == NULL);
-
 	ccid3_hc_tx_set_state(sk, TFRC_SSTATE_TERM);
 	sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
 
@@ -637,14 +627,13 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	struct ccid3_hc_tx_sock *hctx;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return;
 
-	BUG_ON(hctx == NULL);
-
+	hctx = ccid3_hc_tx_sk(sk);
 	info->tcpi_rto = hctx->ccid3hctx_t_rto;
 	info->tcpi_rtt = hctx->ccid3hctx_rtt;
 }
@@ -652,13 +641,14 @@ static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const struct ccid3_hc_tx_sock *hctx;
 	const void *val;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;
 
+	hctx = ccid3_hc_tx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_TX_INFO:
 		if (len < sizeof(hctx->ccid3hctx_tfrc))
@@ -772,14 +762,13 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 
 static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 	__be32 x_recv, pinv;
-
-	BUG_ON(hcrx == NULL);
 
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
 		return 0;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	DCCP_SKB_CB(skb)->dccpd_ccval = hcrx->ccid3hcrx_ccval_last_counter;
 
 	if (dccp_packet_without_ack(skb))
@@ -869,8 +858,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	u32 p_prev, r_sample, rtt_prev;
 	int loss, payload_size;
 	ktime_t now;
-
-	BUG_ON(hcrx == NULL);
 
 	opt_recv = &dccp_sk(sk)->dccps_options_received;
 
@@ -985,8 +972,6 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 
-	BUG_ON(hcrx == NULL);
-
 	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
 	/* Empty packet history */
@@ -998,14 +983,13 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return;
 
-	BUG_ON(hcrx == NULL);
-
+	hcrx = ccid3_hc_rx_sk(sk);
 	info->tcpi_ca_state = hcrx->ccid3hcrx_state;
 	info->tcpi_options  |= TCPI_OPT_TIMESTAMPS;
 	info->tcpi_rcv_rtt  = hcrx->ccid3hcrx_rtt;
@@ -1014,13 +998,14 @@ static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	const struct ccid3_hc_rx_sock *hcrx;
 	const void *val;
 
 	/* Listen socks doesn't have a private CCID block */
 	if (sk->sk_state == DCCP_LISTEN)
 		return -EINVAL;
 
+	hcrx = ccid3_hc_rx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_RX_INFO:
 		if (len < sizeof(hcrx->ccid3hcrx_tfrc))

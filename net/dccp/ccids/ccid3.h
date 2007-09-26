@@ -117,6 +117,15 @@ struct ccid3_hc_tx_sock {
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
 
+static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
+{
+    struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
+    BUG_ON(hctx == NULL);
+#endif
+    return hctx;
+}
+
 /* TFRC receiver states */
 enum ccid3_hc_rx_states {
 	TFRC_RSTATE_NO_DATA = 1,
@@ -161,14 +170,13 @@ struct ccid3_hc_rx_sock {
 	u32				ccid3hcrx_elapsed_time;
 };
 
-static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
-{
-    return ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
-}
-
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
-    return ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+    struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
+#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
+    BUG_ON(hcrx == NULL);
+#endif
+    return hcrx;
 }
 
 #endif /* _DCCP_CCID3_H_ */
