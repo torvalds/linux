@@ -129,7 +129,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 				 (((val) < 0 ? (val)-500 : (val)+500) / 1000))
 
 #define FAN_FROM_REG(reg,div)	((reg) == 255 || (reg) == 0 ? 0 : \
-				 1350000 + (reg)*(div) / 2) / ((reg)*(div))
+				 (1350000 + (reg)*(div) / 2) / ((reg)*(div)))
 #define FAN_TO_REG(val,div)	((val)*(div) * 255 <= 1350000 ? 255 : \
 				 (1350000 + (val)*(div) / 2) / ((val)*(div)))
 
