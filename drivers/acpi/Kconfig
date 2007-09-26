@@ -349,12 +349,11 @@ config ACPI_HOTPLUG_MEMORY
 		$>modprobe acpi_memhotplug 
 
 config ACPI_SBS
-	tristate "Smart Battery System (EXPERIMENTAL)"
+	tristate "Smart Battery System"
 	depends on X86
-	depends on EXPERIMENTAL
+	depends on POWER_SUPPLY
 	help
-	  This driver adds support for the Smart Battery System.
-	  A "Smart Battery" is quite old and quite rare compared
-	  to today's ACPI "Control Method" battery.
+	  This driver adds support for the Smart Battery System, another
+	  type of access to battery information, found on some laptops.
 
 endif	# ACPI
