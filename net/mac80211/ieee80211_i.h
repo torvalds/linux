@@ -642,34 +642,34 @@ struct sta_attribute {
 	ssize_t (*store)(struct sta_info *, const char *buf, size_t count);
 };
 
-static inline void __bss_tim_set(struct ieee80211_if_ap *bss, int aid)
+static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)
 {
 	/*
-	 * This format has ben mandated by the IEEE specifications,
+	 * This format has been mandated by the IEEE specifications,
 	 * so this line may not be changed to use the __set_bit() format.
 	 */
-	bss->tim[(aid)/8] |= 1<<((aid) % 8);
+	bss->tim[aid / 8] |= (1 << (aid % 8));
 }
 
 static inline void bss_tim_set(struct ieee80211_local *local,
-			       struct ieee80211_if_ap *bss, int aid)
+			       struct ieee80211_if_ap *bss, u16 aid)
 {
 	read_lock_bh(&local->sta_lock);
 	__bss_tim_set(bss, aid);
 	read_unlock_bh(&local->sta_lock);
 }
 
-static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, int aid)
+static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
 {
 	/*
-	 * This format has ben mandated by the IEEE specifications,
+	 * This format has been mandated by the IEEE specifications,
 	 * so this line may not be changed to use the __clear_bit() format.
 	 */
-	bss->tim[(aid)/8] &= !(1<<((aid) % 8));
+	bss->tim[aid / 8] &= ~(1 << (aid % 8));
 }
 
 static inline void bss_tim_clear(struct ieee80211_local *local,
-				 struct ieee80211_if_ap *bss, int aid)
+				 struct ieee80211_if_ap *bss, u16 aid)
 {
 	read_lock_bh(&local->sta_lock);
 	__bss_tim_clear(bss, aid);
