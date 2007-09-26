@@ -78,12 +78,24 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		int irq = gpio_to_irq(button->gpio);
 		unsigned int type = button->type ?: EV_KEY;
 
-		set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
-		error = request_irq(irq, gpio_keys_isr, IRQF_SAMPLE_RANDOM,
-				     button->desc ? button->desc : "gpio_keys",
-				     pdev);
+		if (irq < 0) {
+			error = irq;
+			printk(KERN_ERR
+				"gpio-keys: "
+				"Unable to get irq number for GPIO %d,"
+				"error %d\n",
+				button->gpio, error);
+			goto fail;
+		}
+
+		error = request_irq(irq, gpio_keys_isr,
+				    IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING,
+				    button->desc ? button->desc : "gpio_keys",
+				    pdev);
 		if (error) {
-			printk(KERN_ERR "gpio-keys: unable to claim irq %d; error %d\n",
+			printk(KERN_ERR
+				"gpio-keys: Unable to claim irq %d; error %d\n",
 				irq, error);
 			goto fail;
 		}
@@ -93,16 +105,19 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error) {
-		printk(KERN_ERR "Unable to register gpio-keys input device\n");
+		printk(KERN_ERR
+			"gpio-keys: Unable to register input device, "
+			"error: %d\n", error);
 		goto fail;
 	}
 
 	return 0;
 
  fail:
-	for (i = i - 1; i >= 0; i--)
+	while (--i >= 0)
 		free_irq(gpio_to_irq(pdata->buttons[i].gpio), pdev);
 
+	platform_set_drvdata(pdev, NULL);
 	input_free_device(input);
 
 	return error;
