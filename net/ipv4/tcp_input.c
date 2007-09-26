@@ -2935,6 +2935,7 @@ static int tcp_process_frto(struct sock *sk, int flag)
 		}
 		tp->frto_counter = 0;
 		tp->undo_marker = 0;
+		NET_INC_STATS_BH(LINUX_MIB_TCPSPURIOUSRTOS);
 	}
 	return 0;
 }
