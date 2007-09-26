@@ -193,21 +193,26 @@ static int ibmebus_create_devices(const struct of_device_id *matches)
 	return ret;
 }
 
-int ibmebus_register_driver(struct ibmebus_driver *drv)
+int ibmebus_register_driver(struct of_platform_driver *drv)
 {
-	return 0;
+	/* If the driver uses devices that ibmebus doesn't know, add them */
+	ibmebus_create_devices(drv->match_table);
+
+	drv->driver.name   = drv->name;
+	drv->driver.bus    = &ibmebus_bus_type;
+
+	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL(ibmebus_register_driver);
 
-void ibmebus_unregister_driver(struct ibmebus_driver *drv)
+void ibmebus_unregister_driver(struct of_platform_driver *drv)
 {
+	driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL(ibmebus_unregister_driver);
 
-int ibmebus_request_irq(struct ibmebus_dev *dev,
-			u32 ist,
-			irq_handler_t handler,
-			unsigned long irq_flags, const char * devname,
+int ibmebus_request_irq(u32 ist, irq_handler_t handler,
+			unsigned long irq_flags, const char *devname,
 			void *dev_id)
 {
 	unsigned int irq = irq_create_mapping(NULL, ist);
@@ -215,12 +220,11 @@ int ibmebus_request_irq(struct ibmebus_dev *dev,
 	if (irq == NO_IRQ)
 		return -EINVAL;
 
-	return request_irq(irq, handler,
-			   irq_flags, devname, dev_id);
+	return request_irq(irq, handler, irq_flags, devname, dev_id);
 }
 EXPORT_SYMBOL(ibmebus_request_irq);
 
-void ibmebus_free_irq(struct ibmebus_dev *dev, u32 ist, void *dev_id)
+void ibmebus_free_irq(u32 ist, void *dev_id)
 {
 	unsigned int irq = irq_find_mapping(NULL, ist);
 
@@ -231,9 +235,7 @@ EXPORT_SYMBOL(ibmebus_free_irq);
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	struct ibmebus_dev *ebus_dev = to_ibmebus_dev(dev);
-	const char *name = of_get_property(ebus_dev->ofdev.node, "name", NULL);
-	return sprintf(buf, "%s\n", name);
+	return sprintf(buf, "%s\n", to_of_device(dev)->node->name);
 }
 
 static struct device_attribute ibmebus_dev_attrs[] = {

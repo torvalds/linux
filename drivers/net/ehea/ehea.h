@@ -388,7 +388,7 @@ struct ehea_port_res {
 #define EHEA_MAX_PORTS 16
 struct ehea_adapter {
 	u64 handle;
-	struct ibmebus_dev *ebus_dev;
+	struct of_device *ofdev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
 	struct tasklet_struct neq_tasklet;

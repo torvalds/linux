@@ -404,7 +404,7 @@ int ehca_init_device(struct ehca_shca *shca)
 	shca->ib_device.node_type           = RDMA_NODE_IB_CA;
 	shca->ib_device.phys_port_cnt       = shca->num_ports;
 	shca->ib_device.num_comp_vectors    = 1;
-	shca->ib_device.dma_device          = &shca->ibmebus_dev->ofdev.dev;
+	shca->ib_device.dma_device          = &shca->ofdev->dev;
 	shca->ib_device.query_device        = ehca_query_device;
 	shca->ib_device.query_port          = ehca_query_port;
 	shca->ib_device.query_gid           = ehca_query_gid;
@@ -658,7 +658,7 @@ static struct attribute_group ehca_dev_attr_grp = {
 	.attrs = ehca_dev_attrs
 };
 
-static int __devinit ehca_probe(struct ibmebus_dev *dev,
+static int __devinit ehca_probe(struct of_device *dev,
 				const struct of_device_id *id)
 {
 	struct ehca_shca *shca;
@@ -666,16 +666,16 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	struct ib_pd *ibpd;
 	int ret;
 
-	handle = of_get_property(dev->ofdev.node, "ibm,hca-handle", NULL);
+	handle = of_get_property(dev->node, "ibm,hca-handle", NULL);
 	if (!handle) {
 		ehca_gen_err("Cannot get eHCA handle for adapter: %s.",
-			     dev->ofdev.node->full_name);
+			     dev->node->full_name);
 		return -ENODEV;
 	}
 
 	if (!(*handle)) {
 		ehca_gen_err("Wrong eHCA handle for adapter: %s.",
-			     dev->ofdev.node->full_name);
+			     dev->node->full_name);
 		return -ENODEV;
 	}
 
@@ -686,9 +686,9 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 	}
 	mutex_init(&shca->modify_mutex);
 
-	shca->ibmebus_dev = dev;
+	shca->ofdev = dev;
 	shca->ipz_hca_handle.handle = *handle;
-	dev->ofdev.dev.driver_data = shca;
+	dev->dev.driver_data = shca;
 
 	ret = ehca_sense_attributes(shca);
 	if (ret < 0) {
@@ -764,7 +764,7 @@ static int __devinit ehca_probe(struct ibmebus_dev *dev,
 		}
 	}
 
-	ret = sysfs_create_group(&dev->ofdev.dev.kobj, &ehca_dev_attr_grp);
+	ret = sysfs_create_group(&dev->dev.kobj, &ehca_dev_attr_grp);
 	if (ret) /* only complain; we can live without attributes */
 		ehca_err(&shca->ib_device,
 			 "Cannot create device attributes  ret=%d", ret);
@@ -814,12 +814,12 @@ probe1:
 	return -EINVAL;
 }
 
-static int __devexit ehca_remove(struct ibmebus_dev *dev)
+static int __devexit ehca_remove(struct of_device *dev)
 {
-	struct ehca_shca *shca = dev->ofdev.dev.driver_data;
+	struct ehca_shca *shca = dev->dev.driver_data;
 	int ret;
 
-	sysfs_remove_group(&dev->ofdev.dev.kobj, &ehca_dev_attr_grp);
+	sysfs_remove_group(&dev->dev.kobj, &ehca_dev_attr_grp);
 
 	if (ehca_open_aqp1 == 1) {
 		int i;
@@ -870,11 +870,11 @@ static struct of_device_id ehca_device_table[] =
 	{},
 };
 
-static struct ibmebus_driver ehca_driver = {
-	.name     = "ehca",
-	.id_table = ehca_device_table,
-	.probe    = ehca_probe,
-	.remove   = ehca_remove,
+static struct of_platform_driver ehca_driver = {
+	.name        = "ehca",
+	.match_table = ehca_device_table,
+	.probe       = ehca_probe,
+	.remove      = ehca_remove,
 };
 
 void ehca_poll_eqs(unsigned long data)

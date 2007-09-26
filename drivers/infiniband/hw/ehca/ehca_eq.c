@@ -123,7 +123,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 
 	/* register interrupt handlers and initialize work queues */
 	if (type == EHCA_EQ) {
-		ret = ibmebus_request_irq(NULL, eq->ist, ehca_interrupt_eq,
+		ret = ibmebus_request_irq(eq->ist, ehca_interrupt_eq,
 					  IRQF_DISABLED, "ehca_eq",
 					  (void *)shca);
 		if (ret < 0)
@@ -131,7 +131,7 @@ int ehca_create_eq(struct ehca_shca *shca,
 
 		tasklet_init(&eq->interrupt_task, ehca_tasklet_eq, (long)shca);
 	} else if (type == EHCA_NEQ) {
-		ret = ibmebus_request_irq(NULL, eq->ist, ehca_interrupt_neq,
+		ret = ibmebus_request_irq(eq->ist, ehca_interrupt_neq,
 					  IRQF_DISABLED, "ehca_neq",
 					  (void *)shca);
 		if (ret < 0)
@@ -171,7 +171,7 @@ int ehca_destroy_eq(struct ehca_shca *shca, struct ehca_eq *eq)
 	u64 h_ret;
 
 	spin_lock_irqsave(&eq->spinlock, flags);
-	ibmebus_free_irq(NULL, eq->ist, (void *)shca);
+	ibmebus_free_irq(eq->ist, (void *)shca);
 
 	h_ret = hipz_h_destroy_eq(shca->ipz_hca_handle, eq);
 
