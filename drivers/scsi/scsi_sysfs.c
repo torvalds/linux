@@ -209,11 +209,13 @@ show_shost_mode(unsigned int mode, char *buf)
 static ssize_t show_shost_supported_mode(struct class_device *class_dev, char *buf)
 {
 	struct Scsi_Host *shost = class_to_shost(class_dev);
+	unsigned int supported_mode = shost->hostt->supported_mode;
 
-	if (shost->hostt->supported_mode == MODE_UNKNOWN)
-		return snprintf(buf, 20, "unknown\n");
-	else
-		return show_shost_mode(shost->hostt->supported_mode, buf);
+	if (supported_mode == MODE_UNKNOWN)
+		/* by default this should be initiator */
+		supported_mode = MODE_INITIATOR;
+
+	return show_shost_mode(supported_mode, buf);
 }
 
 static CLASS_DEVICE_ATTR(supported_mode, S_IRUGO | S_IWUSR, show_shost_supported_mode, NULL);
