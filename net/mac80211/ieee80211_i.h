@@ -153,6 +153,8 @@ struct ieee80211_txrx_data {
 			int sent_ps_buffered;
 			int queue;
 			int load;
+			u32 tkip_iv32;
+			u16 tkip_iv16;
 		} rx;
 	} u;
 };

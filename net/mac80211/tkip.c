@@ -238,7 +238,8 @@ void ieee80211_tkip_encrypt_data(struct crypto_blkcipher *tfm,
 int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 				struct ieee80211_key *key,
 				u8 *payload, size_t payload_len, u8 *ta,
-				int only_iv, int queue)
+				int only_iv, int queue,
+				u32 *out_iv32, u16 *out_iv16)
 {
 	u32 iv32;
 	u32 iv16;
@@ -332,11 +333,14 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	res = ieee80211_wep_decrypt_data(tfm, rc4key, 16, pos, payload_len - 12);
  done:
 	if (res == TKIP_DECRYPT_OK) {
-		/* FIX: these should be updated only after Michael MIC has been
-		 * verified */
-		/* Record previously received IV */
-		key->u.tkip.iv32_rx[queue] = iv32;
-		key->u.tkip.iv16_rx[queue] = iv16;
+		/*
+		 * Record previously received IV, will be copied into the
+		 * key information after MIC verification. It is possible
+		 * that we don't catch replays of fragments but that's ok
+		 * because the Michael MIC verication will then fail.
+		 */
+		*out_iv32 = iv32;
+		*out_iv16 = iv16;
 	}
 
 	return res;

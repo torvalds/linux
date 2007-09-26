@@ -175,6 +175,10 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	/* remove Michael MIC from payload */
 	skb_trim(skb, skb->len - MICHAEL_MIC_LEN);
 
+	/* update IV in key information to be able to detect replays */
+	rx->key->u.tkip.iv32_rx[rx->u.rx.queue] = rx->u.rx.tkip_iv32;
+	rx->key->u.tkip.iv16_rx[rx->u.rx.queue] = rx->u.rx.tkip_iv16;
+
 	return TXRX_CONTINUE;
 }
 
@@ -315,7 +319,9 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	res = ieee80211_tkip_decrypt_data(rx->local->wep_rx_tfm,
 					  key, skb->data + hdrlen,
 					  skb->len - hdrlen, rx->sta->addr,
-					  hwaccel, rx->u.rx.queue);
+					  hwaccel, rx->u.rx.queue,
+					  &rx->u.rx.tkip_iv32,
+					  &rx->u.rx.tkip_iv16);
 	if (res != TKIP_DECRYPT_OK || wpa_test) {
 		printk(KERN_DEBUG "%s: TKIP decrypt failed for RX frame from "
 		       "%s (res=%d)\n",
