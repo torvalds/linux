@@ -120,9 +120,7 @@ struct ccid3_hc_tx_sock {
 static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
 {
     struct ccid3_hc_tx_sock *hctx = ccid_priv(dccp_sk(sk)->dccps_hc_tx_ccid);
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
     BUG_ON(hctx == NULL);
-#endif
     return hctx;
 }
 
@@ -173,9 +171,7 @@ struct ccid3_hc_rx_sock {
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
 {
     struct ccid3_hc_rx_sock *hcrx = ccid_priv(dccp_sk(sk)->dccps_hc_rx_ccid);
-#ifdef CONFIG_IP_DCCP_CCID3_DEBUG
     BUG_ON(hcrx == NULL);
-#endif
     return hcrx;
 }
 
