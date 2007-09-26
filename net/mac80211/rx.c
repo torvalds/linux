@@ -522,6 +522,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 	    ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 		rx->sta->wep_weak_iv_count++;
 
+	/* either the frame will be decrypted or dropped */
+	rx->u.rx.status->flag |= RX_FLAG_DECRYPTED;
+
 	switch (rx->key->conf.alg) {
 	case ALG_WEP:
 		return ieee80211_crypto_wep_decrypt(rx);
@@ -993,9 +996,8 @@ ieee80211_rx_h_drop_unencrypted(struct ieee80211_txrx_data *rx)
 	if (unlikely(!(rx->fc & IEEE80211_FCTL_PROTECTED) &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
 		     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_NULLFUNC &&
-		     (rx->key || rx->sdata->drop_unencrypted) &&
-		     (rx->sdata->eapol == 0 ||
-		      !ieee80211_is_eapol(rx->skb)))) {
+		     rx->sdata->drop_unencrypted &&
+		     (rx->sdata->eapol == 0 || !ieee80211_is_eapol(rx->skb)))) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: RX non-WEP frame, but expected "
 			       "encryption\n", rx->dev->name);
