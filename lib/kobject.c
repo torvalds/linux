@@ -617,11 +617,6 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 	return ret;
 }
 
-void subsystem_init(struct kset *s)
-{
-	kset_init(s);
-}
-
 int subsystem_register(struct kset *s)
 {
 	return kset_register(s);

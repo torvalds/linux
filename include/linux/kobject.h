@@ -217,7 +217,6 @@ extern struct kset hypervisor_subsys;
 #define kobj_set_kset_s(obj,subsys) \
 	(obj)->kobj.kset = &(subsys)
 
-extern void subsystem_init(struct kset *);
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
 

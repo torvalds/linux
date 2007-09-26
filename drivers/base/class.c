@@ -861,7 +861,7 @@ int __init classes_init(void)
 
 	/* ick, this is ugly, the things we go through to keep from showing up
 	 * in sysfs... */
-	subsystem_init(&class_obj_subsys);
+	kset_init(&class_obj_subsys);
 	if (!class_obj_subsys.kobj.parent)
 		class_obj_subsys.kobj.parent = &class_obj_subsys.kobj;
 	return 0;
