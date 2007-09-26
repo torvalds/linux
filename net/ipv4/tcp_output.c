@@ -1718,6 +1718,10 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		BUG_ON(tcp_skb_pcount(skb) != 1 ||
 		       tcp_skb_pcount(next_skb) != 1);
 
+		if (WARN_ON(tp->sacked_out &&
+		    (TCP_SKB_CB(next_skb)->seq == tp->highest_sack)))
+			return;
+
 		/* Ok.	We will be able to collapse the packet. */
 		tcp_unlink_write_queue(next_skb, sk);
 
@@ -1733,10 +1737,6 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 
 		/* Update sequence range on original skb. */
 		TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(next_skb)->end_seq;
-
-		if (WARN_ON(tp->sacked_out &&
-		    (TCP_SKB_CB(next_skb)->seq == tp->highest_sack)))
-			return;
 
 		/* Merge over control information. */
 		flags |= TCP_SKB_CB(next_skb)->flags; /* This moves PSH/FIN etc. over */
