@@ -513,7 +513,8 @@ struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp)
 static void gfs2_fake_write_endio(struct buffer_head *bh, int uptodate)
 {
 	struct buffer_head *real_bh = bh->b_private;
-	struct gfs2_sbd *sdp = GFS2_SB(real_bh->b_page->mapping->host);
+	struct gfs2_bufdata *bd = real_bh->b_private;
+	struct gfs2_sbd *sdp = bd->bd_gl->gl_sbd;
 
 	end_buffer_write_sync(bh, uptodate);
 	free_buffer_head(bh);
