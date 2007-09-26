@@ -665,6 +665,11 @@ D: Minor updates to SCSI types, added /proc/pid/maps protection
 S: (ask for current address)
 S: USA
 
+N: Robin Cornelius
+E: robincornelius@users.sourceforge.net
+D: Ralink rt2x00 WLAN driver
+S: Cornwall, U.K.
+
 N: Mark Corner
 E: mcorner@umich.edu
 W: http://www.eecs.umich.edu/~mcorner/
@@ -678,6 +683,11 @@ D: Original designer and co-author of ATA Taskfile
 D: Kernel module SMART utilities
 S: Santa Cruz, California
 S: USA
+
+N: Luis Correia
+E: lfcorreia@users.sf.net
+D: Ralink rt2x00 WLAN driver
+S: Belas, Portugal
 
 N: Alan Cox
 W: http://www.linux.org.uk/diary/
@@ -832,6 +842,12 @@ S: Preston
 S: Lancs
 S: PR4 6AX
 S: United Kingdom
+
+N: Ivo van Doorn
+E: IvDoorn@gmail.com
+W: http://www.mendiosus.nl
+D: Ralink rt2x00 WLAN driver
+S: Haarlem, The Netherlands
 
 N: John G Dorsey
 E: john+@cs.cmu.edu
@@ -3517,6 +3533,12 @@ S: Maastrichterweg 63
 S: 5554 GG Valkenswaard
 S: The Netherlands
 
+N: Mark Wallis
+E: mwallis@serialmonkey.com
+W: http://mark.serialmonkey.com
+D: Ralink rt2x00 WLAN driver
+S: Newcastle, Australia
+
 N: Peter Shaobo Wang
 E: pwang@mmdcorp.com
 W: http://www.mmdcorp.com/pw/linux
@@ -3650,6 +3672,15 @@ D: Supports NTP on Linux.  Added PPS code.  Fixed bugs in adjtimex().
 S: Alte Regensburger Str. 11a
 S: 93149 Nittenau
 S: Germany
+
+N: Gertjan van Wingerde
+E: gwingerde@home.nl
+D: Ralink rt2x00 WLAN driver
+D: Minix V2 file-system
+D: Misc fixes
+S: Geessinkweg 177
+S: 7544 TX Enschede
+S: The Netherlands
 
 N: Lars Wirzenius
 E: liw@iki.fi

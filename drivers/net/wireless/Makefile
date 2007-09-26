@@ -53,3 +53,4 @@ obj-$(CONFIG_RTL8187)	+= rtl8187.o
 obj-$(CONFIG_ADM8211)	+= adm8211.o
 
 obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
+obj-$(CONFIG_RT2X00)	+= rt2x00/
