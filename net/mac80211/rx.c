@@ -1199,7 +1199,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 	if ((sdata->type == IEEE80211_IF_TYPE_STA ||
 	     sdata->type == IEEE80211_IF_TYPE_IBSS) &&
-	    !rx->local->user_space_mlme)
+	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->u.rx.status);
 	else
 		return TXRX_DROP;

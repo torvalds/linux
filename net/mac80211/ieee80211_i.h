@@ -287,6 +287,7 @@ struct ieee80211_if_sta {
  * generator reports that there are no present stations that cannot support short
  * preambles */
 #define IEEE80211_SDATA_SHORT_PREAMBLE	BIT(3)
+#define IEEE80211_SDATA_USERSPACE_MLME	BIT(4)
 struct ieee80211_sub_if_data {
 	struct list_head list;
 	enum ieee80211_if_types type;
@@ -552,8 +553,6 @@ struct ieee80211_local {
 				      * (1 << MODE_*) */
 	unsigned int hw_modes; /* bitfield of supported hardware modes;
 				* (1 << MODE_*) */
-
-	int user_space_mlme;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct local_debugfsdentries {

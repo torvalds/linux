@@ -254,7 +254,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_enable_keys(sdata);
 
 		if (sdata->type == IEEE80211_IF_TYPE_STA &&
-		    !local->user_space_mlme)
+		    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);

@@ -105,12 +105,12 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 				    struct iw_point *data, char *extra)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (local->user_space_mlme)
-		return -EOPNOTSUPP;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
+		return -EOPNOTSUPP;
+
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret = ieee80211_sta_set_extra_ie(dev, extra, data->length);
@@ -374,7 +374,6 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 	size_t len = data->length;
 
@@ -386,7 +385,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret;
-		if (local->user_space_mlme) {
+		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
 			if (len > IEEE80211_MAX_SSID_LEN)
 				return -EINVAL;
 			memcpy(sdata->u.sta.ssid, ssid, len);
@@ -451,14 +450,13 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret;
-		if (local->user_space_mlme) {
+		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
 			memcpy(sdata->u.sta.bssid, (u8 *) &ap_addr->sa_data,
 			       ETH_ALEN);
 			return 0;
