@@ -41,8 +41,8 @@ static struct platform_device uart8250_device = {
 
 static int __init uart8250_init(void)
 {
-	uart8250_data[0].iobase = (unsigned long) &mace->isa.serial1;
-	uart8250_data[1].iobase = (unsigned long) &mace->isa.serial1;
+	uart8250_data[0].membase = (void __iomem *) &mace->isa.serial1;
+	uart8250_data[1].membase = (void __iomem *) &mace->isa.serial1;
 
 	return platform_device_register(&uart8250_device);
 }
