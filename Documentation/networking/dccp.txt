@@ -112,6 +112,11 @@ tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds
 	to an unbounded transmit buffer.
 
+sync_ratelimit = 125 ms
+	The timeout between subsequent DCCP-Sync packets sent in response to
+	sequence-invalid packets on the same socket (RFC 4340, 7.5.4). The unit
+	of this parameter is milliseconds; a value of 0 disables rate-limiting.
+
 Notes
 =====
 

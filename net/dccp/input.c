@@ -122,6 +122,23 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 		    (ackno != DCCP_PKT_WITHOUT_ACK_SEQ))
 			dp->dccps_gar = ackno;
 	} else {
+		unsigned long now = jiffies;
+		/*
+		 *   Step 6: Check sequence numbers
+		 *      Otherwise,
+		 *         If P.type == Reset,
+		 *            Send Sync packet acknowledging S.GSR
+		 *         Otherwise,
+		 *            Send Sync packet acknowledging P.seqno
+		 *      Drop packet and return
+		 *
+		 *   These Syncs are rate-limited as per RFC 4340, 7.5.4:
+		 *   at most 1 / (dccp_sync_rate_limit * HZ) Syncs per second.
+		 */
+		if (time_before(now, (dp->dccps_rate_last +
+				      sysctl_dccp_sync_ratelimit)))
+			return 0;
+
 		DCCP_WARN("DCCP: Step 6 failed for %s packet, "
 			  "(LSWL(%llu) <= P.seqno(%llu) <= S.SWH(%llu)) and "
 			  "(P.ackno %s or LAWL(%llu) <= P.ackno(%llu) <= S.AWH(%llu), "
@@ -132,15 +149,9 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 							      : "exists",
 			  (unsigned long long) lawl, (unsigned long long) ackno,
 			  (unsigned long long) dp->dccps_awh);
-		/*
-		 *   Step 6: Check sequence numbers
-		 *      Otherwise,
-		 *         If P.type == Reset,
-		 *            Send Sync packet acknowledging S.GSR
-		 *         Otherwise,
-		 *            Send Sync packet acknowledging P.seqno
-		 *      Drop packet and return
-		 */
+
+		dp->dccps_rate_last = now;
+
 		if (dh->dccph_type == DCCP_PKT_RESET)
 			seqno = dp->dccps_gsr;
 		dccp_send_sync(sk, seqno, DCCP_PKT_SYNC);
