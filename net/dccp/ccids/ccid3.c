@@ -448,7 +448,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
 		 *	R_sample  =  (now - t_recvdata) - t_elapsed
 		 */
-		r_sample = dccp_sample_rtt(sk, now, &packet->dccphtx_tstamp);
+		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->dccphtx_tstamp));
 
 		/*
 		 * Update RTT estimate by
@@ -881,9 +881,9 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	case DCCP_PKT_DATAACK:
 		if (opt_recv->dccpor_timestamp_echo == 0)
 			break;
+		r_sample = dccp_timestamp() - opt_recv->dccpor_timestamp_echo;
 		rtt_prev = hcrx->ccid3hcrx_rtt;
-		now = ktime_get_real();
-		r_sample = dccp_sample_rtt(sk, now, NULL);
+		r_sample = dccp_sample_rtt(sk, 10 * r_sample);
 
 		if (hcrx->ccid3hcrx_state == TFRC_RSTATE_NO_DATA)
 			hcrx->ccid3hcrx_rtt = r_sample;
