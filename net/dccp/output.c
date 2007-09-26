@@ -69,7 +69,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
-			ackno = dcb->dccpd_seq;
+			ackno = dcb->dccpd_ack_seq;
 			/* fall through */
 		default:
 			/*
@@ -507,7 +507,7 @@ void dccp_send_delayed_ack(struct sock *sk)
 	sk_reset_timer(sk, &icsk->icsk_delack_timer, timeout);
 }
 
-void dccp_send_sync(struct sock *sk, const u64 seq,
+void dccp_send_sync(struct sock *sk, const u64 ackno,
 		    const enum dccp_pkt_type pkt_type)
 {
 	/*
@@ -517,14 +517,16 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
 	 */
 	struct sk_buff *skb = alloc_skb(sk->sk_prot->max_header, GFP_ATOMIC);
 
-	if (skb == NULL)
+	if (skb == NULL) {
 		/* FIXME: how to make sure the sync is sent? */
+		DCCP_CRIT("could not send %s", dccp_packet_name(pkt_type));
 		return;
+	}
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, sk->sk_prot->max_header);
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
-	DCCP_SKB_CB(skb)->dccpd_seq = seq;
+	DCCP_SKB_CB(skb)->dccpd_ack_seq = ackno;
 
 	dccp_transmit_skb(sk, skb);
 }
