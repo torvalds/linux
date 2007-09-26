@@ -73,7 +73,7 @@ struct net_device * hostap_add_interface(struct local_info *local,
 	dev->mem_start = mdev->mem_start;
 	dev->mem_end = mdev->mem_end;
 
-	hostap_setup_dev(dev, local, 0);
+	hostap_setup_dev(dev, local, type);
 	dev->destructor = free_netdev;
 
 	sprintf(dev->name, "%s%s", prefix, name);
@@ -857,7 +857,7 @@ const struct header_ops hostap_80211_ops = {
 EXPORT_SYMBOL(hostap_80211_ops);
 
 void hostap_setup_dev(struct net_device *dev, local_info_t *local,
-		      int main_dev)
+		      int type)
 {
 	struct hostap_interface *iface;
 
@@ -877,15 +877,22 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 	dev->do_ioctl = hostap_ioctl;
 	dev->open = prism2_open;
 	dev->stop = prism2_close;
-	dev->hard_start_xmit = hostap_data_start_xmit;
 	dev->set_mac_address = prism2_set_mac_address;
 	dev->set_multicast_list = hostap_set_multicast_list;
 	dev->change_mtu = prism2_change_mtu;
 	dev->tx_timeout = prism2_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
+	if (type == HOSTAP_INTERFACE_AP) {
+		dev->hard_start_xmit = hostap_mgmt_start_xmit;
+		dev->type = ARPHRD_IEEE80211;
+		dev->header_ops = &hostap_80211_ops;
+	} else {
+		dev->hard_start_xmit = hostap_data_start_xmit;
+	}
+
 	dev->mtu = local->mtu;
-	if (!main_dev) {
+	if (type != HOSTAP_INTERFACE_MASTER) {
 		/* use main radio device queue */
 		dev->tx_queue_len = 0;
 	}
@@ -909,10 +916,6 @@ static int hostap_enable_hostapd(local_info_t *local, int rtnl_locked)
 					    "ap");
 	if (local->apdev == NULL)
 		return -ENOMEM;
-
-	local->apdev->hard_start_xmit = hostap_mgmt_start_xmit;
-	local->apdev->type = ARPHRD_IEEE80211;
-	local->apdev->header_ops = &hostap_80211_ops;
 
 	return 0;
 }
