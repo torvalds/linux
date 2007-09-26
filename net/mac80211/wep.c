@@ -63,8 +63,8 @@ static inline int ieee80211_wep_weak_iv(u32 iv, int keylen)
 }
 
 
-void ieee80211_wep_get_iv(struct ieee80211_local *local,
-			  struct ieee80211_key *key, u8 *iv)
+static void ieee80211_wep_get_iv(struct ieee80211_local *local,
+				 struct ieee80211_key *key, u8 *iv)
 {
 	local->wep_iv++;
 	if (ieee80211_wep_weak_iv(local->wep_iv, key->conf.keylen))
@@ -109,9 +109,9 @@ u8 * ieee80211_wep_add_iv(struct ieee80211_local *local,
 }
 
 
-void ieee80211_wep_remove_iv(struct ieee80211_local *local,
-			     struct sk_buff *skb,
-			     struct ieee80211_key *key)
+static void ieee80211_wep_remove_iv(struct ieee80211_local *local,
+				    struct sk_buff *skb,
+				    struct ieee80211_key *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u16 fc;
@@ -325,4 +325,28 @@ u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 		return ivpos;
 
 	return NULL;
+}
+
+ieee80211_txrx_result
+ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
+{
+	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
+	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
+	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH))
+		return TXRX_CONTINUE;
+
+	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
+		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
+				       "failed\n", rx->dev->name);
+			return TXRX_DROP;
+		}
+	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
+		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
+		/* remove ICV */
+		skb_trim(rx->skb, rx->skb->len - 4);
+	}
+
+	return TXRX_CONTINUE;
 }

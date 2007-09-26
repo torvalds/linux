@@ -662,36 +662,32 @@ ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
 }
 
 static ieee80211_txrx_result
-ieee80211_rx_h_wep_decrypt(struct ieee80211_txrx_data *rx)
+ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 {
-	if ((rx->key && rx->key->conf.alg != ALG_WEP) ||
-	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
-	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
-	     ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
-	      (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)))
+	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
 		return TXRX_CONTINUE;
 
 	if (!rx->key) {
 		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: RX WEP frame, but no key set\n",
-			       rx->dev->name);
+			printk(KERN_DEBUG "%s: RX protected frame,"
+			       " but have no key\n", rx->dev->name);
 		return TXRX_DROP;
 	}
 
-	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
-		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
-			if (net_ratelimit())
-				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
-				       "failed\n", rx->dev->name);
-			return TXRX_DROP;
-		}
-	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
-		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
-		/* remove ICV */
-		skb_trim(rx->skb, rx->skb->len - 4);
+	switch (rx->key->conf.alg) {
+	case ALG_WEP:
+		return ieee80211_crypto_wep_decrypt(rx);
+	case ALG_TKIP:
+		return ieee80211_crypto_tkip_decrypt(rx);
+	case ALG_CCMP:
+		return ieee80211_crypto_ccmp_decrypt(rx);
+	case ALG_NONE:
+		return TXRX_CONTINUE;
 	}
 
-	return TXRX_CONTINUE;
+	/* not reached */
+	WARN_ON(1);
+	return TXRX_DROP;
 }
 
 static inline struct ieee80211_fragment_entry *
@@ -1371,10 +1367,8 @@ ieee80211_rx_handler ieee80211_rx_handlers[] =
 	ieee80211_rx_h_check,
 	ieee80211_rx_h_load_key,
 	ieee80211_rx_h_sta_process,
-	ieee80211_rx_h_ccmp_decrypt,
-	ieee80211_rx_h_tkip_decrypt,
 	ieee80211_rx_h_wep_weak_iv_detection,
-	ieee80211_rx_h_wep_decrypt,
+	ieee80211_rx_h_decrypt,
 	ieee80211_rx_h_defragment,
 	ieee80211_rx_h_ps_poll,
 	ieee80211_rx_h_michael_mic_verify,

@@ -281,7 +281,7 @@ ieee80211_tx_h_tkip_encrypt(struct ieee80211_txrx_data *tx)
 
 
 ieee80211_txrx_result
-ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
+ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	u16 fc;
@@ -293,9 +293,7 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
-	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
-	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
+	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
 		return TXRX_CONTINUE;
 
 	if (!rx->sta || skb->len - hdrlen < 12)
@@ -535,7 +533,7 @@ ieee80211_tx_h_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 
 
 ieee80211_txrx_result
-ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
+ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	u16 fc;
@@ -549,9 +547,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
-	if (!key || key->conf.alg != ALG_CCMP ||
-	    !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
-	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
+	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
 		return TXRX_CONTINUE;
 
 	data_len = skb->len - hdrlen - CCMP_HDR_LEN - CCMP_MIC_LEN;
