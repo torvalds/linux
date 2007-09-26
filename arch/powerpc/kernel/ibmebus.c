@@ -51,6 +51,13 @@ static struct device ibmebus_bus_device = { /* fake "parent" device */
 
 struct bus_type ibmebus_bus_type;
 
+/* These devices will automatically be added to the bus during init */
+static struct of_device_id builtin_matches[] = {
+	{ .compatible = "IBM,lhca" },
+	{ .compatible = "IBM,lhea" },
+	{},
+};
+
 static void *ibmebus_alloc_coherent(struct device *dev,
 				    size_t size,
 				    dma_addr_t *dma_handle,
@@ -125,6 +132,67 @@ static struct dma_mapping_ops ibmebus_dma_ops = {
 	.dma_supported  = ibmebus_dma_supported,
 };
 
+static int ibmebus_match_path(struct device *dev, void *data)
+{
+	struct device_node *dn = to_of_device(dev)->node;
+	return (dn->full_name &&
+		(strcasecmp((char *)data, dn->full_name) == 0));
+}
+
+static int ibmebus_match_node(struct device *dev, void *data)
+{
+	return to_of_device(dev)->node == data;
+}
+
+static int ibmebus_create_device(struct device_node *dn)
+{
+	struct of_device *dev;
+	int ret;
+
+	dev = of_device_alloc(dn, NULL, &ibmebus_bus_device);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->dev.bus = &ibmebus_bus_type;
+	dev->dev.archdata.dma_ops = &ibmebus_dma_ops;
+
+	ret = of_device_register(dev);
+	if (ret) {
+		of_device_free(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ibmebus_create_devices(const struct of_device_id *matches)
+{
+	struct device_node *root, *child;
+	int ret = 0;
+
+	root = of_find_node_by_path("/");
+
+	for (child = NULL; (child = of_get_next_child(root, child)); ) {
+		if (!of_match_node(matches, child))
+			continue;
+
+		if (bus_find_device(&ibmebus_bus_type, NULL, child,
+				    ibmebus_match_node))
+			continue;
+
+		ret = ibmebus_create_device(child);
+		if (ret) {
+			printk(KERN_ERR "%s: failed to create device (%i)",
+			       __FUNCTION__, ret);
+			of_node_put(child);
+			break;
+		}
+	}
+
+	of_node_put(root);
+	return ret;
+}
+
 int ibmebus_register_driver(struct ibmebus_driver *drv)
 {
 	return 0;
@@ -173,18 +241,6 @@ static struct device_attribute ibmebus_dev_attrs[] = {
 	__ATTR_NULL
 };
 
-static int ibmebus_match_path(struct device *dev, void *data)
-{
-	int rc;
-	struct device_node *dn =
-		of_node_get(to_ibmebus_dev(dev)->ofdev.node);
-
-	rc = (dn->full_name && (strcasecmp((char*)data, dn->full_name) == 0));
-
-	of_node_put(dn);
-	return rc;
-}
-
 static char *ibmebus_chomp(const char *in, size_t count)
 {
 	char *out = kmalloc(count + 1, GFP_KERNEL);
@@ -204,9 +260,8 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 				   const char *buf, size_t count)
 {
 	struct device_node *dn = NULL;
-	struct ibmebus_dev *dev;
 	char *path;
-	ssize_t rc;
+	ssize_t rc = 0;
 
 	path = ibmebus_chomp(buf, count);
 	if (!path)
@@ -221,9 +276,8 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 	}
 
 	if ((dn = of_find_node_by_path(path))) {
-/*		dev = ibmebus_register_device_node(dn); */
+		rc = ibmebus_create_device(dn);
 		of_node_put(dn);
-		rc = IS_ERR(dev) ? PTR_ERR(dev) : count;
 	} else {
 		printk(KERN_WARNING "%s: no such device node: %s\n",
 		       __FUNCTION__, path);
@@ -232,7 +286,9 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 
 out:
 	kfree(path);
-	return rc;
+	if (rc)
+		return rc;
+	return count;
 }
 
 static ssize_t ibmebus_store_remove(struct bus_type *bus,
@@ -247,7 +303,7 @@ static ssize_t ibmebus_store_remove(struct bus_type *bus,
 
 	if ((dev = bus_find_device(&ibmebus_bus_type, NULL, path,
 				   ibmebus_match_path))) {
-/*		ibmebus_unregister_device(dev); */
+		of_device_unregister(to_of_device(dev));
 
 		kfree(path);
 		return count;
@@ -267,6 +323,7 @@ static struct bus_attribute ibmebus_bus_attrs[] = {
 };
 
 struct bus_type ibmebus_bus_type = {
+	.uevent    = of_device_uevent,
 	.dev_attrs = ibmebus_dev_attrs,
 	.bus_attrs = ibmebus_bus_attrs
 };
@@ -291,6 +348,13 @@ static int __init ibmebus_bus_init(void)
 		       __FUNCTION__, err);
 		bus_unregister(&ibmebus_bus_type);
 
+		return err;
+	}
+
+	err = ibmebus_create_devices(builtin_matches);
+	if (err) {
+		device_unregister(&ibmebus_bus_device);
+		bus_unregister(&ibmebus_bus_type);
 		return err;
 	}
 
