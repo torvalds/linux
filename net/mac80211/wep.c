@@ -286,25 +286,6 @@ int ieee80211_wep_decrypt(struct ieee80211_local *local, struct sk_buff *skb,
 }
 
 
-int ieee80211_wep_get_keyidx(struct sk_buff *skb)
-{
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
-	u16 fc;
-	int hdrlen;
-
-	fc = le16_to_cpu(hdr->frame_control);
-	if (!(fc & IEEE80211_FCTL_PROTECTED))
-		return -1;
-
-	hdrlen = ieee80211_get_hdrlen(fc);
-
-	if (skb->len < 8 + hdrlen)
-		return -1;
-
-	return skb->data[hdrlen + 3] >> 6;
-}
-
-
 u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
