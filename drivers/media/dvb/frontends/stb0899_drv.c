@@ -1481,8 +1481,8 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 	}
 	dprintk(verbose, FE_DEBUG, 1, "delivery system=%d", state->delsys);
 
-//	SearchRange = 3000000; /* Search Bandwidth (3 Mhz, was initially 10  Mhz)	*/
-	SearchRange = 10000000; /* Search Bandwidth (3 Mhz, was initially 10  Mhz)	*/
+	SearchRange = 3000000; /* Search Bandwidth (3 Mhz, was initially 10  Mhz)	*/
+//	SearchRange = 10000000; /* Search Bandwidth (3 Mhz, was initially 10  Mhz)	*/
 	dprintk(verbose, FE_DEBUG, 1, "Frequency=%d, Srate=%d", i_params->freq, i_params->srate);
 	/* checking Search Range is meaningless for a fixed 3 Mhz			*/
 	if (INRANGE(i_params->srate, 1000000, 45000000)) {
@@ -1521,7 +1521,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 
 			/* What to do for tuners having no bandwidth setup ?	*/
 			if (state->config->tuner_set_bandwidth)
-				state->config->tuner_set_bandwidth(fe, (13 * (stb0899_carr_width(state) + 10000000)) / 10);
+				state->config->tuner_set_bandwidth(fe, (135 * (stb0899_carr_width(state) + SearchRange)) / 100);
 			if (state->config->tuner_get_bandwidth)
 				state->config->tuner_get_bandwidth(fe, &internal->tuner_bw);
 			/* Set DVB-S1 AGC		*/
@@ -1553,7 +1553,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 			internal->srch_range		= SearchRange;
 
 			if (state->config->tuner_set_bandwidth)
-				state->config->tuner_set_bandwidth(fe, (stb0899_carr_width(state) + 10000000));
+				state->config->tuner_set_bandwidth(fe, (135 * (stb0899_carr_width(state) + SearchRange)) / 100);
 			if (state->config->tuner_get_bandwidth)
 				state->config->tuner_get_bandwidth(fe, &internal->tuner_bw);
 
