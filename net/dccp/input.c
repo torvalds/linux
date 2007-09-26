@@ -540,11 +540,6 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
-		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNCACK);
-		goto discard;
-	}
-
 	switch (sk->sk_state) {
 	case DCCP_CLOSED:
 		dcb->dccpd_reset_code = DCCP_RESET_CODE_NO_CONNECTION;
@@ -575,6 +570,9 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			sk_wake_async(sk, 0, POLL_OUT);
 			break;
 		}
+	} else if (unlikely(dh->dccph_type == DCCP_PKT_SYNC)) {
+		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNCACK);
+		goto discard;
 	}
 
 	if (!queued) {
