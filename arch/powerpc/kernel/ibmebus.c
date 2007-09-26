@@ -397,10 +397,10 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 		return -ENOMEM;
 
 	if (bus_find_device(&ibmebus_bus_type, NULL, path,
-			     ibmebus_match_path)) {
+			    ibmebus_match_path)) {
 		printk(KERN_WARNING "%s: %s has already been probed\n",
 		       __FUNCTION__, path);
-		rc = -EINVAL;
+		rc = -EEXIST;
 		goto out;
 	}
 
