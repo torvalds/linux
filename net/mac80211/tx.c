@@ -222,6 +222,9 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 	u32 sta_flags;
 
+	if (unlikely(tx->flags & IEEE80211_TXRXD_TX_INJECTED))
+		return TXRX_CONTINUE;
+
 	if (unlikely(tx->local->sta_scanning != 0) &&
 	    ((tx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (tx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_PROBE_REQ))
@@ -566,22 +569,27 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 {
 	struct rate_control_extra extra;
 
-	memset(&extra, 0, sizeof(extra));
-	extra.mode = tx->u.tx.mode;
-	extra.ethertype = tx->ethertype;
+	if (likely(!tx->u.tx.rate)) {
+		memset(&extra, 0, sizeof(extra));
+		extra.mode = tx->u.tx.mode;
+		extra.ethertype = tx->ethertype;
 
-	tx->u.tx.rate = rate_control_get_rate(tx->local, tx->dev, tx->skb,
-					      &extra);
-	if (unlikely(extra.probe != NULL)) {
-		tx->u.tx.control->flags |= IEEE80211_TXCTL_RATE_CTRL_PROBE;
-		tx->flags |= IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
-		tx->u.tx.control->alt_retry_rate = tx->u.tx.rate->val;
-		tx->u.tx.rate = extra.probe;
-	} else {
+		tx->u.tx.rate = rate_control_get_rate(tx->local, tx->dev,
+						      tx->skb, &extra);
+		if (unlikely(extra.probe != NULL)) {
+			tx->u.tx.control->flags |=
+				IEEE80211_TXCTL_RATE_CTRL_PROBE;
+			tx->flags |= IEEE80211_TXRXD_TXPROBE_LAST_FRAG;
+			tx->u.tx.control->alt_retry_rate = tx->u.tx.rate->val;
+			tx->u.tx.rate = extra.probe;
+		} else
+			tx->u.tx.control->alt_retry_rate = -1;
+
+		if (!tx->u.tx.rate)
+			return TXRX_DROP;
+	} else
 		tx->u.tx.control->alt_retry_rate = -1;
-	}
-	if (!tx->u.tx.rate)
-		return TXRX_DROP;
+
 	if (tx->u.tx.mode->mode == MODE_IEEE80211G &&
 	    (tx->sdata->flags & IEEE80211_SDATA_USE_PROTECTION) &&
 	    (tx->flags & IEEE80211_TXRXD_FRAGMENTED) && extra.nonerp) {
@@ -611,19 +619,24 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	struct ieee80211_tx_control *control = tx->u.tx.control;
 	struct ieee80211_hw_mode *mode = tx->u.tx.mode;
 
-	if (!is_multicast_ether_addr(hdr->addr1)) {
-		if (tx->skb->len + FCS_LEN > tx->local->rts_threshold &&
-		    tx->local->rts_threshold < IEEE80211_MAX_RTS_THRESHOLD) {
-			control->flags |= IEEE80211_TXCTL_USE_RTS_CTS;
-			control->flags |= IEEE80211_TXCTL_LONG_RETRY_LIMIT;
-			control->retry_limit =
-				tx->local->long_retry_limit;
+	if (!control->retry_limit) {
+		if (!is_multicast_ether_addr(hdr->addr1)) {
+			if (tx->skb->len + FCS_LEN > tx->local->rts_threshold
+			    && tx->local->rts_threshold <
+					IEEE80211_MAX_RTS_THRESHOLD) {
+				control->flags |=
+					IEEE80211_TXCTL_USE_RTS_CTS;
+				control->flags |=
+					IEEE80211_TXCTL_LONG_RETRY_LIMIT;
+				control->retry_limit =
+					tx->local->long_retry_limit;
+			} else {
+				control->retry_limit =
+					tx->local->short_retry_limit;
+			}
 		} else {
-			control->retry_limit =
-				tx->local->short_retry_limit;
+			control->retry_limit = 1;
 		}
-	} else {
-		control->retry_limit = 1;
 	}
 
 	if (tx->flags & IEEE80211_TXRXD_FRAGMENTED) {
@@ -785,9 +798,8 @@ ieee80211_tx_handler ieee80211_tx_handlers[] =
  * with Radiotap Header -- only called for monitor mode interface
  */
 static ieee80211_txrx_result
-__ieee80211_parse_tx_radiotap(
-	struct ieee80211_txrx_data *tx,
-	struct sk_buff *skb, struct ieee80211_tx_control *control)
+__ieee80211_parse_tx_radiotap(struct ieee80211_txrx_data *tx,
+			      struct sk_buff *skb)
 {
 	/*
 	 * this is the moment to interpret and discard the radiotap header that
@@ -802,18 +814,11 @@ __ieee80211_parse_tx_radiotap(
 		(struct ieee80211_radiotap_header *) skb->data;
 	struct ieee80211_hw_mode *mode = tx->local->hw.conf.mode;
 	int ret = ieee80211_radiotap_iterator_init(&iterator, rthdr, skb->len);
+	struct ieee80211_tx_control *control = tx->u.tx.control;
 
-	/*
-	 * default control situation for all injected packets
-	 * FIXME: this does not suit all usage cases, expand to allow control
-	 */
-
-	control->retry_limit = 1; /* no retry */
-	control->flags &= ~(IEEE80211_TXCTL_USE_RTS_CTS |
-			    IEEE80211_TXCTL_USE_CTS_PROTECT);
-	control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT |
-			  IEEE80211_TXCTL_NO_ACK;
-	control->antenna_sel_tx = 0; /* default to default antenna */
+	control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
+	tx->flags |= IEEE80211_TXRXD_TX_INJECTED;
+	tx->flags &= ~IEEE80211_TXRXD_FRAGMENTED;
 
 	/*
 	 * for every radiotap entry that is present
@@ -846,19 +851,10 @@ __ieee80211_parse_tx_radiotap(
 			for (i = 0; i < mode->num_rates; i++) {
 				struct ieee80211_rate *r = &mode->rates[i];
 
-				if (r->rate > target_rate)
-					continue;
-
-				control->rate = r;
-
-				if (r->flags & IEEE80211_RATE_PREAMBLE2)
-					control->tx_rate = r->val2;
-				else
-					control->tx_rate = r->val;
-
-				/* end on exact match */
-				if (r->rate == target_rate)
-					i = mode->num_rates;
+				if (r->rate == target_rate) {
+					tx->u.tx.rate = r;
+					break;
+				}
 			}
 			break;
 
@@ -888,7 +884,18 @@ __ieee80211_parse_tx_radiotap(
 
 				skb_trim(skb, skb->len - FCS_LEN);
 			}
+			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_WEP)
+				control->flags &=
+					~IEEE80211_TXCTL_DO_NOT_ENCRYPT;
+			if (*iterator.this_arg & IEEE80211_RADIOTAP_F_FRAG)
+				tx->flags |= IEEE80211_TXRXD_FRAGMENTED;
 			break;
+
+		/*
+		 * Please update the file
+		 * Documentation/networking/mac80211-injection.txt
+		 * when parsing new fields here.
+		 */
 
 		default:
 			break;
@@ -908,14 +915,17 @@ __ieee80211_parse_tx_radiotap(
 	return TXRX_CONTINUE;
 }
 
-static ieee80211_txrx_result inline
+/*
+ * initialises @tx
+ */
+static ieee80211_txrx_result
 __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		       struct sk_buff *skb,
 		       struct net_device *dev,
 		       struct ieee80211_tx_control *control)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr;
 	struct ieee80211_sub_if_data *sdata;
 	ieee80211_txrx_result res = TXRX_CONTINUE;
 
@@ -926,33 +936,31 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	tx->dev = dev; /* use original interface */
 	tx->local = local;
 	tx->sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
+	tx->u.tx.control = control;
 	/*
-	 * set defaults for things that can be set by
-	 * injected radiotap headers
+	 * Set this flag (used below to indicate "automatic fragmentation"),
+	 * it will be cleared/left by radiotap as desired.
 	 */
-	control->power_level = local->hw.conf.power_level;
-	control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
+	tx->flags |= IEEE80211_TXRXD_FRAGMENTED;
 
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(sdata->type == IEEE80211_IF_TYPE_MNTR)) {
-		if (__ieee80211_parse_tx_radiotap(tx, skb, control) ==
-								TXRX_DROP) {
+		if (__ieee80211_parse_tx_radiotap(tx, skb) == TXRX_DROP)
 			return TXRX_DROP;
-		}
+
 		/*
-		 * we removed the radiotap header after this point,
-		 * we filled control with what we could use
-		 * set to the actual ieee header now
+		 * __ieee80211_parse_tx_radiotap has now removed
+		 * the radiotap header that was present and pre-filled
+		 * 'tx' with tx control information.
 		 */
-		hdr = (struct ieee80211_hdr *) skb->data;
-		res = TXRX_QUEUED; /* indication it was monitor packet */
 	}
+
+	hdr = (struct ieee80211_hdr *) skb->data;
 
 	tx->sta = sta_info_get(local, hdr->addr1);
 	tx->fc = le16_to_cpu(hdr->frame_control);
-	tx->u.tx.control = control;
+
 	if (is_multicast_ether_addr(hdr->addr1)) {
 		tx->flags &= ~IEEE80211_TXRXD_TXUNICAST;
 		control->flags |= IEEE80211_TXCTL_NO_ACK;
@@ -960,19 +968,23 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		tx->flags |= IEEE80211_TXRXD_TXUNICAST;
 		control->flags &= ~IEEE80211_TXCTL_NO_ACK;
 	}
-	if (local->fragmentation_threshold < IEEE80211_MAX_FRAG_THRESHOLD &&
-	    (tx->flags & IEEE80211_TXRXD_TXUNICAST) &&
-	    skb->len + FCS_LEN > local->fragmentation_threshold &&
-	    !local->ops->set_frag_threshold)
-		tx->flags |= IEEE80211_TXRXD_FRAGMENTED;
-	else
-		tx->flags &= ~IEEE80211_TXRXD_FRAGMENTED;
+
+	if (tx->flags & IEEE80211_TXRXD_FRAGMENTED) {
+		if ((tx->flags & IEEE80211_TXRXD_TXUNICAST) &&
+		    skb->len + FCS_LEN > local->fragmentation_threshold &&
+		    !local->ops->set_frag_threshold)
+			tx->flags |= IEEE80211_TXRXD_FRAGMENTED;
+		else
+			tx->flags &= ~IEEE80211_TXRXD_FRAGMENTED;
+	}
+
 	if (!tx->sta)
 		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
 	else if (tx->sta->clear_dst_mask) {
 		control->flags |= IEEE80211_TXCTL_CLEAR_DST_MASK;
 		tx->sta->clear_dst_mask = 0;
 	}
+
 	hdrlen = ieee80211_get_hdrlen(tx->fc);
 	if (skb->len > hdrlen + sizeof(rfc1042_header) + 2) {
 		u8 *pos = &skb->data[hdrlen + sizeof(rfc1042_header)];
@@ -984,11 +996,14 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 }
 
 /* Device in tx->dev has a reference added; use dev_put(tx->dev) when
- * finished with it. */
-static int inline ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
-				       struct sk_buff *skb,
-				       struct net_device *mdev,
-				       struct ieee80211_tx_control *control)
+ * finished with it.
+ *
+ * NB: @tx is uninitialised when passed in here
+ */
+static int ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
+				struct sk_buff *skb,
+				struct net_device *mdev,
+				struct ieee80211_tx_control *control)
 {
 	struct ieee80211_tx_packet_data *pkt_data;
 	struct net_device *dev;
@@ -1001,6 +1016,7 @@ static int inline ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 	if (unlikely(!dev))
 		return -ENODEV;
+	/* initialises tx with control */
 	__ieee80211_tx_prepare(tx, skb, dev, control);
 	return 0;
 }
@@ -1081,6 +1097,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 		return 0;
 	}
 
+	/* initialises tx */
 	res_prepare = __ieee80211_tx_prepare(&tx, skb, dev, control);
 
 	if (res_prepare == TXRX_DROP) {
@@ -1097,15 +1114,11 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	sta = tx.sta;
 	tx.u.tx.mode = local->hw.conf.mode;
 
-	if (res_prepare == TXRX_QUEUED) { /* if it was an injected packet */
-		res = TXRX_CONTINUE;
-	} else {
-		for (handler = local->tx_handlers; *handler != NULL;
-		     handler++) {
-			res = (*handler)(&tx);
-			if (res != TXRX_CONTINUE)
-				break;
-		}
+	for (handler = local->tx_handlers; *handler != NULL;
+	     handler++) {
+		res = (*handler)(&tx);
+		if (res != TXRX_CONTINUE)
+			break;
 	}
 
 	skb = tx.skb; /* handlers are allowed to change skb */
@@ -1857,7 +1870,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		}
 
-		if (ieee80211_tx_prepare(&tx, skb, local->mdev, control) == 0)
+		if (!ieee80211_tx_prepare(&tx, skb, local->mdev, control))
 			break;
 		dev_kfree_skb_any(skb);
 	}

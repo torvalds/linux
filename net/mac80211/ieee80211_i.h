@@ -122,6 +122,7 @@ typedef enum {
 #define IEEE80211_TXRXD_RXIN_SCAN		BIT(4)
 /* frame is destined to interface currently processed (incl. multicast frames) */
 #define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
+#define IEEE80211_TXRXD_TX_INJECTED		BIT(6)
 struct ieee80211_txrx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
