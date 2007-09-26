@@ -61,6 +61,7 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			set_ack = 0;
 			/* fall through */
 		case DCCP_PKT_DATAACK:
+		case DCCP_PKT_RESET:
 			break;
 
 		case DCCP_PKT_REQUEST:
@@ -73,8 +74,10 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 			/* fall through */
 		default:
 			/*
-			 * Only data packets should come through with skb->sk
-			 * set.
+			 * Set owner/destructor: some skbs are allocated via
+			 * alloc_skb (e.g. when retransmission may happen).
+			 * Only Data, DataAck, and Reset packets should come
+			 * through here with skb->sk set.
 			 */
 			WARN_ON(skb->sk);
 			skb_set_owner_w(skb, sk);
@@ -324,72 +327,29 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 
 EXPORT_SYMBOL_GPL(dccp_make_response);
 
-static struct sk_buff *dccp_make_reset(struct sock *sk, struct dst_entry *dst,
-				       const enum dccp_reset_codes code)
-{
-	struct dccp_hdr *dh;
-	struct dccp_sock *dp = dccp_sk(sk);
-	const u32 dccp_header_size = sizeof(struct dccp_hdr) +
-				     sizeof(struct dccp_hdr_ext) +
-				     sizeof(struct dccp_hdr_reset);
-	struct sk_buff *skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1,
-					   GFP_ATOMIC);
-	if (skb == NULL)
-		return NULL;
-
-	/* Reserve space for headers. */
-	skb_reserve(skb, sk->sk_prot->max_header);
-
-	skb->dst = dst_clone(dst);
-
-	dccp_inc_seqno(&dp->dccps_gss);
-
-	DCCP_SKB_CB(skb)->dccpd_reset_code = code;
-	DCCP_SKB_CB(skb)->dccpd_type	   = DCCP_PKT_RESET;
-	DCCP_SKB_CB(skb)->dccpd_seq	   = dp->dccps_gss;
-
-	if (dccp_insert_options(sk, skb)) {
-		kfree_skb(skb);
-		return NULL;
-	}
-
-	dh = dccp_zeroed_hdr(skb, dccp_header_size);
-
-	dh->dccph_sport	= inet_sk(sk)->sport;
-	dh->dccph_dport	= inet_sk(sk)->dport;
-	dh->dccph_doff	= (dccp_header_size +
-			   DCCP_SKB_CB(skb)->dccpd_opt_len) / 4;
-	dh->dccph_type	= DCCP_PKT_RESET;
-	dh->dccph_x	= 1;
-	dccp_hdr_set_seq(dh, dp->dccps_gss);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), dp->dccps_gsr);
-
-	dccp_hdr_reset(skb)->dccph_reset_code = code;
-	inet_csk(sk)->icsk_af_ops->send_check(sk, 0, skb);
-
-	DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
-	return skb;
-}
-
+/* send Reset on established socket, to close or abort the connection */
 int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 {
+	struct sk_buff *skb;
 	/*
 	 * FIXME: what if rebuild_header fails?
 	 * Should we be doing a rebuild_header here?
 	 */
 	int err = inet_sk_rebuild_header(sk);
 
-	if (err == 0) {
-		struct sk_buff *skb = dccp_make_reset(sk, sk->sk_dst_cache,
-						      code);
-		if (skb != NULL) {
-			memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-			err = inet_csk(sk)->icsk_af_ops->queue_xmit(skb, 0);
-			return net_xmit_eval(err);
-		}
-	}
+	if (err != 0)
+		return err;
 
-	return err;
+	skb = sock_wmalloc(sk, sk->sk_prot->max_header, 1, GFP_ATOMIC);
+	if (skb == NULL)
+		return -ENOBUFS;
+
+	/* Reserve space for headers and prepare control bits. */
+	skb_reserve(skb, sk->sk_prot->max_header);
+	DCCP_SKB_CB(skb)->dccpd_type	   = DCCP_PKT_RESET;
+	DCCP_SKB_CB(skb)->dccpd_reset_code = code;
+
+	return dccp_transmit_skb(sk, skb);
 }
 
 /*
