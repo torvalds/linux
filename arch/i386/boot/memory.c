@@ -20,6 +20,7 @@
 
 static int detect_memory_e820(void)
 {
+	int count = 0;
 	u32 next = 0;
 	u32 size, id;
 	u8 err;
@@ -33,14 +34,24 @@ static int detect_memory_e820(void)
 		      "=m" (*desc)
 		    : "D" (desc), "a" (0xe820));
 
-		if (err || id != SMAP)
+		/* Some BIOSes stop returning SMAP in the middle of
+		   the search loop.  We don't know exactly how the BIOS
+		   screwed up the map at that point, we might have a
+		   partial map, the full map, or complete garbage, so
+		   just return failure. */
+		if (id != SMAP) {
+			count = 0;
+			break;
+		}
+
+		if (err)
 			break;
 
-		boot_params.e820_entries++;
+		count++;
 		desc++;
-	} while (next && boot_params.e820_entries < E820MAX);
+	} while (next && count < E820MAX);
 
-	return boot_params.e820_entries;
+	return boot_params.e820_entries = count;
 }
 
 static int detect_memory_e801(void)
@@ -89,11 +100,16 @@ static int detect_memory_88(void)
 
 int detect_memory(void)
 {
+	int err = -1;
+
 	if (detect_memory_e820() > 0)
-		return 0;
+		err = 0;
 
 	if (!detect_memory_e801())
-		return 0;
+		err = 0;
 
-	return detect_memory_88();
+	if (!detect_memory_88())
+		err = 0;
+
+	return err;
 }
