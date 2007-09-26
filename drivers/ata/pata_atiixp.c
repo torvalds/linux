@@ -173,6 +173,9 @@ static void atiixp_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *
  *	When DMA begins we need to ensure that the UDMA control
  *	register for the channel is correctly set.
+ *
+ *	Note: The host lock held by the libata layer protects
+ *	us from two channels both trying to set DMA bits at once
  */
 
 static void atiixp_bmdma_start(struct ata_queued_cmd *qc)
@@ -199,6 +202,9 @@ static void atiixp_bmdma_start(struct ata_queued_cmd *qc)
  *
  *	DMA has completed. Clear the UDMA flag as the next operations will
  *	be PIO ones not UDMA data transfer.
+ *
+ *	Note: The host lock held by the libata layer protects
+ *	us from two channels both trying to set DMA bits at once
  */
 
 static void atiixp_bmdma_stop(struct ata_queued_cmd *qc)
