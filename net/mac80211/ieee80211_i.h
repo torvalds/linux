@@ -290,7 +290,7 @@ struct ieee80211_if_sta {
 #define IEEE80211_SDATA_SHORT_PREAMBLE	BIT(3)
 struct ieee80211_sub_if_data {
 	struct list_head list;
-	unsigned int type;
+	enum ieee80211_if_types type;
 
 	struct wireless_dev wdev;
 

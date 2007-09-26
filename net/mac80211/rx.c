@@ -1425,6 +1425,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->sta = ieee80211_ibss_add_sta(sdata->dev, rx->skb,
 							 bssid, hdr->addr2);
 		break;
+	case IEEE80211_IF_TYPE_VLAN:
 	case IEEE80211_IF_TYPE_AP:
 		if (!bssid) {
 			if (compare_ether_addr(sdata->dev->dev_addr,
@@ -1448,6 +1449,13 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			return 0;
 		if (compare_ether_addr(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
+		break;
+	case IEEE80211_IF_TYPE_MNTR:
+		/* take everything */
+		break;
+	case IEEE80211_IF_TYPE_MGMT:
+		/* should never get here */
+		WARN_ON(1);
 		break;
 	}
 

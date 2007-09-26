@@ -243,6 +243,9 @@ void ieee80211_if_reinit(struct net_device *dev)
 	ieee80211_if_sdata_deinit(sdata);
 
 	switch (sdata->type) {
+	case IEEE80211_IF_TYPE_MGMT:
+		/* nothing to do */
+		break;
 	case IEEE80211_IF_TYPE_AP: {
 		/* Remove all virtual interfaces that use this BSS
 		 * as their sdata->bss */

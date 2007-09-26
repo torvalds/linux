@@ -344,6 +344,13 @@ static int ieee80211_open(struct net_device *dev)
 		if (!sdata->u.vlan.ap)
 			return -ENOLINK;
 		break;
+	case IEEE80211_IF_TYPE_AP:
+	case IEEE80211_IF_TYPE_MGMT:
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_MNTR:
+	case IEEE80211_IF_TYPE_IBSS:
+		/* no special treatment */
+		break;
 	}
 
 	if (local->open_count == 0) {
