@@ -665,6 +665,10 @@ static int enable_arbiter_disable(void)
 	reg = 0x78;
 	dev = pci_get_device(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8601_0,
 			     NULL);
+	/* Find PM133/VT8605 host bridge */
+	if (dev == NULL)
+		dev = pci_get_device(PCI_VENDOR_ID_VIA,
+				     PCI_DEVICE_ID_VIA_8605_0, NULL);
 	/* Find CLE266 host bridge */
 	if (dev == NULL) {
 		reg = 0x76;
