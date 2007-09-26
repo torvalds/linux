@@ -552,7 +552,7 @@ static int pasemi_mac_clean_tx(struct pasemi_mac *mac)
 	struct pas_dma_xct_descr *dp;
 	unsigned int start, count, limit;
 	unsigned int total_count;
-	int flags;
+	unsigned long flags;
 	struct sk_buff *skbs[32];
 	dma_addr_t dmas[32];
 
@@ -973,7 +973,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	struct pas_dma_xct_descr *dp;
 	u64 dflags, mactx, ptr;
 	dma_addr_t map;
-	int flags;
+	unsigned long flags;
 
 	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_SS | XCT_MACTX_CRC_PAD;
 
