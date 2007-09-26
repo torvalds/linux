@@ -477,6 +477,7 @@ void dccp_send_ack(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(dccp_send_ack);
 
+/* FIXME: Is this still necessary (11.3) - currently nowhere used by DCCP. */
 void dccp_send_delayed_ack(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
