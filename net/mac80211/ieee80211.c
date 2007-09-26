@@ -615,13 +615,9 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-		conf.generic_elem = sdata->u.sta.extra_ie;
-		conf.generic_elem_len = sdata->u.sta.extra_ie_len;
 	} else if (sdata->type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
-		conf.generic_elem = sdata->u.ap.generic_elem;
-		conf.generic_elem_len = sdata->u.ap.generic_elem_len;
 		conf.beacon = beacon;
 		conf.beacon_control = control;
 	}

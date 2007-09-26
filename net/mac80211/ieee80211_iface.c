@@ -269,7 +269,6 @@ void ieee80211_if_reinit(struct net_device *dev)
 
 		kfree(sdata->u.ap.beacon_head);
 		kfree(sdata->u.ap.beacon_tail);
-		kfree(sdata->u.ap.generic_elem);
 
 		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
 			local->total_ps_buffered--;

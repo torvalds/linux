@@ -519,11 +519,6 @@ struct ieee80211_if_init_conf {
  *	config_interface() call, so copy the value somewhere if you need
  *	it.
  * @ssid_len: length of the @ssid field.
- * @generic_elem: used (together with @generic_elem_len) by drivers for
- *	hardware that generate beacons independently. The pointer is valid
- *	only during the config_interface() call, so copy the value somewhere
- *	if you need it.
- * @generic_elem_len: length of the generic element.
  * @beacon: beacon template. Valid only if @host_gen_beacon_template in
  *	&struct ieee80211_hw is set. The driver is responsible of freeing
  *	the sk_buff.
@@ -538,8 +533,6 @@ struct ieee80211_if_conf {
 	u8 *bssid;
 	u8 *ssid;
 	size_t ssid_len;
-	u8 *generic_elem;
-	size_t generic_elem_len;
 	struct sk_buff *beacon;
 	struct ieee80211_tx_control *beacon_control;
 };

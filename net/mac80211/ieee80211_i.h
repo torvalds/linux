@@ -197,8 +197,6 @@ struct ieee80211_if_ap {
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	size_t ssid_len;
-	u8 *generic_elem;
-	size_t generic_elem_len;
 
 	/* yes, this looks ugly, but guarantees that we can later use
 	 * bitmap_empty :)

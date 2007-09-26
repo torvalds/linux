@@ -120,15 +120,6 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 		return 0;
 	}
 
-	if (sdata->type == IEEE80211_IF_TYPE_AP) {
-		kfree(sdata->u.ap.generic_elem);
-		sdata->u.ap.generic_elem = kmalloc(data->length, GFP_KERNEL);
-		if (!sdata->u.ap.generic_elem)
-			return -ENOMEM;
-		memcpy(sdata->u.ap.generic_elem, extra, data->length);
-		sdata->u.ap.generic_elem_len = data->length;
-		return ieee80211_if_config(dev);
-	}
 	return -EOPNOTSUPP;
 }
 
