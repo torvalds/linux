@@ -1247,8 +1247,13 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDNOUNDO);
 				else
 					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDOLD);
-			} else
+			} else {
+				/* Don't count olds caused by ACK reordering */
+				if ((TCP_SKB_CB(ack_skb)->ack_seq != tp->snd_una) &&
+				    !after(end_seq, tp->snd_una))
+					continue;
 				NET_INC_STATS_BH(LINUX_MIB_TCPSACKDISCARD);
+			}
 			continue;
 		}
 
