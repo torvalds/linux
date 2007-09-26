@@ -424,7 +424,7 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct rtattr *opt)
 		skb_queue_head_init(&q->requeued[i]);
 		q->queues[i] = qdisc_create_dflt(qd->dev, &pfifo_qdisc_ops,
 						 qd->handle);
-		if (q->queues[i] == 0) {
+		if (!q->queues[i]) {
 			q->queues[i] = &noop_qdisc;
 			printk(KERN_ERR "%s child qdisc %i creation failed", dev->name, i);
 		}

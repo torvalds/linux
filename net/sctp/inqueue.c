@@ -130,6 +130,14 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 			/* Force chunk->skb->data to chunk->chunk_end.  */
 			skb_pull(chunk->skb,
 				 chunk->chunk_end - chunk->skb->data);
+
+			/* Verify that we have at least chunk headers
+			 * worth of buffer left.
+			 */
+			if (skb_headlen(chunk->skb) < sizeof(sctp_chunkhdr_t)) {
+				sctp_chunk_free(chunk);
+				chunk = queue->in_progress = NULL;
+			}
 		}
 	}
 

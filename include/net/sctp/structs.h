@@ -421,6 +421,7 @@ struct sctp_signed_cookie {
  * internally.
  */
 union sctp_addr_param {
+	struct sctp_paramhdr p;
 	struct sctp_ipv4addr_param v4;
 	struct sctp_ipv6addr_param v6;
 };
