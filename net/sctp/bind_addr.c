@@ -181,7 +181,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
  * structure.
  */
 int sctp_del_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *del_addr,
-			void (*rcu_call)(struct rcu_head *head,
+			void fastcall (*rcu_call)(struct rcu_head *head,
 					 void (*func)(struct rcu_head *head)))
 {
 	struct sctp_sockaddr_entry *addr, *temp;

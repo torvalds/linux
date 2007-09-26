@@ -1157,7 +1157,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 		       __u8 use_as_src, gfp_t gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-			void (*rcu_call)(struct rcu_head *,
+			void fastcall (*rcu_call)(struct rcu_head *,
 					  void (*func)(struct rcu_head *)));
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
