@@ -110,7 +110,7 @@ config SUSPEND
 
 config HIBERNATION_UP_POSSIBLE
 	bool
-	depends on X86 || PPC64_SWSUSP || FRV || PPC32
+	depends on X86 || PPC64_SWSUSP || PPC32
 	depends on !SMP
 	default y
 
