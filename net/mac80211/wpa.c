@@ -239,17 +239,16 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 
 
 ieee80211_txrx_result
-ieee80211_tx_h_tkip_encrypt(struct ieee80211_txrx_data *tx)
+ieee80211_crypto_tkip_encrypt(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
 	u16 fc;
-	struct ieee80211_key *key = tx->key;
 	struct sk_buff *skb = tx->skb;
 	int wpa_test = 0, test = 0;
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (!key || key->conf.alg != ALG_TKIP || !WLAN_FC_DATA_PRESENT(fc))
+	if (!WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = TKIP_ICV_LEN;
@@ -491,17 +490,16 @@ static int ccmp_encrypt_skb(struct ieee80211_txrx_data *tx,
 
 
 ieee80211_txrx_result
-ieee80211_tx_h_ccmp_encrypt(struct ieee80211_txrx_data *tx)
+ieee80211_crypto_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	struct ieee80211_key *key = tx->key;
 	u16 fc;
 	struct sk_buff *skb = tx->skb;
 	int test = 0;
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-	if (!key || key->conf.alg != ALG_CCMP || !WLAN_FC_DATA_PRESENT(fc))
+	if (!WLAN_FC_DATA_PRESENT(fc))
 		return TXRX_CONTINUE;
 
 	tx->u.tx.control->icv_len = CCMP_MIC_LEN;

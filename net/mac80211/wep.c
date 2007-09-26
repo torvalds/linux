@@ -80,9 +80,9 @@ static void ieee80211_wep_get_iv(struct ieee80211_local *local,
 }
 
 
-u8 * ieee80211_wep_add_iv(struct ieee80211_local *local,
-			  struct sk_buff *skb,
-			  struct ieee80211_key *key)
+static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
+				struct sk_buff *skb,
+				struct ieee80211_key *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u16 fc;
@@ -346,6 +346,57 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
 		skb_trim(rx->skb, rx->skb->len - 4);
+	}
+
+	return TXRX_CONTINUE;
+}
+
+static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
+{
+	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
+		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
+			return -1;
+	} else {
+		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
+		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
+			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
+				return -1;
+		}
+	}
+	return 0;
+}
+
+ieee80211_txrx_result
+ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
+	u16 fc;
+
+	fc = le16_to_cpu(hdr->frame_control);
+
+	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
+	     ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
+	      (fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)))
+		return TXRX_CONTINUE;
+
+	tx->u.tx.control->iv_len = WEP_IV_LEN;
+	tx->u.tx.control->icv_len = WEP_ICV_LEN;
+	ieee80211_tx_set_iswep(tx);
+
+	if (wep_encrypt_skb(tx, tx->skb) < 0) {
+		I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
+		return TXRX_DROP;
+	}
+
+	if (tx->u.tx.extra_frag) {
+		int i;
+		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
+			if (wep_encrypt_skb(tx, tx->u.tx.extra_frag[i]) < 0) {
+				I802_DEBUG_INC(tx->local->
+					       tx_handlers_drop_wep);
+				return TXRX_DROP;
+			}
+		}
 	}
 
 	return TXRX_CONTINUE;

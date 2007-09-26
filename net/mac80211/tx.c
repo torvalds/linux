@@ -541,56 +541,26 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 	return TXRX_DROP;
 }
 
-static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
-{
-	if (!(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)) {
-		if (ieee80211_wep_encrypt(tx->local, skb, tx->key))
-			return -1;
-	} else {
-		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
-		if (tx->key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV) {
-			if (!ieee80211_wep_add_iv(tx->local, skb, tx->key))
-				return -1;
-		}
-	}
-	return 0;
-}
-
 static ieee80211_txrx_result
-ieee80211_tx_h_wep_encrypt(struct ieee80211_txrx_data *tx)
+ieee80211_tx_h_encrypt(struct ieee80211_txrx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	u16 fc;
-
-	fc = le16_to_cpu(hdr->frame_control);
-
-	if (!tx->key || tx->key->conf.alg != ALG_WEP ||
-	    ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
-	     ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
-	      (fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)))
+	if (!tx->key)
 		return TXRX_CONTINUE;
 
-	tx->u.tx.control->iv_len = WEP_IV_LEN;
-	tx->u.tx.control->icv_len = WEP_ICV_LEN;
-	ieee80211_tx_set_iswep(tx);
-
-	if (wep_encrypt_skb(tx, tx->skb) < 0) {
-		I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
-		return TXRX_DROP;
+	switch (tx->key->conf.alg) {
+	case ALG_WEP:
+		return ieee80211_crypto_wep_encrypt(tx);
+	case ALG_TKIP:
+		return ieee80211_crypto_tkip_encrypt(tx);
+	case ALG_CCMP:
+		return ieee80211_crypto_ccmp_encrypt(tx);
+	case ALG_NONE:
+		return TXRX_CONTINUE;
 	}
 
-	if (tx->u.tx.extra_frag) {
-		int i;
-		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
-			if (wep_encrypt_skb(tx, tx->u.tx.extra_frag[i]) < 0) {
-				I802_DEBUG_INC(tx->local->
-					       tx_handlers_drop_wep);
-				return TXRX_DROP;
-			}
-		}
-	}
-
-	return TXRX_CONTINUE;
+	/* not reached */
+	WARN_ON(1);
+	return TXRX_DROP;
 }
 
 static ieee80211_txrx_result
@@ -805,9 +775,7 @@ ieee80211_tx_handler ieee80211_tx_handlers[] =
 	ieee80211_tx_h_select_key,
 	ieee80211_tx_h_michael_mic_add,
 	ieee80211_tx_h_fragment,
-	ieee80211_tx_h_tkip_encrypt,
-	ieee80211_tx_h_ccmp_encrypt,
-	ieee80211_tx_h_wep_encrypt,
+	ieee80211_tx_h_encrypt,
 	ieee80211_tx_h_rate_ctrl,
 	ieee80211_tx_h_misc,
 	ieee80211_tx_h_load_stats,
