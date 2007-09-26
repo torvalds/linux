@@ -58,6 +58,8 @@
 
 #include <asm/div64.h>
 
+#define IWL 4965
+
 #include "iwlwifi.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"

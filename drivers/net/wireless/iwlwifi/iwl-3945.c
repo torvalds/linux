@@ -40,6 +40,8 @@
 #include <linux/etherdevice.h>
 #include <linux/delay.h>
 
+#define IWL 3945
+
 #include "iwlwifi.h"
 #include "iwl-helpers.h"
 #include "iwl-3945.h"

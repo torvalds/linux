@@ -40,6 +40,8 @@
 #include <net/mac80211.h>
 #include <linux/wireless.h>
 
+#define IWL 3945
+
 #include "../net/mac80211/ieee80211_rate.h"
 
 #include "iwlwifi.h"
