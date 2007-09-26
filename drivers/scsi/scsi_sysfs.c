@@ -995,7 +995,7 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 
 int scsi_is_sdev_device(const struct device *dev)
 {
-	return dev->release == scsi_device_dev_release;
+	return dev->type == &scsi_dev_type;
 }
 EXPORT_SYMBOL(scsi_is_sdev_device);
 
