@@ -623,6 +623,7 @@ config SENSORS_APPLESMC
 	depends on INPUT && X86
 	select NEW_LEDS
 	select LEDS_CLASS
+	select INPUT_POLLDEV
 	default n
 	help
 	  This driver provides support for the Apple System Management
