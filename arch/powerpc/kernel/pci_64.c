@@ -588,7 +588,7 @@ int pci_proc_domain(struct pci_bus *bus)
 		return 0;
 	else {
 		struct pci_controller *hose = pci_bus_to_host(bus);
-		return hose->buid;
+		return hose->buid != 0;
 	}
 }
 
