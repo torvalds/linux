@@ -126,6 +126,16 @@ config TOUCHSCREEN_HP600
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
+config TOUCHSCREEN_HP7XX
+	tristate "HP Jornada 710/720/728 touchscreen"
+	depends on SA1100_JORNADA720_SSP
+	help
+	  Say Y here if you have a HP Jornada 710/720/728 and want
+	  to support the built-in touchscreen.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada720_ts.
+
 config TOUCHSCREEN_PENMOUNT
 	tristate "Penmount serial touchscreen"
 	select SERIO
