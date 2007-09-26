@@ -512,6 +512,53 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	return TXRX_CONTINUE;
 }
 
+static ieee80211_txrx_result
+ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
+{
+	if (!rx->sta || !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
+	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
+	    !rx->key || rx->key->conf.alg != ALG_WEP ||
+	    !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
+		return TXRX_CONTINUE;
+
+	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
+	if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) ||
+	    !(rx->u.rx.status->flag & RX_FLAG_DECRYPTED))
+		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
+			rx->sta->wep_weak_iv_count++;
+
+	return TXRX_CONTINUE;
+}
+
+static ieee80211_txrx_result
+ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
+{
+	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
+		return TXRX_CONTINUE;
+
+	if (!rx->key) {
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: RX protected frame,"
+			       " but have no key\n", rx->dev->name);
+		return TXRX_DROP;
+	}
+
+	switch (rx->key->conf.alg) {
+	case ALG_WEP:
+		return ieee80211_crypto_wep_decrypt(rx);
+	case ALG_TKIP:
+		return ieee80211_crypto_tkip_decrypt(rx);
+	case ALG_CCMP:
+		return ieee80211_crypto_ccmp_decrypt(rx);
+	case ALG_NONE:
+		return TXRX_CONTINUE;
+	}
+
+	/* not reached */
+	WARN_ON(1);
+	return TXRX_DROP;
+}
+
 static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -636,53 +683,6 @@ ieee80211_rx_h_sta_process(struct ieee80211_txrx_data *rx)
 
 	return TXRX_CONTINUE;
 } /* ieee80211_rx_h_sta_process */
-
-static ieee80211_txrx_result
-ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
-{
-	if (!rx->sta || !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
-	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    !rx->key || rx->key->conf.alg != ALG_WEP ||
-	    !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-		return TXRX_CONTINUE;
-
-	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
-	if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) ||
-	    !(rx->u.rx.status->flag & RX_FLAG_DECRYPTED))
-		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
-
-	return TXRX_CONTINUE;
-}
-
-static ieee80211_txrx_result
-ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
-{
-	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
-		return TXRX_CONTINUE;
-
-	if (!rx->key) {
-		if (net_ratelimit())
-			printk(KERN_DEBUG "%s: RX protected frame,"
-			       " but have no key\n", rx->dev->name);
-		return TXRX_DROP;
-	}
-
-	switch (rx->key->conf.alg) {
-	case ALG_WEP:
-		return ieee80211_crypto_wep_decrypt(rx);
-	case ALG_TKIP:
-		return ieee80211_crypto_tkip_decrypt(rx);
-	case ALG_CCMP:
-		return ieee80211_crypto_ccmp_decrypt(rx);
-	case ALG_NONE:
-		return TXRX_CONTINUE;
-	}
-
-	/* not reached */
-	WARN_ON(1);
-	return TXRX_DROP;
-}
 
 static inline struct ieee80211_fragment_entry *
 ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
@@ -1349,9 +1349,9 @@ ieee80211_rx_handler ieee80211_rx_handlers[] =
 	ieee80211_rx_h_passive_scan,
 	ieee80211_rx_h_check,
 	ieee80211_rx_h_load_key,
-	ieee80211_rx_h_sta_process,
 	ieee80211_rx_h_wep_weak_iv_detection,
 	ieee80211_rx_h_decrypt,
+	ieee80211_rx_h_sta_process,
 	ieee80211_rx_h_defragment,
 	ieee80211_rx_h_ps_poll,
 	ieee80211_rx_h_michael_mic_verify,
