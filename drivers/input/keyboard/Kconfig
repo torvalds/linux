@@ -219,6 +219,16 @@ config KEYBOARD_HP6XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called jornada680_kbd.
 
+config KEYBOARD_HP7XX
+	tristate "HP Jornada 7XX Keyboard Driver"
+	depends on SA1100_JORNADA720_SSP && SA1100_SSP
+	help
+	  Say Y here to add support for the HP Jornada 7xx (710/720/728)
+	  onboard keyboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada720_kbd.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on (ARCH_OMAP1 || ARCH_OMAP2)
