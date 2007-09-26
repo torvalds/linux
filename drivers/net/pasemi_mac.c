@@ -786,14 +786,6 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	write_mac_reg(mac, PAS_MAC_CFG_TXP, flags);
 
-	flags = PAS_MAC_CFG_PCFG_S1 | PAS_MAC_CFG_PCFG_PE |
-		PAS_MAC_CFG_PCFG_PR | PAS_MAC_CFG_PCFG_CE;
-
-	if (mac->type == MAC_TYPE_GMAC)
-		flags |= PAS_MAC_CFG_PCFG_TSR_1G | PAS_MAC_CFG_PCFG_SPD_1G;
-	else
-		flags |= PAS_MAC_CFG_PCFG_TSR_10G | PAS_MAC_CFG_PCFG_SPD_10G;
-
 	write_iob_reg(mac, PAS_IOB_DMA_RXCH_CFG(mac->dma_rxch),
 			   PAS_IOB_DMA_RXCH_CFG_CNTTH(0));
 
@@ -807,8 +799,6 @@ static int pasemi_mac_open(struct net_device *dev)
 	/* 0xffffff is max value, about 16ms */
 	write_iob_reg(mac, PAS_IOB_DMA_COM_TIMEOUTCFG,
 			   PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0xffffff));
-
-	write_mac_reg(mac, PAS_MAC_CFG_PCFG, flags);
 
 	ret = pasemi_mac_setup_rx_resources(dev);
 	if (ret)
@@ -836,6 +826,17 @@ static int pasemi_mac_open(struct net_device *dev)
 			   PAS_DMA_TXCHAN_TCMDSTA_EN);
 
 	pasemi_mac_replenish_rx_ring(dev);
+
+	flags = PAS_MAC_CFG_PCFG_S1 | PAS_MAC_CFG_PCFG_PE |
+		PAS_MAC_CFG_PCFG_PR | PAS_MAC_CFG_PCFG_CE;
+
+	if (mac->type == MAC_TYPE_GMAC)
+		flags |= PAS_MAC_CFG_PCFG_TSR_1G | PAS_MAC_CFG_PCFG_SPD_1G;
+	else
+		flags |= PAS_MAC_CFG_PCFG_TSR_10G | PAS_MAC_CFG_PCFG_SPD_10G;
+
+	/* Enable interface in MAC */
+	write_mac_reg(mac, PAS_MAC_CFG_PCFG, flags);
 
 	ret = pasemi_mac_phy_init(dev);
 	/* Some configs don't have PHYs (XAUI etc), so don't complain about
