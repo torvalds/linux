@@ -552,7 +552,7 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 
 	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
 	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
+		seqno = ADD48(DCCP_SKB_CB(rxskb)->dccpd_ack_seq, 1);
 
 	dccp_hdr_set_seq(dh, seqno);
 	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
