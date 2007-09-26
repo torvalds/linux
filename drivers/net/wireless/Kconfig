@@ -577,6 +577,19 @@ config ADM8211
 
 	  Thanks to Infineon-ADMtek for their support of this driver.
 
+config P54_COMMON
+	tristate "Softmac Prism54 support"
+	depends on MAC80211 && WLAN_80211 && FW_LOADER && EXPERIMENTAL
+
+config P54_USB
+	tristate "Prism54 USB support"
+	depends on P54_COMMON && USB
+	select CRC32
+
+config P54_PCI
+	tristate "Prism54 PCI support"
+	depends on P54_COMMON && PCI
+
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"
 source "drivers/net/wireless/bcm43xx/Kconfig"
