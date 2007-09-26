@@ -208,6 +208,17 @@ config KEYBOARD_HIL
 	  This driver implements support for HIL-keyboards attached
 	  to your machine, so normally you should say Y here.
 
+config KEYBOARD_HP6XX
+	tristate "HP Jornada 6XX Keyboard support"
+	depends on SH_HP6XX
+	select INPUT_POLLDEV
+	help
+	  This adds support for the onboard keyboard found on
+	  HP Jornada 620/660/680/690.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called jornada680_kbd.
+
 config KEYBOARD_OMAP
 	tristate "TI OMAP keypad support"
 	depends on (ARCH_OMAP1 || ARCH_OMAP2)
