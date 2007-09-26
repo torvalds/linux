@@ -107,7 +107,7 @@ static int ocfs2_sync_fs(struct super_block *sb, int wait);
 
 static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb);
 static int ocfs2_init_local_system_inodes(struct ocfs2_super *osb);
-static int ocfs2_release_system_inodes(struct ocfs2_super *osb);
+static void ocfs2_release_system_inodes(struct ocfs2_super *osb);
 static int ocfs2_fill_local_node_info(struct ocfs2_super *osb);
 static int ocfs2_check_volume(struct ocfs2_super *osb);
 static int ocfs2_verify_volume(struct ocfs2_dinode *di,
@@ -180,7 +180,7 @@ static void ocfs2_write_super(struct super_block *sb)
 
 static int ocfs2_sync_fs(struct super_block *sb, int wait)
 {
-	int status = 0;
+	int status;
 	tid_t target;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
@@ -278,9 +278,9 @@ bail:
 	return status;
 }
 
-static int ocfs2_release_system_inodes(struct ocfs2_super *osb)
+static void ocfs2_release_system_inodes(struct ocfs2_super *osb)
 {
-	int status = 0, i;
+	int i;
 	struct inode *inode;
 
 	mlog_entry_void();
@@ -305,8 +305,7 @@ static int ocfs2_release_system_inodes(struct ocfs2_super *osb)
 		osb->root_inode = NULL;
 	}
 
-	mlog_exit(status);
-	return status;
+	mlog_exit(0);
 }
 
 /* We're allocating fs objects, use GFP_NOFS */
@@ -456,7 +455,7 @@ static int ocfs2_sb_probe(struct super_block *sb,
 			  struct buffer_head **bh,
 			  int *sector_size)
 {
-	int status = 0, tmpstat;
+	int status, tmpstat;
 	struct ocfs1_vol_disk_hdr *hdr;
 	struct ocfs2_dinode *di;
 	int blksize;
@@ -1314,7 +1313,7 @@ static int ocfs2_initialize_super(struct super_block *sb,
 				  struct buffer_head *bh,
 				  int sector_size)
 {
-	int status = 0;
+	int status;
 	int i, cbits, bbits;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 	struct inode *inode = NULL;
@@ -1635,7 +1634,7 @@ static int ocfs2_verify_volume(struct ocfs2_dinode *di,
 
 static int ocfs2_check_volume(struct ocfs2_super *osb)
 {
-	int status = 0;
+	int status;
 	int dirty;
 	int local;
 	struct ocfs2_dinode *local_alloc = NULL; /* only used if we
