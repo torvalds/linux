@@ -370,23 +370,18 @@ static void pasemi_mac_free_rx_resources(struct net_device *dev)
 	mac->rx = NULL;
 }
 
-static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
+static void pasemi_mac_replenish_rx_ring(struct net_device *dev, int limit)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
 	unsigned int i;
 	int start = mac->rx->next_to_fill;
-	unsigned int limit, count;
-
-	limit = RING_AVAIL(mac->rx);
-	/* Check to see if we're doing first-time setup */
-	if (unlikely(mac->rx->next_to_clean == 0 && mac->rx->next_to_fill == 0))
-		limit = RX_RING_SIZE;
+	int count;
 
 	if (limit <= 0)
 		return;
 
 	i = start;
-	for (count = limit; count; count--) {
+	for (count = 0; count < limit; count++) {
 		struct pasemi_mac_buffer *info = &RX_DESC_INFO(mac, i);
 		u64 *buff = &RX_BUFF(mac, i);
 		struct sk_buff *skb;
@@ -417,10 +412,10 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev)
 
 	wmb();
 
-	write_dma_reg(mac, PAS_DMA_RXCHAN_INCR(mac->dma_rxch), limit - count);
-	write_dma_reg(mac, PAS_DMA_RXINT_INCR(mac->dma_if), limit - count);
+	write_dma_reg(mac, PAS_DMA_RXCHAN_INCR(mac->dma_rxch), count);
+	write_dma_reg(mac, PAS_DMA_RXINT_INCR(mac->dma_if), count);
 
-	mac->rx->next_to_fill += limit - count;
+	mac->rx->next_to_fill += count;
 }
 
 static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
@@ -538,7 +533,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 	}
 
 	mac->rx->next_to_clean += limit - count;
-	pasemi_mac_replenish_rx_ring(mac->netdev);
+	pasemi_mac_replenish_rx_ring(mac->netdev, limit-count);
 
 	spin_unlock(&mac->rx->lock);
 
@@ -825,7 +820,7 @@ static int pasemi_mac_open(struct net_device *dev)
 	write_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch),
 			   PAS_DMA_TXCHAN_TCMDSTA_EN);
 
-	pasemi_mac_replenish_rx_ring(dev);
+	pasemi_mac_replenish_rx_ring(dev, RX_RING_SIZE);
 
 	flags = PAS_MAC_CFG_PCFG_S1 | PAS_MAC_CFG_PCFG_PE |
 		PAS_MAC_CFG_PCFG_PR | PAS_MAC_CFG_PCFG_CE;
