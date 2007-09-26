@@ -827,8 +827,14 @@ static int ahci_reset_controller(struct ata_host *host)
 	void __iomem *mmio = host->iomap[AHCI_PCI_BAR];
 	u32 tmp;
 
-	/* global controller reset */
+	/* we must be in AHCI mode, before using anything
+	 * AHCI-specific, such as HOST_RESET.
+	 */
 	tmp = readl(mmio + HOST_CTL);
+	if (!(tmp & HOST_AHCI_EN))
+		writel(tmp | HOST_AHCI_EN, mmio + HOST_CTL);
+
+	/* global controller reset */
 	if ((tmp & HOST_RESET) == 0) {
 		writel(tmp | HOST_RESET, mmio + HOST_CTL);
 		readl(mmio + HOST_CTL); /* flush */
