@@ -127,6 +127,12 @@ int ieee80211_if_add_mgmt(struct ieee80211_local *local)
 	if (ret)
 		goto fail;
 
+	/*
+	 * Called even when register_netdevice fails, it would
+	 * oops if assigned before initialising the rest.
+	 */
+	ndev->uninit = ieee80211_if_reinit;
+
 	ieee80211_debugfs_add_netdev(nsdata);
 
 	if (local->open_count > 0)
@@ -155,12 +161,27 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int oldtype = sdata->type;
 
-	dev->hard_start_xmit = ieee80211_subif_start_xmit;
+	/*
+	 * We need to call this function on the master interface
+	 * which already has a hard_start_xmit routine assigned
+	 * which must not be changed.
+	 */
+	if (!dev->hard_start_xmit)
+		dev->hard_start_xmit = ieee80211_subif_start_xmit;
 
+	/*
+	 * Called even when register_netdevice fails, it would
+	 * oops if assigned before initialising the rest.
+	 */
+	dev->uninit = ieee80211_if_reinit;
+
+	/* most have no BSS pointer */
+	sdata->bss = NULL;
 	sdata->type = type;
+
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
-		sdata->bss = NULL;
+		/* nothing special */
 		break;
 	case IEEE80211_IF_TYPE_VLAN:
 		sdata->u.vlan.ap = NULL;
@@ -213,6 +234,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
+	struct sk_buff *skb;
 
 	ASSERT_RTNL();
 
@@ -246,12 +268,9 @@ void ieee80211_if_reinit(struct net_device *dev)
 		kfree(sdata->u.ap.beacon_tail);
 		kfree(sdata->u.ap.generic_elem);
 
-		if (dev != local->mdev) {
-			struct sk_buff *skb;
-			while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
-				local->total_ps_buffered--;
-				dev_kfree_skb(skb);
-			}
+		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
+			local->total_ps_buffered--;
+			dev_kfree_skb(skb);
 		}
 
 		break;

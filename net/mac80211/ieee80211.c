@@ -265,7 +265,6 @@ void ieee80211_if_mgmt_setup(struct net_device *dev)
 	dev->open = ieee80211_mgmt_open;
 	dev->stop = ieee80211_mgmt_stop;
 	dev->type = ARPHRD_IEEE80211_PRISM;
-	dev->uninit = ieee80211_if_reinit;
 	dev->destructor = ieee80211_if_free;
 }
 
@@ -551,7 +550,6 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->change_mtu = ieee80211_change_mtu;
 	dev->open = ieee80211_open;
 	dev->stop = ieee80211_stop;
-	dev->uninit = ieee80211_if_reinit;
 	dev->destructor = ieee80211_if_free;
 }
 
@@ -1242,6 +1240,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_dev;
 
 	ieee80211_debugfs_add_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
+	ieee80211_if_set_type(local->mdev, IEEE80211_IF_TYPE_AP);
 
 	result = ieee80211_init_rate_ctrl_alg(local, NULL);
 	if (result < 0) {
@@ -1346,8 +1345,22 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	 * because the driver cannot be handing us frames any
 	 * more and the tasklet is killed.
 	 */
-	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list)
+
+	/*
+	 * First, we remove all non-master interfaces. Do this because they
+	 * may have bss pointer dependency on the master, and when we free
+	 * the master these would be freed as well, breaking our list
+	 * iteration completely.
+	 */
+	list_for_each_entry_safe(sdata, tmp, &local->interfaces, list) {
+		if (sdata->dev == local->mdev)
+			continue;
+		list_del(&sdata->list);
 		__ieee80211_if_del(local, sdata);
+	}
+
+	/* then, finally, remove the master interface */
+	__ieee80211_if_del(local, IEEE80211_DEV_TO_SUB_IF(local->mdev));
 
 	rtnl_unlock();
 
