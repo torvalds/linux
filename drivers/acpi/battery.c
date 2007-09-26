@@ -687,6 +687,34 @@ static void acpi_battery_remove_fs(struct acpi_device *device)
 }
 
 #endif
+
+static ssize_t acpi_battery_alarm_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct acpi_battery *battery = to_acpi_battery(dev_get_drvdata(dev));
+	return sprintf(buf, "%d\n", battery->alarm * 1000);
+}
+
+static ssize_t acpi_battery_alarm_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long x;
+	struct acpi_battery *battery = to_acpi_battery(dev_get_drvdata(dev));
+	if (sscanf(buf, "%ld\n", &x) == 1)
+		battery->alarm = x/1000;
+	if (acpi_battery_present(battery))
+		acpi_battery_set_alarm(battery);
+	return count;
+}
+
+static struct device_attribute alarm_attr = {
+	.attr = {.name = "alarm", .mode = 0644, .owner = THIS_MODULE},
+	.show = acpi_battery_alarm_show,
+	.store = acpi_battery_alarm_store,
+};
+
 /* --------------------------------------------------------------------------
                                  Driver Interface
    -------------------------------------------------------------------------- */
@@ -732,6 +760,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	battery->bat.type = POWER_SUPPLY_TYPE_BATTERY;
 	battery->bat.get_property = acpi_battery_get_property;
 	result = power_supply_register(&battery->device->dev, &battery->bat);
+	result = device_create_file(battery->bat.dev, &alarm_attr);
 	status = acpi_install_notify_handler(device->handle,
 					     ACPI_ALL_NOTIFY,
 					     acpi_battery_notify, battery);
@@ -767,8 +796,10 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 #ifdef CONFIG_ACPI_PROCFS
 	acpi_battery_remove_fs(device);
 #endif
-	if (battery->bat.dev)
+	if (battery->bat.dev) {
+		device_remove_file(battery->bat.dev, &alarm_attr);
 		power_supply_unregister(&battery->bat);
+	}
 	mutex_destroy(&battery->lock);
 	kfree(battery);
 	return 0;
