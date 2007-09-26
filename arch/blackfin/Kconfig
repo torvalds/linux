@@ -758,7 +758,7 @@ config BFIN_DMA_5XX
 choice
 	prompt "Uncached SDRAM region"
 	default DMA_UNCACHED_1M
-	depends BFIN_DMA_5XX
+	depends on BFIN_DMA_5XX
 config DMA_UNCACHED_2M
 	bool "Enable 2M DMA region"
 config DMA_UNCACHED_1M
