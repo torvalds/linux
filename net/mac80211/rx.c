@@ -419,7 +419,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 
 
 static ieee80211_txrx_result
-ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
+ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	int keyidx;
@@ -456,7 +456,7 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 		return TXRX_CONTINUE;
 
 	/*
-	 * No point in finding a key if the frame is neither
+	 * No point in finding a key and decrypting if the frame is neither
 	 * addressed to us nor a multicast frame.
 	 */
 	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
@@ -507,41 +507,20 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 	if (rx->key) {
 		rx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
-	}
-
-	return TXRX_CONTINUE;
-}
-
-static ieee80211_txrx_result
-ieee80211_rx_h_wep_weak_iv_detection(struct ieee80211_txrx_data *rx)
-{
-	if (!rx->sta || !(rx->fc & IEEE80211_FCTL_PROTECTED) ||
-	    (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    !rx->key || rx->key->conf.alg != ALG_WEP ||
-	    !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-		return TXRX_CONTINUE;
-
-	/* Check for weak IVs, if hwaccel did not remove IV from the frame */
-	if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) ||
-	    !(rx->u.rx.status->flag & RX_FLAG_DECRYPTED))
-		if (ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
-
-	return TXRX_CONTINUE;
-}
-
-static ieee80211_txrx_result
-ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
-{
-	if (!(rx->fc & IEEE80211_FCTL_PROTECTED))
-		return TXRX_CONTINUE;
-
-	if (!rx->key) {
+	} else {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: RX protected frame,"
 			       " but have no key\n", rx->dev->name);
 		return TXRX_DROP;
 	}
+
+	/* Check for weak IVs if possible */
+	if (rx->sta && rx->key->conf.alg == ALG_WEP &&
+	    ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	    (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) ||
+	     !(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) &&
+	    ieee80211_wep_is_weak_iv(rx->skb, rx->key))
+		rx->sta->wep_weak_iv_count++;
 
 	switch (rx->key->conf.alg) {
 	case ALG_WEP:
@@ -551,6 +530,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 	case ALG_CCMP:
 		return ieee80211_crypto_ccmp_decrypt(rx);
 	case ALG_NONE:
+		WARN_ON(1);
 		return TXRX_CONTINUE;
 	}
 
@@ -1348,8 +1328,6 @@ ieee80211_rx_handler ieee80211_rx_handlers[] =
 	ieee80211_rx_h_if_stats,
 	ieee80211_rx_h_passive_scan,
 	ieee80211_rx_h_check,
-	ieee80211_rx_h_load_key,
-	ieee80211_rx_h_wep_weak_iv_detection,
 	ieee80211_rx_h_decrypt,
 	ieee80211_rx_h_sta_process,
 	ieee80211_rx_h_defragment,
