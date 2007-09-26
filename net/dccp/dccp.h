@@ -396,6 +396,8 @@ extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 extern int dccp_insert_option_elapsed_time(struct sock *sk,
 					    struct sk_buff *skb,
 					    u32 elapsed_time);
+extern u32 dccp_timestamp(void);
+extern void dccp_timestamping_init(void);
 extern int dccp_insert_option_timestamp(struct sock *sk,
 					 struct sk_buff *skb);
 extern int dccp_insert_option(struct sock *sk, struct sk_buff *skb,

@@ -1076,6 +1076,8 @@ static int __init dccp_init(void)
 	rc = dccp_sysctl_init();
 	if (rc)
 		goto out_ackvec_exit;
+
+	dccp_timestamping_init();
 out:
 	return rc;
 out_ackvec_exit:
