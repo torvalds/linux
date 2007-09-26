@@ -202,7 +202,7 @@ static const struct ethtool_ops loopback_ethtool_ops = {
  * The loopback device is special. There is only one instance and
  * it is statically allocated. Don't do this for other devices.
  */
-struct net_device loopback_dev = {
+struct net_device __loopback_dev = {
 	.name	 		= "lo",
 	.get_stats		= &get_stats,
 	.mtu			= (16 * 1024) + 20 + 20 + 12,
@@ -227,10 +227,12 @@ struct net_device loopback_dev = {
 	.nd_net                 = &init_net,
 };
 
+struct net_device *loopback_dev = &__loopback_dev;
+
 /* Setup and register the loopback device. */
 static int __init loopback_init(void)
 {
-	int err = register_netdev(&loopback_dev);
+	int err = register_netdev(loopback_dev);
 
 	if (err)
 		panic("loopback: Failed to register netdevice: %d\n", err);

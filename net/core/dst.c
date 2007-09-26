@@ -278,13 +278,13 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
-		dst->dev = &loopback_dev;
-		dev_hold(&loopback_dev);
+		dst->dev = loopback_dev;
+		dev_hold(dst->dev);
 		dev_put(dev);
 		if (dst->neighbour && dst->neighbour->dev == dev) {
-			dst->neighbour->dev = &loopback_dev;
+			dst->neighbour->dev = loopback_dev;
 			dev_put(dev);
-			dev_hold(&loopback_dev);
+			dev_hold(dst->neighbour->dev);
 		}
 	}
 }

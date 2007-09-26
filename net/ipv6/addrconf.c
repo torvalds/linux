@@ -2410,7 +2410,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	ASSERT_RTNL();
 
-	if (dev == &loopback_dev && how == 1)
+	if (dev == loopback_dev && how == 1)
 		how = 0;
 
 	rt6_ifdown(dev);
@@ -4212,16 +4212,19 @@ int __init addrconf_init(void)
 	 * device and it being up should be removed.
 	 */
 	rtnl_lock();
-	if (!ipv6_add_dev(&loopback_dev))
+	if (!ipv6_add_dev(loopback_dev))
 		err = -ENOMEM;
 	rtnl_unlock();
 	if (err)
 		return err;
 
-	ip6_null_entry.rt6i_idev = in6_dev_get(&loopback_dev);
+	ip6_null_entry.u.dst.dev = loopback_dev;
+	ip6_null_entry.rt6i_idev = in6_dev_get(loopback_dev);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
-	ip6_prohibit_entry.rt6i_idev = in6_dev_get(&loopback_dev);
-	ip6_blk_hole_entry.rt6i_idev = in6_dev_get(&loopback_dev);
+	ip6_prohibit_entry.u.dst.dev = loopback_dev;
+	ip6_prohibit_entry.rt6i_idev = in6_dev_get(loopback_dev);
+	ip6_blk_hole_entry.u.dst.dev = loopback_dev;
+	ip6_blk_hole_entry.rt6i_idev = in6_dev_get(loopback_dev);
 #endif
 
 	register_netdevice_notifier(&ipv6_dev_notf);
@@ -4276,7 +4279,7 @@ void __exit addrconf_cleanup(void)
 			continue;
 		addrconf_ifdown(dev, 1);
 	}
-	addrconf_ifdown(&loopback_dev, 2);
+	addrconf_ifdown(loopback_dev, 2);
 
 	/*
 	 *	Check hash table.

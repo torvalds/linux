@@ -203,7 +203,7 @@ static void inetdev_destroy(struct in_device *in_dev)
 	ASSERT_RTNL();
 
 	dev = in_dev->dev;
-	if (dev == &loopback_dev)
+	if (dev == loopback_dev)
 		return;
 
 	in_dev->dead = 1;
@@ -1061,7 +1061,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			in_dev = inetdev_init(dev);
 			if (!in_dev)
 				return notifier_from_errno(-ENOMEM);
-			if (dev == &loopback_dev) {
+			if (dev == loopback_dev) {
 				IN_DEV_CONF_SET(in_dev, NOXFRM, 1);
 				IN_DEV_CONF_SET(in_dev, NOPOLICY, 1);
 			}
@@ -1077,7 +1077,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_UP:
 		if (dev->mtu < 68)
 			break;
-		if (dev == &loopback_dev) {
+		if (dev == loopback_dev) {
 			struct in_ifaddr *ifa;
 			if ((ifa = inet_alloc_ifa()) != NULL) {
 				ifa->ifa_local =

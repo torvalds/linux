@@ -91,7 +91,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	 *
 	 * BTW, when we send a packet for our own local address on a
 	 * non-loopback interface (e.g. ethX), it is being delivered
-	 * via the loopback interface (lo) here; skb->dev = &loopback_dev.
+	 * via the loopback interface (lo) here; skb->dev = loopback_dev.
 	 * It, however, should be considered as if it is being
 	 * arrived via the sending interface (ethX), because of the
 	 * nature of scoping architecture. --yoshfuji

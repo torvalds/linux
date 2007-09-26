@@ -741,7 +741,7 @@ struct packet_type {
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 
-extern struct net_device		loopback_dev;		/* The loopback */
+extern struct net_device		*loopback_dev;		/* The loopback */
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
 

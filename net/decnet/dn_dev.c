@@ -869,10 +869,10 @@ last_chance:
 		rv = dn_dev_get_first(dev, addr);
 		read_unlock(&dev_base_lock);
 		dev_put(dev);
-		if (rv == 0 || dev == &loopback_dev)
+		if (rv == 0 || dev == loopback_dev)
 			return rv;
 	}
-	dev = &loopback_dev;
+	dev = loopback_dev;
 	dev_hold(dev);
 	goto last_chance;
 }
