@@ -51,3 +51,5 @@ rtl8187-objs		:= rtl8187_dev.o rtl8187_rtl8225.o
 obj-$(CONFIG_RTL8187)	+= rtl8187.o
 
 obj-$(CONFIG_ADM8211)	+= adm8211.o
+
+obj-$(CONFIG_IWLWIFI)	+= iwlwifi/
