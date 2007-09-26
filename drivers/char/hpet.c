@@ -62,6 +62,8 @@
 
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
+/* This clocksource driver currently only works on ia64 */
+#ifdef CONFIG_IA64
 static void __iomem *hpet_mctr;
 
 static cycle_t read_hpet(void)
@@ -79,6 +81,7 @@ static struct clocksource clocksource_hpet = {
         .flags          = CLOCK_SOURCE_IS_CONTINUOUS,
 };
 static struct clocksource *hpet_clocksource;
+#endif
 
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
