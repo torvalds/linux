@@ -1470,6 +1470,12 @@ static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 			dev->dev_ctrl_req = NULL;
 		}
 		gs_free_ports(dev);
+		if (dev->dev_notify_ep)
+			usb_ep_disable(dev->dev_notify_ep);
+		if (dev->dev_in_ep)
+			usb_ep_disable(dev->dev_in_ep);
+		if (dev->dev_out_ep)
+			usb_ep_disable(dev->dev_out_ep);
 		kfree(dev);
 		set_gadget_data(gadget, NULL);
 	}
