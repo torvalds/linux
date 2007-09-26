@@ -427,28 +427,6 @@ static int acpi_check_update_proc(struct acpi_sbs *sbs)
 	return 0;
 }
 
-static int acpi_sbs_generate_event(struct acpi_device *device,
-				   int event, int state, char *bid, char *class)
-{
-	char bid_saved[5];
-	char class_saved[20];
-	int result = 0;
-
-	strcpy(bid_saved, acpi_device_bid(device));
-	strcpy(class_saved, acpi_device_class(device));
-
-	strcpy(acpi_device_bid(device), bid);
-	strcpy(acpi_device_class(device), class);
-
-	result = acpi_bus_generate_proc_event(device, event, state);
-
-	strcpy(acpi_device_bid(device), bid_saved);
-	strcpy(acpi_device_class(device), class_saved);
-
-	acpi_bus_generate_netlink_event(class, bid, event, state);
-	return result;
-}
-
 static int acpi_battery_get_present(struct acpi_battery *battery)
 {
 	s16 state;
@@ -1452,15 +1430,17 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int id, int data_type)
 	}
 
 	if (do_ac_init) {
-		result = acpi_sbs_generate_event(sbs->device,
-						 ACPI_SBS_AC_NOTIFY_STATUS,
-						 new_ac_present,
+		result = acpi_bus_generate_proc_event4(ACPI_AC_CLASS,
 						 ACPI_AC_DIR_NAME,
-						 ACPI_AC_CLASS);
+						 ACPI_SBS_AC_NOTIFY_STATUS,
+						 new_ac_present);
 		if (result) {
 			ACPI_EXCEPTION((AE_INFO, AE_ERROR,
-					"acpi_sbs_generate_event() failed"));
+					"acpi_bus_generate_event4() failed"));
 		}
+		acpi_bus_generate_netlink_event(ACPI_AC_CLASS, ACPI_AC_DIR_NAME,
+						ACPI_SBS_AC_NOTIFY_STATUS,
+						new_ac_present);
 	}
 
 	if (data_type == DATA_TYPE_COMMON) {
@@ -1568,14 +1548,16 @@ static int acpi_sbs_update_run(struct acpi_sbs *sbs, int id, int data_type)
 		    old_remaining_capacity !=
 		    battery->state.remaining_capacity) {
 			sprintf(dir_name, ACPI_BATTERY_DIR_NAME, id);
-			result = acpi_sbs_generate_event(sbs->device,
-							 ACPI_SBS_BATTERY_NOTIFY_STATUS,
-							 new_battery_present,
+			result = acpi_bus_generate_proc_event4(ACPI_BATTERY_CLASS,
 							 dir_name,
-							 ACPI_BATTERY_CLASS);
+							 ACPI_SBS_BATTERY_NOTIFY_STATUS,
+							 new_battery_present);
+			acpi_bus_generate_netlink_event(ACPI_BATTERY_CLASS, dir_name,
+							ACPI_SBS_BATTERY_NOTIFY_STATUS,
+							new_battery_present);
 			if (result) {
 				ACPI_EXCEPTION((AE_INFO, AE_ERROR,
-						"acpi_sbs_generate_event() "
+						"acpi_bus_generate_proc_event4() "
 						"failed"));
 			}
 		}
