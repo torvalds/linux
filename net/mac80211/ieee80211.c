@@ -59,10 +59,10 @@ static void ieee80211_configure_filter(struct ieee80211_local *local)
 	unsigned int changed_flags;
 	unsigned int new_flags = 0;
 
-	if (local->iff_promiscs)
+	if (atomic_read(&local->iff_promiscs))
 		new_flags |= FIF_PROMISC_IN_BSS;
 
-	if (local->iff_allmultis)
+	if (atomic_read(&local->iff_allmultis))
 		new_flags |= FIF_ALLMULTI;
 
 	if (local->monitors)
@@ -521,17 +521,17 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 
 	if (allmulti != sdata_allmulti) {
 		if (dev->flags & IFF_ALLMULTI)
-			local->iff_allmultis++;
+			atomic_inc(&local->iff_allmultis);
 		else
-			local->iff_allmultis--;
+			atomic_dec(&local->iff_allmultis);
 		sdata->flags ^= IEEE80211_SDATA_ALLMULTI;
 	}
 
 	if (promisc != sdata_promisc) {
 		if (dev->flags & IFF_PROMISC)
-			local->iff_promiscs++;
+			atomic_inc(&local->iff_promiscs);
 		else
-			local->iff_promiscs--;
+			atomic_dec(&local->iff_promiscs);
 		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
 

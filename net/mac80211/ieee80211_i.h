@@ -444,9 +444,8 @@ struct ieee80211_local {
 	struct ieee80211_tx_stored_packet pending_packet[NUM_TX_DATA_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 
-	int mc_count;	/* total count of multicast entries in all interfaces */
-	int iff_allmultis, iff_promiscs;
-			/* number of interfaces with corresponding IFF_ flags */
+	/* number of interfaces with corresponding IFF_ flags */
+	atomic_t iff_allmultis, iff_promiscs;
 
 	struct rate_control_ref *rate_ctrl;
 

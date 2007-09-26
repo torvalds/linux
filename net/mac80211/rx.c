@@ -1531,7 +1531,8 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skb = rx.skb;
 
 	if (sta && !(sta->flags & (WLAN_STA_WDS | WLAN_STA_ASSOC_AP)) &&
-	    !local->iff_promiscs && !is_multicast_ether_addr(hdr->addr1)) {
+	    !atomic_read(&local->iff_promiscs) &&
+	    !is_multicast_ether_addr(hdr->addr1)) {
 		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 		ieee80211_invoke_rx_handlers(local, local->rx_handlers, &rx,
 					     rx.sta);
