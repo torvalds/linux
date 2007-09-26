@@ -308,10 +308,22 @@ static inline int dccp_bad_service_code(const struct sock *sk,
 	return !dccp_list_has_service(dp->dccps_service_list, service);
 }
 
+/**
+ * dccp_skb_cb  -  DCCP per-packet control information
+ * @dccpd_type: one of %dccp_pkt_type (or unknown)
+ * @dccpd_ccval: CCVal field (5.1), see e.g. RFC 4342, 8.1
+ * @dccpd_reset_code: one of %dccp_reset_codes
+ * @dccpd_reset_data: Data1..3 fields (depend on @dccpd_reset_code)
+ * @dccpd_opt_len: total length of all options (5.8) in the packet
+ * @dccpd_seq: sequence number
+ * @dccpd_ack_seq: acknowledgment number subheader field value
+ * This is used for transmission as well as for reception.
+ */
 struct dccp_skb_cb {
 	__u8  dccpd_type:4;
 	__u8  dccpd_ccval:4;
-	__u8  dccpd_reset_code;
+	__u8  dccpd_reset_code,
+	      dccpd_reset_data[3];
 	__u16 dccpd_opt_len;
 	__u64 dccpd_seq;
 	__u64 dccpd_ack_seq;

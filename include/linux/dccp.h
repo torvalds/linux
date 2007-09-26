@@ -56,10 +56,9 @@ struct dccp_hdr_ext {
 };
 
 /**
- * struct dccp_hdr_request - Conection initiation request header
+ * struct dccp_hdr_request - Connection initiation request header
  *
  * @dccph_req_service - Service to which the client app wants to connect
- * @dccph_req_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_request {
 	__be32	dccph_req_service;
@@ -76,12 +75,10 @@ struct dccp_hdr_ack_bits {
 	__be32	dccph_ack_nr_low;
 };
 /**
- * struct dccp_hdr_response - Conection initiation response header
+ * struct dccp_hdr_response - Connection initiation response header
  *
- * @dccph_resp_ack_nr_high - 48 bit ack number high order bits, contains GSR
- * @dccph_resp_ack_nr_low - 48 bit ack number low order bits, contains GSR
+ * @dccph_resp_ack - 48 bit Acknowledgment Number Subheader (5.3)
  * @dccph_resp_service - Echoes the Service Code on a received DCCP-Request
- * @dccph_resp_options - list of options (must be a multiple of 32 bits
  */
 struct dccp_hdr_response {
 	struct dccp_hdr_ack_bits	dccph_resp_ack;
@@ -91,8 +88,9 @@ struct dccp_hdr_response {
 /**
  * struct dccp_hdr_reset - Unconditionally shut down a connection
  *
- * @dccph_reset_service - Echoes the Service Code on a received DCCP-Request
- * @dccph_reset_options - list of options (must be a multiple of 32 bits
+ * @dccph_reset_ack - 48 bit Acknowledgment Number Subheader (5.6)
+ * @dccph_reset_code - one of %dccp_reset_codes
+ * @dccph_reset_data - the Data 1 ... Data 3 fields from 5.6
  */
 struct dccp_hdr_reset {
 	struct dccp_hdr_ack_bits	dccph_reset_ack;
