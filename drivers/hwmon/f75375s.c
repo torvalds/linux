@@ -34,6 +34,7 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/f75375s.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
@@ -286,19 +287,14 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", data->pwm_enable[nr]);
 }
 
-static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 {
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
 	struct f75375_data *data = i2c_get_clientdata(client);
-	int val = simple_strtoul(buf, NULL, 10);
 	u8 fanmode;
 
 	if (val < 0 || val > 4)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	fanmode = ~(3 << FAN_CTRL_MODE(nr));
 
@@ -320,8 +316,22 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 	}
 	f75375_write8(client, F75375_REG_FAN_TIMER, fanmode);
 	data->pwm_enable[nr] = val;
+	return 0;
+}
+
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct f75375_data *data = i2c_get_clientdata(client);
+	int val = simple_strtoul(buf, NULL, 10);
+	int err = 0;
+
+	mutex_lock(&data->update_lock);
+	err = set_pwm_enable_direct(client, nr, val);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err ? err : count;
 }
 
 static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
@@ -604,9 +614,24 @@ static int f75375_detach_client(struct i2c_client *client)
 	return 0;
 }
 
+static void f75375_init(struct i2c_client *client, struct f75375_data *data,
+		struct f75375s_platform_data *f75375s_pdata)
+{
+	int nr;
+	set_pwm_enable_direct(client, 0, f75375s_pdata->pwm_enable[0]);
+	set_pwm_enable_direct(client, 1, f75375s_pdata->pwm_enable[1]);
+	for (nr = 0; nr < 2; nr++) {
+		data->pwm[nr] = SENSORS_LIMIT(f75375s_pdata->pwm[nr], 0, 255);
+		f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
+			data->pwm[nr]);
+	}
+
+}
+
 static int f75375_probe(struct i2c_client *client)
 {
 	struct f75375_data *data = i2c_get_clientdata(client);
+	struct f75375s_platform_data *f75375s_pdata = client->dev.platform_data;
 	int err;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -636,6 +661,9 @@ static int f75375_probe(struct i2c_client *client)
 		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove;
 	}
+
+	if (f75375s_pdata != NULL)
+		f75375_init(client, data, f75375s_pdata);
 
 	return 0;
 
