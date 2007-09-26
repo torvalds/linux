@@ -22,5 +22,10 @@ extern int of_device_register(struct of_device *ofdev);
 extern void of_device_unregister(struct of_device *ofdev);
 extern void of_release_dev(struct device *dev);
 
+static inline void of_device_free(struct of_device *dev)
+{
+	of_release_dev(&dev->dev);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_OF_DEVICE_H */
