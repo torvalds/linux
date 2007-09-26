@@ -21,45 +21,10 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "hostapd_ioctl.h"
 #include "ieee80211_rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
 
-
-/*
- * Wow. This ioctl interface is such crap, it's tied
- * to internal definitions. I hope it dies soon.
- */
-static int mode_to_hostapd_mode(enum ieee80211_phymode mode)
-{
-	switch (mode) {
-	case MODE_IEEE80211A:
-		return 0;
-	case MODE_IEEE80211B:
-		return 1;
-	case MODE_IEEE80211G:
-		return 3;
-	case NUM_IEEE80211_MODES:
-		WARN_ON(1);
-		break;
-	}
-	WARN_ON(1);
-	return -1;
-}
-
-static enum ieee80211_phymode hostapd_mode_to_mode(int hostapd_mode)
-{
-	switch (hostapd_mode) {
-	case 0:
-		return MODE_IEEE80211A;
-	case 1:
-		return MODE_IEEE80211B;
-	case 3:
-		return MODE_IEEE80211G;
-	}
-	return NUM_IEEE80211_MODES;
-}
 
 static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 				    int idx, int alg, int set_tx_key,
@@ -347,11 +312,6 @@ int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq)
 			struct ieee80211_channel *chan = &mode->channels[c];
 			if (chan->flag & IEEE80211_CHAN_W_SCAN &&
 			    ((chan->chan == channel) || (chan->freq == freq))) {
-				/* Use next_mode as the mode preference to
-				 * resolve non-unique channel numbers. */
-				if (set && mode->mode != local->next_mode)
-					continue;
-
 				local->oper_channel = chan;
 				local->oper_hw_mode = mode;
 				set++;
@@ -844,220 +804,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_prism2_param(struct net_device *dev,
-					struct iw_request_info *info,
-					void *wrqu, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
-	int *i = (int *) extra;
-	int param = *i;
-	int value = *(i + 1);
-	int ret = 0;
-	int mode;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (param) {
-	case PRISM2_PARAM_IEEE_802_1X:
-		if (local->ops->set_ieee8021x)
-			ret = local->ops->set_ieee8021x(local_to_hw(local),
-							value);
-		if (ret)
-			printk(KERN_DEBUG "%s: failed to set IEEE 802.1X (%d) "
-			       "for low-level driver\n", dev->name, value);
-		else
-			sdata->ieee802_1x = value;
-		break;
-
-	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		if (sdata->type == IEEE80211_IF_TYPE_AP) {
-			if (value)
-				sdata->flags |= IEEE80211_SDATA_USE_PROTECTION;
-			else
-				sdata->flags &= ~IEEE80211_SDATA_USE_PROTECTION;
-			ieee80211_erp_info_change_notify(dev,
-					IEEE80211_ERP_CHANGE_PROTECTION);
-		} else {
-			ret = -ENOENT;
-		}
-		break;
-
-	case PRISM2_PARAM_PREAMBLE:
-		if (sdata->type == IEEE80211_IF_TYPE_AP) {
-			if (value)
-				sdata->flags |= IEEE80211_SDATA_SHORT_PREAMBLE;
-			else
-				sdata->flags &= ~IEEE80211_SDATA_SHORT_PREAMBLE;
-			ieee80211_erp_info_change_notify(dev,
-					IEEE80211_ERP_CHANGE_PREAMBLE);
-		} else {
-			ret = -ENOENT;
-		}
-		break;
-
-	case PRISM2_PARAM_SHORT_SLOT_TIME:
-		if (value)
-			local->hw.conf.flags |= IEEE80211_CONF_SHORT_SLOT_TIME;
-		else
-			local->hw.conf.flags &= ~IEEE80211_CONF_SHORT_SLOT_TIME;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_NEXT_MODE:
-		local->next_mode = hostapd_mode_to_mode(value);
-		break;
-
-	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
-		local->wifi_wme_noack_test = value;
-		break;
-
-	case PRISM2_PARAM_SCAN_FLAGS:
-		local->scan_flags = value;
-		break;
-
-	case PRISM2_PARAM_MIXED_CELL:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else {
-			if (value)
-				sdata->u.sta.flags |= IEEE80211_STA_MIXED_CELL;
-			else
-				sdata->u.sta.flags &= ~IEEE80211_STA_MIXED_CELL;
-		}
-		break;
-
-	case PRISM2_PARAM_HW_MODES:
-		mode = 1;
-		local->enabled_modes = 0;
-		while (value) {
-			if (value & 1)
-				local->enabled_modes |=
-					hostapd_mode_to_mode(mode);
-			mode <<= 1;
-			value >>= 1;
-		}
-		break;
-
-	case PRISM2_PARAM_CREATE_IBSS:
-		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else {
-			if (value)
-				sdata->u.sta.flags |= IEEE80211_STA_CREATE_IBSS;
-			else
-				sdata->u.sta.flags &= ~IEEE80211_STA_CREATE_IBSS;
-		}
-		break;
-	case PRISM2_PARAM_WMM_ENABLED:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else {
-			if (value)
-				sdata->u.sta.flags |= IEEE80211_STA_WMM_ENABLED;
-			else
-				sdata->u.sta.flags &= ~IEEE80211_STA_WMM_ENABLED;
-		}
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	return ret;
-}
-
-
-static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
-					    struct iw_request_info *info,
-					    void *wrqu, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
-	int *param = (int *) extra;
-	int ret = 0;
-	int mode;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (*param) {
-	case PRISM2_PARAM_IEEE_802_1X:
-		*param = sdata->ieee802_1x;
-		break;
-
-	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		*param = !!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION);
-		break;
-
-	case PRISM2_PARAM_PREAMBLE:
-		*param = !!(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE);
-		break;
-
-	case PRISM2_PARAM_SHORT_SLOT_TIME:
-		*param = !!(local->hw.conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME);
-		break;
-
-	case PRISM2_PARAM_NEXT_MODE:
-		*param = local->next_mode;
-		break;
-
-	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
-		*param = local->wifi_wme_noack_test;
-		break;
-
-	case PRISM2_PARAM_SCAN_FLAGS:
-		*param = local->scan_flags;
-		break;
-
-	case PRISM2_PARAM_HW_MODES:
-		mode = 0;
-		*param = 0;
-		while (mode < NUM_IEEE80211_MODES) {
-			if (local->enabled_modes & (1<<mode))
-				*param |= mode_to_hostapd_mode(1<<mode);
-			mode++;
-		}
-		break;
-
-	case PRISM2_PARAM_CREATE_IBSS:
-		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!(sdata->u.sta.flags &
-					IEEE80211_STA_CREATE_IBSS);
-		break;
-
-	case PRISM2_PARAM_MIXED_CELL:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!(sdata->u.sta.flags &
-					IEEE80211_STA_MIXED_CELL);
-		break;
-
-	case PRISM2_PARAM_WMM_ENABLED:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!(sdata->u.sta.flags &
-					IEEE80211_STA_WMM_ENABLED);
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	return ret;
-}
-
 static int ieee80211_ioctl_siwmlme(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_point *data, char *extra)
@@ -1313,14 +1059,6 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 }
 
 
-static const struct iw_priv_args ieee80211_ioctl_priv[] = {
-	{ PRISM2_IOCTL_PRISM2_PARAM,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2, 0, "param" },
-	{ PRISM2_IOCTL_GET_PRISM2_PARAM,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "get_param" },
-};
-
 /* Structures to export the Wireless Handlers */
 
 static const iw_handler ieee80211_handler[] =
@@ -1383,19 +1121,9 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* -- hole -- */
 };
 
-static const iw_handler ieee80211_private_handler[] =
-{							/* SIOCIWFIRSTPRIV + */
-	(iw_handler) ieee80211_ioctl_prism2_param,	/* 0 */
-	(iw_handler) ieee80211_ioctl_get_prism2_param,	/* 1 */
-};
-
 const struct iw_handler_def ieee80211_iw_handler_def =
 {
 	.num_standard	= ARRAY_SIZE(ieee80211_handler),
-	.num_private	= ARRAY_SIZE(ieee80211_private_handler),
-	.num_private_args = ARRAY_SIZE(ieee80211_ioctl_priv),
 	.standard	= (iw_handler *) ieee80211_handler,
-	.private	= (iw_handler *) ieee80211_private_handler,
-	.private_args	= (struct iw_priv_args *) ieee80211_ioctl_priv,
 	.get_wireless_stats = ieee80211_get_wireless_stats,
 };

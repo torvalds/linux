@@ -449,11 +449,6 @@ struct ieee80211_local {
 
 	struct rate_control_ref *rate_ctrl;
 
-	int next_mode; /* MODE_IEEE80211*
-			* The mode preference for next channel change. This is
-			* used to select .11g vs. .11b channels (or 4.9 GHz vs.
-			* .11a) when the channel number is not unique. */
-
 	/* Supported and basic rate filters for different modes. These are
 	 * pointers to -1 terminated lists and rates in 100 kbps units. */
 	int *supp_rates[NUM_IEEE80211_MODES];
