@@ -86,8 +86,9 @@ struct cp_qe {
 	__be16	ceexe4;		/* QE external request 4 event register */
 	u8	res11[0x2];
 	__be16	ceexm4;		/* QE external request 4 mask register */
-	u8	res12[0x2];
-	u8	res13[0x280];
+	u8	res12[0x3A];
+	__be32	ceurnr;		/* QE microcode revision number register */
+	u8	res13[0x244];
 } __attribute__ ((packed));
 
 /* QE Multiplexer */
