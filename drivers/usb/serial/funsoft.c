@@ -24,26 +24,6 @@ static struct usb_device_id id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static int funsoft_ioctl(struct usb_serial_port *port, struct file *file,
-			 unsigned int cmd, unsigned long arg)
-{
-	struct ktermios t;
-
-	dbg("%s - port %d, cmd 0x%04x", __FUNCTION__, port->number, cmd);
-
-	if (cmd == TCSETSF) {
-		if (user_termios_to_kernel_termios(&t, (struct termios __user *)arg))
-			return -EFAULT;
-
-		dbg("%s - iflag:%x oflag:%x cflag:%x lflag:%x", __FUNCTION__,
-		    t.c_iflag, t.c_oflag, t.c_cflag, t.c_lflag);
-
-		if (!(t.c_lflag & ICANON))
-			return -EINVAL;
-	}
-	return -ENOIOCTLCMD;
-}
-
 static struct usb_driver funsoft_driver = {
 	.name =		"funsoft",
 	.probe =	usb_serial_probe,
@@ -63,7 +43,6 @@ static struct usb_serial_driver funsoft_device = {
 	.num_bulk_in =		NUM_DONT_CARE,
 	.num_bulk_out =		NUM_DONT_CARE,
 	.num_ports =		1,
-	.ioctl =		funsoft_ioctl,
 };
 
 static int __init funsoft_init(void)
