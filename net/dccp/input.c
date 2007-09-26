@@ -102,9 +102,6 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 	 *	  Update S.GSR, S.SWL, S.SWH
 	 *	  If P.type != Sync,
 	 *	     Update S.GAR
-	 *      Otherwise,
-	 *	  Send Sync packet acknowledging P.seqno
-	 *	  Drop packet and return
 	 */
 	lswl = dp->dccps_swl;
 	lawl = dp->dccps_awl;
@@ -135,6 +132,17 @@ static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 							      : "exists",
 			  (unsigned long long) lawl, (unsigned long long) ackno,
 			  (unsigned long long) dp->dccps_awh);
+		/*
+		 *   Step 6: Check sequence numbers
+		 *      Otherwise,
+		 *         If P.type == Reset,
+		 *            Send Sync packet acknowledging S.GSR
+		 *         Otherwise,
+		 *            Send Sync packet acknowledging P.seqno
+		 *      Drop packet and return
+		 */
+		if (dh->dccph_type == DCCP_PKT_RESET)
+			seqno = dp->dccps_gsr;
 		dccp_send_sync(sk, seqno, DCCP_PKT_SYNC);
 		return -1;
 	}
