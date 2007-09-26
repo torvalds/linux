@@ -664,7 +664,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	 * so that the trick in dccp_rcv_request_sent_state_process.
 	 */
 	/* Wait for a connection to finish. */
-	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN | DCCPF_CLOSING))
+	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN))
 		if ((rc = sk_stream_wait_connect(sk, &timeo)) != 0)
 			goto out_release;
 
