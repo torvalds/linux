@@ -696,8 +696,10 @@ struct b43_wldev {
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
 
-#define B43_NR_LEDS		4
-	struct b43_led leds[B43_NR_LEDS];
+	/* The device LEDs. */
+	struct b43_led led_tx;
+	struct b43_led led_rx;
+	struct b43_led led_assoc;
 
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;

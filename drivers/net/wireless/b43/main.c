@@ -84,10 +84,6 @@ static int modparam_long_retry = B43_DEFAULT_LONG_RETRY_LIMIT;
 module_param_named(long_retry, modparam_long_retry, int, 0444);
 MODULE_PARM_DESC(long_retry, "Long-Retry-Limit (0 - 15)");
 
-static int modparam_noleds;
-module_param_named(noleds, modparam_noleds, int, 0444);
-MODULE_PARM_DESC(noleds, "Turn off all LED activity");
-
 static char modparam_fwpostfix[16];
 module_param_string(fwpostfix, modparam_fwpostfix, 16, 0444);
 MODULE_PARM_DESC(fwpostfix, "Postfix for the .fw files to load.");
@@ -1391,7 +1387,7 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 	u32 reason;
 	u32 dma_reason[ARRAY_SIZE(dev->dma_reason)];
 	u32 merged_dma_reason = 0;
-	int i, activity = 0;
+	int i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->wl->irq_lock, flags);
@@ -1444,8 +1440,9 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 		handle_irq_beacon(dev);
 	if (reason & B43_IRQ_PMQ)
 		handle_irq_pmq(dev);
-	if (reason & B43_IRQ_TXFIFO_FLUSH_OK) ;
-	/*TODO*/ if (reason & B43_IRQ_NOISESAMPLE_OK)
+	if (reason & B43_IRQ_TXFIFO_FLUSH_OK)
+		;/* TODO */
+	if (reason & B43_IRQ_NOISESAMPLE_OK)
 		handle_irq_noise(dev);
 
 	/* Check the DMA reason registers for received data. */
@@ -1454,7 +1451,6 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 			b43_pio_rx(dev->pio.queue0);
 		else
 			b43_dma_rx(dev->dma.rx_ring0);
-		/* We intentionally don't set "activity" to 1, here. */
 	}
 	B43_WARN_ON(dma_reason[1] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[2] & B43_DMAIRQ_RX_DONE);
@@ -1463,19 +1459,13 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 			b43_pio_rx(dev->pio.queue3);
 		else
 			b43_dma_rx(dev->dma.rx_ring3);
-		activity = 1;
 	}
 	B43_WARN_ON(dma_reason[4] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[5] & B43_DMAIRQ_RX_DONE);
 
-	if (reason & B43_IRQ_TX_OK) {
+	if (reason & B43_IRQ_TX_OK)
 		handle_irq_transmit_status(dev);
-		activity = 1;
-		//TODO: In AP mode, this also causes sending of powersave responses.
-	}
 
-	if (!modparam_noleds)
-		b43_leds_update(dev, activity);
 	b43_interrupt_enable(dev, dev->irq_savedstate);
 	mmiowb();
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
@@ -1927,7 +1917,6 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
 		    & ~B43_MACCTL_GPOUTSMSK);
 
-	b43_leds_switch_all(dev, 0);
 	b43_write16(dev, B43_MMIO_GPIO_MASK, b43_read16(dev, B43_MMIO_GPIO_MASK)
 		    | 0x000F);
 
@@ -2173,8 +2162,7 @@ static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 static void b43_chip_exit(struct b43_wldev *dev)
 {
 	b43_radio_turn_off(dev);
-	if (!modparam_noleds)
-		b43_leds_exit(dev);
+	b43_leds_exit(dev);
 	b43_gpio_cleanup(dev);
 	/* firmware is released later */
 }
@@ -2202,9 +2190,11 @@ static int b43_chip_init(struct b43_wldev *dev)
 	err = b43_gpio_init(dev);
 	if (err)
 		goto out;	/* firmware is released later */
+	b43_leds_init(dev);
+
 	err = b43_upload_initvals(dev);
 	if (err)
-		goto err_gpio_cleanup;
+		goto err_leds_exit;
 	b43_radio_turn_on(dev);
 
 	b43_write16(dev, 0x03E6, 0x0000);
@@ -2275,14 +2265,15 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	err = 0;
 	b43dbg(dev->wl, "Chip initialized\n");
-      out:
+out:
 	return err;
 
-      err_radio_off:
+err_radio_off:
 	b43_radio_turn_off(dev);
-      err_gpio_cleanup:
+err_leds_exit:
+	b43_leds_exit(dev);
 	b43_gpio_cleanup(dev);
-	goto out;
+	return err;
 }
 
 static void b43_periodic_every120sec(struct b43_wldev *dev)
@@ -2369,7 +2360,6 @@ static void b43_periodic_every1sec(struct b43_wldev *dev)
 		dev->radio_hw_enable = radio_hw_enable;
 		b43info(dev->wl, "Radio hardware status changed to %s\n",
 			radio_hw_enable ? "ENABLED" : "DISABLED");
-		b43_leds_update(dev, 0);
 	}
 }
 
@@ -3767,18 +3757,13 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	} else
 		have_bphy = 1;
 
-	/* Initialize LEDs structs. */
-	err = b43_leds_init(dev);
-	if (err)
-		goto err_powerdown;
-
 	dev->phy.gmode = (have_gphy || have_bphy);
 	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
 	b43_wireless_core_reset(dev, tmp);
 
 	err = b43_phy_versioning(dev);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 	/* Check if this device supports multiband. */
 	if (!pdev ||
 	    (pdev->device != 0x4312 &&
@@ -3807,10 +3792,10 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 
 	err = b43_validate_chipaccess(dev);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 	err = b43_setup_modes(dev, have_aphy, have_bphy, have_gphy);
 	if (err)
-		goto err_leds_exit;
+		goto err_powerdown;
 
 	/* Now set some default "current_dev" */
 	if (!wl->current_dev)
@@ -3825,8 +3810,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 out:
 	return err;
 
-err_leds_exit:
-	b43_leds_exit(dev);
 err_powerdown:
 	ssb_bus_may_powerdown(bus);
 	return err;

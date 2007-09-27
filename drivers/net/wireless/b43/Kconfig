@@ -61,6 +61,12 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
+# LED support
+config B43_LEDS
+	bool
+	depends on MAC80211_LEDS
+	default y
+
 config B43_DEBUG
 	bool "Broadcom 43xx debugging"
 	depends on B43
