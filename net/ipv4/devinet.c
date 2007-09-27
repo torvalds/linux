@@ -203,8 +203,6 @@ static void inetdev_destroy(struct in_device *in_dev)
 	ASSERT_RTNL();
 
 	dev = in_dev->dev;
-	if (dev == loopback_dev)
-		return;
 
 	in_dev->dead = 1;
 
