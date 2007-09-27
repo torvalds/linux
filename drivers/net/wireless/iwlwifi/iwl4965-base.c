@@ -7493,9 +7493,8 @@ static void iwl_config_ap(struct iwl_priv *priv)
 		iwl_activate_qos(priv, 1);
 #endif
 		iwl_rxon_add_station(priv, BROADCAST_ADDR, 0);
-		iwl_send_beacon_cmd(priv);
-	} else
-		iwl_send_beacon_cmd(priv);
+	}
+	iwl_send_beacon_cmd(priv);
 
 	/* FIXME - we need to add code here to detect a totally new
 	 * configuration, reset the AP, unassoc, rxon timing, assoc,
