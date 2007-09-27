@@ -1059,7 +1059,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 			in_dev = inetdev_init(dev);
 			if (!in_dev)
 				return notifier_from_errno(-ENOMEM);
-			if (dev == loopback_dev) {
+			if (dev->flags & IFF_LOOPBACK) {
 				IN_DEV_CONF_SET(in_dev, NOXFRM, 1);
 				IN_DEV_CONF_SET(in_dev, NOPOLICY, 1);
 			}
@@ -1075,7 +1075,7 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_UP:
 		if (dev->mtu < 68)
 			break;
-		if (dev == loopback_dev) {
+		if (dev->flags & IFF_LOOPBACK) {
 			struct in_ifaddr *ifa;
 			if ((ifa = inet_alloc_ifa()) != NULL) {
 				ifa->ifa_local =
