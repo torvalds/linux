@@ -478,6 +478,12 @@ printk("calling PAL/M hack\n");
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x04, 0xdc);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x0d, 0x07);
 		tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x3f, 0x00);
+
+	/* Enables audio and AV */
+	/* maybe it should be, instead, 0x20 */
+	tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0xcc, 0x60);
+	tm6000_set_reg (dev, REQ_08_SET_GET_AVREG_BIT, 0x01, 0x80);
+
 		return 0;
 	}
 
