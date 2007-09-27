@@ -1672,7 +1672,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	tbl->antenna_type = ANT_AUX;
 	rs_get_tbl_info_from_mcs(&mcs_rate, priv->phymode, tbl, &rate_idx);
 	if (!rs_is_ant_connected(priv->valid_antenna, tbl->antenna_type))
-	    rs_toggle_antenna(&mcs_rate, tbl),
+	    rs_toggle_antenna(&mcs_rate, tbl);
 
 	rs_mcs_from_tbl(&mcs_rate, tbl, rate_idx, use_green);
 	tbl->current_rate.rate_n_flags = mcs_rate.rate_n_flags;
