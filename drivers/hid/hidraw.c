@@ -282,7 +282,7 @@ EXPORT_SYMBOL_GPL(hidraw_report_event);
 
 int hidraw_connect(struct hid_device *hid)
 {
-	int minor, result = -EINVAL;
+	int minor, result;
 	struct hidraw *dev;
 
 	/* TODO currently we accept any HID device. This should later
@@ -290,8 +290,11 @@ int hidraw_connect(struct hid_device *hid)
 	 * non-input applications
 	 */
 
-	if (!(dev = kzalloc(sizeof(struct hidraw), GFP_KERNEL)))
-		return -1;
+	dev = kzalloc(sizeof(struct hidraw), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	result = -EINVAL;
 
 	spin_lock(&minors_lock);
 
@@ -305,8 +308,10 @@ int hidraw_connect(struct hid_device *hid)
 
 	spin_unlock(&minors_lock);
 
-	if (result)
+	if (result) {
+		kfree(dev);
 		goto out;
+	}
 
 	dev->dev = device_create(hidraw_class, NULL, MKDEV(hidraw_major, minor),
 				"%s%d", "hidraw", minor);
@@ -316,6 +321,7 @@ int hidraw_connect(struct hid_device *hid)
 		hidraw_table[minor] = NULL;
 		spin_unlock(&minors_lock);
 		result = PTR_ERR(dev->dev);
+		kfree(dev);
 		goto out;
 	}
 
