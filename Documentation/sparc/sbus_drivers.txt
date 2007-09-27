@@ -67,10 +67,12 @@ probe in an SBUS driver under Linux:
 	MODULE_DEVICE_TABLE(of, mydevice_match);
 
 	static struct of_platform_driver mydevice_driver = {
-		.name		= "mydevice",
 		.match_table	= mydevice_match,
 		.probe		= mydevice_probe,
 		.remove		= __devexit_p(mydevice_remove),
+		.driver		= {
+			.name		= "mydevice",
+		},
 	};
 
 	static int __init mydevice_init(void)
