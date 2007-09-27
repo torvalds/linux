@@ -540,6 +540,7 @@ enum {
 #define blk_barrier_rq(rq)	((rq)->cmd_flags & REQ_HARDBARRIER)
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
 #define blk_bidi_rq(rq)		((rq)->next_rq != NULL)
+#define blk_empty_barrier(rq)	(blk_barrier_rq(rq) && blk_fs_request(rq) && !(rq)->hard_nr_sectors)
 
 #define list_entry_rq(ptr)	list_entry((ptr), struct request, queuelist)
 

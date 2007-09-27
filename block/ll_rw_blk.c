@@ -458,9 +458,12 @@ static inline struct request *start_ordered(struct request_queue *q,
 	 * Queue ordered sequence.  As we stack them at the head, we
 	 * need to queue in reverse order.  Note that we rely on that
 	 * no fs request uses ELEVATOR_INSERT_FRONT and thus no fs
-	 * request gets inbetween ordered sequence.
+	 * request gets inbetween ordered sequence. If this request is
+	 * an empty barrier, we don't need to do a postflush ever since
+	 * there will be no data written between the pre and post flush.
+	 * Hence a single flush will suffice.
 	 */
-	if (q->ordered & QUEUE_ORDERED_POSTFLUSH)
+	if ((q->ordered & QUEUE_ORDERED_POSTFLUSH) && !blk_empty_barrier(rq))
 		queue_flush(q, QUEUE_ORDERED_POSTFLUSH);
 	else
 		q->ordseq |= QUEUE_ORDSEQ_POSTFLUSH;
@@ -484,7 +487,7 @@ static inline struct request *start_ordered(struct request_queue *q,
 int blk_do_ordered(struct request_queue *q, struct request **rqp)
 {
 	struct request *rq = *rqp;
-	int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
+	const int is_barrier = blk_fs_request(rq) && blk_barrier_rq(rq);
 
 	if (!q->ordseq) {
 		if (!is_barrier)
@@ -3054,7 +3057,7 @@ static inline void blk_partition_remap(struct bio *bio)
 {
 	struct block_device *bdev = bio->bi_bdev;
 
-	if (bdev != bdev->bd_contains) {
+	if (bio_sectors(bio) && bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
 		const int rw = bio_data_dir(bio);
 
@@ -3313,23 +3316,32 @@ void submit_bio(int rw, struct bio *bio)
 {
 	int count = bio_sectors(bio);
 
-	BIO_BUG_ON(!bio->bi_size);
-	BIO_BUG_ON(!bio->bi_io_vec);
 	bio->bi_rw |= rw;
-	if (rw & WRITE) {
-		count_vm_events(PGPGOUT, count);
-	} else {
-		task_io_account_read(bio->bi_size);
-		count_vm_events(PGPGIN, count);
-	}
 
-	if (unlikely(block_dump)) {
-		char b[BDEVNAME_SIZE];
-		printk(KERN_DEBUG "%s(%d): %s block %Lu on %s\n",
-			current->comm, current->pid,
-			(rw & WRITE) ? "WRITE" : "READ",
-			(unsigned long long)bio->bi_sector,
-			bdevname(bio->bi_bdev,b));
+	/*
+	 * If it's a regular read/write or a barrier with data attached,
+	 * go through the normal accounting stuff before submission.
+	 */
+	if (!bio_empty_barrier(bio)) {
+
+		BIO_BUG_ON(!bio->bi_size);
+		BIO_BUG_ON(!bio->bi_io_vec);
+
+		if (rw & WRITE) {
+			count_vm_events(PGPGOUT, count);
+		} else {
+			task_io_account_read(bio->bi_size);
+			count_vm_events(PGPGIN, count);
+		}
+
+		if (unlikely(block_dump)) {
+			char b[BDEVNAME_SIZE];
+			printk(KERN_DEBUG "%s(%d): %s block %Lu on %s\n",
+				current->comm, current->pid,
+				(rw & WRITE) ? "WRITE" : "READ",
+				(unsigned long long)bio->bi_sector,
+				bdevname(bio->bi_bdev,b));
+		}
 	}
 
 	generic_make_request(bio);
@@ -3404,6 +3416,14 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	total_bytes = bio_nbytes = 0;
 	while ((bio = req->bio) != NULL) {
 		int nbytes;
+
+		/*
+		 * For an empty barrier request, the low level driver must
+		 * store a potential error location in ->sector. We pass
+		 * that back up in ->bi_sector.
+		 */
+		if (blk_empty_barrier(req))
+			bio->bi_sector = req->sector;
 
 		if (nr_bytes >= bio->bi_size) {
 			req->bio = bio->bi_next;

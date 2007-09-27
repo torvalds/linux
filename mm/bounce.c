@@ -265,6 +265,12 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	mempool_t *pool;
 
 	/*
+	 * Data-less bio, nothing to bounce
+	 */
+	if (bio_empty_barrier(*bio_orig))
+		return;
+
+	/*
 	 * for non-isa bounce case, just check if the bounce pfn is equal
 	 * to or bigger than the highest pfn in the system -- in that case,
 	 * don't waste time iterating over bio segments
