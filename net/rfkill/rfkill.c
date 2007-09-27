@@ -190,6 +190,10 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (error)
 		return error;
 
+	if (rfkill->user_claim_unsupported) {
+		error = -EOPNOTSUPP;
+		goto out_unlock;
+	}
 	if (rfkill->user_claim != claim) {
 		if (!claim)
 			rfkill_toggle_radio(rfkill,
@@ -197,9 +201,10 @@ static ssize_t rfkill_claim_store(struct device *dev,
 		rfkill->user_claim = claim;
 	}
 
+out_unlock:
 	mutex_unlock(&rfkill_mutex);
 
-	return count;
+	return error ? error : count;
 }
 
 static struct device_attribute rfkill_dev_attrs[] = {
