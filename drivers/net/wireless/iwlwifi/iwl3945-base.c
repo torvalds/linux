@@ -464,6 +464,7 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 	struct iwl_station_entry *station;
 	unsigned long flags_spin;
 	DECLARE_MAC_BUF(mac);
+	u8 rate;
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
 	if (is_ap)
@@ -506,6 +507,15 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 	station->sta.mode = 0;
 	station->sta.sta.sta_id = index;
 	station->sta.station_flags = 0;
+
+	rate = (priv->phymode == MODE_IEEE80211A) ? IWL_RATE_6M_PLCP :
+				IWL_RATE_1M_PLCP | priv->hw_setting.cck_flag;
+
+	/* Turn on both antennas for the station... */
+	station->sta.rate_n_flags =
+			iwl_hw_set_rate_n_flags(rate, RATE_MCS_ANT_AB_MSK);
+	station->current_rate.rate_n_flags =
+			le16_to_cpu(station->sta.rate_n_flags);
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 	iwl_send_add_station(priv, &station->sta, flags);
