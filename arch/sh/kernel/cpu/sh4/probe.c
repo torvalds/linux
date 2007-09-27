@@ -3,7 +3,7 @@
  *
  * CPU Subtype Probing for SH-4.
  *
- * Copyright (C) 2001 - 2006  Paul Mundt
+ * Copyright (C) 2001 - 2007  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -52,12 +52,9 @@ int __init detect_cpu_and_cache_system(void)
 	current_cpu_data.dcache.linesz		= L1_CACHE_BYTES;
 
 	/*
-	 * Setup some generic flags we can probe
-	 * (L2 and DSP detection only work on SH-4A)
+	 * Setup some generic flags we can probe on SH-4A parts
 	 */
 	if (((pvr >> 16) & 0xff) == 0x10) {
-		if ((cvr & 0x02000000) == 0)
-			current_cpu_data.flags |= CPU_HAS_L2_CACHE;
 		if ((cvr & 0x10000000) == 0)
 			current_cpu_data.flags |= CPU_HAS_DSP;
 
