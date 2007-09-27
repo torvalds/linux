@@ -289,16 +289,18 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 		return -EINVAL;
 	}
 
+	mutex_lock(&q->lock);
 	if (q->streaming) {
 		dprintk(1,"reqbufs: streaming already exists\n");
-		return -EBUSY;
+		retval = -EBUSY;
+		goto done;
 	}
 	if (!list_empty(&q->stream)) {
 		dprintk(1,"reqbufs: stream running\n");
-		return -EBUSY;
+		retval = -EBUSY;
+		goto done;
 	}
 
-	mutex_lock(&q->lock);
 	count = req->count;
 	if (count > VIDEO_MAX_FRAME)
 		count = VIDEO_MAX_FRAME;
