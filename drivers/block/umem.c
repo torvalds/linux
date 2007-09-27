@@ -1029,7 +1029,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	data = ~data;
 	data += 1;
 
-	if (request_irq(dev->irq, mm_interrupt, IRQF_SHARED, "pci-umem", card)) {
+	if (request_irq(dev->irq, mm_interrupt, IRQF_SHARED, DRIVER_NAME, card)) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to allocate IRQ\n");
 		ret = -ENODEV;
@@ -1155,7 +1155,7 @@ static int __init mm_init(void)
 	if (retval)
 		return -ENOMEM;
 
-	err = major_nr = register_blkdev(0, "umem");
+	err = major_nr = register_blkdev(0, DRIVER_NAME);
 	if (err < 0) {
 		pci_unregister_driver(&mm_pci_driver);
 		return -EIO;
@@ -1187,7 +1187,7 @@ static int __init mm_init(void)
 
 out:
 	pci_unregister_driver(&mm_pci_driver);
-	unregister_blkdev(major_nr, "umem");
+	unregister_blkdev(major_nr, DRIVER_NAME);
 	while (i--)
 		put_disk(mm_gendisk[i]);
 	return -ENOMEM;
@@ -1210,7 +1210,7 @@ static void __exit mm_cleanup(void)
 
 	pci_unregister_driver(&mm_pci_driver);
 
-	unregister_blkdev(major_nr, "umem");
+	unregister_blkdev(major_nr, DRIVER_NAME);
 }
 
 module_init(mm_init);
