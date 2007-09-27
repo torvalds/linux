@@ -547,7 +547,7 @@ static void req_bio_endio(struct request *rq, struct bio *bio,
 		bio->bi_size -= nbytes;
 		bio->bi_sector += (nbytes >> 9);
 		if (bio->bi_size == 0)
-			bio_endio(bio, bio->bi_size, error);
+			bio_endio(bio, error);
 	} else {
 
 		/*
@@ -2401,7 +2401,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 		return bio->bi_size;
 
 	/* if it was boucned we must call the end io function */
-	bio_endio(bio, bio->bi_size, 0);
+	bio_endio(bio, 0);
 	__blk_rq_unmap_user(orig_bio);
 	bio_put(bio);
 	return ret;
@@ -2510,7 +2510,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return PTR_ERR(bio);
 
 	if (bio->bi_size != len) {
-		bio_endio(bio, bio->bi_size, 0);
+		bio_endio(bio, 0);
 		bio_unmap_user(bio);
 		return -EINVAL;
 	}
@@ -3040,7 +3040,7 @@ out:
 	return 0;
 
 end_io:
-	bio_endio(bio, nr_sectors << 9, err);
+	bio_endio(bio, err);
 	return 0;
 }
 
@@ -3187,7 +3187,7 @@ static inline void __generic_make_request(struct bio *bio)
 				bdevname(bio->bi_bdev, b),
 				(long long) bio->bi_sector);
 end_io:
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 			break;
 		}
 

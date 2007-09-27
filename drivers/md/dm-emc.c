@@ -38,12 +38,9 @@ static inline void free_bio(struct bio *bio)
 	bio_put(bio);
 }
 
-static int emc_endio(struct bio *bio, unsigned int bytes_done, int error)
+static void emc_endio(struct bio *bio, int error)
 {
 	struct dm_path *path = bio->bi_private;
-
-	if (bio->bi_size)
-		return 1;
 
 	/* We also need to look at the sense keys here whether or not to
 	 * switch to the next PG etc.

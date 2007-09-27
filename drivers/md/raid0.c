@@ -420,7 +420,7 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 	const int rw = bio_data_dir(bio);
 
 	if (unlikely(bio_barrier(bio))) {
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
@@ -490,7 +490,7 @@ bad_map:
 		" or bigger than %dk %llu %d\n", chunk_size, 
 		(unsigned long long)bio->bi_sector, bio->bi_size >> 10);
 
-	bio_io_error(bio, bio->bi_size);
+	bio_io_error(bio);
 	return 0;
 }
 			   

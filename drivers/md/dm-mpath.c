@@ -390,11 +390,11 @@ static void dispatch_queued_ios(struct multipath *m)
 
 		r = map_io(m, bio, mpio, 1);
 		if (r < 0)
-			bio_endio(bio, bio->bi_size, r);
+			bio_endio(bio, r);
 		else if (r == DM_MAPIO_REMAPPED)
 			generic_make_request(bio);
 		else if (r == DM_MAPIO_REQUEUE)
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 
 		bio = next;
 	}

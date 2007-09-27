@@ -338,7 +338,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 	sector_t block;
 
 	if (unlikely(bio_barrier(bio))) {
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
@@ -358,7 +358,7 @@ static int linear_make_request (struct request_queue *q, struct bio *bio)
 			bdevname(tmp_dev->rdev->bdev, b),
 			(unsigned long long)tmp_dev->size,
 		        (unsigned long long)tmp_dev->offset);
-		bio_io_error(bio, bio->bi_size);
+		bio_io_error(bio);
 		return 0;
 	}
 	if (unlikely(bio->bi_sector + (bio->bi_size >> 9) >

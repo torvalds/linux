@@ -545,7 +545,7 @@ static void process_page(unsigned long data)
 
 		return_bio = bio->bi_next;
 		bio->bi_next = NULL;
-		bio_endio(bio, bio->bi_size, 0);
+		bio_endio(bio, 0);
 	}
 }
 

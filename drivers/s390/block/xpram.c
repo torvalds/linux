@@ -230,12 +230,10 @@ static int xpram_make_request(struct request_queue *q, struct bio *bio)
 		}
 	}
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bytes = bio->bi_size;
-	bio->bi_size = 0;
-	bio->bi_end_io(bio, bytes, 0);
+	bio_end_io(bio, 0);
 	return 0;
 fail:
-	bio_io_error(bio, bio->bi_size);
+	bio_io_error(bio);
 	return 0;
 }
 
