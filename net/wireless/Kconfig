@@ -3,7 +3,7 @@ config CFG80211
 
 config NL80211
 	bool "nl80211 new netlink interface support"
-	depends CFG80211
+	depends on CFG80211
 	default y
 	---help---
          This option turns on the new netlink interface
