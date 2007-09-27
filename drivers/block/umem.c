@@ -67,9 +67,10 @@
  * Version Information
  */
 
-#define DRIVER_VERSION "v2.3"
-#define DRIVER_AUTHOR "San Mehat, Johannes Erdfelt, NeilBrown"
-#define DRIVER_DESC "Micro Memory(tm) PCI memory board block driver"
+#define DRIVER_NAME	"umem"
+#define DRIVER_VERSION	"v2.3"
+#define DRIVER_AUTHOR	"San Mehat, Johannes Erdfelt, NeilBrown"
+#define DRIVER_DESC	"Micro Memory(tm) PCI memory board block driver"
 
 static int debug;
 /* #define HW_TRACE(x)     writeb(x,cards[0].csr_remap + MEMCTRLSTATUS_MAGIC) */
@@ -99,12 +100,7 @@ static int major_nr;
 struct cardinfo {
 	struct pci_dev	*dev;
 
-	int		irq;
-
-	unsigned long	csr_base;
 	unsigned char	__iomem *csr_remap;
-	unsigned long	csr_len;
-	unsigned int	win_size; /* PCI window size */
 	unsigned int	mm_size;  /* size in kbytes */
 
 	unsigned int	init_size; /* initial segment, in sectors,
@@ -869,22 +865,27 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	unsigned char	mem_present;
 	unsigned char	batt_status;
 	unsigned int	saved_bar, data;
+	unsigned long	csr_base;
+	unsigned long	csr_len;
 	int		magic_number;
 	static int	printed_version;
 
 	if (!printed_version++)
 		printk(KERN_INFO DRIVER_VERSION " : " DRIVER_DESC "\n");
 
-	if (pci_enable_device(dev) < 0)
-		return -ENODEV;
+	ret = pci_enable_device(dev);
+	if (ret)
+		return ret;
 
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0xF8);
 	pci_set_master(dev);
 
 	card->dev         = dev;
 
-	card->csr_base = pci_resource_start(dev, 0);
-	card->csr_len  = pci_resource_len(dev, 0);
+	csr_base = pci_resource_start(dev, 0);
+	csr_len  = pci_resource_len(dev, 0);
+	if (!csr_base || !csr_len)
+		return -ENODEV;
 
 	dev_printk(KERN_INFO, &dev->dev,
 		"Micro Memory(tm) controller found (PCI Mem Module (Battery Backup))\n");
@@ -894,15 +895,15 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 		dev_printk(KERN_WARNING, &dev->dev, "NO suitable DMA found\n");
 		return  -ENOMEM;
 	}
-	if (!request_mem_region(card->csr_base, card->csr_len, "Micro Memory")) {
+
+	ret = pci_request_regions(dev, DRIVER_NAME);
+	if (ret) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to request memory region\n");
-		ret = -ENOMEM;
-
 		goto failed_req_csr;
 	}
 
-	card->csr_remap = ioremap_nocache(card->csr_base, card->csr_len);
+	card->csr_remap = ioremap_nocache(csr_base, csr_len);
 	if (!card->csr_remap) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to remap memory region\n");
@@ -913,7 +914,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 
 	dev_printk(KERN_INFO, &card->dev->dev,
 		"CSR 0x%08lx -> 0x%p (0x%lx)\n",
-	       card->csr_base, card->csr_remap, card->csr_len);
+	       csr_base, card->csr_remap, csr_len);
 
 	switch(card->dev->device) {
 	case 0x5415:
@@ -1028,9 +1029,6 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	data = ~data;
 	data += 1;
 
-	card->win_size = data;
-
-
 	if (request_irq(dev->irq, mm_interrupt, IRQF_SHARED, "pci-umem", card)) {
 		dev_printk(KERN_ERR, &card->dev->dev,
 			"Unable to allocate IRQ\n");
@@ -1039,10 +1037,8 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 		goto failed_req_irq;
 	}
 
-	card->irq = dev->irq;
 	dev_printk(KERN_INFO, &card->dev->dev,
-		"Window size %d bytes, IRQ %d\n",
-	       card->win_size, card->irq);
+		"Window size %d bytes, IRQ %d\n", data, dev->irq);
 
         spin_lock_init(&card->lock);
 
@@ -1089,7 +1085,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
  failed_magic:
 	iounmap(card->csr_remap);
  failed_remap_csr:
-	release_mem_region(card->csr_base, card->csr_len);
+	pci_release_regions(dev);
  failed_req_csr:
 
 	return ret;
@@ -1104,9 +1100,8 @@ static void mm_pci_remove(struct pci_dev *dev)
 	struct cardinfo *card = pci_get_drvdata(dev);
 
 	tasklet_kill(&card->tasklet);
+	free_irq(dev->irq, card);
 	iounmap(card->csr_remap);
-	release_mem_region(card->csr_base, card->csr_len);
-	free_irq(card->irq, card);
 
 	if (card->mm_pages[0].desc)
 		pci_free_consistent(card->dev, PAGE_SIZE*2,
@@ -1117,6 +1112,9 @@ static void mm_pci_remove(struct pci_dev *dev)
 				    card->mm_pages[1].desc,
 				    card->mm_pages[1].page_dma);
 	blk_cleanup_queue(card->queue);
+
+	pci_release_regions(dev);
+	pci_disable_device(dev);
 }
 
 static const struct pci_device_id mm_pci_ids[] = {
@@ -1136,11 +1134,12 @@ static const struct pci_device_id mm_pci_ids[] = {
 MODULE_DEVICE_TABLE(pci, mm_pci_ids);
 
 static struct pci_driver mm_pci_driver = {
-	.name =		"umem",
-	.id_table =	mm_pci_ids,
-	.probe =	mm_pci_probe,
-	.remove =	mm_pci_remove,
+	.name		= DRIVER_NAME,
+	.id_table	= mm_pci_ids,
+	.probe		= mm_pci_probe,
+	.remove		= mm_pci_remove,
 };
+
 /*
 -----------------------------------------------------------------------------------
 --                               mm_init
