@@ -584,9 +584,13 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	saa_writeb(SAA7134_SYNC_CTRL,             sync_control);
 	saa_writeb(SAA7134_LUMA_CTRL,             luma_control);
 	saa_writeb(SAA7134_DEC_LUMA_BRIGHT,       dev->ctl_bright);
-	saa_writeb(SAA7134_DEC_LUMA_CONTRAST,     dev->ctl_contrast);
 
-	saa_writeb(SAA7134_DEC_CHROMA_SATURATION, dev->ctl_saturation);
+	saa_writeb(SAA7134_DEC_LUMA_CONTRAST,
+		dev->ctl_invert ? -dev->ctl_contrast : dev->ctl_contrast);
+
+	saa_writeb(SAA7134_DEC_CHROMA_SATURATION,
+		dev->ctl_invert ? -dev->ctl_saturation : dev->ctl_saturation);
+
 	saa_writeb(SAA7134_DEC_CHROMA_HUE,        dev->ctl_hue);
 	saa_writeb(SAA7134_CHROMA_CTRL1,          norm->chroma_ctrl1);
 	saa_writeb(SAA7134_CHROMA_GAIN,           norm->chroma_gain);
