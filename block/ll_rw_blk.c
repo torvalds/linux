@@ -431,7 +431,6 @@ static void queue_flush(struct request_queue *q, unsigned which)
 static inline struct request *start_ordered(struct request_queue *q,
 					    struct request *rq)
 {
-	q->bi_size = 0;
 	q->orderr = 0;
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
@@ -528,54 +527,20 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 	return 1;
 }
 
-static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
-{
-	struct request_queue *q = bio->bi_private;
-
-	/*
-	 * This is dry run, restore bio_sector and size.  We'll finish
-	 * this request again with the original bi_end_io after an
-	 * error occurs or post flush is complete.
-	 */
-	q->bi_size += bytes;
-
-	if (bio->bi_size)
-		return 1;
-
-	/* Reset bio */
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio->bi_size = q->bi_size;
-	bio->bi_sector -= (q->bi_size >> 9);
-	q->bi_size = 0;
-
-	return 0;
-}
-
 static int ordered_bio_endio(struct request *rq, struct bio *bio,
 			     unsigned int nbytes, int error)
 {
 	struct request_queue *q = rq->q;
-	bio_end_io_t *endio;
-	void *private;
 
 	if (&q->bar_rq != rq)
 		return 0;
 
 	/*
-	 * Okay, this is the barrier request in progress, dry finish it.
+	 * Okay, this is the barrier request in progress, just
+	 * record the error;
 	 */
 	if (error && !q->orderr)
 		q->orderr = error;
-
-	endio = bio->bi_end_io;
-	private = bio->bi_private;
-	bio->bi_end_io = flush_dry_bio_endio;
-	bio->bi_private = q;
-
-	bio_endio(bio, nbytes, error);
-
-	bio->bi_end_io = endio;
-	bio->bi_private = private;
 
 	return 1;
 }
