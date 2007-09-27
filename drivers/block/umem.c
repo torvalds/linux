@@ -52,7 +52,7 @@
 #include <linux/fcntl.h>        /* O_ACCMODE */
 #include <linux/hdreg.h>  /* HDIO_GETGEO */
 
-#include <linux/umem.h>
+#include "umem.h"
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

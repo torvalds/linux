@@ -125,11 +125,6 @@ struct mm_dma_desc {
 	__le64	sem_control_bits;
 } __attribute__((aligned(8)));
 
-#define PCI_VENDOR_ID_MICRO_MEMORY		0x1332
-#define PCI_DEVICE_ID_MICRO_MEMORY_5415CN	0x5415
-#define PCI_DEVICE_ID_MICRO_MEMORY_5425CN	0x5425
-#define PCI_DEVICE_ID_MICRO_MEMORY_6155		0x6155
-
 /* bits for card->flags */
 #define UM_FLAG_DMA_IN_REGS		1
 #define UM_FLAG_NO_BYTE_STATUS		2
