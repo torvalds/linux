@@ -368,7 +368,7 @@ static int lec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	entry = NULL;
 	vcc = lec_arp_resolve(priv, dst, is_rdesc, &entry);
-	pr_debug("%s:vcc:%p vcc_flags:%x, entry:%p\n", dev->name,
+	pr_debug("%s:vcc:%p vcc_flags:%lx, entry:%p\n", dev->name,
 		vcc, vcc ? vcc->flags : 0, entry);
 	if (!vcc || !test_bit(ATM_VF_READY, &vcc->flags)) {
 		if (entry && (entry->tx_wait.qlen < LEC_UNRES_QUE_LEN)) {
