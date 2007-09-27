@@ -2,7 +2,7 @@
 #define __RFKILL_H
 
 /*
- * Copyright (C) 2006 Ivo van Doorn
+ * Copyright (C) 2006 - 2007 Ivo van Doorn
  * Copyright (C) 2007 Dmitry Torokhov
  *
  * This program is free software; you can redistribute it and/or modify
@@ -83,7 +83,5 @@ struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type);
 void rfkill_free(struct rfkill *rfkill);
 int rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
-
-void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
 
 #endif /* RFKILL_H */

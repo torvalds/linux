@@ -17,6 +17,8 @@
 #include <linux/init.h>
 #include <linux/rfkill.h>
 
+#include "rfkill-input.h"
+
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("Input layer to RF switch connector");
 MODULE_LICENSE("GPL");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Ivo van Doorn
+ * Copyright (C) 2006 - 2007 Ivo van Doorn
  * Copyright (C) 2007 Dmitry Torokhov
  *
  * This program is free software; you can redistribute it and/or modify
