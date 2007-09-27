@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/leds.h>
 
 /**
  * enum rfkill_type - type of rfkill switch.
@@ -56,6 +57,7 @@ enum rfkill_state {
  * @data: Pointer to the RF button drivers private data which will be
  *	passed along when toggling radio state.
  * @toggle_radio(): Mandatory handler to control state of the radio.
+ * @led_trigger: A LED trigger for this button's LED.
  * @dev: Device structure integrating the switch into device tree.
  * @node: Used to place switch into list of all switches known to the
  *	the system.
@@ -74,6 +76,10 @@ struct rfkill {
 	void *data;
 	int (*toggle_radio)(void *data, enum rfkill_state state);
 
+#ifdef CONFIG_RFKILL_LEDS
+	struct led_trigger led_trigger;
+#endif
+
 	struct device dev;
 	struct list_head node;
 };
@@ -83,5 +89,20 @@ struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type);
 void rfkill_free(struct rfkill *rfkill);
 int rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
+
+/**
+ * rfkill_get_led_name - Get the LED trigger name for the button's LED.
+ * This function might return a NULL pointer if registering of the
+ * LED trigger failed.
+ * Use this as "default_trigger" for the LED.
+ */
+static inline char *rfkill_get_led_name(struct rfkill *rfkill)
+{
+#ifdef CONFIG_RFKILL_LEDS
+	return (char *)(rfkill->led_trigger.name);
+#else
+	return NULL;
+#endif
+}
 
 #endif /* RFKILL_H */

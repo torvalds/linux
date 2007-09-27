@@ -37,6 +37,22 @@ static DEFINE_MUTEX(rfkill_mutex);
 
 static enum rfkill_state rfkill_states[RFKILL_TYPE_MAX];
 
+
+static void rfkill_led_trigger(struct rfkill *rfkill,
+			       enum rfkill_state state)
+{
+#ifdef CONFIG_RFKILL_LEDS
+	struct led_trigger *led = &rfkill->led_trigger;
+
+	if (!led->name)
+		return;
+	if (state == RFKILL_STATE_OFF)
+		led_trigger_event(led, LED_OFF);
+	else
+		led_trigger_event(led, LED_FULL);
+#endif /* CONFIG_RFKILL_LEDS */
+}
+
 static int rfkill_toggle_radio(struct rfkill *rfkill,
 				enum rfkill_state state)
 {
@@ -48,8 +64,10 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 
 	if (state != rfkill->state) {
 		retval = rfkill->toggle_radio(rfkill->data, state);
-		if (!retval)
+		if (!retval) {
 			rfkill->state = state;
+			rfkill_led_trigger(rfkill, state);
+		}
 	}
 
 	mutex_unlock(&rfkill->mutex);
@@ -328,6 +346,26 @@ void rfkill_free(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_free);
 
+static void rfkill_led_trigger_register(struct rfkill *rfkill)
+{
+#ifdef CONFIG_RFKILL_LEDS
+	int error;
+
+	rfkill->led_trigger.name = rfkill->dev.bus_id;
+	error = led_trigger_register(&rfkill->led_trigger);
+	if (error)
+		rfkill->led_trigger.name = NULL;
+#endif /* CONFIG_RFKILL_LEDS */
+}
+
+static void rfkill_led_trigger_unregister(struct rfkill *rfkill)
+{
+#ifdef CONFIG_RFKILL_LEDS
+	if (rfkill->led_trigger.name)
+		led_trigger_unregister(&rfkill->led_trigger);
+#endif
+}
+
 /**
  * rfkill_register - Register a rfkill structure.
  * @rfkill: rfkill structure to be registered
@@ -357,6 +395,7 @@ int rfkill_register(struct rfkill *rfkill)
 		rfkill_remove_switch(rfkill);
 		return error;
 	}
+	rfkill_led_trigger_register(rfkill);
 
 	return 0;
 }
@@ -372,6 +411,7 @@ EXPORT_SYMBOL(rfkill_register);
  */
 void rfkill_unregister(struct rfkill *rfkill)
 {
+	rfkill_led_trigger_unregister(rfkill);
 	device_del(&rfkill->dev);
 	rfkill_remove_switch(rfkill);
 	put_device(&rfkill->dev);

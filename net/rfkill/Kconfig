@@ -22,3 +22,10 @@ config RFKILL_INPUT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rfkill-input.
+
+# LED trigger support
+config RFKILL_LEDS
+	bool
+	depends on RFKILL && LEDS_TRIGGERS
+	default y
+
