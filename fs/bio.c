@@ -1018,6 +1018,8 @@ void bio_endio(struct bio *bio, unsigned int bytes_done, int error)
 {
 	if (error)
 		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+		error = -EIO;
 
 	if (unlikely(bytes_done > bio->bi_size)) {
 		printk("%s: want %u bytes done, only %u left\n", __FUNCTION__,
@@ -1028,7 +1030,7 @@ void bio_endio(struct bio *bio, unsigned int bytes_done, int error)
 	bio->bi_size -= bytes_done;
 	bio->bi_sector += (bytes_done >> 9);
 
-	if (bio->bi_end_io)
+	if (bio->bi_size && bio->bi_end_io)
 		bio->bi_end_io(bio, bytes_done, error);
 }
 
