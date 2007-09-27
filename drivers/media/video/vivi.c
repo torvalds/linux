@@ -1111,29 +1111,14 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct vivi_fh        *fh = file->private_data;
 	struct vivi_buffer    *buf;
+	struct videobuf_queue *q = &fh->vb_vidq;
 
 	dprintk(1,"%s\n",__FUNCTION__);
 
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
 		return POLLERR;
 
-	if (res_get(fh->dev,fh)) {
-		dprintk(1,"poll: mmap interface\n");
-		/* streaming capture */
-		if (list_empty(&fh->vb_vidq.stream))
-			return POLLERR;
-		buf = list_entry(fh->vb_vidq.stream.next,struct vivi_buffer,vb.stream);
-	} else {
-		dprintk(1,"poll: read() interface\n");
-		/* read() capture */
-		return videobuf_poll_stream(file, &fh->	vb_vidq,
-					    wait);
-	}
-	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == STATE_DONE ||
-	    buf->vb.state == STATE_ERROR)
-		return POLLIN|POLLRDNORM;
-	return 0;
+	return videobuf_poll_stream(file, q, wait);
 }
 
 static int vivi_release(struct inode *inode, struct file *file)
