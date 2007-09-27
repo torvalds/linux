@@ -126,6 +126,8 @@ struct kvm_mmu_page {
 	union kvm_mmu_page_role role;
 
 	u64 *spt;
+	/* hold the gfn of each spte inside spt */
+	gfn_t *gfns;
 	unsigned long slot_bitmap; /* One bit set per slot which has memory
 				    * in this shadow page.
 				    */
@@ -159,7 +161,7 @@ struct kvm_mmu {
 	u64 *pae_root;
 };
 
-#define KVM_NR_MEM_OBJS 20
+#define KVM_NR_MEM_OBJS 40
 
 struct kvm_mmu_memory_cache {
 	int nobjs;
@@ -402,6 +404,7 @@ struct kvm_memory_slot {
 	unsigned long npages;
 	unsigned long flags;
 	struct page **phys_mem;
+	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
 };
 
@@ -554,6 +557,7 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
 extern hpa_t bad_page_address;
 
+gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn);

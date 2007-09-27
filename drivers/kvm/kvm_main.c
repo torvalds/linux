@@ -309,6 +309,8 @@ static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 					__free_page(free->phys_mem[i]);
 			vfree(free->phys_mem);
 		}
+	if (!dont || free->rmap != dont->rmap)
+		vfree(free->rmap);
 
 	if (!dont || free->dirty_bitmap != dont->dirty_bitmap)
 		vfree(free->dirty_bitmap);
@@ -719,13 +721,18 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 		if (!new.phys_mem)
 			goto out_unlock;
 
+		new.rmap = vmalloc(npages * sizeof(struct page*));
+
+		if (!new.rmap)
+			goto out_unlock;
+
 		memset(new.phys_mem, 0, npages * sizeof(struct page *));
+		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 		for (i = 0; i < npages; ++i) {
 			new.phys_mem[i] = alloc_page(GFP_HIGHUSER
 						     | __GFP_ZERO);
 			if (!new.phys_mem[i])
 				goto out_unlock;
-			set_page_private(new.phys_mem[i],0);
 		}
 	}
 
@@ -909,7 +916,7 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	return r;
 }
 
-static gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
+gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
 	struct kvm_mem_alias *alias;

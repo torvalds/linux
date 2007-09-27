@@ -295,7 +295,8 @@ unshadowed:
 	set_shadow_pte(shadow_pte, spte);
 	page_header_update_slot(vcpu->kvm, shadow_pte, gaddr);
 	if (!was_rmapped)
-		rmap_add(vcpu, shadow_pte);
+		rmap_add(vcpu, shadow_pte, (gaddr & PT64_BASE_ADDR_MASK)
+			 >> PAGE_SHIFT);
 	if (!ptwrite || !*ptwrite)
 		vcpu->last_pte_updated = shadow_pte;
 }
