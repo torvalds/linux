@@ -12,6 +12,7 @@
 #include <linux/videodev.h>
 #include <linux/delay.h>
 #include <media/tuner.h>
+#include <linux/mutex.h>
 #include "tuner-driver.h"
 #include "tuner-xc2028.h"
 
@@ -47,6 +48,8 @@ struct xc2028_data {
 							      were loaded? */
 	enum tuner_mode	mode;
 	struct i2c_client	*i2c_client;
+	
+        struct mutex lock;
 };
 
 #define i2c_send(rc,c,buf,size)						\
@@ -286,20 +289,28 @@ static int check_firmware(struct i2c_client *c, enum tuner_mode new_mode,
 
 static int xc2028_signal(struct i2c_client *c)
 {
-	int lock, signal;
+	struct tuner       *t = i2c_get_clientdata(c);
+	struct xc2028_data *xc2028 = t->priv;
+	int                frq_lock, signal=0;
+
+        mutex_lock(&xc2028->lock);
 
 	printk(KERN_INFO "xc2028: %s called\n", __FUNCTION__);
 
-	lock = xc2028_get_reg(c, 0x2);
-	if (lock<=0)
-		return lock;
+	frq_lock = xc2028_get_reg(c, 0x2);
+	if (frq_lock<=0)
+		goto ret;
 
 	/* Frequency is locked. Return signal quality */
 
 	signal = xc2028_get_reg(c, 0x40);
 
-	if(signal<=0)
-		return lock;
+	if(signal<=0) {
+		signal=frq_lock;
+	}
+
+ret:
+        mutex_unlock(&xc2028->lock);
 
 	return signal;
 }
@@ -318,6 +329,8 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 	   when freq is changed */
 	struct xc2028_data	*xc2028 = t->priv;
 
+        mutex_lock(&xc2028->lock);
+
 	xc2028->firm_type=0;
 
 	/* Reset GPIO 1 */
@@ -325,13 +338,13 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 		rc = t->tuner_callback( c->adapter->algo_data,
 					XC2028_TUNER_RESET, 0);
 		if (rc<0)
-			return;
+			goto ret;
 	}
 	msleep(10);
 	printk("xc3028: should set frequency %d kHz)\n", freq / 1000);
 
 	if (check_firmware(c, new_mode, bandwidth)<0)
-		return;
+		goto ret;
 
 	if(new_mode == T_DIGITAL_TV)
 		offset = 2750000;
@@ -344,7 +357,7 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 		rc = t->tuner_callback( c->adapter->algo_data,
 					XC2028_RESET_CLK, 1);
 		if (rc<0)
-			return;
+			goto ret;
 	}
 
 	msleep(10);
@@ -357,12 +370,15 @@ static void generic_set_tv_freq(struct i2c_client *c, u32 freq /* in Hz */,
 
 	i2c_send(rc, c, buf, sizeof(buf));
 	if (rc<0)
-		return;
+		goto ret;
 	msleep(100);
 
 	printk("divider= %02x %02x %02x %02x (freq=%d.%02d)\n",
 		 buf[1],buf[2],buf[3],buf[4],
 		 freq / 16, freq % 16 * 100 / 16);
+
+ret:
+        mutex_unlock(&xc2028->lock);
 }
 
 
@@ -415,6 +431,8 @@ int xc2028_tuner_init(struct i2c_client *c)
 	xc2028->bandwidth=BANDWIDTH_6_MHZ;
 	xc2028->need_load_generic=1;
 	xc2028->mode = T_UNINITIALIZED;
+
+	mutex_init(&xc2028->lock);
 
 	/* FIXME: Check where t->priv will be freed */
 
@@ -497,6 +515,8 @@ int xc2028_attach(struct i2c_client *c, struct dvb_frontend *fe)
 
 	return 0;
 }
+
+
 
 EXPORT_SYMBOL(xc2028_attach);
 
