@@ -1834,7 +1834,11 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		if (res_check(fh, RESOURCE_OVERLAY)) {
 			spin_lock_irqsave(&dev->slock,flags);
 			stop_preview(dev,fh);
+			spin_unlock_irqrestore(&dev->slock, flags);
+
 			set_tvnorm(dev,&tvnorms[i]);
+
+			spin_lock_irqsave(&dev->slock, flags);
 			start_preview(dev,fh);
 			spin_unlock_irqrestore(&dev->slock,flags);
 		} else
