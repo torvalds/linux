@@ -9,6 +9,7 @@
 #include <linux/list.h>
 
 struct proc_dir_entry;
+struct net_device;
 struct net {
 	atomic_t		count;		/* To decided when the network
 						 *  namespace should be freed.
@@ -22,6 +23,8 @@ struct net {
 	struct proc_dir_entry 	*proc_net;
 	struct proc_dir_entry 	*proc_net_stat;
 	struct proc_dir_entry 	*proc_net_root;
+
+	struct net_device       *loopback_dev;          /* The loopback */
 
 	struct list_head 	dev_base_head;
 	struct hlist_head 	*dev_name_head;

@@ -57,6 +57,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/percpu.h>
+#include <net/net_namespace.h>
 
 struct pcpu_lstats {
 	unsigned long packets;
@@ -252,7 +253,7 @@ static void loopback_setup(struct net_device *dev)
 }
 
 /* Setup and register the loopback device. */
-static int __init loopback_init(void)
+static int loopback_net_init(struct net *net)
 {
 	struct net_device *dev;
 	int err;
@@ -262,12 +263,13 @@ static int __init loopback_init(void)
 	if (!dev)
 		goto out;
 
+	dev->nd_net = net;
 	err = register_netdev(dev);
 	if (err)
 		goto out_free_netdev;
 
 	err = 0;
-	loopback_dev = dev;
+	net->loopback_dev = dev;
 
 out:
 	if (err)
@@ -279,7 +281,21 @@ out_free_netdev:
 	goto out;
 }
 
-fs_initcall(loopback_init);
+static void loopback_net_exit(struct net *net)
+{
+	struct net_device *dev = net->loopback_dev;
 
-struct net_device *loopback_dev;
-EXPORT_SYMBOL(loopback_dev);
+	unregister_netdev(dev);
+}
+
+static struct pernet_operations loopback_net_ops = {
+       .init = loopback_net_init,
+       .exit = loopback_net_exit,
+};
+
+static int __init loopback_init(void)
+{
+	return register_pernet_device(&loopback_net_ops);
+}
+
+fs_initcall(loopback_init);
