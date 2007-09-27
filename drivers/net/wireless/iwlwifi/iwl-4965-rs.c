@@ -131,7 +131,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 				   struct net_device *dev,
 				   struct ieee80211_hdr *hdr,
 				   struct sta_info *sta);
-static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
+static void rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 			     struct iwl_rate *tx_mcs,
 			     struct iwl_link_quality_cmd *tbl);
 
@@ -1873,16 +1873,15 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	rs_initialize_lq(priv, sta);
 }
 
-static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
+static void rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 			    struct iwl_rate *tx_mcs,
 			    struct iwl_link_quality_cmd *lq_cmd)
 {
 	int index = 0;
-	int rc = 0;
 	int rate_idx;
+	int repeat_rate = 0;
 	u8 ant_toggle_count = 0;
 	u8 use_ht_possible = 1;
-	u8 repeat_cur_rate = 0;
 	struct iwl_rate new_rate;
 	struct iwl_scale_tbl_info tbl_type = { 0 };
 
@@ -1891,9 +1890,9 @@ static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 
 	if (is_legacy(tbl_type.lq_type)) {
 		ant_toggle_count = 1;
-		repeat_cur_rate = IWL_NUMBER_TRY;
+		repeat_rate = IWL_NUMBER_TRY;
 	} else
-		repeat_cur_rate = IWL_HT_NUMBER_TRY;
+		repeat_rate = IWL_HT_NUMBER_TRY;
 
 	lq_cmd->general_params.mimo_delimiter =
 			is_mimo(tbl_type.lq_type) ? 1 : 0;
@@ -1907,10 +1906,10 @@ static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 		lq_cmd->general_params.single_stream_ant_msk = 2;
 
 	index++;
-	repeat_cur_rate--;
+	repeat_rate--;
 
 	while (index < LINK_QUAL_MAX_RETRY_NUM) {
-		while (repeat_cur_rate && (index < LINK_QUAL_MAX_RETRY_NUM)) {
+		while (repeat_rate > 0 && (index < LINK_QUAL_MAX_RETRY_NUM)) {
 			if (is_legacy(tbl_type.lq_type)) {
 				if (ant_toggle_count <
 				    NUM_TRY_BEFORE_ANTENNA_TOGGLE)
@@ -1922,7 +1921,7 @@ static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 			}
 			lq_cmd->rs_table[index].rate_n_flags =
 					cpu_to_le32(new_rate.rate_n_flags);
-			repeat_cur_rate--;
+			repeat_rate--;
 			index++;
 		}
 
@@ -1942,26 +1941,22 @@ static int rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
 				rs_toggle_antenna(&new_rate, &tbl_type);
 				ant_toggle_count = 1;
 			}
-			repeat_cur_rate = IWL_NUMBER_TRY;
+			repeat_rate = IWL_NUMBER_TRY;
 		} else
-			repeat_cur_rate = IWL_HT_NUMBER_TRY;
+			repeat_rate = IWL_HT_NUMBER_TRY;
 
 		use_ht_possible = 0;
 
 		lq_cmd->rs_table[index].rate_n_flags =
 				cpu_to_le32(new_rate.rate_n_flags);
-		/* lq_cmd->rs_table[index].rate_n_flags = 0x800d; */
 
 		index++;
-		repeat_cur_rate--;
+		repeat_rate--;
 	}
-
-	/* lq_cmd->rs_table[0].rate_n_flags = 0x800d; */
 
 	lq_cmd->general_params.dual_stream_ant_msk = 3;
 	lq_cmd->agg_params.agg_dis_start_th = 3;
 	lq_cmd->agg_params.agg_time_limit = cpu_to_le16(4000);
-	return rc;
 }
 
 static void *rs_alloc(struct ieee80211_local *local)
