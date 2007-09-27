@@ -15,23 +15,12 @@ static LIST_HEAD(pernet_list);
 static struct list_head *first_device = &pernet_list;
 static DEFINE_MUTEX(net_mutex);
 
-static DEFINE_MUTEX(net_list_mutex);
 LIST_HEAD(net_namespace_list);
 
 static struct kmem_cache *net_cachep;
 
 struct net init_net;
 EXPORT_SYMBOL_GPL(init_net);
-
-void net_lock(void)
-{
-	mutex_lock(&net_list_mutex);
-}
-
-void net_unlock(void)
-{
-	mutex_unlock(&net_list_mutex);
-}
 
 static struct net *net_alloc(void)
 {
@@ -62,9 +51,9 @@ static void cleanup_net(struct work_struct *work)
 	mutex_lock(&net_mutex);
 
 	/* Don't let anyone else find us. */
-	net_lock();
+	rtnl_lock();
 	list_del(&net->list);
-	net_unlock();
+	rtnl_unlock();
 
 	/* Run all of the network namespace exit methods */
 	list_for_each_entry_reverse(ops, &pernet_list, list) {
@@ -151,9 +140,9 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	if (err)
 		goto out_unlock;
 
-	net_lock();
+	rtnl_lock();
 	list_add_tail(&new_net->list, &net_namespace_list);
-	net_unlock();
+	rtnl_unlock();
 
 
 out_unlock:
@@ -178,9 +167,9 @@ static int __init net_ns_init(void)
 	mutex_lock(&net_mutex);
 	err = setup_net(&init_net);
 
-	net_lock();
+	rtnl_lock();
 	list_add_tail(&init_net.list, &net_namespace_list);
-	net_unlock();
+	rtnl_unlock();
 
 	mutex_unlock(&net_mutex);
 	if (err)

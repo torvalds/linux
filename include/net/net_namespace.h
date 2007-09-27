@@ -96,9 +96,6 @@ static inline void release_net(struct net *net)
 #endif
 }
 
-extern void net_lock(void);
-extern void net_unlock(void);
-
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)
 
