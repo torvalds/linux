@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #include <net/net_namespace.h>
 
 /*
@@ -32,12 +33,10 @@ void net_unlock(void)
 	mutex_unlock(&net_list_mutex);
 }
 
-#if 0
 static struct net *net_alloc(void)
 {
 	return kmem_cache_alloc(net_cachep, GFP_KERNEL);
 }
-#endif
 
 static void net_free(struct net *net)
 {
@@ -126,6 +125,46 @@ out_undo:
 			ops->exit(net);
 	}
 	goto out;
+}
+
+struct net *copy_net_ns(unsigned long flags, struct net *old_net)
+{
+	struct net *new_net = NULL;
+	int err;
+
+	get_net(old_net);
+
+	if (!(flags & CLONE_NEWNET))
+		return old_net;
+
+#ifndef CONFIG_NET_NS
+	return ERR_PTR(-EINVAL);
+#endif
+
+	err = -ENOMEM;
+	new_net = net_alloc();
+	if (!new_net)
+		goto out;
+
+	mutex_lock(&net_mutex);
+	err = setup_net(new_net);
+	if (err)
+		goto out_unlock;
+
+	net_lock();
+	list_add_tail(&new_net->list, &net_namespace_list);
+	net_unlock();
+
+
+out_unlock:
+	mutex_unlock(&net_mutex);
+out:
+	put_net(old_net);
+	if (err) {
+		net_free(new_net);
+		new_net = ERR_PTR(err);
+	}
+	return new_net;
 }
 
 static int __init net_ns_init(void)

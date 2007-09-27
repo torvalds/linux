@@ -20,6 +20,7 @@
 #include <linux/mnt_namespace.h>
 #include <linux/utsname.h>
 #include <linux/pid_namespace.h>
+#include <net/net_namespace.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
@@ -98,8 +99,17 @@ static struct nsproxy *create_new_namespaces(unsigned long flags,
 		goto out_user;
 	}
 
+	new_nsp->net_ns = copy_net_ns(flags, tsk->nsproxy->net_ns);
+	if (IS_ERR(new_nsp->net_ns)) {
+		err = PTR_ERR(new_nsp->net_ns);
+		goto out_net;
+	}
+
 	return new_nsp;
 
+out_net:
+	if (new_nsp->user_ns)
+		put_user_ns(new_nsp->user_ns);
 out_user:
 	if (new_nsp->pid_ns)
 		put_pid_ns(new_nsp->pid_ns);
@@ -132,7 +142,7 @@ int copy_namespaces(unsigned long flags, struct task_struct *tsk)
 
 	get_nsproxy(old_ns);
 
-	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWUSER)))
+	if (!(flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC | CLONE_NEWUSER | CLONE_NEWNET)))
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN)) {
@@ -164,6 +174,7 @@ void free_nsproxy(struct nsproxy *ns)
 		put_pid_ns(ns->pid_ns);
 	if (ns->user_ns)
 		put_user_ns(ns->user_ns);
+	put_net(ns->net_ns);
 	kmem_cache_free(nsproxy_cachep, ns);
 }
 
@@ -177,7 +188,7 @@ int unshare_nsproxy_namespaces(unsigned long unshare_flags,
 	int err = 0;
 
 	if (!(unshare_flags & (CLONE_NEWNS | CLONE_NEWUTS | CLONE_NEWIPC |
-			       CLONE_NEWUSER)))
+			       CLONE_NEWUSER | CLONE_NEWNET)))
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN))

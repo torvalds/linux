@@ -38,11 +38,23 @@ extern struct net init_net;
 
 extern struct list_head net_namespace_list;
 
+#ifdef CONFIG_NET
+extern struct net *copy_net_ns(unsigned long flags, struct net *net_ns);
+#else
+static inline struct net *copy_net_ns(unsigned long flags, struct net *net_ns)
+{
+	/* There is nothing to copy so this is a noop */
+	return net_ns;
+}
+#endif
+
 extern void __put_net(struct net *net);
 
 static inline struct net *get_net(struct net *net)
 {
+#ifdef CONFIG_NET
 	atomic_inc(&net->count);
+#endif
 	return net;
 }
 
@@ -60,19 +72,25 @@ static inline struct net *maybe_get_net(struct net *net)
 
 static inline void put_net(struct net *net)
 {
+#ifdef CONFIG_NET
 	if (atomic_dec_and_test(&net->count))
 		__put_net(net);
+#endif
 }
 
 static inline struct net *hold_net(struct net *net)
 {
+#ifdef CONFIG_NET
 	atomic_inc(&net->use_count);
+#endif
 	return net;
 }
 
 static inline void release_net(struct net *net)
 {
+#ifdef CONFIG_NET
 	atomic_dec(&net->use_count);
+#endif
 }
 
 extern void net_lock(void);
