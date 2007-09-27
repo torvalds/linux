@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/init.h>
+#include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/linkage.h>
 #include <linux/sched.h>
@@ -318,23 +319,6 @@ static void __init r4k_blast_scache_setup(void)
 		r4k_blast_scache = blast_scache128;
 }
 
-/*
- * This is former mm's flush_cache_all() which really should be
- * flush_cache_vunmap these days ...
- */
-static inline void local_r4k_flush_cache_all(void * args)
-{
-	r4k_blast_dcache();
-}
-
-static void r4k_flush_cache_all(void)
-{
-	if (!cpu_has_dc_aliases)
-		return;
-
-	r4k_on_each_cpu(local_r4k_flush_cache_all, NULL, 1, 1);
-}
-
 static inline void local_r4k___flush_cache_all(void * args)
 {
 #if defined(CONFIG_CPU_LOONGSON2)
@@ -423,13 +407,14 @@ static inline void local_r4k_flush_cache_page(void *args)
 	struct flush_cache_page_args *fcp_args = args;
 	struct vm_area_struct *vma = fcp_args->vma;
 	unsigned long addr = fcp_args->addr;
-	unsigned long paddr = fcp_args->pfn << PAGE_SHIFT;
+	struct page *page = pfn_to_page(fcp_args->pfn);
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgdp;
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
+	void *vaddr;
 
 	/*
 	 * If ownes no valid ASID yet, cannot possibly have gotten
@@ -451,43 +436,40 @@ static inline void local_r4k_flush_cache_page(void *args)
 	if (!(pte_val(*ptep) & _PAGE_PRESENT))
 		return;
 
-	/*
-	 * Doing flushes for another ASID than the current one is
-	 * too difficult since stupid R4k caches do a TLB translation
-	 * for every cache flush operation.  So we do indexed flushes
-	 * in that case, which doesn't overly flush the cache too much.
-	 */
-	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID)) {
-		if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
-			r4k_blast_dcache_page(addr);
-			if (exec && !cpu_icache_snoops_remote_store)
-				r4k_blast_scache_page(addr);
-		}
-		if (exec)
-			r4k_blast_icache_page(addr);
-
-		return;
+	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID))
+		vaddr = NULL;
+	else {
+		/*
+		 * Use kmap_coherent or kmap_atomic to do flushes for
+		 * another ASID than the current one.
+		 */
+		if (cpu_has_dc_aliases)
+			vaddr = kmap_coherent(page, addr);
+		else
+			vaddr = kmap_atomic(page, KM_USER0);
+		addr = (unsigned long)vaddr;
 	}
 
-	/*
-	 * Do indexed flush, too much work to get the (possible) TLB refills
-	 * to work correctly.
-	 */
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
-		r4k_blast_dcache_page_indexed(cpu_has_pindexed_dcache ?
-					      paddr : addr);
-		if (exec && !cpu_icache_snoops_remote_store) {
-			r4k_blast_scache_page_indexed(paddr);
-		}
+		r4k_blast_dcache_page(addr);
+		if (exec && !cpu_icache_snoops_remote_store)
+			r4k_blast_scache_page(addr);
 	}
 	if (exec) {
-		if (cpu_has_vtag_icache && mm == current->active_mm) {
+		if (vaddr && cpu_has_vtag_icache && mm == current->active_mm) {
 			int cpu = smp_processor_id();
 
 			if (cpu_context(cpu, mm) != 0)
 				drop_mmu_context(mm, cpu);
 		} else
-			r4k_blast_icache_page_indexed(addr);
+			r4k_blast_icache_page(addr);
+	}
+
+	if (vaddr) {
+		if (cpu_has_dc_aliases)
+			kunmap_coherent();
+		else
+			kunmap_atomic(vaddr, KM_USER0);
 	}
 }
 
@@ -1279,7 +1261,7 @@ void __init r4k_cache_init(void)
 					PAGE_SIZE - 1);
 	else
 		shm_align_mask = PAGE_SIZE-1;
-	flush_cache_all		= r4k_flush_cache_all;
+	flush_cache_all		= cache_noop;
 	__flush_cache_all	= r4k___flush_cache_all;
 	flush_cache_mm		= r4k_flush_cache_mm;
 	flush_cache_page	= r4k_flush_cache_page;
