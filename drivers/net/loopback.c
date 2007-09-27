@@ -62,7 +62,6 @@ struct pcpu_lstats {
 	unsigned long packets;
 	unsigned long bytes;
 };
-static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 
 #define LOOPBACK_OVERHEAD (128 + MAX_HEADER + 16 + 16)
 
@@ -134,7 +133,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
  */
 static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct pcpu_lstats *lb_stats;
+	struct pcpu_lstats *pcpu_lstats, *lb_stats;
 
 	skb_orphan(skb);
 
@@ -155,7 +154,8 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev->last_rx = jiffies;
 
 	/* it's OK to use __get_cpu_var() because BHs are off */
-	lb_stats = &__get_cpu_var(pcpu_lstats);
+	pcpu_lstats = netdev_priv(dev);
+	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
 	lb_stats->bytes += skb->len;
 	lb_stats->packets++;
 
@@ -166,15 +166,17 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
+	const struct pcpu_lstats *pcpu_lstats;
 	struct net_device_stats *stats = &dev->stats;
 	unsigned long bytes = 0;
 	unsigned long packets = 0;
 	int i;
 
+	pcpu_lstats = netdev_priv(dev);
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
 
-		lb_stats = &per_cpu(pcpu_lstats, i);
+		lb_stats = per_cpu_ptr(pcpu_lstats, i);
 		bytes   += lb_stats->bytes;
 		packets += lb_stats->packets;
 	}
@@ -197,6 +199,26 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_sg			= always_on,
 	.get_rx_csum		= always_on,
 };
+
+static int loopback_dev_init(struct net_device *dev)
+{
+	struct pcpu_lstats *lstats;
+
+	lstats = alloc_percpu(struct pcpu_lstats);
+	if (!lstats)
+		return -ENOMEM;
+
+	dev->priv = lstats;
+	return 0;
+}
+
+static void loopback_dev_free(struct net_device *dev)
+{
+	struct pcpu_lstats *lstats = netdev_priv(dev);
+
+	free_percpu(lstats);
+	free_netdev(dev);
+}
 
 /*
  * The loopback device is special. There is only one instance and
@@ -225,6 +247,8 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_LLTX
 		| NETIF_F_NETNS_LOCAL,
 	dev->ethtool_ops	= &loopback_ethtool_ops;
+	dev->init = loopback_dev_init;
+	dev->destructor = loopback_dev_free;
 }
 
 /* Setup and register the loopback device. */
