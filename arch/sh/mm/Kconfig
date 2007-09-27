@@ -336,25 +336,27 @@ config ARCH_MEMORY_PROBE
 
 choice
 	prompt "Kernel page size"
+	default PAGE_SIZE_8KB if X2TLB
 	default PAGE_SIZE_4KB
 
 config PAGE_SIZE_4KB
 	bool "4kB"
+	depends on !X2TLB
 	help
 	  This is the default page size used by all SuperH CPUs.
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on EXPERIMENTAL && X2TLB
+	depends on X2TLB
 	help
 	  This enables 8kB pages as supported by SH-X2 and later MMUs.
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on EXPERIMENTAL && CPU_SH4
+	depends on CPU_SH4
 	help
 	  This enables support for 64kB pages, possible on all SH-4
-	  CPUs and later. Highly experimental, not recommended.
+	  CPUs and later.
 
 endchoice
 
