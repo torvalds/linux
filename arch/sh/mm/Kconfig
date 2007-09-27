@@ -266,7 +266,7 @@ config 32BIT
 
 config X2TLB
 	bool "Enable extended TLB mode"
-	depends on CPU_SHX2 && MMU && EXPERIMENTAL
+	depends on (CPU_SHX2 || CPU_SHX3) && MMU && EXPERIMENTAL
 	help
 	  Selecting this option will enable the extended mode of the SH-X2
 	  TLB. For legacy SH-X behaviour and interoperability, say N. For
