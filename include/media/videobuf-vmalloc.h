@@ -21,9 +21,6 @@ struct videbuf_vmalloc_memory
 {
 	u32                 magic;
 
-	/* for mmap'ed buffers */
-	struct videobuf_mapping *map;
-
 	void                *vmalloc;
 
 	/* remap_vmalloc_range seems to need to run after mmap() on some cases */

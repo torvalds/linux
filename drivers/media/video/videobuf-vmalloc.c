@@ -62,7 +62,6 @@ videobuf_vm_close(struct vm_area_struct *vma)
 {
 	struct videobuf_mapping *map = vma->vm_private_data;
 	struct videobuf_queue *q = map->q;
-	struct videbuf_vmalloc_memory *mem;
 	int i;
 
 	dprintk(2,"vm_close %p [count=%d,vma=%08lx-%08lx]\n",map,
@@ -75,19 +74,13 @@ videobuf_vm_close(struct vm_area_struct *vma)
 		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 			if (NULL == q->bufs[i])
 				continue;
-			mem=q->bufs[i]->priv;
 
-			if (!mem)
-				continue;
-
-			MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
-
-			if (mem->map != map)
+			if (q->bufs[i]->map != map)
 				continue;
 
 			q->ops->buf_release(q,q->bufs[i]);
 
-			mem->map   = NULL;
+			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
 		}
 		mutex_unlock(&q->lock);
@@ -191,8 +184,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (q->bufs[i]) {
-			struct videbuf_vmalloc_memory *mem=q->bufs[i]->priv;
-			if (mem && mem->map)
+			if (q->bufs[i]->map)
 				return -EBUSY;
 		}
 	}
@@ -227,12 +219,9 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 			(vma->vm_pgoff << PAGE_SHIFT));
 		return -EINVAL;
 	}
-	mem=q->bufs[first]->priv;
-	BUG_ON (!mem);
-	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
 
 	/* create mapping + update buffer list */
-	map = mem->map = kmalloc(sizeof(struct videobuf_mapping),GFP_KERNEL);
+	map = q->bufs[first]->map = kmalloc(sizeof(struct videobuf_mapping),GFP_KERNEL);
 	if (NULL == map)
 		return -ENOMEM;
 
@@ -246,14 +235,19 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	vma->vm_flags       |= VM_DONTEXPAND | VM_RESERVED;
 	vma->vm_private_data = map;
 
+	mem=q->bufs[first]->priv;
+	BUG_ON (!mem);
+	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
+
 	/* Try to remap memory */
 	retval=remap_vmalloc_range(vma, mem->vmalloc,0);
 	if (retval<0) {
 		dprintk(1,"mmap: postponing remap_vmalloc_range\n");
+
 		mem->vma=kmalloc(sizeof(*vma),GFP_KERNEL);
 		if (!mem->vma) {
 			kfree(map);
-			mem->map=NULL;
+			q->bufs[first]->map=NULL;
 			return -ENOMEM;
 		}
 		memcpy(mem->vma,vma,sizeof(*vma));
@@ -267,15 +261,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	videobuf_vm_open(vma);
 
 	return (0);
-}
-
-static int __videobuf_is_mmapped (struct videobuf_buffer *buf)
-{
-	struct videbuf_vmalloc_memory *mem=buf->priv;
-	BUG_ON (!mem);
-	MAGIC_CHECK(mem->magic,MAGIC_VMAL_MEM);
-
-	return (mem->map)?1:0;
 }
 
 static int __videobuf_copy_to_user ( struct videobuf_queue *q,
@@ -335,7 +320,6 @@ static struct videobuf_qtype_ops qops = {
 	.sync         = __videobuf_sync,
 	.mmap_free    = __videobuf_mmap_free,
 	.mmap_mapper  = __videobuf_mmap_mapper,
-	.is_mmapped   = __videobuf_is_mmapped,
 	.copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
 };

@@ -149,7 +149,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (NULL == q->bufs[i])
 			continue;
-		if (CALL(q,is_mmapped,q->bufs[i])) {
+		if (q->bufs[i]->map) {
 			dprintk(1,"busy: buffer #%d mapped\n",i);
 			return 1;
 		}
@@ -238,7 +238,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 	}
 
 	b->flags    = 0;
-	if (CALL(q,is_mmapped,vb))
+	if (vb->map)
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
 	switch (vb->state) {

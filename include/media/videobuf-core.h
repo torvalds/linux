@@ -97,6 +97,9 @@ struct videobuf_buffer {
 	/* buffer addr (userland ptr!) */
 	unsigned long           baddr;
 
+	/* for mmap'ed buffers */
+	struct videobuf_mapping *map;
+
 	/* Private pointer to allow specific methods to store their data */
 	int			privsize;
 	void                    *priv;
@@ -143,7 +146,6 @@ struct videobuf_qtype_ops {
 	int (*mmap_free)	(struct videobuf_queue *q);
 	int (*mmap_mapper)	(struct videobuf_queue *q,
 				struct vm_area_struct *vma);
-	int (*is_mmapped)	(struct videobuf_buffer *buf);
 };
 
 struct videobuf_queue {

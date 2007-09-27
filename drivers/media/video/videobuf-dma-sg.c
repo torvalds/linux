@@ -374,9 +374,9 @@ videobuf_vm_close(struct vm_area_struct *vma)
 
 			MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
 
-			if (mem->map != map)
+			if (q->bufs[i]->map != map)
 				continue;
-			mem->map   = NULL;
+			q->bufs[i]->map   = NULL;
 			q->bufs[i]->baddr = 0;
 			q->ops->buf_release(q,q->bufs[i]);
 		}
@@ -520,8 +520,7 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (q->bufs[i]) {
-			struct videbuf_pci_sg_memory *mem=q->bufs[i]->priv;
-			if (mem && mem->map)
+			if (q->bufs[i]->map)
 				return -EBUSY;
 		}
 	}
@@ -572,8 +571,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 			continue;
 		if (V4L2_MEMORY_MMAP != q->bufs[last]->memory)
 			continue;
-		mem=q->bufs[last]->priv;
-		if (mem->map) {
+		if (q->bufs[last]->map) {
 			retval = -EBUSY;
 			goto done;
 		}
@@ -593,8 +591,7 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	if (NULL == map)
 		goto done;
 	for (size = 0, i = first; i <= last; size += q->bufs[i++]->bsize) {
-		mem=q->bufs[i]->priv;
-		mem->map   = map;
+		q->bufs[i]->map   = map;
 		q->bufs[i]->baddr = vma->vm_start + size;
 	}
 	map->count    = 1;
@@ -611,16 +608,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
  done:
 	return retval;
-}
-
-static int __videobuf_is_mmapped (struct videobuf_buffer *buf)
-{
-	struct videbuf_pci_sg_memory *mem=buf->priv;
-
-	BUG_ON (!mem);
-	MAGIC_CHECK(mem->magic,MAGIC_SG_MEM);
-
-	return (mem->map)?1:0;
 }
 
 static int __videobuf_copy_to_user ( struct videobuf_queue *q,
@@ -678,7 +665,6 @@ static struct videobuf_qtype_ops pci_ops = {
 	.sync         = __videobuf_sync,
 	.mmap_free    = __videobuf_mmap_free,
 	.mmap_mapper  = __videobuf_mmap_mapper,
-	.is_mmapped   = __videobuf_is_mmapped,
 	.copy_to_user = __videobuf_copy_to_user,
 	.copy_stream  = __videobuf_copy_stream,
 };

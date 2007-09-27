@@ -86,7 +86,6 @@ struct videbuf_pci_sg_memory
 	u32                 magic;
 
 	/* for mmap'ed buffers */
-	struct videobuf_mapping *map;
 	struct videobuf_dmabuf  dma;
 };
 
