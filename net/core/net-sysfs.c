@@ -18,6 +18,7 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 
+#ifdef CONFIG_SYSFS
 static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
@@ -392,6 +393,8 @@ static struct attribute_group wireless_group = {
 };
 #endif
 
+#endif /* CONFIG_SYSFS */
+
 #ifdef CONFIG_HOTPLUG
 static int netdev_uevent(struct device *d, char **envp,
 			 int num_envp, char *buf, int size)
@@ -435,7 +438,9 @@ static void netdev_release(struct device *d)
 static struct class net_class = {
 	.name = "net",
 	.dev_release = netdev_release,
+#ifdef CONFIG_SYSFS
 	.dev_attrs = net_class_attributes,
+#endif /* CONFIG_SYSFS */
 #ifdef CONFIG_HOTPLUG
 	.dev_uevent = netdev_uevent,
 #endif
@@ -444,7 +449,7 @@ static struct class net_class = {
 /* Delete sysfs entries but hold kobject reference until after all
  * netdev references are gone.
  */
-void netdev_unregister_sysfs(struct net_device * net)
+void netdev_unregister_kobject(struct net_device * net)
 {
 	struct device *dev = &(net->dev);
 
@@ -453,7 +458,7 @@ void netdev_unregister_sysfs(struct net_device * net)
 }
 
 /* Create sysfs entries for network device. */
-int netdev_register_sysfs(struct net_device *net)
+int netdev_register_kobject(struct net_device *net)
 {
 	struct device *dev = &(net->dev);
 	struct attribute_group **groups = net->sysfs_groups;
@@ -466,6 +471,7 @@ int netdev_register_sysfs(struct net_device *net)
 	BUILD_BUG_ON(BUS_ID_SIZE < IFNAMSIZ);
 	strlcpy(dev->bus_id, net->name, BUS_ID_SIZE);
 
+#ifdef CONFIG_SYSFS
 	if (net->get_stats)
 		*groups++ = &netstat_group;
 
@@ -473,11 +479,12 @@ int netdev_register_sysfs(struct net_device *net)
 	if (net->wireless_handlers && net->wireless_handlers->get_wireless_stats)
 		*groups++ = &wireless_group;
 #endif
+#endif /* CONFIG_SYSFS */
 
 	return device_add(dev);
 }
 
-int netdev_sysfs_init(void)
+int netdev_kobject_init(void)
 {
 	return class_register(&net_class);
 }

@@ -249,15 +249,9 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
 
 DEFINE_PER_CPU(struct softnet_data, softnet_data);
 
-#ifdef CONFIG_SYSFS
-extern int netdev_sysfs_init(void);
-extern int netdev_register_sysfs(struct net_device *);
-extern void netdev_unregister_sysfs(struct net_device *);
-#else
-#define netdev_sysfs_init()	 	(0)
-#define netdev_register_sysfs(dev)	(0)
-#define	netdev_unregister_sysfs(dev)	do { } while(0)
-#endif
+extern int netdev_kobject_init(void);
+extern int netdev_register_kobject(struct net_device *);
+extern void netdev_unregister_kobject(struct net_device *);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
@@ -3575,7 +3569,7 @@ int register_netdevice(struct net_device *dev)
 	if (!dev->rebuild_header)
 		dev->rebuild_header = default_rebuild_header;
 
-	ret = netdev_register_sysfs(dev);
+	ret = netdev_register_kobject(dev);
 	if (ret)
 		goto err_uninit;
 	dev->reg_state = NETREG_REGISTERED;
@@ -3838,7 +3832,6 @@ EXPORT_SYMBOL(alloc_netdev_mq);
  */
 void free_netdev(struct net_device *dev)
 {
-#ifdef CONFIG_SYSFS
 	/*  Compatibility with error handling in drivers */
 	if (dev->reg_state == NETREG_UNINITIALIZED) {
 		kfree((char *)dev - dev->padded);
@@ -3850,9 +3843,6 @@ void free_netdev(struct net_device *dev)
 
 	/* will free via device release */
 	put_device(&dev->dev);
-#else
-	kfree((char *)dev - dev->padded);
-#endif
 }
 
 /* Synchronize with packet receive processing. */
@@ -3921,8 +3911,8 @@ void unregister_netdevice(struct net_device *dev)
 	/* Notifier chain MUST detach us from master device. */
 	BUG_TRAP(!dev->master);
 
-	/* Remove entries from sysfs */
-	netdev_unregister_sysfs(dev);
+	/* Remove entries from kobject tree */
+	netdev_unregister_kobject(dev);
 
 	/* Finish processing unregister after unlock */
 	net_set_todo(dev);
@@ -4053,9 +4043,9 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 			dev->iflink = dev->ifindex;
 	}
 
-	/* Fixup sysfs */
+	/* Fixup kobjects */
 	err = device_rename(&dev->dev, dev->name);
-	BUG_ON(err);
+	WARN_ON(err);
 
 	/* Add the device back in the hashes */
 	list_netdevice(dev);
@@ -4358,7 +4348,7 @@ static int __init net_dev_init(void)
 	if (dev_proc_init())
 		goto out;
 
-	if (netdev_sysfs_init())
+	if (netdev_kobject_init())
 		goto out;
 
 	INIT_LIST_HEAD(&ptype_all);
