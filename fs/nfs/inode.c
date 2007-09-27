@@ -791,24 +791,18 @@ void nfs_end_data_update(struct inode *inode)
 static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
-	unsigned long now = jiffies;
 
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
-		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
+		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime))
 			memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-			nfsi->cache_change_attribute = now;
-		}
 		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime)) {
 			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
 			if (S_ISDIR(inode->i_mode))
 				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
-			nfsi->cache_change_attribute = now;
 		}
-		if (inode->i_size == fattr->pre_size && nfsi->npages == 0) {
+		if (inode->i_size == fattr->pre_size && nfsi->npages == 0)
 			inode->i_size = fattr->size;
-			nfsi->cache_change_attribute = now;
-		}
 	}
 }
 
@@ -919,6 +913,7 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if (unlikely((fattr->valid & NFS_ATTR_FATTR) == 0)) {
 		spin_lock(&inode->i_lock);
 		nfsi->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+		nfsi->cache_change_attribute = jiffies;
 		spin_unlock(&inode->i_lock);
 		goto out;
 	}
