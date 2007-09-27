@@ -85,11 +85,6 @@ MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
 
 static struct pasdma_status *dma_status;
 
-static unsigned int read_iob_reg(struct pasemi_mac *mac, unsigned int reg)
-{
-	return in_le32(mac->iob_regs+reg);
-}
-
 static void write_iob_reg(struct pasemi_mac *mac, unsigned int reg,
 			  unsigned int val)
 {
