@@ -570,11 +570,6 @@ config NR_CPUS
 
 source "kernel/Kconfig.preempt"
 
-config NODES_SHIFT
-	int
-	default "1"
-	depends on NEED_MULTIPLE_NODES
-
 endmenu
 
 menu "Boot options"
