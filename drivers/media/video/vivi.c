@@ -820,8 +820,7 @@ static int vidioc_try_fmt_cap (struct file *file, void *priv,
 	field = f->fmt.pix.field;
 
 	if (field == V4L2_FIELD_ANY) {
-//		field=V4L2_FIELD_INTERLACED;
-		field=V4L2_FIELD_SEQ_TB;
+		field=V4L2_FIELD_INTERLACED;
 	} else if (V4L2_FIELD_INTERLACED != field) {
 		dprintk(1,"Field type invalid.\n");
 		return -EINVAL;
