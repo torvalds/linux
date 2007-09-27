@@ -351,5 +351,5 @@ void __init plat_irq_setup_pins(int mode)
 void __init plat_mem_setup(void)
 {
 	/* Register the URAM space as Node 1 */
-	setup_bootmem_node(1, 0x055f0000, 0x05610000);
+	setup_bootmem_node(1, 0xe55f0000, 0xe5610000);
 }
