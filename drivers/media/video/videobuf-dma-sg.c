@@ -134,8 +134,8 @@ void videobuf_dma_init(struct videobuf_dmabuf *dma)
 	dma->magic = MAGIC_DMABUF;
 }
 
-int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
-			   unsigned long data, unsigned long size)
+static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
+			int direction, unsigned long data, unsigned long size)
 {
 	unsigned long first,last;
 	int err, rw = 0;
@@ -160,18 +160,29 @@ int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 
 	dma->varea = (void *) data;
 
-	down_read(&current->mm->mmap_sem);
+
 	err = get_user_pages(current,current->mm,
 			     data & PAGE_MASK, dma->nr_pages,
 			     rw == READ, 1, /* force */
 			     dma->pages, NULL);
-	up_read(&current->mm->mmap_sem);
+
 	if (err != dma->nr_pages) {
 		dma->nr_pages = (err >= 0) ? err : 0;
 		dprintk(1,"get_user_pages: err=%d [%d]\n",err,dma->nr_pages);
 		return err < 0 ? err : -EINVAL;
 	}
 	return 0;
+}
+
+int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
+			   unsigned long data, unsigned long size)
+{
+	int ret;
+	down_read(&current->mm->mmap_sem);
+	ret = videobuf_dma_init_user_locked(dma, direction, data, size);
+	up_read(&current->mm->mmap_sem);
+
+	return ret;
 }
 
 int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
@@ -469,11 +480,22 @@ static int __videobuf_iolock (struct videobuf_queue* q,
 							pages );
 			if (0 != err)
 				return err;
-		} else {
+		} else if (vb->memory == V4L2_MEMORY_USERPTR) {
 			/* dma directly to userspace */
 			err = videobuf_dma_init_user( &mem->dma,
 						      PCI_DMA_FROMDEVICE,
 						      vb->baddr,vb->bsize );
+			if (0 != err)
+				return err;
+		} else {
+			/* NOTE: HACK: videobuf_iolock on V4L2_MEMORY_MMAP
+			buffers can only be called from videobuf_qbuf
+			we take current->mm->mmap_sem there, to prevent
+			locking inversion, so don't take it here */
+
+			err = videobuf_dma_init_user_locked(&mem->dma,
+						      PCI_DMA_FROMDEVICE,
+						      vb->baddr, vb->bsize);
 			if (0 != err)
 				return err;
 		}
