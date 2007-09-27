@@ -117,29 +117,30 @@ struct kset_uevent_ops {
 		      struct kobj_uevent_env *env);
 };
 
-/*
- *	struct kset - a set of kobjects of a specific type, belonging
- *	to a specific subsystem.
+/**
+ * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
  *
- *	All kobjects of a kset should be embedded in an identical 
- *	type. This type may have a descriptor, which the kset points
- *	to. This allows there to exist sets of objects of the same
- *	type in different subsystems.
+ * A kset defines a group of kobjects.  They can be individually
+ * different "types" but overall these kobjects all want to be grouped
+ * together and operated on in the same manner.  ksets are used to
+ * define the attribute callbacks and other common events that happen to
+ * a kobject.
  *
- *	A subsystem does not have to be a list of only one type 
- *	of object; multiple ksets can belong to one subsystem. All 
- *	ksets of a subsystem share the subsystem's lock.
- *
- *	Each kset can support specific event variables; it can
- *	supress the event generation or add subsystem specific
- *	variables carried with the event.
+ * @ktype: the struct kobj_type for this specific kset
+ * @list: the list of all kobjects for this kset
+ * @list_lock: a lock for iterating over the kobjects
+ * @kobj: the embedded kobject for this kset (recursion, isn't it fun...)
+ * @uevent_ops: the set of uevent operations for this kset.  These are
+ * called whenever a kobject has something happen to it so that the kset
+ * can add new environment variables, or filter out the uevents if so
+ * desired.
  */
 struct kset {
-	struct kobj_type	* ktype;
+	struct kobj_type	*ktype;
 	struct list_head	list;
 	spinlock_t		list_lock;
 	struct kobject		kobj;
-	struct kset_uevent_ops	* uevent_ops;
+	struct kset_uevent_ops	*uevent_ops;
 };
 
 
