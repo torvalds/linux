@@ -485,14 +485,13 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		NFA_PUT(skb, NFQA_MARK, sizeof(u_int32_t), &tmp_uint);
 	}
 
-	if (indev && entskb->dev
-	    && entskb->dev->hard_header_parse) {
+	if (indev && entskb->dev) {
 		struct nfqnl_msg_packet_hw phw;
-
-		int len = entskb->dev->hard_header_parse(entskb,
-							   phw.hw_addr);
-		phw.hw_addrlen = htons(len);
-		NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
+		int len = dev_parse_header(entskb, phw.hw_addr);
+		if (len) {
+			phw.hw_addrlen = htons(len);
+			NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
+		}
 	}
 
 	if (entskb->tstamp.tv64) {

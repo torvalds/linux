@@ -2481,7 +2481,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 
 EXPORT_SYMBOL(stop_airo_card);
 
-static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int wll_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN);
 	return ETH_ALEN;
@@ -2698,11 +2698,6 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
 
 static void wifi_setup(struct net_device *dev)
 {
-	dev->hard_header        = NULL;
-	dev->rebuild_header     = NULL;
-	dev->hard_header_cache  = NULL;
-	dev->header_cache_update= NULL;
-
 	dev->hard_header_parse  = wll_header_parse;
 	dev->hard_start_xmit = &airo_start_xmit11;
 	dev->get_stats = &airo_get_stats;

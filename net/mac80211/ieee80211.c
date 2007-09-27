@@ -47,7 +47,7 @@ struct ieee80211_tx_status_rtap_hdr {
 
 /* common interface routines */
 
-static int header_parse_80211(struct sk_buff *skb, unsigned char *haddr)
+static int header_parse_80211(const struct sk_buff *skb, unsigned char *haddr)
 {
 	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
 	return ETH_ALEN;

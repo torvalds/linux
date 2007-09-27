@@ -248,10 +248,7 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 
 	if (entry->info->indev && entry->skb->dev) {
 		pmsg->hw_type = entry->skb->dev->type;
-		if (entry->skb->dev->hard_header_parse)
-			pmsg->hw_addrlen =
-				entry->skb->dev->hard_header_parse(entry->skb,
-								   pmsg->hw_addr);
+		pmsg->hw_addrlen = dev_parse_header(entry->skb, pmsg->hw_addr);
 	}
 
 	if (data_len)

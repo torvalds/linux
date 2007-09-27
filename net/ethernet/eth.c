@@ -207,9 +207,9 @@ EXPORT_SYMBOL(eth_type_trans);
  * @skb: packet to extract header from
  * @haddr: destination buffer
  */
-static int eth_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct ethhdr *eth = eth_hdr(skb);
+	const struct ethhdr *eth = eth_hdr(skb);
 	memcpy(haddr, eth->h_source, ETH_ALEN);
 	return ETH_ALEN;
 }

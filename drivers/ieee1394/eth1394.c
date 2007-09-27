@@ -162,7 +162,8 @@ static int ether1394_header(struct sk_buff *skb, struct net_device *dev,
 			    unsigned short type, void *daddr, void *saddr,
 			    unsigned len);
 static int ether1394_rebuild_header(struct sk_buff *skb);
-static int ether1394_header_parse(struct sk_buff *skb, unsigned char *haddr);
+static int ether1394_header_parse(const struct sk_buff *skb,
+				  unsigned char *haddr);
 static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh);
 static void ether1394_header_cache_update(struct hh_cache *hh,
 					  struct net_device *dev,
@@ -751,11 +752,10 @@ static int ether1394_rebuild_header(struct sk_buff *skb)
 	return 0;
 }
 
-static int ether1394_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int ether1394_header_parse(const struct sk_buff *skb,
+				  unsigned char *haddr)
 {
-	struct net_device *dev = skb->dev;
-
-	memcpy(haddr, dev->dev_addr, ETH1394_ALEN);
+	memcpy(haddr, skb->dev->dev_addr, ETH1394_ALEN);
 	return ETH1394_ALEN;
 }
 

@@ -519,10 +519,8 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 		sll->sll_ifindex = orig_dev->ifindex;
 	else
 		sll->sll_ifindex = dev->ifindex;
-	sll->sll_halen = 0;
 
-	if (dev->hard_header_parse)
-		sll->sll_halen = dev->hard_header_parse(skb, sll->sll_addr);
+	sll->sll_halen = dev_parse_header(skb, sll->sll_addr);
 
 	PACKET_SKB_CB(skb)->origlen = skb->len;
 
@@ -658,9 +656,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	h->tp_usec = tv.tv_usec;
 
 	sll = (struct sockaddr_ll*)((u8*)h + TPACKET_ALIGN(sizeof(*h)));
-	sll->sll_halen = 0;
-	if (dev->hard_header_parse)
-		sll->sll_halen = dev->hard_header_parse(skb, sll->sll_addr);
+	sll->sll_halen = dev_parse_header(skb, sll->sll_addr);
 	sll->sll_family = AF_PACKET;
 	sll->sll_hatype = dev->type;
 	sll->sll_protocol = skb->protocol;

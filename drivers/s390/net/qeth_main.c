@@ -6561,10 +6561,10 @@ static struct ethtool_ops qeth_ethtool_ops = {
 };
 
 static int
-qeth_hard_header_parse(struct sk_buff *skb, unsigned char *haddr)
+qeth_hard_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct qeth_card *card;
-	struct ethhdr *eth;
+	const struct qeth_card *card;
+	const struct ethhdr *eth;
 
 	card = qeth_get_card_from_dev(skb->dev);
 	if (card->options.layer2)

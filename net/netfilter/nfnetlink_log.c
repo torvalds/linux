@@ -481,12 +481,13 @@ __build_packet_message(struct nfulnl_instance *inst,
 		NFA_PUT(inst->skb, NFULA_MARK, sizeof(tmp_uint), &tmp_uint);
 	}
 
-	if (indev && skb->dev && skb->dev->hard_header_parse) {
+	if (indev && skb->dev) {
 		struct nfulnl_msg_packet_hw phw;
-		int len = skb->dev->hard_header_parse((struct sk_buff *)skb,
-						    phw.hw_addr);
-		phw.hw_addrlen = htons(len);
-		NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
+		int len = dev_parse_header(skb, phw.hw_addr);
+		if (len > 0) {
+			phw.hw_addrlen = htons(len);
+			NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
+		}
 	}
 
 	if (skb->tstamp.tv64) {
