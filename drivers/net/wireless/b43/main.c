@@ -2161,7 +2161,7 @@ static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
 /* This is the opposite of b43_chip_init() */
 static void b43_chip_exit(struct b43_wldev *dev)
 {
-	b43_radio_turn_off(dev);
+	b43_radio_turn_off(dev, 1);
 	b43_leds_exit(dev);
 	b43_gpio_cleanup(dev);
 	/* firmware is released later */
@@ -2269,7 +2269,7 @@ out:
 	return err;
 
 err_radio_off:
-	b43_radio_turn_off(dev);
+	b43_radio_turn_off(dev, 1);
 err_leds_exit:
 	b43_leds_exit(dev);
 	b43_gpio_cleanup(dev);
@@ -2358,8 +2358,7 @@ static void b43_periodic_every1sec(struct b43_wldev *dev)
 	radio_hw_enable = b43_is_hw_radio_enabled(dev);
 	if (unlikely(dev->radio_hw_enable != radio_hw_enable)) {
 		dev->radio_hw_enable = radio_hw_enable;
-		b43info(dev->wl, "Radio hardware status changed to %s\n",
-			radio_hw_enable ? "ENABLED" : "DISABLED");
+		b43_rfkill_toggled(dev, radio_hw_enable);
 	}
 }
 
@@ -2850,7 +2849,7 @@ static int b43_dev_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 					"Press the button to turn it on.\n");
 			}
 		} else {
-			b43_radio_turn_off(dev);
+			b43_radio_turn_off(dev, 0);
 			b43info(dev->wl, "Radio turned off by software\n");
 		}
 	}
@@ -3330,11 +3329,15 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 		return;
 	b43_set_status(dev, B43_STAT_UNINIT);
 
+	mutex_unlock(&dev->wl->mutex);
+	b43_rfkill_exit(dev);
+	mutex_lock(&dev->wl->mutex);
+
 	b43_rng_exit(dev->wl);
 	b43_pio_free(dev);
 	b43_dma_free(dev);
 	b43_chip_exit(dev);
-	b43_radio_turn_off(dev);
+	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
 	if (phy->dyn_tssi_tbl)
 		kfree(phy->tssi2dbm);
@@ -3458,6 +3461,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	memset(wl->mac_addr, 0, ETH_ALEN);
 	b43_upload_card_macaddress(dev);
 	b43_security_init(dev);
+	b43_rfkill_init(dev);
 	b43_rng_init(wl);
 
 	b43_set_status(dev, B43_STAT_INITIALIZED);
@@ -3802,7 +3806,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
 
-	b43_radio_turn_off(dev);
+	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(bus);

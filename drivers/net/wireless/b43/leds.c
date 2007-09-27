@@ -154,12 +154,16 @@ static void b43_map_led(struct b43_wldev *dev,
 				 ieee80211_get_rx_led_name(hw),
 				 led_index, activelow);
 		break;
-	/*FIXME: We need another trigger for the "radio-on" LEDs below.
-	 *       Wiggle that somehow into the rfkill subsystem. */
 	case B43_LED_RADIO_ALL:
 	case B43_LED_RADIO_A:
 	case B43_LED_RADIO_B:
 	case B43_LED_MODE_BG:
+		snprintf(name, sizeof(name),
+			 "b43-%s:radio", wiphy_name(hw->wiphy));
+		b43_register_led(dev, &dev->led_radio, name,
+				 b43_rfkill_led_name(dev),
+				 led_index, activelow);
+		break;
 	case B43_LED_WEIRD:
 	case B43_LED_ASSOC:
 		snprintf(name, sizeof(name),

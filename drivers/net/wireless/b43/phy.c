@@ -4349,9 +4349,12 @@ void b43_radio_turn_on(struct b43_wldev *dev)
 	phy->radio_on = 1;
 }
 
-void b43_radio_turn_off(struct b43_wldev *dev)
+void b43_radio_turn_off(struct b43_wldev *dev, bool force)
 {
 	struct b43_phy *phy = &dev->phy;
+
+	if (!phy->radio_on && !force)
+		return;
 
 	if (phy->type == B43_PHYTYPE_A) {
 		b43_radio_write16(dev, 0x0004, 0x00FF);
@@ -4364,9 +4367,11 @@ void b43_radio_turn_off(struct b43_wldev *dev)
 
 		rfover = b43_phy_read(dev, B43_PHY_RFOVER);
 		rfoverval = b43_phy_read(dev, B43_PHY_RFOVERVAL);
-		phy->radio_off_context.rfover = rfover;
-		phy->radio_off_context.rfoverval = rfoverval;
-		phy->radio_off_context.valid = 1;
+		if (!force) {
+			phy->radio_off_context.rfover = rfover;
+			phy->radio_off_context.rfoverval = rfoverval;
+			phy->radio_off_context.valid = 1;
+		}
 		b43_phy_write(dev, B43_PHY_RFOVER, rfover | 0x008C);
 		b43_phy_write(dev, B43_PHY_RFOVERVAL, rfoverval & 0xFF73);
 	} else

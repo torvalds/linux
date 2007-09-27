@@ -267,7 +267,7 @@ u16 b43_radio_init2050(struct b43_wldev *dev);
 void b43_radio_init2060(struct b43_wldev *dev);
 
 void b43_radio_turn_on(struct b43_wldev *dev);
-void b43_radio_turn_off(struct b43_wldev *dev);
+void b43_radio_turn_off(struct b43_wldev *dev, bool force);
 
 int b43_radio_selectchannel(struct b43_wldev *dev, u8 channel,
 			    int synthetic_pu_workaround);

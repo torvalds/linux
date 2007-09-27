@@ -10,6 +10,7 @@
 
 #include "debugfs.h"
 #include "leds.h"
+#include "rfkill.h"
 #include "lo.h"
 #include "phy.h"
 
@@ -625,6 +626,9 @@ struct b43_wl {
 	u8 rng_initialized;
 	char rng_name[30 + 1];
 
+	/* The RF-kill button */
+	struct b43_rfkill rfkill;
+
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
 	u8 nr_devs;
@@ -700,6 +704,7 @@ struct b43_wldev {
 	struct b43_led led_tx;
 	struct b43_led led_rx;
 	struct b43_led led_assoc;
+	struct b43_led led_radio;
 
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
