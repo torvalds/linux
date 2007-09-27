@@ -293,4 +293,7 @@ static int __init loopback_init(void)
 	return register_pernet_device(&loopback_net_ops);
 }
 
+/* Loopback is special. It should be initialized before any other network
+ * device and network subsystem.
+ */
 fs_initcall(loopback_init);
