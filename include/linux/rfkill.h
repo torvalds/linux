@@ -29,9 +29,9 @@
 
 /**
  * enum rfkill_type - type of rfkill switch.
- * RFKILL_TYPE_WLAN: switch is no a Wireless network devices.
- * RFKILL_TYPE_BlUETOOTH: switch is on a bluetooth device.
- * RFKILL_TYPE_UWB: switch is on a Ultra wideband device.
+ * RFKILL_TYPE_WLAN: switch is on a 802.11 wireless network device.
+ * RFKILL_TYPE_BLUETOOTH: switch is on a bluetooth device.
+ * RFKILL_TYPE_UWB: switch is on a ultra wideband device.
  */
 enum rfkill_type {
 	RFKILL_TYPE_WLAN ,
