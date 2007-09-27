@@ -40,7 +40,7 @@
 
 static unsigned int video_debug   = 0;
 static unsigned int gbuffers      = 8;
-static unsigned int noninterlaced = 1;
+static unsigned int noninterlaced = 0;
 static unsigned int gbufsize      = 720*576*4;
 static unsigned int gbufsize_max  = 720*576*4;
 static char secam[] = "--";
@@ -2454,7 +2454,7 @@ int saa7134_video_init2(struct saa7134_dev *dev)
 	return 0;
 }
 
-void saa7134_irq_video_intl(struct saa7134_dev *dev)
+void saa7134_irq_video_signalchange(struct saa7134_dev *dev)
 {
 	static const char *st[] = {
 		"(no signal)", "NTSC", "PAL", "SECAM" };
@@ -2466,23 +2466,27 @@ void saa7134_irq_video_intl(struct saa7134_dev *dev)
 		(st1 & 0x40) ? "not locked" : "locked",
 		(st2 & 0x40) ? "no"         : "yes",
 		st[st1 & 0x03]);
-	dev->nosignal = (st1 & 0x40) || (st2 & 0x40);
+	dev->nosignal = (st1 & 0x40) || (st2 & 0x40)  || !(st2 & 0x1);
 
 	if (dev->nosignal) {
 		/* no video signal -> mute audio */
 		if (dev->ctl_automute)
 			dev->automute = 1;
 		saa7134_tvaudio_setmute(dev);
-		saa_setb(SAA7134_SYNC_CTRL, 0x20);
 	} else {
 		/* wake up tvaudio audio carrier scan thread */
 		saa7134_tvaudio_do_scan(dev);
-		if (!noninterlaced)
-			saa_clearb(SAA7134_SYNC_CTRL, 0x20);
 	}
+
+	if ((st2 & 0x80) && !noninterlaced && !dev->nosignal)
+		saa_clearb(SAA7134_SYNC_CTRL, 0x20);
+	else
+		saa_setb(SAA7134_SYNC_CTRL, 0x20);
+
 	if (dev->mops && dev->mops->signal_change)
 		dev->mops->signal_change(dev);
 }
+
 
 void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status)
 {

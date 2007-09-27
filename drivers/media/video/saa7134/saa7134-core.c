@@ -594,8 +594,10 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 			print_irqstatus(dev,loop,report,status);
 
 
-		if (report & SAA7134_IRQ_REPORT_RDCAP /* _INTL */)
-			saa7134_irq_video_intl(dev);
+		if ((report & SAA7134_IRQ_REPORT_RDCAP) ||
+			(report & SAA7134_IRQ_REPORT_INTL))
+				saa7134_irq_video_signalchange(dev);
+
 
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA0) &&
 		    (status & 0x60) == 0)
@@ -1081,7 +1083,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	mutex_unlock(&devlist_lock);
 
 	/* check for signal */
-	saa7134_irq_video_intl(dev);
+	saa7134_irq_video_signalchange(dev);
 
 	if (saa7134_dmasound_init && !dev->dmasound.priv_data) {
 		saa7134_dmasound_init(dev);
