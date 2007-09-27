@@ -602,7 +602,9 @@ ifdef CONFIG_64BIT
   endif
 
   ifeq ($(KBUILD_SYM32), y)
-    cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+    ifeq ($(call cc-option-yn,-msym32), y)
+      cflags-y += -msym32 -DKBUILD_64BIT_SYM32
+    endif
   endif
 endif
 
