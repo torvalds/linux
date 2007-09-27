@@ -2,6 +2,8 @@
  * kobject.c - library routines for handling generic kernel objects
  *
  * Copyright (c) 2002-2003 Patrick Mochel <mochel@osdl.org>
+ * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (c) 2006-2007 Novell Inc.
  *
  * This file is released under the GPLv2.
  *

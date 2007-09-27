@@ -1,8 +1,10 @@
 /*
  * kobject.h - generic kernel object infrastructure.
  *
- * Copyright (c) 2002-2003	Patrick Mochel
- * Copyright (c) 2002-2003	Open Source Development Labs
+ * Copyright (c) 2002-2003 Patrick Mochel
+ * Copyright (c) 2002-2003 Open Source Development Labs
+ * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (c) 2006-2007 Novell Inc.
  *
  * This file is released under the GPLv2.
  *
