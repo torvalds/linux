@@ -1776,9 +1776,8 @@ static void *rs_alloc_sta(void *priv, gfp_t gfp)
 
 	if (crl == NULL)
 		return NULL;
-
-	memset(crl, 0, sizeof(struct iwl_rate_scale_priv));
 	crl->lq.sta_id = 0xff;
+
 
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
@@ -1796,9 +1795,6 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl_rate_scale_priv *crl = priv_sta;
 
-	memset(crl, 0, sizeof(struct iwl_rate_scale_priv));
-
-	crl->lq.sta_id = 0xff;
 	crl->flush_timer = 0;
 	sta->txrate = 3;
 	for (j = 0; j < LQ_SIZE; j++)
