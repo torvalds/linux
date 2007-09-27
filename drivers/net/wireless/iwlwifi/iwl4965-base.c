@@ -203,7 +203,7 @@ static void iwl_print_hex_dump(int level, void *p, u32 len)
  * reclaiming packets (on 'tx done IRQ), if free space become > high mark,
  * Tx queue resumed.
  *
- * The IPW operates with six queues, one receive queue in the device's
+ * The IWL operates with six queues, one receive queue in the device's
  * sram, one transmit queue for sending commands to the device firmware,
  * and four transmit queues for data.
  ***************************************************/
@@ -4900,12 +4900,12 @@ static void iwl_dump_nic_event_log(struct iwl_priv *priv)
 
 	/* bail out if nothing in log */
 	if (size == 0) {
-		IWL_ERROR("Start IPW Event Log Dump: nothing in log\n");
+		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
 		iwl_release_restricted_access(priv);
 		return;
 	}
 
-	IWL_ERROR("Start IPW Event Log Dump: display count %d, wraps %d\n",
+	IWL_ERROR("Start IWL Event Log Dump: display count %d, wraps %d\n",
 		  size, num_wraps);
 
 	/* if uCode has wrapped back to top of log, start at the oldest entry,
