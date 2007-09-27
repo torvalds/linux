@@ -1999,6 +1999,23 @@ static void rs_free_sta(void *priv, void *priv_sta)
 }
 
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static void rs_add_debugfs(void *priv, void *priv_sta,
+					struct dentry *dir)
+{
+	/* struct iwl_rate_scale_priv *rs_priv = priv_sta; */
+	IWL_DEBUG_RATE("%s enter\n", __FUNCTION__);
+	IWL_DEBUG_RATE("%s leave\n", __FUNCTION__);
+}
+
+static void rs_remove_debugfs(void *priv, void *priv_sta)
+{
+	/* struct iwl_rate_scale_priv *rs_priv = priv_sta; */
+	IWL_DEBUG_RATE("%s enter\n", __FUNCTION__);
+	IWL_DEBUG_RATE("%s leave\n", __FUNCTION__);
+}
+#endif
+
 static struct rate_control_ops rs_ops = {
 	.module = NULL,
 	.name = RS_NAME,
@@ -2010,6 +2027,10 @@ static struct rate_control_ops rs_ops = {
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,
 	.free_sta = rs_free_sta,
+#ifdef CONFIG_MAC80211_DEBUGFS
+	.add_sta_debugfs = rs_add_debugfs,
+	.remove_sta_debugfs = rs_remove_debugfs,
+#endif
 };
 
 int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
