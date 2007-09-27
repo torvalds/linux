@@ -622,7 +622,7 @@ static void rs_tx_status(void *priv_rate,
 	u16 fc = le16_to_cpu(hdr->frame_control);
 	s32 tpt = 0;
 
-	IWL_DEBUG_RATE("get frame ack response, update rate scale window\n");
+	IWL_DEBUG_RATE_LIMIT("get frame ack response, update rate scale window\n");
 
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1))
 		return;
@@ -1717,7 +1717,7 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl_rate_scale_priv *lq;
 
-	IWL_DEBUG_RATE("rate scale calculate new rate for skb\n");
+	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
 	memset(extra, 0, sizeof(*extra));
 

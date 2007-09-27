@@ -184,7 +184,7 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 			goto out;
 		}
 
-	IWL_DEBUG_ASSOC("can not find STA %s total %d\n",
+	IWL_DEBUG_ASSOC_LIMIT("can not find STA " MAC_FMT " total %d\n",
 			print_mac(mac, addr), priv->num_stations);
 
  out:
