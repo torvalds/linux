@@ -407,6 +407,7 @@ const u8 BROADCAST_ADDR[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /**************************************************************/
 
+#if 0 /* temparary disable till we add real remove station */
 static u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
 	int index = IWL_INVALID_STATION;
@@ -442,6 +443,7 @@ out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return 0;
 }
+#endif
 
 static void iwl_clear_stations_table(struct iwl_priv *priv)
 {
@@ -852,16 +854,12 @@ int iwl_send_statistics_request(struct iwl_priv *priv)
 static int iwl_rxon_add_station(struct iwl_priv *priv,
 				const u8 *addr, int is_ap)
 {
-	u8 rc;
+	u8 sta_id;
 
-	/* Remove this station if it happens to already exist */
-	iwl_remove_station(priv, addr, is_ap);
-
-	rc = iwl_add_station(priv, addr, is_ap, 0);
-
+	sta_id = iwl_add_station(priv, addr, is_ap, 0);
 	iwl4965_add_station(priv, addr, is_ap);
 
-	return rc;
+	return sta_id;
 }
 
 /**
@@ -1149,16 +1147,6 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
-
-		/* The RXON bit toggling will have cleared out the
-		 * station table in the uCode, so blank it in the driver
-		 * as well */
-		iwl_clear_stations_table(priv);
-	} else if (priv->staging_rxon.filter_flags & RXON_FILTER_ASSOC_MSK) {
-		/* When switching from non-associated to associated, the
-		 * uCode clears out the station table; so clear it in the
-		 * driver as well */
-		iwl_clear_stations_table(priv);
 	}
 
 	IWL_DEBUG_INFO("Sending RXON\n"
@@ -1177,6 +1165,8 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 		IWL_ERROR("Error setting new configuration (%d).\n", rc);
 		return rc;
 	}
+
+	iwl_clear_stations_table(priv);
 
 #ifdef CONFIG_IWLWIFI_SENSITIVITY
 	if (!priv->error_recovering)
