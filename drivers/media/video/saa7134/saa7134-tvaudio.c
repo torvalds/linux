@@ -231,7 +231,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	}
 
 	if (dev->hw_mute  == mute &&
-		dev->hw_input == in) {
+		dev->hw_input == in && !dev->force_mute_update) {
 		dprintk("mute/input: nothing to do [mute=%d,input=%s]\n",
 			mute,in->name);
 		return;
@@ -876,7 +876,7 @@ static int tvaudio_thread_ddep(void *data)
 /* ------------------------------------------------------------------ */
 /* common stuff + external entry points                               */
 
-static void saa7134_enable_i2s(struct saa7134_dev *dev)
+void saa7134_enable_i2s(struct saa7134_dev *dev)
 {
 	int i2s_format;
 

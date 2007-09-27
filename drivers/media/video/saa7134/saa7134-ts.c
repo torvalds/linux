@@ -177,6 +177,22 @@ static unsigned int ts_nr_packets = 64;
 module_param(ts_nr_packets, int, 0444);
 MODULE_PARM_DESC(ts_nr_packets,"size of a ts buffers (in ts packets)");
 
+int saa7134_ts_init_hw(struct saa7134_dev *dev)
+{
+	/* deactivate TS softreset */
+	saa_writeb(SAA7134_TS_SERIAL1, 0x00);
+	/* TSSOP high active, TSVAL high active, TSLOCK ignored */
+	saa_writeb(SAA7134_TS_PARALLEL, 0xec);
+	saa_writeb(SAA7134_TS_PARALLEL_SERIAL, (TS_PACKET_SIZE-1));
+	saa_writeb(SAA7134_TS_DMA0, ((dev->ts.nr_packets-1)&0xff));
+	saa_writeb(SAA7134_TS_DMA1, (((dev->ts.nr_packets-1)>>8)&0xff));
+	/* TSNOPIT=0, TSCOLAP=0 */
+	saa_writeb(SAA7134_TS_DMA2,
+		((((dev->ts.nr_packets-1)>>16)&0x3f) | 0x00));
+
+	return 0;
+}
+
 int saa7134_ts_init1(struct saa7134_dev *dev)
 {
 	/* sanitycheck insmod options */
@@ -200,12 +216,7 @@ int saa7134_ts_init1(struct saa7134_dev *dev)
 	saa7134_pgtable_alloc(dev->pci,&dev->ts.pt_ts);
 
 	/* init TS hw */
-	saa_writeb(SAA7134_TS_SERIAL1, 0x00);  /* deactivate TS softreset */
-	saa_writeb(SAA7134_TS_PARALLEL, 0xec); /* TSSOP high active, TSVAL high active, TSLOCK ignored */
-	saa_writeb(SAA7134_TS_PARALLEL_SERIAL, (TS_PACKET_SIZE-1));
-	saa_writeb(SAA7134_TS_DMA0, ((dev->ts.nr_packets-1)&0xff));
-	saa_writeb(SAA7134_TS_DMA1, (((dev->ts.nr_packets-1)>>8)&0xff));
-	saa_writeb(SAA7134_TS_DMA2, ((((dev->ts.nr_packets-1)>>16)&0x3f) | 0x00)); /* TSNOPIT=0, TSCOLAP=0 */
+	saa7134_ts_init_hw(dev);
 
 	return 0;
 }

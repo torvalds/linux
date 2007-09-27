@@ -540,21 +540,11 @@ void res_free(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int bits)
 
 /* ------------------------------------------------------------------ */
 
-static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
+void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 {
-	int luma_control,sync_control,mux;
 
 	dprintk("set tv norm = %s\n",norm->name);
 	dev->tvnorm = norm;
-
-	mux = card_in(dev,dev->ctl_input).vmux;
-	luma_control = norm->luma_control;
-	sync_control = norm->sync_control;
-
-	if (mux > 5)
-		luma_control |= 0x80; /* svideo */
-	if (noninterlaced || dev->nosignal)
-		sync_control |= 0x20;
 
 	/* setup cropping */
 	dev->crop_bounds.left    = norm->h_start;
@@ -569,6 +559,40 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	dev->crop_defrect.height = (norm->video_v_stop - norm->video_v_start +1)*2;
 
 	dev->crop_current = dev->crop_defrect;
+
+	saa7134_set_decoder(dev);
+
+	if (card_in(dev, dev->ctl_input).tv) {
+		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
+				&& ((card(dev).tuner_config == 1)
+				||  (card(dev).tuner_config == 2)))
+			saa7134_set_gpio(dev, 22, 5);
+		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &norm->id);
+	}
+}
+
+static void video_mux(struct saa7134_dev *dev, int input)
+{
+	dprintk("video input = %d [%s]\n", input, card_in(dev, input).name);
+	dev->ctl_input = input;
+	set_tvnorm(dev, dev->tvnorm);
+	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
+}
+
+void saa7134_set_decoder(struct saa7134_dev *dev)
+{
+	int luma_control, sync_control, mux;
+
+	struct saa7134_tvnorm *norm = dev->tvnorm;
+	mux = card_in(dev, dev->ctl_input).vmux;
+
+	luma_control = norm->luma_control;
+	sync_control = norm->sync_control;
+
+	if (mux > 5)
+		luma_control |= 0x80; /* svideo */
+	if (noninterlaced || dev->nosignal)
+		sync_control |= 0x20;
 
 	/* setup video decoder */
 	saa_writeb(SAA7134_INCR_DELAY,            0x08);
@@ -604,23 +628,6 @@ static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 	saa_writeb(SAA7134_MISC_VGATE_MSB,        norm->vgate_misc);
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
-
-	/* only tell the tuner if this is a tv input */
-	if (card_in(dev,dev->ctl_input).tv) {
-		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
-				&& ((card(dev).tuner_config == 1)
-				||  (card(dev).tuner_config == 2)))
-			saa7134_set_gpio(dev, 22, 5);
-		saa7134_i2c_call_clients(dev,VIDIOC_S_STD,&norm->id);
-	}
-}
-
-static void video_mux(struct saa7134_dev *dev, int input)
-{
-	dprintk("video input = %d [%s]\n",input,card_in(dev,input).name);
-	dev->ctl_input = input;
-	set_tvnorm(dev,dev->tvnorm);
-	saa7134_tvaudio_setinput(dev,&card_in(dev,input));
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -2399,34 +2406,40 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	dev->video_q.timeout.data     = (unsigned long)(&dev->video_q);
 	dev->video_q.dev              = dev;
 
-	if (saa7134_boards[dev->board].video_out) {
-		/* enable video output */
-		int vo = saa7134_boards[dev->board].video_out;
-		int video_reg;
-		unsigned int vid_port_opts = saa7134_boards[dev->board].vid_port_opts;
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL0, video_out[vo][0]);
-		video_reg = video_out[vo][1];
-		if (vid_port_opts & SET_T_CODE_POLARITY_NON_INVERTED)
-			video_reg &= ~VP_T_CODE_P_INVERTED;
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL1, video_reg);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL2, video_out[vo][2]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL3, video_out[vo][3]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL4, video_out[vo][4]);
-		video_reg = video_out[vo][5];
-		if (vid_port_opts & SET_CLOCK_NOT_DELAYED)
-			video_reg &= ~VP_CLK_CTRL2_DELAYED;
-		if (vid_port_opts & SET_CLOCK_INVERTED)
-			video_reg |= VP_CLK_CTRL1_INVERTED;
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL5, video_reg);
-		video_reg = video_out[vo][6];
-		if (vid_port_opts & SET_VSYNC_OFF) {
-			video_reg &= ~VP_VS_TYPE_MASK;
-			video_reg |= VP_VS_TYPE_OFF;
-		}
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL6, video_reg);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL7, video_out[vo][7]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL8, video_out[vo][8]);
+	if (saa7134_boards[dev->board].video_out)
+		saa7134_videoport_init(dev);
+
+	return 0;
+}
+
+int saa7134_videoport_init(struct saa7134_dev *dev)
+{
+	/* enable video output */
+	int vo = saa7134_boards[dev->board].video_out;
+	int video_reg;
+	unsigned int vid_port_opts = saa7134_boards[dev->board].vid_port_opts;
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL0, video_out[vo][0]);
+	video_reg = video_out[vo][1];
+	if (vid_port_opts & SET_T_CODE_POLARITY_NON_INVERTED)
+		video_reg &= ~VP_T_CODE_P_INVERTED;
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL1, video_reg);
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL2, video_out[vo][2]);
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL3, video_out[vo][3]);
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL4, video_out[vo][4]);
+	video_reg = video_out[vo][5];
+	if (vid_port_opts & SET_CLOCK_NOT_DELAYED)
+		video_reg &= ~VP_CLK_CTRL2_DELAYED;
+	if (vid_port_opts & SET_CLOCK_INVERTED)
+		video_reg |= VP_CLK_CTRL1_INVERTED;
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL5, video_reg);
+	video_reg = video_out[vo][6];
+	if (vid_port_opts & SET_VSYNC_OFF) {
+		video_reg &= ~VP_VS_TYPE_MASK;
+		video_reg |= VP_VS_TYPE_OFF;
 	}
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL6, video_reg);
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL7, video_out[vo][7]);
+	saa_writeb(SAA7134_VIDEO_PORT_CTRL8, video_out[vo][8]);
 
 	return 0;
 }

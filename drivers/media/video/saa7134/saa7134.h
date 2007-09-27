@@ -522,6 +522,7 @@ struct saa7134_dev {
 	struct saa7134_input       *input;
 	struct saa7134_input       *hw_input;
 	unsigned int               hw_mute;
+	unsigned int               force_mute_update;
 	int                        last_carrier;
 	int                        nosignal;
 
@@ -594,6 +595,9 @@ void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 void saa7134_buffer_timeout(unsigned long data);
 void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
 
+int saa7134_buffer_requeue(struct saa7134_dev *dev,
+			 struct saa7134_dmaqueue *q);
+
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 
 extern int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
@@ -626,6 +630,10 @@ void saa7134_i2c_call_clients(struct saa7134_dev *dev,
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
+void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm);
+int saa7134_videoport_init(struct saa7134_dev *dev);
+void saa7134_set_decoder(struct saa7134_dev *dev);
+
 int saa7134_common_ioctl(struct saa7134_dev *dev,
 			 unsigned int cmd, void *arg);
 
@@ -648,6 +656,8 @@ void saa7134_irq_ts_done(struct saa7134_dev *dev, unsigned long status);
 
 int saa7134_ts_register(struct saa7134_mpeg_ops *ops);
 void saa7134_ts_unregister(struct saa7134_mpeg_ops *ops);
+
+int saa7134_ts_init_hw(struct saa7134_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7134-vbi.c                                               */
@@ -676,6 +686,8 @@ int saa7134_tvaudio_fini(struct saa7134_dev *dev);
 int saa7134_tvaudio_do_scan(struct saa7134_dev *dev);
 
 int saa_dsp_writel(struct saa7134_dev *dev, int reg, u32 value);
+
+void saa7134_enable_i2s(struct saa7134_dev *dev);
 
 /* ----------------------------------------------------------- */
 /* saa7134-oss.c                                               */
