@@ -312,10 +312,6 @@ void __init plat_irq_setup(void)
 
 void __init plat_irq_setup_pins(int mode)
 {
-	ctrl_outl(0xc0000000, INTC_INTMSKCLR1);
-	ctrl_outl(0xfffefffe, INTC_INTMSKCLR2);
-	return;
-
 	switch (mode) {
 	case IRQ_MODE_IRQ7654:
 		/* select IRQ mode for IRL7-4 */
