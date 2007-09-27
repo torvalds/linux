@@ -170,7 +170,6 @@ struct vivi_dev {
 	int                        users;
 
 	/* various device info */
-	unsigned int               resources;
 	struct video_device        vfd;
 
 	struct vivi_dmaqueue       vidq;
@@ -727,40 +726,6 @@ static struct videobuf_queue_ops vivi_video_qops = {
 };
 
 /* ------------------------------------------------------------------
-	IOCTL handling
-   ------------------------------------------------------------------*/
-
-
-static int res_get(struct vivi_dev *dev, struct vivi_fh *fh)
-{
-	/* is it free? */
-	mutex_lock(&dev->lock);
-	if (dev->resources) {
-		/* no, someone else uses it */
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	/* it's free, grab it */
-	dev->resources =1;
-	dprintk(1,"res: get\n");
-	mutex_unlock(&dev->lock);
-	return 1;
-}
-
-static int res_locked(struct vivi_dev *dev)
-{
-	return (dev->resources);
-}
-
-static void res_free(struct vivi_dev *dev, struct vivi_fh *fh)
-{
-	mutex_lock(&dev->lock);
-	dev->resources = 0;
-	dprintk(1,"res: put\n");
-	mutex_lock(&dev->lock);
-}
-
-/* ------------------------------------------------------------------
 	IOCTL vidioc handling
    ------------------------------------------------------------------*/
 static int vidioc_querycap (struct file *file, void  *priv,
@@ -913,9 +878,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != fh->type)
 		return -EINVAL;
 
-	if (!res_get(dev,fh))
-		return -EBUSY;
-	return (videobuf_streamon(&fh->vb_vidq));
+	return videobuf_streamon(&fh->vb_vidq);
 }
 
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
@@ -928,10 +891,7 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != fh->type)
 		return -EINVAL;
 
-	videobuf_streamoff(&fh->vb_vidq);
-	res_free(dev,fh);
-
-	return (0);
+	return videobuf_streamoff(&fh->vb_vidq);
 }
 
 static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *i)
@@ -1096,10 +1056,10 @@ static ssize_t
 vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct vivi_fh        *fh = file->private_data;
+	struct vivi_dev        *dev = fh->dev;
+	struct videobuf_queue *q = &fh->vb_vidq;
 
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		if (res_locked(fh->dev))
-			return -EBUSY;
 		return videobuf_read_stream(&fh->vb_vidq, data, count, ppos, 0,
 					file->f_flags & O_NONBLOCK);
 	}
