@@ -124,6 +124,7 @@ struct iwl_rate_scale_priv {
 	struct iwl_scale_tbl_info lq_info[LQ_SIZE];
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
+	struct dentry *rs_sta_dbgfs_stats_table_file;
 	struct iwl_rate dbg_fixed;
 	struct iwl_priv *drv;
 #endif
@@ -2068,6 +2069,7 @@ static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 
 	return count;
 }
+
 static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -2116,20 +2118,56 @@ static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
 	.read = rs_sta_dbgfs_scale_table_read,
 	.open = open_file_generic,
 };
+static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
+			char __user *user_buf, size_t count, loff_t *ppos)
+{
+	char buff[1024];
+	int desc = 0;
+	int i, j;
+
+	struct iwl_rate_scale_priv *rs_priv = file->private_data;
+	for (i = 0; i < LQ_SIZE; i++) {
+		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d\n"
+				"rate=0x%X\n",
+				rs_priv->active_tbl == i?"*":"x",
+				rs_priv->lq_info[i].lq_type,
+				rs_priv->lq_info[i].is_SGI,
+				rs_priv->lq_info[i].is_fat,
+				rs_priv->lq_info[i].is_dup,
+				rs_priv->lq_info[i].current_rate.rate_n_flags);
+		for (j = 0; j < IWL_RATE_COUNT; j++) {
+			desc += sprintf(buff+desc,
+					"counter=%d success=%d %%=%d\n",
+					rs_priv->lq_info[i].win[j].counter,
+					rs_priv->lq_info[i].win[j].success_counter,
+					rs_priv->lq_info[i].win[j].success_ratio);
+		}
+	}
+	return simple_read_from_buffer(user_buf, count, ppos, buff, desc);
+}
+
+static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
+	.read = rs_sta_dbgfs_stats_table_read,
+	.open = open_file_generic,
+};
 
 static void rs_add_debugfs(void *priv, void *priv_sta,
 					struct dentry *dir)
 {
 	struct iwl_rate_scale_priv *rs_priv = priv_sta;
 	rs_priv->rs_sta_dbgfs_scale_table_file =
-		debugfs_create_file("rate_scale_table", 0444, dir,
+		debugfs_create_file("rate_scale_table", 0600, dir,
 				rs_priv, &rs_sta_dbgfs_scale_table_ops);
+	rs_priv->rs_sta_dbgfs_stats_table_file =
+		debugfs_create_file("rate_stats_table", 0600, dir,
+			rs_priv, &rs_sta_dbgfs_stats_table_ops);
 }
 
 static void rs_remove_debugfs(void *priv, void *priv_sta)
 {
 	struct iwl_rate_scale_priv *rs_priv = priv_sta;
 	debugfs_remove(rs_priv->rs_sta_dbgfs_scale_table_file);
+	debugfs_remove(rs_priv->rs_sta_dbgfs_stats_table_file);
 }
 #endif
 
