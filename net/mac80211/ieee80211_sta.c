@@ -31,6 +31,7 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
+#include "ieee80211_led.h"
 
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
 #define IEEE80211_AUTH_MAX_TRIES 3
@@ -408,8 +409,9 @@ static void ieee80211_sta_send_associnfo(struct net_device *dev,
 
 static void ieee80211_set_associated(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta,
-				     unsigned int assoc)
+				     bool assoc)
 {
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	union iwreq_data wrqu;
 
 	if (!!(ifsta->flags & IEEE80211_STA_ASSOCIATED) == assoc)
@@ -447,6 +449,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	ifsta->last_probe = jiffies;
+	ieee80211_led_assoc(local, assoc);
 }
 
 static void ieee80211_set_disassoc(struct net_device *dev,

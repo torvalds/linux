@@ -1069,6 +1069,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw);
 #ifdef CONFIG_MAC80211_LEDS
 extern char *__ieee80211_get_tx_led_name(struct ieee80211_hw *hw);
 extern char *__ieee80211_get_rx_led_name(struct ieee80211_hw *hw);
+extern char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw);
 #endif
 /**
  * ieee80211_get_tx_led_name - get name of TX LED
@@ -1107,6 +1108,16 @@ static inline char *ieee80211_get_rx_led_name(struct ieee80211_hw *hw)
 	return NULL;
 #endif
 }
+
+static inline char *ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
+{
+#ifdef CONFIG_MAC80211_LEDS
+	return __ieee80211_get_assoc_led_name(hw);
+#else
+	return NULL;
+#endif
+}
+
 
 /* Register a new hardware PHYMODE capability to the stack. */
 int ieee80211_register_hwmode(struct ieee80211_hw *hw,
