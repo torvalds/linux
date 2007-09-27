@@ -16,7 +16,8 @@
 void dlm_print_rsb(struct dlm_rsb *r);
 void dlm_dump_rsb(struct dlm_rsb *r);
 void dlm_print_lkb(struct dlm_lkb *lkb);
-int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery);
+void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms);
+void dlm_receive_buffer(struct dlm_header *hd, int nodeid);
 int dlm_modes_compat(int mode1, int mode2);
 int dlm_find_rsb(struct dlm_ls *ls, char *name, int namelen,
 	unsigned int flags, struct dlm_rsb **r_ret);

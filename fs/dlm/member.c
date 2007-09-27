@@ -18,10 +18,6 @@
 #include "rcom.h"
 #include "config.h"
 
-/*
- * Following called by dlm_recoverd thread
- */
-
 static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 {
 	struct dlm_member *memb = NULL;
@@ -250,18 +246,30 @@ int dlm_recover_members(struct dlm_ls *ls, struct dlm_recover *rv, int *neg_out)
 	return error;
 }
 
-/*
- * Following called from lockspace.c
- */
+/* Userspace guarantees that dlm_ls_stop() has completed on all nodes before
+   dlm_ls_start() is called on any of them to start the new recovery. */
 
 int dlm_ls_stop(struct dlm_ls *ls)
 {
 	int new;
 
 	/*
-	 * A stop cancels any recovery that's in progress (see RECOVERY_STOP,
-	 * dlm_recovery_stopped()) and prevents any new locks from being
-	 * processed (see RUNNING, dlm_locking_stopped()).
+	 * Prevent dlm_recv from being in the middle of something when we do
+	 * the stop.  This includes ensuring dlm_recv isn't processing a
+	 * recovery message (rcom), while dlm_recoverd is aborting and
+	 * resetting things from an in-progress recovery.  i.e. we want
+	 * dlm_recoverd to abort its recovery without worrying about dlm_recv
+	 * processing an rcom at the same time.  Stopping dlm_recv also makes
+	 * it easy for dlm_receive_message() to check locking stopped and add a
+	 * message to the requestqueue without races.
+	 */
+
+	down_write(&ls->ls_recv_active);
+
+	/*
+	 * Abort any recovery that's in progress (see RECOVERY_STOP,
+	 * dlm_recovery_stopped()) and tell any other threads running in the
+	 * dlm to quit any processing (see RUNNING, dlm_locking_stopped()).
 	 */
 
 	spin_lock(&ls->ls_recover_lock);
@@ -271,8 +279,14 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	spin_unlock(&ls->ls_recover_lock);
 
 	/*
+	 * Let dlm_recv run again, now any normal messages will be saved on the
+	 * requestqueue for later.
+	 */
+
+	up_write(&ls->ls_recv_active);
+
+	/*
 	 * This in_recovery lock does two things:
-	 *
 	 * 1) Keeps this function from returning until all threads are out
 	 *    of locking routines and locking is truely stopped.
 	 * 2) Keeps any new requests from being processed until it's unlocked
@@ -284,9 +298,8 @@ int dlm_ls_stop(struct dlm_ls *ls)
 
 	/*
 	 * The recoverd suspend/resume makes sure that dlm_recoverd (if
-	 * running) has noticed the clearing of RUNNING above and quit
-	 * processing the previous recovery.  This will be true for all nodes
-	 * before any nodes start the new recovery.
+	 * running) has noticed RECOVERY_STOP above and quit processing the
+	 * previous recovery.
 	 */
 
 	dlm_recoverd_suspend(ls);
