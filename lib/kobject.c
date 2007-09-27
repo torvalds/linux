@@ -186,8 +186,15 @@ int kobject_add(struct kobject * kobj)
 	if (kobj->kset) {
 		spin_lock(&kobj->kset->list_lock);
 
-		if (!parent)
+		if (!parent) {
 			parent = kobject_get(&kobj->kset->kobj);
+			/*
+			 * If the kset is our parent, get a second
+			 * reference, we drop both the kset and the
+			 * parent ref on cleanup
+			 */
+			kobject_get(parent);
+		}
 
 		list_add_tail(&kobj->entry,&kobj->kset->list);
 		spin_unlock(&kobj->kset->list_lock);
@@ -786,6 +793,89 @@ int subsys_create_file(struct kset *s, struct subsys_attribute *a)
 	}
 	return error;
 }
+
+static void kset_release(struct kobject *kobj)
+{
+	struct kset *kset = container_of(kobj, struct kset, kobj);
+	pr_debug("kset %s: now freed\n", kobject_name(kobj));
+	kfree(kset);
+}
+
+static struct kobj_type kset_type = {
+	.release = kset_release,
+};
+
+/**
+ * kset_create - create a struct kset dynamically
+ *
+ * @name: the name for the kset
+ * @uevent_ops: a struct kset_uevent_ops for the kset
+ * @parent_kobj: the parent kobject of this kset, if any.
+ *
+ * This function creates a kset structure dynamically.  This structure can
+ * then be registered with the system and show up in sysfs with a call to
+ * kset_register().  When you are finished with this structure, if
+ * kset_register() has been called, call kset_unregister() and the
+ * structure will be dynamically freed when it is no longer being used.
+ *
+ * If the kset was not able to be created, NULL will be returned.
+ */
+static struct kset *kset_create(const char *name,
+				struct kset_uevent_ops *uevent_ops,
+				struct kobject *parent_kobj)
+{
+	struct kset *kset;
+
+	kset = kzalloc(sizeof(*kset), GFP_KERNEL);
+	if (!kset)
+		return NULL;
+	kobject_set_name(&kset->kobj, name);
+	kset->uevent_ops = uevent_ops;
+	kset->kobj.parent = parent_kobj;
+
+	/*
+	 * The kobject of this kset will have a type of kset_type and belong to
+	 * no kset itself.  That way we can properly free it when it is
+	 * finished being used.
+	 */
+	kset->kobj.ktype = &kset_type;
+	kset->kobj.kset = NULL;
+
+	return kset;
+}
+
+/**
+ * kset_create_and_add - create a struct kset dynamically and add it to sysfs
+ *
+ * @name: the name for the kset
+ * @uevent_ops: a struct kset_uevent_ops for the kset
+ * @parent_kobj: the parent kobject of this kset, if any.
+ *
+ * This function creates a kset structure dynamically and registers it
+ * with sysfs.  When you are finished with this structure, call
+ * kset_unregister() and the structure will be dynamically freed when it
+ * is no longer being used.
+ *
+ * If the kset was not able to be created, NULL will be returned.
+ */
+struct kset *kset_create_and_add(const char *name,
+				 struct kset_uevent_ops *uevent_ops,
+				 struct kobject *parent_kobj)
+{
+	struct kset *kset;
+	int error;
+
+	kset = kset_create(name, uevent_ops, parent_kobj);
+	if (!kset)
+		return NULL;
+	error = kset_register(kset);
+	if (error) {
+		kfree(kset);
+		return NULL;
+	}
+	return kset;
+}
+EXPORT_SYMBOL_GPL(kset_create_and_add);
 
 EXPORT_SYMBOL(kobject_init);
 EXPORT_SYMBOL(kobject_register);
