@@ -293,7 +293,7 @@ static void mm_start_io(struct cardinfo *card)
 	desc->control_bits &= ~cpu_to_le32(DMASCR_CHAIN_EN);
 	desc->sem_control_bits = desc->control_bits;
 
-			       
+
 	if (debug & DEBUG_LED_ON_TRANSFER)
 		set_led(card, LED_REMOVE, LED_ON);
 
@@ -327,7 +327,7 @@ static int add_bio(struct cardinfo *card);
 
 static void activate(struct cardinfo *card)
 {
-	/* if No page is Active, and Ready is 
+	/* if No page is Active, and Ready is
 	 * not empty, then switch Ready page
 	 * to active and start IO.
 	 * Then add any bh's that are available to Ready
@@ -366,7 +366,7 @@ static void mm_unplug_device(struct request_queue *q)
 	spin_unlock_irqrestore(&card->lock, flags);
 }
 
-/* 
+/*
  * If there is room on Ready page, take
  * one bh off list and add it.
  * return 1 if there was room, else 0.
@@ -467,7 +467,7 @@ static void process_page(unsigned long data)
 	if (card->Active < 0)
 		goto out_unlock;
 	page = &card->mm_pages[card->Active];
-	
+
 	while (page->headcnt < page->cnt) {
 		struct bio *bio = page->bio;
 		struct mm_dma_desc *desc = &page->desc[page->headcnt];
@@ -477,7 +477,7 @@ static void process_page(unsigned long data)
 
 		if (!(control & DMASCR_DMA_COMPLETE)) {
 			control = dma_status;
-			last=1; 
+			last=1;
 		}
 		page->headcnt++;
 		idx = page->idx;
@@ -487,7 +487,7 @@ static void process_page(unsigned long data)
 			page->idx = page->bio->bi_idx;
 		}
 
-		pci_unmap_page(card->dev, desc->data_dma_handle, 
+		pci_unmap_page(card->dev, desc->data_dma_handle,
 			       bio_iovec_idx(bio,idx)->bv_len,
 				 (control& DMASCR_TRANSFER_READ) ?
 				PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
@@ -592,7 +592,7 @@ HW_TRACE(0x30);
 	else
 		writeb((DMASCR_DMA_COMPLETE|DMASCR_CHAIN_COMPLETE) >> 16,
 		       card->csr_remap+ DMA_STATUS_CTRL + 2);
-	
+
 	/* log errors and clear interrupt status */
 	if (dma_status & DMASCR_ANY_ERR) {
 		unsigned int	data_log1, data_log2;
@@ -668,7 +668,7 @@ HW_TRACE(0x30);
 
 HW_TRACE(0x36);
 
-	return IRQ_HANDLED; 
+	return IRQ_HANDLED;
 }
 /*
 -----------------------------------------------------------------------------------
@@ -761,7 +761,7 @@ static void check_all_batteries(unsigned long ptr)
 {
 	int i;
 
-	for (i = 0; i < num_cards; i++) 
+	for (i = 0; i < num_cards; i++)
 		if (!(cards[i].flags & UM_FLAG_NO_BATT)) {
 			struct cardinfo *card = &cards[i];
 			spin_lock_bh(&card->lock);
@@ -972,7 +972,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	tasklet_init(&card->tasklet, process_page, (unsigned long)card);
 
 	card->check_batteries = 0;
-	
+
 	mem_present = readb(card->csr_remap + MEMCTRLSTATUS_MEMORY);
 	switch (mem_present) {
 	case MEM_128_MB:
@@ -1005,7 +1005,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev, const struct pci_device_i
 	card->battery[1].good = !(batt_status & BATTERY_2_FAILURE);
 	card->battery[0].last_change = card->battery[1].last_change = jiffies;
 
-	if (card->flags & UM_FLAG_NO_BATT) 
+	if (card->flags & UM_FLAG_NO_BATT)
 		dev_printk(KERN_INFO, &card->dev->dev,
 			"Size %d KB\n", card->mm_size);
 	else {
