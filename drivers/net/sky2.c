@@ -3970,8 +3970,12 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 		dev->features |= NETIF_F_HIGHDMA;
 
 #ifdef SKY2_VLAN_TAG_USED
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->vlan_rx_register = sky2_vlan_rx_register;
+	/* The workaround for FE+ status conflicts with VLAN tag detection. */
+	if (!(sky2->hw->chip_id == CHIP_ID_YUKON_FE_P &&
+	      sky2->hw->chip_rev == CHIP_REV_YU_FE2_A0)) {
+		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		dev->vlan_rx_register = sky2_vlan_rx_register;
+	}
 #endif
 
 	/* read the mac address */
