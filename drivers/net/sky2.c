@@ -910,6 +910,20 @@ static inline struct sky2_tx_le *get_tx_le(struct sky2_port *sky2)
 	return le;
 }
 
+static void tx_init(struct sky2_port *sky2)
+{
+	struct sky2_tx_le *le;
+
+	sky2->tx_prod = sky2->tx_cons = 0;
+	sky2->tx_tcpsum = 0;
+	sky2->tx_last_mss = 0;
+
+	le = get_tx_le(sky2);
+	le->addr = 0;
+	le->opcode = OP_ADDR64 | HW_OWNER;
+	sky2->tx_addr64 = 0;
+}
+
 static inline struct tx_ring_info *tx_le_re(struct sky2_port *sky2,
 					    struct sky2_tx_le *le)
 {
@@ -1320,7 +1334,8 @@ static int sky2_up(struct net_device *dev)
 				GFP_KERNEL);
 	if (!sky2->tx_ring)
 		goto err_out;
-	sky2->tx_prod = sky2->tx_cons = 0;
+
+	tx_init(sky2);
 
 	sky2->rx_le = pci_alloc_consistent(hw->pdev, RX_LE_BYTES,
 					   &sky2->rx_le_map);
@@ -2148,6 +2163,18 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 	sky2->rx_next = (sky2->rx_next + 1) % sky2->rx_pending;
 	prefetch(sky2->rx_ring + sky2->rx_next);
 
+	if (length < ETH_ZLEN || length > sky2->rx_data_size)
+		goto len_error;
+
+	/* This chip has hardware problems that generates bogus status.
+	 * So do only marginal checking and expect higher level protocols
+	 * to handle crap frames.
+	 */
+	if (sky2->hw->chip_id == CHIP_ID_YUKON_FE_P &&
+	    sky2->hw->chip_rev == CHIP_REV_YU_FE2_A0 &&
+	    length != count)
+		goto okay;
+
 	if (status & GMR_FS_ANY_ERR)
 		goto error;
 
@@ -2156,8 +2183,9 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 
 	/* if length reported by DMA does not match PHY, packet was truncated */
 	if (length != count)
-		goto len_mismatch;
+		goto len_error;
 
+okay:
 	if (length < copybreak)
 		skb = receive_copy(sky2, re, length);
 	else
@@ -2167,13 +2195,13 @@ resubmit:
 
 	return skb;
 
-len_mismatch:
+len_error:
 	/* Truncation of overlength packets
 	   causes PHY length to not match MAC length */
 	++sky2->net_stats.rx_length_errors;
 	if (netif_msg_rx_err(sky2) && net_ratelimit())
-		pr_info(PFX "%s: rx length mismatch: length %d status %#x\n",
-			dev->name, length, status);
+		pr_info(PFX "%s: rx length error: status %#x length %d\n",
+			dev->name, status, length);
 	goto resubmit;
 
 error:
@@ -3934,13 +3962,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->hw = hw;
 	sky2->msg_enable = netif_msg_init(debug, default_msg);
 
-	/* This chip has hardware problems that generates
-	 * bogus PHY receive status so by default shut up the message.
-	 */
-	if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
-	    hw->chip_rev == CHIP_REV_YU_FE2_A0)
-		sky2->msg_enable &= ~NETIF_MSG_RX_ERR;
-
 	/* Auto speed and flow control */
 	sky2->autoneg = AUTONEG_ENABLE;
 	sky2->flow_mode = FC_BOTH;
@@ -3964,8 +3985,12 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 		dev->features |= NETIF_F_HIGHDMA;
 
 #ifdef SKY2_VLAN_TAG_USED
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-	dev->vlan_rx_register = sky2_vlan_rx_register;
+	/* The workaround for FE+ status conflicts with VLAN tag detection. */
+	if (!(sky2->hw->chip_id == CHIP_ID_YUKON_FE_P &&
+	      sky2->hw->chip_rev == CHIP_REV_YU_FE2_A0)) {
+		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		dev->vlan_rx_register = sky2_vlan_rx_register;
+	}
 #endif
 
 	/* read the mac address */
