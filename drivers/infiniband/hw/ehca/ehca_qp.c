@@ -890,6 +890,8 @@ struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 		goto create_srq2;
 	}
 
+	ehca_free_fw_ctrlblock(mqpcb);
+
 	return &my_qp->ib_srq;
 
 create_srq2:
