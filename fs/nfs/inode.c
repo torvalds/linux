@@ -117,8 +117,8 @@ static void nfs_zap_caches_locked(struct inode *inode)
 
 	nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 
-	NFS_ATTRTIMEO(inode) = NFS_MINATTRTIMEO(inode);
-	NFS_ATTRTIMEO_UPDATE(inode) = jiffies;
+	nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
+	nfsi->attrtimeo_timestamp = jiffies;
 
 	memset(NFS_COOKIEVERF(inode), 0, sizeof(NFS_COOKIEVERF(inode)));
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode))

@@ -203,16 +203,12 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 #define NFS_CLIENT(inode)		(NFS_SERVER(inode)->client)
 #define NFS_PROTO(inode)		(NFS_SERVER(inode)->nfs_client->rpc_ops)
 #define NFS_COOKIEVERF(inode)		(NFS_I(inode)->cookieverf)
-#define NFS_READTIME(inode)		(NFS_I(inode)->read_cache_jiffies)
-#define NFS_CHANGE_ATTR(inode)		(NFS_I(inode)->change_attr)
-#define NFS_ATTRTIMEO(inode)		(NFS_I(inode)->attrtimeo)
 #define NFS_MINATTRTIMEO(inode) \
 	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmin \
 			       : NFS_SERVER(inode)->acregmin)
 #define NFS_MAXATTRTIMEO(inode) \
 	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmax \
 			       : NFS_SERVER(inode)->acregmax)
-#define NFS_ATTRTIMEO_UPDATE(inode)	(NFS_I(inode)->attrtimeo_timestamp)
 
 #define NFS_FLAGS(inode)		(NFS_I(inode)->flags)
 #define NFS_STALE(inode)		(test_bit(NFS_INO_STALE, &NFS_FLAGS(inode)))
