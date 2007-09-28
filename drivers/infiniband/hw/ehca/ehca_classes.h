@@ -351,6 +351,7 @@ struct ehca_create_qp_resp {
 	/* qp_num assigned by ehca: sqp0/1 may have got different numbers */
 	u32 real_qp_num;
 	u32 fw_handle_ofs;
+	u32 dummy;
 	struct ipzu_queue_resp ipz_squeue;
 	struct ipzu_queue_resp ipz_rqueue;
 };
