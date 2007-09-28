@@ -607,16 +607,10 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	status = nfs_wait_on_inode(inode);
 	if (status < 0)
 		goto out;
-	if (NFS_STALE(inode)) {
-		status = -ESTALE;
-		/* Do we trust the cached ESTALE? */
-		if (NFS_ATTRTIMEO(inode) != 0) {
-			if (nfsi->cache_validity & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME)) {
-				/* no */
-			} else
-				goto out;
-		}
-	}
+
+	status = -ESTALE;
+	if (NFS_STALE(inode))
+		goto out;
 
 	status = NFS_PROTO(inode)->getattr(server, NFS_FH(inode), &fattr);
 	if (status != 0) {
