@@ -476,6 +476,8 @@ nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	dprintk("NFS call  readdir %d\n", (unsigned int)cookie);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
+	nfs_invalidate_atime(dir);
+
 	dprintk("NFS reply readdir: %d\n", status);
 	return status;
 }

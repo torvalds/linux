@@ -156,6 +156,13 @@ static void nfs_zap_acl_cache(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 }
 
+void nfs_invalidate_atime(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATIME;
+	spin_unlock(&inode->i_lock);
+}
+
 /*
  * Invalidate, but do not unhash, the inode.
  * NB: must be called with inode->i_lock held!

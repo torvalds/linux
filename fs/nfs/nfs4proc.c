@@ -2197,6 +2197,9 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	if (status == 0)
 		memcpy(NFS_COOKIEVERF(dir), res.verifier.data, NFS4_VERIFIER_SIZE);
+
+	nfs_invalidate_atime(dir);
+
 	dprintk("%s: returns %d\n", __FUNCTION__, status);
 	return status;
 }
