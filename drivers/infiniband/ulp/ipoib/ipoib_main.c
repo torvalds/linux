@@ -517,7 +517,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 
 	neigh = ipoib_neigh_alloc(skb->dst->neighbour);
 	if (!neigh) {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -582,7 +582,7 @@ err_list:
 err_path:
 	ipoib_neigh_free(dev, neigh);
 err_drop:
-	++priv->stats.tx_dropped;
+	++dev->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
 	spin_unlock(&priv->lock);
@@ -631,7 +631,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			} else
 				__path_add(dev, path);
 		} else {
-			++priv->stats.tx_dropped;
+			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}
 
@@ -650,7 +650,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		skb_push(skb, sizeof *phdr);
 		__skb_queue_tail(&path->queue, skb);
 	} else {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 	}
 
@@ -718,7 +718,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			__skb_queue_tail(&neigh->queue, skb);
 			spin_unlock(&priv->lock);
 		} else {
-			++priv->stats.tx_dropped;
+			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}
 	} else {
@@ -744,7 +744,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   IPOIB_QPN(phdr->hwaddr),
 					   IPOIB_GID_RAW_ARG(phdr->hwaddr + 4));
 				dev_kfree_skb_any(skb);
-				++priv->stats.tx_dropped;
+				++dev->stats.tx_dropped;
 				goto out;
 			}
 
@@ -756,13 +756,6 @@ out:
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *ipoib_get_stats(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	return &priv->stats;
 }
 
 static void ipoib_timeout(struct net_device *dev)
@@ -865,7 +858,7 @@ void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 	struct sk_buff *skb;
 	*to_ipoib_neigh(neigh->neighbour) = NULL;
 	while ((skb = __skb_dequeue(&neigh->queue))) {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 	}
 	if (ipoib_cm_get(neigh))
@@ -952,7 +945,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->stop 		 = ipoib_stop;
 	dev->change_mtu 	 = ipoib_change_mtu;
 	dev->hard_start_xmit 	 = ipoib_start_xmit;
-	dev->get_stats 		 = ipoib_get_stats;
 	dev->tx_timeout 	 = ipoib_timeout;
 	dev->header_ops 	 = &ipoib_header_ops;
 	dev->set_multicast_list  = ipoib_set_mcast_list;

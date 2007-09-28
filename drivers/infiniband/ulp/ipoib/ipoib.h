@@ -280,8 +280,6 @@ struct ipoib_dev_priv {
 
 	struct ib_event_handler event_handler;
 
-	struct net_device_stats stats;
-
 	struct net_device *parent;
 	struct list_head child_intfs;
 	struct list_head list;
