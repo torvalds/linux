@@ -972,10 +972,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	nfsi->read_cache_jiffies = fattr->time_start;
 	nfsi->last_updated = now;
 
-	/* Fix a wraparound issue with nfsi->cache_change_attribute */
-	if (time_before(now, nfsi->cache_change_attribute))
-		nfsi->cache_change_attribute = now - 600*HZ;
-
 	/* Are we racing with known updates of the metadata on the server? */
 	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
 	nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ATIME

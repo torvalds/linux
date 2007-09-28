@@ -277,7 +277,7 @@ static inline long nfs_save_change_attribute(struct inode *inode)
 static inline int nfs_verify_change_attribute(struct inode *inode, unsigned long chattr)
 {
 	return !nfs_caches_unstable(inode)
-		&& time_after_eq(chattr, NFS_I(inode)->cache_change_attribute);
+		&& chattr == NFS_I(inode)->cache_change_attribute;
 }
 
 /*
