@@ -502,6 +502,7 @@ endif
 
 ifdef CONFIG_DEBUG_INFO
 CFLAGS		+= -g
+AFLAGS		+= -gdwarf-2
 endif
 
 # Force gcc to behave correct even for buggy distributions
