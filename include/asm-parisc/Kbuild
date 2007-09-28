@@ -1,1 +1,3 @@
 include include/asm-generic/Kbuild.asm
+
+unifdef-y += pdc.h

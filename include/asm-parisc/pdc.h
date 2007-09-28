@@ -143,14 +143,15 @@
 #define PDC_MEM_RET_PDT_FULL		-11
 #define PDC_MEM_RET_INVALID_PHYSICAL_LOCATION ~0ULL
 
-#ifndef __ASSEMBLY__
+#ifdef __KERNEL__
+# ifndef __ASSEMBLY__
 typedef struct {
     unsigned long long	baseAddr;
     unsigned int	pages;
     unsigned int	reserved;
 } MemAddrTable_t;
-#endif
-
+# endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 
 #define PDC_PSW		21		/* Get/Set default System Mask  */
 #define PDC_PSW_MASK		0	/* Return mask                  */
@@ -296,8 +297,11 @@ typedef struct {
 #define OSTAT_ON		7
 
 #ifndef __ASSEMBLY__
-
 #include <linux/types.h>
+#endif /* __ASSEMBLY__ */
+
+#ifdef __KERNEL__
+# ifndef __ASSEMBLY__
 
 extern int pdc_type;
 
@@ -558,7 +562,8 @@ struct pdc_hpmc_pim_20 { /* PDC_PIM */
 	__u64 fr[32];
 };
 
-#endif /* __ASSEMBLY__ */
+# endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 
 /* flags of the device_path (see below) */
 #define	PF_AUTOBOOT	0x80
@@ -707,6 +712,7 @@ struct zeropage {
 #define BOOT_CONSOLE_SPA_OFFSET  0x3c4
 #define BOOT_CONSOLE_PATH_OFFSET 0x3a8
 
+#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 void pdc_console_init(void);	/* in pdc_console.c */
 void pdc_console_restart(void);
@@ -786,6 +792,7 @@ static inline char * os_id_to_string(u16 os_id) {
 	default:	return "Unknown";
 	}
 }
-#endif /* __ASSEMBLY__ */
+# endif /* __ASSEMBLY__ */
+#endif /* __KERNEL__ */
 
 #endif /* _PARISC_PDC_H */
