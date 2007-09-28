@@ -99,6 +99,7 @@
 			#size-cells = <0>;
 			interrupt-parent = < &ipic >;
 			interrupts = <26 8>;
+			dr_mode = "peripheral";
 			phy_type = "ulpi";
 		};
 
