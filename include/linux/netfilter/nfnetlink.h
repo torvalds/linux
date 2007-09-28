@@ -73,19 +73,6 @@ struct nfnetlink_subsystem
 extern int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n);
 
-#define nlattr_bad_size(tb, max, cta_min)				\
-({	int __i, __res = 0;						\
-	for (__i=1; __i <= max; __i++) {					\
- 		if (!cta_min[__i])					\
- 			continue;					\
-		if (tb[__i] && nla_len(tb[__i]) < cta_min[__i]){	\
- 			__res = 1;					\
- 			break;						\
- 		}							\
- 	}								\
- 	__res;								\
-})
-
 extern int nfnetlink_has_listeners(unsigned int group);
 extern int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, 
 			  int echo);
