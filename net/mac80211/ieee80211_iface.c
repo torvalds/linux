@@ -96,66 +96,6 @@ fail:
 	return ret;
 }
 
-int ieee80211_if_add_mgmt(struct ieee80211_local *local)
-{
-	struct net_device *ndev;
-	struct ieee80211_sub_if_data *nsdata;
-	int ret;
-
-	ASSERT_RTNL();
-
-	ndev = alloc_netdev(sizeof(struct ieee80211_sub_if_data), "wmgmt%d",
-			    ieee80211_if_mgmt_setup);
-	if (!ndev)
-		return -ENOMEM;
-	ret = dev_alloc_name(ndev, ndev->name);
-	if (ret < 0)
-		goto fail;
-
-	memcpy(ndev->dev_addr, local->hw.wiphy->perm_addr, ETH_ALEN);
-	SET_NETDEV_DEV(ndev, wiphy_dev(local->hw.wiphy));
-
-	nsdata = IEEE80211_DEV_TO_SUB_IF(ndev);
-	ndev->ieee80211_ptr = &nsdata->wdev;
-	nsdata->wdev.wiphy = local->hw.wiphy;
-	nsdata->type = IEEE80211_IF_TYPE_MGMT;
-	nsdata->dev = ndev;
-	nsdata->local = local;
-	ieee80211_if_sdata_init(nsdata);
-
-	ret = register_netdevice(ndev);
-	if (ret)
-		goto fail;
-
-	/*
-	 * Called even when register_netdevice fails, it would
-	 * oops if assigned before initialising the rest.
-	 */
-	ndev->uninit = ieee80211_if_reinit;
-
-	ieee80211_debugfs_add_netdev(nsdata);
-
-	if (local->open_count > 0)
-		dev_open(ndev);
-	local->apdev = ndev;
-	return 0;
-
-fail:
-	free_netdev(ndev);
-	return ret;
-}
-
-void ieee80211_if_del_mgmt(struct ieee80211_local *local)
-{
-	struct net_device *apdev;
-
-	ASSERT_RTNL();
-	apdev = local->apdev;
-	ieee80211_debugfs_remove_netdev(IEEE80211_DEV_TO_SUB_IF(apdev));
-	local->apdev = NULL;
-	unregister_netdevice(apdev);
-}
-
 void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -246,9 +186,6 @@ void ieee80211_if_reinit(struct net_device *dev)
 	case IEEE80211_IF_TYPE_INVALID:
 		/* cannot happen */
 		WARN_ON(1);
-		break;
-	case IEEE80211_IF_TYPE_MGMT:
-		/* nothing to do */
 		break;
 	case IEEE80211_IF_TYPE_AP: {
 		/* Remove all virtual interfaces that use this BSS
@@ -357,11 +294,8 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 
 void ieee80211_if_free(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	/* local->apdev must be NULL when freeing management interface */
-	BUG_ON(dev == local->apdev);
 	ieee80211_if_sdata_deinit(sdata);
 	free_netdev(dev);
 }

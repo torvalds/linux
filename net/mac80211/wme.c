@@ -94,8 +94,6 @@ static inline int wme_downgrade_ac(struct sk_buff *skb)
 static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 {
 	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
-	struct ieee80211_tx_packet_data *pkt_data =
-		(struct ieee80211_tx_packet_data *) skb->cb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	unsigned short fc = le16_to_cpu(hdr->frame_control);
 	int qos;
@@ -108,12 +106,8 @@ static inline int classify80211(struct sk_buff *skb, struct Qdisc *qd)
 		return IEEE80211_TX_QUEUE_DATA0;
 	}
 
-	if (unlikely(pkt_data->flags & IEEE80211_TXPD_MGMT_IFACE)) {
-		/* Data frames from hostapd (mainly, EAPOL) use AC_VO
-		* and they will include QoS control fields if
-		* the target STA is using WME. */
-		skb->priority = 7;
-		return ieee802_1d_to_ac[skb->priority];
+	if (0 /* injected */) {
+		/* use AC from radiotap */
 	}
 
 	/* is this a QoS frame? */

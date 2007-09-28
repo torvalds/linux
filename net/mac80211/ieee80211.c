@@ -24,7 +24,6 @@
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 
-#include "ieee80211_common.h"
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
 #include "wep.h"
@@ -123,151 +122,6 @@ static void ieee80211_master_set_multicast_list(struct net_device *dev)
 	ieee80211_configure_filter(local);
 }
 
-/* management interface */
-
-static void
-ieee80211_fill_frame_info(struct ieee80211_local *local,
-			  struct ieee80211_frame_info *fi,
-			  struct ieee80211_rx_status *status)
-{
-	if (status) {
-		struct timespec ts;
-		struct ieee80211_rate *rate;
-
-		jiffies_to_timespec(jiffies, &ts);
-		fi->hosttime = cpu_to_be64((u64) ts.tv_sec * 1000000 +
-					   ts.tv_nsec / 1000);
-		fi->mactime = cpu_to_be64(status->mactime);
-		switch (status->phymode) {
-		case MODE_IEEE80211A:
-			fi->phytype = htonl(ieee80211_phytype_ofdm_dot11_a);
-			break;
-		case MODE_IEEE80211B:
-			fi->phytype = htonl(ieee80211_phytype_dsss_dot11_b);
-			break;
-		case MODE_IEEE80211G:
-			fi->phytype = htonl(ieee80211_phytype_pbcc_dot11_g);
-			break;
-		default:
-			fi->phytype = htonl(0xAAAAAAAA);
-			break;
-		}
-		fi->channel = htonl(status->channel);
-		rate = ieee80211_get_rate(local, status->phymode,
-					  status->rate);
-		if (rate) {
-			fi->datarate = htonl(rate->rate);
-			if (rate->flags & IEEE80211_RATE_PREAMBLE2) {
-				if (status->rate == rate->val)
-					fi->preamble = htonl(2); /* long */
-				else if (status->rate == rate->val2)
-					fi->preamble = htonl(1); /* short */
-			} else
-				fi->preamble = htonl(0);
-		} else {
-			fi->datarate = htonl(0);
-			fi->preamble = htonl(0);
-		}
-
-		fi->antenna = htonl(status->antenna);
-		fi->priority = htonl(0xffffffff); /* no clue */
-		fi->ssi_type = htonl(ieee80211_ssi_raw);
-		fi->ssi_signal = htonl(status->ssi);
-		fi->ssi_noise = 0x00000000;
-		fi->encoding = 0;
-	} else {
-		/* clear everything because we really don't know.
-		 * the msg_type field isn't present on monitor frames
-		 * so we don't know whether it will be present or not,
-		 * but it's ok to not clear it since it'll be assigned
-		 * anyway */
-		memset(fi, 0, sizeof(*fi) - sizeof(fi->msg_type));
-
-		fi->ssi_type = htonl(ieee80211_ssi_none);
-	}
-	fi->version = htonl(IEEE80211_FI_VERSION);
-	fi->length = cpu_to_be32(sizeof(*fi) - sizeof(fi->msg_type));
-}
-
-/* this routine is actually not just for this, but also
- * for pushing fake 'management' frames into userspace.
- * it shall be replaced by a netlink-based system. */
-void
-ieee80211_rx_mgmt(struct ieee80211_local *local, struct sk_buff *skb,
-		  struct ieee80211_rx_status *status, u32 msg_type)
-{
-	struct ieee80211_frame_info *fi;
-	const size_t hlen = sizeof(struct ieee80211_frame_info);
-	struct net_device *dev = local->apdev;
-
-	skb->dev = dev;
-
-	if (skb_headroom(skb) < hlen) {
-		I802_DEBUG_INC(local->rx_expand_skb_head);
-		if (pskb_expand_head(skb, hlen, 0, GFP_ATOMIC)) {
-			dev_kfree_skb(skb);
-			return;
-		}
-	}
-
-	fi = (struct ieee80211_frame_info *) skb_push(skb, hlen);
-
-	ieee80211_fill_frame_info(local, fi, status);
-	fi->msg_type = htonl(msg_type);
-
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += skb->len;
-
-	skb_set_mac_header(skb, 0);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	skb->pkt_type = PACKET_OTHERHOST;
-	skb->protocol = htons(ETH_P_802_2);
-	memset(skb->cb, 0, sizeof(skb->cb));
-	netif_rx(skb);
-}
-
-static int ieee80211_mgmt_open(struct net_device *dev)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (!netif_running(local->mdev))
-		return -EOPNOTSUPP;
-	return 0;
-}
-
-static int ieee80211_mgmt_stop(struct net_device *dev)
-{
-	return 0;
-}
-
-static int ieee80211_change_mtu_apdev(struct net_device *dev, int new_mtu)
-{
-	/* FIX: what would be proper limits for MTU?
-	 * This interface uses 802.11 frames. */
-	if (new_mtu < 256 || new_mtu > IEEE80211_MAX_DATA_LEN) {
-		printk(KERN_WARNING "%s: invalid MTU %d\n",
-		       dev->name, new_mtu);
-		return -EINVAL;
-	}
-
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: setting MTU %d\n", dev->name, new_mtu);
-#endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-	dev->mtu = new_mtu;
-	return 0;
-}
-
-void ieee80211_if_mgmt_setup(struct net_device *dev)
-{
-	ether_setup(dev);
-	dev->hard_start_xmit = ieee80211_mgmt_start_xmit;
-	dev->change_mtu = ieee80211_change_mtu_apdev;
-	dev->open = ieee80211_mgmt_open;
-	dev->stop = ieee80211_mgmt_stop;
-	dev->type = ARPHRD_IEEE80211_PRISM;
-	dev->destructor = ieee80211_if_free;
-}
-
 /* regular interfaces */
 
 static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
@@ -345,7 +199,6 @@ static int ieee80211_open(struct net_device *dev)
 			return -ENOLINK;
 		break;
 	case IEEE80211_IF_TYPE_AP:
-	case IEEE80211_IF_TYPE_MGMT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_IBSS:
@@ -410,10 +263,6 @@ static int ieee80211_open(struct net_device *dev)
 	if (local->open_count == 0) {
 		res = dev_open(local->mdev);
 		WARN_ON(res);
-		if (local->apdev) {
-			res = dev_open(local->apdev);
-			WARN_ON(res);
-		}
 		tasklet_enable(&local->tx_pending_tasklet);
 		tasklet_enable(&local->tasklet);
 	}
@@ -499,9 +348,6 @@ static int ieee80211_stop(struct net_device *dev)
 		if (netif_running(local->mdev))
 			dev_close(local->mdev);
 
-		if (local->apdev)
-			dev_close(local->apdev);
-
 		if (local->ops->stop)
 			local->ops->stop(local_to_hw(local));
 
@@ -550,7 +396,7 @@ static const struct header_ops ieee80211_header_ops = {
 	.cache_update	= eth_header_cache_update,
 };
 
-/* Must not be called for mdev and apdev */
+/* Must not be called for mdev */
 void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -806,8 +652,6 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 	if (control->flags & IEEE80211_TXCTL_REQUEUE)
 		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
-	if (control->type == IEEE80211_IF_TYPE_MGMT)
-		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 	pkt_data->queue = control->queue;
 
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
@@ -860,7 +704,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_local *local = hw_to_local(hw);
 	u16 frag, type;
-	u32 msg_type;
 	struct ieee80211_tx_status_rtap_hdr *rthdr;
 	struct ieee80211_sub_if_data *sdata;
 	int monitors;
@@ -975,28 +818,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 			local->dot11FailedCount++;
 	}
 
-	msg_type = (status->flags & IEEE80211_TX_STATUS_ACK) ?
-		ieee80211_msg_tx_callback_ack : ieee80211_msg_tx_callback_fail;
-
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
-
-	if ((status->control.flags & IEEE80211_TXCTL_REQ_TX_STATUS) &&
-	    local->apdev) {
-		if (local->monitors) {
-			skb2 = skb_clone(skb, GFP_ATOMIC);
-		} else {
-			skb2 = skb;
-			skb = NULL;
-		}
-
-		if (skb2)
-			/* Send frame to hostapd */
-			ieee80211_rx_mgmt(local, skb2, NULL, msg_type);
-
-		if (!skb)
-			return;
-	}
 
 	if (!local->monitors) {
 		dev_kfree_skb(skb);
@@ -1344,8 +1167,6 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 	BUG_ON(local->reg_state != IEEE80211_DEV_REGISTERED);
 
 	local->reg_state = IEEE80211_DEV_UNREGISTERED;
-	if (local->apdev)
-		ieee80211_if_del_mgmt(local);
 
 	/*
 	 * At this point, interface list manipulations are fine

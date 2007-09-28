@@ -30,8 +30,6 @@ struct rate_control_extra {
 
 	/* parameters from the caller to rate_control_get_rate(): */
 	struct ieee80211_hw_mode *mode;
-	int mgmt_data; /* this is data frame that is used for management
-			* (e.g., IEEE 802.1X EAPOL) */
 	u16 ethertype;
 };
 

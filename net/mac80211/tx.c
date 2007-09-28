@@ -258,7 +258,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 		return TXRX_CONTINUE;
 	}
 
-	if (unlikely(!tx->u.tx.mgmt_interface && tx->sdata->ieee802_1x &&
+	if (unlikely(/* !injected && */ tx->sdata->ieee802_1x &&
 		     !(sta_flags & WLAN_STA_AUTHORIZED))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		DECLARE_MAC_BUF(mac);
@@ -570,8 +570,6 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 
 	memset(&extra, 0, sizeof(extra));
 	extra.mode = tx->u.tx.mode;
-	extra.mgmt_data = tx->sdata &&
-		tx->sdata->type == IEEE80211_IF_TYPE_MGMT;
 	extra.ethertype = tx->ethertype;
 
 	tx->u.tx.rate = rate_control_get_rate(tx->local, tx->dev, tx->skb,
@@ -1069,7 +1067,7 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 }
 
 static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
-			struct ieee80211_tx_control *control, int mgmt)
+			struct ieee80211_tx_control *control)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct sta_info *sta;
@@ -1099,7 +1097,6 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	rcu_read_lock();
 
 	sta = tx.sta;
-	tx.u.tx.mgmt_interface = mgmt;
 	tx.u.tx.mode = local->hw.conf.mode;
 
 	if (res_prepare == TXRX_QUEUED) { /* if it was an injected packet */
@@ -1250,8 +1247,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		control.flags |= IEEE80211_TXCTL_REQUEUE;
 	control.queue = pkt_data->queue;
 
-	ret = ieee80211_tx(odev, skb, &control,
-			   control.type == IEEE80211_IF_TYPE_MGMT);
+	ret = ieee80211_tx(odev, skb, &control);
 	dev_put(odev);
 
 	return ret;
@@ -1496,8 +1492,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = dev->ifindex;
-	if (sdata->type == IEEE80211_IF_TYPE_MGMT)
-		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 
 	skb->dev = local->mdev;
 	dev->stats.tx_packets++;
@@ -1555,8 +1549,6 @@ int ieee80211_mgmt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	pkt_data = (struct ieee80211_tx_packet_data *) skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = sdata->dev->ifindex;
-	if (sdata->type == IEEE80211_IF_TYPE_MGMT)
-		pkt_data->flags |= IEEE80211_TXPD_MGMT_IFACE;
 
 	skb->priority = 20; /* use hardcoded priority for mgmt TX queue */
 	skb->dev = sdata->local->mdev;

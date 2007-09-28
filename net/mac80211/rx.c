@@ -19,7 +19,6 @@
 
 #include "ieee80211_i.h"
 #include "ieee80211_led.h"
-#include "ieee80211_common.h"
 #include "wep.h"
 #include "wpa.h"
 #include "tkip.h"
@@ -412,12 +411,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 			return TXRX_DROP;
 		}
 
-		if (!rx->local->apdev)
-			return TXRX_DROP;
-
-		ieee80211_rx_mgmt(rx->local, rx->skb, rx->u.rx.status,
-				  ieee80211_msg_sta_not_assoc);
-		return TXRX_QUEUED;
+		return TXRX_DROP;
 	}
 
 	return TXRX_CONTINUE;
@@ -983,15 +977,8 @@ ieee80211_rx_h_802_1x_pae(struct ieee80211_txrx_data *rx)
 {
 	if (rx->sdata->eapol && ieee80211_is_eapol(rx->skb) &&
 	    rx->sdata->type != IEEE80211_IF_TYPE_STA &&
-	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
-		/* Pass both encrypted and unencrypted EAPOL frames to user
-		 * space for processing. */
-		if (!rx->local->apdev)
-			return TXRX_DROP;
-		ieee80211_rx_mgmt(rx->local, rx->skb, rx->u.rx.status,
-				  ieee80211_msg_normal);
-		return TXRX_QUEUED;
-	}
+	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
+		return TXRX_CONTINUE;
 
 	if (unlikely(rx->sdata->ieee802_1x &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
@@ -1233,15 +1220,11 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 	if ((sdata->type == IEEE80211_IF_TYPE_STA ||
 	     sdata->type == IEEE80211_IF_TYPE_IBSS) &&
-	    !rx->local->user_space_mlme) {
+	    !rx->local->user_space_mlme)
 		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->u.rx.status);
-	} else {
-		/* Management frames are sent to hostapd for processing */
-		if (!rx->local->apdev)
-			return TXRX_DROP;
-		ieee80211_rx_mgmt(rx->local, rx->skb, rx->u.rx.status,
-				  ieee80211_msg_normal);
-	}
+	else
+		return TXRX_DROP;
+
 	return TXRX_QUEUED;
 }
 
@@ -1454,7 +1437,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		/* take everything */
 		break;
 	case IEEE80211_IF_TYPE_INVALID:
-	case IEEE80211_IF_TYPE_MGMT:
 		/* should never get here */
 		WARN_ON(1);
 		break;
