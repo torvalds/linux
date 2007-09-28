@@ -41,7 +41,7 @@ struct nf_nat_protocol
 	int (*range_to_nfattr)(struct sk_buff *skb,
 			       const struct nf_nat_range *range);
 
-	int (*nfattr_to_range)(struct nfattr *tb[],
+	int (*nfattr_to_range)(struct nlattr *tb[],
 			       struct nf_nat_range *range);
 };
 
@@ -64,7 +64,7 @@ extern struct nf_nat_protocol *find_nat_proto(u_int16_t protonum);
 
 extern int nf_nat_port_range_to_nfattr(struct sk_buff *skb,
 				       const struct nf_nat_range *range);
-extern int nf_nat_port_nfattr_to_range(struct nfattr *tb[],
+extern int nf_nat_port_nfattr_to_range(struct nlattr *tb[],
 				       struct nf_nat_range *range);
 
 #endif /*_NF_NAT_PROTO_H*/

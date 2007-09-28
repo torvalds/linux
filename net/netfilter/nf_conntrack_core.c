@@ -827,40 +827,39 @@ EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 #include <linux/netfilter/nfnetlink_conntrack.h>
 #include <linux/mutex.h>
 
-
 /* Generic function for tcp/udp/sctp/dccp and alike. This needs to be
  * in ip_conntrack_core, since we don't want the protocols to autoload
  * or depend on ctnetlink */
 int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple)
 {
-	NFA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
+	NLA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
 		&tuple->src.u.tcp.port);
-	NFA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
+	NLA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
 		&tuple->dst.u.tcp.port);
 	return 0;
 
-nfattr_failure:
+nla_put_failure:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(nf_ct_port_tuple_to_nfattr);
 
-static const size_t cta_min_proto[CTA_PROTO_MAX] = {
-	[CTA_PROTO_SRC_PORT-1]  = sizeof(u_int16_t),
-	[CTA_PROTO_DST_PORT-1]  = sizeof(u_int16_t)
+static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
+	[CTA_PROTO_SRC_PORT]  = sizeof(u_int16_t),
+	[CTA_PROTO_DST_PORT]  = sizeof(u_int16_t)
 };
 
-int nf_ct_port_nfattr_to_tuple(struct nfattr *tb[],
+int nf_ct_port_nfattr_to_tuple(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t)
 {
-	if (!tb[CTA_PROTO_SRC_PORT-1] || !tb[CTA_PROTO_DST_PORT-1])
+	if (!tb[CTA_PROTO_SRC_PORT] || !tb[CTA_PROTO_DST_PORT])
 		return -EINVAL;
 
 	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
-	t->src.u.tcp.port = *(__be16 *)NFA_DATA(tb[CTA_PROTO_SRC_PORT-1]);
-	t->dst.u.tcp.port = *(__be16 *)NFA_DATA(tb[CTA_PROTO_DST_PORT-1]);
+	t->src.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_SRC_PORT]);
+	t->dst.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_DST_PORT]);
 
 	return 0;
 }

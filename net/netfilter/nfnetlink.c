@@ -111,44 +111,17 @@ nfnetlink_find_client(u_int16_t type, const struct nfnetlink_subsystem *ss)
 	return &ss->cb[cb_id];
 }
 
-void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
-		const void *data)
-{
-	struct nfattr *nfa;
-	int size = NFA_LENGTH(attrlen);
-
-	nfa = (struct nfattr *)skb_put(skb, NFA_ALIGN(size));
-	nfa->nfa_type = attrtype;
-	nfa->nfa_len  = size;
-	memcpy(NFA_DATA(nfa), data, attrlen);
-	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
-}
-EXPORT_SYMBOL_GPL(__nfa_fill);
-
-void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
-{
-	memset(tb, 0, sizeof(struct nfattr *) * maxattr);
-
-	while (NFA_OK(nfa, len)) {
-		unsigned flavor = NFA_TYPE(nfa);
-		if (flavor && flavor <= maxattr)
-			tb[flavor-1] = nfa;
-		nfa = NFA_NEXT(nfa, len);
-	}
-}
-EXPORT_SYMBOL_GPL(nfattr_parse);
-
 /**
  * nfnetlink_check_attributes - check and parse nfnetlink attributes
  *
  * subsys: nfnl subsystem for which this message is to be parsed
  * nlmsghdr: netlink message to be checked/parsed
- * cda: array of pointers, needs to be at least subsys->attr_count big
+ * cda: array of pointers, needs to be at least subsys->attr_count+1 big
  *
  */
 static int
 nfnetlink_check_attributes(const struct nfnetlink_subsystem *subsys,
-			   struct nlmsghdr *nlh, struct nfattr *cda[])
+			   struct nlmsghdr *nlh, struct nlattr *cda[])
 {
 	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
 	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
@@ -156,9 +129,9 @@ nfnetlink_check_attributes(const struct nfnetlink_subsystem *subsys,
 
 	/* check attribute lengths. */
 	if (likely(nlh->nlmsg_len > min_len)) {
-		struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
+		struct nlattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
-		nfattr_parse(cda, attr_count, attr, attrlen);
+		nla_parse(cda, attr_count, attr, attrlen, NULL);
 	}
 
 	/* implicit: if nlmsg_len == min_len, we return 0, and an empty
@@ -230,9 +203,9 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	{
 		u_int16_t attr_count =
 			ss->cb[NFNL_MSG_TYPE(nlh->nlmsg_type)].attr_count;
-		struct nfattr *cda[attr_count];
+		struct nlattr *cda[attr_count+1];
 
-		memset(cda, 0, sizeof(struct nfattr *) * attr_count);
+		memset(cda, 0, sizeof(struct nlattr *) * attr_count);
 
 		err = nfnetlink_check_attributes(ss, nlh, cda);
 		if (err < 0)

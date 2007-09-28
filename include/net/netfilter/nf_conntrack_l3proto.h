@@ -11,10 +11,9 @@
 
 #ifndef _NF_CONNTRACK_L3PROTO_H
 #define _NF_CONNTRACK_L3PROTO_H
+#include <linux/netlink.h>
 #include <linux/seq_file.h>
 #include <net/netfilter/nf_conntrack.h>
-
-struct nfattr;
 
 struct nf_conntrack_l3proto
 {
@@ -67,7 +66,7 @@ struct nf_conntrack_l3proto
 	int (*tuple_to_nfattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 
-	int (*nfattr_to_tuple)(struct nfattr *tb[],
+	int (*nfattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 
 #ifdef CONFIG_SYSCTL

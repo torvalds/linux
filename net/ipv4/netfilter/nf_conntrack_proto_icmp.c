@@ -235,42 +235,42 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 static int icmp_tuple_to_nfattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *t)
 {
-	NFA_PUT(skb, CTA_PROTO_ICMP_ID, sizeof(u_int16_t),
+	NLA_PUT(skb, CTA_PROTO_ICMP_ID, sizeof(u_int16_t),
 		&t->src.u.icmp.id);
-	NFA_PUT(skb, CTA_PROTO_ICMP_TYPE, sizeof(u_int8_t),
+	NLA_PUT(skb, CTA_PROTO_ICMP_TYPE, sizeof(u_int8_t),
 		&t->dst.u.icmp.type);
-	NFA_PUT(skb, CTA_PROTO_ICMP_CODE, sizeof(u_int8_t),
+	NLA_PUT(skb, CTA_PROTO_ICMP_CODE, sizeof(u_int8_t),
 		&t->dst.u.icmp.code);
 
 	return 0;
 
-nfattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_proto[CTA_PROTO_MAX] = {
-	[CTA_PROTO_ICMP_TYPE-1] = sizeof(u_int8_t),
-	[CTA_PROTO_ICMP_CODE-1] = sizeof(u_int8_t),
-	[CTA_PROTO_ICMP_ID-1]   = sizeof(u_int16_t)
+static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
+	[CTA_PROTO_ICMP_TYPE]	= sizeof(u_int8_t),
+	[CTA_PROTO_ICMP_CODE]	= sizeof(u_int8_t),
+	[CTA_PROTO_ICMP_ID]	= sizeof(u_int16_t)
 };
 
-static int icmp_nfattr_to_tuple(struct nfattr *tb[],
+static int icmp_nfattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *tuple)
 {
-	if (!tb[CTA_PROTO_ICMP_TYPE-1]
-	    || !tb[CTA_PROTO_ICMP_CODE-1]
-	    || !tb[CTA_PROTO_ICMP_ID-1])
+	if (!tb[CTA_PROTO_ICMP_TYPE]
+	    || !tb[CTA_PROTO_ICMP_CODE]
+	    || !tb[CTA_PROTO_ICMP_ID])
 		return -EINVAL;
 
 	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type =
-			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_TYPE-1]);
+			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMP_TYPE]);
 	tuple->dst.u.icmp.code =
-			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);
+			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMP_CODE]);
 	tuple->src.u.icmp.id =
-			*(__be16 *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
+			*(__be16 *)nla_data(tb[CTA_PROTO_ICMP_ID]);
 
 	if (tuple->dst.u.icmp.type >= sizeof(invmap)
 	    || !invmap[tuple->dst.u.icmp.type])

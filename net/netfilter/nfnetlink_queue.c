@@ -299,7 +299,7 @@ __nfqnl_set_mode(struct nfqnl_instance *queue,
 
 	case NFQNL_COPY_PACKET:
 		queue->copy_mode = mode;
-		/* we're using struct nfattr which has 16bit nfa_len */
+		/* we're using struct nlattr which has 16bit nla_len */
 		if (range > 0xffff)
 			queue->copy_range = 0xffff;
 		else
@@ -353,18 +353,17 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	QDEBUG("entered\n");
 
-	/* all macros expand to constant values at compile time */
-	size =    NLMSG_SPACE(sizeof(struct nfgenmsg)) +
-		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hdr))
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+	size =    NLMSG_ALIGN(sizeof(struct nfgenmsg))
+		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #ifdef CONFIG_BRIDGE_NETFILTER
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #endif
-		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
-		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_hw))
-		+ NFA_SPACE(sizeof(struct nfqnl_msg_packet_timestamp));
+		+ nla_total_size(sizeof(u_int32_t))	/* mark */
+		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hw))
+		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
 
 	outdev = entinf->outdev;
 
@@ -389,7 +388,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		else
 			data_len = queue->copy_range;
 
-		size += NFA_SPACE(data_len);
+		size += nla_total_size(data_len);
 		break;
 
 	default:
@@ -417,33 +416,33 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	pmsg.hw_protocol	= entskb->protocol;
 	pmsg.hook		= entinf->hook;
 
-	NFA_PUT(skb, NFQA_PACKET_HDR, sizeof(pmsg), &pmsg);
+	NLA_PUT(skb, NFQA_PACKET_HDR, sizeof(pmsg), &pmsg);
 
 	indev = entinf->indev;
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
-		NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint), &tmp_uint);
+		NLA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint), &tmp_uint);
 #else
 		if (entinf->pf == PF_BRIDGE) {
 			/* Case 1: indev is physical input device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
-			NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_PHYSINDEV, sizeof(tmp_uint),
 				&tmp_uint);
 			/* this is the bridge group "brX" */
 			tmp_uint = htonl(indev->br_port->br->dev->ifindex);
-			NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
 				&tmp_uint);
 		} else {
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
-			NFA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint),
 				&tmp_uint);
 			if (entskb->nf_bridge
 			    && entskb->nf_bridge->physindev) {
 				tmp_uint = htonl(entskb->nf_bridge->physindev->ifindex);
-				NFA_PUT(skb, NFQA_IFINDEX_PHYSINDEV,
+				NLA_PUT(skb, NFQA_IFINDEX_PHYSINDEV,
 					sizeof(tmp_uint), &tmp_uint);
 			}
 		}
@@ -453,27 +452,27 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (outdev) {
 		tmp_uint = htonl(outdev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
-		NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint), &tmp_uint);
+		NLA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint), &tmp_uint);
 #else
 		if (entinf->pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical output device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
-			NFA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV, sizeof(tmp_uint),
 				&tmp_uint);
 			/* this is the bridge group "brX" */
 			tmp_uint = htonl(outdev->br_port->br->dev->ifindex);
-			NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
 				&tmp_uint);
 		} else {
 			/* Case 2: outdev is bridge group, we need to look for
 			 * physical output device (when called from ipv4) */
-			NFA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
+			NLA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint),
 				&tmp_uint);
 			if (entskb->nf_bridge
 			    && entskb->nf_bridge->physoutdev) {
 				tmp_uint = htonl(entskb->nf_bridge->physoutdev->ifindex);
-				NFA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV,
+				NLA_PUT(skb, NFQA_IFINDEX_PHYSOUTDEV,
 					sizeof(tmp_uint), &tmp_uint);
 			}
 		}
@@ -482,7 +481,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	if (entskb->mark) {
 		tmp_uint = htonl(entskb->mark);
-		NFA_PUT(skb, NFQA_MARK, sizeof(u_int32_t), &tmp_uint);
+		NLA_PUT(skb, NFQA_MARK, sizeof(u_int32_t), &tmp_uint);
 	}
 
 	if (indev && entskb->dev) {
@@ -490,7 +489,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		int len = dev_parse_header(entskb, phw.hw_addr);
 		if (len) {
 			phw.hw_addrlen = htons(len);
-			NFA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
+			NLA_PUT(skb, NFQA_HWADDR, sizeof(phw), &phw);
 		}
 	}
 
@@ -500,23 +499,23 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		ts.sec = cpu_to_be64(tv.tv_sec);
 		ts.usec = cpu_to_be64(tv.tv_usec);
 
-		NFA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
+		NLA_PUT(skb, NFQA_TIMESTAMP, sizeof(ts), &ts);
 	}
 
 	if (data_len) {
-		struct nfattr *nfa;
-		int size = NFA_LENGTH(data_len);
+		struct nlattr *nla;
+		int size = nla_attr_size(data_len);
 
-		if (skb_tailroom(skb) < (int)NFA_SPACE(data_len)) {
+		if (skb_tailroom(skb) < nla_total_size(data_len)) {
 			printk(KERN_WARNING "nf_queue: no tailroom!\n");
 			goto nlmsg_failure;
 		}
 
-		nfa = (struct nfattr *)skb_put(skb, NFA_ALIGN(size));
-		nfa->nfa_type = NFQA_PAYLOAD;
-		nfa->nfa_len = size;
+		nla = (struct nlattr *)skb_put(skb, nla_total_size(data_len));
+		nla->nla_type = NFQA_PAYLOAD;
+		nla->nla_len = size;
 
-		if (skb_copy_bits(entskb, 0, NFA_DATA(nfa), data_len))
+		if (skb_copy_bits(entskb, 0, nla_data(nla), data_len))
 			BUG();
 	}
 
@@ -524,7 +523,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	return skb;
 
 nlmsg_failure:
-nfattr_failure:
+nla_put_failure:
 	if (skb)
 		kfree_skb(skb);
 	*errp = -EINVAL;
@@ -778,15 +777,15 @@ static struct notifier_block nfqnl_rtnl_notifier = {
 	.notifier_call	= nfqnl_rcv_nl_event,
 };
 
-static const int nfqa_verdict_min[NFQA_MAX] = {
-	[NFQA_VERDICT_HDR-1]	= sizeof(struct nfqnl_msg_verdict_hdr),
-	[NFQA_MARK-1]		= sizeof(u_int32_t),
-	[NFQA_PAYLOAD-1]	= 0,
+static const int nfqa_verdict_min[NFQA_MAX+1] = {
+	[NFQA_VERDICT_HDR]	= sizeof(struct nfqnl_msg_verdict_hdr),
+	[NFQA_MARK]		= sizeof(u_int32_t),
+	[NFQA_PAYLOAD]		= 0,
 };
 
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
-		   struct nlmsghdr *nlh, struct nfattr *nfqa[])
+		   struct nlmsghdr *nlh, struct nlattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -811,12 +810,12 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		goto err_out_put;
 	}
 
-	if (!nfqa[NFQA_VERDICT_HDR-1]) {
+	if (!nfqa[NFQA_VERDICT_HDR]) {
 		err = -EINVAL;
 		goto err_out_put;
 	}
 
-	vhdr = NFA_DATA(nfqa[NFQA_VERDICT_HDR-1]);
+	vhdr = nla_data(nfqa[NFQA_VERDICT_HDR]);
 	verdict = ntohl(vhdr->verdict);
 
 	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT) {
@@ -830,15 +829,15 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		goto err_out_put;
 	}
 
-	if (nfqa[NFQA_PAYLOAD-1]) {
-		if (nfqnl_mangle(NFA_DATA(nfqa[NFQA_PAYLOAD-1]),
-				 NFA_PAYLOAD(nfqa[NFQA_PAYLOAD-1]), entry) < 0)
+	if (nfqa[NFQA_PAYLOAD]) {
+		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
+				 nla_len(nfqa[NFQA_PAYLOAD]), entry) < 0)
 			verdict = NF_DROP;
 	}
 
-	if (nfqa[NFQA_MARK-1])
+	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(*(__be32 *)
-					 NFA_DATA(nfqa[NFQA_MARK-1]));
+					 nla_data(nfqa[NFQA_MARK]));
 
 	issue_verdict(entry, verdict);
 	instance_put(queue);
@@ -851,14 +850,14 @@ err_out_put:
 
 static int
 nfqnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
+		  struct nlmsghdr *nlh, struct nlattr *nfqa[])
 {
 	return -ENOTSUPP;
 }
 
-static const int nfqa_cfg_min[NFQA_CFG_MAX] = {
-	[NFQA_CFG_CMD-1]	= sizeof(struct nfqnl_msg_config_cmd),
-	[NFQA_CFG_PARAMS-1]	= sizeof(struct nfqnl_msg_config_params),
+static const int nfqa_cfg_min[NFQA_CFG_MAX+1] = {
+	[NFQA_CFG_CMD]		= sizeof(struct nfqnl_msg_config_cmd),
+	[NFQA_CFG_PARAMS]	= sizeof(struct nfqnl_msg_config_params),
 };
 
 static struct nf_queue_handler nfqh = {
@@ -868,7 +867,7 @@ static struct nf_queue_handler nfqh = {
 
 static int
 nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
+		  struct nlmsghdr *nlh, struct nlattr *nfqa[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -883,9 +882,9 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	queue = instance_lookup_get(queue_num);
-	if (nfqa[NFQA_CFG_CMD-1]) {
+	if (nfqa[NFQA_CFG_CMD]) {
 		struct nfqnl_msg_config_cmd *cmd;
-		cmd = NFA_DATA(nfqa[NFQA_CFG_CMD-1]);
+		cmd = nla_data(nfqa[NFQA_CFG_CMD]);
 		QDEBUG("found CFG_CMD\n");
 
 		switch (cmd->command) {
@@ -936,21 +935,21 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	if (nfqa[NFQA_CFG_PARAMS-1]) {
+	if (nfqa[NFQA_CFG_PARAMS]) {
 		struct nfqnl_msg_config_params *params;
 
 		if (!queue) {
 			ret = -ENOENT;
 			goto out_put;
 		}
-		params = NFA_DATA(nfqa[NFQA_CFG_PARAMS-1]);
+		params = nla_data(nfqa[NFQA_CFG_PARAMS]);
 		nfqnl_set_mode(queue, params->copy_mode,
 				ntohl(params->copy_range));
 	}
 
-	if (nfqa[NFQA_CFG_QUEUE_MAXLEN-1]) {
+	if (nfqa[NFQA_CFG_QUEUE_MAXLEN]) {
 		__be32 *queue_maxlen;
-		queue_maxlen = NFA_DATA(nfqa[NFQA_CFG_QUEUE_MAXLEN-1]);
+		queue_maxlen = nla_data(nfqa[NFQA_CFG_QUEUE_MAXLEN]);
 		spin_lock_bh(&queue->lock);
 		queue->queue_maxlen = ntohl(*queue_maxlen);
 		spin_unlock_bh(&queue->lock);

@@ -244,7 +244,7 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 
 	case NFULNL_COPY_PACKET:
 		inst->copy_mode = mode;
-		/* we're using struct nfattr which has 16bit nfa_len */
+		/* we're using struct nlattr which has 16bit nfa_len */
 		if (range > 0xffff)
 			inst->copy_range = 0xffff;
 		else
@@ -409,36 +409,36 @@ __build_packet_message(struct nfulnl_instance *inst,
 	pmsg.hw_protocol	= skb->protocol;
 	pmsg.hook		= hooknum;
 
-	NFA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);
+	NLA_PUT(inst->skb, NFULA_PACKET_HDR, sizeof(pmsg), &pmsg);
 
 	if (prefix)
-		NFA_PUT(inst->skb, NFULA_PREFIX, plen, prefix);
+		NLA_PUT(inst->skb, NFULA_PREFIX, plen, prefix);
 
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
-		NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV, sizeof(tmp_uint),
+		NLA_PUT(inst->skb, NFULA_IFINDEX_INDEV, sizeof(tmp_uint),
 			&tmp_uint);
 #else
 		if (pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical input device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
-			NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			/* this is the bridge group "brX" */
 			tmp_uint = htonl(indev->br_port->br->dev->ifindex);
-			NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
 				sizeof(tmp_uint), &tmp_uint);
 		} else {
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
-			NFA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_INDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			if (skb->nf_bridge && skb->nf_bridge->physindev) {
 				tmp_uint =
 				    htonl(skb->nf_bridge->physindev->ifindex);
-				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
+				NLA_PUT(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 					sizeof(tmp_uint), &tmp_uint);
 			}
 		}
@@ -448,28 +448,28 @@ __build_packet_message(struct nfulnl_instance *inst,
 	if (outdev) {
 		tmp_uint = htonl(outdev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
-		NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV, sizeof(tmp_uint),
+		NLA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV, sizeof(tmp_uint),
 			&tmp_uint);
 #else
 		if (pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical output device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
-			NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			/* this is the bridge group "brX" */
 			tmp_uint = htonl(outdev->br_port->br->dev->ifindex);
-			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
 				sizeof(tmp_uint), &tmp_uint);
 		} else {
 			/* Case 2: indev is a bridge group, we need to look
 			 * for physical device (when called from ipv4) */
-			NFA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
+			NLA_PUT(inst->skb, NFULA_IFINDEX_OUTDEV,
 				sizeof(tmp_uint), &tmp_uint);
 			if (skb->nf_bridge && skb->nf_bridge->physoutdev) {
 				tmp_uint =
 				    htonl(skb->nf_bridge->physoutdev->ifindex);
-				NFA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
+				NLA_PUT(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 					sizeof(tmp_uint), &tmp_uint);
 			}
 		}
@@ -478,7 +478,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 
 	if (skb->mark) {
 		tmp_uint = htonl(skb->mark);
-		NFA_PUT(inst->skb, NFULA_MARK, sizeof(tmp_uint), &tmp_uint);
+		NLA_PUT(inst->skb, NFULA_MARK, sizeof(tmp_uint), &tmp_uint);
 	}
 
 	if (indev && skb->dev) {
@@ -486,7 +486,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 		int len = dev_parse_header(skb, phw.hw_addr);
 		if (len > 0) {
 			phw.hw_addrlen = htons(len);
-			NFA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
+			NLA_PUT(inst->skb, NFULA_HWADDR, sizeof(phw), &phw);
 		}
 	}
 
@@ -496,7 +496,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 		ts.sec = cpu_to_be64(tv.tv_sec);
 		ts.usec = cpu_to_be64(tv.tv_usec);
 
-		NFA_PUT(inst->skb, NFULA_TIMESTAMP, sizeof(ts), &ts);
+		NLA_PUT(inst->skb, NFULA_TIMESTAMP, sizeof(ts), &ts);
 	}
 
 	/* UID */
@@ -504,9 +504,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
 			__be32 uid = htonl(skb->sk->sk_socket->file->f_uid);
-			/* need to unlock here since NFA_PUT may goto */
+			/* need to unlock here since NLA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
-			NFA_PUT(inst->skb, NFULA_UID, sizeof(uid), &uid);
+			NLA_PUT(inst->skb, NFULA_UID, sizeof(uid), &uid);
 		} else
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
@@ -514,28 +514,28 @@ __build_packet_message(struct nfulnl_instance *inst,
 	/* local sequence number */
 	if (inst->flags & NFULNL_CFG_F_SEQ) {
 		tmp_uint = htonl(inst->seq++);
-		NFA_PUT(inst->skb, NFULA_SEQ, sizeof(tmp_uint), &tmp_uint);
+		NLA_PUT(inst->skb, NFULA_SEQ, sizeof(tmp_uint), &tmp_uint);
 	}
 	/* global sequence number */
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL) {
 		tmp_uint = htonl(atomic_inc_return(&global_seq));
-		NFA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
+		NLA_PUT(inst->skb, NFULA_SEQ_GLOBAL, sizeof(tmp_uint), &tmp_uint);
 	}
 
 	if (data_len) {
-		struct nfattr *nfa;
-		int size = NFA_LENGTH(data_len);
+		struct nlattr *nla;
+		int size = nla_attr_size(data_len);
 
-		if (skb_tailroom(inst->skb) < (int)NFA_SPACE(data_len)) {
+		if (skb_tailroom(inst->skb) < nla_total_size(data_len)) {
 			printk(KERN_WARNING "nfnetlink_log: no tailroom!\n");
 			goto nlmsg_failure;
 		}
 
-		nfa = (struct nfattr *)skb_put(inst->skb, NFA_ALIGN(size));
-		nfa->nfa_type = NFULA_PAYLOAD;
-		nfa->nfa_len = size;
+		nla = (struct nlattr *)skb_put(inst->skb, nla_total_size(data_len));
+		nla->nla_type = NFULA_PAYLOAD;
+		nla->nla_len = size;
 
-		if (skb_copy_bits(skb, 0, NFA_DATA(nfa), data_len))
+		if (skb_copy_bits(skb, 0, nla_data(nla), data_len))
 			BUG();
 	}
 
@@ -544,7 +544,7 @@ __build_packet_message(struct nfulnl_instance *inst,
 
 nlmsg_failure:
 	UDEBUG("nlmsg_failure\n");
-nfattr_failure:
+nla_put_failure:
 	PRINTR(KERN_ERR "nfnetlink_log: error creating log nlmsg\n");
 	return -1;
 }
@@ -591,32 +591,31 @@ nfulnl_log_packet(unsigned int pf,
 	if (prefix)
 		plen = strlen(prefix) + 1;
 
-	/* all macros expand to constant values at compile time */
 	/* FIXME: do we want to make the size calculation conditional based on
 	 * what is actually present?  way more branches and checks, but more
 	 * memory efficient... */
-	size =    NLMSG_SPACE(sizeof(struct nfgenmsg))
-		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_hdr))
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+	size =    NLMSG_ALIGN(sizeof(struct nfgenmsg))
+		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hdr))
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #ifdef CONFIG_BRIDGE_NETFILTER
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
-		+ NFA_SPACE(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
+		+ nla_total_size(sizeof(u_int32_t))	/* ifindex */
 #endif
-		+ NFA_SPACE(sizeof(u_int32_t))	/* mark */
-		+ NFA_SPACE(sizeof(u_int32_t))	/* uid */
-		+ NFA_SPACE(plen)		/* prefix */
-		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_hw))
-		+ NFA_SPACE(sizeof(struct nfulnl_msg_packet_timestamp));
+		+ nla_total_size(sizeof(u_int32_t))	/* mark */
+		+ nla_total_size(sizeof(u_int32_t))	/* uid */
+		+ nla_total_size(plen)			/* prefix */
+		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hw))
+		+ nla_total_size(sizeof(struct nfulnl_msg_packet_timestamp));
 
 	UDEBUG("initial size=%u\n", size);
 
 	spin_lock_bh(&inst->lock);
 
 	if (inst->flags & NFULNL_CFG_F_SEQ)
-		size += NFA_SPACE(sizeof(u_int32_t));
+		size += nla_total_size(sizeof(u_int32_t));
 	if (inst->flags & NFULNL_CFG_F_SEQ_GLOBAL)
-		size += NFA_SPACE(sizeof(u_int32_t));
+		size += nla_total_size(sizeof(u_int32_t));
 
 	qthreshold = inst->qthreshold;
 	/* per-rule qthreshold overrides per-instance */
@@ -636,7 +635,7 @@ nfulnl_log_packet(unsigned int pf,
 		else
 			data_len = inst->copy_range;
 
-		size += NFA_SPACE(data_len);
+		size += nla_total_size(data_len);
 		UDEBUG("copy_packet, therefore size now %u\n", size);
 		break;
 
@@ -723,7 +722,7 @@ static struct notifier_block nfulnl_rtnl_notifier = {
 
 static int
 nfulnl_recv_unsupp(struct sock *ctnl, struct sk_buff *skb,
-		  struct nlmsghdr *nlh, struct nfattr *nfqa[])
+		  struct nlmsghdr *nlh, struct nlattr *nfqa[])
 {
 	return -ENOTSUPP;
 }
@@ -734,34 +733,34 @@ static struct nf_logger nfulnl_logger = {
 	.me	= THIS_MODULE,
 };
 
-static const int nfula_min[NFULA_MAX] = {
-	[NFULA_PACKET_HDR-1]	= sizeof(struct nfulnl_msg_packet_hdr),
-	[NFULA_MARK-1]		= sizeof(u_int32_t),
-	[NFULA_TIMESTAMP-1]	= sizeof(struct nfulnl_msg_packet_timestamp),
-	[NFULA_IFINDEX_INDEV-1]	= sizeof(u_int32_t),
-	[NFULA_IFINDEX_OUTDEV-1]= sizeof(u_int32_t),
-	[NFULA_IFINDEX_PHYSINDEV-1]	= sizeof(u_int32_t),
-	[NFULA_IFINDEX_PHYSOUTDEV-1]	= sizeof(u_int32_t),
-	[NFULA_HWADDR-1]	= sizeof(struct nfulnl_msg_packet_hw),
-	[NFULA_PAYLOAD-1]	= 0,
-	[NFULA_PREFIX-1]	= 0,
-	[NFULA_UID-1]		= sizeof(u_int32_t),
-	[NFULA_SEQ-1]		= sizeof(u_int32_t),
-	[NFULA_SEQ_GLOBAL-1]	= sizeof(u_int32_t),
+static const int nfula_min[NFULA_MAX+1] = {
+	[NFULA_PACKET_HDR]	= sizeof(struct nfulnl_msg_packet_hdr),
+	[NFULA_MARK]		= sizeof(u_int32_t),
+	[NFULA_TIMESTAMP]	= sizeof(struct nfulnl_msg_packet_timestamp),
+	[NFULA_IFINDEX_INDEV]	= sizeof(u_int32_t),
+	[NFULA_IFINDEX_OUTDEV]	= sizeof(u_int32_t),
+	[NFULA_IFINDEX_PHYSINDEV]	= sizeof(u_int32_t),
+	[NFULA_IFINDEX_PHYSOUTDEV]	= sizeof(u_int32_t),
+	[NFULA_HWADDR]		= sizeof(struct nfulnl_msg_packet_hw),
+	[NFULA_PAYLOAD]		= 0,
+	[NFULA_PREFIX]		= 0,
+	[NFULA_UID]		= sizeof(u_int32_t),
+	[NFULA_SEQ]		= sizeof(u_int32_t),
+	[NFULA_SEQ_GLOBAL]	= sizeof(u_int32_t),
 };
 
-static const int nfula_cfg_min[NFULA_CFG_MAX] = {
-	[NFULA_CFG_CMD-1]	= sizeof(struct nfulnl_msg_config_cmd),
-	[NFULA_CFG_MODE-1]	= sizeof(struct nfulnl_msg_config_mode),
-	[NFULA_CFG_TIMEOUT-1]	= sizeof(u_int32_t),
-	[NFULA_CFG_QTHRESH-1]	= sizeof(u_int32_t),
-	[NFULA_CFG_NLBUFSIZ-1]	= sizeof(u_int32_t),
-	[NFULA_CFG_FLAGS-1]	= sizeof(u_int16_t),
+static const int nfula_cfg_min[NFULA_CFG_MAX+1] = {
+	[NFULA_CFG_CMD]		= sizeof(struct nfulnl_msg_config_cmd),
+	[NFULA_CFG_MODE]	= sizeof(struct nfulnl_msg_config_mode),
+	[NFULA_CFG_TIMEOUT]	= sizeof(u_int32_t),
+	[NFULA_CFG_QTHRESH]	= sizeof(u_int32_t),
+	[NFULA_CFG_NLBUFSIZ]	= sizeof(u_int32_t),
+	[NFULA_CFG_FLAGS]	= sizeof(u_int16_t),
 };
 
 static int
 nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
-		   struct nlmsghdr *nlh, struct nfattr *nfula[])
+		   struct nlmsghdr *nlh, struct nlattr *nfula[])
 {
 	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
 	u_int16_t group_num = ntohs(nfmsg->res_id);
@@ -776,10 +775,10 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	}
 
 	inst = instance_lookup_get(group_num);
-	if (nfula[NFULA_CFG_CMD-1]) {
+	if (nfula[NFULA_CFG_CMD]) {
 		u_int8_t pf = nfmsg->nfgen_family;
 		struct nfulnl_msg_config_cmd *cmd;
-		cmd = NFA_DATA(nfula[NFULA_CFG_CMD-1]);
+		cmd = nla_data(nfula[NFULA_CFG_CMD]);
 		UDEBUG("found CFG_CMD for\n");
 
 		switch (cmd->command) {
@@ -842,38 +841,38 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	if (nfula[NFULA_CFG_MODE-1]) {
+	if (nfula[NFULA_CFG_MODE]) {
 		struct nfulnl_msg_config_mode *params;
-		params = NFA_DATA(nfula[NFULA_CFG_MODE-1]);
+		params = nla_data(nfula[NFULA_CFG_MODE]);
 
 		nfulnl_set_mode(inst, params->copy_mode,
 				ntohl(params->copy_range));
 	}
 
-	if (nfula[NFULA_CFG_TIMEOUT-1]) {
+	if (nfula[NFULA_CFG_TIMEOUT]) {
 		__be32 timeout =
-			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_TIMEOUT-1]);
+			*(__be32 *)nla_data(nfula[NFULA_CFG_TIMEOUT]);
 
 		nfulnl_set_timeout(inst, ntohl(timeout));
 	}
 
-	if (nfula[NFULA_CFG_NLBUFSIZ-1]) {
+	if (nfula[NFULA_CFG_NLBUFSIZ]) {
 		__be32 nlbufsiz =
-			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_NLBUFSIZ-1]);
+			*(__be32 *)nla_data(nfula[NFULA_CFG_NLBUFSIZ]);
 
 		nfulnl_set_nlbufsiz(inst, ntohl(nlbufsiz));
 	}
 
-	if (nfula[NFULA_CFG_QTHRESH-1]) {
+	if (nfula[NFULA_CFG_QTHRESH]) {
 		__be32 qthresh =
-			*(__be32 *)NFA_DATA(nfula[NFULA_CFG_QTHRESH-1]);
+			*(__be32 *)nla_data(nfula[NFULA_CFG_QTHRESH]);
 
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
 
-	if (nfula[NFULA_CFG_FLAGS-1]) {
+	if (nfula[NFULA_CFG_FLAGS]) {
 		__be16 flags =
-			*(__be16 *)NFA_DATA(nfula[NFULA_CFG_FLAGS-1]);
+			*(__be16 *)nla_data(nfula[NFULA_CFG_FLAGS]);
 		nfulnl_set_flags(inst, ntohs(flags));
 	}
 

@@ -363,32 +363,32 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 static int ipv4_tuple_to_nfattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	NFA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t),
+	NLA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t),
 		&tuple->src.u3.ip);
-	NFA_PUT(skb, CTA_IP_V4_DST, sizeof(u_int32_t),
+	NLA_PUT(skb, CTA_IP_V4_DST, sizeof(u_int32_t),
 		&tuple->dst.u3.ip);
 	return 0;
 
-nfattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_ip[CTA_IP_MAX] = {
-	[CTA_IP_V4_SRC-1]       = sizeof(u_int32_t),
-	[CTA_IP_V4_DST-1]       = sizeof(u_int32_t),
+static const size_t cta_min_ip[CTA_IP_MAX+1] = {
+	[CTA_IP_V4_SRC]	= sizeof(u_int32_t),
+	[CTA_IP_V4_DST]	= sizeof(u_int32_t),
 };
 
-static int ipv4_nfattr_to_tuple(struct nfattr *tb[],
+static int ipv4_nfattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *t)
 {
-	if (!tb[CTA_IP_V4_SRC-1] || !tb[CTA_IP_V4_DST-1])
+	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
 	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
 		return -EINVAL;
 
-	t->src.u3.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
-	t->dst.u3.ip = *(__be32 *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
+	t->src.u3.ip = *(__be32 *)nla_data(tb[CTA_IP_V4_SRC]);
+	t->dst.u3.ip = *(__be32 *)nla_data(tb[CTA_IP_V4_DST]);
 
 	return 0;
 }
