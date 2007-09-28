@@ -188,7 +188,7 @@ out_unlock:
 	return NULL;
 }
 
-static int __nfulnl_send(struct nfulnl_instance *inst);
+static void __nfulnl_flush(struct nfulnl_instance *inst);
 
 static void
 __instance_destroy(struct nfulnl_instance *inst)
@@ -202,17 +202,8 @@ __instance_destroy(struct nfulnl_instance *inst)
 	/* then flush all pending packets from skb */
 
 	spin_lock_bh(&inst->lock);
-	if (inst->skb) {
-		/* timer "holds" one reference (we have one more) */
-		if (del_timer(&inst->timer))
-			instance_put(inst);
-		if (inst->qlen)
-			__nfulnl_send(inst);
-		if (inst->skb) {
-			kfree_skb(inst->skb);
-			inst->skb = NULL;
-		}
-	}
+	if (inst->skb)
+		__nfulnl_flush(inst);
 	spin_unlock_bh(&inst->lock);
 
 	/* and finally put the refcount */
@@ -362,6 +353,16 @@ __nfulnl_send(struct nfulnl_instance *inst)
 
 nlmsg_failure:
 	return status;
+}
+
+static void
+__nfulnl_flush(struct nfulnl_instance *inst)
+{
+	/* timer holds a reference */
+	if (del_timer(&inst->timer))
+		instance_put(inst);
+	if (inst->skb)
+		__nfulnl_send(inst);
 }
 
 static void nfulnl_timer(unsigned long data)
@@ -650,10 +651,7 @@ nfulnl_log_packet(unsigned int pf,
 		 * enough room in the skb left. flush to userspace. */
 		UDEBUG("flushing old skb\n");
 
-		/* timer "holds" one reference (we have another one) */
-		if (del_timer(&inst->timer))
-			instance_put(inst);
-		__nfulnl_send(inst);
+		__nfulnl_flush(inst);
 	}
 
 	if (!inst->skb) {
