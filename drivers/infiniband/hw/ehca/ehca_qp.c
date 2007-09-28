@@ -1753,6 +1753,7 @@ int ehca_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr)
 	}
 
 	srq_attr->max_wr = qpcb->max_nr_outst_recv_wr - 1;
+	srq_attr->max_sge = qpcb->actual_nr_sges_in_rq_wqe;
 	srq_attr->srq_limit = EHCA_BMASK_GET(
 		MQPCB_CURR_SRQ_LIMIT, qpcb->curr_srq_limit);
 
