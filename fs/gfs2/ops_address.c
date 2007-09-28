@@ -103,16 +103,15 @@ static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
 }
 
 /**
- * gfs2_writepage - Write complete page
- * @page: Page to write
+ * gfs2_writepage_common - Common bits of writepage
+ * @page: The page to be written
+ * @wbc: The writeback control
  *
- * Returns: errno
- *
- * Some of this is copied from block_write_full_page() although we still
- * call it to do most of the work.
+ * Returns: 1 if writepage is ok, otherwise an error code or zero if no error.
  */
 
-static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
+static int gfs2_writepage_common(struct page *page,
+				 struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -120,23 +119,94 @@ static int gfs2_writepage(struct page *page, struct writeback_control *wbc)
 	loff_t i_size = i_size_read(inode);
 	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
 	unsigned offset;
+	int ret = -EIO;
+
+	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
+		goto out;
+	ret = 0;
+	if (current->journal_info)
+		goto redirty;
+	/* Is the page fully outside i_size? (truncate in progress) */
+	offset = i_size & (PAGE_CACHE_SIZE-1);
+	if (page->index > end_index || (page->index == end_index && !offset)) {
+		page->mapping->a_ops->invalidatepage(page, 0);
+		goto out;
+	}
+	return 1;
+redirty:
+	redirty_page_for_writepage(wbc, page);
+out:
+	unlock_page(page);
+	return 0;
+}
+
+/**
+ * gfs2_writeback_writepage - Write page for writeback mappings
+ * @page: The page
+ * @wbc: The writeback control
+ *
+ */
+
+static int gfs2_writeback_writepage(struct page *page,
+				    struct writeback_control *wbc)
+{
+	int ret;
+
+	ret = gfs2_writepage_common(page, wbc);
+	if (ret <= 0)
+		return ret;
+
+	ret = mpage_writepage(page, gfs2_get_block_noalloc, wbc);
+	if (ret == -EAGAIN)
+		ret = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
+	return ret;
+}
+
+/**
+ * gfs2_ordered_writepage - Write page for ordered data files
+ * @page: The page to write
+ * @wbc: The writeback control
+ *
+ */
+
+static int gfs2_ordered_writepage(struct page *page,
+				  struct writeback_control *wbc)
+{
+	struct inode *inode = page->mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	int ret;
+
+	ret = gfs2_writepage_common(page, wbc);
+	if (ret <= 0)
+		return ret;
+
+	if (!page_has_buffers(page)) {
+		create_empty_buffers(page, inode->i_sb->s_blocksize,
+				     (1 << BH_Dirty)|(1 << BH_Uptodate));
+	}
+	gfs2_page_add_databufs(ip, page, 0, inode->i_sb->s_blocksize-1);
+	return block_write_full_page(page, gfs2_get_block_noalloc, wbc);
+}
+
+/**
+ * gfs2_jdata_writepage - Write complete page
+ * @page: Page to write
+ *
+ * Returns: errno
+ *
+ */
+
+static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc)
+{
+	struct inode *inode = page->mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	int error;
 	int done_trans = 0;
 
-	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl))) {
-		unlock_page(page);
-		return -EIO;
-	}
-	if (current->journal_info)
-		goto out_ignore;
-
-	/* Is the page fully outside i_size? (truncate in progress) */
-        offset = i_size & (PAGE_CACHE_SIZE-1);
-	if (page->index > end_index || (page->index == end_index && !offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0);
-		unlock_page(page);
-		return 0; /* don't care */
-	}
+	error = gfs2_writepage_common(page, wbc);
+	if (error <= 0)
+		return error;
 
 	if (PageChecked(page)) {
 		error = gfs2_trans_begin(sdp, RES_DINODE + 1, 0);
@@ -838,7 +908,7 @@ cannot_release:
 }
 
 static const struct address_space_operations gfs2_writeback_aops = {
-	.writepage = gfs2_writepage,
+	.writepage = gfs2_writeback_writepage,
 	.writepages = gfs2_writeback_writepages,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
@@ -852,7 +922,7 @@ static const struct address_space_operations gfs2_writeback_aops = {
 };
 
 static const struct address_space_operations gfs2_ordered_aops = {
-	.writepage = gfs2_writepage,
+	.writepage = gfs2_ordered_writepage,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,
@@ -866,7 +936,7 @@ static const struct address_space_operations gfs2_ordered_aops = {
 };
 
 static const struct address_space_operations gfs2_jdata_aops = {
-	.writepage = gfs2_writepage,
+	.writepage = gfs2_jdata_writepage,
 	.readpage = gfs2_readpage,
 	.readpages = gfs2_readpages,
 	.sync_page = block_sync_page,

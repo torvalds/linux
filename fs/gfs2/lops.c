@@ -556,17 +556,20 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&bd->bd_list_tr))
-		goto out;
-	tr->tr_touched = 1;
-	if (gfs2_is_jdata(ip)) {
-		tr->tr_num_buf++;
-		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+	if (tr) {
+		if (!list_empty(&bd->bd_list_tr))
+			goto out;
+		tr->tr_touched = 1;
+		if (gfs2_is_jdata(ip)) {
+			tr->tr_num_buf++;
+			list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+		}
 	}
 	if (!list_empty(&le->le_list))
 		goto out;
 
-	__glock_lo_add(sdp, &bd->bd_gl->gl_le);
+	if (tr)
+		__glock_lo_add(sdp, &bd->bd_gl->gl_le);
 	if (gfs2_is_jdata(ip)) {
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
