@@ -570,6 +570,20 @@ config NR_CPUS
 
 source "kernel/Kconfig.preempt"
 
+config GUSA
+	def_bool y
+	depends on !SMP
+	help
+	  This enables support for gUSA (general UserSpace Atomicity).
+	  This is the default implementation for both UP and non-ll/sc
+	  CPUs, and is used by the libc, amongst others.
+
+	  For additional information, design information can be found 
+	  in <http://lc.linux.or.jp/lc2002/papers/niibe0919p.pdf>.
+
+	  This should only be disabled for special cases where alternate
+	  atomicity implementations exist.
+
 endmenu
 
 menu "Boot options"

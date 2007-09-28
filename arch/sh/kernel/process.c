@@ -350,7 +350,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	unlazy_fpu(prev, task_pt_regs(prev));
 #endif
 
-#ifdef CONFIG_PREEMPT
+#if defined(CONFIG_GUSA) && defined(CONFIG_PREEMPT)
 	{
 		struct pt_regs *regs;
 

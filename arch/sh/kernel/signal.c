@@ -507,6 +507,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 						ctrl_inw(regs->pc - 4));
 				break;
 		}
+#ifdef CONFIG_GUSA
 	} else {
 		/* gUSA handling */
 		preempt_disable();
@@ -523,6 +524,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 		}
 
 		preempt_enable_no_resched();
+#endif
 	}
 
 	/* Set up the stack frame */

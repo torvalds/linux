@@ -176,7 +176,7 @@ work_notifysig:
 	jmp	@r1
 	 lds	r0, pr
 work_resched:
-#ifndef CONFIG_PREEMPT
+#if defined(CONFIG_GUSA) && !defined(CONFIG_PREEMPT)
 	! gUSA handling
 	mov.l	@(OFF_SP,r15), r0	! get user space stack pointer
 	mov	r0, r1
