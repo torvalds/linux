@@ -1067,7 +1067,7 @@ static int tcp_new(struct nf_conn *conntrack,
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
-static int tcp_to_nfattr(struct sk_buff *skb, struct nlattr *nla,
+static int tcp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 			 const struct nf_conn *ct)
 {
 	struct nlattr *nest_parms;
@@ -1113,7 +1113,7 @@ static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX+1] = {
 	[CTA_PROTOINFO_TCP_FLAGS_REPLY]	    = sizeof(struct nf_ct_tcp_flags)
 };
 
-static int nfattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
+static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 {
 	struct nlattr *attr = cda[CTA_PROTOINFO_TCP];
 	struct nlattr *tb[CTA_PROTOINFO_TCP_MAX+1];
@@ -1125,7 +1125,7 @@ static int nfattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 
 	nla_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr, NULL);
 
-	if (nfattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
+	if (nlattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
 		return -EINVAL;
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE])
@@ -1387,10 +1387,10 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 	.new 			= tcp_new,
 	.error			= tcp_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.to_nfattr		= tcp_to_nfattr,
-	.from_nfattr		= nfattr_to_tcp,
-	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
-	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+	.to_nlattr		= tcp_to_nlattr,
+	.from_nlattr		= nlattr_to_tcp,
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &tcp_sysctl_table_users,
@@ -1416,10 +1416,10 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 	.new 			= tcp_new,
 	.error			= tcp_error,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.to_nfattr		= tcp_to_nfattr,
-	.from_nfattr		= nfattr_to_tcp,
-	.tuple_to_nfattr	= nf_ct_port_tuple_to_nfattr,
-	.nfattr_to_tuple	= nf_ct_port_nfattr_to_tuple,
+	.to_nlattr		= tcp_to_nlattr,
+	.from_nlattr		= nlattr_to_tcp,
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &tcp_sysctl_table_users,

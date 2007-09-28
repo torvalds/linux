@@ -830,7 +830,7 @@ EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 /* Generic function for tcp/udp/sctp/dccp and alike. This needs to be
  * in ip_conntrack_core, since we don't want the protocols to autoload
  * or depend on ctnetlink */
-int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
+int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple)
 {
 	NLA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
@@ -842,20 +842,20 @@ int nf_ct_port_tuple_to_nfattr(struct sk_buff *skb,
 nla_put_failure:
 	return -1;
 }
-EXPORT_SYMBOL_GPL(nf_ct_port_tuple_to_nfattr);
+EXPORT_SYMBOL_GPL(nf_ct_port_tuple_to_nlattr);
 
 static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
 	[CTA_PROTO_SRC_PORT]  = sizeof(u_int16_t),
 	[CTA_PROTO_DST_PORT]  = sizeof(u_int16_t)
 };
 
-int nf_ct_port_nfattr_to_tuple(struct nlattr *tb[],
+int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t)
 {
 	if (!tb[CTA_PROTO_SRC_PORT] || !tb[CTA_PROTO_DST_PORT])
 		return -EINVAL;
 
-	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+	if (nlattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	t->src.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_SRC_PORT]);
@@ -863,7 +863,7 @@ int nf_ct_port_nfattr_to_tuple(struct nlattr *tb[],
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(nf_ct_port_nfattr_to_tuple);
+EXPORT_SYMBOL_GPL(nf_ct_port_nlattr_to_tuple);
 #endif
 
 /* Used by ipt_REJECT and ip6t_REJECT. */

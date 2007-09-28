@@ -796,7 +796,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_queue_entry *entry;
 	int err;
 
-	if (nfattr_bad_size(nfqa, NFQA_MAX, nfqa_verdict_min)) {
+	if (nlattr_bad_size(nfqa, NFQA_MAX, nfqa_verdict_min)) {
 		QDEBUG("bad attribute size\n");
 		return -EINVAL;
 	}
@@ -876,7 +876,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	QDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
-	if (nfattr_bad_size(nfqa, NFQA_CFG_MAX, nfqa_cfg_min)) {
+	if (nlattr_bad_size(nfqa, NFQA_CFG_MAX, nfqa_cfg_min)) {
 		QDEBUG("bad attribute size\n");
 		return -EINVAL;
 	}

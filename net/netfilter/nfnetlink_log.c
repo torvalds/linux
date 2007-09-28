@@ -769,7 +769,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	UDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
-	if (nfattr_bad_size(nfula, NFULA_CFG_MAX, nfula_cfg_min)) {
+	if (nlattr_bad_size(nfula, NFULA_CFG_MAX, nfula_cfg_min)) {
 		UDEBUG("bad attribute size\n");
 		return -EINVAL;
 	}

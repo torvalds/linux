@@ -544,7 +544,7 @@ EXPORT_SYMBOL(nf_nat_protocol_unregister);
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 int
-nf_nat_port_range_to_nfattr(struct sk_buff *skb,
+nf_nat_port_range_to_nlattr(struct sk_buff *skb,
 			    const struct nf_nat_range *range)
 {
 	NLA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(__be16),
@@ -557,10 +557,10 @@ nf_nat_port_range_to_nfattr(struct sk_buff *skb,
 nla_put_failure:
 	return -1;
 }
-EXPORT_SYMBOL_GPL(nf_nat_port_nfattr_to_range);
+EXPORT_SYMBOL_GPL(nf_nat_port_nlattr_to_range);
 
 int
-nf_nat_port_nfattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
+nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 {
 	int ret = 0;
 
@@ -583,7 +583,7 @@ nf_nat_port_nfattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nfattr);
+EXPORT_SYMBOL_GPL(nf_nat_port_range_to_nlattr);
 #endif
 
 /* Noone using conntrack by the time this called. */

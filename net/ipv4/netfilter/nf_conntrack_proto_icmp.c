@@ -232,7 +232,7 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
-static int icmp_tuple_to_nfattr(struct sk_buff *skb,
+static int icmp_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *t)
 {
 	NLA_PUT(skb, CTA_PROTO_ICMP_ID, sizeof(u_int16_t),
@@ -254,7 +254,7 @@ static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
 	[CTA_PROTO_ICMP_ID]	= sizeof(u_int16_t)
 };
 
-static int icmp_nfattr_to_tuple(struct nlattr *tb[],
+static int icmp_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *tuple)
 {
 	if (!tb[CTA_PROTO_ICMP_TYPE]
@@ -262,7 +262,7 @@ static int icmp_nfattr_to_tuple(struct nlattr *tb[],
 	    || !tb[CTA_PROTO_ICMP_ID])
 		return -EINVAL;
 
-	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+	if (nlattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type =
@@ -327,8 +327,8 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.destroy		= NULL,
 	.me			= NULL,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.tuple_to_nfattr	= icmp_tuple_to_nfattr,
-	.nfattr_to_tuple	= icmp_nfattr_to_tuple,
+	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
+	.nlattr_to_tuple	= icmp_nlattr_to_tuple,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_header	= &icmp_sysctl_header,

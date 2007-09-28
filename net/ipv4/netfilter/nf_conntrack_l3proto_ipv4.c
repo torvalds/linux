@@ -360,7 +360,7 @@ getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
-static int ipv4_tuple_to_nfattr(struct sk_buff *skb,
+static int ipv4_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
 	NLA_PUT(skb, CTA_IP_V4_SRC, sizeof(u_int32_t),
@@ -378,13 +378,13 @@ static const size_t cta_min_ip[CTA_IP_MAX+1] = {
 	[CTA_IP_V4_DST]	= sizeof(u_int32_t),
 };
 
-static int ipv4_nfattr_to_tuple(struct nlattr *tb[],
+static int ipv4_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *t)
 {
 	if (!tb[CTA_IP_V4_SRC] || !tb[CTA_IP_V4_DST])
 		return -EINVAL;
 
-	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
+	if (nlattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
 		return -EINVAL;
 
 	t->src.u3.ip = *(__be32 *)nla_data(tb[CTA_IP_V4_SRC]);
@@ -411,8 +411,8 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.print_conntrack = ipv4_print_conntrack,
 	.get_l4proto	 = ipv4_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.tuple_to_nfattr = ipv4_tuple_to_nfattr,
-	.nfattr_to_tuple = ipv4_nfattr_to_tuple,
+	.tuple_to_nlattr = ipv4_tuple_to_nlattr,
+	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
 #endif
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
 	.ctl_table_path  = nf_net_ipv4_netfilter_sysctl_path,

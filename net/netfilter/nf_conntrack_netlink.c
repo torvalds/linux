@@ -61,8 +61,8 @@ ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 		goto nla_put_failure;
 	NLA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
 
-	if (likely(l4proto->tuple_to_nfattr))
-		ret = l4proto->tuple_to_nfattr(skb, tuple);
+	if (likely(l4proto->tuple_to_nlattr))
+		ret = l4proto->tuple_to_nlattr(skb, tuple);
 
 	nla_nest_end(skb, nest_parms);
 
@@ -84,8 +84,8 @@ ctnetlink_dump_tuples_ip(struct sk_buff *skb,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	if (likely(l3proto->tuple_to_nfattr))
-		ret = l3proto->tuple_to_nfattr(skb, tuple);
+	if (likely(l3proto->tuple_to_nlattr))
+		ret = l3proto->tuple_to_nlattr(skb, tuple);
 
 	nla_nest_end(skb, nest_parms);
 
@@ -153,7 +153,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
 	struct nlattr *nest_proto;
 	int ret;
 
-	if (!l4proto->to_nfattr) {
+	if (!l4proto->to_nlattr) {
 		nf_ct_l4proto_put(l4proto);
 		return 0;
 	}
@@ -162,7 +162,7 @@ ctnetlink_dump_protoinfo(struct sk_buff *skb, const struct nf_conn *ct)
 	if (!nest_proto)
 		goto nla_put_failure;
 
-	ret = l4proto->to_nfattr(skb, nest_proto, ct);
+	ret = l4proto->to_nlattr(skb, nest_proto, ct);
 
 	nf_ct_l4proto_put(l4proto);
 
@@ -195,8 +195,8 @@ ctnetlink_dump_helpinfo(struct sk_buff *skb, const struct nf_conn *ct)
 		goto nla_put_failure;
 	NLA_PUT(skb, CTA_HELP_NAME, strlen(helper->name), helper->name);
 
-	if (helper->to_nfattr)
-		helper->to_nfattr(skb, ct);
+	if (helper->to_nlattr)
+		helper->to_nlattr(skb, ct);
 
 	nla_nest_end(skb, nest_helper);
 out:
@@ -512,8 +512,8 @@ ctnetlink_parse_tuple_ip(struct nlattr *attr, struct nf_conntrack_tuple *tuple)
 
 	l3proto = nf_ct_l3proto_find_get(tuple->src.l3num);
 
-	if (likely(l3proto->nfattr_to_tuple))
-		ret = l3proto->nfattr_to_tuple(tb, tuple);
+	if (likely(l3proto->nlattr_to_tuple))
+		ret = l3proto->nlattr_to_tuple(tb, tuple);
 
 	nf_ct_l3proto_put(l3proto);
 
@@ -534,7 +534,7 @@ ctnetlink_parse_tuple_proto(struct nlattr *attr,
 
 	nla_parse_nested(tb, CTA_PROTO_MAX, attr, NULL);
 
-	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
+	if (nlattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	if (!tb[CTA_PROTO_NUM])
@@ -543,8 +543,8 @@ ctnetlink_parse_tuple_proto(struct nlattr *attr,
 
 	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
 
-	if (likely(l4proto->nfattr_to_tuple))
-		ret = l4proto->nfattr_to_tuple(tb, tuple);
+	if (likely(l4proto->nlattr_to_tuple))
+		ret = l4proto->nlattr_to_tuple(tb, tuple);
 
 	nf_ct_l4proto_put(l4proto);
 
@@ -602,18 +602,18 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 
 	nla_parse_nested(tb, CTA_PROTONAT_MAX, attr, NULL);
 
-	if (nfattr_bad_size(tb, CTA_PROTONAT_MAX, cta_min_protonat))
+	if (nlattr_bad_size(tb, CTA_PROTONAT_MAX, cta_min_protonat))
 		return -EINVAL;
 
 	npt = nf_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 
-	if (!npt->nfattr_to_range) {
+	if (!npt->nlattr_to_range) {
 		nf_nat_proto_put(npt);
 		return 0;
 	}
 
-	/* nfattr_to_range returns 1 if it parsed, 0 if not, neg. on error */
-	if (npt->nfattr_to_range(tb, range) > 0)
+	/* nlattr_to_range returns 1 if it parsed, 0 if not, neg. on error */
+	if (npt->nlattr_to_range(tb, range) > 0)
 		range->flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
 
 	nf_nat_proto_put(npt);
@@ -637,7 +637,7 @@ nfnetlink_parse_nat(struct nlattr *nat,
 
 	nla_parse_nested(tb, CTA_NAT_MAX, nat, NULL);
 
-	if (nfattr_bad_size(tb, CTA_NAT_MAX, cta_min_nat))
+	if (nlattr_bad_size(tb, CTA_NAT_MAX, cta_min_nat))
 		return -EINVAL;
 
 	if (tb[CTA_NAT_MINIP])
@@ -696,7 +696,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	u_int8_t u3 = nfmsg->nfgen_family;
 	int err = 0;
 
-	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
+	if (nlattr_bad_size(cda, CTA_MAX, cta_min))
 		return -EINVAL;
 
 	if (cda[CTA_TUPLE_ORIG])
@@ -754,7 +754,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 					  ctnetlink_done);
 	}
 
-	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
+	if (nlattr_bad_size(cda, CTA_MAX, cta_min))
 		return -EINVAL;
 
 	if (cda[CTA_TUPLE_ORIG])
@@ -928,8 +928,8 @@ ctnetlink_change_protoinfo(struct nf_conn *ct, struct nlattr *cda[])
 
 	l4proto = nf_ct_l4proto_find_get(l3num, npt);
 
-	if (l4proto->from_nfattr)
-		err = l4proto->from_nfattr(tb, ct);
+	if (l4proto->from_nlattr)
+		err = l4proto->from_nlattr(tb, ct);
 	nf_ct_l4proto_put(l4proto);
 
 	return err;
@@ -1045,7 +1045,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	u_int8_t u3 = nfmsg->nfgen_family;
 	int err = 0;
 
-	if (nfattr_bad_size(cda, CTA_MAX, cta_min))
+	if (nlattr_bad_size(cda, CTA_MAX, cta_min))
 		return -EINVAL;
 
 	if (cda[CTA_TUPLE_ORIG]) {
@@ -1329,7 +1329,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	u_int8_t u3 = nfmsg->nfgen_family;
 	int err = 0;
 
-	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
+	if (nlattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
 		return -EINVAL;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
@@ -1393,7 +1393,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 	unsigned int i;
 	int err;
 
-	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
+	if (nlattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
 		return -EINVAL;
 
 	if (cda[CTA_EXPECT_TUPLE]) {
@@ -1534,7 +1534,7 @@ ctnetlink_new_expect(struct sock *ctnl, struct sk_buff *skb,
 	u_int8_t u3 = nfmsg->nfgen_family;
 	int err = 0;
 
-	if (nfattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
+	if (nlattr_bad_size(cda, CTA_EXPECT_MAX, cta_min_exp))
 		return -EINVAL;
 
 	if (!cda[CTA_EXPECT_TUPLE]

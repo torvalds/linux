@@ -72,7 +72,7 @@ struct nfnetlink_subsystem
 extern int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n);
 
-#define nfattr_bad_size(tb, max, cta_min)				\
+#define nlattr_bad_size(tb, max, cta_min)				\
 ({	int __i, __res = 0;						\
 	for (__i=1; __i <= max; __i++) {					\
  		if (!cta_min[__i])					\
