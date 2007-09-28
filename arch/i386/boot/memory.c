@@ -28,11 +28,14 @@ static int detect_memory_e820(void)
 
 	do {
 		size = sizeof(struct e820entry);
-		id = SMAP;
+
+		/* Important: %edx is clobbered by some BIOSes,
+		   so it must be either used for the error output
+		   or explicitly marked clobbered. */
 		asm("int $0x15; setc %0"
-		    : "=am" (err), "+b" (next), "+d" (id), "+c" (size),
+		    : "=d" (err), "+b" (next), "=a" (id), "+c" (size),
 		      "=m" (*desc)
-		    : "D" (desc), "a" (0xe820));
+		    : "D" (desc), "d" (SMAP), "a" (0xe820));
 
 		/* Some BIOSes stop returning SMAP in the middle of
 		   the search loop.  We don't know exactly how the BIOS
