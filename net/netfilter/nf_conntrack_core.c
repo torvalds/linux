@@ -844,18 +844,16 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(nf_ct_port_tuple_to_nlattr);
 
-static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
-	[CTA_PROTO_SRC_PORT]  = sizeof(u_int16_t),
-	[CTA_PROTO_DST_PORT]  = sizeof(u_int16_t)
+const struct nla_policy nf_ct_port_nla_policy[CTA_PROTO_MAX+1] = {
+	[CTA_PROTO_SRC_PORT]  = { .type = NLA_U16 },
+	[CTA_PROTO_DST_PORT]  = { .type = NLA_U16 },
 };
+EXPORT_SYMBOL_GPL(nf_ct_port_nla_policy);
 
 int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t)
 {
 	if (!tb[CTA_PROTO_SRC_PORT] || !tb[CTA_PROTO_DST_PORT])
-		return -EINVAL;
-
-	if (nlattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	t->src.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_SRC_PORT]);

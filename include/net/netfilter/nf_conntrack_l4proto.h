@@ -10,6 +10,7 @@
 #ifndef _NF_CONNTRACK_L4PROTO_H
 #define _NF_CONNTRACK_L4PROTO_H
 #include <linux/netlink.h>
+#include <net/netlink.h>
 #include <net/netfilter/nf_conntrack.h>
 
 struct seq_file;
@@ -75,6 +76,7 @@ struct nf_conntrack_l4proto
 			       const struct nf_conntrack_tuple *t);
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
+	const struct nla_policy *nla_policy;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	**ctl_table_header;
@@ -115,6 +117,7 @@ extern int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 				      const struct nf_conntrack_tuple *tuple);
 extern int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 				      struct nf_conntrack_tuple *t);
+extern const struct nla_policy nf_ct_port_nla_policy[];
 
 /* Log invalid packets */
 extern unsigned int nf_ct_log_invalid;

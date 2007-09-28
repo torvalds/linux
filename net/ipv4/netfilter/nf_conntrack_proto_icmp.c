@@ -248,10 +248,10 @@ nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_proto[CTA_PROTO_MAX+1] = {
-	[CTA_PROTO_ICMP_TYPE]	= sizeof(u_int8_t),
-	[CTA_PROTO_ICMP_CODE]	= sizeof(u_int8_t),
-	[CTA_PROTO_ICMP_ID]	= sizeof(u_int16_t)
+static const struct nla_policy icmp_nla_policy[CTA_PROTO_MAX+1] = {
+	[CTA_PROTO_ICMP_TYPE]	= { .type = NLA_U8 },
+	[CTA_PROTO_ICMP_CODE]	= { .type = NLA_U8 },
+	[CTA_PROTO_ICMP_ID]	= { .type = NLA_U16 },
 };
 
 static int icmp_nlattr_to_tuple(struct nlattr *tb[],
@@ -260,9 +260,6 @@ static int icmp_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_PROTO_ICMP_TYPE]
 	    || !tb[CTA_PROTO_ICMP_CODE]
 	    || !tb[CTA_PROTO_ICMP_ID])
-		return -EINVAL;
-
-	if (nlattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
 
 	tuple->dst.u.icmp.type =
@@ -329,6 +326,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr	= icmp_tuple_to_nlattr,
 	.nlattr_to_tuple	= icmp_nlattr_to_tuple,
+	.nla_policy		= icmp_nla_policy,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_header	= &icmp_sysctl_header,

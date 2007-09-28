@@ -1105,28 +1105,28 @@ nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX+1] = {
-	[CTA_PROTOINFO_TCP_STATE]	    = sizeof(u_int8_t),
-	[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL] = sizeof(u_int8_t),
-	[CTA_PROTOINFO_TCP_WSCALE_REPLY]    = sizeof(u_int8_t),
-	[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL]  = sizeof(struct nf_ct_tcp_flags),
-	[CTA_PROTOINFO_TCP_FLAGS_REPLY]	    = sizeof(struct nf_ct_tcp_flags)
+static const struct nla_policy tcp_nla_policy[CTA_PROTOINFO_TCP_MAX+1] = {
+	[CTA_PROTOINFO_TCP_STATE]	    = { .type = NLA_U8 },
+	[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL] = { .type = NLA_U8 },
+	[CTA_PROTOINFO_TCP_WSCALE_REPLY]    = { .type = NLA_U8 },
+	[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL]  = { .len = sizeof(struct nf_ct_tcp_flags) },
+	[CTA_PROTOINFO_TCP_FLAGS_REPLY]	    = { .len =  sizeof(struct nf_ct_tcp_flags) },
 };
 
 static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 {
 	struct nlattr *attr = cda[CTA_PROTOINFO_TCP];
 	struct nlattr *tb[CTA_PROTOINFO_TCP_MAX+1];
+	int err;
 
 	/* updates could not contain anything about the private
 	 * protocol info, in that case skip the parsing */
 	if (!attr)
 		return 0;
 
-	nla_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr, NULL);
-
-	if (nlattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
-		return -EINVAL;
+	err = nla_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr, tcp_nla_policy);
+	if (err < 0)
+		return err;
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE])
 		return -EINVAL;
@@ -1391,6 +1391,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp4 __read_mostly =
 	.from_nlattr		= nlattr_to_tcp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nla_policy		= nf_ct_port_nla_policy,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &tcp_sysctl_table_users,
@@ -1420,6 +1421,7 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_tcp6 __read_mostly =
 	.from_nlattr		= nlattr_to_tcp,
 	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
 	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nla_policy		= nf_ct_port_nla_policy,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_users	= &tcp_sysctl_table_users,
