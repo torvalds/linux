@@ -2186,8 +2186,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		tcon->ses = pSesInfo;
 
 		/* do not care if following two calls succeed - informational */
-		CIFSSMBQFSDeviceInfo(xid, tcon);
-		CIFSSMBQFSAttributeInfo(xid, tcon);
+		if (!tcon->ipc) {
+			CIFSSMBQFSDeviceInfo(xid, tcon);
+			CIFSSMBQFSAttributeInfo(xid, tcon);
+		}
 
 		/* tell server which Unix caps we support */
 		if (tcon->ses->capabilities & CAP_UNIX)
@@ -3385,6 +3387,18 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr = pByteArea(smb_buffer_response);
 		length = strnlen(bcc_ptr, BCC(smb_buffer_response) - 2);
 		/* skip service field (NB: this field is always ASCII) */
+		if (length == 3) {
+			if ((bcc_ptr[0] == 'I') && (bcc_ptr[1] == 'P') &&
+			    (bcc_ptr[2] == 'C')) {
+				cFYI(1, ("IPC connection"));
+				tcon->ipc = 1;
+			}
+		} else if (length == 2) {
+			if ((bcc_ptr[0] == 'A') && (bcc_ptr[1] == ':')) {
+				/* the most common case */
+				cFYI(1, ("disk share connection"));
+			}
+		}
 		bcc_ptr += length + 1;
 		strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
 		if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {

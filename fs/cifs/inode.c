@@ -115,7 +115,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode->i_mode = le64_to_cpu(findData.Permissions);
 		/* since we set the inode type below we need to mask off
 		   to avoid strange results if bits set above */
-			inode->i_mode &= ~S_IFMT;
+		inode->i_mode &= ~S_IFMT;
 		if (type == UNIX_FILE) {
 			inode->i_mode |= S_IFREG;
 		} else if (type == UNIX_SYMLINK) {
@@ -575,19 +575,33 @@ int cifs_get_inode_info(struct inode **pinode,
 	return rc;
 }
 
+static const struct inode_operations cifs_ipc_inode_ops = {
+	.lookup = cifs_lookup,
+};
+
 /* gets root inode */
 void cifs_read_inode(struct inode *inode)
 {
-	int xid;
+	int xid, rc;
 	struct cifs_sb_info *cifs_sb;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	xid = GetXid();
 
 	if (cifs_sb->tcon->unix_ext)
-		cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, "", inode->i_sb, xid);
 	else
-		cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+		rc = cifs_get_inode_info(&inode, "", NULL, inode->i_sb, xid);
+	if (rc && cifs_sb->tcon->ipc) {
+		cFYI(1, ("ipc connection - fake read inode"));
+		inode->i_mode |= S_IFDIR;
+		inode->i_nlink = 2;
+		inode->i_op = &cifs_ipc_inode_ops;
+		inode->i_fop = &simple_dir_operations;
+		inode->i_uid = cifs_sb->mnt_uid;
+		inode->i_gid = cifs_sb->mnt_gid;
+	}
+
 	/* can not call macro FreeXid here since in a void func */
 	_FreeXid(xid);
 }

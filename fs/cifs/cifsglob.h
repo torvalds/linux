@@ -291,6 +291,7 @@ struct cifsTconInfo {
 	FILE_SYSTEM_DEVICE_INFO fsDevInfo;
 	FILE_SYSTEM_ATTRIBUTE_INFO fsAttrInfo; /* ok if fs name truncated */
 	FILE_SYSTEM_UNIX_INFO fsUnixInfo;
+	unsigned ipc:1;		/* set if connection to IPC$ eg for RPC/PIPES */
 	unsigned retry:1;
 	unsigned nocase:1;
 	unsigned unix_ext:1; /* if off disable Linux extensions to CIFS protocol
@@ -341,6 +342,7 @@ struct cifsFileInfo {
 	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
+	unsigned messageMode:1    /* for pipes: is message or byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char *search_resume_name; /* BB removeme BB */
