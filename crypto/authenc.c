@@ -312,12 +312,12 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s, %u, %s, %u)", auth->cra_name, authsize,
+		     "authenc(%s,%u,%s,%u)", auth->cra_name, authsize,
 		     enc->cra_name, enckeylen) >= CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
 
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s, %u, %s, %u)", auth->cra_driver_name,
+		     "authenc(%s,%u,%s,%u)", auth->cra_driver_name,
 		     authsize, enc->cra_driver_name, enckeylen) >=
 	    CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
