@@ -70,7 +70,7 @@ config B43_LEDS
 # RFKILL support
 config B43_RFKILL
 	bool
-	depends on B43 && RFKILL
+	depends on B43 && RFKILL && RFKILL_INPUT && INPUT_POLLDEV
 	default y
 
 config B43_DEBUG
