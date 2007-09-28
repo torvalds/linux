@@ -148,16 +148,7 @@ EXPORT_SYMBOL_GPL(nfnetlink_has_listeners);
 
 int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
-	int err = 0;
-
-	NETLINK_CB(skb).dst_group = group;
-	if (echo)
-		atomic_inc(&skb->users);
-	netlink_broadcast(nfnl, skb, pid, group, gfp_any());
-	if (echo)
-		err = netlink_unicast(nfnl, skb, pid, MSG_DONTWAIT);
-
-	return err;
+	return nlmsg_notify(nfnl, skb, pid, group, echo, gfp_any());
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
