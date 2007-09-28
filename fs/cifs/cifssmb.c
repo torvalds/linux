@@ -4045,10 +4045,6 @@ oldQFSInfoRetry:
 		(void **) &pSMBr);
 	if (rc)
 		return rc;
-	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
-	if (rc)
-		return rc;
 
 	params = 2;     /* level */
 	pSMB->TotalDataCount = 0;

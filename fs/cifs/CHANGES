@@ -1,3 +1,8 @@
+Version 1.51
+------------
+Fix memory leak in statfs when mounted to very old servers (e.g.
+Windows 9x)
+
 Version 1.50
 ------------
 Fix NTLMv2 signing. NFS server mounted over cifs works (if cifs mount is
