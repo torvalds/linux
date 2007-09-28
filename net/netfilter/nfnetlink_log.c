@@ -644,9 +644,8 @@ nfulnl_log_packet(unsigned int pf,
 		goto unlock_and_release;
 	}
 
-	if (inst->qlen >= qthreshold ||
-	    (inst->skb && size >
-	     skb_tailroom(inst->skb) - sizeof(struct nfgenmsg))) {
+	if (inst->skb &&
+	    size > skb_tailroom(inst->skb) - sizeof(struct nfgenmsg)) {
 		/* either the queue len is too high or we don't have
 		 * enough room in the skb left. flush to userspace. */
 		UDEBUG("flushing old skb\n");
@@ -666,9 +665,11 @@ nfulnl_log_packet(unsigned int pf,
 	__build_packet_message(inst, skb, data_len, pf,
 				hooknum, in, out, li, prefix, plen);
 
+	if (inst->qlen >= qthreshold)
+		__nfulnl_flush(inst);
 	/* timer_pending always called within inst->lock, so there
 	 * is no chance of a race here */
-	if (!timer_pending(&inst->timer)) {
+	else if (!timer_pending(&inst->timer)) {
 		instance_get(inst);
 		inst->timer.expires = jiffies + (inst->flushtimeout*HZ/100);
 		add_timer(&inst->timer);
