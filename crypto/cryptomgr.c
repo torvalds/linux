@@ -129,6 +129,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 			}
 
 			notnum = 1;
+			p++;
 		}
 
 		len = p - name;
@@ -151,7 +152,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 		param->tb[i + 1] = &param->attrs[i].attr;
 		i++;
 
-		if (WARN_ON(i >= CRYPTO_MAX_ATTRS))
+		if (i >= CRYPTO_MAX_ATTRS)
 			goto err_free_param;
 
 		if (*p == ')')
