@@ -116,9 +116,6 @@ struct nf_conn
 	struct ip_conntrack_counter counters[IP_CT_DIR_MAX];
 #endif
 
-	/* Unique ID that identifies this conntrack*/
-	unsigned int id;
-
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	u_int32_t mark;
 #endif
