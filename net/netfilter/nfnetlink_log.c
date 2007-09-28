@@ -301,8 +301,8 @@ nfulnl_set_flags(struct nfulnl_instance *inst, u_int16_t flags)
 	return 0;
 }
 
-static struct sk_buff *nfulnl_alloc_skb(unsigned int inst_size,
-					unsigned int pkt_size)
+static struct sk_buff *
+nfulnl_alloc_skb(unsigned int inst_size, unsigned int pkt_size)
 {
 	struct sk_buff *skb;
 	unsigned int n;
@@ -365,7 +365,8 @@ __nfulnl_flush(struct nfulnl_instance *inst)
 		__nfulnl_send(inst);
 }
 
-static void nfulnl_timer(unsigned long data)
+static void
+nfulnl_timer(unsigned long data)
 {
 	struct nfulnl_instance *inst = (struct nfulnl_instance *)data;
 
