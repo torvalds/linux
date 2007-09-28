@@ -1453,6 +1453,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_IF_TYPE_MNTR:
 		/* take everything */
 		break;
+	case IEEE80211_IF_TYPE_INVALID:
 	case IEEE80211_IF_TYPE_MGMT:
 		/* should never get here */
 		WARN_ON(1);

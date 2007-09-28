@@ -297,7 +297,7 @@ struct interface {
 	 * When set to INVALID_INTERFACE, no interface is configured.
 	 */
 	int type;
-#define INVALID_INTERFACE	IEEE80211_IF_TYPE_MGMT
+#define INVALID_INTERFACE	IEEE80211_IF_TYPE_INVALID
 
 	/*
 	 * MAC of the device.

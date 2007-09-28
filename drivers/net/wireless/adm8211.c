@@ -1555,7 +1555,7 @@ static void adm8211_stop(struct ieee80211_hw *dev)
 {
 	struct adm8211_priv *priv = dev->priv;
 
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_INVALID;
 	priv->nar = 0;
 	ADM8211_CSR_WRITE(NAR, 0);
 	ADM8211_CSR_WRITE(IER, 0);
@@ -1898,7 +1898,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	priv->tx_power = 0x40;
 	priv->lpf_cutoff = 0xFF;
 	priv->lnags_threshold = 0xFF;
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_INVALID;
 
 	/* Power-on issue. EEPROM won't read correctly without */
 	if (pdev->revision >= ADM8211_REV_BA) {
@@ -1993,7 +1993,7 @@ static int adm8211_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct adm8211_priv *priv = dev->priv;
 
-	if (priv->mode != IEEE80211_IF_TYPE_MGMT) {
+	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
 		ieee80211_stop_queues(dev);
 		adm8211_stop(dev);
 	}
@@ -2011,7 +2011,7 @@ static int adm8211_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	if (priv->mode != IEEE80211_IF_TYPE_MGMT) {
+	if (priv->mode != IEEE80211_IF_TYPE_INVALID) {
 		adm8211_start(dev);
 		ieee80211_start_queues(dev);
 	}

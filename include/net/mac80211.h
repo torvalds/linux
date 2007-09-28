@@ -457,6 +457,8 @@ struct ieee80211_conf {
 /**
  * enum ieee80211_if_types - types of 802.11 network interfaces
  *
+ * @IEEE80211_IF_TYPE_INVALID: invalid interface type, not used
+ *	by mac80211 itself
  * @IEEE80211_IF_TYPE_AP: interface in AP mode.
  * @IEEE80211_IF_TYPE_MGMT: special interface for communication with hostap
  *	daemon. Drivers should never see this type.
@@ -468,6 +470,7 @@ struct ieee80211_conf {
  *	will never see this type.
  */
 enum ieee80211_if_types {
+	IEEE80211_IF_TYPE_INVALID,
 	IEEE80211_IF_TYPE_AP,
 	IEEE80211_IF_TYPE_MGMT,
 	IEEE80211_IF_TYPE_STA,

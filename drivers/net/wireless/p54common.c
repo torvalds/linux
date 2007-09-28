@@ -797,7 +797,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 		kfree_skb(skb);
 	}
 	priv->stop(dev);
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_INVALID;
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
@@ -949,7 +949,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		return NULL;
 
 	priv = dev->priv;
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_INVALID;
 	skb_queue_head_init(&priv->tx_queue);
 	memcpy(priv->channels, p54_channels, sizeof(p54_channels));
 	memcpy(priv->rates, p54_rates, sizeof(p54_rates));

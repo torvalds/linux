@@ -351,6 +351,10 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_IBSS:
 		/* no special treatment */
 		break;
+	case IEEE80211_IF_TYPE_INVALID:
+		/* cannot happen */
+		WARN_ON(1);
+		break;
 	}
 
 	if (local->open_count == 0) {
