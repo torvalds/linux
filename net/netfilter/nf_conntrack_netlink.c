@@ -4,7 +4,7 @@
  * (C) 2001 by Jay Schulist <jschlst@samba.org>
  * (C) 2002-2006 by Harald Welte <laforge@gnumonks.org>
  * (C) 2003 by Patrick Mchardy <kaber@trash.net>
- * (C) 2005-2006 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * Initial connection tracking via netlink development funded and
  * generally made possible by Network Robots, Inc. (www.networkrobots.com)
@@ -975,7 +975,8 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 static int
 ctnetlink_create_conntrack(struct nlattr *cda[],
 			   struct nf_conntrack_tuple *otuple,
-			   struct nf_conntrack_tuple *rtuple)
+			   struct nf_conntrack_tuple *rtuple,
+			   struct nf_conn *master_ct)
 {
 	struct nf_conn *ct;
 	int err = -EINVAL;
@@ -1022,6 +1023,10 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		rcu_assign_pointer(help->helper, helper);
 	}
 
+	/* setup master conntrack: this is a confirmed expectation */
+	if (master_ct)
+		ct->master = master_ct;
+
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
 
@@ -1064,10 +1069,37 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		h = __nf_conntrack_find(&rtuple, NULL);
 
 	if (h == NULL) {
+		struct nf_conntrack_tuple master;
+		struct nf_conntrack_tuple_hash *master_h = NULL;
+		struct nf_conn *master_ct = NULL;
+
+		if (cda[CTA_TUPLE_MASTER]) {
+			err = ctnetlink_parse_tuple(cda,
+						    &master,
+						    CTA_TUPLE_MASTER,
+						    u3);
+			if (err < 0)
+				return err;
+
+			master_h = __nf_conntrack_find(&master, NULL);
+			if (master_h == NULL) {
+				err = -ENOENT;
+				goto out_unlock;
+			}
+			master_ct = nf_ct_tuplehash_to_ctrack(master_h);
+			atomic_inc(&master_ct->ct_general.use);
+		}
+
 		write_unlock_bh(&nf_conntrack_lock);
 		err = -ENOENT;
 		if (nlh->nlmsg_flags & NLM_F_CREATE)
-			err = ctnetlink_create_conntrack(cda, &otuple, &rtuple);
+			err = ctnetlink_create_conntrack(cda,
+							 &otuple,
+							 &rtuple,
+							 master_ct);
+		if (err < 0 && master_ct)
+			nf_ct_put(master_ct);
+
 		return err;
 	}
 	/* implicit 'else' */
@@ -1078,6 +1110,11 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	if (!(nlh->nlmsg_flags & NLM_F_EXCL)) {
 		/* we only allow nat config for new conntracks */
 		if (cda[CTA_NAT_SRC] || cda[CTA_NAT_DST]) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		/* can't link an existing conntrack to a master */
+		if (cda[CTA_TUPLE_MASTER]) {
 			err = -EINVAL;
 			goto out_unlock;
 		}
