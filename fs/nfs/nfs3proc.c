@@ -727,9 +727,9 @@ static int nfs3_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
 	if (nfs3_async_handle_jukebox(task, data->inode))
 		return -EAGAIN;
-	/* Call back common NFS readpage processing */
-	if (task->tk_status >= 0)
-		nfs_refresh_inode(data->inode, &data->fattr);
+
+	nfs_invalidate_atime(data->inode);
+	nfs_refresh_inode(data->inode, &data->fattr);
 	return 0;
 }
 

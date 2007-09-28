@@ -2396,6 +2396,8 @@ static int nfs4_read_done(struct rpc_task *task, struct nfs_read_data *data)
 		rpc_restart_call(task);
 		return -EAGAIN;
 	}
+
+	nfs_invalidate_atime(data->inode);
 	if (task->tk_status > 0)
 		renew_lease(server, data->timestamp);
 	return 0;
