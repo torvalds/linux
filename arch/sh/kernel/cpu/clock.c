@@ -83,6 +83,8 @@ static void propagate_rate(struct clk *clk)
 			continue;
 		if (likely(clkp->ops && clkp->ops->recalc))
 			clkp->ops->recalc(clkp);
+		if (unlikely(clkp->flags & CLK_RATE_PROPAGATES))
+			propagate_rate(clkp);
 	}
 }
 
