@@ -152,6 +152,11 @@ instance_create(u_int16_t group_num, int pid)
 	if (!inst)
 		goto out_unlock;
 
+	if (!try_module_get(THIS_MODULE)) {
+		kfree(inst);
+		goto out_unlock;
+	}
+
 	INIT_HLIST_NODE(&inst->hlist);
 	spin_lock_init(&inst->lock);
 	/* needs to be two, since we _put() after creation */
@@ -168,9 +173,6 @@ instance_create(u_int16_t group_num, int pid)
 	inst->copy_mode 	= NFULNL_COPY_PACKET;
 	inst->copy_range 	= 0xffff;
 
-	if (!try_module_get(THIS_MODULE))
-		goto out_free;
-
 	hlist_add_head(&inst->hlist,
 		       &instance_table[instance_hashfn(group_num)]);
 
@@ -181,8 +183,6 @@ instance_create(u_int16_t group_num, int pid)
 
 	return inst;
 
-out_free:
-	instance_put(inst);
 out_unlock:
 	write_unlock_bh(&instances_lock);
 	return NULL;
