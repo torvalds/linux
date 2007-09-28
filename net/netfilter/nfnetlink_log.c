@@ -37,8 +37,9 @@
 #endif
 
 #define NFULNL_NLBUFSIZ_DEFAULT	NLMSG_GOODSIZE
-#define NFULNL_TIMEOUT_DEFAULT 	100	/* every second */
+#define NFULNL_TIMEOUT_DEFAULT 	HZ	/* every second */
 #define NFULNL_QTHRESH_DEFAULT 	100	/* 100 packets */
+#define NFULNL_COPY_RANGE_MAX	0xFFFF	/* max packet size is limited by 16-bit struct nfattr nfa_len field */
 
 #define PRINTR(x, args...)	do { if (net_ratelimit()) \
 				     printk(x, ## args); } while (0);
@@ -171,7 +172,7 @@ instance_create(u_int16_t group_num, int pid)
 	inst->flushtimeout 	= NFULNL_TIMEOUT_DEFAULT;
 	inst->nlbufsiz 		= NFULNL_NLBUFSIZ_DEFAULT;
 	inst->copy_mode 	= NFULNL_COPY_PACKET;
-	inst->copy_range 	= 0xffff;
+	inst->copy_range 	= NFULNL_COPY_RANGE_MAX;
 
 	hlist_add_head(&inst->hlist,
 		       &instance_table[instance_hashfn(group_num)]);
@@ -235,11 +236,8 @@ nfulnl_set_mode(struct nfulnl_instance *inst, u_int8_t mode,
 
 	case NFULNL_COPY_PACKET:
 		inst->copy_mode = mode;
-		/* we're using struct nlattr which has 16bit nfa_len */
-		if (range > 0xffff)
-			inst->copy_range = 0xffff;
-		else
-			inst->copy_range = range;
+		inst->copy_range = min_t(unsigned int,
+					 range, NFULNL_COPY_RANGE_MAX);
 		break;
 
 	default:
