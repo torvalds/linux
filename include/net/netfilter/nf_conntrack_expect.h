@@ -38,9 +38,6 @@ struct nf_conntrack_expect
 	/* Usage count. */
 	atomic_t use;
 
-	/* Unique ID */
-	unsigned int id;
-
 	/* Flags */
 	unsigned int flags;
 

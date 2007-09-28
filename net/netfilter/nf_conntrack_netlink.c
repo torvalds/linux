@@ -1160,7 +1160,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 {
 	struct nf_conn *master = exp->master;
 	__be32 timeout = htonl((exp->timeout.expires - jiffies) / HZ);
-	__be32 id = htonl(exp->id);
+	__be32 id = htonl((unsigned long)exp);
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nla_put_failure;
@@ -1346,7 +1346,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 
 	if (cda[CTA_EXPECT_ID]) {
 		__be32 id = *(__be32 *)nla_data(cda[CTA_EXPECT_ID]);
-		if (exp->id != ntohl(id)) {
+		if (ntohl(id) != (u32)(unsigned long)exp) {
 			nf_ct_expect_put(exp);
 			return -ENOENT;
 		}
@@ -1400,7 +1400,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 
 		if (cda[CTA_EXPECT_ID]) {
 			__be32 id = *(__be32 *)nla_data(cda[CTA_EXPECT_ID]);
-			if (exp->id != ntohl(id)) {
+			if (ntohl(id) != (u32)(unsigned long)exp) {
 				nf_ct_expect_put(exp);
 				return -ENOENT;
 			}
