@@ -904,7 +904,6 @@ int brnf_sysctl_call_tables(ctl_table * ctl, int write, struct file *filp,
 
 static ctl_table brnf_table[] = {
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_ARPTABLES,
 		.procname	= "bridge-nf-call-arptables",
 		.data		= &brnf_call_arptables,
 		.maxlen		= sizeof(int),
@@ -912,7 +911,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_IPTABLES,
 		.procname	= "bridge-nf-call-iptables",
 		.data		= &brnf_call_iptables,
 		.maxlen		= sizeof(int),
@@ -920,7 +918,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_CALL_IP6TABLES,
 		.procname	= "bridge-nf-call-ip6tables",
 		.data		= &brnf_call_ip6tables,
 		.maxlen		= sizeof(int),
@@ -928,7 +925,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_FILTER_VLAN_TAGGED,
 		.procname	= "bridge-nf-filter-vlan-tagged",
 		.data		= &brnf_filter_vlan_tagged,
 		.maxlen		= sizeof(int),
@@ -936,7 +932,6 @@ static ctl_table brnf_table[] = {
 		.proc_handler	= &brnf_sysctl_call_tables,
 	},
 	{
-		.ctl_name	= NET_BRIDGE_NF_FILTER_PPPOE_TAGGED,
 		.procname	= "bridge-nf-filter-pppoe-tagged",
 		.data		= &brnf_filter_pppoe_tagged,
 		.maxlen		= sizeof(int),
