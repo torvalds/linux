@@ -785,7 +785,6 @@ void nfs_end_data_update(struct inode *inode)
 		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		spin_unlock(&inode->i_lock);
 	}
-	nfsi->cache_change_attribute = jiffies;
 	atomic_dec(&nfsi->data_updates);
 }
 

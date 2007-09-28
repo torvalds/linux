@@ -650,15 +650,11 @@ static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
  */
 static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
-	unsigned long verf;
-
 	if (IS_ROOT(dentry))
 		return 1;
-	verf = dentry->d_time;
-	if (nfs_caches_unstable(dir)
-			|| verf != NFS_I(dir)->cache_change_attribute)
-		return 0;
-	return 1;
+	if (dentry->d_time == NFS_I(dir)->cache_change_attribute)
+		return 1;
+	return 0;
 }
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
