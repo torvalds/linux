@@ -56,7 +56,8 @@ static struct cpm_smc *smc;
 static struct cpm_scc *scc;
 struct cpm_bd *tbdf, *rbdf;
 static u32 cpm_cmd;
-static u8 *dpram_start;
+static u8 *muram_start;
+static u32 muram_offset;
 
 static void (*do_cmd)(int op);
 static void (*enable_port)(void);
@@ -114,13 +115,12 @@ static void scc_enable_port(void)
 
 static int cpm_serial_open(void)
 {
-	int dpaddr = 0x800;
 	disable_port();
 
 	out_8(&param->rfcr, 0x10);
 	out_8(&param->tfcr, 0x10);
 
-	rbdf = (struct cpm_bd *)(dpram_start + dpaddr);
+	rbdf = (struct cpm_bd *)muram_start;
 	rbdf->addr = (u8 *)(rbdf + 2);
 	rbdf->sc = 0xa000;
 	rbdf->len = 1;
@@ -131,8 +131,8 @@ static int cpm_serial_open(void)
 	tbdf->len = 1;
 
 	sync();
-	out_be16(&param->rbase, dpaddr);
-	out_be16(&param->tbase, dpaddr + sizeof(struct cpm_bd));
+	out_be16(&param->rbase, muram_offset);
+	out_be16(&param->tbase, muram_offset + sizeof(struct cpm_bd));
 
 	do_cmd(CPM_CMD_INIT_RX_TX);
 
@@ -178,7 +178,7 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 	void *reg_virt[2];
 	int is_smc = 0, is_cpm2 = 0, n;
 	unsigned long reg_phys;
-	void *parent;
+	void *parent, *muram;
 
 	if (dt_is_compatible(devp, "fsl,cpm1-smc-uart")) {
 		is_smc = 1;
@@ -229,16 +229,36 @@ int cpm_console_init(void *devp, struct serial_console_data *scdp)
 
 	n = getprop(parent, "virtual-reg", reg_virt, sizeof(reg_virt));
 	if (n < (int)sizeof(reg_virt)) {
-		for (n = 0; n < 2; n++) {
-			if (!dt_xlate_reg(parent, n, &reg_phys, NULL))
-				return -1;
+		if (!dt_xlate_reg(parent, 0, &reg_phys, NULL))
+			return -1;
 
-			reg_virt[n] = (void *)reg_phys;
-		}
+		reg_virt[0] = (void *)reg_phys;
 	}
 
 	cpcr = reg_virt[0];
-	dpram_start = reg_virt[1];
+
+	muram = finddevice("/soc/cpm/muram/data");
+	if (!muram)
+		return -1;
+
+	/* For bootwrapper-compatible device trees, we assume that the first
+	 * entry has at least 18 bytes, and that #address-cells/#data-cells
+	 * is one for both parent and child.
+	 */
+
+	n = getprop(muram, "virtual-reg", reg_virt, sizeof(reg_virt));
+	if (n < (int)sizeof(reg_virt)) {
+		if (!dt_xlate_reg(muram, 0, &reg_phys, NULL))
+			return -1;
+
+		reg_virt[0] = (void *)reg_phys;
+	}
+
+	muram_start = reg_virt[0];
+
+	n = getprop(muram, "reg", &muram_offset, 4);
+	if (n < 4)
+		return -1;
 
 	scdp->open = cpm_serial_open;
 	scdp->putc = cpm_serial_putc;

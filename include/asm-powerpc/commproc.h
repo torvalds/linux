@@ -19,6 +19,7 @@
 
 #include <asm/8xx_immap.h>
 #include <asm/ptrace.h>
+#include <asm/cpm.h>
 
 /* CPM Command register.
 */
@@ -54,6 +55,7 @@
 
 #define mk_cr_cmd(CH, CMD)	((CMD << 8) | (CH << 4))
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /* The dual ported RAM is multi-functional.  Some areas can be (and are
  * being) used for microcode.  There is an area that can only be used
  * as data ram for buffer descriptors, which is all we use right now.
@@ -62,17 +64,27 @@
 #define CPM_DATAONLY_BASE	((uint)0x0800)
 #define CPM_DATAONLY_SIZE	((uint)0x0700)
 #define CPM_DP_NOSPACE		((uint)0x7fffffff)
+#endif
 
 /* Export the base address of the communication processor registers
  * and dual port ram.
  */
 extern cpm8xx_t __iomem *cpmp; /* Pointer to comm processor */
+
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#define cpm_dpalloc cpm_muram_alloc
+#define cpm_dpfree cpm_muram_free
+#define cpm_dpram_addr cpm_muram_addr
+#define cpm_dpram_phys cpm_muram_dma
+#else
 extern unsigned long cpm_dpalloc(uint size, uint align);
 extern int cpm_dpfree(unsigned long offset);
 extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
 extern void cpm_dpdump(void);
 extern void *cpm_dpram_addr(unsigned long offset);
 extern uint cpm_dpram_phys(u8* addr);
+#endif
+
 extern void cpm_setbrg(uint brg, uint rate);
 
 extern uint m8xx_cpm_hostalloc(uint size);

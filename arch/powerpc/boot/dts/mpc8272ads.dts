@@ -124,6 +124,17 @@
 			reg = <119c0 30 0 2000>;
 			ranges;
 
+			muram@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0 10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 2000 9800 800>;
+				};
+			};
+
 			brg@119f0 {
 				compatible = "fsl,mpc8272-brg",
 				             "fsl,cpm2-brg",

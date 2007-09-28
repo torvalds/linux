@@ -142,8 +142,19 @@
 			command-proc = <9c0>;
 			interrupts = <0>;	// cpm error interrupt
 			interrupt-parent = <&CPM_PIC>;
-			reg = <9c0 40 2000 1c00>;
+			reg = <9c0 40>;
 			ranges;
+
+			muram@2000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 2000 2000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 1c00>;
+				};
+			};
 
 			brg@9f0 {
 				compatible = "fsl,mpc885-brg",

@@ -46,7 +46,10 @@
 
 #include <sysdev/fsl_soc.h>
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 static void cpm2_dpinit(void);
+#endif
+
 cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor space */
 
 /* We allocate this here because it is used almost exclusively for
@@ -69,7 +72,11 @@ cpm2_reset(void)
 
 	/* Reclaim the DP memory for our use.
 	 */
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	cpm_muram_init();
+#else
 	cpm2_dpinit();
+#endif
 
 	/* Tell everyone where the comm processor resides.
 	 */
@@ -316,6 +323,7 @@ int cpm2_smc_clk_setup(enum cpm_clk_target target, int clock)
 	return ret;
 }
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /*
  * dpalloc / dpfree bits.
  */
@@ -328,28 +336,6 @@ static u8 __iomem *im_dprambase;
 
 static void cpm2_dpinit(void)
 {
-	struct resource r;
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm2");
-	if (!np)
-		panic("Cannot find CPM2 node");
-
-	if (of_address_to_resource(np, 1, &r))
-		panic("Cannot get CPM2 resource 1");
-
-	of_node_put(np);
-#else
-	r.start = CPM_MAP_ADDR;
-	r.end = r.start + CPM_DATAONLY_BASE + CPM_DATAONLY_SIZE - 1;
-#endif
-
-	im_dprambase = ioremap(r.start, r.end - r.start + 1);
-	if (!im_dprambase)
-		panic("Cannot map DPRAM");
-
 	spin_lock_init(&cpm_dpmem_lock);
 
 	/* initialize the info header */
@@ -358,13 +344,15 @@ static void cpm2_dpinit(void)
 			sizeof(cpm_boot_dpmem_rh_block[0]),
 			cpm_boot_dpmem_rh_block);
 
+	im_dprambase = cpm2_immr;
+
 	/* Attach the usable dpmem area */
 	/* XXX: This is actually crap. CPM_DATAONLY_BASE and
 	 * CPM_DATAONLY_SIZE is only a subset of the available dpram. It
 	 * varies with the processor and the microcode patches activated.
 	 * But the following should be at least safe.
 	 */
-	rh_attach_region(&cpm_dpmem_info, 0, r.end - r.start + 1);
+	rh_attach_region(&cpm_dpmem_info, CPM_DATAONLY_BASE, CPM_DATAONLY_SIZE);
 }
 
 /* This function returns an index into the DPRAM area.
@@ -422,6 +410,7 @@ void *cpm_dpram_addr(unsigned long offset)
 	return (void *)(im_dprambase + offset);
 }
 EXPORT_SYMBOL(cpm_dpram_addr);
+#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
 
 struct cpm2_ioports {
 	u32 dir, par, sor, odr, dat;

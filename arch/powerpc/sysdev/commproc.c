@@ -39,12 +39,15 @@
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>
 #include <asm/prom.h>
+#include <asm/cpm.h>
 
 #include <asm/fs_pd.h>
 
 #define CPM_MAP_SIZE    (0x4000)
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 static void m8xx_cpm_dpinit(void);
+#endif
 static uint host_buffer; /* One page of host buffer */
 static uint host_end;    /* end + 1 */
 cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
@@ -193,7 +196,7 @@ end:
 	return sirq;
 }
 
-void cpm_reset(void)
+void __init cpm_reset(void)
 {
 	sysconf8xx_t __iomem *siu_conf;
 
@@ -229,8 +232,12 @@ void cpm_reset(void)
 	out_be32(&siu_conf->sc_sdcr, 1);
 	immr_unmap(siu_conf);
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	cpm_muram_init();
+#else
 	/* Reclaim the DP memory for our use. */
 	m8xx_cpm_dpinit();
+#endif
 }
 
 /* We used to do this earlier, but have to postpone as long as possible
@@ -296,6 +303,7 @@ cpm_setbrg(uint brg, uint rate)
 		             CPM_BRG_EN | CPM_BRG_DIV16);
 }
 
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 /*
  * dpalloc / dpfree bits.
  */
@@ -397,6 +405,7 @@ uint cpm_dpram_phys(u8 *addr)
 	return (dpram_pbase + (uint)(addr - dpram_vbase));
 }
 EXPORT_SYMBOL(cpm_dpram_phys);
+#endif /* !CONFIG_PPC_CPM_NEW_BINDING */
 
 struct cpm_ioport16 {
 	__be16 dir, par, sor, dat, intr;
