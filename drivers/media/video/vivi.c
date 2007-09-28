@@ -871,7 +871,6 @@ static int vidiocgmbuf (struct file *file, void *priv, struct video_mbuf *mbuf)
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
-	struct vivi_dev *dev    = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -884,7 +883,6 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	struct vivi_fh  *fh=priv;
-	struct vivi_dev *dev    = fh->dev;
 
 	if (fh->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1056,8 +1054,6 @@ static ssize_t
 vivi_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct vivi_fh        *fh = file->private_data;
-	struct vivi_dev        *dev = fh->dev;
-	struct videobuf_queue *q = &fh->vb_vidq;
 
 	if (fh->type==V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		return videobuf_read_stream(&fh->vb_vidq, data, count, ppos, 0,
@@ -1070,7 +1066,6 @@ static unsigned int
 vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct vivi_fh        *fh = file->private_data;
-	struct vivi_buffer    *buf;
 	struct videobuf_queue *q = &fh->vb_vidq;
 
 	dprintk(1,"%s\n",__FUNCTION__);
