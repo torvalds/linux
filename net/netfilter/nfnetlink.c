@@ -41,7 +41,7 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_NETFILTER);
 static char __initdata nfversion[] = "0.30";
 
 static struct sock *nfnl = NULL;
-static struct nfnetlink_subsystem *subsys_table[NFNL_SUBSYS_COUNT];
+static const struct nfnetlink_subsystem *subsys_table[NFNL_SUBSYS_COUNT];
 static DEFINE_MUTEX(nfnl_mutex);
 
 static void nfnl_lock(void)
@@ -66,7 +66,7 @@ static void nfnl_unlock(void)
 		nfnl->sk_data_ready(nfnl, 0);
 }
 
-int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
+int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n)
 {
 	nfnl_lock();
 	if (subsys_table[n->subsys_id]) {
@@ -80,7 +80,7 @@ int nfnetlink_subsys_register(struct nfnetlink_subsystem *n)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_subsys_register);
 
-int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n)
+int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n)
 {
 	nfnl_lock();
 	subsys_table[n->subsys_id] = NULL;
@@ -90,7 +90,7 @@ int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_subsys_unregister);
 
-static inline struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
+static inline const struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
 {
 	u_int8_t subsys_id = NFNL_SUBSYS_ID(type);
 
@@ -100,8 +100,8 @@ static inline struct nfnetlink_subsystem *nfnetlink_get_subsys(u_int16_t type)
 	return subsys_table[subsys_id];
 }
 
-static inline struct nfnl_callback *
-nfnetlink_find_client(u_int16_t type, struct nfnetlink_subsystem *ss)
+static inline const struct nfnl_callback *
+nfnetlink_find_client(u_int16_t type, const struct nfnetlink_subsystem *ss)
 {
 	u_int8_t cb_id = NFNL_MSG_TYPE(type);
 
@@ -147,7 +147,7 @@ EXPORT_SYMBOL_GPL(nfattr_parse);
  *
  */
 static int
-nfnetlink_check_attributes(struct nfnetlink_subsystem *subsys,
+nfnetlink_check_attributes(const struct nfnetlink_subsystem *subsys,
 			   struct nlmsghdr *nlh, struct nfattr *cda[])
 {
 	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
@@ -197,8 +197,8 @@ EXPORT_SYMBOL_GPL(nfnetlink_unicast);
 /* Process one complete nfnetlink message. */
 static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-	struct nfnl_callback *nc;
-	struct nfnetlink_subsystem *ss;
+	const struct nfnl_callback *nc;
+	const struct nfnetlink_subsystem *ss;
 	int type, err;
 
 	if (security_netlink_recv(skb, CAP_NET_ADMIN))

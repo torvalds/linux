@@ -961,7 +961,7 @@ out_put:
 	return ret;
 }
 
-static struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
+static const struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
 	[NFQNL_MSG_PACKET]	= { .call = nfqnl_recv_unsupp,
 				    .attr_count = NFQA_MAX, },
 	[NFQNL_MSG_VERDICT]	= { .call = nfqnl_recv_verdict,
@@ -970,7 +970,7 @@ static struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
 				    .attr_count = NFQA_CFG_MAX, },
 };
 
-static struct nfnetlink_subsystem nfqnl_subsys = {
+static const struct nfnetlink_subsystem nfqnl_subsys = {
 	.name		= "nf_queue",
 	.subsys_id	= NFNL_SUBSYS_QUEUE,
 	.cb_count	= NFQNL_MSG_MAX,

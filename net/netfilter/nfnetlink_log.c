@@ -883,14 +883,14 @@ out:
 	return ret;
 }
 
-static struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
+static const struct nfnl_callback nfulnl_cb[NFULNL_MSG_MAX] = {
 	[NFULNL_MSG_PACKET]	= { .call = nfulnl_recv_unsupp,
 				    .attr_count = NFULA_MAX, },
 	[NFULNL_MSG_CONFIG]	= { .call = nfulnl_recv_config,
 				    .attr_count = NFULA_CFG_MAX, },
 };
 
-static struct nfnetlink_subsystem nfulnl_subsys = {
+static const struct nfnetlink_subsystem nfulnl_subsys = {
 	.name		= "log",
 	.subsys_id	= NFNL_SUBSYS_ULOG,
 	.cb_count	= NFULNL_MSG_MAX,

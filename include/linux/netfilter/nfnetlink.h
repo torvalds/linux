@@ -118,9 +118,9 @@ struct nfnl_callback
 struct nfnetlink_subsystem
 {
 	const char *name;
-	__u8 subsys_id;		/* nfnetlink subsystem ID */
-	__u8 cb_count;		/* number of callbacks */
-	struct nfnl_callback *cb; /* callback for individual types */
+	__u8 subsys_id;			/* nfnetlink subsystem ID */
+	__u8 cb_count;			/* number of callbacks */
+	const struct nfnl_callback *cb;	/* callback for individual types */
 };
 
 extern void __nfa_fill(struct sk_buff *skb, int attrtype,
@@ -129,8 +129,8 @@ extern void __nfa_fill(struct sk_buff *skb, int attrtype,
 ({ if (skb_tailroom(skb) < (int)NFA_SPACE(attrlen)) goto nfattr_failure; \
    __nfa_fill(skb, attrtype, attrlen, data); })
 
-extern int nfnetlink_subsys_register(struct nfnetlink_subsystem *n);
-extern int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n);
+extern int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n);
+extern int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n);
 
 extern void nfattr_parse(struct nfattr *tb[], int maxattr, 
 			struct nfattr *nfa, int len);
