@@ -58,7 +58,8 @@ struct nfnl_callback
 {
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
 		struct nlmsghdr *nlh, struct nlattr *cda[]);
-	u_int16_t attr_count;	/* number of nlattr's */
+	const struct nla_policy *policy;	/* netlink attribute policy */
+	const u_int16_t attr_count;		/* number of nlattr's */
 };
 
 struct nfnetlink_subsystem

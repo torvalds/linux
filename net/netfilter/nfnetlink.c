@@ -111,35 +111,6 @@ nfnetlink_find_client(u_int16_t type, const struct nfnetlink_subsystem *ss)
 	return &ss->cb[cb_id];
 }
 
-/**
- * nfnetlink_check_attributes - check and parse nfnetlink attributes
- *
- * subsys: nfnl subsystem for which this message is to be parsed
- * nlmsghdr: netlink message to be checked/parsed
- * cda: array of pointers, needs to be at least subsys->attr_count+1 big
- *
- */
-static int
-nfnetlink_check_attributes(const struct nfnetlink_subsystem *subsys,
-			   struct nlmsghdr *nlh, struct nlattr *cda[])
-{
-	int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
-	u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
-	u_int16_t attr_count = subsys->cb[cb_id].attr_count;
-
-	/* check attribute lengths. */
-	if (likely(nlh->nlmsg_len > min_len)) {
-		struct nlattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
-		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
-		nla_parse(cda, attr_count, attr, attrlen, NULL);
-	}
-
-	/* implicit: if nlmsg_len == min_len, we return 0, and an empty
-	 * (zeroed) cda[] array. The message is valid, but empty. */
-
-	return 0;
-}
-
 int nfnetlink_has_listeners(unsigned int group)
 {
 	return netlink_has_listeners(nfnl, group);
@@ -192,15 +163,22 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		return -EINVAL;
 
 	{
-		u_int16_t attr_count =
-			ss->cb[NFNL_MSG_TYPE(nlh->nlmsg_type)].attr_count;
+		int min_len = NLMSG_SPACE(sizeof(struct nfgenmsg));
+		u_int8_t cb_id = NFNL_MSG_TYPE(nlh->nlmsg_type);
+		u_int16_t attr_count = ss->cb[cb_id].attr_count;
 		struct nlattr *cda[attr_count+1];
 
-		memset(cda, 0, sizeof(struct nlattr *) * attr_count);
+		if (likely(nlh->nlmsg_len >= min_len)) {
+			struct nlattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
+			int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
-		err = nfnetlink_check_attributes(ss, nlh, cda);
-		if (err < 0)
-			return err;
+			err = nla_parse(cda, attr_count, attr, attrlen,
+					ss->cb[cb_id].policy);
+			if (err < 0)
+				return err;
+		} else
+			return -EINVAL;
+
 		return nc->call(nfnl, skb, nlh, cda);
 	}
 }
