@@ -537,7 +537,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 
 	spi_dev_pg0 = dma_alloc_coherent(&ioc->pcidev->dev, size, &spi_dev_pg0_dma, GFP_KERNEL);
 	if (spi_dev_pg0 == NULL) {
-		starget_printk(MYIOC_s_ERR_FMT, starget,
+		starget_printk(KERN_ERR, starget, MYIOC_s_FMT
 		    "dma_alloc_coherent for parameters failed\n", ioc->name);
 		return -EINVAL;
 	}
@@ -558,7 +558,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	cfg.pageAddr = starget->id;
 
 	if (mpt_config(ioc, &cfg)) {
-		starget_printk(MYIOC_s_ERR_FMT, starget, "mpt_config failed\n", ioc->name);
+		starget_printk(KERN_ERR, starget, MYIOC_s_FMT "mpt_config failed\n", ioc->name);
 		goto out_free;
 	}
 	err = 0;
@@ -681,7 +681,7 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 	/* If this is a piece of a RAID, then quiesce first */
 	if (sdev->channel == 1 &&
 	    mptscsih_quiesce_raid(hd, 1, vtarget->channel, vtarget->id) < 0) {
-		starget_printk(MYIOC_s_ERR_FMT, scsi_target(sdev),
+		starget_printk(KERN_ERR, scsi_target(sdev), MYIOC_s_FMT
 		    "Integrated RAID quiesce failed\n", ioc->name);
 		return;
 	}
@@ -692,7 +692,7 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 
 	if (sdev->channel == 1 &&
 	    mptscsih_quiesce_raid(hd, 0, vtarget->channel, vtarget->id) < 0)
-		starget_printk(MYIOC_s_ERR_FMT, scsi_target(sdev),
+		starget_printk(KERN_ERR, scsi_target(sdev), MYIOC_s_FMT
 		    "Integrated RAID resume failed\n", ioc->name);
 
 	mptspi_read_parameters(sdev->sdev_target);
@@ -856,7 +856,7 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 
 	pg1 = dma_alloc_coherent(&ioc->pcidev->dev, size, &pg1_dma, GFP_KERNEL);
 	if (pg1 == NULL) {
-		starget_printk(MYIOC_s_ERR_FMT, starget,
+		starget_printk(KERN_ERR, starget, MYIOC_s_FMT
 		    "dma_alloc_coherent for parameters failed\n", ioc->name);
 		return -EINVAL;
 	}
@@ -886,7 +886,7 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 	mptspi_print_write_nego(hd, starget, le32_to_cpu(pg1->RequestedParameters));
 
 	if (mpt_config(ioc, &cfg)) {
-		starget_printk(MYIOC_s_ERR_FMT, starget,
+		starget_printk(KERN_ERR, starget, MYIOC_s_FMT
 		    "mpt_config failed\n", ioc->name);
 		goto out_free;
 	}
@@ -1104,11 +1104,11 @@ static void mpt_work_wrapper(struct work_struct *work)
 		if(vtarget->id != disk)
 			continue;
 
-		starget_printk(MYIOC_s_INFO_FMT, vtarget->starget,
+		starget_printk(KERN_INFO, vtarget->starget, MYIOC_s_FMT
 		    "Integrated RAID requests DV of new device\n", ioc->name);
 		mptspi_dv_device(hd, sdev);
 	}
-	shost_printk(MYIOC_s_INFO_FMT, shost,
+	shost_printk(KERN_INFO, shost, MYIOC_s_FMT
 	    "Integrated RAID detects new device %d\n", ioc->name, disk);
 	scsi_scan_target(&ioc->sh->shost_gendev, 1, disk, 0, 1);
 }
@@ -1120,7 +1120,7 @@ static void mpt_dv_raid(struct _MPT_SCSI_HOST *hd, int disk)
 	MPT_ADAPTER *ioc = hd->ioc;
 
 	if (!wqw) {
-		shost_printk(MYIOC_s_ERR_FMT, ioc->sh,
+		shost_printk(KERN_ERR, ioc->sh, MYIOC_s_FMT
 		    "Failed to act on RAID event for physical disk %d\n",
 		    ioc->name, disk);
 		return;

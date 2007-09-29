@@ -318,8 +318,8 @@ mptsas_set_rphy(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info, struct sas_rp
 	}
 
 	if (rphy) {
-		dsaswideprintk(ioc, dev_printk(MYIOC_s_DEBUG_FMT,
-		    &rphy->dev, "add:", ioc->name));
+		dsaswideprintk(ioc, dev_printk(KERN_DEBUG,
+		    &rphy->dev, MYIOC_s_FMT "add:", ioc->name));
 		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "rphy=%p release=%p\n",
 		    ioc->name, rphy, rphy->dev.release));
 	}
@@ -341,8 +341,8 @@ mptsas_set_port(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info, struct sas_po
 		phy_info->port_details->port = port;
 
 	if (port) {
-		dsaswideprintk(ioc, dev_printk(MYIOC_s_DEBUG_FMT,
-		    &port->dev, "add:", ioc->name));
+		dsaswideprintk(ioc, dev_printk(KERN_DEBUG,
+		    &port->dev, MYIOC_s_FMT "add:", ioc->name));
 		dsaswideprintk(ioc, printk(MYIOC_s_DEBUG_FMT "port=%p release=%p\n",
 		    ioc->name, port, port->dev.release));
 	}
@@ -2296,8 +2296,9 @@ mptsas_delete_expander_phys(MPT_ADAPTER *ioc)
 					expander_sas_address)
 					continue;
 				dsaswideprintk(ioc,
-				    dev_printk(MYIOC_s_DEBUG_FMT, &port->dev,
-				    "delete port (%d)\n", ioc->name, port->port_identifier));
+				    dev_printk(KERN_DEBUG, &port->dev,
+				    MYIOC_s_FMT "delete port (%d)\n", ioc->name,
+				    port->port_identifier));
 				sas_port_delete(port);
 				mptsas_port_delete(ioc, phy_info->port_details);
 			}
@@ -2681,7 +2682,7 @@ mptsas_hotplug_work(struct work_struct *work)
 		printk(MYIOC_s_INFO_FMT
 		       "removing %s device, channel %d, id %d, phy %d\n",
 		       ioc->name, ds, ev->channel, ev->id, phy_info->phy_id);
-		dev_printk(MYIOC_s_DEBUG_FMT, &port->dev,
+		dev_printk(KERN_DEBUG, &port->dev, MYIOC_s_FMT
 		    "delete port (%d)\n", ioc->name, port->port_identifier);
 		sas_port_delete(port);
 		mptsas_port_delete(ioc, phy_info->port_details);
