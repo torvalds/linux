@@ -915,7 +915,8 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 		*max_sectors = ata_tf_to_lba48(&tf);
 	else
 		*max_sectors = ata_tf_to_lba(&tf);
-
+        if (dev->horkage & ATA_HORKAGE_HPA_SIZE)
+		(*max_sectors)--;
 	return 0;
 }
 
@@ -3904,6 +3905,10 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "WDC WD3200JD-00KLB0", "WD-WCAMR1130137", ATA_HORKAGE_BROKEN_HPA },
 	{ "WDC WD2500JD-00HBB0", "WD-WMAL71490727", ATA_HORKAGE_BROKEN_HPA },
 	{ "MAXTOR 6L080L4",	"A93.0500",	ATA_HORKAGE_BROKEN_HPA },
+
+	/* Devices which report 1 sector over size HPA */
+	{ "ST340823A",		NULL,		ATA_HORKAGE_HPA_SIZE, },
+	{ "ST320413A",		NULL,		ATA_HORKAGE_HPA_SIZE, },
 
 	/* End Marker */
 	{ }
