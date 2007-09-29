@@ -441,6 +441,15 @@ config PATA_NS87410
 
 	  If unsure, say N.
 
+config PATA_NS87415
+	tristate "Nat Semi NS87415 PATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the National Semiconductor
+	  NS87415 PCI-IDE controller.
+
+	  If unsure, say N.
+
 config PATA_OPTI
 	tristate "OPTI621/6215 PATA support (Very Experimental)"
 	depends on PCI && EXPERIMENTAL
