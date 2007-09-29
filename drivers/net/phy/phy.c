@@ -737,8 +737,6 @@ void phy_stop(struct phy_device *phydev)
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
 
-	phydev->state = PHY_HALTED;
-
 	if (phydev->irq != PHY_POLL) {
 		/* Disable PHY Interrupts */
 		phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
@@ -746,6 +744,8 @@ void phy_stop(struct phy_device *phydev)
 		/* Clear any pending interrupts */
 		phy_clear_interrupt(phydev);
 	}
+
+	phydev->state = PHY_HALTED;
 
 out_unlock:
 	spin_unlock_bh(&phydev->lock);
