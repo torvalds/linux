@@ -219,15 +219,6 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 
 #define NFS_FILEID(inode)		(NFS_I(inode)->fileid)
 
-/**
- * nfs_begin_data_update
- * @inode - pointer to inode
- * Declare that a set of operations will update file data on the server
- */
-static inline void nfs_begin_data_update(struct inode *inode)
-{
-}
-
 static inline void nfs_mark_for_revalidate(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -296,9 +287,6 @@ extern int nfs_revalidate_mapping(struct inode *inode, struct address_space *map
 extern int nfs_revalidate_mapping_nolock(struct inode *inode, struct address_space *mapping);
 extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
-extern void nfs_begin_attr_update(struct inode *);
-extern void nfs_end_attr_update(struct inode *);
-extern void nfs_end_data_update(struct inode *);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);

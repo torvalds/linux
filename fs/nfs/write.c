@@ -378,7 +378,6 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		return error;
 	if (!nfsi->npages) {
 		igrab(inode);
-		nfs_begin_data_update(inode);
 		if (nfs_have_delegation(inode, FMODE_WRITE))
 			nfsi->change_attr++;
 	}
@@ -406,7 +405,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	nfsi->npages--;
 	if (!nfsi->npages) {
 		spin_unlock(&inode->i_lock);
-		nfs_end_data_update(inode);
 		iput(inode);
 	} else
 		spin_unlock(&inode->i_lock);

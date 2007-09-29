@@ -344,7 +344,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		return 0;
 
 	lock_kernel();
-	nfs_begin_data_update(inode);
 	/* Write all dirty data */
 	if (S_ISREG(inode->i_mode)) {
 		filemap_write_and_wait(inode->i_mapping);
@@ -358,7 +357,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 	error = NFS_PROTO(inode)->setattr(dentry, &fattr, attr);
 	if (error == 0)
 		nfs_refresh_inode(inode, &fattr);
-	nfs_end_data_update(inode);
 	unlock_kernel();
 	return error;
 }
@@ -753,23 +751,6 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 		ret = nfs_invalidate_mapping(inode, mapping);
 out:
 	return ret;
-}
-
-/**
- * nfs_end_data_update
- * @inode - pointer to inode
- * Declare end of the operations that will update file data
- * This will mark the inode as immediately needing revalidation
- * of its attribute cache.
- */
-void nfs_end_data_update(struct inode *inode)
-{
-	/* Directories: invalidate page cache */
-	if (S_ISDIR(inode->i_mode)) {
-		spin_lock(&inode->i_lock);
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
-		spin_unlock(&inode->i_lock);
-	}
 }
 
 static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)

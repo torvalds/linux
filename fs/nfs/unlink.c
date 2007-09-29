@@ -66,7 +66,6 @@ static void nfs_async_unlink_init(struct rpc_task *task, void *calldata)
 		.rpc_cred = data->cred,
 	};
 
-	nfs_begin_data_update(dir);
 	NFS_PROTO(dir)->unlink_setup(&msg, dir);
 	rpc_call_setup(task, &msg, 0);
 }
@@ -84,8 +83,6 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 
 	if (!NFS_PROTO(dir)->unlink_done(task, dir))
 		rpc_restart_call(task);
-	else
-		nfs_end_data_update(dir);
 }
 
 /**

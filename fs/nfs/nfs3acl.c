@@ -317,13 +317,11 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	}
 
 	dprintk("NFS call setacl\n");
-	nfs_begin_data_update(inode);
 	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_SETACL];
 	status = rpc_call_sync(server->client_acl, &msg, 0);
 	spin_lock(&inode->i_lock);
 	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ACCESS;
 	spin_unlock(&inode->i_lock);
-	nfs_end_data_update(inode);
 	dprintk("NFS reply setacl: %d\n", status);
 
 	/* pages may have been allocated at the xdr layer. */

@@ -1001,12 +1001,7 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		goto out;
 	}
 
-	if (nd->intent.open.flags & O_CREAT) {
-		nfs_begin_data_update(dir);
-		res = nfs4_atomic_open(dir, dentry, nd);
-		nfs_end_data_update(dir);
-	} else
-		res = nfs4_atomic_open(dir, dentry, nd);
+	res = nfs4_atomic_open(dir, dentry, nd);
 	unlock_kernel();
 	if (IS_ERR(res)) {
 		error = PTR_ERR(res);
@@ -1224,9 +1219,7 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		open_flags = nd->intent.open.flags;
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
 	error = NFS_PROTO(dir)->create(dir, dentry, &attr, open_flags, nd);
-	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;
 	unlock_kernel();
@@ -1256,9 +1249,7 @@ nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	attr.ia_valid = ATTR_MODE;
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
 	status = NFS_PROTO(dir)->mknod(dir, dentry, &attr, rdev);
-	nfs_end_data_update(dir);
 	if (status != 0)
 		goto out_err;
 	unlock_kernel();
@@ -1284,9 +1275,7 @@ static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	attr.ia_mode = mode | S_IFDIR;
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
 	error = NFS_PROTO(dir)->mkdir(dir, dentry, &attr);
-	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;
 	unlock_kernel();
@@ -1305,12 +1294,10 @@ static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 			dir->i_sb->s_id, dir->i_ino, dentry->d_name.name);
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
 	error = NFS_PROTO(dir)->rmdir(dir, &dentry->d_name);
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
 		clear_nlink(dentry->d_inode);
-	nfs_end_data_update(dir);
 	unlock_kernel();
 
 	return error;
@@ -1368,17 +1355,13 @@ static int nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 
 	qsilly.name = silly;
 	qsilly.len  = strlen(silly);
-	nfs_begin_data_update(dir);
 	if (dentry->d_inode) {
-		nfs_begin_data_update(dentry->d_inode);
 		error = NFS_PROTO(dir)->rename(dir, &dentry->d_name,
 				dir, &qsilly);
 		nfs_mark_for_revalidate(dentry->d_inode);
-		nfs_end_data_update(dentry->d_inode);
 	} else
 		error = NFS_PROTO(dir)->rename(dir, &dentry->d_name,
 				dir, &qsilly);
-	nfs_end_data_update(dir);
 	if (!error) {
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		d_move(dentry, sdentry);
@@ -1412,19 +1395,15 @@ static int nfs_safe_remove(struct dentry *dentry)
 		goto out;
 	}
 
-	nfs_begin_data_update(dir);
 	if (inode != NULL) {
 		nfs_inode_return_delegation(inode);
-		nfs_begin_data_update(inode);
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
 		/* The VFS may want to delete this inode */
 		if (error == 0)
 			drop_nlink(inode);
 		nfs_mark_for_revalidate(inode);
-		nfs_end_data_update(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
-	nfs_end_data_update(dir);
 out:
 	return error;
 }
@@ -1516,9 +1495,7 @@ static int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *sym
 		memset(kaddr + pathlen, 0, PAGE_SIZE - pathlen);
 	kunmap_atomic(kaddr, KM_USER0);
 
-	nfs_begin_data_update(dir);
 	error = NFS_PROTO(dir)->symlink(dir, dentry, page, pathlen, &attr);
-	nfs_end_data_update(dir);
 	if (error != 0) {
 		dfprintk(VFS, "NFS: symlink(%s/%ld, %s, %s) error %d\n",
 			dir->i_sb->s_id, dir->i_ino,
@@ -1558,15 +1535,11 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
 	lock_kernel();
-	nfs_begin_data_update(dir);
-	nfs_begin_data_update(inode);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
 	if (error == 0) {
 		atomic_inc(&inode->i_count);
 		d_instantiate(dentry, inode);
 	}
-	nfs_end_data_update(inode);
-	nfs_end_data_update(dir);
 	unlock_kernel();
 	return error;
 }
@@ -1669,15 +1642,9 @@ go_ahead:
 		d_delete(new_dentry);
 	}
 
-	nfs_begin_data_update(old_dir);
-	nfs_begin_data_update(new_dir);
-	nfs_begin_data_update(old_inode);
 	error = NFS_PROTO(old_dir)->rename(old_dir, &old_dentry->d_name,
 					   new_dir, &new_dentry->d_name);
 	nfs_mark_for_revalidate(old_inode);
-	nfs_end_data_update(old_inode);
-	nfs_end_data_update(new_dir);
-	nfs_end_data_update(old_dir);
 out:
 	if (rehash)
 		d_rehash(rehash);
