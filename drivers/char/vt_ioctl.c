@@ -1208,15 +1208,18 @@ void change_console(struct vc_data *new_vc)
 		/*
 		 * Send the signal as privileged - kill_pid() will
 		 * tell us if the process has gone or something else
-		 * is awry
+		 * is awry.
+		 *
+		 * We need to set vt_newvt *before* sending the signal or we
+		 * have a race.
 		 */
+		vc->vt_newvt = new_vc->vc_num;
 		if (kill_pid(vc->vt_pid, vc->vt_mode.relsig, 1) == 0) {
 			/*
 			 * It worked. Mark the vt to switch to and
 			 * return. The process needs to send us a
 			 * VT_RELDISP ioctl to complete the switch.
 			 */
-			vc->vt_newvt = new_vc->vc_num;
 			return;
 		}
 
