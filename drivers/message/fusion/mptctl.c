@@ -348,7 +348,7 @@ static int mptctl_bus_reset(MPT_IOCTL *ioctl)
 	if (ioctl->ioc->sh == NULL)
 		return -EPERM;
 
-	hd = (MPT_SCSI_HOST *) ioctl->ioc->sh->hostdata;
+	hd = shost_priv(ioctl->ioc->sh);
 	if (hd == NULL)
 		return -EPERM;
 
@@ -449,7 +449,7 @@ mptctl_free_tm_flags(MPT_ADAPTER *ioc)
 	MPT_SCSI_HOST * hd;
 	unsigned long flags;
 
-	hd = (MPT_SCSI_HOST *) ioc->sh->hostdata;
+	hd = shost_priv(ioc->sh);
 	if (hd == NULL)
 		return;
 
@@ -2026,7 +2026,7 @@ mptctl_do_mpt_command (struct mpt_ioctl_command karg, void __user *mfPtr)
 	case MPI_FUNCTION_SCSI_TASK_MGMT:
 		{
 			MPT_SCSI_HOST *hd = NULL;
-			if ((ioc->sh == NULL) || ((hd = (MPT_SCSI_HOST *)ioc->sh->hostdata) == NULL)) {
+			if ((ioc->sh == NULL) || ((hd = shost_priv(ioc->sh)) == NULL)) {
 				printk(MYIOC_s_ERR_FMT "%s@%d::mptctl_do_mpt_command - "
 					"SCSI driver not loaded or SCSI host not found. \n",
 					ioc->name, __FILE__, __LINE__);
@@ -2466,7 +2466,7 @@ mptctl_hp_hostinfo(unsigned long arg, unsigned int data_size)
 	karg.soft_resets = 0;
 	karg.timeouts = 0;
 	if (ioc->sh != NULL) {
-		MPT_SCSI_HOST *hd =  (MPT_SCSI_HOST *)ioc->sh->hostdata;
+		MPT_SCSI_HOST *hd =  shost_priv(ioc->sh);
 
 		if (hd && (cim_rev == 1)) {
 			karg.hard_resets = hd->hard_resets;
@@ -2683,7 +2683,7 @@ mptctl_hp_targetinfo(unsigned long arg)
 			pci_free_consistent(ioc->pcidev, data_sz, (u8 *) pg3_alloc, page_dma);
 		}
 	}
-	hd = (MPT_SCSI_HOST *) ioc->sh->hostdata;
+	hd = shost_priv(ioc->sh);
 	if (hd != NULL)
 		karg.select_timeouts = hd->sel_timeout[karg.hdr.id];
 

@@ -196,7 +196,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	int			ready;
 	MPT_ADAPTER 		*ioc;
 
-	hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
+	hd = shost_priv(SCpnt->device->host);
 	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
 	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
@@ -204,8 +204,7 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %d:%d, port status is "
 			"DID_IMM_RETRY, deferring %s recovery.\n",
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, caller));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
@@ -216,16 +215,14 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
 			"port state %d, vdevice %p.\n", caller,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-			((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, ready,
 			SCpnt->device->hostdata));
 		return FAILED;
 	}
 	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 		"%s.%d: %d:%d, executing recovery.\n", caller,
-		((MPT_SCSI_HOST *) shost->hostdata)->ioc->name,
-		((MPT_SCSI_HOST *) shost->hostdata)->ioc->sh->host_no,
+		ioc->name, ioc->sh->host_no,
 		SCpnt->device->id, SCpnt->device->lun));
 	return (*func)(SCpnt);
 }
@@ -615,7 +612,7 @@ mptfc_slave_alloc(struct scsi_device *sdev)
 	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
+	hd = shost_priv(sdev->host);
 	ioc = hd->ioc;
 
 	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
@@ -1279,7 +1276,7 @@ mptfc_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 
-	hd = (MPT_SCSI_HOST *) sh->hostdata;
+	hd = shost_priv(sh);
 	hd->ioc = ioc;
 
 	/* SCSI needs scsi_cmnd lookup table!
@@ -1386,7 +1383,7 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 			ioc->name, event));
 
 	if (ioc->sh == NULL ||
-		((hd = (MPT_SCSI_HOST *)ioc->sh->hostdata) == NULL))
+		((hd = shost_priv(ioc->sh)) == NULL))
 		return 1;
 
 	switch (event) {

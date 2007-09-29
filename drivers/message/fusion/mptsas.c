@@ -575,7 +575,7 @@ static void
 mptsas_target_reset_queue(MPT_ADAPTER *ioc,
     EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *sas_event_data)
 {
-	MPT_SCSI_HOST	*hd = (MPT_SCSI_HOST *)ioc->sh->hostdata;
+	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
 	VirtTarget *vtarget = NULL;
 	struct mptsas_target_reset_event *target_reset_list;
 	u8		id, channel;
@@ -622,7 +622,7 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 static void
 mptsas_dev_reset_complete(MPT_ADAPTER *ioc)
 {
-	MPT_SCSI_HOST	*hd = (MPT_SCSI_HOST *)ioc->sh->hostdata;
+	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
         struct list_head *head = &hd->target_reset_list;
 	struct mptsas_target_reset_event *target_reset_list;
 	struct mptsas_hotplug_event *ev;
@@ -739,7 +739,7 @@ mptsas_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 
 	if (!ioc->sh || !ioc->sh->hostdata)
 		goto out;
-	hd = (MPT_SCSI_HOST *)ioc->sh->hostdata;
+	hd = shost_priv(ioc->sh);
 	if (!hd->ioc)
 		goto out;
 
@@ -839,7 +839,7 @@ static int
 mptsas_target_alloc(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(&starget->dev);
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
+	MPT_SCSI_HOST		*hd = shost_priv(host);
 	VirtTarget		*vtarget;
 	u8			id, channel;
 	struct sas_rphy		*rphy;
@@ -908,7 +908,7 @@ static void
 mptsas_target_destroy(struct scsi_target *starget)
 {
 	struct Scsi_Host *host = dev_to_shost(&starget->dev);
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
+	MPT_SCSI_HOST		*hd = shost_priv(host);
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
 	int 			 i;
@@ -941,7 +941,7 @@ static int
 mptsas_slave_alloc(struct scsi_device *sdev)
 {
 	struct Scsi_Host	*host = sdev->host;
-	MPT_SCSI_HOST		*hd = (MPT_SCSI_HOST *)host->hostdata;
+	MPT_SCSI_HOST		*hd = shost_priv(host);
 	struct sas_rphy		*rphy;
 	struct mptsas_portinfo	*p;
 	VirtDevice		*vdevice;
@@ -3215,7 +3215,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		sh->sg_tablesize = numSGE;
 	}
 
-	hd = (MPT_SCSI_HOST *) sh->hostdata;
+	hd = shost_priv(sh);
 	hd->ioc = ioc;
 
 	/* SCSI needs scsi_cmnd lookup table!

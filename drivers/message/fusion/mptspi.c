@@ -397,7 +397,7 @@ mptspi_is_raid(struct _MPT_SCSI_HOST *hd, u32 id)
 static int mptspi_target_alloc(struct scsi_target *starget)
 {
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)shost->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	VirtTarget		*vtarget;
 	MPT_ADAPTER *ioc;
 
@@ -514,7 +514,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 			     struct _CONFIG_PAGE_SCSI_DEVICE_0 *pass_pg0)
 {
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)shost->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	struct _MPT_ADAPTER *ioc = hd->ioc;
 	struct _CONFIG_PAGE_SCSI_DEVICE_0 *pg0;
 	dma_addr_t pg0_dma;
@@ -702,7 +702,7 @@ static void mptspi_dv_device(struct _MPT_SCSI_HOST *hd,
 
 static int mptspi_slave_alloc(struct scsi_device *sdev)
 {
-	MPT_SCSI_HOST *hd = (MPT_SCSI_HOST *)sdev->host->hostdata;
+	MPT_SCSI_HOST *hd = shost_priv(sdev->host);
 	VirtTarget		*vtarget;
 	VirtDevice		*vdevice;
 	struct scsi_target 	*starget;
@@ -735,8 +735,7 @@ static int mptspi_slave_alloc(struct scsi_device *sdev)
 
 static int mptspi_slave_configure(struct scsi_device *sdev)
 {
-	struct _MPT_SCSI_HOST *hd =
-		(struct _MPT_SCSI_HOST *)sdev->host->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(sdev->host);
 	VirtTarget *vtarget = scsi_target(sdev)->hostdata;
 	int ret;
 
@@ -764,7 +763,7 @@ static int mptspi_slave_configure(struct scsi_device *sdev)
 static int
 mptspi_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 {
-	struct _MPT_SCSI_HOST *hd = (MPT_SCSI_HOST *) SCpnt->device->host->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(SCpnt->device->host);
 	VirtDevice	*vdevice = SCpnt->device->hostdata;
 	MPT_ADAPTER *ioc = hd->ioc;
 
@@ -839,7 +838,7 @@ static int mptspi_write_spi_device_pg1(struct scsi_target *starget,
 			       struct _CONFIG_PAGE_SCSI_DEVICE_1 *pass_pg1)
 {
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)shost->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	struct _MPT_ADAPTER *ioc = hd->ioc;
 	struct _CONFIG_PAGE_SCSI_DEVICE_1 *pg1;
 	dma_addr_t pg1_dma;
@@ -1027,7 +1026,7 @@ static void mptspi_write_qas(struct scsi_target *starget, int qas)
 {
 	struct _CONFIG_PAGE_SCSI_DEVICE_1 pg1;
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)shost->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	VirtTarget *vtarget = starget->hostdata;
 	u32 nego;
 
@@ -1137,7 +1136,7 @@ static int
 mptspi_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 {
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)ioc->sh->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 
 	if (hd && event ==  MPI_EVENT_INTEGRATED_RAID) {
 		int reason
@@ -1267,7 +1266,7 @@ mptspi_dv_renegotiate(struct _MPT_SCSI_HOST *hd)
 static int
 mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)ioc->sh->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 	int rc;
 
 	rc = mptscsih_ioc_reset(ioc, reset_phase);
@@ -1286,7 +1285,7 @@ static int
 mptspi_resume(struct pci_dev *pdev)
 {
 	MPT_ADAPTER 	*ioc = pci_get_drvdata(pdev);
-	struct _MPT_SCSI_HOST *hd = (struct _MPT_SCSI_HOST *)ioc->sh->hostdata;
+	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 	int rc;
 
 	rc = mptscsih_resume(pdev);
@@ -1441,7 +1440,7 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 
-	hd = (MPT_SCSI_HOST *) sh->hostdata;
+	hd = shost_priv(sh);
 	hd->ioc = ioc;
 
 	/* SCSI needs scsi_cmnd lookup table!
