@@ -716,6 +716,14 @@ typedef struct smb_com_findclose_req {
 #define REQ_OPENDIRONLY    0x00000008
 #define REQ_EXTENDED_INFO  0x00000010
 
+/* File type */
+#define DISK_TYPE		0x0000
+#define BYTE_PIPE_TYPE		0x0001
+#define MESSAGE_PIPE_TYPE	0x0002
+#define PRINTER_TYPE		0x0003
+#define COMM_DEV_TYPE		0x0004
+#define UNKNOWN_TYPE		0xFFFF
+
 typedef struct smb_com_open_req {	/* also handles create */
 	struct smb_hdr hdr;	/* wct = 24 */
 	__u8 AndXCommand;

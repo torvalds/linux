@@ -269,7 +269,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			CIFSSMBClose(xid, pTcon, fileHandle);
 		} else if (newinode) {
 			pCifsFile =
-			   kzalloc(sizeof (struct cifsFileInfo), GFP_KERNEL);
+			   kzalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 
 			if (pCifsFile == NULL)
 				goto cifs_create_out;
@@ -450,8 +450,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = GetXid();
 
-	cFYI(1,
-	     (" parent inode = 0x%p name is: %s and dentry = 0x%p",
+	cFYI(1, (" parent inode = 0x%p name is: %s and dentry = 0x%p",
 	      parent_dir_inode, direntry->d_name.name, direntry));
 
 	/* check whether path exists */

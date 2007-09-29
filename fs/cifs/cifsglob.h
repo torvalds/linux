@@ -342,7 +342,7 @@ struct cifsFileInfo {
 	struct list_head llist; /* list of byte range locks we have. */
 	unsigned closePend:1;	/* file is marked to close */
 	unsigned invalidHandle:1;  /* file closed via session abend */
-	unsigned messageMode:1    /* for pipes: is message or byte mode */
+	unsigned messageMode:1;    /* for pipes: message vs byte mode */
 	atomic_t wrtPending;   /* handle in use - defer close */
 	struct semaphore fh_sem; /* prevents reopen race after dead ses*/
 	char *search_resume_name; /* BB removeme BB */

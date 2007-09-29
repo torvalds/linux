@@ -1,7 +1,12 @@
 Version 1.51
 ------------
 Fix memory leak in statfs when mounted to very old servers (e.g.
-Windows 9x)
+Windows 9x).  Add new feature "POSIX open" which allows servers
+which support the current POSIX Extensions to provide better semantics
+(e.g. delete for open files opened with posix open).  Take into
+account umask on posix mkdir not just older style mkdir.  Add
+ability to mount to IPC$ share (which allows CIFS named pipes to be
+opened, read and written as if they were files).
 
 Version 1.50
 ------------
