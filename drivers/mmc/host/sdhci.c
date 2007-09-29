@@ -132,7 +132,7 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 		readb(host->ioaddr + SDHCI_POWER_CONTROL),
 		readb(host->ioaddr + SDHCI_BLOCK_GAP_CONTROL));
 	printk(KERN_DEBUG DRIVER_NAME ": Wake-up:  0x%08x | Clock:    0x%08x\n",
-		readb(host->ioaddr + SDHCI_WALK_UP_CONTROL),
+		readb(host->ioaddr + SDHCI_WAKE_UP_CONTROL),
 		readw(host->ioaddr + SDHCI_CLOCK_CONTROL));
 	printk(KERN_DEBUG DRIVER_NAME ": Timeout:  0x%08x | Int stat: 0x%08x\n",
 		readb(host->ioaddr + SDHCI_TIMEOUT_CONTROL),
