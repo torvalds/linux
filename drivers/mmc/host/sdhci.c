@@ -1299,12 +1299,17 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		host->flags |= SDHCI_USE_DMA;
 	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
 		host->flags |= SDHCI_USE_DMA;
-	else if ((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA)
-		DBG("Controller doesn't have DMA interface\n");
 	else if (!(caps & SDHCI_CAN_DO_DMA))
 		DBG("Controller doesn't have DMA capability\n");
 	else
 		host->flags |= SDHCI_USE_DMA;
+
+	if (((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA) &&
+		(host->flags & SDHCI_USE_DMA)) {
+		printk(KERN_WARNING "%s: Will use DMA "
+			"mode even though HW doesn't fully "
+			"claim to support it.\n", host->slot_descr);
+	}
 
 	if (host->flags & SDHCI_USE_DMA) {
 		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
