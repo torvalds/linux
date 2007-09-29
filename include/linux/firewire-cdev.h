@@ -178,6 +178,7 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_QUEUE_ISO		_IOWR('#', 0x09, struct fw_cdev_queue_iso)
 #define FW_CDEV_IOC_START_ISO		_IOW('#', 0x0a, struct fw_cdev_start_iso)
 #define FW_CDEV_IOC_STOP_ISO		_IOW('#', 0x0b, struct fw_cdev_stop_iso)
+#define FW_CDEV_IOC_GET_CYCLE_TIMER	_IOR('#', 0x0c, struct fw_cdev_get_cycle_timer)
 
 /* FW_CDEV_VERSION History
  *
@@ -457,6 +458,20 @@ struct fw_cdev_start_iso {
  */
 struct fw_cdev_stop_iso {
 	__u32 handle;
+};
+
+/**
+ * struct fw_cdev_get_cycle_timer - read cycle timer register
+ * @local_time:   system time, in microseconds since the Epoch
+ * @cycle_timer:  isochronous cycle timer, as per OHCI 1.1 clause 5.13
+ *
+ * The %FW_CDEV_IOC_GET_CYCLE_TIMER ioctl reads the isochronous cycle timer
+ * and also the system clock.  This allows to express the receive time of an
+ * isochronous packet as a system time with microsecond accuracy.
+ */
+struct fw_cdev_get_cycle_timer {
+	__u64 local_time;
+	__u32 cycle_timer;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */
