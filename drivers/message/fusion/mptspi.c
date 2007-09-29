@@ -516,8 +516,8 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
 	struct _MPT_SCSI_HOST *hd = shost_priv(shost);
 	struct _MPT_ADAPTER *ioc = hd->ioc;
-	struct _CONFIG_PAGE_SCSI_DEVICE_0 *pg0;
-	dma_addr_t pg0_dma;
+	struct _CONFIG_PAGE_SCSI_DEVICE_0 *spi_dev_pg0;
+	dma_addr_t spi_dev_pg0_dma;
 	int size;
 	struct _x_config_parms cfg;
 	struct _CONFIG_PAGE_HEADER hdr;
@@ -535,8 +535,8 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	size += 2048;
 	*/
 
-	pg0 = dma_alloc_coherent(&ioc->pcidev->dev, size, &pg0_dma, GFP_KERNEL);
-	if (pg0 == NULL) {
+	spi_dev_pg0 = dma_alloc_coherent(&ioc->pcidev->dev, size, &spi_dev_pg0_dma, GFP_KERNEL);
+	if (spi_dev_pg0 == NULL) {
 		starget_printk(MYIOC_s_ERR_FMT, starget,
 		    "dma_alloc_coherent for parameters failed\n", ioc->name);
 		return -EINVAL;
@@ -552,7 +552,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	memset(&cfg, 0, sizeof(cfg));
 
 	cfg.cfghdr.hdr = &hdr;
-	cfg.physAddr = pg0_dma;
+	cfg.physAddr = spi_dev_pg0_dma;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfg.dir = 0;
 	cfg.pageAddr = starget->id;
@@ -562,12 +562,12 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 		goto out_free;
 	}
 	err = 0;
-	memcpy(pass_pg0, pg0, size);
+	memcpy(pass_pg0, spi_dev_pg0, size);
 
-	mptspi_print_read_nego(hd, starget, le32_to_cpu(pg0->NegotiatedParameters));
+	mptspi_print_read_nego(hd, starget, le32_to_cpu(spi_dev_pg0->NegotiatedParameters));
 
  out_free:
-	dma_free_coherent(&ioc->pcidev->dev, size, pg0, pg0_dma);
+	dma_free_coherent(&ioc->pcidev->dev, size, spi_dev_pg0, spi_dev_pg0_dma);
 	return err;
 }
 
@@ -594,11 +594,11 @@ static u32 mptspi_getRP(struct scsi_target *starget)
 static void mptspi_read_parameters(struct scsi_target *starget)
 {
 	int nego;
-	struct _CONFIG_PAGE_SCSI_DEVICE_0 pg0;
+	struct _CONFIG_PAGE_SCSI_DEVICE_0 spi_dev_pg0;
 
-	mptspi_read_spi_device_pg0(starget, &pg0);
+	mptspi_read_spi_device_pg0(starget, &spi_dev_pg0);
 
-	nego = le32_to_cpu(pg0.NegotiatedParameters);
+	nego = le32_to_cpu(spi_dev_pg0.NegotiatedParameters);
 
 	spi_iu(starget) = (nego & MPI_SCSIDEVPAGE0_NP_IU) ? 1 : 0;
 	spi_dt(starget) = (nego & MPI_SCSIDEVPAGE0_NP_DT) ? 1 : 0;

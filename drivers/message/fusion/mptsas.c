@@ -3224,6 +3224,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
 	if (!hd->ScsiLookup) {
 		error = -ENOMEM;
+		spin_unlock_irqrestore(&ioc->FreeQlock, flags);
 		goto out_mptsas_probe;
 	}
 

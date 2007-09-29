@@ -1452,6 +1452,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	MPT_ADAPTER	*ioc;
 	u8		__iomem *mem;
+	u8		__iomem *pmem;
 	unsigned long	 mem_phys;
 	unsigned long	 port;
 	u32		 msize;
@@ -1576,11 +1577,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->chip = (SYSIF_REGS __iomem *)mem;
 
 	/* Save Port IO values in case we need to do downloadboot */
-	{
-		u8 *pmem = (u8*)port;
-		ioc->pio_mem_phys = port;
-		ioc->pio_chip = (SYSIF_REGS __iomem *)pmem;
-	}
+	ioc->pio_mem_phys = port;
+	pmem = (u8 __iomem *)port;
+	ioc->pio_chip = (SYSIF_REGS __iomem *)pmem;
 
 	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
 	mpt_get_product_name(pdev->vendor, pdev->device, revision, ioc->prod_name);
@@ -3103,7 +3102,6 @@ mpt_free_fw_memory(MPT_ADAPTER *ioc)
 static int
 mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 {
-	u8			 request[ioc->req_sz];
 	u8			 reply[sizeof(FWUploadReply_t)];
 	FWUpload_t		*prequest;
 	FWUploadReply_t		*preply;
@@ -3129,11 +3127,16 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 		return -ENOMEM;
 	}
 
-	prequest = (FWUpload_t *)&request;
-	preply = (FWUploadReply_t *)&reply;
+	prequest = (sleepFlag == NO_SLEEP) ? kzalloc(ioc->req_sz, GFP_ATOMIC) :
+	    kzalloc(ioc->req_sz, GFP_KERNEL);
+	if (!prequest) {
+		dinitprintk(ioc, printk(MYIOC_s_DEBUG_FMT "fw upload failed "
+		    "while allocating memory \n", ioc->name));
+		mpt_free_fw_memory(ioc);
+		return -ENOMEM;
+	}
 
-	/*  Destination...  */
-	memset(prequest, 0, ioc->req_sz);
+	preply = (FWUploadReply_t *)&reply;
 
 	reply_sz = sizeof(reply);
 	memset(preply, 0, reply_sz);
@@ -3145,11 +3148,12 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 	ptcsge->DetailsLength = 12;
 	ptcsge->Flags = MPI_SGE_FLAGS_TRANSACTION_ELEMENT;
 	ptcsge->ImageSize = cpu_to_le32(sz);
+	ptcsge++;
 
 	sgeoffset = sizeof(FWUpload_t) - sizeof(SGE_MPI_UNION) + sizeof(FWUploadTCSGE_t);
 
 	flagsLength = MPT_SGE_FLAGS_SSIMPLE_READ | sz;
-	mpt_add_sge(&request[sgeoffset], flagsLength, ioc->cached_fw_dma);
+	mpt_add_sge((char *)ptcsge, flagsLength, ioc->cached_fw_dma);
 
 	sgeoffset += sizeof(u32) + sizeof(dma_addr_t);
 	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT ": Sending FW Upload (req @ %p) sgeoffset=%d \n",
@@ -3184,6 +3188,7 @@ mpt_do_upload(MPT_ADAPTER *ioc, int sleepFlag)
 			ioc->name));
 		mpt_free_fw_memory(ioc);
 	}
+	kfree(prequest);
 
 	return cmdStatus;
 }
