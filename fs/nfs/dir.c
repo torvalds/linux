@@ -1174,32 +1174,39 @@ out_renew:
 int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 				struct nfs_fattr *fattr)
 {
+	struct dentry *parent = dget_parent(dentry);
+	struct inode *dir = parent->d_inode;
 	struct inode *inode;
 	int error = -EACCES;
 
+	d_drop(dentry);
+
 	/* We may have been initialized further down */
 	if (dentry->d_inode)
-		return 0;
+		goto out;
 	if (fhandle->size == 0) {
-		struct inode *dir = dentry->d_parent->d_inode;
 		error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 		if (error)
-			return error;
+			goto out_error;
 	}
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
 		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr);
 		if (error < 0)
-			return error;
+			goto out_error;
 	}
 	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
 	error = PTR_ERR(inode);
 	if (IS_ERR(inode))
-		return error;
-	d_instantiate(dentry, inode);
-	if (d_unhashed(dentry))
-		d_rehash(dentry);
+		goto out_error;
+	d_add(dentry, inode);
+out:
+	dput(parent);
 	return 0;
+out_error:
+	nfs_mark_for_revalidate(dir);
+	dput(parent);
+	return error;
 }
 
 /*
