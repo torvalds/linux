@@ -240,12 +240,6 @@ static inline void nfs_mark_for_revalidate(struct inode *inode)
 	spin_unlock(&inode->i_lock);
 }
 
-static inline void NFS_CACHEINV(struct inode *inode)
-{
-	if (!nfs_caches_unstable(inode))
-		nfs_mark_for_revalidate(inode);
-}
-
 static inline int nfs_server_capable(struct inode *inode, int cap)
 {
 	return NFS_SERVER(inode)->caps & cap;

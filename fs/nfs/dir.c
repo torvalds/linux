@@ -788,7 +788,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 out_zap_parent:
 	nfs_zap_caches(dir);
  out_bad:
-	NFS_CACHEINV(dir);
+	nfs_mark_for_revalidate(dir);
 	if (inode && S_ISDIR(inode->i_mode)) {
 		/* Purge readdir caches. */
 		nfs_zap_caches(inode);
