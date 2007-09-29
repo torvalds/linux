@@ -149,6 +149,7 @@ static inline int blkcipher_next_slow(struct blkcipher_desc *desc,
 				      unsigned int alignmask)
 {
 	unsigned int n;
+	unsigned aligned_bsize = ALIGN(bsize, alignmask + 1);
 
 	if (walk->buffer)
 		goto ok;
@@ -167,8 +168,8 @@ ok:
 	walk->dst.virt.addr = (u8 *)ALIGN((unsigned long)walk->buffer,
 					  alignmask + 1);
 	walk->dst.virt.addr = blkcipher_get_spot(walk->dst.virt.addr, bsize);
-	walk->src.virt.addr = blkcipher_get_spot(walk->dst.virt.addr + bsize,
-						 bsize);
+	walk->src.virt.addr = blkcipher_get_spot(walk->dst.virt.addr +
+						 aligned_bsize, bsize);
 
 	scatterwalk_copychunks(walk->src.virt.addr, &walk->in, bsize, 0);
 
@@ -278,7 +279,9 @@ static inline int blkcipher_copy_iv(struct blkcipher_walk *walk,
 {
 	unsigned bs = crypto_blkcipher_blocksize(tfm);
 	unsigned int ivsize = crypto_blkcipher_ivsize(tfm);
-	unsigned int size = bs * 2 + ivsize + max(bs, ivsize) - (alignmask + 1);
+	unsigned aligned_bs = ALIGN(bs, alignmask + 1);
+	unsigned int size = aligned_bs * 2 + ivsize + max(aligned_bs, ivsize) -
+			    (alignmask + 1);
 	u8 *iv;
 
 	size += alignmask & ~(crypto_tfm_ctx_alignment() - 1);
@@ -287,8 +290,8 @@ static inline int blkcipher_copy_iv(struct blkcipher_walk *walk,
 		return -ENOMEM;
 
 	iv = (u8 *)ALIGN((unsigned long)walk->buffer, alignmask + 1);
-	iv = blkcipher_get_spot(iv, bs) + bs;
-	iv = blkcipher_get_spot(iv, bs) + bs;
+	iv = blkcipher_get_spot(iv, bs) + aligned_bs;
+	iv = blkcipher_get_spot(iv, bs) + aligned_bs;
 	iv = blkcipher_get_spot(iv, ivsize);
 
 	walk->iv = memcpy(iv, walk->iv, ivsize);
