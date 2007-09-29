@@ -85,7 +85,6 @@ void nfs_clear_inode(struct inode *inode)
 	 */
 	BUG_ON(nfs_have_writebacks(inode));
 	BUG_ON(!list_empty(&NFS_I(inode)->open_files));
-	BUG_ON(atomic_read(&NFS_I(inode)->data_updates) != 0);
 	nfs_zap_acl_cache(inode);
 	nfs_access_zap_cache(inode);
 }
@@ -757,16 +756,6 @@ out:
 }
 
 /**
- * nfs_begin_data_update
- * @inode - pointer to inode
- * Declare that a set of operations will update file data on the server
- */
-void nfs_begin_data_update(struct inode *inode)
-{
-	atomic_inc(&NFS_I(inode)->data_updates);
-}
-
-/**
  * nfs_end_data_update
  * @inode - pointer to inode
  * Declare end of the operations that will update file data
@@ -775,15 +764,12 @@ void nfs_begin_data_update(struct inode *inode)
  */
 void nfs_end_data_update(struct inode *inode)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
-
 	/* Directories: invalidate page cache */
 	if (S_ISDIR(inode->i_mode)) {
 		spin_lock(&inode->i_lock);
-		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_DATA;
 		spin_unlock(&inode->i_lock);
 	}
-	atomic_dec(&nfsi->data_updates);
 }
 
 static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
@@ -823,7 +809,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t cur_size, new_isize;
-	int data_unstable;
 
 
 	/* Has the inode gone and changed behind our back? */
@@ -831,9 +816,6 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 			|| (inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT)) {
 		return -EIO;
 	}
-
-	/* Are we in the process of updating data on the server? */
-	data_unstable = nfs_caches_unstable(inode);
 
 	/* Do atomic weak cache consistency updates */
 	nfs_wcc_update_inode(inode, fattr);
@@ -1162,7 +1144,6 @@ static void init_once(void * foo, struct kmem_cache * cachep, unsigned long flag
 	INIT_LIST_HEAD(&nfsi->access_cache_entry_lru);
 	INIT_LIST_HEAD(&nfsi->access_cache_inode_lru);
 	INIT_RADIX_TREE(&nfsi->nfs_page_tree, GFP_ATOMIC);
-	atomic_set(&nfsi->data_updates, 0);
 	nfsi->ncommit = 0;
 	nfsi->npages = 0;
 	nfs4_init_once(nfsi);

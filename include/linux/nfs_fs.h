@@ -136,11 +136,6 @@ struct nfs_inode {
 	 * server.
 	 */
 	unsigned long		cache_change_attribute;
-	/*
-	 * Counter indicating the number of outstanding requests that
-	 * will cause a file data update.
-	 */
-	atomic_t		data_updates;
 
 	struct rb_root		access_cache;
 	struct list_head	access_cache_entry_lru;
@@ -224,9 +219,13 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 
 #define NFS_FILEID(inode)		(NFS_I(inode)->fileid)
 
-static inline int nfs_caches_unstable(struct inode *inode)
+/**
+ * nfs_begin_data_update
+ * @inode - pointer to inode
+ * Declare that a set of operations will update file data on the server
+ */
+static inline void nfs_begin_data_update(struct inode *inode)
 {
-	return atomic_read(&NFS_I(inode)->data_updates) != 0;
 }
 
 static inline void nfs_mark_for_revalidate(struct inode *inode)
@@ -299,7 +298,6 @@ extern int nfs_setattr(struct dentry *, struct iattr *);
 extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern void nfs_begin_attr_update(struct inode *);
 extern void nfs_end_attr_update(struct inode *);
-extern void nfs_begin_data_update(struct inode *);
 extern void nfs_end_data_update(struct inode *);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
