@@ -1224,6 +1224,8 @@ mpt_lan_post_receive_buckets(struct mpt_lan_priv *priv)
 		}
 		pRecvReq = (LANReceivePostRequest_t *) mf;
 
+		i = le16_to_cpu(mf->u.frame.hwhdr.msgctxu.fld.req_idx);
+		mpt_dev->RequestNB[i] = 0;
 		count = buckets;
 		if (count > max)
 			count = max;
