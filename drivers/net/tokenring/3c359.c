@@ -1045,11 +1045,6 @@ static irqreturn_t xl_interrupt(int irq, void *dev_id)
 	u8 __iomem * xl_mmio = xl_priv->xl_mmio ; 
 	u16 intstatus, macstatus  ;
 
-	if (!dev) { 
-		printk(KERN_WARNING "Device structure dead, aaahhhh !\n") ;
-		return IRQ_NONE; 
-	}
-
 	intstatus = readw(xl_mmio + MMIO_INTSTATUS) ;  
 
 	if (!(intstatus & 1)) /* We didn't generate the interrupt */
