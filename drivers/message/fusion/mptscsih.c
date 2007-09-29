@@ -80,6 +80,10 @@ MODULE_VERSION(my_VERSION);
 /*
  *  Other private/forward protos...
  */
+static struct scsi_cmnd * mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i);
+static struct scsi_cmnd * mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i);
+static void	mptscsih_set_scsi_lookup(MPT_ADAPTER *ioc, int i, struct scsi_cmnd *scmd);
+static int	SCPNT_TO_LOOKUP_IDX(MPT_ADAPTER *ioc, struct scsi_cmnd *scmd);
 int		mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
 static void	mptscsih_report_queue_full(struct scsi_cmnd *sc, SCSIIOReply_t *pScsiReply, SCSIIORequest_t *pScsiReq);
 int		mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *r);
@@ -90,7 +94,6 @@ static void	mptscsih_freeChainBuffers(MPT_ADAPTER *ioc, int req_idx);
 static void	mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR *mf, SCSIIOReply_t *pScsiReply);
 static int	mptscsih_tm_pending_wait(MPT_SCSI_HOST * hd);
 static int	mptscsih_tm_wait_for_completion(MPT_SCSI_HOST * hd, ulong timeout );
-static int	SCPNT_TO_LOOKUP_IDX(struct scsi_cmnd *sc);
 
 static int	mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel, u8 id, int lun, int ctx2abort, ulong timeout);
 
@@ -658,12 +661,11 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		printk (MYIOC_s_ERR_FMT
 		    "req_idx=%x req_idx_MR=%x mf=%p mr=%p sc=%p\n",
 		    ioc->name, req_idx, req_idx_MR, mf, mr,
-		    hd->ScsiLookup[req_idx_MR]);
+		    mptscsih_get_scsi_lookup(ioc, req_idx_MR));
 		return 0;
 	}
 
-	sc = hd->ScsiLookup[req_idx];
-	hd->ScsiLookup[req_idx] = NULL;
+	sc = mptscsih_getclear_scsi_lookup(ioc, req_idx);
 	if (sc == NULL) {
 		MPIHeader_t *hdr = (MPIHeader_t *)mf;
 
@@ -969,48 +971,32 @@ static void
 mptscsih_flush_running_cmds(MPT_SCSI_HOST *hd)
 {
 	MPT_ADAPTER *ioc = hd->ioc;
-	struct scsi_cmnd	*SCpnt;
-	MPT_FRAME_HDR	*mf;
+	struct scsi_cmnd *sc;
+	SCSIIORequest_t	*mf = NULL;
 	int		 ii;
-	int		 max = ioc->req_depth;
+	int		 channel, id;
 
-	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT ": flush_ScsiLookup called\n", ioc->name));
-	for (ii= 0; ii < max; ii++) {
-		if ((SCpnt = hd->ScsiLookup[ii]) != NULL) {
-
-			/* Command found.
-			 */
-
-			/* Null ScsiLookup index
-			 */
-			hd->ScsiLookup[ii] = NULL;
-
-			mf = MPT_INDEX_2_MFPTR(ioc, ii);
-			dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT ": flush: ScsiDone (mf=%p,sc=%p)\n",
-			    ioc->name, mf, SCpnt));
-
-			/* Free Chain buffers */
-			mptscsih_freeChainBuffers(ioc, ii);
-
-			/* Free Message frames */
-			mpt_free_msg_frame(ioc, mf);
-
-			if ((unsigned char *)mf != SCpnt->host_scribble)
-				continue;
-
-			/* Set status, free OS resources (SG DMA buffers)
-			 * Do OS callback
-			 */
-			scsi_dma_unmap(SCpnt);
-
-			SCpnt->result = DID_RESET << 16;
-			SCpnt->host_scribble = NULL;
-
-			SCpnt->scsi_done(SCpnt);	/* Issue the command callback */
-		}
+	for (ii= 0; ii < ioc->req_depth; ii++) {
+		sc = mptscsih_getclear_scsi_lookup(ioc, ii);
+		if (!sc)
+			continue;
+		mf = (SCSIIORequest_t *)MPT_INDEX_2_MFPTR(ioc, ii);
+		if (!mf)
+			continue;
+		channel = mf->Bus;
+		id = mf->TargetID;
+		mptscsih_freeChainBuffers(ioc, ii);
+		mpt_free_msg_frame(ioc, (MPT_FRAME_HDR *)mf);
+		if ((unsigned char *)mf != sc->host_scribble)
+			continue;
+		scsi_dma_unmap(sc);
+		sc->result = DID_RESET << 16;
+		sc->host_scribble = NULL;
+		sdev_printk(MYIOC_s_INFO_FMT, sc->device,
+		    "completing cmds: fw_channel %d, fw_id %d, sc=%p,"
+		    " mf = %p, idx=%x\n", ioc->name, channel, id, sc, mf, ii);
+		sc->scsi_done(sc);
 	}
-
-	return;
 }
 
 /*
@@ -1032,16 +1018,14 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 {
 	SCSIIORequest_t	*mf = NULL;
 	int		 ii;
-	int		 max = hd->ioc->req_depth;
 	struct scsi_cmnd *sc;
 	struct scsi_lun  lun;
 	MPT_ADAPTER *ioc = hd->ioc;
+	unsigned long	flags;
 
-	dsprintk(ioc, printk(MYIOC_s_DEBUG_FMT ": search_running channel %d id %d lun %d max %d\n",
-	    ioc->name, vdevice->vtarget->channel, vdevice->vtarget->id, vdevice->lun, max));
-
-	for (ii=0; ii < max; ii++) {
-		if ((sc = hd->ScsiLookup[ii]) != NULL) {
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	for (ii = 0; ii < ioc->req_depth; ii++) {
+		if ((sc = ioc->ScsiLookup[ii]) != NULL) {
 
 			mf = (SCSIIORequest_t *)MPT_INDEX_2_MFPTR(ioc, ii);
 			if (mf == NULL)
@@ -1060,13 +1044,12 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			    memcmp(lun.scsi_lun, mf->LUN, 8))
 				continue;
 
-			/* Cleanup
-			 */
-			hd->ScsiLookup[ii] = NULL;
-			mptscsih_freeChainBuffers(ioc, ii);
-			mpt_free_msg_frame(ioc, (MPT_FRAME_HDR *)mf);
 			if ((unsigned char *)mf != sc->host_scribble)
 				continue;
+			ioc->ScsiLookup[ii] = NULL;
+			spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+			mptscsih_freeChainBuffers(ioc, ii);
+			mpt_free_msg_frame(ioc, (MPT_FRAME_HDR *)mf);
 			scsi_dma_unmap(sc);
 			sc->host_scribble = NULL;
 			sc->result = DID_NO_CONNECT << 16;
@@ -1074,8 +1057,10 @@ mptscsih_search_running_cmds(MPT_SCSI_HOST *hd, VirtDevice *vdevice)
 			   "fw_id %d, sc=%p, mf = %p, idx=%x\n", ioc->name, vdevice->vtarget->channel,
 			   vdevice->vtarget->id, sc, mf, ii);
 			sc->scsi_done(sc);
+			spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 		}
 	}
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 	return;
 }
 
@@ -1143,10 +1128,10 @@ mptscsih_remove(struct pci_dev *pdev)
 
 	sz1=0;
 
-	if (hd->ScsiLookup != NULL) {
+	if (ioc->ScsiLookup != NULL) {
 		sz1 = ioc->req_depth * sizeof(void *);
-		kfree(hd->ScsiLookup);
-		hd->ScsiLookup = NULL;
+		kfree(ioc->ScsiLookup);
+		ioc->ScsiLookup = NULL;
 	}
 
 	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT
@@ -1463,7 +1448,7 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	}
 
 	SCpnt->host_scribble = (unsigned char *)mf;
-	hd->ScsiLookup[my_idx] = SCpnt;
+	mptscsih_set_scsi_lookup(ioc, my_idx, SCpnt);
 
 	mpt_put_msg_frame(ioc->DoneCtx, ioc, mf);
 	dmfprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Issued SCSI cmd (%p) mf=%p idx=%d\n",
@@ -1472,7 +1457,6 @@ mptscsih_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	return 0;
 
  fail:
-	hd->ScsiLookup[my_idx] = NULL;
 	mptscsih_freeChainBuffers(ioc, my_idx);
 	mpt_free_msg_frame(ioc, mf);
 	return SCSI_MLQUEUE_HOST_BUSY;
@@ -1834,7 +1818,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 
 	/* Find this command
 	 */
-	if ((scpnt_idx = SCPNT_TO_LOOKUP_IDX(SCpnt)) < 0) {
+	if ((scpnt_idx = SCPNT_TO_LOOKUP_IDX(ioc, SCpnt)) < 0) {
 		/* Cmd not found in ScsiLookup.
 		 * Do OS callback.
 		 */
@@ -1870,7 +1854,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	    vdevice->vtarget->channel, vdevice->vtarget->id, vdevice->lun,
 	    ctx2abort, mptscsih_get_tm_timeout(ioc));
 
-	if (SCPNT_TO_LOOKUP_IDX(SCpnt) == scpnt_idx &&
+	if (SCPNT_TO_LOOKUP_IDX(ioc, SCpnt) == scpnt_idx &&
 	    SCpnt->serial_number == sn)
 		retval = FAILED;
 
@@ -2551,21 +2535,101 @@ mptscsih_copy_sense_data(struct scsi_cmnd *sc, MPT_SCSI_HOST *hd, MPT_FRAME_HDR 
 	}
 }
 
-static int
-SCPNT_TO_LOOKUP_IDX(struct scsi_cmnd *sc)
+/**
+ * mptscsih_get_scsi_lookup
+ *
+ * retrieves scmd entry from ScsiLookup[] array list
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @i: index into the array
+ *
+ * Returns the scsi_cmd pointer
+ *
+ **/
+static struct scsi_cmnd *
+mptscsih_get_scsi_lookup(MPT_ADAPTER *ioc, int i)
 {
-	MPT_SCSI_HOST *hd;
-	int i;
+	unsigned long	flags;
+	struct scsi_cmnd *scmd;
 
-	hd = shost_priv(sc->device->host);
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	scmd = ioc->ScsiLookup[i];
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
 
-	for (i = 0; i < hd->ioc->req_depth; i++) {
-		if (hd->ScsiLookup[i] == sc) {
-			return i;
+	return scmd;
+}
+
+/**
+ * mptscsih_getclear_scsi_lookup
+ *
+ * retrieves and clears scmd entry from ScsiLookup[] array list
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @i: index into the array
+ *
+ * Returns the scsi_cmd pointer
+ *
+ **/
+static struct scsi_cmnd *
+mptscsih_getclear_scsi_lookup(MPT_ADAPTER *ioc, int i)
+{
+	unsigned long	flags;
+	struct scsi_cmnd *scmd;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	scmd = ioc->ScsiLookup[i];
+	ioc->ScsiLookup[i] = NULL;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+
+	return scmd;
+}
+
+/**
+ * mptscsih_set_scsi_lookup
+ *
+ * writes a scmd entry into the ScsiLookup[] array list
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @i: index into the array
+ * @scmd: scsi_cmnd pointer
+ *
+ **/
+static void
+mptscsih_set_scsi_lookup(MPT_ADAPTER *ioc, int i, struct scsi_cmnd *scmd)
+{
+	unsigned long	flags;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	ioc->ScsiLookup[i] = scmd;
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+}
+
+/**
+ * SCPNT_TO_LOOKUP_IDX
+ *
+ * search's for a given scmd in the ScsiLookup[] array list
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ * @scmd: scsi_cmnd pointer
+ *
+ **/
+static int
+SCPNT_TO_LOOKUP_IDX(MPT_ADAPTER *ioc, struct scsi_cmnd *sc)
+{
+	unsigned long	flags;
+	int i, index=-1;
+
+	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
+	for (i = 0; i < ioc->req_depth; i++) {
+		if (ioc->ScsiLookup[i] == sc) {
+			index = i;
+			goto out;
 		}
 	}
 
-	return -1;
+ out:
+	spin_unlock_irqrestore(&ioc->scsi_lookup_lock, flags);
+	return index;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -2574,7 +2638,6 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 {
 	MPT_SCSI_HOST	*hd;
 	unsigned long	 flags;
-	int 		ii;
 
 	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 	    ": IOC %s_reset routed to SCSI host driver!\n",
@@ -2629,11 +2692,6 @@ mptscsih_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 		 * redirected to the doneQ w/ a reset status.
 		 * Init all control structures.
 		 */
-
-		/* ScsiLookup initialization
-		 */
-		for (ii=0; ii < ioc->req_depth; ii++)
-			hd->ScsiLookup[ii] = NULL;
 
 		/* 2. Chain Buffer initialization
 		 */
@@ -2772,7 +2830,7 @@ mptscsih_scandv_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 
 	del_timer(&hd->timer);
 	req_idx = le16_to_cpu(mf->u.frame.hwhdr.msgctxu.fld.req_idx);
-	hd->ScsiLookup[req_idx] = NULL;
+	mptscsih_set_scsi_lookup(ioc, req_idx, NULL);
 	pReq = (SCSIIORequest_t *) mf;
 
 	if (mf != hd->cmdPtr) {

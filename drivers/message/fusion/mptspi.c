@@ -1446,14 +1446,15 @@ mptspi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* SCSI needs scsi_cmnd lookup table!
 	 * (with size equal to req_depth*PtrSz!)
 	 */
-	hd->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
-	if (!hd->ScsiLookup) {
+	ioc->ScsiLookup = kcalloc(ioc->req_depth, sizeof(void *), GFP_ATOMIC);
+	if (!ioc->ScsiLookup) {
 		error = -ENOMEM;
 		goto out_mptspi_probe;
 	}
+	spin_lock_init(&ioc->scsi_lookup_lock);
 
 	dprintk(ioc, printk(MYIOC_s_DEBUG_FMT "ScsiLookup @ %p\n",
-		 ioc->name, hd->ScsiLookup));
+		 ioc->name, ioc->ScsiLookup));
 
 	/* Clear the TM flags
 	 */

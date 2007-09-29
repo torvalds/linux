@@ -704,6 +704,8 @@ typedef struct _MPT_ADAPTER
 	struct work_struct	 fc_rescan_work;
 	char			 fc_rescan_work_q_name[KOBJ_NAME_LEN];
 	struct workqueue_struct *fc_rescan_work_q;
+	struct scsi_cmnd	**ScsiLookup;
+	spinlock_t		  scsi_lookup_lock;
 } MPT_ADAPTER;
 
 /*
@@ -817,7 +819,6 @@ typedef struct _MPT_SCSI_HOST {
 	MPT_ADAPTER		 *ioc;
 	int			  port;
 	u32			  pad0;
-	struct scsi_cmnd	**ScsiLookup;
 	MPT_LOCAL_REPLY		 *pLocal;		/* used for internal commands */
 	struct timer_list	  timer;
 		/* Pool of memory for holding SCpnts before doing
