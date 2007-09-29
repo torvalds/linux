@@ -260,13 +260,13 @@ static inline int NFS_USE_READDIRPLUS(struct inode *inode)
 
 /**
  * nfs_save_change_attribute - Returns the inode attribute change cookie
- * @inode - pointer to inode
+ * @dir - pointer to parent directory inode
  * The "change attribute" is updated every time we finish an operation
  * that will result in a metadata change on the server.
  */
-static inline long nfs_save_change_attribute(struct inode *inode)
+static inline unsigned long nfs_save_change_attribute(struct inode *dir)
 {
-	return NFS_I(inode)->cache_change_attribute;
+	return NFS_I(dir)->cache_change_attribute;
 }
 
 /**
