@@ -270,16 +270,16 @@ static inline unsigned long nfs_save_change_attribute(struct inode *dir)
 }
 
 /**
- * nfs_verify_change_attribute - Detects NFS inode cache updates
- * @inode - pointer to inode
+ * nfs_verify_change_attribute - Detects NFS remote directory changes
+ * @dir - pointer to parent directory inode
  * @chattr - previously saved change attribute
- * Return "false" if metadata has been updated (or is in the process of
- * being updated) since the change attribute was saved.
+ * Return "false" if the verifiers doesn't match the change attribute.
+ * This would usually indicate that the directory contents have changed on
+ * the server, and that any dentries need revalidating.
  */
-static inline int nfs_verify_change_attribute(struct inode *inode, unsigned long chattr)
+static inline int nfs_verify_change_attribute(struct inode *dir, unsigned long chattr)
 {
-	return !nfs_caches_unstable(inode)
-		&& chattr == NFS_I(inode)->cache_change_attribute;
+	return chattr == NFS_I(dir)->cache_change_attribute;
 }
 
 /*

@@ -646,7 +646,7 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
-	if (dentry->d_time == NFS_I(dir)->cache_change_attribute)
+	if (nfs_verify_change_attribute(dir, dentry->d_time))
 		return 1;
 	return 0;
 }
