@@ -276,7 +276,7 @@ more details, with real examples.
 
 --- 3.7 Compilation flags
 
-    EXTRA_CFLAGS, EXTRA_AFLAGS, EXTRA_LDFLAGS, EXTRA_ARFLAGS
+    EXTRA_CFLAGS, EXTRA_AFLAGS, EXTRA_LDFLAGS
 
 	All the EXTRA_ variables apply only to the kbuild makefile
 	where they are assigned. The EXTRA_ variables apply to all
@@ -305,8 +305,7 @@ more details, with real examples.
 		EXTRA_AFLAGS := -traditional
 
 
-	$(EXTRA_LDFLAGS) and $(EXTRA_ARFLAGS) are similar strings for
-	per-directory options to $(LD) and $(AR).
+	$(EXTRA_LDFLAGS) is a string for per-directory options to $(LD).
 
 	Example:
 		#arch/m68k/fpsp040/Makefile
