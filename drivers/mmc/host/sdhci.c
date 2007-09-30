@@ -35,6 +35,7 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
 #define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
+#define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -68,7 +69,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_ENE_CB712_SD,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
@@ -76,7 +78,8 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.device		= PCI_DEVICE_ID_ENE_CB712_SD_2,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
-		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE,
+		.driver_data	= SDHCI_QUIRK_SINGLE_POWER_WRITE |
+				  SDHCI_QUIRK_BROKEN_DMA,
 	},
 
 	{
@@ -1303,6 +1306,12 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 		DBG("Controller doesn't have DMA capability\n");
 	else
 		host->flags |= SDHCI_USE_DMA;
+
+	if ((chip->quirks & SDHCI_QUIRK_BROKEN_DMA) &&
+		(host->flags & SDHCI_USE_DMA)) {
+		DBG("Disabling DMA as it is marked broken");
+		host->flags &= ~SDHCI_USE_DMA;
+	}
 
 	if (((pdev->class & 0x0000FF) != PCI_SDHCI_IFDMA) &&
 		(host->flags & SDHCI_USE_DMA)) {
