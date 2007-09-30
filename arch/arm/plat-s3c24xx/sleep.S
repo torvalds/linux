@@ -96,6 +96,14 @@ resume_with_mmu:
 s3c2410_sleep_save_phys:
 	.word	0
 
+
+	/* sleep magic, to allow the bootloader to check for an valid
+	 * image to resume to. Must be the first word before the
+	 * s3c2410_cpu_resume entry.
+	*/
+
+	.word	0x2bedf00d
+
 	/* s3c2410_cpu_resume
 	 *
 	 * resume code entry for bootloader to call
