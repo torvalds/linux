@@ -225,7 +225,9 @@ static void __vcpu_clear(void *arg)
 
 static void vcpu_clear(struct vcpu_vmx *vmx)
 {
-	if (vmx->vcpu.cpu != raw_smp_processor_id() && vmx->vcpu.cpu != -1)
+	if (vmx->vcpu.cpu == -1)
+		return;
+	if (vmx->vcpu.cpu != raw_smp_processor_id())
 		smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear,
 					 vmx, 0, 1);
 	else
