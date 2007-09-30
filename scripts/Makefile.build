@@ -55,31 +55,6 @@ _dummy := $(shell [ -d $(obj) ] || mkdir -p $(obj))
 _dummy := $(foreach d,$(obj-dirs), $(shell [ -d $(d) ] || mkdir -p $(d)))
 endif
 
-
-ifdef EXTRA_TARGETS
-$(warning kbuild: $(obj)/Makefile - Usage of EXTRA_TARGETS is obsolete in 2.6. Please fix!)
-endif
-
-ifdef build-targets
-$(warning kbuild: $(obj)/Makefile - Usage of build-targets is obsolete in 2.6. Please fix!)
-endif
-
-ifdef export-objs
-$(warning kbuild: $(obj)/Makefile - Usage of export-objs is obsolete in 2.6. Please fix!)
-endif
-
-ifdef O_TARGET
-$(warning kbuild: $(obj)/Makefile - Usage of O_TARGET := $(O_TARGET) is obsolete in 2.6. Please fix!)
-endif
-
-ifdef L_TARGET
-$(error kbuild: $(obj)/Makefile - Use of L_TARGET is replaced by lib-y in 2.6. Please fix!)
-endif
-
-ifdef list-multi
-$(warning kbuild: $(obj)/Makefile - list-multi := $(list-multi) is obsolete in 2.6. Please fix!)
-endif
-
 ifndef obj
 $(warning kbuild: Makefile.build is included improperly)
 endif

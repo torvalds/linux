@@ -1,5 +1,3 @@
-# Backward compatibility - to be removed...
-extra-y	+= $(EXTRA_TARGETS)
 # Figure out what we need to build from the various variables
 # ===========================================================================
 
@@ -140,7 +138,7 @@ $(obj)/%:: $(src)/%_shipped
 #	target: source(s) FORCE
 #		$(if_changed,ld/objcopy/gzip)
 #
-#	and add target to EXTRA_TARGETS so that we know we have to
+#	and add target to extra-y so that we know we have to
 #	read in the saved command line
 
 # Linking
