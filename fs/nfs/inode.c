@@ -686,11 +686,8 @@ static int nfs_invalidate_mapping_nolock(struct inode *inode, struct address_spa
 	}
 	spin_lock(&inode->i_lock);
 	nfsi->cache_validity &= ~NFS_INO_INVALID_DATA;
-	if (S_ISDIR(inode->i_mode)) {
+	if (S_ISDIR(inode->i_mode))
 		memset(nfsi->cookieverf, 0, sizeof(nfsi->cookieverf));
-		/* This ensures we revalidate child dentries */
-		nfsi->cache_change_attribute = jiffies;
-	}
 	spin_unlock(&inode->i_lock);
 	nfs_inc_stats(inode, NFSIOS_DATAINVALIDATE);
 	dfprintk(PAGECACHE, "NFS: (%s/%Ld) data cache invalidated\n",
