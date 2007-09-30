@@ -942,7 +942,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	loff_t cur_isize, new_isize;
 	unsigned int	invalid = 0;
 	unsigned long now = jiffies;
-	int data_stable;
 
 	dfprintk(VFS, "NFS: %s(%s/%ld ct=%d info=0x%x)\n",
 			__FUNCTION__, inode->i_sb->s_id, inode->i_ino,
@@ -969,8 +968,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	nfsi->read_cache_jiffies = fattr->time_start;
 	nfsi->last_updated = now;
 
-	/* Are we racing with known updates of the metadata on the server? */
-	data_stable = nfs_verify_change_attribute(inode, fattr->time_start);
 	nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ATIME
 			| NFS_INO_REVAL_PAGECACHE);
 
@@ -1002,15 +999,9 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  	new_isize = nfs_size_to_loff_t(fattr->size);
 	cur_isize = i_size_read(inode);
 	if (new_isize != cur_isize) {
-		/* Do we perhaps have any outstanding writes? */
-		if (nfsi->npages == 0) {
-			/* No, but did we race with nfs_end_data_update()? */
-			if (data_stable) {
-				inode->i_size = new_isize;
-				invalid |= NFS_INO_INVALID_DATA;
-			}
-			invalid |= NFS_INO_INVALID_ATTR;
-		} else if (new_isize > cur_isize) {
+		/* Do we perhaps have any outstanding writes, or has
+		 * the file grown beyond our last write? */
+		if (nfsi->npages == 0 || new_isize > cur_isize) {
 			inode->i_size = new_isize;
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
 		}
