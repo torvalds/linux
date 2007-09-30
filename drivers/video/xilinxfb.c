@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
-#include <syslib/virtex_devices.h>
+#include <linux/xilinxfb.h>
 
 #define DRIVER_NAME		"xilinxfb"
 #define DRIVER_DESCRIPTION	"Xilinx TFT LCD frame buffer driver"

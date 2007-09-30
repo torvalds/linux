@@ -12,13 +12,7 @@
 #define __ASM_VIRTEX_DEVICES_H__
 
 #include <linux/platform_device.h>
-
-/* ML300/403 reference design framebuffer driver platform data struct */
-struct xilinxfb_platform_data {
-	u32 rotate_screen;
-	u32 screen_height_mm;
-	u32 screen_width_mm;
-};
+#include <linux/xilinxfb.h>
 
 void __init virtex_early_serial_map(void);
 
