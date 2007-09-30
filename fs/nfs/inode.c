@@ -801,6 +801,8 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		}
 		if (timespec_equal(&inode->i_mtime, &fattr->pre_mtime)) {
 			memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
+			if (S_ISDIR(inode->i_mode))
+				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 			nfsi->cache_change_attribute = now;
 		}
 		if (inode->i_size == fattr->pre_size && nfsi->npages == 0) {
