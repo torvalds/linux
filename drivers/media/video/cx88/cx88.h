@@ -228,7 +228,7 @@ struct cx88_input {
 	enum cx88_itype type;
 	u32             gpio0, gpio1, gpio2, gpio3;
 	unsigned int    vmux:2;
-	unsigned int    extadc:1;
+	unsigned int    audioroute;
 };
 
 struct cx88_board {

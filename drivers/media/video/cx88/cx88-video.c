@@ -394,9 +394,21 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 
 	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		/* sets sound input from external adc */
-		if (INPUT(input).extadc)
+		if (INPUT(input).audioroute) {
+			/* The wm8775 module has the "2" route hardwired into
+			   the initialization. Some boards may use different
+			   routes for different inputs. HVR-1300 surely does */
+			if (core->board.audio_chip &&
+			    core->board.audio_chip == AUDIO_CHIP_WM8775) {
+				struct v4l2_routing route;
+
+				route.input = INPUT(input).audioroute;
+				cx88_call_i2c_clients(core,
+					VIDIOC_INT_S_AUDIO_ROUTING,&route);
+			}
+
 			cx_set(AUD_CTL, EN_I2SIN_ENABLE);
-		else
+		} else
 			cx_clear(AUD_CTL, EN_I2SIN_ENABLE);
 	}
 	return 0;
