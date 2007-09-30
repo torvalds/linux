@@ -13,6 +13,7 @@
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
+#include <asm/gpio.h>
 
 #include <asm/arch-ns9xxx/board.h>
 #include <asm/arch-ns9xxx/regs-sys.h>
@@ -91,12 +92,11 @@ void __init board_a9m9750dev_init_irq(void)
 	u32 reg;
 	int i;
 
-	/*
-	 * configure gpio for IRQ_EXT2
-	 * use GPIO 11, because GPIO 32 is used for the LCD
-	 */
-	/* XXX: proper GPIO handling */
-	BBU_GCONFb1(1) &= ~0x2000;
+	if (gpio_request(11, "board a9m9750dev extirq2") == 0)
+		ns9xxx_gpio_configure(11, 0, 1);
+	else
+		printk(KERN_ERR "%s: cannot get gpio 11 for IRQ_EXT2\n",
+				__func__);
 
 	for (i = FPGA_IRQ(0); i <= FPGA_IRQ(7); ++i) {
 		set_irq_chip(i, &a9m9750dev_fpga_chip);
