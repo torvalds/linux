@@ -46,8 +46,8 @@ static inline u32 ns9xxx_systemclock(void)
 	 *
 	 * Fine.
 	 */
-	return CRYSTAL * (REGGET(pll, SYS_PLL, ND) + 1)
-		>> REGGET(pll, SYS_PLL, FS);
+	return CRYSTAL * (REGGETIM(pll, SYS_PLL, ND) + 1)
+		>> REGGETIM(pll, SYS_PLL, FS);
 }
 
 static inline u32 ns9xxx_cpuclock(void) __attribute__((const));
