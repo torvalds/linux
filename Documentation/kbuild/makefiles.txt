@@ -780,8 +780,8 @@ When kbuild executes, the following steps are followed (roughly):
 	Example:
 		#arch/s390/Makefile
 		LDFLAGS         := -m elf_s390
-	Note: EXTRA_LDFLAGS and LDFLAGS_$@ can be used to further customise
-	the flags used. See chapter 7.
+	Note: EXTRA_LDFLAGS can be used to further customise
+	the flags used. See chapter 3.7.
 
     LDFLAGS_MODULE	Options for $(LD) when linking modules
 
