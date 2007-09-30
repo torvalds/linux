@@ -361,6 +361,7 @@
 		CALL(sys_signalfd)
 /* 350 */	CALL(sys_timerfd)
 		CALL(sys_eventfd)
+		CALL(sys_fallocate)
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted
