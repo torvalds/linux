@@ -613,6 +613,18 @@ enum set_key_cmd {
 	SET_KEY, DISABLE_KEY,
 };
 
+/**
+ * enum sta_notify_cmd - sta notify command
+ *
+ * Used with the sta_notify() callback in &struct ieee80211_ops, this
+ * indicates addition and removal of a station to station table
+ *
+ * @STA_NOTIFY_ADD: a station was added to the station table
+ * @STA_NOTIFY_REMOVE: a station being removed from the station table
+ */
+enum sta_notify_cmd {
+	STA_NOTIFY_ADD, STA_NOTIFY_REMOVE
+};
 
 /**
  * enum ieee80211_hw_flags - hardware flags
@@ -957,8 +969,8 @@ enum ieee80211_erp_change_flags {
  *
  * @set_retry_limit: Configuration of retry limits (if device needs it)
  *
- * @sta_table_notification: Number of STAs in STA table notification. Must
- *	be atomic.
+ * @sta_notify: Notifies low level driver about addition or removal
+ *	of assocaited station or AP.
  *
  * @erp_ie_changed: Handle ERP IE change notifications. Must be atomic.
  *
@@ -1025,8 +1037,8 @@ struct ieee80211_ops {
 	int (*set_frag_threshold)(struct ieee80211_hw *hw, u32 value);
 	int (*set_retry_limit)(struct ieee80211_hw *hw,
 			       u32 short_retry, u32 long_retr);
-	void (*sta_table_notification)(struct ieee80211_hw *hw,
-				       int num_sta);
+	void (*sta_notify)(struct ieee80211_hw *hw, int if_id,
+			enum sta_notify_cmd, const u8 *addr);
 	void (*erp_ie_changed)(struct ieee80211_hw *hw, u8 changes,
 			       int cts_protection, int preamble);
 	int (*conf_tx)(struct ieee80211_hw *hw, int queue,

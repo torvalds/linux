@@ -159,9 +159,9 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
-	if (local->ops->sta_table_notification)
-		local->ops->sta_table_notification(local_to_hw(local),
-						  local->num_sta);
+	if (local->ops->sta_notify)
+		local->ops->sta_notify(local_to_hw(local), dev->ifindex,
+					STA_NOTIFY_ADD, addr);
 	write_unlock_bh(&local->sta_lock);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -199,9 +199,6 @@ void sta_info_remove(struct sta_info *sta)
 	local->num_sta--;
 	sta_info_remove_aid_ptr(sta);
 
-	if (local->ops->sta_table_notification)
-		local->ops->sta_table_notification(local_to_hw(local),
-						   local->num_sta);
 }
 
 void sta_info_free(struct sta_info *sta)
@@ -231,6 +228,10 @@ void sta_info_free(struct sta_info *sta)
 
 	ieee80211_key_free(sta->key);
 	sta->key = NULL;
+
+	if (local->ops->sta_notify)
+		local->ops->sta_notify(local_to_hw(local), sta->dev->ifindex,
+					STA_NOTIFY_REMOVE, sta->addr);
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
