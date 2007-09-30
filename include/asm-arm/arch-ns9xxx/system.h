@@ -24,9 +24,9 @@ static inline void arch_reset(char mode)
 {
 	u32 reg;
 
-	reg = SYS_PLL >> 16;
+	reg = __raw_readl(SYS_PLL) >> 16;
 	REGSET(reg, SYS_PLL, SWC, YES);
-	SYS_PLL = reg;
+	__raw_writel(reg, SYS_PLL);
 
 	BUG();
 }

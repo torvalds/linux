@@ -19,7 +19,7 @@
 static inline u32 ns9xxx_systemclock(void) __attribute__((const));
 static inline u32 ns9xxx_systemclock(void)
 {
-	u32 pll = SYS_PLL;
+	u32 pll = __raw_readl(SYS_PLL);
 
 	/*
 	 * The system clock should be a multiple of HZ * TIMERCLOCKSELECT (in

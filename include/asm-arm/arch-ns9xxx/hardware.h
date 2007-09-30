@@ -35,11 +35,8 @@
 
 #ifndef __ASSEMBLY__
 
-#  define __REG(x)	(*((volatile u32 *)io_p2v((x))))
-#  define __REG2(x, y)	(*((volatile u32 *)io_p2v((x)) + (y)))
-
-#  define __REGB(x)	(*((volatile u8 *)io_p2v((x))))
-#  define __REGB2(x)	(*((volatile u8 *)io_p2v((x)) + (y)))
+#  define __REG(x)	((void __iomem __force *)io_p2v((x)))
+#  define __REG2(x, y)	((void __iomem __force *)(io_p2v((x)) + 4 * (y)))
 
 #  define __REGSET(var, field, value)					\
 	((var) = (((var) & ~((field) & ~(value))) | (value)))
@@ -76,9 +73,6 @@
 
 #  define __REG(x)	io_p2v(x)
 #  define __REG2(x, y)	io_p2v((x) + (y))
-
-#  define __REGB(x)	__REG((x))
-#  define __REGB2(x, y)	__REG2((x), (y))
 
 #endif
 

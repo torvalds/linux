@@ -27,7 +27,7 @@ static u32 latch;
 
 static cycle_t ns9xxx_clocksource_read(void)
 {
-	return SYS_TR(TIMER_CLOCKSOURCE);
+	return __raw_readl(SYS_TR(TIMER_CLOCKSOURCE));
 }
 
 static struct clocksource ns9xxx_clocksource = {
@@ -42,11 +42,11 @@ static struct clocksource ns9xxx_clocksource = {
 static void ns9xxx_clockevent_setmode(enum clock_event_mode mode,
 		struct clock_event_device *clk)
 {
-	u32 tc = SYS_TC(TIMER_CLOCKEVENT);
+	u32 tc = __raw_readl(SYS_TC(TIMER_CLOCKEVENT));
 
 	switch(mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		SYS_TRC(TIMER_CLOCKEVENT) = latch;
+		__raw_writel(latch, SYS_TRC(TIMER_CLOCKEVENT));
 		REGSET(tc, SYS_TCx, REN, EN);
 		REGSET(tc, SYS_TCx, INTS, EN);
 		REGSET(tc, SYS_TCx, TEN, EN);
@@ -66,24 +66,24 @@ static void ns9xxx_clockevent_setmode(enum clock_event_mode mode,
 		break;
 	}
 
-	SYS_TC(TIMER_CLOCKEVENT) = tc;
+	__raw_writel(tc, SYS_TC(TIMER_CLOCKEVENT));
 }
 
 static int ns9xxx_clockevent_setnextevent(unsigned long evt,
 		struct clock_event_device *clk)
 {
-	u32 tc = SYS_TC(TIMER_CLOCKEVENT);
+	u32 tc = __raw_readl(SYS_TC(TIMER_CLOCKEVENT));
 
 	if (REGGET(tc, SYS_TCx, TEN)) {
 		REGSET(tc, SYS_TCx, TEN, DIS);
-		SYS_TC(TIMER_CLOCKEVENT) = tc;
+		__raw_writel(tc, SYS_TC(TIMER_CLOCKEVENT));
 	}
 
 	REGSET(tc, SYS_TCx, TEN, EN);
 
-	SYS_TRC(TIMER_CLOCKEVENT) = evt;
+	__raw_writel(evt, SYS_TRC(TIMER_CLOCKEVENT));
 
-	SYS_TC(TIMER_CLOCKEVENT) = tc;
+	__raw_writel(tc, SYS_TC(TIMER_CLOCKEVENT));
 
 	return 0;
 }
@@ -104,15 +104,15 @@ static irqreturn_t ns9xxx_clockevent_handler(int irq, void *dev_id)
 	struct clock_event_device *evt = &ns9xxx_clockevent_device;
 
 	/* clear irq */
-	tc = SYS_TC(timerno);
+	tc = __raw_readl(SYS_TC(timerno));
 	if (REGGET(tc, SYS_TCx, REN) == SYS_TCx_REN_DIS) {
 		REGSET(tc, SYS_TCx, TEN, DIS);
-		SYS_TC(timerno) = tc;
+		__raw_writel(tc, SYS_TC(timerno));
 	}
 	REGSET(tc, SYS_TCx, INTC, SET);
-	SYS_TC(timerno) = tc;
+	__raw_writel(tc, SYS_TC(timerno));
 	REGSET(tc, SYS_TCx, INTC, UNSET);
-	SYS_TC(timerno) = tc;
+	__raw_writel(tc, SYS_TC(timerno));
 
 	evt->event_handler(evt);
 
@@ -129,13 +129,13 @@ static void __init ns9xxx_timer_init(void)
 {
 	int tc;
 
-	tc = SYS_TC(TIMER_CLOCKSOURCE);
+	tc = __raw_readl(SYS_TC(TIMER_CLOCKSOURCE));
 	if (REGGET(tc, SYS_TCx, TEN)) {
 		REGSET(tc, SYS_TCx, TEN, DIS);
-		SYS_TC(TIMER_CLOCKSOURCE) = tc;
+		__raw_writel(tc, SYS_TC(TIMER_CLOCKSOURCE));
 	}
 
-	SYS_TRC(TIMER_CLOCKSOURCE) = 0;
+	__raw_writel(0, SYS_TRC(TIMER_CLOCKSOURCE));
 
 	REGSET(tc, SYS_TCx, TEN, EN);
 	REGSET(tc, SYS_TCx, TDBG, STOP);
@@ -146,7 +146,7 @@ static void __init ns9xxx_timer_init(void)
 	REGSET(tc, SYS_TCx, TSZ, 32);
 	REGSET(tc, SYS_TCx, REN, EN);
 
-	SYS_TC(TIMER_CLOCKSOURCE) = tc;
+	__raw_writel(tc, SYS_TC(TIMER_CLOCKSOURCE));
 
 	ns9xxx_clocksource.mult = clocksource_hz2mult(ns9xxx_cpuclock(),
 			ns9xxx_clocksource.shift);
@@ -155,7 +155,7 @@ static void __init ns9xxx_timer_init(void)
 
 	latch = SH_DIV(ns9xxx_cpuclock(), HZ, 0);
 
-	tc = SYS_TC(TIMER_CLOCKEVENT);
+	tc = __raw_readl(SYS_TC(TIMER_CLOCKEVENT));
 	REGSET(tc, SYS_TCx, TEN, DIS);
 	REGSET(tc, SYS_TCx, TDBG, STOP);
 	REGSET(tc, SYS_TCx, TLCS, CPU);
@@ -164,7 +164,7 @@ static void __init ns9xxx_timer_init(void)
 	REGSET(tc, SYS_TCx, UDS, DOWN);
 	REGSET(tc, SYS_TCx, TSZ, 32);
 	REGSET(tc, SYS_TCx, REN, EN);
-	SYS_TC(TIMER_CLOCKEVENT) = tc;
+	__raw_writel(tc, SYS_TC(TIMER_CLOCKEVENT));
 
 	ns9xxx_clockevent_device.mult = div_sc(ns9xxx_cpuclock(),
 			NSEC_PER_SEC, ns9xxx_clockevent_device.shift);

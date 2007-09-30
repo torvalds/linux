@@ -16,6 +16,7 @@
 #include <asm/arch-ns9xxx/gpio.h>
 #include <asm/arch-ns9xxx/processor.h>
 #include <asm/arch-ns9xxx/regs-bbu.h>
+#include <asm/io.h>
 #include <asm/bug.h>
 #include <asm/types.h>
 #include <asm/bitops.h>
@@ -47,38 +48,38 @@ static inline int ns9xxx_valid_gpio(unsigned gpio)
 		BUG();
 }
 
-static inline volatile u32 *ns9xxx_gpio_get_gconfaddr(unsigned gpio)
+static inline void __iomem *ns9xxx_gpio_get_gconfaddr(unsigned gpio)
 {
 	if (gpio < 56)
-		return &BBU_GCONFb1(gpio / 8);
+		return BBU_GCONFb1(gpio / 8);
 	else
 		/*
 		 * this could be optimised away on
 		 * ns9750 only builds, but it isn't ...
 		 */
-		return &BBU_GCONFb2((gpio - 56) / 8);
+		return BBU_GCONFb2((gpio - 56) / 8);
 }
 
-static inline volatile u32 *ns9xxx_gpio_get_gctrladdr(unsigned gpio)
+static inline void __iomem *ns9xxx_gpio_get_gctrladdr(unsigned gpio)
 {
 	if (gpio < 32)
-		return &BBU_GCTRL1;
+		return BBU_GCTRL1;
 	else if (gpio < 64)
-		return &BBU_GCTRL2;
+		return BBU_GCTRL2;
 	else
 		/* this could be optimised away on ns9750 only builds */
-		return &BBU_GCTRL3;
+		return BBU_GCTRL3;
 }
 
-static inline volatile u32 *ns9xxx_gpio_get_gstataddr(unsigned gpio)
+static inline void __iomem *ns9xxx_gpio_get_gstataddr(unsigned gpio)
 {
 	if (gpio < 32)
-		return &BBU_GSTAT1;
+		return BBU_GSTAT1;
 	else if (gpio < 64)
-		return &BBU_GSTAT2;
+		return BBU_GSTAT2;
 	else
 		/* this could be optimised away on ns9750 only builds */
-		return &BBU_GSTAT3;
+		return BBU_GSTAT3;
 }
 
 int gpio_request(unsigned gpio, const char *label)
@@ -105,17 +106,17 @@ EXPORT_SYMBOL(gpio_free);
  */
 static int __ns9xxx_gpio_configure(unsigned gpio, int dir, int inv, int func)
 {
-	volatile u32 *conf = ns9xxx_gpio_get_gconfaddr(gpio);
+	void __iomem *conf = ns9xxx_gpio_get_gconfaddr(gpio);
 	u32 confval;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	confval = *conf;
+	confval = __raw_readl(conf);
 	REGSETIM_IDX(confval, BBU_GCONFx, DIR, gpio & 7, dir);
 	REGSETIM_IDX(confval, BBU_GCONFx, INV, gpio & 7, inv);
 	REGSETIM_IDX(confval, BBU_GCONFx, FUNC, gpio & 7, func);
-	*conf = confval;
+	__raw_writel(confval, conf);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
@@ -158,10 +159,10 @@ EXPORT_SYMBOL(gpio_direction_output);
 
 int gpio_get_value(unsigned gpio)
 {
-	volatile u32 *stat = ns9xxx_gpio_get_gstataddr(gpio);
+	void __iomem *stat = ns9xxx_gpio_get_gstataddr(gpio);
 	int ret;
 
-	ret = 1 & (*stat >> (gpio & 31));
+	ret = 1 & (__raw_readl(stat) >> (gpio & 31));
 
 	return ret;
 }
@@ -169,15 +170,20 @@ EXPORT_SYMBOL(gpio_get_value);
 
 void gpio_set_value(unsigned gpio, int value)
 {
-	volatile u32 *ctrl = ns9xxx_gpio_get_gctrladdr(gpio);
+	void __iomem *ctrl = ns9xxx_gpio_get_gctrladdr(gpio);
+	u32 ctrlval;
 	unsigned long flags;
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	ctrlval = __raw_readl(ctrl);
+
 	if (value)
-		*ctrl |= 1 << (gpio & 31);
+		ctrlval |= 1 << (gpio & 31);
 	else
-		*ctrl &= ~(1 << (gpio & 31));
+		ctrlval &= ~(1 << (gpio & 31));
+
+	__raw_writel(ctrlval, ctrl);
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
