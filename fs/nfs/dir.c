@@ -1110,6 +1110,7 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 		.len = entry->len,
 	};
 	struct inode *inode;
+	unsigned long verf = nfs_save_change_attribute(dir);
 
 	switch (name.len) {
 		case 2:
@@ -1120,6 +1121,14 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 			if (name.name[0] == '.')
 				return dget(parent);
 	}
+
+	spin_lock(&dir->i_lock);
+	if (NFS_I(dir)->cache_validity & NFS_INO_INVALID_DATA) {
+		spin_unlock(&dir->i_lock);
+		return NULL;
+	}
+	spin_unlock(&dir->i_lock);
+
 	name.hash = full_name_hash(name.name, name.len);
 	dentry = d_lookup(parent, &name);
 	if (dentry != NULL) {
@@ -1161,7 +1170,7 @@ static struct dentry *nfs_readdir_lookup(nfs_readdir_descriptor_t *desc)
 	}
 
 out_renew:
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+	nfs_set_verifier(dentry, verf);
 	return dentry;
 }
 
