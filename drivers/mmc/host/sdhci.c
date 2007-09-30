@@ -25,8 +25,6 @@
 #define DBG(f, x...) \
 	pr_debug(DRIVER_NAME " [%s()]: " f, __func__,## x)
 
-static unsigned int debug_nodma = 0;
-static unsigned int debug_forcedma = 0;
 static unsigned int debug_quirks = 0;
 
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
@@ -1295,12 +1293,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
 
-	if (debug_nodma)
-		DBG("DMA forced off\n");
-	else if (debug_forcedma) {
-		DBG("DMA forced on\n");
-		host->flags |= SDHCI_USE_DMA;
-	} else if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
+	if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
 		host->flags |= SDHCI_USE_DMA;
 	else if (!(caps & SDHCI_CAN_DO_DMA))
 		DBG("Controller doesn't have DMA capability\n");
@@ -1613,14 +1606,10 @@ static void __exit sdhci_drv_exit(void)
 module_init(sdhci_drv_init);
 module_exit(sdhci_drv_exit);
 
-module_param(debug_nodma, uint, 0444);
-module_param(debug_forcedma, uint, 0444);
 module_param(debug_quirks, uint, 0444);
 
 MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface driver");
 MODULE_LICENSE("GPL");
 
-MODULE_PARM_DESC(debug_nodma, "Forcefully disable DMA transfers. (default 0)");
-MODULE_PARM_DESC(debug_forcedma, "Forcefully enable DMA transfers. (default 0)");
 MODULE_PARM_DESC(debug_quirks, "Force certain quirks.");
