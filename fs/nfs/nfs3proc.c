@@ -750,7 +750,7 @@ static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
 	if (nfs3_async_handle_jukebox(task, data->inode))
 		return -EAGAIN;
 	if (task->tk_status >= 0)
-		nfs_post_op_update_inode(data->inode, data->res.fattr);
+		nfs_post_op_update_inode_force_wcc(data->inode, data->res.fattr);
 	return 0;
 }
 

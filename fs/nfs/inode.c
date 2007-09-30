@@ -793,6 +793,12 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
+	if ((fattr->valid & NFS_ATTR_WCC_V4) != 0 &&
+			nfsi->change_attr == fattr->pre_change_attr) {
+		nfsi->change_attr = fattr->change_attr;
+		if (S_ISDIR(inode->i_mode))
+			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+	}
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_WCC) != 0) {
 		if (timespec_equal(&inode->i_ctime, &fattr->pre_ctime))
@@ -921,6 +927,34 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	status = nfs_refresh_inode(inode, fattr);
 out:
 	return status;
+}
+
+/**
+ * nfs_post_op_update_inode_force_wcc - try to update the inode attribute cache
+ * @inode - pointer to inode
+ * @fattr - updated attributes
+ *
+ * After an operation that has changed the inode metadata, mark the
+ * attribute cache as being invalid, then try to update it. Fake up
+ * weak cache consistency data, if none exist.
+ *
+ * This function is mainly designed to be used by the ->write_done() functions.
+ */
+int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr)
+{
+	if ((fattr->valid & NFS_ATTR_FATTR_V4) != 0 &&
+			(fattr->valid & NFS_ATTR_WCC_V4) == 0) {
+		fattr->pre_change_attr = NFS_I(inode)->change_attr;
+		fattr->valid |= NFS_ATTR_WCC_V4;
+	}
+	if ((fattr->valid & NFS_ATTR_FATTR) != 0 &&
+			(fattr->valid & NFS_ATTR_WCC) == 0) {
+		memcpy(&fattr->pre_ctime, &inode->i_ctime, sizeof(fattr->pre_ctime));
+		memcpy(&fattr->pre_mtime, &inode->i_mtime, sizeof(fattr->pre_mtime));
+		fattr->pre_size = inode->i_size;
+		fattr->valid |= NFS_ATTR_WCC;
+	}
+	return nfs_post_op_update_inode(inode, fattr);
 }
 
 /*
