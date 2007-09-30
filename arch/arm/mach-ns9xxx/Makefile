@@ -1,4 +1,4 @@
-obj-y := irq.o time.o generic.o
+obj-y := irq.o time.o generic.o gpio.o
 
 obj-$(CONFIG_MACH_CC9P9360DEV) += mach-cc9p9360dev.o
 obj-$(CONFIG_MACH_CC9P9360JS) += mach-cc9p9360js.o
