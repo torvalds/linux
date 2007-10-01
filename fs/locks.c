@@ -2066,133 +2066,113 @@ int vfs_cancel_lock(struct file *filp, struct file_lock *fl)
 
 EXPORT_SYMBOL_GPL(vfs_cancel_lock);
 
-static void lock_get_status(char* out, struct file_lock *fl, int id, char *pfx)
+#ifdef CONFIG_PROC_FS
+#include <linux/seq_file.h>
+
+static void lock_get_status(struct seq_file *f, struct file_lock *fl,
+							int id, char *pfx)
 {
 	struct inode *inode = NULL;
 
 	if (fl->fl_file != NULL)
 		inode = fl->fl_file->f_path.dentry->d_inode;
 
-	out += sprintf(out, "%d:%s ", id, pfx);
+	seq_printf(f, "%d:%s ", id, pfx);
 	if (IS_POSIX(fl)) {
-		out += sprintf(out, "%6s %s ",
+		seq_printf(f, "%6s %s ",
 			     (fl->fl_flags & FL_ACCESS) ? "ACCESS" : "POSIX ",
 			     (inode == NULL) ? "*NOINODE*" :
 			     mandatory_lock(inode) ? "MANDATORY" : "ADVISORY ");
 	} else if (IS_FLOCK(fl)) {
 		if (fl->fl_type & LOCK_MAND) {
-			out += sprintf(out, "FLOCK  MSNFS     ");
+			seq_printf(f, "FLOCK  MSNFS     ");
 		} else {
-			out += sprintf(out, "FLOCK  ADVISORY  ");
+			seq_printf(f, "FLOCK  ADVISORY  ");
 		}
 	} else if (IS_LEASE(fl)) {
-		out += sprintf(out, "LEASE  ");
+		seq_printf(f, "LEASE  ");
 		if (fl->fl_type & F_INPROGRESS)
-			out += sprintf(out, "BREAKING  ");
+			seq_printf(f, "BREAKING  ");
 		else if (fl->fl_file)
-			out += sprintf(out, "ACTIVE    ");
+			seq_printf(f, "ACTIVE    ");
 		else
-			out += sprintf(out, "BREAKER   ");
+			seq_printf(f, "BREAKER   ");
 	} else {
-		out += sprintf(out, "UNKNOWN UNKNOWN  ");
+		seq_printf(f, "UNKNOWN UNKNOWN  ");
 	}
 	if (fl->fl_type & LOCK_MAND) {
-		out += sprintf(out, "%s ",
+		seq_printf(f, "%s ",
 			       (fl->fl_type & LOCK_READ)
 			       ? (fl->fl_type & LOCK_WRITE) ? "RW   " : "READ "
 			       : (fl->fl_type & LOCK_WRITE) ? "WRITE" : "NONE ");
 	} else {
-		out += sprintf(out, "%s ",
+		seq_printf(f, "%s ",
 			       (fl->fl_type & F_INPROGRESS)
 			       ? (fl->fl_type & F_UNLCK) ? "UNLCK" : "READ "
 			       : (fl->fl_type & F_WRLCK) ? "WRITE" : "READ ");
 	}
 	if (inode) {
 #ifdef WE_CAN_BREAK_LSLK_NOW
-		out += sprintf(out, "%d %s:%ld ", fl->fl_pid,
+		seq_printf(f, "%d %s:%ld ", fl->fl_pid,
 				inode->i_sb->s_id, inode->i_ino);
 #else
 		/* userspace relies on this representation of dev_t ;-( */
-		out += sprintf(out, "%d %02x:%02x:%ld ", fl->fl_pid,
+		seq_printf(f, "%d %02x:%02x:%ld ", fl->fl_pid,
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino);
 #endif
 	} else {
-		out += sprintf(out, "%d <none>:0 ", fl->fl_pid);
+		seq_printf(f, "%d <none>:0 ", fl->fl_pid);
 	}
 	if (IS_POSIX(fl)) {
 		if (fl->fl_end == OFFSET_MAX)
-			out += sprintf(out, "%Ld EOF\n", fl->fl_start);
+			seq_printf(f, "%Ld EOF\n", fl->fl_start);
 		else
-			out += sprintf(out, "%Ld %Ld\n", fl->fl_start,
-					fl->fl_end);
+			seq_printf(f, "%Ld %Ld\n", fl->fl_start, fl->fl_end);
 	} else {
-		out += sprintf(out, "0 EOF\n");
+		seq_printf(f, "0 EOF\n");
 	}
 }
 
-static void move_lock_status(char **p, off_t* pos, off_t offset)
+static int locks_show(struct seq_file *f, void *v)
 {
-	int len;
-	len = strlen(*p);
-	if(*pos >= offset) {
-		/* the complete line is valid */
-		*p += len;
-		*pos += len;
-		return;
-	}
-	if(*pos+len > offset) {
-		/* use the second part of the line */
-		int i = offset-*pos;
-		memmove(*p,*p+i,len-i);
-		*p += len-i;
-		*pos += len;
-		return;
-	}
-	/* discard the complete line */
-	*pos += len;
+	struct file_lock *fl, *bfl;
+
+	fl = list_entry(v, struct file_lock, fl_link);
+
+	lock_get_status(f, fl, (long)f->private, "");
+
+	list_for_each_entry(bfl, &fl->fl_block, fl_block)
+		lock_get_status(f, bfl, (long)f->private, " ->");
+
+	f->private++;
+	return 0;
 }
 
-/**
- *	get_locks_status	-	reports lock usage in /proc/locks
- *	@buffer: address in userspace to write into
- *	@start: ?
- *	@offset: how far we are through the buffer
- *	@length: how much to read
- */
-
-int get_locks_status(char *buffer, char **start, off_t offset, int length)
+static void *locks_start(struct seq_file *f, loff_t *pos)
 {
-	struct file_lock *fl;
-	char *q = buffer;
-	off_t pos = 0;
-	int i = 0;
-
 	lock_kernel();
-	list_for_each_entry(fl, &file_lock_list, fl_link) {
-		struct file_lock *bfl;
-
-		lock_get_status(q, fl, ++i, "");
-		move_lock_status(&q, &pos, offset);
-
-		if(pos >= offset+length)
-			goto done;
-
-		list_for_each_entry(bfl, &fl->fl_block, fl_block) {
-			lock_get_status(q, bfl, i, " ->");
-			move_lock_status(&q, &pos, offset);
-
-			if(pos >= offset+length)
-				goto done;
-		}
-	}
-done:
-	unlock_kernel();
-	*start = buffer;
-	if(q-buffer < length)
-		return (q-buffer);
-	return length;
+	f->private = (void *)1;
+	return seq_list_start(&file_lock_list, *pos);
 }
+
+static void *locks_next(struct seq_file *f, void *v, loff_t *pos)
+{
+	return seq_list_next(v, &file_lock_list, pos);
+}
+
+static void locks_stop(struct seq_file *f, void *v)
+{
+	unlock_kernel();
+}
+
+struct seq_operations locks_seq_operations = {
+	.start	= locks_start,
+	.next	= locks_next,
+	.stop	= locks_stop,
+	.show	= locks_show,
+};
+#endif
 
 /**
  *	lock_may_read - checks that the region is free of locks
