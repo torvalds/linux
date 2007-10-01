@@ -62,6 +62,7 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PXA25x
 #define __cpu_is_pxa21x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xf3f;	\
@@ -73,30 +74,50 @@
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x2d0 || _id == 0x290;		\
 	})
+#else
+#define __cpu_is_pxa21x(id)	(0)
+#define __cpu_is_pxa25x(id)	(0)
+#endif
 
+#ifdef CONFIG_PXA27x
 #define __cpu_is_pxa27x(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x411;				\
 	})
+#else
+#define __cpu_is_pxa27x(id)	(0)
+#endif
 
+#ifdef CONFIG_CPU_PXA300
 #define __cpu_is_pxa300(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x688;				\
 	 })
+#else
+#define __cpu_is_pxa300(id)	(0)
+#endif
 
+#ifdef CONFIG_CPU_PXA310
 #define __cpu_is_pxa310(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x689;				\
 	 })
+#else
+#define __cpu_is_pxa310(id)	(0)
+#endif
 
+#ifdef CONFIG_CPU_PXA320
 #define __cpu_is_pxa320(id)				\
 	({						\
 		unsigned int _id = (id) >> 4 & 0xfff;	\
 		_id == 0x603 || _id == 0x682;		\
 	 })
+#else
+#define __cpu_is_pxa320(id)	(0)
+#endif
 
 #define cpu_is_pxa21x()					\
 	({						\
