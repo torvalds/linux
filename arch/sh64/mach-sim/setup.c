@@ -14,46 +14,10 @@
  * lethal@linux-sh.org:          15th May 2003
  *    Use the generic procfs cpuinfo interface, just return a valid board name.
  */
-
-#include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/bootmem.h>
-#include <linux/delay.h>
 #include <linux/kernel.h>
-#include <asm/addrspace.h>
-#include <asm/processor.h>
 #include <asm/platform.h>
-#include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/page.h>
-
-#ifdef CONFIG_BLK_DEV_INITRD
-#include "../rootfs/rootfs.h"
-#endif
-
-static	__init void platform_monitor(void);
-static	__init void platform_setup(void);
-static	__init void platform_reserve(void);
-
-
-#define	PHYS_MEMORY	CONFIG_MEMORY_SIZE_IN_MB*1024*1024
-
-#if (PHYS_MEMORY < P1SEG_FOOTPRINT_RAM)
-#error "Invalid kernel configuration. Physical memory below footprint requirements."
-#endif
-
-#define RAM_DISK_START	CONFIG_MEMORY_START+P1SEG_INITRD_BLOCK	/* Top of 4MB */
-#ifdef PLATFORM_ROMFS_SIZE
-#define	RAM_DISK_SIZE	(PAGE_ALIGN(PLATFORM_ROMFS_SIZE))     /* Variable Top */
-#if ((RAM_DISK_START + RAM_DISK_SIZE) > (CONFIG_MEMORY_START + PHYS_MEMORY))
-#error "Invalid kernel configuration. ROM RootFS exceeding physical memory."
-#endif
-#else
-#define RAM_DISK_SIZE	P1SEG_INITRD_BLOCK_SIZE			/* Top of 4MB */
-#endif
-
-#define RES_COUNT(res) ((sizeof((res))/sizeof(struct resource)))
 
 /*
  * Platform Dependent Interrupt Priorities.
@@ -101,8 +65,10 @@ struct resource io_resources[] = {
 };
 
 struct resource kram_resources[] = {
-	{ "Kernel code", 0, 0 },	/* These must be last in the array */
-	{ "Kernel data", 0, 0 }		/* These must be last in the array */
+	/* These must be last in the array */
+	{ .name = "Kernel code", .start = 0, .end = 0 },
+	/* These must be last in the array */
+	{ .name = "Kernel data", .start = 0, .end = 0 }
 };
 
 struct resource xram_resources[] = {
@@ -117,16 +83,14 @@ struct sh64_platform platform_parms = {
 	.readonly_rootfs =	1,
 	.initial_root_dev =	0x0100,
 	.loader_type =		1,
-	.initrd_start =		RAM_DISK_START,
-	.initrd_size =		RAM_DISK_SIZE,
 	.io_res_p =		io_resources,
-	.io_res_count =		RES_COUNT(io_resources),
+	.io_res_count =		ARRAY_SIZE(io_resources),
 	.kram_res_p =		kram_resources,
-	.kram_res_count =	RES_COUNT(kram_resources),
+	.kram_res_count =	ARRAY_SIZE(kram_resources),
 	.xram_res_p =		xram_resources,
-	.xram_res_count =	RES_COUNT(xram_resources),
+	.xram_res_count =	ARRAY_SIZE(xram_resources),
 	.rom_res_p =		rom_resources,
-	.rom_res_count =	RES_COUNT(rom_resources),
+	.rom_res_count =	ARRAY_SIZE(rom_resources),
 };
 
 int platform_int_priority[NR_IRQS] = {
@@ -160,4 +124,3 @@ const char *get_system_type(void)
 {
 	return "SH-5 Simulator";
 }
-
