@@ -70,6 +70,14 @@ static void fs_set_multicast_list(struct net_device *dev)
 	(*fep->ops->set_multicast_list)(dev);
 }
 
+static void skb_align(struct sk_buff *skb, int align)
+{
+	int off = ((unsigned long)skb->data) & (align - 1);
+
+	if (off)
+		skb_reserve(skb, align - off);
+}
+
 /* NAPI receive function */
 static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 {
@@ -159,8 +167,12 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 					skb = skbn;
 					skbn = skbt;
 				}
-			} else
+			} else {
 				skbn = dev_alloc_skb(ENET_RX_FRSIZE);
+
+				if (skbn)
+					skb_align(skbn, ENET_RX_ALIGN);
+			}
 
 			if (skbn != NULL) {
 				skb_put(skb, pkt_len);	/* Make room */
@@ -290,8 +302,12 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 					skb = skbn;
 					skbn = skbt;
 				}
-			} else
+			} else {
 				skbn = dev_alloc_skb(ENET_RX_FRSIZE);
+
+				if (skbn)
+					skb_align(skbn, ENET_RX_ALIGN);
+			}
 
 			if (skbn != NULL) {
 				skb_put(skb, pkt_len);	/* Make room */
@@ -502,6 +518,7 @@ void fs_init_bds(struct net_device *dev)
 			       dev->name);
 			break;
 		}
+		skb_align(skb, ENET_RX_ALIGN);
 		fep->rx_skbuff[i] = skb;
 		CBDW_BUFADDR(bdp,
 			dma_map_single(fep->dev, skb->data,
