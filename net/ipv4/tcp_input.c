@@ -1467,8 +1467,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	return flag;
 }
 
-/* F-RTO can only be used if TCP has never retransmitted anything other than
- * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
+/* If we receive more dupacks than we expected counting segments
+ * in assumption of absent reordering, interpret this as reordering.
+ * The only another reason could be bug in receiver TCP.
  */
 static void tcp_check_reno_reordering(struct sock *sk, const int addend)
 {
@@ -1516,6 +1517,9 @@ static inline void tcp_reset_reno_sack(struct tcp_sock *tp)
 	tp->sacked_out = 0;
 }
 
+/* F-RTO can only be used if TCP has never retransmitted anything other than
+ * head (SACK enhanced variant from Appendix B of RFC4138 is more robust here)
+ */
 int tcp_use_frto(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
