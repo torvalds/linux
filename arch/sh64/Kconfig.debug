@@ -28,6 +28,7 @@ config POOR_MANS_STRACE
 
 config SH_ALPHANUMERIC
 	bool "Enable debug outputs to on-board alphanumeric display"
+	depends on SH_CAYMAN
 
 config SH_NO_BSS_INIT
 	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
