@@ -114,7 +114,7 @@ check_assoc_again:
 	sm->associnfo.associating = 1;
 	/* queue lower level code to do work (if necessary) */
 	schedule_delayed_work(&sm->associnfo.work, 0);
-out:
+
 	mutex_unlock(&sm->associnfo.mutex);
 
 	return 0;
