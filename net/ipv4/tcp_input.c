@@ -3027,6 +3027,9 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, &seq_rtt);
 
+	/* Guarantee sacktag reordering detection against wrap-arounds */
+	if (before(tp->frto_highmark, tp->snd_una))
+		tp->frto_highmark = 0;
 	if (tp->frto_counter)
 		frto_cwnd = tcp_process_frto(sk, flag);
 
