@@ -158,7 +158,7 @@ static void cx88_ir_work(struct work_struct *work)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
+void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->polling) {
 		setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
@@ -172,7 +172,7 @@ static void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir)
 	}
 }
 
-static void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
+void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir)
 {
 	if (ir->sampling) {
 		cx_write(MO_DDSCFG_IO, 0x0);

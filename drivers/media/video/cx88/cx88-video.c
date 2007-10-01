@@ -1954,6 +1954,8 @@ static int cx8800_suspend(struct pci_dev *pci_dev, pm_message_t state)
 	}
 	spin_unlock(&dev->slock);
 
+	if (core->ir)
+		cx88_ir_stop(core, core->ir);
 	/* FIXME -- shutdown device */
 	cx88_shutdown(core);
 
@@ -1993,6 +1995,10 @@ static int cx8800_resume(struct pci_dev *pci_dev)
 
 	/* FIXME: re-initialize hardware */
 	cx88_reset(core);
+	if (core->ir)
+		cx88_ir_start(core, core->ir);
+
+	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
 	/* restart video+vbi capture */
 	spin_lock(&dev->slock);

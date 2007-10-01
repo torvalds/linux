@@ -1084,6 +1084,9 @@ EXPORT_SYMBOL(cx88_vdev_init);
 EXPORT_SYMBOL(cx88_core_get);
 EXPORT_SYMBOL(cx88_core_put);
 
+EXPORT_SYMBOL(cx88_ir_start);
+EXPORT_SYMBOL(cx88_ir_stop);
+
 /*
  * Local variables:
  * c-basic-offset: 8
