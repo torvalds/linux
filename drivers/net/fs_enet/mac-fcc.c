@@ -48,28 +48,19 @@
 
 /* FCC access macros */
 
-#define __fcc_out32(addr, x)	out_be32((unsigned *)addr, x)
-#define __fcc_out16(addr, x)	out_be16((unsigned short *)addr, x)
-#define __fcc_out8(addr, x)	out_8((unsigned char *)addr, x)
-#define __fcc_in32(addr)	in_be32((unsigned *)addr)
-#define __fcc_in16(addr)	in_be16((unsigned short *)addr)
-#define __fcc_in8(addr)		in_8((unsigned char *)addr)
-
-/* parameter space */
-
 /* write, read, set bits, clear bits */
-#define W32(_p, _m, _v)	__fcc_out32(&(_p)->_m, (_v))
-#define R32(_p, _m)	__fcc_in32(&(_p)->_m)
+#define W32(_p, _m, _v)	out_be32(&(_p)->_m, (_v))
+#define R32(_p, _m)	in_be32(&(_p)->_m)
 #define S32(_p, _m, _v)	W32(_p, _m, R32(_p, _m) | (_v))
 #define C32(_p, _m, _v)	W32(_p, _m, R32(_p, _m) & ~(_v))
 
-#define W16(_p, _m, _v)	__fcc_out16(&(_p)->_m, (_v))
-#define R16(_p, _m)	__fcc_in16(&(_p)->_m)
+#define W16(_p, _m, _v)	out_be16(&(_p)->_m, (_v))
+#define R16(_p, _m)	in_be16(&(_p)->_m)
 #define S16(_p, _m, _v)	W16(_p, _m, R16(_p, _m) | (_v))
 #define C16(_p, _m, _v)	W16(_p, _m, R16(_p, _m) & ~(_v))
 
-#define W8(_p, _m, _v)	__fcc_out8(&(_p)->_m, (_v))
-#define R8(_p, _m)	__fcc_in8(&(_p)->_m)
+#define W8(_p, _m, _v)	out_8(&(_p)->_m, (_v))
+#define R8(_p, _m)	in_8(&(_p)->_m)
 #define S8(_p, _m, _v)	W8(_p, _m, R8(_p, _m) | (_v))
 #define C8(_p, _m, _v)	W8(_p, _m, R8(_p, _m) & ~(_v))
 
@@ -290,7 +281,7 @@ static void restart(struct net_device *dev)
 
 	/* clear everything (slow & steady does it) */
 	for (i = 0; i < sizeof(*ep); i++)
-		__fcc_out8((char *)ep + i, 0);
+		out_8((char *)ep + i, 0);
 
 	/* get physical address */
 	rx_bd_base_phys = fep->ring_mem_addr;
@@ -495,7 +486,7 @@ static void tx_kickstart(struct net_device *dev)
 	struct fs_enet_private *fep = netdev_priv(dev);
 	fcc_t *fccp = fep->fcc.fccp;
 
-	S32(fccp, fcc_ftodr, 0x80);
+	S16(fccp, fcc_ftodr, 0x8000);
 }
 
 static u32 get_int_events(struct net_device *dev)
