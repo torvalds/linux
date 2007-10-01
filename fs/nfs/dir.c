@@ -735,7 +735,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	int error;
 	struct nfs_fh fhandle;
 	struct nfs_fattr fattr;
-	unsigned long verifier;
 
 	parent = dget_parent(dentry);
 	lock_kernel();
@@ -770,7 +769,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if (NFS_STALE(inode))
 		goto out_bad;
 
-	verifier = nfs_save_change_attribute(dir);
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
 	if (error)
 		goto out_bad;
@@ -779,7 +777,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if ((error = nfs_refresh_inode(inode, &fattr)) != 0)
 		goto out_bad;
 
-	nfs_set_verifier(dentry, verifier);
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
  out_valid:
 	unlock_kernel();
 	dput(parent);
@@ -1048,7 +1046,6 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	struct dentry *parent = NULL;
 	struct inode *inode = dentry->d_inode;
 	struct inode *dir;
-	unsigned long verifier;
 	int openflags, ret = 0;
 
 	parent = dget_parent(dentry);
@@ -1076,10 +1073,9 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 * change attribute *before* we do the RPC call.
 	 */
 	lock_kernel();
-	verifier = nfs_save_change_attribute(dir);
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
 	if (ret == 1)
-		nfs_set_verifier(dentry, verifier);
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	unlock_kernel();
 out:
 	dput(parent);
