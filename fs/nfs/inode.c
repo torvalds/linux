@@ -956,7 +956,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	 * Update the read time so we don't revalidate too often.
 	 */
 	nfsi->read_cache_jiffies = fattr->time_start;
-	nfsi->last_updated = now;
 
 	nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ATIME
 			| NFS_INO_REVAL_PAGECACHE);
@@ -1027,10 +1026,18 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
-	} else if (!time_in_range(now, nfsi->attrtimeo_timestamp, nfsi->attrtimeo_timestamp + nfsi->attrtimeo)) {
-		if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
-			nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
-		nfsi->attrtimeo_timestamp = now;
+		nfsi->last_updated = now;
+	} else {
+		if (!time_in_range(now, nfsi->attrtimeo_timestamp, nfsi->attrtimeo_timestamp + nfsi->attrtimeo)) {
+			if ((nfsi->attrtimeo <<= 1) > NFS_MAXATTRTIMEO(inode))
+				nfsi->attrtimeo = NFS_MAXATTRTIMEO(inode);
+			nfsi->attrtimeo_timestamp = now;
+		}
+		/*
+		 * Avoid jiffy wraparound issues with nfsi->last_updated
+		 */
+		if (!time_in_range(nfsi->last_updated, nfsi->read_cache_jiffies, now))
+			nfsi->last_updated = nfsi->read_cache_jiffies;
 	}
 	invalid &= ~NFS_INO_INVALID_ATTR;
 	/* Don't invalidate the data if we were to blame */
