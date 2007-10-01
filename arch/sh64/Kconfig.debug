@@ -5,9 +5,6 @@ source "lib/Kconfig.debug"
 config EARLY_PRINTK
 	bool "Early SCIF console support"
 
-config DEBUG_KERNEL_WITH_GDB_STUB
-	bool "GDB Stub kernel debug"
-
 config SH64_PROC_TLB
 	bool "Debug: report TLB fill/purge activity through /proc/tlb"
 	depends on PROC_FS
