@@ -11,30 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/io.h>
 
-/*
- * readX/writeX() are used to access memory mapped devices. On some
- * architectures the memory mapped IO stuff needs to be accessed
- * differently. On the SuperH architecture, we just read/write the
- * memory location directly.
- */
-
-/* This is horrible at the moment - needs more work to do something sensible */
-#define IO_DELAY()
-
-#define OUT_DELAY(x,type) \
-void out##x##_p(unsigned type value,unsigned long port){out##x(value,port);IO_DELAY();}
-
-#define IN_DELAY(x,type) \
-unsigned type in##x##_p(unsigned long port) {unsigned type tmp=in##x(port);IO_DELAY();return tmp;}
-
-#if 1
-OUT_DELAY(b, long) OUT_DELAY(w, long) OUT_DELAY(l, long)
- IN_DELAY(b, long) IN_DELAY(w, long) IN_DELAY(l, long)
-#endif
 /*  Now for the string version of these functions */
 void outsb(unsigned long port, const void *addr, unsigned long count)
 {
@@ -45,6 +26,7 @@ void outsb(unsigned long port, const void *addr, unsigned long count)
 		outb(*p, port);
 	}
 }
+EXPORT_SYMBOL(outsb);
 
 void insb(unsigned long port, void *addr, unsigned long count)
 {
@@ -55,6 +37,7 @@ void insb(unsigned long port, void *addr, unsigned long count)
 		*p = inb(port);
 	}
 }
+EXPORT_SYMBOL(insb);
 
 /* For the 16 and 32 bit string functions, we have to worry about alignment.
  * The SH does not do unaligned accesses, so we have to read as bytes and
@@ -74,6 +57,7 @@ void outsw(unsigned long port, const void *addr, unsigned long count)
 		outw(tmp, port);
 	}
 }
+EXPORT_SYMBOL(outsw);
 
 void insw(unsigned long port, void *addr, unsigned long count)
 {
@@ -87,6 +71,7 @@ void insw(unsigned long port, void *addr, unsigned long count)
 		p[1] = (tmp >> 8) & 0xff;
 	}
 }
+EXPORT_SYMBOL(insw);
 
 void outsl(unsigned long port, const void *addr, unsigned long count)
 {
@@ -100,6 +85,7 @@ void outsl(unsigned long port, const void *addr, unsigned long count)
 		outl(tmp, port);
 	}
 }
+EXPORT_SYMBOL(outsl);
 
 void insl(unsigned long port, void *addr, unsigned long count)
 {
@@ -116,6 +102,7 @@ void insl(unsigned long port, void *addr, unsigned long count)
 
 	}
 }
+EXPORT_SYMBOL(insl);
 
 void memcpy_toio(void __iomem *to, const void *from, long count)
 {
@@ -126,6 +113,7 @@ void memcpy_toio(void __iomem *to, const void *from, long count)
 		writeb(*p++, to++);
 	}
 }
+EXPORT_SYMBOL(memcpy_toio);
 
 void memcpy_fromio(void *to, void __iomem *from, long count)
 {
@@ -137,3 +125,4 @@ void memcpy_fromio(void *to, void __iomem *from, long count)
 		from++;
 	}
 }
+EXPORT_SYMBOL(memcpy_fromio);
