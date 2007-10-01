@@ -846,8 +846,7 @@ call_allocate(struct rpc_task *task)
 	dprintk("RPC: %5u rpc_buffer allocation failed\n", task->tk_pid);
 
 	if (RPC_IS_ASYNC(task) || !signalled()) {
-		xprt_release(task);
-		task->tk_action = call_reserve;
+		task->tk_action = call_allocate;
 		rpc_delay(task, HZ>>4);
 		return;
 	}
