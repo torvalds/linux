@@ -1027,8 +1027,15 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
  * SACK block range validation checks that the received SACK block fits to
  * the expected sequence limits, i.e., it is between SND.UNA and SND.NXT.
  * Note that SND.UNA is not included to the range though being valid because
- * it means that the receiver is rather inconsistent with itself (reports
- * SACK reneging when it should advance SND.UNA).
+ * it means that the receiver is rather inconsistent with itself reporting
+ * SACK reneging when it should advance SND.UNA. Such SACK block this is
+ * perfectly valid, however, in light of RFC2018 which explicitly states
+ * that "SACK block MUST reflect the newest segment.  Even if the newest
+ * segment is going to be discarded ...", not that it looks very clever
+ * in case of head skb. Due to potentional receiver driven attacks, we
+ * choose to avoid immediate execution of a walk in write queue due to
+ * reneging and defer head skb's loss recovery to standard loss recovery
+ * procedure that will eventually trigger (nothing forbids us doing this).
  *
  * Implements also blockage to start_seq wrap-around. Problem lies in the
  * fact that though start_seq (s) is before end_seq (i.e., not reversed),
