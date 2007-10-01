@@ -191,7 +191,8 @@ static int allocate_bd(struct net_device *dev)
 	if (IS_ERR_VALUE(fep->ring_mem_addr))
 		return -ENOMEM;
 
-	fep->ring_base = cpm_dpram_addr(fep->ring_mem_addr);
+	fep->ring_base = (void __iomem __force*)
+		cpm_dpram_addr(fep->ring_mem_addr);
 
 	return 0;
 }
@@ -212,7 +213,7 @@ static void cleanup_data(struct net_device *dev)
 static void set_promiscuous_mode(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	S16(sccp, scc_psmr, SCC_PSMR_PRO);
 }
@@ -220,7 +221,7 @@ static void set_promiscuous_mode(struct net_device *dev)
 static void set_multicast_start(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_enet_t *ep = fep->scc.ep;
+	scc_enet_t __iomem *ep = fep->scc.ep;
 
 	W16(ep, sen_gaddr1, 0);
 	W16(ep, sen_gaddr2, 0);
@@ -231,7 +232,7 @@ static void set_multicast_start(struct net_device *dev)
 static void set_multicast_one(struct net_device *dev, const u8 * mac)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_enet_t *ep = fep->scc.ep;
+	scc_enet_t __iomem *ep = fep->scc.ep;
 	u16 taddrh, taddrm, taddrl;
 
 	taddrh = ((u16) mac[5] << 8) | mac[4];
@@ -247,8 +248,8 @@ static void set_multicast_one(struct net_device *dev, const u8 * mac)
 static void set_multicast_finish(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
-	scc_enet_t *ep = fep->scc.ep;
+	scc_t __iomem *sccp = fep->scc.sccp;
+	scc_enet_t __iomem *ep = fep->scc.ep;
 
 	/* clear promiscuous always */
 	C16(sccp, scc_psmr, SCC_PSMR_PRO);
@@ -285,8 +286,8 @@ static void set_multicast_list(struct net_device *dev)
 static void restart(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
-	scc_enet_t *ep = fep->scc.ep;
+	scc_t __iomem *sccp = fep->scc.sccp;
+	scc_enet_t __iomem *ep = fep->scc.ep;
 	const struct fs_platform_info *fpi = fep->fpi;
 	u16 paddrh, paddrm, paddrl;
 	const unsigned char *mac;
@@ -296,7 +297,7 @@ static void restart(struct net_device *dev)
 
 	/* clear everything (slow & steady does it) */
 	for (i = 0; i < sizeof(*ep); i++)
-		__fs_out8((char *)ep + i, 0);
+		__fs_out8((u8 __iomem *)ep + i, 0);
 
 	/* point to bds */
 	W16(ep, sen_genscc.scc_rbase, fep->ring_mem_addr);
@@ -397,7 +398,7 @@ static void restart(struct net_device *dev)
 static void stop(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 	int i;
 
 	for (i = 0; (R16(sccp, scc_sccm) == 0) && i < SCC_RESET_DELAY; i++)
@@ -441,7 +442,7 @@ static void post_free_irq(struct net_device *dev, int irq)
 static void napi_clear_rx_event(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	W16(sccp, scc_scce, SCC_NAPI_RX_EVENT_MSK);
 }
@@ -449,7 +450,7 @@ static void napi_clear_rx_event(struct net_device *dev)
 static void napi_enable_rx(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	S16(sccp, scc_sccm, SCC_NAPI_RX_EVENT_MSK);
 }
@@ -457,7 +458,7 @@ static void napi_enable_rx(struct net_device *dev)
 static void napi_disable_rx(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	C16(sccp, scc_sccm, SCC_NAPI_RX_EVENT_MSK);
 }
@@ -475,7 +476,7 @@ static void tx_kickstart(struct net_device *dev)
 static u32 get_int_events(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	return (u32) R16(sccp, scc_scce);
 }
@@ -483,7 +484,7 @@ static u32 get_int_events(struct net_device *dev)
 static void clear_int_events(struct net_device *dev, u32 int_events)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	scc_t *sccp = fep->scc.sccp;
+	scc_t __iomem *sccp = fep->scc.sccp;
 
 	W16(sccp, scc_scce, int_events & 0xffff);
 }
@@ -498,20 +499,20 @@ static int get_regs(struct net_device *dev, void *p, int *sizep)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 
-	if (*sizep < sizeof(scc_t) + sizeof(scc_enet_t))
+	if (*sizep < sizeof(scc_t) + sizeof(scc_enet_t __iomem *))
 		return -EINVAL;
 
 	memcpy_fromio(p, fep->scc.sccp, sizeof(scc_t));
 	p = (char *)p + sizeof(scc_t);
 
-	memcpy_fromio(p, fep->scc.ep, sizeof(scc_enet_t));
+	memcpy_fromio(p, fep->scc.ep, sizeof(scc_enet_t __iomem *));
 
 	return 0;
 }
 
 static int get_regs_len(struct net_device *dev)
 {
-	return sizeof(scc_t) + sizeof(scc_enet_t);
+	return sizeof(scc_t) + sizeof(scc_enet_t __iomem *);
 }
 
 static void tx_restart(struct net_device *dev)
