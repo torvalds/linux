@@ -52,6 +52,8 @@
 #include "bnx2_fw.h"
 #include "bnx2_fw2.h"
 
+#define FW_BUF_SIZE		0x8000
+
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
 #define DRV_MODULE_VERSION	"1.6.5"
@@ -2759,89 +2761,45 @@ bnx2_set_rx_mode(struct net_device *dev)
 	spin_unlock_bh(&bp->phy_lock);
 }
 
-#define FW_BUF_SIZE	0x8000
-
+/* To be moved to generic lib/ */
 static int
-bnx2_gunzip_init(struct bnx2 *bp)
+bnx2_gunzip(void *gunzip_buf, unsigned sz, u8 *zbuf, int len)
 {
-	if ((bp->gunzip_buf = vmalloc(FW_BUF_SIZE)) == NULL)
-		goto gunzip_nomem1;
+	struct z_stream_s *strm;
+	int rc;
 
-	if ((bp->strm = kmalloc(sizeof(*bp->strm), GFP_KERNEL)) == NULL)
+	/* gzip header (1f,8b,08... 10 bytes total + possible asciz filename)
+	 * is stripped */
+
+	rc = -ENOMEM;
+	strm = kmalloc(sizeof(*strm), GFP_KERNEL);
+	if (strm == NULL)
 		goto gunzip_nomem2;
-
-	bp->strm->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-	if (bp->strm->workspace == NULL)
+	strm->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
+	if (strm->workspace == NULL)
 		goto gunzip_nomem3;
 
-	return 0;
+	strm->next_in = zbuf;
+	strm->avail_in = len;
+	strm->next_out = gunzip_buf;
+	strm->avail_out = sz;
 
+	rc = zlib_inflateInit2(strm, -MAX_WBITS);
+	if (rc == Z_OK) {
+		rc = zlib_inflate(strm, Z_FINISH);
+		/* after Z_FINISH, only Z_STREAM_END is "we unpacked it all" */
+		if (rc == Z_STREAM_END)
+			rc = sz - strm->avail_out;
+		else
+			rc = -EINVAL;
+		zlib_inflateEnd(strm);
+	} else
+		rc = -EINVAL;
+
+	kfree(strm->workspace);
 gunzip_nomem3:
-	kfree(bp->strm);
-	bp->strm = NULL;
-
+	kfree(strm);
 gunzip_nomem2:
-	vfree(bp->gunzip_buf);
-	bp->gunzip_buf = NULL;
-
-gunzip_nomem1:
-	printk(KERN_ERR PFX "%s: Cannot allocate firmware buffer for "
-			    "uncompression.\n", bp->dev->name);
-	return -ENOMEM;
-}
-
-static void
-bnx2_gunzip_end(struct bnx2 *bp)
-{
-	kfree(bp->strm->workspace);
-
-	kfree(bp->strm);
-	bp->strm = NULL;
-
-	if (bp->gunzip_buf) {
-		vfree(bp->gunzip_buf);
-		bp->gunzip_buf = NULL;
-	}
-}
-
-static int
-bnx2_gunzip(struct bnx2 *bp, u8 *zbuf, int len, void **outbuf, int *outlen)
-{
-	int n, rc;
-
-	/* check gzip header */
-	if ((zbuf[0] != 0x1f) || (zbuf[1] != 0x8b) || (zbuf[2] != Z_DEFLATED))
-		return -EINVAL;
-
-	n = 10;
-
-#define FNAME	0x8
-	if (zbuf[3] & FNAME)
-		while ((zbuf[n++] != 0) && (n < len));
-
-	bp->strm->next_in = zbuf + n;
-	bp->strm->avail_in = len - n;
-	bp->strm->next_out = bp->gunzip_buf;
-	bp->strm->avail_out = FW_BUF_SIZE;
-
-	rc = zlib_inflateInit2(bp->strm, -MAX_WBITS);
-	if (rc != Z_OK)
-		return rc;
-
-	rc = zlib_inflate(bp->strm, Z_FINISH);
-
-	*outlen = FW_BUF_SIZE - bp->strm->avail_out;
-	*outbuf = bp->gunzip_buf;
-
-	if ((rc != Z_OK) && (rc != Z_STREAM_END))
-		printk(KERN_ERR PFX "%s: Firmware decompression error: %s\n",
-		       bp->dev->name, bp->strm->msg);
-
-	zlib_inflateEnd(bp->strm);
-
-	if (rc == Z_STREAM_END)
-		return 0;
-
 	return rc;
 }
 
@@ -2894,22 +2852,21 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 	/* Load the Text area. */
 	offset = cpu_reg->spad_base + (fw->text_addr - cpu_reg->mips_view_base);
 	if (fw->gz_text) {
-		u32 text_len;
-		void *text;
-
-		rc = bnx2_gunzip(bp, fw->gz_text, fw->gz_text_len, &text,
-				 &text_len);
-		if (rc)
-			return rc;
-
-		fw->text = text;
-	}
-	if (fw->gz_text) {
+		u32 *text;
 		int j;
 
+		text = vmalloc(FW_BUF_SIZE);
+		if (!text)
+			return -ENOMEM;
+		rc = bnx2_gunzip(text, FW_BUF_SIZE, fw->gz_text, fw->gz_text_len);
+		if (rc < 0) {
+			vfree(text);
+			return rc;
+		}
 		for (j = 0; j < (fw->text_len / 4); j++, offset += 4) {
-			REG_WR_IND(bp, offset, cpu_to_le32(fw->text[j]));
+			REG_WR_IND(bp, offset, cpu_to_le32(text[j]));
 	        }
+		vfree(text);
 	}
 
 	/* Load the Data area. */
@@ -2971,27 +2928,27 @@ bnx2_init_cpus(struct bnx2 *bp)
 {
 	struct cpu_reg cpu_reg;
 	struct fw_info *fw;
-	int rc = 0;
+	int rc;
 	void *text;
-	u32 text_len;
-
-	if ((rc = bnx2_gunzip_init(bp)) != 0)
-		return rc;
 
 	/* Initialize the RV2P processor. */
-	rc = bnx2_gunzip(bp, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1), &text,
-			 &text_len);
-	if (rc)
+	text = vmalloc(FW_BUF_SIZE);
+	if (!text)
+		return -ENOMEM;
+	rc = bnx2_gunzip(text, FW_BUF_SIZE, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1));
+	if (rc < 0) {
+		vfree(text);
 		goto init_cpu_err;
+	}
+	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC1);
 
-	load_rv2p_fw(bp, text, text_len, RV2P_PROC1);
-
-	rc = bnx2_gunzip(bp, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2), &text,
-			 &text_len);
-	if (rc)
+	rc = bnx2_gunzip(text, FW_BUF_SIZE, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2));
+	if (rc < 0) {
+		vfree(text);
 		goto init_cpu_err;
-
-	load_rv2p_fw(bp, text, text_len, RV2P_PROC2);
+	}
+	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC2);
+	vfree(text);
 
 	/* Initialize the RX Processor. */
 	cpu_reg.mode = BNX2_RXP_CPU_MODE;
@@ -3107,7 +3064,6 @@ bnx2_init_cpus(struct bnx2 *bp)
 			goto init_cpu_err;
 	}
 init_cpu_err:
-	bnx2_gunzip_end(bp);
 	return rc;
 }
 

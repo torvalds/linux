@@ -6681,9 +6681,6 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
-
-	struct z_stream_s	*strm;
-	void			*gunzip_buf;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
@@ -6741,7 +6738,7 @@ struct fw_info {
 	const u32 text_addr;
 	const u32 text_len;
 	const u32 text_index;
-	u32 *text;
+/*	u32 *text;*/
 	u8 *gz_text;
 	const u32 gz_text_len;
 
