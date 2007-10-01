@@ -4,19 +4,29 @@ Booting
 	- requirements for booting
 Interrupts
 	- ARM Interrupt subsystem documentation
+IXP2000
+	- Release Notes for Linux on Intel's IXP2000 Network Processor
 Netwinder
 	- Netwinder specific documentation
+Porting
+       - Symbol definitions for porting Linux to a new ARM machine.
+Setup
+       - Kernel initialization parameters on ARM Linux
 README
 	- General ARM documentation
-SA1100
+SA1100/
 	- SA1100 documentation
-XScale
-	- XScale documentation
-empeg
-	- Empeg documentation
+Samsung-S3C24XX
+	- S3C24XX ARM Linux Overview
+Sharp-LH
+	- Linux on Sharp LH79524 and LH7A40X System On a Chip (SOC)
+VFP/
+	- Release notes for Linux Kernel Vector Floating Point support code
+empeg/
+	- Ltd's Empeg MP3 Car Audio Player
 mem_alignment
 	- alignment abort handler documentation
 memory.txt
 	- description of the virtual memory layout
-nwfpe
+nwfpe/
 	- NWFPE floating point emulator documentation
