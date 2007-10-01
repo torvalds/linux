@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <asm/io.h>
 
 void *consistent_alloc(struct pci_dev *hwdev, size_t size,
@@ -36,6 +37,7 @@ void *consistent_alloc(struct pci_dev *hwdev, size_t size,
 
 	return vp;
 }
+EXPORT_SYMBOL(consistent_alloc);
 
 void consistent_free(struct pci_dev *hwdev, size_t size,
 			 void *vaddr, dma_addr_t dma_handle)
@@ -47,4 +49,4 @@ void consistent_free(struct pci_dev *hwdev, size_t size,
 
 	iounmap(vaddr);
 }
-
+EXPORT_SYMBOL(consistent_free);

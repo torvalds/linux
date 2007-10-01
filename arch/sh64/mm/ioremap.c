@@ -19,11 +19,12 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/io.h>
-#include <asm/pgalloc.h>
-#include <asm/tlbflush.h>
 #include <linux/ioport.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/module.h>
+#include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
 
 static void shmedia_mapioaddr(unsigned long, unsigned long);
 static unsigned long shmedia_ioremap(struct resource *, u32, int);
@@ -80,6 +81,7 @@ void * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flag
 	}
 	return (void *) (offset + (char *)addr);
 }
+EXPORT_SYMBOL(__ioremap);
 
 void iounmap(void *addr)
 {
@@ -94,6 +96,7 @@ void iounmap(void *addr)
 
 	kfree(area);
 }
+EXPORT_SYMBOL(iounmap);
 
 static struct resource shmedia_iomap = {
 	.name	= "shmedia_iomap",
