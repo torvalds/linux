@@ -754,9 +754,11 @@ static void ivtv_stop_decoding(struct ivtv_open_id *id, int flags, u64 pts)
 		ivtv_yuv_close(itv);
 	}
 	if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_YUV)
-	    itv->output_mode = OUT_NONE;
+		itv->output_mode = OUT_NONE;
+	else if (s->type == IVTV_DEC_STREAM_TYPE_YUV && itv->output_mode == OUT_UDMA_YUV)
+		itv->output_mode = OUT_NONE;
 	else if (s->type == IVTV_DEC_STREAM_TYPE_MPG && itv->output_mode == OUT_MPG)
-	    itv->output_mode = OUT_NONE;
+		itv->output_mode = OUT_NONE;
 
 	itv->speed = 0;
 	clear_bit(IVTV_F_I_DEC_PAUSED, &itv->i_flags);
