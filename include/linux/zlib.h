@@ -82,7 +82,7 @@
 struct internal_state;
 
 typedef struct z_stream_s {
-    Byte    *next_in;   /* next input byte */
+    const Byte *next_in;   /* next input byte */
     uInt     avail_in;  /* number of bytes available at next_in */
     uLong    total_in;  /* total nb of input bytes read so far */
 
@@ -698,5 +698,9 @@ extern int zlib_inflateInit2(z_streamp strm, int  windowBits);
 #if !defined(_Z_UTIL_H) && !defined(NO_DUMMY_DECL)
     struct internal_state {int dummy;}; /* hack for buggy compilers */
 #endif
+
+/* Utility function: initialize zlib, unpack binary blob, clean up zlib,
+ * return len or negative error code. */
+extern int zlib_inflate_blob(void *dst, unsigned dst_sz, const void *src, unsigned src_sz);
 
 #endif /* _ZLIB_H */

@@ -2761,48 +2761,6 @@ bnx2_set_rx_mode(struct net_device *dev)
 	spin_unlock_bh(&bp->phy_lock);
 }
 
-/* To be moved to generic lib/ */
-static int
-bnx2_gunzip(void *gunzip_buf, unsigned sz, u8 *zbuf, int len)
-{
-	struct z_stream_s *strm;
-	int rc;
-
-	/* gzip header (1f,8b,08... 10 bytes total + possible asciz filename)
-	 * is stripped */
-
-	rc = -ENOMEM;
-	strm = kmalloc(sizeof(*strm), GFP_KERNEL);
-	if (strm == NULL)
-		goto gunzip_nomem2;
-	strm->workspace = kmalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-	if (strm->workspace == NULL)
-		goto gunzip_nomem3;
-
-	strm->next_in = zbuf;
-	strm->avail_in = len;
-	strm->next_out = gunzip_buf;
-	strm->avail_out = sz;
-
-	rc = zlib_inflateInit2(strm, -MAX_WBITS);
-	if (rc == Z_OK) {
-		rc = zlib_inflate(strm, Z_FINISH);
-		/* after Z_FINISH, only Z_STREAM_END is "we unpacked it all" */
-		if (rc == Z_STREAM_END)
-			rc = sz - strm->avail_out;
-		else
-			rc = -EINVAL;
-		zlib_inflateEnd(strm);
-	} else
-		rc = -EINVAL;
-
-	kfree(strm->workspace);
-gunzip_nomem3:
-	kfree(strm);
-gunzip_nomem2:
-	return rc;
-}
-
 static void
 load_rv2p_fw(struct bnx2 *bp, u32 *rv2p_code, u32 rv2p_code_len,
 	u32 rv2p_proc)
@@ -2858,7 +2816,7 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 		text = vmalloc(FW_BUF_SIZE);
 		if (!text)
 			return -ENOMEM;
-		rc = bnx2_gunzip(text, FW_BUF_SIZE, fw->gz_text, fw->gz_text_len);
+		rc = zlib_inflate_blob(text, FW_BUF_SIZE, fw->gz_text, fw->gz_text_len);
 		if (rc < 0) {
 			vfree(text);
 			return rc;
@@ -2935,14 +2893,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 	text = vmalloc(FW_BUF_SIZE);
 	if (!text)
 		return -ENOMEM;
-	rc = bnx2_gunzip(text, FW_BUF_SIZE, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1));
+	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1));
 	if (rc < 0) {
 		vfree(text);
 		goto init_cpu_err;
 	}
 	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC1);
 
-	rc = bnx2_gunzip(text, FW_BUF_SIZE, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2));
+	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2));
 	if (rc < 0) {
 		vfree(text);
 		goto init_cpu_err;
