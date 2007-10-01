@@ -667,6 +667,8 @@ static int pvr2_init_cable(void)
 	  related */
 	if (cable_type == CT_COMPOSITE)
 		fb_writel(3 << 8, VOUTC);
+	else if (cable_type == CT_RGB)
+		fb_writel(1 << 9, VOUTC);
 	else
 		fb_writel(0, VOUTC);
 
