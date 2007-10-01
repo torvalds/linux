@@ -126,6 +126,7 @@ struct hcp_modify_qp_cb0 {
 #define H_QP_CR_STATE_RDY2RCV	    0x0000030000000000ULL /*  Ready to recv */
 #define H_QP_CR_STATE_RDY2SND	    0x0000050000000000ULL /*  Ready to send */
 #define H_QP_CR_STATE_ERROR	    0x0000800000000000ULL /*  Error */
+#define H_QP_CR_RES_STATE 	    0x0000007F00000000ULL /* Resultant state */
 
 struct hcp_modify_qp_cb1 {
 	u32 qpn;		/* 00 */
