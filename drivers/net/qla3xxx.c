@@ -2249,6 +2249,12 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 
 		net_rsp = qdev->rsp_current;
 		rmb();
+		/*
+		 * Fix 4032 chipe undocumented "feature" where bit-8 is set if the
+		 * inbound completion is for a VLAN.
+		 */
+		if (qdev->device_id == QL3032_DEVICE_ID)
+			net_rsp->opcode &= 0x7f;
 		switch (net_rsp->opcode) {
 
 		case OPCODE_OB_MAC_IOCB_FN0:
