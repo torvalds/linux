@@ -89,6 +89,14 @@ module_param(radio_nr, int, 0444);
 #define GEMTEK_LOWFREQ	(87*16000)
 #define GEMTEK_HIGHFREQ	(108*16000)
 
+/*
+ * Frequency calculation constants.  Intermediate frequency 10.52 MHz (nominal
+ * value 10.7 MHz), reference divisor 6.39 kHz (nominal 6.25 kHz).
+ */
+#define FSCALE		8
+#define IF_OFFSET	((unsigned int)(10.52 * 16000 * (1<<FSCALE)))
+#define REF_FREQ	((unsigned int)(6.39 * 16 * (1<<FSCALE)))
+
 #define GEMTEK_CK		0x01	/* Clock signal			*/
 #define GEMTEK_DA		0x02	/* Serial data			*/
 #define GEMTEK_CE		0x04	/* Chip enable			*/
@@ -219,14 +227,11 @@ static void gemtek_bu2614_transmit(struct gemtek_device *dev)
 }
 
 /*
- * Convert FM-frequency for BU2614FS (3.125 KHz STDF expected).
+ * Calculate divisor from FM-frequency for BU2614FS (3.125 KHz STDF expected).
  */
-static inline void gemtek_convfreq(unsigned long *freq)
+static unsigned long gemtek_convfreq(unsigned long freq)
 {
-	(*freq) /= 160;
-	(*freq) += 1052;	/* FMIN, 10.52 MHz		*/
-	(*freq) *= 1565;	/* STDF, 1 / 156.5 = 0.00639	*/
-	(*freq) /= 1000;
+	return ((freq<<FSCALE) + IF_OFFSET + REF_FREQ/2) / REF_FREQ;
 }
 
 /*
@@ -253,10 +258,8 @@ static void gemtek_setfreq(struct gemtek_device *dev, unsigned long freq)
 	gemtek_bu2614_set(dev, BU2614_FMUN, 1);	/* GT bit set	*/
 	gemtek_bu2614_set(dev, BU2614_TEST, 0);
 
-	gemtek_convfreq(&freq);
-
 	gemtek_bu2614_set(dev, BU2614_STDF, GEMTEK_STDF_3_125_KHZ);
-	gemtek_bu2614_set(dev, BU2614_FREQ, freq);
+	gemtek_bu2614_set(dev, BU2614_FREQ, gemtek_convfreq(freq));
 
 	gemtek_bu2614_transmit(dev);
 }
