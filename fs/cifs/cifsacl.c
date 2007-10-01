@@ -46,11 +46,11 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 	}
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("revision %d num_auth %d First subauth 0x%x",
-		psid->revision, psid->num_auth, psid->sub_auth[0]));
+		psid->revision, psid->num_subauth, psid->sub_auth[0]));
 
 	/* BB add length check to make sure that we do not have huge num auths
 	      and therefore go off the end */
-	cFYI(1, ("RID 0x%x", le32_to_cpu(psid->sub_auth[psid->num_auth])));
+	cFYI(1, ("RID 0x%x", le32_to_cpu(psid->sub_auth[psid->num_subauth])));
 #endif
 	return 0;
 }

@@ -33,10 +33,9 @@ struct cifs_ntsd {
 
 struct cifs_sid {
 	__u8 revision; /* revision level */
-	__u8 num_auth;
+	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[4];
-	__u32 rid;
+	__u32 sub_auth[0]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 struct cifs_acl {
@@ -54,10 +53,9 @@ struct cifs_ntace {
 
 struct cifs_ace {
 	__u8 revision; /* revision level */
-	__u8 num_auth;
+	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[4];
-	__u32 rid;
+	__u32 sub_auth[0];
 } __attribute__((packed));
 
 /* everyone */
