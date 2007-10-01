@@ -90,4 +90,13 @@ config FIXED_MII_AMNT
         This control will have specified number allocated for each fixed
         PHY type enabled.
 
+config MDIO_BITBANG
+	tristate "Support for bitbanged MDIO buses"
+	help
+	  This module implements the MDIO bus protocol in software,
+	  for use by low level drivers that export the ability to
+	  drive the relevant pins.
+
+	  If in doubt, say N.
+
 endif # PHYLIB
