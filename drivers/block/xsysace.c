@@ -1034,13 +1034,13 @@ static int __devinit ace_setup(struct ace_device *ace)
 
 	return 0;
 
-      err_read:
+err_read:
 	put_disk(ace->gd);
-      err_alloc_disk:
+err_alloc_disk:
 	blk_cleanup_queue(ace->queue);
-      err_blk_initq:
+err_blk_initq:
 	iounmap(ace->baseaddr);
-      err_ioremap:
+err_ioremap:
 	dev_info(ace->dev, "xsysace: error initializing device at 0x%lx\n",
 	       ace->physaddr);
 	return -ENOMEM;
@@ -1097,11 +1097,11 @@ ace_alloc(struct device *dev, int id, unsigned long physaddr,
 	dev_set_drvdata(dev, ace);
 	return 0;
 
-      err_setup:
+err_setup:
 	dev_set_drvdata(dev, NULL);
 	kfree(ace);
-      err_alloc:
-      err_noreg:
+err_alloc:
+err_noreg:
 	dev_err(dev, "could not initialize device, err=%i\n", rc);
 	return rc;
 }
@@ -1263,11 +1263,11 @@ static int __init ace_init(void)
 	pr_info("Xilinx SystemACE device driver, major=%i\n", ace_major);
 	return 0;
 
-      err_plat:
+err_plat:
 	ace_of_unregister();
-      err_of:
+err_of:
 	unregister_blkdev(ace_major, "xsysace");
-      err_blk:
+err_blk:
 	printk(KERN_ERR "xsysace: registration failed; err=%i\n", rc);
 	return rc;
 }
