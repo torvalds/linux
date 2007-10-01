@@ -65,7 +65,7 @@
  * locks on them because there is no way to know if the accesser has
  * the lock.
  */
-#define IS_ISMNDLK(i)	(S_ISREG((i)->i_mode) && MANDATORY_LOCK(i))
+#define IS_ISMNDLK(i)	(S_ISREG((i)->i_mode) && mandatory_lock(i))
 
 /*
  * This is a cache of readahead params that help us choose the proper
