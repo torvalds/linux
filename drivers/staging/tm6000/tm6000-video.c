@@ -54,8 +54,6 @@
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
 
-unsigned long tm6000_devused;
-
 /* Debug level */
 int tm6000_debug;
 

@@ -44,6 +44,8 @@ static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(card,  int, NULL, 0444);
 
+static unsigned long tm6000_devused;
+
 
 struct tm6000_board {
 	char            *name;

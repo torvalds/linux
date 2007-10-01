@@ -196,7 +196,6 @@ struct tm6000_fh {
 			V4L2_STD_NTSC_M_JP|V4L2_STD_SECAM
 
 /* In tm6000-core.c */
-extern unsigned long tm6000_devused;
 
 int tm6000_read_write_usb (struct tm6000_core *dev, u8 reqtype, u8 req,
 			   u16 value, u16 index, u8 *buf, u16 len);
