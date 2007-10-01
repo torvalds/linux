@@ -400,22 +400,16 @@ static int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3)
 	gfn_t pdpt_gfn = cr3 >> PAGE_SHIFT;
 	unsigned offset = ((cr3 & (PAGE_SIZE-1)) >> 5) << 2;
 	int i;
-	u64 *pdpt;
 	int ret;
-	struct page *page;
 	u64 pdpte[ARRAY_SIZE(vcpu->pdptrs)];
 
 	mutex_lock(&vcpu->kvm->lock);
-	page = gfn_to_page(vcpu->kvm, pdpt_gfn);
-	if (!page) {
+	ret = kvm_read_guest_page(vcpu->kvm, pdpt_gfn, pdpte,
+				  offset * sizeof(u64), sizeof(pdpte));
+	if (ret < 0) {
 		ret = 0;
 		goto out;
 	}
-
-	pdpt = kmap_atomic(page, KM_USER0);
-	memcpy(pdpte, pdpt+offset, sizeof(pdpte));
-	kunmap_atomic(pdpt, KM_USER0);
-
 	for (i = 0; i < ARRAY_SIZE(pdpte); ++i) {
 		if ((pdpte[i] & 1) && (pdpte[i] & 0xfffffff0000001e6ull)) {
 			ret = 0;
@@ -962,6 +956,127 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
+static int next_segment(unsigned long len, int offset)
+{
+	if (len > PAGE_SIZE - offset)
+		return PAGE_SIZE - offset;
+	else
+		return len;
+}
+
+int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
+			int len)
+{
+	void *page_virt;
+	struct page *page;
+
+	page = gfn_to_page(kvm, gfn);
+	if (!page)
+		return -EFAULT;
+	page_virt = kmap_atomic(page, KM_USER0);
+
+	memcpy(data, page_virt + offset, len);
+
+	kunmap_atomic(page_virt, KM_USER0);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_read_guest_page);
+
+int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len)
+{
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int seg;
+	int offset = offset_in_page(gpa);
+	int ret;
+
+	while ((seg = next_segment(len, offset)) != 0) {
+		ret = kvm_read_guest_page(kvm, gfn, data, offset, seg);
+		if (ret < 0)
+			return ret;
+		offset = 0;
+		len -= seg;
+		data += seg;
+		++gfn;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_read_guest);
+
+int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
+			 int offset, int len)
+{
+	void *page_virt;
+	struct page *page;
+
+	page = gfn_to_page(kvm, gfn);
+	if (!page)
+		return -EFAULT;
+	page_virt = kmap_atomic(page, KM_USER0);
+
+	memcpy(page_virt + offset, data, len);
+
+	kunmap_atomic(page_virt, KM_USER0);
+	mark_page_dirty(kvm, gfn);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_write_guest_page);
+
+int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
+		    unsigned long len)
+{
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int seg;
+	int offset = offset_in_page(gpa);
+	int ret;
+
+	while ((seg = next_segment(len, offset)) != 0) {
+		ret = kvm_write_guest_page(kvm, gfn, data, offset, seg);
+		if (ret < 0)
+			return ret;
+		offset = 0;
+		len -= seg;
+		data += seg;
+		++gfn;
+	}
+	return 0;
+}
+
+int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
+{
+	void *page_virt;
+	struct page *page;
+
+	page = gfn_to_page(kvm, gfn);
+	if (!page)
+		return -EFAULT;
+	page_virt = kmap_atomic(page, KM_USER0);
+
+	memset(page_virt + offset, 0, len);
+
+	kunmap_atomic(page_virt, KM_USER0);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_clear_guest_page);
+
+int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len)
+{
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int seg;
+	int offset = offset_in_page(gpa);
+	int ret;
+
+        while ((seg = next_segment(len, offset)) != 0) {
+		ret = kvm_clear_guest_page(kvm, gfn, offset, seg);
+		if (ret < 0)
+			return ret;
+		offset = 0;
+		len -= seg;
+		++gfn;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_clear_guest);
+
 /* WARNING: Does not work on aliased pages. */
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn)
 {
@@ -988,21 +1103,13 @@ int emulator_read_std(unsigned long addr,
 		gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned tocopy = min(bytes, (unsigned)PAGE_SIZE - offset);
-		unsigned long pfn;
-		struct page *page;
-		void *page_virt;
+		int ret;
 
 		if (gpa == UNMAPPED_GVA)
 			return X86EMUL_PROPAGATE_FAULT;
-		pfn = gpa >> PAGE_SHIFT;
-		page = gfn_to_page(vcpu->kvm, pfn);
-		if (!page)
+		ret = kvm_read_guest(vcpu->kvm, gpa, data, tocopy);
+		if (ret < 0)
 			return X86EMUL_UNHANDLEABLE;
-		page_virt = kmap_atomic(page, KM_USER0);
-
-		memcpy(data, page_virt + offset, tocopy);
-
-		kunmap_atomic(page_virt, KM_USER0);
 
 		bytes -= tocopy;
 		data += tocopy;
@@ -1095,19 +1202,12 @@ static int emulator_read_emulated(unsigned long addr,
 static int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			       const void *val, int bytes)
 {
-	struct page *page;
-	void *virt;
+	int ret;
 
-	if (((gpa + bytes - 1) >> PAGE_SHIFT) != (gpa >> PAGE_SHIFT))
+	ret = kvm_write_guest(vcpu->kvm, gpa, val, bytes);
+	if (ret < 0)
 		return 0;
-	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-	if (!page)
-		return 0;
-	mark_page_dirty(vcpu->kvm, gpa >> PAGE_SHIFT);
-	virt = kmap_atomic(page, KM_USER0);
 	kvm_mmu_pte_write(vcpu, gpa, val, bytes);
-	memcpy(virt + offset_in_page(gpa), val, bytes);
-	kunmap_atomic(virt, KM_USER0);
 	return 1;
 }
 

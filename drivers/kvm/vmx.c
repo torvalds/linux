@@ -1387,33 +1387,28 @@ static void vmx_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 
 static int init_rmode_tss(struct kvm* kvm)
 {
-	struct page *p1, *p2, *p3;
 	gfn_t fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
-	char *page;
+	u16 data = 0;
+	int r;
 
-	p1 = gfn_to_page(kvm, fn++);
-	p2 = gfn_to_page(kvm, fn++);
-	p3 = gfn_to_page(kvm, fn);
-
-	if (!p1 || !p2 || !p3) {
-		kvm_printf(kvm,"%s: gfn_to_page failed\n", __FUNCTION__);
+	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
+	if (r < 0)
 		return 0;
-	}
-
-	page = kmap_atomic(p1, KM_USER0);
-	clear_page(page);
-	*(u16*)(page + 0x66) = TSS_BASE_SIZE + TSS_REDIRECTION_SIZE;
-	kunmap_atomic(page, KM_USER0);
-
-	page = kmap_atomic(p2, KM_USER0);
-	clear_page(page);
-	kunmap_atomic(page, KM_USER0);
-
-	page = kmap_atomic(p3, KM_USER0);
-	clear_page(page);
-	*(page + RMODE_TSS_SIZE - 2 * PAGE_SIZE - 1) = ~0;
-	kunmap_atomic(page, KM_USER0);
-
+	data = TSS_BASE_SIZE + TSS_REDIRECTION_SIZE;
+	r = kvm_write_guest_page(kvm, fn++, &data, 0x66, sizeof(u16));
+	if (r < 0)
+		return 0;
+	r = kvm_clear_guest_page(kvm, fn++, 0, PAGE_SIZE);
+	if (r < 0)
+		return 0;
+	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
+	if (r < 0)
+		return 0;
+	data = ~0;
+	r = kvm_write_guest_page(kvm, fn, &data, RMODE_TSS_SIZE - 2 * PAGE_SIZE - 1,
+			sizeof(u8));
+	if (r < 0)
+		return 0;
 	return 1;
 }
 
