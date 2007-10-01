@@ -22,6 +22,8 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 
+#include <cobalt.h>
+
 static struct resource cobalt_led_resource __initdata = {
 	.start	= 0x1c000000,
 	.end	= 0x1c000000,
@@ -33,7 +35,11 @@ static __init int cobalt_led_add(void)
 	struct platform_device *pdev;
 	int retval;
 
-	pdev = platform_device_alloc("cobalt-raq-leds", -1);
+	if (cobalt_board_id == COBALT_BRD_ID_QUBE1 ||
+	    cobalt_board_id == COBALT_BRD_ID_QUBE2)
+		pdev = platform_device_alloc("cobalt-qube-leds", -1);
+	else
+		pdev = platform_device_alloc("cobalt-raq-leds", -1);
 
 	if (!pdev)
 		return -ENOMEM;
