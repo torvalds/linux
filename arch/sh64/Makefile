@@ -47,7 +47,6 @@ endif
 machine-$(CONFIG_SH_CAYMAN)	:= cayman
 machine-$(CONFIG_SH_SIMULATOR)	:= sim
 machine-$(CONFIG_SH_HARP)	:= harp
-machine-$(CONFIG_SH_ROMRAM)	:= romram
 
 head-y := arch/$(ARCH)/kernel/head.o arch/$(ARCH)/kernel/init_task.o
 

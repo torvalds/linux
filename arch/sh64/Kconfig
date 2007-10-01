@@ -58,17 +58,11 @@ choice
 	prompt "SuperH system type"
 	default SH_SIMULATOR
 
-config SH_GENERIC
-	bool "Generic"
-
 config SH_SIMULATOR
 	bool "Simulator"
 
 config SH_CAYMAN
 	bool "Cayman"
-
-config SH_ROMRAM
-	bool "ROM/RAM"
 
 config SH_HARP
 	bool "ST50-Harp"
