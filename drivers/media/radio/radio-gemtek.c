@@ -106,7 +106,6 @@ module_param(radio_nr, int, 0444);
 #define GEMTEK_PLL_OFF		0x07	/* PLL off			*/
 
 #define BU2614_BUS_SIZE	32	/* BU2614 / BU2614FS bus size		*/
-#define BU2614_NOPS	8	/* Number of supported operations	*/
 
 #define SHORT_DELAY 5		/* usec */
 #define LONG_DELAY 75		/* usec */
@@ -114,72 +113,53 @@ module_param(radio_nr, int, 0444);
 struct gemtek_device {
 	unsigned long lastfreq;
 	int muted;
-	unsigned long bu2614data[BU2614_NOPS];
+	u32 bu2614data;
 };
 
-enum {
-	BU2614_VOID,
-	BU2614_FREQ,	/* D0..D15, Frequency data			*/
-	BU2614_PORT,	/* P0..P2, Output port control data		*/
-	BU2614_FMES,	/* CT, Frequency measurement beginning data	*/
-	BU2614_STDF,	/* R0..R2, Standard frequency data		*/
-	BU2614_SWIN,	/* S, Switch between FMIN / AMIN		*/
-	BU2614_SWAL,	/* PS, Swallow counter division (AMIN only)	*/
-	BU2614_FMUN,	/* GT, Frequency measurement time and unlock	*/
-	BU2614_TEST	/* TS, Test data is input			*/
-};
+#define BU2614_FREQ_BITS 	16 /* D0..D15, Frequency data		*/
+#define BU2614_PORT_BITS	3 /* P0..P2, Output port control data	*/
+#define BU2614_VOID_BITS	4 /* unused 				*/
+#define BU2614_FMES_BITS	1 /* CT, Frequency measurement beginning data */
+#define BU2614_STDF_BITS	3 /* R0..R2, Standard frequency data	*/
+#define BU2614_SWIN_BITS	1 /* S, Switch between FMIN / AMIN	*/
+#define BU2614_SWAL_BITS        1 /* PS, Swallow counter division (AMIN only)*/
+#define BU2614_VOID2_BITS	1 /* unused				*/
+#define BU2614_FMUN_BITS	1 /* GT, Frequency measurement time & unlock */
+#define BU2614_TEST_BITS	1 /* TS, Test data is input		*/
 
-struct bu2614_op {
-	int op;		/* Operation */
-	int size;	/* Data size */
-};
+#define BU2614_FREQ_SHIFT 	0
+#define BU2614_PORT_SHIFT	(BU2614_FREQ_BITS + BU2614_FREQ_SHIFT)
+#define BU2614_VOID_SHIFT	(BU2614_PORT_BITS + BU2614_PORT_SHIFT)
+#define BU2614_FMES_SHIFT	(BU2614_VOID_BITS + BU2614_VOID_SHIFT)
+#define BU2614_STDF_SHIFT	(BU2614_FMES_BITS + BU2614_FMES_SHIFT)
+#define BU2614_SWIN_SHIFT	(BU2614_STDF_BITS + BU2614_STDF_SHIFT)
+#define BU2614_SWAL_SHIFT	(BU2614_SWIN_BITS + BU2614_SWIN_SHIFT)
+#define BU2614_VOID2_SHIFT	(BU2614_SWAL_BITS + BU2614_SWAL_SHIFT)
+#define BU2614_FMUN_SHIFT	(BU2614_VOID2_BITS + BU2614_VOID2_SHIFT)
+#define BU2614_TEST_SHIFT	(BU2614_FMUN_BITS + BU2614_FMUN_SHIFT)
+
+#define MKMASK(field)	(((1<<BU2614_##field##_BITS) - 1) << \
+			BU2614_##field##_SHIFT)
+#define BU2614_PORT_MASK	MKMASK(PORT)
+#define BU2614_FREQ_MASK	MKMASK(FREQ)
+#define BU2614_VOID_MASK	MKMASK(VOID)
+#define BU2614_FMES_MASK	MKMASK(FMES)
+#define BU2614_STDF_MASK	MKMASK(STDF)
+#define BU2614_SWIN_MASK	MKMASK(SWIN)
+#define BU2614_SWAL_MASK	MKMASK(SWAL)
+#define BU2614_VOID2_MASK	MKMASK(VOID2)
+#define BU2614_FMUN_MASK	MKMASK(FMUN)
+#define BU2614_TEST_MASK	MKMASK(TEST)
 
 static struct gemtek_device gemtek_unit;
-
-static struct bu2614_op bu2614ops[] = {
-	{.op = BU2614_FREQ,
-	 .size = 0x10},
-	{.op = BU2614_PORT,
-	 .size = 0x03},
-	{.op = BU2614_VOID,
-	 .size = 0x04},
-	{.op = BU2614_FMES,
-	 .size = 0x01},
-	{.op = BU2614_STDF,
-	 .size = 0x03},
-	{.op = BU2614_SWIN,
-	 .size = 0x01},
-	{.op = BU2614_SWAL,
-	 .size = 0x01},
-	{.op = BU2614_VOID,
-	 .size = 0x01},
-	{.op = BU2614_FMUN,
-	 .size = 0x01},
-	{.op = BU2614_TEST,
-	 .size = 0x01}
-};
 
 static spinlock_t lock;
 
 /*
  * Set data which will be sent to BU2614FS.
  */
-static void gemtek_bu2614_set(struct gemtek_device *dev, int op,
-			      unsigned long data)
-{
-	int i, q;
-
-	for (i = 0, q = 0; q < ARRAY_SIZE(dev->bu2614data); ++i) {
-		if (bu2614ops[i].op == op) {
-			dev->bu2614data[q] =
-			    data & ((1 << bu2614ops[i].size) - 1);
-			return;
-		}
-
-		if (bu2614ops[i].op != BU2614_VOID)
-			++q;
-	}
-}
+#define gemtek_bu2614_set(dev, field, data) ((dev)->bu2614data = \
+	((dev)->bu2614data & ~field##_MASK) | ((data) << field##_SHIFT))
 
 /*
  * Transmit settings to BU2614FS over GemTek IC.
@@ -197,25 +177,12 @@ static void gemtek_bu2614_transmit(struct gemtek_device *dev)
 	outb_p(mute | GEMTEK_CE | GEMTEK_DA | GEMTEK_CK, io);
 	udelay(LONG_DELAY);
 
-	for (i = 0, q = 0; q < ARRAY_SIZE(dev->bu2614data); ++i) {
-		for (bit = 0; bit < bu2614ops[i].size; ++bit) {
-			if (bu2614ops[i].op != BU2614_VOID &&
-			    dev->bu2614data[q] & (1 << bit)) {
-				outb_p(mute | GEMTEK_CE | GEMTEK_DA, io);
-				udelay(SHORT_DELAY);
-				outb_p(mute | GEMTEK_CE | GEMTEK_DA |
-				       GEMTEK_CK, io);
-				udelay(SHORT_DELAY);
-			} else {
-				outb_p(mute | GEMTEK_CE, io);
-				udelay(SHORT_DELAY);
-				outb_p(mute | GEMTEK_CE | GEMTEK_CK, io);
-				udelay(SHORT_DELAY);
-			}
-		}
-
-		if (bu2614ops[i].op != BU2614_VOID)
-			++q;
+	for (i = 0, q = dev->bu2614data; i < 32; i++, q >>= 1) {
+	    bit = (q & 1) ? GEMTEK_DA : 0;
+	    outb_p(mute | GEMTEK_CE | bit, io);
+	    udelay(SHORT_DELAY);
+	    outb_p(mute | GEMTEK_CE | bit | GEMTEK_CK, io);
+	    udelay(SHORT_DELAY);
 	}
 
 	outb_p(mute | GEMTEK_DA | GEMTEK_CK, io);
@@ -612,8 +579,6 @@ static struct video_device gemtek_radio = {
  */
 static int __init gemtek_init(void)
 {
-	int i;
-
 	printk(KERN_INFO RADIO_BANNER "\n");
 
 	spin_lock_init(&lock);
@@ -651,8 +616,7 @@ static int __init gemtek_init(void)
 
 	/* Set defaults */
 	gemtek_unit.lastfreq = GEMTEK_LOWFREQ;
-	for (i = 0; i < ARRAY_SIZE(gemtek_unit.bu2614data); ++i)
-		gemtek_unit.bu2614data[i] = 0;
+	gemtek_unit.bu2614data = 0;
 
 	if (initmute)
 		gemtek_mute(&gemtek_unit);
