@@ -12,7 +12,6 @@
  * kind, whether express or implied.
  */
 
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -308,7 +307,6 @@ static int fs_mii_bitbang_init(struct bb_info *bitbang, struct fs_mii_bb_platfor
 	return 0;
 }
 
-
 static int __devinit fs_enet_mdio_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -370,7 +368,6 @@ bus_register_fail:
 
 	return err;
 }
-
 
 static int fs_enet_mdio_remove(struct device *dev)
 {

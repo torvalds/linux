@@ -86,7 +86,6 @@
 static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 mcn, u32 op)
 {
 	const struct fs_platform_info *fpi = fep->fpi;
-
 	cpm2_map_t *immap = fs_enet_immap;
 	cpm_cpm2_t *cpmp = &immap->im_cpm;
 	u32 v;

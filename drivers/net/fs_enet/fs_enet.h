@@ -15,8 +15,8 @@
 #include <asm/commproc.h>
 
 struct fec_info {
-        fec_t*  fecp;
-	u32     mii_speed;
+	fec_t *fecp;
+	u32 mii_speed;
 };
 #endif
 
