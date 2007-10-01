@@ -1271,7 +1271,6 @@ call_refresh(struct rpc_task *task)
 {
 	dprint_status(task);
 
-	xprt_release(task);	/* Must do to obtain new XID */
 	task->tk_action = call_refreshresult;
 	task->tk_status = 0;
 	task->tk_client->cl_stats->rpcauthrefresh++;
@@ -1389,6 +1388,8 @@ call_verify(struct rpc_task *task)
 			dprintk("RPC: %5u %s: retry stale creds\n",
 					task->tk_pid, __FUNCTION__);
 			rpcauth_invalcred(task);
+			/* Ensure we obtain a new XID! */
+			xprt_release(task);
 			task->tk_action = call_refresh;
 			goto out_retry;
 		case RPC_AUTH_BADCRED:
