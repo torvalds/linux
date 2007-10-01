@@ -1033,7 +1033,7 @@ static int __devinit ace_setup(struct ace_device *ace)
 	if (ace->irq != NO_IRQ)
 		free_irq(ace->irq, ace);
       err_ioremap:
-	printk(KERN_INFO "xsysace: error initializing device at 0x%lx\n",
+	dev_info(ace->dev, "xsysace: error initializing device at 0x%lx\n",
 	       ace->physaddr);
 	return -ENOMEM;
 }
@@ -1056,52 +1056,83 @@ static void __devexit ace_teardown(struct ace_device *ace)
 	iounmap(ace->baseaddr);
 }
 
+static int __devinit
+ace_alloc(struct device *dev, int id, unsigned long physaddr,
+	  int irq, int bus_width)
+{
+	struct ace_device *ace;
+	int rc;
+	dev_dbg(dev, "ace_alloc(%p)\n", dev);
+
+	if (!physaddr) {
+		rc = -ENODEV;
+		goto err_noreg;
+	}
+
+	/* Allocate and initialize the ace device structure */
+	ace = kzalloc(sizeof(struct ace_device), GFP_KERNEL);
+	if (!ace) {
+		rc = -ENOMEM;
+		goto err_alloc;
+	}
+
+	ace->dev = dev;
+	ace->id = id;
+	ace->physaddr = physaddr;
+	ace->irq = irq;
+	ace->bus_width = bus_width;
+
+	/* Call the setup code */
+	if ((rc = ace_setup(ace)) != 0)
+		goto err_setup;
+
+	dev_set_drvdata(dev, ace);
+	return 0;
+
+      err_setup:
+	dev_set_drvdata(dev, NULL);
+	kfree(ace);
+      err_alloc:
+      err_noreg:
+	dev_err(dev, "could not initialize device, err=%i\n", rc);
+	return rc;
+}
+
+static void __devexit ace_free(struct device *dev)
+{
+	struct ace_device *ace = dev_get_drvdata(dev);
+	dev_dbg(dev, "ace_free(%p)\n", dev);
+
+	if (ace) {
+		ace_teardown(ace);
+		dev_set_drvdata(dev, NULL);
+		kfree(ace);
+	}
+}
+
 /* ---------------------------------------------------------------------
  * Platform Bus Support
  */
 
 static int __devinit ace_probe(struct platform_device *dev)
 {
-	struct ace_device *ace;
+	unsigned long physaddr = 0;
+	int bus_width = 1; /* FIXME: should not be hard coded */
+	int id = dev->id;
+	int irq = NO_IRQ;
 	int i;
 
 	dev_dbg(&dev->dev, "ace_probe(%p)\n", dev);
 
-	/*
-	 * Allocate the ace device structure
-	 */
-	ace = kzalloc(sizeof(struct ace_device), GFP_KERNEL);
-	if (!ace)
-		goto err_alloc;
-
-	ace->dev = &dev->dev;
-	ace->id = dev->id;
-	ace->irq = NO_IRQ;
-
 	for (i = 0; i < dev->num_resources; i++) {
 		if (dev->resource[i].flags & IORESOURCE_MEM)
-			ace->physaddr = dev->resource[i].start;
+			physaddr = dev->resource[i].start;
 		if (dev->resource[i].flags & IORESOURCE_IRQ)
-			ace->irq = dev->resource[i].start;
+			irq = dev->resource[i].start;
 	}
 
-	/* FIXME: Should get bus_width from the platform_device struct */
-	ace->bus_width = 1;
-
-	platform_set_drvdata(dev, ace);
-
 	/* Call the bus-independant setup code */
-	if (ace_setup(ace) != 0)
-		goto err_setup;
-
-	return 0;
-
-      err_setup:
-	platform_set_drvdata(dev, NULL);
-	kfree(ace);
-      err_alloc:
-	printk(KERN_ERR "xsysace: could not initialize device\n");
-	return -ENOMEM;
+	return ace_alloc(&dev->dev, id, physaddr, irq, bus_width);
 }
 
 /*
@@ -1109,15 +1140,7 @@ static int __devinit ace_probe(struct platform_device *dev)
  */
 static int __devexit ace_remove(struct platform_device *dev)
 {
-	struct ace_device *ace =  platform_get_drvdata(dev);
-	dev_dbg(&dev->dev, "ace_remove(%p)\n", dev);
-
-	if (ace) {
-		ace_teardown(ace);
-		platform_set_drvdata(dev, NULL);
-		kfree(ace);
-	}
-
+	ace_free(&dev->dev);
 	return 0;
 }
 
