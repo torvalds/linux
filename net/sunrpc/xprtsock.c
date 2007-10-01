@@ -587,13 +587,13 @@ static int xs_udp_send_request(struct rpc_task *task)
 	dprintk("RPC:       xs_udp_send_request(%u) = %d\n",
 			xdr->len - req->rq_bytes_sent, status);
 
-	task->tk_bytes_sent += status;
-	if (likely(status >= (int) req->rq_slen))
-		return 0;
-
-	/* Still some bytes left; set up for a retry later. */
-	if (status > 0)
+	if (status >= 0) {
+		task->tk_bytes_sent += status;
+		if (status >= req->rq_slen)
+			return 0;
+		/* Still some bytes left; set up for a retry later. */
 		status = -EAGAIN;
+	}
 
 	switch (status) {
 	case -ENETUNREACH:
