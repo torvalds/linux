@@ -219,18 +219,9 @@ static void esp_reset_esp(struct esp *esp)
 	/* Now reset the ESP chip */
 	scsi_esp_cmd(esp, ESP_CMD_RC);
 	scsi_esp_cmd(esp, ESP_CMD_NULL | ESP_CMD_DMA);
+	if (esp->rev == FAST)
+		esp_write8(ESP_CONFIG2_FENAB, ESP_CFG2);
 	scsi_esp_cmd(esp, ESP_CMD_NULL | ESP_CMD_DMA);
-
-	/* Reload the configuration registers */
-	esp_write8(esp->cfact, ESP_CFACT);
-
-	esp->prev_stp = 0;
-	esp_write8(esp->prev_stp, ESP_STP);
-
-	esp->prev_soff = 0;
-	esp_write8(esp->prev_soff, ESP_SOFF);
-
-	esp_write8(esp->neg_defp, ESP_TIMEO);
 
 	/* This is the only point at which it is reliable to read
 	 * the ID-code for a fast ESP chip variants.
@@ -315,6 +306,17 @@ static void esp_reset_esp(struct esp *esp)
 	default:
 		break;
 	}
+
+	/* Reload the configuration registers */
+	esp_write8(esp->cfact, ESP_CFACT);
+
+	esp->prev_stp = 0;
+	esp_write8(esp->prev_stp, ESP_STP);
+
+	esp->prev_soff = 0;
+	esp_write8(esp->prev_soff, ESP_SOFF);
+
+	esp_write8(esp->neg_defp, ESP_TIMEO);
 
 	/* Eat any bitrot in the chip */
 	esp_read8(ESP_INTRPT);
