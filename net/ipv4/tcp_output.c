@@ -660,7 +660,7 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 static void tcp_adjust_fackets_out(struct tcp_sock *tp, struct sk_buff *skb,
 				   int decr)
 {
-	if (!tp->sacked_out)
+	if (!tp->sacked_out || tcp_is_reno(tp))
 		return;
 
 	if (!before(tp->highest_sack, TCP_SKB_CB(skb)->seq))
@@ -712,7 +712,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	TCP_SKB_CB(buff)->end_seq = TCP_SKB_CB(skb)->end_seq;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(buff)->seq;
 
-	if (tp->sacked_out && (TCP_SKB_CB(skb)->seq == tp->highest_sack))
+	if (tcp_is_sack(tp) && tp->sacked_out &&
+	    (TCP_SKB_CB(skb)->seq == tp->highest_sack))
 		tp->highest_sack = TCP_SKB_CB(buff)->seq;
 
 	/* PSH and FIN should only be set in the second packet. */
@@ -1718,7 +1719,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		BUG_ON(tcp_skb_pcount(skb) != 1 ||
 		       tcp_skb_pcount(next_skb) != 1);
 
-		if (WARN_ON(tp->sacked_out &&
+		if (WARN_ON(tcp_is_sack(tp) && tp->sacked_out &&
 		    (TCP_SKB_CB(next_skb)->seq == tp->highest_sack)))
 			return;
 
