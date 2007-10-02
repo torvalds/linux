@@ -396,7 +396,7 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev, int limit)
 		if (unlikely(!skb))
 			break;
 
-		dma = pci_map_single(mac->dma_pdev, skb->data, skb->len,
+		dma = pci_map_single(mac->dma_pdev, skb->data, BUF_SIZE,
 				     PCI_DMA_FROMDEVICE);
 
 		if (unlikely(dma_mapping_error(dma))) {
