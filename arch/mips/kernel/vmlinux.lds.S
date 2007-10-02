@@ -45,6 +45,8 @@ SECTIONS
   __dbe_table : { *(__dbe_table) }
   __stop___dbe_table = .;
 
+  NOTES
+
   RODATA
 
   /* writeable */
