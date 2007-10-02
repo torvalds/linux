@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
+#define ULITE_NAME		"ttyUL"
 #define ULITE_MAJOR		204
 #define ULITE_MINOR		187
 #define ULITE_NR_UARTS		4
@@ -381,7 +382,7 @@ static int __init ulite_console_setup(struct console *co, char *options)
 static struct uart_driver ulite_uart_driver;
 
 static struct console ulite_console = {
-	.name	= "ttyUL",
+	.name	= ULITE_NAME,
 	.write	= ulite_console_write,
 	.device	= uart_console_device,
 	.setup	= ulite_console_setup,
@@ -403,7 +404,7 @@ console_initcall(ulite_console_init);
 static struct uart_driver ulite_uart_driver = {
 	.owner		= THIS_MODULE,
 	.driver_name	= "uartlite",
-	.dev_name	= "ttyUL",
+	.dev_name	= ULITE_NAME,
 	.major		= ULITE_MAJOR,
 	.minor		= ULITE_MINOR,
 	.nr		= ULITE_NR_UARTS,
