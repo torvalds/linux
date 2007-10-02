@@ -97,6 +97,10 @@ static int ata_ignore_hpa = 0;
 module_param_named(ignore_hpa, ata_ignore_hpa, int, 0644);
 MODULE_PARM_DESC(ignore_hpa, "Ignore HPA limit (0=keep BIOS limits, 1=ignore limits, using full disk)");
 
+static int libata_dma_mask = ATA_DMA_MASK_ATA|ATA_DMA_MASK_ATAPI|ATA_DMA_MASK_CFA;
+module_param_named(dma, libata_dma_mask, int, 0444);
+MODULE_PARM_DESC(dma, "DMA enable/disable (0x1==ATA, 0x2==ATAPI, 0x4==CF)");
+
 static int ata_probe_timeout = ATA_TMOUT_INTERNAL / HZ;
 module_param(ata_probe_timeout, int, 0444);
 MODULE_PARM_DESC(ata_probe_timeout, "Set ATA probing timeout (seconds)");
@@ -2917,14 +2921,27 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 	/* step 1: calculate xfer_mask */
 	ata_link_for_each_dev(dev, link) {
 		unsigned int pio_mask, dma_mask;
+		unsigned int mode_mask;
 
 		if (!ata_dev_enabled(dev))
 			continue;
+
+		mode_mask = ATA_DMA_MASK_ATA;
+		if (dev->class == ATA_DEV_ATAPI)
+			mode_mask = ATA_DMA_MASK_ATAPI;
+		else if (ata_id_is_cfa(dev->id))
+			mode_mask = ATA_DMA_MASK_CFA;
 
 		ata_dev_xfermask(dev);
 
 		pio_mask = ata_pack_xfermask(dev->pio_mask, 0, 0);
 		dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
+
+		if (libata_dma_mask & mode_mask)
+			dma_mask = ata_pack_xfermask(0, dev->mwdma_mask, dev->udma_mask);
+		else
+			dma_mask = 0;
+
 		dev->pio_mode = ata_xfer_mask2mode(pio_mask);
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 

@@ -331,6 +331,12 @@ enum {
 	ATA_HORKAGE_BROKEN_HPA	= (1 << 4),	/* Broken HPA */
 	ATA_HORKAGE_SKIP_PM	= (1 << 5),	/* Skip PM operations */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
+
+	 /* DMA mask for user DMA control: User visible values; DO NOT 
+	    renumber */
+	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
+	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
+	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */
 };
 
 enum hsm_task_states {
