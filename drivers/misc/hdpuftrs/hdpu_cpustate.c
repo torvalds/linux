@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include <linux/hdpu_features.h>
+#include <asm/io.h>
 
 #define SKY_CPUSTATE_VERSION		"1.1"
 

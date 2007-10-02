@@ -20,6 +20,7 @@
 #include <linux/hdpu_features.h>
 
 #include <linux/platform_device.h>
+#include <asm/io.h>
 
 static int hdpu_nexus_probe(struct platform_device *pdev);
 static int hdpu_nexus_remove(struct platform_device *pdev);
