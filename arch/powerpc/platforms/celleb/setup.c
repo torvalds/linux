@@ -137,6 +137,8 @@ static int __init celleb_publish_devices(void)
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
 
+	celleb_pci_workaround_init();
+
 	return 0;
 }
 device_initcall(celleb_publish_devices);

@@ -25,11 +25,18 @@
 
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
+#include <asm/ppc-pci.h>
 
 extern int celleb_setup_phb(struct pci_controller *);
 extern int celleb_pci_probe_mode(struct pci_bus *);
 
-extern struct pci_ops celleb_epci_ops;
 extern int celleb_setup_epci(struct device_node *, struct pci_controller *);
+
+extern void *celleb_dummy_page_va;
+extern int __init celleb_pci_workaround_init(void);
+extern void __init celleb_pci_add_one(struct pci_controller *,
+				      void (*)(struct pci_controller *));
+extern void fake_pci_workaround_init(struct pci_controller *);
+extern void epci_workaround_init(struct pci_controller *);
 
 #endif /* _CELLEB_PCI_H */
