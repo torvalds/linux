@@ -1037,8 +1037,12 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	/* We can't create new files in nfs_open_revalidate(), so we
 	 * optimize away revalidation of negative dentries.
 	 */
-	if (inode == NULL)
+	if (inode == NULL) {
+		if (!nfs_neg_need_reval(dir, dentry, nd))
+			ret = 1;
 		goto out;
+	}
+
 	/* NFS only supports OPEN on regular files */
 	if (!S_ISREG(inode->i_mode))
 		goto no_open;
