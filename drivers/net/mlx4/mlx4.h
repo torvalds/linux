@@ -56,7 +56,7 @@ enum {
 };
 
 enum {
-	MLX4_MGM_ENTRY_SIZE	=  0x40,
+	MLX4_MGM_ENTRY_SIZE	=  0x100,
 	MLX4_QP_PER_MGM		= 4 * (MLX4_MGM_ENTRY_SIZE / 16 - 2),
 	MLX4_MTT_ENTRY_PER_SEG	= 8
 };
