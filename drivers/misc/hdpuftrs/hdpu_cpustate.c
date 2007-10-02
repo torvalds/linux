@@ -194,6 +194,11 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		printk(KERN_ERR "sky_cpustate: "
+		       "Invalid memory resource.\n");
+		return -EINVAL;
+	}
 	cpustate.set_addr = (unsigned long *)res->start;
 	cpustate.clr_addr = (unsigned long *)res->end - 1;
 

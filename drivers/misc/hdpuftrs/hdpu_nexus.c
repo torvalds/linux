@@ -62,6 +62,11 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 	int *nexus_id_addr;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		printk(KERN_ERR "sky_nexus: "
+		       "Invalid memory resource.\n");
+		return -EINVAL;
+	}
 	nexus_id_addr = ioremap(res->start,
 				(unsigned long)(res->end - res->start));
 	if (nexus_id_addr) {
@@ -69,7 +74,7 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 		chassis_id = *nexus_id_addr & 0xff;
 		iounmap(nexus_id_addr);
 	} else {
-		printk(KERN_ERR "Could not map slot id\n");
+		printk(KERN_ERR "sky_nexus: Could not map slot id\n");
 	}
 
 	hdpu_slot_id = create_proc_entry("sky_slot_id", 0666, &proc_root);
