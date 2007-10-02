@@ -25,7 +25,6 @@
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
-extern void cobalt_machine_power_off(void);
 
 const char *get_system_type(void)
 {
@@ -96,7 +95,7 @@ void __init plat_mem_setup(void)
 
 	_machine_restart = cobalt_machine_restart;
 	_machine_halt = cobalt_machine_halt;
-	pm_power_off = cobalt_machine_power_off;
+	pm_power_off = cobalt_machine_halt;
 
 	set_io_port_base(CKSEG1ADDR(GT_DEF_PCI0_IO_BASE));
 

@@ -61,12 +61,3 @@ void cobalt_machine_restart(char *command)
 	/* we should never get here */
 	cobalt_machine_halt();
 }
-
-/*
- * This triggers the luser mode device driver for the power switch ;-)
- */
-void cobalt_machine_power_off(void)
-{
-	printk("You can switch the machine off now.\n");
-	cobalt_machine_halt();
-}
