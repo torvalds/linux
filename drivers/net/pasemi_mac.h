@@ -28,25 +28,25 @@
 
 struct pasemi_mac_txring {
 	spinlock_t	 lock;
-	struct pas_dma_xct_descr	*desc;
+	u64		*ring;
 	dma_addr_t	 dma;
 	unsigned int	 size;
 	unsigned int	 next_to_fill;
 	unsigned int	 next_to_clean;
-	struct pasemi_mac_buffer *desc_info;
+	struct pasemi_mac_buffer *ring_info;
 	char		 irq_name[10];  /* "eth%d tx" */
 };
 
 struct pasemi_mac_rxring {
 	spinlock_t	 lock;
-	struct pas_dma_xct_descr	*desc;	/* RX channel descriptor ring */
+	u64		*ring;	/* RX channel descriptor ring */
 	dma_addr_t	 dma;
 	u64		*buffers;	/* RX interface buffer ring */
 	dma_addr_t	 buf_dma;
 	unsigned int	 size;
 	unsigned int	 next_to_fill;
 	unsigned int	 next_to_clean;
-	struct pasemi_mac_buffer *desc_info;
+	struct pasemi_mac_buffer *ring_info;
 	char		 irq_name[10];  /* "eth%d rx" */
 };
 
@@ -88,7 +88,7 @@ struct pasemi_mac {
 	char	phy_id[BUS_ID_SIZE];
 };
 
-/* Software status descriptor (desc_info) */
+/* Software status descriptor (ring_info) */
 struct pasemi_mac_buffer {
 	struct sk_buff *skb;
 	dma_addr_t	dma;
@@ -101,20 +101,7 @@ struct pasdma_status {
 	u64 tx_sta[20];
 };
 
-/* descriptor structure */
-struct pas_dma_xct_descr {
-	union {
-		u64	mactx;
-		u64	macrx;
-	};
-	union {
-		u64	ptr;
-		u64	rxb;
-	};
-};
-
 /* MAC CFG register offsets */
-
 enum {
 	PAS_MAC_CFG_PCFG = 0x80,
 	PAS_MAC_CFG_TXP = 0x98,
