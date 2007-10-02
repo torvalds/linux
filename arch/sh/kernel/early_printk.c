@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999, 2000  Niibe Yutaka
  *  Copyright (C) 2002  M. R. Brown
- *  Copyright (C) 2004 - 2006  Paul Mundt
+ *  Copyright (C) 2004 - 2007  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -72,8 +72,6 @@ static struct console bios_console = {
 #define EPK_FIFO_SIZE 16
 #define EPK_FIFO_BITS (0x1f00 >> 8)
 #endif
-
-
 
 static struct uart_port scif_port = {
 	.mapbase	= CONFIG_EARLY_SCIF_CONSOLE_PORT,
@@ -192,17 +190,12 @@ static struct console *early_console =
 #endif
 	;
 
-static int __initdata keep_early;
-static int early_console_initialized;
-
-int __init setup_early_printk(char *buf)
+static int __init setup_early_printk(char *buf)
 {
+	int keep_early = 0;
+
 	if (!buf)
 		return 0;
-
-	if (early_console_initialized)
-		return 0;
-	early_console_initialized = 1;
 
 	if (strstr(buf, "keep"))
 		keep_early = 1;
