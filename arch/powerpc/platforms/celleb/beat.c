@@ -158,6 +158,18 @@ int64_t beat_put_term_char(u64 vterm, u64 len, u64 t1, u64 t2)
 	return beat_put_characters_to_console(vterm, len, (u8*)db);
 }
 
+void beat_power_save(void)
+{
+	beat_pause(0);
+}
+
+#ifdef CONFIG_KEXEC
+void beat_kexec_cpu_down(int crash, int secondary)
+{
+	beatic_deinit_IRQ();
+}
+#endif
+
 EXPORT_SYMBOL(beat_get_term_char);
 EXPORT_SYMBOL(beat_put_term_char);
 EXPORT_SYMBOL(beat_halt_code);

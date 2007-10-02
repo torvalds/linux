@@ -111,11 +111,6 @@ static void __init celleb_setup_arch(void)
 #endif
 }
 
-static void beat_power_save(void)
-{
-	beat_pause(0);
-}
-
 static int __init celleb_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
@@ -127,13 +122,6 @@ static int __init celleb_probe(void)
 	hpte_init_beat();
 	return 1;
 }
-
-#ifdef CONFIG_KEXEC
-static void celleb_kexec_cpu_down(int crash, int secondary)
-{
-	beatic_deinit_IRQ();
-}
-#endif
 
 static struct of_device_id celleb_bus_ids[] __initdata = {
 	{ .type = "scc", },
@@ -175,7 +163,7 @@ define_machine(celleb) {
 	.pci_probe_mode 	= celleb_pci_probe_mode,
 	.pci_setup_phb		= celleb_setup_phb,
 #ifdef CONFIG_KEXEC
-	.kexec_cpu_down		= celleb_kexec_cpu_down,
+	.kexec_cpu_down		= beat_kexec_cpu_down,
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
 	.machine_crash_shutdown	= default_machine_crash_shutdown,
