@@ -747,6 +747,40 @@ static void kvm_mmu_zap_page(struct kvm *kvm,
 	kvm_mmu_reset_last_pte_updated(kvm);
 }
 
+/*
+ * Changing the number of mmu pages allocated to the vm
+ * Note: if kvm_nr_mmu_pages is too small, you will get dead lock
+ */
+void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
+{
+	/*
+	 * If we set the number of mmu pages to be smaller be than the
+	 * number of actived pages , we must to free some mmu pages before we
+	 * change the value
+	 */
+
+	if ((kvm->n_alloc_mmu_pages - kvm->n_free_mmu_pages) >
+	    kvm_nr_mmu_pages) {
+		int n_used_mmu_pages = kvm->n_alloc_mmu_pages
+				       - kvm->n_free_mmu_pages;
+
+		while (n_used_mmu_pages > kvm_nr_mmu_pages) {
+			struct kvm_mmu_page *page;
+
+			page = container_of(kvm->active_mmu_pages.prev,
+					    struct kvm_mmu_page, link);
+			kvm_mmu_zap_page(kvm, page);
+			n_used_mmu_pages--;
+		}
+		kvm->n_free_mmu_pages = 0;
+	}
+	else
+		kvm->n_free_mmu_pages += kvm_nr_mmu_pages
+					 - kvm->n_alloc_mmu_pages;
+
+	kvm->n_alloc_mmu_pages = kvm_nr_mmu_pages;
+}
+
 static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	unsigned index;
@@ -1297,8 +1331,10 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu)
 
 	ASSERT(vcpu);
 
-	vcpu->kvm->n_free_mmu_pages = KVM_NUM_MMU_PAGES;
-
+	if (vcpu->kvm->n_requested_mmu_pages)
+		vcpu->kvm->n_free_mmu_pages = vcpu->kvm->n_requested_mmu_pages;
+	else
+		vcpu->kvm->n_free_mmu_pages = vcpu->kvm->n_alloc_mmu_pages;
 	/*
 	 * When emulating 32-bit mode, cr3 is only 32 bits even on x86_64.
 	 * Therefore we need to allocate shadow page tables in the first

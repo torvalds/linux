@@ -743,6 +743,24 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 	if (mem->slot >= kvm->nmemslots)
 		kvm->nmemslots = mem->slot + 1;
 
+	if (!kvm->n_requested_mmu_pages) {
+		unsigned int n_pages;
+
+		if (npages) {
+			n_pages = npages * KVM_PERMILLE_MMU_PAGES / 1000;
+			kvm_mmu_change_mmu_pages(kvm, kvm->n_alloc_mmu_pages +
+						 n_pages);
+		} else {
+			unsigned int nr_mmu_pages;
+
+			n_pages = old.npages * KVM_PERMILLE_MMU_PAGES / 1000;
+			nr_mmu_pages = kvm->n_alloc_mmu_pages - n_pages;
+			nr_mmu_pages = max(nr_mmu_pages,
+				        (unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
+			kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
+		}
+	}
+
 	*memslot = new;
 
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
@@ -758,6 +776,26 @@ out_unlock:
 	kvm_free_physmem_slot(&new, &old);
 out:
 	return r;
+}
+
+static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
+					  u32 kvm_nr_mmu_pages)
+{
+	if (kvm_nr_mmu_pages < KVM_MIN_ALLOC_MMU_PAGES)
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
+	kvm->n_requested_mmu_pages = kvm_nr_mmu_pages;
+
+	mutex_unlock(&kvm->lock);
+	return 0;
+}
+
+static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
+{
+	return kvm->n_alloc_mmu_pages;
 }
 
 /*
@@ -3071,6 +3109,14 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out;
 		break;
 	}
+	case KVM_SET_NR_MMU_PAGES:
+		r = kvm_vm_ioctl_set_nr_mmu_pages(kvm, arg);
+		if (r)
+			goto out;
+		break;
+	case KVM_GET_NR_MMU_PAGES:
+		r = kvm_vm_ioctl_get_nr_mmu_pages(kvm);
+		break;
 	case KVM_GET_DIRTY_LOG: {
 		struct kvm_dirty_log log;
 
@@ -3278,6 +3324,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		switch (ext) {
 		case KVM_CAP_IRQCHIP:
 		case KVM_CAP_HLT:
+		case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
 			r = 1;
 			break;
 		default:
