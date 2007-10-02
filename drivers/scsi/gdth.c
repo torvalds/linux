@@ -716,10 +716,12 @@ static void gdth_delay(int milliseconds)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
 static void gdth_scsi_done(struct scsi_cmnd *scp)
 {
-    TRACE2(("gdth_scsi_done()\n"));
+	TRACE2(("gdth_scsi_done()\n"));
 
-    if (IS_GDTH_INTERNAL_CMD(scp))
-        complete((struct completion *)scp->request);
+	if (IS_GDTH_INTERNAL_CMD(scp))
+		complete((struct completion *)scp->request);
+	else
+		scp->scsi_done(scp);
 }
 
 int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
@@ -742,7 +744,7 @@ int __gdth_execute(struct scsi_device *sdev, gdth_cmd_str *gdtcmd, char *cmnd,
     memcpy(scp->cmnd, cmnd, 12);
     scp->SCp.this_residual = IOCTL_PRI;   /* priority */
     scp->underflow = GDTH_MAGIC;
-    gdth_queuecommand(scp, gdth_scsi_done);
+    gdth_queuecommand(scp, NULL);
     wait_for_completion(&wait);
 
     rval = scp->SCp.Status;
@@ -2508,7 +2510,7 @@ static void gdth_next(int hanum)
                 if (!nscp->SCp.have_data_in)
                     nscp->SCp.have_data_in++;
                 else
-                    nscp->scsi_done(nscp);
+                    gdth_scsi_done(nscp);
             }
         } else if (IS_GDTH_INTERNAL_CMD(nscp)) {
             if (!(cmd_index=gdth_special_cmd(hanum,nscp)))
@@ -2527,7 +2529,7 @@ static void gdth_next(int hanum)
             if (!nscp->SCp.have_data_in)
                 nscp->SCp.have_data_in++;
             else
-                nscp->scsi_done(nscp);
+                gdth_scsi_done(nscp);
         } else {
             switch (nscp->cmnd[0]) {
               case TEST_UNIT_READY:
@@ -2553,9 +2555,9 @@ static void gdth_next(int hanum)
                     if (!nscp->SCp.have_data_in)
                         nscp->SCp.have_data_in++;
                     else
-                        nscp->scsi_done(nscp);
-                } else if (gdth_internal_cache_cmd(hanum,nscp))
-                    nscp->scsi_done(nscp);
+                        gdth_scsi_done(nscp);
+                } else if (gdth_internal_cache_cmd(hanum, nscp))
+                    gdth_scsi_done(nscp);
                 break;
 
               case ALLOW_MEDIUM_REMOVAL:
@@ -2569,7 +2571,7 @@ static void gdth_next(int hanum)
                     if (!nscp->SCp.have_data_in)
                         nscp->SCp.have_data_in++;
                     else
-                        nscp->scsi_done(nscp);
+                        gdth_scsi_done(nscp);
                 } else {
                     nscp->cmnd[3] = (ha->hdr[t].devtype&1) ? 1:0;
                     TRACE(("Prevent/allow r. %d rem. drive %d\n",
@@ -2605,8 +2607,8 @@ static void gdth_next(int hanum)
                     if (!nscp->SCp.have_data_in)
                         nscp->SCp.have_data_in++;
                     else
-                        nscp->scsi_done(nscp);
-                } else if (!(cmd_index=gdth_fill_cache_cmd(hanum,nscp,t)))
+                        gdth_scsi_done(nscp);
+                } else if (!(cmd_index=gdth_fill_cache_cmd(hanum, nscp, t)))
                     this_cmd = FALSE;
                 break;
 
@@ -2620,7 +2622,7 @@ static void gdth_next(int hanum)
                 if (!nscp->SCp.have_data_in)
                     nscp->SCp.have_data_in++;
                 else
-                    nscp->scsi_done(nscp);
+                    gdth_scsi_done(nscp);
                 break;
             }
         }
@@ -3633,7 +3635,7 @@ static irqreturn_t gdth_interrupt(int irq,void *dev_id)
         if (rval == 2) {
             gdth_putq(hanum,scp,scp->SCp.this_residual);
         } else if (rval == 1) {
-            scp->scsi_done(scp);
+            gdth_scsi_done(scp);
         }
 
 #ifdef INT_COAL
@@ -4928,14 +4930,15 @@ static int gdth_bios_param(Disk *disk,kdev_t dev,int *ip)
 }
 
 
-static int gdth_queuecommand(Scsi_Cmnd *scp,void (*done)(Scsi_Cmnd *))
+static int gdth_queuecommand(struct scsi_cmnd *scp,
+				void (*done)(struct scsi_cmnd *))
 {
     int hanum;
     int priority;
 
     TRACE(("gdth_queuecommand() cmd 0x%x\n", scp->cmnd[0]));
     
-    scp->scsi_done = (void *)done;
+    scp->scsi_done = done;
     scp->SCp.have_data_in = 1;
     scp->SCp.phase = -1;
     scp->SCp.sent_command = -1;
