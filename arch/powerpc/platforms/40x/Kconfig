@@ -61,13 +61,22 @@ config WALNUT
 	help
 	  This option enables support for the IBM PPC405GP evaluation board.
 
-#config XILINX_ML300
-#	bool "Xilinx-ML300"
-#	depends on 40x
-#	default y
-#	select VIRTEX_II_PRO
-#	help
-#	  This option enables support for the Xilinx ML300 evaluation board.
+config XILINX_VIRTEX_GENERIC_BOARD
+	bool "Generic Xilinx Virtex board"
+	depends on 40x
+	default n
+	select XILINX_VIRTEX_II_PRO
+	select XILINX_VIRTEX_4_FX
+	help
+	  This option enables generic support for Xilinx Virtex based boards.
+
+	  The generic virtex board support matches any device tree which
+	  specifies 'xilinx,virtex' in its compatible field.  This includes
+	  the Xilinx ML3xx and ML4xx reference designs using the powerpc
+	  core.
+
+	  Most Virtex designs should use this unless it needs to do some
+	  special configuration at board probe time.
 
 # 40x specific CPU modules, selected based on the board above.
 config NP405H
@@ -91,10 +100,18 @@ config 405EP
 config 405GPR
 	bool
 
-config VIRTEX_II_PRO
+config XILINX_VIRTEX
 	bool
+
+config XILINX_VIRTEX_II_PRO
+	bool
+	select XILINX_VIRTEX
 	select IBM405_ERR77
 	select IBM405_ERR51
+
+config XILINX_VIRTEX_4_FX
+	bool
+	select XILINX_VIRTEX
 
 config STB03xxx
 	bool
@@ -110,11 +127,6 @@ config IBM405_ERR77
 # All 40x-based cores, up until the 405GPR and 405EP have this errata.
 config IBM405_ERR51
 	bool
-
-#config XILINX_OCP
-#	bool
-#	depends on XILINX_ML300
-#	default y
 
 #config BIOS_FIXUP
 #	bool
