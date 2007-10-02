@@ -46,7 +46,7 @@
 #define ULITE_CONTROL_IE	0x10
 
 
-static struct uart_port ports[ULITE_NR_UARTS];
+static struct uart_port ulite_ports[ULITE_NR_UARTS];
 
 static int ulite_receive(struct uart_port *port, int stat)
 {
@@ -329,7 +329,7 @@ static void ulite_console_putchar(struct uart_port *port, int ch)
 static void ulite_console_write(struct console *co, const char *s,
 				unsigned int count)
 {
-	struct uart_port *port = &ports[co->index];
+	struct uart_port *port = &ulite_ports[co->index];
 	unsigned long flags;
 	unsigned int ier;
 	int locked = 1;
@@ -366,7 +366,7 @@ static int __init ulite_console_setup(struct console *co, char *options)
 	if (co->index < 0 || co->index >= ULITE_NR_UARTS)
 		return -EINVAL;
 
-	port = &ports[co->index];
+	port = &ulite_ports[co->index];
 
 	/* not initialized yet? */
 	if (!port->membase)
@@ -420,7 +420,7 @@ static int __devinit ulite_probe(struct platform_device *pdev)
 	if (pdev->id < 0 || pdev->id >= ULITE_NR_UARTS)
 		return -EINVAL;
 
-	if (ports[pdev->id].membase)
+	if (ulite_ports[pdev->id].membase)
 		return -EBUSY;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -431,7 +431,7 @@ static int __devinit ulite_probe(struct platform_device *pdev)
 	if (!res2)
 		return -ENODEV;
 
-	port = &ports[pdev->id];
+	port = &ulite_ports[pdev->id];
 
 	port->fifosize	= 16;
 	port->regshift	= 2;
