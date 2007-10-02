@@ -903,16 +903,27 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	/* enable rx if */
 	write_dma_reg(mac, PAS_DMA_RXINT_RCMDSTA(mac->dma_if),
-			   PAS_DMA_RXINT_RCMDSTA_EN);
+			   PAS_DMA_RXINT_RCMDSTA_EN |
+			   PAS_DMA_RXINT_RCMDSTA_DROPS_M |
+			   PAS_DMA_RXINT_RCMDSTA_BP |
+			   PAS_DMA_RXINT_RCMDSTA_OO |
+			   PAS_DMA_RXINT_RCMDSTA_BT);
 
 	/* enable rx channel */
 	write_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch),
 			   PAS_DMA_RXCHAN_CCMDSTA_EN |
-			   PAS_DMA_RXCHAN_CCMDSTA_DU);
+			   PAS_DMA_RXCHAN_CCMDSTA_DU |
+			   PAS_DMA_RXCHAN_CCMDSTA_OD |
+			   PAS_DMA_RXCHAN_CCMDSTA_FD |
+			   PAS_DMA_RXCHAN_CCMDSTA_DT);
 
 	/* enable tx channel */
 	write_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch),
-			   PAS_DMA_TXCHAN_TCMDSTA_EN);
+			   PAS_DMA_TXCHAN_TCMDSTA_EN |
+			   PAS_DMA_TXCHAN_TCMDSTA_SZ |
+			   PAS_DMA_TXCHAN_TCMDSTA_DB |
+			   PAS_DMA_TXCHAN_TCMDSTA_DE |
+			   PAS_DMA_TXCHAN_TCMDSTA_DA);
 
 	pasemi_mac_replenish_rx_ring(dev, RX_RING_SIZE);
 
@@ -987,7 +998,7 @@ out_rx_resources:
 static int pasemi_mac_close(struct net_device *dev)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
-	unsigned int stat;
+	unsigned int sta;
 	int retries;
 
 	if (mac->phydev) {
@@ -997,6 +1008,26 @@ static int pasemi_mac_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	napi_disable(&mac->napi);
+
+	sta = read_dma_reg(mac, PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
+	if (sta & (PAS_DMA_RXINT_RCMDSTA_BP |
+		      PAS_DMA_RXINT_RCMDSTA_OO |
+		      PAS_DMA_RXINT_RCMDSTA_BT))
+		printk(KERN_DEBUG "pasemi_mac: rcmdsta error: 0x%08x\n", sta);
+
+	sta = read_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch));
+	if (sta & (PAS_DMA_RXCHAN_CCMDSTA_DU |
+		     PAS_DMA_RXCHAN_CCMDSTA_OD |
+		     PAS_DMA_RXCHAN_CCMDSTA_FD |
+		     PAS_DMA_RXCHAN_CCMDSTA_DT))
+		printk(KERN_DEBUG "pasemi_mac: ccmdsta error: 0x%08x\n", sta);
+
+	sta = read_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch));
+	if (sta & (PAS_DMA_TXCHAN_TCMDSTA_SZ |
+		      PAS_DMA_TXCHAN_TCMDSTA_DB |
+		      PAS_DMA_TXCHAN_TCMDSTA_DE |
+		      PAS_DMA_TXCHAN_TCMDSTA_DA))
+		printk(KERN_DEBUG "pasemi_mac: tcmdsta error: 0x%08x\n", sta);
 
 	/* Clean out any pending buffers */
 	pasemi_mac_clean_tx(mac);
@@ -1008,33 +1039,33 @@ static int pasemi_mac_close(struct net_device *dev)
 	write_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch), PAS_DMA_RXCHAN_CCMDSTA_ST);
 
 	for (retries = 0; retries < MAX_RETRIES; retries++) {
-		stat = read_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch));
-		if (!(stat & PAS_DMA_TXCHAN_TCMDSTA_ACT))
+		sta = read_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch));
+		if (!(sta & PAS_DMA_TXCHAN_TCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (stat & PAS_DMA_TXCHAN_TCMDSTA_ACT)
+	if (sta & PAS_DMA_TXCHAN_TCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop tx channel\n");
 
 	for (retries = 0; retries < MAX_RETRIES; retries++) {
-		stat = read_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch));
-		if (!(stat & PAS_DMA_RXCHAN_CCMDSTA_ACT))
+		sta = read_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch));
+		if (!(sta & PAS_DMA_RXCHAN_CCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (stat & PAS_DMA_RXCHAN_CCMDSTA_ACT)
+	if (sta & PAS_DMA_RXCHAN_CCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop rx channel\n");
 
 	for (retries = 0; retries < MAX_RETRIES; retries++) {
-		stat = read_dma_reg(mac, PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
-		if (!(stat & PAS_DMA_RXINT_RCMDSTA_ACT))
+		sta = read_dma_reg(mac, PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
+		if (!(sta & PAS_DMA_RXINT_RCMDSTA_ACT))
 			break;
 		cond_resched();
 	}
 
-	if (stat & PAS_DMA_RXINT_RCMDSTA_ACT)
+	if (sta & PAS_DMA_RXINT_RCMDSTA_ACT)
 		dev_err(&mac->dma_pdev->dev, "Failed to stop rx interface\n");
 
 	/* Then, disable the channel. This must be done separately from
