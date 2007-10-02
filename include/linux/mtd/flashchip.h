@@ -40,6 +40,7 @@ typedef enum {
 	FL_POINT,
 	FL_XIP_WHILE_ERASING,
 	FL_XIP_WHILE_WRITING,
+	FL_SHUTDOWN,
 	FL_UNKNOWN
 } flstate_t;
 

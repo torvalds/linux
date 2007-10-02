@@ -653,7 +653,7 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
  resettime:
 	timeo = jiffies + HZ;
  retry:
-	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE)) {
+	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING || mode == FL_OTP_WRITE || mode == FL_SHUTDOWN)) {
 		/*
 		 * OK. We have possibility for contension on the write/erase
 		 * operations which are global to the real chip and not per
@@ -798,6 +798,9 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 		if (mode == FL_READY && chip->oldstate == FL_READY)
 			return 0;
 
+	case FL_SHUTDOWN:
+		/* The machine is rebooting now,so no one can get chip anymore */
+		return -EIO;
 	default:
 	sleep:
 		set_current_state(TASK_UNINTERRUPTIBLE);
@@ -2409,10 +2412,10 @@ static int cfi_intelext_reset(struct mtd_info *mtd)
 		   and switch to array mode so any bootloader in
 		   flash is accessible for soft reboot. */
 		spin_lock(chip->mutex);
-		ret = get_chip(map, chip, chip->start, FL_SYNCING);
+		ret = get_chip(map, chip, chip->start, FL_SHUTDOWN);
 		if (!ret) {
 			map_write(map, CMD(0xff), chip->start);
-			chip->state = FL_READY;
+			chip->state = FL_SHUTDOWN;
 		}
 		spin_unlock(chip->mutex);
 	}
