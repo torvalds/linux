@@ -424,7 +424,7 @@ static int default_irq_host_match(struct irq_host *h, struct device_node *np)
 	return h->of_node != NULL && h->of_node == np;
 }
 
-__init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
+struct irq_host *irq_alloc_host(struct device_node *of_node,
 				unsigned int revmap_type,
 				unsigned int revmap_arg,
 				struct irq_host_ops *ops,
@@ -439,13 +439,7 @@ __init_refok struct irq_host *irq_alloc_host(struct device_node *of_node,
 	/* Allocate structure and revmap table if using linear mapping */
 	if (revmap_type == IRQ_HOST_MAP_LINEAR)
 		size += revmap_arg * sizeof(unsigned int);
-	if (mem_init_done)
-		host = kzalloc(size, GFP_KERNEL);
-	else {
-		host = alloc_bootmem(size);
-		if (host)
-			memset(host, 0, size);
-	}
+	host = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (host == NULL)
 		return NULL;
 

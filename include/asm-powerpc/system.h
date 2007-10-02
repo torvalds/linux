@@ -190,6 +190,7 @@ extern unsigned long memory_limit;
 extern unsigned long klimit;
 
 extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);
+extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 
