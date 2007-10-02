@@ -3316,8 +3316,6 @@ static struct usb_driver sisusb_driver = {
 
 static int __init usb_sisusb_init(void)
 {
-	int retval;
-	struct sisusb_usb_data *sisusb;
 
 #ifdef INCL_SISUSB_CON
 	sisusb_init_concode();
