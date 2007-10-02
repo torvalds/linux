@@ -4907,17 +4907,17 @@ static int gdth_slave_configure(struct scsi_device *sdev)
 }
 
 static struct scsi_host_template driver_template = {
-        .proc_name              = "gdth", 
-        .proc_info              = gdth_proc_info,
         .name                   = "GDT SCSI Disk Array Controller",
         .detect                 = gdth_detect, 
         .release                = gdth_release,
         .info                   = gdth_info, 
         .queuecommand           = gdth_queuecommand,
         .eh_bus_reset_handler   = gdth_eh_bus_reset,
-        .bios_param             = gdth_bios_param,
-        .can_queue              = GDTH_MAXCMDS,
         .slave_configure        = gdth_slave_configure,
+        .bios_param             = gdth_bios_param,
+        .proc_info              = gdth_proc_info,
+        .proc_name              = "gdth",
+        .can_queue              = GDTH_MAXCMDS,
         .this_id                = -1,
         .sg_tablesize           = GDTH_MAXSG,
         .cmd_per_lun            = GDTH_MAXC_P_L,
