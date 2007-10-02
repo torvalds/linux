@@ -243,9 +243,9 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 			   PAS_DMA_RXINT_BASEU_SIZ(RX_RING_SIZE >> 3));
 
 	write_dma_reg(mac, PAS_DMA_RXINT_CFG(mac->dma_if),
-			   PAS_DMA_RXINT_CFG_DHL(3) |
-			   PAS_DMA_RXINT_CFG_L2 |
-			   PAS_DMA_RXINT_CFG_LW);
+		      PAS_DMA_RXINT_CFG_DHL(3) | PAS_DMA_RXINT_CFG_L2 |
+		      PAS_DMA_RXINT_CFG_LW | PAS_DMA_RXINT_CFG_RBP |
+		      PAS_DMA_RXINT_CFG_HEN);
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
@@ -402,13 +402,12 @@ static void pasemi_mac_free_rx_resources(struct net_device *dev)
 static void pasemi_mac_replenish_rx_ring(struct net_device *dev, int limit)
 {
 	struct pasemi_mac *mac = netdev_priv(dev);
-	int start = mac->rx->next_to_fill;
-	unsigned int fill, count;
+	int fill, count;
 
 	if (limit <= 0)
 		return;
 
-	fill = start;
+	fill = mac->rx->next_to_fill;
 	for (count = 0; count < limit; count++) {
 		struct pasemi_mac_buffer *info = &RX_RING_INFO(mac, fill);
 		u64 *buff = &RX_BUFF(mac, fill);
@@ -446,10 +445,10 @@ static void pasemi_mac_replenish_rx_ring(struct net_device *dev, int limit)
 
 	wmb();
 
-	write_dma_reg(mac, PAS_DMA_RXCHAN_INCR(mac->dma_rxch), count);
 	write_dma_reg(mac, PAS_DMA_RXINT_INCR(mac->dma_if), count);
 
-	mac->rx->next_to_fill += count;
+	mac->rx->next_to_fill = (mac->rx->next_to_fill + count) &
+				(RX_RING_SIZE - 1);
 }
 
 static void pasemi_mac_restart_rx_intr(struct pasemi_mac *mac)
@@ -517,15 +516,19 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 	int count;
 	struct pasemi_mac_buffer *info;
 	struct sk_buff *skb;
-	unsigned int i, len;
+	unsigned int len;
 	u64 macrx;
 	dma_addr_t dma;
+	int buf_index;
+	u64 eval;
 
 	spin_lock(&mac->rx->lock);
 
 	n = mac->rx->next_to_clean;
 
-	for (count = limit; count; count--) {
+	prefetch(RX_RING(mac, n));
+
+	for (count = 0; count < limit; count++) {
 		macrx = RX_RING(mac, n);
 
 		if ((macrx & XCT_MACRX_E) ||
@@ -537,21 +540,14 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		info = NULL;
 
-		/* We have to scan for our skb since there's no way
-		 * to back-map them from the descriptor, and if we
-		 * have several receive channels then they might not
-		 * show up in the same order as they were put on the
-		 * interface ring.
-		 */
+		BUG_ON(!(macrx & XCT_MACRX_RR_8BRES));
 
-		dma = (RX_RING(mac, n+1) & XCT_PTR_ADDR_M);
-		for (i = mac->rx->next_to_fill;
-		     i < (mac->rx->next_to_fill + RX_RING_SIZE);
-		     i++) {
-			info = &RX_RING_INFO(mac, i);
-			if (info->dma == dma)
-				break;
-		}
+		eval = (RX_RING(mac, n+1) & XCT_RXRES_8B_EVAL_M) >>
+			XCT_RXRES_8B_EVAL_S;
+		buf_index = eval-1;
+
+		dma = (RX_RING(mac, n+2) & XCT_PTR_ADDR_M);
+		info = &RX_RING_INFO(mac, buf_index);
 
 		skb = info->skb;
 
@@ -600,9 +596,9 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		/* Need to zero it out since hardware doesn't, since the
 		 * replenish loop uses it to tell when it's done.
 		 */
-		RX_BUFF(mac, i) = 0;
+		RX_BUFF(mac, buf_index) = 0;
 
-		n += 2;
+		n += 4;
 	}
 
 	if (n > RX_RING_SIZE) {
@@ -610,8 +606,16 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		write_iob_reg(mac, PAS_IOB_COM_PKTHDRCNT, 0);
 		n &= (RX_RING_SIZE-1);
 	}
+
 	mac->rx->next_to_clean = n;
-	pasemi_mac_replenish_rx_ring(mac->netdev, limit-count);
+
+	/* Increase is in number of 16-byte entries, and since each descriptor
+	 * with an 8BRES takes up 3x8 bytes (padded to 4x8), increase with
+	 * count*2.
+	 */
+	write_dma_reg(mac, PAS_DMA_RXCHAN_INCR(mac->dma_rxch), count << 1);
+
+	pasemi_mac_replenish_rx_ring(mac->netdev, count);
 
 	spin_unlock(&mac->rx->lock);
 
@@ -926,6 +930,8 @@ static int pasemi_mac_open(struct net_device *dev)
 			   PAS_DMA_TXCHAN_TCMDSTA_DA);
 
 	pasemi_mac_replenish_rx_ring(dev, RX_RING_SIZE);
+
+	write_dma_reg(mac, PAS_DMA_RXCHAN_INCR(mac->dma_rxch), RX_RING_SIZE>>1);
 
 	flags = PAS_MAC_CFG_PCFG_S1 | PAS_MAC_CFG_PCFG_PE |
 		PAS_MAC_CFG_PCFG_PR | PAS_MAC_CFG_PCFG_CE;
