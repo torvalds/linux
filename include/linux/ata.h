@@ -287,6 +287,15 @@ enum {
 	SERR_PROTOCOL		= (1 << 10), /* protocol violation */
 	SERR_INTERNAL		= (1 << 11), /* host internal error */
 	SERR_PHYRDY_CHG		= (1 << 16), /* PHY RDY changed */
+	SERR_PHY_INT_ERR	= (1 << 17), /* PHY internal error */
+	SERR_COMM_WAKE		= (1 << 18), /* Comm wake */
+	SERR_10B_8B_ERR		= (1 << 19), /* 10b to 8b decode error */
+	SERR_DISPARITY		= (1 << 20), /* Disparity */
+	SERR_CRC		= (1 << 21), /* CRC error */
+	SERR_HANDSHAKE		= (1 << 22), /* Handshake error */
+	SERR_LINK_SEQ_ERR	= (1 << 23), /* Link sequence error */
+	SERR_TRANS_ST_ERROR	= (1 << 24), /* Transport state trans. error */
+	SERR_UNRECOG_FIS	= (1 << 25), /* Unrecognized FIS */
 	SERR_DEV_XCHG		= (1 << 26), /* device exchanged */
 
 	/* struct ata_taskfile flags */
