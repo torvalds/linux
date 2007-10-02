@@ -1697,58 +1697,11 @@ static inline void dme1737_sio_outb(int sio_cip, int reg, int val)
 	outb(val, sio_cip + 1);
 }
 
-static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
-{
-	int err = 0, reg;
-	u16 addr;
-
-	dme1737_sio_enter(sio_cip);
-
-	/* Check device ID
-	 * The DME1737 can return either 0x78 or 0x77 as its device ID. */
-	reg = dme1737_sio_inb(sio_cip, 0x20);
-	if (!(reg == 0x77 || reg == 0x78)) {
-		err = -ENODEV;
-		goto exit;
-	}
-
-	/* Select logical device A (runtime registers) */
-	dme1737_sio_outb(sio_cip, 0x07, 0x0a);
-
-	/* Get the base address of the runtime registers */
-	if (!(addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
-		      dme1737_sio_inb(sio_cip, 0x61))) {
-		err = -ENODEV;
-		goto exit;
-	}
-
-	/* Read the runtime registers to determine which optional features
-	 * are enabled and available. Bits [3:2] of registers 0x43-0x46 are set
-	 * to '10' if the respective feature is enabled. */
-	if ((inb(addr + 0x43) & 0x0c) == 0x08) { /* fan6 */
-		data->has_fan |= (1 << 5);
-	}
-	if ((inb(addr + 0x44) & 0x0c) == 0x08) { /* pwm6 */
-		data->has_pwm |= (1 << 5);
-	}
-	if ((inb(addr + 0x45) & 0x0c) == 0x08) { /* fan5 */
-		data->has_fan |= (1 << 4);
-	}
-	if ((inb(addr + 0x46) & 0x0c) == 0x08) { /* pwm5 */
-		data->has_pwm |= (1 << 4);
-	}
-
-exit:
-	dme1737_sio_exit(sio_cip);
-
-	return err;
-}
-
 /* ---------------------------------------------------------------------
  * Device detection, registration and initialization
  * --------------------------------------------------------------------- */
 
-static struct i2c_driver dme1737_i2c_driver;
+static int dme1737_i2c_get_features(int, struct dme1737_data*);
 
 static void dme1737_chmod_file(struct device *dev,
 			       struct attribute *attr, mode_t mode)
@@ -1967,6 +1920,59 @@ static int dme1737_init_device(struct device *dev)
 	return 0;
 }
 
+/* ---------------------------------------------------------------------
+ * I2C device detection and registration
+ * --------------------------------------------------------------------- */
+
+static struct i2c_driver dme1737_i2c_driver;
+
+static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
+{
+	int err = 0, reg;
+	u16 addr;
+
+	dme1737_sio_enter(sio_cip);
+
+	/* Check device ID
+	 * The DME1737 can return either 0x78 or 0x77 as its device ID. */
+	reg = dme1737_sio_inb(sio_cip, 0x20);
+	if (!(reg == 0x77 || reg == 0x78)) {
+		err = -ENODEV;
+		goto exit;
+	}
+
+	/* Select logical device A (runtime registers) */
+	dme1737_sio_outb(sio_cip, 0x07, 0x0a);
+
+	/* Get the base address of the runtime registers */
+	if (!(addr = (dme1737_sio_inb(sio_cip, 0x60) << 8) |
+		      dme1737_sio_inb(sio_cip, 0x61))) {
+		err = -ENODEV;
+		goto exit;
+	}
+
+	/* Read the runtime registers to determine which optional features
+	 * are enabled and available. Bits [3:2] of registers 0x43-0x46 are set
+	 * to '10' if the respective feature is enabled. */
+	if ((inb(addr + 0x43) & 0x0c) == 0x08) { /* fan6 */
+		data->has_fan |= (1 << 5);
+	}
+	if ((inb(addr + 0x44) & 0x0c) == 0x08) { /* pwm6 */
+		data->has_pwm |= (1 << 5);
+	}
+	if ((inb(addr + 0x45) & 0x0c) == 0x08) { /* fan5 */
+		data->has_fan |= (1 << 4);
+	}
+	if ((inb(addr + 0x46) & 0x0c) == 0x08) { /* pwm5 */
+		data->has_pwm |= (1 << 4);
+	}
+
+exit:
+	dme1737_sio_exit(sio_cip);
+
+	return err;
+}
+
 static int dme1737_i2c_detect(struct i2c_adapter *adapter, int address,
 			      int kind)
 {
@@ -2086,6 +2092,10 @@ static struct i2c_driver dme1737_i2c_driver = {
 	.attach_adapter	= dme1737_i2c_attach_adapter,
 	.detach_client = dme1737_i2c_detach_client,
 };
+
+/* ---------------------------------------------------------------------
+ * Module initialization and cleanup
+ * --------------------------------------------------------------------- */
 
 static int __init dme1737_init(void)
 {
