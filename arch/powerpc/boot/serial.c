@@ -128,6 +128,8 @@ int serial_console_init(void)
 		rc = cpm_console_init(devp, &serial_cd);
 	else if (dt_is_compatible(devp, "mpc5200-psc-uart"))
 		rc = mpc5200_psc_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "xilinx,uartlite"))
+		rc = uartlite_console_init(devp, &serial_cd);
 
 	/* Add other serial console driver calls here */
 
