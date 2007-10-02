@@ -366,6 +366,12 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	hdrlen = ieee80211_get_hdrlen(fc);
 
+	if (skb->len < hdrlen) {
+		printk(KERN_INFO "%s: invalid SKB length %d\n",
+			dev->name, skb->len);
+		goto rx_dropped;
+	}
+
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
 #ifdef CONFIG_WIRELESS_EXT
