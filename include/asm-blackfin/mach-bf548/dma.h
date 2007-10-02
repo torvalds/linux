@@ -55,6 +55,7 @@
 #define CH_SPORT3_RX		20
 #define CH_SPORT3_TX		21
 #define CH_SDH			22
+#define CH_NFC			22
 #define CH_SPI2			23
 
 #define CH_MEM_STREAM0_DEST	24
