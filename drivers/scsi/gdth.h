@@ -303,15 +303,8 @@
 #define MAILBOXREG      0x0c90                  /* mailbox reg. (16 bytes) */
 #define EISAREG         0x0cc0                  /* EISA configuration */
 
-/* DMA memory mappings */
-#define GDTH_MAP_NONE   0
-#define GDTH_MAP_SINGLE 1
-#define GDTH_MAP_SG     2
-#define GDTH_MAP_IOCTL  3 
-
 /* other defines */
 #define LINUX_OS        8                       /* used for cache optim. */
-#define SCATTER_GATHER  1                       /* s/g feature */
 #define SECS32          0x1f                    /* round capacity */
 #define BIOS_ID_OFFS    0x10                    /* offset contr-ID in ISABIOS */
 #define LOCALBOARD      0                       /* board node always 0 */
