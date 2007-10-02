@@ -994,14 +994,6 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 
 	/* Open the file on the server */
 	lock_kernel();
-	/* Revalidate parent directory attribute cache */
-	error = nfs_revalidate_inode(NFS_SERVER(dir), dir);
-	if (error < 0) {
-		res = ERR_PTR(error);
-		unlock_kernel();
-		goto out;
-	}
-
 	res = nfs4_atomic_open(dir, dentry, nd);
 	unlock_kernel();
 	if (IS_ERR(res)) {
