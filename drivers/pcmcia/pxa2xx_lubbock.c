@@ -30,35 +30,6 @@
 #include "sa1111_generic.h"
 
 static int
-lubbock_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
-{
-	/*
-	 * Setup default state of GPIO outputs
-	 * before we enable them as outputs.
-	 */
-	GPSR(GPIO48_nPOE) =
-		GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |
-		GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) |
-		GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-
-	return sa1111_pcmcia_hw_init(skt);
-}
-
-static int
 lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 				const socket_state_t *state)
 {
@@ -230,7 +201,7 @@ lubbock_pcmcia_configure_socket(struct soc_pcmcia_socket *skt,
 
 static struct pcmcia_low_level lubbock_pcmcia_ops = {
 	.owner			= THIS_MODULE,
-	.hw_init		= lubbock_pcmcia_hw_init,
+	.hw_init		= sa1111_pcmcia_hw_init,
 	.hw_shutdown		= sa1111_pcmcia_hw_shutdown,
 	.socket_state		= sa1111_pcmcia_socket_state,
 	.configure_socket	= lubbock_pcmcia_configure_socket,
