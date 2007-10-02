@@ -853,6 +853,8 @@ typedef struct {
 
 /* controller information structure */
 typedef struct {
+    struct Scsi_Host    *shost;
+    ushort      	hanum;
     ushort              oem_id;                 /* OEM */
     ushort              type;                   /* controller class */
     ulong32             stype;                  /* subtype (PCI: device ID) */
@@ -864,6 +866,7 @@ typedef struct {
     void __iomem        *brd;                   /* DPRAM address */
     ulong32             brd_phys;               /* slot number/BIOS address */
     gdt6c_plx_regs      *plx;                   /* PLX regs (new PCI contr.) */
+    gdth_cmd_str        cmdext;
     gdth_cmd_str        *pccb;                  /* address command structure */
     ulong32             ccb_phys;               /* phys. address */
 #ifdef INT_COAL
@@ -936,20 +939,6 @@ typedef struct {
 #endif
     struct scsi_device         *sdev;
 } gdth_ha_str;
-
-/* structure for scsi_register(), SCSI bus != 0 */
-typedef struct {
-    ushort      hanum;
-    ushort      busnum;
-} gdth_num_str;
-
-/* structure for scsi_register() */
-typedef struct {
-    gdth_num_str        numext;                 /* must be the first element */
-    gdth_ha_str         haext;
-    gdth_cmd_str        cmdext;
-} gdth_ext_str;
-
 
 /* INQUIRY data format */
 typedef struct {
