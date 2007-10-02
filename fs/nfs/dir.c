@@ -864,16 +864,6 @@ int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
 	return (nd->intent.open.flags & O_EXCL) != 0;
 }
 
-static inline int nfs_reval_fsid(struct inode *dir, const struct nfs_fattr *fattr)
-{
-	struct nfs_server *server = NFS_SERVER(dir);
-
-	if (!nfs_fsid_equal(&server->fsid, &fattr->fsid))
-		/* Revalidate fsid using the parent directory */
-		return __nfs_revalidate_inode(server, dir);
-	return 0;
-}
-
 static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
 	struct dentry *res;
@@ -908,11 +898,6 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
 	if (error == -ENOENT)
 		goto no_entry;
-	if (error < 0) {
-		res = ERR_PTR(error);
-		goto out_unlock;
-	}
-	error = nfs_reval_fsid(dir, &fattr);
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unlock;
