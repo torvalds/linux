@@ -138,7 +138,7 @@ config VIDEOBUF_VMALLOC
 	select VIDEOBUF_GEN
 	tristate
 
-config VIDEO_BUF_DVB
+config VIDEOBUF_DVB
 	tristate
 
 config VIDEO_BTCX

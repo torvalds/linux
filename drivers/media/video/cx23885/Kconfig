@@ -4,11 +4,11 @@ config VIDEO_CX23885
 	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_BTCX
-	select VIDEO_BUF
+	select VIDEOBUF
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
-	select VIDEO_BUF_DVB
+	select VIDEOBUF_DVB
 	select DVB_TUNER_MT2131 if !DVB_FE_CUSTOMISE
 	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
 	select DVB_PLL if !DVB_FE_CUSTOMISE
