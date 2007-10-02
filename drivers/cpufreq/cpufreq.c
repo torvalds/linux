@@ -1484,17 +1484,30 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
 	int ret;
-	struct cpufreq_governor *gov = CPUFREQ_PERFORMANCE_GOVERNOR;
+
+	/* Only must be defined when default governor is known to have latency
+	   restrictions, like e.g. conservative or ondemand.
+	   That this is the case is already ensured in Kconfig
+	*/
+#ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE
+	struct cpufreq_governor *gov = &cpufreq_gov_performance;
+#else
+	struct cpufreq_governor *gov = NULL;
+#endif
 
 	if (policy->governor->max_transition_latency &&
 	    policy->cpuinfo.transition_latency >
 	    policy->governor->max_transition_latency) {
-		printk(KERN_WARNING "%s governor failed, too long"
-		       " transition latency of HW, fallback"
-		       " to %s governor\n",
-		       policy->governor->name,
-		       gov->name);
-		       policy->governor = gov;
+		if (!gov)
+			return -EINVAL;
+		else {
+			printk(KERN_WARNING "%s governor failed, too long"
+			       " transition latency of HW, fallback"
+			       " to %s governor\n",
+			       policy->governor->name,
+			       gov->name);
+			policy->governor = gov;
+		}
 	}
 
 	if (!try_module_get(policy->governor->owner))
