@@ -19,6 +19,7 @@ kernel-vmlinux.strip.gz
 mktree
 uImage
 cuImage.*
+treeImage.*
 zImage
 zImage.bin.*
 zImage.chrp
