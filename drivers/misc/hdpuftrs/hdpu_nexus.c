@@ -78,10 +78,20 @@ static int hdpu_nexus_probe(struct platform_device *pdev)
 	}
 
 	hdpu_slot_id = create_proc_entry("sky_slot_id", 0666, &proc_root);
-	hdpu_slot_id->read_proc = hdpu_slot_id_read;
+	if (!hdpu_slot_id) {
+		printk(KERN_WARNING "sky_nexus: "
+		       "Unable to create proc dir entry: sky_slot_id\n");
+	} else {
+		hdpu_slot_id->read_proc = hdpu_slot_id_read;
+	}
 
 	hdpu_chassis_id = create_proc_entry("sky_chassis_id", 0666, &proc_root);
-	hdpu_chassis_id->read_proc = hdpu_chassis_id_read;
+	if (!hdpu_chassis_id) {
+		printk(KERN_WARNING "sky_nexus: "
+		       "Unable to create proc dir entry: sky_chassis_id\n");
+	} else {
+		hdpu_chassis_id->read_proc = hdpu_chassis_id_read;
+	}
 
 	return 0;
 }
