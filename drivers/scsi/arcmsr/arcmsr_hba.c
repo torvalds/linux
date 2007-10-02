@@ -125,6 +125,10 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.shost_attrs		= arcmsr_host_attrs,
 };
 #ifdef CONFIG_SCSI_ARCMSR_AER
+static pci_ers_result_t arcmsr_pci_slot_reset(struct pci_dev *pdev);
+static pci_ers_result_t arcmsr_pci_error_detected(struct pci_dev *pdev,
+						pci_channel_state_t state);
+
 static struct pci_error_handlers arcmsr_pci_error_handlers = {
 	.error_detected		= arcmsr_pci_error_detected,
 	.slot_reset		= arcmsr_pci_slot_reset,
