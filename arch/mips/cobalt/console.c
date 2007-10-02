@@ -1,16 +1,15 @@
 /*
  * (C) P. Horton 2006
  */
+#include <linux/io.h>
 #include <linux/serial_reg.h>
 
-#include <asm/addrspace.h>
-
-#include <cobalt.h>
+#define UART_BASE	((void __iomem *)CKSEG1ADDR(0x1c800000))
 
 void prom_putchar(char c)
 {
-	while(!(COBALT_UART[UART_LSR] & UART_LSR_THRE))
+	while (!(readb(UART_BASE + UART_LSR) & UART_LSR_THRE))
 		;
 
-	COBALT_UART[UART_TX] = c;
+	writeb(c, UART_BASE + UART_TX);
 }
