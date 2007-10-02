@@ -105,6 +105,44 @@ int pxa_gpio_mode(int gpio_mode)
 
 EXPORT_SYMBOL(pxa_gpio_mode);
 
+int gpio_direction_input(unsigned gpio)
+{
+	unsigned long flags;
+	u32 mask;
+
+	if (gpio > pxa_last_gpio)
+		return -EINVAL;
+
+	mask = GPIO_bit(gpio);
+	local_irq_save(flags);
+	GPDR(gpio) &= ~mask;
+	local_irq_restore(flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_input);
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	unsigned long flags;
+	u32 mask;
+
+	if (gpio > pxa_last_gpio)
+		return -EINVAL;
+
+	mask = GPIO_bit(gpio);
+	local_irq_save(flags);
+	if (value)
+		GPSR(gpio) = mask;
+	else
+		GPCR(gpio) = mask;
+	GPDR(gpio) |= mask;
+	local_irq_restore(flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_output);
+
 /*
  * Return GPIO level
  */
