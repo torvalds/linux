@@ -211,9 +211,7 @@ int nfs_readdir_filler(nfs_readdir_descriptor_t *desc, struct page *page)
 	unlock_page(page);
 	return 0;
  error:
-	SetPageError(page);
 	unlock_page(page);
-	nfs_zap_caches(inode);
 	desc->error = error;
 	return -EIO;
 }
