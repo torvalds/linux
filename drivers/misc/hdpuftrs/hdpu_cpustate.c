@@ -169,22 +169,21 @@ static struct platform_driver hdpu_cpustate_driver = {
  *	The various file operations we support.
  */
 static const struct file_operations cpustate_fops = {
-      owner:THIS_MODULE,
-      open:cpustate_open,
-      release:cpustate_release,
-      read:cpustate_read,
-      write:cpustate_write,
-      fasync:NULL,
-      poll:NULL,
-      ioctl:NULL,
-      llseek:no_llseek,
-
+      owner:	THIS_MODULE,
+      open:	cpustate_open,
+      release:	cpustate_release,
+      read:	cpustate_read,
+      write:	cpustate_write,
+      fasync:	NULL,
+      poll:	NULL,
+      ioctl:	NULL,
+      llseek:	no_llseek,
 };
 
 static struct miscdevice cpustate_dev = {
 	MISC_DYNAMIC_MINOR,
 	"sky_cpustate",
-	&cpustate_fops
+	&cpustate_fops,
 };
 
 static int hdpu_cpustate_probe(struct platform_device *pdev)
@@ -199,18 +198,18 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 
 	ret = misc_register(&cpustate_dev);
 	if (ret) {
-		printk(KERN_WARNING "sky_cpustate: Unable to register misc "
-					"device.\n");
+		printk(KERN_WARNING "sky_cpustate: "
+		       "Unable to register misc device.\n");
 		cpustate.set_addr = NULL;
 		cpustate.clr_addr = NULL;
 		return ret;
 	}
 
 	proc_de = create_proc_read_entry("sky_cpustate", 0, 0,
-					cpustate_read_proc, NULL);
+					 cpustate_read_proc, NULL);
 	if (proc_de == NULL)
-		printk(KERN_WARNING "sky_cpustate: Unable to create proc "
-					"dir entry\n");
+		printk(KERN_WARNING "sky_cpustate: "
+		       "Unable to create proc dir entry\n");
 
 	printk(KERN_INFO "Sky CPU State Driver v" SKY_CPUSTATE_VERSION "\n");
 	return 0;
@@ -218,21 +217,18 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 
 static int hdpu_cpustate_remove(struct platform_device *pdev)
 {
-
 	cpustate.set_addr = NULL;
 	cpustate.clr_addr = NULL;
 
 	remove_proc_entry("sky_cpustate", NULL);
 	misc_deregister(&cpustate_dev);
-	return 0;
 
+	return 0;
 }
 
 static int __init cpustate_init(void)
 {
-	int rc;
-	rc = platform_driver_register(&hdpu_cpustate_driver);
-	return rc;
+	return platform_driver_register(&hdpu_cpustate_driver);
 }
 
 static void __exit cpustate_exit(void)
