@@ -771,7 +771,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 		}
 
 		if (q->read_buf->state == STATE_DONE) {
-			rc = CALL (q,copy_stream, q, data, count,
+			rc = CALL (q,copy_stream, q, data + retval, count,
 					retval, vbihack, nonblocking);
 			if (rc < 0) {
 				retval = rc;
