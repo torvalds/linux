@@ -42,6 +42,10 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/of_device.h>
+#endif
+
 #include "fs_enet.h"
 
 /*************************************************/
@@ -74,33 +78,64 @@
 
 #define MAX_CR_CMD_LOOPS	10000
 
-static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 mcn, u32 op)
+static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 op)
 {
 	const struct fs_platform_info *fpi = fep->fpi;
 	cpm2_map_t *immap = fs_enet_immap;
 	cpm_cpm2_t *cpmp = &immap->im_cpm;
-	u32 v;
 	int i;
 
-	/* Currently I don't know what feature call will look like. But
-	   I guess there'd be something like do_cpm_cmd() which will require page & sblock */
-	v = mk_cr_cmd(fpi->cp_page, fpi->cp_block, mcn, op);
-	W32(cpmp, cp_cpcr, v | CPM_CR_FLG);
+	W32(cpmp, cp_cpcr, fpi->cp_command | op | CPM_CR_FLG);
 	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
 		if ((R32(cpmp, cp_cpcr) & CPM_CR_FLG) == 0)
-			break;
+			return 0;
 
-	if (i >= MAX_CR_CMD_LOOPS) {
-		printk(KERN_ERR "%s(): Not able to issue CPM command\n",
-		       __FUNCTION__);
-		return 1;
-	}
-
-	return 0;
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n",
+	       __FUNCTION__);
+	return 1;
 }
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct of_device *ofdev = to_of_device(fep->dev);
+	struct fs_platform_info *fpi = fep->fpi;
+	int ret = -EINVAL;
+
+	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	if (fep->interrupt == NO_IRQ)
+		goto out;
+
+	fep->fcc.fccp = of_iomap(ofdev->node, 0);
+	if (!fep->fcc.fccp)
+		goto out;
+
+	fep->fcc.ep = of_iomap(ofdev->node, 1);
+	if (!fep->fcc.ep)
+		goto out_fccp;
+
+	fep->fcc.fcccp = of_iomap(ofdev->node, 2);
+	if (!fep->fcc.fcccp)
+		goto out_ep;
+
+	fep->fcc.mem = (void *)cpm_dpalloc(128, 8);
+	fpi->dpram_offset = (u32)cpm2_immr;
+	if (IS_ERR_VALUE(fpi->dpram_offset)) {
+		ret = fpi->dpram_offset;
+		goto out_fcccp;
+	}
+
+	return 0;
+
+out_fcccp:
+	iounmap(fep->fcc.fcccp);
+out_ep:
+	iounmap(fep->fcc.ep);
+out_fccp:
+	iounmap(fep->fcc.fccp);
+out:
+	return ret;
+#else
 	struct platform_device *pdev = to_platform_device(fep->dev);
 	struct resource *r;
 
@@ -138,6 +173,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		return -EINVAL;
 
 	return 0;
+#endif
 }
 
 #define FCC_NAPI_RX_EVENT_MSK	(FCC_ENET_RXF | FCC_ENET_RXB)
@@ -148,11 +184,17 @@ static int do_pd_setup(struct fs_enet_private *fep)
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
+	struct fs_platform_info *fpi = fep->fpi;
+
+	fpi->cp_command = (fpi->cp_page << 26) |
+	                  (fpi->cp_block << 21) |
+	                  (12 << 6);
 
 	fep->fcc.idx = fs_get_fcc_index(fpi->fs_no);
 	if ((unsigned int)fep->fcc.idx >= 3)	/* max 3 FCCs */
 		return -EINVAL;
+#endif
 
 	if (do_pd_setup(fep) != 0)
 		return -EINVAL;
@@ -226,7 +268,7 @@ static void set_multicast_one(struct net_device *dev, const u8 *mac)
 	W16(ep, fen_taddrh, taddrh);
 	W16(ep, fen_taddrm, taddrm);
 	W16(ep, fen_taddrl, taddrl);
-	fcc_cr_cmd(fep, 0x0C, CPM_CR_SET_GADDR);
+	fcc_cr_cmd(fep, CPM_CR_SET_GADDR);
 }
 
 static void set_multicast_finish(struct net_device *dev)
@@ -281,7 +323,7 @@ static void restart(struct net_device *dev)
 
 	/* clear everything (slow & steady does it) */
 	for (i = 0; i < sizeof(*ep); i++)
-		out_8((char *)ep + i, 0);
+		out_8((u8 __iomem *)ep + i, 0);
 
 	/* get physical address */
 	rx_bd_base_phys = fep->ring_mem_addr;
@@ -397,7 +439,7 @@ static void restart(struct net_device *dev)
 			S8(fcccp, fcc_gfemr, 0x20);
 	}
 
-	fcc_cr_cmd(fep, 0x0c, CPM_CR_INIT_TRX);
+	fcc_cr_cmd(fep, CPM_CR_INIT_TRX);
 
 	/* clear events */
 	W16(fccp, fcc_fcce, 0xffff);
@@ -515,23 +557,22 @@ int get_regs(struct net_device *dev, void *p, int *sizep)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 
-	if (*sizep < sizeof(fcc_t) + sizeof(fcc_c_t) + sizeof(fcc_enet_t))
+	if (*sizep < sizeof(fcc_t) + sizeof(fcc_enet_t) + 1)
 		return -EINVAL;
 
 	memcpy_fromio(p, fep->fcc.fccp, sizeof(fcc_t));
 	p = (char *)p + sizeof(fcc_t);
 
-	memcpy_fromio(p, fep->fcc.fcccp, sizeof(fcc_c_t));
-	p = (char *)p + sizeof(fcc_c_t);
-
 	memcpy_fromio(p, fep->fcc.ep, sizeof(fcc_enet_t));
+	p = (char *)p + sizeof(fcc_enet_t);
 
+	memcpy_fromio(p, fep->fcc.fcccp, 1);
 	return 0;
 }
 
 int get_regs_len(struct net_device *dev)
 {
-	return sizeof(fcc_t) + sizeof(fcc_c_t) + sizeof(fcc_enet_t);
+	return sizeof(fcc_t) + sizeof(fcc_enet_t) + 1;
 }
 
 /* Some transmit errors cause the transmitter to shut
@@ -551,7 +592,7 @@ void tx_restart(struct net_device *dev)
 	udelay(10);
 	S32(fccp, fcc_gfmr, FCC_GFMR_ENT);
 
-	fcc_cr_cmd(fep, 0x0C, CPM_CR_RESTART_TX);
+	fcc_cr_cmd(fep, CPM_CR_RESTART_TX);
 }
 
 /*************************************************************************/

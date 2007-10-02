@@ -43,6 +43,10 @@
 #include <asm/commproc.h>
 #endif
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/of_platform.h>
+#endif
+
 #include "fs_enet.h"
 
 /*************************************************/
@@ -89,27 +93,38 @@
 
 static inline int scc_cr_cmd(struct fs_enet_private *fep, u32 op)
 {
-	cpm8xx_t *cpmp = &((immap_t *)fs_enet_immap)->im_cpm;
-	u32 v, ch;
-	int i = 0;
+	const struct fs_platform_info *fpi = fep->fpi;
+	int i;
 
-	ch = fep->scc.idx << 2;
-	v = mk_cr_cmd(ch, op);
-	W16(cpmp, cp_cpcr, v | CPM_CR_FLG);
+	W16(cpmp, cp_cpcr, fpi->cp_command | CPM_CR_FLG | (op << 8));
 	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
 		if ((R16(cpmp, cp_cpcr) & CPM_CR_FLG) == 0)
-			break;
+			return 0;
 
-	if (i >= MAX_CR_CMD_LOOPS) {
-		printk(KERN_ERR "%s(): Not able to issue CPM command\n",
-			__FUNCTION__);
-		return 1;
-	}
-	return 0;
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n",
+		__FUNCTION__);
+	return 1;
 }
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct of_device *ofdev = to_of_device(fep->dev);
+
+	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	if (fep->interrupt == NO_IRQ)
+		return -EINVAL;
+
+	fep->scc.sccp = of_iomap(ofdev->node, 0);
+	if (!fep->scc.sccp)
+		return -EINVAL;
+
+	fep->scc.ep = of_iomap(ofdev->node, 1);
+	if (!fep->scc.ep) {
+		iounmap(fep->scc.sccp);
+		return -EINVAL;
+	}
+#else
 	struct platform_device *pdev = to_platform_device(fep->dev);
 	struct resource *r;
 
@@ -129,6 +144,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	if (fep->scc.ep == NULL)
 		return -EINVAL;
+#endif
 
 	return 0;
 }
@@ -141,11 +157,16 @@ static int do_pd_setup(struct fs_enet_private *fep)
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
+
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct fs_platform_info *fpi = fep->fpi;
 
 	fep->scc.idx = fs_get_scc_index(fpi->fs_no);
-	if ((unsigned int)fep->fcc.idx > 4)	/* max 4 SCCs */
+	if ((unsigned int)fep->fcc.idx >= 4) /* max 4 SCCs */
 		return -EINVAL;
+
+	fpi->cp_command = fep->fcc.idx << 6;
+#endif
 
 	do_pd_setup(fep);
 
@@ -154,7 +175,7 @@ static int setup_data(struct net_device *dev)
 
 	fep->ev_napi_rx = SCC_NAPI_RX_EVENT_MSK;
 	fep->ev_rx = SCC_RX_EVENT;
-	fep->ev_tx = SCC_TX_EVENT;
+	fep->ev_tx = SCC_TX_EVENT | SCCE_ENET_TXE;
 	fep->ev_err = SCC_ERR_EVENT_MSK;
 
 	return 0;

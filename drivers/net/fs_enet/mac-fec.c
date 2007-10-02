@@ -43,6 +43,10 @@
 #include <asm/commproc.h>
 #endif
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/of_device.h>
+#endif
+
 #include "fs_enet.h"
 #include "fec.h"
 
@@ -95,6 +99,19 @@ static int whack_reset(fec_t * fecp)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct of_device *ofdev = to_of_device(fep->dev);
+
+	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	if (fep->interrupt == NO_IRQ)
+		return -EINVAL;
+
+	fep->fec.fecp = of_iomap(ofdev->node, 0);
+	if (!fep->fcc.fccp)
+		return -EINVAL;
+
+	return 0;
+#else
 	struct platform_device *pdev = to_platform_device(fep->dev);
 	struct resource	*r;
 
@@ -110,7 +127,7 @@ static int do_pd_setup(struct fs_enet_private *fep)
 		return -EINVAL;
 
 	return 0;
-
+#endif
 }
 
 #define FEC_NAPI_RX_EVENT_MSK	(FEC_ENET_RXF | FEC_ENET_RXB)

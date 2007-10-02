@@ -24,19 +24,6 @@ struct fec_info {
 #include <asm/cpm2.h>
 #endif
 
-/* This is used to operate with pins.
-  Note that the actual port size may
-    be different; cpm(s) handle it OK  */
-struct bb_info {
-	u8 mdio_dat_msk;
-	u8 mdio_dir_msk;
-	u8 *mdio_dir;
-	u8 *mdio_dat;
-	u8 mdc_msk;
-	u8 *mdc_dat;
-	int delay;
-};
-
 /* hw driver ops */
 struct fs_ops {
 	int (*setup_data)(struct net_device *dev);
@@ -85,48 +72,12 @@ struct phy_info {
 #define ENET_RX_ALIGN  16
 #define ENET_RX_FRSIZE L1_CACHE_ALIGN(PKT_MAXBUF_SIZE + ENET_RX_ALIGN - 1)
 
-struct fs_enet_mii_bus {
-	struct list_head list;
-	spinlock_t mii_lock;
-	const struct fs_mii_bus_info *bus_info;
-	int refs;
-	u32 usage_map;
-
-	int (*mii_read)(struct fs_enet_mii_bus *bus,
-			int phy_id, int location);
-
-	void (*mii_write)(struct fs_enet_mii_bus *bus,
-			int phy_id, int location, int value);
-
-	union {
-		struct {
-			unsigned int mii_speed;
-			void *fecp;
-		} fec;
-
-		struct {
-			/* note that the actual port size may */
-			/* be different; cpm(s) handle it OK  */
-			u8 mdio_msk;
-			u8 *mdio_dir;
-			u8 *mdio_dat;
-			u8 mdc_msk;
-			u8 *mdc_dir;
-			u8 *mdc_dat;
-		} bitbang;
-
-		struct {
-			u16 lpa;
-		} fixed;
-	};
-};
-
 struct fs_enet_private {
 	struct napi_struct napi;
 	struct device *dev;	/* pointer back to the device (must be initialized first) */
 	spinlock_t lock;	/* during all ops except TX pckt processing */
 	spinlock_t tx_lock;	/* during fs_start_xmit and fs_tx         */
-	const struct fs_platform_info *fpi;
+	struct fs_platform_info *fpi;
 	const struct fs_ops *ops;
 	int rx_ring, tx_ring;
 	dma_addr_t ring_mem_addr;
@@ -145,7 +96,6 @@ struct fs_enet_private {
 	u32 msg_enable;
 	struct mii_if_info mii_if;
 	unsigned int last_mii_status;
-	struct fs_enet_mii_bus *mii_bus;
 	int interrupt;
 
 	struct phy_device *phydev;
@@ -187,9 +137,10 @@ struct fs_enet_private {
 };
 
 /***************************************************************************/
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 int fs_enet_mdio_bb_init(void);
-int fs_mii_fixed_init(struct fs_enet_mii_bus *bus);
 int fs_enet_mdio_fec_init(void);
+#endif
 
 void fs_init_bds(struct net_device *dev);
 void fs_cleanup_bds(struct net_device *dev);
