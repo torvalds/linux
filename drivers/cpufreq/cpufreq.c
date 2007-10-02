@@ -1484,6 +1484,18 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 					unsigned int event)
 {
 	int ret;
+	struct cpufreq_governor *gov = CPUFREQ_PERFORMANCE_GOVERNOR;
+
+	if (policy->governor->max_transition_latency &&
+	    policy->cpuinfo.transition_latency >
+	    policy->governor->max_transition_latency) {
+		printk(KERN_WARNING "%s governor failed, too long"
+		       " transition latency of HW, fallback"
+		       " to %s governor\n",
+		       policy->governor->name,
+		       gov->name);
+		       policy->governor = gov;
+	}
 
 	if (!try_module_get(policy->governor->owner))
 		return -EINVAL;
