@@ -28,7 +28,7 @@
 	.num_resources = 2, \
 	.resource = (struct resource[]) { \
 		{ \
-			.start = XPAR_UARTLITE_##num##_BASEADDR + 3, \
+			.start = XPAR_UARTLITE_##num##_BASEADDR, \
 			.end = XPAR_UARTLITE_##num##_HIGHADDR, \
 			.flags = IORESOURCE_MEM, \
 		}, \
