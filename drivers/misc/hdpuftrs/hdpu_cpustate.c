@@ -19,9 +19,10 @@
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/proc_fs.h>
+#include <linux/hdpu_features.h>
 #include <linux/platform_device.h>
 #include <asm/uaccess.h>
-#include <linux/hdpu_features.h>
+#include <linux/seq_file.h>
 #include <asm/io.h>
 
 #define SKY_CPUSTATE_VERSION		"1.1"
@@ -29,7 +30,30 @@
 static int hdpu_cpustate_probe(struct platform_device *pdev);
 static int hdpu_cpustate_remove(struct platform_device *pdev);
 
-struct cpustate_t cpustate;
+static unsigned char cpustate_get_state(void);
+static int cpustate_proc_open(struct inode *inode, struct file *file);
+static int cpustate_proc_read(struct seq_file *seq, void *offset);
+
+static struct cpustate_t cpustate;
+
+static const struct file_operations proc_cpustate = {
+	.open = cpustate_proc_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
+static int cpustate_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cpustate_proc_read, NULL);
+}
+
+static int cpustate_proc_read(struct seq_file *seq, void *offset)
+{
+	seq_printf(seq, "CPU State: %04x\n", cpustate_get_state());
+	return 0;
+}
 
 static int cpustate_get_ref(int excl)
 {
@@ -67,13 +91,13 @@ static int cpustate_free_ref(void)
 	return 0;
 }
 
-unsigned char cpustate_get_state(void)
+static unsigned char cpustate_get_state(void)
 {
 
 	return cpustate.cached_val;
 }
 
-void cpustate_set_state(unsigned char new_state)
+static void cpustate_set_state(unsigned char new_state)
 {
 	unsigned int state = (new_state << 21);
 
@@ -135,29 +159,6 @@ static int cpustate_release(struct inode *inode, struct file *file)
 	return cpustate_free_ref();
 }
 
-/*
- *	Info exported via "/proc/sky_cpustate".
- */
-static int cpustate_read_proc(char *page, char **start, off_t off,
-			      int count, int *eof, void *data)
-{
-	char *p = page;
-	int len = 0;
-
-	p += sprintf(p, "CPU State: %04x\n", cpustate_get_state());
-	len = p - page;
-
-	if (len <= off + count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-	return len;
-}
-
 static struct platform_driver hdpu_cpustate_driver = {
 	.probe = hdpu_cpustate_probe,
 	.remove = hdpu_cpustate_remove,
@@ -208,11 +209,14 @@ static int hdpu_cpustate_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	proc_de = create_proc_read_entry("sky_cpustate", 0, 0,
-					 cpustate_read_proc, NULL);
-	if (proc_de == NULL)
+	proc_de = create_proc_entry("sky_cpustate", 0666, &proc_root);
+	if (!proc_de) {
 		printk(KERN_WARNING "sky_cpustate: "
-		       "Unable to create proc dir entry\n");
+		       "Unable to create proc entry\n");
+	} else {
+		proc_de->proc_fops = &proc_cpustate;
+		proc_de->owner = THIS_MODULE;
+	}
 
 	printk(KERN_INFO "Sky CPU State Driver v" SKY_CPUSTATE_VERSION "\n");
 	return 0;
