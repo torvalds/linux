@@ -363,7 +363,6 @@ static int nforce2_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = nforce2_get(policy->cpu);
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	return 0;
 }

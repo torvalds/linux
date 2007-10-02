@@ -348,7 +348,6 @@ static int speedstep_cpu_init(struct cpufreq_policy *policy)
 		(speed / 1000));
 
 	/* cpuinfo and default policy values */
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cur = speed;
 
 	result = cpufreq_frequency_table_cpuinfo(policy, speedstep_freqs);
