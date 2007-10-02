@@ -919,6 +919,11 @@ typedef struct {
         Scsi_Cmnd       *cmnd;                  /* pending request */
         ushort          service;                /* service */
     } cmd_tab[GDTH_MAXCMDS];                    /* table of pend. requests */
+    struct gdth_cmndinfo {                      /* per-command private info */
+        int index;
+        int internal_command;                   /* don't call scsi_done */
+        dma_addr_t sense_paddr;                 /* sense dma-addr */
+    } cmndinfo[GDTH_MAXCMDS];                   /* index==0 is free */
     unchar              bus_cnt;                /* SCSI bus count */
     unchar              tid_cnt;                /* Target ID count */
     unchar              bus_id[MAXBUS];         /* IOP IDs */
@@ -940,6 +945,11 @@ typedef struct {
 #endif
     struct scsi_device         *sdev;
 } gdth_ha_str;
+
+static inline struct gdth_cmndinfo *gdth_cmnd_priv(struct scsi_cmnd* cmd)
+{
+	return (struct gdth_cmndinfo *)cmd->host_scribble;
+}
 
 /* INQUIRY data format */
 typedef struct {
