@@ -239,7 +239,9 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 			   PAS_DMA_RXINT_BASEU_SIZ(RX_RING_SIZE >> 3));
 
 	write_dma_reg(mac, PAS_DMA_RXINT_CFG(mac->dma_if),
-			   PAS_DMA_RXINT_CFG_DHL(2));
+			   PAS_DMA_RXINT_CFG_DHL(3) |
+			   PAS_DMA_RXINT_CFG_L2 |
+			   PAS_DMA_RXINT_CFG_LW);
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
@@ -589,6 +591,11 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		n += 2;
 	}
 
+	if (n > RX_RING_SIZE) {
+		/* Errata 5971 workaround: L2 target of headers */
+		write_iob_reg(mac, PAS_IOB_COM_PKTHDRCNT, 0);
+		n &= (RX_RING_SIZE-1);
+	}
 	mac->rx->next_to_clean = n;
 	pasemi_mac_replenish_rx_ring(mac->netdev, limit-count);
 
