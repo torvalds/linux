@@ -104,7 +104,7 @@ static inline void write_lpdata(struct qcam_device *q, int d)
 
 static inline void write_lpcontrol(struct qcam_device *q, int d)
 {
-	if(0x20 & d) {
+	if (d & 0x20) {
 		/* Set bidirectional mode to reverse (data in) */
 		parport_data_reverse(q->pport);
 	} else {
@@ -355,11 +355,11 @@ static int qc_detect(struct qcam_device *q)
 	/* Be (even more) liberal in what you accept...  */
 
 /*	if (count > 30 && count < 200) */
-	if (count > 20 && count < 400)
-	{
+	if (count > 20 && count < 400) {
 		return 1;	/* found */
 	} else {
-		printk(KERN_ERR "No Quickcam found on port %s\n", q->pport->name);
+		printk(KERN_ERR "No Quickcam found on port %s\n",
+			q->pport->name);
 		return 0;	/* not found */
 	}
 }
