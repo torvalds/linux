@@ -23,9 +23,13 @@
 #define ULITE_MINOR		187
 #define ULITE_NR_UARTS		4
 
-/* For register details see datasheet:
-   http://www.xilinx.com/bvdocs/ipcenter/data_sheet/opb_uartlite.pdf
-*/
+/* ---------------------------------------------------------------------
+ * Register definitions
+ *
+ * For register details see datasheet:
+ * http://www.xilinx.com/bvdocs/ipcenter/data_sheet/opb_uartlite.pdf
+ */
+
 #define ULITE_RX		0x00
 #define ULITE_TX		0x04
 #define ULITE_STATUS		0x08
@@ -48,6 +52,10 @@
 
 
 static struct uart_port ulite_ports[ULITE_NR_UARTS];
+
+/* ---------------------------------------------------------------------
+ * Core UART driver operations
+ */
 
 static int ulite_receive(struct uart_port *port, int stat)
 {
@@ -308,6 +316,10 @@ static struct uart_ops ulite_ops = {
 	.verify_port	= ulite_verify_port
 };
 
+/* ---------------------------------------------------------------------
+ * Console driver operations
+ */
+
 #ifdef CONFIG_SERIAL_UARTLITE_CONSOLE
 static void ulite_console_wait_tx(struct uart_port *port)
 {
@@ -413,6 +425,19 @@ static struct uart_driver ulite_uart_driver = {
 #endif
 };
 
+/* ---------------------------------------------------------------------
+ * Port assignment functions (mapping devices to uart_port structures)
+ */
+
+/** ulite_assign: register a uartlite device with the driver
+ *
+ * @dev: pointer to device structure
+ * @id: requested id number.  Pass -1 for automatic port assignment
+ * @base: base address of uartlite registers
+ * @irq: irq number for uartlite
+ *
+ * Returns: 0 on success, <0 otherwise
+ */
 static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
 {
 	struct uart_port *port;
@@ -465,6 +490,10 @@ static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
 	return 0;
 }
 
+/** ulite_release: register a uartlite device with the driver
+ *
+ * @dev: pointer to device structure
+ */
 static int __devinit ulite_release(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
@@ -478,6 +507,10 @@ static int __devinit ulite_release(struct device *dev)
 
 	return rc;
 }
+
+/* ---------------------------------------------------------------------
+ * Platform bus binding
+ */
 
 static int __devinit ulite_probe(struct platform_device *pdev)
 {
@@ -507,6 +540,10 @@ static struct platform_driver ulite_platform_driver = {
 		   .name  = "uartlite",
 		   },
 };
+
+/* ---------------------------------------------------------------------
+ * Module setup/teardown
+ */
 
 int __init ulite_init(void)
 {
