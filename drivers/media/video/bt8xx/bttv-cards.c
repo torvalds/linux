@@ -2988,6 +2988,23 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
+	/* ---- card 0x95---------------------------------- */
+	[BTTV_BOARD_TYPHOON_TVTUNERPCI] = {
+		.name           = "Typhoon TV-Tuner PCI (50684)",
+		.video_inputs   = 3,
+		.audio_inputs   = 1,
+		.tuner          = 0,
+		.svhs           = 2,
+		.gpiomask       = 0x3014f,
+		.muxsel         = { 2, 3, 1, 1 },
+		.gpiomux        = { 0x20001,0x10001, 0, 0 },
+		.gpiomute       = 10,
+		.needs_tvaudio  = 1,
+		.pll            = PLL_28,
+		.tuner_type     = TUNER_PHILIPS_PAL_I,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
