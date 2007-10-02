@@ -1189,6 +1189,7 @@ int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fhandle,
 		if (error)
 			goto out_error;
 	}
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	if (!(fattr->valid & NFS_ATTR_FATTR)) {
 		struct nfs_server *server = NFS_SB(dentry->d_sb);
 		error = server->nfs_client->rpc_ops->getattr(server, fhandle, fattr);
@@ -1237,7 +1238,6 @@ static int nfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	unlock_kernel();
 	return 0;
 out_err:
@@ -1270,7 +1270,6 @@ nfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 	nfs_end_data_update(dir);
 	if (status != 0)
 		goto out_err;
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	unlock_kernel();
 	return 0;
 out_err:
@@ -1299,7 +1298,6 @@ static int nfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	nfs_end_data_update(dir);
 	if (error != 0)
 		goto out_err;
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	unlock_kernel();
 	return 0;
 out_err:
