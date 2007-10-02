@@ -193,6 +193,8 @@ static void set_freq(struct i2c_client *c, unsigned long freq)
 		set_tv_freq(c, freq);
 		t->tv_freq = freq;
 		break;
+	default:
+		tuner_dbg("freq set: unknown mode: 0x%04x!\n",t->mode);
 	}
 }
 
@@ -319,6 +321,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		buffer[3] = 0xa4;
 		i2c_master_send(c,buffer,4);
 		attach_simple_tuner(t);
+		break;
+	case TUNER_XC2028:
+		xc2028_tuner_init(c);
 		break;
 	case TUNER_TDA9887:
 		tda9887_tuner_init(t);
