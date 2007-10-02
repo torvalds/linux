@@ -1048,8 +1048,6 @@ static const u32 bnx2_COM_b06FwRodata[(0x88/4) + 1] = {
 	0x08002bd8, 0x08002c08, 0x08002c38, 0x00000000, 0x080060cc, 0x080060cc,
 	0x080060cc, 0x080060cc, 0x080060cc, 0x08006100, 0x08006100, 0x08006140,
 	0x0800614c, 0x0800614c, 0x080060cc, 0x00000000, 0x00000000 };
-static const u32 bnx2_COM_b06FwBss[(0x88/4) + 1] = { 0x0 };
-static const u32 bnx2_COM_b06FwSbss[(0x60/4) + 1] = { 0x0 };
 
 static struct fw_info bnx2_com_fw_06 = {
 	.ver_major			= 0x3,
@@ -1072,12 +1070,10 @@ static struct fw_info bnx2_com_fw_06 = {
 	.sbss_addr			= 0x08007e00,
 	.sbss_len			= 0x60,
 	.sbss_index			= 0x0,
-	.sbss				= bnx2_COM_b06FwSbss,
 
 	.bss_addr			= 0x08007e60,
 	.bss_len			= 0x88,
 	.bss_index			= 0x0,
-	.bss				= bnx2_COM_b06FwBss,
 
 	.rodata_addr			= 0x08007d58,
 	.rodata_len			= 0x88,
@@ -1762,9 +1758,6 @@ static u32 bnx2_RXP_b06FwRodata[(0x278/4) + 1] = {
 	0x08006030, 0x08006030, 0x08006018, 0x08006030, 0x08006030, 0x08006030,
 	0x08006024, 0x00000000, 0x00000000 };
 
-static u32 bnx2_RXP_b06FwBss[(0x13dc/4) + 1] = { 0x0 };
-static u32 bnx2_RXP_b06FwSbss[(0x2c/4) + 1] = { 0x0 };
-
 static struct fw_info bnx2_rxp_fw_06 = {
 	.ver_major			= 0x2,
 	.ver_minor			= 0x8,
@@ -1786,12 +1779,10 @@ static struct fw_info bnx2_rxp_fw_06 = {
 	.sbss_addr			= 0x080069c0,
 	.sbss_len			= 0x2c,
 	.sbss_index			= 0x0,
-	.sbss				= bnx2_RXP_b06FwSbss,
 
 	.bss_addr			= 0x080069f0,
 	.bss_len			= 0x13dc,
 	.bss_index			= 0x0,
-	.bss				= bnx2_RXP_b06FwBss,
 
 	.rodata_addr			= 0x08006728,
 	.rodata_len			= 0x278,
@@ -2257,8 +2248,6 @@ static u8 bnx2_TPAT_b06FwText[] = {
 
 static u32 bnx2_TPAT_b06FwData[(0x0/4) + 1] = { 0x0 };
 static u32 bnx2_TPAT_b06FwRodata[(0x0/4) + 1] = { 0x0 };
-static u32 bnx2_TPAT_b06FwBss[(0x250/4) + 1] = { 0x0 };
-static u32 bnx2_TPAT_b06FwSbss[(0x34/4) + 1] = { 0x0 };
 
 static struct fw_info bnx2_tpat_fw_06 = {
 	.ver_major			= 0x1,
@@ -2281,12 +2270,10 @@ static struct fw_info bnx2_tpat_fw_06 = {
 	.sbss_addr			= 0x08001a60,
 	.sbss_len			= 0x34,
 	.sbss_index			= 0x0,
-	.sbss				= bnx2_TPAT_b06FwSbss,
 
 	.bss_addr			= 0x08001aa0,
 	.bss_len			= 0x250,
 	.bss_index			= 0x0,
-	.bss				= bnx2_TPAT_b06FwBss,
 
 	.rodata_addr			= 0x00000000,
 	.rodata_len			= 0x0,
@@ -2714,8 +2701,6 @@ static u8 bnx2_TXP_b06FwText[] = {
 
 static u32 bnx2_TXP_b06FwData[(0x0/4) + 1] = { 0x0 };
 static u32 bnx2_TXP_b06FwRodata[(0x0/4) + 1] = { 0x0 };
-static u32 bnx2_TXP_b06FwBss[(0x1c4/4) + 1] = { 0x0 };
-static u32 bnx2_TXP_b06FwSbss[(0x38/4) + 1] = { 0x0 };
 
 static struct fw_info bnx2_txp_fw_06 = {
 	.ver_major			= 0x1,
@@ -2738,12 +2723,10 @@ static struct fw_info bnx2_txp_fw_06 = {
 	.sbss_addr			= 0x08005760,
 	.sbss_len			= 0x38,
 	.sbss_index			= 0x0,
-	.sbss				= bnx2_TXP_b06FwSbss,
 
 	.bss_addr			= 0x080057a0,
 	.bss_len			= 0x1c4,
 	.bss_index			= 0x0,
-	.bss				= bnx2_TXP_b06FwBss,
 
 	.rodata_addr			= 0x00000000,
 	.rodata_len			= 0x0,

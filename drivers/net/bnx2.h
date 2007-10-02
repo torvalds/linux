@@ -6738,7 +6738,7 @@ struct fw_info {
 	const u32 text_addr;
 	const u32 text_len;
 	const u32 text_index;
-/*	u32 *text;*/
+	u32 *text;
 	u8 *gz_text;
 	const u32 gz_text_len;
 
@@ -6752,13 +6752,11 @@ struct fw_info {
 	const u32 sbss_addr;
 	const u32 sbss_len;
 	const u32 sbss_index;
-	const u32 *sbss;
 
 	/* BSS section. */
 	const u32 bss_addr;
 	const u32 bss_len;
 	const u32 bss_index;
-	const u32 *bss;
 
 	/* Read-only section. */
 	const u32 rodata_addr;

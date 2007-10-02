@@ -2810,21 +2810,16 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 	/* Load the Text area. */
 	offset = cpu_reg->spad_base + (fw->text_addr - cpu_reg->mips_view_base);
 	if (fw->gz_text) {
-		u32 *text;
 		int j;
 
-		text = vmalloc(FW_BUF_SIZE);
-		if (!text)
-			return -ENOMEM;
-		rc = zlib_inflate_blob(text, FW_BUF_SIZE, fw->gz_text, fw->gz_text_len);
-		if (rc < 0) {
-			vfree(text);
+		rc = zlib_inflate_blob(fw->text, FW_BUF_SIZE, fw->gz_text,
+				       fw->gz_text_len);
+		if (rc < 0)
 			return rc;
-		}
+
 		for (j = 0; j < (fw->text_len / 4); j++, offset += 4) {
-			REG_WR_IND(bp, offset, cpu_to_le32(text[j]));
+			REG_WR_IND(bp, offset, cpu_to_le32(fw->text[j]));
 	        }
-		vfree(text);
 	}
 
 	/* Load the Data area. */
@@ -2839,21 +2834,21 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 
 	/* Load the SBSS area. */
 	offset = cpu_reg->spad_base + (fw->sbss_addr - cpu_reg->mips_view_base);
-	if (fw->sbss) {
+	if (fw->sbss_len) {
 		int j;
 
 		for (j = 0; j < (fw->sbss_len / 4); j++, offset += 4) {
-			REG_WR_IND(bp, offset, fw->sbss[j]);
+			REG_WR_IND(bp, offset, 0);
 		}
 	}
 
 	/* Load the BSS area. */
 	offset = cpu_reg->spad_base + (fw->bss_addr - cpu_reg->mips_view_base);
-	if (fw->bss) {
+	if (fw->bss_len) {
 		int j;
 
 		for (j = 0; j < (fw->bss_len/4); j++, offset += 4) {
-			REG_WR_IND(bp, offset, fw->bss[j]);
+			REG_WR_IND(bp, offset, 0);
 		}
 	}
 
@@ -2894,19 +2889,16 @@ bnx2_init_cpus(struct bnx2 *bp)
 	if (!text)
 		return -ENOMEM;
 	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1));
-	if (rc < 0) {
-		vfree(text);
+	if (rc < 0)
 		goto init_cpu_err;
-	}
+
 	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC1);
 
 	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2));
-	if (rc < 0) {
-		vfree(text);
+	if (rc < 0)
 		goto init_cpu_err;
-	}
+
 	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC2);
-	vfree(text);
 
 	/* Initialize the RX Processor. */
 	cpu_reg.mode = BNX2_RXP_CPU_MODE;
@@ -2927,6 +2919,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	else
 		fw = &bnx2_rxp_fw_06;
 
+	fw->text = text;
 	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
@@ -2950,6 +2943,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	else
 		fw = &bnx2_txp_fw_06;
 
+	fw->text = text;
 	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
@@ -2973,6 +2967,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	else
 		fw = &bnx2_tpat_fw_06;
 
+	fw->text = text;
 	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
@@ -2996,6 +2991,7 @@ bnx2_init_cpus(struct bnx2 *bp)
 	else
 		fw = &bnx2_com_fw_06;
 
+	fw->text = text;
 	rc = load_cpu_fw(bp, &cpu_reg, fw);
 	if (rc)
 		goto init_cpu_err;
@@ -3017,11 +3013,13 @@ bnx2_init_cpus(struct bnx2 *bp)
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		fw = &bnx2_cp_fw_09;
 
+		fw->text = text;
 		rc = load_cpu_fw(bp, &cpu_reg, fw);
 		if (rc)
 			goto init_cpu_err;
 	}
 init_cpu_err:
+	vfree(text);
 	return rc;
 }
 
