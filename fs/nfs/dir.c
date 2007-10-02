@@ -669,6 +669,19 @@ static inline unsigned int nfs_lookup_check_intent(struct nameidata *nd, unsigne
 }
 
 /*
+ * Use intent information to check whether or not we're going to do
+ * an O_EXCL create using this path component.
+ */
+static int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
+{
+	if (NFS_PROTO(dir)->version == 2)
+		return 0;
+	if (nd == NULL || nfs_lookup_check_intent(nd, LOOKUP_CREATE) == 0)
+		return 0;
+	return (nd->intent.open.flags & O_EXCL) != 0;
+}
+
+/*
  * Inode and filehandle revalidation for lookups.
  *
  * We force revalidation in the cases where the VFS sets LOOKUP_REVAL,
@@ -754,7 +767,7 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	}
 
 	/* Force a full look up iff the parent directory has changed */
-	if (nfs_check_verifier(dir, dentry)) {
+	if (!nfs_is_exclusive_create(dir, nd) && nfs_check_verifier(dir, dentry)) {
 		if (nfs_lookup_verify_inode(inode, nd))
 			goto out_zap_parent;
 		goto out_valid;
@@ -847,20 +860,6 @@ struct dentry_operations nfs_dentry_operations = {
 	.d_delete	= nfs_dentry_delete,
 	.d_iput		= nfs_dentry_iput,
 };
-
-/*
- * Use intent information to check whether or not we're going to do
- * an O_EXCL create using this path component.
- */
-static inline
-int nfs_is_exclusive_create(struct inode *dir, struct nameidata *nd)
-{
-	if (NFS_PROTO(dir)->version == 2)
-		return 0;
-	if (nd == NULL || nfs_lookup_check_intent(nd, LOOKUP_CREATE) == 0)
-		return 0;
-	return (nd->intent.open.flags & O_EXCL) != 0;
-}
 
 static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
