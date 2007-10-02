@@ -149,6 +149,11 @@ static int __crypto_register_alg(struct crypto_alg *alg,
 		if (crypto_is_larval(q)) {
 			struct crypto_larval *larval = (void *)q;
 
+			/*
+			 * Check to see if either our generic name or
+			 * specific name can satisfy the name requested
+			 * by the larval entry q.
+			 */
 			if (strcmp(alg->cra_name, q->cra_name) &&
 			    strcmp(alg->cra_driver_name, q->cra_name))
 				continue;
