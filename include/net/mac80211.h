@@ -996,7 +996,14 @@ enum ieee80211_erp_change_flags {
  *
  * @beacon_update: Setup beacon data for IBSS beacons. Unlike access point,
  *	IBSS uses a fixed beacon frame which is configured using this
- *	function. This handler is required only for IBSS mode.
+ *	function.
+ *	If the driver returns success (0) from this callback, it owns
+ *	the skb. That means the driver is responsible to kfree_skb() it.
+ *	The control structure is not dynamically allocated. That means the
+ *	driver does not own the pointer and if it needs it somewhere
+ *	outside of the context of this function, it must copy it
+ *	somewhere else.
+ *	This handler is required only for IBSS mode.
  *
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
