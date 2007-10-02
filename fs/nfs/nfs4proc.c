@@ -1879,11 +1879,12 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	}
 	state = nfs4_do_open(dir, &path, flags, sattr, cred);
 	put_rpccred(cred);
+	d_drop(dentry);
 	if (IS_ERR(state)) {
 		status = PTR_ERR(state);
 		goto out;
 	}
-	d_instantiate(dentry, igrab(state->inode));
+	d_add(dentry, igrab(state->inode));
 	if (flags & O_EXCL) {
 		struct nfs_fattr fattr;
 		status = nfs4_do_setattr(state->inode, &fattr, sattr, state);

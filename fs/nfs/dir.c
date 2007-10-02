@@ -992,9 +992,10 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 	}
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
-	/* Let vfs_create() deal with O_EXCL */
+	/* Let vfs_create() deal with O_EXCL. Instantiate, but don't hash
+	 * the dentry. */
 	if (nd->intent.open.flags & O_EXCL) {
-		d_add(dentry, NULL);
+		d_instantiate(dentry, NULL);
 		goto out;
 	}
 
