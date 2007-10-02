@@ -373,6 +373,31 @@ static void ulite_console_write(struct console *co, const char *s,
 		spin_unlock_irqrestore(&port->lock, flags);
 }
 
+#if defined(CONFIG_OF)
+static inline void __init ulite_console_of_find_device(int id)
+{
+	struct device_node *np;
+	struct resource res;
+	const unsigned int *of_id;
+	int rc;
+
+	for_each_compatible_node(np, NULL, "xilinx,uartlite") {
+		of_id = of_get_property(np, "port-number", NULL);
+		if ((!of_id) || (*of_id != id))
+			continue;
+
+		rc = of_address_to_resource(np, 0, &res);
+		if (rc)
+			continue;
+
+		ulite_ports[id].mapbase = res.start;
+		return;
+	}
+}
+#else /* CONFIG_OF */
+static inline void __init ulite_console_of_find_device(int id) { /* do nothing */ }
+#endif /* CONFIG_OF */
+
 static int __init ulite_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
@@ -386,10 +411,20 @@ static int __init ulite_console_setup(struct console *co, char *options)
 
 	port = &ulite_ports[co->index];
 
+	/* Check if it is an OF device */
+	if (!port->mapbase)
+		ulite_console_of_find_device(co->index);
+
+	/* Do we have a device now? */
+	if (!port->mapbase) {
+		pr_debug("console on ttyUL%i not present\n", co->index);
+		return -ENODEV;
+	}
+
 	/* not initialized yet? */
 	if (!port->membase) {
-		pr_debug("console on ttyUL%i not initialized\n", co->index);
-		return -ENODEV;
+		if (ulite_request_port(port))
+			return -ENODEV;
 	}
 
 	if (options)
@@ -461,7 +496,7 @@ static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
 		return -EINVAL;
 	}
 
-	if (ulite_ports[id].mapbase) {
+	if ((ulite_ports[id].mapbase) && (ulite_ports[id].mapbase != base)) {
 		dev_err(dev, "cannot assign to %s%i; it is already in use\n",
 			ULITE_NAME, id);
 		return -EBUSY;
