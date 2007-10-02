@@ -306,3 +306,133 @@ void __init hpte_init_beat(void)
 	ppc_md.hpte_remove	= beat_lpar_hpte_remove;
 	ppc_md.hpte_clear_all	= beat_lpar_hptab_clear;
 }
+
+static long beat_lpar_hpte_insert_v3(unsigned long hpte_group,
+				  unsigned long va, unsigned long pa,
+				  unsigned long rflags, unsigned long vflags,
+				  int psize)
+{
+	unsigned long lpar_rc;
+	unsigned long slot;
+	unsigned long hpte_v, hpte_r;
+
+	/* same as iseries */
+	if (vflags & HPTE_V_SECONDARY)
+		return -1;
+
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
+			"rflags=%lx, vflags=%lx, psize=%d)\n",
+		hpte_group, va, pa, rflags, vflags, psize);
+
+	hpte_v = hpte_encode_v(va, psize) | vflags | HPTE_V_VALID;
+	hpte_r = hpte_encode_r(pa, psize) | rflags;
+
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
+
+	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
+		hpte_r &= ~_PAGE_COHERENT;
+
+	/* insert into not-volted entry */
+	lpar_rc = beat_insert_htab_entry3(0, hpte_group, hpte_v, hpte_r,
+		HPTE_V_BOLTED, 0, &slot);
+	/*
+	 * Since we try and ioremap PHBs we don't own, the pte insert
+	 * will fail. However we must catch the failure in hash_page
+	 * or we will loop forever, so return -2 in this case.
+	 */
+	if (unlikely(lpar_rc != 0)) {
+		if (!(vflags & HPTE_V_BOLTED))
+			DBG_LOW(" lpar err %lx\n", lpar_rc);
+		return -2;
+	}
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW(" -> slot: %lx\n", slot);
+
+	/* We have to pass down the secondary bucket bit here as well */
+	return (slot ^ hpte_group) & 15;
+}
+
+/*
+ * NOTE: for updatepp ops we are fortunate that the linux "newpp" bits and
+ * the low 3 bits of flags happen to line up.  So no transform is needed.
+ * We can probably optimize here and assume the high bits of newpp are
+ * already zero.  For now I am paranoid.
+ */
+static long beat_lpar_hpte_updatepp_v3(unsigned long slot,
+				    unsigned long newpp,
+				    unsigned long va,
+				    int psize, int local)
+{
+	unsigned long lpar_rc;
+	unsigned long want_v;
+	unsigned long pss;
+
+	want_v = hpte_encode_v(va, psize);
+	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
+
+	DBG_LOW("    update: "
+		"avpnv=%016lx, slot=%016lx, psize: %d, newpp %016lx ... ",
+		want_v & HPTE_V_AVPN, slot, psize, newpp);
+
+	lpar_rc = beat_update_htab_permission3(0, slot, want_v, pss, 7, newpp);
+
+	if (lpar_rc == 0xfffffff7) {
+		DBG_LOW("not found !\n");
+		return -1;
+	}
+
+	DBG_LOW("ok\n");
+
+	BUG_ON(lpar_rc != 0);
+
+	return 0;
+}
+
+static void beat_lpar_hpte_invalidate_v3(unsigned long slot, unsigned long va,
+					 int psize, int local)
+{
+	unsigned long want_v;
+	unsigned long lpar_rc;
+	unsigned long pss;
+
+	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
+		slot, va, psize, local);
+	want_v = hpte_encode_v(va, psize);
+	pss = (psize == MMU_PAGE_4K) ? -1UL : mmu_psize_defs[psize].penc;
+
+	lpar_rc = beat_invalidate_htab_entry3(0, slot, want_v, pss);
+
+	/* E_busy can be valid output: page may be already replaced */
+	BUG_ON(lpar_rc != 0 && lpar_rc != 0xfffffff7);
+}
+
+static int64_t _beat_lpar_hptab_clear_v3(void)
+{
+	return beat_clear_htab3(0);
+}
+
+static void beat_lpar_hptab_clear_v3(void)
+{
+	_beat_lpar_hptab_clear_v3();
+}
+
+void __init hpte_init_beat_v3(void)
+{
+	if (_beat_lpar_hptab_clear_v3() == 0) {
+		ppc_md.hpte_invalidate	= beat_lpar_hpte_invalidate_v3;
+		ppc_md.hpte_updatepp	= beat_lpar_hpte_updatepp_v3;
+		ppc_md.hpte_updateboltedpp = beat_lpar_hpte_updateboltedpp;
+		ppc_md.hpte_insert	= beat_lpar_hpte_insert_v3;
+		ppc_md.hpte_remove	= beat_lpar_hpte_remove;
+		ppc_md.hpte_clear_all	= beat_lpar_hptab_clear_v3;
+	} else {
+		ppc_md.hpte_invalidate	= beat_lpar_hpte_invalidate;
+		ppc_md.hpte_updatepp	= beat_lpar_hpte_updatepp;
+		ppc_md.hpte_updateboltedpp = beat_lpar_hpte_updateboltedpp;
+		ppc_md.hpte_insert	= beat_lpar_hpte_insert;
+		ppc_md.hpte_remove	= beat_lpar_hpte_remove;
+		ppc_md.hpte_clear_all	= beat_lpar_hptab_clear;
+	}
+}

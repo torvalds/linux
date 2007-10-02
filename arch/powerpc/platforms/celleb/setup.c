@@ -119,7 +119,7 @@ static int __init celleb_probe(void)
 		return 0;
 
 	powerpc_firmware_features |= FW_FEATURE_CELLEB_POSSIBLE;
-	hpte_init_beat();
+	hpte_init_beat_v3();
 	return 1;
 }
 
