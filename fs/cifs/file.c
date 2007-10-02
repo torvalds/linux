@@ -1042,6 +1042,7 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 	}
 
 	read_lock(&GlobalSMBSeslock);
+refind_writable:
 	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
 		if (open_file->closePend)
 			continue;
@@ -1049,26 +1050,49 @@ struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 		    ((open_file->pfile->f_flags & O_RDWR) ||
 		     (open_file->pfile->f_flags & O_WRONLY))) {
 			atomic_inc(&open_file->wrtPending);
+
+			if (!open_file->invalidHandle) {
+				/* found a good writable file */
+				read_unlock(&GlobalSMBSeslock);
+				return open_file;
+			}
+	
 			read_unlock(&GlobalSMBSeslock);
-			if (open_file->invalidHandle) {
-				rc = cifs_reopen_file(open_file->pfile, FALSE);
-				/* if it fails, try another handle - might be */
-				/* dangerous to hold up writepages with retry */
-				if (rc) {
-					cFYI(1, ("wp failed on reopen file"));
+			/* Had to unlock since following call can block */
+			rc = cifs_reopen_file(open_file->pfile, FALSE);
+			if (!rc) { 
+				if (!open_file->closePend)
+					return open_file;
+				else { /* start over in case this was deleted */
+				       /* since the list could be modified */
 					read_lock(&GlobalSMBSeslock);
-					/* can not use this handle, no write
-					pending on this one after all */
 					atomic_dec(&open_file->wrtPending);
-					continue;
+					goto refind_writable;
 				}
 			}
-			if (open_file->closePend) {
-				read_lock(&GlobalSMBSeslock);
-				atomic_dec(&open_file->wrtPending);
-				continue;
-			}
-			return open_file;
+
+			/* if it fails, try another handle if possible -
+			(we can not do this if closePending since
+			loop could be modified - in which case we
+			have to start at the beginning of the list
+			again. Note that it would be bad
+			to hold up writepages here (rather than
+			in caller) with continuous retries */
+			cFYI(1, ("wp failed on reopen file"));
+			read_lock(&GlobalSMBSeslock);
+			/* can not use this handle, no write
+			   pending on this one after all */
+			atomic_dec(&open_file->wrtPending);
+			
+			if (open_file->closePend) /* list could have changed */
+				goto refind_writable;
+			/* else we simply continue to the next entry. Thus
+			   we do not loop on reopen errors.  If we
+			   can not reopen the file, for example if we
+			   reconnected to a server with another client
+			   racing to delete or lock the file we would not
+			   make progress if we restarted before the beginning
+			   of the loop here. */
 		}
 	}
 	read_unlock(&GlobalSMBSeslock);
