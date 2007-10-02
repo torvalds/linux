@@ -226,8 +226,8 @@
 			interrupt-parent = <&mpic>;
 			interrupts = <1a 2>;
 			bus-range = <0 ff>;
-			ranges = <02000000 0 a0000000 a0000000 0 20000000
-				  01000000 0 00000000 e3000000 0 08000000>;
+			ranges = <02000000 0 a0000000 a0000000 0 10000000
+				  01000000 0 00000000 e2800000 0 00800000>;
 			clock-frequency = <1fca055>;
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
