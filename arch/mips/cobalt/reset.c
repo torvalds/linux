@@ -9,10 +9,14 @@
  * Copyright (C) 2001 by Liam Davies (ldavies@agile.tv)
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/leds.h>
 
 #include <cobalt.h>
+
+#define RESET_PORT	((void __iomem *)CKSEG1ADDR(0x1c000000))
+#define RESET		0x0f
 
 DEFINE_LED_TRIGGER(power_off_led_trigger);
 
@@ -43,7 +47,7 @@ void cobalt_machine_halt(void)
 		last ^= diff;
 
 		if((diff & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)) && !(~last & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)))
-			COBALT_LED_PORT = COBALT_LED_RESET;
+			writeb(RESET, RESET_PORT);
 
 		for (mark = jiffies; jiffies - mark < HZ;)
 			;
@@ -52,7 +56,7 @@ void cobalt_machine_halt(void)
 
 void cobalt_machine_restart(char *command)
 {
-	COBALT_LED_PORT = COBALT_LED_RESET;
+	writeb(RESET, RESET_PORT);
 
 	/* we should never get here */
 	cobalt_machine_halt();

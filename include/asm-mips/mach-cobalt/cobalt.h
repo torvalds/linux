@@ -22,13 +22,6 @@ extern int cobalt_board_id;
 #define COBALT_BRD_ID_QUBE2    0x5
 #define COBALT_BRD_ID_RAQ2     0x6
 
-#define COBALT_LED_PORT		(*(volatile unsigned char *) CKSEG1ADDR(0x1c000000))
-# define COBALT_LED_BAR_LEFT	(1 << 0)	/* Qube */
-# define COBALT_LED_BAR_RIGHT	(1 << 1)	/* Qube */
-# define COBALT_LED_WEB		(1 << 2)	/* RaQ */
-# define COBALT_LED_POWER_OFF	(1 << 3)	/* RaQ */
-# define COBALT_LED_RESET	0x0f
-
 #define COBALT_KEY_PORT		((~*(volatile unsigned int *) CKSEG1ADDR(0x1d000000) >> 24) & COBALT_KEY_MASK)
 # define COBALT_KEY_CLEAR	(1 << 1)
 # define COBALT_KEY_LEFT	(1 << 2)
