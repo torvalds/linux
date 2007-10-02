@@ -240,6 +240,11 @@ static inline int NFS_USE_READDIRPLUS(struct inode *inode)
 	return test_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
 }
 
+static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
+{
+	dentry->d_time = verf;
+}
+
 /**
  * nfs_save_change_attribute - Returns the inode attribute change cookie
  * @dir - pointer to parent directory inode

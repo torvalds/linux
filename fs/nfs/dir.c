@@ -656,11 +656,6 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 	return 1;
 }
 
-static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
-{
-	dentry->d_time = verf;
-}
-
 /*
  * Return the intent data that applies to this particular path component
  *
@@ -1016,7 +1011,6 @@ static struct dentry *nfs_atomic_lookup(struct inode *dir, struct dentry *dentry
 		}
 	} else if (res != NULL)
 		dentry = res;
-	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 out:
 	return res;
 no_open:
@@ -1060,8 +1054,6 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	 */
 	lock_kernel();
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
-	if (ret == 1)
-		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	unlock_kernel();
 out:
 	dput(parent);

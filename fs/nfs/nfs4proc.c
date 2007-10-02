@@ -1399,13 +1399,16 @@ nfs4_atomic_open(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	state = nfs4_do_open(dir, &path, nd->intent.open.flags, &attr, cred);
 	put_rpccred(cred);
 	if (IS_ERR(state)) {
-		if (PTR_ERR(state) == -ENOENT)
+		if (PTR_ERR(state) == -ENOENT) {
 			d_add(dentry, NULL);
+			nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		}
 		return (struct dentry *)state;
 	}
 	res = d_add_unique(dentry, igrab(state->inode));
 	if (res != NULL)
 		path.dentry = res;
+	nfs_set_verifier(path.dentry, nfs_save_change_attribute(dir));
 	nfs4_intent_set_file(nd, &path, state);
 	return res;
 }
@@ -1439,6 +1442,7 @@ nfs4_open_revalidate(struct inode *dir, struct dentry *dentry, int openflags, st
 		}
 	}
 	if (state->inode == dentry->d_inode) {
+		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 		nfs4_intent_set_file(nd, &path, state);
 		return 1;
 	}
@@ -1885,6 +1889,7 @@ nfs4_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 		goto out;
 	}
 	d_add(dentry, igrab(state->inode));
+	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	if (flags & O_EXCL) {
 		struct nfs_fattr fattr;
 		status = nfs4_do_setattr(state->inode, &fattr, sattr, state);
