@@ -46,12 +46,10 @@
 
 /* TODO list
  *
- * - Get rid of pci_{read,write}_config(), map registers with ioremap
- *   for performance
- * - PHY support
  * - Multicast support
  * - Large MTU support
- * - Other performance improvements
+ * - SW LRO
+ * - Multiqueue RX/TX
  */
 
 
