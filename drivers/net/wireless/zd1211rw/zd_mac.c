@@ -28,7 +28,6 @@
 #include "zd_ieee80211.h"
 #include "zd_netdev.h"
 #include "zd_rf.h"
-#include "zd_util.h"
 
 static void ieee_init(struct ieee80211_device *ieee);
 static void softmac_init(struct ieee80211softmac_device *sm);
@@ -1066,7 +1065,8 @@ static int fill_rx_stats(struct ieee80211_rx_stats *stats,
 {
 	const struct rx_status *status;
 
-	*pstatus = status = zd_tail(buffer, length, sizeof(struct rx_status));
+	*pstatus = status = (struct rx_status *)
+		(buffer + (length - sizeof(struct rx_status)));
 	if (status->frame_status & ZD_RX_ERROR) {
 		struct ieee80211_device *ieee = zd_mac_to_ieee80211(mac);
 		ieee->stats.rx_errors++;

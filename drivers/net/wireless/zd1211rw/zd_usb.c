@@ -31,7 +31,6 @@
 #include "zd_netdev.h"
 #include "zd_mac.h"
 #include "zd_usb.h"
-#include "zd_util.h"
 
 static struct usb_device_id usb_ids[] = {
 	/* ZD1211 */

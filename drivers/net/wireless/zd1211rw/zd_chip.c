@@ -28,7 +28,6 @@
 #include "zd_ieee80211.h"
 #include "zd_mac.h"
 #include "zd_rf.h"
-#include "zd_util.h"
 
 void zd_chip_init(struct zd_chip *chip,
 	         struct net_device *netdev,
