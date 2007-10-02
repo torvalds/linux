@@ -646,9 +646,14 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry)
 {
 	if (IS_ROOT(dentry))
 		return 1;
-	if (nfs_verify_change_attribute(dir, dentry->d_time))
-		return 1;
-	return 0;
+	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+		return 0;
+	/* Revalidate nfsi->cache_change_attribute before we declare a match */
+	if (nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
+		return 0;
+	if (!nfs_verify_change_attribute(dir, dentry->d_time))
+		return 0;
+	return 1;
 }
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
@@ -741,10 +746,6 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	dir = parent->d_inode;
 	nfs_inc_stats(dir, NFSIOS_DENTRYREVALIDATE);
 	inode = dentry->d_inode;
-
-	/* Revalidate parent directory attribute cache */
-	if (nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
-		goto out_zap_parent;
 
 	if (!inode) {
 		if (nfs_neg_need_reval(dir, dentry, nd))
