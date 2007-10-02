@@ -9,9 +9,9 @@ int gdth_execute(struct Scsi_Host *shost, gdth_cmd_str *gdtcmd, char *cmnd,
                  int timeout, u32 *info);
 
 static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
-                         int hanum,int busnum);
+                         int hanum);
 static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
-                         struct Scsi_Host *host,int hanum,int busnum);
+                         struct Scsi_Host *host,int hanum);
 
 static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
                              int length, int hanum);

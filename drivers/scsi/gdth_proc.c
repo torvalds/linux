@@ -7,26 +7,25 @@
 int gdth_proc_info(struct Scsi_Host *host, char *buffer,char **start,off_t offset,int length,   
                    int inout)
 {
-    int hanum,busnum;
+    int hanum;
 
     TRACE2(("gdth_proc_info() length %d offs %d inout %d\n",
             length,(int)offset,inout));
 
     hanum = NUMDATA(host)->hanum;
-    busnum= NUMDATA(host)->busnum;
 
     if (inout)
-        return(gdth_set_info(buffer,length,host,hanum,busnum));
+        return(gdth_set_info(buffer,length,host,hanum));
     else
-        return(gdth_get_info(buffer,start,offset,length,host,hanum,busnum));
+        return(gdth_get_info(buffer,start,offset,length,host,hanum));
 }
 
 static int gdth_set_info(char *buffer,int length,struct Scsi_Host *host,
-                         int hanum,int busnum)
+                         int hanum)
 {
     int ret_val = -EINVAL;
 
-    TRACE2(("gdth_set_info() ha %d bus %d\n",hanum,busnum));
+    TRACE2(("gdth_set_info() ha %d\n",hanum,));
 
     if (length >= 4) {
         if (strncmp(buffer,"gdth",4) == 0) {
@@ -154,7 +153,7 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
 }
 
 static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
-                         struct Scsi_Host *host,int hanum,int busnum)
+                         struct Scsi_Host *host,int hanum)
 {
     int size = 0,len = 0;
     off_t begin = 0,pos = 0;
@@ -187,7 +186,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     memset(cmnd, 0xff, 12);
     memset(gdtcmd, 0, sizeof(gdth_cmd_str));
 
-    TRACE2(("gdth_get_info() ha %d bus %d\n",hanum,busnum));
+    TRACE2(("gdth_get_info() ha %d\n",hanum));
     ha = HADATA(gdth_ctr_tab[hanum]);
 
     
@@ -218,10 +217,7 @@ static int gdth_get_info(char *buffer,char **start,off_t offset,int length,
     /* controller information */
     size = sprintf(buffer+len,"\nDisk Array Controller Information:\n");
     len += size;  pos = begin + len;
-    if (virt_ctr)
-        sprintf(hrec, "%s (Bus %d)", ha->binfo.type_string, busnum);
-    else
-        strcpy(hrec, ha->binfo.type_string);
+    strcpy(hrec, ha->binfo.type_string);
     size = sprintf(buffer+len,
                    " Number:       \t%d         \tName:          \t%s\n",
                    hanum, hrec);
@@ -753,7 +749,7 @@ static void gdth_wait_completion(int hanum, int busnum, int id)
     for (i = 0; i < GDTH_MAXCMDS; ++i) {
         scp = ha->cmd_tab[i].cmnd;
 
-        b = virt_ctr ? NUMDATA(scp->device->host)->busnum : scp->device->channel;
+        b = scp->device->channel;
         t = scp->device->id;
         if (!SPECIAL_SCP(scp) && t == (unchar)id && 
             b == (unchar)busnum) {
@@ -779,8 +775,7 @@ static void gdth_stop_timeout(int hanum, int busnum, int id)
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
         if (!IS_GDTH_INTERNAL_CMD(scp)) {
-            b = virt_ctr ?
-                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+            b = scp->device->channel;
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_stop_timeout(): update_timeout()\n"));
@@ -803,8 +798,7 @@ static void gdth_start_timeout(int hanum, int busnum, int id)
 
     for (scp = ha->req_first; scp; scp = (Scsi_Cmnd *)scp->SCp.ptr) {
         if (!IS_GDTH_INTERNAL_CMD(scp)) {
-            b = virt_ctr ?
-                NUMDATA(scp->device->host)->busnum : scp->device->channel;
+            b = scp->device->channel;
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_start_timeout(): update_timeout()\n"));
