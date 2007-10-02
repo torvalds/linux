@@ -20,6 +20,23 @@
 #include <cobalt.h>
 #include <irq.h>
 
+/*
+ * PCI slot numbers
+ */
+#define COBALT_PCICONF_CPU	0x06
+#define COBALT_PCICONF_ETH0	0x07
+#define COBALT_PCICONF_RAQSCSI	0x08
+#define COBALT_PCICONF_VIA	0x09
+#define COBALT_PCICONF_PCISLOT	0x0A
+#define COBALT_PCICONF_ETH1	0x0C
+
+/*
+ * The Cobalt board ID information.  The boards have an ID number wired
+ * into the VIA that is available in the high nibble of register 94.
+ */
+#define VIA_COBALT_BRD_ID_REG  0x94
+#define VIA_COBALT_BRD_REG_to_ID(reg)	((unsigned char)(reg) >> 4)
+
 static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 {
 	if (dev->devfn == PCI_DEVFN(0, 0) &&

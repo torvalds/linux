@@ -13,36 +13,14 @@
 #define __ASM_COBALT_H
 
 /*
- * PCI configuration space manifest constants.  These are wired into
- * the board layout according to the PCI spec to enable the software
- * to probe the hardware configuration space in a well defined manner.
- *
- * The PCI_DEVSHFT() macro transforms these values into numbers
- * suitable for passing as the dev parameter to the various
- * pcibios_read/write_config routines.
+ * The Cobalt board ID information.
  */
-#define COBALT_PCICONF_CPU      0x06
-#define COBALT_PCICONF_ETH0     0x07
-#define COBALT_PCICONF_RAQSCSI  0x08
-#define COBALT_PCICONF_VIA      0x09
-#define COBALT_PCICONF_PCISLOT  0x0A
-#define COBALT_PCICONF_ETH1     0x0C
+extern int cobalt_board_id;
 
-
-/*
- * The Cobalt board id information.  The boards have an ID number wired
- * into the VIA that is available in the high nibble of register 94.
- * This register is available in the VIA configuration space through the
- * interface routines qube_pcibios_read/write_config. See cobalt/pci.c
- */
-#define VIA_COBALT_BRD_ID_REG  0x94
-#define VIA_COBALT_BRD_REG_to_ID(reg)  ((unsigned char) (reg) >> 4)
 #define COBALT_BRD_ID_QUBE1    0x3
 #define COBALT_BRD_ID_RAQ1     0x4
 #define COBALT_BRD_ID_QUBE2    0x5
 #define COBALT_BRD_ID_RAQ2     0x6
-
-extern int cobalt_board_id;
 
 #define COBALT_LED_PORT		(*(volatile unsigned char *) CKSEG1ADDR(0x1c000000))
 # define COBALT_LED_BAR_LEFT	(1 << 0)	/* Qube */
