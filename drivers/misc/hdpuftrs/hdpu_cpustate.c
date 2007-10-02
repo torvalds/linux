@@ -170,21 +170,18 @@ static struct platform_driver hdpu_cpustate_driver = {
  *	The various file operations we support.
  */
 static const struct file_operations cpustate_fops = {
-      owner:	THIS_MODULE,
-      open:	cpustate_open,
-      release:	cpustate_release,
-      read:	cpustate_read,
-      write:	cpustate_write,
-      fasync:	NULL,
-      poll:	NULL,
-      ioctl:	NULL,
-      llseek:	no_llseek,
+      .owner	= THIS_MODULE,
+      .open	= cpustate_open,
+      .release	= cpustate_release,
+      .read	= cpustate_read,
+      .write	= cpustate_write,
+      .llseek	= no_llseek,
 };
 
 static struct miscdevice cpustate_dev = {
-	MISC_DYNAMIC_MINOR,
-	"sky_cpustate",
-	&cpustate_fops,
+	.minor	= MISC_DYNAMIC_MINOR,
+	.name	= "sky_cpustate",
+	.fops	= &cpustate_fops,
 };
 
 static int hdpu_cpustate_probe(struct platform_device *pdev)
