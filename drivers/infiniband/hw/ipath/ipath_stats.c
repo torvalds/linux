@@ -55,7 +55,6 @@ u64 ipath_snap_cntr(struct ipath_devdata *dd, ipath_creg creg)
 	u64 val64;
 	unsigned long t0, t1;
 	u64 ret;
-	unsigned long flags;
 
 	t0 = jiffies;
 	/* If fast increment counters are only 32 bits, snapshot them,
@@ -92,18 +91,12 @@ u64 ipath_snap_cntr(struct ipath_devdata *dd, ipath_creg creg)
 	if (creg == dd->ipath_cregs->cr_wordsendcnt) {
 		if (val != dd->ipath_lastsword) {
 			dd->ipath_sword += val - dd->ipath_lastsword;
-			spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
-			dd->ipath_traffic_wds += val - dd->ipath_lastsword;
-			spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 			dd->ipath_lastsword = val;
 		}
 		val64 = dd->ipath_sword;
 	} else if (creg == dd->ipath_cregs->cr_wordrcvcnt) {
 		if (val != dd->ipath_lastrword) {
 			dd->ipath_rword += val - dd->ipath_lastrword;
-			spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
-			dd->ipath_traffic_wds += val - dd->ipath_lastrword;
-			spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 			dd->ipath_lastrword = val;
 		}
 		val64 = dd->ipath_rword;
@@ -247,6 +240,7 @@ void ipath_get_faststats(unsigned long opaque)
 	u32 val;
 	static unsigned cnt;
 	unsigned long flags;
+	u64 traffic_wds;
 
 	/*
 	 * don't access the chip while running diags, or memory diags can
@@ -262,12 +256,13 @@ void ipath_get_faststats(unsigned long opaque)
 	 * exceeding a threshold, so we need to check the word-counts
 	 * even if they are 64-bit.
 	 */
-	ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordsendcnt);
-	ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordrcvcnt);
+	traffic_wds = ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordsendcnt) +
+		ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordrcvcnt);
 	spin_lock_irqsave(&dd->ipath_eep_st_lock, flags);
-	if (dd->ipath_traffic_wds  >= IPATH_TRAFFIC_ACTIVE_THRESHOLD)
+	traffic_wds -= dd->ipath_traffic_wds;
+	dd->ipath_traffic_wds += traffic_wds;
+	if (traffic_wds  >= IPATH_TRAFFIC_ACTIVE_THRESHOLD)
 		atomic_add(5, &dd->ipath_active_time); /* S/B #define */
-	dd->ipath_traffic_wds = 0;
 	spin_unlock_irqrestore(&dd->ipath_eep_st_lock, flags);
 
 	if (dd->ipath_flags & IPATH_32BITCOUNTERS) {
