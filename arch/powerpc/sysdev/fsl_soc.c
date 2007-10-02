@@ -363,7 +363,7 @@ static void __init of_register_i2c_devices(struct device_node *adap_node,
 	struct device_node *node = NULL;
 
 	while ((node = of_get_next_child(adap_node, node))) {
-		struct i2c_board_info info;
+		struct i2c_board_info info = {};
 		const u32 *addr;
 		int len;
 
@@ -380,7 +380,6 @@ static void __init of_register_i2c_devices(struct device_node *adap_node,
 		if (of_find_i2c_driver(node, &info) < 0)
 			continue;
 
-		info.platform_data = NULL;
 		info.addr = *addr;
 
 		i2c_register_board_info(bus_num, &info, 1);
