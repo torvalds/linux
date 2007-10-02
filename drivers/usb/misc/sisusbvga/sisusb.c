@@ -3323,15 +3323,7 @@ static int __init usb_sisusb_init(void)
 	sisusb_init_concode();
 #endif
 
-	if (!(retval = usb_register(&sisusb_driver))) {
-
-		dev_info(&sisusb->sisusb_dev->dev, "Driver version %d.%d.%d\n", SISUSB_VERSION,
-				SISUSB_REVISION, SISUSB_PATCHLEVEL);
-		dev_info(&sisusb->sisusb_dev->dev, "sisusb: Copyright (C) 2005 Thomas Winischhofer\n");
-
-	}
-
-	return retval;
+	return usb_register(&sisusb_driver);
 }
 
 static void __exit usb_sisusb_exit(void)
