@@ -25,6 +25,8 @@
 #include <linux/mii.h>
 #include <linux/mutex.h>
 
+#include <asm/div64.h>
+
 #define IPG_RX_RING_BYTES	(sizeof(struct ipg_rx) * IPG_RFDLIST_LENGTH)
 #define IPG_TX_RING_BYTES	(sizeof(struct ipg_tx) * IPG_TFDLIST_LENGTH)
 #define IPG_RESET_MASK \
@@ -836,9 +838,13 @@ static void ipg_nic_txfree(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	void __iomem *ioaddr = sp->ioaddr;
-	const unsigned int curr = ipg_r32(TFD_LIST_PTR_0) -
-		(sp->txd_map / sizeof(struct ipg_tx)) - 1;
+	unsigned int curr;
+	u64 txd_map;
 	unsigned int released, pending;
+
+	txd_map = (u64)sp->txd_map;
+	curr = ipg_r32(TFD_LIST_PTR_0) -
+		do_div(txd_map, sizeof(struct ipg_tx)) - 1;
 
 	IPG_DEBUG_MSG("_nic_txfree\n");
 
