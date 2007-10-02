@@ -10,8 +10,6 @@
 
 =========================================================*/
 
-/* $Id: nsp_cs.h,v 1.19 2003/08/18 11:09:19 elca Exp $ */
-
 #ifndef  __nsp_cs__
 #define  __nsp_cs__
 
@@ -227,13 +225,7 @@
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
 	struct Scsi_Host      *host;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74))
 	dev_node_t             node;
-#else
-	int	               ndev;
-	dev_node_t             node[8];
-	struct bus_operations *bus;
-#endif
 	int                    stop;
 } scsi_info_t;
 
