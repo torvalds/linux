@@ -1,6 +1,6 @@
 /* NGmemcpy.S: Niagara optimized memcpy.
  *
- * Copyright (C) 2006 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2006, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifdef __KERNEL__
@@ -14,6 +14,12 @@
 #define GLOBAL_SPARE	%g5
 #define RESTORE_ASI(TMP)	\
 	wr	%g0, ASI_PNF, %asi
+#endif
+
+#ifdef __sparc_v9__
+#define SAVE_AMOUNT	128
+#else
+#define SAVE_AMOUNT	64
 #endif
 
 #ifndef STORE_ASI
@@ -50,7 +56,11 @@
 #endif
 
 #ifndef STORE_INIT
+#ifndef SIMULATE_NIAGARA_ON_NON_NIAGARA
 #define STORE_INIT(src,addr)	stxa src, [addr] %asi
+#else
+#define STORE_INIT(src,addr)	stx src, [addr + 0x00]
+#endif
 #endif
 
 #ifndef FUNC_NAME
@@ -73,18 +83,19 @@
 
 	.globl	FUNC_NAME
 	.type	FUNC_NAME,#function
-FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
-	srlx		%o2, 31, %g2
+FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
+	PREAMBLE
+	save		%sp, -SAVE_AMOUNT, %sp
+	srlx		%i2, 31, %g2
 	cmp		%g2, 0
 	tne		%xcc, 5
-	PREAMBLE
-	mov		%o0, GLOBAL_SPARE
-	cmp		%o2, 0
+	mov		%i0, %o0
+	cmp		%i2, 0
 	be,pn		%XCC, 85f
-	 or		%o0, %o1, %o3
-	cmp		%o2, 16
+	 or		%o0, %i1, %i3
+	cmp		%i2, 16
 	blu,a,pn	%XCC, 80f
-	 or		%o3, %o2, %o3
+	 or		%i3, %i2, %i3
 
 	/* 2 blocks (128 bytes) is the minimum we can do the block
 	 * copy with.  We need to ensure that we'll iterate at least
@@ -93,31 +104,31 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 * to (64 - 1) bytes from the length before we perform the
 	 * block copy loop.
 	 */
-	cmp		%o2, (2 * 64)
+	cmp		%i2, (2 * 64)
 	blu,pt		%XCC, 70f
-	 andcc		%o3, 0x7, %g0
+	 andcc		%i3, 0x7, %g0
 
 	/* %o0:	dst
-	 * %o1:	src
-	 * %o2:	len  (known to be >= 128)
+	 * %i1:	src
+	 * %i2:	len  (known to be >= 128)
 	 *
-	 * The block copy loops will use %o4/%o5,%g2/%g3 as
+	 * The block copy loops will use %i4/%i5,%g2/%g3 as
 	 * temporaries while copying the data.
 	 */
 
-	LOAD(prefetch, %o1, #one_read)
+	LOAD(prefetch, %i1, #one_read)
 	wr		%g0, STORE_ASI, %asi
 
 	/* Align destination on 64-byte boundary.  */
-	andcc		%o0, (64 - 1), %o4
+	andcc		%o0, (64 - 1), %i4
 	be,pt		%XCC, 2f
-	 sub		%o4, 64, %o4
-	sub		%g0, %o4, %o4	! bytes to align dst
-	sub		%o2, %o4, %o2
-1:	subcc		%o4, 1, %o4
-	EX_LD(LOAD(ldub, %o1, %g1))
+	 sub		%i4, 64, %i4
+	sub		%g0, %i4, %i4	! bytes to align dst
+	sub		%i2, %i4, %i2
+1:	subcc		%i4, 1, %i4
+	EX_LD(LOAD(ldub, %i1, %g1))
 	EX_ST(STORE(stb, %g1, %o0))
-	add		%o1, 1, %o1
+	add		%i1, 1, %i1
 	bne,pt		%XCC, 1b
 	add		%o0, 1, %o0
 
@@ -136,111 +147,155 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	 * aligned store data at a time, this is easy to ensure.
 	 */
 2:
-	andcc		%o1, (16 - 1), %o4
-	andn		%o2, (64 - 1), %g1	! block copy loop iterator
-	sub		%o2, %g1, %o2		! final sub-block copy bytes
+	andcc		%i1, (16 - 1), %i4
+	andn		%i2, (64 - 1), %g1	! block copy loop iterator
 	be,pt		%XCC, 50f
-	 cmp		%o4, 8
-	be,a,pt		%XCC, 10f
-	 sub		%o1, 0x8, %o1
+	 sub		%i2, %g1, %i2		! final sub-block copy bytes
+
+	cmp		%i4, 8
+	be,pt		%XCC, 10f
+	 sub		%i1, %i4, %i1
 
 	/* Neither 8-byte nor 16-byte aligned, shift and mask.  */
-	mov		%g1, %o4
-	and		%o1, 0x7, %g1
-	sll		%g1, 3, %g1
-	mov		64, %o3
-	andn		%o1, 0x7, %o1
-	EX_LD(LOAD(ldx, %o1, %g2))
-	sub		%o3, %g1, %o3
-	sllx		%g2, %g1, %g2
+	and		%i4, 0x7, GLOBAL_SPARE
+	sll		GLOBAL_SPARE, 3, GLOBAL_SPARE
+	mov		64, %i5
+	EX_LD(LOAD_TWIN(%i1, %g2, %g3))
+	sub		%i5, GLOBAL_SPARE, %i5
+	mov		16, %o4
+	mov		32, %o5
+	mov		48, %o7
+	mov		64, %i3
 
-#define SWIVEL_ONE_DWORD(SRC, TMP1, TMP2, PRE_VAL, PRE_SHIFT, POST_SHIFT, DST)\
-	EX_LD(LOAD(ldx, SRC, TMP1)); \
-	srlx		TMP1, PRE_SHIFT, TMP2; \
-	or		TMP2, PRE_VAL, TMP2; \
-	EX_ST(STORE_INIT(TMP2, DST)); \
-	sllx		TMP1, POST_SHIFT, PRE_VAL;
+	bg,pn	   	%XCC, 9f
+	 nop
 
-1:	add		%o1, 0x8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x00)
-	add		%o1, 0x8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x08)
-	add		%o1, 0x8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x10)
-	add		%o1, 0x8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x18)
-	add		%o1, 32, %o1
-	LOAD(prefetch, %o1, #one_read)
-	sub		%o1, 32 - 8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x20)
-	add		%o1, 8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x28)
-	add		%o1, 8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x30)
-	add		%o1, 8, %o1
-	SWIVEL_ONE_DWORD(%o1, %g3, %o5, %g2, %o3, %g1, %o0 + 0x38)
-	subcc		%o4, 64, %o4
-	bne,pt		%XCC, 1b
+#define MIX_THREE_WORDS(WORD1, WORD2, WORD3, PRE_SHIFT, POST_SHIFT, TMP) \
+	sllx		WORD1, POST_SHIFT, WORD1; \
+	srlx		WORD2, PRE_SHIFT, TMP; \
+	sllx		WORD2, POST_SHIFT, WORD2; \
+	or		WORD1, TMP, WORD1; \
+	srlx		WORD3, PRE_SHIFT, TMP; \
+	or		WORD2, TMP, WORD2;
+
+8:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3))
+	MIX_THREE_WORDS(%g2, %g3, %o2, %i5, GLOBAL_SPARE, %o1)
+	LOAD(prefetch, %i1 + %i3, #one_read)
+
+	EX_ST(STORE_INIT(%g2, %o0 + 0x00))
+	EX_ST(STORE_INIT(%g3, %o0 + 0x08))
+
+	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3))
+	MIX_THREE_WORDS(%o2, %o3, %g2, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%o2, %o0 + 0x10))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x18))
+
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	MIX_THREE_WORDS(%g2, %g3, %o2, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%g2, %o0 + 0x20))
+	EX_ST(STORE_INIT(%g3, %o0 + 0x28))
+
+	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3))
+	add		%i1, 64, %i1
+	MIX_THREE_WORDS(%o2, %o3, %g2, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%o2, %o0 + 0x30))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x38))
+
+	subcc		%g1, 64, %g1
+	bne,pt		%XCC, 8b
 	 add		%o0, 64, %o0
 
-#undef SWIVEL_ONE_DWORD
-
-	srl		%g1, 3, %g1
 	ba,pt		%XCC, 60f
-	 add		%o1, %g1, %o1
+	 add		%i1, %i4, %i1
+
+9:	EX_LD(LOAD_TWIN(%i1 + %o4, %o2, %o3))
+	MIX_THREE_WORDS(%g3, %o2, %o3, %i5, GLOBAL_SPARE, %o1)
+	LOAD(prefetch, %i1 + %i3, #one_read)
+
+	EX_ST(STORE_INIT(%g3, %o0 + 0x00))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x08))
+
+	EX_LD(LOAD_TWIN(%i1 + %o5, %g2, %g3))
+	MIX_THREE_WORDS(%o3, %g2, %g3, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%o3, %o0 + 0x10))
+	EX_ST(STORE_INIT(%g2, %o0 + 0x18))
+
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	MIX_THREE_WORDS(%g3, %o2, %o3, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%g3, %o0 + 0x20))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x28))
+
+	EX_LD(LOAD_TWIN(%i1 + %i3, %g2, %g3))
+	add		%i1, 64, %i1
+	MIX_THREE_WORDS(%o3, %g2, %g3, %i5, GLOBAL_SPARE, %o1)
+
+	EX_ST(STORE_INIT(%o3, %o0 + 0x30))
+	EX_ST(STORE_INIT(%g2, %o0 + 0x38))
+
+	subcc		%g1, 64, %g1
+	bne,pt		%XCC, 9b
+	 add		%o0, 64, %o0
+
+	ba,pt		%XCC, 60f
+	 add		%i1, %i4, %i1
 
 10:	/* Destination is 64-byte aligned, source was only 8-byte
 	 * aligned but it has been subtracted by 8 and we perform
 	 * one twin load ahead, then add 8 back into source when
 	 * we finish the loop.
 	 */
-	EX_LD(LOAD_TWIN(%o1, %o4, %o5))
-1:	add		%o1, 16, %o1
-	EX_LD(LOAD_TWIN(%o1, %g2, %g3))
-	add		%o1, 16 + 32, %o1
-	LOAD(prefetch, %o1, #one_read)
-	sub		%o1, 32, %o1
+	EX_LD(LOAD_TWIN(%i1, %o4, %o5))
+	mov	16, %o7
+	mov	32, %g2
+	mov	48, %g3
+	mov	64, %o1
+1:	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	LOAD(prefetch, %i1 + %o1, #one_read)
 	EX_ST(STORE_INIT(%o5, %o0 + 0x00))	! initializes cache line
-	EX_ST(STORE_INIT(%g2, %o0 + 0x08))
-	EX_LD(LOAD_TWIN(%o1, %o4, %o5))
-	add		%o1, 16, %o1
-	EX_ST(STORE_INIT(%g3, %o0 + 0x10))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x08))
+	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x10))
 	EX_ST(STORE_INIT(%o4, %o0 + 0x18))
-	EX_LD(LOAD_TWIN(%o1, %g2, %g3))
-	add		%o1, 16, %o1
+	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3))
 	EX_ST(STORE_INIT(%o5, %o0 + 0x20))
-	EX_ST(STORE_INIT(%g2, %o0 + 0x28))
-	EX_LD(LOAD_TWIN(%o1, %o4, %o5))
-	EX_ST(STORE_INIT(%g3, %o0 + 0x30))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x28))
+	EX_LD(LOAD_TWIN(%i1 + %o1, %o4, %o5))
+	add		%i1, 64, %i1
+	EX_ST(STORE_INIT(%o3, %o0 + 0x30))
 	EX_ST(STORE_INIT(%o4, %o0 + 0x38))
 	subcc		%g1, 64, %g1
 	bne,pt		%XCC, 1b
 	 add		%o0, 64, %o0
 
 	ba,pt		%XCC, 60f
-	 add		%o1, 0x8, %o1
+	 add		%i1, 0x8, %i1
 
 50:	/* Destination is 64-byte aligned, and source is 16-byte
 	 * aligned.
 	 */
-1:	EX_LD(LOAD_TWIN(%o1, %o4, %o5))
-	add	%o1, 16, %o1
-	EX_LD(LOAD_TWIN(%o1, %g2, %g3))
-	add	%o1, 16 + 32, %o1
-	LOAD(prefetch, %o1, #one_read)
-	sub	%o1, 32, %o1
+	mov	16, %o7
+	mov	32, %g2
+	mov	48, %g3
+	mov	64, %o1
+1:	EX_LD(LOAD_TWIN(%i1 + %g0, %o4, %o5))
+	EX_LD(LOAD_TWIN(%i1 + %o7, %o2, %o3))
+	LOAD(prefetch, %i1 + %o1, #one_read)
 	EX_ST(STORE_INIT(%o4, %o0 + 0x00))	! initializes cache line
 	EX_ST(STORE_INIT(%o5, %o0 + 0x08))
-	EX_LD(LOAD_TWIN(%o1, %o4, %o5))
-	add	%o1, 16, %o1
-	EX_ST(STORE_INIT(%g2, %o0 + 0x10))
-	EX_ST(STORE_INIT(%g3, %o0 + 0x18))
-	EX_LD(LOAD_TWIN(%o1, %g2, %g3))
-	add	%o1, 16, %o1
+	EX_LD(LOAD_TWIN(%i1 + %g2, %o4, %o5))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x10))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x18))
+	EX_LD(LOAD_TWIN(%i1 + %g3, %o2, %o3))
+	add	%i1, 64, %i1
 	EX_ST(STORE_INIT(%o4, %o0 + 0x20))
 	EX_ST(STORE_INIT(%o5, %o0 + 0x28))
-	EX_ST(STORE_INIT(%g2, %o0 + 0x30))
-	EX_ST(STORE_INIT(%g3, %o0 + 0x38))
+	EX_ST(STORE_INIT(%o2, %o0 + 0x30))
+	EX_ST(STORE_INIT(%o3, %o0 + 0x38))
 	subcc	%g1, 64, %g1
 	bne,pt	%XCC, 1b
 	 add	%o0, 64, %o0
@@ -249,47 +304,47 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 60:	
 	membar		#Sync
 
-	/* %o2 contains any final bytes still needed to be copied
+	/* %i2 contains any final bytes still needed to be copied
 	 * over. If anything is left, we copy it one byte at a time.
 	 */
-	RESTORE_ASI(%o3)
-	brz,pt		%o2, 85f
-	 sub		%o0, %o1, %o3
+	RESTORE_ASI(%i3)
+	brz,pt		%i2, 85f
+	 sub		%o0, %i1, %i3
 	ba,a,pt		%XCC, 90f
 
 	.align		64
 70: /* 16 < len <= 64 */
 	bne,pn		%XCC, 75f
-	 sub		%o0, %o1, %o3
+	 sub		%o0, %i1, %i3
 
 72:
-	andn		%o2, 0xf, %o4
-	and		%o2, 0xf, %o2
-1:	subcc		%o4, 0x10, %o4
-	EX_LD(LOAD(ldx, %o1, %o5))
-	add		%o1, 0x08, %o1
-	EX_LD(LOAD(ldx, %o1, %g1))
-	sub		%o1, 0x08, %o1
-	EX_ST(STORE(stx, %o5, %o1 + %o3))
-	add		%o1, 0x8, %o1
-	EX_ST(STORE(stx, %g1, %o1 + %o3))
+	andn		%i2, 0xf, %i4
+	and		%i2, 0xf, %i2
+1:	subcc		%i4, 0x10, %i4
+	EX_LD(LOAD(ldx, %i1, %i5))
+	add		%i1, 0x08, %i1
+	EX_LD(LOAD(ldx, %i1, %g1))
+	sub		%i1, 0x08, %i1
+	EX_ST(STORE(stx, %i5, %i1 + %i3))
+	add		%i1, 0x8, %i1
+	EX_ST(STORE(stx, %g1, %i1 + %i3))
 	bgu,pt		%XCC, 1b
-	 add		%o1, 0x8, %o1
-73:	andcc		%o2, 0x8, %g0
+	 add		%i1, 0x8, %i1
+73:	andcc		%i2, 0x8, %g0
 	be,pt		%XCC, 1f
 	 nop
-	sub		%o2, 0x8, %o2
-	EX_LD(LOAD(ldx, %o1, %o5))
-	EX_ST(STORE(stx, %o5, %o1 + %o3))
-	add		%o1, 0x8, %o1
-1:	andcc		%o2, 0x4, %g0
+	sub		%i2, 0x8, %i2
+	EX_LD(LOAD(ldx, %i1, %i5))
+	EX_ST(STORE(stx, %i5, %i1 + %i3))
+	add		%i1, 0x8, %i1
+1:	andcc		%i2, 0x4, %g0
 	be,pt		%XCC, 1f
 	 nop
-	sub		%o2, 0x4, %o2
-	EX_LD(LOAD(lduw, %o1, %o5))
-	EX_ST(STORE(stw, %o5, %o1 + %o3))
-	add		%o1, 0x4, %o1
-1:	cmp		%o2, 0
+	sub		%i2, 0x4, %i2
+	EX_LD(LOAD(lduw, %i1, %i5))
+	EX_ST(STORE(stw, %i5, %i1 + %i3))
+	add		%i1, 0x4, %i1
+1:	cmp		%i2, 0
 	be,pt		%XCC, 85f
 	 nop
 	ba,pt		%xcc, 90f
@@ -300,71 +355,71 @@ FUNC_NAME:	/* %o0=dst, %o1=src, %o2=len */
 	sub		%g1, 0x8, %g1
 	be,pn		%icc, 2f
 	 sub		%g0, %g1, %g1
-	sub		%o2, %g1, %o2
+	sub		%i2, %g1, %i2
 
 1:	subcc		%g1, 1, %g1
-	EX_LD(LOAD(ldub, %o1, %o5))
-	EX_ST(STORE(stb, %o5, %o1 + %o3))
+	EX_LD(LOAD(ldub, %i1, %i5))
+	EX_ST(STORE(stb, %i5, %i1 + %i3))
 	bgu,pt		%icc, 1b
-	 add		%o1, 1, %o1
+	 add		%i1, 1, %i1
 
-2:	add		%o1, %o3, %o0
-	andcc		%o1, 0x7, %g1
+2:	add		%i1, %i3, %o0
+	andcc		%i1, 0x7, %g1
 	bne,pt		%icc, 8f
 	 sll		%g1, 3, %g1
 
-	cmp		%o2, 16
+	cmp		%i2, 16
 	bgeu,pt		%icc, 72b
 	 nop
 	ba,a,pt		%xcc, 73b
 
-8:	mov		64, %o3
-	andn		%o1, 0x7, %o1
-	EX_LD(LOAD(ldx, %o1, %g2))
-	sub		%o3, %g1, %o3
-	andn		%o2, 0x7, %o4
+8:	mov		64, %i3
+	andn		%i1, 0x7, %i1
+	EX_LD(LOAD(ldx, %i1, %g2))
+	sub		%i3, %g1, %i3
+	andn		%i2, 0x7, %i4
 	sllx		%g2, %g1, %g2
-1:	add		%o1, 0x8, %o1
-	EX_LD(LOAD(ldx, %o1, %g3))
-	subcc		%o4, 0x8, %o4
-	srlx		%g3, %o3, %o5
-	or		%o5, %g2, %o5
-	EX_ST(STORE(stx, %o5, %o0))
+1:	add		%i1, 0x8, %i1
+	EX_LD(LOAD(ldx, %i1, %g3))
+	subcc		%i4, 0x8, %i4
+	srlx		%g3, %i3, %i5
+	or		%i5, %g2, %i5
+	EX_ST(STORE(stx, %i5, %o0))
 	add		%o0, 0x8, %o0
 	bgu,pt		%icc, 1b
 	 sllx		%g3, %g1, %g2
 
 	srl		%g1, 3, %g1
-	andcc		%o2, 0x7, %o2
+	andcc		%i2, 0x7, %i2
 	be,pn		%icc, 85f
-	 add		%o1, %g1, %o1
+	 add		%i1, %g1, %i1
 	ba,pt		%xcc, 90f
-	 sub		%o0, %o1, %o3
+	 sub		%o0, %i1, %i3
 
 	.align		64
 80: /* 0 < len <= 16 */
-	andcc		%o3, 0x3, %g0
+	andcc		%i3, 0x3, %g0
 	bne,pn		%XCC, 90f
-	 sub		%o0, %o1, %o3
+	 sub		%o0, %i1, %i3
 
 1:
-	subcc		%o2, 4, %o2
-	EX_LD(LOAD(lduw, %o1, %g1))
-	EX_ST(STORE(stw, %g1, %o1 + %o3))
+	subcc		%i2, 4, %i2
+	EX_LD(LOAD(lduw, %i1, %g1))
+	EX_ST(STORE(stw, %g1, %i1 + %i3))
 	bgu,pt		%XCC, 1b
-	 add		%o1, 4, %o1
+	 add		%i1, 4, %i1
 
-85:	retl
-	 mov		EX_RETVAL(GLOBAL_SPARE), %o0
+85:	ret
+	 restore	EX_RETVAL(%i0), %g0, %o0
 
 	.align		32
 90:
-	subcc		%o2, 1, %o2
-	EX_LD(LOAD(ldub, %o1, %g1))
-	EX_ST(STORE(stb, %g1, %o1 + %o3))
+	subcc		%i2, 1, %i2
+	EX_LD(LOAD(ldub, %i1, %g1))
+	EX_ST(STORE(stb, %g1, %i1 + %i3))
 	bgu,pt		%XCC, 90b
-	 add		%o1, 1, %o1
-	retl
-	 mov		EX_RETVAL(GLOBAL_SPARE), %o0
+	 add		%i1, 1, %i1
+	ret
+	 restore	EX_RETVAL(%i0), %g0, %o0
 
 	.size		FUNC_NAME, .-FUNC_NAME
