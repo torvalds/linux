@@ -26,6 +26,7 @@ obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
 obj-$(CONFIG_PPC_83xx)		+= ipic.o
 obj-$(CONFIG_4xx)		+= uic.o
+obj-$(CONFIG_XILINX_VIRTEX)	+= xilinx_intc.o
 endif
 
 # Temporary hack until we have migrated to asm-powerpc
