@@ -13,7 +13,6 @@
  * $Id: gdth.h,v 1.58 2006/01/11 16:14:09 achim Exp $
  */
 
-#include <linux/version.h>
 #include <linux/types.h>
 
 #ifndef TRUE
