@@ -1538,13 +1538,6 @@ init_pfm_fs(void)
 	return err;
 }
 
-static void __exit
-exit_pfm_fs(void)
-{
-	unregister_filesystem(&pfm_fs_type);
-	mntput(pfmfs_mnt);
-}
-
 static ssize_t
 pfm_read(struct file *filp, char __user *buf, size_t size, loff_t *ppos)
 {
