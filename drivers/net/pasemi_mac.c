@@ -445,6 +445,38 @@ static void pasemi_mac_restart_tx_intr(struct pasemi_mac *mac)
 }
 
 
+static inline void pasemi_mac_rx_error(struct pasemi_mac *mac, u64 macrx)
+{
+	unsigned int rcmdsta, ccmdsta;
+
+	if (!netif_msg_rx_err(mac))
+		return;
+
+	rcmdsta = read_dma_reg(mac, PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
+	ccmdsta = read_dma_reg(mac, PAS_DMA_RXCHAN_CCMDSTA(mac->dma_rxch));
+
+	printk(KERN_ERR "pasemi_mac: rx error. macrx %016lx, rx status %lx\n",
+		macrx, *mac->rx_status);
+
+	printk(KERN_ERR "pasemi_mac: rcmdsta %08x ccmdsta %08x\n",
+		rcmdsta, ccmdsta);
+}
+
+static inline void pasemi_mac_tx_error(struct pasemi_mac *mac, u64 mactx)
+{
+	unsigned int cmdsta;
+
+	if (!netif_msg_tx_err(mac))
+		return;
+
+	cmdsta = read_dma_reg(mac, PAS_DMA_TXCHAN_TCMDSTA(mac->dma_txch));
+
+	printk(KERN_ERR "pasemi_mac: tx error. mactx 0x%016lx, "\
+		"tx status 0x%016lx\n", mactx, *mac->tx_status);
+
+	printk(KERN_ERR "pasemi_mac: tcmdsta 0x%08x\n", cmdsta);
+}
+
 static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 {
 	unsigned int n;
@@ -468,9 +500,12 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		prefetchw(dp);
 		macrx = dp->macrx;
 
+		if ((macrx & XCT_MACRX_E) ||
+		    (*mac->rx_status & PAS_STATUS_ERROR))
+			pasemi_mac_rx_error(mac, macrx);
+
 		if (!(macrx & XCT_MACRX_O))
 			break;
-
 
 		info = NULL;
 
@@ -563,6 +598,10 @@ restart:
 	for (i = start; i < limit; i++) {
 		dp = &TX_DESC(mac, i);
 
+		if ((dp->mactx & XCT_MACTX_E) ||
+		    (*mac->tx_status & PAS_STATUS_ERROR))
+			pasemi_mac_tx_error(mac, dp->mactx);
+
 		if (unlikely(dp->mactx & XCT_MACTX_O))
 			/* Not yet transmitted */
 			break;
@@ -606,9 +645,6 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 
 	if (!(*mac->rx_status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
-
-	if (*mac->rx_status & PAS_STATUS_ERROR)
-		printk("rx_status reported error\n");
 
 	/* Don't reset packet count so it won't fire again but clear
 	 * all others.
@@ -1230,7 +1266,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&mac->pdev->dev, "register_netdev failed with error %d\n",
 			err);
 		goto out;
-	} else
+	} else if netif_msg_probe(mac)
 		printk(KERN_INFO "%s: PA Semi %s: intf %d, txch %d, rxch %d, "
 		       "hw addr %s\n",
 		       dev->name, mac->type == MAC_TYPE_GMAC ? "GMAC" : "XAUI",
