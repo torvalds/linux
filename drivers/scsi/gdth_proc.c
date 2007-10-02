@@ -728,20 +728,22 @@ static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
     ulong flags;
     int i;
     Scsi_Cmnd *scp;
+    struct gdth_cmndinfo *cmndinfo;
     unchar b, t;
 
     spin_lock_irqsave(&ha->smp_lock, flags);
 
     for (i = 0; i < GDTH_MAXCMDS; ++i) {
         scp = ha->cmd_tab[i].cmnd;
+        cmndinfo = gdth_cmnd_priv(scp);
 
         b = scp->device->channel;
         t = scp->device->id;
         if (!SPECIAL_SCP(scp) && t == (unchar)id && 
             b == (unchar)busnum) {
-            scp->SCp.have_data_in = 0;
+            cmndinfo->wait_for_completion = 0;
             spin_unlock_irqrestore(&ha->smp_lock, flags);
-            while (!scp->SCp.have_data_in)
+            while (!cmndinfo->wait_for_completion)
                 barrier();
             spin_lock_irqsave(&ha->smp_lock, flags);
         }
@@ -764,7 +766,7 @@ static void gdth_stop_timeout(gdth_ha_str *ha, int busnum, int id)
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_stop_timeout(): update_timeout()\n"));
-                scp->SCp.buffers_residual = gdth_update_timeout(scp, 0);
+                cmndinfo->timeout = gdth_update_timeout(scp, 0);
             }
         }
     }
@@ -786,7 +788,7 @@ static void gdth_start_timeout(gdth_ha_str *ha, int busnum, int id)
             t = scp->device->id;
             if (t == (unchar)id && b == (unchar)busnum) {
                 TRACE2(("gdth_start_timeout(): update_timeout()\n"));
-                gdth_update_timeout(scp, scp->SCp.buffers_residual);
+                gdth_update_timeout(scp, cmndinfo->timeout);
             }
         }
     }

@@ -923,6 +923,14 @@ typedef struct {
         int index;
         int internal_command;                   /* don't call scsi_done */
         dma_addr_t sense_paddr;                 /* sense dma-addr */
+        unchar priority;
+        int timeout;
+        volatile int wait_for_completion;
+        ushort status;
+        ulong32 info;
+        enum dma_data_direction dma_dir;
+        int phase;                              /* ???? */
+        int OpCode;
     } cmndinfo[GDTH_MAXCMDS];                   /* index==0 is free */
     unchar              bus_cnt;                /* SCSI bus count */
     unchar              tid_cnt;                /* Target ID count */
