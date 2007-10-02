@@ -1232,9 +1232,9 @@ static inline int emac_xmit_finish(struct emac_instance *dev, int len)
 	 * instead
 	 */
 	if (emac_has_feature(dev, EMAC_FTR_EMAC4))
-		out_be32(&p->tmr0, EMAC_TMR0_XMIT);
-	else
 		out_be32(&p->tmr0, EMAC4_TMR0_XMIT);
+	else
+		out_be32(&p->tmr0, EMAC_TMR0_XMIT);
 
 	if (unlikely(++dev->tx_cnt == NUM_TX_BUFF)) {
 		netif_stop_queue(ndev);
