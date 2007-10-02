@@ -854,6 +854,7 @@ typedef struct {
 /* controller information structure */
 typedef struct {
     struct Scsi_Host    *shost;
+    struct list_head    list;
     ushort      	hanum;
     ushort              oem_id;                 /* OEM */
     ushort              type;                   /* controller class */
