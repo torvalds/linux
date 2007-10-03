@@ -2232,7 +2232,6 @@ do { \
 #define ASC_IS_WIDE_BOARD       0x04	/* AdvanSys Wide Board */
 
 #define ASC_NARROW_BOARD(boardp) (((boardp)->flags & ASC_IS_WIDE_BOARD) == 0)
-#define ASC_WIDE_BOARD(boardp)   ((boardp)->flags & ASC_IS_WIDE_BOARD)
 
 #define NO_ISA_DMA              0xff	/* No ISA DMA Channel Used */
 
@@ -4385,7 +4384,7 @@ advansys_proc_info(struct Scsi_Host *shost, char *buffer, char **start,
 	/*
 	 * Display Wide Board BIOS Information.
 	 */
-	if (ASC_WIDE_BOARD(boardp)) {
+	if (!ASC_NARROW_BOARD(boardp)) {
 		cp = boardp->prtbuf;
 		cplen = asc_prt_adv_bios(shost, cp, ASC_PRTBUF_SIZE);
 		BUG_ON(cplen >= ASC_PRTBUF_SIZE);
@@ -14432,7 +14431,7 @@ static int advansys_release(struct Scsi_Host *shost)
 		ASC_DBG(1, "advansys_release: free_dma()\n");
 		free_dma(shost->dma_channel);
 	}
-	if (ASC_WIDE_BOARD(boardp)) {
+	if (!ASC_NARROW_BOARD(boardp)) {
 		iounmap(boardp->ioremap_addr);
 		advansys_wide_free_mem(boardp);
 	}
