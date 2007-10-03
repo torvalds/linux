@@ -120,7 +120,7 @@ typedef unsigned char uchar;
 #define CC_VERY_LONG_SG_LIST 0
 #define ASC_SRB2SCSIQ(srb_ptr)  (srb_ptr)
 
-#define PortAddr                 unsigned short	/* port address size  */
+#define PortAddr                 unsigned int	/* port address size  */
 #define inp(port)                inb(port)
 #define outp(port, byte)         outb((byte), (port))
 
@@ -13333,8 +13333,8 @@ static int __devinit advansys_wide_init_chip(struct Scsi_Host *shost)
 
 	}
 
-	ASC_DBG(1, "sg_cnt %d * %u = %u bytes\n", sg_cnt, sizeof(adv_sgblk_t),
-		 (unsigned)(sizeof(adv_sgblk_t) * sg_cnt));
+	ASC_DBG(1, "sg_cnt %d * %lu = %lu bytes\n", sg_cnt, sizeof(adv_sgblk_t),
+		 sizeof(adv_sgblk_t) * sg_cnt);
 
 	if (!board->adv_sgblkp)
 		goto kmalloc_failed;
@@ -13428,9 +13428,9 @@ static int __devinit advansys_board_found(struct Scsi_Host *shost,
 		boardp->ioremap_addr = ioremap(pci_resource_start(pdev, 1),
 					       boardp->asc_n_io_port);
 		if (!boardp->ioremap_addr) {
-			shost_printk(KERN_ERR, shost, "ioremap(%x, %d) "
+			shost_printk(KERN_ERR, shost, "ioremap(%lx, %d) "
 					"returned NULL\n",
-					pci_resource_start(pdev, 1),
+					(long)pci_resource_start(pdev, 1),
 					boardp->asc_n_io_port);
 			ret = -ENODEV;
 			goto err_shost;
