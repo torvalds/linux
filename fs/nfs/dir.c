@@ -704,6 +704,7 @@ int nfs_lookup_verify_inode(struct inode *inode, struct nameidata *nd)
 				(S_ISREG(inode->i_mode) ||
 				 S_ISDIR(inode->i_mode)))
 			goto out_force;
+		return 0;
 	}
 	return nfs_revalidate_inode(server, inode);
 out_force:
