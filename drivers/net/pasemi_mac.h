@@ -212,6 +212,7 @@ enum {
 #define    PAS_DMA_RXINT_CFG_DHL_S	24
 #define    PAS_DMA_RXINT_CFG_DHL(x)	(((x) << PAS_DMA_RXINT_CFG_DHL_S) & \
 					 PAS_DMA_RXINT_CFG_DHL_M)
+#define    PAS_DMA_RXINT_CFG_ITR	0x00400000
 #define    PAS_DMA_RXINT_CFG_LW		0x00200000
 #define    PAS_DMA_RXINT_CFG_L2		0x00100000
 #define    PAS_DMA_RXINT_CFG_HEN	0x00080000
@@ -258,9 +259,11 @@ enum {
 #define    PAS_DMA_TXCHAN_CFG_WT_S	6
 #define    PAS_DMA_TXCHAN_CFG_WT(x)	(((x) << PAS_DMA_TXCHAN_CFG_WT_S) & \
 					 PAS_DMA_TXCHAN_CFG_WT_M)
-#define    PAS_DMA_TXCHAN_CFG_CF	0x00001000	/* Clean first line */
-#define    PAS_DMA_TXCHAN_CFG_CL	0x00002000	/* Clean last line */
+#define    PAS_DMA_TXCHAN_CFG_TRD	0x00010000	/* translate data */
+#define    PAS_DMA_TXCHAN_CFG_TRR	0x00008000	/* translate rings */
 #define    PAS_DMA_TXCHAN_CFG_UP	0x00004000	/* update tx descr when sent */
+#define    PAS_DMA_TXCHAN_CFG_CL	0x00002000	/* Clean last line */
+#define    PAS_DMA_TXCHAN_CFG_CF	0x00001000	/* Clean first line */
 #define PAS_DMA_TXCHAN_INCR(c)    (0x310+(c)*_PAS_DMA_TXCHAN_STRIDE)
 #define PAS_DMA_TXCHAN_BASEL(c)   (0x318+(c)*_PAS_DMA_TXCHAN_STRIDE)
 #define    PAS_DMA_TXCHAN_BASEL_BRBL_M	0xffffffc0
@@ -294,6 +297,7 @@ enum {
 #define    PAS_DMA_RXCHAN_CCMDSTA_FD	0x00001000
 #define    PAS_DMA_RXCHAN_CCMDSTA_DT	0x00000800
 #define PAS_DMA_RXCHAN_CFG(c)     (0x804+(c)*_PAS_DMA_RXCHAN_STRIDE)
+#define    PAS_DMA_RXCHAN_CFG_CTR	0x00000400
 #define    PAS_DMA_RXCHAN_CFG_HBU_M	0x00000380
 #define    PAS_DMA_RXCHAN_CFG_HBU_S	7
 #define    PAS_DMA_RXCHAN_CFG_HBU(x)	(((x) << PAS_DMA_RXCHAN_CFG_HBU_S) & \

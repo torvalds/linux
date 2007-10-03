@@ -34,6 +34,7 @@
 #include <net/checksum.h>
 
 #include <asm/irq.h>
+#include <asm/firmware.h>
 
 #include "pasemi_mac.h"
 
@@ -88,6 +89,15 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "PA Semi MAC bitmapped debugging message enable value");
 
 static struct pasdma_status *dma_status;
+
+static int translation_enabled(void)
+{
+#if defined(CONFIG_PPC_PASEMI_IOMMU_DMA_FORCE)
+	return 1;
+#else
+	return firmware_has_feature(FW_FEATURE_LPAR);
+#endif
+}
 
 static void write_iob_reg(struct pasemi_mac *mac, unsigned int reg,
 			  unsigned int val)
@@ -193,6 +203,7 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 	struct pasemi_mac_rxring *ring;
 	struct pasemi_mac *mac = netdev_priv(dev);
 	int chan_id = mac->dma_rxch;
+	unsigned int cfg;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 
@@ -232,20 +243,28 @@ static int pasemi_mac_setup_rx_resources(struct net_device *dev)
 			   PAS_DMA_RXCHAN_BASEU_BRBH(ring->dma >> 32) |
 			   PAS_DMA_RXCHAN_BASEU_SIZ(RX_RING_SIZE >> 3));
 
-	write_dma_reg(mac, PAS_DMA_RXCHAN_CFG(chan_id),
-			   PAS_DMA_RXCHAN_CFG_HBU(2));
+	cfg = PAS_DMA_RXCHAN_CFG_HBU(2);
+
+	if (translation_enabled())
+		cfg |= PAS_DMA_RXCHAN_CFG_CTR;
+
+	write_dma_reg(mac, PAS_DMA_RXCHAN_CFG(chan_id), cfg);
 
 	write_dma_reg(mac, PAS_DMA_RXINT_BASEL(mac->dma_if),
-			   PAS_DMA_RXINT_BASEL_BRBL(__pa(ring->buffers)));
+			   PAS_DMA_RXINT_BASEL_BRBL(ring->buf_dma));
 
 	write_dma_reg(mac, PAS_DMA_RXINT_BASEU(mac->dma_if),
-			   PAS_DMA_RXINT_BASEU_BRBH(__pa(ring->buffers) >> 32) |
+			   PAS_DMA_RXINT_BASEU_BRBH(ring->buf_dma >> 32) |
 			   PAS_DMA_RXINT_BASEU_SIZ(RX_RING_SIZE >> 3));
 
-	write_dma_reg(mac, PAS_DMA_RXINT_CFG(mac->dma_if),
-		      PAS_DMA_RXINT_CFG_DHL(3) | PAS_DMA_RXINT_CFG_L2 |
-		      PAS_DMA_RXINT_CFG_LW | PAS_DMA_RXINT_CFG_RBP |
-		      PAS_DMA_RXINT_CFG_HEN);
+	cfg = PAS_DMA_RXINT_CFG_DHL(3) | PAS_DMA_RXINT_CFG_L2 |
+	      PAS_DMA_RXINT_CFG_LW | PAS_DMA_RXINT_CFG_RBP |
+	      PAS_DMA_RXINT_CFG_HEN;
+
+	if (translation_enabled())
+		cfg |= PAS_DMA_RXINT_CFG_ITRR | PAS_DMA_RXINT_CFG_ITR;
+
+	write_dma_reg(mac, PAS_DMA_RXINT_CFG(mac->dma_if), cfg);
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
@@ -275,6 +294,7 @@ static int pasemi_mac_setup_tx_resources(struct net_device *dev)
 	u32 val;
 	int chan_id = mac->dma_txch;
 	struct pasemi_mac_txring *ring;
+	unsigned int cfg;
 
 	ring = kzalloc(sizeof(*ring), GFP_KERNEL);
 	if (!ring)
@@ -304,11 +324,15 @@ static int pasemi_mac_setup_tx_resources(struct net_device *dev)
 
 	write_dma_reg(mac, PAS_DMA_TXCHAN_BASEU(chan_id), val);
 
-	write_dma_reg(mac, PAS_DMA_TXCHAN_CFG(chan_id),
-			   PAS_DMA_TXCHAN_CFG_TY_IFACE |
-			   PAS_DMA_TXCHAN_CFG_TATTR(mac->dma_if) |
-			   PAS_DMA_TXCHAN_CFG_UP |
-			   PAS_DMA_TXCHAN_CFG_WT(2));
+	cfg = PAS_DMA_TXCHAN_CFG_TY_IFACE |
+	      PAS_DMA_TXCHAN_CFG_TATTR(mac->dma_if) |
+	      PAS_DMA_TXCHAN_CFG_UP |
+	      PAS_DMA_TXCHAN_CFG_WT(2);
+
+	if (translation_enabled())
+		cfg |= PAS_DMA_TXCHAN_CFG_TRD | PAS_DMA_TXCHAN_CFG_TRR;
+
+	write_dma_reg(mac, PAS_DMA_TXCHAN_CFG(chan_id), cfg);
 
 	ring->next_to_fill = 0;
 	ring->next_to_clean = 0;
