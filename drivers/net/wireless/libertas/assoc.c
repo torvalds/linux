@@ -374,15 +374,40 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
                                  struct assoc_request * assoc_req)
 {
 	int ret = 0;
+	unsigned int flags = assoc_req->flags;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	ret = libertas_prepare_and_send_command(priv,
-				    CMD_802_11_KEY_MATERIAL,
-				    CMD_ACT_SET,
-				    CMD_OPTION_WAITFORRSP,
-				    0, assoc_req);
+	/* Work around older firmware bug where WPA unicast and multicast
+	 * keys must be set independently.  Seen in SDIO parts with firmware
+	 * version 5.0.11p0.
+	 */
 
+	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
+		clear_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
+		ret = libertas_prepare_and_send_command(priv,
+					CMD_802_11_KEY_MATERIAL,
+					CMD_ACT_SET,
+					CMD_OPTION_WAITFORRSP,
+					0, assoc_req);
+		assoc_req->flags = flags;
+	}
+
+	if (ret)
+		goto out;
+
+	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
+		clear_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
+
+		ret = libertas_prepare_and_send_command(priv,
+					CMD_802_11_KEY_MATERIAL,
+					CMD_ACT_SET,
+					CMD_OPTION_WAITFORRSP,
+					0, assoc_req);
+		assoc_req->flags = flags;
+	}
+
+out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
