@@ -30,12 +30,12 @@
 
 /* security id for everyone */
 static const struct cifs_sid sid_everyone =
-		{1, 1, {0, 0, 0, 0, 0, 0}, {}};
+		{1, 1, {0, 0, 0, 0, 0, 0}, {} };
 /* group users */
 static const struct cifs_sid sid_user =
-		{1, 2 , {0, 0, 0, 0, 0, 5}, {}};
+		{1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
-static void parse_ace(struct cifs_ace * pace, char * end_of_acl)
+static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 {
 	int i;
 	int num_subauth;
@@ -50,27 +50,27 @@ static void parse_ace(struct cifs_ace * pace, char * end_of_acl)
 	num_subauth = cpu_to_le32(pace->num_subauth);
 	if (num_subauth) {
 		psub_auth = (__u32 *)((char *)pace + sizeof(struct cifs_ace));
-#ifdef CONFIG_CIFS_DEBUG2 
-		cFYI(1, ("ACE revision %d num_subauth %d", 
-			pace->revision, pace->num_subauth)); 
-		for (i = 0; i < num_subauth; ++i) { 
-			cFYI(1, ("ACE sub_auth[%d]: 0x%x", i, 
-				le32_to_cpu(psub_auth[i]))); 
-		} 
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1, ("ACE revision %d num_subauth %d",
+			pace->revision, pace->num_subauth));
+		for (i = 0; i < num_subauth; ++i) {
+			cFYI(1, ("ACE sub_auth[%d]: 0x%x", i,
+				le32_to_cpu(psub_auth[i])));
+		}
 
-		/* BB add length check to make sure that we do not have huge 
-			num auths and therefore go off the end */ 
+		/* BB add length check to make sure that we do not have huge
+			num auths and therefore go off the end */
 
-		cFYI(1, ("RID %d", le32_to_cpu(psub_auth[num_subauth-1]))); 
-#endif 
-	} 
+		cFYI(1, ("RID %d", le32_to_cpu(psub_auth[num_subauth-1])));
+#endif
+	}
 
-	return; 
-} 
+	return;
+}
 
-static void parse_ntace(struct cifs_ntace * pntace, char * end_of_acl) 
-{ 
-	/* validate that we do not go past end of acl */ 
+static void parse_ntace(struct cifs_ntace *pntace, char *end_of_acl)
+{
+	/* validate that we do not go past end of acl */
 	if (end_of_acl < (char *)pntace + sizeof(struct cifs_ntace)) {
 		cERROR(1, ("ACL too small to parse NT ACE"));
 		return;
@@ -86,7 +86,7 @@ static void parse_ntace(struct cifs_ntace * pntace, char * end_of_acl)
 
 
 
-static void parse_dacl(struct cifs_acl * pdacl, char * end_of_acl)
+static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 {
 	int i;
 	int num_aces = 0;
@@ -118,11 +118,11 @@ static void parse_dacl(struct cifs_acl * pdacl, char * end_of_acl)
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
 
-/*              cifscred->cecount = pdacl->num_aces;
-                cifscred->ntaces = kmalloc(num_aces *
-                        sizeof(struct cifs_ntace *), GFP_KERNEL);
-                cifscred->aces = kmalloc(num_aces *
-                        sizeof(struct cifs_ace *), GFP_KERNEL);*/
+/*		cifscred->cecount = pdacl->num_aces;
+		cifscred->ntaces = kmalloc(num_aces *
+			sizeof(struct cifs_ntace *), GFP_KERNEL);
+		cifscred->aces = kmalloc(num_aces *
+			sizeof(struct cifs_ace *), GFP_KERNEL);*/
 
 
 		for (i = 0; i < num_aces; ++i) {
@@ -134,12 +134,12 @@ static void parse_dacl(struct cifs_acl * pdacl, char * end_of_acl)
 			parse_ntace(ppntace[i], end_of_acl);
 			parse_ace(ppace[i], end_of_acl);
 
-/*                      memcpy((void *)(&(cifscred->ntaces[i])),
-                                (void *)ppntace[i],
-                                sizeof(struct cifs_ntace));
-                        memcpy((void *)(&(cifscred->aces[i])),
-                                (void *)ppace[i],
-                                sizeof(struct cifs_ace)); */
+/*			memcpy((void *)(&(cifscred->ntaces[i])),
+				(void *)ppntace[i],
+				sizeof(struct cifs_ntace));
+			memcpy((void *)(&(cifscred->aces[i])),
+				(void *)ppace[i],
+				sizeof(struct cifs_ace)); */
 
 			acl_base = (char *)ppntace[i];
 			acl_size = cpu_to_le32(ppntace[i]->size);
@@ -176,12 +176,12 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 
 		for (i = 0; i < num_subauth; ++i) {
 			cFYI(1, ("SID sub_auth[%d]: 0x%x ", i,
-			le32_to_cpu(psub_auth[i])));
+				le32_to_cpu(psub_auth[i])));
 		}
 
-		/* BB add length check to make sure that we do not have huge 
+		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
-		cFYI(1, ("RID 0x%x", 
+		cFYI(1, ("RID 0x%x",
 			le32_to_cpu(psid->sub_auth[psid->num_subauth])));
 #endif
 	}

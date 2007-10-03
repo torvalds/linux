@@ -261,21 +261,26 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 				cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
-/*		else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			__u16 fid;
 			int oplock = FALSE;
-			rc = CIFSSMBOpen(xid, pTcon, full_path,
-					 FILE_OPEN, GENERIC_READ, 0, &fid,
-					 &oplock, NULL, cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-					 CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (experimEnabled) 
+				rc = CIFSSMBOpen(xid, pTcon, full_path,
+					FILE_OPEN, GENERIC_READ, 0, &fid,
+					&oplock, NULL, cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+			/* else rc is EOPNOTSUPP from above */
+
 			if(rc == 0) {
 				rc = CIFSSMBGetCIFSACL(xid, pTcon, fid,
 					ea_value, buf_size,
 					ACL_TYPE_ACCESS);
 				CIFSSMBClose(xid, pTcon, fid);
 			}
-		} */  /* BB enable after fixing up return data */
+		}
+#endif /* EXPERIMENTAL */
 #else
 		cFYI(1, ("query POSIX ACL not supported yet"));
 #endif /* CONFIG_CIFS_POSIX */
