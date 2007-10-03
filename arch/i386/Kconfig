@@ -1069,6 +1069,8 @@ endif # APM
 
 source "arch/i386/kernel/cpu/cpufreq/Kconfig"
 
+source "drivers/cpuidle/Kconfig"
+
 endmenu
 
 menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
