@@ -66,7 +66,7 @@ struct ocfs2_vote_msg
 {
 	struct ocfs2_msg_hdr v_hdr;
 	__be32 v_reserved1;
-};
+} __attribute__ ((packed));
 
 /* Responses are given these values to maintain backwards
  * compatibility with older ocfs2 versions */
@@ -78,7 +78,7 @@ struct ocfs2_response_msg
 {
 	struct ocfs2_msg_hdr r_hdr;
 	__be32 r_response;
-};
+} __attribute__ ((packed));
 
 struct ocfs2_vote_work {
 	struct list_head   w_list;

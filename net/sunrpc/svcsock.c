@@ -1110,7 +1110,8 @@ svc_tcp_accept(struct svc_sock *svsk)
 						   serv->sv_name);
 				printk(KERN_NOTICE
 				       "%s: last TCP connect from %s\n",
-				       serv->sv_name, buf);
+				       serv->sv_name, __svc_print_addr(sin,
+							buf, sizeof(buf)));
 			}
 			/*
 			 * Always select the oldest socket. It's not fair,

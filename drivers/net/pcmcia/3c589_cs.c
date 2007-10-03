@@ -116,7 +116,7 @@ struct el3_private {
     spinlock_t		lock;
 };
 
-static const char *if_names[] = { "auto", "10base2", "10baseT", "AUI" };
+static const char *if_names[] = { "auto", "10baseT", "10base2", "AUI" };
 
 /*====================================================================*/
 

@@ -930,18 +930,11 @@ static void ocfs2_write_failure(struct inode *inode,
 				loff_t user_pos, unsigned user_len)
 {
 	int i;
-	unsigned from, to;
+	unsigned from = user_pos & (PAGE_CACHE_SIZE - 1),
+		to = user_pos + user_len;
 	struct page *tmppage;
 
-	ocfs2_zero_new_buffers(wc->w_target_page, user_pos, user_len);
-
-	if (wc->w_large_pages) {
-		from = wc->w_target_from;
-		to = wc->w_target_to;
-	} else {
-		from = 0;
-		to = PAGE_CACHE_SIZE;
-	}
+	ocfs2_zero_new_buffers(wc->w_target_page, from, to);
 
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
@@ -991,9 +984,6 @@ static int ocfs2_prepare_page_for_write(struct inode *inode, u64 *p_blkno,
 			map_from = cluster_start;
 			map_to = cluster_end;
 		}
-
-		wc->w_target_from = map_from;
-		wc->w_target_to = map_to;
 	} else {
 		/*
 		 * If we haven't allocated the new page yet, we
@@ -1211,18 +1201,33 @@ static int ocfs2_write_cluster_by_desc(struct address_space *mapping,
 				       loff_t pos, unsigned len)
 {
 	int ret, i;
+	loff_t cluster_off;
+	unsigned int local_len = len;
 	struct ocfs2_write_cluster_desc *desc;
+	struct ocfs2_super *osb = OCFS2_SB(mapping->host->i_sb);
 
 	for (i = 0; i < wc->w_clen; i++) {
 		desc = &wc->w_desc[i];
 
+		/*
+		 * We have to make sure that the total write passed in
+		 * doesn't extend past a single cluster.
+		 */
+		local_len = len;
+		cluster_off = pos & (osb->s_clustersize - 1);
+		if ((cluster_off + local_len) > osb->s_clustersize)
+			local_len = osb->s_clustersize - cluster_off;
+
 		ret = ocfs2_write_cluster(mapping, desc->c_phys,
 					  desc->c_unwritten, data_ac, meta_ac,
-					  wc, desc->c_cpos, pos, len);
+					  wc, desc->c_cpos, pos, local_len);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
 		}
+
+		len -= local_len;
+		pos += local_len;
 	}
 
 	ret = 0;

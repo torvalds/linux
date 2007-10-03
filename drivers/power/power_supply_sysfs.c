@@ -289,6 +289,7 @@ int power_supply_uevent(struct device *dev, char **envp, int num_envp,
 		if (ret)
 			goto out;
 	}
+	envp[i] = NULL;
 
 out:
 	free_page((unsigned long)prop_buf);

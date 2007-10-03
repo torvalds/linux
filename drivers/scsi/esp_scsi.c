@@ -2314,6 +2314,7 @@ int __devinit scsi_esp_register(struct esp *esp, struct device *dev)
 	esp->host->transportt = esp_transport_template;
 	esp->host->max_lun = ESP_MAX_LUN;
 	esp->host->cmd_per_lun = 2;
+	esp->host->unique_id = instance;
 
 	esp_set_clock_params(esp);
 
@@ -2337,7 +2338,7 @@ int __devinit scsi_esp_register(struct esp *esp, struct device *dev)
 	if (err)
 		return err;
 
-	esp->host->unique_id = instance++;
+	instance++;
 
 	scsi_scan_host(esp->host);
 

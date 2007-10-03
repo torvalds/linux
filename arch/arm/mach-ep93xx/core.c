@@ -336,7 +336,7 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (line >= 0 && line < 16) {
 		gpio_line_config(line, GPIO_IN);
 	} else {
-		gpio_line_config(EP93XX_GPIO_LINE_F(line), GPIO_IN);
+		gpio_line_config(EP93XX_GPIO_LINE_F(line-16), GPIO_IN);
 	}
 
 	port = line >> 3;

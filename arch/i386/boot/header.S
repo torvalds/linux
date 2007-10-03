@@ -275,7 +275,7 @@ die:
 	hlt
 	jmp	die
 
-	.size	die, .-due
+	.size	die, .-die
 
 	.section ".initdata", "a"
 setup_corrupt:

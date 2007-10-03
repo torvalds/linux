@@ -54,8 +54,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.6.4"
-#define DRV_MODULE_RELDATE	"August 3, 2007"
+#define DRV_MODULE_VERSION	"1.6.5"
+#define DRV_MODULE_RELDATE	"September 20, 2007"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -6727,7 +6727,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
 		   CHIP_NUM(bp) == CHIP_NUM_5708)
 		bp->phy_flags |= PHY_CRC_FIX_FLAG;
-	else if (CHIP_ID(bp) == CHIP_ID_5709_A0)
+	else if (CHIP_ID(bp) == CHIP_ID_5709_A0 ||
+		 CHIP_ID(bp) == CHIP_ID_5709_A1)
 		bp->phy_flags |= PHY_DIS_EARLY_DAC_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||

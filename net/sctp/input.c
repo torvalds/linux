@@ -622,6 +622,14 @@ static int sctp_rcv_ootb(struct sk_buff *skb)
 		if (SCTP_CID_SHUTDOWN_COMPLETE == ch->type)
 			goto discard;
 
+		/* RFC 4460, 2.11.2
+		 * This will discard packets with INIT chunk bundled as
+		 * subsequent chunks in the packet.  When INIT is first,
+		 * the normal INIT processing will discard the chunk.
+		 */
+		if (SCTP_CID_INIT == ch->type && (void *)ch != skb->data)
+			goto discard;
+
 		/* RFC 8.4, 7) If the packet contains a "Stale cookie" ERROR
 		 * or a COOKIE ACK the SCTP Packet should be silently
 		 * discarded.

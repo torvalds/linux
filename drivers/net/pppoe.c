@@ -879,8 +879,7 @@ static int __pppoe_xmit(struct sock *sk, struct sk_buff *skb)
 	dev->hard_header(skb, dev, ETH_P_PPP_SES,
 			 po->pppoe_pa.remote, NULL, data_len);
 
-	if (dev_queue_xmit(skb) < 0)
-		goto abort;
+	dev_queue_xmit(skb);
 
 	return 1;
 

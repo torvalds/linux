@@ -284,6 +284,7 @@ static ssize_t show_uevent(struct device *dev, struct device_attribute *attr,
 
 	/* let the kset specific function add its keys */
 	pos = data;
+	memset(envp, 0, sizeof(envp));
 	retval = kset->uevent_ops->uevent(kset, &dev->kobj,
 					  envp, ARRAY_SIZE(envp),
 					  pos, PAGE_SIZE);

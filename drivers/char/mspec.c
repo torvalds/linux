@@ -155,23 +155,22 @@ mspec_open(struct vm_area_struct *vma)
  * mspec_close
  *
  * Called when unmapping a device mapping. Frees all mspec pages
- * belonging to the vma.
+ * belonging to all the vma's sharing this vma_data structure.
  */
 static void
 mspec_close(struct vm_area_struct *vma)
 {
 	struct vma_data *vdata;
-	int index, last_index, result;
+	int index, last_index;
 	unsigned long my_page;
 
 	vdata = vma->vm_private_data;
 
-	BUG_ON(vma->vm_start < vdata->vm_start || vma->vm_end > vdata->vm_end);
+	if (!atomic_dec_and_test(&vdata->refcnt))
+		return;
 
-	spin_lock(&vdata->lock);
-	index = (vma->vm_start - vdata->vm_start) >> PAGE_SHIFT;
-	last_index = (vma->vm_end - vdata->vm_start) >> PAGE_SHIFT;
-	for (; index < last_index; index++) {
+	last_index = (vdata->vm_end - vdata->vm_start) >> PAGE_SHIFT;
+	for (index = 0; index < last_index; index++) {
 		if (vdata->maddr[index] == 0)
 			continue;
 		/*
@@ -180,27 +179,18 @@ mspec_close(struct vm_area_struct *vma)
 		 */
 		my_page = vdata->maddr[index];
 		vdata->maddr[index] = 0;
-		spin_unlock(&vdata->lock);
-		result = mspec_zero_block(my_page, PAGE_SIZE);
-		if (!result)
+		if (!mspec_zero_block(my_page, PAGE_SIZE))
 			uncached_free_page(my_page);
 		else
 			printk(KERN_WARNING "mspec_close(): "
-			       "failed to zero page %i\n",
-			       result);
-		spin_lock(&vdata->lock);
+			       "failed to zero page %ld\n", my_page);
 	}
-	spin_unlock(&vdata->lock);
-
-	if (!atomic_dec_and_test(&vdata->refcnt))
-		return;
 
 	if (vdata->flags & VMD_VMALLOCED)
 		vfree(vdata);
 	else
 		kfree(vdata);
 }
-
 
 /*
  * mspec_nopfn
