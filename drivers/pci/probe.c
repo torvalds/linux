@@ -544,7 +544,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 			goto out;
 		child->primary = buses & 0xFF;
 		child->subordinate = (buses >> 16) & 0xFF;
-		child->bridge_ctl = bctl;
+		child->bridge_ctl = bctl ^ PCI_BRIDGE_CTL_NO_ISA;
 
 		cmax = pci_scan_child_bus(child);
 		if (cmax > max)
@@ -597,7 +597,7 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 		pci_write_config_dword(dev, PCI_PRIMARY_BUS, buses);
 
 		if (!is_cardbus) {
-			child->bridge_ctl = bctl | PCI_BRIDGE_CTL_NO_ISA;
+			child->bridge_ctl = bctl ^ PCI_BRIDGE_CTL_NO_ISA;
 			/*
 			 * Adjust subordinate busnr in parent buses.
 			 * We do this before scanning for children because
