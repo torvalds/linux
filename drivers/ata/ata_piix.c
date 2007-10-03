@@ -919,7 +919,7 @@ static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 #ifdef CONFIG_PM
 static int piix_broken_suspend(void)
 {
-	static struct dmi_system_id sysids[] = {
+	static const struct dmi_system_id sysids[] = {
 		{
 			.ident = "TECRA M3",
 			.matches = {
@@ -1183,7 +1183,7 @@ static void __devinit piix_init_sata_map(struct pci_dev *pdev,
 
 static void piix_iocfg_bit18_quirk(struct pci_dev *pdev)
 {
-	static struct dmi_system_id sysids[] = {
+	static const struct dmi_system_id sysids[] = {
 		{
 			/* Clevo M570U sets IOCFG bit 18 if the cdrom
 			 * isn't used to boot the system which

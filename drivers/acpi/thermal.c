@@ -1360,7 +1360,7 @@ static int acpi_thermal_resume(struct acpi_device *device)
 }
 
 #ifdef CONFIG_DMI
-static int thermal_act(struct dmi_system_id *d) {
+static int thermal_act(const struct dmi_system_id *d) {
 
 	if (act == 0) {
 		printk(KERN_NOTICE "ACPI: %s detected: "
@@ -1369,14 +1369,14 @@ static int thermal_act(struct dmi_system_id *d) {
 	}
 	return 0;
 }
-static int thermal_nocrt(struct dmi_system_id *d) {
+static int thermal_nocrt(const struct dmi_system_id *d) {
 
 	printk(KERN_NOTICE "ACPI: %s detected: "
 		"disabling all critical thermal trip point actions.\n", d->ident);
 	nocrt = 1;
 	return 0;
 }
-static int thermal_tzp(struct dmi_system_id *d) {
+static int thermal_tzp(const struct dmi_system_id *d) {
 
 	if (tzp == 0) {
 		printk(KERN_NOTICE "ACPI: %s detected: "
@@ -1385,7 +1385,7 @@ static int thermal_tzp(struct dmi_system_id *d) {
 	}
 	return 0;
 }
-static int thermal_psv(struct dmi_system_id *d) {
+static int thermal_psv(const struct dmi_system_id *d) {
 
 	if (psv == 0) {
 		printk(KERN_NOTICE "ACPI: %s detected: "

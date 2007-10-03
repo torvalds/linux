@@ -1071,7 +1071,7 @@ static const struct attribute_group temperature_attributes_group =
 /*
  * applesmc_dmi_match - found a match.  return one, short-circuiting the hunt.
  */
-static int applesmc_dmi_match(struct dmi_system_id *id)
+static int applesmc_dmi_match(const struct dmi_system_id *id)
 {
 	int i = 0;
 	struct dmi_match_data* dmi_data = id->driver_data;

@@ -1869,7 +1869,7 @@ static struct miscdevice apm_device = {
 
 
 /* Simple "print if true" callback */
-static int __init print_if_true(struct dmi_system_id *d)
+static int __init print_if_true(const struct dmi_system_id *d)
 {
 	printk("%s\n", d->ident);
 	return 0;
@@ -1879,14 +1879,14 @@ static int __init print_if_true(struct dmi_system_id *d)
  * Some Bioses enable the PS/2 mouse (touchpad) at resume, even if it was
  * disabled before the suspend. Linux used to get terribly confused by that.
  */
-static int __init broken_ps2_resume(struct dmi_system_id *d)
+static int __init broken_ps2_resume(const struct dmi_system_id *d)
 {
 	printk(KERN_INFO "%s machine detected. Mousepad Resume Bug workaround hopefully not needed.\n", d->ident);
 	return 0;
 }
 
 /* Some bioses have a broken protected mode poweroff and need to use realmode */
-static int __init set_realmode_power_off(struct dmi_system_id *d)
+static int __init set_realmode_power_off(const struct dmi_system_id *d)
 {
 	if (apm_info.realmode_power_off == 0) {
 		apm_info.realmode_power_off = 1;
@@ -1896,7 +1896,7 @@ static int __init set_realmode_power_off(struct dmi_system_id *d)
 }
 
 /* Some laptops require interrupts to be enabled during APM calls */
-static int __init set_apm_ints(struct dmi_system_id *d)
+static int __init set_apm_ints(const struct dmi_system_id *d)
 {
 	if (apm_info.allow_ints == 0) {
 		apm_info.allow_ints = 1;
@@ -1906,7 +1906,7 @@ static int __init set_apm_ints(struct dmi_system_id *d)
 }
 
 /* Some APM bioses corrupt memory or just plain do not work */
-static int __init apm_is_horked(struct dmi_system_id *d)
+static int __init apm_is_horked(const struct dmi_system_id *d)
 {
 	if (apm_info.disabled == 0) {
 		apm_info.disabled = 1;
@@ -1915,7 +1915,7 @@ static int __init apm_is_horked(struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init apm_is_horked_d850md(struct dmi_system_id *d)
+static int __init apm_is_horked_d850md(const struct dmi_system_id *d)
 {
 	if (apm_info.disabled == 0) {
 		apm_info.disabled = 1;
@@ -1927,7 +1927,7 @@ static int __init apm_is_horked_d850md(struct dmi_system_id *d)
 }
 
 /* Some APM bioses hang on APM idle calls */
-static int __init apm_likes_to_melt(struct dmi_system_id *d)
+static int __init apm_likes_to_melt(const struct dmi_system_id *d)
 {
 	if (apm_info.forbid_idle == 0) {
 		apm_info.forbid_idle = 1;
@@ -1951,7 +1951,7 @@ static int __init apm_likes_to_melt(struct dmi_system_id *d)
  *	Phoenix A04  08/24/2000 is known bad (Dell Inspiron 5000e)
  *	Phoenix A07  09/29/2000 is known good (Dell Inspiron 5000)
  */
-static int __init broken_apm_power(struct dmi_system_id *d)
+static int __init broken_apm_power(const struct dmi_system_id *d)
 {
 	apm_info.get_power_status_broken = 1;
 	printk(KERN_WARNING "BIOS strings suggest APM bugs, disabling power status reporting.\n");
@@ -1962,7 +1962,7 @@ static int __init broken_apm_power(struct dmi_system_id *d)
  * This bios swaps the APM minute reporting bytes over (Many sony laptops
  * have this problem).
  */
-static int __init swab_apm_power_in_minutes(struct dmi_system_id *d)
+static int __init swab_apm_power_in_minutes(const struct dmi_system_id *d)
 {
 	apm_info.get_power_status_swabinminutes = 1;
 	printk(KERN_WARNING "BIOS strings suggest APM reports battery life in minutes and wrong byte order.\n");

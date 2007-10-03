@@ -807,7 +807,7 @@ static struct sony_nc_event *sony_nc_events;
 /* Vaio C* --maybe also FE*, N* and AR* ?-- special init sequence
  * for Fn keys
  */
-static int sony_nc_C_enable(struct dmi_system_id *id)
+static int sony_nc_C_enable(const struct dmi_system_id *id)
 {
 	int result = 0;
 
@@ -845,7 +845,7 @@ static struct sony_nc_event sony_C_events[] = {
 };
 
 /* SNC-only model map */
-static struct dmi_system_id sony_nc_ids[] = {
+static const struct dmi_system_id sony_nc_ids[] = {
 		{
 			.ident = "Sony Vaio FE Series",
 			.callback = sony_nc_C_enable,

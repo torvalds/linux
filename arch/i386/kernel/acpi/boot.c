@@ -907,7 +907,7 @@ static void __init acpi_process_madt(void)
 
 #ifdef __i386__
 
-static int __init disable_acpi_irq(struct dmi_system_id *d)
+static int __init disable_acpi_irq(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
 		printk(KERN_NOTICE "%s detected: force use of acpi=noirq\n",
@@ -917,7 +917,7 @@ static int __init disable_acpi_irq(struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init disable_acpi_pci(struct dmi_system_id *d)
+static int __init disable_acpi_pci(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
 		printk(KERN_NOTICE "%s detected: force use of pci=noacpi\n",
@@ -927,7 +927,7 @@ static int __init disable_acpi_pci(struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init dmi_disable_acpi(struct dmi_system_id *d)
+static int __init dmi_disable_acpi(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
 		printk(KERN_NOTICE "%s detected: acpi off\n", d->ident);
@@ -942,7 +942,7 @@ static int __init dmi_disable_acpi(struct dmi_system_id *d)
 /*
  * Limit ACPI to CPU enumeration for HT
  */
-static int __init force_acpi_ht(struct dmi_system_id *d)
+static int __init force_acpi_ht(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
 		printk(KERN_NOTICE "%s detected: force use of acpi=ht\n",

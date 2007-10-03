@@ -1010,7 +1010,7 @@ static void __init pcibios_fixup_irqs(void)
  * Work around broken HP Pavilion Notebooks which assign USB to
  * IRQ 9 even though it is actually wired to IRQ 11
  */
-static int __init fix_broken_hp_bios_irq9(struct dmi_system_id *d)
+static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
 {
 	if (!broken_hp_bios_irq9) {
 		broken_hp_bios_irq9 = 1;
@@ -1023,7 +1023,7 @@ static int __init fix_broken_hp_bios_irq9(struct dmi_system_id *d)
  * Work around broken Acer TravelMate 360 Notebooks which assign
  * Cardbus to IRQ 11 even though it is actually wired to IRQ 10
  */
-static int __init fix_acer_tm360_irqrouting(struct dmi_system_id *d)
+static int __init fix_acer_tm360_irqrouting(const struct dmi_system_id *d)
 {
 	if (!acer_tm360_irqrouting) {
 		acer_tm360_irqrouting = 1;

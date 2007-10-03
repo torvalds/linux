@@ -237,7 +237,7 @@ static int resume_detect_interrupts_are_broken(struct uhci_hcd *uhci)
 static int remote_wakeup_is_broken(struct uhci_hcd *uhci)
 {
 	int port;
-	char *sys_info;
+	const char *sys_info;
 	static char bad_Asus_board[] = "A7V8X";
 
 	/* One of Asus's motherboards has a bug which causes it to

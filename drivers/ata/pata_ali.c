@@ -40,7 +40,7 @@
  *	Cable special cases
  */
 
-static struct dmi_system_id cable_dmi_table[] = {
+static const struct dmi_system_id cable_dmi_table[] = {
 	{
 		.ident = "HP Pavilion N5430",
 		.matches = {

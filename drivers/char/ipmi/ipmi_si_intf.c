@@ -1965,10 +1965,10 @@ struct dmi_ipmi_data
 	u8              slave_addr;
 };
 
-static int __devinit decode_dmi(struct dmi_header *dm,
+static int __devinit decode_dmi(const struct dmi_header *dm,
 				struct dmi_ipmi_data *dmi)
 {
-	u8              *data = (u8 *)dm;
+	const u8	*data = (const u8 *)dm;
 	unsigned long  	base_addr;
 	u8		reg_spacing;
 	u8              len = dm->length;
@@ -2091,13 +2091,14 @@ static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 
 static void __devinit dmi_find_bmc(void)
 {
-	struct dmi_device    *dev = NULL;
+	const struct dmi_device *dev = NULL;
 	struct dmi_ipmi_data data;
 	int                  rv;
 
 	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev))) {
 		memset(&data, 0, sizeof(data));
-		rv = decode_dmi((struct dmi_header *) dev->device_data, &data);
+		rv = decode_dmi((const struct dmi_header *) dev->device_data,
+				&data);
 		if (!rv)
 			try_init_dmi(&data);
 	}

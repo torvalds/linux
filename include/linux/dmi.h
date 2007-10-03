@@ -54,7 +54,7 @@ struct dmi_strmatch {
 };
 
 struct dmi_system_id {
-	int (*callback)(struct dmi_system_id *);
+	int (*callback)(const struct dmi_system_id *);
 	const char *ident;
 	struct dmi_strmatch matches[4];
 	void *driver_data;
@@ -71,22 +71,22 @@ struct dmi_device {
 
 #ifdef CONFIG_DMI
 
-extern int dmi_check_system(struct dmi_system_id *list);
-extern char * dmi_get_system_info(int field);
-extern struct dmi_device * dmi_find_device(int type, const char *name,
-	struct dmi_device *from);
+extern int dmi_check_system(const struct dmi_system_id *list);
+extern const char * dmi_get_system_info(int field);
+extern const struct dmi_device * dmi_find_device(int type, const char *name,
+	const struct dmi_device *from);
 extern void dmi_scan_machine(void);
 extern int dmi_get_year(int field);
-extern int dmi_name_in_vendors(char *str);
+extern int dmi_name_in_vendors(const char *str);
 
 #else
 
-static inline int dmi_check_system(struct dmi_system_id *list) { return 0; }
-static inline char * dmi_get_system_info(int field) { return NULL; }
-static inline struct dmi_device * dmi_find_device(int type, const char *name,
-	struct dmi_device *from) { return NULL; }
+static inline int dmi_check_system(const struct dmi_system_id *list) { return 0; }
+static inline const char * dmi_get_system_info(int field) { return NULL; }
+static inline const struct dmi_device * dmi_find_device(int type, const char *name,
+	const struct dmi_device *from) { return NULL; }
 static inline int dmi_get_year(int year) { return 0; }
-static inline int dmi_name_in_vendors(char *s) { return 0; }
+static inline int dmi_name_in_vendors(const char *s) { return 0; }
 
 #endif
 
