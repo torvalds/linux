@@ -538,6 +538,9 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			continue;
 		cnt++;
 		if (dd->ipath_pageshadow[porttid + tid]) {
+			struct page *p;
+			p = dd->ipath_pageshadow[porttid + tid];
+			dd->ipath_pageshadow[porttid + tid] = NULL;
 			ipath_cdbg(VERBOSE, "PID %u freeing TID %u\n",
 				   pd->port_pid, tid);
 			dd->ipath_f_put_tid(dd, &tidbase[tid],
@@ -546,9 +549,7 @@ static int ipath_tid_free(struct ipath_portdata *pd, unsigned subport,
 			pci_unmap_page(dd->pcidev,
 				dd->ipath_physshadow[porttid + tid],
 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
-			ipath_release_user_pages(
-				&dd->ipath_pageshadow[porttid + tid], 1);
-			dd->ipath_pageshadow[porttid + tid] = NULL;
+			ipath_release_user_pages(&p, 1);
 			ipath_stats.sps_pageunlocks++;
 		} else
 			ipath_dbg("Unused tid %u, ignoring\n", tid);
