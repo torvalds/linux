@@ -476,8 +476,18 @@ static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction irq0  = { timer_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "timer", NULL, NULL};
-static struct irqaction irq1  = { sh64_rtc_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "rtc", NULL, NULL};
+static struct irqaction irq0  = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "timer",
+};
+static struct irqaction irq1  = {
+	.handler = sh64_rtc_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "rtc",
+};
 
 void __init time_init(void)
 {
