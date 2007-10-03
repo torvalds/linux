@@ -169,6 +169,16 @@ show_quirks(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(quirks, S_IRUGO, show_quirks, NULL);
 
+static ssize_t
+show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", atomic_read(&udev->urbnum));
+}
+static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
+
 
 #if defined(CONFIG_USB_PERSIST) || defined(CONFIG_USB_SUSPEND)
 static const char power_group[] = "power";
@@ -458,6 +468,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bConfigurationValue.attr,
 	&dev_attr_bmAttributes.attr,
 	&dev_attr_bMaxPower.attr,
+	&dev_attr_urbnum.attr,
 	/* device attributes */
 	&dev_attr_idVendor.attr,
 	&dev_attr_idProduct.attr,
