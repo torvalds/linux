@@ -73,11 +73,16 @@ extern struct task_struct *__switch_to(struct task_struct *,
 
 extern void __xchg_called_with_bad_pointer(void);
 
-#ifdef __CHECKER__
-extern unsigned long __builtin_xchg(void *ptr, unsigned long x);
-#endif
+static inline unsigned long xchg_u32(u32 val, volatile u32 *m)
+{
+	u32 ret;
 
-#define xchg_u32(val, m) __builtin_xchg((void *)m, val)
+	asm volatile("xchg %[ret], %[m], %[val]"
+			: [ret] "=&r"(ret), "=m"(*m)
+			: "m"(*m), [m] "r"(m), [val] "r"(val)
+			: "memory");
+	return ret;
+}
 
 static inline unsigned long __xchg(unsigned long x,
 				       volatile void *ptr,
