@@ -2230,7 +2230,6 @@ do { \
 
 /* asc_board_t flags */
 #define ASC_IS_WIDE_BOARD       0x04	/* AdvanSys Wide Board */
-#define ASC_SELECT_QUEUE_DEPTHS 0x08
 
 #define ASC_NARROW_BOARD(boardp) (((boardp)->flags & ASC_IS_WIDE_BOARD) == 0)
 #define ASC_WIDE_BOARD(boardp)   ((boardp)->flags & ASC_IS_WIDE_BOARD)
@@ -10135,7 +10134,6 @@ advansys_wide_slave_configure(struct scsi_device *sdev, ADV_DVC_VAR *adv_dvc)
 static int advansys_slave_configure(struct scsi_device *sdev)
 {
 	asc_board_t *boardp = ASC_BOARDP(sdev->host);
-	boardp->flags |= ASC_SELECT_QUEUE_DEPTHS;
 
 	if (ASC_NARROW_BOARD(boardp))
 		advansys_narrow_slave_configure(sdev,
