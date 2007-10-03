@@ -44,6 +44,7 @@
 
 struct ucc_geth {
 	struct ucc_fast uccf;
+	u8 res0[0x100 - sizeof(struct ucc_fast)];
 
 	u32 maccfg1;		/* mac configuration reg. 1 */
 	u32 maccfg2;		/* mac configuration reg. 2 */

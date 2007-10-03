@@ -141,7 +141,7 @@ EXPORT_SYMBOL(qe_issue_cmd);
  * 16 BRGs, which can be connected to the QE channels or output
  * as clocks. The BRGs are in two different block of internal
  * memory mapped space.
- * The baud rate clock is the system clock divided by something.
+ * The BRG clock is the QE clock divided by 2.
  * It was set up long ago during the initial boot phase and is
  * is given to us.
  * Baud rate clocks are zero-based in the driver code (as that maps
@@ -165,28 +165,38 @@ unsigned int get_brg_clk(void)
 	return brg_clk;
 }
 
-/* This function is used by UARTS, or anything else that uses a 16x
- * oversampled clock.
+/* Program the BRG to the given sampling rate and multiplier
+ *
+ * @brg: the BRG, 1-16
+ * @rate: the desired sampling rate
+ * @multiplier: corresponds to the value programmed in GUMR_L[RDCR] or
+ * GUMR_L[TDCR].  E.g., if this BRG is the RX clock, and GUMR_L[RDCR]=01,
+ * then 'multiplier' should be 8.
+ *
+ * Also note that the value programmed into the BRGC register must be even.
  */
-void qe_setbrg(u32 brg, u32 rate)
+void qe_setbrg(unsigned int brg, unsigned int rate, unsigned int multiplier)
 {
-	volatile u32 *bp;
 	u32 divisor, tempval;
-	int div16 = 0;
+	u32 div16 = 0;
 
-	bp = &qe_immr->brg.brgc[brg];
+	divisor = get_brg_clk() / (rate * multiplier);
 
-	divisor = (get_brg_clk() / rate);
 	if (divisor > QE_BRGC_DIVISOR_MAX + 1) {
-		div16 = 1;
+		div16 = QE_BRGC_DIV16;
 		divisor /= 16;
 	}
 
-	tempval = ((divisor - 1) << QE_BRGC_DIVISOR_SHIFT) | QE_BRGC_ENABLE;
-	if (div16)
-		tempval |= QE_BRGC_DIV16;
+	/* Errata QE_General4, which affects some MPC832x and MPC836x SOCs, says
+	   that the BRG divisor must be even if you're not using divide-by-16
+	   mode. */
+	if (!div16 && (divisor & 1))
+		divisor++;
 
-	out_be32(bp, tempval);
+	tempval = ((divisor - 1) << QE_BRGC_DIVISOR_SHIFT) |
+		QE_BRGC_ENABLE | div16;
+
+	out_be32(&qe_immr->brg.brgc[brg - 1], tempval);
 }
 
 /* Initialize SNUMs (thread serial numbers) according to

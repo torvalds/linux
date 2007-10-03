@@ -2919,7 +2919,7 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	test = in_be16(&ugeth->p_tx_glbl_pram->temoder);
 
 	/* Function code register value to be used later */
-	function_code = QE_BMR_BYTE_ORDER_BO_MOT | UCC_FAST_FUNCTION_CODE_GBL;
+	function_code = UCC_BMR_BO_BE | UCC_BMR_GBL;
 	/* Required for QE */
 
 	/* function code register */

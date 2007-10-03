@@ -405,8 +405,6 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags)
 		set_irq_data(qe_ic->virq_high, qe_ic);
 		set_irq_chained_handler(qe_ic->virq_high, qe_ic_cascade_high);
 	}
-
-	printk("QEIC (%d IRQ sources) at %p\n", NR_QE_IC_INTS, qe_ic->regs);
 }
 
 void qe_ic_set_highest_priority(unsigned int virq, int high)
