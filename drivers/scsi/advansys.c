@@ -2229,7 +2229,6 @@ do { \
 #define ASC_BOARDP(host) ((asc_board_t *) &((host)->hostdata))
 
 /* asc_board_t flags */
-#define ASC_HOST_IN_RESET       0x01
 #define ASC_IS_WIDE_BOARD       0x04	/* AdvanSys Wide Board */
 #define ASC_SELECT_QUEUE_DEPTHS 0x08
 
@@ -9751,106 +9750,68 @@ static int AscISR(ASC_DVC_VAR *asc_dvc)
  */
 static int advansys_reset(struct scsi_cmnd *scp)
 {
-	struct Scsi_Host *shost;
-	asc_board_t *boardp;
-	ASC_DVC_VAR *asc_dvc_varp;
-	ADV_DVC_VAR *adv_dvc_varp;
-	ulong flags;
+	struct Scsi_Host *shost = scp->device->host;
+	struct asc_board *boardp = ASC_BOARDP(shost);
+	unsigned long flags;
 	int status;
 	int ret = SUCCESS;
 
-	ASC_DBG1(1, "advansys_reset: 0x%lx\n", (ulong)scp);
+	ASC_DBG1(1, "advansys_reset: 0x%p\n", scp);
 
-#ifdef ADVANSYS_STATS
-	if (scp->device->host != NULL) {
-		ASC_STATS(scp->device->host, reset);
-	}
-#endif /* ADVANSYS_STATS */
+	ASC_STATS(shost, reset);
 
-	if ((shost = scp->device->host) == NULL) {
-		scp->result = HOST_BYTE(DID_ERROR);
-		return FAILED;
-	}
-
-	boardp = ASC_BOARDP(shost);
-
-	ASC_PRINT1("advansys_reset: board %d: SCSI bus reset started...\n",
-		   boardp->id);
-	/*
-	 * Check for re-entrancy.
-	 */
-	spin_lock_irqsave(&boardp->lock, flags);
-	if (boardp->flags & ASC_HOST_IN_RESET) {
-		spin_unlock_irqrestore(&boardp->lock, flags);
-		return FAILED;
-	}
-	boardp->flags |= ASC_HOST_IN_RESET;
-	spin_unlock_irqrestore(&boardp->lock, flags);
+	scmd_printk(KERN_INFO, scp, "SCSI bus reset started...\n");
 
 	if (ASC_NARROW_BOARD(boardp)) {
-		/*
-		 * Narrow Board
-		 */
-		asc_dvc_varp = &boardp->dvc_var.asc_dvc_var;
+		ASC_DVC_VAR *asc_dvc = &boardp->dvc_var.asc_dvc_var;
 
-		/*
-		 * Reset the chip and SCSI bus.
-		 */
+		/* Reset the chip and SCSI bus. */
 		ASC_DBG(1, "advansys_reset: before AscInitAsc1000Driver()\n");
-		status = AscInitAsc1000Driver(asc_dvc_varp);
+		status = AscInitAsc1000Driver(asc_dvc);
 
 		/* Refer to ASC_IERR_* defintions for meaning of 'err_code'. */
-		if (asc_dvc_varp->err_code) {
-			ASC_PRINT2("advansys_reset: board %d: SCSI bus reset "
-				   "error: 0x%x\n", boardp->id,
-				   asc_dvc_varp->err_code);
+		if (asc_dvc->err_code) {
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset error: "
+				    "0x%x\n", asc_dvc->err_code);
 			ret = FAILED;
 		} else if (status) {
-			ASC_PRINT2("advansys_reset: board %d: SCSI bus reset "
-				   "warning: 0x%x\n", boardp->id, status);
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset warning: "
+				    "0x%x\n", status);
 		} else {
-			ASC_PRINT1("advansys_reset: board %d: SCSI bus reset "
-				   "successful.\n", boardp->id);
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+				    "successful\n");
 		}
 
 		ASC_DBG(1, "advansys_reset: after AscInitAsc1000Driver()\n");
 		spin_lock_irqsave(&boardp->lock, flags);
-
 	} else {
 		/*
-		 * Wide Board
-		 *
 		 * If the suggest reset bus flags are set, then reset the bus.
 		 * Otherwise only reset the device.
 		 */
-		adv_dvc_varp = &boardp->dvc_var.adv_dvc_var;
+		ADV_DVC_VAR *adv_dvc = &boardp->dvc_var.adv_dvc_var;
 
 		/*
 		 * Reset the target's SCSI bus.
 		 */
 		ASC_DBG(1, "advansys_reset: before AdvResetChipAndSB()\n");
-		switch (AdvResetChipAndSB(adv_dvc_varp)) {
+		switch (AdvResetChipAndSB(adv_dvc)) {
 		case ASC_TRUE:
-			ASC_PRINT1("advansys_reset: board %d: SCSI bus reset "
-				   "successful.\n", boardp->id);
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset "
+				    "successful\n");
 			break;
 		case ASC_FALSE:
 		default:
-			ASC_PRINT1("advansys_reset: board %d: SCSI bus reset "
-				   "error.\n", boardp->id);
+			scmd_printk(KERN_INFO, scp, "SCSI bus reset error\n");
 			ret = FAILED;
 			break;
 		}
 		spin_lock_irqsave(&boardp->lock, flags);
-		AdvISR(adv_dvc_varp);
+		AdvISR(adv_dvc);
 	}
-	/* Board lock is held. */
 
 	/* Save the time of the most recently completed reset. */
 	boardp->last_reset = jiffies;
-
-	/* Clear reset flag. */
-	boardp->flags &= ~ASC_HOST_IN_RESET;
 	spin_unlock_irqrestore(&boardp->lock, flags);
 
 	ASC_DBG1(1, "advansys_reset: ret %d\n", ret);
