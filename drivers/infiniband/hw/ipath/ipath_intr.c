@@ -1124,10 +1124,8 @@ irqreturn_t ipath_intr(int irq, void *data)
 			/*
 			 * Some unexpected bits remain. If they could have
 			 * caused the interrupt, complain and clear.
-			 * MEA: this is almost certainly non-ideal.
-			 * we should look into auto-disable of unexpected
-			 * GPIO interrupts, possibly on a "three strikes"
-			 * basis.
+			 * To avoid repetition of this condition, also clear
+			 * the mask. It is almost certainly due to error.
 			 */
 			const u32 mask = (u32) dd->ipath_gpio_mask;
 
@@ -1135,6 +1133,10 @@ irqreturn_t ipath_intr(int irq, void *data)
 				ipath_dbg("Unexpected GPIO IRQ bits %x\n",
 				  gpiostatus & mask);
 				to_clear |= (gpiostatus & mask);
+				dd->ipath_gpio_mask &= ~(gpiostatus & mask);
+				ipath_write_kreg(dd,
+					dd->ipath_kregs->kr_gpio_mask,
+					dd->ipath_gpio_mask);
 			}
 		}
 		if (to_clear) {
