@@ -1139,15 +1139,27 @@ static unsigned int mv_fill_sg(struct ata_queued_cmd *qc)
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
 
-		mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
-		mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
-		mv_sg->flags_size = cpu_to_le32(sg_len & 0xffff);
+		while (sg_len) {
+			u32 offset = addr & 0xffff;
+			u32 len = sg_len;
 
-		if (ata_sg_is_last(sg, qc))
-			mv_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+			if ((offset + sg_len > 0x10000))
+				len = 0x10000 - offset;
 
-		mv_sg++;
-		n_sg++;
+			mv_sg->addr = cpu_to_le32(addr & 0xffffffff);
+			mv_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
+			mv_sg->flags_size = cpu_to_le32(len);
+
+			sg_len -= len;
+			addr += len;
+
+			if (!sg_len && ata_sg_is_last(sg, qc))
+				mv_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+
+			mv_sg++;
+			n_sg++;
+		}
+
 	}
 
 	return n_sg;
