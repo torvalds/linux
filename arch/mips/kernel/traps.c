@@ -1306,6 +1306,17 @@ int cp0_compare_irq;
 int cp0_perfcount_irq;
 EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
 
+static int __cpuinitdata noulri;
+
+static int __init ulri_disable(char *s)
+{
+	pr_info("Disabling ulri\n");
+	noulri = 1;
+
+	return 1;
+}
+__setup("noulri", ulri_disable);
+
 void __cpuinit per_cpu_trap_init(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -1346,7 +1357,7 @@ void __cpuinit per_cpu_trap_init(void)
 	if (cpu_has_mips_r2) {
 		unsigned int enable = 0x0000000f;
 
-		if (cpu_has_userlocal)
+		if (!noulri && cpu_has_userlocal)
 			enable |= (1 << 29);
 
 		write_c0_hwrena(enable);
