@@ -238,6 +238,7 @@ struct sbmac_softc {
 	 */
 
 	struct net_device *sbm_dev;		/* pointer to linux device */
+	struct napi_struct napi;
 	spinlock_t sbm_lock;		/* spin lock */
 	struct timer_list sbm_timer;     	/* for monitoring MII */
 	struct net_device_stats sbm_stats;
@@ -320,7 +321,7 @@ static struct net_device_stats *sbmac_get_stats(struct net_device *dev);
 static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
-static int sbmac_poll(struct net_device *poll_dev, int *budget);
+static int sbmac_poll(struct napi_struct *napi, int budget);
 
 static int sbmac_mii_poll(struct sbmac_softc *s,int noisy);
 static int sbmac_mii_probe(struct net_device *dev);
@@ -2154,20 +2155,13 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance)
 	 * Transmits on channel 0
 	 */
 
-	if (isr & (M_MAC_INT_CHANNEL << S_MAC_TX_CH0)) {
+	if (isr & (M_MAC_INT_CHANNEL << S_MAC_TX_CH0))
 		sbdma_tx_process(sc,&(sc->sbm_txdma), 0);
-#ifdef CONFIG_NETPOLL_TRAP
-		if (netpoll_trap()) {
-			if (test_and_clear_bit(__LINK_STATE_XOFF, &dev->state))
-				__netif_schedule(dev);
-		}
-#endif
-	}
 
 	if (isr & (M_MAC_INT_CHANNEL << S_MAC_RX_CH0)) {
-		if (netif_rx_schedule_prep(dev)) {
+		if (netif_rx_schedule_prep(dev, &sc->napi)) {
 			__raw_writeq(0, sc->sbm_imr);
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &sc->napi);
 			/* Depend on the exit from poll to reenable intr */
 		}
 		else {
@@ -2470,8 +2464,8 @@ static int sbmac_init(struct net_device *dev, int idx)
 	dev->do_ioctl           = sbmac_mii_ioctl;
 	dev->tx_timeout         = sbmac_tx_timeout;
 	dev->watchdog_timeo     = TX_TIMEOUT;
-	dev->poll               = sbmac_poll;
-	dev->weight             = 16;
+
+	netif_napi_add(dev, &sc->napi, sbmac_poll, 16);
 
 	dev->change_mtu         = sb1250_change_mtu;
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -2536,6 +2530,8 @@ static int sbmac_open(struct net_device *dev)
 		printk("%s: failed to probe PHY.\n", dev->name);
 		return -EINVAL;
 	}
+
+	napi_enable(&sc->napi);
 
 	/*
 	 * Configure default speed
@@ -2850,6 +2846,8 @@ static int sbmac_close(struct net_device *dev)
 	unsigned long flags;
 	int irq;
 
+	napi_disable(&sc->napi);
+
 	sbmac_set_channel_state(sc,sbmac_state_off);
 
 	del_timer_sync(&sc->sbm_timer);
@@ -2874,26 +2872,17 @@ static int sbmac_close(struct net_device *dev)
 	return 0;
 }
 
-static int sbmac_poll(struct net_device *dev, int *budget)
+static int sbmac_poll(struct napi_struct *napi, int budget)
 {
-	int work_to_do;
+	struct sbmac_softc *sc = container_of(napi, struct sbmac_softc, napi);
+	struct net_device *dev = sc->sbm_dev;
 	int work_done;
-	struct sbmac_softc *sc = netdev_priv(dev);
 
-	work_to_do = min(*budget, dev->quota);
-	work_done = sbdma_rx_process(sc, &(sc->sbm_rxdma), work_to_do, 1);
-
-	if (work_done > work_to_do)
-		printk(KERN_ERR "%s exceeded work_to_do budget=%d quota=%d work-done=%d\n",
-		       sc->sbm_dev->name, *budget, dev->quota, work_done);
-
+	work_done = sbdma_rx_process(sc, &(sc->sbm_rxdma), budget, 1);
 	sbdma_tx_process(sc, &(sc->sbm_txdma), 1);
 
-	*budget -= work_done;
-	dev->quota -= work_done;
-
-	if (work_done < work_to_do) {
-		netif_rx_complete(dev);
+	if (work_done < budget) {
+		netif_rx_complete(dev, napi);
 
 #ifdef CONFIG_SBMAC_COALESCE
 		__raw_writeq(((M_MAC_INT_EOP_COUNT | M_MAC_INT_EOP_TIMER) << S_MAC_TX_CH0) |
@@ -2905,7 +2894,7 @@ static int sbmac_poll(struct net_device *dev, int *budget)
 #endif
 	}
 
-	return (work_done >= work_to_do);
+	return work_done;
 }
 
 #if defined(SBMAC_ETH0_HWADDR) || defined(SBMAC_ETH1_HWADDR) || defined(SBMAC_ETH2_HWADDR) || defined(SBMAC_ETH3_HWADDR)

@@ -339,49 +339,17 @@ static void setup_rss(struct adapter *adap)
 		      V_RRCPLCPUSIZE(6), cpus, rspq_map);
 }
 
-/*
- * If we have multiple receive queues per port serviced by NAPI we need one
- * netdevice per queue as NAPI operates on netdevices.  We already have one
- * netdevice, namely the one associated with the interface, so we use dummy
- * ones for any additional queues.  Note that these netdevices exist purely
- * so that NAPI has something to work with, they do not represent network
- * ports and are not registered.
- */
-static int init_dummy_netdevs(struct adapter *adap)
+static void init_napi(struct adapter *adap)
 {
-	int i, j, dummy_idx = 0;
-	struct net_device *nd;
+	int i;
 
-	for_each_port(adap, i) {
-		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
+	for (i = 0; i < SGE_QSETS; i++) {
+		struct sge_qset *qs = &adap->sge.qs[i];
 
-		for (j = 0; j < pi->nqsets - 1; j++) {
-			if (!adap->dummy_netdev[dummy_idx]) {
-				struct port_info *p;
-
-				nd = alloc_netdev(sizeof(*p), "", ether_setup);
-				if (!nd)
-					goto free_all;
-
-				p = netdev_priv(nd);
-				p->adapter = adap;
-				nd->weight = 64;
-				set_bit(__LINK_STATE_START, &nd->state);
-				adap->dummy_netdev[dummy_idx] = nd;
-			}
-			strcpy(adap->dummy_netdev[dummy_idx]->name, dev->name);
-			dummy_idx++;
-		}
+		if (qs->adap)
+			netif_napi_add(qs->netdev, &qs->napi, qs->napi.poll,
+				       64);
 	}
-	return 0;
-
-free_all:
-	while (--dummy_idx >= 0) {
-		free_netdev(adap->dummy_netdev[dummy_idx]);
-		adap->dummy_netdev[dummy_idx] = NULL;
-	}
-	return -ENOMEM;
 }
 
 /*
@@ -392,20 +360,18 @@ free_all:
 static void quiesce_rx(struct adapter *adap)
 {
 	int i;
-	struct net_device *dev;
 
-	for_each_port(adap, i) {
-		dev = adap->port[i];
-		while (test_bit(__LINK_STATE_RX_SCHED, &dev->state))
-			msleep(1);
-	}
+	for (i = 0; i < SGE_QSETS; i++)
+		if (adap->sge.qs[i].adap)
+			napi_disable(&adap->sge.qs[i].napi);
+}
 
-	for (i = 0; i < ARRAY_SIZE(adap->dummy_netdev); i++) {
-		dev = adap->dummy_netdev[i];
-		if (dev)
-			while (test_bit(__LINK_STATE_RX_SCHED, &dev->state))
-				msleep(1);
-	}
+static void enable_all_napi(struct adapter *adap)
+{
+	int i;
+	for (i = 0; i < SGE_QSETS; i++)
+		if (adap->sge.qs[i].adap)
+			napi_enable(&adap->sge.qs[i].napi);
 }
 
 /**
@@ -418,7 +384,7 @@ static void quiesce_rx(struct adapter *adap)
  */
 static int setup_sge_qsets(struct adapter *adap)
 {
-	int i, j, err, irq_idx = 0, qset_idx = 0, dummy_dev_idx = 0;
+	int i, j, err, irq_idx = 0, qset_idx = 0;
 	unsigned int ntxq = SGE_TXQ_PER_SET;
 
 	if (adap->params.rev > 0 && !(adap->flags & USING_MSI))
@@ -426,15 +392,14 @@ static int setup_sge_qsets(struct adapter *adap)
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
-		const struct port_info *pi = netdev_priv(dev);
+		struct port_info *pi = netdev_priv(dev);
 
+		pi->qs = &adap->sge.qs[pi->first_qset];
 		for (j = 0; j < pi->nqsets; ++j, ++qset_idx) {
 			err = t3_sge_alloc_qset(adap, qset_idx, 1,
 				(adap->flags & USING_MSIX) ? qset_idx + 1 :
 							     irq_idx,
-				&adap->params.sge.qset[qset_idx], ntxq,
-				j == 0 ? dev :
-					 adap-> dummy_netdev[dummy_dev_idx++]);
+				&adap->params.sge.qset[qset_idx], ntxq, dev);
 			if (err) {
 				t3_free_sge_resources(adap);
 				return err;
@@ -845,21 +810,18 @@ static int cxgb_up(struct adapter *adap)
 				goto out;
 		}
 
-		err = init_dummy_netdevs(adap);
-		if (err)
-			goto out;
-
 		err = t3_init_hw(adap, 0);
 		if (err)
 			goto out;
 
 		t3_write_reg(adap, A_ULPRX_TDDP_PSZ, V_HPZ0(PAGE_SHIFT - 12));
-		
+
 		err = setup_sge_qsets(adap);
 		if (err)
 			goto out;
 
 		setup_rss(adap);
+		init_napi(adap);
 		adap->flags |= FULL_INIT_DONE;
 	}
 
@@ -886,6 +848,7 @@ static int cxgb_up(struct adapter *adap)
 				      adap->name, adap)))
 		goto irq_err;
 
+	enable_all_napi(adap);
 	t3_sge_start(adap);
 	t3_intr_enable(adap);
 
@@ -1012,8 +975,10 @@ static int cxgb_open(struct net_device *dev)
 	int other_ports = adapter->open_device_map & PORT_MASK;
 	int err;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
+	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0) {
+		quiesce_rx(adapter);
 		return err;
+	}
 
 	set_bit(pi->port_id, &adapter->open_device_map);
 	if (is_offload(adapter) && !ofld_disable) {
@@ -2524,7 +2489,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 		netdev->poll_controller = cxgb_netpoll;
 #endif
-		netdev->weight = 64;
 
 		SET_ETHTOOL_OPS(netdev, &cxgb_ethtool_ops);
 	}
@@ -2624,12 +2588,6 @@ static void __devexit remove_one(struct pci_dev *pdev)
 
 		t3_free_sge_resources(adapter);
 		cxgb_disable_msi(adapter);
-
-		for (i = 0; i < ARRAY_SIZE(adapter->dummy_netdev); i++)
-			if (adapter->dummy_netdev[i]) {
-				free_netdev(adapter->dummy_netdev[i]);
-				adapter->dummy_netdev[i] = NULL;
-			}
 
 		for_each_port(adapter, i)
 			if (adapter->port[i])

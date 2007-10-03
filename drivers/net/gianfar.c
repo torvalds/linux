@@ -134,7 +134,7 @@ static void gfar_configure_serdes(struct net_device *dev);
 extern int gfar_local_mdio_write(struct gfar_mii *regs, int mii_id, int regnum, u16 value);
 extern int gfar_local_mdio_read(struct gfar_mii *regs, int mii_id, int regnum);
 #ifdef CONFIG_GFAR_NAPI
-static int gfar_poll(struct net_device *dev, int *budget);
+static int gfar_poll(struct napi_struct *napi, int budget);
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void gfar_netpoll(struct net_device *dev);
@@ -188,6 +188,7 @@ static int gfar_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv = netdev_priv(dev);
+	priv->dev = dev;
 
 	/* Set the info in the priv to the current info */
 	priv->einfo = einfo;
@@ -261,10 +262,7 @@ static int gfar_probe(struct platform_device *pdev)
 	dev->hard_start_xmit = gfar_start_xmit;
 	dev->tx_timeout = gfar_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-#ifdef CONFIG_GFAR_NAPI
-	dev->poll = gfar_poll;
-	dev->weight = GFAR_DEV_WEIGHT;
-#endif
+	netif_napi_add(dev, &priv->napi, gfar_poll, GFAR_DEV_WEIGHT);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = gfar_netpoll;
 #endif
@@ -939,6 +937,8 @@ static int gfar_enet_open(struct net_device *dev)
 {
 	int err;
 
+	napi_enable(&priv->napi);
+
 	/* Initialize a bunch of registers */
 	init_registers(dev);
 
@@ -946,10 +946,14 @@ static int gfar_enet_open(struct net_device *dev)
 
 	err = init_phy(dev);
 
-	if(err)
+	if(err) {
+		napi_disable(&priv->napi);
 		return err;
+	}
 
 	err = startup_gfar(dev);
+	if (err)
+		napi_disable(&priv->napi);
 
 	netif_start_queue(dev);
 
@@ -1102,6 +1106,9 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static int gfar_close(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+
+	napi_disable(&priv->napi);
+
 	stop_gfar(dev);
 
 	/* Disconnect from the PHY */
@@ -1318,7 +1325,7 @@ struct sk_buff * gfar_new_skb(struct net_device *dev, struct rxbd8 *bdp)
 		return NULL;
 
 	alignamount = RXBUF_ALIGNMENT -
-		(((unsigned) skb->data) & (RXBUF_ALIGNMENT - 1));
+		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1));
 
 	/* We need the data buffer to be aligned properly.  We will reserve
 	 * as many bytes as needed to align the data properly
@@ -1390,12 +1397,12 @@ irqreturn_t gfar_receive(int irq, void *dev_id)
 
 	/* support NAPI */
 #ifdef CONFIG_GFAR_NAPI
-	if (netif_rx_schedule_prep(dev)) {
+	if (netif_rx_schedule_prep(dev, &priv->napi)) {
 		tempval = gfar_read(&priv->regs->imask);
 		tempval &= IMASK_RX_DISABLED;
 		gfar_write(&priv->regs->imask, tempval);
 
-		__netif_rx_schedule(dev);
+		__netif_rx_schedule(dev, &priv->napi);
 	} else {
 		if (netif_msg_rx_err(priv))
 			printk(KERN_DEBUG "%s: receive called twice (%x)[%x]\n",
@@ -1569,23 +1576,16 @@ int gfar_clean_rx_ring(struct net_device *dev, int rx_work_limit)
 }
 
 #ifdef CONFIG_GFAR_NAPI
-static int gfar_poll(struct net_device *dev, int *budget)
+static int gfar_poll(struct napi_struct *napi, int budget)
 {
+	struct gfar_private *priv = container_of(napi, struct gfar_private, napi);
+	struct net_device *dev = priv->dev;
 	int howmany;
-	struct gfar_private *priv = netdev_priv(dev);
-	int rx_work_limit = *budget;
 
-	if (rx_work_limit > dev->quota)
-		rx_work_limit = dev->quota;
+	howmany = gfar_clean_rx_ring(dev, budget);
 
-	howmany = gfar_clean_rx_ring(dev, rx_work_limit);
-
-	dev->quota -= howmany;
-	rx_work_limit -= howmany;
-	*budget -= howmany;
-
-	if (rx_work_limit > 0) {
-		netif_rx_complete(dev);
+	if (howmany < budget) {
+		netif_rx_complete(dev, napi);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&priv->regs->rstat, RSTAT_CLEAR_RHALT);
@@ -1601,8 +1601,7 @@ static int gfar_poll(struct net_device *dev, int *budget)
 			gfar_write(&priv->regs->rxic, 0);
 	}
 
-	/* Return 1 if there's more work to do */
-	return (rx_work_limit > 0) ? 0 : 1;
+	return howmany;
 }
 #endif
 

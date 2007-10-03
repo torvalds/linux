@@ -880,6 +880,7 @@ struct netxen_adapter {
 	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
+	struct napi_struct napi;
 	struct net_device_stats net_stats;
 	unsigned char mac_addr[ETH_ALEN];
 	int mtu;

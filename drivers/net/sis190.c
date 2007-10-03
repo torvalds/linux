@@ -47,24 +47,13 @@
 #define PHY_ID_ANY		0x1f
 #define MII_REG_ANY		0x1f
 
-#ifdef CONFIG_SIS190_NAPI
-#define NAPI_SUFFIX	"-NAPI"
-#else
-#define NAPI_SUFFIX	""
-#endif
-
-#define DRV_VERSION		"1.2" NAPI_SUFFIX
+#define DRV_VERSION		"1.2"
 #define DRV_NAME		"sis190"
 #define SIS190_DRIVER_NAME	DRV_NAME " Gigabit Ethernet driver " DRV_VERSION
 #define PFX DRV_NAME ": "
 
-#ifdef CONFIG_SIS190_NAPI
-#define sis190_rx_skb			netif_receive_skb
-#define sis190_rx_quota(count, quota)	min(count, quota)
-#else
 #define sis190_rx_skb			netif_rx
 #define sis190_rx_quota(count, quota)	count
-#endif
 
 #define MAC_ADDR_LEN		6
 
@@ -1115,10 +1104,8 @@ static void sis190_down(struct net_device *dev)
 
 		synchronize_irq(dev->irq);
 
-		if (!poll_locked) {
-			netif_poll_disable(dev);
+		if (!poll_locked)
 			poll_locked++;
-		}
 
 		synchronize_sched();
 
@@ -1136,8 +1123,6 @@ static int sis190_close(struct net_device *dev)
 	sis190_down(dev);
 
 	free_irq(dev->irq, dev);
-
-	netif_poll_enable(dev);
 
 	pci_free_consistent(pdev, TX_RING_BYTES, tp->TxDescRing, tp->tx_dma);
 	pci_free_consistent(pdev, RX_RING_BYTES, tp->RxDescRing, tp->rx_dma);

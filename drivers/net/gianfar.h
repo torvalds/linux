@@ -691,6 +691,9 @@ struct gfar_private {
 	/* RX Locked fields */
 	spinlock_t rxlock;
 
+	struct net_device *dev;
+	struct napi_struct napi;
+
 	/* skb array and index */
 	struct sk_buff ** rx_skbuff;
 	u16 skb_currx;

@@ -584,7 +584,7 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	if (*mac->rx_status & PAS_STATUS_TIMER)
 		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
 
-	netif_rx_schedule(dev);
+	netif_rx_schedule(dev, &mac->napi);
 
 	pci_write_config_dword(mac->iob_pdev,
 			       PAS_IOB_DMA_RXCH_RESET(mac->dma_rxch), reg);
@@ -808,7 +808,7 @@ static int pasemi_mac_open(struct net_device *dev)
 		dev_warn(&mac->pdev->dev, "phy init failed: %d\n", ret);
 
 	netif_start_queue(dev);
-	netif_poll_enable(dev);
+	napi_enable(&mac->napi);
 
 	/* Interrupts are a bit different for our DMA controller: While
 	 * it's got one a regular PCI device header, the interrupt there
@@ -845,7 +845,7 @@ static int pasemi_mac_open(struct net_device *dev)
 out_rx_int:
 	free_irq(mac->tx_irq, dev);
 out_tx_int:
-	netif_poll_disable(dev);
+	napi_disable(&mac->napi);
 	netif_stop_queue(dev);
 	pasemi_mac_free_tx_resources(dev);
 out_tx_resources:
@@ -869,6 +869,7 @@ static int pasemi_mac_close(struct net_device *dev)
 	}
 
 	netif_stop_queue(dev);
+	napi_disable(&mac->napi);
 
 	/* Clean out any pending buffers */
 	pasemi_mac_clean_tx(mac);
@@ -1047,26 +1048,20 @@ static void pasemi_mac_set_rx_mode(struct net_device *dev)
 }
 
 
-static int pasemi_mac_poll(struct net_device *dev, int *budget)
+static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 {
-	int pkts, limit = min(*budget, dev->quota);
-	struct pasemi_mac *mac = netdev_priv(dev);
+	struct pasemi_mac *mac = container_of(napi, struct pasemi_mac, napi);
+	struct net_device *dev = mac->netdev;
+	int pkts;
 
-	pkts = pasemi_mac_clean_rx(mac, limit);
-
-	dev->quota -= pkts;
-	*budget -= pkts;
-
-	if (pkts < limit) {
+	pkts = pasemi_mac_clean_rx(mac, budget);
+	if (pkts < budget) {
 		/* all done, no more packets present */
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 
 		pasemi_mac_restart_rx_intr(mac);
-		return 0;
-	} else {
-		/* used up our quantum, so reschedule */
-		return 1;
 	}
+	return pkts;
 }
 
 static int __devinit
@@ -1098,6 +1093,10 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mac->pdev = pdev;
 	mac->netdev = dev;
 	mac->dma_pdev = pci_get_device(PCI_VENDOR_ID_PASEMI, 0xa007, NULL);
+
+	netif_napi_add(dev, &mac->napi, pasemi_mac_poll, 64);
+
+	dev->features = NETIF_F_HW_CSUM;
 
 	if (!mac->dma_pdev) {
 		dev_err(&pdev->dev, "Can't find DMA Controller\n");
@@ -1150,9 +1149,6 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hard_start_xmit = pasemi_mac_start_tx;
 	dev->get_stats = pasemi_mac_get_stats;
 	dev->set_multicast_list = pasemi_mac_set_rx_mode;
-	dev->weight = 64;
-	dev->poll = pasemi_mac_poll;
-	dev->features = NETIF_F_HW_CSUM;
 
 	/* The dma status structure is located in the I/O bridge, and
 	 * is cache coherent.

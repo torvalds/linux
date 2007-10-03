@@ -351,6 +351,7 @@ struct ehea_q_skb_arr {
  * Port resources
  */
 struct ehea_port_res {
+	struct napi_struct napi;
 	struct port_stats p_stats;
 	struct ehea_mr send_mr;       	/* send memory region */
 	struct ehea_mr recv_mr;       	/* receive memory region */
@@ -362,7 +363,6 @@ struct ehea_port_res {
 	struct ehea_cq *send_cq;
 	struct ehea_cq *recv_cq;
 	struct ehea_eq *eq;
-	struct net_device *d_netdev;
 	struct ehea_q_skb_arr rq1_skba;
 	struct ehea_q_skb_arr rq2_skba;
 	struct ehea_q_skb_arr rq3_skba;

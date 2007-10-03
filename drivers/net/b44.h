@@ -423,6 +423,8 @@ struct b44 {
 	struct ring_info	*rx_buffers;
 	struct ring_info	*tx_buffers;
 
+	struct napi_struct	napi;
+
 	u32			dma_offset;
 	u32			flags;
 #define B44_FLAG_B0_ANDLATER	0x00000001

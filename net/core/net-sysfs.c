@@ -216,20 +216,6 @@ static ssize_t store_tx_queue_len(struct device *dev,
 	return netdev_store(dev, attr, buf, len, change_tx_queue_len);
 }
 
-NETDEVICE_SHOW(weight, fmt_dec);
-
-static int change_weight(struct net_device *net, unsigned long new_weight)
-{
-	net->weight = new_weight;
-	return 0;
-}
-
-static ssize_t store_weight(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t len)
-{
-	return netdev_store(dev, attr, buf, len, change_weight);
-}
-
 static struct device_attribute net_class_attributes[] = {
 	__ATTR(addr_len, S_IRUGO, show_addr_len, NULL),
 	__ATTR(iflink, S_IRUGO, show_iflink, NULL),
@@ -246,7 +232,6 @@ static struct device_attribute net_class_attributes[] = {
 	__ATTR(flags, S_IRUGO | S_IWUSR, show_flags, store_flags),
 	__ATTR(tx_queue_len, S_IRUGO | S_IWUSR, show_tx_queue_len,
 	       store_tx_queue_len),
-	__ATTR(weight, S_IRUGO | S_IWUSR, show_weight, store_weight),
 	{}
 };
 

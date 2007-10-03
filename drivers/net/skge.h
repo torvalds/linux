@@ -2448,6 +2448,7 @@ enum pause_status {
 struct skge_port {
 	struct skge_hw	     *hw;
 	struct net_device    *netdev;
+	struct napi_struct   napi;
 	int		     port;
 	u32		     msg_enable;
 

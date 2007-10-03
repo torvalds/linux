@@ -556,6 +556,7 @@ static int gelic_net_stop(struct net_device *netdev)
 {
 	struct gelic_net_card *card = netdev_priv(netdev);
 
+	napi_disable(&card->napi);
 	netif_stop_queue(netdev);
 
 	/* turn off DMA, force end */
@@ -987,32 +988,24 @@ refill:
  * if the quota is exceeded, but the driver has still packets.
  *
  */
-static int gelic_net_poll(struct net_device *netdev, int *budget)
+static int gelic_net_poll(struct napi_struct *napi, int budget)
 {
-	struct gelic_net_card *card = netdev_priv(netdev);
-	int packets_to_do, packets_done = 0;
-	int no_more_packets = 0;
+	struct gelic_net_card *card = container_of(napi, struct gelic_net_card, napi);
+	struct net_device *netdev = card->netdev;
+	int packets_done = 0;
 
-	packets_to_do = min(*budget, netdev->quota);
-
-	while (packets_to_do) {
-		if (gelic_net_decode_one_descr(card)) {
-			packets_done++;
-			packets_to_do--;
-		} else {
-			/* no more packets for the stack */
-			no_more_packets = 1;
+	while (packets_done < budget) {
+		if (!gelic_net_decode_one_descr(card))
 			break;
-		}
+
+		packets_done++;
 	}
-	netdev->quota -= packets_done;
-	*budget -= packets_done;
-	if (no_more_packets) {
-		netif_rx_complete(netdev);
+
+	if (packets_done < budget) {
+		netif_rx_complete(netdev, napi);
 		gelic_net_rx_irq_on(card);
-		return 0;
-	} else
-		return 1;
+	}
+	return packets_done;
 }
 /**
  * gelic_net_change_mtu - changes the MTU of an interface
@@ -1055,7 +1048,7 @@ static irqreturn_t gelic_net_interrupt(int irq, void *ptr)
 
 	if (status & GELIC_NET_RXINT) {
 		gelic_net_rx_irq_off(card);
-		netif_rx_schedule(netdev);
+		netif_rx_schedule(netdev, &card->napi);
 	}
 
 	if (status & GELIC_NET_TXINT) {
@@ -1158,6 +1151,8 @@ static int gelic_net_open(struct net_device *netdev)
 	/* allocate rx skbs */
 	if (gelic_net_alloc_rx_skbs(card))
 		goto alloc_skbs_failed;
+
+	napi_enable(&card->napi);
 
 	card->tx_dma_progress = 0;
 	card->ghiintmask = GELIC_NET_RXINT | GELIC_NET_TXINT;
@@ -1360,9 +1355,6 @@ static void gelic_net_setup_netdev_ops(struct net_device *netdev)
 	/* tx watchdog */
 	netdev->tx_timeout = &gelic_net_tx_timeout;
 	netdev->watchdog_timeo = GELIC_NET_WATCHDOG_TIMEOUT;
-	/* NAPI */
-	netdev->poll = &gelic_net_poll;
-	netdev->weight = GELIC_NET_NAPI_WEIGHT;
 	netdev->ethtool_ops = &gelic_net_ethtool_ops;
 }
 
@@ -1389,6 +1381,9 @@ static int gelic_net_setup_netdev(struct gelic_net_card *card)
 	card->rx_csum = GELIC_NET_RX_CSUM_DEFAULT;
 
 	gelic_net_setup_netdev_ops(netdev);
+
+	netif_napi_add(netdev, &card->napi,
+		       gelic_net_poll, GELIC_NET_NAPI_WEIGHT);
 
 	netdev->features = NETIF_F_IP_CSUM;
 

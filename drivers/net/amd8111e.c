@@ -723,9 +723,10 @@ static int amd8111e_tx(struct net_device *dev)
 
 #ifdef CONFIG_AMD8111E_NAPI
 /* This function handles the driver receive operation in polling mode */
-static int amd8111e_rx_poll(struct net_device *dev, int * budget)
+static int amd8111e_rx_poll(struct napi_struct *napi, int budget)
 {
-	struct amd8111e_priv *lp = netdev_priv(dev);
+	struct amd8111e_priv *lp = container_of(napi, struct amd8111e_priv, napi);
+	struct net_device *dev = lp->amd8111e_net_dev;
 	int rx_index = lp->rx_idx & RX_RING_DR_MOD_MASK;
 	void __iomem *mmio = lp->mmio;
 	struct sk_buff *skb,*new_skb;
@@ -737,7 +738,7 @@ static int amd8111e_rx_poll(struct net_device *dev, int * budget)
 #if AMD8111E_VLAN_TAG_USED
 	short vtag;
 #endif
-	int rx_pkt_limit = dev->quota;
+	int rx_pkt_limit = budget;
 	unsigned long flags;
 
 	do{
@@ -838,21 +839,14 @@ static int amd8111e_rx_poll(struct net_device *dev, int * budget)
 	} while(intr0 & RINT0);
 
 	/* Receive descriptor is empty now */
-	dev->quota -= num_rx_pkt;
-	*budget -= num_rx_pkt;
-
 	spin_lock_irqsave(&lp->lock, flags);
-	netif_rx_complete(dev);
+	__netif_rx_complete(dev, napi);
 	writel(VAL0|RINTEN0, mmio + INTEN0);
 	writel(VAL2 | RDMD0, mmio + CMD0);
 	spin_unlock_irqrestore(&lp->lock, flags);
-	return 0;
 
 rx_not_empty:
-	/* Do not call a netif_rx_complete */
-	dev->quota -= num_rx_pkt;
-	*budget -= num_rx_pkt;
-	return 1;
+	return num_rx_pkt;
 }
 
 #else
@@ -1287,11 +1281,11 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 	/* Check if Receive Interrupt has occurred. */
 #ifdef CONFIG_AMD8111E_NAPI
 	if(intr0 & RINT0){
-		if(netif_rx_schedule_prep(dev)){
+		if(netif_rx_schedule_prep(dev, &lp->napi)){
 			/* Disable receive interupts */
 			writel(RINTEN0, mmio + INTEN0);
 			/* Schedule a polling routine */
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &lp->napi);
 		}
 		else if (intren0 & RINTEN0) {
 			printk("************Driver bug! \
@@ -1345,6 +1339,8 @@ static int amd8111e_close(struct net_device * dev)
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	netif_stop_queue(dev);
 
+	napi_disable(&lp->napi);
+
 	spin_lock_irq(&lp->lock);
 
 	amd8111e_disable_interrupt(lp);
@@ -1375,12 +1371,15 @@ static int amd8111e_open(struct net_device * dev )
 					 dev->name, dev))
 		return -EAGAIN;
 
+	napi_enable(&lp->napi);
+
 	spin_lock_irq(&lp->lock);
 
 	amd8111e_init_hw_default(lp);
 
 	if(amd8111e_restart(dev)){
 		spin_unlock_irq(&lp->lock);
+		napi_disable(&lp->napi);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		return -ENOMEM;
@@ -2031,8 +2030,7 @@ static int __devinit amd8111e_probe_one(struct pci_dev *pdev,
 	dev->tx_timeout = amd8111e_tx_timeout;
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 #ifdef CONFIG_AMD8111E_NAPI
-	dev->poll = amd8111e_rx_poll;
-	dev->weight = 32;
+	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = amd8111e_poll;

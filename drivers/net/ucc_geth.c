@@ -3582,41 +3582,31 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 }
 
 #ifdef CONFIG_UGETH_NAPI
-static int ucc_geth_poll(struct net_device *dev, int *budget)
+static int ucc_geth_poll(struct napi_struct *napi, int budget)
 {
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct ucc_geth_private *ugeth = container_of(napi, struct ucc_geth_private, napi);
+	struct net_device *dev = ugeth->dev;
 	struct ucc_geth_info *ug_info;
-	struct ucc_fast_private *uccf;
-	int howmany;
-	u8 i;
-	int rx_work_limit;
-	register u32 uccm;
+	int howmany, i;
 
 	ug_info = ugeth->ug_info;
 
-	rx_work_limit = *budget;
-	if (rx_work_limit > dev->quota)
-		rx_work_limit = dev->quota;
-
 	howmany = 0;
+	for (i = 0; i < ug_info->numQueuesRx; i++)
+		howmany += ucc_geth_rx(ugeth, i, budget - howmany);
 
-	for (i = 0; i < ug_info->numQueuesRx; i++) {
-		howmany += ucc_geth_rx(ugeth, i, rx_work_limit);
-	}
+	if (howmany < budget) {
+		struct ucc_fast_private *uccf;
+		u32 uccm;
 
-	dev->quota -= howmany;
-	rx_work_limit -= howmany;
-	*budget -= howmany;
-
-	if (rx_work_limit > 0) {
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 		uccf = ugeth->uccf;
 		uccm = in_be32(uccf->p_uccm);
 		uccm |= UCCE_RX_EVENTS;
 		out_be32(uccf->p_uccm, uccm);
 	}
 
-	return (rx_work_limit > 0) ? 0 : 1;
+	return howmany;
 }
 #endif				/* CONFIG_UGETH_NAPI */
 
@@ -3651,10 +3641,10 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 	/* check for receive events that require processing */
 	if (ucce & UCCE_RX_EVENTS) {
 #ifdef CONFIG_UGETH_NAPI
-		if (netif_rx_schedule_prep(dev)) {
-		uccm &= ~UCCE_RX_EVENTS;
+		if (netif_rx_schedule_prep(dev, &ugeth->napi)) {
+			uccm &= ~UCCE_RX_EVENTS;
 			out_be32(uccf->p_uccm, uccm);
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &ugeth->napi);
 		}
 #else
 		rx_mask = UCCE_RXBF_SINGLE_MASK;
@@ -3717,12 +3707,15 @@ static int ucc_geth_open(struct net_device *dev)
 		return err;
 	}
 
+#ifdef CONFIG_UGETH_NAPI
+	napi_enable(&ugeth->napi);
+#endif
 	err = ucc_geth_startup(ugeth);
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot configure net device, aborting.",
 				  dev->name);
-		return err;
+		goto out_err;
 	}
 
 	err = adjust_enet_interface(ugeth);
@@ -3730,7 +3723,7 @@ static int ucc_geth_open(struct net_device *dev)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot configure net device, aborting.",
 				  dev->name);
-		return err;
+		goto out_err;
 	}
 
 	/*       Set MACSTNADDR1, MACSTNADDR2                */
@@ -3748,7 +3741,7 @@ static int ucc_geth_open(struct net_device *dev)
 	if (err) {
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot initialize PHY, aborting.", dev->name);
-		return err;
+		goto out_err;
 	}
 
 	phy_start(ugeth->phydev);
@@ -3761,7 +3754,7 @@ static int ucc_geth_open(struct net_device *dev)
 			ugeth_err("%s: Cannot get IRQ for net device, aborting.",
 				  dev->name);
 		ucc_geth_stop(ugeth);
-		return err;
+		goto out_err;
 	}
 
 	err = ugeth_enable(ugeth, COMM_DIR_RX_AND_TX);
@@ -3769,11 +3762,17 @@ static int ucc_geth_open(struct net_device *dev)
 		if (netif_msg_ifup(ugeth))
 			ugeth_err("%s: Cannot enable net device, aborting.", dev->name);
 		ucc_geth_stop(ugeth);
-		return err;
+		goto out_err;
 	}
 
 	netif_start_queue(dev);
 
+	return err;
+
+out_err:
+#ifdef CONFIG_UGETH_NAPI
+	napi_disable(&ugeth->napi);
+#endif
 	return err;
 }
 
@@ -3783,6 +3782,10 @@ static int ucc_geth_close(struct net_device *dev)
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
+
+#ifdef CONFIG_UGETH_NAPI
+	napi_disable(&ugeth->napi);
+#endif
 
 	ucc_geth_stop(ugeth);
 
@@ -3964,8 +3967,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	dev->tx_timeout = ucc_geth_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #ifdef CONFIG_UGETH_NAPI
-	dev->poll = ucc_geth_poll;
-	dev->weight = UCC_GETH_DEV_WEIGHT;
+	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
 #endif				/* CONFIG_UGETH_NAPI */
 	dev->stop = ucc_geth_close;
 	dev->get_stats = ucc_geth_get_stats;

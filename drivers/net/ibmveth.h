@@ -112,6 +112,7 @@ struct ibmveth_rx_q {
 struct ibmveth_adapter {
     struct vio_dev *vdev;
     struct net_device *netdev;
+    struct napi_struct napi;
     struct net_device_stats stats;
     unsigned int mcastFilterSize;
     unsigned long mac_addr;

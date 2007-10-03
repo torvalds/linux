@@ -119,19 +119,22 @@ static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
 static void poll_napi(struct netpoll *np)
 {
 	struct netpoll_info *npinfo = np->dev->npinfo;
+	struct napi_struct *napi;
 	int budget = 16;
 
-	if (test_bit(__LINK_STATE_RX_SCHED, &np->dev->state) &&
-	    npinfo->poll_owner != smp_processor_id() &&
-	    spin_trylock(&npinfo->poll_lock)) {
-		npinfo->rx_flags |= NETPOLL_RX_DROP;
-		atomic_inc(&trapped);
+	list_for_each_entry(napi, &np->dev->napi_list, dev_list) {
+		if (test_bit(NAPI_STATE_SCHED, &napi->state) &&
+		    napi->poll_owner != smp_processor_id() &&
+		    spin_trylock(&napi->poll_lock)) {
+			npinfo->rx_flags |= NETPOLL_RX_DROP;
+			atomic_inc(&trapped);
 
-		np->dev->poll(np->dev, &budget);
+			napi->poll(napi, budget);
 
-		atomic_dec(&trapped);
-		npinfo->rx_flags &= ~NETPOLL_RX_DROP;
-		spin_unlock(&npinfo->poll_lock);
+			atomic_dec(&trapped);
+			npinfo->rx_flags &= ~NETPOLL_RX_DROP;
+			spin_unlock(&napi->poll_lock);
+		}
 	}
 }
 
@@ -157,7 +160,7 @@ void netpoll_poll(struct netpoll *np)
 
 	/* Process pending work on NIC */
 	np->dev->poll_controller(np->dev);
-	if (np->dev->poll)
+	if (!list_empty(&np->dev->napi_list))
 		poll_napi(np);
 
 	service_arp_queue(np->dev->npinfo);
@@ -233,6 +236,17 @@ repeat:
 	return skb;
 }
 
+static int netpoll_owner_active(struct net_device *dev)
+{
+	struct napi_struct *napi;
+
+	list_for_each_entry(napi, &dev->napi_list, dev_list) {
+		if (napi->poll_owner == smp_processor_id())
+			return 1;
+	}
+	return 0;
+}
+
 static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 {
 	int status = NETDEV_TX_BUSY;
@@ -246,8 +260,7 @@ static void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	}
 
 	/* don't get messages out of order, and no recursion */
-	if (skb_queue_len(&npinfo->txq) == 0 &&
-		    npinfo->poll_owner != smp_processor_id()) {
+	if (skb_queue_len(&npinfo->txq) == 0 && !netpoll_owner_active(dev)) {
 		unsigned long flags;
 
 		local_irq_save(flags);
@@ -652,8 +665,6 @@ int netpoll_setup(struct netpoll *np)
 
 		npinfo->rx_flags = 0;
 		npinfo->rx_np = NULL;
-		spin_lock_init(&npinfo->poll_lock);
-		npinfo->poll_owner = -1;
 
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);

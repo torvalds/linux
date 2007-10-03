@@ -255,8 +255,11 @@ static int cxgb_open(struct net_device *dev)
 	struct adapter *adapter = dev->priv;
 	int other_ports = adapter->open_device_map & PORT_MASK;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
+	napi_enable(&adapter->napi);
+	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0) {
+		napi_disable(&adapter->napi);
 		return err;
+	}
 
 	__set_bit(dev->if_port, &adapter->open_device_map);
 	link_start(&adapter->port[dev->if_port]);
@@ -274,6 +277,7 @@ static int cxgb_close(struct net_device *dev)
 	struct cmac *mac = p->mac;
 
 	netif_stop_queue(dev);
+	napi_disable(&adapter->napi);
 	mac->ops->disable(mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 	netif_carrier_off(dev);
 
@@ -1113,8 +1117,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		netdev->poll_controller = t1_netpoll;
 #endif
 #ifdef CONFIG_CHELSIO_T1_NAPI
-		netdev->weight = 64;
-		netdev->poll = t1_poll;
+		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);
 #endif
 
 		SET_ETHTOOL_OPS(netdev, &t1_ethtool_ops);

@@ -278,6 +278,7 @@ struct adapter {
 	struct peespi *espi;
 	struct petp   *tp;
 
+	struct napi_struct napi;
 	struct port_info port[MAX_NPORTS];
 	struct delayed_work stats_update_task;
 	struct timer_list stats_update_timer;

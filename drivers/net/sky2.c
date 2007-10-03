@@ -1130,7 +1130,7 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 	u16 port = sky2->port;
 
 	netif_tx_lock_bh(dev);
-	netif_poll_disable(sky2->hw->dev[0]);
+	napi_disable(&hw->napi);
 
 	sky2->vlgrp = grp;
 	if (grp) {
@@ -1145,7 +1145,7 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 			     TX_VLAN_TAG_OFF);
 	}
 
-	netif_poll_enable(sky2->hw->dev[0]);
+	napi_enable(&hw->napi);
 	netif_tx_unlock_bh(dev);
 }
 #endif
@@ -1385,9 +1385,13 @@ static int sky2_up(struct net_device *dev)
 	sky2_prefetch_init(hw, txqaddr[port], sky2->tx_le_map,
 			   TX_RING_SIZE - 1);
 
+	napi_enable(&hw->napi);
+
 	err = sky2_rx_start(sky2);
-	if (err)
+	if (err) {
+		napi_disable(&hw->napi);
 		goto err_out;
+	}
 
 	/* Enable interrupts from phy/mac for port */
 	imask = sky2_read32(hw, B0_IMSK);
@@ -1675,6 +1679,8 @@ static int sky2_down(struct net_device *dev)
 
 	/* Stop more packets from being queued */
 	netif_stop_queue(dev);
+
+	napi_disable(&hw->napi);
 
 	/* Disable port IRQ */
 	imask = sky2_read32(hw, B0_IMSK);
@@ -2016,7 +2022,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 
 	dev->trans_start = jiffies;	/* prevent tx timeout */
 	netif_stop_queue(dev);
-	netif_poll_disable(hw->dev[0]);
+	napi_disable(&hw->napi);
 
 	synchronize_irq(hw->pdev->irq);
 
@@ -2043,12 +2049,16 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	err = sky2_rx_start(sky2);
 	sky2_write32(hw, B0_IMSK, imask);
 
+	/* Unconditionally re-enable NAPI because even if we
+	 * call dev_close() that will do a napi_disable().
+	 */
+	napi_enable(&hw->napi);
+
 	if (err)
 		dev_close(dev);
 	else {
 		gma_write16(hw, port, GM_GP_CTRL, ctl);
 
-		netif_poll_enable(hw->dev[0]);
 		netif_wake_queue(dev);
 	}
 
@@ -2544,18 +2554,15 @@ static int sky2_rx_hung(struct net_device *dev)
 static void sky2_watchdog(unsigned long arg)
 {
 	struct sky2_hw *hw = (struct sky2_hw *) arg;
-	struct net_device *dev;
 
 	/* Check for lost IRQ once a second */
 	if (sky2_read32(hw, B0_ISRC)) {
-		dev = hw->dev[0];
-		if (__netif_rx_schedule_prep(dev))
-			__netif_rx_schedule(dev);
+		napi_schedule(&hw->napi);
 	} else {
 		int i, active = 0;
 
 		for (i = 0; i < hw->ports; i++) {
-			dev = hw->dev[i];
+			struct net_device *dev = hw->dev[i];
 			if (!netif_running(dev))
 				continue;
 			++active;
@@ -2605,11 +2612,11 @@ static void sky2_err_intr(struct sky2_hw *hw, u32 status)
 		sky2_le_error(hw, 1, Q_XA2, TX_RING_SIZE);
 }
 
-static int sky2_poll(struct net_device *dev0, int *budget)
+static int sky2_poll(struct napi_struct *napi, int work_limit)
 {
-	struct sky2_hw *hw = ((struct sky2_port *) netdev_priv(dev0))->hw;
-	int work_done;
+	struct sky2_hw *hw = container_of(napi, struct sky2_hw, napi);
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
+	int work_done;
 
 	if (unlikely(status & Y2_IS_ERROR))
 		sky2_err_intr(hw, status);
@@ -2620,31 +2627,27 @@ static int sky2_poll(struct net_device *dev0, int *budget)
 	if (status & Y2_IS_IRQ_PHY2)
 		sky2_phy_intr(hw, 1);
 
-	work_done = sky2_status_intr(hw, min(dev0->quota, *budget));
-	*budget -= work_done;
-	dev0->quota -= work_done;
+	work_done = sky2_status_intr(hw, work_limit);
 
 	/* More work? */
- 	if (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX))
-		return 1;
+	if (hw->st_idx == sky2_read16(hw, STAT_PUT_IDX)) {
+		/* Bug/Errata workaround?
+		 * Need to kick the TX irq moderation timer.
+		 */
+		if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
+			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+		}
 
-	/* Bug/Errata workaround?
-	 * Need to kick the TX irq moderation timer.
-	 */
-	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+		napi_complete(napi);
+		sky2_read32(hw, B0_Y2_SP_LISR);
 	}
-	netif_rx_complete(dev0);
-
-	sky2_read32(hw, B0_Y2_SP_LISR);
-	return 0;
+	return work_done;
 }
 
 static irqreturn_t sky2_intr(int irq, void *dev_id)
 {
 	struct sky2_hw *hw = dev_id;
-	struct net_device *dev0 = hw->dev[0];
 	u32 status;
 
 	/* Reading this mask interrupts as side effect */
@@ -2653,8 +2656,8 @@ static irqreturn_t sky2_intr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	prefetch(&hw->st_le[hw->st_idx]);
-	if (likely(__netif_rx_schedule_prep(dev0)))
-		__netif_rx_schedule(dev0);
+
+	napi_schedule(&hw->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2663,10 +2666,8 @@ static irqreturn_t sky2_intr(int irq, void *dev_id)
 static void sky2_netpoll(struct net_device *dev)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	struct net_device *dev0 = sky2->hw->dev[0];
 
-	if (netif_running(dev) && __netif_rx_schedule_prep(dev0))
-		__netif_rx_schedule(dev0);
+	napi_schedule(&sky2->hw->napi);
 }
 #endif
 
@@ -2914,8 +2915,6 @@ static void sky2_restart(struct work_struct *work)
 	sky2_write32(hw, B0_IMSK, 0);
 	sky2_read32(hw, B0_IMSK);
 
-	netif_poll_disable(hw->dev[0]);
-
 	for (i = 0; i < hw->ports; i++) {
 		dev = hw->dev[i];
 		if (netif_running(dev))
@@ -2924,7 +2923,6 @@ static void sky2_restart(struct work_struct *work)
 
 	sky2_reset(hw);
 	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
-	netif_poll_enable(hw->dev[0]);
 
 	for (i = 0; i < hw->ports; i++) {
 		dev = hw->dev[i];
@@ -3735,7 +3733,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 {
 	struct net_device *dev = seq->private;
 	const struct sky2_port *sky2 = netdev_priv(dev);
-	const struct sky2_hw *hw = sky2->hw;
+	struct sky2_hw *hw = sky2->hw;
 	unsigned port = sky2->port;
 	unsigned idx, last;
 	int sop;
@@ -3748,7 +3746,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 		   sky2_read32(hw, B0_IMSK),
 		   sky2_read32(hw, B0_Y2_SP_ICR));
 
-	netif_poll_disable(hw->dev[0]);
+	napi_disable(&hw->napi);
 	last = sky2_read16(hw, STAT_PUT_IDX);
 
 	if (hw->st_idx == last)
@@ -3818,7 +3816,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 		   last = sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_PUT_IDX)),
 		   sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_LAST_IDX)));
 
-	netif_poll_enable(hw->dev[0]);
+	napi_enable(&hw->napi);
 	return 0;
 }
 
@@ -3943,15 +3941,8 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	SET_ETHTOOL_OPS(dev, &sky2_ethtool_ops);
 	dev->tx_timeout = sky2_tx_timeout;
 	dev->watchdog_timeo = TX_WATCHDOG;
-	if (port == 0)
-		dev->poll = sky2_poll;
-	dev->weight = NAPI_WEIGHT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
-	/* Network console (only works on port 0)
-	 * because netpoll makes assumptions about NAPI
-	 */
-	if (port == 0)
-		dev->poll_controller = sky2_netpoll;
+	dev->poll_controller = sky2_netpoll;
 #endif
 
 	sky2 = netdev_priv(dev);
@@ -4166,6 +4157,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_out_free_pci;
 	}
+	netif_napi_add(dev, &hw->napi, sky2_poll, NAPI_WEIGHT);
 
 	if (!disable_msi && pci_enable_msi(pdev) == 0) {
 		err = sky2_test_msi(hw);
@@ -4288,8 +4280,6 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!hw)
 		return 0;
 
-	netif_poll_disable(hw->dev[0]);
-
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		struct sky2_port *sky2 = netdev_priv(dev);
@@ -4356,8 +4346,6 @@ static int sky2_resume(struct pci_dev *pdev)
 		}
 	}
 
-	netif_poll_enable(hw->dev[0]);
-
 	return 0;
 out:
 	dev_err(&pdev->dev, "resume failed (%d)\n", err);
@@ -4374,7 +4362,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	if (!hw)
 		return;
 
-	netif_poll_disable(hw->dev[0]);
+	napi_disable(&hw->napi);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];

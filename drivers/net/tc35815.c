@@ -414,6 +414,9 @@ enum tc35815_timer_state {
 struct tc35815_local {
 	struct pci_dev *pci_dev;
 
+	struct net_device *dev;
+	struct napi_struct napi;
+
 	/* statistics */
 	struct net_device_stats stats;
 	struct {
@@ -566,7 +569,7 @@ static int	tc35815_send_packet(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t	tc35815_interrupt(int irq, void *dev_id);
 #ifdef TC35815_NAPI
 static int	tc35815_rx(struct net_device *dev, int limit);
-static int	tc35815_poll(struct net_device *dev, int *budget);
+static int	tc35815_poll(struct napi_struct *napi, int budget);
 #else
 static void	tc35815_rx(struct net_device *dev);
 #endif
@@ -685,6 +688,7 @@ static int __devinit tc35815_init_one (struct pci_dev *pdev,
 	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = dev->priv;
+	lp->dev = dev;
 
 	/* enable device (incl. PCI PM wakeup), and bus-mastering */
 	rc = pci_enable_device (pdev);
@@ -738,8 +742,7 @@ static int __devinit tc35815_init_one (struct pci_dev *pdev,
 	dev->tx_timeout = tc35815_tx_timeout;
 	dev->watchdog_timeo = TC35815_TX_TIMEOUT;
 #ifdef TC35815_NAPI
-	dev->poll = tc35815_poll;
-	dev->weight = NAPI_WEIGHT;
+	netif_napi_add(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
 #endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = tc35815_poll_controller;
@@ -748,8 +751,6 @@ static int __devinit tc35815_init_one (struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	dev->base_addr = (unsigned long) ioaddr;
 
-	/* dev->priv/lp zeroed and aligned in alloc_etherdev */
-	lp = dev->priv;
 	spin_lock_init(&lp->lock);
 	lp->pci_dev = pdev;
 	lp->boardtype = ent->driver_data;
@@ -1237,6 +1238,10 @@ tc35815_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
+#ifdef TC35815_NAPI
+	napi_enable(&lp->napi);
+#endif
+
 	/* Reset the hardware here. Don't forget to set the station address. */
 	spin_lock_irq(&lp->lock);
 	tc35815_chip_init(dev);
@@ -1436,6 +1441,7 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status)
 static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
+	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
 #ifdef TC35815_NAPI
@@ -1444,8 +1450,8 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	if (!(dmactl & DMA_IntMask)) {
 		/* disable interrupts */
 		tc_writel(dmactl | DMA_IntMask, &tr->DMA_Ctl);
-		if (netif_rx_schedule_prep(dev))
-			__netif_rx_schedule(dev);
+		if (netif_rx_schedule_prep(dev, &lp->napi))
+			__netif_rx_schedule(dev, &lp->napi);
 		else {
 			printk(KERN_ERR "%s: interrupt taken in poll\n",
 			       dev->name);
@@ -1726,13 +1732,12 @@ tc35815_rx(struct net_device *dev)
 }
 
 #ifdef TC35815_NAPI
-static int
-tc35815_poll(struct net_device *dev, int *budget)
+static int tc35815_poll(struct napi_struct *napi, int budget)
 {
-	struct tc35815_local *lp = dev->priv;
+	struct tc35815_local *lp = container_of(napi, struct tc35815_local, napi);
+	struct net_device *dev = lp->dev;
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
-	int limit = min(*budget, dev->quota);
 	int received = 0, handled;
 	u32 status;
 
@@ -1744,23 +1749,19 @@ tc35815_poll(struct net_device *dev, int *budget)
 		handled = tc35815_do_interrupt(dev, status, limit);
 		if (handled >= 0) {
 			received += handled;
-			limit -= handled;
-			if (limit <= 0)
+			if (received >= budget)
 				break;
 		}
 		status = tc_readl(&tr->Int_Src);
 	} while (status);
 	spin_unlock(&lp->lock);
 
-	dev->quota -= received;
-	*budget -= received;
-	if (limit <= 0)
-		return 1;
-
-	netif_rx_complete(dev);
-	/* enable interrupts */
-	tc_writel(tc_readl(&tr->DMA_Ctl) & ~DMA_IntMask, &tr->DMA_Ctl);
-	return 0;
+	if (received < budget) {
+		netif_rx_complete(dev, napi);
+		/* enable interrupts */
+		tc_writel(tc_readl(&tr->DMA_Ctl) & ~DMA_IntMask, &tr->DMA_Ctl);
+	}
+	return received;
 }
 #endif
 
@@ -1949,7 +1950,11 @@ static int
 tc35815_close(struct net_device *dev)
 {
 	struct tc35815_local *lp = dev->priv;
+
 	netif_stop_queue(dev);
+#ifdef TC35815_NAPI
+	napi_disable(&lp->napi);
+#endif
 
 	/* Flush the Tx and disable Rx here. */
 

@@ -848,10 +848,11 @@ static int b44_rx(struct b44 *bp, int budget)
 	return received;
 }
 
-static int b44_poll(struct net_device *netdev, int *budget)
+static int b44_poll(struct napi_struct *napi, int budget)
 {
-	struct b44 *bp = netdev_priv(netdev);
-	int done;
+	struct b44 *bp = container_of(napi, struct b44, napi);
+	struct net_device *netdev = bp->dev;
+	int work_done;
 
 	spin_lock_irq(&bp->lock);
 
@@ -862,22 +863,9 @@ static int b44_poll(struct net_device *netdev, int *budget)
 	}
 	spin_unlock_irq(&bp->lock);
 
-	done = 1;
-	if (bp->istat & ISTAT_RX) {
-		int orig_budget = *budget;
-		int work_done;
-
-		if (orig_budget > netdev->quota)
-			orig_budget = netdev->quota;
-
-		work_done = b44_rx(bp, orig_budget);
-
-		*budget -= work_done;
-		netdev->quota -= work_done;
-
-		if (work_done >= orig_budget)
-			done = 0;
-	}
+	work_done = 0;
+	if (bp->istat & ISTAT_RX)
+		work_done += b44_rx(bp, budget);
 
 	if (bp->istat & ISTAT_ERRORS) {
 		unsigned long flags;
@@ -888,15 +876,15 @@ static int b44_poll(struct net_device *netdev, int *budget)
 		b44_init_hw(bp, B44_FULL_RESET_SKIP_PHY);
 		netif_wake_queue(bp->dev);
 		spin_unlock_irqrestore(&bp->lock, flags);
-		done = 1;
+		work_done = 0;
 	}
 
-	if (done) {
-		netif_rx_complete(netdev);
+	if (work_done < budget) {
+		netif_rx_complete(netdev, napi);
 		b44_enable_ints(bp);
 	}
 
-	return (done ? 0 : 1);
+	return work_done;
 }
 
 static irqreturn_t b44_interrupt(int irq, void *dev_id)
@@ -924,13 +912,13 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id)
 			goto irq_ack;
 		}
 
-		if (netif_rx_schedule_prep(dev)) {
+		if (netif_rx_schedule_prep(dev, &bp->napi)) {
 			/* NOTE: These writes are posted by the readback of
 			 *       the ISTAT register below.
 			 */
 			bp->istat = istat;
 			__b44_disable_ints(bp);
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &bp->napi);
 		} else {
 			printk(KERN_ERR PFX "%s: Error, poll already scheduled\n",
 			       dev->name);
@@ -1420,6 +1408,8 @@ static int b44_open(struct net_device *dev)
 	if (err)
 		goto out;
 
+	napi_enable(&bp->napi);
+
 	b44_init_rings(bp);
 	b44_init_hw(bp, B44_FULL_RESET);
 
@@ -1427,6 +1417,7 @@ static int b44_open(struct net_device *dev)
 
 	err = request_irq(dev->irq, b44_interrupt, IRQF_SHARED, dev->name, dev);
 	if (unlikely(err < 0)) {
+		napi_disable(&bp->napi);
 		b44_chip_reset(bp);
 		b44_free_rings(bp);
 		b44_free_consistent(bp);
@@ -1609,7 +1600,7 @@ static int b44_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	netif_poll_disable(dev);
+	napi_disable(&bp->napi);
 
 	del_timer_sync(&bp->timer);
 
@@ -1625,8 +1616,6 @@ static int b44_close(struct net_device *dev)
 	spin_unlock_irq(&bp->lock);
 
 	free_irq(dev->irq, dev);
-
-	netif_poll_enable(dev);
 
 	if (bp->flags & B44_FLAG_WOL_ENABLE) {
 		b44_init_hw(bp, B44_PARTIAL_RESET);
@@ -2194,8 +2183,7 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	dev->set_mac_address = b44_set_mac_addr;
 	dev->do_ioctl = b44_ioctl;
 	dev->tx_timeout = b44_tx_timeout;
-	dev->poll = b44_poll;
-	dev->weight = 64;
+	netif_napi_add(dev, &bp->napi, b44_poll, 64);
 	dev->watchdog_timeo = B44_TX_TIMEOUT;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = b44_poll_controller;

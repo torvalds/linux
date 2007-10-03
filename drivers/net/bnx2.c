@@ -428,7 +428,7 @@ bnx2_netif_stop(struct bnx2 *bp)
 {
 	bnx2_disable_int_sync(bp);
 	if (netif_running(bp->dev)) {
-		netif_poll_disable(bp->dev);
+		napi_disable(&bp->napi);
 		netif_tx_disable(bp->dev);
 		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 	}
@@ -440,7 +440,7 @@ bnx2_netif_start(struct bnx2 *bp)
 	if (atomic_dec_and_test(&bp->intr_sem)) {
 		if (netif_running(bp->dev)) {
 			netif_wake_queue(bp->dev);
-			netif_poll_enable(bp->dev);
+			napi_enable(&bp->napi);
 			bnx2_enable_int(bp);
 		}
 	}
@@ -2551,7 +2551,7 @@ bnx2_msi(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev);
+	netif_rx_schedule(dev, &bp->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2568,7 +2568,7 @@ bnx2_msi_1shot(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev);
+	netif_rx_schedule(dev, &bp->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2604,9 +2604,9 @@ bnx2_interrupt(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev)) {
+	if (netif_rx_schedule_prep(dev, &bp->napi)) {
 		bp->last_status_idx = sblk->status_idx;
-		__netif_rx_schedule(dev);
+		__netif_rx_schedule(dev, &bp->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -2632,12 +2632,14 @@ bnx2_has_work(struct bnx2 *bp)
 }
 
 static int
-bnx2_poll(struct net_device *dev, int *budget)
+bnx2_poll(struct napi_struct *napi, int budget)
 {
-	struct bnx2 *bp = netdev_priv(dev);
+	struct bnx2 *bp = container_of(napi, struct bnx2, napi);
+	struct net_device *dev = bp->dev;
 	struct status_block *sblk = bp->status_blk;
 	u32 status_attn_bits = sblk->status_attn_bits;
 	u32 status_attn_bits_ack = sblk->status_attn_bits_ack;
+	int work_done = 0;
 
 	if ((status_attn_bits & STATUS_ATTN_EVENTS) !=
 	    (status_attn_bits_ack & STATUS_ATTN_EVENTS)) {
@@ -2655,23 +2657,14 @@ bnx2_poll(struct net_device *dev, int *budget)
 	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
 		bnx2_tx_int(bp);
 
-	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->hw_rx_cons) {
-		int orig_budget = *budget;
-		int work_done;
-
-		if (orig_budget > dev->quota)
-			orig_budget = dev->quota;
-
-		work_done = bnx2_rx_int(bp, orig_budget);
-		*budget -= work_done;
-		dev->quota -= work_done;
-	}
+	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->hw_rx_cons)
+		work_done = bnx2_rx_int(bp, budget);
 
 	bp->last_status_idx = bp->status_blk->status_idx;
 	rmb();
 
 	if (!bnx2_has_work(bp)) {
-		netif_rx_complete(dev);
+		netif_rx_complete(dev, napi);
 		if (likely(bp->flags & USING_MSI_FLAG)) {
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -2686,10 +2679,9 @@ bnx2_poll(struct net_device *dev, int *budget)
 		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 		       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 		       bp->last_status_idx);
-		return 0;
 	}
 
-	return 1;
+	return work_done;
 }
 
 /* Called with rtnl_lock from vlan functions and also netif_tx_lock
@@ -5039,6 +5031,8 @@ bnx2_open(struct net_device *dev)
 	if (rc)
 		return rc;
 
+	napi_enable(&bp->napi);
+
 	if ((bp->flags & MSI_CAP_FLAG) && !disable_msi) {
 		if (pci_enable_msi(bp->pdev) == 0) {
 			bp->flags |= USING_MSI_FLAG;
@@ -5049,6 +5043,7 @@ bnx2_open(struct net_device *dev)
 	rc = bnx2_request_irq(bp);
 
 	if (rc) {
+		napi_disable(&bp->napi);
 		bnx2_free_mem(bp);
 		return rc;
 	}
@@ -5056,6 +5051,7 @@ bnx2_open(struct net_device *dev)
 	rc = bnx2_init_nic(bp);
 
 	if (rc) {
+		napi_disable(&bp->napi);
 		bnx2_free_irq(bp);
 		bnx2_free_skbs(bp);
 		bnx2_free_mem(bp);
@@ -5088,6 +5084,7 @@ bnx2_open(struct net_device *dev)
 				rc = bnx2_request_irq(bp);
 
 			if (rc) {
+				napi_disable(&bp->napi);
 				bnx2_free_skbs(bp);
 				bnx2_free_mem(bp);
 				del_timer_sync(&bp->timer);
@@ -5301,7 +5298,8 @@ bnx2_close(struct net_device *dev)
 	while (bp->in_reset_task)
 		msleep(1);
 
-	bnx2_netif_stop(bp);
+	bnx2_disable_int_sync(bp);
+	napi_disable(&bp->napi);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
 		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
@@ -6858,11 +6856,10 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 #ifdef BCM_VLAN
 	dev->vlan_rx_register = bnx2_vlan_rx_register;
 #endif
-	dev->poll = bnx2_poll;
 	dev->ethtool_ops = &bnx2_ethtool_ops;
-	dev->weight = 64;
 
 	bp = netdev_priv(dev);
+	netif_napi_add(dev, &bp->napi, bnx2_poll, 64);
 
 #if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
 	dev->poll_controller = poll_bnx2;

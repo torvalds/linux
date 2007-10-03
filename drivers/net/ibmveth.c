@@ -83,7 +83,7 @@
 static int ibmveth_open(struct net_device *dev);
 static int ibmveth_close(struct net_device *dev);
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static int ibmveth_poll(struct net_device *dev, int *budget);
+static int ibmveth_poll(struct napi_struct *napi, int budget);
 static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static struct net_device_stats *ibmveth_get_stats(struct net_device *dev);
 static void ibmveth_set_multicast_list(struct net_device *dev);
@@ -480,6 +480,8 @@ static int ibmveth_open(struct net_device *netdev)
 
 	ibmveth_debug_printk("open starting\n");
 
+	napi_enable(&adapter->napi);
+
 	for(i = 0; i<IbmVethNumBufferPools; i++)
 		rxq_entries += adapter->rx_buff_pool[i].size;
 
@@ -489,6 +491,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if(!adapter->buffer_list_addr || !adapter->filter_list_addr) {
 		ibmveth_error_printk("unable to allocate filter or buffer list pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -498,6 +501,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if(!adapter->rx_queue.queue_addr) {
 		ibmveth_error_printk("unable to allocate rx queue pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -514,6 +518,7 @@ static int ibmveth_open(struct net_device *netdev)
 	   (dma_mapping_error(adapter->rx_queue.queue_dma))) {
 		ibmveth_error_printk("unable to map filter or buffer list pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -545,6 +550,7 @@ static int ibmveth_open(struct net_device *netdev)
 				     rxq_desc.desc,
 				     mac_address);
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENONET;
 	}
 
@@ -555,6 +561,7 @@ static int ibmveth_open(struct net_device *netdev)
 			ibmveth_error_printk("unable to alloc pool\n");
 			adapter->rx_buff_pool[i].active = 0;
 			ibmveth_cleanup(adapter);
+			napi_disable(&adapter->napi);
 			return -ENOMEM ;
 		}
 	}
@@ -567,6 +574,7 @@ static int ibmveth_open(struct net_device *netdev)
 		} while (H_IS_LONG_BUSY(rc) || (rc == H_BUSY));
 
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return rc;
 	}
 
@@ -586,6 +594,8 @@ static int ibmveth_close(struct net_device *netdev)
 	long lpar_rc;
 
 	ibmveth_debug_printk("close starting\n");
+
+	napi_disable(&adapter->napi);
 
 	if (!adapter->pool_config)
 		netif_stop_queue(netdev);
@@ -767,80 +777,68 @@ out:	spin_lock_irqsave(&adapter->stats_lock, flags);
 	return 0;
 }
 
-static int ibmveth_poll(struct net_device *netdev, int *budget)
+static int ibmveth_poll(struct napi_struct *napi, int budget)
 {
-	struct ibmveth_adapter *adapter = netdev->priv;
-	int max_frames_to_process = netdev->quota;
+	struct ibmveth_adapter *adapter = container_of(napi, struct ibmveth_adapter, napi);
+	struct net_device *netdev = adapter->netdev;
 	int frames_processed = 0;
-	int more_work = 1;
 	unsigned long lpar_rc;
 
  restart_poll:
 	do {
-		struct net_device *netdev = adapter->netdev;
+		struct sk_buff *skb;
 
-		if(ibmveth_rxq_pending_buffer(adapter)) {
-			struct sk_buff *skb;
+		if (!ibmveth_rxq_pending_buffer(adapter))
+			break;
 
-			rmb();
-
-			if(!ibmveth_rxq_buffer_valid(adapter)) {
-				wmb(); /* suggested by larson1 */
-				adapter->rx_invalid_buffer++;
-				ibmveth_debug_printk("recycling invalid buffer\n");
-				ibmveth_rxq_recycle_buffer(adapter);
-			} else {
-				int length = ibmveth_rxq_frame_length(adapter);
-				int offset = ibmveth_rxq_frame_offset(adapter);
-				skb = ibmveth_rxq_get_buffer(adapter);
-
-				ibmveth_rxq_harvest_buffer(adapter);
-
-				skb_reserve(skb, offset);
-				skb_put(skb, length);
-				skb->protocol = eth_type_trans(skb, netdev);
-
-				netif_receive_skb(skb);	/* send it up */
-
-				adapter->stats.rx_packets++;
-				adapter->stats.rx_bytes += length;
-				frames_processed++;
-				netdev->last_rx = jiffies;
-			}
+		rmb();
+		if (!ibmveth_rxq_buffer_valid(adapter)) {
+			wmb(); /* suggested by larson1 */
+			adapter->rx_invalid_buffer++;
+			ibmveth_debug_printk("recycling invalid buffer\n");
+			ibmveth_rxq_recycle_buffer(adapter);
 		} else {
-			more_work = 0;
+			int length = ibmveth_rxq_frame_length(adapter);
+			int offset = ibmveth_rxq_frame_offset(adapter);
+			skb = ibmveth_rxq_get_buffer(adapter);
+
+			ibmveth_rxq_harvest_buffer(adapter);
+
+			skb_reserve(skb, offset);
+			skb_put(skb, length);
+			skb->protocol = eth_type_trans(skb, netdev);
+
+			netif_receive_skb(skb);	/* send it up */
+
+			adapter->stats.rx_packets++;
+			adapter->stats.rx_bytes += length;
+			frames_processed++;
+			netdev->last_rx = jiffies;
 		}
-	} while(more_work && (frames_processed < max_frames_to_process));
+	} while (frames_processed < budget);
 
 	ibmveth_replenish_task(adapter);
 
-	if(more_work) {
-		/* more work to do - return that we are not done yet */
-		netdev->quota -= frames_processed;
-		*budget -= frames_processed;
-		return 1;
-	}
+	if (frames_processed < budget) {
+		/* We think we are done - reenable interrupts,
+		 * then check once more to make sure we are done.
+		 */
+		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+				       VIO_IRQ_ENABLE);
 
-	/* we think we are done - reenable interrupts, then check once more to make sure we are done */
-	lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_ENABLE);
-
-	ibmveth_assert(lpar_rc == H_SUCCESS);
-
-	netif_rx_complete(netdev);
-
-	if(ibmveth_rxq_pending_buffer(adapter) && netif_rx_reschedule(netdev, frames_processed))
-	{
-		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
 		ibmveth_assert(lpar_rc == H_SUCCESS);
-		more_work = 1;
-		goto restart_poll;
+
+		netif_rx_complete(netdev, napi);
+
+		if (ibmveth_rxq_pending_buffer(adapter) &&
+		    netif_rx_reschedule(netdev, napi)) {
+			lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+					       VIO_IRQ_DISABLE);
+			goto restart_poll;
+		}
 	}
 
-	netdev->quota -= frames_processed;
-	*budget -= frames_processed;
-
-	/* we really are done */
-	return 0;
+	return frames_processed;
 }
 
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
@@ -849,10 +847,11 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 	struct ibmveth_adapter *adapter = netdev->priv;
 	unsigned long lpar_rc;
 
-	if(netif_rx_schedule_prep(netdev)) {
-		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
+	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
+		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+				       VIO_IRQ_DISABLE);
 		ibmveth_assert(lpar_rc == H_SUCCESS);
-		__netif_rx_schedule(netdev);
+		__netif_rx_schedule(netdev, &adapter->napi);
 	}
 	return IRQ_HANDLED;
 }
@@ -1004,6 +1003,8 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	adapter->mcastFilterSize= *mcastFilterSize_p;
 	adapter->pool_config = 0;
 
+	netif_napi_add(netdev, &adapter->napi, ibmveth_poll, 16);
+
 	/* 	Some older boxes running PHYP non-natively have an OF that
 		returns a 8-byte local-mac-address field (and the first
 		2 bytes have to be ignored) while newer boxes' OF return
@@ -1020,8 +1021,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	netdev->irq = dev->irq;
 	netdev->open               = ibmveth_open;
-	netdev->poll               = ibmveth_poll;
-	netdev->weight             = 16;
 	netdev->stop               = ibmveth_close;
 	netdev->hard_start_xmit    = ibmveth_start_xmit;
 	netdev->get_stats          = ibmveth_get_stats;

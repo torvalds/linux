@@ -281,63 +281,58 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 			   wc->status, wr_id, wc->vendor_err);
 }
 
-int ipoib_poll(struct net_device *dev, int *budget)
+int ipoib_poll(struct napi_struct *napi, int budget)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int max = min(*budget, dev->quota);
+	struct ipoib_dev_priv *priv = container_of(napi, struct ipoib_dev_priv, napi);
+	struct net_device *dev = priv->dev;
 	int done;
 	int t;
-	int empty;
 	int n, i;
 
 	done  = 0;
-	empty = 0;
 
-	while (max) {
+poll_more:
+	while (done < budget) {
+		int max = (budget - done);
+
 		t = min(IPOIB_NUM_WC, max);
 		n = ib_poll_cq(priv->cq, t, priv->ibwc);
 
-		for (i = 0; i < n; ++i) {
+		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 
 			if (wc->wr_id & IPOIB_CM_OP_SRQ) {
 				++done;
-				--max;
 				ipoib_cm_handle_rx_wc(dev, wc);
 			} else if (wc->wr_id & IPOIB_OP_RECV) {
 				++done;
-				--max;
 				ipoib_ib_handle_rx_wc(dev, wc);
 			} else
 				ipoib_ib_handle_tx_wc(dev, wc);
 		}
 
-		if (n != t) {
-			empty = 1;
+		if (n != t)
 			break;
-		}
 	}
 
-	dev->quota -= done;
-	*budget    -= done;
-
-	if (empty) {
-		netif_rx_complete(dev);
+	if (done < budget) {
+		netif_rx_complete(dev, napi);
 		if (unlikely(ib_req_notify_cq(priv->cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    netif_rx_reschedule(dev, 0))
-			return 1;
-
-		return 0;
+		    netif_rx_reschedule(dev, napi))
+			goto poll_more;
 	}
 
-	return 1;
+	return done;
 }
 
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
-	netif_rx_schedule(dev_ptr);
+	struct net_device *dev = dev_ptr;
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	netif_rx_schedule(dev, &priv->napi);
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,
@@ -577,7 +572,6 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 	int i;
 
 	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
-	netif_poll_disable(dev);
 
 	ipoib_cm_dev_stop(dev);
 
@@ -660,7 +654,6 @@ timeout:
 		msleep(1);
 	}
 
-	netif_poll_enable(dev);
 	ib_req_notify_cq(priv->cq, IB_CQ_NEXT_COMP);
 
 	return 0;

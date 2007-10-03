@@ -1620,23 +1620,20 @@ static int process_pure_responses(struct adapter *adapter)
  * or protection from interrupts as data interrupts are off at this point and
  * other adapter interrupts do not interfere.
  */
-int t1_poll(struct net_device *dev, int *budget)
+int t1_poll(struct napi_struct *napi, int budget)
 {
-	struct adapter *adapter = dev->priv;
+	struct adapter *adapter = container_of(napi, struct adapter, napi);
+	struct net_device *dev = adapter->port[0].dev;
 	int work_done;
 
-	work_done = process_responses(adapter, min(*budget, dev->quota));
-	*budget -= work_done;
-	dev->quota -= work_done;
+	work_done = process_responses(adapter, budget);
 
-	if (unlikely(responses_pending(adapter)))
-		return 1;
-
-	netif_rx_complete(dev);
-	writel(adapter->sge->respQ.cidx, adapter->regs + A_SG_SLEEPING);
-
-	return 0;
-
+	if (likely(!responses_pending(adapter))) {
+		netif_rx_complete(dev, napi);
+		writel(adapter->sge->respQ.cidx,
+		       adapter->regs + A_SG_SLEEPING);
+	}
+	return work_done;
 }
 
 /*
@@ -1653,13 +1650,13 @@ irqreturn_t t1_interrupt(int irq, void *data)
 
 		writel(F_PL_INTR_SGE_DATA, adapter->regs + A_PL_CAUSE);
 
-		if (__netif_rx_schedule_prep(dev)) {
+		if (napi_schedule_prep(&adapter->napi)) {
 			if (process_pure_responses(adapter))
-				__netif_rx_schedule(dev);
+				__netif_rx_schedule(dev, &adapter->napi);
 			else {
 				/* no data, no NAPI needed */
 				writel(sge->respQ.cidx, adapter->regs + A_SG_SLEEPING);
-				netif_poll_enable(dev);	/* undo schedule_prep */
+				napi_enable(&adapter->napi);	/* undo schedule_prep */
 			}
 		}
 		return IRQ_HANDLED;

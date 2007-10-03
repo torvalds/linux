@@ -2057,6 +2057,7 @@ struct sky2_port {
 struct sky2_hw {
 	void __iomem  	     *regs;
 	struct pci_dev	     *pdev;
+	struct napi_struct   napi;
 	struct net_device    *dev[2];
 	unsigned long	     flags;
 #define SKY2_HW_USE_MSI		0x00000001

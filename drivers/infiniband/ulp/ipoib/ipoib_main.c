@@ -98,16 +98,20 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
+	napi_enable(&priv->napi);
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
 		return 0;
 
-	if (ipoib_ib_dev_open(dev))
+	if (ipoib_ib_dev_open(dev)) {
+		napi_disable(&priv->napi);
 		return -EINVAL;
+	}
 
 	if (ipoib_ib_dev_up(dev)) {
 		ipoib_ib_dev_stop(dev, 1);
+		napi_disable(&priv->napi);
 		return -EINVAL;
 	}
 
@@ -140,6 +144,7 @@ static int ipoib_stop(struct net_device *dev)
 	ipoib_dbg(priv, "stopping interface\n");
 
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
+	napi_disable(&priv->napi);
 
 	netif_stop_queue(dev);
 
@@ -948,8 +953,8 @@ static void ipoib_setup(struct net_device *dev)
 	dev->hard_header 	 = ipoib_hard_header;
 	dev->set_multicast_list  = ipoib_set_mcast_list;
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
-	dev->poll                = ipoib_poll;
-	dev->weight              = 100;
+
+	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
 
 	dev->watchdog_timeo 	 = HZ;
 

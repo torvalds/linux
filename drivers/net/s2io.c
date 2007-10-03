@@ -2568,7 +2568,7 @@ static void free_rx_buffers(struct s2io_nic *sp)
 
 /**
  * s2io_poll - Rx interrupt handler for NAPI support
- * @dev : pointer to the device structure.
+ * @napi : pointer to the napi structure.
  * @budget : The number of packets that were budgeted to be processed
  * during  one pass through the 'Poll" function.
  * Description:
@@ -2579,9 +2579,10 @@ static void free_rx_buffers(struct s2io_nic *sp)
  * 0 on success and 1 if there are No Rx packets to be processed.
  */
 
-static int s2io_poll(struct net_device *dev, int *budget)
+static int s2io_poll(struct napi_struct *napi, int budget)
 {
-	struct s2io_nic *nic = dev->priv;
+	struct s2io_nic *nic = container_of(napi, struct s2io_nic, napi);
+	struct net_device *dev = nic->dev;
 	int pkt_cnt = 0, org_pkts_to_process;
 	struct mac_info *mac_control;
 	struct config_param *config;
@@ -2592,9 +2593,7 @@ static int s2io_poll(struct net_device *dev, int *budget)
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 
-	nic->pkts_to_process = *budget;
-	if (nic->pkts_to_process > dev->quota)
-		nic->pkts_to_process = dev->quota;
+	nic->pkts_to_process = budget;
 	org_pkts_to_process = nic->pkts_to_process;
 
 	writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
@@ -2608,12 +2607,8 @@ static int s2io_poll(struct net_device *dev, int *budget)
 			goto no_rx;
 		}
 	}
-	if (!pkt_cnt)
-		pkt_cnt = 1;
 
-	dev->quota -= pkt_cnt;
-	*budget -= pkt_cnt;
-	netif_rx_complete(dev);
+	netif_rx_complete(dev, napi);
 
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
@@ -2626,12 +2621,9 @@ static int s2io_poll(struct net_device *dev, int *budget)
 	writeq(0x0, &bar0->rx_traffic_mask);
 	readl(&bar0->rx_traffic_mask);
 	atomic_dec(&nic->isr_cnt);
-	return 0;
+	return pkt_cnt;
 
 no_rx:
-	dev->quota -= pkt_cnt;
-	*budget -= pkt_cnt;
-
 	for (i = 0; i < config->rx_ring_num; i++) {
 		if (fill_rx_buffers(nic, i) == -ENOMEM) {
 			DBG_PRINT(INFO_DBG, "%s:Out of memory", dev->name);
@@ -2640,7 +2632,7 @@ no_rx:
 		}
 	}
 	atomic_dec(&nic->isr_cnt);
-	return 1;
+	return pkt_cnt;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -3809,6 +3801,8 @@ static int s2io_open(struct net_device *dev)
 	netif_carrier_off(dev);
 	sp->last_link_state = 0;
 
+	napi_enable(&sp->napi);
+
 	/* Initialize H/W and enable interrupts */
 	err = s2io_card_up(sp);
 	if (err) {
@@ -3828,6 +3822,7 @@ static int s2io_open(struct net_device *dev)
 	return 0;
 
 hw_init_failed:
+	napi_disable(&sp->napi);
 	if (sp->intr_type == MSI_X) {
 		if (sp->entries) {
 			kfree(sp->entries);
@@ -3861,6 +3856,7 @@ static int s2io_close(struct net_device *dev)
 	struct s2io_nic *sp = dev->priv;
 
 	netif_stop_queue(dev);
+	napi_disable(&sp->napi);
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
 
@@ -4232,8 +4228,8 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 
 	if (napi) {
 		if (reason & GEN_INTR_RXTRAFFIC) {
-			if ( likely ( netif_rx_schedule_prep(dev)) ) {
-				__netif_rx_schedule(dev);
+			if (likely (netif_rx_schedule_prep(dev, &sp->napi))) {
+				__netif_rx_schedule(dev, &sp->napi);
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_mask);
 			}
 			else
@@ -7215,8 +7211,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	 * will use eth_mac_addr() for  dev->set_mac_address
 	 * mac address will be set every time dev->open() is called
 	 */
-	dev->poll = s2io_poll;
-	dev->weight = 32;
+	netif_napi_add(dev, &sp->napi, s2io_poll, 32);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = s2io_netpoll;

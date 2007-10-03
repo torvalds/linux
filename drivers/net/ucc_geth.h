@@ -1184,6 +1184,7 @@ struct ucc_geth_private {
 	struct ucc_geth_info *ug_info;
 	struct ucc_fast_private *uccf;
 	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;	/* linux network statistics */
 	struct ucc_geth *ug_regs;
 	struct ucc_geth_init_pram *p_init_enet_param_shadow;

@@ -2310,10 +2310,10 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 	return work_done;
 }
 
-static int ql_poll(struct net_device *ndev, int *budget)
+static int ql_poll(struct napi_struct *napi, int budget)
 {
-	struct ql3_adapter *qdev = netdev_priv(ndev);
-	int work_to_do = min(*budget, ndev->quota);
+	struct ql3_adapter *qdev = container_of(napi, struct ql3_adapter, napi);
+	struct net_device *ndev = qdev->ndev;
 	int rx_cleaned = 0, tx_cleaned = 0;
 	unsigned long hw_flags;
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
@@ -2321,16 +2321,13 @@ static int ql_poll(struct net_device *ndev, int *budget)
 	if (!netif_carrier_ok(ndev))
 		goto quit_polling;
 
-	ql_tx_rx_clean(qdev, &tx_cleaned, &rx_cleaned, work_to_do);
-	*budget -= rx_cleaned;
-	ndev->quota -= rx_cleaned;
+	ql_tx_rx_clean(qdev, &tx_cleaned, &rx_cleaned, budget);
 
-	if( tx_cleaned + rx_cleaned != work_to_do ||
+	if (tx_cleaned + rx_cleaned != budget ||
 	    !netif_running(ndev)) {
 quit_polling:
-		netif_rx_complete(ndev);
-
 		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
+		__netif_rx_complete(ndev, napi);
 		ql_update_small_bufq_prod_index(qdev);
 		ql_update_lrg_bufq_prod_index(qdev);
 		writel(qdev->rsp_consumer_index,
@@ -2338,9 +2335,8 @@ quit_polling:
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
 
 		ql_enable_interrupts(qdev);
-		return 0;
 	}
-	return 1;
+	return tx_cleaned + rx_cleaned;
 }
 
 static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
@@ -2390,8 +2386,8 @@ static irqreturn_t ql3xxx_isr(int irq, void *dev_id)
 		spin_unlock(&qdev->adapter_lock);
 	} else if (value & ISP_IMR_DISABLE_CMPL_INT) {
 		ql_disable_interrupts(qdev);
-		if (likely(netif_rx_schedule_prep(ndev))) {
-			__netif_rx_schedule(ndev);
+		if (likely(netif_rx_schedule_prep(ndev, &qdev->napi))) {
+			__netif_rx_schedule(ndev, &qdev->napi);
 		}
 	} else {
 		return IRQ_NONE;
@@ -3617,7 +3613,7 @@ static int ql_adapter_down(struct ql3_adapter *qdev, int do_reset)
 
 	del_timer_sync(&qdev->adapter_timer);
 
-	netif_poll_disable(ndev);
+	napi_disable(&qdev->napi);
 
 	if (do_reset) {
 		int soft_reset;
@@ -3705,7 +3701,7 @@ static int ql_adapter_up(struct ql3_adapter *qdev)
 
 	mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);
 
-	netif_poll_enable(ndev);
+	napi_enable(&qdev->napi);
 	ql_enable_interrupts(qdev);
 	return 0;
 
@@ -4061,8 +4057,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	ndev->tx_timeout = ql3xxx_tx_timeout;
 	ndev->watchdog_timeo = 5 * HZ;
 
-	ndev->poll = &ql_poll;
-	ndev->weight = 64;
+	netif_napi_add(ndev, &qdev->napi, ql_poll, 64);
 
 	ndev->irq = pdev->irq;
 

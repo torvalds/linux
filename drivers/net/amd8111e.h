@@ -763,6 +763,8 @@ struct amd8111e_priv{
 	/* Reg memory mapped address */
 	void __iomem *mmio;
 
+	struct napi_struct napi;
+
 	spinlock_t lock;	/* Guard lock */
 	unsigned long rx_idx, tx_idx;	/* The next free ring entry */
 	unsigned long tx_complete_idx;

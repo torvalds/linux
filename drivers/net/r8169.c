@@ -384,6 +384,7 @@ struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
 	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;	/* statistics of net device */
 	spinlock_t lock;		/* spin lock flag */
 	u32 msg_enable;
@@ -443,13 +444,13 @@ static void rtl_set_rx_mode(struct net_device *dev);
 static void rtl8169_tx_timeout(struct net_device *dev);
 static struct net_device_stats *rtl8169_get_stats(struct net_device *dev);
 static int rtl8169_rx_interrupt(struct net_device *, struct rtl8169_private *,
-				void __iomem *);
+				void __iomem *, u32 budget);
 static int rtl8169_change_mtu(struct net_device *dev, int new_mtu);
 static void rtl8169_down(struct net_device *dev);
 static void rtl8169_rx_clear(struct rtl8169_private *tp);
 
 #ifdef CONFIG_R8169_NAPI
-static int rtl8169_poll(struct net_device *dev, int *budget);
+static int rtl8169_poll(struct napi_struct *napi, int budget);
 #endif
 
 static const unsigned int rtl8169_rx_config =
@@ -1656,8 +1657,7 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->set_mac_address = rtl_set_mac_address;
 
 #ifdef CONFIG_R8169_NAPI
-	dev->poll = rtl8169_poll;
-	dev->weight = R8169_NAPI_WEIGHT;
+	netif_napi_add(dev, &tp->napi, rtl8169_poll, R8169_NAPI_WEIGHT);
 #endif
 
 #ifdef CONFIG_R8169_VLAN
@@ -1776,6 +1776,10 @@ static int rtl8169_open(struct net_device *dev)
 			     dev->name, dev);
 	if (retval < 0)
 		goto err_release_ring_2;
+
+#ifdef CONFIG_R8169_NAPI
+	napi_enable(&tp->napi);
+#endif
 
 	rtl_hw_start(dev);
 
@@ -2082,7 +2086,9 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 	if (ret < 0)
 		goto out;
 
-	netif_poll_enable(dev);
+#ifdef CONFIG_R8169_NAPI
+	napi_enable(&tp->napi);
+#endif
 
 	rtl_hw_start(dev);
 
@@ -2274,11 +2280,15 @@ static void rtl8169_wait_for_quiescence(struct net_device *dev)
 	synchronize_irq(dev->irq);
 
 	/* Wait for any pending NAPI task to complete */
-	netif_poll_disable(dev);
+#ifdef CONFIG_R8169_NAPI
+	napi_disable(&tp->napi);
+#endif
 
 	rtl8169_irq_mask_and_ack(ioaddr);
 
-	netif_poll_enable(dev);
+#ifdef CONFIG_R8169_NAPI
+	napi_enable(&tp->napi);
+#endif
 }
 
 static void rtl8169_reinit_task(struct work_struct *work)
@@ -2322,7 +2332,7 @@ static void rtl8169_reset_task(struct work_struct *work)
 
 	rtl8169_wait_for_quiescence(dev);
 
-	rtl8169_rx_interrupt(dev, tp, tp->mmio_addr);
+	rtl8169_rx_interrupt(dev, tp, tp->mmio_addr, ~(u32)0);
 	rtl8169_tx_clear(tp);
 
 	if (tp->dirty_rx == tp->cur_rx) {
@@ -2636,14 +2646,14 @@ out:
 
 static int rtl8169_rx_interrupt(struct net_device *dev,
 				struct rtl8169_private *tp,
-				void __iomem *ioaddr)
+				void __iomem *ioaddr, u32 budget)
 {
 	unsigned int cur_rx, rx_left;
 	unsigned int delta, count;
 
 	cur_rx = tp->cur_rx;
 	rx_left = NUM_RX_DESC + tp->dirty_rx - cur_rx;
-	rx_left = rtl8169_rx_quota(rx_left, (u32) dev->quota);
+	rx_left = rtl8169_rx_quota(rx_left, budget);
 
 	for (; rx_left > 0; rx_left--, cur_rx++) {
 		unsigned int entry = cur_rx % NUM_RX_DESC;
@@ -2792,8 +2802,8 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 			RTL_W16(IntrMask, tp->intr_event & ~tp->napi_event);
 			tp->intr_mask = ~tp->napi_event;
 
-			if (likely(netif_rx_schedule_prep(dev)))
-				__netif_rx_schedule(dev);
+		if (likely(netif_rx_schedule_prep(dev, &tp->napi)))
+			__netif_rx_schedule(dev, &tp->napi);
 			else if (netif_msg_intr(tp)) {
 				printk(KERN_INFO "%s: interrupt %04x in poll\n",
 				       dev->name, status);
@@ -2803,7 +2813,7 @@ static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance)
 #else
 		/* Rx interrupt */
 		if (status & (RxOK | RxOverflow | RxFIFOOver))
-			rtl8169_rx_interrupt(dev, tp, ioaddr);
+			rtl8169_rx_interrupt(dev, tp, ioaddr, ~(u32)0);
 
 		/* Tx interrupt */
 		if (status & (TxOK | TxErr))
@@ -2826,20 +2836,18 @@ out:
 }
 
 #ifdef CONFIG_R8169_NAPI
-static int rtl8169_poll(struct net_device *dev, int *budget)
+static int rtl8169_poll(struct napi_struct *napi, int budget)
 {
-	unsigned int work_done, work_to_do = min(*budget, dev->quota);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = container_of(napi, struct rtl8169_private, napi);
+	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->mmio_addr;
+	int work_done;
 
-	work_done = rtl8169_rx_interrupt(dev, tp, ioaddr);
+	work_done = rtl8169_rx_interrupt(dev, tp, ioaddr, (u32) budget);
 	rtl8169_tx_interrupt(dev, tp, ioaddr);
 
-	*budget -= work_done;
-	dev->quota -= work_done;
-
-	if (work_done < work_to_do) {
-		netif_rx_complete(dev);
+	if (work_done < budget) {
+		netif_rx_complete(dev, napi);
 		tp->intr_mask = 0xffff;
 		/*
 		 * 20040426: the barrier is not strictly required but the
@@ -2851,7 +2859,7 @@ static int rtl8169_poll(struct net_device *dev, int *budget)
 		RTL_W16(IntrMask, tp->intr_event);
 	}
 
-	return (work_done >= work_to_do);
+	return work_done;
 }
 #endif
 
@@ -2880,7 +2888,7 @@ core_down:
 	synchronize_irq(dev->irq);
 
 	if (!poll_locked) {
-		netif_poll_disable(dev);
+		napi_disable(&tp->napi);
 		poll_locked++;
 	}
 
@@ -2917,8 +2925,6 @@ static int rtl8169_close(struct net_device *dev)
 	rtl8169_down(dev);
 
 	free_irq(dev->irq, dev);
-
-	netif_poll_enable(dev);
 
 	pci_free_consistent(pdev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			    tp->RxPhyAddr);

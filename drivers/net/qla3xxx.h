@@ -1175,6 +1175,8 @@ struct ql3_adapter {
 	struct pci_dev *pdev;
 	struct net_device *ndev;	/* Parent NET device */
 
+	struct napi_struct napi;
+
 	/* Hardware information */
 	u8 chip_rev_id;
 	u8 pci_slot;

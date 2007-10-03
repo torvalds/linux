@@ -389,6 +389,8 @@ struct rhine_private {
 
 	struct pci_dev *pdev;
 	long pioaddr;
+	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	spinlock_t lock;
 
@@ -582,28 +584,25 @@ static void rhine_poll(struct net_device *dev)
 #endif
 
 #ifdef CONFIG_VIA_RHINE_NAPI
-static int rhine_napipoll(struct net_device *dev, int *budget)
+static int rhine_napipoll(struct napi_struct *napi, int budget)
 {
-	struct rhine_private *rp = netdev_priv(dev);
+	struct rhine_private *rp = container_of(napi, struct rhine_private, napi);
+	struct net_device *dev = rp->dev;
 	void __iomem *ioaddr = rp->base;
-	int done, limit = min(dev->quota, *budget);
+	int work_done;
 
-	done = rhine_rx(dev, limit);
-	*budget -= done;
-	dev->quota -= done;
+	work_done = rhine_rx(dev, budget);
 
-	if (done < limit) {
-		netif_rx_complete(dev);
+	if (work_done < budget) {
+		netif_rx_complete(dev, napi);
 
 		iowrite16(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
 			  IntrRxDropped | IntrRxNoBuf | IntrTxAborted |
 			  IntrTxDone | IntrTxError | IntrTxUnderrun |
 			  IntrPCIErr | IntrStatsMax | IntrLinkChange,
 			  ioaddr + IntrEnable);
-		return 0;
 	}
-	else
-		return 1;
+	return work_done;
 }
 #endif
 
@@ -707,6 +706,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	rp = netdev_priv(dev);
+	rp->dev = dev;
 	rp->quirks = quirks;
 	rp->pioaddr = pioaddr;
 	rp->pdev = pdev;
@@ -785,8 +785,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	dev->poll_controller = rhine_poll;
 #endif
 #ifdef CONFIG_VIA_RHINE_NAPI
-	dev->poll = rhine_napipoll;
-	dev->weight = 64;
+	netif_napi_add(dev, &rp->napi, rhine_napipoll, 64);
 #endif
 	if (rp->quirks & rqRhineI)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
@@ -1061,7 +1060,9 @@ static void init_registers(struct net_device *dev)
 
 	rhine_set_rx_mode(dev);
 
-	netif_poll_enable(dev);
+#ifdef CONFIG_VIA_RHINE_NAPI
+	napi_enable(&rp->napi);
+#endif
 
 	/* Enable interrupts by setting the interrupt mask. */
 	iowrite16(IntrRxDone | IntrRxErr | IntrRxEmpty| IntrRxOverflow |
@@ -1196,6 +1197,10 @@ static void rhine_tx_timeout(struct net_device *dev)
 	/* protect against concurrent rx interrupts */
 	disable_irq(rp->pdev->irq);
 
+#ifdef CONFIG_VIA_RHINE_NAPI
+	napi_disable(&rp->napi);
+#endif
+
 	spin_lock(&rp->lock);
 
 	/* clear all descriptors */
@@ -1324,7 +1329,7 @@ static irqreturn_t rhine_interrupt(int irq, void *dev_instance)
 				  IntrPCIErr | IntrStatsMax | IntrLinkChange,
 				  ioaddr + IntrEnable);
 
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &rp->napi);
 #else
 			rhine_rx(dev, RX_RING_SIZE);
 #endif
@@ -1837,7 +1842,9 @@ static int rhine_close(struct net_device *dev)
 	spin_lock_irq(&rp->lock);
 
 	netif_stop_queue(dev);
-	netif_poll_disable(dev);
+#ifdef CONFIG_VIA_RHINE_NAPI
+	napi_disable(&rp->napi);
+#endif
 
 	if (debug > 1)
 		printk(KERN_DEBUG "%s: Shutting down ethercard, "
@@ -1936,6 +1943,9 @@ static int rhine_suspend(struct pci_dev *pdev, pm_message_t state)
 	if (!netif_running(dev))
 		return 0;
 
+#ifdef CONFIG_VIA_RHINE_NAPI
+	napi_disable(&rp->napi);
+#endif
 	netif_device_detach(dev);
 	pci_save_state(pdev);
 

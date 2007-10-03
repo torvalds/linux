@@ -178,16 +178,13 @@ static int full_duplex[MAX_UNITS] = {0, };
 #define skb_num_frags(skb) (skb_shinfo(skb)->nr_frags + 1)
 
 #ifdef HAVE_NETDEV_POLL
-#define init_poll(dev) \
-do { \
-	dev->poll = &netdev_poll; \
-	dev->weight = max_interrupt_work; \
-} while (0)
-#define netdev_rx(dev, ioaddr) \
+#define init_poll(dev, np) \
+	netif_napi_add(dev, &np->napi, netdev_poll, max_interrupt_work)
+#define netdev_rx(dev, np, ioaddr) \
 do { \
 	u32 intr_enable; \
-	if (netif_rx_schedule_prep(dev)) { \
-		__netif_rx_schedule(dev); \
+	if (netif_rx_schedule_prep(dev, &np->napi)) { \
+		__netif_rx_schedule(dev, &np->napi); \
 		intr_enable = readl(ioaddr + IntrEnable); \
 		intr_enable &= ~(IntrRxDone | IntrRxEmpty); \
 		writel(intr_enable, ioaddr + IntrEnable); \
@@ -204,12 +201,12 @@ do { \
 } while (0)
 #define netdev_receive_skb(skb) netif_receive_skb(skb)
 #define vlan_netdev_receive_skb(skb, vlgrp, vlid) vlan_hwaccel_receive_skb(skb, vlgrp, vlid)
-static int	netdev_poll(struct net_device *dev, int *budget);
+static int	netdev_poll(struct napi_struct *napi, int budget);
 #else  /* not HAVE_NETDEV_POLL */
-#define init_poll(dev)
+#define init_poll(dev, np)
 #define netdev_receive_skb(skb) netif_rx(skb)
 #define vlan_netdev_receive_skb(skb, vlgrp, vlid) vlan_hwaccel_rx(skb, vlgrp, vlid)
-#define netdev_rx(dev, ioaddr) \
+#define netdev_rx(dev, np, ioaddr) \
 do { \
 	int quota = np->dirty_rx + RX_RING_SIZE - np->cur_rx; \
 	__netdev_rx(dev, &quota);\
@@ -599,6 +596,8 @@ struct netdev_private {
 	struct tx_done_desc *tx_done_q;
 	dma_addr_t tx_done_q_dma;
 	unsigned int tx_done;
+	struct napi_struct napi;
+	struct net_device *dev;
 	struct net_device_stats stats;
 	struct pci_dev *pci_dev;
 #ifdef VLAN_SUPPORT
@@ -791,6 +790,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	dev->irq = irq;
 
 	np = netdev_priv(dev);
+	np->dev = dev;
 	np->base = base;
 	spin_lock_init(&np->lock);
 	pci_set_drvdata(pdev, dev);
@@ -851,7 +851,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	dev->hard_start_xmit = &start_tx;
 	dev->tx_timeout = tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	init_poll(dev);
+	init_poll(dev, np);
 	dev->stop = &netdev_close;
 	dev->get_stats = &get_stats;
 	dev->set_multicast_list = &set_rx_mode;
@@ -1056,6 +1056,9 @@ static int netdev_open(struct net_device *dev)
 
 	writel(np->intr_timer_ctrl, ioaddr + IntrTimerCtrl);
 
+#ifdef HAVE_NETDEV_POLL
+	napi_enable(&np->napi);
+#endif
 	netif_start_queue(dev);
 
 	if (debug > 1)
@@ -1330,7 +1333,7 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 		handled = 1;
 
 		if (intr_status & (IntrRxDone | IntrRxEmpty))
-			netdev_rx(dev, ioaddr);
+			netdev_rx(dev, np, ioaddr);
 
 		/* Scavenge the skbuff list based on the Tx-done queue.
 		   There are redundant checks here that may be cleaned up
@@ -1531,36 +1534,35 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 
 
 #ifdef HAVE_NETDEV_POLL
-static int netdev_poll(struct net_device *dev, int *budget)
+static int netdev_poll(struct napi_struct *napi, int budget)
 {
+	struct netdev_private *np = container_of(napi, struct netdev_private, napi);
+	struct net_device *dev = np->dev;
 	u32 intr_status;
-	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
-	int retcode = 0, quota = dev->quota;
+	int quota = budget;
 
 	do {
 		writel(IntrRxDone | IntrRxEmpty, ioaddr + IntrClear);
 
-		retcode = __netdev_rx(dev, &quota);
-		*budget -= (dev->quota - quota);
-		dev->quota = quota;
-		if (retcode)
+		if (__netdev_rx(dev, &quota))
 			goto out;
 
 		intr_status = readl(ioaddr + IntrStatus);
 	} while (intr_status & (IntrRxDone | IntrRxEmpty));
 
-	netif_rx_complete(dev);
+	netif_rx_complete(dev, napi);
 	intr_status = readl(ioaddr + IntrEnable);
 	intr_status |= IntrRxDone | IntrRxEmpty;
 	writel(intr_status, ioaddr + IntrEnable);
 
  out:
 	if (debug > 5)
-		printk(KERN_DEBUG "  exiting netdev_poll(): %d.\n", retcode);
+		printk(KERN_DEBUG "  exiting netdev_poll(): %d.\n",
+		       budget - quota);
 
 	/* Restart Rx engine if stopped. */
-	return retcode;
+	return budget - quota;
 }
 #endif /* HAVE_NETDEV_POLL */
 
@@ -1904,6 +1906,9 @@ static int netdev_close(struct net_device *dev)
 	int i;
 
 	netif_stop_queue(dev);
+#ifdef HAVE_NETDEV_POLL
+	napi_disable(&np->napi);
+#endif
 
 	if (debug > 1) {
 		printk(KERN_DEBUG "%s: Shutting down ethercard, Intr status %#8.8x.\n",

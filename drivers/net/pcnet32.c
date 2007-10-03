@@ -280,6 +280,8 @@ struct pcnet32_private {
 	unsigned int		dirty_rx,	/* ring entries to be freed. */
 				dirty_tx;
 
+	struct net_device	*dev;
+	struct napi_struct	napi;
 	struct net_device_stats	stats;
 	char			tx_full;
 	char			phycount;	/* number of phys found */
@@ -440,15 +442,21 @@ static struct pcnet32_access pcnet32_dwio = {
 
 static void pcnet32_netif_stop(struct net_device *dev)
 {
+	struct pcnet32_private *lp = netdev_priv(dev);
 	dev->trans_start = jiffies;
-	netif_poll_disable(dev);
+#ifdef CONFIG_PCNET32_NAPI
+	napi_disable(&lp->napi);
+#endif
 	netif_tx_disable(dev);
 }
 
 static void pcnet32_netif_start(struct net_device *dev)
 {
+	struct pcnet32_private *lp = netdev_priv(dev);
 	netif_wake_queue(dev);
-	netif_poll_enable(dev);
+#ifdef CONFIG_PCNET32_NAPI
+	napi_enable(&lp->napi);
+#endif
 }
 
 /*
@@ -816,7 +824,7 @@ static int pcnet32_set_ringparam(struct net_device *dev,
 	if ((1 << i) != lp->rx_ring_size)
 		pcnet32_realloc_rx_ring(dev, lp, i);
 
-	dev->weight = lp->rx_ring_size / 2;
+	lp->napi.weight = lp->rx_ring_size / 2;
 
 	if (netif_running(dev)) {
 		pcnet32_netif_start(dev);
@@ -1255,7 +1263,7 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	return;
 }
 
-static int pcnet32_rx(struct net_device *dev, int quota)
+static int pcnet32_rx(struct net_device *dev, int budget)
 {
 	struct pcnet32_private *lp = netdev_priv(dev);
 	int entry = lp->cur_rx & lp->rx_mod_mask;
@@ -1263,7 +1271,7 @@ static int pcnet32_rx(struct net_device *dev, int quota)
 	int npackets = 0;
 
 	/* If we own the next entry, it's a new packet. Send it up. */
-	while (quota > npackets && (short)le16_to_cpu(rxp->status) >= 0) {
+	while (npackets < budget && (short)le16_to_cpu(rxp->status) >= 0) {
 		pcnet32_rx_entry(dev, lp, rxp, entry);
 		npackets += 1;
 		/*
@@ -1379,15 +1387,16 @@ static int pcnet32_tx(struct net_device *dev)
 }
 
 #ifdef CONFIG_PCNET32_NAPI
-static int pcnet32_poll(struct net_device *dev, int *budget)
+static int pcnet32_poll(struct napi_struct *napi, int budget)
 {
-	struct pcnet32_private *lp = netdev_priv(dev);
-	int quota = min(dev->quota, *budget);
+	struct pcnet32_private *lp = container_of(napi, struct pcnet32_private, napi);
+	struct net_device *dev = lp->dev;
 	unsigned long ioaddr = dev->base_addr;
 	unsigned long flags;
+	int work_done;
 	u16 val;
 
-	quota = pcnet32_rx(dev, quota);
+	work_done = pcnet32_rx(dev, budget);
 
 	spin_lock_irqsave(&lp->lock, flags);
 	if (pcnet32_tx(dev)) {
@@ -1399,28 +1408,22 @@ static int pcnet32_poll(struct net_device *dev, int *budget)
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	*budget -= quota;
-	dev->quota -= quota;
+	if (work_done < budget) {
+		spin_lock_irqsave(&lp->lock, flags);
 
-	if (dev->quota == 0) {
-		return 1;
+		__netif_rx_complete(dev, napi);
+
+		/* clear interrupt masks */
+		val = lp->a.read_csr(ioaddr, CSR3);
+		val &= 0x00ff;
+		lp->a.write_csr(ioaddr, CSR3, val);
+
+		/* Set interrupt enable. */
+		lp->a.write_csr(ioaddr, CSR0, CSR0_INTEN);
+		mmiowb();
+		spin_unlock_irqrestore(&lp->lock, flags);
 	}
-
-	netif_rx_complete(dev);
-
-	spin_lock_irqsave(&lp->lock, flags);
-
-	/* clear interrupt masks */
-	val = lp->a.read_csr(ioaddr, CSR3);
-	val &= 0x00ff;
-	lp->a.write_csr(ioaddr, CSR3, val);
-
-	/* Set interrupt enable. */
-	lp->a.write_csr(ioaddr, CSR0, CSR0_INTEN);
-	mmiowb();
-	spin_unlock_irqrestore(&lp->lock, flags);
-
-	return 0;
+	return work_done;
 }
 #endif
 
@@ -1815,6 +1818,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	}
 	lp->pci_dev = pdev;
 
+	lp->dev = dev;
+
 	spin_lock_init(&lp->lock);
 
 	SET_MODULE_OWNER(dev);
@@ -1842,6 +1847,10 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	lp->mii_if.dev = dev;
 	lp->mii_if.mdio_read = mdio_read;
 	lp->mii_if.mdio_write = mdio_write;
+
+#ifdef CONFIG_PCNET32_NAPI
+	netif_napi_add(dev, &lp->napi, pcnet32_poll, lp->rx_ring_size / 2);
+#endif
 
 	if (fdx && !(lp->options & PCNET32_PORT_ASEL) &&
 	    ((cards_found >= MAX_UNITS) || full_duplex[cards_found]))
@@ -1953,10 +1962,6 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 	dev->ethtool_ops = &pcnet32_ethtool_ops;
 	dev->tx_timeout = pcnet32_tx_timeout;
 	dev->watchdog_timeo = (5 * HZ);
-	dev->weight = lp->rx_ring_size / 2;
-#ifdef CONFIG_PCNET32_NAPI
-	dev->poll = pcnet32_poll;
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = pcnet32_poll_controller;
@@ -2275,6 +2280,10 @@ static int pcnet32_open(struct net_device *dev)
 		rc = -ENOMEM;
 		goto err_free_ring;
 	}
+
+#ifdef CONFIG_PCNET32_NAPI
+	napi_enable(&lp->napi);
+#endif
 
 	/* Re-initialize the PCNET32, and start it when done. */
 	lp->a.write_csr(ioaddr, 1, (lp->init_dma_addr & 0xffff));
@@ -2599,18 +2608,18 @@ pcnet32_interrupt(int irq, void *dev_id)
 			/* unlike for the lance, there is no restart needed */
 		}
 #ifdef CONFIG_PCNET32_NAPI
-		if (netif_rx_schedule_prep(dev)) {
+		if (netif_rx_schedule_prep(dev, &lp->napi)) {
 			u16 val;
 			/* set interrupt masks */
 			val = lp->a.read_csr(ioaddr, CSR3);
 			val |= 0x5f00;
 			lp->a.write_csr(ioaddr, CSR3, val);
 			mmiowb();
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &lp->napi);
 			break;
 		}
 #else
-		pcnet32_rx(dev, dev->weight);
+		pcnet32_rx(dev, lp->napi.weight);
 		if (pcnet32_tx(dev)) {
 			/* reset the chip to clear the error condition, then restart */
 			lp->a.reset(ioaddr);
@@ -2645,6 +2654,9 @@ static int pcnet32_close(struct net_device *dev)
 	del_timer_sync(&lp->watchdog_timer);
 
 	netif_stop_queue(dev);
+#ifdef CONFIG_PCNET32_NAPI
+	napi_disable(&lp->napi);
+#endif
 
 	spin_lock_irqsave(&lp->lock, flags);
 

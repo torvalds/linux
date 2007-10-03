@@ -72,6 +72,7 @@ struct netfront_info {
 	struct list_head list;
 	struct net_device *netdev;
 
+	struct napi_struct napi;
 	struct net_device_stats stats;
 
 	struct xen_netif_tx_front_ring tx;
@@ -185,7 +186,8 @@ static int xennet_can_sg(struct net_device *dev)
 static void rx_refill_timeout(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	netif_rx_schedule(dev);
+	struct netfront_info *np = netdev_priv(dev);
+	netif_rx_schedule(dev, &np->napi);
 }
 
 static int netfront_tx_slot_available(struct netfront_info *np)
@@ -342,12 +344,14 @@ static int xennet_open(struct net_device *dev)
 
 	memset(&np->stats, 0, sizeof(np->stats));
 
+	napi_enable(&np->napi);
+
 	spin_lock_bh(&np->rx_lock);
 	if (netif_carrier_ok(dev)) {
 		xennet_alloc_rx_buffers(dev);
 		np->rx.sring->rsp_event = np->rx.rsp_cons + 1;
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx))
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 	}
 	spin_unlock_bh(&np->rx_lock);
 
@@ -589,6 +593,7 @@ static int xennet_close(struct net_device *dev)
 {
 	struct netfront_info *np = netdev_priv(dev);
 	netif_stop_queue(np->netdev);
+	napi_disable(&np->napi);
 	return 0;
 }
 
@@ -872,15 +877,16 @@ static int handle_incoming_queue(struct net_device *dev,
 	return packets_dropped;
 }
 
-static int xennet_poll(struct net_device *dev, int *pbudget)
+static int xennet_poll(struct napi_struct *napi, int budget)
 {
-	struct netfront_info *np = netdev_priv(dev);
+	struct netfront_info *np = container_of(napi, struct netfront_info, napi);
+	struct net_device *dev = np->netdev;
 	struct sk_buff *skb;
 	struct netfront_rx_info rinfo;
 	struct xen_netif_rx_response *rx = &rinfo.rx;
 	struct xen_netif_extra_info *extras = rinfo.extras;
 	RING_IDX i, rp;
-	int work_done, budget, more_to_do = 1;
+	int work_done;
 	struct sk_buff_head rxq;
 	struct sk_buff_head errq;
 	struct sk_buff_head tmpq;
@@ -899,9 +905,6 @@ static int xennet_poll(struct net_device *dev, int *pbudget)
 	skb_queue_head_init(&errq);
 	skb_queue_head_init(&tmpq);
 
-	budget = *pbudget;
-	if (budget > dev->quota)
-		budget = dev->quota;
 	rp = np->rx.sring->rsp_prod;
 	rmb(); /* Ensure we see queued responses up to 'rp'. */
 
@@ -1006,22 +1009,21 @@ err:
 
 	xennet_alloc_rx_buffers(dev);
 
-	*pbudget   -= work_done;
-	dev->quota -= work_done;
-
 	if (work_done < budget) {
+		int more_to_do = 0;
+
 		local_irq_save(flags);
 
 		RING_FINAL_CHECK_FOR_RESPONSES(&np->rx, more_to_do);
 		if (!more_to_do)
-			__netif_rx_complete(dev);
+			__netif_rx_complete(dev, napi);
 
 		local_irq_restore(flags);
 	}
 
 	spin_unlock(&np->rx_lock);
 
-	return more_to_do;
+	return work_done;
 }
 
 static int xennet_change_mtu(struct net_device *dev, int mtu)
@@ -1201,10 +1203,9 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	netdev->hard_start_xmit = xennet_start_xmit;
 	netdev->stop            = xennet_close;
 	netdev->get_stats       = xennet_get_stats;
-	netdev->poll            = xennet_poll;
+	netif_napi_add(netdev, &np->napi, xennet_poll, 64);
 	netdev->uninit          = xennet_uninit;
 	netdev->change_mtu	= xennet_change_mtu;
-	netdev->weight          = 64;
 	netdev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(netdev, &xennet_ethtool_ops);
@@ -1349,7 +1350,7 @@ static irqreturn_t xennet_interrupt(int irq, void *dev_id)
 		xennet_tx_buf_gc(dev);
 		/* Under tx_lock: protects access to rx shared-ring indexes. */
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx))
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 	}
 
 	spin_unlock_irqrestore(&np->tx_lock, flags);

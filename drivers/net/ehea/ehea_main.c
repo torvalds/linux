@@ -393,9 +393,9 @@ static int ehea_treat_poll_error(struct ehea_port_res *pr, int rq,
 	return 0;
 }
 
-static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
-					struct ehea_port_res *pr,
-					int *budget)
+static int ehea_proc_rwqes(struct net_device *dev,
+			   struct ehea_port_res *pr,
+			   int budget)
 {
 	struct ehea_port *port = pr->port;
 	struct ehea_qp *qp = pr->qp;
@@ -408,18 +408,16 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 	int skb_arr_rq2_len = pr->rq2_skba.len;
 	int skb_arr_rq3_len = pr->rq3_skba.len;
 	int processed, processed_rq1, processed_rq2, processed_rq3;
-	int wqe_index, last_wqe_index, rq, my_quota, port_reset;
+	int wqe_index, last_wqe_index, rq, port_reset;
 
 	processed = processed_rq1 = processed_rq2 = processed_rq3 = 0;
 	last_wqe_index = 0;
-	my_quota = min(*budget, dev->quota);
 
 	cqe = ehea_poll_rq1(qp, &wqe_index);
-	while ((my_quota > 0) && cqe) {
+	while ((processed < budget) && cqe) {
 		ehea_inc_rq1(qp);
 		processed_rq1++;
 		processed++;
-		my_quota--;
 		if (netif_msg_rx_status(port))
 			ehea_dump(cqe, sizeof(*cqe), "CQE");
 
@@ -434,14 +432,14 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 					if (netif_msg_rx_err(port))
 						ehea_error("LL rq1: skb=NULL");
 
-					skb = netdev_alloc_skb(port->netdev,
+					skb = netdev_alloc_skb(dev,
 							       EHEA_L_PKT_SIZE);
 					if (!skb)
 						break;
 				}
 				skb_copy_to_linear_data(skb, ((char*)cqe) + 64,
 						 cqe->num_bytes_transfered - 4);
-				ehea_fill_skb(port->netdev, skb, cqe);
+				ehea_fill_skb(dev, skb, cqe);
 			} else if (rq == 2) {  /* RQ2 */
 				skb = get_skb_by_index(skb_arr_rq2,
 						       skb_arr_rq2_len, cqe);
@@ -450,7 +448,7 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 						ehea_error("rq2: skb=NULL");
 					break;
 				}
-				ehea_fill_skb(port->netdev, skb, cqe);
+				ehea_fill_skb(dev, skb, cqe);
 				processed_rq2++;
 			} else {  /* RQ3 */
 				skb = get_skb_by_index(skb_arr_rq3,
@@ -460,7 +458,7 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 						ehea_error("rq3: skb=NULL");
 					break;
 				}
-				ehea_fill_skb(port->netdev, skb, cqe);
+				ehea_fill_skb(dev, skb, cqe);
 				processed_rq3++;
 			}
 
@@ -471,7 +469,7 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 			else
 				netif_receive_skb(skb);
 
-			port->netdev->last_rx = jiffies;
+			dev->last_rx = jiffies;
 		} else {
 			pr->p_stats.poll_receive_errors++;
 			port_reset = ehea_treat_poll_error(pr, rq, cqe,
@@ -484,14 +482,12 @@ static struct ehea_cqe *ehea_proc_rwqes(struct net_device *dev,
 	}
 
 	pr->rx_packets += processed;
-	*budget -= processed;
 
 	ehea_refill_rq1(pr, last_wqe_index, processed_rq1);
 	ehea_refill_rq2(pr, processed_rq2);
 	ehea_refill_rq3(pr, processed_rq3);
 
-	cqe = ehea_poll_rq1(qp, &wqe_index);
-	return cqe;
+	return processed;
 }
 
 static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
@@ -554,22 +550,27 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 }
 
 #define EHEA_NAPI_POLL_NUM_BEFORE_IRQ 16
+#define EHEA_POLL_MAX_CQES 65535
 
-static int ehea_poll(struct net_device *dev, int *budget)
+static int ehea_poll(struct napi_struct *napi, int budget)
 {
-	struct ehea_port_res *pr = dev->priv;
+	struct ehea_port_res *pr = container_of(napi, struct ehea_port_res, napi);
+	struct net_device *dev = pr->port->netdev;
 	struct ehea_cqe *cqe;
 	struct ehea_cqe *cqe_skb = NULL;
 	int force_irq, wqe_index;
-
-	cqe = ehea_poll_rq1(pr->qp, &wqe_index);
-	cqe_skb = ehea_poll_cq(pr->send_cq);
+	int rx = 0;
 
 	force_irq = (pr->poll_counter > EHEA_NAPI_POLL_NUM_BEFORE_IRQ);
+	cqe_skb = ehea_proc_cqes(pr, EHEA_POLL_MAX_CQES);
 
-	if ((!cqe && !cqe_skb) || force_irq) {
+	if (!force_irq)
+		rx += ehea_proc_rwqes(dev, pr, budget - rx);
+
+	while ((rx != budget) || force_irq) {
 		pr->poll_counter = 0;
-		netif_rx_complete(dev);
+		force_irq = 0;
+		netif_rx_complete(dev, napi);
 		ehea_reset_cq_ep(pr->recv_cq);
 		ehea_reset_cq_ep(pr->send_cq);
 		ehea_reset_cq_n1(pr->recv_cq);
@@ -578,43 +579,35 @@ static int ehea_poll(struct net_device *dev, int *budget)
 		cqe_skb = ehea_poll_cq(pr->send_cq);
 
 		if (!cqe && !cqe_skb)
-			return 0;
+			return rx;
 
-		if (!netif_rx_reschedule(dev, dev->quota))
-			return 0;
+		if (!netif_rx_reschedule(dev, napi))
+			return rx;
+
+		cqe_skb = ehea_proc_cqes(pr, EHEA_POLL_MAX_CQES);
+		rx += ehea_proc_rwqes(dev, pr, budget - rx);
 	}
 
-	cqe = ehea_proc_rwqes(dev, pr, budget);
-	cqe_skb = ehea_proc_cqes(pr, 300);
-
-	if (cqe || cqe_skb)
-		pr->poll_counter++;
-
-	return 1;
+	pr->poll_counter++;
+	return rx;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void ehea_netpoll(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
+	int i;
 
-	netif_rx_schedule(port->port_res[0].d_netdev);
+	for (i = 0; i < port->num_def_qps; i++)
+		netif_rx_schedule(dev, &port->port_res[i].napi);
 }
 #endif
-
-static int ehea_poll_firstqueue(struct net_device *dev, int *budget)
-{
-	struct ehea_port *port = netdev_priv(dev);
-	struct net_device *d_dev = port->port_res[0].d_netdev;
-
-	return ehea_poll(d_dev, budget);
-}
 
 static irqreturn_t ehea_recv_irq_handler(int irq, void *param)
 {
 	struct ehea_port_res *pr = param;
 
-	netif_rx_schedule(pr->d_netdev);
+	netif_rx_schedule(pr->port->netdev, &pr->napi);
 
 	return IRQ_HANDLED;
 }
@@ -1236,14 +1229,7 @@ static int ehea_init_port_res(struct ehea_port *port, struct ehea_port_res *pr,
 
 	kfree(init_attr);
 
-	pr->d_netdev = alloc_netdev(0, "", ether_setup);
-	if (!pr->d_netdev)
-		goto out_free;
-	pr->d_netdev->priv = pr;
-	pr->d_netdev->weight = 64;
-	pr->d_netdev->poll = ehea_poll;
-	set_bit(__LINK_STATE_START, &pr->d_netdev->state);
-	strcpy(pr->d_netdev->name, port->netdev->name);
+	netif_napi_add(pr->port->netdev, &pr->napi, ehea_poll, 64);
 
 	ret = 0;
 	goto out;
@@ -1265,8 +1251,6 @@ out:
 static int ehea_clean_portres(struct ehea_port *port, struct ehea_port_res *pr)
 {
 	int ret, i;
-
-	free_netdev(pr->d_netdev);
 
 	ret = ehea_destroy_qp(pr->qp);
 
@@ -2248,6 +2232,22 @@ out:
 	return ret;
 }
 
+static void port_napi_disable(struct ehea_port *port)
+{
+	int i;
+
+	for (i = 0; i < port->num_def_qps; i++)
+		napi_disable(&port->port_res[i].napi);
+}
+
+static void port_napi_enable(struct ehea_port *port)
+{
+	int i;
+
+	for (i = 0; i < port->num_def_qps; i++)
+		napi_enable(&port->port_res[i].napi);
+}
+
 static int ehea_open(struct net_device *dev)
 {
 	int ret;
@@ -2259,8 +2259,10 @@ static int ehea_open(struct net_device *dev)
 		ehea_info("enabling port %s", dev->name);
 
 	ret = ehea_up(dev);
-	if (!ret)
+	if (!ret) {
+		port_napi_enable(port);
 		netif_start_queue(dev);
+	}
 
 	up(&port->port_lock);
 
@@ -2269,7 +2271,7 @@ static int ehea_open(struct net_device *dev)
 
 static int ehea_down(struct net_device *dev)
 {
-	int ret, i;
+	int ret;
 	struct ehea_port *port = netdev_priv(dev);
 
 	if (port->state == EHEA_PORT_DOWN)
@@ -2278,10 +2280,7 @@ static int ehea_down(struct net_device *dev)
 	ehea_drop_multicast_list(dev);
 	ehea_free_interrupts(dev);
 
-	for (i = 0; i < port->num_def_qps; i++)
-		while (test_bit(__LINK_STATE_RX_SCHED,
-				&port->port_res[i].d_netdev->state))
-			msleep(1);
+	port_napi_disable(port);
 
 	port->state = EHEA_PORT_DOWN;
 
@@ -2319,7 +2318,8 @@ static void ehea_reset_port(struct work_struct *work)
 	port->resets++;
 	down(&port->port_lock);
 	netif_stop_queue(dev);
-	netif_poll_disable(dev);
+
+	port_napi_disable(port);
 
 	ehea_down(dev);
 
@@ -2330,7 +2330,8 @@ static void ehea_reset_port(struct work_struct *work)
 	if (netif_msg_timer(port))
 		ehea_info("Device %s resetted successfully", dev->name);
 
-	netif_poll_enable(dev);
+	port_napi_enable(port);
+
 	netif_wake_queue(dev);
 out:
 	up(&port->port_lock);
@@ -2358,7 +2359,9 @@ static void ehea_rereg_mrs(struct work_struct *work)
 							  dev->name);
 						down(&port->port_lock);
 						netif_stop_queue(dev);
-						netif_poll_disable(dev);
+
+						port_napi_disable(port);
+
 						ehea_down(dev);
 						up(&port->port_lock);
 					}
@@ -2406,7 +2409,7 @@ static void ehea_rereg_mrs(struct work_struct *work)
 
 						ret = ehea_up(dev);
 						if (!ret) {
-							netif_poll_enable(dev);
+							port_napi_enable(port);
 							netif_wake_queue(dev);
 						}
 
@@ -2644,11 +2647,9 @@ struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	memcpy(dev->dev_addr, &port->mac_addr, ETH_ALEN);
 
 	dev->open = ehea_open;
-	dev->poll = ehea_poll_firstqueue;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = ehea_netpoll;
 #endif
-	dev->weight = 64;
 	dev->stop = ehea_stop;
 	dev->hard_start_xmit = ehea_start_xmit;
 	dev->get_stats = ehea_get_stats;

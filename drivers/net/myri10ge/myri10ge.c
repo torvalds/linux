@@ -163,6 +163,7 @@ struct myri10ge_priv {
 	int small_bytes;
 	int big_bytes;
 	struct net_device *dev;
+	struct napi_struct napi;
 	struct net_device_stats stats;
 	u8 __iomem *sram;
 	int sram_size;
@@ -1100,7 +1101,7 @@ static inline void myri10ge_tx_done(struct myri10ge_priv *mgp, int mcp_index)
 	}
 }
 
-static inline void myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int *limit)
+static inline int myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int budget)
 {
 	struct myri10ge_rx_done *rx_done = &mgp->rx_done;
 	unsigned long rx_bytes = 0;
@@ -1109,10 +1110,11 @@ static inline void myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int *limit)
 
 	int idx = rx_done->idx;
 	int cnt = rx_done->cnt;
+	int work_done = 0;
 	u16 length;
 	__wsum checksum;
 
-	while (rx_done->entry[idx].length != 0 && *limit != 0) {
+	while (rx_done->entry[idx].length != 0 && work_done++ < budget) {
 		length = ntohs(rx_done->entry[idx].length);
 		rx_done->entry[idx].length = 0;
 		checksum = csum_unfold(rx_done->entry[idx].checksum);
@@ -1128,10 +1130,6 @@ static inline void myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int *limit)
 		rx_bytes += rx_ok * (unsigned long)length;
 		cnt++;
 		idx = cnt & (myri10ge_max_intr_slots - 1);
-
-		/* limit potential for livelock by only handling a
-		 * limited number of frames. */
-		(*limit)--;
 	}
 	rx_done->idx = idx;
 	rx_done->cnt = cnt;
@@ -1145,6 +1143,7 @@ static inline void myri10ge_clean_rx_done(struct myri10ge_priv *mgp, int *limit)
 	if (mgp->rx_big.fill_cnt - mgp->rx_big.cnt < myri10ge_fill_thresh)
 		myri10ge_alloc_rx_pages(mgp, &mgp->rx_big, mgp->big_bytes, 0);
 
+	return work_done;
 }
 
 static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
@@ -1189,26 +1188,21 @@ static inline void myri10ge_check_statblock(struct myri10ge_priv *mgp)
 	}
 }
 
-static int myri10ge_poll(struct net_device *netdev, int *budget)
+static int myri10ge_poll(struct napi_struct *napi, int budget)
 {
-	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	struct myri10ge_priv *mgp = container_of(napi, struct myri10ge_priv, napi);
+	struct net_device *netdev = mgp->dev;
 	struct myri10ge_rx_done *rx_done = &mgp->rx_done;
-	int limit, orig_limit, work_done;
+	int work_done;
 
 	/* process as many rx events as NAPI will allow */
-	limit = min(*budget, netdev->quota);
-	orig_limit = limit;
-	myri10ge_clean_rx_done(mgp, &limit);
-	work_done = orig_limit - limit;
-	*budget -= work_done;
-	netdev->quota -= work_done;
+	work_done = myri10ge_clean_rx_done(mgp, budget);
 
 	if (rx_done->entry[rx_done->idx].length == 0 || !netif_running(netdev)) {
-		netif_rx_complete(netdev);
+		netif_rx_complete(netdev, napi);
 		put_be32(htonl(3), mgp->irq_claim);
-		return 0;
 	}
-	return 1;
+	return work_done;
 }
 
 static irqreturn_t myri10ge_intr(int irq, void *arg)
@@ -1226,7 +1220,7 @@ static irqreturn_t myri10ge_intr(int irq, void *arg)
 	/* low bit indicates receives are present, so schedule
 	 * napi poll handler */
 	if (stats->valid & 1)
-		netif_rx_schedule(mgp->dev);
+		netif_rx_schedule(mgp->dev, &mgp->napi);
 
 	if (!mgp->msi_enabled) {
 		put_be32(0, mgp->irq_deassert);
@@ -1853,7 +1847,7 @@ static int myri10ge_open(struct net_device *dev)
 	mgp->link_state = htonl(~0U);
 	mgp->rdma_tags_available = 15;
 
-	netif_poll_enable(mgp->dev);	/* must happen prior to any irq */
+	napi_enable(&mgp->napi);	/* must happen prior to any irq */
 
 	status = myri10ge_send_cmd(mgp, MXGEFW_CMD_ETHERNET_UP, &cmd, 0);
 	if (status) {
@@ -1897,7 +1891,7 @@ static int myri10ge_close(struct net_device *dev)
 
 	del_timer_sync(&mgp->watchdog_timer);
 	mgp->running = MYRI10GE_ETH_STOPPING;
-	netif_poll_disable(mgp->dev);
+	napi_disable(&mgp->napi);
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 	old_down_cnt = mgp->down_cnt;
@@ -2857,6 +2851,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	mgp = netdev_priv(netdev);
 	memset(mgp, 0, sizeof(*mgp));
 	mgp->dev = netdev;
+	netif_napi_add(netdev, &mgp->napi,
+		       myri10ge_poll, myri10ge_napi_weight);
 	mgp->pdev = pdev;
 	mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	mgp->pause = myri10ge_flow_control;
@@ -2981,8 +2977,6 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO;
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
-	netdev->poll = myri10ge_poll;
-	netdev->weight = myri10ge_napi_weight;
 
 	/* make sure we can get an irq, and that MSI can be
 	 * setup (if available).  Also ensure netdev->irq

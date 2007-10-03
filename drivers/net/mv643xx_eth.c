@@ -66,7 +66,7 @@ static int mv643xx_eth_change_mtu(struct net_device *, int);
 static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *);
 static void eth_port_init_mac_tables(unsigned int eth_port_num);
 #ifdef MV643XX_NAPI
-static int mv643xx_poll(struct net_device *dev, int *budget);
+static int mv643xx_poll(struct napi_struct *napi, int budget);
 #endif
 static int ethernet_phy_get(unsigned int eth_port_num);
 static void ethernet_phy_set(unsigned int eth_port_num, int phy_addr);
@@ -562,7 +562,7 @@ static irqreturn_t mv643xx_eth_int_handler(int irq, void *dev_id)
 		/* wait for previous write to complete */
 		mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
-		netif_rx_schedule(dev);
+		netif_rx_schedule(dev, &mp->napi);
 	}
 #else
 	if (eth_int_cause & ETH_INT_CAUSE_RX)
@@ -880,6 +880,10 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	mv643xx_eth_rx_refill_descs(dev);	/* Fill RX ring with skb's */
 
+#ifdef MV643XX_NAPI
+	napi_enable(&mp->napi);
+#endif
+
 	eth_port_start(dev);
 
 	/* Interrupt Coalescing */
@@ -982,7 +986,7 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	mv_read(MV643XX_ETH_INTERRUPT_MASK_REG(port_num));
 
 #ifdef MV643XX_NAPI
-	netif_poll_disable(dev);
+	napi_disable(&mp->napi);
 #endif
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
@@ -991,10 +995,6 @@ static int mv643xx_eth_stop(struct net_device *dev)
 
 	mv643xx_eth_free_tx_rings(dev);
 	mv643xx_eth_free_rx_rings(dev);
-
-#ifdef MV643XX_NAPI
-	netif_poll_enable(dev);
-#endif
 
 	free_irq(dev->irq, dev);
 
@@ -1007,11 +1007,12 @@ static int mv643xx_eth_stop(struct net_device *dev)
  *
  * This function is used in case of NAPI
  */
-static int mv643xx_poll(struct net_device *dev, int *budget)
+static int mv643xx_poll(struct napi_struct *napi, int budget)
 {
-	struct mv643xx_private *mp = netdev_priv(dev);
-	int done = 1, orig_budget, work_done;
+	struct mv643xx_private *mp = container_of(napi, struct mv643xx_private, napi);
+	struct net_device *dev = mp->dev;
 	unsigned int port_num = mp->port_num;
+	int work_done;
 
 #ifdef MV643XX_TX_FAST_REFILL
 	if (++mp->tx_clean_threshold > 5) {
@@ -1020,27 +1021,20 @@ static int mv643xx_poll(struct net_device *dev, int *budget)
 	}
 #endif
 
+	work_done = 0;
 	if ((mv_read(MV643XX_ETH_RX_CURRENT_QUEUE_DESC_PTR_0(port_num)))
-						!= (u32) mp->rx_used_desc_q) {
-		orig_budget = *budget;
-		if (orig_budget > dev->quota)
-			orig_budget = dev->quota;
-		work_done = mv643xx_eth_receive_queue(dev, orig_budget);
-		*budget -= work_done;
-		dev->quota -= work_done;
-		if (work_done >= orig_budget)
-			done = 0;
-	}
+	    != (u32) mp->rx_used_desc_q)
+		work_done = mv643xx_eth_receive_queue(dev, budget);
 
-	if (done) {
-		netif_rx_complete(dev);
+	if (work_done < budget) {
+		netif_rx_complete(dev, napi);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_CAUSE_EXTEND_REG(port_num), 0);
 		mv_write(MV643XX_ETH_INTERRUPT_MASK_REG(port_num),
 						ETH_INT_UNMASK_ALL);
 	}
 
-	return done ? 0 : 1;
+	return work_done;
 }
 #endif
 
@@ -1333,6 +1327,10 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 
 	mp = netdev_priv(dev);
+	mp->dev = dev;
+#ifdef MV643XX_NAPI
+	netif_napi_add(dev, &mp->napi, mv643xx_poll, 64);
+#endif
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	BUG_ON(!res);
@@ -1347,10 +1345,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	/* No need to Tx Timeout */
 	dev->tx_timeout = mv643xx_eth_tx_timeout;
-#ifdef MV643XX_NAPI
-	dev->poll = mv643xx_poll;
-	dev->weight = 64;
-#endif
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = mv643xx_netpoll;

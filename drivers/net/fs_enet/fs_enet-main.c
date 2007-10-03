@@ -70,18 +70,16 @@ static void fs_set_multicast_list(struct net_device *dev)
 }
 
 /* NAPI receive function */
-static int fs_enet_rx_napi(struct net_device *dev, int *budget)
+static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 {
-	struct fs_enet_private *fep = netdev_priv(dev);
+	struct fs_enet_private *fep = container_of(napi, struct fs_enet_private, napi);
+	struct net_device *dev = to_net_dev(fep->dev);
 	const struct fs_platform_info *fpi = fep->fpi;
 	cbd_t *bdp;
 	struct sk_buff *skb, *skbn, *skbt;
 	int received = 0;
 	u16 pkt_len, sc;
 	int curidx;
-	int rx_work_limit = 0;	/* pacify gcc */
-
-	rx_work_limit = min(dev->quota, *budget);
 
 	if (!netif_running(dev))
 		return 0;
@@ -96,7 +94,6 @@ static int fs_enet_rx_napi(struct net_device *dev, int *budget)
 	(*fep->ops->napi_clear_rx_event)(dev);
 
 	while (((sc = CBDR_SC(bdp)) & BD_ENET_RX_EMPTY) == 0) {
-
 		curidx = bdp - fep->rx_bd_base;
 
 		/*
@@ -136,11 +133,6 @@ static int fs_enet_rx_napi(struct net_device *dev, int *budget)
 			skbn = skb;
 
 		} else {
-
-			/* napi, got packet but no quota */
-			if (--rx_work_limit < 0)
-				break;
-
 			skb = fep->rx_skbuff[curidx];
 
 			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
@@ -199,22 +191,19 @@ static int fs_enet_rx_napi(struct net_device *dev, int *budget)
 			bdp = fep->rx_bd_base;
 
 		(*fep->ops->rx_bd_done)(dev);
+
+		if (received >= budget)
+			break;
 	}
 
 	fep->cur_rx = bdp;
 
-	dev->quota -= received;
-	*budget -= received;
-
-	if (rx_work_limit < 0)
-		return 1;	/* not done */
-
-	/* done */
-	netif_rx_complete(dev);
-
-	(*fep->ops->napi_enable_rx)(dev);
-
-	return 0;
+	if (received >= budget) {
+		/* done */
+		netif_rx_complete(dev, napi);
+		(*fep->ops->napi_enable_rx)(dev);
+	}
+	return received;
 }
 
 /* non NAPI receive function */
@@ -470,7 +459,7 @@ fs_enet_interrupt(int irq, void *dev_id)
 			if (!fpi->use_napi)
 				fs_enet_rx_non_napi(dev);
 			else {
-				napi_ok = netif_rx_schedule_prep(dev);
+				napi_ok = napi_schedule_prep(&fep->napi);
 
 				(*fep->ops->napi_disable_rx)(dev);
 				(*fep->ops->clear_int_events)(dev, fep->ev_napi_rx);
@@ -478,7 +467,7 @@ fs_enet_interrupt(int irq, void *dev_id)
 				/* NOTE: it is possible for FCCs in NAPI mode    */
 				/* to submit a spurious interrupt while in poll  */
 				if (napi_ok)
-					__netif_rx_schedule(dev);
+					__netif_rx_schedule(dev, &fep->napi);
 			}
 		}
 
@@ -799,18 +788,22 @@ static int fs_enet_open(struct net_device *dev)
 	int r;
 	int err;
 
+	napi_enable(&fep->napi);
+
 	/* Install our interrupt handler. */
 	r = fs_request_irq(dev, fep->interrupt, "fs_enet-mac", fs_enet_interrupt);
 	if (r != 0) {
 		printk(KERN_ERR DRV_MODULE_NAME
 		       ": %s Could not allocate FS_ENET IRQ!", dev->name);
+		napi_disable(&fep->napi);
 		return -EINVAL;
 	}
 
 	err = fs_init_phy(dev);
-	if(err)
+	if(err) {
+		napi_disable(&fep->napi);
 		return err;
-
+	}
 	phy_start(fep->phydev);
 
 	return 0;
@@ -823,6 +816,7 @@ static int fs_enet_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
+	napi_disable(&fep->napi);
 	phy_stop(fep->phydev);
 
 	spin_lock_irqsave(&fep->lock, flags);
@@ -1047,10 +1041,9 @@ static struct net_device *fs_init_instance(struct device *dev,
 	ndev->stop = fs_enet_close;
 	ndev->get_stats = fs_enet_get_stats;
 	ndev->set_multicast_list = fs_set_multicast_list;
-	if (fpi->use_napi) {
-		ndev->poll = fs_enet_rx_napi;
-		ndev->weight = fpi->napi_weight;
-	}
+	netif_napi_add(ndev, &fep->napi,
+		       fs_enet_rx_napi, fpi->napi_weight);
+
 	ndev->ethtool_ops = &fs_ethtool_ops;
 	ndev->do_ioctl = fs_ioctl;
 

@@ -6473,6 +6473,8 @@ struct bnx2 {
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
+	struct napi_struct	napi;
+
 	atomic_t		intr_sem;
 
 	struct status_block	*status_blk;

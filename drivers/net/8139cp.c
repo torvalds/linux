@@ -334,6 +334,8 @@ struct cp_private {
 	spinlock_t		lock;
 	u32			msg_enable;
 
+	struct napi_struct	napi;
+
 	struct pci_dev		*pdev;
 	u32			rx_config;
 	u16			cpcmd;
@@ -501,12 +503,12 @@ static inline unsigned int cp_rx_csum_ok (u32 status)
 	return 0;
 }
 
-static int cp_rx_poll (struct net_device *dev, int *budget)
+static int cp_rx_poll(struct napi_struct *napi, int budget)
 {
-	struct cp_private *cp = netdev_priv(dev);
-	unsigned rx_tail = cp->rx_tail;
-	unsigned rx_work = dev->quota;
-	unsigned rx;
+	struct cp_private *cp = container_of(napi, struct cp_private, napi);
+	struct net_device *dev = cp->dev;
+	unsigned int rx_tail = cp->rx_tail;
+	int rx;
 
 rx_status_loop:
 	rx = 0;
@@ -588,33 +590,28 @@ rx_next:
 			desc->opts1 = cpu_to_le32(DescOwn | cp->rx_buf_sz);
 		rx_tail = NEXT_RX(rx_tail);
 
-		if (!rx_work--)
+		if (rx >= budget)
 			break;
 	}
 
 	cp->rx_tail = rx_tail;
 
-	dev->quota -= rx;
-	*budget -= rx;
-
 	/* if we did not reach work limit, then we're done with
 	 * this round of polling
 	 */
-	if (rx_work) {
+	if (rx < budget) {
 		unsigned long flags;
 
 		if (cpr16(IntrStatus) & cp_rx_intr_mask)
 			goto rx_status_loop;
 
-		local_irq_save(flags);
+		spin_lock_irqsave(&cp->lock, flags);
 		cpw16_f(IntrMask, cp_intr_mask);
-		__netif_rx_complete(dev);
-		local_irq_restore(flags);
-
-		return 0;	/* done */
+		__netif_rx_complete(dev, napi);
+		spin_unlock_irqrestore(&cp->lock, flags);
 	}
 
-	return 1;		/* not done */
+	return rx;
 }
 
 static irqreturn_t cp_interrupt (int irq, void *dev_instance)
@@ -647,9 +644,9 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 	}
 
 	if (status & (RxOK | RxErr | RxEmpty | RxFIFOOvr))
-		if (netif_rx_schedule_prep(dev)) {
+		if (netif_rx_schedule_prep(dev, &cp->napi)) {
 			cpw16_f(IntrMask, cp_norx_intr_mask);
-			__netif_rx_schedule(dev);
+			__netif_rx_schedule(dev, &cp->napi);
 		}
 
 	if (status & (TxOK | TxErr | TxEmpty | SWInt))
@@ -1175,6 +1172,8 @@ static int cp_open (struct net_device *dev)
 	if (rc)
 		return rc;
 
+	napi_enable(&cp->napi);
+
 	cp_init_hw(cp);
 
 	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
@@ -1188,6 +1187,7 @@ static int cp_open (struct net_device *dev)
 	return 0;
 
 err_out_hw:
+	napi_disable(&cp->napi);
 	cp_stop_hw(cp);
 	cp_free_rings(cp);
 	return rc;
@@ -1197,6 +1197,8 @@ static int cp_close (struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
 	unsigned long flags;
+
+	napi_disable(&cp->napi);
 
 	if (netif_msg_ifdown(cp))
 		printk(KERN_DEBUG "%s: disabling interface\n", dev->name);
@@ -1933,11 +1935,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hard_start_xmit = cp_start_xmit;
 	dev->get_stats = cp_get_stats;
 	dev->do_ioctl = cp_ioctl;
-	dev->poll = cp_rx_poll;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = cp_poll_controller;
 #endif
-	dev->weight = 16;	/* arbitrary? from NAPI_HOWTO.txt. */
+	netif_napi_add(dev, &cp->napi, cp_rx_poll, 16);
 #ifdef BROKEN
 	dev->change_mtu = cp_change_mtu;
 #endif

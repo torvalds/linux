@@ -294,6 +294,10 @@ static void tulip_up(struct net_device *dev)
 	int next_tick = 3*HZ;
 	int i;
 
+#ifdef CONFIG_TULIP_NAPI
+	napi_enable(&tp->napi);
+#endif
+
 	/* Wake the chip from sleep/snooze mode. */
 	tulip_set_power_state (tp, 0, 0);
 
@@ -727,6 +731,10 @@ static void tulip_down (struct net_device *dev)
 	unsigned long flags;
 
 	flush_scheduled_work();
+
+#ifdef CONFIG_TULIP_NAPI
+	napi_disable(&tp->napi);
+#endif
 
 	del_timer_sync (&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
@@ -1606,8 +1614,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	dev->tx_timeout = tulip_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
 #ifdef CONFIG_TULIP_NAPI
-	dev->poll = tulip_poll;
-	dev->weight = 16;
+	netif_napi_add(dev, &tp->napi, tulip_poll, 16);
 #endif
 	dev->stop = tulip_close;
 	dev->get_stats = tulip_get_stats;
