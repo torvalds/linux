@@ -834,7 +834,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 	info.pipenum = get_empty_pipenum(r8a66597, ep);
 	info.address = get_urb_to_r8a66597_addr(r8a66597, urb);
 	info.epnum = ep->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
-	info.maxpacket = ep->wMaxPacketSize;
+	info.maxpacket = le16_to_cpu(ep->wMaxPacketSize);
 	info.type = get_r8a66597_type(ep->bmAttributes
 				      & USB_ENDPOINT_XFERTYPE_MASK);
 	info.bufnum = get_bufnum(info.pipenum);
@@ -925,7 +925,7 @@ static void prepare_setup_packet(struct r8a66597 *r8a66597,
 	r8a66597_write(r8a66597, ~(SIGN | SACK), INTSTS1);
 
 	for (i = 0; i < 4; i++) {
-		r8a66597_write(r8a66597, p[i], setup_addr);
+		r8a66597_write(r8a66597, cpu_to_le16(p[i]), setup_addr);
 		setup_addr += 2;
 	}
 	r8a66597_write(r8a66597, SUREQ, DCPCTR);
@@ -2027,7 +2027,7 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	case GetPortStatus:
 		if (wIndex > R8A66597_MAX_ROOT_HUB)
 			goto error;
-		*(u32 *)buf = rh->port;
+		*(u32 *)buf = cpu_to_le32(rh->port);
 		break;
 	case SetPortFeature:
 		if (wIndex > R8A66597_MAX_ROOT_HUB)
