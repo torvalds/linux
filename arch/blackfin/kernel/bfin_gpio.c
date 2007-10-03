@@ -180,11 +180,13 @@ static int cmp_label(unsigned short ident, const char *label)
 #ifdef BF537_FAMILY
 static void port_setup(unsigned short gpio, unsigned short usage)
 {
-	if (usage == GPIO_USAGE) {
-		*port_fer[gpio_bank(gpio)] &= ~gpio_bit(gpio);
-	} else
-		*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
-	SSYNC();
+	if (!check_gpio(gpio)) {
+		if (usage == GPIO_USAGE) {
+			*port_fer[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+		} else
+			*port_fer[gpio_bank(gpio)] |= gpio_bit(gpio);
+		SSYNC();
+	}
 }
 #else
 # define port_setup(...)  do { } while (0)
@@ -644,10 +646,9 @@ int peripheral_request(unsigned short per, const char *label)
 	if (!(per & P_DEFINED))
 		return -ENODEV;
 
-	if (check_gpio(ident) < 0)
-		return -EINVAL;
-
 	local_irq_save(flags);
+
+	if (!check_gpio(ident)) {
 
 	if (unlikely(reserved_gpio_map[gpio_bank(ident)] & gpio_bit(ident))) {
 		printk(KERN_ERR
@@ -656,6 +657,8 @@ int peripheral_request(unsigned short per, const char *label)
 		dump_stack();
 		local_irq_restore(flags);
 		return -EBUSY;
+	}
+
 	}
 
 	if (unlikely(reserved_peri_map[gpio_bank(ident)] & gpio_bit(ident))) {
