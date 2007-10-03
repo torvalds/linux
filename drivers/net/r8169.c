@@ -1918,7 +1918,11 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	rtl_set_rx_max_size(ioaddr);
 
-	rtl_set_rx_tx_config_registers(tp);
+	if ((tp->mac_version == RTL_GIGA_MAC_VER_01) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_02) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_03) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_04))
+		rtl_set_rx_tx_config_registers(tp);
 
 	tp->cp_cmd |= rtl_rw_cpluscmd(ioaddr) | PCIMulRW;
 
@@ -1941,6 +1945,14 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	rtl_set_rx_tx_desc_registers(tp, ioaddr);
 
+	if ((tp->mac_version != RTL_GIGA_MAC_VER_01) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_02) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_03) &&
+	    (tp->mac_version != RTL_GIGA_MAC_VER_04)) {
+		RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
+		rtl_set_rx_tx_config_registers(tp);
+	}
+
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
 	/* Initially a 10 us delay. Turned it into a PCI commit. - FR */
@@ -1955,8 +1967,6 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 	/* Enable all known interrupts by setting the interrupt mask. */
 	RTL_W16(IntrMask, tp->intr_event);
-
-	RTL_W8(ChipCmd, CmdTxEnb | CmdRxEnb);
 }
 
 static void rtl_hw_start_8168(struct net_device *dev)
