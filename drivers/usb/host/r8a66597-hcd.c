@@ -1034,6 +1034,15 @@ static void prepare_status_packet(struct r8a66597 *r8a66597,
 	pipe_start(r8a66597, td->pipe);
 }
 
+static int is_set_address(unsigned char *setup_packet)
+{
+	if (((setup_packet[0] & USB_TYPE_MASK) == USB_TYPE_STANDARD) &&
+			setup_packet[1] == USB_REQ_SET_ADDRESS)
+		return 1;
+	else
+		return 0;
+}
+
 /* this function must be called with interrupt disabled */
 static int start_transfer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 {
@@ -1041,7 +1050,7 @@ static int start_transfer(struct r8a66597 *r8a66597, struct r8a66597_td *td)
 
 	switch (td->type) {
 	case USB_PID_SETUP:
-		if (td->urb->setup_packet[1] == USB_REQ_SET_ADDRESS) {
+		if (is_set_address(td->urb->setup_packet)) {
 			td->set_address = 1;
 			td->urb->setup_packet[2] = alloc_usb_address(r8a66597,
 								     td->urb);
