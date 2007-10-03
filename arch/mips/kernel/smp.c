@@ -97,6 +97,8 @@ struct call_data_struct *call_data;
 
 /*
  * Run a function on all other CPUs.
+ *
+ *  <mask>	cpuset_t of all processors to run the function on.
  *  <func>      The function to run. This must be fast and non-blocking.
  *  <info>      An arbitrary pointer to pass to the function.
  *  <retry>     If true, keep retrying until ready.
@@ -121,18 +123,20 @@ struct call_data_struct *call_data;
  * Spin waiting for call_lock
  * Deadlock                            Deadlock
  */
-int smp_call_function (void (*func) (void *info), void *info, int retry,
-								int wait)
+int smp_call_function_mask(cpumask_t mask, void (*func) (void *info),
+	void *info, int retry, int wait)
 {
 	struct call_data_struct data;
-	int i, cpus = num_online_cpus() - 1;
 	int cpu = smp_processor_id();
+	int cpus;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
 	 */
 	BUG_ON(!cpu_online(cpu));
 
+	cpu_clear(cpu, mask);
+	cpus = cpus_weight(mask);
 	if (!cpus)
 		return 0;
 
@@ -151,9 +155,7 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	smp_mb();
 
 	/* Send a message to all other CPUs and wait for them to respond */
-	for_each_online_cpu(i)
-		if (i != cpu)
-			core_send_ipi(i, SMP_CALL_FUNCTION);
+	core_send_ipi_mask(mask, SMP_CALL_FUNCTION);
 
 	/* Wait for response */
 	/* FIXME: lock-up detection, backtrace on lock-up */
@@ -169,6 +171,11 @@ int smp_call_function (void (*func) (void *info), void *info, int retry,
 	return 0;
 }
 
+int smp_call_function(void (*func) (void *info), void *info, int retry,
+	int wait)
+{
+	return smp_call_function_mask(cpu_online_map, func, info, retry, wait);
+}
 
 void smp_call_function_interrupt(void)
 {
@@ -199,8 +206,7 @@ void smp_call_function_interrupt(void)
 int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 			     int retry, int wait)
 {
-	struct call_data_struct data;
-	int me;
+	int ret, me;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
@@ -219,33 +225,8 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		return 0;
 	}
 
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
-
-	data.func = func;
-	data.info = info;
-	atomic_set(&data.started, 0);
-	data.wait = wait;
-	if (wait)
-		atomic_set(&data.finished, 0);
-
-	spin_lock(&smp_call_lock);
-	call_data = &data;
-	smp_mb();
-
-	/* Send a message to the other CPU */
-	core_send_ipi(cpu, SMP_CALL_FUNCTION);
-
-	/* Wait for response */
-	/* FIXME: lock-up detection, backtrace on lock-up */
-	while (atomic_read(&data.started) != 1)
-		barrier();
-
-	if (wait)
-		while (atomic_read(&data.finished) != 1)
-			barrier();
-	call_data = NULL;
-	spin_unlock(&smp_call_lock);
+	ret = smp_call_function_mask(cpumask_of_cpu(cpu), func, info, retry,
+				     wait);
 
 	put_cpu();
 	return 0;

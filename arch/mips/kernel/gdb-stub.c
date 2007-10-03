@@ -676,15 +676,18 @@ static void kgdb_wait(void *arg)
 static int kgdb_smp_call_kgdb_wait(void)
 {
 #ifdef CONFIG_SMP
+	cpumask_t mask = cpu_online_map;
 	struct call_data_struct data;
-	int i, cpus = num_online_cpus() - 1;
 	int cpu = smp_processor_id();
+	int cpus;
 
 	/*
 	 * Can die spectacularly if this CPU isn't yet marked online
 	 */
 	BUG_ON(!cpu_online(cpu));
 
+	cpu_clear(cpu, mask);
+	cpus = cpus_weight(mask);
 	if (!cpus)
 		return 0;
 
@@ -711,10 +714,7 @@ static int kgdb_smp_call_kgdb_wait(void)
 	call_data = &data;
 	mb();
 
-	/* Send a message to all other CPUs and wait for them to respond */
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i) && i != cpu)
-			core_send_ipi(i, SMP_CALL_FUNCTION);
+	core_send_ipi_mask(mask, SMP_CALL_FUNCTION);
 
 	/* Wait for response */
 	/* FIXME: lock-up detection, backtrace on lock-up */
