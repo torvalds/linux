@@ -70,11 +70,11 @@
 
 		spi@7000 {
 			device_type = "spi";
-			compatible = "mpc83xx_spi";
+			compatible = "fsl_spi";
 			reg = <7000 1000>;
 			interrupts = <10 8>;
 			interrupt-parent = < &ipic >;
-			mode = <0>;
+			mode = "cpu";
 		};
 
 		usb@23000 {
