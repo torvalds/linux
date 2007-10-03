@@ -556,7 +556,7 @@ enum {
 	IP_ADDR_INDEX_REG_FUNC_3_SEC = 0x0007,
 	IP_ADDR_INDEX_REG_6 = 0x0008,
 	IP_ADDR_INDEX_REG_OFFSET_MASK = 0x0030,
-	IP_ADDR_INDEX_REG_E = 0x0040, 
+	IP_ADDR_INDEX_REG_E = 0x0040,
 };
 enum {
 	QL3032_PORT_CONTROL_DS = 0x0001,
@@ -1112,7 +1112,7 @@ struct ql_rcv_buf_cb {
  * OAL has 5 entries:
  * 1 thru 4 point to frags
  * fifth points to next oal.
- */ 
+ */
 #define MAX_OAL_CNT ((MAX_SKB_FRAGS-1)/4 + 1)
 
 struct oal_entry {
@@ -1137,7 +1137,7 @@ struct ql_tx_buf_cb {
 	struct ob_mac_iocb_req *queue_entry ;
 	int seg_count;
 	struct oal *oal;
-	struct map_list map[MAX_SKB_FRAGS+1]; 
+	struct map_list map[MAX_SKB_FRAGS+1];
 };
 
 /* definitions for type field */
