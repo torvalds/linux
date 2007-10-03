@@ -1551,7 +1551,7 @@ platforms are moved over to use the flattened-device-tree model.
    Required properties:
    - device_type : should be "spi".
    - compatible : should be "fsl_spi".
-   - mode : the SPI operation mode, it can be "cpu" or "qe".
+   - mode : the SPI operation mode, it can be "cpu" or "cpu-qe".
    - reg : Offset and length of the register set for the device
    - interrupts : <a b> where a is the interrupt number and b is a
      field that represents an encoding of the sense and level
