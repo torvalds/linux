@@ -209,7 +209,7 @@ static inline void build_cdex_p(void)
 	}
 
 	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
-		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */
+		build_insn_word(0x8c200000);	/* lw      $zero, ($at) */
 
 	mi.c_format.opcode     = cache_op;
 	mi.c_format.rs         = 4;		/* $a0 */
