@@ -769,7 +769,7 @@ void handle_exception(struct gdb_regs *regs)
 	/*
 	 * acquire the CPU spinlocks
 	 */
-	for (i = num_online_cpus()-1; i >= 0; i--)
+	for_each_online_cpu(i)
 		if (__raw_spin_trylock(&kgdb_cpulock[i]) == 0)
 			panic("kgdb: couldn't get cpulock %d\n", i);
 
@@ -1044,7 +1044,7 @@ finish_kgdb:
 
 exit_kgdb_exception:
 	/* release locks so other CPUs can go */
-	for (i = num_online_cpus()-1; i >= 0; i--)
+	for_each_online_cpu(i)
 		__raw_spin_unlock(&kgdb_cpulock[i]);
 	spin_unlock(&kgdb_lock);
 

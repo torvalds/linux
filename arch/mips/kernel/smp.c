@@ -375,10 +375,13 @@ void flush_tlb_mm(struct mm_struct *mm)
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
 		smp_on_other_tlbs(flush_tlb_mm_ipi, (void *)mm);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, mm))
+				cpu_context(cpu, mm) = 0;
 	}
 	local_flush_tlb_mm(mm);
 
@@ -411,10 +414,13 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 		fd.addr2 = end;
 		smp_on_other_tlbs(flush_tlb_range_ipi, (void *)&fd);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, mm))
+				cpu_context(cpu, mm) = 0;
 	}
 	local_flush_tlb_range(vma, start, end);
 	preempt_enable();
@@ -453,10 +459,13 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 		fd.addr1 = page;
 		smp_on_other_tlbs(flush_tlb_page_ipi, (void *)&fd);
 	} else {
-		int i;
-		for (i = 0; i < num_online_cpus(); i++)
-			if (smp_processor_id() != i)
-				cpu_context(i, vma->vm_mm) = 0;
+		cpumask_t mask = cpu_online_map;
+		unsigned int cpu;
+
+		cpu_clear(smp_processor_id(), mask);
+		for_each_online_cpu(cpu)
+			if (cpu_context(cpu, vma->vm_mm))
+				cpu_context(cpu, vma->vm_mm) = 0;
 	}
 	local_flush_tlb_page(vma, page);
 	preempt_enable();

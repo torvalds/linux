@@ -1264,7 +1264,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 			if (cpu_has_vtag_icache)
 				flush_icache_all();
 			/* Traverse all online CPUs (hack requires contigous range) */
-			for (i = 0; i < num_online_cpus(); i++) {
+			for_each_online_cpu(i) {
 				/*
 				 * We don't need to worry about our own CPU, nor those of
 				 * CPUs who don't share our TLB.
@@ -1293,7 +1293,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	/*
 	 * SMTC shares the TLB within VPEs and possibly across all VPEs.
 	 */
-	for (i = 0; i < num_online_cpus(); i++) {
+	for_each_online_cpu(i) {
 		if ((smtc_status & SMTC_TLB_SHARED) ||
 		    (cpu_data[i].vpe_id == cpu_data[cpu].vpe_id))
 			cpu_context(i, mm) = asid_cache(i) = asid;
