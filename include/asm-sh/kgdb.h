@@ -17,7 +17,6 @@
 #define __KGDB_H
 
 #include <asm/ptrace.h>
-#include <asm/cacheflush.h>
 
 /* Same as pt_regs but has vbr in place of syscall_nr */
 struct kgdb_regs {
@@ -66,17 +65,6 @@ extern int     setjmp(jmp_buf __jmpb);
 
 /* Forced breakpoint */
 #define breakpoint()	__asm__ __volatile__("trapa   #0x3c")
-
-/* KGDB should be able to flush all kernel text space */
-#if defined(CONFIG_CPU_SH4)
-#define kgdb_flush_icache_range(start, end) \
-{									\
-	__flush_purge_region((void*)(start), (int)(end) - (int)(start));\
-	flush_icache_range((start), (end));				\
-}
-#else
-#define kgdb_flush_icache_range(start, end)	do { } while (0)
-#endif
 
 /* Taken from sh-stub.c of GDB 4.18 */
 static const char hexchars[] = "0123456789abcdef";

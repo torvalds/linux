@@ -609,7 +609,7 @@ static short *get_step_address(void)
 	else
 		addr = trap_registers.pc + 2;
 
-	kgdb_flush_icache_range(addr, addr + 2);
+	flush_icache_range(addr, addr + 2);
 	return (short *) addr;
 }
 
@@ -632,7 +632,7 @@ static void do_single_step(void)
 	*addr = STEP_OPCODE;
 
 	/* Flush and return */
-	kgdb_flush_icache_range((long) addr, (long) addr + 2);
+	flush_icache_range((long) addr, (long) addr + 2);
 }
 
 /* Undo a single step */
@@ -642,7 +642,7 @@ static void undo_single_step(void)
 	/* Use stepped_address in case we stopped elsewhere */
 	if (stepped_opcode != 0) {
 		*(short*)stepped_address = stepped_opcode;
-		kgdb_flush_icache_range(stepped_address, stepped_address + 2);
+		flush_icache_range(stepped_address, stepped_address + 2);
 	}
 	stepped_opcode = 0;
 }
@@ -728,7 +728,7 @@ static void write_mem_msg(int binary)
 					ebin_to_mem(ptr, (char*)addr, length);
 				else
 					hex_to_mem(ptr, (char*)addr, length);
-				kgdb_flush_icache_range(addr, addr + length);
+				flush_icache_range(addr, addr + length);
 				ptr = 0;
 				send_ok_msg();
 			}
