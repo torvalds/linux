@@ -1506,10 +1506,11 @@ nfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *dentry)
 		dentry->d_parent->d_name.name, dentry->d_name.name);
 
 	lock_kernel();
+	d_drop(dentry);
 	error = NFS_PROTO(dir)->link(inode, dir, &dentry->d_name);
 	if (error == 0) {
 		atomic_inc(&inode->i_count);
-		d_instantiate(dentry, inode);
+		d_add(dentry, inode);
 	}
 	unlock_kernel();
 	return error;
