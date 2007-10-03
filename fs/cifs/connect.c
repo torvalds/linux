@@ -673,9 +673,8 @@ multi_t2_fnd:
 		server->ssocket = NULL;
 	}
 	/* buffer usuallly freed in free_mid - need to free it here on exit */
-	if (bigbuf != NULL)
-		cifs_buf_release(bigbuf);
-	if (smallbuf != NULL)
+	cifs_buf_release(bigbuf);
+	if (smallbuf) /* no sense logging a debug message if NULL */
 		cifs_small_buf_release(smallbuf);
 
 	read_lock(&GlobalSMBSeslock);
@@ -1910,8 +1909,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			return rc;
 		}
 
-		srvTcp = kmalloc(sizeof (struct TCP_Server_Info), GFP_KERNEL);
-		if (srvTcp == NULL) {
+		srvTcp = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
+		if (!srvTcp) {
 			rc = -ENOMEM;
 			sock_release(csocket);
 			kfree(volume_info.UNC);
@@ -1920,7 +1919,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			FreeXid(xid);
 			return rc;
 		} else {
-			memset(srvTcp, 0, sizeof (struct TCP_Server_Info));
 			memcpy(&srvTcp->addr.sockAddr, &sin_server,
 				sizeof (struct sockaddr_in));
 			atomic_set(&srvTcp->inFlight, 0);
@@ -2529,8 +2527,7 @@ CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 sesssetup_nomem:	/* do not return an error on nomem for the info strings,
 			   since that could make reconnection harder, and
 			   reconnection might be needed to free memory */
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
@@ -2868,8 +2865,7 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 		rc = -EIO;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
@@ -3277,8 +3273,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		rc = -EIO;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 
 	return rc;
 }
@@ -3446,8 +3441,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		ses->ipc_tid = smb_buffer_response->Tid;
 	}
 
-	if (smb_buffer)
-		cifs_buf_release(smb_buffer);
+	cifs_buf_release(smb_buffer);
 	return rc;
 }
 
