@@ -44,7 +44,7 @@ static int process_sdio_pending_irqs(struct mmc_card *card)
 			if (!func) {
 				printk(KERN_WARNING "%s: pending IRQ for "
 					"non-existant function\n",
-					sdio_func_id(func));
+					mmc_card_id(card));
 			} else if (func->irq_handler) {
 				func->irq_handler(func);
 				count++;
