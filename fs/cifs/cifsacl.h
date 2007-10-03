@@ -44,14 +44,14 @@ struct cifs_acl {
 	__u32 num_aces;
 } __attribute__((packed));
 
-struct cifs_ntace {
+struct cifs_ntace { /* first part of ACE which contains perms */
 	__u8 type;
 	__u8 flags;
 	__u16 size;
 	__u32 access_req;
 } __attribute__((packed));
 
-struct cifs_ace {
+struct cifs_ace { /* last part of ACE which includes user info */
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];

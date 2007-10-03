@@ -34,10 +34,10 @@
 #include <asm/uaccess.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
+#include "cifsacl.h"
 #include "cifsproto.h"
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
-#include "cifsacl.h"
 
 #ifdef CONFIG_CIFS_POSIX
 static struct {
