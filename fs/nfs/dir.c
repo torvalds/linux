@@ -1078,7 +1078,7 @@ static int nfs_open_revalidate(struct dentry *dentry, struct nameidata *nd)
 	lock_kernel();
 	verifier = nfs_save_change_attribute(dir);
 	ret = nfs4_open_revalidate(dir, dentry, openflags, nd);
-	if (!ret)
+	if (ret == 1)
 		nfs_set_verifier(dentry, verifier);
 	unlock_kernel();
 out:
