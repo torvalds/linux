@@ -518,8 +518,6 @@ Sedl_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return(0);
 }
 
-static struct pci_dev *dev_sedl __devinitdata = NULL;
-
 #ifdef __ISAPNP__
 static struct isapnp_device_id sedl_ids[] __devinitdata = {
 	{ ISAPNP_VENDOR('S', 'A', 'G'), ISAPNP_FUNCTION(0x01),
@@ -533,15 +531,158 @@ static struct isapnp_device_id sedl_ids[] __devinitdata = {
 
 static struct isapnp_device_id *ipid __devinitdata = &sedl_ids[0];
 static struct pnp_card *pnp_c __devinitdata = NULL;
-#endif
+
+static int __devinit
+setup_sedlbauer_isapnp(struct IsdnCard *card, int *bytecnt)
+{
+	struct IsdnCardState *cs = card->cs;
+	struct pnp_dev *pnp_d;
+
+	if (!isapnp_present())
+		return -1;
+
+	while(ipid->card_vendor) {
+		if ((pnp_c = pnp_find_card(ipid->card_vendor,
+			ipid->card_device, pnp_c))) {
+			pnp_d = NULL;
+			if ((pnp_d = pnp_find_dev(pnp_c,
+				ipid->vendor, ipid->function, pnp_d))) {
+				int err;
+
+				printk(KERN_INFO "HiSax: %s detected\n",
+					(char *)ipid->driver_data);
+				pnp_disable_dev(pnp_d);
+				err = pnp_activate_dev(pnp_d);
+				if (err<0) {
+					printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
+						__FUNCTION__, err);
+					return(0);
+				}
+				card->para[1] = pnp_port_start(pnp_d, 0);
+				card->para[0] = pnp_irq(pnp_d, 0);
+
+				if (!card->para[0] || !card->para[1]) {
+					printk(KERN_ERR "Sedlbauer PnP:some resources are missing %ld/%lx\n",
+						card->para[0], card->para[1]);
+					pnp_disable_dev(pnp_d);
+					return(0);
+				}
+				cs->hw.sedl.cfg_reg = card->para[1];
+				cs->irq = card->para[0];
+				if (ipid->function == ISAPNP_FUNCTION(0x2)) {
+					cs->subtyp = SEDL_SPEED_FAX;
+					cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
+					*bytecnt = 16;
+				} else {
+					cs->subtyp = SEDL_SPEED_CARD_WIN;
+					cs->hw.sedl.chip = SEDL_CHIP_TEST;
+				}
+
+				return (1);
+			} else {
+				printk(KERN_ERR "Sedlbauer PnP: PnP error card found, no device\n");
+				return(0);
+			}
+		}
+		ipid++;
+		pnp_c = NULL;
+	} 
+
+	printk(KERN_INFO "Sedlbauer PnP: no ISAPnP card found\n");
+	return -1;
+}
+#else
+
+static int __devinit
+setup_sedlbauer_isapnp(struct IsdnCard *card, int *bytecnt)
+{
+	return -1;
+}
+#endif /* __ISAPNP__ */
+
+#ifdef CONFIG_PCI
+static struct pci_dev *dev_sedl __devinitdata = NULL;
+
+static int __devinit
+setup_sedlbauer_pci(struct IsdnCard *card)
+{
+	struct IsdnCardState *cs = card->cs;
+	u16 sub_vendor_id, sub_id;
+
+	if ((dev_sedl = pci_find_device(PCI_VENDOR_ID_TIGERJET,
+			PCI_DEVICE_ID_TIGERJET_100, dev_sedl))) {
+		if (pci_enable_device(dev_sedl))
+			return(0);
+		cs->irq = dev_sedl->irq;
+		if (!cs->irq) {
+			printk(KERN_WARNING "Sedlbauer: No IRQ for PCI card found\n");
+			return(0);
+		}
+		cs->hw.sedl.cfg_reg = pci_resource_start(dev_sedl, 0);
+	} else {
+		printk(KERN_WARNING "Sedlbauer: No PCI card found\n");
+		return(0);
+	}
+	cs->irq_flags |= IRQF_SHARED;
+	cs->hw.sedl.bus = SEDL_BUS_PCI;
+	sub_vendor_id = dev_sedl->subsystem_vendor;
+	sub_id = dev_sedl->subsystem_device;
+	printk(KERN_INFO "Sedlbauer: PCI subvendor:%x subid %x\n",
+		sub_vendor_id, sub_id);
+	printk(KERN_INFO "Sedlbauer: PCI base adr %#x\n",
+		cs->hw.sedl.cfg_reg);
+	if (sub_id != PCI_SUB_ID_SEDLBAUER) {
+		printk(KERN_ERR "Sedlbauer: unknown sub id %#x\n", sub_id);
+		return(0);
+	}
+	if (sub_vendor_id == PCI_SUBVENDOR_SPEEDFAX_PYRAMID) {
+		cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
+		cs->subtyp = SEDL_SPEEDFAX_PYRAMID;
+	} else if (sub_vendor_id == PCI_SUBVENDOR_SPEEDFAX_PCI) {
+		cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
+		cs->subtyp = SEDL_SPEEDFAX_PCI;
+	} else if (sub_vendor_id == PCI_SUBVENDOR_HST_SAPHIR3) {
+		cs->hw.sedl.chip = SEDL_CHIP_IPAC;
+		cs->subtyp = HST_SAPHIR3;
+	} else if (sub_vendor_id == PCI_SUBVENDOR_SEDLBAUER_PCI) {
+		cs->hw.sedl.chip = SEDL_CHIP_IPAC;
+		cs->subtyp = SEDL_SPEED_PCI;
+	} else {
+		printk(KERN_ERR "Sedlbauer: unknown sub vendor id %#x\n",
+			sub_vendor_id);
+		return(0);
+	}
+
+	cs->hw.sedl.reset_on = SEDL_ISAR_PCI_ISAR_RESET_ON;
+	cs->hw.sedl.reset_off = SEDL_ISAR_PCI_ISAR_RESET_OFF;
+	byteout(cs->hw.sedl.cfg_reg, 0xff);
+	byteout(cs->hw.sedl.cfg_reg, 0x00);
+	byteout(cs->hw.sedl.cfg_reg+ 2, 0xdd);
+	byteout(cs->hw.sedl.cfg_reg+ 5, 0); /* disable all IRQ */
+	byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_on);
+	mdelay(2);
+	byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_off);
+	mdelay(10);
+
+	return (1);
+}
+
+#else
+
+static int __devinit
+setup_sedlbauer_pci(struct IsdnCard *card)
+{
+	return (1);
+}
+
+#endif /* CONFIG_PCI */
 
 int __devinit
 setup_sedlbauer(struct IsdnCard *card)
 {
-	int bytecnt, ver, val;
+	int bytecnt = 8, ver, val, rc;
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];
-	u16 sub_vendor_id, sub_id;
 
 	strcpy(tmp, Sedlbauer_revision);
 	printk(KERN_INFO "HiSax: Sedlbauer driver Rev. %s\n", HiSax_getrev(tmp));
@@ -569,124 +710,21 @@ setup_sedlbauer(struct IsdnCard *card)
 			bytecnt = 16;
 		}
 	} else {
-#ifdef __ISAPNP__
-		if (isapnp_present()) {
-			struct pnp_dev *pnp_d;
-			while(ipid->card_vendor) {
-				if ((pnp_c = pnp_find_card(ipid->card_vendor,
-					ipid->card_device, pnp_c))) {
-					pnp_d = NULL;
-					if ((pnp_d = pnp_find_dev(pnp_c,
-						ipid->vendor, ipid->function, pnp_d))) {
-						int err;
+		rc = setup_sedlbauer_isapnp(card, &bytecnt);
+		if (!rc)
+			return (0);
+		if (rc > 0)
+			goto ready;
 
-						printk(KERN_INFO "HiSax: %s detected\n",
-							(char *)ipid->driver_data);
-						pnp_disable_dev(pnp_d);
-						err = pnp_activate_dev(pnp_d);
-						if (err<0) {
-							printk(KERN_WARNING "%s: pnp_activate_dev ret(%d)\n",
-								__FUNCTION__, err);
-							return(0);
-						}
-						card->para[1] = pnp_port_start(pnp_d, 0);
-						card->para[0] = pnp_irq(pnp_d, 0);
+		/* Probe for Sedlbauer speed pci */
+		rc = setup_sedlbauer_pci(card);
+		if (!rc)
+			return (0);
 
-						if (!card->para[0] || !card->para[1]) {
-							printk(KERN_ERR "Sedlbauer PnP:some resources are missing %ld/%lx\n",
-								card->para[0], card->para[1]);
-							pnp_disable_dev(pnp_d);
-							return(0);
-						}
-						cs->hw.sedl.cfg_reg = card->para[1];
-						cs->irq = card->para[0];
-						if (ipid->function == ISAPNP_FUNCTION(0x2)) {
-							cs->subtyp = SEDL_SPEED_FAX;
-							cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
-							bytecnt = 16;
-						} else {
-							cs->subtyp = SEDL_SPEED_CARD_WIN;
-							cs->hw.sedl.chip = SEDL_CHIP_TEST;
-						}
-						goto ready;
-					} else {
-						printk(KERN_ERR "Sedlbauer PnP: PnP error card found, no device\n");
-						return(0);
-					}
-				}
-				ipid++;
-				pnp_c = NULL;
-			} 
-			if (!ipid->card_vendor) {
-				printk(KERN_INFO "Sedlbauer PnP: no ISAPnP card found\n");
-			}
-		}
-#endif
-/* Probe for Sedlbauer speed pci */
-#ifdef CONFIG_PCI
-		if ((dev_sedl = pci_find_device(PCI_VENDOR_ID_TIGERJET,
-				PCI_DEVICE_ID_TIGERJET_100, dev_sedl))) {
-			if (pci_enable_device(dev_sedl))
-				return(0);
-			cs->irq = dev_sedl->irq;
-			if (!cs->irq) {
-				printk(KERN_WARNING "Sedlbauer: No IRQ for PCI card found\n");
-				return(0);
-			}
-			cs->hw.sedl.cfg_reg = pci_resource_start(dev_sedl, 0);
-		} else {
-			printk(KERN_WARNING "Sedlbauer: No PCI card found\n");
-			return(0);
-		}
-		cs->irq_flags |= IRQF_SHARED;
-		cs->hw.sedl.bus = SEDL_BUS_PCI;
-		sub_vendor_id = dev_sedl->subsystem_vendor;
-		sub_id = dev_sedl->subsystem_device;
-		printk(KERN_INFO "Sedlbauer: PCI subvendor:%x subid %x\n",
-			sub_vendor_id, sub_id);
-		printk(KERN_INFO "Sedlbauer: PCI base adr %#x\n",
-			cs->hw.sedl.cfg_reg);
-		if (sub_id != PCI_SUB_ID_SEDLBAUER) {
-			printk(KERN_ERR "Sedlbauer: unknown sub id %#x\n", sub_id);
-			return(0);
-		}
-		if (sub_vendor_id == PCI_SUBVENDOR_SPEEDFAX_PYRAMID) {
-			cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
-			cs->subtyp = SEDL_SPEEDFAX_PYRAMID;
-		} else if (sub_vendor_id == PCI_SUBVENDOR_SPEEDFAX_PCI) {
-			cs->hw.sedl.chip = SEDL_CHIP_ISAC_ISAR;
-			cs->subtyp = SEDL_SPEEDFAX_PCI;
-		} else if (sub_vendor_id == PCI_SUBVENDOR_HST_SAPHIR3) {
-			cs->hw.sedl.chip = SEDL_CHIP_IPAC;
-			cs->subtyp = HST_SAPHIR3;
-		} else if (sub_vendor_id == PCI_SUBVENDOR_SEDLBAUER_PCI) {
-			cs->hw.sedl.chip = SEDL_CHIP_IPAC;
-			cs->subtyp = SEDL_SPEED_PCI;
-		} else {
-			printk(KERN_ERR "Sedlbauer: unknown sub vendor id %#x\n",
-				sub_vendor_id);
-			return(0);
-		}
 		bytecnt = 256;
-		cs->hw.sedl.reset_on = SEDL_ISAR_PCI_ISAR_RESET_ON;
-		cs->hw.sedl.reset_off = SEDL_ISAR_PCI_ISAR_RESET_OFF;
-		byteout(cs->hw.sedl.cfg_reg, 0xff);
-		byteout(cs->hw.sedl.cfg_reg, 0x00);
-		byteout(cs->hw.sedl.cfg_reg+ 2, 0xdd);
-		byteout(cs->hw.sedl.cfg_reg+ 5, 0); /* disable all IRQ */
-		byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_on);
-		mdelay(2);
-		byteout(cs->hw.sedl.cfg_reg +3, cs->hw.sedl.reset_off);
-		mdelay(10);
-#else
-		printk(KERN_WARNING "Sedlbauer: NO_PCI_BIOS\n");
-		return (0);
-#endif /* CONFIG_PCI */
 	}	
 
-#ifdef __ISAPNP__
 ready:	
-#endif
 
 	/* In case of the sedlbauer pcmcia card, this region is in use,
 	 * reserved for us by the card manager. So we do not check it
