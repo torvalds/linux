@@ -815,7 +815,7 @@ _extable:
 
 ALIGN
 ENTRY(_sys_call_table)
-	.long _sys_ni_syscall	/* 0  -  old "setup()" system call*/
+	.long _sys_restart_syscall	/* 0 */
 	.long _sys_exit
 	.long _sys_fork
 	.long _sys_read
@@ -978,13 +978,13 @@ ENTRY(_sys_call_table)
 	.long _sys_sched_get_priority_min  /* 160 */
 	.long _sys_sched_rr_get_interval
 	.long _sys_nanosleep
-	.long _sys_ni_syscall	/* sys_mremap */
+	.long _sys_mremap
 	.long _sys_setresuid	/* setresuid16 */
 	.long _sys_getresuid	/* getresuid16 */	/* 165 */
 	.long _sys_ni_syscall	/* for vm86 */
 	.long _sys_ni_syscall	/* old "query_module" */
 	.long _sys_ni_syscall	/* sys_poll */
-	.long _sys_ni_syscall	/* sys_nfsservctl */
+	.long _sys_nfsservctl
 	.long _sys_setresgid	/* setresgid16 */	/* 170 */
 	.long _sys_getresgid	/* getresgid16 */
 	.long _sys_prctl
@@ -1040,7 +1040,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* reserved for TUX */
 	.long _sys_ni_syscall
 	.long _sys_gettid
-	.long _sys_ni_syscall	/* 225 */ /* sys_readahead */
+	.long _sys_readahead	/* 225 */
 	.long _sys_setxattr
 	.long _sys_lsetxattr
 	.long _sys_fsetxattr
@@ -1157,6 +1157,21 @@ ENTRY(_sys_call_table)
 	.long _sys_shmctl
 	.long _sys_shmdt	/* 340 */
 	.long _sys_shmget
+	.long _sys_splice
+	.long _sys_sync_file_range
+	.long _sys_tee
+	.long _sys_vmsplice	/* 345 */
+	.long _sys_epoll_pwait
+	.long _sys_utimensat
+	.long _sys_signalfd
+	.long _sys_timerfd
+	.long _sys_eventfd	/* 350 */
+	.long _sys_pread64
+	.long _sys_pwrite64
+	.long _sys_fadvise64
+	.long _sys_set_robust_list
+	.long _sys_get_robust_list	/* 355 */
+	.long _sys_fallocate
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr

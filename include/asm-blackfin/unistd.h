@@ -3,6 +3,7 @@
 /*
  * This file contains the system call numbers.
  */
+#define __NR_restart_syscall	  0
 #define __NR_exit		  1
 #define __NR_fork		  2
 #define __NR_read		  3
@@ -165,13 +166,13 @@
 #define __NR_sched_get_priority_min	160
 #define __NR_sched_rr_get_interval	161
 #define __NR_nanosleep		162
-				/* 163 __NR_mremap */
+#define __NR_mremap		163
 #define __NR_setresuid		164
 #define __NR_getresuid		165
 				/* 166 __NR_vm86 */
 				/* 167 __NR_query_module */
 				/* 168 __NR_poll */
-				/* 169 __NR_nfsservctl */
+#define __NR_nfsservctl		169
 #define __NR_setresgid		170
 #define __NR_getresgid		171
 #define __NR_prctl		172
@@ -227,7 +228,7 @@
 				/* 222 reserved for TUX */
 				/* 223 reserved for TUX */
 #define __NR_gettid		224
-				/* 225 __NR_readahead */
+#define __NR_readahead		225
 #define __NR_setxattr		226
 #define __NR_lsetxattr		227
 #define __NR_fsetxattr		228
@@ -287,7 +288,7 @@
 #define __NR_mq_timedreceive	(__NR_mq_open+3)
 #define __NR_mq_notify		(__NR_mq_open+4)
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
-				/* 284 __NR_sys_kexec_load */
+#define __NR_kexec_load		284
 #define __NR_waitid		285
 #define __NR_add_key		286
 #define __NR_request_key	287
@@ -352,8 +353,53 @@
 #define __NR_shmdt		340
 #define __NR_shmget		341
 
-#define __NR_syscall		342
+#define __NR_splice		342
+#define __NR_sync_file_range	343
+#define __NR_tee		344
+#define __NR_vmsplice		345
+
+#define __NR_epoll_pwait	346
+#define __NR_utimensat		347
+#define __NR_signalfd		348
+#define __NR_timerfd		349
+#define __NR_eventfd		350
+#define __NR_pread64		351
+#define __NR_pwrite64		352
+#define __NR_fadvise64		353
+#define __NR_set_robust_list	354
+#define __NR_get_robust_list	355
+#define __NR_fallocate		356
+
+#define __NR_syscall		357
 #define NR_syscalls		__NR_syscall
+
+/* Old optional stuff no one actually uses */
+#define __IGNORE_sysfs
+#define __IGNORE_uselib
+
+/* Implement the newer interfaces */
+#define __IGNORE_mmap
+#define __IGNORE_poll
+#define __IGNORE_select
+#define __IGNORE_utime
+
+/* Not relevant on no-mmu */
+#define __IGNORE_swapon
+#define __IGNORE_swapoff
+#define __IGNORE_msync
+#define __IGNORE_mlock
+#define __IGNORE_munlock
+#define __IGNORE_mlockall
+#define __IGNORE_munlockall
+#define __IGNORE_mincore
+#define __IGNORE_madvise
+#define __IGNORE_remap_file_pages
+#define __IGNORE_mbind
+#define __IGNORE_get_mempolicy
+#define __IGNORE_set_mempolicy
+#define __IGNORE_migrate_pages
+#define __IGNORE_move_pages
+#define __IGNORE_getcpu
 
 #ifdef __KERNEL__
 #define __ARCH_WANT_IPC_PARSE_VERSION
