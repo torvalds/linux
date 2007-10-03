@@ -127,7 +127,12 @@ int hd64461_irq_demux(int irq)
 	return irq;
 }
 
-static struct irqaction irq0 = { hd64461_interrupt, IRQF_DISABLED, CPU_MASK_NONE, "HD64461", NULL, NULL };
+static struct irqaction irq0 = {
+	.handler = hd64461_interrupt,
+	.flags = IRQF_DISABLED,
+	.mask = CPU_MASK_NONE,
+	.name = "HD64461",
+};
 
 int __init setup_hd64461(void)
 {
