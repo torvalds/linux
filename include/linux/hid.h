@@ -286,6 +286,7 @@ struct hid_item {
 #define HID_QUIRK_RDESC_LOGITECH		0x00000002
 #define HID_QUIRK_RDESC_SWAPPED_MIN_MAX		0x00000004
 #define HID_QUIRK_RDESC_PETALYNX		0x00000008
+#define HID_QUIRK_RDESC_MACBOOK_JIS		0x00000010
 
 /*
  * This is the global environment of the parser. This information is

@@ -624,6 +624,8 @@ static const struct hid_rdesc_blacklist {
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_RDESC_LOGITECH },
 
+	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_RDESC_MACBOOK_JIS },
+
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
 
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
@@ -937,6 +939,18 @@ static void usbhid_fixup_cypress_descriptor(unsigned char *rdesc, int rsize)
 		printk(KERN_INFO "Fixing up Cypress report descriptor\n");
 }
 
+/*
+ * MacBook JIS keyboard has wrong logical maximum
+ */
+static void usbhid_fixup_macbook_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 60 && rdesc[53] == 0x65
+			&& rdesc[59] == 0x65) {
+		printk(KERN_INFO "Fixing up MacBook JIS keyboard report descriptor\n");
+		rdesc[53] = rdesc[59] = 0xe7;
+	}
+}
+
 
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
@@ -951,6 +965,9 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 
 	if (quirks & HID_QUIRK_RDESC_PETALYNX)
 		usbhid_fixup_petalynx_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_MACBOOK_JIS)
+		usbhid_fixup_macbook_descriptor(rdesc, rsize);
 }
 
 /**
