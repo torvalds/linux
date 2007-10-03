@@ -193,7 +193,7 @@ int ebitmap_netlbl_import(struct ebitmap *ebmap,
 			e_sft = delta % EBITMAP_UNIT_SIZE;
 			while (map) {
 				e_iter->maps[e_idx++] |= map & (-1UL);
-				map >>= EBITMAP_UNIT_SIZE;
+				map = EBITMAP_SHIFT_UNIT_SIZE(map);
 			}
 		}
 		c_iter = c_iter->next;
@@ -389,13 +389,13 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 		if (startbit & (mapunit - 1)) {
 			printk(KERN_ERR "security: ebitmap start bit (%d) is "
-			       "not a multiple of the map unit size (%Zd)\n",
+			       "not a multiple of the map unit size (%u)\n",
 			       startbit, mapunit);
 			goto bad;
 		}
 		if (startbit > e->highbit - mapunit) {
 			printk(KERN_ERR "security: ebitmap start bit (%d) is "
-			       "beyond the end of the bitmap (%Zd)\n",
+			       "beyond the end of the bitmap (%u)\n",
 			       startbit, (e->highbit - mapunit));
 			goto bad;
 		}
@@ -433,9 +433,8 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 		index = (startbit - n->startbit) / EBITMAP_UNIT_SIZE;
 		while (map) {
-			n->maps[index] = map & (-1UL);
-			map = map >> EBITMAP_UNIT_SIZE;
-			index++;
+			n->maps[index++] = map & (-1UL);
+			map = EBITMAP_SHIFT_UNIT_SIZE(map);
 		}
 	}
 ok:
