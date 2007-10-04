@@ -1131,9 +1131,14 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 
 };
 
-static int get_stats_count(struct net_device *dev)
+static int get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(stats_strings);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(stats_strings);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 #define T3_REGMAP_SIZE (3 * 1024)
@@ -1640,7 +1645,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_strings = get_strings,
 	.phys_id = cxgb3_phys_id,
 	.nway_reset = restart_autoneg,
-	.get_stats_count = get_stats_count,
+	.get_sset_count = get_sset_count,
 	.get_ethtool_stats = get_stats,
 	.get_regs_len = get_regs_len,
 	.get_regs = get_regs,

@@ -79,9 +79,14 @@ static void veth_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 	}
 }
 
-static int veth_get_stats_count(struct net_device *dev)
+static int veth_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(ethtool_stats_keys);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ethtool_stats_keys);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void veth_get_ethtool_stats(struct net_device *dev,
@@ -135,7 +140,7 @@ static struct ethtool_ops veth_ethtool_ops = {
 	.get_sg			= ethtool_op_get_sg,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= veth_get_strings,
-	.get_stats_count	= veth_get_stats_count,
+	.get_sset_count		= veth_get_sset_count,
 	.get_ethtool_stats	= veth_get_ethtool_stats,
 };
 

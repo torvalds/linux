@@ -4333,16 +4333,26 @@ static int nv_set_sg(struct net_device *dev, u32 data)
 		return -EOPNOTSUPP;
 }
 
-static int nv_get_stats_count(struct net_device *dev)
+static int nv_get_sset_count(struct net_device *dev, int sset)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
-	if (np->driver_data & DEV_HAS_STATISTICS_V1)
-		return NV_DEV_STATISTICS_V1_COUNT;
-	else if (np->driver_data & DEV_HAS_STATISTICS_V2)
-		return NV_DEV_STATISTICS_V2_COUNT;
-	else
-		return 0;
+	switch (sset) {
+	case ETH_SS_TEST:
+		if (np->driver_data & DEV_HAS_TEST_EXTENDED)
+			return NV_TEST_COUNT_EXTENDED;
+		else
+			return NV_TEST_COUNT_BASE;
+	case ETH_SS_STATS:
+		if (np->driver_data & DEV_HAS_STATISTICS_V1)
+			return NV_DEV_STATISTICS_V1_COUNT;
+		else if (np->driver_data & DEV_HAS_STATISTICS_V2)
+			return NV_DEV_STATISTICS_V2_COUNT;
+		else
+			return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *estats, u64 *buffer)
@@ -4352,17 +4362,7 @@ static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *e
 	/* update stats */
 	nv_do_stats_poll((unsigned long)dev);
 
-	memcpy(buffer, &np->estats, nv_get_stats_count(dev)*sizeof(u64));
-}
-
-static int nv_self_test_count(struct net_device *dev)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_TEST_EXTENDED)
-		return NV_TEST_COUNT_EXTENDED;
-	else
-		return NV_TEST_COUNT_BASE;
+	memcpy(buffer, &np->estats, nv_get_sset_count(dev, ETH_SS_STATS)*sizeof(u64));
 }
 
 static int nv_link_test(struct net_device *dev)
@@ -4609,7 +4609,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	int result;
-	memset(buffer, 0, nv_self_test_count(dev)*sizeof(u64));
+	memset(buffer, 0, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(u64));
 
 	if (!nv_link_test(dev)) {
 		test->flags |= ETH_TEST_FL_FAILED;
@@ -4692,10 +4692,10 @@ static void nv_get_strings(struct net_device *dev, u32 stringset, u8 *buffer)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
-		memcpy(buffer, &nv_estats_str, nv_get_stats_count(dev)*sizeof(struct nv_ethtool_str));
+		memcpy(buffer, &nv_estats_str, nv_get_sset_count(dev, ETH_SS_STATS)*sizeof(struct nv_ethtool_str));
 		break;
 	case ETH_SS_TEST:
-		memcpy(buffer, &nv_etests_str, nv_self_test_count(dev)*sizeof(struct nv_ethtool_str));
+		memcpy(buffer, &nv_etests_str, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(struct nv_ethtool_str));
 		break;
 	}
 }
@@ -4720,9 +4720,8 @@ static const struct ethtool_ops ops = {
 	.set_tx_csum = nv_set_tx_csum,
 	.set_sg = nv_set_sg,
 	.get_strings = nv_get_strings,
-	.get_stats_count = nv_get_stats_count,
 	.get_ethtool_stats = nv_get_ethtool_stats,
-	.self_test_count = nv_self_test_count,
+	.get_sset_count = nv_get_sset_count,
 	.self_test = nv_self_test,
 };
 

@@ -2674,9 +2674,14 @@ static void mv643xx_get_drvinfo(struct net_device *netdev,
 	drvinfo->n_stats = MV643XX_STATS_LEN;
 }
 
-static int mv643xx_get_stats_count(struct net_device *netdev)
+static int mv643xx_get_sset_count(struct net_device *netdev, int sset)
 {
-	return MV643XX_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return MV643XX_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void mv643xx_get_ethtool_stats(struct net_device *netdev,
@@ -2737,7 +2742,6 @@ static const struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_drvinfo            = mv643xx_get_drvinfo,
 	.get_link               = mv643xx_eth_get_link,
 	.set_sg			= ethtool_op_set_sg,
-	.get_stats_count        = mv643xx_get_stats_count,
 	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
 	.get_strings            = mv643xx_get_strings,
 	.nway_reset		= mv643xx_eth_nway_restart,

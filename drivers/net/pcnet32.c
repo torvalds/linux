@@ -847,9 +847,14 @@ static void pcnet32_get_strings(struct net_device *dev, u32 stringset,
 	memcpy(data, pcnet32_gstrings_test, sizeof(pcnet32_gstrings_test));
 }
 
-static int pcnet32_self_test_count(struct net_device *dev)
+static int pcnet32_get_sset_count(struct net_device *dev, int sset)
 {
-	return PCNET32_TEST_LEN;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return PCNET32_TEST_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void pcnet32_ethtool_test(struct net_device *dev,
@@ -1510,11 +1515,11 @@ static const struct ethtool_ops pcnet32_ethtool_ops = {
 	.get_ringparam		= pcnet32_get_ringparam,
 	.set_ringparam		= pcnet32_set_ringparam,
 	.get_strings		= pcnet32_get_strings,
-	.self_test_count	= pcnet32_self_test_count,
 	.self_test		= pcnet32_ethtool_test,
 	.phys_id		= pcnet32_phys_id,
 	.get_regs_len		= pcnet32_get_regs_len,
 	.get_regs		= pcnet32_get_regs,
+	.get_sset_count		= pcnet32_get_sset_count,
 };
 
 /* only probes for non-PCI devices, the rest are handled by

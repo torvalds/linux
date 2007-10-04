@@ -147,9 +147,14 @@ spider_net_ethtool_get_ringparam(struct net_device *netdev,
 	ering->rx_pending = card->rx_chain.num_desc;
 }
 
-static int spider_net_get_stats_count(struct net_device *netdev)
+static int spider_net_get_sset_count(struct net_device *netdev, int sset)
 {
-	return SPIDER_NET_NUM_STATS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return SPIDER_NET_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void spider_net_get_ethtool_stats(struct net_device *netdev,
@@ -191,7 +196,7 @@ const struct ethtool_ops spider_net_ethtool_ops = {
 	.set_tx_csum		= ethtool_op_set_tx_csum,
 	.get_ringparam          = spider_net_ethtool_get_ringparam,
 	.get_strings		= spider_net_get_strings,
-	.get_stats_count	= spider_net_get_stats_count,
+	.get_sset_count		= spider_net_get_sset_count,
 	.get_ethtool_stats	= spider_net_get_ethtool_stats,
 };
 

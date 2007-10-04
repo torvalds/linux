@@ -737,9 +737,14 @@ err_setup:
 	return err;
 }
 
-static int ixgbe_get_stats_count(struct net_device *netdev)
+static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 {
-	return IXGBE_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return IXGBE_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void ixgbe_get_ethtool_stats(struct net_device *netdev,
@@ -931,7 +936,7 @@ static struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_tso                = ixgbe_set_tso,
 	.get_strings            = ixgbe_get_strings,
 	.phys_id                = ixgbe_phys_id,
-	.get_stats_count        = ixgbe_get_stats_count,
+	.get_sset_count		= ixgbe_get_sset_count,
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,
 	.set_coalesce           = ixgbe_set_coalesce,

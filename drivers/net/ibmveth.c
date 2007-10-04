@@ -802,9 +802,14 @@ static void ibmveth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		memcpy(data, ibmveth_stats[i].name, ETH_GSTRING_LEN);
 }
 
-static int ibmveth_get_stats_count(struct net_device *dev)
+static int ibmveth_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(ibmveth_stats);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ibmveth_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void ibmveth_get_ethtool_stats(struct net_device *dev,
@@ -825,7 +830,7 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_rx_csum		= ibmveth_get_rx_csum,
 	.set_rx_csum		= ibmveth_set_rx_csum,
 	.get_strings		= ibmveth_get_strings,
-	.get_stats_count	= ibmveth_get_stats_count,
+	.get_sset_count		= ibmveth_get_sset_count,
 	.get_ethtool_stats	= ibmveth_get_ethtool_stats,
 };
 

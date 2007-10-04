@@ -992,9 +992,14 @@ struct rtl8169_counters {
 	u16	tx_underun;
 };
 
-static int rtl8169_get_stats_count(struct net_device *dev)
+static int rtl8169_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(rtl8169_gstrings);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(rtl8169_gstrings);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void rtl8169_get_ethtool_stats(struct net_device *dev,
@@ -1068,7 +1073,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_wol		= rtl8169_get_wol,
 	.set_wol		= rtl8169_set_wol,
 	.get_strings		= rtl8169_get_strings,
-	.get_stats_count	= rtl8169_get_stats_count,
+	.get_sset_count		= rtl8169_get_sset_count,
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
 };
 

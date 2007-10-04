@@ -1865,8 +1865,6 @@ static void ql_get_drvinfo(struct net_device *ndev,
 	strncpy(drvinfo->version, ql3xxx_driver_version, 32);
 	strncpy(drvinfo->fw_version, "N/A", 32);
 	strncpy(drvinfo->bus_info, pci_name(qdev->pdev), 32);
-	drvinfo->n_stats = 0;
-	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
 }

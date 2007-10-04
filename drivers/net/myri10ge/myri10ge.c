@@ -1418,9 +1418,14 @@ myri10ge_get_strings(struct net_device *netdev, u32 stringset, u8 * data)
 	}
 }
 
-static int myri10ge_get_stats_count(struct net_device *netdev)
+static int myri10ge_get_sset_count(struct net_device *netdev, int sset)
 {
-	return MYRI10GE_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return MYRI10GE_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void
@@ -1504,7 +1509,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_tso = ethtool_op_set_tso,
 	.get_link = ethtool_op_get_link,
 	.get_strings = myri10ge_get_strings,
-	.get_stats_count = myri10ge_get_stats_count,
+	.get_sset_count = myri10ge_get_sset_count,
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
 	.set_msglevel = myri10ge_set_msglevel,
 	.get_msglevel = myri10ge_get_msglevel

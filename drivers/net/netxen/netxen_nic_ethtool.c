@@ -115,8 +115,6 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	sprintf(drvinfo->fw_version, "%d.%d.%d", fw_major, fw_minor, fw_build);
 
 	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
-	drvinfo->n_stats = NETXEN_NIC_STATS_LEN;
-	drvinfo->testinfo_len = NETXEN_NIC_TEST_LEN;
 	drvinfo->regdump_len = NETXEN_NIC_REGS_LEN;
 	drvinfo->eedump_len = netxen_nic_get_eeprom_len(dev);
 }
@@ -672,9 +670,16 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	return 0;
 }
 
-static int netxen_nic_diag_test_count(struct net_device *dev)
+static int netxen_get_sset_count(struct net_device *dev, int sset)
 {
-	return NETXEN_NIC_TEST_LEN;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return NETXEN_NIC_TEST_LEN;
+	case ETH_SS_STATS:
+		return NETXEN_NIC_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void
@@ -707,11 +712,6 @@ netxen_nic_get_strings(struct net_device *dev, u32 stringset, u8 * data)
 		}
 		break;
 	}
-}
-
-static int netxen_nic_get_stats_count(struct net_device *dev)
-{
-	return NETXEN_NIC_STATS_LEN;
 }
 
 static void
@@ -747,9 +747,8 @@ struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.set_tso = ethtool_op_set_tso,
-	.self_test_count = netxen_nic_diag_test_count,
 	.self_test = netxen_nic_diag_test,
 	.get_strings = netxen_nic_get_strings,
-	.get_stats_count = netxen_nic_get_stats_count,
 	.get_ethtool_stats = netxen_nic_get_ethtool_stats,
+	.get_sset_count = netxen_get_sset_count,
 };

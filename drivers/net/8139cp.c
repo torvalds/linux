@@ -1383,9 +1383,14 @@ static int cp_get_regs_len(struct net_device *dev)
 	return CP_REGS_SIZE;
 }
 
-static int cp_get_stats_count (struct net_device *dev)
+static int cp_get_sset_count (struct net_device *dev, int sset)
 {
-	return CP_NUM_STATS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return CP_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int cp_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1563,7 +1568,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 static const struct ethtool_ops cp_ethtool_ops = {
 	.get_drvinfo		= cp_get_drvinfo,
 	.get_regs_len		= cp_get_regs_len,
-	.get_stats_count	= cp_get_stats_count,
+	.get_sset_count		= cp_get_sset_count,
 	.get_settings		= cp_get_settings,
 	.set_settings		= cp_set_settings,
 	.nway_reset		= cp_nway_reset,

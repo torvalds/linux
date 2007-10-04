@@ -3190,9 +3190,14 @@ static void sky2_set_msglevel(struct net_device *netdev, u32 value)
 	sky2->msg_enable = value;
 }
 
-static int sky2_get_stats_count(struct net_device *dev)
+static int sky2_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(sky2_stats);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(sky2_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void sky2_get_ethtool_stats(struct net_device *dev,
@@ -3723,7 +3728,7 @@ static const struct ethtool_ops sky2_ethtool_ops = {
 	.get_pauseparam = sky2_get_pauseparam,
 	.set_pauseparam = sky2_set_pauseparam,
 	.phys_id	= sky2_phys_id,
-	.get_stats_count = sky2_get_stats_count,
+	.get_sset_count = sky2_get_sset_count,
 	.get_ethtool_stats = sky2_get_ethtool_stats,
 };
 

@@ -6068,9 +6068,16 @@ static struct {
 };
 
 static int
-bnx2_self_test_count(struct net_device *dev)
+bnx2_get_sset_count(struct net_device *dev, int sset)
 {
-	return BNX2_NUM_TESTS;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return BNX2_NUM_TESTS;
+	case ETH_SS_STATS:
+		return BNX2_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void
@@ -6142,12 +6149,6 @@ bnx2_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			sizeof(bnx2_tests_str_arr));
 		break;
 	}
-}
-
-static int
-bnx2_get_stats_count(struct net_device *dev)
-{
-	return BNX2_NUM_STATS;
 }
 
 static void
@@ -6260,12 +6261,11 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.set_tx_csum		= bnx2_set_tx_csum,
 	.set_sg			= ethtool_op_set_sg,
 	.set_tso		= bnx2_set_tso,
-	.self_test_count	= bnx2_self_test_count,
 	.self_test		= bnx2_self_test,
 	.get_strings		= bnx2_get_strings,
 	.phys_id		= bnx2_phys_id,
-	.get_stats_count	= bnx2_get_stats_count,
 	.get_ethtool_stats	= bnx2_get_ethtool_stats,
+	.get_sset_count		= bnx2_get_sset_count,
 };
 
 /* Called with rtnl_lock */

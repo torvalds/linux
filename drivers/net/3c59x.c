@@ -2833,9 +2833,14 @@ static void vortex_set_msglevel(struct net_device *dev, u32 dbg)
 	vortex_debug = dbg;
 }
 
-static int vortex_get_stats_count(struct net_device *dev)
+static int vortex_get_sset_count(struct net_device *dev, int sset)
 {
-	return VORTEX_NUM_STATS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return VORTEX_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void vortex_get_ethtool_stats(struct net_device *dev,
@@ -2892,7 +2897,7 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.get_msglevel           = vortex_get_msglevel,
 	.set_msglevel           = vortex_set_msglevel,
 	.get_ethtool_stats      = vortex_get_ethtool_stats,
-	.get_stats_count        = vortex_get_stats_count,
+	.get_sset_count		= vortex_get_sset_count,
 	.get_settings           = vortex_get_settings,
 	.set_settings           = vortex_set_settings,
 	.get_link               = ethtool_op_get_link,

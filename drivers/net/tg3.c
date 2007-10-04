@@ -8347,14 +8347,16 @@ static int tg3_set_tx_csum(struct net_device *dev, u32 data)
 	return 0;
 }
 
-static int tg3_get_stats_count (struct net_device *dev)
+static int tg3_get_sset_count (struct net_device *dev, int sset)
 {
-	return TG3_NUM_STATS;
-}
-
-static int tg3_get_test_count (struct net_device *dev)
-{
-	return TG3_NUM_TEST;
+	switch (sset) {
+	case ETH_SS_TEST:
+		return TG3_NUM_TEST;
+	case ETH_SS_STATS:
+		return TG3_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void tg3_get_strings (struct net_device *dev, u32 stringset, u8 *buf)
@@ -9281,14 +9283,13 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.set_tx_csum		= tg3_set_tx_csum,
 	.set_sg			= ethtool_op_set_sg,
 	.set_tso		= tg3_set_tso,
-	.self_test_count	= tg3_get_test_count,
 	.self_test		= tg3_self_test,
 	.get_strings		= tg3_get_strings,
 	.phys_id		= tg3_phys_id,
-	.get_stats_count	= tg3_get_stats_count,
 	.get_ethtool_stats	= tg3_get_ethtool_stats,
 	.get_coalesce		= tg3_get_coalesce,
 	.set_coalesce		= tg3_set_coalesce,
+	.get_sset_count		= tg3_get_sset_count,
 };
 
 static void __devinit tg3_get_eeprom_size(struct tg3 *tp)

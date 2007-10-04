@@ -2406,9 +2406,14 @@ static void rtl8139_get_regs(struct net_device *dev, struct ethtool_regs *regs, 
 }
 #endif /* CONFIG_8139TOO_MMIO */
 
-static int rtl8139_get_stats_count(struct net_device *dev)
+static int rtl8139_get_sset_count(struct net_device *dev, int sset)
 {
-	return RTL_NUM_STATS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return RTL_NUM_STATS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void rtl8139_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *stats, u64 *data)
@@ -2439,7 +2444,7 @@ static const struct ethtool_ops rtl8139_ethtool_ops = {
 	.get_wol		= rtl8139_get_wol,
 	.set_wol		= rtl8139_set_wol,
 	.get_strings		= rtl8139_get_strings,
-	.get_stats_count	= rtl8139_get_stats_count,
+	.get_sset_count		= rtl8139_get_sset_count,
 	.get_ethtool_stats	= rtl8139_get_ethtool_stats,
 };
 

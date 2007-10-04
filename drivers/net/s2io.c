@@ -5040,12 +5040,6 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
-	info->testinfo_len = S2IO_TEST_LEN;
-
-	if (sp->device_type == XFRAME_I_DEVICE)
-		info->n_stats = XFRAME_I_STAT_LEN;
-	else
-		info->n_stats = XFRAME_II_STAT_LEN;
 }
 
 /**
@@ -6241,9 +6235,25 @@ static int s2io_get_eeprom_len(struct net_device *dev)
 	return (XENA_EEPROM_SPACE);
 }
 
-static int s2io_ethtool_self_test_count(struct net_device *dev)
+static int s2io_get_sset_count(struct net_device *dev, int sset)
 {
-	return (S2IO_TEST_LEN);
+	struct s2io_nic *sp = dev->priv;
+
+	switch (sset) {
+	case ETH_SS_TEST:
+		return S2IO_TEST_LEN;
+	case ETH_SS_STATS:
+		switch(sp->device_type) {
+		case XFRAME_I_DEVICE:
+			return XFRAME_I_STAT_LEN;
+		case XFRAME_II_DEVICE:
+			return XFRAME_II_STAT_LEN;
+		default:
+			return 0;
+		}
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void s2io_ethtool_get_strings(struct net_device *dev,
@@ -6269,22 +6279,6 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 		memcpy(data + stat_size, &ethtool_driver_stats_keys,
 			sizeof(ethtool_driver_stats_keys));
 	}
-}
-static int s2io_ethtool_get_stats_count(struct net_device *dev)
-{
-	struct s2io_nic *sp = dev->priv;
-	int stat_count = 0;
-	switch(sp->device_type) {
-	case XFRAME_I_DEVICE:
-		stat_count = XFRAME_I_STAT_LEN;
-	break;
-
-	case XFRAME_II_DEVICE:
-		stat_count = XFRAME_II_STAT_LEN;
-	break;
-	}
-
-	return stat_count;
 }
 
 static int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
@@ -6331,12 +6325,11 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_tso = s2io_ethtool_op_get_tso,
 	.set_tso = s2io_ethtool_op_set_tso,
 	.set_ufo = ethtool_op_set_ufo,
-	.self_test_count = s2io_ethtool_self_test_count,
 	.self_test = s2io_ethtool_test,
 	.get_strings = s2io_ethtool_get_strings,
 	.phys_id = s2io_ethtool_idnic,
-	.get_stats_count = s2io_ethtool_get_stats_count,
-	.get_ethtool_stats = s2io_get_ethtool_stats
+	.get_ethtool_stats = s2io_get_ethtool_stats,
+	.get_sset_count = s2io_get_sset_count,
 };
 
 /**

@@ -2162,10 +2162,16 @@ static void tc35815_set_msglevel(struct net_device *dev, u32 datum)
 	lp->msg_enable = datum;
 }
 
-static int tc35815_get_stats_count(struct net_device *dev)
+static int tc35815_get_sset_count(struct net_device *dev, int sset)
 {
 	struct tc35815_local *lp = dev->priv;
-	return sizeof(lp->lstats) / sizeof(int);
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		return sizeof(lp->lstats) / sizeof(int);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void tc35815_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *stats, u64 *data)
@@ -2200,7 +2206,7 @@ static const struct ethtool_ops tc35815_ethtool_ops = {
 	.get_msglevel		= tc35815_get_msglevel,
 	.set_msglevel		= tc35815_set_msglevel,
 	.get_strings		= tc35815_get_strings,
-	.get_stats_count	= tc35815_get_stats_count,
+	.get_sset_count		= tc35815_get_sset_count,
 	.get_ethtool_stats	= tc35815_get_ethtool_stats,
 };
 

@@ -4772,9 +4772,14 @@ static void cas_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	cas_read_regs(cp, p, regs->len / sizeof(u32));
 }
 
-static int cas_get_stats_count(struct net_device *dev)
+static int cas_get_sset_count(struct net_device *dev, int sset)
 {
-	return CAS_NUM_STAT_KEYS;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return CAS_NUM_STAT_KEYS;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void cas_get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -4818,7 +4823,7 @@ static const struct ethtool_ops cas_ethtool_ops = {
 	.set_msglevel		= cas_set_msglevel,
 	.get_regs_len		= cas_get_regs_len,
 	.get_regs		= cas_get_regs,
-	.get_stats_count	= cas_get_stats_count,
+	.get_sset_count		= cas_get_sset_count,
 	.get_strings		= cas_get_strings,
 	.get_ethtool_stats	= cas_get_ethtool_stats,
 };

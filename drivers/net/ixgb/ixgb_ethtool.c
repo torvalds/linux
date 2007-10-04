@@ -659,9 +659,14 @@ ixgb_phys_id(struct net_device *netdev, uint32_t data)
 }
 
 static int 
-ixgb_get_stats_count(struct net_device *netdev)
+ixgb_get_sset_count(struct net_device *netdev, int sset)
 {
-	return IXGB_STATS_LEN;
+	switch (sset) {
+	case ETH_SS_STATS:
+		return IXGB_STATS_LEN;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void 
@@ -719,7 +724,7 @@ static const struct ethtool_ops ixgb_ethtool_ops = {
 	.set_tso = ixgb_set_tso,
 	.get_strings = ixgb_get_strings,
 	.phys_id = ixgb_phys_id,
-	.get_stats_count = ixgb_get_stats_count,
+	.get_sset_count = ixgb_get_sset_count,
 	.get_ethtool_stats = ixgb_get_ethtool_stats,
 };
 

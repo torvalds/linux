@@ -1962,9 +1962,14 @@ static void b44_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	}
 }
 
-static int b44_get_stats_count(struct net_device *dev)
+static int b44_get_sset_count(struct net_device *dev, int sset)
 {
-	return ARRAY_SIZE(b44_gstrings);
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(b44_gstrings);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void b44_get_ethtool_stats(struct net_device *dev,
@@ -2025,7 +2030,7 @@ static const struct ethtool_ops b44_ethtool_ops = {
 	.get_msglevel		= b44_get_msglevel,
 	.set_msglevel		= b44_set_msglevel,
 	.get_strings		= b44_get_strings,
-	.get_stats_count	= b44_get_stats_count,
+	.get_sset_count		= b44_get_sset_count,
 	.get_ethtool_stats	= b44_get_ethtool_stats,
 };
 
