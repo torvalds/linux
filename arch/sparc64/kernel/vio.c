@@ -292,7 +292,7 @@ static struct vio_dev *vio_create_one(struct mdesc_handle *hp, u64 mp,
 	}
 	vdev->dp = dp;
 
-	printk(KERN_ERR "VIO: Adding device %s\n", vdev->dev.bus_id);
+	printk(KERN_INFO "VIO: Adding device %s\n", vdev->dev.bus_id);
 
 	err = device_register(&vdev->dev);
 	if (err) {
