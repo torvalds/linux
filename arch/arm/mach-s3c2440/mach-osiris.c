@@ -287,6 +287,10 @@ static int osiris_pm_suspend(struct sys_device *sd, pm_message_t state)
 
 	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
 
+	/* ensure that an nRESET is not generated on resume. */
+	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_OUT);
+
 	return 0;
 }
 
@@ -296,6 +300,8 @@ static int osiris_pm_resume(struct sys_device *sd)
 		__raw_writeb(OSIRIS_CTRL1_FIX8, OSIRIS_VA_CTRL1);
 
 	__raw_writeb(pm_osiris_ctrl0, OSIRIS_VA_CTRL0);
+
+	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_nRSTOUT);
 
 	return 0;
 }
