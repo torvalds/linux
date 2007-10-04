@@ -1011,6 +1011,16 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		state = asoc->state;
 		subtype = SCTP_ST_CHUNK(chunk->chunk_hdr->type);
 
+		/* SCTP-AUTH, Section 6.3:
+		 *    The receiver has a list of chunk types which it expects
+		 *    to be received only after an AUTH-chunk.  This list has
+		 *    been sent to the peer during the association setup.  It
+		 *    MUST silently discard these chunks if they are not placed
+		 *    after an AUTH chunk in the packet.
+		 */
+		if (sctp_auth_recv_cid(subtype.chunk, asoc) && !chunk->auth)
+			continue;
+
 		/* Remember where the last DATA chunk came from so we
 		 * know where to send the SACK.
 		 */

@@ -138,6 +138,11 @@ static sctp_disposition_t sctp_sf_violation_chunk(
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
+static sctp_ierror_t sctp_sf_authenticate(const struct sctp_endpoint *ep,
+				    const struct sctp_association *asoc,
+				    const sctp_subtype_t type,
+				    struct sctp_chunk *chunk);
+
 /* Small helper function that checks if the chunk length
  * is of the appropriate length.  The 'required_length' argument
  * is set to be the size of a specific chunk we are testing.
@@ -495,8 +500,6 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 			      (sctp_init_chunk_t *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 
-		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
-
 		/* This chunk contains fatal error. It is to be discarded.
 		 * Send an ABORT, with causes if there is any.
 		 */
@@ -521,6 +524,22 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(const struct sctp_endpoint *ep,
 			sctp_sf_tabort_8_4_8(ep, asoc, type, arg, commands);
 			error = SCTP_ERROR_INV_PARAM;
 		}
+
+		/* SCTP-AUTH, Section 6.3:
+		 *    It should be noted that if the receiver wants to tear
+		 *    down an association in an authenticated way only, the
+		 *    handling of malformed packets should not result in
+		 *    tearing down the association.
+		 *
+		 * This means that if we only want to abort associations
+		 * in an authenticated way (i.e AUTH+ABORT), then we
+		 * can't destory this association just becuase the packet
+		 * was malformed.
+		 */
+		if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
+			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+
+		SCTP_INC_STATS(SCTP_MIB_ABORTEDS);
 		return sctp_stop_t1_and_abort(commands, error, ECONNREFUSED,
 						asoc, chunk->transport);
 	}
@@ -698,6 +717,36 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(const struct sctp_endpoint *ep,
 	error = sctp_auth_asoc_init_active_key(new_asoc, GFP_ATOMIC);
 	if (error)
 		goto nomem_init;
+
+	/* SCTP-AUTH:  auth_chunk pointer is only set when the cookie-echo
+	 * is supposed to be authenticated and we have to do delayed
+	 * authentication.  We've just recreated the association using
+	 * the information in the cookie and now it's much easier to
+	 * do the authentication.
+	 */
+	if (chunk->auth_chunk) {
+		struct sctp_chunk auth;
+		sctp_ierror_t ret;
+
+		/* set-up our fake chunk so that we can process it */
+		auth.skb = chunk->auth_chunk;
+		auth.asoc = chunk->asoc;
+		auth.sctp_hdr = chunk->sctp_hdr;
+		auth.chunk_hdr = (sctp_chunkhdr_t *)skb_push(chunk->auth_chunk,
+					    sizeof(sctp_chunkhdr_t));
+		skb_pull(chunk->auth_chunk, sizeof(sctp_chunkhdr_t));
+		auth.transport = chunk->transport;
+
+		ret = sctp_sf_authenticate(ep, new_asoc, type, &auth);
+
+		/* We can now safely free the auth_chunk clone */
+		kfree_skb(chunk->auth_chunk);
+
+		if (ret != SCTP_IERROR_NO_ERROR) {
+			sctp_association_free(new_asoc);
+			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+		}
+	}
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
 	if (!repl)
@@ -3653,6 +3702,156 @@ gen_shutdown:
 }
 
 /*
+ * SCTP-AUTH Section 6.3 Receving authenticated chukns
+ *
+ *    The receiver MUST use the HMAC algorithm indicated in the HMAC
+ *    Identifier field.  If this algorithm was not specified by the
+ *    receiver in the HMAC-ALGO parameter in the INIT or INIT-ACK chunk
+ *    during association setup, the AUTH chunk and all chunks after it MUST
+ *    be discarded and an ERROR chunk SHOULD be sent with the error cause
+ *    defined in Section 4.1.
+ *
+ *    If an endpoint with no shared key receives a Shared Key Identifier
+ *    other than 0, it MUST silently discard all authenticated chunks.  If
+ *    the endpoint has at least one endpoint pair shared key for the peer,
+ *    it MUST use the key specified by the Shared Key Identifier if a
+ *    key has been configured for that Shared Key Identifier.  If no
+ *    endpoint pair shared key has been configured for that Shared Key
+ *    Identifier, all authenticated chunks MUST be silently discarded.
+ *
+ * Verification Tag:  8.5 Verification Tag [Normal verification]
+ *
+ * The return value is the disposition of the chunk.
+ */
+static sctp_ierror_t sctp_sf_authenticate(const struct sctp_endpoint *ep,
+				    const struct sctp_association *asoc,
+				    const sctp_subtype_t type,
+				    struct sctp_chunk *chunk)
+{
+	struct sctp_authhdr *auth_hdr;
+	struct sctp_hmac *hmac;
+	unsigned int sig_len;
+	__u16 key_id;
+	__u8 *save_digest;
+	__u8 *digest;
+
+	/* Pull in the auth header, so we can do some more verification */
+	auth_hdr = (struct sctp_authhdr *)chunk->skb->data;
+	chunk->subh.auth_hdr = auth_hdr;
+	skb_pull(chunk->skb, sizeof(struct sctp_authhdr));
+
+	/* Make sure that we suport the HMAC algorithm from the auth
+	 * chunk.
+	 */
+	if (!sctp_auth_asoc_verify_hmac_id(asoc, auth_hdr->hmac_id))
+		return SCTP_IERROR_AUTH_BAD_HMAC;
+
+	/* Make sure that the provided shared key identifier has been
+	 * configured
+	 */
+	key_id = ntohs(auth_hdr->shkey_id);
+	if (key_id != asoc->active_key_id && !sctp_auth_get_shkey(asoc, key_id))
+		return SCTP_IERROR_AUTH_BAD_KEYID;
+
+
+	/* Make sure that the length of the signature matches what
+	 * we expect.
+	 */
+	sig_len = ntohs(chunk->chunk_hdr->length) - sizeof(sctp_auth_chunk_t);
+	hmac = sctp_auth_get_hmac(ntohs(auth_hdr->hmac_id));
+	if (sig_len != hmac->hmac_len)
+		return SCTP_IERROR_PROTO_VIOLATION;
+
+	/* Now that we've done validation checks, we can compute and
+	 * verify the hmac.  The steps involved are:
+	 *  1. Save the digest from the chunk.
+	 *  2. Zero out the digest in the chunk.
+	 *  3. Compute the new digest
+	 *  4. Compare saved and new digests.
+	 */
+	digest = auth_hdr->hmac;
+	skb_pull(chunk->skb, sig_len);
+
+	save_digest = kmemdup(digest, sig_len, GFP_ATOMIC);
+	if (!save_digest)
+		goto nomem;
+
+	memset(digest, 0, sig_len);
+
+	sctp_auth_calculate_hmac(asoc, chunk->skb,
+				(struct sctp_auth_chunk *)chunk->chunk_hdr,
+				GFP_ATOMIC);
+
+	/* Discard the packet if the digests do not match */
+	if (memcmp(save_digest, digest, sig_len)) {
+		kfree(save_digest);
+		return SCTP_IERROR_BAD_SIG;
+	}
+
+	kfree(save_digest);
+	chunk->auth = 1;
+
+	return SCTP_IERROR_NO_ERROR;
+nomem:
+	return SCTP_IERROR_NOMEM;
+}
+
+sctp_disposition_t sctp_sf_eat_auth(const struct sctp_endpoint *ep,
+				    const struct sctp_association *asoc,
+				    const sctp_subtype_t type,
+				    void *arg,
+				    sctp_cmd_seq_t *commands)
+{
+	struct sctp_authhdr *auth_hdr;
+	struct sctp_chunk *chunk = arg;
+	struct sctp_chunk *err_chunk;
+	sctp_ierror_t error;
+
+	if (!sctp_vtag_verify(chunk, asoc)) {
+		sctp_add_cmd_sf(commands, SCTP_CMD_REPORT_BAD_TAG,
+				SCTP_NULL());
+		return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+	}
+
+	/* Make sure that the AUTH chunk has valid length.  */
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_auth_chunk)))
+		return sctp_sf_violation_chunklen(ep, asoc, type, arg,
+						  commands);
+
+	auth_hdr = (struct sctp_authhdr *)chunk->skb->data;
+	error = sctp_sf_authenticate(ep, asoc, type, chunk);
+	switch (error) {
+		case SCTP_IERROR_AUTH_BAD_HMAC:
+			/* Generate the ERROR chunk and discard the rest
+			 * of the packet
+			 */
+			err_chunk = sctp_make_op_error(asoc, chunk,
+							SCTP_ERROR_UNSUP_HMAC,
+							&auth_hdr->hmac_id,
+							sizeof(__u16));
+			if (err_chunk) {
+				sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+						SCTP_CHUNK(err_chunk));
+			}
+			/* Fall Through */
+		case SCTP_IERROR_AUTH_BAD_KEYID:
+		case SCTP_IERROR_BAD_SIG:
+			return sctp_sf_pdiscard(ep, asoc, type, arg, commands);
+			break;
+		case SCTP_IERROR_PROTO_VIOLATION:
+			return sctp_sf_violation_chunklen(ep, asoc, type, arg,
+							  commands);
+			break;
+		case SCTP_IERROR_NOMEM:
+			return SCTP_DISPOSITION_NOMEM;
+		default:
+			break;
+	}
+
+	return SCTP_DISPOSITION_CONSUME;
+}
+
+/*
  * Process an unknown chunk.
  *
  * Section: 3.2. Also, 2.1 in the implementor's guide.
@@ -3857,6 +4056,20 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	if (!abort)
 		goto nomem;
 
+	/* SCTP-AUTH, Section 6.3:
+	 *    It should be noted that if the receiver wants to tear
+	 *    down an association in an authenticated way only, the
+	 *    handling of malformed packets should not result in
+	 *    tearing down the association.
+	 *
+	 * This means that if we only want to abort associations
+	 * in an authenticated way (i.e AUTH+ABORT), then we
+	 * can't destory this association just becuase the packet
+	 * was malformed.
+	 */
+	if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
+		goto discard;
+
 	if (asoc) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
@@ -3894,6 +4107,7 @@ static sctp_disposition_t sctp_sf_abort_violation(
 		SCTP_INC_STATS(SCTP_MIB_OUTCTRLCHUNKS);
 	}
 
+discard:
 	sctp_sf_pdiscard(ep, asoc, SCTP_ST_CHUNK(0), arg, commands);
 
 	SCTP_INC_STATS(SCTP_MIB_ABORTEDS);

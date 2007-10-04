@@ -724,6 +724,13 @@ struct sctp_chunk {
 	 */
 	struct sctp_transport *transport;
 
+	/* SCTP-AUTH:  For the special case inbound processing of COOKIE-ECHO
+	 * we need save a pointer to the AUTH chunk, since the SCTP-AUTH
+	 * spec violates the principle premis that all chunks are processed
+	 * in order.
+	 */
+	struct sk_buff *auth_chunk;
+
 	__u8 rtt_in_progress;	/* Is this chunk used for RTT calculation? */
 	__u8 resent;		/* Has this chunk ever been retransmitted. */
 	__u8 has_tsn;		/* Does this chunk have a TSN yet? */
@@ -1067,6 +1074,7 @@ void sctp_inq_init(struct sctp_inq *);
 void sctp_inq_free(struct sctp_inq *);
 void sctp_inq_push(struct sctp_inq *, struct sctp_chunk *packet);
 struct sctp_chunk *sctp_inq_pop(struct sctp_inq *);
+struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *);
 void sctp_inq_set_th_handler(struct sctp_inq *, work_func_t);
 
 /* This is the structure we use to hold outbound chunks.  You push

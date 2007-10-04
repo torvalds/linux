@@ -143,6 +143,7 @@ sctp_state_fn_t sctp_sf_do_asconf_ack;
 sctp_state_fn_t sctp_sf_do_9_2_reshutack;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn;
 sctp_state_fn_t sctp_sf_eat_fwd_tsn_fast;
+sctp_state_fn_t sctp_sf_eat_auth;
 
 /* Prototypes for primitive event state functions.  */
 sctp_state_fn_t sctp_sf_do_prm_asoc;
