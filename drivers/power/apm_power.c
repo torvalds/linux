@@ -26,28 +26,65 @@ static struct power_supply *main_battery;
 static void find_main_battery(void)
 {
 	struct device *dev;
-	struct power_supply *bat, *batm;
+	struct power_supply *bat = NULL;
+	struct power_supply *max_charge_bat = NULL;
+	struct power_supply *max_energy_bat = NULL;
 	union power_supply_propval full;
 	int max_charge = 0;
+	int max_energy = 0;
 
 	main_battery = NULL;
-	batm = NULL;
+
 	list_for_each_entry(dev, &power_supply_class->devices, node) {
 		bat = dev_get_drvdata(dev);
-		/* If none of battery devices cantains 'use_for_apm' flag,
-		   choice one with maximum design charge */
-		if (!PSY_PROP(bat, CHARGE_FULL_DESIGN, &full)) {
-			if (full.intval > max_charge) {
-				batm = bat;
-				max_charge = full.intval;
-			}
+
+		if (bat->use_for_apm) {
+			/* nice, we explicitly asked to report this battery. */
+			main_battery = bat;
+			return;
 		}
 
-		if (bat->use_for_apm)
-			main_battery = bat;
+		if (!PSY_PROP(bat, CHARGE_FULL_DESIGN, &full) ||
+				!PSY_PROP(bat, CHARGE_FULL, &full)) {
+			if (full.intval > max_charge) {
+				max_charge_bat = bat;
+				max_charge = full.intval;
+			}
+		} else if (!PSY_PROP(bat, ENERGY_FULL_DESIGN, &full) ||
+				!PSY_PROP(bat, ENERGY_FULL, &full)) {
+			if (full.intval > max_energy) {
+				max_energy_bat = bat;
+				max_energy = full.intval;
+			}
+		}
 	}
-	if (!main_battery)
-		main_battery = batm;
+
+	if ((max_energy_bat && max_charge_bat) &&
+			(max_energy_bat != max_charge_bat)) {
+		/* try guess battery with more capacity */
+		if (!PSY_PROP(max_charge_bat, VOLTAGE_MAX_DESIGN, &full)) {
+			if (max_energy > max_charge * full.intval)
+				main_battery = max_energy_bat;
+			else
+				main_battery = max_charge_bat;
+		} else if (!PSY_PROP(max_energy_bat, VOLTAGE_MAX_DESIGN,
+								  &full)) {
+			if (max_charge > max_energy / full.intval)
+				main_battery = max_charge_bat;
+			else
+				main_battery = max_energy_bat;
+		} else {
+			/* give up, choice any */
+			main_battery = max_energy_bat;
+		}
+	} else if (max_charge_bat) {
+		main_battery = max_charge_bat;
+	} else if (max_energy_bat) {
+		main_battery = max_energy_bat;
+	} else {
+		/* give up, try the last if any */
+		main_battery = bat;
+	}
 }
 
 static int calculate_time(int status)
