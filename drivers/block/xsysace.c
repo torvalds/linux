@@ -195,7 +195,7 @@ struct ace_device {
 
 	/* Details of hardware device */
 	unsigned long physaddr;
-	void *baseaddr;
+	void __iomem *baseaddr;
 	int irq;
 	int bus_width;		/* 0 := 8 bit; 1 := 16 bit */
 	struct ace_reg_ops *reg_ops;
@@ -227,20 +227,20 @@ struct ace_reg_ops {
 /* 8 Bit bus width */
 static u16 ace_in_8(struct ace_device *ace, int reg)
 {
-	void *r = ace->baseaddr + reg;
+	void __iomem *r = ace->baseaddr + reg;
 	return in_8(r) | (in_8(r + 1) << 8);
 }
 
 static void ace_out_8(struct ace_device *ace, int reg, u16 val)
 {
-	void *r = ace->baseaddr + reg;
+	void __iomem *r = ace->baseaddr + reg;
 	out_8(r, val);
 	out_8(r + 1, val >> 8);
 }
 
 static void ace_datain_8(struct ace_device *ace)
 {
-	void *r = ace->baseaddr + 0x40;
+	void __iomem *r = ace->baseaddr + 0x40;
 	u8 *dst = ace->data_ptr;
 	int i = ACE_FIFO_SIZE;
 	while (i--)
@@ -250,7 +250,7 @@ static void ace_datain_8(struct ace_device *ace)
 
 static void ace_dataout_8(struct ace_device *ace)
 {
-	void *r = ace->baseaddr + 0x40;
+	void __iomem *r = ace->baseaddr + 0x40;
 	u8 *src = ace->data_ptr;
 	int i = ACE_FIFO_SIZE;
 	while (i--)
