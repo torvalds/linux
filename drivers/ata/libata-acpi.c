@@ -200,7 +200,7 @@ void ata_acpi_associate(struct ata_host *host)
  * RETURNS:
  * 0 on success, -ENOENT if _GTM doesn't exist, -errno on failure.
  */
-static int ata_acpi_gtm(const struct ata_port *ap, struct ata_acpi_gtm *gtm)
+int ata_acpi_gtm(const struct ata_port *ap, struct ata_acpi_gtm *gtm)
 {
 	struct acpi_buffer output = { .length = ACPI_ALLOCATE_BUFFER };
 	union acpi_object *out_obj;
@@ -244,6 +244,8 @@ static int ata_acpi_gtm(const struct ata_port *ap, struct ata_acpi_gtm *gtm)
 	return rc;
 }
 
+EXPORT_SYMBOL_GPL(ata_acpi_gtm);
+
 /**
  * ata_acpi_stm - execute _STM
  * @ap: target ATA port
@@ -257,7 +259,7 @@ static int ata_acpi_gtm(const struct ata_port *ap, struct ata_acpi_gtm *gtm)
  * RETURNS:
  * 0 on success, -ENOENT if _STM doesn't exist, -errno on failure.
  */
-static int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm)
+int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm)
 {
 	acpi_status status;
 	struct acpi_object_list         input;
@@ -288,6 +290,8 @@ static int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm)
 	}
 	return 0;
 }
+
+EXPORT_SYMBOL_GPL(ata_acpi_stm);
 
 /**
  * ata_dev_get_GTF - get the drive bootup default taskfile settings

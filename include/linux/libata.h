@@ -929,6 +929,8 @@ enum {
 /* libata-acpi.c */
 #ifdef CONFIG_ATA_ACPI
 extern int ata_acpi_cbl_80wire(struct ata_port *ap);
+int ata_acpi_stm(const struct ata_port *ap, struct ata_acpi_gtm *stm);
+int ata_acpi_gtm(const struct ata_port *ap, struct ata_acpi_gtm *stm);
 #else
 static inline int ata_acpi_cbl_80wire(struct ata_port *ap) { return 0; }
 #endif
