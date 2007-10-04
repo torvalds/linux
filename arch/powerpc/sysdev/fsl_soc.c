@@ -1298,3 +1298,41 @@ err:
 
 	return spi_register_board_info(board_infos, num_board_infos);
 }
+
+#if defined(CONFIG_PPC_85xx) || defined(CONFIG_PPC_86xx)
+static __be32 __iomem *rstcr;
+
+static int __init setup_rstcr(void)
+{
+	struct device_node *np;
+	np = of_find_node_by_name(NULL, "global-utilities");
+	if ((np && of_get_property(np, "fsl,has-rstcr", NULL))) {
+		const u32 *prop = of_get_property(np, "reg", NULL);
+		if (prop) {
+			/* map reset control register
+			 * 0xE00B0 is offset of reset control register
+			 */
+			rstcr = ioremap(get_immrbase() + *prop + 0xB0, 0xff);
+			if (!rstcr)
+				printk (KERN_EMERG "Error: reset control "
+						"register not mapped!\n");
+		}
+	} else
+		printk (KERN_INFO "rstcr compatible register does not exist!\n");
+	if (np)
+		of_node_put(np);
+	return 0;
+}
+
+arch_initcall(setup_rstcr);
+
+void fsl_rstcr_restart(char *cmd)
+{
+	local_irq_disable();
+	if (rstcr)
+		/* set reset control register */
+		out_be32(rstcr, 0x2);	/* HRESET_REQ */
+
+	while (1) ;
+}
+#endif

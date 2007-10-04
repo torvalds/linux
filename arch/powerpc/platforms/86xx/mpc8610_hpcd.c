@@ -37,8 +37,6 @@
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
 
-#define MPC86XX_RSTCR_OFFSET	(0xe00b0)	/* Reset Control Register */
-
 void __init
 mpc86xx_hpcd_init_irq(void)
 {
@@ -187,21 +185,6 @@ static int __init mpc86xx_hpcd_probe(void)
 	return 0;
 }
 
-void
-mpc86xx_restart(char *cmd)
-{
-	void __iomem *rstcr;
-
-	rstcr = ioremap(get_immrbase() + MPC86XX_RSTCR_OFFSET, 0x100);
-
-	local_irq_disable();
-
-	/* Assert reset request to Reset Control Register */
-	out_be32(rstcr, 0x2);
-
-	/* not reached */
-}
-
 long __init
 mpc86xx_time_init(void)
 {
@@ -225,7 +208,7 @@ define_machine(mpc86xx_hpcd) {
 	.setup_arch		= mpc86xx_hpcd_setup_arch,
 	.init_IRQ		= mpc86xx_hpcd_init_irq,
 	.get_irq		= mpic_get_irq,
-	.restart		= mpc86xx_restart,
+	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

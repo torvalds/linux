@@ -46,7 +46,6 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
-#include "mpc85xx.h"
 
 static int cds_pci_slot = 2;
 static volatile u8 *cadmus;
@@ -96,7 +95,7 @@ static void mpc85xx_cds_restart(char *cmd)
 	 *  If we can't find the VIA chip (maybe the P2P bridge is disabled)
 	 *  or the VIA chip reset didn't work, just use the default reset.
 	 */
-	mpc85xx_restart(NULL);
+	fsl_rstcr_restart(NULL);
 }
 
 static void __init mpc85xx_cds_pci_irq_fixup(struct pci_dev *dev)
@@ -343,7 +342,7 @@ define_machine(mpc85xx_cds) {
 	.restart	= mpc85xx_cds_restart,
 	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
 #else
-	.restart	= mpc85xx_restart,
+	.restart	= fsl_rstcr_restart,
 #endif
 	.calibrate_decr = generic_calibrate_decr,
 	.progress	= udbg_progress,

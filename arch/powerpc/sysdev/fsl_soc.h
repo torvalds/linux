@@ -15,5 +15,6 @@ extern int fsl_spi_init(struct spi_board_info *board_infos,
 			void (*activate_cs)(u8 cs, u8 polarity),
 			void (*deactivate_cs)(u8 cs, u8 polarity));
 
+extern void fsl_rstcr_restart(char *cmd);
 #endif
 #endif

@@ -50,8 +50,6 @@
 #include <asm/qe_ic.h>
 #include <asm/mpic.h>
 
-#include "mpc85xx.h"
-
 #undef DEBUG
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -200,7 +198,7 @@ define_machine(mpc85xx_mds) {
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
-	.restart	= mpc85xx_restart,
+	.restart	= fsl_rstcr_restart,
 	.calibrate_decr	= generic_calibrate_decr,
 	.progress	= udbg_progress,
 #ifdef CONFIG_PCI
