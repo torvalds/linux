@@ -391,7 +391,6 @@ struct dccp_opt_pend {
 	struct dccp_opt_conf    *dccpop_sc;
 };
 
-extern void __dccp_minisock_init(struct dccp_minisock *dmsk);
 extern void dccp_minisock_init(struct dccp_minisock *dmsk);
 
 extern int dccp_parse_options(struct sock *sk, struct sk_buff *skb);
