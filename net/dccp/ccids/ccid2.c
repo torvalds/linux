@@ -294,12 +294,11 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	next = hctx->ccid2hctx_seqh->ccid2s_next;
 	/* check if we need to alloc more space */
 	if (next == hctx->ccid2hctx_seqt) {
-		int rc;
-
-		ccid2_pr_debug("allocating more space in history\n");
-		rc = ccid2_hc_tx_alloc_seq(hctx);
-		BUG_ON(rc); /* XXX what do we do? */
-
+		if (ccid2_hc_tx_alloc_seq(hctx)) {
+			DCCP_CRIT("packet history - out of memory!");
+			/* FIXME: find a more graceful way to bail out */
+			return;
+		}
 		next = hctx->ccid2hctx_seqh->ccid2s_next;
 		BUG_ON(next == hctx->ccid2hctx_seqt);
 	}
