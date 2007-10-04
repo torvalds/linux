@@ -1005,11 +1005,6 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace_out(ace, ACE_CTRL, ACE_CTRL_FORCECFGMODE |
 		ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ);
 
-	/* Enable interrupts */
-	val = ace_in(ace, ACE_CTRL);
-	val |= ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ;
-	ace_out(ace, ACE_CTRL, val);
-
 	/* Now we can hook up the irq handler */
 	if (ace->irq != NO_IRQ) {
 		rc = request_irq(ace->irq, ace_interrupt, 0, "systemace", ace);
@@ -1019,6 +1014,11 @@ static int __devinit ace_setup(struct ace_device *ace)
 			ace->irq = NO_IRQ;
 		}
 	}
+
+	/* Enable interrupts */
+	val = ace_in(ace, ACE_CTRL);
+	val |= ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ;
+	ace_out(ace, ACE_CTRL, val);
 
 	/* Print the identification */
 	dev_info(ace->dev, "Xilinx SystemACE revision %i.%i.%i\n",
