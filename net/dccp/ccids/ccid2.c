@@ -126,19 +126,7 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx)
 
 static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
-	struct ccid2_hc_tx_sock *hctx;
-
-	switch (DCCP_SKB_CB(skb)->dccpd_type) {
-	case 0: /* XXX data packets from userland come through like this */
-	case DCCP_PKT_DATA:
-	case DCCP_PKT_DATAACK:
-		break;
-	/* No congestion control on other packets */
-	default:
-		return 0;
-	}
-
-	hctx = ccid2_hc_tx_sk(sk);
+	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
 	ccid2_pr_debug("pipe=%d cwnd=%d\n", hctx->ccid2hctx_pipe,
 		       hctx->ccid2hctx_cwnd);
