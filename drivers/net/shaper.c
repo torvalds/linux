@@ -171,7 +171,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if(time_after(SHAPERCB(skb)->shapeclock,jiffies + SHAPER_LATENCY)) {
 			dev_kfree_skb(skb);
-			shaper->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 		} else
 			skb_queue_tail(&shaper->sendq, skb);
 	}
@@ -182,7 +182,7 @@ static int shaper_start_xmit(struct sk_buff *skb, struct net_device *dev)
  	{
  		ptr=skb_dequeue(&shaper->sendq);
                 dev_kfree_skb(ptr);
-                shaper->stats.collisions++;
+                dev->stats.collisions++;
  	}
 	shaper_kick(shaper);
 	spin_unlock(&shaper->lock);
@@ -207,8 +207,8 @@ static void shaper_queue_xmit(struct shaper *shaper, struct sk_buff *skb)
 				shaper->dev->name,newskb->priority);
 		dev_queue_xmit(newskb);
 
-                shaper->stats.tx_bytes += skb->len;
-		shaper->stats.tx_packets++;
+                shaper->dev->stats.tx_bytes += skb->len;
+		shaper->dev->stats.tx_packets++;
 
                 if(sh_debug)
 			printk("Kicked new frame out.\n");
@@ -329,12 +329,6 @@ static int shaper_close(struct net_device *dev)
  *	for our attached device. This enables us to bandwidth allocate after
  *	ARP and other resolutions and not before.
  */
-
-static struct net_device_stats *shaper_get_stats(struct net_device *dev)
-{
-     	struct shaper *sh=dev->priv;
-	return &sh->stats;
-}
 
 static int shaper_header(struct sk_buff *skb, struct net_device *dev,
 	unsigned short type, void *daddr, void *saddr, unsigned len)
@@ -538,7 +532,6 @@ static void __init shaper_setup(struct net_device *dev)
 	dev->open		= shaper_open;
 	dev->stop		= shaper_close;
 	dev->hard_start_xmit 	= shaper_start_xmit;
-	dev->get_stats 		= shaper_get_stats;
 	dev->set_multicast_list = NULL;
 
 	/*

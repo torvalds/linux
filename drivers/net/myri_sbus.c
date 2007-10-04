@@ -353,7 +353,7 @@ static void myri_tx(struct myri_eth *mp, struct net_device *dev)
 		sbus_unmap_single(mp->myri_sdev, dma_addr, skb->len, SBUS_DMA_TODEVICE);
 		dev_kfree_skb(skb);
 		mp->tx_skbs[entry] = NULL;
-		mp->enet_stats.tx_packets++;
+		dev->stats.tx_packets++;
 		entry = NEXT_TX(entry);
 	}
 	mp->tx_old = entry;
@@ -434,20 +434,20 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 					     RX_ALLOC_SIZE, SBUS_DMA_FROMDEVICE);
 		if (len < (ETH_HLEN + MYRI_PAD_LEN) || (skb->data[0] != MYRI_PAD_LEN)) {
 			DRX(("ERROR["));
-			mp->enet_stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if (len < (ETH_HLEN + MYRI_PAD_LEN)) {
 				DRX(("BAD_LENGTH] "));
-				mp->enet_stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			} else {
 				DRX(("NO_PADDING] "));
-				mp->enet_stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 			}
 
 			/* Return it to the LANAI. */
 	drop_it:
 			drops++;
 			DRX(("DROP "));
-			mp->enet_stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			sbus_dma_sync_single_for_device(mp->myri_sdev,
 							sbus_readl(&rxd->myri_scatters[0].addr),
 							RX_ALLOC_SIZE,
@@ -527,8 +527,8 @@ static void myri_rx(struct myri_eth *mp, struct net_device *dev)
 		netif_rx(skb);
 
 		dev->last_rx = jiffies;
-		mp->enet_stats.rx_packets++;
-		mp->enet_stats.rx_bytes += len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += len;
 	next:
 		DRX(("NEXT\n"));
 		entry = NEXT_RX(entry);
@@ -596,7 +596,7 @@ static void myri_tx_timeout(struct net_device *dev)
 
 	printk(KERN_ERR "%s: transmit timed out, resetting\n", dev->name);
 
-	mp->enet_stats.tx_errors++;
+	dev->stats.tx_errors++;
 	myri_init(mp, 0);
 	netif_wake_queue(dev);
 }
@@ -805,9 +805,6 @@ static int myri_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 	return 0;
 }
-
-static struct net_device_stats *myri_get_stats(struct net_device *dev)
-{ return &(((struct myri_eth *)dev->priv)->enet_stats); }
 
 static void myri_set_multicast(struct net_device *dev)
 {
@@ -1060,7 +1057,6 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 	dev->hard_start_xmit = &myri_start_xmit;
 	dev->tx_timeout = &myri_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
-	dev->get_stats = &myri_get_stats;
 	dev->set_multicast_list = &myri_set_multicast;
 	dev->irq = sdev->irqs[0];
 

@@ -154,7 +154,6 @@ static int plip_hard_header_cache(struct neighbour *neigh,
                                   struct hh_cache *hh);
 static int plip_open(struct net_device *dev);
 static int plip_close(struct net_device *dev);
-static struct net_device_stats *plip_get_stats(struct net_device *dev);
 static int plip_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int plip_preempt(void *handle);
 static void plip_wakeup(void *handle);
@@ -206,7 +205,6 @@ struct plip_local {
 };
 
 struct net_local {
-	struct net_device_stats enet_stats;
 	struct net_device *dev;
 	struct work_struct immediate;
 	struct delayed_work deferred;
@@ -285,7 +283,6 @@ plip_init_netdev(struct net_device *dev)
 	dev->hard_start_xmit	 = plip_tx_packet;
 	dev->open		 = plip_open;
 	dev->stop		 = plip_close;
-	dev->get_stats 		 = plip_get_stats;
 	dev->do_ioctl		 = plip_ioctl;
 	dev->header_cache_update = NULL;
 	dev->tx_queue_len 	 = 10;
@@ -430,8 +427,8 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 			       dev->name, snd->state, c0);
 		} else
 			error = HS_TIMEOUT;
-		nl->enet_stats.tx_errors++;
-		nl->enet_stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 	} else if (nl->connection == PLIP_CN_RECEIVE) {
 		if (rcv->state == PLIP_PK_TRIGGER) {
 			/* Transmission was interrupted. */
@@ -448,7 +445,7 @@ plip_bh_timeout_error(struct net_device *dev, struct net_local *nl,
 			printk(KERN_WARNING "%s: receive timeout(%d,%02x)\n",
 			       dev->name, rcv->state, c0);
 		}
-		nl->enet_stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 	}
 	rcv->state = PLIP_PK_DONE;
 	if (rcv->skb) {
@@ -661,7 +658,7 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 				 &rcv->nibble, &rcv->data))
 			return TIMEOUT;
 		if (rcv->data != rcv->checksum) {
-			nl->enet_stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 			if (net_debug)
 				printk(KERN_DEBUG "%s: checksum error\n", dev->name);
 			return ERROR;
@@ -673,8 +670,8 @@ plip_receive_packet(struct net_device *dev, struct net_local *nl,
 		rcv->skb->protocol=plip_type_trans(rcv->skb, dev);
 		netif_rx(rcv->skb);
 		dev->last_rx = jiffies;
-		nl->enet_stats.rx_bytes += rcv->length.h;
-		nl->enet_stats.rx_packets++;
+		dev->stats.rx_bytes += rcv->length.h;
+		dev->stats.rx_packets++;
 		rcv->skb = NULL;
 		if (net_debug > 2)
 			printk(KERN_DEBUG "%s: receive end\n", dev->name);
@@ -776,7 +773,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			if (nl->connection == PLIP_CN_RECEIVE) {
 				spin_unlock_irq(&nl->lock);
 				/* Interrupted. */
-				nl->enet_stats.collisions++;
+				dev->stats.collisions++;
 				return OK;
 			}
 			c0 = read_status(dev);
@@ -792,7 +789,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 					   {enable,disable}_irq *counts*
 					   them.  -- AV  */
 					ENABLE(dev->irq);
-					nl->enet_stats.collisions++;
+					dev->stats.collisions++;
 					return OK;
 				}
 				disable_parport_interrupts (dev);
@@ -840,9 +837,9 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 			      &snd->nibble, snd->checksum))
 			return TIMEOUT;
 
-		nl->enet_stats.tx_bytes += snd->skb->len;
+		dev->stats.tx_bytes += snd->skb->len;
 		dev_kfree_skb(snd->skb);
-		nl->enet_stats.tx_packets++;
+		dev->stats.tx_packets++;
 		snd->state = PLIP_PK_DONE;
 
 	case PLIP_PK_DONE:
@@ -1197,15 +1194,6 @@ plip_wakeup(void *handle)
 	}
 
 	return;
-}
-
-static struct net_device_stats *
-plip_get_stats(struct net_device *dev)
-{
-	struct net_local *nl = netdev_priv(dev);
-	struct net_device_stats *r = &nl->enet_stats;
-
-	return r;
 }
 
 static int

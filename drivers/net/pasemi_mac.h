@@ -60,7 +60,6 @@ struct pasemi_mac {
 	struct pci_dev *iob_pdev;
 	struct phy_device *phydev;
 	struct napi_struct napi;
-	struct net_device_stats stats;
 
 	/* Pointer to the cacheable per-channel status registers */
 	u64	*rx_status;

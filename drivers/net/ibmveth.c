@@ -87,7 +87,6 @@ static int ibmveth_close(struct net_device *dev);
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int ibmveth_poll(struct napi_struct *napi, int budget);
 static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *ibmveth_get_stats(struct net_device *dev);
 static void ibmveth_set_multicast_list(struct net_device *dev);
 static int ibmveth_change_mtu(struct net_device *dev, int new_mtu);
 static void ibmveth_proc_register_driver(void);
@@ -909,9 +908,9 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			 skb->len, DMA_TO_DEVICE);
 
 out:	spin_lock_irqsave(&adapter->stats_lock, flags);
-	adapter->stats.tx_dropped += tx_dropped;
-	adapter->stats.tx_bytes += tx_bytes;
-	adapter->stats.tx_packets += tx_packets;
+	netdev->stats.tx_dropped += tx_dropped;
+	netdev->stats.tx_bytes += tx_bytes;
+	netdev->stats.tx_packets += tx_packets;
 	adapter->tx_send_failed += tx_send_failed;
 	adapter->tx_map_failed += tx_map_failed;
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
@@ -957,8 +956,8 @@ static int ibmveth_poll(struct napi_struct *napi, int budget)
 
 			netif_receive_skb(skb);	/* send it up */
 
-			adapter->stats.rx_packets++;
-			adapter->stats.rx_bytes += length;
+			netdev->stats.rx_packets++;
+			netdev->stats.rx_bytes += length;
 			frames_processed++;
 			netdev->last_rx = jiffies;
 		}
@@ -1001,12 +1000,6 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 		__netif_rx_schedule(netdev, &adapter->napi);
 	}
 	return IRQ_HANDLED;
-}
-
-static struct net_device_stats *ibmveth_get_stats(struct net_device *dev)
-{
-	struct ibmveth_adapter *adapter = dev->priv;
-	return &adapter->stats;
 }
 
 static void ibmveth_set_multicast_list(struct net_device *netdev)
@@ -1170,7 +1163,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	netdev->open               = ibmveth_open;
 	netdev->stop               = ibmveth_close;
 	netdev->hard_start_xmit    = ibmveth_start_xmit;
-	netdev->get_stats          = ibmveth_get_stats;
 	netdev->set_multicast_list = ibmveth_set_multicast_list;
 	netdev->do_ioctl           = ibmveth_ioctl;
 	netdev->ethtool_ops           = &netdev_ethtool_ops;

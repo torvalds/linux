@@ -275,7 +275,6 @@ struct ewrk3_private {
 	u_long shmem_base;	/* Shared memory start address */
 	void __iomem *shmem;
 	u_long shmem_length;	/* Shared memory window length */
-	struct net_device_stats stats;	/* Public stats */
 	struct ewrk3_stats pktStats; /* Private stats counters */
 	u_char irq_mask;	/* Adapter IRQ mask bits */
 	u_char mPage;		/* Maximum 2kB Page number */
@@ -302,7 +301,6 @@ static int ewrk3_open(struct net_device *dev);
 static int ewrk3_queue_pkt(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t ewrk3_interrupt(int irq, void *dev_id);
 static int ewrk3_close(struct net_device *dev);
-static struct net_device_stats *ewrk3_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops ethtool_ops_203;
@@ -611,7 +609,6 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 	dev->open = ewrk3_open;
 	dev->hard_start_xmit = ewrk3_queue_pkt;
 	dev->stop = ewrk3_close;
-	dev->get_stats = ewrk3_get_stats;
 	dev->set_multicast_list = set_multicast_list;
 	dev->do_ioctl = ewrk3_ioctl;
 	if (lp->adapter_name[4] == '3')
@@ -863,7 +860,7 @@ static int ewrk3_queue_pkt (struct sk_buff *skb, struct net_device *dev)
 	ENABLE_IRQs;
 	spin_unlock_irq (&lp->hw_lock);
 
-	lp->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
@@ -980,13 +977,13 @@ static int ewrk3_rx(struct net_device *dev)
 				}
 
 				if (!(rx_status & R_ROK)) {	/* There was an error. */
-					lp->stats.rx_errors++;	/* Update the error stats. */
+					dev->stats.rx_errors++;	/* Update the error stats. */
 					if (rx_status & R_DBE)
-						lp->stats.rx_frame_errors++;
+						dev->stats.rx_frame_errors++;
 					if (rx_status & R_CRC)
-						lp->stats.rx_crc_errors++;
+						dev->stats.rx_crc_errors++;
 					if (rx_status & R_PLL)
-						lp->stats.rx_fifo_errors++;
+						dev->stats.rx_fifo_errors++;
 				} else {
 					struct sk_buff *skb;
 
@@ -1037,11 +1034,11 @@ static int ewrk3_rx(struct net_device *dev)
 						   ** Update stats
 						 */
 						dev->last_rx = jiffies;
-						lp->stats.rx_packets++;
-						lp->stats.rx_bytes += pkt_len;
+						dev->stats.rx_packets++;
+						dev->stats.rx_bytes += pkt_len;
 					} else {
 						printk("%s: Insufficient memory; nuking packet.\n", dev->name);
-						lp->stats.rx_dropped++;		/* Really, deferred. */
+						dev->stats.rx_dropped++;		/* Really, deferred. */
 						break;
 					}
 				}
@@ -1071,11 +1068,11 @@ static int ewrk3_tx(struct net_device *dev)
 	while ((tx_status = inb(EWRK3_TDQ)) > 0) {	/* Whilst there's old buffers */
 		if (tx_status & T_VSTS) {	/* The status is valid */
 			if (tx_status & T_TXE) {
-				lp->stats.tx_errors++;
+				dev->stats.tx_errors++;
 				if (tx_status & T_NCL)
-					lp->stats.tx_carrier_errors++;
+					dev->stats.tx_carrier_errors++;
 				if (tx_status & T_LCL)
-					lp->stats.tx_window_errors++;
+					dev->stats.tx_window_errors++;
 				if (tx_status & T_CTU) {
 					if ((tx_status & T_COLL) ^ T_XUR) {
 						lp->pktStats.tx_underruns++;
@@ -1084,13 +1081,13 @@ static int ewrk3_tx(struct net_device *dev)
 					}
 				} else if (tx_status & T_COLL) {
 					if ((tx_status & T_COLL) ^ T_XCOLL) {
-						lp->stats.collisions++;
+						dev->stats.collisions++;
 					} else {
 						lp->pktStats.excessive_collisions++;
 					}
 				}
 			} else {
-				lp->stats.tx_packets++;
+				dev->stats.tx_packets++;
 			}
 		}
 	}
@@ -1131,14 +1128,6 @@ static int ewrk3_close(struct net_device *dev)
 		free_irq(dev->irq, dev);
 	}
 	return 0;
-}
-
-static struct net_device_stats *ewrk3_get_stats(struct net_device *dev)
-{
-	struct ewrk3_private *lp = netdev_priv(dev);
-
-	/* Null body since there is no framing error counter */
-	return &lp->stats;
 }
 
 /*

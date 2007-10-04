@@ -558,7 +558,6 @@ struct nic {
 	enum mac mac;
 	enum phy phy;
 	struct params params;
-	struct net_device_stats net_stats;
 	struct timer_list watchdog;
 	struct timer_list blink_timer;
 	struct mii_if_info mii;
@@ -1483,7 +1482,8 @@ static void e100_set_multicast_list(struct net_device *netdev)
 
 static void e100_update_stats(struct nic *nic)
 {
-	struct net_device_stats *ns = &nic->net_stats;
+	struct net_device *dev = nic->netdev;
+	struct net_device_stats *ns = &dev->stats;
 	struct stats *s = &nic->mem->stats;
 	u32 *complete = (nic->mac < mac_82558_D101_A4) ? &s->fc_xmt_pause :
 		(nic->mac < mac_82559_D101M) ? (u32 *)&s->xmt_tco_frames :
@@ -1661,6 +1661,7 @@ static int e100_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 static int e100_tx_clean(struct nic *nic)
 {
+	struct net_device *dev = nic->netdev;
 	struct cb *cb;
 	int tx_cleaned = 0;
 
@@ -1675,8 +1676,8 @@ static int e100_tx_clean(struct nic *nic)
 		        cb->status);
 
 		if(likely(cb->skb != NULL)) {
-			nic->net_stats.tx_packets++;
-			nic->net_stats.tx_bytes += cb->skb->len;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += cb->skb->len;
 
 			pci_unmap_single(nic->pdev,
 				le32_to_cpu(cb->u.tcb.tbd.buf_addr),
@@ -1807,6 +1808,7 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	unsigned int *work_done, unsigned int work_to_do)
 {
+	struct net_device *dev = nic->netdev;
 	struct sk_buff *skb = rx->skb;
 	struct rfd *rfd = (struct rfd *)skb->data;
 	u16 rfd_status, actual_size;
@@ -1851,8 +1853,8 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 		nic->rx_over_length_errors++;
 		dev_kfree_skb_any(skb);
 	} else {
-		nic->net_stats.rx_packets++;
-		nic->net_stats.rx_bytes += actual_size;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += actual_size;
 		nic->netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		if(work_done)
@@ -2014,12 +2016,6 @@ static void e100_netpoll(struct net_device *netdev)
 	e100_enable_irq(nic);
 }
 #endif
-
-static struct net_device_stats *e100_get_stats(struct net_device *netdev)
-{
-	struct nic *nic = netdev_priv(netdev);
-	return &nic->net_stats;
-}
 
 static int e100_set_mac_address(struct net_device *netdev, void *p)
 {
@@ -2457,7 +2453,7 @@ static void e100_get_ethtool_stats(struct net_device *netdev,
 	int i;
 
 	for(i = 0; i < E100_NET_STATS_LEN; i++)
-		data[i] = ((unsigned long *)&nic->net_stats)[i];
+		data[i] = ((unsigned long *)&netdev->stats)[i];
 
 	data[i++] = nic->tx_deferred;
 	data[i++] = nic->tx_single_collisions;
@@ -2562,7 +2558,6 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	netdev->open = e100_open;
 	netdev->stop = e100_close;
 	netdev->hard_start_xmit = e100_xmit_frame;
-	netdev->get_stats = e100_get_stats;
 	netdev->set_multicast_list = e100_set_multicast_list;
 	netdev->set_mac_address = e100_set_mac_address;
 	netdev->change_mtu = e100_change_mtu;

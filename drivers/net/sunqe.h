@@ -342,7 +342,6 @@ struct sunqe {
 	__u32				buffers_dvma;	/* DVMA visible address.       */
 	struct sunqec			*parent;
 	u8				mconfig;	/* Base MACE mconfig value     */
-	struct net_device_stats		net_stats;	/* Statistical counters        */
 	struct sbus_dev			*qe_sdev;	/* QE's SBUS device struct     */
 	struct net_device		*dev;		/* QE's netdevice struct       */
 	int				channel;	/* Who am I?                   */

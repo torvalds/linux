@@ -121,7 +121,6 @@ static u8	de600_read_byte(unsigned char type, struct net_device *dev);
 /* Put in the device structure. */
 static int	de600_open(struct net_device *dev);
 static int	de600_close(struct net_device *dev);
-static struct net_device_stats *get_stats(struct net_device *dev);
 static int	de600_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
 /* Dispatch from interrupts. */

@@ -3350,14 +3350,6 @@ static int ucc_geth_startup(struct ucc_geth_private *ugeth)
 	return 0;
 }
 
-/* returns a net_device_stats structure pointer */
-static struct net_device_stats *ucc_geth_get_stats(struct net_device *dev)
-{
-	struct ucc_geth_private *ugeth = netdev_priv(dev);
-
-	return &(ugeth->stats);
-}
-
 /* ucc_geth_timeout gets called when a packet has not been
  * transmitted after a set amount of time.
  * For now, assume that clearing out all the structures, and
@@ -3368,7 +3360,7 @@ static void ucc_geth_timeout(struct net_device *dev)
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 
-	ugeth->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	ugeth_dump_regs(ugeth);
 
@@ -3396,7 +3388,7 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irq(&ugeth->lock);
 
-	ugeth->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 
 	/* Start from the next BD that should be filled */
 	bd = ugeth->txBd[txQ];
@@ -3488,9 +3480,9 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 				dev_kfree_skb_any(skb);
 
 			ugeth->rx_skbuff[rxQ][ugeth->skb_currx[rxQ]] = NULL;
-			ugeth->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 		} else {
-			ugeth->stats.rx_packets++;
+			dev->stats.rx_packets++;
 			howmany++;
 
 			/* Prep the skb for the packet */
@@ -3499,7 +3491,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			/* Tell the skb what kind of packet this is */
 			skb->protocol = eth_type_trans(skb, ugeth->dev);
 
-			ugeth->stats.rx_bytes += length;
+			dev->stats.rx_bytes += length;
 			/* Send the packet up the stack */
 #ifdef CONFIG_UGETH_NAPI
 			netif_receive_skb(skb);
@@ -3514,7 +3506,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 		if (!skb) {
 			if (netif_msg_rx_err(ugeth))
 				ugeth_warn("%s: No Rx Data Buffer", __FUNCTION__);
-			ugeth->stats.rx_dropped++;
+			dev->stats.rx_dropped++;
 			break;
 		}
 
@@ -3556,7 +3548,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 		if ((bd == ugeth->txBd[txQ]) && (netif_queue_stopped(dev) == 0))
 			break;
 
-		ugeth->stats.tx_packets++;
+		dev->stats.tx_packets++;
 
 		/* Free the sk buffer associated with this TxBD */
 		dev_kfree_skb_irq(ugeth->
@@ -3673,10 +3665,10 @@ static irqreturn_t ucc_geth_irq_handler(int irq, void *info)
 	/* Errors and other events */
 	if (ucce & UCCE_OTHER) {
 		if (ucce & UCCE_BSY) {
-			ugeth->stats.rx_errors++;
+			dev->stats.rx_errors++;
 		}
 		if (ucce & UCCE_TXE) {
-			ugeth->stats.tx_errors++;
+			dev->stats.tx_errors++;
 		}
 	}
 
@@ -3969,7 +3961,6 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	netif_napi_add(dev, &ugeth->napi, ucc_geth_poll, UCC_GETH_DEV_WEIGHT);
 #endif				/* CONFIG_UGETH_NAPI */
 	dev->stop = ucc_geth_close;
-	dev->get_stats = ucc_geth_get_stats;
 //    dev->change_mtu = ucc_geth_change_mtu;
 	dev->mtu = 1500;
 	dev->set_multicast_list = ucc_geth_set_multi;

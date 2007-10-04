@@ -241,7 +241,6 @@ struct sbmac_softc {
 	struct napi_struct napi;
 	spinlock_t sbm_lock;		/* spin lock */
 	struct timer_list sbm_timer;     	/* for monitoring MII */
-	struct net_device_stats sbm_stats;
 	int sbm_devflags;			/* current device flags */
 
 	int	     sbm_phy_oldbmsr;
@@ -317,7 +316,6 @@ static int sbmac_set_duplex(struct sbmac_softc *s,sbmac_duplex_t duplex,sbmac_fc
 static int sbmac_open(struct net_device *dev);
 static void sbmac_timer(unsigned long data);
 static void sbmac_tx_timeout (struct net_device *dev);
-static struct net_device_stats *sbmac_get_stats(struct net_device *dev);
 static void sbmac_set_rx_mode(struct net_device *dev);
 static int sbmac_mii_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int sbmac_close(struct net_device *dev);
@@ -1190,6 +1188,7 @@ static void sbmac_netpoll(struct net_device *netdev)
 static int sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d,
                              int work_to_do, int poll)
 {
+	struct net_device *dev = sc->sbm_dev;
 	int curidx;
 	int hwidx;
 	sbdmadscr_t *dsc;
@@ -1202,7 +1201,7 @@ static int sbdma_rx_process(struct sbmac_softc *sc,sbmacdma_t *d,
 
 again:
 	/* Check if the HW dropped any frames */
-	sc->sbm_stats.rx_fifo_errors
+	dev->stats.rx_fifo_errors
 	    += __raw_readq(sc->sbm_rxdma.sbdma_oodpktlost) & 0xffff;
 	__raw_writeq(0, sc->sbm_rxdma.sbdma_oodpktlost);
 
@@ -1261,7 +1260,7 @@ again:
 
 			if (unlikely (sbdma_add_rcvbuffer(d,NULL) ==
 				      -ENOBUFS)) {
- 				sc->sbm_stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				sbdma_add_rcvbuffer(d,sb); /* re-add old buffer */
 				/* No point in continuing at the moment */
 				printk(KERN_ERR "dropped packet (1)\n");
@@ -1297,13 +1296,13 @@ again:
 					dropped = netif_rx(sb);
 
 				if (dropped == NET_RX_DROP) {
-					sc->sbm_stats.rx_dropped++;
+					dev->stats.rx_dropped++;
 					d->sbdma_remptr = SBDMA_NEXTBUF(d,sbdma_remptr);
 					goto done;
 				}
 				else {
-					sc->sbm_stats.rx_bytes += len;
-					sc->sbm_stats.rx_packets++;
+					dev->stats.rx_bytes += len;
+					dev->stats.rx_packets++;
 				}
 			}
 		} else {
@@ -1311,7 +1310,7 @@ again:
 			 * Packet was mangled somehow.  Just drop it and
 			 * put it back on the receive ring.
 			 */
-			sc->sbm_stats.rx_errors++;
+			dev->stats.rx_errors++;
 			sbdma_add_rcvbuffer(d,sb);
 		}
 
@@ -1351,6 +1350,7 @@ done:
 
 static void sbdma_tx_process(struct sbmac_softc *sc,sbmacdma_t *d, int poll)
 {
+	struct net_device *dev = sc->sbm_dev;
 	int curidx;
 	int hwidx;
 	sbdmadscr_t *dsc;
@@ -1401,8 +1401,8 @@ static void sbdma_tx_process(struct sbmac_softc *sc,sbmacdma_t *d, int poll)
 		 * Stats
 		 */
 
-		sc->sbm_stats.tx_bytes += sb->len;
-		sc->sbm_stats.tx_packets++;
+		dev->stats.tx_bytes += sb->len;
+		dev->stats.tx_packets++;
 
 		/*
 		 * for transmits, we just free buffers.
@@ -2457,7 +2457,6 @@ static int sbmac_init(struct net_device *dev, int idx)
 	dev->open               = sbmac_open;
 	dev->hard_start_xmit    = sbmac_start_tx;
 	dev->stop               = sbmac_close;
-	dev->get_stats          = sbmac_get_stats;
 	dev->set_multicast_list = sbmac_set_rx_mode;
 	dev->do_ioctl           = sbmac_mii_ioctl;
 	dev->tx_timeout         = sbmac_tx_timeout;
@@ -2748,29 +2747,13 @@ static void sbmac_tx_timeout (struct net_device *dev)
 
 
 	dev->trans_start = jiffies;
-	sc->sbm_stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	spin_unlock_irq (&sc->sbm_lock);
 
 	printk (KERN_WARNING "%s: Transmit timed out\n",dev->name);
 }
 
-
-
-
-static struct net_device_stats *sbmac_get_stats(struct net_device *dev)
-{
-	struct sbmac_softc *sc = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&sc->sbm_lock, flags);
-
-	/* XXX update other stats here */
-
-	spin_unlock_irqrestore(&sc->sbm_lock, flags);
-
-	return &sc->sbm_stats;
-}
 
 
 

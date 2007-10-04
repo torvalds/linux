@@ -194,11 +194,6 @@ static int	dgrs_nicmode;
 typedef struct
 {
 	/*
-	 *	Stuff for generic ethercard I/F
-	 */
-	struct net_device_stats	stats;
-
-	/*
 	 *	DGRS specific data
 	 */
 	char		*vmem;
@@ -499,7 +494,7 @@ dgrs_rcv_frame(
 	if ((skb = dev_alloc_skb(len+5)) == NULL)
 	{
 		printk("%s: dev_alloc_skb failed for rcv buffer\n", devN->name);
-		++privN->stats.rx_dropped;
+		++dev0->stats.rx_dropped;
 		/* discarding the frame */
 		goto out;
 	}
@@ -667,8 +662,8 @@ again:
 	skb->protocol = eth_type_trans(skb, devN);
 	netif_rx(skb);
 	devN->last_rx = jiffies;
-	++privN->stats.rx_packets;
-	privN->stats.rx_bytes += len;
+	++devN->stats.rx_packets;
+	devN->stats.rx_bytes += len;
 
 out:
 	cbp->xmit.status = I596_CB_STATUS_C | I596_CB_STATUS_OK;
@@ -776,7 +771,7 @@ frame_done:
 	priv0->rfdp->status = I596_RFD_C | I596_RFD_OK;
 	priv0->rfdp = (I596_RFD *) S2H(priv0->rfdp->next);
 
-	++privN->stats.tx_packets;
+	++devN->stats.tx_packets;
 
 	dev_kfree_skb (skb);
 	return (0);
@@ -803,16 +798,6 @@ static int dgrs_close( struct net_device *dev )
 {
 	netif_stop_queue(dev);
 	return (0);
-}
-
-/*
- *	Get statistics
- */
-static struct net_device_stats *dgrs_get_stats( struct net_device *dev )
-{
-	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
-
-	return (&priv->stats);
 }
 
 /*
@@ -1213,7 +1198,6 @@ dgrs_probe1(struct net_device *dev)
 	 */
 	dev->open = &dgrs_open;
 	dev->stop = &dgrs_close;
-	dev->get_stats = &dgrs_get_stats;
 	dev->hard_start_xmit = &dgrs_start_xmit;
 	dev->set_multicast_list = &dgrs_set_multicast_list;
 	dev->do_ioctl = &dgrs_ioctl;

@@ -141,7 +141,6 @@ static void __init hplance_init(struct net_device *dev, struct dio_dev *d)
         dev->poll_controller = lance_poll;
 #endif
         dev->hard_start_xmit = &lance_start_xmit;
-        dev->get_stats = &lance_get_stats;
         dev->set_multicast_list = &lance_set_multicast;
         dev->dma = 0;
 

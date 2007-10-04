@@ -128,7 +128,6 @@ static int eql_open(struct net_device *dev);
 static int eql_close(struct net_device *dev);
 static int eql_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
 static int eql_slave_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *eql_get_stats(struct net_device *dev);
 
 #define eql_is_slave(dev)	((dev->flags & IFF_SLAVE) == IFF_SLAVE)
 #define eql_is_master(dev)	((dev->flags & IFF_MASTER) == IFF_MASTER)
@@ -180,7 +179,6 @@ static void __init eql_setup(struct net_device *dev)
 	dev->stop		= eql_close;
 	dev->do_ioctl		= eql_ioctl;
 	dev->hard_start_xmit	= eql_slave_xmit;
-	dev->get_stats		= eql_get_stats;
 
 	/*
 	 *	Now we undo some of the things that eth_setup does
@@ -337,21 +335,15 @@ static int eql_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 		skb->priority = 1;
 		slave->bytes_queued += skb->len;
 		dev_queue_xmit(skb);
-		eql->stats.tx_packets++;
+		dev->stats.tx_packets++;
 	} else {
-		eql->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb(skb);
 	}
 
 	spin_unlock(&eql->queue.lock);
 
 	return 0;
-}
-
-static struct net_device_stats * eql_get_stats(struct net_device *dev)
-{
-	equalizer_t *eql = netdev_priv(dev);
-	return &eql->stats;
 }
 
 /*

@@ -224,7 +224,6 @@ struct lance_private {
 	int			dirty_tx;		/* Ring entries to be freed. */
 				/* copy function */
 	void			*(*memcpy_f)( void *, const void *, size_t );
-	struct net_device_stats stats;
 /* This must be long for set_bit() */
 	long			tx_full;
 	spinlock_t		devlock;
@@ -347,7 +346,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev );
 static irqreturn_t lance_interrupt( int irq, void *dev_id );
 static int lance_rx( struct net_device *dev );
 static int lance_close( struct net_device *dev );
-static struct net_device_stats *lance_get_stats( struct net_device *dev );
 static void set_multicast_list( struct net_device *dev );
 static int lance_set_mac_address( struct net_device *dev, void *addr );
 static void lance_tx_timeout (struct net_device *dev);
@@ -631,20 +629,12 @@ static unsigned long __init lance_probe1( struct net_device *dev,
 	dev->open = &lance_open;
 	dev->hard_start_xmit = &lance_start_xmit;
 	dev->stop = &lance_close;
-	dev->get_stats = &lance_get_stats;
 	dev->set_multicast_list = &set_multicast_list;
 	dev->set_mac_address = &lance_set_mac_address;
 
 	/* XXX MSch */
 	dev->tx_timeout = lance_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
-
-
-#if 0
-	dev->start = 0;
-#endif
-
-	memset( &lp->stats, 0, sizeof(lp->stats) );
 
 	return( 1 );
 }
@@ -753,7 +743,7 @@ static void lance_tx_timeout (struct net_device *dev)
 	 * little endian mode.
 	 */
 	REGA( CSR3 ) = CSR3_BSWP | (lp->cardtype == PAM_CARD ? CSR3_ACON : 0);
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 #ifndef final_version
 		{	int i;
 			DPRINTK( 2, ( "Ring data: dirty_tx %d cur_tx %d%s cur_rx %d\n",
@@ -841,7 +831,7 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	head->misc = 0;
 	lp->memcpy_f( PKTBUF_ADDR(head), (void *)skb->data, skb->len );
 	head->flag = TMD1_OWN_CHIP | TMD1_ENP | TMD1_STP;
-	lp->stats.tx_bytes += skb->len;
+	dev->stats.tx_bytes += skb->len;
 	dev_kfree_skb( skb );
 	lp->cur_tx++;
 	while( lp->cur_tx >= TX_RING_SIZE && lp->dirty_tx >= TX_RING_SIZE ) {
@@ -912,13 +902,13 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 				if (status & TMD1_ERR) {
 					/* There was an major error, log it. */
 					int err_status = MEM->tx_head[entry].misc;
-					lp->stats.tx_errors++;
-					if (err_status & TMD3_RTRY) lp->stats.tx_aborted_errors++;
-					if (err_status & TMD3_LCAR) lp->stats.tx_carrier_errors++;
-					if (err_status & TMD3_LCOL) lp->stats.tx_window_errors++;
+					dev->stats.tx_errors++;
+					if (err_status & TMD3_RTRY) dev->stats.tx_aborted_errors++;
+					if (err_status & TMD3_LCAR) dev->stats.tx_carrier_errors++;
+					if (err_status & TMD3_LCOL) dev->stats.tx_window_errors++;
 					if (err_status & TMD3_UFLO) {
 						/* Ackk!  On FIFO errors the Tx unit is turned off! */
-						lp->stats.tx_fifo_errors++;
+						dev->stats.tx_fifo_errors++;
 						/* Remove this verbosity later! */
 						DPRINTK( 1, ( "%s: Tx FIFO error! Status %04x\n",
 									  dev->name, csr0 ));
@@ -927,8 +917,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 					}
 				} else {
 					if (status & (TMD1_MORE | TMD1_ONE | TMD1_DEF))
-						lp->stats.collisions++;
-					lp->stats.tx_packets++;
+						dev->stats.collisions++;
+					dev->stats.tx_packets++;
 				}
 
 				/* XXX MSch: free skb?? */
@@ -955,8 +945,8 @@ static irqreturn_t lance_interrupt( int irq, void *dev_id )
 		}
 
 		/* Log misc errors. */
-		if (csr0 & CSR0_BABL) lp->stats.tx_errors++; /* Tx babble. */
-		if (csr0 & CSR0_MISS) lp->stats.rx_errors++; /* Missed a Rx frame. */
+		if (csr0 & CSR0_BABL) dev->stats.tx_errors++; /* Tx babble. */
+		if (csr0 & CSR0_MISS) dev->stats.rx_errors++; /* Missed a Rx frame. */
 		if (csr0 & CSR0_MERR) {
 			DPRINTK( 1, ( "%s: Bus master arbitration failure (?!?), "
 						  "status %04x.\n", dev->name, csr0 ));
@@ -997,11 +987,11 @@ static int lance_rx( struct net_device *dev )
 			   buffers it's possible for a jabber packet to use two
 			   buffers, with only the last correctly noting the error. */
 			if (status & RMD1_ENP)	/* Only count a general error at the */
-				lp->stats.rx_errors++; /* end of a packet.*/
-			if (status & RMD1_FRAM) lp->stats.rx_frame_errors++;
-			if (status & RMD1_OFLO) lp->stats.rx_over_errors++;
-			if (status & RMD1_CRC) lp->stats.rx_crc_errors++;
-			if (status & RMD1_BUFF) lp->stats.rx_fifo_errors++;
+				dev->stats.rx_errors++; /* end of a packet.*/
+			if (status & RMD1_FRAM) dev->stats.rx_frame_errors++;
+			if (status & RMD1_OFLO) dev->stats.rx_over_errors++;
+			if (status & RMD1_CRC) dev->stats.rx_crc_errors++;
+			if (status & RMD1_BUFF) dev->stats.rx_fifo_errors++;
 			head->flag &= (RMD1_ENP|RMD1_STP);
 		} else {
 			/* Malloc up new buffer, compatible with net-3. */
@@ -1010,7 +1000,7 @@ static int lance_rx( struct net_device *dev )
 
 			if (pkt_len < 60) {
 				printk( "%s: Runt packet!\n", dev->name );
-				lp->stats.rx_errors++;
+				dev->stats.rx_errors++;
 			}
 			else {
 				skb = dev_alloc_skb( pkt_len+2 );
@@ -1023,7 +1013,7 @@ static int lance_rx( struct net_device *dev )
 							break;
 
 					if (i > RX_RING_SIZE - 2) {
-						lp->stats.rx_dropped++;
+						dev->stats.rx_dropped++;
 						head->flag |= RMD1_OWN_CHIP;
 						lp->cur_rx++;
 					}
@@ -1052,8 +1042,8 @@ static int lance_rx( struct net_device *dev )
 				skb->protocol = eth_type_trans( skb, dev );
 				netif_rx( skb );
 				dev->last_rx = jiffies;
-				lp->stats.rx_packets++;
-				lp->stats.rx_bytes += pkt_len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += pkt_len;
 			}
 		}
 
@@ -1087,14 +1077,6 @@ static int lance_close( struct net_device *dev )
 	DREG = CSR0_STOP;
 
 	return 0;
-}
-
-
-static struct net_device_stats *lance_get_stats( struct net_device *dev )
-
-{	struct lance_private *lp = (struct lance_private *)dev->priv;
-
-	return &lp->stats;
 }
 
 

@@ -270,7 +270,6 @@ struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
 	struct net_device *dev;
-	struct net_device_stats stats;
 	spinlock_t lock;
 	u32 rx_buf_sz;
 	u32 cur_rx;
@@ -569,7 +568,7 @@ static inline int sis190_rx_pkt_err(u32 status, struct net_device_stats *stats)
 static int sis190_rx_interrupt(struct net_device *dev,
 			       struct sis190_private *tp, void __iomem *ioaddr)
 {
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u32 rx_left, cur_rx = tp->cur_rx;
 	u32 delta, count;
 
@@ -683,8 +682,8 @@ static void sis190_tx_interrupt(struct net_device *dev,
 
 		skb = tp->Tx_skbuff[entry];
 
-		tp->stats.tx_packets++;
-		tp->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
 
 		sis190_unmap_tx_skb(tp->pci_dev, skb, txd);
 		tp->Tx_skbuff[entry] = NULL;
@@ -1080,7 +1079,7 @@ static void sis190_tx_clear(struct sis190_private *tp)
 		tp->Tx_skbuff[i] = NULL;
 		dev_kfree_skb(skb);
 
-		tp->stats.tx_dropped++;
+		tp->dev->stats.tx_dropped++;
 	}
 	tp->cur_tx = tp->dirty_tx = 0;
 }
@@ -1143,7 +1142,7 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(skb->len < ETH_ZLEN)) {
 		if (skb_padto(skb, ETH_ZLEN)) {
-			tp->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 			goto out;
 		}
 		len = ETH_ZLEN;
@@ -1194,13 +1193,6 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 out:
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *sis190_get_stats(struct net_device *dev)
-{
-	struct sis190_private *tp = netdev_priv(dev);
-
-	return &tp->stats;
 }
 
 static void sis190_free_phy(struct list_head *first_phy)
@@ -1795,7 +1787,6 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	dev->open = sis190_open;
 	dev->stop = sis190_close;
 	dev->do_ioctl = sis190_ioctl;
-	dev->get_stats = sis190_get_stats;
 	dev->tx_timeout = sis190_tx_timeout;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 	dev->hard_start_xmit = sis190_start_xmit;

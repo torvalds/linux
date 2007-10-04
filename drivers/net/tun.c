@@ -110,7 +110,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			/* We won't see all dropped packets individually, so overrun
 			 * error is more appropriate. */
-			tun->stats.tx_fifo_errors++;
+			dev->stats.tx_fifo_errors++;
 		} else {
 			/* Single queue mode.
 			 * Driver handles dropping of all packets itself. */
@@ -129,7 +129,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 
 drop:
-	tun->stats.tx_dropped++;
+	dev->stats.tx_dropped++;
 	kfree_skb(skb);
 	return 0;
 }
@@ -170,12 +170,6 @@ tun_net_mclist(struct net_device *dev)
 				mclist->dmi_addr[0], mclist->dmi_addr[1], mclist->dmi_addr[2],
 				mclist->dmi_addr[3], mclist->dmi_addr[4], mclist->dmi_addr[5]);
 	}
-}
-
-static struct net_device_stats *tun_net_stats(struct net_device *dev)
-{
-	struct tun_struct *tun = netdev_priv(dev);
-	return &tun->stats;
 }
 
 /* Initialize net device. */
@@ -250,14 +244,14 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 		align = NET_IP_ALIGN;
 
 	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
-		tun->stats.rx_dropped++;
+		tun->dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 
 	if (align)
 		skb_reserve(skb, align);
 	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
-		tun->stats.rx_dropped++;
+		tun->dev->stats.rx_dropped++;
 		kfree_skb(skb);
 		return -EFAULT;
 	}
@@ -279,8 +273,8 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 	netif_rx_ni(skb);
 	tun->dev->last_rx = jiffies;
 
-	tun->stats.rx_packets++;
-	tun->stats.rx_bytes += len;
+	tun->dev->stats.rx_packets++;
+	tun->dev->stats.rx_bytes += len;
 
 	return count;
 }
@@ -336,8 +330,8 @@ static __inline__ ssize_t tun_put_user(struct tun_struct *tun,
 	skb_copy_datagram_iovec(skb, 0, iv, len);
 	total += len;
 
-	tun->stats.tx_packets++;
-	tun->stats.tx_bytes += len;
+	tun->dev->stats.tx_packets++;
+	tun->dev->stats.tx_bytes += len;
 
 	return total;
 }
@@ -438,7 +432,6 @@ static void tun_setup(struct net_device *dev)
 	dev->open = tun_net_open;
 	dev->hard_start_xmit = tun_net_xmit;
 	dev->stop = tun_net_close;
-	dev->get_stats = tun_net_stats;
 	dev->ethtool_ops = &tun_ethtool_ops;
 	dev->destructor = free_netdev;
 }

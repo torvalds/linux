@@ -104,8 +104,6 @@ struct bf537mac_local {
 	 * can find out semi-useless statistics of how well the card is
 	 * performing
 	 */
-	struct net_device_stats stats;
-
 	int version;
 
 	int FlowEnabled;	/* record if data flow is active */

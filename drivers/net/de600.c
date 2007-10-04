@@ -154,11 +154,6 @@ static int de600_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *get_stats(struct net_device *dev)
-{
-	return (struct net_device_stats *)(dev->priv);
-}
-
 static inline void trigger_interrupt(struct net_device *dev)
 {
 	de600_put_command(FLIP_IRQ);
@@ -308,7 +303,7 @@ static int de600_tx_intr(struct net_device *dev, int irq_status)
 	if (!(irq_status & TX_FAILED16)) {
 		tx_fifo_out = (tx_fifo_out + 1) % TX_PAGES;
 		++free_tx_pages;
-		((struct net_device_stats *)(dev->priv))->tx_packets++;
+		dev->stats.tx_packets++;
 		netif_wake_queue(dev);
 	}
 
@@ -375,8 +370,8 @@ static void de600_rx_intr(struct net_device *dev)
 
 	/* update stats */
 	dev->last_rx = jiffies;
-	((struct net_device_stats *)(dev->priv))->rx_packets++; /* count all receives */
-	((struct net_device_stats *)(dev->priv))->rx_bytes += size; /* count all received bytes */
+	dev->stats.rx_packets++; /* count all receives */
+	dev->stats.rx_bytes += size; /* count all received bytes */
 
 	/*
 	 * If any worth-while packets have been received, netif_rx()
@@ -390,7 +385,7 @@ static struct net_device * __init de600_probe(void)
 	struct net_device *dev;
 	int err;
 
-	dev = alloc_etherdev(sizeof(struct net_device_stats));
+	dev = alloc_etherdev(0);
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
@@ -447,8 +442,6 @@ static struct net_device * __init de600_probe(void)
 	for (i = 1; i < ETH_ALEN; i++)
 		printk(":%02X",dev->dev_addr[i]);
 	printk("\n");
-
-	dev->get_stats = get_stats;
 
 	dev->open = de600_open;
 	dev->stop = de600_close;

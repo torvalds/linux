@@ -42,7 +42,6 @@ struct tun_struct {
 	struct sk_buff_head	readq;
 
 	struct net_device	*dev;
-	struct net_device_stats	stats;
 
 	struct fasync_struct    *fasync;
 

@@ -530,8 +530,8 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		} else
 			skb->ip_summed = CHECKSUM_NONE;
 
-		mac->stats.rx_bytes += len;
-		mac->stats.rx_packets++;
+		mac->netdev->stats.rx_bytes += len;
+		mac->netdev->stats.rx_packets++;
 
 		skb->protocol = eth_type_trans(skb, mac->netdev);
 		netif_receive_skb(skb);
@@ -1032,8 +1032,8 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	info->skb = skb;
 
 	txring->next_to_fill++;
-	mac->stats.tx_packets++;
-	mac->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	spin_unlock_irqrestore(&txring->lock, flags);
 
@@ -1046,14 +1046,6 @@ out_err:
 	pci_unmap_single(mac->dma_pdev, map, skb->len, PCI_DMA_TODEVICE);
 	return NETDEV_TX_BUSY;
 }
-
-static struct net_device_stats *pasemi_mac_get_stats(struct net_device *dev)
-{
-	struct pasemi_mac *mac = netdev_priv(dev);
-
-	return &mac->stats;
-}
-
 
 static void pasemi_mac_set_rx_mode(struct net_device *dev)
 {
@@ -1223,7 +1215,6 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->open = pasemi_mac_open;
 	dev->stop = pasemi_mac_close;
 	dev->hard_start_xmit = pasemi_mac_start_tx;
-	dev->get_stats = pasemi_mac_get_stats;
 	dev->set_multicast_list = pasemi_mac_set_rx_mode;
 
 	err = pasemi_mac_map_regs(mac);

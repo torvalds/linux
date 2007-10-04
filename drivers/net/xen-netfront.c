@@ -73,7 +73,6 @@ struct netfront_info {
 	struct net_device *netdev;
 
 	struct napi_struct napi;
-	struct net_device_stats stats;
 
 	struct xen_netif_tx_front_ring tx;
 	struct xen_netif_rx_front_ring rx;
@@ -309,8 +308,6 @@ static int xennet_open(struct net_device *dev)
 {
 	struct netfront_info *np = netdev_priv(dev);
 
-	memset(&np->stats, 0, sizeof(np->stats));
-
 	napi_enable(&np->napi);
 
 	spin_lock_bh(&np->rx_lock);
@@ -537,8 +534,8 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (notify)
 		notify_remote_via_irq(np->netdev->irq);
 
-	np->stats.tx_bytes += skb->len;
-	np->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
 
 	/* Note: It is not safe to access skb after xennet_tx_buf_gc()! */
 	xennet_tx_buf_gc(dev);
@@ -551,7 +548,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 
  drop:
-	np->stats.tx_dropped++;
+	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
 	return 0;
 }
@@ -562,12 +559,6 @@ static int xennet_close(struct net_device *dev)
 	netif_stop_queue(np->netdev);
 	napi_disable(&np->napi);
 	return 0;
-}
-
-static struct net_device_stats *xennet_get_stats(struct net_device *dev)
-{
-	struct netfront_info *np = netdev_priv(dev);
-	return &np->stats;
 }
 
 static void xennet_move_rx_slot(struct netfront_info *np, struct sk_buff *skb,
@@ -804,9 +795,8 @@ out:
 }
 
 static int handle_incoming_queue(struct net_device *dev,
-				  struct sk_buff_head *rxq)
+				 struct sk_buff_head *rxq)
 {
-	struct netfront_info *np = netdev_priv(dev);
 	int packets_dropped = 0;
 	struct sk_buff *skb;
 
@@ -828,13 +818,13 @@ static int handle_incoming_queue(struct net_device *dev,
 			if (skb_checksum_setup(skb)) {
 				kfree_skb(skb);
 				packets_dropped++;
-				np->stats.rx_errors++;
+				dev->stats.rx_errors++;
 				continue;
 			}
 		}
 
-		np->stats.rx_packets++;
-		np->stats.rx_bytes += skb->len;
+		dev->stats.rx_packets++;
+		dev->stats.rx_bytes += skb->len;
 
 		/* Pass it up. */
 		netif_receive_skb(skb);
@@ -887,7 +877,7 @@ static int xennet_poll(struct napi_struct *napi, int budget)
 err:
 			while ((skb = __skb_dequeue(&tmpq)))
 				__skb_queue_tail(&errq, skb);
-			np->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			i = np->rx.rsp_cons;
 			continue;
 		}
@@ -1169,7 +1159,6 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	netdev->open            = xennet_open;
 	netdev->hard_start_xmit = xennet_start_xmit;
 	netdev->stop            = xennet_close;
-	netdev->get_stats       = xennet_get_stats;
 	netif_napi_add(netdev, &np->napi, xennet_poll, 64);
 	netdev->uninit          = xennet_uninit;
 	netdev->change_mtu	= xennet_change_mtu;

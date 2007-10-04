@@ -318,7 +318,6 @@ struct yellowfin_private {
 	dma_addr_t tx_status_dma;
 
 	struct timer_list timer;	/* Media selection timer. */
-	struct net_device_stats stats;
 	/* Frequently used and paired value: keep adjacent for cache effect. */
 	int chip_id, drv_flags;
 	struct pci_dev *pci_dev;
@@ -353,7 +352,6 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance);
 static int yellowfin_rx(struct net_device *dev);
 static void yellowfin_error(struct net_device *dev, int intr_status);
 static int yellowfin_close(struct net_device *dev);
-static struct net_device_stats *yellowfin_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static const struct ethtool_ops ethtool_ops;
 
@@ -469,7 +467,6 @@ static int __devinit yellowfin_init_one(struct pci_dev *pdev,
 	dev->open = &yellowfin_open;
 	dev->hard_start_xmit = &yellowfin_start_xmit;
 	dev->stop = &yellowfin_close;
-	dev->get_stats = &yellowfin_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->do_ioctl = &netdev_ioctl;
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
@@ -717,7 +714,7 @@ static void yellowfin_tx_timeout(struct net_device *dev)
 		netif_wake_queue (dev);		/* Typical path */
 
 	dev->trans_start = jiffies;
-	yp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 }
 
 /* Initialize the Rx and Tx rings, along with various 'dev' bits. */
@@ -923,8 +920,8 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			if (yp->tx_ring[entry].result_status == 0)
 				break;
 			skb = yp->tx_skbuff[entry];
-			yp->stats.tx_packets++;
-			yp->stats.tx_bytes += skb->len;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += skb->len;
 			/* Free the original skb. */
 			pci_unmap_single(yp->pci_dev, yp->tx_ring[entry].addr,
 				skb->len, PCI_DMA_TODEVICE);
@@ -968,20 +965,20 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 						printk(KERN_DEBUG "%s: Transmit error, Tx status %4.4x.\n",
 							   dev->name, tx_errs);
 #endif
-					yp->stats.tx_errors++;
-					if (tx_errs & 0xF800) yp->stats.tx_aborted_errors++;
-					if (tx_errs & 0x0800) yp->stats.tx_carrier_errors++;
-					if (tx_errs & 0x2000) yp->stats.tx_window_errors++;
-					if (tx_errs & 0x8000) yp->stats.tx_fifo_errors++;
+					dev->stats.tx_errors++;
+					if (tx_errs & 0xF800) dev->stats.tx_aborted_errors++;
+					if (tx_errs & 0x0800) dev->stats.tx_carrier_errors++;
+					if (tx_errs & 0x2000) dev->stats.tx_window_errors++;
+					if (tx_errs & 0x8000) dev->stats.tx_fifo_errors++;
 				} else {
 #ifndef final_version
 					if (yellowfin_debug > 4)
 						printk(KERN_DEBUG "%s: Normal transmit, Tx status %4.4x.\n",
 							   dev->name, tx_errs);
 #endif
-					yp->stats.tx_bytes += skb->len;
-					yp->stats.collisions += tx_errs & 15;
-					yp->stats.tx_packets++;
+					dev->stats.tx_bytes += skb->len;
+					dev->stats.collisions += tx_errs & 15;
+					dev->stats.tx_packets++;
 				}
 				/* Free the original skb. */
 				pci_unmap_single(yp->pci_dev,
@@ -1076,26 +1073,26 @@ static int yellowfin_rx(struct net_device *dev)
 			if (data_size != 0)
 				printk(KERN_WARNING "%s: Oversized Ethernet frame spanned multiple buffers,"
 					   " status %4.4x, data_size %d!\n", dev->name, desc_status, data_size);
-			yp->stats.rx_length_errors++;
+			dev->stats.rx_length_errors++;
 		} else if ((yp->drv_flags & IsGigabit)  &&  (frame_status & 0x0038)) {
 			/* There was a error. */
 			if (yellowfin_debug > 3)
 				printk(KERN_DEBUG "  yellowfin_rx() Rx error was %4.4x.\n",
 					   frame_status);
-			yp->stats.rx_errors++;
-			if (frame_status & 0x0060) yp->stats.rx_length_errors++;
-			if (frame_status & 0x0008) yp->stats.rx_frame_errors++;
-			if (frame_status & 0x0010) yp->stats.rx_crc_errors++;
-			if (frame_status < 0) yp->stats.rx_dropped++;
+			dev->stats.rx_errors++;
+			if (frame_status & 0x0060) dev->stats.rx_length_errors++;
+			if (frame_status & 0x0008) dev->stats.rx_frame_errors++;
+			if (frame_status & 0x0010) dev->stats.rx_crc_errors++;
+			if (frame_status < 0) dev->stats.rx_dropped++;
 		} else if ( !(yp->drv_flags & IsGigabit)  &&
 				   ((buf_addr[data_size-1] & 0x85) || buf_addr[data_size-2] & 0xC0)) {
 			u8 status1 = buf_addr[data_size-2];
 			u8 status2 = buf_addr[data_size-1];
-			yp->stats.rx_errors++;
-			if (status1 & 0xC0) yp->stats.rx_length_errors++;
-			if (status2 & 0x03) yp->stats.rx_frame_errors++;
-			if (status2 & 0x04) yp->stats.rx_crc_errors++;
-			if (status2 & 0x80) yp->stats.rx_dropped++;
+			dev->stats.rx_errors++;
+			if (status1 & 0xC0) dev->stats.rx_length_errors++;
+			if (status2 & 0x03) dev->stats.rx_frame_errors++;
+			if (status2 & 0x04) dev->stats.rx_crc_errors++;
+			if (status2 & 0x80) dev->stats.rx_dropped++;
 #ifdef YF_PROTOTYPE		/* Support for prototype hardware errata. */
 		} else if ((yp->flags & HasMACAddrBug)  &&
 			memcmp(le32_to_cpu(yp->rx_ring_dma +
@@ -1145,8 +1142,8 @@ static int yellowfin_rx(struct net_device *dev)
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
 			dev->last_rx = jiffies;
-			yp->stats.rx_packets++;
-			yp->stats.rx_bytes += pkt_len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += pkt_len;
 		}
 		entry = (++yp->cur_rx) % RX_RING_SIZE;
 	}
@@ -1180,15 +1177,13 @@ static int yellowfin_rx(struct net_device *dev)
 
 static void yellowfin_error(struct net_device *dev, int intr_status)
 {
-	struct yellowfin_private *yp = netdev_priv(dev);
-
 	printk(KERN_ERR "%s: Something Wicked happened! %4.4x.\n",
 		   dev->name, intr_status);
 	/* Hmmmmm, it's not clear what to do here. */
 	if (intr_status & (IntrTxPCIErr | IntrTxPCIFault))
-		yp->stats.tx_errors++;
+		dev->stats.tx_errors++;
 	if (intr_status & (IntrRxPCIErr | IntrRxPCIFault))
-		yp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 }
 
 static int yellowfin_close(struct net_device *dev)
@@ -1278,12 +1273,6 @@ static int yellowfin_close(struct net_device *dev)
 #endif
 
 	return 0;
-}
-
-static struct net_device_stats *yellowfin_get_stats(struct net_device *dev)
-{
-	struct yellowfin_private *yp = netdev_priv(dev);
-	return &yp->stats;
 }
 
 /* Set or clear the multicast filter for this adaptor. */

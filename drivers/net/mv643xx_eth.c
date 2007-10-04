@@ -63,7 +63,6 @@ static unsigned int mv643xx_eth_port_disable_rx(unsigned int port_num);
 static int mv643xx_eth_open(struct net_device *);
 static int mv643xx_eth_stop(struct net_device *);
 static int mv643xx_eth_change_mtu(struct net_device *, int);
-static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *);
 static void eth_port_init_mac_tables(unsigned int eth_port_num);
 #ifdef MV643XX_NAPI
 static int mv643xx_poll(struct napi_struct *napi, int budget);
@@ -341,7 +340,7 @@ int mv643xx_eth_free_tx_descs(struct net_device *dev, int force)
 
 		if (cmd_sts & ETH_ERROR_SUMMARY) {
 			printk("%s: Error in TX\n", dev->name);
-			mp->stats.tx_errors++;
+			dev->stats.tx_errors++;
 		}
 
 		spin_unlock_irqrestore(&mp->lock, flags);
@@ -388,7 +387,7 @@ static void mv643xx_eth_free_all_tx_descs(struct net_device *dev)
 static int mv643xx_eth_receive_queue(struct net_device *dev, int budget)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	struct net_device_stats *stats = &mp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned int received_packets = 0;
 	struct sk_buff *skb;
 	struct pkt_info pkt_info;
@@ -1192,7 +1191,7 @@ static void eth_tx_submit_descs_for_skb(struct mv643xx_private *mp,
 static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mv643xx_private *mp = netdev_priv(dev);
-	struct net_device_stats *stats = &mp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	unsigned long flags;
 
 	BUG_ON(netif_queue_stopped(dev));
@@ -1226,23 +1225,6 @@ static int mv643xx_eth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_unlock_irqrestore(&mp->lock, flags);
 
 	return 0;		/* success */
-}
-
-/*
- * mv643xx_eth_get_stats
- *
- * Returns a pointer to the interface statistics.
- *
- * Input :	dev - a pointer to the required interface
- *
- * Output :	a pointer to the interface's statistics
- */
-
-static struct net_device_stats *mv643xx_eth_get_stats(struct net_device *dev)
-{
-	struct mv643xx_private *mp = netdev_priv(dev);
-
-	return &mp->stats;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1339,7 +1321,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->open = mv643xx_eth_open;
 	dev->stop = mv643xx_eth_stop;
 	dev->hard_start_xmit = mv643xx_eth_start_xmit;
-	dev->get_stats = mv643xx_eth_get_stats;
 	dev->set_mac_address = mv643xx_eth_set_mac_address;
 	dev->set_multicast_list = mv643xx_eth_set_rx_mode;
 

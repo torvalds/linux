@@ -2053,7 +2053,7 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	if(mac_rsp->flags & OB_MAC_IOCB_RSP_S) {
 		printk(KERN_ERR "Frame too short to be legal, frame not sent.\n");
 
-		qdev->stats.tx_errors++;
+		qdev->ndev->stats.tx_errors++;
 		retval = -EIO;
 		goto frame_not_sent;
 	}
@@ -2061,7 +2061,7 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 	if(tx_cb->seg_count == 0) {
 		printk(KERN_ERR "tx_cb->seg_count == 0: %d\n", mac_rsp->transaction_id);
 
-		qdev->stats.tx_errors++;
+		qdev->ndev->stats.tx_errors++;
 		retval = -EIO;
 		goto invalid_seg_count;
 	}
@@ -2080,8 +2080,8 @@ static void ql_process_mac_tx_intr(struct ql3_adapter *qdev,
 				       PCI_DMA_TODEVICE);
 		}
 	}
-	qdev->stats.tx_packets++;
-	qdev->stats.tx_bytes += tx_cb->skb->len;
+	qdev->ndev->stats.tx_packets++;
+	qdev->ndev->stats.tx_bytes += tx_cb->skb->len;
 
 frame_not_sent:
 	dev_kfree_skb_irq(tx_cb->skb);
@@ -2140,8 +2140,8 @@ static void ql_process_mac_rx_intr(struct ql3_adapter *qdev,
 	lrg_buf_cb2 = ql_get_lbuf(qdev);
 	skb = lrg_buf_cb2->skb;
 
-	qdev->stats.rx_packets++;
-	qdev->stats.rx_bytes += length;
+	qdev->ndev->stats.rx_packets++;
+	qdev->ndev->stats.rx_bytes += length;
 
 	skb_put(skb, length);
 	pci_unmap_single(qdev->pdev,
@@ -2225,8 +2225,8 @@ static void ql_process_macip_rx_intr(struct ql3_adapter *qdev,
 	skb2->protocol = eth_type_trans(skb2, qdev->ndev);
 
 	netif_receive_skb(skb2);
-	qdev->stats.rx_packets++;
-	qdev->stats.rx_bytes += length;
+	ndev->stats.rx_packets++;
+	ndev->stats.rx_bytes += length;
 	ndev->last_rx = jiffies;
 	lrg_buf_cb2->skb = NULL;
 
@@ -3753,12 +3753,6 @@ static int ql3xxx_open(struct net_device *ndev)
 	return (ql_adapter_up(qdev));
 }
 
-static struct net_device_stats *ql3xxx_get_stats(struct net_device *dev)
-{
-	struct ql3_adapter *qdev = (struct ql3_adapter *)dev->priv;
-	return &qdev->stats;
-}
-
 static void ql3xxx_set_multicast_list(struct net_device *ndev)
 {
 	/*
@@ -4048,7 +4042,6 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	ndev->open = ql3xxx_open;
 	ndev->hard_start_xmit = ql3xxx_send;
 	ndev->stop = ql3xxx_close;
-	ndev->get_stats = ql3xxx_get_stats;
 	ndev->set_multicast_list = ql3xxx_set_multicast_list;
 	SET_ETHTOOL_OPS(ndev, &ql3xxx_ethtool_ops);
 	ndev->set_mac_address = ql3xxx_set_mac_address;

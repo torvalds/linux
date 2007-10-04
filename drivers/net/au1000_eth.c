@@ -90,7 +90,6 @@ static int au1000_rx(struct net_device *);
 static irqreturn_t au1000_interrupt(int, void *);
 static void au1000_tx_timeout(struct net_device *);
 static void set_rx_mode(struct net_device *);
-static struct net_device_stats *au1000_get_stats(struct net_device *);
 static int au1000_ioctl(struct net_device *, struct ifreq *, int);
 static int mdio_read(struct net_device *, int, int);
 static void mdio_write(struct net_device *, int, int, u16);
@@ -772,7 +771,6 @@ static struct net_device * au1000_probe(int port_num)
 	dev->open = au1000_open;
 	dev->hard_start_xmit = au1000_tx;
 	dev->stop = au1000_close;
-	dev->get_stats = au1000_get_stats;
 	dev->set_multicast_list = &set_rx_mode;
 	dev->do_ioctl = &au1000_ioctl;
 	SET_ETHTOOL_OPS(dev, &au1000_ethtool_ops);
@@ -1038,7 +1036,7 @@ static void __exit au1000_cleanup_module(void)
 static void update_tx_stats(struct net_device *dev, u32 status)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
-	struct net_device_stats *ps = &aup->stats;
+	struct net_device_stats *ps = &dev->stats;
 
 	if (status & TX_FRAME_ABORTED) {
 		if (!aup->phy_dev || (DUPLEX_FULL == aup->phy_dev->duplex)) {
@@ -1094,7 +1092,7 @@ static void au1000_tx_ack(struct net_device *dev)
 static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
-	struct net_device_stats *ps = &aup->stats;
+	struct net_device_stats *ps = &dev->stats;
 	volatile tx_dma_t *ptxd;
 	u32 buff_stat;
 	db_dest_t *pDB;
@@ -1148,7 +1146,7 @@ static int au1000_tx(struct sk_buff *skb, struct net_device *dev)
 static inline void update_rx_stats(struct net_device *dev, u32 status)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
-	struct net_device_stats *ps = &aup->stats;
+	struct net_device_stats *ps = &dev->stats;
 
 	ps->rx_packets++;
 	if (status & RX_MCAST_FRAME)
@@ -1201,7 +1199,7 @@ static int au1000_rx(struct net_device *dev)
 				printk(KERN_ERR
 				       "%s: Memory squeeze, dropping packet.\n",
 				       dev->name);
-				aup->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				continue;
 			}
 			skb_reserve(skb, 2);	/* 16 byte IP header align */
@@ -1322,19 +1320,6 @@ static int au1000_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!aup->phy_dev) return -EINVAL; // PHY not controllable
 
 	return phy_mii_ioctl(aup->phy_dev, if_mii(rq), cmd);
-}
-
-static struct net_device_stats *au1000_get_stats(struct net_device *dev)
-{
-	struct au1000_private *aup = (struct au1000_private *) dev->priv;
-
-	if (au1000_debug > 4)
-		printk("%s: au1000_get_stats: dev=%p\n", dev->name, dev);
-
-	if (netif_device_present(dev)) {
-		return &aup->stats;
-	}
-	return 0;
 }
 
 module_init(au1000_init_module);
