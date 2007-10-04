@@ -287,6 +287,11 @@ xilinxfb_drv_probe(struct device *dev)
 		goto failed4;
 	}
 
+	/* Put a banner in the log (for DEBUG) */
+	dev_dbg(dev, "regs: phys=%x, virt=%p\n",
+		drvdata->regs_phys, drvdata->regs);
+	dev_dbg(dev, "fb: phys=%p, virt=%p, size=%x\n",
+		(void*)drvdata->fb_phys, drvdata->fb_virt, FB_SIZE);
 	return 0;	/* success */
 
 failed4:
