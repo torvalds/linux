@@ -106,7 +106,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	 * which already has a hard_start_xmit routine assigned
 	 * which must not be changed.
 	 */
-	if (!dev->hard_start_xmit)
+	if (dev != sdata->local->mdev)
 		dev->hard_start_xmit = ieee80211_subif_start_xmit;
 
 	/*
