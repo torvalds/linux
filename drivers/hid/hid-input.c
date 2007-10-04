@@ -88,7 +88,7 @@ static const struct {
 
 /* hardware needing special handling due to colliding MSVENDOR page usages */
 #define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
-#define IS_MS_NEK4K(x) (x->vendor == 0x045e && x->product == 0x00db)
+#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -606,6 +606,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0f6: map_key_clear(KEY_NEXT);		break;
 				case 0x0fa: map_key_clear(KEY_BACK);		break;
 
+				case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
 				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
 				case 0x185: map_key_clear(KEY_EDITOR);		break;
@@ -622,10 +623,13 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x192: map_key_clear(KEY_CALC);		break;
 				case 0x194: map_key_clear(KEY_FILE);		break;
 				case 0x196: map_key_clear(KEY_WWW);		break;
+				case 0x19c: map_key_clear(KEY_LOGOFF);		break;
 				case 0x19e: map_key_clear(KEY_COFFEE);		break;
 				case 0x1a6: map_key_clear(KEY_HELP);		break;
 				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
 				case 0x1ab: map_key_clear(KEY_SPELLCHECK);	break;
+				case 0x1b6: map_key_clear(KEY_MEDIA);		break;
+				case 0x1b7: map_key_clear(KEY_SOUND);		break;
 				case 0x1bc: map_key_clear(KEY_MESSENGER);	break;
 				case 0x1bd: map_key_clear(KEY_INFO);		break;
 				case 0x201: map_key_clear(KEY_NEW);		break;
@@ -758,8 +762,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				}
 
 			/* Microsoft Natural Ergonomic Keyboard 4000 */
-			} else if (IS_MS_NEK4K(device)) {
+			} else if (IS_MS_KB(device)) {
 				switch(usage->hid & HID_USAGE) {
+					case 0xfd06:
+						map_key_clear(KEY_CHAT);
+						break;
+					case 0xfd07:
+						map_key_clear(KEY_PHONE);
+						break;
 					case 0xff05:
 						set_bit(EV_REP, input->evbit);
 						map_key_clear(KEY_F13);
@@ -1029,8 +1039,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	/* Handling MS NEK4K special buttons */
-	if (IS_MS_NEK4K(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+	/* Handling MS keyboards special buttons */
+	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
 		int key = 0;
 		static int last_key = 0;
 		switch (value) {
