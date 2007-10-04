@@ -158,7 +158,7 @@ static inline int blkcipher_next_slow(struct blkcipher_desc *desc,
 	if (walk->buffer)
 		goto ok;
 
-	n = bsize * 3 - (alignmask + 1) +
+	n = aligned_bsize * 3 - (alignmask + 1) +
 	    (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 	walk->buffer = kmalloc(n, GFP_ATOMIC);
 	if (!walk->buffer)
