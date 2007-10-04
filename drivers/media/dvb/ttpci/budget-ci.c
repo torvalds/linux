@@ -1770,7 +1770,7 @@ static void frontend_init(struct budget_ci *budget_ci)
 		budget_ci->budget.dvb_frontend = stb0899_attach(&tt3200_config, &budget_ci->budget.i2c_adap);
 		if (budget_ci->budget.dvb_frontend) {
 			if (stb6100_attach(budget_ci->budget.dvb_frontend, &tt3200_stb6100_config, &budget_ci->budget.i2c_adap)) {
-				if (lnbp21_attach(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
+				if (!lnbp21_attach(budget_ci->budget.dvb_frontend, &budget_ci->budget.i2c_adap, 0, 0)) {
 					printk("%s: No LNBP21 found!\n", __FUNCTION__);
 					if (budget_ci->budget.dvb_frontend->ops.tuner_ops.release)
 						budget_ci->budget.dvb_frontend->ops.tuner_ops.release(budget_ci->budget.dvb_frontend);
