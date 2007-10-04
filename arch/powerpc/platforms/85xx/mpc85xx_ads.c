@@ -204,8 +204,9 @@ static void __init mpc85xx_ads_setup_arch(void)
 #endif
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+	for_each_compatible_node(np, "pci", "fsl,mpc8540-pci")
 		fsl_add_bridge(np, 1);
+
 	ppc_md.pci_exclude_device = mpc85xx_exclude_device;
 #endif
 }

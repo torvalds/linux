@@ -91,7 +91,7 @@ static void __init linkstation_setup_arch(void)
 #endif
 
 	/* Lookup PCI host bridges */
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;)
+	for_each_compatible_node(np, "pci", "mpc10x-pci")
 		linkstation_add_bridge(np);
 
 	printk(KERN_INFO "BUFFALO Network Attached Storage Series\n");

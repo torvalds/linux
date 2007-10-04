@@ -140,7 +140,7 @@ mpc86xx_hpcn_setup_arch(void)
 		ppc_md.progress("mpc86xx_hpcn_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
+	for_each_compatible_node(np, "pci", "fsl,mpc8641-pcie") {
 		struct resource rsrc;
 		of_address_to_resource(np, 0, &rsrc);
 		if ((rsrc.start & 0xfffff) == 0x8000)
@@ -148,6 +148,7 @@ mpc86xx_hpcn_setup_arch(void)
 		else
 			fsl_add_bridge(np, 0);
 	}
+
 	uses_fsl_uli_m1575 = 1;
 	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
 
