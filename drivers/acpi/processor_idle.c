@@ -1416,6 +1416,9 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (unlikely(!pr))
 		return 0;
 
+	if (acpi_idle_suspend)
+		return(acpi_idle_enter_c1(dev, state));
+
 	if (pr->flags.bm_check)
 		acpi_idle_update_bm_rld(pr, cx);
 
@@ -1476,6 +1479,9 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 	if (unlikely(!pr))
 		return 0;
+
+	if (acpi_idle_suspend)
+		return(acpi_idle_enter_c1(dev, state));
 
 	local_irq_disable();
 	current_thread_info()->status &= ~TS_POLLING;
