@@ -381,6 +381,10 @@ struct ring_info {
 	u8		__pad[sizeof(void *) - sizeof(u32)];
 };
 
+enum features {
+	RTL_FEATURE_WOL	= (1 << 0),
+};
+
 struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
@@ -421,7 +425,7 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(void __iomem *);
 	unsigned int (*link_ok)(void __iomem *);
 	struct delayed_work task;
-	unsigned wol_enabled : 1;
+	unsigned features;
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");
@@ -627,7 +631,10 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	RTL_W8(Cfg9346, Cfg9346_Lock);
 
-	tp->wol_enabled = (wol->wolopts) ? 1 : 0;
+	if (wol->wolopts)
+		tp->features |= RTL_FEATURE_WOL;
+	else
+		tp->features &= ~RTL_FEATURE_WOL;
 
 	spin_unlock_irq(&tp->lock);
 
@@ -3045,7 +3052,8 @@ static int rtl8169_suspend(struct pci_dev *pdev, pm_message_t state)
 
 out_pci_suspend:
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), tp->wol_enabled);
+	pci_enable_wake(pdev, pci_choose_state(pdev, state),
+		(tp->features & RTL_FEATURE_WOL) ? 1 : 0);
 	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
