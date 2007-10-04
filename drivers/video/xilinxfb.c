@@ -339,26 +339,24 @@ static int xilinxfb_release(struct device *dev)
  */
 
 static int
-xilinxfb_drv_probe(struct device *dev)
+xilinxfb_platform_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev;
 	struct xilinxfb_platform_data *pdata;
 	struct resource *res;
 	int width_mm;
 	int height_mm;
 	int rotate;
 
-	pdev = to_platform_device(dev);
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		dev_err(dev, "Missing pdata structure\n");
+		dev_err(&pdev->dev, "Missing pdata structure\n");
 		return -ENODEV;
 	}
 
 	/* Find the registers address */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res) {
-		dev_err(dev, "Couldn't get registers resource\n");
+		dev_err(&pdev->dev, "Couldn't get registers resource\n");
 		return -ENODEV;
 	}
 
@@ -366,22 +364,24 @@ xilinxfb_drv_probe(struct device *dev)
 	width_mm = pdata->screen_width_mm;
 	rotate = pdata->rotate_screen ? 1 : 0;
 
-	return xilinxfb_assign(dev, res->start, width_mm, height_mm, rotate);
+	return xilinxfb_assign(&pdev->dev, res->start, width_mm, height_mm,
+			       rotate);
 }
 
 static int
-xilinxfb_drv_remove(struct device *dev)
+xilinxfb_platform_remove(struct platform_device *pdev)
 {
-	return xilinxfb_release(dev);
+	return xilinxfb_release(&pdev->dev);
 }
 
 
-static struct device_driver xilinxfb_driver = {
-	.name		= DRIVER_NAME,
-	.bus		= &platform_bus_type,
-
-	.probe		= xilinxfb_drv_probe,
-	.remove		= xilinxfb_drv_remove
+static struct platform_driver xilinxfb_platform_driver = {
+	.probe		= xilinxfb_platform_probe,
+	.remove		= xilinxfb_platform_remove,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DRIVER_NAME,
+	},
 };
 
 static int __init
@@ -391,13 +391,13 @@ xilinxfb_init(void)
 	 * No kernel boot options used,
 	 * so we just need to register the driver
 	 */
-	return driver_register(&xilinxfb_driver);
+	return platform_driver_register(&xilinxfb_platform_driver);
 }
 
 static void __exit
 xilinxfb_cleanup(void)
 {
-	driver_unregister(&xilinxfb_driver);
+	platform_driver_unregister(&xilinxfb_platform_driver);
 }
 
 module_init(xilinxfb_init);
