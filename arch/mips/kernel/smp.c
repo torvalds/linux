@@ -407,11 +407,12 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned l
 
 	preempt_disable();
 	if ((atomic_read(&mm->mm_users) != 1) || (current->mm != mm)) {
-		struct flush_tlb_data fd;
+		struct flush_tlb_data fd = {
+			.vma = vma,
+			.addr1 = start,
+			.addr2 = end,
+		};
 
-		fd.vma = vma;
-		fd.addr1 = start;
-		fd.addr2 = end;
 		smp_on_other_tlbs(flush_tlb_range_ipi, &fd);
 	} else {
 		cpumask_t mask = cpu_online_map;
@@ -435,10 +436,11 @@ static void flush_tlb_kernel_range_ipi(void *info)
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	struct flush_tlb_data fd;
+	struct flush_tlb_data fd = {
+		.addr1 = start,
+		.addr2 = end,
+	};
 
-	fd.addr1 = start;
-	fd.addr2 = end;
 	on_each_cpu(flush_tlb_kernel_range_ipi, &fd, 1, 1);
 }
 
@@ -453,10 +455,11 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	preempt_disable();
 	if ((atomic_read(&vma->vm_mm->mm_users) != 1) || (current->mm != vma->vm_mm)) {
-		struct flush_tlb_data fd;
+		struct flush_tlb_data fd = {
+			.vma = vma,
+			.addr1 = page,
+		};
 
-		fd.vma = vma;
-		fd.addr1 = page;
 		smp_on_other_tlbs(flush_tlb_page_ipi, &fd);
 	} else {
 		cpumask_t mask = cpu_online_map;
