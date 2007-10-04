@@ -1091,7 +1091,8 @@ ace_alloc(struct device *dev, int id, unsigned long physaddr,
 	ace->bus_width = bus_width;
 
 	/* Call the setup code */
-	if ((rc = ace_setup(ace)) != 0)
+	rc = ace_setup(ace);
+	if (rc)
 		goto err_setup;
 
 	dev_set_drvdata(dev, ace);
@@ -1253,11 +1254,13 @@ static int __init ace_init(void)
 		goto err_blk;
 	}
 
-	if ((rc = ace_of_register()) != 0)
+	rc = ace_of_register();
+	if (rc)
 		goto err_of;
 
 	pr_debug("xsysace: registering platform binding\n");
-	if ((rc = platform_driver_register(&ace_platform_driver)) != 0)
+	rc = platform_driver_register(&ace_platform_driver);
+	if (rc)
 		goto err_plat;
 
 	pr_info("Xilinx SystemACE device driver, major=%i\n", ace_major);
