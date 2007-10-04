@@ -57,6 +57,7 @@ enum powerpc_pmc_type {
 	PPC_PMC_PA6T = 2,
 };
 
+/* NOTE WELL: Update identify_cpu() if fields are added or removed! */
 struct cpu_spec {
 	/* CPU is matched via (PVR & pvr_mask) == pvr_value */
 	unsigned int	pvr_mask;

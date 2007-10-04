@@ -71,7 +71,7 @@ extern void __restore_cpu_ppc970(void);
 #define COMMON_USER_BOOKE	(PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU | \
 				 PPC_FEATURE_BOOKE)
 
-static struct cpu_spec cpu_specs[] = {
+static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC64
 	{	/* Power3 */
 		.pvr_mask		= 0xffff0000,
@@ -327,14 +327,6 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_POWER5_PLUS,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.num_pmcs		= 6,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power6",
-		.oprofile_type		= PPC_OPROFILE_POWER4,
-		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
-		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
-		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
-			POWER6_MMCRA_OTHER,
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -364,14 +356,6 @@ static struct cpu_spec cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_POWER6,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
-		.num_pmcs		= 6,
-		.pmc_type		= PPC_PMC_IBM,
-		.oprofile_cpu_type	= "ppc64/power6",
-		.oprofile_type		= PPC_OPROFILE_POWER4,
- 		.oprofile_mmcra_sihv	= POWER6_MMCRA_SIHV,
- 		.oprofile_mmcra_sipr	= POWER6_MMCRA_SIPR,
- 		.oprofile_mmcra_clear	= POWER6_MMCRA_THRM |
- 			POWER6_MMCRA_OTHER,
 		.platform		= "power6",
 	},
 	{	/* Cell Broadband Engine */
@@ -1316,18 +1300,37 @@ static struct cpu_spec cpu_specs[] = {
 #endif /* CONFIG_PPC32 */
 };
 
-struct cpu_spec *identify_cpu(unsigned long offset, unsigned int pvr)
+static struct cpu_spec the_cpu_spec;
+
+struct cpu_spec * __init identify_cpu(unsigned long offset, unsigned int pvr)
 {
 	struct cpu_spec *s = cpu_specs;
-	struct cpu_spec **cur = &cur_cpu_spec;
+	struct cpu_spec *t = &the_cpu_spec;
 	int i;
 
 	s = PTRRELOC(s);
-	cur = PTRRELOC(cur);
+	t = PTRRELOC(t);
 
 	for (i = 0; i < ARRAY_SIZE(cpu_specs); i++,s++)
 		if ((pvr & s->pvr_mask) == s->pvr_value) {
-			*cur = cpu_specs + i;
+			/*
+			 * If we are overriding a previous value derived
+			 * from the real PVR with a new value obtained
+			 * using a logical PVR value, don't modify the
+			 * performance monitor fields.
+			 */
+			if (t->num_pmcs && !s->num_pmcs) {
+				t->cpu_name = s->cpu_name;
+				t->cpu_features = s->cpu_features;
+				t->cpu_user_features = s->cpu_user_features;
+				t->icache_bsize = s->icache_bsize;
+				t->dcache_bsize = s->dcache_bsize;
+				t->cpu_setup = s->cpu_setup;
+				t->cpu_restore = s->cpu_restore;
+				t->platform = s->platform;
+			} else
+				*t = *s;
+			*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;
 #if defined(CONFIG_PPC64) || defined(CONFIG_BOOKE)
 			/* ppc64 and booke expect identify_cpu to also call 
 			 * setup_cpu for that processor. I will consolidate
