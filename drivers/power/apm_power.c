@@ -200,19 +200,17 @@ static void apm_battery_apm_get_power_status(struct apm_power_info *info)
 	info->units = APM_UNITS_MINS;
 
 	if (status.intval == POWER_SUPPLY_STATUS_CHARGING) {
-		if (MPSY_PROP(TIME_TO_FULL_AVG, &time_to_full)) {
-			if (MPSY_PROP(TIME_TO_FULL_NOW, &time_to_full))
-				info->time = calculate_time(status.intval);
-			else
-				info->time = time_to_full.intval / 60;
-		}
+		if (!MPSY_PROP(TIME_TO_FULL_AVG, &time_to_full) ||
+				!MPSY_PROP(TIME_TO_FULL_NOW, &time_to_full))
+			info->time = time_to_full.intval / 60;
+		else
+			info->time = calculate_time(status.intval);
 	} else {
-		if (MPSY_PROP(TIME_TO_EMPTY_AVG, &time_to_empty)) {
-			if (MPSY_PROP(TIME_TO_EMPTY_NOW, &time_to_empty))
-				info->time = calculate_time(status.intval);
-			else
-				info->time = time_to_empty.intval / 60;
-		}
+		if (!MPSY_PROP(TIME_TO_EMPTY_AVG, &time_to_empty) ||
+				!MPSY_PROP(TIME_TO_EMPTY_NOW, &time_to_empty))
+			info->time = time_to_empty.intval / 60;
+		else
+			info->time = calculate_time(status.intval);
 	}
 
 	up(&power_supply_class->sem);
