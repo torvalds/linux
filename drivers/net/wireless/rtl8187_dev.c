@@ -36,6 +36,8 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100)},
 	{USB_DEVICE(0x0846, 0x6a00)},
+	/* HP */
+	{USB_DEVICE(0x03f0, 0xca02)},
 	{}
 };
 
