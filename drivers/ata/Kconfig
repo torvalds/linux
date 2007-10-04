@@ -173,6 +173,15 @@ config SATA_INIC162X
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
+config PATA_ACPI
+	tristate "ACPI firmware driver for PATA"
+	depends on ATA_ACPI
+	help
+	  This option enables an ACPI method driver which drives
+	  motherboard PATA controller interfaces through the ACPI
+	  firmware in the BIOS. This driver can sometimes handle
+	  otherwise unsupported hardware.
+
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
