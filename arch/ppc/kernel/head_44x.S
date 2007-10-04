@@ -227,16 +227,6 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
 	mtspr	SPRN_IVPR,r4
 
-#ifdef CONFIG_440EP
-	/* Clear DAPUIB flag in CCR0 (enable APU between CPU and FPU) */
-	mfspr	r2,SPRN_CCR0
-	lis	r3,0xffef
-	ori	r3,r3,0xffff
-	and	r2,r2,r3
-	mtspr	SPRN_CCR0,r2
-	isync
-#endif
-
 	/*
 	 * This is where the main kernel code starts.
 	 */
