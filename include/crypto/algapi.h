@@ -91,6 +91,7 @@ struct blkcipher_walk {
 	u8 *iv;
 
 	int flags;
+	unsigned int blocksize;
 };
 
 extern const struct crypto_type crypto_ablkcipher_type;
@@ -129,6 +130,9 @@ int blkcipher_walk_virt(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk);
 int blkcipher_walk_phys(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk);
+int blkcipher_walk_virt_block(struct blkcipher_desc *desc,
+			      struct blkcipher_walk *walk,
+			      unsigned int blocksize);
 
 static inline void *crypto_tfm_ctx_aligned(struct crypto_tfm *tfm)
 {
