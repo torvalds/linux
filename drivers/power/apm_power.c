@@ -87,28 +87,18 @@ static void find_main_battery(void)
 	}
 }
 
-static int calculate_time(int status)
+static int calculate_time(int status, int using_charge)
 {
-	union power_supply_propval charge_full, charge_empty;
-	union power_supply_propval charge, I;
-
-	if (MPSY_PROP(CHARGE_FULL, &charge_full)) {
-		/* if battery can't report this property, use design value */
-		if (MPSY_PROP(CHARGE_FULL_DESIGN, &charge_full))
-			return -1;
-	}
-
-	if (MPSY_PROP(CHARGE_EMPTY, &charge_empty)) {
-		/* if battery can't report this property, use design value */
-		if (MPSY_PROP(CHARGE_EMPTY_DESIGN, &charge_empty))
-			charge_empty.intval = 0;
-	}
-
-	if (MPSY_PROP(CHARGE_AVG, &charge)) {
-		/* if battery can't report average value, use momentary */
-		if (MPSY_PROP(CHARGE_NOW, &charge))
-			return -1;
-	}
+	union power_supply_propval full;
+	union power_supply_propval empty;
+	union power_supply_propval cur;
+	union power_supply_propval I;
+	enum power_supply_property full_prop;
+	enum power_supply_property full_design_prop;
+	enum power_supply_property empty_prop;
+	enum power_supply_property empty_design_prop;
+	enum power_supply_property cur_avg_prop;
+	enum power_supply_property cur_now_prop;
 
 	if (MPSY_PROP(CURRENT_AVG, &I)) {
 		/* if battery can't report average value, use momentary */
@@ -116,12 +106,44 @@ static int calculate_time(int status)
 			return -1;
 	}
 
+	if (using_charge) {
+		full_prop = POWER_SUPPLY_PROP_CHARGE_FULL;
+		full_design_prop = POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN;
+		empty_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
+		empty_design_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
+		cur_avg_prop = POWER_SUPPLY_PROP_CHARGE_AVG;
+		cur_now_prop = POWER_SUPPLY_PROP_CHARGE_NOW;
+	} else {
+		full_prop = POWER_SUPPLY_PROP_ENERGY_FULL;
+		full_design_prop = POWER_SUPPLY_PROP_ENERGY_FULL_DESIGN;
+		empty_prop = POWER_SUPPLY_PROP_ENERGY_EMPTY;
+		empty_design_prop = POWER_SUPPLY_PROP_CHARGE_EMPTY;
+		cur_avg_prop = POWER_SUPPLY_PROP_ENERGY_AVG;
+		cur_now_prop = POWER_SUPPLY_PROP_ENERGY_NOW;
+	}
+
+	if (_MPSY_PROP(full_prop, &full)) {
+		/* if battery can't report this property, use design value */
+		if (_MPSY_PROP(full_design_prop, &full))
+			return -1;
+	}
+
+	if (_MPSY_PROP(empty_prop, &empty)) {
+		/* if battery can't report this property, use design value */
+		if (_MPSY_PROP(empty_design_prop, &empty))
+			empty.intval = 0;
+	}
+
+	if (_MPSY_PROP(cur_avg_prop, &cur)) {
+		/* if battery can't report average value, use momentary */
+		if (_MPSY_PROP(cur_now_prop, &cur))
+			return -1;
+	}
+
 	if (status == POWER_SUPPLY_STATUS_CHARGING)
-		return ((charge.intval - charge_full.intval) * 60L) /
-		       I.intval;
+		return ((cur.intval - full.intval) * 60L) / I.intval;
 	else
-		return -((charge.intval - charge_empty.intval) * 60L) /
-			I.intval;
+		return -((cur.intval - empty.intval) * 60L) / I.intval;
 }
 
 static int calculate_capacity(int using_charge)
@@ -238,16 +260,22 @@ static void apm_battery_apm_get_power_status(struct apm_power_info *info)
 
 	if (status.intval == POWER_SUPPLY_STATUS_CHARGING) {
 		if (!MPSY_PROP(TIME_TO_FULL_AVG, &time_to_full) ||
-				!MPSY_PROP(TIME_TO_FULL_NOW, &time_to_full))
+				!MPSY_PROP(TIME_TO_FULL_NOW, &time_to_full)) {
 			info->time = time_to_full.intval / 60;
-		else
-			info->time = calculate_time(status.intval);
+		} else {
+			info->time = calculate_time(status.intval, 0);
+			if (info->time == -1)
+				info->time = calculate_time(status.intval, 1);
+		}
 	} else {
 		if (!MPSY_PROP(TIME_TO_EMPTY_AVG, &time_to_empty) ||
-				!MPSY_PROP(TIME_TO_EMPTY_NOW, &time_to_empty))
+			      !MPSY_PROP(TIME_TO_EMPTY_NOW, &time_to_empty)) {
 			info->time = time_to_empty.intval / 60;
-		else
-			info->time = calculate_time(status.intval);
+		} else {
+			info->time = calculate_time(status.intval, 0);
+			if (info->time == -1)
+				info->time = calculate_time(status.intval, 1);
+		}
 	}
 
 	up(&power_supply_class->sem);
