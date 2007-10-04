@@ -66,9 +66,7 @@ static const struct e1000_info *e1000_info_tbl[] = {
  **/
 char *e1000e_get_hw_dev_name(struct e1000_hw *hw)
 {
-	struct e1000_adapter *adapter = hw->back;
-	struct net_device *netdev = adapter->netdev;
-	return netdev->name;
+	return hw->adapter->netdev->name;
 }
 #endif
 
