@@ -27,8 +27,8 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include <media/video-buf.h>
-#include <media/video-buf-dvb.h>
+#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-dvb.h>
 
 #include "btcx-risc.h"
 #include "cx23885-reg.h"

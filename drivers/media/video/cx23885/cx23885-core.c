@@ -1008,10 +1008,12 @@ int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
 
 void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf)
 {
+	struct videobuf_dmabuf *dma = videobuf_to_dma(&buf->vb);
+
 	BUG_ON(in_interrupt());
 	videobuf_waiton(&buf->vb, 0, 0);
-	videobuf_dma_unmap(q, &buf->vb.dma);
-	videobuf_dma_free(&buf->vb.dma);
+	videobuf_dma_unmap(q, dma);
+	videobuf_dma_free(dma);
 	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
 	buf->vb.state = STATE_NEEDS_INIT;
 }
@@ -1176,8 +1178,8 @@ int cx23885_buf_prepare(struct videobuf_queue *q, struct cx23885_tsport *port,
 		if (0 != (rc = videobuf_iolock(q, &buf->vb, NULL)))
 			goto fail;
 		cx23885_risc_databuffer(dev->pci, &buf->risc,
-				     buf->vb.dma.sglist,
-				     buf->vb.width, buf->vb.height);
+					videobuf_to_dma(&buf->vb)->sglist,
+					buf->vb.width, buf->vb.height);
 	}
 	buf->vb.state = STATE_PREPARED;
 	return 0;
