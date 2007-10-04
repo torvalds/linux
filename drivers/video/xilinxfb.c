@@ -349,15 +349,9 @@ xilinxfb_platform_probe(struct platform_device *pdev)
 {
 	struct xilinxfb_platform_data *pdata;
 	struct resource *res;
-	int width_mm;
-	int height_mm;
-	int rotate;
-
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(&pdev->dev, "Missing pdata structure\n");
-		return -ENODEV;
-	}
+	int width_mm = 0;
+	int height_mm = 0;
+	int rotate = 0;
 
 	/* Find the registers address */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -366,9 +360,13 @@ xilinxfb_platform_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	height_mm = pdata->screen_height_mm;
-	width_mm = pdata->screen_width_mm;
-	rotate = pdata->rotate_screen ? 1 : 0;
+	/* If a pdata structure is provided, then extract the parameters */
+	pdata = pdev->dev.platform_data;
+	if (pdata) {
+		height_mm = pdata->screen_height_mm;
+		width_mm = pdata->screen_width_mm;
+		rotate = pdata->rotate_screen ? 1 : 0;
+	}
 
 	return xilinxfb_assign(&pdev->dev, res->start, width_mm, height_mm,
 			       rotate);
