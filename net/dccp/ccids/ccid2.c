@@ -59,7 +59,8 @@ static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
 				pipe++;
 
 			/* packets are sent sequentially */
-			BUG_ON(seqp->ccid2s_seq <= prev->ccid2s_seq);
+			BUG_ON(dccp_delta_seqno(seqp->ccid2s_seq,
+						prev->ccid2s_seq ) >= 0);
 			BUG_ON(time_before(seqp->ccid2s_sent,
 					   prev->ccid2s_sent));
 
@@ -562,8 +563,8 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hctx->ccid2hctx_rpseq = seqno;
 	} else {
 		/* check if packet is consecutive */
-		if ((hctx->ccid2hctx_rpseq + 1) == seqno)
-			hctx->ccid2hctx_rpseq++;
+		if (dccp_delta_seqno(hctx->ccid2hctx_rpseq, seqno) == 1)
+			hctx->ccid2hctx_rpseq = seqno;
 		/* it's a later packet */
 		else if (after48(seqno, hctx->ccid2hctx_rpseq)) {
 			hctx->ccid2hctx_rpdupack++;
