@@ -1209,12 +1209,13 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 		tmp = ocfs2_request_umount_vote(osb);
 		if (tmp < 0)
 			mlog_errno(tmp);
-
-		if (osb->slot_num != OCFS2_INVALID_SLOT)
-			ocfs2_put_slot(osb);
-
-		ocfs2_super_unlock(osb, 1);
 	}
+
+	if (osb->slot_num != OCFS2_INVALID_SLOT)
+		ocfs2_put_slot(osb);
+
+	if (osb->dlm)
+		ocfs2_super_unlock(osb, 1);
 
 	ocfs2_release_system_inodes(osb);
 
