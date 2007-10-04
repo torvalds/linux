@@ -29,22 +29,20 @@
  * 4  N/C
  */
 
-#define chkslot(_bus,_devfn)					\
-do {							        \
-	if ((_bus)->number > 0 || PCI_SLOT (_devfn) < 1	\
-	    || PCI_SLOT (_devfn) > 3)			        \
-		return PCIBIOS_DEVICE_NOT_FOUND;		\
-} while (0)
+static inline int mkaddr(struct pci_bus *bus, unsigned int devfn,
+	unsigned int reg)
+{
+	return ((bus->number & 0xff) << 16) |
+		(devfn & 0xff) << 8) |
+		(reg & 0xfc);
+}
 
-#define mkaddr(_devfn, _reg) \
-((((_devfn) & 0xffUL) << 8) | ((_reg) & 0xfcUL))
 
 static int
 mace_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 		     int reg, int size, u32 *val)
 {
-	chkslot(bus, devfn);
-	mace->pci.config_addr = mkaddr(devfn, reg);
+	mace->pci.config_addr = mkaddr(bus, devfn, reg);
 	switch (size) {
 	case 1:
 		*val = mace->pci.config_data.b[(reg & 3) ^ 3];
@@ -66,8 +64,7 @@ static int
 mace_pci_write_config(struct pci_bus *bus, unsigned int devfn,
 		      int reg, int size, u32 val)
 {
-	chkslot(bus, devfn);
-	mace->pci.config_addr = mkaddr(devfn, reg);
+	mace->pci.config_addr = mkaddr(bus, devfn, reg);
 	switch (size) {
 	case 1:
 		mace->pci.config_data.b[(reg & 3) ^ 3] = val;
