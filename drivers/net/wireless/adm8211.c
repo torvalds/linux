@@ -1787,6 +1787,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	int err;
 	u32 reg;
 	u8 perm_addr[ETH_ALEN];
+	DECLARE_MAC_BUF(mac);
 
 #ifndef MODULE
 	static unsigned int cardidx;
@@ -1938,8 +1939,8 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 		goto err_free_desc;
 	}
 
-	printk(KERN_INFO "%s: hwaddr " MAC_FMT ", Rev 0x%02x\n",
-	       wiphy_name(dev->wiphy), MAC_ARG(dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %s, Rev 0x%02x\n",
+	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
 	       priv->revid);
 
 	return 0;

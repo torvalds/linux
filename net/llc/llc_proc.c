@@ -25,10 +25,10 @@
 #include <net/llc_c_st.h>
 #include <net/llc_conn.h>
 
-static void llc_ui_format_mac(struct seq_file *seq, unsigned char *mac)
+static void llc_ui_format_mac(struct seq_file *seq, u8 *addr)
 {
-	seq_printf(seq, "%02X:%02X:%02X:%02X:%02X:%02X",
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	DECLARE_MAC_BUF(mac);
+	seq_printf(seq, "%s", print_mac(mac, addr));
 }
 
 static struct sock *llc_get_sk_idx(loff_t pos)
@@ -128,8 +128,10 @@ static int llc_seq_socket_show(struct seq_file *seq, void *v)
 
 	if (llc->dev)
 		llc_ui_format_mac(seq, llc->dev->dev_addr);
-	else
-		seq_printf(seq, "00:00:00:00:00:00");
+	else {
+		u8 addr[6] = {0,0,0,0,0,0};
+		llc_ui_format_mac(seq, addr);
+	}
 	seq_printf(seq, "@%02X ", llc->sap->laddr.lsap);
 	llc_ui_format_mac(seq, llc->daddr.mac);
 	seq_printf(seq, "@%02X %8d %8d %2d %3d %4d\n", llc->daddr.lsap,

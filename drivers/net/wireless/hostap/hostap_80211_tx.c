@@ -17,6 +17,7 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
+	DECLARE_MAC_BUF(mac);
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 
@@ -40,10 +41,11 @@ void hostap_dump_tx_80211(const char *name, struct sk_buff *skb)
 	printk(" dur=0x%04x seq=0x%04x\n", le16_to_cpu(hdr->duration_id),
 	       le16_to_cpu(hdr->seq_ctl));
 
-	printk(KERN_DEBUG "   A1=" MACSTR " A2=" MACSTR " A3=" MACSTR,
-	       MAC2STR(hdr->addr1), MAC2STR(hdr->addr2), MAC2STR(hdr->addr3));
+	printk(KERN_DEBUG "   A1=%s", print_mac(mac, hdr->addr1));
+	printk(" A2=%s", print_mac(mac, hdr->addr2));
+	printk(" A3=%s", print_mac(mac, hdr->addr3));
 	if (skb->len >= 30)
-		printk(" A4=" MACSTR, MAC2STR(hdr->addr4));
+		printk(" A4=%s", print_mac(mac, hdr->addr4));
 	printk("\n");
 }
 
@@ -312,6 +314,7 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr;
 	u16 fc;
 	int prefix_len, postfix_len, hdr_len, res;
+	DECLARE_MAC_BUF(mac);
 
 	iface = netdev_priv(skb->dev);
 	local = iface->local;
@@ -326,8 +329,8 @@ static struct sk_buff * hostap_tx_encrypt(struct sk_buff *skb,
 		hdr = (struct ieee80211_hdr_4addr *) skb->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MACSTR "\n",
-			       local->dev->name, MAC2STR(hdr->addr1));
+			       "TX packet to %s\n",
+			       local->dev->name, print_mac(mac, hdr->addr1));
 		}
 		kfree_skb(skb);
 		return NULL;

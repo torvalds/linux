@@ -1139,6 +1139,7 @@ dgrs_probe1(struct net_device *dev)
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
 	unsigned long	i;
 	int		rc;
+	DECLARE_MAC_BUF(mac);
 
 	printk("%s: Digi RightSwitch io=%lx mem=%lx irq=%d plx=%lx dma=%lx\n",
 		dev->name, dev->base_addr, dev->mem_start, dev->irq,
@@ -1154,11 +1155,9 @@ dgrs_probe1(struct net_device *dev)
 	/*
 	 * Get ether address of board
 	 */
-	printk("%s: Ethernet address", dev->name);
 	memcpy(dev->dev_addr, priv->port->ethaddr, 6);
-	for (i = 0; i < 6; ++i)
-		printk("%c%2.2x", i ? ':' : ' ', dev->dev_addr[i]);
-	printk("\n");
+	printk("%s: Ethernet address %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	if (dev->dev_addr[0] & 1)
 	{
@@ -1214,15 +1213,12 @@ static int __init
 dgrs_initclone(struct net_device *dev)
 {
 	DGRS_PRIV	*priv = (DGRS_PRIV *) dev->priv;
-	int		i;
+	DECLARE_MAC_BUF(mac);
 
-	printk("%s: Digi RightSwitch port %d ",
-		dev->name, priv->chan);
-	for (i = 0; i < 6; ++i)
-		printk("%c%2.2x", i ? ':' : ' ', dev->dev_addr[i]);
-	printk("\n");
+	printk("%s: Digi RightSwitch port %d %s\n",
+		dev->name, priv->chan, print_mac(mac, dev->dev_addr));
 
-	return (0);
+	return 0;
 }
 
 static struct net_device * __init

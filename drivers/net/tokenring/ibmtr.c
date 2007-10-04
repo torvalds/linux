@@ -389,6 +389,7 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
         unsigned long timeout;
 	static int version_printed;
 #endif
+	DECLARE_MAC_BUF(mac);
 
 	/*    Query the adapter PIO base port which will return
 	 *    indication of where MMIO was placed. We also have a
@@ -702,9 +703,8 @@ static int __devinit ibmtr_probe1(struct net_device *dev, int PIOaddr)
 		channel_def[cardpresent - 1], adapter_def(ti->adapter_type));
 	DPRINTK("using irq %d, PIOaddr %hx, %dK shared RAM.\n",
 			irq, PIOaddr, ti->mapped_ram_size / 2);
-	DPRINTK("Hardware address : %02X:%02X:%02X:%02X:%02X:%02X\n",
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	DPRINTK("Hardware address : %s\n",
+		print_mac(mac, dev->dev_addr));
 	if (ti->page_mask)
 		DPRINTK("Shared RAM paging enabled. "
 			"Page size: %uK Shared Ram size %dK\n",
@@ -1739,18 +1739,20 @@ static void tr_rx(struct net_device *dev)
 	if (!IPv4_p) {
 
 		void __iomem *trhhdr = rbuf + offsetof(struct rec_buf, data);
-
+		u8 saddr[6];
+		u8 daddr[6];
+		DECLARE_MAC_BUF(mac);
+		DECLARE_MAC_BUF(mac2);
+		int i;
+		for (i = 0 ; i < 6 ; i++)
+			saddr[i] = readb(trhhdr + SADDR_OFST + i);
+		for (i = 0 ; i < 6 ; i++)
+			daddr[i] = readb(trhhdr + DADDR_OFST + i);
 		DPRINTK("Probably non-IP frame received.\n");
 		DPRINTK("ssap: %02X dsap: %02X "
-			"saddr: %02X:%02X:%02X:%02X:%02X:%02X "
-			"daddr: %02X:%02X:%02X:%02X:%02X:%02X\n",
+			"saddr: %s daddr: %$s\n",
 			readb(llc + SSAP_OFST), readb(llc + DSAP_OFST),
-			readb(trhhdr+SADDR_OFST), readb(trhhdr+ SADDR_OFST+1),
-			readb(trhhdr+SADDR_OFST+2), readb(trhhdr+SADDR_OFST+3),
-			readb(trhhdr+SADDR_OFST+4), readb(trhhdr+SADDR_OFST+5),
-			readb(trhhdr+DADDR_OFST), readb(trhhdr+DADDR_OFST + 1),
-			readb(trhhdr+DADDR_OFST+2), readb(trhhdr+DADDR_OFST+3),
-			readb(trhhdr+DADDR_OFST+4), readb(trhhdr+DADDR_OFST+5));
+			print_mac(mac, saddr), print_mac(mac2, daddr));
 	}
 #endif
 

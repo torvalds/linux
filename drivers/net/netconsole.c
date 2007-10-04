@@ -306,18 +306,16 @@ static ssize_t show_remote_ip(struct netconsole_target *nt, char *buf)
 
 static ssize_t show_local_mac(struct netconsole_target *nt, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			nt->np.local_mac[0], nt->np.local_mac[1],
-			nt->np.local_mac[2], nt->np.local_mac[3],
-			nt->np.local_mac[4], nt->np.local_mac[5]);
+	DECLARE_MAC_BUF(mac);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			print_mac(mac, nt->np.local_mac));
 }
 
 static ssize_t show_remote_mac(struct netconsole_target *nt, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			nt->np.remote_mac[0], nt->np.remote_mac[1],
-			nt->np.remote_mac[2], nt->np.remote_mac[3],
-			nt->np.remote_mac[4], nt->np.remote_mac[5]);
+	DECLARE_MAC_BUF(mac);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			print_mac(mac, nt->np.remote_mac));
 }
 
 /*

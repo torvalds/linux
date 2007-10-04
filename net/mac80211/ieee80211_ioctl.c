@@ -98,9 +98,10 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		sta = sta_info_get(local, sta_addr);
 		if (!sta) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+			DECLARE_MAC_BUF(mac);
 			printk(KERN_DEBUG "%s: set_encrypt - unknown addr "
-			       MAC_FMT "\n",
-			       dev->name, MAC_ARG(sta_addr));
+			       "%s\n",
+			       dev->name, print_mac(mac, sta_addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 			return -ENOENT;

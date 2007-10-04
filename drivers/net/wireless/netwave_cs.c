@@ -737,6 +737,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     win_req_t req;
     memreq_t mem;
     u_char __iomem *ramBase = NULL;
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "netwave_pcmcia_config(0x%p)\n", link);
 
@@ -805,12 +806,13 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     for (i = 0; i < 6; i++) 
 	dev->dev_addr[i] = readb(ramBase + NETWAVE_EREG_PA + i);
 
-    printk(KERN_INFO "%s: Netwave: port %#3lx, irq %d, mem %lx id "
-	   "%c%c, hw_addr ", dev->name, dev->base_addr, dev->irq,
-	   (u_long) ramBase, (int) readb(ramBase+NETWAVE_EREG_NI),
-	   (int) readb(ramBase+NETWAVE_EREG_NI+1));
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    printk(KERN_INFO "%s: Netwave: port %#3lx, irq %d, mem %lx"
+	   "id %c%c, hw_addr %s\n",
+	   dev->name, dev->base_addr, dev->irq,
+	   (u_long) ramBase,
+	   (int) readb(ramBase+NETWAVE_EREG_NI),
+	   (int) readb(ramBase+NETWAVE_EREG_NI+1),
+	   print_mac(mac, dev->dev_addr));
 
     /* get revision words */
     printk(KERN_DEBUG "Netwave_reset: revision %04x %04x\n", 

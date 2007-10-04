@@ -447,6 +447,9 @@ static int streamer_reset(struct net_device *dev)
 	unsigned int uaa_addr;
 	struct sk_buff *skb = NULL;
 	__u16 misr;
+#if STREAMER_DEBUG
+	DECLARE_MAC_BUF(mac);
+#endif
 
 	streamer_priv = netdev_priv(dev);
 	streamer_mmio = streamer_priv->streamer_mmio;
@@ -575,11 +578,8 @@ static int streamer_reset(struct net_device *dev)
 			dev->dev_addr[i+1]= addr & 0xff;
 		}
 #if STREAMER_DEBUG
-		printk("Adapter address: ");
-		for (i = 0; i < 6; i++) {
-			printk("%02x:", dev->dev_addr[i]);
-		}
-		printk("\n");
+		printk("Adapter address: %s\n",
+		       print_mac(mac, dev->dev_addr));
 #endif
 	}
 	return 0;
@@ -1539,6 +1539,7 @@ static void streamer_arb_cmd(struct net_device *dev)
 
 #if STREAMER_NETWORK_MONITOR
 	struct trh_hdr *mac_hdr;
+	DECLARE_MAC_BUF(mac);
 #endif
 
 	writew(streamer_priv->arb, streamer_mmio + LAPA);
@@ -1611,15 +1612,11 @@ static void streamer_arb_cmd(struct net_device *dev)
 		       dev->name);
 		mac_hdr = tr_hdr(mac_frame);
 		printk(KERN_WARNING
-		       "%s: MAC Frame Dest. Addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
-		       dev->name, mac_hdr->daddr[0], mac_hdr->daddr[1],
-		       mac_hdr->daddr[2], mac_hdr->daddr[3],
-		       mac_hdr->daddr[4], mac_hdr->daddr[5]);
+		       "%s: MAC Frame Dest. Addr: %s\n",
+		       dev->name, print_mac(mac, mac_hdr->daddr));
 		printk(KERN_WARNING
-		       "%s: MAC Frame Srce. Addr: %02x:%02x:%02x:%02x:%02x:%02x \n",
-		       dev->name, mac_hdr->saddr[0], mac_hdr->saddr[1],
-		       mac_hdr->saddr[2], mac_hdr->saddr[3],
-		       mac_hdr->saddr[4], mac_hdr->saddr[5]);
+		       "%s: MAC Frame Srce. Addr: %s\n",
+		       dev->name, DEV->ADDR6(mac_hdr->saddr));
 #endif
 		netif_rx(mac_frame);
 
@@ -1854,6 +1851,8 @@ static int sprintf_info(char *buffer, struct net_device *dev)
 	struct streamer_parameters_table spt;
 	int size = 0;
 	int i;
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
 
 	writew(streamer_priv->streamer_addr_table_addr, streamer_mmio + LAPA);
 	for (i = 0; i < 14; i += 2) {
@@ -1875,37 +1874,30 @@ static int sprintf_info(char *buffer, struct net_device *dev)
 	size = sprintf(buffer, "\n%6s: Adapter Address   : Node Address      : Functional Addr\n", dev->name);
 
 	size += sprintf(buffer + size,
-		    "%6s: %02x:%02x:%02x:%02x:%02x:%02x : %02x:%02x:%02x:%02x:%02x:%02x : %02x:%02x:%02x:%02x\n",
-		    dev->name, dev->dev_addr[0], dev->dev_addr[1],
-		    dev->dev_addr[2], dev->dev_addr[3], dev->dev_addr[4],
-		    dev->dev_addr[5], sat.node_addr[0], sat.node_addr[1],
-		    sat.node_addr[2], sat.node_addr[3], sat.node_addr[4],
-		    sat.node_addr[5], sat.func_addr[0], sat.func_addr[1],
-		    sat.func_addr[2], sat.func_addr[3]);
+			"%6s: %s : %s : %02x:%02x:%02x:%02x\n",
+			dev->name, print_mac(mac, dev->dev_addr),
+			print_mac(mac2, sat.node_addr),
+			sat.func_addr[0], sat.func_addr[1],
+			sat.func_addr[2], sat.func_addr[3]);
 
 	size += sprintf(buffer + size, "\n%6s: Token Ring Parameters Table:\n", dev->name);
 
 	size += sprintf(buffer + size, "%6s: Physical Addr : Up Node Address   : Poll Address      : AccPri : Auth Src : Att Code :\n", dev->name);
 
 	size += sprintf(buffer + size,
-		    "%6s: %02x:%02x:%02x:%02x   : %02x:%02x:%02x:%02x:%02x:%02x : %02x:%02x:%02x:%02x:%02x:%02x : %04x   : %04x     :  %04x    :\n",
+		    "%6s: %02x:%02x:%02x:%02x   : %s : %s : %04x   : %04x     :  %04x    :\n",
 		    dev->name, spt.phys_addr[0], spt.phys_addr[1],
 		    spt.phys_addr[2], spt.phys_addr[3],
-		    spt.up_node_addr[0], spt.up_node_addr[1],
-		    spt.up_node_addr[2], spt.up_node_addr[3],
-		    spt.up_node_addr[4], spt.up_node_addr[4],
-		    spt.poll_addr[0], spt.poll_addr[1], spt.poll_addr[2],
-		    spt.poll_addr[3], spt.poll_addr[4], spt.poll_addr[5],
+		    print_mac(mac, spt.up_node_addr),
+		    print_mac(mac2, spt.poll_addr),
 		    ntohs(spt.acc_priority), ntohs(spt.auth_source_class),
 		    ntohs(spt.att_code));
 
 	size += sprintf(buffer + size, "%6s: Source Address    : Bcn T : Maj. V : Lan St : Lcl Rg : Mon Err : Frame Correl : \n", dev->name);
 
 	size += sprintf(buffer + size,
-		    "%6s: %02x:%02x:%02x:%02x:%02x:%02x : %04x  : %04x   : %04x   : %04x   : %04x    :     %04x     : \n",
-		    dev->name, spt.source_addr[0], spt.source_addr[1],
-		    spt.source_addr[2], spt.source_addr[3],
-		    spt.source_addr[4], spt.source_addr[5],
+		    "%6s: %s : %04x  : %04x   : %04x   : %04x   : %04x    :     %04x     : \n",
+		    dev->name, print_mac(mac, spt.source_addr),
 		    ntohs(spt.beacon_type), ntohs(spt.major_vector),
 		    ntohs(spt.lan_status), ntohs(spt.local_ring),
 		    ntohs(spt.mon_error), ntohs(spt.frame_correl));
@@ -1914,14 +1906,12 @@ static int sprintf_info(char *buffer, struct net_device *dev)
 		    dev->name);
 
 	size += sprintf(buffer + size,
-		    "%6s:                :  %02x  :  %02x  : %02x:%02x:%02x:%02x:%02x:%02x : %02x:%02x:%02x:%02x    : \n",
+		    "%6s:                :  %02x  :  %02x  : %s : %02x:%02x:%02x:%02x    : \n",
 		    dev->name, ntohs(spt.beacon_transmit),
-		    ntohs(spt.beacon_receive), spt.beacon_naun[0],
-		    spt.beacon_naun[1], spt.beacon_naun[2],
-		    spt.beacon_naun[3], spt.beacon_naun[4],
-		    spt.beacon_naun[5], spt.beacon_phys[0],
-		    spt.beacon_phys[1], spt.beacon_phys[2],
-		    spt.beacon_phys[3]);
+		    ntohs(spt.beacon_receive),
+		    print_mac(mac, spt.beacon_naun),
+		    spt.beacon_phys[0], spt.beacon_phys[1],
+		    spt.beacon_phys[2], spt.beacon_phys[3]);
 	return size;
 }
 #endif

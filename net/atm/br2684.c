@@ -709,17 +709,13 @@ static int br2684_seq_show(struct seq_file *seq, void *v)
 			br2684_devs);
 	const struct net_device *net_dev = brdev->net_dev;
 	const struct br2684_vcc *brvcc;
+	DECLARE_MAC_BUF(mac);
 
-	seq_printf(seq, "dev %.16s: num=%d, mac=%02X:%02X:"
-		       "%02X:%02X:%02X:%02X (%s)\n", net_dev->name,
-		       brdev->number,
-		       net_dev->dev_addr[0],
-		       net_dev->dev_addr[1],
-		       net_dev->dev_addr[2],
-		       net_dev->dev_addr[3],
-		       net_dev->dev_addr[4],
-		       net_dev->dev_addr[5],
-		       brdev->mac_was_set ? "set" : "auto");
+	seq_printf(seq, "dev %.16s: num=%d, mac=%s (%s)\n",
+		   net_dev->name,
+		   brdev->number,
+		   print_mac(mac, net_dev->dev_addr),
+		   brdev->mac_was_set ? "set" : "auto");
 
 	list_for_each_entry(brvcc, &brdev->brvccs, brvccs) {
 		seq_printf(seq, "  vcc %d.%d.%d: encaps=%s"

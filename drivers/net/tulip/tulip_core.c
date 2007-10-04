@@ -1051,12 +1051,11 @@ static void set_rx_mode(struct net_device *dev)
 				filterbit &= 0x3f;
 				mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
 				if (tulip_debug > 2) {
-					printk(KERN_INFO "%s: Added filter for %2.2x:%2.2x:%2.2x:"
-						   "%2.2x:%2.2x:%2.2x  %8.8x bit %d.\n", dev->name,
-						   mclist->dmi_addr[0], mclist->dmi_addr[1],
-						   mclist->dmi_addr[2], mclist->dmi_addr[3],
-						   mclist->dmi_addr[4], mclist->dmi_addr[5],
-						   ether_crc(ETH_ALEN, mclist->dmi_addr), filterbit);
+					DECLARE_MAC_BUF(mac);
+					printk(KERN_INFO "%s: Added filter for %s"
+					       "  %8.8x bit %d.\n",
+					       dev->name, print_mac(mac, mclist->dmi_addr),
+					       ether_crc(ETH_ALEN, mclist->dmi_addr), filterbit);
 				}
 			}
 			if (mc_filter[0] == tp->mc_filter[0]  &&
@@ -1256,6 +1255,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 	const char *chip_name = tulip_tbl[chip_idx].chip_name;
 	unsigned int eeprom_missing = 0;
 	unsigned int force_csr0 = 0;
+	DECLARE_MAC_BUF(mac);
 
 #ifndef MODULE
 	static int did_version;		/* Already printed version info. */
@@ -1639,8 +1639,7 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 
 	if (eeprom_missing)
 		printk(" EEPROM not present,");
-	for (i = 0; i < 6; i++)
-		printk("%c%2.2X", i ? ':' : ' ', dev->dev_addr[i]);
+	printk(" %s", print_mac(mac, dev->dev_addr));
 	printk(", IRQ %d.\n", irq);
 
         if (tp->chip_id == PNIC2)

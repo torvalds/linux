@@ -311,12 +311,12 @@ static void myri_is_not_so_happy(struct myri_eth *mp)
 #ifdef DEBUG_HEADER
 static void dump_ehdr(struct ethhdr *ehdr)
 {
-	printk("ehdr[h_dst(%02x:%02x:%02x:%02x:%02x:%02x)"
-	       "h_source(%02x:%02x:%02x:%02x:%02x:%02x)h_proto(%04x)]\n",
-	       ehdr->h_dest[0], ehdr->h_dest[1], ehdr->h_dest[2],
-	       ehdr->h_dest[3], ehdr->h_dest[4], ehdr->h_dest[4],
-	       ehdr->h_source[0], ehdr->h_source[1], ehdr->h_source[2],
-	       ehdr->h_source[3], ehdr->h_source[4], ehdr->h_source[4],
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
+	printk("ehdr[h_dst(%s)"
+	       "h_source(%s)"
+	       "h_proto(%04x)]\n",
+	       print_mac(mac, ehdr->h_dest), print_mac(mac2, ehdr->h_source),
 	       ehdr->h_proto);
 }
 
@@ -325,13 +325,7 @@ static void dump_ehdr_and_myripad(unsigned char *stuff)
 	struct ethhdr *ehdr = (struct ethhdr *) (stuff + 2);
 
 	printk("pad[%02x:%02x]", stuff[0], stuff[1]);
-	printk("ehdr[h_dst(%02x:%02x:%02x:%02x:%02x:%02x)"
-	       "h_source(%02x:%02x:%02x:%02x:%02x:%02x)h_proto(%04x)]\n",
-	       ehdr->h_dest[0], ehdr->h_dest[1], ehdr->h_dest[2],
-	       ehdr->h_dest[3], ehdr->h_dest[4], ehdr->h_dest[4],
-	       ehdr->h_source[0], ehdr->h_source[1], ehdr->h_source[2],
-	       ehdr->h_source[3], ehdr->h_source[4], ehdr->h_source[4],
-	       ehdr->h_proto);
+	dump_ehdr(ehdr);
 }
 #endif
 
@@ -895,6 +889,7 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 	struct myri_eth *mp;
 	unsigned char prop_buf[32];
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	DET(("myri_ether_init(%p,%d):\n", sdev, num));
 	dev = alloc_etherdev(sizeof(struct myri_eth));
@@ -1089,12 +1084,8 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 
 	num++;
 
-	printk("%s: MyriCOM MyriNET Ethernet ", dev->name);
-
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? ' ' : ':');
-	printk("\n");
+	printk("%s: MyriCOM MyriNET Ethernet %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	return 0;
 

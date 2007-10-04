@@ -638,6 +638,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 #else
 	int bar = 0;
 #endif
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -794,18 +795,14 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_unmap;
 
-	printk(KERN_INFO "%s: VIA %s at 0x%lx, ",
+	printk(KERN_INFO "%s: VIA %s at 0x%lx, %s, IRQ %d.\n",
 	       dev->name, name,
 #ifdef USE_MMIO
-		memaddr
+	       memaddr,
 #else
-		(long)ioaddr
+	       (long)ioaddr,
 #endif
-		 );
-
-	for (i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], pdev->irq);
+	       print_mac(mac, dev->dev_addr), pdev->irq);
 
 	pci_set_drvdata(pdev, dev);
 

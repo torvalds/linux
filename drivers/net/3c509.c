@@ -313,8 +313,9 @@ static int nopnp;
 static int __init el3_common_init(struct net_device *dev)
 {
 	struct el3_private *lp = netdev_priv(dev);
-	short i;
 	int err;
+	DECLARE_MAC_BUF(mac);
+	const char *if_names[] = {"10baseT", "AUI", "undefined", "BNC"};
 
 	spin_lock_init(&lp->lock);
 
@@ -346,17 +347,10 @@ static int __init el3_common_init(struct net_device *dev)
 		return err;
 	}
 
-	{
-		const char *if_names[] = {"10baseT", "AUI", "undefined", "BNC"};
-		printk("%s: 3c5x9 found at %#3.3lx, %s port, address ",
-			dev->name, dev->base_addr,
-			if_names[(dev->if_port & 0x03)]);
-	}
-
-	/* Read in the station address. */
-	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i]);
-	printk(", IRQ %d.\n", dev->irq);
+	printk(KERN_INFO "%s: 3c5x9 found at %#3.3lx, %s port, "
+	       "address %s, IRQ %d.\n",
+	       dev->name, dev->base_addr, if_names[(dev->if_port & 0x03)],
+	       print_mac(mac, dev->dev_addr), dev->irq);
 
 	if (el3_debug > 0)
 		printk(KERN_INFO "%s", version);

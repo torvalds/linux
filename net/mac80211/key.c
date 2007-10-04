@@ -63,6 +63,7 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
 	const u8 *addr;
 	int ret;
+	DECLARE_MAC_BUF(mac);
 
 	if (!key->local->ops->set_key)
 		return;
@@ -78,15 +79,16 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	if (ret && ret != -ENOSPC && ret != -EOPNOTSUPP)
 		printk(KERN_ERR "mac80211-%s: failed to set key "
-		       "(%d, " MAC_FMT ") to hardware (%d)\n",
+		       "(%d, %s) to hardware (%d)\n",
 		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, MAC_ARG(addr), ret);
+		       key->conf.keyidx, print_mac(mac, addr), ret);
 }
 
 static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 {
 	const u8 *addr;
 	int ret;
+	DECLARE_MAC_BUF(mac);
 
 	if (!key->local->ops->set_key)
 		return;
@@ -102,9 +104,9 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 	if (ret)
 		printk(KERN_ERR "mac80211-%s: failed to remove key "
-		       "(%d, " MAC_FMT ") from hardware (%d)\n",
+		       "(%d, %s) from hardware (%d)\n",
 		       wiphy_name(key->local->hw.wiphy),
-		       key->conf.keyidx, MAC_ARG(addr), ret);
+		       key->conf.keyidx, print_mac(mac, addr), ret);
 
 	key->flags &= ~KEY_FLAG_UPLOADED_TO_HARDWARE;
 }

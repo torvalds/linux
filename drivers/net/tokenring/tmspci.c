@@ -96,10 +96,11 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	static int versionprinted;
 	struct net_device *dev;
 	struct net_local *tp;
-	int i, ret;
+	int ret;
 	unsigned int pci_irq_line;
 	unsigned long pci_ioaddr;
 	struct card_info *cardinfo = &card_info_table[ent->driver_data];
+	DECLARE_MAC_BUF(mac);
 
 	if (versionprinted++ == 0)
 		printk("%s", version);
@@ -136,11 +137,8 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		
 	tms_pci_read_eeprom(dev);
 
-	printk("%s:    Ring Station Address: ", dev->name);
-	printk("%2.2x", dev->dev_addr[0]);
-	for (i = 1; i < 6; i++)
-		printk(":%2.2x", dev->dev_addr[i]);
-	printk("\n");
+	printk("%s:    Ring Station Address: %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 		
 	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {

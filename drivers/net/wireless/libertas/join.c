@@ -293,6 +293,7 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
 	int ret = -1;
 	u8 *bssid = pdata_buf;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -319,8 +320,8 @@ int libertas_cmd_80211_authenticate(wlan_private * priv,
 
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
-	lbs_deb_join("AUTH_CMD: BSSID is : " MAC_FMT " auth=0x%X\n",
-	             MAC_ARG(bssid), pauthenticate->authtype);
+	lbs_deb_join("AUTH_CMD: BSSID is : %s auth=0x%X\n",
+	             print_mac(mac, bssid), pauthenticate->authtype);
 	ret = 0;
 
 out:
@@ -598,6 +599,7 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 	int cmdappendsize = 0;
 	int ret = 0;
 	u16 ratesize = 0;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -621,8 +623,9 @@ int libertas_cmd_80211_ad_hoc_join(wlan_private * priv,
 
 	/* information on BSSID descriptor passed to FW */
 	lbs_deb_join(
-	       "ADHOC_J_CMD: BSSID = " MAC_FMT ", SSID = '%s'\n",
-	       MAC_ARG(join_cmd->bss.bssid), join_cmd->bss.ssid);
+	       "ADHOC_J_CMD: BSSID = %s, SSID = '%s'\n",
+	       print_mac(mac, join_cmd->bss.bssid),
+	       join_cmd->bss.ssid);
 
 	/* failtimeout */
 	join_cmd->failtimeout = cpu_to_le16(MRVDRV_ASSOCIATION_TIME_OUT);
@@ -829,6 +832,7 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 	struct cmd_ds_802_11_ad_hoc_result *padhocresult;
 	union iwreq_data wrqu;
 	struct bss_descriptor *bss;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
@@ -894,8 +898,8 @@ int libertas_ret_80211_ad_hoc_start(wlan_private * priv,
 
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
 	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->curbssparams.channel);
-	lbs_deb_join("ADHOC_RESP: BSSID = " MAC_FMT "\n",
-	       MAC_ARG(padhocresult->bssid));
+	lbs_deb_join("ADHOC_RESP: BSSID = %s\n",
+		     print_mac(mac, padhocresult->bssid));
 
 done:
 	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);

@@ -1155,6 +1155,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *dev;
 	struct pasemi_mac *mac;
 	int err;
+	DECLARE_MAC_BUF(mac_buf);
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1237,11 +1238,10 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out;
 	} else
 		printk(KERN_INFO "%s: PA Semi %s: intf %d, txch %d, rxch %d, "
-		       "hw addr %02x:%02x:%02x:%02x:%02x:%02x\n",
+		       "hw addr %s\n",
 		       dev->name, mac->type == MAC_TYPE_GMAC ? "GMAC" : "XAUI",
 		       mac->dma_if, mac->dma_txch, mac->dma_rxch,
-		       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+		       print_mac(mac_buf, dev->dev_addr));
 
 	return err;
 

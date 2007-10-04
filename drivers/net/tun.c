@@ -159,16 +159,15 @@ tun_net_mclist(struct net_device *dev)
 	struct tun_struct *tun = netdev_priv(dev);
 	const struct dev_mc_list *mclist;
 	int i;
+	DECLARE_MAC_BUF(mac);
 	DBG(KERN_DEBUG "%s: tun_net_mclist: mc_count %d\n",
 			dev->name, dev->mc_count);
 	memset(tun->chr_filter, 0, sizeof tun->chr_filter);
 	for (i = 0, mclist = dev->mc_list; i < dev->mc_count && mclist != NULL;
 			i++, mclist = mclist->next) {
 		add_multi(tun->net_filter, mclist->dmi_addr);
-		DBG(KERN_DEBUG "%s: tun_net_mclist: %x:%x:%x:%x:%x:%x\n",
-				dev->name,
-				mclist->dmi_addr[0], mclist->dmi_addr[1], mclist->dmi_addr[2],
-				mclist->dmi_addr[3], mclist->dmi_addr[4], mclist->dmi_addr[5]);
+		DBG(KERN_DEBUG "%s: tun_net_mclist: %s\n",
+		    dev->name, print_mac(mac, mclist->dmi_addr));
 	}
 }
 
@@ -358,6 +357,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	DECLARE_WAITQUEUE(wait, current);
 	struct sk_buff *skb;
 	ssize_t len, ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	if (!tun)
 		return -EBADFD;
@@ -412,16 +412,14 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 				  (addr[0] == 0x33 && addr[1] == 0x33)) &&
 				 ((tun->if_flags & IFF_ALLMULTI) ||
 				  (tun->chr_filter[bit_nr >> 5] & (1 << (bit_nr & 31)))))) {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: accepted: %x:%x:%x:%x:%x:%x\n",
-					tun->dev->name, addr[0], addr[1], addr[2],
-					addr[3], addr[4], addr[5]);
+			DBG(KERN_DEBUG "%s: tun_chr_readv: accepted: %s\n",
+					tun->dev->name, print_mac(mac, addr));
 			ret = tun_put_user(tun, skb, (struct iovec *) iv, len);
 			kfree_skb(skb);
 			break;
 		} else {
-			DBG(KERN_DEBUG "%s: tun_chr_readv: rejected: %x:%x:%x:%x:%x:%x\n",
-					tun->dev->name, addr[0], addr[1], addr[2],
-					addr[3], addr[4], addr[5]);
+			DBG(KERN_DEBUG "%s: tun_chr_readv: rejected: %s\n",
+					tun->dev->name, print_mac(mac, addr));
 			kfree_skb(skb);
 			continue;
 		}
@@ -564,6 +562,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	struct tun_struct *tun = file->private_data;
 	void __user* argp = (void __user*)arg;
 	struct ifreq ifr;
+	DECLARE_MAC_BUF(mac);
 
 	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89)
 		if (copy_from_user(&ifr, argp, sizeof ifr))
@@ -692,22 +691,16 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		/** Add the specified group to the character device's multicast filter
 		 * list. */
 		add_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		DBG(KERN_DEBUG "%s: add multi: %x:%x:%x:%x:%x:%x\n",
-				tun->dev->name,
-				(u8)ifr.ifr_hwaddr.sa_data[0], (u8)ifr.ifr_hwaddr.sa_data[1],
-				(u8)ifr.ifr_hwaddr.sa_data[2], (u8)ifr.ifr_hwaddr.sa_data[3],
-				(u8)ifr.ifr_hwaddr.sa_data[4], (u8)ifr.ifr_hwaddr.sa_data[5]);
+		DBG(KERN_DEBUG "%s: add multi: %s\n",
+		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 		return 0;
 
 	case SIOCDELMULTI:
 		/** Remove the specified group from the character device's multicast
 		 * filter list. */
 		del_multi(tun->chr_filter, ifr.ifr_hwaddr.sa_data);
-		DBG(KERN_DEBUG "%s: del multi: %x:%x:%x:%x:%x:%x\n",
-				tun->dev->name,
-				(u8)ifr.ifr_hwaddr.sa_data[0], (u8)ifr.ifr_hwaddr.sa_data[1],
-				(u8)ifr.ifr_hwaddr.sa_data[2], (u8)ifr.ifr_hwaddr.sa_data[3],
-				(u8)ifr.ifr_hwaddr.sa_data[4], (u8)ifr.ifr_hwaddr.sa_data[5]);
+		DBG(KERN_DEBUG "%s: del multi: %s\n",
+		    tun->dev->name, print_mac(mac, ifr.ifr_hwaddr.sa_data));
 		return 0;
 
 	default:

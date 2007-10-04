@@ -1258,6 +1258,7 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 	unsigned char addr[6];
 	struct net_device *dev;
 	int is_bmac_plus = ((int)match->data) != 0;
+	DECLARE_MAC_BUF(mac);
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "BMAC: can't use, need 3 addrs and 3 intrs\n");
@@ -1367,9 +1368,8 @@ static int __devinit bmac_probe(struct macio_dev *mdev, const struct of_device_i
 		goto err_out_irq2;
 	}
 
-	printk(KERN_INFO "%s: BMAC%s at", dev->name, (is_bmac_plus? "+": ""));
-	for (j = 0; j < 6; ++j)
-		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
+	printk(KERN_INFO "%s: BMAC%s at %s",
+	       dev->name, (is_bmac_plus ? "+" : ""), print_mac(mac, dev->dev_addr));
 	XXDEBUG((", base_addr=%#0lx", dev->base_addr));
 	printk("\n");
 

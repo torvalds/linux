@@ -1540,6 +1540,7 @@ tsi108_init_one(struct platform_device *pdev)
 	struct tsi108_prv_data *data = NULL;
 	hw_info *einfo;
 	int err = 0;
+	DECLARE_MAC_BUF(mac);
 
 	einfo = pdev->dev.platform_data;
 
@@ -1628,10 +1629,8 @@ tsi108_init_one(struct platform_device *pdev)
 		goto register_fail;
 	}
 
-	printk(KERN_INFO "%s: Tsi108 Gigabit Ethernet, MAC: "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	printk(KERN_INFO "%s: Tsi108 Gigabit Ethernet, MAC: %s\n"
+	       dev->name, print_mac(mac, dev->dev_addr));
 #ifdef DEBUG
 	data->msg_enable = DEBUG;
 	dump_eth_one(dev);

@@ -955,6 +955,7 @@ static int pppoe_seq_show(struct seq_file *seq, void *v)
 {
 	struct pppox_sock *po;
 	char *dev_name;
+	DECLARE_MAC_BUF(mac);
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq, "Id       Address              Device\n");
@@ -964,11 +965,8 @@ static int pppoe_seq_show(struct seq_file *seq, void *v)
 	po = v;
 	dev_name = po->pppoe_pa.dev;
 
-	seq_printf(seq, "%08X %02X:%02X:%02X:%02X:%02X:%02X %8s\n",
-		   po->pppoe_pa.sid,
-		   po->pppoe_pa.remote[0], po->pppoe_pa.remote[1],
-		   po->pppoe_pa.remote[2], po->pppoe_pa.remote[3],
-		   po->pppoe_pa.remote[4], po->pppoe_pa.remote[5], dev_name);
+	seq_printf(seq, "%08X %s %8s\n",
+		   po->pppoe_pa.sid, print_mac(mac, po->pppoe_pa.remote), dev_name);
 out:
 	return 0;
 }

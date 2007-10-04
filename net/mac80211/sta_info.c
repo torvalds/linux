@@ -132,6 +132,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 			       struct net_device *dev, u8 *addr, gfp_t gfp)
 {
 	struct sta_info *sta;
+	DECLARE_MAC_BUF(mac);
 
 	sta = kzalloc(sizeof(*sta), gfp);
 	if (!sta)
@@ -164,8 +165,8 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	write_unlock_bh(&local->sta_lock);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Added STA " MAC_FMT "\n",
-	       local->mdev->name, MAC_ARG(addr));
+	printk(KERN_DEBUG "%s: Added STA %s\n",
+	       local->mdev->name, print_mac(mac, addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -207,6 +208,7 @@ void sta_info_free(struct sta_info *sta)
 {
 	struct sk_buff *skb;
 	struct ieee80211_local *local = sta->local;
+	DECLARE_MAC_BUF(mac);
 
 	might_sleep();
 
@@ -223,8 +225,8 @@ void sta_info_free(struct sta_info *sta)
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-	printk(KERN_DEBUG "%s: Removed STA " MAC_FMT "\n",
-	       local->mdev->name, MAC_ARG(sta->addr));
+	printk(KERN_DEBUG "%s: Removed STA %s\n",
+	       local->mdev->name, print_mac(mac, sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	ieee80211_key_free(sta->key);
@@ -263,6 +265,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 {
 	unsigned long flags;
 	struct sk_buff *skb;
+	DECLARE_MAC_BUF(mac);
 
 	if (skb_queue_empty(&sta->ps_tx_buf))
 		return;
@@ -281,7 +284,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		if (skb) {
 			local->total_ps_buffered--;
 			printk(KERN_DEBUG "Buffered frame expired (STA "
-			       MAC_FMT ")\n", MAC_ARG(sta->addr));
+			       "%s)\n", print_mac(mac, sta->addr));
 			dev_kfree_skb(skb);
 		} else
 			break;

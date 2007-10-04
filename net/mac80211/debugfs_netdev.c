@@ -66,7 +66,8 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata, char *buf,		\
 	int buflen)							\
 {									\
-	return scnprintf(buf, buflen, MAC_FMT "\n", MAC_ARG(sdata->field));\
+	DECLARE_MAC_BUF(mac);						\
+	return scnprintf(buf, buflen, "%s\n", print_mac(mac, sdata->field));\
 }
 
 #define __IEEE80211_IF_FILE(name)					\

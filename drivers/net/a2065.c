@@ -716,6 +716,7 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 	unsigned long board, base_addr, mem_start;
 	struct resource *r1, *r2;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	board = z->resource.start;
 	base_addr = board+A2065_LANCE;
@@ -792,9 +793,8 @@ static int __devinit a2065_init_one(struct zorro_dev *z,
 	zorro_set_drvdata(z, dev);
 
 	printk(KERN_INFO "%s: A2065 at 0x%08lx, Ethernet Address "
-	       "%02x:%02x:%02x:%02x:%02x:%02x\n", dev->name, board,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	       "%s\n", dev->name, board,
+	       print_mac(mac, dev->dev_addr));
 
 	return 0;
 }

@@ -337,3 +337,11 @@ struct net_device *alloc_etherdev_mq(int sizeof_priv, unsigned int queue_count)
 	return alloc_netdev_mq(sizeof_priv, "eth%d", ether_setup, queue_count);
 }
 EXPORT_SYMBOL(alloc_etherdev_mq);
+
+char *print_mac(char *buf, const u8 *addr)
+{
+	sprintf(buf, MAC_FMT,
+		addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	return buf;
+}
+EXPORT_SYMBOL(print_mac);

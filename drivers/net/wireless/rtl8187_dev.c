@@ -574,6 +574,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	struct ieee80211_channel *channel;
 	u16 txpwr, reg;
 	int err, i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
 	if (!dev) {
@@ -681,8 +682,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		goto err_free_dev;
 	}
 
-	printk(KERN_INFO "%s: hwaddr " MAC_FMT ", rtl8187 V%d + %s\n",
-	       wiphy_name(dev->wiphy), MAC_ARG(dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %s, rtl8187 V%d + %s\n",
+	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
 	       priv->asic_rev, priv->rf_init == rtl8225_rf_init ?
 	       "rtl8225" : "rtl8225z2");
 

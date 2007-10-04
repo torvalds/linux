@@ -2316,8 +2316,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dma_addr_t shared_dma;
 	struct cmd_desc xp_cmd;
 	struct resp_desc xp_resp[3];
-	int i;
 	int err = 0;
+	DECLARE_MAC_BUF(mac);
 
 	if(!did_version++)
 		printk(KERN_INFO "%s", version);
@@ -2532,13 +2532,11 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
-	printk(KERN_INFO "%s: %s at %s 0x%llx, ",
+	printk(KERN_INFO "%s: %s at %s 0x%llx, %s\n",
 	       dev->name, typhoon_card_info[card_id].name,
 	       use_mmio ? "MMIO" : "IO",
-	       (unsigned long long)pci_resource_start(pdev, use_mmio));
-	for(i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x\n", dev->dev_addr[i]);
+	       (unsigned long long)pci_resource_start(pdev, use_mmio),
+	       print_mac(mac, dev->dev_addr));
 
 	/* xp_resp still contains the response to the READ_VERSIONS command.
 	 * For debugging, let the user know what version he has.

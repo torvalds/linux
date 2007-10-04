@@ -203,15 +203,15 @@ STA_OPS(wme_tx_queue);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
-	char buf[3*6];
 	struct dentry *stations_dir = sta->local->debugfs.stations;
+	DECLARE_MAC_BUF(mac);
 
 	if (!stations_dir)
 		return;
 
-	sprintf(buf, MAC_FMT, MAC_ARG(sta->addr));
+	print_mac(mac, sta->addr);
 
-	sta->debugfs.dir = debugfs_create_dir(buf, stations_dir);
+	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
 	if (!sta->debugfs.dir)
 		return;
 

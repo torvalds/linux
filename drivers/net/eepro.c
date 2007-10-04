@@ -690,6 +690,7 @@ static void __init eepro_print_info (struct net_device *dev)
 	struct eepro_local *	lp = netdev_priv(dev);
 	int			i;
 	const char *		ifmap[] = {"AUI", "10Base2", "10BaseT"};
+	DECLARE_MAC_BUF(mac);
 
 	i = inb(dev->base_addr + ID_REG);
 	printk(KERN_DEBUG " id: %#x ",i);
@@ -711,10 +712,10 @@ static void __init eepro_print_info (struct net_device *dev)
 		case LAN595:
 			printk("%s: Intel 82595-based lan card at %#x,",
 					dev->name, (unsigned)dev->base_addr);
+			break;
 	}
 
-	for (i=0; i < 6; i++)
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
+	printk(" %s", print_mac(mac, dev->dev_addr));
 
 	if (net_debug > 3)
 		printk(KERN_DEBUG ", %dK RCV buffer",

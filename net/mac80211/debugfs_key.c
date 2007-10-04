@@ -262,11 +262,12 @@ void ieee80211_debugfs_key_sta_link(struct ieee80211_key *key,
 				    struct sta_info *sta)
 {
 	char buf[50];
+	DECLARE_MAC_BUF(mac);
 
 	if (!key->debugfs.dir)
 		return;
 
-	sprintf(buf, "../../stations/" MAC_FMT, MAC_ARG(sta->addr));
+	sprintf(buf, "../../stations/%s", print_mac(mac, sta->addr));
 	key->debugfs.stalink =
 		debugfs_create_symlink("station", key->debugfs.dir, buf);
 }

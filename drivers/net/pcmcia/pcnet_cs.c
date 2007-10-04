@@ -38,7 +38,7 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
-#include <../drivers/net/8390.h>
+#include "../8390.h"
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -521,6 +521,7 @@ static int pcnet_config(struct pcmcia_device *link)
     int has_shmem = 0;
     u_short buf[64];
     hw_info_t *hw_info;
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
 
@@ -670,9 +671,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	printk (" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
 	printk(" %s xcvr,", if_names[dev->if_port]);
-    printk(" hw_addr ");
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    printk(" hw_addr %s\n", print_mac(mac, dev->dev_addr));
     return 0;
 
 cs_failed:

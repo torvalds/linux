@@ -158,6 +158,7 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 	int old_dmaar;
 	int old_rear;
 	int retval;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, SEEQ8005_IO_EXTENT, "seeq8005"))
 		return -ENODEV;
@@ -301,7 +302,8 @@ static int __init seeq8005_probe1(struct net_device *dev, int ioaddr)
 
 	/* Retrieve and print the ethernet address. */
 	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i] = SA_prom[i+6]);
+		dev->dev_addr[i] = SA_prom[i+6];
+	printk("%s", print_mac(mac, dev->dev_addr));
 
 	if (dev->irq == 0xff)
 		;			/* Do nothing: a user-level program will set it. */

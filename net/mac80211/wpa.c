@@ -132,6 +132,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	u8 mic[MICHAEL_MIC_LEN];
 	struct sk_buff *skb = rx->skb;
 	int authenticator = 1, wpa_test = 0;
+	DECLARE_MAC_BUF(mac);
 
 	fc = rx->fc;
 
@@ -164,7 +165,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 			return TXRX_DROP;
 
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
-		       MAC_FMT "\n", rx->dev->name, MAC_ARG(sa));
+		       "%s\n", rx->dev->name, print_mac(mac, sa));
 
 		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
 						(void *) skb->data);
@@ -287,6 +288,7 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	int hdrlen, res, hwaccel = 0, wpa_test = 0;
 	struct ieee80211_key *key = rx->key;
 	struct sk_buff *skb = rx->skb;
+	DECLARE_MAC_BUF(mac);
 
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
@@ -319,8 +321,8 @@ ieee80211_rx_h_tkip_decrypt(struct ieee80211_txrx_data *rx)
 					  hwaccel, rx->u.rx.queue);
 	if (res != TKIP_DECRYPT_OK || wpa_test) {
 		printk(KERN_DEBUG "%s: TKIP decrypt failed for RX frame from "
-		       MAC_FMT " (res=%d)\n",
-		       rx->dev->name, MAC_ARG(rx->sta->addr), res);
+		       "%s (res=%d)\n",
+		       rx->dev->name, print_mac(mac, rx->sta->addr), res);
 		return TXRX_DROP;
 	}
 
@@ -542,6 +544,7 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	u8 pn[CCMP_PN_LEN];
 	int data_len;
+	DECLARE_MAC_BUF(mac);
 
 	fc = le16_to_cpu(hdr->frame_control);
 	hdrlen = ieee80211_get_hdrlen(fc);
@@ -564,10 +567,11 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	if (memcmp(pn, key->u.ccmp.rx_pn[rx->u.rx.queue], CCMP_PN_LEN) <= 0) {
 #ifdef CONFIG_MAC80211_DEBUG
 		u8 *ppn = key->u.ccmp.rx_pn[rx->u.rx.queue];
+
 		printk(KERN_DEBUG "%s: CCMP replay detected for RX frame from "
-		       MAC_FMT " (RX PN %02x%02x%02x%02x%02x%02x <= prev. PN "
+		       "%s (RX PN %02x%02x%02x%02x%02x%02x <= prev. PN "
 		       "%02x%02x%02x%02x%02x%02x)\n", rx->dev->name,
-		       MAC_ARG(rx->sta->addr),
+		       print_mac(mac, rx->sta->addr),
 		       pn[0], pn[1], pn[2], pn[3], pn[4], pn[5],
 		       ppn[0], ppn[1], ppn[2], ppn[3], ppn[4], ppn[5]);
 #endif /* CONFIG_MAC80211_DEBUG */
@@ -591,8 +595,8 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 			    skb->data + skb->len - CCMP_MIC_LEN,
 			    skb->data + hdrlen + CCMP_HDR_LEN)) {
 			printk(KERN_DEBUG "%s: CCMP decrypt failed for RX "
-			       "frame from " MAC_FMT "\n", rx->dev->name,
-			       MAC_ARG(rx->sta->addr));
+			       "frame from %s\n", rx->dev->name,
+			       print_mac(mac, rx->sta->addr));
 			return TXRX_DROP;
 		}
 	}
@@ -606,4 +610,3 @@ ieee80211_rx_h_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 
 	return TXRX_CONTINUE;
 }
-

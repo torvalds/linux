@@ -192,6 +192,7 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 	static unsigned version_printed;
 	int i;
 	int err = -ENODEV;
+	DECLARE_MAC_BUF(mac);
 
 	/* Grab the region so that no one else tries to probe our ioports. */
 	if (!request_region(ioaddr, NETCARD_IO_EXTENT, cardname))
@@ -217,7 +218,9 @@ static int __init netcard_probe1(struct net_device *dev, int ioaddr)
 
 	/* Retrieve and print the ethernet address. */
 	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i] = inb(ioaddr + i));
+		dev->dev_addr[i] = inb(ioaddr + i);
+
+	printk("%s", print_mac(mac, dev->dev_addr));
 
 	err = -EAGAIN;
 #ifdef jumpered_interrupts

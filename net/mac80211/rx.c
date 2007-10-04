@@ -403,6 +403,8 @@ ieee80211_rx_h_load_key(struct ieee80211_txrx_data *rx)
 static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 {
 	struct ieee80211_sub_if_data *sdata;
+	DECLARE_MAC_BUF(mac);
+
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 
 	if (sdata->bss)
@@ -410,8 +412,8 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 	sta->flags |= WLAN_STA_PS;
 	sta->pspoll = 0;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: STA " MAC_FMT " aid %d enters power "
-	       "save mode\n", dev->name, MAC_ARG(sta->addr), sta->aid);
+	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
+	       dev->name, print_mac(mac, sta->addr), sta->aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -422,6 +424,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 	int sent = 0;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_tx_packet_data *pkt_data;
+	DECLARE_MAC_BUF(mac);
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 	if (sdata->bss)
@@ -435,8 +438,8 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 			bss_tim_clear(local, sdata->bss, sta->aid);
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-	printk(KERN_DEBUG "%s: STA " MAC_FMT " aid %d exits power "
-	       "save mode\n", dev->name, MAC_ARG(sta->addr), sta->aid);
+	printk(KERN_DEBUG "%s: STA %s aid %d exits power save mode\n",
+	       dev->name, print_mac(mac, sta->addr), sta->aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	/* Send all buffered frames to the station */
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
@@ -450,9 +453,9 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 		local->total_ps_buffered--;
 		sent++;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "%s: STA " MAC_FMT " aid %d send PS frame "
+		printk(KERN_DEBUG "%s: STA %s aid %d send PS frame "
 		       "since STA not sleeping anymore\n", dev->name,
-		       MAC_ARG(sta->addr), sta->aid);
+		       print_mac(mac, sta->addr), sta->aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
 		dev_queue_xmit(skb);
@@ -590,13 +593,15 @@ ieee80211_reassemble_add(struct ieee80211_sub_if_data *sdata,
 #ifdef CONFIG_MAC80211_DEBUG
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) entry->skb_list.next->data;
+		DECLARE_MAC_BUF(mac);
+		DECLARE_MAC_BUF(mac2);
 		printk(KERN_DEBUG "%s: RX reassembly removed oldest "
 		       "fragment entry (idx=%d age=%lu seq=%d last_frag=%d "
-		       "addr1=" MAC_FMT " addr2=" MAC_FMT "\n",
+		       "addr1=%s addr2=%s\n",
 		       sdata->dev->name, idx,
 		       jiffies - entry->first_frag_time, entry->seq,
-		       entry->last_frag, MAC_ARG(hdr->addr1),
-		       MAC_ARG(hdr->addr2));
+		       entry->last_frag, print_mac(mac, hdr->addr1),
+		       print_mac(mac2, hdr->addr2));
 #endif /* CONFIG_MAC80211_DEBUG */
 		__skb_queue_purge(&entry->skb_list);
 	}
@@ -662,6 +667,7 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 	unsigned int frag, seq;
 	struct ieee80211_fragment_entry *entry;
 	struct sk_buff *skb;
+	DECLARE_MAC_BUF(mac);
 
 	hdr = (struct ieee80211_hdr *) rx->skb->data;
 	sc = le16_to_cpu(hdr->seq_ctrl);
@@ -720,10 +726,10 @@ ieee80211_rx_h_defragment(struct ieee80211_txrx_data *rx)
 		if (memcmp(pn, rpn, CCMP_PN_LEN) != 0) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: defrag: CCMP PN not "
-				       "sequential A2=" MAC_FMT
+				       "sequential A2=%s"
 				       " PN=%02x%02x%02x%02x%02x%02x "
 				       "(expected %02x%02x%02x%02x%02x%02x)\n",
-				       rx->dev->name, MAC_ARG(hdr->addr2),
+				       rx->dev->name, print_mac(mac, hdr->addr2),
 				       rpn[0], rpn[1], rpn[2], rpn[3], rpn[4],
 				       rpn[5], pn[0], pn[1], pn[2], pn[3],
 				       pn[4], pn[5]);
@@ -774,6 +780,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 {
 	struct sk_buff *skb;
 	int no_pending_pkts;
+	DECLARE_MAC_BUF(mac);
 
 	if (likely(!rx->sta ||
 		   (rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_CTL ||
@@ -799,9 +806,8 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 		rx->sta->pspoll = 1;
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA " MAC_FMT " aid %d: PS Poll (entries "
-		       "after %d)\n",
-		       MAC_ARG(rx->sta->addr), rx->sta->aid,
+		printk(KERN_DEBUG "STA %s aid %d: PS Poll (entries after %d)\n",
+		       print_mac(mac, rx->sta->addr), rx->sta->aid,
 		       skb_queue_len(&rx->sta->ps_tx_buf));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
@@ -824,9 +830,9 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 		}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	} else if (!rx->u.rx.sent_ps_buffered) {
-		printk(KERN_DEBUG "%s: STA " MAC_FMT " sent PS Poll even "
+		printk(KERN_DEBUG "%s: STA %s sent PS Poll even "
 		       "though there is no buffered frames for it\n",
-		       rx->dev->name, MAC_ARG(rx->sta->addr));
+		       rx->dev->name, print_mac(mac, rx->sta->addr));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	}
@@ -881,9 +887,10 @@ ieee80211_rx_h_802_1x_pae(struct ieee80211_txrx_data *rx)
 #ifdef CONFIG_MAC80211_DEBUG
 		struct ieee80211_hdr *hdr =
 			(struct ieee80211_hdr *) rx->skb->data;
-		printk(KERN_DEBUG "%s: dropped frame from " MAC_FMT
+		DECLARE_MAC_BUF(mac);
+		printk(KERN_DEBUG "%s: dropped frame from %s"
 		       " (unauthorized port)\n", rx->dev->name,
-		       MAC_ARG(hdr->addr2));
+		       print_mac(mac, hdr->addr2));
 #endif /* CONFIG_MAC80211_DEBUG */
 		return TXRX_DROP;
 	}
@@ -928,6 +935,10 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 	u8 src[ETH_ALEN];
 	struct sk_buff *skb = rx->skb, *skb2;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
+	DECLARE_MAC_BUF(mac3);
+	DECLARE_MAC_BUF(mac4);
 
 	fc = rx->fc;
 	if (unlikely((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA))
@@ -958,13 +969,11 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 			     sdata->type != IEEE80211_IF_TYPE_VLAN)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: dropped ToDS frame "
-				       "(BSSID=" MAC_FMT
-				       " SA=" MAC_FMT
-				       " DA=" MAC_FMT ")\n",
+				       "(BSSID=%s SA=%s DA=%s)\n",
 				       dev->name,
-				       MAC_ARG(hdr->addr1),
-				       MAC_ARG(hdr->addr2),
-				       MAC_ARG(hdr->addr3));
+				       print_mac(mac, hdr->addr1),
+				       print_mac(mac2, hdr->addr2),
+				       print_mac(mac3, hdr->addr3));
 			return TXRX_DROP;
 		}
 		break;
@@ -976,14 +985,12 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 		if (unlikely(sdata->type != IEEE80211_IF_TYPE_WDS)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
-				       "frame (RA=" MAC_FMT
-				       " TA=" MAC_FMT " DA=" MAC_FMT
-				       " SA=" MAC_FMT ")\n",
+				       "frame (RA=%s TA=%s DA=%s SA=%s)\n",
 				       rx->dev->name,
-				       MAC_ARG(hdr->addr1),
-				       MAC_ARG(hdr->addr2),
-				       MAC_ARG(hdr->addr3),
-				       MAC_ARG(hdr->addr4));
+				       print_mac(mac, hdr->addr1),
+				       print_mac(mac2, hdr->addr2),
+				       print_mac(mac3, hdr->addr3),
+				       print_mac(mac4, hdr->addr4));
 			return TXRX_DROP;
 		}
 		break;
@@ -1004,12 +1011,12 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 
 		if (sdata->type != IEEE80211_IF_TYPE_IBSS) {
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: dropped IBSS frame (DA="
-				       MAC_FMT " SA=" MAC_FMT " BSSID=" MAC_FMT
-				       ")\n",
-				       dev->name, MAC_ARG(hdr->addr1),
-				       MAC_ARG(hdr->addr2),
-				       MAC_ARG(hdr->addr3));
+				printk(KERN_DEBUG "%s: dropped IBSS frame "
+				       "(DA=%s SA=%s BSSID=%s)\n",
+				       dev->name,
+				       print_mac(mac, hdr->addr1),
+				       print_mac(mac2, hdr->addr2),
+				       print_mac(mac3, hdr->addr3));
 			}
 			return TXRX_DROP;
 		}
@@ -1172,6 +1179,8 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 					    struct ieee80211_txrx_data *rx)
 {
 	int keyidx, hdrlen;
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
 
 	hdrlen = ieee80211_get_hdrlen_from_skb(rx->skb);
 	if (rx->skb->len >= hdrlen + 4)
@@ -1181,9 +1190,9 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: TKIP hwaccel reported Michael MIC "
-		       "failure from " MAC_FMT " to " MAC_FMT " keyidx=%d\n",
-		       dev->name, MAC_ARG(hdr->addr2), MAC_ARG(hdr->addr1),
-		       keyidx);
+		       "failure from %s to %s keyidx=%d\n",
+		       dev->name, print_mac(mac, hdr->addr2),
+		       print_mac(mac2, hdr->addr1), keyidx);
 
 	if (!sta) {
 		/*
@@ -1192,8 +1201,8 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		 */
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
-			       "error for unknown address " MAC_FMT "\n",
-			       dev->name, MAC_ARG(hdr->addr2));
+			       "error for unknown address %s\n",
+			       dev->name, print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 
@@ -1201,7 +1210,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
 			       "error for a frame with no PROTECTED flag (src "
-			       MAC_FMT ")\n", dev->name, MAC_ARG(hdr->addr2));
+			       "%s)\n", dev->name, print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 
@@ -1215,8 +1224,8 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored Michael MIC error for "
 			       "a frame with non-zero keyidx (%d)"
-			       " (src " MAC_FMT ")\n", dev->name, keyidx,
-			       MAC_ARG(hdr->addr2));
+			       " (src %s)\n", dev->name, keyidx,
+			       print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 
@@ -1226,8 +1235,8 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: ignored spurious Michael MIC "
 			       "error for a frame that cannot be encrypted "
-			       "(fc=0x%04x) (src " MAC_FMT ")\n",
-			       dev->name, rx->fc, MAC_ARG(hdr->addr2));
+			       "(fc=0x%04x) (src %s)\n",
+			       dev->name, rx->fc, print_mac(mac, hdr->addr2));
 		goto ignore;
 	}
 

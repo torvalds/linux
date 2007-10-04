@@ -1088,6 +1088,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     struct de4x5_private *lp = netdev_priv(dev);
     struct pci_dev *pdev = NULL;
     int i, status=0;
+    DECLARE_MAC_BUF(mac);
 
     gendev->driver_data = dev;
 
@@ -1123,12 +1124,8 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     dev->base_addr = iobase;
     printk ("%s: %s at 0x%04lx", gendev->bus_id, name, iobase);
 
-    printk(", h/w address ");
     status = get_hw_addr(dev);
-    for (i = 0; i < ETH_ALEN - 1; i++) {     /* get the ethernet addr. */
-	printk("%2.2x:", dev->dev_addr[i]);
-    }
-    printk("%2.2x,\n", dev->dev_addr[i]);
+    printk(", h/w address %s\n", print_mac(mac, dev->dev_addr));
 
     if (status != 0) {
 	printk("      which has an Ethernet PROM CRC error.\n");
@@ -5468,19 +5465,16 @@ static void
 de4x5_dbg_srom(struct de4x5_srom *p)
 {
     int i;
+    DECLARE_MAC_BUF(mac);
 
     if (de4x5_debug & DEBUG_SROM) {
 	printk("Sub-system Vendor ID: %04x\n", *((u_short *)p->sub_vendor_id));
 	printk("Sub-system ID:        %04x\n", *((u_short *)p->sub_system_id));
 	printk("ID Block CRC:         %02x\n", (u_char)(p->id_block_crc));
 	printk("SROM version:         %02x\n", (u_char)(p->version));
-	printk("# controllers:         %02x\n", (u_char)(p->num_controllers));
+	printk("# controllers:        %02x\n", (u_char)(p->num_controllers));
 
-	printk("Hardware Address:     ");
-	for (i=0;i<ETH_ALEN-1;i++) {
-	    printk("%02x:", (u_char)*(p->ieee_addr+i));
-	}
-	printk("%02x\n", (u_char)*(p->ieee_addr+i));
+	printk("Hardware Address:     %s\n", print_mac(mac, p->ieee_addr));
 	printk("CRC checksum:         %04x\n", (u_short)(p->chksum));
 	for (i=0; i<64; i++) {
 	    printk("%3d %04x\n", i<<1, (u_short)*((u_short *)p+i));
@@ -5494,21 +5488,12 @@ static void
 de4x5_dbg_rx(struct sk_buff *skb, int len)
 {
     int i, j;
+    DECLARE_MAC_BUF(mac);
+    DECLARE_MAC_BUF(mac2);
 
     if (de4x5_debug & DEBUG_RX) {
-	printk("R: %02x:%02x:%02x:%02x:%02x:%02x <- %02x:%02x:%02x:%02x:%02x:%02x len/SAP:%02x%02x [%d]\n",
-	       (u_char)skb->data[0],
-	       (u_char)skb->data[1],
-	       (u_char)skb->data[2],
-	       (u_char)skb->data[3],
-	       (u_char)skb->data[4],
-	       (u_char)skb->data[5],
-	       (u_char)skb->data[6],
-	       (u_char)skb->data[7],
-	       (u_char)skb->data[8],
-	       (u_char)skb->data[9],
-	       (u_char)skb->data[10],
-	       (u_char)skb->data[11],
+	printk("R: %s <- %s len/SAP:%02x%02x [%d]\n",
+	       print_mac(mac, skb->data), print_mac(mac2, &skb->data[6]),
 	       (u_char)skb->data[12],
 	       (u_char)skb->data[13],
 	       len);

@@ -443,18 +443,12 @@ static void ioc3_get_eaddr_nic(struct ioc3_private *ip)
  */
 static void ioc3_get_eaddr(struct ioc3_private *ip)
 {
-	int i;
-
+	DECLARE_MAC_BUF(mac);
 
 	ioc3_get_eaddr_nic(ip);
 
-	printk("Ethernet address is ");
-	for (i = 0; i < 6; i++) {
-		printk("%02x", priv_netdev(ip)->dev_addr[i]);
-		if (i < 5)
-			printk(":");
-	}
-	printk(".\n");
+	printk("Ethernet address is %s.\n",
+	       print_mac(mac, priv_netdev(ip)->dev_addr));
 }
 
 static void __ioc3_set_mac_address(struct net_device *dev)

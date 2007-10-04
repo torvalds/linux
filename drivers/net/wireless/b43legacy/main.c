@@ -2679,6 +2679,7 @@ static int b43legacy_dev_set_key(struct ieee80211_hw *hw,
 	struct b43legacy_wldev *dev = wl->current_dev;
 	unsigned long flags;
 	int err = -EOPNOTSUPP;
+	DECLARE_MAC_BUF(mac);
 
 	if (!dev)
 		return -ENODEV;
@@ -2691,7 +2692,7 @@ static int b43legacy_dev_set_key(struct ieee80211_hw *hw,
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
 	mutex_unlock(&wl->mutex);
 	b43legacydbg(wl, "Using software based encryption for "
-	       "mac: " MAC_FMT "\n", MAC_ARG(addr));
+		     "mac: %s\n", print_mac(mac, addr));
 	return err;
 }
 

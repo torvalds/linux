@@ -103,6 +103,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
     int start_page, stop_page;
     int j;
     int err;
+    DECLARE_MAC_BUF(mac);
 
     static u32 hydra_offsets[16] = {
 	0x00, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x0e,
@@ -162,10 +163,8 @@ static int __devinit hydra_init(struct zorro_dev *z)
     zorro_set_drvdata(z, dev);
 
     printk(KERN_INFO "%s: Hydra at 0x%08lx, address "
-	   "%02x:%02x:%02x:%02x:%02x:%02x (hydra.c " HYDRA_VERSION ")\n",
-	   dev->name, z->resource.start, dev->dev_addr[0], dev->dev_addr[1],
-	   dev->dev_addr[2], dev->dev_addr[3], dev->dev_addr[4],
-	   dev->dev_addr[5]);
+	   "%s (hydra.c " HYDRA_VERSION ")\n",
+	   dev->name, z->resource.start, print_mac(mac, dev->dev_addr));
 
     return 0;
 }

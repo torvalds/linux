@@ -54,6 +54,7 @@ static void ieee80211_dump_frame(const char *ifname, const char *title,
 	const struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	u16 fc;
 	int hdrlen;
+	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_DEBUG "%s: %s (len=%d)", ifname, title, skb->len);
 	if (skb->len < 4) {
@@ -69,13 +70,13 @@ static void ieee80211_dump_frame(const char *ifname, const char *title,
 		printk(" FC=0x%04x DUR=0x%04x",
 		       fc, le16_to_cpu(hdr->duration_id));
 	if (hdrlen >= 10)
-		printk(" A1=" MAC_FMT, MAC_ARG(hdr->addr1));
+		printk(" A1=%s", print_mac(mac, hdr->addr1));
 	if (hdrlen >= 16)
-		printk(" A2=" MAC_FMT, MAC_ARG(hdr->addr2));
+		printk(" A2=%s", print_mac(mac, hdr->addr2));
 	if (hdrlen >= 24)
-		printk(" A3=" MAC_FMT, MAC_ARG(hdr->addr3));
+		printk(" A3=%s", print_mac(mac, hdr->addr3));
 	if (hdrlen >= 30)
-		printk(" A4=" MAC_FMT, MAC_ARG(hdr->addr4));
+		printk(" A4=%s", print_mac(mac, hdr->addr4));
 	printk("\n");
 }
 #else /* CONFIG_MAC80211_LOWTX_FRAME_DUMP */
@@ -236,9 +237,10 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 			     tx->sdata->type != IEEE80211_IF_TYPE_IBSS &&
 			     (tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+			DECLARE_MAC_BUF(mac);
 			printk(KERN_DEBUG "%s: dropped data frame to not "
-			       "associated station " MAC_FMT "\n",
-			       tx->dev->name, MAC_ARG(hdr->addr1));
+			       "associated station %s\n",
+			       tx->dev->name, print_mac(mac, hdr->addr1));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
 			return TXRX_DROP;
@@ -259,9 +261,10 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	if (unlikely(!tx->u.tx.mgmt_interface && tx->sdata->ieee802_1x &&
 		     !(sta_flags & WLAN_STA_AUTHORIZED))) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		printk(KERN_DEBUG "%s: dropped frame to " MAC_FMT
+		DECLARE_MAC_BUF(mac);
+		printk(KERN_DEBUG "%s: dropped frame to %s"
 		       " (unauthorized port)\n", tx->dev->name,
-		       MAC_ARG(hdr->addr1));
+		       print_mac(mac, hdr->addr1));
 #endif
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unauth_port);
 		return TXRX_DROP;
@@ -357,6 +360,7 @@ static inline ieee80211_txrx_result
 ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 {
 	struct sta_info *sta = tx->sta;
+	DECLARE_MAC_BUF(mac);
 
 	if (unlikely(!sta ||
 		     ((tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT &&
@@ -366,9 +370,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 	if (unlikely((sta->flags & WLAN_STA_PS) && !sta->pspoll)) {
 		struct ieee80211_tx_packet_data *pkt_data;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
-		printk(KERN_DEBUG "STA " MAC_FMT " aid %d: PS buffer (entries "
+		printk(KERN_DEBUG "STA %s aid %d: PS buffer (entries "
 		       "before %d)\n",
-		       MAC_ARG(sta->addr), sta->aid,
+		       print_mac(mac, sta->addr), sta->aid,
 		       skb_queue_len(&sta->ps_tx_buf));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		sta->flags |= WLAN_STA_TIM;
@@ -377,9 +381,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 		if (skb_queue_len(&sta->ps_tx_buf) >= STA_MAX_TX_BUFFER) {
 			struct sk_buff *old = skb_dequeue(&sta->ps_tx_buf);
 			if (net_ratelimit()) {
-				printk(KERN_DEBUG "%s: STA " MAC_FMT " TX "
+				printk(KERN_DEBUG "%s: STA %s TX "
 				       "buffer full - dropping oldest frame\n",
-				       tx->dev->name, MAC_ARG(sta->addr));
+				       tx->dev->name, print_mac(mac, sta->addr));
 			}
 			dev_kfree_skb(old);
 		} else
@@ -399,9 +403,9 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	else if (unlikely(sta->flags & WLAN_STA_PS)) {
-		printk(KERN_DEBUG "%s: STA " MAC_FMT " in PS mode, but pspoll "
+		printk(KERN_DEBUG "%s: STA %s in PS mode, but pspoll "
 		       "set -> send frame\n", tx->dev->name,
-		       MAC_ARG(sta->addr));
+		       print_mac(mac, sta->addr));
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	sta->pspoll = 0;

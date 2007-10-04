@@ -573,6 +573,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	s16 nicsr;
 	u_long ioaddr;
 	u_long mem_start;
+	DECLARE_MAC_BUF(mac);
 
 	/*
 	 * We are now supposed to enter this function with the
@@ -632,14 +633,11 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	printk(", h/w address ");
 	status = get_hw_addr(dev);
+	printk("%s", print_mac(mac, dev->dev_addr));
 	if (status != 0) {
 		printk("      which has an Ethernet PROM CRC error.\n");
 		return -ENXIO;
 	}
-	for (i = 0; i < ETH_ALEN - 1; i++) {	/* get the ethernet address */
-		printk("%2.2x:", dev->dev_addr[i]);
-	}
-	printk("%2.2x", dev->dev_addr[i]);
 
 	/* Set up the maximum amount of network RAM(kB) */
 	netRAM = ((lp->adapter != DEPCA) ? 64 : 48);
@@ -1843,6 +1841,7 @@ static void depca_dbg_open(struct net_device *dev)
 	u_long ioaddr = dev->base_addr;
 	struct depca_init *p = &lp->init_block;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	if (depca_debug > 1) {
 		/* Do not copy the shadow init block into shared memory */
@@ -1881,11 +1880,7 @@ static void depca_dbg_open(struct net_device *dev)
 		printk("...0x%8.8x\n", readl(&lp->tx_ring[i].base));
 		printk("Initialisation block at 0x%8.8lx(Phys)\n", lp->mem_start);
 		printk("        mode: 0x%4.4x\n", p->mode);
-		printk("        physical address: ");
-		for (i = 0; i < ETH_ALEN - 1; i++) {
-			printk("%2.2x:", p->phys_addr[i]);
-		}
-		printk("%2.2x\n", p->phys_addr[i]);
+		printk("        physical address: %s\n", print_mac(mac, p->phys_addr));
 		printk("        multicast hash table: ");
 		for (i = 0; i < (HASH_TABLE_LEN >> 3) - 1; i++) {
 			printk("%2.2x:", p->mcast_table[i]);

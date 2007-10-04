@@ -101,6 +101,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	struct mace_data *mp;
 	const unsigned char *addr;
 	int j, rev, rc = -EBUSY;
+	DECLARE_MAC_BUF(mac);
 
 	if (macio_resource_count(mdev) != 3 || macio_irq_count(mdev) != 3) {
 		printk(KERN_ERR "can't use MACE %s: need 3 addrs and 3 irqs\n",
@@ -240,11 +241,9 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		goto err_free_rx_irq;
 	}
 
-	printk(KERN_INFO "%s: MACE at", dev->name);
-	for (j = 0; j < 6; ++j) {
-		printk("%c%.2x", (j? ':': ' '), dev->dev_addr[j]);
-	}
-	printk(", chip revision %d.%d\n", mp->chipid >> 8, mp->chipid & 0xff);
+	printk(KERN_INFO "%s: MACE at %s, chip revision %d.%d\n",
+	       dev->name, print_mac(mac, dev->dev_addr),
+	       mp->chipid >> 8, mp->chipid & 0xff);
 
 	return 0;
 

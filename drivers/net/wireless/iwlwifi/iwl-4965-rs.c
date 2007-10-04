@@ -1737,10 +1737,11 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) && !lq->ibss_sta_added) {
 		u8 sta_id = iwl_hw_find_station(priv, hdr->addr1);
+		DECLARE_MAC_BUF(mac);
 
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE("LQ: ADD station " MAC_FMT "\n",
-					MAC_ARG(hdr->addr1));
+			IWL_DEBUG_RATE("LQ: ADD station %s\n",
+				       print_mac(mac, hdr->addr1));
 			sta_id = iwl_add_station(priv,
 						 hdr->addr1, 0, CMD_ASYNC);
 		}
@@ -1811,14 +1812,16 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	crl->ibss_sta_added = 0;
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
 		u8 sta_id = iwl_hw_find_station(priv, sta->addr);
+		DECLARE_MAC_BUF(mac);
+
 		/* for IBSS the call are from tasklet */
-		IWL_DEBUG_HT("LQ: ADD station " MAC_FMT " \n",
-			     MAC_ARG(sta->addr));
+		IWL_DEBUG_HT("LQ: ADD station %s\n",
+			     print_mac(mac, sta->addr));
 
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE("LQ: ADD station " MAC_FMT "\n",
-					MAC_ARG(sta->addr));
-					sta_id = iwl_add_station(priv,
+			IWL_DEBUG_RATE("LQ: ADD station %s\n",
+				       print_mac(mac, sta->addr));
+			sta_id = iwl_add_station(priv,
 						 sta->addr, 0, CMD_ASYNC);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {

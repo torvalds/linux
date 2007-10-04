@@ -1759,6 +1759,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	void __iomem *ioaddr;
 	int rc;
+	DECLARE_MAC_BUF(mac);
 
 	if (!printed_version) {
 		net_drv(&debug, KERN_INFO SIS190_DRIVER_NAME " loaded.\n");
@@ -1809,12 +1810,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 		goto err_remove_mii;
 
 	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
-	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-	       pci_name(pdev), sis_chip_info[ent->driver_data].name,
-	       ioaddr, dev->irq,
-	       dev->dev_addr[0], dev->dev_addr[1],
-	       dev->dev_addr[2], dev->dev_addr[3],
-	       dev->dev_addr[4], dev->dev_addr[5]);
+		  "%s\n",
+		  pci_name(pdev), sis_chip_info[ent->driver_data].name,
+		  ioaddr, dev->irq, print_mac(mac, dev->dev_addr));
 
 	net_probe(tp, KERN_INFO "%s: %s mode.\n", dev->name,
 		  (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");

@@ -370,6 +370,7 @@ static int __init znet_probe (void)
 	struct net_device *dev;
 	char *p;
 	int err = -ENOMEM;
+	DECLARE_MAC_BUF(mac);
 
 	/* This code scans the region 0xf0000 to 0xfffff for a "NETIDBLK". */
 	for(p = (char *)phys_to_virt(0xf0000); p < (char *)phys_to_virt(0x100000); p++)
@@ -392,14 +393,14 @@ static int __init znet_probe (void)
 	dev->base_addr = netinfo->iobase1;
 	dev->irq = netinfo->irq1;
 
-	printk(KERN_INFO "%s: ZNET at %#3lx,", dev->name, dev->base_addr);
-
 	/* The station address is in the "netidblk" at 0x0f0000. */
 	for (i = 0; i < 6; i++)
-		printk(" %2.2x", dev->dev_addr[i] = netinfo->netid[i]);
+		dev->dev_addr[i] = netinfo->netid[i];
 
-	printk(", using IRQ %d DMA %d and %d.\n", dev->irq, netinfo->dma1,
-	       netinfo->dma2);
+	printk(KERN_INFO "%s: ZNET at %#3lx, %s"
+	       ", using IRQ %d DMA %d and %d.\n",
+	       dev->name, dev->base_addr, print_mac(mac, dev->dev_addr),
+	       dev->irq, netinfo->dma1, netinfo->dma2);
 
 	if (znet_debug > 1) {
 		printk(KERN_INFO "%s: vendor '%16.16s' IRQ1 %d IRQ2 %d DMA1 %d DMA2 %d.\n",

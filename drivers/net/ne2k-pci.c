@@ -212,6 +212,7 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	static unsigned int fnd_cnt;
 	long ioaddr;
 	int flags = pci_clone_list[chip_idx].flags;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -365,12 +366,12 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	if (i)
 		goto err_out_free_netdev;
 
-	printk("%s: %s found at %#lx, IRQ %d, ",
-		   dev->name, pci_clone_list[chip_idx].name, ioaddr, dev->irq);
-	for(i = 0; i < 6; i++) {
-		printk("%2.2X%s", SA_prom[i], i == 5 ? ".\n": ":");
+	for(i = 0; i < 6; i++)
 		dev->dev_addr[i] = SA_prom[i];
-	}
+	printk("%s: %s found at %#lx, IRQ %d, %s.\n",
+	       dev->name, pci_clone_list[chip_idx].name, ioaddr, dev->irq,
+	       print_mac(mac, dev->dev_addr));
+
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return 0;

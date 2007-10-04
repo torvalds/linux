@@ -646,6 +646,7 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 	struct sta_info *sta;
 	u16 fc, rate_mask;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
+	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_RATE("enter\n");
 
@@ -681,8 +682,8 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 		u8 sta_id = iwl_hw_find_station(priv, hdr->addr1);
 
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE("LQ: ADD station " MAC_FMT "\n",
-					MAC_ARG(hdr->addr1));
+			IWL_DEBUG_RATE("LQ: ADD station %s\n",
+				       print_mac(mac, hdr->addr1));
 			sta_id = iwl_add_station(priv,
 				    hdr->addr1, 0, CMD_ASYNC);
 		}

@@ -534,6 +534,7 @@ out:
 
 void netpoll_print_options(struct netpoll *np)
 {
+	DECLARE_MAC_BUF(mac);
 	printk(KERN_INFO "%s: local port %d\n",
 			 np->name, np->local_port);
 	printk(KERN_INFO "%s: local IP %d.%d.%d.%d\n",
@@ -544,15 +545,8 @@ void netpoll_print_options(struct netpoll *np)
 			 np->name, np->remote_port);
 	printk(KERN_INFO "%s: remote IP %d.%d.%d.%d\n",
 			 np->name, HIPQUAD(np->remote_ip));
-	printk(KERN_INFO "%s: remote ethernet address "
-			 "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			 np->name,
-			 np->remote_mac[0],
-			 np->remote_mac[1],
-			 np->remote_mac[2],
-			 np->remote_mac[3],
-			 np->remote_mac[4],
-			 np->remote_mac[5]);
+	printk(KERN_INFO "%s: remote ethernet address %s\n",
+	                 np->name, print_mac(mac, np->remote_mac));
 }
 
 int netpoll_parse_options(struct netpoll *np, char *opt)

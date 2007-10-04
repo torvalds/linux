@@ -63,6 +63,7 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
+	DECLARE_MAC_BUF(mac);
 	struct bss_descriptor * iter_bss;
 
 	pos += snprintf(buf+pos, len-pos,
@@ -75,9 +76,9 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
 
 		pos += snprintf(buf+pos, len-pos,
-			"%02u| %03d | %04ld | " MAC_FMT " |",
+			"%02u| %03d | %04ld | %s |",
 			numscansdone, iter_bss->channel, iter_bss->rssi,
-			MAC_ARG(iter_bss->bssid));
+			print_mac(mac, iter_bss->bssid));
 		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
 		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
 				ibss ? 'A' : 'I', privacy ? 'P' : ' ',

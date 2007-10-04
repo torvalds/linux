@@ -204,6 +204,7 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     int neX000, ctron;
 #endif
     static unsigned version_printed;
+    DECLARE_MAC_BUF(mac);
 
     if (ei_debug  &&  version_printed++ == 0)
 	printk(version);
@@ -316,12 +317,12 @@ static int __init apne_probe1(struct net_device *dev, int ioaddr)
     i = request_irq(dev->irq, apne_interrupt, IRQF_SHARED, DRV_NAME, dev);
     if (i) return i;
 
-    for(i = 0; i < ETHER_ADDR_LEN; i++) {
-	printk(" %2.2x", SA_prom[i]);
+    for(i = 0; i < ETHER_ADDR_LEN; i++)
 	dev->dev_addr[i] = SA_prom[i];
-    }
 
-    printk("\n%s: %s found.\n", dev->name, name);
+    printk(" %s\n", print_mac(mac, dev->dev_addr));
+
+    printk("%s: %s found.\n", dev->name, name);
 
     ei_status.name = name;
     ei_status.tx_start_page = start_page;

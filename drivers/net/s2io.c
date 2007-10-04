@@ -7417,6 +7417,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	struct config_param *config;
 	int mode;
 	u8 dev_intr_type = intr_type;
+	DECLARE_MAC_BUF(mac);
 
 	if ((ret = s2io_verify_parm(pdev, &dev_intr_type)))
 		return ret;
@@ -7720,14 +7721,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		  sp->product_name, pdev->revision);
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,
 		  s2io_driver_version);
-	DBG_PRINT(ERR_DBG, "%s: MAC ADDR: "
-			  "%02x:%02x:%02x:%02x:%02x:%02x", dev->name,
-			  sp->def_mac_addr[0].mac_addr[0],
-			  sp->def_mac_addr[0].mac_addr[1],
-			  sp->def_mac_addr[0].mac_addr[2],
-			  sp->def_mac_addr[0].mac_addr[3],
-			  sp->def_mac_addr[0].mac_addr[4],
-			  sp->def_mac_addr[0].mac_addr[5]);
+	DBG_PRINT(ERR_DBG, "%s: MAC ADDR: %s\n",
+		  dev->name, print_mac(mac, dev->dev_addr));
 	DBG_PRINT(ERR_DBG, "SERIAL NUMBER: %s\n", sp->serial_num);
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		mode = s2io_print_pci_mode(sp);

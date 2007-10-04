@@ -243,12 +243,12 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 {
 	unchar *addr = (unchar *)&a->dev_addr;
+	DECLARE_MAC_BUF(mac);
 
 	if (str_size < 18)
 		*str_buf = '\0';
 	else
-		sprintf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+		sprintf(str_buf, "%s", print_mac(mac, addr));
 	return str_buf;
 }
 

@@ -2548,6 +2548,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	struct net_device *netdev;
 	struct nic *nic;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	if(!(netdev = alloc_etherdev(sizeof(struct nic)))) {
 		if(((1 << debug) - 1) & NETIF_MSG_PROBE)
@@ -2679,11 +2680,9 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 		goto err_out_free;
 	}
 
-	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, "
-		"MAC addr %02X:%02X:%02X:%02X:%02X:%02X\n",
-		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0), pdev->irq,
-		netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
-		netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
+	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %s\n",
+		(unsigned long long)pci_resource_start(pdev, use_io ? 1 : 0),
+		pdev->irq, print_mac(mac, netdev->dev_addr));
 
 	return 0;
 

@@ -460,6 +460,7 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 	int index = IWL_INVALID_STATION;
 	struct iwl_station_entry *station;
 	unsigned long flags_spin;
+	DECLARE_MAC_BUF(mac);
 
 	spin_lock_irqsave(&priv->sta_lock, flags_spin);
 	if (is_ap)
@@ -492,7 +493,7 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 		return index;
 	}
 
-	IWL_DEBUG_ASSOC("Add STA ID %d: " MAC_FMT "\n", index, MAC_ARG(addr));
+	IWL_DEBUG_ASSOC("Add STA ID %d: %s\n", index, print_mac(mac, addr));
 	station = &priv->stations[index];
 	station->used = 1;
 	priv->num_stations++;
@@ -1064,6 +1065,7 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 	/* cast away the const for active_rxon in this function */
 	struct iwl_rxon_cmd *active_rxon = (void *)&priv->active_rxon;
 	int rc = 0;
+	DECLARE_MAC_BUF(mac);
 
 	if (!iwl_is_alive(priv))
 		return -1;
@@ -1134,11 +1136,11 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 	IWL_DEBUG_INFO("Sending RXON\n"
 		       "* with%s RXON_FILTER_ASSOC_MSK\n"
 		       "* channel = %d\n"
-		       "* bssid = " MAC_FMT "\n",
+		       "* bssid = %s\n",
 		       ((priv->staging_rxon.filter_flags &
 			 RXON_FILTER_ASSOC_MSK) ? "" : "out"),
 		       le16_to_cpu(priv->staging_rxon.channel),
-		       MAC_ARG(priv->staging_rxon.bssid_addr));
+		       print_mac(mac, priv->staging_rxon.bssid_addr));
 
 	/* Apply the new configuration */
 	rc = iwl_send_cmd_pdu(priv, REPLY_RXON,
@@ -2693,7 +2695,9 @@ static int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 
 	/* If this frame is part of a IBSS network, then we use the
 	 * target specific station id */
-	case IEEE80211_IF_TYPE_IBSS:
+	case IEEE80211_IF_TYPE_IBSS: {
+		DECLARE_MAC_BUF(mac);
+
 		sta_id = iwl_hw_find_station(priv, hdr->addr1);
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
@@ -2703,12 +2707,12 @@ static int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;
 
-		IWL_DEBUG_DROP("Station " MAC_FMT " not in station map. "
+		IWL_DEBUG_DROP("Station %s not in station map. "
 			       "Defaulting to broadcast...\n",
-			       MAC_ARG(hdr->addr1));
+			       print_mac(mac, hdr->addr1));
 		iwl_print_hex_dump(IWL_DL_DROP, (u8 *) hdr, sizeof(*hdr));
 		return priv->hw_setting.bcast_sta_id;
-
+	}
 	default:
 		IWL_WARNING("Unkown mode of operation: %d", priv->iw_mode);
 		return priv->hw_setting.bcast_sta_id;
@@ -2781,8 +2785,10 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 	hdr_len = ieee80211_get_hdrlen(fc);
 	sta_id = iwl_get_sta_id(priv, hdr);
 	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_DROP("Dropping - INVALID STATION: " MAC_FMT "\n",
-			       MAC_ARG(hdr->addr1));
+		DECLARE_MAC_BUF(mac);
+
+		IWL_DEBUG_DROP("Dropping - INVALID STATION: %s\n",
+			       print_mac(mac, hdr->addr1));
 		goto drop;
 	}
 
@@ -4385,6 +4391,8 @@ int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_DEBUG
 static void iwl_print_rx_config_cmd(struct iwl_rxon_cmd *rxon)
 {
+	DECLARE_MAC_BUF(mac);
+
 	IWL_DEBUG_RADIO("RX CONFIG:\n");
 	iwl_print_hex_dump(IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
 	IWL_DEBUG_RADIO("u16 channel: 0x%x\n", le16_to_cpu(rxon->channel));
@@ -4395,10 +4403,10 @@ static void iwl_print_rx_config_cmd(struct iwl_rxon_cmd *rxon)
 	IWL_DEBUG_RADIO("u8 ofdm_basic_rates: 0x%02x\n",
 			rxon->ofdm_basic_rates);
 	IWL_DEBUG_RADIO("u8 cck_basic_rates: 0x%02x\n", rxon->cck_basic_rates);
-	IWL_DEBUG_RADIO("u8[6] node_addr: " MAC_FMT "\n",
-			MAC_ARG(rxon->node_addr));
-	IWL_DEBUG_RADIO("u8[6] bssid_addr: " MAC_FMT "\n",
-			MAC_ARG(rxon->bssid_addr));
+	IWL_DEBUG_RADIO("u8[6] node_addr: %s\n",
+			print_mac(mac, rxon->node_addr));
+	IWL_DEBUG_RADIO("u8[6] bssid_addr: %s\n",
+			print_mac(mac, rxon->bssid_addr));
 	IWL_DEBUG_RADIO("u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
 }
 #endif
@@ -6322,6 +6330,7 @@ static void iwl_down(struct iwl_priv *priv)
 
 static int __iwl_up(struct iwl_priv *priv)
 {
+	DECLARE_MAC_BUF(mac);
 	int rc, i;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
@@ -6381,8 +6390,8 @@ static int __iwl_up(struct iwl_priv *priv)
 
 		/* MAC Address location in EEPROM same for 3945/4965 */
 		get_eeprom_mac(priv, priv->mac_addr);
-		IWL_DEBUG_INFO("MAC address: " MAC_FMT "\n",
-			       MAC_ARG(priv->mac_addr));
+		IWL_DEBUG_INFO("MAC address: %s\n",
+			       print_mac(mac, priv->mac_addr));
 
 		SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
@@ -6728,6 +6737,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 	int rc = 0;
 	struct ieee80211_conf *conf = NULL;
+	DECLARE_MAC_BUF(mac);
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
 		IWL_ERROR("%s Should not be called in AP mode\n", __FUNCTION__);
@@ -6735,8 +6745,9 @@ static void iwl_bg_post_associate(struct work_struct *data)
 	}
 
 
-	IWL_DEBUG_ASSOC("Associated as %d to: " MAC_FMT "\n",
-			priv->assoc_id, MAC_ARG(priv->active_rxon.bssid_addr));
+	IWL_DEBUG_ASSOC("Associated as %d to: %s\n",
+			priv->assoc_id,
+			print_mac(mac, priv->active_rxon.bssid_addr));
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
@@ -6916,11 +6927,12 @@ static int iwl_mac_add_interface(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = hw->priv;
 	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_MAC80211("enter: id %d, type %d\n", conf->if_id, conf->type);
 	if (conf->mac_addr)
-		IWL_DEBUG_MAC80211("enter: MAC " MAC_FMT "\n",
-				   MAC_ARG(conf->mac_addr));
+		IWL_DEBUG_MAC80211("enter: MAC %s\n",
+				   print_mac(mac, conf->mac_addr));
 
 	if (priv->interface_id) {
 		IWL_DEBUG_MAC80211("leave - interface_id != 0\n");
@@ -7094,6 +7106,7 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 				    struct ieee80211_if_conf *conf)
 {
 	struct iwl_priv *priv = hw->priv;
+	DECLARE_MAC_BUF(mac);
 	unsigned long flags;
 	int rc;
 
@@ -7111,8 +7124,8 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 
 	IWL_DEBUG_MAC80211("enter: interface id %d\n", if_id);
 	if (conf->bssid)
-		IWL_DEBUG_MAC80211("bssid: " MAC_FMT "\n",
-				   MAC_ARG(conf->bssid));
+		IWL_DEBUG_MAC80211("bssid: %s\n",
+				   print_mac(mac, conf->bssid));
 
 	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
 	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
@@ -7131,8 +7144,8 @@ static int iwl_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		if (!conf->bssid) {
 			conf->bssid = priv->mac_addr;
 			memcpy(priv->bssid, priv->mac_addr, ETH_ALEN);
-			IWL_DEBUG_MAC80211("bssid was set to: " MAC_FMT "\n",
-					   MAC_ARG(conf->bssid));
+			IWL_DEBUG_MAC80211("bssid was set to: %s\n",
+					   print_mac(mac, conf->bssid));
 		}
 		if (priv->ibss_beacon)
 			dev_kfree_skb(priv->ibss_beacon);
@@ -7282,8 +7295,10 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, set_key_cmd cmd,
 
 	sta_id = iwl_hw_find_station(priv, addr);
 	if (sta_id == IWL_INVALID_STATION) {
-		IWL_DEBUG_MAC80211("leave - " MAC_FMT " not in station map.\n",
-				   MAC_ARG(addr));
+		DECLARE_MAC_BUF(mac);
+
+		IWL_DEBUG_MAC80211("leave - %s not in station map.\n",
+				   print_mac(mac, addr));
 		return -EINVAL;
 	}
 

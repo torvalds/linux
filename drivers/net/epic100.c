@@ -317,6 +317,7 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	int i, ret, option = 0, duplex = 0;
 	void *ring_space;
 	dma_addr_t ring_dma;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -493,11 +494,9 @@ static int __devinit epic_init_one (struct pci_dev *pdev,
 	if (ret < 0)
 		goto err_out_unmap_rx;
 
-	printk(KERN_INFO "%s: %s at %#lx, IRQ %d, ",
-		   dev->name, pci_id_tbl[chip_idx].name, ioaddr, dev->irq);
-	for (i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x.\n", dev->dev_addr[i]);
+	printk(KERN_INFO "%s: %s at %#lx, IRQ %d, %s\n",
+	       dev->name, pci_id_tbl[chip_idx].name, ioaddr, dev->irq,
+	       print_mac(mac, dev->dev_addr));
 
 out:
 	return ret;

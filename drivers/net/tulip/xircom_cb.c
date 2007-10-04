@@ -1074,6 +1074,7 @@ static void read_mac_address(struct xircom_private *card)
 	unsigned char j, tuple, link, data_id, data_count;
 	unsigned long flags;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	enter("read_mac_address");
 
@@ -1103,11 +1104,7 @@ static void read_mac_address(struct xircom_private *card)
 		}
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
-#ifdef DEBUG
-	for (i = 0; i < 6; i++)
-		printk("%c%2.2X", i ? ':' : ' ', card->dev->dev_addr[i]);
-	printk("\n");
-#endif
+	pr_debug(" %s\n", print_mac(mac, card->dev->dev_addr));
 	leave("read_mac_address");
 }
 

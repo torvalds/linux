@@ -784,6 +784,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	unsigned int port_num = mp->port_num;
 	unsigned int size;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	/* Clear any pending ethernet port interrupts */
 	mv_write(MV643XX_ETH_INTERRUPT_CAUSE_REG(port_num), 0);
@@ -1413,8 +1414,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	p = dev->dev_addr;
 	printk(KERN_NOTICE
-		"%s: port %d with MAC address %02x:%02x:%02x:%02x:%02x:%02x\n",
-		dev->name, port_num, p[0], p[1], p[2], p[3], p[4], p[5]);
+		"%s: port %d with MAC address %s\n",
+		dev->name, port_num, print_mac(mac, p));
 
 	if (dev->features & NETIF_F_SG)
 		printk(KERN_NOTICE "%s: Scatter Gather Enabled\n", dev->name);

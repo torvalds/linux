@@ -595,11 +595,10 @@ dm9000_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 
 	if (ret == 0) {
-		printk("%s: dm9000 at %p,%p IRQ %d MAC: ",
-		       ndev->name,  db->io_addr, db->io_data, ndev->irq);
-		for (i = 0; i < 5; i++)
-			printk("%02x:", ndev->dev_addr[i]);
-		printk("%02x\n", ndev->dev_addr[5]);
+		DECLARE_MAC_BUF(mac);
+		printk("%s: dm9000 at %p,%p IRQ %d MAC: %s\n",
+		       ndev->name,  db->io_addr, db->io_data, ndev->irq,
+		       print_mac(mac, ndev->dev_addr));
 	}
 	return 0;
 

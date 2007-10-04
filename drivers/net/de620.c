@@ -807,6 +807,7 @@ struct net_device * __init de620_probe(int unit)
 	struct net_device *dev;
 	int err = -ENOMEM;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(0);
 	if (!dev)
@@ -853,12 +854,13 @@ struct net_device * __init de620_probe(int unit)
 	}
 
 	/* else, got it! */
-	printk(", Ethernet Address: %2.2X",
-		dev->dev_addr[0] = nic_data.NodeID[0]);
+	dev->dev_addr[0] = nic_data.NodeID[0];
 	for (i = 1; i < ETH_ALEN; i++) {
-		printk(":%2.2X", dev->dev_addr[i] = nic_data.NodeID[i]);
+		dev->dev_addr[i] = nic_data.NodeID[i];
 		dev->broadcast[i] = 0xff;
 	}
+
+	printk(", Ethernet Address: %s", print_mac(mac, dev->dev_addr));
 
 	printk(" (%dk RAM,",
 		(nic_data.RAM_Size) ? (nic_data.RAM_Size >> 2) : 64);

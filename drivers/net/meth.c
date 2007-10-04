@@ -95,11 +95,11 @@ char o2meth_eaddr[8]={0,0,0,0,0,0,0,0};
 static inline void load_eaddr(struct net_device *dev)
 {
 	int i;
-	DPRINTK("Loading MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		(int)o2meth_eaddr[0]&0xFF,(int)o2meth_eaddr[1]&0xFF,(int)o2meth_eaddr[2]&0xFF,
-		(int)o2meth_eaddr[3]&0xFF,(int)o2meth_eaddr[4]&0xFF,(int)o2meth_eaddr[5]&0xFF);
+	DECLARE_MAC_BUF(mac);
+
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = o2meth_eaddr[i];
+	DPRINTK("Loading MAC Address: %s\n", print_mac(mac, dev->dev_addr));
 	mace->eth.mac_addr = (*(unsigned long*)o2meth_eaddr) >> 16;
 }
 

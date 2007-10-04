@@ -384,6 +384,7 @@ static struct net_device * __init de600_probe(void)
 	int	i;
 	struct net_device *dev;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(0);
 	if (!dev)
@@ -438,10 +439,7 @@ static struct net_device * __init de600_probe(void)
 		goto out1;
 	}
 
-	printk(", Ethernet Address: %02X", dev->dev_addr[0]);
-	for (i = 1; i < ETH_ALEN; i++)
-		printk(":%02X",dev->dev_addr[i]);
-	printk("\n");
+	printk(", Ethernet Address: %s\n", print_mac(mac, dev->dev_addr));
 
 	dev->open = de600_open;
 	dev->stop = de600_close;

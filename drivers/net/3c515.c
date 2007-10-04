@@ -569,6 +569,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	unsigned int eeprom[0x40], checksum = 0;	/* EEPROM contents */
 	int i;
 	int irq;
+	DECLARE_MAC_BUF(mac);
 
 	if (idev) {
 		irq = pnp_irq(idev, 0);
@@ -630,8 +631,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	checksum = (checksum ^ (checksum >> 8)) & 0xff;
 	if (checksum != 0x00)
 		printk(" ***INVALID CHECKSUM %4.4x*** ", checksum);
-	for (i = 0; i < 6; i++)
-		printk("%c%2.2x", i ? ':' : ' ', dev->dev_addr[i]);
+	printk(" %s", print_mac(mac, dev->dev_addr));
 	if (eeprom[16] == 0x11c7) {	/* Corkscrew */
 		if (request_dma(dev->dma, "3c515")) {
 			printk(", DMA %d allocation failed", dev->dma);

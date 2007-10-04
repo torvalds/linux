@@ -291,6 +291,7 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	int neX000, ctron, copam, bad_card;
 	int reg0, ret;
 	static unsigned version_printed;
+	DECLARE_MAC_BUF(mac);
 
 	if (!request_region(ioaddr, NE_IO_EXTENT, DRV_NAME))
 		return -EBUSY;
@@ -503,16 +504,14 @@ static int __init ne_probe1(struct net_device *dev, unsigned long ioaddr)
 	for (i = 0 ; i < ETHER_ADDR_LEN ; i++) {
 		dev->dev_addr[i] = SA_prom[i]
 			= inb_p(ioaddr + EN1_PHYS_SHIFT(i));
-		printk(" %2.2x", SA_prom[i]);
 	}
 #else
 	for(i = 0; i < ETHER_ADDR_LEN; i++) {
-		printk(" %2.2x", SA_prom[i]);
 		dev->dev_addr[i] = SA_prom[i];
 	}
 #endif
 
-	printk("\n");
+	printk("%s\n", print_mac(mac, dev->dev_addr));
 
 	ei_status.name = name;
 	ei_status.tx_start_page = start_page;

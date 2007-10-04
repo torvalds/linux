@@ -457,13 +457,16 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 			}
 
 		case IEEE80211_STYPE_PROBE_REQ:{
+				DECLARE_MAC_BUF(mac1);
+				DECLARE_MAC_BUF(mac2);
+				DECLARE_MAC_BUF(mac3);
 				if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 					IWL_DEBUG_DROP
-					    ("Dropping (non network): " MAC_FMT
-					     ", " MAC_FMT ", " MAC_FMT "\n",
-					     MAC_ARG(header->addr1),
-					     MAC_ARG(header->addr2),
-					     MAC_ARG(header->addr3));
+					    ("Dropping (non network): %s"
+					     ", %s, %s\n",
+					     print_mac(mac1, header->addr1),
+					     print_mac(mac2, header->addr2),
+					     print_mac(mac3, header->addr3));
 				return;
 			}
 		}
@@ -474,17 +477,21 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 	case IEEE80211_FTYPE_CTL:
 		break;
 
-	case IEEE80211_FTYPE_DATA:
+	case IEEE80211_FTYPE_DATA: {
+		DECLARE_MAC_BUF(mac1);
+		DECLARE_MAC_BUF(mac2);
+		DECLARE_MAC_BUF(mac3);
+
 		if (unlikely(is_duplicate_packet(priv, header)))
-			IWL_DEBUG_DROP("Dropping (dup): " MAC_FMT ", "
-				       MAC_FMT ", " MAC_FMT "\n",
-				       MAC_ARG(header->addr1),
-				       MAC_ARG(header->addr2),
-				       MAC_ARG(header->addr3));
+			IWL_DEBUG_DROP("Dropping (dup): %s, %s, %s\n",
+				       print_mac(mac1, header->addr1),
+				       print_mac(mac2, header->addr2),
+				       print_mac(mac3, header->addr3));
 		else
 			iwl3945_handle_data_packet(priv, 1, rxb, &stats,
 						   phy_flags);
 		break;
+	}
 	}
 }
 
@@ -563,6 +570,7 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 	int i;
 	int ret = IWL_INVALID_STATION;
 	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	for (i = IWL_STA_ID; i < priv->hw_setting.max_stations; i++)
@@ -573,8 +581,8 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 			goto out;
 		}
 
-	IWL_DEBUG_INFO("can not find STA " MAC_FMT " (total %d)\n",
-		       MAC_ARG(addr), priv->num_stations);
+	IWL_DEBUG_INFO("can not find STA %s (total %d)\n",
+		       print_mac(mac, addr), priv->num_stations);
  out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;

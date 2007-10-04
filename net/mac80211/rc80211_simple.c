@@ -201,9 +201,10 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		srctrl->avg_rate_update = jiffies;
 		if (srctrl->tx_avg_rate_num > 0) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			printk(KERN_DEBUG "%s: STA " MAC_FMT " Average rate: "
+			DECLARE_MAC_BUF(mac);
+			printk(KERN_DEBUG "%s: STA %s Average rate: "
 			       "%d (%d/%d)\n",
-			       dev->name, MAC_ARG(sta->addr),
+			       dev->name, print_mac(mac, sta->addr),
 			       srctrl->tx_avg_rate_sum /
 			       srctrl->tx_avg_rate_num,
 			       srctrl->tx_avg_rate_sum,

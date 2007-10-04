@@ -777,6 +777,7 @@ int wlan_scan_networks(wlan_private * priv,
 #ifdef CONFIG_LIBERTAS_DEBUG
 	struct bss_descriptor * iter_bss;
 	int i = 0;
+	DECLARE_MAC_BUF(mac);
 #endif
 
 	lbs_deb_enter(LBS_DEB_SCAN);
@@ -831,8 +832,8 @@ int wlan_scan_networks(wlan_private * priv,
 	/* Dump the scan table */
 	mutex_lock(&adapter->lock);
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
-		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
-		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
+		lbs_deb_scan("Scan:(%02d) %s, RSSI[%03d], SSID[%s]\n",
+		       i++, print_mac(mac, iter_bss->bssid), (s32) iter_bss->rssi,
 		       escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 	}
 	mutex_unlock(&adapter->lock);
@@ -876,6 +877,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	struct ieeetypes_dsparamset *pDS;
 	struct ieeetypes_cfparamset *pCF;
 	struct ieeetypes_ibssparamset *pibss;
+	DECLARE_MAC_BUF(mac);
 	struct ieeetypes_countryinfoset *pcountryinfo;
 	u8 *pos, *end, *p;
 	u8 n_ex_rates = 0, got_basic_rates = 0, n_basic_rates = 0;
@@ -906,7 +908,7 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	*bytesleft -= beaconsize;
 
 	memcpy(bss->bssid, pos, ETH_ALEN);
-	lbs_deb_scan("process_bss: AP BSSID " MAC_FMT "\n", MAC_ARG(bss->bssid));
+	lbs_deb_scan("process_bss: AP BSSID %s\n", print_mac(mac, bss->bssid));
 	pos += ETH_ALEN;
 
 	if ((end - pos) < 12) {
@@ -1724,6 +1726,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		struct bss_descriptor new;
 		struct bss_descriptor * found = NULL;
 		struct bss_descriptor * oldest = NULL;
+		DECLARE_MAC_BUF(mac);
 
 		/* Process the data fields and IEs returned for this BSS */
 		memset(&new, 0, sizeof (struct bss_descriptor));
@@ -1762,9 +1765,8 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 			continue;
 		}
 
-		lbs_deb_scan("SCAN_RESP: BSSID = " MAC_FMT "\n",
-		       new.bssid[0], new.bssid[1], new.bssid[2],
-		       new.bssid[3], new.bssid[4], new.bssid[5]);
+		lbs_deb_scan("SCAN_RESP: BSSID = %s\n",
+			     print_mac(mac, new.bssid));
 
 		/* Copy the locally created newbssentry to the scan table */
 		memcpy(found, &new, offsetof(struct bss_descriptor, list));

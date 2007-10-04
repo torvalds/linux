@@ -164,6 +164,7 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 	int start = 0;
 	int ret = IWL_INVALID_STATION;
 	unsigned long flags;
+	DECLARE_MAC_BUF(mac);
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) ||
 	    (priv->iw_mode == IEEE80211_IF_TYPE_AP))
@@ -181,8 +182,8 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 			goto out;
 		}
 
-	IWL_DEBUG_ASSOC("can not find STA " MAC_FMT " total %d\n",
-			MAC_ARG(addr), priv->num_stations);
+	IWL_DEBUG_ASSOC("can not find STA %s total %d\n",
+			print_mac(mac, addr), priv->num_stations);
 
  out:
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -3909,12 +3910,15 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 		case IEEE80211_STYPE_PROBE_REQ:
 			if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
 			    !iwl_is_associated(priv)) {
+				DECLARE_MAC_BUF(mac1);
+				DECLARE_MAC_BUF(mac2);
+				DECLARE_MAC_BUF(mac3);
+
 				IWL_DEBUG_DROP("Dropping (non network): "
-					       MAC_FMT ", " MAC_FMT ", "
-					       MAC_FMT "\n",
-					       MAC_ARG(header->addr1),
-					       MAC_ARG(header->addr2),
-					       MAC_ARG(header->addr3));
+					       "%s, %s, %s\n",
+					       print_mac(mac1, header->addr1),
+					       print_mac(mac2, header->addr2),
+					       print_mac(mac3, header->addr3));
 				return;
 			}
 		}
@@ -3936,28 +3940,31 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 
 		break;
 
-	case IEEE80211_FTYPE_DATA:
+	case IEEE80211_FTYPE_DATA: {
+		DECLARE_MAC_BUF(mac1);
+		DECLARE_MAC_BUF(mac2);
+		DECLARE_MAC_BUF(mac3);
+
 		if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
 			iwl4965_update_ps_mode(priv, fc  & IEEE80211_FCTL_PM,
 						header->addr2);
 
 		if (unlikely(!network_packet))
 			IWL_DEBUG_DROP("Dropping (non network): "
-				       MAC_FMT ", " MAC_FMT ", "
-				       MAC_FMT "\n",
-				       MAC_ARG(header->addr1),
-				       MAC_ARG(header->addr2),
-				       MAC_ARG(header->addr3));
+				       "%s, %s, %s\n",
+				       print_mac(mac1, header->addr1),
+				       print_mac(mac2, header->addr2),
+				       print_mac(mac3, header->addr3));
 		else if (unlikely(is_duplicate_packet(priv, header)))
-			IWL_DEBUG_DROP("Dropping (dup): " MAC_FMT ", "
-				       MAC_FMT ", " MAC_FMT "\n",
-				       MAC_ARG(header->addr1),
-				       MAC_ARG(header->addr2),
-				       MAC_ARG(header->addr3));
+			IWL_DEBUG_DROP("Dropping (dup): %s, %s, %s\n",
+				       print_mac(mac1, header->addr1),
+				       print_mac(mac2, header->addr2),
+				       print_mac(mac3, header->addr3));
 		else
 			iwl4965_handle_data_packet(priv, 1, include_phy, rxb,
 						   &stats);
 		break;
+	}
 	default:
 		break;
 
@@ -4106,10 +4113,12 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* TODO: Need to get this copy more sefely - now good for debug */
 /*
-	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d]Received from " MAC_FMT ",
-			   sta_id = %d\n",
+	{
+	DECLARE_MAC_BUF(mac);
+	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d]Received from %s, "
+			   "sta_id = %d\n",
 			   agg->wait_for_ba,
-			   MAC_ARG((u8*) &ba_resp->sta_addr_lo32),
+			   print_mac(mac, (u8*) &ba_resp->sta_addr_lo32),
 			   ba_resp->sta_id);
 	IWL_DEBUG_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%X%X, scd_flow = "
 			   "%d, scd_ssn = %d\n",
@@ -4123,6 +4132,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 			   agg->start_idx,
 			   agg->bitmap1,
 			   agg->bitmap0);
+	}
 */
 	iwl4965_tx_status_reply_compressed_ba(priv, agg, ba_resp);
 	/* releases all the TFDs until the SSN */
@@ -4539,14 +4549,15 @@ int iwl_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da, u16 tid,
 	int ssn = -1;
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
+	DECLARE_MAC_BUF(mac);
 
 	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
 		tx_fifo = default_tid_to_tx_fifo[tid];
 	else
 		return -EINVAL;
 
-	IWL_WARNING("iwl-AGG iwl_mac_ht_tx_agg_start on da=" MAC_FMT
-		    " tid=%d\n", MAC_ARG(da), tid);
+	IWL_WARNING("iwl-AGG iwl_mac_ht_tx_agg_start on da=%s"
+		    " tid=%d\n", print_mac(mac, da), tid);
 
 	sta_id = iwl_hw_find_station(priv, da);
 	if (sta_id == IWL_INVALID_STATION)
@@ -4577,6 +4588,8 @@ int iwl_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da, u16 tid,
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
 	struct iwl_tid_data *tid_data;
 	int rc;
+	DECLARE_MAC_BUF(mac);
+
 	if (!da) {
 		IWL_ERROR("%s: da = NULL\n", __func__);
 		return -EINVAL;
@@ -4602,8 +4615,8 @@ int iwl_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da, u16 tid,
 		return rc;
 
 	iwl4965_ba_status(priv, tid, BA_STATUS_INITIATOR_DELBA);
-	IWL_DEBUG_INFO("iwl_mac_ht_tx_agg_stop on da=" MAC_FMT " tid=%d\n",
-		    MAC_ARG(da), tid);
+	IWL_DEBUG_INFO("iwl_mac_ht_tx_agg_stop on da=%s tid=%d\n",
+		       print_mac(mac, da), tid);
 
 	return 0;
 }
@@ -4613,9 +4626,10 @@ int iwl_mac_ht_rx_agg_start(struct ieee80211_hw *hw, u8 *da,
 {
 	struct iwl_priv *priv = hw->priv;
 	int sta_id;
+	DECLARE_MAC_BUF(mac);
 
-	IWL_WARNING("iwl-AGG iwl_mac_ht_rx_agg_start on da=" MAC_FMT
-		    " tid=%d\n", MAC_ARG(da), tid);
+	IWL_WARNING("iwl-AGG iwl_mac_ht_rx_agg_start on da=%s"
+		    " tid=%d\n", print_mac(mac, da), tid);
 	sta_id = iwl_hw_find_station(priv, da);
 	iwl4965_sta_modify_add_ba_tid(priv, sta_id, tid, start_seq_num);
 	return 0;
@@ -4626,9 +4640,10 @@ int iwl_mac_ht_rx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 {
 	struct iwl_priv *priv = hw->priv;
 	int sta_id;
+	DECLARE_MAC_BUF(mac);
 
-	IWL_WARNING("iwl-AGG iwl_mac_ht_rx_agg_stop on da=" MAC_FMT " tid=%d\n",
-		     MAC_ARG(da), tid);
+	IWL_WARNING("iwl-AGG iwl_mac_ht_rx_agg_stop on da=%s tid=%d\n",
+		    print_mac(mac, da), tid);
 	sta_id = iwl_hw_find_station(priv, da);
 	iwl4965_sta_modify_del_ba_tid(priv, sta_id, tid);
 	return 0;

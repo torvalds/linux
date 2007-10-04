@@ -235,9 +235,9 @@ static int lguestnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct lguestnet_info *info = netdev_priv(dev);
 	/* Extract the destination ethernet address from the packet. */
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
+	DECLARE_MAC_BUF(mac);
 
-	pr_debug("%s: xmit %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 dev->name, dest[0],dest[1],dest[2],dest[3],dest[4],dest[5]);
+	pr_debug("%s: xmit %s\n", dev->name, print_mac(mac, dest));
 
 	/* If it's a multicast packet, we broadcast to everyone.  That's not
 	 * very efficient, but there are very few applications which actually

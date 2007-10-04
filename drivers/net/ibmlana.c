@@ -898,6 +898,7 @@ static int ibmlana_probe(struct net_device *dev)
 	int base = 0, irq = 0, iobase = 0, memlen = 0;
 	ibmlana_priv *priv;
 	ibmlana_medium medium;
+	DECLARE_MAC_BUF(mac);
 
 	/* can't work without an MCA bus ;-) */
 	if (MCA_bus == 0)
@@ -981,11 +982,10 @@ static int ibmlana_probe(struct net_device *dev)
 	/* print config */
 
 	printk(KERN_INFO "%s: IRQ %d, I/O %#lx, memory %#lx-%#lx, "
-	       "MAC address %02x:%02x:%02x:%02x:%02x:%02x.\n",
+	       "MAC address %s.\n",
 	       dev->name, priv->realirq, dev->base_addr,
 	       dev->mem_start, dev->mem_end - 1,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	       print_mac(mac, dev->dev_addr));
 	printk(KERN_INFO "%s: %s medium\n", dev->name, MediaNames[priv->medium]);
 
 	/* reset board */

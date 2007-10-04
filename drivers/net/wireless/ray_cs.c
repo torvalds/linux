@@ -412,6 +412,7 @@ static int ray_config(struct pcmcia_device *link)
     memreq_t mem;
     struct net_device *dev = (struct net_device *)link->priv;
     ray_dev_t *local = netdev_priv(dev);
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(1, "ray_config(0x%p)\n", link);
 
@@ -482,10 +483,8 @@ static int ray_config(struct pcmcia_device *link)
     strcpy(local->node.dev_name, dev->name);
     link->dev_node = &local->node;
 
-    printk(KERN_INFO "%s: RayLink, irq %d, hw_addr ",
-       dev->name, dev->irq);
-    for (i = 0; i < 6; i++)
-    printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %s\n",
+       dev->name, dev->irq, print_mac(mac, dev->dev_addr));
 
     return 0;
 
@@ -2610,6 +2609,7 @@ static int ray_cs_proc_read(char *buf, char **start, off_t offset, int len)
     UCHAR *p;
     struct freq_hop_element *pfh;
     UCHAR c[33];
+    DECLARE_MAC_BUF(mac);
 
     link = this_device;
     if (!link)
@@ -2639,9 +2639,8 @@ static int ray_cs_proc_read(char *buf, char **start, off_t offset, int len)
                    nettype[local->sparm.b5.a_network_type], c);
 
     p = local->bss_id;
-    len += sprintf(buf + len, 
-                   "BSSID                = %02x:%02x:%02x:%02x:%02x:%02x\n",
-                   p[0],p[1],p[2],p[3],p[4],p[5]);
+    len += sprintf(buf + len, "BSSID                = %s\n",
+                   print_mac(mac, p));
 
     len += sprintf(buf + len, "Country code         = %d\n", 
                    local->sparm.b5.a_curr_country_code);

@@ -2883,6 +2883,7 @@ static int b43_dev_set_key(struct ieee80211_hw *hw,
 	u8 algorithm;
 	u8 index;
 	int err = -EINVAL;
+	DECLARE_MAC_BUF(mac);
 
 	if (modparam_nohwcrypt)
 		return -ENOSPC; /* User disabled HW-crypto */
@@ -2969,9 +2970,9 @@ out_unlock:
 out:
 	if (!err) {
 		b43dbg(wl, "%s hardware based encryption for keyidx: %d, "
-		       "mac: " MAC_FMT "\n",
+		       "mac: %s\n",
 		       cmd == SET_KEY ? "Using" : "Disabling", key->keyidx,
-		       MAC_ARG(addr));
+		       print_mac(mac, addr));
 	}
 	return err;
 }

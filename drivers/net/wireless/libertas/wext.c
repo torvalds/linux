@@ -1160,7 +1160,7 @@ static int wlan_get_encode(struct net_device *dev,
 
 	dwrq->flags |= IW_ENCODE_NOKEY;
 
-	lbs_deb_wext("key: " MAC_FMT ", keylen %d\n",
+	lbs_deb_wext("key: %02x:%02x:%02x:%02x:%02x:%02x, keylen %d\n",
 	       extra[0], extra[1], extra[2],
 	       extra[3], extra[4], extra[5], dwrq->length);
 
@@ -1980,13 +1980,14 @@ static int wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	wlan_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 	int ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;
 
-	lbs_deb_wext("ASSOC: WAP: sa_data " MAC_FMT "\n", MAC_ARG(awrq->sa_data));
+	lbs_deb_wext("ASSOC: WAP: sa_data %s\n", print_mac(mac, awrq->sa_data));
 
 	mutex_lock(&adapter->lock);
 

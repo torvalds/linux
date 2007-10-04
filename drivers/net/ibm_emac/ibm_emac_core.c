@@ -353,10 +353,9 @@ static void emac_hash_mc(struct ocp_enet_private *dev)
 
 	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
 		int bit;
-		DBG2("%d: mc %02x:%02x:%02x:%02x:%02x:%02x" NL,
-		     dev->def->index,
-		     dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
-		     dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
+		DECLARE_MAC_BUF(mac);
+		DBG2("%d: mc %s" NL,
+		     dev->def->index, print_mac(mac, dmi->dmi_addr));
 
 		bit = 63 - (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 26);
 		gaht[bit >> 4] |= 0x8000 >> (bit & 0x0f);
@@ -1940,6 +1939,7 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 	struct ocp_device *maldev;
 	struct ocp_enet_private *dev;
 	int err, i;
+	DECLARE_MAC_BUF(mac);
 
 	DBG("%d: probe" NL, ocpdev->def->index);
 
@@ -2188,10 +2188,8 @@ static int __init emac_probe(struct ocp_device *ocpdev)
 
 	ocp_set_drvdata(ocpdev, dev);
 
-	printk("%s: emac%d, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       ndev->name, dev->def->index,
-	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
-	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
+	printk("%s: emac%d, MAC %s\n",
+	       ndev->name, dev->def->index, print_mac(mac, ndev->dev_addr));
 
 	if (dev->phy.address >= 0)
 		printk("%s: found %s PHY (0x%02x)\n", ndev->name,

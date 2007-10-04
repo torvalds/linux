@@ -1321,6 +1321,7 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 	struct net_device *dev;
 	struct lance_private *lp;
 	int    i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct lance_private) + 8);
 	if (!dev)
@@ -1478,12 +1479,8 @@ no_link_test:
 
 	dev_set_drvdata(&sdev->ofdev.dev, lp);
 
-	printk(KERN_INFO "%s: LANCE ", dev->name);
-
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? ' ': ':');
-	printk("\n");
+	printk(KERN_INFO "%s: LANCE %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	return 0;
 

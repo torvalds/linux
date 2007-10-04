@@ -677,6 +677,7 @@ static void libertas_set_multicast_list(struct net_device *dev)
 	wlan_private *priv = dev->priv;
 	wlan_adapter *adapter = priv->adapter;
 	int oldpacketfilter;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_NET);
 
@@ -723,14 +724,9 @@ static void libertas_set_multicast_list(struct net_device *dev)
 				       dev->mc_count);
 
 				for (i = 0; i < dev->mc_count; i++) {
-					lbs_deb_net("Multicast address %d:"
-					       MAC_FMT "\n", i,
-					       adapter->multicastlist[i][0],
-					       adapter->multicastlist[i][1],
-					       adapter->multicastlist[i][2],
-					       adapter->multicastlist[i][3],
-					       adapter->multicastlist[i][4],
-					       adapter->multicastlist[i][5]);
+					lbs_deb_net("Multicast address %d:%s\n",
+					       i, print_mac(mac,
+					       adapter->multicastlist[i]));
 				}
 				/* send multicast addresses to firmware */
 				libertas_prepare_and_send_command(priv,

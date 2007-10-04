@@ -618,12 +618,8 @@ e100_set_mac_address(struct net_device *dev, void *p)
 
 	/* show it in the log as well */
 
-	printk(KERN_INFO "%s: changed MAC to ", dev->name);
-
-	for (i = 0; i < 5; i++)
-		printk("%02X:", dev->dev_addr[i]);
-
-	printk("%02X\n", dev->dev_addr[i]);
+	printk(KERN_INFO "%s: changed MAC to %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	spin_unlock(&np->lock);
 

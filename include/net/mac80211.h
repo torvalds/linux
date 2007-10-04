@@ -1106,8 +1106,4 @@ static inline int ieee80211_get_morefrag(struct ieee80211_hdr *hdr)
 		IEEE80211_FCTL_MOREFRAGS) != 0;
 }
 
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0], ((u8*)(x))[1], ((u8*)(x))[2], \
-		   ((u8*)(x))[3], ((u8*)(x))[4], ((u8*)(x))[5]
-
 #endif /* MAC80211_H */

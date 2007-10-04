@@ -159,6 +159,7 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	struct cmd_ds_get_hw_spec *hwspec = &resp->params.hwspec;
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -169,8 +170,8 @@ static int wlan_ret_get_hw_spec(wlan_private * priv,
 	lbs_deb_cmd("GET_HW_SPEC: firmware release %u.%u.%up%u\n",
 		    adapter->fwreleasenumber[2], adapter->fwreleasenumber[1],
 		    adapter->fwreleasenumber[0], adapter->fwreleasenumber[3]);
-	lbs_deb_cmd("GET_HW_SPEC: MAC addr " MAC_FMT "\n",
-	       MAC_ARG(hwspec->permanentaddr));
+	lbs_deb_cmd("GET_HW_SPEC: MAC addr %s\n",
+		    print_mac(mac, hwspec->permanentaddr));
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
 	       hwspec->hwifversion, hwspec->version);
 

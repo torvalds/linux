@@ -64,7 +64,7 @@
 #include <net/ax25.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
@@ -95,7 +95,6 @@ static char bpq_eth_addr[6];
 
 static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 static int bpq_device_event(struct notifier_block *, unsigned long, void *);
-static const char *bpq_print_ethaddr(const unsigned char *);
 
 static struct packet_type bpq_packet_type = {
 	.type	= __constant_htons(ETH_P_BPQ),
@@ -383,16 +382,6 @@ static int bpq_close(struct net_device *dev)
 /*
  *	Proc filesystem
  */
-static const char * bpq_print_ethaddr(const unsigned char *e)
-{
-	static char buf[18];
-
-	sprintf(buf, "%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X",
-		e[0], e[1], e[2], e[3], e[4], e[5]);
-
-	return buf;
-}
-
 static void *bpq_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	int i = 1;
@@ -438,14 +427,16 @@ static int bpq_seq_show(struct seq_file *seq, void *v)
 			 "dev   ether      destination        accept from\n");
 	else {
 		const struct bpqdev *bpqdev = v;
+		DECLARE_MAC_BUF(mac);
 
 		seq_printf(seq, "%-5s %-10s %s  ",
 			bpqdev->axdev->name, bpqdev->ethdev->name,
-			bpq_print_ethaddr(bpqdev->dest_addr));
+			print_mac(mac, bpqdev->dest_addr));
 
-		seq_printf(seq, "%s\n",
-			(bpqdev->acpt_addr[0] & 0x01) ? "*" 
-			   : bpq_print_ethaddr(bpqdev->acpt_addr));
+		if (is_multicast_ether_addr(bpqdev->acpt_addr))
+			seq_printf(seq, "*\n");
+		else
+			seq_printf(seq, "%s\n", print_mac(mac, bpqdev->acpt_addr));
 
 	}
 	return 0;

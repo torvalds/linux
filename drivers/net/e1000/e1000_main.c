@@ -872,6 +872,8 @@ e1000_probe(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	uint16_t eeprom_data = 0;
 	uint16_t eeprom_apme_mask = E1000_EEPROM_APME;
+	DECLARE_MAC_BUF(mac);
+
 	if ((err = pci_enable_device(pdev)))
 		return err;
 
@@ -1132,8 +1134,7 @@ e1000_probe(struct pci_dev *pdev,
 		 "32-bit"));
 	}
 
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", netdev->dev_addr[i], i == 5 ? '\n' : ':');
+	printk("%s\n", print_mac(mac, netdev->dev_addr));
 
 	/* reset the hardware with the new settings */
 	e1000_reset(adapter);

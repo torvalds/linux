@@ -372,6 +372,7 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 	u16 status = le16_to_cpup(&resp->status);
 	struct ieee80211softmac_network *network = NULL;
 	unsigned long flags;
+	DECLARE_MAC_BUF(mac2);
 
 	if (unlikely(!mac->running))
 		return -ENODEV;
@@ -388,7 +389,8 @@ ieee80211softmac_handle_assoc_response(struct net_device * dev,
 
 	/* someone sending us things without us knowing him? Ignore. */
 	if (!network) {
-		dprintk(KERN_INFO PFX "Received unrequested assocation response from " MAC_FMT "\n", MAC_ARG(resp->header.addr3));
+		dprintk(KERN_INFO PFX "Received unrequested assocation response from %s\n",
+			print_mac(mac2, resp->header.addr3));
 		spin_unlock_irqrestore(&mac->lock, flags);
 		return 0;
 	}

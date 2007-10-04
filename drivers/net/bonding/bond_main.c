@@ -1604,6 +1604,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	struct slave *slave, *oldcurrent;
 	struct sockaddr addr;
 	int mac_addr_differ;
+	DECLARE_MAC_BUF(mac);
 
 	/* slave is not a slave or master is not master of this slave */
 	if (!(slave_dev->flags & IFF_SLAVE) ||
@@ -1631,19 +1632,13 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 				 ETH_ALEN);
 	if (!mac_addr_differ && (bond->slave_cnt > 1)) {
 		printk(KERN_WARNING DRV_NAME
-		       ": %s: Warning: the permanent HWaddr of %s "
-		       "- %02X:%02X:%02X:%02X:%02X:%02X - is "
-		       "still in use by %s. Set the HWaddr of "
-		       "%s to a different address to avoid "
-		       "conflicts.\n",
+		       ": %s: Warning: the permanent HWaddr of %s - "
+		       "%s - is still in use by %s. "
+		       "Set the HWaddr of %s to a different address "
+		       "to avoid conflicts.\n",
 		       bond_dev->name,
 		       slave_dev->name,
-		       slave->perm_hwaddr[0],
-		       slave->perm_hwaddr[1],
-		       slave->perm_hwaddr[2],
-		       slave->perm_hwaddr[3],
-		       slave->perm_hwaddr[4],
-		       slave->perm_hwaddr[5],
+		       print_mac(mac, slave->perm_hwaddr),
 		       bond_dev->name,
 		       slave_dev->name);
 	}
@@ -3006,6 +3001,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
+		DECLARE_MAC_BUF(mac);
 
 		seq_puts(seq, "\n802.3ad info\n");
 		seq_printf(seq, "LACP rate: %s\n",
@@ -3025,13 +3021,8 @@ static void bond_info_show_master(struct seq_file *seq)
 				   ad_info.actor_key);
 			seq_printf(seq, "\tPartner Key: %d\n",
 				   ad_info.partner_key);
-			seq_printf(seq, "\tPartner Mac Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-				   ad_info.partner_system[0],
-				   ad_info.partner_system[1],
-				   ad_info.partner_system[2],
-				   ad_info.partner_system[3],
-				   ad_info.partner_system[4],
-				   ad_info.partner_system[5]);
+			seq_printf(seq, "\tPartner Mac Address: %s\n",
+				   print_mac(mac, ad_info.partner_system));
 		}
 	}
 }
@@ -3039,6 +3030,7 @@ static void bond_info_show_master(struct seq_file *seq)
 static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave)
 {
 	struct bonding *bond = seq->private;
+	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq, "\nSlave Interface: %s\n", slave->dev->name);
 	seq_printf(seq, "MII Status: %s\n",
@@ -3047,10 +3039,8 @@ static void bond_info_show_slave(struct seq_file *seq, const struct slave *slave
 		   slave->link_failure_count);
 
 	seq_printf(seq,
-		   "Permanent HW addr: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		   slave->perm_hwaddr[0], slave->perm_hwaddr[1],
-		   slave->perm_hwaddr[2], slave->perm_hwaddr[3],
-		   slave->perm_hwaddr[4], slave->perm_hwaddr[5]);
+		   "Permanent HW addr: %s\n",
+		   print_mac(mac, slave->perm_hwaddr));
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		const struct aggregator *agg

@@ -664,6 +664,7 @@ static int hostap_join_ap(struct net_device *dev)
 	unsigned long flags;
 	int i;
 	struct hfa384x_hostscan_result *entry;
+	DECLARE_MAC_BUF(mac);
 
 	iface = netdev_priv(dev);
 	local = iface->local;
@@ -685,14 +686,14 @@ static int hostap_join_ap(struct net_device *dev)
 
 	if (local->func->set_rid(dev, HFA384X_RID_JOINREQUEST, &req,
 				 sizeof(req))) {
-		printk(KERN_DEBUG "%s: JoinRequest " MACSTR
+		printk(KERN_DEBUG "%s: JoinRequest %s"
 		       " failed\n",
-		       dev->name, MAC2STR(local->preferred_ap));
+		       dev->name, print_mac(mac, local->preferred_ap));
 		return -1;
 	}
 
-	printk(KERN_DEBUG "%s: Trying to join BSSID " MACSTR "\n",
-	       dev->name, MAC2STR(local->preferred_ap));
+	printk(KERN_DEBUG "%s: Trying to join BSSID %s\n",
+	       dev->name, print_mac(mac, local->preferred_ap));
 
 	return 0;
 }
@@ -3697,8 +3698,10 @@ static int prism2_ioctl_set_assoc_ap_addr(local_info_t *local,
 					  struct prism2_hostapd_param *param,
 					  int param_len)
 {
-	printk(KERN_DEBUG "%ssta: associated as client with AP " MACSTR "\n",
-	       local->dev->name, MAC2STR(param->sta_addr));
+	DECLARE_MAC_BUF(mac);
+	printk(KERN_DEBUG "%ssta: associated as client with AP "
+	       "%s\n",
+	       local->dev->name, print_mac(mac, param->sta_addr));
 	memcpy(local->assoc_ap_addr, param->sta_addr, ETH_ALEN);
 	return 0;
 }

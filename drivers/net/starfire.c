@@ -694,6 +694,7 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	void __iomem *base;
 	int drv_flags, io_size;
 	int boguscnt;
+	DECLARE_MAC_BUF(mac);
 
 /* when built into the kernel, we only print version if device is found */
 #ifndef MODULE
@@ -863,11 +864,9 @@ static int __devinit starfire_init_one(struct pci_dev *pdev,
 	if (register_netdev(dev))
 		goto err_out_cleardev;
 
-	printk(KERN_INFO "%s: %s at %p, ",
-		   dev->name, netdrv_tbl[chip_idx].name, base);
-	for (i = 0; i < 5; i++)
-		printk("%2.2x:", dev->dev_addr[i]);
-	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], irq);
+	printk(KERN_INFO "%s: %s at %p, %s, IRQ %d.\n",
+	       dev->name, netdrv_tbl[chip_idx].name, base,
+	       print_mac(mac, dev->dev_addr), irq);
 
 	if (drv_flags & CanHaveMII) {
 		int phy, phy_idx = 0;
@@ -1472,13 +1471,16 @@ static int __netdev_rx(struct net_device *dev, int *quota)
 		}
 #ifndef final_version			/* Remove after testing. */
 		/* You will want this info for the initial debug. */
-		if (debug > 5)
-			printk(KERN_DEBUG "  Rx data %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:"
-			       "%2.2x %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x %2.2x%2.2x.\n",
-			       skb->data[0], skb->data[1], skb->data[2], skb->data[3],
-			       skb->data[4], skb->data[5], skb->data[6], skb->data[7],
-			       skb->data[8], skb->data[9], skb->data[10],
-			       skb->data[11], skb->data[12], skb->data[13]);
+		if (debug > 5) {
+			DECLARE_MAC_BUF(mac);
+			DECLARE_MAC_BUF(mac2);
+
+			printk(KERN_DEBUG "  Rx data %s %s"
+			       " %2.2x%2.2x.\n",
+			       print_mac(mac, &skb->data[0]),
+			       print_mac(mac2, &skb->data[6]),
+			       skb->data[12], skb->data[13]);
+		}
 #endif
 
 		skb->protocol = eth_type_trans(skb, dev);

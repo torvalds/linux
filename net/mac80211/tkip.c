@@ -275,9 +275,10 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 	     (iv32 == key->u.tkip.iv32_rx[queue] &&
 	      iv16 <= key->u.tkip.iv16_rx[queue]))) {
 #ifdef CONFIG_TKIP_DEBUG
+		DECLARE_MAC_BUF(mac);
 		printk(KERN_DEBUG "TKIP replay detected for RX frame from "
-		       MAC_FMT " (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
-		       MAC_ARG(ta),
+		       "%s (RX IV (%04x,%02x) <= prev. IV (%04x,%02x)\n",
+		       print_mac(mac, ta),
 		       iv32, iv16, key->u.tkip.iv32_rx[queue],
 		       key->u.tkip.iv16_rx[queue]);
 #endif /* CONFIG_TKIP_DEBUG */
@@ -299,8 +300,9 @@ int ieee80211_tkip_decrypt_data(struct crypto_blkcipher *tfm,
 #ifdef CONFIG_TKIP_DEBUG
 		{
 			int i;
-			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=" MAC_FMT
-			       " TK=", MAC_ARG(ta));
+			DECLARE_MAC_BUF(mac);
+			printk(KERN_DEBUG "TKIP decrypt: Phase1 TA=%s"
+			       " TK=", print_mac(mac, ta));
 			for (i = 0; i < 16; i++)
 				printk("%02x ",
 				       key->conf.key[

@@ -16,6 +16,7 @@ static const u8 bssid_off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 static void print_assoc_req(const char * extra, struct assoc_request * assoc_req)
 {
+	DECLARE_MAC_BUF(mac);
 	lbs_deb_assoc(
 	       "#### Association Request: %s\n"
 	       "       flags:      0x%08lX\n"
@@ -23,13 +24,13 @@ static void print_assoc_req(const char * extra, struct assoc_request * assoc_req
 	       "       channel:    %d\n"
 	       "       band:       %d\n"
 	       "       mode:       %d\n"
-	       "       BSSID:      " MAC_FMT "\n"
+	       "       BSSID:      %s\n"
 	       "       Encryption:%s%s%s\n"
 	       "       auth:       %d\n",
 	       extra, assoc_req->flags,
 	       escape_essid(assoc_req->ssid, assoc_req->ssid_len),
 	       assoc_req->channel, assoc_req->band, assoc_req->mode,
-	       MAC_ARG(assoc_req->bssid),
+	       print_mac(mac, assoc_req->bssid),
 	       assoc_req->secinfo.WPAenabled ? " WPA" : "",
 	       assoc_req->secinfo.WPA2enabled ? " WPA2" : "",
 	       assoc_req->secinfo.wep_enabled ? " WEP" : "",
@@ -104,16 +105,17 @@ static int assoc_helper_bssid(wlan_private *priv,
 	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
+	DECLARE_MAC_BUF(mac);
 
-	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID " MAC_FMT,
-		MAC_ARG(assoc_req->bssid));
+	lbs_deb_enter_args(LBS_DEB_ASSOC, "BSSID %s",
+		print_mac(mac, assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
 	bss = libertas_find_bssid_in_list(adapter, assoc_req->bssid,
 			    assoc_req->mode);
 	if (bss == NULL) {
-		lbs_deb_assoc("ASSOC: WAP: BSSID " MAC_FMT " not found, "
-			"cannot associate.\n", MAC_ARG(assoc_req->bssid));
+		lbs_deb_assoc("ASSOC: WAP: BSSID %s not found, "
+			"cannot associate.\n", print_mac(mac, assoc_req->bssid));
 		goto out;
 	}
 
@@ -481,6 +483,7 @@ void libertas_association_worker(struct work_struct *work)
 	struct assoc_request * assoc_req = NULL;
 	int ret = 0;
 	int find_any_ssid = 0;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -629,10 +632,10 @@ void libertas_association_worker(struct work_struct *work)
 
 		if (success) {
 			lbs_deb_assoc("ASSOC: association attempt successful. "
-				"Associated to '%s' (" MAC_FMT ")\n",
+				"Associated to '%s' (%s)\n",
 				escape_essid(adapter->curbssparams.ssid,
 				             adapter->curbssparams.ssid_len),
-				MAC_ARG(adapter->curbssparams.bssid));
+				print_mac(mac, adapter->curbssparams.bssid));
 			libertas_prepare_and_send_command(priv,
 				CMD_802_11_RSSI,
 				0, CMD_OPTION_WAITFORRSP, 0, NULL);

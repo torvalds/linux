@@ -1348,6 +1348,7 @@ static int gelic_net_setup_netdev(struct gelic_net_card *card)
 	unsigned int i;
 	int status;
 	u64 v1, v2;
+	DECLARE_MAC_BUF(mac);
 
 	SET_NETDEV_DEV(netdev, &card->dev->core);
 	spin_lock_init(&card->tx_dma_lock);
@@ -1373,10 +1374,8 @@ static int gelic_net_setup_netdev(struct gelic_net_card *card)
 	v1 <<= 16;
 	memcpy(addr.sa_data, &v1, ETH_ALEN);
 	memcpy(netdev->dev_addr, addr.sa_data, ETH_ALEN);
-	dev_info(ctodev(card), "MAC addr %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 netdev->dev_addr[0], netdev->dev_addr[1],
-		 netdev->dev_addr[2], netdev->dev_addr[3],
-		 netdev->dev_addr[4], netdev->dev_addr[5]);
+	dev_info(ctodev(card), "MAC addr %s\n",
+		 print_mac(mac, netdev->dev_addr));
 
 	card->vlan_index = -1;	/* no vlan */
 	for (i = 0; i < GELIC_NET_VLAN_MAX; i++) {

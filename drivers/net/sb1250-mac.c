@@ -2407,6 +2407,7 @@ static int sbmac_init(struct net_device *dev, int idx)
 	uint64_t ea_reg;
 	int i;
 	int err;
+	DECLARE_MAC_BUF(mac);
 
 	sc = netdev_priv(dev);
 
@@ -2487,10 +2488,8 @@ static int sbmac_init(struct net_device *dev, int idx)
 	 * was being displayed)
 	 */
 	printk(KERN_INFO
-	       "%s: SiByte Ethernet at 0x%08lX, address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-	       dev->name, dev->base_addr,
-	       eaddr[0],eaddr[1],eaddr[2],eaddr[3],eaddr[4],eaddr[5]);
-
+	       "%s: SiByte Ethernet at 0x%08lX, address: %s\n",
+	       dev->name, dev->base_addr, print_mac(mac, eaddr));
 
 	return 0;
 

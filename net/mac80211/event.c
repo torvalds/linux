@@ -22,13 +22,14 @@ void mac80211_ev_michael_mic_failure(struct net_device *dev, int keyidx,
 {
 	union iwreq_data wrqu;
 	char *buf = kmalloc(128, GFP_ATOMIC);
+	DECLARE_MAC_BUF(mac);
 
 	if (buf) {
 		/* TODO: needed parameters: count, key type, TSC */
 		sprintf(buf, "MLME-MICHAELMICFAILURE.indication("
-			"keyid=%d %scast addr=" MAC_FMT ")",
+			"keyid=%d %scast addr=%s)",
 			keyidx, hdr->addr1[0] & 0x01 ? "broad" : "uni",
-			MAC_ARG(hdr->addr2));
+			print_mac(mac, hdr->addr2));
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = strlen(buf);
 		wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);

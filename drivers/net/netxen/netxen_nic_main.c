@@ -285,6 +285,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int valid_mac = 0;
 	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
+	DECLARE_MAC_BUF(mac);
 
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 
@@ -573,15 +574,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		memcpy(netdev->perm_addr, netdev->dev_addr,
 			netdev->addr_len);
 		if (!is_valid_ether_addr(netdev->perm_addr)) {
-			printk(KERN_ERR "%s: Bad MAC address "
-				"%02x:%02x:%02x:%02x:%02x:%02x.\n",
-				netxen_nic_driver_name,
-				netdev->dev_addr[0],
-				netdev->dev_addr[1],
-				netdev->dev_addr[2],
-				netdev->dev_addr[3],
-				netdev->dev_addr[4],
-				netdev->dev_addr[5]);
+			printk(KERN_ERR "%s: Bad MAC address %s.\n",
+			       netxen_nic_driver_name,
+			       print_mac(mac, netdev->dev_addr));
 		} else {
 			if (adapter->macaddr_set)
 				adapter->macaddr_set(adapter,

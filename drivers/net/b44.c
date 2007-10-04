@@ -2100,7 +2100,8 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	unsigned long b44reg_base, b44reg_len;
 	struct net_device *dev;
 	struct b44 *bp;
-	int err, i;
+	int err;
+	DECLARE_MAC_BUF(mac);
 
 	if (b44_version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
@@ -2229,10 +2230,8 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	 */
 	b44_chip_reset(bp);
 
-	printk(KERN_INFO "%s: Broadcom 4400 10/100BaseT Ethernet ", dev->name);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? '\n' : ':');
+	printk(KERN_INFO "%s: Broadcom 4400 10/100BaseT Ethernet %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
 
 	return 0;
 

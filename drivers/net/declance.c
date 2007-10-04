@@ -1027,6 +1027,7 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 	int i, ret;
 	unsigned long esar_base;
 	unsigned char *esar;
+	DECLARE_MAC_BUF(mac);
 
 	if (dec_lance_debug && version_printed++ == 0)
 		printk(version);
@@ -1214,21 +1215,20 @@ static int __init dec_lance_probe(struct device *bdev, const int type)
 	 */
 	switch (type) {
 	case ASIC_LANCE:
-		printk("%s: IOASIC onboard LANCE, addr = ", name);
+		printk("%s: IOASIC onboard LANCE", name);
 		break;
 	case PMAD_LANCE:
-		printk("%s: PMAD-AA, addr = ", name);
+		printk("%s: PMAD-AA", name);
 		break;
 	case PMAX_LANCE:
-		printk("%s: PMAX onboard LANCE, addr = ", name);
+		printk("%s: PMAX onboard LANCE", name);
 		break;
 	}
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = esar[i * 4];
-		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? ',' : ':');
-	}
 
-	printk(" irq = %d\n", dev->irq);
+	printk(", addr = %s, irq = %d\n",
+	       print_mac(mac, dev->dev_addr), dev->irq);
 
 	dev->open = &lance_open;
 	dev->stop = &lance_close;

@@ -599,11 +599,11 @@ static const struct file_operations pktgen_fops = {
 
 static int pktgen_if_show(struct seq_file *seq, void *v)
 {
-	int i;
 	struct pktgen_dev *pkt_dev = seq->private;
 	__u64 sa;
 	__u64 stopped;
 	__u64 now = getCurUs();
+	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq,
 		   "Params: count %llu  min_pkt_size: %u  max_pkt_size: %u\n",
@@ -648,19 +648,12 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "     src_mac: ");
 
-	if (is_zero_ether_addr(pkt_dev->src_mac))
-		for (i = 0; i < 6; i++)
-			seq_printf(seq, "%02X%s", pkt_dev->odev->dev_addr[i],
-				   i == 5 ? "  " : ":");
-	else
-		for (i = 0; i < 6; i++)
-			seq_printf(seq, "%02X%s", pkt_dev->src_mac[i],
-				   i == 5 ? "  " : ":");
+	seq_printf(seq, "%s ",
+		   print_mac(mac, is_zero_ether_addr(pkt_dev->src_mac) ?
+			     pkt_dev->odev->dev_addr : pkt_dev->src_mac));
 
 	seq_printf(seq, "dst_mac: ");
-	for (i = 0; i < 6; i++)
-		seq_printf(seq, "%02X%s", pkt_dev->dst_mac[i],
-			   i == 5 ? "\n" : ":");
+	seq_printf(seq, "%s\n", print_mac(mac, pkt_dev->dst_mac));
 
 	seq_printf(seq,
 		   "     udp_src_min: %d  udp_src_max: %d  udp_dst_min: %d  udp_dst_max: %d\n",

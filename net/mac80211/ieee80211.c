@@ -602,6 +602,7 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
+	DECLARE_MAC_BUF(mac);
 
 	if (compare_ether_addr(remote_addr, sdata->u.wds.remote_addr) == 0)
 		return 0;
@@ -619,8 +620,8 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 		sta_info_put(sta);
 	} else {
 		printk(KERN_DEBUG "%s: could not find STA entry for WDS link "
-		       "peer " MAC_FMT "\n",
-		       dev->name, MAC_ARG(sdata->u.wds.remote_addr));
+		       "peer %s\n",
+		       dev->name, print_mac(mac, sdata->u.wds.remote_addr));
 	}
 
 	/* Update WDS link data */

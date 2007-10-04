@@ -860,11 +860,10 @@ static int wl3501_esbq_confirm(struct wl3501_card *this)
 static void wl3501_online(struct net_device *dev)
 {
 	struct wl3501_card *this = netdev_priv(dev);
+	DECLARE_MAC_BUF(mac);
 
-	printk(KERN_INFO "%s: Wireless LAN online. BSSID: "
-	       "%02X %02X %02X %02X %02X %02X\n", dev->name,
-	       this->bssid[0], this->bssid[1], this->bssid[2],
-	       this->bssid[3], this->bssid[4], this->bssid[5]);
+	printk(KERN_INFO "%s: Wireless LAN online. BSSID: %s\n",
+	       dev->name, print_mac(mac, this->bssid));
 	netif_wake_queue(dev);
 }
 
@@ -1966,6 +1965,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 	int i = 0, j, last_fn, last_ret;
 	struct wl3501_card *this;
+	DECLARE_MAC_BUF(mac);
 
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --
@@ -2019,14 +2019,14 @@ static int wl3501_config(struct pcmcia_device *link)
 	}
 	strcpy(this->node.dev_name, dev->name);
 
-	/* print probe information */
-	printk(KERN_INFO "%s: wl3501 @ 0x%3.3x, IRQ %d, MAC addr in flash ROM:",
-	       dev->name, this->base_addr, (int)dev->irq);
-	for (i = 0; i < 6; i++) {
+	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ((char *)&this->mac_addr)[i];
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
-	}
-	printk("\n");
+
+	/* print probe information */
+	printk(KERN_INFO "%s: wl3501 @ 0x%3.3x, IRQ %d, "
+	       "MAC addr in flash ROM:%s\n",
+	       dev->name, this->base_addr, (int)dev->irq,
+	       print_mac(mac, dev->dev_addr));
 	/*
 	 * Initialize card parameters - added by jss
 	 */

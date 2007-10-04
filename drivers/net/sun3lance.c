@@ -300,6 +300,7 @@ static int __init lance_probe( struct net_device *dev)
 	static int 		did_version;
 	volatile unsigned short *ioaddr_probe;
 	unsigned short tmp1, tmp2;
+	DECLARE_MAC_BUF(mac);
 
 #ifdef CONFIG_SUN3
 	ioaddr = (unsigned long)ioremap(LANCE_OBIO, PAGE_SIZE);
@@ -375,8 +376,7 @@ static int __init lance_probe( struct net_device *dev)
 	MEM->init.hwaddr[4] = dev->dev_addr[5];
 	MEM->init.hwaddr[5] = dev->dev_addr[4];
 
-	for( i = 0; i < 6; ++i )
-		printk( "%02x%s", dev->dev_addr[i], (i < 5) ? ":" : "\n" );
+	printk("%s\n", print_mac(mac, dev->dev_addr));
 
 	MEM->init.mode = 0x0000;
 	MEM->init.filter[0] = 0x00000000;
@@ -590,17 +590,12 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 	/* Fill in a Tx ring entry */
 #if 0
 	if (lance_debug >= 2) {
-		u_char *p;
-		int i;
-		printk( "%s: TX pkt %d type 0x%04x from ", dev->name,
-			lp->new_tx, ((u_short *)skb->data)[6]);
-		for( p = &((u_char *)skb->data)[6], i = 0; i < 6; i++ )
-			printk("%02x%s", *p++, i != 5 ? ":" : "" );
-		printk(" to ");
-		for( p = (u_char *)skb->data, i = 0; i < 6; i++ )
-			printk("%02x%s", *p++, i != 5 ? ":" : "" );
-		printk(" data at 0x%08x len %d\n", (int)skb->data,
-		       (int)skb->len );
+		printk( "%s: TX pkt %d type 0x%04x"
+			" from %s to %s"
+			" data at 0x%08x len %d\n",
+			dev->name, lp->new_tx, ((u_short *)skb->data)[6],
+			DEV_ADDR(&skb->data[6]), DEV_ADDR(skb->data),
+			(int)skb->data, (int)skb->len );
 	}
 #endif
 	/* We're not prepared for the int until the last flags are set/reset.
@@ -825,13 +820,14 @@ static int lance_rx( struct net_device *dev )
 
 #if 0
 				if (lance_debug >= 3) {
-					u_char *data = PKTBUF_ADDR(head), *p;
-					printk( "%s: RX pkt %d type 0x%04x from ", dev->name, entry, ((u_short *)data)[6]);
-					for( p = &data[6], i = 0; i < 6; i++ )
-						printk("%02x%s", *p++, i != 5 ? ":" : "" );
-					printk(" to ");
-					for( p = data, i = 0; i < 6; i++ )
-						printk("%02x%s", *p++, i != 5 ? ":" : "" );
+					u_char *data = PKTBUF_ADDR(head);
+					DECLARE_MAC_BUF(mac);
+					DECLARE_MAC_BUF(mac2)
+					printk("%s: RX pkt %d type 0x%04x"
+					       " from %s to %s",
+					       dev->name, lp->new_tx, ((u_short *)data)[6],
+					       print_mac(mac, &data[6]), print_mac(mac2, data));
+
 					printk(" data %02x %02x %02x %02x %02x %02x %02x %02x "
 					       "len %d at %08x\n",
 					       data[15], data[16], data[17], data[18],
