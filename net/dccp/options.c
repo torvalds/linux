@@ -179,7 +179,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			else
 				elapsed_time = ntohl(*(__be32 *)(value + 4));
 
-			dccp_pr_debug_cat(", ELAPSED_TIME=%d\n", elapsed_time);
+			dccp_pr_debug_cat(", ELAPSED_TIME=%u\n", elapsed_time);
 
 			/* Give precedence to the biggest ELAPSED_TIME */
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
