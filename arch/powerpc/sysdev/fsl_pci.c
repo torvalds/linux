@@ -160,8 +160,8 @@ static void __init quirk_fsl_pcie_transparent(struct pci_dev *dev)
 
 int __init fsl_pcie_check_link(struct pci_controller *hose)
 {
-	u16 val;
-	early_read_config_word(hose, 0, 0, PCIE_LTSSM, &val);
+	u32 val;
+	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
 	if (val < PCIE_LTSSM_L0)
 		return 1;
 	return 0;
