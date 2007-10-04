@@ -225,14 +225,14 @@ xilinxfb_drv_probe(struct device *dev)
 	if (!regs_res || (regs_res->end - regs_res->start + 1 < 8)) {
 		dev_err(dev, "Couldn't get registers resource\n");
 		retval = -EFAULT;
-		goto failed1;
+		goto err_region;
 	}
 
 	if (!request_mem_region(regs_res->start, 8, DRIVER_NAME)) {
 		dev_err(dev, "Couldn't lock memory region at 0x%08X\n",
 		       regs_res->start);
 		retval = -EBUSY;
-		goto failed1;
+		goto err_region;
 	}
 	drvdata->regs = (u32 __iomem*) ioremap(regs_res->start, 8);
 	drvdata->regs_phys = regs_res->start;
@@ -243,7 +243,7 @@ xilinxfb_drv_probe(struct device *dev)
 	if (!drvdata->fb_virt) {
 		dev_err(dev, "Could not allocate frame buffer memory\n");
 		retval = -ENOMEM;
-		goto failed2;
+		goto err_fbmem;
 	}
 
 	/* Clear (turn to black) the framebuffer */
@@ -270,7 +270,7 @@ xilinxfb_drv_probe(struct device *dev)
 		dev_err(dev, "Fail to allocate colormap (%d entries)\n",
 			PALETTE_ENTRIES_NO);
 		retval = -EFAULT;
-		goto failed3;
+		goto err_cmap;
 	}
 
 	drvdata->info.flags = FBINFO_DEFAULT;
@@ -284,7 +284,7 @@ xilinxfb_drv_probe(struct device *dev)
 	if (register_framebuffer(&drvdata->info) < 0) {
 		dev_err(dev, "Could not register frame buffer\n");
 		retval = -EINVAL;
-		goto failed4;
+		goto err_regfb;
 	}
 
 	/* Put a banner in the log (for DEBUG) */
@@ -294,10 +294,10 @@ xilinxfb_drv_probe(struct device *dev)
 		(void*)drvdata->fb_phys, drvdata->fb_virt, FB_SIZE);
 	return 0;	/* success */
 
-failed4:
+err_regfb:
 	fb_dealloc_cmap(&drvdata->info.cmap);
 
-failed3:
+err_cmap:
 	dma_free_coherent(dev, PAGE_ALIGN(FB_SIZE), drvdata->fb_virt,
 		drvdata->fb_phys);
 
@@ -305,10 +305,10 @@ failed3:
 	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
 	iounmap(drvdata->regs);
 
-failed2:
+err_fbmem:
 	release_mem_region(regs_res->start, 8);
 
-failed1:
+err_region:
 	kfree(drvdata);
 	dev_set_drvdata(dev, NULL);
 
