@@ -353,6 +353,8 @@ static int __devinit smp_boot_one_cpu(unsigned int cpu)
 	int timeout, ret;
 
 	p = fork_idle(cpu);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
 	callin_flag = 0;
 	cpu_new_thread = task_thread_info(p);
 
