@@ -879,11 +879,16 @@ security_flags_write(struct file *file, const char __user *buffer,
 	if (count < 3) {
 		/* single char or single char followed by null */
 		c = flags_string[0];
-		if (c == '0' || c == 'n' || c == 'N')
+		if (c == '0' || c == 'n' || c == 'N') {
 			extended_security = CIFSSEC_DEF; /* default */
-		else if (c == '1' || c == 'y' || c == 'Y')
+			return count;
+		} else if (c == '1' || c == 'y' || c == 'Y') {
 			extended_security = CIFSSEC_MAX;
-		return count;
+			return count;
+		} else if (!isdigit(c)) {
+			cERROR(1, ("invalid flag %c", c));
+			return -EINVAL;
+		}
 	}
 	/* else we have a number */
 

@@ -2172,8 +2172,18 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						if (tsk)
 							kthread_stop(tsk);
 					}
-				} else
+				} else {
 					cFYI(1, ("No session or bad tcon"));
+					if ((pSesInfo->server) &&
+					    (pSesInfo->server->tsk)) {
+						struct task_struct *tsk;
+						force_sig(SIGKILL,
+							pSesInfo->server->tsk);
+						tsk = pSesInfo->server->tsk;
+						if (tsk)
+							kthread_stop(tsk);
+					}
+				}
 				sesInfoFree(pSesInfo);
 				/* pSesInfo = NULL; */
 			}
