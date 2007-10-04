@@ -52,8 +52,8 @@
 #include <asm/spu.h>
 #include <asm/io.h>
 #include <asm/prom.h>
+#include <asm/cell-regs.h>
 
-#include "cbe_regs.h"
 #include "spu_priv1_mmio.h"
 
 #define TEMP_MIN 65

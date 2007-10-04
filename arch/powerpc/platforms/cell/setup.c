@@ -52,9 +52,9 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/of_platform.h>
+#include <asm/cell-regs.h>
 
 #include "interrupt.h"
-#include "cbe_regs.h"
 #include "pervasive.h"
 #include "ras.h"
 

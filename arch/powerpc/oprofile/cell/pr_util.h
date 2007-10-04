@@ -17,9 +17,8 @@
 #include <linux/cpumask.h>
 #include <linux/oprofile.h>
 #include <asm/cell-pmu.h>
+#include <asm/cell-regs.h>
 #include <asm/spu.h>
-
-#include "../../platforms/cell/cbe_regs.h"
 
 /* Defines used for sync_start */
 #define SKIP_GENERIC_SYNC 0
