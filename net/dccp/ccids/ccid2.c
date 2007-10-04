@@ -179,16 +179,11 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, int val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_change_cwnd(struct ccid2_hc_tx_sock *hctx, int val)
+static void ccid2_change_cwnd(struct ccid2_hc_tx_sock *hctx, u32 val)
 {
-	if (val == 0)
-		val = 1;
-
 	/* XXX do we need to change ack ratio? */
-	ccid2_pr_debug("change cwnd to %d\n", val);
-
-	BUG_ON(val < 1);
-	hctx->ccid2hctx_cwnd = val;
+	hctx->ccid2hctx_cwnd = val? : 1;
+	ccid2_pr_debug("changed cwnd to %u\n", hctx->ccid2hctx_cwnd);
 }
 
 static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hctx, long val)
