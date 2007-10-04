@@ -18,6 +18,7 @@
  * Geert Uytterhoeven.
  */
 
+#include <linux/device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
@@ -214,7 +215,7 @@ xilinxfb_drv_probe(struct device *dev)
 
 	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata) {
-		printk(KERN_ERR "Couldn't allocate device private record\n");
+		dev_err(dev, "Couldn't allocate device private record\n");
 		return -ENOMEM;
 	}
 	dev_set_drvdata(dev, drvdata);
@@ -222,14 +223,13 @@ xilinxfb_drv_probe(struct device *dev)
 	/* Map the control registers in */
 	regs_res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!regs_res || (regs_res->end - regs_res->start + 1 < 8)) {
-		printk(KERN_ERR "Couldn't get registers resource\n");
+		dev_err(dev, "Couldn't get registers resource\n");
 		retval = -EFAULT;
 		goto failed1;
 	}
 
 	if (!request_mem_region(regs_res->start, 8, DRIVER_NAME)) {
-		printk(KERN_ERR
-		       "Couldn't lock memory region at 0x%08X\n",
+		dev_err(dev, "Couldn't lock memory region at 0x%08X\n",
 		       regs_res->start);
 		retval = -EBUSY;
 		goto failed1;
@@ -241,7 +241,7 @@ xilinxfb_drv_probe(struct device *dev)
 	drvdata->fb_virt = dma_alloc_coherent(dev, PAGE_ALIGN(FB_SIZE),
 				&drvdata->fb_phys, GFP_KERNEL);
 	if (!drvdata->fb_virt) {
-		printk(KERN_ERR "Could not allocate frame buffer memory\n");
+		dev_err(dev, "Could not allocate frame buffer memory\n");
 		retval = -ENOMEM;
 		goto failed2;
 	}
@@ -267,7 +267,7 @@ xilinxfb_drv_probe(struct device *dev)
 	drvdata->info.pseudo_palette = drvdata->pseudo_palette;
 
 	if (fb_alloc_cmap(&drvdata->info.cmap, PALETTE_ENTRIES_NO, 0) < 0) {
-		printk(KERN_ERR "Fail to allocate colormap (%d entries)\n",
+		dev_err(dev, "Fail to allocate colormap (%d entries)\n",
 			PALETTE_ENTRIES_NO);
 		retval = -EFAULT;
 		goto failed3;
@@ -282,7 +282,7 @@ xilinxfb_drv_probe(struct device *dev)
 
 	/* Register new frame buffer */
 	if (register_framebuffer(&drvdata->info) < 0) {
-		printk(KERN_ERR "Could not register frame buffer\n");
+		dev_err(dev, "Could not register frame buffer\n");
 		retval = -EINVAL;
 		goto failed4;
 	}
