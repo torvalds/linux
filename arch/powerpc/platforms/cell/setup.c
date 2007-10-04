@@ -83,12 +83,22 @@ static void cell_progress(char *s, unsigned short hex)
 
 static int __init cell_publish_devices(void)
 {
+	int node;
+
 	if (!machine_is(cell))
 		return 0;
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, NULL, NULL);
 
+	/* There is no device for the MIC memory controller, thus we create
+	 * a platform device for it to attach the EDAC driver to.
+	 */
+	for_each_online_node(node) {
+		if (cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(node)) == NULL)
+			continue;
+		platform_device_register_simple("cbe-mic", node, NULL, 0);
+	}
 	return 0;
 }
 device_initcall(cell_publish_devices);
