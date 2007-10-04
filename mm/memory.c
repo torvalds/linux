@@ -2307,13 +2307,14 @@ oom:
  * do not need to flush old virtual caches or the TLB.
  *
  * We enter with non-exclusive mmap_sem (to exclude vma changes,
- * but allow concurrent faults), and pte mapped but not yet locked.
+ * but allow concurrent faults), and pte neither mapped nor locked.
  * We return with mmap_sem still held, but pte unmapped and unlocked.
  */
 static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
-		unsigned long address, pte_t *page_table, pmd_t *pmd,
+		unsigned long address, pmd_t *pmd,
 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
 {
+	pte_t *page_table;
 	spinlock_t *ptl;
 	struct page *page;
 	pte_t entry;
@@ -2327,7 +2328,6 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	vmf.flags = flags;
 	vmf.page = NULL;
 
-	pte_unmap(page_table);
 	BUG_ON(vma->vm_flags & VM_PFNMAP);
 
 	if (likely(vma->vm_ops->fault)) {
@@ -2468,8 +2468,8 @@ static int do_linear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			- vma->vm_start) >> PAGE_CACHE_SHIFT) + vma->vm_pgoff;
 	unsigned int flags = (write_access ? FAULT_FLAG_WRITE : 0);
 
-	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
-							flags, orig_pte);
+	pte_unmap(page_table);
+	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
 }
 
 
@@ -2552,9 +2552,7 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	pgoff = pte_to_pgoff(orig_pte);
-
-	return __do_fault(mm, vma, address, page_table, pmd, pgoff,
-							flags, orig_pte);
+	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
 }
 
 /*
