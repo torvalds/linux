@@ -276,7 +276,17 @@ static unsigned char pm_osiris_ctrl0;
 
 static int osiris_pm_suspend(struct sys_device *sd, pm_message_t state)
 {
+	unsigned int tmp;
+
 	pm_osiris_ctrl0 = __raw_readb(OSIRIS_VA_CTRL0);
+	tmp = pm_osiris_ctrl0 & ~OSIRIS_CTRL0_NANDSEL;
+
+	/* ensure correct NAND slot is selected on resume */
+	if ((pm_osiris_ctrl0 & OSIRIS_CTRL0_BOOT_INT) == 0)
+	        tmp |= 2;
+
+	__raw_writeb(tmp, OSIRIS_VA_CTRL0);
+
 	return 0;
 }
 
@@ -284,6 +294,8 @@ static int osiris_pm_resume(struct sys_device *sd)
 {
 	if (pm_osiris_ctrl0 & OSIRIS_CTRL0_FIX8)
 		__raw_writeb(OSIRIS_CTRL1_FIX8, OSIRIS_VA_CTRL1);
+
+	__raw_writeb(pm_osiris_ctrl0, OSIRIS_VA_CTRL0);
 
 	return 0;
 }
