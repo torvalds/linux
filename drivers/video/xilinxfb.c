@@ -118,7 +118,7 @@ struct xilinxfb_drvdata {
 	u32		regs_phys;	/* phys. address of the control registers */
 	u32 __iomem	*regs;		/* virt. address of the control registers */
 
-	unsigned char __iomem	*fb_virt;	/* virt. address of the frame buffer */
+	void		*fb_virt;	/* virt. address of the frame buffer */
 	dma_addr_t	fb_phys;	/* phys. address of the frame buffer */
 
 	u32		reg_ctrl_default;
@@ -246,7 +246,7 @@ static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
 	}
 
 	/* Clear (turn to black) the framebuffer */
-	memset_io(drvdata->fb_virt, 0, FB_SIZE);
+	memset_io((void __iomem *)drvdata->fb_virt, 0, FB_SIZE);
 
 	/* Tell the hardware where the frame buffer is */
 	xilinx_fb_out_be32(drvdata, REG_FB_ADDR, drvdata->fb_phys);
@@ -259,7 +259,7 @@ static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
 
 	/* Fill struct fb_info */
 	drvdata->info.device = dev;
-	drvdata->info.screen_base = drvdata->fb_virt;
+	drvdata->info.screen_base = (void __iomem *)drvdata->fb_virt;
 	drvdata->info.fbops = &xilinxfb_ops;
 	drvdata->info.fix = xilinx_fb_fix;
 	drvdata->info.fix.smem_start = drvdata->fb_phys;
