@@ -1056,7 +1056,7 @@ void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn);
 void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp);
 #endif
 void sym_start_up(struct sym_hcb *np, int reason);
-void sym_interrupt(struct sym_hcb *np);
+irqreturn_t sym_interrupt(struct Scsi_Host *);
 int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int task);
 struct sym_ccb *sym_get_ccb(struct sym_hcb *np, struct scsi_cmnd *cmd, u_char tag_order);
 void sym_free_ccb(struct sym_hcb *np, struct sym_ccb *cp);

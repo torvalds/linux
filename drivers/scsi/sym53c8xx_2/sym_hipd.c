@@ -2760,8 +2760,9 @@ reset_all:
  *  Use at your own decision and risk.
  */
 
-void sym_interrupt (struct sym_hcb *np)
+irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u_char	istat, istatc;
 	u_char	dstat;
 	u_short	sist;
@@ -2786,7 +2787,7 @@ void sym_interrupt (struct sym_hcb *np)
 	}
 
 	if (!(istat & (SIP|DIP)))
-		return;
+		return (istat & INTF) ? IRQ_HANDLED : IRQ_NONE;
 
 #if 0	/* We should never get this one */
 	if (istat & CABRT)
@@ -2818,7 +2819,7 @@ void sym_interrupt (struct sym_hcb *np)
 		 * never clear. */
 		if (unlikely(sist == 0xffff && dstat == 0xff)) {
 			if (pci_channel_offline(np->s.device))
-				return;
+				return IRQ_NONE;
 		}
 	} while (istatc & (SIP|DIP));
 
@@ -2856,7 +2857,7 @@ void sym_interrupt (struct sym_hcb *np)
 		else if (dstat & SIR)	sym_int_sir(np);
 		else if (dstat & SSI)	OUTONB_STD();
 		else			goto unknown_int;
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -2873,7 +2874,7 @@ void sym_interrupt (struct sym_hcb *np)
 	if (sist & RST) {
 		printf("%s: SCSI BUS reset detected.\n", sym_name(np));
 		sym_start_up (np, 1);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	OUTB(np, nc_ctest3, np->rv_ctest3 | CLF);	/* clear dma fifo  */
@@ -2885,7 +2886,7 @@ void sym_interrupt (struct sym_hcb *np)
 		else if (sist & STO)	sym_int_sto (np);
 		else if (sist & UDC)	sym_int_udc (np);
 		else			goto unknown_int;
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -2900,7 +2901,7 @@ void sym_interrupt (struct sym_hcb *np)
 	if ((sist & (GEN|HTH|SGE)) ||
 		(dstat & (MDPE|BF|ABRT|IID))) {
 		sym_start_reset(np);
-		return;
+		return IRQ_HANDLED;
 	}
 
 unknown_int:
@@ -2911,6 +2912,7 @@ unknown_int:
 	printf(	"%s: unknown interrupt(s) ignored, "
 		"ISTAT=0x%x DSTAT=0x%x SIST=0x%x\n",
 		sym_name(np), istat, dstat, sist);
+	return IRQ_NONE;
 }
 
 /*

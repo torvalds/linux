@@ -39,7 +39,6 @@
  */
 #include <linux/ctype.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -549,21 +548,23 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
  */
 static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 {
-	struct sym_hcb *np = dev_id;
+	struct Scsi_Host *shost = dev_id;
+	struct sym_data *sym_data = shost_priv(shost);
+	irqreturn_t result;
 
 	/* Avoid spinloop trying to handle interrupts on frozen device */
-	if (pci_channel_offline(np->s.device))
+	if (pci_channel_offline(sym_data->pdev))
 		return IRQ_NONE;
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
 
-	spin_lock(np->s.host->host_lock);
-	sym_interrupt(np);
-	spin_unlock(np->s.host->host_lock);
+	spin_lock(shost->host_lock);
+	result = sym_interrupt(shost);
+	spin_unlock(shost->host_lock);
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("]\n");
 
-	return IRQ_HANDLED;
+	return result;
 }
 
 /*
@@ -613,22 +614,19 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	 */
 #define WAIT_FOR_PCI_RECOVERY	35
 	if (pci_channel_offline(pdev)) {
-		struct host_data *hostdata = shost_priv(host);
+		struct sym_data *sym_data = shost_priv(host);
 		struct completion *io_reset;
 		int finished_reset = 0;
 		init_completion(&eh_done);
 		spin_lock_irq(host->host_lock);
 		/* Make sure we didn't race */
 		if (pci_channel_offline(pdev)) {
-			if (!hostdata->io_reset)
-				hostdata->io_reset = &eh_done;
-			io_reset = hostdata->io_reset;
+			if (!sym_data->io_reset)
+				sym_data->io_reset = &eh_done;
+			io_reset = sym_data->io_reset;
 		} else {
-			io_reset = NULL;
-		}
-
-		if (!pci_channel_offline(pdev))
 			finished_reset = 1;
+		}
 		spin_unlock_irq(host->host_lock);
 		if (!finished_reset)
 			finished_reset = wait_for_completion_timeout(io_reset,
@@ -1273,9 +1271,9 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 		int unit, struct sym_device *dev)
 {
-	struct host_data *host_data;
+	struct sym_data *sym_data;
 	struct sym_hcb *np = NULL;
-	struct Scsi_Host *instance = NULL;
+	struct Scsi_Host *shost;
 	struct pci_dev *pdev = dev->pdev;
 	unsigned long flags;
 	struct sym_fw *fw;
@@ -1289,15 +1287,12 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 */
 	fw = sym_find_firmware(&dev->chip);
 	if (!fw)
-		goto attach_failed;
+		return NULL;
 
-	/*
-	 *	Allocate host_data structure
-	 */
-	instance = scsi_host_alloc(tpnt, sizeof(*host_data));
-	if (!instance)
-		goto attach_failed;
-	host_data = (struct host_data *) instance->hostdata;
+	shost = scsi_host_alloc(tpnt, sizeof(*sym_data));
+	if (!shost)
+		return NULL;
+	sym_data = shost_priv(shost);
 
 	/*
 	 *  Allocate immediately the host control block, 
@@ -1310,8 +1305,9 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 		goto attach_failed;
 	np->s.device = pdev;
 	np->bus_dmat = &pdev->dev; /* Result in 1 DMA pool per HBA */
-	host_data->ncb = np;
-	np->s.host = instance;
+	sym_data->ncb = np;
+	sym_data->pdev = pdev;
+	np->s.host = shost;
 
 	pci_set_drvdata(pdev, np);
 
@@ -1358,7 +1354,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	if (dev->ram_base)
 		np->ram_ba = (u32)dev->ram_base;
 
-	if (sym_hcb_attach(instance, fw, dev->nvram))
+	if (sym_hcb_attach(shost, fw, dev->nvram))
 		goto attach_failed;
 
 	/*
@@ -1366,7 +1362,8 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  If we synchonize the C code with SCRIPTS on interrupt, 
 	 *  we do not want to share the INTR line at all.
 	 */
-	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX, np)) {
+	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX,
+			shost)) {
 		printf_err("%s: request irq %u failure\n",
 			sym_name(np), pdev->irq);
 		goto attach_failed;
@@ -1376,7 +1373,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  After SCSI devices have been opened, we cannot
 	 *  reset the bus safely, so we do it here.
 	 */
-	spin_lock_irqsave(instance->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	if (sym_reset_scsi_bus(np, 0))
 		goto reset_failed;
 
@@ -1398,37 +1395,37 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  Fill Linux host instance structure
 	 *  and return success.
 	 */
-	instance->max_channel	= 0;
-	instance->this_id	= np->myaddr;
-	instance->max_id	= np->maxwide ? 16 : 8;
-	instance->max_lun	= SYM_CONF_MAX_LUN;
-	instance->unique_id	= pci_resource_start(pdev, 0);
-	instance->cmd_per_lun	= SYM_CONF_MAX_TAG;
-	instance->can_queue	= (SYM_CONF_MAX_START-2);
-	instance->sg_tablesize	= SYM_CONF_MAX_SG;
-	instance->max_cmd_len	= 16;
+	shost->max_channel	= 0;
+	shost->this_id		= np->myaddr;
+	shost->max_id		= np->maxwide ? 16 : 8;
+	shost->max_lun		= SYM_CONF_MAX_LUN;
+	shost->unique_id	= pci_resource_start(pdev, 0);
+	shost->cmd_per_lun	= SYM_CONF_MAX_TAG;
+	shost->can_queue	= (SYM_CONF_MAX_START-2);
+	shost->sg_tablesize	= SYM_CONF_MAX_SG;
+	shost->max_cmd_len	= 16;
 	BUG_ON(sym2_transport_template == NULL);
-	instance->transportt	= sym2_transport_template;
+	shost->transportt	= sym2_transport_template;
 
 	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
 	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 2)
-		instance->dma_boundary = 0xFFFFFF;
+		shost->dma_boundary = 0xFFFFFF;
 
-	spin_unlock_irqrestore(instance->host_lock, flags);
+	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	return instance;
+	return shost;
 
  reset_failed:
 	printf_err("%s: FATAL ERROR: CHECK SCSI BUS - CABLES, "
 		   "TERMINATION, DEVICE POWER etc.!\n", sym_name(np));
-	spin_unlock_irqrestore(instance->host_lock, flags);
+	spin_unlock_irqrestore(shost->host_lock, flags);
  attach_failed:
-	if (!instance)
+	if (!shost)
 		return NULL;
 	printf_info("%s: giving up ...\n", sym_name(np));
 	if (np)
 		sym_free_resources(np, pdev);
-	scsi_host_put(instance);
+	scsi_host_put(shost);
 
 	return NULL;
  }
@@ -1702,7 +1699,7 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 {
 	struct sym_device sym_dev;
 	struct sym_nvram nvram;
-	struct Scsi_Host *instance;
+	struct Scsi_Host *shost;
 
 	memset(&sym_dev, 0, sizeof(sym_dev));
 	memset(&nvram, 0, sizeof(nvram));
@@ -1729,13 +1726,13 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 
 	sym_get_nvram(&sym_dev, &nvram);
 
-	instance = sym_attach(&sym2_template, attach_count, &sym_dev);
-	if (!instance)
+	shost = sym_attach(&sym2_template, attach_count, &sym_dev);
+	if (!shost)
 		goto free;
 
-	if (scsi_add_host(instance, &pdev->dev))
+	if (scsi_add_host(shost, &pdev->dev))
 		goto detach;
-	scsi_scan_host(instance);
+	scsi_scan_host(shost);
 
 	attach_count++;
 
@@ -1884,12 +1881,12 @@ static void sym2_io_resume(struct pci_dev *pdev)
 {
 	struct sym_hcb *np = pci_get_drvdata(pdev);
 	struct Scsi_Host *shost = np->s.host;
-	struct host_data *hostdata = shost_priv(shost);
+	struct sym_data *sym_data = shost_priv(shost);
 
 	spin_lock_irq(shost->host_lock);
-	if (hostdata->io_reset)
-		complete_all(hostdata->io_reset);
-	hostdata->io_reset = NULL;
+	if (sym_data->io_reset)
+		complete_all(sym_data->io_reset);
+	sym_data->io_reset = NULL;
 	spin_unlock_irq(shost->host_lock);
 }
 

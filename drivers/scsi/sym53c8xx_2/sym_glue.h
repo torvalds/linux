@@ -42,6 +42,7 @@
 
 #include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -217,14 +218,15 @@ struct sym_device {
 /*
  *  Driver host data structure.
  */
-struct host_data {
+struct sym_data {
 	struct sym_hcb *ncb;
 	struct completion *io_reset;		/* PCI error handling */
+	struct pci_dev *pdev;
 };
 
 static inline struct sym_hcb * sym_get_hcb(struct Scsi_Host *host)
 {
-	return ((struct host_data *)host->hostdata)->ncb;
+	return ((struct sym_data *)host->hostdata)->ncb;
 }
 
 #include "sym_fw.h"
