@@ -362,6 +362,13 @@ UNUSUAL_DEV(  0x04b0, 0x0413, 0x0110, 0x0110,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Paul Check <paul@openstreet.com> */
+UNUSUAL_DEV(  0x04b0, 0x0415, 0x0100, 0x0100,
+		"NIKON",
+		"NIKON DSC D2Xs",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
