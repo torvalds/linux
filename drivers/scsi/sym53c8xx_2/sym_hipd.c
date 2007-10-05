@@ -804,7 +804,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  In dual channel mode, contention occurs if internal cycles
 	 *  are used. Disable internal cycles.
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
 	    np->s.device->revision < 0x1)
 		np->rv_ccntl0	|=  DILS;
 
@@ -828,9 +828,9 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  this driver. The generic ncr driver that does not use 
 	 *  LOAD/STORE instructions does not need this work-around.
 	 */
-	if ((np->device_id == PCI_DEVICE_ID_NCR_53C810 &&
+	if ((np->s.device->device == PCI_DEVICE_ID_NCR_53C810 &&
 	     np->s.device->revision >= 0x10 && np->s.device->revision <= 0x11) ||
-	    (np->device_id == PCI_DEVICE_ID_NCR_53C860 &&
+	    (np->s.device->device == PCI_DEVICE_ID_NCR_53C860 &&
 	     np->s.device->revision <= 0x1))
 		np->features &= ~(FE_WRIE|FE_ERL|FE_ERMP);
 
@@ -897,7 +897,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	if ((SYM_SETUP_SCSI_LED || 
 	     (nvram->type == SYM_SYMBIOS_NVRAM ||
 	      (nvram->type == SYM_TEKRAM_NVRAM &&
-	       np->device_id == PCI_DEVICE_ID_NCR_53C895))) &&
+	       np->s.device->device == PCI_DEVICE_ID_NCR_53C895))) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
 		np->features |= FE_LED0;
 
@@ -1798,7 +1798,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	/*
 	 *  For now, disable AIP generation on C1010-66.
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_66)
+	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_66)
 		OUTB(np, nc_aipcntl1, DISAIP);
 
 	/*
@@ -1808,7 +1808,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  that from SCRIPTS for each selection/reselection, but 
 	 *  I just don't want. :)
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
 	    np->s.device->revision < 1)
 		OUTB(np, nc_stest1, INB(np, nc_stest1) | 0x30);
 
@@ -1817,9 +1817,9 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  Disable overlapped arbitration for some dual function devices, 
 	 *  regardless revision id (kind of post-chip-design feature. ;-))
 	 */
-	if (np->device_id == PCI_DEVICE_ID_NCR_53C875)
+	if (np->s.device->device == PCI_DEVICE_ID_NCR_53C875)
 		OUTB(np, nc_ctest0, (1<<5));
-	else if (np->device_id == PCI_DEVICE_ID_NCR_53C896)
+	else if (np->s.device->device == PCI_DEVICE_ID_NCR_53C896)
 		np->rv_ccntl0 |= DPR;
 
 	/*

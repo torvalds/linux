@@ -205,13 +205,13 @@ sym_fw2_patch(struct sym_hcb *np)
 	 *  Remove a couple of work-arounds specific to C1010 if 
 	 *  they are not desirable. See `sym_fw2.h' for more details.
 	 */
-	if (!(np->device_id == PCI_DEVICE_ID_LSI_53C1010_66 &&
+	if (!(np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_66 &&
 	      np->s.device->revision < 0x1 &&
 	      np->pciclk_khz < 60000)) {
 		scripta0->datao_phase[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->datao_phase[1] = cpu_to_scr(0);
 	}
-	if (!(np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 /* &&
+	if (!(np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_33 /* &&
 	      np->s.device->revision < 0xff */)) {
 		scripta0->sel_done[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->sel_done[1] = cpu_to_scr(0);

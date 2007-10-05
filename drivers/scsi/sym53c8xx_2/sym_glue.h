@@ -212,7 +212,6 @@ struct sym_device {
 	} s;
 	struct sym_chip chip;
 	struct sym_nvram *nvram;
-	u_short device_id;
 	u_char host_id;
 };
 

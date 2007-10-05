@@ -1255,7 +1255,7 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
 
 	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
 			 "revision id 0x%x\n", np->s.chip_name,
-			 np->device_id, np->s.device->revision);
+			 np->s.device->device, np->s.device->revision);
 	copy_info(&info, "At PCI address %s, IRQ " IRQ_FMT "\n",
 		pci_name(np->s.device), IRQ_PRM(np->s.device->irq));
 	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
@@ -1410,7 +1410,6 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np->verbose	= sym_driver_setup.verbose;
 	np->s.device	= pdev;
 	np->s.unit	= unit;
-	np->device_id	= dev->chip.device_id;
 	np->features	= dev->chip.features;
 	np->clock_divn	= dev->chip.nr_divisor;
 	np->maxoffs	= dev->chip.offset_max;
@@ -1528,7 +1527,6 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 static void __devinit sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
 {
 	devp->nvram = nvp;
-	devp->device_id = devp->chip.device_id;
 	nvp->type = 0;
 
 	sym_read_nvram(devp, nvp);
