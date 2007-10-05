@@ -1180,16 +1180,26 @@ static void sym_log_hard_error(struct sym_hcb *np, u_short sist, u_char dstat)
 			scr_to_cpu((int) *(u32 *)(script_base + script_ofs)));
 	}
 
-        printf ("%s: regdump:", sym_name(np));
-        for (i=0; i<24;i++)
-            printf (" %02x", (unsigned)INB_OFF(np, i));
-        printf (".\n");
+	printf("%s: regdump:", sym_name(np));
+	for (i = 0; i < 24; i++)
+		printf(" %02x", (unsigned)INB_OFF(np, i));
+	printf(".\n");
 
 	/*
 	 *  PCI BUS error.
 	 */
 	if (dstat & (MDPE|BF))
 		sym_log_bus_error(np);
+}
+
+void sym_dump_registers(struct sym_hcb *np)
+{
+	u_short sist;
+	u_char dstat;
+
+	sist = INW(np, nc_sist);
+	dstat = INB(np, nc_dstat);
+	sym_log_hard_error(np, sist, dstat);
 }
 
 static struct sym_chip sym_dev_table[] = {
@@ -2809,6 +2819,13 @@ void sym_interrupt (struct sym_hcb *np)
 			dstat |= INB(np, nc_dstat);
 		istatc = INB(np, nc_istat);
 		istat |= istatc;
+
+		/* Prevent deadlock waiting on a condition that may
+		 * never clear. */
+		if (unlikely(sist == 0xffff && dstat == 0xff)) {
+			if (pci_channel_offline(np->s.device))
+				return;
+		}
 	} while (istatc & (SIP|DIP));
 
 	if (DEBUG_FLAGS & DEBUG_TINY)

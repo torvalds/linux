@@ -40,6 +40,7 @@
 #ifndef SYM_GLUE_H
 #define SYM_GLUE_H
 
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
@@ -220,6 +221,7 @@ struct sym_device {
  */
 struct host_data {
 	struct sym_hcb *ncb;
+	struct completion *io_reset;		/* PCI error handling */
 };
 
 static inline struct sym_hcb * sym_get_hcb(struct Scsi_Host *host)
@@ -265,5 +267,6 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np);
 void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target);
 int  sym_setup_data_and_start (struct sym_hcb *np, struct scsi_cmnd *csio, struct sym_ccb *cp);
 void sym_log_bus_error(struct sym_hcb *np);
+void sym_dump_registers(struct sym_hcb *np);
 
 #endif /* SYM_GLUE_H */
