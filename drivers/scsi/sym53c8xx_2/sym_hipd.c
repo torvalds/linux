@@ -805,7 +805,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  are used. Disable internal cycles.
 	 */
 	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->revision_id < 0x1)
+	    np->s.device->revision < 0x1)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -829,9 +829,9 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  LOAD/STORE instructions does not need this work-around.
 	 */
 	if ((np->device_id == PCI_DEVICE_ID_NCR_53C810 &&
-	     np->revision_id >= 0x10 && np->revision_id <= 0x11) ||
+	     np->s.device->revision >= 0x10 && np->s.device->revision <= 0x11) ||
 	    (np->device_id == PCI_DEVICE_ID_NCR_53C860 &&
-	     np->revision_id <= 0x1))
+	     np->s.device->revision <= 0x1))
 		np->features &= ~(FE_WRIE|FE_ERL|FE_ERMP);
 
 	/*
@@ -1809,7 +1809,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  I just don't want. :)
 	 */
 	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->revision_id < 1)
+	    np->s.device->revision < 1)
 		OUTB(np, nc_stest1, INB(np, nc_stest1) | 0x30);
 
 	/*

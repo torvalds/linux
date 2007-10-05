@@ -1254,8 +1254,8 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
 	info.pos	= 0;
 
 	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
-			 "revision id 0x%x\n",
-			 np->s.chip_name, np->device_id, np->revision_id);
+			 "revision id 0x%x\n", np->s.chip_name,
+			 np->device_id, np->s.device->revision);
 	copy_info(&info, "At PCI address %s, IRQ " IRQ_FMT "\n",
 		pci_name(np->s.device), IRQ_PRM(np->s.device->irq));
 	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
@@ -1368,10 +1368,9 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	unsigned long flags;
 	struct sym_fw *fw;
 
-	printk(KERN_INFO
-		"sym%d: <%s> rev 0x%x at pci %s irq " IRQ_FMT "\n",
-		unit, dev->chip.name, dev->chip.revision_id,
-		pci_name(pdev), IRQ_PRM(pdev->irq));
+	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq " IRQ_FMT "\n",
+		unit, dev->chip.name, pdev->revision, pci_name(pdev),
+		IRQ_PRM(pdev->irq));
 
 	/*
 	 *  Get the firmware for this chip.
@@ -1412,7 +1411,6 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np->s.device	= pdev;
 	np->s.unit	= unit;
 	np->device_id	= dev->chip.device_id;
-	np->revision_id	= dev->chip.revision_id;
 	np->features	= dev->chip.features;
 	np->clock_divn	= dev->chip.nr_divisor;
 	np->maxoffs	= dev->chip.offset_max;
@@ -1500,7 +1498,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	instance->transportt	= sym2_transport_template;
 
 	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
-	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && np->revision_id < 2)
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 2)
 		instance->dma_boundary = 0xFFFFFF;
 
 	spin_unlock_irqrestore(instance->host_lock, flags);
@@ -1545,7 +1543,6 @@ static int __devinit sym_check_supported(struct sym_device *device)
 {
 	struct sym_chip *chip;
 	struct pci_dev *pdev = device->pdev;
-	u_char revision;
 	unsigned long io_port = pci_resource_start(pdev, 0);
 	int i;
 
@@ -1565,14 +1562,12 @@ static int __devinit sym_check_supported(struct sym_device *device)
 	 * to our device structure so we can make it match the actual device
 	 * and options.
 	 */
-	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
-	chip = sym_lookup_chip_table(pdev->device, revision);
+	chip = sym_lookup_chip_table(pdev->device, pdev->revision);
 	if (!chip) {
 		dev_info(&pdev->dev, "device not supported\n");
 		return -ENODEV;
 	}
 	memcpy(&device->chip, chip, sizeof(device->chip));
-	device->chip.revision_id = revision;
 
 	return 0;
 }
@@ -1613,7 +1608,7 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 	 *  We must ensure the chip will use WRITE AND INVALIDATE.
 	 *  The revision number limit is for now arbitrary.
 	 */
-	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && chip->revision_id < 0x4) {
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 0x4) {
 		chip->features	|= (FE_WRIE | FE_CLSE);
 	}
 
@@ -1905,12 +1900,10 @@ static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)
  */
 static void sym2_reset_workarounds(struct pci_dev *pdev)
 {
-	u_char revision;
 	u_short status_reg;
 	struct sym_chip *chip;
 
-	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
-	chip = sym_lookup_chip_table(pdev->device, revision);
+	chip = sym_lookup_chip_table(pdev->device, pdev->revision);
 
 	/* Work around for errant bit in 895A, in a fashion
 	 * similar to what is done in sym_set_workarounds().
