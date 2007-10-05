@@ -163,14 +163,6 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np)
 }
 
 /*
- *  Tell the SCSI layer about a BUS DEVICE RESET message sent.
- */
-void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target)
-{
-	printf_notice("%s: TARGET %d has been reset.\n", sym_name(np), target);
-}
-
-/*
  *  Choose the more appropriate CAM status if 
  *  the IO encountered an extended error.
  */

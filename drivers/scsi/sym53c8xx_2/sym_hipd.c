@@ -3543,7 +3543,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 *  If we sent a BDR, make upper layer aware of that.
  		 */
 		if (np->abrt_msg[0] == M_RESET)
-			sym_xpt_async_sent_bdr(np, target);
+			starget_printk(KERN_NOTICE, starget,
+							"has been reset\n");
 		break;
 	}
 
