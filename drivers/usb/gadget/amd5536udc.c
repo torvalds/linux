@@ -69,7 +69,7 @@
 
 /* gadget stack */
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 
 /* udc specific */
 #include "amd5536udc.h"

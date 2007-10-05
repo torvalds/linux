@@ -35,7 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
@@ -1117,7 +1117,7 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
-/* defined in usb_gadget.h */
+/* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
 	.wakeup = fsl_wakeup,

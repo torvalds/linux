@@ -37,7 +37,7 @@
 #include <linux/proc_fs.h>
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
-#include <linux/usb_gadget.h>
+#include <linux/usb/gadget.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>

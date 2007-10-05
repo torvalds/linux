@@ -1,5 +1,5 @@
 /*
- * <linux/usb_gadget.h>
+ * <linux/usb/gadget.h>
  *
  * We call the USB code inside a Linux-based peripheral device a "gadget"
  * driver, except for the hardware-specific bus glue.  One USB host can
