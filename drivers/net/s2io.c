@@ -38,7 +38,7 @@
  * Tx descriptors that can be associated with each corresponding FIFO.
  * intr_type: This defines the type of interrupt. The values can be 0(INTA),
  *     2(MSI_X). Default value is '2(MSI_X)'
- * lro: Specifies whether to enable Large Receive Offload (LRO) or not.
+ * lro_enable: Specifies whether to enable Large Receive Offload (LRO) or not.
  *     Possible values '1' for enable '0' for disable. Default is '0'
  * lro_max_pkts: This parameter defines maximum number of packets can be
  *     aggregated as a single large packet
@@ -276,46 +276,46 @@ static char ethtool_driver_stats_keys[][ETH_GSTRING_LEN] = {
 	{"ring_5_full_cnt"},
 	{"ring_6_full_cnt"},
 	{"ring_7_full_cnt"},
-	("alarm_transceiver_temp_high"),
-	("alarm_transceiver_temp_low"),
-	("alarm_laser_bias_current_high"),
-	("alarm_laser_bias_current_low"),
-	("alarm_laser_output_power_high"),
-	("alarm_laser_output_power_low"),
-	("warn_transceiver_temp_high"),
-	("warn_transceiver_temp_low"),
-	("warn_laser_bias_current_high"),
-	("warn_laser_bias_current_low"),
-	("warn_laser_output_power_high"),
-	("warn_laser_output_power_low"),
-	("lro_aggregated_pkts"),
-	("lro_flush_both_count"),
-	("lro_out_of_sequence_pkts"),
-	("lro_flush_due_to_max_pkts"),
-	("lro_avg_aggr_pkts"),
-	("mem_alloc_fail_cnt"),
-	("pci_map_fail_cnt"),
-	("watchdog_timer_cnt"),
-	("mem_allocated"),
-	("mem_freed"),
-	("link_up_cnt"),
-	("link_down_cnt"),
-	("link_up_time"),
-	("link_down_time"),
-	("tx_tcode_buf_abort_cnt"),
-	("tx_tcode_desc_abort_cnt"),
-	("tx_tcode_parity_err_cnt"),
-	("tx_tcode_link_loss_cnt"),
-	("tx_tcode_list_proc_err_cnt"),
-	("rx_tcode_parity_err_cnt"),
-	("rx_tcode_abort_cnt"),
-	("rx_tcode_parity_abort_cnt"),
-	("rx_tcode_rda_fail_cnt"),
-	("rx_tcode_unkn_prot_cnt"),
-	("rx_tcode_fcs_err_cnt"),
-	("rx_tcode_buf_size_err_cnt"),
-	("rx_tcode_rxd_corrupt_cnt"),
-	("rx_tcode_unkn_err_cnt"),
+	{"alarm_transceiver_temp_high"},
+	{"alarm_transceiver_temp_low"},
+	{"alarm_laser_bias_current_high"},
+	{"alarm_laser_bias_current_low"},
+	{"alarm_laser_output_power_high"},
+	{"alarm_laser_output_power_low"},
+	{"warn_transceiver_temp_high"},
+	{"warn_transceiver_temp_low"},
+	{"warn_laser_bias_current_high"},
+	{"warn_laser_bias_current_low"},
+	{"warn_laser_output_power_high"},
+	{"warn_laser_output_power_low"},
+	{"lro_aggregated_pkts"},
+	{"lro_flush_both_count"},
+	{"lro_out_of_sequence_pkts"},
+	{"lro_flush_due_to_max_pkts"},
+	{"lro_avg_aggr_pkts"},
+	{"mem_alloc_fail_cnt"},
+	{"pci_map_fail_cnt"},
+	{"watchdog_timer_cnt"},
+	{"mem_allocated"},
+	{"mem_freed"},
+	{"link_up_cnt"},
+	{"link_down_cnt"},
+	{"link_up_time"},
+	{"link_down_time"},
+	{"tx_tcode_buf_abort_cnt"},
+	{"tx_tcode_desc_abort_cnt"},
+	{"tx_tcode_parity_err_cnt"},
+	{"tx_tcode_link_loss_cnt"},
+	{"tx_tcode_list_proc_err_cnt"},
+	{"rx_tcode_parity_err_cnt"},
+	{"rx_tcode_abort_cnt"},
+	{"rx_tcode_parity_abort_cnt"},
+	{"rx_tcode_rda_fail_cnt"},
+	{"rx_tcode_unkn_prot_cnt"},
+	{"rx_tcode_fcs_err_cnt"},
+	{"rx_tcode_buf_size_err_cnt"},
+	{"rx_tcode_rxd_corrupt_cnt"},
+	{"rx_tcode_unkn_err_cnt"},
 	{"tda_err_cnt"},
 	{"pfc_err_cnt"},
 	{"pcc_err_cnt"},
@@ -468,7 +468,9 @@ S2IO_PARM_INT(rxsync_frequency, 3);
 /* Interrupt type. Values can be 0(INTA), 2(MSI_X) */
 S2IO_PARM_INT(intr_type, 2);
 /* Large receive offload feature */
-S2IO_PARM_INT(lro, 0);
+static unsigned int lro_enable;
+module_param_named(lro, lro_enable, uint, 0);
+
 /* Max pkts to be aggregated by LRO at one time. If not specified,
  * aggregation happens until we hit max IP pkt size(64K)
  */
@@ -1759,7 +1761,7 @@ static void do_s2io_write_bits(u64 value, int flag, void __iomem *addr)
 	writeq(temp64, addr);
 }
 
-void en_dis_err_alarms(struct s2io_nic *nic, u16 mask, int flag)
+static void en_dis_err_alarms(struct s2io_nic *nic, u16 mask, int flag)
 {
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	register u64 gen_int_mask = 0;
@@ -4228,7 +4230,7 @@ static void s2io_txpic_intr_handle(struct s2io_nic *sp)
  *  1 - if alarm bit set
  *  0 - if alarm bit is not set
  */
-int do_s2io_chk_alarm_bit(u64 value, void __iomem * addr,
+static int do_s2io_chk_alarm_bit(u64 value, void __iomem * addr,
 			  unsigned long long *cnt)
 {
 	u64 val64;
@@ -7135,7 +7137,8 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 				int ret = 0;
 
 				ret = s2io_club_tcp_session(skb->data, &tcp,
-						&tcp_len, &lro, rxdp, sp);
+							    &tcp_len, &lro,
+							    rxdp, sp);
 				switch (ret) {
 					case 3: /* Begin anew */
 						lro->parent = skb;
@@ -7451,7 +7454,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		sp->device_type = XFRAME_I_DEVICE;
 
-	sp->lro = lro;
+	sp->lro = lro_enable;
 
 	/* Initialize some PCI/PCI-X fields of the NIC. */
 	s2io_init_pci(sp);
@@ -7798,7 +7801,7 @@ static void __devexit s2io_rem_nic(struct pci_dev *pdev)
  * the module loadable parameters and initializes PCI configuration space.
  */
 
-int __init s2io_starter(void)
+static int __init s2io_starter(void)
 {
 	return pci_register_driver(&s2io_driver);
 }
