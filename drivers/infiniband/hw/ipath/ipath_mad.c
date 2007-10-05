@@ -402,7 +402,6 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	struct ib_event event;
 	struct ipath_ibdev *dev;
 	struct ipath_devdata *dd;
-	u32 flags;
 	char clientrereg = 0;
 	u16 lid, smlid;
 	u8 lwe;
@@ -541,7 +540,6 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 	 * is down or is being set to down.
 	 */
 	state = pip->linkspeed_portstate & 0xF;
-	flags = dd->ipath_flags;
 	lstate = (pip->portphysstate_linkdown >> 4) & 0xF;
 	if (lstate && !(state == IB_PORT_DOWN || state == IB_PORT_NOP))
 		goto err;
@@ -572,13 +570,9 @@ static int recv_subn_set_portinfo(struct ib_smp *smp,
 		ipath_set_linkstate(dd, lstate);
 		break;
 	case IB_PORT_ARMED:
-		if (!(flags & (IPATH_LINKINIT | IPATH_LINKACTIVE)))
-			break;
 		ipath_set_linkstate(dd, IPATH_IB_LINKARM);
 		break;
 	case IB_PORT_ACTIVE:
-		if (!(flags & IPATH_LINKARMED))
-			break;
 		ipath_set_linkstate(dd, IPATH_IB_LINKACTIVE);
 		break;
 	default:
