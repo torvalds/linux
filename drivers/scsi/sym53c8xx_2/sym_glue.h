@@ -179,7 +179,6 @@ struct sym_shcb {
 	int		unit;
 	char		inst_name[16];
 	char		chip_name[8];
-	struct pci_dev	*device;
 
 	struct Scsi_Host *host;
 
@@ -266,7 +265,7 @@ void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *ccb);
 void sym_xpt_async_bus_reset(struct sym_hcb *np);
 void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target);
 int  sym_setup_data_and_start (struct sym_hcb *np, struct scsi_cmnd *csio, struct sym_ccb *cp);
-void sym_log_bus_error(struct sym_hcb *np);
-void sym_dump_registers(struct sym_hcb *np);
+void sym_log_bus_error(struct Scsi_Host *);
+void sym_dump_registers(struct Scsi_Host *);
 
 #endif /* SYM_GLUE_H */

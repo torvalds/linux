@@ -684,6 +684,8 @@ static void sym_set_bus_mode(struct sym_hcb *np, struct sym_nvram *nvram)
  */
 static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
 	u_char	burst_max;
 	u32	period;
 	int i;
@@ -797,8 +799,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  In dual channel mode, contention occurs if internal cycles
 	 *  are used. Disable internal cycles.
 	 */
-	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->s.device->revision < 0x1)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	    pdev->revision < 0x1)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -821,10 +823,10 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  this driver. The generic ncr driver that does not use 
 	 *  LOAD/STORE instructions does not need this work-around.
 	 */
-	if ((np->s.device->device == PCI_DEVICE_ID_NCR_53C810 &&
-	     np->s.device->revision >= 0x10 && np->s.device->revision <= 0x11) ||
-	    (np->s.device->device == PCI_DEVICE_ID_NCR_53C860 &&
-	     np->s.device->revision <= 0x1))
+	if ((pdev->device == PCI_DEVICE_ID_NCR_53C810 &&
+	     pdev->revision >= 0x10 && pdev->revision <= 0x11) ||
+	    (pdev->device == PCI_DEVICE_ID_NCR_53C860 &&
+	     pdev->revision <= 0x1))
 		np->features &= ~(FE_WRIE|FE_ERL|FE_ERMP);
 
 	/*
@@ -890,7 +892,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	if ((SYM_SETUP_SCSI_LED || 
 	     (nvram->type == SYM_SYMBIOS_NVRAM ||
 	      (nvram->type == SYM_TEKRAM_NVRAM &&
-	       np->s.device->device == PCI_DEVICE_ID_NCR_53C895))) &&
+	       pdev->device == PCI_DEVICE_ID_NCR_53C895))) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
 		np->features |= FE_LED0;
 
@@ -1128,8 +1130,9 @@ restart_test:
  *  First 24 register of the chip:
  *  	r0..rf
  */
-static void sym_log_hard_error(struct sym_hcb *np, u_short sist, u_char dstat)
+static void sym_log_hard_error(struct Scsi_Host *shost, u_short sist, u_char dstat)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u32	dsp;
 	int	script_ofs;
 	int	script_size;
@@ -1182,17 +1185,18 @@ static void sym_log_hard_error(struct sym_hcb *np, u_short sist, u_char dstat)
 	 *  PCI BUS error.
 	 */
 	if (dstat & (MDPE|BF))
-		sym_log_bus_error(np);
+		sym_log_bus_error(shost);
 }
 
-void sym_dump_registers(struct sym_hcb *np)
+void sym_dump_registers(struct Scsi_Host *shost)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u_short sist;
 	u_char dstat;
 
 	sist = INW(np, nc_sist);
 	dstat = INB(np, nc_dstat);
-	sym_log_hard_error(np, sist, dstat);
+	sym_log_hard_error(shost, sist, dstat);
 }
 
 static struct sym_chip sym_dev_table[] = {
@@ -1700,8 +1704,11 @@ static void sym_flush_busy_queue (struct sym_hcb *np, int cam_status)
  *     1: SCSI BUS RESET delivered or received.
  *     2: SCSI BUS MODE changed.
  */
-void sym_start_up (struct sym_hcb *np, int reason)
+void sym_start_up(struct Scsi_Host *shost, int reason)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
+	struct sym_hcb *np = sym_data->ncb;
  	int	i;
 	u32	phys;
 
@@ -1750,7 +1757,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  This also let point to first position the start 
 	 *  and done queue pointers used from SCRIPTS.
 	 */
-	np->fw_patch(np);
+	np->fw_patch(shost);
 
 	/*
 	 *  Wakeup all pending jobs.
@@ -1792,7 +1799,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	/*
 	 *  For now, disable AIP generation on C1010-66.
 	 */
-	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_66)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_66)
 		OUTB(np, nc_aipcntl1, DISAIP);
 
 	/*
@@ -1802,8 +1809,8 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  that from SCRIPTS for each selection/reselection, but 
 	 *  I just don't want. :)
 	 */
-	if (np->s.device->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->s.device->revision < 1)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	    pdev->revision < 1)
 		OUTB(np, nc_stest1, INB(np, nc_stest1) | 0x30);
 
 	/*
@@ -1811,9 +1818,9 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  Disable overlapped arbitration for some dual function devices, 
 	 *  regardless revision id (kind of post-chip-design feature. ;-))
 	 */
-	if (np->s.device->device == PCI_DEVICE_ID_NCR_53C875)
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C875)
 		OUTB(np, nc_ctest0, (1<<5));
-	else if (np->s.device->device == PCI_DEVICE_ID_NCR_53C896)
+	else if (pdev->device == PCI_DEVICE_ID_NCR_53C896)
 		np->rv_ccntl0 |= DPR;
 
 	/*
@@ -2218,8 +2225,9 @@ static void sym_int_udc (struct sym_hcb *np)
  *  mode to eight bit asynchronous, etc...
  *  So, just reinitializing all except chip should be enough.
  */
-static void sym_int_sbmc (struct sym_hcb *np)
+static void sym_int_sbmc(struct Scsi_Host *shost)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u_char scsi_mode = INB(np, nc_stest4) & SMODE;
 
 	/*
@@ -2232,7 +2240,7 @@ static void sym_int_sbmc (struct sym_hcb *np)
 	 *  Should suspend command processing for a few seconds and 
 	 *  reinitialize all except the chip.
 	 */
-	sym_start_up (np, 2);
+	sym_start_up(shost, 2);
 }
 
 /*
@@ -2762,7 +2770,9 @@ reset_all:
 
 irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 {
-	struct sym_hcb *np = sym_get_hcb(shost);
+	struct sym_data *sym_data = shost_priv(shost);
+	struct sym_hcb *np = sym_data->ncb;
+	struct pci_dev *pdev = sym_data->pdev;
 	u_char	istat, istatc;
 	u_char	dstat;
 	u_short	sist;
@@ -2818,7 +2828,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 		/* Prevent deadlock waiting on a condition that may
 		 * never clear. */
 		if (unlikely(sist == 0xffff && dstat == 0xff)) {
-			if (pci_channel_offline(np->s.device))
+			if (pci_channel_offline(pdev))
 				return IRQ_NONE;
 		}
 	} while (istatc & (SIP|DIP));
@@ -2873,7 +2883,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	 */
 	if (sist & RST) {
 		printf("%s: SCSI BUS reset detected.\n", sym_name(np));
-		sym_start_up (np, 1);
+		sym_start_up(shost, 1);
 		return IRQ_HANDLED;
 	}
 
@@ -2882,7 +2892,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 
 	if (!(sist  & (GEN|HTH|SGE)) &&
 	    !(dstat & (MDPE|BF|ABRT|IID))) {
-		if	(sist & SBMC)	sym_int_sbmc (np);
+		if	(sist & SBMC)	sym_int_sbmc(shost);
 		else if (sist & STO)	sym_int_sto (np);
 		else if (sist & UDC)	sym_int_udc (np);
 		else			goto unknown_int;
@@ -2896,7 +2906,7 @@ irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 	 *  Reset everything.
 	 */
 
-	sym_log_hard_error(np, sist, dstat);
+	sym_log_hard_error(shost, sist, dstat);
 
 	if ((sist & (GEN|HTH|SGE)) ||
 		(dstat & (MDPE|BF|ABRT|IID))) {

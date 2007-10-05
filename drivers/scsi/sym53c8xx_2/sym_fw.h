@@ -143,7 +143,7 @@ struct sym_fw {
 		*z_ofs;		/* Useful offsets in script Z	*/
 	/* Setup and patch methods for this firmware */
 	void	(*setup)(struct sym_hcb *, struct sym_fw *);
-	void	(*patch)(struct sym_hcb *);
+	void	(*patch)(struct Scsi_Host *);
 };
 
 /*

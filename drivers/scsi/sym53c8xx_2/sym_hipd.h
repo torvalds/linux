@@ -909,7 +909,7 @@ struct sym_hcb {
 	struct sym_fwb_ba fwb_bas;	/* Useful SCRIPTB bus addresses	*/
 	struct sym_fwz_ba fwz_bas;	/* Useful SCRIPTZ bus addresses	*/
 	void		(*fw_setup)(struct sym_hcb *np, struct sym_fw *fw);
-	void		(*fw_patch)(struct sym_hcb *np);
+	void		(*fw_patch)(struct Scsi_Host *);
 	char		*fw_name;
 
 	/*
@@ -1055,7 +1055,7 @@ void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn);
 #else
 void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp);
 #endif
-void sym_start_up(struct sym_hcb *np, int reason);
+void sym_start_up(struct Scsi_Host *, int reason);
 irqreturn_t sym_interrupt(struct Scsi_Host *);
 int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int task);
 struct sym_ccb *sym_get_ccb(struct sym_hcb *np, struct scsi_cmnd *cmd, u_char tag_order);
