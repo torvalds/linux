@@ -2126,8 +2126,8 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
 
 	del_timer_sync(&r8a66597->rh_timer);
-	iounmap((void *)r8a66597->reg);
 	usb_remove_hcd(hcd);
+	iounmap((void *)r8a66597->reg);
 	usb_put_hcd(hcd);
 	return 0;
 }
