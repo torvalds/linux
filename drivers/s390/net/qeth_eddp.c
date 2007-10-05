@@ -159,13 +159,15 @@ qeth_eddp_fill_buffer(struct qeth_qdio_out_q *queue,
 		buffer = buf->buffer;
 		/* fill one skb into buffer */
 		for (i = 0; i < ctx->elements_per_skb; ++i){
-			buffer->element[buf->next_element_to_fill].addr =
-				ctx->elements[element].addr;
-			buffer->element[buf->next_element_to_fill].length =
-				ctx->elements[element].length;
-			buffer->element[buf->next_element_to_fill].flags =
-				ctx->elements[element].flags;
-			buf->next_element_to_fill++;
+			if (ctx->elements[element].length != 0) {
+				buffer->element[buf->next_element_to_fill].
+				addr = ctx->elements[element].addr;
+				buffer->element[buf->next_element_to_fill].
+				length = ctx->elements[element].length;
+				buffer->element[buf->next_element_to_fill].
+				flags = ctx->elements[element].flags;
+				buf->next_element_to_fill++;
+			}
 			element++;
 			elements--;
 		}
