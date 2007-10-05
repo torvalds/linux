@@ -735,6 +735,7 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 				mutex_lock(&drv->core->lock);
 				list_del(&d->drvlist);
 				mutex_unlock(&drv->core->lock);
+				kfree(d);
 			} else
 				printk(KERN_ERR "%s/2: cx8802 driver remove "
 				       "failed (%d)\n", dev->core->name, err);
@@ -817,6 +818,7 @@ static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 			} else
 				printk(KERN_ERR "%s/2: cx8802 driver remove "
 				       "failed (%d)\n", dev->core->name, err);
+			kfree(drv);
 		}
 	}
 
