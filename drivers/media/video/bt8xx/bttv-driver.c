@@ -3072,6 +3072,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 					     V4L2_MEMORY_MMAP);
 		if (retval < 0)
 			goto fh_unlock_and_return;
+
+		gbuffers = retval;
 		memset(mbuf,0,sizeof(*mbuf));
 		mbuf->frames = gbuffers;
 		mbuf->size   = gbuffers * gbufsize;

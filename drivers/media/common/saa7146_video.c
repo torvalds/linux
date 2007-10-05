@@ -1212,6 +1212,8 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 			mutex_unlock(&q->lock);
 			return err;
 		}
+
+		gbuffers = err;
 		memset(mbuf,0,sizeof(*mbuf));
 		mbuf->frames = gbuffers;
 		mbuf->size   = gbuffers * gbufsize;

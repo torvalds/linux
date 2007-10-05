@@ -329,7 +329,7 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 		goto done;
 	}
 
-	req->count = count;
+	req->count = retval;
 
  done:
 	mutex_unlock(&q->lock);
@@ -698,7 +698,7 @@ int videobuf_read_start(struct videobuf_queue *q)
 {
 	enum v4l2_field field;
 	unsigned long flags=0;
-	int count = 0, size = 0;
+	unsigned int count = 0, size = 0;
 	int err, i;
 
 	q->ops->buf_setup(q,&count,&size);
@@ -709,8 +709,10 @@ int videobuf_read_start(struct videobuf_queue *q)
 	size = PAGE_ALIGN(size);
 
 	err = videobuf_mmap_setup(q, count, size, V4L2_MEMORY_USERPTR);
-	if (err)
+	if (err < 0)
 		return err;
+
+	count = err;
 
 	for (i = 0; i < count; i++) {
 		field = videobuf_next_field(q);
@@ -876,6 +878,9 @@ int videobuf_mmap_setup(struct videobuf_queue *q,
 	for (i = 0; i < bcount; i++) {
 		q->bufs[i] = videobuf_alloc(q);
 
+		if (q->bufs[i] == NULL)
+			break;
+
 		q->bufs[i]->i      = i;
 		q->bufs[i]->input  = UNSET;
 		q->bufs[i]->memory = memory;
@@ -891,10 +896,13 @@ int videobuf_mmap_setup(struct videobuf_queue *q,
 		}
 	}
 
-	dprintk(1,"mmap setup: %d buffers, %d bytes each\n",
-		bcount,bsize);
+	if (!i)
+		return -ENOMEM;
 
-	return 0;
+	dprintk(1,"mmap setup: %d buffers, %d bytes each\n",
+		i, bsize);
+
+	return i;
 }
 
 int videobuf_mmap_free(struct videobuf_queue *q)
