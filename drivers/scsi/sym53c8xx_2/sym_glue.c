@@ -151,13 +151,6 @@ void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
 	cmd->scsi_done(cmd);
 }
 
-static void sym_xpt_done2(struct sym_hcb *np, struct scsi_cmnd *cmd, int cam_status)
-{
-	sym_set_cam_status(cmd, cam_status);
-	sym_xpt_done(np, cmd);
-}
-
-
 /*
  *  Tell the SCSI layer about a BUS RESET.
  */
@@ -322,15 +315,6 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *cmd)
 	struct sym_lcb *lp;
 	struct sym_ccb *cp;
 	int	order;
-
-	/*
-	 *  Minimal checkings, so that we will not 
-	 *  go outside our tables.
-	 */
-	if (sdev->id == np->myaddr) {
-		sym_xpt_done2(np, cmd, DID_NO_CONNECT);
-		return 0;
-	}
 
 	/*
 	 *  Retrieve the target descriptor.
@@ -537,7 +521,7 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
 	struct sym_ucmd *ucp = SYM_UCMD_PTR(cmd);
 	int sts = 0;
 
-	cmd->scsi_done     = done;
+	cmd->scsi_done = done;
 	memset(ucp, 0, sizeof(*ucp));
 
 	/*
