@@ -104,10 +104,10 @@
 			device_type = "mdio";
 			compatible = "gianfar";
 			reg = <24520 20>;
-			phy0: ethernet-phy@0 {
+			phy0: ethernet-phy@7 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1>;
-				reg = <0>;
+				reg = <7>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
@@ -242,7 +242,7 @@
 					4  1a  2  0  2  0 	/* RxD7 */
 					4  0b  1  0  2  0 	/* TX_EN */
 					4  18  1  0  2  0 	/* TX_ER */
-					4  0f  2  0  2  0 	/* RX_DV */
+					4  10  2  0  2  0 	/* RX_DV */
 					4  1e  2  0  2  0 	/* RX_ER */
 					4  11  2  0  2  0 	/* RX_CLK */
 					4  13  1  0  2  0 	/* GTX_CLK */
@@ -334,10 +334,10 @@
 			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
-			tx-clock = <19>;
-			phy-handle = <&qe_phy0>;
-			phy-connection-type = "gmii";
+			tx-clock = <20>;
 			pio-handle = <&pio1>;
+			phy-handle = <&phy0>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		ucc@3000 {
@@ -356,10 +356,10 @@
 			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <0>;
-			tx-clock = <14>;
-			phy-handle = <&qe_phy1>;
-			phy-connection-type = "gmii";
+			tx-clock = <20>;
 			pio-handle = <&pio2>;
+			phy-handle = <&phy1>;
+			phy-connection-type = "rgmii-id";
 		};
 
 		mdio@2120 {
@@ -371,10 +371,10 @@
 
 			/* These are the same PHYs as on
 			 * gianfar's MDIO bus */
-			qe_phy0: ethernet-phy@00 {
+			qe_phy0: ethernet-phy@07 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1>;
-				reg = <0>;
+				reg = <7>;
 				device_type = "ethernet-phy";
 			};
 			qe_phy1: ethernet-phy@01 {
