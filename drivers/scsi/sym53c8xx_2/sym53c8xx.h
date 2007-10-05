@@ -127,7 +127,6 @@ struct sym_driver_setup {
 	u_char	settle_delay;
 	u_char	use_nvram;
 	u_long	excludes[8];
-	char	tag_ctrl[100];
 };
 
 #define SYM_SETUP_MAX_TAG		sym_driver_setup.max_tag

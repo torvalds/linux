@@ -63,7 +63,6 @@ unsigned int sym_debug_flags = 0;
 static char *excl_string;
 static char *safe_string;
 module_param_named(cmd_per_lun, sym_driver_setup.max_tag, ushort, 0);
-module_param_string(tag_ctrl, sym_driver_setup.tag_ctrl, 100, 0);
 module_param_named(burst, sym_driver_setup.burst_order, byte, 0);
 module_param_named(led, sym_driver_setup.scsi_led, byte, 0);
 module_param_named(diff, sym_driver_setup.scsi_diff, byte, 0);
@@ -78,7 +77,6 @@ module_param_named(excl, excl_string, charp, 0);
 module_param_named(safe, safe_string, charp, 0);
 
 MODULE_PARM_DESC(cmd_per_lun, "The maximum number of tags to use by default");
-MODULE_PARM_DESC(tag_ctrl, "More detailed control over tags per LUN");
 MODULE_PARM_DESC(burst, "Maximum burst.  0 to disable, 255 to read from registers");
 MODULE_PARM_DESC(led, "Set to 1 to enable LED support");
 MODULE_PARM_DESC(diff, "0 for no differential mode, 1 for BIOS, 2 for always, 3 for not GPIO3");
@@ -744,59 +742,6 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 	}
 }
 
-/*
- *  Linux select queue depths function
- */
-#define DEF_DEPTH	(sym_driver_setup.max_tag)
-#define ALL_TARGETS	-2
-#define NO_TARGET	-1
-#define ALL_LUNS	-2
-#define NO_LUN		-1
-
-static int device_queue_depth(struct sym_hcb *np, int target, int lun)
-{
-	int c, h, t, u, v;
-	char *p = sym_driver_setup.tag_ctrl;
-	char *ep;
-
-	h = -1;
-	t = NO_TARGET;
-	u = NO_LUN;
-	while ((c = *p++) != 0) {
-		v = simple_strtoul(p, &ep, 0);
-		switch(c) {
-		case '/':
-			++h;
-			t = ALL_TARGETS;
-			u = ALL_LUNS;
-			break;
-		case 't':
-			if (t != target)
-				t = (target == v) ? v : NO_TARGET;
-			u = ALL_LUNS;
-			break;
-		case 'u':
-			if (u != lun)
-				u = (lun == v) ? v : NO_LUN;
-			break;
-		case 'q':
-			if (h == np->s.unit &&
-				(t == ALL_TARGETS || t == target) &&
-				(u == ALL_LUNS    || u == lun))
-				return v;
-			break;
-		case '-':
-			t = ALL_TARGETS;
-			u = ALL_LUNS;
-			break;
-		default:
-			break;
-		}
-		p = ep;
-	}
-	return DEF_DEPTH;
-}
-
 static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
 {
 	struct sym_hcb *np = sym_get_hcb(sdev->host);
@@ -861,21 +806,16 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 	 *  Use at least 2.
 	 *  Donnot use more than our maximum.
 	 */
-	reqtags = device_queue_depth(np, sdev->id, sdev->lun);
+	reqtags = sym_driver_setup.max_tag;
 	if (reqtags > tp->usrtags)
 		reqtags = tp->usrtags;
 	if (!sdev->tagged_supported)
 		reqtags = 0;
-#if 1 /* Avoid to locally queue commands for no good reasons */
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
-	depth_to_use = (reqtags ? reqtags : 2);
-#else
-	depth_to_use = (reqtags ? SYM_CONF_MAX_TAG : 2);
-#endif
+	depth_to_use = reqtags ? reqtags : 2;
 	scsi_adjust_queue_depth(sdev,
-				(sdev->tagged_supported ?
-				 MSG_SIMPLE_TAG : 0),
+				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
 				depth_to_use);
 	lp->s.scdev_depth = depth_to_use;
 	sym_tune_dev_queuing(tp, sdev->lun, reqtags);
