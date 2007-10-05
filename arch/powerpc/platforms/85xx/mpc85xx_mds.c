@@ -113,18 +113,22 @@ static void __init mpc85xx_mds_setup_arch(void)
 	}
 
 	if (bcsr_regs) {
-		u8 bcsr_phy;
+#define BCSR_UCC1_GETH_EN	(0x1 << 7)
+#define BCSR_UCC2_GETH_EN	(0x1 << 7)
+#define BCSR_UCC1_MODE_MSK	(0x3 << 4)
+#define BCSR_UCC2_MODE_MSK	(0x3 << 0)
 
-		/* Reset the Ethernet PHY */
-		bcsr_phy = in_be8(&bcsr_regs[9]);
-		bcsr_phy &= ~0x20;
-		out_be8(&bcsr_regs[9], bcsr_phy);
+		/* Turn off UCC1 & UCC2 */
+		clrbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
+		clrbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
 
-		udelay(1000);
+		/* Mode is RGMII, all bits clear */
+		clrbits8(&bcsr_regs[11], BCSR_UCC1_MODE_MSK |
+					 BCSR_UCC2_MODE_MSK);
 
-		bcsr_phy = in_be8(&bcsr_regs[9]);
-		bcsr_phy |= 0x20;
-		out_be8(&bcsr_regs[9], bcsr_phy);
+		/* Turn UCC1 & UCC2 on */
+		setbits8(&bcsr_regs[8], BCSR_UCC1_GETH_EN);
+		setbits8(&bcsr_regs[9], BCSR_UCC2_GETH_EN);
 
 		iounmap(bcsr_regs);
 	}
