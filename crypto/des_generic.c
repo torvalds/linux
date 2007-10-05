@@ -1009,3 +1009,4 @@ module_exit(fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("DES & Triple DES EDE Cipher Algorithms");
 MODULE_AUTHOR("Dag Arne Osvik <da@osvik.no>");
+MODULE_ALIAS("des");
