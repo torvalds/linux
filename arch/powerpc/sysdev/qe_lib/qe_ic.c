@@ -321,25 +321,9 @@ unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic)
 	return irq_linear_revmap(qe_ic->irqhost, irq);
 }
 
-void qe_ic_cascade_low(unsigned int irq, struct irq_desc *desc)
-{
-	struct qe_ic *qe_ic = desc->handler_data;
-	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-}
-
-void qe_ic_cascade_high(unsigned int irq, struct irq_desc *desc)
-{
-	struct qe_ic *qe_ic = desc->handler_data;
-	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
-
-	if (cascade_irq != NO_IRQ)
-		generic_handle_irq(cascade_irq);
-}
-
-void __init qe_ic_init(struct device_node *node, unsigned int flags)
+void __init qe_ic_init(struct device_node *node, unsigned int flags,
+		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
+		void (*high_handler)(unsigned int irq, struct irq_desc *desc))
 {
 	struct qe_ic *qe_ic;
 	struct resource res;
@@ -399,11 +383,12 @@ void __init qe_ic_init(struct device_node *node, unsigned int flags)
 	qe_ic_write(qe_ic->regs, QEIC_CICR, temp);
 
 	set_irq_data(qe_ic->virq_low, qe_ic);
-	set_irq_chained_handler(qe_ic->virq_low, qe_ic_cascade_low);
+	set_irq_chained_handler(qe_ic->virq_low, low_handler);
 
-	if (qe_ic->virq_high != NO_IRQ) {
+	if (qe_ic->virq_high != NO_IRQ &&
+			qe_ic->virq_high != qe_ic->virq_low) {
 		set_irq_data(qe_ic->virq_high, qe_ic);
-		set_irq_chained_handler(qe_ic->virq_high, qe_ic_cascade_high);
+		set_irq_chained_handler(qe_ic->virq_high, high_handler);
 	}
 }
 
