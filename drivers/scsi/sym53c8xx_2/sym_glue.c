@@ -1288,7 +1288,7 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
 			 "revision id 0x%x\n",
 			 np->s.chip_name, np->device_id, np->revision_id);
 	copy_info(&info, "At PCI address %s, IRQ " IRQ_FMT "\n",
-		pci_name(np->s.device), IRQ_PRM(np->s.irq));
+		pci_name(np->s.device), IRQ_PRM(np->s.device->irq));
 	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
 			 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
 			 np->maxwide ? "Wide" : "Narrow",
@@ -1341,8 +1341,8 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 	/*
 	 *  Free O/S specific resources.
 	 */
-	if (np->s.irq)
-		free_irq(np->s.irq, np);
+	if (pdev->irq)
+		free_irq(pdev->irq, np);
 	if (np->s.ioaddr)
 		pci_iounmap(pdev, np->s.ioaddr);
 	if (np->s.ramaddr)
@@ -1491,7 +1491,6 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 			sym_name(np), pdev->irq);
 		goto attach_failed;
 	}
-	np->s.irq = pdev->irq;
 
 	/*
 	 *  After SCSI devices have been opened, we cannot

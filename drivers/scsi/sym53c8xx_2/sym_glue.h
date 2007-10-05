@@ -184,7 +184,6 @@ struct sym_shcb {
 	void __iomem *	ioaddr;		/* MMIO kernel io address	*/
 	void __iomem *	ramaddr;	/* RAM  kernel io address	*/
 	u_short		io_ws;		/* IO window size		*/
-	int		irq;		/* IRQ number			*/
 
 	struct timer_list timer;	/* Timer handler link header	*/
 	u_long		lasttime;
