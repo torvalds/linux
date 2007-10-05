@@ -134,8 +134,6 @@ static struct scsi_transport_template *sym2_transport_template = NULL;
  *  Driver private area in the SCSI command structure.
  */
 struct sym_ucmd {		/* Override the SCSI pointer structure */
-	dma_addr_t	data_mapping;
-	unsigned char	data_mapped;
 	unsigned char	to_do;			/* For error handling */
 	void (*old_done)(struct scsi_cmnd *);	/* For error handling */
 	struct completion *eh_done;		/* For error handling */
@@ -144,37 +142,12 @@ struct sym_ucmd {		/* Override the SCSI pointer structure */
 #define SYM_UCMD_PTR(cmd)  ((struct sym_ucmd *)(&(cmd)->SCp))
 #define SYM_SOFTC_PTR(cmd) sym_get_hcb(cmd->device->host)
 
-static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	if (SYM_UCMD_PTR(cmd)->data_mapped)
-		scsi_dma_unmap(cmd);
-
-	SYM_UCMD_PTR(cmd)->data_mapped = 0;
-}
-
-static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	int use_sg;
-
-	use_sg = scsi_dma_map(cmd);
-	if (use_sg > 0) {
-		SYM_UCMD_PTR(cmd)->data_mapped  = 2;
-		SYM_UCMD_PTR(cmd)->data_mapping = use_sg;
-	}
-
-	return use_sg;
-}
-
-#define unmap_scsi_data(np, cmd)	\
-		__unmap_scsi_data(np->s.device, cmd)
-#define map_scsi_sg_data(np, cmd)	\
-		__map_scsi_sg_data(np->s.device, cmd)
 /*
  *  Complete a pending CAM CCB.
  */
 void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
 {
-	unmap_scsi_data(np, cmd);
+	scsi_dma_unmap(cmd);
 	cmd->scsi_done(cmd);
 }
 
@@ -307,14 +280,14 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 
 	cp->data_len = 0;
 
-	use_sg = map_scsi_sg_data(np, cmd);
+	use_sg = scsi_dma_map(cmd);
 	if (use_sg > 0) {
 		struct scatterlist *sg;
 		struct sym_tcb *tp = &np->target[cp->target];
 		struct sym_tblmove *data;
 
 		if (use_sg > SYM_CONF_MAX_SG) {
-			unmap_scsi_data(np, cmd);
+			scsi_dma_unmap(cmd);
 			return -1;
 		}
 
