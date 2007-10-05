@@ -1531,6 +1531,10 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	BUG_ON(sym2_transport_template == NULL);
 	instance->transportt	= sym2_transport_template;
 
+	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && np->revision_id < 2)
+		instance->dma_boundary = 0xFFFFFF;
+
 	spin_unlock_irqrestore(instance->host_lock, flags);
 
 	return instance;
