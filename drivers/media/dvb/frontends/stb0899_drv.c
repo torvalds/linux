@@ -796,6 +796,42 @@ static int stb0899_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t 
 	return 0;
 }
 
+static int stb0899_diseqc_init(struct stb0899_state *state)
+{
+	struct dvb_diseqc_master_cmd tx_data;
+	struct dvb_diseqc_slave_reply rx_data;
+
+	u8 f22_tx, f22_rx, reg;
+
+	u32 mclk, tx_freq = 22000, count = 0, i;
+
+	u32 trial = 0;	/* try max = 2 (try 20khz and 17.5 khz)	*/
+	u32 ret_1 = 0;	/* 20 Khz status	*/
+	u32 ret_2 = 0;	/* 17.5 Khz status	*/
+
+	tx_data.msg[0] = 0xe2;
+	tx_data.msg_len = 3;
+	reg = stb0899_read_reg(state, STB0899_DISCNTRL2);
+	STB0899_SETFIELD_VAL(ONECHIP_TRX, reg, 0);
+	stb0899_write_reg(state, STB0899_DISCNTRL2, reg);
+
+	/* disable Tx spy	*/
+	reg = stb0899_read_reg(state, STB0899_DISCNTRL1);
+	STB0899_SETFIELD_VAL(DISEQCRESET, reg, 1);
+	stb0899_write_reg(state, STB0899_DISCNTRL1, reg);
+
+	reg = stb0899_read_reg(state, STB0899_DISCNTRL1);
+	STB0899_SETFIELD_VAL(DISEQCRESET, reg, 0);
+	stb0899_write_reg(state, STB0899_DISCNTRL1, reg);
+
+	mclk = stb0899_get_mclk(state);
+	f22_tx = mclk / (tx_freq * 32);
+	stb0899_write_reg(state, STB0899_DISF22, f22_tx); /* DiSEqC Tx freq	*/
+	state->rx_freq = 20000;
+	f22_rx = mclk / (state->rx_freq * 32);
+
+	return 0;
+}
 
 static int stb0899_sleep(struct dvb_frontend *fe)
 {
@@ -863,7 +899,7 @@ static int stb0899_init(struct dvb_frontend *fe)
 		stb0899_write_reg(state, config->init_tst[i].address, config->init_tst[i].data);
 
 	stb0899_init_calc(state);
-//	stb0899_diseqc_init(state);
+	stb0899_diseqc_init(state);
 
 	return 0;
 }
