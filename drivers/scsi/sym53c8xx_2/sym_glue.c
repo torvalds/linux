@@ -54,9 +54,6 @@
 #define NAME53C		"sym53c"
 #define NAME53C8XX	"sym53c8xx"
 
-#define IRQ_FMT "%d"
-#define IRQ_PRM(x) (x)
-
 struct sym_driver_setup sym_driver_setup = SYM_LINUX_DRIVER_SETUP;
 unsigned int sym_debug_flags = 0;
 
@@ -1196,8 +1193,8 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
 	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
 			 "revision id 0x%x\n", np->s.chip_name,
 			 np->s.device->device, np->s.device->revision);
-	copy_info(&info, "At PCI address %s, IRQ " IRQ_FMT "\n",
-		pci_name(np->s.device), IRQ_PRM(np->s.device->irq));
+	copy_info(&info, "At PCI address %s, IRQ %u\n",
+			 pci_name(np->s.device), np->s.device->irq);
 	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
 			 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
 			 np->maxwide ? "Wide" : "Narrow",
@@ -1283,9 +1280,9 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	unsigned long flags;
 	struct sym_fw *fw;
 
-	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq " IRQ_FMT "\n",
+	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq %u\n",
 		unit, dev->chip.name, pdev->revision, pci_name(pdev),
-		IRQ_PRM(pdev->irq));
+		pdev->irq);
 
 	/*
 	 *  Get the firmware for this chip.
@@ -1370,7 +1367,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  we do not want to share the INTR line at all.
 	 */
 	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX, np)) {
-		printf_err("%s: request irq %d failure\n",
+		printf_err("%s: request irq %u failure\n",
 			sym_name(np), pdev->irq);
 		goto attach_failed;
 	}
