@@ -550,14 +550,13 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
  */
 static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 {
-	unsigned long flags;
-	struct sym_hcb *np = (struct sym_hcb *)dev_id;
+	struct sym_hcb *np = dev_id;
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
 
-	spin_lock_irqsave(np->s.host->host_lock, flags);
+	spin_lock(np->s.host->host_lock);
 	sym_interrupt(np);
-	spin_unlock_irqrestore(np->s.host->host_lock, flags);
+	spin_unlock(np->s.host->host_lock);
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("]\n");
 
