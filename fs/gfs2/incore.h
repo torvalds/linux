@@ -171,6 +171,7 @@ enum {
 	GLF_DEMOTE		= 3,
 	GLF_PENDING_DEMOTE	= 4,
 	GLF_DIRTY		= 5,
+	GLF_DEMOTE_IN_PROGRESS	= 6,
 };
 
 struct gfs2_glock {
@@ -190,6 +191,7 @@ struct gfs2_glock {
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
+	int gl_waiters2;		/* GIF_DEMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
 

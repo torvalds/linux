@@ -567,7 +567,10 @@ static int rq_demote(struct gfs2_glock *gl)
 		gfs2_demote_wake(gl);
 		return 0;
 	}
+
 	set_bit(GLF_LOCK, &gl->gl_flags);
+	set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
+
 	if (gl->gl_demote_state == LM_ST_UNLOCKED ||
 	    gl->gl_state != LM_ST_EXCLUSIVE) {
 		spin_unlock(&gl->gl_spin);
@@ -576,7 +579,9 @@ static int rq_demote(struct gfs2_glock *gl)
 		spin_unlock(&gl->gl_spin);
 		gfs2_glock_xmote_th(gl, NULL);
 	}
+
 	spin_lock(&gl->gl_spin);
+	clear_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 
 	return 0;
 }
@@ -606,6 +611,11 @@ static void run_queue(struct gfs2_glock *gl)
 
 		} else if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 			blocked = rq_demote(gl);
+			if (gl->gl_waiters2 && !blocked) {
+				set_bit(GLF_DEMOTE, &gl->gl_flags);
+				gl->gl_demote_state = LM_ST_UNLOCKED;
+			}
+			gl->gl_waiters2 = 0;
 		} else if (!list_empty(&gl->gl_waiters3)) {
 			gh = list_entry(gl->gl_waiters3.next,
 					struct gfs2_holder, gh_list);
@@ -722,7 +732,10 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 		}
 	} else if (gl->gl_demote_state != LM_ST_UNLOCKED &&
 			gl->gl_demote_state != state) {
-		gl->gl_demote_state = LM_ST_UNLOCKED;
+		if (test_bit(GLF_DEMOTE_IN_PROGRESS,  &gl->gl_flags)) 
+			gl->gl_waiters2 = 1;
+		else 
+			gl->gl_demote_state = LM_ST_UNLOCKED;
 	}
 	spin_unlock(&gl->gl_spin);
 }
