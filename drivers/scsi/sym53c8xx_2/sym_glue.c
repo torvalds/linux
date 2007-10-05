@@ -1432,17 +1432,14 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np->mmio_ba = (u32)dev->mmio_base;
 	np->s.ioaddr	= dev->s.ioaddr;
 	np->s.ramaddr	= dev->s.ramaddr;
-	np->s.io_ws = (np->features & FE_IO256) ? 256 : 128;
 
 	/*
 	 *  Map on-chip RAM if present and supported.
 	 */
 	if (!(np->features & FE_RAM))
 		dev->ram_base = 0;
-	if (dev->ram_base) {
+	if (dev->ram_base)
 		np->ram_ba = (u32)dev->ram_base;
-		np->ram_ws = (np->features & FE_RAM8K) ? 8192 : 4096;
-	}
 
 	if (sym_hcb_attach(instance, fw, dev->nvram))
 		goto attach_failed;

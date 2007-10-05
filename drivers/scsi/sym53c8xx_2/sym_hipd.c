@@ -1910,7 +1910,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 		if (sym_verbose >= 2)
 			printf("%s: Downloading SCSI SCRIPTS.\n", sym_name(np));
 		memcpy_toio(np->s.ramaddr, np->scripta0, np->scripta_sz);
-		if (np->ram_ws == 8192) {
+		if (np->features & FE_RAM8K) {
 			memcpy_toio(np->s.ramaddr + 4096, np->scriptb0, np->scriptb_sz);
 			phys = scr_to_cpu(np->scr_ram_seg);
 			OUTL(np, nc_mmws, phys);
@@ -5595,16 +5595,13 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	np->scriptz_ba	= vtobus(np->scriptz0);
 
 	if (np->ram_ba) {
-		np->scripta_ba	= np->ram_ba;
+		np->scripta_ba = np->ram_ba;
 		if (np->features & FE_RAM8K) {
-			np->ram_ws = 8192;
 			np->scriptb_ba = np->scripta_ba + 4096;
 #if 0	/* May get useful for 64 BIT PCI addressing */
 			np->scr_ram_seg = cpu_to_scr(np->scripta_ba >> 32);
 #endif
 		}
-		else
-			np->ram_ws = 4096;
 	}
 
 	/*

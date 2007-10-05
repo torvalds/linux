@@ -883,10 +883,7 @@ struct sym_hcb {
 	 *  Physical bus addresses of the chip.
 	 */
 	u32		mmio_ba;	/* MMIO 32 bit BUS address	*/
-	int		mmio_ws;	/* MMIO Window size		*/
-
 	u32		ram_ba;		/* RAM 32 bit BUS address	*/
-	int		ram_ws;		/* RAM window size		*/
 
 	/*
 	 *  SCRIPTS virtual and physical bus addresses.
