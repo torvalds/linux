@@ -778,19 +778,12 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  64 bit addressing  (895A/896/1010) ?
 	 */
 	if (np->features & FE_DAC) {
-#if   SYM_CONF_DMA_ADDRESSING_MODE == 0
-		np->rv_ccntl1	|= (DDAC);
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 1
-		if (!np->use_dac)
-			np->rv_ccntl1	|= (DDAC);
-		else
-			np->rv_ccntl1	|= (XTIMOD | EXTIBMV);
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 2
-		if (!np->use_dac)
-			np->rv_ccntl1	|= (DDAC);
-		else
-			np->rv_ccntl1	|= (0 | EXTIBMV);
-#endif
+		if (!use_dac(np))
+			np->rv_ccntl1 |= (DDAC);
+		else if (SYM_CONF_DMA_ADDRESSING_MODE == 1)
+			np->rv_ccntl1 |= (XTIMOD | EXTIBMV);
+		else if (SYM_CONF_DMA_ADDRESSING_MODE == 2)
+			np->rv_ccntl1 |= (0 | EXTIBMV);
 	}
 
 	/*
@@ -1322,7 +1315,7 @@ int sym_lookup_dmap(struct sym_hcb *np, u32 h, int s)
 {
 	int i;
 
-	if (!np->use_dac)
+	if (!use_dac(np))
 		goto weird;
 
 	/* Look up existing mappings */
@@ -1837,7 +1830,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  Set up scratch C and DRS IO registers to map the 32 bit 
 	 *  DMA address range our data structures are located in.
 	 */
-	if (np->use_dac) {
+	if (use_dac(np)) {
 		np->dmap_bah[0] = 0;	/* ??? */
 		OUTL(np, nc_scrx[0], np->dmap_bah[0]);
 		OUTL(np, nc_drs, np->dmap_bah[0]);

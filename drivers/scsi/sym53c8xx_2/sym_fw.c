@@ -167,7 +167,7 @@ sym_fw2_patch(struct sym_hcb *np)
 	 *  Remove useless 64 bit DMA specific SCRIPTS, 
 	 *  when this feature is not available.
 	 */
-	if (!np->use_dac) {
+	if (!use_dac(np)) {
 		scripta0->is_dmap_dirty[0] = cpu_to_scr(SCR_NO_OP);
 		scripta0->is_dmap_dirty[1] = 0;
 		scripta0->is_dmap_dirty[2] = cpu_to_scr(SCR_NO_OP);

@@ -1265,31 +1265,6 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 }
 
 /*
- *  Ask/tell the system about DMA addressing.
- */
-static int sym_setup_bus_dma_mask(struct sym_hcb *np)
-{
-#if SYM_CONF_DMA_ADDRESSING_MODE > 0
-#if   SYM_CONF_DMA_ADDRESSING_MODE == 1
-#define	DMA_DAC_MASK	DMA_40BIT_MASK
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 2
-#define	DMA_DAC_MASK	DMA_64BIT_MASK
-#endif
-	if ((np->features & FE_DAC) &&
-			!pci_set_dma_mask(np->s.device, DMA_DAC_MASK)) {
-		np->use_dac = 1;
-		return 0;
-	}
-#endif
-
-	if (!pci_set_dma_mask(np->s.device, DMA_32BIT_MASK))
-		return 0;
-
-	printf_warning("%s: No suitable DMA available\n", sym_name(np));
-	return -1;
-}
-
-/*
  *  Host attach and initialisations.
  *
  *  Allocate host data and ncb structure.
@@ -1362,8 +1337,13 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	strlcpy(np->s.chip_name, dev->chip.name, sizeof(np->s.chip_name));
 	sprintf(np->s.inst_name, "sym%d", np->s.unit);
 
-	if (sym_setup_bus_dma_mask(np))
+	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&
+			!pci_set_dma_mask(np->s.device, DMA_DAC_MASK)) {
+		set_dac(np);
+	} else if (pci_set_dma_mask(np->s.device, DMA_32BIT_MASK)) {
+		printf_warning("%s: No suitable DMA available\n", sym_name(np));
 		goto attach_failed;
+	}
 
 	/*
 	 *  Try to map the controller chip to
