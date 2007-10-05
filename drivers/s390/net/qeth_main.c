@@ -2702,10 +2702,15 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 			qeth_layer2_rebuild_skb(card, skb, hdr);
 		else if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
 			vlan_tag = qeth_rebuild_skb(card, skb, hdr);
-		else { /*in case of OSN*/
+		else if (hdr->hdr.osn.id == QETH_HEADER_TYPE_OSN) {
 			skb_push(skb, sizeof(struct qeth_hdr));
 			skb_copy_to_linear_data(skb, hdr,
 						sizeof(struct qeth_hdr));
+		} else { /* unknown header type */
+			dev_kfree_skb_any(skb);
+			QETH_DBF_TEXT(trace, 3, "inbunkno");
+			QETH_DBF_HEX(control, 3, hdr, QETH_DBF_CONTROL_LEN);
+			continue;
 		}
 		/* is device UP ? */
 		if (!(card->dev->flags & IFF_UP)){
