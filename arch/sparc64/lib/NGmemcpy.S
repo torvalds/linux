@@ -321,11 +321,11 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	andn		%i2, 0xf, %i4
 	and		%i2, 0xf, %i2
 1:	subcc		%i4, 0x10, %i4
-	EX_LD(LOAD(ldx, %i1, %i5))
+	EX_LD(LOAD(ldx, %i1, %o4))
 	add		%i1, 0x08, %i1
 	EX_LD(LOAD(ldx, %i1, %g1))
 	sub		%i1, 0x08, %i1
-	EX_ST(STORE(stx, %i5, %i1 + %i3))
+	EX_ST(STORE(stx, %o4, %i1 + %i3))
 	add		%i1, 0x8, %i1
 	EX_ST(STORE(stx, %g1, %i1 + %i3))
 	bgu,pt		%XCC, 1b
@@ -334,8 +334,8 @@ FUNC_NAME:	/* %i0=dst, %i1=src, %i2=len */
 	be,pt		%XCC, 1f
 	 nop
 	sub		%i2, 0x8, %i2
-	EX_LD(LOAD(ldx, %i1, %i5))
-	EX_ST(STORE(stx, %i5, %i1 + %i3))
+	EX_LD(LOAD(ldx, %i1, %o4))
+	EX_ST(STORE(stx, %o4, %i1 + %i3))
 	add		%i1, 0x8, %i1
 1:	andcc		%i2, 0x4, %g0
 	be,pt		%XCC, 1f
