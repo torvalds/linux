@@ -36,6 +36,9 @@ struct port_regs {
 	__be32	cpdir2;		/* Direction register */
 	__be32	cppar1;		/* Pin assignment register */
 	__be32	cppar2;		/* Pin assignment register */
+#ifdef CONFIG_PPC_85xx
+	u8	pad[8];
+#endif
 };
 
 static struct port_regs *par_io = NULL;
