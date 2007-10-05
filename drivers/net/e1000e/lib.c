@@ -639,9 +639,15 @@ s32 e1000e_setup_link(struct e1000_hw *hw)
 	if (e1000_check_reset_block(hw))
 		return 0;
 
-	ret_val = e1000_set_default_fc_generic(hw);
-	if (ret_val)
-		return ret_val;
+	/*
+	 * If flow control is set to default, set flow control based on
+	 * the EEPROM flow control settings.
+	 */
+	if (mac->fc == e1000_fc_default) {
+		ret_val = e1000_set_default_fc_generic(hw);
+		if (ret_val)
+			return ret_val;
+	}
 
 	/* We want to save off the original Flow Control configuration just
 	 * in case we get disconnected and then reconnected into a different

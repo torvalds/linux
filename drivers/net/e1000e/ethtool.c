@@ -301,6 +301,7 @@ static int e1000_set_pauseparam(struct net_device *netdev,
 	hw->mac.original_fc = hw->mac.fc;
 
 	if (adapter->fc_autoneg == AUTONEG_ENABLE) {
+		hw->mac.fc = e1000_fc_default;
 		if (netif_running(adapter->netdev)) {
 			e1000e_down(adapter);
 			e1000e_up(adapter);

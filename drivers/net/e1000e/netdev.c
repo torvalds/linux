@@ -4195,6 +4195,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	/* Initialize link parameters. User can change them with ethtool */
 	adapter->hw.mac.autoneg = 1;
+	adapter->fc_autoneg = 1;
 	adapter->hw.mac.original_fc = e1000_fc_default;
 	adapter->hw.mac.fc = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
