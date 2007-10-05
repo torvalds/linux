@@ -134,8 +134,6 @@ static struct scsi_transport_template *sym2_transport_template = NULL;
  *  Driver private area in the SCSI command structure.
  */
 struct sym_ucmd {		/* Override the SCSI pointer structure */
-	unsigned char	to_do;			/* For error handling */
-	void (*old_done)(struct scsi_cmnd *);	/* For error handling */
 	struct completion *eh_done;		/* For error handling */
 };
 
@@ -147,6 +145,12 @@ struct sym_ucmd {		/* Override the SCSI pointer structure */
  */
 void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
 {
+	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
+	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
+
+	if (ucmd->eh_done)
+		complete(ucmd->eh_done);
+
 	scsi_dma_unmap(cmd);
 	cmd->scsi_done(cmd);
 }
@@ -586,26 +590,6 @@ static void sym53c8xx_timer(unsigned long npref)
 #define SYM_EH_HOST_RESET	3
 
 /*
- *  What we will do regarding the involved SCSI command.
- */
-#define SYM_EH_DO_IGNORE	0
-#define SYM_EH_DO_WAIT		2
-
-/*
- *  scsi_done() alias when error recovery is in progress.
- */
-static void sym_eh_done(struct scsi_cmnd *cmd)
-{
-	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
-	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
-
-	cmd->scsi_done = ucmd->old_done;
-
-	if (ucmd->to_do == SYM_EH_DO_WAIT)
-		complete(ucmd->eh_done);
-}
-
-/*
  *  Generic method for our eh processing.
  *  The 'op' argument tells what we have to do.
  */
@@ -615,7 +599,7 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
 	struct Scsi_Host *host = cmd->device->host;
 	SYM_QUEHEAD *qp;
-	int to_do = SYM_EH_DO_IGNORE;
+	int cmd_queued = 0;
 	int sts = -1;
 	struct completion eh_done;
 
@@ -626,17 +610,9 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		if (cp->cmd == cmd) {
-			to_do = SYM_EH_DO_WAIT;
+			cmd_queued = 1;
 			break;
 		}
-	}
-
-	if (to_do == SYM_EH_DO_WAIT) {
-		init_completion(&eh_done);
-		ucmd->old_done = cmd->scsi_done;
-		ucmd->eh_done = &eh_done;
-		wmb();
-		cmd->scsi_done = sym_eh_done;
 	}
 
 	/* Try to proceed the operation we have been asked for */
@@ -662,21 +638,21 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	}
 
 	/* On error, restore everything and cross fingers :) */
-	if (sts) {
-		cmd->scsi_done = ucmd->old_done;
-		to_do = SYM_EH_DO_IGNORE;
-	}
+	if (sts)
+		cmd_queued = 0;
 
-	ucmd->to_do = to_do;
-	spin_unlock_irq(host->host_lock);
-
-	if (to_do == SYM_EH_DO_WAIT) {
+	if (cmd_queued) {
+		init_completion(&eh_done);
+		ucmd->eh_done = &eh_done;
+		spin_unlock_irq(host->host_lock);
 		if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
-			ucmd->to_do = SYM_EH_DO_IGNORE;
-			wmb();
+			ucmd->eh_done = NULL;
 			sts = -2;
 		}
+	} else {
+		spin_unlock_irq(host->host_lock);
 	}
+
 	dev_warn(&cmd->device->sdev_gendev, "%s operation %s.\n", opname,
 			sts==0 ? "complete" :sts==-2 ? "timed-out" : "failed");
 	return sts ? SCSI_FAILED : SCSI_SUCCESS;
