@@ -392,7 +392,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	 */
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
-		printk("%s: got DMA_BIDIRECTIONAL command", sym_name(np));
+		scmd_printk(KERN_INFO, cmd, "got DMA_BIDIRECTIONAL command");
 		sym_set_cam_status(cmd, DID_ERROR);
 		goto out_abort;
 	case DMA_TO_DEVICE:
@@ -606,7 +606,7 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	int sts = -1;
 	struct completion eh_done;
 
-	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
+	scmd_printk(KERN_WARNING, cmd, "%s operation started.\n", opname);
 
 	/* We may be in an error condition because the PCI bus
 	 * went down. In this case, we need to wait until the
