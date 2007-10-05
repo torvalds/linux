@@ -4719,8 +4719,8 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
 					 elements_needed, ctx);
 	else {
-		if ((skb->protocol == htons(ETH_P_ARP)) &&
-		    (card->dev->flags & IFF_NOARP)) {
+		if ((!card->options.layer2) &&
+		    (ipv == 0)) {
 			__qeth_free_new_skb(skb, new_skb);
 			return -EPERM;
 		}
