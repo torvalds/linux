@@ -1475,9 +1475,12 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.tuner_set_rfsiggain	= NULL,
 };
 
-/* SD1878 tuner config */
+/*
+ * SD1878/SHA tuner config
+ * 1F, Single I/P, Horizontal mount, High Sensitivity
+ */
 static const struct tda8261_config sd1878c_config = {
-//	.name		= "SD1878C",
+//	.name		= "SD1878/SHA",
 	.addr		= 0x60,
 	.step_size	= TDA8261_STEP_1000 /* kHz */
 };
