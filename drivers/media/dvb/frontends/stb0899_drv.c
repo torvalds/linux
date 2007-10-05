@@ -1145,7 +1145,7 @@ static int stb0899_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	struct stb0899_state *state = fe->demodulator_priv;
 	struct stb0899_internal *internal = &state->internal;
 
-	u8 div;
+	u8 div, reg;
 
 	/* wait for diseqc idle	*/
 	if (stb0899_wait_diseqc_txidle(state, 100) < 0)
@@ -1156,7 +1156,9 @@ static int stb0899_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 		div = (internal->master_clk / 100) / 5632;
 		div = (div + 5) / 10;
 		stb0899_write_reg(state, STB0899_DISEQCOCFG, 0x66);
-		stb0899_write_reg(state, STB0899_ACRPRESC, 0x31);
+		reg = stb0899_read_reg(state, STB0899_ACRPRESC);
+		STB0899_SETFIELD_VAL(ACRPRESC, reg, 0x03);
+		stb0899_write_reg(state, STB0899_ACRPRESC, reg);
 		stb0899_write_reg(state, STB0899_ACRDIV1, div);
 		break;
 	case SEC_TONE_OFF:
