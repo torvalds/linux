@@ -1,5 +1,5 @@
 /*
- *  PS3 'Other OS' area data.
+ *  PS3 flash memory os area.
  *
  *  Copyright (C) 2006 Sony Computer Entertainment Inc.
  *  Copyright 2006 Sony Corp.
@@ -29,7 +29,7 @@ enum {
 	OS_AREA_SEGMENT_SIZE = 0X200,
 };
 
-enum {
+enum os_area_ldr_format {
 	HEADER_LDR_FORMAT_RAW = 0,
 	HEADER_LDR_FORMAT_GZIP = 1,
 };
@@ -50,7 +50,7 @@ enum {
  */
 
 struct os_area_header {
-	s8 magic_num[16];
+	u8 magic_num[16];
 	u32 hdr_version;
 	u32 os_area_offset;
 	u32 ldr_area_offset;
@@ -60,12 +60,12 @@ struct os_area_header {
 	u32 _reserved_2[6];
 };
 
-enum {
+enum os_area_boot_flag {
 	PARAM_BOOT_FLAG_GAME_OS = 0,
 	PARAM_BOOT_FLAG_OTHER_OS = 1,
 };
 
-enum {
+enum os_area_ctrl_button {
 	PARAM_CTRL_BUTTON_O_IS_YES = 0,
 	PARAM_CTRL_BUTTON_X_IS_YES = 1,
 };
@@ -83,6 +83,9 @@ enum {
  * @default_gateway: User preference of static default gateway.
  * @dns_primary: User preference of static primary dns server.
  * @dns_secondary: User preference of static secondary dns server.
+ *
+ * The ps3 rtc maintains a read-only value that approximates seconds since
+ * 2000-01-01 00:00:00 UTC.
  *
  * User preference of zero for static_ip_addr means use dhcp.
  */
@@ -107,6 +110,8 @@ struct os_area_params {
 	u8 dns_secondary[4];
 	u8 _reserved_5[8];
 };
+
+#define SECONDS_FROM_1970_TO_2000 946684800LL
 
 /**
  * struct saved_params - Static working copies of data from the 'Other OS' area.
@@ -213,7 +218,8 @@ int __init ps3_os_area_init(void)
 	}
 
 	header = (struct os_area_header *)__va(lpar_addr);
-	params = (struct os_area_params *)__va(lpar_addr + OS_AREA_SEGMENT_SIZE);
+	params = (struct os_area_params *)__va(lpar_addr
+		+ OS_AREA_SEGMENT_SIZE);
 
 	result = verify_header(header);
 
@@ -238,16 +244,13 @@ int __init ps3_os_area_init(void)
 }
 
 /**
- * ps3_os_area_rtc_diff - Returns the ps3 rtc diff value.
- *
- * The ps3 rtc maintains a value that approximates seconds since
- * 2000-01-01 00:00:00 UTC.  Returns the exact number of seconds from 1970 to
- * 2000 when saved_params.rtc_diff has not been properly set up.
+ * ps3_os_area_rtc_diff - Returns the rtc diff value.
  */
 
 u64 ps3_os_area_rtc_diff(void)
 {
-	return saved_params.rtc_diff ? saved_params.rtc_diff : 946684800UL;
+	return saved_params.rtc_diff ? saved_params.rtc_diff
+		: SECONDS_FROM_1970_TO_2000;
 }
 
 /**
