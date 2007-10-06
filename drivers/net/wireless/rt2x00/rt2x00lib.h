@@ -38,7 +38,7 @@
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev);
-void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, int enable);
+void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state);
 void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev);
 
 /*

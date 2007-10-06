@@ -120,7 +120,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Enable RX.
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, 1);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 
 	/*
 	 * Start the TX queues.
@@ -151,7 +151,7 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Disable RX.
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, 0);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 
 	/*
 	 * Disable radio.
@@ -159,14 +159,12 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_OFF);
 }
 
-void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, int enable)
+void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 {
-	enum dev_state state = enable ? STATE_RADIO_RX_ON : STATE_RADIO_RX_OFF;
-
 	/*
 	 * When we are disabling the RX, we should also stop the link tuner.
 	 */
-	if (!enable)
+	if (state == STATE_RADIO_RX_OFF)
 		rt2x00lib_stop_link_tuner(rt2x00dev);
 
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
@@ -174,7 +172,8 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, int enable)
 	/*
 	 * When we are enabling the RX, we should also start the link tuner.
 	 */
-	if (enable && is_interface_present(&rt2x00dev->interface))
+	if (state == STATE_RADIO_RX_ON &&
+	    is_interface_present(&rt2x00dev->interface))
 		rt2x00lib_start_link_tuner(rt2x00dev);
 }
 

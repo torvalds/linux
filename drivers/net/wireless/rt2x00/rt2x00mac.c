@@ -272,7 +272,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 		if (!conf->radio_enabled)
 			rt2x00lib_disable_radio(rt2x00dev);
 		else
-			rt2x00lib_toggle_rx(rt2x00dev, 0);
+			rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
 	}
 
 	rt2x00lib_config(rt2x00dev, conf, 0);
@@ -281,7 +281,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	 * Reenable RX only if the radio should be on.
 	 */
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
-		rt2x00lib_toggle_rx(rt2x00dev, 1);
+		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 	else if (conf->radio_enabled)
 		return rt2x00lib_enable_radio(rt2x00dev);
 
