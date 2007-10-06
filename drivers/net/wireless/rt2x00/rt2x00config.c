@@ -34,16 +34,44 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
+
+/*
+ * The MAC and BSSID addressess are simple array of bytes,
+ * these arrays are little endian, so when sending the addressess
+ * to the drivers, copy the it into a endian-signed variable.
+ *
+ * Note that all devices (except rt2500usb) have 32 bits
+ * register word sizes. This means that whatever variable we
+ * pass _must_ be a multiple of 32 bits. Otherwise the device
+ * might not accept what we are sending to it.
+ * This will also make it easier for the driver to write
+ * the data to the device.
+ *
+ * Also note that when NULL is passed as address the
+ * we will send 00:00:00:00:00 to the device to clear the address.
+ * This will prevent the device being confused when it wants
+ * to ACK frames or consideres itself associated.
+ */
 void rt2x00lib_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *mac)
 {
+	__le32 reg[2];
+
+	memset(&reg, 0, sizeof(reg));
 	if (mac)
-		rt2x00dev->ops->lib->config_mac_addr(rt2x00dev, mac);
+		memcpy(&reg, mac, ETH_ALEN);
+
+	rt2x00dev->ops->lib->config_mac_addr(rt2x00dev, &reg[0]);
 }
 
 void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 {
+	__le32 reg[2];
+
+	memset(&reg, 0, sizeof(reg));
 	if (bssid)
-		rt2x00dev->ops->lib->config_bssid(rt2x00dev, bssid);
+		memcpy(&reg, bssid, ETH_ALEN);
+
+	rt2x00dev->ops->lib->config_bssid(rt2x00dev, &reg[0]);
 }
 
 void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, int type)

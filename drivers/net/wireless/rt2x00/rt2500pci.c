@@ -249,32 +249,18 @@ static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 /*
  * Configuration handlers.
  */
-static void rt2500pci_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *addr)
+static void rt2500pci_config_mac_addr(struct rt2x00_dev *rt2x00dev,
+				      __le32 *mac)
 {
-	__le32 reg[2];
-
-	memset(&reg, 0, sizeof(reg));
-	memcpy(&reg, addr, ETH_ALEN);
-
-	/*
-	 * The MAC address is passed to us as an array of bytes,
-	 * that array is little endian, so no need for byte ordering.
-	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, CSR3, &reg, sizeof(reg));
+	rt2x00pci_register_multiwrite(rt2x00dev, CSR3, mac,
+				      (2 * sizeof(__le32)));
 }
 
-static void rt2500pci_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
+static void rt2500pci_config_bssid(struct rt2x00_dev *rt2x00dev,
+				   __le32 *bssid)
 {
-	__le32 reg[2];
-
-	memset(&reg, 0, sizeof(reg));
-	memcpy(&reg, bssid, ETH_ALEN);
-
-	/*
-	 * The BSSID is passed to us as an array of bytes,
-	 * that array is little endian, so no need for byte ordering.
-	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, CSR5, &reg, sizeof(reg));
+	rt2x00pci_register_multiwrite(rt2x00dev, CSR5, bssid,
+				      (2 * sizeof(__le32)));
 }
 
 static void rt2500pci_config_type(struct rt2x00_dev *rt2x00dev, const int type)

@@ -274,42 +274,28 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 /*
  * Configuration handlers.
  */
-static void rt61pci_config_mac_addr(struct rt2x00_dev *rt2x00dev, u8 *addr)
+static void rt61pci_config_mac_addr(struct rt2x00_dev *rt2x00dev, __le32 *mac)
 {
-	__le32 reg[2];
 	u32 tmp;
 
-	memset(&reg, 0, sizeof(reg));
-	memcpy(&reg, addr, ETH_ALEN);
-
-	tmp = le32_to_cpu(reg[1]);
+	tmp = le32_to_cpu(mac[1]);
 	rt2x00_set_field32(&tmp, MAC_CSR3_UNICAST_TO_ME_MASK, 0xff);
-	reg[1] = cpu_to_le32(tmp);
+	mac[1] = cpu_to_le32(tmp);
 
-	/*
-	 * The MAC address is passed to us as an array of bytes,
-	 * that array is little endian, so no need for byte ordering.
-	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR2, &reg, sizeof(reg));
+	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR2, mac,
+				      (2 * sizeof(__le32)));
 }
 
-static void rt61pci_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
+static void rt61pci_config_bssid(struct rt2x00_dev *rt2x00dev, __le32 *bssid)
 {
-	__le32 reg[2];
 	u32 tmp;
 
-	memset(&reg, 0, sizeof(reg));
-	memcpy(&reg, bssid, ETH_ALEN);
-
-	tmp = le32_to_cpu(reg[1]);
+	tmp = le32_to_cpu(bssid[1]);
 	rt2x00_set_field32(&tmp, MAC_CSR5_BSS_ID_MASK, 3);
-	reg[1] = cpu_to_le32(tmp);
+	bssid[1] = cpu_to_le32(tmp);
 
-	/*
-	 * The BSSID is passed to us as an array of bytes,
-	 * that array is little endian, so no need for byte ordering.
-	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR4, &reg, sizeof(reg));
+	rt2x00pci_register_multiwrite(rt2x00dev, MAC_CSR4, bssid,
+				      (2 * sizeof(__le32)));
 }
 
 static void rt61pci_config_type(struct rt2x00_dev *rt2x00dev, const int type)

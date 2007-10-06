@@ -408,8 +408,8 @@ struct rt2x00lib_ops {
 	/*
 	 * Configuration handlers.
 	 */
-	void (*config_mac_addr) (struct rt2x00_dev *rt2x00dev, u8 *mac);
-	void (*config_bssid) (struct rt2x00_dev *rt2x00dev, u8 *bssid);
+	void (*config_mac_addr) (struct rt2x00_dev *rt2x00dev, __le32 *mac);
+	void (*config_bssid) (struct rt2x00_dev *rt2x00dev, __le32 *bssid);
 	void (*config_packet_filter) (struct rt2x00_dev *rt2x00dev,
 				      const unsigned int filter);
 	void (*config_type) (struct rt2x00_dev *rt2x00dev, const int type);
