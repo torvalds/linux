@@ -164,9 +164,6 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, int enable)
 {
 	enum dev_state state = enable ? STATE_RADIO_RX_ON : STATE_RADIO_RX_OFF;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
-		return;
-
 	/*
 	 * When we are disabling the RX, we should also stop the link tuner.
 	 */
