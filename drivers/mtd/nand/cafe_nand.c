@@ -623,6 +623,11 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	uint32_t ctrl;
 	int err = 0;
 
+	/* Very old versions shared the same PCI ident for all three
+	   functions on the chip. Verify the class too... */
+	if ((pdev->class >> 8) != PCI_CLASS_MEMORY_FLASH)
+		return -ENODEV;
+
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -816,7 +821,8 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 }
 
 static struct pci_device_id cafe_nand_tbl[] = {
-	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_MEMORY_FLASH << 8, 0xFFFF0 }
+	{ 0x11ab, 0x4100, PCI_ANY_ID, PCI_ANY_ID },
+	{ }
 };
 
 MODULE_DEVICE_TABLE(pci, cafe_nand_tbl);
