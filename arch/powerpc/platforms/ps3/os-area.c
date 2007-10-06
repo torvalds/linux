@@ -261,13 +261,28 @@ void __init ps3_os_area_save_params(void)
 }
 
 /**
- * ps3_os_area_rtc_diff - Returns the rtc diff value.
+ * ps3_os_area_get_rtc_diff - Returns the rtc diff value.
  */
 
-u64 ps3_os_area_rtc_diff(void)
+u64 ps3_os_area_get_rtc_diff(void)
 {
 	return saved_params.rtc_diff ? saved_params.rtc_diff
 		: SECONDS_FROM_1970_TO_2000;
+}
+
+/**
+ * ps3_os_area_set_rtc_diff - Set the rtc diff value.
+ *
+ * An asynchronous write is needed to support writing updates from
+ * the timer interrupt context.
+ */
+
+void ps3_os_area_set_rtc_diff(u64 rtc_diff)
+{
+	if (saved_params.rtc_diff != rtc_diff) {
+		saved_params.rtc_diff = rtc_diff;
+		os_area_queue_work();
+	}
 }
 
 /**

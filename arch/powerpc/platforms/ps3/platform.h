@@ -63,7 +63,8 @@ int ps3_set_rtc_time(struct rtc_time *time);
 /* os area */
 
 void __init ps3_os_area_save_params(void);
-u64 ps3_os_area_rtc_diff(void);
+u64 ps3_os_area_get_rtc_diff(void);
+void ps3_os_area_set_rtc_diff(u64 rtc_diff);
 
 /* spu */
 
