@@ -357,10 +357,8 @@ static void rt61pci_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR4, &reg);
-	if (preamble == SHORT_PREAMBLE)
-		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE, 1);
-	else
-		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
+			   (preamble == SHORT_PREAMBLE));
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 }
 

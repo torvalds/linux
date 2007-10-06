@@ -326,10 +326,8 @@ static void rt2500usb_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR1, reg);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
-	if (preamble == SHORT_PREAMBLE)
-		rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE, 1);
-	else
-		rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE, 0);
+	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
+			   (preamble == SHORT_PREAMBLE));
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
 }
 

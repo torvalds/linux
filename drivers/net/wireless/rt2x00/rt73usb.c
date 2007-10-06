@@ -195,12 +195,13 @@ rf_write:
 	reg = 0;
 	rt2x00_set_field32(&reg, PHY_CSR4_VALUE, value);
 
-	if (rt2x00_rf(&rt2x00dev->chip, RF5225) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF2527))
-		rt2x00_set_field32(&reg, PHY_CSR4_NUMBER_OF_BITS, 21);
-	else
-		rt2x00_set_field32(&reg, PHY_CSR4_NUMBER_OF_BITS, 20);
-
+	/*
+	 * RF5225 and RF2527 contain 21 bits per RF register value,
+	 * all others contain 20 bits.
+	 */
+	rt2x00_set_field32(&reg, PHY_CSR4_NUMBER_OF_BITS,
+			   20 + !!(rt2x00_rf(&rt2x00dev->chip, RF5225) ||
+				   rt2x00_rf(&rt2x00dev->chip, RF2527)));
 	rt2x00_set_field32(&reg, PHY_CSR4_IF_SELECT, 0);
 	rt2x00_set_field32(&reg, PHY_CSR4_BUSY, 1);
 
@@ -331,10 +332,8 @@ static void rt73usb_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
 	rt73usb_register_write(rt2x00dev, TXRX_CSR0, reg);
 
 	rt73usb_register_read(rt2x00dev, TXRX_CSR4, &reg);
-	if (preamble == SHORT_PREAMBLE)
-		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE, 1);
-	else
-		rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
+			   (preamble == SHORT_PREAMBLE));
 	rt73usb_register_write(rt2x00dev, TXRX_CSR4, reg);
 }
 
