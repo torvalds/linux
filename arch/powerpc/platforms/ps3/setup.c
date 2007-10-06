@@ -228,7 +228,7 @@ static int __init ps3_probe(void)
 
 	powerpc_firmware_features |= FW_FEATURE_PS3_POSSIBLE;
 
-	ps3_os_area_init();
+	ps3_os_area_save_params();
 	ps3_mm_init();
 	ps3_mm_vas_create(&htab_size);
 	ps3_hpte_init(htab_size);
