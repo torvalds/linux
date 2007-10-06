@@ -1222,7 +1222,11 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 	unsigned int i;
 	const u32 *sysclk;
 
+	/* SPI controller is either clocked from QE or SoC clock */
 	np = of_find_node_by_type(NULL, "qe");
+	if (!np)
+		np = of_find_node_by_type(NULL, "soc");
+
 	if (!np)
 		return -ENODEV;
 
