@@ -206,6 +206,7 @@ static void __init ps3_setup_arch(void)
 	prealloc_ps3flash_bounce_buffer();
 
 	ppc_md.power_save = ps3_power_save;
+	ps3_os_area_init();
 
 	DBG(" <- %s:%d\n", __func__, __LINE__);
 }

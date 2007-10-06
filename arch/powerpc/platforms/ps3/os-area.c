@@ -119,9 +119,64 @@ struct os_area_params {
  */
 
 struct saved_params {
+	unsigned int valid;
 	s64 rtc_diff;
 	unsigned int av_multi_out;
 } static saved_params;
+
+static struct property property_rtc_diff = {
+	.name = "linux,rtc_diff",
+	.length = sizeof(saved_params.rtc_diff),
+	.value = &saved_params.rtc_diff,
+};
+
+static struct property property_av_multi_out = {
+	.name = "linux,av_multi_out",
+	.length = sizeof(saved_params.av_multi_out),
+	.value = &saved_params.av_multi_out,
+};
+
+/**
+ * os_area_set_property - Add or overwrite a saved_params value to the device tree.
+ *
+ * Overwrites an existing property.
+ */
+
+static void os_area_set_property(struct device_node *node,
+	struct property *prop)
+{
+	int result;
+	struct property *tmp = of_find_property(node, prop->name, NULL);
+
+	if (tmp) {
+		pr_debug("%s:%d found %s\n", __func__, __LINE__, prop->name);
+		prom_remove_property(node, tmp);
+	}
+
+	result = prom_add_property(node, prop);
+
+	if (result)
+		pr_debug("%s:%d prom_set_property failed\n", __func__,
+			__LINE__);
+}
+
+/**
+ * os_area_get_property - Get a saved_params value from the device tree.
+ *
+ */
+
+static void __init os_area_get_property(struct device_node *node,
+	struct property *prop)
+{
+	const struct property *tmp = of_find_property(node, prop->name, NULL);
+
+	if (tmp) {
+		BUG_ON(prop->length != tmp->length);
+		memcpy(prop->value, tmp->value, prop->length);
+	} else
+		pr_debug("%s:%d not found %s\n", __func__, __LINE__,
+			prop->name);
+}
 
 #define dump_header(_a) _dump_header(_a, __func__, __LINE__)
 static void _dump_header(const struct os_area_header *h, const char *func,
@@ -196,7 +251,18 @@ static int __init verify_header(const struct os_area_header *header)
 
 static void os_area_queue_work_handler(struct work_struct *work)
 {
+	struct device_node *node;
+
 	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+
+	node = of_find_node_by_path("/");
+
+	if (node) {
+		os_area_set_property(node, &property_rtc_diff);
+		of_node_put(node);
+	} else
+		pr_debug("%s:%d of_find_node_by_path failed\n",
+			__func__, __LINE__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -244,6 +310,8 @@ void __init ps3_os_area_save_params(void)
 	result = verify_header(header);
 
 	if (result) {
+		/* Second stage kernels exit here. */
+
 		pr_debug("%s:%d verify_header failed\n", __func__, __LINE__);
 		dump_header(header);
 		return;
@@ -254,8 +322,41 @@ void __init ps3_os_area_save_params(void)
 
 	saved_params.rtc_diff = params->rtc_diff;
 	saved_params.av_multi_out = params->av_multi_out;
+	saved_params.valid = 1;
 
 	memset(header, 0, sizeof(*header));
+
+	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+}
+
+/**
+ * ps3_os_area_init - Setup os area device tree properties as needed.
+ */
+
+void __init ps3_os_area_init(void)
+{
+	struct device_node *node;
+
+	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+
+	node = of_find_node_by_path("/");
+
+	if (!saved_params.valid && node) {
+		/* Second stage kernels should have a dt entry. */
+		os_area_get_property(node, &property_rtc_diff);
+		os_area_get_property(node, &property_av_multi_out);
+	}
+
+	if(!saved_params.rtc_diff)
+		saved_params.rtc_diff = SECONDS_FROM_1970_TO_2000;
+
+	if (node) {
+		os_area_set_property(node, &property_rtc_diff);
+		os_area_set_property(node, &property_av_multi_out);
+		of_node_put(node);
+	} else
+		pr_debug("%s:%d of_find_node_by_path failed\n",
+			__func__, __LINE__);
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 }
@@ -266,8 +367,7 @@ void __init ps3_os_area_save_params(void)
 
 u64 ps3_os_area_get_rtc_diff(void)
 {
-	return saved_params.rtc_diff ? saved_params.rtc_diff
-		: SECONDS_FROM_1970_TO_2000;
+	return saved_params.rtc_diff;
 }
 
 /**
