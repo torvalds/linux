@@ -750,7 +750,6 @@ bdx_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
  */
 static int bdx_change_mtu(struct net_device *ndev, int new_mtu)
 {
-	BDX_ASSERT(ndev == 0);
 	ENTER;
 
 	if (new_mtu == ndev->mtu)
@@ -1002,7 +1001,7 @@ static inline void bdx_rxdb_free_elem(struct rxdb *db, int n)
 static int bdx_rx_init(struct bdx_priv *priv)
 {
 	ENTER;
-	BDX_ASSERT(priv == 0);
+
 	if (bdx_fifo_init(priv, &priv->rxd_fifo0.m, priv->rxd_size,
 			  regRXD_CFG0_0, regRXD_CFG1_0,
 			  regRXD_RPTR_0, regRXD_WPTR_0))
@@ -1747,7 +1746,6 @@ static void bdx_tx_cleanup(struct bdx_priv *priv)
 		tx_level -= db->rptr->len;	/* '-' koz len is negative */
 
 		/* now should come skb pointer - free it */
-		BDX_ASSERT(db->rptr->addr.skb == 0);
 		dev_kfree_skb_irq(db->rptr->addr.skb);
 		bdx_tx_db_inc_rptr(db);
 	}

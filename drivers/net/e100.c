@@ -1990,7 +1990,7 @@ static int e100_poll(struct napi_struct *napi, int budget)
 {
 	struct nic *nic = container_of(napi, struct nic, napi);
 	struct net_device *netdev = nic->netdev;
-	int work_done = 0;
+	unsigned int work_done = 0;
 	int tx_cleaned;
 
 	e100_rx_clean(nic, &work_done, budget);

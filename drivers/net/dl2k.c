@@ -290,7 +290,7 @@ rio_probe1 (struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-int
+static int
 find_miiphy (struct net_device *dev)
 {
 	int i, phy_found = 0;
@@ -314,7 +314,7 @@ find_miiphy (struct net_device *dev)
 	return 0;
 }
 
-int
+static int
 parse_eeprom (struct net_device *dev)
 {
 	int i, j;
@@ -1096,7 +1096,7 @@ clear_stats (struct net_device *dev)
 }
 
 
-int
+static int
 change_mtu (struct net_device *dev, int new_mtu)
 {
 	struct netdev_private *np = netdev_priv(dev);
@@ -1331,7 +1331,7 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 #define EEP_BUSY 0x8000
 /* Read the EEPROM word */
 /* We use I/O instruction to read/write eeprom to avoid fail on some machines */
-int
+static int
 read_eeprom (long ioaddr, int eep_addr)
 {
 	int i = 1000;

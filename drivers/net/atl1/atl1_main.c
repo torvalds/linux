@@ -1367,7 +1367,6 @@ rrd_ok:
 	if (count) {
 		u32 tpd_next_to_use;
 		u32 rfd_next_to_use;
-		u32 rrd_next_to_clean;
 
 		spin_lock(&adapter->mb_lock);
 
@@ -1512,7 +1511,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	unsigned int f;
 	u16 tpd_next_to_use;
 	u16 proto_hdr_len;
-	u16 i, m, len12;
+	u16 len12;
 
 	first_buf_len -= skb->data_len;
 	nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1536,6 +1535,8 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			tpd_next_to_use = 0;
 
 		if (first_buf_len > proto_hdr_len) {
+			int i, m;
+
 			len12 = first_buf_len - proto_hdr_len;
 			m = (len12 + ATL1_MAX_TX_BUF_LEN - 1) /
 				ATL1_MAX_TX_BUF_LEN;

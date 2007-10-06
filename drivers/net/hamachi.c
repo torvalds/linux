@@ -1017,7 +1017,7 @@ static inline int hamachi_tx(struct net_device *dev)
 			break;
 		/* Free the original skb. */
 		skb = hmp->tx_skbuff[entry];
-		if (skb != 0) {
+		if (skb) {
 			pci_unmap_single(hmp->pci_dev,
 				hmp->tx_ring[entry].addr, skb->len,
 				PCI_DMA_TODEVICE);
@@ -1069,7 +1069,6 @@ static void hamachi_tx_timeout(struct net_device *dev)
 		   " resetting...\n", dev->name, (int)readw(ioaddr + TxStatus));
 
 	{
-		int i;
 		printk(KERN_DEBUG "  Rx ring %p: ", hmp->rx_ring);
 		for (i = 0; i < RX_RING_SIZE; i++)
 			printk(" %8.8x", (unsigned int)hmp->rx_ring[i].status_n_length);
