@@ -244,6 +244,8 @@ static int rt2500pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, GPIOCSR, &reg);
 	return rt2x00_get_field32(reg, GPIOCSR_BIT0);
 }
+#else
+#define rt2500pci_rfkill_poll	NULL
 #endif /* CONFIG_RT2500PCI_RFKILL */
 
 /*
@@ -1530,8 +1532,10 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
+#ifdef CONFIG_RT2500PCI_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT2500PCI_RFKILL */
 
 	/*
 	 * Check if the BBP tuning should be enabled.
@@ -1937,9 +1941,7 @@ static const struct rt2x00lib_ops rt2500pci_rt2x00_ops = {
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
 	.set_device_state	= rt2500pci_set_device_state,
-#ifdef CONFIG_RT2500PCI_RFKILL
 	.rfkill_poll		= rt2500pci_rfkill_poll,
-#endif /* CONFIG_RT2500PCI_RFKILL */
 	.link_stats		= rt2500pci_link_stats,
 	.reset_tuner		= rt2500pci_reset_tuner,
 	.link_tuner		= rt2500pci_link_tuner,

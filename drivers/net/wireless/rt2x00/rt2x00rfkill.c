@@ -52,11 +52,11 @@ static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
 
 	if (state == RFKILL_STATE_ON) {
 		INFO(rt2x00dev, "Hardware button pressed, enabling radio.\n");
-		__set_bit(DEVICE_ENABLED_RADIO_HW, &rt2x00dev->flags);
+		__clear_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		retval = rt2x00lib_enable_radio(rt2x00dev);
 	} else if (state == RFKILL_STATE_OFF) {
 		INFO(rt2x00dev, "Hardware button pressed, disabling radio.\n");
-		__clear_bit(DEVICE_ENABLED_RADIO_HW, &rt2x00dev->flags);
+		__set_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		rt2x00lib_disable_radio(rt2x00dev);
 	}
 

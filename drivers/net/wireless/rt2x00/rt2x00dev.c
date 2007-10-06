@@ -104,8 +104,7 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	 * And check if the hardware button has been disabled.
 	 */
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
-	    (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) &&
-	     !test_bit(DEVICE_ENABLED_RADIO_HW, &rt2x00dev->flags)))
+	    test_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags))
 		return 0;
 
 	/*

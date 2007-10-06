@@ -269,6 +269,8 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
 	return rt2x00_get_field32(reg, MAC_CSR13_BIT5);;
 }
+#else
+#define rt61pci_rfkill_poll	NULL
 #endif /* CONFIG_RT61PCI_RFKILL */
 
 /*
@@ -2090,8 +2092,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
+#ifdef CONFIG_RT61PCI_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
+#endif /* CONFIG_RT61PCI_RFKILL */
 
 	/*
 	 * Read frequency offset and RF programming sequence.
@@ -2531,9 +2535,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
 	.set_device_state	= rt61pci_set_device_state,
-#ifdef CONFIG_RT61PCI_RFKILL
 	.rfkill_poll		= rt61pci_rfkill_poll,
-#endif /* CONFIG_RT61PCI_RFKILL */
 	.link_stats		= rt61pci_link_stats,
 	.reset_tuner		= rt61pci_reset_tuner,
 	.link_tuner		= rt61pci_link_tuner,

@@ -28,9 +28,10 @@
 
 /*
  * Interval defines
+ * Both the link tuner as the rfkill will be called once per second.
  */
 #define LINK_TUNE_INTERVAL	( round_jiffies(HZ) )
-#define RFKILL_POLL_INTERVAL	( HZ / 4 )
+#define RFKILL_POLL_INTERVAL	( 1000 )
 
 /*
  * Radio control handlers.
@@ -98,13 +99,6 @@ void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev);
 #else
 static inline int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	/*
-	 * Force enable this flag, this will assure that
-	 * devices with a hardware button but without rfkill support
-	 * can still use their hardware.
-	 */
-	__set_bit(DEVICE_ENABLED_RADIO_HW, &rt2x00dev->flags);
-
 	return 0;
 }
 
