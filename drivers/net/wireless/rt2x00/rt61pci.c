@@ -2437,6 +2437,8 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * First we create the beacon.
 	 */
 	skb_push(skb, TXD_DESC_SIZE);
+	memset(skb->data, 0, TXD_DESC_SIZE);
+
 	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
 				(struct ieee80211_hdr *)(skb->data +
 							 TXD_DESC_SIZE),

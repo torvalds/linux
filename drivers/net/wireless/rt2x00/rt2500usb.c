@@ -1665,6 +1665,8 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	 * First we create the beacon.
 	 */
 	skb_push(skb, ring->desc_size);
+	memset(skb->data, 0, ring->desc_size);
+
 	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
 				(struct ieee80211_hdr *)(skb->data +
 							 ring->desc_size),
