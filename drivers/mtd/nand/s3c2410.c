@@ -60,8 +60,8 @@
 
 #include <asm/io.h>
 
-#include <asm/arch/regs-nand.h>
-#include <asm/arch/nand.h>
+#include <asm/plat-s3c/regs-nand.h>
+#include <asm/plat-s3c/nand.h>
 
 #ifdef CONFIG_MTD_NAND_S3C2410_HWECC
 static int hardware_ecc = 1;
