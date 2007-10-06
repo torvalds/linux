@@ -97,7 +97,11 @@ void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
+	struct rt2x00lib_conf libconf;
+	struct ieee80211_hw_mode *mode;
+	struct ieee80211_rate *rate;
 	int flags = 0;
+	int short_slot_time;
 
 	/*
 	 * In some situations we want to force all configurations
@@ -128,8 +132,62 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	flags |= CONFIG_UPDATE_SLOT_TIME;
 	flags |= CONFIG_UPDATE_BEACON_INT;
 
+	/*
+	 * We have determined what options should be updated,
+	 * now precalculate device configuration values depending
+	 * on what configuration options need to be updated.
+	 */
 config:
-	rt2x00dev->ops->lib->config(rt2x00dev, flags, conf);
+	memset(&libconf, 0, sizeof(libconf));
+
+	if (flags & CONFIG_UPDATE_PHYMODE) {
+		switch (conf->phymode) {
+		case MODE_IEEE80211A:
+			libconf.phymode = HWMODE_A;
+			break;
+		case MODE_IEEE80211B:
+			libconf.phymode = HWMODE_B;
+			break;
+		case MODE_IEEE80211G:
+			libconf.phymode = HWMODE_G;
+			break;
+		default:
+			ERROR(rt2x00dev,
+			      "Attempt to configure unsupported mode (%d)"
+			      "Defaulting to 802.11b", conf->phymode);
+			libconf.phymode = HWMODE_B;
+		}
+
+		mode = &rt2x00dev->hwmodes[libconf.phymode];
+		rate = &mode->rates[mode->num_rates - 1];
+
+		libconf.basic_rates =
+		    DEVICE_GET_RATE_FIELD(rate->val, RATEMASK) & DEV_BASIC_RATEMASK;
+	}
+
+	if (flags & CONFIG_UPDATE_CHANNEL) {
+		memcpy(&libconf.rf,
+		       &rt2x00dev->spec.channels[conf->channel_val],
+		       sizeof(libconf.rf));
+	}
+
+	if (flags & CONFIG_UPDATE_SLOT_TIME) {
+		short_slot_time = conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME;
+
+		libconf.slot_time =
+		    short_slot_time ? SHORT_SLOT_TIME : SLOT_TIME;
+		libconf.sifs = SIFS;
+		libconf.pifs = short_slot_time ? SHORT_PIFS : PIFS;
+		libconf.difs = short_slot_time ? SHORT_DIFS : DIFS;
+		libconf.eifs = EIFS;
+	}
+
+	libconf.conf = conf;
+
+	/*
+	 * Start configuration.
+	 */
+	rt2x00dev->ops->lib->config(rt2x00dev, flags, &libconf);
 
 	/*
 	 * Some configuration changes affect the link quality
@@ -138,6 +196,7 @@ config:
 	if (flags & (CONFIG_UPDATE_CHANNEL | CONFIG_UPDATE_ANTENNA))
 		rt2x00lib_reset_link_tuner(rt2x00dev);
 
+	rt2x00dev->curr_hwmode = libconf.phymode;
 	rt2x00dev->rx_status.phymode = conf->phymode;
 	rt2x00dev->rx_status.freq = conf->freq;
 	rt2x00dev->rx_status.channel = conf->channel;

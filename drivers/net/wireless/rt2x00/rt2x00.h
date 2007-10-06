@@ -352,6 +352,28 @@ struct hw_mode_spec {
 };
 
 /*
+ * Configuration structure wrapper around the
+ * mac80211 configuration structure.
+ * When mac80211 configures the driver, rt2x00lib
+ * can precalculate values which are equal for all
+ * rt2x00 drivers. Those values can be stored in here.
+ */
+struct rt2x00lib_conf {
+	struct ieee80211_conf *conf;
+	struct rf_channel rf;
+
+	int phymode;
+
+	int basic_rates;
+	int slot_time;
+
+	short sifs;
+	short pifs;
+	short difs;
+	short eifs;
+};
+
+/*
  * rt2x00lib callback functions.
  */
 struct rt2x00lib_ops {
@@ -414,8 +436,12 @@ struct rt2x00lib_ops {
 	void (*config_bssid) (struct rt2x00_dev *rt2x00dev, __le32 *bssid);
 	void (*config_type) (struct rt2x00_dev *rt2x00dev, const int type,
 							   const int tsf_sync);
+	void (*config_preamble) (struct rt2x00_dev *rt2x00dev,
+				 const int short_preamble,
+				 const int ack_timeout,
+				 const int ack_consume_time);
 	void (*config) (struct rt2x00_dev *rt2x00dev, const unsigned int flags,
-			struct ieee80211_conf *conf);
+			struct rt2x00lib_conf *libconf);
 #define CONFIG_UPDATE_PHYMODE		( 1 << 1 )
 #define CONFIG_UPDATE_CHANNEL		( 1 << 2 )
 #define CONFIG_UPDATE_TXPOWER		( 1 << 3 )
@@ -472,6 +498,7 @@ enum rt2x00_flags {
 	CONFIG_EXTERNAL_LNA_BG,
 	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_DISABLE_LINK_TUNING,
+	CONFIG_SHORT_PREAMBLE,
 };
 
 /*
@@ -612,6 +639,7 @@ struct rt2x00_dev {
 	 */
 	struct work_struct beacon_work;
 	struct work_struct filter_work;
+	struct work_struct config_work;
 
 	/*
 	 * Data ring arrays for RX, TX and Beacon.
@@ -792,6 +820,8 @@ int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_queue_stats *stats);
+void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
+			      int cts_protection, int preamble);
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		      const struct ieee80211_tx_queue_params *params);
 

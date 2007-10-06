@@ -142,6 +142,8 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 		cancel_work_sync(&rt2x00dev->beacon_work);
 	if (work_pending(&rt2x00dev->filter_work))
 		cancel_work_sync(&rt2x00dev->filter_work);
+	if (work_pending(&rt2x00dev->config_work))
+		cancel_work_sync(&rt2x00dev->config_work);
 
 	/*
 	 * Stop the TX queues.
@@ -286,6 +288,16 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 
 	rt2x00dev->ops->hw->configure_filter(rt2x00dev->hw,
 					     filter, &filter, 0, NULL);
+}
+
+static void rt2x00lib_configuration_scheduled(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, config_work);
+	int preamble = !test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+
+	rt2x00mac_erp_ie_changed(rt2x00dev->hw,
+				 IEEE80211_ERP_CHANGE_PREAMBLE, 0, preamble);
 }
 
 /*
@@ -990,6 +1002,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	INIT_WORK(&rt2x00dev->beacon_work, rt2x00lib_beacondone_scheduled);
 	INIT_WORK(&rt2x00dev->filter_work, rt2x00lib_packetfilter_scheduled);
+	INIT_WORK(&rt2x00dev->config_work, rt2x00lib_configuration_scheduled);
 	INIT_DELAYED_WORK(&rt2x00dev->link.work, rt2x00lib_link_tuner);
 
 	/*

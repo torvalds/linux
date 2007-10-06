@@ -302,54 +302,39 @@ static void rt2500usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 }
 
-static void rt2500usb_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
+static void rt2500usb_config_preamble(struct rt2x00_dev *rt2x00dev,
+				      const int short_preamble,
+				      const int ack_timeout,
+				      const int ack_consume_time)
 {
-	struct ieee80211_conf *conf = &rt2x00dev->hw->conf;
 	u16 reg;
-	u16 value;
-	u16 preamble;
 
-	if (DEVICE_GET_RATE_FIELD(rate, PREAMBLE))
-		preamble = SHORT_PREAMBLE;
-	else
-		preamble = PREAMBLE;
-
-	reg = DEVICE_GET_RATE_FIELD(rate, RATEMASK) & DEV_BASIC_RATEMASK;
-
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, reg);
+	/*
+	 * When in atomic context, reschedule and let rt2x00lib
+	 * call this function again.
+	 */
+	if (in_atomic()) {
+		queue_work(rt2x00dev->hw->workqueue, &rt2x00dev->config_work);
+		return;
+	}
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR1, &reg);
-	value = ((conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
-		 SHORT_DIFS : DIFS) +
-	    PLCP + preamble + get_duration(ACK_SIZE, 10);
-	rt2x00_set_field16(&reg, TXRX_CSR1_ACK_TIMEOUT, value);
+	rt2x00_set_field16(&reg, TXRX_CSR1_ACK_TIMEOUT, ack_timeout);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR1, reg);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR10, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR10_AUTORESPOND_PREAMBLE,
-			   (preamble == SHORT_PREAMBLE));
+			   !!short_preamble);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR10, reg);
 }
 
 static void rt2500usb_config_phymode(struct rt2x00_dev *rt2x00dev,
-				     const int phymode)
+				     const int phymode,
+				     const int basic_rate_mask)
 {
-	struct ieee80211_hw_mode *mode;
-	struct ieee80211_rate *rate;
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, basic_rate_mask);
 
-	if (phymode == MODE_IEEE80211A)
-		rt2x00dev->curr_hwmode = HWMODE_A;
-	else if (phymode == MODE_IEEE80211B)
-		rt2x00dev->curr_hwmode = HWMODE_B;
-	else
-		rt2x00dev->curr_hwmode = HWMODE_G;
-
-	mode = &rt2x00dev->hwmodes[rt2x00dev->curr_hwmode];
-	rate = &mode->rates[mode->num_rates - 1];
-
-	rt2500usb_config_rate(rt2x00dev, rate->val2);
-
-	if (phymode == MODE_IEEE80211B) {
+	if (phymode == HWMODE_B) {
 		rt2500usb_register_write(rt2x00dev, MAC_CSR11, 0x000b);
 		rt2500usb_register_write(rt2x00dev, MAC_CSR12, 0x0040);
 	} else {
@@ -359,20 +344,12 @@ static void rt2500usb_config_phymode(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config_channel(struct rt2x00_dev *rt2x00dev,
-				     const int index, const int channel,
-				     const int txpower)
+				     struct rf_channel *rf, const int txpower)
 {
-	struct rf_channel reg;
-
-	/*
-	 * Fill rf_reg structure.
-	 */
-	memcpy(&reg, &rt2x00dev->spec.channels[index], sizeof(reg));
-
 	/*
 	 * Set TXpower.
 	 */
-	rt2x00_set_field32(&reg.rf3, RF3_TXPOWER, TXPOWER_TO_DEV(txpower));
+	rt2x00_set_field32(&rf->rf3, RF3_TXPOWER, TXPOWER_TO_DEV(txpower));
 
 	/*
 	 * For RT2525E we should first set the channel to half band higher.
@@ -385,16 +362,16 @@ static void rt2500usb_config_channel(struct rt2x00_dev *rt2x00dev,
 			0x00000902, 0x00000906
 		};
 
-		rt2500usb_rf_write(rt2x00dev, 2, vals[channel - 1]);
-		if (reg.rf4)
-			rt2500usb_rf_write(rt2x00dev, 4, reg.rf4);
+		rt2500usb_rf_write(rt2x00dev, 2, vals[rf->channel - 1]);
+		if (rf->rf4)
+			rt2500usb_rf_write(rt2x00dev, 4, rf->rf4);
 	}
 
-	rt2500usb_rf_write(rt2x00dev, 1, reg.rf1);
-	rt2500usb_rf_write(rt2x00dev, 2, reg.rf2);
-	rt2500usb_rf_write(rt2x00dev, 3, reg.rf3);
-	if (reg.rf4)
-		rt2500usb_rf_write(rt2x00dev, 4, reg.rf4);
+	rt2500usb_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2500usb_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2500usb_rf_write(rt2x00dev, 3, rf->rf3);
+	if (rf->rf4)
+		rt2500usb_rf_write(rt2x00dev, 4, rf->rf4);
 }
 
 static void rt2500usb_config_txpower(struct rt2x00_dev *rt2x00dev,
@@ -484,38 +461,37 @@ static void rt2500usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2500usb_config_duration(struct rt2x00_dev *rt2x00dev,
-				      const int short_slot_time,
-				      const int beacon_int)
+				      struct rt2x00lib_conf *libconf)
 {
 	u16 reg;
 
-	rt2500usb_register_write(rt2x00dev, MAC_CSR10,
-				 short_slot_time ? SHORT_SLOT_TIME : SLOT_TIME);
+	rt2500usb_register_write(rt2x00dev, MAC_CSR10, libconf->slot_time);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL, beacon_int * 4);
+	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL,
+			   libconf->conf->beacon_int * 4);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
 }
 
 static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int flags,
-			     struct ieee80211_conf *conf)
+			     struct rt2x00lib_conf *libconf)
 {
-	int short_slot_time = conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME;
-
 	if (flags & CONFIG_UPDATE_PHYMODE)
-		rt2500usb_config_phymode(rt2x00dev, conf->phymode);
+		rt2500usb_config_phymode(rt2x00dev, libconf->phymode,
+					 libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
-		rt2500usb_config_channel(rt2x00dev, conf->channel_val,
-					 conf->channel, conf->power_level);
+		rt2500usb_config_channel(rt2x00dev, &libconf->rf,
+					 libconf->conf->power_level);
 	if ((flags & CONFIG_UPDATE_TXPOWER) && !(flags & CONFIG_UPDATE_CHANNEL))
-		rt2500usb_config_txpower(rt2x00dev, conf->power_level);
+		rt2500usb_config_txpower(rt2x00dev,
+					 libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt2500usb_config_antenna(rt2x00dev, conf->antenna_sel_tx,
-					 conf->antenna_sel_rx);
+		rt2500usb_config_antenna(rt2x00dev,
+					 libconf->conf->antenna_sel_tx,
+					 libconf->conf->antenna_sel_rx);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
-		rt2500usb_config_duration(rt2x00dev, short_slot_time,
-					  conf->beacon_int);
+		rt2500usb_config_duration(rt2x00dev, libconf);
 }
 
 /*
@@ -1733,6 +1709,7 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.config_interface	= rt2x00mac_config_interface,
 	.configure_filter	= rt2500usb_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
+	.erp_ie_changed		= rt2x00mac_erp_ie_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.beacon_update		= rt2500usb_beacon_update,
@@ -1754,6 +1731,7 @@ static const struct rt2x00lib_ops rt2500usb_rt2x00_ops = {
 	.config_mac_addr	= rt2500usb_config_mac_addr,
 	.config_bssid		= rt2500usb_config_bssid,
 	.config_type		= rt2500usb_config_type,
+	.config_preamble	= rt2500usb_config_preamble,
 	.config			= rt2500usb_config,
 };
 

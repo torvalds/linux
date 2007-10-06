@@ -291,90 +291,67 @@ static void rt2400pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
-static void rt2400pci_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
+static void rt2400pci_config_preamble(struct rt2x00_dev *rt2x00dev,
+				      const int short_preamble,
+				      const int ack_timeout,
+				      const int ack_consume_time)
 {
-	struct ieee80211_conf *conf = &rt2x00dev->hw->conf;
+	int preamble_mask;
 	u32 reg;
-	u32 preamble;
-	u16 value;
 
-	if (DEVICE_GET_RATE_FIELD(rate, PREAMBLE))
-		preamble = SHORT_PREAMBLE;
-	else
-		preamble = PREAMBLE;
-
-	reg = DEVICE_GET_RATE_FIELD(rate, RATEMASK) & DEV_BASIC_RATEMASK;
-	rt2x00pci_register_write(rt2x00dev, ARCSR1, reg);
+	/*
+	 * When short preamble is enabled, we should set bit 0x08
+	 */
+	preamble_mask = short_preamble << 3;
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
-	value = ((conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
-		 SHORT_DIFS : DIFS) +
-	    PLCP + preamble + get_duration(ACK_SIZE, 10);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, value);
-	value = SIFS + PLCP + preamble + get_duration(ACK_SIZE, 10);
-	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME, value);
+	rt2x00_set_field32(&reg, TXCSR1_ACK_TIMEOUT, ack_timeout);
+	rt2x00_set_field32(&reg, TXCSR1_ACK_CONSUME_TIME, ack_consume_time);
 	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
-	preamble = DEVICE_GET_RATE_FIELD(rate, PREAMBLE) ? 0x08 : 0x00;
-
 	rt2x00pci_register_read(rt2x00dev, ARCSR2, &reg);
-	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00 | preamble);
+	rt2x00_set_field32(&reg, ARCSR2_SIGNAL, 0x00 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR2_SERVICE, 0x04);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 10));
 	rt2x00pci_register_write(rt2x00dev, ARCSR2, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR3, &reg);
-	rt2x00_set_field32(&reg, ARCSR3_SIGNAL, 0x01 | preamble);
+	rt2x00_set_field32(&reg, ARCSR3_SIGNAL, 0x01 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR3_SERVICE, 0x04);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 20));
 	rt2x00pci_register_write(rt2x00dev, ARCSR3, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR4, &reg);
-	rt2x00_set_field32(&reg, ARCSR4_SIGNAL, 0x02 | preamble);
+	rt2x00_set_field32(&reg, ARCSR4_SIGNAL, 0x02 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR4_SERVICE, 0x04);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 55));
 	rt2x00pci_register_write(rt2x00dev, ARCSR4, reg);
 
 	rt2x00pci_register_read(rt2x00dev, ARCSR5, &reg);
-	rt2x00_set_field32(&reg, ARCSR5_SIGNAL, 0x03 | preamble);
+	rt2x00_set_field32(&reg, ARCSR5_SIGNAL, 0x03 | preamble_mask);
 	rt2x00_set_field32(&reg, ARCSR5_SERVICE, 0x84);
 	rt2x00_set_field32(&reg, ARCSR2_LENGTH, get_duration(ACK_SIZE, 110));
 	rt2x00pci_register_write(rt2x00dev, ARCSR5, reg);
 }
 
 static void rt2400pci_config_phymode(struct rt2x00_dev *rt2x00dev,
-				     const int phymode)
+				     const int basic_rate_mask)
 {
-	struct ieee80211_hw_mode *mode;
-	struct ieee80211_rate *rate;
-
-	rt2x00dev->curr_hwmode = HWMODE_B;
-
-	mode = &rt2x00dev->hwmodes[rt2x00dev->curr_hwmode];
-	rate = &mode->rates[mode->num_rates - 1];
-
-	rt2400pci_config_rate(rt2x00dev, rate->val2);
+	rt2x00pci_register_write(rt2x00dev, ARCSR1, basic_rate_mask);
 }
 
 static void rt2400pci_config_channel(struct rt2x00_dev *rt2x00dev,
-				     const int index, const int channel)
+				     struct rf_channel *rf)
 {
-	struct rf_channel reg;
-
-	/*
-	 * Fill rf_reg structure.
-	 */
-	memcpy(&reg, &rt2x00dev->spec.channels[index], sizeof(reg));
-
 	/*
 	 * Switch on tuning bits.
 	 */
-	rt2x00_set_field32(&reg.rf1, RF1_TUNER, 1);
-	rt2x00_set_field32(&reg.rf3, RF3_TUNER, 1);
+	rt2x00_set_field32(&rf->rf1, RF1_TUNER, 1);
+	rt2x00_set_field32(&rf->rf3, RF3_TUNER, 1);
 
-	rt2400pci_rf_write(rt2x00dev, 1, reg.rf1);
-	rt2400pci_rf_write(rt2x00dev, 2, reg.rf2);
-	rt2400pci_rf_write(rt2x00dev, 3, reg.rf3);
+	rt2400pci_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2400pci_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2400pci_rf_write(rt2x00dev, 3, rf->rf3);
 
 	/*
 	 * RF2420 chipset don't need any additional actions.
@@ -387,31 +364,31 @@ static void rt2400pci_config_channel(struct rt2x00_dev *rt2x00dev,
 	 * reference clock rate to activate auto_tune.
 	 * After that we set the value back to the correct channel.
 	 */
-	rt2400pci_rf_write(rt2x00dev, 1, reg.rf1);
+	rt2400pci_rf_write(rt2x00dev, 1, rf->rf1);
 	rt2400pci_rf_write(rt2x00dev, 2, 0x000c2a32);
-	rt2400pci_rf_write(rt2x00dev, 3, reg.rf3);
+	rt2400pci_rf_write(rt2x00dev, 3, rf->rf3);
 
 	msleep(1);
 
-	rt2400pci_rf_write(rt2x00dev, 1, reg.rf1);
-	rt2400pci_rf_write(rt2x00dev, 2, reg.rf2);
-	rt2400pci_rf_write(rt2x00dev, 3, reg.rf3);
+	rt2400pci_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2400pci_rf_write(rt2x00dev, 2, rf->rf2);
+	rt2400pci_rf_write(rt2x00dev, 3, rf->rf3);
 
 	msleep(1);
 
 	/*
 	 * Switch off tuning bits.
 	 */
-	rt2x00_set_field32(&reg.rf1, RF1_TUNER, 0);
-	rt2x00_set_field32(&reg.rf3, RF3_TUNER, 0);
+	rt2x00_set_field32(&rf->rf1, RF1_TUNER, 0);
+	rt2x00_set_field32(&rf->rf3, RF3_TUNER, 0);
 
-	rt2400pci_rf_write(rt2x00dev, 1, reg.rf1);
-	rt2400pci_rf_write(rt2x00dev, 3, reg.rf3);
+	rt2400pci_rf_write(rt2x00dev, 1, rf->rf1);
+	rt2400pci_rf_write(rt2x00dev, 3, rf->rf3);
 
 	/*
 	 * Clear false CRC during channel switch.
 	 */
-	rt2x00pci_register_read(rt2x00dev, CNT0, &reg.rf1);
+	rt2x00pci_register_read(rt2x00dev, CNT0, &rf->rf1);
 }
 
 static void rt2400pci_config_txpower(struct rt2x00_dev *rt2x00dev, int txpower)
@@ -465,25 +442,22 @@ static void rt2400pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2400pci_config_duration(struct rt2x00_dev *rt2x00dev,
-				      int short_slot_time, int beacon_int)
+				      struct rt2x00lib_conf *libconf)
 {
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, CSR11, &reg);
-	rt2x00_set_field32(&reg, CSR11_SLOT_TIME,
-			   short_slot_time ? SHORT_SLOT_TIME : SLOT_TIME);
+	rt2x00_set_field32(&reg, CSR11_SLOT_TIME, libconf->slot_time);
 	rt2x00pci_register_write(rt2x00dev, CSR11, reg);
 
 	rt2x00pci_register_read(rt2x00dev, CSR18, &reg);
-	rt2x00_set_field32(&reg, CSR18_SIFS, SIFS);
-	rt2x00_set_field32(&reg, CSR18_PIFS,
-			   short_slot_time ? SHORT_PIFS : PIFS);
+	rt2x00_set_field32(&reg, CSR18_SIFS, libconf->sifs);
+	rt2x00_set_field32(&reg, CSR18_PIFS, libconf->pifs);
 	rt2x00pci_register_write(rt2x00dev, CSR18, reg);
 
 	rt2x00pci_register_read(rt2x00dev, CSR19, &reg);
-	rt2x00_set_field32(&reg, CSR19_DIFS,
-			   short_slot_time ? SHORT_DIFS : DIFS);
-	rt2x00_set_field32(&reg, CSR19_EIFS, EIFS);
+	rt2x00_set_field32(&reg, CSR19_DIFS, libconf->difs);
+	rt2x00_set_field32(&reg, CSR19_EIFS, libconf->eifs);
 	rt2x00pci_register_write(rt2x00dev, CSR19, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR1, &reg);
@@ -492,30 +466,30 @@ static void rt2400pci_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXCSR1, reg);
 
 	rt2x00pci_register_read(rt2x00dev, CSR12, &reg);
-	rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL, beacon_int * 16);
-	rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION, beacon_int * 16);
+	rt2x00_set_field32(&reg, CSR12_BEACON_INTERVAL,
+			   libconf->conf->beacon_int * 16);
+	rt2x00_set_field32(&reg, CSR12_CFP_MAX_DURATION,
+			   libconf->conf->beacon_int * 16);
 	rt2x00pci_register_write(rt2x00dev, CSR12, reg);
 }
 
 static void rt2400pci_config(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int flags,
-			     struct ieee80211_conf *conf)
+			     struct rt2x00lib_conf *libconf)
 {
-	int short_slot_time = conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME;
-
 	if (flags & CONFIG_UPDATE_PHYMODE)
-		rt2400pci_config_phymode(rt2x00dev, conf->phymode);
+		rt2400pci_config_phymode(rt2x00dev, libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
-		rt2400pci_config_channel(rt2x00dev, conf->channel_val,
-					 conf->channel);
+		rt2400pci_config_channel(rt2x00dev, &libconf->rf);
 	if (flags & CONFIG_UPDATE_TXPOWER)
-		rt2400pci_config_txpower(rt2x00dev, conf->power_level);
+		rt2400pci_config_txpower(rt2x00dev,
+					 libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt2400pci_config_antenna(rt2x00dev, conf->antenna_sel_tx,
-					 conf->antenna_sel_rx);
+		rt2400pci_config_antenna(rt2x00dev,
+					 libconf->conf->antenna_sel_tx,
+					 libconf->conf->antenna_sel_rx);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
-		rt2400pci_config_duration(rt2x00dev, short_slot_time,
-					  conf->beacon_int);
+		rt2400pci_config_duration(rt2x00dev, libconf);
 }
 
 static void rt2400pci_config_cw(struct rt2x00_dev *rt2x00dev,
@@ -1609,6 +1583,7 @@ static const struct ieee80211_ops rt2400pci_mac80211_ops = {
 	.configure_filter	= rt2400pci_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt2400pci_set_retry_limit,
+	.erp_ie_changed		= rt2x00mac_erp_ie_changed,
 	.conf_tx		= rt2400pci_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt2400pci_get_tsf,
@@ -1634,6 +1609,7 @@ static const struct rt2x00lib_ops rt2400pci_rt2x00_ops = {
 	.config_mac_addr	= rt2400pci_config_mac_addr,
 	.config_bssid		= rt2400pci_config_bssid,
 	.config_type		= rt2400pci_config_type,
+	.config_preamble	= rt2400pci_config_preamble,
 	.config			= rt2400pci_config,
 };
 

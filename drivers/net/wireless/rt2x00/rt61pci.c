@@ -328,62 +328,31 @@ static void rt61pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
-static void rt61pci_config_rate(struct rt2x00_dev *rt2x00dev, const int rate)
+static void rt61pci_config_preamble(struct rt2x00_dev *rt2x00dev,
+				    const int short_preamble,
+				    const int ack_timeout,
+				    const int ack_consume_time)
 {
-	struct ieee80211_conf *conf = &rt2x00dev->hw->conf;
 	u32 reg;
-	u32 value;
-	u32 preamble;
-
-	if (DEVICE_GET_RATE_FIELD(rate, PREAMBLE))
-		preamble = SHORT_PREAMBLE;
-	else
-		preamble = PREAMBLE;
-
-	/*
-	 * Extract the allowed ratemask from the device specific rate value,
-	 * We need to set TXRX_CSR5 to the basic rate mask so we need to mask
-	 * off the non-basic rates.
-	 */
-	reg = DEVICE_GET_RATE_FIELD(rate, RATEMASK) & DEV_BASIC_RATEMASK;
-
-	rt2x00pci_register_write(rt2x00dev, TXRX_CSR5, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
-	value = ((conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
-		 SHORT_DIFS : DIFS) +
-	    PLCP + preamble + get_duration(ACK_SIZE, 10);
-	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, value);
+	rt2x00_set_field32(&reg, TXRX_CSR0_RX_ACK_TIMEOUT, ack_timeout);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR0, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR4, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR4_AUTORESPOND_PREAMBLE,
-			   (preamble == SHORT_PREAMBLE));
+			   !!short_preamble);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 }
 
 static void rt61pci_config_phymode(struct rt2x00_dev *rt2x00dev,
-				   const int phymode)
+				   const int basic_rate_mask)
 {
-	struct ieee80211_hw_mode *mode;
-	struct ieee80211_rate *rate;
-
-	if (phymode == MODE_IEEE80211A)
-		rt2x00dev->curr_hwmode = HWMODE_A;
-	else if (phymode == MODE_IEEE80211B)
-		rt2x00dev->curr_hwmode = HWMODE_B;
-	else
-		rt2x00dev->curr_hwmode = HWMODE_G;
-
-	mode = &rt2x00dev->hwmodes[rt2x00dev->curr_hwmode];
-	rate = &mode->rates[mode->num_rates - 1];
-
-	rt61pci_config_rate(rt2x00dev, rate->val2);
+	rt2x00pci_register_write(rt2x00dev, TXRX_CSR5, basic_rate_mask);
 }
 
-static void rt61pci_config_lock_channel(struct rt2x00_dev *rt2x00dev,
-					struct rf_channel *rf,
-					const int txpower)
+static void rt61pci_config_channel(struct rt2x00_dev *rt2x00dev,
+				   struct rf_channel *rf, const int txpower)
 {
 	u8 r3;
 	u8 r94;
@@ -428,20 +397,6 @@ static void rt61pci_config_lock_channel(struct rt2x00_dev *rt2x00dev,
 	msleep(1);
 }
 
-static void rt61pci_config_channel(struct rt2x00_dev *rt2x00dev,
-				   const int index, const int channel,
-				   const int txpower)
-{
-	struct rf_channel rf;
-
-	/*
-	 * Fill rf_reg structure.
-	 */
-	memcpy(&rf, &rt2x00dev->spec.channels[index], sizeof(rf));
-
-	rt61pci_config_lock_channel(rt2x00dev, &rf, txpower);
-}
-
 static void rt61pci_config_txpower(struct rt2x00_dev *rt2x00dev,
 				   const int txpower)
 {
@@ -452,7 +407,7 @@ static void rt61pci_config_txpower(struct rt2x00_dev *rt2x00dev,
 	rt2x00_rf_read(rt2x00dev, 3, &rf.rf3);
 	rt2x00_rf_read(rt2x00dev, 4, &rf.rf4);
 
-	rt61pci_config_lock_channel(rt2x00dev, &rf, txpower);
+	rt61pci_config_channel(rt2x00dev, &rf, txpower);
 }
 
 static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
@@ -714,20 +669,18 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt61pci_config_duration(struct rt2x00_dev *rt2x00dev,
-				    const int short_slot_time,
-				    const int beacon_int)
+				    struct rt2x00lib_conf *libconf)
 {
 	u32 reg;
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR9, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR9_SLOT_TIME,
-			   short_slot_time ? SHORT_SLOT_TIME : SLOT_TIME);
+	rt2x00_set_field32(&reg, MAC_CSR9_SLOT_TIME, libconf->slot_time);
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR9, reg);
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR8, &reg);
-	rt2x00_set_field32(&reg, MAC_CSR8_SIFS, SIFS);
+	rt2x00_set_field32(&reg, MAC_CSR8_SIFS, libconf->sifs);
 	rt2x00_set_field32(&reg, MAC_CSR8_SIFS_AFTER_RX_OFDM, 3);
-	rt2x00_set_field32(&reg, MAC_CSR8_EIFS, EIFS);
+	rt2x00_set_field32(&reg, MAC_CSR8_EIFS, libconf->eifs);
 	rt2x00pci_register_write(rt2x00dev, MAC_CSR8, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR0, &reg);
@@ -739,29 +692,27 @@ static void rt61pci_config_duration(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
-	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL, beacon_int * 16);
+	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_INTERVAL,
+			   libconf->conf->beacon_int * 16);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 
 static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int flags,
-			   struct ieee80211_conf *conf)
+			   struct rt2x00lib_conf *libconf)
 {
-	int short_slot_time = conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME;
-
 	if (flags & CONFIG_UPDATE_PHYMODE)
-		rt61pci_config_phymode(rt2x00dev, conf->phymode);
+		rt61pci_config_phymode(rt2x00dev, libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
-		rt61pci_config_channel(rt2x00dev, conf->channel_val,
-				       conf->channel, conf->power_level);
+		rt61pci_config_channel(rt2x00dev, &libconf->rf,
+				       libconf->conf->power_level);
 	if ((flags & CONFIG_UPDATE_TXPOWER) && !(flags & CONFIG_UPDATE_CHANNEL))
-		rt61pci_config_txpower(rt2x00dev, conf->power_level);
+		rt61pci_config_txpower(rt2x00dev, libconf->conf->power_level);
 	if (flags & CONFIG_UPDATE_ANTENNA)
-		rt61pci_config_antenna(rt2x00dev, conf->antenna_sel_tx,
-				       conf->antenna_sel_rx);
+		rt61pci_config_antenna(rt2x00dev, libconf->conf->antenna_sel_tx,
+				       libconf->conf->antenna_sel_rx);
 	if (flags & (CONFIG_UPDATE_SLOT_TIME | CONFIG_UPDATE_BEACON_INT))
-		rt61pci_config_duration(rt2x00dev, short_slot_time,
-					conf->beacon_int);
+		rt61pci_config_duration(rt2x00dev, libconf);
 }
 
 /*
@@ -2513,6 +2464,7 @@ static const struct ieee80211_ops rt61pci_mac80211_ops = {
 	.configure_filter	= rt61pci_configure_filter,
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt61pci_set_retry_limit,
+	.erp_ie_changed		= rt2x00mac_erp_ie_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt61pci_get_tsf,
@@ -2539,6 +2491,7 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.config_mac_addr	= rt61pci_config_mac_addr,
 	.config_bssid		= rt61pci_config_bssid,
 	.config_type		= rt61pci_config_type,
+	.config_preamble	= rt61pci_config_preamble,
 	.config			= rt61pci_config,
 };
 
