@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/workqueue.h>
 
 #include <asm/lmb.h>
 
@@ -184,6 +185,28 @@ static int __init verify_header(const struct os_area_header *header)
 	}
 
 	return 0;
+}
+
+/**
+ * os_area_queue_work_handler - Asynchronous write handler.
+ *
+ * An asynchronous write for flash memory and the device tree.  Do not
+ * call directly, use os_area_queue_work().
+ */
+
+static void os_area_queue_work_handler(struct work_struct *work)
+{
+	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+
+	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+}
+
+static void os_area_queue_work(void)
+{
+	static DECLARE_WORK(q, os_area_queue_work_handler);
+
+	wmb();
+	schedule_work(&q);
 }
 
 /**
