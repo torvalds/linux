@@ -1286,6 +1286,21 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 0, word);
 }
 
+static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
+				   int maxpacket, struct sk_buff *skb)
+{
+	int length;
+
+	/*
+	 * The length _must_ be a multiple of 4,
+	 * but it must _not_ be a multiple of the USB packet size.
+	 */
+	length = roundup(skb->len, 4);
+	length += (4 * !(length % maxpacket));
+
+	return length;
+}
+
 /*
  * TX data initialization
  */
@@ -2012,6 +2027,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.link_tuner		= rt73usb_link_tuner,
 	.write_tx_desc		= rt73usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
+	.get_tx_data_len	= rt73usb_get_tx_data_len,
 	.kick_tx_queue		= rt73usb_kick_tx_queue,
 	.fill_rxdone		= rt73usb_fill_rxdone,
 	.config_mac_addr	= rt73usb_config_mac_addr,

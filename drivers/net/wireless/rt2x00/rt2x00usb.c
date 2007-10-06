@@ -157,9 +157,10 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 {
 	struct usb_device *usb_dev =
 	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
-	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
-	u32 length = skb->len;
+	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	int max_packet = usb_maxpacket(usb_dev, pipe, 1);
+	u32 length;
 
 	if (rt2x00_ring_full(ring)) {
 		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
@@ -178,25 +179,29 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, rt2x00dev->hw->extra_tx_headroom);
-	memset(skb->data, 0x00, rt2x00dev->hw->extra_tx_headroom);
+	skb_push(skb, ring->desc_size);
+	memset(skb->data, 0, ring->desc_size);
 
 	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
-				ieee80211hdr, length, control);
+				(struct ieee80211_hdr *)(skb->data +
+							 ring->desc_size),
+				skb->len - ring->desc_size, control);
 	memcpy(&entry->tx_status.control, control, sizeof(*control));
 	entry->skb = skb;
 
 	/*
-	 * Length passed to usb_fill_urb cannot be an odd number,
-	 * so add 1 byte to make it even.
+	 * USB devices cannot blindly pass the skb->len as the
+	 * length of the data to usb_fill_bulk_urb. Pass the skb
+	 * to the driver to determine what the length should be.
 	 */
-	length += rt2x00dev->hw->extra_tx_headroom;
-	if (length % 2)
-		length++;
+	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev,
+						      max_packet, skb);
 
+	/*
+	 * Initialize URB and send the frame to the device.
+	 */
 	__set_bit(ENTRY_OWNER_NIC, &entry->flags);
-	usb_fill_bulk_urb(entry->priv, usb_dev,
-			  usb_sndbulkpipe(usb_dev, 1),
+	usb_fill_bulk_urb(entry->priv, usb_dev, pipe,
 			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
 	usb_submit_urb(entry->priv, GFP_ATOMIC);
 
