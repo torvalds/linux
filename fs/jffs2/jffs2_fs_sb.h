@@ -69,6 +69,8 @@ struct jffs2_sb_info {
 	uint8_t resv_blocks_gctrigger;	/* ... wake up the GC thread */
 	uint8_t resv_blocks_gcbad;	/* ... pick a block from the bad_list to GC */
 	uint8_t resv_blocks_gcmerge;	/* ... merge pages when garbage collecting */
+	/* Number of 'very dirty' blocks before we trigger immediate GC */
+	uint8_t vdirty_blocks_gctrigger;
 
 	uint32_t nospc_dirty_size;
 

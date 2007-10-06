@@ -722,6 +722,8 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 {
 	int ret = 0;
 	uint32_t dirty;
+	int nr_very_dirty = 0;
+	struct jffs2_eraseblock *jeb;
 
 	if (c->unchecked_size) {
 		D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): unchecked_size %d, checked_ino #%d\n",
@@ -743,8 +745,16 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 			(dirty > c->nospc_dirty_size))
 		ret = 1;
 
-	D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x: %s\n",
-		  c->nr_free_blocks, c->nr_erasing_blocks, c->dirty_size, ret?"yes":"no"));
+	list_for_each_entry(jeb, &c->very_dirty_list, list) {
+		nr_very_dirty++;
+		if (nr_very_dirty == c->vdirty_blocks_gctrigger) {
+			ret = 1;
+			D1(break);
+		}
+	}
+
+	D1(printk(KERN_DEBUG "jffs2_thread_should_wake(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x, vdirty_blocks %d: %s\n",
+		  c->nr_free_blocks, c->nr_erasing_blocks, c->dirty_size, nr_very_dirty, ret?"yes":"no"));
 
 	return ret;
 }
