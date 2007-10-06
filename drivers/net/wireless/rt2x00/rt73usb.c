@@ -279,9 +279,9 @@ static void rt73usb_config_bssid(struct rt2x00_dev *rt2x00dev, __le32 *bssid)
 				    (2 * sizeof(__le32)));
 }
 
-static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type)
+static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
+				const int tsf_sync)
 {
-	struct interface *intf = &rt2x00dev->interface;
 	u32 reg;
 
 	/*
@@ -303,13 +303,7 @@ static void rt73usb_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
-	if (is_interface_type(intf, IEEE80211_IF_TYPE_IBSS) ||
-	    is_interface_type(intf, IEEE80211_IF_TYPE_AP))
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 2);
-	else if (is_interface_type(intf, IEEE80211_IF_TYPE_STA))
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 1);
-	else
-		rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, tsf_sync);
 	rt73usb_register_write(rt2x00dev, TXRX_CSR9, reg);
 }
 

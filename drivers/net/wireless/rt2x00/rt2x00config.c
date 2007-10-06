@@ -74,10 +74,24 @@ void rt2x00lib_config_bssid(struct rt2x00_dev *rt2x00dev, u8 *bssid)
 	rt2x00dev->ops->lib->config_bssid(rt2x00dev, &reg[0]);
 }
 
-void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, int type)
+void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 {
-	if (type != INVALID_INTERFACE)
-		rt2x00dev->ops->lib->config_type(rt2x00dev, type);
+	int tsf_sync;
+
+	switch (type) {
+	case IEEE80211_IF_TYPE_IBSS:
+	case IEEE80211_IF_TYPE_AP:
+		tsf_sync = TSF_SYNC_BEACON;
+		break;
+	case IEEE80211_IF_TYPE_STA:
+		tsf_sync = TSF_SYNC_INFRA;
+		break;
+	default:
+		tsf_sync = TSF_SYNC_NONE;
+		break;
+	}
+
+	rt2x00dev->ops->lib->config_type(rt2x00dev, type, tsf_sync);
 }
 
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,

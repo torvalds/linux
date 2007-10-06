@@ -59,6 +59,15 @@ enum led_mode {
 };
 
 /*
+ * TSF sync values
+ */
+enum tsf_sync {
+	TSF_SYNC_NONE = 0,
+	TSF_SYNC_INFRA = 1,
+	TSF_SYNC_BEACON = 2,
+};
+
+/*
  * Device states
  */
 enum dev_state {

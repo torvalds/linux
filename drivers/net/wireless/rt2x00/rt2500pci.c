@@ -265,9 +265,9 @@ static void rt2500pci_config_bssid(struct rt2x00_dev *rt2x00dev,
 				      (2 * sizeof(__le32)));
 }
 
-static void rt2500pci_config_type(struct rt2x00_dev *rt2x00dev, const int type)
+static void rt2500pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
+				  const int tsf_sync)
 {
-	struct interface *intf = &rt2x00dev->interface;
 	u32 reg;
 
 	rt2x00pci_register_write(rt2x00dev, CSR14, 0);
@@ -291,13 +291,7 @@ static void rt2500pci_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
 	rt2x00_set_field32(&reg, CSR14_TBCN, 1);
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
-	if (is_interface_type(intf, IEEE80211_IF_TYPE_IBSS) ||
-	    is_interface_type(intf, IEEE80211_IF_TYPE_AP))
-		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 2);
-	else if (is_interface_type(intf, IEEE80211_IF_TYPE_STA))
-		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 1);
-	else
-		rt2x00_set_field32(&reg, CSR14_TSF_SYNC, 0);
+	rt2x00_set_field32(&reg, CSR14_TSF_SYNC, tsf_sync);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
