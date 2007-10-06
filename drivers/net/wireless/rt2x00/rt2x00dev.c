@@ -1088,12 +1088,13 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 */
 	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
 		goto exit;
+	__set_bit(DEVICE_STARTED_SUSPEND, &rt2x00dev->flags);
 
 	/*
 	 * Disable radio and unitialize all items
 	 * that must be recreated on resume.
 	 */
-	rt2x00lib_disable_radio(rt2x00dev);
+	rt2x00mac_stop(rt2x00dev->hw);
 	rt2x00lib_uninitialize(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
@@ -1123,9 +1124,9 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	rt2x00debug_register(rt2x00dev);
 
 	/*
-	 * Only continue if mac80211 has open interfaces.
+	 * Only continue if mac80211 had open interfaces.
 	 */
-	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+	if (!__test_and_clear_bit(DEVICE_STARTED_SUSPEND, &rt2x00dev->flags))
 		return 0;
 
 	/*

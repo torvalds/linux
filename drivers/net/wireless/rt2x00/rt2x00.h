@@ -508,6 +508,7 @@ struct rt2x00_dev {
 #define CONFIG_EXTERNAL_LNA_BG		13
 #define CONFIG_DOUBLE_ANTENNA		14
 #define CONFIG_DISABLE_LINK_TUNING	15
+#define DEVICE_STARTED_SUSPEND		16
 
 	/*
 	 * Chipset identification.
