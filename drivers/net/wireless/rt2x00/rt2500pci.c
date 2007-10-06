@@ -277,7 +277,7 @@ static void rt2500pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	 */
 	rt2x00pci_register_read(rt2x00dev, BCNCSR1, &reg);
 	rt2x00_set_field32(&reg, BCNCSR1_PRELOAD,
-			   PREAMBLE + get_duration(IEEE80211_HEADER, 2));
+			   PREAMBLE + get_duration(IEEE80211_HEADER, 20));
 	rt2x00_set_field32(&reg, BCNCSR1_BEACON_CWMIN,
 			   rt2x00lib_get_ring(rt2x00dev,
 					      IEEE80211_TX_QUEUE_BEACON)

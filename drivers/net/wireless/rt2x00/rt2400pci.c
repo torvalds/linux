@@ -277,7 +277,7 @@ static void rt2400pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	 */
 	rt2x00pci_register_read(rt2x00dev, BCNCSR1, &reg);
 	rt2x00_set_field32(&reg, BCNCSR1_PRELOAD,
-			   PREAMBLE + get_duration(IEEE80211_HEADER, 2));
+			   PREAMBLE + get_duration(IEEE80211_HEADER, 20));
 	rt2x00pci_register_write(rt2x00dev, BCNCSR1, reg);
 
 	/*

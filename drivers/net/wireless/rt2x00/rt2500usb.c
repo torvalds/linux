@@ -280,7 +280,7 @@ static void rt2500usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	 */
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR20, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR20_OFFSET,
-			   (PREAMBLE + get_duration(IEEE80211_HEADER, 2)) >> 6);
+			   (PREAMBLE + get_duration(IEEE80211_HEADER, 20)) >> 6);
 	if (type == IEEE80211_IF_TYPE_STA)
 		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW, 0);
 	else
