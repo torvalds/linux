@@ -2497,7 +2497,8 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * Write entire beacon with descriptor to register,
 	 * and kick the beacon generator.
 	 */
-	rt2x00pci_register_multiwrite(rt2x00dev, HW_BEACON_BASE0, skb->data, skb->len);
+	rt2x00pci_register_multiwrite(rt2x00dev, HW_BEACON_BASE0,
+				      skb->data, skb->len);
 	rt61pci_kick_tx_queue(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
 
 	return 0;
