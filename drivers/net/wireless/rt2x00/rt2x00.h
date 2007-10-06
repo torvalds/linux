@@ -441,6 +441,39 @@ struct rt2x00_ops {
 };
 
 /*
+ * rt2x00 device flags
+ */
+enum rt2x00_flags {
+	/*
+	 * Device state flags
+	 */
+	DEVICE_PRESENT,
+	DEVICE_REGISTERED_HW,
+	DEVICE_INITIALIZED,
+	DEVICE_STARTED,
+	DEVICE_STARTED_SUSPEND,
+	DEVICE_ENABLED_RADIO,
+	DEVICE_ENABLED_RADIO_HW,
+
+	/*
+	 * Driver features
+	 */
+	DRIVER_REQUIRE_FIRMWARE,
+	DRIVER_REQUIRE_BEACON_RING,
+
+	/*
+	 * Driver configuration
+	 */
+	CONFIG_SUPPORT_HW_BUTTON,
+	CONFIG_FRAME_TYPE,
+	CONFIG_RF_SEQUENCE,
+	CONFIG_EXTERNAL_LNA_A,
+	CONFIG_EXTERNAL_LNA_BG,
+	CONFIG_DOUBLE_ANTENNA,
+	CONFIG_DISABLE_LINK_TUNING,
+};
+
+/*
  * rt2x00 device structure.
  */
 struct rt2x00_dev {
@@ -493,22 +526,6 @@ struct rt2x00_dev {
 	 * of the device capabilities are stored.
 	 */
 	unsigned long flags;
-#define DEVICE_PRESENT			1
-#define DEVICE_REGISTERED_HW		2
-#define DEVICE_INITIALIZED		3
-#define DEVICE_STARTED			4
-#define DEVICE_ENABLED_RADIO		5
-#define DEVICE_ENABLED_RADIO_HW		6
-#define DRIVER_REQUIRE_FIRMWARE		7
-#define DRIVER_REQUIRE_BEACON_RING	8
-#define CONFIG_SUPPORT_HW_BUTTON	9
-#define CONFIG_FRAME_TYPE		10
-#define CONFIG_RF_SEQUENCE		11
-#define CONFIG_EXTERNAL_LNA_A		12
-#define CONFIG_EXTERNAL_LNA_BG		13
-#define CONFIG_DOUBLE_ANTENNA		14
-#define CONFIG_DISABLE_LINK_TUNING	15
-#define DEVICE_STARTED_SUSPEND		16
 
 	/*
 	 * Chipset identification.
