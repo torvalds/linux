@@ -1910,6 +1910,8 @@ static u64 rt73usb_get_tsf(struct ieee80211_hw *hw)
 
 	return tsf;
 }
+#else
+#define rt73usb_get_tsf	NULL
 #endif
 
 static void rt73usb_reset_tsf(struct ieee80211_hw *hw)
@@ -1970,12 +1972,7 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.erp_ie_changed		= rt2x00mac_erp_ie_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
-#if 0
-/*
- * See comment at the rt73usb_get_tsf function.
- */
 	.get_tsf		= rt73usb_get_tsf,
-#endif
 	.reset_tsf		= rt73usb_reset_tsf,
 	.beacon_update		= rt73usb_beacon_update,
 };
