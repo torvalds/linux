@@ -276,11 +276,18 @@ static void rt2x00lib_packetfilter_scheduled(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, filter_work);
+	unsigned int filter = rt2x00dev->interface.filter;
+
+	/*
+	 * Since we had stored the filter inside interface.filter,
+	 * we should now clear that field. Otherwise the driver will
+	 * assume nothing has changed (*total_flags will be compared
+	 * to interface.filter to determine if any action is required).
+	 */
+	rt2x00dev->interface.filter = 0;
 
 	rt2x00dev->ops->hw->configure_filter(rt2x00dev->hw,
-					     rt2x00dev->interface.filter,
-					     &rt2x00dev->interface.filter,
-					     0, NULL);
+					     filter, &filter, 0, NULL);
 }
 
 /*

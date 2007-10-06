@@ -1602,8 +1602,8 @@ static void rt2500usb_configure_filter(struct ieee80211_hw *hw,
 	 */
 	if (mc_count)
 		*total_flags |= FIF_ALLMULTI;
-	if (changed_flags & FIF_OTHER_BSS ||
-	    changed_flags & FIF_PROMISC_IN_BSS)
+	if (*total_flags & FIF_OTHER_BSS ||
+	    *total_flags & FIF_PROMISC_IN_BSS)
 		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
 	if (is_interface_type(intf, IEEE80211_IF_TYPE_AP))
 		*total_flags |= FIF_PROMISC_IN_BSS;
