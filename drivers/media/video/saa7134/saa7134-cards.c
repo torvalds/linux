@@ -2898,7 +2898,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_addr	= ADDR_UNSET,
 	},
 	[SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS] = {
-		.name		= "LifeView FlyDVB-T Hybrid Cardbus",
+		.name		= "LifeView FlyDVB-T Hybrid Cardbus/MSI TV @nywhere A/D NB",
 		.audio_clock    = 0x00200000,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -4280,6 +4280,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
 		.subdevice    = 0xf01d, /* AVerTV DVB-T Super 007 */
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_SUPER_007,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x4e42,
+		.subdevice    = 0x3502,
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
