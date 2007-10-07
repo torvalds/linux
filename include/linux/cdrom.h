@@ -987,11 +987,11 @@ struct cdrom_device_ops {
 };
 
 /* the general block_device operations structure: */
-extern int cdrom_open(struct cdrom_device_info *cdi, struct inode *ip,
-			struct file *fp);
-extern int cdrom_release(struct cdrom_device_info *cdi, struct file *fp);
-extern int cdrom_ioctl(struct file *file, struct cdrom_device_info *cdi,
-		struct inode *ip, unsigned int cmd, unsigned long arg);
+extern int cdrom_open(struct cdrom_device_info *cdi, struct block_device *bdev,
+			fmode_t mode);
+extern void cdrom_release(struct cdrom_device_info *cdi, fmode_t mode);
+extern int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
+		       fmode_t mode, unsigned int cmd, unsigned long arg);
 extern int cdrom_media_changed(struct cdrom_device_info *);
 
 extern int register_cdrom(struct cdrom_device_info *cdi);

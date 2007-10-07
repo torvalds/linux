@@ -480,7 +480,7 @@ static int sr_block_open(struct inode *inode, struct file *file)
 	if(!(cd = scsi_cd_get(disk)))
 		return -ENXIO;
 
-	if((ret = cdrom_open(&cd->cdi, inode, file)) != 0)
+	if((ret = cdrom_open(&cd->cdi, inode->i_bdev, file->f_mode)) != 0)
 		scsi_cd_put(cd);
 
 	return ret;
@@ -488,12 +488,8 @@ static int sr_block_open(struct inode *inode, struct file *file)
 
 static int sr_block_release(struct inode *inode, struct file *file)
 {
-	int ret;
 	struct scsi_cd *cd = scsi_cd(inode->i_bdev->bd_disk);
-	ret = cdrom_release(&cd->cdi, file);
-	if(ret)
-		return ret;
-	
+	cdrom_release(&cd->cdi, file ? file->f_mode : 0);
 	scsi_cd_put(cd);
 
 	return 0;
@@ -517,7 +513,8 @@ static int sr_block_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		return scsi_ioctl(sdev, cmd, argp);
 	}
 
-	ret = cdrom_ioctl(file, &cd->cdi, inode, cmd, arg);
+	ret = cdrom_ioctl(&cd->cdi, inode->i_bdev,
+			  file ? file->f_mode : 0, cmd, arg);
 	if (ret != -ENOSYS)
 		return ret;
 

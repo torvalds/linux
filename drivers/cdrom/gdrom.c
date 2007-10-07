@@ -492,12 +492,12 @@ static struct cdrom_device_ops gdrom_ops = {
 
 static int gdrom_bdops_open(struct inode *inode, struct file *file)
 {
-	return cdrom_open(gd.cd_info, inode, file);
+	return cdrom_open(gd.cd_info, inode->i_bdev, file->f_mode);
 }
 
 static int gdrom_bdops_release(struct inode *inode, struct file *file)
 {
-	return cdrom_release(gd.cd_info, file);
+	return cdrom_release(gd.cd_info, file ? file->f_mode : 0);
 }
 
 static int gdrom_bdops_mediachanged(struct gendisk *disk)
@@ -508,7 +508,8 @@ static int gdrom_bdops_mediachanged(struct gendisk *disk)
 static int gdrom_bdops_ioctl(struct inode *inode, struct file *file,
 	unsigned cmd, unsigned long arg)
 {
-	return cdrom_ioctl(file, gd.cd_info, inode, cmd, arg);
+	return cdrom_ioctl(gd.cd_info, inode->i_bdev,
+			file ? file->f_mode : 0, cmd, arg);
 }
 
 static struct block_device_operations gdrom_bdops = {

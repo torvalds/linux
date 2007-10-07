@@ -154,20 +154,22 @@ static const struct file_operations proc_viocd_operations = {
 static int viocd_blk_open(struct inode *inode, struct file *file)
 {
 	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_open(&di->viocd_info, inode, file);
+	return cdrom_open(&di->viocd_info, inode->i_bdev, file->f_mode);
 }
 
 static int viocd_blk_release(struct inode *inode, struct file *file)
 {
 	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_release(&di->viocd_info, file);
+	cdrom_release(&di->viocd_info, file ? file->f_mode : 0);
+	return 0;
 }
 
 static int viocd_blk_ioctl(struct inode *inode, struct file *file,
 		unsigned cmd, unsigned long arg)
 {
 	struct disk_info *di = inode->i_bdev->bd_disk->private_data;
-	return cdrom_ioctl(file, &di->viocd_info, inode, cmd, arg);
+	return cdrom_ioctl(&di->viocd_info, inode->i_bdev,
+			   file ? file->f_mode : 0, cmd, arg);
 }
 
 static int viocd_blk_media_changed(struct gendisk *disk)

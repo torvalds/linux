@@ -2099,7 +2099,7 @@ static int idecd_open(struct inode *inode, struct file *file)
 	if (!info)
 		return -ENXIO;
 
-	rc = cdrom_open(&info->devinfo, inode, file);
+	rc = cdrom_open(&info->devinfo, inode->i_bdev, file->f_mode);
 
 	if (rc < 0)
 		ide_cd_put(info);
@@ -2112,7 +2112,7 @@ static int idecd_release(struct inode *inode, struct file *file)
 	struct gendisk *disk = inode->i_bdev->bd_disk;
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 
-	cdrom_release(&info->devinfo, file);
+	cdrom_release(&info->devinfo, file ? file->f_mode : 0);
 
 	ide_cd_put(info);
 
@@ -2176,7 +2176,8 @@ static int idecd_ioctl(struct inode *inode, struct file *file,
 
 	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
 	if (err == -EINVAL)
-		err = cdrom_ioctl(file, &info->devinfo, inode, cmd, arg);
+		err = cdrom_ioctl(&info->devinfo, bdev,
+				  file ? file->f_mode : 0, cmd, arg);
 
 	return err;
 }

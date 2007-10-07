@@ -226,20 +226,22 @@ static int pcd_warned;		/* Have we logged a phase warning ? */
 static int pcd_block_open(struct inode *inode, struct file *file)
 {
 	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_open(&cd->info, inode, file);
+	return cdrom_open(&cd->info, inode->i_bdev, file->f_mode);
 }
 
 static int pcd_block_release(struct inode *inode, struct file *file)
 {
 	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_release(&cd->info, file);
+	cdrom_release(&cd->info, file ? file->f_mode : 0);
+	return 0;
 }
 
 static int pcd_block_ioctl(struct inode *inode, struct file *file,
 				unsigned cmd, unsigned long arg)
 {
 	struct pcd_unit *cd = inode->i_bdev->bd_disk->private_data;
-	return cdrom_ioctl(file, &cd->info, inode, cmd, arg);
+	return cdrom_ioctl(&cd->info, inode->i_bdev,
+			   file ? file->f_mode : 0, cmd, arg);
 }
 
 static int pcd_block_media_changed(struct gendisk *disk)
