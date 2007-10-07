@@ -424,6 +424,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
 	int keyidx;
 	int hdrlen;
+	ieee80211_txrx_result result = TXRX_DROP;
 	struct ieee80211_key *stakey = NULL;
 
 	/*
@@ -522,21 +523,22 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 	    ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 		rx->sta->wep_weak_iv_count++;
 
-	/* either the frame will be decrypted or dropped */
-	rx->u.rx.status->flag |= RX_FLAG_DECRYPTED;
-
 	switch (rx->key->conf.alg) {
 	case ALG_WEP:
-		return ieee80211_crypto_wep_decrypt(rx);
+		result = ieee80211_crypto_wep_decrypt(rx);
+		break;
 	case ALG_TKIP:
-		return ieee80211_crypto_tkip_decrypt(rx);
+		result = ieee80211_crypto_tkip_decrypt(rx);
+		break;
 	case ALG_CCMP:
-		return ieee80211_crypto_ccmp_decrypt(rx);
+		result = ieee80211_crypto_ccmp_decrypt(rx);
+		break;
 	}
 
-	/* not reached */
-	WARN_ON(1);
-	return TXRX_DROP;
+	/* either the frame has been decrypted or will be dropped */
+	rx->u.rx.status->flag |= RX_FLAG_DECRYPTED;
+
+	return result;
 }
 
 static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
