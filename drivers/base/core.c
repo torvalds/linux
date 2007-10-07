@@ -586,9 +586,13 @@ void device_initialize(struct device *dev)
 static struct kobject * get_device_parent(struct device *dev,
 					  struct device *parent)
 {
-	/* Set the parent to the class, not the parent device */
-	/* this keeps sysfs from having a symlink to make old udevs happy */
-	if (dev->class)
+	/*
+	 * Set the parent to the class, not the parent device
+	 * for topmost devices in class hierarchy.
+	 * This keeps sysfs from having a symlink to make old
+	 * udevs happy
+	 */
+	if (dev->class && (!parent || parent->class != dev->class))
 		return &dev->class->subsys.kobj;
 	else if (parent)
 		return &parent->kobj;
