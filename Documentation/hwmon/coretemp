@@ -4,7 +4,7 @@ Kernel driver coretemp
 Supported chips:
   * All Intel Core family
     Prefix: 'coretemp'
-    CPUID: family 0x6, models 0xe, 0xf
+    CPUID: family 0x6, models 0xe, 0xf, 0x16
     Datasheet: Intel 64 and IA-32 Architectures Software Developer's Manual
                Volume 3A: System Programming Guide
 
