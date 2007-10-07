@@ -4,11 +4,11 @@ Kernel driver w83781d
 Supported chips:
   * Winbond W83781D
     Prefix: 'w83781d'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/w83781d.pdf
   * Winbond W83782D
     Prefix: 'w83782d'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: http://www.winbond.com/PDF/sheet/w83782d.pdf
   * Winbond W83783S
     Prefix: 'w83783s'
@@ -16,7 +16,7 @@ Supported chips:
     Datasheet: http://www.winbond-usa.com/products/winbond_products/pdfs/PCIC/w83783s.pdf
   * Winbond W83627HF
     Prefix: 'w83627hf'
-    Addresses scanned: I2C 0x20 - 0x2f, ISA 0x290 (8 I/O ports)
+    Addresses scanned: I2C 0x28 - 0x2f, ISA 0x290 (8 I/O ports)
     Datasheet: http://www.winbond.com/PDF/sheet/w83627hf.pdf
   * Asus AS99127F
     Prefix: 'as99127f'

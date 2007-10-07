@@ -54,9 +54,8 @@
 static struct platform_device *pdev;
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25,
-					0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b,
-					0x2c, 0x2d, 0x2e, 0x2f, I2C_CLIENT_END };
+static unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
+				       0x2e, 0x2f, I2C_CLIENT_END };
 static unsigned short isa_address = 0x290;
 
 /* Insmod parameters */
@@ -1270,7 +1269,7 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 			kind = w83783s;
 		else if (val1 == 0x21 && vendid == winbond)
 			kind = w83627hf;
-		else if (val1 == 0x31 && address >= 0x28)
+		else if (val1 == 0x31)
 			kind = as99127f;
 		else {
 			if (kind == 0)
