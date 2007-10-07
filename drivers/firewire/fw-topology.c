@@ -152,6 +152,10 @@ static void update_hop_count(struct fw_node *node)
 	node->max_hops = max(max_child_hops, depths[0] + depths[1] + 2);
 }
 
+static inline struct fw_node *fw_node(struct list_head *l)
+{
+	return list_entry(l, struct fw_node, link);
+}
 
 /**
  * build_tree - Build the tree representation of the topology
