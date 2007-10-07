@@ -450,22 +450,20 @@ continuous like for example a tempX_type, then when an invalid value is
 written, -EINVAL should be returned.
 
 Example1, temp1_max, register is a signed 8 bit value (-128 - 127 degrees):
---- begin code ---
-long v = simple_strtol(buf, NULL, 10) / 1000;
-SENSORS_LIMIT(v, -128, 127);
-/* write v to register */
---- end code ---
+
+	long v = simple_strtol(buf, NULL, 10) / 1000;
+	v = SENSORS_LIMIT(v, -128, 127);
+	/* write v to register */
 
 Example2, fan divider setting, valid values 2, 4 and 8:
---- begin code ---
-unsigned long v = simple_strtoul(buf, NULL, 10);
 
-switch (v) {
-       case 2: v = 1; break;
-       case 4: v = 2; break;
-       case 8: v = 3; break;
-       default:
-               return -EINVAL;
-}
-/* write v to register */
---- end code ---
+	unsigned long v = simple_strtoul(buf, NULL, 10);
+
+	switch (v) {
+	case 2: v = 1; break;
+	case 4: v = 2; break;
+	case 8: v = 3; break;
+	default:
+		return -EINVAL;
+	}
+	/* write v to register */
