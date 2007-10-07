@@ -1032,7 +1032,7 @@ static DECLARE_WAIT_QUEUE_HEAD(vt_activate_queue);
 
 /*
  * Sleeps until a vt is activated, or the task is interrupted. Returns
- * 0 if activation, -EINTR if interrupted.
+ * 0 if activation, -EINTR if interrupted by a signal handler.
  */
 int vt_waitactive(int vt)
 {
@@ -1057,7 +1057,7 @@ int vt_waitactive(int vt)
 			break;
 		}
 		release_console_sem();
-		retval = -EINTR;
+		retval = -ERESTARTNOHAND;
 		if (signal_pending(current))
 			break;
 		schedule();
