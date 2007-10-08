@@ -173,9 +173,6 @@ struct videobuf_queue {
 
 	/* driver private data */
 	void                       *priv_data;
-
-	/*FIXME: should be removed after completing the vb conversion */
-	void                       *priv_ops;
 };
 
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);

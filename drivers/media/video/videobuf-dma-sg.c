@@ -220,7 +220,6 @@ int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
 int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 {
 	void                   *dev=q->dev;
-	struct videobuf_dma_sg_ops *ops=q->priv_ops;
 
 	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
 	BUG_ON(0 == dma->nr_pages);
@@ -247,10 +246,8 @@ int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 		return -ENOMEM;
 	}
 	if (!dma->bus_addr) {
-		if (ops && ops->vb_map_sg) {
-			dma->sglen = ops->vb_map_sg(dev,dma->sglist,
+		dma->sglen = pci_map_sg(dev,dma->sglist,
 					dma->nr_pages, dma->direction);
-		}
 		if (0 == dma->sglen) {
 			printk(KERN_WARNING
 			       "%s: videobuf_map_sg failed\n",__FUNCTION__);
@@ -266,30 +263,24 @@ int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 int videobuf_dma_sync(struct videobuf_queue *q,struct videobuf_dmabuf *dma)
 {
 	void                   *dev=q->dev;
-	struct videobuf_dma_sg_ops *ops=q->priv_ops;
 
 	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
 	BUG_ON(!dma->sglen);
 
-	if (!dma->bus_addr && ops && ops->vb_dma_sync_sg)
-		ops->vb_dma_sync_sg(dev,dma->sglist,dma->nr_pages,
-							dma->direction);
-
+	pci_dma_sync_sg_for_cpu (dev,dma->sglist,dma->nr_pages,dma->direction);
 	return 0;
 }
 
 int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma)
 {
 	void                   *dev=q->dev;
-	struct videobuf_dma_sg_ops *ops=q->priv_ops;
 
 	MAGIC_CHECK(dma->magic,MAGIC_DMABUF);
 	if (!dma->sglen)
 		return 0;
 
-	if (!dma->bus_addr && ops && ops->vb_unmap_sg)
-			ops->vb_unmap_sg(dev,dma->sglist,dma->nr_pages,
-							dma->direction);
+	pci_unmap_sg (dev,dma->sglist,dma->nr_pages,dma->direction);
+
 	kfree(dma->sglist);
 	dma->sglist = NULL;
 	dma->sglen = 0;
@@ -325,12 +316,8 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
-	struct videobuf_dma_sg_ops qops;
 
 	q.dev=pci;
-	qops.vb_map_sg=(vb_map_sg_t *)pci_map_sg;
-	qops.vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
-	q.priv_ops = &qops;
 
 	return (videobuf_dma_map(&q,dma));
 }
@@ -338,12 +325,8 @@ int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma)
 int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma)
 {
 	struct videobuf_queue q;
-	struct videobuf_dma_sg_ops qops;
 
 	q.dev=pci;
-	qops.vb_map_sg=(vb_map_sg_t *)pci_map_sg;
-	qops.vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
-	q.priv_ops = &qops;
 
 	return (videobuf_dma_unmap(&q,dma));
 }
@@ -712,45 +695,9 @@ void videobuf_queue_pci_init(struct videobuf_queue* q,
 			 unsigned int msize,
 			 void *priv)
 {
-	struct videobuf_dma_sg_ops *priv_ops;
-
 	videobuf_queue_init(q, ops, dev, irqlock, type, field, msize, priv);
 	q->int_ops=&pci_ops;
-
-	/* FIXME: the code bellow should be removed after having a proper
-	 * memory allocation method for vivi and tm6000
-	 */
-	q->priv_ops= kzalloc(sizeof(struct videobuf_dma_sg_ops), GFP_KERNEL);
-	BUG_ON (!q->priv_ops);
-
-	priv_ops=q->priv_ops;
-
-	/* Sets default methods for handling Scatter Gather mapping */
-	priv_ops->vb_map_sg=(vb_map_sg_t *)pci_map_sg;
-	priv_ops->vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
-	priv_ops->vb_dma_sync_sg=(vb_map_sg_t *)pci_dma_sync_sg_for_cpu;
 }
-
-void videobuf_set_pci_ops (struct videobuf_queue* q,
-				struct videobuf_dma_sg_ops *ops)
-{
-	kfree (q->priv_ops);
-
-	q->priv_ops=ops;
-
-	if (!ops)
-		return;
-
-	/* If not specified, defaults to PCI map sg */
-	if (!ops->vb_map_sg)
-		ops->vb_map_sg=(vb_map_sg_t *)pci_map_sg;
-
-	if (!ops->vb_dma_sync_sg)
-		ops->vb_dma_sync_sg=(vb_map_sg_t *)pci_dma_sync_sg_for_cpu;
-	if (!ops->vb_unmap_sg)
-		ops->vb_unmap_sg=(vb_map_sg_t *)pci_unmap_sg;
-}
-
 
 /* --------------------------------------------------------------------- */
 
@@ -771,7 +718,6 @@ EXPORT_SYMBOL_GPL(videobuf_pci_dma_unmap);
 EXPORT_SYMBOL_GPL(videobuf_pci_alloc);
 
 EXPORT_SYMBOL_GPL(videobuf_queue_pci_init);
-EXPORT_SYMBOL_GPL(videobuf_set_pci_ops);
 
 /*
  * Local variables:

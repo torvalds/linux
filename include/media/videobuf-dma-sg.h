@@ -89,19 +89,6 @@ struct videbuf_pci_sg_memory
 	struct videobuf_dmabuf  dma;
 };
 
-/* FIXME: To be removed soon */
-typedef int (vb_map_sg_t)(void *dev, struct scatterlist *sglist, int nr_pages,
-					int direction);
-
-/* FIXME: To be removed soon */
-struct videobuf_dma_sg_ops
-{
-	vb_map_sg_t	*vb_map_sg;
-	vb_map_sg_t	*vb_dma_sync_sg;
-	vb_map_sg_t	*vb_unmap_sg;
-
-};
-
 void videobuf_dma_init(struct videobuf_dmabuf *dma);
 int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
 			   unsigned long data, unsigned long size);
@@ -132,10 +119,4 @@ void videobuf_queue_pci_init(struct videobuf_queue* q,
 	 */
 int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma);
 int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma);
-
-/* FIXME: temporary routine for vivi and tm6000, while lacking implementation
- * of videobuf-vmalloc
- */
-void videobuf_set_pci_ops (struct videobuf_queue* q,
-				struct videobuf_dma_sg_ops *ops);
 
