@@ -77,7 +77,8 @@ void video_device_release(struct video_device *vfd)
 
 static void video_release(struct device *cd)
 {
-	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
+	struct video_device *vfd = container_of(cd, struct video_device,
+								class_dev);
 
 #if 1
 	/* needed until all drivers are fixed */
