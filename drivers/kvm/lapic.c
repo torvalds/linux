@@ -172,7 +172,7 @@ static inline int apic_find_highest_irr(struct kvm_lapic *apic)
 
 int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	struct kvm_lapic *apic = vcpu->apic;
 	int highest_irr;
 
 	if (!apic)
@@ -783,7 +783,7 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu)
 
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	struct kvm_lapic *apic = vcpu->apic;
 
 	if (!apic)
 		return;
@@ -792,7 +792,7 @@ void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	struct kvm_lapic *apic = vcpu->apic;
 	u64 tpr;
 
 	if (!apic)
@@ -805,7 +805,7 @@ EXPORT_SYMBOL_GPL(kvm_lapic_get_cr8);
 
 void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	struct kvm_lapic *apic = vcpu->apic;
 
 	if (!apic) {
 		value |= MSR_IA32_APICBASE_BSP;
@@ -882,7 +882,7 @@ EXPORT_SYMBOL_GPL(kvm_lapic_reset);
 
 int kvm_lapic_enabled(struct kvm_vcpu *vcpu)
 {
-	struct kvm_lapic *apic = (struct kvm_lapic *)vcpu->apic;
+	struct kvm_lapic *apic = vcpu->apic;
 	int ret = 0;
 
 	if (!apic)
