@@ -140,6 +140,8 @@ config VIDEOBUF_VMALLOC
 
 config VIDEOBUF_DVB
 	tristate
+	select VIDEOBUF_GEN
+	select VIDEOBUF_DMA_SG
 
 config VIDEO_BTCX
 	tristate
