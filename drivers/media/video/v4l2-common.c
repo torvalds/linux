@@ -65,11 +65,6 @@
 #include <linux/kmod.h>
 #endif
 
-#if defined(CONFIG_UST) || defined(CONFIG_UST_MODULE)
-#include <linux/ust.h>
-#endif
-
-
 #include <linux/videodev.h>
 
 MODULE_AUTHOR("Bill Dirks, Justin Schoeman, Gerd Knorr");
