@@ -1221,7 +1221,7 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid_reg, NULL);
 
 static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct adm1026_data *data = adm1026_update_device(dev);
+	struct adm1026_data *data = dev_get_drvdata(dev);
 	return sprintf(buf,"%d\n", data->vrm);
 }
 static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf,

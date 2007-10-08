@@ -334,7 +334,7 @@ static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	struct smsc47m192_data *data = smsc47m192_update_device(dev);
+	struct smsc47m192_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", data->vrm);
 }
 

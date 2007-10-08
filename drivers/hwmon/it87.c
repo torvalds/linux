@@ -765,7 +765,7 @@ static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
 static ssize_t
 show_vrm_reg(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct it87_data *data = it87_update_device(dev);
+	struct it87_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", data->vrm);
 }
 static ssize_t
