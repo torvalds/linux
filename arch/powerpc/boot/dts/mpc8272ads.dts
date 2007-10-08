@@ -121,7 +121,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,mpc8272-cpm", "fsl,cpm2";
-			reg = <119c0 30 0 2000>;
+			reg = <119c0 30>;
 			ranges;
 
 			muram@0 {
