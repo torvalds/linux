@@ -709,6 +709,8 @@ static int parse_strtoul(const char *buf,
 {
 	char *endp;
 
+	while (*buf && isspace(*buf))
+		buf++;
 	*value = simple_strtoul(buf, &endp, 0);
 	while (*endp && isspace(*endp))
 		endp++;
