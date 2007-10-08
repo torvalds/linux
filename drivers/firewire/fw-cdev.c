@@ -143,11 +143,10 @@ static void queue_event(struct client *client, struct event *event,
 	event->v[1].size = size1;
 
 	spin_lock_irqsave(&client->lock, flags);
-
 	list_add_tail(&event->link, &client->event_list);
-	wake_up_interruptible(&client->wait);
-
 	spin_unlock_irqrestore(&client->lock, flags);
+
+	wake_up_interruptible(&client->wait);
 }
 
 static int
