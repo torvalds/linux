@@ -2420,6 +2420,9 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 			__u32 dval = min(tp->fackets_out, packets_acked);
 			tp->fackets_out -= dval;
 		}
+		/* hint's skb might be NULL but we don't need to care */
+		tp->fastpath_cnt_hint -= min_t(u32, packets_acked,
+					       tp->fastpath_cnt_hint);
 		tp->packets_out -= packets_acked;
 
 		BUG_ON(tcp_skb_pcount(skb) == 0);
