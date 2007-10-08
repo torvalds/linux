@@ -118,6 +118,7 @@ static struct clock_event_device decrementer_clockevent = {
 
 static DEFINE_PER_CPU(struct clock_event_device, decrementers);
 void init_decrementer_clockevent(void);
+static DEFINE_PER_CPU(u64, decrementer_next_tb);
 
 #ifdef CONFIG_PPC_ISERIES
 static unsigned long __initdata iSeries_recal_titan;
@@ -541,6 +542,7 @@ void timer_interrupt(struct pt_regs * regs)
 	struct pt_regs *old_regs;
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(decrementers, cpu);
+	u64 now;
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continuue to take decrementer exceptions */
@@ -551,6 +553,14 @@ void timer_interrupt(struct pt_regs * regs)
 		do_IRQ(regs);
 #endif
 
+	now = get_tb_or_rtc();
+	if (now < per_cpu(decrementer_next_tb, cpu)) {
+		/* not time for this event yet */
+		now = per_cpu(decrementer_next_tb, cpu) - now;
+		if (now <= DECREMENTER_MAX)
+			set_dec((unsigned int)now - 1);
+		return;
+	}
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 
@@ -797,6 +807,10 @@ void __init clocksource_init(void)
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
+	__get_cpu_var(decrementer_next_tb) = get_tb_or_rtc() + evt;
+	/* The decrementer interrupts on the 0 -> -1 transition */
+	if (evt)
+		--evt;
 	set_dec(evt);
 	return 0;
 }
