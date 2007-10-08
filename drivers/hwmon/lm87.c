@@ -146,7 +146,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 #define CHAN_NO_FAN(nr)		(1 << (nr))
 #define CHAN_TEMP3		(1 << 2)
 #define CHAN_VCC_5V		(1 << 3)
-#define CHAN_NO_VID		(1 << 8)
+#define CHAN_NO_VID		(1 << 7)
 
 /*
  * Functions declaration
