@@ -97,6 +97,21 @@ struct stb0899_config {
 	int (*tuner_set_rfsiggain)(struct dvb_frontend *fe, u32 rf_gain);
 };
 
-extern struct dvb_frontend *stb0899_attach(struct stb0899_config *config, struct i2c_adapter *i2c);
+#if defined(CONFIG_DVB_STB0899) || (defined(CONFIG_DVB_STB0899_MODULE) && defined(MODULE))
+
+extern struct dvb_frontend *stb0899_attach(struct stb0899_config *config,
+					   struct i2c_adapter *i2c);
+
+#else
+
+static inline struct dvb_frontend *stb0899_attach(struct stb0899_config *config,
+						  struct i2c_adapter *i2c)
+{
+	printk(KERN_WARNING "%s: Driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+
+#endif //CONFIG_DVB_STB0899
+
 
 #endif

@@ -15,8 +15,22 @@ struct tda8261_config {
 	enum tda8261_step	step_size;
 };
 
+#if defined(CONFIG_DVB_TDA8261) || (defined(CONFIG_DVB_TDA8261_MODULE) && defined(MODULE))
+
 extern struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
 					   const struct tda8261_config *config,
 					   struct i2c_adapter *i2c);
+
+#else
+
+static inline struct dvb_frontend *tda8261_attach(struct dvb_frontend *fe,
+						  const struct tda8261_config *config,
+						  struct i2c_adapter *i2c)
+{
+	printk(KERN_WARNING "%s: Driver disabled by Kconfig\n", __func__);
+	return NULL;
+}
+
+#endif //CONFIG_DVB_TDA8261
 
 #endif// __TDA8261_H

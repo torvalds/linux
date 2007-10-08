@@ -1603,8 +1603,8 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS2_KNC1:
 	case SUBID_DVBS2_KNC1_OEM:
 		budget_av->reinitialise_demod = 1;
-		if ((fe = stb0899_attach(&knc1_dvbs2_config, &budget_av->budget.i2c_adap)))
-			tda8261_attach(fe, &sd1878c_config, &budget_av->budget.i2c_adap);
+		if ((fe = dvb_attach(stb0899_attach, &knc1_dvbs2_config, &budget_av->budget.i2c_adap)))
+			dvb_attach(tda8261_attach, fe, &sd1878c_config, &budget_av->budget.i2c_adap);
 
 		break;
 	case SUBID_DVBS_CINERGY1200:
