@@ -160,7 +160,7 @@ asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 	if (vma->vm_private_data && !(vma->vm_flags & VM_NONLINEAR))
 		goto out;
 
-	if (!vma->vm_flags & VM_CAN_NONLINEAR)
+	if (!(vma->vm_flags & VM_CAN_NONLINEAR))
 		goto out;
 
 	if (end <= start || start < vma->vm_start || end > vma->vm_end)
