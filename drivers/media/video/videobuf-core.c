@@ -108,29 +108,34 @@ int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
 /* --------------------------------------------------------------------- */
 
 
-void videobuf_queue_init(struct videobuf_queue* q,
+void videobuf_queue_core_init(struct videobuf_queue* q,
 			 struct videobuf_queue_ops *ops,
 			 void *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv)
+			 void *priv,
+			 struct videobuf_qtype_ops *int_ops)
 {
 	memset(q,0,sizeof(*q));
-	q->irqlock = irqlock;
-	q->dev     = dev;
-	q->type    = type;
-	q->field   = field;
-	q->msize   = msize;
-	q->ops     = ops;
+	q->irqlock   = irqlock;
+	q->dev       = dev;
+	q->type      = type;
+	q->field     = field;
+	q->msize     = msize;
+	q->ops       = ops;
 	q->priv_data = priv;
+	q->int_ops   = int_ops;
 
 	/* All buffer operations are mandatory */
 	BUG_ON (!q->ops->buf_setup);
 	BUG_ON (!q->ops->buf_prepare);
 	BUG_ON (!q->ops->buf_queue);
 	BUG_ON (!q->ops->buf_release);
+
+	/* Having implementations for abstract methods are mandatory */
+	BUG_ON (!q->int_ops);
 
 	mutex_init(&q->lock);
 	INIT_LIST_HEAD(&q->stream);
@@ -966,7 +971,7 @@ EXPORT_SYMBOL_GPL(videobuf_iolock);
 
 EXPORT_SYMBOL_GPL(videobuf_alloc);
 
-EXPORT_SYMBOL_GPL(videobuf_queue_init);
+EXPORT_SYMBOL_GPL(videobuf_queue_core_init);
 EXPORT_SYMBOL_GPL(videobuf_queue_cancel);
 EXPORT_SYMBOL_GPL(videobuf_queue_is_busy);
 

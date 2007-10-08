@@ -695,8 +695,8 @@ void videobuf_queue_pci_init(struct videobuf_queue* q,
 			 unsigned int msize,
 			 void *priv)
 {
-	videobuf_queue_init(q, ops, dev, irqlock, type, field, msize, priv);
-	q->int_ops=&pci_ops;
+	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
+				 priv, &pci_ops);
 }
 
 /* --------------------------------------------------------------------- */

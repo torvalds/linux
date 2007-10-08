@@ -181,14 +181,15 @@ int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
 
 void *videobuf_alloc(struct videobuf_queue* q);
 
-void videobuf_queue_init(struct videobuf_queue *q,
+void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
 			 void *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv);
+			 void *priv,
+			 struct videobuf_qtype_ops *int_ops);
 int  videobuf_queue_is_busy(struct videobuf_queue *q);
 void videobuf_queue_cancel(struct videobuf_queue *q);
 

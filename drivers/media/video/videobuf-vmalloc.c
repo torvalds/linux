@@ -333,8 +333,8 @@ void videobuf_queue_vmalloc_init(struct videobuf_queue* q,
 			 unsigned int msize,
 			 void *priv)
 {
-	videobuf_queue_init(q, ops, dev, irqlock, type, field, msize, priv);
-	q->int_ops=&qops;
+	videobuf_queue_core_init(q, ops, dev, irqlock, type, field, msize,
+				 priv, &qops);
 }
 
 EXPORT_SYMBOL_GPL(videobuf_queue_vmalloc_init);
