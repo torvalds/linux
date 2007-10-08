@@ -12,6 +12,7 @@ config MPC8540_ADS
 config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
 	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
 	help
 	  This option enables support for the MPC 8560 ADS board
 
