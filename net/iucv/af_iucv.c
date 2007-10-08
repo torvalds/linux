@@ -41,6 +41,9 @@ static struct proto iucv_proto = {
 	.obj_size	= sizeof(struct iucv_sock),
 };
 
+static void iucv_sock_kill(struct sock *sk);
+static void iucv_sock_close(struct sock *sk);
+
 /* Call Back functions */
 static void iucv_callback_rx(struct iucv_path *, struct iucv_message *);
 static void iucv_callback_txdone(struct iucv_path *, struct iucv_message *);

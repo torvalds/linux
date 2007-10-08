@@ -74,28 +74,8 @@ struct iucv_sock_list {
 	atomic_t	  autobind_name;
 };
 
-static void iucv_sock_destruct(struct sock *sk);
-static void iucv_sock_cleanup_listen(struct sock *parent);
-static void iucv_sock_kill(struct sock *sk);
-static void iucv_sock_close(struct sock *sk);
-static int  iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
-			int addr_len);
-static int  iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
-			      int alen, int flags);
-static int  iucv_sock_listen(struct socket *sock, int backlog);
-static int  iucv_sock_accept(struct socket *sock, struct socket *newsock,
-			     int flags);
-static int  iucv_sock_getname(struct socket *sock, struct sockaddr *addr,
-			      int *len, int peer);
-static int  iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
-			      struct msghdr *msg, size_t len);
-static int  iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-			      struct msghdr *msg, size_t len, int flags);
 unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
 			    poll_table *wait);
-static int iucv_sock_release(struct socket *sock);
-static int iucv_sock_shutdown(struct socket *sock, int how);
-
 void iucv_sock_link(struct iucv_sock_list *l, struct sock *s);
 void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *s);
 int  iucv_sock_wait_state(struct sock *sk, int state, int state2,
