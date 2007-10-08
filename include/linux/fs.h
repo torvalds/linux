@@ -1270,20 +1270,7 @@ int generic_osync_inode(struct inode *, struct address_space *, int);
  * to have different dirent layouts depending on the binary type.
  */
 typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
-
-struct block_device_operations {
-	int (*open) (struct inode *, struct file *);
-	int (*release) (struct inode *, struct file *);
-	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
-	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
-	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
-	int (*direct_access) (struct block_device *, sector_t,
-						void **, unsigned long *);
-	int (*media_changed) (struct gendisk *);
-	int (*revalidate_disk) (struct gendisk *);
-	int (*getgeo)(struct block_device *, struct hd_geometry *);
-	struct module *owner;
-};
+struct block_device_operations;
 
 /* These macros are for out of kernel modules to test that
  * the kernel supports the unlocked_ioctl and compat_ioctl

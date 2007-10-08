@@ -1057,6 +1057,23 @@ static inline int blk_integrity_rq(struct request *rq)
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
+struct file;
+struct inode;
+
+struct block_device_operations {
+	int (*open) (struct inode *, struct file *);
+	int (*release) (struct inode *, struct file *);
+	int (*ioctl) (struct inode *, struct file *, unsigned, unsigned long);
+	long (*unlocked_ioctl) (struct file *, unsigned, unsigned long);
+	long (*compat_ioctl) (struct file *, unsigned, unsigned long);
+	int (*direct_access) (struct block_device *, sector_t,
+						void **, unsigned long *);
+	int (*media_changed) (struct gendisk *);
+	int (*revalidate_disk) (struct gendisk *);
+	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	struct module *owner;
+};
+
 #else /* CONFIG_BLOCK */
 /*
  * stubs for when the block layer is configured out
