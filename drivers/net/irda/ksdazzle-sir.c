@@ -1,7 +1,7 @@
 /*****************************************************************************
 *
 * Filename:      ksdazzle.c
-* Version:       0.1.1
+* Version:       0.1.2
 * Description:   Irda KingSun Dazzle USB Dongle
 * Status:        Experimental
 * Author:        Alex Villacís Lasso <a_villacis@palosanto.com>
@@ -113,6 +113,7 @@ MODULE_DEVICE_TABLE(usb, dongles);
 #define KINGSUN_REQ_SEND 0x09
 
 #define KINGSUN_SND_FIFO_SIZE    2048	/* Max packet we can send */
+#define KINGSUN_RCV_MAX 2048	/* Max transfer we can receive */
 
 struct ksdazzle_speedparams {
 	__le32 baudrate;	/* baud rate, little endian */
@@ -150,7 +151,7 @@ struct ksdazzle_cb {
 	__u8 tx_payload[8];
 
 	struct urb *rx_urb;
-	__u8 rx_payload[8];
+	__u8 *rx_buf;
 	iobuff_t rx_unwrap_buff;
 
 	struct usb_ctrlrequest *speed_setuprequest;
@@ -440,7 +441,8 @@ static int ksdazzle_net_open(struct net_device *netdev)
 	/* Start reception. */
 	usb_fill_int_urb(kingsun->rx_urb, kingsun->usbdev,
 			 usb_rcvintpipe(kingsun->usbdev, kingsun->ep_in),
-			 kingsun->rx_payload, 8, ksdazzle_rcv_irq, kingsun, 1);
+			 kingsun->rx_buf, KINGSUN_RCV_MAX, ksdazzle_rcv_irq,
+			 kingsun, 1);
 	kingsun->rx_urb->status = 0;
 	err = usb_submit_urb(kingsun->rx_urb, GFP_KERNEL);
 	if (err) {
@@ -641,6 +643,7 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	kingsun->tx_buf_clear_sent = 0;
 
 	kingsun->rx_urb = NULL;
+	kingsun->rx_buf = NULL;
 	kingsun->rx_unwrap_buff.in_frame = FALSE;
 	kingsun->rx_unwrap_buff.state = OUTSIDE_FRAME;
 	kingsun->rx_unwrap_buff.skb = NULL;
@@ -650,6 +653,11 @@ static int ksdazzle_probe(struct usb_interface *intf,
 	kingsun->speed_setuprequest = NULL;
 	kingsun->speed_urb = NULL;
 	kingsun->speedparams.baudrate = 0;
+
+	/* Allocate input buffer */
+	kingsun->rx_buf = kmalloc(KINGSUN_RCV_MAX, GFP_KERNEL);
+	if (!kingsun->rx_buf)
+		goto free_mem;
 
 	/* Allocate output buffer */
 	kingsun->tx_buf_clear = kmalloc(KINGSUN_SND_FIFO_SIZE, GFP_KERNEL);
@@ -714,6 +722,7 @@ static int ksdazzle_probe(struct usb_interface *intf,
       free_mem:
 	kfree(kingsun->speed_setuprequest);
 	kfree(kingsun->tx_buf_clear);
+	kfree(kingsun->rx_buf);
 	free_netdev(net);
       err_out1:
 	return ret;
@@ -746,6 +755,7 @@ static void ksdazzle_disconnect(struct usb_interface *intf)
 
 	kfree(kingsun->speed_setuprequest);
 	kfree(kingsun->tx_buf_clear);
+	kfree(kingsun->rx_buf);
 	free_netdev(kingsun->netdev);
 
 	usb_set_intfdata(intf, NULL);
