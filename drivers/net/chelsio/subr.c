@@ -884,7 +884,7 @@ static int asic_slow_intr(adapter_t *adapter)
 	if (cause & F_PL_INTR_PCIX)
 		t1_pci_intr_handler(adapter);
 	if (cause & F_PL_INTR_EXT)
-		t1_elmer0_ext_intr_handler(adapter);
+		t1_elmer0_ext_intr(adapter);
 
 	/* Clear the interrupts just processed. */
 	writel(cause, adapter->regs + A_PL_CAUSE);
