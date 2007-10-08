@@ -130,6 +130,10 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 		 * (to account for half channel spacing on either side)
 		 */
 		frequency = tstate->frequency;
+		if ((frequency < 950000) || (frequency > 2150000)) {
+			printk("%s: Frequency beyond limits, frequency=%d\n", __func__, frequency);
+			return -EINVAL;
+		}
 		N = (frequency + (div_tab[config->step_size] - 1)) / div_tab[config->step_size];
 		printk("%s: Step size=%d, Divider=%d, PG=0x%02x (%d)\n",
 			__func__, config->step_size, div_tab[config->step_size], N, N);
@@ -137,7 +141,14 @@ static int tda8261_set_state(struct dvb_frontend *fe,
 		buf[0] = (N >> 8) & 0xff;
 		buf[1] = N & 0xff;
 		buf[2] = (0x01 << 7) | ((ref_div[config->step_size] & 0x07) << 1);
-		buf[3] = 0xc0;
+
+		if (frequency < 1450000)
+			buf[3] = 0x00;
+		if (frequency < 2000000)
+			buf[3] = 0x40;
+		if (frequency < 2150000)
+			buf[3] = 0x80;
+
 		/* Set params */
 		if ((err = tda8261_write(state, buf)) < 0) {
 			printk("%s: I/O Error\n", __func__);
