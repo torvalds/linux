@@ -528,7 +528,7 @@ extern struct kvm_x86_ops *kvm_x86_ops;
 	if (printk_ratelimit())						\
 		printk(KERN_ERR "kvm: %i: cpu%i " fmt,			\
 		       current->tgid, (vcpu)->vcpu_id , ## __VA_ARGS__); \
- } while(0)
+ } while (0)
 
 #define kvm_printf(kvm, fmt ...) printk(KERN_DEBUG fmt)
 #define vcpu_printf(vcpu, fmt...) kvm_printf(vcpu->kvm, fmt)
@@ -598,7 +598,7 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 
 struct x86_emulate_ctxt;
 
-int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		     int size, unsigned port);
 int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 			   int size, unsigned long count, int down,
@@ -607,7 +607,7 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int emulate_clts(struct kvm_vcpu *vcpu);
-int emulator_get_dr(struct x86_emulate_ctxt* ctxt, int dr,
+int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
 		    unsigned long *dest);
 int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
 		    unsigned long value);
@@ -631,7 +631,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 
 int emulator_read_std(unsigned long addr,
-                      void *val,
+		      void *val,
 		      unsigned int bytes,
 		      struct kvm_vcpu *vcpu);
 int emulator_write_emulated(unsigned long addr,
@@ -721,55 +721,55 @@ static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 static inline u16 read_fs(void)
 {
 	u16 seg;
-	asm ("mov %%fs, %0" : "=g"(seg));
+	asm("mov %%fs, %0" : "=g"(seg));
 	return seg;
 }
 
 static inline u16 read_gs(void)
 {
 	u16 seg;
-	asm ("mov %%gs, %0" : "=g"(seg));
+	asm("mov %%gs, %0" : "=g"(seg));
 	return seg;
 }
 
 static inline u16 read_ldt(void)
 {
 	u16 ldt;
-	asm ("sldt %0" : "=g"(ldt));
+	asm("sldt %0" : "=g"(ldt));
 	return ldt;
 }
 
 static inline void load_fs(u16 sel)
 {
-	asm ("mov %0, %%fs" : : "rm"(sel));
+	asm("mov %0, %%fs" : : "rm"(sel));
 }
 
 static inline void load_gs(u16 sel)
 {
-	asm ("mov %0, %%gs" : : "rm"(sel));
+	asm("mov %0, %%gs" : : "rm"(sel));
 }
 
 #ifndef load_ldt
 static inline void load_ldt(u16 sel)
 {
-	asm ("lldt %0" : : "rm"(sel));
+	asm("lldt %0" : : "rm"(sel));
 }
 #endif
 
 static inline void get_idt(struct descriptor_table *table)
 {
-	asm ("sidt %0" : "=m"(*table));
+	asm("sidt %0" : "=m"(*table));
 }
 
 static inline void get_gdt(struct descriptor_table *table)
 {
-	asm ("sgdt %0" : "=m"(*table));
+	asm("sgdt %0" : "=m"(*table));
 }
 
 static inline unsigned long read_tr_base(void)
 {
 	u16 tr;
-	asm ("str %0" : "=g"(tr));
+	asm("str %0" : "=g"(tr));
 	return segment_base(tr);
 }
 
@@ -785,17 +785,17 @@ static inline unsigned long read_msr(unsigned long msr)
 
 static inline void fx_save(struct i387_fxsave_struct *image)
 {
-	asm ("fxsave (%0)":: "r" (image));
+	asm("fxsave (%0)":: "r" (image));
 }
 
 static inline void fx_restore(struct i387_fxsave_struct *image)
 {
-	asm ("fxrstor (%0)":: "r" (image));
+	asm("fxrstor (%0)":: "r" (image));
 }
 
 static inline void fpu_init(void)
 {
-	asm ("finit");
+	asm("finit");
 }
 
 static inline u32 get_rdx_init_val(void)

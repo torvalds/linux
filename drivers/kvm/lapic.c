@@ -906,8 +906,7 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 	wait_queue_head_t *q = &apic->vcpu->wq;
 
 	atomic_inc(&apic->timer.pending);
-	if (waitqueue_active(q))
-	{
+	if (waitqueue_active(q)) {
 		apic->vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
 		wake_up_interruptible(q);
 	}

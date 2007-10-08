@@ -234,9 +234,9 @@ enum vmcs_field {
 /*
  * Exit Qualifications for MOV for Control Register Access
  */
-#define CONTROL_REG_ACCESS_NUM          0x7     /* 2:0, number of control register */
+#define CONTROL_REG_ACCESS_NUM          0x7     /* 2:0, number of control reg.*/
 #define CONTROL_REG_ACCESS_TYPE         0x30    /* 5:4, access type */
-#define CONTROL_REG_ACCESS_REG          0xf00   /* 10:8, general purpose register */
+#define CONTROL_REG_ACCESS_REG          0xf00   /* 10:8, general purpose reg. */
 #define LMSW_SOURCE_DATA_SHIFT 16
 #define LMSW_SOURCE_DATA  (0xFFFF << LMSW_SOURCE_DATA_SHIFT) /* 16:31 lmsw source */
 #define REG_EAX                         (0 << 8)
@@ -259,11 +259,11 @@ enum vmcs_field {
 /*
  * Exit Qualifications for MOV for Debug Register Access
  */
-#define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug register */
+#define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug reg. */
 #define DEBUG_REG_ACCESS_TYPE           0x10    /* 4, direction of access */
 #define TYPE_MOV_TO_DR                  (0 << 4)
 #define TYPE_MOV_FROM_DR                (1 << 4)
-#define DEBUG_REG_ACCESS_REG            0xf00   /* 11:8, general purpose register */
+#define DEBUG_REG_ACCESS_REG            0xf00   /* 11:8, general purpose reg. */
 
 
 /* segment AR */

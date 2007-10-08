@@ -104,7 +104,7 @@ static struct dentry *debugfs_dir;
 #define EFER_RESERVED_BITS 0xfffffffffffff2fe
 
 #ifdef CONFIG_X86_64
-// LDT or TSS descriptor in the GDT. 16 bytes.
+/* LDT or TSS descriptor in the GDT. 16 bytes. */
 struct segment_descriptor_64 {
 	struct segment_descriptor s;
 	u32 base_higher;
@@ -121,27 +121,27 @@ unsigned long segment_base(u16 selector)
 	struct descriptor_table gdt;
 	struct segment_descriptor *d;
 	unsigned long table_base;
-	typedef unsigned long ul;
 	unsigned long v;
 
 	if (selector == 0)
 		return 0;
 
-	asm ("sgdt %0" : "=m"(gdt));
+	asm("sgdt %0" : "=m"(gdt));
 	table_base = gdt.base;
 
 	if (selector & 4) {           /* from ldt */
 		u16 ldt_selector;
 
-		asm ("sldt %0" : "=g"(ldt_selector));
+		asm("sldt %0" : "=g"(ldt_selector));
 		table_base = segment_base(ldt_selector);
 	}
 	d = (struct segment_descriptor *)(table_base + (selector & ~7));
-	v = d->base_low | ((ul)d->base_mid << 16) | ((ul)d->base_high << 24);
+	v = d->base_low | ((unsigned long)d->base_mid << 16) |
+		((unsigned long)d->base_high << 24);
 #ifdef CONFIG_X86_64
-	if (d->system == 0
-	    && (d->type == 2 || d->type == 9 || d->type == 11))
-		v |= ((ul)((struct segment_descriptor_64 *)d)->base_higher) << 32;
+	if (d->system == 0 && (d->type == 2 || d->type == 9 || d->type == 11))
+		v |= ((unsigned long) \
+		      ((struct segment_descriptor_64 *)d)->base_higher) << 32;
 #endif
 	return v;
 }
@@ -721,7 +721,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 		if (!new.phys_mem)
 			goto out_unlock;
 
-		new.rmap = vmalloc(npages * sizeof(struct page*));
+		new.rmap = vmalloc(npages * sizeof(struct page *));
 
 		if (!new.rmap)
 			goto out_unlock;
@@ -904,17 +904,17 @@ static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		memcpy (&chip->chip.pic,
+		memcpy(&chip->chip.pic,
 			&pic_irqchip(kvm)->pics[0],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		memcpy (&chip->chip.pic,
+		memcpy(&chip->chip.pic,
 			&pic_irqchip(kvm)->pics[1],
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		memcpy (&chip->chip.ioapic,
+		memcpy(&chip->chip.ioapic,
 			ioapic_irqchip(kvm),
 			sizeof(struct kvm_ioapic_state));
 		break;
@@ -932,17 +932,17 @@ static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
 	r = 0;
 	switch (chip->chip_id) {
 	case KVM_IRQCHIP_PIC_MASTER:
-		memcpy (&pic_irqchip(kvm)->pics[0],
+		memcpy(&pic_irqchip(kvm)->pics[0],
 			&chip->chip.pic,
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_PIC_SLAVE:
-		memcpy (&pic_irqchip(kvm)->pics[1],
+		memcpy(&pic_irqchip(kvm)->pics[1],
 			&chip->chip.pic,
 			sizeof(struct kvm_pic_state));
 		break;
 	case KVM_IRQCHIP_IOAPIC:
-		memcpy (ioapic_irqchip(kvm),
+		memcpy(ioapic_irqchip(kvm),
 			&chip->chip.ioapic,
 			sizeof(struct kvm_ioapic_state));
 		break;
@@ -1341,7 +1341,7 @@ int emulate_clts(struct kvm_vcpu *vcpu)
 	return X86EMUL_CONTINUE;
 }
 
-int emulator_get_dr(struct x86_emulate_ctxt* ctxt, int dr, unsigned long *dest)
+int emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr, unsigned long *dest)
 {
 	struct kvm_vcpu *vcpu = ctxt->vcpu;
 
@@ -1934,7 +1934,7 @@ static void pio_string_write(struct kvm_io_device *pio_dev,
 	mutex_unlock(&vcpu->kvm->lock);
 }
 
-int kvm_emulate_pio (struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
+int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		  int size, unsigned port)
 {
 	struct kvm_io_device *pio_dev;
@@ -2089,7 +2089,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 	if (unlikely(vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED)) {
-		printk("vcpu %d received sipi with vector # %x\n",
+		pr_debug("vcpu %d received sipi with vector # %x\n",
 		       vcpu->vcpu_id, vcpu->sipi_vector);
 		kvm_lapic_reset(vcpu);
 		kvm_x86_ops->vcpu_reset(vcpu);
@@ -2363,7 +2363,8 @@ static int kvm_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		       sizeof sregs->interrupt_bitmap);
 		pending_vec = kvm_x86_ops->get_irq(vcpu);
 		if (pending_vec >= 0)
-			set_bit(pending_vec, (unsigned long *)sregs->interrupt_bitmap);
+			set_bit(pending_vec,
+				(unsigned long *)sregs->interrupt_bitmap);
 	} else
 		memcpy(sregs->interrupt_bitmap, vcpu->irq_pending,
 		       sizeof sregs->interrupt_bitmap);
@@ -2436,7 +2437,8 @@ static int kvm_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 		/* Only pending external irq is handled here */
 		if (pending_vec < max_bits) {
 			kvm_x86_ops->set_irq(vcpu, pending_vec);
-			printk("Set back pending irq %d\n", pending_vec);
+			pr_debug("Set back pending irq %d\n",
+				 pending_vec);
 		}
 	}
 
@@ -3155,8 +3157,7 @@ static long kvm_vm_ioctl(struct file *filp,
 				kvm->vpic = NULL;
 				goto out;
 			}
-		}
-		else
+		} else
 			goto out;
 		break;
 	case KVM_IRQ_LINE: {
@@ -3448,7 +3449,7 @@ static int kvm_cpu_hotplug(struct notifier_block *notifier, unsigned long val,
 }
 
 static int kvm_reboot(struct notifier_block *notifier, unsigned long val,
-                       void *v)
+		      void *v)
 {
 	if (val == SYS_RESTART) {
 		/*
@@ -3655,7 +3656,7 @@ int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 
 	r = misc_register(&kvm_dev);
 	if (r) {
-		printk (KERN_ERR "kvm: misc device register failed\n");
+		printk(KERN_ERR "kvm: misc device register failed\n");
 		goto out_free;
 	}
 
@@ -3683,6 +3684,7 @@ out:
 	kvm_x86_ops = NULL;
 	return r;
 }
+EXPORT_SYMBOL_GPL(kvm_init_x86);
 
 void kvm_exit_x86(void)
 {
@@ -3696,6 +3698,7 @@ void kvm_exit_x86(void)
 	kvm_x86_ops->hardware_unsetup();
 	kvm_x86_ops = NULL;
 }
+EXPORT_SYMBOL_GPL(kvm_exit_x86);
 
 static __init int kvm_init(void)
 {
@@ -3710,7 +3713,9 @@ static __init int kvm_init(void)
 
 	kvm_init_msr_list();
 
-	if ((bad_page = alloc_page(GFP_KERNEL)) == NULL) {
+	bad_page = alloc_page(GFP_KERNEL);
+
+	if (bad_page == NULL) {
 		r = -ENOMEM;
 		goto out;
 	}
@@ -3736,6 +3741,3 @@ static __exit void kvm_exit(void)
 
 module_init(kvm_init)
 module_exit(kvm_exit)
-
-EXPORT_SYMBOL_GPL(kvm_init_x86);
-EXPORT_SYMBOL_GPL(kvm_exit_x86);

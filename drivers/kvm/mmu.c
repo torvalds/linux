@@ -90,7 +90,8 @@ static int dbg = 1;
 
 #define PT32_DIR_PSE36_SIZE 4
 #define PT32_DIR_PSE36_SHIFT 13
-#define PT32_DIR_PSE36_MASK (((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
+#define PT32_DIR_PSE36_MASK \
+	(((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
 
 
 #define PT_FIRST_AVAIL_BITS_SHIFT 9
@@ -103,7 +104,7 @@ static int dbg = 1;
 #define PT64_LEVEL_BITS 9
 
 #define PT64_LEVEL_SHIFT(level) \
-		( PAGE_SHIFT + (level - 1) * PT64_LEVEL_BITS )
+		(PAGE_SHIFT + (level - 1) * PT64_LEVEL_BITS)
 
 #define PT64_LEVEL_MASK(level) \
 		(((1ULL << PT64_LEVEL_BITS) - 1) << PT64_LEVEL_SHIFT(level))
@@ -115,7 +116,7 @@ static int dbg = 1;
 #define PT32_LEVEL_BITS 10
 
 #define PT32_LEVEL_SHIFT(level) \
-		( PAGE_SHIFT + (level - 1) * PT32_LEVEL_BITS )
+		(PAGE_SHIFT + (level - 1) * PT32_LEVEL_BITS)
 
 #define PT32_LEVEL_MASK(level) \
 		(((1ULL << PT32_LEVEL_BITS) - 1) << PT32_LEVEL_SHIFT(level))
@@ -1489,7 +1490,8 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 				printk(KERN_ERR "xx audit error: (%s) levels %d"
 				       " gva %lx gpa %llx hpa %llx ent %llx %d\n",
 				       audit_msg, vcpu->mmu.root_level,
-				       va, gpa, hpa, ent, is_shadow_present_pte(ent));
+				       va, gpa, hpa, ent,
+				       is_shadow_present_pte(ent));
 			else if (ent == shadow_notrap_nonpresent_pte
 				 && !is_error_hpa(hpa))
 				printk(KERN_ERR "audit: (%s) notrap shadow,"

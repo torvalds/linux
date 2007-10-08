@@ -163,7 +163,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		walker->page = pfn_to_page(paddr >> PAGE_SHIFT);
 		walker->table = kmap_atomic(walker->page, KM_USER0);
 		--walker->level;
-		walker->table_gfn[walker->level - 1 ] = table_gfn;
+		walker->table_gfn[walker->level - 1] = table_gfn;
 		pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
 			 walker->level - 1, table_gfn);
 	}

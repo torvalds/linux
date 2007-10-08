@@ -229,12 +229,11 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		printk(KERN_DEBUG "%s: NOP\n", __FUNCTION__);
 		return;
 	}
-	if (svm->next_rip - svm->vmcb->save.rip > MAX_INST_SIZE) {
+	if (svm->next_rip - svm->vmcb->save.rip > MAX_INST_SIZE)
 		printk(KERN_ERR "%s: ip 0x%llx next 0x%llx\n",
 		       __FUNCTION__,
 		       svm->vmcb->save.rip,
 		       svm->next_rip);
-	}
 
 	vcpu->rip = svm->vmcb->save.rip = svm->next_rip;
 	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
@@ -312,7 +311,7 @@ static void svm_hardware_enable(void *garbage)
 	svm_data->next_asid = svm_data->max_asid + 1;
 	svm_features = cpuid_edx(SVM_CPUID_FUNC);
 
-	asm volatile ( "sgdt %0" : "=m"(gdt_descr) );
+	asm volatile ("sgdt %0" : "=m"(gdt_descr));
 	gdt = (struct desc_struct *)gdt_descr.address;
 	svm_data->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 
@@ -544,8 +543,7 @@ static void init_vmcb(struct vmcb *vmcb)
 	init_sys_seg(&save->tr, SEG_TYPE_BUSY_TSS16);
 
 	save->efer = MSR_EFER_SVME_MASK;
-
-        save->dr6 = 0xffff0ff0;
+	save->dr6 = 0xffff0ff0;
 	save->dr7 = 0x400;
 	save->rflags = 2;
 	save->rip = 0x0000fff0;
@@ -783,7 +781,7 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 			svm->vmcb->save.efer |= KVM_EFER_LMA | KVM_EFER_LME;
 		}
 
-		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG) ) {
+		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG)) {
 			vcpu->shadow_efer &= ~KVM_EFER_LMA;
 			svm->vmcb->save.efer &= ~(KVM_EFER_LMA | KVM_EFER_LME);
 		}
@@ -1010,7 +1008,7 @@ static int shutdown_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 
 static int io_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
-	u32 io_info = svm->vmcb->control.exit_info_1; //address size bug?
+	u32 io_info = svm->vmcb->control.exit_info_1; /* address size bug? */
 	int size, down, in, string, rep;
 	unsigned port;
 
@@ -1316,7 +1314,7 @@ static void reload_tss(struct kvm_vcpu *vcpu)
 	int cpu = raw_smp_processor_id();
 
 	struct svm_cpu_data *svm_data = per_cpu(svm_data, cpu);
-	svm_data->tss_desc->type = 9; //available 32/64-bit TSS
+	svm_data->tss_desc->type = 9; /* available 32/64-bit TSS */
 	load_TR_desc();
 }
 
@@ -1434,9 +1432,9 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	 * Interrupts blocked.  Wait for unblock.
 	 */
 	if (!svm->vcpu.interrupt_window_open &&
-	    (svm->vcpu.irq_summary || kvm_run->request_interrupt_window)) {
+	    (svm->vcpu.irq_summary || kvm_run->request_interrupt_window))
 		control->intercept |= 1ULL << INTERCEPT_VINTR;
-	} else
+	 else
 		control->intercept &= ~(1ULL << INTERCEPT_VINTR);
 }
 
@@ -1581,23 +1579,23 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		:
 		: [svm]"a"(svm),
 		  [vmcb]"i"(offsetof(struct vcpu_svm, vmcb_pa)),
-		  [rbx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RBX])),
-		  [rcx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RCX])),
-		  [rdx]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RDX])),
-		  [rsi]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RSI])),
-		  [rdi]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RDI])),
-		  [rbp]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_RBP]))
+		  [rbx]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RBX])),
+		  [rcx]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RCX])),
+		  [rdx]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RDX])),
+		  [rsi]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RSI])),
+		  [rdi]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RDI])),
+		  [rbp]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_RBP]))
 #ifdef CONFIG_X86_64
-		  ,[r8 ]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R8])),
-		  [r9 ]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R9 ])),
-		  [r10]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R10])),
-		  [r11]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R11])),
-		  [r12]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R12])),
-		  [r13]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R13])),
-		  [r14]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R14])),
-		  [r15]"i"(offsetof(struct vcpu_svm,vcpu.regs[VCPU_REGS_R15]))
+		  , [r8]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R8])),
+		  [r9]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R9])),
+		  [r10]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R10])),
+		  [r11]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R11])),
+		  [r12]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R12])),
+		  [r13]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R13])),
+		  [r14]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R14])),
+		  [r15]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R15]))
 #endif
-		: "cc", "memory" );
+		: "cc", "memory");
 
 	if ((svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(svm->host_db_regs);
