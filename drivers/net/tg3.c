@@ -8101,7 +8101,8 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	tp->link_config.autoneg = cmd->autoneg;
 	if (cmd->autoneg == AUTONEG_ENABLE) {
-		tp->link_config.advertising = cmd->advertising;
+		tp->link_config.advertising = (cmd->advertising |
+					      ADVERTISED_Autoneg);
 		tp->link_config.speed = SPEED_INVALID;
 		tp->link_config.duplex = DUPLEX_INVALID;
 	} else {
