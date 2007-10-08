@@ -5554,41 +5554,46 @@ error:
  *  sysfs
  ***************************************************************************/
 
-static inline struct usb_ov511 *cd_to_ov(struct class_device *cd)
+static inline struct usb_ov511 *cd_to_ov(struct device *cd)
 {
 	struct video_device *vdev = to_video_device(cd);
 	return video_get_drvdata(vdev);
 }
 
-static ssize_t show_custom_id(struct class_device *cd, char *buf)
+static ssize_t show_custom_id(struct device *cd,
+			      struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%d\n", ov->customid);
 }
-static CLASS_DEVICE_ATTR(custom_id, S_IRUGO, show_custom_id, NULL);
+static DEVICE_ATTR(custom_id, S_IRUGO, show_custom_id, NULL);
 
-static ssize_t show_model(struct class_device *cd, char *buf)
+static ssize_t show_model(struct device *cd,
+			  struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", ov->desc);
 }
-static CLASS_DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
+static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
-static ssize_t show_bridge(struct class_device *cd, char *buf)
+static ssize_t show_bridge(struct device *cd,
+			   struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", symbolic(brglist, ov->bridge));
 }
-static CLASS_DEVICE_ATTR(bridge, S_IRUGO, show_bridge, NULL);
+static DEVICE_ATTR(bridge, S_IRUGO, show_bridge, NULL);
 
-static ssize_t show_sensor(struct class_device *cd, char *buf)
+static ssize_t show_sensor(struct device *cd,
+			   struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	return sprintf(buf, "%s\n", symbolic(senlist, ov->sensor));
 }
-static CLASS_DEVICE_ATTR(sensor, S_IRUGO, show_sensor, NULL);
+static DEVICE_ATTR(sensor, S_IRUGO, show_sensor, NULL);
 
-static ssize_t show_brightness(struct class_device *cd, char *buf)
+static ssize_t show_brightness(struct device *cd,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	unsigned short x;
@@ -5598,9 +5603,10 @@ static ssize_t show_brightness(struct class_device *cd, char *buf)
 	sensor_get_brightness(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
 }
-static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
+static DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
-static ssize_t show_saturation(struct class_device *cd, char *buf)
+static ssize_t show_saturation(struct device *cd,
+			       struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	unsigned short x;
@@ -5610,9 +5616,10 @@ static ssize_t show_saturation(struct class_device *cd, char *buf)
 	sensor_get_saturation(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
 }
-static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
+static DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
-static ssize_t show_contrast(struct class_device *cd, char *buf)
+static ssize_t show_contrast(struct device *cd,
+			     struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	unsigned short x;
@@ -5622,9 +5629,10 @@ static ssize_t show_contrast(struct class_device *cd, char *buf)
 	sensor_get_contrast(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
 }
-static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
+static DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
-static ssize_t show_hue(struct class_device *cd, char *buf)
+static ssize_t show_hue(struct device *cd,
+			struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	unsigned short x;
@@ -5634,9 +5642,10 @@ static ssize_t show_hue(struct class_device *cd, char *buf)
 	sensor_get_hue(ov, &x);
 	return sprintf(buf, "%d\n", x >> 8);
 }
-static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
+static DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
-static ssize_t show_exposure(struct class_device *cd, char *buf)
+static ssize_t show_exposure(struct device *cd,
+			     struct device_attribute *attr, char *buf)
 {
 	struct usb_ov511 *ov = cd_to_ov(cd);
 	unsigned char exp = 0;
@@ -5646,49 +5655,49 @@ static ssize_t show_exposure(struct class_device *cd, char *buf)
 	sensor_get_exposure(ov, &exp);
 	return sprintf(buf, "%d\n", exp >> 8);
 }
-static CLASS_DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
+static DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
 
 static int ov_create_sysfs(struct video_device *vdev)
 {
 	int rc;
 
-	rc = video_device_create_file(vdev, &class_device_attr_custom_id);
+	rc = video_device_create_file(vdev, &dev_attr_custom_id);
 	if (rc) goto err;
-	rc = video_device_create_file(vdev, &class_device_attr_model);
+	rc = video_device_create_file(vdev, &dev_attr_model);
 	if (rc) goto err_id;
-	rc = video_device_create_file(vdev, &class_device_attr_bridge);
+	rc = video_device_create_file(vdev, &dev_attr_bridge);
 	if (rc) goto err_model;
-	rc = video_device_create_file(vdev, &class_device_attr_sensor);
+	rc = video_device_create_file(vdev, &dev_attr_sensor);
 	if (rc) goto err_bridge;
-	rc = video_device_create_file(vdev, &class_device_attr_brightness);
+	rc = video_device_create_file(vdev, &dev_attr_brightness);
 	if (rc) goto err_sensor;
-	rc = video_device_create_file(vdev, &class_device_attr_saturation);
+	rc = video_device_create_file(vdev, &dev_attr_saturation);
 	if (rc) goto err_bright;
-	rc = video_device_create_file(vdev, &class_device_attr_contrast);
+	rc = video_device_create_file(vdev, &dev_attr_contrast);
 	if (rc) goto err_sat;
-	rc = video_device_create_file(vdev, &class_device_attr_hue);
+	rc = video_device_create_file(vdev, &dev_attr_hue);
 	if (rc) goto err_contrast;
-	rc = video_device_create_file(vdev, &class_device_attr_exposure);
+	rc = video_device_create_file(vdev, &dev_attr_exposure);
 	if (rc) goto err_hue;
 
 	return 0;
 
 err_hue:
-	video_device_remove_file(vdev, &class_device_attr_hue);
+	video_device_remove_file(vdev, &dev_attr_hue);
 err_contrast:
-	video_device_remove_file(vdev, &class_device_attr_contrast);
+	video_device_remove_file(vdev, &dev_attr_contrast);
 err_sat:
-	video_device_remove_file(vdev, &class_device_attr_saturation);
+	video_device_remove_file(vdev, &dev_attr_saturation);
 err_bright:
-	video_device_remove_file(vdev, &class_device_attr_brightness);
+	video_device_remove_file(vdev, &dev_attr_brightness);
 err_sensor:
-	video_device_remove_file(vdev, &class_device_attr_sensor);
+	video_device_remove_file(vdev, &dev_attr_sensor);
 err_bridge:
-	video_device_remove_file(vdev, &class_device_attr_bridge);
+	video_device_remove_file(vdev, &dev_attr_bridge);
 err_model:
-	video_device_remove_file(vdev, &class_device_attr_model);
+	video_device_remove_file(vdev, &dev_attr_model);
 err_id:
-	video_device_remove_file(vdev, &class_device_attr_custom_id);
+	video_device_remove_file(vdev, &dev_attr_custom_id);
 err:
 	return rc;
 }

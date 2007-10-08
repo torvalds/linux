@@ -154,13 +154,14 @@ MODULE_LICENSE("GPL");
 /* ----------------------------------------------------------------------- */
 /* sysfs                                                                   */
 
-static ssize_t show_card(struct class_device *cd, char *buf)
+static ssize_t show_card(struct device *cd,
+			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = to_video_device(cd);
 	struct bttv *btv = dev_get_drvdata(vfd->dev);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
-static CLASS_DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
+static DEVICE_ATTR(card, S_IRUGO, show_card, NULL);
 
 /* ----------------------------------------------------------------------- */
 /* dvb auto-load setup                                                     */
@@ -4615,9 +4616,9 @@ static int __devinit bttv_register_video(struct bttv *btv)
 		goto err;
 	printk(KERN_INFO "bttv%d: registered device video%d\n",
 	       btv->c.nr,btv->video_dev->minor & 0x1f);
-	if (class_device_create_file(&btv->video_dev->class_dev,
-				     &class_device_attr_card)<0) {
-		printk(KERN_ERR "bttv%d: class_device_create_file 'card' "
+	if (device_create_file(&btv->video_dev->class_dev,
+				     &dev_attr_card)<0) {
+		printk(KERN_ERR "bttv%d: device_create_file 'card' "
 		       "failed\n", btv->c.nr);
 		goto err;
 	}

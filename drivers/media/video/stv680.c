@@ -499,13 +499,14 @@ exit:
  *  sysfs
  ***************************************************************************/
 #define stv680_file(name, variable, field)				\
-static ssize_t show_##name(struct class_device *class_dev, char *buf)	\
+static ssize_t show_##name(struct device *class_dev,			\
+			   struct device_attribute *attr, char *buf)	\
 {									\
 	struct video_device *vdev = to_video_device(class_dev);		\
 	struct usb_stv *stv = video_get_drvdata(vdev);			\
 	return sprintf(buf, field, stv->variable);			\
 }									\
-static CLASS_DEVICE_ATTR(name, S_IRUGO, show_##name, NULL);
+static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL);
 
 stv680_file(model, camera_name, "%s\n");
 stv680_file(in_use, user, "%d\n");
@@ -520,53 +521,53 @@ static int stv680_create_sysfs_files(struct video_device *vdev)
 {
 	int rc;
 
-	rc = video_device_create_file(vdev, &class_device_attr_model);
+	rc = video_device_create_file(vdev, &dev_attr_model);
 	if (rc) goto err;
-	rc = video_device_create_file(vdev, &class_device_attr_in_use);
+	rc = video_device_create_file(vdev, &dev_attr_in_use);
 	if (rc) goto err_model;
-	rc = video_device_create_file(vdev, &class_device_attr_streaming);
+	rc = video_device_create_file(vdev, &dev_attr_streaming);
 	if (rc) goto err_inuse;
-	rc = video_device_create_file(vdev, &class_device_attr_palette);
+	rc = video_device_create_file(vdev, &dev_attr_palette);
 	if (rc) goto err_stream;
-	rc = video_device_create_file(vdev, &class_device_attr_frames_total);
+	rc = video_device_create_file(vdev, &dev_attr_frames_total);
 	if (rc) goto err_pal;
-	rc = video_device_create_file(vdev, &class_device_attr_frames_read);
+	rc = video_device_create_file(vdev, &dev_attr_frames_read);
 	if (rc) goto err_framtot;
-	rc = video_device_create_file(vdev, &class_device_attr_packets_dropped);
+	rc = video_device_create_file(vdev, &dev_attr_packets_dropped);
 	if (rc) goto err_framread;
-	rc = video_device_create_file(vdev, &class_device_attr_decoding_errors);
+	rc = video_device_create_file(vdev, &dev_attr_decoding_errors);
 	if (rc) goto err_dropped;
 
 	return 0;
 
 err_dropped:
-	video_device_remove_file(vdev, &class_device_attr_packets_dropped);
+	video_device_remove_file(vdev, &dev_attr_packets_dropped);
 err_framread:
-	video_device_remove_file(vdev, &class_device_attr_frames_read);
+	video_device_remove_file(vdev, &dev_attr_frames_read);
 err_framtot:
-	video_device_remove_file(vdev, &class_device_attr_frames_total);
+	video_device_remove_file(vdev, &dev_attr_frames_total);
 err_pal:
-	video_device_remove_file(vdev, &class_device_attr_palette);
+	video_device_remove_file(vdev, &dev_attr_palette);
 err_stream:
-	video_device_remove_file(vdev, &class_device_attr_streaming);
+	video_device_remove_file(vdev, &dev_attr_streaming);
 err_inuse:
-	video_device_remove_file(vdev, &class_device_attr_in_use);
+	video_device_remove_file(vdev, &dev_attr_in_use);
 err_model:
-	video_device_remove_file(vdev, &class_device_attr_model);
+	video_device_remove_file(vdev, &dev_attr_model);
 err:
 	return rc;
 }
 
 static void stv680_remove_sysfs_files(struct video_device *vdev)
 {
-	video_device_remove_file(vdev, &class_device_attr_model);
-	video_device_remove_file(vdev, &class_device_attr_in_use);
-	video_device_remove_file(vdev, &class_device_attr_streaming);
-	video_device_remove_file(vdev, &class_device_attr_palette);
-	video_device_remove_file(vdev, &class_device_attr_frames_total);
-	video_device_remove_file(vdev, &class_device_attr_frames_read);
-	video_device_remove_file(vdev, &class_device_attr_packets_dropped);
-	video_device_remove_file(vdev, &class_device_attr_decoding_errors);
+	video_device_remove_file(vdev, &dev_attr_model);
+	video_device_remove_file(vdev, &dev_attr_in_use);
+	video_device_remove_file(vdev, &dev_attr_streaming);
+	video_device_remove_file(vdev, &dev_attr_palette);
+	video_device_remove_file(vdev, &dev_attr_frames_total);
+	video_device_remove_file(vdev, &dev_attr_frames_read);
+	video_device_remove_file(vdev, &dev_attr_packets_dropped);
+	video_device_remove_file(vdev, &dev_attr_decoding_errors);
 }
 
 /********************************************************************

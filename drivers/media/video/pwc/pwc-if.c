@@ -996,20 +996,22 @@ int pwc_try_video_mode(struct pwc_device *pdev, int width, int height, int new_f
 /*********
  * sysfs
  *********/
-static struct pwc_device *cd_to_pwc(struct class_device *cd)
+static struct pwc_device *cd_to_pwc(struct device *cd)
 {
 	struct video_device *vdev = to_video_device(cd);
 	return video_get_drvdata(vdev);
 }
 
-static ssize_t show_pan_tilt(struct class_device *class_dev, char *buf)
+static ssize_t show_pan_tilt(struct device *class_dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct pwc_device *pdev = cd_to_pwc(class_dev);
 	return sprintf(buf, "%d %d\n", pdev->pan_angle, pdev->tilt_angle);
 }
 
-static ssize_t store_pan_tilt(struct class_device *class_dev, const char *buf,
-			 size_t count)
+static ssize_t store_pan_tilt(struct device *class_dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct pwc_device *pdev = cd_to_pwc(class_dev);
 	int pan, tilt;
@@ -1025,10 +1027,11 @@ static ssize_t store_pan_tilt(struct class_device *class_dev, const char *buf,
 		return ret;
 	return strlen(buf);
 }
-static CLASS_DEVICE_ATTR(pan_tilt, S_IRUGO | S_IWUSR, show_pan_tilt,
-			 store_pan_tilt);
+static DEVICE_ATTR(pan_tilt, S_IRUGO | S_IWUSR, show_pan_tilt,
+		   store_pan_tilt);
 
-static ssize_t show_snapshot_button_status(struct class_device *class_dev, char *buf)
+static ssize_t show_snapshot_button_status(struct device *class_dev,
+					   struct device_attribute *attr, char *buf)
 {
 	struct pwc_device *pdev = cd_to_pwc(class_dev);
 	int status = pdev->snapshot_button_status;
@@ -1036,26 +1039,26 @@ static ssize_t show_snapshot_button_status(struct class_device *class_dev, char 
 	return sprintf(buf, "%d\n", status);
 }
 
-static CLASS_DEVICE_ATTR(button, S_IRUGO | S_IWUSR, show_snapshot_button_status,
-			 NULL);
+static DEVICE_ATTR(button, S_IRUGO | S_IWUSR, show_snapshot_button_status,
+		   NULL);
 
 static int pwc_create_sysfs_files(struct video_device *vdev)
 {
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	int rc;
 
-	rc = video_device_create_file(vdev, &class_device_attr_button);
+	rc = video_device_create_file(vdev, &dev_attr_button);
 	if (rc)
 		goto err;
 	if (pdev->features & FEATURE_MOTOR_PANTILT) {
-		rc = video_device_create_file(vdev,&class_device_attr_pan_tilt);
+		rc = video_device_create_file(vdev, &dev_attr_pan_tilt);
 		if (rc) goto err_button;
 	}
 
 	return 0;
 
 err_button:
-	video_device_remove_file(vdev, &class_device_attr_button);
+	video_device_remove_file(vdev, &dev_attr_button);
 err:
 	return rc;
 }
@@ -1064,8 +1067,8 @@ static void pwc_remove_sysfs_files(struct video_device *vdev)
 {
 	struct pwc_device *pdev = video_get_drvdata(vdev);
 	if (pdev->features & FEATURE_MOTOR_PANTILT)
-		video_device_remove_file(vdev, &class_device_attr_pan_tilt);
-	video_device_remove_file(vdev, &class_device_attr_button);
+		video_device_remove_file(vdev, &dev_attr_pan_tilt);
+	video_device_remove_file(vdev, &dev_attr_button);
 }
 
 #ifdef CONFIG_USB_PWC_DEBUG
