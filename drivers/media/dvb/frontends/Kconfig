@@ -17,14 +17,16 @@ comment "Multistandard (satellite) frontends"
 
 config DVB_STB0899
 	tristate "STB0899 based"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-S/S2/DSS Multistandard demodulator. Say Y when you want
 	  to support this demodulator based frontends
 
 config DVB_STB6100
 	tristate "STB6100 based tuners"
-	depends on DVB_CORE
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
 	help
 	  A Silicon tuner from ST used in conjunction with the STB0899
 	  demodulator. Say Y when you want to support this tuner.
