@@ -186,7 +186,7 @@ int cx23885_dvb_register(struct cx23885_tsport *port)
 
 	/* dvb stuff */
 	printk("%s: cx23885 based dvb card\n", dev->name);
-	videobuf_queue_init(&port->dvb.dvbq, &dvb_qops,	dev->pci, &port->slock,
+	videobuf_queue_pci_init(&port->dvb.dvbq, &dvb_qops, dev->pci, &port->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_TOP,
 			    sizeof(struct cx23885_buffer), port);
 	err = dvb_register(port);
