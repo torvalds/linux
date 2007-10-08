@@ -2822,7 +2822,7 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_KWORLD_ATSC110] = {
-		.name           = "Kworld ATSC110",
+		.name           = "Kworld ATSC110/115",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TUV1236D,
 		.radio_type     = UNSET,
@@ -4082,6 +4082,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x17de,
 		.subdevice    = 0x7350,
 		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133, /* SAA7135HL */
+		.subvendor    = 0x17de,
+		.subdevice    = 0x7352,
+		.driver_data  = SAA7134_BOARD_KWORLD_ATSC110, /* ATSC 115 */
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
