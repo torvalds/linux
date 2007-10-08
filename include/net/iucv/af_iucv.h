@@ -50,6 +50,12 @@ struct sockaddr_iucv {
 
 
 /* Common socket structures and functions */
+struct sock_msg_q {
+	struct iucv_path	*path;
+	struct iucv_message	msg;
+	struct list_head	list;
+	spinlock_t		lock;
+};
 
 #define iucv_sk(__sk) ((struct iucv_sock *) __sk)
 
@@ -65,6 +71,7 @@ struct iucv_sock {
 	struct iucv_path	*path;
 	struct sk_buff_head	send_skb_q;
 	struct sk_buff_head	backlog_skb_q;
+	struct sock_msg_q	message_q;
 	unsigned int		send_tag;
 };
 
