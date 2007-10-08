@@ -595,7 +595,8 @@ static void tg3_switch_clocks(struct tg3 *tp)
 	u32 clock_ctrl = tr32(TG3PCI_CLOCK_CTRL);
 	u32 orig_clock_ctrl;
 
-	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)
+	if ((tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) ||
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS))
 		return;
 
 	orig_clock_ctrl = clock_ctrl;
@@ -1400,6 +1401,7 @@ static int tg3_set_power_state(struct tg3 *tp, pci_power_t state)
 		tw32_wait_f(TG3PCI_CLOCK_CTRL, base_val | CLOCK_CTRL_ALTCLK |
 			    CLOCK_CTRL_PWRDOWN_PLL133, 40);
 	} else if ((tp->tg3_flags2 & TG3_FLG2_5780_CLASS) ||
+		   (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) ||
 		   (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)) {
 		/* do nothing */
 	} else if (!((tp->tg3_flags2 & TG3_FLG2_5750_PLUS) &&
@@ -6147,11 +6149,13 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	/* This works around an issue with Athlon chipsets on
 	 * B3 tigon3 silicon.  This bit has no effect on any
 	 * other revision.  But do not set this on PCI Express
-	 * chips.
+	 * chips and don't even touch the clocks if the CPMU is present.
 	 */
-	if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
-		tp->pci_clock_ctrl |= CLOCK_CTRL_DELAY_PCI_GRANT;
-	tw32_f(TG3PCI_CLOCK_CTRL, tp->pci_clock_ctrl);
+	if (!(tp->tg3_flags & TG3_FLAG_CPMU_PRESENT)) {
+		if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS))
+			tp->pci_clock_ctrl |= CLOCK_CTRL_DELAY_PCI_GRANT;
+		tw32_f(TG3PCI_CLOCK_CTRL, tp->pci_clock_ctrl);
+	}
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5704_A0 &&
 	    (tp->tg3_flags & TG3_FLAG_PCIX_MODE)) {
@@ -10527,6 +10531,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 
 	tp->pci_chip_rev_id = (misc_ctrl_reg >>
 			       MISC_HOST_CTRL_CHIPREV_SHIFT);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_USE_PROD_ID_REG) {
+		u32 prod_id_asic_rev;
+
+		pci_read_config_dword(tp->pdev, TG3PCI_PRODID_ASICREV,
+				      &prod_id_asic_rev);
+		tp->pci_chip_rev_id = prod_id_asic_rev & PROD_ID_ASIC_REV_MASK;
+	}
 
 	/* Wrong chip ID in 5752 A0. This code can be removed later
 	 * as A0 is not in production.

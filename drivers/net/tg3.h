@@ -121,6 +121,7 @@
 #define   ASIC_REV_5755			 0x0a
 #define   ASIC_REV_5787			 0x0b
 #define   ASIC_REV_5906			 0x0c
+#define   ASIC_REV_USE_PROD_ID_REG	 0x0f
 #define  GET_CHIP_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 8)
 #define   CHIPREV_5700_AX		 0x70
 #define   CHIPREV_5700_BX		 0x71
@@ -214,7 +215,9 @@
 #define TG3PCI_DUAL_MAC_CTRL		0x000000b8
 #define  DUAL_MAC_CTRL_CH_MASK		 0x00000003
 #define  DUAL_MAC_CTRL_ID		 0x00000004
-/* 0xbc --> 0x100 unused */
+#define TG3PCI_PRODID_ASICREV		0x000000bc
+#define  PROD_ID_ASIC_REV_MASK		 0x0fffffff
+/* 0xc0 --> 0x100 unused */
 
 /* 0x100 --> 0x200 unused */
 
@@ -2213,7 +2216,7 @@ struct tg3 {
 #define TG3_FLAG_JUMBO_RING_ENABLE	0x00800000
 #define TG3_FLAG_10_100_ONLY		0x01000000
 #define TG3_FLAG_PAUSE_AUTONEG		0x02000000
-
+#define TG3_FLAG_CPMU_PRESENT		0x04000000
 #define TG3_FLAG_40BIT_DMA_BUG		0x08000000
 #define TG3_FLAG_BROKEN_CHECKSUMS	0x10000000
 #define TG3_FLAG_SUPPORT_MSI		0x20000000
@@ -2285,7 +2288,7 @@ struct tg3 {
 	u32				pwrmgmt_thresh;
 
 	/* PCI block */
-	u16				pci_chip_rev_id;
+	u32				pci_chip_rev_id;
 	u8				pci_cacheline_sz;
 	u8				pci_lat_timer;
 	u8				pci_hdr_type;
