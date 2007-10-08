@@ -544,7 +544,7 @@ static void *alloc_ring(struct pci_dev *pdev, size_t nelem, size_t elem_size,
  *	as HW contexts, packet buffers, and descriptor rings.  Traffic to the
  *	queue set must be quiesced prior to calling this.
  */
-void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
+static void t3_free_qset(struct adapter *adapter, struct sge_qset *q)
 {
 	int i;
 	struct pci_dev *pdev = adapter->pdev;
@@ -2215,7 +2215,7 @@ irqreturn_t t3_sge_intr_msix(int irq, void *cookie)
  * The MSI-X interrupt handler for an SGE response queue for the NAPI case
  * (i.e., response queue serviced by NAPI polling).
  */
-irqreturn_t t3_sge_intr_msix_napi(int irq, void *cookie)
+static irqreturn_t t3_sge_intr_msix_napi(int irq, void *cookie)
 {
 	struct sge_qset *qs = cookie;
 	struct sge_rspq *q = &qs->rspq;
@@ -2284,7 +2284,7 @@ static int rspq_check_napi(struct sge_qset *qs)
  * one SGE response queue per port in this mode and protect all response
  * queues with queue 0's lock.
  */
-irqreturn_t t3_intr_msi_napi(int irq, void *cookie)
+static irqreturn_t t3_intr_msi_napi(int irq, void *cookie)
 {
 	int new_packets;
 	struct adapter *adap = cookie;

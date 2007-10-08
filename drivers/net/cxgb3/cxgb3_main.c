@@ -740,7 +740,7 @@ static inline char t3rev2char(struct adapter *adapter)
 	return rev;
 }
 
-int update_tpsram(struct adapter *adap)
+static int update_tpsram(struct adapter *adap)
 {
 	const struct firmware *tpsram;
 	char buf[64];
@@ -1769,7 +1769,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 	}
 	case CHELSIO_SET_QSET_NUM:{
 		struct ch_reg edata;
-		struct port_info *pi = netdev_priv(dev);
 		unsigned int i, first_qset = 0, other_qsets = 0;
 
 		if (!capable(CAP_NET_ADMIN))
@@ -1801,7 +1800,6 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 	}
 	case CHELSIO_GET_QSET_NUM:{
 		struct ch_reg edata;
-		struct port_info *pi = netdev_priv(dev);
 
 		edata.cmd = CHELSIO_GET_QSET_NUM;
 		edata.val = pi->nqsets;
