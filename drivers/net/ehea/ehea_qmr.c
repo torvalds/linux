@@ -34,7 +34,6 @@
 
 struct ehea_busmap ehea_bmap = { 0, 0, NULL };
 extern u64 ehea_driver_flags;
-extern struct workqueue_struct *ehea_driver_wq;
 extern struct work_struct ehea_rereg_mr_task;
 
 
@@ -618,7 +617,7 @@ u64 ehea_map_vaddr(void *caddr)
 
 	if (unlikely(mapped_addr == -1))
 		if (!test_and_set_bit(__EHEA_STOP_XFER, &ehea_driver_flags))
-			queue_work(ehea_driver_wq, &ehea_rereg_mr_task);
+			schedule_work(&ehea_rereg_mr_task);
 
 	return mapped_addr;
 }
