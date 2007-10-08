@@ -1160,7 +1160,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int first_sack_index;
 
 	if (!tp->sacked_out) {
-		tp->fackets_out = 0;
+		if (WARN_ON(tp->fackets_out))
+			tp->fackets_out = 0;
 		tp->highest_sack = tp->snd_una;
 	}
 	prior_fackets = tp->fackets_out;
