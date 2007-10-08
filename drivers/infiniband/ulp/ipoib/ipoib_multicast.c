@@ -761,6 +761,7 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	struct ipoib_mcast *mcast, *tmcast;
 	LIST_HEAD(remove_list);
 	unsigned long flags;
+	struct ib_sa_mcmember_rec rec;
 
 	ipoib_dbg_mcast(priv, "restarting multicast task\n");
 
@@ -793,6 +794,14 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
 			struct ipoib_mcast *nmcast;
+
+			/* ignore group which is directly joined by userspace */
+			if (test_bit(IPOIB_FLAG_UMCAST, &priv->flags) &&
+			    !ib_sa_get_mcmember_rec(priv->ca, priv->port, &mgid, &rec)) {
+				ipoib_dbg_mcast(priv, "ignoring multicast entry for mgid "
+						IPOIB_GID_FMT "\n", IPOIB_GID_ARG(mgid));
+				continue;
+			}
 
 			/* Not found or send-only group, let's add a new entry */
 			ipoib_dbg_mcast(priv, "adding multicast entry for mgid "
