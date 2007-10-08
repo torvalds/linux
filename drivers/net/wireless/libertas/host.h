@@ -138,8 +138,8 @@
 #define CMD_ACT_REMOVE                      0x0004
 #define CMD_ACT_USE_DEFAULT                 0x0008
 
-#define CMD_TYPE_WEP_40_BIT                 0x0001
-#define CMD_TYPE_WEP_104_BIT                0x0002
+#define CMD_TYPE_WEP_40_BIT                 0x01
+#define CMD_TYPE_WEP_104_BIT                0x02
 
 #define CMD_NUM_OF_WEP_KEYS                 4
 
