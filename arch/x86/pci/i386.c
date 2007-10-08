@@ -37,7 +37,7 @@ static int
 skip_isa_ioresource_align(struct pci_dev *dev) {
 
 	if ((pci_probe & PCI_CAN_SKIP_ISA_ALIGN) &&
-	    (dev->bus->bridge_ctl & PCI_BRIDGE_CTL_NO_ISA))
+	    !(dev->bus->bridge_ctl & PCI_BRIDGE_CTL_ISA))
 		return 1;
 	return 0;
 }
