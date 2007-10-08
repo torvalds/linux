@@ -578,7 +578,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (pscancfgout == 0 || pchantlvout == 0 || pscanchanlist == 0) {
+	if (!pscancfgout || !pchantlvout || !pscanchanlist) {
 		lbs_deb_scan("Scan: Null detect: %p, %p, %p\n",
 		       pscancfgout, pchantlvout, pscanchanlist);
 		return -1;
