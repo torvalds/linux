@@ -210,7 +210,7 @@ lo_do_transfer(struct loop_device *lo, int cmd,
  * space operations write_begin and write_end.
  */
 static int do_lo_send_aops(struct loop_device *lo, struct bio_vec *bvec,
-		int bsize, loff_t pos, struct page *unused)
+		loff_t pos, struct page *unused)
 {
 	struct file *file = lo->lo_backing_file; /* kudos to NFsckingS */
 	struct address_space *mapping = file->f_mapping;
@@ -302,7 +302,7 @@ static int __do_lo_send_write(struct file *file,
  * filesystems.
  */
 static int do_lo_send_direct_write(struct loop_device *lo,
-		struct bio_vec *bvec, int bsize, loff_t pos, struct page *page)
+		struct bio_vec *bvec, loff_t pos, struct page *page)
 {
 	ssize_t bw = __do_lo_send_write(lo->lo_backing_file,
 			kmap(bvec->bv_page) + bvec->bv_offset,
@@ -326,7 +326,7 @@ static int do_lo_send_direct_write(struct loop_device *lo,
  * destination pages of the backing file.
  */
 static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
-		int bsize, loff_t pos, struct page *page)
+		loff_t pos, struct page *page)
 {
 	int ret = lo_do_transfer(lo, WRITE, page, 0, bvec->bv_page,
 			bvec->bv_offset, bvec->bv_len, pos >> 9);
@@ -341,10 +341,9 @@ static int do_lo_send_write(struct loop_device *lo, struct bio_vec *bvec,
 	return ret;
 }
 
-static int lo_send(struct loop_device *lo, struct bio *bio, int bsize,
-		loff_t pos)
+static int lo_send(struct loop_device *lo, struct bio *bio, loff_t pos)
 {
-	int (*do_lo_send)(struct loop_device *, struct bio_vec *, int, loff_t,
+	int (*do_lo_send)(struct loop_device *, struct bio_vec *, loff_t,
 			struct page *page);
 	struct bio_vec *bvec;
 	struct page *page = NULL;
@@ -362,7 +361,7 @@ static int lo_send(struct loop_device *lo, struct bio *bio, int bsize,
 		}
 	}
 	bio_for_each_segment(bvec, bio, i) {
-		ret = do_lo_send(lo, bvec, bsize, pos, page);
+		ret = do_lo_send(lo, bvec, pos, page);
 		if (ret < 0)
 			break;
 		pos += bvec->bv_len;
@@ -478,7 +477,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 
 	pos = ((loff_t) bio->bi_sector << 9) + lo->lo_offset;
 	if (bio_rw(bio) == WRITE)
-		ret = lo_send(lo, bio, lo->lo_blocksize, pos);
+		ret = lo_send(lo, bio, pos);
 	else
 		ret = lo_receive(lo, bio, lo->lo_blocksize, pos);
 	return ret;
