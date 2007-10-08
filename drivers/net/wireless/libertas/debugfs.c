@@ -3,6 +3,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/string.h>
 #include <net/iw_handler.h>
 
 #include "dev.h"
@@ -205,7 +206,7 @@ static int libertas_parse_chan(char *buf, size_t count,
 	if (!start)
 		return -EINVAL;
 	start += 5;
-	end = strstr(start, " ");
+	end = strchr(start, ' ');
 	if (!end)
 		end = buf + count;
 	hold = kzalloc((end - start)+1, GFP_KERNEL);
@@ -256,7 +257,7 @@ static void libertas_parse_ssid(char *buf, size_t count,
 	if (!hold)
 		return;
 	hold += 5;
-	end = strstr(hold, " ");
+	end = strchr(hold, ' ');
 	if (!end)
 		end = buf + count - 1;
 
