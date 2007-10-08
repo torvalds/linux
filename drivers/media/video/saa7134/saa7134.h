@@ -522,9 +522,9 @@ struct saa7134_dev {
 	struct saa7134_input       *input;
 	struct saa7134_input       *hw_input;
 	unsigned int               hw_mute;
-	unsigned int               force_mute_update;
 	int                        last_carrier;
 	int                        nosignal;
+	unsigned int               inresume;
 
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;

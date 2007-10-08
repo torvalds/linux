@@ -398,29 +398,23 @@ void saa7134_buffer_timeout(unsigned long data)
 int saa7134_buffer_requeue(struct saa7134_dev *dev,
 			 struct saa7134_dmaqueue *q)
 {
-	struct saa7134_buf *buf , *next;
-	unsigned long flags;
+	struct saa7134_buf *buf, *next;
 
-	spin_lock_irqsave(&dev->slock, flags);
+	assert_spin_locked(&dev->slock);
 
 	buf  = q->curr;
 	next = buf;
-
 	dprintk("buffer_requeue\n");
 
-	if (!buf) {
-		spin_unlock_irqrestore(&dev->slock, flags);
+	if (!buf)
 		return 0;
-	}
 
 	dprintk("buffer_requeue : resending active buffers \n");
 
 	if (!list_empty(&q->queue))
 		next = list_entry(q->queue.next, struct saa7134_buf,
 					  vb.queue);
-
 	buf->activate(dev, buf, next);
-	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
 }
@@ -434,6 +428,9 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 	enum v4l2_field ov  = V4L2_FIELD_ANY;
 
 	assert_spin_locked(&dev->slock);
+
+	if (dev->inresume)
+		return 0;
 
 	/* video capture -- dma 0 + video task A */
 	if (dev->video_q.curr) {
@@ -1175,13 +1172,15 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 {
 
-	/* Disable card's IRQs to prevent it from resuming computer */
-
 	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
 
+	/* disable overlay - apps should enable it explicitly on resume*/
+	dev->ovenable = 0;
+
+	/* Disable interrupts, DMA, and rest of the chip*/
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, 0);
-
+	saa_writel(SAA7134_MAIN_CTRL, 0);
 
 	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
 	pci_save_state(pci_dev);
@@ -1193,6 +1192,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 {
 
 	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
+	unsigned int flags;
 
 	pci_restore_state(pci_dev);
 	pci_set_power_state(pci_dev, PCI_D0);
@@ -1200,6 +1200,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	/* Do things that are done in saa7134_initdev ,
 		except of initializing memory structures.*/
 
+	dev->inresume = 1;
 	saa7134_board_init1(dev);
 
 	if (saa7134_boards[dev->board].video_out)
@@ -1209,24 +1210,25 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 		saa7134_ts_init_hw(dev);
 
 	saa7134_hw_enable1(dev);
-
 	saa7134_set_decoder(dev);
-
 	saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
-
 	saa7134_board_init2(dev);
 	saa7134_hw_enable2(dev);
 
-	dev->force_mute_update = 1;
 	saa7134_tvaudio_setmute(dev);
-	dev->force_mute_update = 0;
 	saa7134_tvaudio_setvolume(dev, dev->ctl_volume);
 	saa7134_enable_i2s(dev);
 
-	/*recapture unfinished buffer(s)*/
+	/*resume unfinished buffer(s)*/
+	spin_lock_irqsave(&dev->slock, flags);
 	saa7134_buffer_requeue(dev, &dev->video_q);
 	saa7134_buffer_requeue(dev, &dev->vbi_q);
 	saa7134_buffer_requeue(dev, &dev->ts_q);
+
+	/* start DMA now*/
+	dev->inresume = 0;
+	saa7134_set_dmabits(dev);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	return 0;
 }
