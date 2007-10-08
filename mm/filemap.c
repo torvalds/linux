@@ -1388,6 +1388,7 @@ retry_find:
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (unlikely(vmf->pgoff >= size)) {
 		unlock_page(page);
+		page_cache_release(page);
 		goto outside_data_content;
 	}
 
