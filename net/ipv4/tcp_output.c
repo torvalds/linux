@@ -1755,14 +1755,16 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		if (tcp_is_reno(tp) && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
 
-		tcp_adjust_fackets_out(tp, skb, tcp_skb_pcount(next_skb));
+		tcp_adjust_fackets_out(tp, next_skb, tcp_skb_pcount(next_skb));
 		tp->packets_out -= tcp_skb_pcount(next_skb);
 
 		/* changed transmit queue under us so clear hints */
 		tcp_clear_retrans_hints_partial(tp);
 		/* manually tune sacktag skb hint */
-		if (tp->fastpath_skb_hint == next_skb)
+		if (tp->fastpath_skb_hint == next_skb) {
 			tp->fastpath_skb_hint = skb;
+			tp->fastpath_cnt_hint -= tcp_skb_pcount(skb);
+		}
 
 		sk_stream_free_skb(sk, next_skb);
 	}
