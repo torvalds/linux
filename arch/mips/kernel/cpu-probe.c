@@ -922,6 +922,14 @@ __init void cpu_probe(void)
 	default:
 		c->cputype = CPU_UNKNOWN;
 	}
+
+	/*
+	 * Platform code can force the cpu type to optimize code
+	 * generation. In that case be sure the cpu type is correctly
+	 * manually setup otherwise it could trigger some nasty bugs.
+	 */
+	BUG_ON(current_cpu_type() != c->cputype);
+
 	if (c->options & MIPS_CPU_FPU) {
 		c->fpu_id = cpu_get_fpu_id();
 
