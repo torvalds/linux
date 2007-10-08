@@ -762,19 +762,17 @@ static int apic_mmio_range(struct kvm_io_device *this, gpa_t addr)
 	return ret;
 }
 
-void kvm_free_apic(struct kvm_lapic *apic)
+void kvm_free_lapic(struct kvm_vcpu *vcpu)
 {
-	if (!apic)
+	if (!vcpu->apic)
 		return;
 
-	hrtimer_cancel(&apic->timer.dev);
+	hrtimer_cancel(&vcpu->apic->timer.dev);
 
-	if (apic->regs_page) {
-		__free_page(apic->regs_page);
-		apic->regs_page = 0;
-	}
+	if (vcpu->apic->regs_page)
+		__free_page(vcpu->apic->regs_page);
 
-	kfree(apic);
+	kfree(vcpu->apic);
 }
 
 /*
@@ -962,7 +960,7 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	if (apic->regs_page == NULL) {
 		printk(KERN_ERR "malloc apic regs error for vcpu %x\n",
 		       vcpu->vcpu_id);
-		goto nomem;
+		goto nomem_free_apic;
 	}
 	apic->regs = page_address(apic->regs_page);
 	memset(apic->regs, 0, PAGE_SIZE);
@@ -980,8 +978,9 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu)
 	apic->dev.private = apic;
 
 	return 0;
+nomem_free_apic:
+	kfree(apic);
 nomem:
-	kvm_free_apic(apic);
 	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(kvm_create_lapic);
