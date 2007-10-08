@@ -19,7 +19,7 @@
 / {
 	model = "fsl,lite5200";
 	// revision = "1.0";
-	compatible = "fsl,lite5200\0generic-mpc5200";
+	compatible = "fsl,lite5200","generic-mpc5200";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -192,7 +192,7 @@
 
 		usb@1000 {
 			device_type = "usb-ohci-be";
-			compatible = "mpc5200-ohci\0ohci-be";
+			compatible = "mpc5200-ohci","ohci-be";
 			reg = <1000 ff>;
 			interrupts = <2 6 0>;
 			interrupt-parent = <&mpc5200_pic>;
@@ -293,7 +293,7 @@
 
 		i2c@3d00 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c\0fsl-i2c";
+			compatible = "mpc5200-i2c","fsl-i2c";
 			cell-index = <0>;
 			reg = <3d00 40>;
 			interrupts = <2 f 0>;
@@ -303,7 +303,7 @@
 
 		i2c@3d40 {
 			device_type = "i2c";
-			compatible = "mpc5200-i2c\0fsl-i2c";
+			compatible = "mpc5200-i2c","fsl-i2c";
 			cell-index = <1>;
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
@@ -312,7 +312,7 @@
 		};
 		sram@8000 {
 			device_type = "sram";
-			compatible = "mpc5200-sram\0sram";
+			compatible = "mpc5200-sram","sram";
 			reg = <8000 4000>;
 		};
 	};
