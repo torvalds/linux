@@ -255,14 +255,22 @@ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
 	if (r < 0)
 		goto fail_free_pio_data;
 
+	if (irqchip_in_kernel(kvm)) {
+		r = kvm_create_lapic(vcpu);
+		if (r < 0)
+			goto fail_mmu_destroy;
+	}
+
 	return 0;
 
+fail_mmu_destroy:
+	kvm_mmu_destroy(vcpu);
 fail_free_pio_data:
 	free_page((unsigned long)vcpu->pio_data);
 fail_free_run:
 	free_page((unsigned long)vcpu->run);
 fail:
-	return -ENOMEM;
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_vcpu_init);
 
