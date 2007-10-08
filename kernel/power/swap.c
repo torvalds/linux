@@ -172,7 +172,7 @@ static int swsusp_swap_check(void) /* This is called before saving image */
 		return res;
 
 	root_swap = res;
-	res = blkdev_get(resume_bdev, FMODE_WRITE, O_RDWR);
+	res = blkdev_get(resume_bdev, FMODE_WRITE);
 	if (res)
 		return res;
 

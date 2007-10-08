@@ -1722,7 +1722,7 @@ extern int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 			       struct gendisk *disk, unsigned cmd,
 			       unsigned long arg);
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
-extern int blkdev_get(struct block_device *, fmode_t, unsigned);
+extern int blkdev_get(struct block_device *, fmode_t);
 extern int blkdev_put(struct block_device *, fmode_t);
 extern int bd_claim(struct block_device *, void *);
 extern void bd_release(struct block_device *);

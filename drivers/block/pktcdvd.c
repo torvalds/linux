@@ -2332,7 +2332,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 	 * so bdget() can't fail.
 	 */
 	bdget(pd->bdev->bd_dev);
-	if ((ret = blkdev_get(pd->bdev, FMODE_READ, O_RDONLY)))
+	if ((ret = blkdev_get(pd->bdev, FMODE_READ)))
 		goto out;
 
 	if ((ret = bd_claim(pd->bdev, pd)))
@@ -2765,7 +2765,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	bdev = bdget(dev);
 	if (!bdev)
 		return -ENOMEM;
-	ret = blkdev_get(bdev, FMODE_READ, O_RDONLY | O_NONBLOCK);
+	ret = blkdev_get(bdev, FMODE_READ | FMODE_NDELAY);
 	if (ret)
 		return ret;
 
