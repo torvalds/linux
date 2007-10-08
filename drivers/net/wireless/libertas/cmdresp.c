@@ -148,7 +148,7 @@ static int wlan_ret_reg_access(wlan_private * priv,
 		ret = -1;
 	}
 
-	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
 
