@@ -820,6 +820,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7070PD) },
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
+/* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -861,7 +862,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 6,
+		.num_device_descs = 7,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
 				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
@@ -885,6 +886,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Leadtek Winfast DTV Dongle (STK7700P based)",
 				{ &dib0700_usb_id_table[8], NULL },
+				{ NULL },
+			},
+			{   "AVerMedia AVerTV DVB-T Express",
+				{ &dib0700_usb_id_table[20] },
 				{ NULL },
 			}
 		},
