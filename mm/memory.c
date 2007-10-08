@@ -1639,6 +1639,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *old_page, *new_page;
 	pte_t entry;
 	int reuse = 0, ret = 0;
+	int page_mkwrite = 0;
 	struct page *dirty_page = NULL;
 
 	old_page = vm_normal_page(vma, address, orig_pte);
@@ -1687,6 +1688,8 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			page_cache_release(old_page);
 			if (!pte_same(*page_table, orig_pte))
 				goto unlock;
+
+			page_mkwrite = 1;
 		}
 		dirty_page = old_page;
 		get_page(dirty_page);
@@ -1774,7 +1777,7 @@ unlock:
 		 * do_no_page is protected similarly.
 		 */
 		wait_on_page_locked(dirty_page);
-		set_page_dirty_balance(dirty_page);
+		set_page_dirty_balance(dirty_page, page_mkwrite);
 		put_page(dirty_page);
 	}
 	return ret;
@@ -2322,6 +2325,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *dirty_page = NULL;
 	struct vm_fault vmf;
 	int ret;
+	int page_mkwrite = 0;
 
 	vmf.virtual_address = (void __user *)(address & PAGE_MASK);
 	vmf.pgoff = pgoff;
@@ -2398,6 +2402,7 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 					anon = 1; /* no anon but release vmf.page */
 					goto out;
 				}
+				page_mkwrite = 1;
 			}
 		}
 
@@ -2453,7 +2458,7 @@ out_unlocked:
 	if (anon)
 		page_cache_release(vmf.page);
 	else if (dirty_page) {
-		set_page_dirty_balance(dirty_page);
+		set_page_dirty_balance(dirty_page, page_mkwrite);
 		put_page(dirty_page);
 	}
 
