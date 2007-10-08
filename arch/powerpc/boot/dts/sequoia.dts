@@ -122,6 +122,13 @@
 			interrupt-map-mask = <ffffffff>;
 		};
 
+		USB1: usb@e0000400 {
+			compatible = "ohci-be";
+			reg = <0 e0000400 60>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <15 8>;
+		};
+
 		POB0: opb {
 		  	compatible = "ibm,opb-440epx", "ibm,opb";
 			#address-cells = <1>;
