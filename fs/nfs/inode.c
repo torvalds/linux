@@ -876,11 +876,19 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 
-	if (fattr->valid & NFS_ATTR_FATTR)
+	if (fattr->valid & NFS_ATTR_FATTR) {
+		if (S_ISDIR(inode->i_mode)) {
+			spin_lock(&inode->i_lock);
+			nfsi->cache_validity |= NFS_INO_INVALID_DATA;
+			spin_unlock(&inode->i_lock);
+		}
 		return nfs_refresh_inode(inode, fattr);
+	}
 
 	spin_lock(&inode->i_lock);
 	nfsi->cache_validity |= NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ATTR|NFS_INO_REVAL_PAGECACHE;
+	if (S_ISDIR(inode->i_mode))
+		nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 	spin_unlock(&inode->i_lock);
 	return 0;
 }
