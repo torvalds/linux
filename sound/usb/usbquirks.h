@@ -88,7 +88,20 @@
 	.bInterfaceClass = USB_CLASS_AUDIO,
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
 },
-
+/* E-Mu devices */
+{
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x041e,
+	.idProduct = 0x3f02,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+},
+{
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x041e,
+	.idProduct = 0x3f04,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+},
+/*
 /*
  * Yamaha devices
  */
