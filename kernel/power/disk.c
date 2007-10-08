@@ -651,7 +651,7 @@ static int software_resume(void)
 	pr_debug("PM: Preparing processes for restore.\n");
 	error = prepare_processes();
 	if (error) {
-		swsusp_close();
+		swsusp_close(FMODE_READ);
 		goto Done;
 	}
 

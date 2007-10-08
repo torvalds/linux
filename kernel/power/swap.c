@@ -426,7 +426,7 @@ int swsusp_write(unsigned int flags)
 
 	release_swap_writer(&handle);
  out:
-	swsusp_close();
+	swsusp_close(FMODE_WRITE);
 	return error;
 }
 
@@ -626,14 +626,14 @@ int swsusp_check(void)
  *	swsusp_close - close swap device.
  */
 
-void swsusp_close(void)
+void swsusp_close(fmode_t mode)
 {
 	if (IS_ERR(resume_bdev)) {
 		pr_debug("PM: Image device not initialised\n");
 		return;
 	}
 
-	blkdev_put(resume_bdev, 0); /* move up */
+	blkdev_put(resume_bdev, mode); /* move up */
 }
 
 static int swsusp_header_init(void)
