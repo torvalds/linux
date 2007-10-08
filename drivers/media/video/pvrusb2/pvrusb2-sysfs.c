@@ -609,9 +609,12 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 }
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
-static ssize_t debuginfo_show(struct device *,char *);
-static ssize_t debugcmd_show(struct device *,char *);
-static ssize_t debugcmd_store(struct device *,const char *,size_t count);
+static ssize_t debuginfo_show(struct device *, struct device_attribute *,
+			      char *);
+static ssize_t debugcmd_show(struct device *, struct device_attribute *,
+			     char *);
+static ssize_t debugcmd_store(struct device *, struct device_attribute *,
+			      const char *, size_t count);
 
 static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 {
@@ -937,7 +940,8 @@ void pvr2_sysfs_class_destroy(struct pvr2_sysfs_class *clp)
 
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
-static ssize_t debuginfo_show(struct device *class_dev,char *buf)
+static ssize_t debuginfo_show(struct device *class_dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
 	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
@@ -947,7 +951,8 @@ static ssize_t debuginfo_show(struct device *class_dev,char *buf)
 }
 
 
-static ssize_t debugcmd_show(struct device *class_dev,char *buf)
+static ssize_t debugcmd_show(struct device *class_dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
 	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
@@ -957,6 +962,7 @@ static ssize_t debugcmd_show(struct device *class_dev,char *buf)
 
 
 static ssize_t debugcmd_store(struct device *class_dev,
+			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct pvr2_sysfs *sfp;
