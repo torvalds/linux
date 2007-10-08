@@ -7,7 +7,7 @@
  *   Copyright IBM Corp. 2005,2007
  *   Author(s): Jan Glauber (jang@de.ibm.com)
  *
- * Derived from "crypto/sha256.c"
+ * Derived from "crypto/sha256_generic.c"
  * and "arch/s390/crypto/sha1_s390.c"
  *
  * This program is free software; you can redistribute it and/or modify it

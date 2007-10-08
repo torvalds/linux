@@ -253,19 +253,6 @@ static struct crypto_alg sha256_alg = {
 	}
 };
 
-static void __init padlock_sha_check_fallbacks(void)
-{
-	if (!crypto_has_hash("sha1", 0, CRYPTO_ALG_ASYNC |
-					CRYPTO_ALG_NEED_FALLBACK))
-		printk(KERN_WARNING PFX
-		       "Couldn't load fallback module for sha1.\n");
-
-	if (!crypto_has_hash("sha256", 0, CRYPTO_ALG_ASYNC |
-					CRYPTO_ALG_NEED_FALLBACK))
-		printk(KERN_WARNING PFX
-		       "Couldn't load fallback module for sha256.\n");
-}
-
 static int __init padlock_init(void)
 {
 	int rc = -ENODEV;
@@ -279,8 +266,6 @@ static int __init padlock_init(void)
 		printk(KERN_ERR PFX "VIA PadLock detected, but not enabled. Hmm, strange...\n");
 		return -ENODEV;
 	}
-
-	padlock_sha_check_fallbacks();
 
 	rc = crypto_register_alg(&sha1_alg);
 	if (rc)
@@ -314,5 +299,7 @@ MODULE_DESCRIPTION("VIA PadLock SHA1/SHA256 algorithms support.");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Michal Ludvig");
 
+MODULE_ALIAS("sha1");
+MODULE_ALIAS("sha256");
 MODULE_ALIAS("sha1-padlock");
 MODULE_ALIAS("sha256-padlock");

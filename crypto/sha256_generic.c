@@ -339,4 +339,4 @@ module_exit(fini);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA256 Secure Hash Algorithm");
 
-MODULE_ALIAS("sha256-generic");
+MODULE_ALIAS("sha256");
