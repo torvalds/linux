@@ -4865,9 +4865,15 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 	pci_write_config_dword(tp->pdev, TG3PCI_COMMAND, tp->pci_cmd);
 
 	/* Make sure PCI-X relaxed ordering bit is clear. */
-	pci_read_config_dword(tp->pdev, TG3PCI_X_CAPS, &val);
-	val &= ~PCIX_CAPS_RELAXED_ORDERING;
-	pci_write_config_dword(tp->pdev, TG3PCI_X_CAPS, val);
+	if (tp->pcix_cap) {
+		u16 pcix_cmd;
+
+		pci_read_config_word(tp->pdev, tp->pcix_cap + PCI_X_CMD,
+				     &pcix_cmd);
+		pcix_cmd &= ~PCI_X_CMD_ERO;
+		pci_write_config_word(tp->pdev, tp->pcix_cap + PCI_X_CMD,
+				      pcix_cmd);
+	}
 
 	if (tp->tg3_flags2 & TG3_FLG2_5780_CLASS) {
 
@@ -6574,16 +6580,20 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	tw32_f(WDMAC_MODE, val);
 	udelay(40);
 
-	if ((tp->tg3_flags & TG3_FLAG_PCIX_MODE) != 0) {
-		val = tr32(TG3PCI_X_CAPS);
+	if (tp->tg3_flags & TG3_FLAG_PCIX_MODE) {
+		u16 pcix_cmd;
+
+		pci_read_config_word(tp->pdev, tp->pcix_cap + PCI_X_CMD,
+				     &pcix_cmd);
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5703) {
-			val &= ~PCIX_CAPS_BURST_MASK;
-			val |= (PCIX_CAPS_MAX_BURST_CPIOB << PCIX_CAPS_BURST_SHIFT);
+			pcix_cmd &= ~PCI_X_CMD_MAX_READ;
+			pcix_cmd |= PCI_X_CMD_READ_2K;
 		} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
-			val &= ~(PCIX_CAPS_SPLIT_MASK | PCIX_CAPS_BURST_MASK);
-			val |= (PCIX_CAPS_MAX_BURST_CPIOB << PCIX_CAPS_BURST_SHIFT);
+			pcix_cmd &= ~(PCI_X_CMD_MAX_SPLIT | PCI_X_CMD_MAX_READ);
+			pcix_cmd |= PCI_X_CMD_READ_2K;
 		}
-		tw32(TG3PCI_X_CAPS, val);
+		pci_write_config_word(tp->pdev, tp->pcix_cap + PCI_X_CMD,
+				      pcix_cmd);
 	}
 
 	tw32_f(RDMAC_MODE, rdmac_mode);
@@ -10712,10 +10722,20 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 				       cacheline_sz_reg);
 	}
 
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS) ||
+	    (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
+		tp->pcix_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_PCIX);
+		if (!tp->pcix_cap) {
+			printk(KERN_ERR PFX "Cannot find PCI-X "
+					    "capability, aborting.\n");
+			return -EIO;
+		}
+	}
+
 	pci_read_config_dword(tp->pdev, TG3PCI_PCISTATE,
 			      &pci_state_reg);
 
-	if ((pci_state_reg & PCISTATE_CONV_PCI_MODE) == 0) {
+	if (tp->pcix_cap && (pci_state_reg & PCISTATE_CONV_PCI_MODE) == 0) {
 		tp->tg3_flags |= TG3_FLAG_PCIX_MODE;
 
 		/* If this is a 5700 BX chipset, and we are in PCI-X
@@ -10733,11 +10753,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			 * space registers clobbered due to this bug.
 			 * So explicitly force the chip into D0 here.
 			 */
-			pci_read_config_dword(tp->pdev, TG3PCI_PM_CTRL_STAT,
+			pci_read_config_dword(tp->pdev,
+					      tp->pm_cap + PCI_PM_CTRL,
 					      &pm_reg);
 			pm_reg &= ~PCI_PM_CTRL_STATE_MASK;
 			pm_reg |= PCI_PM_CTRL_PME_ENABLE | 0 /* D0 */;
-			pci_write_config_dword(tp->pdev, TG3PCI_PM_CTRL_STAT,
+			pci_write_config_dword(tp->pdev,
+					       tp->pm_cap + PCI_PM_CTRL,
 					       pm_reg);
 
 			/* Also, force SERR#/PERR# in PCI command. */
