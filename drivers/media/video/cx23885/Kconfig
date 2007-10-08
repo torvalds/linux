@@ -4,7 +4,6 @@ config VIDEO_CX23885
 	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_BTCX
-	select VIDEOBUF
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
