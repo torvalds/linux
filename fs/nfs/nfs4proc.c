@@ -2475,8 +2475,7 @@ static int nfs4_commit_done(struct rpc_task *task, struct nfs_write_data *data)
 		rpc_restart_call(task);
 		return -EAGAIN;
 	}
-	if (task->tk_status >= 0)
-		nfs_post_op_update_inode(inode, data->res.fattr);
+	nfs_refresh_inode(inode, data->res.fattr);
 	return 0;
 }
 
@@ -3046,7 +3045,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	if (status == 0) {
 		status = data->rpc_status;
 		if (status == 0)
-			nfs_post_op_update_inode(inode, &data->fattr);
+			nfs_refresh_inode(inode, &data->fattr);
 	}
 	rpc_put_task(task);
 	return status;
