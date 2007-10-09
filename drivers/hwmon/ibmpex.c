@@ -498,8 +498,7 @@ static void ibmpex_register_bmc(int iface, struct device *dev)
 		printk(KERN_ERR DRVNAME ": Error, unable to register hwmon "
 		       "class device for interface %d\n",
 		       data->interface);
-		kfree(data);
-		return;
+		goto out_user;
 	}
 
 	/* finally add the new bmc data to the bmc data list */
