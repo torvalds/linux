@@ -199,7 +199,7 @@ config ARCH_HIBERNATION_POSSIBLE
 
 config ARCH_SUSPEND_POSSIBLE
 	def_bool y
-	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200
+	depends on ADB_PMU || PPC_EFIKA || PPC_LITE5200 || PPC_83xx
 
 config PPC_DCR_NATIVE
 	bool
