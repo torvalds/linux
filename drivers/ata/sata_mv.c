@@ -313,7 +313,10 @@ enum {
 #define IS_GEN_IIE(hpriv) ((hpriv)->hp_flags & MV_HP_GEN_IIE)
 
 enum {
-	MV_DMA_BOUNDARY		= 0xffffffffU,
+	/* DMA boundary 0xffff is required by the s/g splitting
+	 * we need on /length/ in mv_fill-sg().
+	 */
+	MV_DMA_BOUNDARY		= 0xffffU,
 
 	/* mask of register bits containing lower 32 bits
 	 * of EDMA request queue DMA address
@@ -448,7 +451,7 @@ static struct scsi_host_template mv5_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= MV_MAX_SG_CT,
+	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= 1,
@@ -466,7 +469,7 @@ static struct scsi_host_template mv6_sht = {
 	.queuecommand		= ata_scsi_queuecmd,
 	.can_queue		= ATA_DEF_QUEUE,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= MV_MAX_SG_CT,
+	.sg_tablesize		= MV_MAX_SG_CT / 2,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= 1,
