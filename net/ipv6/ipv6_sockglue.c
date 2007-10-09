@@ -663,7 +663,7 @@ done:
 			break;
 		}
 		gsf = kmalloc(optlen,GFP_KERNEL);
-		if (gsf == 0) {
+		if (!gsf) {
 			retv = -ENOBUFS;
 			break;
 		}

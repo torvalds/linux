@@ -780,7 +780,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 	int i = 0;
 	const char *p;
 	const int max_netdevices = 8*PAGE_SIZE;
-	long *inuse;
+	unsigned long *inuse;
 	struct net_device *d;
 
 	p = strnchr(name, IFNAMSIZ-1, '%');
@@ -794,7 +794,7 @@ static int __dev_alloc_name(struct net *net, const char *name, char *buf)
 			return -EINVAL;
 
 		/* Use one page as a bit array of possible slots */
-		inuse = (long *) get_zeroed_page(GFP_ATOMIC);
+		inuse = (unsigned long *) get_zeroed_page(GFP_ATOMIC);
 		if (!inuse)
 			return -ENOMEM;
 

@@ -256,7 +256,7 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 			break;
 		case ND_OPT_PREFIX_INFO:
 			ndopts->nd_opts_pi_end = nd_opt;
-			if (ndopts->nd_opt_array[nd_opt->nd_opt_type] == 0)
+			if (!ndopts->nd_opt_array[nd_opt->nd_opt_type])
 				ndopts->nd_opt_array[nd_opt->nd_opt_type] = nd_opt;
 			break;
 #ifdef CONFIG_IPV6_ROUTE_INFO

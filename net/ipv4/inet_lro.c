@@ -482,7 +482,7 @@ static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 
 		lro_init_desc(lro_desc, skb, iph, tcph, 0, NULL);
 		LRO_INC_STATS(lro_mgr, aggregated);
-		return 0;
+		return NULL;
 	}
 
 	if (lro_desc->tcp_next_seq != ntohl(tcph->seq))

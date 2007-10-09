@@ -414,7 +414,7 @@ static int ipv6_chk_acast_dev(struct net_device *dev, struct in6_addr *addr)
 				break;
 		read_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
-		return aca != 0;
+		return aca != NULL;
 	}
 	return 0;
 }

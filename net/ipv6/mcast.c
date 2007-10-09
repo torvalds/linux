@@ -1407,7 +1407,7 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 	/* we assume size > sizeof(ra) here */
 	skb = sock_alloc_send_skb(sk, size + LL_RESERVED_SPACE(dev), 1, &err);
 
-	if (skb == 0)
+	if (!skb)
 		return NULL;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
@@ -2144,7 +2144,7 @@ static int ip6_mc_leave_src(struct sock *sk, struct ipv6_mc_socklist *iml,
 	/* callers have the socket lock and a write lock on ipv6_sk_mc_lock,
 	 * so no other readers or writers of iml or its sflist
 	 */
-	if (iml->sflist == 0) {
+	if (!iml->sflist) {
 		/* any-source empty exclude case */
 		return ip6_mc_del_src(idev, &iml->addr, iml->sfmode, 0, NULL, 0);
 	}

@@ -246,7 +246,7 @@ static spinlock_t	*rt_hash_locks;
 
 static struct rt_hash_bucket 	*rt_hash_table;
 static unsigned			rt_hash_mask;
-static int			rt_hash_log;
+static unsigned int		rt_hash_log;
 static unsigned int		rt_hash_rnd;
 
 static DEFINE_PER_CPU(struct rt_cache_stat, rt_cache_stat);
@@ -593,7 +593,7 @@ static void rt_check_expire(struct work_struct *work)
 		i = (i + 1) & rt_hash_mask;
 		rthp = &rt_hash_table[i].chain;
 
-		if (*rthp == 0)
+		if (*rthp == NULL)
 			continue;
 		spin_lock_bh(rt_hash_lock_addr(i));
 		while ((rth = *rthp) != NULL) {

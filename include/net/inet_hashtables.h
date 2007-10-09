@@ -107,7 +107,7 @@ struct inet_hashinfo {
 	 */
 	struct inet_bind_hashbucket	*bhash;
 
-	int				bhash_size;
+	unsigned int			bhash_size;
 	unsigned int			ehash_size;
 
 	/* All sockets in TCP_LISTEN state will be in here.  This is the only

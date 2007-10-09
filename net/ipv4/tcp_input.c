@@ -2704,7 +2704,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 	BUG_TRAP((int)tp->lost_out >= 0);
 	BUG_TRAP((int)tp->retrans_out >= 0);
 	if (!tp->packets_out && tcp_is_sack(tp)) {
-		const struct inet_connection_sock *icsk = inet_csk(sk);
+		icsk = inet_csk(sk);
 		if (tp->lost_out) {
 			printk(KERN_DEBUG "Leak l=%u %d\n",
 			       tp->lost_out, icsk->icsk_ca_state);

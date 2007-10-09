@@ -144,7 +144,7 @@ static struct {
 	{ "TimestampReps", ICMP_TIMESTAMPREPLY },
 	{ "AddrMasks", ICMP_ADDRESS },
 	{ "AddrMaskReps", ICMP_ADDRESSREPLY },
-	{ 0, 0 }
+	{ NULL, 0 }
 };
 
 

@@ -822,8 +822,6 @@ static int aarp_rcv(struct sk_buff *skb, struct net_device *dev,
 				 * address. So as a precaution flush any
 				 * entries we have for this address.
 				 */
-				struct aarp_entry *a;
-
 				a = __aarp_find_entry(resolved[sa.s_node %
 							  (AARP_HASH_SIZE - 1)],
 						      skb->dev, &sa);

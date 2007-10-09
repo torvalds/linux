@@ -230,7 +230,7 @@ static void sigd_close(struct atm_vcc *vcc)
 		struct hlist_head *head = &vcc_hash[i];
 
 		sk_for_each(s, node, head) {
-			struct atm_vcc *vcc = atm_sk(s);
+			vcc = atm_sk(s);
 
 			purge_vcc(vcc);
 		}

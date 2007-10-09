@@ -1695,8 +1695,8 @@ static int ip_mc_add_src(struct in_device *in_dev, __be32 *pmca, int sfmode,
 			(void) ip_mc_del1_src(pmc, sfmode, &psfsrc[i]);
 	} else if (isexclude != (pmc->sfcount[MCAST_EXCLUDE] != 0)) {
 #ifdef CONFIG_IP_MULTICAST
-		struct in_device *in_dev = pmc->interface;
 		struct ip_sf_list *psf;
+		in_dev = pmc->interface;
 #endif
 
 		/* filter mode change */
@@ -1799,7 +1799,7 @@ static int ip_mc_leave_src(struct sock *sk, struct ip_mc_socklist *iml,
 {
 	int err;
 
-	if (iml->sflist == 0) {
+	if (iml->sflist == NULL) {
 		/* any-source empty exclude case */
 		return ip_mc_del_src(in_dev, &iml->multi.imr_multiaddr.s_addr,
 			iml->sfmode, 0, NULL, 0);
@@ -2167,7 +2167,6 @@ int ip_mc_gsfget(struct sock *sk, struct group_filter *gsf,
 		return -EFAULT;
 	}
 	for (i=0; i<copycount; i++) {
-		struct sockaddr_in *psin;
 		struct sockaddr_storage ss;
 
 		psin = (struct sockaddr_in *)&ss;

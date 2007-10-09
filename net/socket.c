@@ -1929,7 +1929,7 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg,
 	 *      kernel msghdr to use the kernel address space)
 	 */
 
-	uaddr = (void __user *)msg_sys.msg_name;
+	uaddr = (__force void __user *)msg_sys.msg_name;
 	uaddr_len = COMPAT_NAMELEN(msg);
 	if (MSG_CMSG_COMPAT & flags) {
 		err = verify_compat_iovec(&msg_sys, iov, addr, VERIFY_WRITE);

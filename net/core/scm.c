@@ -167,7 +167,8 @@ error:
 
 int put_cmsg(struct msghdr * msg, int level, int type, int len, void *data)
 {
-	struct cmsghdr __user *cm = (struct cmsghdr __user *)msg->msg_control;
+	struct cmsghdr __user *cm
+		= (__force struct cmsghdr __user *)msg->msg_control;
 	struct cmsghdr cmhdr;
 	int cmlen = CMSG_LEN(len);
 	int err;
@@ -202,7 +203,8 @@ out:
 
 void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 {
-	struct cmsghdr __user *cm = (struct cmsghdr __user*)msg->msg_control;
+	struct cmsghdr __user *cm
+		= (__force struct cmsghdr __user*)msg->msg_control;
 
 	int fdmax = 0;
 	int fdnum = scm->fp->count;
@@ -222,7 +224,8 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 	if (fdnum < fdmax)
 		fdmax = fdnum;
 
-	for (i=0, cmfptr=(int __user *)CMSG_DATA(cm); i<fdmax; i++, cmfptr++)
+	for (i=0, cmfptr=(__force int __user *)CMSG_DATA(cm); i<fdmax;
+	     i++, cmfptr++)
 	{
 		int new_fd;
 		err = security_file_receive(fp[i]);

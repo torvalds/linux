@@ -485,17 +485,17 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 	skb->next = NULL;
 }
 
-#define sk_wait_event(__sk, __timeo, __condition)		\
-({	int rc;							\
-	release_sock(__sk);					\
-	rc = __condition;					\
-	if (!rc) {						\
-		*(__timeo) = schedule_timeout(*(__timeo));	\
-	}							\
-	lock_sock(__sk);					\
-	rc = __condition;					\
-	rc;							\
-})
+#define sk_wait_event(__sk, __timeo, __condition)			\
+	({	int __rc;						\
+		release_sock(__sk);					\
+		__rc = __condition;					\
+		if (!__rc) {						\
+			*(__timeo) = schedule_timeout(*(__timeo));	\
+		}							\
+		lock_sock(__sk);					\
+		__rc = __condition;					\
+		__rc;							\
+	})
 
 extern int sk_stream_wait_connect(struct sock *sk, long *timeo_p);
 extern int sk_stream_wait_memory(struct sock *sk, long *timeo_p);
