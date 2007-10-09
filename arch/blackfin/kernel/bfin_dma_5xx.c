@@ -583,7 +583,7 @@ void *safe_dma_memcpy(void *dest, const void *src, size_t size)
 }
 EXPORT_SYMBOL(safe_dma_memcpy);
 
-void dma_outsb(const void __iomem *addr, const void *buf, unsigned short len)
+void dma_outsb(unsigned long addr, const void *buf, unsigned short len)
 {
 	unsigned long flags;
 
@@ -616,7 +616,7 @@ void dma_outsb(const void __iomem *addr, const void *buf, unsigned short len)
 EXPORT_SYMBOL(dma_outsb);
 
 
-void dma_insb(const void __iomem *addr, void *buf, unsigned short len)
+void dma_insb(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
@@ -647,7 +647,7 @@ void dma_insb(const void __iomem *addr, void *buf, unsigned short len)
 }
 EXPORT_SYMBOL(dma_insb);
 
-void dma_outsw(const void __iomem *addr, const void  *buf, unsigned short len)
+void dma_outsw(unsigned long addr, const void  *buf, unsigned short len)
 {
 	unsigned long flags;
 
@@ -679,7 +679,7 @@ void dma_outsw(const void __iomem *addr, const void  *buf, unsigned short len)
 }
 EXPORT_SYMBOL(dma_outsw);
 
-void dma_insw(const void __iomem *addr, void *buf, unsigned short len)
+void dma_insw(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
@@ -711,7 +711,7 @@ void dma_insw(const void __iomem *addr, void *buf, unsigned short len)
 }
 EXPORT_SYMBOL(dma_insw);
 
-void dma_outsl(const void __iomem *addr, const void *buf, unsigned short len)
+void dma_outsl(unsigned long addr, const void *buf, unsigned short len)
 {
 	unsigned long flags;
 
@@ -743,7 +743,7 @@ void dma_outsl(const void __iomem *addr, const void *buf, unsigned short len)
 }
 EXPORT_SYMBOL(dma_outsl);
 
-void dma_insl(const void __iomem *addr, void *buf, unsigned short len)
+void dma_insl(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
