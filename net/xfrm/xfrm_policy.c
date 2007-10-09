@@ -1682,17 +1682,13 @@ static inline int
 xfrm_secpath_reject(int idx, struct sk_buff *skb, struct flowi *fl)
 {
 	struct xfrm_state *x;
-	int err;
 
 	if (!skb->sp || idx < 0 || idx >= skb->sp->len)
 		return 0;
 	x = skb->sp->xvec[idx];
 	if (!x->type->reject)
 		return 0;
-	xfrm_state_hold(x);
-	err = x->type->reject(x, skb, fl);
-	xfrm_state_put(x);
-	return err;
+	return x->type->reject(x, skb, fl);
 }
 
 /* When skb is transformed back to its "native" form, we have to
