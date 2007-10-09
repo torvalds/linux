@@ -64,6 +64,7 @@
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
+#include <net/sctp/auth.h>	/* We need auth specific structs */
 
 /* A convenience structure for handling sockaddr structures.
  * We should wean ourselves off this.
@@ -216,6 +217,9 @@ extern struct sctp_globals {
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;
+
+	/* Flag to idicate if SCTP-AUTH is enabled */
+	int auth_enable;
 } sctp_globals;
 
 #define sctp_rto_initial		(sctp_globals.rto_initial)
@@ -248,6 +252,7 @@ extern struct sctp_globals {
 #define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
+#define sctp_auth_enable		(sctp_globals.auth_enable)
 
 /* SCTP Socket type: UDP or TCP style. */
 typedef enum {
@@ -397,6 +402,9 @@ struct sctp_cookie {
 
 	__u32 adaptation_ind;
 
+	__u8 auth_random[sizeof(sctp_paramhdr_t) + SCTP_AUTH_RANDOM_LENGTH];
+	__u8 auth_hmacs[SCTP_AUTH_NUM_HMACS + 2];
+	__u8 auth_chunks[sizeof(sctp_paramhdr_t) + SCTP_AUTH_MAX_CHUNKS];
 
 	/* This is a shim for my peer's INIT packet, followed by
 	 * a copy of the raw address list of the association.
@@ -441,6 +449,9 @@ union sctp_params {
 	union sctp_addr_param *addr;
 	struct sctp_adaptation_ind_param *aind;
 	struct sctp_supported_ext_param *ext;
+	struct sctp_random_param *random;
+	struct sctp_chunks_param *chunks;
+	struct sctp_hmac_algo_param *hmac_algo;
 };
 
 /* RFC 2960.  Section 3.3.5 Heartbeat.
@@ -679,6 +690,7 @@ struct sctp_chunk {
 		struct sctp_errhdr *err_hdr;
 		struct sctp_addiphdr *addip_hdr;
 		struct sctp_fwdtsn_hdr *fwdtsn_hdr;
+		struct sctp_authhdr *auth_hdr;
 	} subh;
 
 	__u8 *chunk_end;
@@ -724,6 +736,7 @@ struct sctp_chunk {
 	__s8 fast_retransmit;	 /* Is this chunk fast retransmitted? */
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
 	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
+	__u8 auth;		/* IN: was auth'ed | OUT: needs auth */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);
@@ -773,16 +786,22 @@ struct sctp_packet {
 	 */
 	struct sctp_transport *transport;
 
-	/* This packet contains a COOKIE-ECHO chunk. */
-	char has_cookie_echo;
+	/* pointer to the auth chunk for this packet */
+	struct sctp_chunk *auth;
 
-	/* This packet containsa SACK chunk. */
-	char has_sack;
+	/* This packet contains a COOKIE-ECHO chunk. */
+	__u8 has_cookie_echo;
+
+	/* This packet contains a SACK chunk. */
+	__u8 has_sack;
+
+	/* This packet contains an AUTH chunk */
+	__u8 has_auth;
 
 	/* SCTP cannot fragment this packet. So let ip fragment it. */
-	char ipfragok;
+	__u8 ipfragok;
 
-	int malloced;
+	__u8 malloced;
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
@@ -1291,6 +1310,21 @@ struct sctp_endpoint {
 
 	/* rcvbuf acct. policy.	*/
 	__u32 rcvbuf_policy;
+
+	/* SCTP AUTH: array of the HMACs that will be allocated
+	 * we need this per association so that we don't serialize
+	 */
+	struct crypto_hash **auth_hmacs;
+
+	/* SCTP-AUTH: hmacs for the endpoint encoded into parameter */
+	 struct sctp_hmac_algo_param *auth_hmacs_list;
+
+	/* SCTP-AUTH: chunks to authenticate encoded into parameter */
+	struct sctp_chunks_param *auth_chunk_list;
+
+	/* SCTP-AUTH: endpoint shared keys */
+	struct list_head endpoint_shared_keys;
+	__u16 active_key_id;
 };
 
 /* Recover the outter endpoint structure. */
@@ -1497,6 +1531,7 @@ struct sctp_association {
 		__u8	hostname_address;/* Peer understands DNS addresses? */
 		__u8    asconf_capable;  /* Does peer support ADDIP? */
 		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
+		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
@@ -1514,6 +1549,14 @@ struct sctp_association {
 		 * Initial TSN Value minus 1
 		 */
 		__u32 addip_serial;
+
+		/* SCTP-AUTH: We need to know pears random number, hmac list
+		 * and authenticated chunk list.  All that is part of the
+		 * cookie and these are just pointers to those locations
+		 */
+		sctp_random_param_t *peer_random;
+		sctp_chunks_param_t *peer_chunks;
+		sctp_hmac_algo_param_t *peer_hmacs;
 	} peer;
 
 	/* State       : A state variable indicating what state the
@@ -1796,6 +1839,24 @@ struct sctp_association {
 	 * after reaching 4294967295.
 	 */
 	__u32 addip_serial;
+
+	/* SCTP AUTH: list of the endpoint shared keys.  These
+	 * keys are provided out of band by the user applicaton
+	 * and can't change during the lifetime of the association
+	 */
+	struct list_head endpoint_shared_keys;
+
+	/* SCTP AUTH:
+	 * The current generated assocaition shared key (secret)
+	 */
+	struct sctp_auth_bytes *asoc_shared_key;
+
+	/* SCTP AUTH: hmac id of the first peer requested algorithm
+	 * that we support.
+	 */
+	__u16 default_hmac_id;
+
+	__u16 active_key_id;
 
 	/* Need to send an ECNE Chunk? */
 	char need_ecne;
