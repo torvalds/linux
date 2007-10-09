@@ -62,7 +62,6 @@
 #include <linux/i2c-dev.h>
 #include <linux/wireless.h>
 #include <linux/atalk.h>
-#include <linux/blktrace_api.h>
 #include <linux/loop.h>
 
 #include <net/bluetooth/bluetooth.h>
@@ -2477,13 +2476,6 @@ COMPATIBLE_IOCTL(FIONREAD)  /* This is also TIOCINQ */
 /* 0x00 */
 COMPATIBLE_IOCTL(FIBMAP)
 COMPATIBLE_IOCTL(FIGETBSZ)
-/* 0x12 */
-#ifdef CONFIG_BLOCK
-COMPATIBLE_IOCTL(BLKTRACESTART)
-COMPATIBLE_IOCTL(BLKTRACESTOP)
-COMPATIBLE_IOCTL(BLKTRACESETUP)
-COMPATIBLE_IOCTL(BLKTRACETEARDOWN)
-#endif
 /* RAID */
 COMPATIBLE_IOCTL(RAID_VERSION)
 COMPATIBLE_IOCTL(GET_ARRAY_INFO)

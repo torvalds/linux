@@ -40,6 +40,53 @@ static int compat_put_u64(unsigned long arg, u64 val)
 #define BLKBSZSET_32		_IOW(0x12, 113, int)
 #define BLKGETSIZE64_32		_IOR(0x12, 114, int)
 
+struct compat_blk_user_trace_setup {
+	char name[32];
+	u16 act_mask;
+	u32 buf_size;
+	u32 buf_nr;
+	compat_u64 start_lba;
+	compat_u64 end_lba;
+	u32 pid;
+};
+#define BLKTRACESETUP32 _IOWR(0x12, 115, struct compat_blk_user_trace_setup)
+
+static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
+{
+	struct blk_user_trace_setup buts;
+	struct compat_blk_user_trace_setup cbuts;
+	struct request_queue *q;
+	int ret;
+
+	q = bdev_get_queue(bdev);
+	if (!q)
+		return -ENXIO;
+
+	if (copy_from_user(&cbuts, arg, sizeof(cbuts)))
+		return -EFAULT;
+
+	buts = (struct blk_user_trace_setup) {
+		.act_mask = cbuts.act_mask,
+		.buf_size = cbuts.buf_size,
+		.buf_nr = cbuts.buf_nr,
+		.start_lba = cbuts.start_lba,
+		.end_lba = cbuts.end_lba,
+		.pid = cbuts.pid,
+	};
+	memcpy(&buts.name, &cbuts.name, 32);
+
+	mutex_lock(&bdev->bd_mutex);
+	ret = do_blk_trace_setup(q, bdev, &buts);
+	mutex_unlock(&bdev->bd_mutex);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, &buts.name, 32))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 			struct gendisk *disk, unsigned cmd, unsigned long arg)
 {
@@ -197,6 +244,13 @@ static int compat_blkdev_locked_ioctl(struct inode *inode, struct file *file,
 
 	case BLKGETSIZE64_32:
 		return compat_put_u64(arg, bdev->bd_inode->i_size);
+
+	case BLKTRACESETUP32:
+		return compat_blk_trace_setup(bdev, compat_ptr(arg));
+	case BLKTRACESTART: /* compatible */
+	case BLKTRACESTOP:  /* compatible */
+	case BLKTRACETEARDOWN: /* compatible */
+		return blk_trace_ioctl(bdev, cmd, compat_ptr(arg));
 	}
 	return -ENOIOCTLCMD;
 }
