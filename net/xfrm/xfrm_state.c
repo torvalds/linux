@@ -1275,26 +1275,33 @@ u32 xfrm_get_acqseq(void)
 }
 EXPORT_SYMBOL(xfrm_get_acqseq);
 
-void
-xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi)
+int xfrm_alloc_spi(struct xfrm_state *x, u32 low, u32 high)
 {
 	unsigned int h;
 	struct xfrm_state *x0;
+	int err = -ENOENT;
+	__be32 minspi = htonl(low);
+	__be32 maxspi = htonl(high);
 
+	spin_lock_bh(&x->lock);
+	if (x->km.state == XFRM_STATE_DEAD)
+		goto unlock;
+
+	err = 0;
 	if (x->id.spi)
-		return;
+		goto unlock;
+
+	err = -ENOENT;
 
 	if (minspi == maxspi) {
 		x0 = xfrm_state_lookup(&x->id.daddr, minspi, x->id.proto, x->props.family);
 		if (x0) {
 			xfrm_state_put(x0);
-			return;
+			goto unlock;
 		}
 		x->id.spi = minspi;
 	} else {
 		u32 spi = 0;
-		u32 low = ntohl(minspi);
-		u32 high = ntohl(maxspi);
 		for (h=0; h<high-low+1; h++) {
 			spi = low + net_random()%(high-low+1);
 			x0 = xfrm_state_lookup(&x->id.daddr, htonl(spi), x->id.proto, x->props.family);
@@ -1310,7 +1317,14 @@ xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi)
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, x->props.family);
 		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 		spin_unlock_bh(&xfrm_state_lock);
+
+		err = 0;
 	}
+
+unlock:
+	spin_unlock_bh(&x->lock);
+
+	return err;
 }
 EXPORT_SYMBOL(xfrm_alloc_spi);
 

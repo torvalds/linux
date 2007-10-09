@@ -784,16 +784,11 @@ static int xfrm_alloc_userspi(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (x == NULL)
 		goto out_noput;
 
-	resp_skb = ERR_PTR(-ENOENT);
+	err = xfrm_alloc_spi(x, p->min, p->max);
+	if (err)
+		goto out;
 
-	spin_lock_bh(&x->lock);
-	if (x->km.state != XFRM_STATE_DEAD) {
-		xfrm_alloc_spi(x, htonl(p->min), htonl(p->max));
-		if (x->id.spi)
-			resp_skb = xfrm_state_netlink(skb, x, nlh->nlmsg_seq);
-	}
-	spin_unlock_bh(&x->lock);
-
+	resp_skb = xfrm_state_netlink(skb, x, nlh->nlmsg_seq);
 	if (IS_ERR(resp_skb)) {
 		err = PTR_ERR(resp_skb);
 		goto out;
