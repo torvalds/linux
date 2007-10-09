@@ -1163,12 +1163,6 @@ static inline int xfrm_aevent_is_on(void)
 	return ret;
 }
 
-static inline void xfrm_aevent_doreplay(struct xfrm_state *x)
-{
-	if (xfrm_aevent_is_on())
-		xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
-}
-
 #ifdef CONFIG_XFRM_MIGRATE
 static inline struct xfrm_algo *xfrm_algo_clone(struct xfrm_algo *orig)
 {

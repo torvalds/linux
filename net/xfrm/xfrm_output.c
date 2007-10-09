@@ -60,7 +60,8 @@ int xfrm_output(struct sk_buff *skb)
 
 		if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 			XFRM_SKB_CB(skb)->seq = ++x->replay.oseq;
-			xfrm_aevent_doreplay(x);
+			if (xfrm_aevent_is_on())
+				xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 		}
 
 		err = x->mode->output(x, skb);

@@ -1397,7 +1397,6 @@ void xfrm_replay_notify(struct xfrm_state *x, int event)
 	    !mod_timer(&x->rtimer, jiffies + x->replay_maxage))
 		x->xflags &= ~XFRM_TIME_DEFER;
 }
-EXPORT_SYMBOL(xfrm_replay_notify);
 
 static void xfrm_replay_timer_handler(unsigned long data)
 {
