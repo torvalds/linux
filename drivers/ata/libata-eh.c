@@ -1868,6 +1868,9 @@ static void ata_eh_link_report(struct ata_link *link)
 	char tries_buf[6];
 	int tag, nr_failed = 0;
 
+	if (ehc->i.flags & ATA_EHI_QUIET)
+		return;
+
 	desc = NULL;
 	if (ehc->i.desc[0] != '\0')
 		desc = ehc->i.desc;
