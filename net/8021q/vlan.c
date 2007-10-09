@@ -331,6 +331,9 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
+	/* ipv6 shared card related stuff */
+	dev->dev_id = real_dev->dev_id;
+
 	if (is_zero_ether_addr(dev->dev_addr))
 		memcpy(dev->dev_addr, real_dev->dev_addr, dev->addr_len);
 	if (is_zero_ether_addr(dev->broadcast))
