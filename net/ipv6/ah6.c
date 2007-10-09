@@ -429,10 +429,6 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (!x->aalg)
 		goto error;
 
-	/* null auth can use a zero length key */
-	if (x->aalg->alg_key_len > 512)
-		goto error;
-
 	if (x->encap)
 		goto error;
 
@@ -440,14 +436,13 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (ahp == NULL)
 		return -ENOMEM;
 
-	ahp->key = x->aalg->alg_key;
-	ahp->key_len = (x->aalg->alg_key_len+7)/8;
 	tfm = crypto_alloc_hash(x->aalg->alg_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm))
 		goto error;
 
 	ahp->tfm = tfm;
-	if (crypto_hash_setkey(tfm, ahp->key, ahp->key_len))
+	if (crypto_hash_setkey(tfm, x->aalg->alg_key,
+			       (x->aalg->alg_key_len + 7) / 8))
 		goto error;
 
 	/*

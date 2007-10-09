@@ -9,8 +9,6 @@
 
 struct ah_data
 {
-	u8			*key;
-	int			key_len;
 	u8			*work_icv;
 	int			icv_full_len;
 	int			icv_trunc_len;
