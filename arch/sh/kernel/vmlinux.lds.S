@@ -91,6 +91,11 @@ SECTIONS
   __con_initcall_end = .;
   SECURITY_INIT
 
+  /* .exit.text is discarded at runtime, not link time, to deal with
+     references from .rodata */
+  .exit.text : { *(.exit.text) }
+  .exit.data : { *(.exit.data) }
+
 #ifdef CONFIG_BLK_DEV_INITRD
   . = ALIGN(PAGE_SIZE);
 
