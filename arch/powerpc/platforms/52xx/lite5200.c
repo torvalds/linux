@@ -150,20 +150,6 @@ static void __init lite5200_setup_arch(void)
 
 }
 
-static void lite5200_show_cpuinfo(struct seq_file *m)
-{
-	struct device_node* np = of_find_all_nodes(NULL);
-	const char *model = NULL;
-
-	if (np)
-		model = of_get_property(np, "model", NULL);
-
-	seq_printf(m, "vendor\t\t:	Freescale Semiconductor\n");
-	seq_printf(m, "machine\t\t:	%s\n", model ? model : "unknown");
-
-	of_node_put(np);
-}
-
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
@@ -187,6 +173,5 @@ define_machine(lite5200) {
 	.init		= mpc52xx_declare_of_platform_devices,
 	.init_IRQ 	= mpc52xx_init_irq,
 	.get_irq 	= mpc52xx_get_irq,
-	.show_cpuinfo	= lite5200_show_cpuinfo,
 	.calibrate_decr	= generic_calibrate_decr,
 };
