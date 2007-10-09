@@ -22,6 +22,7 @@ asmlinkage void evt_system_call(void);
 asmlinkage void init_exception_buff(void);
 asmlinkage void trap_c(struct pt_regs *fp);
 asmlinkage void ex_replaceable(void);
+asmlinkage void early_trap(void);
 
 extern void *ex_table[];
 extern void return_from_exception(void);

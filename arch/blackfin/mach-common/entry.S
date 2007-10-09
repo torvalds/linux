@@ -835,12 +835,13 @@ ENTRY(_ex_trace_buff_full)
 	P2 = [sp++];
 	P3 = [sp++];
 	jump _return_from_exception;
+ENDPROC(_ex_trace_buff_full)
 
 #if CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN == 4
 .data
 #else
 .section .l1.data.B
-#endif
+#endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN */
 ENTRY(_trace_buff_offset)
         .long 0;
 ALIGN
@@ -848,7 +849,45 @@ ENTRY(_software_trace_buff)
 	.rept ((1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN)*256);
 	.long 0
 	.endr
-#endif
+#endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
+
+#if CONFIG_EARLY_PRINTK
+.section .init.text
+ENTRY(_early_trap)
+	SAVE_ALL_SYS
+	trace_buffer_stop(p0,r0);
+
+	/* Turn caches off, to ensure we don't get double exceptions */
+
+	P4.L = LO(IMEM_CONTROL);
+	P4.H = HI(IMEM_CONTROL);
+
+	R5 = [P4];              /* Control Register*/
+	BITCLR(R5,ENICPLB_P);
+	CLI R1;
+	SSYNC;          /* SSYNC required before writing to IMEM_CONTROL. */
+	.align 8;
+	[P4] = R5;
+	SSYNC;
+
+	P4.L = LO(DMEM_CONTROL);
+	P4.H = HI(DMEM_CONTROL);
+	R5 = [P4];
+	BITCLR(R5,ENDCPLB_P);
+	SSYNC;          /* SSYNC required before writing to DMEM_CONTROL. */
+	.align 8;
+	[P4] = R5;
+	SSYNC;
+	STI R1;
+
+	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
+	r1 = RETX;
+
+	SP += -12;
+	call _early_trap_c;
+	SP += 12;
+ENDPROC(_early_trap)
+#endif /* CONFIG_EARLY_PRINTK */
 
 /*
  * Put these in the kernel data section - that should always be covered by

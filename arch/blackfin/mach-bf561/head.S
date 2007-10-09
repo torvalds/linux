@@ -169,6 +169,12 @@ ENTRY(__start)
 	fp = sp;
 	usp = sp;
 
+#ifdef CONFIG_EARLY_PRINTK
+	SP += -12;
+	call _init_early_exception_vectors;
+	SP += 12;
+#endif
+
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
 #if CONFIG_BFIN_KERNEL_CLOCK

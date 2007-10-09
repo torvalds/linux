@@ -38,12 +38,12 @@ extern struct console *bfin_earlyserial_init(unsigned int port,
 
 static struct console *early_console;
 
-/* Default console
- * Port n == ttyBFn
- * cflags == UART output modes
- */
+/* Default console */
 #define DEFAULT_PORT 0
 #define DEFAULT_CFLAG CS8|B57600
+
+/* Default console for early crashes */
+#define DEFAULT_EARLY_PORT "serial,uart0,57600"
 
 #ifdef CONFIG_SERIAL_CORE
 /* What should get here is "0,57600" */
@@ -156,6 +156,59 @@ int __init setup_early_printk(char *buf)
 	}
 
 	return 0;
+}
+
+/*
+ * Set up a temporary Event Vector Table, so if something bad happens before
+ * the kernel is fully started, it doesn't vector off into somewhere we don't
+ * know
+ */
+
+asmlinkage void __init init_early_exception_vectors(void)
+{
+	SSYNC();
+
+	/* cannot program in software:
+	 * evt0 - emulation (jtag)
+	 * evt1 - reset
+	 */
+	bfin_write_EVT2(early_trap);
+	bfin_write_EVT3(early_trap);
+	bfin_write_EVT5(early_trap);
+	bfin_write_EVT6(early_trap);
+	bfin_write_EVT7(early_trap);
+	bfin_write_EVT8(early_trap);
+	bfin_write_EVT9(early_trap);
+	bfin_write_EVT10(early_trap);
+	bfin_write_EVT11(early_trap);
+	bfin_write_EVT12(early_trap);
+	bfin_write_EVT13(early_trap);
+	bfin_write_EVT14(early_trap);
+	bfin_write_EVT15(early_trap);
+	CSYNC();
+
+	/* Set all the return from interupt, exception, NMI to a known place
+	 * so if we do a RETI, RETX or RETN by mistake - we go somewhere known
+	 * Note - don't change RETS - we are in a subroutine, or
+	 * RETE - since it might screw up if emulator is attached
+	 */
+	asm("\tRETI = %0; RETX = %0; RETN = %0;\n"
+		: : "p"(early_trap));
+
+}
+
+asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
+{
+	/* This can happen before the uart is initialized, so initialize
+	 * the UART now
+	 */
+	if (likely(early_console == NULL))
+		setup_early_printk(DEFAULT_EARLY_PORT);
+
+	dump_bfin_regs(fp, retaddr);
+	dump_bfin_trace_buffer();
+
+	panic("Died early");
 }
 
 early_param("earlyprintk", setup_early_printk);
