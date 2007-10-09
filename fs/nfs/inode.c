@@ -49,6 +49,11 @@
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
+#define NFS_64_BIT_INODE_NUMBERS_ENABLED	1
+
+/* Default is to see 64-bit inode numbers */
+static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
+
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);
 
@@ -60,6 +65,25 @@ static inline unsigned long
 nfs_fattr_to_ino_t(struct nfs_fattr *fattr)
 {
 	return nfs_fileid_to_ino_t(fattr->fileid);
+}
+
+/**
+ * nfs_compat_user_ino64 - returns the user-visible inode number
+ * @fileid: 64-bit fileid
+ *
+ * This function returns a 32-bit inode number if the boot parameter
+ * nfs.enable_ino64 is zero.
+ */
+u64 nfs_compat_user_ino64(u64 fileid)
+{
+	int ino;
+
+	if (enable_ino64)
+		return fileid;
+	ino = fileid;
+	if (sizeof(ino) < sizeof(fileid))
+		ino ^= fileid >> (sizeof(fileid)-sizeof(ino)) * 8;
+	return ino;
 }
 
 int nfs_write_inode(struct inode *inode, int sync)
@@ -456,7 +480,7 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 		err = nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	if (!err) {
 		generic_fillattr(inode, stat);
-		stat->ino = NFS_FILEID(inode);
+		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
 	}
 	return err;
 }
@@ -1235,6 +1259,7 @@ static void __exit exit_nfs_fs(void)
 /* Not quite true; I just maintain it */
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
 MODULE_LICENSE("GPL");
+module_param(enable_ino64, bool, 0644);
 
 module_init(init_nfs_fs)
 module_exit(exit_nfs_fs)

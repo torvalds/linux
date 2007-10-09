@@ -427,7 +427,8 @@ int nfs_do_filldir(nfs_readdir_descriptor_t *desc, void *dirent,
 		}
 
 		res = filldir(dirent, entry->name, entry->len, 
-			      file->f_pos, fileid, d_type);
+			      file->f_pos, nfs_compat_user_ino64(fileid),
+			      d_type);
 		if (res < 0)
 			break;
 		file->f_pos++;

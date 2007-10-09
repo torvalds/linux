@@ -289,6 +289,7 @@ extern void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
 extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode);
+extern u64 nfs_compat_user_ino64(u64 fileid);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
