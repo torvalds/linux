@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/stringify.h>
+#include <linux/time.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
@@ -57,6 +58,9 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 			       (prevhdr - x->props.header_len) - skb->data);
 	skb_set_transport_header(skb, hdr_len);
 	memmove(skb->data, iph, hdr_len);
+
+	x->lastused = get_seconds();
+
 	return 0;
 }
 

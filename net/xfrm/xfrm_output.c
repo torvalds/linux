@@ -14,7 +14,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
-#include <linux/time.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 
@@ -74,9 +73,6 @@ int xfrm_output(struct sk_buff *skb)
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
-
-		if (x->props.mode == XFRM_MODE_ROUTEOPTIMIZATION)
-			x->lastused = get_seconds();
 
 		spin_unlock_bh(&x->lock);
 
