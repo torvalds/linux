@@ -47,7 +47,6 @@
 #include <linux/netdevice.h>
 #include <linux/raw.h>
 #include <linux/smb_fs.h>
-#include <linux/blkpg.h>
 #include <linux/blkdev.h>
 #include <linux/elevator.h>
 #include <linux/rtc.h>
@@ -1486,37 +1485,6 @@ ret_einval(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	return -EINVAL;
 }
-
-#ifdef CONFIG_BLOCK
-struct blkpg_ioctl_arg32 {
-	compat_int_t op;
-	compat_int_t flags;
-	compat_int_t datalen;
-	compat_caddr_t data;
-};
-
-static int blkpg_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct blkpg_ioctl_arg32 __user *ua32 = compat_ptr(arg);
-	struct blkpg_ioctl_arg __user *a = compat_alloc_user_space(sizeof(*a));
-	compat_caddr_t udata;
-	compat_int_t n;
-	int err;
-	
-	err = get_user(n, &ua32->op);
-	err |= put_user(n, &a->op);
-	err |= get_user(n, &ua32->flags);
-	err |= put_user(n, &a->flags);
-	err |= get_user(n, &ua32->datalen);
-	err |= put_user(n, &a->datalen);
-	err |= get_user(udata, &ua32->data);
-	err |= put_user(compat_ptr(udata), &a->data);
-	if (err)
-		return err;
-
-	return sys_ioctl(fd, cmd, (unsigned long)a);
-}
-#endif
 
 static int ioc_settimeout(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -3160,7 +3128,6 @@ HANDLE_IOCTL(SIOCGSTAMP, do_siocgstamp)
 HANDLE_IOCTL(SIOCGSTAMPNS, do_siocgstampns)
 #endif
 #ifdef CONFIG_BLOCK
-HANDLE_IOCTL(BLKPG, blkpg_ioctl_trans)
 HANDLE_IOCTL(FDSETPRM32, fd_ioctl_trans)
 HANDLE_IOCTL(FDDEFPRM32, fd_ioctl_trans)
 HANDLE_IOCTL(FDGETPRM32, fd_ioctl_trans)
