@@ -237,37 +237,16 @@ static int wlan_set_nick(struct net_device *dev, struct iw_request_info *info,
 static int wlan_get_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
-	const char *cp;
-	char comm[6] = { "COMM-" };
-	char mrvl[6] = { "MRVL-" };
-	int cnt;
+	wlan_private *priv = dev->priv;
+	wlan_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	/*
-	 * Nick Name is not used internally in this mode,
-	 * therefore return something useful instead. Jean II
-	 */
+	dwrq->length = strlen(adapter->nodename);
+	memcpy(extra, adapter->nodename, dwrq->length);
+	extra[dwrq->length] = '\0';
 
-	strcpy(extra, mrvl);
-
-	cp = strstr(libertas_driver_version, comm);
-	if (cp == libertas_driver_version)	//skip leading "COMM-"
-		cp = libertas_driver_version + strlen(comm);
-	else
-		cp = libertas_driver_version;
-
-	cnt = strlen(mrvl);
-	extra += cnt;
-	while (cnt < 16 && (*cp != '-')) {
-		*extra++ = toupper(*cp++);
-		cnt++;
-	}
-
-	/*
-	 * Push it out !
-	 */
-	dwrq->length = cnt;
+	dwrq->flags = 1;	/* active */
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -297,6 +276,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+
 static int wlan_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
