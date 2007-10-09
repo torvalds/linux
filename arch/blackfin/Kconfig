@@ -1164,6 +1164,20 @@ config DEBUG_BFIN_NO_KERN_HWTRACE
 	  Say Y here to disable hardware tracing in some known "jumpy" pieces
 	  of code so that the trace buffer will extend further back.
 
+config EARLY_PRINTK
+	bool "Early printk" 
+	default n
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. After enabling this
+	  feature, you must add "earlyprintk=serial,uart0,57600" to the
+	  command line (bootargs). It is safe to say Y here in all cases, as
+	  all of this lives in the init section and is thrown away after the
+	  kernel boots completely.
+
 config DUAL_CORE_TEST_MODULE
 	tristate "Dual Core Test Module"
 	depends on (BF561)

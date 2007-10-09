@@ -962,30 +962,6 @@ static void __init bfin_serial_init_ports(void)
 }
 
 #ifdef CONFIG_SERIAL_BFIN_CONSOLE
-static void bfin_serial_console_putchar(struct uart_port *port, int ch)
-{
-	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-	while (!(UART_GET_LSR(uart) & THRE))
-		barrier();
-	UART_PUT_CHAR(uart, ch);
-	SSYNC();
-}
-
-/*
- * Interrupts are disabled on entering
- */
-static void
-bfin_serial_console_write(struct console *co, const char *s, unsigned int count)
-{
-	struct bfin_serial_port *uart = &bfin_serial_ports[co->index];
-	int flags = 0;
-
-	spin_lock_irqsave(&uart->port.lock, flags);
-	uart_console_write(&uart->port, s, count, bfin_serial_console_putchar);
-	spin_unlock_irqrestore(&uart->port.lock, flags);
-
-}
-
 /*
  * If the port was already initialised (eg, by a boot loader),
  * try to determine the current setup.
@@ -1038,19 +1014,25 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 	}
 	pr_debug("%s:baud = %d, parity = %c, bits= %d\n", __FUNCTION__, *baud, *parity, *bits);
 }
+#endif
+
+#if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
+static struct uart_driver bfin_serial_reg;
 
 static int __init
 bfin_serial_console_setup(struct console *co, char *options)
 {
 	struct bfin_serial_port *uart;
+# ifdef CONFIG_SERIAL_BFIN_CONSOLE
 	int baud = 57600;
 	int bits = 8;
 	int parity = 'n';
-#ifdef CONFIG_SERIAL_BFIN_CTSRTS
+#  ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	int flow = 'r';
-#else
+#  else
 	int flow = 'n';
-#endif
+#  endif
+# endif
 
 	/*
 	 * Check whether an invalid uart number has been specified, and
@@ -1061,15 +1043,45 @@ bfin_serial_console_setup(struct console *co, char *options)
 		co->index = 0;
 	uart = &bfin_serial_ports[co->index];
 
+# ifdef CONFIG_SERIAL_BFIN_CONSOLE
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else
 		bfin_serial_console_get_options(uart, &baud, &parity, &bits);
 
 	return uart_set_options(&uart->port, co, baud, parity, bits, flow);
+# else
+	return 0;
+# endif
+}
+#endif /* defined (CONFIG_SERIAL_BFIN_CONSOLE) ||
+				 defined (CONFIG_EARLY_PRINTK) */
+
+#ifdef CONFIG_SERIAL_BFIN_CONSOLE
+static void bfin_serial_console_putchar(struct uart_port *port, int ch)
+{
+	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+	while (!(UART_GET_LSR(uart) & THRE))
+		barrier();
+	UART_PUT_CHAR(uart, ch);
+	SSYNC();
 }
 
-static struct uart_driver bfin_serial_reg;
+/*
+ * Interrupts are disabled on entering
+ */
+static void
+bfin_serial_console_write(struct console *co, const char *s, unsigned int count)
+{
+	struct bfin_serial_port *uart = &bfin_serial_ports[co->index];
+	int flags = 0;
+
+	spin_lock_irqsave(&uart->port.lock, flags);
+	uart_console_write(&uart->port, s, count, bfin_serial_console_putchar);
+	spin_unlock_irqrestore(&uart->port.lock, flags);
+
+}
+
 static struct console bfin_serial_console = {
 	.name		= BFIN_SERIAL_NAME,
 	.write		= bfin_serial_console_write,
@@ -1095,7 +1107,68 @@ console_initcall(bfin_serial_rs_console_init);
 #define BFIN_SERIAL_CONSOLE	&bfin_serial_console
 #else
 #define BFIN_SERIAL_CONSOLE	NULL
+#endif /* CONFIG_SERIAL_BFIN_CONSOLE */
+
+
+#ifdef CONFIG_EARLY_PRINTK
+static __init void early_serial_putc(struct uart_port *port, int ch)
+{
+	unsigned timeout = 0xffff;
+	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+
+	while ((!(UART_GET_LSR(uart) & THRE)) && --timeout)
+		cpu_relax();
+	UART_PUT_CHAR(uart, ch);
+}
+
+static __init void early_serial_write(struct console *con, const char *s,
+					unsigned int n)
+{
+	struct bfin_serial_port *uart = &bfin_serial_ports[con->index];
+	unsigned int i;
+
+	for (i = 0; i < n; i++, s++) {
+		if (*s == '\n')
+			early_serial_putc(&uart->port, '\r');
+		early_serial_putc(&uart->port, *s);
+	}
+}
+
+static struct __init console bfin_early_serial_console = {
+	.name = "early_BFuart",
+	.write = early_serial_write,
+	.device = uart_console_device,
+	.flags = CON_PRINTBUFFER,
+	.setup = bfin_serial_console_setup,
+	.index = -1,
+	.data  = &bfin_serial_reg,
+};
+
+struct console __init *bfin_earlyserial_init(unsigned int port,
+						unsigned int cflag)
+{
+	struct bfin_serial_port *uart;
+	struct ktermios t;
+
+	if (port == -1 || port >= nr_ports)
+		port = 0;
+	bfin_serial_init_ports();
+	bfin_early_serial_console.index = port;
+#ifdef CONFIG_KGDB_UART
+	kgdb_entry_state = 0;
+	init_kgdb_uart();
 #endif
+	uart = &bfin_serial_ports[port];
+	t.c_cflag = cflag;
+	t.c_iflag = 0;
+	t.c_oflag = 0;
+	t.c_lflag = ICANON;
+	t.c_line = port;
+	bfin_serial_set_termios(&uart->port, &t, &t);
+	return &bfin_early_serial_console;
+}
+
+#endif /* CONFIG_SERIAL_BFIN_CONSOLE */
 
 static struct uart_driver bfin_serial_reg = {
 	.owner			= THIS_MODULE,
