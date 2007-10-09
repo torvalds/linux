@@ -2549,7 +2549,6 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	dev->ndev = ndev;
 	dev->ofdev = ofdev;
 	dev->blist = blist;
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &ofdev->dev);
 
 	/* Initialize some embedded data structures */
