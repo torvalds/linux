@@ -15,7 +15,6 @@
 #include "defs.h"
 #include "dev.h"
 #include "if_usb.h"
-#include "decl.h"
 
 #define MESSAGE_HEADER_LEN	4
 
