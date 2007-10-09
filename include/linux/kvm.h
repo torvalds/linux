@@ -23,6 +23,15 @@ struct kvm_memory_region {
 	__u64 memory_size; /* bytes */
 };
 
+/* for KVM_SET_USER_MEMORY_REGION */
+struct kvm_userspace_memory_region {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+};
+
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
 
@@ -348,6 +357,7 @@ struct kvm_signal_mask {
 #define KVM_CAP_IRQCHIP	  0
 #define KVM_CAP_HLT	  1
 #define KVM_CAP_MMU_SHADOW_CACHE_CONTROL 2
+#define KVM_CAP_USER_MEMORY 3
 
 /*
  * ioctls for VM fds
@@ -355,6 +365,8 @@ struct kvm_signal_mask {
 #define KVM_SET_MEMORY_REGION     _IOW(KVMIO, 0x40, struct kvm_memory_region)
 #define KVM_SET_NR_MMU_PAGES      _IO(KVMIO, 0x44)
 #define KVM_GET_NR_MMU_PAGES      _IO(KVMIO, 0x45)
+#define KVM_SET_USER_MEMORY_REGION _IOW(KVMIO, 0x46,\
+					struct kvm_userspace_memory_region)
 /*
  * KVM_CREATE_VCPU receives as a parameter the vcpu slot, and returns
  * a vcpu fd.

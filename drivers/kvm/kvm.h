@@ -408,6 +408,7 @@ struct kvm_memory_slot {
 	struct page **phys_mem;
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
+	int user_alloc; /* user allocated memory */
 };
 
 struct kvm {

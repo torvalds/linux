@@ -40,6 +40,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/profile.h>
 #include <linux/kvm_para.h>
+#include <linux/pagemap.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -300,19 +301,40 @@ static struct kvm *kvm_create_vm(void)
 	return kvm;
 }
 
+static void kvm_free_userspace_physmem(struct kvm_memory_slot *free)
+{
+	int i;
+
+	for (i = 0; i < free->npages; ++i) {
+		if (free->phys_mem[i]) {
+			if (!PageReserved(free->phys_mem[i]))
+				SetPageDirty(free->phys_mem[i]);
+			page_cache_release(free->phys_mem[i]);
+		}
+	}
+}
+
+static void kvm_free_kernel_physmem(struct kvm_memory_slot *free)
+{
+	int i;
+
+	for (i = 0; i < free->npages; ++i)
+		if (free->phys_mem[i])
+			__free_page(free->phys_mem[i]);
+}
+
 /*
  * Free any memory in @free but not in @dont.
  */
 static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 				  struct kvm_memory_slot *dont)
 {
-	int i;
-
 	if (!dont || free->phys_mem != dont->phys_mem)
 		if (free->phys_mem) {
-			for (i = 0; i < free->npages; ++i)
-				if (free->phys_mem[i])
-					__free_page(free->phys_mem[i]);
+			if (free->user_alloc)
+				kvm_free_userspace_physmem(free);
+			else
+				kvm_free_kernel_physmem(free);
 			vfree(free->phys_mem);
 		}
 	if (!dont || free->rmap != dont->rmap)
@@ -652,7 +674,9 @@ EXPORT_SYMBOL_GPL(fx_init);
  * Discontiguous memory is allowed, mostly for framebuffers.
  */
 static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
-					  struct kvm_memory_region *mem)
+					  struct
+					  kvm_userspace_memory_region *mem,
+					  int user_alloc)
 {
 	int r;
 	gfn_t base_gfn;
@@ -728,11 +752,27 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 
 		memset(new.phys_mem, 0, npages * sizeof(struct page *));
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
-		for (i = 0; i < npages; ++i) {
-			new.phys_mem[i] = alloc_page(GFP_HIGHUSER
-						     | __GFP_ZERO);
-			if (!new.phys_mem[i])
+		if (user_alloc) {
+			unsigned long pages_num;
+
+			new.user_alloc = 1;
+			down_read(&current->mm->mmap_sem);
+
+			pages_num = get_user_pages(current, current->mm,
+						   mem->userspace_addr,
+						   npages, 1, 1, new.phys_mem,
+						   NULL);
+
+			up_read(&current->mm->mmap_sem);
+			if (pages_num != npages)
 				goto out_unlock;
+		} else {
+			for (i = 0; i < npages; ++i) {
+				new.phys_mem[i] = alloc_page(GFP_HIGHUSER
+							     | __GFP_ZERO);
+				if (!new.phys_mem[i])
+					goto out_unlock;
+			}
 		}
 	}
 
@@ -3108,11 +3148,29 @@ static long kvm_vm_ioctl(struct file *filp,
 		break;
 	case KVM_SET_MEMORY_REGION: {
 		struct kvm_memory_region kvm_mem;
+		struct kvm_userspace_memory_region kvm_userspace_mem;
 
 		r = -EFAULT;
 		if (copy_from_user(&kvm_mem, argp, sizeof kvm_mem))
 			goto out;
-		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_mem);
+		kvm_userspace_mem.slot = kvm_mem.slot;
+		kvm_userspace_mem.flags = kvm_mem.flags;
+		kvm_userspace_mem.guest_phys_addr = kvm_mem.guest_phys_addr;
+		kvm_userspace_mem.memory_size = kvm_mem.memory_size;
+		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, 0);
+		if (r)
+			goto out;
+		break;
+	}
+	case KVM_SET_USER_MEMORY_REGION: {
+		struct kvm_userspace_memory_region kvm_userspace_mem;
+
+		r = -EFAULT;
+		if (copy_from_user(&kvm_userspace_mem, argp,
+						sizeof kvm_userspace_mem))
+			goto out;
+
+		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, 1);
 		if (r)
 			goto out;
 		break;
@@ -3332,6 +3390,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		case KVM_CAP_IRQCHIP:
 		case KVM_CAP_HLT:
 		case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
+		case KVM_CAP_USER_MEMORY:
 			r = 1;
 			break;
 		default:
