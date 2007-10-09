@@ -1620,11 +1620,8 @@ static void ahci_thaw(struct ata_port *ap)
 	writel(tmp, port_mmio + PORT_IRQ_STAT);
 	writel(1 << ap->port_no, mmio + HOST_IRQ_STAT);
 
-	/* turn IRQ back on, ignore BAD_PMP if PMP isn't attached */
-	tmp = pp->intr_mask;
-	if (!ap->nr_pmp_links)
-		tmp &= ~PORT_IRQ_BAD_PMP;
-	writel(tmp, port_mmio + PORT_IRQ_MASK);
+	/* turn IRQ back on */
+	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
 static void ahci_error_handler(struct ata_port *ap)
@@ -1667,21 +1664,29 @@ static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)
 static void ahci_pmp_attach(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_port_priv *pp = ap->private_data;
 	u32 cmd;
 
 	cmd = readl(port_mmio + PORT_CMD);
 	cmd |= PORT_CMD_PMP;
 	writel(cmd, port_mmio + PORT_CMD);
+
+	pp->intr_mask |= PORT_IRQ_BAD_PMP;
+	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
 static void ahci_pmp_detach(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
+	struct ahci_port_priv *pp = ap->private_data;
 	u32 cmd;
 
 	cmd = readl(port_mmio + PORT_CMD);
 	cmd &= ~PORT_CMD_PMP;
 	writel(cmd, port_mmio + PORT_CMD);
+
+	pp->intr_mask &= ~PORT_IRQ_BAD_PMP;
+	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
 }
 
 static int ahci_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val)
