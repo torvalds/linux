@@ -235,10 +235,10 @@ static irqreturn_t mal_serr(int irq, void *dev_instance)
 
 static inline void mal_schedule_poll(struct mal_instance *mal)
 {
-	if (likely(netif_rx_schedule_prep(&mal->poll_dev))) {
+	if (likely(napi_schedule_prep(&mal->napi))) {
 		MAL_DBG2(mal, "schedule_poll" NL);
 		mal_disable_eob_irq(mal);
-		__netif_rx_schedule(&mal->poll_dev);
+		__napi_schedule(&mal->napi);
 	} else
 		MAL_DBG2(mal, "already in poll" NL);
 }
@@ -318,8 +318,7 @@ void mal_poll_disable(struct mal_instance *mal, struct mal_commac *commac)
 		msleep(1);
 
 	/* Synchronize with the MAL NAPI poller. */
-	while (test_bit(__LINK_STATE_RX_SCHED, &mal->poll_dev.state))
-		msleep(1);
+	napi_disable(&mal->napi);
 }
 
 void mal_poll_enable(struct mal_instance *mal, struct mal_commac *commac)
@@ -330,11 +329,11 @@ void mal_poll_enable(struct mal_instance *mal, struct mal_commac *commac)
 	// XXX might want to kick a poll now...
 }
 
-static int mal_poll(struct net_device *ndev, int *budget)
+static int mal_poll(struct napi_struct *napi, int budget)
 {
-	struct mal_instance *mal = netdev_priv(ndev);
+	struct mal_instance *mal = container_of(napi, struct mal_instance, napi);
 	struct list_head *l;
-	int rx_work_limit = min(ndev->quota, *budget), received = 0, done;
+	int received = 0;
 	unsigned long flags;
 
 	MAL_DBG2(mal, "poll(%d) %d ->" NL, *budget,
@@ -358,25 +357,20 @@ static int mal_poll(struct net_device *ndev, int *budget)
 		int n;
 		if (unlikely(test_bit(MAL_COMMAC_POLL_DISABLED, &mc->flags)))
 			continue;
-		n = mc->ops->poll_rx(mc->dev, rx_work_limit);
+		n = mc->ops->poll_rx(mc->dev, budget);
 		if (n) {
 			received += n;
-			rx_work_limit -= n;
-			if (rx_work_limit <= 0) {
-				done = 0;
-				// XXX What if this is the last one ?
-				goto more_work;
-			}
+			budget -= n;
+			if (budget <= 0)
+				goto more_work; // XXX What if this is the last one ?
 		}
 	}
 
 	/* We need to disable IRQs to protect from RXDE IRQ here */
 	spin_lock_irqsave(&mal->lock, flags);
-	__netif_rx_complete(ndev);
+	__napi_complete(napi);
 	mal_enable_eob_irq(mal);
 	spin_unlock_irqrestore(&mal->lock, flags);
-
-	done = 1;
 
 	/* Check for "rotting" packet(s) */
 	list_for_each(l, &mal->poll_list) {
@@ -387,12 +381,12 @@ static int mal_poll(struct net_device *ndev, int *budget)
 		if (unlikely(mc->ops->peek_rx(mc->dev) ||
 			     test_bit(MAL_COMMAC_RX_STOPPED, &mc->flags))) {
 			MAL_DBG2(mal, "rotting packet" NL);
-			if (netif_rx_reschedule(ndev, received))
+			if (napi_reschedule(napi))
 				mal_disable_eob_irq(mal);
 			else
 				MAL_DBG2(mal, "already in poll list" NL);
 
-			if (rx_work_limit > 0)
+			if (budget > 0)
 				goto again;
 			else
 				goto more_work;
@@ -401,13 +395,8 @@ static int mal_poll(struct net_device *ndev, int *budget)
 	}
 
  more_work:
-	ndev->quota -= received;
-	*budget -= received;
-
-	MAL_DBG2(mal, "poll() %d <- %d" NL, *budget,
-		 done ? 0 : 1);
-
-	return done ? 0 : 1;
+	MAL_DBG2(mal, "poll() %d <- %d" NL, budget, received);
+	return received;
 }
 
 static void mal_reset(struct mal_instance *mal)
@@ -538,11 +527,8 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	}
 
 	INIT_LIST_HEAD(&mal->poll_list);
-	set_bit(__LINK_STATE_START, &mal->poll_dev.state);
-	mal->poll_dev.weight = CONFIG_IBM_NEW_EMAC_POLL_WEIGHT;
-	mal->poll_dev.poll = mal_poll;
-	mal->poll_dev.priv = mal;
-	atomic_set(&mal->poll_dev.refcnt, 1);
+	mal->napi.weight = CONFIG_IBM_NEW_EMAC_POLL_WEIGHT;
+	mal->napi.poll = mal_poll;
 	INIT_LIST_HEAD(&mal->list);
 	spin_lock_init(&mal->lock);
 
@@ -653,11 +639,8 @@ static int __devexit mal_remove(struct of_device *ofdev)
 
 	MAL_DBG(mal, "remove" NL);
 
-	/* Syncronize with scheduled polling,
-	   stolen from net/core/dev.c:dev_close()
-	 */
-	clear_bit(__LINK_STATE_START, &mal->poll_dev.state);
-	netif_poll_disable(&mal->poll_dev);
+	/* Synchronize with scheduled polling */
+	napi_disable(&mal->napi);
 
 	if (!list_empty(&mal->list)) {
 		/* This is *very* bad */

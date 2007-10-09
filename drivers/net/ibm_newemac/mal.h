@@ -197,7 +197,7 @@ struct mal_instance {
 	int			serr_irq;	/* MAL System Error IRQ    */
 
 	struct list_head	poll_list;
-	struct net_device	poll_dev;
+	struct napi_struct	napi;
 
 	struct list_head	list;
 	u32			tx_chan_mask;
