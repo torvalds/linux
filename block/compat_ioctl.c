@@ -92,6 +92,84 @@ static int compat_hdio_ioctl(struct inode *inode, struct file *file,
 	return error;
 }
 
+struct compat_cdrom_read_audio {
+	union cdrom_addr	addr;
+	u8			addr_format;
+	compat_int_t		nframes;
+	compat_caddr_t		buf;
+};
+
+struct compat_cdrom_generic_command {
+	unsigned char	cmd[CDROM_PACKET_SIZE];
+	compat_caddr_t	buffer;
+	compat_uint_t	buflen;
+	compat_int_t	stat;
+	compat_caddr_t	sense;
+	unsigned char	data_direction;
+	compat_int_t	quiet;
+	compat_int_t	timeout;
+	compat_caddr_t	reserved[1];
+};
+
+static int compat_cdrom_read_audio(struct inode *inode, struct file *file,
+		struct gendisk *disk, unsigned int cmd, unsigned long arg)
+{
+	struct cdrom_read_audio __user *cdread_audio;
+	struct compat_cdrom_read_audio __user *cdread_audio32;
+	__u32 data;
+	void __user *datap;
+
+	cdread_audio = compat_alloc_user_space(sizeof(*cdread_audio));
+	cdread_audio32 = compat_ptr(arg);
+
+	if (copy_in_user(&cdread_audio->addr,
+			 &cdread_audio32->addr,
+			 (sizeof(*cdread_audio32) -
+			  sizeof(compat_caddr_t))))
+		return -EFAULT;
+
+	if (get_user(data, &cdread_audio32->buf))
+		return -EFAULT;
+	datap = compat_ptr(data);
+	if (put_user(datap, &cdread_audio->buf))
+		return -EFAULT;
+
+	return blkdev_driver_ioctl(inode, file, disk, cmd,
+			(unsigned long)cdread_audio);
+}
+
+static int compat_cdrom_generic_command(struct inode *inode, struct file *file,
+		struct gendisk *disk, unsigned int cmd, unsigned long arg)
+{
+	struct cdrom_generic_command __user *cgc;
+	struct compat_cdrom_generic_command __user *cgc32;
+	u32 data;
+	unsigned char dir;
+	int itmp;
+
+	cgc = compat_alloc_user_space(sizeof(*cgc));
+	cgc32 = compat_ptr(arg);
+
+	if (copy_in_user(&cgc->cmd, &cgc32->cmd, sizeof(cgc->cmd)) ||
+	    get_user(data, &cgc32->buffer) ||
+	    put_user(compat_ptr(data), &cgc->buffer) ||
+	    copy_in_user(&cgc->buflen, &cgc32->buflen,
+			 (sizeof(unsigned int) + sizeof(int))) ||
+	    get_user(data, &cgc32->sense) ||
+	    put_user(compat_ptr(data), &cgc->sense) ||
+	    get_user(dir, &cgc32->data_direction) ||
+	    put_user(dir, &cgc->data_direction) ||
+	    get_user(itmp, &cgc32->quiet) ||
+	    put_user(itmp, &cgc->quiet) ||
+	    get_user(itmp, &cgc32->timeout) ||
+	    put_user(itmp, &cgc->timeout) ||
+	    get_user(data, &cgc32->reserved[0]) ||
+	    put_user(compat_ptr(data), &cgc->reserved[0]))
+		return -EFAULT;
+
+	return blkdev_driver_ioctl(inode, file, disk, cmd, (unsigned long)cgc);
+}
+
 struct compat_blkpg_ioctl_arg {
 	compat_int_t op;
 	compat_int_t flags;
@@ -190,6 +268,11 @@ static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 	case HDIO_GET_ADDRESS:
 	case HDIO_GET_BUSSTATE:
 		return compat_hdio_ioctl(inode, file, disk, cmd, arg);
+	case CDROMREADAUDIO:
+		return compat_cdrom_read_audio(inode, file, disk, cmd, arg);
+	case CDROM_SEND_PACKET:
+		return compat_cdrom_generic_command(inode, file, disk, cmd, arg);
+
 	/*
 	 * No handler required for the ones below, we just need to
 	 * convert arg to a 64 bit pointer.
