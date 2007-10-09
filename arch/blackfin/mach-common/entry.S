@@ -29,21 +29,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/*
- * 25-Dec-2004 - LG Soft India
- * 	1. Fix in return_from_int, to make sure any pending
- *	system call in ILAT for this process to get
- *	executed, otherwise in case context switch happens,
- *	system call of first process (i.e in ILAT) will be
- *	carried forward to the switched process.
- *	2. Removed Constant references for the following
- *		a.  IPEND
- *		b.  EXCAUSE mask
- *		c.  PAGE Mask
- */
-
-/*
- * NOTE: This code handles signal-recognition, which happens every time
+/* NOTE: This code handles signal-recognition, which happens every time
  * after a timer-interrupt and after each system call.
  */
 
@@ -175,6 +161,13 @@ ENTRY(_ex_replaceable)
 	nop;
 
 ENTRY(_ex_trap_c)
+	/* Make sure we are not in a double fault */
+	p4.l = lo(IPEND);
+	p4.h = hi(IPEND);
+	r7 = [p4];
+	CC = BITTST (r7, 5);
+	if CC jump _double_fault;
+
 	/* Call C code (trap_c) to handle the exception, which most
 	 * likely involves sending a signal to the current process.
 	 * To avoid double faults, lower our priority to IRQ5 first.
@@ -219,6 +212,52 @@ ENTRY(_ex_trap_c)
 	raise 5;
 	rtx;
 ENDPROC(_ex_trap_c)
+
+/* We just realized we got an exception, while we were processing a different
+ * exception. This is a unrecoverable event, so crash
+ */
+ENTRY(_double_fault)
+        /* Turn caches & protection off, to ensure we don't get any more
+         * double exceptions
+         */
+
+        P4.L = LO(IMEM_CONTROL);
+        P4.H = HI(IMEM_CONTROL);
+
+        R5 = [P4];              /* Control Register*/
+        BITCLR(R5,ENICPLB_P);
+        SSYNC;          /* SSYNC required before writing to IMEM_CONTROL. */
+        .align 8;
+        [P4] = R5;
+        SSYNC;
+
+        P4.L = LO(DMEM_CONTROL);
+        P4.H = HI(DMEM_CONTROL);
+        R5 = [P4];
+        BITCLR(R5,ENDCPLB_P);
+        SSYNC;          /* SSYNC required before writing to DMEM_CONTROL. */
+        .align 8;
+        [P4] = R5;
+        SSYNC;
+
+        /* Fix up the stack */
+        (R7:6,P5:4) = [sp++];
+        ASTAT = [sp++];
+        SP = EX_SCRATCH_REG;
+
+        /* We should be out of the exception stack, and back down into
+         * kernel or user space stack
+         */
+        SAVE_ALL_SYS
+
+        r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
+        SP += -12;
+        call _double_fault_c;
+        SP += 12;
+.L_double_fault_panic:
+        JUMP .L_double_fault_panic
+
+ENDPROC(_double_fault)
 
 ENTRY(_exception_to_level5)
 	SAVE_ALL_SYS

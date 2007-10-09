@@ -132,6 +132,14 @@ static int printk_address(unsigned long address)
 }
 #endif
 
+asmlinkage void double_fault_c(struct pt_regs *fp)
+{
+	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
+	dump_bfin_regs(fp, (void *)fp->retx);
+	panic("Double Fault - unrecoverable event\n");
+
+}
+
 asmlinkage void trap_c(struct pt_regs *fp)
 {
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
