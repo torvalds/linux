@@ -29,6 +29,7 @@
 #include <net/ah.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
@@ -284,12 +285,14 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
+
+	spin_lock_bh(&x->lock);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);
+	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
+	spin_unlock_bh(&x->lock);
+
 	if (err)
 		goto error_free_iph;
-	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
-
-	err = 0;
 
 	memcpy(top_iph, tmp_base, sizeof(tmp_base));
 	if (tmp_ext) {

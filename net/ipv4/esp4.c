@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
+#include <linux/spinlock.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <net/udp.h>
@@ -66,6 +67,8 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->tot_len = htons(skb->len + alen);
 	*(skb_tail_pointer(trailer) - 1) = top_iph->protocol;
 
+	spin_lock_bh(&x->lock);
+
 	/* this is non-NULL only with UDP Encapsulation */
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
@@ -111,7 +114,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
 			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 			if (!sg)
-				goto error;
+				goto unlock;
 		}
 		skb_to_sgvec(skb, sg, esph->enc_data+esp->conf.ivlen-skb->data, clen);
 		err = crypto_blkcipher_encrypt(&desc, sg, sg, clen);
@@ -120,7 +123,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	} while (0);
 
 	if (unlikely(err))
-		goto error;
+		goto unlock;
 
 	if (esp->conf.ivlen) {
 		memcpy(esph->enc_data, esp->conf.ivec, esp->conf.ivlen);
@@ -132,6 +135,9 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 				     sizeof(*esph) + esp->conf.ivlen + clen);
 		memcpy(pskb_put(skb, trailer, alen), esp->auth.work_icv, alen);
 	}
+
+unlock:
+	spin_unlock_bh(&x->lock);
 
 	ip_send_check(top_iph);
 

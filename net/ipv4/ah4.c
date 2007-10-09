@@ -5,6 +5,7 @@
 #include <net/ah.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
+#include <linux/spinlock.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
 #include <asm/scatterlist.h>
@@ -97,10 +98,14 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
 	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
+
+	spin_lock_bh(&x->lock);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);
+	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
+	spin_unlock_bh(&x->lock);
+
 	if (err)
 		goto error;
-	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
 
 	top_iph->tos = iph->tos;
 	top_iph->ttl = iph->ttl;

@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
+#include <linux/spinlock.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
 #include <net/protocol.h>
@@ -98,6 +99,8 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	esph->spi = x->id.spi;
 	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
 
+	spin_lock_bh(&x->lock);
+
 	if (esp->conf.ivlen) {
 		if (unlikely(!esp->conf.ivinitted)) {
 			get_random_bytes(esp->conf.ivec, esp->conf.ivlen);
@@ -112,7 +115,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
 			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 			if (!sg)
-				goto error;
+				goto unlock;
 		}
 		skb_to_sgvec(skb, sg, esph->enc_data+esp->conf.ivlen-skb->data, clen);
 		err = crypto_blkcipher_encrypt(&desc, sg, sg, clen);
@@ -121,7 +124,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	} while (0);
 
 	if (unlikely(err))
-		goto error;
+		goto unlock;
 
 	if (esp->conf.ivlen) {
 		memcpy(esph->enc_data, esp->conf.ivec, esp->conf.ivlen);
@@ -133,6 +136,9 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 				     sizeof(*esph) + esp->conf.ivlen + clen);
 		memcpy(pskb_put(skb, trailer, alen), esp->auth.work_icv, alen);
 	}
+
+unlock:
+	spin_unlock_bh(&x->lock);
 
 error:
 	return err;

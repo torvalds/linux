@@ -67,14 +67,14 @@ int xfrm_output(struct sk_buff *skb)
 		if (err)
 			goto error;
 
-		err = x->type->output(x, skb);
-		if (err)
-			goto error;
-
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;
 
 		spin_unlock_bh(&x->lock);
+
+		err = x->type->output(x, skb);
+		if (err)
+			goto error_nolock;
 
 		if (!(skb->dst = dst_pop(dst))) {
 			err = -EHOSTUNREACH;

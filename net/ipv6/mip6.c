@@ -172,7 +172,9 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	len = ((char *)hao - (char *)dstopt) + sizeof(*hao);
 
 	memcpy(&hao->addr, &iph->saddr, sizeof(hao->addr));
+	spin_lock_bh(&x->lock);
 	memcpy(&iph->saddr, x->coaddr, sizeof(iph->saddr));
+	spin_unlock_bh(&x->lock);
 
 	BUG_TRAP(len == x->props.header_len);
 	dstopt->hdrlen = (x->props.header_len >> 3) - 1;
@@ -381,7 +383,9 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	BUG_TRAP(rt2->rt_hdr.hdrlen == 2);
 
 	memcpy(&rt2->addr, &iph->daddr, sizeof(rt2->addr));
+	spin_lock_bh(&x->lock);
 	memcpy(&iph->daddr, x->coaddr, sizeof(iph->daddr));
+	spin_unlock_bh(&x->lock);
 
 	return 0;
 }
