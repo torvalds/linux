@@ -382,7 +382,7 @@ typedef struct isdn_net_dev_s {
 					  online                           */
   spinlock_t queue_lock;               /* lock to protect queue            */
   void *next;                          /* Pointer to next isdn-interface   */
-  struct net_device dev;               /* interface to upper levels        */
+  struct net_device *dev;              /* interface to upper levels        */
 #ifdef CONFIG_ISDN_PPP
   ippp_bundle * pb;		/* pointer to the common bundle structure
    			         * with the per-bundle data */
