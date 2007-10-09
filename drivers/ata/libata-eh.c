@@ -2183,7 +2183,8 @@ int ata_eh_reset(struct ata_link *link, int classify,
 				"(errno=%d), retrying in %u secs\n",
 				rc, (jiffies_to_msecs(delta) + 999) / 1000);
 
-			schedule_timeout_uninterruptible(delta);
+			while (delta)
+				delta = schedule_timeout_uninterruptible(delta);
 		}
 
 		if (rc == -EPIPE ||
