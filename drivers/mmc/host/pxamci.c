@@ -142,6 +142,10 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 				   host->dma_dir);
 
 	for (i = 0; i < host->dma_len; i++) {
+		unsigned int length = sg_dma_len(&data->sg[i]);
+		host->sg_cpu[i].dcmd = dcmd | length;
+		if (length & 31 && !(data->flags & MMC_DATA_READ))
+			host->sg_cpu[i].dcmd |= DCMD_ENDIRQEN;
 		if (data->flags & MMC_DATA_READ) {
 			host->sg_cpu[i].dsadr = host->res->start + MMC_RXFIFO;
 			host->sg_cpu[i].dtadr = sg_dma_address(&data->sg[i]);
@@ -149,7 +153,6 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 			host->sg_cpu[i].dsadr = sg_dma_address(&data->sg[i]);
 			host->sg_cpu[i].dtadr = host->res->start + MMC_TXFIFO;
 		}
-		host->sg_cpu[i].dcmd = dcmd | sg_dma_len(&data->sg[i]);
 		host->sg_cpu[i].ddadr = host->sg_dma + (i + 1) *
 					sizeof(struct pxa_dma_desc);
 	}
@@ -414,8 +417,18 @@ static const struct mmc_host_ops pxamci_ops = {
 
 static void pxamci_dma_irq(int dma, void *devid)
 {
-	printk(KERN_ERR "DMA%d: IRQ???\n", dma);
-	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
+	struct pxamci_host *host = devid;
+	int dcsr = DCSR(dma);
+	DCSR(dma) = dcsr & ~DCSR_STOPIRQEN;
+
+	if (dcsr & DCSR_ENDINTR) {
+		writel(BUF_PART_FULL, host->base + MMC_PRTBUF);
+	} else {
+		printk(KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
+		       mmc_hostname(host->mmc), dma, dcsr);
+		host->data->error = -EIO;
+		pxamci_data_done(host, 0);
+	}
 }
 
 static irqreturn_t pxamci_detect_irq(int irq, void *devid)
