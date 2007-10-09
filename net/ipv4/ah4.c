@@ -96,8 +96,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(++x->replay.oseq);
-	xfrm_aevent_doreplay(x);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);
 	if (err)
 		goto error;
@@ -297,6 +296,7 @@ static struct xfrm_type ah_type =
 	.description	= "AH4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_AH,
+	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= ah_init_state,
 	.destructor	= ah_destroy,
 	.input		= ah_input,

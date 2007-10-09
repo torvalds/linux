@@ -58,6 +58,11 @@ int xfrm_output(struct sk_buff *skb)
 		if (err)
 			goto error;
 
+		if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
+			XFRM_SKB_CB(skb)->seq = ++x->replay.oseq;
+			xfrm_aevent_doreplay(x);
+		}
+
 		err = x->mode->output(x, skb);
 		if (err)
 			goto error;

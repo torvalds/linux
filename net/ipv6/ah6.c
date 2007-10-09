@@ -283,8 +283,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(++x->replay.oseq);
-	xfrm_aevent_doreplay(x);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);
 	if (err)
 		goto error_free_iph;
@@ -506,6 +505,7 @@ static struct xfrm_type ah6_type =
 	.description	= "AH6",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_AH,
+	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= ah6_init_state,
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,

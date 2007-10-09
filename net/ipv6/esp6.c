@@ -95,8 +95,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	*skb_network_header(skb) = IPPROTO_ESP;
 
 	esph->spi = x->id.spi;
-	esph->seq_no = htonl(++x->replay.oseq);
-	xfrm_aevent_doreplay(x);
+	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
 
 	if (esp->conf.ivlen) {
 		if (unlikely(!esp->conf.ivinitted)) {
@@ -373,6 +372,7 @@ static struct xfrm_type esp6_type =
 	.description	= "ESP6",
 	.owner	     	= THIS_MODULE,
 	.proto	     	= IPPROTO_ESP,
+	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= esp6_init_state,
 	.destructor	= esp6_destroy,
 	.get_mtu	= esp6_get_mtu,
