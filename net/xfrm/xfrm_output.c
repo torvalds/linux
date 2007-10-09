@@ -18,6 +18,28 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 
+static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int nhead = x->props.header_len + LL_RESERVED_SPACE(skb->dst->dev)
+		- skb_headroom(skb);
+
+	if (nhead > 0)
+		return pskb_expand_head(skb, nhead, 0, GFP_ATOMIC);
+
+	/* Check tail too... */
+	return 0;
+}
+
+static int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int err = xfrm_state_check_expire(x);
+	if (err < 0)
+		goto err;
+	err = xfrm_state_check_space(x, skb);
+err:
+	return err;
+}
+
 int xfrm_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
