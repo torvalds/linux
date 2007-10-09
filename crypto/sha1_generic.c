@@ -22,11 +22,9 @@
 #include <linux/crypto.h>
 #include <linux/cryptohash.h>
 #include <linux/types.h>
+#include <crypto/sha.h>
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
-
-#define SHA1_DIGEST_SIZE	20
-#define SHA1_HMAC_BLOCK_SIZE	64
 
 struct sha1_ctx {
         u64 count;
@@ -39,7 +37,7 @@ static void sha1_init(struct crypto_tfm *tfm)
 	struct sha1_ctx *sctx = crypto_tfm_ctx(tfm);
 	static const struct sha1_ctx initstate = {
 	  0,
-	  { 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0 },
+	  { SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4 },
 	  { 0, }
 	};
 
@@ -111,7 +109,7 @@ static struct crypto_alg alg = {
 	.cra_name	=	"sha1",
 	.cra_driver_name=	"sha1-generic",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	SHA1_HMAC_BLOCK_SIZE,
+	.cra_blocksize	=	SHA1_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct sha1_ctx),
 	.cra_module	=	THIS_MODULE,
 	.cra_alignmask	=	3,

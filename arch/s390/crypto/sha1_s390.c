@@ -26,11 +26,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
+#include <crypto/sha.h>
 
 #include "crypt_s390.h"
-
-#define SHA1_DIGEST_SIZE	20
-#define SHA1_BLOCK_SIZE		64
 
 struct s390_sha1_ctx {
 	u64 count;		/* message length */
@@ -42,11 +40,11 @@ static void sha1_init(struct crypto_tfm *tfm)
 {
 	struct s390_sha1_ctx *sctx = crypto_tfm_ctx(tfm);
 
-	sctx->state[0] = 0x67452301;
-	sctx->state[1] = 0xEFCDAB89;
-	sctx->state[2] = 0x98BADCFE;
-	sctx->state[3] = 0x10325476;
-	sctx->state[4] = 0xC3D2E1F0;
+	sctx->state[0] = SHA1_H0;
+	sctx->state[1] = SHA1_H1;
+	sctx->state[2] = SHA1_H2;
+	sctx->state[3] = SHA1_H3;
+	sctx->state[4] = SHA1_H4;
 	sctx->count = 0;
 }
 

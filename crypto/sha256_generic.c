@@ -21,11 +21,9 @@
 #include <linux/mm.h>
 #include <linux/crypto.h>
 #include <linux/types.h>
+#include <crypto/sha.h>
 #include <asm/scatterlist.h>
 #include <asm/byteorder.h>
-
-#define SHA256_DIGEST_SIZE	32
-#define SHA256_HMAC_BLOCK_SIZE	64
 
 struct sha256_ctx {
 	u32 count[2];
@@ -47,15 +45,6 @@ static inline u32 Maj(u32 x, u32 y, u32 z)
 #define e1(x)       (ror32(x, 6) ^ ror32(x,11) ^ ror32(x,25))
 #define s0(x)       (ror32(x, 7) ^ ror32(x,18) ^ (x >> 3))
 #define s1(x)       (ror32(x,17) ^ ror32(x,19) ^ (x >> 10))
-
-#define H0         0x6a09e667
-#define H1         0xbb67ae85
-#define H2         0x3c6ef372
-#define H3         0xa54ff53a
-#define H4         0x510e527f
-#define H5         0x9b05688c
-#define H6         0x1f83d9ab
-#define H7         0x5be0cd19
 
 static inline void LOAD_OP(int I, u32 *W, const u8 *input)
 {
@@ -233,14 +222,14 @@ static void sha256_transform(u32 *state, const u8 *input)
 static void sha256_init(struct crypto_tfm *tfm)
 {
 	struct sha256_ctx *sctx = crypto_tfm_ctx(tfm);
-	sctx->state[0] = H0;
-	sctx->state[1] = H1;
-	sctx->state[2] = H2;
-	sctx->state[3] = H3;
-	sctx->state[4] = H4;
-	sctx->state[5] = H5;
-	sctx->state[6] = H6;
-	sctx->state[7] = H7;
+	sctx->state[0] = SHA256_H0;
+	sctx->state[1] = SHA256_H1;
+	sctx->state[2] = SHA256_H2;
+	sctx->state[3] = SHA256_H3;
+	sctx->state[4] = SHA256_H4;
+	sctx->state[5] = SHA256_H5;
+	sctx->state[6] = SHA256_H6;
+	sctx->state[7] = SHA256_H7;
 	sctx->count[0] = sctx->count[1] = 0;
 }
 
@@ -311,7 +300,7 @@ static struct crypto_alg alg = {
 	.cra_name	=	"sha256",
 	.cra_driver_name=	"sha256-generic",
 	.cra_flags	=	CRYPTO_ALG_TYPE_DIGEST,
-	.cra_blocksize	=	SHA256_HMAC_BLOCK_SIZE,
+	.cra_blocksize	=	SHA256_BLOCK_SIZE,
 	.cra_ctxsize	=	sizeof(struct sha256_ctx),
 	.cra_module	=	THIS_MODULE,
 	.cra_alignmask	=	3,
