@@ -6773,13 +6773,14 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		xfer_mask = ata_pack_xfermask(ap->pio_mask, ap->mwdma_mask,
 					      ap->udma_mask);
 
-		if (!ata_port_is_dummy(ap))
+		if (!ata_port_is_dummy(ap)) {
 			ata_port_printk(ap, KERN_INFO,
 					"%cATA max %s %s\n",
 					(ap->flags & ATA_FLAG_SATA) ? 'S' : 'P',
 					ata_mode_string(xfer_mask),
 					ap->link.eh_info.desc);
-		else
+			ata_ehi_clear_desc(&ap->link.eh_info);
+		} else
 			ata_port_printk(ap, KERN_INFO, "DUMMY\n");
 	}
 
