@@ -122,7 +122,7 @@ void __init msp_serial_setup(void)
 	up.uartclk      = uartclk;
 	up.regshift     = 2;
 	up.iotype       = UPIO_DWAPB; /* UPIO_MEM like */
-	up.flags        = STD_COM_FLAGS;
+	up.flags        = ASYNC_BOOT_AUTOCONF | ASYNC_SKIP_TEST;
 	up.type         = PORT_16550A;
 	up.line         = 0;
 	up.private_data		= (void*)UART0_STATUS_REG;
