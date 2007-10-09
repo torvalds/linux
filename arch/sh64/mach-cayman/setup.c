@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <asm/platform.h>
 #include <asm/irq.h>
+#include <asm/io.h>
 
 /*
  * Platform Dependent Interrupt Priorities.
