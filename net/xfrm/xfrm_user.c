@@ -483,9 +483,9 @@ struct xfrm_dump_info {
 
 static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 {
-	int ctx_size = sizeof(struct xfrm_sec_ctx) + s->ctx_len;
 	struct xfrm_user_sec_ctx *uctx;
 	struct nlattr *attr;
+	int ctx_size = sizeof(*uctx) + s->ctx_len;
 
 	attr = nla_reserve(skb, XFRMA_SEC_CTX, ctx_size);
 	if (attr == NULL)
@@ -502,23 +502,11 @@ static int copy_sec_ctx(struct xfrm_sec_ctx *s, struct sk_buff *skb)
 	return 0;
 }
 
-static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
+/* Don't change this without updating xfrm_sa_len! */
+static int copy_to_user_state_extra(struct xfrm_state *x,
+				    struct xfrm_usersa_info *p,
+				    struct sk_buff *skb)
 {
-	struct xfrm_dump_info *sp = ptr;
-	struct sk_buff *in_skb = sp->in_skb;
-	struct sk_buff *skb = sp->out_skb;
-	struct xfrm_usersa_info *p;
-	struct nlmsghdr *nlh;
-
-	if (sp->this_idx < sp->start_idx)
-		goto out;
-
-	nlh = nlmsg_put(skb, NETLINK_CB(in_skb).pid, sp->nlmsg_seq,
-			XFRM_MSG_NEWSA, sizeof(*p), sp->nlmsg_flags);
-	if (nlh == NULL)
-		return -EMSGSIZE;
-
-	p = nlmsg_data(nlh);
 	copy_to_user_state(x, p);
 
 	if (x->aalg)
@@ -540,6 +528,35 @@ static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
 	if (x->lastused)
 		NLA_PUT_U64(skb, XFRMA_LASTUSED, x->lastused);
 
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
+static int dump_one_state(struct xfrm_state *x, int count, void *ptr)
+{
+	struct xfrm_dump_info *sp = ptr;
+	struct sk_buff *in_skb = sp->in_skb;
+	struct sk_buff *skb = sp->out_skb;
+	struct xfrm_usersa_info *p;
+	struct nlmsghdr *nlh;
+	int err;
+
+	if (sp->this_idx < sp->start_idx)
+		goto out;
+
+	nlh = nlmsg_put(skb, NETLINK_CB(in_skb).pid, sp->nlmsg_seq,
+			XFRM_MSG_NEWSA, sizeof(*p), sp->nlmsg_flags);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	p = nlmsg_data(nlh);
+
+	err = copy_to_user_state_extra(x, p, skb);
+	if (err)
+		goto nla_put_failure;
+
 	nlmsg_end(skb, nlh);
 out:
 	sp->this_idx++;
@@ -547,7 +564,7 @@ out:
 
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
-	return -EMSGSIZE;
+	return err;
 }
 
 static int xfrm_dump_sa(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1973,6 +1990,14 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 		l += nla_total_size(sizeof(*x->calg));
 	if (x->encap)
 		l += nla_total_size(sizeof(*x->encap));
+	if (x->security)
+		l += nla_total_size(sizeof(struct xfrm_user_sec_ctx) +
+				    x->security->ctx_len);
+	if (x->coaddr)
+		l += nla_total_size(sizeof(*x->coaddr));
+
+	/* Must count this as this may become non-zero behind our back. */
+	l += nla_total_size(sizeof(x->lastused));
 
 	return l;
 }
@@ -2018,23 +2043,16 @@ static int xfrm_notify_sa(struct xfrm_state *x, struct km_event *c)
 		p = nla_data(attr);
 	}
 
-	copy_to_user_state(x, p);
-
-	if (x->aalg)
-		NLA_PUT(skb, XFRMA_ALG_AUTH, alg_len(x->aalg), x->aalg);
-	if (x->ealg)
-		NLA_PUT(skb, XFRMA_ALG_CRYPT, alg_len(x->ealg), x->ealg);
-	if (x->calg)
-		NLA_PUT(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg);
-
-	if (x->encap)
-		NLA_PUT(skb, XFRMA_ENCAP, sizeof(*x->encap), x->encap);
+	if (copy_to_user_state_extra(x, p, skb))
+		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
 
 	return nlmsg_multicast(xfrm_nl, skb, 0, XFRMNLGRP_SA, GFP_ATOMIC);
 
 nla_put_failure:
+	/* Somebody screwed up with xfrm_sa_len! */
+	WARN_ON(1);
 	kfree_skb(skb);
 	return -1;
 }
