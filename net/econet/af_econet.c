@@ -336,6 +336,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		/* Real hardware Econet.  We're not worthy etc. */
 #ifdef CONFIG_ECONET_NATIVE
 		unsigned short proto = 0;
+		int res;
 
 		dev_hold(dev);
 
@@ -354,12 +355,12 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 		eb->sec = *saddr;
 		eb->sent = ec_tx_done;
 
-		if (dev->hard_header) {
-			int res;
+		err = -EINVAL;
+		res = dev_hard_header(skb, dev, ntohs(proto), &addr, NULL, len);
+		if (res < 0)
+			goto out_free;
+		if (res > 0) {
 			struct ec_framehdr *fh;
-			err = -EINVAL;
-			res = dev->hard_header(skb, dev, ntohs(proto),
-					       &addr, NULL, len);
 			/* Poke in our control byte and
 			   port number.  Hack, hack.  */
 			fh = (struct ec_framehdr *)(skb->data);
@@ -368,8 +369,7 @@ static int econet_sendmsg(struct kiocb *iocb, struct socket *sock,
 			if (sock->type != SOCK_DGRAM) {
 				skb_reset_tail_pointer(skb);
 				skb->len = 0;
-			} else if (res < 0)
-				goto out_free;
+			}
 		}
 
 		/* Copy the data. Returns -EFAULT on error */

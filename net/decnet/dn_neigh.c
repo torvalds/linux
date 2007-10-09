@@ -211,7 +211,8 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 	char mac_addr[ETH_ALEN];
 
 	dn_dn2eth(mac_addr, rt->rt_local_src);
-	if (!dev->hard_header || dev->hard_header(skb, dev, ntohs(skb->protocol), neigh->ha, mac_addr, skb->len) >= 0)
+	if (dev_hard_header(skb, dev, ntohs(skb->protocol), neigh->ha,
+			    mac_addr, skb->len) >= 0)
 		return neigh->ops->queue_xmit(skb);
 
 	if (net_ratelimit())

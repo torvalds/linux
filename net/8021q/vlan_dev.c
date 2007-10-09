@@ -434,21 +434,19 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (build_vlan_header) {
 		/* Now make the underlying real hard header */
-		rc = dev->hard_header(skb, dev, ETH_P_8021Q, daddr, saddr, len + VLAN_HLEN);
-
-		if (rc > 0) {
+		rc = dev_hard_header(skb, dev, ETH_P_8021Q, daddr, saddr,
+				     len + VLAN_HLEN);
+		if (rc > 0)
 			rc += VLAN_HLEN;
-		} else if (rc < 0) {
+		else if (rc < 0)
 			rc -= VLAN_HLEN;
-		}
-	} else {
+	} else
 		/* If here, then we'll just make a normal looking ethernet frame,
 		 * but, the hard_start_xmit method will insert the tag (it has to
 		 * be able to do this for bridged and other skbs that don't come
 		 * down the protocol stack in an orderly manner.
 		 */
-		rc = dev->hard_header(skb, dev, type, daddr, saddr, len);
-	}
+		rc = dev_hard_header(skb, dev, type, daddr, saddr, len);
 
 	return rc;
 }

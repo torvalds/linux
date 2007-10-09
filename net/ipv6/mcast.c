@@ -1438,17 +1438,12 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 static inline int mld_dev_queue_xmit2(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
+	unsigned char ha[MAX_ADDR_LEN];
 
-	if (dev->hard_header) {
-		unsigned char ha[MAX_ADDR_LEN];
-		int err;
-
-		ndisc_mc_map(&ipv6_hdr(skb)->daddr, ha, dev, 1);
-		err = dev->hard_header(skb, dev, ETH_P_IPV6, ha, NULL, skb->len);
-		if (err < 0) {
-			kfree_skb(skb);
-			return err;
-		}
+	ndisc_mc_map(&ipv6_hdr(skb)->daddr, ha, dev, 1);
+	if (dev_hard_header(skb, dev, ETH_P_IPV6, ha, NULL, skb->len) < 0) {
+		kfree_skb(skb);
+		return -EINVAL;
 	}
 	return dev_queue_xmit(skb);
 }

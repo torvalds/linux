@@ -77,7 +77,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		skb_reset_network_header(clone);
 		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 		clone->dev = dev;
-		dev->hard_header(clone, dev, ETH_P_TIPC,
+		dev_hard_header(clone, dev, ETH_P_TIPC,
 				 &dest->dev_addr.eth_addr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);

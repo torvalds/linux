@@ -800,6 +800,15 @@ extern int		dev_restart(struct net_device *dev);
 extern int		netpoll_trap(void);
 #endif
 
+static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
+				  unsigned short type,
+				  void *daddr, void *saddr, unsigned len)
+{
+	if (!dev->hard_header)
+		return 0;
+	return dev->hard_header(skb, dev, type, daddr, saddr, len);
+}
+
 typedef int gifconf_func_t(struct net_device * dev, char __user * bufptr, int len);
 extern int		register_gifconf(unsigned int family, gifconf_func_t * gifconf);
 static inline int unregister_gifconf(unsigned int family)

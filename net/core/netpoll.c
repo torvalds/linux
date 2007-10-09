@@ -415,11 +415,9 @@ static void arp_reply(struct sk_buff *skb)
 	send_skb->protocol = htons(ETH_P_ARP);
 
 	/* Fill the device header for the ARP frame */
-
-	if (np->dev->hard_header &&
-	    np->dev->hard_header(send_skb, skb->dev, ptype,
-				 sha, np->local_mac,
-				 send_skb->len) < 0) {
+	if (dev_hard_header(send_skb, skb->dev, ptype,
+			    sha, np->local_mac,
+			    send_skb->len) < 0) {
 		kfree_skb(send_skb);
 		return;
 	}

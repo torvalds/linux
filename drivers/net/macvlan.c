@@ -170,8 +170,8 @@ static int macvlan_hard_header(struct sk_buff *skb, struct net_device *dev,
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	return lowerdev->hard_header(skb, lowerdev, type, daddr,
-				     saddr ? : dev->dev_addr, len);
+	return dev_hard_header(skb, lowerdev, type, daddr,
+			       saddr ? : dev->dev_addr, len);
 }
 
 static int macvlan_open(struct net_device *dev)

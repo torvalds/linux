@@ -591,8 +591,7 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 	/*
 	 *	Fill the device header for the ARP frame
 	 */
-	if (dev->hard_header &&
-	    dev->hard_header(skb,dev,ptype,dest_hw,src_hw,skb->len) < 0)
+	if (dev_hard_header(skb, dev, ptype, dest_hw, src_hw, skb->len) < 0)
 		goto out;
 
 	/*
