@@ -1677,19 +1677,11 @@ static void ahci_pmp_attach(struct ata_port *ap)
 static void ahci_pmp_detach(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
-	struct ahci_host_priv *hpriv = ap->host->private_data;
-	unsigned long flags;
 	u32 cmd;
 
 	cmd = readl(port_mmio + PORT_CMD);
 	cmd &= ~PORT_CMD_PMP;
 	writel(cmd, port_mmio + PORT_CMD);
-
-	if (hpriv->cap & HOST_CAP_NCQ) {
-		spin_lock_irqsave(ap->lock, flags);
-		ap->flags |= ATA_FLAG_NCQ;
-		spin_unlock_irqrestore(ap->lock, flags);
-	}
 }
 
 static int ahci_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val)
