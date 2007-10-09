@@ -114,11 +114,12 @@ struct rdma_id_private {
 
 	struct rdma_bind_list	*bind_list;
 	struct hlist_node	node;
-	struct list_head	list;
-	struct list_head	listen_list;
+	struct list_head	list; /* listen_any_list or cma_device.list */
+	struct list_head	listen_list; /* per device listens */
 	struct cma_device	*cma_dev;
 	struct list_head	mc_list;
 
+	int			internal_id;
 	enum cma_state		state;
 	spinlock_t		lock;
 	struct mutex		qp_mutex;
@@ -745,50 +746,27 @@ static void cma_cancel_route(struct rdma_id_private *id_priv)
 	}
 }
 
-static inline int cma_internal_listen(struct rdma_id_private *id_priv)
-{
-	return (id_priv->state == CMA_LISTEN) && id_priv->cma_dev &&
-	       cma_any_addr(&id_priv->id.route.addr.src_addr);
-}
-
-static void cma_destroy_listen(struct rdma_id_private *id_priv)
-{
-	cma_exch(id_priv, CMA_DESTROYING);
-
-	if (id_priv->cma_dev) {
-		switch (rdma_node_get_transport(id_priv->id.device->node_type)) {
-		case RDMA_TRANSPORT_IB:
-			if (id_priv->cm_id.ib && !IS_ERR(id_priv->cm_id.ib))
-				ib_destroy_cm_id(id_priv->cm_id.ib);
-			break;
-		case RDMA_TRANSPORT_IWARP:
-			if (id_priv->cm_id.iw && !IS_ERR(id_priv->cm_id.iw))
-				iw_destroy_cm_id(id_priv->cm_id.iw);
-			break;
-		default:
-			break;
-		}
-		cma_detach_from_dev(id_priv);
-	}
-	list_del(&id_priv->listen_list);
-
-	cma_deref_id(id_priv);
-	wait_for_completion(&id_priv->comp);
-
-	kfree(id_priv);
-}
-
 static void cma_cancel_listens(struct rdma_id_private *id_priv)
 {
 	struct rdma_id_private *dev_id_priv;
 
+	/*
+	 * Remove from listen_any_list to prevent added devices from spawning
+	 * additional listen requests.
+	 */
 	mutex_lock(&lock);
 	list_del(&id_priv->list);
 
 	while (!list_empty(&id_priv->listen_list)) {
 		dev_id_priv = list_entry(id_priv->listen_list.next,
 					 struct rdma_id_private, listen_list);
-		cma_destroy_listen(dev_id_priv);
+		/* sync with device removal to avoid duplicate destruction */
+		list_del_init(&dev_id_priv->list);
+		list_del(&dev_id_priv->listen_list);
+		mutex_unlock(&lock);
+
+		rdma_destroy_id(&dev_id_priv->id);
+		mutex_lock(&lock);
 	}
 	mutex_unlock(&lock);
 }
@@ -875,6 +853,9 @@ void rdma_destroy_id(struct rdma_cm_id *id)
 	cma_release_port(id_priv);
 	cma_deref_id(id_priv);
 	wait_for_completion(&id_priv->comp);
+
+	if (id_priv->internal_id)
+		cma_deref_id(id_priv->id.context);
 
 	kfree(id_priv->id.route.path_rec);
 	kfree(id_priv);
@@ -1432,14 +1413,13 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	cma_attach_to_dev(dev_id_priv, cma_dev);
 	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
+	atomic_inc(&id_priv->refcount);
+	dev_id_priv->internal_id = 1;
 
 	ret = rdma_listen(id, id_priv->backlog);
 	if (ret)
-		goto err;
-
-	return;
-err:
-	cma_destroy_listen(dev_id_priv);
+		printk(KERN_WARNING "RDMA CMA: cma_listen_on_dev, error %d, "
+		       "listening on device %s", ret, cma_dev->device->name);
 }
 
 static void cma_listen_on_all(struct rdma_id_private *id_priv)
@@ -2787,16 +2767,12 @@ static void cma_process_remove(struct cma_device *cma_dev)
 		id_priv = list_entry(cma_dev->id_list.next,
 				     struct rdma_id_private, list);
 
-		if (cma_internal_listen(id_priv)) {
-			cma_destroy_listen(id_priv);
-			continue;
-		}
-
+		list_del(&id_priv->listen_list);
 		list_del_init(&id_priv->list);
 		atomic_inc(&id_priv->refcount);
 		mutex_unlock(&lock);
 
-		ret = cma_remove_id_dev(id_priv);
+		ret = id_priv->internal_id ? 1 : cma_remove_id_dev(id_priv);
 		cma_deref_id(id_priv);
 		if (ret)
 			rdma_destroy_id(&id_priv->id);
