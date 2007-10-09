@@ -2341,6 +2341,8 @@ int snd_hda_input_mux_info(const struct hda_input_mux *imux,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = imux->num_items;
+	if (!imux->num_items)
+		return 0;
 	index = uinfo->value.enumerated.item;
 	if (index >= imux->num_items)
 		index = imux->num_items - 1;
@@ -2356,6 +2358,8 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 {
 	unsigned int idx;
 
+	if (!imux->num_items)
+		return 0;
 	idx = ucontrol->value.enumerated.item[0];
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
