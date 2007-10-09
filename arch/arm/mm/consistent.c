@@ -481,7 +481,7 @@ core_initcall(consistent_init);
  * platforms with CONFIG_DMABOUNCE.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
-void consistent_sync(const void *start, size_t size, int direction)
+void dma_cache_maint(const void *start, size_t size, int direction)
 {
 	const void *end = start + size;
 
@@ -504,4 +504,4 @@ void consistent_sync(const void *start, size_t size, int direction)
 		BUG();
 	}
 }
-EXPORT_SYMBOL(consistent_sync);
+EXPORT_SYMBOL(dma_cache_maint);

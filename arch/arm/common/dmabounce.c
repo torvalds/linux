@@ -263,7 +263,7 @@ map_single(struct device *dev, void *ptr, size_t size,
 		 * We don't need to sync the DMA buffer since
 		 * it was allocated via the coherent allocators.
 		 */
-		consistent_sync(ptr, size, dir);
+		dma_cache_maint(ptr, size, dir);
 	}
 
 	return dma_addr;
@@ -383,7 +383,7 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 * via the coherent allocators.
 		 */
 	} else {
-		consistent_sync(dma_to_virt(dev, dma_addr), size, dir);
+		dma_cache_maint(dma_to_virt(dev, dma_addr), size, dir);
 	}
 }
 
