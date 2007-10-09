@@ -800,8 +800,6 @@ int libertas_ret_80211_associate(wlan_private * priv,
 		netif_wake_queue(priv->mesh_dev);
 	}
 
-	lbs_deb_join("ASSOC_RESP: Associated \n");
-
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
