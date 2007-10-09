@@ -926,7 +926,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 	tf.protocol |= ATA_PROT_NODATA;
 	tf.device |= ATA_LBA;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_printk(dev, KERN_WARNING, "failed to read native "
 			       "max address (err_mask=0x%x)\n", err_mask);
@@ -988,7 +988,7 @@ static int ata_set_max_sectors(struct ata_device *dev, u64 new_sectors)
 	tf.lbam = (new_sectors >> 8) & 0xff;
 	tf.lbah = (new_sectors >> 16) & 0xff;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_printk(dev, KERN_WARNING, "failed to set "
 			       "max address (err_mask=0x%x)\n", err_mask);
@@ -1394,6 +1394,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
  *	@dma_dir: Data tranfer direction of the command
  *	@sg: sg list for the data buffer of the command
  *	@n_elem: Number of sg entries
+ *	@timeout: Timeout in msecs (0 for default)
  *
  *	Executes libata internal command with timeout.  @tf contains
  *	command on entry and result on return.  Timeout and error
@@ -1410,7 +1411,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 unsigned ata_exec_internal_sg(struct ata_device *dev,
 			      struct ata_taskfile *tf, const u8 *cdb,
 			      int dma_dir, struct scatterlist *sg,
-			      unsigned int n_elem)
+			      unsigned int n_elem, unsigned long timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1486,7 +1487,10 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	rc = wait_for_completion_timeout(&wait, ata_probe_timeout);
+	if (!timeout)
+		timeout = ata_probe_timeout * 1000 / HZ;
+
+	rc = wait_for_completion_timeout(&wait, msecs_to_jiffies(timeout));
 
 	ata_port_flush_task(ap);
 
@@ -1571,6 +1575,7 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
  *	@dma_dir: Data tranfer direction of the command
  *	@buf: Data buffer of the command
  *	@buflen: Length of data buffer
+ *	@timeout: Timeout in msecs (0 for default)
  *
  *	Wrapper around ata_exec_internal_sg() which takes simple
  *	buffer instead of sg list.
@@ -1583,7 +1588,8 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
  */
 unsigned ata_exec_internal(struct ata_device *dev,
 			   struct ata_taskfile *tf, const u8 *cdb,
-			   int dma_dir, void *buf, unsigned int buflen)
+			   int dma_dir, void *buf, unsigned int buflen,
+			   unsigned long timeout)
 {
 	struct scatterlist *psg = NULL, sg;
 	unsigned int n_elem = 0;
@@ -1595,7 +1601,8 @@ unsigned ata_exec_internal(struct ata_device *dev,
 		n_elem++;
 	}
 
-	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem);
+	return ata_exec_internal_sg(dev, tf, cdb, dma_dir, psg, n_elem,
+				    timeout);
 }
 
 /**
@@ -1622,7 +1629,7 @@ unsigned int ata_do_simple_cmd(struct ata_device *dev, u8 cmd)
 	tf.flags |= ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
 
-	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	return ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 }
 
 /**
@@ -1737,7 +1744,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	tf.flags |= ATA_TFLAG_POLLING;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     id, sizeof(id[0]) * ATA_ID_WORDS);
+				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
 	if (err_mask) {
 		if (err_mask & AC_ERR_NODEV_HINT) {
 			DPRINTK("ata%u.%d: NODEV after polling detection\n",
@@ -1796,7 +1803,8 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 		tf.feature = SETFEATURES_SPINUP;
 		tf.protocol = ATA_PROT_NODATA;
 		tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-		err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+		err_mask = ata_exec_internal(dev, &tf, NULL,
+					     DMA_NONE, NULL, 0, 0);
 		if (err_mask && id[2] != 0x738c) {
 			rc = -EIO;
 			reason = "SPINUP failed";
@@ -4157,7 +4165,7 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = dev->xfer_mode;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -4193,7 +4201,7 @@ static unsigned int ata_dev_set_AN(struct ata_device *dev, u8 enable)
 	tf.protocol = ATA_PROT_NODATA;
 	tf.nsect = SATA_AN;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -4231,7 +4239,7 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 	tf.nsect = sectors;
 	tf.device |= (heads - 1) & 0x0f; /* max head = num. of heads - 1 */
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 	/* A clean abort indicates an original or just out of spec drive
 	   and we should continue as we issue the setup based on the
 	   drive reported working geometry */

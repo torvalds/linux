@@ -478,7 +478,7 @@ static int taskfile_load_raw(struct ata_device *dev,
 			       tf.lbal, tf.lbam, tf.lbah, tf.device);
 
 	rtf = tf;
-	err_mask = ata_exec_internal(dev, &rtf, NULL, DMA_NONE, NULL, 0);
+	err_mask = ata_exec_internal(dev, &rtf, NULL, DMA_NONE, NULL, 0, 0);
 	if (err_mask) {
 		ata_dev_printk(dev, KERN_ERR,
 			"ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x failed "

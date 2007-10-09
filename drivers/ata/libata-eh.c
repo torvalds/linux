@@ -1249,7 +1249,7 @@ static unsigned int ata_read_log_page(struct ata_device *dev,
 	tf.protocol = ATA_PROT_PIO;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     buf, sectors * ATA_SECT_SIZE);
+				     buf, sectors * ATA_SECT_SIZE, 0);
 
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
@@ -1363,7 +1363,7 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 	}
 
 	return ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,
-				 sense_buf, SCSI_SENSE_BUFFERSIZE);
+				 sense_buf, SCSI_SENSE_BUFFERSIZE, 0);
 }
 
 /**
