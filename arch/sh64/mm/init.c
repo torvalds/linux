@@ -22,10 +22,6 @@
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
 
-#ifdef CONFIG_BLK_DEV_INITRD
-#include <linux/blk.h>
-#endif
-
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 /*
