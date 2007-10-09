@@ -848,7 +848,6 @@ static struct xfrm_state *__find_acq_core(unsigned short family, u8 mode, u32 re
 		hlist_add_head(&x->bydst, xfrm_state_bydst+h);
 		h = xfrm_src_hash(daddr, saddr, family);
 		hlist_add_head(&x->bysrc, xfrm_state_bysrc+h);
-		wake_up(&km_waitq);
 
 		xfrm_state_num++;
 
@@ -1311,7 +1310,6 @@ xfrm_alloc_spi(struct xfrm_state *x, __be32 minspi, __be32 maxspi)
 		h = xfrm_spi_hash(&x->id.daddr, x->id.spi, x->id.proto, x->props.family);
 		hlist_add_head(&x->byspi, xfrm_state_byspi+h);
 		spin_unlock_bh(&xfrm_state_lock);
-		wake_up(&km_waitq);
 	}
 }
 EXPORT_SYMBOL(xfrm_alloc_spi);
