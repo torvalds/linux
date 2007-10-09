@@ -36,6 +36,62 @@ static int compat_put_u64(unsigned long arg, u64 val)
 	return put_user(val, (compat_u64 __user *)compat_ptr(arg));
 }
 
+struct compat_hd_geometry {
+	unsigned char heads;
+	unsigned char sectors;
+	unsigned short cylinders;
+	u32 start;
+};
+
+static int compat_hdio_getgeo(struct gendisk *disk, struct block_device *bdev,
+			struct compat_hd_geometry __user *ugeo)
+{
+	struct hd_geometry geo;
+	int ret;
+
+	if (!ugeo)
+		return -EINVAL;
+	if (!disk->fops->getgeo)
+		return -ENOTTY;
+
+	/*
+	 * We need to set the startsect first, the driver may
+	 * want to override it.
+	 */
+	geo.start = get_start_sect(bdev);
+	ret = disk->fops->getgeo(bdev, &geo);
+	if (ret)
+		return ret;
+
+	ret = copy_to_user(ugeo, &geo, 4);
+	ret |= __put_user(geo.start, &ugeo->start);
+	if (ret)
+		ret = -EFAULT;
+
+	return ret;
+}
+
+static int compat_hdio_ioctl(struct inode *inode, struct file *file,
+		struct gendisk *disk, unsigned int cmd, unsigned long arg)
+{
+	mm_segment_t old_fs = get_fs();
+	unsigned long kval;
+	unsigned int __user *uvp;
+	int error;
+
+	set_fs(KERNEL_DS);
+	error = blkdev_driver_ioctl(inode, file, disk,
+				cmd, (unsigned long)(&kval));
+	set_fs(old_fs);
+
+	if (error == 0) {
+		uvp = compat_ptr(arg);
+		if (put_user(kval, uvp))
+			error = -EFAULT;
+	}
+	return error;
+}
+
 #define BLKBSZGET_32		_IOR(0x12, 112, int)
 #define BLKBSZSET_32		_IOW(0x12, 113, int)
 #define BLKGETSIZE64_32		_IOR(0x12, 114, int)
@@ -93,6 +149,18 @@ static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 	int ret;
 
 	switch (arg) {
+	case HDIO_GET_UNMASKINTR:
+	case HDIO_GET_MULTCOUNT:
+	case HDIO_GET_KEEPSETTINGS:
+	case HDIO_GET_32BIT:
+	case HDIO_GET_NOWERR:
+	case HDIO_GET_DMA:
+	case HDIO_GET_NICE:
+	case HDIO_GET_WCACHE:
+	case HDIO_GET_ACOUSTIC:
+	case HDIO_GET_ADDRESS:
+	case HDIO_GET_BUSSTATE:
+		return compat_hdio_ioctl(inode, file, disk, cmd, arg);
 	/*
 	 * No handler required for the ones below, we just need to
 	 * convert arg to a 64 bit pointer.
@@ -266,6 +334,8 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	struct gendisk *disk = bdev->bd_disk;
 
 	switch (cmd) {
+	case HDIO_GETGEO:
+		return compat_hdio_getgeo(disk, bdev, compat_ptr(arg));
 	case BLKFLSBUF:
 	case BLKROSET:
 	/*
