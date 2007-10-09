@@ -655,7 +655,8 @@ static inline int pfkey_mode_to_xfrm(int mode)
 	}
 }
 
-static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys, int hsc)
+static struct sk_buff *__pfkey_xfrm_state2msg(struct xfrm_state *x,
+					      int add_keys, int hsc)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
@@ -1009,6 +1010,24 @@ static struct sk_buff * pfkey_xfrm_state2msg(struct xfrm_state *x, int add_keys,
 	return skb;
 }
 
+
+static inline struct sk_buff *pfkey_xfrm_state2msg(struct xfrm_state *x)
+{
+	struct sk_buff *skb;
+
+	spin_lock_bh(&x->lock);
+	skb = __pfkey_xfrm_state2msg(x, 1, 3);
+	spin_unlock_bh(&x->lock);
+
+	return skb;
+}
+
+static inline struct sk_buff *pfkey_xfrm_state2msg_expire(struct xfrm_state *x,
+							  int hsc)
+{
+	return __pfkey_xfrm_state2msg(x, 0, hsc);
+}
+
 static struct xfrm_state * pfkey_msg2xfrm_state(struct sadb_msg *hdr,
 						void **ext_hdrs)
 {
@@ -1322,7 +1341,7 @@ static int pfkey_getspi(struct sock *sk, struct sk_buff *skb, struct sadb_msg *h
 	}
 
 	err = xfrm_alloc_spi(x, min_spi, max_spi);
-	resp_skb = err ? ERR_PTR(err) : pfkey_xfrm_state2msg(x, 0, 3);
+	resp_skb = err ? ERR_PTR(err) : pfkey_xfrm_state2msg(x);
 
 	if (IS_ERR(resp_skb)) {
 		xfrm_state_put(x);
@@ -1412,12 +1431,8 @@ static int key_notify_sa(struct xfrm_state *x, struct km_event *c)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
-	int hsc = 3;
 
-	if (c->event == XFRM_MSG_DELSA)
-		hsc = 0;
-
-	skb = pfkey_xfrm_state2msg(x, 0, hsc);
+	skb = pfkey_xfrm_state2msg(x);
 
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -1529,7 +1544,7 @@ static int pfkey_get(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hdr,
 	if (x == NULL)
 		return -ESRCH;
 
-	out_skb = pfkey_xfrm_state2msg(x, 1, 3);
+	out_skb = pfkey_xfrm_state2msg(x);
 	proto = x->id.proto;
 	xfrm_state_put(x);
 	if (IS_ERR(out_skb))
@@ -1709,7 +1724,7 @@ static int dump_sa(struct xfrm_state *x, int count, void *ptr)
 	struct sk_buff *out_skb;
 	struct sadb_msg *out_hdr;
 
-	out_skb = pfkey_xfrm_state2msg(x, 1, 3);
+	out_skb = pfkey_xfrm_state2msg(x);
 	if (IS_ERR(out_skb))
 		return PTR_ERR(out_skb);
 
@@ -2910,7 +2925,7 @@ static int key_notify_sa_expire(struct xfrm_state *x, struct km_event *c)
 	else
 		hsc = 1;
 
-	out_skb = pfkey_xfrm_state2msg(x, 0, hsc);
+	out_skb = pfkey_xfrm_state2msg_expire(x, hsc);
 	if (IS_ERR(out_skb))
 		return PTR_ERR(out_skb);
 
