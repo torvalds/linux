@@ -2557,7 +2557,11 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 
 	/* reset */
 	if (reset) {
-		ata_eh_freeze_port(ap);
+		/* if PMP is attached, this function only deals with
+		 * downstream links, port should stay thawed.
+		 */
+		if (!ap->nr_pmp_links)
+			ata_eh_freeze_port(ap);
 
 		ata_port_for_each_link(link, ap) {
 			struct ata_eh_context *ehc = &link->eh_context;
@@ -2575,7 +2579,8 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			}
 		}
 
-		ata_eh_thaw_port(ap);
+		if (!ap->nr_pmp_links)
+			ata_eh_thaw_port(ap);
 	}
 
 	/* the rest */
@@ -2610,8 +2615,14 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		if (ata_eh_handle_dev_fail(dev, rc))
 			nr_disabled_devs++;
 
-		if (ap->pflags & ATA_PFLAG_FROZEN)
+		if (ap->pflags & ATA_PFLAG_FROZEN) {
+			/* PMP reset requires working host port.
+			 * Can't retry if it's frozen.
+			 */
+			if (ap->nr_pmp_links)
+				goto out;
 			break;
+		}
 	}
 
 	if (nr_failed_devs) {

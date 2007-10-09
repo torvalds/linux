@@ -337,8 +337,6 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc);
 static void sil24_irq_clear(struct ata_port *ap);
 static void sil24_pmp_attach(struct ata_port *ap);
 static void sil24_pmp_detach(struct ata_port *ap);
-static int sil24_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val);
-static int sil24_pmp_write(struct ata_device *dev, int pmp, int reg, u32 val);
 static void sil24_freeze(struct ata_port *ap);
 static void sil24_thaw(struct ata_port *ap);
 static void sil24_error_handler(struct ata_port *ap);
@@ -411,8 +409,6 @@ static const struct ata_port_operations sil24_ops = {
 
 	.pmp_attach		= sil24_pmp_attach,
 	.pmp_detach		= sil24_pmp_detach,
-	.pmp_read		= sil24_pmp_read,
-	.pmp_write		= sil24_pmp_write,
 
 	.freeze			= sil24_freeze,
 	.thaw			= sil24_thaw,
@@ -926,32 +922,6 @@ static void sil24_pmp_detach(struct ata_port *ap)
 {
 	sil24_init_port(ap);
 	sil24_config_pmp(ap, 0);
-}
-
-static int sil24_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val)
-{
-	struct ata_port *ap = dev->link->ap;
-	struct ata_taskfile tf;
-	int rc;
-
-	sata_pmp_read_init_tf(&tf, dev, pmp, reg);
-	rc = sil24_exec_polled_cmd(ap, SATA_PMP_CTRL_PORT, &tf, 1, 0,
-				   SATA_PMP_SCR_TIMEOUT);
-	if (rc == 0) {
-		sil24_read_tf(ap, 0, &tf);
-		*r_val = sata_pmp_read_val(&tf);
-	}
-	return rc;
-}
-
-static int sil24_pmp_write(struct ata_device *dev, int pmp, int reg, u32 val)
-{
-	struct ata_port *ap = dev->link->ap;
-	struct ata_taskfile tf;
-
-	sata_pmp_write_init_tf(&tf, dev, pmp, reg, val);
-	return sil24_exec_polled_cmd(ap, SATA_PMP_CTRL_PORT, &tf, 1, 0,
-				     SATA_PMP_SCR_TIMEOUT);
 }
 
 static int sil24_pmp_softreset(struct ata_link *link, unsigned int *class,

@@ -669,8 +669,6 @@ struct ata_port_operations {
 	/* port multiplier */
 	void (*pmp_attach) (struct ata_port *ap);
 	void (*pmp_detach) (struct ata_port *ap);
-	int (*pmp_read) (struct ata_device *dev, int pmp, int reg, u32 *r_val);
-	int (*pmp_write) (struct ata_device *dev, int pmp, int reg, u32 val);
 
 	/* Error handlers.  ->error_handler overrides ->eng_timeout and
 	 * indicates that new-style EH is in place.
@@ -957,12 +955,6 @@ extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
  * PMP
  */
 extern int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc);
-extern void sata_pmp_read_init_tf(struct ata_taskfile *tf,
-				  struct ata_device *dev, int pmp, int reg);
-extern u32 sata_pmp_read_val(const struct ata_taskfile *tf);
-extern void sata_pmp_write_init_tf(struct ata_taskfile *tf,
-				   struct ata_device *dev,
-				   int pmp, int reg, u32 val);
 extern int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline);
 extern int sata_pmp_std_hardreset(struct ata_link *link, unsigned int *class,
 				  unsigned long deadline);

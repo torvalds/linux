@@ -239,8 +239,6 @@ static void ahci_freeze(struct ata_port *ap);
 static void ahci_thaw(struct ata_port *ap);
 static void ahci_pmp_attach(struct ata_port *ap);
 static void ahci_pmp_detach(struct ata_port *ap);
-static int ahci_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val);
-static int ahci_pmp_write(struct ata_device *dev, int pmp, int reg, u32 val);
 static void ahci_error_handler(struct ata_port *ap);
 static void ahci_vt8251_error_handler(struct ata_port *ap);
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc);
@@ -297,8 +295,6 @@ static const struct ata_port_operations ahci_ops = {
 
 	.pmp_attach		= ahci_pmp_attach,
 	.pmp_detach		= ahci_pmp_detach,
-	.pmp_read		= ahci_pmp_read,
-	.pmp_write		= ahci_pmp_write,
 
 #ifdef CONFIG_PM
 	.port_suspend		= ahci_port_suspend,
@@ -333,8 +329,6 @@ static const struct ata_port_operations ahci_vt8251_ops = {
 
 	.pmp_attach		= ahci_pmp_attach,
 	.pmp_detach		= ahci_pmp_detach,
-	.pmp_read		= ahci_pmp_read,
-	.pmp_write		= ahci_pmp_write,
 
 #ifdef CONFIG_PM
 	.port_suspend		= ahci_port_suspend,
@@ -1421,11 +1415,16 @@ static void ahci_port_intr(struct ata_port *ap)
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
+	int resetting = !!(ap->pflags & ATA_PFLAG_RESETTING);
 	u32 status, qc_active;
 	int rc, known_irq = 0;
 
 	status = readl(port_mmio + PORT_IRQ_STAT);
 	writel(status, port_mmio + PORT_IRQ_STAT);
+
+	/* ignore BAD_PMP while resetting */
+	if (unlikely(resetting))
+		status &= ~PORT_IRQ_BAD_PMP;
 
 	if (unlikely(status & PORT_IRQ_ERROR)) {
 		ahci_error_intr(ap, status);
@@ -1464,6 +1463,13 @@ static void ahci_port_intr(struct ata_port *ap)
 		qc_active = readl(port_mmio + PORT_CMD_ISSUE);
 
 	rc = ata_qc_complete_multiple(ap, qc_active, NULL);
+
+	/* If resetting, spurious or invalid completions are expected,
+	 * return unconditionally.
+	 */
+	if (resetting)
+		return;
+
 	if (rc > 0)
 		return;
 	if (rc < 0) {
@@ -1699,36 +1705,6 @@ static void ahci_pmp_detach(struct ata_port *ap)
 
 	pp->intr_mask &= ~PORT_IRQ_BAD_PMP;
 	writel(pp->intr_mask, port_mmio + PORT_IRQ_MASK);
-}
-
-static int ahci_pmp_read(struct ata_device *dev, int pmp, int reg, u32 *r_val)
-{
-	struct ata_port *ap = dev->link->ap;
-	struct ata_taskfile tf;
-	int rc;
-
-	ahci_kick_engine(ap, 0);
-
-	sata_pmp_read_init_tf(&tf, dev, pmp, reg);
-	rc = ahci_exec_polled_cmd(ap, SATA_PMP_CTRL_PORT, &tf, 1, 0,
-				  SATA_PMP_SCR_TIMEOUT);
-	if (rc == 0) {
-		ahci_tf_read(ap, &tf);
-		*r_val = sata_pmp_read_val(&tf);
-	}
-	return rc;
-}
-
-static int ahci_pmp_write(struct ata_device *dev, int pmp, int reg, u32 val)
-{
-	struct ata_port *ap = dev->link->ap;
-	struct ata_taskfile tf;
-
-	ahci_kick_engine(ap, 0);
-
-	sata_pmp_write_init_tf(&tf, dev, pmp, reg, val);
-	return ahci_exec_polled_cmd(ap, SATA_PMP_CTRL_PORT, &tf, 1, 0,
-				    SATA_PMP_SCR_TIMEOUT);
 }
 
 static int ahci_port_resume(struct ata_port *ap)

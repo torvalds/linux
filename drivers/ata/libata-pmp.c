@@ -17,27 +17,35 @@
  *	@reg: register to read
  *	@r_val: resulting value
  *
- *	Wrapper around ap->ops->pmp_read to make it easier to call and
- *	nomarlize error return value.
+ *	Read PMP register.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, AC_ERR_* mask on failure.
  */
-static int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
+static unsigned int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_device *pmp_dev = ap->link.device;
-	int rc;
+	struct ata_taskfile tf;
+	unsigned int err_mask;
 
-	might_sleep();
+	ata_tf_init(pmp_dev, &tf);
+	tf.command = ATA_CMD_PMP_READ;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.feature = reg;
+	tf.device = link->pmp;
 
-	rc = ap->ops->pmp_read(pmp_dev, link->pmp, reg, r_val);
-	if (rc)
-		rc = -EIO;
-	return rc;
+	err_mask = ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
+				     SATA_PMP_SCR_TIMEOUT);
+	if (err_mask)
+		return err_mask;
+
+	*r_val = tf.nsect | tf.lbal << 8 | tf.lbam << 16 | tf.lbah << 24;
+	return 0;
 }
 
 /**
@@ -46,27 +54,33 @@ static int sata_pmp_read(struct ata_link *link, int reg, u32 *r_val)
  *	@reg: register to write
  *	@r_val: value to write
  *
- *	Wrapper around ap->ops->pmp_write to make it easier to call
- *	and nomarlize error return value.
+ *	Write PMP register.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep).
  *
  *	RETURNS:
- *	0 on success, -errno on failure.
+ *	0 on success, AC_ERR_* mask on failure.
  */
-static int sata_pmp_write(struct ata_link *link, int reg, u32 val)
+static unsigned int sata_pmp_write(struct ata_link *link, int reg, u32 val)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_device *pmp_dev = ap->link.device;
-	int rc;
+	struct ata_taskfile tf;
 
-	might_sleep();
+	ata_tf_init(pmp_dev, &tf);
+	tf.command = ATA_CMD_PMP_WRITE;
+	tf.protocol = ATA_PROT_NODATA;
+	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf.feature = reg;
+	tf.device = link->pmp;
+	tf.nsect = val & 0xff;
+	tf.lbal = (val >> 8) & 0xff;
+	tf.lbam = (val >> 16) & 0xff;
+	tf.lbah = (val >> 24) & 0xff;
 
-	rc = ap->ops->pmp_write(pmp_dev, link->pmp, reg, val);
-	if (rc)
-		rc = -EIO;
-	return rc;
+	return ata_exec_internal(pmp_dev, &tf, NULL, DMA_NONE, NULL, 0,
+				 SATA_PMP_SCR_TIMEOUT);
 }
 
 /**
@@ -100,71 +114,6 @@ int sata_pmp_qc_defer_cmd_switch(struct ata_queued_cmd *qc)
 }
 
 /**
- *	sata_pmp_read_init_tf - initialize TF for PMP read
- *	@tf: taskfile to initialize
- *	@dev: PMP dev
- *	@pmp: port multiplier port number
- *	@reg: register to read
- *
- *	Initialize @tf for PMP read command.
- *
- *	LOCKING:
- *	None.
- */
-void sata_pmp_read_init_tf(struct ata_taskfile *tf,
-			   struct ata_device *dev, int pmp, int reg)
-{
-	ata_tf_init(dev, tf);
-	tf->command = ATA_CMD_PMP_READ;
-	tf->protocol = ATA_PROT_NODATA;
-	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	tf->feature = reg;
-	tf->device = pmp;
-}
-
-/**
- *	sata_pmp_read_val - extract PMP read result from TF
- *	@tf: target TF
- *
- *	Determine PMP read result from @tf.
- *
- *	LOCKING:
- *	None.
- */
-u32 sata_pmp_read_val(const struct ata_taskfile *tf)
-{
-	return tf->nsect | tf->lbal << 8 | tf->lbam << 16 | tf->lbah << 24;
-}
-
-/**
- *	sata_pmp_read_init_tf - initialize TF for PMP write
- *	@tf: taskfile to initialize
- *	@dev: PMP dev
- *	@pmp: port multiplier port number
- *	@reg: register to read
- *	@val: value to write
- *
- *	Initialize @tf for PMP write command.
- *
- *	LOCKING:
- *	None.
- */
-void sata_pmp_write_init_tf(struct ata_taskfile *tf,
-			    struct ata_device *dev, int pmp, int reg, u32 val)
-{
-	ata_tf_init(dev, tf);
-	tf->command = ATA_CMD_PMP_WRITE;
-	tf->protocol = ATA_PROT_NODATA;
-	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-	tf->feature = reg;
-	tf->device = pmp;
-	tf->nsect = val & 0xff;
-	tf->lbal = (val >> 8) & 0xff;
-	tf->lbam = (val >> 16) & 0xff;
-	tf->lbah = (val >> 24) & 0xff;
-}
-
-/**
  *	sata_pmp_scr_read - read PSCR
  *	@link: ATA link to read PSCR for
  *	@reg: PSCR to read
@@ -181,10 +130,18 @@ void sata_pmp_write_init_tf(struct ata_taskfile *tf,
  */
 int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *r_val)
 {
+	unsigned int err_mask;
+
 	if (reg > SATA_PMP_PSCR_CONTROL)
 		return -EINVAL;
 
-	return sata_pmp_read(link, reg, r_val);
+	err_mask = sata_pmp_read(link, reg, r_val);
+	if (err_mask) {
+		ata_link_printk(link, KERN_WARNING, "failed to read SCR %d "
+				"(Emask=0x%x)\n", reg, err_mask);
+		return -EIO;
+	}
+	return 0;
 }
 
 /**
@@ -204,10 +161,18 @@ int sata_pmp_scr_read(struct ata_link *link, int reg, u32 *r_val)
  */
 int sata_pmp_scr_write(struct ata_link *link, int reg, u32 val)
 {
+	unsigned int err_mask;
+
 	if (reg > SATA_PMP_PSCR_CONTROL)
 		return -EINVAL;
 
-	return sata_pmp_write(link, reg, val);
+	err_mask = sata_pmp_write(link, reg, val);
+	if (err_mask) {
+		ata_link_printk(link, KERN_WARNING, "failed to write SCR %d "
+				"(Emask=0x%x)\n", reg, err_mask);
+		return -EIO;
+	}
+	return 0;
 }
 
 /**
@@ -361,16 +326,17 @@ void sata_pmp_std_postreset(struct ata_link *link, unsigned int *class)
 static int sata_pmp_read_gscr(struct ata_device *dev, u32 *gscr)
 {
 	static const int gscr_to_read[] = { 0, 1, 2, 32, 33, 64, 96 };
-	int i, rc;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(gscr_to_read); i++) {
 		int reg = gscr_to_read[i];
+		unsigned int err_mask;
 
-		rc = sata_pmp_read(dev->link, reg, &gscr[reg]);
-		if (rc) {
-			ata_dev_printk(dev, KERN_ERR, "failed to read "
-				       "PMP GSCR[%d] (errno=%d)\n", reg, rc);
-			return rc;
+		err_mask = sata_pmp_read(dev->link, reg, &gscr[reg]);
+		if (err_mask) {
+			ata_dev_printk(dev, KERN_ERR, "failed to read PMP "
+				"GSCR[%d] (Emask=0x%x)\n", reg, err_mask);
+			return -EIO;
 		}
 	}
 
@@ -392,6 +358,7 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 {
 	struct ata_port *ap = dev->link->ap;
 	u32 *gscr = dev->gscr;
+	unsigned int err_mask = 0;
 	const char *reason;
 	int nr_ports, rc;
 
@@ -408,8 +375,10 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 		dev->flags |= ATA_DFLAG_AN;
 
 	/* monitor SERR_PHYRDY_CHG on fan-out ports */
-	rc = sata_pmp_write(dev->link, SATA_PMP_GSCR_ERROR_EN, SERR_PHYRDY_CHG);
-	if (rc) {
+	err_mask = sata_pmp_write(dev->link, SATA_PMP_GSCR_ERROR_EN,
+				  SERR_PHYRDY_CHG);
+	if (err_mask) {
+		rc = -EIO;
 		reason = "failed to write GSCR_ERROR_EN";
 		goto fail;
 	}
@@ -418,9 +387,10 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 	if (gscr[SATA_PMP_GSCR_FEAT_EN] & SATA_PMP_FEAT_NOTIFY) {
 		gscr[SATA_PMP_GSCR_FEAT_EN] &= ~SATA_PMP_FEAT_NOTIFY;
 
-		rc = sata_pmp_write(dev->link, SATA_PMP_GSCR_FEAT_EN,
-				    gscr[SATA_PMP_GSCR_FEAT_EN]);
-		if (rc) {
+		err_mask = sata_pmp_write(dev->link, SATA_PMP_GSCR_FEAT_EN,
+					  gscr[SATA_PMP_GSCR_FEAT_EN]);
+		if (err_mask) {
+			rc = -EIO;
 			reason = "failed to write GSCR_FEAT_EN";
 			goto fail;
 		}
@@ -447,7 +417,8 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 
  fail:
 	ata_dev_printk(dev, KERN_ERR,
-		       "failed to configure Port Multiplier (%s)\n", reason);
+		       "failed to configure Port Multiplier (%s, Emask=0x%x)\n",
+		       reason, err_mask);
 	return rc;
 }
 
@@ -812,13 +783,14 @@ static int sata_pmp_revalidate(struct ata_device *dev, unsigned int new_class)
  */
 static int sata_pmp_revalidate_quick(struct ata_device *dev)
 {
+	unsigned int err_mask;
 	u32 prod_id;
-	int rc;
 
-	rc = sata_pmp_read(dev->link, SATA_PMP_GSCR_PROD_ID, &prod_id);
-	if (rc) {
-		ata_dev_printk(dev, KERN_ERR, "failed to read PMP product ID\n");
-		return rc;
+	err_mask = sata_pmp_read(dev->link, SATA_PMP_GSCR_PROD_ID, &prod_id);
+	if (err_mask) {
+		ata_dev_printk(dev, KERN_ERR, "failed to read PMP product ID "
+			       "(Emask=0x%x)\n", err_mask);
+		return -EIO;
 	}
 
 	if (prod_id != dev->gscr[SATA_PMP_GSCR_PROD_ID]) {
@@ -1049,6 +1021,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 	struct ata_eh_context *pmp_ehc = &pmp_link->eh_context;
 	struct ata_link *link;
 	struct ata_device *dev;
+	unsigned int err_mask;
 	u32 gscr_error, sntf;
 	int cnt, rc;
 
@@ -1107,20 +1080,22 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 	if (pmp_dev->flags & ATA_DFLAG_AN) {
 		pmp_dev->gscr[SATA_PMP_GSCR_FEAT_EN] |= SATA_PMP_FEAT_NOTIFY;
 
-		rc = sata_pmp_write(pmp_dev->link, SATA_PMP_GSCR_FEAT_EN,
-				    pmp_dev->gscr[SATA_PMP_GSCR_FEAT_EN]);
-		if (rc) {
-			ata_dev_printk(pmp_dev, KERN_ERR,
-				       "failed to write PMP_FEAT_EN\n");
+		err_mask = sata_pmp_write(pmp_dev->link, SATA_PMP_GSCR_FEAT_EN,
+					  pmp_dev->gscr[SATA_PMP_GSCR_FEAT_EN]);
+		if (err_mask) {
+			ata_dev_printk(pmp_dev, KERN_ERR, "failed to write "
+				       "PMP_FEAT_EN (Emask=0x%x)\n", err_mask);
+			rc = -EIO;
 			goto pmp_fail;
 		}
 	}
 
 	/* check GSCR_ERROR */
-	rc = sata_pmp_read(pmp_link, SATA_PMP_GSCR_ERROR, &gscr_error);
-	if (rc) {
-		ata_dev_printk(pmp_dev, KERN_ERR,
-			       "failed to read PMP_GSCR_ERROR\n");
+	err_mask = sata_pmp_read(pmp_link, SATA_PMP_GSCR_ERROR, &gscr_error);
+	if (err_mask) {
+		ata_dev_printk(pmp_dev, KERN_ERR, "failed to read "
+			       "PMP_GSCR_ERROR (Emask=0x%x)\n", err_mask);
+		rc = -EIO;
 		goto pmp_fail;
 	}
 
