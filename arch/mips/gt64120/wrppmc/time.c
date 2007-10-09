@@ -11,18 +11,11 @@
  * Copyright (C) 2006, Wind River System Inc.
  */
 #include <linux/init.h>
-#include <linux/string.h>
-#include <linux/kernel.h>
-#include <linux/param.h>	/* for HZ */
-#include <linux/irq.h>
-#include <linux/timex.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
-#include <asm/reboot.h>
-#include <asm/time.h>
-#include <asm/io.h>
-#include <asm/bootinfo.h>
 #include <asm/gt64120.h>
+#include <asm/time.h>
 
 #define WRPPMC_CPU_CLK_FREQ 40000000 /* 40MHZ */
 

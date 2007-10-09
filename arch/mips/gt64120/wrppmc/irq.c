@@ -9,26 +9,13 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
-#include <linux/errno.h>
+#include <linux/hardirq.h>
 #include <linux/init.h>
-#include <linux/kernel_stat.h>
-#include <linux/module.h>
-#include <linux/signal.h>
-#include <linux/sched.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/ioport.h>
-#include <linux/timex.h>
-#include <linux/slab.h>
-#include <linux/random.h>
-#include <linux/bitops.h>
-#include <asm/bootinfo.h>
-#include <asm/io.h>
-#include <asm/bitops.h>
-#include <asm/mipsregs.h>
-#include <asm/system.h>
-#include <asm/irq_cpu.h>
+#include <linux/irq.h>
+
 #include <asm/gt64120.h>
+#include <asm/irq_cpu.h>
+#include <asm/mipsregs.h>
 
 asmlinkage void plat_irq_dispatch(void)
 {
