@@ -652,6 +652,26 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 	}
 }
 
+/* When a modification to fackets out becomes necessary, we need to check
+ * skb is counted to fackets_out or not. Another important thing is to
+ * tweak SACK fastpath hint too as it would overwrite all changes unless
+ * hint is also changed.
+ */
+static void tcp_adjust_fackets_out(struct tcp_sock *tp, struct sk_buff *skb,
+				   int decr)
+{
+	if (!tp->sacked_out)
+		return;
+
+	if (!before(tp->highest_sack, TCP_SKB_CB(skb)->seq))
+		tp->fackets_out -= decr;
+
+	/* cnt_hint is "off-by-one" compared with fackets_out (see sacktag) */
+	if (tp->fastpath_skb_hint != NULL &&
+	    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq, TCP_SKB_CB(skb)->seq))
+		tp->fastpath_cnt_hint -= decr;
+}
+
 /* Function to create two new TCP segments.  Shrinks the given segment
  * to the specified size and appends a new segment with the rest of the
  * packet to the list.  This won't be called frequently, I hope.
@@ -746,21 +766,12 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
 			tp->lost_out -= diff;
 
-		if (diff > 0) {
-			/* Adjust Reno SACK estimate. */
-			if (tcp_is_reno(tp)) {
-				tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
-				tcp_verify_left_out(tp);
-			}
-
-			tcp_dec_pcount_approx_int(&tp->fackets_out, diff);
-			/* SACK fastpath might overwrite it unless dealt with */
-			if (tp->fastpath_skb_hint != NULL &&
-			    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq,
-				  TCP_SKB_CB(skb)->seq)) {
-				tcp_dec_pcount_approx_int(&tp->fastpath_cnt_hint, diff);
-			}
+		/* Adjust Reno SACK estimate. */
+		if (tcp_is_reno(tp) && diff > 0) {
+			tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
+			tcp_verify_left_out(tp);
 		}
+		tcp_adjust_fackets_out(tp, skb, diff);
 	}
 
 	/* Link BUFF into the send queue. */
@@ -1746,10 +1757,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		if (tcp_is_reno(tp) && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
 
-		/* Not quite right: it can be > snd.fack, but
-		 * it is better to underestimate fackets.
-		 */
-		tcp_dec_pcount_approx(&tp->fackets_out, next_skb);
+		tcp_adjust_fackets_out(tp, skb, tcp_skb_pcount(next_skb));
 		tp->packets_out -= tcp_skb_pcount(next_skb);
 		sk_stream_free_skb(sk, next_skb);
 	}

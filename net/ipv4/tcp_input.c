@@ -2299,8 +2299,8 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	 * 1. Reno does not count dupacks (sacked_out) automatically. */
 	if (!tp->packets_out)
 		tp->sacked_out = 0;
-	/* 2. SACK counts snd_fack in packets inaccurately. */
-	if (tp->sacked_out == 0)
+
+	if (WARN_ON(!tp->sacked_out && tp->fackets_out))
 		tp->fackets_out = 0;
 
 	/* Now state machine starts.
@@ -2568,10 +2568,6 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 		} else if (*seq_rtt < 0)
 			*seq_rtt = now - scb->when;
 
-		if (tp->fackets_out) {
-			__u32 dval = min(tp->fackets_out, packets_acked);
-			tp->fackets_out -= dval;
-		}
 		/* hint's skb might be NULL but we don't need to care */
 		tp->fastpath_cnt_hint -= min_t(u32, packets_acked,
 					       tp->fastpath_cnt_hint);
@@ -2657,7 +2653,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 			seq_rtt = now - scb->when;
 			last_ackt = skb->tstamp;
 		}
-		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tp->packets_out -= tcp_skb_pcount(skb);
 		tcp_unlink_write_queue(skb, sk);
 		sk_stream_free_skb(sk, skb);
@@ -2672,6 +2667,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_rearm_rto(sk);
 
+		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
 		if (tcp_is_reno(tp))
 			tcp_remove_reno_sacks(sk, pkts_acked);
 
