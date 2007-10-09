@@ -2594,6 +2594,13 @@ config NETXEN_NIC
 	help
 	  This enables the support for NetXen's Gigabit Ethernet card.
 
+config NIU
+	tristate "Sun Neptune 10Gbit Ethernet support"
+	depends on PCI
+	help
+	  This enables support for cards based upon Sun's
+	  Neptune chipset.
+
 config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
 	depends on PPC64 && PCI
