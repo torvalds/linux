@@ -20,10 +20,11 @@
  * space for the encapsulation header.
  *
  * On exit, skb->h will be set to the start of the encapsulation header to be
- * filled in by x->type->output and skb->nh will be set to the nextheader field
- * of the extension header directly preceding the encapsulation header, or in
- * its absence, that of the top IP header.  The value of skb->data will always
- * point to the top IP header.
+ * filled in by x->type->output and the mac header will be set to the
+ * nextheader field of the extension header directly preceding the
+ * encapsulation header, or in its absence, that of the top IP header.
+ * The value of skb->data and the network header will always point to the
+ * top IP header.
  */
 static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -35,8 +36,8 @@ static int xfrm6_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ipv6_hdr(skb);
 
 	hdr_len = x->type->hdr_offset(x, skb, &prevhdr);
-	skb_set_network_header(skb,
-			       (prevhdr - x->props.header_len) - skb->data);
+	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
+	skb_reset_network_header(skb);
 	skb_set_transport_header(skb, hdr_len);
 	memmove(skb->data, iph, hdr_len);
 	return 0;

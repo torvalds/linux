@@ -76,8 +76,6 @@ int xfrm_output(struct sk_buff *skb)
 
 		spin_unlock_bh(&x->lock);
 
-		skb_reset_network_header(skb);
-
 		if (!(skb->dst = dst_pop(dst))) {
 			err = -EHOSTUNREACH;
 			goto error_nolock;

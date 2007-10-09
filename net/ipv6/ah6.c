@@ -235,11 +235,11 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 		char hdrs[0];
 	} *tmp_ext;
 
-	top_iph = (struct ipv6hdr *)skb->data;
+	top_iph = ipv6_hdr(skb);
 	top_iph->payload_len = htons(skb->len - sizeof(*top_iph));
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_AH;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_AH;
 
 	/* When there are no extension headers, we only need to save the first
 	 * 8 bytes of the base IP header.

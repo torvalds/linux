@@ -157,15 +157,15 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	pskb_trim(skb, hdr_len + dlen + sizeof(struct ip_comp_hdr));
 
 	/* insert ipcomp header and replace datagram */
-	top_iph = (struct ipv6hdr *)skb->data;
+	top_iph = ipv6_hdr(skb);
 
 	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 
 	ipch = (struct ipv6_comp_hdr *)start;
-	ipch->nexthdr = *skb_network_header(skb);
+	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
-	*skb_network_header(skb) = IPPROTO_COMP;
+	*skb_mac_header(skb) = IPPROTO_COMP;
 
 out_ok:
 	return 0;

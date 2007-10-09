@@ -153,11 +153,11 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	int len;
 
-	iph = (struct ipv6hdr *)skb->data;
+	iph = ipv6_hdr(skb);
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_DSTOPTS;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_DSTOPTS;
 
 	dstopt = (struct ipv6_destopt_hdr *)skb_transport_header(skb);
 	dstopt->nexthdr = nexthdr;
@@ -365,11 +365,11 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct rt2_hdr *rt2;
 	u8 nexthdr;
 
-	iph = (struct ipv6hdr *)skb->data;
+	iph = ipv6_hdr(skb);
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_ROUTING;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_ROUTING;
 
 	rt2 = (struct rt2_hdr *)skb_transport_header(skb);
 	rt2->rt_hdr.nexthdr = nexthdr;
