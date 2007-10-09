@@ -331,15 +331,16 @@ static int shaper_close(struct net_device *dev)
  */
 
 static int shaper_header(struct sk_buff *skb, struct net_device *dev,
-	unsigned short type, void *daddr, void *saddr, unsigned len)
+			 unsigned short type,
+			 const void *daddr, const void *saddr, unsigned len)
 {
 	struct shaper *sh=dev->priv;
 	int v;
 	if(sh_debug)
 		printk("Shaper header\n");
-	skb->dev=sh->dev;
-	v=sh->hard_header(skb,sh->dev,type,daddr,saddr,len);
-	skb->dev=dev;
+	skb->dev = sh->dev;
+	v = dev_hard_header(skb, sh->dev, type, daddr, saddr, len);
+	skb->dev = dev;
 	return v;
 }
 
@@ -351,7 +352,7 @@ static int shaper_rebuild_header(struct sk_buff *skb)
 	if(sh_debug)
 		printk("Shaper rebuild header\n");
 	skb->dev=sh->dev;
-	v=sh->rebuild_header(skb);
+	v = sh->dev->header_ops->rebuild(skb);
 	skb->dev=dev;
 	return v;
 }
@@ -415,51 +416,17 @@ static int shaper_neigh_setup_dev(struct net_device *dev, struct neigh_parms *p)
 
 #endif
 
+static const struct header_ops shaper_ops = {
+	.create	 = shaper_header,
+	.rebuild = shaper_rebuild_header,
+};
+
 static int shaper_attach(struct net_device *shdev, struct shaper *sh, struct net_device *dev)
 {
 	sh->dev = dev;
-	sh->hard_start_xmit=dev->hard_start_xmit;
 	sh->get_stats=dev->get_stats;
-	if(dev->hard_header)
-	{
-		sh->hard_header=dev->hard_header;
-		shdev->hard_header = shaper_header;
-	}
-	else
-		shdev->hard_header = NULL;
 
-	if(dev->rebuild_header)
-	{
-		sh->rebuild_header	= dev->rebuild_header;
-		shdev->rebuild_header	= shaper_rebuild_header;
-	}
-	else
-		shdev->rebuild_header	= NULL;
-
-#if 0
-	if(dev->hard_header_cache)
-	{
-		sh->hard_header_cache	= dev->hard_header_cache;
-		shdev->hard_header_cache= shaper_cache;
-	}
-	else
-	{
-		shdev->hard_header_cache= NULL;
-	}
-
-	if(dev->header_cache_update)
-	{
-		sh->header_cache_update	= dev->header_cache_update;
-		shdev->header_cache_update = shaper_cache_update;
-	}
-	else
-		shdev->header_cache_update= NULL;
-#else
-	shdev->header_cache_update = NULL;
-	shdev->hard_header_cache = NULL;
-#endif
 	shdev->neigh_setup = shaper_neigh_setup_dev;
-
 	shdev->hard_header_len=dev->hard_header_len;
 	shdev->type=dev->type;
 	shdev->addr_len=dev->addr_len;
@@ -542,12 +509,6 @@ static void __init shaper_setup(struct net_device *dev)
 	 *	Handlers for when we attach to a device.
 	 */
 
-	dev->hard_header 	= shaper_header;
-	dev->rebuild_header 	= shaper_rebuild_header;
-#if 0
-	dev->hard_header_cache	= shaper_cache;
-	dev->header_cache_update= shaper_cache_update;
-#endif
 	dev->neigh_setup	= shaper_neigh_setup_dev;
 	dev->do_ioctl		= shaper_ioctl;
 	dev->hard_header_len	= 0;

@@ -46,7 +46,9 @@
 
 #ifdef CONFIG_INET
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
+int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+		     unsigned short type, const void *daddr,
+		     const void *saddr, unsigned len)
 {
 	unsigned char *buff;
 
@@ -215,7 +217,9 @@ put:
 
 #else	/* INET */
 
-int ax25_hard_header(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
+int ax25_hard_header(struct sk_buff *skb, struct net_device *dev,
+		     unsigned short type, const void *daddr,
+		     const void *saddr, unsigned len)
 {
 	return -AX25_HEADER_LEN;
 }
@@ -227,5 +231,12 @@ int ax25_rebuild_header(struct sk_buff *skb)
 
 #endif
 
+const struct header_ops ax25_header_ops = {
+	.create = ax25_hard_header,
+	.rebuild = ax25_rebuild_header,
+};
+
 EXPORT_SYMBOL(ax25_hard_header);
 EXPORT_SYMBOL(ax25_rebuild_header);
+EXPORT_SYMBOL(ax25_header_ops);
+

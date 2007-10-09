@@ -228,7 +228,6 @@ void ieee80211_if_mgmt_setup(struct net_device *dev)
 	dev->open = ieee80211_mgmt_open;
 	dev->stop = ieee80211_mgmt_stop;
 	dev->type = ARPHRD_IEEE80211_PRISM;
-	dev->hard_header_parse = header_parse_80211;
 	dev->uninit = ieee80211_if_reinit;
 	dev->destructor = ieee80211_if_free;
 }
@@ -546,10 +545,19 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 	netif_tx_unlock(local->mdev);
 }
 
+static const struct header_ops ieee80211_header_ops = {
+	.create		= eth_header,
+	.parse		= header_parse_80211,
+	.rebuild	= eth_rebuild_header,
+	.cache		= eth_header_cache,
+	.cache_update	= eth_header_cache_update,
+};
+
 /* Must not be called for mdev and apdev */
 void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->header_ops = &ieee80211_header_ops;
 	dev->hard_start_xmit = ieee80211_subif_start_xmit;
 	dev->wireless_handlers = &ieee80211_iw_handler_def;
 	dev->set_multicast_list = ieee80211_set_multicast_list;
@@ -1197,7 +1205,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mdev->open = ieee80211_master_open;
 	mdev->stop = ieee80211_master_stop;
 	mdev->type = ARPHRD_IEEE80211;
-	mdev->hard_header_parse = header_parse_80211;
+	mdev->header_ops = &ieee80211_header_ops;
 
 	sdata->type = IEEE80211_IF_TYPE_AP;
 	sdata->dev = mdev;

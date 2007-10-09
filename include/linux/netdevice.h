@@ -250,6 +250,19 @@ struct hh_cache
 #define LL_RESERVED_SPACE_EXTRA(dev,extra) \
 	((((dev)->hard_header_len+extra)&~(HH_DATA_MOD - 1)) + HH_DATA_MOD)
 
+struct header_ops {
+	int	(*create) (struct sk_buff *skb, struct net_device *dev,
+			   unsigned short type, const void *daddr,
+			   const void *saddr, unsigned len);
+	int	(*parse)(const struct sk_buff *skb, unsigned char *haddr);
+	int	(*rebuild)(struct sk_buff *skb);
+#define HAVE_HEADER_CACHE
+	int	(*cache)(const struct neighbour *neigh, struct hh_cache *hh);
+	void	(*cache_update)(struct hh_cache *hh,
+				const struct net_device *dev,
+				const unsigned char *haddr);
+};
+
 /* These flag bits are private to the generic network queueing
  * layer, they may not be explicitly referenced by any other
  * code.
@@ -492,6 +505,9 @@ struct net_device
 #endif
 	const struct ethtool_ops *ethtool_ops;
 
+	/* Hardware header description */
+	const struct header_ops *header_ops;
+
 	/*
 	 * This marks the end of the "visible" part of the structure. All
 	 * fields hereafter are internal to the system, and may change at
@@ -615,13 +631,6 @@ struct net_device
 	int			(*open)(struct net_device *dev);
 	int			(*stop)(struct net_device *dev);
 #define HAVE_NETDEV_POLL
-	int			(*hard_header) (struct sk_buff *skb,
-						struct net_device *dev,
-						unsigned short type,
-						void *daddr,
-						void *saddr,
-						unsigned len);
-	int			(*rebuild_header)(struct sk_buff *skb);
 #define HAVE_CHANGE_RX_FLAGS
 	void			(*change_rx_flags)(struct net_device *dev,
 						   int flags);
@@ -638,12 +647,6 @@ struct net_device
 #define HAVE_SET_CONFIG
 	int			(*set_config)(struct net_device *dev,
 					      struct ifmap *map);
-#define HAVE_HEADER_CACHE
-	int			(*hard_header_cache)(struct neighbour *neigh,
-						     struct hh_cache *hh);
-	void			(*header_cache_update)(struct hh_cache *hh,
-						       struct net_device *dev,
-						       unsigned char *  haddr);
 #define HAVE_CHANGE_MTU
 	int			(*change_mtu)(struct net_device *dev, int new_mtu);
 
@@ -657,8 +660,6 @@ struct net_device
 	void			(*vlan_rx_kill_vid)(struct net_device *dev,
 						    unsigned short vid);
 
-	int			(*hard_header_parse)(const struct sk_buff *skb,
-						     unsigned char *haddr);
 	int			(*neigh_setup)(struct net_device *dev, struct neigh_parms *);
 #ifdef CONFIG_NETPOLL
 	struct netpoll_info	*npinfo;
@@ -802,11 +803,13 @@ extern int		netpoll_trap(void);
 
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  unsigned short type,
-				  void *daddr, void *saddr, unsigned len)
+				  const void *daddr, const void *saddr,
+				  unsigned len)
 {
-	if (!dev->hard_header)
+	if (!dev->header_ops)
 		return 0;
-	return dev->hard_header(skb, dev, type, daddr, saddr, len);
+
+	return dev->header_ops->create(skb, dev, type, daddr, saddr, len);
 }
 
 static inline int dev_parse_header(const struct sk_buff *skb,
@@ -814,9 +817,9 @@ static inline int dev_parse_header(const struct sk_buff *skb,
 {
 	const struct net_device *dev = skb->dev;
 
-	if (!dev->hard_header_parse)
+	if (!dev->header_ops->parse)
 		return 0;
-	return dev->hard_header_parse(skb, haddr);
+	return dev->header_ops->parse(skb, haddr);
 }
 
 typedef int gifconf_func_t(struct net_device * dev, char __user * bufptr, int len);

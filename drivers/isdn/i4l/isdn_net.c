@@ -1873,54 +1873,14 @@ isdn_net_rcv_skb(int idx, struct sk_buff *skb)
 	return 0;
 }
 
-static int
-my_eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-	      void *daddr, void *saddr, unsigned len)
-{
-	struct ethhdr *eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
-
-	/*
-	 * Set the protocol type. For a packet of type ETH_P_802_3 we
-	 * put the length here instead. It is up to the 802.2 layer to
-	 * carry protocol information.
-	 */
-
-	if (type != ETH_P_802_3)
-		eth->h_proto = htons(type);
-	else
-		eth->h_proto = htons(len);
-
-	/*
-	 * Set the source hardware address.
-	 */
-	if (saddr)
-		memcpy(eth->h_source, saddr, dev->addr_len);
-	else
-		memcpy(eth->h_source, dev->dev_addr, dev->addr_len);
-
-	/*
-	 * Anyway, the loopback-device should never use this function...
-	 */
-
-	if (dev->flags & (IFF_LOOPBACK | IFF_NOARP)) {
-		memset(eth->h_dest, 0, dev->addr_len);
-		return ETH_HLEN /*(dev->hard_header_len)*/;
-	}
-	if (daddr) {
-		memcpy(eth->h_dest, daddr, dev->addr_len);
-		return ETH_HLEN /*dev->hard_header_len*/;
-	}
-	return -ETH_HLEN /*dev->hard_header_len*/;
-}
-
 /*
  *  build an header
  *  depends on encaps that is being used.
  */
 
-static int
-isdn_net_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-		void *daddr, void *saddr, unsigned plen)
+static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
+			   unsigned short type,
+			   const void *daddr, const void *saddr, unsigned plen)
 {
 	isdn_net_local *lp = dev->priv;
 	unsigned char *p;
@@ -1928,7 +1888,7 @@ isdn_net_header(struct sk_buff *skb, struct net_device *dev, unsigned short type
 
 	switch (lp->p_encap) {
 		case ISDN_NET_ENCAP_ETHER:
-			len = my_eth_header(skb, dev, type, daddr, saddr, plen);
+			len = eth_header(skb, dev, type, daddr, saddr, plen);
 			break;
 #ifdef CONFIG_ISDN_PPP
 		case ISDN_NET_ENCAP_SYNCPPP:
@@ -2005,6 +1965,32 @@ isdn_net_rebuild_header(struct sk_buff *skb)
 	return ret;
 }
 
+static int isdn_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
+{
+	const struct net_device *dev = neigh->dev;
+	isdn_net_local *lp = dev->priv;
+
+	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
+		return eth_header_cache(neigh, hh);
+	return -1;
+}
+
+static void isdn_header_cache_update(struct hh_cache *hh,
+				     const struct net_device *dev,
+				     const unsigned char *haddr)
+{
+	isdn_net_local *lp = dev->priv;
+	if (lp->p_encap == ISDN_NET_ENCAP_ETHER)
+		return eth_header_cache_update(hh, dev, haddr);
+}
+
+static const struct header_ops isdn_header_ops = {
+	.create = isdn_net_header,
+	.rebuild = isdn_net_rebuild_header,
+	.cache = isdn_header_cache,
+	.cache_update = isdn_header_cache_update,
+};
+
 /*
  * Interface-setup. (just after registering a new interface)
  */
@@ -2012,18 +1998,12 @@ static int
 isdn_net_init(struct net_device *ndev)
 {
 	ushort max_hlhdr_len = 0;
-	isdn_net_local *lp = (isdn_net_local *) ndev->priv;
-	int drvidx, i;
+	int drvidx;
 
 	ether_setup(ndev);
-	lp->org_hhc = ndev->hard_header_cache;
-	lp->org_hcu = ndev->header_cache_update;
+	ndev->header_ops = NULL;
 
 	/* Setup the generic properties */
-
-	ndev->hard_header = NULL;
-	ndev->hard_header_cache = NULL;
-	ndev->header_cache_update = NULL;
 	ndev->mtu = 1500;
 	ndev->flags = IFF_NOARP|IFF_POINTOPOINT;
 	ndev->type = ARPHRD_ETHER;
@@ -2031,9 +2011,6 @@ isdn_net_init(struct net_device *ndev)
 
 	/* for clients with MPPP maybe higher values better */
 	ndev->tx_queue_len = 30;
-
-	for (i = 0; i < ETH_ALEN; i++)
-		ndev->broadcast[i] = 0xff;
 
 	/* The ISDN-specific entries in the device structure. */
 	ndev->open = &isdn_net_open;
@@ -2052,7 +2029,6 @@ isdn_net_init(struct net_device *ndev)
 	ndev->hard_header_len = ETH_HLEN + max_hlhdr_len;
 	ndev->stop = &isdn_net_close;
 	ndev->get_stats = &isdn_net_get_stats;
-	ndev->rebuild_header = &isdn_net_rebuild_header;
 	ndev->do_ioctl = NULL;
 	return 0;
 }
@@ -2861,21 +2837,14 @@ isdn_net_setcfg(isdn_net_ioctl_cfg * cfg)
 		}
 		if (cfg->p_encap != lp->p_encap) {
 			if (cfg->p_encap == ISDN_NET_ENCAP_RAWIP) {
-				p->dev.hard_header = NULL;
-				p->dev.hard_header_cache = NULL;
-				p->dev.header_cache_update = NULL;
+				p->dev.header_ops = NULL;
 				p->dev.flags = IFF_NOARP|IFF_POINTOPOINT;
 			} else {
-				p->dev.hard_header = isdn_net_header;
-				if (cfg->p_encap == ISDN_NET_ENCAP_ETHER) {
-					p->dev.hard_header_cache = lp->org_hhc;
-					p->dev.header_cache_update = lp->org_hcu;
+				p->dev.header_ops = &isdn_header_ops;
+				if (cfg->p_encap == ISDN_NET_ENCAP_ETHER)
 					p->dev.flags = IFF_BROADCAST | IFF_MULTICAST;
-				} else {
-					p->dev.hard_header_cache = NULL;
-					p->dev.header_cache_update = NULL;
+				else
 					p->dev.flags = IFF_NOARP|IFF_POINTOPOINT;
-				}
 			}
 		}
 		lp->p_encap = cfg->p_encap;
@@ -3127,8 +3096,6 @@ isdn_net_realrm(isdn_net_dev * p, isdn_net_dev * q)
 			((isdn_net_local *) (p->local->master->priv))->slave = p->local->slave;
 	} else {
 		/* Unregister only if it's a master-device */
-		p->dev.hard_header_cache = p->local->org_hhc;
-		p->dev.header_cache_update = p->local->org_hcu;
 		unregister_netdev(&p->dev);
 	}
 	/* Unlink device from chain */

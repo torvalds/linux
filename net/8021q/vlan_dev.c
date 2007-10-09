@@ -343,8 +343,8 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
  *  physical devices.
  */
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type, void *daddr, void *saddr,
-			 unsigned len)
+			 unsigned short type,
+			 const void *daddr, const void *saddr, unsigned len)
 {
 	struct vlan_hdr *vhdr;
 	unsigned short veth_TCI = 0;

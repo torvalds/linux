@@ -249,10 +249,10 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 	return (skb_res == NULL) ? -EAGAIN : 1;
 }
 
-static __inline__ int
-teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *dev)
+static inline int teql_resolve(struct sk_buff *skb,
+			       struct sk_buff *skb_res, struct net_device *dev)
 {
-	if (dev->hard_header == NULL ||
+	if (dev->header_ops == NULL ||
 	    skb->dst == NULL ||
 	    skb->dst->neighbour == NULL)
 		return 0;

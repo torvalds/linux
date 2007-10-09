@@ -736,8 +736,6 @@ struct local_info {
 		PRISM2_MONITOR_80211 = 0, PRISM2_MONITOR_PRISM = 1,
 		PRISM2_MONITOR_CAPHDR = 2
 	} monitor_type;
-	int (*saved_eth_header_parse)(struct sk_buff *skb,
-				      unsigned char *haddr);
 	int monitor_allow_fcserr;
 
 	int hostapd; /* whether user space daemon, hostapd, is used for AP

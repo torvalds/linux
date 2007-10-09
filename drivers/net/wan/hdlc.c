@@ -232,6 +232,8 @@ int hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EINVAL;
 }
 
+static const struct header_ops hdlc_null_ops;
+
 static void hdlc_setup_dev(struct net_device *dev)
 {
 	/* Re-init all variables changed by HDLC protocol drivers,
@@ -243,13 +245,9 @@ static void hdlc_setup_dev(struct net_device *dev)
 	dev->type		 = ARPHRD_RAWHDLC;
 	dev->hard_header_len	 = 16;
 	dev->addr_len		 = 0;
-	dev->hard_header	 = NULL;
-	dev->rebuild_header	 = NULL;
-	dev->set_mac_address	 = NULL;
-	dev->hard_header_cache	 = NULL;
-	dev->header_cache_update = NULL;
+	dev->header_ops		 = &hdlc_null_ops;
+
 	dev->change_mtu		 = hdlc_change_mtu;
-	dev->hard_header_parse	 = NULL;
 }
 
 static void hdlc_setup(struct net_device *dev)

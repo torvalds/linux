@@ -221,22 +221,17 @@ static void loopback_dev_free(struct net_device *dev)
 }
 
 /*
- * The loopback device is special. There is only one instance and
- * it is statically allocated. Don't do this for other devices.
+ * The loopback device is special. There is only one instance.
  */
 static void loopback_setup(struct net_device *dev)
 {
 	dev->get_stats		= &get_stats;
 	dev->mtu		= (16 * 1024) + 20 + 20 + 12;
 	dev->hard_start_xmit	= loopback_xmit;
-	dev->hard_header	= eth_header;
-	dev->hard_header_cache	= eth_header_cache;
-	dev->header_cache_update = eth_header_cache_update;
 	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
 	dev->addr_len		= ETH_ALEN;	/* 6	*/
 	dev->tx_queue_len	= 0;
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
-	dev->rebuild_header	= eth_rebuild_header;
 	dev->flags		= IFF_LOOPBACK;
 	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
 #ifdef LOOPBACK_TSO
@@ -247,6 +242,7 @@ static void loopback_setup(struct net_device *dev)
 		| NETIF_F_LLTX
 		| NETIF_F_NETNS_LOCAL,
 	dev->ethtool_ops	= &loopback_ethtool_ops;
+	dev->header_ops		= &eth_header_ops;
 	dev->init = loopback_dev_init;
 	dev->destructor = loopback_dev_free;
 }

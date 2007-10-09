@@ -75,8 +75,9 @@ __setup("ether=", netdev_boot_setup);
  * Set the protocol type. For a packet of type ETH_P_802_3 we put the length
  * in here instead. It is up to the 802.2 layer to carry protocol information.
  */
-int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-	       void *daddr, void *saddr, unsigned len)
+int eth_header(struct sk_buff *skb, struct net_device *dev,
+	       unsigned short type,
+	       const void *daddr, const void *saddr, unsigned len)
 {
 	struct ethhdr *eth = (struct ethhdr *)skb_push(skb, ETH_HLEN);
 
@@ -109,6 +110,7 @@ int eth_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
 
 	return -ETH_HLEN;
 }
+EXPORT_SYMBOL(eth_header);
 
 /**
  * eth_rebuild_header- rebuild the Ethernet MAC header.
@@ -141,6 +143,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 
 	return 0;
 }
+EXPORT_SYMBOL(eth_rebuild_header);
 
 /**
  * eth_type_trans - determine the packet's protocol ID.
@@ -207,12 +210,13 @@ EXPORT_SYMBOL(eth_type_trans);
  * @skb: packet to extract header from
  * @haddr: destination buffer
  */
-static int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr)
+int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	const struct ethhdr *eth = eth_hdr(skb);
 	memcpy(haddr, eth->h_source, ETH_ALEN);
 	return ETH_ALEN;
 }
+EXPORT_SYMBOL(eth_header_parse);
 
 /**
  * eth_header_cache - fill cache entry from neighbour
@@ -220,11 +224,11 @@ static int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr)
  * @hh: destination cache entry
  * Create an Ethernet header template from the neighbour.
  */
-int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
+int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
 {
 	__be16 type = hh->hh_type;
 	struct ethhdr *eth;
-	struct net_device *dev = neigh->dev;
+	const struct net_device *dev = neigh->dev;
 
 	eth = (struct ethhdr *)
 	    (((u8 *) hh->hh_data) + (HH_DATA_OFF(sizeof(*eth))));
@@ -238,6 +242,7 @@ int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 	hh->hh_len = ETH_HLEN;
 	return 0;
 }
+EXPORT_SYMBOL(eth_header_cache);
 
 /**
  * eth_header_cache_update - update cache entry
@@ -247,12 +252,14 @@ int eth_header_cache(struct neighbour *neigh, struct hh_cache *hh)
  *
  * Called by Address Resolution module to notify changes in address.
  */
-void eth_header_cache_update(struct hh_cache *hh, struct net_device *dev,
-			     unsigned char *haddr)
+void eth_header_cache_update(struct hh_cache *hh,
+			     const struct net_device *dev,
+			     const unsigned char *haddr)
 {
 	memcpy(((u8 *) hh->hh_data) + HH_DATA_OFF(sizeof(struct ethhdr)),
 	       haddr, ETH_ALEN);
 }
+EXPORT_SYMBOL(eth_header_cache_update);
 
 /**
  * eth_mac_addr - set new Ethernet hardware address
@@ -291,6 +298,14 @@ static int eth_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+const struct header_ops eth_header_ops ____cacheline_aligned = {
+	.create		= eth_header,
+	.parse		= eth_header_parse,
+	.rebuild	= eth_rebuild_header,
+	.cache		= eth_header_cache,
+	.cache_update	= eth_header_cache_update,
+};
+
 /**
  * ether_setup - setup Ethernet network device
  * @dev: network device
@@ -298,13 +313,10 @@ static int eth_change_mtu(struct net_device *dev, int new_mtu)
  */
 void ether_setup(struct net_device *dev)
 {
+	dev->header_ops		= &eth_header_ops;
+
 	dev->change_mtu		= eth_change_mtu;
-	dev->hard_header	= eth_header;
-	dev->rebuild_header 	= eth_rebuild_header;
 	dev->set_mac_address 	= eth_mac_addr;
-	dev->hard_header_cache	= eth_header_cache;
-	dev->header_cache_update= eth_header_cache_update;
-	dev->hard_header_parse	= eth_header_parse;
 
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;

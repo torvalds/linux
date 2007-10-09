@@ -3258,11 +3258,10 @@ while (0)
 	INIT_LIST_HEAD(&local->bss_list);
 
 	hostap_setup_dev(dev, local, 1);
-	local->saved_eth_header_parse = dev->hard_header_parse;
 
 	dev->hard_start_xmit = hostap_master_start_xmit;
 	dev->type = ARPHRD_IEEE80211;
-	dev->hard_header_parse = hostap_80211_header_parse;
+	dev->header_ops = &hostap_80211_ops;
 
 	rtnl_lock();
 	ret = dev_alloc_name(dev, "wifi%d");

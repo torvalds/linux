@@ -1631,8 +1631,8 @@ static void strip_IdleTask(unsigned long parameter)
  */
 
 static int strip_header(struct sk_buff *skb, struct net_device *dev,
-			unsigned short type, void *daddr, void *saddr,
-			unsigned len)
+			unsigned short type, const void *daddr,
+			const void *saddr, unsigned len)
 {
 	struct strip *strip_info = netdev_priv(dev);
 	STRIP_Header *header = (STRIP_Header *) skb_push(skb, sizeof(STRIP_Header));
@@ -2497,6 +2497,11 @@ static int strip_close_low(struct net_device *dev)
 	return 0;
 }
 
+static const struct header_ops strip_header_ops = {
+	.create = strip_header,
+	.rebuild = strip_rebuild_header,
+};
+
 /*
  * This routine is called by DDI when the
  * (dynamically assigned) device is registered
@@ -2531,8 +2536,8 @@ static void strip_dev_setup(struct net_device *dev)
 	dev->open = strip_open_low;
 	dev->stop = strip_close_low;
 	dev->hard_start_xmit = strip_xmit;
-	dev->hard_header = strip_header;
-	dev->rebuild_header = strip_rebuild_header;
+	dev->header_ops = &strip_header_ops;
+
 	dev->set_mac_address = strip_set_mac_address;
 	dev->get_stats = strip_get_stats;
 	dev->change_mtu = strip_change_mtu;

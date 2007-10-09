@@ -353,13 +353,6 @@ typedef struct isdn_net_local_s {
                                        /* a particular channel (including  */
                                        /* the frame_cnt                    */
 
-  int                    (*org_hhc)(
-				    struct neighbour *neigh,
-				    struct hh_cache *hh);
-                                       /* Ptr to orig. header_cache_update */
-  void                   (*org_hcu)(struct hh_cache *,
-				    struct net_device *,
-                                    unsigned char *);
   int  pppbind;                        /* ippp device for bindings         */
   int					dialtimeout;	/* How long shall we try on dialing? (jiffies) */
   int					dialwait;		/* How long shall we wait after failed attempt? (jiffies) */

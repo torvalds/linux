@@ -578,8 +578,9 @@ static int ax_open_dev(struct net_device *dev)
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 
 /* Return the frame type ID */
-static int ax_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-	  void *daddr, void *saddr, unsigned len)
+static int ax_header(struct sk_buff *skb, struct net_device *dev,
+		     unsigned short type, const void *daddr,
+		     const void *saddr, unsigned len)
 {
 #ifdef CONFIG_INET
 	if (type != htons(ETH_P_AX25))
@@ -670,6 +671,11 @@ static struct net_device_stats *ax_get_stats(struct net_device *dev)
 	return &ax->stats;
 }
 
+static const struct header_ops ax_header_ops = {
+	.create    = ax_header,
+	.rebuild   = ax_rebuild_header,
+};
+
 static void ax_setup(struct net_device *dev)
 {
 	/* Finish setting up the DEVICE info. */
@@ -683,8 +689,8 @@ static void ax_setup(struct net_device *dev)
 	dev->addr_len        = 0;
 	dev->type            = ARPHRD_AX25;
 	dev->tx_queue_len    = 10;
-	dev->hard_header     = ax_header;
-	dev->rebuild_header  = ax_rebuild_header;
+	dev->header_ops      = &ax_header_ops;
+
 
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
 	memcpy(dev->dev_addr,  &ax25_defaddr,  AX25_ADDR_LEN);

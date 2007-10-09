@@ -967,14 +967,6 @@ void dev_load(struct net *net, const char *name)
 		request_module("%s", name);
 }
 
-static int default_rebuild_header(struct sk_buff *skb)
-{
-	printk(KERN_DEBUG "%s: default_rebuild_header called -- BUG!\n",
-	       skb->dev ? skb->dev->name : "NULL!!!");
-	kfree_skb(skb);
-	return 1;
-}
-
 /**
  *	dev_open	- prepare an interface for use.
  *	@dev:	device to open
@@ -3560,14 +3552,6 @@ int register_netdevice(struct net_device *dev)
 			dev->features &= ~NETIF_F_UFO;
 		}
 	}
-
-	/*
-	 *	nil rebuild_header routine,
-	 *	that should be never called and used as just bug trap.
-	 */
-
-	if (!dev->rebuild_header)
-		dev->rebuild_header = default_rebuild_header;
 
 	ret = netdev_register_kobject(dev);
 	if (ret)

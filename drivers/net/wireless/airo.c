@@ -2696,9 +2696,13 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
 	return rc;
 }
 
+static const struct header_ops airo_header_ops = {
+	.parse = wll_header_parse,
+};
+
 static void wifi_setup(struct net_device *dev)
 {
-	dev->hard_header_parse  = wll_header_parse;
+	dev->header_ops = &airo_header_ops;
 	dev->hard_start_xmit = &airo_start_xmit11;
 	dev->get_stats = &airo_get_stats;
 	dev->set_mac_address = &airo_set_mac_address;

@@ -73,7 +73,7 @@ static void ppp_close(struct net_device *dev)
 
 	sppp_close(dev);
 	sppp_detach(dev);
-	dev->rebuild_header = NULL;
+
 	dev->change_mtu = state(hdlc)->old_change_mtu;
 	dev->mtu = HDLC_MAX_MTU;
 	dev->hard_header_len = 16;

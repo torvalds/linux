@@ -253,7 +253,7 @@ static int arp_constructor(struct neighbour *neigh)
 	neigh->parms = neigh_parms_clone(parms);
 	rcu_read_unlock();
 
-	if (dev->hard_header == NULL) {
+	if (!dev->header_ops) {
 		neigh->nud_state = NUD_NOARP;
 		neigh->ops = &arp_direct_ops;
 		neigh->output = neigh->ops->queue_xmit;
@@ -310,10 +310,12 @@ static int arp_constructor(struct neighbour *neigh)
 			neigh->nud_state = NUD_NOARP;
 			memcpy(neigh->ha, dev->broadcast, dev->addr_len);
 		}
-		if (dev->hard_header_cache)
+
+		if (dev->header_ops->cache)
 			neigh->ops = &arp_hh_ops;
 		else
 			neigh->ops = &arp_generic_ops;
+
 		if (neigh->nud_state&NUD_VALID)
 			neigh->output = neigh->ops->connected_output;
 		else

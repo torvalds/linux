@@ -148,9 +148,9 @@ static void plip_interrupt(int irq, void *dev_id);
 /* Functions for DEV methods */
 static int plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
 static int plip_hard_header(struct sk_buff *skb, struct net_device *dev,
-                            unsigned short type, void *daddr,
-                            void *saddr, unsigned len);
-static int plip_hard_header_cache(struct neighbour *neigh,
+                            unsigned short type, const void *daddr,
+			    const void *saddr, unsigned len);
+static int plip_hard_header_cache(const struct neighbour *neigh,
                                   struct hh_cache *hh);
 static int plip_open(struct net_device *dev);
 static int plip_close(struct net_device *dev);
@@ -219,11 +219,6 @@ struct net_local {
 	int is_deferred;
 	int port_owner;
 	int should_relinquish;
-	int (*orig_hard_header)(struct sk_buff *skb, struct net_device *dev,
-	                        unsigned short type, void *daddr,
-	                        void *saddr, unsigned len);
-	int (*orig_hard_header_cache)(struct neighbour *neigh,
-	                              struct hh_cache *hh);
 	spinlock_t lock;
 	atomic_t kill_timer;
 	struct semaphore killed_timer_sem;
@@ -265,6 +260,11 @@ static inline unsigned char read_status (struct net_device *dev)
 	return port->ops->read_status (port);
 }
 
+static const struct header_ops plip_header_ops = {
+	.create	= plip_hard_header,
+	.cache  = plip_hard_header_cache,
+};
+
 /* Entry point of PLIP driver.
    Probe the hardware, and register/initialize the driver.
 
@@ -284,17 +284,12 @@ plip_init_netdev(struct net_device *dev)
 	dev->open		 = plip_open;
 	dev->stop		 = plip_close;
 	dev->do_ioctl		 = plip_ioctl;
-	dev->header_cache_update = NULL;
+
 	dev->tx_queue_len 	 = 10;
 	dev->flags	         = IFF_POINTOPOINT|IFF_NOARP;
 	memset(dev->dev_addr, 0xfc, ETH_ALEN);
 
-	/* Set the private structure */
-	nl->orig_hard_header    = dev->hard_header;
-	dev->hard_header        = plip_hard_header;
-
-	nl->orig_hard_header_cache = dev->hard_header_cache;
-	dev->hard_header_cache     = plip_hard_header_cache;
+	dev->header_ops          = &plip_header_ops;
 
 
 	nl->port_owner = 0;
@@ -993,14 +988,14 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 }
 
 static void
-plip_rewrite_address(struct net_device *dev, struct ethhdr *eth)
+plip_rewrite_address(const struct net_device *dev, struct ethhdr *eth)
 {
-	struct in_device *in_dev;
+	const struct in_device *in_dev = dev->ip_ptr;
 
-	if ((in_dev=dev->ip_ptr) != NULL) {
+	if (in_dev) {
 		/* Any address will do - we take the first */
-		struct in_ifaddr *ifa=in_dev->ifa_list;
-		if (ifa != NULL) {
+		const struct in_ifaddr *ifa = in_dev->ifa_list;
+		if (ifa) {
 			memcpy(eth->h_source, dev->dev_addr, 6);
 			memset(eth->h_dest, 0xfc, 2);
 			memcpy(eth->h_dest+2, &ifa->ifa_address, 4);
@@ -1010,26 +1005,25 @@ plip_rewrite_address(struct net_device *dev, struct ethhdr *eth)
 
 static int
 plip_hard_header(struct sk_buff *skb, struct net_device *dev,
-                 unsigned short type, void *daddr,
-	         void *saddr, unsigned len)
+		 unsigned short type, const void *daddr,
+		 const void *saddr, unsigned len)
 {
-	struct net_local *nl = netdev_priv(dev);
 	int ret;
 
-	if ((ret = nl->orig_hard_header(skb, dev, type, daddr, saddr, len)) >= 0)
+	ret = eth_header(skb, dev, type, daddr, saddr, len);
+	if (ret >= 0)
 		plip_rewrite_address (dev, (struct ethhdr *)skb->data);
 
 	return ret;
 }
 
-int plip_hard_header_cache(struct neighbour *neigh,
+int plip_hard_header_cache(const struct neighbour *neigh,
                            struct hh_cache *hh)
 {
-	struct net_local *nl = neigh->dev->priv;
 	int ret;
 
-	if ((ret = nl->orig_hard_header_cache(neigh, hh)) == 0)
-	{
+	ret = eth_header_cache(neigh, hh);
+	if (ret == 0) {
 		struct ethhdr *eth;
 
 		eth = (struct ethhdr*)(((u8*)hh->hh_data) +

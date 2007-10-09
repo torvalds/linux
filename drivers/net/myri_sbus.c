@@ -676,8 +676,9 @@ static int myri_start_xmit(struct sk_buff *skb, struct net_device *dev)
  * saddr=NULL	means use device source address
  * daddr=NULL	means leave destination address (eg unresolved arp)
  */
-static int myri_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-		       void *daddr, void *saddr, unsigned len)
+static int myri_header(struct sk_buff *skb, struct net_device *dev,
+		       unsigned short type, const void *daddr,
+		       const void *saddr, unsigned len)
 {
 	struct ethhdr *eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
 	unsigned char *pad = (unsigned char *) skb_push(skb, MYRI_PAD_LEN);
@@ -759,18 +760,18 @@ static int myri_rebuild_header(struct sk_buff *skb)
 	return 0;
 }
 
-int myri_header_cache(struct neighbour *neigh, struct hh_cache *hh)
+static int myri_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
 {
 	unsigned short type = hh->hh_type;
 	unsigned char *pad;
 	struct ethhdr *eth;
-	struct net_device *dev = neigh->dev;
+	const struct net_device *dev = neigh->dev;
 
 	pad = ((unsigned char *) hh->hh_data) +
 		HH_DATA_OFF(sizeof(*eth) + MYRI_PAD_LEN);
 	eth = (struct ethhdr *) (pad + MYRI_PAD_LEN);
 
-	if (type == __constant_htons(ETH_P_802_3))
+	if (type == htons(ETH_P_802_3))
 		return -1;
 
 	/* Refill MyriNet padding identifiers, this is just being anal. */
@@ -786,7 +787,9 @@ int myri_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 
 
 /* Called by Address Resolution module to notify changes in address. */
-void myri_header_cache_update(struct hh_cache *hh, struct net_device *dev, unsigned char * haddr)
+void myri_header_cache_update(struct hh_cache *hh,
+			      const struct net_device *dev,
+			      const unsigned char * haddr)
 {
 	memcpy(((u8*)hh->hh_data) + HH_DATA_OFF(sizeof(struct ethhdr)),
 	       haddr, dev->addr_len);
@@ -880,6 +883,13 @@ static void dump_eeprom(struct myri_eth *mp)
 	printk("EEPROM: serial_num[%08x]\n", mp->eeprom.serial_num);
 }
 #endif
+
+static const struct header_ops myri_header_ops = {
+	.create		= myri_header,
+	.rebuild	= myri_rebuild_header,
+	.cache	 	= myri_header_cache,
+	.cache_update	= myri_header_cache_update,
+};
 
 static int __devinit myri_ether_init(struct sbus_dev *sdev)
 {
@@ -1065,11 +1075,9 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 
 	dev->mtu		= MYRINET_MTU;
 	dev->change_mtu		= myri_change_mtu;
-	dev->hard_header	= myri_header;
-	dev->rebuild_header	= myri_rebuild_header;
+	dev->header_ops		= &myri_header_ops;
+
 	dev->hard_header_len	= (ETH_HLEN + MYRI_PAD_LEN);
-	dev->hard_header_cache 	= myri_header_cache;
-	dev->header_cache_update= myri_header_cache_update;
 
 	/* Load code onto the LANai. */
 	DET(("Loading LANAI firmware\n"));

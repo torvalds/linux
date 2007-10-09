@@ -30,8 +30,7 @@ void hostap_dump_rx_header(const char *name,
 			   const struct hfa384x_rx_frame *rx);
 void hostap_dump_tx_header(const char *name,
 			   const struct hfa384x_tx_frame *tx);
-int hostap_80211_header_parse(struct sk_buff *skb, unsigned char *haddr);
-int hostap_80211_prism_header_parse(struct sk_buff *skb, unsigned char *haddr);
+extern const struct header_ops hostap_80211_ops;
 int hostap_80211_get_hdrlen(u16 fc);
 struct net_device_stats *hostap_get_stats(struct net_device *dev);
 void hostap_setup_dev(struct net_device *dev, local_info_t *local,

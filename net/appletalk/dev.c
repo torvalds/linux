@@ -24,11 +24,7 @@ static void ltalk_setup(struct net_device *dev)
 	/* Fill in the fields of the device structure with localtalk-generic values. */
 
 	dev->change_mtu		= ltalk_change_mtu;
-	dev->hard_header	= NULL;
-	dev->rebuild_header 	= NULL;
 	dev->set_mac_address 	= ltalk_mac_addr;
-	dev->hard_header_cache	= NULL;
-	dev->header_cache_update= NULL;
 
 	dev->type		= ARPHRD_LOCALTLK;
 	dev->hard_header_len 	= LTALK_HLEN;

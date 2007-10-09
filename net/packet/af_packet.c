@@ -389,7 +389,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	skb_reset_network_header(skb);
 
 	/* Try to align data part correctly */
-	if (dev->hard_header) {
+	if (dev->header_ops) {
 		skb->data -= dev->hard_header_len;
 		skb->tail -= dev->hard_header_len;
 		if (len < dev->hard_header_len)
@@ -466,7 +466,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev, struct packet
 
 	skb->dev = dev;
 
-	if (dev->hard_header) {
+	if (dev->header_ops) {
 		/* The device has an explicit notion of ll header,
 		   exported to higher levels.
 
@@ -581,7 +581,7 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev, struct packe
 	sk = pt->af_packet_priv;
 	po = pkt_sk(sk);
 
-	if (dev->hard_header) {
+	if (dev->header_ops) {
 		if (sk->sk_type != SOCK_DGRAM)
 			skb_push(skb, skb->data - skb_mac_header(skb));
 		else if (skb->pkt_type == PACKET_OUTGOING) {

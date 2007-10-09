@@ -483,8 +483,7 @@ static void bpq_setup(struct net_device *dev)
 	dev->flags      = 0;
 
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header     = ax25_hard_header;
-	dev->rebuild_header  = ax25_rebuild_header;
+	dev->header_ops      = &ax25_header_ops;
 #endif
 
 	dev->type            = ARPHRD_AX25;

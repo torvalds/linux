@@ -100,7 +100,7 @@ static inline unsigned long rif_hash(const unsigned char *addr)
 
 static int tr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
-		     void *daddr, void *saddr, unsigned len)
+		     const void *daddr, const void *saddr, unsigned len)
 {
 	struct trh_hdr *trh;
 	int hdr_len;
@@ -142,7 +142,7 @@ static int tr_header(struct sk_buff *skb, struct net_device *dev,
 	if(daddr)
 	{
 		memcpy(trh->daddr,daddr,dev->addr_len);
-		tr_source_route(skb,trh,dev);
+		tr_source_route(skb, trh, dev);
 		return(hdr_len);
 	}
 
@@ -247,7 +247,8 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
  *	We try to do source routing...
  */
 
-void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,struct net_device *dev)
+void tr_source_route(struct sk_buff *skb,struct trh_hdr *trh,
+		     struct net_device *dev)
 {
 	int slack;
 	unsigned int hash;
@@ -592,14 +593,18 @@ static const struct file_operations rif_seq_fops = {
 
 #endif
 
+static const struct header_ops tr_header_ops = {
+	.create = tr_header,
+	.rebuild= tr_rebuild_header,
+};
+
 static void tr_setup(struct net_device *dev)
 {
 	/*
 	 *	Configure and register
 	 */
 
-	dev->hard_header	= tr_header;
-	dev->rebuild_header	= tr_rebuild_header;
+	dev->header_ops	= &tr_header_ops;
 
 	dev->type		= ARPHRD_IEEE802_TR;
 	dev->hard_header_len	= TR_HLEN;

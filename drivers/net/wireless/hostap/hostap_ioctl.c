@@ -897,11 +897,8 @@ static void hostap_monitor_set_type(local_info_t *local)
 	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
 	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
 		dev->type = ARPHRD_IEEE80211_PRISM;
-		dev->hard_header_parse =
-			hostap_80211_prism_header_parse;
 	} else {
 		dev->type = ARPHRD_IEEE80211;
-		dev->hard_header_parse = hostap_80211_header_parse;
 	}
 }
 
@@ -1141,7 +1138,7 @@ static int hostap_monitor_mode_disable(local_info_t *local)
 
 	printk(KERN_DEBUG "%s: Disabling monitor mode\n", dev->name);
 	dev->type = ARPHRD_ETHER;
-	dev->hard_header_parse = local->saved_eth_header_parse;
+
 	if (local->func->cmd(dev, HFA384X_CMDCODE_TEST |
 			     (HFA384X_TEST_STOP << 8),
 			     0, NULL, NULL))

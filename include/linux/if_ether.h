@@ -117,6 +117,8 @@ static inline struct ethhdr *eth_hdr(const struct sk_buff *skb)
 	return (struct ethhdr *)skb_mac_header(skb);
 }
 
+int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
+
 #ifdef CONFIG_SYSCTL
 extern struct ctl_table ether_table[];
 #endif

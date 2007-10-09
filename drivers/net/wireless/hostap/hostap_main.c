@@ -594,24 +594,27 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 }
 
 
-int hostap_80211_header_parse(struct sk_buff *skb, unsigned char *haddr)
+int hostap_80211_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
-	return ETH_ALEN;
-}
+	struct hostap_interface *iface = netdev_priv(skb->dev);
+	local_info_t *local = iface->local;
 
+	if (local->monitor_type == PRISM2_MONITOR_PRISM ||
+	    local->monitor_type == PRISM2_MONITOR_CAPHDR) {
+		const unsigned char *mac = skb_mac_header(skb);
 
-int hostap_80211_prism_header_parse(struct sk_buff *skb, unsigned char *haddr)
-{
-	const unsigned char *mac = skb_mac_header(skb);
+		if (*(u32 *)mac == LWNG_CAP_DID_BASE) {
+			memcpy(haddr,
+			       mac + sizeof(struct linux_wlan_ng_prism_hdr) + 10,
+			       ETH_ALEN); /* addr2 */
+		} else { /* (*(u32 *)mac == htonl(LWNG_CAPHDR_VERSION)) */
+			memcpy(haddr,
+			       mac + sizeof(struct linux_wlan_ng_cap_hdr) + 10,
+			       ETH_ALEN); /* addr2 */
+		}
+	} else
+		memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN); /* addr2 */
 
-	if (*(u32 *)mac == LWNG_CAP_DID_BASE) {
-		memcpy(haddr, mac + sizeof(struct linux_wlan_ng_prism_hdr) + 10,
-		       ETH_ALEN); /* addr2 */
-	} else { /* (*(u32 *)mac == htonl(LWNG_CAPHDR_VERSION)) */
-		memcpy(haddr, mac + sizeof(struct linux_wlan_ng_cap_hdr) + 10,
-		       ETH_ALEN); /* addr2 */
-	}
 	return ETH_ALEN;
 }
 
@@ -843,6 +846,15 @@ static void prism2_tx_timeout(struct net_device *dev)
 	local->func->schedule_reset(local);
 }
 
+const struct header_ops hostap_80211_ops = {
+	.create		= eth_header,
+	.rebuild	= eth_rebuild_header,
+	.cache		= eth_header_cache,
+	.cache_update	= eth_header_cache_update,
+
+	.parse		= hostap_80211_header_parse,
+};
+EXPORT_SYMBOL(hostap_80211_ops);
 
 void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 		      int main_dev)
@@ -883,7 +895,6 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 	netif_stop_queue(dev);
 }
 
-
 static int hostap_enable_hostapd(local_info_t *local, int rtnl_locked)
 {
 	struct net_device *dev = local->dev;
@@ -901,7 +912,7 @@ static int hostap_enable_hostapd(local_info_t *local, int rtnl_locked)
 
 	local->apdev->hard_start_xmit = hostap_mgmt_start_xmit;
 	local->apdev->type = ARPHRD_IEEE80211;
-	local->apdev->hard_header_parse = hostap_80211_header_parse;
+	local->apdev->header_ops = &hostap_80211_ops;
 
 	return 0;
 }

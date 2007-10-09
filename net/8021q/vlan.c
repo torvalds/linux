@@ -314,6 +314,12 @@ int unregister_vlan_device(struct net_device *dev)
  */
 static struct lock_class_key vlan_netdev_xmit_lock_key;
 
+static const struct header_ops vlan_header_ops = {
+	.create	 = vlan_dev_hard_header,
+	.rebuild = vlan_dev_rebuild_header,
+	.parse	 = eth_header_parse,
+};
+
 static int vlan_dev_init(struct net_device *dev)
 {
 	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
@@ -331,18 +337,14 @@ static int vlan_dev_init(struct net_device *dev)
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 
 	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
-		dev->hard_header     = real_dev->hard_header;
+		dev->header_ops      = real_dev->header_ops;
 		dev->hard_header_len = real_dev->hard_header_len;
 		dev->hard_start_xmit = vlan_dev_hwaccel_hard_start_xmit;
-		dev->rebuild_header  = real_dev->rebuild_header;
 	} else {
-		dev->hard_header     = vlan_dev_hard_header;
+		dev->header_ops      = &vlan_header_ops;
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
 		dev->hard_start_xmit = vlan_dev_hard_start_xmit;
-		dev->rebuild_header  = vlan_dev_rebuild_header;
 	}
-	dev->hard_header_parse = real_dev->hard_header_parse;
-	dev->hard_header_cache = NULL;
 
 	lockdep_set_class(&dev->_xmit_lock, &vlan_netdev_xmit_lock_key);
 	return 0;

@@ -66,8 +66,8 @@ static void dlci_setup(struct net_device *);
  */
 
 static int dlci_header(struct sk_buff *skb, struct net_device *dev, 
-                           unsigned short type, void *daddr, void *saddr, 
-                           unsigned len)
+		       unsigned short type, const void *daddr,
+		       const void *saddr, unsigned len)
 {
 	struct frhdr		hdr;
 	struct dlci_local	*dlp;
@@ -485,6 +485,10 @@ static int dlci_ioctl(unsigned int cmd, void __user *arg)
 	return(err);
 }
 
+static const struct header_ops dlci_header_ops = {
+	.create	= dlci_header,
+};
+
 static void dlci_setup(struct net_device *dev)
 {
 	struct dlci_local *dlp = dev->priv;
@@ -494,7 +498,7 @@ static void dlci_setup(struct net_device *dev)
 	dev->stop		= dlci_close;
 	dev->do_ioctl		= dlci_dev_ioctl;
 	dev->hard_start_xmit	= dlci_transmit;
-	dev->hard_header	= dlci_header;
+	dev->header_ops		= &dlci_header_ops;
 	dev->get_stats		= dlci_get_stats;
 	dev->change_mtu		= dlci_change_mtu;
 	dev->destructor		= free_netdev;

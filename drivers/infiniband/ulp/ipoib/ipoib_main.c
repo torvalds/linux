@@ -780,7 +780,7 @@ static void ipoib_timeout(struct net_device *dev)
 static int ipoib_hard_header(struct sk_buff *skb,
 			     struct net_device *dev,
 			     unsigned short type,
-			     void *daddr, void *saddr, unsigned len)
+			     const void *daddr, const void *saddr, unsigned len)
 {
 	struct ipoib_header *header;
 
@@ -940,6 +940,10 @@ void ipoib_dev_cleanup(struct net_device *dev)
 	priv->tx_ring = NULL;
 }
 
+static const struct header_ops ipoib_header_ops = {
+	.create	= ipoib_hard_header,
+};
+
 static void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -950,7 +954,7 @@ static void ipoib_setup(struct net_device *dev)
 	dev->hard_start_xmit 	 = ipoib_start_xmit;
 	dev->get_stats 		 = ipoib_get_stats;
 	dev->tx_timeout 	 = ipoib_timeout;
-	dev->hard_header 	 = ipoib_hard_header;
+	dev->header_ops 	 = &ipoib_header_ops;
 	dev->set_multicast_list  = ipoib_set_mcast_list;
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
 
