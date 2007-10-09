@@ -30,19 +30,56 @@
  *
  */
 
+/*
+ * Fix clock configuration.
+ *
+ * Firmware is supposed to be responsible for this.  If you are creating a
+ * new board port, do *NOT* duplicate this code.  Fix your boot firmware
+ * to set it correctly in the first place
+ */
 static void __init
-lite5200_setup_cpu(void)
+lite5200_fix_clock_config(void)
+{
+	struct mpc52xx_cdm  __iomem *cdm;
+
+	/* Map zones */
+	cdm = mpc52xx_find_and_map("mpc5200-cdm");
+	if (!cdm) {
+		printk(KERN_ERR "%s() failed; expect abnormal behaviour\n",
+		       __FUNCTION__);
+		return;
+	}
+
+	/* Use internal 48 Mhz */
+	out_8(&cdm->ext_48mhz_en, 0x00);
+	out_8(&cdm->fd_enable, 0x01);
+	if (in_be32(&cdm->rstcfg) & 0x40)	/* Assumes 33Mhz clock */
+		out_be16(&cdm->fd_counters, 0x0001);
+	else
+		out_be16(&cdm->fd_counters, 0x5555);
+
+	/* Unmap the regs */
+	iounmap(cdm);
+}
+
+/*
+ * Fix setting of port_config register.
+ *
+ * Firmware is supposed to be responsible for this.  If you are creating a
+ * new board port, do *NOT* duplicate this code.  Fix your boot firmware
+ * to set it correctly in the first place
+ */
+static void __init
+lite5200_fix_port_config(void)
 {
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	/* Map zones */
 	gpio = mpc52xx_find_and_map("mpc5200-gpio");
 	if (!gpio) {
-		printk(KERN_ERR __FILE__ ": "
-			"Error while mapping GPIO register for port config. "
-			"Expect some abnormal behavior\n");
-		goto error;
+		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
+		       __FUNCTION__);
+		return;
 	}
 
 	/* Set port config */
@@ -61,7 +98,6 @@ lite5200_setup_cpu(void)
 	out_be32(&gpio->port_config, port_config);
 
 	/* Unmap zone */
-error:
 	iounmap(gpio);
 }
 
@@ -100,9 +136,12 @@ static void __init lite5200_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("lite5200_setup_arch()", 0);
 
-	/* CPU & Port mux setup */
-	mpc52xx_setup_cpu();	/* Generic */
-	lite5200_setup_cpu();	/* Platorm specific */
+	/* Fix things that firmware should have done. */
+	lite5200_fix_clock_config();
+	lite5200_fix_port_config();
+
+	/* Some mpc5200 & mpc5200b related configuration */
+	mpc5200_setup_xlb_arbiter();
 
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;
