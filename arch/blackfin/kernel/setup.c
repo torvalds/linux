@@ -44,6 +44,7 @@
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
 #include <asm/fixed_code.h>
+#include <asm/early_printk.h>
 
 u16 _bfin_swrst;
 
@@ -157,8 +158,10 @@ static __init void parse_cmdline_early(char *cmdline_p)
 							    1;
 					}
 				}
+			} else if (!memcmp(to, "earlyprintk=", 12)) {
+				to += 12;
+				setup_early_printk(to);
 			}
-
 		}
 		c = *(to++);
 		if (!c)
@@ -177,6 +180,23 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+
+#if defined(CONFIG_CMDLINE_BOOL)
+	strncpy(&command_line[0], CONFIG_CMDLINE, sizeof(command_line));
+	command_line[sizeof(command_line) - 1] = 0;
+#endif
+
+	/* Keep a copy of command line */
+	*cmdline_p = &command_line[0];
+	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
+	boot_command_line[COMMAND_LINE_SIZE - 1] = '\0';
+
+	/* setup memory defaults from the user config */
+	physical_mem_end = 0;
+	_ramend = CONFIG_MEM_SIZE * 1024 * 1024;
+
+	parse_cmdline_early(&command_line[0]);
+
 	cclk = get_cclk();
 	sclk = get_sclk();
 
@@ -209,22 +229,6 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	flash_probe();
 #endif
-
-#if defined(CONFIG_CMDLINE_BOOL)
-	strncpy(&command_line[0], CONFIG_CMDLINE, sizeof(command_line));
-	command_line[sizeof(command_line) - 1] = 0;
-#endif
-
-	/* Keep a copy of command line */
-	*cmdline_p = &command_line[0];
-	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	boot_command_line[COMMAND_LINE_SIZE - 1] = '\0';
-
-	/* setup memory defaults from the user config */
-	physical_mem_end = 0;
-	_ramend = CONFIG_MEM_SIZE * 1024 * 1024;
-
-	parse_cmdline_early(&command_line[0]);
 
 	if (physical_mem_end == 0)
 		physical_mem_end = _ramend;

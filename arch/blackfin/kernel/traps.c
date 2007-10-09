@@ -402,10 +402,6 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		break;
 	}
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_addr = (void *)fp->pc;
-	force_sig_info(sig, &info, current);
 	if (sig != 0 && sig != SIGTRAP) {
 		unsigned long stack;
 		dump_bfin_regs(fp, (void *)fp->retx);
@@ -414,6 +410,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		if (current->mm == NULL)
 			panic("Kernel exception");
 	}
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_addr = (void *)fp->pc;
+	force_sig_info(sig, &info, current);
 
 	/* if the address that we are about to return to is not valid, set it
 	 * to a valid address, if we have a current application or panic
