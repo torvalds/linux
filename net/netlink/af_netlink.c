@@ -384,15 +384,15 @@ static struct proto netlink_proto = {
 	.obj_size = sizeof(struct netlink_sock),
 };
 
-static int __netlink_create(struct socket *sock, struct mutex *cb_mutex,
-			    int protocol)
+static int __netlink_create(struct net *net, struct socket *sock,
+			    struct mutex *cb_mutex, int protocol)
 {
 	struct sock *sk;
 	struct netlink_sock *nlk;
 
 	sock->ops = &netlink_ops;
 
-	sk = sk_alloc(PF_NETLINK, GFP_KERNEL, &netlink_proto, 1);
+	sk = sk_alloc(net, PF_NETLINK, GFP_KERNEL, &netlink_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 
@@ -412,12 +412,15 @@ static int __netlink_create(struct socket *sock, struct mutex *cb_mutex,
 	return 0;
 }
 
-static int netlink_create(struct socket *sock, int protocol)
+static int netlink_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct module *module = NULL;
 	struct mutex *cb_mutex;
 	struct netlink_sock *nlk;
 	int err = 0;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	sock->state = SS_UNCONNECTED;
 
@@ -441,7 +444,7 @@ static int netlink_create(struct socket *sock, int protocol)
 	cb_mutex = nl_table[protocol].cb_mutex;
 	netlink_unlock_table();
 
-	if ((err = __netlink_create(sock, cb_mutex, protocol)) < 0)
+	if ((err = __netlink_create(net, sock, cb_mutex, protocol)) < 0)
 		goto out_module;
 
 	nlk = nlk_sk(sock->sk);
@@ -1318,7 +1321,7 @@ netlink_kernel_create(int unit, unsigned int groups,
 	if (sock_create_lite(PF_NETLINK, SOCK_DGRAM, unit, &sock))
 		return NULL;
 
-	if (__netlink_create(sock, cb_mutex, unit) < 0)
+	if (__netlink_create(&init_net, sock, cb_mutex, unit) < 0)
 		goto out_sock_release;
 
 	if (groups < 32)

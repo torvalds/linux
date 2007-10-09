@@ -606,12 +606,15 @@ static unsigned int rxrpc_poll(struct file *file, struct socket *sock,
 /*
  * create an RxRPC socket
  */
-static int rxrpc_create(struct socket *sock, int protocol)
+static int rxrpc_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct rxrpc_sock *rx;
 	struct sock *sk;
 
 	_enter("%p,%d", sock, protocol);
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	/* we support transport protocol UDP only */
 	if (protocol != PF_INET)
@@ -623,7 +626,7 @@ static int rxrpc_create(struct socket *sock, int protocol)
 	sock->ops = &rxrpc_rpc_ops;
 	sock->state = SS_UNCONNECTED;
 
-	sk = sk_alloc(PF_RXRPC, GFP_KERNEL, &rxrpc_proto, 1);
+	sk = sk_alloc(net, PF_RXRPC, GFP_KERNEL, &rxrpc_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 

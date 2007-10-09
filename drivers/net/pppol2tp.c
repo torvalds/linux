@@ -1411,12 +1411,12 @@ static struct proto pppol2tp_sk_proto = {
 
 /* socket() handler. Initialize a new struct sock.
  */
-static int pppol2tp_create(struct socket *sock)
+static int pppol2tp_create(struct net *net, struct socket *sock)
 {
 	int error = -ENOMEM;
 	struct sock *sk;
 
-	sk = sk_alloc(PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, 1);
+	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, 1);
 	if (!sk)
 		goto out;
 

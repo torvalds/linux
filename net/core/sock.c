@@ -873,7 +873,7 @@ static inline void sock_lock_init(struct sock *sk)
  *	@prot: struct proto associated with this new sock instance
  *	@zero_it: if we should zero the newly allocated sock
  */
-struct sock *sk_alloc(int family, gfp_t priority,
+struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		      struct proto *prot, int zero_it)
 {
 	struct sock *sk = NULL;
@@ -894,6 +894,7 @@ struct sock *sk_alloc(int family, gfp_t priority,
 			 */
 			sk->sk_prot = sk->sk_prot_creator = prot;
 			sock_lock_init(sk);
+			sk->sk_net = get_net(net);
 		}
 
 		if (security_sk_alloc(sk, family, priority))
@@ -933,6 +934,7 @@ void sk_free(struct sock *sk)
 		       __FUNCTION__, atomic_read(&sk->sk_omem_alloc));
 
 	security_sk_free(sk);
+	put_net(sk->sk_net);
 	if (sk->sk_prot_creator->slab != NULL)
 		kmem_cache_free(sk->sk_prot_creator->slab, sk);
 	else
@@ -942,7 +944,7 @@ void sk_free(struct sock *sk)
 
 struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 {
-	struct sock *newsk = sk_alloc(sk->sk_family, priority, sk->sk_prot, 0);
+	struct sock *newsk = sk_alloc(sk->sk_net, sk->sk_family, priority, sk->sk_prot, 0);
 
 	if (newsk != NULL) {
 		struct sk_filter *filter;

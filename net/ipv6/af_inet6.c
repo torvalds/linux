@@ -81,7 +81,7 @@ static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 	return (struct ipv6_pinfo *)(((u8 *)sk) + offset);
 }
 
-static int inet6_create(struct socket *sock, int protocol)
+static int inet6_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct inet_sock *inet;
 	struct ipv6_pinfo *np;
@@ -93,6 +93,9 @@ static int inet6_create(struct socket *sock, int protocol)
 	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_RAW &&
 	    sock->type != SOCK_DGRAM &&
@@ -159,7 +162,7 @@ lookup_protocol:
 	BUG_TRAP(answer_prot->slab != NULL);
 
 	err = -ENOBUFS;
-	sk = sk_alloc(PF_INET6, GFP_KERNEL, answer_prot, 1);
+	sk = sk_alloc(net, PF_INET6, GFP_KERNEL, answer_prot, 1);
 	if (sk == NULL)
 		goto out;
 

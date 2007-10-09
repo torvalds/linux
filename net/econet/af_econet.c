@@ -608,11 +608,14 @@ static struct proto econet_proto = {
  *	Create an Econet socket
  */
 
-static int econet_create(struct socket *sock, int protocol)
+static int econet_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct econet_sock *eo;
 	int err;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	/* Econet only provides datagram services. */
 	if (sock->type != SOCK_DGRAM)
@@ -621,7 +624,7 @@ static int econet_create(struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	err = -ENOBUFS;
-	sk = sk_alloc(PF_ECONET, GFP_KERNEL, &econet_proto, 1);
+	sk = sk_alloc(net, PF_ECONET, GFP_KERNEL, &econet_proto, 1);
 	if (sk == NULL)
 		goto out;
 

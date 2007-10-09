@@ -125,7 +125,7 @@ static struct proto vcc_proto = {
 	.obj_size = sizeof(struct atm_vcc),
 };
 
-int vcc_create(struct socket *sock, int protocol, int family)
+int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 {
 	struct sock *sk;
 	struct atm_vcc *vcc;
@@ -133,7 +133,7 @@ int vcc_create(struct socket *sock, int protocol, int family)
 	sock->sk = NULL;
 	if (sock->type == SOCK_STREAM)
 		return -EINVAL;
-	sk = sk_alloc(family, GFP_KERNEL, &vcc_proto, 1);
+	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto, 1);
 	if (!sk)
 		return -ENOMEM;
 	sock_init_data(sock, sk);

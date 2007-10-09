@@ -977,12 +977,15 @@ static struct proto packet_proto = {
  *	Create a packet of type SOCK_PACKET.
  */
 
-static int packet_create(struct socket *sock, int protocol)
+static int packet_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct packet_sock *po;
 	__be16 proto = (__force __be16)protocol; /* weird, but documented */
 	int err;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	if (!capable(CAP_NET_RAW))
 		return -EPERM;
@@ -993,7 +996,7 @@ static int packet_create(struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	err = -ENOBUFS;
-	sk = sk_alloc(PF_PACKET, GFP_KERNEL, &packet_proto, 1);
+	sk = sk_alloc(net, PF_PACKET, GFP_KERNEL, &packet_proto, 1);
 	if (sk == NULL)
 		goto out;
 

@@ -241,7 +241,7 @@ EXPORT_SYMBOL(build_ehash_secret);
  *	Create an inet socket.
  */
 
-static int inet_create(struct socket *sock, int protocol)
+static int inet_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct list_head *p;
@@ -252,6 +252,9 @@ static int inet_create(struct socket *sock, int protocol)
 	char answer_no_check;
 	int try_loading_module = 0;
 	int err;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	if (sock->type != SOCK_RAW &&
 	    sock->type != SOCK_DGRAM &&
@@ -320,7 +323,7 @@ lookup_protocol:
 	BUG_TRAP(answer_prot->slab != NULL);
 
 	err = -ENOBUFS;
-	sk = sk_alloc(PF_INET, GFP_KERNEL, answer_prot, 1);
+	sk = sk_alloc(net, PF_INET, GFP_KERNEL, answer_prot, 1);
 	if (sk == NULL)
 		goto out;
 

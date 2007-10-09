@@ -84,6 +84,7 @@
 #include <linux/kmod.h>
 #include <linux/audit.h>
 #include <linux/wireless.h>
+#include <linux/nsproxy.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -1071,7 +1072,7 @@ call_kill:
 	return 0;
 }
 
-static int __sock_create(int family, int type, int protocol,
+static int __sock_create(struct net *net, int family, int type, int protocol,
 			 struct socket **res, int kern)
 {
 	int err;
@@ -1147,7 +1148,7 @@ static int __sock_create(int family, int type, int protocol,
 	/* Now protected by module ref count */
 	rcu_read_unlock();
 
-	err = pf->create(sock, protocol);
+	err = pf->create(net, sock, protocol);
 	if (err < 0)
 		goto out_module_put;
 
@@ -1186,12 +1187,12 @@ out_release:
 
 int sock_create(int family, int type, int protocol, struct socket **res)
 {
-	return __sock_create(family, type, protocol, res, 0);
+	return __sock_create(current->nsproxy->net_ns, family, type, protocol, res, 0);
 }
 
 int sock_create_kern(int family, int type, int protocol, struct socket **res)
 {
-	return __sock_create(family, type, protocol, res, 1);
+	return __sock_create(&init_net, family, type, protocol, res, 1);
 }
 
 asmlinkage long sys_socket(int family, int type, int protocol)

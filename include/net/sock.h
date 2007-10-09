@@ -56,6 +56,7 @@
 #include <asm/atomic.h>
 #include <net/dst.h>
 #include <net/checksum.h>
+#include <net/net_namespace.h>
 
 /*
  * This structure really needs to be cleaned up.
@@ -776,7 +777,7 @@ extern void FASTCALL(release_sock(struct sock *sk));
 				SINGLE_DEPTH_NESTING)
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-extern struct sock		*sk_alloc(int family,
+extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
 					  struct proto *prot, int zero_it);
 extern void			sk_free(struct sock *sk);
@@ -1005,6 +1006,7 @@ static inline void sock_copy(struct sock *nsk, const struct sock *osk)
 #endif
 
 	memcpy(nsk, osk, osk->sk_prot->obj_size);
+	get_net(nsk->sk_net);
 #ifdef CONFIG_SECURITY_NETWORK
 	nsk->sk_security = sptr;
 	security_sk_clone(osk, nsk);

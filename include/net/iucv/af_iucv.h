@@ -78,7 +78,6 @@ static void iucv_sock_destruct(struct sock *sk);
 static void iucv_sock_cleanup_listen(struct sock *parent);
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
-static int  iucv_sock_create(struct socket *sock, int proto);
 static int  iucv_sock_bind(struct socket *sock, struct sockaddr *addr,
 			int addr_len);
 static int  iucv_sock_connect(struct socket *sock, struct sockaddr *addr,

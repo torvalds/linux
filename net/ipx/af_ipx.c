@@ -1360,10 +1360,13 @@ static struct proto ipx_proto = {
 	.obj_size = sizeof(struct ipx_sock),
 };
 
-static int ipx_create(struct socket *sock, int protocol)
+static int ipx_create(struct net *net, struct socket *sock, int protocol)
 {
 	int rc = -ESOCKTNOSUPPORT;
 	struct sock *sk;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	/*
 	 * SPX support is not anymore in the kernel sources. If you want to
@@ -1375,7 +1378,7 @@ static int ipx_create(struct socket *sock, int protocol)
 		goto out;
 
 	rc = -ENOMEM;
-	sk = sk_alloc(PF_IPX, GFP_KERNEL, &ipx_proto, 1);
+	sk = sk_alloc(net, PF_IPX, GFP_KERNEL, &ipx_proto, 1);
 	if (!sk)
 		goto out;
 #ifdef IPX_REFCNT_DEBUG
