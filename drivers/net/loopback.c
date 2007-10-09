@@ -250,7 +250,7 @@ static void loopback_setup(struct net_device *dev)
 }
 
 /* Setup and register the loopback device. */
-static int loopback_net_init(struct net *net)
+static __net_init int loopback_net_init(struct net *net)
 {
 	struct net_device *dev;
 	int err;
@@ -278,14 +278,14 @@ out_free_netdev:
 	goto out;
 }
 
-static void loopback_net_exit(struct net *net)
+static __net_exit void loopback_net_exit(struct net *net)
 {
 	struct net_device *dev = net->loopback_dev;
 
 	unregister_netdev(dev);
 }
 
-static struct pernet_operations loopback_net_ops = {
+static struct pernet_operations __net_initdata loopback_net_ops = {
        .init = loopback_net_init,
        .exit = loopback_net_exit,
 };

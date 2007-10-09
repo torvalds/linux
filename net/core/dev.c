@@ -2611,7 +2611,7 @@ static const struct file_operations ptype_seq_fops = {
 };
 
 
-static int dev_proc_net_init(struct net *net)
+static int __net_init dev_proc_net_init(struct net *net)
 {
 	int rc = -ENOMEM;
 
@@ -2636,7 +2636,7 @@ out_dev:
 	goto out;
 }
 
-static void dev_proc_net_exit(struct net *net)
+static void __net_exit dev_proc_net_exit(struct net *net)
 {
 	wext_proc_exit(net);
 
@@ -2645,7 +2645,7 @@ static void dev_proc_net_exit(struct net *net)
 	proc_net_remove(net, "dev");
 }
 
-static struct pernet_operations dev_proc_ops = {
+static struct pernet_operations __net_initdata dev_proc_ops = {
 	.init = dev_proc_net_init,
 	.exit = dev_proc_net_exit,
 };
@@ -4278,7 +4278,7 @@ static struct hlist_head *netdev_create_hash(void)
 }
 
 /* Initialize per network namespace state */
-static int netdev_init(struct net *net)
+static int __net_init netdev_init(struct net *net)
 {
 	INIT_LIST_HEAD(&net->dev_base_head);
 	rwlock_init(&dev_base_lock);
@@ -4299,18 +4299,18 @@ err_name:
 	return -ENOMEM;
 }
 
-static void netdev_exit(struct net *net)
+static void __net_exit netdev_exit(struct net *net)
 {
 	kfree(net->dev_name_head);
 	kfree(net->dev_index_head);
 }
 
-static struct pernet_operations netdev_net_ops = {
+static struct pernet_operations __net_initdata netdev_net_ops = {
 	.init = netdev_init,
 	.exit = netdev_exit,
 };
 
-static void default_device_exit(struct net *net)
+static void __net_exit default_device_exit(struct net *net)
 {
 	struct net_device *dev, *next;
 	/*
@@ -4336,7 +4336,7 @@ static void default_device_exit(struct net *net)
 	rtnl_unlock();
 }
 
-static struct pernet_operations default_device_ops = {
+static struct pernet_operations __net_initdata default_device_ops = {
 	.exit = default_device_exit,
 };
 

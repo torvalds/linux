@@ -1924,7 +1924,7 @@ static struct net_proto_family netlink_family_ops = {
 	.owner	= THIS_MODULE,	/* for consistency 8) */
 };
 
-static int netlink_net_init(struct net *net)
+static int __net_init netlink_net_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	if (!proc_net_fops_create(net, "netlink", 0, &netlink_seq_fops))
@@ -1933,14 +1933,14 @@ static int netlink_net_init(struct net *net)
 	return 0;
 }
 
-static void netlink_net_exit(struct net *net)
+static void __net_exit netlink_net_exit(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
 	proc_net_remove(net, "netlink");
 #endif
 }
 
-static struct pernet_operations netlink_net_ops = {
+static struct pernet_operations __net_initdata netlink_net_ops = {
 	.init = netlink_net_init,
 	.exit = netlink_net_exit,
 };

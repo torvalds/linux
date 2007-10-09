@@ -140,7 +140,7 @@ static struct inode_operations proc_net_dir_inode_operations = {
 	.setattr	= proc_net_setattr,
 };
 
-static int proc_net_ns_init(struct net *net)
+static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *root, *netd, *net_statd;
 	int err;
@@ -178,19 +178,19 @@ free_root:
 	goto out;
 }
 
-static void proc_net_ns_exit(struct net *net)
+static __net_exit void proc_net_ns_exit(struct net *net)
 {
 	remove_proc_entry("stat", net->proc_net);
 	remove_proc_entry("net", net->proc_net_root);
 	kfree(net->proc_net_root);
 }
 
-struct pernet_operations proc_net_ns_ops = {
+struct pernet_operations __net_initdata proc_net_ns_ops = {
 	.init = proc_net_ns_init,
 	.exit = proc_net_ns_exit,
 };
 
-int proc_net_init(void)
+int __init proc_net_init(void)
 {
 	proc_net_shadow = proc_mkdir("net", NULL);
 	proc_net_shadow->proc_iops = &proc_net_dir_inode_operations;

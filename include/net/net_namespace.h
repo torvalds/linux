@@ -99,6 +99,15 @@ static inline void release_net(struct net *net)
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)
 
+#ifdef CONFIG_NET_NS
+#define __net_init
+#define __net_exit
+#define __net_initdata
+#else
+#define __net_init	__init
+#define __net_exit	__exit_refok
+#define __net_initdata	__initdata
+#endif
 
 struct pernet_operations {
 	struct list_head list;

@@ -273,19 +273,19 @@ static const struct file_operations dev_mc_seq_fops = {
 
 #endif
 
-static int dev_mc_net_init(struct net *net)
+static int __net_init dev_mc_net_init(struct net *net)
 {
 	if (!proc_net_fops_create(net, "dev_mcast", 0, &dev_mc_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
-static void dev_mc_net_exit(struct net *net)
+static void __net_exit dev_mc_net_exit(struct net *net)
 {
 	proc_net_remove(net, "dev_mcast");
 }
 
-static struct pernet_operations dev_mc_net_ops = {
+static struct pernet_operations __net_initdata dev_mc_net_ops = {
 	.init = dev_mc_net_init,
 	.exit = dev_mc_net_exit,
 };
