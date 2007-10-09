@@ -398,6 +398,7 @@ struct ohci_hcd {
 #define	OHCI_QUIRK_BE_MMIO	0x10			/* BE registers */
 #define	OHCI_QUIRK_ZFMICRO	0x20			/* Compaq ZFMicro chipset*/
 #define	OHCI_QUIRK_NEC		0x40			/* lost interrupts */
+#define	OHCI_QUIRK_FRAME_NO	0x80			/* no big endian frame_no shift */
 	// there are also chip quirks/bugs in init logic
 
 	struct work_struct	nec_work;	/* Worker for NEC quirk */
@@ -633,15 +634,12 @@ static inline u32 hc32_to_cpup (const struct ohci_hcd *ohci, const __hc32 *x)
 /* HCCA frame number is 16 bits, but is accessed as 32 bits since not all
  * hardware handles 16 bit reads.  That creates a different confusion on
  * some big-endian SOC implementations.  Same thing happens with PSW access.
- *
- * FIXME: Deal with that as a runtime quirk when STB03xxx is ported over
- * to arch/powerpc
  */
 
-#ifdef CONFIG_STB03xxx
-#define OHCI_BE_FRAME_NO_SHIFT	16
+#ifdef CONFIG_PPC_MPC52xx
+#define big_endian_frame_no_quirk(ohci)	(ohci->flags & OHCI_QUIRK_FRAME_NO)
 #else
-#define OHCI_BE_FRAME_NO_SHIFT	0
+#define big_endian_frame_no_quirk(ohci)	0
 #endif
 
 static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
@@ -649,7 +647,8 @@ static inline u16 ohci_frame_no(const struct ohci_hcd *ohci)
 	u32 tmp;
 	if (big_endian_desc(ohci)) {
 		tmp = be32_to_cpup((__force __be32 *)&ohci->hcca->frame_no);
-		tmp >>= OHCI_BE_FRAME_NO_SHIFT;
+		if (!big_endian_frame_no_quirk(ohci))
+			tmp >>= 16;
 	} else
 		tmp = le32_to_cpup((__force __le32 *)&ohci->hcca->frame_no);
 
