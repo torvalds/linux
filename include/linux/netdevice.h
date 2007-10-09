@@ -349,6 +349,16 @@ static inline void napi_schedule(struct napi_struct *n)
 		__napi_schedule(n);
 }
 
+/* Try to reschedule poll. Called by dev->poll() after napi_complete().  */
+static inline int napi_reschedule(struct napi_struct *napi)
+{
+	if (napi_schedule_prep(napi)) {
+		__napi_schedule(napi);
+		return 1;
+	}
+	return 0;
+}
+
 /**
  *	napi_complete - NAPI processing complete
  *	@n: napi context
