@@ -433,12 +433,12 @@ config SENSORS_LM85
 	  will be called lm85.
 
 config SENSORS_LM87
-	tristate "National Semiconductor LM87"
+	tristate "National Semiconductor LM87 and compatibles"
 	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for National Semiconductor LM87
-	  sensor chips.
+	  and Analog Devices ADM1024 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm87.
