@@ -24,7 +24,7 @@ EXPORT_SYMBOL_GPL(init_net);
 
 static struct net *net_alloc(void)
 {
-	return kmem_cache_alloc(net_cachep, GFP_KERNEL);
+	return kmem_cache_zalloc(net_cachep, GFP_KERNEL);
 }
 
 static void net_free(struct net *net)
@@ -90,7 +90,6 @@ static int setup_net(struct net *net)
 	struct pernet_operations *ops;
 	int error;
 
-	memset(net, 0, sizeof(struct net));
 	atomic_set(&net->count, 1);
 	atomic_set(&net->use_count, 0);
 
