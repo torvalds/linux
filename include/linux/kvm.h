@@ -90,11 +90,9 @@ struct kvm_ioapic_state {
 	} redirtbl[KVM_IOAPIC_NUM_PINS];
 };
 
-enum kvm_irqchip_id {
-	KVM_IRQCHIP_PIC_MASTER	 = 0,
-	KVM_IRQCHIP_PIC_SLAVE	 = 1,
-	KVM_IRQCHIP_IOAPIC       = 2,
-};
+#define KVM_IRQCHIP_PIC_MASTER   0
+#define KVM_IRQCHIP_PIC_SLAVE    1
+#define KVM_IRQCHIP_IOAPIC       2
 
 struct kvm_irqchip {
 	__u32 chip_id;
@@ -106,20 +104,18 @@ struct kvm_irqchip {
 	} chip;
 };
 
-enum kvm_exit_reason {
-	KVM_EXIT_UNKNOWN          = 0,
-	KVM_EXIT_EXCEPTION        = 1,
-	KVM_EXIT_IO               = 2,
-	KVM_EXIT_HYPERCALL        = 3,
-	KVM_EXIT_DEBUG            = 4,
-	KVM_EXIT_HLT              = 5,
-	KVM_EXIT_MMIO             = 6,
-	KVM_EXIT_IRQ_WINDOW_OPEN  = 7,
-	KVM_EXIT_SHUTDOWN         = 8,
-	KVM_EXIT_FAIL_ENTRY       = 9,
-	KVM_EXIT_INTR             = 10,
-	KVM_EXIT_SET_TPR          = 11
-};
+#define KVM_EXIT_UNKNOWN          0
+#define KVM_EXIT_EXCEPTION        1
+#define KVM_EXIT_IO               2
+#define KVM_EXIT_HYPERCALL        3
+#define KVM_EXIT_DEBUG            4
+#define KVM_EXIT_HLT              5
+#define KVM_EXIT_MMIO             6
+#define KVM_EXIT_IRQ_WINDOW_OPEN  7
+#define KVM_EXIT_SHUTDOWN         8
+#define KVM_EXIT_FAIL_ENTRY       9
+#define KVM_EXIT_INTR             10
+#define KVM_EXIT_SET_TPR          11
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
