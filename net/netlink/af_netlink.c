@@ -1845,27 +1845,18 @@ static const struct seq_operations netlink_seq_ops = {
 
 static int netlink_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
 	struct nl_seq_iter *iter;
-	int err;
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	iter = __seq_open_private(file, &netlink_seq_ops, sizeof(*iter));
 	if (!iter)
 		return -ENOMEM;
 
-	err = seq_open(file, &netlink_seq_ops);
-	if (err) {
-		kfree(iter);
-		return err;
-	}
-
-	seq = file->private_data;
-	seq->private = iter;
 	iter->net = get_proc_net(inode);
 	if (!iter->net) {
 		seq_release_private(inode, file);
 		return -ENXIO;
 	}
+
 	return 0;
 }
 

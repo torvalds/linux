@@ -2086,25 +2086,7 @@ static const struct seq_operations unix_seq_ops = {
 
 static int unix_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	int *iter = kmalloc(sizeof(int), GFP_KERNEL);
-
-	if (!iter)
-		goto out;
-
-	rc = seq_open(file, &unix_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = iter;
-	*iter = 0;
-out:
-	return rc;
-out_kfree:
-	kfree(iter);
-	goto out;
+	return seq_open_private(file, &unix_seq_ops, sizeof(int));
 }
 
 static const struct file_operations unix_seq_fops = {
