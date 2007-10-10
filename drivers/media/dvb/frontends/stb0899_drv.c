@@ -967,7 +967,7 @@ static int stb0899_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		break;
 	default:
 		dprintk(verbose, FE_DEBUG, 1, "Unsupported delivery system");
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1023,7 +1023,7 @@ static int stb0899_read_snr(struct dvb_frontend *fe, u16 *snr)
 		break;
 	default:
 		dprintk(verbose, FE_DEBUG, 1, "Unsupported delivery system");
-		break;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1085,7 +1085,7 @@ static int stb0899_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		break;
 	default:
 		dprintk(verbose, FE_DEBUG, 1, "Unsupported delivery system");
-		break;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -1144,6 +1144,7 @@ static int stb0899_read_ber(struct dvb_frontend *fe, u32 *ber)
 		break;
 	default:
 		dprintk(verbose, FE_DEBUG, 1, "Unsupported delivery system");
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1201,7 +1202,7 @@ static int stb0899_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 		stb0899_write_reg(state, STB0899_DISEQCOCFG, 0x20);
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 	return 0;
 }
