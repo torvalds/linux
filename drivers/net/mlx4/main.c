@@ -149,7 +149,8 @@ static int __devinit mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev
 	dev->caps.max_cqes	     = dev_cap->max_cq_sz - 1;
 	dev->caps.reserved_cqs	     = dev_cap->reserved_cqs;
 	dev->caps.reserved_eqs	     = dev_cap->reserved_eqs;
-	dev->caps.reserved_mtts	     = dev_cap->reserved_mtts;
+	dev->caps.reserved_mtts	     = DIV_ROUND_UP(dev_cap->reserved_mtts,
+						    MLX4_MTT_ENTRY_PER_SEG);
 	dev->caps.reserved_mrws	     = dev_cap->reserved_mrws;
 	dev->caps.reserved_uars	     = dev_cap->reserved_uars;
 	dev->caps.reserved_pds	     = dev_cap->reserved_pds;
