@@ -1051,22 +1051,8 @@ static const struct seq_operations nfqnl_seq_ops = {
 
 static int nfqnl_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct iter_state *is;
-	int ret;
-
-	is = kzalloc(sizeof(*is), GFP_KERNEL);
-	if (!is)
-		return -ENOMEM;
-	ret = seq_open(file, &nfqnl_seq_ops);
-	if (ret < 0)
-		goto out_free;
-	seq = file->private_data;
-	seq->private = is;
-	return ret;
-out_free:
-	kfree(is);
-	return ret;
+	return seq_open_private(file, &nfqnl_seq_ops,
+			sizeof(struct iter_state));
 }
 
 static const struct file_operations nfqnl_file_ops = {

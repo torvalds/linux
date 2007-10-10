@@ -381,25 +381,14 @@ static const struct seq_operations recent_seq_ops = {
 static int recent_seq_open(struct inode *inode, struct file *file)
 {
 	struct proc_dir_entry *pde = PDE(inode);
-	struct seq_file *seq;
 	struct recent_iter_state *st;
-	int ret;
 
-	st = kzalloc(sizeof(*st), GFP_KERNEL);
+	st = __seq_open_private(file, &recent_seq_ops, sizeof(*st));
 	if (st == NULL)
 		return -ENOMEM;
 
-	ret = seq_open(file, &recent_seq_ops);
-	if (ret) {
-		kfree(st);
-		goto out;
-	}
-
 	st->table    = pde->data;
-	seq          = file->private_data;
-	seq->private = st;
-out:
-	return ret;
+	return 0;
 }
 
 static ssize_t recent_proc_write(struct file *file, const char __user *input,

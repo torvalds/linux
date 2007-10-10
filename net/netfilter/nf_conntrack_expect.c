@@ -472,22 +472,8 @@ static const struct seq_operations exp_seq_ops = {
 
 static int exp_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct ct_expect_iter_state *st;
-	int ret;
-
-	st = kzalloc(sizeof(struct ct_expect_iter_state), GFP_KERNEL);
-	if (!st)
-		return -ENOMEM;
-	ret = seq_open(file, &exp_seq_ops);
-	if (ret)
-		goto out_free;
-	seq          = file->private_data;
-	seq->private = st;
-	return ret;
-out_free:
-	kfree(st);
-	return ret;
+	return seq_open_private(file, &exp_seq_ops,
+			sizeof(struct ct_expect_iter_state));
 }
 
 static const struct file_operations exp_file_ops = {
