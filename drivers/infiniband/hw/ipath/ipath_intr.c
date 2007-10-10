@@ -849,7 +849,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 
 /* this is separate to allow for better optimization of ipath_intr() */
 
-static void ipath_bad_intr(struct ipath_devdata *dd, u32 * unexpectp)
+static noinline void ipath_bad_intr(struct ipath_devdata *dd, u32 *unexpectp)
 {
 	/*
 	 * sometimes happen during driver init and unload, don't want
@@ -892,7 +892,7 @@ static void ipath_bad_intr(struct ipath_devdata *dd, u32 * unexpectp)
 			  "ignoring\n");
 }
 
-static void ipath_bad_regread(struct ipath_devdata *dd)
+static noinline void ipath_bad_regread(struct ipath_devdata *dd)
 {
 	static int allbits;
 
