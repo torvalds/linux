@@ -84,6 +84,12 @@
 #define PALETTE_ENTRIES_NO	16	/* passed to fb_alloc_cmap() */
 
 /*
+ * Default xilinxfb configuration
+ */
+static struct xilinxfb_platform_data xilinx_fb_default_pdata = {
+};
+
+/*
  * Here are the default fb_fix_screeninfo and fb_var_screeninfo structures
  */
 static struct fb_fix_screeninfo xilinx_fb_fix = {
@@ -207,7 +213,7 @@ static struct fb_ops xilinxfb_ops =
  */
 
 static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
-			   int width_mm, int height_mm, int rotate)
+			   struct xilinxfb_platform_data *pdata)
 {
 	struct xilinxfb_drvdata *drvdata;
 	int rc;
@@ -253,7 +259,7 @@ static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
 
 	/* Turn on the display */
 	drvdata->reg_ctrl_default = REG_CTRL_ENABLE;
-	if (rotate)
+	if (pdata->rotate_screen)
 		drvdata->reg_ctrl_default |= REG_CTRL_ROTATE;
 	xilinx_fb_out_be32(drvdata, REG_CTRL, drvdata->reg_ctrl_default);
 
@@ -267,8 +273,8 @@ static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
 	drvdata->info.flags = FBINFO_DEFAULT;
 	drvdata->info.var = xilinx_fb_var;
 
-	xilinx_fb_var.height = height_mm;
-	xilinx_fb_var.width = width_mm;
+	xilinx_fb_var.height = pdata->screen_height_mm;
+	xilinx_fb_var.width = pdata->screen_width_mm;
 
 	/* Allocate a colour map */
 	rc = fb_alloc_cmap(&drvdata->info.cmap, PALETTE_ENTRIES_NO, 0);
@@ -349,9 +355,6 @@ xilinxfb_platform_probe(struct platform_device *pdev)
 {
 	struct xilinxfb_platform_data *pdata;
 	struct resource *res;
-	int width_mm = 0;
-	int height_mm = 0;
-	int rotate = 0;
 
 	/* Find the registers address */
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
@@ -361,15 +364,12 @@ xilinxfb_platform_probe(struct platform_device *pdev)
 	}
 
 	/* If a pdata structure is provided, then extract the parameters */
-	pdata = pdev->dev.platform_data;
-	if (pdata) {
-		height_mm = pdata->screen_height_mm;
-		width_mm = pdata->screen_width_mm;
-		rotate = pdata->rotate_screen ? 1 : 0;
-	}
+	if (pdev->dev.platform_data)
+		pdata = pdev->dev.platform_data;
+	else
+		pdata = &xilinx_fb_default_pdata;
 
-	return xilinxfb_assign(&pdev->dev, res->start, width_mm, height_mm,
-			       rotate);
+	return xilinxfb_assign(&pdev->dev, res->start, pdata);
 }
 
 static int
@@ -398,8 +398,11 @@ xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct resource res;
 	const u32 *prop;
-	int width = 0, height = 0, rotate = 0;
+	struct xilinxfb_platform_data pdata;
 	int size, rc;
+
+	/* Copy with the default pdata (not a ptr reference!) */
+	pdata = xilinx_fb_default_pdata;
 
 	dev_dbg(&op->dev, "xilinxfb_of_probe(%p, %p)\n", op, match);
 
@@ -411,14 +414,14 @@ xilinxfb_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	prop = of_get_property(op->node, "display-number", &size);
 	if ((prop) && (size >= sizeof(u32)*2)) {
-		width = prop[0];
-		height = prop[1];
+		pdata.screen_width_mm = prop[0];
+		pdata.screen_height_mm = prop[1];
 	}
 
 	if (of_find_property(op->node, "rotate-display", NULL))
-		rotate = 1;
+		pdata.rotate_screen = 1;
 
-	return xilinxfb_assign(&op->dev, res.start, width, height, rotate);
+	return xilinxfb_assign(&op->dev, res.start, &pdata);
 }
 
 static int __devexit xilinxfb_of_remove(struct of_device *op)
