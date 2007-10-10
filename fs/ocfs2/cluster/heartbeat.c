@@ -267,7 +267,7 @@ static struct bio *o2hb_setup_one_bio(struct o2hb_region *reg,
 		current_page = cs / spp;
 		page = reg->hr_slot_data[current_page];
 
-		vec_len = min(PAGE_CACHE_SIZE,
+		vec_len = min(PAGE_CACHE_SIZE - vec_start,
 			      (max_slots-cs) * (PAGE_CACHE_SIZE/spp) );
 
 		mlog(ML_HB_BIO, "page %d, vec_len = %u, vec_start = %u\n",
