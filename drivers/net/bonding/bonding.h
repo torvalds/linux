@@ -187,6 +187,7 @@ struct bonding {
 	struct   timer_list arp_timer;
 	s8       kill_timers;
 	s8       do_set_mac_addr;
+	s8	 send_grat_arp;
 	struct   net_device_stats stats;
 #ifdef CONFIG_PROC_FS
 	struct   proc_dir_entry *proc_entry;
