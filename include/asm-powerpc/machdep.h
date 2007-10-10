@@ -99,7 +99,7 @@ struct machdep_calls {
 #endif /* CONFIG_PPC64 */
 
 	int		(*probe)(void);
-	void		(*setup_arch)(void);
+	void		(*setup_arch)(void); /* Optional, may be NULL */
 	void		(*init_early)(void);
 	/* Optional, may be NULL. */
 	void		(*show_cpuinfo)(struct seq_file *m);
