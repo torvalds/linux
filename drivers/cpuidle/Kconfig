@@ -1,0 +1,20 @@
+
+config CPU_IDLE
+	bool "CPU idle PM support"
+	help
+	  CPU idle is a generic framework for supporting software-controlled
+	  idle processor power management.  It includes modular cross-platform
+	  governors that can be swapped during runtime.
+
+	  If you're using a mobile platform that supports CPU idle PM (e.g.
+	  an ACPI-capable notebook), you should say Y here.
+
+config CPU_IDLE_GOV_LADDER
+	bool
+	depends on CPU_IDLE
+	default y
+
+config CPU_IDLE_GOV_MENU
+	bool
+	depends on CPU_IDLE && NO_HZ
+	default y
