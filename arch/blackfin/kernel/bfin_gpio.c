@@ -930,6 +930,8 @@ void peripheral_free(unsigned short per)
 
 	reserved_peri_map[gpio_bank(ident)] &= ~gpio_bit(ident);
 
+	set_label(ident, "free");
+
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(peripheral_free);
@@ -968,6 +970,17 @@ int gpio_request(unsigned short gpio, const char *label)
 		return -EINVAL;
 
 	local_irq_save(flags);
+
+	/*
+	 * Allow that the identical GPIO can
+	 * be requested from the same driver twice
+	 * Do nothing and return -
+	 */
+
+	if (cmp_label(gpio, label) == 0) {
+		local_irq_restore(flags);
+		return 0;
+	}
 
 	if (unlikely(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
 		printk(KERN_ERR "bfin-gpio: GPIO %d is already reserved by %s !\n",
@@ -1015,6 +1028,8 @@ void gpio_free(unsigned short gpio)
 	default_gpio(gpio);
 
 	reserved_gpio_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
+
+	set_label(gpio, "free");
 
 	local_irq_restore(flags);
 }
