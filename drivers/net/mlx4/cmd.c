@@ -184,6 +184,13 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 					       (event ? (1 << HCR_E_BIT) : 0)	|
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op),			  hcr + 6);
+
+	/*
+	 * Make sure that our HCR writes don't get mixed in with
+	 * writes from another CPU starting a FW command.
+	 */
+	mmiowb();
+
 	cmd->toggle = cmd->toggle ^ 1;
 
 	ret = 0;
