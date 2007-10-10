@@ -53,7 +53,7 @@ static unsigned long empty_bad_page;
 
 unsigned long empty_zero_page;
 
-void __init show_mem(void)
+void show_mem(void)
 {
 	unsigned long i;
 	int free = 0, total = 0, reserved = 0, shared = 0;
