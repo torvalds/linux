@@ -177,6 +177,10 @@ static int slave_configure(struct scsi_device *sdev)
 		 * is an occasional series of retries that will all fail. */
 		sdev->retry_hwerror = 1;
 
+		/* USB disks should allow restart.  Some drives spin down
+		 * automatically, requiring a START-STOP UNIT command. */
+		sdev->allow_restart = 1;
+
 	} else {
 
 		/* Non-disk-type devices don't need to blacklist any pages
