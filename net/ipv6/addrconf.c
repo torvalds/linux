@@ -74,6 +74,7 @@
 #include <net/tcp.h>
 #include <net/ip.h>
 #include <net/netlink.h>
+#include <net/pkt_sched.h>
 #include <linux/if_tunnel.h>
 #include <linux/rtnetlink.h>
 
@@ -212,6 +213,12 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 /* IPv6 Wildcard Address and Loopback Address defined by RFC2553 */
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
+
+/* Check if a valid qdisc is available */
+static inline int addrconf_qdisc_ok(struct net_device *dev)
+{
+	return (dev->qdisc != &noop_qdisc);
+}
 
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
 {
@@ -384,7 +391,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	}
 #endif
 
-	if (netif_running(dev) && netif_carrier_ok(dev))
+	if (netif_running(dev) && addrconf_qdisc_ok(dev))
 		ndev->if_flags |= IF_READY;
 
 	ipv6_mc_init_dev(ndev);
@@ -2283,7 +2290,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			break;
 
 		if (event == NETDEV_UP) {
-			if (!netif_carrier_ok(dev)) {
+			if (!addrconf_qdisc_ok(dev)) {
 				/* device is not ready yet. */
 				printk(KERN_INFO
 					"ADDRCONF(NETDEV_UP): %s: "
@@ -2295,7 +2302,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			if (idev)
 				idev->if_flags |= IF_READY;
 		} else {
-			if (!netif_carrier_ok(dev)) {
+			if (!addrconf_qdisc_ok(dev)) {
 				/* device is still not ready. */
 				break;
 			}
