@@ -1,10 +1,6 @@
 if SH_RTS7751R2D
 
-menu "RTS7751R2D options"
-
-choice
-	prompt "R2D Board Revision"
-	default RTS7751R2D_PLUS
+menu "RTS7751R2D Board Revision"
 
 config RTS7751R2D_PLUS
 	bool "R2D-PLUS"
@@ -21,9 +17,6 @@ config RTS7751R2D_1
 
 	  R2D-1 is the larger of the two R2D board versions, equipped
 	  with two PCI slots.
-
-endchoice
-
 endmenu
 
 endif
