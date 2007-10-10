@@ -3458,7 +3458,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 			     int setFl,u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct list_head *item;
 	struct pvr2_i2c_client *cp;
 	struct v4l2_register req;
 	int stat = 0;
@@ -3471,8 +3470,7 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
 	mutex_lock(&hdw->i2c_list_lock); do {
-		list_for_each(item,&hdw->i2c_clients) {
-			cp = list_entry(item,struct pvr2_i2c_client,list);
+		list_for_each_entry(cp, &hdw->i2c_clients, list) {
 			if (!v4l2_chip_match_i2c_client(
 				    cp->client,
 				    req.match_type, req.match_chip)) {
