@@ -239,10 +239,8 @@ u32 acpi_ev_fixed_event_detect(void)
 	 * Read the fixed feature status and enable registers, as all the cases
 	 * depend on their values.  Ignore errors here.
 	 */
-	(void)acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
-				    ACPI_REGISTER_PM1_STATUS, &fixed_status);
-	(void)acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
-				    ACPI_REGISTER_PM1_ENABLE, &fixed_enable);
+	(void)acpi_hw_register_read(ACPI_REGISTER_PM1_STATUS, &fixed_status);
+	(void)acpi_hw_register_read(ACPI_REGISTER_PM1_ENABLE, &fixed_enable);
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INTERRUPTS,
 			  "Fixed Event Block: Enable %08X Status %08X\n",
