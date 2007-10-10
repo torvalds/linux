@@ -1106,6 +1106,47 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
 	return !before(start_seq, end_seq - tp->max_window);
 }
 
+/* Check for lost retransmit. This superb idea is borrowed from "ratehalving".
+ * Event "C". Later note: FACK people cheated me again 8), we have to account
+ * for reordering! Ugly, but should help.
+ */
+static int tcp_mark_lost_retrans(struct sock *sk, u32 lost_retrans)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb;
+	int flag = 0;
+
+	tcp_for_write_queue(skb, sk) {
+		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
+
+		if (skb == tcp_send_head(sk))
+			break;
+		if (after(TCP_SKB_CB(skb)->seq, lost_retrans))
+			break;
+		if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
+			continue;
+
+		if ((TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) &&
+		    after(lost_retrans, ack_seq) &&
+		    (tcp_is_fack(tp) ||
+		     !before(lost_retrans,
+			     ack_seq + tp->reordering * tp->mss_cache))) {
+			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
+			tp->retrans_out -= tcp_skb_pcount(skb);
+
+			/* clear lost hint */
+			tp->retransmit_skb_hint = NULL;
+
+			if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_ACKED))) {
+				tp->lost_out += tcp_skb_pcount(skb);
+				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
+				flag |= FLAG_DATA_SACKED;
+				NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
+			}
+		}
+	}
+	return flag;
+}
 
 static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
 			   struct tcp_sack_block_wire *sp, int num_sacks,
@@ -1422,43 +1463,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 	}
 
-	/* Check for lost retransmit. This superb idea is
-	 * borrowed from "ratehalving". Event "C".
-	 * Later note: FACK people cheated me again 8),
-	 * we have to account for reordering! Ugly,
-	 * but should help.
-	 */
-	if (lost_retrans && icsk->icsk_ca_state == TCP_CA_Recovery) {
-		struct sk_buff *skb;
-
-		tcp_for_write_queue(skb, sk) {
-			if (skb == tcp_send_head(sk))
-				break;
-			if (after(TCP_SKB_CB(skb)->seq, lost_retrans))
-				break;
-			if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
-				continue;
-			if ((TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_RETRANS) &&
-			    after(lost_retrans, TCP_SKB_CB(skb)->ack_seq) &&
-			    (tcp_is_fack(tp) ||
-			     !before(lost_retrans,
-				     TCP_SKB_CB(skb)->ack_seq + tp->reordering *
-				     tp->mss_cache))) {
-				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
-				tp->retrans_out -= tcp_skb_pcount(skb);
-
-				/* clear lost hint */
-				tp->retransmit_skb_hint = NULL;
-
-				if (!(TCP_SKB_CB(skb)->sacked&(TCPCB_LOST|TCPCB_SACKED_ACKED))) {
-					tp->lost_out += tcp_skb_pcount(skb);
-					TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-					flag |= FLAG_DATA_SACKED;
-					NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
-				}
-			}
-		}
-	}
+	if (lost_retrans && icsk->icsk_ca_state == TCP_CA_Recovery)
+		flag |= tcp_mark_lost_retrans(sk, lost_retrans);
 
 	tcp_verify_left_out(tp);
 
