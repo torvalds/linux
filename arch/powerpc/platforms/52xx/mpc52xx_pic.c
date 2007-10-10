@@ -18,18 +18,9 @@
 
 #undef DEBUG
 
-#include <linux/stddef.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/hardirq.h>
-
+#include <linux/of.h>
 #include <asm/io.h>
-#include <asm/processor.h>
-#include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
 #include "mpc52xx_pic.h"
