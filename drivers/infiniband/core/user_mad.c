@@ -44,6 +44,7 @@
 #include <linux/poll.h>
 #include <linux/rwsem.h>
 #include <linux/kref.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
@@ -607,7 +608,8 @@ static unsigned int ib_umad_poll(struct file *filp, struct poll_table_struct *wa
 	return mask;
 }
 
-static int ib_umad_reg_agent(struct ib_umad_file *file, unsigned long arg)
+static int ib_umad_reg_agent(struct ib_umad_file *file, void __user *arg,
+			     int compat_method_mask)
 {
 	struct ib_user_mad_reg_req ureq;
 	struct ib_mad_reg_req req;
@@ -622,7 +624,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, unsigned long arg)
 		goto out;
 	}
 
-	if (copy_from_user(&ureq, (void __user *) arg, sizeof ureq)) {
+	if (copy_from_user(&ureq, arg, sizeof ureq)) {
 		ret = -EFAULT;
 		goto out;
 	}
@@ -643,8 +645,18 @@ found:
 	if (ureq.mgmt_class) {
 		req.mgmt_class         = ureq.mgmt_class;
 		req.mgmt_class_version = ureq.mgmt_class_version;
-		memcpy(req.method_mask, ureq.method_mask, sizeof req.method_mask);
-		memcpy(req.oui,         ureq.oui,         sizeof req.oui);
+		memcpy(req.oui, ureq.oui, sizeof req.oui);
+
+		if (compat_method_mask) {
+			u32 *umm = (u32 *) ureq.method_mask;
+			int i;
+
+			for (i = 0; i < BITS_TO_LONGS(IB_MGMT_MAX_METHODS); ++i)
+				req.method_mask[i] =
+					umm[i * 2] | ((u64) umm[i * 2 + 1] << 32);
+		} else
+			memcpy(req.method_mask, ureq.method_mask,
+			       sizeof req.method_mask);
 	}
 
 	agent = ib_register_mad_agent(file->port->ib_dev, file->port->port_num,
@@ -682,13 +694,13 @@ out:
 	return ret;
 }
 
-static int ib_umad_unreg_agent(struct ib_umad_file *file, unsigned long arg)
+static int ib_umad_unreg_agent(struct ib_umad_file *file, u32 __user *arg)
 {
 	struct ib_mad_agent *agent = NULL;
 	u32 id;
 	int ret = 0;
 
-	if (get_user(id, (u32 __user *) arg))
+	if (get_user(id, arg))
 		return -EFAULT;
 
 	down_write(&file->port->mutex);
@@ -729,15 +741,32 @@ static long ib_umad_ioctl(struct file *filp, unsigned int cmd,
 {
 	switch (cmd) {
 	case IB_USER_MAD_REGISTER_AGENT:
-		return ib_umad_reg_agent(filp->private_data, arg);
+		return ib_umad_reg_agent(filp->private_data, (void __user *) arg, 0);
 	case IB_USER_MAD_UNREGISTER_AGENT:
-		return ib_umad_unreg_agent(filp->private_data, arg);
+		return ib_umad_unreg_agent(filp->private_data, (__u32 __user *) arg);
 	case IB_USER_MAD_ENABLE_PKEY:
 		return ib_umad_enable_pkey(filp->private_data);
 	default:
 		return -ENOIOCTLCMD;
 	}
 }
+
+#ifdef CONFIG_COMPAT
+static long ib_umad_compat_ioctl(struct file *filp, unsigned int cmd,
+				 unsigned long arg)
+{
+	switch (cmd) {
+	case IB_USER_MAD_REGISTER_AGENT:
+		return ib_umad_reg_agent(filp->private_data, compat_ptr(arg), 1);
+	case IB_USER_MAD_UNREGISTER_AGENT:
+		return ib_umad_unreg_agent(filp->private_data, compat_ptr(arg));
+	case IB_USER_MAD_ENABLE_PKEY:
+		return ib_umad_enable_pkey(filp->private_data);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+#endif
 
 static int ib_umad_open(struct inode *inode, struct file *filp)
 {
@@ -826,7 +855,9 @@ static const struct file_operations umad_fops = {
 	.write 	 	= ib_umad_write,
 	.poll 	 	= ib_umad_poll,
 	.unlocked_ioctl = ib_umad_ioctl,
-	.compat_ioctl 	= ib_umad_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl 	= ib_umad_compat_ioctl,
+#endif
 	.open 	 	= ib_umad_open,
 	.release 	= ib_umad_close
 };

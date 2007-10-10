@@ -147,6 +147,26 @@ struct ib_user_mad {
 	__u64	data[0];
 };
 
+/*
+ * Earlier versions of this interface definition declared the
+ * method_mask[] member as an array of __u32 but treated it as a
+ * bitmap made up of longs in the kernel.  This ambiguity meant that
+ * 32-bit big-endian applications that can run on both 32-bit and
+ * 64-bit kernels had no consistent ABI to rely on, and 64-bit
+ * big-endian applications that treated method_mask as being made up
+ * of 32-bit words would have their bitmap misinterpreted.
+ *
+ * To clear up this confusion, we change the declaration of
+ * method_mask[] to use unsigned long and handle the conversion from
+ * 32-bit userspace to 64-bit kernel for big-endian systems in the
+ * compat_ioctl method.  Unfortunately, to keep the structure layout
+ * the same, we need the method_mask[] array to be aligned only to 4
+ * bytes even when long is 64 bits, which forces us into this ugly
+ * typedef.
+ */
+typedef unsigned long __attribute__((aligned(4))) packed_ulong;
+#define IB_USER_MAD_LONGS_PER_METHOD_MASK (128 / (8 * sizeof (long)))
+
 /**
  * ib_user_mad_reg_req - MAD registration request
  * @id - Set by the kernel; used to identify agent in future requests.
@@ -165,7 +185,7 @@ struct ib_user_mad {
  */
 struct ib_user_mad_reg_req {
 	__u32	id;
-	__u32	method_mask[4];
+	packed_ulong method_mask[IB_USER_MAD_LONGS_PER_METHOD_MASK];
 	__u8	qpn;
 	__u8	mgmt_class;
 	__u8	mgmt_class_version;
