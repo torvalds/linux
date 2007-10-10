@@ -159,6 +159,7 @@ void set_dma_y_modify(unsigned int channel, short y_modify);
 void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
 				   char intr_mode, char dma_mode, char width);
+void set_dma_curr_addr(unsigned int channel, unsigned long addr);
 
 /* get curr status for polling */
 unsigned short get_dma_curr_irqstat(unsigned int channel);
