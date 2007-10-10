@@ -653,6 +653,10 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 
 int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
+long kvm_arch_dev_ioctl(struct file *filp,
+			unsigned int ioctl, unsigned long arg);
+__init void kvm_arch_init(void);
+
 static inline void kvm_guest_enter(void)
 {
 	current->flags |= PF_VCPU;
