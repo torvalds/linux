@@ -257,11 +257,6 @@ static void __init pSeries_setup_arch(void)
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
-	if (ROOT_DEV == 0) {
-		printk("No ramdisk, default root is /dev/sda2\n");
-		ROOT_DEV = Root_SDA2;
-	}
-
 	fwnmi_init();
 
 	/* Find and initialize PCI host bridges */

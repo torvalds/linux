@@ -197,15 +197,6 @@ static void __init efika_setup_arch(void)
 {
 	rtas_initialize();
 
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_below_start_ok = 1;
-
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-		ROOT_DEV = Root_SDA2;	/* sda2 (sda1 is for the kernel) */
-
 	efika_pcisetup();
 
 #ifdef CONFIG_PM
