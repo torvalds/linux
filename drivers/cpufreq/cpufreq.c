@@ -1111,12 +1111,7 @@ unsigned int cpufreq_quick_get(unsigned int cpu)
 	unsigned int ret_freq = 0;
 
 	if (policy) {
-		if (unlikely(lock_policy_rwsem_read(cpu)))
-			return ret_freq;
-
 		ret_freq = policy->cur;
-
-		unlock_policy_rwsem_read(cpu);
 		cpufreq_cpu_put(policy);
 	}
 
