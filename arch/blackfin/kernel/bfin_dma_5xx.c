@@ -436,6 +436,10 @@ static void *__dma_memcpy(void *dest, const void *src, size_t size)
 		blackfin_dcache_flush_range((unsigned int)src,
 					    (unsigned int)(src + size));
 
+	if ((unsigned long)dest < memory_end)
+		blackfin_dcache_invalidate_range((unsigned int)dest,
+						 (unsigned int)(dest + size));
+
 	bfin_write_MDMA_D0_IRQ_STATUS(DMA_DONE | DMA_ERR);
 
 	if ((unsigned long)src < (unsigned long)dest)
@@ -543,6 +547,8 @@ static void *__dma_memcpy(void *dest, const void *src, size_t size)
 		}
 	}
 
+	SSYNC();
+
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE))
 		;
 
@@ -552,9 +558,6 @@ static void *__dma_memcpy(void *dest, const void *src, size_t size)
 	bfin_write_MDMA_S0_CONFIG(0);
 	bfin_write_MDMA_D0_CONFIG(0);
 
-	if ((unsigned long)dest < memory_end)
-		blackfin_dcache_invalidate_range((unsigned int)dest,
-						 (unsigned int)(dest + size));
 	local_irq_restore(flags);
 
 	return dest;
@@ -589,7 +592,8 @@ void dma_outsb(unsigned long addr, const void *buf, unsigned short len)
 
 	local_irq_save(flags);
 
-	blackfin_dcache_flush_range((unsigned int)buf, (unsigned int)(buf) + len);
+	blackfin_dcache_flush_range((unsigned int)buf,
+			 (unsigned int)(buf) + len);
 
 	bfin_write_MDMA_D0_START_ADDR(addr);
 	bfin_write_MDMA_D0_X_COUNT(len);
@@ -603,6 +607,8 @@ void dma_outsb(unsigned long addr, const void *buf, unsigned short len)
 
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_8);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_8);
+
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
@@ -620,6 +626,9 @@ void dma_insb(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
+	blackfin_dcache_invalidate_range((unsigned int)buf,
+			 (unsigned int)(buf) + len);
+
 	local_irq_save(flags);
 	bfin_write_MDMA_D0_START_ADDR(buf);
 	bfin_write_MDMA_D0_X_COUNT(len);
@@ -634,7 +643,7 @@ void dma_insb(unsigned long addr, void *buf, unsigned short len)
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_8);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_8);
 
-	blackfin_dcache_invalidate_range((unsigned int)buf, (unsigned int)(buf) + len);
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
@@ -653,7 +662,8 @@ void dma_outsw(unsigned long addr, const void  *buf, unsigned short len)
 
 	local_irq_save(flags);
 
-	blackfin_dcache_flush_range((unsigned int)buf, (unsigned int)(buf) + len);
+	blackfin_dcache_flush_range((unsigned int)buf,
+			 (unsigned int)(buf) + len * sizeof(short));
 
 	bfin_write_MDMA_D0_START_ADDR(addr);
 	bfin_write_MDMA_D0_X_COUNT(len);
@@ -667,6 +677,8 @@ void dma_outsw(unsigned long addr, const void  *buf, unsigned short len)
 
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_16);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_16);
+
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
@@ -683,6 +695,9 @@ void dma_insw(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
+	blackfin_dcache_invalidate_range((unsigned int)buf,
+			 (unsigned int)(buf) + len * sizeof(short));
+
 	local_irq_save(flags);
 
 	bfin_write_MDMA_D0_START_ADDR(buf);
@@ -698,7 +713,7 @@ void dma_insw(unsigned long addr, void *buf, unsigned short len)
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_16);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_16);
 
-	blackfin_dcache_invalidate_range((unsigned int)buf, (unsigned int)(buf) + len);
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
@@ -717,7 +732,8 @@ void dma_outsl(unsigned long addr, const void *buf, unsigned short len)
 
 	local_irq_save(flags);
 
-	blackfin_dcache_flush_range((unsigned int)buf, (unsigned int)(buf) + len);
+	blackfin_dcache_flush_range((unsigned int)buf,
+			 (unsigned int)(buf) + len * sizeof(long));
 
 	bfin_write_MDMA_D0_START_ADDR(addr);
 	bfin_write_MDMA_D0_X_COUNT(len);
@@ -731,6 +747,8 @@ void dma_outsl(unsigned long addr, const void *buf, unsigned short len)
 
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_32);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_32);
+
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
@@ -747,6 +765,9 @@ void dma_insl(unsigned long addr, void *buf, unsigned short len)
 {
 	unsigned long flags;
 
+	blackfin_dcache_invalidate_range((unsigned int)buf,
+			 (unsigned int)(buf) + len * sizeof(long));
+
 	local_irq_save(flags);
 
 	bfin_write_MDMA_D0_START_ADDR(buf);
@@ -762,7 +783,7 @@ void dma_insl(unsigned long addr, void *buf, unsigned short len)
 	bfin_write_MDMA_S0_CONFIG(DMAEN | WDSIZE_32);
 	bfin_write_MDMA_D0_CONFIG(WNR | DI_EN | DMAEN | WDSIZE_32);
 
-	blackfin_dcache_invalidate_range((unsigned int)buf, (unsigned int)(buf) + len);
+	SSYNC();
 
 	while (!(bfin_read_MDMA_D0_IRQ_STATUS() & DMA_DONE));
 
