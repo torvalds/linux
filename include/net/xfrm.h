@@ -300,6 +300,18 @@ extern void xfrm_put_type(struct xfrm_type *type);
 
 struct xfrm_mode {
 	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
+
+	/*
+	 * Add encapsulation header.
+	 *
+	 * On exit, the transport header will be set to the start of the
+	 * encapsulation header to be filled in by x->type->output and
+	 * the mac header will be set to the nextheader (protocol for
+	 * IPv4) field of the extension header directly preceding the
+	 * encapsulation header, or in its absence, that of the top IP
+	 * header.  The value of the network header will always point
+	 * to the top IP header while skb->data will point to the payload.
+	 */
 	int (*output)(struct xfrm_state *x,struct sk_buff *skb);
 
 	struct module *owner;

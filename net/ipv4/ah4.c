@@ -82,14 +82,14 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 			goto error;
 	}
 
-	ah = (struct ip_auth_hdr *)((char *)top_iph+top_iph->ihl*4);
-	ah->nexthdr = top_iph->protocol;
+	ah = (struct ip_auth_hdr *)skb_transport_header(skb);
+	ah->nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_AH;
 
 	top_iph->tos = 0;
 	top_iph->tot_len = htons(skb->len);
 	top_iph->frag_off = 0;
 	top_iph->ttl = 0;
-	top_iph->protocol = IPPROTO_AH;
 	top_iph->check = 0;
 
 	ahp = x->data;

@@ -23,17 +23,14 @@
  * The following fields in it shall be filled in by x->type->output:
  *      tot_len
  *      check
- *
- * On exit, skb->h will be set to the start of the payload to be processed
- * by x->type->output and skb->nh will be set to the top IP header.
  */
 static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
+	struct ip_beet_phdr *ph;
 	struct iphdr *iph, *top_iph;
 	int hdrlen, optlen;
 
 	iph = ip_hdr(skb);
-	skb->transport_header = skb->network_header;
 
 	hdrlen = 0;
 	optlen = iph->ihl * 4 - sizeof(*iph);
@@ -42,17 +39,17 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_set_network_header(skb, IPV4_BEET_PHMAXLEN - x->props.header_len -
 				    hdrlen);
-	top_iph = ip_hdr(skb);
-	skb->transport_header += sizeof(*iph) - hdrlen;
-	__skb_pull(skb, sizeof(*iph) - hdrlen);
+	skb->mac_header = skb->network_header +
+			  offsetof(struct iphdr, protocol);
+	skb->transport_header = skb->network_header + sizeof(*iph);
 
+	ph = (struct ip_beet_phdr *)__skb_pull(skb, sizeof(*iph) - hdrlen);
+
+	top_iph = ip_hdr(skb);
 	memmove(top_iph, iph, sizeof(*iph));
 	if (unlikely(optlen)) {
-		struct ip_beet_phdr *ph;
-
 		BUG_ON(optlen < 0);
 
-		ph = (struct ip_beet_phdr *)skb_transport_header(skb);
 		ph->padlen = 4 - (optlen & 4);
 		ph->hdrlen = optlen / 8;
 		ph->nexthdr = top_iph->protocol;

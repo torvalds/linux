@@ -98,10 +98,10 @@ out:
 static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipcomp_data *ipcd = x->data;
-	const int ihlen = ip_hdrlen(skb);
+	const int ihlen = skb_transport_offset(skb);
 	const int plen = skb->len - ihlen;
 	int dlen = IPCOMP_SCRATCH_SIZE;
-	u8 *start = skb->data + ihlen;
+	u8 *start = skb_transport_header(skb);
 	const int cpu = get_cpu();
 	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
 	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
@@ -154,11 +154,11 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Install ipcomp header, convert into ipcomp datagram. */
 	iph->tot_len = htons(skb->len);
-	ipch = (struct ip_comp_hdr *)((char *)iph + iph->ihl * 4);
-	ipch->nexthdr = iph->protocol;
+	ipch = (struct ip_comp_hdr *)skb_transport_header(skb);
+	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
-	iph->protocol = IPPROTO_COMP;
+	*skb_mac_header(skb) = IPPROTO_COMP;
 	ip_send_check(iph);
 	return 0;
 

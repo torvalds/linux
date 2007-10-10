@@ -24,13 +24,6 @@
  * The top IP header will be constructed per draft-nikander-esp-beet-mode-06.txt.
  * The following fields in it shall be filled in by x->type->output:
  *	payload_len
- *
- * On exit, skb->h will be set to the start of the encapsulation header to be
- * filled in by x->type->output and the mac header will be set to the
- * nextheader field of the extension header directly preceding the
- * encapsulation header, or in its absence, that of the top IP header.
- * The value of the network header will always point to the top IP header
- * while skb->data will point to the payload.
  */
 static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -44,7 +37,7 @@ static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
 	skb_set_network_header(skb, -x->props.header_len);
-	skb_set_transport_header(skb, hdr_len - x->props.header_len);
+	skb->transport_header = skb->network_header + hdr_len;
 	__skb_pull(skb, hdr_len);
 
 	top_iph = ipv6_hdr(skb);

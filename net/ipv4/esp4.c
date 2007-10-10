@@ -60,10 +60,10 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ip_hdr(skb);
-	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
-				     top_iph->ihl * 4);
+	esph = (struct ip_esp_hdr *)skb_transport_header(skb);
 	top_iph->tot_len = htons(skb->len + alen);
-	*(skb_tail_pointer(trailer) - 1) = top_iph->protocol;
+	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_ESP;
 
 	spin_lock_bh(&x->lock);
 
@@ -91,9 +91,8 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 			break;
 		}
 
-		top_iph->protocol = IPPROTO_UDP;
-	} else
-		top_iph->protocol = IPPROTO_ESP;
+		*skb_mac_header(skb) = IPPROTO_UDP;
+	}
 
 	esph->spi = x->id.spi;
 	esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
