@@ -829,7 +829,7 @@ config L1_MAX_PIECE
 
 comment "Asynchonous Memory Configuration"
 
-menu "EBIU_AMBCTL Global Control"
+menu "EBIU_AMGCTL Global Control"
 config C_AMCKEN
 	bool "Enable CLKOUT"
 	default y
