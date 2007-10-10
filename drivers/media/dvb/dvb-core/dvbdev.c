@@ -58,18 +58,13 @@ static struct class *dvb_class;
 
 static struct dvb_device* dvbdev_find_device (int minor)
 {
-	struct list_head *entry;
+	struct dvb_adapter *adap;
 
-	list_for_each (entry, &dvb_adapter_list) {
-		struct list_head *entry0;
-		struct dvb_adapter *adap;
-		adap = list_entry (entry, struct dvb_adapter, list_head);
-		list_for_each (entry0, &adap->device_list) {
-			struct dvb_device *dev;
-			dev = list_entry (entry0, struct dvb_device, list_head);
+	list_for_each_entry(adap, &dvb_adapter_list, list_head) {
+		struct dvb_device *dev;
+		list_for_each_entry(dev, &adap->device_list, list_head)
 			if (nums2minor(adap->num, dev->type, dev->id) == minor)
 				return dev;
-		}
 	}
 
 	return NULL;
@@ -179,13 +174,10 @@ static int dvbdev_get_free_id (struct dvb_adapter *adap, int type)
 	u32 id = 0;
 
 	while (id < DVB_MAX_IDS) {
-		struct list_head *entry;
-		list_for_each (entry, &adap->device_list) {
-			struct dvb_device *dev;
-			dev = list_entry (entry, struct dvb_device, list_head);
+		struct dvb_device *dev;
+		list_for_each_entry(dev, &adap->device_list, list_head)
 			if (dev->type == type && dev->id == id)
 				goto skip;
-		}
 		return id;
 skip:
 		id++;
@@ -279,13 +271,10 @@ static int dvbdev_get_free_adapter_num (void)
 	int num = 0;
 
 	while (num < DVB_MAX_ADAPTERS) {
-		struct list_head *entry;
-		list_for_each (entry, &dvb_adapter_list) {
-			struct dvb_adapter *adap;
-			adap = list_entry (entry, struct dvb_adapter, list_head);
+		struct dvb_adapter *adap;
+		list_for_each_entry(adap, &dvb_adapter_list, list_head)
 			if (adap->num == num)
 				goto skip;
-		}
 		return num;
 skip:
 		num++;
