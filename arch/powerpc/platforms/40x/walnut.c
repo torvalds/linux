@@ -53,14 +53,9 @@ static int __init walnut_probe(void)
 	return 1;
 }
 
-static void __init walnut_setup_arch(void)
-{
-}
-
 define_machine(walnut) {
 	.name			= "Walnut",
 	.probe			= walnut_probe,
-	.setup_arch		= walnut_setup_arch,
 	.progress		= udbg_progress,
 	.init_IRQ		= uic_init_tree,
 	.get_irq		= uic_get_irq,

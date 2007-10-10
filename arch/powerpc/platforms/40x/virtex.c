@@ -36,14 +36,9 @@ static int __init virtex_probe(void)
 	return 1;
 }
 
-static void __init virtex_setup_arch(void)
-{
-}
-
 define_machine(virtex) {
 	.name			= "Xilinx Virtex",
 	.probe			= virtex_probe,
-	.setup_arch		= virtex_setup_arch,
 	.init_IRQ		= xilinx_intc_init_tree,
 	.get_irq		= xilinx_intc_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

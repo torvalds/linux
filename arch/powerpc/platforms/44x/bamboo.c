@@ -50,14 +50,9 @@ static int __init bamboo_probe(void)
 	return 1;
 }
 
-static void __init bamboo_setup_arch(void)
-{
-}
-
 define_machine(bamboo) {
 	.name 				= "Bamboo",
 	.probe 				= bamboo_probe,
-	.setup_arch 		= bamboo_setup_arch,
 	.progress 			= udbg_progress,
 	.init_IRQ 			= uic_init_tree,
 	.get_irq 			= uic_get_irq,
