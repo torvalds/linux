@@ -1249,6 +1249,13 @@ static void set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->byte_count = cpu_to_be32(sg->length);
 }
 
+static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
+{
+	dseg->byte_count = cpu_to_be32(sg->length);
+	dseg->lkey       = cpu_to_be32(sg->lkey);
+	dseg->addr       = cpu_to_be64(sg->addr);
+}
+
 int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		      struct ib_send_wr **bad_wr)
 {
@@ -1464,11 +1471,8 @@ int mlx4_ib_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		scat = get_recv_wqe(qp, ind);
 
-		for (i = 0; i < wr->num_sge; ++i) {
-			scat[i].byte_count = cpu_to_be32(wr->sg_list[i].length);
-			scat[i].lkey       = cpu_to_be32(wr->sg_list[i].lkey);
-			scat[i].addr       = cpu_to_be64(wr->sg_list[i].addr);
-		}
+		for (i = 0; i < wr->num_sge; ++i)
+			__set_data_seg(scat + i, wr->sg_list + i);
 
 		if (i < qp->rq.max_gs) {
 			scat[i].byte_count = 0;
