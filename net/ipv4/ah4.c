@@ -125,6 +125,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int ah_hlen;
 	int ihl;
+	int nexthdr;
 	int err = -EINVAL;
 	struct iphdr *iph;
 	struct ip_auth_hdr *ah;
@@ -136,6 +137,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;
+	nexthdr = ah->nexthdr;
 	ah_hlen = (ah->hdrlen + 2) << 2;
 
 	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
@@ -182,13 +184,12 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 			goto out;
 		}
 	}
-	((struct iphdr*)work_buf)->protocol = ah->nexthdr;
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), work_buf, ihl);
 	skb->transport_header = skb->network_header;
 	__skb_pull(skb, ah_hlen + ihl);
 
-	return 0;
+	return nexthdr;
 
 out:
 	return err;

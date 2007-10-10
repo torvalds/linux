@@ -257,12 +257,11 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
-	iph->protocol = nexthdr[1];
 	pskb_trim(skb, skb->len - alen - padlen - 2);
 	__skb_pull(skb, sizeof(*esph) + esp->conf.ivlen);
 	skb_set_transport_header(skb, -ihl);
 
-	return 0;
+	return nexthdr[1];
 
 out:
 	return -EINVAL;

@@ -75,7 +75,6 @@ out:
 static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -ENOMEM;
-	struct iphdr *iph;
 	struct ip_comp_hdr *ipch;
 
 	if (skb_linearize_cow(skb))
@@ -84,12 +83,14 @@ static int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Remove ipcomp header and decompress original payload */
-	iph = ip_hdr(skb);
 	ipch = (void *)skb->data;
-	iph->protocol = ipch->nexthdr;
 	skb->transport_header = skb->network_header + sizeof(*ipch);
 	__skb_pull(skb, sizeof(*ipch));
 	err = ipcomp_decompress(x, skb);
+	if (err)
+		goto out;
+
+	err = ipch->nexthdr;
 
 out:
 	return err;
