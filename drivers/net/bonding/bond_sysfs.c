@@ -568,6 +568,54 @@ static ssize_t bonding_store_arp_validate(struct device *d,
 static DEVICE_ATTR(arp_validate, S_IRUGO | S_IWUSR, bonding_show_arp_validate, bonding_store_arp_validate);
 
 /*
+ * Show and store fail_over_mac.  User only allowed to change the
+ * value when there are no slaves.
+ */
+static ssize_t bonding_show_fail_over_mac(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct bonding *bond = to_bond(d);
+
+	return sprintf(buf, "%d\n", bond->params.fail_over_mac) + 1;
+}
+
+static ssize_t bonding_store_fail_over_mac(struct device *d, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int new_value;
+	int ret = count;
+	struct bonding *bond = to_bond(d);
+
+	if (bond->slave_cnt != 0) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: Can't alter fail_over_mac with slaves in bond.\n",
+		       bond->dev->name);
+		ret = -EPERM;
+		goto out;
+	}
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: no fail_over_mac value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if ((new_value == 0) || (new_value == 1)) {
+		bond->params.fail_over_mac = new_value;
+		printk(KERN_INFO DRV_NAME ": %s: Setting fail_over_mac to %d.\n",
+		       bond->dev->name, new_value);
+	} else {
+		printk(KERN_INFO DRV_NAME
+		       ": %s: Ignoring invalid fail_over_mac value %d.\n",
+		       bond->dev->name, new_value);
+	}
+out:
+	return ret;
+}
+
+static DEVICE_ATTR(fail_over_mac, S_IRUGO | S_IWUSR, bonding_show_fail_over_mac, bonding_store_fail_over_mac);
+
+/*
  * Show and set the arp timer interval.  There are two tricky bits
  * here.  First, if ARP monitoring is activated, then we must disable
  * MII monitoring.  Second, if the ARP timer isn't running, we must
@@ -1388,6 +1436,7 @@ static DEVICE_ATTR(ad_partner_mac, S_IRUGO, bonding_show_ad_partner_mac, NULL);
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
 	&dev_attr_mode.attr,
+	&dev_attr_fail_over_mac.attr,
 	&dev_attr_arp_validate.attr,
 	&dev_attr_arp_interval.attr,
 	&dev_attr_arp_ip_target.attr,

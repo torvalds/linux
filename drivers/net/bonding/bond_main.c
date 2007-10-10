@@ -98,6 +98,7 @@ static char *xmit_hash_policy = NULL;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
 static char *arp_validate = NULL;
+static int fail_over_mac = 0;
 struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
@@ -131,6 +132,8 @@ module_param_array(arp_ip_target, charp, NULL, 0);
 MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 module_param(arp_validate, charp, 0);
 MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes: none (default), active, backup or all");
+module_param(fail_over_mac, int, 0);
+MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the same MAC.  0 of off (default), 1 for on.");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -1100,7 +1103,7 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 		/* when bonding does not set the slave MAC address, the bond MAC
 		 * address is the one of the active slave.
 		 */
-		if (new_active && !bond->do_set_mac_addr)
+		if (new_active && bond->params.fail_over_mac)
 			memcpy(bond->dev->dev_addr,  new_active->dev->dev_addr,
 				new_active->dev->addr_len);
 		if (bond->curr_active_slave &&
@@ -1367,16 +1370,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	if (slave_dev->set_mac_address == NULL) {
 		if (bond->slave_cnt == 0) {
 			printk(KERN_WARNING DRV_NAME
-				": %s: Warning: The first slave device you "
-				"specified does not support setting the MAC "
-				"address. This bond MAC address would be that "
-				"of the active slave.\n", bond_dev->name);
-			bond->do_set_mac_addr = 0;
-		} else if (bond->do_set_mac_addr) {
+			       ": %s: Warning: The first slave device "
+			       "specified does not support setting the MAC "
+			       "address. Enabling the fail_over_mac option.",
+			       bond_dev->name);
+			bond->params.fail_over_mac = 1;
+		} else if (!bond->params.fail_over_mac) {
 			printk(KERN_ERR DRV_NAME
-				": %s: Error: The slave device you specified "
-				"does not support setting the MAC addres,."
-				"but this bond uses this practice. \n"
+				": %s: Error: The slave device specified "
+				"does not support setting the MAC address, "
+				"but fail_over_mac is not enabled.\n"
 				, bond_dev->name);
 			res = -EOPNOTSUPP;
 			goto err_undo_flags;
@@ -1401,7 +1404,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	 */
 	memcpy(new_slave->perm_hwaddr, slave_dev->dev_addr, ETH_ALEN);
 
-	if (bond->do_set_mac_addr) {
+	if (!bond->params.fail_over_mac) {
 		/*
 		 * Set slave to master's mac address.  The application already
 		 * set the master's mac address to that of the first slave
@@ -1637,7 +1640,7 @@ err_close:
 	dev_close(slave_dev);
 
 err_restore_mac:
-	if (bond->do_set_mac_addr) {
+	if (!bond->params.fail_over_mac) {
 		memcpy(addr.sa_data, new_slave->perm_hwaddr, ETH_ALEN);
 		addr.sa_family = slave_dev->type;
 		dev_set_mac_address(slave_dev, &addr);
@@ -1814,7 +1817,7 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* close slave before restoring its mac address */
 	dev_close(slave_dev);
 
-	if (bond->do_set_mac_addr) {
+	if (!bond->params.fail_over_mac) {
 		/* restore original ("permanent") mac address */
 		memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
 		addr.sa_family = slave_dev->type;
@@ -1935,7 +1938,7 @@ static int bond_release_all(struct net_device *bond_dev)
 		/* close slave before restoring its mac address */
 		dev_close(slave_dev);
 
-		if (bond->do_set_mac_addr) {
+		if (!bond->params.fail_over_mac) {
 			/* restore original ("permanent") mac address*/
 			memcpy(addr.sa_data, slave->perm_hwaddr, ETH_ALEN);
 			addr.sa_family = slave_dev->type;
@@ -3060,8 +3063,14 @@ static void bond_info_show_master(struct seq_file *seq)
 	curr = bond->curr_active_slave;
 	read_unlock(&bond->curr_slave_lock);
 
-	seq_printf(seq, "Bonding Mode: %s\n",
+	seq_printf(seq, "Bonding Mode: %s",
 		   bond_mode_name(bond->params.mode));
+
+	if (bond->params.mode == BOND_MODE_ACTIVEBACKUP &&
+	    bond->params.fail_over_mac)
+		seq_printf(seq, " (fail_over_mac)");
+
+	seq_printf(seq, "\n");
 
 	if (bond->params.mode == BOND_MODE_XOR ||
 		bond->params.mode == BOND_MODE_8023AD) {
@@ -3994,8 +4003,12 @@ static int bond_set_mac_address(struct net_device *bond_dev, void *addr)
 
 	dprintk("bond=%p, name=%s\n", bond, (bond_dev ? bond_dev->name : "None"));
 
-	if (!bond->do_set_mac_addr)
-		return -EOPNOTSUPP;
+	/*
+	 * If fail_over_mac is enabled, do nothing and return success.
+	 * Returning an error causes ifenslave to fail.
+	 */
+	if (bond->params.fail_over_mac)
+		return 0;
 
 	if (!is_valid_ether_addr(sa->sa_data)) {
 		return -EADDRNOTAVAIL;
@@ -4384,10 +4397,6 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 #ifdef CONFIG_PROC_FS
 	bond_create_proc_entry(bond);
 #endif
-
-	/* set do_set_mac_addr to true on startup */
-	bond->do_set_mac_addr = 1;
-
 	list_add_tail(&bond->bond_list, &bond_dev_list);
 
 	return 0;
@@ -4721,6 +4730,11 @@ static int bond_check_params(struct bond_params *params)
 		primary = NULL;
 	}
 
+	if (fail_over_mac && (bond_mode != BOND_MODE_ACTIVEBACKUP))
+		printk(KERN_WARNING DRV_NAME
+		       ": Warning: fail_over_mac only affects "
+		       "active-backup mode.\n");
+
 	/* fill params struct with the proper values */
 	params->mode = bond_mode;
 	params->xmit_policy = xmit_hashtype;
@@ -4732,6 +4746,7 @@ static int bond_check_params(struct bond_params *params)
 	params->use_carrier = use_carrier;
 	params->lacp_fast = lacp_fast;
 	params->primary[0] = 0;
+	params->fail_over_mac = fail_over_mac;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);

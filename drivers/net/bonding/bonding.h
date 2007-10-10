@@ -22,8 +22,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"3.1.3"
-#define DRV_RELDATE	"June 13, 2007"
+#define DRV_VERSION	"3.2.0"
+#define DRV_RELDATE	"September 13, 2007"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -128,6 +128,7 @@ struct bond_params {
 	int arp_interval;
 	int arp_validate;
 	int use_carrier;
+	int fail_over_mac;
 	int updelay;
 	int downdelay;
 	int lacp_fast;
@@ -186,7 +187,6 @@ struct bonding {
 	struct   timer_list mii_timer;
 	struct   timer_list arp_timer;
 	s8       kill_timers;
-	s8       do_set_mac_addr;
 	s8	 send_grat_arp;
 	s8	 setup_by_slave;
 	struct   net_device_stats stats;
