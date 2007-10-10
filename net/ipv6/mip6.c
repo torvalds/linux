@@ -155,7 +155,6 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, -skb_network_offset(skb));
 	iph = ipv6_hdr(skb);
-	iph->payload_len = htons(skb->len - sizeof(*iph));
 
 	nexthdr = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_DSTOPTS;
@@ -370,7 +369,6 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, -skb_network_offset(skb));
 	iph = ipv6_hdr(skb);
-	iph->payload_len = htons(skb->len - sizeof(*iph));
 
 	nexthdr = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_ROUTING;

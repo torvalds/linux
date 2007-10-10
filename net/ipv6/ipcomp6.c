@@ -119,20 +119,15 @@ out:
 static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct ipv6hdr *top_iph;
 	struct ip_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
 	int plen, dlen;
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-	int hdr_len;
-
-	skb_push(skb, -skb_network_offset(skb));
-	hdr_len = skb_transport_offset(skb);
 
 	/* check whether datagram len is larger than threshold */
-	if ((skb->len - hdr_len) < ipcd->threshold) {
+	if (skb->len < ipcd->threshold) {
 		goto out_ok;
 	}
 
@@ -140,9 +135,9 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 
 	/* compression */
-	plen = skb->len - hdr_len;
+	plen = skb->len;
 	dlen = IPCOMP_SCRATCH_SIZE;
-	start = skb_transport_header(skb);
+	start = skb->data;
 
 	cpu = get_cpu();
 	scratch = *per_cpu_ptr(ipcomp6_scratches, cpu);
@@ -155,13 +150,9 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	}
 	memcpy(start + sizeof(struct ip_comp_hdr), scratch, dlen);
 	put_cpu();
-	pskb_trim(skb, hdr_len + dlen + sizeof(struct ip_comp_hdr));
+	pskb_trim(skb, dlen + sizeof(struct ip_comp_hdr));
 
 	/* insert ipcomp header and replace datagram */
-	top_iph = ipv6_hdr(skb);
-
-	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
-
 	ipch = ip_comp_hdr(skb);
 	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
@@ -169,6 +160,8 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	*skb_mac_header(skb) = IPPROTO_COMP;
 
 out_ok:
+	skb_push(skb, -skb_network_offset(skb));
+
 	return 0;
 }
 

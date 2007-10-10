@@ -16,7 +16,6 @@
 static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct iphdr *top_iph;
 	struct ip_esp_hdr *esph;
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
@@ -59,9 +58,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	pskb_put(skb, trailer, clen - skb->len);
 
 	skb_push(skb, -skb_network_offset(skb));
-	top_iph = ip_hdr(skb);
 	esph = ip_esp_hdr(skb);
-	top_iph->tot_len = htons(skb->len + alen);
 	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_ESP;
 
@@ -76,7 +73,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 		uh = (struct udphdr *)esph;
 		uh->source = encap->encap_sport;
 		uh->dest = encap->encap_dport;
-		uh->len = htons(skb->len + alen - top_iph->ihl*4);
+		uh->len = htons(skb->len + alen - skb_transport_offset(skb));
 		uh->check = 0;
 
 		switch (encap->encap_type) {
@@ -135,8 +132,6 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 unlock:
 	spin_unlock_bh(&x->lock);
-
-	ip_send_check(top_iph);
 
 error:
 	return err;

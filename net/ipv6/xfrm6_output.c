@@ -47,6 +47,7 @@ static inline int xfrm6_output_one(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
+	struct ipv6hdr *iph;
 	int err;
 
 	if (x->props.mode == XFRM_MODE_TUNNEL) {
@@ -58,6 +59,9 @@ static inline int xfrm6_output_one(struct sk_buff *skb)
 	err = xfrm_output(skb);
 	if (err)
 		goto error_nolock;
+
+	iph = ipv6_hdr(skb);
+	iph->payload_len = htons(skb->len - sizeof(*iph));
 
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 	err = 0;

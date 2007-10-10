@@ -115,8 +115,6 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 		memcpy(top_iph+1, iph+1, top_iph->ihl*4 - sizeof(struct iphdr));
 	}
 
-	ip_send_check(top_iph);
-
 	err = 0;
 
 error:

@@ -98,10 +98,9 @@ out:
 static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipcomp_data *ipcd = x->data;
-	const int ihlen = skb_transport_offset(skb);
-	const int plen = skb->len - ihlen;
+	const int plen = skb->len;
 	int dlen = IPCOMP_SCRATCH_SIZE;
-	u8 *start = skb_transport_header(skb);
+	u8 *start = skb->data;
 	const int cpu = get_cpu();
 	u8 *scratch = *per_cpu_ptr(ipcomp_scratches, cpu);
 	struct crypto_comp *tfm = *per_cpu_ptr(ipcd->tfms, cpu);
@@ -118,7 +117,7 @@ static int ipcomp_compress(struct xfrm_state *x, struct sk_buff *skb)
 	memcpy(start + sizeof(struct ip_comp_hdr), scratch, dlen);
 	put_cpu();
 
-	pskb_trim(skb, ihlen + dlen + sizeof(struct ip_comp_hdr));
+	pskb_trim(skb, dlen + sizeof(struct ip_comp_hdr));
 	return 0;
 
 out:
@@ -131,13 +130,8 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 	int err;
 	struct ip_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
-	int hdr_len = 0;
-	struct iphdr *iph = ip_hdr(skb);
 
-	skb_push(skb, -skb_network_offset(skb));
-	iph->tot_len = htons(skb->len);
-	hdr_len = iph->ihl * 4;
-	if ((skb->len - hdr_len) < ipcd->threshold) {
+	if (skb->len < ipcd->threshold) {
 		/* Don't bother compressing */
 		goto out_ok;
 	}
@@ -146,25 +140,19 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 		goto out_ok;
 
 	err = ipcomp_compress(x, skb);
-	iph = ip_hdr(skb);
 
 	if (err) {
 		goto out_ok;
 	}
 
 	/* Install ipcomp header, convert into ipcomp datagram. */
-	iph->tot_len = htons(skb->len);
 	ipch = ip_comp_hdr(skb);
 	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
 	*skb_mac_header(skb) = IPPROTO_COMP;
-	ip_send_check(iph);
-	return 0;
-
 out_ok:
-	if (x->props.mode == XFRM_MODE_TUNNEL)
-		ip_send_check(iph);
+	skb_push(skb, -skb_network_offset(skb));
 	return 0;
 }
 

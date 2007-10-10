@@ -33,9 +33,7 @@ static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
 
 /* Add encapsulation header.
  *
- * The top IP header will be constructed per RFC 2401.  The following fields
- * in it shall be filled in by x->type->output:
- *	payload_len
+ * The top IP header will be constructed per RFC 2401.
  */
 static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {

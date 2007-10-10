@@ -22,8 +22,6 @@
 /* Add encapsulation header.
  *
  * The top IP header will be constructed per draft-nikander-esp-beet-mode-06.txt.
- * The following fields in it shall be filled in by x->type->output:
- *	payload_len
  */
 static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {

@@ -12,12 +12,7 @@
 
 static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
-
 	skb_push(skb, -skb_network_offset(skb));
-	iph->tot_len = htons(skb->len);
-	ip_send_check(iph);
-
 	return 0;
 }
 

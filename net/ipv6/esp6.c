@@ -43,7 +43,6 @@
 static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
-	struct ipv6hdr *top_iph;
 	struct ip_esp_hdr *esph;
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
@@ -85,9 +84,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	pskb_put(skb, trailer, clen - skb->len);
 
 	skb_push(skb, -skb_network_offset(skb));
-	top_iph = ipv6_hdr(skb);
 	esph = ip_esp_hdr(skb);
-	top_iph->payload_len = htons(skb->len + alen - sizeof(*top_iph));
 	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_ESP;
 
