@@ -49,8 +49,7 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ip_hdr(skb);
 	skb->transport_header = skb->network_header;
 
-	skb_push(skb, x->props.header_len);
-	skb_reset_network_header(skb);
+	skb_set_network_header(skb, -x->props.header_len);
 	top_iph = ip_hdr(skb);
 
 	top_iph->ihl = 5;

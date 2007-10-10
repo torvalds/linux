@@ -236,6 +236,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 		char hdrs[0];
 	} *tmp_ext;
 
+	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ipv6_hdr(skb);
 	top_iph->payload_len = htons(skb->len - sizeof(*top_iph));
 

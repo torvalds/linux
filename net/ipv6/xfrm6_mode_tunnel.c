@@ -41,8 +41,8 @@ static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
  * filled in by x->type->output and the mac header will be set to the
  * nextheader field of the extension header directly preceding the
  * encapsulation header, or in its absence, that of the top IP header.
- * The value of skb->data and the network header will always point to the
- * top IP header.
+ * The value of the network header will always point to the top IP header
+ * while skb->data will point to the payload.
  */
 static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -51,12 +51,13 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct ipv6hdr *iph, *top_iph;
 	int dsfield;
 
-	skb_push(skb, x->props.header_len);
 	iph = ipv6_hdr(skb);
 
-	skb_set_mac_header(skb, offsetof(struct ipv6hdr, nexthdr));
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, sizeof(struct ipv6hdr));
+	skb_set_mac_header(skb, offsetof(struct ipv6hdr, nexthdr) -
+				x->props.header_len);
+	skb_set_network_header(skb, -x->props.header_len);
+	skb_set_transport_header(skb, sizeof(struct ipv6hdr) -
+				      x->props.header_len);
 	top_iph = ipv6_hdr(skb);
 
 	top_iph->version = 6;

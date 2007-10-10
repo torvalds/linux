@@ -54,13 +54,8 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	int nfrags;
 	u8 *tail;
 	struct esp_data *esp = x->data;
-	int hdr_len = (skb_transport_offset(skb) +
-		       sizeof(*esph) + esp->conf.ivlen);
 
-	/* Strip IP+ESP header. */
-	__skb_pull(skb, hdr_len);
-
-	/* Now skb is pure payload to encrypt */
+	/* skb is pure payload to encrypt */
 	err = -ENOMEM;
 
 	/* Round to block size */
@@ -89,7 +84,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	tail[clen-skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
-	__skb_push(skb, -skb_network_offset(skb));
+	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ipv6_hdr(skb);
 	esph = (struct ipv6_esp_hdr *)skb_transport_header(skb);
 	top_iph->payload_len = htons(skb->len + alen - sizeof(*top_iph));

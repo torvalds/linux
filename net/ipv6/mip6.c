@@ -153,6 +153,7 @@ static int mip6_destopt_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr;
 	int len;
 
+	skb_push(skb, -skb_network_offset(skb));
 	iph = ipv6_hdr(skb);
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 
@@ -367,6 +368,7 @@ static int mip6_rthdr_output(struct xfrm_state *x, struct sk_buff *skb)
 	struct rt2_hdr *rt2;
 	u8 nexthdr;
 
+	skb_push(skb, -skb_network_offset(skb));
 	iph = ipv6_hdr(skb);
 	iph->payload_len = htons(skb->len - sizeof(*iph));
 

@@ -66,6 +66,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 		char 		buf[60];
 	} tmp_iph;
 
+	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ip_hdr(skb);
 	iph = &tmp_iph.iph;
 

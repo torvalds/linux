@@ -244,6 +244,7 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *top_iph;
 
+	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ipv6_hdr(skb);
 	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 

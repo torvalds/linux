@@ -28,9 +28,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	int alen;
 	int nfrags;
 
-	/* Strip IP+ESP header. */
-	__skb_pull(skb, skb_transport_offset(skb));
-	/* Now skb is pure payload to encrypt */
+	/* skb is pure payload to encrypt */
 
 	err = -ENOMEM;
 
@@ -60,7 +58,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	tail[clen - skb->len - 2] = (clen - skb->len) - 2;
 	pskb_put(skb, trailer, clen - skb->len);
 
-	__skb_push(skb, -skb_network_offset(skb));
+	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ip_hdr(skb);
 	esph = (struct ip_esp_hdr *)(skb_network_header(skb) +
 				     top_iph->ihl * 4);

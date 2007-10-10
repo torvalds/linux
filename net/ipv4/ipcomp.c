@@ -134,6 +134,7 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 	int hdr_len = 0;
 	struct iphdr *iph = ip_hdr(skb);
 
+	skb_push(skb, -skb_network_offset(skb));
 	iph->tot_len = htons(skb->len);
 	hdr_len = iph->ihl * 4;
 	if ((skb->len - hdr_len) < ipcd->threshold) {

@@ -27,8 +27,8 @@ static int xfrm4_transport_output(struct xfrm_state *x, struct sk_buff *skb)
 	int ihl = iph->ihl * 4;
 
 	skb->transport_header = skb->network_header + ihl;
-	skb_push(skb, x->props.header_len);
-	skb_reset_network_header(skb);
+	skb_set_network_header(skb, -x->props.header_len);
+	__skb_pull(skb, ihl);
 	memmove(skb_network_header(skb), iph, ihl);
 	return 0;
 }

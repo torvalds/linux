@@ -128,7 +128,10 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	u8 *start, *scratch;
 	struct crypto_comp *tfm;
 	int cpu;
-	int hdr_len = skb_transport_offset(skb);
+	int hdr_len;
+
+	skb_push(skb, -skb_network_offset(skb));
+	hdr_len = skb_transport_offset(skb);
 
 	/* check whether datagram len is larger than threshold */
 	if ((skb->len - hdr_len) < ipcd->threshold) {
