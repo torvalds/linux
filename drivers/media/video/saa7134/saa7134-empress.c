@@ -76,17 +76,14 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 static int ts_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct saa7134_dev *h,*dev = NULL;
-	struct list_head *list;
+	struct saa7134_dev *dev;
 	int err;
 
-	list_for_each(list,&saa7134_devlist) {
-		h = list_entry(list, struct saa7134_dev, devlist);
-		if (h->empress_dev && h->empress_dev->minor == minor)
-			dev = h;
-	}
-	if (NULL == dev)
-		return -ENODEV;
+	list_for_each_entry(dev, &saa7134_devlist, devlist)
+		if (dev->empress_dev && dev->empress_dev->minor == minor)
+			goto found;
+	return -ENODEV;
+ found:
 
 	dprintk("open minor=%d\n",minor);
 	err = -EBUSY;

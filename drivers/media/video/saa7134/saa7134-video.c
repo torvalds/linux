@@ -1285,26 +1285,24 @@ static int saa7134_resource(struct saa7134_fh *fh)
 static int video_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct saa7134_dev *h,*dev = NULL;
+	struct saa7134_dev *dev;
 	struct saa7134_fh *fh;
-	struct list_head *list;
 	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	int radio = 0;
-	list_for_each(list,&saa7134_devlist) {
-		h = list_entry(list, struct saa7134_dev, devlist);
-		if (h->video_dev && (h->video_dev->minor == minor))
-			dev = h;
-		if (h->radio_dev && (h->radio_dev->minor == minor)) {
+	list_for_each_entry(dev, &saa7134_devlist, devlist) {
+		if (dev->video_dev && (dev->video_dev->minor == minor))
+			goto found;
+		if (dev->radio_dev && (dev->radio_dev->minor == minor)) {
 			radio = 1;
-			dev = h;
+			goto found;
 		}
-		if (h->vbi_dev && (h->vbi_dev->minor == minor)) {
+		if (dev->vbi_dev && (dev->vbi_dev->minor == minor)) {
 			type = V4L2_BUF_TYPE_VBI_CAPTURE;
-			dev = h;
+			goto found;
 		}
 	}
-	if (NULL == dev)
-		return -ENODEV;
+	return -ENODEV;
+ found:
 
 	dprintk("open minor=%d radio=%d type=%s\n",minor,radio,
 		v4l2_type_names[type]);
