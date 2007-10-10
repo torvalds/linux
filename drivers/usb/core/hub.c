@@ -125,6 +125,12 @@ MODULE_PARM_DESC(use_both_schemes,
 		"try the other device initialization scheme if the "
 		"first one fails");
 
+/* Mutual exclusion for EHCI CF initialization.  This interferes with
+ * port reset on some companion controllers.
+ */
+DECLARE_RWSEM(ehci_cf_port_reset_rwsem);
+EXPORT_SYMBOL_GPL(ehci_cf_port_reset_rwsem);
+
 
 static inline char *portspeed(int portstatus)
 {
@@ -1581,6 +1587,11 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 {
 	int i, status;
 
+	/* Block EHCI CF initialization during the port reset.
+	 * Some companion controllers don't like it when they mix.
+	 */
+	down_read(&ehci_cf_port_reset_rwsem);
+
 	/* Reset the port */
 	for (i = 0; i < PORT_RESET_TRIES; i++) {
 		status = set_port_feature(hub->hdev,
@@ -1612,7 +1623,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 			usb_set_device_state(udev, status
 					? USB_STATE_NOTATTACHED
 					: USB_STATE_DEFAULT);
-			return status;
+			goto done;
 		}
 
 		dev_dbg (hub->intfdev,
@@ -1625,6 +1636,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		"Cannot enable port %i.  Maybe the USB cable is bad?\n",
 		port1);
 
+ done:
+	up_read(&ehci_cf_port_reset_rwsem);
 	return status;
 }
 

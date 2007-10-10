@@ -19,6 +19,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/rwsem.h>
+
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.
  */
@@ -470,5 +472,9 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 		: (in_interrupt () ? "in_interrupt" : "can sleep"))
 
 
-#endif /* __KERNEL__ */
+/* This rwsem is for use only by the hub driver and ehci-hcd.
+ * Nobody else should touch it.
+ */
+extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 
+#endif /* __KERNEL__ */
