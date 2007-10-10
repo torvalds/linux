@@ -60,7 +60,7 @@ extern unsigned long irq_flags;
 		); \
 	} while (0)
 
-#if ANOMALY_05000244 && defined(CONFIG_BLKFIN_CACHE)
+#if ANOMALY_05000244 && defined(CONFIG_BFIN_ICACHE)
 # define NOP_PAD_ANOMALY_05000244 "nop; nop;"
 #else
 # define NOP_PAD_ANOMALY_05000244

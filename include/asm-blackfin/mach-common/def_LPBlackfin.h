@@ -639,6 +639,7 @@
 #define CPLB_USER_RD       0x00000004	/* 0=no read access, 1=read access
 					 * allowed (user mode)
 					 */
+
 #define PAGE_SIZE_1KB      0x00000000	/* 1 KB page size */
 #define PAGE_SIZE_4KB      0x00010000	/* 4 KB page size */
 #define PAGE_SIZE_1MB      0x00020000	/* 1 MB page size */
@@ -670,6 +671,8 @@
 					 * write-through writes.
 					 */
 #define CPLB_WT            0x00004000	/* 0=write-back, 1=write-through */
+
+#define CPLB_ALL_ACCESS CPLB_SUPV_WR | CPLB_USER_RD | CPLB_USER_WR
 
 /* TBUFCTL Masks */
 #define TBUFPWR            0x0001

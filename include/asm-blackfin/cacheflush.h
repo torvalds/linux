@@ -48,9 +48,9 @@ extern void blackfin_dflush_page(void *);
 
 static inline void flush_icache_range(unsigned start, unsigned end)
 {
-#if defined(CONFIG_BLKFIN_DCACHE) && defined(CONFIG_BLKFIN_CACHE)
+#if defined(CONFIG_BFIN_DCACHE) && defined(CONFIG_BFIN_ICACHE)
 
-# if defined(CONFIG_BLKFIN_WT)
+# if defined(CONFIG_BFIN_WT)
 	blackfin_icache_flush_range((start), (end));
 # else
 	blackfin_icache_dcache_flush_range((start), (end));
@@ -58,10 +58,10 @@ static inline void flush_icache_range(unsigned start, unsigned end)
 
 #else
 
-# if defined(CONFIG_BLKFIN_CACHE)
+# if defined(CONFIG_BFIN_ICACHE)
 	blackfin_icache_flush_range((start), (end));
 # endif
-# if defined(CONFIG_BLKFIN_DCACHE)
+# if defined(CONFIG_BFIN_DCACHE)
 	blackfin_dcache_flush_range((start), (end));
 # endif
 
@@ -74,12 +74,12 @@ do { memcpy(dst, src, len); \
 } while (0)
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)	memcpy(dst, src, len)
 
-#if defined(CONFIG_BLKFIN_DCACHE)
+#if defined(CONFIG_BFIN_DCACHE)
 # define invalidate_dcache_range(start,end)	blackfin_dcache_invalidate_range((start), (end))
 #else
 # define invalidate_dcache_range(start,end)	do { } while (0)
 #endif
-#if defined(CONFIG_BLKFIN_DCACHE) && defined(CONFIG_BLKFIN_WB)
+#if defined(CONFIG_BFIN_DCACHE) && defined(CONFIG_BFIN_WB)
 # define flush_dcache_range(start,end)		blackfin_dcache_flush_range((start), (end))
 # define flush_dcache_page(page)			blackfin_dflush_page(page_address(page))
 #else
@@ -87,4 +87,4 @@ do { memcpy(dst, src, len); \
 # define flush_dcache_page(page)			do { } while (0)
 #endif
 
-#endif				/* _BLACKFIN_CACHEFLUSH_H */
+#endif				/* _BLACKFIN_ICACHEFLUSH_H */

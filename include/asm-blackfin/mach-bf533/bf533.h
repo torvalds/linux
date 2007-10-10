@@ -52,12 +52,12 @@
 /***************************/
 
 
-#define BLKFIN_DSUBBANKS	4
-#define BLKFIN_DWAYS		2
-#define BLKFIN_DLINES		64
-#define BLKFIN_ISUBBANKS	4
-#define BLKFIN_IWAYS		4
-#define BLKFIN_ILINES		32
+#define BFIN_DSUBBANKS	4
+#define BFIN_DWAYS		2
+#define BFIN_DLINES		64
+#define BFIN_ISUBBANKS	4
+#define BFIN_IWAYS		4
+#define BFIN_ILINES		32
 
 #define WAY0_L			0x1
 #define WAY1_L			0x2
@@ -167,10 +167,10 @@
 #define L1_IMEMORY        (               CPLB_USER_RD | CPLB_VALID | CPLB_LOCK)
 #define SDRAM_INON_CHBL   (               CPLB_USER_RD | CPLB_VALID)
 
-/*Use the menuconfig cache policy here - CONFIG_BLKFIN_WT/CONFIG_BLKFIN_WB*/
+/*Use the menuconfig cache policy here - CONFIG_BFIN_WT/CONFIG_BFIN_WB*/
 
 #define ANOMALY_05000158_WORKAROUND		0x200
-#ifdef CONFIG_BLKFIN_WB		/*Write Back Policy */
+#ifdef CONFIG_BFIN_WB		/*Write Back Policy */
 #define SDRAM_DGENERIC   (CPLB_L1_CHBL | CPLB_DIRTY \
 			| CPLB_SUPV_WR | CPLB_USER_WR | CPLB_USER_RD | CPLB_VALID | ANOMALY_05000158_WORKAROUND)
 #else				/*Write Through */

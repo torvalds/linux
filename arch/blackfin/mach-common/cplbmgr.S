@@ -565,7 +565,7 @@ ENTRY(_cplb_mgr)
 	 * cost of first-write exceptions to mark the page as dirty.
 	 */
 
-#ifdef CONFIG_BLKFIN_WT
+#ifdef CONFIG_BFIN_WT
 	BITSET(R6, 14);		/* Set WT*/
 #endif
 

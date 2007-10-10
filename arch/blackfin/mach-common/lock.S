@@ -33,7 +33,7 @@
 
 .text
 
-#ifdef CONFIG_BLKFIN_CACHE_LOCK
+#ifdef CONFIG_BFIN_ICACHE_LOCK
 
 /* When you come here, it is assumed that
  * R0 - Which way to be locked
@@ -189,7 +189,7 @@ ENTRY(_cache_lock)
 	RTS;
 ENDPROC(_cache_lock)
 
-#endif	/* BLKFIN_CACHE_LOCK */
+#endif	/* BFIN_ICACHE_LOCK */
 
 /* Return the ILOC bits of IMEM_CONTROL
  */

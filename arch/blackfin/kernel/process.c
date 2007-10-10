@@ -136,7 +136,7 @@ void cpu_idle(void)
 
 void machine_restart(char *__unused)
 {
-#if defined(CONFIG_BLKFIN_CACHE)
+#if defined(CONFIG_BFIN_ICACHE)
 	bfin_write_IMEM_CONTROL(0x01);
 	SSYNC();
 #endif

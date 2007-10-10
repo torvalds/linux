@@ -53,3 +53,8 @@
 # endif
 
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
+
+#if (CONFIG_MEM_SIZE % 4)
+#error "SDRAM mem size must be multible of 4MB"
+#endif
+

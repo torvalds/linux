@@ -722,22 +722,22 @@ endchoice
 
 
 comment "Cache Support"
-config BLKFIN_CACHE
+config BFIN_ICACHE
 	bool "Enable ICACHE"
-config BLKFIN_DCACHE
+config BFIN_DCACHE
 	bool "Enable DCACHE"
-config BLKFIN_DCACHE_BANKA
+config BFIN_DCACHE_BANKA
 	bool "Enable only 16k BankA DCACHE - BankB is SRAM"
-	depends on BLKFIN_DCACHE && !BF531
+	depends on BFIN_DCACHE && !BF531
 	default n
-config BLKFIN_CACHE_LOCK
-	bool "Enable Cache Locking"
+config BFIN_ICACHE_LOCK
+	bool "Enable Instruction Cache Locking"
 
 choice
 	prompt "Policy"
-	depends on BLKFIN_DCACHE
-	default BLKFIN_WB
-config BLKFIN_WB
+	depends on BFIN_DCACHE
+	default BFIN_WB
+config BFIN_WB
 	bool "Write back"
 	help
 	  Write Back Policy:
@@ -754,7 +754,7 @@ config BLKFIN_WB
 	  If you are unsure of the options and you want to be safe,
 	  then go with Write Through.
 
-config BLKFIN_WT
+config BFIN_WT
 	bool "Write through"
 	help
 	  Write Back Policy:

@@ -27,7 +27,8 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-
+#ifndef _BFIN_CLOCKS_H
+#define _BFIN_CLOCKS_H
 
 #ifdef CONFIG_CCLK_DIV_1
 # define CONFIG_CCLK_ACT_DIV   CCLK_DIV1
@@ -66,3 +67,4 @@
 # define CONFIG_VCO_MULT 0
 #endif
 
+#endif
