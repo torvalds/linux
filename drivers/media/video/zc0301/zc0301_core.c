@@ -655,7 +655,7 @@ static int zc0301_open(struct inode* inode, struct file* filp)
 	int err = 0;
 
 	if (!down_read_trylock(&zc0301_dev_lock))
-		return -ERESTARTSYS;
+		return -EAGAIN;
 
 	cam = video_get_drvdata(video_devdata(filp));
 
