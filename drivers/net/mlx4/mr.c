@@ -444,7 +444,7 @@ int __devinit mlx4_init_mr_table(struct mlx4_dev *dev)
 		goto err_buddy;
 
 	if (dev->caps.reserved_mtts) {
-		if (mlx4_alloc_mtt_range(dev, ilog2(dev->caps.reserved_mtts)) == -1) {
+		if (mlx4_alloc_mtt_range(dev, fls(dev->caps.reserved_mtts - 1)) == -1) {
 			mlx4_warn(dev, "MTT table of order %d is too small.\n",
 				  mr_table->mtt_buddy.max_order);
 			err = -ENOMEM;
