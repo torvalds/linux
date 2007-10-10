@@ -466,17 +466,14 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 	struct cx88_buffer *buf, *prev;
-	struct list_head *item;
 
 	if (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 			buf, buf->vb.i);
 		start_video_dma(dev, q, buf);
-		list_for_each(item,&q->active) {
-			buf = list_entry(item, struct cx88_buffer, vb.queue);
-			buf->count    = q->count++;
-		}
+		list_for_each_entry(buf, &q->active, vb.queue)
+			buf->count = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 		return 0;
 	}
@@ -713,12 +710,10 @@ static int video_open(struct inode *inode, struct file *file)
 	struct cx8800_dev *h,*dev = NULL;
 	struct cx88_core *core;
 	struct cx8800_fh *fh;
-	struct list_head *list;
 	enum v4l2_buf_type type = 0;
 	int radio = 0;
 
-	list_for_each(list,&cx8800_devlist) {
-		h = list_entry(list, struct cx8800_dev, devlist);
+	list_for_each_entry(h, &cx8800_devlist, devlist) {
 		if (h->video_dev->minor == minor) {
 			dev  = h;
 			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;

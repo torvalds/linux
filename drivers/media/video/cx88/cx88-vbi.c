@@ -99,7 +99,6 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 			     struct cx88_dmaqueue *q)
 {
 	struct cx88_buffer *buf;
-	struct list_head *item;
 
 	if (list_empty(&q->active))
 		return 0;
@@ -108,10 +107,8 @@ int cx8800_restart_vbi_queue(struct cx8800_dev    *dev,
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.i);
 	cx8800_start_vbi_dma(dev, q, buf);
-	list_for_each(item,&q->active) {
-		buf = list_entry(item, struct cx88_buffer, vb.queue);
+	list_for_each_entry(buf, &q->active, vb.queue)
 		buf->count = q->count++;
-	}
 	mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	return 0;
 }

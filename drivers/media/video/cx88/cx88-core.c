@@ -1013,11 +1013,9 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 struct cx88_core* cx88_core_get(struct pci_dev *pci)
 {
 	struct cx88_core *core;
-	struct list_head *item;
 
 	mutex_lock(&devlist);
-	list_for_each(item,&cx88_devlist) {
-		core = list_entry(item, struct cx88_core, devlist);
+	list_for_each_entry(core, &cx88_devlist, devlist) {
 		if (pci->bus->number != core->pci_bus)
 			continue;
 		if (PCI_SLOT(pci->devfn) != core->pci_slot)
