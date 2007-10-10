@@ -264,7 +264,6 @@ struct acpi_device_wakeup_flags {
 
 struct acpi_device_wakeup_state {
 	u8 enabled:1;
-	u8 active:1;
 };
 
 struct acpi_device_wakeup {
