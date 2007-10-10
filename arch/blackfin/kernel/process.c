@@ -395,7 +395,8 @@ void finish_atomic_sections (struct pt_regs *regs)
 #if defined(CONFIG_ACCESS_CHECK)
 int _access_ok(unsigned long addr, unsigned long size)
 {
-
+	if (size == 0)
+		return 1;
 	if (addr > (addr + size))
 		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))
