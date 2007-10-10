@@ -3893,8 +3893,7 @@ void unregister_netdevice(struct net_device *dev)
 	BUG_ON(dev->reg_state != NETREG_REGISTERED);
 
 	/* If device is running, close it first. */
-	if (dev->flags & IFF_UP)
-		dev_close(dev);
+	dev_close(dev);
 
 	/* And unlink it from device chain. */
 	unlist_netdevice(dev);
@@ -4018,8 +4017,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 	 */
 
 	/* If device is running close it first. */
-	if (dev->flags & IFF_UP)
-		dev_close(dev);
+	dev_close(dev);
 
 	/* And unlink it from device chain */
 	err = -ENODEV;
