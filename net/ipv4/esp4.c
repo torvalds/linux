@@ -261,8 +261,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		 *    as per draft-ietf-ipsec-udp-encaps-06,
 		 *    section 3.1.2
 		 */
-		if (x->props.mode == XFRM_MODE_TRANSPORT ||
-		    x->props.mode == XFRM_MODE_BEET)
+		if (x->props.mode == XFRM_MODE_TRANSPORT)
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
