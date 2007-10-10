@@ -300,8 +300,7 @@ static int mlx4_HW2SW_EQ(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			    MLX4_CMD_TIME_CLASS_A);
 }
 
-static void __devinit __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev,
-					       struct mlx4_eq *eq)
+static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int index;
@@ -323,8 +322,8 @@ static void __devinit __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev,
 	return priv->eq_table.uar_map[index] + 0x800 + 8 * (eq->eqn % 4);
 }
 
-static int __devinit mlx4_create_eq(struct mlx4_dev *dev, int nent,
-				    u8 intr, struct mlx4_eq *eq)
+static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
+			  u8 intr, struct mlx4_eq *eq)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_cmd_mailbox *mailbox;
@@ -485,7 +484,7 @@ static void mlx4_free_irqs(struct mlx4_dev *dev)
 			free_irq(eq_table->eq[i].irq, eq_table->eq + i);
 }
 
-static int __devinit mlx4_map_clr_int(struct mlx4_dev *dev)
+static int mlx4_map_clr_int(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 
@@ -506,7 +505,7 @@ static void mlx4_unmap_clr_int(struct mlx4_dev *dev)
 	iounmap(priv->clr_base);
 }
 
-int __devinit mlx4_map_eq_icm(struct mlx4_dev *dev, u64 icm_virt)
+int mlx4_map_eq_icm(struct mlx4_dev *dev, u64 icm_virt)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int ret;
@@ -548,7 +547,7 @@ void mlx4_unmap_eq_icm(struct mlx4_dev *dev)
 	__free_page(priv->eq_table.icm_page);
 }
 
-int __devinit mlx4_init_eq_table(struct mlx4_dev *dev)
+int mlx4_init_eq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;

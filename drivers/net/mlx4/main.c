@@ -85,7 +85,7 @@ static struct mlx4_profile default_profile = {
 	.num_mtt	= 1 << 20,
 };
 
-static int __devinit mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
+static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 {
 	int err;
 	int i;
@@ -256,10 +256,8 @@ err:
 	return err;
 }
 
-static int __devinit mlx4_init_icm(struct mlx4_dev *dev,
-				   struct mlx4_dev_cap *dev_cap,
-				   struct mlx4_init_hca_param *init_hca,
-				   u64 icm_size)
+static int mlx4_init_icm(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap,
+			 struct mlx4_init_hca_param *init_hca, u64 icm_size)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	u64 aux_pages;
@@ -481,7 +479,7 @@ static void mlx4_close_hca(struct mlx4_dev *dev)
 	mlx4_free_icm(dev, mlx4_priv(dev)->fw.fw_icm, 0);
 }
 
-static int __devinit mlx4_init_hca(struct mlx4_dev *dev)
+static int mlx4_init_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv	  *priv = mlx4_priv(dev);
 	struct mlx4_adapter	   adapter;
@@ -554,7 +552,7 @@ err_stop_fw:
 	return err;
 }
 
-static int __devinit mlx4_setup_hca(struct mlx4_dev *dev)
+static int mlx4_setup_hca(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int err;
@@ -721,18 +719,11 @@ no_msi:
 		priv->eq_table.eq[i].irq = dev->pdev->irq;
 }
 
-static int __devinit mlx4_init_one(struct pci_dev *pdev,
-				   const struct pci_device_id *id)
+static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	static int mlx4_version_printed;
 	struct mlx4_priv *priv;
 	struct mlx4_dev *dev;
 	int err;
-
-	if (!mlx4_version_printed) {
-		printk(KERN_INFO "%s", mlx4_version);
-		++mlx4_version_printed;
-	}
 
 	printk(KERN_INFO PFX "Initializing %s\n",
 	       pci_name(pdev));
@@ -883,7 +874,20 @@ err_disable_pdev:
 	return err;
 }
 
-static void __devexit mlx4_remove_one(struct pci_dev *pdev)
+static int __devinit mlx4_init_one(struct pci_dev *pdev,
+				   const struct pci_device_id *id)
+{
+	static int mlx4_version_printed;
+
+	if (!mlx4_version_printed) {
+		printk(KERN_INFO "%s", mlx4_version);
+		++mlx4_version_printed;
+	}
+
+	return mlx4_init_one(pdev, id);
+}
+
+static void mlx4_remove_one(struct pci_dev *pdev)
 {
 	struct mlx4_dev  *dev  = pci_get_drvdata(pdev);
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -924,7 +928,7 @@ static void __devexit mlx4_remove_one(struct pci_dev *pdev)
 int mlx4_restart_one(struct pci_dev *pdev)
 {
 	mlx4_remove_one(pdev);
-	return mlx4_init_one(pdev, NULL);
+	return __mlx4_init_one(pdev, NULL);
 }
 
 static struct pci_device_id mlx4_pci_table[] = {

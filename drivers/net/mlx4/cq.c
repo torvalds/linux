@@ -231,7 +231,7 @@ void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq)
 }
 EXPORT_SYMBOL_GPL(mlx4_cq_free);
 
-int __devinit mlx4_init_cq_table(struct mlx4_dev *dev)
+int mlx4_init_cq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_cq_table *cq_table = &mlx4_priv(dev)->cq_table;
 	int err;

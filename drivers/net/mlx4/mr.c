@@ -430,7 +430,7 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_write_mtt);
 
-int __devinit mlx4_init_mr_table(struct mlx4_dev *dev)
+int mlx4_init_mr_table(struct mlx4_dev *dev)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 	int err;

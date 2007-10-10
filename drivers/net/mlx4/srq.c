@@ -235,7 +235,7 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(mlx4_srq_query);
 
-int __devinit mlx4_init_srq_table(struct mlx4_dev *dev)
+int mlx4_init_srq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 	int err;
