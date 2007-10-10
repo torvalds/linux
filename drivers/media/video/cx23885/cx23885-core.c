@@ -1100,7 +1100,6 @@ static int cx23885_restart_queue(struct cx23885_tsport *port,
 {
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_buffer *buf;
-	struct list_head *item;
 
 	dprintk(5, "%s()\n", __FUNCTION__);
 	if (list_empty(&q->active))
@@ -1148,10 +1147,8 @@ static int cx23885_restart_queue(struct cx23885_tsport *port,
 	dprintk(2, "restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.i);
 	cx23885_start_dma(port, q, buf);
-	list_for_each(item, &q->active) {
-		buf = list_entry(item, struct cx23885_buffer, vb.queue);
+	list_for_each_entry(buf, &q->active, vb.queue)
 		buf->count = q->count++;
-	}
 	mod_timer(&q->timeout, jiffies + BUFFER_TIMEOUT);
 	return 0;
 }

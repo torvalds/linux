@@ -237,13 +237,10 @@ static const struct file_operations tvmixer_fops = {
 
 static int tvmixer_adapters(struct i2c_adapter *adap)
 {
-	struct list_head  *item;
 	struct i2c_client *client;
 
-	list_for_each(item,&adap->clients) {
-		client = list_entry(item, struct i2c_client, list);
+	list_for_each_entry(client, &adap->clients, list)
 		tvmixer_clients(client);
-	}
 	return 0;
 }
 

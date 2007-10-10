@@ -34,21 +34,13 @@ static LIST_HEAD(int_list);
 
 static void v4l2_int_device_try_attach_all(void)
 {
-	struct list_head *head_master;
+	struct v4l2_int_device *m, *s;
 
-	list_for_each(head_master, &int_list) {
-		struct list_head *head_slave;
-		struct v4l2_int_device *m =
-			list_entry(head_master, struct v4l2_int_device, head);
-
+	list_for_each_entry(m, &int_list, head) {
 		if (m->type != v4l2_int_type_master)
 			continue;
 
-		list_for_each(head_slave, &int_list) {
-			struct v4l2_int_device *s =
-				list_entry(head_slave,
-					   struct v4l2_int_device, head);
-
+		list_for_each_entry(s, &int_list, head) {
 			if (s->type != v4l2_int_type_slave)
 				continue;
 

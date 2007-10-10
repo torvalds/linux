@@ -507,7 +507,6 @@ static void vivi_stop_thread(struct vivi_dmaqueue  *dma_q)
 static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 {
 	struct vivi_buffer *buf, *prev;
-	struct list_head *item;
 
 	dprintk(1,"%s dma_q=0x%08lx\n",__FUNCTION__,(unsigned long)dma_q);
 
@@ -521,9 +520,7 @@ static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 //		vivi_start_thread(dma_q);
 
 		/* cancel all outstanding capture / vbi requests */
-		list_for_each(item,&dma_q->active) {
-			buf = list_entry(item, struct vivi_buffer, vb.queue);
-
+		list_for_each_entry_safe(buf, prev, &dma_q->active, vb.queue) {
 			list_del(&buf->vb.queue);
 			buf->vb.state = STATE_ERROR;
 			wake_up(&buf->vb.done);
@@ -982,31 +979,25 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 static int vivi_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct vivi_dev *h,*dev = NULL;
+	struct vivi_dev *dev;
 	struct vivi_fh *fh;
-	struct list_head *list;
-	enum v4l2_buf_type type = 0;
 	int i;
 
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n",minor);
 
-	list_for_each(list,&vivi_devlist) {
-		h = list_entry(list, struct vivi_dev, vivi_devlist);
-		if (h->vfd.minor == minor) {
-			dev  = h;
-			type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		}
-	}
-	if (NULL == dev)
-		return -ENODEV;
+	list_for_each_entry(dev, &vivi_devlist, vivi_devlist)
+		if (dev->vfd.minor == minor)
+			goto found;
+	return -ENODEV;
+found:
 
 
 
 	/* If more than one user, mutex should be added */
 	dev->users++;
 
-	dprintk(1,"open minor=%d type=%s users=%d\n",
-				minor,v4l2_type_names[type],dev->users);
+	dprintk(1, "open minor=%d type=%s users=%d\n", minor,
+		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	/* allocate + initialize per filehandle data */
 	fh = kzalloc(sizeof(*fh),GFP_KERNEL);

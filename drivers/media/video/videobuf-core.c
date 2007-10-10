@@ -517,7 +517,6 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 int videobuf_streamon(struct videobuf_queue *q)
 {
 	struct videobuf_buffer *buf;
-	struct list_head *list;
 	unsigned long flags=0;
 	int retval;
 
@@ -531,11 +530,9 @@ int videobuf_streamon(struct videobuf_queue *q)
 	q->streaming = 1;
 	if (q->irqlock)
 		spin_lock_irqsave(q->irqlock,flags);
-	list_for_each(list,&q->stream) {
-		buf = list_entry(list, struct videobuf_buffer, stream);
+	list_for_each_entry(buf, &q->stream, stream)
 		if (buf->state == STATE_PREPARED)
 			q->ops->buf_queue(q,buf);
-	}
 	if (q->irqlock)
 		spin_unlock_irqrestore(q->irqlock,flags);
 
