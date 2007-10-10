@@ -677,6 +677,13 @@ P:	Haavard Skinnemoen
 M:	hskinnemoen@atmel.com
 S:	Supported
 
+ATMEL USBA UDC DRIVER
+P:	Haavard Skinnemoen
+M:	hskinnemoen@atmel.com
+L:	kernel@avr32linux.org
+W:	http://avr32linux.org/twiki/bin/view/Main/AtmelUsbDeviceDriver
+S:	Supported
+
 ATMEL WIRELESS DRIVER
 P:	Simon Kelley
 M:	simon@thekelleys.org.uk
