@@ -49,6 +49,7 @@ enum {
 	STAC_9200_DELL_M25,
 	STAC_9200_DELL_M26,
 	STAC_9200_DELL_M27,
+	STAC_9200_GATEWAY,
 	STAC_9200_MODELS
 };
 
@@ -378,6 +379,13 @@ static struct hda_verb stac9200_core_init[] = {
 	{}
 };
 
+static struct hda_verb stac9200_eapd_init[] = {
+	/* set dac0mux for dac converter */
+	{0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x08, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	{}
+};
+
 static struct hda_verb stac925x_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x06, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -693,6 +701,7 @@ static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = "dell-m25",
 	[STAC_9200_DELL_M26] = "dell-m26",
 	[STAC_9200_DELL_M27] = "dell-m27",
+	[STAC_9200_GATEWAY] = "gateway",
 };
 
 static struct snd_pci_quirk stac9200_cfg_tbl[] = {
@@ -760,7 +769,12 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 		      "unknown Dell", STAC_9200_DELL_M26),
 	/* Panasonic */
 	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_REF),
-
+	/* Gateway machines needs EAPD to be set on resume */
+	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_GATEWAY),
+	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*",
+		      STAC_9200_GATEWAY),
+	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707",
+		      STAC_9200_GATEWAY),
 	{} /* terminator */
 };
 
@@ -2492,7 +2506,10 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->num_dmics = 0;
 	spec->num_adcs = 1;
 
-	spec->init = stac9200_core_init;
+	if (spec->board_config == STAC_9200_GATEWAY)
+		spec->init = stac9200_eapd_init;
+	else
+		spec->init = stac9200_core_init;
 	spec->mixer = stac9200_mixer;
 
 	err = stac9200_parse_auto_config(codec);

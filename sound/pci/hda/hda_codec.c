@@ -1630,10 +1630,24 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		if (get_wcaps(codec, nid) & AC_WCAP_POWER)
+		if (get_wcaps(codec, nid) & AC_WCAP_POWER) {
+			unsigned int pincap;
+			/*
+			 * don't power down the widget if it controls eapd
+			 * and EAPD_BTLENABLE is set.
+			 */
+			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+			if (pincap & AC_PINCAP_EAPD) {
+				int eapd = snd_hda_codec_read(codec, nid,
+					0, AC_VERB_GET_EAPD_BTLENABLE, 0);
+				eapd &= 0x02;
+				if (power_state == AC_PWRST_D3 && eapd)
+					continue;
+			}
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE,
 					    power_state);
+		}
 	}
 
 	if (power_state == AC_PWRST_D0) {
