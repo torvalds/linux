@@ -88,6 +88,36 @@
 #include <asm/portmux.h>
 #include <linux/irq.h>
 
+#if ANOMALY_05000311 || ANOMALY_05000323
+enum {
+	AWA_data = SYSCR,
+	AWA_data_clear = SYSCR,
+	AWA_data_set = SYSCR,
+	AWA_toggle = SYSCR,
+	AWA_maska = UART_SCR,
+	AWA_maska_clear = UART_SCR,
+	AWA_maska_set = UART_SCR,
+	AWA_maska_toggle = UART_SCR,
+	AWA_maskb = UART_GCTL,
+	AWA_maskb_clear = UART_GCTL,
+	AWA_maskb_set = UART_GCTL,
+	AWA_maskb_toggle = UART_GCTL,
+	AWA_dir = SPORT1_STAT,
+	AWA_polar = SPORT1_STAT,
+	AWA_edge = SPORT1_STAT,
+	AWA_both = SPORT1_STAT,
+#if ANOMALY_05000311
+	AWA_inen = TIMER_ENABLE,
+#elif ANOMALY_05000323
+	AWA_inen = DMA1_1_CONFIG,
+#endif
+};
+	/* Anomaly Workaround */
+#define AWA_DUMMY_READ(name) bfin_read16(AWA_ ## name)
+#else
+#define AWA_DUMMY_READ(...)  do { } while (0)
+#endif
+
 #ifdef BF533_FAMILY
 static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) FIO_FLAG_D,
@@ -332,9 +362,12 @@ inline u16 get_portmux(unsigned short portno)
 static void default_gpio(unsigned short gpio)
 {
 	unsigned short bank, bitmask;
+	unsigned long flags;
 
 	bank = gpio_bank(gpio);
 	bitmask = gpio_bit(gpio);
+
+	local_irq_save(flags);
 
 	gpio_bankb[bank]->maska_clear = bitmask;
 	gpio_bankb[bank]->maskb_clear = bitmask;
@@ -344,6 +377,9 @@ static void default_gpio(unsigned short gpio)
 	gpio_bankb[bank]->polar &= ~bitmask;
 	gpio_bankb[bank]->both &= ~bitmask;
 	gpio_bankb[bank]->edge &= ~bitmask;
+	AWA_DUMMY_READ(edge);
+	local_irq_restore(flags);
+
 }
 #else
 # define default_gpio(...)  do { } while (0)
@@ -396,6 +432,7 @@ void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
 		gpio_bankb[gpio_bank(gpio)]->name |= gpio_bit(gpio); \
 	else \
 		gpio_bankb[gpio_bank(gpio)]->name &= ~gpio_bit(gpio); \
+	AWA_DUMMY_READ(name); \
 	local_irq_restore(flags); \
 } \
 EXPORT_SYMBOL(set_gpio_ ## name);
@@ -407,6 +444,22 @@ SET_GPIO(edge)
 SET_GPIO(both)
 
 
+#if ANOMALY_05000311 || ANOMALY_05000323
+#define SET_GPIO_SC(name) \
+void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
+{ \
+	unsigned long flags; \
+	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))); \
+	local_irq_save(flags); \
+	if (arg) \
+		gpio_bankb[gpio_bank(gpio)]->name ## _set = gpio_bit(gpio); \
+	else \
+		gpio_bankb[gpio_bank(gpio)]->name ## _clear = gpio_bit(gpio); \
+	AWA_DUMMY_READ(name); \
+	local_irq_restore(flags); \
+} \
+EXPORT_SYMBOL(set_gpio_ ## name);
+#else
 #define SET_GPIO_SC(name) \
 void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
 { \
@@ -417,37 +470,20 @@ void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
 		gpio_bankb[gpio_bank(gpio)]->name ## _clear = gpio_bit(gpio); \
 } \
 EXPORT_SYMBOL(set_gpio_ ## name);
+#endif
 
 SET_GPIO_SC(maska)
 SET_GPIO_SC(maskb)
-
-#if ANOMALY_05000311
-void set_gpio_data(unsigned short gpio, unsigned short arg)
-{
-	unsigned long flags;
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
-	local_irq_save(flags);
-	if (arg)
-		gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
-	else
-		gpio_bankb[gpio_bank(gpio)]->data_clear = gpio_bit(gpio);
-	bfin_read_CHIPID();
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(set_gpio_data);
-#else
 SET_GPIO_SC(data)
-#endif
 
-
-#if ANOMALY_05000311
+#if ANOMALY_05000311 || ANOMALY_05000323
 void set_gpio_toggle(unsigned short gpio)
 {
 	unsigned long flags;
 	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
-	bfin_read_CHIPID();
+	AWA_DUMMY_READ(toggle);
 	local_irq_restore(flags);
 }
 #else
@@ -462,13 +498,27 @@ EXPORT_SYMBOL(set_gpio_toggle);
 
 /*Set current PORT date (16-bit word)*/
 
+#if ANOMALY_05000311 || ANOMALY_05000323
+#define SET_GPIO_P(name) \
+void set_gpiop_ ## name(unsigned short gpio, unsigned short arg) \
+{ \
+	unsigned long flags; \
+	local_irq_save(flags); \
+	gpio_bankb[gpio_bank(gpio)]->name = arg; \
+	AWA_DUMMY_READ(name); \
+	local_irq_restore(flags); \
+} \
+EXPORT_SYMBOL(set_gpiop_ ## name);
+#else
 #define SET_GPIO_P(name) \
 void set_gpiop_ ## name(unsigned short gpio, unsigned short arg) \
 { \
 	gpio_bankb[gpio_bank(gpio)]->name = arg; \
 } \
 EXPORT_SYMBOL(set_gpiop_ ## name);
+#endif
 
+SET_GPIO_P(data)
 SET_GPIO_P(dir)
 SET_GPIO_P(inen)
 SET_GPIO_P(polar)
@@ -478,31 +528,30 @@ SET_GPIO_P(maska)
 SET_GPIO_P(maskb)
 
 
-#if ANOMALY_05000311
-void set_gpiop_data(unsigned short gpio, unsigned short arg)
-{
-	unsigned long flags;
-	local_irq_save(flags);
-	gpio_bankb[gpio_bank(gpio)]->data = arg;
-	bfin_read_CHIPID();
-	local_irq_restore(flags);
-}
-EXPORT_SYMBOL(set_gpiop_data);
-#else
-SET_GPIO_P(data)
-#endif
-
-
-
 /* Get a specific bit */
-
+#if ANOMALY_05000311 || ANOMALY_05000323
+#define GET_GPIO(name) \
+unsigned short get_gpio_ ## name(unsigned short gpio) \
+{ \
+	unsigned long flags; \
+	unsigned short ret; \
+	local_irq_save(flags); \
+	ret = 0x01 & (gpio_bankb[gpio_bank(gpio)]->name >> gpio_sub_n(gpio)); \
+	AWA_DUMMY_READ(name); \
+	local_irq_restore(flags); \
+	return ret; \
+} \
+EXPORT_SYMBOL(get_gpio_ ## name);
+#else
 #define GET_GPIO(name) \
 unsigned short get_gpio_ ## name(unsigned short gpio) \
 { \
 	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->name >> gpio_sub_n(gpio))); \
 } \
 EXPORT_SYMBOL(get_gpio_ ## name);
+#endif
 
+GET_GPIO(data)
 GET_GPIO(dir)
 GET_GPIO(inen)
 GET_GPIO(polar)
@@ -511,33 +560,31 @@ GET_GPIO(both)
 GET_GPIO(maska)
 GET_GPIO(maskb)
 
-
-#if ANOMALY_05000311
-unsigned short get_gpio_data(unsigned short gpio)
-{
-	unsigned long flags;
-	unsigned short ret;
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
-	local_irq_save(flags);
-	ret = 0x01 & (gpio_bankb[gpio_bank(gpio)]->data >> gpio_sub_n(gpio));
-	bfin_read_CHIPID();
-	local_irq_restore(flags);
-	return ret;
-}
-EXPORT_SYMBOL(get_gpio_data);
-#else
-GET_GPIO(data)
-#endif
-
 /*Get current PORT date (16-bit word)*/
 
+#if ANOMALY_05000311 || ANOMALY_05000323
+#define GET_GPIO_P(name) \
+unsigned short get_gpiop_ ## name(unsigned short gpio) \
+{ \
+	unsigned long flags; \
+	unsigned short ret; \
+	local_irq_save(flags); \
+	ret = (gpio_bankb[gpio_bank(gpio)]->name); \
+	AWA_DUMMY_READ(name); \
+	local_irq_restore(flags); \
+	return ret; \
+} \
+EXPORT_SYMBOL(get_gpiop_ ## name);
+#else
 #define GET_GPIO_P(name) \
 unsigned short get_gpiop_ ## name(unsigned short gpio) \
 { \
 	return (gpio_bankb[gpio_bank(gpio)]->name);\
 } \
 EXPORT_SYMBOL(get_gpiop_ ## name);
+#endif
 
+GET_GPIO_P(data)
 GET_GPIO_P(dir)
 GET_GPIO_P(inen)
 GET_GPIO_P(polar)
@@ -546,21 +593,6 @@ GET_GPIO_P(both)
 GET_GPIO_P(maska)
 GET_GPIO_P(maskb)
 
-#if ANOMALY_05000311
-unsigned short get_gpiop_data(unsigned short gpio)
-{
-	unsigned long flags;
-	unsigned short ret;
-	local_irq_save(flags);
-	ret = gpio_bankb[gpio_bank(gpio)]->data;
-	bfin_read_CHIPID();
-	local_irq_restore(flags);
-	return ret;
-}
-EXPORT_SYMBOL(get_gpiop_data);
-#else
-GET_GPIO_P(data)
-#endif
 
 #ifdef CONFIG_PM
 /***********************************************************
@@ -684,6 +716,8 @@ u32 gpio_pm_setup(void)
 		}
 	}
 
+	AWA_DUMMY_READ(maskb_set);
+
 	if (sic_iwr)
 		return sic_iwr;
 	else
@@ -715,6 +749,7 @@ void gpio_pm_restore(void)
 
 		gpio_bankb[bank]->maskb = gpio_bank_saved[bank].maskb;
 	}
+	AWA_DUMMY_READ(maskb);
 }
 
 #endif
@@ -1089,6 +1124,7 @@ void gpio_direction_input(unsigned short gpio)
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->dir &= ~gpio_bit(gpio);
 	gpio_bankb[gpio_bank(gpio)]->inen |= gpio_bit(gpio);
+	AWA_DUMMY_READ(inen);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_direction_input);
@@ -1102,6 +1138,7 @@ void gpio_direction_output(unsigned short gpio)
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
 	gpio_bankb[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
+	AWA_DUMMY_READ(dir);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_direction_output);

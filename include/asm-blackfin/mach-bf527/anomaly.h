@@ -36,4 +36,6 @@
 /* Boot ROM Kernel Incorrectly Alters Reset Value of USB Register */
 #define ANOMALY_05000347 (1)
 
+/* Anomalies that don't exist on this proc */
+#define ANOMALY_05000323 (0)
 #endif

@@ -254,5 +254,6 @@
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000266 (0)
+#define ANOMALY_05000323 (0)
 
 #endif
