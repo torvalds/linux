@@ -13,6 +13,7 @@
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
+#include <asm/irq.h>
 
 #include <asm/arch/at32ap700x.h>
 #include <asm/arch/board.h>

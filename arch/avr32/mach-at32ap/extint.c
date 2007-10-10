@@ -26,16 +26,10 @@
 #define EIC_MODE				0x0014
 #define EIC_EDGE				0x0018
 #define EIC_LEVEL				0x001c
-#define EIC_TEST				0x0020
 #define EIC_NMIC				0x0024
 
-/* Bitfields in TEST */
-#define EIC_TESTEN_OFFSET			31
-#define EIC_TESTEN_SIZE				1
-
 /* Bitfields in NMIC */
-#define EIC_EN_OFFSET				0
-#define EIC_EN_SIZE				1
+#define EIC_NMIC_ENABLE				(1 << 0)
 
 /* Bit manipulation macros */
 #define EIC_BIT(name)					\
@@ -62,6 +56,9 @@ struct eic {
 	struct irq_chip *chip;
 	unsigned int first_irq;
 };
+
+static struct eic *nmi_eic;
+static bool nmi_enabled;
 
 static void eic_ack_irq(unsigned int irq)
 {
@@ -174,6 +171,24 @@ static void demux_eic_irq(unsigned int irq, struct irq_desc *desc)
 	}
 }
 
+int nmi_enable(void)
+{
+	nmi_enabled = true;
+
+	if (nmi_eic)
+		eic_writel(nmi_eic, NMIC, EIC_NMIC_ENABLE);
+
+	return 0;
+}
+
+void nmi_disable(void)
+{
+	if (nmi_eic)
+		eic_writel(nmi_eic, NMIC, 0);
+
+	nmi_enabled = false;
+}
+
 static int __init eic_probe(struct platform_device *pdev)
 {
 	struct eic *eic;
@@ -229,6 +244,16 @@ static int __init eic_probe(struct platform_device *pdev)
 
 	set_irq_chained_handler(int_irq, demux_eic_irq);
 	set_irq_data(int_irq, eic);
+
+	if (pdev->id == 0) {
+		nmi_eic = eic;
+		if (nmi_enabled)
+			/*
+			 * Someone tried to enable NMI before we were
+			 * ready. Do it now.
+			 */
+			nmi_enable();
+	}
 
 	dev_info(&pdev->dev,
 		 "External Interrupt Controller at 0x%p, IRQ %u\n",

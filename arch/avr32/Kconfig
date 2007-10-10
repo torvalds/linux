@@ -170,6 +170,16 @@ config OWNERSHIP_TRACE
 	  enabling Nexus-compliant debuggers to keep track of the PID of the
 	  currently executing task.
 
+config NMI_DEBUGGING
+	bool "NMI Debugging"
+	default n
+	help
+	  Say Y here and pass the nmi_debug command-line parameter to
+	  the kernel to turn on NMI debugging. Depending on the value
+	  of the nmi_debug option, various pieces of information will
+	  be dumped to the console when a Non-Maskable Interrupt
+	  happens.
+
 # FPU emulation goes here
 
 source "kernel/Kconfig.hz"
