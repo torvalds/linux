@@ -185,6 +185,12 @@ SECTIONS
 		__end = .;
 	}
 
+	STABS_DEBUG
+
+	DWARF_DEBUG
+
+	NOTES
+
 	/DISCARD/ :
 	{
 		*(.exit.text)
