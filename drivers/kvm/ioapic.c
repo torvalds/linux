@@ -371,18 +371,27 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	}
 }
 
+void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
+{
+	int i;
+
+	for (i = 0; i < IOAPIC_NUM_PINS; i++)
+		ioapic->redirtbl[i].fields.mask = 1;
+	ioapic->base_address = IOAPIC_DEFAULT_BASE_ADDRESS;
+	ioapic->ioregsel = 0;
+	ioapic->irr = 0;
+	ioapic->id = 0;
+}
+
 int kvm_ioapic_init(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic;
-	int i;
 
 	ioapic = kzalloc(sizeof(struct kvm_ioapic), GFP_KERNEL);
 	if (!ioapic)
 		return -ENOMEM;
 	kvm->vioapic = ioapic;
-	for (i = 0; i < IOAPIC_NUM_PINS; i++)
-		ioapic->redirtbl[i].fields.mask = 1;
-	ioapic->base_address = IOAPIC_DEFAULT_BASE_ADDRESS;
+	kvm_ioapic_reset(ioapic);
 	ioapic->dev.read = ioapic_mmio_read;
 	ioapic->dev.write = ioapic_mmio_write;
 	ioapic->dev.in_range = ioapic_in_range;
