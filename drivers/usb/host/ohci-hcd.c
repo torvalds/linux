@@ -1033,11 +1033,17 @@ MODULE_LICENSE ("GPL");
 #define PS3_SYSTEM_BUS_DRIVER	ps3_ohci_driver
 #endif
 
+#ifdef CONFIG_USB_OHCI_HCD_SSB
+#include "ohci-ssb.c"
+#define SSB_OHCI_DRIVER		ssb_ohci_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
 	!defined(SA1111_DRIVER) &&	\
-	!defined(PS3_SYSTEM_BUS_DRIVER)
+	!defined(PS3_SYSTEM_BUS_DRIVER) && \
+	!defined(SSB_OHCI_DRIVER)
 #error "missing bus glue for ohci-hcd"
 #endif
 
@@ -1082,10 +1088,20 @@ static int __init ohci_hcd_mod_init(void)
 		goto error_pci;
 #endif
 
+#ifdef SSB_OHCI_DRIVER
+	retval = ssb_driver_register(&SSB_OHCI_DRIVER);
+	if (retval)
+		goto error_ssb;
+#endif
+
 	return retval;
 
 	/* Error path */
+#ifdef SSB_OHCI_DRIVER
+ error_ssb:
+#endif
 #ifdef PCI_DRIVER
+	pci_unregister_driver(&PCI_DRIVER);
  error_pci:
 #endif
 #ifdef SA1111_DRIVER
@@ -1110,6 +1126,9 @@ module_init(ohci_hcd_mod_init);
 
 static void __exit ohci_hcd_mod_exit(void)
 {
+#ifdef SSB_OHCI_DRIVER
+	ssb_driver_unregister(&SSB_OHCI_DRIVER);
+#endif
 #ifdef PCI_DRIVER
 	pci_unregister_driver(&PCI_DRIVER);
 #endif
