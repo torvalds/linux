@@ -76,7 +76,7 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u32 flags)
 		[ 0] = "RC transport",
 		[ 1] = "UC transport",
 		[ 2] = "UD transport",
-		[ 3] = "SRC transport",
+		[ 3] = "XRC transport",
 		[ 4] = "reliable multicast",
 		[ 5] = "FCoIB support",
 		[ 6] = "SRQ support",
