@@ -1540,9 +1540,21 @@ int usb_external_resume_device(struct usb_device *udev)
 
 static int usb_suspend(struct device *dev, pm_message_t message)
 {
+	struct usb_device	*udev;
+
 	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
 		return 0;
-	return usb_external_suspend_device(to_usb_device(dev), message);
+	udev = to_usb_device(dev);
+
+	/* If udev is already suspended, we can skip this suspend and
+	 * we should also skip the upcoming system resume. */
+	if (udev->state == USB_STATE_SUSPENDED) {
+		udev->skip_sys_resume = 1;
+		return 0;
+	}
+
+	udev->skip_sys_resume = 0;
+	return usb_external_suspend_device(udev, message);
 }
 
 static int usb_resume(struct device *dev)
@@ -1553,13 +1565,14 @@ static int usb_resume(struct device *dev)
 		return 0;
 	udev = to_usb_device(dev);
 
-	/* If autoresume is disabled then we also want to prevent resume
-	 * during system wakeup.  However, a "persistent-device" reset-resume
-	 * after power loss counts as a wakeup event.  So allow a
-	 * reset-resume to occur if remote wakeup is enabled. */
-	if (udev->autoresume_disabled) {
+	/* If udev->skip_sys_resume is set then udev was already suspended
+	 * when the system suspend started, so we don't want to resume
+	 * udev during this system wakeup.  However a reset-resume counts
+	 * as a wakeup event, so allow a reset-resume to occur if remote
+	 * wakeup is enabled. */
+	if (udev->skip_sys_resume) {
 		if (!(udev->reset_resume && udev->do_remote_wakeup))
-			return -EPERM;
+			return -EHOSTUNREACH;
 	}
 	return usb_external_resume_device(udev);
 }

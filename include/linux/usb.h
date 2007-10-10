@@ -430,6 +430,7 @@ struct usb_device {
 	unsigned persist_enabled:1;	/* USB_PERSIST enabled for this dev */
 	unsigned autosuspend_disabled:1; /* autosuspend and autoresume */
 	unsigned autoresume_disabled:1;  /*  disabled by the user */
+	unsigned skip_sys_resume:1;	/* skip the next system resume */
 #endif
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
