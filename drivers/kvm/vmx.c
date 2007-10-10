@@ -1128,6 +1128,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	fix_rmode_seg(VCPU_SREG_GS, &vcpu->rmode.gs);
 	fix_rmode_seg(VCPU_SREG_FS, &vcpu->rmode.fs);
 
+	kvm_mmu_reset_context(vcpu);
 	init_rmode_tss(vcpu->kvm);
 }
 

@@ -1049,6 +1049,7 @@ int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 	destroy_kvm_mmu(vcpu);
 	return init_kvm_mmu(vcpu);
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
 int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
