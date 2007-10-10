@@ -52,6 +52,15 @@
 # define EX_SCRATCH_REG CYCLES
 #endif
 
+#if ANOMALY_05000281
+ENTRY(_safe_speculative_execution)
+	NOP;
+	NOP;
+	NOP;
+	jump _safe_speculative_execution;
+ENDPROC(_safe_speculative_execution)
+#endif
+
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text
 #else
@@ -685,8 +694,8 @@ ENTRY(_return_from_int)
 	[p0] = p1;
 	csync;
 #if ANOMALY_05000281
-	r0.l = lo(CONFIG_BOOT_LOAD);
-	r0.h = hi(CONFIG_BOOT_LOAD);
+	r0.l = _safe_speculative_execution;
+	r0.h = _safe_speculative_execution;
 	reti = r0;
 #endif
 	r0 = 0x801f (z);
@@ -699,8 +708,8 @@ ENDPROC(_return_from_int)
 
 ENTRY(_lower_to_irq14)
 #if ANOMALY_05000281
-	r0.l = lo(CONFIG_BOOT_LOAD);
-	r0.h = hi(CONFIG_BOOT_LOAD);
+	r0.l = _safe_speculative_execution;
+	r0.h = _safe_speculative_execution;
 	reti = r0;
 #endif
 	r0 = 0x401f;
