@@ -38,4 +38,11 @@ out:
 	return err;
 }
 
+struct ip_auth_hdr;
+
+static inline struct ip_auth_hdr *ip_auth_hdr(const struct sk_buff *skb)
+{
+	return (struct ip_auth_hdr *)skb_transport_header(skb);
+}
+
 #endif

@@ -44,7 +44,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 	struct ipv6hdr *top_iph;
-	struct ipv6_esp_hdr *esph;
+	struct ip_esp_hdr *esph;
 	struct crypto_blkcipher *tfm;
 	struct blkcipher_desc desc;
 	struct sk_buff *trailer;
@@ -86,7 +86,7 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ipv6_hdr(skb);
-	esph = (struct ipv6_esp_hdr *)skb_transport_header(skb);
+	esph = ip_esp_hdr(skb);
 	top_iph->payload_len = htons(skb->len + alen - sizeof(*top_iph));
 	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_ESP;
@@ -142,19 +142,19 @@ error:
 static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *iph;
-	struct ipv6_esp_hdr *esph;
+	struct ip_esp_hdr *esph;
 	struct esp_data *esp = x->data;
 	struct crypto_blkcipher *tfm = esp->conf.tfm;
 	struct blkcipher_desc desc = { .tfm = tfm };
 	struct sk_buff *trailer;
 	int blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
-	int elen = skb->len - sizeof(struct ipv6_esp_hdr) - esp->conf.ivlen - alen;
+	int elen = skb->len - sizeof(*esph) - esp->conf.ivlen - alen;
 	int hdr_len = skb_network_header_len(skb);
 	int nfrags;
 	int ret = 0;
 
-	if (!pskb_may_pull(skb, sizeof(struct ipv6_esp_hdr))) {
+	if (!pskb_may_pull(skb, sizeof(*esph))) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -189,7 +189,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	esph = (struct ipv6_esp_hdr*)skb->data;
+	esph = (struct ip_esp_hdr *)skb->data;
 	iph = ipv6_hdr(skb);
 
 	/* Get ivec. This can be wrong, check against another impls. */
@@ -208,7 +208,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 				goto out;
 			}
 		}
-		skb_to_sgvec(skb, sg, sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen, elen);
+		skb_to_sgvec(skb, sg, sizeof(*esph) + esp->conf.ivlen, elen);
 		ret = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
@@ -260,7 +260,7 @@ static void esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		     int type, int code, int offset, __be32 info)
 {
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
-	struct ipv6_esp_hdr *esph = (struct ipv6_esp_hdr*)(skb->data+offset);
+	struct ip_esp_hdr *esph = (struct ip_esp_hdr *)(skb->data + offset);
 	struct xfrm_state *x;
 
 	if (type != ICMPV6_DEST_UNREACH &&
@@ -356,7 +356,7 @@ static int esp6_init_state(struct xfrm_state *x)
 	if (crypto_blkcipher_setkey(tfm, x->ealg->alg_key,
 				    (x->ealg->alg_key_len + 7) / 8))
 		goto error;
-	x->props.header_len = sizeof(struct ipv6_esp_hdr) + esp->conf.ivlen;
+	x->props.header_len = sizeof(struct ip_esp_hdr) + esp->conf.ivlen;
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = esp;

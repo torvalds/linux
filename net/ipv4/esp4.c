@@ -60,7 +60,7 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb_push(skb, -skb_network_offset(skb));
 	top_iph = ip_hdr(skb);
-	esph = (struct ip_esp_hdr *)skb_transport_header(skb);
+	esph = ip_esp_hdr(skb);
 	top_iph->tot_len = htons(skb->len + alen);
 	*(skb_tail_pointer(trailer) - 1) = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_ESP;
@@ -157,7 +157,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct sk_buff *trailer;
 	int blksize = ALIGN(crypto_blkcipher_blocksize(tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
-	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
+	int elen = skb->len - sizeof(*esph) - esp->conf.ivlen - alen;
 	int nfrags;
 	int ihl;
 	u8 nexthdr[2];
@@ -165,7 +165,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	int padlen;
 	int err;
 
-	if (!pskb_may_pull(skb, sizeof(struct ip_esp_hdr)))
+	if (!pskb_may_pull(skb, sizeof(*esph)))
 		goto out;
 
 	if (elen <= 0 || (elen & (blksize-1)))
@@ -193,7 +193,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	esph = (struct ip_esp_hdr*)skb->data;
+	esph = (struct ip_esp_hdr *)skb->data;
 
 	/* Get ivec. This can be wrong, check against another impls. */
 	if (esp->conf.ivlen)
@@ -206,7 +206,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		if (!sg)
 			goto out;
 	}
-	skb_to_sgvec(skb, sg, sizeof(struct ip_esp_hdr) + esp->conf.ivlen, elen);
+	skb_to_sgvec(skb, sg, sizeof(*esph) + esp->conf.ivlen, elen);
 	err = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 	if (unlikely(sg != &esp->sgbuf[0]))
 		kfree(sg);

@@ -65,7 +65,7 @@ static LIST_HEAD(ipcomp6_tfms_list);
 static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -ENOMEM;
-	struct ipv6_comp_hdr *ipch;
+	struct ip_comp_hdr *ipch;
 	int plen, dlen;
 	struct ipcomp_data *ipcd = x->data;
 	u8 *start, *scratch;
@@ -92,12 +92,10 @@ static int ipcomp6_input(struct xfrm_state *x, struct sk_buff *skb)
 	tfm = *per_cpu_ptr(ipcd->tfms, cpu);
 
 	err = crypto_comp_decompress(tfm, start, plen, scratch, &dlen);
-	if (err) {
-		err = -EINVAL;
+	if (err)
 		goto out_put_cpu;
-	}
 
-	if (dlen < (plen + sizeof(struct ipv6_comp_hdr))) {
+	if (dlen < (plen + sizeof(*ipch))) {
 		err = -EINVAL;
 		goto out_put_cpu;
 	}
@@ -122,7 +120,7 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 	struct ipv6hdr *top_iph;
-	struct ipv6_comp_hdr *ipch;
+	struct ip_comp_hdr *ipch;
 	struct ipcomp_data *ipcd = x->data;
 	int plen, dlen;
 	u8 *start, *scratch;
@@ -151,7 +149,7 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 	tfm = *per_cpu_ptr(ipcd->tfms, cpu);
 
 	err = crypto_comp_compress(tfm, start, plen, scratch, &dlen);
-	if (err || (dlen + sizeof(struct ipv6_comp_hdr)) >= plen) {
+	if (err || (dlen + sizeof(*ipch)) >= plen) {
 		put_cpu();
 		goto out_ok;
 	}
@@ -164,7 +162,7 @@ static int ipcomp6_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	top_iph->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 
-	ipch = (struct ipv6_comp_hdr *)start;
+	ipch = ip_comp_hdr(skb);
 	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));
@@ -179,7 +177,8 @@ static void ipcomp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 {
 	__be32 spi;
 	struct ipv6hdr *iph = (struct ipv6hdr*)skb->data;
-	struct ipv6_comp_hdr *ipcomph = (struct ipv6_comp_hdr*)(skb->data+offset);
+	struct ip_comp_hdr *ipcomph =
+		(struct ip_comp_hdr *)(skb->data + offset);
 	struct xfrm_state *x;
 
 	if (type != ICMPV6_DEST_UNREACH && type != ICMPV6_PKT_TOOBIG)

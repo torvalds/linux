@@ -154,7 +154,7 @@ static int ipcomp_output(struct xfrm_state *x, struct sk_buff *skb)
 
 	/* Install ipcomp header, convert into ipcomp datagram. */
 	iph->tot_len = htons(skb->len);
-	ipch = (struct ip_comp_hdr *)skb_transport_header(skb);
+	ipch = ip_comp_hdr(skb);
 	ipch->nexthdr = *skb_mac_header(skb);
 	ipch->flags = 0;
 	ipch->cpi = htons((u16 )ntohl(x->id.spi));

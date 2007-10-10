@@ -82,7 +82,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 			goto error;
 	}
 
-	ah = (struct ip_auth_hdr *)skb_transport_header(skb);
+	ah = ip_auth_hdr(skb);
 	ah->nexthdr = *skb_mac_header(skb);
 	*skb_mac_header(skb) = IPPROTO_AH;
 
@@ -93,8 +93,7 @@ static int ah_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->check = 0;
 
 	ahp = x->data;
-	ah->hdrlen  = (XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
-				   ahp->icv_trunc_len) >> 2) - 2;
+	ah->hdrlen  = (XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
@@ -134,15 +133,15 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 	struct ah_data *ahp;
 	char work_buf[60];
 
-	if (!pskb_may_pull(skb, sizeof(struct ip_auth_hdr)))
+	if (!pskb_may_pull(skb, sizeof(*ah)))
 		goto out;
 
-	ah = (struct ip_auth_hdr*)skb->data;
+	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;
 	ah_hlen = (ah->hdrlen + 2) << 2;
 
-	if (ah_hlen != XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_full_len) &&
-	    ah_hlen != XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_trunc_len))
+	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
+	    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))
 		goto out;
 
 	if (!pskb_may_pull(skb, ah_hlen))
@@ -156,7 +155,7 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	ah = (struct ip_auth_hdr*)skb->data;
+	ah = (struct ip_auth_hdr *)skb->data;
 	iph = ip_hdr(skb);
 
 	ihl = skb->data - skb_network_header(skb);
@@ -266,7 +265,8 @@ static int ah_init_state(struct xfrm_state *x)
 	if (!ahp->work_icv)
 		goto error;
 
-	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) + ahp->icv_trunc_len);
+	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
+					  ahp->icv_trunc_len);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
 	x->data = ahp;

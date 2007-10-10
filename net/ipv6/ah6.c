@@ -270,7 +270,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			goto error_free_iph;
 	}
 
-	ah = (struct ip_auth_hdr *)skb_transport_header(skb);
+	ah = ip_auth_hdr(skb);
 	ah->nexthdr = nexthdr;
 
 	top_iph->priority    = 0;
@@ -280,8 +280,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->hop_limit   = 0;
 
 	ahp = x->data;
-	ah->hdrlen  = (XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) +
-				   ahp->icv_trunc_len) >> 2) - 2;
+	ah->hdrlen  = (XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
@@ -327,7 +326,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	 * There is offset of AH before IPv6 header after the process.
 	 */
 
-	struct ipv6_auth_hdr *ah;
+	struct ip_auth_hdr *ah;
 	struct ipv6hdr *ip6h;
 	struct ah_data *ahp;
 	unsigned char *tmp_hdr = NULL;
@@ -346,13 +345,13 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 
 	hdr_len = skb->data - skb_network_header(skb);
-	ah = (struct ipv6_auth_hdr*)skb->data;
+	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;
 	nexthdr = ah->nexthdr;
 	ah_hlen = (ah->hdrlen + 2) << 2;
 
-	if (ah_hlen != XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_full_len) &&
-	    ah_hlen != XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len))
+	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
+	    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))
 		goto out;
 
 	if (!pskb_may_pull(skb, ah_hlen))
@@ -474,7 +473,8 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (!ahp->work_icv)
 		goto error;
 
-	x->props.header_len = XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len);
+	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
+					  ahp->icv_trunc_len);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = ahp;

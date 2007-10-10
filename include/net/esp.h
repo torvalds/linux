@@ -53,4 +53,11 @@ static inline int esp_mac_digest(struct esp_data *esp, struct sk_buff *skb,
 	return crypto_hash_final(&desc, esp->auth.work_icv);
 }
 
+struct ip_esp_hdr;
+
+static inline struct ip_esp_hdr *ip_esp_hdr(const struct sk_buff *skb)
+{
+	return (struct ip_esp_hdr *)skb_transport_header(skb);
+}
+
 #endif

@@ -96,27 +96,6 @@ struct ipv6_destopt_hao {
 	struct in6_addr		addr;
 } __attribute__ ((__packed__));
 
-struct ipv6_auth_hdr {
-	__u8  nexthdr;
-	__u8  hdrlen;           /* This one is measured in 32 bit units! */
-	__be16 reserved;
-	__be32 spi;
-	__be32 seq_no;           /* Sequence number */
-	__u8  auth_data[0];     /* Length variable but >=4. Mind the 64 bit alignment! */
-};
-
-struct ipv6_esp_hdr {
-	__be32 spi;
-	__be32 seq_no;           /* Sequence number */
-	__u8  enc_data[0];      /* Length variable but >=8. Mind the 64 bit alignment! */
-};
-
-struct ipv6_comp_hdr {
-	__u8 nexthdr;
-	__u8 flags;
-	__be16 cpi;
-};
-
 /*
  *	IPv6 fixed header
  *
