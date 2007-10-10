@@ -3776,12 +3776,6 @@ bnx2_init_remote_phy(struct bnx2 *bp)
 		return;
 
 	if (val & BNX2_FW_CAP_REMOTE_PHY_CAPABLE) {
-		if (netif_running(bp->dev)) {
-			val = BNX2_DRV_ACK_CAP_SIGNATURE |
-			      BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
-			REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_ACK_CAP_MB,
-				   val);
-		}
 		bp->phy_flags |= REMOTE_PHY_CAP_FLAG;
 
 		val = REG_RD_IND(bp, bp->shmem_base + BNX2_LINK_STATUS);
@@ -3789,6 +3783,22 @@ bnx2_init_remote_phy(struct bnx2 *bp)
 			bp->phy_port = PORT_FIBRE;
 		else
 			bp->phy_port = PORT_TP;
+
+		if (netif_running(bp->dev)) {
+			u32 sig;
+
+			if (val & BNX2_LINK_STATUS_LINK_UP) {
+				bp->link_up = 1;
+				netif_carrier_on(bp->dev);
+			} else {
+				bp->link_up = 0;
+				netif_carrier_off(bp->dev);
+			}
+			sig = BNX2_DRV_ACK_CAP_SIGNATURE |
+			      BNX2_FW_CAP_REMOTE_PHY_CAPABLE;
+			REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_ACK_CAP_MB,
+				   sig);
+		}
 	}
 }
 
@@ -3797,6 +3807,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 {
 	u32 val;
 	int i, rc = 0;
+	u8 old_port;
 
 	/* Wait for the current PCI transaction to complete before
 	 * issuing a reset. */
@@ -3875,8 +3886,9 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 		return rc;
 
 	spin_lock_bh(&bp->phy_lock);
+	old_port = bp->phy_port;
 	bnx2_init_remote_phy(bp);
-	if (bp->phy_flags & REMOTE_PHY_CAP_FLAG)
+	if ((bp->phy_flags & REMOTE_PHY_CAP_FLAG) && old_port != bp->phy_port)
 		bnx2_set_default_remote_link(bp);
 	spin_unlock_bh(&bp->phy_lock);
 
@@ -4565,6 +4577,9 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 		bnx2_set_mac_loopback(bp);
 	}
 	else if (loopback_mode == BNX2_PHY_LOOPBACK) {
+		if (bp->phy_flags & REMOTE_PHY_CAP_FLAG)
+			return 0;
+
 		bp->loopback = PHY_LOOPBACK;
 		bnx2_set_phy_loopback(bp);
 	}
@@ -4733,6 +4748,11 @@ bnx2_test_link(struct bnx2 *bp)
 {
 	u32 bmsr;
 
+	if (bp->phy_flags & REMOTE_PHY_CAP_FLAG) {
+		if (bp->link_up)
+			return 0;
+		return -ENODEV;
+	}
 	spin_lock_bh(&bp->phy_lock);
 	bnx2_enable_bmsr1(bp);
 	bnx2_read_phy(bp, bp->mii_bmsr1, &bmsr);
