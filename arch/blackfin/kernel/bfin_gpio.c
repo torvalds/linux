@@ -80,6 +80,7 @@
 *  GPIO_47      PH15        PF47
 */
 
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/err.h>
 #include <asm/blackfin.h>
@@ -888,3 +889,20 @@ void gpio_direction_output(unsigned short gpio)
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL(gpio_direction_output);
+
+/* If we are booting from SPI and our board lacks a strong enough pull up,
+ * the core can reset and execute the bootrom faster than the resistor can
+ * pull the signal logically high.  To work around this (common) error in
+ * board design, we explicitly set the pin back to GPIO mode, force /CS
+ * high, and wait for the electrons to do their thing.
+ *
+ * This function only makes sense to be called from reset code, but it
+ * lives here as we need to force all the GPIO states w/out going through
+ * BUG() checks and such.
+ */
+void bfin_gpio_reset_spi0_ssel1(void)
+{
+	port_setup(P_SPI0_SSEL1, GPIO_USAGE);
+	gpio_bankb[gpio_bank(P_SPI0_SSEL1)]->data_set = gpio_bit(P_SPI0_SSEL1);
+	udelay(1);
+}

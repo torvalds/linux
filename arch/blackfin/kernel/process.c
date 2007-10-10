@@ -134,31 +134,6 @@ void cpu_idle(void)
 	}
 }
 
-void machine_restart(char *__unused)
-{
-#if defined(CONFIG_BFIN_ICACHE)
-	bfin_write_IMEM_CONTROL(0x01);
-	SSYNC();
-#endif
-	bfin_reset();
-	/* Dont do anything till the reset occurs */
-	while (1) {
-		SSYNC();
-	}
-}
-
-void machine_halt(void)
-{
-	for (;;)
-		asm volatile ("idle");
-}
-
-void machine_power_off(void)
-{
-	for (;;)
-		asm volatile ("idle");
-}
-
 void show_regs(struct pt_regs *regs)
 {
 	printk(KERN_NOTICE "\n");

@@ -459,66 +459,6 @@ ENTRY(_start_dma_code)
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
 
-ENTRY(_bfin_reset)
-	/* No more interrupts to be handled*/
-	CLI R6;
-	SSYNC;
-
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	p0.h = hi(FIO_INEN);
-	p0.l = lo(FIO_INEN);
-	r0.l = ~(1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_DIR);
-	p0.l = lo(FIO_DIR);
-	r0.l = (1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_FLAG_C);
-	p0.l = lo(FIO_FLAG_C);
-	r0.l = (1 << CONFIG_ENET_FLASH_PIN);
-	w[p0] = r0.l;
-#endif
-
-	/* Clear the IMASK register */
-	p0.h = hi(IMASK);
-	p0.l = lo(IMASK);
-	r0 = 0x0;
-	[p0] = r0;
-
-	/* Clear the ILAT register */
-	p0.h = hi(ILAT);
-	p0.l = lo(ILAT);
-	r0 = [p0];
-	[p0] = r0;
-	SSYNC;
-
-	/* make sure SYSCR is set to use BMODE */
-	P0.h = hi(SYSCR);
-	P0.l = lo(SYSCR);
-	R0.l = 0x0;
-	W[P0] = R0.l;
-	SSYNC;
-
-	/* issue a system soft reset */
-	P1.h = hi(SWRST);
-	P1.l = lo(SWRST);
-	R1.l = 0x0007;
-	W[P1] = R1;
-	SSYNC;
-
-	/* clear system soft reset */
-	R0.l = 0x0000;
-	W[P0] = R0;
-	SSYNC;
-
-	/* issue core reset */
-	raise 1;
-
-	RTS;
-ENDPROC(_bfin_reset)
-
 #if CONFIG_DEBUG_KERNEL_START
 debug_kernel_start_trap:
 	/* Set up a temp stack in L1 - SDRAM might not be working  */
