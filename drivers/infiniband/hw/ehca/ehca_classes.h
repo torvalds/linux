@@ -53,6 +53,7 @@ struct ehca_pd;
 struct ehca_av;
 
 #include <linux/wait.h>
+#include <linux/mutex.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
