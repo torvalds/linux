@@ -2065,7 +2065,7 @@ static int do_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	ops.len = len;
 	ops.ooblen = 0;
-	ops.databuf = pbuf;
+	ops.datbuf = pbuf;
 	ops.oobbuf = NULL;
 	ret = onenand_write_ops_nolock(mtd, to, &ops);
 	*retlen = ops.retlen;
