@@ -42,7 +42,6 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 {
 	struct ivtv_stream *s = &itv->streams[itv->cur_pio_stream];
 	struct ivtv_buffer *buf;
-	struct list_head *p;
 	int i = 0;
 
 	IVTV_DEBUG_HI_DMA("ivtv_pio_work_handler\n");
@@ -54,9 +53,7 @@ static void ivtv_pio_work_handler(struct ivtv *itv)
 		return;
 	}
 	IVTV_DEBUG_HI_DMA("Process PIO %s\n", s->name);
-	buf = list_entry(s->q_dma.list.next, struct ivtv_buffer, list);
-	list_for_each(p, &s->q_dma.list) {
-		struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
+	list_for_each_entry(buf, &s->q_dma.list, list) {
 		u32 size = s->sg_processing[i].size & 0x3ffff;
 
 		/* Copy the data from the card to the buffer */
@@ -97,7 +94,6 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 {
 	struct ivtv *itv = s->itv;
 	struct ivtv_buffer *buf;
-	struct list_head *p;
 	u32 bytes_needed = 0;
 	u32 offset, size;
 	u32 UVoffset = 0, UVsize = 0;
@@ -202,9 +198,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 	/* got the buffers, now fill in sg_pending */
 	buf = list_entry(s->q_predma.list.next, struct ivtv_buffer, list);
 	memset(buf->buf, 0, 128);
-	list_for_each(p, &s->q_predma.list) {
-		struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
-
+	list_for_each_entry(buf, &s->q_predma.list, list) {
 		if (skip_bufs-- > 0)
 			continue;
 		s->sg_pending[idx].dst = buf->dma_handle;
@@ -289,9 +283,7 @@ static void dma_post(struct ivtv_stream *s)
 	if (buf)
 		buf->bytesused += s->dma_last_offset;
 	if (buf && s->type == IVTV_DEC_STREAM_TYPE_VBI) {
-		list_for_each(p, &s->q_dma.list) {
-			buf = list_entry(p, struct ivtv_buffer, list);
-
+		list_for_each_entry(buf, &s->q_dma.list, list) {
 			/* Parse and Groom VBI Data */
 			s->q_dma.bytesused -= buf->bytesused;
 			ivtv_process_vbi_data(itv, buf, 0, s->type);
@@ -311,7 +303,6 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 {
 	struct ivtv *itv = s->itv;
 	struct ivtv_buffer *buf;
-	struct list_head *p;
 	u32 y_size = itv->params.height * itv->params.width;
 	u32 uv_offset = offset + IVTV_YUV_BUFFER_UV_OFFSET;
 	int y_done = 0;
@@ -320,10 +311,7 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	int idx = 0;
 
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
-	buf = list_entry(s->q_predma.list.next, struct ivtv_buffer, list);
-	list_for_each(p, &s->q_predma.list) {
-		struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
-
+	list_for_each_entry(buf, &s->q_predma.list, list) {
 		/* YUV UV Offset from Y Buffer */
 		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done && bytes_written >= y_size) {
 			offset = uv_offset;
@@ -677,11 +665,9 @@ static void ivtv_irq_enc_vbi_cap(struct ivtv *itv)
 	   we just drop the old requests when there are already three
 	   requests queued. */
 	if (s->sg_pending_size > 2) {
-		struct list_head *p;
-		list_for_each(p, &s->q_predma.list) {
-			struct ivtv_buffer *buf = list_entry(p, struct ivtv_buffer, list);
+		struct ivtv_buffer *buf;
+		list_for_each_entry(buf, &s->q_predma.list, list)
 			ivtv_buf_sync_for_cpu(s, buf);
-		}
 		ivtv_queue_move(s, &s->q_predma, NULL, &s->q_free, 0);
 		s->sg_pending_size = 0;
 	}
