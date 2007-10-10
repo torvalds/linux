@@ -252,6 +252,20 @@ static struct notifier_block pseries_smp_nb = {
 
 static int __init pseries_cpu_hotplug_init(void)
 {
+	struct device_node *np;
+	const char *typep;
+
+	for_each_node_by_name(np, "interrupt-controller") {
+		typep = of_get_property(np, "compatible", NULL);
+		if (strstr(typep, "open-pic")) {
+			of_node_put(np);
+
+			printk(KERN_INFO "CPU Hotplug not supported on "
+				"systems using MPIC\n");
+			return 0;
+		}
+	}
+
 	rtas_stop_self_args.token = rtas_token("stop-self");
 	qcss_tok = rtas_token("query-cpu-stopped-state");
 
