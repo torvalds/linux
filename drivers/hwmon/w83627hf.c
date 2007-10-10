@@ -1319,6 +1319,24 @@ static int __devexit w83627hf_remove(struct platform_device *pdev)
 }
 
 
+/* Registers 0x50-0x5f are banked */
+static inline void w83627hf_set_bank(struct w83627hf_data *data, u16 reg)
+{
+	if ((reg & 0x00f0) == 0x50) {
+		outb_p(W83781D_REG_BANK, data->addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(reg >> 8, data->addr + W83781D_DATA_REG_OFFSET);
+	}
+}
+
+/* Not strictly necessary, but play it safe for now */
+static inline void w83627hf_reset_bank(struct w83627hf_data *data, u16 reg)
+{
+	if (reg & 0xff00) {
+		outb_p(W83781D_REG_BANK, data->addr + W83781D_ADDR_REG_OFFSET);
+		outb_p(0, data->addr + W83781D_DATA_REG_OFFSET);
+	}
+}
+
 static int w83627hf_read_value(struct w83627hf_data *data, u16 reg)
 {
 	int res, word_sized;
@@ -1329,12 +1347,7 @@ static int w83627hf_read_value(struct w83627hf_data *data, u16 reg)
 		  && (((reg & 0x00ff) == 0x50)
 		   || ((reg & 0x00ff) == 0x53)
 		   || ((reg & 0x00ff) == 0x55));
-	if (reg & 0xff00) {
-		outb_p(W83781D_REG_BANK,
-		       data->addr + W83781D_ADDR_REG_OFFSET);
-		outb_p(reg >> 8,
-		       data->addr + W83781D_DATA_REG_OFFSET);
-	}
+	w83627hf_set_bank(data, reg);
 	outb_p(reg & 0xff, data->addr + W83781D_ADDR_REG_OFFSET);
 	res = inb_p(data->addr + W83781D_DATA_REG_OFFSET);
 	if (word_sized) {
@@ -1344,11 +1357,7 @@ static int w83627hf_read_value(struct w83627hf_data *data, u16 reg)
 		    (res << 8) + inb_p(data->addr +
 				       W83781D_DATA_REG_OFFSET);
 	}
-	if (reg & 0xff00) {
-		outb_p(W83781D_REG_BANK,
-		       data->addr + W83781D_ADDR_REG_OFFSET);
-		outb_p(0, data->addr + W83781D_DATA_REG_OFFSET);
-	}
+	w83627hf_reset_bank(data, reg);
 	mutex_unlock(&data->lock);
 	return res;
 }
@@ -1419,12 +1428,7 @@ static int w83627hf_write_value(struct w83627hf_data *data, u16 reg, u16 value)
 		   || ((reg & 0xff00) == 0x200))
 		  && (((reg & 0x00ff) == 0x53)
 		   || ((reg & 0x00ff) == 0x55));
-	if (reg & 0xff00) {
-		outb_p(W83781D_REG_BANK,
-		       data->addr + W83781D_ADDR_REG_OFFSET);
-		outb_p(reg >> 8,
-		       data->addr + W83781D_DATA_REG_OFFSET);
-	}
+	w83627hf_set_bank(data, reg);
 	outb_p(reg & 0xff, data->addr + W83781D_ADDR_REG_OFFSET);
 	if (word_sized) {
 		outb_p(value >> 8,
@@ -1434,11 +1438,7 @@ static int w83627hf_write_value(struct w83627hf_data *data, u16 reg, u16 value)
 	}
 	outb_p(value & 0xff,
 	       data->addr + W83781D_DATA_REG_OFFSET);
-	if (reg & 0xff00) {
-		outb_p(W83781D_REG_BANK,
-		       data->addr + W83781D_ADDR_REG_OFFSET);
-		outb_p(0, data->addr + W83781D_DATA_REG_OFFSET);
-	}
+	w83627hf_reset_bank(data, reg);
 	mutex_unlock(&data->lock);
 	return 0;
 }
