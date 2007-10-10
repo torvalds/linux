@@ -117,6 +117,7 @@ struct xilinxfb_drvdata {
 
 	void		*fb_virt;	/* virt. address of the frame buffer */
 	dma_addr_t	fb_phys;	/* phys. address of the frame buffer */
+	int		fb_alloced;	/* Flag, was the fb memory alloced? */
 
 	u32		reg_ctrl_default;
 
@@ -235,8 +236,15 @@ static int xilinxfb_assign(struct device *dev, unsigned long physaddr,
 	}
 
 	/* Allocate the framebuffer memory */
-	drvdata->fb_virt = dma_alloc_coherent(dev, PAGE_ALIGN(fbsize),
-				&drvdata->fb_phys, GFP_KERNEL);
+	if (pdata->fb_phys) {
+		drvdata->fb_phys = pdata->fb_phys;
+		drvdata->fb_virt = ioremap(pdata->fb_phys, fbsize);
+	} else {
+		drvdata->fb_alloced = 1;
+		drvdata->fb_virt = dma_alloc_coherent(dev, PAGE_ALIGN(fbsize),
+					&drvdata->fb_phys, GFP_KERNEL);
+	}
+
 	if (!drvdata->fb_virt) {
 		dev_err(dev, "Could not allocate frame buffer memory\n");
 		rc = -ENOMEM;
@@ -300,8 +308,9 @@ err_regfb:
 	fb_dealloc_cmap(&drvdata->info.cmap);
 
 err_cmap:
-	dma_free_coherent(dev, PAGE_ALIGN(fbsize), drvdata->fb_virt,
-		drvdata->fb_phys);
+	if (drvdata->fb_alloced)
+		dma_free_coherent(dev, PAGE_ALIGN(fbsize), drvdata->fb_virt,
+			drvdata->fb_phys);
 	/* Turn off the display */
 	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);
 
@@ -330,8 +339,9 @@ static int xilinxfb_release(struct device *dev)
 
 	fb_dealloc_cmap(&drvdata->info.cmap);
 
-	dma_free_coherent(dev, PAGE_ALIGN(drvdata->info.fix.smem_len),
-			  drvdata->fb_virt, drvdata->fb_phys);
+	if (drvdata->fb_alloced)
+		dma_free_coherent(dev, PAGE_ALIGN(drvdata->info.fix.smem_len),
+				  drvdata->fb_virt, drvdata->fb_phys);
 
 	/* Turn off the display */
 	xilinx_fb_out_be32(drvdata, REG_CTRL, 0);

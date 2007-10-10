@@ -20,6 +20,11 @@ struct xilinxfb_platform_data {
 	u32 screen_width_mm;
 	u32 xres, yres;		/* resolution of screen in pixels */
 	u32 xvirt, yvirt;	/* resolution of memory buffer */
+
+	/* Physical address of framebuffer memory; If non-zero, driver
+	 * will use provided memory address instead of allocating one from
+	 * the consistent pool. */
+	u32 fb_phys;
 };
 
 #endif  /* __XILINXFB_H__ */
