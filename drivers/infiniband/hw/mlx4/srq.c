@@ -251,7 +251,7 @@ int mlx4_ib_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 	if (ret)
 		return ret;
 
-	srq_attr->srq_limit = be16_to_cpu(limit_watermark);
+	srq_attr->srq_limit = limit_watermark;
 	srq_attr->max_wr    = srq->msrq.max - 1;
 	srq_attr->max_sge   = srq->msrq.max_gs;
 
