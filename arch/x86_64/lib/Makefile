@@ -4,7 +4,7 @@
 
 CFLAGS_csum-partial_64.o := -funroll-loops
 
-obj-y := io.o iomap_copy_64.o
+obj-y := io_64.o iomap_copy_64.o
 obj-$(CONFIG_SMP)	+= msr-on-cpu.o
 
 lib-y := csum-partial_64.o csum-copy_64.o csum-wrappers_64.o delay_64.o \
