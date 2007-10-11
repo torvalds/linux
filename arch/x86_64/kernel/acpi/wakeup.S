@@ -269,7 +269,7 @@ no_longmode:
 	movb    $0xbc,%al       ;  outb %al,$0x80
 	jmp no_longmode
 
-#include "../verify_cpu.S"
+#include "../verify_cpu_64.S"
 	
 /* This code uses an extended set of video mode numbers. These include:
  * Aliases for standard modes

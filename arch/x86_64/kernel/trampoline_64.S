@@ -126,7 +126,7 @@ startup_64:
 no_longmode:
 	hlt
 	jmp no_longmode
-#include "verify_cpu.S"
+#include "verify_cpu_64.S"
 
 	# Careful these need to be in the same 64K segment as the above;
 tidt:
