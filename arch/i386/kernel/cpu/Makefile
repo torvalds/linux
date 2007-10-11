@@ -14,7 +14,7 @@ obj-y	+=	umc.o
 
 obj-$(CONFIG_X86_MCE)	+=	../../../x86/kernel/cpu/mcheck/
 
-obj-$(CONFIG_MTRR)	+= 	mtrr/
+obj-$(CONFIG_MTRR)	+= 	../../../x86/kernel/cpu/mtrr/
 obj-$(CONFIG_CPU_FREQ)	+=	../../../x86/kernel/cpu/cpufreq/
 
 obj-$(CONFIG_X86_LOCAL_APIC) += perfctr-watchdog.o
