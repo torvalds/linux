@@ -1,6 +1,6 @@
 /*
 
-  Broadcom B43legacy wireless driver
+  Broadcom B43 wireless driver
   RFKILL support
 
   Copyright (c) 2007 Michael Buesch <mb@bu3sch.de>
@@ -27,48 +27,39 @@
 #include "b43legacy.h"
 
 
-static void b43legacy_notify_rfkill_press(struct work_struct *work)
+/* Returns TRUE, if the radio is enabled in hardware. */
+static bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_rfkill *rfk = container_of(work,
-						    struct b43legacy_rfkill,
-						    notify_work);
-	struct b43legacy_wl *wl = container_of(rfk, struct b43legacy_wl,
-				  rfkill);
-	struct b43legacy_wldev *dev;
-	enum rfkill_state state;
-
-	mutex_lock(&wl->mutex);
-	dev = wl->current_dev;
-	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
-		mutex_unlock(&wl->mutex);
-		return;
+	if (dev->phy.rev >= 3) {
+		if (!(b43legacy_read32(dev, B43legacy_MMIO_RADIO_HWENABLED_HI)
+		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
+			return 1;
+	} else {
+		if (b43legacy_read16(dev, B43legacy_MMIO_RADIO_HWENABLED_LO)
+		    & B43legacy_MMIO_RADIO_HWENABLED_LO_MASK)
+			return 1;
 	}
-	if (dev->radio_hw_enable)
-		state = RFKILL_STATE_ON;
-	else
-		state = RFKILL_STATE_OFF;
-	b43legacyinfo(wl, "Radio hardware status changed to %s\n",
-		dev->radio_hw_enable ? "ENABLED" : "DISABLED");
-	mutex_unlock(&wl->mutex);
-
-	if (rfk->rfkill) {
-		/* Be careful. This calls back into the software toggle
-		 * routines. So we must unlock before calling. */
-		rfkill_switch_all(rfk->rfkill->type, state);
-	}
+	return 0;
 }
 
-/* Called when the RFKILL toggled in hardware.
- * This is called with the mutex locked. */
-void b43legacy_rfkill_toggled(struct b43legacy_wldev *dev, bool on)
+/* The poll callback for the hardware button. */
+static void b43legacy_rfkill_poll(struct input_polled_dev *poll_dev)
 {
+	struct b43legacy_wldev *dev = poll_dev->private;
 	struct b43legacy_wl *wl = dev->wl;
+	bool enabled;
 
+	mutex_lock(&wl->mutex);
 	B43legacy_WARN_ON(b43legacy_status(dev) < B43legacy_STAT_INITIALIZED);
-	/* Update the RF status asynchronously, as rfkill will
-	 * call back into the software toggle handler.
-	 * This would deadlock if done synchronously. */
-	queue_work(wl->hw->workqueue, &wl->rfkill.notify_work);
+	enabled = b43legacy_is_hw_radio_enabled(dev);
+	if (unlikely(enabled != dev->radio_hw_enable)) {
+		dev->radio_hw_enable = enabled;
+		b43legacyinfo(wl, "Radio hardware status changed to %s\n",
+			enabled ? "ENABLED" : "DISABLED");
+		mutex_unlock(&wl->mutex);
+		input_report_key(poll_dev->input, KEY_WLAN, enabled);
+	} else
+		mutex_unlock(&wl->mutex);
 }
 
 /* Called when the RFKILL toggled in software.
@@ -106,7 +97,7 @@ out_unlock:
 	return err;
 }
 
-char *b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
+char * b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_wl *wl = dev->wl;
 
@@ -121,38 +112,74 @@ void b43legacy_rfkill_init(struct b43legacy_wldev *dev)
 	struct b43legacy_rfkill *rfk = &(wl->rfkill);
 	int err;
 
-	snprintf(rfk->name, sizeof(rfk->name),
-		 "b43legacy-%s", wiphy_name(wl->hw->wiphy));
-	rfk->rfkill = rfkill_allocate(dev->dev->dev, RFKILL_TYPE_WLAN);
-	if (!rfk->rfkill)
-		goto error;
-	rfk->rfkill->name = rfk->name;
-	rfk->rfkill->state = RFKILL_STATE_ON;
-	rfk->rfkill->data = dev;
-	rfk->rfkill->toggle_radio = b43legacy_rfkill_soft_toggle;
-	rfk->rfkill->user_claim_unsupported = 1;
-
-	INIT_WORK(&rfk->notify_work, b43legacy_notify_rfkill_press);
-
-	err = rfkill_register(rfk->rfkill);
-	if (err)
-		goto error;
+	if (rfk->rfkill) {
+		err = rfkill_register(rfk->rfkill);
+		if (err) {
+			b43legacywarn(wl, "Failed to register RF-kill button\n");
+			goto err_free_rfk;
+		}
+	}
+	if (rfk->poll_dev) {
+		err = input_register_polled_device(rfk->poll_dev);
+		if (err) {
+			b43legacywarn(wl, "Failed to register RF-kill polldev\n");
+			goto err_free_polldev;
+		}
+	}
 
 	return;
-error:
-	b43legacywarn(dev->wl, "Failed to initialize the RF-kill button\n");
+err_free_rfk:
 	rfkill_free(rfk->rfkill);
 	rfk->rfkill = NULL;
+err_free_polldev:
+	input_free_polled_device(rfk->poll_dev);
+	rfk->poll_dev = NULL;
 }
 
 void b43legacy_rfkill_exit(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_rfkill *rfk = &(dev->wl->rfkill);
 
-	if (!rfk->rfkill)
+	if (rfk->poll_dev)
+		input_unregister_polled_device(rfk->poll_dev);
+	if (rfk->rfkill)
+		rfkill_unregister(rfk->rfkill);
+}
+
+void b43legacy_rfkill_alloc(struct b43legacy_wldev *dev)
+{
+	struct b43legacy_wl *wl = dev->wl;
+	struct b43legacy_rfkill *rfk = &(wl->rfkill);
+
+	snprintf(rfk->name, sizeof(rfk->name),
+		 "b43legacy-%s", wiphy_name(wl->hw->wiphy));
+
+	rfk->rfkill = rfkill_allocate(dev->dev->dev, RFKILL_TYPE_WLAN);
+	if (!rfk->rfkill) {
+		b43legacywarn(wl, "Failed to allocate RF-kill button\n");
 		return;
-	cancel_work_sync(&rfk->notify_work);
-	rfkill_unregister(rfk->rfkill);
+	}
+	rfk->rfkill->name = rfk->name;
+	rfk->rfkill->state = RFKILL_STATE_ON;
+	rfk->rfkill->data = dev;
+	rfk->rfkill->toggle_radio = b43legacy_rfkill_soft_toggle;
+	rfk->rfkill->user_claim_unsupported = 1;
+
+	rfk->poll_dev = input_allocate_polled_device();
+	if (rfk->poll_dev) {
+		rfk->poll_dev->private = dev;
+		rfk->poll_dev->poll = b43legacy_rfkill_poll;
+		rfk->poll_dev->poll_interval = 1000; /* msecs */
+	} else
+		b43legacywarn(wl, "Failed to allocate RF-kill polldev\n");
+}
+
+void b43legacy_rfkill_free(struct b43legacy_wldev *dev)
+{
+	struct b43legacy_rfkill *rfk = &(dev->wl->rfkill);
+
+	input_free_polled_device(rfk->poll_dev);
+	rfk->poll_dev = NULL;
 	rfkill_free(rfk->rfkill);
 	rfk->rfkill = NULL;
 }

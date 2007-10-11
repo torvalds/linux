@@ -1975,21 +1975,6 @@ static void b43legacy_mgmtframe_txantenna(struct b43legacy_wldev *dev,
 			      B43legacy_SHM_SH_PRPHYCTL, tmp);
 }
 
-/* Returns TRUE, if the radio is enabled in hardware. */
-static bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
-{
-	if (dev->phy.rev >= 3) {
-		if (!(b43legacy_read32(dev, B43legacy_MMIO_RADIO_HWENABLED_HI)
-		      & B43legacy_MMIO_RADIO_HWENABLED_HI_MASK))
-			return 1;
-	} else {
-		if (b43legacy_read16(dev, B43legacy_MMIO_RADIO_HWENABLED_LO)
-		    & B43legacy_MMIO_RADIO_HWENABLED_LO_MASK)
-			return 1;
-	}
-	return 0;
-}
-
 /* This is the opposite of b43legacy_chip_init() */
 static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 {
@@ -2146,32 +2131,18 @@ static void b43legacy_periodic_every15sec(struct b43legacy_wldev *dev)
 	b43legacy_phy_xmitpower(dev); /* FIXME: unless scanning? */
 }
 
-static void b43legacy_periodic_every1sec(struct b43legacy_wldev *dev)
-{
-	bool radio_hw_enable;
-
-	/* check if radio hardware enabled status changed */
-	radio_hw_enable = b43legacy_is_hw_radio_enabled(dev);
-	if (unlikely(dev->radio_hw_enable != radio_hw_enable)) {
-		dev->radio_hw_enable = radio_hw_enable;
-		b43legacy_rfkill_toggled(dev, radio_hw_enable);
-	}
-}
-
 static void do_periodic_work(struct b43legacy_wldev *dev)
 {
 	unsigned int state;
 
 	state = dev->periodic_state;
-	if (state % 120 == 0)
+	if (state % 8 == 0)
 		b43legacy_periodic_every120sec(dev);
-	if (state % 60 == 0)
+	if (state % 4 == 0)
 		b43legacy_periodic_every60sec(dev);
-	if (state % 30 == 0)
+	if (state % 2 == 0)
 		b43legacy_periodic_every30sec(dev);
-	if (state % 15 == 0)
-		b43legacy_periodic_every15sec(dev);
-	b43legacy_periodic_every1sec(dev);
+	b43legacy_periodic_every15sec(dev);
 }
 
 /* Estimate a "Badness" value based on the periodic work
@@ -2182,13 +2153,11 @@ static int estimate_periodic_work_badness(unsigned int state)
 {
 	int badness = 0;
 
-	if (state % 120 == 0) /* every 120 sec */
+	if (state % 8 == 0)	/* every 120 sec */
 		badness += 10;
-	if (state % 60 == 0) /* every 60 sec */
+	if (state % 4 == 0)	/* every 60 sec */
 		badness += 5;
-	if (state % 30 == 0) /* every 30 sec */
-		badness += 1;
-	if (state % 15 == 0) /* every 15 sec */
+	if (state % 2 == 0)	/* every 30 sec */
 		badness += 1;
 
 #define BADNESS_LIMIT	4
@@ -2246,7 +2215,7 @@ out_requeue:
 	if (b43legacy_debug(dev, B43legacy_DBG_PWORK_FAST))
 		delay = msecs_to_jiffies(50);
 	else
-		delay = round_jiffies_relative(HZ);
+		delay = round_jiffies_relative(HZ * 15);
 	queue_delayed_work(dev->wl->hw->workqueue,
 			   &dev->periodic_work, delay);
 out:
@@ -3449,6 +3418,7 @@ static int b43legacy_setup_modes(struct b43legacy_wldev *dev,
 
 static void b43legacy_wireless_core_detach(struct b43legacy_wldev *dev)
 {
+	b43legacy_rfkill_free(dev);
 	/* We release firmware that late to not be required to re-request
 	 * is all the time when we reinit the core. */
 	b43legacy_release_firmware(dev);
@@ -3530,6 +3500,7 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 	if (!wl->current_dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43legacy_chip_reset);
+	b43legacy_rfkill_alloc(dev);
 
 	b43legacy_radio_turn_off(dev, 1);
 	b43legacy_switch_analog(dev, 0);
