@@ -69,7 +69,7 @@ mcore-$(CONFIG_X86_VOYAGER)	:= arch/i386/mach-voyager
 
 # VISWS subarch support
 mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-i386/mach-visws
-mcore-$(CONFIG_X86_VISWS)	:= arch/i386/mach-visws
+mcore-$(CONFIG_X86_VISWS)	:= arch/x86/mach-visws
 
 # NUMAQ subarch support
 mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-i386/mach-numaq
