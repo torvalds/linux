@@ -226,7 +226,7 @@ config PARAVIRT
 	  However, when run without a hypervisor the kernel is
 	  theoretically slower.  If in doubt, say N.
 
-source "arch/i386/xen/Kconfig"
+source "arch/x86/xen/Kconfig"
 
 config VMI
 	bool "VMI Paravirt-ops support"

@@ -537,7 +537,7 @@ fault_msg:
 	.ascii "Int %d: CR2 %p  err %p  EIP %p  CS %p  flags %p\n"
 	.asciz "Stack: %p %p %p %p %p %p %p %p\n"
 
-#include "../xen/xen-head.S"
+#include "../../x86/xen/xen-head.S"
 
 /*
  * The IDT and GDT 'descriptors' are a strange 48-bit object

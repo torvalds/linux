@@ -33,7 +33,7 @@ ELFNOTE_END
  * at boot time we set VDSO_NOTE_NONEGSEG_BIT if running under Xen.
  */
 
-#include "../xen/vdso.h"	/* Defines VDSO_NOTE_NONEGSEG_BIT.  */
+#include "../../x86/xen/vdso.h"	/* Defines VDSO_NOTE_NONEGSEG_BIT.  */
 
 	.globl VDSO_NOTE_MASK
 ELFNOTE_START(GNU, 2, "a")
