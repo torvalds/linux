@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
+#include <linux/log2.h>
 #include <linux/mmc/host.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
@@ -391,7 +392,7 @@ static void mmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	WARN_ON(host->mrq != NULL);
 
-	if (mrq->data && (hweight32(mrq->data->blksz) > 1)) {
+	if (mrq->data && !is_power_of_2(mrq->data->blksz)) {
 		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
 			mmc_hostname(mmc), mrq->data->blksz);
 		mrq->cmd->error = -EINVAL;

@@ -16,6 +16,7 @@
 #include <linux/mmc/host.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
+#include <linux/log2.h>
 #include <asm/io.h>
 
 #define DRIVER_NAME "tifm_sd"
@@ -637,7 +638,7 @@ static void tifm_sd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		goto err_out;
 	}
 
-	if (mrq->data && (hweight32(mrq->data->blksz) > 1)) {
+	if (mrq->data && !is_power_of_2(mrq->data->blksz)) {
 		printk(KERN_ERR "%s: Unsupported block size (%d bytes)\n",
 			sock->dev.bus_id, mrq->data->blksz);
 		mrq->cmd->error = -EINVAL;
