@@ -14,7 +14,7 @@ AFLAGS  := $(CFLAGS) -D__ASSEMBLY__
 LDFLAGS := -m elf_x86_64
 
 LDFLAGS_vmlinux := -T
-$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc_64.o $(obj)/piggy.o FORCE
+$(obj)/vmlinux: $(src)/vmlinux_64.lds $(obj)/head.o $(obj)/misc_64.o $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
 	@:
 
