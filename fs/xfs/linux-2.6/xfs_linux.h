@@ -207,10 +207,6 @@
 #define xfs_stack_trace()	dump_stack()
 #define xfs_itruncate_data(ip, off)	\
 	(-vmtruncate(vn_to_inode(XFS_ITOV(ip)), (off)))
-#define xfs_statvfs_fsid(statp, mp)	\
-	({ u64 id = huge_encode_dev((mp)->m_ddev_targp->bt_dev); \
-	   __kernel_fsid_t *fsid = &(statp)->f_fsid;	\
-	(fsid->val[0] = (u32)id, fsid->val[1] = (u32)(id >> 32)); })
 
 
 /* Move the kernel do_div definition off to one side */

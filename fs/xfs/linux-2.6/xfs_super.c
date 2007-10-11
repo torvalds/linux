@@ -681,8 +681,44 @@ xfs_fs_statfs(
 	struct dentry		*dentry,
 	struct kstatfs		*statp)
 {
-	return -xfs_statvfs(XFS_M(dentry->d_sb), statp,
-				vn_from_inode(dentry->d_inode));
+	struct xfs_mount	*mp = XFS_M(dentry->d_sb);
+	xfs_sb_t		*sbp = &mp->m_sb;
+	__uint64_t		fakeinos, id;
+	xfs_extlen_t		lsize;
+
+	statp->f_type = XFS_SB_MAGIC;
+	statp->f_namelen = MAXNAMELEN - 1;
+
+	id = huge_encode_dev(mp->m_ddev_targp->bt_dev);
+	statp->f_fsid.val[0] = (u32)id;
+	statp->f_fsid.val[1] = (u32)(id >> 32);
+
+	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
+
+	spin_lock(&mp->m_sb_lock);
+	statp->f_bsize = sbp->sb_blocksize;
+	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
+	statp->f_blocks = sbp->sb_dblocks - lsize;
+	statp->f_bfree = statp->f_bavail =
+				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
+	fakeinos = statp->f_bfree << sbp->sb_inopblog;
+#if XFS_BIG_INUMS
+	fakeinos += mp->m_inoadd;
+#endif
+	statp->f_files =
+	    MIN(sbp->sb_icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
+	if (mp->m_maxicount)
+#if XFS_BIG_INUMS
+		if (!mp->m_inoadd)
+#endif
+			statp->f_files = min_t(typeof(statp->f_files),
+						statp->f_files,
+						mp->m_maxicount);
+	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
+	spin_unlock(&mp->m_sb_lock);
+
+	XFS_QM_DQSTATVFS(XFS_I(dentry->d_inode), statp);
+	return 0;
 }
 
 STATIC int
@@ -777,7 +813,6 @@ xfs_fs_fill_super(
 	struct inode		*rootvp;
 	struct xfs_mount	*mp = NULL;
 	struct xfs_mount_args	*args = xfs_args_allocate(sb, silent);
-	struct kstatfs		statvfs;
 	int			error;
 
 	mp = xfs_mount_init();
@@ -805,14 +840,10 @@ xfs_fs_fill_super(
 	if (error)
 		goto fail_vfsop;
 
-	error = xfs_statvfs(mp, &statvfs, NULL);
-	if (error)
-		goto fail_unmount;
-
 	sb->s_dirt = 1;
-	sb->s_magic = statvfs.f_type;
-	sb->s_blocksize = statvfs.f_bsize;
-	sb->s_blocksize_bits = ffs(statvfs.f_bsize) - 1;
+	sb->s_magic = XFS_SB_MAGIC;
+	sb->s_blocksize = mp->m_sb.sb_blocksize;
+	sb->s_blocksize_bits = ffs(sb->s_blocksize) - 1;
 	sb->s_maxbytes = xfs_max_file_offset(sb->s_blocksize_bits);
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);

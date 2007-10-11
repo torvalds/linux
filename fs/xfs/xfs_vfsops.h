@@ -14,8 +14,6 @@ int xfs_unmount(struct xfs_mount *mp, int flags, struct cred *credp);
 int xfs_mntupdate(struct xfs_mount *mp, int *flags,
 		struct xfs_mount_args *args);
 int xfs_root(struct xfs_mount *mp, bhv_vnode_t **vpp);
-int xfs_statvfs(struct xfs_mount *mp, struct kstatfs *statp,
-		bhv_vnode_t *vp);
 int xfs_sync(struct xfs_mount *mp, int flags);
 int xfs_vget(struct xfs_mount *mp, bhv_vnode_t **vpp, struct xfs_fid *xfid);
 int xfs_parseargs(struct xfs_mount *mp, char *options,

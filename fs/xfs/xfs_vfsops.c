@@ -839,59 +839,6 @@ xfs_root(
 }
 
 /*
- * xfs_statvfs
- *
- * Fill in the statvfs structure for the given file system.  We use
- * the superblock lock in the mount structure to ensure a consistent
- * snapshot of the counters returned.
- */
-int
-xfs_statvfs(
-	xfs_mount_t	*mp,
-	bhv_statvfs_t	*statp,
-	bhv_vnode_t	*vp)
-{
-	__uint64_t	fakeinos;
-	xfs_extlen_t	lsize;
-	xfs_sb_t	*sbp;
-
-	sbp = &(mp->m_sb);
-
-	statp->f_type = XFS_SB_MAGIC;
-
-	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
-	spin_lock(&mp->m_sb_lock);
-	statp->f_bsize = sbp->sb_blocksize;
-	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
-	statp->f_blocks = sbp->sb_dblocks - lsize;
-	statp->f_bfree = statp->f_bavail =
-				sbp->sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
-	fakeinos = statp->f_bfree << sbp->sb_inopblog;
-#if XFS_BIG_INUMS
-	fakeinos += mp->m_inoadd;
-#endif
-	statp->f_files =
-	    MIN(sbp->sb_icount + fakeinos, (__uint64_t)XFS_MAXINUMBER);
-	if (mp->m_maxicount)
-#if XFS_BIG_INUMS
-		if (!mp->m_inoadd)
-#endif
-			statp->f_files = min_t(typeof(statp->f_files),
-						statp->f_files,
-						mp->m_maxicount);
-	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
-	spin_unlock(&mp->m_sb_lock);
-
-	xfs_statvfs_fsid(statp, mp);
-	statp->f_namelen = MAXNAMELEN - 1;
-
-	if (vp)
-		XFS_QM_DQSTATVFS(xfs_vtoi(vp), statp);
-	return 0;
-}
-
-
-/*
  * xfs_sync flushes any pending I/O to file system vfsp.
  *
  * This routine is called by vfs_sync() to make sure that things make it
