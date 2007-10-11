@@ -308,6 +308,14 @@ config IDE_GENERIC
 	help
 	  If unsure, say N.
 
+config BLK_DEV_PLATFORM
+	tristate "Platform driver for IDE interfaces"
+	help
+	  This is the platform IDE driver, used mostly for Memory Mapped
+	  IDE devices, like Compact Flashes running in True IDE mode.
+
+	  If unsure, say N.
+
 config BLK_DEV_CMD640
 	bool "CMD640 chipset bugfix/support"
 	depends on X86
