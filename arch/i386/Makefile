@@ -61,36 +61,36 @@ AFLAGS += $(call as-instr,.cfi_startproc\n.cfi_signal_frame\n.cfi_endproc,-DCONF
 CFLAGS += $(cflags-y)
 
 # Default subarch .c files
-mcore-y  := mach-default
+mcore-y  := arch/i386/mach-default
 
 # Voyager subarch support
 mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-i386/mach-voyager
-mcore-$(CONFIG_X86_VOYAGER)	:= mach-voyager
+mcore-$(CONFIG_X86_VOYAGER)	:= arch/i386/mach-voyager
 
 # VISWS subarch support
 mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-i386/mach-visws
-mcore-$(CONFIG_X86_VISWS)	:= mach-visws
+mcore-$(CONFIG_X86_VISWS)	:= arch/i386/mach-visws
 
 # NUMAQ subarch support
 mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-i386/mach-numaq
-mcore-$(CONFIG_X86_NUMAQ)	:= mach-default
+mcore-$(CONFIG_X86_NUMAQ)	:= arch/i386/mach-default
 
 # BIGSMP subarch support
 mflags-$(CONFIG_X86_BIGSMP)	:= -Iinclude/asm-i386/mach-bigsmp
-mcore-$(CONFIG_X86_BIGSMP)	:= mach-default
+mcore-$(CONFIG_X86_BIGSMP)	:= arch/i386/mach-default
 
 #Summit subarch support
 mflags-$(CONFIG_X86_SUMMIT) := -Iinclude/asm-i386/mach-summit
-mcore-$(CONFIG_X86_SUMMIT)  := mach-default
+mcore-$(CONFIG_X86_SUMMIT)  := arch/i386/mach-default
 
 # generic subarchitecture
 mflags-$(CONFIG_X86_GENERICARCH) := -Iinclude/asm-i386/mach-generic
-mcore-$(CONFIG_X86_GENERICARCH) := mach-default
+mcore-$(CONFIG_X86_GENERICARCH) := arch/i386/mach-default
 core-$(CONFIG_X86_GENERICARCH) += arch/i386/mach-generic/
 
 # ES7000 subarch support
 mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-i386/mach-es7000
-mcore-$(CONFIG_X86_ES7000)	:= mach-default
+mcore-$(CONFIG_X86_ES7000)	:= arch/i386/mach-default
 core-$(CONFIG_X86_ES7000)	:= arch/i386/mach-es7000/
 
 # Xen paravirtualization support
@@ -104,7 +104,7 @@ head-y := arch/i386/kernel/head.o arch/i386/kernel/init_task.o
 libs-y 					+= arch/i386/lib/
 core-y					+= arch/i386/kernel/ \
 					   arch/i386/mm/ \
-					   arch/i386/$(mcore-y)/ \
+					   $(mcore-y)/ \
 					   arch/i386/crypto/
 drivers-$(CONFIG_MATH_EMULATION)	+= arch/i386/math-emu/
 drivers-$(CONFIG_PCI)			+= arch/i386/pci/
