@@ -48,7 +48,7 @@ obj-y				+= pcspeaker.o
 
 CFLAGS_vsyscall_64.o		:= $(PROFILING) -g0
 
-therm_throt-y                   += ../../i386/kernel/cpu/mcheck/therm_throt.o
+therm_throt-y                   += ../../x86/kernel/cpu/mcheck/therm_throt.o
 bootflag-y			+= ../../i386/kernel/bootflag.o
 cpuid-$(subst m,y,$(CONFIG_X86_CPUID))  += ../../i386/kernel/cpuid.o
 topology-y                     += ../../i386/kernel/topology.o

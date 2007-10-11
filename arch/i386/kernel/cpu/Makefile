@@ -12,7 +12,7 @@ obj-y	+=	intel.o intel_cacheinfo.o addon_cpuid_features.o
 obj-y	+=	nexgen.o
 obj-y	+=	umc.o
 
-obj-$(CONFIG_X86_MCE)	+=	mcheck/
+obj-$(CONFIG_X86_MCE)	+=	../../../x86/kernel/cpu/mcheck/
 
 obj-$(CONFIG_MTRR)	+= 	mtrr/
 obj-$(CONFIG_CPU_FREQ)	+=	cpufreq/
