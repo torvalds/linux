@@ -105,9 +105,6 @@ struct xfs_mount;
     ((i) >> 24)
 #endif
 
-#define GRANT_LOCK(log)		mutex_spinlock(&(log)->l_grant_lock)
-#define GRANT_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_grant_lock, s)
-
 #define xlog_panic(args...)	cmn_err(CE_PANIC, ## args)
 #define xlog_exit(args...)	cmn_err(CE_PANIC, ## args)
 #define xlog_warn(args...)	cmn_err(CE_WARN, ## args)
@@ -437,7 +434,7 @@ typedef struct log {
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
 
 	/* The following block of fields are changed while holding grant_lock */
-	lock_t			l_grant_lock;
+	spinlock_t		l_grant_lock;
 	xlog_ticket_t		*l_reserve_headq;
 	xlog_ticket_t		*l_write_headq;
 	int			l_grant_reserve_cycle;

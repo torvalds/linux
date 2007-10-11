@@ -3554,11 +3554,11 @@ xfs_inode_flush(
 		if (iip && iip->ili_last_lsn) {
 			xlog_t		*log = mp->m_log;
 			xfs_lsn_t	sync_lsn;
-			int		s, log_flags = XFS_LOG_FORCE;
+			int		log_flags = XFS_LOG_FORCE;
 
-			s = GRANT_LOCK(log);
+			spin_lock(&log->l_grant_lock);
 			sync_lsn = log->l_last_sync_lsn;
-			GRANT_UNLOCK(log, s);
+			spin_unlock(&log->l_grant_lock);
 
 			if ((XFS_LSN_CMP(iip->ili_last_lsn, sync_lsn) > 0)) {
 				if (flags & FLUSH_SYNC)
