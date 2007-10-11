@@ -262,10 +262,12 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		printk(KERN_WARNING PREFIX
 			      "Transitioning device [%s] to D%d\n",
 			      device->pnp.bus_id, state);
-	else
+	else {
+		device->power.state = state;
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Device [%s] transitioned to D%d\n",
 				  device->pnp.bus_id, state));
+	}
 
 	return result;
 }

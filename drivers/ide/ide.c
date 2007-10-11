@@ -915,6 +915,7 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 	struct request rq;
 	struct request_pm_state rqpm;
 	ide_task_t args;
+	int ret;
 
 	/* Call ACPI _GTM only once */
 	if (!(drive->dn % 2))
@@ -931,7 +932,14 @@ static int generic_ide_suspend(struct device *dev, pm_message_t mesg)
 		mesg.event = PM_EVENT_FREEZE;
 	rqpm.pm_state = mesg.event;
 
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
+	ret = ide_do_drive_cmd(drive, &rq, ide_wait);
+	/* only call ACPI _PS3 after both drivers are suspended */
+	if (!ret && (((drive->dn % 2) && hwif->drives[0].present
+		 && hwif->drives[1].present)
+		 || !hwif->drives[0].present
+		 || !hwif->drives[1].present))
+		ide_acpi_set_state(hwif, 0);
+	return ret;
 }
 
 static int generic_ide_resume(struct device *dev)
@@ -944,8 +952,10 @@ static int generic_ide_resume(struct device *dev)
 	int err;
 
 	/* Call ACPI _STM only once */
-	if (!(drive->dn % 2))
+	if (!(drive->dn % 2)) {
+		ide_acpi_set_state(hwif, 1);
 		ide_acpi_push_timing(hwif);
+	}
 
 	ide_acpi_exec_tfs(drive);
 

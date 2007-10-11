@@ -612,6 +612,46 @@ void ide_acpi_push_timing(ide_hwif_t *hwif)
 EXPORT_SYMBOL_GPL(ide_acpi_push_timing);
 
 /**
+ * ide_acpi_set_state - set the channel power state
+ * @hwif: target IDE interface
+ * @on: state, on/off
+ *
+ * This function executes the _PS0/_PS3 ACPI method to set the power state.
+ * ACPI spec requires _PS0 when IDE power on and _PS3 when power off
+ */
+void ide_acpi_set_state(ide_hwif_t *hwif, int on)
+{
+	int unit;
+
+	if (ide_noacpi)
+		return;
+
+	DEBPRINT("ENTER:\n");
+
+	if (!hwif->acpidata) {
+		DEBPRINT("no ACPI data for %s\n", hwif->name);
+		return;
+	}
+	/* channel first and then drives for power on and verse versa for power off */
+	if (on)
+		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D0);
+	for (unit = 0; unit < MAX_DRIVES; ++unit) {
+		ide_drive_t *drive = &hwif->drives[unit];
+
+		if (!drive->acpidata->obj_handle)
+			drive->acpidata->obj_handle = ide_acpi_drive_get_handle(drive);
+
+		if (drive->acpidata->obj_handle && drive->present) {
+			acpi_bus_set_power(drive->acpidata->obj_handle,
+				on? ACPI_STATE_D0: ACPI_STATE_D3);
+		}
+	}
+	if (!on)
+		acpi_bus_set_power(hwif->acpidata->obj_handle, ACPI_STATE_D3);
+}
+EXPORT_SYMBOL_GPL(ide_acpi_set_state);
+
+/**
  * ide_acpi_init - initialize the ACPI link for an IDE interface
  * @hwif: target IDE interface (channel)
  *
@@ -679,6 +719,8 @@ void ide_acpi_init(ide_hwif_t *hwif)
 		return;
 	}
 
+	/* ACPI _PS0 before _STM */
+	ide_acpi_set_state(hwif, 1);
 	/*
 	 * ACPI requires us to call _STM on startup
 	 */
