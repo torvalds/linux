@@ -6,5 +6,5 @@ obj-y	:= init_32.o pgtable_32.o fault.o ioremap_32.o extable_32.o pageattr.o mma
 
 obj-$(CONFIG_NUMA) += discontig_32.o
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
-obj-$(CONFIG_HIGHMEM) += highmem.o
+obj-$(CONFIG_HIGHMEM) += highmem_32.o
 obj-$(CONFIG_BOOT_IOREMAP) += boot_ioremap_32.o
