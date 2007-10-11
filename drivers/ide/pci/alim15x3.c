@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.25	Jun 9 2007
+ * linux/drivers/ide/pci/alim15x3.c		Version 0.26	Jul 14 2007
  *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
@@ -418,6 +418,14 @@ static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u8 tmpbyte		= 0x00;
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
 
+	if (speed < XFER_PIO_0)
+		return 1;
+
+	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_5) {
+		ali_tune_pio(drive, speed - XFER_PIO_0);
+		return ide_config_drive_speed(drive, speed);
+	}
+
 	if (speed == XFER_UDMA_6)
 		speed1 = 0x47;
 
@@ -430,8 +438,9 @@ static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 		tmpbyte &= ultra_enable;
 		pci_write_config_byte(dev, m5229_udma, tmpbyte);
 
-		if (speed < XFER_SW_DMA_0)
-			ali_tune_pio(drive, speed - XFER_PIO_0);
+		/*
+		 * FIXME: Oh, my... DMA timings are never set.
+		 */
 	} else {
 		pci_read_config_byte(dev, m5229_udma, &tmpbyte);
 		tmpbyte &= (0x0f << ((1-unit) << 2));
