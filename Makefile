@@ -1293,18 +1293,23 @@ ifeq ($(ALLSOURCE_ARCHS),)
 ifeq ($(ARCH),um)
 ALLINCLUDE_ARCHS := $(ARCH) $(SUBARCH)
 else
-ALLINCLUDE_ARCHS := $(ARCH)
+ALLINCLUDE_ARCHS := $(SRCARCH)
 endif
 else
 #Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behavour.
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
+# Take care of arch/x86
+ifeq ($(ARCH), $(SRCARCH))
 ALLSOURCE_ARCHS := $(ARCH)
+else
+ALLSOURCE_ARCHS := $(ARCH) $(SRCARCH)
+endif
 
 define find-sources
         ( for ARCH in $(ALLSOURCE_ARCHS) ; do \
-	       find $(__srctree)arch/$${ARCH} $(RCS_FIND_IGNORE) \
+	       find $(__srctree)arch/$${SRCARCH} $(RCS_FIND_IGNORE) \
 	            -name $1 -print; \
 	  done ; \
 	  find $(__srctree)security/selinux/include $(RCS_FIND_IGNORE) \
@@ -1313,7 +1318,7 @@ define find-sources
 	       \( -name config -o -name 'asm-*' \) -prune \
 	       -o -name $1 -print; \
 	  for ARCH in $(ALLINCLUDE_ARCHS) ; do \
-	       find $(__srctree)include/asm-$${ARCH} $(RCS_FIND_IGNORE) \
+	       find $(__srctree)include/asm-$${SRCARCH} $(RCS_FIND_IGNORE) \
 	            -name $1 -print; \
 	  done ; \
 	  find $(__srctree)include/asm-generic $(RCS_FIND_IGNORE) \
