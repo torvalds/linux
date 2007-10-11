@@ -306,3 +306,11 @@ Why:    In kernel tree version of driver is unmaintained. Sk98lin driver
 Who:    Stephen Hemminger <shemminger@linux-foundation.org>
 
 ---------------------------
+
+What:	i386/x86_64 bzImage symlinks
+When:	April 2008
+
+Why:	The i386/x86_64 merge provides a symlink to the old bzImage
+	location so not yet updated user space tools, e.g. package
+	scripts, do not break.
+Who:	Thomas Gleixner <tglx@linutronix.de>
