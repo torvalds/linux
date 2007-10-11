@@ -35,24 +35,24 @@
 #include <asm/smp.h>
 #include <asm/war.h>
 
-static __init int __maybe_unused r45k_bvahwbug(void)
+static inline int r45k_bvahwbug(void)
 {
 	/* XXX: We should probe for the presence of this bug, but we don't. */
 	return 0;
 }
 
-static __init int __maybe_unused r4k_250MHZhwbug(void)
+static inline int r4k_250MHZhwbug(void)
 {
 	/* XXX: We should probe for the presence of this bug, but we don't. */
 	return 0;
 }
 
-static __init int __maybe_unused bcm1250_m3_war(void)
+static inline int __maybe_unused bcm1250_m3_war(void)
 {
 	return BCM1250_M3_WAR;
 }
 
-static __init int __maybe_unused r10000_llsc_war(void)
+static inline int __maybe_unused r10000_llsc_war(void)
 {
 	return R10000_LLSC_WAR;
 }
