@@ -713,7 +713,7 @@ static __inline__ int atomic_postincrement(unsigned int *pv)
 	"	addu	%1, %0, 1				\n"
 	"	sc	%1, %2					\n"
 	"	beqz	%1, 1b					\n"
-	"	sync						\n"
+	__WEAK_LLSC_MB
 	: "=&r" (result), "=&r" (temp), "=m" (*pv)
 	: "m" (*pv)
 	: "memory");
