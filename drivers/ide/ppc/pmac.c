@@ -6,6 +6,7 @@
  * for doing DMA.
  *
  *  Copyright (C) 1998-2003 Paul Mackerras & Ben. Herrenschmidt
+ *  Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -311,7 +312,8 @@ static struct kauai_timing	kauai_pio_timings[] =
 	{ 240	, 0x0800038b },
 	{ 239	, 0x0800030c },
 	{ 180	, 0x05000249 },
-	{ 120	, 0x04000148 }
+	{ 120	, 0x04000148 },
+	{ 0	, 0 },
 };
 
 static struct kauai_timing	kauai_mdma_timings[] =
@@ -351,7 +353,8 @@ static struct kauai_timing	shasta_pio_timings[] =
 	{ 240	, 0x040003cd },
 	{ 239	, 0x040003cd },
 	{ 180	, 0x0400028b },
-	{ 120	, 0x0400010a }
+	{ 120	, 0x0400010a },
+	{ 0	, 0 },
 };
 
 static struct kauai_timing	shasta_mdma_timings[] =
@@ -695,8 +698,10 @@ pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 		drive->name, pio,  *timings);
 #endif	
 
-	if (drive->select.all == HWIF(drive)->INB(IDE_SELECT_REG))
-		pmac_ide_do_update_timings(drive);
+	if (pmac_ide_do_setfeature(drive, XFER_PIO_0 + pio))
+		return;
+
+	pmac_ide_do_update_timings(drive);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
@@ -965,7 +970,7 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_PIO_1:
 		case XFER_PIO_0:
 			pmac_ide_set_pio_mode(drive, speed & 0x07);
-			break;
+			return 0;
 		default:
 			ret = 1;
 	}
