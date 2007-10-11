@@ -13,7 +13,7 @@ obj-y			+= legacy.o irq.o common.o early.o
 # mmconfig has a 64bit special
 obj-$(CONFIG_PCI_MMCONFIG) += mmconfig.o direct.o mmconfig-shared.o
 
-obj-$(CONFIG_NUMA)	+= k8-bus.o
+obj-$(CONFIG_NUMA)	+= k8-bus_64.o
 
 direct-y += ../../i386/pci/direct.o
 acpi-y   += ../../i386/pci/acpi.o
