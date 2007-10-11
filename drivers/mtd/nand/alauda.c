@@ -408,7 +408,7 @@ static int alauda_bounce_read(struct mtd_info *mtd, loff_t from, size_t len,
 	*retlen = len;
 	while (len) {
 		u8 oob[16];
-		u32 byte = from & al->bytemask;
+		size_t byte = from & al->bytemask;
 		size_t cplen = min(len, mtd->writesize - byte);
 
 		err = alauda_read_page(mtd, from, bounce_buf, oob,
