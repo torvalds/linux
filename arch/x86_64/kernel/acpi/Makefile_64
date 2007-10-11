@@ -1,9 +1,0 @@
-obj-y			:= boot.o
-boot-y			:= ../../../x86/kernel/acpi/boot.o
-obj-$(CONFIG_ACPI_SLEEP)	+= sleep_64.o wakeup_64.o
-
-ifneq ($(CONFIG_ACPI_PROCESSOR),)
-obj-y			+= processor.o
-processor-y		:= ../../../x86/kernel/acpi/processor.o ../../../x86/kernel/acpi/cstate.o
-endif
-
