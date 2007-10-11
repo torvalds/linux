@@ -48,61 +48,33 @@ static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.dev.bus = &vio_bus_type,
 };
 
-#ifdef CONFIG_PPC_ISERIES
-static struct iommu_table veth_iommu_table;
-struct iommu_table vio_iommu_table;
-
-static void __init iommu_vio_init(void)
-{
-	iommu_table_getparms_iSeries(255, 0, 0xff, &veth_iommu_table);
-	veth_iommu_table.it_size /= 2;
-	vio_iommu_table = veth_iommu_table;
-	vio_iommu_table.it_offset += veth_iommu_table.it_size;
-
-	if (!iommu_init_table(&veth_iommu_table, -1))
-		printk("Virtual Bus VETH TCE table failed.\n");
-	if (!iommu_init_table(&vio_iommu_table, -1))
-		printk("Virtual Bus VIO TCE table failed.\n");
-}
-#else
-static void __init iommu_vio_init(void)
-{
-}
-#endif
-
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 {
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		if (strcmp(dev->type, "network") == 0)
-			return &veth_iommu_table;
-		return &vio_iommu_table;
-	} else
-#endif
-	{
-		const unsigned char *dma_window;
-		struct iommu_table *tbl;
-		unsigned long offset, size;
+	const unsigned char *dma_window;
+	struct iommu_table *tbl;
+	unsigned long offset, size;
 
-		dma_window = of_get_property(dev->dev.archdata.of_node,
-					  "ibm,my-dma-window", NULL);
-		if (!dma_window)
-			return NULL;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return vio_build_iommu_table_iseries(dev);
 
-		tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	dma_window = of_get_property(dev->dev.archdata.of_node,
+				  "ibm,my-dma-window", NULL);
+	if (!dma_window)
+		return NULL;
 
-		of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
-				    &tbl->it_index, &offset, &size);
+	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
 
-		/* TCE table size - measured in tce entries */
-		tbl->it_size = size >> IOMMU_PAGE_SHIFT;
-		/* offset for VIO should always be 0 */
-		tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
-		tbl->it_busno = 0;
-		tbl->it_type = TCE_VB;
+	of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
+			    &tbl->it_index, &offset, &size);
 
-		return iommu_init_table(tbl, -1);
-	}
+	/* TCE table size - measured in tce entries */
+	tbl->it_size = size >> IOMMU_PAGE_SHIFT;
+	/* offset for VIO should always be 0 */
+	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
+	tbl->it_busno = 0;
+	tbl->it_type = TCE_VB;
+
+	return iommu_init_table(tbl, -1);
 }
 
 /**
