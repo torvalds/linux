@@ -50,7 +50,7 @@ obj-$(CONFIG_SCx200)		+= scx200.o
 # vsyscall_32.o contains the vsyscall DSO images as __initdata.
 # We must build both images before we can assemble it.
 # Note: kbuild does not track this dependency due to usage of .incbin
-$(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter.so
+$(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so
 targets += $(foreach F,int80 sysenter,vsyscall-$F.o vsyscall-$F.so)
 targets += vsyscall-note.o vsyscall_32.lds
 
@@ -63,10 +63,10 @@ export CPPFLAGS_vsyscall_32.lds += -P -C -U$(ARCH)
 
 vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 \
 		 $(call ld-option, -Wl$(comma)--hash-style=sysv)
-SYSCFLAGS_vsyscall-sysenter.so	= $(vsyscall-flags)
+SYSCFLAGS_vsyscall-sysenter_32.so	= $(vsyscall-flags)
 SYSCFLAGS_vsyscall-int80_32.so	= $(vsyscall-flags)
 
-$(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter.so: \
+$(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so: \
 $(obj)/vsyscall-%.so: $(src)/vsyscall_32.lds \
 		      $(obj)/vsyscall-%.o $(obj)/vsyscall-note.o FORCE
 	$(call if_changed,syscall)
@@ -80,7 +80,7 @@ $(obj)/built-in.o: ld_flags += -R $(obj)/vsyscall-syms.o
 
 SYSCFLAGS_vsyscall-syms.o = -r
 $(obj)/vsyscall-syms.o: $(src)/vsyscall_32.lds \
-			$(obj)/vsyscall-sysenter.o $(obj)/vsyscall-note.o FORCE
+			$(obj)/vsyscall-sysenter_32.o $(obj)/vsyscall-note.o FORCE
 	$(call if_changed,syscall)
 
 k8-y                      += ../../x86_64/kernel/k8.o
