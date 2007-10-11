@@ -1075,8 +1075,8 @@ void *set_except_vector(int n, void *addr)
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(volatile u32 *)(ebase + 0x200) = 0x08000000 |
-		                                 (0x03ffffff & (handler >> 2));
+		*(u32 *)(ebase + 0x200) = 0x08000000 |
+					  (0x03ffffff & (handler >> 2));
 		flush_icache_range(ebase + 0x200, ebase + 0x204);
 	}
 	return (void *)old_handler;
