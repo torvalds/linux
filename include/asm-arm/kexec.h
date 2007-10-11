@@ -14,6 +14,8 @@
 
 #define KEXEC_ARCH KEXEC_ARCH_ARM
 
+#define KEXEC_BOOT_PARAMS_SIZE 1536
+
 #ifndef __ASSEMBLY__
 
 struct kimage;
