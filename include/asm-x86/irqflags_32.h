@@ -160,4 +160,17 @@ static inline int raw_irqs_disabled(void)
 # define TRACE_IRQS_OFF
 #endif
 
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+# define LOCKDEP_SYS_EXIT			\
+	pushl %eax;				\
+	pushl %ecx;				\
+	pushl %edx;				\
+	call lockdep_sys_exit;			\
+	popl %edx;				\
+	popl %ecx;				\
+	popl %eax;
+#else
+# define LOCKDEP_SYS_EXIT
+#endif
+
 #endif
