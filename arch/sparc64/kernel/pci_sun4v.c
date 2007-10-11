@@ -1055,11 +1055,6 @@ void __init sun4v_pci_init(struct device_node *dp, char *model_name)
 
 	p->pbm_B.iommu = iommu;
 
-	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
-	 * for memory space.
-	 */
-	pci_memspace_mask = 0x7fffffffUL;
-
 	pci_sun4v_pbm_init(p, dp, devhandle);
 	return;
 

@@ -519,13 +519,6 @@ void fire_pci_init(struct device_node *dp, const char *model_name)
 
 	p->pbm_B.iommu = iommu;
 
-	/* XXX MSI support XXX */
-
-	/* Like PSYCHO and SCHIZO we have a 2GB aligned area
-	 * for memory space.
-	 */
-	pci_memspace_mask = 0x7fffffffUL;
-
 	if (pci_fire_pbm_init(p, dp, portid))
 		goto fatal_memory_error;
 

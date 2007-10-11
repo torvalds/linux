@@ -1464,9 +1464,6 @@ static void __schizo_init(struct device_node *dp, char *model_name, int chip_typ
 
 	p->pbm_B.iommu = iommu;
 
-	/* Like PSYCHO we have a 2GB aligned area for memory space. */
-	pci_memspace_mask = 0x7fffffffUL;
-
 	if (schizo_pbm_init(p, dp, portid, chip_type))
 		goto fatal_memory_error;
 

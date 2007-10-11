@@ -29,8 +29,6 @@
 
 #include "pci_impl.h"
 
-unsigned long pci_memspace_mask = 0xffffffffUL;
-
 #ifndef CONFIG_PCI
 /* A "nop" PCI implementation. */
 asmlinkage int sys_pciconfig_read(unsigned long bus, unsigned long dfn,
@@ -1066,8 +1064,8 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
 	return 0;
 }
 
-/* Adjust vm_pgoff of VMA such that it is the physical page offset corresponding
- * to the 32-bit pci bus offset for DEV requested by the user.
+/* Adjust vm_pgoff of VMA such that it is the physical page offset
+ * corresponding to the 32-bit pci bus offset for DEV requested by the user.
  *
  * Basically, the user finds the base address for his device which he wishes
  * to mmap.  They read the 32-bit value from the config space base register,
@@ -1076,21 +1074,35 @@ static int __pci_mmap_make_offset_bus(struct pci_dev *pdev, struct vm_area_struc
  *
  * Returns negative error code on failure, zero on success.
  */
-static int __pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vma,
+static int __pci_mmap_make_offset(struct pci_dev *pdev,
+				  struct vm_area_struct *vma,
 				  enum pci_mmap_state mmap_state)
 {
-	unsigned long user_offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned long user32 = user_offset & pci_memspace_mask;
-	unsigned long largest_base, this_base, addr32;
-	int i;
+	unsigned long user_paddr, user_size;
+	int i, err;
 
-	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
-		return __pci_mmap_make_offset_bus(dev, vma, mmap_state);
+	/* First compute the physical address in vma->vm_pgoff,
+	 * making sure the user offset is within range in the
+	 * appropriate PCI space.
+	 */
+	err = __pci_mmap_make_offset_bus(pdev, vma, mmap_state);
+	if (err)
+		return err;
 
-	/* Figure out which base address this is for. */
-	largest_base = 0UL;
+	/* If this is a mapping on a host bridge, any address
+	 * is OK.
+	 */
+	if ((pdev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
+		return err;
+
+	/* Otherwise make sure it's in the range for one of the
+	 * device's resources.
+	 */
+	user_paddr = vma->vm_pgoff << PAGE_SHIFT;
+	user_size = vma->vm_end - vma->vm_start;
+
 	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		struct resource *rp = &dev->resource[i];
+		struct resource *rp = &pdev->resource[i];
 
 		/* Active? */
 		if (!rp->flags)
@@ -1108,25 +1120,13 @@ static int __pci_mmap_make_offset(struct pci_dev *dev, struct vm_area_struct *vm
 				continue;
 		}
 
-		this_base = rp->start;
-
-		addr32 = (this_base & PAGE_MASK) & pci_memspace_mask;
-
-		if (mmap_state == pci_mmap_io)
-			addr32 &= 0xffffff;
-
-		if (addr32 <= user32 && this_base > largest_base)
-			largest_base = this_base;
+		if ((rp->start <= user_paddr) &&
+		    (user_paddr + user_size) <= (rp->end + 1UL))
+			break;
 	}
 
-	if (largest_base == 0UL)
+	if (i > PCI_ROM_RESOURCE)
 		return -EINVAL;
-
-	/* Now construct the final physical address. */
-	if (mmap_state == pci_mmap_io)
-		vma->vm_pgoff = (((largest_base & ~0xffffffUL) | user32) >> PAGE_SHIFT);
-	else
-		vma->vm_pgoff = (((largest_base & ~(pci_memspace_mask)) | user32) >> PAGE_SHIFT);
 
 	return 0;
 }

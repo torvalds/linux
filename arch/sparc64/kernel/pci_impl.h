@@ -157,7 +157,6 @@ struct pci_controller_info {
 };
 
 extern struct pci_pbm_info *pci_pbm_root;
-extern unsigned long pci_memspace_mask;
 
 extern int pci_num_pbms;
 
