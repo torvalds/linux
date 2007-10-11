@@ -52,7 +52,7 @@ obj-$(CONFIG_SCx200)		+= scx200_32.o
 # Note: kbuild does not track this dependency due to usage of .incbin
 $(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so
 targets += $(foreach F,int80 sysenter,vsyscall-$F.o vsyscall-$F.so)
-targets += vsyscall-note.o vsyscall_32.lds
+targets += vsyscall-note_32.o vsyscall_32.lds
 
 # The DSO images are built using a special linker script.
 quiet_cmd_syscall = SYSCALL $@
@@ -68,7 +68,7 @@ SYSCFLAGS_vsyscall-int80_32.so	= $(vsyscall-flags)
 
 $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so: \
 $(obj)/vsyscall-%.so: $(src)/vsyscall_32.lds \
-		      $(obj)/vsyscall-%.o $(obj)/vsyscall-note.o FORCE
+		      $(obj)/vsyscall-%.o $(obj)/vsyscall-note_32.o FORCE
 	$(call if_changed,syscall)
 
 # We also create a special relocatable object that should mirror the symbol
@@ -80,7 +80,7 @@ $(obj)/built-in.o: ld_flags += -R $(obj)/vsyscall-syms.o
 
 SYSCFLAGS_vsyscall-syms.o = -r
 $(obj)/vsyscall-syms.o: $(src)/vsyscall_32.lds \
-			$(obj)/vsyscall-sysenter_32.o $(obj)/vsyscall-note.o FORCE
+			$(obj)/vsyscall-sysenter_32.o $(obj)/vsyscall-note_32.o FORCE
 	$(call if_changed,syscall)
 
 k8-y                      += ../../x86_64/kernel/k8.o
