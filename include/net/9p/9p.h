@@ -412,6 +412,18 @@ int p9_idpool_check(int id, struct p9_idpool *p);
 
 int p9_error_init(void);
 int p9_errstr2errno(char *, int);
+
+#ifdef CONFIG_SYSCTL
 int __init p9_sysctl_register(void);
 void __exit p9_sysctl_unregister(void);
+#else
+static inline int p9_sysctl_register(void)
+{
+	return 0;
+}
+static inline void p9_sysctl_unregister(void)
+{
+}
+#endif
+
 #endif /* NET_9P_H */
