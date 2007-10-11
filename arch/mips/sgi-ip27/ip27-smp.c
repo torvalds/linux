@@ -33,7 +33,7 @@ static void alloc_cpupda(cpuid_t cpu, int cpunum)
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(node);
 
 	cputonasid(cpunum) = nasid;
-	cpu_data[cpunum].p_nodeid = node;
+	sn_cpu_info[cpunum].p_nodeid = node;
 	cputoslice(cpunum) = get_cpu_slice(cpu);
 }
 

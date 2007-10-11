@@ -2,9 +2,27 @@
 #define _ASM_MACH_TOPOLOGY_H	1
 
 #include <asm/sn/hub.h>
+#include <asm/sn/types.h>
 #include <asm/mmzone.h>
 
-#define cpu_to_node(cpu)	(cpu_data[(cpu)].p_nodeid)
+struct cpuinfo_ip27 {
+//	cpuid_t		p_cpuid;	/* PROM assigned cpuid */
+	cnodeid_t	p_nodeid;	/* my node ID in compact-id-space */
+	nasid_t		p_nasid;	/* my node ID in numa-as-id-space */
+	unsigned char	p_slice;	/* Physical position on node board */
+#if 0
+	unsigned long		loops_per_sec;
+	unsigned long		ipi_count;
+	unsigned long		irq_attempt[NR_IRQS];
+	unsigned long		smp_local_irq_count;
+	unsigned long		prof_multiplier;
+	unsigned long		prof_counter;
+#endif
+};
+
+extern struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
+
+#define cpu_to_node(cpu)	(sn_cpu_info[(cpu)].p_nodeid)
 #define parent_node(node)	(node)
 #define node_to_cpumask(node)	(hub_data(node)->h_cpus)
 #define node_to_first_cpu(node)	(first_cpu(node_to_cpumask(node)))

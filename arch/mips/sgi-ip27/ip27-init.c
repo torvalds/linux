@@ -47,6 +47,9 @@ cnodeid_t	cpuid_to_compact_node[MAXCPUS];
 
 EXPORT_SYMBOL(nasid_to_compact_node);
 
+struct cpuinfo_ip27 sn_cpu_info[NR_CPUS];
+EXPORT_SYMBOL_GPL(sn_cpu_info);
+
 extern void pcibr_setup(cnodeid_t);
 
 extern void xtalk_probe_node(cnodeid_t nid);
