@@ -15,13 +15,3 @@ obj-$(CONFIG_PCI_MMCONFIG) += mmconfig_64.o direct.o mmconfig-shared.o
 
 obj-$(CONFIG_NUMA)	+= k8-bus_64.o
 
-direct-y += ../../x86/pci/direct.o
-acpi-y   += ../../x86/pci/acpi.o
-legacy-y += ../../x86/pci/legacy.o
-irq-y    += ../../x86/pci/irq.o
-common-y += ../../x86/pci/common.o
-fixup-y  += ../../x86/pci/fixup.o
-i386-y  += ../../x86/pci/i386.o
-init-y += ../../x86/pci/init.o
-early-y += ../../x86/pci/early.o
-mmconfig-shared-y += ../../x86/pci/mmconfig-shared.o
