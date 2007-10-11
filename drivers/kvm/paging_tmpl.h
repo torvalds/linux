@@ -144,6 +144,10 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
 			walker->gfn = (*ptep & PT_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;
+			if (write_fault && !is_dirty_pte(*ptep)) {
+				mark_page_dirty(vcpu->kvm, table_gfn);
+				*ptep |= PT_DIRTY_MASK;
+			}
 			break;
 		}
 
@@ -153,6 +157,10 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			walker->gfn = (*ptep & PT_DIR_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;
 			walker->gfn += PT_INDEX(addr, PT_PAGE_TABLE_LEVEL);
+			if (write_fault && !is_dirty_pte(*ptep)) {
+				mark_page_dirty(vcpu->kvm, table_gfn);
+				*ptep |= PT_DIRTY_MASK;
+			}
 			break;
 		}
 
@@ -194,12 +202,6 @@ err:
 	return 0;
 }
 
-static void FNAME(mark_pagetable_dirty)(struct kvm *kvm,
-					struct guest_walker *walker)
-{
-	mark_page_dirty(kvm, walker->table_gfn[walker->level - 1]);
-}
-
 static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 				  u64 *shadow_pte,
 				  gpa_t gaddr,
@@ -220,23 +222,6 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		 " user_fault %d gfn %lx\n",
 		 __FUNCTION__, *shadow_pte, (u64)gpte, access_bits,
 		 write_fault, user_fault, gfn);
-
-	if (write_fault && !dirty) {
-		pt_element_t *guest_ent, *tmp = NULL;
-
-		if (walker->ptep)
-			guest_ent = walker->ptep;
-		else {
-			tmp = kmap_atomic(walker->page, KM_USER0);
-			guest_ent = &tmp[walker->index];
-		}
-
-		*guest_ent |= PT_DIRTY_MASK;
-		if (!walker->ptep)
-			kunmap_atomic(tmp, KM_USER0);
-		dirty = 1;
-		FNAME(mark_pagetable_dirty)(vcpu->kvm, walker);
-	}
 
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see

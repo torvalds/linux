@@ -199,6 +199,11 @@ static int is_writeble_pte(unsigned long pte)
 	return pte & PT_WRITABLE_MASK;
 }
 
+static int is_dirty_pte(unsigned long pte)
+{
+	return pte & PT_DIRTY_MASK;
+}
+
 static int is_io_pte(unsigned long pte)
 {
 	return pte & PT_SHADOW_IO_MARK;
