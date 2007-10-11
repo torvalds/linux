@@ -1895,16 +1895,11 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return link->doit(skb, nlh, attrs);
 }
 
-static void xfrm_netlink_rcv(struct sock *sk, int len)
+static void xfrm_netlink_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		mutex_lock(&xfrm_cfg_mutex);
-		qlen = netlink_run_queue(sk, qlen, &xfrm_user_rcv_msg);
-		mutex_unlock(&xfrm_cfg_mutex);
-
-	} while (qlen);
+	mutex_lock(&xfrm_cfg_mutex);
+	netlink_rcv_skb(skb, &xfrm_user_rcv_msg);
+	mutex_unlock(&xfrm_cfg_mutex);
 }
 
 static inline size_t xfrm_expire_msgsize(void)

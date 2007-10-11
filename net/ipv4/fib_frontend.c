@@ -62,6 +62,9 @@ static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 #define FIB_TABLE_HASHSZ 256
 static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
+static struct sock *fibnl = NULL;
+
+
 struct fib_table *fib_new_table(u32 id)
 {
 	struct fib_table *tb;
@@ -811,13 +814,13 @@ static void nl_fib_input(struct sock *sk, int len)
 	pid = NETLINK_CB(skb).pid;       /* pid of sending process */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
 	NETLINK_CB(skb).dst_group = 0;  /* unicast */
-	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
+	netlink_unicast(fibnl, skb, pid, MSG_DONTWAIT);
 }
 
 static void nl_fib_lookup_init(void)
 {
-	netlink_kernel_create(&init_net, NETLINK_FIB_LOOKUP, 0, nl_fib_input,
-				NULL, THIS_MODULE);
+	fibnl = netlink_kernel_create(&init_net, NETLINK_FIB_LOOKUP, 0,
+				      nl_fib_input, NULL, THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)

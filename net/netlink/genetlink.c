@@ -470,15 +470,11 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return ops->doit(skb, &info);
 }
 
-static void genl_rcv(struct sock *sk, int len)
+static void genl_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		genl_lock();
-		qlen = netlink_run_queue(sk, qlen, genl_rcv_msg);
-		genl_unlock();
-	} while (qlen && genl_sock && genl_sock->sk_receive_queue.qlen);
+	genl_lock();
+	netlink_rcv_skb(skb, &genl_rcv_msg);
+	genl_unlock();
 }
 
 /**************************************************************************

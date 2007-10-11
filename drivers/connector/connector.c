@@ -235,18 +235,6 @@ out:
 }
 
 /*
- * Netlink socket input callback - dequeues the skbs and calls the
- * main netlink receiving function.
- */
-static void cn_input(struct sock *sk, int len)
-{
-	struct sk_buff *skb;
-
-	while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL)
-		cn_rx_skb(skb);
-}
-
-/*
  * Notification routing.
  *
  * Gets id and checks if there are notification request for it's idx
@@ -442,7 +430,7 @@ static int __devinit cn_init(void)
 	struct cn_dev *dev = &cdev;
 	int err;
 
-	dev->input = cn_input;
+	dev->input = cn_rx_skb;
 	dev->id.idx = cn_idx;
 	dev->id.val = cn_val;
 

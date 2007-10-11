@@ -839,15 +839,11 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 static DEFINE_MUTEX(inet_diag_mutex);
 
-static void inet_diag_rcv(struct sock *sk, int len)
+static void inet_diag_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		mutex_lock(&inet_diag_mutex);
-		qlen = netlink_run_queue(sk, qlen, &inet_diag_rcv_msg);
-		mutex_unlock(&inet_diag_mutex);
-	} while (qlen);
+	mutex_lock(&inet_diag_mutex);
+	netlink_rcv_skb(skb, &inet_diag_rcv_msg);
+	mutex_unlock(&inet_diag_mutex);
 }
 
 static DEFINE_SPINLOCK(inet_diag_register_lock);

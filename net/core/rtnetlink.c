@@ -1312,15 +1312,11 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	return doit(skb, nlh, (void *)&rta_buf[0]);
 }
 
-static void rtnetlink_rcv(struct sock *sk, int len)
+static void rtnetlink_rcv(struct sk_buff *skb)
 {
-	unsigned int qlen = 0;
-
-	do {
-		rtnl_lock();
-		qlen = netlink_run_queue(sk, qlen, &rtnetlink_rcv_msg);
-		rtnl_unlock();
-	} while (qlen);
+	rtnl_lock();
+	netlink_rcv_skb(skb, &rtnetlink_rcv_msg);
+	rtnl_unlock();
 }
 
 static int rtnetlink_event(struct notifier_block *this, unsigned long event, void *ptr)

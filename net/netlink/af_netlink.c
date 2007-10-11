@@ -80,7 +80,7 @@ struct netlink_sock {
 	struct netlink_callback	*cb;
 	struct mutex		*cb_mutex;
 	struct mutex		cb_def_mutex;
-	void			(*data_ready)(struct sock *sk, int bytes);
+	void			(*netlink_rcv)(struct sk_buff *skb);
 	struct module		*module;
 };
 
@@ -127,7 +127,6 @@ static DECLARE_WAIT_QUEUE_HEAD(nl_table_wait);
 
 static int netlink_dump(struct sock *sk);
 static void netlink_destroy_callback(struct netlink_callback *cb);
-static void netlink_queue_skip(struct nlmsghdr *nlh, struct sk_buff *skb);
 
 static DEFINE_RWLOCK(nl_table_lock);
 static atomic_t nl_table_users = ATOMIC_INIT(0);
@@ -709,21 +708,17 @@ static void netlink_overrun(struct sock *sk)
 
 static struct sock *netlink_getsockbypid(struct sock *ssk, u32 pid)
 {
-	int protocol = ssk->sk_protocol;
-	struct net *net;
 	struct sock *sock;
 	struct netlink_sock *nlk;
 
-	net = ssk->sk_net;
-	sock = netlink_lookup(net, protocol, pid);
+	sock = netlink_lookup(ssk->sk_net, ssk->sk_protocol, pid);
 	if (!sock)
 		return ERR_PTR(-ECONNREFUSED);
 
 	/* Don't bother queuing skb if kernel socket has no input function */
 	nlk = nlk_sk(sock);
-	if ((netlink_is_kernel(sock) && !nlk->data_ready) ||
-	    (sock->sk_state == NETLINK_CONNECTED &&
-	     nlk->dst_pid != nlk_sk(ssk)->pid)) {
+	if (sock->sk_state == NETLINK_CONNECTED &&
+	    nlk->dst_pid != nlk_sk(ssk)->pid) {
 		sock_put(sock);
 		return ERR_PTR(-ECONNREFUSED);
 	}
@@ -837,7 +832,34 @@ static inline struct sk_buff *netlink_trim(struct sk_buff *skb,
 	return skb;
 }
 
-int netlink_unicast(struct sock *ssk, struct sk_buff *skb, u32 pid, int nonblock)
+static inline void netlink_rcv_wake(struct sock *sk)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+
+	if (skb_queue_empty(&sk->sk_receive_queue))
+		clear_bit(0, &nlk->state);
+	if (!test_bit(0, &nlk->state))
+		wake_up_interruptible(&nlk->wait);
+}
+
+static inline int netlink_unicast_kernel(struct sock *sk, struct sk_buff *skb)
+{
+	int ret;
+	struct netlink_sock *nlk = nlk_sk(sk);
+
+	ret = -ECONNREFUSED;
+	if (nlk->netlink_rcv != NULL) {
+		ret = skb->len;
+		skb_set_owner_r(skb, sk);
+		nlk->netlink_rcv(skb);
+	}
+	kfree_skb(skb);
+	sock_put(sk);
+	return ret;
+}
+
+int netlink_unicast(struct sock *ssk, struct sk_buff *skb,
+		    u32 pid, int nonblock)
 {
 	struct sock *sk;
 	int err;
@@ -852,6 +874,9 @@ retry:
 		kfree_skb(skb);
 		return PTR_ERR(sk);
 	}
+	if (netlink_is_kernel(sk))
+		return netlink_unicast_kernel(sk, skb);
+
 	err = netlink_attachskb(sk, skb, nonblock, timeo, ssk);
 	if (err == 1)
 		goto retry;
@@ -1151,16 +1176,6 @@ static void netlink_cmsg_recv_pktinfo(struct msghdr *msg, struct sk_buff *skb)
 	put_cmsg(msg, SOL_NETLINK, NETLINK_PKTINFO, sizeof(info), &info);
 }
 
-static inline void netlink_rcv_wake(struct sock *sk)
-{
-	struct netlink_sock *nlk = nlk_sk(sk);
-
-	if (skb_queue_empty(&sk->sk_receive_queue))
-		clear_bit(0, &nlk->state);
-	if (!test_bit(0, &nlk->state))
-		wake_up_interruptible(&nlk->wait);
-}
-
 static int netlink_sendmsg(struct kiocb *kiocb, struct socket *sock,
 			   struct msghdr *msg, size_t len)
 {
@@ -1308,11 +1323,7 @@ out:
 
 static void netlink_data_ready(struct sock *sk, int len)
 {
-	struct netlink_sock *nlk = nlk_sk(sk);
-
-	if (nlk->data_ready)
-		nlk->data_ready(sk, len);
-	netlink_rcv_wake(sk);
+	BUG();
 }
 
 /*
@@ -1323,7 +1334,7 @@ static void netlink_data_ready(struct sock *sk, int len)
 
 struct sock *
 netlink_kernel_create(struct net *net, int unit, unsigned int groups,
-		      void (*input)(struct sock *sk, int len),
+		      void (*input)(struct sk_buff *skb),
 		      struct mutex *cb_mutex, struct module *module)
 {
 	struct socket *sock;
@@ -1352,7 +1363,7 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 	sk = sock->sk;
 	sk->sk_data_ready = netlink_data_ready;
 	if (input)
-		nlk_sk(sk)->data_ready = input;
+		nlk_sk(sk)->netlink_rcv = input;
 
 	if (netlink_insert(sk, net, 0))
 		goto out_sock_release;
@@ -1552,12 +1563,7 @@ int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 
 	netlink_dump(sk);
 	sock_put(sk);
-
-	/* We successfully started a dump, by returning -EINTR we
-	 * signal the queue mangement to interrupt processing of
-	 * any netlink messages so userspace gets a chance to read
-	 * the results. */
-	return -EINTR;
+	return 0;
 }
 
 void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
@@ -1594,13 +1600,15 @@ void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err)
 	netlink_unicast(in_skb->sk, skb, NETLINK_CB(in_skb).pid, MSG_DONTWAIT);
 }
 
-static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
+int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 						     struct nlmsghdr *))
 {
 	struct nlmsghdr *nlh;
 	int err;
 
 	while (skb->len >= nlmsg_total_size(0)) {
+		int msglen;
+
 		nlh = nlmsg_hdr(skb);
 		err = 0;
 
@@ -1616,83 +1624,17 @@ static int netlink_rcv_skb(struct sk_buff *skb, int (*cb)(struct sk_buff *,
 			goto skip;
 
 		err = cb(skb, nlh);
-		if (err == -EINTR) {
-			/* Not an error, but we interrupt processing */
-			netlink_queue_skip(nlh, skb);
-			return err;
-		}
 skip:
 		if (nlh->nlmsg_flags & NLM_F_ACK || err)
 			netlink_ack(skb, nlh, err);
 
-		netlink_queue_skip(nlh, skb);
+	        msglen = NLMSG_ALIGN(nlh->nlmsg_len);
+		if (msglen > skb->len)
+			msglen = skb->len;
+		skb_pull(skb, msglen);
 	}
 
 	return 0;
-}
-
-/**
- * nelink_run_queue - Process netlink receive queue.
- * @sk: Netlink socket containing the queue
- * @qlen: Initial queue length
- * @cb: Callback function invoked for each netlink message found
- *
- * Processes as much as there was in the queue upon entry and invokes
- * a callback function for each netlink message found. The callback
- * function may refuse a message by returning a negative error code
- * but setting the error pointer to 0 in which case this function
- * returns with a qlen != 0.
- *
- * qlen must be initialized to 0 before the initial entry, afterwards
- * the function may be called repeatedly until the returned qlen is 0.
- *
- * The callback function may return -EINTR to signal that processing
- * of netlink messages shall be interrupted. In this case the message
- * currently being processed will NOT be requeued onto the receive
- * queue.
- */
-unsigned int netlink_run_queue(struct sock *sk, unsigned int qlen,
-			       int (*cb)(struct sk_buff *, struct nlmsghdr *))
-{
-	struct sk_buff *skb;
-
-	if (!qlen || qlen > skb_queue_len(&sk->sk_receive_queue))
-		qlen = skb_queue_len(&sk->sk_receive_queue);
-
-	for (; qlen; qlen--) {
-		skb = skb_dequeue(&sk->sk_receive_queue);
-		if (netlink_rcv_skb(skb, cb)) {
-			if (skb->len)
-				skb_queue_head(&sk->sk_receive_queue, skb);
-			else {
-				kfree_skb(skb);
-				qlen--;
-			}
-			break;
-		}
-
-		kfree_skb(skb);
-	}
-
-	return qlen;
-}
-
-/**
- * netlink_queue_skip - Skip netlink message while processing queue.
- * @nlh: Netlink message to be skipped
- * @skb: Socket buffer containing the netlink messages.
- *
- * Pulls the given netlink message off the socket buffer so the next
- * call to netlink_queue_run() will not reconsider the message.
- */
-static void netlink_queue_skip(struct nlmsghdr *nlh, struct sk_buff *skb)
-{
-	int msglen = NLMSG_ALIGN(nlh->nlmsg_len);
-
-	if (msglen > skb->len)
-		msglen = skb->len;
-
-	skb_pull(skb, msglen);
 }
 
 /**
@@ -1998,7 +1940,7 @@ panic:
 core_initcall(netlink_proto_init);
 
 EXPORT_SYMBOL(netlink_ack);
-EXPORT_SYMBOL(netlink_run_queue);
+EXPORT_SYMBOL(netlink_rcv_skb);
 EXPORT_SYMBOL(netlink_broadcast);
 EXPORT_SYMBOL(netlink_dump_start);
 EXPORT_SYMBOL(netlink_kernel_create);

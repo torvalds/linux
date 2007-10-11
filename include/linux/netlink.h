@@ -175,7 +175,7 @@ struct netlink_skb_parms
 
 extern struct sock *netlink_kernel_create(struct net *net,
 					  int unit,unsigned int groups,
-					  void (*input)(struct sock *sk, int len),
+					  void (*input)(struct sk_buff *skb),
 					  struct mutex *cb_mutex,
 					  struct module *module);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
