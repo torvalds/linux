@@ -1313,48 +1313,6 @@ static int __video_do_ioctl(struct inode *inode, struct file *file,
 		ret=vfd->vidioc_cropcap(file, fh, p);
 		break;
 	}
-	case VIDIOC_G_MPEGCOMP:
-	{
-		struct v4l2_mpeg_compression *p=arg;
-
-		/*FIXME: Several fields not shown */
-		if (!vfd->vidioc_g_mpegcomp)
-			break;
-		ret=vfd->vidioc_g_mpegcomp(file, fh, p);
-		if (!ret)
-			dbgarg (cmd, "ts_pid_pmt=%d, ts_pid_audio=%d,"
-					" ts_pid_video=%d, ts_pid_pcr=%d, "
-					"ps_size=%d, au_sample_rate=%d, "
-					"au_pesid=%c, vi_frame_rate=%d, "
-					"vi_frames_per_gop=%d, "
-					"vi_bframes_count=%d, vi_pesid=%c\n",
-					p->ts_pid_pmt,p->ts_pid_audio,
-					p->ts_pid_video,p->ts_pid_pcr,
-					p->ps_size, p->au_sample_rate,
-					p->au_pesid, p->vi_frame_rate,
-					p->vi_frames_per_gop,
-					p->vi_bframes_count, p->vi_pesid);
-		break;
-	}
-	case VIDIOC_S_MPEGCOMP:
-	{
-		struct v4l2_mpeg_compression *p=arg;
-		/*FIXME: Several fields not shown */
-		if (!vfd->vidioc_s_mpegcomp)
-			break;
-		dbgarg (cmd, "ts_pid_pmt=%d, ts_pid_audio=%d, "
-				"ts_pid_video=%d, ts_pid_pcr=%d, ps_size=%d, "
-				"au_sample_rate=%d, au_pesid=%c, "
-				"vi_frame_rate=%d, vi_frames_per_gop=%d, "
-				"vi_bframes_count=%d, vi_pesid=%c\n",
-				p->ts_pid_pmt,p->ts_pid_audio, p->ts_pid_video,
-				p->ts_pid_pcr, p->ps_size, p->au_sample_rate,
-				p->au_pesid, p->vi_frame_rate,
-				p->vi_frames_per_gop, p->vi_bframes_count,
-				p->vi_pesid);
-		ret=vfd->vidioc_s_mpegcomp(file, fh, p);
-		break;
-	}
 	case VIDIOC_G_JPEGCOMP:
 	{
 		struct v4l2_jpegcompression *p=arg;

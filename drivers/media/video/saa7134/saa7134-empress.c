@@ -284,17 +284,6 @@ static int ts_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_CTRL:
 		return saa7134_common_ioctl(dev, cmd, arg);
 
-	case VIDIOC_S_MPEGCOMP:
-		printk(KERN_WARNING "VIDIOC_S_MPEGCOMP is obsolete. "
-				    "Replace with VIDIOC_S_EXT_CTRLS!");
-		saa7134_i2c_call_clients(dev, VIDIOC_S_MPEGCOMP, arg);
-		ts_init_encoder(dev);
-		return 0;
-	case VIDIOC_G_MPEGCOMP:
-		printk(KERN_WARNING "VIDIOC_G_MPEGCOMP is obsolete. "
-				    "Replace with VIDIOC_G_EXT_CTRLS!");
-		saa7134_i2c_call_clients(dev, VIDIOC_G_MPEGCOMP, arg);
-		return 0;
 	case VIDIOC_S_EXT_CTRLS:
 		/* count == 0 is abused in saa6752hs.c, so that special
 		   case is handled here explicitly. */

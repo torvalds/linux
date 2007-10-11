@@ -271,10 +271,6 @@ struct video_device
 	int (*vidioc_s_crop)           (struct file *file, void *fh,
 					struct v4l2_crop *a);
 	/* Compression ioctls */
-	int (*vidioc_g_mpegcomp)       (struct file *file, void *fh,
-					struct v4l2_mpeg_compression *a);
-	int (*vidioc_s_mpegcomp)       (struct file *file, void *fh,
-					struct v4l2_mpeg_compression *a);
 	int (*vidioc_g_jpegcomp)       (struct file *file, void *fh,
 					struct v4l2_jpegcompression *a);
 	int (*vidioc_s_jpegcomp)       (struct file *file, void *fh,
