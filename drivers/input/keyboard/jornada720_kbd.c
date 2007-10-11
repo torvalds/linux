@@ -59,7 +59,8 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
-	u8 count, kbd_data;
+	struct input_dev *input = jornadakbd->input;
+	u8 count, kbd_data, scan_code;
 
 	/* startup ssp with spinlock */
 	jornada_ssp_start();
@@ -77,11 +78,12 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 		while (count--) {
 			/* Exchange TxDummy for location (keymap[kbddata]) */
 			kbd_data = jornada_ssp_byte(TXDUMMY);
+			scan_code = kbd_data & 0x7f;
 
-			input_report_key(jornadakbd->input,
-					 jornadakbd->keymap[kbd_data & 0x7f],
+			input_event(input, EV_MSC, MSC_SCAN, scan_code);
+			input_report_key(input, jornadakbd->keymap[scan_code],
 					 !(kbd_data & 0x80));
-			input_sync(jornadakbd->input);
+			input_sync(input);
 		}
 	}
 
@@ -122,6 +124,8 @@ static int __devinit jornada720_kbd_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(jornadakbd->keymap); i++)
 		__set_bit(jornadakbd->keymap[i], input_dev->keybit);
 	__clear_bit(KEY_RESERVED, input_dev->keybit);
+
+	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	err = request_irq(IRQ_GPIO0,
 			  jornada720_kbd_interrupt,
