@@ -1240,7 +1240,7 @@ menuconfig INSTRUMENTATION
 
 if INSTRUMENTATION
 
-source "arch/i386/oprofile/Kconfig"
+source "arch/x86/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes"

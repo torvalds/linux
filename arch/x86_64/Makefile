@@ -80,7 +80,7 @@ core-y					+= arch/x86_64/kernel/ \
 					   arch/x86_64/vdso/
 core-$(CONFIG_IA32_EMULATION)		+= arch/x86_64/ia32/
 drivers-$(CONFIG_PCI)			+= arch/x86_64/pci/
-drivers-$(CONFIG_OPROFILE)		+= arch/i386/oprofile/
+drivers-$(CONFIG_OPROFILE)		+= arch/x86/oprofile/
 
 boot := arch/x86_64/boot
 
