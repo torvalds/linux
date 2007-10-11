@@ -1711,7 +1711,7 @@ xfs_itruncate_finish(
 		 * runs.
 		 */
 		XFS_BMAP_INIT(&free_list, &first_block);
-		error = XFS_BUNMAPI(mp, ntp, &ip->i_iocore,
+		error = xfs_bunmapi(ntp, ip,
 				    first_unmap_block, unmap_len,
 				    XFS_BMAPI_AFLAG(fork) |
 				      (sync ? 0 : XFS_BMAPI_ASYNC),
@@ -1844,8 +1844,6 @@ xfs_igrow_start(
 	xfs_fsize_t	new_size,
 	cred_t		*credp)
 {
-	int		error;
-
 	ASSERT(ismrlocked(&(ip->i_lock), MR_UPDATE) != 0);
 	ASSERT(ismrlocked(&(ip->i_iolock), MR_UPDATE) != 0);
 	ASSERT(new_size > ip->i_size);
@@ -1855,9 +1853,7 @@ xfs_igrow_start(
 	 * xfs_write_file() beyond the end of the file
 	 * and any blocks between the old and new file sizes.
 	 */
-	error = xfs_zero_eof(XFS_ITOV(ip), &ip->i_iocore, new_size,
-			     ip->i_size);
-	return error;
+	return xfs_zero_eof(ip, new_size, ip->i_size);
 }
 
 /*

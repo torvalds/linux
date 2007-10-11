@@ -131,7 +131,7 @@ xfs_inval_cached_trace(
  */
 STATIC int
 xfs_iozero(
-	struct inode		*ip,	/* inode			*/
+	struct xfs_inode	*ip,	/* inode			*/
 	loff_t			pos,	/* offset in file		*/
 	size_t			count)	/* size of data to zero		*/
 {
@@ -139,7 +139,7 @@ xfs_iozero(
 	struct address_space	*mapping;
 	int			status;
 
-	mapping = ip->i_mapping;
+	mapping = ip->i_vnode->i_mapping;
 	do {
 		unsigned offset, bytes;
 		void *fsdata;
@@ -389,20 +389,19 @@ xfs_splice_write(
  */
 STATIC int				/* error (positive) */
 xfs_zero_last_block(
-	struct inode	*ip,
-	xfs_iocore_t	*io,
+	xfs_inode_t	*ip,
 	xfs_fsize_t	offset,
 	xfs_fsize_t	isize)
 {
 	xfs_fileoff_t	last_fsb;
-	xfs_mount_t	*mp = io->io_mount;
+	xfs_mount_t	*mp = ip->i_mount;
 	int		nimaps;
 	int		zero_offset;
 	int		zero_len;
 	int		error = 0;
 	xfs_bmbt_irec_t	imap;
 
-	ASSERT(ismrlocked(io->io_lock, MR_UPDATE) != 0);
+	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE) != 0);
 
 	zero_offset = XFS_B_FSB_OFFSET(mp, isize);
 	if (zero_offset == 0) {
@@ -415,7 +414,7 @@ xfs_zero_last_block(
 
 	last_fsb = XFS_B_TO_FSBT(mp, isize);
 	nimaps = 1;
-	error = XFS_BMAPI(mp, NULL, io, last_fsb, 1, 0, NULL, 0, &imap,
+	error = xfs_bmapi(NULL, ip, last_fsb, 1, 0, NULL, 0, &imap,
 			  &nimaps, NULL, NULL);
 	if (error) {
 		return error;
@@ -433,14 +432,14 @@ xfs_zero_last_block(
 	 * out sync.  We need to drop the ilock while we do this so we
 	 * don't deadlock when the buffer cache calls back to us.
 	 */
-	XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL| XFS_EXTSIZE_RD);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL| XFS_EXTSIZE_RD);
 
 	zero_len = mp->m_sb.sb_blocksize - zero_offset;
 	if (isize + zero_len > offset)
 		zero_len = offset - isize;
 	error = xfs_iozero(ip, isize, zero_len);
 
-	XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
+	xfs_ilock(ip, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 	ASSERT(error >= 0);
 	return error;
 }
@@ -458,12 +457,11 @@ xfs_zero_last_block(
 
 int					/* error (positive) */
 xfs_zero_eof(
-	bhv_vnode_t	*vp,
-	xfs_iocore_t	*io,
+	xfs_inode_t	*ip,
 	xfs_off_t	offset,		/* starting I/O offset */
 	xfs_fsize_t	isize)		/* current inode size */
 {
-	struct inode	*ip = vn_to_inode(vp);
+	xfs_iocore_t	*io = &ip->i_iocore;
 	xfs_fileoff_t	start_zero_fsb;
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
@@ -483,7 +481,7 @@ xfs_zero_eof(
 	 * First handle zeroing the block on which isize resides.
 	 * We only zero a part of that block so it is handled specially.
 	 */
-	error = xfs_zero_last_block(ip, io, offset, isize);
+	error = xfs_zero_last_block(ip, offset, isize);
 	if (error) {
 		ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
 		ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
@@ -514,7 +512,7 @@ xfs_zero_eof(
 	while (start_zero_fsb <= end_zero_fsb) {
 		nimaps = 1;
 		zero_count_fsb = end_zero_fsb - start_zero_fsb + 1;
-		error = XFS_BMAPI(mp, NULL, io, start_zero_fsb, zero_count_fsb,
+		error = xfs_bmapi(NULL, ip, start_zero_fsb, zero_count_fsb,
 				  0, NULL, 0, &imap, &nimaps, NULL, NULL);
 		if (error) {
 			ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
@@ -542,7 +540,7 @@ xfs_zero_eof(
 		 * Drop the inode lock while we're doing the I/O.
 		 * We'll still have the iolock to protect us.
 		 */
-		XFS_IUNLOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 
 		zero_off = XFS_FSB_TO_B(mp, start_zero_fsb);
 		zero_len = XFS_FSB_TO_B(mp, imap.br_blockcount);
@@ -558,14 +556,13 @@ xfs_zero_eof(
 		start_zero_fsb = imap.br_startoff + imap.br_blockcount;
 		ASSERT(start_zero_fsb <= (end_zero_fsb + 1));
 
-		XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
+		xfs_ilock(ip, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 	}
 
 	return 0;
 
 out_lock:
-
-	XFS_ILOCK(mp, io, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
+	xfs_ilock(ip, XFS_ILOCK_EXCL|XFS_EXTSIZE_RD);
 	ASSERT(error >= 0);
 	return error;
 }
@@ -706,7 +703,7 @@ start:
 	 */
 
 	if (pos > xip->i_size) {
-		error = xfs_zero_eof(vp, io, pos, xip->i_size);
+		error = xfs_zero_eof(xip, pos, xip->i_size);
 		if (error) {
 			xfs_iunlock(xip, XFS_ILOCK_EXCL);
 			goto out_unlock_internal;
@@ -751,7 +748,7 @@ retry:
 
 		if (need_i_mutex) {
 			/* demote the lock now the cached pages are gone */
-			XFS_ILOCK_DEMOTE(mp, io, XFS_IOLOCK_EXCL);
+			xfs_ilock_demote(xip, XFS_IOLOCK_EXCL);
 			mutex_unlock(&inode->i_mutex);
 
 			iolock = XFS_IOLOCK_SHARED;
@@ -892,25 +889,6 @@ xfs_bdstrat_cb(struct xfs_buf *bp)
 		else
 			return (xfs_bioerror(bp));
 	}
-}
-
-
-int
-xfs_bmap(
-	xfs_inode_t	*ip,
-	xfs_off_t	offset,
-	ssize_t		count,
-	int		flags,
-	xfs_iomap_t	*iomapp,
-	int		*niomaps)
-{
-	xfs_iocore_t	*io = &ip->i_iocore;
-
-	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
-	ASSERT(((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) != 0) ==
-	       ((ip->i_iocore.io_flags & XFS_IOCORE_RT) != 0));
-
-	return xfs_iomap(io, offset, count, flags, iomapp, niomaps);
 }
 
 /*

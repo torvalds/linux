@@ -73,7 +73,6 @@ extern int xfsbdstrat(struct xfs_mount *, struct xfs_buf *);
 extern int xfs_bdstrat_cb(struct xfs_buf *);
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-extern int xfs_zero_eof(struct inode *, struct xfs_iocore *, xfs_off_t,
-				xfs_fsize_t);
+extern int xfs_zero_eof(struct xfs_inode *, xfs_off_t, xfs_fsize_t);
 
 #endif	/* __XFS_LRW_H__ */

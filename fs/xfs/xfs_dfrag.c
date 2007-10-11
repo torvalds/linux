@@ -111,7 +111,7 @@ xfs_swapext(
 		goto error0;
 	}
 
-	error = XFS_SWAP_EXTENTS(mp, &ip->i_iocore, &tip->i_iocore, sxp);
+	error = xfs_swap_extents(ip, tip, sxp);
 
  error0:
 	if (fp != NULL)

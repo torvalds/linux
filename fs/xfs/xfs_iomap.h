@@ -71,11 +71,10 @@ typedef struct xfs_iomap {
 	iomap_flags_t		iomap_flags;
 } xfs_iomap_t;
 
-struct xfs_iocore;
 struct xfs_inode;
 struct xfs_bmbt_irec;
 
-extern int xfs_iomap(struct xfs_iocore *, xfs_off_t, ssize_t, int,
+extern int xfs_iomap(struct xfs_inode *, xfs_off_t, ssize_t, int,
 		     struct xfs_iomap *, int *);
 extern int xfs_iomap_write_direct(struct xfs_inode *, xfs_off_t, size_t,
 				  int, struct xfs_bmbt_irec *, int *, int);

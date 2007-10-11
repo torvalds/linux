@@ -449,8 +449,6 @@ xfs_mount(
 	if (error)
 		return error;
 
-	mp->m_io_ops = xfs_iocore_xfs;
-
 	if (args->flags & XFSMNT_QUIET)
 		flags |= XFS_MFSI_QUIET;
 
@@ -544,7 +542,7 @@ xfs_mount(
 	if ((error = xfs_filestream_mount(mp)))
 		goto error2;
 
-	error = XFS_IOINIT(mp, args, flags);
+	error = xfs_mountfs(mp, flags);
 	if (error)
 		goto error2;
 

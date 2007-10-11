@@ -1255,7 +1255,6 @@ xfs_unmountfs(xfs_mount_t *mp, struct cred *cr)
 #if defined(DEBUG) || defined(INDUCE_IO_ERROR)
 	xfs_errortag_clearall(mp, 0);
 #endif
-	XFS_IODONE(mp);
 	xfs_mount_free(mp);
 	return 0;
 }

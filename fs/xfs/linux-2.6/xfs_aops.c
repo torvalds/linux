@@ -317,7 +317,7 @@ xfs_map_blocks(
 	xfs_inode_t		*ip = XFS_I(inode);
 	int			error, nmaps = 1;
 
-	error = xfs_bmap(ip, offset, count,
+	error = xfs_iomap(ip, offset, count,
 				flags, mapp, &nmaps);
 	if (!error && (flags & (BMAPI_WRITE|BMAPI_ALLOCATE)))
 		xfs_iflags_set(ip, XFS_IMODIFIED);
@@ -1336,7 +1336,7 @@ __xfs_get_blocks(
 	offset = (xfs_off_t)iblock << inode->i_blkbits;
 	ASSERT(bh_result->b_size >= (1 << inode->i_blkbits));
 	size = bh_result->b_size;
-	error = xfs_bmap(XFS_I(inode), offset, size,
+	error = xfs_iomap(XFS_I(inode), offset, size,
 			     create ? flags : BMAPI_READ, &iomap, &niomap);
 	if (error)
 		return -error;

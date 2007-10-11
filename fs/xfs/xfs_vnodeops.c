@@ -1187,7 +1187,7 @@ xfs_free_eofblocks(
 
 	nimaps = 1;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	error = XFS_BMAPI(mp, NULL, &ip->i_iocore, end_fsb, map_len, 0,
+	error = xfs_bmapi(NULL, ip, end_fsb, map_len, 0,
 			  NULL, 0, &imap, &nimaps, NULL, NULL);
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
@@ -3972,7 +3972,7 @@ retry:
 		 * Issue the xfs_bmapi() call to allocate the blocks
 		 */
 		XFS_BMAP_INIT(&free_list, &firstfsb);
-		error = XFS_BMAPI(mp, tp, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bmapi(tp, ip, startoffset_fsb,
 				  allocatesize_fsb, bmapi_flag,
 				  &firstfsb, 0, imapp, &nimaps,
 				  &free_list, NULL);
@@ -4054,7 +4054,7 @@ xfs_zero_remaining_bytes(
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, offset_fsb, 1, 0,
+		error = xfs_bmapi(NULL, ip, offset_fsb, 1, 0,
 			NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error || nimap < 1)
 			break;
@@ -4189,7 +4189,7 @@ xfs_free_file_space(
 	 */
 	if (rt && !XFS_SB_VERSION_HASEXTFLGBIT(&mp->m_sb)) {
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bmapi(NULL, ip, startoffset_fsb,
 			1, 0, NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error)
 			goto out_unlock_iolock;
@@ -4204,7 +4204,7 @@ xfs_free_file_space(
 				startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 		}
 		nimap = 1;
-		error = XFS_BMAPI(mp, NULL, &ip->i_iocore, endoffset_fsb - 1,
+		error = xfs_bmapi(NULL, ip, endoffset_fsb - 1,
 			1, 0, NULL, 0, &imap, &nimap, NULL, NULL);
 		if (error)
 			goto out_unlock_iolock;
@@ -4280,7 +4280,7 @@ xfs_free_file_space(
 		 * issue the bunmapi() call to free the blocks
 		 */
 		XFS_BMAP_INIT(&free_list, &firstfsb);
-		error = XFS_BUNMAPI(mp, tp, &ip->i_iocore, startoffset_fsb,
+		error = xfs_bunmapi(tp, ip, startoffset_fsb,
 				  endoffset_fsb - startoffset_fsb,
 				  0, 2, &firstfsb, &free_list, NULL, &done);
 		if (error) {

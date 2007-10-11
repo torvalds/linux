@@ -47,46 +47,6 @@
 #include "xfs_trans_space.h"
 #include "xfs_iomap.h"
 
-
-STATIC xfs_fsize_t
-xfs_size_fn(
-	xfs_inode_t		*ip)
-{
-	return XFS_ISIZE(ip);
-}
-
-STATIC int
-xfs_ioinit(
-	struct xfs_mount	*mp,
-	struct xfs_mount_args	*mntargs,
-	int			flags)
-{
-	return xfs_mountfs(mp, flags);
-}
-
-xfs_ioops_t	xfs_iocore_xfs = {
-	.xfs_ioinit		= (xfs_ioinit_t) xfs_ioinit,
-	.xfs_bmapi_func		= (xfs_bmapi_t) xfs_bmapi,
-	.xfs_bunmapi_func	= (xfs_bunmapi_t) xfs_bunmapi,
-	.xfs_bmap_eof_func	= (xfs_bmap_eof_t) xfs_bmap_eof,
-	.xfs_iomap_write_direct =
-			(xfs_iomap_write_direct_t) xfs_iomap_write_direct,
-	.xfs_iomap_write_delay =
-			(xfs_iomap_write_delay_t) xfs_iomap_write_delay,
-	.xfs_iomap_write_allocate =
-			(xfs_iomap_write_allocate_t) xfs_iomap_write_allocate,
-	.xfs_iomap_write_unwritten =
-			(xfs_iomap_write_unwritten_t) xfs_iomap_write_unwritten,
-	.xfs_ilock		= (xfs_lock_t) xfs_ilock,
-	.xfs_lck_map_shared	= (xfs_lck_map_shared_t) xfs_ilock_map_shared,
-	.xfs_ilock_demote	= (xfs_lock_demote_t) xfs_ilock_demote,
-	.xfs_ilock_nowait	= (xfs_lock_nowait_t) xfs_ilock_nowait,
-	.xfs_unlock		= (xfs_unlk_t) xfs_iunlock,
-	.xfs_size_func		= (xfs_size_t) xfs_size_fn,
-	.xfs_iodone		= (xfs_iodone_t) fs_noerr,
-	.xfs_swap_extents_func	= (xfs_swap_extents_t) xfs_swap_extents,
-};
-
 void
 xfs_iocore_inode_reinit(
 	xfs_inode_t	*ip)
