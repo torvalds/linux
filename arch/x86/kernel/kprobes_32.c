@@ -557,6 +557,12 @@ static int __kprobes post_kprobe_handler(struct pt_regs *regs)
 
 	resume_execution(cur, regs, kcb);
 	regs->eflags |= kcb->kprobe_saved_eflags;
+#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+	if (raw_irqs_disabled_flags(regs->eflags))
+		trace_hardirqs_off();
+	else
+		trace_hardirqs_on();
+#endif
 
 	/*Restore back the original saved kprobes variables and continue. */
 	if (kcb->kprobe_status == KPROBE_REENTER) {
@@ -694,6 +700,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr,
 			MIN_STACK_SIZE(addr));
 	regs->eflags &= ~IF_MASK;
+	trace_hardirqs_off();
 	regs->eip = (unsigned long)(jp->entry);
 	return 1;
 }
