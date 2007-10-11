@@ -200,15 +200,23 @@ void __init plat_timer_setup(struct irqaction *irq)
 	setup_irq(irqno, &rt_irqaction);
 }
 
-static cycle_t ip27_hpt_read(void)
+static cycle_t hub_rt_read(void)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
 
+struct clocksource ht_rt_clocksource = {
+	.name	= "HUB",
+	.rating	= 200,
+	.read	= hub_rt_read,
+	.mask	= CLOCKSOURCE_MASK(52),
+	.shift	= 32,
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
 void __init plat_time_init(void)
 {
-	clocksource_mips.read = ip27_hpt_read;
-	mips_hpt_frequency = CYCLES_PER_SEC;
+	clocksource_register(&ht_rt_clocksource);
 }
 
 void __init cpu_time_init(void)
