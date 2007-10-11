@@ -21,6 +21,13 @@
 #
 # $Id: Makefile,v 1.31 2002/03/22 15:56:07 ak Exp $
 
+# Fill in SRCARCH
+SRCARCH	:= x86
+
+archprepare:
+	@mkdir -p ${objtree}/arch/x86/kernel
+
+
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=
@@ -71,10 +78,10 @@ CFLAGS += $(cflags-y)
 CFLAGS_KERNEL += $(cflags-kernel-y)
 AFLAGS += -m64
 
-head-y := arch/x86_64/kernel/head_64.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task_64.o
+head-y := arch/x86/kernel/head_64.o arch/x86/kernel/head64.o arch/x86/kernel/init_task_64.o
 
 libs-y 					+= arch/x86/lib/
-core-y					+= arch/x86_64/kernel/ \
+core-y					+= arch/x86/kernel/ \
 					   arch/x86/mm/ \
 					   arch/x86/crypto/ \
 					   arch/x86/vdso/

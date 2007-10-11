@@ -83,6 +83,4 @@ $(obj)/vsyscall-syms.o: $(src)/vsyscall_32.lds \
 			$(obj)/vsyscall-sysenter_32.o $(obj)/vsyscall-note_32.o FORCE
 	$(call if_changed,syscall)
 
-k8-y                      += ../../x86_64/kernel/k8.o
-stacktrace-y		  += ../../x86_64/kernel/stacktrace.o
 
