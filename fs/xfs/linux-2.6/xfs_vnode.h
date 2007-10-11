@@ -187,7 +187,6 @@ typedef struct bhv_vattr {
 	(VN_ISREG(vp) && ((mode) & (VSGID|(VEXEC>>3))) == VSGID)
 
 extern void	vn_init(void);
-extern bhv_vnode_t	*vn_initialize(struct inode *);
 extern int	vn_revalidate(bhv_vnode_t *);
 
 /*
@@ -236,11 +235,6 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 /*
  * Dealing with bad inodes
  */
-static inline void vn_mark_bad(bhv_vnode_t *vp)
-{
-	make_bad_inode(vn_to_inode(vp));
-}
-
 static inline int VN_BAD(bhv_vnode_t *vp)
 {
 	return is_bad_inode(vn_to_inode(vp));

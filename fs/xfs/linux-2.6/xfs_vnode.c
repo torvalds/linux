@@ -82,20 +82,6 @@ vn_ioerror(
 		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-bhv_vnode_t *
-vn_initialize(
-	struct inode	*inode)
-{
-	bhv_vnode_t	*vp = vn_from_inode(inode);
-
-	XFS_STATS_INC(vn_active);
-	XFS_STATS_INC(vn_alloc);
-
-	ASSERT(VN_CACHED(vp) == 0);
-
-	return vp;
-}
-
 /*
  * Revalidate the Linux inode from the XFS inode.
  * Note: i_size _not_ updated; we must hold the inode

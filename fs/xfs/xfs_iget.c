@@ -65,7 +65,7 @@
  */
 STATIC int
 xfs_iget_core(
-	bhv_vnode_t	*vp,
+	struct inode	*inode,
 	xfs_mount_t	*mp,
 	xfs_trans_t	*tp,
 	xfs_ino_t	ino,
@@ -74,9 +74,9 @@ xfs_iget_core(
 	xfs_inode_t	**ipp,
 	xfs_daddr_t	bno)
 {
+	struct inode	*old_inode;
 	xfs_inode_t	*ip;
 	xfs_inode_t	*iq;
-	bhv_vnode_t	*inode_vp;
 	int		error;
 	xfs_icluster_t	*icl, *new_icl = NULL;
 	unsigned long	first_index, mask;
@@ -111,8 +111,8 @@ again:
 			goto again;
 		}
 
-		inode_vp = XFS_ITOV_NULL(ip);
-		if (inode_vp == NULL) {
+		old_inode = ip->i_vnode;
+		if (old_inode == NULL) {
 			/*
 			 * If IRECLAIM is set this inode is
 			 * on its way out of the system,
@@ -170,13 +170,11 @@ again:
 
 			goto finish_inode;
 
-		} else if (vp != inode_vp) {
-			struct inode *inode = vn_to_inode(inode_vp);
-
+		} else if (inode != old_inode) {
 			/* The inode is being torn down, pause and
 			 * try again.
 			 */
-			if (inode->i_state & (I_FREEING | I_CLEAR)) {
+			if (old_inode->i_state & (I_FREEING | I_CLEAR)) {
 				read_unlock(&pag->pag_ici_lock);
 				delay(1);
 				XFS_STATS_INC(xs_ig_frecycle);
@@ -189,7 +187,7 @@ again:
 */
 			cmn_err(CE_PANIC,
 		"xfs_iget_core: ambiguous vns: vp/0x%p, invp/0x%p",
-					inode_vp, vp);
+					old_inode, inode);
 		}
 
 		/*
@@ -231,7 +229,14 @@ finish_inode:
 
 	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
-	xfs_inode_lock_init(ip, vp);
+
+	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
+		     "xfsino", ip->i_ino);
+	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
+	init_waitqueue_head(&ip->i_ipin_wait);
+	atomic_set(&ip->i_pincount, 0);
+	initnsema(&ip->i_flock, 1, "xfsfino");
+
 	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
 
@@ -334,7 +339,7 @@ finish_inode:
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	xfs_initialize_vnode(mp, vp, ip);
+	xfs_initialize_vnode(mp, inode, ip);
 	return 0;
 }
 
@@ -354,69 +359,58 @@ xfs_iget(
 	xfs_daddr_t	bno)
 {
 	struct inode	*inode;
-	bhv_vnode_t	*vp = NULL;
+	xfs_inode_t	*ip;
 	int		error;
 
 	XFS_STATS_INC(xs_ig_attempts);
 
 retry:
 	inode = iget_locked(mp->m_super, ino);
-	if (inode) {
-		xfs_inode_t	*ip;
+	if (!inode)
+		/* If we got no inode we are out of memory */
+		return ENOMEM;
 
-		vp = vn_from_inode(inode);
-		if (inode->i_state & I_NEW) {
-			vn_initialize(inode);
-			error = xfs_iget_core(vp, mp, tp, ino, flags,
-					lock_flags, ipp, bno);
-			if (error) {
-				vn_mark_bad(vp);
-				if (inode->i_state & I_NEW)
-					unlock_new_inode(inode);
-				iput(inode);
-			}
-		} else {
-			/*
-			 * If the inode is not fully constructed due to
-			 * filehandle mismatches wait for the inode to go
-			 * away and try again.
-			 *
-			 * iget_locked will call __wait_on_freeing_inode
-			 * to wait for the inode to go away.
-			 */
-			if (is_bad_inode(inode) ||
-			    ((ip = xfs_vtoi(vp)) == NULL)) {
-				iput(inode);
-				delay(1);
-				goto retry;
-			}
+	if (inode->i_state & I_NEW) {
+		XFS_STATS_INC(vn_active);
+		XFS_STATS_INC(vn_alloc);
 
-			if (lock_flags != 0)
-				xfs_ilock(ip, lock_flags);
-			XFS_STATS_INC(xs_ig_found);
-			*ipp = ip;
-			error = 0;
+		error = xfs_iget_core(inode, mp, tp, ino, flags,
+				lock_flags, ipp, bno);
+		if (error) {
+			make_bad_inode(inode);
+			if (inode->i_state & I_NEW)
+				unlock_new_inode(inode);
+			iput(inode);
 		}
-	} else
-		error = ENOMEM;	/* If we got no inode we are out of memory */
+		return error;
+	}
 
-	return error;
-}
+	/*
+	 * If the inode is not fully constructed due to
+	 * filehandle mismatches wait for the inode to go
+	 * away and try again.
+	 *
+	 * iget_locked will call __wait_on_freeing_inode
+	 * to wait for the inode to go away.
+	 */
+	if (is_bad_inode(inode)) {
+		iput(inode);
+		delay(1);
+		goto retry;
+	}
 
-/*
- * Do the setup for the various locks within the incore inode.
- */
-void
-xfs_inode_lock_init(
-	xfs_inode_t	*ip,
-	bhv_vnode_t	*vp)
-{
-	mrlock_init(&ip->i_lock, MRLOCK_ALLOW_EQUAL_PRI|MRLOCK_BARRIER,
-		     "xfsino", ip->i_ino);
-	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
-	init_waitqueue_head(&ip->i_ipin_wait);
-	atomic_set(&ip->i_pincount, 0);
-	initnsema(&ip->i_flock, 1, "xfsfino");
+	ip = XFS_I(inode);
+	if (!ip) {
+		iput(inode);
+		delay(1);
+		goto retry;
+	}
+
+	if (lock_flags != 0)
+		xfs_ilock(ip, lock_flags);
+	XFS_STATS_INC(xs_ig_found);
+	*ipp = ip;
+	return 0;
 }
 
 /*
@@ -456,11 +450,9 @@ void
 xfs_iput(xfs_inode_t	*ip,
 	 uint		lock_flags)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
-
 	xfs_itrace_entry(ip);
 	xfs_iunlock(ip, lock_flags);
-	VN_RELE(vp);
+	IRELE(ip);
 }
 
 /*
@@ -470,20 +462,19 @@ void
 xfs_iput_new(xfs_inode_t	*ip,
 	     uint		lock_flags)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
-	struct inode	*inode = vn_to_inode(vp);
+	struct inode	*inode = ip->i_vnode;
 
 	xfs_itrace_entry(ip);
 
 	if ((ip->i_d.di_mode == 0)) {
 		ASSERT(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
-		vn_mark_bad(vp);
+		make_bad_inode(inode);
 	}
 	if (inode->i_state & I_NEW)
 		unlock_new_inode(inode);
 	if (lock_flags)
 		xfs_iunlock(ip, lock_flags);
-	VN_RELE(vp);
+	IRELE(ip);
 }
 
 
@@ -496,8 +487,6 @@ xfs_iput_new(xfs_inode_t	*ip,
 void
 xfs_ireclaim(xfs_inode_t *ip)
 {
-	bhv_vnode_t	*vp;
-
 	/*
 	 * Remove from old hash list and mount list.
 	 */
@@ -526,9 +515,8 @@ xfs_ireclaim(xfs_inode_t *ip)
 	/*
 	 * Pull our behavior descriptor from the vnode chain.
 	 */
-	vp = XFS_ITOV_NULL(ip);
-	if (vp) {
-		vn_to_inode(vp)->i_private = NULL;
+	if (ip->i_vnode) {
+		ip->i_vnode->i_private = NULL;
 		ip->i_vnode = NULL;
 	}
 
