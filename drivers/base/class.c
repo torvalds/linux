@@ -65,13 +65,13 @@ static struct sysfs_ops class_sysfs_ops = {
 	.store	= class_attr_store,
 };
 
-static struct kobj_type ktype_class = {
+static struct kobj_type class_ktype = {
 	.sysfs_ops	= &class_sysfs_ops,
 	.release	= class_release,
 };
 
 /* Hotplug events for classes go to the class_obj subsys */
-static decl_subsys(class, &ktype_class, NULL);
+static decl_subsys(class, &class_ktype, NULL);
 
 
 int class_create_file(struct class * cls, const struct class_attribute * attr)
@@ -323,7 +323,7 @@ static void class_dev_release(struct kobject * kobj)
 	}
 }
 
-static struct kobj_type ktype_class_device = {
+static struct kobj_type class_device_ktype = {
 	.sysfs_ops	= &class_dev_sysfs_ops,
 	.release	= class_dev_release,
 };
@@ -332,7 +332,7 @@ static int class_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 
-	if (ktype == &ktype_class_device) {
+	if (ktype == &class_device_ktype) {
 		struct class_device *class_dev = to_class_dev(kobj);
 		if (class_dev->class)
 			return 1;
@@ -452,7 +452,7 @@ static struct kset_uevent_ops class_uevent_ops = {
 	.uevent =	class_uevent,
 };
 
-static decl_subsys(class_obj, &ktype_class_device, &class_uevent_ops);
+static decl_subsys(class_obj, &class_device_ktype, &class_uevent_ops);
 
 
 static int class_device_add_attrs(struct class_device * cd)
