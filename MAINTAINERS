@@ -2306,7 +2306,7 @@ S:	Maintained
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
-W:	http://www.secretlab.ca/
+W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
 L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 

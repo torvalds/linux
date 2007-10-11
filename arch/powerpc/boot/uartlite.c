@@ -45,8 +45,8 @@ static void uartlite_putc(unsigned char c)
 
 static unsigned char uartlite_getc(void)
 {
-	u32 reg = ULITE_STATUS_RXVALID;
-	while (reg & ULITE_STATUS_RXVALID) /* spin on RXVALID bit */
+	u32 reg = 0;
+	while (!(reg & ULITE_STATUS_RXVALID)) /* spin waiting for RXVALID bit */
 		reg = in_be32(reg_base + ULITE_STATUS);
 	return in_be32(reg_base + ULITE_RX);
 }
