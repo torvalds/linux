@@ -7007,7 +7007,7 @@ void ata_std_ports(struct ata_ioports *ioaddr)
  */
 void ata_pci_remove_one(struct pci_dev *pdev)
 {
-	struct device *dev = pci_dev_to_dev(pdev);
+	struct device *dev = &pdev->dev;
 	struct ata_host *host = dev_get_drvdata(dev);
 
 	ata_host_detach(host);

@@ -28,7 +28,6 @@
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <asm/scatterlist.h>
 #include <linux/io.h>
@@ -106,12 +105,6 @@ static inline u32 ata_msg_init(int dval, int default_msg_enable_bits)
 
 /* defines only for the constants which don't work well as enums */
 #define ATA_TAG_POISON		0xfafbfcfdU
-
-/* move to PCI layer? */
-static inline struct device *pci_dev_to_dev(struct pci_dev *pdev)
-{
-	return &pdev->dev;
-}
 
 enum {
 	/* various global constants */
@@ -766,18 +759,7 @@ extern int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 extern void ata_std_postreset(struct ata_link *link, unsigned int *classes);
 extern void ata_port_disable(struct ata_port *);
 extern void ata_std_ports(struct ata_ioports *ioaddr);
-#ifdef CONFIG_PCI
-extern int ata_pci_init_one (struct pci_dev *pdev,
-			     const struct ata_port_info * const * ppi);
-extern void ata_pci_remove_one (struct pci_dev *pdev);
-#ifdef CONFIG_PM
-extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg);
-extern int __must_check ata_pci_device_do_resume(struct pci_dev *pdev);
-extern int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
-extern int ata_pci_device_resume(struct pci_dev *pdev);
-#endif
-extern int ata_pci_clear_simplex(struct pci_dev *pdev);
-#endif /* CONFIG_PCI */
+
 extern struct ata_host *ata_host_alloc(struct device *dev, int max_ports);
 extern struct ata_host *ata_host_alloc_pinfo(struct device *dev,
 			const struct ata_port_info * const * ppi, int n_ports);
@@ -935,6 +917,19 @@ static inline int ata_acpi_cbl_80wire(struct ata_port *ap) { return 0; }
 #endif
 
 #ifdef CONFIG_PCI
+struct pci_dev;
+
+extern int ata_pci_init_one (struct pci_dev *pdev,
+			     const struct ata_port_info * const * ppi);
+extern void ata_pci_remove_one (struct pci_dev *pdev);
+#ifdef CONFIG_PM
+extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg);
+extern int __must_check ata_pci_device_do_resume(struct pci_dev *pdev);
+extern int ata_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
+extern int ata_pci_device_resume(struct pci_dev *pdev);
+#endif
+extern int ata_pci_clear_simplex(struct pci_dev *pdev);
+
 struct pci_bits {
 	unsigned int		reg;	/* PCI config register to read */
 	unsigned int		width;	/* 1 (8 bit), 2 (16 bit), 4 (32 bit) */

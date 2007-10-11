@@ -299,24 +299,6 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	return ata_host_register(host, &cs5520_sht);
 }
 
-/**
- *	cs5520_remove_one	-	device unload
- *	@pdev: PCI device being removed
- *
- *	Handle an unplug/unload event for a PCI device. Unload the
- *	PCI driver but do not use the default handler as we manage
- *	resources ourself and *MUST NOT* disable the device as it has
- *	other functions.
- */
-
-static void __devexit cs5520_remove_one(struct pci_dev *pdev)
-{
-	struct device *dev = pci_dev_to_dev(pdev);
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_detach(host);
-}
-
 #ifdef CONFIG_PM
 /**
  *	cs5520_reinit_one	-	device resume
@@ -373,7 +355,7 @@ static struct pci_driver cs5520_pci_driver = {
 	.name 		= DRV_NAME,
 	.id_table	= pata_cs5520,
 	.probe 		= cs5520_init_one,
-	.remove		= cs5520_remove_one,
+	.remove		= ata_pci_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= cs5520_pci_device_suspend,
 	.resume		= cs5520_reinit_one,
