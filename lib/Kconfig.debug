@@ -294,6 +294,8 @@ config LOCK_STAT
 	help
 	 This feature enables tracking lock contention points
 
+	 For more details, see Documentation/lockstat.txt
+
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP

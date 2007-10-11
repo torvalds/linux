@@ -56,7 +56,7 @@ void __init board_setup(void)
 	au_writel(0, SYS_PINSTATERD);
 	udelay(100);
 
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 
 	/* GPIO201 is input for PCMCIA card detect */
 	/* GPIO203 is input for PCMCIA interrupt request */
@@ -85,7 +85,7 @@ void __init board_setup(void)
 	/*
 	 * Route 48MHz FREQ2 into USB Host and/or Device
 	 */
-#ifdef CONFIG_USB_OHCI
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	sys_clksrc |= ((4<<12) | (0<<11) | (0<<10));
 #endif
 	au_writel(sys_clksrc, SYS_CLKSRC);
@@ -95,7 +95,7 @@ void __init board_setup(void)
 	// 2nd USB port is USB host
 	pin_func |= 0x8000;
 	au_writel(pin_func, SYS_PINFUNC);
-#endif // defined (CONFIG_USB_OHCI)
+#endif /* defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE) */
 
 
 

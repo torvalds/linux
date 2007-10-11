@@ -485,8 +485,10 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 			return nlm_granted;
 		/* Create host handle for callback */
 		host = nlmsvc_lookup_host(rqstp, lock->caller, lock->len);
-		if (host == NULL)
+		if (host == NULL) {
+			kfree(conf);
 			return nlm_lck_denied_nolocks;
+		}
 		block = nlmsvc_create_block(rqstp, host, file, lock, cookie);
 		if (block == NULL) {
 			kfree(conf);

@@ -375,7 +375,10 @@ static void __init fill_ebus_device(struct device_node *dp, struct linux_ebus_de
 		dev->num_addrs = 0;
 		dev->num_irqs = 0;
 	} else {
-		(void) of_get_property(dp, "reg", &len);
+		const int *regs = of_get_property(dp, "reg", &len);
+
+		if (!regs)
+			len = 0;
 		dev->num_addrs = len / sizeof(struct linux_prom_registers);
 
 		for (i = 0; i < dev->num_addrs; i++)

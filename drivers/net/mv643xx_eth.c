@@ -1357,7 +1357,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 #endif
 
 	dev->watchdog_timeo = 2 * HZ;
-	dev->tx_queue_len = mp->tx_ring_size;
 	dev->base_addr = 0;
 	dev->change_mtu = mv643xx_eth_change_mtu;
 	dev->do_ioctl = mv643xx_eth_do_ioctl;

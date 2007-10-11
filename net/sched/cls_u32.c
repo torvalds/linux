@@ -502,7 +502,7 @@ static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_U32_INDEV-1]) {
-		int err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV-1]);
+		err = tcf_change_indev(tp, n->indev, tb[TCA_U32_INDEV-1]);
 		if (err < 0)
 			goto errout;
 	}

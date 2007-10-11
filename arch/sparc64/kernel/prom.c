@@ -1046,7 +1046,8 @@ static void __init irq_trans_init(struct device_node *dp)
 	if (!strcmp(dp->name, "fhc") &&
 	    !strcmp(dp->parent->name, "central"))
 		return central_irq_trans_init(dp);
-	if (!strcmp(dp->name, "virtual-devices"))
+	if (!strcmp(dp->name, "virtual-devices") ||
+	    !strcmp(dp->name, "niu"))
 		return sun4v_vdev_irq_trans_init(dp);
 }
 

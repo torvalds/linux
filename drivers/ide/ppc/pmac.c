@@ -1546,6 +1546,7 @@ static struct pci_device_id pmac_ide_pci_match[] = {
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_APPLE, PCI_DEVICE_ID_APPLE_IPID2_ATA,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{},
 };
 
 static struct pci_driver pmac_ide_pci_driver = {
