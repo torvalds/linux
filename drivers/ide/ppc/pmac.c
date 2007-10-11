@@ -917,7 +917,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 
 /* 
  * Speedproc. This function is called by the core to set any of the standard
- * timing (PIO, MDMA or UDMA) to both the drive and the controller.
+ * DMA timing (MDMA or UDMA) to both the drive and the controller.
  * You may notice we don't use this function on normal "dma check" operation,
  * our dedicated function is more precise as it uses the drive provided
  * cycle time value. We should probably fix this one to deal with that too...
@@ -964,13 +964,6 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_SW_DMA_0:
 			return 1;
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			pmac_ide_set_pio_mode(drive, speed & 0x07);
-			return 0;
 		default:
 			ret = 1;
 	}

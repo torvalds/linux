@@ -152,16 +152,6 @@ static int sc1200_tune_chipset(ide_drive_t *drive, const u8 mode)
 	if (sc1200_set_xfer_mode(drive, mode))
 		return 1;	/* failure */
 
-	switch (mode) {
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		sc1200_tunepio(drive, mode - XFER_PIO_0);
-		return 0;
-	}
-
 	pci_clock = sc1200_get_pci_clock();
 
 	/*

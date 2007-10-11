@@ -421,11 +421,6 @@ static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 	if (speed < XFER_PIO_0)
 		return 1;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_5) {
-		ali_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	if (speed == XFER_UDMA_6)
 		speed1 = 0x47;
 

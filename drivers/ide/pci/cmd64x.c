@@ -323,14 +323,6 @@ static int cmd64x_tune_chipset(ide_drive_t *drive, const u8 speed)
 	case XFER_MW_DMA_0:
 		program_cycle_times(drive, 480, 215);
 		break;
-	case XFER_PIO_5:
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		cmd64x_tune_pio(drive, speed - XFER_PIO_0);
-		break;
 	default:
 		return 1;
 	}

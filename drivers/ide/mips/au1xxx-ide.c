@@ -177,11 +177,6 @@ static int auide_tune_chipset(ide_drive_t *drive, const u8 speed)
 	mem_sttime = 0;
 	mem_stcfg  = au_readl(MEM_STCFG2);
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		au1xxx_set_pio_mode(drive, speed - XFER_PIO_0);
-		return 0;
-	}
-
 	switch(speed) {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	case XFER_MW_DMA_2:

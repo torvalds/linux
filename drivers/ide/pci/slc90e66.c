@@ -110,11 +110,6 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		slc90e66_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
 	pci_read_config_word(dev, 0x44, &reg44);

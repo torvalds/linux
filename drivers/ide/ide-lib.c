@@ -398,6 +398,18 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 
 	rate = ide_rate_filter(drive, rate);
 
+	if (rate >= XFER_PIO_0 && rate <= XFER_PIO_5) {
+		if (hwif->set_pio_mode)
+			hwif->set_pio_mode(drive, rate - XFER_PIO_0);
+
+		/*
+		 * FIXME: this is incorrect to return zero here but
+		 * since all users of ide_set_xfer_rate() ignore
+		 * the return value it is not a problem currently
+		 */
+		return 0;
+	}
+
 	return hwif->speedproc(drive, rate);
 }
 

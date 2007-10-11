@@ -519,15 +519,10 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 	}
 }
 
-static int sis5513_tune_drive(ide_drive_t *drive, const u8 pio)
-{
-	config_art_rwp_pio(drive, pio);
-	return ide_config_drive_speed(drive, XFER_PIO_0 + pio);
-}
-
 static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	(void)sis5513_tune_drive(drive, pio);
+	config_art_rwp_pio(drive, pio);
+	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
 static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
@@ -536,9 +531,6 @@ static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 	struct pci_dev *dev	= hwif->pci_dev;
 	u32 regdw;
 	u8 drive_pci, reg;
-
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4)
-		return sis5513_tune_drive(drive, speed - XFER_PIO_0);
 
 	/* See config_art_rwp_pio for drive pci config registers */
 	drive_pci = 0x40;

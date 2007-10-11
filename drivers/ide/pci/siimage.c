@@ -284,13 +284,6 @@ static int siimage_tune_chipset(ide_drive_t *drive, const u8 speed)
 	scsc = is_sata(hwif) ? 1 : scsc;
 
 	switch(speed) {
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			sil_tune_pio(drive, speed - XFER_PIO_0);
-			return ide_config_drive_speed(drive, speed);
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_MW_DMA_0:

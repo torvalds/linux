@@ -157,11 +157,6 @@ static int svwks_tune_chipset(ide_drive_t *drive, const u8 speed)
 
 	u8 ultra_enable	 = 0, ultra_timing = 0, dma_timing = 0;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		svwks_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	/* If we are about to put a disk into UDMA mode we screwed up.
 	   Our code assumes we never _ever_ do this on an OSB4 */
 	   

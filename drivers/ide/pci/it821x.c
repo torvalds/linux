@@ -418,15 +418,6 @@ static int it821x_tune_chipset(ide_drive_t *drive, const u8 speed)
 	ide_hwif_t *hwif	= drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
 
-	switch (speed) {
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		return it821x_tunepio(drive, speed - XFER_PIO_0);
-	}
-
 	if (itdev->smart == 0) {
 		switch (speed) {
 			/* MWDMA tuning is really hard because our MWDMA and PIO

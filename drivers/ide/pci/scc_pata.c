@@ -270,13 +270,6 @@ static int scc_tune_chipset(ide_drive_t *drive, const u8 speed)
 	case XFER_UDMA_0:
 		idx = speed - XFER_UDMA_0;
 		break;
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		scc_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
 	default:
 		return 1;
 	}

@@ -178,11 +178,6 @@ static int atiixp_speedproc(ide_drive_t *drive, const u8 speed)
 	u16 tmp16;
 	u8 pio;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		atiixp_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	spin_lock_irqsave(&atiixp_lock, flags);
 
 	save_mdma_mode[drive->dn] = 0;

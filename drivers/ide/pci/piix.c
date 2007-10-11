@@ -242,11 +242,6 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u16			reg4042, reg4a;
 	u8			reg48, reg54, reg55;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		piix_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
 	pci_read_config_byte(dev, 0x48, &reg48);

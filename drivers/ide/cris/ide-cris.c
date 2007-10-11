@@ -724,11 +724,6 @@ static int speed_cris_ide(ide_drive_t *drive, const u8 speed)
 {
 	int cyc = 0, dvs = 0, strobe = 0, hold = 0;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		cris_set_pio_mode(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	switch(speed)
 	{
 		case XFER_UDMA_0:

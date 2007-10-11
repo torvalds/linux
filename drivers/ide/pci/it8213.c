@@ -132,11 +132,6 @@ static int it8213_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u16			reg4042, reg4a;
 	u8			reg48, reg54, reg55;
 
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		it8213_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
-
 	pci_read_config_word(dev, maslave, &reg4042);
 	pci_read_config_byte(dev, 0x48, &reg48);
 	pci_read_config_word(dev, 0x4a, &reg4a);

@@ -139,14 +139,6 @@ static int sl82c105_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_word(dev, reg, drv_ctrl);
 		}
 		break;
-	case XFER_PIO_5:
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		sl82c105_tune_pio(drive, speed - XFER_PIO_0);
-		break;
 	default:
 		return -1;
 	}
