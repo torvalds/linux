@@ -709,6 +709,12 @@ xfs_ioc_xattr(
 	void			__user *arg);
 
 STATIC int
+xfs_ioc_fsgetxattr(
+	xfs_inode_t		*ip,
+	int			attr,
+	void			__user *arg);
+
+STATIC int
 xfs_ioc_getbmap(
 	struct xfs_inode	*ip,
 	int			flags,
@@ -783,11 +789,13 @@ xfs_ioctl(
 	case XFS_IOC_GETVERSION:
 		return put_user(inode->i_generation, (int __user *)arg);
 
+	case XFS_IOC_FSGETXATTR:
+		return xfs_ioc_fsgetxattr(ip, 0, arg);
+	case XFS_IOC_FSGETXATTRA:
+		return xfs_ioc_fsgetxattr(ip, 1, arg);
 	case XFS_IOC_GETXFLAGS:
 	case XFS_IOC_SETXFLAGS:
-	case XFS_IOC_FSGETXATTR:
 	case XFS_IOC_FSSETXATTR:
-	case XFS_IOC_FSGETXATTRA:
 		return xfs_ioc_xattr(vp, ip, filp, cmd, arg);
 
 	case XFS_IOC_FSSETDM: {
@@ -1162,6 +1170,42 @@ xfs_di2lxflags(
 }
 
 STATIC int
+xfs_ioc_fsgetxattr(
+	xfs_inode_t		*ip,
+	int			attr,
+	void			__user *arg)
+{
+	struct fsxattr		fa;
+
+	xfs_ilock(ip, XFS_ILOCK_SHARED);
+	fa.fsx_xflags = xfs_ip2xflags(ip);
+	fa.fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
+	fa.fsx_projid = ip->i_d.di_projid;
+
+	if (attr) {
+		if (ip->i_afp) {
+			if (ip->i_afp->if_flags & XFS_IFEXTENTS)
+				fa.fsx_nextents = ip->i_afp->if_bytes /
+							sizeof(xfs_bmbt_rec_t);
+			else
+				fa.fsx_nextents = ip->i_d.di_anextents;
+		} else
+			fa.fsx_nextents = 0;
+	} else {
+		if (ip->i_df.if_flags & XFS_IFEXTENTS)
+			fa.fsx_nextents = ip->i_df.if_bytes /
+						sizeof(xfs_bmbt_rec_t);
+		else
+			fa.fsx_nextents = ip->i_d.di_nextents;
+	}
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+
+	if (copy_to_user(arg, &fa, sizeof(fa)))
+		return -EFAULT;
+	return 0;
+}
+
+STATIC int
 xfs_ioc_xattr(
 	bhv_vnode_t		*vp,
 	xfs_inode_t		*ip,
@@ -1180,27 +1224,6 @@ xfs_ioc_xattr(
 		return -ENOMEM;
 
 	switch (cmd) {
-	case XFS_IOC_FSGETXATTR: {
-		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
-				 XFS_AT_NEXTENTS | XFS_AT_PROJID;
-		error = xfs_getattr(ip, vattr, 0);
-		if (unlikely(error)) {
-			error = -error;
-			break;
-		}
-
-		fa.fsx_xflags	= vattr->va_xflags;
-		fa.fsx_extsize	= vattr->va_extsize;
-		fa.fsx_nextents = vattr->va_nextents;
-		fa.fsx_projid	= vattr->va_projid;
-
-		if (copy_to_user(arg, &fa, sizeof(fa))) {
-			error = -EFAULT;
-			break;
-		}
-		break;
-	}
-
 	case XFS_IOC_FSSETXATTR: {
 		if (copy_from_user(&fa, arg, sizeof(fa))) {
 			error = -EFAULT;
@@ -1220,27 +1243,6 @@ xfs_ioc_xattr(
 		if (likely(!error))
 			__vn_revalidate(vp, vattr);	/* update flags */
 		error = -error;
-		break;
-	}
-
-	case XFS_IOC_FSGETXATTRA: {
-		vattr->va_mask = XFS_AT_XFLAGS | XFS_AT_EXTSIZE | \
-				 XFS_AT_ANEXTENTS | XFS_AT_PROJID;
-		error = xfs_getattr(ip, vattr, 0);
-		if (unlikely(error)) {
-			error = -error;
-			break;
-		}
-
-		fa.fsx_xflags	= vattr->va_xflags;
-		fa.fsx_extsize	= vattr->va_extsize;
-		fa.fsx_nextents = vattr->va_anextents;
-		fa.fsx_projid	= vattr->va_projid;
-
-		if (copy_to_user(arg, &fa, sizeof(fa))) {
-			error = -EFAULT;
-			break;
-		}
 		break;
 	}
 
