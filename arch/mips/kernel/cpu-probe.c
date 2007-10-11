@@ -746,14 +746,6 @@ static inline void cpu_probe_sibyte(struct cpuinfo_mips *c)
 {
 	decode_configs(c);
 
-	/*
-	 * For historical reasons the SB1 comes with it's own variant of
-	 * cache code which eventually will be folded into c-r4k.c.  Until
-	 * then we pretend it's got it's own cache architecture.
-	 */
-	c->options &= ~MIPS_CPU_4K_CACHE;
-	c->options |= MIPS_CPU_SB1_CACHE;
-
 	switch (c->processor_id & 0xff00) {
 	case PRID_IMP_SB1:
 		c->cputype = CPU_SB1;

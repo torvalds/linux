@@ -35,9 +35,6 @@
 #ifndef cpu_has_tx39_cache
 #define cpu_has_tx39_cache	(cpu_data[0].options & MIPS_CPU_TX39_CACHE)
 #endif
-#ifndef cpu_has_sb1_cache
-#define cpu_has_sb1_cache	(cpu_data[0].options & MIPS_CPU_SB1_CACHE)
-#endif
 #ifndef cpu_has_fpu
 #define cpu_has_fpu		(current_cpu_data.options & MIPS_CPU_FPU)
 #define raw_cpu_has_fpu		(raw_current_cpu_data.options & MIPS_CPU_FPU)

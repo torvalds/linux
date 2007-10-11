@@ -9,6 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/linkage.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
@@ -948,12 +949,16 @@ static void __init probe_pcache(void)
 	switch (c->cputype) {
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_SB1:
+	case CPU_SB1A:
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
+		break;
+
 	case CPU_R10000:
 	case CPU_R12000:
 	case CPU_R14000:
-	case CPU_SB1:
 		break;
+
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_74K:
@@ -1235,11 +1240,20 @@ void __init r4k_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);
-	extern char except_vec2_generic;
+	extern char __weak except_vec2_generic;
+	extern char __weak except_vec2_sb1;
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-	/* Default cache error handler for R4000 and R5000 family */
-	set_uncached_handler (0x100, &except_vec2_generic, 0x80);
+	switch (c->cputype) {
+	case CPU_SB1:
+	case CPU_SB1A:
+		set_uncached_handler(0x100, &except_vec2_sb1, 0x80);
+		break;
+
+	default:
+		set_uncached_handler(0x100, &except_vec2_generic, 0x80);
+		break;
+	}
 
 	probe_pcache();
 	setup_scache();
