@@ -89,7 +89,7 @@ static void driver_release(struct kobject * kobj)
 	 */
 }
 
-static struct kobj_type ktype_driver = {
+static struct kobj_type driver_ktype = {
 	.sysfs_ops	= &driver_sysfs_ops,
 	.release	= driver_release,
 };
@@ -868,7 +868,7 @@ int bus_register(struct bus_type * bus)
 
 	kobject_set_name(&bus->drivers.kobj, "drivers");
 	bus->drivers.kobj.parent = &bus->subsys.kobj;
-	bus->drivers.ktype = &ktype_driver;
+	bus->drivers.ktype = &driver_ktype;
 	retval = kset_register(&bus->drivers);
 	if (retval)
 		goto bus_drivers_fail;
