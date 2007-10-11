@@ -94,14 +94,13 @@ STATIC void
 xfs_qm_dquot_logitem_pin(
 	xfs_dq_logitem_t *logitem)
 {
-	unsigned long	s;
 	xfs_dquot_t *dqp;
 
 	dqp = logitem->qli_dquot;
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	s = XFS_DQ_PINLOCK(dqp);
+	spin_lock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 	dqp->q_pincount++;
-	XFS_DQ_PINUNLOCK(dqp, s);
+	spin_unlock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 }
 
 /*
@@ -115,17 +114,16 @@ xfs_qm_dquot_logitem_unpin(
 	xfs_dq_logitem_t *logitem,
 	int		  stale)
 {
-	unsigned long	s;
 	xfs_dquot_t *dqp;
 
 	dqp = logitem->qli_dquot;
 	ASSERT(dqp->q_pincount > 0);
-	s = XFS_DQ_PINLOCK(dqp);
+	spin_lock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 	dqp->q_pincount--;
 	if (dqp->q_pincount == 0) {
 		sv_broadcast(&dqp->q_pinwait);
 	}
-	XFS_DQ_PINUNLOCK(dqp, s);
+	spin_unlock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 }
 
 /* ARGSUSED */
@@ -189,8 +187,6 @@ void
 xfs_qm_dqunpin_wait(
 	xfs_dquot_t	*dqp)
 {
-	SPLDECL(s);
-
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	if (dqp->q_pincount == 0) {
 		return;
@@ -200,9 +196,9 @@ xfs_qm_dqunpin_wait(
 	 * Give the log a push so we don't wait here too long.
 	 */
 	xfs_log_force(dqp->q_mount, (xfs_lsn_t)0, XFS_LOG_FORCE);
-	s = XFS_DQ_PINLOCK(dqp);
+	spin_lock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 	if (dqp->q_pincount == 0) {
-		XFS_DQ_PINUNLOCK(dqp, s);
+		spin_unlock(&(XFS_DQ_TO_QINF(dqp)->qi_pinlock));
 		return;
 	}
 	sv_wait(&(dqp->q_pinwait), PINOD,
