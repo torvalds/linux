@@ -2115,18 +2115,23 @@ void b43legacy_radio_turn_on(struct b43legacy_wldev *dev)
 	phy->radio_on = 1;
 }
 
-void b43legacy_radio_turn_off(struct b43legacy_wldev *dev)
+void b43legacy_radio_turn_off(struct b43legacy_wldev *dev, bool force)
 {
 	struct b43legacy_phy *phy = &dev->phy;
+
+	if (!phy->radio_on && !force)
+		return;
 
 	if (phy->type == B43legacy_PHYTYPE_G && dev->dev->id.revision >= 5) {
 		u16 rfover, rfoverval;
 
 		rfover = b43legacy_phy_read(dev, B43legacy_PHY_RFOVER);
 		rfoverval = b43legacy_phy_read(dev, B43legacy_PHY_RFOVERVAL);
-		phy->radio_off_context.rfover = rfover;
-		phy->radio_off_context.rfoverval = rfoverval;
-		phy->radio_off_context.valid = 1;
+		if (!force) {
+			phy->radio_off_context.rfover = rfover;
+			phy->radio_off_context.rfoverval = rfoverval;
+			phy->radio_off_context.valid = 1;
+		}
 		b43legacy_phy_write(dev, B43legacy_PHY_RFOVER, rfover | 0x008C);
 		b43legacy_phy_write(dev, B43legacy_PHY_RFOVERVAL,
 				    rfoverval & 0xFF73);

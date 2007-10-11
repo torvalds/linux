@@ -1993,7 +1993,7 @@ static bool b43legacy_is_hw_radio_enabled(struct b43legacy_wldev *dev)
 /* This is the opposite of b43legacy_chip_init() */
 static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 {
-	b43legacy_radio_turn_off(dev);
+	b43legacy_radio_turn_off(dev, 1);
 	b43legacy_leds_exit(dev);
 	b43legacy_gpio_cleanup(dev);
 	/* firmware is released later */
@@ -2106,7 +2106,7 @@ out:
 	return err;
 
 err_radio_off:
-	b43legacy_radio_turn_off(dev);
+	b43legacy_radio_turn_off(dev, 1);
 err_leds_exit:
 	b43legacy_leds_exit(dev);
 	b43legacy_gpio_cleanup(dev);
@@ -2154,8 +2154,7 @@ static void b43legacy_periodic_every1sec(struct b43legacy_wldev *dev)
 	radio_hw_enable = b43legacy_is_hw_radio_enabled(dev);
 	if (unlikely(dev->radio_hw_enable != radio_hw_enable)) {
 		dev->radio_hw_enable = radio_hw_enable;
-		b43legacyinfo(dev->wl, "Radio hardware status changed to %s\n",
-		       (radio_hw_enable) ? "enabled" : "disabled");
+		b43legacy_rfkill_toggled(dev, radio_hw_enable);
 	}
 }
 
@@ -2647,7 +2646,7 @@ static int b43legacy_dev_config(struct ieee80211_hw *hw,
 					      " physically off. Press the"
 					      " button to turn it on.\n");
 		} else {
-			b43legacy_radio_turn_off(dev);
+			b43legacy_radio_turn_off(dev, 0);
 			b43legacyinfo(dev->wl, "Radio turned off by"
 				      " software\n");
 		}
@@ -3034,11 +3033,15 @@ static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 	cancel_work_sync(&dev->restart_work);
 	mutex_lock(&wl->mutex);
 
+	mutex_unlock(&dev->wl->mutex);
+	b43legacy_rfkill_exit(dev);
+	mutex_lock(&dev->wl->mutex);
+
 	b43legacy_rng_exit(dev->wl);
 	b43legacy_pio_free(dev);
 	b43legacy_dma_free(dev);
 	b43legacy_chip_exit(dev);
-	b43legacy_radio_turn_off(dev);
+	b43legacy_radio_turn_off(dev, 1);
 	b43legacy_switch_analog(dev, 0);
 	if (phy->dyn_tssi_tbl)
 		kfree(phy->tssi2dbm);
@@ -3206,6 +3209,7 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 	memset(wl->mac_addr, 0, ETH_ALEN);
 	b43legacy_upload_card_macaddress(dev);
 	b43legacy_security_init(dev);
+	b43legacy_rfkill_init(dev);
 	b43legacy_rng_init(wl);
 
 	b43legacy_set_status(dev, B43legacy_STAT_INITIALIZED);
@@ -3527,7 +3531,7 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43legacy_chip_reset);
 
-	b43legacy_radio_turn_off(dev);
+	b43legacy_radio_turn_off(dev, 1);
 	b43legacy_switch_analog(dev, 0);
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(bus);

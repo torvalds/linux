@@ -37,7 +37,13 @@ config B43LEGACY_PCICORE_AUTOSELECT
 # LED support
 config B43LEGACY_LEDS
 	bool
-	depends on MAC80211_LEDS
+	depends on B43LEGACY && MAC80211_LEDS
+	default y
+
+# RFKILL support
+config B43LEGACY_RFKILL
+	bool
+	depends on B43LEGACY && RFKILL
 	default y
 
 config B43LEGACY_DEBUG
