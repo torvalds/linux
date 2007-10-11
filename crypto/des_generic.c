@@ -628,7 +628,7 @@ static const u32 S8[64] = {
  *   Choice 1 has operated on the key.
  *
  */
-static unsigned long ekey(u32 *pe, const u8 *k)
+unsigned long des_ekey(u32 *pe, const u8 *k)
 {
 	/* K&R: long is at least 32 bits */
 	unsigned long a, b, c, d, w;
@@ -703,6 +703,7 @@ static unsigned long ekey(u32 *pe, const u8 *k)
 	/* Zero if weak key */
 	return w;
 }
+EXPORT_SYMBOL_GPL(des_ekey);
 
 /*
  * Decryption key expansion
@@ -786,7 +787,7 @@ static int des_setkey(struct crypto_tfm *tfm, const u8 *key,
 	int ret;
 
 	/* Expand to tmp */
-	ret = ekey(tmp, key);
+	ret = des_ekey(tmp, key);
 
 	if (unlikely(ret == 0) && (*flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
 		*flags |= CRYPTO_TFM_RES_WEAK_KEY;
@@ -873,9 +874,9 @@ static int des3_ede_setkey(struct crypto_tfm *tfm, const u8 *key,
 		return -EINVAL;
 	}
 
-	ekey(expkey, key); expkey += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;
+	des_ekey(expkey, key); expkey += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;
 	dkey(expkey, key); expkey += DES_EXPKEY_WORDS; key += DES_KEY_SIZE;
-	ekey(expkey, key);
+	des_ekey(expkey, key);
 
 	return 0;
 }

@@ -29,6 +29,7 @@
 #include <linux/crypto.h>
 
 #include <crypto/algapi.h>
+#include <crypto/des.h>
 
 #include <asm/kmap_types.h>
 
@@ -1922,6 +1923,16 @@ static int hifn_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	if (len > HIFN_MAX_CRYPT_KEY_LENGTH) {
 		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -1;
+	}
+
+	if (len == HIFN_DES_KEY_LENGTH) {
+		u32 tmp[DES_EXPKEY_WORDS];
+		int ret = des_ekey(tmp, key);
+		
+		if (unlikely(ret == 0) && (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
+			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+			return -EINVAL;
+		}
 	}
 
 	dev->flags &= ~HIFN_FLAG_OLD_KEY;

@@ -85,9 +85,9 @@ config ZCRYPT_MONOLITHIC
 
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
+	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_ABLKCIPHER
-	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for HIFN 795x crypto adapters.
 
