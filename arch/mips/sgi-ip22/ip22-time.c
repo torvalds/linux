@@ -20,6 +20,7 @@
 
 #include <asm/cpu.h>
 #include <asm/mipsregs.h>
+#include <asm/i8253.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/time.h>
@@ -172,6 +173,9 @@ __init void plat_time_init(void)
 		(int) (r4k_tick % (500000 / HZ)));
 
 	mips_hpt_frequency = r4k_tick * HZ;
+
+	if (ip22_is_fullhouse())
+		setup_pit_timer();
 }
 
 /* Generic SGI handler for (spurious) 8254 interrupts */

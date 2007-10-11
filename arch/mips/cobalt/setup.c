@@ -15,6 +15,7 @@
 
 #include <asm/bootinfo.h>
 #include <asm/time.h>
+#include <asm/i8253.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
@@ -83,6 +84,11 @@ static struct resource cobalt_reserved_resources[] = {
 		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
 	},
 };
+
+void __init plat_time_init(void)
+{
+	setup_pit_timer();
+}
 
 void __init plat_mem_setup(void)
 {

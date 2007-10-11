@@ -2,6 +2,7 @@
 #include <linux/interrupt.h>
 #include <linux/time.h>
 
+#include <asm/i8253.h>
 #include <asm/sni.h>
 #include <asm/time.h>
 #include <asm-generic/rtc.h>
@@ -116,6 +117,8 @@ void __init plat_time_init(void)
 		(int) (r4k_tick % (500000 / HZ)));
 
 	mips_hpt_frequency = r4k_tick * HZ;
+
+	setup_pit_timer();
 }
 
 /*

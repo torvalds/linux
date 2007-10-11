@@ -65,6 +65,7 @@ config MIPS_COBALT
 	bool "Cobalt Server"
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
+	select I8253
 	select I8259
 	select IRQ_CPU
 	select IRQ_GT641XX
@@ -112,6 +113,7 @@ config MACH_JAZZ
 	select ARCH_MAY_HAVE_PC_FDC
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
+	select I8253
 	select I8259
 	select ISA
 	select PCSPEAKER
@@ -201,6 +203,7 @@ config MIPS_MALTA
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
 	select HW_HAS_PCI
+	select I8253
 	select I8259
 	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
@@ -334,6 +337,7 @@ config QEMU
 	select DMA_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_STD_PC_SERIAL_PORT
+	select I8253
 	select I8259
 	select IRQ_CPU
 	select ISA
@@ -362,6 +366,7 @@ config SGI_IP22
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
 	select HW_HAS_EISA
+	select I8253
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
@@ -534,6 +539,7 @@ config SNI_RM
 	select HW_HAS_EISA
 	select HW_HAS_PCI
 	select IRQ_CPU
+	select I8253
 	select I8259
 	select ISA
 	select PCSPEAKER
@@ -1892,6 +1898,9 @@ config TC
 config MMU
 	bool
 	default y
+
+config I8253
+	bool
 
 config PCSPEAKER
 	bool
