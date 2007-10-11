@@ -1,6 +1,6 @@
 obj-$(CONFIG_ACPI)		+= boot.o
 ifneq ($(CONFIG_PCI),)
-obj-$(CONFIG_X86_IO_APIC)	+= earlyquirk.o
+obj-$(CONFIG_X86_IO_APIC)	+= earlyquirk_32.o
 endif
 obj-$(CONFIG_ACPI_SLEEP)	+= sleep_32.o wakeup_32.o
 
