@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/piix.c	Version 0.51	Jul 6, 2007
+ *  linux/drivers/ide/pci/piix.c	Version 0.52	Jul 14, 2007
  *
  *  Copyright (C) 1998-1999 Andrzej Krzysztofowicz, Author and Maintainer
  *  Copyright (C) 1998-2000 Andre Hedrick <andre@linux-ide.org>
@@ -242,6 +242,11 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u16			reg4042, reg4a;
 	u8			reg48, reg54, reg55;
 
+	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
+		piix_tune_pio(drive, speed - XFER_PIO_0);
+		return ide_config_drive_speed(drive, speed);
+	}
+
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
 	pci_read_config_byte(dev, 0x48, &reg48);
@@ -259,11 +264,6 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:	break;
 		default:		return -1;
 	}
 
@@ -293,10 +293,7 @@ static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	if (speed > XFER_PIO_4)
-		piix_tune_pio(drive, piix_dma_2_pio(speed));
-	else
-		piix_tune_pio(drive, speed - XFER_PIO_0);
+	piix_tune_pio(drive, piix_dma_2_pio(speed));
 
 	return ide_config_drive_speed(drive, speed);
 }

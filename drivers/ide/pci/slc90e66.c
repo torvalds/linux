@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/ide/pci/slc90e66.c	Version 0.15	Jul 6, 2007
+ *  linux/drivers/ide/pci/slc90e66.c	Version 0.16	Jul 14, 2007
  *
  *  Copyright (C) 2000-2002 Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
@@ -110,6 +110,11 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;
 
+	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
+		slc90e66_tune_pio(drive, speed - XFER_PIO_0);
+		return ide_config_drive_speed(drive, speed);
+	}
+
 	pci_read_config_word(dev, maslave, &reg4042);
 	sitre = (reg4042 & 0x4000) ? 1 : 0;
 	pci_read_config_word(dev, 0x44, &reg44);
@@ -125,11 +130,6 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:	break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:        break;
 		default:		return -1;
 	}
 
@@ -149,10 +149,7 @@ static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_word(dev, 0x4a, reg4a & ~a_speed);
 	}
 
-	if (speed > XFER_PIO_4)
-		slc90e66_tune_pio(drive, slc90e66_dma_2_pio(speed));
-	else
-		slc90e66_tune_pio(drive, speed - XFER_PIO_0);
+	slc90e66_tune_pio(drive, slc90e66_dma_2_pio(speed));
 
 	return ide_config_drive_speed(drive, speed);
 }

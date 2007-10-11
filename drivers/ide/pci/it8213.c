@@ -132,6 +132,11 @@ static int it8213_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u16			reg4042, reg4a;
 	u8			reg48, reg54, reg55;
 
+	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
+		it8213_tune_pio(drive, speed - XFER_PIO_0);
+		return ide_config_drive_speed(drive, speed);
+	}
+
 	pci_read_config_word(dev, maslave, &reg4042);
 	pci_read_config_byte(dev, 0x48, &reg48);
 	pci_read_config_word(dev, 0x4a, &reg4a);
@@ -150,12 +155,6 @@ static int it8213_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_SW_DMA_2:
-			break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
 			break;
 		default:
 			return -1;
@@ -188,10 +187,7 @@ static int it8213_tune_chipset(ide_drive_t *drive, const u8 speed)
 			pci_write_config_byte(dev, 0x55, (u8) reg55 & ~w_flag);
 	}
 
-	if (speed > XFER_PIO_4)
-		it8213_tune_pio(drive, it8213_dma_2_pio(speed));
-	else
-		it8213_tune_pio(drive, speed - XFER_PIO_0);
+	it8213_tune_pio(drive, it8213_dma_2_pio(speed));
 
 	return ide_config_drive_speed(drive, speed);
 }
