@@ -4,7 +4,7 @@
 # create a compressed vmlinux image from the original vmlinux
 #
 
-targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o \
+targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc_32.o piggy.o \
 			vmlinux.bin.all vmlinux.relocs
 EXTRA_AFLAGS	:= -traditional
 
@@ -17,7 +17,7 @@ CFLAGS  := -m32 -D__KERNEL__ $(LINUX_INCLUDE) -O2 \
 	   $(call cc-option,-fno-stack-protector)
 LDFLAGS := -m elf_i386
 
-$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o FORCE
+$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc_32.o $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
 	@:
 
