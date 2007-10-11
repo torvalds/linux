@@ -1067,7 +1067,7 @@ config APM_REAL_MODE_POWER_OFF
 
 endif # APM
 
-source "arch/i386/kernel/cpu/cpufreq/Kconfig"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 endmenu
 
