@@ -103,7 +103,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
 		 walker->level - 1, table_gfn);
 	slot = gfn_to_memslot(vcpu->kvm, table_gfn);
-	hpa = safe_gpa_to_hpa(vcpu, root & PT64_BASE_ADDR_MASK);
+	hpa = safe_gpa_to_hpa(vcpu->kvm, root & PT64_BASE_ADDR_MASK);
 	walker->page = pfn_to_page(hpa >> PAGE_SHIFT);
 	walker->table = kmap_atomic(walker->page, KM_USER0);
 
@@ -159,7 +159,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		walker->inherited_ar &= walker->table[index];
 		table_gfn = (*ptep & PT_BASE_ADDR_MASK) >> PAGE_SHIFT;
 		kunmap_atomic(walker->table, KM_USER0);
-		paddr = safe_gpa_to_hpa(vcpu, table_gfn << PAGE_SHIFT);
+		paddr = safe_gpa_to_hpa(vcpu->kvm, table_gfn << PAGE_SHIFT);
 		walker->page = pfn_to_page(paddr >> PAGE_SHIFT);
 		walker->table = kmap_atomic(walker->page, KM_USER0);
 		--walker->level;
@@ -248,7 +248,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	if (!dirty)
 		access_bits &= ~PT_WRITABLE_MASK;
 
-	paddr = gpa_to_hpa(vcpu, gaddr & PT64_BASE_ADDR_MASK);
+	paddr = gpa_to_hpa(vcpu->kvm, gaddr & PT64_BASE_ADDR_MASK);
 
 	spte |= PT_PRESENT_MASK;
 	if (access_bits & PT_USER_MASK)

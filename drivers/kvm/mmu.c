@@ -451,14 +451,14 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	}
 }
 
-static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
+static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 {
 	struct kvm_rmap_desc *desc;
 	unsigned long *rmapp;
 	u64 *spte;
 
-	gfn = unalias_gfn(vcpu->kvm, gfn);
-	rmapp = gfn_to_rmap(vcpu->kvm, gfn);
+	gfn = unalias_gfn(kvm, gfn);
+	rmapp = gfn_to_rmap(kvm, gfn);
 
 	while (*rmapp) {
 		if (!(*rmapp & 1))
@@ -471,9 +471,9 @@ static void rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		BUG_ON(!(*spte & PT_WRITABLE_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
-		rmap_remove(vcpu->kvm, spte);
+		rmap_remove(kvm, spte);
 		set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
-		kvm_flush_remote_tlbs(vcpu->kvm);
+		kvm_flush_remote_tlbs(kvm);
 	}
 }
 
@@ -670,7 +670,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	hlist_add_head(&page->hash_link, bucket);
 	vcpu->mmu.prefetch_page(vcpu, page);
 	if (!metaphysical)
-		rmap_write_protect(vcpu, gfn);
+		rmap_write_protect(vcpu->kvm, gfn);
 	return page;
 }
 
@@ -823,19 +823,19 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gpa_t gpa)
 	__set_bit(slot, &page_head->slot_bitmap);
 }
 
-hpa_t safe_gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+hpa_t safe_gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
 {
-	hpa_t hpa = gpa_to_hpa(vcpu, gpa);
+	hpa_t hpa = gpa_to_hpa(kvm, gpa);
 
 	return is_error_hpa(hpa) ? bad_page_address | (gpa & ~PAGE_MASK): hpa;
 }
 
-hpa_t gpa_to_hpa(struct kvm_vcpu *vcpu, gpa_t gpa)
+hpa_t gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
 {
 	struct page *page;
 
 	ASSERT((gpa & HPA_ERR_MASK) == 0);
-	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	page = gfn_to_page(kvm, gpa >> PAGE_SHIFT);
 	if (!page)
 		return gpa | HPA_ERR_MASK;
 	return ((hpa_t)page_to_pfn(page) << PAGE_SHIFT)
@@ -848,7 +848,7 @@ hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva)
 
 	if (gpa == UNMAPPED_GVA)
 		return UNMAPPED_GVA;
-	return gpa_to_hpa(vcpu, gpa);
+	return gpa_to_hpa(vcpu->kvm, gpa);
 }
 
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
@@ -857,7 +857,7 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 
 	if (gpa == UNMAPPED_GVA)
 		return NULL;
-	return pfn_to_page(gpa_to_hpa(vcpu, gpa) >> PAGE_SHIFT);
+	return pfn_to_page(gpa_to_hpa(vcpu->kvm, gpa) >> PAGE_SHIFT);
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
@@ -1012,7 +1012,7 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	ASSERT(VALID_PAGE(vcpu->mmu.root_hpa));
 
 
-	paddr = gpa_to_hpa(vcpu , addr & PT64_BASE_ADDR_MASK);
+	paddr = gpa_to_hpa(vcpu->kvm, addr & PT64_BASE_ADDR_MASK);
 
 	if (is_error_hpa(paddr))
 		return 1;
