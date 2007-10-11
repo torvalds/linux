@@ -6580,11 +6580,12 @@ qeth_hard_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	const struct qeth_card *card;
 	const struct ethhdr *eth;
+	struct net_device *dev = skb->dev;
 
 	if (dev->type != ARPHRD_IEEE802_TR)
 		return 0;
 
-	card = qeth_get_card_from_dev(skb->dev);
+	card = qeth_get_card_from_dev(dev);
 	if (card->options.layer2)
 		goto haveheader;
 #ifdef CONFIG_QETH_IPV6
