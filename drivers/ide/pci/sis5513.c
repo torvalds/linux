@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.25	Jun 10, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.26	Jul 7, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -582,9 +582,6 @@ static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 					regdw |= (unsigned long)cycle_time_value[ATA_133][speed-XFER_UDMA_0] << 4;
 					regdw |= (unsigned long)cvs_time_value[ATA_133][speed-XFER_UDMA_0] << 8;
 				} else {
-				/* if ATA133 disable, we should not set speed above UDMA5 */
-					if (speed > XFER_UDMA_5)
-						speed = XFER_UDMA_5;
 					regdw |= (unsigned long)cycle_time_value[ATA_100][speed-XFER_UDMA_0] << 4;
 					regdw |= (unsigned long)cvs_time_value[ATA_100][speed-XFER_UDMA_0] << 8;
 				}
@@ -638,6 +635,20 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 		sis5513_tuneproc(drive, 255);
 
 	return -1;
+}
+
+static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	int drive_pci;
+	u32 reg54 = 0, regdw = 0;
+
+	pci_read_config_dword(dev, 0x54, &reg54);
+	drive_pci = ((reg54 & 0x40000000) ? 0x70 : 0x40) + drive->dn * 4;
+	pci_read_config_dword(dev, drive_pci, &regdw);
+
+	/* if ATA133 disable, we should not set speed above UDMA5 */
+	return (regdw & 0x08) ? ATA_UDMA6 : ATA_UDMA5;
 }
 
 /* Chip detection and general config */
@@ -846,6 +857,9 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 
 	hwif->tuneproc = &sis5513_tuneproc;
 	hwif->speedproc = &sis5513_tune_chipset;
+
+	if (chipset_family >= ATA_133)
+		hwif->udma_filter = sis5513_ata133_udma_filter;
 
 	if (!(hwif->dma_base)) {
 		hwif->drives[0].autotune = 1;
