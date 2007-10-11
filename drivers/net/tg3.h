@@ -192,6 +192,8 @@
 #define  PCISTATE_ROM_RETRY_ENABLE	 0x00000040
 #define  PCISTATE_FLAT_VIEW		 0x00000100
 #define  PCISTATE_RETRY_SAME_DMA	 0x00002000
+#define  PCISTATE_ALLOW_APE_CTLSPC_WR	 0x00010000
+#define  PCISTATE_ALLOW_APE_SHMEM_WR	 0x00020000
 #define TG3PCI_CLOCK_CTRL		0x00000074
 #define  CLOCK_CTRL_CORECLK_DISABLE	 0x00000200
 #define  CLOCK_CTRL_RXCLK_DISABLE	 0x00000400
@@ -1560,6 +1562,7 @@
 #define  NIC_SRAM_DATA_CFG_MINI_PCI		 0x00001000
 #define  NIC_SRAM_DATA_CFG_FIBER_WOL		 0x00004000
 #define  NIC_SRAM_DATA_CFG_NO_GPIO2		 0x00100000
+#define  NIC_SRAM_DATA_CFG_APE_ENABLE		 0x00200000
 
 #define NIC_SRAM_DATA_VER			0x00000b5c
 #define  NIC_SRAM_DATA_VER_SHIFT		 16
@@ -1687,6 +1690,47 @@
 #define MII_TG3_TEST1			0x1e
 #define MII_TG3_TEST1_TRIM_EN		0x0010
 #define MII_TG3_TEST1_CRC_EN		0x8000
+
+/* APE registers.  Accessible through BAR1 */
+#define TG3_APE_EVENT			0x000c
+#define  APE_EVENT_1			 0x00000001
+#define TG3_APE_LOCK_REQ		0x002c
+#define  APE_LOCK_REQ_DRIVER		 0x00001000
+#define TG3_APE_LOCK_GRANT		0x004c
+#define  APE_LOCK_GRANT_DRIVER		 0x00001000
+#define TG3_APE_SEG_SIG			0x4000
+#define  APE_SEG_SIG_MAGIC		 0x41504521
+
+/* APE shared memory.  Accessible through BAR1 */
+#define TG3_APE_FW_STATUS		0x400c
+#define  APE_FW_STATUS_READY		 0x00000100
+#define TG3_APE_HOST_SEG_SIG		0x4200
+#define  APE_HOST_SEG_SIG_MAGIC		 0x484f5354
+#define TG3_APE_HOST_SEG_LEN		0x4204
+#define  APE_HOST_SEG_LEN_MAGIC		 0x0000001c
+#define TG3_APE_HOST_INIT_COUNT		0x4208
+#define TG3_APE_HOST_DRIVER_ID		0x420c
+#define  APE_HOST_DRIVER_ID_MAGIC	 0xf0035100
+#define TG3_APE_HOST_BEHAVIOR		0x4210
+#define  APE_HOST_BEHAV_NO_PHYLOCK	 0x00000001
+#define TG3_APE_HOST_HEARTBEAT_INT_MS	0x4214
+#define  APE_HOST_HEARTBEAT_INT_DISABLE	 0
+#define  APE_HOST_HEARTBEAT_INT_5SEC	 5000
+#define TG3_APE_HOST_HEARTBEAT_COUNT	0x4218
+
+#define TG3_APE_EVENT_STATUS		0x4300
+
+#define  APE_EVENT_STATUS_DRIVER_EVNT	 0x00000010
+#define  APE_EVENT_STATUS_STATE_CHNGE	 0x00000500
+#define  APE_EVENT_STATUS_STATE_START	 0x00010000
+#define  APE_EVENT_STATUS_STATE_UNLOAD	 0x00020000
+#define  APE_EVENT_STATUS_STATE_WOL	 0x00030000
+#define  APE_EVENT_STATUS_STATE_SUSPEND	 0x00040000
+#define  APE_EVENT_STATUS_EVENT_PENDING	 0x80000000
+
+/* APE convenience enumerations. */
+#define TG3_APE_LOCK_MEM                4
+
 
 /* There are two ways to manage the TX descriptors on the tigon3.
  * Either the descriptors are in host DMA'able memory, or they
@@ -2163,6 +2207,7 @@ struct tg3 {
 	void				(*write32_mbox) (struct tg3 *, u32,
 							 u32);
 	void __iomem			*regs;
+	void __iomem			*aperegs;
 	struct net_device		*dev;
 	struct pci_dev			*pdev;
 
@@ -2290,6 +2335,7 @@ struct tg3 {
 #define TG3_FLG2_PHY_ADJUST_TRIM	0x80000000
 	u32				tg3_flags3;
 #define TG3_FLG3_NO_NVRAM_ADDR_TRANS	0x00000001
+#define TG3_FLG3_ENABLE_APE		0x00000002
 
 	struct timer_list		timer;
 	u16				timer_counter;
