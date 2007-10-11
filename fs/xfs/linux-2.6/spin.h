@@ -21,25 +21,7 @@
 #include <linux/sched.h>	/* preempt needs this */
 #include <linux/spinlock.h>
 
-/*
- * Map lock_t from IRIX to Linux spinlocks.
- *
- * We do not make use of lock_t from interrupt context, so we do not
- * have to worry about disabling interrupts at all (unlike IRIX).
- */
-
-typedef spinlock_t lock_t;
-
-#define SPLDECL(s)			unsigned long s
-#ifndef DEFINE_SPINLOCK
-#define DEFINE_SPINLOCK(s)		spinlock_t s = SPIN_LOCK_UNLOCKED
-#endif
-
 #define spinlock_init(lock, name)	spin_lock_init(lock)
 #define	spinlock_destroy(lock)
-#define mutex_spinlock(lock)		({ spin_lock(lock); 0; })
-#define mutex_spinunlock(lock, s)	do { spin_unlock(lock); (void)s; } while (0)
-#define nested_spinlock(lock)		spin_lock(lock)
-#define nested_spinunlock(lock)		spin_unlock(lock)
 
 #endif /* __XFS_SUPPORT_SPIN_H__ */

@@ -181,7 +181,7 @@ typedef struct xfs_icluster {
 	xfs_daddr_t		icl_blkno;	/* starting block number of
 						 * the cluster */
 	struct xfs_buf		*icl_buf;	/* the inode buffer */
-	lock_t			icl_lock;	/* inode list lock */
+	spinlock_t		icl_lock;	/* inode list lock */
 } xfs_icluster_t;
 
 /*
