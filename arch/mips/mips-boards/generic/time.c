@@ -144,20 +144,20 @@ void __init plat_time_init(void)
 	mips_scroll_message();
 }
 
-static irqreturn_t mips_perf_interrupt(int irq, void *dev_id)
-{
-	return perf_irq();
-}
+//static irqreturn_t mips_perf_interrupt(int irq, void *dev_id)
+//{
+//	return perf_irq();
+//}
 
-static struct irqaction perf_irqaction = {
-	.handler = mips_perf_interrupt,
-	.flags = IRQF_DISABLED | IRQF_PERCPU,
-	.name = "performance",
-};
+//static struct irqaction perf_irqaction = {
+//	.handler = mips_perf_interrupt,
+//	.flags = IRQF_DISABLED | IRQF_PERCPU,
+//	.name = "performance",
+//};
 
 void __init plat_perf_setup(void)
 {
-	struct irqaction *irq = &perf_irqaction;
+//	struct irqaction *irq = &perf_irqaction;
 
 	cp0_perfcount_irq = -1;
 
@@ -170,12 +170,6 @@ void __init plat_perf_setup(void)
 	if (cp0_perfcount_irq >= 0) {
 		if (cpu_has_vint)
 			set_vi_handler(cp0_perfcount_irq, mips_perf_dispatch);
-#ifdef CONFIG_MIPS_MT_SMTC
-		setup_irq_smtc(cp0_perfcount_irq, irq,
-		               0x100 << cp0_perfcount_irq);
-#else
-		setup_irq(cp0_perfcount_irq, irq);
-#endif /* CONFIG_MIPS_MT_SMTC */
 #ifdef CONFIG_SMP
 		set_irq_handler(cp0_perfcount_irq, handle_percpu_irq);
 #endif

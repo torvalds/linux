@@ -17,7 +17,6 @@ void __init plat_timer_setup(struct irqaction *irq)
 	outb_p(0x34,0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
 	outb_p(LATCH & 0xff , 0x40);	/* LSB */
 	outb(LATCH >> 8 , 0x40);	/* MSB */
-	setup_irq(0, irq);
 }
 
 void __init plat_mem_setup(void)

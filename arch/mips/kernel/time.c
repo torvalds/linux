@@ -11,6 +11,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/clockchips.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -33,6 +34,8 @@
 #include <asm/div64.h>
 #include <asm/sections.h>
 #include <asm/time.h>
+
+#include <irq.h>
 
 /*
  * The integer part of the number of usecs per jiffy is taken from tick,
@@ -70,10 +73,6 @@ int update_persistent_clock(struct timespec now)
 /* how many counter cycles in a jiffy */
 static unsigned long cycles_per_jiffy __read_mostly;
 
-/* expirelo is the count value for next CPU timer interrupt */
-static unsigned int expirelo;
-
-
 /*
  * Null timer ack for systems not needing one (e.g. i8254).
  */
@@ -92,18 +91,7 @@ static cycle_t null_hpt_read(void)
  */
 static void c0_timer_ack(void)
 {
-	unsigned int count;
-
-	/* Ack this timer interrupt and set the next one.  */
-	expirelo += cycles_per_jiffy;
-	write_c0_compare(expirelo);
-
-	/* Check to see if we have missed any timer interrupts.  */
-	while (((count = read_c0_count()) - expirelo) < 0x7fffffff) {
-		/* missed_timer_count++; */
-		expirelo = count + cycles_per_jiffy;
-		write_c0_compare(expirelo);
-	}
+	write_c0_compare(read_c0_compare());
 }
 
 /*
@@ -112,13 +100,6 @@ static void c0_timer_ack(void)
 static cycle_t c0_hpt_read(void)
 {
 	return read_c0_count();
-}
-
-/* For use both as a high precision timer and an interrupt source.  */
-static void __init c0_hpt_timer_init(void)
-{
-	expirelo = read_c0_count() + cycles_per_jiffy;
-	write_c0_compare(expirelo);
 }
 
 int (*mips_timer_state)(void);
@@ -138,35 +119,6 @@ void local_timer_interrupt(int irq, void *dev_id)
 {
 	profile_tick(CPU_PROFILING);
 	update_process_times(user_mode(get_irq_regs()));
-}
-
-/*
- * High-level timer interrupt service routines.  This function
- * is set as irqaction->handler and is invoked through do_IRQ.
- */
-static irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	write_seqlock(&xtime_lock);
-
-	mips_timer_ack();
-
-	/*
-	 * call the generic timer interrupt handling
-	 */
-	do_timer(1);
-
-	write_sequnlock(&xtime_lock);
-
-	/*
-	 * In UP mode, we call local_timer_interrupt() to do profiling
-	 * and process accouting.
-	 *
-	 * In SMP mode, local_timer_interrupt() is invoked by appropriate
-	 * low-level local timer interrupt handler.
-	 */
-	local_timer_interrupt(irq, dev_id);
-
-	return IRQ_HANDLED;
 }
 
 int null_perf_irq(void)
@@ -209,81 +161,6 @@ static inline int handle_perf_irq (int r2)
 		!r2;
 }
 
-void ll_timer_interrupt(int irq, void *dev_id)
-{
-	int cpu = smp_processor_id();
-
-#ifdef CONFIG_MIPS_MT_SMTC
-	/*
-	 *  In an SMTC system, one Count/Compare set exists per VPE.
-	 *  Which TC within a VPE gets the interrupt is essentially
-	 *  random - we only know that it shouldn't be one with
-	 *  IXMT set. Whichever TC gets the interrupt needs to
-	 *  send special interprocessor interrupts to the other
-	 *  TCs to make sure that they schedule, etc.
-	 *
-	 *  That code is specific to the SMTC kernel, not to
-	 *  the a particular platform, so it's invoked from
-	 *  the general MIPS timer_interrupt routine.
-	 */
-
-	/*
-	 * We could be here due to timer interrupt,
-	 * perf counter overflow, or both.
-	 */
-	(void) handle_perf_irq(1);
-
-	if (read_c0_cause() & (1 << 30)) {
-		/*
-		 * There are things we only want to do once per tick
-		 * in an "MP" system.   One TC of each VPE will take
-		 * the actual timer interrupt.  The others will get
-		 * timer broadcast IPIs. We use whoever it is that takes
-		 * the tick on VPE 0 to run the full timer_interrupt().
-		 */
-		if (cpu_data[cpu].vpe_id == 0) {
-			timer_interrupt(irq, NULL);
-		} else {
-			write_c0_compare(read_c0_count() +
-			                 (mips_hpt_frequency/HZ));
-			local_timer_interrupt(irq, dev_id);
-		}
-		smtc_timer_broadcast(cpu_data[cpu].vpe_id);
-	}
-#else /* CONFIG_MIPS_MT_SMTC */
-	int r2 = cpu_has_mips_r2;
-
-	if (handle_perf_irq(r2))
-		return;
-
-	if (r2 && ((read_c0_cause() & (1 << 30)) == 0))
-		return;
-
-	if (cpu == 0) {
-		/*
-		 * CPU 0 handles the global timer interrupt job and process
-		 * accounting resets count/compare registers to trigger next
-		 * timer int.
-		 */
-		timer_interrupt(irq, NULL);
-	} else {
-		/* Everyone else needs to reset the timer int here as
-		   ll_local_timer_interrupt doesn't */
-		/*
-		 * FIXME: need to cope with counter underflow.
-		 * More support needs to be added to kernel/time for
-		 * counter/timer interrupts on multiple CPU's
-		 */
-		write_c0_compare(read_c0_count() + (mips_hpt_frequency/HZ));
-
-		/*
-		 * Other CPUs should do profiling and process accounting
-		 */
-		local_timer_interrupt(irq, dev_id);
-	}
-#endif /* CONFIG_MIPS_MT_SMTC */
-}
-
 /*
  * time_init() - it does the following things.
  *
@@ -300,12 +177,6 @@ void ll_timer_interrupt(int irq, void *dev_id)
  */
 
 unsigned int mips_hpt_frequency;
-
-static struct irqaction timer_irqaction = {
-	.handler = timer_interrupt,
-	.flags = IRQF_DISABLED | IRQF_PERCPU,
-	.name = "timer",
-};
 
 static unsigned int __init calibrate_hpt(void)
 {
@@ -355,6 +226,65 @@ struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static int mips_next_event(unsigned long delta,
+                           struct clock_event_device *evt)
+{
+	unsigned int cnt;
+
+	cnt = read_c0_count();
+	cnt += delta;
+	write_c0_compare(cnt);
+
+	return ((long)(read_c0_count() - cnt ) > 0) ? -ETIME : 0;
+}
+
+static void mips_set_mode(enum clock_event_mode mode,
+                          struct clock_event_device *evt)
+{
+	/* Nothing to do ...  */
+}
+
+struct clock_event_device mips_clockevent;
+
+static struct clock_event_device *global_cd[NR_CPUS];
+static int cp0_timer_irq_installed;
+
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
+{
+	const int r2 = cpu_has_mips_r2;
+	struct clock_event_device *cd;
+	int cpu = smp_processor_id();
+
+	/*
+	 * Suckage alert:
+	 * Before R2 of the architecture there was no way to see if a
+	 * performance counter interrupt was pending, so we have to run
+	 * the performance counter interrupt handler anyway.
+	 */
+	if (handle_perf_irq(r2))
+		goto out;
+
+	/*
+	 * The same applies to performance counter interrupts.  But with the
+	 * above we now know that the reason we got here must be a timer
+	 * interrupt.  Being the paranoiacs we are we check anyway.
+	 */
+	if (!r2 || (read_c0_cause() & (1 << 30))) {
+		c0_timer_ack();
+		cd = global_cd[cpu];
+		cd->event_handler(cd);
+	}
+
+out:
+	return IRQ_HANDLED;
+}
+
+static struct irqaction timer_irqaction = {
+	.handler = timer_interrupt,
+	.flags = IRQF_DISABLED | IRQF_PERCPU,
+	.name = "timer",
+};
+
 static void __init init_mips_clocksource(void)
 {
 	u64 temp;
@@ -382,6 +312,56 @@ void __init __weak plat_time_init(void)
 {
 }
 
+void __init __weak plat_timer_setup(struct irqaction *irq)
+{
+}
+
+void __cpuinit mips_clockevent_init(void)
+{
+	uint64_t mips_freq = mips_hpt_frequency;
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *cd;
+	unsigned int irq = MIPS_CPU_IRQ_BASE + 7;
+
+	if (!cpu_has_counter)
+		return;
+
+	if (cpu == 0)
+		cd = &mips_clockevent;
+	else
+		cd = kzalloc(sizeof(*cd), GFP_ATOMIC);
+	if (!cd)
+		return;		/* We're probably roadkill ...  */
+
+	cd->name		= "MIPS";
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
+
+	/* Calculate the min / max delta */
+	cd->mult	= div_sc((unsigned long) mips_freq, NSEC_PER_SEC, 32);
+	cd->shift		= 32;
+	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
+	cd->min_delta_ns	= clockevent_delta2ns(0x30, cd);
+
+	cd->rating		= 300;
+	cd->irq			= irq;
+	cd->cpumask		= cpumask_of_cpu(cpu);
+	cd->set_next_event	= mips_next_event;
+	cd->set_mode		= mips_set_mode;
+
+	global_cd[cpu] = cd;
+	clockevents_register_device(cd);
+
+	if (!cp0_timer_irq_installed) {
+#ifdef CONFIG_MIPS_MT_SMTC
+#define CPUCTR_IMASKBIT (0x100 << cp0_compare_irq)
+		setup_irq_smtc(irq, &timer_irqaction, CPUCTR_IMASKBIT);
+#else
+		setup_irq(irq, &timer_irqaction);
+#endif /* CONFIG_MIPS_MT_SMTC */
+		cp0_timer_irq_installed = 1;
+	}
+}
+
 void __init time_init(void)
 {
 	plat_time_init();
@@ -407,11 +387,6 @@ void __init time_init(void)
 				/* Calculate cache parameters.  */
 				cycles_per_jiffy =
 					(mips_hpt_frequency + HZ / 2) / HZ;
-				/*
-				 * This sets up the high precision
-				 * timer for the first interrupt.
-				 */
-				c0_hpt_timer_init();
 			}
 		}
 		if (!mips_hpt_frequency)
@@ -421,6 +396,10 @@ void __init time_init(void)
 		printk("Using %u.%03u MHz high precision timer.\n",
 		       ((mips_hpt_frequency + 500) / 1000) / 1000,
 		       ((mips_hpt_frequency + 500) / 1000) % 1000);
+
+#ifdef CONFIG_IRQ_CPU
+		setup_irq(MIPS_CPU_IRQ_BASE + 7, &timer_irqaction);
+#endif
 	}
 
 	if (!mips_timer_ack)
@@ -441,4 +420,5 @@ void __init time_init(void)
 	plat_timer_setup(&timer_irqaction);
 
 	init_mips_clocksource();
+	mips_clockevent_init();
 }

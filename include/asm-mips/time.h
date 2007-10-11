@@ -49,11 +49,6 @@ extern void (*mips_timer_ack)(void);
 extern struct clocksource clocksource_mips;
 
 /*
- * The low-level timer interrupt routine.
- */
-extern void ll_timer_interrupt(int irq, void *dev_id);
-
-/*
  * profiling and process accouting is done separately in local_timer_interrupt
  */
 extern void local_timer_interrupt(int irq, void *dev_id);
@@ -77,5 +72,10 @@ extern unsigned int mips_hpt_frequency;
  * so it lives here.
  */
 extern int (*perf_irq)(void);
+
+/*
+ * Initialize the calling CPU's compare interrupt as clockevent device
+ */
+extern void mips_clockevent_init(void);
 
 #endif /* _ASM_TIME_H */

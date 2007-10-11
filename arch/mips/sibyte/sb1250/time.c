@@ -116,18 +116,6 @@ void sb1250_time_init(void)
 	 */
 }
 
-void sb1250_timer_interrupt(void)
-{
-	int cpu = smp_processor_id();
-	int irq = K_INT_TIMER_0 + cpu;
-
-	/* ACK interrupt */
-	____raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-		       IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
-
-	ll_timer_interrupt(irq);
-}
-
 /*
  * The HPT is free running from SB1250_HPT_VALUE down to 0 then starts over
  * again.

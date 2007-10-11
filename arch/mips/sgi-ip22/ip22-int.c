@@ -242,7 +242,7 @@ asmlinkage void plat_irq_dispatch(void)
 	 * First we check for r4k counter/timer IRQ.
 	 */
 	if (pending & CAUSEF_IP7)
-		ll_timer_interrupt(SGI_TIMER_IRQ, NULL);
+		do_IRQ(SGI_TIMER_IRQ);
 	else if (pending & CAUSEF_IP2)
 		indy_local0_irqdispatch();
 	else if (pending & CAUSEF_IP3)

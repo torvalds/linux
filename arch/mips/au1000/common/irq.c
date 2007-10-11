@@ -633,7 +633,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & CAUSEF_IP7)
-		ll_timer_interrupt(63);
+		do_IRQ(63);
 	else if (pending & CAUSEF_IP2)
 		intc0_req0_irqdispatch();
 	else if (pending & CAUSEF_IP3)

@@ -450,7 +450,6 @@ static void bcm1480_kgdb_interrupt(void)
 
 #endif 	/* CONFIG_KGDB */
 
-extern void bcm1480_timer_interrupt(void);
 extern void bcm1480_mailbox_interrupt(void);
 
 asmlinkage void plat_irq_dispatch(void)
@@ -470,8 +469,16 @@ asmlinkage void plat_irq_dispatch(void)
 	else
 #endif
 
-	if (pending & CAUSEF_IP4)
-		bcm1480_timer_interrupt();
+	if (pending & CAUSEF_IP4) {
+		int cpu = smp_processor_id();
+		int irq = K_BCM1480_INT_TIMER_0 + cpu;
+
+		/* Reset the timer */
+		__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
+		            IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+
+		do_IRQ(irq);
+	}
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)

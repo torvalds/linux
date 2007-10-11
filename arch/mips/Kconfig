@@ -335,6 +335,7 @@ config QEMU
 	select GENERIC_ISA_DMA
 	select HAVE_STD_PC_SERIAL_PORT
 	select I8259
+	select IRQ_CPU
 	select ISA
 	select PCSPEAKER
 	select SWAP_IO_SPACE
@@ -667,6 +668,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
 config GENERIC_TIME
 	bool
 	default y
@@ -900,6 +905,8 @@ config BOOT_ELF64
 	bool
 
 menu "CPU selection"
+
+source "kernel/time/Kconfig"
 
 choice
 	prompt "CPU type"

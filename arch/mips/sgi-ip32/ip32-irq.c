@@ -457,7 +457,7 @@ static void ip32_irq4(void)
 
 static void ip32_irq5(void)
 {
-	ll_timer_interrupt(IP32_R4K_TIMER_IRQ);
+	do_IRQ(IP32_R4K_TIMER_IRQ);
 }
 
 asmlinkage void plat_irq_dispatch(void)
