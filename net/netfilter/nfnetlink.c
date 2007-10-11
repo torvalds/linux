@@ -44,26 +44,14 @@ static struct sock *nfnl = NULL;
 static const struct nfnetlink_subsystem *subsys_table[NFNL_SUBSYS_COUNT];
 static DEFINE_MUTEX(nfnl_mutex);
 
-static void nfnl_lock(void)
+static inline void nfnl_lock(void)
 {
 	mutex_lock(&nfnl_mutex);
 }
 
-static int nfnl_trylock(void)
-{
-	return !mutex_trylock(&nfnl_mutex);
-}
-
-static void __nfnl_unlock(void)
+static inline void nfnl_unlock(void)
 {
 	mutex_unlock(&nfnl_mutex);
-}
-
-static void nfnl_unlock(void)
-{
-	mutex_unlock(&nfnl_mutex);
-	if (nfnl->sk_receive_queue.qlen)
-		nfnl->sk_data_ready(nfnl, 0);
 }
 
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n)
@@ -147,9 +135,7 @@ static int nfnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		/* don't call nfnl_unlock, since it would reenter
-		 * with further packet processing */
-		__nfnl_unlock();
+		nfnl_unlock();
 		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
 		nfnl_lock();
 		ss = nfnetlink_get_subsys(type);
@@ -188,10 +174,9 @@ static void nfnetlink_rcv(struct sock *sk, int len)
 	unsigned int qlen = 0;
 
 	do {
-		if (nfnl_trylock())
-			return;
+		nfnl_lock();
 		qlen = netlink_run_queue(sk, qlen, nfnetlink_rcv_msg);
-		__nfnl_unlock();
+		nfnl_unlock();
 	} while (qlen);
 }
 
