@@ -76,37 +76,24 @@ EXPORT_SYMBOL(ide_xfer_verbose);
  *	Given the available transfer modes this function returns
  *	the best available speed at or below the speed requested.
  *
- *	FIXME: filter also PIO/SWDMA/MWDMA modes
+ *	TODO: check device PIO capabilities
  */
 
 u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 {
-#ifdef CONFIG_BLK_DEV_IDEDMA
 	ide_hwif_t *hwif = drive->hwif;
-	u8 mask = hwif->ultra_mask, mode = XFER_MW_DMA_2;
+	u8 mode = ide_find_dma_mode(drive, speed);
 
-	if (hwif->udma_filter)
-		mask = hwif->udma_filter(drive);
-
-	/*
-	 * TODO: speed > XFER_UDMA_2 extra check is needed to avoid false
-	 * cable warning from eighty_ninty_three(), moving ide_rate_filter()
-	 * calls from ->speedproc to core code will make this hack go away
-	 */
-	if (speed > XFER_UDMA_2) {
-		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
-			mask &= 0x07;
+	if (mode == 0) {
+		if (hwif->pio_mask)
+			mode = fls(hwif->pio_mask) - 1 + XFER_PIO_0;
+		else
+			mode = XFER_PIO_4;
 	}
-
-	if (mask)
-		mode = fls(mask) - 1 + XFER_UDMA_0;
 
 //	printk("%s: mode 0x%02x, speed 0x%02x\n", __FUNCTION__, mode, speed);
 
 	return min(speed, mode);
-#else /* !CONFIG_BLK_DEV_IDEDMA */
-	return min(speed, (u8)XFER_PIO_4);
-#endif /* CONFIG_BLK_DEV_IDEDMA */
 }
 
 EXPORT_SYMBOL(ide_rate_filter);

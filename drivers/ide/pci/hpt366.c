@@ -610,10 +610,6 @@ static int hpt36x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	u32 old_itr		= 0;
 	u32 itr_mask, new_itr;
 
-	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
-	if (drive->media != ide_disk)
-		speed = min_t(u8, speed, XFER_PIO_4);
-
 	itr_mask = speed < XFER_MW_DMA_0 ? 0x30070000 :
 		  (speed < XFER_UDMA_0   ? 0xc0070000 : 0xc03800ff);
 
@@ -641,10 +637,6 @@ static int hpt37x_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	u8  itr_addr		= 0x40 + (drive->dn * 4);
 	u32 old_itr		= 0;
 	u32 itr_mask, new_itr;
-
-	/* TODO: move this to ide_rate_filter() [ check ->atapi_dma ] */
-	if (drive->media != ide_disk)
-		speed = min_t(u8, speed, XFER_PIO_4);
 
 	itr_mask = speed < XFER_MW_DMA_0 ? 0x303c0000 :
 		  (speed < XFER_UDMA_0   ? 0xc03c0000 : 0xc1c001ff);

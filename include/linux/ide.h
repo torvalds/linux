@@ -1296,7 +1296,14 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
-u8 ide_max_dma_mode(ide_drive_t *);
+
+u8 ide_find_dma_mode(ide_drive_t *, u8);
+
+static inline u8 ide_max_dma_mode(ide_drive_t *drive)
+{
+	return ide_find_dma_mode(drive, XFER_UDMA_6);
+}
+
 int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
@@ -1322,6 +1329,7 @@ extern void ide_dma_timeout(ide_drive_t *);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 #else
+static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
 static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }

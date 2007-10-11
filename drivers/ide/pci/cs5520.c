@@ -70,7 +70,7 @@ static int cs5520_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *pdev = hwif->pci_dev;
-	u8 speed = min((u8)XFER_PIO_4, xferspeed);
+	u8 speed = ide_rate_filter(drive, xferspeed);
 	int pio = speed;
 	u8 reg;
 	int controller = drive->dn > 1 ? 1 : 0;
