@@ -142,7 +142,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /*
  * __pa()/__va() should be used only during mem init.
  */
-#ifdef KBUILD_64BIT_SYM32
+#ifdef CONFIG_64BIT
 #define __pa(x)								\
 ({									\
     unsigned long __x = (unsigned long)(x);				\
