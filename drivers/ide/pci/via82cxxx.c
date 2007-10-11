@@ -1,6 +1,6 @@
 /*
  *
- * Version 3.47
+ * Version 3.48
  *
  * VIA IDE driver for Linux. Supported southbridges:
  *
@@ -217,17 +217,10 @@ static void via_set_pio_mode(ide_drive_t *drive, const u8 pio)
  
 static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 {
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (speed == 0) {
-		ide_set_max_pio(drive);
-		return -1;
-	}
-
-	via_set_drive(drive, speed);
-
-	if (drive->autodma)
+	if (ide_tune_dma(drive))
 		return 0;
+
+	ide_set_max_pio(drive);
 
 	return -1;
 }

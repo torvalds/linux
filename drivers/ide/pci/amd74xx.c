@@ -1,5 +1,5 @@
 /*
- * Version 2.21
+ * Version 2.22
  *
  * AMD 755/756/766/8111 and nVidia nForce/2/2s/3/3s/CK804/MCP04
  * IDE driver for Linux.
@@ -276,17 +276,10 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 
 static int amd74xx_ide_dma_check(ide_drive_t *drive)
 {
-	u8 speed = ide_max_dma_mode(drive);
-
-	if (speed == 0) {
-		ide_set_max_pio(drive);
-		return -1;
-	}
-
-	amd_set_drive(drive, speed);
-
-	if (drive->autodma)
+	if (ide_tune_dma(drive))
 		return 0;
+
+	ide_set_max_pio(drive);
 
 	return -1;
 }
