@@ -1172,9 +1172,6 @@ SCTP_STATIC __init int sctp_init(void)
 		sctp_port_hashtable[i].chain = NULL;
 	}
 
-	spin_lock_init(&sctp_port_alloc_lock);
-	sctp_port_rover = sysctl_local_port_range[0] - 1;
-
 	printk(KERN_INFO "SCTP: Hash tables configured "
 			 "(established %d bind %d)\n",
 		sctp_assoc_hashsize, sctp_port_hashsize);

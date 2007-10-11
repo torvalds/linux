@@ -5314,22 +5314,13 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 	sctp_local_bh_disable();
 
 	if (snum == 0) {
-		/* Search for an available port.
-		 *
-		 * 'sctp_port_rover' was the last port assigned, so
-		 * we start to search from 'sctp_port_rover +
-		 * 1'. What we do is first check if port 'rover' is
-		 * already in the hash table; if not, we use that; if
-		 * it is, we try next.
-		 */
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
-		int remaining = (high - low) + 1;
-		int rover;
+		/* Search for an available port. */
+		unsigned int low = sysctl_local_port_range[0];
+		unsigned int high = sysctl_local_port_range[1];
+		unsigned int remaining = (high - low) + 1;
+		unsigned int rover = net_random() % remaining + low;
 		int index;
 
-		sctp_spin_lock(&sctp_port_alloc_lock);
-		rover = sctp_port_rover;
 		do {
 			rover++;
 			if ((rover < low) || (rover > high))
@@ -5344,8 +5335,6 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 		next:
 			sctp_spin_unlock(&head->lock);
 		} while (--remaining > 0);
-		sctp_port_rover = rover;
-		sctp_spin_unlock(&sctp_port_alloc_lock);
 
 		/* Exhausted local port range during search? */
 		ret = 1;
