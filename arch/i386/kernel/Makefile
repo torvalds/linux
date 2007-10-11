@@ -45,7 +45,7 @@ obj-$(CONFIG_VMI)		+= vmi_32.o vmiclock_32.o
 obj-$(CONFIG_PARAVIRT)		+= paravirt_32.o
 obj-y				+= pcspeaker.o
 
-obj-$(CONFIG_SCx200)		+= scx200.o
+obj-$(CONFIG_SCx200)		+= scx200_32.o
 
 # vsyscall_32.o contains the vsyscall DSO images as __initdata.
 # We must build both images before we can assemble it.
