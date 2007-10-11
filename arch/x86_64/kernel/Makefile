@@ -6,7 +6,7 @@ extra-y 	:= head.o head64.o init_task.o vmlinux.lds
 EXTRA_AFLAGS	:= -traditional
 obj-y	:= process.o signal.o entry.o traps_64.o irq.o \
 		ptrace.o time.o ioport.o ldt.o setup_64.o i8259_64.o sys_x86_64.o \
-		x8664_ksyms.o i387.o syscall.o vsyscall.o \
+		x8664_ksyms.o i387.o syscall.o vsyscall_64.o \
 		setup64.o bootflag.o e820_64.o reboot.o quirks.o i8237.o \
 		pci-dma_64.o pci-nommu.o alternative.o hpet_64.o tsc.o bugs.o \
 		perfctr-watchdog.o
@@ -46,7 +46,7 @@ obj-y				+= intel_cacheinfo.o
 obj-y				+= addon_cpuid_features.o
 obj-y				+= pcspeaker.o
 
-CFLAGS_vsyscall.o		:= $(PROFILING) -g0
+CFLAGS_vsyscall_64.o		:= $(PROFILING) -g0
 
 therm_throt-y                   += ../../i386/kernel/cpu/mcheck/therm_throt.o
 bootflag-y			+= ../../i386/kernel/bootflag.o
