@@ -45,6 +45,18 @@
 #define FIRST_VIOTAPE	(FIRST_VIOCD + NUM_VIOCDS)
 #define NUM_VIOTAPES	HVMAXARCHITECTEDVIRTUALTAPES
 
+struct vio_waitevent {
+	struct completion	com;
+	int			rc;
+	u16			sub_result;
+};
+
+struct vio_resource {
+	char	rsrcname[10];
+	char	type[4];
+	char	model[3];
+};
+
 static struct property * __init new_property(const char *name, int length,
 		const void *value)
 {
@@ -123,22 +135,10 @@ static int __init add_raw_property(struct device_node *np, const char *name,
 	return 1;
 }
 
-struct viocd_waitevent {
-	struct completion	com;
-	int			rc;
-	u16			sub_result;
-};
-
-struct cdrom_info {
-	char	rsrcname[10];
-	char	type[4];
-	char	model[3];
-};
-
 static void __init handle_cd_event(struct HvLpEvent *event)
 {
 	struct viocdlpevent *bevent;
-	struct viocd_waitevent *pwe;
+	struct vio_waitevent *pwe;
 
 	if (!event)
 		/* Notification that a partition went away! */
@@ -158,7 +158,7 @@ static void __init handle_cd_event(struct HvLpEvent *event)
 
 	switch (event->xSubtype & VIOMINOR_SUBTYPE_MASK) {
 	case viocdgetinfo:
-		pwe = (struct viocd_waitevent *)event->xCorrelationToken;
+		pwe = (struct vio_waitevent *)event->xCorrelationToken;
 		pwe->rc = event->xRc;
 		pwe->sub_result = bevent->sub_result;
 		complete(&pwe->com);
@@ -179,8 +179,8 @@ static void __init get_viocd_info(struct device_node *vio_root)
 {
 	HvLpEvent_Rc hvrc;
 	u32 unit;
-	struct viocd_waitevent we;
-	struct cdrom_info *unitinfo;
+	struct vio_waitevent we;
+	struct vio_resource *unitinfo;
 	dma_addr_t unitinfo_dmaaddr;
 	int ret;
 
@@ -286,6 +286,122 @@ static void __init get_viocd_info(struct device_node *vio_root)
 	viopath_close(viopath_hostLp, viomajorsubtype_cdio, 2);
 }
 
+/* Handle interrupt events for tape */
+static void __init handle_tape_event(struct HvLpEvent *event)
+{
+	struct vio_waitevent *we;
+	struct viotapelpevent *tevent = (struct viotapelpevent *)event;
+
+	if (event == NULL)
+		/* Notification that a partition went away! */
+		return;
+
+	we = (struct vio_waitevent *)event->xCorrelationToken;
+	switch (event->xSubtype & VIOMINOR_SUBTYPE_MASK) {
+	case viotapegetinfo:
+		we->rc = tevent->sub_type_result;
+		complete(&we->com);
+		break;
+	default:
+		printk(KERN_WARNING "handle_tape_event: weird ack\n");
+	}
+}
+
+static void __init get_viotape_info(struct device_node *vio_root)
+{
+	HvLpEvent_Rc hvrc;
+	u32 unit;
+	struct vio_resource *unitinfo;
+	dma_addr_t unitinfo_dmaaddr;
+	size_t len = sizeof(*unitinfo) * HVMAXARCHITECTEDVIRTUALTAPES;
+	struct vio_waitevent we;
+	int ret;
+
+	ret = viopath_open(viopath_hostLp, viomajorsubtype_tape, 2);
+	if (ret) {
+		printk(KERN_WARNING "get_viotape_info: "
+			"error on viopath_open to hostlp %d\n", ret);
+		return;
+	}
+
+	vio_setHandler(viomajorsubtype_tape, handle_tape_event);
+
+	unitinfo = iseries_hv_alloc(len, &unitinfo_dmaaddr, GFP_ATOMIC);
+	if (!unitinfo)
+		goto clear_handler;
+
+	memset(unitinfo, 0, len);
+
+	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
+			HvLpEvent_Type_VirtualIo,
+			viomajorsubtype_tape | viotapegetinfo,
+			HvLpEvent_AckInd_DoAck, HvLpEvent_AckType_ImmediateAck,
+			viopath_sourceinst(viopath_hostLp),
+			viopath_targetinst(viopath_hostLp),
+			(u64)(unsigned long)&we, VIOVERSION << 16,
+			unitinfo_dmaaddr, len, 0, 0);
+	if (hvrc != HvLpEvent_Rc_Good) {
+		printk(KERN_WARNING "get_viotape_info: hv error on op %d\n",
+				(int)hvrc);
+		goto hv_free;
+	}
+
+	wait_for_completion(&we.com);
+
+	for (unit = 0; (unit < HVMAXARCHITECTEDVIRTUALTAPES) &&
+			unitinfo[unit].rsrcname[0]; unit++) {
+		struct device_node *np;
+		char name[64];
+		u32 reg = FIRST_VIOTAPE + unit;
+
+		snprintf(name, sizeof(name), "/vdevice/viotape@%08x", reg);
+		np = new_node(name, vio_root);
+		if (!np)
+			goto hv_free;
+		if (!add_string_property(np, "name", "viotape") ||
+			!add_string_property(np, "device_type", "byte") ||
+			!add_string_property(np, "compatible",
+				"IBM,iSeries-viotape") ||
+			!add_raw_property(np, "reg", sizeof(reg), &reg) ||
+			!add_raw_property(np, "linux,unit_address",
+				sizeof(unit), &unit) ||
+			!add_raw_property(np, "linux,vio_rsrcname",
+				sizeof(unitinfo[unit].rsrcname),
+				unitinfo[unit].rsrcname) ||
+			!add_raw_property(np, "linux,vio_type",
+				sizeof(unitinfo[unit].type),
+				unitinfo[unit].type) ||
+			!add_raw_property(np, "linux,vio_model",
+				sizeof(unitinfo[unit].model),
+				unitinfo[unit].model))
+			goto node_free;
+		np->name = of_get_property(np, "name", NULL);
+		np->type = of_get_property(np, "device_type", NULL);
+		of_attach_node(np);
+#ifdef CONFIG_PROC_DEVICETREE
+		if (vio_root->pde) {
+			struct proc_dir_entry *ent;
+
+			ent = proc_mkdir(strrchr(np->full_name, '/') + 1,
+					vio_root->pde);
+			if (ent)
+				proc_device_tree_add_node(np, ent);
+		}
+#endif
+		continue;
+
+ node_free:
+		free_node(np);
+		break;
+	}
+
+ hv_free:
+	iseries_hv_free(len, unitinfo, unitinfo_dmaaddr);
+ clear_handler:
+	vio_clearHandler(viomajorsubtype_tape);
+	viopath_close(viopath_hostLp, viomajorsubtype_tape, 2);
+}
+
 static int __init iseries_vio_init(void)
 {
 	struct device_node *vio_root;
@@ -307,6 +423,7 @@ static int __init iseries_vio_init(void)
 	}
 
 	get_viocd_info(vio_root);
+	get_viotape_info(vio_root);
 
 	return 0;
 

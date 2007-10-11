@@ -75,6 +75,47 @@ enum viocdsubtype {
 	viocdcheck = 0x0007
 };
 
+struct viotapelpevent {
+	struct HvLpEvent event;
+	u32 reserved;
+	u16 version;
+	u16 sub_type_result;
+	u16 tape;
+	u16 flags;
+	u32 token;
+	u64 len;
+	union {
+		struct {
+			u32 tape_op;
+			u32 count;
+		} op;
+		struct {
+			u32 type;
+			u32 resid;
+			u32 dsreg;
+			u32 gstat;
+			u32 erreg;
+			u32 file_no;
+			u32 block_no;
+		} get_status;
+		struct {
+			u32 block_no;
+		} get_pos;
+	} u;
+};
+
+enum viotapesubtype {
+	viotapeopen = 0x0001,
+	viotapeclose = 0x0002,
+	viotaperead = 0x0003,
+	viotapewrite = 0x0004,
+	viotapegetinfo = 0x0005,
+	viotapeop = 0x0006,
+	viotapegetpos = 0x0007,
+	viotapesetpos = 0x0008,
+	viotapegetstatus = 0x0009
+};
+
 /*
  * Each subtype can register a handler to process their events.
  * The handler must have this interface.
