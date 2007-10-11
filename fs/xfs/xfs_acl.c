@@ -704,7 +704,7 @@ xfs_acl_vtoacl(
 int
 xfs_acl_inherit(
 	bhv_vnode_t	*vp,
-	bhv_vattr_t	*vap,
+	mode_t		mode,
 	xfs_acl_t	*pdaclp)
 {
 	xfs_acl_t	*cacl;
@@ -732,7 +732,7 @@ xfs_acl_inherit(
 		return ENOMEM;
 
 	memcpy(cacl, pdaclp, sizeof(xfs_acl_t));
-	xfs_acl_filter_mode(vap->va_mode, cacl);
+	xfs_acl_filter_mode(mode, cacl);
 	xfs_acl_setmode(vp, cacl, &basicperms);
 
 	/*

@@ -26,19 +26,19 @@ int xfs_release(struct xfs_inode *ip);
 int xfs_inactive(struct xfs_inode *ip);
 int xfs_lookup(struct xfs_inode *dp, bhv_vname_t *dentry,
 		bhv_vnode_t **vpp);
-int xfs_create(struct xfs_inode *dp, bhv_vname_t *dentry,
-		struct bhv_vattr *vap, bhv_vnode_t **vpp, struct cred *credp);
+int xfs_create(struct xfs_inode *dp, bhv_vname_t *dentry, mode_t mode,
+		xfs_dev_t rdev, bhv_vnode_t **vpp, struct cred *credp);
 int xfs_remove(struct xfs_inode *dp, bhv_vname_t	*dentry);
 int xfs_link(struct xfs_inode *tdp, bhv_vnode_t *src_vp,
 		bhv_vname_t *dentry);
 int xfs_mkdir(struct xfs_inode *dp, bhv_vname_t *dentry,
-		struct bhv_vattr *vap, bhv_vnode_t **vpp, struct cred *credp);
+		mode_t mode, bhv_vnode_t **vpp, struct cred *credp);
 int xfs_rmdir(struct xfs_inode *dp, bhv_vname_t *dentry);
 int xfs_readdir(struct xfs_inode	*dp, void *dirent, size_t bufsize,
 		       xfs_off_t *offset, filldir_t filldir);
 int xfs_symlink(struct xfs_inode *dp, bhv_vname_t *dentry,
-		struct bhv_vattr *vap, char *target_path,
-		bhv_vnode_t **vpp, struct cred *credp);
+		char *target_path, mode_t mode, bhv_vnode_t **vpp,
+		struct cred *credp);
 int xfs_fid2(struct xfs_inode *ip, fid_t	*fidp);
 int xfs_rwlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);
 void xfs_rwunlock(struct xfs_inode *ip, bhv_vrwlock_t locktype);

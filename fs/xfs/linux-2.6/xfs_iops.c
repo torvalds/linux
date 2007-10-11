@@ -271,7 +271,6 @@ xfs_vn_mknod(
 	dev_t		rdev)
 {
 	struct inode	*ip;
-	bhv_vattr_t	vattr = { 0 };
 	bhv_vnode_t	*vp = NULL, *dvp = vn_from_inode(dir);
 	xfs_acl_t	*default_acl = NULL;
 	attrexists_t	test_default_acl = _ACL_DEFAULT_EXISTS;
@@ -297,19 +296,14 @@ xfs_vn_mknod(
 	if (IS_POSIXACL(dir) && !default_acl && xfs_has_fs_struct(current))
 		mode &= ~current->fs->umask;
 
-	vattr.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
-	vattr.va_mode = mode;
-
 	switch (mode & S_IFMT) {
 	case S_IFCHR: case S_IFBLK: case S_IFIFO: case S_IFSOCK:
-		vattr.va_rdev = sysv_encode_dev(rdev);
-		vattr.va_mask |= XFS_AT_RDEV;
-		/*FALLTHROUGH*/
+		rdev = sysv_encode_dev(rdev);
 	case S_IFREG:
-		error = xfs_create(XFS_I(dir), dentry, &vattr, &vp, NULL);
+		error = xfs_create(XFS_I(dir), dentry, mode, rdev, &vp, NULL);
 		break;
 	case S_IFDIR:
-		error = xfs_mkdir(XFS_I(dir), dentry, &vattr, &vp, NULL);
+		error = xfs_mkdir(XFS_I(dir), dentry, mode, &vp, NULL);
 		break;
 	default:
 		error = EINVAL;
@@ -324,7 +318,7 @@ xfs_vn_mknod(
 
 	if (unlikely(default_acl)) {
 		if (!error) {
-			error = _ACL_INHERIT(vp, &vattr, default_acl);
+			error = _ACL_INHERIT(vp, mode, default_acl);
 			if (!error)
 				xfs_iflags_set(XFS_I(vp), XFS_IMODIFIED);
 			else
@@ -441,18 +435,17 @@ xfs_vn_symlink(
 	const char	*symname)
 {
 	struct inode	*ip;
-	bhv_vattr_t	va = { 0 };
 	bhv_vnode_t	*cvp;	/* used to lookup symlink to put in dentry */
 	int		error;
+	mode_t		mode;
 
 	cvp = NULL;
 
-	va.va_mode = S_IFLNK |
+	mode = S_IFLNK |
 		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
-	va.va_mask = XFS_AT_TYPE|XFS_AT_MODE;
 
-	error = xfs_symlink(XFS_I(dir), dentry, &va,
-			(char *)symname, &cvp, NULL);
+	error = xfs_symlink(XFS_I(dir), dentry, (char *)symname, mode,
+			    &cvp, NULL);
 	if (likely(!error && cvp)) {
 		error = xfs_init_security(cvp, dir);
 		if (likely(!error)) {
