@@ -103,7 +103,7 @@ head-y := arch/i386/kernel/head_32.o arch/i386/kernel/init_task_32.o
 
 libs-y 					+= arch/x86/lib/
 core-y					+= arch/i386/kernel/ \
-					   arch/i386/mm/ \
+					   arch/x86/mm/ \
 					   $(mcore-y)/ \
 					   arch/x86/crypto/
 drivers-$(CONFIG_MATH_EMULATION)	+= arch/x86/math-emu/
