@@ -1931,9 +1931,9 @@ xfs_iunlink(
 	 */
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, agdaddr,
 				   XFS_FSS_TO_BB(mp, 1), 0, &agibp);
-	if (error) {
+	if (error)
 		return error;
-	}
+
 	/*
 	 * Validate the magic number of the agi block.
 	 */
@@ -1957,6 +1957,24 @@ xfs_iunlink(
 	ASSERT(agi->agi_unlinked[bucket_index]);
 	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != agino);
 
+	error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0);
+	if (error)
+		return error;
+
+	/*
+	 * Clear the on-disk di_nlink. This is to prevent xfs_bulkstat
+	 * from picking up this inode when it is reclaimed (its incore state
+	 * initialzed but not flushed to disk yet). The in-core di_nlink is
+	 * already cleared in xfs_droplink() and a corresponding transaction
+	 * logged. The hack here just synchronizes the in-core to on-disk
+	 * di_nlink value in advance before the actual inode sync to disk.
+	 * This is OK because the inode is already unlinked and would never
+	 * change its di_nlink again for this inode generation.
+	 * This is a temporary hack that would require a proper fix
+	 * in the future.
+	 */
+	dip->di_core.di_nlink = 0;
+
 	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO) {
 		/*
 		 * There is already another inode in the bucket we need
@@ -1964,10 +1982,6 @@ xfs_iunlink(
 		 * Here we put the head pointer into our next pointer,
 		 * and then we fall through to point the head at us.
 		 */
-		error = xfs_itobp(mp, tp, ip, &dip, &ibp, 0, 0);
-		if (error) {
-			return error;
-		}
 		ASSERT(be32_to_cpu(dip->di_next_unlinked) == NULLAGINO);
 		/* both on-disk, don't endian flip twice */
 		dip->di_next_unlinked = agi->agi_unlinked[bucket_index];
