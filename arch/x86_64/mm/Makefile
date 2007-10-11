@@ -4,7 +4,7 @@
 
 obj-y	 := init_64.o fault.o ioremap_64.o extable.o pageattr.o mmap_64.o
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
-obj-$(CONFIG_NUMA) += numa.o
+obj-$(CONFIG_NUMA) += numa_64.o
 obj-$(CONFIG_K8_NUMA) += k8topology.o
 obj-$(CONFIG_ACPI_NUMA) += srat_64.o
 
