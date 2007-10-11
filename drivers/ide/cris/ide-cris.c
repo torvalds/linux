@@ -726,6 +726,8 @@ static int speed_cris_ide(ide_drive_t *drive, u8 speed)
 {
 	int cyc = 0, dvs = 0, strobe = 0, hold = 0;
 
+	speed = ide_rate_filter(drive, speed);
+
 	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
 		tune_cris_ide(drive, speed - XFER_PIO_0);
 		return ide_config_drive_speed(drive, speed);

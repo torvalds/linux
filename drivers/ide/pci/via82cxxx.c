@@ -165,6 +165,8 @@ static int via_set_drive(ide_drive_t *drive, u8 speed)
 	struct ide_timing t, p;
 	unsigned int T, UT;
 
+	speed = ide_rate_filter(drive, speed);
+
 	if (speed != XFER_PIO_SLOW)
 		ide_config_drive_speed(drive, speed);
 

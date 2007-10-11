@@ -928,6 +928,8 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)HWIF(drive)->hwif_data;
 	u32 *timings, *timings2;
 
+	speed = ide_rate_filter(drive, speed);
+
 	if (pmif == NULL)
 		return 1;
 		
@@ -937,17 +939,9 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 	switch(speed) {
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 		case XFER_UDMA_6:
-		        if (pmif->kind != controller_sh_ata6)
-				return 1;
 		case XFER_UDMA_5:
-			if (pmif->kind != controller_un_ata6 &&
-			    pmif->kind != controller_k2_ata6 &&
-			    pmif->kind != controller_sh_ata6)
-				return 1;
 		case XFER_UDMA_4:
 		case XFER_UDMA_3:
-			if (drive->hwif->cbl != ATA_CBL_PATA80)
-				return 1;
 		case XFER_UDMA_2:
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:

@@ -180,6 +180,8 @@ static int auide_tune_chipset (ide_drive_t *drive, u8 speed)
 	int mem_sttime;
 	int mem_stcfg;
 
+	speed = ide_rate_filter(drive, speed);
+
 	mem_sttime = 0;
 	mem_stcfg  = au_readl(MEM_STCFG2);
 

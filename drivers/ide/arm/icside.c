@@ -255,8 +255,7 @@ static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
 	/*
 	 * Limit the transfer speed to MW_DMA_2.
 	 */
-	if (xfer_mode > XFER_MW_DMA_2)
-		xfer_mode = XFER_MW_DMA_2;
+	xfer_mode = ide_rate_filter(drive, xfer_mode);
 
 	switch (xfer_mode) {
 	case XFER_MW_DMA_2:
