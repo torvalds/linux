@@ -164,6 +164,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTR_CELL_TB_BUG		LONG_ASM_CONST(0x0000800000000000)
 #define CPU_FTR_SPURR			LONG_ASM_CONST(0x0001000000000000)
 #define CPU_FTR_DSCR			LONG_ASM_CONST(0x0002000000000000)
+#define CPU_FTR_1T_SEGMENT		LONG_ASM_CONST(0x0004000000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -374,7 +375,7 @@ extern void do_feature_fixups(unsigned long value, void *fixup_start,
 #define CPU_FTRS_POSSIBLE	\
 	    (CPU_FTRS_POWER3 | CPU_FTRS_RS64 | CPU_FTRS_POWER4 |	\
 	    CPU_FTRS_PPC970 | CPU_FTRS_POWER5 | CPU_FTRS_POWER6 |	\
-	    CPU_FTRS_CELL | CPU_FTRS_PA6T)
+	    CPU_FTRS_CELL | CPU_FTRS_PA6T | CPU_FTR_1T_SEGMENT)
 #else
 enum {
 	CPU_FTRS_POSSIBLE =

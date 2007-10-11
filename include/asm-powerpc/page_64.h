@@ -26,11 +26,17 @@
  */
 #define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
 
-/* Segment size */
+/* Segment size; normal 256M segments */
 #define SID_SHIFT		28
 #define SID_MASK		ASM_CONST(0xfffffffff)
 #define ESID_MASK		0xfffffffff0000000UL
 #define GET_ESID(x)		(((x) >> SID_SHIFT) & SID_MASK)
+
+/* 1T segments */
+#define SID_SHIFT_1T		40
+#define SID_MASK_1T		0xffffffUL
+#define ESID_MASK_1T		0xffffff0000000000UL
+#define GET_ESID_1T(x)		(((x) >> SID_SHIFT_1T) & SID_MASK_1T)
 
 #ifndef __ASSEMBLY__
 #include <asm/cache.h>

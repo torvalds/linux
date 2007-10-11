@@ -699,7 +699,7 @@ static inline void get_kernel_slb(u64 ea, u64 slb[2])
 		llp = mmu_psize_defs[mmu_linear_psize].sllp;
 	else
 		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
-	slb[0] = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+	slb[0] = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 		SLB_VSID_KERNEL | llp;
 	slb[1] = (ea & ESID_MASK) | SLB_ESID_V;
 }

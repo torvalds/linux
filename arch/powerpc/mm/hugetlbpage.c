@@ -403,11 +403,12 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	unsigned long va, rflags, pa;
 	long slot;
 	int err = 1;
+	int ssize = user_segment_size(ea);
 
 	ptep = huge_pte_offset(mm, ea);
 
 	/* Search the Linux page table for a match with va */
-	va = (vsid << 28) | (ea & 0x0fffffff);
+	va = hpt_va(ea, vsid, ssize);
 
 	/*
 	 * If no pte found or not present, send the problem up to
@@ -458,19 +459,19 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		/* There MIGHT be an HPTE for this pte */
 		unsigned long hash, slot;
 
-		hash = hpt_hash(va, HPAGE_SHIFT);
+		hash = hpt_hash(va, HPAGE_SHIFT, ssize);
 		if (old_pte & _PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, va, mmu_huge_psize,
-					 local) == -1)
+					 ssize, local) == -1)
 			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
 	if (likely(!(old_pte & _PAGE_HASHPTE))) {
-		unsigned long hash = hpt_hash(va, HPAGE_SHIFT);
+		unsigned long hash = hpt_hash(va, HPAGE_SHIFT, ssize);
 		unsigned long hpte_group;
 
 		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
@@ -489,7 +490,7 @@ repeat:
 
 		/* Insert into the hash table, primary slot */
 		slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags, 0,
-					  mmu_huge_psize);
+					  mmu_huge_psize, ssize);
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
@@ -497,7 +498,7 @@ repeat:
 				      HPTES_PER_GROUP) & ~0x7UL; 
 			slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags,
 						  HPTE_V_SECONDARY,
-						  mmu_huge_psize);
+						  mmu_huge_psize, ssize);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) *

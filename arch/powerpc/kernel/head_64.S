@@ -935,7 +935,7 @@ _GLOBAL(do_stab_bolted)
 
 	/* Calculate VSID */
 	/* This is a kernel address, so protovsid = ESID */
-	ASM_VSID_SCRAMBLE(r11, r9)
+	ASM_VSID_SCRAMBLE(r11, r9, 256M)
 	rldic	r9,r11,12,16	/* r9 = vsid << 12 */
 
 	/* Search the primary group for a free entry */
