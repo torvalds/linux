@@ -117,7 +117,7 @@ static struct notifier_block lasat_panic_block[] =
 	}
 };
 
-static void lasat_time_init(void)
+void plat_time_init(void)
 {
 	mips_hpt_frequency = lasat_board_info.li_cpu_hz / 2;
 }
@@ -142,12 +142,8 @@ void __init plat_mem_setup(void)
 
 	lasat_reboot_setup();
 
-	board_time_init = lasat_time_init;
-
 #ifdef CONFIG_DS1603
 	ds1603 = &ds_defs[mips_machtype];
-	rtc_mips_get_time = ds1603_read;
-	rtc_mips_set_time = ds1603_set;
 #endif
 
 #ifdef DYNAMIC_SERIAL_INIT

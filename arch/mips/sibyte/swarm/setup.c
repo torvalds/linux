@@ -69,7 +69,7 @@ const char *get_system_type(void)
 	return "SiByte " SIBYTE_BOARD_NAME;
 }
 
-void __init swarm_time_init(void)
+void __init plat_time_init(void)
 {
 #if defined(CONFIG_SIBYTE_SB1250) || defined(CONFIG_SIBYTE_BCM112X)
 	/* Setup HPT */
@@ -104,6 +104,44 @@ int swarm_be_handler(struct pt_regs *regs, int is_fixup)
 	return (is_fixup ? MIPS_BE_FIXUP : MIPS_BE_FATAL);
 }
 
+enum swarm_rtc_type {
+	RTC_NONE,
+	RTC_XICOR,
+	RTC_M4LT81
+};
+
+enum swarm_rtc_type swarm_rtc_type;
+
+unsigned long read_persistent_clock(void)
+{
+	switch (swarm_rtc_type) {
+	case RTC_XICOR:
+		return xicor_get_time();
+
+	case RTC_M4LT81:
+		return m41t81_get_time();
+
+	case RTC_NONE:
+	default:
+		return mktime(2000, 1, 1, 0, 0, 0);
+	}
+}
+
+int rtc_mips_set_time(unsigned long sec)
+{
+	switch (swarm_rtc_type) {
+	case RTC_XICOR:
+		return xicor_set_time(sec);
+
+	case RTC_M4LT81:
+		return m41t81_set_time(sec);
+
+	case RTC_NONE:
+	default:
+		return -1;
+	}
+}
+
 void __init plat_mem_setup(void)
 {
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
@@ -116,20 +154,12 @@ void __init plat_mem_setup(void)
 
 	panic_timeout = 5;  /* For debug.  */
 
-	board_time_init = swarm_time_init;
 	board_be_handler = swarm_be_handler;
 
-	if (xicor_probe()) {
-		printk("swarm setup: Xicor 1241 RTC detected.\n");
-		rtc_mips_get_time = xicor_get_time;
-		rtc_mips_set_time = xicor_set_time;
-	}
-
-	if (m41t81_probe()) {
-		printk("swarm setup: M41T81 RTC detected.\n");
-		rtc_mips_get_time = m41t81_get_time;
-		rtc_mips_set_time = m41t81_set_time;
-	}
+	if (xicor_probe())
+		swarm_rtc_type = RTC_XICOR;
+	if (m41t81_probe())
+		swarm_rtc_type = RTC_M4LT81;
 
 	printk("This kernel optimized for "
 #ifdef CONFIG_SIMULATION

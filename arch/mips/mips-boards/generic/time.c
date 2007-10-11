@@ -224,12 +224,12 @@ static unsigned int __init estimate_cpu_frequency(void)
 	return count;
 }
 
-unsigned long __init mips_rtc_get_time(void)
+unsigned long read_persistent_clock(void)
 {
 	return mc146818_get_cmos_time();
 }
 
-void __init mips_time_init(void)
+void __init plat_time_init(void)
 {
 	unsigned int est_freq;
 

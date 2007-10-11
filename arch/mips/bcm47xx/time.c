@@ -28,8 +28,7 @@
 #include <asm/time.h>
 #include <bcm47xx.h>
 
-void __init
-bcm47xx_time_init(void)
+void __init plat_time_init(void)
 {
 	unsigned long hz;
 

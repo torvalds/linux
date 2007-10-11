@@ -39,7 +39,6 @@
 #include <asm/tx4938/spi.h>
 #include <asm/gpio.h>
 
-extern void rbtx4938_time_init(void) __init;
 extern char * __init prom_getcmdline(void);
 static inline void tx4938_report_pcic_status1(struct tx4938_pcic_reg *pcicptr);
 
@@ -856,7 +855,7 @@ void tx4938_report_pcic_status(void)
 /* We use onchip r4k counter or TMR timer as our system wide timer
  * interrupt running at 100HZ. */
 
-void __init rbtx4938_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
 }

@@ -123,7 +123,7 @@ again:
 #include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
 
-static __init unsigned long get_m48t35_time(void)
+unsigned long read_persistent_clock(void)
 {
         unsigned int year, month, date, hour, min, sec;
 	struct m48t35_rtc *rtc;
@@ -205,12 +205,10 @@ static cycle_t ip27_hpt_read(void)
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
 
-void __init ip27_time_init(void)
+void __init plat_time_init(void)
 {
 	clocksource_mips.read = ip27_hpt_read;
 	mips_hpt_frequency = CYCLES_PER_SEC;
-	xtime.tv_sec = get_m48t35_time();
-	xtime.tv_nsec = 0;
 }
 
 void __init cpu_time_init(void)

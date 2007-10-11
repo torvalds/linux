@@ -329,7 +329,3 @@ void __init plat_timer_setup(struct irqaction *irq)
 
 #endif
 }
-
-void __init au1xxx_time_init(void)
-{
-}

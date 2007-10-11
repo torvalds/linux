@@ -20,8 +20,6 @@ struct ds_defs {
 
 extern struct ds_defs *ds1603;
 
-unsigned long ds1603_read(void);
-int ds1603_set(unsigned long);
 void ds1603_set_trimmer(unsigned int);
 void ds1603_enable(void);
 void ds1603_disable(void);

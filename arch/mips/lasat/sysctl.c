@@ -32,6 +32,8 @@
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 
+#include <asm/time.h>
+
 #include "sysctl.h"
 #include "ds1603.h"
 
@@ -106,7 +108,7 @@ int proc_dolasatrtc(ctl_table *table, int write, struct file *filp,
 
 	mutex_lock(&lasat_info_mutex);
 	if (!write) {
-		rtctmp = ds1603_read();
+		rtctmp = read_persistent_clock();
 		/* check for time < 0 and set to 0 */
 		if (rtctmp < 0)
 			rtctmp = 0;
@@ -116,7 +118,7 @@ int proc_dolasatrtc(ctl_table *table, int write, struct file *filp,
 		mutex_unlock(&lasat_info_mutex);
 		return r;
 	}
-	ds1603_set(rtctmp);
+	rtc_mips_set_mmss(rtctmp);
 	mutex_unlock(&lasat_info_mutex);
 
 	return 0;
@@ -152,7 +154,7 @@ int sysctl_lasat_rtc(ctl_table *table, int *name, int nlen,
 	int r;
 
 	mutex_lock(&lasat_info_mutex);
-	rtctmp = ds1603_read();
+	rtctmp = read_persistent_clock();
 	if (rtctmp < 0)
 		rtctmp = 0;
 	r = sysctl_intvec(table, name, nlen, oldval, oldlenp, newval, newlen);
@@ -161,7 +163,7 @@ int sysctl_lasat_rtc(ctl_table *table, int *name, int nlen,
 		return r;
 	}
 	if (newval && newlen)
-		ds1603_set(rtctmp);
+		rtc_mips_set_mmss(rtctmp);
 	mutex_unlock(&lasat_info_mutex);
 
 	return 1;

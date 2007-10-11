@@ -135,8 +135,7 @@ static void rtc_end_op(void)
 	lasat_ndelay(1000);
 }
 
-/* interface */
-unsigned long ds1603_read(void)
+unsigned long read_persistent_clock(void)
 {
 	unsigned long word;
 	unsigned long flags;
@@ -147,10 +146,11 @@ unsigned long ds1603_read(void)
 	word = rtc_read_word();
 	rtc_end_op();
 	spin_unlock_irqrestore(&rtc_lock, flags);
+
 	return word;
 }
 
-int ds1603_set(unsigned long time)
+int rtc_mips_set_mmss(unsigned long time)
 {
 	unsigned long flags;
 

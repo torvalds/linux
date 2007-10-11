@@ -68,7 +68,7 @@ DEFINE_SPINLOCK(titan_lock);
 int titan_irqflags;
 
 
-static void excite_timer_init(void)
+void __init plat_time_init(void)
 {
 	const u32 modebit5 = ocd_readl(0x00e4);
 	unsigned int
@@ -260,9 +260,6 @@ void __init plat_mem_setup(void)
 
 	/* Announce RAM to system */
 	add_memory_region(0x00000000, memsize, BOOT_MEM_RAM);
-
-	/* Set up timer initialization hooks */
-	board_time_init = excite_timer_init;
 
 	/* Set up the peripheral address map */
 	*(boot_ocd_base + (LKB9 / sizeof (u32))) = 0;

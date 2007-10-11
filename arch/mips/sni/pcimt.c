@@ -313,7 +313,6 @@ void __init sni_pcimt_init(void)
 {
 	sni_pcimt_detect();
 	sni_pcimt_sc_init();
-	board_time_init = sni_cpu_time_init;
 	ioport_resource.end = sni_io_resource.end;
 #ifdef CONFIG_PCI
 	PCIBIOS_MIN_IO = 0x9000;

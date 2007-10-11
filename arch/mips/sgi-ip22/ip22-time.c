@@ -32,7 +32,7 @@
  * note that mktime uses month from 1 to 12 while to_tm
  * uses 0 to 11.
  */
-static unsigned long indy_rtc_get_time(void)
+unsigned long read_persistent_clock(void)
 {
 	unsigned int yrs, mon, day, hrs, min, sec;
 	unsigned int save_control;
@@ -60,7 +60,7 @@ static unsigned long indy_rtc_get_time(void)
 	return mktime(yrs + 1900, mon, day, hrs, min, sec);
 }
 
-static int indy_rtc_set_time(unsigned long tim)
+int rtc_mips_set_time(unsigned long tim)
 {
 	struct rtc_time tm;
 	unsigned int save_control;
@@ -128,7 +128,7 @@ static unsigned long dosample(void)
 /*
  * Here we need to calibrate the cycle counter to at least be close.
  */
-static __init void indy_time_init(void)
+__init void plat_time_init(void)
 {
 	unsigned long r4k_ticks[3];
 	unsigned long r4k_tick;
@@ -206,13 +206,4 @@ void __init plat_timer_setup(struct irqaction *irq)
 
 	/* setup irqaction */
 	setup_irq(SGI_TIMER_IRQ, irq);
-}
-
-void __init ip22_time_init(void)
-{
-	/* setup hookup functions */
-	rtc_mips_get_time = indy_rtc_get_time;
-	rtc_mips_set_time = indy_rtc_set_time;
-
-	board_time_init = indy_time_init;
 }

@@ -38,7 +38,7 @@ void __init plat_timer_setup(struct irqaction *irq)
  * NOTE: We disable all GT64120 timers, and use MIPS processor internal
  * timer as the source of kernel clock tick.
  */
-void __init wrppmc_time_init(void)
+void __init plat_time_init(void)
 {
 	/* Disable GT64120 timers */
 	GT_WRITE(GT_TC_CONTROL_OFS, 0x00);

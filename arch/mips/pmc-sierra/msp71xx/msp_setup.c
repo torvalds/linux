@@ -25,7 +25,6 @@
 #define MSP_BOARD_RESET_GPIO	9
 #endif
 
-extern void msp_timer_init(void);
 extern void msp_serial_setup(void);
 extern void pmctwiled_setup(void);
 
@@ -149,8 +148,6 @@ void __init plat_mem_setup(void)
 	_machine_restart = msp_restart;
 	_machine_halt = msp_halt;
 	pm_power_off = msp_power_off;
-
-	board_time_init = msp_timer_init;
 }
 
 void __init prom_init(void)

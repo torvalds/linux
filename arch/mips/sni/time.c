@@ -4,6 +4,7 @@
 
 #include <asm/sni.h>
 #include <asm/time.h>
+#include <asm-generic/rtc.h>
 
 #define SNI_CLOCK_TICK_RATE     3686400
 #define SNI_COUNTER2_DIV        64
@@ -71,7 +72,7 @@ static __init unsigned long dosample(void)
 /*
  * Here we need to calibrate the cycle counter to at least be close.
  */
-__init void sni_cpu_time_init(void)
+void __init plat_time_init(void)
 {
 	unsigned long r4k_ticks[3];
 	unsigned long r4k_tick;
@@ -145,4 +146,9 @@ void __init plat_timer_setup(struct irqaction *irq)
 	        sni_cpu_timer_setup (irq);
 	        break;
 	}
+}
+
+unsigned long read_persistent_clock(void)
+{
+	return -1;
 }

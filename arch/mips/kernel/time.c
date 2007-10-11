@@ -49,23 +49,18 @@
  * forward reference
  */
 DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 
-/*
- * By default we provide the null RTC ops
- */
-static unsigned long null_rtc_get_time(void)
-{
-	return mktime(2000, 1, 1, 0, 0, 0);
-}
-
-static int null_rtc_set_time(unsigned long sec)
+int __weak rtc_mips_set_time(unsigned long sec)
 {
 	return 0;
 }
+EXPORT_SYMBOL(rtc_mips_set_time);
 
-unsigned long (*rtc_mips_get_time)(void) = null_rtc_get_time;
-int (*rtc_mips_set_time)(unsigned long) = null_rtc_set_time;
-int (*rtc_mips_set_mmss)(unsigned long);
+int __weak rtc_mips_set_mmss(unsigned long nowtime)
+{
+	return rtc_mips_set_time(nowtime);
+}
 
 int update_persistent_clock(struct timespec now)
 {
@@ -247,20 +242,17 @@ asmlinkage void ll_local_timer_interrupt(int irq)
 /*
  * time_init() - it does the following things.
  *
- * 1) board_time_init() -
+ * 1) plat_time_init() -
  * 	a) (optional) set up RTC routines,
  *      b) (optional) calibrate and set the mips_hpt_frequency
  *	    (only needed if you intended to use cpu counter as timer interrupt
  *	     source)
- * 2) setup xtime based on rtc_mips_get_time().
- * 3) calculate a couple of cached variables for later usage
- * 4) plat_timer_setup() -
+ * 2) calculate a couple of cached variables for later usage
+ * 3) plat_timer_setup() -
  *	a) (optional) over-write any choices made above by time_init().
  *	b) machine specific code should setup the timer irqaction.
  *	c) enable the timer interrupt
  */
-
-void (*board_time_init)(void);
 
 unsigned int mips_hpt_frequency;
 
@@ -341,19 +333,13 @@ static void __init init_mips_clocksource(void)
 	clocksource_register(&clocksource_mips);
 }
 
+void __init __weak plat_time_init(void)
+{
+}
+
 void __init time_init(void)
 {
-	if (board_time_init)
-		board_time_init();
-
-	if (!rtc_mips_set_mmss)
-		rtc_mips_set_mmss = rtc_mips_set_time;
-
-	xtime.tv_sec = rtc_mips_get_time();
-	xtime.tv_nsec = 0;
-
-	set_normalized_timespec(&wall_to_monotonic,
-	                        -xtime.tv_sec, -xtime.tv_nsec);
+	plat_time_init();
 
 	/* Choose appropriate high precision timer routines.  */
 	if (!cpu_has_counter && !clocksource_mips.read)
@@ -459,7 +445,4 @@ void to_tm(unsigned long tim, struct rtc_time *tm)
 	tm->tm_wday = (gday + 4) % 7;	/* 1970/1/1 was Thursday */
 }
 
-EXPORT_SYMBOL(rtc_lock);
 EXPORT_SYMBOL(to_tm);
-EXPORT_SYMBOL(rtc_mips_set_time);
-EXPORT_SYMBOL(rtc_mips_get_time);

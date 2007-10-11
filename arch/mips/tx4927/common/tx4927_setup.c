@@ -49,14 +49,11 @@
 
 #undef DEBUG
 
-void __init tx4927_time_init(void);
 void dump_cp0(char *key);
 
 
 void __init plat_mem_setup(void)
 {
-	board_time_init = tx4927_time_init;
-
 #ifdef CONFIG_TOSHIBA_RBTX4927
 	{
 		extern void toshiba_rbtx4927_setup(void);
@@ -65,19 +62,15 @@ void __init plat_mem_setup(void)
 #endif
 }
 
-void __init tx4927_time_init(void)
+void __init plat_time_init(void)
 {
-
 #ifdef CONFIG_TOSHIBA_RBTX4927
 	{
 		extern void toshiba_rbtx4927_time_init(void);
 		toshiba_rbtx4927_time_init();
 	}
 #endif
-
-	return;
 }
-
 
 void __init plat_timer_setup(struct irqaction *irq)
 {

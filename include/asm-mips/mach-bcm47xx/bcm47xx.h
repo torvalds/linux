@@ -22,6 +22,4 @@
 /* SSB bus */
 extern struct ssb_bus ssb_bcm47xx;
 
-extern void bcm47xx_time_init(void);
-
 #endif /* __ASM_BCM47XX_H */

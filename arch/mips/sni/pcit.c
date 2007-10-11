@@ -263,7 +263,6 @@ void __init sni_pcit_cplus_irq_init(void)
 
 void __init sni_pcit_init(void)
 {
-	board_time_init = sni_cpu_time_init;
 	ioport_resource.end = sni_io_resource.end;
 #ifdef CONFIG_PCI
 	PCIBIOS_MIN_IO = 0x9000;

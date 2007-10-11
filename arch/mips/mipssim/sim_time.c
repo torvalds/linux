@@ -146,7 +146,7 @@ static unsigned int __init estimate_cpu_frequency(void)
 	return count;
 }
 
-void __init sim_time_init(void)
+void __init plat_time_init(void)
 {
 	unsigned int est_freq, flags;
 

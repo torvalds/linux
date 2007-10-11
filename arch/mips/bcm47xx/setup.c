@@ -119,6 +119,5 @@ void __init plat_mem_setup(void)
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
-	board_time_init = bcm47xx_time_init;
 }
 

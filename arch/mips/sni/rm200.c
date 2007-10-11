@@ -194,5 +194,4 @@ void __init sni_rm200_init(void)
 {
 	set_io_port_base(SNI_PORT_BASE + 0x02000000);
 	ioport_resource.end += 0x02000000;
-	board_time_init = sni_cpu_time_init;
 }
