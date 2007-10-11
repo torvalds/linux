@@ -778,7 +778,7 @@ source fs/Kconfig
 menu "Instrumentation Support"
         depends on EXPERIMENTAL
 
-source "arch/x86_64/oprofile/Kconfig"
+source "arch/x86/oprofile/Kconfig"
 
 config KPROBES
 	bool "Kprobes"
