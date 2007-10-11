@@ -3,7 +3,7 @@
 #
 # Reuse the i386 PCI subsystem
 #
-EXTRA_CFLAGS += -Iarch/i386/pci
+EXTRA_CFLAGS += -Iarch/x86/pci
 
 obj-y		:= i386.o
 obj-$(CONFIG_PCI_DIRECT)+= direct.o
@@ -15,13 +15,13 @@ obj-$(CONFIG_PCI_MMCONFIG) += mmconfig_64.o direct.o mmconfig-shared.o
 
 obj-$(CONFIG_NUMA)	+= k8-bus_64.o
 
-direct-y += ../../i386/pci/direct.o
-acpi-y   += ../../i386/pci/acpi.o
-legacy-y += ../../i386/pci/legacy.o
-irq-y    += ../../i386/pci/irq.o
-common-y += ../../i386/pci/common.o
-fixup-y  += ../../i386/pci/fixup.o
-i386-y  += ../../i386/pci/i386.o
-init-y += ../../i386/pci/init.o
-early-y += ../../i386/pci/early.o
-mmconfig-shared-y += ../../i386/pci/mmconfig-shared.o
+direct-y += ../../x86/pci/direct.o
+acpi-y   += ../../x86/pci/acpi.o
+legacy-y += ../../x86/pci/legacy.o
+irq-y    += ../../x86/pci/irq.o
+common-y += ../../x86/pci/common.o
+fixup-y  += ../../x86/pci/fixup.o
+i386-y  += ../../x86/pci/i386.o
+init-y += ../../x86/pci/init.o
+early-y += ../../x86/pci/early.o
+mmconfig-shared-y += ../../x86/pci/mmconfig-shared.o
