@@ -69,6 +69,17 @@ struct guest_walker {
 	u32 error_code;
 };
 
+static void FNAME(update_dirty_bit)(struct kvm_vcpu *vcpu,
+				    int write_fault,
+				    pt_element_t *ptep,
+				    gfn_t table_gfn)
+{
+	if (write_fault && !is_dirty_pte(*ptep)) {
+		mark_page_dirty(vcpu->kvm, table_gfn);
+		*ptep |= PT_DIRTY_MASK;
+	}
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -144,10 +155,8 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
 			walker->gfn = (*ptep & PT_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;
-			if (write_fault && !is_dirty_pte(*ptep)) {
-				mark_page_dirty(vcpu->kvm, table_gfn);
-				*ptep |= PT_DIRTY_MASK;
-			}
+			FNAME(update_dirty_bit)(vcpu, write_fault, ptep,
+						table_gfn);
 			break;
 		}
 
@@ -157,10 +166,8 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			walker->gfn = (*ptep & PT_DIR_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;
 			walker->gfn += PT_INDEX(addr, PT_PAGE_TABLE_LEVEL);
-			if (write_fault && !is_dirty_pte(*ptep)) {
-				mark_page_dirty(vcpu->kvm, table_gfn);
-				*ptep |= PT_DIRTY_MASK;
-			}
+			FNAME(update_dirty_bit)(vcpu, write_fault, ptep,
+						table_gfn);
 			break;
 		}
 
