@@ -7,6 +7,6 @@
 obj-$(CONFIG_CRYPTO_AES_586) += aes-i586.o
 obj-$(CONFIG_CRYPTO_TWOFISH_586) += twofish-i586.o
 
-aes-i586-y := aes-i586-asm.o aes.o
+aes-i586-y := aes-i586-asm_32.o aes.o
 twofish-i586-y := twofish-i586-asm.o twofish_32.o
 
