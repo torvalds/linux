@@ -39,7 +39,7 @@ obj-$(CONFIG_K8_NB)		+= k8.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 
 obj-$(CONFIG_MODULES)		+= module_64.o
-obj-$(CONFIG_PCI)		+= early-quirks.o
+obj-$(CONFIG_PCI)		+= early-quirks_64.o
 
 obj-y				+= topology.o
 obj-y				+= intel_cacheinfo.o
