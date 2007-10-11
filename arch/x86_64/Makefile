@@ -73,7 +73,7 @@ AFLAGS += -m64
 
 head-y := arch/x86_64/kernel/head_64.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task_64.o
 
-libs-y 					+= arch/x86_64/lib/
+libs-y 					+= arch/x86/lib/
 core-y					+= arch/x86_64/kernel/ \
 					   arch/x86_64/mm/ \
 					   arch/x86/crypto/ \
