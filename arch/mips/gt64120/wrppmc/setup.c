@@ -11,10 +11,6 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/tty.h>
-#include <linux/serial.h>
-#include <linux/serial_core.h>
-#include <linux/serial_8250.h>
 #include <linux/pm.h>
 
 #include <asm/io.h>
@@ -98,32 +94,6 @@ void __init prom_free_prom_memory(void)
 {
 }
 
-#ifdef CONFIG_SERIAL_8250
-static void wrppmc_setup_serial(void)
-{
-	struct uart_port up;
-
-	memset(&up, 0x00, sizeof(struct uart_port));
-
-	/*
-	 * A note about mapbase/membase
-	 * -) mapbase is the physical address of the IO port.
-	 * -) membase is an 'ioremapped' cookie.
-	 */
-	up.line = 0;
-	up.type = PORT_16550;
-	up.iotype = UPIO_MEM;
-	up.mapbase = WRPPMC_UART16550_BASE;
-	up.membase = ioremap(up.mapbase, 8);
-	up.irq = WRPPMC_UART16550_IRQ;
-	up.uartclk = WRPPMC_UART16550_CLOCK;
-	up.flags = UPF_SKIP_TEST/* | UPF_BOOT_AUTOCONF */;
-	up.regshift = 0;
-
-	early_serial_setup(&up);
-}
-#endif
-
 void __init plat_mem_setup(void)
 {
 	extern void wrppmc_machine_restart(char *command);
@@ -138,10 +108,6 @@ void __init plat_mem_setup(void)
 	 * physical address ( < KSEG0) can work via KSEG1
 	 */
 	set_io_port_base(KSEG1);
-
-#ifdef CONFIG_SERIAL_8250
-	wrppmc_setup_serial();
-#endif
 }
 
 const char *get_system_type(void)
