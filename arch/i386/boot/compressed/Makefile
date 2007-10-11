@@ -17,7 +17,7 @@ CFLAGS  := -m32 -D__KERNEL__ $(LINUX_INCLUDE) -O2 \
 	   $(call cc-option,-fno-stack-protector)
 LDFLAGS := -m elf_i386
 
-$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc_32.o $(obj)/piggy.o FORCE
+$(obj)/vmlinux: $(src)/vmlinux_32.lds $(obj)/head.o $(obj)/misc_32.o $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
 	@:
 
