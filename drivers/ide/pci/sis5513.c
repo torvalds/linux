@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.26	Jul 7, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.27	Jul 14, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -537,6 +537,9 @@ static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 	u32 regdw;
 	u8 drive_pci, reg;
 
+	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4)
+		return sis5513_tune_drive(drive, speed - XFER_PIO_0);
+
 	/* See config_art_rwp_pio for drive pci config registers */
 	drive_pci = 0x40;
 	if (chipset_family >= ATA_133) {
@@ -601,12 +604,6 @@ static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
 			break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			return sis5513_tune_drive(drive, speed - XFER_PIO_0);
 		default:
 			BUG();
 			break;
