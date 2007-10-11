@@ -2875,7 +2875,7 @@ static hda_nid_t vaio_adcs[] = { 0x8 /*,0x6*/ };
 static hda_nid_t vaio_mux_nids[] = { 0x15 };
 
 static struct hda_input_mux vaio_mux = {
-	.num_items = 2,
+	.num_items = 3,
 	.items = {
 		/* { "HP", 0x0 }, */
 		{ "Mic Jack", 0x1 },
