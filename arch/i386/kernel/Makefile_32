@@ -10,7 +10,7 @@ obj-y	:= process_32.o signal_32.o entry_32.o traps_32.o irq_32.o \
 		quirks.o i8237.o topology.o alternative.o i8253_32.o tsc_32.o
 
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
-obj-y				+= cpu/
+obj-y				+= ../../x86/kernel/cpu/
 obj-y				+= ../../x86/kernel/acpi/
 obj-$(CONFIG_X86_BIOS_REBOOT)	+= reboot_32.o
 obj-$(CONFIG_MCA)		+= mca_32.o
