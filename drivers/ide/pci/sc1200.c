@@ -149,10 +149,8 @@ static int sc1200_tune_chipset(ide_drive_t *drive, const u8 mode)
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.
 	 */
-	if (sc1200_set_xfer_mode(drive, mode)) {
-		printk("SC1200: set xfer mode failure\n");
+	if (sc1200_set_xfer_mode(drive, mode))
 		return 1;	/* failure */
-	}
 
 	switch (mode) {
 	case XFER_PIO_4:
