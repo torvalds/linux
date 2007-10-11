@@ -1064,7 +1064,7 @@ extern void netdev_run_todo(void);
  *	dev_put - release reference to device
  *	@dev: network device
  *
- * Hold reference to device to keep it from being freed.
+ * Release reference to device to allow it to be freed.
  */
 static inline void dev_put(struct net_device *dev)
 {
@@ -1075,7 +1075,7 @@ static inline void dev_put(struct net_device *dev)
  *	dev_hold - get reference to device
  *	@dev: network device
  *
- * Release reference to device to allow it to be freed.
+ * Hold reference to device to keep it from being freed.
  */
 static inline void dev_hold(struct net_device *dev)
 {
