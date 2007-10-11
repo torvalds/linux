@@ -3199,3 +3199,19 @@ void debug_show_held_locks(struct task_struct *task)
 }
 
 EXPORT_SYMBOL_GPL(debug_show_held_locks);
+
+void lockdep_sys_exit(void)
+{
+	struct task_struct *curr = current;
+
+	if (unlikely(curr->lockdep_depth)) {
+		if (!debug_locks_off())
+			return;
+		printk("\n================================================\n");
+		printk(  "[ BUG: lock held when returning to user space! ]\n");
+		printk(  "------------------------------------------------\n");
+		printk("%s/%d is leaving the kernel with locks still held!\n",
+				curr->comm, curr->pid);
+		lockdep_print_held_locks(curr);
+	}
+}

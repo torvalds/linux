@@ -238,6 +238,7 @@ extern void lockdep_info(void);
 extern void lockdep_reset(void);
 extern void lockdep_reset_lock(struct lockdep_map *lock);
 extern void lockdep_free_key_range(void *start, unsigned long size);
+extern void lockdep_sys_exit(void);
 
 extern void lockdep_off(void);
 extern void lockdep_on(void);
@@ -317,6 +318,7 @@ static inline void lockdep_on(void)
 # define INIT_LOCKDEP
 # define lockdep_reset()		do { debug_locks = 1; } while (0)
 # define lockdep_free_key_range(start, size)	do { } while (0)
+# define lockdep_sys_exit() 			do { } while (0)
 /*
  * The class key takes no space if lockdep is disabled:
  */
