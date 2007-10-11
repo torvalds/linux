@@ -71,19 +71,18 @@ static void cs5530_tunepio(ide_drive_t *drive, u8 pio)
 }
 
 /**
- *	cs5530_tuneproc		-	select/set PIO modes
+ *	cs5530_set_pio_mode	-	set PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
- *	cs5530_tuneproc() handles selection/setting of PIO modes
- *	for both the chipset and drive.
+ *	Handles setting of PIO mode for both the chipset and drive.
  *
- *	The ide_init_cs5530() routine guarantees that all drives
+ *	The init_hwif_cs5530() routine guarantees that all drives
  *	will have valid default PIO timings set up before we get here.
  */
 
-static void cs5530_tuneproc (ide_drive_t *drive, u8 pio)	/* pio=255 means "autotune" */
+static void cs5530_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
-
 	if (cs5530_set_xfer_mode(drive, XFER_PIO_0 + pio) == 0)
 		cs5530_tunepio(drive, pio);
 }
@@ -306,7 +305,7 @@ static void __devinit init_hwif_cs5530 (ide_hwif_t *hwif)
 	if (hwif->mate)
 		hwif->serialized = hwif->mate->serialized = 1;
 
-	hwif->tuneproc = &cs5530_tuneproc;
+	hwif->set_pio_mode = &cs5530_set_pio_mode;
 	hwif->speedproc = &cs5530_tune_chipset;
 
 	basereg = CS5530_BASEREG(hwif);

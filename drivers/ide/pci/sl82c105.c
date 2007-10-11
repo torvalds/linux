@@ -75,15 +75,11 @@ static unsigned int get_pio_timings(ide_drive_t *drive, u8 pio)
 /*
  * Configure the chipset for PIO mode.
  */
-static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
+static void sl82c105_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
 	int reg			= 0x44 + drive->dn * 4;
 	u16 drv_ctrl;
-
-	DBG(("sl82c105_tune_pio(drive:%s, pio:%u)\n", drive->name, pio));
-
-	pio = ide_get_best_pio_mode(drive, pio, 5);
 
 	drv_ctrl = get_pio_timings(drive, pio);
 
@@ -106,8 +102,6 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 	printk(KERN_DEBUG "%s: selected %s (%dns) (%04X)\n", drive->name,
 			  ide_xfer_verbose(pio + XFER_PIO_0),
 			  ide_pio_cycle_time(drive, pio), drv_ctrl);
-
-	return pio;
 }
 
 /*
@@ -151,7 +145,7 @@ static int sl82c105_tune_chipset(ide_drive_t *drive, const u8 speed)
 	case XFER_PIO_2:
 	case XFER_PIO_1:
 	case XFER_PIO_0:
-		(void) sl82c105_tune_pio(drive, speed - XFER_PIO_0);
+		sl82c105_tune_pio(drive, speed - XFER_PIO_0);
 		break;
 	default:
 		return -1;
@@ -325,11 +319,10 @@ static void sl82c105_resetproc(ide_drive_t *drive)
  * We only deal with PIO mode here - DMA mode 'using_dma' is not
  * initialised at the point that this function is called.
  */
-static void sl82c105_tune_drive(ide_drive_t *drive, u8 pio)
+static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	DBG(("sl82c105_tune_drive(drive:%s, pio:%u)\n", drive->name, pio));
+	sl82c105_tune_pio(drive, pio);
 
-	pio = sl82c105_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
@@ -397,7 +390,7 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 	DBG(("init_hwif_sl82c105(hwif: ide%d)\n", hwif->index));
 
-	hwif->tuneproc		= &sl82c105_tune_drive;
+	hwif->set_pio_mode	= &sl82c105_set_pio_mode;
 	hwif->speedproc 	= &sl82c105_tune_chipset;
 	hwif->selectproc	= &sl82c105_selectproc;
 	hwif->resetproc 	= &sl82c105_resetproc;

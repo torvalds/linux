@@ -202,9 +202,8 @@ static int svwks_tune_chipset(ide_drive_t *drive, const u8 speed)
 	return (ide_config_drive_speed(drive, speed));
 }
 
-static void svwks_tune_drive (ide_drive_t *drive, u8 pio)
+static void svwks_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	svwks_tune_pio(drive, pio);
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -217,7 +216,7 @@ static int svwks_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		svwks_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -389,7 +388,7 @@ static void __devinit init_hwif_svwks (ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
-	hwif->tuneproc = &svwks_tune_drive;
+	hwif->set_pio_mode = &svwks_set_pio_mode;
 	hwif->speedproc = &svwks_tune_chipset;
 	hwif->udma_filter = &svwks_udma_filter;
 

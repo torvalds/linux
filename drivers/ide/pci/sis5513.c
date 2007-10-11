@@ -519,14 +519,13 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 	}
 }
 
-static int sis5513_tune_drive(ide_drive_t *drive, u8 pio)
+static int sis5513_tune_drive(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	config_art_rwp_pio(drive, pio);
 	return ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static void sis5513_tuneproc(ide_drive_t *drive, u8 pio)
+static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	(void)sis5513_tune_drive(drive, pio);
 }
@@ -621,7 +620,7 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 	/*
 	 * TODO: always set PIO mode and remove this
 	 */
-	sis5513_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	drive->init_speed = 0;
 
@@ -629,7 +628,7 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		sis5513_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -852,7 +851,7 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
-	hwif->tuneproc = &sis5513_tuneproc;
+	hwif->set_pio_mode = &sis_set_pio_mode;
 	hwif->speedproc = &sis5513_tune_chipset;
 
 	if (chipset_family >= ATA_133)

@@ -17,11 +17,11 @@
  *                 41
  *                 43
  *
- * | PIO 0       | c0 | 80 | 0 | 	piix_tune_drive(drive, 0);
- * | PIO 2 | SW2 | d0 | 90 | 4 | 	piix_tune_drive(drive, 2);
- * | PIO 3 | MW1 | e1 | a1 | 9 | 	piix_tune_drive(drive, 3);
- * | PIO 4 | MW2 | e3 | a3 | b | 	piix_tune_drive(drive, 4);
- * 
+ * | PIO 0       | c0 | 80 | 0 |
+ * | PIO 2 | SW2 | d0 | 90 | 4 |
+ * | PIO 3 | MW1 | e1 | a1 | 9 |
+ * | PIO 4 | MW2 | e3 | a3 | b |
+ *
  * sitre = word40 & 0x4000; primary
  * sitre = word42 & 0x4000; secondary
  *
@@ -204,16 +204,16 @@ static void piix_tune_pio (ide_drive_t *drive, u8 pio)
 }
 
 /**
- *	piix_tune_drive		-	tune a drive attached to PIIX
+ *	piix_set_pio_mode	-	set PIO mode
  *	@drive: drive to tune
  *	@pio: desired PIO mode
  *
  *	Set the drive's PIO mode (might be useful if drive is not registered
  *	in CMOS for any reason).
  */
-static void piix_tune_drive (ide_drive_t *drive, u8 pio)
+
+static void piix_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	piix_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -317,7 +317,7 @@ static int piix_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		piix_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -454,7 +454,8 @@ static void __devinit init_hwif_piix(ide_hwif_t *hwif)
 	}
 
 	hwif->autodma = 0;
-	hwif->tuneproc = &piix_tune_drive;
+
+	hwif->set_pio_mode = &piix_set_pio_mode;
 	hwif->speedproc = &piix_tune_chipset;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

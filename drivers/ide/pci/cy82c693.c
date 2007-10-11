@@ -97,9 +97,6 @@
 #define CY82_INDEX_CHANNEL1	0x31
 #define CY82_INDEX_TIMEOUT	0x32
 
-/* the max PIO mode - from datasheet */
-#define CY82C693_MAX_PIO	4
-
 /* the min and max PCI bus speed in MHz - from datasheet */
 #define CY82C963_MIN_BUS_SPEED	25
 #define CY82C963_MAX_BUS_SPEED	33
@@ -147,9 +144,6 @@ static void compute_clocks (u8 pio, pio_clocks_t *p_pclk)
 	/* we don't check against CY82C693's min and max speed,
 	 * so you can play with the idebus=xx parameter
 	 */
-
-	if (pio > CY82C693_MAX_PIO)
-		pio = CY82C693_MAX_PIO;
 
 	/* let's calc the address setup time clocks */
 	p_pclk->address_time = (u8)calc_clk(ide_pio_timings[pio].setup_time, bus_speed);
@@ -269,10 +263,7 @@ static int cy82c693_ide_dma_on (ide_drive_t *drive)
         return __ide_dma_on(drive);
 }
 
-/*
- * tune ide drive - set PIO mode
- */
-static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
+static void cy82c693_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = hwif->pci_dev;
@@ -328,13 +319,6 @@ static void cy82c693_tune_drive (ide_drive_t *drive, u8 pio)
 		drive->name, hwif->channel, drive->select.b.unit,
 		addrCtrl, pclk.time_16r, pclk.time_16w, pclk.time_8);
 #endif /* CY82C693_DEBUG_LOGS */
-
-	/* first let's calc the pio modes */
-	pio = ide_get_best_pio_mode(drive, pio, CY82C693_MAX_PIO);
-
-#if CY82C693_DEBUG_INFO
-	printk (KERN_INFO "%s: Selected PIO mode %d\n", drive->name, pio);
-#endif /* CY82C693_DEBUG_INFO */
 
 	/* let's calc the values for this PIO mode */
 	compute_clocks(pio, &pclk);
@@ -447,7 +431,7 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->autodma = 0;
 
 	hwif->chipset = ide_cy82c693;
-	hwif->tuneproc = &cy82c693_tune_drive;
+	hwif->set_pio_mode = &cy82c693_set_pio_mode;
 
 	if (!hwif->dma_base) {
 		hwif->drives[0].autotune = 1;

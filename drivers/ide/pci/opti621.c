@@ -47,7 +47,7 @@
  * The main problem with OPTi is that some timings for master
  * and slave must be the same. For example, if you have master
  * PIO 3 and slave PIO 0, driver have to set some timings of
- * master for PIO 0. Second problem is that opti621_tune_drive
+ * master for PIO 0. Second problem is that opti621_set_pio_mode
  * got only one drive to set, but have to set both drives.
  * This is solved in compute_pios. If you don't set
  * the second drive, compute_pios use ide_get_best_pio_mode
@@ -103,7 +103,7 @@
 
 #include <asm/io.h>
 
-#define OPTI621_MAX_PIO 3
+//#define OPTI621_MAX_PIO 3
 /* In fact, I do not have any PIO 4 drive
  * (address: 25 ns, data: 70 ns, recovery: 35 ns),
  * but OPTi 82C621 is programmable and it can do (minimal values):
@@ -136,8 +136,8 @@ static int reg_base;
 #define PIO_NOT_EXIST 254
 #define PIO_DONT_KNOW 255
 
-/* there are stored pio numbers from other calls of opti621_tune_drive */
-static void compute_pios(ide_drive_t *drive, u8 pio)
+/* there are stored pio numbers from other calls of opti621_set_pio_mode */
+static void compute_pios(ide_drive_t *drive, const u8 pio)
 /* Store values into drive->drive_data
  *	second_contr - 0 for primary controller, 1 for secondary
  *	slave_drive - 0 -> pio is for master, 1 -> pio is for slave
@@ -147,12 +147,13 @@ static void compute_pios(ide_drive_t *drive, u8 pio)
 	int d;
 	ide_hwif_t *hwif = HWIF(drive);
 
-	drive->drive_data = ide_get_best_pio_mode(drive, pio, OPTI621_MAX_PIO);
+	drive->drive_data = pio;
+
 	for (d = 0; d < 2; ++d) {
 		drive = &hwif->drives[d];
 		if (drive->present) {
 			if (drive->drive_data == PIO_DONT_KNOW)
-				drive->drive_data = ide_get_best_pio_mode(drive, 255, OPTI621_MAX_PIO);
+				drive->drive_data = ide_get_best_pio_mode(drive, 255, 3);
 #ifdef OPTI621_DEBUG
 			printk("%s: Selected PIO mode %d\n",
 				drive->name, drive->drive_data);
@@ -240,8 +241,7 @@ static void compute_clocks(int pio, pio_clocks_t *clks)
  
 }
 
-/* Main tune procedure, called from tuneproc. */
-static void opti621_tune_drive (ide_drive_t *drive, u8 pio)
+static void opti621_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	/* primary and secondary drives share some registers,
 	 * so we have to program both drives
@@ -331,7 +331,8 @@ static void __devinit init_hwif_opti621 (ide_hwif_t *hwif)
 	hwif->autodma = 0;
 	hwif->drives[0].drive_data = PIO_DONT_KNOW;
 	hwif->drives[1].drive_data = PIO_DONT_KNOW;
-	hwif->tuneproc = &opti621_tune_drive;
+
+	hwif->set_pio_mode = &opti621_set_pio_mode;
 
 	if (!(hwif->dma_base))
 		return;

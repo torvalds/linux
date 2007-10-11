@@ -411,7 +411,6 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 
 static void pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif);
 static int pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq);
-static void pmac_ide_tuneproc(ide_drive_t *drive, u8 pio);
 static void pmac_ide_selectproc(ide_drive_t *drive);
 static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 
@@ -615,7 +614,7 @@ out:
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
 static void
-pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
+pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	u32 *timings;
 	unsigned accessTicks, recTicks;
@@ -629,7 +628,6 @@ pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
 
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
 	switch (pmif->kind) {
@@ -966,7 +964,7 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_PIO_2:
 		case XFER_PIO_1:
 		case XFER_PIO_0:
-			pmac_ide_tuneproc(drive, speed & 0x07);
+			pmac_ide_set_pio_mode(drive, speed & 0x07);
 			break;
 		default:
 			ret = 1;
@@ -1241,7 +1239,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
 	hwif->pio_mask = ATA_PIO4;
-	hwif->tuneproc = pmac_ide_tuneproc;
+	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
 	    || pmif->kind == controller_k2_ata6
 	    || pmif->kind == controller_sh_ata6)

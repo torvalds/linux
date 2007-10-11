@@ -122,17 +122,16 @@ static int cs5520_tune_chipset(ide_drive_t *drive, const u8 speed)
 
 	return error;
 }	
-	
-static void cs5520_tune_drive(ide_drive_t *drive, u8 pio)
+
+static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
-	cs5520_tune_chipset(drive, (XFER_PIO_0 + pio));
+	cs5520_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
 static int cs5520_config_drive_xfer_rate(ide_drive_t *drive)
 {
 	/* Tune the drive for PIO modes up to PIO 4 */	
-	cs5520_tune_drive(drive, 255);
+	ide_set_max_pio(drive);
 
 	/* Then tell the core to use DMA operations */
 	return 0;
@@ -164,7 +163,7 @@ static int cs5520_dma_on(ide_drive_t *drive)
 
 static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 {
-	hwif->tuneproc = &cs5520_tune_drive;
+	hwif->set_pio_mode = &cs5520_set_pio_mode;
 	hwif->speedproc = &cs5520_tune_chipset;
 	hwif->ide_dma_check = &cs5520_config_drive_xfer_rate;
 	hwif->ide_dma_on = &cs5520_dma_on;

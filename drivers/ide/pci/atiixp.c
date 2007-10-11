@@ -153,9 +153,8 @@ static void atiixp_tune_pio(ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
-static void atiixp_tuneproc(ide_drive_t *drive, u8 pio)
+static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	atiixp_tune_pio(drive, pio);
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -231,7 +230,7 @@ static int atiixp_dma_check(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		atiixp_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -254,7 +253,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 		hwif->irq = ch ? 15 : 14;
 
 	hwif->autodma = 0;
-	hwif->tuneproc = &atiixp_tuneproc;
+	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->speedproc = &atiixp_speedproc;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

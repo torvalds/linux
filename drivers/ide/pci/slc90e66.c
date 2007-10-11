@@ -95,9 +95,8 @@ static void slc90e66_tune_pio (ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
-static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
+static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	slc90e66_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -166,7 +165,7 @@ static int slc90e66_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		slc90e66_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -182,7 +181,7 @@ static void __devinit init_hwif_slc90e66 (ide_hwif_t *hwif)
 		hwif->irq = hwif->channel ? 15 : 14;
 
 	hwif->speedproc = &slc90e66_tune_chipset;
-	hwif->tuneproc	= &slc90e66_tune_drive;
+	hwif->set_pio_mode = &slc90e66_set_pio_mode;
 
 	pci_read_config_byte(hwif->pci_dev, 0x47, &reg47);
 

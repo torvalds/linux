@@ -274,9 +274,8 @@ static int it821x_tunepio(ide_drive_t *drive, u8 set_pio)
 	return ide_config_drive_speed(drive, XFER_PIO_0 + set_pio);
 }
 
-static void it821x_tuneproc(ide_drive_t *drive, u8 pio)
+static void it821x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)it821x_tunepio(drive, pio);
 }
 
@@ -473,7 +472,7 @@ static int it821x_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	it821x_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -640,7 +639,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	}
 
 	hwif->speedproc = &it821x_tune_chipset;
-	hwif->tuneproc	= &it821x_tuneproc;
+	hwif->set_pio_mode = &it821x_set_pio_mode;
 
 	/* MWDMA/PIO clock switching for pass through mode */
 	if(!idev->smart) {

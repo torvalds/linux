@@ -266,16 +266,12 @@ static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 }
 
 /*
- * amd74xx_tune_drive() is a callback from upper layers for
- * PIO-only tuning.
+ * amd_set_pio_mode() is a callback from upper layers for PIO-only tuning.
  */
 
-static void amd74xx_tune_drive(ide_drive_t *drive, u8 pio)
+static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	if (pio == 255)
-		pio = ide_get_best_pio_mode(drive, 255, 5);
-
-	amd_set_drive(drive, XFER_PIO_0 + min_t(byte, pio, 5));
+	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
 static int amd74xx_ide_dma_check(ide_drive_t *drive)
@@ -283,7 +279,7 @@ static int amd74xx_ide_dma_check(ide_drive_t *drive)
 	u8 speed = ide_max_dma_mode(drive);
 
 	if (speed == 0) {
-		amd74xx_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 		return -1;
 	}
 
@@ -409,7 +405,7 @@ static void __devinit init_hwif_amd74xx(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 
-	hwif->tuneproc = &amd74xx_tune_drive;
+	hwif->set_pio_mode = &amd_set_pio_mode;
 	hwif->speedproc = &amd_set_drive;
 
 	for (i = 0; i < 2; i++) {

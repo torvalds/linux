@@ -138,9 +138,8 @@ static int aec6260_tune_chipset(ide_drive_t *drive, const u8 speed)
 	return(ide_config_drive_speed(drive, speed));
 }
 
-static void aec62xx_tune_drive (ide_drive_t *drive, u8 pio)
+static void aec_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void) HWIF(drive)->speedproc(drive, pio + XFER_PIO_0);
 }
 
@@ -150,7 +149,7 @@ static int aec62xx_config_drive_xfer_rate (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		aec62xx_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -201,7 +200,7 @@ static void __devinit init_hwif_aec62xx(ide_hwif_t *hwif)
 	u8 reg54 = 0,  mask	= hwif->channel ? 0xf0 : 0x0f;
 	unsigned long flags;
 
-	hwif->tuneproc = &aec62xx_tune_drive;
+	hwif->set_pio_mode = &aec_set_pio_mode;
 
 	if (dev->device == PCI_DEVICE_ID_ARTOP_ATP850UF) {
 		if(hwif->mate)

@@ -662,9 +662,8 @@ static int hpt3xx_tune_chipset(ide_drive_t *drive, u8 speed)
 		return hpt36x_tune_chipset(drive, speed);
 }
 
-static void hpt3xx_tune_drive(ide_drive_t *drive, u8 pio)
+static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void) hpt3xx_tune_chipset (drive, XFER_PIO_0 + pio);
 }
 
@@ -726,7 +725,7 @@ static int hpt366_config_drive_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		hpt3xx_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -1257,7 +1256,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	/* Cache the channel's MISC. control registers' offset */
 	hwif->select_data	= hwif->channel ? 0x54 : 0x50;
 
-	hwif->tuneproc		= &hpt3xx_tune_drive;
+	hwif->set_pio_mode	= &hpt3xx_set_pio_mode;
 	hwif->speedproc		= &hpt3xx_tune_chipset;
 	hwif->quirkproc		= &hpt3xx_quirkproc;
 	hwif->intrproc		= &hpt3xx_intrproc;

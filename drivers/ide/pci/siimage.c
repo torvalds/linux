@@ -219,9 +219,8 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 	}
 }
 
-static void sil_tuneproc(ide_drive_t *drive, u8 pio)
+static void sil_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	sil_tune_pio(drive, pio);
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -328,7 +327,7 @@ static int siimage_config_drive_for_dma (ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		sil_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -899,7 +898,7 @@ static void __devinit init_hwif_siimage(ide_hwif_t *hwif)
 	
 	hwif->resetproc = &siimage_reset;
 	hwif->speedproc = &siimage_tune_chipset;
-	hwif->tuneproc	= &sil_tuneproc;
+	hwif->set_pio_mode = &sil_set_pio_mode;
 	hwif->reset_poll = &siimage_reset_poll;
 	hwif->pre_reset = &siimage_pre_reset;
 	hwif->udma_filter = &sil_udma_filter;

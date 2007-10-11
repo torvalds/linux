@@ -396,7 +396,7 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->cds			= tmp_hwif->cds;
 #endif
 
-	hwif->tuneproc			= tmp_hwif->tuneproc;
+	hwif->set_pio_mode		= tmp_hwif->set_pio_mode;
 	hwif->speedproc			= tmp_hwif->speedproc;
 	hwif->mdma_filter		= tmp_hwif->mdma_filter;
 	hwif->udma_filter		= tmp_hwif->udma_filter;
@@ -867,8 +867,9 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 255)
 		return -EINVAL;
 
-	if (!HWIF(drive)->tuneproc)
+	if (drive->hwif->set_pio_mode == NULL)
 		return -ENOSYS;
+
 	if (drive->special.b.set_tune)
 		return -EBUSY;
 	ide_init_drive_cmd(&rq);

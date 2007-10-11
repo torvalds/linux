@@ -634,7 +634,7 @@ typedef struct ide_drive_s {
 
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
-	unsigned int	drive_data;	/* use by tuneproc/selectproc */
+	unsigned int	drive_data;	/* used by set_pio_mode/selectproc */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
 	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
@@ -702,8 +702,8 @@ typedef struct hwif_s {
 #if 0
 	ide_hwif_ops_t	*hwifops;
 #else
-	/* routine to tune PIO mode for drives */
-	void	(*tuneproc)(ide_drive_t *, u8);
+	/* routine to set PIO mode for drives */
+	void	(*set_pio_mode)(ide_drive_t *, const u8);
 	/* routine to retune DMA modes for drives */
 	int	(*speedproc)(ide_drive_t *, const u8);
 	/* tweaks hardware to select drive */
@@ -1256,6 +1256,12 @@ enum {
 	IDE_HFLAG_PIO_NO_BLACKLIST	= (1 << 2),
 	/* don't use conservative PIO "downgrade" */
 	IDE_HFLAG_PIO_NO_DOWNGRADE	= (1 << 3),
+	/* use PIO8/9 for prefetch off/on */
+	IDE_HFLAG_ABUSE_PREFETCH	= (1 << 4),
+	/* use PIO6/7 for fast-devsel off/on */
+	IDE_HFLAG_ABUSE_FAST_DEVSEL	= (1 << 5),
+	/* use 100-102 and 200-202 PIO values to set DMA modes */
+	IDE_HFLAG_ABUSE_DMA_MODES	= (1 << 6),
 };
 
 typedef struct ide_pci_device_s {
@@ -1414,6 +1420,12 @@ unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 extern const ide_pio_timings_t ide_pio_timings[6];
 
+void ide_set_pio(ide_drive_t *, u8);
+
+static inline void ide_set_max_pio(ide_drive_t *drive)
+{
+	ide_set_pio(drive, 255);
+}
 
 extern spinlock_t ide_lock;
 extern struct mutex ide_cfg_mtx;

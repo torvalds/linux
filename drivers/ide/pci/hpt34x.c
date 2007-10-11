@@ -77,9 +77,8 @@ static int hpt34x_tune_chipset(ide_drive_t *drive, const u8 speed)
 	return(ide_config_drive_speed(drive, speed));
 }
 
-static void hpt34x_tune_drive (ide_drive_t *drive, u8 pio)
+static void hpt34x_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 5);
 	(void) hpt34x_tune_chipset(drive, (XFER_PIO_0 + pio));
 }
 
@@ -91,7 +90,7 @@ static int hpt34x_config_drive_xfer_rate (ide_drive_t *drive)
 		return -1;
 
 	if (ide_use_fast_pio(drive))
-		hpt34x_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -145,7 +144,7 @@ static void __devinit init_hwif_hpt34x(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 
-	hwif->tuneproc = &hpt34x_tune_drive;
+	hwif->set_pio_mode = &hpt34x_set_pio_mode;
 	hwif->speedproc = &hpt34x_tune_chipset;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

@@ -83,9 +83,8 @@ static u8 __devinit ata66_jmicron(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
-static void jmicron_tuneproc(ide_drive_t *drive, u8 pio)
+static void jmicron_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 5);
 	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
@@ -116,7 +115,7 @@ static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	jmicron_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -131,7 +130,7 @@ static int jmicron_config_drive_for_dma (ide_drive_t *drive)
 static void __devinit init_hwif_jmicron(ide_hwif_t *hwif)
 {
 	hwif->speedproc = &jmicron_tune_chipset;
-	hwif->tuneproc	= &jmicron_tuneproc;
+	hwif->set_pio_mode = &jmicron_set_pio_mode;
 
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;

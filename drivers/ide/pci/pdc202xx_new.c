@@ -215,9 +215,8 @@ static int pdcnew_tune_chipset(ide_drive_t *drive, const u8 speed)
 	return err;
 }
 
-static void pdcnew_tune_drive(ide_drive_t *drive, u8 pio)
+static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	(void)pdcnew_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
@@ -237,7 +236,7 @@ static int pdcnew_config_drive_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		pdcnew_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -490,7 +489,8 @@ static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
 
-	hwif->tuneproc  = &pdcnew_tune_drive;
+	hwif->set_pio_mode = &pdcnew_set_pio_mode;
+
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->speedproc = &pdcnew_tune_chipset;
 	hwif->resetproc = &pdcnew_reset;

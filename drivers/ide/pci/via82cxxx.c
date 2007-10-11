@@ -195,19 +195,16 @@ static int via_set_drive(ide_drive_t *drive, const u8 speed)
 }
 
 /**
- *	via82cxxx_tune_drive	-	PIO setup
- *	@drive: drive to set up
- *	@pio: mode to use (255 for 'best possible')
+ *	via_set_pio_mode	-	PIO setup
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
 
-static void via82cxxx_tune_drive(ide_drive_t *drive, u8 pio)
+static void via_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	if (pio == 255)
-		pio = ide_get_best_pio_mode(drive, 255, 5);
-
-	via_set_drive(drive, XFER_PIO_0 + min_t(u8, pio, 5));
+	via_set_drive(drive, XFER_PIO_0 + pio);
 }
 
 /**
@@ -223,7 +220,7 @@ static int via82cxxx_ide_dma_check (ide_drive_t *drive)
 	u8 speed = ide_max_dma_mode(drive);
 
 	if (speed == 0) {
-		via82cxxx_tune_drive(drive, 255);
+		ide_set_max_pio(drive);
 		return -1;
 	}
 
@@ -465,7 +462,7 @@ static void __devinit init_hwif_via82cxxx(ide_hwif_t *hwif)
 
 	hwif->autodma = 0;
 
-	hwif->tuneproc = &via82cxxx_tune_drive;
+	hwif->set_pio_mode = &via_set_pio_mode;
 	hwif->speedproc = &via_set_drive;
 
 

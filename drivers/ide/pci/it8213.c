@@ -105,9 +105,8 @@ static void it8213_tune_pio(ide_drive_t *drive, const u8 pio)
 	spin_unlock_irqrestore(&tune_lock, flags);
 }
 
-static void it8213_tuneproc(ide_drive_t *drive, u8 pio)
+static void it8213_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	it8213_tune_pio(drive, pio);
 	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -212,7 +211,7 @@ static int it8213_config_drive_for_dma (ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	it8213_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -231,7 +230,7 @@ static void __devinit init_hwif_it8213(ide_hwif_t *hwif)
 	u8 reg42h = 0;
 
 	hwif->speedproc = &it8213_tune_chipset;
-	hwif->tuneproc	= &it8213_tuneproc;
+	hwif->set_pio_mode = &it8213_set_pio_mode;
 
 	hwif->autodma = 0;
 
