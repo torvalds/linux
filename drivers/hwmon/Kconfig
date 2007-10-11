@@ -266,6 +266,20 @@ config SENSORS_FSCPOS
 	  This driver can also be built as a module.  If so, the module
 	  will be called fscpos.
 
+config SENSORS_FSCHMD
+	tristate "FSC Poseidon, Scylla, Hermes, Heimdall and Heracles"
+	depends on X86 && I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for various Fujitsu Siemens
+	  Computers sensor chips.
+
+	  This is a new merged driver for FSC sensor chips which is intended
+	  as a replacment for the fscpos, fscscy and fscher drivers and adds
+	  support for several other FCS sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fschmd.
+
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
 	depends on I2C
