@@ -82,7 +82,7 @@ core-$(CONFIG_IA32_EMULATION)		+= arch/x86_64/ia32/
 drivers-$(CONFIG_PCI)			+= arch/x86/pci/
 drivers-$(CONFIG_OPROFILE)		+= arch/x86/oprofile/
 
-boot := arch/x86_64/boot
+boot := arch/x86/boot
 
 PHONY += bzImage bzlilo install archmrproper \
 	 fdimage fdimage144 fdimage288 isoimage archclean
@@ -90,10 +90,12 @@ PHONY += bzImage bzlilo install archmrproper \
 #Default target when executing "make"
 all: bzImage
 
-BOOTIMAGE                     := arch/x86_64/boot/bzImage
+BOOTIMAGE                     := arch/x86/boot/bzImage
 KBUILD_IMAGE                  := $(BOOTIMAGE)
 
 bzImage: vmlinux
+	$(Q)mkdir -p $(objtree)/arch/x86_64/boot
+	$(Q)ln -fsn $(objtree)/arch/x86/boot/bzImage $(objtree)/arch/x86_64/boot/bzImage
 	$(Q)$(MAKE) $(build)=$(boot) $(BOOTIMAGE)
 
 bzlilo: vmlinux
@@ -109,6 +111,7 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@ 
 
 archclean:
+	$(Q)rm -rf $(objtree)/arch/x86_64/boot
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp
