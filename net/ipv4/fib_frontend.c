@@ -49,6 +49,8 @@
 
 #define FFprint(a...) printk(KERN_DEBUG a)
 
+static struct sock *fibnl;
+
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
 struct fib_table *ip_fib_local_table;
@@ -61,9 +63,6 @@ static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
 #define FIB_TABLE_HASHSZ 256
 static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
-
-static struct sock *fibnl = NULL;
-
 
 struct fib_table *fib_new_table(u32 id)
 {
@@ -787,17 +786,12 @@ static void nl_fib_lookup(struct fib_result_nl *frn, struct fib_table *tb )
 	}
 }
 
-static void nl_fib_input(struct sock *sk, int len)
+static void nl_fib_input(struct sk_buff *skb)
 {
-	struct sk_buff *skb = NULL;
-	struct nlmsghdr *nlh = NULL;
 	struct fib_result_nl *frn;
-	u32 pid;
+	struct nlmsghdr *nlh;
 	struct fib_table *tb;
-
-	skb = skb_dequeue(&sk->sk_receive_queue);
-	if (skb == NULL)
-		return;
+	u32 pid;
 
 	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
