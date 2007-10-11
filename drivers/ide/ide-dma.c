@@ -664,10 +664,11 @@ static unsigned int ide_get_mode_mask(ide_drive_t *drive, u8 base)
 		if ((id->field_valid & 4) == 0)
 			break;
 
-		mask = id->dma_ultra & hwif->ultra_mask;
-
 		if (hwif->udma_filter)
-			mask &= hwif->udma_filter(drive);
+			mask = hwif->udma_filter(drive);
+		else
+			mask = hwif->ultra_mask;
+		mask &= id->dma_ultra;
 
 		if ((mask & 0x78) && (eighty_ninty_three(drive) == 0))
 			mask &= 0x07;
