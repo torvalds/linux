@@ -107,8 +107,6 @@ struct xfs_mount;
 
 #define GRANT_LOCK(log)		mutex_spinlock(&(log)->l_grant_lock)
 #define GRANT_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_grant_lock, s)
-#define LOG_LOCK(log)		mutex_spinlock(&(log)->l_icloglock)
-#define LOG_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_icloglock, s)
 
 #define xlog_panic(args...)	cmn_err(CE_PANIC, ## args)
 #define xlog_exit(args...)	cmn_err(CE_PANIC, ## args)
@@ -415,7 +413,7 @@ typedef struct log {
 	xlog_ticket_t		*l_unmount_free;/* kmem_free these addresses */
 	xlog_ticket_t		*l_tail;        /* free list of tickets */
 	xlog_in_core_t		*l_iclog;       /* head log queue	*/
-	lock_t			l_icloglock;    /* grab to change iclog state */
+	spinlock_t		l_icloglock;    /* grab to change iclog state */
 	xfs_lsn_t		l_tail_lsn;     /* lsn of 1st LR with unflushed
 						 * buffers */
 	xfs_lsn_t		l_last_sync_lsn;/* lsn of last LR on disk */
