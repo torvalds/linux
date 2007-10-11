@@ -29,6 +29,13 @@
 #	help
 #	  This option enables support for the extra features of the EP405PC board.
 
+config KILAUEA
+	bool "Kilauea"
+	depends on 40x
+	default n
+	help
+	  This option enables support for the AMCC PPC405EX evaluation board.
+
 #config REDWOOD_5
 #	bool "Redwood-5"
 #	depends on 40x
