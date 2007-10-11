@@ -184,7 +184,7 @@ static dbdev_tab_t dbdev_tab[] = {
 static chan_tab_t *chan_tab_ptr[NUM_DBDMA_CHANS];
 
 static dbdev_tab_t *
-find_dbdev_id (u32 id)
+find_dbdev_id(u32 id)
 {
 	int i;
 	dbdev_tab_t *p;

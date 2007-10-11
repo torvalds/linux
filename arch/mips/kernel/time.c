@@ -149,7 +149,7 @@ EXPORT_SYMBOL_GPL(cp0_perfcount_irq);
  * Possibly handle a performance counter interrupt.
  * Return true if the timer interrupt should not be checked
  */
-static inline int handle_perf_irq (int r2)
+static inline int handle_perf_irq(int r2)
 {
 	/*
 	 * The performance counter overflow interrupt may be shared with the

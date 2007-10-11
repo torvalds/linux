@@ -36,6 +36,6 @@ struct prda {
 
 #define t_sys           prda_sys
 
-ptrdiff_t prctl (int op, int v1, int v2);
+ptrdiff_t prctl(int op, int v1, int v2);
 
 #endif

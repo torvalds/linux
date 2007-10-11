@@ -45,7 +45,7 @@ void prom_putchar(char c)
 static char *(*__prom_getenv)(char *)     = (char *(*)(char *))PROM_ENTRY(PROM_GETENV);
 static void (*__prom_get_memconf)(void *) = (void (*)(void *))PROM_ENTRY(PROM_GET_MEMCONF);
 
-char *prom_getenv (char *s)
+char *prom_getenv(char *s)
 {
 	return __prom_getenv(s);
 }
@@ -131,9 +131,9 @@ static void __init sni_console_setup(void)
 	int port;
 	static char options[8];
 
-	cdev = prom_getenv ("console_dev");
+	cdev = prom_getenv("console_dev");
 	if (strncmp (cdev, "tty", 3) == 0) {
-		ctype = prom_getenv ("console");
+		ctype = prom_getenv("console");
 		switch (*ctype) {
 		default:
 		case 'l':

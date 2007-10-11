@@ -55,7 +55,7 @@ static char __init *decode_eisa_sig(unsigned long addr)
 	int i;
 
 	for (i = 0; i < 4; i++) {
-		sig[i] = inb (addr + i);
+		sig[i] = inb(addr + i);
 
 		if (!i && (sig[0] & 0x80))
 			return NULL;

@@ -372,7 +372,7 @@ void mipsmt_prepare_cpus(void)
 	cpu++;
 
 	/* Report on boot-time options */
-	mips_mt_set_cpuoptions ();
+	mips_mt_set_cpuoptions();
 	if (vpelimit > 0)
 		printk("Limit of %d VPEs set\n", vpelimit);
 	if (tclimit > 0)
@@ -572,7 +572,7 @@ void smtc_init_secondary(void)
 	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
 	    ((read_c0_tcbind() & TCBIND_CURVPE)
 	    != cpu_data[smp_processor_id() - 1].vpe_id)){
-		write_c0_compare (read_c0_count() + mips_hpt_frequency/HZ);
+		write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
 	}
 
 	local_irq_enable();

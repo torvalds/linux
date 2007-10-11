@@ -134,7 +134,7 @@ void __init plat_time_init(void)
         /* Set Data mode - binary. */
         CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
 
-	est_freq = estimate_cpu_frequency ();
+	est_freq = estimate_cpu_frequency();
 
 	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
 	       (est_freq%1000000)*100/1000000);
@@ -166,7 +166,7 @@ void __init plat_perf_setup(void)
 
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
-		set_vi_handler (MSC01E_INT_PERFCTR, mips_perf_dispatch);
+		set_vi_handler(MSC01E_INT_PERFCTR, mips_perf_dispatch);
 		cp0_perfcount_irq = MSC01E_INT_BASE + MSC01E_INT_PERFCTR;
 	} else
 #endif
@@ -183,7 +183,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 {
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
-		set_vi_handler (MSC01E_INT_CPUCTR, mips_timer_dispatch);
+		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
 	}
 	else

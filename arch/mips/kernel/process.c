@@ -202,13 +202,13 @@ void elf_dump_regs(elf_greg_t *gp, struct pt_regs *regs)
 #endif
 }
 
-int dump_task_regs (struct task_struct *tsk, elf_gregset_t *regs)
+int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
 	elf_dump_regs(*regs, task_pt_regs(tsk));
 	return 1;
 }
 
-int dump_task_fpu (struct task_struct *t, elf_fpregset_t *fpr)
+int dump_task_fpu(struct task_struct *t, elf_fpregset_t *fpr)
 {
 	memcpy(fpr, &t->thread.fpu, sizeof(current->thread.fpu));
 

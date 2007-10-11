@@ -39,7 +39,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1000.h>
 
-void board_reset (void)
+void board_reset(void)
 {
 }
 

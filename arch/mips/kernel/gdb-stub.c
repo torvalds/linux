@@ -733,7 +733,7 @@ static int kgdb_smp_call_kgdb_wait(void)
  * returns 1 if you should skip the instruction at the trap address, 0
  * otherwise.
  */
-void handle_exception (struct gdb_regs *regs)
+void handle_exception(struct gdb_regs *regs)
 {
 	int trap;			/* Trap type */
 	int sigval;
@@ -917,7 +917,7 @@ void handle_exception (struct gdb_regs *regs)
 				&& hexToInt(&ptr, &length)) {
 				if (mem2hex((char *)addr, output_buffer, length, 1))
 					break;
-				strcpy (output_buffer, "E03");
+				strcpy(output_buffer, "E03");
 			} else
 				strcpy(output_buffer,"E01");
 			break;

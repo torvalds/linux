@@ -65,9 +65,9 @@ static __inline__ __attribute_const__ __u64 ___arch__swab64(__u64 x)
 
 #endif /* __GNUC__ */
 
-#if defined (__MIPSEB__)
+#if defined(__MIPSEB__)
 #  include <linux/byteorder/big_endian.h>
-#elif defined (__MIPSEL__)
+#elif defined(__MIPSEL__)
 #  include <linux/byteorder/little_endian.h>
 #else
 #  error "MIPS, but neither __MIPSEB__, nor __MIPSEL__???"

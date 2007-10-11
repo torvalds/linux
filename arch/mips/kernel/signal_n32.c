@@ -88,7 +88,7 @@ struct rt_sigframe_n32 {
 
 #endif	/* !ICACHE_REFILLS_WORKAROUND_WAR */
 
-extern void sigset_from_compat (sigset_t *set, compat_sigset_t *compat);
+extern void sigset_from_compat(sigset_t *set, compat_sigset_t *compat);
 
 asmlinkage int sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
@@ -105,7 +105,7 @@ asmlinkage int sysn32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	unewset = (compat_sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&uset, unewset, sizeof(uset)))
 		return -EFAULT;
-	sigset_from_compat (&newset, &uset);
+	sigset_from_compat(&newset, &uset);
 	sigdelsetmask(&newset, ~_BLOCKABLE);
 
 	spin_lock_irq(&current->sighand->siglock);

@@ -194,17 +194,17 @@ extern unsigned int sni_brd_type;
 #define PCIMT_INT_ACKNOWLEDGE	0xba000000
 
 /* board specific init functions */
-extern void sni_a20r_init (void);
-extern void sni_pcit_init (void);
-extern void sni_rm200_init (void);
-extern void sni_pcimt_init (void);
+extern void sni_a20r_init(void);
+extern void sni_pcit_init(void);
+extern void sni_rm200_init(void);
+extern void sni_pcimt_init(void);
 
 /* board specific irq init functions */
-extern void sni_a20r_irq_init (void);
-extern void sni_pcit_irq_init (void);
-extern void sni_pcit_cplus_irq_init (void);
-extern void sni_rm200_irq_init (void);
-extern void sni_pcimt_irq_init (void);
+extern void sni_a20r_irq_init(void);
+extern void sni_pcit_irq_init(void);
+extern void sni_pcit_cplus_irq_init(void);
+extern void sni_rm200_irq_init(void);
+extern void sni_pcimt_irq_init(void);
 
 /* timer inits */
 extern void sni_cpu_time_init(void);

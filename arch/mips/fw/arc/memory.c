@@ -63,7 +63,7 @@ static char *arc_mtypes[8] = {
 						: arc_mtypes[a.arc]
 #endif
 
-static inline int memtype_classify_arcs (union linux_memtypes type)
+static inline int memtype_classify_arcs(union linux_memtypes type)
 {
 	switch (type.arcs) {
 	case arcs_fcontig:
@@ -83,7 +83,7 @@ static inline int memtype_classify_arcs (union linux_memtypes type)
 	while(1);				/* Nuke warning.  */
 }
 
-static inline int memtype_classify_arc (union linux_memtypes type)
+static inline int memtype_classify_arc(union linux_memtypes type)
 {
 	switch (type.arc) {
 	case arc_free:
@@ -103,7 +103,7 @@ static inline int memtype_classify_arc (union linux_memtypes type)
 	while(1);				/* Nuke warning.  */
 }
 
-static int __init prom_memtype_classify (union linux_memtypes type)
+static int __init prom_memtype_classify(union linux_memtypes type)
 {
 	if (prom_flags & PROM_FLAG_ARCS)	/* SGI is ``different'' ... */
 		return memtype_classify_arcs(type);

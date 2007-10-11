@@ -481,7 +481,7 @@ fault:
 	if (fixup_exception(regs))
 		return;
 
-	die_if_kernel ("Unhandled kernel unaligned access", regs);
+	die_if_kernel("Unhandled kernel unaligned access", regs);
 	send_sig(SIGSEGV, current, 1);
 
 	return;

@@ -27,7 +27,7 @@
 #include <uart.h>
 
 
-static int pnx8550_timers_read (char* page, char** start, off_t offset, int count, int* eof, void* data)
+static int pnx8550_timers_read(char* page, char** start, off_t offset, int count, int* eof, void* data)
 {
         int len = 0;
 	int configPR = read_c0_config7();
@@ -48,7 +48,7 @@ static int pnx8550_timers_read (char* page, char** start, off_t offset, int coun
         return len;
 }
 
-static int pnx8550_registers_read (char* page, char** start, off_t offset, int count, int* eof, void* data)
+static int pnx8550_registers_read(char* page, char** start, off_t offset, int count, int* eof, void* data)
 {
         int len = 0;
 

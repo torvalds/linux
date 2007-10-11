@@ -18,7 +18,7 @@
 #ifdef CONFIG_32BIT
 
 #define save_static_function(symbol)					\
-__asm__ (								\
+__asm__(								\
 	".text\n\t"							\
 	".globl\t" #symbol "\n\t"					\
 	".align\t2\n\t"							\
@@ -46,7 +46,7 @@ __asm__ (								\
 #ifdef CONFIG_64BIT
 
 #define save_static_function(symbol)					\
-__asm__ (								\
+__asm__(								\
 	".text\n\t"							\
 	".globl\t" #symbol "\n\t"					\
 	".align\t2\n\t"							\

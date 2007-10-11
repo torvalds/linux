@@ -216,7 +216,7 @@ static int __init excite_platform_init(void)
 	titan_writel(0x80021dff, GXCFG);	/* XDMA reset */
 	titan_writel(0x00000000, CPXCISRA);
 	titan_writel(0x00000000, CPXCISRB);	/* clear pending interrupts */
-#if defined (CONFIG_HIGHMEM)
+#if defined(CONFIG_HIGHMEM)
 #	error change for HIGHMEM support!
 #else
 	titan_writel(0x00000000, GXDMADRPFX);	/* buffer address prefix */
@@ -262,12 +262,12 @@ void __init plat_mem_setup(void)
 	add_memory_region(0x00000000, memsize, BOOT_MEM_RAM);
 
 	/* Set up the peripheral address map */
-	*(boot_ocd_base + (LKB9 / sizeof (u32))) = 0;
-	*(boot_ocd_base + (LKB10 / sizeof (u32))) = 0;
-	*(boot_ocd_base + (LKB11 / sizeof (u32))) = 0;
-	*(boot_ocd_base + (LKB12 / sizeof (u32))) = 0;
+	*(boot_ocd_base + (LKB9 / sizeof(u32))) = 0;
+	*(boot_ocd_base + (LKB10 / sizeof(u32))) = 0;
+	*(boot_ocd_base + (LKB11 / sizeof(u32))) = 0;
+	*(boot_ocd_base + (LKB12 / sizeof(u32))) = 0;
 	wmb();
-	*(boot_ocd_base + (LKB0 / sizeof (u32))) = EXCITE_PHYS_OCD >> 4;
+	*(boot_ocd_base + (LKB0 / sizeof(u32))) = EXCITE_PHYS_OCD >> 4;
 	wmb();
 
 	ocd_writel((EXCITE_PHYS_TITAN >> 4) | 0x1UL, LKB5);

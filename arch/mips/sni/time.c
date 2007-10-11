@@ -44,23 +44,23 @@ static __init unsigned long dosample(void)
 	volatile u8 msb, lsb;
 
 	/* Start the counter. */
-	outb_p (0x34, 0x43);
+	outb_p(0x34, 0x43);
 	outb_p(SNI_8254_TCSAMP_COUNTER & 0xff, 0x40);
-	outb (SNI_8254_TCSAMP_COUNTER >> 8, 0x40);
+	outb(SNI_8254_TCSAMP_COUNTER >> 8, 0x40);
 
 	/* Get initial counter invariant */
 	ct0 = read_c0_count();
 
 	/* Latch and spin until top byte of counter0 is zero */
 	do {
-		outb (0x00, 0x43);
-		lsb = inb (0x40);
-		msb = inb (0x40);
+		outb(0x00, 0x43);
+		lsb = inb(0x40);
+		msb = inb(0x40);
 		ct1 = read_c0_count();
 	} while (msb);
 
 	/* Stop the counter. */
-	outb (0x38, 0x43);
+	outb(0x38, 0x43);
 	/*
 	 * Return the difference, this is how far the r4k counter increments
 	 * for every 1/HZ seconds. We round off the nearest 1 MHz of master
@@ -137,7 +137,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	case SNI_BRD_10NEW:
 	case SNI_BRD_TOWER_OASIC:
 	case SNI_BRD_MINITOWER:
-	        sni_a20r_timer_setup (irq);
+	        sni_a20r_timer_setup(irq);
 	        break;
 
 	case SNI_BRD_PCI_TOWER:
@@ -146,7 +146,7 @@ void __init plat_timer_setup(struct irqaction *irq)
 	case SNI_BRD_PCI_DESKTOP:
 	case SNI_BRD_PCI_TOWER_CPLUS:
 	case SNI_BRD_PCI_MTOWER_CPLUS:
-	        sni_cpu_timer_setup (irq);
+	        sni_cpu_timer_setup(irq);
 	        break;
 	}
 }

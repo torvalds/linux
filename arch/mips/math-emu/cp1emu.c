@@ -549,16 +549,16 @@ static const unsigned char cmptab[8] = {
  */
 
 #define DEF3OP(name, p, f1, f2, f3) \
-static ieee754##p fpemu_##p##_##name (ieee754##p r, ieee754##p s, \
+static ieee754##p fpemu_##p##_##name(ieee754##p r, ieee754##p s, \
     ieee754##p t) \
 { \
 	struct _ieee754_csr ieee754_csr_save; \
-	s = f1 (s, t); \
+	s = f1(s, t); \
 	ieee754_csr_save = ieee754_csr; \
-	s = f2 (s, r); \
+	s = f2(s, r); \
 	ieee754_csr_save.cx |= ieee754_csr.cx; \
 	ieee754_csr_save.sx |= ieee754_csr.sx; \
-	s = f3 (s); \
+	s = f3(s); \
 	ieee754_csr.cx |= ieee754_csr_save.cx; \
 	ieee754_csr.sx |= ieee754_csr_save.sx; \
 	return s; \

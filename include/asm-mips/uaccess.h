@@ -391,9 +391,9 @@ extern size_t __copy_user(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_to_user(to,from,n)				\
 ({									\
-	register void __user *__cu_to_r __asm__ ("$4");			\
-	register const void *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void __user *__cu_to_r __asm__("$4");			\
+	register const void *__cu_from_r __asm__("$5");			\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
@@ -495,9 +495,9 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_from_user(to,from,n)				\
 ({									\
-	register void *__cu_to_r __asm__ ("$4");			\
-	register const void __user *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
@@ -518,9 +518,9 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 
 #define __invoke_copy_from_user_inatomic(to,from,n)			\
 ({									\
-	register void *__cu_to_r __asm__ ("$4");			\
-	register const void __user *__cu_from_r __asm__ ("$5");		\
-	register long __cu_len_r __asm__ ("$6");			\
+	register void *__cu_to_r __asm__("$4");				\
+	register const void __user *__cu_from_r __asm__("$5");		\
+	register long __cu_len_r __asm__("$6");				\
 									\
 	__cu_to_r = (to);						\
 	__cu_from_r = (from);						\
