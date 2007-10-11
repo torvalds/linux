@@ -1,12 +1,5 @@
-# 
-# x86_64/crypto/Makefile 
-# 
-# Arch-specific CryptoAPI modules.
-# 
-
-obj-$(CONFIG_CRYPTO_AES_X86_64) += aes-x86_64.o
-obj-$(CONFIG_CRYPTO_TWOFISH_X86_64) += twofish-x86_64.o
-
-aes-x86_64-y := aes-x86_64-asm_64.o aes_64.o
-twofish-x86_64-y := twofish-x86_64-asm_64.o twofish_64.o
-
+ifeq ($(CONFIG_X86_32),y)
+include ${srctree}/arch/i386/crypto/Makefile_32
+else
+include ${srctree}/arch/x86_64/crypto/Makefile_64
+endif
