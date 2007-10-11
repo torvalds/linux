@@ -49,20 +49,14 @@ extern void (*mips_timer_ack)(void);
 extern struct clocksource clocksource_mips;
 
 /*
- * high-level timer interrupt routines.
+ * The low-level timer interrupt routine.
  */
-extern irqreturn_t timer_interrupt(int irq, void *dev_id);
-
-/*
- * the corresponding low-level timer interrupt routine.
- */
-extern asmlinkage void ll_timer_interrupt(int irq);
+extern void ll_timer_interrupt(int irq, void *dev_id);
 
 /*
  * profiling and process accouting is done separately in local_timer_interrupt
  */
 extern void local_timer_interrupt(int irq, void *dev_id);
-extern asmlinkage void ll_local_timer_interrupt(int irq);
 
 /*
  * board specific routines required by time_init().
@@ -77,5 +71,11 @@ extern void plat_timer_setup(struct irqaction *irq);
  * automagically with an aid of mips_timer_state.
  */
 extern unsigned int mips_hpt_frequency;
+
+/*
+ * The performance counter IRQ on MIPS is a close relative to the timer IRQ
+ * so it lives here.
+ */
+extern int (*perf_irq)(void);
 
 #endif /* _ASM_TIME_H */

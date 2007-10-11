@@ -867,7 +867,7 @@ void ipi_decode(struct smtc_ipi *pipi)
 #ifdef CONFIG_SMTC_IDLE_HOOK_DEBUG
 		clock_hang_reported[dest_copy] = 0;
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
-		local_timer_interrupt(0, NULL);
+		local_timer_interrupt(0);
 		irq_exit();
 		break;
 	case LINUX_SMP_IPI:

@@ -65,8 +65,6 @@
 #define EXT_INTC1_REQ1 5 /* IP 5 */
 #define MIPS_TIMER_IP  7 /* IP 7 */
 
-extern void mips_timer_interrupt(void);
-
 void	(*board_init_irq)(void);
 
 static DEFINE_SPINLOCK(irq_lock);
@@ -635,7 +633,7 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
 
 	if (pending & CAUSEF_IP7)
-		mips_timer_interrupt();
+		ll_timer_interrupt(63);
 	else if (pending & CAUSEF_IP2)
 		intc0_req0_irqdispatch();
 	else if (pending & CAUSEF_IP3)

@@ -125,18 +125,7 @@ void sb1250_timer_interrupt(void)
 	____raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
 		       IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 
-	if (cpu == 0) {
-		/*
-		 * CPU 0 handles the global timer interrupt job
-		 */
-		ll_timer_interrupt(irq);
-	}
-	else {
-		/*
-		 * other CPUs should just do profiling and process accounting
-		 */
-		ll_local_timer_interrupt(irq);
-	}
+	ll_timer_interrupt(irq);
 }
 
 /*

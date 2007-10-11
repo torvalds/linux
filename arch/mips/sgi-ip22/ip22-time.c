@@ -189,16 +189,6 @@ void indy_8254timer_irq(void)
 	irq_exit();
 }
 
-void indy_r4k_timer_interrupt(void)
-{
-	int irq = SGI_TIMER_IRQ;
-
-	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
-	timer_interrupt(irq, NULL);
-	irq_exit();
-}
-
 void __init plat_timer_setup(struct irqaction *irq)
 {
 	/* over-write the handler, we use our own way */

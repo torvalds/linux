@@ -144,7 +144,7 @@ void local_timer_interrupt(int irq, void *dev_id)
  * High-level timer interrupt service routines.  This function
  * is set as irqaction->handler and is invoked through do_IRQ.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	write_seqlock(&xtime_lock);
 
@@ -174,9 +174,10 @@ int null_perf_irq(void)
 	return 0;
 }
 
+EXPORT_SYMBOL(null_perf_irq);
+
 int (*perf_irq)(void) = null_perf_irq;
 
-EXPORT_SYMBOL(null_perf_irq);
 EXPORT_SYMBOL(perf_irq);
 
 /*
@@ -208,35 +209,79 @@ static inline int handle_perf_irq (int r2)
 		!r2;
 }
 
-asmlinkage void ll_timer_interrupt(int irq)
+void ll_timer_interrupt(int irq, void *dev_id)
 {
+	int cpu = smp_processor_id();
+
+#ifdef CONFIG_MIPS_MT_SMTC
+	/*
+	 *  In an SMTC system, one Count/Compare set exists per VPE.
+	 *  Which TC within a VPE gets the interrupt is essentially
+	 *  random - we only know that it shouldn't be one with
+	 *  IXMT set. Whichever TC gets the interrupt needs to
+	 *  send special interprocessor interrupts to the other
+	 *  TCs to make sure that they schedule, etc.
+	 *
+	 *  That code is specific to the SMTC kernel, not to
+	 *  the a particular platform, so it's invoked from
+	 *  the general MIPS timer_interrupt routine.
+	 */
+
+	/*
+	 * We could be here due to timer interrupt,
+	 * perf counter overflow, or both.
+	 */
+	(void) handle_perf_irq(1);
+
+	if (read_c0_cause() & (1 << 30)) {
+		/*
+		 * There are things we only want to do once per tick
+		 * in an "MP" system.   One TC of each VPE will take
+		 * the actual timer interrupt.  The others will get
+		 * timer broadcast IPIs. We use whoever it is that takes
+		 * the tick on VPE 0 to run the full timer_interrupt().
+		 */
+		if (cpu_data[cpu].vpe_id == 0) {
+			timer_interrupt(irq, NULL);
+		} else {
+			write_c0_compare(read_c0_count() +
+			                 (mips_hpt_frequency/HZ));
+			local_timer_interrupt(irq, dev_id);
+		}
+		smtc_timer_broadcast(cpu_data[cpu].vpe_id);
+	}
+#else /* CONFIG_MIPS_MT_SMTC */
 	int r2 = cpu_has_mips_r2;
 
-	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
-
 	if (handle_perf_irq(r2))
-		goto out;
+		return;
 
 	if (r2 && ((read_c0_cause() & (1 << 30)) == 0))
-		goto out;
+		return;
 
-	timer_interrupt(irq, NULL);
+	if (cpu == 0) {
+		/*
+		 * CPU 0 handles the global timer interrupt job and process
+		 * accounting resets count/compare registers to trigger next
+		 * timer int.
+		 */
+		timer_interrupt(irq, NULL);
+	} else {
+		/* Everyone else needs to reset the timer int here as
+		   ll_local_timer_interrupt doesn't */
+		/*
+		 * FIXME: need to cope with counter underflow.
+		 * More support needs to be added to kernel/time for
+		 * counter/timer interrupts on multiple CPU's
+		 */
+		write_c0_compare(read_c0_count() + (mips_hpt_frequency/HZ));
 
-out:
-	irq_exit();
-}
-
-asmlinkage void ll_local_timer_interrupt(int irq)
-{
-	irq_enter();
-	if (smp_processor_id() != 0)
-		kstat_this_cpu.irqs[irq]++;
-
-	/* we keep interrupt disabled all the time */
-	local_timer_interrupt(irq, NULL);
-
-	irq_exit();
+		/*
+		 * Other CPUs should do profiling and process accounting
+		 */
+		local_timer_interrupt(irq, dev_id);
+	}
+#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
