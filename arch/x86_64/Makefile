@@ -71,7 +71,7 @@ CFLAGS += $(cflags-y)
 CFLAGS_KERNEL += $(cflags-kernel-y)
 AFLAGS += -m64
 
-head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task.o
+head-y := arch/x86_64/kernel/head.o arch/x86_64/kernel/head64.o arch/x86_64/kernel/init_task_64.o
 
 libs-y 					+= arch/x86_64/lib/
 core-y					+= arch/x86_64/kernel/ \

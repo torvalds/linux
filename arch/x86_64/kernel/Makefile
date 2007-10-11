@@ -2,7 +2,7 @@
 # Makefile for the linux kernel.
 #
 
-extra-y 	:= head.o head64.o init_task.o vmlinux.lds
+extra-y 	:= head.o head64.o init_task_64.o vmlinux.lds
 EXTRA_AFLAGS	:= -traditional
 obj-y	:= process.o signal_64.o entry.o traps_64.o irq_64.o \
 		ptrace_64.o time_64.o ioport_64.o ldt_64.o setup_64.o i8259_64.o sys_x86_64.o \
