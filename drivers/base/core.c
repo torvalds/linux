@@ -108,7 +108,7 @@ static void device_release(struct kobject * kobj)
 	}
 }
 
-static struct kobj_type ktype_device = {
+static struct kobj_type device_ktype = {
 	.release	= device_release,
 	.sysfs_ops	= &dev_sysfs_ops,
 };
@@ -118,7 +118,7 @@ static int dev_uevent_filter(struct kset *kset, struct kobject *kobj)
 {
 	struct kobj_type *ktype = get_ktype(kobj);
 
-	if (ktype == &ktype_device) {
+	if (ktype == &device_ktype) {
 		struct device *dev = to_dev(kobj);
 		if (dev->uevent_suppress)
 			return 0;
@@ -405,7 +405,7 @@ static struct device_attribute devt_attr =
  *	devices_subsys - structure to be registered with kobject core.
  */
 
-decl_subsys(devices, &ktype_device, &device_uevent_ops);
+decl_subsys(devices, &device_ktype, &device_uevent_ops);
 
 
 /**
