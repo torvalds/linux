@@ -6,6 +6,7 @@
  * Copyright (C) 1992 Linus Torvalds
  * Copyright (C) 1994 - 2001, 2003 Ralf Baechle
  */
+#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -104,4 +105,51 @@ asmlinkage void plat_irq_dispatch(void)
 		else
 			panic("Unimplemented loc_no_irq handler");
 	}
+}
+
+static void r4030_set_mode(enum clock_event_mode mode,
+                           struct clock_event_device *evt)
+{
+	/* Nothing to do ...  */
+}
+
+struct clock_event_device r4030_clockevent = {
+	.name		= "r4030",
+	.features	= CLOCK_EVT_FEAT_PERIODIC,
+	.rating		= 100,
+	.irq		= JAZZ_TIMER_IRQ,
+	.cpumask	= CPU_MASK_CPU0,
+	.set_mode	= r4030_set_mode,
+};
+
+static irqreturn_t r4030_timer_interrupt(int irq, void *dev_id)
+{
+	r4030_clockevent.event_handler(&r4030_clockevent);
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction r4030_timer_irqaction = {
+	.handler	= r4030_timer_interrupt,
+	.flags		= IRQF_DISABLED,
+	.mask		= CPU_MASK_CPU0,
+	.name		= "timer",
+};
+
+void __init plat_timer_setup(struct irqaction *ignored)
+{
+	struct irqaction *irq = &r4030_timer_irqaction;
+
+	BUG_ON(HZ != 100);
+
+	/*
+	 * Set clock to 100Hz.
+	 *
+	 * The R4030 timer receives an input clock of 1kHz which is divieded by
+	 * a programmable 4-bit divider.  This makes it fairly inflexible.
+	 */
+	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);
+	setup_irq(JAZZ_TIMER_IRQ, irq);
+
+	clockevents_register_device(&r4030_clockevent);
 }

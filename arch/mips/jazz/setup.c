@@ -39,13 +39,6 @@ extern asmlinkage void jazz_handle_int(void);
 
 extern void jazz_machine_restart(char *command);
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* set the clock to 100 Hz */
-	r4030_write_reg32(JAZZ_TIMER_INTERVAL, 9);
-	setup_irq(JAZZ_TIMER_IRQ, irq);
-}
-
 static struct resource jazz_io_resources[] = {
 	{
 		.start	= 0x00,
