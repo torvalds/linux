@@ -66,9 +66,14 @@ _TIF_WORK_INT = (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK | _TIF_NEED_RESCHED | \
 	.macro	TRACE_IRQS_OFF
 	 brasl	%r14,trace_hardirqs_off
 	.endm
+
+	.macro	LOCKDEP_SYS_EXIT
+	 brasl	%r14,lockdep_sys_exit
+	.endm
 #else
 #define TRACE_IRQS_ON
 #define TRACE_IRQS_OFF
+#define LOCKDEP_SYS_EXIT
 #endif
 
 	.macro	STORE_TIMER lc_offset
@@ -255,6 +260,7 @@ sysc_return:
 	jno	sysc_leave
 	tm	__TI_flags+7(%r9),_TIF_WORK_SVC
 	jnz	sysc_work	# there is work to do (signals etc.)
+	LOCKDEP_SYS_EXIT
 sysc_leave:
 	RESTORE_ALL __LC_RETURN_PSW,1
 
@@ -278,6 +284,7 @@ sysc_work:
 	jo	sysc_restart
 	tm	__TI_flags+7(%r9),_TIF_SINGLE_STEP
 	jo	sysc_singlestep
+	LOCKDEP_SYS_EXIT
 	j	sysc_leave
 
 #
@@ -558,6 +565,7 @@ io_return:
 #endif
 	tm	__TI_flags+7(%r9),_TIF_WORK_INT
 	jnz	io_work 		# there is work to do (signals etc.)
+	LOCKDEP_SYS_EXIT
 io_leave:
 	RESTORE_ALL __LC_RETURN_PSW,0
 io_done:
@@ -605,6 +613,7 @@ io_work_loop:
 	jo	io_reschedule
 	tm	__TI_flags+7(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
 	jnz	io_sigpending
+	LOCKDEP_SYS_EXIT
 	j	io_leave
 
 #
