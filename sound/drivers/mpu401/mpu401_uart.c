@@ -270,8 +270,7 @@ static int snd_mpu401_do_reset(struct snd_mpu401 *mpu)
 {
 	if (snd_mpu401_uart_cmd(mpu, MPU401_RESET, 1))
 		return -EIO;
-	if (!(mpu->info_flags & MPU401_INFO_UART_ONLY) &&
-	    snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 0))
+	if (snd_mpu401_uart_cmd(mpu, MPU401_ENTER_UART, 0))
 		return -EIO;
 	return 0;
 }
