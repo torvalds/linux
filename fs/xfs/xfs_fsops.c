@@ -462,15 +462,13 @@ xfs_fs_counts(
 	xfs_mount_t		*mp,
 	xfs_fsop_counts_t	*cnt)
 {
-	unsigned long	s;
-
 	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	cnt->freedata = mp->m_sb.sb_fdblocks - XFS_ALLOC_SET_ASIDE(mp);
 	cnt->freertx = mp->m_sb.sb_frextents;
 	cnt->freeino = mp->m_sb.sb_ifree;
 	cnt->allocino = mp->m_sb.sb_icount;
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 	return 0;
 }
 
@@ -497,7 +495,6 @@ xfs_reserve_blocks(
 {
 	__int64_t		lcounter, delta, fdblks_delta;
 	__uint64_t		request;
-	unsigned long		s;
 
 	/* If inval is null, report current values and return */
 	if (inval == (__uint64_t *)NULL) {
@@ -515,7 +512,7 @@ xfs_reserve_blocks(
 	 * problem. we needto work out if we are freeing or allocation
 	 * blocks first, then we can do the modification as necessary.
 	 *
-	 * We do this under the XFS_SB_LOCK so that if we are near
+	 * We do this under the m_sb_lock so that if we are near
 	 * ENOSPC, we will hold out any changes while we work out
 	 * what to do. This means that the amount of free space can
 	 * change while we do this, so we need to retry if we end up
@@ -526,7 +523,7 @@ xfs_reserve_blocks(
 	 * enabled, disabled or even compiled in....
 	 */
 retry:
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_SB_LOCKED);
 
 	/*
@@ -569,7 +566,7 @@ out:
 		outval->resblks = mp->m_resblks;
 		outval->resblks_avail = mp->m_resblks_avail;
 	}
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	if (fdblks_delta) {
 		/*

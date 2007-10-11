@@ -696,7 +696,6 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	uint64_t	bfreelst = 0;
 	uint64_t	btree = 0;
 	int		error;
-	int		s;
 
 	for (index = 0; index < agcount; index++) {
 		/*
@@ -721,11 +720,11 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	/*
 	 * Overwrite incore superblock counters with just-read data
 	 */
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	sbp->sb_ifree = ifree;
 	sbp->sb_icount = ialloc;
 	sbp->sb_fdblocks = bfree + bfreelst + btree;
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	/* Fixup the per-cpu counters as well. */
 	xfs_icsb_reinit_counters(mp);
@@ -1440,7 +1439,7 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
  * Fields are not allowed to dip below zero, so if the delta would
  * do this do not apply it and return EINVAL.
  *
- * The SB_LOCK must be held when this routine is called.
+ * The m_sb_lock must be held when this routine is called.
  */
 int
 xfs_mod_incore_sb_unlocked(
@@ -1605,7 +1604,7 @@ xfs_mod_incore_sb_unlocked(
 /*
  * xfs_mod_incore_sb() is used to change a field in the in-core
  * superblock structure by the specified delta.  This modification
- * is protected by the SB_LOCK.  Just use the xfs_mod_incore_sb_unlocked()
+ * is protected by the m_sb_lock.  Just use the xfs_mod_incore_sb_unlocked()
  * routine to do the work.
  */
 int
@@ -1615,7 +1614,6 @@ xfs_mod_incore_sb(
 	int64_t		delta,
 	int		rsvd)
 {
-	unsigned long	s;
 	int	status;
 
 	/* check for per-cpu counters */
@@ -1632,9 +1630,9 @@ xfs_mod_incore_sb(
 		/* FALLTHROUGH */
 #endif
 	default:
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		status = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
-		XFS_SB_UNLOCK(mp, s);
+		spin_unlock(&mp->m_sb_lock);
 		break;
 	}
 
@@ -1655,7 +1653,6 @@ xfs_mod_incore_sb(
 int
 xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 {
-	unsigned long	s;
 	int		status=0;
 	xfs_mod_sb_t	*msbp;
 
@@ -1663,10 +1660,10 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 	 * Loop through the array of mod structures and apply each
 	 * individually.  If any fail, then back out all those
 	 * which have already been applied.  Do all of this within
-	 * the scope of the SB_LOCK so that all of the changes will
+	 * the scope of the m_sb_lock so that all of the changes will
 	 * be atomic.
 	 */
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	msbp = &msb[0];
 	for (msbp = &msbp[0]; msbp < (msb + nmsb); msbp++) {
 		/*
@@ -1680,11 +1677,11 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 		case XFS_SBS_IFREE:
 		case XFS_SBS_FDBLOCKS:
 			if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-				XFS_SB_UNLOCK(mp, s);
+				spin_unlock(&mp->m_sb_lock);
 				status = xfs_icsb_modify_counters(mp,
 							msbp->msb_field,
 							msbp->msb_delta, rsvd);
-				s = XFS_SB_LOCK(mp);
+				spin_lock(&mp->m_sb_lock);
 				break;
 			}
 			/* FALLTHROUGH */
@@ -1718,12 +1715,12 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 			case XFS_SBS_IFREE:
 			case XFS_SBS_FDBLOCKS:
 				if (!(mp->m_flags & XFS_MOUNT_NO_PERCPU_SB)) {
-					XFS_SB_UNLOCK(mp, s);
+					spin_unlock(&mp->m_sb_lock);
 					status = xfs_icsb_modify_counters(mp,
 							msbp->msb_field,
 							-(msbp->msb_delta),
 							rsvd);
-					s = XFS_SB_LOCK(mp);
+					spin_lock(&mp->m_sb_lock);
 					break;
 				}
 				/* FALLTHROUGH */
@@ -1739,7 +1736,7 @@ xfs_mod_incore_sb_batch(xfs_mount_t *mp, xfs_mod_sb_t *msb, uint nmsb, int rsvd)
 			msbp--;
 		}
 	}
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 	return status;
 }
 
@@ -1887,12 +1884,12 @@ xfs_mount_log_sbunit(
  *
  * Locking rules:
  *
- * 	1. XFS_SB_LOCK() before picking up per-cpu locks
+ * 	1. m_sb_lock before picking up per-cpu locks
  * 	2. per-cpu locks always picked up via for_each_online_cpu() order
- * 	3. accurate counter sync requires XFS_SB_LOCK + per cpu locks
+ * 	3. accurate counter sync requires m_sb_lock + per cpu locks
  * 	4. modifying per-cpu counters requires holding per-cpu lock
- * 	5. modifying global counters requires holding XFS_SB_LOCK
- *	6. enabling or disabling a counter requires holding the XFS_SB_LOCK
+ * 	5. modifying global counters requires holding m_sb_lock
+ *	6. enabling or disabling a counter requires holding the m_sb_lock 
  *	   and _none_ of the per-cpu locks.
  *
  * Disabled counters are only ever re-enabled by a balance operation
@@ -1945,7 +1942,7 @@ xfs_icsb_cpu_notify(
 		 * count into the total on the global superblock and
 		 * re-enable the counters. */
 		xfs_icsb_lock(mp);
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		xfs_icsb_disable_counter(mp, XFS_SBS_ICOUNT);
 		xfs_icsb_disable_counter(mp, XFS_SBS_IFREE);
 		xfs_icsb_disable_counter(mp, XFS_SBS_FDBLOCKS);
@@ -1962,7 +1959,7 @@ xfs_icsb_cpu_notify(
 					 XFS_ICSB_SB_LOCKED, 0);
 		xfs_icsb_balance_counter(mp, XFS_SBS_FDBLOCKS,
 					 XFS_ICSB_SB_LOCKED, 0);
-		XFS_SB_UNLOCK(mp, s);
+		spin_unlock(&mp->m_sb_lock);
 		xfs_icsb_unlock(mp);
 		break;
 	}
@@ -2197,7 +2194,7 @@ xfs_icsb_sync_counters_flags(
 
 	/* Pass 1: lock all counters */
 	if ((flags & XFS_ICSB_SB_LOCKED) == 0)
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 
 	xfs_icsb_count(mp, &cnt, flags);
 
@@ -2210,7 +2207,7 @@ xfs_icsb_sync_counters_flags(
 		mp->m_sb.sb_fdblocks = cnt.icsb_fdblocks;
 
 	if ((flags & XFS_ICSB_SB_LOCKED) == 0)
-		XFS_SB_UNLOCK(mp, s);
+		spin_unlock(&mp->m_sb_lock);
 }
 
 /*
@@ -2255,7 +2252,7 @@ xfs_icsb_balance_counter(
 	uint64_t	min = (uint64_t)min_per_cpu;
 
 	if (!(flags & XFS_ICSB_SB_LOCKED))
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 
 	/* disable counter and sync counter */
 	xfs_icsb_disable_counter(mp, field);
@@ -2289,7 +2286,7 @@ xfs_icsb_balance_counter(
 	xfs_icsb_enable_counter(mp, field, count, resid);
 out:
 	if (!(flags & XFS_ICSB_SB_LOCKED))
-		XFS_SB_UNLOCK(mp, s);
+		spin_unlock(&mp->m_sb_lock);
 }
 
 int
@@ -2379,15 +2376,15 @@ slow_path:
 	 * running atomically here, we know a rebalance cannot
 	 * be in progress. Hence we can go straight to operating
 	 * on the global superblock. We do not call xfs_mod_incore_sb()
-	 * here even though we need to get the SB_LOCK. Doing so
+	 * here even though we need to get the m_sb_lock. Doing so
 	 * will cause us to re-enter this function and deadlock.
-	 * Hence we get the SB_LOCK ourselves and then call
+	 * Hence we get the m_sb_lock ourselves and then call
 	 * xfs_mod_incore_sb_unlocked() as the unlocked path operates
 	 * directly on the global counters.
 	 */
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	ret = xfs_mod_incore_sb_unlocked(mp, field, delta, rsvd);
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	/*
 	 * Now that we've modified the global superblock, we

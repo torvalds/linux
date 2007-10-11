@@ -330,7 +330,6 @@ xfs_bump_ino_vers2(
 	xfs_inode_t	*ip)
 {
 	xfs_mount_t	*mp;
-	unsigned long		s;
 
 	ASSERT(ismrlocked (&ip->i_lock, MR_UPDATE));
 	ASSERT(ip->i_d.di_version == XFS_DINODE_VERSION_1);
@@ -340,13 +339,13 @@ xfs_bump_ino_vers2(
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 	mp = tp->t_mountp;
 	if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		if (!XFS_SB_VERSION_HASNLINK(&mp->m_sb)) {
 			XFS_SB_VERSION_ADDNLINK(&mp->m_sb);
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, XFS_SB_VERSIONNUM);
 		} else {
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 		}
 	}
 	/* Caller must log the inode */

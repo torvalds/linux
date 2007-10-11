@@ -226,17 +226,15 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 STATIC void
 xfs_sbversion_add_attr2(xfs_mount_t *mp, xfs_trans_t *tp)
 {
-	unsigned long s;
-
 	if ((mp->m_flags & XFS_MOUNT_ATTR2) &&
 	    !(XFS_SB_VERSION_HASATTR2(&mp->m_sb))) {
-		s = XFS_SB_LOCK(mp);
+		spin_lock(&mp->m_sb_lock);
 		if (!XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
 			XFS_SB_VERSION_ADDATTR2(&mp->m_sb);
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 			xfs_mod_sb(tp, XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
 		} else
-			XFS_SB_UNLOCK(mp, s);
+			spin_unlock(&mp->m_sb_lock);
 	}
 }
 

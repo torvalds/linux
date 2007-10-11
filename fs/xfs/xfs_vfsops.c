@@ -854,14 +854,13 @@ xfs_statvfs(
 	__uint64_t	fakeinos;
 	xfs_extlen_t	lsize;
 	xfs_sb_t	*sbp;
-	unsigned long	s;
 
 	sbp = &(mp->m_sb);
 
 	statp->f_type = XFS_SB_MAGIC;
 
 	xfs_icsb_sync_counters_flags(mp, XFS_ICSB_LAZY_COUNT);
-	s = XFS_SB_LOCK(mp);
+	spin_lock(&mp->m_sb_lock);
 	statp->f_bsize = sbp->sb_blocksize;
 	lsize = sbp->sb_logstart ? sbp->sb_logblocks : 0;
 	statp->f_blocks = sbp->sb_dblocks - lsize;
@@ -881,7 +880,7 @@ xfs_statvfs(
 						statp->f_files,
 						mp->m_maxicount);
 	statp->f_ffree = statp->f_files - (sbp->sb_icount - sbp->sb_ifree);
-	XFS_SB_UNLOCK(mp, s);
+	spin_unlock(&mp->m_sb_lock);
 
 	xfs_statvfs_fsid(statp, mp);
 	statp->f_namelen = MAXNAMELEN - 1;

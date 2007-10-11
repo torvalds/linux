@@ -227,7 +227,7 @@ typedef struct xfs_mount {
 	xfs_ail_entry_t		m_ail;		/* fs active log item list */
 	uint			m_ail_gen;	/* fs AIL generation count */
 	xfs_sb_t		m_sb;		/* copy of fs superblock */
-	lock_t			m_sb_lock;	/* sb counter mutex */
+	spinlock_t		m_sb_lock;	/* sb counter lock */
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */
 	char			*m_fsname;	/* filesystem name */
 	int			m_fsname_len;	/* strlen of fs name */
@@ -503,8 +503,6 @@ typedef struct xfs_mod_sb {
 
 #define	XFS_MOUNT_ILOCK(mp)	mutex_lock(&((mp)->m_ilock))
 #define	XFS_MOUNT_IUNLOCK(mp)	mutex_unlock(&((mp)->m_ilock))
-#define	XFS_SB_LOCK(mp)		mutex_spinlock(&(mp)->m_sb_lock)
-#define	XFS_SB_UNLOCK(mp,s)	mutex_spinunlock(&(mp)->m_sb_lock,(s))
 
 extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
