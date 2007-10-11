@@ -10412,8 +10412,12 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 			tp->tg3_flags &= ~TG3_FLAG_EEPROM_WRITE_PROT;
 			tp->tg3_flags2 |= TG3_FLG2_IS_NIC;
 		}
-		if (tr32(VCPU_CFGSHDW) & VCPU_CFGSHDW_ASPM_DBNC)
+		val = tr32(VCPU_CFGSHDW);
+		if (val & VCPU_CFGSHDW_ASPM_DBNC)
 			tp->tg3_flags |= TG3_FLAG_ASPM_WORKAROUND;
+		if ((val & VCPU_CFGSHDW_WOL_ENABLE) &&
+		    (val & VCPU_CFGSHDW_WOL_MAGPKT))
+			tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
 		return;
 	}
 
@@ -10535,6 +10539,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		if (tp->tg3_flags2 & TG3_FLG2_ANY_SERDES &&
 		    !(nic_cfg & NIC_SRAM_DATA_CFG_FIBER_WOL))
 			tp->tg3_flags &= ~TG3_FLAG_WOL_CAP;
+
+		if (tp->tg3_flags & TG3_FLAG_WOL_CAP &&
+		    nic_cfg & NIC_SRAM_DATA_CFG_WOL_ENABLE)
+			tp->tg3_flags |= TG3_FLAG_WOL_ENABLE;
 
 		if (cfg2 & (1 << 17))
 			tp->tg3_flags2 |= TG3_FLG2_CAPACITIVE_COUPLING;
@@ -11453,11 +11461,6 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5752 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755)
 		tp->rx_std_max_post = 8;
-
-	/* By default, disable wake-on-lan.  User can change this
-	 * using ETHTOOL_SWOL.
-	 */
-	tp->tg3_flags &= ~TG3_FLAG_WOL_ENABLE;
 
 	if (tp->tg3_flags & TG3_FLAG_ASPM_WORKAROUND)
 		tp->pwrmgmt_thresh = tr32(PCIE_PWR_MGMT_THRESH) &
