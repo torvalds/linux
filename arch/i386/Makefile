@@ -65,7 +65,7 @@ mcore-y  := arch/x86/mach-default
 
 # Voyager subarch support
 mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-i386/mach-voyager
-mcore-$(CONFIG_X86_VOYAGER)	:= arch/i386/mach-voyager
+mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager
 
 # VISWS subarch support
 mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-i386/mach-visws
