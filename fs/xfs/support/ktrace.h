@@ -18,8 +18,6 @@
 #ifndef __XFS_SUPPORT_KTRACE_H__
 #define __XFS_SUPPORT_KTRACE_H__
 
-#include <spin.h>
-
 /*
  * Trace buffer entry structure.
  */

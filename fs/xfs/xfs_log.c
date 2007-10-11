@@ -1189,8 +1189,8 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
 	log->l_xbuf = bp;
 
-	spinlock_init(&log->l_icloglock, "iclog");
-	spinlock_init(&log->l_grant_lock, "grhead_iclog");
+	spin_lock_init(&log->l_icloglock);
+	spin_lock_init(&log->l_grant_lock);
 	initnsema(&log->l_flushsema, 0, "ic-flush");
 	xlog_state_ticket_alloc(log);  /* wait until after icloglock inited */
 

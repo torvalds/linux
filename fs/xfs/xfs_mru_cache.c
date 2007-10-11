@@ -368,7 +368,7 @@ xfs_mru_cache_create(
 	 */
 	INIT_RADIX_TREE(&mru->store, GFP_ATOMIC);
 	INIT_LIST_HEAD(&mru->reap_list);
-	spinlock_init(&mru->lock, "xfs_mru_cache");
+	spin_lock_init(&mru->lock);
 	INIT_DELAYED_WORK(&mru->work, _xfs_mru_cache_reap);
 
 	mru->grp_time  = grp_time;

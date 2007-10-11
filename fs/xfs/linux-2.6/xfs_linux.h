@@ -43,7 +43,6 @@
 
 #include <kmem.h>
 #include <mrlock.h>
-#include <spin.h>
 #include <sv.h>
 #include <mutex.h>
 #include <sema.h>
@@ -75,6 +74,7 @@
 #include <linux/notifier.h>
 #include <linux/delay.h>
 #include <linux/log2.h>
+#include <linux/spinlock.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -135,6 +135,8 @@
 		(*(sp) = current->flags, current->flags &= ~(f))
 #define current_restore_flags_nested(sp, f)	\
 		(current->flags = ((current->flags & ~(f)) | (*(sp) & (f))))
+
+#define spinlock_destroy(lock)
 
 #define NBPP		PAGE_SIZE
 #define NDPP		(1 << (PAGE_SHIFT - 9))

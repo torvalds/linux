@@ -68,7 +68,7 @@ xfs_init(void)
 	extern kmem_zone_t	*xfs_dabuf_zone;
 #ifdef XFS_DABUF_DEBUG
 	extern spinlock_t        xfs_dabuf_global_lock;
-	spinlock_init(&xfs_dabuf_global_lock, "xfsda");
+	spin_lock_init(&xfs_dabuf_global_lock);
 #endif
 
 	/*

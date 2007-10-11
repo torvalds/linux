@@ -136,8 +136,8 @@ xfs_mount_init(void)
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
 	}
 
-	spinlock_init(&mp->m_ail_lock, "xfs_ail");
-	spinlock_init(&mp->m_sb_lock, "xfs_sb");
+	spin_lock_init(&mp->m_ail_lock);
+	spin_lock_init(&mp->m_sb_lock);
 	mutex_init(&mp->m_ilock);
 	mutex_init(&mp->m_growlock);
 	/*
@@ -616,7 +616,7 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	int	i;
 
 	mp->m_agfrotor = mp->m_agirotor = 0;
-	spinlock_init(&mp->m_agirotor_lock, "m_agirotor_lock");
+	spin_lock_init(&mp->m_agirotor_lock);
 	mp->m_maxagi = mp->m_sb.sb_agcount;
 	mp->m_blkbit_log = sbp->sb_blocklog + XFS_NBBYLOG;
 	mp->m_blkbb_log = sbp->sb_blocklog - BBSHIFT;
@@ -1916,7 +1916,6 @@ xfs_icsb_cpu_notify(
 {
 	xfs_icsb_cnts_t *cntp;
 	xfs_mount_t	*mp;
-	int		s;
 
 	mp = (xfs_mount_t *)container_of(nfb, xfs_mount_t, m_icsb_notifier);
 	cntp = (xfs_icsb_cnts_t *)
@@ -2190,7 +2189,6 @@ xfs_icsb_sync_counters_flags(
 	int		flags)
 {
 	xfs_icsb_cnts_t	cnt;
-	int		s;
 
 	/* Pass 1: lock all counters */
 	if ((flags & XFS_ICSB_SB_LOCKED) == 0)
@@ -2248,7 +2246,6 @@ xfs_icsb_balance_counter(
 {
 	uint64_t	count, resid;
 	int		weight = num_online_cpus();
-	int		s;
 	uint64_t	min = (uint64_t)min_per_cpu;
 
 	if (!(flags & XFS_ICSB_SB_LOCKED))
@@ -2298,7 +2295,7 @@ xfs_icsb_modify_counters(
 {
 	xfs_icsb_cnts_t	*icsbp;
 	long long	lcounter;	/* long counter for 64 bit fields */
-	int		cpu, ret = 0, s;
+	int		cpu, ret = 0;
 
 	might_sleep();
 again:

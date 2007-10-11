@@ -17,7 +17,6 @@
  */
 #include <xfs.h>
 #include "debug.h"
-#include "spin.h"
 
 static char		message[1024];	/* keep it off the stack */
 static DEFINE_SPINLOCK(xfs_err_lock);
