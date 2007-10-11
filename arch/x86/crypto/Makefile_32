@@ -1,5 +1,5 @@
 # 
-# i386/crypto/Makefile 
+# x86/crypto/Makefile 
 # 
 # Arch-specific CryptoAPI modules.
 # 
