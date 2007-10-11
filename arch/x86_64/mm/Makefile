@@ -1,11 +1,5 @@
-#
-# Makefile for the linux x86_64-specific parts of the memory manager.
-#
-
-obj-y	 := init_64.o fault_64.o ioremap_64.o extable_64.o pageattr_64.o mmap_64.o
-obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
-obj-$(CONFIG_NUMA) += numa_64.o
-obj-$(CONFIG_K8_NUMA) += k8topology_64.o
-obj-$(CONFIG_ACPI_NUMA) += srat_64.o
-
-hugetlbpage-y = ../../i386/mm/hugetlbpage.o
+ifeq ($(CONFIG_X86_32),y)
+include ${srctree}/arch/i386/mm/Makefile_32
+else
+include ${srctree}/arch/x86_64/mm/Makefile_64
+endif
