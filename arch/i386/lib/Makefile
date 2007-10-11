@@ -6,6 +6,6 @@
 lib-y = checksum_32.o delay.o usercopy.o getuser.o putuser.o memcpy_32.o strstr_32.o \
 	bitops.o semaphore_32.o string_32.o
 
-lib-$(CONFIG_X86_USE_3DNOW) += mmx.o
+lib-$(CONFIG_X86_USE_3DNOW) += mmx_32.o
 
 obj-$(CONFIG_SMP)	+= msr-on-cpu.o
