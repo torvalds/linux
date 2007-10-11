@@ -1,14 +1,5 @@
-obj-y				:= i386.o init.o
-
-obj-$(CONFIG_PCI_BIOS)		+= pcbios.o
-obj-$(CONFIG_PCI_MMCONFIG)	+= mmconfig_32.o direct.o mmconfig-shared.o
-obj-$(CONFIG_PCI_DIRECT)	+= direct.o
-
-pci-y				:= fixup.o
-pci-$(CONFIG_ACPI)		+= acpi.o
-pci-y				+= legacy.o irq.o
-
-pci-$(CONFIG_X86_VISWS)		:= visws.o fixup.o
-pci-$(CONFIG_X86_NUMAQ)		:= numa.o irq.o
-
-obj-y				+= $(pci-y) common.o early.o
+ifeq ($(CONFIG_X86_32),y)
+include ${srctree}/arch/i386/pci/Makefile_32
+else
+include ${srctree}/arch/x86_64/pci/Makefile_64
+endif
