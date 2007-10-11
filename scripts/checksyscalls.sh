@@ -119,5 +119,5 @@ sed -n -e '/^\#define/ { s/[^_]*__NR_\([^[:space:]]*\).*/\
 \#endif/p }' $1
 }
 
-(ignore_list && syscall_list ${srctree}/include/asm-i386/unistd.h) | \
+(ignore_list && syscall_list ${srctree}/include/asm-x86/unistd_32.h) | \
 $* -E -x c - > /dev/null

@@ -3,7 +3,7 @@
 #include <asm/io.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
-#include <asm-i386/processor-cyrix.h>
+#include <asm/processor-cyrix.h>
 #include "mtrr.h"
 
 

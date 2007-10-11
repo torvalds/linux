@@ -71,32 +71,32 @@ CFLAGS += $(cflags-y)
 mcore-y  := arch/x86/mach-default
 
 # Voyager subarch support
-mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-i386/mach-voyager
+mflags-$(CONFIG_X86_VOYAGER)	:= -Iinclude/asm-x86/mach-voyager
 mcore-$(CONFIG_X86_VOYAGER)	:= arch/x86/mach-voyager
 
 # VISWS subarch support
-mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-i386/mach-visws
+mflags-$(CONFIG_X86_VISWS)	:= -Iinclude/asm-x86/mach-visws
 mcore-$(CONFIG_X86_VISWS)	:= arch/x86/mach-visws
 
 # NUMAQ subarch support
-mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-i386/mach-numaq
+mflags-$(CONFIG_X86_NUMAQ)	:= -Iinclude/asm-x86/mach-numaq
 mcore-$(CONFIG_X86_NUMAQ)	:= arch/x86/mach-default
 
 # BIGSMP subarch support
-mflags-$(CONFIG_X86_BIGSMP)	:= -Iinclude/asm-i386/mach-bigsmp
+mflags-$(CONFIG_X86_BIGSMP)	:= -Iinclude/asm-x86/mach-bigsmp
 mcore-$(CONFIG_X86_BIGSMP)	:= arch/x86/mach-default
 
 #Summit subarch support
-mflags-$(CONFIG_X86_SUMMIT) := -Iinclude/asm-i386/mach-summit
+mflags-$(CONFIG_X86_SUMMIT) := -Iinclude/asm-x86/mach-summit
 mcore-$(CONFIG_X86_SUMMIT)  := arch/x86/mach-default
 
 # generic subarchitecture
-mflags-$(CONFIG_X86_GENERICARCH) := -Iinclude/asm-i386/mach-generic
+mflags-$(CONFIG_X86_GENERICARCH) := -Iinclude/asm-x86/mach-generic
 mcore-$(CONFIG_X86_GENERICARCH) := arch/x86/mach-default
 core-$(CONFIG_X86_GENERICARCH) += arch/x86/mach-generic/
 
 # ES7000 subarch support
-mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-i386/mach-es7000
+mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-x86/mach-es7000
 mcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-default
 core-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
 
@@ -104,7 +104,7 @@ core-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
 core-$(CONFIG_XEN)		+= arch/x86/xen/
 
 # default subarch .h files
-mflags-y += -Iinclude/asm-i386/mach-default
+mflags-y += -Iinclude/asm-x86/mach-default
 
 head-y := arch/x86/kernel/head_32.o arch/x86/kernel/init_task_32.o
 

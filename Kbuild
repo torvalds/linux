@@ -8,7 +8,7 @@
 # 1) Generate asm-offsets.h
 #
 
-offsets-file := include/asm-$(ARCH)/asm-offsets.h
+offsets-file := include/asm-$(SRCARCH)/asm-offsets.h
 
 always  := $(offsets-file)
 targets := $(offsets-file)

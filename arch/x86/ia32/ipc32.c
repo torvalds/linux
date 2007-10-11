@@ -9,7 +9,7 @@
 #include <linux/ipc.h>
 #include <linux/compat.h>
 
-#include <asm-i386/ipc.h>
+#include <asm/ipc.h>
 
 asmlinkage long
 sys32_ipc(u32 call, int first, int second, int third,
