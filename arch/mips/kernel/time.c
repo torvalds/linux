@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/kallsyms.h>
 
 #include <asm/bootinfo.h>
 #include <asm/cache.h>
@@ -33,6 +34,7 @@
 #include <asm/cpu-features.h>
 #include <asm/div64.h>
 #include <asm/sections.h>
+#include <asm/smtc_ipi.h>
 #include <asm/time.h>
 
 #include <irq.h>
@@ -230,12 +232,24 @@ static int mips_next_event(unsigned long delta,
                            struct clock_event_device *evt)
 {
 	unsigned int cnt;
+	int res;
 
+#ifdef CONFIG_MIPS_MT_SMTC
+	{
+	unsigned long flags, vpflags;
+	local_irq_save(flags);
+	vpflags = dvpe();
+#endif
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-
-	return ((long)(read_c0_count() - cnt ) > 0) ? -ETIME : 0;
+	res = ((long)(read_c0_count() - cnt ) > 0) ? -ETIME : 0;
+#ifdef CONFIG_MIPS_MT_SMTC
+	evpe(vpflags);
+	local_irq_restore(flags);
+	}
+#endif
+	return res;
 }
 
 static void mips_set_mode(enum clock_event_mode mode,
@@ -244,9 +258,7 @@ static void mips_set_mode(enum clock_event_mode mode,
 	/* Nothing to do ...  */
 }
 
-struct clock_event_device mips_clockevent;
-
-static struct clock_event_device *global_cd[NR_CPUS];
+static DEFINE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 static int cp0_timer_irq_installed;
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
@@ -271,7 +283,12 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 */
 	if (!r2 || (read_c0_cause() & (1 << 30))) {
 		c0_timer_ack();
-		cd = global_cd[cpu];
+#ifdef CONFIG_MIPS_MT_SMTC
+		if (cpu_data[cpu].vpe_id)
+			goto out;
+		cpu = 0;
+#endif
+		cd = &per_cpu(mips_clockevent_device, cpu);
 		cd->event_handler(cd);
 	}
 
@@ -281,7 +298,11 @@ out:
 
 static struct irqaction timer_irqaction = {
 	.handler = timer_interrupt,
+#ifdef CONFIG_MIPS_MT_SMTC
+	.flags = IRQF_DISABLED,
+#else
 	.flags = IRQF_DISABLED | IRQF_PERCPU,
+#endif
 	.name = "timer",
 };
 
@@ -316,6 +337,60 @@ void __init __weak plat_timer_setup(struct irqaction *irq)
 {
 }
 
+#ifdef CONFIG_MIPS_MT_SMTC
+DEFINE_PER_CPU(struct clock_event_device, smtc_dummy_clockevent_device);
+
+static void smtc_set_mode(enum clock_event_mode mode,
+                          struct clock_event_device *evt)
+{
+}
+
+int dummycnt[NR_CPUS];
+
+static void mips_broadcast(cpumask_t mask)
+{
+	unsigned int cpu;
+
+	for_each_cpu_mask(cpu, mask)
+		smtc_send_ipi(cpu, SMTC_CLOCK_TICK, 0);
+}
+
+static void setup_smtc_dummy_clockevent_device(void)
+{
+	//uint64_t mips_freq = mips_hpt_^frequency;
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *cd;
+
+	cd = &per_cpu(smtc_dummy_clockevent_device, cpu);
+
+	cd->name		= "SMTC";
+	cd->features		= CLOCK_EVT_FEAT_DUMMY;
+
+	/* Calculate the min / max delta */
+	cd->mult	= 0; //div_sc((unsigned long) mips_freq, NSEC_PER_SEC, 32);
+	cd->shift		= 0; //32;
+	cd->max_delta_ns	= 0; //clockevent_delta2ns(0x7fffffff, cd);
+	cd->min_delta_ns	= 0; //clockevent_delta2ns(0x30, cd);
+
+	cd->rating		= 200;
+	cd->irq			= 17; //-1;
+//	if (cpu)
+//		cd->cpumask	= CPU_MASK_ALL; // cpumask_of_cpu(cpu);
+//	else
+		cd->cpumask	= cpumask_of_cpu(cpu);
+
+	cd->set_mode		= smtc_set_mode;
+
+	cd->broadcast		= mips_broadcast;
+
+	clockevents_register_device(cd);
+}
+#endif
+
+static void mips_event_handler(struct clock_event_device *dev)
+{
+}
+
 void __cpuinit mips_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
@@ -326,12 +401,18 @@ void __cpuinit mips_clockevent_init(void)
 	if (!cpu_has_counter)
 		return;
 
-	if (cpu == 0)
-		cd = &mips_clockevent;
-	else
-		cd = kzalloc(sizeof(*cd), GFP_ATOMIC);
-	if (!cd)
-		return;		/* We're probably roadkill ...  */
+#ifdef CONFIG_MIPS_MT_SMTC
+	setup_smtc_dummy_clockevent_device();
+
+	/*
+	 * On SMTC we only register VPE0's compare interrupt as clockevent
+	 * device.
+	 */
+	if (cpu)
+		return;
+#endif
+
+	cd = &per_cpu(mips_clockevent_device, cpu);
 
 	cd->name		= "MIPS";
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
@@ -344,11 +425,15 @@ void __cpuinit mips_clockevent_init(void)
 
 	cd->rating		= 300;
 	cd->irq			= irq;
+#ifdef CONFIG_MIPS_MT_SMTC
+	cd->cpumask		= CPU_MASK_ALL;
+#else
 	cd->cpumask		= cpumask_of_cpu(cpu);
+#endif
 	cd->set_next_event	= mips_next_event;
 	cd->set_mode		= mips_set_mode;
+	cd->event_handler	= mips_event_handler;
 
-	global_cd[cpu] = cd;
 	clockevents_register_device(cd);
 
 	if (!cp0_timer_irq_installed) {

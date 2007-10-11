@@ -55,7 +55,6 @@ unsigned long cpu_khz;
 
 static int mips_cpu_timer_irq;
 extern int cp0_perfcount_irq;
-extern void smtc_timer_broadcast(void);
 
 static void mips_timer_dispatch(void)
 {
