@@ -537,6 +537,10 @@ extern struct kvm_x86_ops *kvm_x86_ops;
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id);
 void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 
+void vcpu_load(struct kvm_vcpu *vcpu);
+void vcpu_put(struct kvm_vcpu *vcpu);
+
+
 int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		  struct module *module);
 void kvm_exit_x86(void);
@@ -655,6 +659,11 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);
+long kvm_arch_vcpu_ioctl(struct file *filp,
+			 unsigned int ioctl, unsigned long arg);
+void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
+
 __init void kvm_arch_init(void);
 
 static inline void kvm_guest_enter(void)
