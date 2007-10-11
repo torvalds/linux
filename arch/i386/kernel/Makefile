@@ -31,7 +31,7 @@ obj-$(CONFIG_X86_NUMAQ)		+= numaq.o
 obj-$(CONFIG_X86_SUMMIT_NUMA)	+= summit.o
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_MODULES)		+= module_32.o
-obj-y				+= sysenter.o vsyscall.o
+obj-y				+= sysenter.o vsyscall_32.o
 obj-$(CONFIG_ACPI_SRAT) 	+= srat_32.o
 obj-$(CONFIG_EFI) 		+= efi_32.o efi_stub_32.o
 obj-$(CONFIG_DOUBLEFAULT) 	+= doublefault.o
@@ -47,10 +47,10 @@ obj-y				+= pcspeaker.o
 
 obj-$(CONFIG_SCx200)		+= scx200.o
 
-# vsyscall.o contains the vsyscall DSO images as __initdata.
+# vsyscall_32.o contains the vsyscall DSO images as __initdata.
 # We must build both images before we can assemble it.
 # Note: kbuild does not track this dependency due to usage of .incbin
-$(obj)/vsyscall.o: $(obj)/vsyscall-int80.so $(obj)/vsyscall-sysenter.so
+$(obj)/vsyscall_32.o: $(obj)/vsyscall-int80.so $(obj)/vsyscall-sysenter.so
 targets += $(foreach F,int80 sysenter,vsyscall-$F.o vsyscall-$F.so)
 targets += vsyscall-note.o vsyscall_32.lds
 
