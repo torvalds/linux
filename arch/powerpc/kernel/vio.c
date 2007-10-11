@@ -49,11 +49,8 @@ static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 };
 
 #ifdef CONFIG_PPC_ISERIES
-struct device *iSeries_vio_dev = &vio_bus_device.dev;
-EXPORT_SYMBOL(iSeries_vio_dev);
-
 static struct iommu_table veth_iommu_table;
-static struct iommu_table vio_iommu_table;
+struct iommu_table vio_iommu_table;
 
 static void __init iommu_vio_init(void)
 {
@@ -66,8 +63,6 @@ static void __init iommu_vio_init(void)
 		printk("Virtual Bus VETH TCE table failed.\n");
 	if (!iommu_init_table(&vio_iommu_table, -1))
 		printk("Virtual Bus VIO TCE table failed.\n");
-	vio_bus_device.dev.archdata.dma_ops = &dma_iommu_ops;
-	vio_bus_device.dev.archdata.dma_data = &vio_iommu_table;
 }
 #else
 static void __init iommu_vio_init(void)

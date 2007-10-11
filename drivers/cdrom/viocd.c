@@ -220,7 +220,7 @@ static void __init get_viocd_info(void)
 	struct cdrom_info *viocd_unitinfo;
 	dma_addr_t unitinfo_dmaaddr;
 
-	viocd_unitinfo = dma_alloc_coherent(iSeries_vio_dev,
+	viocd_unitinfo = iseries_hv_alloc(
 			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
 			&unitinfo_dmaaddr, GFP_ATOMIC);
 	if (viocd_unitinfo == NULL) {
@@ -262,8 +262,7 @@ static void __init get_viocd_info(void)
 	}
 
 error_ret:
-	dma_free_coherent(iSeries_vio_dev,
-			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
+	iseries_hv_free(sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
 			viocd_unitinfo, unitinfo_dmaaddr);
 }
 

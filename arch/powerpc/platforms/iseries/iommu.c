@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/pci.h>
+#include <linux/module.h>
 
 #include <asm/iommu.h>
 #include <asm/tce.h>
@@ -36,6 +37,7 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/iommu.h>
 
 static void tce_build_iSeries(struct iommu_table *tbl, long index, long npages,
@@ -188,6 +190,34 @@ void iommu_devnode_init_iSeries(struct pci_dev *pdev, struct device_node *dn)
 	pdev->dev.archdata.dma_data = pdn->iommu_table;
 }
 #endif
+
+extern struct iommu_table vio_iommu_table;
+
+void *iseries_hv_alloc(size_t size, dma_addr_t *dma_handle, gfp_t flag)
+{
+	return iommu_alloc_coherent(&vio_iommu_table, size, dma_handle,
+				DMA_32BIT_MASK, flag, -1);
+}
+EXPORT_SYMBOL_GPL(iseries_hv_alloc);
+
+void iseries_hv_free(size_t size, void *vaddr, dma_addr_t dma_handle)
+{
+	iommu_free_coherent(&vio_iommu_table, size, vaddr, dma_handle);
+}
+EXPORT_SYMBOL_GPL(iseries_hv_free);
+
+dma_addr_t iseries_hv_map(void *vaddr, size_t size,
+			enum dma_data_direction direction)
+{
+	return iommu_map_single(&vio_iommu_table, vaddr, size,
+				DMA_32BIT_MASK, direction);
+}
+
+void iseries_hv_unmap(dma_addr_t dma_handle, size_t size,
+			enum dma_data_direction direction)
+{
+	iommu_unmap_single(&vio_iommu_table, dma_handle, size, direction);
+}
 
 void iommu_init_early_iSeries(void)
 {

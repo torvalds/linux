@@ -150,8 +150,4 @@ enum viochar_rc {
 	viochar_rc_ebusy = 1
 };
 
-struct device;
-
-extern struct device *iSeries_vio_dev;
-
 #endif /* _ASM_POWERPC_ISERIES_VIO_H */

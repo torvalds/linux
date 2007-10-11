@@ -124,8 +124,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	if (!buf)
 		return 0;
 
-	handle = dma_map_single(iSeries_vio_dev, buf, HW_PAGE_SIZE,
-				DMA_FROM_DEVICE);
+	handle = iseries_hv_map(buf, HW_PAGE_SIZE, DMA_FROM_DEVICE);
 
 	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
 			HvLpEvent_Type_VirtualIo,
@@ -146,8 +145,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	buf[HW_PAGE_SIZE-1] = '\0';
 	seq_printf(m, "%s", buf);
 
-	dma_unmap_single(iSeries_vio_dev, handle, HW_PAGE_SIZE,
-			 DMA_FROM_DEVICE);
+	iseries_hv_unmap(handle, HW_PAGE_SIZE, DMA_FROM_DEVICE);
 	kfree(buf);
 
 	seq_printf(m, "AVAILABLE_VETH=%x\n", vlanMap);

@@ -392,8 +392,8 @@ static int get_viotape_info(void)
 	if (op == NULL)
 		return -ENOMEM;
 
-	viotape_unitinfo = dma_alloc_coherent(iSeries_vio_dev, len,
-		&viotape_unitinfo_token, GFP_ATOMIC);
+	viotape_unitinfo = iseries_hv_alloc(len, &viotape_unitinfo_token,
+		GFP_ATOMIC);
 	if (viotape_unitinfo == NULL) {
 		free_op_struct(op);
 		return -ENOMEM;
@@ -1103,8 +1103,7 @@ static void __exit viotap_exit(void)
 	class_destroy(tape_class);
 	unregister_chrdev(VIOTAPE_MAJOR, "viotape");
 	if (viotape_unitinfo)
-		dma_free_coherent(iSeries_vio_dev,
-				sizeof(viotape_unitinfo[0]) * VIOTAPE_MAX_TAPE,
+		iseries_hv_free(sizeof(viotape_unitinfo[0]) * VIOTAPE_MAX_TAPE,
 				viotape_unitinfo, viotape_unitinfo_token);
 	viopath_close(viopath_hostLp, viomajorsubtype_tape, VIOTAPE_MAXREQ + 2);
 	vio_clearHandler(viomajorsubtype_tape);
