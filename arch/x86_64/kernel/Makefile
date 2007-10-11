@@ -7,7 +7,7 @@ EXTRA_AFLAGS	:= -traditional
 obj-y	:= process.o signal.o entry.o traps_64.o irq.o \
 		ptrace.o time.o ioport.o ldt.o setup.o i8259_64.o sys_x86_64.o \
 		x8664_ksyms.o i387.o syscall.o vsyscall.o \
-		setup64.o bootflag.o e820.o reboot.o quirks.o i8237.o \
+		setup64.o bootflag.o e820_64.o reboot.o quirks.o i8237.o \
 		pci-dma_64.o pci-nommu.o alternative.o hpet_64.o tsc.o bugs.o \
 		perfctr-watchdog.o
 
