@@ -22,7 +22,6 @@
 struct smatch {
 	char *arcname;
 	char *liname;
-	int group;
 	int type;
 	int flags;
 };
@@ -31,49 +30,41 @@ static struct smatch mach_table[] = {
 	{
 		.arcname	= "SGI-IP22",
 		.liname		= "SGI Indy",
-		.group		= MACH_GROUP_SGI,
 		.type		= MACH_SGI_IP22,
 		.flags		= PROM_FLAG_ARCS,
 	}, {
 		.arcname	= "SGI-IP27",
 		.liname		= "SGI Origin",
-		.group		= MACH_GROUP_SGI,
 		.type		= MACH_SGI_IP27,
 		.flags		= PROM_FLAG_ARCS,
 	}, {
 		.arcname	= "SGI-IP28",
 		.liname		= "SGI IP28",
-		.group		= MACH_GROUP_SGI,
 		.type		= MACH_SGI_IP28,
 		.flags		= PROM_FLAG_ARCS,
 	}, {
 		.arcname	= "SGI-IP30",
 		.liname		= "SGI Octane",
-		.group		= MACH_GROUP_SGI,
 		.type		= MACH_SGI_IP30,
 		.flags		= PROM_FLAG_ARCS,
 	}, {
 		.arcname	= "SGI-IP32",
 		.liname		= "SGI O2",
-		.group		= MACH_GROUP_SGI,
 		.type		= MACH_SGI_IP32,
 		.flags		= PROM_FLAG_ARCS,
 	}, {
 		.arcname	= "Microsoft-Jazz",
 		.liname		= "Jazz MIPS_Magnum_4000",
-		.group		= MACH_GROUP_JAZZ,
 		.type		= MACH_MIPS_MAGNUM_4000,
 		.flags		= 0,
 	}, {
 		.arcname	= "PICA-61",
 		.liname		= "Jazz Acer_PICA_61",
-		.group		= MACH_GROUP_JAZZ,
 		.type		= MACH_ACER_PICA_61,
 		.flags		= 0,
 	}, {
 		.arcname	= "RM200PCI",
 		.liname		= "SNI RM200_PCI",
-		.group		= MACH_GROUP_SNI_RM,
 		.type		= MACH_SNI_RM200_PCI,
 		.flags		= PROM_FLAG_DONT_FREE_TEMP,
 	}
@@ -125,7 +116,6 @@ void __init prom_identify_arch(void)
 	mach = string_to_mach(iname);
 	system_type = mach->liname;
 
-	mips_machgroup = mach->group;
 	mips_machtype = mach->type;
 	prom_flags = mach->flags;
 }

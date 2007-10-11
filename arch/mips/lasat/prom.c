@@ -100,8 +100,6 @@ void __init prom_init(void)
 
 	lasat_init_board_info();		/* Read info from EEPROM */
 
-	mips_machgroup = MACH_GROUP_LASAT;
-
 	/* Get the command line */
 	if (argc > 0) {
 		strncpy(arcs_cmdline, argv[0], CL_SIZE-1);

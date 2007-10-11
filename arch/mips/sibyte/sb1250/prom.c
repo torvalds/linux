@@ -83,7 +83,6 @@ void __init prom_init(void)
 
 	strcpy(arcs_cmdline, "root=/dev/ram0 ");
 
-	mips_machgroup = MACH_GROUP_SIBYTE;
 	prom_meminit();
 }
 

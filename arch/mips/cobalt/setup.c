@@ -114,8 +114,6 @@ void __init prom_init(void)
 	unsigned long memsz;
 	char **argv;
 
-	mips_machgroup = MACH_GROUP_COBALT;
-
 	memsz = fw_arg0 & 0x7fff0000;
 	narg = fw_arg0 & 0x0000ffff;
 

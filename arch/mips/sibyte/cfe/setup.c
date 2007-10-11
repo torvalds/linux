@@ -339,7 +339,6 @@ void __init prom_init(void)
 	/* Not sure this is needed, but it's the safe way. */
 	arcs_cmdline[CL_SIZE-1] = 0;
 
-	mips_machgroup = MACH_GROUP_SIBYTE;
 	prom_meminit();
 }
 
