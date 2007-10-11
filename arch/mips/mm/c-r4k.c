@@ -328,7 +328,7 @@ static inline void local_r4k___flush_cache_all(void * args)
 	r4k_blast_dcache();
 	r4k_blast_icache();
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000SC:
 	case CPU_R4000MC:
 	case CPU_R4400SC:
@@ -377,10 +377,10 @@ static inline void local_r4k_flush_cache_mm(void * args)
 	 * R4000SC and R4400SC indexed S-cache ops also invalidate primary
 	 * caches, so we can bail out early.
 	 */
-	if (current_cpu_data.cputype == CPU_R4000SC ||
-	    current_cpu_data.cputype == CPU_R4000MC ||
-	    current_cpu_data.cputype == CPU_R4400SC ||
-	    current_cpu_data.cputype == CPU_R4400MC) {
+	if (current_cpu_type() == CPU_R4000SC ||
+	    current_cpu_type() == CPU_R4000MC ||
+	    current_cpu_type() == CPU_R4400SC ||
+	    current_cpu_type() == CPU_R4400MC) {
 		r4k_blast_scache();
 		return;
 	}
@@ -1197,7 +1197,7 @@ static void __init coherency_setup(void)
 	 * this bit and; some wire it to zero, others like Toshiba had the
 	 * silly idea of putting something else there ...
 	 */
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:

@@ -62,7 +62,7 @@ static inline void software_reset(void)
 {
 	uint16_t pmucnt2;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4122:
 	case CPU_VR4131:
 	case CPU_VR4133:
@@ -98,7 +98,7 @@ static int __init vr41xx_pmu_init(void)
 {
 	unsigned long start, size;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121:
 		start = PMU_TYPE1_BASE;

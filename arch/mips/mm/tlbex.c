@@ -827,7 +827,7 @@ static __initdata u32 final_handler[64];
  */
 static __init void __maybe_unused build_tlb_probe_entry(u32 **p)
 {
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	/* Found by experiment: R4600 v2.0 needs this, too.  */
 	case CPU_R4600:
 	case CPU_R5000:
@@ -860,7 +860,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case tlb_indexed: tlbw = i_tlbwi; break;
 	}
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
@@ -1158,7 +1158,7 @@ static __init void build_adjust_context(u32 **p, unsigned int ctx)
 	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR41XX:
 	case CPU_VR4111:
 	case CPU_VR4121:
@@ -1188,7 +1188,7 @@ static __init void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 	 * in a different cacheline or a load instruction, probably any
 	 * memory reference, is between them.
 	 */
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_NEVADA:
 		i_LW(p, ptr, 0, ptr);
 		GET_CONTEXT(p, tmp); /* get context reg */
@@ -1872,7 +1872,7 @@ void __init build_tlb_refill_handler(void)
 	 */
 	static int run_once = 0;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R2000:
 	case CPU_R3000:
 	case CPU_R3000A:

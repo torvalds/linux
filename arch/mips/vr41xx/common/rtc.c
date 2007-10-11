@@ -82,7 +82,7 @@ static int __init vr41xx_rtc_add(void)
 	if (!pdev)
 		return -ENOMEM;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121:
 		res = rtc_type1_resource;

@@ -354,7 +354,7 @@ void __init build_clear_page(void)
 	store_offset = 0;
 
 	if (cpu_has_prefetch) {
-		switch (current_cpu_data.cputype) {
+		switch (current_cpu_type()) {
 		case CPU_TX49XX:
 			/* TX49 supports only Pref_Load */
 			pref_offset_clear = 0;

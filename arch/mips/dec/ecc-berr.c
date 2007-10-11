@@ -263,7 +263,7 @@ static inline void dec_kn03_be_init(void)
 	 */
 	*mcr = (*mcr & ~(KN03_MCR_DIAGCHK | KN03_MCR_DIAGGEN)) |
 	       KN03_MCR_CORRECT;
-	if (current_cpu_data.cputype == CPU_R4400SC)
+	if (current_cpu_type() == CPU_R4400SC)
 		*mbcs |= KN4K_MB_CSR_EE;
 	fast_iob();
 }

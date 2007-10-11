@@ -132,7 +132,7 @@ void __init dec_kn02xa_be_init(void)
 	volatile u32 *mbcs = (void *)CKSEG1ADDR(KN4K_SLOT_BASE + KN4K_MB_CSR);
 
         /* For KN04 we need to make sure EE (?) is enabled in the MB.  */
-        if (current_cpu_data.cputype == CPU_R4000SC)
+        if (current_cpu_type() == CPU_R4000SC)
 		*mbcs |= KN4K_MB_CSR_EE;
 	fast_iob();
 
