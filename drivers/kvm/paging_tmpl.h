@@ -268,11 +268,11 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 
 		spte |= PT_WRITABLE_MASK;
 		if (user_fault) {
-			mmu_unshadow(vcpu, gfn);
+			mmu_unshadow(vcpu->kvm, gfn);
 			goto unshadowed;
 		}
 
-		shadow = kvm_mmu_lookup_page(vcpu, gfn);
+		shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
 		if (shadow) {
 			pgprintk("%s: found shadow page for %lx, marking ro\n",
 				 __FUNCTION__, gfn);

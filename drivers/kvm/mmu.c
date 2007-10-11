@@ -606,7 +606,7 @@ static void mmu_page_remove_parent_pte(struct kvm_mmu_page *page,
 	BUG();
 }
 
-static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm_vcpu *vcpu,
+static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm,
 						gfn_t gfn)
 {
 	unsigned index;
@@ -616,7 +616,7 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm_vcpu *vcpu,
 
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &vcpu->kvm->mmu_page_hash[index];
+	bucket = &kvm->mmu_page_hash[index];
 	hlist_for_each_entry(page, node, bucket, hash_link)
 		if (page->gfn == gfn && !page->role.metaphysical) {
 			pgprintk("%s: found role %x\n",
@@ -782,7 +782,7 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 	kvm->n_alloc_mmu_pages = kvm_nr_mmu_pages;
 }
 
-static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
+static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 {
 	unsigned index;
 	struct hlist_head *bucket;
@@ -793,25 +793,25 @@ static int kvm_mmu_unprotect_page(struct kvm_vcpu *vcpu, gfn_t gfn)
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
 	r = 0;
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &vcpu->kvm->mmu_page_hash[index];
+	bucket = &kvm->mmu_page_hash[index];
 	hlist_for_each_entry_safe(page, node, n, bucket, hash_link)
 		if (page->gfn == gfn && !page->role.metaphysical) {
 			pgprintk("%s: gfn %lx role %x\n", __FUNCTION__, gfn,
 				 page->role.word);
-			kvm_mmu_zap_page(vcpu->kvm, page);
+			kvm_mmu_zap_page(kvm, page);
 			r = 1;
 		}
 	return r;
 }
 
-static void mmu_unshadow(struct kvm_vcpu *vcpu, gfn_t gfn)
+static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_mmu_page *page;
 
-	while ((page = kvm_mmu_lookup_page(vcpu, gfn)) != NULL) {
+	while ((page = kvm_mmu_lookup_page(kvm, gfn)) != NULL) {
 		pgprintk("%s: zap %lx %x\n",
 			 __FUNCTION__, gfn, page->role.word);
-		kvm_mmu_zap_page(vcpu->kvm, page);
+		kvm_mmu_zap_page(kvm, page);
 	}
 }
 
@@ -1299,7 +1299,7 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, gva);
 
-	return kvm_mmu_unprotect_page(vcpu, gpa >> PAGE_SHIFT);
+	return kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);
 }
 
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
