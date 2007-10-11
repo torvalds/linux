@@ -4,7 +4,7 @@
 # create a compressed vmlinux image from the original vmlinux
 #
 
-targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc.o piggy.o
+targets		:= vmlinux vmlinux.bin vmlinux.bin.gz head.o misc_64.o piggy.o
 
 CFLAGS := -m64 -D__KERNEL__ $(LINUXINCLUDE) -O2  \
 	  -fno-strict-aliasing -fPIC -mcmodel=small \
@@ -14,7 +14,7 @@ AFLAGS  := $(CFLAGS) -D__ASSEMBLY__
 LDFLAGS := -m elf_x86_64
 
 LDFLAGS_vmlinux := -T
-$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc.o $(obj)/piggy.o FORCE
+$(obj)/vmlinux: $(src)/vmlinux.lds $(obj)/head.o $(obj)/misc_64.o $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
 	@:
 
