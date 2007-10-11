@@ -5,11 +5,23 @@
 #ifdef __KERNEL__
 
 struct pci_sysdata {
+	int		domain;		/* PCI domain */
 	int		node;		/* NUMA node */
 };
 
 /* scan a bus after allocating a pci_sysdata for it */
 extern struct pci_bus *pci_scan_bus_with_sysdata(int busno);
+
+static inline int pci_domain_nr(struct pci_bus *bus)
+{
+	struct pci_sysdata *sd = bus->sysdata;
+	return sd->domain;
+}
+
+static inline int pci_proc_domain(struct pci_bus *bus)
+{
+	return pci_domain_nr(bus);
+}
 
 #include <linux/mm.h>		/* for struct page */
 

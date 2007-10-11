@@ -189,6 +189,12 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 
 	dmi_check_system(acpi_pciprobe_dmi_table);
 
+	if (domain && !pci_domains_supported) {
+		printk(KERN_WARNING "PCI: Multiple domains not supported "
+		       "(dom %d, bus %d)\n", domain, busnum);
+		return NULL;
+	}
+
 	/* Allocate per-root-bus (not per bus) arch-specific data.
 	 * TODO: leak; this memory is never freed.
 	 * It's arguable whether it's worth the trouble to care.
@@ -199,12 +205,7 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_device *device, int do
 		return NULL;
 	}
 
-	if (domain != 0) {
-		printk(KERN_WARNING "PCI: Multiple domains not supported\n");
-		kfree(sd);
-		return NULL;
-	}
-
+	sd->domain = domain;
 	sd->node = -1;
 
 	pxm = acpi_get_pxm(device->handle);
