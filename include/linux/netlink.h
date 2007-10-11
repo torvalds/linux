@@ -194,7 +194,7 @@ struct sock *netlink_getsockbyfilp(struct file *filp);
 int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock,
 		long timeo, struct sock *ssk);
 void netlink_detachskb(struct sock *sk, struct sk_buff *skb);
-int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol);
+int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.

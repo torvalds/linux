@@ -791,7 +791,7 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock,
 	return 0;
 }
 
-int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol)
+int netlink_sendskb(struct sock *sk, struct sk_buff *skb)
 {
 	int len = skb->len;
 
@@ -853,7 +853,7 @@ retry:
 	if (err)
 		return err;
 
-	return netlink_sendskb(sk, skb, ssk->sk_protocol);
+	return netlink_sendskb(sk, skb);
 }
 
 int netlink_has_listeners(struct sock *sk, unsigned int group)
