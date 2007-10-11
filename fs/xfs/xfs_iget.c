@@ -199,12 +199,9 @@ again:
 		XFS_STATS_INC(xs_ig_found);
 
 finish_inode:
-		if (ip->i_d.di_mode == 0) {
-			if (!(flags & XFS_IGET_CREATE)) {
-				xfs_put_perag(mp, pag);
-				return ENOENT;
-			}
-			xfs_iocore_inode_reinit(ip);
+		if (ip->i_d.di_mode == 0 && !(flags & XFS_IGET_CREATE)) {
+			xfs_put_perag(mp, pag);
+			return ENOENT;
 		}
 
 		if (lock_flags != 0)
@@ -235,7 +232,6 @@ finish_inode:
 	xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
 	xfs_inode_lock_init(ip, vp);
-	xfs_iocore_inode_init(ip);
 	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
 
@@ -330,9 +326,6 @@ finish_inode:
  return_ip:
 	ASSERT(ip->i_df.if_ext_max ==
 	       XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t));
-
-	ASSERT(((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) != 0) ==
-	       ((ip->i_iocore.io_flags & XFS_IOCORE_RT) != 0));
 
 	xfs_iflags_set(ip, XFS_IMODIFIED);
 	*ipp = ip;

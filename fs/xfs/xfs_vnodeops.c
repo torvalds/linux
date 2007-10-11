@@ -804,12 +804,8 @@ xfs_setattr(
 				if (vap->va_xflags & XFS_XFLAG_EXTSZINHERIT)
 					di_flags |= XFS_DIFLAG_EXTSZINHERIT;
 			} else if ((ip->i_d.di_mode & S_IFMT) == S_IFREG) {
-				if (vap->va_xflags & XFS_XFLAG_REALTIME) {
+				if (vap->va_xflags & XFS_XFLAG_REALTIME)
 					di_flags |= XFS_DIFLAG_REALTIME;
-					ip->i_iocore.io_flags |= XFS_IOCORE_RT;
-				} else {
-					ip->i_iocore.io_flags &= ~XFS_IOCORE_RT;
-				}
 				if (vap->va_xflags & XFS_XFLAG_EXTSIZE)
 					di_flags |= XFS_DIFLAG_EXTSIZE;
 			}
@@ -3633,8 +3629,8 @@ xfs_set_dmattrs(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-	ip->i_iocore.io_dmevmask = ip->i_d.di_dmevmask = evmask;
-	ip->i_iocore.io_dmstate  = ip->i_d.di_dmstate  = state;
+	ip->i_d.di_dmevmask = evmask;
+	ip->i_d.di_dmstate  = state;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	IHOLD(ip);
@@ -4172,7 +4168,7 @@ xfs_free_file_space(
 	ioffset = offset & ~(rounding - 1);
 
 	if (VN_CACHED(vp) != 0) {
-		xfs_inval_cached_trace(&ip->i_iocore, ioffset, -1,
+		xfs_inval_cached_trace(ip, ioffset, -1,
 				ctooff(offtoct(ioffset)), -1);
 		error = xfs_flushinval_pages(ip,
 				ctooff(offtoct(ioffset)),

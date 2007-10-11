@@ -199,7 +199,7 @@ xfs_swap_extents(
 	}
 
 	if (VN_CACHED(tvp) != 0) {
-		xfs_inval_cached_trace(&tip->i_iocore, 0, -1, 0, -1);
+		xfs_inval_cached_trace(tip, 0, -1, 0, -1);
 		error = xfs_flushinval_pages(tip, 0, -1,
 				FI_REMAPF_LOCKED);
 		if (error)

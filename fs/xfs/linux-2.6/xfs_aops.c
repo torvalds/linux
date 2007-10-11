@@ -163,7 +163,7 @@ xfs_destroy_ioend(
 /*
  * Update on-disk file size now that data has been written to disk.
  * The current in-memory file size is i_size.  If a write is beyond
- * eof io_new_size will be the intended file size until i_size is
+ * eof i_new_size will be the intended file size until i_size is
  * updated.  If this write does not extend all the way to the valid
  * file size then restrict this update to the end of the write.
  */
@@ -185,7 +185,7 @@ xfs_setfilesize(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
-	isize = MAX(ip->i_size, ip->i_iocore.io_new_size);
+	isize = MAX(ip->i_size, ip->i_new_size);
 	isize = MIN(isize, bsize);
 
 	if (ip->i_d.di_size < isize) {

@@ -132,45 +132,6 @@ typedef struct dm_attrs_s {
 	__uint16_t	da_pad;		/* DMIG extra padding */
 } dm_attrs_t;
 
-typedef struct xfs_iocore {
-	void			*io_obj;	/* pointer to container
-						 * inode or dcxvn structure */
-	struct xfs_mount	*io_mount;	/* fs mount struct ptr */
-#ifdef DEBUG
-	mrlock_t		*io_lock;	/* inode IO lock */
-	mrlock_t		*io_iolock;	/* inode IO lock */
-#endif
-
-	/* I/O state */
-	xfs_fsize_t		io_new_size;	/* sz when write completes */
-
-	/* Miscellaneous state. */
-	unsigned int		io_flags;	/* IO related flags */
-
-	/* DMAPI state */
-	dm_attrs_t		io_dmattrs;
-
-} xfs_iocore_t;
-
-#define        io_dmevmask     io_dmattrs.da_dmevmask
-#define        io_dmstate      io_dmattrs.da_dmstate
-
-#define XFS_IO_INODE(io)	((xfs_inode_t *) ((io)->io_obj))
-#define XFS_IO_DCXVN(io)	((dcxvn_t *) ((io)->io_obj))
-
-/*
- * Flags in the flags field
- */
-
-#define XFS_IOCORE_RT		0x1
-
-/*
- * xfs_iocore prototypes
- */
-
-extern void xfs_iocore_inode_init(struct xfs_inode *);
-extern void xfs_iocore_inode_reinit(struct xfs_inode *);
-
 /*
  * This is the xfs inode cluster structure.  This structure is used by
  * xfs_iflush to find inodes that share a cluster and can be flushed to disk at
@@ -283,9 +244,6 @@ typedef struct xfs_inode {
 	struct xfs_inode	**i_refcache;	/* ptr to entry in ref cache */
 	struct xfs_inode	*i_release;	/* inode to unref */
 #endif
-	/* I/O state */
-	xfs_iocore_t		i_iocore;	/* I/O core */
-
 	/* Miscellaneous state. */
 	unsigned short		i_flags;	/* see defined flags below */
 	unsigned char		i_update_core;	/* timestamps/size is dirty */
@@ -298,6 +256,7 @@ typedef struct xfs_inode {
 	struct hlist_node	i_cnode;	/* cluster link node */
 
 	xfs_fsize_t		i_size;		/* in-memory size */
+	xfs_fsize_t		i_new_size;	/* size when write completes */
 	atomic_t		i_iocount;	/* outstanding I/O count */
 	/* Trace buffers per inode. */
 #ifdef XFS_INODE_TRACE

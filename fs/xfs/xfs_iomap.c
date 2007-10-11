@@ -57,8 +57,6 @@ xfs_iomap_enter_trace(
 	xfs_off_t	offset,
 	ssize_t		count)
 {
-	xfs_iocore_t	*io = &ip->i_iocore;
-
 	if (!ip->i_rwtrace)
 		return;
 
@@ -70,8 +68,8 @@ xfs_iomap_enter_trace(
 		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
 		(void *)((unsigned long)(offset & 0xffffffff)),
 		(void *)((unsigned long)count),
-		(void *)((unsigned long)((io->io_new_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(io->io_new_size & 0xffffffff)),
+		(void *)((unsigned long)((ip->i_new_size >> 32) & 0xffffffff)),
+		(void *)((unsigned long)(ip->i_new_size & 0xffffffff)),
 		(void *)((unsigned long)current_pid()),
 		(void *)NULL,
 		(void *)NULL,
@@ -186,8 +184,6 @@ xfs_iomap(
 	int		iomap_flags = 0;
 
 	ASSERT((ip->i_d.di_mode & S_IFMT) == S_IFREG);
-	ASSERT(((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) != 0) ==
-	       ((ip->i_iocore.io_flags & XFS_IOCORE_RT) != 0));
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -402,7 +398,6 @@ xfs_iomap_write_direct(
 	int		found)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_iocore_t	*io = &ip->i_iocore;
 	xfs_fileoff_t	offset_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_filblks_t	count_fsb, resaligned;
@@ -432,8 +427,8 @@ xfs_iomap_write_direct(
 	extsz = xfs_get_extsz_hint(ip);
 
 	isize = ip->i_size;
-	if (io->io_new_size > isize)
-		isize = io->io_new_size;
+	if (ip->i_new_size > isize)
+		isize = ip->i_new_size;
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
@@ -528,7 +523,8 @@ xfs_iomap_write_direct(
 		goto error_out;
 	}
 
-	if (unlikely(!imap.br_startblock && !(io->io_flags & XFS_IOCORE_RT))) {
+	if (unlikely(!imap.br_startblock &&
+		     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME))) {
 		error = xfs_cmn_err_fsblock_zero(ip, &imap);
 		goto error_out;
 	}
@@ -616,7 +612,6 @@ xfs_iomap_write_delay(
 	int		*nmaps)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_iocore_t	*io = &ip->i_iocore;
 	xfs_fileoff_t	offset_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_off_t	aligned_offset;
@@ -644,8 +639,8 @@ xfs_iomap_write_delay(
 
 retry:
 	isize = ip->i_size;
-	if (io->io_new_size > isize)
-		isize = io->io_new_size;
+	if (ip->i_new_size > isize)
+		isize = ip->i_new_size;
 
 	error = xfs_iomap_eof_want_preallocate(mp, ip, isize, offset, count,
 				ioflag, imap, XFS_WRITE_IMAPS, &prealloc);
@@ -691,7 +686,8 @@ retry:
 		goto retry;
 	}
 
-	if (unlikely(!imap[0].br_startblock && !(io->io_flags & XFS_IOCORE_RT)))
+	if (unlikely(!imap[0].br_startblock &&
+		     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
 		return xfs_cmn_err_fsblock_zero(ip, &imap[0]);
 
 	*ret_imap = imap[0];
@@ -716,7 +712,6 @@ xfs_iomap_write_allocate(
 	int		*retmap)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_iocore_t    *io = &ip->i_iocore;
 	xfs_fileoff_t	offset_fsb, last_block;
 	xfs_fileoff_t	end_fsb, map_start_fsb;
 	xfs_fsblock_t	first_block;
@@ -814,7 +809,7 @@ xfs_iomap_write_allocate(
 		 */
 		for (i = 0; i < nimaps; i++) {
 			if (unlikely(!imap[i].br_startblock &&
-				     !(io->io_flags & XFS_IOCORE_RT)))
+				     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
 				return xfs_cmn_err_fsblock_zero(ip, &imap[i]);
 			if ((offset_fsb >= imap[i].br_startoff) &&
 			    (offset_fsb < (imap[i].br_startoff +
@@ -850,7 +845,6 @@ xfs_iomap_write_unwritten(
 	size_t		count)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_iocore_t    *io = &ip->i_iocore;
 	xfs_fileoff_t	offset_fsb;
 	xfs_filblks_t	count_fsb;
 	xfs_filblks_t	numblks_fsb;
@@ -913,7 +907,7 @@ xfs_iomap_write_unwritten(
 			return XFS_ERROR(error);
 
 		if (unlikely(!imap.br_startblock &&
-			     !(io->io_flags & XFS_IOCORE_RT)))
+			     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {

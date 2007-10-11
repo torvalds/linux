@@ -56,7 +56,6 @@ struct cred;
 struct log;
 struct xfs_mount_args;
 struct xfs_inode;
-struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
 struct xfs_extdelta;

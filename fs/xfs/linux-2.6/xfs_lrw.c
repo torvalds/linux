@@ -58,14 +58,12 @@
 void
 xfs_rw_enter_trace(
 	int			tag,
-	xfs_iocore_t		*io,
+	xfs_inode_t		*ip,
 	void			*data,
 	size_t			segs,
 	loff_t			offset,
 	int			ioflags)
 {
-	xfs_inode_t	*ip = XFS_IO_INODE(io);
-
 	if (ip->i_rwtrace == NULL)
 		return;
 	ktrace_enter(ip->i_rwtrace,
@@ -78,8 +76,8 @@ xfs_rw_enter_trace(
 		(void *)((unsigned long)((offset >> 32) & 0xffffffff)),
 		(void *)((unsigned long)(offset & 0xffffffff)),
 		(void *)((unsigned long)ioflags),
-		(void *)((unsigned long)((io->io_new_size >> 32) & 0xffffffff)),
-		(void *)((unsigned long)(io->io_new_size & 0xffffffff)),
+		(void *)((unsigned long)((ip->i_new_size >> 32) & 0xffffffff)),
+		(void *)((unsigned long)(ip->i_new_size & 0xffffffff)),
 		(void *)((unsigned long)current_pid()),
 		(void *)NULL,
 		(void *)NULL,
@@ -89,13 +87,12 @@ xfs_rw_enter_trace(
 
 void
 xfs_inval_cached_trace(
-	xfs_iocore_t	*io,
+	xfs_inode_t	*ip,
 	xfs_off_t	offset,
 	xfs_off_t	len,
 	xfs_off_t	first,
 	xfs_off_t	last)
 {
-	xfs_inode_t	*ip = XFS_IO_INODE(io);
 
 	if (ip->i_rwtrace == NULL)
 		return;
@@ -256,7 +253,7 @@ xfs_read(
 		}
 	}
 
-	xfs_rw_enter_trace(XFS_READ_ENTER, &ip->i_iocore,
+	xfs_rw_enter_trace(XFS_READ_ENTER, ip,
 				(void *)iovp, segs, *offset, ioflags);
 
 	iocb->ki_pos = *offset;
@@ -301,7 +298,7 @@ xfs_splice_read(
 			return -error;
 		}
 	}
-	xfs_rw_enter_trace(XFS_SPLICE_READ_ENTER, &ip->i_iocore,
+	xfs_rw_enter_trace(XFS_SPLICE_READ_ENTER, ip,
 			   pipe, count, *ppos, ioflags);
 	ret = generic_file_splice_read(infilp, ppos, pipe, count, flags);
 	if (ret > 0)
@@ -323,7 +320,6 @@ xfs_splice_write(
 {
 	bhv_vnode_t		*vp = XFS_ITOV(ip);
 	xfs_mount_t		*mp = ip->i_mount;
-	xfs_iocore_t		*io = &ip->i_iocore;
 	ssize_t			ret;
 	struct inode		*inode = outfilp->f_mapping->host;
 	xfs_fsize_t		isize, new_size;
@@ -350,10 +346,10 @@ xfs_splice_write(
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	if (new_size > ip->i_size)
-		io->io_new_size = new_size;
+		ip->i_new_size = new_size;
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
-	xfs_rw_enter_trace(XFS_SPLICE_WRITE_ENTER, &ip->i_iocore,
+	xfs_rw_enter_trace(XFS_SPLICE_WRITE_ENTER, ip,
 			   pipe, count, *ppos, ioflags);
 	ret = generic_file_splice_write(pipe, outfilp, ppos, count, flags);
 	if (ret > 0)
@@ -370,9 +366,9 @@ xfs_splice_write(
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 
-	if (io->io_new_size) {
+	if (ip->i_new_size) {
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		io->io_new_size = 0;
+		ip->i_new_size = 0;
 		if (ip->i_d.di_size > ip->i_size)
 			ip->i_d.di_size = ip->i_size;
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -461,20 +457,19 @@ xfs_zero_eof(
 	xfs_off_t	offset,		/* starting I/O offset */
 	xfs_fsize_t	isize)		/* current inode size */
 {
-	xfs_iocore_t	*io = &ip->i_iocore;
+	xfs_mount_t	*mp = ip->i_mount;
 	xfs_fileoff_t	start_zero_fsb;
 	xfs_fileoff_t	end_zero_fsb;
 	xfs_fileoff_t	zero_count_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_fileoff_t	zero_off;
 	xfs_fsize_t	zero_len;
-	xfs_mount_t	*mp = io->io_mount;
 	int		nimaps;
 	int		error = 0;
 	xfs_bmbt_irec_t	imap;
 
-	ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
-	ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
+	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+	ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE));
 	ASSERT(offset > isize);
 
 	/*
@@ -483,8 +478,8 @@ xfs_zero_eof(
 	 */
 	error = xfs_zero_last_block(ip, offset, isize);
 	if (error) {
-		ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
-		ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
+		ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+		ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE));
 		return error;
 	}
 
@@ -515,8 +510,8 @@ xfs_zero_eof(
 		error = xfs_bmapi(NULL, ip, start_zero_fsb, zero_count_fsb,
 				  0, NULL, 0, &imap, &nimaps, NULL, NULL);
 		if (error) {
-			ASSERT(ismrlocked(io->io_lock, MR_UPDATE));
-			ASSERT(ismrlocked(io->io_iolock, MR_UPDATE));
+			ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE));
+			ASSERT(ismrlocked(&ip->i_iolock, MR_UPDATE));
 			return error;
 		}
 		ASSERT(nimaps > 0);
@@ -584,7 +579,6 @@ xfs_write(
 	xfs_mount_t		*mp;
 	ssize_t			ret = 0, error = 0;
 	xfs_fsize_t		isize, new_size;
-	xfs_iocore_t		*io;
 	int			iolock;
 	int			eventsent = 0;
 	bhv_vrwlock_t		locktype;
@@ -604,8 +598,7 @@ xfs_write(
 	if (count == 0)
 		return 0;
 
-	io = &xip->i_iocore;
-	mp = io->io_mount;
+	mp = xip->i_mount;
 
 	xfs_wait_for_freeze(mp, SB_FREEZE_WRITE);
 
@@ -685,7 +678,7 @@ start:
 
 	new_size = pos + count;
 	if (new_size > xip->i_size)
-		io->io_new_size = new_size;
+		xip->i_new_size = new_size;
 
 	if (likely(!(ioflags & IO_INVIS))) {
 		file_update_time(file);
@@ -737,7 +730,7 @@ retry:
 	if ((ioflags & IO_ISDIRECT)) {
 		if (VN_CACHED(vp)) {
 			WARN_ON(need_i_mutex == 0);
-			xfs_inval_cached_trace(io, pos, -1,
+			xfs_inval_cached_trace(xip, pos, -1,
 					ctooff(offtoct(pos)), -1);
 			error = xfs_flushinval_pages(xip,
 					ctooff(offtoct(pos)),
@@ -756,7 +749,7 @@ retry:
 			need_i_mutex = 0;
 		}
 
- 		xfs_rw_enter_trace(XFS_DIOWR_ENTER, io, (void *)iovp, segs,
+ 		xfs_rw_enter_trace(XFS_DIOWR_ENTER, xip, (void *)iovp, segs,
 				*offset, ioflags);
 		ret = generic_file_direct_write(iocb, iovp,
 				&segs, pos, offset, count, ocount);
@@ -776,7 +769,7 @@ retry:
 			goto relock;
 		}
 	} else {
-		xfs_rw_enter_trace(XFS_WRITE_ENTER, io, (void *)iovp, segs,
+		xfs_rw_enter_trace(XFS_WRITE_ENTER, xip, (void *)iovp, segs,
 				*offset, ioflags);
 		ret = generic_file_buffered_write(iocb, iovp, segs,
 				pos, offset, count, ret);
@@ -840,9 +833,9 @@ retry:
 	}
 
  out_unlock_internal:
-	if (io->io_new_size) {
+	if (xip->i_new_size) {
 		xfs_ilock(xip, XFS_ILOCK_EXCL);
-		io->io_new_size = 0;
+		xip->i_new_size = 0;
 		/*
 		 * If this was a direct or synchronous I/O that failed (such
 		 * as ENOSPC) then part of the I/O may have been written to
