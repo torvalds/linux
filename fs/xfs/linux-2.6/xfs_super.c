@@ -41,6 +41,7 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
+#include "xfs_fsops.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
 #include "xfs_attr.h"
@@ -738,11 +739,19 @@ xfs_fs_remount(
 	return -error;
 }
 
+/*
+ * Second stage of a freeze. The data is already frozen so we only
+ * need to take care of themetadata. Once that's done write a dummy
+ * record to dirty the log in case of a crash while frozen.
+ */
 STATIC void
 xfs_fs_lockfs(
 	struct super_block	*sb)
 {
-	xfs_freeze(XFS_M(sb));
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	xfs_attr_quiesce(mp);
+	xfs_fs_log_dummy(mp);
 }
 
 STATIC int

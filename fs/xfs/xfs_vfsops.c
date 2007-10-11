@@ -692,7 +692,7 @@ xfs_quiesce_fs(
  * care of the metadata. New transactions are already blocked, so we need to
  * wait for any remaining transactions to drain out before proceding.
  */
-STATIC void
+void
 xfs_attr_quiesce(
 	xfs_mount_t	*mp)
 {
@@ -1901,17 +1901,4 @@ xfs_showargs(
 	if (mp->m_flags & XFS_MOUNT_DMAPI)
 		seq_puts(m, "," MNTOPT_DMAPI);
 	return 0;
-}
-
-/*
- * Second stage of a freeze. The data is already frozen so we only
- * need to take care of themetadata. Once that's done write a dummy
- * record to dirty the log in case of a crash while frozen.
- */
-void
-xfs_freeze(
-	xfs_mount_t	*mp)
-{
-	xfs_attr_quiesce(mp);
-	xfs_fs_log_dummy(mp);
 }
