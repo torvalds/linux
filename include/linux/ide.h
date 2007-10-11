@@ -723,6 +723,7 @@ typedef struct hwif_s {
 	/* driver soft-power interface */
 	int	(*busproc)(ide_drive_t *, int);
 #endif
+	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);

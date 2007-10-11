@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.12	Aug 19, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.13	Sep 29, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -114,7 +114,7 @@
  *   unify HPT36x/37x timing setup code and the speedproc handlers by joining
  *   the register setting lists into the table indexed by the clock selected
  * - set the correct hwif->ultra_mask for each individual chip
- * - add UltraDMA mode filtering for the HPT37[24] based SATA cards
+ * - add Ultra and MW DMA mode filtering for the HPT37[24] based SATA cards
  *	Sergei Shtylyov, <sshtylyov@ru.mvista.com> or <source@mvista.com>
  */
 
@@ -560,6 +560,24 @@ static u8 hpt3xx_udma_filter(ide_drive_t *drive)
 	}
 
 	return check_in_drive_list(drive, bad_ata33) ? 0x00 : mask;
+}
+
+static u8 hpt3xx_mdma_filter(ide_drive_t *drive)
+{
+	ide_hwif_t *hwif	= HWIF(drive);
+	struct hpt_info *info	= pci_get_drvdata(hwif->pci_dev);
+
+	switch (info->chip_type) {
+	case HPT372 :
+	case HPT372A:
+	case HPT372N:
+	case HPT374 :
+		if (ide_dev_is_sata(drive->id))
+			return 0x00;
+		/* Fall thru */
+	default:
+		return 0x07;
+	}
 }
 
 static u32 get_speed_setting(u8 speed, struct hpt_info *info)
@@ -1257,6 +1275,7 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->busproc		= &hpt3xx_busproc;
 
 	hwif->udma_filter	= &hpt3xx_udma_filter;
+	hwif->mdma_filter	= &hpt3xx_mdma_filter;
 
 	/*
 	 * HPT3xxN chips have some complications:
