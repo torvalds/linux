@@ -9,32 +9,15 @@
  * kind, whether express or implied.
  */
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/utsrelease.h>
-#include <linux/seq_file.h>
-#include <linux/string.h>
-#include <linux/root_dev.h>
-#include <linux/initrd.h>
-#include <linux/timer.h>
 #include <linux/pci.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/sections.h>
-#include <asm/pci-bridge.h>
-#include <asm/pgtable.h>
+#include <linux/of.h>
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/mpc52xx.h>
-
 
 #define EFIKA_PLATFORM_NAME "Efika"
 

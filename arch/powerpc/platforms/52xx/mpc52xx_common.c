@@ -13,10 +13,9 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
-
+#include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/of_platform.h>
 #include <asm/mpc52xx.h>
 
 
@@ -76,44 +75,33 @@ mpc52xx_find_ipb_freq(struct device_node *node)
 EXPORT_SYMBOL(mpc52xx_find_ipb_freq);
 
 
+/*
+ * Configure the XLB arbiter settings to match what Linux expects.
+ */
 void __init
-mpc52xx_setup_cpu(void)
+mpc5200_setup_xlb_arbiter(void)
 {
-	struct mpc52xx_cdm  __iomem *cdm;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	/* Map zones */
-	cdm = mpc52xx_find_and_map("mpc5200-cdm");
 	xlb = mpc52xx_find_and_map("mpc5200-xlb");
-
-	if (!cdm || !xlb) {
+	if (!xlb) {
 		printk(KERN_ERR __FILE__ ": "
-			"Error while mapping CDM/XLB during mpc52xx_setup_cpu. "
+			"Error mapping XLB in mpc52xx_setup_cpu().  "
 			"Expect some abnormal behavior\n");
-		goto unmap_regs;
+		return;
 	}
-
-	/* Use internal 48 Mhz */
-	out_8(&cdm->ext_48mhz_en, 0x00);
-	out_8(&cdm->fd_enable, 0x01);
-	if (in_be32(&cdm->rstcfg) & 0x40)	/* Assumes 33Mhz clock */
-		out_be16(&cdm->fd_counters, 0x0001);
-	else
-		out_be16(&cdm->fd_counters, 0x5555);
 
 	/* Configure the XLB Arbiter priorities */
 	out_be32(&xlb->master_pri_enable, 0xff);
 	out_be32(&xlb->master_priority, 0x11111111);
 
-	/* Disable XLB pipelining */
-	/* (cfr errate 292. We could do this only just before ATA PIO
-	    transaction and re-enable it afterwards ...) */
+	/* Disable XLB pipelining
+	 * (cfr errate 292. We could do this only just before ATA PIO
+	 *  transaction and re-enable it afterwards ...)
+	 */
 	out_be32(&xlb->config, in_be32(&xlb->config) | MPC52xx_XLB_CFG_PLDIS);
 
-	/* Unmap zones */
-unmap_regs:
-	if (cdm) iounmap(cdm);
-	if (xlb) iounmap(xlb);
+	iounmap(xlb);
 }
 
 void __init
