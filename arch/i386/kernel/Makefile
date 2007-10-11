@@ -5,7 +5,7 @@
 extra-y := head.o init_task.o vmlinux.lds
 
 obj-y	:= process.o signal.o entry.o traps_32.o irq.o \
-		ptrace.o time.o ioport.o ldt.o setup.o i8259_32.o sys_i386.o \
+		ptrace.o time.o ioport.o ldt.o setup.o i8259_32.o sys_i386_32.o \
 		pci-dma_32.o i386_ksyms.o i387.o bootflag.o e820.o\
 		quirks.o i8237.o topology.o alternative.o i8253_32.o tsc.o
 
