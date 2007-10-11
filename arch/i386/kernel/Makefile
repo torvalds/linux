@@ -41,7 +41,7 @@ obj-$(CONFIG_HPET_TIMER) 	+= hpet.o
 obj-$(CONFIG_K8_NB)		+= k8.o
 obj-$(CONFIG_MGEODE_LX)		+= geode.o
 
-obj-$(CONFIG_VMI)		+= vmi.o vmiclock.o
+obj-$(CONFIG_VMI)		+= vmi.o vmiclock_32.o
 obj-$(CONFIG_PARAVIRT)		+= paravirt.o
 obj-y				+= pcspeaker.o
 
