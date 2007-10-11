@@ -5,5 +5,5 @@
 # So tell kbuild that we fetch the code from i386 and include the
 # Makefile from i386 too.
 
-src := arch/i386/boot
+src := arch/x86/boot
 include $(src)/Makefile

@@ -116,7 +116,7 @@ drivers-$(CONFIG_FB)                    += arch/i386/video/
 CFLAGS += $(mflags-y)
 AFLAGS += $(mflags-y)
 
-boot := arch/i386/boot
+boot := arch/x86/boot
 
 PHONY += zImage bzImage compressed zlilo bzlilo \
          zdisk bzdisk fdimage fdimage144 fdimage288 isoimage install
@@ -125,9 +125,11 @@ all: bzImage
 
 # KBUILD_IMAGE specify target image being built
                     KBUILD_IMAGE := $(boot)/bzImage
-zImage zlilo zdisk: KBUILD_IMAGE := arch/i386/boot/zImage
+zImage zlilo zdisk: KBUILD_IMAGE := arch/x86/boot/zImage
 
 zImage bzImage: vmlinux
+	$(Q)mkdir -p $(objtree)/arch/i386/boot
+	$(Q)ln -fsn $(objtree)/arch/x86/boot/bzImage $(objtree)/arch/i386/boot/bzImage
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
 
 compressed: zImage
@@ -145,7 +147,8 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
 archclean:
-	$(Q)$(MAKE) $(clean)=arch/i386/boot
+	$(Q)rm -rf $(objtree)/arch/i386/boot
+	$(Q)$(MAKE) $(clean)=arch/x86/boot
 
 define archhelp
   echo  '* bzImage	- Compressed kernel image (arch/$(ARCH)/boot/bzImage)'
