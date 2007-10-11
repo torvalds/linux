@@ -15,9 +15,10 @@
 /*
  *	Changes:
  *
+ *	Pierre Ynard			:	export userland ND options
+ *						through netlink (RDNSS support)
  *	Lars Fenneberg			:	fixed MTU setting on receipt
  *						of an RA.
- *
  *	Janos Farkas			:	kmalloc failure checks
  *	Alexey Kuznetsov		:	state machine reworked
  *						and moved to net/core.
@@ -77,6 +78,9 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/icmp.h>
+
+#include <net/netlink.h>
+#include <linux/rtnetlink.h>
 
 #include <net/flow.h>
 #include <net/ip6_checksum.h>
@@ -161,6 +165,8 @@ struct ndisc_options {
 	struct nd_opt_hdr *nd_opts_ri;
 	struct nd_opt_hdr *nd_opts_ri_end;
 #endif
+	struct nd_opt_hdr *nd_useropts;
+	struct nd_opt_hdr *nd_useropts_end;
 };
 
 #define nd_opts_src_lladdr	nd_opt_array[ND_OPT_SOURCE_LL_ADDR]
@@ -225,6 +231,22 @@ static struct nd_opt_hdr *ndisc_next_option(struct nd_opt_hdr *cur,
 	return (cur <= end && cur->nd_opt_type == type ? cur : NULL);
 }
 
+static inline int ndisc_is_useropt(struct nd_opt_hdr *opt)
+{
+	return (opt->nd_opt_type == ND_OPT_RDNSS);
+}
+
+static struct nd_opt_hdr *ndisc_next_useropt(struct nd_opt_hdr *cur,
+					     struct nd_opt_hdr *end)
+{
+	if (!cur || !end || cur >= end)
+		return NULL;
+	do {
+		cur = ((void *)cur) + (cur->nd_opt_len << 3);
+	} while(cur < end && !ndisc_is_useropt(cur));
+	return (cur <= end && ndisc_is_useropt(cur) ? cur : NULL);
+}
+
 static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 						 struct ndisc_options *ndopts)
 {
@@ -267,14 +289,21 @@ static struct ndisc_options *ndisc_parse_options(u8 *opt, int opt_len,
 			break;
 #endif
 		default:
-			/*
-			 * Unknown options must be silently ignored,
-			 * to accommodate future extension to the protocol.
-			 */
-			ND_PRINTK2(KERN_NOTICE
-				   "%s(): ignored unsupported option; type=%d, len=%d\n",
-				   __FUNCTION__,
-				   nd_opt->nd_opt_type, nd_opt->nd_opt_len);
+			if (ndisc_is_useropt(nd_opt)) {
+				ndopts->nd_useropts_end = nd_opt;
+				if (!ndopts->nd_useropts)
+					ndopts->nd_useropts = nd_opt;
+			} else {
+				/*
+				 * Unknown options must be silently ignored,
+				 * to accommodate future extension to the
+				 * protocol.
+				 */
+				ND_PRINTK2(KERN_NOTICE
+					   "%s(): ignored unsupported option; type=%d, len=%d\n",
+					   __FUNCTION__,
+					   nd_opt->nd_opt_type, nd_opt->nd_opt_len);
+			}
 		}
 		opt_len -= l;
 		nd_opt = ((void *)nd_opt) + l;
@@ -984,6 +1013,53 @@ out:
 	in6_dev_put(idev);
 }
 
+static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
+{
+	struct icmp6hdr *icmp6h = (struct icmp6hdr *)skb_transport_header(ra);
+	struct sk_buff *skb;
+	struct nlmsghdr *nlh;
+	struct nduseroptmsg *ndmsg;
+	int err;
+	int base_size = NLMSG_ALIGN(sizeof(struct nduseroptmsg)
+				    + (opt->nd_opt_len << 3));
+	size_t msg_size = base_size + nla_total_size(sizeof(struct in6_addr));
+
+	skb = nlmsg_new(msg_size, GFP_ATOMIC);
+	if (skb == NULL) {
+		err = -ENOBUFS;
+		goto errout;
+	}
+
+	nlh = nlmsg_put(skb, 0, 0, RTM_NEWNDUSEROPT, base_size, 0);
+	if (nlh == NULL) {
+		goto nla_put_failure;
+	}
+
+	ndmsg = nlmsg_data(nlh);
+	ndmsg->nduseropt_family = AF_INET6;
+	ndmsg->nduseropt_icmp_type = icmp6h->icmp6_type;
+	ndmsg->nduseropt_icmp_code = icmp6h->icmp6_code;
+	ndmsg->nduseropt_opts_len = opt->nd_opt_len << 3;
+
+	memcpy(ndmsg + 1, opt, opt->nd_opt_len << 3);
+
+	NLA_PUT(skb, NDUSEROPT_SRCADDR, sizeof(struct in6_addr),
+		&ipv6_hdr(ra)->saddr);
+	nlmsg_end(skb, nlh);
+
+	err = rtnl_notify(skb, 0, RTNLGRP_ND_USEROPT, NULL, GFP_ATOMIC);
+	if (err < 0)
+		goto errout;
+
+	return;
+
+nla_put_failure:
+	nlmsg_free(skb);
+	err = -EMSGSIZE;
+errout:
+	rtnl_set_sk_err(RTNLGRP_ND_USEROPT, err);
+}
+
 static void ndisc_router_discovery(struct sk_buff *skb)
 {
 	struct ra_msg *ra_msg = (struct ra_msg *)skb_transport_header(skb);
@@ -1213,6 +1289,15 @@ skip_defrtr:
 				rt->u.dst.metrics[RTAX_MTU-1] = mtu;
 
 			rt6_mtu_change(skb->dev, mtu);
+		}
+	}
+
+	if (ndopts.nd_useropts) {
+		struct nd_opt_hdr *opt;
+		for (opt = ndopts.nd_useropts;
+		     opt;
+		     opt = ndisc_next_useropt(opt, ndopts.nd_useropts_end)) {
+				ndisc_ra_useropt(skb, opt);
 		}
 	}
 
