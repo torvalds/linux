@@ -539,12 +539,15 @@ done:
 	case IPV6_MULTICAST_IF:
 		if (sk->sk_type == SOCK_STREAM)
 			goto e_inval;
-		if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
-			goto e_inval;
 
-		if (__dev_get_by_index(&init_net, val) == NULL) {
-			retv = -ENODEV;
-			break;
+		if (val) {
+			if (sk->sk_bound_dev_if && sk->sk_bound_dev_if != val)
+				goto e_inval;
+
+			if (__dev_get_by_index(&init_net, val) == NULL) {
+				retv = -ENODEV;
+				break;
+			}
 		}
 		np->mcast_oif = val;
 		retv = 0;
