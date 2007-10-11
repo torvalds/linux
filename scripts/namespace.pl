@@ -105,7 +105,7 @@ sub linux_objects
 	if (/.*\.o$/ &&
 		! (
 		m:/built-in.o$:
-		|| m:arch/i386/kernel/vsyscall-syms.o$:
+		|| m:arch/x86/kernel/vsyscall-syms.o$:
 		|| m:arch/ia64/ia32/ia32.o$:
 		|| m:arch/ia64/kernel/gate-syms.o$:
 		|| m:arch/ia64/lib/__divdi3.o$:
@@ -328,9 +328,9 @@ sub list_multiply_defined
 			}
 			# Special case for i386 entry code
 			if ($#{$def{$name}} == 1 && $name =~ /^__kernel_/ &&
-			    $def{$name}[0] eq "arch/i386/kernel/vsyscall-int80.o" &&
-			    $def{$name}[1] eq "arch/i386/kernel/vsyscall-sysenter.o") {
-				&drop_def("arch/i386/kernel/vsyscall-sysenter.o", $name);
+			    $def{$name}[0] eq "arch/x86/kernel/vsyscall-int80_32.o" &&
+			    $def{$name}[1] eq "arch/x86/kernel/vsyscall-sysenter_32.o") {
+				&drop_def("arch/x86/kernel/vsyscall-sysenter_32.o", $name);
 				next;
 			}
 			printf "$name is multiply defined in :-\n";
