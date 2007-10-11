@@ -234,13 +234,11 @@ static void amd_set_speed(struct pci_dev *dev, unsigned char dn, struct ide_timi
  * by upper layers.
  */
 
-static int amd_set_drive(ide_drive_t *drive, u8 speed)
+static int amd_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
 	struct ide_timing t, p;
 	int T, UT;
-
-	speed = ide_rate_filter(drive, speed);
 
 	if (speed != XFER_PIO_SLOW)
 		ide_config_drive_speed(drive, speed);

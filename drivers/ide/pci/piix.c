@@ -221,19 +221,18 @@ static void piix_tune_drive (ide_drive_t *drive, u8 pio)
 /**
  *	piix_tune_chipset	-	tune a PIIX interface
  *	@drive: IDE drive to tune
- *	@xferspeed: speed to configure
+ *	@speed: speed to configure
  *
  *	Set a PIIX interface channel to the desired speeds. This involves
  *	requires the right timing data into the PIIX configuration space
  *	then setting the drive parameters appropriately
  */
- 
-static int piix_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+
+static int piix_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int a_speed		= 3 << (drive->dn * 4);
 	int u_flag		= 1 << drive->dn;
 	int v_flag		= 0x01 << drive->dn;

@@ -158,14 +158,12 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
  *	by upper layers.
  */
 
-static int via_set_drive(ide_drive_t *drive, u8 speed)
+static int via_set_drive(ide_drive_t *drive, const u8 speed)
 {
 	ide_drive_t *peer = HWIF(drive)->drives + (~drive->dn & 1);
 	struct via82cxxx_dev *vdev = pci_get_drvdata(drive->hwif->pci_dev);
 	struct ide_timing t, p;
 	unsigned int T, UT;
-
-	speed = ide_rate_filter(drive, speed);
 
 	if (speed != XFER_PIO_SLOW)
 		ide_config_drive_speed(drive, speed);

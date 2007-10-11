@@ -113,15 +113,13 @@ static u8 sl82c105_tune_pio(ide_drive_t *drive, u8 pio)
 /*
  * Configure the drive and chipset for a new transfer speed.
  */
-static int sl82c105_tune_chipset(ide_drive_t *drive, u8 speed)
+static int sl82c105_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	static u16 mwdma_timings[] = {0x0707, 0x0201, 0x0200};
 	u16 drv_ctrl;
 
  	DBG(("sl82c105_tune_chipset(drive:%s, speed:%s)\n",
 	     drive->name, ide_xfer_verbose(speed)));
-
-	speed = ide_rate_filter(drive, speed);
 
 	switch (speed) {
 	case XFER_MW_DMA_2:

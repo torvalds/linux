@@ -705,7 +705,7 @@ typedef struct hwif_s {
 	/* routine to tune PIO mode for drives */
 	void	(*tuneproc)(ide_drive_t *, u8);
 	/* routine to retune DMA modes for drives */
-	int	(*speedproc)(ide_drive_t *, u8);
+	int	(*speedproc)(ide_drive_t *, const u8);
 	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
 	/* chipset polling based on hba specifics */
@@ -1378,7 +1378,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 }
 
 /* ide-lib.c */
-u8 ide_rate_filter(ide_drive_t *, u8);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);

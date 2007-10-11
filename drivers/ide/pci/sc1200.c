@@ -138,15 +138,13 @@ out:
 	return mask;
 }
 
-static int sc1200_tune_chipset(ide_drive_t *drive, u8 mode)
+static int sc1200_tune_chipset(ide_drive_t *drive, const u8 mode)
 {
 	ide_hwif_t		*hwif = HWIF(drive);
 	int			unit = drive->select.b.unit;
 	unsigned int		reg, timings;
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
-
-	mode = ide_rate_filter(drive, mode);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.

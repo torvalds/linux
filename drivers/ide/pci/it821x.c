@@ -405,23 +405,19 @@ static int it821x_dma_end(ide_drive_t *drive)
 	return ret;
 }
 
-
 /**
  *	it821x_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
- *	@xferspeed: speed we want to achieve
+ *	@speed: speed we want to achieve
  *
- *	Tune the ITE chipset for the desired mode. If we can't achieve
- *	the desired mode then tune for a lower one, but ultimately
- *	make the thing work.
+ *	Tune the ITE chipset for the desired mode.
  */
 
-static int it821x_tune_chipset (ide_drive_t *drive, byte xferspeed)
+static int it821x_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 
 	ide_hwif_t *hwif	= drive->hwif;
 	struct it821x_dev *itdev = ide_get_hwifdata(hwif);
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 
 	switch (speed) {
 	case XFER_PIO_4:

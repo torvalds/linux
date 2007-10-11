@@ -143,12 +143,10 @@ static int cs5530_config_dma(ide_drive_t *drive)
 	return 1;
 }
 
-static int cs5530_tune_chipset(ide_drive_t *drive, u8 mode)
+static int cs5530_tune_chipset(ide_drive_t *drive, const u8 mode)
 {
 	unsigned long basereg;
 	unsigned int reg, timings = 0;
-
-	mode = ide_rate_filter(drive, mode);
 
 	/*
 	 * Tell the drive to switch to the new mode; abort on failure.

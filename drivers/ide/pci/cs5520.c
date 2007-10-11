@@ -66,16 +66,15 @@ static struct pio_clocks cs5520_pio_clocks[]={
 	{1, 2, 1}
 };
 
-static int cs5520_tune_chipset(ide_drive_t *drive, u8 xferspeed)
+static int cs5520_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *pdev = hwif->pci_dev;
-	u8 speed = ide_rate_filter(drive, xferspeed);
 	int pio = speed;
 	u8 reg;
 	int controller = drive->dn > 1 ? 1 : 0;
 	int error;
-	
+
 	switch(speed)
 	{
 		case XFER_PIO_4:

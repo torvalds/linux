@@ -531,15 +531,12 @@ static void sis5513_tuneproc(ide_drive_t *drive, u8 pio)
 	(void)sis5513_tune_drive(drive, pio);
 }
 
-static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-
-	u8 drive_pci, reg, speed;
 	u32 regdw;
-
-	speed = ide_rate_filter(drive, xferspeed);
+	u8 drive_pci, reg;
 
 	/* See config_art_rwp_pio for drive pci config registers */
 	drive_pci = 0x40;

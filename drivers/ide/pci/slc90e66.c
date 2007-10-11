@@ -102,12 +102,11 @@ static void slc90e66_tune_drive (ide_drive_t *drive, u8 pio)
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int slc90e66_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int slc90e66_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
 	u8 maslave		= hwif->channel ? 0x42 : 0x40;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	int sitre = 0, a_speed	= 7 << (drive->dn * 4);
 	int u_speed = 0, u_flag = 1 << drive->dn;
 	u16			reg4042, reg44, reg48, reg4a;

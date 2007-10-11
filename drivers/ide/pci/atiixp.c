@@ -163,23 +163,21 @@ static void atiixp_tuneproc(ide_drive_t *drive, u8 pio)
 /**
  *	atiixp_tune_chipset	-	tune a ATIIXP interface
  *	@drive: IDE drive to tune
- *	@xferspeed: speed to configure
+ *	@speed: speed to configure
  *
  *	Set a ATIIXP interface channel to the desired speeds. This involves
  *	requires the right timing data into the ATIIXP configuration space
  *	then setting the drive parameters appropriately
  */
 
-static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
+static int atiixp_speedproc(ide_drive_t *drive, const u8 speed)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 tmp32;
 	u16 tmp16;
-	u8 speed, pio;
-
-	speed = ide_rate_filter(drive, xferspeed);
+	u8 pio;
 
 	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
 		atiixp_tune_pio(drive, speed - XFER_PIO_0);

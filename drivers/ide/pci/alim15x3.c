@@ -409,17 +409,16 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 /**
  *	ali15x3_tune_chipset	-	set up chipset/drive for new speed
  *	@drive: drive to configure for
- *	@xferspeed: desired speed
+ *	@speed: desired speed
  *
  *	Configure the hardware for the desired IDE transfer mode.
  *	We also do the needed drive configuration through helpers
  */
- 
-static int ali15x3_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+
+static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	u8 speed1		= speed;
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 tmpbyte		= 0x00;

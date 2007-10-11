@@ -92,17 +92,14 @@ static void jmicron_tuneproc(ide_drive_t *drive, u8 pio)
 /**
  *	jmicron_tune_chipset	-	set controller timings
  *	@drive: Drive to set up
- *	@xferspeed: speed we want to achieve
+ *	@speed: speed we want to achieve
  *
  *	As the JMicron snoops for timings all we actually need to do is
- *	make sure we don't set an invalid mode. We do need to honour
- *	the cable detect here.
+ *	set the transfer mode on the device.
  */
 
-static int jmicron_tune_chipset (ide_drive_t *drive, byte xferspeed)
+static int jmicron_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
-	u8 speed = ide_rate_filter(drive, xferspeed);
-
 	return ide_config_drive_speed(drive, speed);
 }
 

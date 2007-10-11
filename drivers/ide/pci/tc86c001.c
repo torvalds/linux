@@ -13,13 +13,11 @@
 #include <linux/pci.h>
 #include <linux/ide.h>
 
-static int tc86c001_tune_chipset(ide_drive_t *drive, u8 speed)
+static int tc86c001_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
 	u16 mode, scr		= hwif->INW(scr_port);
-
-	speed = ide_rate_filter(drive, speed);
 
 	switch (speed) {
 		case XFER_UDMA_4:	mode = 0x00c0; break;

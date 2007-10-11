@@ -79,7 +79,7 @@ EXPORT_SYMBOL(ide_xfer_verbose);
  *	TODO: check device PIO capabilities
  */
 
-u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
+static u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 mode = ide_find_dma_mode(drive, speed);
@@ -95,8 +95,6 @@ u8 ide_rate_filter(ide_drive_t *drive, u8 speed)
 
 	return min(speed, mode);
 }
-
-EXPORT_SYMBOL(ide_rate_filter);
 
 int ide_use_fast_pio(ide_drive_t *drive)
 {
@@ -364,13 +362,14 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
  
 int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 {
-#ifndef CONFIG_BLK_DEV_IDEDMA
-	rate = min(rate, (u8) XFER_PIO_4);
-#endif
-	if(HWIF(drive)->speedproc)
-		return HWIF(drive)->speedproc(drive, rate);
-	else
+	ide_hwif_t *hwif = drive->hwif;
+
+	if (hwif->speedproc == NULL)
 		return -1;
+
+	rate = ide_rate_filter(drive, rate);
+
+	return hwif->speedproc(drive, rate);
 }
 
 static void ide_dump_opcode(ide_drive_t *drive)

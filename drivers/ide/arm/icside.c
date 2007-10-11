@@ -248,14 +248,9 @@ static void icside_build_sglist(ide_drive_t *drive, struct request *rq)
  *	MW1	80	50	50	150	C
  *	MW2	70	25	25	120	C
  */
-static int icside_set_speed(ide_drive_t *drive, u8 xfer_mode)
+static int icside_set_speed(ide_drive_t *drive, const u8 xfer_mode)
 {
 	int on = 0, cycle_time = 0, use_dma_info = 0;
-
-	/*
-	 * Limit the transfer speed to MW_DMA_2.
-	 */
-	xfer_mode = ide_rate_filter(drive, xfer_mode);
 
 	switch (xfer_mode) {
 	case XFER_MW_DMA_2:
