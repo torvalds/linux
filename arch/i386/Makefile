@@ -17,6 +17,13 @@
 # 20050320  Kianusch Sayah Karadji <kianusch@sk-tech.net>
 #           Added support for GEODE CPU
 
+# Fill in SRCARCH
+SRCARCH	:= x86
+
+archprepare:
+	@mkdir -p ${objtree}/arch/x86/kernel
+
+
 HAS_BIARCH      := $(call cc-option-yn, -m32)
 ifeq ($(HAS_BIARCH),y)
 AS              := $(AS) --32
@@ -99,10 +106,10 @@ core-$(CONFIG_XEN)		+= arch/x86/xen/
 # default subarch .h files
 mflags-y += -Iinclude/asm-i386/mach-default
 
-head-y := arch/i386/kernel/head_32.o arch/i386/kernel/init_task_32.o
+head-y := arch/x86/kernel/head_32.o arch/x86/kernel/init_task_32.o
 
 libs-y 					+= arch/x86/lib/
-core-y					+= arch/i386/kernel/ \
+core-y					+= arch/x86/kernel/ \
 					   arch/x86/mm/ \
 					   $(mcore-y)/ \
 					   arch/x86/crypto/

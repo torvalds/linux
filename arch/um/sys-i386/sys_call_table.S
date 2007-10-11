@@ -9,4 +9,4 @@
 
 #define old_mmap old_mmap_i386
 
-#include "../../i386/kernel/syscall_table_32.S"
+#include "../../x86/kernel/syscall_table_32.S"
