@@ -6,7 +6,7 @@ extra-y := head.o init_task.o vmlinux.lds
 
 obj-y	:= process.o signal_32.o entry.o traps_32.o irq.o \
 		ptrace.o time.o ioport_32.o ldt.o setup_32.o i8259_32.o sys_i386_32.o \
-		pci-dma_32.o i386_ksyms.o i387_32.o bootflag.o e820_32.o\
+		pci-dma_32.o i386_ksyms_32.o i387_32.o bootflag.o e820_32.o\
 		quirks.o i8237.o topology.o alternative.o i8253_32.o tsc.o
 
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
