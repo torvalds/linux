@@ -524,44 +524,52 @@ static int __devinit init_setup_pdcnew(struct pci_dev *dev, ide_pci_device_t *d)
 	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_pdc20270(struct pci_dev *dev,
-					 ide_pci_device_t *d)
+static int __devinit init_setup_pdc20270(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	struct pci_dev *findev = NULL;
-	int ret;
+	struct pci_dev *bridge = dev->bus->self;
 
-	if ((dev->bus->self &&
-	     dev->bus->self->vendor == PCI_VENDOR_ID_DEC) &&
-	    (dev->bus->self->device == PCI_DEVICE_ID_DEC_21150)) {
+	if (bridge != NULL &&
+	    bridge->vendor == PCI_VENDOR_ID_DEC &&
+	    bridge->device == PCI_DEVICE_ID_DEC_21150) {
+		struct pci_dev *dev2;
+
 		if (PCI_SLOT(dev->devfn) & 2)
 			return -ENODEV;
 
-		while ((findev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, findev)) != NULL) {
-			if ((findev->vendor == dev->vendor) &&
-			    (findev->device == dev->device) &&
-			    (PCI_SLOT(findev->devfn) & 2)) {
-				if (findev->irq != dev->irq) {
-					findev->irq = dev->irq;
-				}
-				ret = ide_setup_pci_devices(dev, findev, d);
-				if (ret < 0)
-					pci_dev_put(findev);
-				return ret;
+		dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 2,
+							PCI_FUNC(dev->devfn)));
+		if (dev2 != NULL &&
+		    dev2->vendor == dev->vendor &&
+		    dev2->device == dev->device) {
+			int ret;
+
+			if (dev2->irq != dev->irq) {
+				dev2->irq = dev->irq;
+
+				printk(KERN_WARNING "%s: PCI config space "
+				       "interrupt fixed.\n", d->name);
 			}
+
+			ret = ide_setup_pci_devices(dev, dev2, d);
+			if (ret < 0)
+				pci_dev_put(dev2);
+			return ret;
 		}
 	}
 	return ide_setup_pci_device(dev, d);
 }
 
-static int __devinit init_setup_pdc20276(struct pci_dev *dev,
-					 ide_pci_device_t *d)
+static int __devinit init_setup_pdc20276(struct pci_dev *dev, ide_pci_device_t *d)
 {
-	if ((dev->bus->self) &&
-	    (dev->bus->self->vendor == PCI_VENDOR_ID_INTEL) &&
-	    ((dev->bus->self->device == PCI_DEVICE_ID_INTEL_I960) ||
-	     (dev->bus->self->device == PCI_DEVICE_ID_INTEL_I960RM))) {
-		printk(KERN_INFO "ide: Skipping Promise PDC20276 "
-			"attached to I2O RAID controller.\n");
+	struct pci_dev *bridge = dev->bus->self;
+
+	if (bridge != NULL &&
+	    bridge->vendor == PCI_VENDOR_ID_INTEL &&
+	   (bridge->device == PCI_DEVICE_ID_INTEL_I960 ||
+	    bridge->device == PCI_DEVICE_ID_INTEL_I960RM)) {
+
+		printk(KERN_INFO "%s: attached to I2O RAID controller, "
+				 "skipping.\n", d->name);
 		return -ENODEV;
 	}
 	return ide_setup_pci_device(dev, d);
