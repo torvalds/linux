@@ -51,6 +51,7 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 
 EXPORT_SYMBOL(__mutex_init);
 
+#ifndef CONFIG_DEBUG_LOCK_ALLOC
 /*
  * We split the mutex lock/unlock logic into separate fastpath and
  * slowpath functions, to reduce the register pressure on the fastpath.
@@ -92,6 +93,7 @@ void inline fastcall __sched mutex_lock(struct mutex *lock)
 }
 
 EXPORT_SYMBOL(mutex_lock);
+#endif
 
 static void fastcall noinline __sched
 __mutex_unlock_slowpath(atomic_t *lock_count);
@@ -122,7 +124,8 @@ EXPORT_SYMBOL(mutex_unlock);
  * Lock a mutex (possibly interruptible), slowpath:
  */
 static inline int __sched
-__mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
+__mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
+	       	unsigned long ip)
 {
 	struct task_struct *task = current;
 	struct mutex_waiter waiter;
@@ -132,7 +135,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 	spin_lock_mutex(&lock->wait_lock, flags);
 
 	debug_mutex_lock_common(lock, &waiter);
-	mutex_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
+	mutex_acquire(&lock->dep_map, subclass, 0, ip);
 	debug_mutex_add_waiter(lock, &waiter, task_thread_info(task));
 
 	/* add waiting tasks to the end of the waitqueue (FIFO): */
@@ -143,7 +146,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 	if (old_val == 1)
 		goto done;
 
-	lock_contended(&lock->dep_map, _RET_IP_);
+	lock_contended(&lock->dep_map, ip);
 
 	for (;;) {
 		/*
@@ -166,7 +169,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass)
 		if (unlikely(state == TASK_INTERRUPTIBLE &&
 						signal_pending(task))) {
 			mutex_remove_waiter(lock, &waiter, task_thread_info(task));
-			mutex_release(&lock->dep_map, 1, _RET_IP_);
+			mutex_release(&lock->dep_map, 1, ip);
 			spin_unlock_mutex(&lock->wait_lock, flags);
 
 			debug_mutex_free_waiter(&waiter);
@@ -197,20 +200,12 @@ done:
 	return 0;
 }
 
-static void fastcall noinline __sched
-__mutex_lock_slowpath(atomic_t *lock_count)
-{
-	struct mutex *lock = container_of(lock_count, struct mutex, count);
-
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0);
-}
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void __sched
 mutex_lock_nested(struct mutex *lock, unsigned int subclass)
 {
 	might_sleep();
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass);
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, _RET_IP_);
 }
 
 EXPORT_SYMBOL_GPL(mutex_lock_nested);
@@ -219,7 +214,7 @@ int __sched
 mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass)
 {
 	might_sleep();
-	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, subclass);
+	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, subclass, _RET_IP_);
 }
 
 EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
@@ -271,6 +266,7 @@ __mutex_unlock_slowpath(atomic_t *lock_count)
 	__mutex_unlock_common_slowpath(lock_count, 1);
 }
 
+#ifndef CONFIG_DEBUG_LOCK_ALLOC
 /*
  * Here come the less common (and hence less performance-critical) APIs:
  * mutex_lock_interruptible() and mutex_trylock().
@@ -298,13 +294,22 @@ int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 
 EXPORT_SYMBOL(mutex_lock_interruptible);
 
+static void fastcall noinline __sched
+__mutex_lock_slowpath(atomic_t *lock_count)
+{
+	struct mutex *lock = container_of(lock_count, struct mutex, count);
+
+	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0, _RET_IP_);
+}
+
 static int fastcall noinline __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
 
-	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0);
+	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0, _RET_IP_);
 }
+#endif
 
 /*
  * Spinlock based trylock, we take the spinlock and check whether we
