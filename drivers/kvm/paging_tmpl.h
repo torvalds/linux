@@ -382,9 +382,9 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			metaphysical = 1;
 			hugepage_access = walker->pte;
 			hugepage_access &= PT_USER_MASK | PT_WRITABLE_MASK;
+			hugepage_access >>= PT_WRITABLE_SHIFT;
 			if (walker->pte & PT64_NX_MASK)
 				hugepage_access |= (1 << 2);
-			hugepage_access >>= PT_WRITABLE_SHIFT;
 			table_gfn = (walker->pte & PT_BASE_ADDR_MASK)
 				>> PAGE_SHIFT;
 		} else {
