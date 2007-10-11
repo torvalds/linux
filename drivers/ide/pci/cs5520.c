@@ -73,7 +73,6 @@ static int cs5520_tune_chipset(ide_drive_t *drive, const u8 speed)
 	int pio = speed;
 	u8 reg;
 	int controller = drive->dn > 1 ? 1 : 0;
-	int error;
 
 	switch(speed)
 	{
@@ -114,14 +113,9 @@ static int cs5520_tune_chipset(ide_drive_t *drive, const u8 speed)
 	reg = inb(hwif->dma_base + 0x02 + 8*controller);
 	reg |= 1<<((drive->dn&1)+5);
 	outb(reg, hwif->dma_base + 0x02 + 8*controller);
-		
-	error = ide_config_drive_speed(drive, speed);
-	/* ATAPI is harder so leave it for now */
-	if(!error && drive->media == ide_disk)
-		error = hwif->ide_dma_on(drive);
 
-	return error;
-}	
+	return ide_config_drive_speed(drive, speed);
+}
 
 static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
@@ -177,7 +171,8 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 		hwif->drives[1].autotune = 1;
 		return;
 	}
-	
+
+	/* ATAPI is harder so leave it for now */
 	hwif->atapi_dma = 0;
 	hwif->ultra_mask = 0;
 	hwif->swdma_mask = 0;
