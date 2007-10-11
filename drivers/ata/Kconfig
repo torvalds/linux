@@ -272,6 +272,15 @@ config PATA_CS5535
 
 	  If unsure, say N.
 
+config PATA_CS5536
+	tristate "CS5536 PATA support (Experimental)"
+	depends on PCI && X86 && !X86_64 && EXPERIMENTAL
+	help
+	  This option enables support for the AMD CS5536
+	  companion chip used with the Geode LX processor family.
+
+	  If unsure, say N.
+
 config PATA_CYPRESS
 	tristate "Cypress CY82C693 PATA support (Very Experimental)"
 	depends on PCI && EXPERIMENTAL
