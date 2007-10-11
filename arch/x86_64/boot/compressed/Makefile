@@ -26,5 +26,5 @@ $(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 
 LDFLAGS_piggy.o := -r --format binary --oformat elf64-x86-64 -T
 
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.gz FORCE
+$(obj)/piggy.o: $(obj)/vmlinux_64.scr $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,ld)
