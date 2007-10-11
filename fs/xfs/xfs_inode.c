@@ -2205,7 +2205,6 @@ xfs_ifree_cluster(
 	xfs_inode_log_item_t	*iip;
 	xfs_log_item_t		*lip;
 	xfs_perag_t		*pag = xfs_get_perag(mp, inum);
-	SPLDECL(s);
 
 	if (mp->m_sb.sb_blocksize >= XFS_INODE_CLUSTER_SIZE(mp)) {
 		blks_per_cluster = 1;
@@ -2307,9 +2306,9 @@ xfs_ifree_cluster(
 				iip = (xfs_inode_log_item_t *)lip;
 				ASSERT(iip->ili_logged == 1);
 				lip->li_cb = (void(*)(xfs_buf_t*,xfs_log_item_t*)) xfs_istale_done;
-				AIL_LOCK(mp,s);
+				spin_lock(&mp->m_ail_lock);
 				iip->ili_flush_lsn = iip->ili_item.li_lsn;
-				AIL_UNLOCK(mp, s);
+				spin_unlock(&mp->m_ail_lock);
 				xfs_iflags_set(iip->ili_inode, XFS_ISTALE);
 				pre_flushed++;
 			}
@@ -2330,9 +2329,9 @@ xfs_ifree_cluster(
 			iip->ili_last_fields = iip->ili_format.ilf_fields;
 			iip->ili_format.ilf_fields = 0;
 			iip->ili_logged = 1;
-			AIL_LOCK(mp,s);
+			spin_lock(&mp->m_ail_lock);
 			iip->ili_flush_lsn = iip->ili_item.li_lsn;
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 
 			xfs_buf_attach_iodone(bp,
 				(void(*)(xfs_buf_t*,xfs_log_item_t*))
@@ -2731,7 +2730,6 @@ void
 xfs_idestroy(
 	xfs_inode_t	*ip)
 {
-
 	switch (ip->i_d.di_mode & S_IFMT) {
 	case S_IFREG:
 	case S_IFDIR:
@@ -2771,16 +2769,15 @@ xfs_idestroy(
 		 */
 		xfs_mount_t	*mp = ip->i_mount;
 		xfs_log_item_t	*lip = &ip->i_itemp->ili_item;
-		int		s;
 
 		ASSERT(((lip->li_flags & XFS_LI_IN_AIL) == 0) ||
 				       XFS_FORCED_SHUTDOWN(ip->i_mount));
 		if (lip->li_flags & XFS_LI_IN_AIL) {
-			AIL_LOCK(mp, s);
+			spin_lock(&mp->m_ail_lock);
 			if (lip->li_flags & XFS_LI_IN_AIL)
-				xfs_trans_delete_ail(mp, lip, s);
+				xfs_trans_delete_ail(mp, lip);
 			else
-				AIL_UNLOCK(mp, s);
+				spin_unlock(&mp->m_ail_lock);
 		}
 		xfs_inode_item_destroy(ip);
 	}
@@ -3334,7 +3331,6 @@ xfs_iflush_int(
 #ifdef XFS_TRANS_DEBUG
 	int			first;
 #endif
-	SPLDECL(s);
 
 	ASSERT(ismrlocked(&ip->i_lock, MR_UPDATE|MR_ACCESS));
 	ASSERT(issemalocked(&(ip->i_flock)));
@@ -3529,9 +3525,9 @@ xfs_iflush_int(
 		iip->ili_logged = 1;
 
 		ASSERT(sizeof(xfs_lsn_t) == 8);	/* don't lock if it shrinks */
-		AIL_LOCK(mp,s);
+		spin_lock(&mp->m_ail_lock);
 		iip->ili_flush_lsn = iip->ili_item.li_lsn;
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 
 		/*
 		 * Attach the function xfs_iflush_done to the inode's

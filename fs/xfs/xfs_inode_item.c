@@ -615,7 +615,7 @@ xfs_inode_item_trylock(
 			return XFS_ITEM_PUSHBUF;
 		} else {
 			/*
-			 * We hold the AIL_LOCK, so we must specify the
+			 * We hold the AIL lock, so we must specify the
 			 * NONOTIFY flag so that we won't double trip.
 			 */
 			xfs_iunlock(ip, XFS_ILOCK_SHARED|XFS_IUNLOCK_NONOTIFY);
@@ -749,7 +749,7 @@ xfs_inode_item_committed(
  * marked delayed write. If that's the case, we'll initiate a bawrite on that
  * buffer to expedite the process.
  *
- * We aren't holding the AIL_LOCK (or the flush lock) when this gets called,
+ * We aren't holding the AIL lock (or the flush lock) when this gets called,
  * so it is inherently race-y.
  */
 STATIC void
@@ -792,7 +792,7 @@ xfs_inode_item_pushbuf(
 		if (XFS_BUF_ISDELAYWRITE(bp)) {
 			/*
 			 * We were racing with iflush because we don't hold
-			 * the AIL_LOCK or the flush lock. However, at this point,
+			 * the AIL lock or the flush lock. However, at this point,
 			 * we have the buffer, and we know that it's dirty.
 			 * So, it's possible that iflush raced with us, and
 			 * this item is already taken off the AIL.
@@ -968,7 +968,6 @@ xfs_iflush_done(
 	xfs_inode_log_item_t	*iip)
 {
 	xfs_inode_t	*ip;
-	SPLDECL(s);
 
 	ip = iip->ili_inode;
 
@@ -983,15 +982,15 @@ xfs_iflush_done(
 	 */
 	if (iip->ili_logged &&
 	    (iip->ili_item.li_lsn == iip->ili_flush_lsn)) {
-		AIL_LOCK(ip->i_mount, s);
+		spin_lock(&ip->i_mount->m_ail_lock);
 		if (iip->ili_item.li_lsn == iip->ili_flush_lsn) {
 			/*
 			 * xfs_trans_delete_ail() drops the AIL lock.
 			 */
 			xfs_trans_delete_ail(ip->i_mount,
-					     (xfs_log_item_t*)iip, s);
+					     (xfs_log_item_t*)iip);
 		} else {
-			AIL_UNLOCK(ip->i_mount, s);
+			spin_unlock(&ip->i_mount->m_ail_lock);
 		}
 	}
 
@@ -1025,21 +1024,19 @@ xfs_iflush_abort(
 {
 	xfs_inode_log_item_t	*iip;
 	xfs_mount_t		*mp;
-	SPLDECL(s);
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
 	if (iip) {
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
-			AIL_LOCK(mp, s);
+			spin_lock(&mp->m_ail_lock);
 			if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
 				/*
 				 * xfs_trans_delete_ail() drops the AIL lock.
 				 */
-				xfs_trans_delete_ail(mp, (xfs_log_item_t *)iip,
-					s);
+				xfs_trans_delete_ail(mp, (xfs_log_item_t *)iip);
 			} else
-				AIL_UNLOCK(mp, s);
+				spin_unlock(&mp->m_ail_lock);
 		}
 		iip->ili_logged = 0;
 		/*

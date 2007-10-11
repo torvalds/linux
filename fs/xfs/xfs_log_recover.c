@@ -2660,7 +2660,6 @@ xlog_recover_do_efi_trans(
 	xfs_mount_t		*mp;
 	xfs_efi_log_item_t	*efip;
 	xfs_efi_log_format_t	*efi_formatp;
-	SPLDECL(s);
 
 	if (pass == XLOG_RECOVER_PASS1) {
 		return 0;
@@ -2678,11 +2677,11 @@ xlog_recover_do_efi_trans(
 	efip->efi_next_extent = efi_formatp->efi_nextents;
 	efip->efi_flags |= XFS_EFI_COMMITTED;
 
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 	/*
 	 * xfs_trans_update_ail() drops the AIL lock.
 	 */
-	xfs_trans_update_ail(mp, (xfs_log_item_t *)efip, lsn, s);
+	xfs_trans_update_ail(mp, (xfs_log_item_t *)efip, lsn);
 	return 0;
 }
 
@@ -2707,7 +2706,6 @@ xlog_recover_do_efd_trans(
 	xfs_log_item_t		*lip;
 	int			gen;
 	__uint64_t		efi_id;
-	SPLDECL(s);
 
 	if (pass == XLOG_RECOVER_PASS1) {
 		return;
@@ -2725,7 +2723,7 @@ xlog_recover_do_efd_trans(
 	 * in the AIL.
 	 */
 	mp = log->l_mp;
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 	lip = xfs_trans_first_ail(mp, &gen);
 	while (lip != NULL) {
 		if (lip->li_type == XFS_LI_EFI) {
@@ -2735,7 +2733,7 @@ xlog_recover_do_efd_trans(
 				 * xfs_trans_delete_ail() drops the
 				 * AIL lock.
 				 */
-				xfs_trans_delete_ail(mp, lip, s);
+				xfs_trans_delete_ail(mp, lip);
 				break;
 			}
 		}
@@ -2749,7 +2747,7 @@ xlog_recover_do_efd_trans(
 	if (lip != NULL) {
 		xfs_efi_item_free(efip);
 	} else {
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 	}
 }
 
@@ -3075,10 +3073,9 @@ xlog_recover_process_efis(
 	xfs_efi_log_item_t	*efip;
 	int			gen;
 	xfs_mount_t		*mp;
-	SPLDECL(s);
 
 	mp = log->l_mp;
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 
 	lip = xfs_trans_first_ail(mp, &gen);
 	while (lip != NULL) {
@@ -3099,12 +3096,12 @@ xlog_recover_process_efis(
 			continue;
 		}
 
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 		xlog_recover_process_efi(mp, efip);
-		AIL_LOCK(mp,s);
+		spin_lock(&mp->m_ail_lock);
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
-	AIL_UNLOCK(mp, s);
+	spin_unlock(&mp->m_ail_lock);
 }
 
 /*

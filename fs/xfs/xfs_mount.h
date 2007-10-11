@@ -63,13 +63,6 @@ struct xfs_extdelta;
 struct xfs_swapext;
 struct xfs_mru_cache;
 
-#define	AIL_LOCK_T		lock_t
-#define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
-#define	AIL_LOCK_DESTROY(x)	spinlock_destroy(x)
-#define	AIL_LOCK(mp,s)		s=mutex_spinlock(&(mp)->m_ail_lock)
-#define	AIL_UNLOCK(mp,s)	mutex_spinunlock(&(mp)->m_ail_lock, s)
-
-
 /*
  * Prototypes and functions for the Data Migration subsystem.
  */
@@ -230,7 +223,7 @@ extern void	xfs_icsb_sync_counters_flags(struct xfs_mount *, int);
 typedef struct xfs_mount {
 	struct super_block	*m_super;
 	xfs_tid_t		m_tid;		/* next unused tid for fs */
-	AIL_LOCK_T		m_ail_lock;	/* fs AIL mutex */
+	spinlock_t		m_ail_lock;	/* fs AIL mutex */
 	xfs_ail_entry_t		m_ail;		/* fs active log item list */
 	uint			m_ail_gen;	/* fs AIL generation count */
 	xfs_sb_t		m_sb;		/* copy of fs superblock */

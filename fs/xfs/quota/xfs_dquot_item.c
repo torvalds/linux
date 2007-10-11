@@ -216,8 +216,8 @@ xfs_qm_dqunpin_wait(
  * If so, we want to push it out to help us take this item off the AIL as soon
  * as possible.
  *
- * We must not be holding the AIL_LOCK at this point. Calling incore() to
- * search the buffer cache can be a time consuming thing, and AIL_LOCK is a
+ * We must not be holding the AIL lock at this point. Calling incore() to
+ * search the buffer cache can be a time consuming thing, and AIL lock is a
  * spinlock.
  */
 STATIC void
@@ -322,7 +322,7 @@ xfs_qm_dquot_logitem_trylock(
 		 * want to do that now since we might sleep in the device
 		 * strategy routine.  We also don't want to grab the buffer lock
 		 * here because we'd like not to call into the buffer cache
-		 * while holding the AIL_LOCK.
+		 * while holding the AIL lock.
 		 * Make sure to only return PUSHBUF if we set pushbuf_flag
 		 * ourselves.  If someone else is doing it then we don't
 		 * want to go to the push routine and duplicate their efforts.
@@ -562,15 +562,14 @@ xfs_qm_qoffend_logitem_committed(
 	xfs_lsn_t lsn)
 {
 	xfs_qoff_logitem_t	*qfs;
-	SPLDECL(s);
 
 	qfs = qfe->qql_start_lip;
-	AIL_LOCK(qfs->qql_item.li_mountp,s);
+	spin_lock(&qfs->qql_item.li_mountp->m_ail_lock);
 	/*
 	 * Delete the qoff-start logitem from the AIL.
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */
-	xfs_trans_delete_ail(qfs->qql_item.li_mountp, (xfs_log_item_t *)qfs, s);
+	xfs_trans_delete_ail(qfs->qql_item.li_mountp, (xfs_log_item_t *)qfs);
 	kmem_free(qfs, sizeof(xfs_qoff_logitem_t));
 	kmem_free(qfe, sizeof(xfs_qoff_logitem_t));
 	return (xfs_lsn_t)-1;

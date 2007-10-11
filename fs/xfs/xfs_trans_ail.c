@@ -55,16 +55,15 @@ xfs_trans_tail_ail(
 {
 	xfs_lsn_t	lsn;
 	xfs_log_item_t	*lip;
-	SPLDECL(s);
 
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 	lip = xfs_ail_min(&(mp->m_ail));
 	if (lip == NULL) {
 		lsn = (xfs_lsn_t)0;
 	} else {
 		lsn = lip->li_lsn;
 	}
-	AIL_UNLOCK(mp, s);
+	spin_unlock(&mp->m_ail_lock);
 
 	return lsn;
 }
@@ -89,17 +88,16 @@ xfs_trans_push_ail(
 	int			restarts;
 	int			lock_result;
 	int			flush_log;
-	SPLDECL(s);
 
 #define	XFS_TRANS_PUSH_AIL_RESTARTS	1000
 
-	AIL_LOCK(mp,s);
+	spin_lock(&mp->m_ail_lock);
 	lip = xfs_trans_first_ail(mp, &gen);
 	if (lip == NULL || XFS_FORCED_SHUTDOWN(mp)) {
 		/*
 		 * Just return if the AIL is empty.
 		 */
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 		return (xfs_lsn_t)0;
 	}
 
@@ -112,7 +110,7 @@ xfs_trans_push_ail(
 	 * beginning of the list.  We'd like not to stop until we've at least
 	 * tried to push on everything in the AIL with an LSN less than
 	 * the given threshold. However, we may give up before that if
-	 * we realize that we've been holding the AIL_LOCK for 'too long',
+	 * we realize that we've been holding the AIL lock for 'too long',
 	 * blocking interrupts. Currently, too long is < 500us roughly.
 	 */
 	flush_log = 0;
@@ -136,14 +134,14 @@ xfs_trans_push_ail(
 		lock_result = IOP_TRYLOCK(lip);
 		switch (lock_result) {
 		      case XFS_ITEM_SUCCESS:
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 			XFS_STATS_INC(xs_push_ail_success);
 			IOP_PUSH(lip);
-			AIL_LOCK(mp,s);
+			spin_lock(&mp->m_ail_lock);
 			break;
 
 		      case XFS_ITEM_PUSHBUF:
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 			XFS_STATS_INC(xs_push_ail_pushbuf);
 #ifdef XFSRACEDEBUG
 			delay_for_intr();
@@ -152,7 +150,7 @@ xfs_trans_push_ail(
 			ASSERT(lip->li_ops->iop_pushbuf);
 			ASSERT(lip);
 			IOP_PUSHBUF(lip);
-			AIL_LOCK(mp,s);
+			spin_lock(&mp->m_ail_lock);
 			break;
 
 		      case XFS_ITEM_PINNED:
@@ -181,7 +179,7 @@ xfs_trans_push_ail(
 			/*
 			 * Just return if we shut down during the last try.
 			 */
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 			return (xfs_lsn_t)0;
 		}
 
@@ -193,10 +191,10 @@ xfs_trans_push_ail(
 		 * push out the log so it will become unpinned and
 		 * move forward in the AIL.
 		 */
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 		XFS_STATS_INC(xs_push_ail_flush);
 		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
-		AIL_LOCK(mp, s);
+		spin_lock(&mp->m_ail_lock);
 	}
 
 	lip = xfs_ail_min(&(mp->m_ail));
@@ -206,7 +204,7 @@ xfs_trans_push_ail(
 		lsn = lip->li_lsn;
 	}
 
-	AIL_UNLOCK(mp, s);
+	spin_unlock(&mp->m_ail_lock);
 	return lsn;
 }	/* xfs_trans_push_ail */
 
@@ -269,15 +267,13 @@ xfs_trans_unlocked_item(
  * has changed.
  *
  * This function must be called with the AIL lock held.  The lock
- * is dropped before returning, so the caller must pass in the
- * cookie returned by AIL_LOCK.
+ * is dropped before returning.
  */
 void
 xfs_trans_update_ail(
 	xfs_mount_t	*mp,
 	xfs_log_item_t	*lip,
-	xfs_lsn_t	lsn,
-	unsigned long	s) __releases(mp->m_ail_lock)
+	xfs_lsn_t	lsn) __releases(mp->m_ail_lock)
 {
 	xfs_ail_entry_t		*ailp;
 	xfs_log_item_t		*dlip=NULL;
@@ -300,10 +296,10 @@ xfs_trans_update_ail(
 
 	if (mlip == dlip) {
 		mlip = xfs_ail_min(&(mp->m_ail));
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 		xfs_log_move_tail(mp, mlip->li_lsn);
 	} else {
-		AIL_UNLOCK(mp, s);
+		spin_unlock(&mp->m_ail_lock);
 	}
 
 
@@ -322,14 +318,12 @@ xfs_trans_update_ail(
  * has changed.
  *
  * This function must be called with the AIL lock held.  The lock
- * is dropped before returning, so the caller must pass in the
- * cookie returned by AIL_LOCK.
+ * is dropped before returning.
  */
 void
 xfs_trans_delete_ail(
 	xfs_mount_t	*mp,
-	xfs_log_item_t	*lip,
-	unsigned long	s) __releases(mp->m_ail_lock)
+	xfs_log_item_t	*lip) __releases(mp->m_ail_lock)
 {
 	xfs_ail_entry_t		*ailp;
 	xfs_log_item_t		*dlip;
@@ -348,10 +342,10 @@ xfs_trans_delete_ail(
 
 		if (mlip == dlip) {
 			mlip = xfs_ail_min(&(mp->m_ail));
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 			xfs_log_move_tail(mp, (mlip ? mlip->li_lsn : 0));
 		} else {
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 		}
 	}
 	else {
@@ -360,12 +354,12 @@ xfs_trans_delete_ail(
 		 * serious trouble if we get to this stage.
 		 */
 		if (XFS_FORCED_SHUTDOWN(mp))
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 		else {
 			xfs_cmn_err(XFS_PTAG_AILDELETE, CE_ALERT, mp,
 		"%s: attempting to delete a log item that is not in the AIL",
 					__FUNCTION__);
-			AIL_UNLOCK(mp, s);
+			spin_unlock(&mp->m_ail_lock);
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		}
 	}

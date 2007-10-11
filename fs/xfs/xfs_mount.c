@@ -136,7 +136,7 @@ xfs_mount_init(void)
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
 	}
 
-	AIL_LOCKINIT(&mp->m_ail_lock, "xfs_ail");
+	spinlock_init(&mp->m_ail_lock, "xfs_ail");
 	spinlock_init(&mp->m_sb_lock, "xfs_sb");
 	mutex_init(&mp->m_ilock);
 	mutex_init(&mp->m_growlock);
@@ -171,7 +171,7 @@ xfs_mount_free(
 			  sizeof(xfs_perag_t) * mp->m_sb.sb_agcount);
 	}
 
-	AIL_LOCK_DESTROY(&mp->m_ail_lock);
+	spinlock_destroy(&mp->m_ail_lock);
 	spinlock_destroy(&mp->m_sb_lock);
 	mutex_destroy(&mp->m_ilock);
 	mutex_destroy(&mp->m_growlock);
