@@ -12,7 +12,7 @@ obj-y	:= process.o signal_64.o entry.o traps_64.o irq.o \
 		perfctr-watchdog.o
 
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
-obj-$(CONFIG_X86_MCE)		+= mce.o therm_throt.o
+obj-$(CONFIG_X86_MCE)		+= mce_64.o therm_throt.o
 obj-$(CONFIG_X86_MCE_INTEL)	+= mce_intel_64.o
 obj-$(CONFIG_X86_MCE_AMD)	+= mce_amd_64.o
 obj-$(CONFIG_MTRR)		+= ../../i386/kernel/cpu/mtrr/
