@@ -19,8 +19,6 @@
 
 #if defined(CONFIG_8260)
 #include <asm/mpc8260.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
 #endif
 
 #define cpm2_map(member) (&cpm2_immr->member)

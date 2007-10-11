@@ -289,7 +289,7 @@ label:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
+	lis	r11, PAGE_OFFSET@h
 	cmplw	r10, r11
 	blt+	3f
 	lis	r11, swapper_pg_dir@h
@@ -481,7 +481,7 @@ label:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
+	lis	r11, PAGE_OFFSET@h
 	cmplw	r10, r11
 	blt+	3f
 	lis	r11, swapper_pg_dir@h
@@ -581,7 +581,7 @@ label:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
+	lis	r11, PAGE_OFFSET@h
 	cmplw	r10, r11
 	blt+	3f
 	lis	r11, swapper_pg_dir@h

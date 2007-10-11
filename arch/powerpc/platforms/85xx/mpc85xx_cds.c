@@ -36,7 +36,6 @@
 #include <asm/machdep.h>
 #include <asm/ipic.h>
 #include <asm/pci-bridge.h>
-#include <asm/mpc85xx.h>
 #include <asm/irq.h>
 #include <mm/mmu_decl.h>
 #include <asm/prom.h>
@@ -46,6 +45,15 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+
+/* CADMUS info */
+/* xxx - galak, move into device tree */
+#define CADMUS_BASE (0xf8004000)
+#define CADMUS_SIZE (256)
+#define CM_VER	(0)
+#define CM_CSR	(1)
+#define CM_RST	(2)
+
 
 static int cds_pci_slot = 2;
 static volatile u8 *cadmus;

@@ -145,6 +145,42 @@
 			device_type = "open-pic";
                         big-endian;
 		};
+
+		cpm@919c0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8541-cpm", "fsl,cpm2";
+			reg = <919c0 30>;
+			ranges;
+
+			muram@80000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 80000 10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 2000 9000 1000>;
+				};
+			};
+
+			brg@919f0 {
+				compatible = "fsl,mpc8541-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <919f0 10 915f0 10>;
+			};
+
+			cpmpic: pic@90c00 {
+				interrupt-controller;
+				#address-cells = <0>;
+				#interrupt-cells = <2>;
+				interrupts = <2e 2>;
+				interrupt-parent = <&mpic>;
+				reg = <90c00 80>;
+				compatible = "fsl,mpc8541-cpm-pic", "fsl,cpm2-pic";
+			};
+		};
 	};
 
 	pci1: pci@e0008000 {

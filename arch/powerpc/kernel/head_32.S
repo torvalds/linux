@@ -469,12 +469,12 @@ InstructionTLBMiss:
 	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_IMISS
-	lis	r1,KERNELBASE@h		/* check if kernel address */
-	cmplw	0,r3,r1
+	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	cmplw	0,r1,r3
 	mfspr	r2,SPRN_SPRG3
 	li	r1,_PAGE_USER|_PAGE_PRESENT /* low addresses tested as user */
 	lwz	r2,PGDIR(r2)
-	blt+	112f
+	bge-	112f
 	mfspr	r2,SPRN_SRR1		/* and MSR_PR bit from SRR1 */
 	rlwimi	r1,r2,32-12,29,29	/* shift MSR_PR to _PAGE_USER posn */
 	lis	r2,swapper_pg_dir@ha	/* if kernel address, use */
@@ -543,12 +543,12 @@ DataLoadTLBMiss:
 	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
-	lis	r1,KERNELBASE@h		/* check if kernel address */
-	cmplw	0,r3,r1
+	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	cmplw	0,r1,r3
 	mfspr	r2,SPRN_SPRG3
 	li	r1,_PAGE_USER|_PAGE_PRESENT /* low addresses tested as user */
 	lwz	r2,PGDIR(r2)
-	blt+	112f
+	bge-	112f
 	mfspr	r2,SPRN_SRR1		/* and MSR_PR bit from SRR1 */
 	rlwimi	r1,r2,32-12,29,29	/* shift MSR_PR to _PAGE_USER posn */
 	lis	r2,swapper_pg_dir@ha	/* if kernel address, use */
@@ -615,12 +615,12 @@ DataStoreTLBMiss:
 	mfctr	r0
 	/* Get PTE (linux-style) and check access */
 	mfspr	r3,SPRN_DMISS
-	lis	r1,KERNELBASE@h		/* check if kernel address */
-	cmplw	0,r3,r1
+	lis	r1,PAGE_OFFSET@h		/* check if kernel address */
+	cmplw	0,r1,r3
 	mfspr	r2,SPRN_SPRG3
 	li	r1,_PAGE_RW|_PAGE_USER|_PAGE_PRESENT /* access flags */
 	lwz	r2,PGDIR(r2)
-	blt+	112f
+	bge-	112f
 	mfspr	r2,SPRN_SRR1		/* and MSR_PR bit from SRR1 */
 	rlwimi	r1,r2,32-12,29,29	/* shift MSR_PR to _PAGE_USER posn */
 	lis	r2,swapper_pg_dir@ha	/* if kernel address, use */

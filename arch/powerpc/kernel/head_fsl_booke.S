@@ -461,8 +461,7 @@ interrupt_base:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
-	ori	r11, r11, TASK_SIZE@l
+	lis	r11, PAGE_OFFSET@h
 	cmplw	0, r10, r11
 	bge	2f
 
@@ -584,8 +583,7 @@ interrupt_base:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
-	ori	r11, r11, TASK_SIZE@l
+	lis	r11, PAGE_OFFSET@h
 	cmplw	5, r10, r11
 	blt	5, 3f
 	lis	r11, swapper_pg_dir@h
@@ -645,8 +643,7 @@ interrupt_base:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
-	lis	r11, TASK_SIZE@h
-	ori	r11, r11, TASK_SIZE@l
+	lis	r11, PAGE_OFFSET@h
 	cmplw	5, r10, r11
 	blt	5, 3f
 	lis	r11, swapper_pg_dir@h
@@ -744,7 +741,7 @@ data_access:
  *	r10 - EA of fault
  *	r11 - TLB (info from Linux PTE)
  *	r12, r13 - available to use
- *	CR5 - results of addr < TASK_SIZE
+ *	CR5 - results of addr >= PAGE_OFFSET
  *	MAS0, MAS1 - loaded with proper value when we get here
  *	MAS2, MAS3 - will need additional info from Linux PTE
  *	Upon exit, we reload everything and RFI.
