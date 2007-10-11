@@ -111,7 +111,7 @@ drivers-$(CONFIG_PCI)			+= arch/x86/pci/
 # must be linked after kernel/
 drivers-$(CONFIG_OPROFILE)		+= arch/x86/oprofile/
 drivers-$(CONFIG_PM)			+= arch/x86/power/
-drivers-$(CONFIG_FB)                    += arch/i386/video/
+drivers-$(CONFIG_FB)                    += arch/x86/video/
 
 CFLAGS += $(mflags-y)
 AFLAGS += $(mflags-y)
