@@ -23,6 +23,10 @@
 
 unsigned int pci_pm_d3_delay = 10;
 
+#ifdef CONFIG_PCI_DOMAINS
+int pci_domains_supported = 1;
+#endif
+
 #define DEFAULT_CARDBUS_IO_SIZE		(256)
 #define DEFAULT_CARDBUS_MEM_SIZE	(64*1024*1024)
 /* pci=cbmemsize=nnM,cbiosize=nn can override this */
@@ -1567,6 +1571,13 @@ int pci_select_bars(struct pci_dev *dev, unsigned long flags)
 	return bars;
 }
 
+static void __devinit pci_no_domains(void)
+{
+#ifdef CONFIG_PCI_DOMAINS
+	pci_domains_supported = 0;
+#endif
+}
+
 static int __devinit pci_init(void)
 {
 	struct pci_dev *dev = NULL;
@@ -1588,6 +1599,8 @@ static int __devinit pci_setup(char *str)
 				pci_no_msi();
 			} else if (!strcmp(str, "noaer")) {
 				pci_no_aer();
+			} else if (!strcmp(str, "nodomains")) {
+				pci_no_domains();
 			} else if (!strncmp(str, "cbiosize=", 9)) {
 				pci_cardbus_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "cbmemsize=", 10)) {

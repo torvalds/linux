@@ -1274,6 +1274,8 @@ and is between 256 and 4096 characters. It is defined in the file
 		noaer		[PCIE] If the PCIEAER kernel config parameter is
 				enabled, this kernel boot option can be used to
 				disable the use of PCIE advanced error reporting.
+		nodomains	[PCI] Disable support for multiple PCI
+				root domains (aka PCI segments, in ACPI-speak).
 		nommconf	[X86-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is

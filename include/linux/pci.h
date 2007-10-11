@@ -685,13 +685,16 @@ extern void pci_unblock_user_cfg_access(struct pci_dev *dev);
  * a PCI domain is defined to be a set of PCI busses which share
  * configuration space.
  */
-#ifndef CONFIG_PCI_DOMAINS
+#ifdef CONFIG_PCI_DOMAINS
+extern int pci_domains_supported;
+#else
+enum { pci_domains_supported = 0 };
 static inline int pci_domain_nr(struct pci_bus *bus) { return 0; }
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_PCI_DOMAINS */
 
 #else /* CONFIG_PCI is not enabled */
 
