@@ -129,7 +129,8 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 	struct hrtimer_cpu_base *cpu_base = &per_cpu(hrtimer_bases, cpu);
 	int i;
 
-	SEQ_printf(m, "\ncpu: %d\n", cpu);
+	SEQ_printf(m, "\n");
+	SEQ_printf(m, "cpu: %d\n", cpu);
 	for (i = 0; i < HRTIMER_MAX_CLOCK_BASES; i++) {
 		SEQ_printf(m, " clock %d:\n", i);
 		print_base(m, cpu_base->clock_base + i, now);
@@ -184,7 +185,8 @@ print_tickdevice(struct seq_file *m, struct tick_device *td)
 {
 	struct clock_event_device *dev = td->evtdev;
 
-	SEQ_printf(m, "\nTick Device: mode:     %d\n", td->mode);
+	SEQ_printf(m, "\n");
+	SEQ_printf(m, "Tick Device: mode:     %d\n", td->mode);
 
 	SEQ_printf(m, "Clock Event Device: ");
 	if (!dev) {
