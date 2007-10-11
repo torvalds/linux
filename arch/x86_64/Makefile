@@ -24,10 +24,6 @@
 # Fill in SRCARCH
 SRCARCH	:= x86
 
-archprepare:
-	@mkdir -p ${objtree}/arch/x86/kernel
-
-
 LDFLAGS		:= -m elf_x86_64
 OBJCOPYFLAGS	:= -O binary -R .note -R .comment -S
 LDFLAGS_vmlinux :=

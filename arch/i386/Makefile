@@ -20,10 +20,6 @@
 # Fill in SRCARCH
 SRCARCH	:= x86
 
-archprepare:
-	@mkdir -p ${objtree}/arch/x86/kernel
-
-
 HAS_BIARCH      := $(call cc-option-yn, -m32)
 ifeq ($(HAS_BIARCH),y)
 AS              := $(AS) --32
