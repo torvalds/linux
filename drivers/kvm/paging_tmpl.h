@@ -74,9 +74,14 @@ static void FNAME(update_dirty_bit)(struct kvm_vcpu *vcpu,
 				    pt_element_t *ptep,
 				    gfn_t table_gfn)
 {
+	gpa_t pte_gpa;
+
 	if (write_fault && !is_dirty_pte(*ptep)) {
 		mark_page_dirty(vcpu->kvm, table_gfn);
 		*ptep |= PT_DIRTY_MASK;
+		pte_gpa = ((gpa_t)table_gfn << PAGE_SHIFT);
+		pte_gpa += offset_in_page(ptep);
+		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)ptep, sizeof(*ptep));
 	}
 }
 
