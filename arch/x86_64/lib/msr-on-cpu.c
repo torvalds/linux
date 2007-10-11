@@ -1,1 +1,1 @@
-#include "../../i386/lib/msr-on-cpu.c"
+#include "../../x86/lib/msr-on-cpu.c"

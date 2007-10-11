@@ -101,7 +101,7 @@ mflags-y += -Iinclude/asm-i386/mach-default
 
 head-y := arch/i386/kernel/head_32.o arch/i386/kernel/init_task_32.o
 
-libs-y 					+= arch/i386/lib/
+libs-y 					+= arch/x86/lib/
 core-y					+= arch/i386/kernel/ \
 					   arch/i386/mm/ \
 					   $(mcore-y)/ \
