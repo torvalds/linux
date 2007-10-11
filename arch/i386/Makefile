@@ -110,7 +110,7 @@ drivers-$(CONFIG_MATH_EMULATION)	+= arch/x86/math-emu/
 drivers-$(CONFIG_PCI)			+= arch/i386/pci/
 # must be linked after kernel/
 drivers-$(CONFIG_OPROFILE)		+= arch/i386/oprofile/
-drivers-$(CONFIG_PM)			+= arch/i386/power/
+drivers-$(CONFIG_PM)			+= arch/x86/power/
 drivers-$(CONFIG_FB)                    += arch/i386/video/
 
 CFLAGS += $(mflags-y)
