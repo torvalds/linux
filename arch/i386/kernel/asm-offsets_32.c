@@ -10,7 +10,7 @@
 #include <linux/personality.h>
 #include <linux/suspend.h>
 #include <asm/ucontext.h>
-#include "sigframe.h"
+#include "sigframe_32.h"
 #include <asm/pgtable.h>
 #include <asm/fixmap.h>
 #include <asm/processor.h>
