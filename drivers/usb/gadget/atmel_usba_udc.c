@@ -989,8 +989,44 @@ static int usba_udc_get_frame(struct usb_gadget *gadget)
 	return USBA_BFEXT(FRAME_NUMBER, usba_readl(udc, FNUM));
 }
 
+static int usba_udc_wakeup(struct usb_gadget *gadget)
+{
+	struct usba_udc *udc = to_usba_udc(gadget);
+	unsigned long flags;
+	u32 ctrl;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&udc->lock, flags);
+	if (udc->devstatus & (1 << USB_DEVICE_REMOTE_WAKEUP)) {
+		ctrl = usba_readl(udc, CTRL);
+		usba_writel(udc, CTRL, ctrl | USBA_REMOTE_WAKE_UP);
+		ret = 0;
+	}
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	return ret;
+}
+
+static int
+usba_udc_set_selfpowered(struct usb_gadget *gadget, int is_selfpowered)
+{
+	struct usba_udc *udc = to_usba_udc(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&udc->lock, flags);
+	if (is_selfpowered)
+		udc->devstatus |= 1 << USB_DEVICE_SELF_POWERED;
+	else
+		udc->devstatus &= ~(1 << USB_DEVICE_SELF_POWERED);
+	spin_unlock_irqrestore(&udc->lock, flags);
+
+	return 0;
+}
+
 static const struct usb_gadget_ops usba_udc_ops = {
-	.get_frame	= usba_udc_get_frame,
+	.get_frame		= usba_udc_get_frame,
+	.wakeup			= usba_udc_wakeup,
+	.set_selfpowered	= usba_udc_set_selfpowered,
 };
 
 #define EP(nam, idx, maxpkt, maxbk, dma, isoc)			\
@@ -1068,8 +1104,11 @@ static void reset_all_endpoints(struct usba_udc *udc)
 	}
 
 	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-		if (ep->desc)
+		if (ep->desc) {
+			spin_unlock(&udc->lock);
 			usba_ep_disable(&ep->ep);
+			spin_lock(&udc->lock);
+		}
 	}
 }
 
@@ -1238,8 +1277,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 		u16 status;
 
 		if (crq->bRequestType == (USB_DIR_IN | USB_RECIP_DEVICE)) {
-			/* Self-powered, no remote wakeup */
-			status = __constant_cpu_to_le16(1 << 0);
+			status = cpu_to_le16(udc->devstatus);
 		} else if (crq->bRequestType
 				== (USB_DIR_IN | USB_RECIP_INTERFACE)) {
 			status = __constant_cpu_to_le16(0);
@@ -1268,12 +1306,12 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 
 	case USB_REQ_CLEAR_FEATURE: {
 		if (crq->bRequestType == USB_RECIP_DEVICE) {
-			if (feature_is_dev_remote_wakeup(crq)) {
-				/* TODO: Handle REMOTE_WAKEUP */
-			} else {
+			if (feature_is_dev_remote_wakeup(crq))
+				udc->devstatus
+					&= ~(1 << USB_DEVICE_REMOTE_WAKEUP);
+			else
 				/* Can't CLEAR_FEATURE TEST_MODE */
 				goto stall;
-			}
 		} else if (crq->bRequestType == USB_RECIP_ENDPOINT) {
 			struct usba_ep *target;
 
@@ -1304,7 +1342,7 @@ static int handle_ep0_setup(struct usba_udc *udc, struct usba_ep *ep,
 				udc->test_mode = le16_to_cpu(crq->wIndex);
 				return 0;
 			} else if (feature_is_dev_remote_wakeup(crq)) {
-				/* TODO: Handle REMOTE_WAKEUP */
+				udc->devstatus |= 1 << USB_DEVICE_REMOTE_WAKEUP;
 			} else {
 				goto stall;
 			}
@@ -1791,6 +1829,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		return -EBUSY;
 	}
 
+	udc->devstatus = 1 << USB_DEVICE_SELF_POWERED;
 	udc->driver = driver;
 	udc->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc->lock, flags);

@@ -320,7 +320,9 @@ struct usba_udc {
 	struct clk *pclk;
 	struct clk *hclk;
 
-	int test_mode;
+	u16 devstatus;
+
+	u16 test_mode;
 	int vbus_prev;
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
