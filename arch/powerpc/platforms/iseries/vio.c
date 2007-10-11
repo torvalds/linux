@@ -25,8 +25,10 @@
 #include <linux/gfp.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
+#include <linux/module.h>
 
 #include <asm/firmware.h>
+#include <asm/vio.h>
 #include <asm/iseries/vio.h>
 #include <asm/iseries/iommu.h>
 #include <asm/iseries/hv_types.h>
@@ -57,7 +59,7 @@ struct vio_resource {
 	char	model[3];
 };
 
-static struct property * __init new_property(const char *name, int length,
+static struct property *new_property(const char *name, int length,
 		const void *value)
 {
 	struct property *np = kzalloc(sizeof(*np) + strlen(name) + 1 + length,
@@ -78,7 +80,7 @@ static void __init free_property(struct property *np)
 	kfree(np);
 }
 
-static struct device_node * __init new_node(const char *path,
+static struct device_node *new_node(const char *path,
 		struct device_node *parent)
 {
 	struct device_node *np = kzalloc(sizeof(*np), GFP_KERNEL);
@@ -97,7 +99,7 @@ static struct device_node * __init new_node(const char *path,
 	return np;
 }
 
-static void __init free_node(struct device_node *np)
+static void free_node(struct device_node *np)
 {
 	struct property *next;
 	struct property *prop;
@@ -113,7 +115,7 @@ static void __init free_node(struct device_node *np)
 	kfree(np);
 }
 
-static int __init add_string_property(struct device_node *np, const char *name,
+static int add_string_property(struct device_node *np, const char *name,
 		const char *value)
 {
 	struct property *nprop = new_property(name, strlen(value) + 1, value);
@@ -124,7 +126,7 @@ static int __init add_string_property(struct device_node *np, const char *name,
 	return 1;
 }
 
-static int __init add_raw_property(struct device_node *np, const char *name,
+static int add_raw_property(struct device_node *np, const char *name,
 		int length, const void *value)
 {
 	struct property *nprop = new_property(name, length, value);
@@ -133,6 +135,201 @@ static int __init add_raw_property(struct device_node *np, const char *name,
 		return 0;
 	prom_add_property(np, nprop);
 	return 1;
+}
+
+static struct device_node *do_device_node(struct device_node *parent,
+		const char *name, u32 reg, u32 unit, const char *type,
+		const char *compat, struct vio_resource *res)
+{
+	struct device_node *np;
+	char path[32];
+
+	snprintf(path, sizeof(path), "/vdevice/%s@%08x", name, reg);
+	np = new_node(path, parent);
+	if (!np)
+		return NULL;
+	if (!add_string_property(np, "name", name) ||
+		!add_string_property(np, "device_type", type) ||
+		!add_string_property(np, "compatible", compat) ||
+		!add_raw_property(np, "reg", sizeof(reg), &reg) ||
+		!add_raw_property(np, "linux,unit_address",
+			sizeof(unit), &unit)) {
+		goto node_free;
+	}
+	if (res) {
+		if (!add_raw_property(np, "linux,vio_rsrcname",
+				sizeof(res->rsrcname), res->rsrcname) ||
+			!add_raw_property(np, "linux,vio_type",
+				sizeof(res->type), res->type) ||
+			!add_raw_property(np, "linux,vio_model",
+				sizeof(res->model), res->model))
+			goto node_free;
+	}
+	np->name = of_get_property(np, "name", NULL);
+	np->type = of_get_property(np, "device_type", NULL);
+	of_attach_node(np);
+#ifdef CONFIG_PROC_DEVICETREE
+	if (parent->pde) {
+		struct proc_dir_entry *ent;
+
+		ent = proc_mkdir(strrchr(np->full_name, '/') + 1, parent->pde);
+		if (ent)
+			proc_device_tree_add_node(np, ent);
+	}
+#endif
+	return np;
+
+ node_free:
+	free_node(np);
+	return NULL;
+}
+
+/*
+ * This is here so that we can dynamically add viodasd
+ * devices without exposing all the above infrastructure.
+ */
+struct vio_dev *vio_create_viodasd(u32 unit)
+{
+	struct device_node *vio_root;
+	struct device_node *np;
+	struct vio_dev *vdev = NULL;
+
+	vio_root = of_find_node_by_path("/vdevice");
+	if (!vio_root)
+		return NULL;
+	np = do_device_node(vio_root, "viodasd", FIRST_VIODASD + unit, unit,
+			"block", "IBM,iSeries-viodasd", NULL);
+	of_node_put(vio_root);
+	if (np) {
+		vdev = vio_register_device_node(np);
+		if (!vdev)
+			free_node(np);
+	}
+	return vdev;
+}
+EXPORT_SYMBOL_GPL(vio_create_viodasd);
+
+static void __init handle_block_event(struct HvLpEvent *event)
+{
+	struct vioblocklpevent *bevent = (struct vioblocklpevent *)event;
+	struct vio_waitevent *pwe;
+
+	if (event == NULL)
+		/* Notification that a partition went away! */
+		return;
+	/* First, we should NEVER get an int here...only acks */
+	if (hvlpevent_is_int(event)) {
+		printk(KERN_WARNING "handle_viod_request: "
+		       "Yikes! got an int in viodasd event handler!\n");
+		if (hvlpevent_need_ack(event)) {
+			event->xRc = HvLpEvent_Rc_InvalidSubtype;
+			HvCallEvent_ackLpEvent(event);
+		}
+		return;
+	}
+
+	switch (event->xSubtype & VIOMINOR_SUBTYPE_MASK) {
+	case vioblockopen:
+		/*
+		 * Handle a response to an open request.  We get all the
+		 * disk information in the response, so update it.  The
+		 * correlation token contains a pointer to a waitevent
+		 * structure that has a completion in it.  update the
+		 * return code in the waitevent structure and post the
+		 * completion to wake up the guy who sent the request
+		 */
+		pwe = (struct vio_waitevent *)event->xCorrelationToken;
+		pwe->rc = event->xRc;
+		pwe->sub_result = bevent->sub_result;
+		complete(&pwe->com);
+		break;
+	case vioblockclose:
+		break;
+	default:
+		printk(KERN_WARNING "handle_viod_request: unexpected subtype!");
+		if (hvlpevent_need_ack(event)) {
+			event->xRc = HvLpEvent_Rc_InvalidSubtype;
+			HvCallEvent_ackLpEvent(event);
+		}
+	}
+}
+
+static void __init probe_disk(struct device_node *vio_root, u32 unit)
+{
+	HvLpEvent_Rc hvrc;
+	struct vio_waitevent we;
+	u16 flags = 0;
+
+retry:
+	init_completion(&we.com);
+
+	/* Send the open event to OS/400 */
+	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
+			HvLpEvent_Type_VirtualIo,
+			viomajorsubtype_blockio | vioblockopen,
+			HvLpEvent_AckInd_DoAck, HvLpEvent_AckType_ImmediateAck,
+			viopath_sourceinst(viopath_hostLp),
+			viopath_targetinst(viopath_hostLp),
+			(u64)(unsigned long)&we, VIOVERSION << 16,
+			((u64)unit << 48) | ((u64)flags<< 32),
+			0, 0, 0);
+	if (hvrc != 0) {
+		printk(KERN_WARNING "probe_disk: bad rc on HV open %d\n",
+			(int)hvrc);
+		return;
+	}
+
+	wait_for_completion(&we.com);
+
+	if (we.rc != 0) {
+		if (flags != 0)
+			return;
+		/* try again with read only flag set */
+		flags = vioblockflags_ro;
+		goto retry;
+	}
+
+	/* Send the close event to OS/400.  We DON'T expect a response */
+	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
+			HvLpEvent_Type_VirtualIo,
+			viomajorsubtype_blockio | vioblockclose,
+			HvLpEvent_AckInd_NoAck, HvLpEvent_AckType_ImmediateAck,
+			viopath_sourceinst(viopath_hostLp),
+			viopath_targetinst(viopath_hostLp),
+			0, VIOVERSION << 16,
+			((u64)unit << 48) | ((u64)flags << 32),
+			0, 0, 0);
+	if (hvrc != 0) {
+		printk(KERN_WARNING "probe_disk: "
+		       "bad rc sending event to OS/400 %d\n", (int)hvrc);
+		return;
+	}
+
+	do_device_node(vio_root, "viodasd", FIRST_VIODASD + unit, unit,
+			"block", "IBM,iSeries-viodasd", NULL);
+}
+
+static void __init get_viodasd_info(struct device_node *vio_root)
+{
+	int rc;
+	u32 unit;
+
+	rc = viopath_open(viopath_hostLp, viomajorsubtype_blockio, 2);
+	if (rc) {
+		printk(KERN_WARNING "get_viodasd_info: "
+		       "error opening path to host partition %d\n",
+		       viopath_hostLp);
+		return;
+	}
+
+	/* Initialize our request handler */
+	vio_setHandler(viomajorsubtype_blockio, handle_block_event);
+
+	for (unit = 0; unit < HVMAXARCHITECTEDVIRTUALDISKS; unit++)
+		probe_disk(vio_root, unit);
+
+	vio_clearHandler(viomajorsubtype_blockio);
+	viopath_close(viopath_hostLp, viomajorsubtype_blockio, 2);
 }
 
 static void __init handle_cd_event(struct HvLpEvent *event)
@@ -233,49 +430,9 @@ static void __init get_viocd_info(struct device_node *vio_root)
 
 	for (unit = 0; (unit < HVMAXARCHITECTEDVIRTUALCDROMS) &&
 			unitinfo[unit].rsrcname[0]; unit++) {
-		struct device_node *np;
-		char name[64];
-		u32 reg = FIRST_VIOCD + unit;
-
-		snprintf(name, sizeof(name), "/vdevice/viocd@%08x", reg);
-		np = new_node(name, vio_root);
-		if (!np)
-			goto hv_free;
-		if (!add_string_property(np, "name", "viocd") ||
-			!add_string_property(np, "device_type", "block") ||
-			!add_string_property(np, "compatible",
-				"IBM,iSeries-viocd") ||
-			!add_raw_property(np, "reg", sizeof(reg), &reg) ||
-			!add_raw_property(np, "linux,unit_address",
-				sizeof(unit), &unit) ||
-			!add_raw_property(np, "linux,vio_rsrcname",
-				sizeof(unitinfo[unit].rsrcname),
-				unitinfo[unit].rsrcname) ||
-			!add_raw_property(np, "linux,vio_type",
-				sizeof(unitinfo[unit].type),
-				unitinfo[unit].type) ||
-			!add_raw_property(np, "linux,vio_model",
-				sizeof(unitinfo[unit].model),
-				unitinfo[unit].model))
-			goto node_free;
-		np->name = of_get_property(np, "name", NULL);
-		np->type = of_get_property(np, "device_type", NULL);
-		of_attach_node(np);
-#ifdef CONFIG_PROC_DEVICETREE
-		if (vio_root->pde) {
-			struct proc_dir_entry *ent;
-
-			ent = proc_mkdir(strrchr(np->full_name, '/') + 1,
-					vio_root->pde);
-			if (ent)
-				proc_device_tree_add_node(np, ent);
-		}
-#endif
-		continue;
-
- node_free:
-		free_node(np);
-		break;
+		if (!do_device_node(vio_root, "viocd", FIRST_VIOCD + unit, unit,
+				"block", "IBM,iSeries-viocd", &unitinfo[unit]))
+			break;
 	}
 
  hv_free:
@@ -350,49 +507,10 @@ static void __init get_viotape_info(struct device_node *vio_root)
 
 	for (unit = 0; (unit < HVMAXARCHITECTEDVIRTUALTAPES) &&
 			unitinfo[unit].rsrcname[0]; unit++) {
-		struct device_node *np;
-		char name[64];
-		u32 reg = FIRST_VIOTAPE + unit;
-
-		snprintf(name, sizeof(name), "/vdevice/viotape@%08x", reg);
-		np = new_node(name, vio_root);
-		if (!np)
-			goto hv_free;
-		if (!add_string_property(np, "name", "viotape") ||
-			!add_string_property(np, "device_type", "byte") ||
-			!add_string_property(np, "compatible",
-				"IBM,iSeries-viotape") ||
-			!add_raw_property(np, "reg", sizeof(reg), &reg) ||
-			!add_raw_property(np, "linux,unit_address",
-				sizeof(unit), &unit) ||
-			!add_raw_property(np, "linux,vio_rsrcname",
-				sizeof(unitinfo[unit].rsrcname),
-				unitinfo[unit].rsrcname) ||
-			!add_raw_property(np, "linux,vio_type",
-				sizeof(unitinfo[unit].type),
-				unitinfo[unit].type) ||
-			!add_raw_property(np, "linux,vio_model",
-				sizeof(unitinfo[unit].model),
-				unitinfo[unit].model))
-			goto node_free;
-		np->name = of_get_property(np, "name", NULL);
-		np->type = of_get_property(np, "device_type", NULL);
-		of_attach_node(np);
-#ifdef CONFIG_PROC_DEVICETREE
-		if (vio_root->pde) {
-			struct proc_dir_entry *ent;
-
-			ent = proc_mkdir(strrchr(np->full_name, '/') + 1,
-					vio_root->pde);
-			if (ent)
-				proc_device_tree_add_node(np, ent);
-		}
-#endif
-		continue;
-
- node_free:
-		free_node(np);
-		break;
+		if (!do_device_node(vio_root, "viotape", FIRST_VIOTAPE + unit,
+				unit, "byte", "IBM,iSeries-viotape",
+				&unitinfo[unit]))
+			break;
 	}
 
  hv_free:
@@ -422,6 +540,7 @@ static int __init iseries_vio_init(void)
 			goto put_node;
 	}
 
+	get_viodasd_info(vio_root);
 	get_viocd_info(vio_root);
 	get_viotape_info(vio_root);
 

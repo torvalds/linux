@@ -51,6 +51,51 @@
  */
 #define VIO_MAX_SUBTYPES 8
 
+#define VIOMAXBLOCKDMA	12
+
+struct open_data {
+	u64	disk_size;
+	u16	max_disk;
+	u16	cylinders;
+	u16	tracks;
+	u16	sectors;
+	u16	bytes_per_sector;
+};
+
+struct rw_data {
+	u64	offset;
+	struct {
+		u32	token;
+		u32	reserved;
+		u64	len;
+	} dma_info[VIOMAXBLOCKDMA];
+};
+
+struct vioblocklpevent {
+	struct HvLpEvent	event;
+	u32			reserved;
+	u16			version;
+	u16			sub_result;
+	u16			disk;
+	u16			flags;
+	union {
+		struct open_data	open_data;
+		struct rw_data		rw_data;
+		u64			changed;
+	} u;
+};
+
+#define vioblockflags_ro   0x0001
+
+enum vioblocksubtype {
+	vioblockopen = 0x0001,
+	vioblockclose = 0x0002,
+	vioblockread = 0x0003,
+	vioblockwrite = 0x0004,
+	vioblockflush = 0x0005,
+	vioblockcheck = 0x0007
+};
+
 struct viocdlpevent {
 	struct HvLpEvent	event;
 	u32			reserved;
@@ -132,6 +177,8 @@ extern HvLpInstanceId viopath_targetinst(HvLpIndex lp);
 extern void vio_set_hostlp(void);
 extern void *vio_get_event_buffer(int subtype);
 extern void vio_free_event_buffer(int subtype, void *buffer);
+
+extern struct vio_dev *vio_create_viodasd(u32 unit);
 
 extern HvLpIndex viopath_hostLp;
 extern HvLpIndex viopath_ourLp;
