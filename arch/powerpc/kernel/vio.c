@@ -247,9 +247,6 @@ static int __init vio_bus_init(void)
 	int err;
 	struct device_node *node_vroot;
 
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		iommu_vio_init();
-
 	err = bus_register(&vio_bus_type);
 	if (err) {
 		printk(KERN_ERR "failed to register VIO bus\n");

@@ -51,6 +51,30 @@
  */
 #define VIO_MAX_SUBTYPES 8
 
+struct viocdlpevent {
+	struct HvLpEvent	event;
+	u32			reserved;
+	u16			version;
+	u16			sub_result;
+	u16			disk;
+	u16			flags;
+	u32			token;
+	u64			offset;		/* On open, max number of disks */
+	u64			len;		/* On open, size of the disk */
+	u32			block_size;	/* Only set on open */
+	u32			media_size;	/* Only set on open */
+};
+
+enum viocdsubtype {
+	viocdopen = 0x0001,
+	viocdclose = 0x0002,
+	viocdread = 0x0003,
+	viocdwrite = 0x0004,
+	viocdlockdoor = 0x0005,
+	viocdgetinfo = 0x0006,
+	viocdcheck = 0x0007
+};
+
 /*
  * Each subtype can register a handler to process their events.
  * The handler must have this interface.

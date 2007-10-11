@@ -381,10 +381,6 @@ static void __init dt_vdevices(struct iseries_flat_dt *dt)
 		dt_do_vdevice(dt, "viodasd", reg, i, device_type_block,
 				"IBM,iSeries-viodasd", 1);
 	reg += HVMAXARCHITECTEDVIRTUALDISKS;
-
-	for (i = 0; i < HVMAXARCHITECTEDVIRTUALCDROMS; i++)
-		dt_do_vdevice(dt, "viocd", reg, i, device_type_block,
-				"IBM,iSeries-viocd", 1);
 	reg += HVMAXARCHITECTEDVIRTUALCDROMS;
 
 	for (i = 0; i < HVMAXARCHITECTEDVIRTUALTAPES; i++)
