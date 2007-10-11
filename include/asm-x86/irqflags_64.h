@@ -137,6 +137,20 @@ static inline void halt(void)
 #  define TRACE_IRQS_ON
 #  define TRACE_IRQS_OFF
 # endif
+# ifdef CONFIG_DEBUG_LOCK_ALLOC
+#  define LOCKDEP_SYS_EXIT	call lockdep_sys_exit_thunk
+#  define LOCKDEP_SYS_EXIT_IRQ	\
+	TRACE_IRQS_ON; \
+	sti; \
+	SAVE_REST; \
+	LOCKDEP_SYS_EXIT; \
+	RESTORE_REST; \
+	cli; \
+	TRACE_IRQS_OFF;
+# else
+#  define LOCKDEP_SYS_EXIT
+#  define LOCKDEP_SYS_EXIT_IRQ
+# endif
 #endif
 
 #endif

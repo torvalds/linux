@@ -244,6 +244,7 @@ ret_from_sys_call:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	flagmask */
 sysret_check:		
+	LOCKDEP_SYS_EXIT
 	GET_THREAD_INFO(%rcx)
 	cli
 	TRACE_IRQS_OFF
@@ -333,6 +334,7 @@ int_ret_from_sys_call:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 int_with_check:
+	LOCKDEP_SYS_EXIT_IRQ
 	GET_THREAD_INFO(%rcx)
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
@@ -544,11 +546,13 @@ exit_intr:
 retint_with_reschedule:
 	movl $_TIF_WORK_MASK,%edi
 retint_check:
+	LOCKDEP_SYS_EXIT_IRQ
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
 	CFI_REMEMBER_STATE
 	jnz  retint_careful
-retint_swapgs:	 	
+
+retint_swapgs:		/* return to user-space */
 	/*
 	 * The iretq could re-enable interrupts:
 	 */
@@ -557,7 +561,7 @@ retint_swapgs:
 	swapgs 
 	jmp restore_args
 
-retint_restore_args:				
+retint_restore_args:	/* return to kernel space */
 	cli
 	/*
 	 * The iretq could re-enable interrupts:
@@ -866,26 +870,21 @@ error_sti:
 	movq ORIG_RAX(%rsp),%rsi	/* get error code */ 
 	movq $-1,ORIG_RAX(%rsp)
 	call *%rax
-	/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */	 
-error_exit:		
-	movl %ebx,%eax		
+	/* ebx:	no swapgs flag (1: don't need swapgs, 0: need it) */
+error_exit:
+	movl %ebx,%eax
 	RESTORE_REST
 	cli
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)	
 	testl %eax,%eax
 	jne  retint_kernel
+	LOCKDEP_SYS_EXIT_IRQ
 	movl  threadinfo_flags(%rcx),%edx
 	movl  $_TIF_WORK_MASK,%edi
 	andl  %edi,%edx
 	jnz  retint_careful
-	/*
-	 * The iret might restore flags:
-	 */
-	TRACE_IRQS_IRETQ
-	swapgs 
-	RESTORE_ARGS 0,8,0						
-	jmp iret_label
+	jmp retint_swapgs
 	CFI_ENDPROC
 
 error_kernelspace:
