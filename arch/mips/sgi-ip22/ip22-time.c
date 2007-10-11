@@ -29,7 +29,7 @@
 #include <asm/sgi/ip22.h>
 
 /*
- * note that mktime uses month from 1 to 12 while to_tm
+ * Note that mktime uses month from 1 to 12 while rtc_time_to_tm
  * uses 0 to 11.
  */
 unsigned long read_persistent_clock(void)
@@ -66,10 +66,10 @@ int rtc_mips_set_time(unsigned long tim)
 	unsigned int save_control;
 	unsigned long flags;
 
-	to_tm(tim, &tm);
+	rtc_time_to_tm(tim, &tm);
 
 	tm.tm_mon += 1;		/* tm_mon starts at zero */
-	tm.tm_year -= 1940;
+	tm.tm_year -= 40;
 	if (tm.tm_year >= 100)
 		tm.tm_year -= 100;
 

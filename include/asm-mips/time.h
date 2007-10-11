@@ -49,13 +49,6 @@ extern void (*mips_timer_ack)(void);
 extern struct clocksource clocksource_mips;
 
 /*
- * to_tm() converts system time back to (year, mon, day, hour, min, sec).
- * It is intended to help implement rtc_set_time() functions.
- * Copied from PPC implementation.
- */
-extern void to_tm(unsigned long tim, struct rtc_time *tm);
-
-/*
  * high-level timer interrupt routines.
  */
 extern irqreturn_t timer_interrupt(int irq, void *dev_id);
