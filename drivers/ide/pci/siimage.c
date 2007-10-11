@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/siimage.c		Version 1.15	Jun 29 2007
+ * linux/drivers/ide/pci/siimage.c		Version 1.16	Jul 13 2007
  *
  * Copyright (C) 2001-2002	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2003		Red Hat <alan@redhat.com>
@@ -185,7 +185,12 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 	u16 speedp		= 0;
 	unsigned long addr	= siimage_seldev(drive, 0x04);
 	unsigned long tfaddr	= siimage_selreg(hwif, 0x02);
+	unsigned long base	= (unsigned long)hwif->hwif_data;
 	u8 tf_pio		= pio;
+	u8 addr_mask		= hwif->channel ? (hwif->mmio ? 0xF4 : 0x84)
+						: (hwif->mmio ? 0xB4 : 0x80);
+	u8 mode			= 0;
+	u8 unit			= drive->select.b.unit;
 
 	/* trim *taskfile* PIO to the slowest of the master/slave */
 	if (pair->present) {
@@ -207,6 +212,11 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 			hwif->OUTW(hwif->INW(tfaddr-2)|0x200, tfaddr-2);
 		else
 			hwif->OUTW(hwif->INW(tfaddr-2)&~0x200, tfaddr-2);
+
+		mode = hwif->INB(base + addr_mask);
+		mode &= ~(unit ? 0x30 : 0x03);
+		mode |= (unit ? 0x10 : 0x01);
+		hwif->OUTB(mode, base + addr_mask);
 	} else {
 		pci_write_config_word(hwif->pci_dev, addr, speedp);
 		pci_write_config_word(hwif->pci_dev, tfaddr, speedt);
@@ -216,6 +226,11 @@ static void sil_tune_pio(ide_drive_t *drive, u8 pio)
 		if (pio > 2)
 			speedp |= 0x200;
 		pci_write_config_word(hwif->pci_dev, tfaddr-2, speedp);
+
+		pci_read_config_byte(hwif->pci_dev, addr_mask, &mode);
+		mode &= ~(unit ? 0x30 : 0x03);
+		mode |= (unit ? 0x10 : 0x01);
+		pci_write_config_byte(hwif->pci_dev, addr_mask, mode);
 	}
 }
 
@@ -275,8 +290,7 @@ static int siimage_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_PIO_1:
 		case XFER_PIO_0:
 			sil_tune_pio(drive, speed - XFER_PIO_0);
-			mode |= ((unit) ? 0x10 : 0x01);
-			break;
+			return ide_config_drive_speed(drive, speed);
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_MW_DMA_0:
