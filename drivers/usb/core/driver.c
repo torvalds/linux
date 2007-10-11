@@ -950,11 +950,11 @@ done:
 #ifdef	CONFIG_USB_SUSPEND
 
 /* Internal routine to check whether we may autosuspend a device. */
-static int autosuspend_check(struct usb_device *udev)
+static int autosuspend_check(struct usb_device *udev, int reschedule)
 {
 	int			i;
 	struct usb_interface	*intf;
-	unsigned long		suspend_time;
+	unsigned long		suspend_time, j;
 
 	/* For autosuspend, fail fast if anything is in use or autosuspend
 	 * is disabled.  Also fail if any interfaces require remote wakeup
@@ -996,20 +996,20 @@ static int autosuspend_check(struct usb_device *udev)
 	}
 
 	/* If everything is okay but the device hasn't been idle for long
-	 * enough, queue a delayed autosuspend request.
+	 * enough, queue a delayed autosuspend request.  If the device
+	 * _has_ been idle for long enough and the reschedule flag is set,
+	 * likewise queue a delayed (1 second) autosuspend request.
 	 */
-	if (time_after(suspend_time, jiffies)) {
+	j = jiffies;
+	if (time_before(j, suspend_time))
+		reschedule = 1;
+	else
+		suspend_time = j + HZ;
+	if (reschedule) {
 		if (!timer_pending(&udev->autosuspend.timer)) {
-
-			/* The value of jiffies may change between the
-			 * time_after() comparison above and the subtraction
-			 * below.  That's okay; the system behaves sanely
-			 * when a timer is registered for the present moment
-			 * or for the past.
-			 */
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-				round_jiffies_relative(suspend_time - jiffies));
-			}
+				round_jiffies_relative(suspend_time - j));
+		}
 		return -EAGAIN;
 	}
 	return 0;
@@ -1017,7 +1017,7 @@ static int autosuspend_check(struct usb_device *udev)
 
 #else
 
-static inline int autosuspend_check(struct usb_device *udev)
+static inline int autosuspend_check(struct usb_device *udev, int reschedule)
 {
 	return 0;
 }
@@ -1074,7 +1074,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 
 	if (udev->auto_pm) {
-		status = autosuspend_check(udev);
+		status = autosuspend_check(udev, 0);
 		if (status < 0)
 			goto done;
 	}
@@ -1100,7 +1100,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 		/* Try another autosuspend when the interfaces aren't busy */
 		if (udev->auto_pm)
-			autosuspend_check(udev);
+			autosuspend_check(udev, status == -EBUSY);
 
 	/* If the suspend succeeded then prevent any more URB submissions,
 	 * flush any outstanding URBs, and propagate the suspend up the tree.
