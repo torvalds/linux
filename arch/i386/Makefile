@@ -106,7 +106,7 @@ core-y					+= arch/i386/kernel/ \
 					   arch/i386/mm/ \
 					   $(mcore-y)/ \
 					   arch/x86/crypto/
-drivers-$(CONFIG_MATH_EMULATION)	+= arch/i386/math-emu/
+drivers-$(CONFIG_MATH_EMULATION)	+= arch/x86/math-emu/
 drivers-$(CONFIG_PCI)			+= arch/i386/pci/
 # must be linked after kernel/
 drivers-$(CONFIG_OPROFILE)		+= arch/i386/oprofile/

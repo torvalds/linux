@@ -707,7 +707,7 @@ config MATH_EMULATION
 	  intend to use this kernel on different machines.
 
 	  More information about the internals of the Linux math coprocessor
-	  emulation can be found in <file:arch/i386/math-emu/README>.
+	  emulation can be found in <file:arch/x86/math-emu/README>.
 
 	  If you are not sure, say Y; apart from resulting in a 66 KB bigger
 	  kernel, it won't hurt.
