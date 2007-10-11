@@ -75,8 +75,6 @@ void __rtnl_unlock(void)
 void rtnl_unlock(void)
 {
 	mutex_unlock(&rtnl_mutex);
-	if (rtnl && rtnl->sk_receive_queue.qlen)
-		rtnl->sk_data_ready(rtnl, 0);
 	netdev_run_todo();
 }
 
@@ -1319,11 +1317,9 @@ static void rtnetlink_rcv(struct sock *sk, int len)
 	unsigned int qlen = 0;
 
 	do {
-		mutex_lock(&rtnl_mutex);
+		rtnl_lock();
 		qlen = netlink_run_queue(sk, qlen, &rtnetlink_rcv_msg);
-		mutex_unlock(&rtnl_mutex);
-
-		netdev_run_todo();
+		rtnl_unlock();
 	} while (qlen);
 }
 
