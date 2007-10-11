@@ -21,7 +21,6 @@
 #include <linux/seq_file.h>
 #include <linux/bootmem.h>
 #include <linux/irq.h>
-#include <linux/msi.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -92,12 +91,16 @@ static struct {
 	unsigned int dev_handle;
 	unsigned int dev_ino;
 } virt_to_real_irq_table[NR_IRQS];
+static DEFINE_SPINLOCK(virt_irq_alloc_lock);
 
-static unsigned char virt_irq_alloc(unsigned int real_irq)
+unsigned char virt_irq_alloc(unsigned int real_irq)
 {
+	unsigned long flags;
 	unsigned char ent;
 
 	BUILD_BUG_ON(NR_IRQS >= 256);
+
+	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
 
 	for (ent = 1; ent < NR_IRQS; ent++) {
 		if (!virt_to_real_irq_table[ent].irq)
@@ -105,26 +108,29 @@ static unsigned char virt_irq_alloc(unsigned int real_irq)
 	}
 	if (ent >= NR_IRQS) {
 		printk(KERN_ERR "IRQ: Out of virtual IRQs.\n");
-		return 0;
+		ent = 0;
+	} else {
+		virt_to_real_irq_table[ent].irq = real_irq;
 	}
 
-	virt_to_real_irq_table[ent].irq = real_irq;
+	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 
 	return ent;
 }
 
 #ifdef CONFIG_PCI_MSI
-static void virt_irq_free(unsigned int virt_irq)
+void virt_irq_free(unsigned int virt_irq)
 {
-	unsigned int real_irq;
+	unsigned long flags;
 
 	if (virt_irq >= NR_IRQS)
 		return;
 
-	real_irq = virt_to_real_irq_table[virt_irq].irq;
+	spin_lock_irqsave(&virt_irq_alloc_lock, flags);
+
 	virt_to_real_irq_table[virt_irq].irq = 0;
 
-	__bucket(real_irq)->virt_irq = 0;
+	spin_unlock_irqrestore(&virt_irq_alloc_lock, flags);
 }
 #endif
 
@@ -217,26 +223,7 @@ struct irq_handler_data {
 	void		(*pre_handler)(unsigned int, void *, void *);
 	void		*pre_handler_arg1;
 	void		*pre_handler_arg2;
-
-	u32		msi;
 };
-
-void sparc64_set_msi(unsigned int virt_irq, u32 msi)
-{
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (data)
-		data->msi = msi;
-}
-
-u32 sparc64_get_msi(unsigned int virt_irq)
-{
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (data)
-		return data->msi;
-	return 0xffffffff;
-}
 
 static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
 {
@@ -405,32 +392,6 @@ static void sun4v_irq_disable(unsigned int virt_irq)
 	}
 }
 
-#ifdef CONFIG_PCI_MSI
-static void sun4u_msi_enable(unsigned int virt_irq)
-{
-	sun4u_irq_enable(virt_irq);
-	unmask_msi_irq(virt_irq);
-}
-
-static void sun4u_msi_disable(unsigned int virt_irq)
-{
-	mask_msi_irq(virt_irq);
-	sun4u_irq_disable(virt_irq);
-}
-
-static void sun4v_msi_enable(unsigned int virt_irq)
-{
-	sun4v_irq_enable(virt_irq);
-	unmask_msi_irq(virt_irq);
-}
-
-static void sun4v_msi_disable(unsigned int virt_irq)
-{
-	mask_msi_irq(virt_irq);
-	sun4v_irq_disable(virt_irq);
-}
-#endif
-
 static void sun4v_irq_end(unsigned int virt_irq)
 {
 	struct ino_bucket *bucket = virt_irq_to_bucket(virt_irq);
@@ -585,52 +546,10 @@ static struct irq_chip sun4v_irq = {
 	.set_affinity	= sun4v_set_affinity,
 };
 
-static struct irq_chip sun4v_irq_ack = {
-	.typename	= "sun4v+ack",
-	.enable		= sun4v_irq_enable,
-	.disable	= sun4v_irq_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4v_irq_end,
-	.set_affinity	= sun4v_set_affinity,
-};
-
-#ifdef CONFIG_PCI_MSI
-static struct irq_chip sun4u_msi = {
-	.typename	= "sun4u+msi",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.enable		= sun4u_msi_enable,
-	.disable	= sun4u_msi_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4u_irq_end,
-	.set_affinity	= sun4u_set_affinity,
-};
-
-static struct irq_chip sun4v_msi = {
-	.typename	= "sun4v+msi",
-	.mask		= mask_msi_irq,
-	.unmask		= unmask_msi_irq,
-	.enable		= sun4v_msi_enable,
-	.disable	= sun4v_msi_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4v_irq_end,
-	.set_affinity	= sun4v_set_affinity,
-};
-#endif
-
 static struct irq_chip sun4v_virq = {
 	.typename	= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
-	.end		= sun4v_virq_end,
-	.set_affinity	= sun4v_virt_set_affinity,
-};
-
-static struct irq_chip sun4v_virq_ack = {
-	.typename	= "vsun4v+ack",
-	.enable		= sun4v_virq_enable,
-	.disable	= sun4v_virq_disable,
-	.ack		= run_pre_handler,
 	.end		= sun4v_virq_end,
 	.set_affinity	= sun4v_virt_set_affinity,
 };
@@ -640,28 +559,22 @@ void irq_install_pre_handler(int virt_irq,
 			     void *arg1, void *arg2)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-	struct irq_chip *chip;
+	struct irq_chip *chip = get_irq_chip(virt_irq);
+
+	if (WARN_ON(chip == &sun4v_irq || chip == &sun4v_virq)) {
+		printk(KERN_ERR "IRQ: Trying to install pre-handler on "
+		       "sun4v irq %u\n", virt_irq);
+		return;
+	}
 
 	data->pre_handler = func;
 	data->pre_handler_arg1 = arg1;
 	data->pre_handler_arg2 = arg2;
 
-	chip = get_irq_chip(virt_irq);
-	if (chip == &sun4u_irq_ack ||
-	    chip == &sun4v_irq_ack ||
-	    chip == &sun4v_virq_ack
-#ifdef CONFIG_PCI_MSI
-	    || chip == &sun4u_msi
-	    || chip == &sun4v_msi
-#endif
-	    )
+	if (chip == &sun4u_irq_ack)
 		return;
 
-	chip = (chip == &sun4u_irq ?
-		&sun4u_irq_ack :
-		(chip == &sun4v_irq ?
-		 &sun4v_irq_ack : &sun4v_virq_ack));
-	set_irq_chip(virt_irq, chip);
+	set_irq_chip(virt_irq, &sun4u_irq_ack);
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
@@ -764,103 +677,6 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 
 	return virq;
 }
-
-#ifdef CONFIG_PCI_MSI
-unsigned int sun4v_build_msi(u32 devhandle, unsigned int *virt_irq_p,
-			     unsigned int msi_start, unsigned int msi_end)
-{
-	struct ino_bucket *bucket;
-	struct irq_handler_data *data;
-	unsigned long sysino;
-	unsigned int devino;
-
-	BUG_ON(tlb_type != hypervisor);
-
-	/* Find a free devino in the given range.  */
-	for (devino = msi_start; devino < msi_end; devino++) {
-		sysino = sun4v_devino_to_sysino(devhandle, devino);
-		bucket = &ivector_table[sysino];
-		if (!bucket->virt_irq)
-			break;
-	}
-	if (devino >= msi_end)
-		return -ENOSPC;
-
-	sysino = sun4v_devino_to_sysino(devhandle, devino);
-	bucket = &ivector_table[sysino];
-	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-	*virt_irq_p = bucket->virt_irq;
-	set_irq_chip(bucket->virt_irq, &sun4v_msi);
-
-	data = get_irq_chip_data(bucket->virt_irq);
-	if (unlikely(data))
-		return devino;
-
-	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
-	if (unlikely(!data)) {
-		virt_irq_free(*virt_irq_p);
-		return -ENOMEM;
-	}
-	set_irq_chip_data(bucket->virt_irq, data);
-
-	data->imap = ~0UL;
-	data->iclr = ~0UL;
-
-	return devino;
-}
-
-void sun4v_destroy_msi(unsigned int virt_irq)
-{
-	virt_irq_free(virt_irq);
-}
-
-unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
-			     unsigned int msi_start, unsigned int msi_end,
-			     unsigned long imap_base, unsigned long iclr_base)
-{
-	struct ino_bucket *bucket;
-	struct irq_handler_data *data;
-	unsigned long sysino;
-	unsigned int devino;
-
-	/* Find a free devino in the given range.  */
-	for (devino = msi_start; devino < msi_end; devino++) {
-		sysino = (portid << 6) | devino;
-		bucket = &ivector_table[sysino];
-		if (!bucket->virt_irq)
-			break;
-	}
-	if (devino >= msi_end)
-		return -ENOSPC;
-
-	sysino = (portid << 6) | devino;
-	bucket = &ivector_table[sysino];
-	bucket->virt_irq = virt_irq_alloc(__irq(bucket));
-	*virt_irq_p = bucket->virt_irq;
-	set_irq_chip(bucket->virt_irq, &sun4u_msi);
-
-	data = get_irq_chip_data(bucket->virt_irq);
-	if (unlikely(data))
-		return devino;
-
-	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
-	if (unlikely(!data)) {
-		virt_irq_free(*virt_irq_p);
-		return -ENOMEM;
-	}
-	set_irq_chip_data(bucket->virt_irq, data);
-
-	data->imap = (imap_base + (devino * 0x8UL));
-	data->iclr = (iclr_base + (devino * 0x8UL));
-
-	return devino;
-}
-
-void sun4u_destroy_msi(unsigned int virt_irq)
-{
-	virt_irq_free(virt_irq);
-}
-#endif
 
 void ack_bad_irq(unsigned int virt_irq)
 {

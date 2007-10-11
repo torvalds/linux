@@ -161,90 +161,92 @@ struct pci_msiq_entry {
 #define MSI_64BIT_ADDR			0x034008UL
 #define  MSI_64BIT_ADDR_VAL		0xffffffffffff0000UL
 
-/* For now this just runs as a pre-handler for the real interrupt handler.
- * So we just walk through the queue and ACK all the entries, update the
- * head pointer, and return.
- *
- * In the longer term it would be nice to do something more integrated
- * wherein we can pass in some of this MSI info to the drivers.  This
- * would be most useful for PCIe fabric error messages, although we could
- * invoke those directly from the loop here in order to pass the info around.
- */
-static void pci_msi_prehandler(unsigned int ino, void *data1, void *data2)
+static int pci_fire_get_head(struct pci_pbm_info *pbm, unsigned long msiqid,
+			     unsigned long *head)
 {
-	unsigned long msiqid, orig_head, head, type_fmt, type;
-	struct pci_pbm_info *pbm = data1;
-	struct pci_msiq_entry *base, *ep;
-
-	msiqid = (unsigned long) data2;
-
-	head = fire_read(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid));
-
-	orig_head = head;
-	base = (pbm->msi_queues + ((msiqid - pbm->msiq_first) * 8192));
-	ep = &base[head];
-	while ((ep->word0 & MSIQ_WORD0_FMT_TYPE) != 0) {
-		unsigned long msi_num;
-
-		type_fmt = ((ep->word0 & MSIQ_WORD0_FMT_TYPE) >>
-			    MSIQ_WORD0_FMT_TYPE_SHIFT);
-		type = (type_fmt >>3);
-		if (unlikely(type != MSIQ_TYPE_MSI32 &&
-			     type != MSIQ_TYPE_MSI64))
-			goto bad_type;
-
-		msi_num = ((ep->word0 & MSIQ_WORD0_DATA0) >>
-			   MSIQ_WORD0_DATA0_SHIFT);
-
-		fire_write(pbm->pbm_regs + MSI_CLEAR(msi_num),
-			   MSI_CLEAR_EQWR_N);
-
-		/* Clear the entry.  */
-		ep->word0 &= ~MSIQ_WORD0_FMT_TYPE;
-
-		/* Go to next entry in ring.  */
-		head++;
-		if (head >= pbm->msiq_ent_count)
-			head = 0;
-		ep = &base[head];
-	}
-
-	if (likely(head != orig_head)) {
-		/* ACK entries by updating head pointer.  */
-		fire_write(pbm->pbm_regs +
-			   EVENT_QUEUE_HEAD(msiqid),
-			   head);
-	}
-	return;
-
-bad_type:
-	printk(KERN_EMERG "MSI: Entry has bad type %lx\n", type);
-	return;
+	*head = fire_read(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid));
+	return 0;
 }
 
-static int msi_bitmap_alloc(struct pci_pbm_info *pbm)
+static int pci_fire_dequeue_msi(struct pci_pbm_info *pbm, unsigned long msiqid,
+				unsigned long *head, unsigned long *msi)
 {
-	unsigned long size, bits_per_ulong;
+	unsigned long type_fmt, type, msi_num;
+	struct pci_msiq_entry *base, *ep;
 
-	bits_per_ulong = sizeof(unsigned long) * 8;
-	size = (pbm->msi_num + (bits_per_ulong - 1)) & ~(bits_per_ulong - 1);
-	size /= 8;
-	BUG_ON(size % sizeof(unsigned long));
+	base = (pbm->msi_queues + ((msiqid - pbm->msiq_first) * 8192));
+	ep = &base[*head];
 
-	pbm->msi_bitmap = kzalloc(size, GFP_KERNEL);
-	if (!pbm->msi_bitmap)
-		return -ENOMEM;
+	if ((ep->word0 & MSIQ_WORD0_FMT_TYPE) == 0)
+		return 0;
+
+	type_fmt = ((ep->word0 & MSIQ_WORD0_FMT_TYPE) >>
+		    MSIQ_WORD0_FMT_TYPE_SHIFT);
+	type = (type_fmt >> 3);
+	if (unlikely(type != MSIQ_TYPE_MSI32 &&
+		     type != MSIQ_TYPE_MSI64))
+		return -EINVAL;
+
+	*msi = msi_num = ((ep->word0 & MSIQ_WORD0_DATA0) >>
+			  MSIQ_WORD0_DATA0_SHIFT);
+
+	fire_write(pbm->pbm_regs + MSI_CLEAR(msi_num),
+		   MSI_CLEAR_EQWR_N);
+
+	/* Clear the entry.  */
+	ep->word0 &= ~MSIQ_WORD0_FMT_TYPE;
+
+	/* Go to next entry in ring.  */
+	(*head)++;
+	if (*head >= pbm->msiq_ent_count)
+		*head = 0;
+
+	return 1;
+}
+
+static int pci_fire_set_head(struct pci_pbm_info *pbm, unsigned long msiqid,
+			     unsigned long head)
+{
+	fire_write(pbm->pbm_regs + EVENT_QUEUE_HEAD(msiqid), head);
+	return 0;
+}
+
+static int pci_fire_msi_setup(struct pci_pbm_info *pbm, unsigned long msiqid,
+			      unsigned long msi, int is_msi64)
+{
+	u64 val;
+
+	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	val &= ~(MSI_MAP_EQNUM);
+	val |= msiqid;
+	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
+
+	fire_write(pbm->pbm_regs + MSI_CLEAR(msi),
+		   MSI_CLEAR_EQWR_N);
+
+	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	val |= MSI_MAP_VALID;
+	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
 
 	return 0;
 }
 
-static void msi_bitmap_free(struct pci_pbm_info *pbm)
+static int pci_fire_msi_teardown(struct pci_pbm_info *pbm, unsigned long msi)
 {
-	kfree(pbm->msi_bitmap);
-	pbm->msi_bitmap = NULL;
+	unsigned long msiqid;
+	u64 val;
+
+	val = fire_read(pbm->pbm_regs + MSI_MAP(msi));
+	msiqid = (val & MSI_MAP_EQNUM);
+
+	val &= ~MSI_MAP_VALID;
+
+	fire_write(pbm->pbm_regs + MSI_MAP(msi), val);
+
+	return 0;
 }
 
-static int msi_queue_alloc(struct pci_pbm_info *pbm)
+static int pci_fire_msiq_alloc(struct pci_pbm_info *pbm)
 {
 	unsigned long pages, order, i;
 
@@ -279,241 +281,65 @@ static int msi_queue_alloc(struct pci_pbm_info *pbm)
 	return 0;
 }
 
-static int alloc_msi(struct pci_pbm_info *pbm)
+static void pci_fire_msiq_free(struct pci_pbm_info *pbm)
 {
-	int i;
+	unsigned long pages, order;
 
-	for (i = 0; i < pbm->msi_num; i++) {
-		if (!test_and_set_bit(i, pbm->msi_bitmap))
-			return i + pbm->msi_first;
-	}
+	order = get_order(512 * 1024);
+	pages = (unsigned long) pbm->msi_queues;
 
-	return -ENOENT;
+	free_pages(pages, order);
+
+	pbm->msi_queues = NULL;
 }
 
-static void free_msi(struct pci_pbm_info *pbm, int msi_num)
+static int pci_fire_msiq_build_irq(struct pci_pbm_info *pbm,
+				   unsigned long msiqid,
+				   unsigned long devino)
 {
-	msi_num -= pbm->msi_first;
-	clear_bit(msi_num, pbm->msi_bitmap);
-}
-
-static int pci_setup_msi_irq(unsigned int *virt_irq_p,
-			     struct pci_dev *pdev,
-			     struct msi_desc *entry)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long devino, msiqid, cregs, imap_off;
-	struct msi_msg msg;
-	int msi_num, err;
+	unsigned long cregs = (unsigned long) pbm->pbm_regs;
+	unsigned long imap_reg, iclr_reg, int_ctrlr;
+	unsigned int virt_irq;
+	int fixup;
 	u64 val;
 
-	*virt_irq_p = 0;
+	imap_reg = cregs + (0x001000UL + (devino * 0x08UL));
+	iclr_reg = cregs + (0x001400UL + (devino * 0x08UL));
 
-	msi_num = alloc_msi(pbm);
-	if (msi_num < 0)
-		return msi_num;
+	/* XXX iterate amongst the 4 IRQ controllers XXX */
+	int_ctrlr = (1UL << 6);
 
-	cregs = (unsigned long) pbm->pbm_regs;
+	val = fire_read(imap_reg);
+	val |= (1UL << 63) | int_ctrlr;
+	fire_write(imap_reg, val);
 
-	err = sun4u_build_msi(pbm->portid, virt_irq_p,
-			      pbm->msiq_first_devino,
-			      (pbm->msiq_first_devino +
-			       pbm->msiq_num),
-			      cregs + 0x001000UL,
-			      cregs + 0x001400UL);
-	if (err < 0)
-		goto out_err;
-	devino = err;
+	fixup = ((pbm->portid << 6) | devino) - int_ctrlr;
 
-	imap_off = 0x001000UL + (devino * 0x8UL);
-
-	val = fire_read(pbm->pbm_regs + imap_off);
-	val |= (1UL << 63) | (1UL << 6);
-	fire_write(pbm->pbm_regs + imap_off, val);
-
-	msiqid = ((devino - pbm->msiq_first_devino) +
-		  pbm->msiq_first);
+	virt_irq = build_irq(fixup, iclr_reg, imap_reg);
+	if (!virt_irq)
+		return -ENOMEM;
 
 	fire_write(pbm->pbm_regs +
 		   EVENT_QUEUE_CONTROL_SET(msiqid),
 		   EVENT_QUEUE_CONTROL_SET_EN);
 
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi_num));
-	val &= ~(MSI_MAP_EQNUM);
-	val |= msiqid;
-	fire_write(pbm->pbm_regs + MSI_MAP(msi_num), val);
-
-	fire_write(pbm->pbm_regs + MSI_CLEAR(msi_num),
-		   MSI_CLEAR_EQWR_N);
-
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi_num));
-	val |= MSI_MAP_VALID;
-	fire_write(pbm->pbm_regs + MSI_MAP(msi_num), val);
-
-	sparc64_set_msi(*virt_irq_p, msi_num);
-
-	if (entry->msi_attrib.is_64) {
-		msg.address_hi = pbm->msi64_start >> 32;
-		msg.address_lo = pbm->msi64_start & 0xffffffff;
-	} else {
-		msg.address_hi = 0;
-		msg.address_lo = pbm->msi32_start;
-	}
-	msg.data = msi_num;
-
-	set_irq_msi(*virt_irq_p, entry);
-	write_msi_msg(*virt_irq_p, &msg);
-
-	irq_install_pre_handler(*virt_irq_p,
-				pci_msi_prehandler,
-				pbm, (void *) msiqid);
-
-	return 0;
-
-out_err:
-	free_msi(pbm, msi_num);
-	return err;
+	return virt_irq;
 }
 
-static void pci_teardown_msi_irq(unsigned int virt_irq,
-				 struct pci_dev *pdev)
-{
-	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	unsigned long msiqid, msi_num;
-	u64 val;
-
-	msi_num = sparc64_get_msi(virt_irq);
-
-	val = fire_read(pbm->pbm_regs + MSI_MAP(msi_num));
-
-	msiqid = (val & MSI_MAP_EQNUM);
-
-	val &= ~MSI_MAP_VALID;
-	fire_write(pbm->pbm_regs + MSI_MAP(msi_num), val);
-
-	fire_write(pbm->pbm_regs + EVENT_QUEUE_CONTROL_CLEAR(msiqid),
-		   EVENT_QUEUE_CONTROL_CLEAR_DIS);
-
-	free_msi(pbm, msi_num);
-
-	/* The sun4u_destroy_msi() will liberate the devino and thus the MSIQ
-	 * allocation.
-	 */
-	sun4u_destroy_msi(virt_irq);
-}
+static const struct sparc64_msiq_ops pci_fire_msiq_ops = {
+	.get_head	=	pci_fire_get_head,
+	.dequeue_msi	=	pci_fire_dequeue_msi,
+	.set_head	=	pci_fire_set_head,
+	.msi_setup	=	pci_fire_msi_setup,
+	.msi_teardown	=	pci_fire_msi_teardown,
+	.msiq_alloc	=	pci_fire_msiq_alloc,
+	.msiq_free	=	pci_fire_msiq_free,
+	.msiq_build_irq	=	pci_fire_msiq_build_irq,
+};
 
 static void pci_fire_msi_init(struct pci_pbm_info *pbm)
 {
-	const u32 *val;
-	int len;
-
-	val = of_get_property(pbm->prom_node, "#msi-eqs", &len);
-	if (!val || len != 4)
-		goto no_msi;
-	pbm->msiq_num = *val;
-	if (pbm->msiq_num) {
-		const struct msiq_prop {
-			u32 first_msiq;
-			u32 num_msiq;
-			u32 first_devino;
-		} *mqp;
-		const struct msi_range_prop {
-			u32 first_msi;
-			u32 num_msi;
-		} *mrng;
-		const struct addr_range_prop {
-			u32 msi32_high;
-			u32 msi32_low;
-			u32 msi32_len;
-			u32 msi64_high;
-			u32 msi64_low;
-			u32 msi64_len;
-		} *arng;
-
-		val = of_get_property(pbm->prom_node, "msi-eq-size", &len);
-		if (!val || len != 4)
-			goto no_msi;
-
-		pbm->msiq_ent_count = *val;
-
-		mqp = of_get_property(pbm->prom_node,
-				      "msi-eq-to-devino", &len);
-		if (!mqp)
-			mqp = of_get_property(pbm->prom_node,
-					      "msi-eq-devino", &len);
-		if (!mqp || len != sizeof(struct msiq_prop))
-			goto no_msi;
-
-		pbm->msiq_first = mqp->first_msiq;
-		pbm->msiq_first_devino = mqp->first_devino;
-
-		val = of_get_property(pbm->prom_node, "#msi", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msi_num = *val;
-
-		mrng = of_get_property(pbm->prom_node, "msi-ranges", &len);
-		if (!mrng || len != sizeof(struct msi_range_prop))
-			goto no_msi;
-		pbm->msi_first = mrng->first_msi;
-
-		val = of_get_property(pbm->prom_node, "msi-data-mask", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msi_data_mask = *val;
-
-		val = of_get_property(pbm->prom_node, "msix-data-width", &len);
-		if (!val || len != 4)
-			goto no_msi;
-		pbm->msix_data_width = *val;
-
-		arng = of_get_property(pbm->prom_node, "msi-address-ranges",
-				       &len);
-		if (!arng || len != sizeof(struct addr_range_prop))
-			goto no_msi;
-		pbm->msi32_start = ((u64)arng->msi32_high << 32) |
-			(u64) arng->msi32_low;
-		pbm->msi64_start = ((u64)arng->msi64_high << 32) |
-			(u64) arng->msi64_low;
-		pbm->msi32_len = arng->msi32_len;
-		pbm->msi64_len = arng->msi64_len;
-
-		if (msi_bitmap_alloc(pbm))
-			goto no_msi;
-
-		if (msi_queue_alloc(pbm)) {
-			msi_bitmap_free(pbm);
-			goto no_msi;
-		}
-
-		printk(KERN_INFO "%s: MSI Queue first[%u] num[%u] count[%u] "
-		       "devino[0x%x]\n",
-		       pbm->name,
-		       pbm->msiq_first, pbm->msiq_num,
-		       pbm->msiq_ent_count,
-		       pbm->msiq_first_devino);
-		printk(KERN_INFO "%s: MSI first[%u] num[%u] mask[0x%x] "
-		       "width[%u]\n",
-		       pbm->name,
-		       pbm->msi_first, pbm->msi_num, pbm->msi_data_mask,
-		       pbm->msix_data_width);
-		printk(KERN_INFO "%s: MSI addr32[0x%lx:0x%x] "
-		       "addr64[0x%lx:0x%x]\n",
-		       pbm->name,
-		       pbm->msi32_start, pbm->msi32_len,
-		       pbm->msi64_start, pbm->msi64_len);
-		printk(KERN_INFO "%s: MSI queues at RA [%016lx]\n",
-		       pbm->name,
-		       __pa(pbm->msi_queues));
-	}
-	pbm->setup_msi_irq = pci_setup_msi_irq;
-	pbm->teardown_msi_irq = pci_teardown_msi_irq;
-
-	return;
-
-no_msi:
-	pbm->msiq_num = 0;
-	printk(KERN_INFO "%s: No MSI support.\n", pbm->name);
+	sparc64_pbm_msi_init(pbm, &pci_fire_msiq_ops);
 }
 #else /* CONFIG_PCI_MSI */
 static void pci_fire_msi_init(struct pci_pbm_info *pbm)

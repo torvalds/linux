@@ -59,8 +59,10 @@ extern unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
 extern void sun4u_destroy_msi(unsigned int virt_irq);
 extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
-extern void sparc64_set_msi(unsigned int virt_irq, u32 msi);
-extern u32 sparc64_get_msi(unsigned int virt_irq);
+extern unsigned char virt_irq_alloc(unsigned int real_irq);
+#ifdef CONFIG_PCI_MSI
+extern void virt_irq_free(unsigned int virt_irq);
+#endif
 
 extern void fixup_irqs(void);
 
