@@ -28,46 +28,54 @@ struct smatch {
 };
 
 static struct smatch mach_table[] = {
-	{	"SGI-IP22",
-		"SGI Indy",
-		MACH_GROUP_SGI,
-		MACH_SGI_IP22,
-		PROM_FLAG_ARCS
-	}, {	"SGI-IP27",
-		"SGI Origin",
-		MACH_GROUP_SGI,
-		MACH_SGI_IP27,
-		PROM_FLAG_ARCS
-	}, {	"SGI-IP28",
-		"SGI IP28",
-		MACH_GROUP_SGI,
-		MACH_SGI_IP28,
-		PROM_FLAG_ARCS
-	}, {	"SGI-IP30",
-		"SGI Octane",
-		MACH_GROUP_SGI,
-		MACH_SGI_IP30,
-		PROM_FLAG_ARCS
-	}, {	"SGI-IP32",
-		"SGI O2",
-		MACH_GROUP_SGI,
-		MACH_SGI_IP32,
-		PROM_FLAG_ARCS
-	}, {	"Microsoft-Jazz",
-		"Jazz MIPS_Magnum_4000",
-		MACH_GROUP_JAZZ,
-		MACH_MIPS_MAGNUM_4000,
-		0
-	}, {	"PICA-61",
-		"Jazz Acer_PICA_61",
-		MACH_GROUP_JAZZ,
-		MACH_ACER_PICA_61,
-		0
-	}, {	"RM200PCI",
-		"SNI RM200_PCI",
-		MACH_GROUP_SNI_RM,
-		MACH_SNI_RM200_PCI,
-		PROM_FLAG_DONT_FREE_TEMP
+	{
+		.arcname	= "SGI-IP22",
+		.liname		= "SGI Indy",
+		.group		= MACH_GROUP_SGI,
+		.type		= MACH_SGI_IP22,
+		.flags		= PROM_FLAG_ARCS,
+	}, {
+		.arcname	= "SGI-IP27",
+		.liname		= "SGI Origin",
+		.group		= MACH_GROUP_SGI,
+		.type		= MACH_SGI_IP27,
+		.flags		= PROM_FLAG_ARCS,
+	}, {
+		.arcname	= "SGI-IP28",
+		.liname		= "SGI IP28",
+		.group		= MACH_GROUP_SGI,
+		.type		= MACH_SGI_IP28,
+		.flags		= PROM_FLAG_ARCS,
+	}, {
+		.arcname	= "SGI-IP30",
+		.liname		= "SGI Octane",
+		.group		= MACH_GROUP_SGI,
+		.type		= MACH_SGI_IP30,
+		.flags		= PROM_FLAG_ARCS,
+	}, {
+		.arcname	= "SGI-IP32",
+		.liname		= "SGI O2",
+		.group		= MACH_GROUP_SGI,
+		.type		= MACH_SGI_IP32,
+		.flags		= PROM_FLAG_ARCS,
+	}, {
+		.arcname	= "Microsoft-Jazz",
+		.liname		= "Jazz MIPS_Magnum_4000",
+		.group		= MACH_GROUP_JAZZ,
+		.type		= MACH_MIPS_MAGNUM_4000,
+		.flags		= 0,
+	}, {
+		.arcname	= "PICA-61",
+		.liname		= "Jazz Acer_PICA_61",
+		.group		= MACH_GROUP_JAZZ,
+		.type		= MACH_ACER_PICA_61,
+		.flags		= 0,
+	}, {
+		.arcname	= "RM200PCI",
+		.liname		= "SNI RM200_PCI",
+		.group		= MACH_GROUP_SNI_RM,
+		.type		= MACH_SNI_RM200_PCI,
+		.flags		= PROM_FLAG_DONT_FREE_TEMP,
 	}
 };
 
