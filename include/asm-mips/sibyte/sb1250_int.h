@@ -10,7 +10,7 @@
     *
     *********************************************************************
     *
-    *  Copyright 2000,2001,2002,2003
+    *  Copyright 2000, 2001, 2002, 2003
     *  Broadcom Corporation. All rights reserved.
     *
     *  This program is free software; you can redistribute it and/or
@@ -150,7 +150,7 @@
 #define M_INT_MBOX_1                _SB_MAKEMASK1(K_INT_MBOX_1)
 #define M_INT_MBOX_2                _SB_MAKEMASK1(K_INT_MBOX_2)
 #define M_INT_MBOX_3                _SB_MAKEMASK1(K_INT_MBOX_3)
-#define M_INT_MBOX_ALL              _SB_MAKEMASK(4,K_INT_MBOX_0)
+#define M_INT_MBOX_ALL              _SB_MAKEMASK(4, K_INT_MBOX_0)
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define M_INT_CYCLE_CP0_INT	    _SB_MAKEMASK1(K_INT_CYCLE_CP0_INT)
 #define M_INT_CYCLE_CP1_INT	    _SB_MAKEMASK1(K_INT_CYCLE_CP1_INT)
@@ -208,9 +208,9 @@
  */
 
 #define S_INT_LDT_INTMSG	      0
-#define M_INT_LDT_INTMSG              _SB_MAKEMASK(3,S_INT_LDT_INTMSG)
-#define V_INT_LDT_INTMSG(x)           _SB_MAKEVALUE(x,S_INT_LDT_INTMSG)
-#define G_INT_LDT_INTMSG(x)           _SB_GETVALUE(x,S_INT_LDT_INTMSG,M_INT_LDT_INTMSG)
+#define M_INT_LDT_INTMSG              _SB_MAKEMASK(3, S_INT_LDT_INTMSG)
+#define V_INT_LDT_INTMSG(x)           _SB_MAKEVALUE(x, S_INT_LDT_INTMSG)
+#define G_INT_LDT_INTMSG(x)           _SB_GETVALUE(x, S_INT_LDT_INTMSG, M_INT_LDT_INTMSG)
 
 #define K_INT_LDT_INTMSG_FIXED	      0
 #define K_INT_LDT_INTMSG_ARBITRATED   1
@@ -228,14 +228,14 @@
 #define M_INT_LDT_LOGICALDEST         _SB_MAKEMASK1(4)
 
 #define S_INT_LDT_INTDEST             5
-#define M_INT_LDT_INTDEST             _SB_MAKEMASK(10,S_INT_LDT_INTDEST)
-#define V_INT_LDT_INTDEST(x)          _SB_MAKEVALUE(x,S_INT_LDT_INTDEST)
-#define G_INT_LDT_INTDEST(x)          _SB_GETVALUE(x,S_INT_LDT_INTDEST,M_INT_LDT_INTDEST)
+#define M_INT_LDT_INTDEST             _SB_MAKEMASK(10, S_INT_LDT_INTDEST)
+#define V_INT_LDT_INTDEST(x)          _SB_MAKEVALUE(x, S_INT_LDT_INTDEST)
+#define G_INT_LDT_INTDEST(x)          _SB_GETVALUE(x, S_INT_LDT_INTDEST, M_INT_LDT_INTDEST)
 
 #define S_INT_LDT_VECTOR              13
-#define M_INT_LDT_VECTOR              _SB_MAKEMASK(8,S_INT_LDT_VECTOR)
-#define V_INT_LDT_VECTOR(x)           _SB_MAKEVALUE(x,S_INT_LDT_VECTOR)
-#define G_INT_LDT_VECTOR(x)           _SB_GETVALUE(x,S_INT_LDT_VECTOR,M_INT_LDT_VECTOR)
+#define M_INT_LDT_VECTOR              _SB_MAKEMASK(8, S_INT_LDT_VECTOR)
+#define V_INT_LDT_VECTOR(x)           _SB_MAKEVALUE(x, S_INT_LDT_VECTOR)
+#define G_INT_LDT_VECTOR(x)           _SB_GETVALUE(x, S_INT_LDT_VECTOR, M_INT_LDT_VECTOR)
 
 /*
  * Vector format (Table 4-6)

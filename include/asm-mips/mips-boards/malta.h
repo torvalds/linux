@@ -72,7 +72,7 @@ static inline unsigned long get_msc_port_base(unsigned long reg)
 
 #define SMSC_CONFIG_ACTIVATE_ENABLE   1
 
-#define SMSC_WRITE(x,a)     outb(x,a)
+#define SMSC_WRITE(x, a)     outb(x, a)
 
 #define MALTA_JMPRS_REG		0x1f000210
 

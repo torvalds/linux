@@ -55,16 +55,16 @@
 #define DPBEXP(dp)	(dp.parts.bexp)
 #define DPMANT(dp)	(dp.parts.mant)
 
-#define CLPAIR(x,y)	((x)*6+(y))
+#define CLPAIR(x, y)	((x)*6+(y))
 
 #define CLEARCX	\
   (ieee754_csr.cx = 0)
 
 #define SETCX(x) \
-  (ieee754_csr.cx |= (x),ieee754_csr.sx |= (x))
+  (ieee754_csr.cx |= (x), ieee754_csr.sx |= (x))
 
 #define SETANDTESTCX(x) \
-  (SETCX(x),ieee754_csr.mx & (x))
+  (SETCX(x), ieee754_csr.mx & (x))
 
 #define TSTX()	\
 	(ieee754_csr.cx & ieee754_csr.mx)
@@ -76,7 +76,7 @@
 #define COMPYSP \
   unsigned ym; int ye; int ys; int yc
 
-#define EXPLODESP(v,vc,vs,ve,vm) \
+#define EXPLODESP(v, vc, vs, ve, vm) \
 {\
     vs = SPSIGN(v);\
     ve = SPBEXP(v);\
@@ -100,8 +100,8 @@
 	vc = IEEE754_CLASS_NORM;\
     }\
 }
-#define EXPLODEXSP EXPLODESP(x,xc,xs,xe,xm)
-#define EXPLODEYSP EXPLODESP(y,yc,ys,ye,ym)
+#define EXPLODEXSP EXPLODESP(x, xc, xs, xe, xm)
+#define EXPLODEYSP EXPLODESP(y, yc, ys, ye, ym)
 
 
 #define COMPXDP \
@@ -110,7 +110,7 @@ u64 xm; int xe; int xs; int xc
 #define COMPYDP \
 u64 ym; int ye; int ys; int yc
 
-#define EXPLODEDP(v,vc,vs,ve,vm) \
+#define EXPLODEDP(v, vc, vs, ve, vm) \
 {\
     vm = DPMANT(v);\
     vs = DPSIGN(v);\
@@ -134,10 +134,10 @@ u64 ym; int ye; int ys; int yc
 	vc = IEEE754_CLASS_NORM;\
     }\
 }
-#define EXPLODEXDP EXPLODEDP(x,xc,xs,xe,xm)
-#define EXPLODEYDP EXPLODEDP(y,yc,ys,ye,ym)
+#define EXPLODEXDP EXPLODEDP(x, xc, xs, xe, xm)
+#define EXPLODEYDP EXPLODEDP(y, yc, ys, ye, ym)
 
-#define FLUSHDP(v,vc,vs,ve,vm) \
+#define FLUSHDP(v, vc, vs, ve, vm) \
 	if(vc==IEEE754_CLASS_DNORM) {\
 	    if(ieee754_csr.nod) {\
 		SETCX(IEEE754_INEXACT);\
@@ -148,7 +148,7 @@ u64 ym; int ye; int ys; int yc
 	    }\
 	}
 
-#define FLUSHSP(v,vc,vs,ve,vm) \
+#define FLUSHSP(v, vc, vs, ve, vm) \
 	if(vc==IEEE754_CLASS_DNORM) {\
 	    if(ieee754_csr.nod) {\
 		SETCX(IEEE754_INEXACT);\
@@ -159,7 +159,7 @@ u64 ym; int ye; int ys; int yc
 	    }\
 	}
 
-#define FLUSHXDP FLUSHDP(x,xc,xs,xe,xm)
-#define FLUSHYDP FLUSHDP(y,yc,ys,ye,ym)
-#define FLUSHXSP FLUSHSP(x,xc,xs,xe,xm)
-#define FLUSHYSP FLUSHSP(y,yc,ys,ye,ym)
+#define FLUSHXDP FLUSHDP(x, xc, xs, xe, xm)
+#define FLUSHYDP FLUSHDP(y, yc, ys, ye, ym)
+#define FLUSHXSP FLUSHSP(x, xc, xs, xe, xm)
+#define FLUSHYSP FLUSHSP(y, yc, ys, ye, ym)

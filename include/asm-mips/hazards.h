@@ -193,7 +193,7 @@ ASMMACRO(enable_fpu_hazard,
 	 .set	mips64;
 	 .set	noreorder;
 	 _ssnop;
-	 bnezl	$0,.+4;
+	 bnezl	$0, .+4;
 	 _ssnop;
 	 .set	pop
 )

@@ -107,7 +107,7 @@ get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 
 #else /* CONFIG_MIPS_MT_SMTC */
 
-#define get_new_mmu_context(mm,cpu) smtc_get_new_mmu_context((mm),(cpu))
+#define get_new_mmu_context(mm, cpu) smtc_get_new_mmu_context((mm), (cpu))
 
 #endif /* CONFIG_MIPS_MT_SMTC */
 
@@ -191,7 +191,7 @@ static inline void destroy_context(struct mm_struct *mm)
 {
 }
 
-#define deactivate_mm(tsk,mm)	do { } while (0)
+#define deactivate_mm(tsk, mm)	do { } while (0)
 
 /*
  * After we have set current->mm to a new value, this activates

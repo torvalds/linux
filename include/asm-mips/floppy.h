@@ -49,7 +49,7 @@ static inline void fd_cacheflush(char * addr, long size)
  * Actually this needs to be a bit more complicated since the so much different
  * hardware available with MIPS CPUs ...
  */
-#define CROSS_64KB(a,s) ((unsigned long)(a)/K_64 != ((unsigned long)(a) + (s) - 1) / K_64)
+#define CROSS_64KB(a, s) ((unsigned long)(a)/K_64 != ((unsigned long)(a) + (s) - 1) / K_64)
 
 #define EXTRA_FLOPPY_PARAMS
 

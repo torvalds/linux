@@ -259,7 +259,7 @@ int sb1250_steal_irq(int irq)
 	if (irq >= SB1250_NR_IRQS)
 		return -EINVAL;
 
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	/* Don't allow sharing at all for these */
 	if (desc->action != NULL)
 		retval = -EBUSY;
@@ -267,7 +267,7 @@ int sb1250_steal_irq(int irq)
 		desc->action = &sb1250_dummy_action;
 		desc->depth = 0;
 	}
-	spin_unlock_irqrestore(&desc->lock,flags);
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -381,8 +381,8 @@ void __init arch_init_irq(void)
 
 #include <linux/delay.h>
 
-#define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
-#define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
+#define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
+#define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
 
 static void sb1250_kgdb_interrupt(void)
 {

@@ -39,7 +39,7 @@ typedef struct { volatile int counter; } atomic_t;
  *
  * Atomically sets the value of @v to @i.
  */
-#define atomic_set(v,i)		((v)->counter = (i))
+#define atomic_set(v, i)		((v)->counter = (i))
 
 /*
  * atomic_add - add integer to atomic variable
@@ -335,8 +335,8 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 }
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
-#define atomic_dec_return(v) atomic_sub_return(1,(v))
-#define atomic_inc_return(v) atomic_add_return(1,(v))
+#define atomic_dec_return(v) atomic_sub_return(1, (v))
+#define atomic_inc_return(v) atomic_add_return(1, (v))
 
 /*
  * atomic_sub_and_test - subtract value from variable and test result
@@ -347,7 +347,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
  * true if the result is zero, or false for all
  * other cases.
  */
-#define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
+#define atomic_sub_and_test(i, v) (atomic_sub_return((i), (v)) == 0)
 
 /*
  * atomic_inc_and_test - increment and test
@@ -381,7 +381,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
  *
  * Atomically increments @v by 1.
  */
-#define atomic_inc(v) atomic_add(1,(v))
+#define atomic_inc(v) atomic_add(1, (v))
 
 /*
  * atomic_dec - decrement and test
@@ -389,7 +389,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
  *
  * Atomically decrements @v by 1.
  */
-#define atomic_dec(v) atomic_sub(1,(v))
+#define atomic_dec(v) atomic_sub(1, (v))
 
 /*
  * atomic_add_negative - add and test if negative
@@ -400,7 +400,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-#define atomic_add_negative(i,v) (atomic_add_return(i, (v)) < 0)
+#define atomic_add_negative(i, v) (atomic_add_return(i, (v)) < 0)
 
 #ifdef CONFIG_64BIT
 
@@ -420,7 +420,7 @@ typedef struct { volatile long counter; } atomic64_t;
  * @v: pointer of type atomic64_t
  * @i: required value
  */
-#define atomic64_set(v,i)	((v)->counter = (i))
+#define atomic64_set(v, i)	((v)->counter = (i))
 
 /*
  * atomic64_add - add integer to atomic variable
@@ -718,8 +718,8 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
 
 #define atomic64_inc_not_zero(v) atomic64_add_unless((v), 1, 0)
 
-#define atomic64_dec_return(v) atomic64_sub_return(1,(v))
-#define atomic64_inc_return(v) atomic64_add_return(1,(v))
+#define atomic64_dec_return(v) atomic64_sub_return(1, (v))
+#define atomic64_inc_return(v) atomic64_add_return(1, (v))
 
 /*
  * atomic64_sub_and_test - subtract value from variable and test result
@@ -730,7 +730,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  * true if the result is zero, or false for all
  * other cases.
  */
-#define atomic64_sub_and_test(i,v) (atomic64_sub_return((i), (v)) == 0)
+#define atomic64_sub_and_test(i, v) (atomic64_sub_return((i), (v)) == 0)
 
 /*
  * atomic64_inc_and_test - increment and test
@@ -764,7 +764,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  *
  * Atomically increments @v by 1.
  */
-#define atomic64_inc(v) atomic64_add(1,(v))
+#define atomic64_inc(v) atomic64_add(1, (v))
 
 /*
  * atomic64_dec - decrement and test
@@ -772,7 +772,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  *
  * Atomically decrements @v by 1.
  */
-#define atomic64_dec(v) atomic64_sub(1,(v))
+#define atomic64_dec(v) atomic64_sub(1, (v))
 
 /*
  * atomic64_add_negative - add and test if negative
@@ -783,7 +783,7 @@ static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-#define atomic64_add_negative(i,v) (atomic64_add_return(i, (v)) < 0)
+#define atomic64_add_negative(i, v) (atomic64_add_return(i, (v)) < 0)
 
 #endif /* CONFIG_64BIT */
 

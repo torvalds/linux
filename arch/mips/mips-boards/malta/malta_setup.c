@@ -176,7 +176,7 @@ void __init plat_mem_setup(void)
 		0,			/* orig-video-page */
 		0,			/* orig-video-mode */
 		80,			/* orig-video-cols */
-		0,0,0,			/* ega_ax, ega_bx, ega_cx */
+		0, 0, 0,		/* ega_ax, ega_bx, ega_cx */
 		25,			/* orig-video-lines */
 		VIDEO_TYPE_VGAC,	/* orig-video-isVGA */
 		16			/* orig-video-points */

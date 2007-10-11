@@ -117,7 +117,7 @@ void __init msp_serial_setup(void)
 
 	/* Initialize first serial port */
 	up.mapbase      = MSP_UART0_BASE;
-	up.membase      = ioremap_nocache(up.mapbase,MSP_UART_REG_LEN);
+	up.membase      = ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
 	up.irq          = MSP_INT_UART0;
 	up.uartclk      = uartclk;
 	up.regshift     = 2;
@@ -145,9 +145,9 @@ void __init msp_serial_setup(void)
 			if( DEBUG_PORT_BASE == KSEG1ADDR(MSP_UART1_BASE) ) {
 				if( mips_machtype == MACH_MSP4200_FPGA
 				 || mips_machtype == MACH_MSP7120_FPGA )
-					initDebugPort(uartclk,19200);
+					initDebugPort(uartclk, 19200);
 				else
-					initDebugPort(uartclk,57600);
+					initDebugPort(uartclk, 57600);
 			}
 #endif
 			break;
@@ -157,7 +157,7 @@ void __init msp_serial_setup(void)
 	}
 
 	up.mapbase      = MSP_UART1_BASE;
-	up.membase      = ioremap_nocache(up.mapbase,MSP_UART_REG_LEN);
+	up.membase      = ioremap_nocache(up.mapbase, MSP_UART_REG_LEN);
 	up.irq          = MSP_INT_UART1;
 	up.line         = 1;
 	up.private_data		= (void*)UART1_STATUS_REG;

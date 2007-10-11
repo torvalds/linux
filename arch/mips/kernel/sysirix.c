@@ -778,7 +778,7 @@ asmlinkage int irix_times(struct tms __user *tbuf)
 	int err = 0;
 
 	if (tbuf) {
-		if (!access_ok(VERIFY_WRITE,tbuf,sizeof *tbuf))
+		if (!access_ok(VERIFY_WRITE, tbuf, sizeof *tbuf))
 			return -EFAULT;
 
 		err = __put_user(current->utime, &tbuf->tms_utime);

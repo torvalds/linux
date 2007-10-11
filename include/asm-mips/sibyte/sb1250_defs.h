@@ -232,18 +232,18 @@
  * Make a mask for 'v' bits at position 'n'
  */
 
-#define _SB_MAKEMASK(v,n) (_SB_MAKE64((_SB_MAKE64(1)<<(v))-1) << _SB_MAKE64(n))
-#define _SB_MAKEMASK_32(v,n) (_SB_MAKE32((_SB_MAKE32(1)<<(v))-1) << _SB_MAKE32(n))
+#define _SB_MAKEMASK(v, n) (_SB_MAKE64((_SB_MAKE64(1)<<(v))-1) << _SB_MAKE64(n))
+#define _SB_MAKEMASK_32(v, n) (_SB_MAKE32((_SB_MAKE32(1)<<(v))-1) << _SB_MAKE32(n))
 
 /*
  * Make a value at 'v' at bit position 'n'
  */
 
-#define _SB_MAKEVALUE(v,n) (_SB_MAKE64(v) << _SB_MAKE64(n))
-#define _SB_MAKEVALUE_32(v,n) (_SB_MAKE32(v) << _SB_MAKE32(n))
+#define _SB_MAKEVALUE(v, n) (_SB_MAKE64(v) << _SB_MAKE64(n))
+#define _SB_MAKEVALUE_32(v, n) (_SB_MAKE32(v) << _SB_MAKE32(n))
 
-#define _SB_GETVALUE(v,n,m) ((_SB_MAKE64(v) & _SB_MAKE64(m)) >> _SB_MAKE64(n))
-#define _SB_GETVALUE_32(v,n,m) ((_SB_MAKE32(v) & _SB_MAKE32(m)) >> _SB_MAKE32(n))
+#define _SB_GETVALUE(v, n, m) ((_SB_MAKE64(v) & _SB_MAKE64(m)) >> _SB_MAKE64(n))
+#define _SB_GETVALUE_32(v, n, m) ((_SB_MAKE32(v) & _SB_MAKE32(m)) >> _SB_MAKE32(n))
 
 /*
  * Macros to read/write on-chip registers
@@ -252,7 +252,7 @@
 
 
 #if defined(__mips64) && !defined(__ASSEMBLY__)
-#define SBWRITECSR(csr,val) *((volatile uint64_t *) PHYS_TO_K1(csr)) = (val)
+#define SBWRITECSR(csr, val) *((volatile uint64_t *) PHYS_TO_K1(csr)) = (val)
 #define SBREADCSR(csr) (*((volatile uint64_t *) PHYS_TO_K1(csr)))
 #endif /* __ASSEMBLY__ */
 

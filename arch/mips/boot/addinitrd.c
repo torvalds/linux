@@ -40,7 +40,7 @@ void die(char *s)
 
 int main(int argc, char *argv[])
 {
-	int fd_vmlinux,fd_initrd,fd_outfile;
+	int fd_vmlinux, fd_initrd, fd_outfile;
 	FILHDR efile;
 	AOUTHDR eaout;
 	SCNHDR esecs[3];
@@ -48,15 +48,15 @@ int main(int argc, char *argv[])
 	char buf[1024];
 	unsigned long loadaddr;
 	unsigned long initrd_header[2];
-	int i,cnt;
+	int i, cnt;
 	int swab = 0;
 
 	if (argc != 4) {
-		printf("Usage: %s <vmlinux> <initrd> <outfile>\n",argv[0]);
+		printf("Usage: %s <vmlinux> <initrd> <outfile>\n", argv[0]);
 		exit(1);
 	}
 
-	if ((fd_vmlinux = open (argv[1],O_RDONLY)) < 0)
+	if ((fd_vmlinux = open (argv[1], O_RDONLY)) < 0)
 		 die("open vmlinux");
 	if (read (fd_vmlinux, &efile, sizeof efile) != sizeof efile)
 		die("read file header");
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 	eaout.dsize = esecs[1].s_size = initrd_header[1] = SWAB(st.st_size+8);
 	eaout.data_start = esecs[1].s_vaddr = esecs[1].s_paddr = SWAB(loadaddr);
 
-	if ((fd_outfile = open (argv[3], O_RDWR|O_CREAT|O_TRUNC,0666)) < 0)
+	if ((fd_outfile = open (argv[3], O_RDWR|O_CREAT|O_TRUNC, 0666)) < 0)
 		die("open outfile");
 	if (write (fd_outfile, &efile, sizeof efile) != sizeof efile)
 		die("write file header");

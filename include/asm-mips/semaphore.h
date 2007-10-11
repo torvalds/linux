@@ -46,7 +46,7 @@ struct semaphore {
 }
 
 #define __DECLARE_SEMAPHORE_GENERIC(name, count) \
-	struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
+	struct semaphore name = __SEMAPHORE_INITIALIZER(name, count)
 
 #define DECLARE_MUTEX(name)		__DECLARE_SEMAPHORE_GENERIC(name, 1)
 #define DECLARE_MUTEX_LOCKED(name)	__DECLARE_SEMAPHORE_GENERIC(name, 0)

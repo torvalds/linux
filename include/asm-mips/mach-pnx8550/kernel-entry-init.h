@@ -44,7 +44,7 @@ cache_begin:	li	t0, (1<<28)
 	mfc0 	t0, CP0_CONFIG, 7
 	HAZARD_CP0
 
-	and t0,~((1<<19) | (1<<20))     /* TLB/MAP cleared */
+	and	t0, ~((1<<19) | (1<<20))     /* TLB/MAP cleared */
 	mtc0	t0, CP0_CONFIG, 7
 	HAZARD_CP0
 

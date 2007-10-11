@@ -309,7 +309,7 @@ void __init prom_init(void)
 	}
 
 #ifdef CONFIG_KGDB
-	if ((arg = strstr(arcs_cmdline,"kgdb=duart")) != NULL)
+	if ((arg = strstr(arcs_cmdline, "kgdb=duart")) != NULL)
 		kgdb_port = (arg[10] == '0') ? 0 : 1;
 	else
 		kgdb_port = 1;

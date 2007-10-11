@@ -405,7 +405,7 @@ typedef struct kl_config_hdr {
 #define KLTYPE(_x) 	((_x) & KLTYPE_MASK)
 #define IS_MIO_PRESENT(l)	((l->brd_type == KLTYPE_BASEIO) && \
 				 (l->brd_flags & SECOND_NIC_PRESENT))
-#define IS_MIO_IOC3(l,n)	(IS_MIO_PRESENT(l) && (n > 2))
+#define IS_MIO_IOC3(l, n)	(IS_MIO_PRESENT(l) && (n > 2))
 
 /*
  * board structures

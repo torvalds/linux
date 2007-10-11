@@ -354,7 +354,7 @@ static inline void blast_##pfx##cache##lsize(void)			\
 									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
-			cache##lsize##_unroll32(addr|ws,indexop);	\
+			cache##lsize##_unroll32(addr|ws, indexop);	\
 									\
 	__##pfx##flush_epilogue						\
 }									\
@@ -367,7 +367,7 @@ static inline void blast_##pfx##cache##lsize##_page(unsigned long page)	\
 	__##pfx##flush_prologue						\
 									\
 	do {								\
-		cache##lsize##_unroll32(start,hitop);			\
+		cache##lsize##_unroll32(start, hitop);			\
 		start += lsize * 32;					\
 	} while (start < end);						\
 									\
@@ -388,7 +388,7 @@ static inline void blast_##pfx##cache##lsize##_page_indexed(unsigned long page) 
 									\
 	for (ws = 0; ws < ws_end; ws += ws_inc)				\
 		for (addr = start; addr < end; addr += lsize * 32)	\
-			cache##lsize##_unroll32(addr|ws,indexop);	\
+			cache##lsize##_unroll32(addr|ws, indexop);	\
 									\
 	__##pfx##flush_epilogue						\
 }

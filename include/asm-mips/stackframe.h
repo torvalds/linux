@@ -393,11 +393,11 @@
 		 * and disable interrupts only for the
 		 * current TC, using the TCStatus register.
 		 */
-		mfc0	t0,CP0_TCSTATUS
+		mfc0	t0, CP0_TCSTATUS
 		/* Fortunately CU 0 is in the same place in both registers */
 		/* Set TCU0, TMX, TKSU (for later inversion) and IXMT */
 		li	t1, ST0_CU0 | 0x08001c00
-		or	t0,t1
+		or	t0, t1
 		/* Clear TKSU, leave IXMT */
 		xori	t0, 0x00001800
 		mtc0	t0, CP0_TCSTATUS
@@ -429,11 +429,11 @@
 		 * current TC, using the TCStatus register.
 		 */
 		_ehb
-		mfc0	t0,CP0_TCSTATUS
+		mfc0	t0, CP0_TCSTATUS
 		/* Fortunately CU 0 is in the same place in both registers */
 		/* Set TCU0, TKSU (for later inversion) and IXMT */
 		li	t1, ST0_CU0 | 0x08001c00
-		or	t0,t1
+		or	t0, t1
 		/* Clear TKSU *and* IXMT */
 		xori	t0, 0x00001c00
 		mtc0	t0, CP0_TCSTATUS

@@ -22,7 +22,7 @@
 #include <asm/mips-boards/saa9730_uart.h>
 
 #define INB(a)     inb((unsigned long)a)
-#define OUTB(x,a)  outb(x,(unsigned long)a)
+#define OUTB(x, a)  outb(x, (unsigned long)a)
 
 /*
  * This is the interface to the remote debugger stub

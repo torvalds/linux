@@ -902,7 +902,7 @@ void handle_exception(struct gdb_regs *regs)
 			hex2mem(ptr, (char *)&regs->frame_ptr, 2*sizeof(long), 0, 0);
 			ptr += 2*(2*sizeof(long));
 			hex2mem(ptr, (char *)&regs->cp0_index, 16*sizeof(long), 0, 0);
-			strcpy(output_buffer,"OK");
+			strcpy(output_buffer, "OK");
 		 }
 		break;
 
@@ -919,7 +919,7 @@ void handle_exception(struct gdb_regs *regs)
 					break;
 				strcpy(output_buffer, "E03");
 			} else
-				strcpy(output_buffer,"E01");
+				strcpy(output_buffer, "E01");
 			break;
 
 		/*
@@ -996,7 +996,7 @@ void handle_exception(struct gdb_regs *regs)
 			ptr = &input_buffer[1];
 			if (!hexToInt(&ptr, &baudrate))
 			{
-				strcpy(output_buffer,"B01");
+				strcpy(output_buffer, "B01");
 				break;
 			}
 
@@ -1015,7 +1015,7 @@ void handle_exception(struct gdb_regs *regs)
 					break;
 				default:
 					baudrate = 0;
-					strcpy(output_buffer,"B02");
+					strcpy(output_buffer, "B02");
 					goto x1;
 			}
 

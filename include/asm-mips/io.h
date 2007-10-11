@@ -40,11 +40,11 @@
  * hardware.  An example use would be for flash memory that's used for
  * execute in place.
  */
-# define __raw_ioswabb(a,x)	(x)
-# define __raw_ioswabw(a,x)	(x)
-# define __raw_ioswabl(a,x)	(x)
-# define __raw_ioswabq(a,x)	(x)
-# define ____raw_ioswabq(a,x)	(x)
+# define __raw_ioswabb(a, x)	(x)
+# define __raw_ioswabw(a, x)	(x)
+# define __raw_ioswabl(a, x)	(x)
+# define __raw_ioswabq(a, x)	(x)
+# define ____raw_ioswabq(a, x)	(x)
 
 /* ioswab[bwlq], __mem_ioswab[bwlq] are defined in mangle-port.h */
 
@@ -561,9 +561,9 @@ extern void (*_dma_cache_wback_inv)(unsigned long start, unsigned long size);
 extern void (*_dma_cache_wback)(unsigned long start, unsigned long size);
 extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 
-#define dma_cache_wback_inv(start, size)	_dma_cache_wback_inv(start,size)
-#define dma_cache_wback(start, size)		_dma_cache_wback(start,size)
-#define dma_cache_inv(start, size)		_dma_cache_inv(start,size)
+#define dma_cache_wback_inv(start, size)	_dma_cache_wback_inv(start, size)
+#define dma_cache_wback(start, size)		_dma_cache_wback(start, size)
+#define dma_cache_inv(start, size)		_dma_cache_inv(start, size)
 
 #else /* Sane hardware */
 
@@ -587,7 +587,7 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define __CSR_32_ADJUST 0
 #endif
 
-#define csr_out32(v,a) (*(volatile u32 *)((unsigned long)(a) + __CSR_32_ADJUST) = (v))
+#define csr_out32(v, a) (*(volatile u32 *)((unsigned long)(a) + __CSR_32_ADJUST) = (v))
 #define csr_in32(a)    (*(volatile u32 *)((unsigned long)(a) + __CSR_32_ADJUST))
 
 /*

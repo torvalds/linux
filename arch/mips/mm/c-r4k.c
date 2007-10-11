@@ -164,12 +164,12 @@ static inline void tx49_blast_icache32(void)
 	/* I'm in even chunk.  blast odd chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws,Index_Invalidate_I);
+			cache32_unroll32(addr|ws, Index_Invalidate_I);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws,Index_Invalidate_I);
+			cache32_unroll32(addr|ws, Index_Invalidate_I);
 }
 
 static inline void blast_icache32_r4600_v1_page_indexed(unsigned long page)
@@ -195,12 +195,12 @@ static inline void tx49_blast_icache32_page_indexed(unsigned long page)
 	/* I'm in even chunk.  blast odd chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start + 0x400; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws,Index_Invalidate_I);
+			cache32_unroll32(addr|ws, Index_Invalidate_I);
 	CACHE32_UNROLL32_ALIGN;
 	/* I'm in odd chunk.  blast even chunks */
 	for (ws = 0; ws < ws_end; ws += ws_inc)
 		for (addr = start; addr < end; addr += 0x400 * 2)
-			cache32_unroll32(addr|ws,Index_Invalidate_I);
+			cache32_unroll32(addr|ws, Index_Invalidate_I);
 }
 
 static void (* r4k_blast_icache_page)(unsigned long addr);

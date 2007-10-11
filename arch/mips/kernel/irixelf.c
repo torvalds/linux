@@ -231,16 +231,16 @@ static unsigned long * create_irix_tables(char * p, int argc, int envc,
 	sp -= argc+1;
 	argv = sp;
 
-	__put_user((elf_addr_t)argc,--sp);
+	__put_user((elf_addr_t)argc, --sp);
 	current->mm->arg_start = (unsigned long) p;
 	while (argc-->0) {
-		__put_user((unsigned long)p,argv++);
+		__put_user((unsigned long)p, argv++);
 		p += strlen_user(p);
 	}
 	__put_user((unsigned long) NULL, argv);
 	current->mm->arg_end = current->mm->env_start = (unsigned long) p;
 	while (envc-->0) {
-		__put_user((unsigned long)p,envp++);
+		__put_user((unsigned long)p, envp++);
 		p += strlen_user(p);
 	}
 	__put_user((unsigned long) NULL, envp);
@@ -831,7 +831,7 @@ static int load_irix_library(struct file *file)
 	int retval;
 	unsigned int bss;
 	int error;
-	int i,j, k;
+	int i, j, k;
 
 	error = kernel_read(file, 0, (char *) &elf_ex, sizeof(elf_ex));
 	if (error != sizeof(elf_ex))

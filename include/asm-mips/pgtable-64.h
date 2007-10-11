@@ -193,7 +193,7 @@ static inline void pud_clear(pud_t *pudp)
 #define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
 /* to find an entry in a page-table-directory */
-#define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
+#define pgd_offset(mm, addr)	((mm)->pgd + pgd_index(addr))
 
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
@@ -237,7 +237,7 @@ static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 
 #define __swp_type(x)		(((x).val >> 32) & 0xff)
 #define __swp_offset(x)		((x).val >> 40)
-#define __swp_entry(type,offset) ((swp_entry_t) { pte_val(mk_swap_pte((type),(offset))) })
+#define __swp_entry(type, offset) ((swp_entry_t) { pte_val(mk_swap_pte((type), (offset))) })
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 

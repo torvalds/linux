@@ -180,7 +180,7 @@ void __init sanitize_tlb_entries(void)
 
 static void smtc_configure_tlb(void)
 {
-	int i,tlbsiz,vpes;
+	int i, tlbsiz, vpes;
 	unsigned long mvpconf0;
 	unsigned long config1val;
 
@@ -423,7 +423,7 @@ void mipsmt_prepare_cpus(void)
 			 * code.  Leave it alone!
 			 */
 			if (tc != 0) {
-				smtc_tc_setup(vpe,tc, cpu);
+				smtc_tc_setup(vpe, tc, cpu);
 				cpu++;
 			}
 			printk(" %d", tc);
@@ -431,7 +431,7 @@ void mipsmt_prepare_cpus(void)
 		}
 		if (slop) {
 			if (tc != 0) {
-				smtc_tc_setup(vpe,tc, cpu);
+				smtc_tc_setup(vpe, tc, cpu);
 				cpu++;
 			}
 			printk(" %d", tc);

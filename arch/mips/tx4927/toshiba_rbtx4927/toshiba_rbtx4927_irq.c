@@ -176,7 +176,7 @@ static const u32 toshiba_rbtx4927_irq_debug_flag =
            printk( "%s(%s:%u)::%s", __FUNCTION__, __FILE__, __LINE__, tmp ); \
         }
 #else
-#define TOSHIBA_RBTX4927_IRQ_DPRINTK(flag,str...)
+#define TOSHIBA_RBTX4927_IRQ_DPRINTK(flag, str...)
 #endif
 
 

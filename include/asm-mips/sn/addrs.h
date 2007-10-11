@@ -208,9 +208,9 @@
 				 UINT64_CAST(_pa)	 & NASID_MASK	    | \
 				 UINT64_CAST(_pa) >> 2 & BDDIR_UPPER_MASK  | \
 				 (_rgn) << 3)
-#define BDPRT_ENTRY_ADDR(_pa,_rgn) (BDPRT_ENTRY((_pa),(_rgn)))
-#define BDPRT_ENTRY_S(_pa,_rgn,_val) (*(__psunsigned_t *)BDPRT_ENTRY((_pa),(_rgn))=(_val))
-#define BDPRT_ENTRY_L(_pa,_rgn)	(*(__psunsigned_t *)BDPRT_ENTRY((_pa),(_rgn)))
+#define BDPRT_ENTRY_ADDR(_pa, _rgn) (BDPRT_ENTRY((_pa), (_rgn)))
+#define BDPRT_ENTRY_S(_pa, _rgn, _val) (*(__psunsigned_t *)BDPRT_ENTRY((_pa), (_rgn))=(_val))
+#define BDPRT_ENTRY_L(_pa, _rgn)	(*(__psunsigned_t *)BDPRT_ENTRY((_pa), (_rgn)))
 
 #define BDECC_ENTRY(_pa)	((HSPEC_BASE +				      \
 				  NODE_ADDRSPACE_SIZE / 2)		    | \

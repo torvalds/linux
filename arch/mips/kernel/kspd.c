@@ -239,7 +239,7 @@ void sp_work_handle_request(void)
  	case MTSP_SYSCALL_GETTOD:
  		memset(&tz, 0, sizeof(tz));
  		if ((ret.retval = sp_syscall(__NR_gettimeofday, (int)&tv,
- 		                             (int)&tz, 0,0)) == 0)
+					     (int)&tz, 0, 0)) == 0)
 		ret.retval = tv.tv_sec;
 		break;
 

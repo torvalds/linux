@@ -41,27 +41,27 @@
  * Macros for use in assembly language code
  */
 
-#define CP0_MVPCONTROL		$0,1
-#define CP0_MVPCONF0		$0,2
-#define CP0_MVPCONF1		$0,3
-#define CP0_VPECONTROL		$1,1
-#define CP0_VPECONF0		$1,2
-#define CP0_VPECONF1		$1,3
-#define CP0_YQMASK		$1,4
-#define CP0_VPESCHEDULE	$1,5
-#define CP0_VPESCHEFBK		$1,6
-#define CP0_TCSTATUS		$2,1
-#define CP0_TCBIND		$2,2
-#define CP0_TCRESTART		$2,3
-#define CP0_TCHALT		$2,4
-#define CP0_TCCONTEXT		$2,5
-#define CP0_TCSCHEDULE		$2,6
-#define CP0_TCSCHEFBK		$2,7
-#define CP0_SRSCONF0		$6,1
-#define CP0_SRSCONF1		$6,2
-#define CP0_SRSCONF2		$6,3
-#define CP0_SRSCONF3		$6,4
-#define CP0_SRSCONF4		$6,5
+#define CP0_MVPCONTROL		$0, 1
+#define CP0_MVPCONF0		$0, 2
+#define CP0_MVPCONF1		$0, 3
+#define CP0_VPECONTROL		$1, 1
+#define CP0_VPECONF0		$1, 2
+#define CP0_VPECONF1		$1, 3
+#define CP0_YQMASK		$1, 4
+#define CP0_VPESCHEDULE	$1, 5
+#define CP0_VPESCHEFBK		$1, 6
+#define CP0_TCSTATUS		$2, 1
+#define CP0_TCBIND		$2, 2
+#define CP0_TCRESTART		$2, 3
+#define CP0_TCHALT		$2, 4
+#define CP0_TCCONTEXT		$2, 5
+#define CP0_TCSCHEDULE		$2, 6
+#define CP0_TCSCHEFBK		$2, 7
+#define CP0_SRSCONF0		$6, 1
+#define CP0_SRSCONF1		$6, 2
+#define CP0_SRSCONF2		$6, 3
+#define CP0_SRSCONF3		$6, 4
+#define CP0_SRSCONF4		$6, 5
 
 #endif
 
@@ -291,7 +291,7 @@ static inline void ehb(void)
 	__res;								\
 })
 
-#define mftr(rt,u,sel)							\
+#define mftr(rt, u, sel)							\
 ({									\
 	unsigned long __res;						\
 									\
@@ -315,7 +315,7 @@ do {									\
 	: : "r" (v));							\
 } while (0)
 
-#define mttc0(rd,sel,v)							\
+#define mttc0(rd, sel, v)							\
 ({									\
 	__asm__ __volatile__(						\
 	"	.set	push					\n"	\
@@ -330,7 +330,7 @@ do {									\
 })
 
 
-#define mttr(rd,u,sel,v)						\
+#define mttr(rd, u, sel, v)						\
 ({									\
 	__asm__ __volatile__(						\
 	"mttr	%0," #rd ", " #u ", " #sel				\
@@ -362,7 +362,7 @@ do {									\
 #define write_vpe_c0_config1(val)	mttc0(16, 1, val)
 #define read_vpe_c0_config7()		mftc0(16, 7)
 #define write_vpe_c0_config7(val)	mttc0(16, 7, val)
-#define read_vpe_c0_ebase()		mftc0(15,1)
+#define read_vpe_c0_ebase()		mftc0(15, 1)
 #define write_vpe_c0_ebase(val)		mttc0(15, 1, val)
 #define write_vpe_c0_compare(val)	mttc0(11, 0, val)
 #define read_vpe_c0_badvaddr()		mftc0(8, 0)
@@ -372,15 +372,15 @@ do {									\
 
 /* TC */
 #define read_tc_c0_tcstatus()		mftc0(2, 1)
-#define write_tc_c0_tcstatus(val)	mttc0(2,1,val)
+#define write_tc_c0_tcstatus(val)	mttc0(2, 1, val)
 #define read_tc_c0_tcbind()		mftc0(2, 2)
-#define write_tc_c0_tcbind(val)		mttc0(2,2,val)
+#define write_tc_c0_tcbind(val)		mttc0(2, 2, val)
 #define read_tc_c0_tcrestart()		mftc0(2, 3)
-#define write_tc_c0_tcrestart(val)	mttc0(2,3,val)
+#define write_tc_c0_tcrestart(val)	mttc0(2, 3, val)
 #define read_tc_c0_tchalt()		mftc0(2, 4)
-#define write_tc_c0_tchalt(val)		mttc0(2,4,val)
+#define write_tc_c0_tchalt(val)		mttc0(2, 4, val)
 #define read_tc_c0_tccontext()		mftc0(2, 5)
-#define write_tc_c0_tccontext(val)	mttc0(2,5,val)
+#define write_tc_c0_tccontext(val)	mttc0(2, 5, val)
 
 /* GPR */
 #define read_tc_gpr_sp()		mftgpr(29)

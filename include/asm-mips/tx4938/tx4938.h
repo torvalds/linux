@@ -16,7 +16,7 @@
 #include <asm/tx4938/tx4938_mips.h>
 
 #define tx4938_read_nfmc(addr) (*(volatile unsigned int *)(addr))
-#define tx4938_write_nfmc(b,addr) (*(volatile unsigned int *)(addr)) = (b)
+#define tx4938_write_nfmc(b, addr) (*(volatile unsigned int *)(addr)) = (b)
 
 #define TX4938_NR_IRQ_LOCAL     TX4938_IRQ_PIC_BEG
 
@@ -84,27 +84,27 @@
 #include <asm/byteorder.h>
 
 #ifdef __BIG_ENDIAN
-#define endian_def_l2(e1,e2)	\
-	volatile unsigned long e1,e2
-#define endian_def_s2(e1,e2)	\
-	volatile unsigned short e1,e2
-#define endian_def_sb2(e1,e2,e3)	\
-	volatile unsigned short e1;volatile unsigned char e2,e3
-#define endian_def_b2s(e1,e2,e3)	\
-	volatile unsigned char e1,e2;volatile unsigned short e3
-#define endian_def_b4(e1,e2,e3,e4)	\
-	volatile unsigned char e1,e2,e3,e4
+#define endian_def_l2(e1, e2)	\
+	volatile unsigned long e1, e2
+#define endian_def_s2(e1, e2)	\
+	volatile unsigned short e1, e2
+#define endian_def_sb2(e1, e2, e3)	\
+	volatile unsigned short e1;volatile unsigned char e2, e3
+#define endian_def_b2s(e1, e2, e3)	\
+	volatile unsigned char e1, e2;volatile unsigned short e3
+#define endian_def_b4(e1, e2, e3, e4)	\
+	volatile unsigned char e1, e2, e3, e4
 #else
-#define endian_def_l2(e1,e2)	\
-	volatile unsigned long e2,e1
-#define endian_def_s2(e1,e2)	\
-	volatile unsigned short e2,e1
-#define endian_def_sb2(e1,e2,e3)	\
-	volatile unsigned char e3,e2;volatile unsigned short e1
-#define endian_def_b2s(e1,e2,e3)	\
-	volatile unsigned short e3;volatile unsigned char e2,e1
-#define endian_def_b4(e1,e2,e3,e4)	\
-	volatile unsigned char e4,e3,e2,e1
+#define endian_def_l2(e1, e2)	\
+	volatile unsigned long e2, e1
+#define endian_def_s2(e1, e2)	\
+	volatile unsigned short e2, e1
+#define endian_def_sb2(e1, e2, e3)	\
+	volatile unsigned char e3, e2;volatile unsigned short e1
+#define endian_def_b2s(e1, e2, e3)	\
+	volatile unsigned short e3;volatile unsigned char e2, e1
+#define endian_def_b4(e1, e2, e3, e4)	\
+	volatile unsigned char e4, e3, e2, e1
 #endif
 
 
@@ -354,7 +354,7 @@ struct tx4938_ccfg_reg {
 #define TX4938_NUM_IR_SIO	2
 #define TX4938_IR_SIO(n)	(8 + (n))
 #define TX4938_NUM_IR_DMA	4
-#define TX4938_IR_DMA(ch,n)	((ch ? 27 : 10) + (n)) /* 10-13,27-30 */
+#define TX4938_IR_DMA(ch, n)	((ch ? 27 : 10) + (n)) /* 10-13, 27-30 */
 #define TX4938_IR_PIO	14
 #define TX4938_IR_PDMAC	15
 #define TX4938_IR_PCIC	16

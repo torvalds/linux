@@ -122,7 +122,7 @@ static const u32 toshiba_rbtx4927_setup_debug_flag =
            printk( "%s(%s:%u)::%s", __FUNCTION__, __FILE__, __LINE__, tmp ); \
         }
 #else
-#define TOSHIBA_RBTX4927_SETUP_DPRINTK(flag,str...)
+#define TOSHIBA_RBTX4927_SETUP_DPRINTK(flag, str...)
 #endif
 
 /* These functions are used for rebooting or halting the machine*/
@@ -497,7 +497,7 @@ void __init tx4927_pci_setup(void)
 		     "Internal");
 		called = 1;
 	}
-	printk("%s PCIC --%s PCICLK:",toshiba_name,
+	printk("%s PCIC --%s PCICLK:", toshiba_name,
 	       (tx4927_ccfgptr->ccfg & TX4927_CCFG_PCI66) ? " PCI66" : "");
 	if (tx4927_ccfgptr->pcfg & TX4927_PCFG_PCICLKEN_ALL) {
 		int pciclk = 0;

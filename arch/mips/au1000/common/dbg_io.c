@@ -53,7 +53,7 @@ typedef         unsigned int  uint32;
 
 /* memory-mapped read/write of the port */
 #define UART16550_READ(y)    (au_readl(DEBUG_BASE + y) & 0xff)
-#define UART16550_WRITE(y,z) (au_writel(z&0xff, DEBUG_BASE + y))
+#define UART16550_WRITE(y, z) (au_writel(z&0xff, DEBUG_BASE + y))
 
 extern unsigned long get_au1x00_uart_baud_base(void);
 extern unsigned long cal_r4koff(void);

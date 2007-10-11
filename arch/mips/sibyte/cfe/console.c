@@ -14,7 +14,7 @@ static void cfe_console_write(struct console *cons, const char *str,
 {
 	int i, last, written;
 
-	for (i=0,last=0; i<count; i++) {
+	for (i=0, last=0; i<count; i++) {
 		if (!str[i])
 			/* XXXKW can/should this ever happen? */
 			return;

@@ -124,7 +124,7 @@ static void corehi_irqdispatch(void)
 {
 	unsigned int intedge, intsteer, pcicmd, pcibadaddr;
         unsigned int pcimstat, intisr, inten, intpol;
-	unsigned int intrcause,datalo,datahi;
+	unsigned int intrcause, datalo, datahi;
 	struct pt_regs *regs = get_irq_regs();
 
         printk("CoreHI interrupt, shouldn't happen, so we die here!!!\n");

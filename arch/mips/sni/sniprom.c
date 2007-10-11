@@ -233,7 +233,7 @@ void __init prom_init(void)
 	        systype = "RM300-Exx";
 	        break;
 	}
-	pr_debug("Found SNI brdtype %02x name %s\n", sni_brd_type,systype);
+	pr_debug("Found SNI brdtype %02x name %s\n", sni_brd_type, systype);
 
 #ifdef DEBUG
 	sni_idprom_dump();
