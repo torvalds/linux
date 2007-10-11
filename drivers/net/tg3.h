@@ -666,6 +666,7 @@
 #define SNDDATAC_MODE			0x00001000
 #define  SNDDATAC_MODE_RESET		 0x00000001
 #define  SNDDATAC_MODE_ENABLE		 0x00000002
+#define  SNDDATAC_MODE_CDELAY		 0x00000010
 /* 0x1004 --> 0x1400 unused */
 
 /* Send BD ring selector */
@@ -854,7 +855,14 @@
 #define TG3_CPMU_CTRL			0x00003600
 #define  CPMU_CTRL_LINK_IDLE_MODE	 0x00000200
 #define  CPMU_CTRL_LINK_AWARE_MODE	 0x00000400
-/* 0x3604 --> 0x3800 unused */
+#define  CPMU_CTRL_LINK_SPEED_MODE	 0x00004000
+/* 0x3604 --> 0x365c unused */
+
+#define TG3_CPMU_MUTEX_REQ		0x0000365c
+#define  CPMU_MUTEX_REQ_DRIVER		 0x00001000
+#define TG3_CPMU_MUTEX_GNT		0x00003660
+#define  CPMU_MUTEX_GNT_DRIVER		 0x00001000
+/* 0x3664 --> 0x3800 unused */
 
 /* Mbuf cluster free registers */
 #define MBFREE_MODE			0x00003800
@@ -2394,6 +2402,7 @@ struct tg3 {
 #define PHY_ID_BCM5787			0xbc050ce0
 #define PHY_ID_BCM5756			0xbc050ed0
 #define PHY_ID_BCM5784			0xbc050fa0
+#define PHY_ID_BCM5761			0xbc050fd0
 #define PHY_ID_BCM5906			0xdc00ac40
 #define PHY_ID_BCM8002			0x60010140
 #define PHY_ID_INVALID			0xffffffff
@@ -2423,7 +2432,8 @@ struct tg3 {
 	 (X) == PHY_ID_BCM5752 || (X) == PHY_ID_BCM5714 || \
 	 (X) == PHY_ID_BCM5780 || (X) == PHY_ID_BCM5787 || \
 	 (X) == PHY_ID_BCM5755 || (X) == PHY_ID_BCM5756 || \
-	 (X) == PHY_ID_BCM5906 || (X) == PHY_ID_BCM8002)
+	 (X) == PHY_ID_BCM5906 || (X) == PHY_ID_BCM5761 || \
+	 (X) == PHY_ID_BCM8002)
 
 	struct tg3_hw_stats		*hw_stats;
 	dma_addr_t			stats_mapping;
