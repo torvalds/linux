@@ -108,7 +108,7 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 static struct clock_event_device decrementer_clockevent = {
        .name           = "decrementer",
        .rating         = 200,
-       .shift          = 32,
+       .shift          = 16,
        .mult           = 0,	/* To be filled in */
        .irq            = 0,
        .set_next_event = decrementer_set_next_event,
