@@ -5315,11 +5315,12 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 
 	if (snum == 0) {
 		/* Search for an available port. */
-		unsigned int low = sysctl_local_port_range[0];
-		unsigned int high = sysctl_local_port_range[1];
-		unsigned int remaining = (high - low) + 1;
-		unsigned int rover = net_random() % remaining + low;
-		int index;
+		int low, high, remaining, index;
+		unsigned int rover;
+
+		inet_get_local_port_range(&low, &high);
+		remaining = (high - low) + 1;
+		rover = net_random() % remaining + low;
 
 		do {
 			rover++;

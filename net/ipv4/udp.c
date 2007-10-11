@@ -147,10 +147,10 @@ int __udp_lib_get_port(struct sock *sk, unsigned short snum,
 	write_lock_bh(&udp_hash_lock);
 
 	if (!snum) {
-		int i;
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
+		int i, low, high;
 		unsigned rover, best, best_size_so_far;
+
+		inet_get_local_port_range(&low, &high);
 
 		best_size_so_far = UINT_MAX;
 		best = rover = net_random() % (high - low) + low;

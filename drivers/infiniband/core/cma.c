@@ -1866,13 +1866,14 @@ err1:
 static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 {
 	struct rdma_bind_list *bind_list;
-	int port, ret;
+	int port, ret, low, high;
 
 	bind_list = kzalloc(sizeof *bind_list, GFP_KERNEL);
 	if (!bind_list)
 		return -ENOMEM;
 
 retry:
+	/* FIXME: add proper port randomization per like inet_csk_get_port */
 	do {
 		ret = idr_get_new_above(ps, bind_list, next_port, &port);
 	} while ((ret == -EAGAIN) && idr_pre_get(ps, GFP_KERNEL));
@@ -1880,18 +1881,19 @@ retry:
 	if (ret)
 		goto err1;
 
-	if (port > sysctl_local_port_range[1]) {
-		if (next_port != sysctl_local_port_range[0]) {
+	inet_get_local_port_range(&low, &high);
+	if (port > high) {
+		if (next_port != low) {
 			idr_remove(ps, port);
-			next_port = sysctl_local_port_range[0];
+			next_port = low;
 			goto retry;
 		}
 		ret = -EADDRNOTAVAIL;
 		goto err2;
 	}
 
-	if (port == sysctl_local_port_range[1])
-		next_port = sysctl_local_port_range[0];
+	if (port == high)
+		next_port = low;
 	else
 		next_port = port + 1;
 
@@ -2769,12 +2771,12 @@ static void cma_remove_one(struct ib_device *device)
 
 static int cma_init(void)
 {
-	int ret;
+	int ret, low, high;
 
 	get_random_bytes(&next_port, sizeof next_port);
-	next_port = ((unsigned int) next_port %
-		    (sysctl_local_port_range[1] - sysctl_local_port_range[0])) +
-		    sysctl_local_port_range[0];
+	inet_get_local_port_range(&low, &high);
+	next_port = ((unsigned int) next_port % (high - low)) + low;
+
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)
 		return -ENOMEM;
