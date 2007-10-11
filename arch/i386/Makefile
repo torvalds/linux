@@ -91,7 +91,7 @@ core-$(CONFIG_X86_GENERICARCH) += arch/x86/mach-generic/
 # ES7000 subarch support
 mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-i386/mach-es7000
 mcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-default
-core-$(CONFIG_X86_ES7000)	:= arch/i386/mach-es7000/
+core-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
 
 # Xen paravirtualization support
 core-$(CONFIG_XEN)		+= arch/i386/xen/
