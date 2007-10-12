@@ -2606,7 +2606,7 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 {
 	struct sky2_hw *hw = container_of(napi, struct sky2_hw, napi);
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
-	int work_done;
+	int work_done = 0;
 
 	if (unlikely(status & Y2_IS_ERROR))
 		sky2_err_intr(hw, status);
@@ -2617,10 +2617,16 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 	if (status & Y2_IS_IRQ_PHY2)
 		sky2_phy_intr(hw, 1);
 
-	work_done = sky2_status_intr(hw, work_limit);
+	for(;;) {
+		work_done += sky2_status_intr(hw, work_limit);
 
-	/* More work? */
-	if (hw->st_idx == sky2_read16(hw, STAT_PUT_IDX)) {
+		if (work_done >= work_limit)
+			break;
+
+		/* More work? */
+		if (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX))
+			continue;
+
 		/* Bug/Errata workaround?
 		 * Need to kick the TX irq moderation timer.
 		 */
@@ -2631,7 +2637,10 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 
 		napi_complete(napi);
 		sky2_read32(hw, B0_Y2_SP_LISR);
+		break;
+
 	}
+
 	return work_done;
 }
 

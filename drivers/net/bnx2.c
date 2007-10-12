@@ -2633,15 +2633,11 @@ bnx2_has_work(struct bnx2 *bp)
 	return 0;
 }
 
-static int
-bnx2_poll(struct napi_struct *napi, int budget)
+static int bnx2_poll_work(struct bnx2 *bp, int work_done, int budget)
 {
-	struct bnx2 *bp = container_of(napi, struct bnx2, napi);
-	struct net_device *dev = bp->dev;
 	struct status_block *sblk = bp->status_blk;
 	u32 status_attn_bits = sblk->status_attn_bits;
 	u32 status_attn_bits_ack = sblk->status_attn_bits_ack;
-	int work_done = 0;
 
 	if ((status_attn_bits & STATUS_ATTN_EVENTS) !=
 	    (status_attn_bits_ack & STATUS_ATTN_EVENTS)) {
@@ -2660,27 +2656,43 @@ bnx2_poll(struct napi_struct *napi, int budget)
 		bnx2_tx_int(bp);
 
 	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->hw_rx_cons)
-		work_done = bnx2_rx_int(bp, budget);
+		work_done += bnx2_rx_int(bp, budget - work_done);
 
-	bp->last_status_idx = bp->status_blk->status_idx;
-	rmb();
+	return work_done;
+}
 
-	if (!bnx2_has_work(bp)) {
-		netif_rx_complete(dev, napi);
-		if (likely(bp->flags & USING_MSI_FLAG)) {
+static int bnx2_poll(struct napi_struct *napi, int budget)
+{
+	struct bnx2 *bp = container_of(napi, struct bnx2, napi);
+	int work_done = 0;
+
+	while (1) {
+		work_done = bnx2_poll_work(bp, work_done, budget);
+
+		if (unlikely(work_done >= budget))
+			break;
+
+		if (likely(!bnx2_has_work(bp))) {
+			bp->last_status_idx = bp->status_blk->status_idx;
+			rmb();
+
+			netif_rx_complete(bp->dev, napi);
+			if (likely(bp->flags & USING_MSI_FLAG)) {
+				REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+				       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+				       bp->last_status_idx);
+				return 0;
+			}
+			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+			       BNX2_PCICFG_INT_ACK_CMD_MASK_INT |
+			       bp->last_status_idx);
+
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 			       bp->last_status_idx);
-			return 0;
+			break;
 		}
-		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
-		       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-		       BNX2_PCICFG_INT_ACK_CMD_MASK_INT |
-		       bp->last_status_idx);
-
-		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
-		       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-		       bp->last_status_idx);
 	}
 
 	return work_done;

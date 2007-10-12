@@ -3555,12 +3555,9 @@ next_pkt_nopost:
 	return received;
 }
 
-static int tg3_poll(struct napi_struct *napi, int budget)
+static int tg3_poll_work(struct tg3 *tp, int work_done, int budget)
 {
-	struct tg3 *tp = container_of(napi, struct tg3, napi);
-	struct net_device *netdev = tp->dev;
 	struct tg3_hw_status *sblk = tp->hw_status;
-	int work_done = 0;
 
 	/* handle link change and other phy events */
 	if (!(tp->tg3_flags &
@@ -3578,11 +3575,8 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 	/* run TX completion thread */
 	if (sblk->idx[0].tx_consumer != tp->tx_cons) {
 		tg3_tx(tp);
-		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING)) {
-			netif_rx_complete(netdev, napi);
-			schedule_work(&tp->reset_task);
+		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING))
 			return 0;
-		}
 	}
 
 	/* run RX thread, within the bounds set by NAPI.
@@ -3590,21 +3584,46 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 	 * code synchronizes with tg3->napi.poll()
 	 */
 	if (sblk->idx[0].rx_producer != tp->rx_rcb_ptr)
-		work_done = tg3_rx(tp, budget);
+		work_done += tg3_rx(tp, budget - work_done);
 
-	if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) {
-		tp->last_tag = sblk->status_tag;
-		rmb();
-	} else
-		sblk->status &= ~SD_STATUS_UPDATED;
+	return work_done;
+}
 
-	/* if no more work, tell net stack and NIC we're done */
-	if (!tg3_has_work(tp)) {
-		netif_rx_complete(netdev, napi);
-		tg3_restart_ints(tp);
+static int tg3_poll(struct napi_struct *napi, int budget)
+{
+	struct tg3 *tp = container_of(napi, struct tg3, napi);
+	int work_done = 0;
+
+	while (1) {
+		work_done = tg3_poll_work(tp, work_done, budget);
+
+		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING))
+			goto tx_recovery;
+
+		if (unlikely(work_done >= budget))
+			break;
+
+		if (likely(!tg3_has_work(tp))) {
+			struct tg3_hw_status *sblk = tp->hw_status;
+
+			if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) {
+				tp->last_tag = sblk->status_tag;
+				rmb();
+			} else
+				sblk->status &= ~SD_STATUS_UPDATED;
+
+			netif_rx_complete(tp->dev, napi);
+			tg3_restart_ints(tp);
+			break;
+		}
 	}
 
 	return work_done;
+
+tx_recovery:
+	netif_rx_complete(tp->dev, napi);
+	schedule_work(&tp->reset_task);
+	return 0;
 }
 
 static void tg3_irq_quiesce(struct tg3 *tp)
