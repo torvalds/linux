@@ -143,7 +143,7 @@ void mmc_remove_host(struct mmc_host *host)
 
 	device_del(&host->class_dev);
 
-	led_trigger_unregister(host->led);
+	led_trigger_unregister_simple(host->led);
 
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);
