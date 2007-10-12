@@ -14,7 +14,7 @@
 #include <linux/jiffies.h>
 #include <linux/wait.h>
 #include <linux/mutex.h>
-#include <asm/errno.h>
+#include <linux/errno.h>
 #include <asm/chpid.h>
 #include <asm/sclp.h>
 
@@ -86,7 +86,7 @@ u8 chp_get_sch_opm(struct subchannel *sch)
 
 	opm = 0;
 	chp_id_init(&chpid);
-	for (i=0; i < 8; i++) {
+	for (i = 0; i < 8; i++) {
 		opm <<= 1;
 		chpid.id = sch->schib.pmcw.chpid[i];
 		if (chp_get_status(chpid) != 0)
@@ -118,7 +118,7 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
 
 	sprintf(dbf_text, on?"varyon%x.%02x":"varyoff%x.%02x", chpid.cssid,
 		chpid.id);
-	CIO_TRACE_EVENT( 2, dbf_text);
+	CIO_TRACE_EVENT(2, dbf_text);
 
 	status = chp_get_status(chpid);
 	if (!on && !status) {
@@ -353,7 +353,7 @@ static ssize_t chp_shared_show(struct device *dev,
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
 
-static struct attribute * chp_attrs[] = {
+static struct attribute *chp_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_configure.attr,
 	&dev_attr_type.attr,
