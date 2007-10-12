@@ -588,8 +588,6 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 
 	*total_flags = 0;
 
-	if (changed_flags & FIF_PROMISC_IN_BSS)
-		priv->rx_conf ^= RTL818X_RX_CONF_NICMAC;
 	if (changed_flags & FIF_ALLMULTI)
 		priv->rx_conf ^= RTL818X_RX_CONF_MULTICAST;
 	if (changed_flags & FIF_FCSFAIL)
@@ -602,8 +600,6 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 	if (mc_count > 0)
 		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
 
-	if (priv->rx_conf & RTL818X_RX_CONF_NICMAC)
-		*total_flags |= FIF_PROMISC_IN_BSS;
 	if (priv->rx_conf & RTL818X_RX_CONF_MULTICAST)
 		*total_flags |= FIF_ALLMULTI;
 	if (priv->rx_conf & RTL818X_RX_CONF_FCS)
