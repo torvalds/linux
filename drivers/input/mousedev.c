@@ -428,8 +428,11 @@ static int mousedev_open_device(struct mousedev *mousedev)
 		mixdev_open_devices();
 	else if (!mousedev->exist)
 		retval = -ENODEV;
-	else if (!mousedev->open++)
+	else if (!mousedev->open++) {
 		retval = input_open_device(&mousedev->handle);
+		if (retval)
+			mousedev->open--;
+	}
 
 	mutex_unlock(&mousedev->mutex);
 	return retval;

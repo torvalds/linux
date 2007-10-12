@@ -185,8 +185,11 @@ static int tsdev_open_device(struct tsdev *tsdev)
 
 	if (!tsdev->exist)
 		retval = -ENODEV;
-	else if (!tsdev->open++)
+	else if (!tsdev->open++) {
 		retval = input_open_device(&tsdev->handle);
+		if (retval)
+			tsdev->open--;
+	}
 
 	mutex_unlock(&tsdev->mutex);
 	return retval;

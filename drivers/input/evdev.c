@@ -192,8 +192,11 @@ static int evdev_open_device(struct evdev *evdev)
 
 	if (!evdev->exist)
 		retval = -ENODEV;
-	else if (!evdev->open++)
+	else if (!evdev->open++) {
 		retval = input_open_device(&evdev->handle);
+		if (retval)
+			evdev->open--;
+	}
 
 	mutex_unlock(&evdev->mutex);
 	return retval;

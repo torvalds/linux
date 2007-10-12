@@ -205,8 +205,11 @@ static int joydev_open_device(struct joydev *joydev)
 
 	if (!joydev->exist)
 		retval = -ENODEV;
-	else if (!joydev->open++)
+	else if (!joydev->open++) {
 		retval = input_open_device(&joydev->handle);
+		if (retval)
+			joydev->open--;
+	}
 
 	mutex_unlock(&joydev->mutex);
 	return retval;
