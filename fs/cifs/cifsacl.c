@@ -131,7 +131,6 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 
 static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 {
-	int i;
 	int num_subauth;
 
 	/* validate that we do not go past end of acl */
@@ -145,6 +144,7 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 	num_subauth = cpu_to_le32(pace->num_subauth);
 	if (num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
+		int i;
 		cFYI(1, ("ACE revision %d num_subauth %d",
 			pace->revision, pace->num_subauth));
 		for (i = 0; i < num_subauth; ++i) {
@@ -255,7 +255,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 
 static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 {
-	int i;
 	int num_subauth;
 
 	/* BB need to add parm so we can store the SID BB */
@@ -269,6 +268,7 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 	num_subauth = cpu_to_le32(psid->num_subauth);
 	if (num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
+		int i;
 		cFYI(1, ("SID revision %d num_auth %d First subauth 0x%x",
 			psid->revision, psid->num_subauth, psid->sub_auth[0]));
 
