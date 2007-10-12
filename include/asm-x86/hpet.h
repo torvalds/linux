@@ -66,6 +66,7 @@ extern unsigned long hpet_address;
 extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
 extern unsigned long hpet_readl(unsigned long a);
+extern void ich_force_hpet_resume(void);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 
