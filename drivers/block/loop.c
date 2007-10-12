@@ -551,7 +551,7 @@ static int loop_make_request(struct request_queue *q, struct bio *old_bio)
 
 out:
 	spin_unlock_irq(&lo->lo_lock);
-	bio_io_error(old_bio, old_bio->bi_size);
+	bio_io_error(old_bio);
 	return 0;
 }
 
@@ -580,7 +580,7 @@ static inline void loop_handle_bio(struct loop_device *lo, struct bio *bio)
 		bio_put(bio);
 	} else {
 		int ret = do_bio_filebacked(lo, bio);
-		bio_endio(bio, bio->bi_size, ret);
+		bio_endio(bio, ret);
 	}
 }
 

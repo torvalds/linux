@@ -652,7 +652,7 @@ aoecmd_ata_rsp(struct sk_buff *skb)
 			disk_stat_add(disk, sectors[rw], n_sect);
 			disk_stat_add(disk, io_ticks, duration);
 			n = (buf->flags & BUFFL_FAIL) ? -EIO : 0;
-			bio_endio(buf->bio, buf->bio->bi_size, n);
+			bio_endio(buf->bio, n);
 			mempool_free(buf, d->bufpool);
 		}
 	}

@@ -138,7 +138,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 	buf = mempool_alloc(d->bufpool, GFP_NOIO);
 	if (buf == NULL) {
 		printk(KERN_INFO "aoe: buf allocation failure\n");
-		bio_endio(bio, bio->bi_size, -ENOMEM);
+		bio_endio(bio, -ENOMEM);
 		return 0;
 	}
 	memset(buf, 0, sizeof(*buf));
@@ -159,7 +159,7 @@ aoeblk_make_request(struct request_queue *q, struct bio *bio)
 			d->aoemajor, d->aoeminor);
 		spin_unlock_irqrestore(&d->lock, flags);
 		mempool_free(buf, d->bufpool);
-		bio_endio(bio, bio->bi_size, -ENXIO);
+		bio_endio(bio, -ENXIO);
 		return 0;
 	}
 

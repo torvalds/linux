@@ -238,7 +238,7 @@ static void raid_end_bio_io(r1bio_t *r1_bio)
 			(unsigned long long) bio->bi_sector +
 				(bio->bi_size >> 9) - 1);
 
-		bio_endio(bio, bio->bi_size,
+		bio_endio(bio,
 			test_bit(R1BIO_Uptodate, &r1_bio->state) ? 0 : -EIO);
 	}
 	free_r1bio(r1_bio);
@@ -255,16 +255,13 @@ static inline void update_head_pos(int disk, r1bio_t *r1_bio)
 		r1_bio->sector + (r1_bio->sectors);
 }
 
-static int raid1_end_read_request(struct bio *bio, unsigned int bytes_done, int error)
+static void raid1_end_read_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
 	int mirror;
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 
-	if (bio->bi_size)
-		return 1;
-	
 	mirror = r1_bio->read_disk;
 	/*
 	 * this branch is our 'one mirror IO has finished' event handler:
@@ -301,10 +298,9 @@ static int raid1_end_read_request(struct bio *bio, unsigned int bytes_done, int 
 	}
 
 	rdev_dec_pending(conf->mirrors[mirror].rdev, conf->mddev);
-	return 0;
 }
 
-static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int error)
+static void raid1_end_write_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
@@ -312,8 +308,6 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 	struct bio *to_put = NULL;
 
-	if (bio->bi_size)
-		return 1;
 
 	for (mirror = 0; mirror < conf->raid_disks; mirror++)
 		if (r1_bio->bios[mirror] == bio)
@@ -366,7 +360,7 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 					       (unsigned long long) mbio->bi_sector,
 					       (unsigned long long) mbio->bi_sector +
 					       (mbio->bi_size >> 9) - 1);
-					bio_endio(mbio, mbio->bi_size, 0);
+					bio_endio(mbio, 0);
 				}
 			}
 		}
@@ -400,8 +394,6 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 
 	if (to_put)
 		bio_put(to_put);
-
-	return 0;
 }
 
 
@@ -796,7 +788,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
 		if (rw == WRITE)
 			md_write_end(mddev);
-		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
@@ -1137,13 +1129,10 @@ abort:
 }
 
 
-static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
+static void end_sync_read(struct bio *bio, int error)
 {
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
 	int i;
-
-	if (bio->bi_size)
-		return 1;
 
 	for (i=r1_bio->mddev->raid_disks; i--; )
 		if (r1_bio->bios[i] == bio)
@@ -1160,10 +1149,9 @@ static int end_sync_read(struct bio *bio, unsigned int bytes_done, int error)
 
 	if (atomic_dec_and_test(&r1_bio->remaining))
 		reschedule_retry(r1_bio);
-	return 0;
 }
 
-static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
+static void end_sync_write(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
@@ -1171,9 +1159,6 @@ static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
 	conf_t *conf = mddev_to_conf(mddev);
 	int i;
 	int mirror=0;
-
-	if (bio->bi_size)
-		return 1;
 
 	for (i = 0; i < conf->raid_disks; i++)
 		if (r1_bio->bios[i] == bio) {
@@ -1200,7 +1185,6 @@ static int end_sync_write(struct bio *bio, unsigned int bytes_done, int error)
 		md_done_sync(mddev, r1_bio->sectors, uptodate);
 		put_buf(r1_bio);
 	}
-	return 0;
 }
 
 static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)

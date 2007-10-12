@@ -263,25 +263,12 @@ static int scsi_merge_bio(struct request *rq, struct bio *bio)
 		bio->bi_rw |= (1 << BIO_RW);
 	blk_queue_bounce(q, &bio);
 
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio))
-		return -EINVAL;
-	else {
-		rq->biotail->bi_next = bio;
-		rq->biotail = bio;
-	}
-
-	return 0;
+	return blk_rq_append_bio(q, rq, bio);
 }
 
-static int scsi_bi_endio(struct bio *bio, unsigned int bytes_done, int error)
+static void scsi_bi_endio(struct bio *bio, int error)
 {
-	if (bio->bi_size)
-		return 1;
-
 	bio_put(bio);
-	return 0;
 }
 
 /**
@@ -337,7 +324,7 @@ static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
 			if (bio->bi_vcnt >= nr_vecs) {
 				err = scsi_merge_bio(rq, bio);
 				if (err) {
-					bio_endio(bio, bio->bi_size, 0);
+					bio_endio(bio, 0);
 					goto free_bios;
 				}
 				bio = NULL;
@@ -359,7 +346,7 @@ free_bios:
 		/*
 		 * call endio instead of bio_put incase it was bounced
 		 */
-		bio_endio(bio, bio->bi_size, 0);
+		bio_endio(bio, 0);
 	}
 
 	return err;

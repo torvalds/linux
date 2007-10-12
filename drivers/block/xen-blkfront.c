@@ -150,9 +150,8 @@ static int blkif_queue_request(struct request *req)
 	struct blkfront_info *info = req->rq_disk->private_data;
 	unsigned long buffer_mfn;
 	struct blkif_request *ring_req;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct bio_vec *bvec;
-	int idx;
 	unsigned long id;
 	unsigned int fsect, lsect;
 	int ref;
@@ -186,34 +185,31 @@ static int blkif_queue_request(struct request *req)
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
 
 	ring_req->nr_segments = 0;
-	rq_for_each_bio (bio, req) {
-		bio_for_each_segment (bvec, bio, idx) {
-			BUG_ON(ring_req->nr_segments
-			       == BLKIF_MAX_SEGMENTS_PER_REQUEST);
-			buffer_mfn = pfn_to_mfn(page_to_pfn(bvec->bv_page));
-			fsect = bvec->bv_offset >> 9;
-			lsect = fsect + (bvec->bv_len >> 9) - 1;
-			/* install a grant reference. */
-			ref = gnttab_claim_grant_reference(&gref_head);
-			BUG_ON(ref == -ENOSPC);
+	rq_for_each_segment(bvec, req, iter) {
+		BUG_ON(ring_req->nr_segments == BLKIF_MAX_SEGMENTS_PER_REQUEST);
+		buffer_mfn = pfn_to_mfn(page_to_pfn(bvec->bv_page));
+		fsect = bvec->bv_offset >> 9;
+		lsect = fsect + (bvec->bv_len >> 9) - 1;
+		/* install a grant reference. */
+		ref = gnttab_claim_grant_reference(&gref_head);
+		BUG_ON(ref == -ENOSPC);
 
-			gnttab_grant_foreign_access_ref(
+		gnttab_grant_foreign_access_ref(
 				ref,
 				info->xbdev->otherend_id,
 				buffer_mfn,
 				rq_data_dir(req) );
 
-			info->shadow[id].frame[ring_req->nr_segments] =
+		info->shadow[id].frame[ring_req->nr_segments] =
 				mfn_to_pfn(buffer_mfn);
 
-			ring_req->seg[ring_req->nr_segments] =
+		ring_req->seg[ring_req->nr_segments] =
 				(struct blkif_request_segment) {
 					.gref       = ref,
 					.first_sect = fsect,
 					.last_sect  = lsect };
 
-			ring_req->nr_segments++;
-		}
+		ring_req->nr_segments++;
 	}
 
 	info->ring.req_prod_pvt++;

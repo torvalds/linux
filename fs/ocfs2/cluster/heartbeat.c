@@ -217,7 +217,6 @@ static void o2hb_wait_on_io(struct o2hb_region *reg,
 }
 
 static int o2hb_bio_end_io(struct bio *bio,
-			   unsigned int bytes_done,
 			   int error)
 {
 	struct o2hb_bio_wait_ctxt *wc = bio->bi_private;
@@ -226,9 +225,6 @@ static int o2hb_bio_end_io(struct bio *bio,
 		mlog(ML_ERROR, "IO Error %d\n", error);
 		wc->wc_error = error;
 	}
-
-	if (bio->bi_size)
-		return 1;
 
 	o2hb_bio_wait_dec(wc, 1);
 	bio_put(bio);

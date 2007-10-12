@@ -91,6 +91,10 @@
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
+#if defined(CONFIG_OF)
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
+#endif
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_DESCRIPTION("Xilinx SystemACE device driver");
@@ -158,6 +162,9 @@ MODULE_LICENSE("GPL");
 #define ACE_FIFO_SIZE (32)
 #define ACE_BUF_PER_SECTOR (ACE_SECTOR_SIZE / ACE_FIFO_SIZE)
 
+#define ACE_BUS_WIDTH_8  0
+#define ACE_BUS_WIDTH_16 1
+
 struct ace_reg_ops;
 
 struct ace_device {
@@ -188,7 +195,7 @@ struct ace_device {
 
 	/* Details of hardware device */
 	unsigned long physaddr;
-	void *baseaddr;
+	void __iomem *baseaddr;
 	int irq;
 	int bus_width;		/* 0 := 8 bit; 1 := 16 bit */
 	struct ace_reg_ops *reg_ops;
@@ -220,20 +227,20 @@ struct ace_reg_ops {
 /* 8 Bit bus width */
 static u16 ace_in_8(struct ace_device *ace, int reg)
 {
-	void *r = ace->baseaddr + reg;
+	void __iomem *r = ace->baseaddr + reg;
 	return in_8(r) | (in_8(r + 1) << 8);
 }
 
 static void ace_out_8(struct ace_device *ace, int reg, u16 val)
 {
-	void *r = ace->baseaddr + reg;
+	void __iomem *r = ace->baseaddr + reg;
 	out_8(r, val);
 	out_8(r + 1, val >> 8);
 }
 
 static void ace_datain_8(struct ace_device *ace)
 {
-	void *r = ace->baseaddr + 0x40;
+	void __iomem *r = ace->baseaddr + 0x40;
 	u8 *dst = ace->data_ptr;
 	int i = ACE_FIFO_SIZE;
 	while (i--)
@@ -243,7 +250,7 @@ static void ace_datain_8(struct ace_device *ace)
 
 static void ace_dataout_8(struct ace_device *ace)
 {
-	void *r = ace->baseaddr + 0x40;
+	void __iomem *r = ace->baseaddr + 0x40;
 	u8 *src = ace->data_ptr;
 	int i = ACE_FIFO_SIZE;
 	while (i--)
@@ -931,8 +938,10 @@ static int __devinit ace_setup(struct ace_device *ace)
 {
 	u16 version;
 	u16 val;
-
 	int rc;
+
+	dev_dbg(ace->dev, "ace_setup(ace=0x%p)\n", ace);
+	dev_dbg(ace->dev, "physaddr=0x%lx irq=%i\n", ace->physaddr, ace->irq);
 
 	spin_lock_init(&ace->lock);
 	init_completion(&ace->id_completion);
@@ -943,15 +952,6 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace->baseaddr = ioremap(ace->physaddr, 0x80);
 	if (!ace->baseaddr)
 		goto err_ioremap;
-
-	if (ace->irq != NO_IRQ) {
-		rc = request_irq(ace->irq, ace_interrupt, 0, "systemace", ace);
-		if (rc) {
-			/* Failure - fall back to polled mode */
-			dev_err(ace->dev, "request_irq failed\n");
-			ace->irq = NO_IRQ;
-		}
-	}
 
 	/*
 	 * Initialize the state machine tasklet and stall timer
@@ -982,7 +982,7 @@ static int __devinit ace_setup(struct ace_device *ace)
 	snprintf(ace->gd->disk_name, 32, "xs%c", ace->id + 'a');
 
 	/* set bus width */
-	if (ace->bus_width == 1) {
+	if (ace->bus_width == ACE_BUS_WIDTH_16) {
 		/* 0x0101 should work regardless of endianess */
 		ace_out_le16(ace, ACE_BUSMODE, 0x0101);
 
@@ -1005,6 +1005,16 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace_out(ace, ACE_CTRL, ACE_CTRL_FORCECFGMODE |
 		ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ);
 
+	/* Now we can hook up the irq handler */
+	if (ace->irq != NO_IRQ) {
+		rc = request_irq(ace->irq, ace_interrupt, 0, "systemace", ace);
+		if (rc) {
+			/* Failure - fall back to polled mode */
+			dev_err(ace->dev, "request_irq failed\n");
+			ace->irq = NO_IRQ;
+		}
+	}
+
 	/* Enable interrupts */
 	val = ace_in(ace, ACE_CTRL);
 	val |= ACE_CTRL_DATABUFRDYIRQ | ACE_CTRL_ERRORIRQ;
@@ -1024,16 +1034,14 @@ static int __devinit ace_setup(struct ace_device *ace)
 
 	return 0;
 
-      err_read:
+err_read:
 	put_disk(ace->gd);
-      err_alloc_disk:
+err_alloc_disk:
 	blk_cleanup_queue(ace->queue);
-      err_blk_initq:
+err_blk_initq:
 	iounmap(ace->baseaddr);
-	if (ace->irq != NO_IRQ)
-		free_irq(ace->irq, ace);
-      err_ioremap:
-	printk(KERN_INFO "xsysace: error initializing device at 0x%lx\n",
+err_ioremap:
+	dev_info(ace->dev, "xsysace: error initializing device at 0x%lx\n",
 	       ace->physaddr);
 	return -ENOMEM;
 }
@@ -1056,98 +1064,222 @@ static void __devexit ace_teardown(struct ace_device *ace)
 	iounmap(ace->baseaddr);
 }
 
+static int __devinit
+ace_alloc(struct device *dev, int id, unsigned long physaddr,
+	  int irq, int bus_width)
+{
+	struct ace_device *ace;
+	int rc;
+	dev_dbg(dev, "ace_alloc(%p)\n", dev);
+
+	if (!physaddr) {
+		rc = -ENODEV;
+		goto err_noreg;
+	}
+
+	/* Allocate and initialize the ace device structure */
+	ace = kzalloc(sizeof(struct ace_device), GFP_KERNEL);
+	if (!ace) {
+		rc = -ENOMEM;
+		goto err_alloc;
+	}
+
+	ace->dev = dev;
+	ace->id = id;
+	ace->physaddr = physaddr;
+	ace->irq = irq;
+	ace->bus_width = bus_width;
+
+	/* Call the setup code */
+	rc = ace_setup(ace);
+	if (rc)
+		goto err_setup;
+
+	dev_set_drvdata(dev, ace);
+	return 0;
+
+err_setup:
+	dev_set_drvdata(dev, NULL);
+	kfree(ace);
+err_alloc:
+err_noreg:
+	dev_err(dev, "could not initialize device, err=%i\n", rc);
+	return rc;
+}
+
+static void __devexit ace_free(struct device *dev)
+{
+	struct ace_device *ace = dev_get_drvdata(dev);
+	dev_dbg(dev, "ace_free(%p)\n", dev);
+
+	if (ace) {
+		ace_teardown(ace);
+		dev_set_drvdata(dev, NULL);
+		kfree(ace);
+	}
+}
+
 /* ---------------------------------------------------------------------
  * Platform Bus Support
  */
 
-static int __devinit ace_probe(struct device *device)
+static int __devinit ace_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
-	struct ace_device *ace;
+	unsigned long physaddr = 0;
+	int bus_width = ACE_BUS_WIDTH_16; /* FIXME: should not be hard coded */
+	int id = dev->id;
+	int irq = NO_IRQ;
 	int i;
 
-	dev_dbg(device, "ace_probe(%p)\n", device);
-
-	/*
-	 * Allocate the ace device structure
-	 */
-	ace = kzalloc(sizeof(struct ace_device), GFP_KERNEL);
-	if (!ace)
-		goto err_alloc;
-
-	ace->dev = device;
-	ace->id = dev->id;
-	ace->irq = NO_IRQ;
+	dev_dbg(&dev->dev, "ace_probe(%p)\n", dev);
 
 	for (i = 0; i < dev->num_resources; i++) {
 		if (dev->resource[i].flags & IORESOURCE_MEM)
-			ace->physaddr = dev->resource[i].start;
+			physaddr = dev->resource[i].start;
 		if (dev->resource[i].flags & IORESOURCE_IRQ)
-			ace->irq = dev->resource[i].start;
+			irq = dev->resource[i].start;
 	}
 
-	/* FIXME: Should get bus_width from the platform_device struct */
-	ace->bus_width = 1;
-
-	dev_set_drvdata(&dev->dev, ace);
-
 	/* Call the bus-independant setup code */
-	if (ace_setup(ace) != 0)
-		goto err_setup;
-
-	return 0;
-
-      err_setup:
-	dev_set_drvdata(&dev->dev, NULL);
-	kfree(ace);
-      err_alloc:
-	printk(KERN_ERR "xsysace: could not initialize device\n");
-	return -ENOMEM;
+	return ace_alloc(&dev->dev, id, physaddr, irq, bus_width);
 }
 
 /*
  * Platform bus remove() method
  */
-static int __devexit ace_remove(struct device *device)
+static int __devexit ace_remove(struct platform_device *dev)
 {
-	struct ace_device *ace = dev_get_drvdata(device);
-
-	dev_dbg(device, "ace_remove(%p)\n", device);
-
-	if (ace) {
-		ace_teardown(ace);
-		kfree(ace);
-	}
-
+	ace_free(&dev->dev);
 	return 0;
 }
 
-static struct device_driver ace_driver = {
-	.name = "xsysace",
-	.bus = &platform_bus_type,
+static struct platform_driver ace_platform_driver = {
 	.probe = ace_probe,
 	.remove = __devexit_p(ace_remove),
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "xsysace",
+	},
 };
+
+/* ---------------------------------------------------------------------
+ * OF_Platform Bus Support
+ */
+
+#if defined(CONFIG_OF)
+static int __devinit
+ace_of_probe(struct of_device *op, const struct of_device_id *match)
+{
+	struct resource res;
+	unsigned long physaddr;
+	const u32 *id;
+	int irq, bus_width, rc;
+
+	dev_dbg(&op->dev, "ace_of_probe(%p, %p)\n", op, match);
+
+	/* device id */
+	id = of_get_property(op->node, "port-number", NULL);
+
+	/* physaddr */
+	rc = of_address_to_resource(op->node, 0, &res);
+	if (rc) {
+		dev_err(&op->dev, "invalid address\n");
+		return rc;
+	}
+	physaddr = res.start;
+
+	/* irq */
+	irq = irq_of_parse_and_map(op->node, 0);
+
+	/* bus width */
+	bus_width = ACE_BUS_WIDTH_16;
+	if (of_find_property(op->node, "8-bit", NULL))
+		bus_width = ACE_BUS_WIDTH_8;
+
+	/* Call the bus-independant setup code */
+	return ace_alloc(&op->dev, id ? *id : 0, physaddr, irq, bus_width);
+}
+
+static int __devexit ace_of_remove(struct of_device *op)
+{
+	ace_free(&op->dev);
+	return 0;
+}
+
+/* Match table for of_platform binding */
+static struct of_device_id __devinit ace_of_match[] = {
+	{ .compatible = "xilinx,xsysace", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, ace_of_match);
+
+static struct of_platform_driver ace_of_driver = {
+	.owner = THIS_MODULE,
+	.name = "xsysace",
+	.match_table = ace_of_match,
+	.probe = ace_of_probe,
+	.remove = __devexit_p(ace_of_remove),
+	.driver = {
+		.name = "xsysace",
+	},
+};
+
+/* Registration helpers to keep the number of #ifdefs to a minimum */
+static inline int __init ace_of_register(void)
+{
+	pr_debug("xsysace: registering OF binding\n");
+	return of_register_platform_driver(&ace_of_driver);
+}
+
+static inline void __exit ace_of_unregister(void)
+{
+	of_unregister_platform_driver(&ace_of_driver);
+}
+#else /* CONFIG_OF */
+/* CONFIG_OF not enabled; do nothing helpers */
+static inline int __init ace_of_register(void) { return 0; }
+static inline void __exit ace_of_unregister(void) { }
+#endif /* CONFIG_OF */
 
 /* ---------------------------------------------------------------------
  * Module init/exit routines
  */
 static int __init ace_init(void)
 {
+	int rc;
+
 	ace_major = register_blkdev(ace_major, "xsysace");
 	if (ace_major <= 0) {
-		printk(KERN_WARNING "xsysace: register_blkdev() failed\n");
-		return ace_major;
+		rc = -ENOMEM;
+		goto err_blk;
 	}
 
-	pr_debug("Registering Xilinx SystemACE driver, major=%i\n", ace_major);
-	return driver_register(&ace_driver);
+	rc = ace_of_register();
+	if (rc)
+		goto err_of;
+
+	pr_debug("xsysace: registering platform binding\n");
+	rc = platform_driver_register(&ace_platform_driver);
+	if (rc)
+		goto err_plat;
+
+	pr_info("Xilinx SystemACE device driver, major=%i\n", ace_major);
+	return 0;
+
+err_plat:
+	ace_of_unregister();
+err_of:
+	unregister_blkdev(ace_major, "xsysace");
+err_blk:
+	printk(KERN_ERR "xsysace: registration failed; err=%i\n", rc);
+	return rc;
 }
 
 static void __exit ace_exit(void)
 {
 	pr_debug("Unregistering Xilinx SystemACE driver\n");
-	driver_unregister(&ace_driver);
+	platform_driver_unregister(&ace_platform_driver);
+	ace_of_unregister();
 	unregister_blkdev(ace_major, "xsysace");
 }
 

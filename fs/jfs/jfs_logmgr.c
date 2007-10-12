@@ -2200,15 +2200,12 @@ static int lbmIOWait(struct lbuf * bp, int flag)
  *
  * executed at INTIODONE level
  */
-static int lbmIODone(struct bio *bio, unsigned int bytes_done, int error)
+static void lbmIODone(struct bio *bio, int error)
 {
 	struct lbuf *bp = bio->bi_private;
 	struct lbuf *nextbp, *tail;
 	struct jfs_log *log;
 	unsigned long flags;
-
-	if (bio->bi_size)
-		return 1;
 
 	/*
 	 * get back jfs buffer bound to the i/o buffer

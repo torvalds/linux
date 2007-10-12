@@ -820,7 +820,7 @@ static void write_callback(unsigned long error, void *context)
 				break;
 			}
 	}
-	bio_endio(bio, bio->bi_size, 0);
+	bio_endio(bio, 0);
 }
 
 static void do_write(struct mirror_set *ms, struct bio *bio)
@@ -900,7 +900,7 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 	 */
 	if (unlikely(ms->log_failure))
 		while ((bio = bio_list_pop(&sync)))
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 	else while ((bio = bio_list_pop(&sync)))
 		do_write(ms, bio);
 

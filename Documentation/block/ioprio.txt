@@ -86,8 +86,15 @@ extern int sys_ioprio_get(int, int);
 #error "Unsupported arch"
 #endif
 
-_syscall3(int, ioprio_set, int, which, int, who, int, ioprio);
-_syscall2(int, ioprio_get, int, which, int, who);
+static inline int ioprio_set(int which, int who, int ioprio)
+{
+	return syscall(__NR_ioprio_set, which, who, ioprio);
+}
+
+static inline int ioprio_get(int which, int who)
+{
+	return syscall(__NR_ioprio_get, which, who);
+}
 
 enum {
 	IOPRIO_CLASS_NONE,

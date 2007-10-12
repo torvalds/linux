@@ -42,6 +42,9 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
 static int __make_request(struct request_queue *q, struct bio *bio);
 static struct io_context *current_io_context(gfp_t gfp_flags, int node);
+static void blk_recalc_rq_segments(struct request *rq);
+static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
+			    struct bio *bio);
 
 /*
  * For the allocated request tables
@@ -428,7 +431,6 @@ static void queue_flush(struct request_queue *q, unsigned which)
 static inline struct request *start_ordered(struct request_queue *q,
 					    struct request *rq)
 {
-	q->bi_size = 0;
 	q->orderr = 0;
 	q->ordered = q->next_ordered;
 	q->ordseq |= QUEUE_ORDSEQ_STARTED;
@@ -525,56 +527,36 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 	return 1;
 }
 
-static int flush_dry_bio_endio(struct bio *bio, unsigned int bytes, int error)
-{
-	struct request_queue *q = bio->bi_private;
-
-	/*
-	 * This is dry run, restore bio_sector and size.  We'll finish
-	 * this request again with the original bi_end_io after an
-	 * error occurs or post flush is complete.
-	 */
-	q->bi_size += bytes;
-
-	if (bio->bi_size)
-		return 1;
-
-	/* Reset bio */
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio->bi_size = q->bi_size;
-	bio->bi_sector -= (q->bi_size >> 9);
-	q->bi_size = 0;
-
-	return 0;
-}
-
-static int ordered_bio_endio(struct request *rq, struct bio *bio,
-			     unsigned int nbytes, int error)
+static void req_bio_endio(struct request *rq, struct bio *bio,
+			  unsigned int nbytes, int error)
 {
 	struct request_queue *q = rq->q;
-	bio_end_io_t *endio;
-	void *private;
 
-	if (&q->bar_rq != rq)
-		return 0;
+	if (&q->bar_rq != rq) {
+		if (error)
+			clear_bit(BIO_UPTODATE, &bio->bi_flags);
+		else if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
+			error = -EIO;
 
-	/*
-	 * Okay, this is the barrier request in progress, dry finish it.
-	 */
-	if (error && !q->orderr)
-		q->orderr = error;
+		if (unlikely(nbytes > bio->bi_size)) {
+			printk("%s: want %u bytes done, only %u left\n",
+			       __FUNCTION__, nbytes, bio->bi_size);
+			nbytes = bio->bi_size;
+		}
 
-	endio = bio->bi_end_io;
-	private = bio->bi_private;
-	bio->bi_end_io = flush_dry_bio_endio;
-	bio->bi_private = q;
+		bio->bi_size -= nbytes;
+		bio->bi_sector += (nbytes >> 9);
+		if (bio->bi_size == 0)
+			bio_endio(bio, error);
+	} else {
 
-	bio_endio(bio, nbytes, error);
-
-	bio->bi_end_io = endio;
-	bio->bi_private = private;
-
-	return 1;
+		/*
+		 * Okay, this is the barrier request in progress, just
+		 * record the error;
+		 */
+		if (error && !q->orderr)
+			q->orderr = error;
+	}
 }
 
 /**
@@ -1220,16 +1202,40 @@ EXPORT_SYMBOL(blk_dump_rq_flags);
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
 {
-	struct bio_vec *bv, *bvprv = NULL;
-	int i, nr_phys_segs, nr_hw_segs, seg_size, hw_seg_size, cluster;
-	int high, highprv = 1;
+	struct request rq;
+	struct bio *nxt = bio->bi_next;
+	rq.q = q;
+	rq.bio = rq.biotail = bio;
+	bio->bi_next = NULL;
+	blk_recalc_rq_segments(&rq);
+	bio->bi_next = nxt;
+	bio->bi_phys_segments = rq.nr_phys_segments;
+	bio->bi_hw_segments = rq.nr_hw_segments;
+	bio->bi_flags |= (1 << BIO_SEG_VALID);
+}
+EXPORT_SYMBOL(blk_recount_segments);
 
-	if (unlikely(!bio->bi_io_vec))
+static void blk_recalc_rq_segments(struct request *rq)
+{
+	int nr_phys_segs;
+	int nr_hw_segs;
+	unsigned int phys_size;
+	unsigned int hw_size;
+	struct bio_vec *bv, *bvprv = NULL;
+	int seg_size;
+	int hw_seg_size;
+	int cluster;
+	struct req_iterator iter;
+	int high, highprv = 1;
+	struct request_queue *q = rq->q;
+
+	if (!rq->bio)
 		return;
 
 	cluster = q->queue_flags & (1 << QUEUE_FLAG_CLUSTER);
-	hw_seg_size = seg_size = nr_phys_segs = nr_hw_segs = 0;
-	bio_for_each_segment(bv, bio, i) {
+	hw_seg_size = seg_size = 0;
+	phys_size = hw_size = nr_phys_segs = nr_hw_segs = 0;
+	rq_for_each_segment(bv, rq, iter) {
 		/*
 		 * the trick here is making sure that a high page is never
 		 * considered part of another segment, since that might
@@ -1255,12 +1261,13 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 		}
 new_segment:
 		if (BIOVEC_VIRT_MERGEABLE(bvprv, bv) &&
-		    !BIOVEC_VIRT_OVERSIZE(hw_seg_size + bv->bv_len)) {
+		    !BIOVEC_VIRT_OVERSIZE(hw_seg_size + bv->bv_len))
 			hw_seg_size += bv->bv_len;
-		} else {
+		else {
 new_hw_segment:
-			if (hw_seg_size > bio->bi_hw_front_size)
-				bio->bi_hw_front_size = hw_seg_size;
+			if (nr_hw_segs == 1 &&
+			    hw_seg_size > rq->bio->bi_hw_front_size)
+				rq->bio->bi_hw_front_size = hw_seg_size;
 			hw_seg_size = BIOVEC_VIRT_START_SIZE(bv) + bv->bv_len;
 			nr_hw_segs++;
 		}
@@ -1270,15 +1277,15 @@ new_hw_segment:
 		seg_size = bv->bv_len;
 		highprv = high;
 	}
-	if (hw_seg_size > bio->bi_hw_back_size)
-		bio->bi_hw_back_size = hw_seg_size;
-	if (nr_hw_segs == 1 && hw_seg_size > bio->bi_hw_front_size)
-		bio->bi_hw_front_size = hw_seg_size;
-	bio->bi_phys_segments = nr_phys_segs;
-	bio->bi_hw_segments = nr_hw_segs;
-	bio->bi_flags |= (1 << BIO_SEG_VALID);
+
+	if (nr_hw_segs == 1 &&
+	    hw_seg_size > rq->bio->bi_hw_front_size)
+		rq->bio->bi_hw_front_size = hw_seg_size;
+	if (hw_seg_size > rq->biotail->bi_hw_back_size)
+		rq->biotail->bi_hw_back_size = hw_seg_size;
+	rq->nr_phys_segments = nr_phys_segs;
+	rq->nr_hw_segments = nr_hw_segs;
 }
-EXPORT_SYMBOL(blk_recount_segments);
 
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
@@ -1325,8 +1332,8 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 		  struct scatterlist *sg)
 {
 	struct bio_vec *bvec, *bvprv;
-	struct bio *bio;
-	int nsegs, i, cluster;
+	struct req_iterator iter;
+	int nsegs, cluster;
 
 	nsegs = 0;
 	cluster = q->queue_flags & (1 << QUEUE_FLAG_CLUSTER);
@@ -1335,35 +1342,30 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * for each bio in rq
 	 */
 	bvprv = NULL;
-	rq_for_each_bio(bio, rq) {
-		/*
-		 * for each segment in bio
-		 */
-		bio_for_each_segment(bvec, bio, i) {
-			int nbytes = bvec->bv_len;
+	rq_for_each_segment(bvec, rq, iter) {
+		int nbytes = bvec->bv_len;
 
-			if (bvprv && cluster) {
-				if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
-					goto new_segment;
+		if (bvprv && cluster) {
+			if (sg[nsegs - 1].length + nbytes > q->max_segment_size)
+				goto new_segment;
 
-				if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
-					goto new_segment;
-				if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
-					goto new_segment;
+			if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+				goto new_segment;
+			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+				goto new_segment;
 
-				sg[nsegs - 1].length += nbytes;
-			} else {
+			sg[nsegs - 1].length += nbytes;
+		} else {
 new_segment:
-				memset(&sg[nsegs],0,sizeof(struct scatterlist));
-				sg[nsegs].page = bvec->bv_page;
-				sg[nsegs].length = nbytes;
-				sg[nsegs].offset = bvec->bv_offset;
+			memset(&sg[nsegs],0,sizeof(struct scatterlist));
+			sg[nsegs].page = bvec->bv_page;
+			sg[nsegs].length = nbytes;
+			sg[nsegs].offset = bvec->bv_offset;
 
-				nsegs++;
-			}
-			bvprv = bvec;
-		} /* segments in bio */
-	} /* bios in rq */
+			nsegs++;
+		}
+		bvprv = bvec;
+	} /* segments in rq */
 
 	return nsegs;
 }
@@ -1420,7 +1422,8 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 	return 1;
 }
 
-int ll_back_merge_fn(struct request_queue *q, struct request *req, struct bio *bio)
+static int ll_back_merge_fn(struct request_queue *q, struct request *req,
+			    struct bio *bio)
 {
 	unsigned short max_sectors;
 	int len;
@@ -1456,7 +1459,6 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req, struct bio *b
 
 	return ll_new_hw_segment(q, req, bio);
 }
-EXPORT_SYMBOL(ll_back_merge_fn);
 
 static int ll_front_merge_fn(struct request_queue *q, struct request *req, 
 			     struct bio *bio)
@@ -2346,6 +2348,23 @@ static int __blk_rq_unmap_user(struct bio *bio)
 	return ret;
 }
 
+int blk_rq_append_bio(struct request_queue *q, struct request *rq,
+		      struct bio *bio)
+{
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!ll_back_merge_fn(q, rq, bio))
+		return -EINVAL;
+	else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+
+		rq->data_len += bio->bi_size;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(blk_rq_append_bio);
+
 static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     void __user *ubuf, unsigned int len)
 {
@@ -2377,23 +2396,12 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 */
 	bio_get(bio);
 
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio)) {
-		ret = -EINVAL;
-		goto unmap_bio;
-	} else {
-		rq->biotail->bi_next = bio;
-		rq->biotail = bio;
+	ret = blk_rq_append_bio(q, rq, bio);
+	if (!ret)
+		return bio->bi_size;
 
-		rq->data_len += bio->bi_size;
-	}
-
-	return bio->bi_size;
-
-unmap_bio:
 	/* if it was boucned we must call the end io function */
-	bio_endio(bio, bio->bi_size, 0);
+	bio_endio(bio, 0);
 	__blk_rq_unmap_user(orig_bio);
 	bio_put(bio);
 	return ret;
@@ -2502,7 +2510,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 		return PTR_ERR(bio);
 
 	if (bio->bi_size != len) {
-		bio_endio(bio, bio->bi_size, 0);
+		bio_endio(bio, 0);
 		bio_unmap_user(bio);
 		return -EINVAL;
 	}
@@ -2912,15 +2920,9 @@ static void init_request_from_bio(struct request *req, struct bio *bio)
 
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
-	req->hard_nr_sectors = req->nr_sectors = bio_sectors(bio);
-	req->current_nr_sectors = req->hard_cur_sectors = bio_cur_sectors(bio);
-	req->nr_phys_segments = bio_phys_segments(req->q, bio);
-	req->nr_hw_segments = bio_hw_segments(req->q, bio);
-	req->buffer = bio_data(bio);	/* see ->buffer comment above */
-	req->bio = req->biotail = bio;
 	req->ioprio = bio_prio(bio);
-	req->rq_disk = bio->bi_bdev->bd_disk;
 	req->start_time = jiffies;
+	blk_rq_bio_prep(req->q, req, bio);
 }
 
 static int __make_request(struct request_queue *q, struct bio *bio)
@@ -3038,7 +3040,7 @@ out:
 	return 0;
 
 end_io:
-	bio_endio(bio, nr_sectors << 9, err);
+	bio_endio(bio, err);
 	return 0;
 }
 
@@ -3185,7 +3187,7 @@ static inline void __generic_make_request(struct bio *bio)
 				bdevname(bio->bi_bdev, b),
 				(long long) bio->bi_sector);
 end_io:
-			bio_endio(bio, bio->bi_size, -EIO);
+			bio_endio(bio, -EIO);
 			break;
 		}
 
@@ -3329,48 +3331,6 @@ void submit_bio(int rw, struct bio *bio)
 
 EXPORT_SYMBOL(submit_bio);
 
-static void blk_recalc_rq_segments(struct request *rq)
-{
-	struct bio *bio, *prevbio = NULL;
-	int nr_phys_segs, nr_hw_segs;
-	unsigned int phys_size, hw_size;
-	struct request_queue *q = rq->q;
-
-	if (!rq->bio)
-		return;
-
-	phys_size = hw_size = nr_phys_segs = nr_hw_segs = 0;
-	rq_for_each_bio(bio, rq) {
-		/* Force bio hw/phys segs to be recalculated. */
-		bio->bi_flags &= ~(1 << BIO_SEG_VALID);
-
-		nr_phys_segs += bio_phys_segments(q, bio);
-		nr_hw_segs += bio_hw_segments(q, bio);
-		if (prevbio) {
-			int pseg = phys_size + prevbio->bi_size + bio->bi_size;
-			int hseg = hw_size + prevbio->bi_size + bio->bi_size;
-
-			if (blk_phys_contig_segment(q, prevbio, bio) &&
-			    pseg <= q->max_segment_size) {
-				nr_phys_segs--;
-				phys_size += prevbio->bi_size + bio->bi_size;
-			} else
-				phys_size = 0;
-
-			if (blk_hw_contig_segment(q, prevbio, bio) &&
-			    hseg <= q->max_segment_size) {
-				nr_hw_segs--;
-				hw_size += prevbio->bi_size + bio->bi_size;
-			} else
-				hw_size = 0;
-		}
-		prevbio = bio;
-	}
-
-	rq->nr_phys_segments = nr_phys_segs;
-	rq->nr_hw_segments = nr_hw_segs;
-}
-
 static void blk_recalc_rq_sectors(struct request *rq, int nsect)
 {
 	if (blk_fs_request(rq)) {
@@ -3442,8 +3402,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 		if (nr_bytes >= bio->bi_size) {
 			req->bio = bio->bi_next;
 			nbytes = bio->bi_size;
-			if (!ordered_bio_endio(req, bio, nbytes, error))
-				bio_endio(bio, nbytes, error);
+			req_bio_endio(req, bio, nbytes, error);
 			next_idx = 0;
 			bio_nbytes = 0;
 		} else {
@@ -3498,8 +3457,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	 * if the request wasn't completed, update state
 	 */
 	if (bio_nbytes) {
-		if (!ordered_bio_endio(req, bio, bio_nbytes, error))
-			bio_endio(bio, bio_nbytes, error);
+		req_bio_endio(req, bio, bio_nbytes, error);
 		bio->bi_idx += next_idx;
 		bio_iovec(bio)->bv_offset += nr_bytes;
 		bio_iovec(bio)->bv_len -= nr_bytes;
@@ -3574,7 +3532,7 @@ static void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
-static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
+static int __cpuinit blk_cpu_notify(struct notifier_block *self, unsigned long action,
 			  void *hcpu)
 {
 	/*
@@ -3595,7 +3553,7 @@ static int blk_cpu_notify(struct notifier_block *self, unsigned long action,
 }
 
 
-static struct notifier_block __devinitdata blk_cpu_notifier = {
+static struct notifier_block blk_cpu_notifier __cpuinitdata = {
 	.notifier_call	= blk_cpu_notify,
 };
 
@@ -3680,8 +3638,8 @@ void end_request(struct request *req, int uptodate)
 
 EXPORT_SYMBOL(end_request);
 
-void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
-		     struct bio *bio)
+static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
+			    struct bio *bio)
 {
 	/* first two bits are identical in rq->cmd_flags and bio->bi_rw */
 	rq->cmd_flags |= (bio->bi_rw & 3);
@@ -3695,9 +3653,10 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;
-}
 
-EXPORT_SYMBOL(blk_rq_bio_prep);
+	if (bio->bi_bdev)
+		rq->rq_disk = bio->bi_bdev->bd_disk;
+}
 
 int kblockd_schedule_work(struct work_struct *work)
 {

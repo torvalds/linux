@@ -1134,21 +1134,18 @@ tape_34xx_bread(struct tape_device *device, struct request *req)
 {
 	struct tape_request *request;
 	struct ccw1 *ccw;
-	int count = 0, i;
+	int count = 0;
 	unsigned off;
 	char *dst;
 	struct bio_vec *bv;
-	struct bio *bio;
+	struct req_iterator iter;
 	struct tape_34xx_block_id *	start_block;
 
 	DBF_EVENT(6, "xBREDid:");
 
 	/* Count the number of blocks for the request. */
-	rq_for_each_bio(bio, req) {
-		bio_for_each_segment(bv, bio, i) {
-			count += bv->bv_len >> (TAPEBLOCK_HSEC_S2B + 9);
-		}
-	}
+	rq_for_each_segment(bv, req, iter)
+		count += bv->bv_len >> (TAPEBLOCK_HSEC_S2B + 9);
 
 	/* Allocate the ccw request. */
 	request = tape_alloc_request(3+count+1, 8);
@@ -1175,18 +1172,15 @@ tape_34xx_bread(struct tape_device *device, struct request *req)
 	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
 	ccw = tape_ccw_cc(ccw, NOP, 0, NULL);
 
-	rq_for_each_bio(bio, req) {
-		bio_for_each_segment(bv, bio, i) {
-			dst = kmap(bv->bv_page) + bv->bv_offset;
-			for (off = 0; off < bv->bv_len;
-			     off += TAPEBLOCK_HSEC_SIZE) {
-				ccw->flags = CCW_FLAG_CC;
-				ccw->cmd_code = READ_FORWARD;
-				ccw->count = TAPEBLOCK_HSEC_SIZE;
-				set_normalized_cda(ccw, (void*) __pa(dst));
-				ccw++;
-				dst += TAPEBLOCK_HSEC_SIZE;
-			}
+	rq_for_each_segment(bv, req, iter) {
+		dst = kmap(bv->bv_page) + bv->bv_offset;
+		for (off = 0; off < bv->bv_len; off += TAPEBLOCK_HSEC_SIZE) {
+			ccw->flags = CCW_FLAG_CC;
+			ccw->cmd_code = READ_FORWARD;
+			ccw->count = TAPEBLOCK_HSEC_SIZE;
+			set_normalized_cda(ccw, (void*) __pa(dst));
+			ccw++;
+			dst += TAPEBLOCK_HSEC_SIZE;
 		}
 	}
 

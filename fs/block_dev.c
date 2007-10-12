@@ -172,7 +172,7 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 }
 
 #if 0
-static int blk_end_aio(struct bio *bio, unsigned int bytes_done, int error)
+static void blk_end_aio(struct bio *bio, int error)
 {
 	struct kiocb *iocb = bio->bi_private;
 	atomic_t *bio_count = &iocb->ki_bio_count;

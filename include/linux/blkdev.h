@@ -1,6 +1,8 @@
 #ifndef _LINUX_BLKDEV_H
 #define _LINUX_BLKDEV_H
 
+#ifdef CONFIG_BLOCK
+
 #include <linux/sched.h>
 #include <linux/major.h>
 #include <linux/genhd.h>
@@ -31,8 +33,6 @@
 } \
 )
 #endif
-
-#ifdef CONFIG_BLOCK
 
 struct scsi_ioctl_command;
 
@@ -471,7 +471,6 @@ struct request_queue
 	int			orderr, ordcolor;
 	struct request		pre_flush_rq, bar_rq, post_flush_rq;
 	struct request		*orig_bar_rq;
-	unsigned int		bi_size;
 
 	struct mutex		sysfs_lock;
 
@@ -637,9 +636,22 @@ static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
 }
 #endif /* CONFIG_MMU */
 
-#define rq_for_each_bio(_bio, rq)	\
+struct req_iterator {
+	int i;
+	struct bio *bio;
+};
+
+/* This should not be used directly - use rq_for_each_segment */
+#define __rq_for_each_bio(_bio, rq)	\
 	if ((rq->bio))			\
 		for (_bio = (rq)->bio; _bio; _bio = _bio->bi_next)
+
+#define rq_for_each_segment(bvl, _rq, _iter)			\
+	__rq_for_each_bio(_iter.bio, _rq)			\
+		bio_for_each_segment(bvl, _iter.bio, _iter.i)
+
+#define rq_iter_last(rq, _iter)					\
+		(_iter.bio->bi_next == NULL && _iter.i == _iter.bio->bi_vcnt-1)
 
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
@@ -662,8 +674,8 @@ extern int sg_scsi_ioctl(struct file *, struct request_queue *,
 /*
  * Temporary export, until SCSI gets fixed up.
  */
-extern int ll_back_merge_fn(struct request_queue *, struct request *,
-		struct bio *);
+extern int blk_rq_append_bio(struct request_queue *q, struct request *rq,
+			     struct bio *bio);
 
 /*
  * A queue has just exitted congestion.  Note this in the global counter of
@@ -810,7 +822,6 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 	return bqt->tag_index[tag];
 }
 
-extern void blk_rq_bio_prep(struct request_queue *, struct request *, struct bio *);
 extern int blkdev_issue_flush(struct block_device *, sector_t *);
 
 #define MAX_PHYS_SEGMENTS 128
