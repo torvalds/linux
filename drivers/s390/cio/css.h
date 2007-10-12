@@ -191,6 +191,5 @@ int sch_is_pseudo_sch(struct subchannel *);
 
 extern struct workqueue_struct *slow_path_wq;
 
-int subchannel_add_files (struct device *);
 extern struct attribute_group *subch_attr_groups[];
 #endif
