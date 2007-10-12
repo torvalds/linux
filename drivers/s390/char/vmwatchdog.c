@@ -66,8 +66,8 @@ static int __diag288(enum vmwdt_func func, unsigned int timeout,
 		"0:	la	%0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "=d" (err) : "d"(__func), "d"(__timeout),
-		  "d"(__cmdp), "d"(__cmdl), "0" (-EINVAL) : "1", "cc");
+		: "+d" (err) : "d"(__func), "d"(__timeout),
+		  "d"(__cmdp), "d"(__cmdl) : "1", "cc");
 	return err;
 }
 
