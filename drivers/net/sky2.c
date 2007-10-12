@@ -2245,15 +2245,13 @@ static inline void sky2_tx_done(struct net_device *dev, u16 last)
 }
 
 /* Process status response ring */
-static int sky2_status_intr(struct sky2_hw *hw, int to_do)
+static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 {
 	int work_done = 0;
 	unsigned rx[2] = { 0, 0 };
-	u16 hwidx = sky2_read16(hw, STAT_PUT_IDX);
 
 	rmb();
-
-	while (hw->st_idx != hwidx) {
+	do {
 		struct sky2_port *sky2;
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
 		unsigned port = le->css & CSS_LINK_BIT;
@@ -2364,7 +2362,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do)
 				printk(KERN_WARNING PFX
 				       "unknown status opcode 0x%x\n", le->opcode);
 		}
-	}
+	} while (hw->st_idx != idx);
 
 	/* Fully processed status ring so clear irq */
 	sky2_write32(hw, STAT_CTRL, SC_STAT_CLR_IRQ);
@@ -2607,6 +2605,7 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 	struct sky2_hw *hw = container_of(napi, struct sky2_hw, napi);
 	u32 status = sky2_read32(hw, B0_Y2_SP_EISR);
 	int work_done = 0;
+	u16 idx;
 
 	if (unlikely(status & Y2_IS_ERROR))
 		sky2_err_intr(hw, status);
@@ -2617,29 +2616,23 @@ static int sky2_poll(struct napi_struct *napi, int work_limit)
 	if (status & Y2_IS_IRQ_PHY2)
 		sky2_phy_intr(hw, 1);
 
-	for(;;) {
-		work_done += sky2_status_intr(hw, work_limit);
+	while ((idx = sky2_read16(hw, STAT_PUT_IDX)) != hw->st_idx) {
+		work_done += sky2_status_intr(hw, work_limit - work_done, idx);
 
 		if (work_done >= work_limit)
-			break;
-
-		/* More work? */
-		if (hw->st_idx != sky2_read16(hw, STAT_PUT_IDX))
-			continue;
-
-		/* Bug/Errata workaround?
-		 * Need to kick the TX irq moderation timer.
-		 */
-		if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
-			sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
-		}
-
-		napi_complete(napi);
-		sky2_read32(hw, B0_Y2_SP_LISR);
-		break;
-
+			goto done;
 	}
+
+	/* Bug/Errata workaround?
+	 * Need to kick the TX irq moderation timer.
+	 */
+	if (sky2_read8(hw, STAT_TX_TIMER_CTRL) == TIM_START) {
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_STOP);
+		sky2_write8(hw, STAT_TX_TIMER_CTRL, TIM_START);
+	}
+	napi_complete(napi);
+	sky2_read32(hw, B0_Y2_SP_LISR);
+done:
 
 	return work_done;
 }
