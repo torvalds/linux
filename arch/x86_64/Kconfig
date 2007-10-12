@@ -40,6 +40,10 @@ config CLOCKSOURCE_WATCHDOG
 	bool
 	default y
 
+config GENERIC_CLOCKEVENTS_MIGR
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
@@ -133,6 +137,8 @@ source "init/Kconfig"
 
 
 menu "Processor type and features"
+
+source "kernel/time/Kconfig"
 
 choice
 	prompt "Subarchitecture Type"
