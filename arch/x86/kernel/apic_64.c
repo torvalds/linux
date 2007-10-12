@@ -826,6 +826,9 @@ static void __init calibrate_APIC_clock(void)
 	unsigned apic, apic_start;
 	unsigned long tsc, tsc_start;
 	int result;
+
+	local_irq_disable();
+
 	/*
 	 * Put whatever arbitrary (but long enough) timeout
 	 * value into the APIC clock, we just want to get the
@@ -855,6 +858,9 @@ static void __init calibrate_APIC_clock(void)
 		result = (apic_start - apic) * 1000L * tsc_khz /
 					(tsc - tsc_start);
 	}
+
+	local_irq_enable();
+
 	printk(KERN_DEBUG "APIC timer calibration result %d\n", result);
 
 	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
@@ -873,22 +879,16 @@ void __init setup_boot_APIC_clock (void)
 	printk(KERN_INFO "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
 
-	local_irq_disable();
-
 	calibrate_APIC_clock();
 	/*
 	 * Now set up the timer for real.
 	 */
 	setup_APIC_timer();
-
-	local_irq_enable();
 }
 
 void __cpuinit setup_secondary_APIC_clock(void)
 {
-	local_irq_disable(); /* FIXME: Do we need this? --RR */
 	setup_APIC_timer();
-	local_irq_enable();
 }
 
 void disable_APIC_timer(void)
