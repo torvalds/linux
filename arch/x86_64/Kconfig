@@ -36,6 +36,10 @@ config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
+config CLOCKSOURCE_WATCHDOG
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
