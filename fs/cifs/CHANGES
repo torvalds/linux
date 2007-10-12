@@ -6,7 +6,10 @@ which support the current POSIX Extensions to provide better semantics
 (e.g. delete for open files opened with posix open).  Take into
 account umask on posix mkdir not just older style mkdir.  Add
 ability to mount to IPC$ share (which allows CIFS named pipes to be
-opened, read and written as if they were files).
+opened, read and written as if they were files).  When 1st tree
+connect fails (e.g. due to signing negotiation failure) fix
+leak that causes cifsd not to stop and rmmod to fail to cleanup
+cifs_request_buffers pool.
 
 Version 1.50
 ------------

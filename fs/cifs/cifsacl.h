@@ -22,6 +22,10 @@
 #ifndef _CIFSACL_H
 #define _CIFSACL_H
 
+
+#define NUM_WK_SIDS 7 /* number of well known sids */
+#define SIDNAMELENGTH 20 /* long enough for the ones we care about */
+
 struct cifs_ntsd {
 	__u16 revision; /* revision level */
 	__u16 type;
@@ -35,7 +39,7 @@ struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[0]; /* sub_auth[num_subauth] */
+	__u32 sub_auth[5]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 struct cifs_acl {
@@ -55,12 +59,20 @@ struct cifs_ace { /* last part of ACE which includes user info */
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__u32 sub_auth[0];
+	__u32 sub_auth[5];
 } __attribute__((packed));
 
-/* everyone */
-/* extern const struct cifs_sid sid_everyone;*/
-/* group users */
-/* extern const struct cifs_sid sid_user;*/
+struct cifs_wksid {
+	struct cifs_sid cifssid;
+	char sidname[SIDNAMELENGTH];
+} __attribute__((packed));
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+
+extern struct cifs_wksid wksidarr[NUM_WK_SIDS];
+extern int match_sid(struct cifs_sid *);
+extern int compare_sids(struct cifs_sid *, struct cifs_sid *);
+
+#endif /*  CONFIG_CIFS_EXPERIMENTAL */
 
 #endif /* _CIFSACL_H */

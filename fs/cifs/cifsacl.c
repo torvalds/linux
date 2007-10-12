@@ -28,6 +28,20 @@
 #include "cifsproto.h"
 #include "cifs_debug.h"
 
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+
+struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
+	{{1, 0, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0} }, "null user"},
+	{{1, 1, {0, 0, 0, 0, 0, 1}, {0, 0, 0, 0, 0} }, "nobody"},
+	{{1, 1, {0, 0, 0, 0, 0, 5}, {11, 0, 0, 0, 0} }, "net-users"},
+	{{1, 1, {0, 0, 0, 0, 0, 5}, {18, 0, 0, 0, 0} }, "sys"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 544, 0, 0, 0} }, "root"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 545, 0, 0, 0} }, "users"},
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {32, 546, 0, 0, 0} }, "guest"}
+};
+
+
 /* security id for everyone */
 static const struct cifs_sid sid_everyone =
 		{1, 1, {0, 0, 0, 0, 0, 0}, {} };
@@ -35,33 +49,113 @@ static const struct cifs_sid sid_everyone =
 static const struct cifs_sid sid_user =
 		{1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
+
+int match_sid(struct cifs_sid *ctsid)
+{
+	int i, j;
+	int num_subauth, num_sat, num_saw;
+	struct cifs_sid *cwsid;
+
+	if (!ctsid)
+		return (-1);
+
+	for (i = 0; i < NUM_WK_SIDS; ++i) {
+		cwsid = &(wksidarr[i].cifssid);
+
+		/* compare the revision */
+		if (ctsid->revision != cwsid->revision)
+			continue;
+
+		/* compare all of the six auth values */
+		for (j = 0; j < 6; ++j) {
+			if (ctsid->authority[j] != cwsid->authority[j])
+				break;
+		}
+		if (j < 6)
+			continue; /* all of the auth values did not match */
+
+		/* compare all of the subauth values if any */
+		num_sat = cpu_to_le32(ctsid->num_subauth);
+		num_saw = cpu_to_le32(cwsid->num_subauth);
+		num_subauth = num_sat < num_saw ? num_sat : num_saw;
+		if (num_subauth) {
+			for (j = 0; j < num_subauth; ++j) {
+				if (ctsid->sub_auth[j] != cwsid->sub_auth[j])
+					break;
+			}
+			if (j < num_subauth)
+				continue; /* all sub_auth values do not match */
+		}
+
+		cFYI(1, ("matching sid: %s\n", wksidarr[i].sidname));
+		return (0); /* sids compare/match */
+	}
+
+	cFYI(1, ("No matching sid"));
+	return (-1);
+}
+
+
+int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
+{
+	int i;
+	int num_subauth, num_sat, num_saw;
+
+	if ((!ctsid) || (!cwsid))
+		return (-1);
+
+	/* compare the revision */
+	if (ctsid->revision != cwsid->revision)
+		return (-1);
+
+	/* compare all of the six auth values */
+	for (i = 0; i < 6; ++i) {
+		if (ctsid->authority[i] != cwsid->authority[i])
+			return (-1);
+	}
+
+	/* compare all of the subauth values if any */
+	num_sat = cpu_to_le32(ctsid->num_subauth);
+	num_saw = cpu_to_le32(cwsid->num_subauth);
+	num_subauth = num_sat < num_saw ? num_sat : num_saw;
+	if (num_subauth) {
+		for (i = 0; i < num_subauth; ++i) {
+			if (ctsid->sub_auth[i] != cwsid->sub_auth[i])
+				return (-1);
+		}
+	}
+
+	return (0); /* sids compare/match */
+}
+
+
 static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 {
 	int i;
 	int num_subauth;
-	 __u32 *psub_auth;
 
 	/* validate that we do not go past end of acl */
+
+	/* XXX this if statement can be removed
 	if (end_of_acl < (char *)pace + sizeof(struct cifs_ace)) {
 		cERROR(1, ("ACL too small to parse ACE"));
 		return;
-	}
+	} */
 
 	num_subauth = cpu_to_le32(pace->num_subauth);
 	if (num_subauth) {
-		psub_auth = (__u32 *)((char *)pace + sizeof(struct cifs_ace));
 #ifdef CONFIG_CIFS_DEBUG2
 		cFYI(1, ("ACE revision %d num_subauth %d",
 			pace->revision, pace->num_subauth));
 		for (i = 0; i < num_subauth; ++i) {
 			cFYI(1, ("ACE sub_auth[%d]: 0x%x", i,
-				le32_to_cpu(psub_auth[i])));
+				le32_to_cpu(pace->sub_auth[i])));
 		}
 
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
 
-		cFYI(1, ("RID %d", le32_to_cpu(psub_auth[num_subauth-1])));
+		cFYI(1, ("RID %d", le32_to_cpu(pace->sub_auth[num_subauth-1])));
 #endif
 	}
 
@@ -132,7 +226,13 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl)
 					sizeof(struct cifs_ntace));
 
 			parse_ntace(ppntace[i], end_of_acl);
-			parse_ace(ppace[i], end_of_acl);
+			if (end_of_acl < ((char *)ppace[i] +
+					(ppntace[i]->size -
+					sizeof(struct cifs_ntace)))) {
+				cERROR(1, ("ACL too small to parse ACE"));
+				break;
+			} else
+				parse_ace(ppace[i], end_of_acl);
 
 /*			memcpy((void *)(&(cifscred->ntaces[i])),
 				(void *)ppntace[i],
@@ -157,7 +257,6 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 {
 	int i;
 	int num_subauth;
-	__u32 *psub_auth;
 
 	/* BB need to add parm so we can store the SID BB */
 
@@ -169,20 +268,19 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 
 	num_subauth = cpu_to_le32(psid->num_subauth);
 	if (num_subauth) {
-		psub_auth = (__u32 *)((char *)psid + sizeof(struct cifs_sid));
 #ifdef CONFIG_CIFS_DEBUG2
 		cFYI(1, ("SID revision %d num_auth %d First subauth 0x%x",
 			psid->revision, psid->num_subauth, psid->sub_auth[0]));
 
 		for (i = 0; i < num_subauth; ++i) {
 			cFYI(1, ("SID sub_auth[%d]: 0x%x ", i,
-				le32_to_cpu(psub_auth[i])));
+				le32_to_cpu(psid->sub_auth[i])));
 		}
 
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
 		cFYI(1, ("RID 0x%x",
-			le32_to_cpu(psid->sub_auth[psid->num_subauth])));
+			le32_to_cpu(psid->sub_auth[num_subauth-1])));
 #endif
 	}
 
@@ -228,5 +326,7 @@ int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len)
 	memcpy((void *)(&(cifscred->gsid)), (void *)group_sid_ptr,
 			sizeof (struct cifs_sid)); */
 
+
 	return (0);
 }
+#endif /* CONFIG_CIFS_EXPERIMENTAL */

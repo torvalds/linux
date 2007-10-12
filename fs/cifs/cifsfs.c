@@ -49,10 +49,6 @@
 static struct quotactl_ops cifs_quotactl_ops;
 #endif /* QUOTA */
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-extern struct export_operations cifs_export_ops;
-#endif /* EXPERIMENTAL */
-
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;

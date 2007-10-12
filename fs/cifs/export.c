@@ -43,6 +43,7 @@
 #include <linux/exportfs.h>
 #include "cifsglob.h"
 #include "cifs_debug.h"
+#include "cifsfs.h"
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 static struct dentry *cifs_get_parent(struct dentry *dentry)

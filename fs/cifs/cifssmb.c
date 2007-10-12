@@ -3058,6 +3058,7 @@ GetExtAttrOut:
 
 #endif /* CONFIG_POSIX */
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 /* Get Security Descriptor (by handle) from remote server for a file or dir */
 int
 CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
@@ -3129,6 +3130,7 @@ qsec_out:
 /*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
 	return rc;
 }
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
 
 /* Legacy Query Path Information call for lookup to old servers such
    as Win9x/WinME */
