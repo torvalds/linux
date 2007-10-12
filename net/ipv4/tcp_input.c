@@ -1109,27 +1109,34 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
 /* Check for lost retransmit. This superb idea is borrowed from "ratehalving".
  * Event "C". Later note: FACK people cheated me again 8), we have to account
  * for reordering! Ugly, but should help.
+ *
+ * Search retransmitted skbs from write_queue that were sent when snd_nxt was
+ * less than what is now known to be received by the other end (derived from
+ * SACK blocks by the caller).
  */
-static int tcp_mark_lost_retrans(struct sock *sk, u32 lost_retrans)
+static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int flag = 0;
+	int cnt = 0;
 
 	tcp_for_write_queue(skb, sk) {
 		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
 
 		if (skb == tcp_send_head(sk))
 			break;
-		if (after(TCP_SKB_CB(skb)->seq, lost_retrans))
+		if (cnt == tp->retrans_out)
 			break;
 		if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
 			continue;
 
-		if ((TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS) &&
-		    after(lost_retrans, ack_seq) &&
+		if (!(TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS))
+			continue;
+
+		if (after(received_upto, ack_seq) &&
 		    (tcp_is_fack(tp) ||
-		     !before(lost_retrans,
+		     !before(received_upto,
 			     ack_seq + tp->reordering * tp->mss_cache))) {
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 			tp->retrans_out -= tcp_skb_pcount(skb);
@@ -1143,6 +1150,8 @@ static int tcp_mark_lost_retrans(struct sock *sk, u32 lost_retrans)
 				flag |= FLAG_DATA_SACKED;
 				NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 			}
+		} else {
+			cnt += tcp_skb_pcount(skb);
 		}
 	}
 	return flag;
@@ -1225,7 +1234,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
-	u32 lost_retrans = 0;
+	u32 highest_sack_end_seq = 0;
 	int flag = 0;
 	int found_dup_sack = 0;
 	int cached_fack_count;
@@ -1396,11 +1405,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				continue;
 			}
 
-			if ((sacked&TCPCB_SACKED_RETRANS) &&
-			    after(end_seq, TCP_SKB_CB(skb)->ack_seq) &&
-			    (!lost_retrans || after(end_seq, lost_retrans)))
-				lost_retrans = end_seq;
-
 			if (!in_sack)
 				continue;
 
@@ -1454,9 +1458,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
 
-				if (after(TCP_SKB_CB(skb)->seq,
-				    tp->highest_sack))
+				if (after(TCP_SKB_CB(skb)->seq, tp->highest_sack)) {
 					tp->highest_sack = TCP_SKB_CB(skb)->seq;
+					highest_sack_end_seq = TCP_SKB_CB(skb)->end_seq;
+				}
 			} else {
 				if (dup_sack && (sacked&TCPCB_RETRANS))
 					reord = min(fack_count, reord);
@@ -1476,8 +1481,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 	}
 
-	if (lost_retrans && icsk->icsk_ca_state == TCP_CA_Recovery)
-		flag |= tcp_mark_lost_retrans(sk, lost_retrans);
+	if (tp->retrans_out && highest_sack_end_seq &&
+	    after(highest_sack_end_seq, tp->high_seq) &&
+	    icsk->icsk_ca_state == TCP_CA_Recovery)
+		flag |= tcp_mark_lost_retrans(sk, highest_sack_end_seq);
 
 	tcp_verify_left_out(tp);
 
