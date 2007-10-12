@@ -114,6 +114,7 @@ enum {
 	DEVTYPE_DMC_TSC10,
 	DEVTYPE_IRTOUCH,
 	DEVTYPE_IDEALTEK,
+	DEVTYPE_GENERAL_TOUCH,
 };
 
 static struct usb_device_id usbtouch_devices[] = {
@@ -161,6 +162,10 @@ static struct usb_device_id usbtouch_devices[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_USB_IDEALTEK
 	{USB_DEVICE(0x1391, 0x1000), .driver_info = DEVTYPE_IDEALTEK},
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
+	{USB_DEVICE(0x0dfc, 0x0001), .driver_info = DEVTYPE_GENERAL_TOUCH},
 #endif
 
 	{}
@@ -480,6 +485,20 @@ static int idealtek_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 }
 #endif
 
+/*****************************************************************************
+ * General Touch Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
+static int general_touch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	dev->x = ((pkt[2] & 0x0F) << 8) | pkt[1] ;
+	dev->y = ((pkt[4] & 0x0F) << 8) | pkt[3] ;
+	dev->press = pkt[5] & 0xff;
+	dev->touch = pkt[0] & 0x01;
+
+	return 1;
+}
+#endif
 
 /*****************************************************************************
  * the different device descriptors
@@ -595,6 +614,18 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.read_data	= idealtek_read_data,
 	},
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
+	[DEVTYPE_GENERAL_TOUCH] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x0500,
+		.min_yc		= 0x0,
+		.max_yc		= 0x0500,
+		.rept_size	= 7,
+		.read_data	= general_touch_read_data,
+	}
+#endif
+
 };
 
 
