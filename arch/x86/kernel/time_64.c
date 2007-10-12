@@ -292,35 +292,6 @@ static unsigned int __init tsc_calibrate_cpu_khz(void)
 	return pmc_now * tsc_khz / (tsc_now - tsc_start);
 }
 
-/*
- * pit_calibrate_tsc() uses the speaker output (channel 2) of
- * the PIT. This is better than using the timer interrupt output,
- * because we can read the value of the speaker with just one inb(),
- * where we need three i/o operations for the interrupt channel.
- * We count how many ticks the TSC does in 50 ms.
- */
-
-static unsigned int __init pit_calibrate_tsc(void)
-{
-	unsigned long start, end;
-	unsigned long flags;
-
-	spin_lock_irqsave(&i8253_lock, flags);
-
-	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
-
-	outb(0xb0, 0x43);
-	outb((PIT_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-	outb((PIT_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	start = get_cycles_sync();
-	while ((inb(0x61) & 0x20) == 0);
-	end = get_cycles_sync();
-
-	spin_unlock_irqrestore(&i8253_lock, flags);
-
-	return (end - start) / 50;
-}
-
 #define PIT_MODE 0x43
 #define PIT_CH0  0x40
 
@@ -376,13 +347,13 @@ void __init time_init(void)
 	if (hpet_use_timer) {
 		/* set tick_nsec to use the proper rate for HPET */
 		tick_nsec = TICK_NSEC_HPET;
-		tsc_khz = hpet_calibrate_tsc();
 		timename = "HPET";
 	} else {
 		pit_init();
-		tsc_khz = pit_calibrate_tsc();
 		timename = "PIT";
 	}
+
+	tsc_calibrate();
 
 	cpu_khz = tsc_khz;
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&

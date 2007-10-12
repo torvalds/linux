@@ -184,55 +184,6 @@ int hpet_reenable(void)
 	return hpet_timer_stop_set_go(hpet_tick);
 }
 
-/*
- * calibrate_tsc() calibrates the processor TSC in a very simple way, comparing
- * it to the HPET timer of known frequency.
- */
-
-#define TICK_COUNT 100000000
-#define SMI_THRESHOLD 50000
-#define MAX_TRIES  5
-
-/*
- * Some platforms take periodic SMI interrupts with 5ms duration. Make sure none
- * occurs between the reads of the hpet & TSC.
- */
-static void __init read_hpet_tsc(int *hpet, int *tsc)
-{
-	int tsc1, tsc2, hpet1, i;
-
-	for (i = 0; i < MAX_TRIES; i++) {
-		tsc1 = get_cycles_sync();
-		hpet1 = hpet_readl(HPET_COUNTER);
-		tsc2 = get_cycles_sync();
-		if ((tsc2 - tsc1) < SMI_THRESHOLD)
-			break;
-	}
-	*hpet = hpet1;
-	*tsc = tsc2;
-}
-
-unsigned int __init hpet_calibrate_tsc(void)
-{
-	int tsc_start, hpet_start;
-	int tsc_now, hpet_now;
-	unsigned long flags;
-
-	local_irq_save(flags);
-
-	read_hpet_tsc(&hpet_start, &tsc_start);
-
-	do {
-		local_irq_disable();
-		read_hpet_tsc(&hpet_now, &tsc_now);
-		local_irq_restore(flags);
-	} while ((tsc_now - tsc_start) < TICK_COUNT &&
-		(hpet_now - hpet_start) < TICK_COUNT);
-
-	return (tsc_now - tsc_start) * 1000000000L
-		/ ((hpet_now - hpet_start) * hpet_period / 1000);
-}
-
 #ifdef CONFIG_HPET_EMULATE_RTC
 /* HPET in LegacyReplacement Mode eats up RTC interrupt line. When, HPET
  * is enabled, we support RTC interrupt functionality in software.
