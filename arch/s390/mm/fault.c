@@ -468,7 +468,7 @@ typedef struct {
 	__u64 refselmk;
 	__u64 refcmpmk;
 	__u64 reserved;
-} __attribute__ ((packed)) pfault_refbk_t;
+} __attribute__ ((packed, aligned(8))) pfault_refbk_t;
 
 int pfault_init(void)
 {
