@@ -219,6 +219,19 @@ backwards_memcpy:
 	mtctr	r7
 	b	1b
 
+	.globl	memchr
+memchr:
+	cmpwi	0,r5,0
+	blelr
+	mtctr	r5
+	addi	r3,r3,-1
+1:	lbzu	r0,1(r3)
+	cmpw	r0,r4
+	beqlr
+	bdnz	1b
+	li	r3,0
+	blr
+
 	.globl	memcmp
 memcmp:
 	cmpwi	0,r5,0
