@@ -1314,7 +1314,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			flag |= FLAG_DATA_LOST;
 
 		tcp_for_write_queue_from(skb, sk) {
-			int in_sack, pcount;
+			int in_sack;
 			u8 sacked;
 
 			if (skb == tcp_send_head(sk))
@@ -1336,9 +1336,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
 				!before(end_seq, TCP_SKB_CB(skb)->end_seq);
 
-			pcount = tcp_skb_pcount(skb);
-
-			if (pcount > 1 && !in_sack &&
+			if (tcp_skb_pcount(skb) > 1 && !in_sack &&
 			    after(TCP_SKB_CB(skb)->end_seq, start_seq)) {
 				unsigned int pkt_len;
 
@@ -1353,10 +1351,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						   TCP_SKB_CB(skb)->seq);
 				if (tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->gso_size))
 					break;
-				pcount = tcp_skb_pcount(skb);
 			}
 
-			fack_count += pcount;
+			fack_count += tcp_skb_pcount(skb);
 
 			sacked = TCP_SKB_CB(skb)->sacked;
 
