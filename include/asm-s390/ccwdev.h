@@ -102,6 +102,7 @@ struct ccw_device {
  * @set_online: called when setting device online
  * @set_offline: called when setting device offline
  * @notify: notify driver of device state changes
+ * @shutdown: called at device shutdown
  * @driver: embedded device driver structure
  * @name: device driver name
  */
@@ -113,6 +114,7 @@ struct ccw_driver {
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
 	int (*notify) (struct ccw_device *, int);
+	void (*shutdown) (struct ccw_device *);
 	struct device_driver driver;
 	char *name;
 };
