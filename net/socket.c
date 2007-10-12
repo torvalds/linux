@@ -84,6 +84,7 @@
 #include <linux/kmod.h>
 #include <linux/audit.h>
 #include <linux/wireless.h>
+#include <linux/nsproxy.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -790,9 +791,9 @@ static ssize_t sock_aio_write(struct kiocb *iocb, const struct iovec *iov,
  */
 
 static DEFINE_MUTEX(br_ioctl_mutex);
-static int (*br_ioctl_hook) (unsigned int cmd, void __user *arg) = NULL;
+static int (*br_ioctl_hook) (struct net *, unsigned int cmd, void __user *arg) = NULL;
 
-void brioctl_set(int (*hook) (unsigned int, void __user *))
+void brioctl_set(int (*hook) (struct net *, unsigned int, void __user *))
 {
 	mutex_lock(&br_ioctl_mutex);
 	br_ioctl_hook = hook;
@@ -802,9 +803,9 @@ void brioctl_set(int (*hook) (unsigned int, void __user *))
 EXPORT_SYMBOL(brioctl_set);
 
 static DEFINE_MUTEX(vlan_ioctl_mutex);
-static int (*vlan_ioctl_hook) (void __user *arg);
+static int (*vlan_ioctl_hook) (struct net *, void __user *arg);
 
-void vlan_ioctl_set(int (*hook) (void __user *))
+void vlan_ioctl_set(int (*hook) (struct net *, void __user *))
 {
 	mutex_lock(&vlan_ioctl_mutex);
 	vlan_ioctl_hook = hook;
@@ -833,16 +834,20 @@ EXPORT_SYMBOL(dlci_ioctl_set);
 static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct socket *sock;
+	struct sock *sk;
 	void __user *argp = (void __user *)arg;
 	int pid, err;
+	struct net *net;
 
 	sock = file->private_data;
+	sk = sock->sk;
+	net = sk->sk_net;
 	if (cmd >= SIOCDEVPRIVATE && cmd <= (SIOCDEVPRIVATE + 15)) {
-		err = dev_ioctl(cmd, argp);
+		err = dev_ioctl(net, cmd, argp);
 	} else
 #ifdef CONFIG_WIRELESS_EXT
 	if (cmd >= SIOCIWFIRST && cmd <= SIOCIWLAST) {
-		err = dev_ioctl(cmd, argp);
+		err = dev_ioctl(net, cmd, argp);
 	} else
 #endif				/* CONFIG_WIRELESS_EXT */
 		switch (cmd) {
@@ -868,7 +873,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 			mutex_lock(&br_ioctl_mutex);
 			if (br_ioctl_hook)
-				err = br_ioctl_hook(cmd, argp);
+				err = br_ioctl_hook(net, cmd, argp);
 			mutex_unlock(&br_ioctl_mutex);
 			break;
 		case SIOCGIFVLAN:
@@ -879,7 +884,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 			mutex_lock(&vlan_ioctl_mutex);
 			if (vlan_ioctl_hook)
-				err = vlan_ioctl_hook(argp);
+				err = vlan_ioctl_hook(net, argp);
 			mutex_unlock(&vlan_ioctl_mutex);
 			break;
 		case SIOCADDDLCI:
@@ -902,7 +907,7 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 			 * to the NIC driver.
 			 */
 			if (err == -ENOIOCTLCMD)
-				err = dev_ioctl(cmd, argp);
+				err = dev_ioctl(net, cmd, argp);
 			break;
 		}
 	return err;
@@ -1071,7 +1076,7 @@ call_kill:
 	return 0;
 }
 
-static int __sock_create(int family, int type, int protocol,
+static int __sock_create(struct net *net, int family, int type, int protocol,
 			 struct socket **res, int kern)
 {
 	int err;
@@ -1147,7 +1152,7 @@ static int __sock_create(int family, int type, int protocol,
 	/* Now protected by module ref count */
 	rcu_read_unlock();
 
-	err = pf->create(sock, protocol);
+	err = pf->create(net, sock, protocol);
 	if (err < 0)
 		goto out_module_put;
 
@@ -1186,12 +1191,12 @@ out_release:
 
 int sock_create(int family, int type, int protocol, struct socket **res)
 {
-	return __sock_create(family, type, protocol, res, 0);
+	return __sock_create(current->nsproxy->net_ns, family, type, protocol, res, 0);
 }
 
 int sock_create_kern(int family, int type, int protocol, struct socket **res)
 {
-	return __sock_create(family, type, protocol, res, 1);
+	return __sock_create(&init_net, family, type, protocol, res, 1);
 }
 
 asmlinkage long sys_socket(int family, int type, int protocol)
@@ -1924,7 +1929,7 @@ asmlinkage long sys_recvmsg(int fd, struct msghdr __user *msg,
 	 *      kernel msghdr to use the kernel address space)
 	 */
 
-	uaddr = (void __user *)msg_sys.msg_name;
+	uaddr = (__force void __user *)msg_sys.msg_name;
 	uaddr_len = COMPAT_NAMELEN(msg);
 	if (MSG_CMSG_COMPAT & flags) {
 		err = verify_compat_iovec(&msg_sys, iov, addr, VERIFY_WRITE);
@@ -2230,6 +2235,7 @@ int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
 	err = sock->ops->accept(sock, *newsock, flags);
 	if (err < 0) {
 		sock_release(*newsock);
+		*newsock = NULL;
 		goto done;
 	}
 

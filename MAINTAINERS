@@ -284,6 +284,14 @@ M:	corentin.labbe@geomatys.fr
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
+ADM8211 WIRELESS DRIVER
+P:	Michael Wu
+M:	flamingice@sourmilk.net
+L:	linux-wireless@vger.kernel.org
+W:	http://linuxwireless.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
+S:	Maintained
+
 ADT746X FAN DRIVER
 P:	Colin Leroy
 M:	colin@colino.net
@@ -761,6 +769,22 @@ L:	linux-hams@vger.kernel.org
 W:	http://www.baycom.org/~tom/ham/ham.html
 S:	Maintained
 
+B43 WIRELESS DRIVER
+P:	Michael Buesch
+M:	mb@bu3sch.de
+P:	Stefano Brivio
+M:	st3@riseup.net
+L:	linux-wireless@vger.kernel.org
+W:	http://bcm43xx.berlios.de/
+S:	Maintained
+
+B43LEGACY WIRELESS DRIVER
+P:	Larry Finger
+M:	Larry.Finger@lwfinger.net
+L:	linux-wireless@vger.kernel.org
+W:	http://bcm43xx.berlios.de/
+S:	Maintained
+
 BCM43XX WIRELESS DRIVER (SOFTMAC BASED VERSION)
 P:	Larry Finger
 M:	Larry.Finger@lwfinger.net
@@ -1221,12 +1245,6 @@ DIGI INTL. EPCA DRIVER
 P:	Digi International, Inc
 M:	Eng.Linux@digi.com
 L:	Eng.Linux@digi.com
-W:	http://www.digi.com
-S:	Orphaned
-
-DIGI RIGHTSWITCH NETWORK DRIVER
-P:	Rick Richardson
-L:	netdev@vger.kernel.org
 W:	http://www.digi.com
 S:	Orphaned
 
@@ -1996,16 +2014,14 @@ W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/10GbE SUPPORT
-P:	Jeff Kirsher
-M:	jeffrey.t.kirsher@intel.com
 P:	Ayyappan Veeraiyan
 M:	ayyappan.veeraiyan@intel.com
-P:	John Ronciak
-M:	john.ronciak@intel.com
-P:	Jesse Brandeburg
-M:	jesse.brandeburg@intel.com
 P:	Auke Kok
 M:	auke-jan.h.kok@intel.com
+P:	Jesse Brandeburg
+M:	jesse.brandeburg@intel.com
+P:	John Ronciak
+M:	john.ronciak@intel.com
 L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
@@ -2032,6 +2048,15 @@ L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2200.sourceforge.net
 S:	Supported
 
+INTEL WIRELESS WIFI LINK (iwlwifi)
+P:	Zhu Yi
+M:	yi.zhu@intel.com
+L:	linux-wireless@vger.kernel.org
+L:	ipw3945-devel@lists.sourceforge.net
+W:	http://intellinuxwireless.org
+T:	git git://intellinuxwireless.org/repos/iwlwifi
+S:	Supported
+
 IOC3 ETHERNET DRIVER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
@@ -2047,6 +2072,16 @@ S:	Maintained
 IP MASQUERADING:
 P:	Juanjo Ciarlante
 M:	jjciarla@raiz.uncu.edu.ar
+S:	Maintained
+
+IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
+P:	Francois Romieu
+M:	romieu@fr.zoreil.com
+P:	Sorbica Shieh
+M:	sorbica@icplus.com.tw
+P:	Jesse Huang
+M:	jesse@icplus.com.tw
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 IPATH DRIVER:
@@ -2999,6 +3034,14 @@ L:	kpreempt-tech@lists.sourceforge.net
 W:	ftp://ftp.kernel.org/pub/linux/kernel/people/rml/preempt-kernel
 S:	Supported
 
+P54 WIRELESS DRIVER
+P:	Michael Wu
+M:	flamingice@sourmilk.net
+L:	linux-wireless@vger.kernel.org
+W:	http://prism54.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
+S:	Maintained
+
 PRISM54 WIRELESS DRIVER
 P:	Luis R. Rodriguez
 M:	mcgrof@gmail.com
@@ -3086,6 +3129,14 @@ M:	corey@world.std.com
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 
+RALINK RT2X00 WLAN DRIVER
+P:	rt2x00 project
+L:	linux-wireless@vger.kernel.org
+L:	rt2400-devel@lists.sourceforge.net
+W:	http://rt2x00.serialmonkey.com/
+S:	Maintained
+F:	drivers/net/wireless/rt2x00/
+
 RANDOM NUMBER DRIVER
 P:	Matt Mackall
 M:	mpm@selenic.com
@@ -3171,8 +3222,8 @@ W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
 
 S390 NETWORK DRIVERS
-P:	Frank Pavlic
-M:	fpavlic@de.ibm.com
+P:	Ursula Braun
+M:	ubraun@linux.vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -3181,6 +3232,14 @@ S:	Supported
 S390 ZFCP DRIVER
 P:	Swen Schillig
 M:	swen@vnet.ibm.com
+M:	linux390@de.ibm.com
+L:	linux-s390@vger.kernel.org
+W:	http://www.ibm.com/developerworks/linux/linux390/
+S:	Supported
+
+S390 IUCV NETWORK LAYER
+P:	Ursula Braun
+M:	ubraun@linux.vnet.ibm.com
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
@@ -3410,6 +3469,12 @@ M:	tsbogend@alpha.franken.de
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+SONICS SILICON BACKPLANE DRIVER (SSB)
+P:	Michael Buesch
+M:	mb@bu3sch.de
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 SONY VAIO CONTROL DEVICE DRIVER
 P:	Mattia Dongili
 M:	malattia@linux.it
@@ -3593,6 +3658,14 @@ P:	Hung Hing Lun, Mike
 M:	hlhung3i@gmail.com
 W:	http://tcp-lp-mod.sourceforge.net/
 S:	Maintained
+
+TEHUTI ETHERNET DRIVER
+P:	Alexander Indenbaum
+M:	baum@tehutinetworks.net
+P:	Andy Gospodarek
+M:	andy@greyhouse.net
+L:	netdev@vger.kernel.org
+S:	Supported
 
 TI FLASH MEDIA INTERFACE DRIVER
 P:      Alex Dubov

@@ -257,8 +257,6 @@ struct net_device *__init mc32_probe(int unit)
 	if (unit >= 0)
 		sprintf(dev->name, "eth%d", unit);
 
-	SET_MODULE_OWNER(dev);
-
 	/* Do not check any supplied i/o locations.
 	   POS registers usually don't fail :) */
 
@@ -338,6 +336,7 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 		"82586 initialisation failure",
 		"Adapter list configuration error"
 	};
+	DECLARE_MAC_BUF(mac);
 
 	/* Time to play MCA games */
 
@@ -398,16 +397,16 @@ static int __init mc32_probe1(struct net_device *dev, int slot)
 	 *	Go PROM browsing
 	 */
 
-	printk("%s: Address ", dev->name);
-
 	/* Retrieve and print the ethernet address. */
 	for (i = 0; i < 6; i++)
 	{
 		mca_write_pos(slot, 6, i+12);
 		mca_write_pos(slot, 7, 0);
 
-		printk(" %2.2x", dev->dev_addr[i] = mca_read_pos(slot,3));
+		dev->dev_addr[i] = mca_read_pos(slot,3);
 	}
+
+	printk("%s: Address %s", dev->name, print_mac(mac, dev->dev_addr));
 
 	mca_write_pos(slot, 6, 0);
 	mca_write_pos(slot, 7, 0);

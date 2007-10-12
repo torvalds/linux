@@ -36,10 +36,63 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100)},
 	{USB_DEVICE(0x0846, 0x6a00)},
+	/* HP */
+	{USB_DEVICE(0x03f0, 0xca02)},
 	{}
 };
 
 MODULE_DEVICE_TABLE(usb, rtl8187_table);
+
+static void rtl8187_iowrite_async_cb(struct urb *urb)
+{
+	kfree(urb->context);
+	usb_free_urb(urb);
+}
+
+static void rtl8187_iowrite_async(struct rtl8187_priv *priv, __le16 addr,
+				  void *data, u16 len)
+{
+	struct usb_ctrlrequest *dr;
+	struct urb *urb;
+	struct rtl8187_async_write_data {
+		u8 data[4];
+		struct usb_ctrlrequest dr;
+	} *buf;
+
+	buf = kmalloc(sizeof(*buf), GFP_ATOMIC);
+	if (!buf)
+		return;
+
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb) {
+		kfree(buf);
+		return;
+	}
+
+	dr = &buf->dr;
+
+	dr->bRequestType = RTL8187_REQT_WRITE;
+	dr->bRequest = RTL8187_REQ_SET_REG;
+	dr->wValue = addr;
+	dr->wIndex = 0;
+	dr->wLength = cpu_to_le16(len);
+
+	memcpy(buf, data, len);
+
+	usb_fill_control_urb(urb, priv->udev, usb_sndctrlpipe(priv->udev, 0),
+			     (unsigned char *)dr, buf, len,
+			     rtl8187_iowrite_async_cb, buf);
+	usb_submit_urb(urb, GFP_ATOMIC);
+}
+
+static inline void rtl818x_iowrite32_async(struct rtl8187_priv *priv,
+					   __le32 *addr, u32 val)
+{
+	__le32 buf = cpu_to_le32(val);
+
+	rtl8187_iowrite_async(priv, cpu_to_le16((unsigned long)addr),
+			      &buf, sizeof(buf));
+}
 
 void rtl8187_write_phy(struct ieee80211_hw *dev, u8 addr, u32 data)
 {
@@ -96,7 +149,7 @@ static int rtl8187_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS) {
 		tmp |= RTL8187_TX_FLAG_RTS;
 		hdr->rts_duration =
-			ieee80211_rts_duration(dev, skb->len, control);
+			ieee80211_rts_duration(dev, priv->if_id, skb->len, control);
 	}
 	if (control->flags & IEEE80211_TXCTL_USE_CTS_PROTECT)
 		tmp |= RTL8187_TX_FLAG_CTS;
@@ -125,6 +178,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	struct rtl8187_rx_hdr *hdr;
 	struct ieee80211_rx_status rx_status = { 0 };
 	int rate, signal;
+	u32 flags;
 
 	spin_lock(&priv->rx_queue.lock);
 	if (skb->next)
@@ -143,10 +197,11 @@ static void rtl8187_rx_cb(struct urb *urb)
 
 	skb_put(skb, urb->actual_length);
 	hdr = (struct rtl8187_rx_hdr *)(skb_tail_pointer(skb) - sizeof(*hdr));
-	skb_trim(skb, le16_to_cpu(hdr->len) & 0x0FFF);
+	flags = le32_to_cpu(hdr->flags);
+	skb_trim(skb, flags & 0x0FFF);
 
 	signal = hdr->agc >> 1;
-	rate = (le16_to_cpu(hdr->rate) >> 4) & 0xF;
+	rate = (flags >> 20) & 0xF;
 	if (rate > 3) {	/* OFDM rate */
 		if (signal > 90)
 			signal = 90;
@@ -169,6 +224,8 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.channel = dev->conf.channel;
 	rx_status.phymode = dev->conf.phymode;
 	rx_status.mactime = le64_to_cpu(hdr->mac_time);
+	if (flags & (1 << 13))
+		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);
 
 	skb = dev_alloc_skb(RTL8187_MAX_RX);
@@ -293,8 +350,6 @@ static int rtl8187_init_hw(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->GP_ENABLE, 0);
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
-	for (i = 0; i < ETH_ALEN; i++)
-		rtl818x_iowrite8(priv, &priv->map->MAC[i], priv->hwaddr[i]);
 
 	rtl818x_iowrite16(priv, (__le16 *)0xFFF4, 0xFFFF);
 	reg = rtl818x_ioread8(priv, &priv->map->CONFIG1);
@@ -365,7 +420,7 @@ static void rtl8187_set_channel(struct ieee80211_hw *dev, int channel)
 	rtl818x_iowrite32(priv, &priv->map->TX_CONF, reg);
 }
 
-static int rtl8187_open(struct ieee80211_hw *dev)
+static int rtl8187_start(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	u32 reg;
@@ -383,16 +438,13 @@ static int rtl8187_open(struct ieee80211_hw *dev)
 	      RTL818X_RX_CONF_RX_AUTORESETPHY |
 	      RTL818X_RX_CONF_BSSID |
 	      RTL818X_RX_CONF_MGMT |
-	      RTL818X_RX_CONF_CTRL |
 	      RTL818X_RX_CONF_DATA |
 	      (7 << 13 /* RX FIFO threshold NONE */) |
 	      (7 << 10 /* MAX RX DMA */) |
 	      RTL818X_RX_CONF_BROADCAST |
-	      RTL818X_RX_CONF_MULTICAST |
 	      RTL818X_RX_CONF_NICMAC;
-	if (priv->mode == IEEE80211_IF_TYPE_MNTR)
-		reg |= RTL818X_RX_CONF_MONITOR;
 
+	priv->rx_conf = reg;
 	rtl818x_iowrite32(priv, &priv->map->RX_CONF, reg);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CW_CONF);
@@ -419,7 +471,7 @@ static int rtl8187_open(struct ieee80211_hw *dev)
 	return 0;
 }
 
-static int rtl8187_stop(struct ieee80211_hw *dev)
+static void rtl8187_stop(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	struct rtl8187_rx_info *info;
@@ -445,28 +497,31 @@ static int rtl8187_stop(struct ieee80211_hw *dev)
 		usb_kill_urb(info->urb);
 		kfree_skb(skb);
 	}
-	return 0;
+	return;
 }
 
 static int rtl8187_add_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	int i;
 
-	/* NOTE: using IEEE80211_IF_TYPE_MGMT to indicate no mode selected */
-	if (priv->mode != IEEE80211_IF_TYPE_MGMT)
-		return -1;
+	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+		return -EOPNOTSUPP;
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_MNTR:
 		priv->mode = conf->type;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	priv->hwaddr = conf->mac_addr ? conf->mac_addr : dev->wiphy->perm_addr;
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
+	for (i = 0; i < ETH_ALEN; i++)
+		rtl818x_iowrite8(priv, &priv->map->MAC[i],
+				 ((u8 *)conf->mac_addr)[i]);
+	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 	return 0;
 }
@@ -475,7 +530,7 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 				     struct ieee80211_if_init_conf *conf)
 {
 	struct rtl8187_priv *priv = dev->priv;
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_MNTR;
 }
 
 static int rtl8187_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -510,6 +565,8 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev, int if_id,
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
 
+	priv->if_id = if_id;
+
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);
 
@@ -521,14 +578,52 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev, int if_id,
 	return 0;
 }
 
+static void rtl8187_configure_filter(struct ieee80211_hw *dev,
+				     unsigned int changed_flags,
+				     unsigned int *total_flags,
+				     int mc_count, struct dev_addr_list *mc_list)
+{
+	struct rtl8187_priv *priv = dev->priv;
+
+	*total_flags = 0;
+
+	if (changed_flags & FIF_PROMISC_IN_BSS)
+		priv->rx_conf ^= RTL818X_RX_CONF_NICMAC;
+	if (changed_flags & FIF_ALLMULTI)
+		priv->rx_conf ^= RTL818X_RX_CONF_MULTICAST;
+	if (changed_flags & FIF_FCSFAIL)
+		priv->rx_conf ^= RTL818X_RX_CONF_FCS;
+	if (changed_flags & FIF_CONTROL)
+		priv->rx_conf ^= RTL818X_RX_CONF_CTRL;
+	if (changed_flags & FIF_OTHER_BSS)
+		priv->rx_conf ^= RTL818X_RX_CONF_MONITOR;
+
+	if (mc_count > 0)
+		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
+
+	if (priv->rx_conf & RTL818X_RX_CONF_NICMAC)
+		*total_flags |= FIF_PROMISC_IN_BSS;
+	if (priv->rx_conf & RTL818X_RX_CONF_MULTICAST)
+		*total_flags |= FIF_ALLMULTI;
+	if (priv->rx_conf & RTL818X_RX_CONF_FCS)
+		*total_flags |= FIF_FCSFAIL;
+	if (priv->rx_conf & RTL818X_RX_CONF_CTRL)
+		*total_flags |= FIF_CONTROL;
+	if (priv->rx_conf & RTL818X_RX_CONF_MONITOR)
+		*total_flags |= FIF_OTHER_BSS;
+
+	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
+}
+
 static const struct ieee80211_ops rtl8187_ops = {
 	.tx			= rtl8187_tx,
-	.open			= rtl8187_open,
+	.start			= rtl8187_start,
 	.stop			= rtl8187_stop,
 	.add_interface		= rtl8187_add_interface,
 	.remove_interface	= rtl8187_remove_interface,
 	.config			= rtl8187_config,
 	.config_interface	= rtl8187_config_interface,
+	.configure_filter	= rtl8187_configure_filter,
 };
 
 static void rtl8187_eeprom_register_read(struct eeprom_93cx6 *eeprom)
@@ -572,6 +667,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	struct ieee80211_channel *channel;
 	u16 txpwr, reg;
 	int err, i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
 	if (!dev) {
@@ -601,11 +697,9 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	priv->modes[1].rates = priv->rates;
 	priv->modes[1].num_channels = ARRAY_SIZE(rtl818x_channels);
 	priv->modes[1].channels = priv->channels;
-	priv->mode = IEEE80211_IF_TYPE_MGMT;
+	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
-		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_WEP_INCLUDE_IV |
-		     IEEE80211_HW_DATA_NULLFUNC_ACK;
+		     IEEE80211_HW_RX_INCLUDES_FCS;
 	dev->extra_tx_headroom = sizeof(struct rtl8187_tx_hdr);
 	dev->queues = 1;
 	dev->max_rssi = 65;
@@ -681,8 +775,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		goto err_free_dev;
 	}
 
-	printk(KERN_INFO "%s: hwaddr " MAC_FMT ", rtl8187 V%d + %s\n",
-	       wiphy_name(dev->wiphy), MAC_ARG(dev->wiphy->perm_addr),
+	printk(KERN_INFO "%s: hwaddr %s, rtl8187 V%d + %s\n",
+	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),
 	       priv->asic_rev, priv->rf_init == rtl8225_rf_init ?
 	       "rtl8225" : "rtl8225z2");
 

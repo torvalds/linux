@@ -539,7 +539,6 @@ static int __devinit dfx_register(struct device *bdev)
 		goto err_out;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, bdev);
 
 	bp = netdev_priv(dev);

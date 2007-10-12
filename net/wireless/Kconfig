@@ -1,6 +1,19 @@
 config CFG80211
         tristate "Improved wireless configuration API"
 
+config NL80211
+	bool "nl80211 new netlink interface support"
+	depends on CFG80211
+	default y
+	---help---
+         This option turns on the new netlink interface
+         (nl80211) support in cfg80211.
+
+         If =n, drivers using mac80211 will be configured via
+         wireless extension support provided by that subsystem.
+
+         If unsure, say Y.
+
 config WIRELESS_EXT
 	bool "Wireless extensions"
 	default n
@@ -10,7 +23,9 @@ config WIRELESS_EXT
 
 	  Wireless extensions will be replaced by cfg80211 and
 	  will be required only by legacy drivers that implement
-	  wireless extension handlers.
+	  wireless extension handlers. This option does not
+	  affect the wireless-extension backward compatibility
+	  code in cfg80211.
 
 	  Say N (if you can) unless you know you need wireless
 	  extensions for external modules.

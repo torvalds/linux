@@ -16,6 +16,7 @@
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 
 #include "appldata.h"
 
@@ -107,7 +108,7 @@ static void appldata_get_net_sum_data(void *data)
 	tx_dropped = 0;
 	collisions = 0;
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		stats = dev->get_stats(dev);
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;

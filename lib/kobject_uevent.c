@@ -280,9 +280,8 @@ EXPORT_SYMBOL_GPL(add_uevent_var);
 #if defined(CONFIG_NET)
 static int __init kobject_uevent_init(void)
 {
-	uevent_sock = netlink_kernel_create(NETLINK_KOBJECT_UEVENT, 1, NULL,
-					    NULL, THIS_MODULE);
-
+	uevent_sock = netlink_kernel_create(&init_net, NETLINK_KOBJECT_UEVENT,
+					    1, NULL, NULL, THIS_MODULE);
 	if (!uevent_sock) {
 		printk(KERN_ERR
 		       "kobject_uevent: unable to create netlink socket!\n");

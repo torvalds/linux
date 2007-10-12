@@ -181,6 +181,7 @@ struct net_device * __init mac89x0_probe(int unit)
 	unsigned long ioaddr;
 	unsigned short sig;
 	int err = -ENODEV;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
@@ -190,8 +191,6 @@ struct net_device * __init mac89x0_probe(int unit)
 		sprintf(dev->name, "eth%d", unit);
 		netdev_boot_setup_check(dev);
 	}
-
-	SET_MODULE_OWNER(dev);
 
 	if (once_is_enough)
 		goto out;
@@ -274,13 +273,11 @@ struct net_device * __init mac89x0_probe(int unit)
         }
 
 	dev->irq = SLOT2IRQ(slot);
-	printk(" IRQ %d ADDR ", dev->irq);
 
-	/* print the ethernet address. */
-	for (i = 0; i < ETH_ALEN; i++)
-		printk("%2.2x%s", dev->dev_addr[i],
-		       ((i < ETH_ALEN-1) ? ":" : ""));
-	printk("\n");
+	/* print the IRQ and ethernet address. */
+
+	printk(" IRQ %d ADDR %s\n",
+	       dev->irq, print_mac(mac, dev->dev_addr));
 
 	dev->open		= net_open;
 	dev->stop		= net_close;

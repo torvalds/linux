@@ -95,8 +95,6 @@ static int __init do_el2_probe(struct net_device *dev)
     int base_addr = dev->base_addr;
     int irq = dev->irq;
 
-    SET_MODULE_OWNER(dev);
-
     if (base_addr > 0x1ff)	/* Check a single specified location. */
 	return el2_probe1(dev, base_addr);
     else if (base_addr != 0)		/* Don't probe at all. */
@@ -179,6 +177,7 @@ el2_probe1(struct net_device *dev, int ioaddr)
     int i, iobase_reg, membase_reg, saved_406, wordlength, retval;
     static unsigned version_printed;
     unsigned long vendor_id;
+    DECLARE_MAC_BUF(mac);
 
     if (!request_region(ioaddr, EL2_IO_EXTENT, DRV_NAME))
 	return -EBUSY;
@@ -228,7 +227,8 @@ el2_probe1(struct net_device *dev, int ioaddr)
 
     /* Retrieve and print the ethernet address. */
     for (i = 0; i < 6; i++)
-	printk(" %2.2x", dev->dev_addr[i] = inb(ioaddr + i));
+	dev->dev_addr[i] = inb(ioaddr + i);
+    printk("%s", print_mac(mac, dev->dev_addr));
 
     /* Map the 8390 back into the window. */
     outb(ECNTRL_THIN, ioaddr + 0x406);

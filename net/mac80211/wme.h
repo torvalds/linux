@@ -24,11 +24,10 @@
 
 #define QOS_CONTROL_TAG1D_MASK 0x07
 
-ieee80211_txrx_result
-ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx);
-
-ieee80211_txrx_result
-ieee80211_rx_h_remove_qos_control(struct ieee80211_txrx_data *rx);
+static inline int WLAN_FC_IS_QOS_DATA(u16 fc)
+{
+	return (fc & 0x8C) == 0x88;
+}
 
 #ifdef CONFIG_NET_SCHED
 void ieee80211_install_qdisc(struct net_device *dev);

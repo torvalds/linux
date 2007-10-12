@@ -208,7 +208,7 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	 * this packet and reuse the old buffer.
 	 */
 	if (unlikely(ipoib_alloc_rx_skb(dev, wr_id))) {
-		++priv->stats.rx_dropped;
+		++dev->stats.rx_dropped;
 		goto repost;
 	}
 
@@ -225,8 +225,8 @@ static void ipoib_ib_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb_pull(skb, IPOIB_ENCAP_LEN);
 
 	dev->last_rx = jiffies;
-	++priv->stats.rx_packets;
-	priv->stats.rx_bytes += skb->len;
+	++dev->stats.rx_packets;
+	dev->stats.rx_bytes += skb->len;
 
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
@@ -260,8 +260,8 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 	ib_dma_unmap_single(priv->ca, tx_req->mapping,
 			    tx_req->skb->len, DMA_TO_DEVICE);
 
-	++priv->stats.tx_packets;
-	priv->stats.tx_bytes += tx_req->skb->len;
+	++dev->stats.tx_packets;
+	dev->stats.tx_bytes += tx_req->skb->len;
 
 	dev_kfree_skb_any(tx_req->skb);
 
@@ -281,63 +281,58 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 			   wc->status, wr_id, wc->vendor_err);
 }
 
-int ipoib_poll(struct net_device *dev, int *budget)
+int ipoib_poll(struct napi_struct *napi, int budget)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int max = min(*budget, dev->quota);
+	struct ipoib_dev_priv *priv = container_of(napi, struct ipoib_dev_priv, napi);
+	struct net_device *dev = priv->dev;
 	int done;
 	int t;
-	int empty;
 	int n, i;
 
 	done  = 0;
-	empty = 0;
 
-	while (max) {
+poll_more:
+	while (done < budget) {
+		int max = (budget - done);
+
 		t = min(IPOIB_NUM_WC, max);
 		n = ib_poll_cq(priv->cq, t, priv->ibwc);
 
-		for (i = 0; i < n; ++i) {
+		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 
 			if (wc->wr_id & IPOIB_CM_OP_SRQ) {
 				++done;
-				--max;
 				ipoib_cm_handle_rx_wc(dev, wc);
 			} else if (wc->wr_id & IPOIB_OP_RECV) {
 				++done;
-				--max;
 				ipoib_ib_handle_rx_wc(dev, wc);
 			} else
 				ipoib_ib_handle_tx_wc(dev, wc);
 		}
 
-		if (n != t) {
-			empty = 1;
+		if (n != t)
 			break;
-		}
 	}
 
-	dev->quota -= done;
-	*budget    -= done;
-
-	if (empty) {
-		netif_rx_complete(dev);
+	if (done < budget) {
+		netif_rx_complete(dev, napi);
 		if (unlikely(ib_req_notify_cq(priv->cq,
 					      IB_CQ_NEXT_COMP |
 					      IB_CQ_REPORT_MISSED_EVENTS)) &&
-		    netif_rx_reschedule(dev, 0))
-			return 1;
-
-		return 0;
+		    netif_rx_reschedule(dev, napi))
+			goto poll_more;
 	}
 
-	return 1;
+	return done;
 }
 
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr)
 {
-	netif_rx_schedule(dev_ptr);
+	struct net_device *dev = dev_ptr;
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+
+	netif_rx_schedule(dev, &priv->napi);
 }
 
 static inline int post_send(struct ipoib_dev_priv *priv,
@@ -367,8 +362,8 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	if (unlikely(skb->len > priv->mcast_mtu + IPOIB_ENCAP_LEN)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   skb->len, priv->mcast_mtu + IPOIB_ENCAP_LEN);
-		++priv->stats.tx_dropped;
-		++priv->stats.tx_errors;
+		++dev->stats.tx_dropped;
+		++dev->stats.tx_errors;
 		ipoib_cm_skb_too_long(dev, skb, priv->mcast_mtu);
 		return;
 	}
@@ -388,7 +383,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	addr = ib_dma_map_single(priv->ca, skb->data, skb->len,
 				 DMA_TO_DEVICE);
 	if (unlikely(ib_dma_mapping_error(priv->ca, addr))) {
-		++priv->stats.tx_errors;
+		++dev->stats.tx_errors;
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -397,7 +392,7 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 	if (unlikely(post_send(priv, priv->tx_head & (ipoib_sendq_size - 1),
 			       address->ah, qpn, addr, skb->len))) {
 		ipoib_warn(priv, "post_send failed\n");
-		++priv->stats.tx_errors;
+		++dev->stats.tx_errors;
 		ib_dma_unmap_single(priv->ca, addr, skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	} else {
@@ -577,7 +572,6 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 	int i;
 
 	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
-	netif_poll_disable(dev);
 
 	ipoib_cm_dev_stop(dev);
 
@@ -660,7 +654,6 @@ timeout:
 		msleep(1);
 	}
 
-	netif_poll_enable(dev);
 	ib_req_notify_cq(priv->cq, IB_CQ_NEXT_COMP);
 
 	return 0;

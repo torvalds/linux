@@ -194,6 +194,7 @@ struct gelic_net_descr_chain {
 
 struct gelic_net_card {
 	struct net_device *netdev;
+	struct napi_struct napi;
 	/*
 	 * hypervisor requires irq_status should be
 	 * 8 bytes aligned, but u64 member is

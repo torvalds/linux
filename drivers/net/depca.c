@@ -485,7 +485,6 @@ struct depca_private {
 /* Kernel-only (not device) fields */
 	int rx_new, tx_new;	/* The next free ring entry               */
 	int rx_old, tx_old;	/* The ring entries to be free()ed.       */
-	struct net_device_stats stats;
 	spinlock_t lock;
 	struct {		/* Private stats counters                 */
 		u32 bins[DEPCA_PKT_STAT_SZ];
@@ -522,7 +521,6 @@ static irqreturn_t depca_interrupt(int irq, void *dev_id);
 static int depca_close(struct net_device *dev);
 static int depca_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void depca_tx_timeout(struct net_device *dev);
-static struct net_device_stats *depca_get_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 
 /*
@@ -575,6 +573,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	s16 nicsr;
 	u_long ioaddr;
 	u_long mem_start;
+	DECLARE_MAC_BUF(mac);
 
 	/*
 	 * We are now supposed to enter this function with the
@@ -634,14 +633,11 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	printk(", h/w address ");
 	status = get_hw_addr(dev);
+	printk("%s", print_mac(mac, dev->dev_addr));
 	if (status != 0) {
 		printk("      which has an Ethernet PROM CRC error.\n");
 		return -ENXIO;
 	}
-	for (i = 0; i < ETH_ALEN - 1; i++) {	/* get the ethernet address */
-		printk("%2.2x:", dev->dev_addr[i]);
-	}
-	printk("%2.2x", dev->dev_addr[i]);
 
 	/* Set up the maximum amount of network RAM(kB) */
 	netRAM = ((lp->adapter != DEPCA) ? 64 : 48);
@@ -801,7 +797,6 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 	dev->open = &depca_open;
 	dev->hard_start_xmit = &depca_start_xmit;
 	dev->stop = &depca_close;
-	dev->get_stats = &depca_get_stats;
 	dev->set_multicast_list = &set_multicast_list;
 	dev->do_ioctl = &depca_ioctl;
 	dev->tx_timeout = depca_tx_timeout;
@@ -1026,15 +1021,15 @@ static int depca_rx(struct net_device *dev)
 		}
 		if (status & R_ENP) {	/* Valid frame status */
 			if (status & R_ERR) {	/* There was an error. */
-				lp->stats.rx_errors++;	/* Update the error stats. */
+				dev->stats.rx_errors++;	/* Update the error stats. */
 				if (status & R_FRAM)
-					lp->stats.rx_frame_errors++;
+					dev->stats.rx_frame_errors++;
 				if (status & R_OFLO)
-					lp->stats.rx_over_errors++;
+					dev->stats.rx_over_errors++;
 				if (status & R_CRC)
-					lp->stats.rx_crc_errors++;
+					dev->stats.rx_crc_errors++;
 				if (status & R_BUFF)
-					lp->stats.rx_fifo_errors++;
+					dev->stats.rx_fifo_errors++;
 			} else {
 				short len, pkt_len = readw(&lp->rx_ring[entry].msg_length) - 4;
 				struct sk_buff *skb;
@@ -1063,8 +1058,8 @@ static int depca_rx(struct net_device *dev)
 					   ** Update stats
 					 */
 					dev->last_rx = jiffies;
-					lp->stats.rx_packets++;
-					lp->stats.rx_bytes += pkt_len;
+					dev->stats.rx_packets++;
+					dev->stats.rx_bytes += pkt_len;
 					for (i = 1; i < DEPCA_PKT_STAT_SZ - 1; i++) {
 						if (pkt_len < (i * DEPCA_PKT_BIN_SZ)) {
 							lp->pktStats.bins[i]++;
@@ -1087,7 +1082,7 @@ static int depca_rx(struct net_device *dev)
 					}
 				} else {
 					printk("%s: Memory squeeze, deferring packet.\n", dev->name);
-					lp->stats.rx_dropped++;	/* Really, deferred. */
+					dev->stats.rx_dropped++;	/* Really, deferred. */
 					break;
 				}
 			}
@@ -1125,24 +1120,24 @@ static int depca_tx(struct net_device *dev)
 			break;
 		} else if (status & T_ERR) {	/* An error occurred. */
 			status = readl(&lp->tx_ring[entry].misc);
-			lp->stats.tx_errors++;
+			dev->stats.tx_errors++;
 			if (status & TMD3_RTRY)
-				lp->stats.tx_aborted_errors++;
+				dev->stats.tx_aborted_errors++;
 			if (status & TMD3_LCAR)
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 			if (status & TMD3_LCOL)
-				lp->stats.tx_window_errors++;
+				dev->stats.tx_window_errors++;
 			if (status & TMD3_UFLO)
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 			if (status & (TMD3_BUFF | TMD3_UFLO)) {
 				/* Trigger an immediate send demand. */
 				outw(CSR0, DEPCA_ADDR);
 				outw(INEA | TDMD, DEPCA_DATA);
 			}
 		} else if (status & (T_MORE | T_ONE)) {
-			lp->stats.collisions++;
+			dev->stats.collisions++;
 		} else {
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 		}
 
 		/* Update all the pointers */
@@ -1232,15 +1227,6 @@ static int InitRestartDepca(struct net_device *dev)
 	}
 
 	return status;
-}
-
-static struct net_device_stats *depca_get_stats(struct net_device *dev)
-{
-	struct depca_private *lp = (struct depca_private *) dev->priv;
-
-	/* Null body since there is no framing error counter */
-
-	return &lp->stats;
 }
 
 /*
@@ -1855,6 +1841,7 @@ static void depca_dbg_open(struct net_device *dev)
 	u_long ioaddr = dev->base_addr;
 	struct depca_init *p = &lp->init_block;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	if (depca_debug > 1) {
 		/* Do not copy the shadow init block into shared memory */
@@ -1893,11 +1880,7 @@ static void depca_dbg_open(struct net_device *dev)
 		printk("...0x%8.8x\n", readl(&lp->tx_ring[i].base));
 		printk("Initialisation block at 0x%8.8lx(Phys)\n", lp->mem_start);
 		printk("        mode: 0x%4.4x\n", p->mode);
-		printk("        physical address: ");
-		for (i = 0; i < ETH_ALEN - 1; i++) {
-			printk("%2.2x:", p->phys_addr[i]);
-		}
-		printk("%2.2x\n", p->phys_addr[i]);
+		printk("        physical address: %s\n", print_mac(mac, p->phys_addr));
 		printk("        multicast hash table: ");
 		for (i = 0; i < (HASH_TABLE_LEN >> 3) - 1; i++) {
 			printk("%2.2x:", p->mcast_table[i]);

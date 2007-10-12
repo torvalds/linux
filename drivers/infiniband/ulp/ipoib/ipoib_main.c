@@ -98,16 +98,20 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
+	napi_enable(&priv->napi);
 	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
 		return 0;
 
-	if (ipoib_ib_dev_open(dev))
+	if (ipoib_ib_dev_open(dev)) {
+		napi_disable(&priv->napi);
 		return -EINVAL;
+	}
 
 	if (ipoib_ib_dev_up(dev)) {
 		ipoib_ib_dev_stop(dev, 1);
+		napi_disable(&priv->napi);
 		return -EINVAL;
 	}
 
@@ -140,6 +144,7 @@ static int ipoib_stop(struct net_device *dev)
 	ipoib_dbg(priv, "stopping interface\n");
 
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
+	napi_disable(&priv->napi);
 
 	netif_stop_queue(dev);
 
@@ -512,7 +517,7 @@ static void neigh_add_path(struct sk_buff *skb, struct net_device *dev)
 
 	neigh = ipoib_neigh_alloc(skb->dst->neighbour);
 	if (!neigh) {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -577,7 +582,7 @@ err_list:
 err_path:
 	ipoib_neigh_free(dev, neigh);
 err_drop:
-	++priv->stats.tx_dropped;
+	++dev->stats.tx_dropped;
 	dev_kfree_skb_any(skb);
 
 	spin_unlock(&priv->lock);
@@ -626,7 +631,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 			} else
 				__path_add(dev, path);
 		} else {
-			++priv->stats.tx_dropped;
+			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}
 
@@ -645,7 +650,7 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 		skb_push(skb, sizeof *phdr);
 		__skb_queue_tail(&path->queue, skb);
 	} else {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 	}
 
@@ -713,7 +718,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			__skb_queue_tail(&neigh->queue, skb);
 			spin_unlock(&priv->lock);
 		} else {
-			++priv->stats.tx_dropped;
+			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}
 	} else {
@@ -739,7 +744,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					   IPOIB_QPN(phdr->hwaddr),
 					   IPOIB_GID_RAW_ARG(phdr->hwaddr + 4));
 				dev_kfree_skb_any(skb);
-				++priv->stats.tx_dropped;
+				++dev->stats.tx_dropped;
 				goto out;
 			}
 
@@ -751,13 +756,6 @@ out:
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *ipoib_get_stats(struct net_device *dev)
-{
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
-
-	return &priv->stats;
 }
 
 static void ipoib_timeout(struct net_device *dev)
@@ -775,7 +773,7 @@ static void ipoib_timeout(struct net_device *dev)
 static int ipoib_hard_header(struct sk_buff *skb,
 			     struct net_device *dev,
 			     unsigned short type,
-			     void *daddr, void *saddr, unsigned len)
+			     const void *daddr, const void *saddr, unsigned len)
 {
 	struct ipoib_header *header;
 
@@ -856,11 +854,10 @@ struct ipoib_neigh *ipoib_neigh_alloc(struct neighbour *neighbour)
 
 void ipoib_neigh_free(struct net_device *dev, struct ipoib_neigh *neigh)
 {
-	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct sk_buff *skb;
 	*to_ipoib_neigh(neigh->neighbour) = NULL;
 	while ((skb = __skb_dequeue(&neigh->queue))) {
-		++priv->stats.tx_dropped;
+		++dev->stats.tx_dropped;
 		dev_kfree_skb_any(skb);
 	}
 	if (ipoib_cm_get(neigh))
@@ -935,6 +932,10 @@ void ipoib_dev_cleanup(struct net_device *dev)
 	priv->tx_ring = NULL;
 }
 
+static const struct header_ops ipoib_header_ops = {
+	.create	= ipoib_hard_header,
+};
+
 static void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -943,13 +944,12 @@ static void ipoib_setup(struct net_device *dev)
 	dev->stop 		 = ipoib_stop;
 	dev->change_mtu 	 = ipoib_change_mtu;
 	dev->hard_start_xmit 	 = ipoib_start_xmit;
-	dev->get_stats 		 = ipoib_get_stats;
 	dev->tx_timeout 	 = ipoib_timeout;
-	dev->hard_header 	 = ipoib_hard_header;
+	dev->header_ops 	 = &ipoib_header_ops;
 	dev->set_multicast_list  = ipoib_set_mcast_list;
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
-	dev->poll                = ipoib_poll;
-	dev->weight              = 100;
+
+	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
 
 	dev->watchdog_timeo 	 = HZ;
 
@@ -972,8 +972,6 @@ static void ipoib_setup(struct net_device *dev)
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
 
 	netif_carrier_off(dev);
-
-	SET_MODULE_OWNER(dev);
 
 	priv->dev = dev;
 

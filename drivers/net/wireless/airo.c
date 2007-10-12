@@ -241,8 +241,8 @@ static int proc_perm = 0644;
 
 MODULE_AUTHOR("Benjamin Reed");
 MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet \
-                   cards.  Direct support for ISA/PCI/MPI cards and support \
-		   for PCMCIA when used with airo_cs.");
+cards.  Direct support for ISA/PCI/MPI cards and support \
+for PCMCIA when used with airo_cs.");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340/350");
 module_param_array(io, int, NULL, 0);
@@ -2481,7 +2481,7 @@ void stop_airo_card( struct net_device *dev, int freeres )
 
 EXPORT_SYMBOL(stop_airo_card);
 
-static int wll_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int wll_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
 	memcpy(haddr, skb_mac_header(skb) + 10, ETH_ALEN);
 	return ETH_ALEN;
@@ -2696,14 +2696,13 @@ static int mpi_map_card(struct airo_info *ai, struct pci_dev *pci)
 	return rc;
 }
 
+static const struct header_ops airo_header_ops = {
+	.parse = wll_header_parse,
+};
+
 static void wifi_setup(struct net_device *dev)
 {
-	dev->hard_header        = NULL;
-	dev->rebuild_header     = NULL;
-	dev->hard_header_cache  = NULL;
-	dev->header_cache_update= NULL;
-
-	dev->hard_header_parse  = wll_header_parse;
+	dev->header_ops = &airo_header_ops;
 	dev->hard_start_xmit = &airo_start_xmit11;
 	dev->get_stats = &airo_get_stats;
 	dev->set_mac_address = &airo_set_mac_address;
@@ -2821,6 +2820,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	struct net_device *dev;
 	struct airo_info *ai;
 	int i, rc;
+	DECLARE_MAC_BUF(mac);
 
 	/* Create the network device object. */
 	dev = alloc_netdev(sizeof(*ai), "", ether_setup);
@@ -2870,7 +2870,6 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	dev->base_addr = port;
 
 	SET_NETDEV_DEV(dev, dmdev);
-	SET_MODULE_OWNER(dev);
 
 	reset_card (dev, 1);
 	msleep(400);
@@ -2924,9 +2923,8 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 		goto err_out_reg;
 
 	set_bit(FLAG_REGISTERED,&ai->flags);
-	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5] );
+	airo_print_info(dev->name, "MAC enabled %s",
+			print_mac(mac, dev->dev_addr));
 
 	/* Allocate the transmit buffers */
 	if (probe && !test_bit(FLAG_MPI,&ai->flags))
@@ -2983,6 +2981,7 @@ int reset_airo_card( struct net_device *dev )
 {
 	int i;
 	struct airo_info *ai = dev->priv;
+	DECLARE_MAC_BUF(mac);
 
 	if (reset_card (dev, 1))
 		return -1;
@@ -2991,9 +2990,8 @@ int reset_airo_card( struct net_device *dev )
 		airo_print_err(dev->name, "MAC could not be enabled");
 		return -1;
 	}
-	airo_print_info(dev->name, "MAC enabled %x:%x:%x:%x:%x:%x",
-			dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-			dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	airo_print_info(dev->name, "MAC enabled %s",
+			print_mac(mac, dev->dev_addr));
 	/* Allocate the transmit buffers if needed */
 	if (!test_bit(FLAG_MPI,&ai->flags))
 		for( i = 0; i < MAX_FIDS; i++ )
@@ -5427,6 +5425,7 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 	int i;
 	char *ptr;
 	APListRid APList_rid;
+	DECLARE_MAC_BUF(mac);
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -5450,13 +5449,8 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 // We end when we find a zero MAC
 		if ( !*(int*)APList_rid.ap[i] &&
 		     !*(int*)&APList_rid.ap[i][2]) break;
-		ptr += sprintf(ptr, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			       (int)APList_rid.ap[i][0],
-			       (int)APList_rid.ap[i][1],
-			       (int)APList_rid.ap[i][2],
-			       (int)APList_rid.ap[i][3],
-			       (int)APList_rid.ap[i][4],
-			       (int)APList_rid.ap[i][5]);
+		ptr += sprintf(ptr, "%s\n",
+			       print_mac(mac, APList_rid.ap[i]));
 	}
 	if (i==0) ptr += sprintf(ptr, "Not using specific APs\n");
 
@@ -5475,6 +5469,7 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
 	int rc;
 	/* If doLoseSync is not 1, we won't do a Lose Sync */
 	int doLoseSync = -1;
+	DECLARE_MAC_BUF(mac);
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -5511,13 +5506,8 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
            we have to add a spin lock... */
 	rc = readBSSListRid(ai, doLoseSync, &BSSList_rid);
 	while(rc == 0 && BSSList_rid.index != 0xffff) {
-		ptr += sprintf(ptr, "%02x:%02x:%02x:%02x:%02x:%02x %*s rssi = %d",
-				(int)BSSList_rid.bssid[0],
-				(int)BSSList_rid.bssid[1],
-				(int)BSSList_rid.bssid[2],
-				(int)BSSList_rid.bssid[3],
-				(int)BSSList_rid.bssid[4],
-				(int)BSSList_rid.bssid[5],
+		ptr += sprintf(ptr, "%s %*s rssi = %d",
+			       print_mac(mac, BSSList_rid.bssid),
 				(int)BSSList_rid.ssidLen,
 				BSSList_rid.ssid,
 				(int)BSSList_rid.dBm);
@@ -7579,9 +7569,9 @@ static const iw_handler		airo_private_handler[] =
 
 static const struct iw_handler_def	airo_handler_def =
 {
-	.num_standard	= sizeof(airo_handler)/sizeof(iw_handler),
-	.num_private	= sizeof(airo_private_handler)/sizeof(iw_handler),
-	.num_private_args = sizeof(airo_private_args)/sizeof(struct iw_priv_args),
+	.num_standard	= ARRAY_SIZE(airo_handler),
+	.num_private	= ARRAY_SIZE(airo_private_handler),
+	.num_private_args = ARRAY_SIZE(airo_private_args),
 	.standard	= airo_handler,
 	.private	= airo_private_handler,
 	.private_args	= airo_private_args,

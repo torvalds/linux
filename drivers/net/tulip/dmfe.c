@@ -362,6 +362,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	struct net_device *dev;
 	u32 pci_pmr;
 	int i, err;
+	DECLARE_MAC_BUF(mac);
 
 	DMFE_DBUG(0, "dmfe_init_one()", 0);
 
@@ -372,7 +373,6 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof(*db));
 	if (dev == NULL)
 		return -ENOMEM;
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
@@ -471,13 +471,13 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	if (err)
 		goto err_out_res;
 
-	printk(KERN_INFO "%s: Davicom DM%04lx at pci%s,",
-		dev->name,
-		ent->driver_data >> 16,
-		pci_name(pdev));
-	for (i = 0; i < 6; i++)
-		printk("%c%02x", i ? ':' : ' ', dev->dev_addr[i]);
-	printk(", irq %d.\n", dev->irq);
+	printk(KERN_INFO "%s: Davicom DM%04lx at pci%s, "
+	       "%s, irq %d.\n",
+	       dev->name,
+	       ent->driver_data >> 16,
+	       pci_name(pdev),
+	       print_mac(mac, dev->dev_addr),
+	       dev->irq);
 
 	pci_set_master(pdev);
 

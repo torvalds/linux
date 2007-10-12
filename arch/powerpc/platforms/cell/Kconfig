@@ -10,6 +10,10 @@ config PPC_CELL_NATIVE
 	select PPC_INDIRECT_IO
 	select PPC_NATIVE
 	select MPIC
+	select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+	select IBM_NEW_EMAC_ZMII #test only
+	select IBM_NEW_EMAC_TAH  #test only
 	default n
 
 config PPC_IBM_CELL_BLADE

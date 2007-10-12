@@ -9,6 +9,7 @@
  * more details.
  */
 
+#include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -241,7 +242,7 @@ static int ieee80211_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 	ccmp_init_blocks(key->tfm, hdr, key->tx_pn, data_len, b0, b, s0);
 
-	blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
+	blocks = DIV_ROUND_UP(data_len, AES_BLOCK_LEN);
 	last = data_len % AES_BLOCK_LEN;
 
 	for (i = 1; i <= blocks; i++) {
@@ -296,6 +297,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	int i, blocks, last, len;
 	size_t data_len = skb->len - hdr_len - CCMP_HDR_LEN - CCMP_MIC_LEN;
 	u8 *mic = skb->data + skb->len - CCMP_MIC_LEN;
+	DECLARE_MAC_BUF(mac);
 
 	if (skb->len < hdr_len + CCMP_HDR_LEN + CCMP_MIC_LEN) {
 		key->dot11RSNAStatsCCMPFormatErrors++;
@@ -308,7 +310,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: received packet without ExtIV"
-			       " flag from " MAC_FMT "\n", MAC_ARG(hdr->addr2));
+			       " flag from %s\n", print_mac(mac, hdr->addr2));
 		}
 		key->dot11RSNAStatsCCMPFormatErrors++;
 		return -2;
@@ -321,9 +323,9 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!key->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "CCMP: received packet from " MAC_FMT
+			printk(KERN_DEBUG "CCMP: received packet from %s"
 			       " with keyid=%d that does not have a configured"
-			       " key\n", MAC_ARG(hdr->addr2), keyidx);
+			       " key\n", print_mac(mac, hdr->addr2), keyidx);
 		}
 		return -3;
 	}
@@ -338,11 +340,13 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (ccmp_replay_check(pn, key->rx_pn)) {
 		if (net_ratelimit()) {
-			IEEE80211_DEBUG_DROP("CCMP: replay detected: STA=" MAC_FMT
-			       " previous PN %02x%02x%02x%02x%02x%02x "
-			       "received PN %02x%02x%02x%02x%02x%02x\n",
-			       MAC_ARG(hdr->addr2), MAC_ARG(key->rx_pn),
-			       MAC_ARG(pn));
+			IEEE80211_DEBUG_DROP("CCMP: replay detected: STA=%s "
+				 "previous PN %02x%02x%02x%02x%02x%02x "
+				 "received PN %02x%02x%02x%02x%02x%02x\n",
+				 print_mac(mac, hdr->addr2),
+				 key->rx_pn[0], key->rx_pn[1], key->rx_pn[2],
+				 key->rx_pn[3], key->rx_pn[4], key->rx_pn[5],
+				 pn[0], pn[1], pn[2], pn[3], pn[4], pn[5]);
 		}
 		key->dot11RSNAStatsCCMPReplays++;
 		return -4;
@@ -351,7 +355,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	ccmp_init_blocks(key->tfm, hdr, pn, data_len, b0, a, b);
 	xor_block(mic, b, CCMP_MIC_LEN);
 
-	blocks = (data_len + AES_BLOCK_LEN - 1) / AES_BLOCK_LEN;
+	blocks = DIV_ROUND_UP(data_len, AES_BLOCK_LEN);
 	last = data_len % AES_BLOCK_LEN;
 
 	for (i = 1; i <= blocks; i++) {
@@ -370,7 +374,7 @@ static int ieee80211_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (memcmp(mic, a, CCMP_MIC_LEN) != 0) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "CCMP: decrypt failed: STA="
-			       MAC_FMT "\n", MAC_ARG(hdr->addr2));
+			       "%s\n", print_mac(mac, hdr->addr2));
 		}
 		key->dot11RSNAStatsCCMPDecryptErrors++;
 		return -5;
@@ -442,12 +446,16 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 * seq, void *priv)
 static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
+
 	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "
 		     "tx_pn=%02x%02x%02x%02x%02x%02x "
 		     "rx_pn=%02x%02x%02x%02x%02x%02x "
 		     "format_errors=%d replays=%d decrypt_errors=%d\n",
 		     ccmp->key_idx, ccmp->key_set,
-		     MAC_ARG(ccmp->tx_pn), MAC_ARG(ccmp->rx_pn),
+		     ccmp->tx_pn[0], ccmp->tx_pn[1], ccmp->tx_pn[2],
+		     ccmp->tx_pn[3], ccmp->tx_pn[4], ccmp->tx_pn[5],
+		     ccmp->rx_pn[0], ccmp->rx_pn[1], ccmp->rx_pn[2],
+		     ccmp->rx_pn[3], ccmp->rx_pn[4], ccmp->rx_pn[5],
 		     ccmp->dot11RSNAStatsCCMPFormatErrors,
 		     ccmp->dot11RSNAStatsCCMPReplays,
 		     ccmp->dot11RSNAStatsCCMPDecryptErrors);

@@ -241,8 +241,6 @@ static struct sv11_device *sv11_init(int iobase, int irq)
 	if(!sv->netdev.dev)
 		goto fail2;
 
-	SET_MODULE_OWNER(sv->netdev.dev);
-
 	dev=&sv->sync;
 	
 	/*

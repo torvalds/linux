@@ -119,9 +119,9 @@ void t3_set_reg_field(struct adapter *adapter, unsigned int addr, u32 mask,
  *	Reads registers that are accessed indirectly through an address/data
  *	register pair.
  */
-void t3_read_indirect(struct adapter *adap, unsigned int addr_reg,
-		      unsigned int data_reg, u32 *vals, unsigned int nregs,
-		      unsigned int start_idx)
+static void t3_read_indirect(struct adapter *adap, unsigned int addr_reg,
+			     unsigned int data_reg, u32 *vals,
+			     unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t3_write_reg(adap, addr_reg, start_idx);
@@ -505,7 +505,7 @@ struct t3_vpd {
 	u8 vpdr_len[2];
 	VPD_ENTRY(pn, 16);	/* part number */
 	VPD_ENTRY(ec, 16);	/* EC level */
-	VPD_ENTRY(sn, 16);	/* serial number */
+	VPD_ENTRY(sn, SERNUM_LEN); /* serial number */
 	VPD_ENTRY(na, 12);	/* MAC address base */
 	VPD_ENTRY(cclk, 6);	/* core clock */
 	VPD_ENTRY(mclk, 6);	/* mem clock */
@@ -648,6 +648,7 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	p->uclk = simple_strtoul(vpd.uclk_data, NULL, 10);
 	p->mdc = simple_strtoul(vpd.mdc_data, NULL, 10);
 	p->mem_timing = simple_strtoul(vpd.mt_data, NULL, 10);
+	memcpy(p->sn, vpd.sn_data, SERNUM_LEN);
 
 	/* Old eeproms didn't have port information */
 	if (adapter->params.rev == 0 && !vpd.port0_data[0]) {
@@ -959,16 +960,18 @@ int t3_get_fw_version(struct adapter *adapter, u32 *vers)
 /**
  *	t3_check_fw_version - check if the FW is compatible with this driver
  *	@adapter: the adapter
- *
+ *	@must_load: set to 1 if loading a new FW image is required
+
  *	Checks if an adapter's FW is compatible with the driver.  Returns 0
  *	if the versions are compatible, a negative error otherwise.
  */
-int t3_check_fw_version(struct adapter *adapter)
+int t3_check_fw_version(struct adapter *adapter, int *must_load)
 {
 	int ret;
 	u32 vers;
 	unsigned int type, major, minor;
 
+	*must_load = 1;
 	ret = t3_get_fw_version(adapter, &vers);
 	if (ret)
 		return ret;
@@ -981,9 +984,17 @@ int t3_check_fw_version(struct adapter *adapter)
 	    minor == FW_VERSION_MINOR)
 		return 0;
 
-	CH_ERR(adapter, "found wrong FW version(%u.%u), "
-	       "driver needs version %u.%u\n", major, minor,
-	       FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	if (major != FW_VERSION_MAJOR)
+		CH_ERR(adapter, "found wrong FW version(%u.%u), "
+		       "driver needs version %u.%u\n", major, minor,
+		       FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	else {
+		*must_load = 0;
+		CH_WARN(adapter, "found wrong FW minor version(%u.%u), "
+		        "driver compiled for version %u.%u\n", major, minor,
+			FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	}
+
 	return -EINVAL;
 }
 
@@ -1346,6 +1357,10 @@ static void pcie_intr_handler(struct adapter *adapter)
 		{V_BISTERR(M_BISTERR), "PCI BIST error", -1, 1},
 		{0}
 	};
+
+	if (t3_read_reg(adapter, A_PCIE_INT_CAUSE) & F_PEXERR)
+		CH_ALERT(adapter, "PEX error code 0x%x\n",
+			 t3_read_reg(adapter, A_PCIE_PEX_ERR));
 
 	if (t3_handle_intr_status(adapter, A_PCIE_INT_CAUSE, PCIE_INTR_MASK,
 				  pcie_intr_info, adapter->irq_stats))
@@ -1798,6 +1813,8 @@ void t3_intr_clear(struct adapter *adapter)
 	for (i = 0; i < ARRAY_SIZE(cause_reg_addr); ++i)
 		t3_write_reg(adapter, cause_reg_addr[i], 0xffffffff);
 
+	if (is_pcie(adapter))
+		t3_write_reg(adapter, A_PCIE_PEX_ERR, 0xffffffff);
 	t3_write_reg(adapter, A_PL_INT_CAUSE0, 0xffffffff);
 	t3_read_reg(adapter, A_PL_INT_CAUSE0);	/* flush */
 }
@@ -1853,6 +1870,8 @@ void t3_port_intr_clear(struct adapter *adapter, int idx)
 	phy->ops->intr_clear(phy);
 }
 
+#define SG_CONTEXT_CMD_ATTEMPTS 100
+
 /**
  * 	t3_sge_write_context - write an SGE context
  * 	@adapter: the adapter
@@ -1872,7 +1891,7 @@ static int t3_sge_write_context(struct adapter *adapter, unsigned int id,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | type | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2029,7 +2048,8 @@ int t3_sge_init_cqcntxt(struct adapter *adapter, unsigned int id, u64 base_addr,
 	base_addr >>= 32;
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA2,
 		     V_CQ_BASE_HI((u32) base_addr) | V_CQ_RSPQ(rspq) |
-		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode));
+		     V_CQ_GEN(1) | V_CQ_OVERFLOW_MODE(ovfl_mode) |
+		     V_CQ_ERR(ovfl_mode));
 	t3_write_reg(adapter, A_SG_CONTEXT_DATA3, V_CQ_CREDITS(credits) |
 		     V_CQ_CREDIT_THRES(credit_thres));
 	return t3_sge_write_context(adapter, id, F_CQ);
@@ -2057,7 +2077,7 @@ int t3_sge_enable_ecntxt(struct adapter *adapter, unsigned int id, int enable)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_EGRESS | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2081,7 +2101,7 @@ int t3_sge_disable_fl(struct adapter *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_FREELIST | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2105,7 +2125,7 @@ int t3_sge_disable_rspcntxt(struct adapter *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_RESPONSEQ | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2129,7 +2149,7 @@ int t3_sge_disable_cqcntxt(struct adapter *adapter, unsigned int id)
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(1) | F_CQ | V_CONTEXT(id));
 	return t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-			       0, 5, 1);
+			       0, SG_CONTEXT_CMD_ATTEMPTS, 1);
 }
 
 /**
@@ -2154,7 +2174,7 @@ int t3_sge_cqcntxt_op(struct adapter *adapter, unsigned int id, unsigned int op,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD, V_CONTEXT_CMD_OPCODE(op) |
 		     V_CONTEXT(id) | F_CQ);
 	if (t3_wait_op_done_val(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY,
-				0, 5, 1, &val))
+				0, SG_CONTEXT_CMD_ATTEMPTS, 1, &val))
 		return -EIO;
 
 	if (op >= 2 && op < 7) {
@@ -2164,7 +2184,8 @@ int t3_sge_cqcntxt_op(struct adapter *adapter, unsigned int id, unsigned int op,
 		t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 			     V_CONTEXT_CMD_OPCODE(0) | F_CQ | V_CONTEXT(id));
 		if (t3_wait_op_done(adapter, A_SG_CONTEXT_CMD,
-				    F_CONTEXT_CMD_BUSY, 0, 5, 1))
+				    F_CONTEXT_CMD_BUSY, 0,
+				    SG_CONTEXT_CMD_ATTEMPTS, 1))
 			return -EIO;
 		return G_CQ_INDEX(t3_read_reg(adapter, A_SG_CONTEXT_DATA0));
 	}
@@ -2190,7 +2211,7 @@ static int t3_sge_read_context(unsigned int type, struct adapter *adapter,
 	t3_write_reg(adapter, A_SG_CONTEXT_CMD,
 		     V_CONTEXT_CMD_OPCODE(0) | type | V_CONTEXT(id));
 	if (t3_wait_op_done(adapter, A_SG_CONTEXT_CMD, F_CONTEXT_CMD_BUSY, 0,
-			    5, 1))
+			    SG_CONTEXT_CMD_ATTEMPTS, 1))
 		return -EIO;
 	data[0] = t3_read_reg(adapter, A_SG_CONTEXT_DATA0);
 	data[1] = t3_read_reg(adapter, A_SG_CONTEXT_DATA1);
@@ -3222,6 +3243,8 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
 
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
+	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
+	t3_write_reg(adapter, A_PM1_TX_MODE, 0);
 	init_hw_for_avail_ports(adapter, adapter->params.nports);
 	t3_sge_init(adapter, &adapter->params.sge);
 
@@ -3384,7 +3407,7 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
  * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
-int t3_reset_adapter(struct adapter *adapter)
+static int t3_reset_adapter(struct adapter *adapter)
 {
 	int i, save_and_restore_pcie = 
 	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);

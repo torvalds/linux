@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/percpu.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -194,22 +195,8 @@ static const struct seq_operations ct_seq_ops = {
 
 static int ct_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	struct ct_iter_state *st;
-	int ret;
-
-	st = kzalloc(sizeof(struct ct_iter_state), GFP_KERNEL);
-	if (st == NULL)
-		return -ENOMEM;
-	ret = seq_open(file, &ct_seq_ops);
-	if (ret)
-		goto out_free;
-	seq          = file->private_data;
-	seq->private = st;
-	return ret;
-out_free:
-	kfree(st);
-	return ret;
+	return seq_open_private(file, &ct_seq_ops,
+			sizeof(struct ct_iter_state));
 }
 
 static const struct file_operations ct_file_ops = {
@@ -420,10 +407,10 @@ static int __init nf_conntrack_standalone_init(void)
 		return ret;
 
 #ifdef CONFIG_PROC_FS
-	proc = proc_net_fops_create("nf_conntrack", 0440, &ct_file_ops);
+	proc = proc_net_fops_create(&init_net, "nf_conntrack", 0440, &ct_file_ops);
 	if (!proc) goto cleanup_init;
 
-	proc_stat = create_proc_entry("nf_conntrack", S_IRUGO, proc_net_stat);
+	proc_stat = create_proc_entry("nf_conntrack", S_IRUGO, init_net.proc_net_stat);
 	if (!proc_stat)
 		goto cleanup_proc;
 
@@ -444,9 +431,9 @@ static int __init nf_conntrack_standalone_init(void)
  cleanup_proc_stat:
 #endif
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("nf_conntrack", proc_net_stat);
+	remove_proc_entry("nf_conntrack", init_net. proc_net_stat);
  cleanup_proc:
-	proc_net_remove("nf_conntrack");
+	proc_net_remove(&init_net, "nf_conntrack");
  cleanup_init:
 #endif /* CNFIG_PROC_FS */
 	nf_conntrack_cleanup();
@@ -459,8 +446,8 @@ static void __exit nf_conntrack_standalone_fini(void)
 	unregister_sysctl_table(nf_ct_sysctl_header);
 #endif
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("nf_conntrack", proc_net_stat);
-	proc_net_remove("nf_conntrack");
+	remove_proc_entry("nf_conntrack", init_net.proc_net_stat);
+	proc_net_remove(&init_net, "nf_conntrack");
 #endif /* CNFIG_PROC_FS */
 	nf_conntrack_cleanup();
 }

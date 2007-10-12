@@ -49,11 +49,13 @@
 typedef irqreturn_t(*intr_handler_t) (int, void *);
 
 struct vlan_group;
-
 struct adapter;
+struct sge_qset;
+
 struct port_info {
 	struct adapter *adapter;
 	struct vlan_group *vlan_grp;
+	struct sge_qset *qs;
 	const struct port_type_info *port_type;
 	u8 port_id;
 	u8 rx_csum_offload;
@@ -173,10 +175,12 @@ enum {				/* per port SGE statistics */
 };
 
 struct sge_qset {		/* an SGE queue set */
+	struct adapter *adap;
+	struct napi_struct napi;
 	struct sge_rspq rspq;
 	struct sge_fl fl[SGE_RXQ_PER_SET];
 	struct sge_txq txq[SGE_TXQ_PER_SET];
-	struct net_device *netdev;	/* associated net device */
+	struct net_device *netdev;
 	unsigned long txq_stopped;	/* which Tx queues are stopped */
 	struct timer_list tx_reclaim_timer;	/* reclaims TX buffers */
 	unsigned long port_stats[SGE_PSTAT_MAX];
@@ -221,12 +225,6 @@ struct adapter {
 	struct delayed_work adap_check_task;
 	struct work_struct ext_intr_handler_task;
 
-	/*
-	 * Dummy netdevices are needed when using multiple receive queues with
-	 * NAPI as each netdevice can service only one queue.
-	 */
-	struct net_device *dummy_netdev[SGE_QSETS - 1];
-
 	struct dentry *debugfs_root;
 
 	struct mutex mdio_lock;
@@ -253,12 +251,6 @@ static inline struct port_info *adap2pinfo(struct adapter *adap, int idx)
 	return netdev_priv(adap->port[idx]);
 }
 
-/*
- * We use the spare atalk_ptr to map a net device to its SGE queue set.
- * This is a macro so it can be used as l-value.
- */
-#define dev2qset(netdev) ((netdev)->atalk_ptr)
-
 #define OFFLOAD_DEVMAP_BIT 15
 
 #define tdev2adap(d) container_of(d, struct adapter, tdev)
@@ -284,7 +276,7 @@ int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
 int t3_sge_alloc_qset(struct adapter *adapter, unsigned int id, int nports,
 		      int irq_vec_idx, const struct qset_params *p,
-		      int ntxq, struct net_device *netdev);
+		      int ntxq, struct net_device *dev);
 int t3_get_desc(const struct sge_qset *qs, unsigned int qnum, unsigned int idx,
 		unsigned char *data);
 irqreturn_t t3_sge_intr_msix(int irq, void *cookie);

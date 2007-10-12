@@ -316,7 +316,20 @@
 #define PCI_X_CMD		2	/* Modes & Features */
 #define  PCI_X_CMD_DPERR_E	0x0001	/* Data Parity Error Recovery Enable */
 #define  PCI_X_CMD_ERO		0x0002	/* Enable Relaxed Ordering */
+#define  PCI_X_CMD_READ_512	0x0000	/* 512 byte maximum read byte count */
+#define  PCI_X_CMD_READ_1K	0x0004	/* 1Kbyte maximum read byte count */
+#define  PCI_X_CMD_READ_2K	0x0008	/* 2Kbyte maximum read byte count */
+#define  PCI_X_CMD_READ_4K	0x000c	/* 4Kbyte maximum read byte count */
 #define  PCI_X_CMD_MAX_READ	0x000c	/* Max Memory Read Byte Count */
+				/* Max # of outstanding split transactions */
+#define  PCI_X_CMD_SPLIT_1	0x0000	/* Max 1 */
+#define  PCI_X_CMD_SPLIT_2	0x0010	/* Max 2 */
+#define  PCI_X_CMD_SPLIT_3	0x0020	/* Max 3 */
+#define  PCI_X_CMD_SPLIT_4	0x0030	/* Max 4 */
+#define  PCI_X_CMD_SPLIT_8	0x0040	/* Max 8 */
+#define  PCI_X_CMD_SPLIT_12	0x0050	/* Max 12 */
+#define  PCI_X_CMD_SPLIT_16	0x0060	/* Max 16 */
+#define  PCI_X_CMD_SPLIT_32	0x0070	/* Max 32 */
 #define  PCI_X_CMD_MAX_SPLIT	0x0070	/* Max Outstanding Split Transactions */
 #define  PCI_X_CMD_VERSION(x) 	(((x) >> 12) & 3) /* Version */
 #define PCI_X_STATUS		4	/* PCI-X capabilities */

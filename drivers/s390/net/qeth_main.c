@@ -160,6 +160,9 @@ qeth_set_multicast_list(struct net_device *);
 static void
 qeth_setadp_promisc_mode(struct qeth_card *);
 
+static int
+qeth_hard_header_parse(const struct sk_buff *skb, unsigned char *haddr);
+
 static void
 qeth_notify_processes(void)
 {
@@ -820,14 +823,15 @@ __qeth_delete_all_mc(struct qeth_card *card, unsigned long *flags)
 again:
 	list_for_each_entry_safe(addr, tmp, &card->ip_list, entry) {
 		if (addr->is_multicast) {
+			list_del(&addr->entry);
 			spin_unlock_irqrestore(&card->ip_lock, *flags);
 			rc = qeth_deregister_addr_entry(card, addr);
 			spin_lock_irqsave(&card->ip_lock, *flags);
 			if (!rc) {
-				list_del(&addr->entry);
 				kfree(addr);
 				goto again;
-			}
+			} else
+				list_add(&addr->entry, &card->ip_list);
 		}
 	}
 }
@@ -2698,10 +2702,15 @@ qeth_process_inbound_buffer(struct qeth_card *card,
 			qeth_layer2_rebuild_skb(card, skb, hdr);
 		else if (hdr->hdr.l3.id == QETH_HEADER_TYPE_LAYER3)
 			vlan_tag = qeth_rebuild_skb(card, skb, hdr);
-		else { /*in case of OSN*/
+		else if (hdr->hdr.osn.id == QETH_HEADER_TYPE_OSN) {
 			skb_push(skb, sizeof(struct qeth_hdr));
 			skb_copy_to_linear_data(skb, hdr,
 						sizeof(struct qeth_hdr));
+		} else { /* unknown header type */
+			dev_kfree_skb_any(skb);
+			QETH_DBF_TEXT(trace, 3, "inbunkno");
+			QETH_DBF_HEX(control, 3, hdr, QETH_DBF_CONTROL_LEN);
+			continue;
 		}
 		/* is device UP ? */
 		if (!(card->dev->flags & IFF_UP)){
@@ -3787,8 +3796,8 @@ qeth_get_netdevice(enum qeth_card_types type, enum qeth_link_types linktype)
 /*hard_header fake function; used in case fake_ll is set */
 static int
 qeth_fake_header(struct sk_buff *skb, struct net_device *dev,
-		     unsigned short type, void *daddr, void *saddr,
-		     unsigned len)
+		 unsigned short type, const void *daddr, const void *saddr,
+		 unsigned len)
 {
 	if(dev->type == ARPHRD_IEEE802_TR){
 		struct trh_hdr *hdr;
@@ -3810,6 +3819,11 @@ qeth_fake_header(struct sk_buff *skb, struct net_device *dev,
 
 	}
 }
+
+static const struct header_ops qeth_fake_ops = {
+	.create	= qeth_fake_header,
+	.parse  = qeth_hard_header_parse,
+};
 
 static int
 qeth_send_packet(struct qeth_card *, struct sk_buff *);
@@ -4500,7 +4514,8 @@ qeth_do_send_packet(struct qeth_card *card, struct qeth_qdio_out_q *queue,
 			/* check if we have enough elements (including following
 			 * free buffers) to handle eddp context */
 			if (qeth_eddp_check_buffers_for_context(queue,ctx) < 0){
-				printk("eddp tx_dropped 1\n");
+				if (net_ratelimit())
+					PRINT_WARN("eddp tx_dropped 1\n");
 				rc = -EBUSY;
 				goto out;
 			}
@@ -4649,7 +4664,7 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 	if (!card->options.layer2) {
 		ipv = qeth_get_ip_version(skb);
-		if ((card->dev->hard_header == qeth_fake_header) && ipv) {
+		if ((card->dev->header_ops == &qeth_fake_ops) && ipv) {
 			new_skb = qeth_pskb_unshare(skb, GFP_ATOMIC);
 			if (!new_skb)
 				return -ENOMEM;
@@ -4711,8 +4726,8 @@ qeth_send_packet(struct qeth_card *card, struct sk_buff *skb)
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
 					 elements_needed, ctx);
 	else {
-		if ((skb->protocol == htons(ETH_P_ARP)) &&
-		    (card->dev->flags & IFF_NOARP)) {
+		if ((!card->options.layer2) &&
+		    (ipv == 0)) {
 			__qeth_free_new_skb(skb, new_skb);
 			return -EPERM;
 		}
@@ -6561,12 +6576,16 @@ static struct ethtool_ops qeth_ethtool_ops = {
 };
 
 static int
-qeth_hard_header_parse(struct sk_buff *skb, unsigned char *haddr)
+qeth_hard_header_parse(const struct sk_buff *skb, unsigned char *haddr)
 {
-	struct qeth_card *card;
-	struct ethhdr *eth;
+	const struct qeth_card *card;
+	const struct ethhdr *eth;
+	struct net_device *dev = skb->dev;
 
-	card = qeth_get_card_from_dev(skb->dev);
+	if (dev->type != ARPHRD_IEEE802_TR)
+		return 0;
+
+	card = qeth_get_card_from_dev(dev);
 	if (card->options.layer2)
 		goto haveheader;
 #ifdef CONFIG_QETH_IPV6
@@ -6596,6 +6615,10 @@ haveheader:
 	return ETH_ALEN;
 }
 
+static const struct header_ops qeth_null_ops = {
+	.parse = qeth_hard_header_parse,
+};
+
 static int
 qeth_netdev_init(struct net_device *dev)
 {
@@ -6620,12 +6643,8 @@ qeth_netdev_init(struct net_device *dev)
 	dev->vlan_rx_kill_vid = qeth_vlan_rx_kill_vid;
 	dev->vlan_rx_add_vid = qeth_vlan_rx_add_vid;
 #endif
-	if (qeth_get_netdev_flags(card) & IFF_NOARP) {
-		dev->rebuild_header = NULL;
-		dev->hard_header = NULL;
-		dev->header_cache_update = NULL;
-		dev->hard_header_cache = NULL;
-	}
+	dev->header_ops = &qeth_null_ops;
+
 #ifdef CONFIG_QETH_IPV6
 	/*IPv6 address autoconfiguration stuff*/
 	if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
@@ -6633,11 +6652,8 @@ qeth_netdev_init(struct net_device *dev)
 #endif
 	if (card->options.fake_ll &&
 		(qeth_get_netdev_flags(card) & IFF_NOARP))
-			dev->hard_header = qeth_fake_header;
-	if (dev->type == ARPHRD_IEEE802_TR)
-		dev->hard_header_parse = NULL;
-	else
-		dev->hard_header_parse = qeth_hard_header_parse;
+			dev->header_ops = &qeth_fake_ops;
+
 	dev->set_mac_address = qeth_layer2_set_mac_address;
 	dev->flags |= qeth_get_netdev_flags(card);
 	if ((card->options.fake_broadcast) ||
@@ -6649,7 +6665,6 @@ qeth_netdev_init(struct net_device *dev)
 	dev->mtu = card->info.initial_mtu;
 	if (card->info.type != QETH_CARD_TYPE_OSN)
 		SET_ETHTOOL_OPS(dev, &qeth_ethtool_ops);
-	SET_MODULE_OWNER(dev);
 	return 0;
 }
 
@@ -6741,10 +6756,10 @@ retry:
 	}
 	/*network device will be recovered*/
 	if (card->dev) {
-		card->dev->hard_header = card->orig_hard_header;
+		card->dev->header_ops = card->orig_header_ops;
 		if (card->options.fake_ll &&
 		    (qeth_get_netdev_flags(card) & IFF_NOARP))
-			card->dev->hard_header = qeth_fake_header;
+			card->dev->header_ops = &qeth_fake_ops;
 		return 0;
 	}
 	/* at first set_online allocate netdev */
@@ -6758,7 +6773,7 @@ retry:
 		goto out;
 	}
 	card->dev->priv = card;
-	card->orig_hard_header = card->dev->hard_header;
+	card->orig_header_ops = card->dev->header_ops;
 	card->dev->type = qeth_get_arphdr_type(card->info.type,
 					       card->info.link_type);
 	card->dev->init = qeth_netdev_init;
@@ -8309,7 +8324,7 @@ qeth_arp_constructor(struct neighbour *neigh)
 	if (card == NULL)
 		goto out;
 	if((card->options.layer2) ||
-	   (card->dev->hard_header == qeth_fake_header))
+	   (card->dev->header_ops == &qeth_fake_ops))
 		goto out;
 
 	rcu_read_lock();

@@ -52,6 +52,10 @@ static int int_max = INT_MAX;
 static long sack_timer_min = 1;
 static long sack_timer_max = 500;
 
+extern int sysctl_sctp_mem[3];
+extern int sysctl_sctp_rmem[3];
+extern int sysctl_sctp_wmem[3];
+
 static ctl_table sctp_table[] = {
 	{
 		.ctl_name	= NET_SCTP_RTO_INITIAL,
@@ -225,6 +229,39 @@ static ctl_table sctp_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1         = &sack_timer_min,
 		.extra2         = &sack_timer_max,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sctp_mem",
+		.data		= &sysctl_sctp_mem,
+		.maxlen		= sizeof(sysctl_sctp_mem),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sctp_rmem",
+		.data		= &sysctl_sctp_rmem,
+		.maxlen		= sizeof(sysctl_sctp_rmem),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sctp_wmem",
+		.data		= &sysctl_sctp_wmem,
+		.maxlen		= sizeof(sysctl_sctp_wmem),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "auth_enable",
+		.data		= &sctp_auth_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.strategy	= &sysctl_intvec
 	},
 	{ .ctl_name = 0 }
 };

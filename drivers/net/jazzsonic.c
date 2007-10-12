@@ -45,7 +45,6 @@
 #include <asm/jazzdma.h>
 
 static char jazz_sonic_string[] = "jazzsonic";
-static struct platform_device *jazz_sonic_device;
 
 #define SONIC_MEM_SIZE	0x100
 
@@ -68,14 +67,6 @@ static unsigned int sonic_debug = SONIC_DEBUG;
 #else
 static unsigned int sonic_debug = 1;
 #endif
-
-/*
- * Base address and interrupt of the SONIC controller on JAZZ boards
- */
-static struct {
-	unsigned int port;
-	unsigned int irq;
-} sonic_portlist[] = { {JAZZ_ETHERNET_BASE, JAZZ_ETHERNET_IRQ}, {0, 0}};
 
 /*
  * We cannot use station (ethernet) address prefixes to detect the
@@ -215,13 +206,13 @@ static int __init jazz_sonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
+	struct resource *res;
 	int err = 0;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
-	/*
-	 * Don't probe if we're not running on a Jazz board.
-	 */
-	if (mips_machgroup != MACH_GROUP_JAZZ)
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
 		return -ENODEV;
 
 	dev = alloc_etherdev(sizeof(struct sonic_local));
@@ -231,37 +222,20 @@ static int __init jazz_sonic_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 	lp->device = &pdev->dev;
 	SET_NETDEV_DEV(dev, &pdev->dev);
- 	SET_MODULE_OWNER(dev);
 
 	netdev_boot_setup_check(dev);
 
-	if (dev->base_addr >= KSEG0) { /* Check a single specified location. */
-		err = sonic_probe1(dev);
-	} else if (dev->base_addr != 0) { /* Don't probe at all. */
-		err = -ENXIO;
-	} else {
-		for (i = 0; sonic_portlist[i].port; i++) {
-			dev->base_addr = sonic_portlist[i].port;
-			dev->irq = sonic_portlist[i].irq;
-			if (sonic_probe1(dev) == 0)
-				break;
-		}
-		if (!sonic_portlist[i].port)
-			err = -ENODEV;
-	}
+	dev->base_addr = res->start;
+	dev->irq = platform_get_irq(pdev, 0);
+	err = sonic_probe1(dev);
 	if (err)
 		goto out;
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
 
-	printk("%s: MAC ", dev->name);
-	for (i = 0; i < 6; i++) {
-		printk("%2.2x", dev->dev_addr[i]);
-		if (i < 5)
-			printk(":");
-	}
-	printk(" IRQ %d\n", dev->irq);
+	printk("%s: MAC %s IRQ %d\n",
+	       dev->name, print_mac(mac, dev->dev_addr), dev->irq);
 
 	return 0;
 
@@ -303,38 +277,12 @@ static struct platform_driver jazz_sonic_driver = {
 
 static int __init jazz_sonic_init_module(void)
 {
-	int err;
-
-	if ((err = platform_driver_register(&jazz_sonic_driver))) {
-		printk(KERN_ERR "Driver registration failed\n");
-		return err;
-	}
-
-	jazz_sonic_device = platform_device_alloc(jazz_sonic_string, 0);
-	if (!jazz_sonic_device)
-		goto out_unregister;
-
-	if (platform_device_add(jazz_sonic_device)) {
-		platform_device_put(jazz_sonic_device);
-		jazz_sonic_device = NULL;
-	}
-
-	return 0;
-
-out_unregister:
-	platform_driver_unregister(&jazz_sonic_driver);
-
-	return -ENOMEM;
+	return platform_driver_register(&jazz_sonic_driver);
 }
 
 static void __exit jazz_sonic_cleanup_module(void)
 {
 	platform_driver_unregister(&jazz_sonic_driver);
-
-	if (jazz_sonic_device) {
-		platform_device_unregister(jazz_sonic_device);
-		jazz_sonic_device = NULL;
-	}
 }
 
 module_init(jazz_sonic_init_module);

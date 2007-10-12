@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/kfifo.h>
 #include <linux/vmalloc.h>
+#include <net/net_namespace.h>
 
 #include "dccp.h"
 #include "ccid.h"
@@ -168,7 +169,7 @@ static __init int dccpprobe_init(void)
 	if (IS_ERR(dccpw.fifo))
 		return PTR_ERR(dccpw.fifo);
 
-	if (!proc_net_fops_create(procname, S_IRUSR, &dccpprobe_fops))
+	if (!proc_net_fops_create(&init_net, procname, S_IRUSR, &dccpprobe_fops))
 		goto err0;
 
 	ret = register_jprobe(&dccp_send_probe);
@@ -178,7 +179,7 @@ static __init int dccpprobe_init(void)
 	pr_info("DCCP watch registered (port=%d)\n", port);
 	return 0;
 err1:
-	proc_net_remove(procname);
+	proc_net_remove(&init_net, procname);
 err0:
 	kfifo_free(dccpw.fifo);
 	return ret;
@@ -188,7 +189,7 @@ module_init(dccpprobe_init);
 static __exit void dccpprobe_exit(void)
 {
 	kfifo_free(dccpw.fifo);
-	proc_net_remove(procname);
+	proc_net_remove(&init_net, procname);
 	unregister_jprobe(&dccp_send_probe);
 
 }

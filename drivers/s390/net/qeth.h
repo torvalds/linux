@@ -833,8 +833,7 @@ struct qeth_card {
 	struct qeth_qdio_info qdio;
 	struct qeth_perf_stats perf_stats;
 	int use_hard_stop;
-	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
-				unsigned short,void *,void *,unsigned);
+	const struct header_ops *orig_header_ops;
 	struct qeth_osn_info osn_info;
 	atomic_t force_alloc_skb;
 };

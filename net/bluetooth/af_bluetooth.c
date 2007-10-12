@@ -95,9 +95,12 @@ int bt_sock_unregister(int proto)
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
-static int bt_sock_create(struct socket *sock, int proto)
+static int bt_sock_create(struct net *net, struct socket *sock, int proto)
 {
 	int err;
+
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
 
 	if (proto < 0 || proto >= BT_MAX_PROTO)
 		return -EINVAL;
@@ -113,7 +116,7 @@ static int bt_sock_create(struct socket *sock, int proto)
 	read_lock(&bt_proto_lock);
 
 	if (bt_proto[proto] && try_module_get(bt_proto[proto]->owner)) {
-		err = bt_proto[proto]->create(sock, proto);
+		err = bt_proto[proto]->create(net, sock, proto);
 		module_put(bt_proto[proto]->owner);
 	}
 

@@ -905,7 +905,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 	}
 
 	dev = netdev_priv(netdev);
-	memset(dev, 0, sizeof(rtl8150_t));
 
 	dev->intr_buff = kmalloc(INTBUFSIZE, GFP_KERNEL);
 	if (!dev->intr_buff) {
@@ -918,7 +917,6 @@ static int rtl8150_probe(struct usb_interface *intf,
 	
 	dev->udev = udev;
 	dev->netdev = netdev;
-	SET_MODULE_OWNER(netdev);
 	netdev->open = rtl8150_open;
 	netdev->stop = rtl8150_close;
 	netdev->do_ioctl = rtl8150_ioctl;

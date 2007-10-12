@@ -326,7 +326,6 @@ struct i596_private {
 	struct i596_cmd *cmd_head;
 	int cmd_backlog;
 	unsigned long last_cmd;
-	struct net_device_stats stats;
 	struct i596_rfd rfds[RX_RING_SIZE];
 	struct i596_rbd rbds[RX_RING_SIZE];
 	struct tx_cmd tx_cmds[TX_RING_SIZE];
@@ -360,7 +359,6 @@ static int i596_open(struct net_device *dev);
 static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t i596_interrupt(int irq, void *dev_id);
 static int i596_close(struct net_device *dev);
-static struct net_device_stats *i596_get_stats(struct net_device *dev);
 static void i596_add_cmd(struct net_device *dev, struct i596_cmd *cmd);
 static void i596_tx_timeout (struct net_device *dev);
 static void print_eth(unsigned char *buf, char *str);
@@ -828,7 +826,7 @@ memory_squeeze:
 			if (skb == NULL) {
 				/* XXX tulip.c can defer packets here!! */
 				printk(KERN_WARNING "%s: i596_rx Memory squeeze, dropping packet.\n", dev->name);
-				lp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			}
 			else {
 				if (!rx_in_place) {
@@ -844,28 +842,28 @@ memory_squeeze:
 #endif
 				netif_rx(skb);
 				dev->last_rx = jiffies;
-				lp->stats.rx_packets++;
-				lp->stats.rx_bytes+=pkt_len;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes+=pkt_len;
 			}
 		}
 		else {
 			DEB(DEB_ERRORS, printk(KERN_DEBUG "%s: Error, rfd.stat = 0x%04x\n",
 					dev->name, rfd->stat));
-			lp->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			if ((rfd->stat) & 0x0001)
-				lp->stats.collisions++;
+				dev->stats.collisions++;
 			if ((rfd->stat) & 0x0080)
-				lp->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 			if ((rfd->stat) & 0x0100)
-				lp->stats.rx_over_errors++;
+				dev->stats.rx_over_errors++;
 			if ((rfd->stat) & 0x0200)
-				lp->stats.rx_fifo_errors++;
+				dev->stats.rx_fifo_errors++;
 			if ((rfd->stat) & 0x0400)
-				lp->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 			if ((rfd->stat) & 0x0800)
-				lp->stats.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 			if ((rfd->stat) & 0x1000)
-				lp->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 		}
 
 		/* Clear the buffer descriptor count and EOF + F flags */
@@ -916,8 +914,8 @@ static void i596_cleanup_cmd(struct net_device *dev, struct i596_private *lp)
 
 				dev_kfree_skb(skb);
 
-				lp->stats.tx_errors++;
-				lp->stats.tx_aborted_errors++;
+				dev->stats.tx_errors++;
+				dev->stats.tx_aborted_errors++;
 
 				ptr->v_next = ptr->b_next = I596_NULL;
 				tx_cmd->cmd.command = 0;  /* Mark as free */
@@ -1038,10 +1036,10 @@ static void i596_tx_timeout (struct net_device *dev)
 	DEB(DEB_ERRORS,printk(KERN_ERR "%s: transmit timed out, status resetting.\n",
 			dev->name));
 
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	/* Try to restart the adaptor */
-	if (lp->last_restart == lp->stats.tx_packets) {
+	if (lp->last_restart == dev->stats.tx_packets) {
 		DEB(DEB_ERRORS,printk(KERN_ERR "Resetting board.\n"));
 		/* Shutdown and restart */
 		i596_reset (dev, lp, ioaddr);
@@ -1050,7 +1048,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		DEB(DEB_ERRORS,printk(KERN_ERR "Kicking board.\n"));
 		lp->scb.command = CUC_START | RX_START;
 		CA (dev);
-		lp->last_restart = lp->stats.tx_packets;
+		lp->last_restart = dev->stats.tx_packets;
 	}
 
 	dev->trans_start = jiffies;
@@ -1082,7 +1080,7 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (tx_cmd->cmd.command) {
 		printk(KERN_NOTICE "%s: xmit ring full, dropping packet.\n",
 				dev->name);
-		lp->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 
 		dev_kfree_skb(skb);
 	} else {
@@ -1107,8 +1105,8 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		DEB(DEB_TXADDR,print_eth(skb->data, "tx-queued"));
 		i596_add_cmd(dev, &tx_cmd->cmd);
 
-		lp->stats.tx_packets++;
-		lp->stats.tx_bytes += length;
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += length;
 	}
 
 	netif_start_queue(dev);
@@ -1118,15 +1116,12 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static void print_eth(unsigned char *add, char *str)
 {
-	int i;
+	DECLARE_MAC_BUF(mac);
+	DECLARE_MAC_BUF(mac2);
 
-	printk(KERN_DEBUG "i596 0x%p, ", add);
-	for (i = 0; i < 6; i++)
-		printk(" %02X", add[i + 6]);
-	printk(" -->");
-	for (i = 0; i < 6; i++)
-		printk(" %02X", add[i]);
-	printk(" %02X%02X, %s\n", add[12], add[13], str);
+	printk(KERN_DEBUG "i596 0x%p, %s --> %s %02X%02X, %s\n",
+	       add, print_mac(mac, add + 6), print_mac(mac2, add),
+	       add[12], add[13], str);
 }
 
 static int io = 0x300;
@@ -1234,11 +1229,9 @@ struct net_device * __init i82596_probe(int unit)
 	DEB(DEB_PROBE,printk(KERN_INFO "%s", version));
 
 	/* The 82596-specific entries in the device structure. */
-	SET_MODULE_OWNER(dev);
 	dev->open = i596_open;
 	dev->stop = i596_close;
 	dev->hard_start_xmit = i596_start_xmit;
-	dev->get_stats = i596_get_stats;
 	dev->set_multicast_list = set_multicast_list;
 	dev->tx_timeout = i596_tx_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
@@ -1344,17 +1337,17 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 				if ((ptr->status) & STAT_OK) {
 					DEB(DEB_TXADDR,print_eth(skb->data, "tx-done"));
 				} else {
-					lp->stats.tx_errors++;
+					dev->stats.tx_errors++;
 					if ((ptr->status) & 0x0020)
-						lp->stats.collisions++;
+						dev->stats.collisions++;
 					if (!((ptr->status) & 0x0040))
-						lp->stats.tx_heartbeat_errors++;
+						dev->stats.tx_heartbeat_errors++;
 					if ((ptr->status) & 0x0400)
-						lp->stats.tx_carrier_errors++;
+						dev->stats.tx_carrier_errors++;
 					if ((ptr->status) & 0x0800)
-						lp->stats.collisions++;
+						dev->stats.collisions++;
 					if ((ptr->status) & 0x1000)
-						lp->stats.tx_aborted_errors++;
+						dev->stats.tx_aborted_errors++;
 				}
 
 				dev_kfree_skb_irq(skb);
@@ -1409,8 +1402,8 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 			if (netif_running(dev)) {
 				DEB(DEB_ERRORS,printk(KERN_ERR "%s: i596 interrupt receive unit inactive, status 0x%x\n", dev->name, status));
 				ack_cmd |= RX_START;
-				lp->stats.rx_errors++;
-				lp->stats.rx_fifo_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_fifo_errors++;
 				rebuild_rx_bufs(dev);
 			}
 		}
@@ -1493,14 +1486,6 @@ static int i596_close(struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *
- i596_get_stats(struct net_device *dev)
-{
-	struct i596_private *lp = dev->priv;
-
-	return &lp->stats;
-}
-
 /*
  *    Set or clear the multicast filter for this adaptor.
  */
@@ -1551,6 +1536,7 @@ static void set_multicast_list(struct net_device *dev)
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
+		DECLARE_MAC_BUF(mac);
 
 		if (wait_cfg(dev, &lp->mc_cmd.cmd, 1000, "multicast list change request timed out"))
 			return;
@@ -1561,8 +1547,8 @@ static void set_multicast_list(struct net_device *dev)
 		for (dmi = dev->mc_list; cnt && dmi != NULL; dmi = dmi->next, cnt--, cp += 6) {
 			memcpy(cp, dmi->dmi_addr, 6);
 			if (i596_debug > 1)
-				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %02x:%02x:%02x:%02x:%02x:%02x\n",
-						dev->name, cp[0],cp[1],cp[2],cp[3],cp[4],cp[5]));
+				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %s\n",
+						dev->name, print_mac(mac, cp)));
 		}
 		i596_add_cmd(dev, &cmd->cmd);
 	}

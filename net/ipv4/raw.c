@@ -59,6 +59,7 @@
 #include <linux/in_route.h>
 #include <linux/route.h>
 #include <linux/skbuff.h>
+#include <net/net_namespace.h>
 #include <net/dst.h>
 #include <net/sock.h>
 #include <linux/gfp.h>
@@ -313,6 +314,9 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 
 		iph->check = ip_fast_csum((unsigned char *)iph, iph->ihl);
 	}
+	if (iph->protocol == IPPROTO_ICMP)
+		icmp_out_count(((struct icmphdr *)
+			skb_transport_header(skb))->type);
 
 	err = NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, skb, NULL, rt->u.dst.dev,
 		      dst_output);
@@ -898,24 +902,8 @@ static const struct seq_operations raw_seq_ops = {
 
 static int raw_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct raw_iter_state *s;
-
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
-	if (!s)
-		goto out;
-	rc = seq_open(file, &raw_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &raw_seq_ops,
+			sizeof(struct raw_iter_state));
 }
 
 static const struct file_operations raw_seq_fops = {
@@ -928,13 +916,13 @@ static const struct file_operations raw_seq_fops = {
 
 int __init raw_proc_init(void)
 {
-	if (!proc_net_fops_create("raw", S_IRUGO, &raw_seq_fops))
+	if (!proc_net_fops_create(&init_net, "raw", S_IRUGO, &raw_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
 void __init raw_proc_exit(void)
 {
-	proc_net_remove("raw");
+	proc_net_remove(&init_net, "raw");
 }
 #endif /* CONFIG_PROC_FS */

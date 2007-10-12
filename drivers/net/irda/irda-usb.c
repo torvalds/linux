@@ -1635,7 +1635,6 @@ static int irda_usb_probe(struct usb_interface *intf,
 	if (!net) 
 		goto err_out;
 
-	SET_MODULE_OWNER(net);
 	SET_NETDEV_DEV(net, &intf->dev);
 	self = net->priv;
 	self->netdev = net;

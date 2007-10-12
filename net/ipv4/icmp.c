@@ -115,6 +115,7 @@ struct icmp_bxm {
  *	Statistics
  */
 DEFINE_SNMP_STAT(struct icmp_mib, icmp_statistics) __read_mostly;
+DEFINE_SNMP_STAT(struct icmpmsg_mib, icmpmsg_statistics) __read_mostly;
 
 /* An array of errno for error messages from dest unreach. */
 /* RFC 1122: 3.2.2.1 States that NET_UNREACH, HOST_UNREACH and SR_FAILED MUST be considered 'transient errs'. */
@@ -214,8 +215,6 @@ int sysctl_icmp_errors_use_inbound_ifaddr __read_mostly;
  */
 
 struct icmp_control {
-	int output_entry;	/* Field for increment on output */
-	int input_entry;	/* Field for increment on input */
 	void (*handler)(struct sk_buff *skb);
 	short   error;		/* This ICMP is classed as an error message */
 };
@@ -316,12 +315,10 @@ out:
 /*
  *	Maintain the counters used in the SNMP statistics for outgoing ICMP
  */
-static void icmp_out_count(int type)
+void icmp_out_count(unsigned char type)
 {
-	if (type <= NR_ICMP_TYPES) {
-		ICMP_INC_STATS(icmp_pointers[type].output_entry);
-		ICMP_INC_STATS(ICMP_MIB_OUTMSGS);
-	}
+	ICMPMSGOUT_INC_STATS(type);
+	ICMP_INC_STATS(ICMP_MIB_OUTMSGS);
 }
 
 /*
@@ -390,7 +387,6 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 		return;
 
 	icmp_param->data.icmph.checksum = 0;
-	icmp_out_count(icmp_param->data.icmph.type);
 
 	inet->tos = ip_hdr(skb)->tos;
 	daddr = ipc.addr = rt->rt_src;
@@ -517,7 +513,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		struct net_device *dev = NULL;
 
 		if (rt->fl.iif && sysctl_icmp_errors_use_inbound_ifaddr)
-			dev = dev_get_by_index(rt->fl.iif);
+			dev = dev_get_by_index(&init_net, rt->fl.iif);
 
 		if (dev) {
 			saddr = inet_select_addr(dev, 0, RT_SCOPE_LINK);
@@ -952,6 +948,7 @@ int icmp_rcv(struct sk_buff *skb)
 
 	icmph = icmp_hdr(skb);
 
+	ICMPMSGIN_INC_STATS_BH(icmph->type);
 	/*
 	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
 	 *
@@ -986,7 +983,6 @@ int icmp_rcv(struct sk_buff *skb)
 		}
 	}
 
-	ICMP_INC_STATS_BH(icmp_pointers[icmph->type].input_entry);
 	icmp_pointers[icmph->type].handler(skb);
 
 drop:
@@ -1002,109 +998,71 @@ error:
  */
 static const struct icmp_control icmp_pointers[NR_ICMP_TYPES + 1] = {
 	[ICMP_ECHOREPLY] = {
-		.output_entry = ICMP_MIB_OUTECHOREPS,
-		.input_entry = ICMP_MIB_INECHOREPS,
 		.handler = icmp_discard,
 	},
 	[1] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[2] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[ICMP_DEST_UNREACH] = {
-		.output_entry = ICMP_MIB_OUTDESTUNREACHS,
-		.input_entry = ICMP_MIB_INDESTUNREACHS,
 		.handler = icmp_unreach,
 		.error = 1,
 	},
 	[ICMP_SOURCE_QUENCH] = {
-		.output_entry = ICMP_MIB_OUTSRCQUENCHS,
-		.input_entry = ICMP_MIB_INSRCQUENCHS,
 		.handler = icmp_unreach,
 		.error = 1,
 	},
 	[ICMP_REDIRECT] = {
-		.output_entry = ICMP_MIB_OUTREDIRECTS,
-		.input_entry = ICMP_MIB_INREDIRECTS,
 		.handler = icmp_redirect,
 		.error = 1,
 	},
 	[6] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[7] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[ICMP_ECHO] = {
-		.output_entry = ICMP_MIB_OUTECHOS,
-		.input_entry = ICMP_MIB_INECHOS,
 		.handler = icmp_echo,
 	},
 	[9] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[10] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_INERRORS,
 		.handler = icmp_discard,
 		.error = 1,
 	},
 	[ICMP_TIME_EXCEEDED] = {
-		.output_entry = ICMP_MIB_OUTTIMEEXCDS,
-		.input_entry = ICMP_MIB_INTIMEEXCDS,
 		.handler = icmp_unreach,
 		.error = 1,
 	},
 	[ICMP_PARAMETERPROB] = {
-		.output_entry = ICMP_MIB_OUTPARMPROBS,
-		.input_entry = ICMP_MIB_INPARMPROBS,
 		.handler = icmp_unreach,
 		.error = 1,
 	},
 	[ICMP_TIMESTAMP] = {
-		.output_entry = ICMP_MIB_OUTTIMESTAMPS,
-		.input_entry = ICMP_MIB_INTIMESTAMPS,
 		.handler = icmp_timestamp,
 	},
 	[ICMP_TIMESTAMPREPLY] = {
-		.output_entry = ICMP_MIB_OUTTIMESTAMPREPS,
-		.input_entry = ICMP_MIB_INTIMESTAMPREPS,
 		.handler = icmp_discard,
 	},
 	[ICMP_INFO_REQUEST] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_DUMMY,
 		.handler = icmp_discard,
 	},
 	[ICMP_INFO_REPLY] = {
-		.output_entry = ICMP_MIB_DUMMY,
-		.input_entry = ICMP_MIB_DUMMY,
 		.handler = icmp_discard,
 	},
 	[ICMP_ADDRESS] = {
-		.output_entry = ICMP_MIB_OUTADDRMASKS,
-		.input_entry = ICMP_MIB_INADDRMASKS,
 		.handler = icmp_address,
 	},
 	[ICMP_ADDRESSREPLY] = {
-		.output_entry = ICMP_MIB_OUTADDRMASKREPS,
-		.input_entry = ICMP_MIB_INADDRMASKREPS,
 		.handler = icmp_address_reply,
 	},
 };
@@ -1146,4 +1104,5 @@ void __init icmp_init(struct net_proto_family *ops)
 EXPORT_SYMBOL(icmp_err_convert);
 EXPORT_SYMBOL(icmp_send);
 EXPORT_SYMBOL(icmp_statistics);
+EXPORT_SYMBOL(icmpmsg_statistics);
 EXPORT_SYMBOL(xrlim_allow);

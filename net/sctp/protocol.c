@@ -51,6 +51,8 @@
 #include <linux/netdevice.h>
 #include <linux/inetdevice.h>
 #include <linux/seq_file.h>
+#include <linux/bootmem.h>
+#include <net/net_namespace.h>
 #include <net/protocol.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
@@ -82,6 +84,10 @@ static struct sctp_af *sctp_af_v6_specific;
 struct kmem_cache *sctp_chunk_cachep __read_mostly;
 struct kmem_cache *sctp_bucket_cachep __read_mostly;
 
+int sysctl_sctp_mem[3];
+int sysctl_sctp_rmem[3];
+int sysctl_sctp_wmem[3];
+
 /* Return the address of the control sock. */
 struct sock *sctp_get_ctl_sock(void)
 {
@@ -93,7 +99,7 @@ static __init int sctp_proc_init(void)
 {
 	if (!proc_net_sctp) {
 		struct proc_dir_entry *ent;
-		ent = proc_mkdir("net/sctp", NULL);
+		ent = proc_mkdir("sctp", init_net.proc_net);
 		if (ent) {
 			ent->owner = THIS_MODULE;
 			proc_net_sctp = ent;
@@ -126,7 +132,7 @@ static void sctp_proc_exit(void)
 
 	if (proc_net_sctp) {
 		proc_net_sctp = NULL;
-		remove_proc_entry("net/sctp", NULL);
+		remove_proc_entry("sctp", init_net.proc_net);
 	}
 }
 
@@ -173,7 +179,7 @@ static void sctp_get_local_addr_list(void)
 	struct sctp_af *af;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		__list_for_each(pos, &sctp_address_families) {
 			af = list_entry(pos, struct sctp_af, list);
 			af->copy_addrlist(&sctp_local_addr_list, dev);
@@ -546,7 +552,7 @@ static struct sock *sctp_v4_create_accept_sk(struct sock *sk,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct inet_sock *newinet;
-	struct sock *newsk = sk_alloc(PF_INET, GFP_KERNEL, sk->sk_prot, 1);
+	struct sock *newsk = sk_alloc(sk->sk_net, PF_INET, GFP_KERNEL, sk->sk_prot, 1);
 
 	if (!newsk)
 		goto out;
@@ -987,6 +993,8 @@ SCTP_STATIC __init int sctp_init(void)
 	int i;
 	int status = -EINVAL;
 	unsigned long goal;
+	unsigned long limit;
+	int max_share;
 	int order;
 
 	/* SCTP_DEBUG sanity check. */
@@ -1077,6 +1085,31 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Initialize handle used for association ids. */
 	idr_init(&sctp_assocs_id);
 
+	/* Set the pressure threshold to be a fraction of global memory that
+	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
+	 * memory, with a floor of 128 pages.
+	 * Note this initalizes the data in sctpv6_prot too
+	 * Unabashedly stolen from tcp_init
+	 */
+	limit = min(num_physpages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
+	limit = (limit * (num_physpages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = max(limit, 128UL);
+	sysctl_sctp_mem[0] = limit / 4 * 3;
+	sysctl_sctp_mem[1] = limit;
+	sysctl_sctp_mem[2] = sysctl_sctp_mem[0] * 2;
+
+	/* Set per-socket limits to no more than 1/128 the pressure threshold*/
+	limit = (sysctl_sctp_mem[1]) << (PAGE_SHIFT - 7);
+	max_share = min(4UL*1024*1024, limit);
+
+	sysctl_sctp_rmem[0] = PAGE_SIZE; /* give each asoc 1 page min */
+	sysctl_sctp_rmem[1] = (1500 *(sizeof(struct sk_buff) + 1));
+	sysctl_sctp_rmem[2] = max(sysctl_sctp_rmem[1], max_share);
+
+	sysctl_sctp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_sctp_wmem[1] = 16*1024;
+	sysctl_sctp_wmem[2] = max(64*1024, max_share);
+
 	/* Size and allocate the association hash table.
 	 * The methodology is similar to that of the tcp hash tables.
 	 */
@@ -1139,9 +1172,6 @@ SCTP_STATIC __init int sctp_init(void)
 		sctp_port_hashtable[i].chain = NULL;
 	}
 
-	spin_lock_init(&sctp_port_alloc_lock);
-	sctp_port_rover = sysctl_local_port_range[0] - 1;
-
 	printk(KERN_INFO "SCTP: Hash tables configured "
 			 "(established %d bind %d)\n",
 		sctp_assoc_hashsize, sctp_port_hashsize);
@@ -1151,6 +1181,9 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Enable PR-SCTP by default. */
 	sctp_prsctp_enable = 1;
+
+	/* Disable AUTH by default. */
+	sctp_auth_enable = 0;
 
 	sctp_sysctl_register();
 

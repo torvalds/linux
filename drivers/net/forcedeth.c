@@ -159,6 +159,8 @@
 #define dprintk(x...)		do { } while (0)
 #endif
 
+#define TX_WORK_PER_LOOP  64
+#define RX_WORK_PER_LOOP  64
 
 /*
  * Hardware access:
@@ -744,6 +746,9 @@ struct nv_skb_map {
 /* in dev: base, irq */
 struct fe_priv {
 	spinlock_t lock;
+
+	struct net_device *dev;
+	struct napi_struct napi;
 
 	/* General data:
 	 * Locking: spin_lock(&np->lock); */
@@ -1586,9 +1591,10 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 static void nv_do_rx_refill(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
 
 	/* Just reschedule NAPI rx processing */
-	netif_rx_schedule(dev);
+	netif_rx_schedule(dev, &np->napi);
 }
 #else
 static void nv_do_rx_refill(unsigned long data)
@@ -2997,7 +3003,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 
 			/* Disable furthur receive irq's */
 			spin_lock(&np->lock);
@@ -3010,7 +3016,7 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 			spin_unlock(&np->lock);
 		}
 #else
-		if (nv_rx_process(dev, dev->weight)) {
+		if (nv_rx_process(dev, RX_WORK_PER_LOOP)) {
 			if (unlikely(nv_alloc_rx(dev))) {
 				spin_lock(&np->lock);
 				if (!np->in_shutdown)
@@ -3079,8 +3085,6 @@ static irqreturn_t nv_nic_irq(int foo, void *data)
 	return IRQ_RETVAL(i);
 }
 
-#define TX_WORK_PER_LOOP  64
-#define RX_WORK_PER_LOOP  64
 /**
  * All _optimized functions are used to help increase performance
  * (reduce CPU and increase throughput). They use descripter version 3,
@@ -3114,7 +3118,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 
 #ifdef CONFIG_FORCEDETH_NAPI
 		if (events & NVREG_IRQ_RX_ALL) {
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 
 			/* Disable furthur receive irq's */
 			spin_lock(&np->lock);
@@ -3127,7 +3131,7 @@ static irqreturn_t nv_nic_irq_optimized(int foo, void *data)
 			spin_unlock(&np->lock);
 		}
 #else
-		if (nv_rx_process_optimized(dev, dev->weight)) {
+		if (nv_rx_process_optimized(dev, RX_WORK_PER_LOOP)) {
 			if (unlikely(nv_alloc_rx_optimized(dev))) {
 				spin_lock(&np->lock);
 				if (!np->in_shutdown)
@@ -3245,19 +3249,19 @@ static irqreturn_t nv_nic_irq_tx(int foo, void *data)
 }
 
 #ifdef CONFIG_FORCEDETH_NAPI
-static int nv_napi_poll(struct net_device *dev, int *budget)
+static int nv_napi_poll(struct napi_struct *napi, int budget)
 {
-	int pkts, limit = min(*budget, dev->quota);
-	struct fe_priv *np = netdev_priv(dev);
+	struct fe_priv *np = container_of(napi, struct fe_priv, napi);
+	struct net_device *dev = np->dev;
 	u8 __iomem *base = get_hwbase(dev);
 	unsigned long flags;
-	int retcode;
+	int pkts, retcode;
 
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
-		pkts = nv_rx_process(dev, limit);
+		pkts = nv_rx_process(dev, budget);
 		retcode = nv_alloc_rx(dev);
 	} else {
-		pkts = nv_rx_process_optimized(dev, limit);
+		pkts = nv_rx_process_optimized(dev, budget);
 		retcode = nv_alloc_rx_optimized(dev);
 	}
 
@@ -3268,12 +3272,11 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 		spin_unlock_irqrestore(&np->lock, flags);
 	}
 
-	if (pkts < limit) {
-		/* all done, no more packets present */
-		netif_rx_complete(dev);
-
+	if (pkts < budget) {
 		/* re-enable receive interrupts */
 		spin_lock_irqsave(&np->lock, flags);
+
+		__netif_rx_complete(dev, napi);
 
 		np->irqmask |= NVREG_IRQ_RX_ALL;
 		if (np->msi_flags & NV_MSI_X_ENABLED)
@@ -3282,13 +3285,8 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 			writel(np->irqmask, base + NvRegIrqMask);
 
 		spin_unlock_irqrestore(&np->lock, flags);
-		return 0;
-	} else {
-		/* used up our quantum, so reschedule */
-		dev->quota -= pkts;
-		*budget -= pkts;
-		return 1;
 	}
+	return pkts;
 }
 #endif
 
@@ -3296,6 +3294,7 @@ static int nv_napi_poll(struct net_device *dev, int *budget)
 static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 {
 	struct net_device *dev = (struct net_device *) data;
+	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	u32 events;
 
@@ -3303,7 +3302,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 	writel(NVREG_IRQ_RX_ALL, base + NvRegMSIXIrqStatus);
 
 	if (events) {
-		netif_rx_schedule(dev);
+		netif_rx_schedule(dev, &np->napi);
 		/* disable receive interrupts on the nic */
 		writel(NVREG_IRQ_RX_ALL, base + NvRegIrqMask);
 		pci_push(base);
@@ -3329,7 +3328,7 @@ static irqreturn_t nv_nic_irq_rx(int foo, void *data)
 		if (!(events & np->irqmask))
 			break;
 
-		if (nv_rx_process_optimized(dev, dev->weight)) {
+		if (nv_rx_process_optimized(dev, RX_WORK_PER_LOOP)) {
 			if (unlikely(nv_alloc_rx_optimized(dev))) {
 				spin_lock_irqsave(&np->lock, flags);
 				if (!np->in_shutdown)
@@ -4334,16 +4333,26 @@ static int nv_set_sg(struct net_device *dev, u32 data)
 		return -EOPNOTSUPP;
 }
 
-static int nv_get_stats_count(struct net_device *dev)
+static int nv_get_sset_count(struct net_device *dev, int sset)
 {
 	struct fe_priv *np = netdev_priv(dev);
 
-	if (np->driver_data & DEV_HAS_STATISTICS_V1)
-		return NV_DEV_STATISTICS_V1_COUNT;
-	else if (np->driver_data & DEV_HAS_STATISTICS_V2)
-		return NV_DEV_STATISTICS_V2_COUNT;
-	else
-		return 0;
+	switch (sset) {
+	case ETH_SS_TEST:
+		if (np->driver_data & DEV_HAS_TEST_EXTENDED)
+			return NV_TEST_COUNT_EXTENDED;
+		else
+			return NV_TEST_COUNT_BASE;
+	case ETH_SS_STATS:
+		if (np->driver_data & DEV_HAS_STATISTICS_V1)
+			return NV_DEV_STATISTICS_V1_COUNT;
+		else if (np->driver_data & DEV_HAS_STATISTICS_V2)
+			return NV_DEV_STATISTICS_V2_COUNT;
+		else
+			return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *estats, u64 *buffer)
@@ -4353,17 +4362,7 @@ static void nv_get_ethtool_stats(struct net_device *dev, struct ethtool_stats *e
 	/* update stats */
 	nv_do_stats_poll((unsigned long)dev);
 
-	memcpy(buffer, &np->estats, nv_get_stats_count(dev)*sizeof(u64));
-}
-
-static int nv_self_test_count(struct net_device *dev)
-{
-	struct fe_priv *np = netdev_priv(dev);
-
-	if (np->driver_data & DEV_HAS_TEST_EXTENDED)
-		return NV_TEST_COUNT_EXTENDED;
-	else
-		return NV_TEST_COUNT_BASE;
+	memcpy(buffer, &np->estats, nv_get_sset_count(dev, ETH_SS_STATS)*sizeof(u64));
 }
 
 static int nv_link_test(struct net_device *dev)
@@ -4610,7 +4609,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	struct fe_priv *np = netdev_priv(dev);
 	u8 __iomem *base = get_hwbase(dev);
 	int result;
-	memset(buffer, 0, nv_self_test_count(dev)*sizeof(u64));
+	memset(buffer, 0, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(u64));
 
 	if (!nv_link_test(dev)) {
 		test->flags |= ETH_TEST_FL_FAILED;
@@ -4620,7 +4619,9 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (netif_running(dev)) {
 			netif_stop_queue(dev);
-			netif_poll_disable(dev);
+#ifdef CONFIG_FORCEDETH_NAPI
+			napi_disable(&np->napi);
+#endif
 			netif_tx_lock_bh(dev);
 			spin_lock_irq(&np->lock);
 			nv_disable_hw_interrupts(dev, np->irqmask);
@@ -4679,7 +4680,9 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			nv_start_rx(dev);
 			nv_start_tx(dev);
 			netif_start_queue(dev);
-			netif_poll_enable(dev);
+#ifdef CONFIG_FORCEDETH_NAPI
+			napi_enable(&np->napi);
+#endif
 			nv_enable_hw_interrupts(dev, np->irqmask);
 		}
 	}
@@ -4689,10 +4692,10 @@ static void nv_get_strings(struct net_device *dev, u32 stringset, u8 *buffer)
 {
 	switch (stringset) {
 	case ETH_SS_STATS:
-		memcpy(buffer, &nv_estats_str, nv_get_stats_count(dev)*sizeof(struct nv_ethtool_str));
+		memcpy(buffer, &nv_estats_str, nv_get_sset_count(dev, ETH_SS_STATS)*sizeof(struct nv_ethtool_str));
 		break;
 	case ETH_SS_TEST:
-		memcpy(buffer, &nv_etests_str, nv_self_test_count(dev)*sizeof(struct nv_ethtool_str));
+		memcpy(buffer, &nv_etests_str, nv_get_sset_count(dev, ETH_SS_TEST)*sizeof(struct nv_ethtool_str));
 		break;
 	}
 }
@@ -4707,7 +4710,6 @@ static const struct ethtool_ops ops = {
 	.get_regs_len = nv_get_regs_len,
 	.get_regs = nv_get_regs,
 	.nway_reset = nv_nway_reset,
-	.get_tso = ethtool_op_get_tso,
 	.set_tso = nv_set_tso,
 	.get_ringparam = nv_get_ringparam,
 	.set_ringparam = nv_set_ringparam,
@@ -4715,14 +4717,11 @@ static const struct ethtool_ops ops = {
 	.set_pauseparam = nv_set_pauseparam,
 	.get_rx_csum = nv_get_rx_csum,
 	.set_rx_csum = nv_set_rx_csum,
-	.get_tx_csum = ethtool_op_get_tx_csum,
 	.set_tx_csum = nv_set_tx_csum,
-	.get_sg = ethtool_op_get_sg,
 	.set_sg = nv_set_sg,
 	.get_strings = nv_get_strings,
-	.get_stats_count = nv_get_stats_count,
 	.get_ethtool_stats = nv_get_ethtool_stats,
-	.self_test_count = nv_self_test_count,
+	.get_sset_count = nv_get_sset_count,
 	.self_test = nv_self_test,
 };
 
@@ -4911,12 +4910,14 @@ static int nv_open(struct net_device *dev)
 	nv_start_rx(dev);
 	nv_start_tx(dev);
 	netif_start_queue(dev);
-	netif_poll_enable(dev);
+#ifdef CONFIG_FORCEDETH_NAPI
+	napi_enable(&np->napi);
+#endif
 
 	if (ret) {
 		netif_carrier_on(dev);
 	} else {
-		printk("%s: no link during initialization.\n", dev->name);
+		printk(KERN_INFO "%s: no link during initialization.\n", dev->name);
 		netif_carrier_off(dev);
 	}
 	if (oom)
@@ -4942,7 +4943,9 @@ static int nv_close(struct net_device *dev)
 	spin_lock_irq(&np->lock);
 	np->in_shutdown = 1;
 	spin_unlock_irq(&np->lock);
-	netif_poll_disable(dev);
+#ifdef CONFIG_FORCEDETH_NAPI
+	napi_disable(&np->napi);
+#endif
 	synchronize_irq(dev->irq);
 
 	del_timer_sync(&np->oom_kick);
@@ -4987,6 +4990,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	u32 powerstate, txreg;
 	u32 phystate_orig = 0, phystate;
 	int phyinitialized = 0;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct fe_priv));
 	err = -ENOMEM;
@@ -4994,9 +4998,9 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		goto out;
 
 	np = netdev_priv(dev);
+	np->dev = dev;
 	np->pci_dev = pci_dev;
 	spin_lock_init(&np->lock);
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pci_dev->dev);
 
 	init_timer(&np->oom_kick);
@@ -5155,9 +5159,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = nv_poll_controller;
 #endif
-	dev->weight = RX_WORK_PER_LOOP;
 #ifdef CONFIG_FORCEDETH_NAPI
-	dev->poll = nv_napi_poll;
+	netif_napi_add(dev, &np->napi, nv_napi_poll, RX_WORK_PER_LOOP);
 #endif
 	SET_ETHTOOL_OPS(dev, &ops);
 	dev->tx_timeout = nv_tx_timeout;
@@ -5202,10 +5205,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		 * Bad mac address. At least one bios sets the mac address
 		 * to 01:23:45:67:89:ab
 		 */
-		printk(KERN_ERR "%s: Invalid Mac address detected: %02x:%02x:%02x:%02x:%02x:%02x\n",
-			pci_name(pci_dev),
-			dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-			dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+		printk(KERN_ERR "%s: Invalid Mac address detected: %s\n",
+		       pci_name(pci_dev), print_mac(mac, dev->dev_addr));
 		printk(KERN_ERR "Please complain to your hardware vendor. Switching to a random MAC.\n");
 		dev->dev_addr[0] = 0x00;
 		dev->dev_addr[1] = 0x00;
@@ -5213,9 +5214,8 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		get_random_bytes(&dev->dev_addr[3], 3);
 	}
 
-	dprintk(KERN_DEBUG "%s: MAC Address %02x:%02x:%02x:%02x:%02x:%02x\n", pci_name(pci_dev),
-			dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-			dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	dprintk(KERN_DEBUG "%s: MAC Address %s\n",
+		pci_name(pci_dev), print_mac(mac, dev->dev_addr));
 
 	/* set mac address */
 	nv_copy_mac_to_hw(dev);

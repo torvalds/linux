@@ -447,6 +447,17 @@ config NET_ACT_IPT
 	  To compile this code as a module, choose M here: the
 	  module will be called ipt.
 
+config NET_ACT_NAT
+        tristate "Stateless NAT"
+        depends on NET_CLS_ACT
+        select NETFILTER
+        ---help---
+	  Say Y here to do stateless NAT on IPv4 packets.  You should use
+	  netfilter for NAT unless you know what you are doing.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called nat.
+
 config NET_ACT_PEDIT
         tristate "Packet Editing"
         depends on NET_CLS_ACT

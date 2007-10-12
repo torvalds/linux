@@ -591,7 +591,7 @@ static void irqrx_handler(struct net_device *dev)
 
 			skb = dev_alloc_skb(rda.length + 2);
 			if (skb == NULL)
-				priv->stat.rx_dropped++;
+				dev->stats.rx_dropped++;
 			else {
 				/* copy out data */
 
@@ -606,8 +606,8 @@ static void irqrx_handler(struct net_device *dev)
 
 				/* bookkeeping */
 				dev->last_rx = jiffies;
-				priv->stat.rx_packets++;
-				priv->stat.rx_bytes += rda.length;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += rda.length;
 
 				/* pass to the upper layers */
 				netif_rx(skb);
@@ -617,11 +617,11 @@ static void irqrx_handler(struct net_device *dev)
 		/* otherwise check error status bits and increase statistics */
 
 		else {
-			priv->stat.rx_errors++;
+			dev->stats.rx_errors++;
 			if (rda.status & RCREG_FAER)
-				priv->stat.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 			if (rda.status & RCREG_CRCR)
-				priv->stat.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 		}
 
 		/* descriptor processed, will become new last descriptor in queue */
@@ -656,8 +656,8 @@ static void irqtx_handler(struct net_device *dev)
 	memcpy_fromio(&tda, priv->base + priv->tdastart + (priv->currtxdescr * sizeof(tda_t)), sizeof(tda_t));
 
 	/* update statistics */
-	priv->stat.tx_packets++;
-	priv->stat.tx_bytes += tda.length;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += tda.length;
 
 	/* update our pointers */
 	priv->txused[priv->currtxdescr] = 0;
@@ -680,15 +680,15 @@ static void irqtxerr_handler(struct net_device *dev)
 	memcpy_fromio(&tda, priv->base + priv->tdastart + (priv->currtxdescr * sizeof(tda_t)), sizeof(tda_t));
 
 	/* update statistics */
-	priv->stat.tx_errors++;
+	dev->stats.tx_errors++;
 	if (tda.status & (TCREG_NCRS | TCREG_CRSL))
-		priv->stat.tx_carrier_errors++;
+		dev->stats.tx_carrier_errors++;
 	if (tda.status & TCREG_EXC)
-		priv->stat.tx_aborted_errors++;
+		dev->stats.tx_aborted_errors++;
 	if (tda.status & TCREG_OWC)
-		priv->stat.tx_window_errors++;
+		dev->stats.tx_window_errors++;
 	if (tda.status & TCREG_FU)
-		priv->stat.tx_fifo_errors++;
+		dev->stats.tx_fifo_errors++;
 
 	/* update our pointers */
 	priv->txused[priv->currtxdescr] = 0;
@@ -824,7 +824,7 @@ static int ibmlana_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (priv->txusedcnt >= TXBUFCNT) {
 		retval = -EIO;
-		priv->stat.tx_dropped++;
+		dev->stats.tx_dropped++;
 		goto tx_done;
 	}
 
@@ -876,14 +876,6 @@ tx_done:
 	return retval;
 }
 
-/* return pointer to Ethernet statistics */
-
-static struct net_device_stats *ibmlana_stats(struct net_device *dev)
-{
-	ibmlana_priv *priv = netdev_priv(dev);
-	return &priv->stat;
-}
-
 /* switch receiver mode. */
 
 static void ibmlana_set_multicast_list(struct net_device *dev)
@@ -906,8 +898,7 @@ static int ibmlana_probe(struct net_device *dev)
 	int base = 0, irq = 0, iobase = 0, memlen = 0;
 	ibmlana_priv *priv;
 	ibmlana_medium medium;
-
-	SET_MODULE_OWNER(dev);
+	DECLARE_MAC_BUF(mac);
 
 	/* can't work without an MCA bus ;-) */
 	if (MCA_bus == 0)
@@ -980,7 +971,6 @@ static int ibmlana_probe(struct net_device *dev)
 	dev->stop = ibmlana_close;
 	dev->hard_start_xmit = ibmlana_tx;
 	dev->do_ioctl = NULL;
-	dev->get_stats = ibmlana_stats;
 	dev->set_multicast_list = ibmlana_set_multicast_list;
 	dev->flags |= IFF_MULTICAST;
 
@@ -992,11 +982,10 @@ static int ibmlana_probe(struct net_device *dev)
 	/* print config */
 
 	printk(KERN_INFO "%s: IRQ %d, I/O %#lx, memory %#lx-%#lx, "
-	       "MAC address %02x:%02x:%02x:%02x:%02x:%02x.\n",
+	       "MAC address %s.\n",
 	       dev->name, priv->realirq, dev->base_addr,
 	       dev->mem_start, dev->mem_end - 1,
-	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	       print_mac(mac, dev->dev_addr));
 	printk(KERN_INFO "%s: %s medium\n", dev->name, MediaNames[priv->medium]);
 
 	/* reset board */

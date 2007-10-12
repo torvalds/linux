@@ -271,8 +271,6 @@ asmlinkage void do_softirq(void)
 	local_irq_restore(flags);
 }
 
-EXPORT_SYMBOL(do_softirq);
-
 #endif
 
 /*
@@ -331,8 +329,6 @@ inline fastcall void raise_softirq_irqoff(unsigned int nr)
 	if (!in_interrupt())
 		wakeup_softirqd();
 }
-
-EXPORT_SYMBOL(raise_softirq_irqoff);
 
 void fastcall raise_softirq(unsigned int nr)
 {

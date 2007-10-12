@@ -25,6 +25,7 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_CLUSTERIP.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/net_namespace.h>
 #include <net/checksum.h>
 
 #define CLUSTERIP_VERSION "0.8"
@@ -400,7 +401,7 @@ checkentry(const char *tablename,
 				return false;
 			}
 
-			dev = dev_get_by_name(e->ip.iniface);
+			dev = dev_get_by_name(&init_net, e->ip.iniface);
 			if (!dev) {
 				printk(KERN_WARNING "CLUSTERIP: no such interface %s\n", e->ip.iniface);
 				return false;
@@ -726,7 +727,7 @@ static int __init ipt_clusterip_init(void)
 		goto cleanup_target;
 
 #ifdef CONFIG_PROC_FS
-	clusterip_procdir = proc_mkdir("ipt_CLUSTERIP", proc_net);
+	clusterip_procdir = proc_mkdir("ipt_CLUSTERIP", init_net.proc_net);
 	if (!clusterip_procdir) {
 		printk(KERN_ERR "CLUSTERIP: Unable to proc dir entry\n");
 		ret = -ENOMEM;

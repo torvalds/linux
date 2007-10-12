@@ -17,7 +17,7 @@ static inline void wlan_postpone_association_work(wlan_private *priv)
 	if (priv->adapter->surpriseremoved)
 		return;
 	cancel_delayed_work(&priv->assoc_work);
-	queue_delayed_work(priv->assoc_thread, &priv->assoc_work, ASSOC_DELAY);
+	queue_delayed_work(priv->work_thread, &priv->assoc_work, ASSOC_DELAY);
 }
 
 static inline void wlan_cancel_association_work(wlan_private *priv)

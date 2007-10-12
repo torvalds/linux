@@ -38,7 +38,7 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
-#include <../drivers/net/8390.h>
+#include "../8390.h"
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -207,7 +207,7 @@ static hw_info_t hw_info[] = {
     { /* PCMCIA Technology OEM */ 0x01c8, 0x00, 0xa0, 0x0c, 0 }
 };
 
-#define NR_INFO		(sizeof(hw_info)/sizeof(hw_info_t))
+#define NR_INFO		ARRAY_SIZE(hw_info)
 
 static hw_info_t default_info = { 0, 0, 0, 0, 0 };
 static hw_info_t dl10019_info = { 0, 0, 0, 0, IS_DL10019|HAS_MII };
@@ -259,7 +259,6 @@ static int pcnet_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    SET_MODULE_OWNER(dev);
     dev->open = &pcnet_open;
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
@@ -375,7 +374,7 @@ static hw_info_t *get_prom(struct pcmcia_device *link)
     pcnet_reset_8390(dev);
     mdelay(10);
 
-    for (i = 0; i < sizeof(program_seq)/sizeof(program_seq[0]); i++)
+    for (i = 0; i < ARRAY_SIZE(program_seq); i++)
 	outb_p(program_seq[i].value, ioaddr + program_seq[i].offset);
 
     for (i = 0; i < 32; i++)
@@ -522,6 +521,7 @@ static int pcnet_config(struct pcmcia_device *link)
     int has_shmem = 0;
     u_short buf[64];
     hw_info_t *hw_info;
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "pcnet_config(0x%p)\n", link);
 
@@ -671,9 +671,7 @@ static int pcnet_config(struct pcmcia_device *link)
 	printk (" mem %#5lx,", dev->mem_start);
     if (info->flags & HAS_MISC_REG)
 	printk(" %s xcvr,", if_names[dev->if_port]);
-    printk(" hw_addr ");
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+    printk(" hw_addr %s\n", print_mac(mac, dev->dev_addr));
     return 0;
 
 cs_failed:
@@ -1664,6 +1662,7 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-CDF", 0x1b7827b2, 0xfec71e40),
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-CDL/T", 0x1b7827b2, 0x79fba4f7),
 	PCMCIA_DEVICE_PROD_ID12("Laneed", "LD-CDS", 0x1b7827b2, 0x931afaab),
+	PCMCIA_DEVICE_PROD_ID12("LEMEL", "LM-N89TX PRO", 0xbbefb52f, 0xd2897a97),
 	PCMCIA_DEVICE_PROD_ID12("Linksys", "Combo PCMCIA EthernetCard (EC2T)", 0x0733cc81, 0x32ee8c78),
 	PCMCIA_DEVICE_PROD_ID12("LINKSYS", "E-CARD", 0xf7cb0b07, 0x6701da11),
 	PCMCIA_DEVICE_PROD_ID12("Linksys", "EtherFast 10/100 Integrated PC Card (PCM100)", 0x0733cc81, 0x453c3f9d),

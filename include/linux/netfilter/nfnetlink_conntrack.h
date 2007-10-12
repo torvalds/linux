@@ -36,6 +36,7 @@ enum ctattr_type {
 	CTA_USE,
 	CTA_ID,
 	CTA_NAT_DST,
+	CTA_TUPLE_MASTER,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)

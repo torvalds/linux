@@ -232,9 +232,12 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 	}
 	if (neigh_event_send(n, skb_res) == 0) {
 		int err;
+
 		read_lock(&n->lock);
-		err = dev->hard_header(skb, dev, ntohs(skb->protocol), n->ha, NULL, skb->len);
+		err = dev_hard_header(skb, dev, ntohs(skb->protocol),
+				      n->ha, NULL, skb->len);
 		read_unlock(&n->lock);
+
 		if (err < 0) {
 			neigh_release(n);
 			return -EINVAL;
@@ -246,10 +249,10 @@ __teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *
 	return (skb_res == NULL) ? -EAGAIN : 1;
 }
 
-static __inline__ int
-teql_resolve(struct sk_buff *skb, struct sk_buff *skb_res, struct net_device *dev)
+static inline int teql_resolve(struct sk_buff *skb,
+			       struct sk_buff *skb_res, struct net_device *dev)
 {
-	if (dev->hard_header == NULL ||
+	if (dev->header_ops == NULL ||
 	    skb->dst == NULL ||
 	    skb->dst->neighbour == NULL)
 		return 0;
@@ -432,7 +435,6 @@ static __init void teql_master_setup(struct net_device *dev)
 	dev->tx_queue_len	= 100;
 	dev->flags		= IFF_NOARP;
 	dev->hard_header_len	= LL_MAX_HEADER;
-	SET_MODULE_OWNER(dev);
 }
 
 static LIST_HEAD(master_dev_list);

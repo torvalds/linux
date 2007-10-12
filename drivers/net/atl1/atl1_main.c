@@ -76,7 +76,6 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/mii.h>
-#include <linux/interrupt.h>
 #include <net/checksum.h>
 
 #include <asm/atomic.h>
@@ -1368,7 +1367,6 @@ rrd_ok:
 	if (count) {
 		u32 tpd_next_to_use;
 		u32 rfd_next_to_use;
-		u32 rrd_next_to_clean;
 
 		spin_lock(&adapter->mb_lock);
 
@@ -1513,7 +1511,7 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 	unsigned int f;
 	u16 tpd_next_to_use;
 	u16 proto_hdr_len;
-	u16 i, m, len12;
+	u16 len12;
 
 	first_buf_len -= skb->data_len;
 	nr_frags = skb_shinfo(skb)->nr_frags;
@@ -1537,6 +1535,8 @@ static void atl1_tx_map(struct atl1_adapter *adapter, struct sk_buff *skb,
 			tpd_next_to_use = 0;
 
 		if (first_buf_len > proto_hdr_len) {
+			int i, m;
+
 			len12 = first_buf_len - proto_hdr_len;
 			m = (len12 + ATL1_MAX_TX_BUF_LEN - 1) /
 				ATL1_MAX_TX_BUF_LEN;
@@ -2210,8 +2210,14 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 		return err;
 
 	/*
-	 * 64-bit DMA currently has data corruption problems, so let's just
-	 * use 32-bit DMA for now.  This is a big hack that is probably wrong.
+	 * The atl1 chip can DMA to 64-bit addresses, but it uses a single
+	 * shared register for the high 32 bits, so only a single, aligned,
+	 * 4 GB physical address range can be used at a time.
+	 *
+	 * Supporting 64-bit DMA on this hardware is more trouble than it's
+	 * worth.  It is far easier to limit to 32-bit DMA than update
+	 * various kernel subsystems to support the mechanics required by a
+	 * fixed-high-32-bit system.
 	 */
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (err) {
@@ -2235,7 +2241,6 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
 	}
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	pci_set_drvdata(pdev, netdev);

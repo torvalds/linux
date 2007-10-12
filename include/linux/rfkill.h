@@ -2,7 +2,7 @@
 #define __RFKILL_H
 
 /*
- * Copyright (C) 2006 Ivo van Doorn
+ * Copyright (C) 2006 - 2007 Ivo van Doorn
  * Copyright (C) 2007 Dmitry Torokhov
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,18 +26,19 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/leds.h>
 
 /**
  * enum rfkill_type - type of rfkill switch.
- * RFKILL_TYPE_WLAN: switch is no a Wireless network devices.
- * RFKILL_TYPE_BlUETOOTH: switch is on a bluetooth device.
- * RFKILL_TYPE_IRDA: switch is on an infrared devices.
+ * RFKILL_TYPE_WLAN: switch is on a 802.11 wireless network device.
+ * RFKILL_TYPE_BLUETOOTH: switch is on a bluetooth device.
+ * RFKILL_TYPE_UWB: switch is on a ultra wideband device.
  */
 enum rfkill_type {
-	RFKILL_TYPE_WLAN = 0,
-	RFKILL_TYPE_BLUETOOTH = 1,
-	RFKILL_TYPE_IRDA = 2,
-	RFKILL_TYPE_MAX = 3,
+	RFKILL_TYPE_WLAN ,
+	RFKILL_TYPE_BLUETOOTH,
+	RFKILL_TYPE_UWB,
+	RFKILL_TYPE_MAX,
 };
 
 enum rfkill_state {
@@ -51,11 +52,14 @@ enum rfkill_state {
  * @type: Radio type which the button controls, the value stored
  *	here should be a value from enum rfkill_type.
  * @state: State of the switch (on/off).
+ * @user_claim_unsupported: Whether the hardware supports exclusive
+ *	RF-kill control by userspace. Set this before registering.
  * @user_claim: Set when the switch is controlled exlusively by userspace.
  * @mutex: Guards switch state transitions
  * @data: Pointer to the RF button drivers private data which will be
  *	passed along when toggling radio state.
  * @toggle_radio(): Mandatory handler to control state of the radio.
+ * @led_trigger: A LED trigger for this button's LED.
  * @dev: Device structure integrating the switch into device tree.
  * @node: Used to place switch into list of all switches known to the
  *	the system.
@@ -67,12 +71,17 @@ struct rfkill {
 	enum rfkill_type type;
 
 	enum rfkill_state state;
+	bool user_claim_unsupported;
 	bool user_claim;
 
 	struct mutex mutex;
 
 	void *data;
 	int (*toggle_radio)(void *data, enum rfkill_state state);
+
+#ifdef CONFIG_RFKILL_LEDS
+	struct led_trigger led_trigger;
+#endif
 
 	struct device dev;
 	struct list_head node;
@@ -84,6 +93,19 @@ void rfkill_free(struct rfkill *rfkill);
 int rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
 
-void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
+/**
+ * rfkill_get_led_name - Get the LED trigger name for the button's LED.
+ * This function might return a NULL pointer if registering of the
+ * LED trigger failed.
+ * Use this as "default_trigger" for the LED.
+ */
+static inline char *rfkill_get_led_name(struct rfkill *rfkill)
+{
+#ifdef CONFIG_RFKILL_LEDS
+	return (char *)(rfkill->led_trigger.name);
+#else
+	return NULL;
+#endif
+}
 
 #endif /* RFKILL_H */

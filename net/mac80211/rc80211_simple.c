@@ -147,14 +147,6 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 	srctrl = sta->rate_ctrl_priv;
 	srctrl->tx_num_xmit++;
 	if (status->excessive_retries) {
-		sta->antenna_sel_tx = sta->antenna_sel_tx == 1 ? 2 : 1;
-		sta->antenna_sel_rx = sta->antenna_sel_rx == 1 ? 2 : 1;
-		if (local->sta_antenna_sel == STA_ANTENNA_SEL_SW_CTRL_DEBUG) {
-			printk(KERN_DEBUG "%s: " MAC_FMT " TX antenna --> %d "
-			       "RX antenna --> %d (@%lu)\n",
-			       dev->name, MAC_ARG(hdr->addr1),
-			       sta->antenna_sel_tx, sta->antenna_sel_rx, jiffies);
-		}
 		srctrl->tx_num_failures++;
 		sta->tx_retry_failed++;
 		sta->tx_num_consecutive_failures++;
@@ -209,9 +201,10 @@ static void rate_control_simple_tx_status(void *priv, struct net_device *dev,
 		srctrl->avg_rate_update = jiffies;
 		if (srctrl->tx_avg_rate_num > 0) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-			printk(KERN_DEBUG "%s: STA " MAC_FMT " Average rate: "
+			DECLARE_MAC_BUF(mac);
+			printk(KERN_DEBUG "%s: STA %s Average rate: "
 			       "%d (%d/%d)\n",
-			       dev->name, MAC_ARG(sta->addr),
+			       dev->name, print_mac(mac, sta->addr),
 			       srctrl->tx_avg_rate_sum /
 			       srctrl->tx_avg_rate_num,
 			       srctrl->tx_avg_rate_sum,

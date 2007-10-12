@@ -264,10 +264,10 @@ struct de_srom_info_leaf {
 } __attribute__((packed));
 
 struct de_desc {
-	u32			opts1;
-	u32			opts2;
-	u32			addr1;
-	u32			addr2;
+	__le32			opts1;
+	__le32			opts2;
+	__le32			addr1;
+	__le32			addr2;
 };
 
 struct media_info {
@@ -1670,8 +1670,6 @@ static void de_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 
 static const struct ethtool_ops de_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
-	.get_sg			= ethtool_op_get_sg,
 	.get_drvinfo		= de_get_drvinfo,
 	.get_regs_len		= de_get_regs_len,
 	.get_settings		= de_get_settings,
@@ -1773,8 +1771,8 @@ static void __devinit de21041_get_srom_info (struct de_private *de)
 
 	/* download entire eeprom */
 	for (i = 0; i < DE_EEPROM_WORDS; i++)
-		((u16 *)ee_data)[i] =
-			le16_to_cpu(tulip_read_eeprom(de->regs, i, ee_addr_size));
+		((__le16 *)ee_data)[i] =
+			cpu_to_le16(tulip_read_eeprom(de->regs, i, ee_addr_size));
 
 	/* DEC now has a specification but early board makers
 	   just put the address in the first EEPROM locations. */
@@ -1931,6 +1929,7 @@ static int __devinit de_init_one (struct pci_dev *pdev,
 	void __iomem *regs;
 	unsigned long pciaddr;
 	static int board_idx = -1;
+	DECLARE_MAC_BUF(mac);
 
 	board_idx++;
 
@@ -1944,7 +1943,6 @@ static int __devinit de_init_one (struct pci_dev *pdev,
 	if (!dev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev->open = de_open;
 	dev->stop = de_close;
@@ -2045,15 +2043,11 @@ static int __devinit de_init_one (struct pci_dev *pdev,
 		goto err_out_iomap;
 
 	/* print info about board and interface just registered */
-	printk (KERN_INFO "%s: %s at 0x%lx, "
-		"%02x:%02x:%02x:%02x:%02x:%02x, "
-		"IRQ %d\n",
+	printk (KERN_INFO "%s: %s at 0x%lx, %s, IRQ %d\n",
 		dev->name,
 		de->de21040 ? "21040" : "21041",
 		dev->base_addr,
-		dev->dev_addr[0], dev->dev_addr[1],
-		dev->dev_addr[2], dev->dev_addr[3],
-		dev->dev_addr[4], dev->dev_addr[5],
+		print_mac(mac, dev->dev_addr),
 		dev->irq);
 
 	pci_set_drvdata(pdev, dev);

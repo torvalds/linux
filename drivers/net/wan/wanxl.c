@@ -779,7 +779,6 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 		port->dev = dev;
 		hdlc = dev_to_hdlc(dev);
 		spin_lock_init(&port->lock);
-		SET_MODULE_OWNER(dev);
 		dev->tx_queue_len = 50;
 		dev->do_ioctl = wanxl_ioctl;
 		dev->open = wanxl_open;

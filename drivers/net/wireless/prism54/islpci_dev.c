@@ -808,7 +808,6 @@ islpci_setup(struct pci_dev *pdev)
 	if (!ndev)
 		return ndev;
 
-	SET_MODULE_OWNER(ndev);
 	pci_set_drvdata(pdev, ndev);
 #if defined(SET_NETDEV_DEV)
 	SET_NETDEV_DEV(ndev, &pdev->dev);

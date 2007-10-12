@@ -29,6 +29,7 @@
 #include <net/ah.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <net/icmp.h>
 #include <net/ipv6.h>
@@ -235,11 +236,12 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 		char hdrs[0];
 	} *tmp_ext;
 
-	top_iph = (struct ipv6hdr *)skb->data;
+	skb_push(skb, -skb_network_offset(skb));
+	top_iph = ipv6_hdr(skb);
 	top_iph->payload_len = htons(skb->len - sizeof(*top_iph));
 
-	nexthdr = *skb_network_header(skb);
-	*skb_network_header(skb) = IPPROTO_AH;
+	nexthdr = *skb_mac_header(skb);
+	*skb_mac_header(skb) = IPPROTO_AH;
 
 	/* When there are no extension headers, we only need to save the first
 	 * 8 bytes of the base IP header.
@@ -268,7 +270,7 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 			goto error_free_iph;
 	}
 
-	ah = (struct ip_auth_hdr *)skb_transport_header(skb);
+	ah = ip_auth_hdr(skb);
 	ah->nexthdr = nexthdr;
 
 	top_iph->priority    = 0;
@@ -278,19 +280,19 @@ static int ah6_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->hop_limit   = 0;
 
 	ahp = x->data;
-	ah->hdrlen  = (XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) +
-				   ahp->icv_trunc_len) >> 2) - 2;
+	ah->hdrlen  = (XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len) >> 2) - 2;
 
 	ah->reserved = 0;
 	ah->spi = x->id.spi;
-	ah->seq_no = htonl(++x->replay.oseq);
-	xfrm_aevent_doreplay(x);
+	ah->seq_no = htonl(XFRM_SKB_CB(skb)->seq);
+
+	spin_lock_bh(&x->lock);
 	err = ah_mac_digest(ahp, skb, ah->auth_data);
+	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
+	spin_unlock_bh(&x->lock);
+
 	if (err)
 		goto error_free_iph;
-	memcpy(ah->auth_data, ahp->work_icv, ahp->icv_trunc_len);
-
-	err = 0;
 
 	memcpy(top_iph, tmp_base, sizeof(tmp_base));
 	if (tmp_ext) {
@@ -324,7 +326,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	 * There is offset of AH before IPv6 header after the process.
 	 */
 
-	struct ipv6_auth_hdr *ah;
+	struct ip_auth_hdr *ah;
 	struct ipv6hdr *ip6h;
 	struct ah_data *ahp;
 	unsigned char *tmp_hdr = NULL;
@@ -343,13 +345,13 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 
 	hdr_len = skb->data - skb_network_header(skb);
-	ah = (struct ipv6_auth_hdr*)skb->data;
+	ah = (struct ip_auth_hdr *)skb->data;
 	ahp = x->data;
 	nexthdr = ah->nexthdr;
 	ah_hlen = (ah->hdrlen + 2) << 2;
 
-	if (ah_hlen != XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_full_len) &&
-	    ah_hlen != XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len))
+	if (ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_full_len) &&
+	    ah_hlen != XFRM_ALIGN8(sizeof(*ah) + ahp->icv_trunc_len))
 		goto out;
 
 	if (!pskb_may_pull(skb, ah_hlen))
@@ -429,10 +431,6 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (!x->aalg)
 		goto error;
 
-	/* null auth can use a zero length key */
-	if (x->aalg->alg_key_len > 512)
-		goto error;
-
 	if (x->encap)
 		goto error;
 
@@ -440,14 +438,13 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (ahp == NULL)
 		return -ENOMEM;
 
-	ahp->key = x->aalg->alg_key;
-	ahp->key_len = (x->aalg->alg_key_len+7)/8;
 	tfm = crypto_alloc_hash(x->aalg->alg_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm))
 		goto error;
 
 	ahp->tfm = tfm;
-	if (crypto_hash_setkey(tfm, ahp->key, ahp->key_len))
+	if (crypto_hash_setkey(tfm, x->aalg->alg_key,
+			       (x->aalg->alg_key_len + 7) / 8))
 		goto error;
 
 	/*
@@ -476,7 +473,8 @@ static int ah6_init_state(struct xfrm_state *x)
 	if (!ahp->work_icv)
 		goto error;
 
-	x->props.header_len = XFRM_ALIGN8(sizeof(struct ipv6_auth_hdr) + ahp->icv_trunc_len);
+	x->props.header_len = XFRM_ALIGN8(sizeof(struct ip_auth_hdr) +
+					  ahp->icv_trunc_len);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct ipv6hdr);
 	x->data = ahp;
@@ -511,6 +509,7 @@ static struct xfrm_type ah6_type =
 	.description	= "AH6",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_AH,
+	.flags		= XFRM_TYPE_REPLAY_PROT,
 	.init_state	= ah6_init_state,
 	.destructor	= ah6_destroy,
 	.input		= ah6_input,

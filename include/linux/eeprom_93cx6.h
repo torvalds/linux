@@ -21,13 +21,14 @@
 /*
 	Module: eeprom_93cx6
 	Abstract: EEPROM reader datastructures for 93cx6 chipsets.
-	Supported chipsets: 93c46 & 93c66.
+	Supported chipsets: 93c46, 93c56 and 93c66.
  */
 
 /*
  * EEPROM operation defines.
  */
 #define PCI_EEPROM_WIDTH_93C46	6
+#define PCI_EEPROM_WIDTH_93C56	8
 #define PCI_EEPROM_WIDTH_93C66	8
 #define PCI_EEPROM_WIDTH_OPCODE	3
 #define PCI_EEPROM_WRITE_OPCODE	0x05

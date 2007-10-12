@@ -47,15 +47,11 @@
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-
+#include <linux/phy.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-
 #include <linux/platform_device.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
 
 #include <asm/dma.h>
 #include <linux/dma-mapping.h>
@@ -98,6 +94,9 @@ static struct net_dma_desc_rx *current_rx_ptr;
 static struct net_dma_desc_tx *current_tx_ptr;
 static struct net_dma_desc_tx *tx_desc;
 static struct net_dma_desc_rx *rx_desc;
+
+static void bf537mac_disable(void);
+static void bf537mac_enable(void);
 
 static void desc_list_free(void)
 {
@@ -287,8 +286,11 @@ static int setup_pin_mux(int action)
 	return 0;
 }
 
+/*
+ * MII operations
+ */
 /* Wait until the previous MDC/MDIO transaction has completed */
-static void poll_mdc_done(void)
+static void mdio_poll(void)
 {
 	int timeout_cnt = MAX_TIMEOUT_CNT;
 
@@ -304,154 +306,201 @@ static void poll_mdc_done(void)
 }
 
 /* Read an off-chip register in a PHY through the MDC/MDIO port */
-static u16 read_phy_reg(u16 PHYAddr, u16 RegAddr)
+static int mdiobus_read(struct mii_bus *bus, int phy_addr, int regnum)
 {
-	poll_mdc_done();
-	/* read mode */
-	bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) |
-				SET_REGAD(RegAddr) |
-				STABUSY);
-	poll_mdc_done();
+	mdio_poll();
 
-	return (u16) bfin_read_EMAC_STADAT();
+	/* read mode */
+	bfin_write_EMAC_STAADD(SET_PHYAD((u16) phy_addr) |
+				SET_REGAD((u16) regnum) |
+				STABUSY);
+
+	mdio_poll();
+
+	return (int) bfin_read_EMAC_STADAT();
 }
 
 /* Write an off-chip register in a PHY through the MDC/MDIO port */
-static void raw_write_phy_reg(u16 PHYAddr, u16 RegAddr, u32 Data)
+static int mdiobus_write(struct mii_bus *bus, int phy_addr, int regnum,
+			 u16 value)
 {
-	bfin_write_EMAC_STADAT(Data);
+	mdio_poll();
+
+	bfin_write_EMAC_STADAT((u32) value);
 
 	/* write mode */
-	bfin_write_EMAC_STAADD(SET_PHYAD(PHYAddr) |
-				SET_REGAD(RegAddr) |
+	bfin_write_EMAC_STAADD(SET_PHYAD((u16) phy_addr) |
+				SET_REGAD((u16) regnum) |
 				STAOP |
 				STABUSY);
 
-	poll_mdc_done();
+	mdio_poll();
+
+	return 0;
 }
 
-static void write_phy_reg(u16 PHYAddr, u16 RegAddr, u32 Data)
+static int mdiobus_reset(struct mii_bus *bus)
 {
-	poll_mdc_done();
-	raw_write_phy_reg(PHYAddr, RegAddr, Data);
+	return 0;
 }
 
-/* set up the phy */
-static void bf537mac_setphy(struct net_device *dev)
+static void bf537_adjust_link(struct net_device *dev)
 {
-	u16 phydat;
 	struct bf537mac_local *lp = netdev_priv(dev);
+	struct phy_device *phydev = lp->phydev;
+	unsigned long flags;
+	int new_state = 0;
 
-	/* Program PHY registers */
-	pr_debug("start setting up phy\n");
+	spin_lock_irqsave(&lp->lock, flags);
+	if (phydev->link) {
+		/* Now we make sure that we can be in full duplex mode.
+		 * If not, we operate in half-duplex mode. */
+		if (phydev->duplex != lp->old_duplex) {
+			u32 opmode = bfin_read_EMAC_OPMODE();
+			new_state = 1;
 
-	/* issue a reset */
-	raw_write_phy_reg(lp->PhyAddr, PHYREG_MODECTL, 0x8000);
+			if (phydev->duplex)
+				opmode |= FDMODE;
+			else
+				opmode &= ~(FDMODE);
 
-	/* wait half a second */
-	msleep(500);
+			bfin_write_EMAC_OPMODE(opmode);
+			lp->old_duplex = phydev->duplex;
+		}
 
-	phydat = read_phy_reg(lp->PhyAddr, PHYREG_MODECTL);
+		if (phydev->speed != lp->old_speed) {
+#if defined(CONFIG_BFIN_MAC_RMII)
+			u32 opmode = bfin_read_EMAC_OPMODE();
+			bf537mac_disable();
+			switch (phydev->speed) {
+			case 10:
+				opmode |= RMII_10;
+				break;
+			case 100:
+				opmode &= ~(RMII_10);
+				break;
+			default:
+				printk(KERN_WARNING
+					"%s: Ack!  Speed (%d) is not 10/100!\n",
+					DRV_NAME, phydev->speed);
+				break;
+			}
+			bfin_write_EMAC_OPMODE(opmode);
+			bf537mac_enable();
+#endif
 
-	/* advertise flow control supported */
-	phydat = read_phy_reg(lp->PhyAddr, PHYREG_ANAR);
-	phydat |= (1 << 10);
-	write_phy_reg(lp->PhyAddr, PHYREG_ANAR, phydat);
+			new_state = 1;
+			lp->old_speed = phydev->speed;
+		}
 
-	phydat = 0;
-	if (lp->Negotiate)
-		phydat |= 0x1000;	/* enable auto negotiation */
-	else {
-		if (lp->FullDuplex)
-			phydat |= (1 << 8);	/* full duplex */
-		else
-			phydat &= (~(1 << 8));	/* half duplex */
-
-		if (!lp->Port10)
-			phydat |= (1 << 13);	/* 100 Mbps */
-		else
-			phydat &= (~(1 << 13));	/* 10 Mbps */
+		if (!lp->old_link) {
+			new_state = 1;
+			lp->old_link = 1;
+			netif_schedule(dev);
+		}
+	} else if (lp->old_link) {
+		new_state = 1;
+		lp->old_link = 0;
+		lp->old_speed = 0;
+		lp->old_duplex = -1;
 	}
 
-	if (lp->Loopback)
-		phydat |= (1 << 14);	/* enable TX->RX loopback */
-
-	write_phy_reg(lp->PhyAddr, PHYREG_MODECTL, phydat);
-	msleep(500);
-
-	phydat = read_phy_reg(lp->PhyAddr, PHYREG_MODECTL);
-	/* check for SMSC PHY */
-	if ((read_phy_reg(lp->PhyAddr, PHYREG_PHYID1) == 0x7) &&
-	((read_phy_reg(lp->PhyAddr, PHYREG_PHYID2) & 0xfff0) == 0xC0A0)) {
-		/*
-		 * we have SMSC PHY so reqest interrupt
-		 * on link down condition
-		 */
-
-		/* enable interrupts */
-		write_phy_reg(lp->PhyAddr, 30, 0x0ff);
+	if (new_state) {
+		u32 opmode = bfin_read_EMAC_OPMODE();
+		phy_print_status(phydev);
+		pr_debug("EMAC_OPMODE = 0x%08x\n", opmode);
 	}
+
+	spin_unlock_irqrestore(&lp->lock, flags);
+}
+
+static int mii_probe(struct net_device *dev)
+{
+	struct bf537mac_local *lp = netdev_priv(dev);
+	struct phy_device *phydev = NULL;
+	unsigned short sysctl;
+	int i;
+
+	/* Enable PHY output early */
+	if (!(bfin_read_VR_CTL() & PHYCLKOE))
+		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
+
+	/* MDC  = 2.5 MHz */
+	sysctl = bfin_read_EMAC_SYSCTL();
+	sysctl |= SET_MDCDIV(24);
+	bfin_write_EMAC_SYSCTL(sysctl);
+
+	/* search for connect PHY device */
+	for (i = 0; i < PHY_MAX_ADDR; i++) {
+		struct phy_device *const tmp_phydev = lp->mii_bus.phy_map[i];
+
+		if (!tmp_phydev)
+			continue; /* no PHY here... */
+
+		phydev = tmp_phydev;
+		break; /* found it */
+	}
+
+	/* now we are supposed to have a proper phydev, to attach to... */
+	if (!phydev) {
+		printk(KERN_INFO "%s: Don't found any phy device at all\n",
+			dev->name);
+		return -ENODEV;
+	}
+
+#if defined(CONFIG_BFIN_MAC_RMII)
+	phydev = phy_connect(dev, phydev->dev.bus_id, &bf537_adjust_link, 0,
+			PHY_INTERFACE_MODE_RMII);
+#else
+	phydev = phy_connect(dev, phydev->dev.bus_id, &bf537_adjust_link, 0,
+			PHY_INTERFACE_MODE_MII);
+#endif
+
+	if (IS_ERR(phydev)) {
+		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
+		return PTR_ERR(phydev);
+	}
+
+	/* mask with MAC supported features */
+	phydev->supported &= (SUPPORTED_10baseT_Half
+			      | SUPPORTED_10baseT_Full
+			      | SUPPORTED_100baseT_Half
+			      | SUPPORTED_100baseT_Full
+			      | SUPPORTED_Autoneg
+			      | SUPPORTED_Pause | SUPPORTED_Asym_Pause
+			      | SUPPORTED_MII
+			      | SUPPORTED_TP);
+
+	phydev->advertising = phydev->supported;
+
+	lp->old_link = 0;
+	lp->old_speed = 0;
+	lp->old_duplex = -1;
+	lp->phydev = phydev;
+
+	printk(KERN_INFO "%s: attached PHY driver [%s] "
+	       "(mii_bus:phy_addr=%s, irq=%d)\n",
+	       DRV_NAME, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+
+	return 0;
 }
 
 /**************************************************************************/
 void setup_system_regs(struct net_device *dev)
 {
-	int phyaddr;
-	unsigned short sysctl, phydat;
-	u32 opmode;
-	struct bf537mac_local *lp = netdev_priv(dev);
-	int count = 0;
+	unsigned short sysctl;
 
-	phyaddr = lp->PhyAddr;
-
-	/* Enable PHY output */
-	if (!(bfin_read_VR_CTL() & PHYCLKOE))
-		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
-
-	/* MDC  = 2.5 MHz */
-	sysctl = SET_MDCDIV(24);
-	/* Odd word alignment for Receive Frame DMA word */
-	/* Configure checksum support and rcve frame word alignment */
+	/*
+	 * Odd word alignment for Receive Frame DMA word
+	 * Configure checksum support and rcve frame word alignment
+	 */
+	sysctl = bfin_read_EMAC_SYSCTL();
 #if defined(BFIN_MAC_CSUM_OFFLOAD)
 	sysctl |= RXDWA | RXCKS;
 #else
 	sysctl |= RXDWA;
 #endif
 	bfin_write_EMAC_SYSCTL(sysctl);
-	/* auto negotiation on  */
-	/* full duplex          */
-	/* 100 Mbps             */
-	phydat = PHY_ANEG_EN | PHY_DUPLEX | PHY_SPD_SET;
-	write_phy_reg(phyaddr, PHYREG_MODECTL, phydat);
-
-	/* test if full duplex supported */
-	do {
-		msleep(100);
-		phydat = read_phy_reg(phyaddr, PHYREG_MODESTAT);
-		if (count > 30) {
-			printk(KERN_NOTICE DRV_NAME ": Link is down\n");
-			printk(KERN_NOTICE DRV_NAME
-				 "please check your network connection\n");
-			break;
-		}
-		count++;
-	} while (!(phydat & 0x0004));
-
-	phydat = read_phy_reg(phyaddr, PHYREG_ANLPAR);
-
-	if ((phydat & 0x0100) || (phydat & 0x0040)) {
-		opmode = FDMODE;
-	} else {
-		opmode = 0;
-		printk(KERN_INFO DRV_NAME
-			": Network is set to half duplex\n");
-	}
-
-#if defined(CONFIG_BFIN_MAC_RMII)
-	opmode |= RMII; /* For Now only 100MBit are supported */
-#endif
-
-	bfin_write_EMAC_OPMODE(opmode);
 
 	bfin_write_EMAC_MMC_CTL(RSTC | CROLL);
 
@@ -468,7 +517,7 @@ void setup_system_regs(struct net_device *dev)
 	bfin_write_DMA1_Y_MODIFY(0);
 }
 
-void setup_mac_addr(u8 * mac_addr)
+static void setup_mac_addr(u8 *mac_addr)
 {
 	u32 addr_low = le32_to_cpu(*(__le32 *) & mac_addr[0]);
 	u16 addr_hi = le16_to_cpu(*(__le16 *) & mac_addr[4]);
@@ -476,6 +525,16 @@ void setup_mac_addr(u8 * mac_addr)
 	/* this depends on a little-endian machine */
 	bfin_write_EMAC_ADDRLO(addr_low);
 	bfin_write_EMAC_ADDRHI(addr_hi);
+}
+
+static int bf537mac_set_mac_address(struct net_device *dev, void *p)
+{
+	struct sockaddr *addr = p;
+	if (netif_running(dev))
+		return -EBUSY;
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	setup_mac_addr(dev->dev_addr);
+	return 0;
 }
 
 static void adjust_tx_list(void)
@@ -584,8 +643,8 @@ out:
 	adjust_tx_list();
 	current_tx_ptr = current_tx_ptr->next;
 	dev->trans_start = jiffies;
-	lp->stats.tx_packets++;
-	lp->stats.tx_bytes += (skb->len);
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += (skb->len);
 	return 0;
 }
 
@@ -601,7 +660,7 @@ static void bf537mac_rx(struct net_device *dev)
 	if (!new_skb) {
 		printk(KERN_NOTICE DRV_NAME
 		       ": rx: low on mem - packet dropped\n");
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		goto out;
 	}
 	/* reserve 2 bytes for RXDWA padding */
@@ -623,8 +682,8 @@ static void bf537mac_rx(struct net_device *dev)
 #endif
 
 	netif_rx(skb);
-	lp->stats.rx_packets++;
-	lp->stats.rx_bytes += len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += len;
 	current_rx_ptr->status.status_word = 0x00000000;
 	current_rx_ptr = current_rx_ptr->next;
 
@@ -667,7 +726,7 @@ static void bf537mac_poll(struct net_device *dev)
 }
 #endif				/* CONFIG_NET_POLL_CONTROLLER */
 
-static void bf537mac_reset(void)
+static void bf537mac_disable(void)
 {
 	unsigned int opmode;
 
@@ -681,18 +740,18 @@ static void bf537mac_reset(void)
 /*
  * Enable Interrupts, Receive, and Transmit
  */
-static int bf537mac_enable(struct net_device *dev)
+static void bf537mac_enable(void)
 {
 	u32 opmode;
 
-	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
+	pr_debug("%s: %s\n", DRV_NAME, __FUNCTION__);
 
 	/* Set RX DMA */
 	bfin_write_DMA1_NEXT_DESC_PTR(&(rx_list_head->desc_a));
 	bfin_write_DMA1_CONFIG(rx_list_head->desc_a.config);
 
 	/* Wait MII done */
-	poll_mdc_done();
+	mdio_poll();
 
 	/* We enable only RX here */
 	/* ASTP   : Enable Automatic Pad Stripping
@@ -716,8 +775,6 @@ static int bf537mac_enable(struct net_device *dev)
 #endif
 	/* Turn on the EMAC rx */
 	bfin_write_EMAC_OPMODE(opmode);
-
-	return 0;
 }
 
 /* Our watchdog timed out. Called by the networking layer */
@@ -725,30 +782,16 @@ static void bf537mac_timeout(struct net_device *dev)
 {
 	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
 
-	bf537mac_reset();
+	bf537mac_disable();
 
 	/* reset tx queue */
 	tx_list_tail = tx_list_head->next;
 
-	bf537mac_enable(dev);
+	bf537mac_enable();
 
 	/* We can accept TX packets again */
 	dev->trans_start = jiffies;
 	netif_wake_queue(dev);
-}
-
-/*
- * Get the current statistics.
- * This may be called with the card open or closed.
- */
-static struct net_device_stats *bf537mac_query_statistics(struct net_device
-							  *dev)
-{
-	struct bf537mac_local *lp = netdev_priv(dev);
-
-	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
-
-	return &lp->stats;
 }
 
 /*
@@ -798,6 +841,7 @@ static void bf537mac_shutdown(struct net_device *dev)
  */
 static int bf537mac_open(struct net_device *dev)
 {
+	struct bf537mac_local *lp = netdev_priv(dev);
 	int retval;
 	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
 
@@ -817,10 +861,10 @@ static int bf537mac_open(struct net_device *dev)
 	if (retval)
 		return retval;
 
-	bf537mac_setphy(dev);
+	phy_start(lp->phydev);
 	setup_system_regs(dev);
-	bf537mac_reset();
-	bf537mac_enable(dev);
+	bf537mac_disable();
+	bf537mac_enable();
 
 	pr_debug("hardware init finished\n");
 	netif_start_queue(dev);
@@ -837,10 +881,13 @@ static int bf537mac_open(struct net_device *dev)
  */
 static int bf537mac_close(struct net_device *dev)
 {
+	struct bf537mac_local *lp = netdev_priv(dev);
 	pr_debug("%s: %s\n", dev->name, __FUNCTION__);
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
+
+	phy_stop(lp->phydev);
 
 	/* clear everything */
 	bf537mac_shutdown(dev);
@@ -855,6 +902,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 {
 	struct bf537mac_local *lp = netdev_priv(dev);
 	int retval;
+	int i;
 
 	/* Grab the MAC address in the MAC */
 	*(__le32 *) (&(dev->dev_addr[0])) = cpu_to_le32(bfin_read_EMAC_ADDRLO());
@@ -871,7 +919,6 @@ static int __init bf537mac_probe(struct net_device *dev)
 
 	/* set the GPIO pins to Ethernet mode */
 	retval = setup_pin_mux(1);
-
 	if (retval)
 		return retval;
 
@@ -889,26 +936,36 @@ static int __init bf537mac_probe(struct net_device *dev)
 
 	setup_mac_addr(dev->dev_addr);
 
+	/* MDIO bus initial */
+	lp->mii_bus.priv = dev;
+	lp->mii_bus.read = mdiobus_read;
+	lp->mii_bus.write = mdiobus_write;
+	lp->mii_bus.reset = mdiobus_reset;
+	lp->mii_bus.name = "bfin_mac_mdio";
+	lp->mii_bus.id = 0;
+	lp->mii_bus.irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
+	for (i = 0; i < PHY_MAX_ADDR; ++i)
+		lp->mii_bus.irq[i] = PHY_POLL;
+
+	mdiobus_register(&lp->mii_bus);
+
+	retval = mii_probe(dev);
+	if (retval)
+		return retval;
+
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(dev);
 
 	dev->open = bf537mac_open;
 	dev->stop = bf537mac_close;
 	dev->hard_start_xmit = bf537mac_hard_start_xmit;
+	dev->set_mac_address = bf537mac_set_mac_address;
 	dev->tx_timeout = bf537mac_timeout;
-	dev->get_stats = bf537mac_query_statistics;
 	dev->set_multicast_list = bf537mac_set_multicast_list;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = bf537mac_poll;
 #endif
 
-	/* fill in some of the fields */
-	lp->version = 1;
-	lp->PhyAddr = 0x01;
-	lp->CLKIN = 25;
-	lp->FullDuplex = 0;
-	lp->Negotiate = 1;
-	lp->FlowControl = 0;
 	spin_lock_init(&lp->lock);
 
 	/* now, enable interrupts */
@@ -921,9 +978,6 @@ static int __init bf537mac_probe(struct net_device *dev)
 		return -EBUSY;
 	}
 
-	/* Enable PHY output early */
-	if (!(bfin_read_VR_CTL() & PHYCLKOE))
-		bfin_write_VR_CTL(bfin_read_VR_CTL() | PHYCLKOE);
 
 	retval = register_netdev(dev);
 	if (retval == 0) {
@@ -946,7 +1000,6 @@ static int bfin_mac_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	platform_set_drvdata(pdev, ndev);
@@ -978,15 +1031,30 @@ static int bfin_mac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM
+static int bfin_mac_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+
+	if (netif_running(net_dev))
+		bf537mac_close(net_dev);
+
 	return 0;
 }
 
 static int bfin_mac_resume(struct platform_device *pdev)
 {
+	struct net_device *net_dev = platform_get_drvdata(pdev);
+
+	if (netif_running(net_dev))
+		bf537mac_open(net_dev);
+
 	return 0;
 }
+#else
+#define bfin_mac_suspend NULL
+#define bfin_mac_resume NULL
+#endif	/* CONFIG_PM */
 
 static struct platform_driver bfin_mac_driver = {
 	.probe = bfin_mac_probe,

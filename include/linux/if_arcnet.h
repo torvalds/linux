@@ -59,7 +59,7 @@ struct arc_rfc1201
 {
     uint8_t  proto;		/* protocol ID field - varies		*/
     uint8_t  split_flag;	/* for use with split packets		*/
-    uint16_t sequence;		/* sequence number			*/
+    __be16   sequence;		/* sequence number			*/
     uint8_t  payload[0];	/* space remaining in packet (504 bytes)*/
 };
 #define RFC1201_HDR_SIZE 4

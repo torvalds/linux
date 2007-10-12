@@ -337,36 +337,33 @@ static ctl_table nf_ct_ipv6_sysctl_table[] = {
 #include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
-static int ipv6_tuple_to_nfattr(struct sk_buff *skb,
+static int ipv6_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple)
 {
-	NFA_PUT(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
+	NLA_PUT(skb, CTA_IP_V6_SRC, sizeof(u_int32_t) * 4,
 		&tuple->src.u3.ip6);
-	NFA_PUT(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
+	NLA_PUT(skb, CTA_IP_V6_DST, sizeof(u_int32_t) * 4,
 		&tuple->dst.u3.ip6);
 	return 0;
 
-nfattr_failure:
+nla_put_failure:
 	return -1;
 }
 
-static const size_t cta_min_ip[CTA_IP_MAX] = {
-	[CTA_IP_V6_SRC-1]       = sizeof(u_int32_t)*4,
-	[CTA_IP_V6_DST-1]       = sizeof(u_int32_t)*4,
+static const struct nla_policy ipv6_nla_policy[CTA_IP_MAX+1] = {
+	[CTA_IP_V6_SRC]	= { .len = sizeof(u_int32_t)*4 },
+	[CTA_IP_V6_DST]	= { .len = sizeof(u_int32_t)*4 },
 };
 
-static int ipv6_nfattr_to_tuple(struct nfattr *tb[],
+static int ipv6_nlattr_to_tuple(struct nlattr *tb[],
 				struct nf_conntrack_tuple *t)
 {
-	if (!tb[CTA_IP_V6_SRC-1] || !tb[CTA_IP_V6_DST-1])
+	if (!tb[CTA_IP_V6_SRC] || !tb[CTA_IP_V6_DST])
 		return -EINVAL;
 
-	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
-		return -EINVAL;
-
-	memcpy(&t->src.u3.ip6, NFA_DATA(tb[CTA_IP_V6_SRC-1]),
+	memcpy(&t->src.u3.ip6, nla_data(tb[CTA_IP_V6_SRC]),
 	       sizeof(u_int32_t) * 4);
-	memcpy(&t->dst.u3.ip6, NFA_DATA(tb[CTA_IP_V6_DST-1]),
+	memcpy(&t->dst.u3.ip6, nla_data(tb[CTA_IP_V6_DST]),
 	       sizeof(u_int32_t) * 4);
 
 	return 0;
@@ -382,8 +379,9 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.print_conntrack	= ipv6_print_conntrack,
 	.get_l4proto		= ipv6_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
-	.tuple_to_nfattr	= ipv6_tuple_to_nfattr,
-	.nfattr_to_tuple	= ipv6_nfattr_to_tuple,
+	.tuple_to_nlattr	= ipv6_tuple_to_nlattr,
+	.nlattr_to_tuple	= ipv6_nlattr_to_tuple,
+	.nla_policy		= ipv6_nla_policy,
 #endif
 #ifdef CONFIG_SYSCTL
 	.ctl_table_path		= nf_net_netfilter_sysctl_path,

@@ -99,6 +99,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 	int i, retval, port_index;
 	struct eisa_device *edev = to_eisa_device (device);
 	struct net_device *dev;
+	DECLARE_MAC_BUF(mac);
 
 	/* Allocate dev->priv and fill in 8390 specific dev fields. */
 	if (!(dev = alloc_ei_netdev ())) {
@@ -106,7 +107,6 @@ static int __init ne3210_eisa_probe (struct device *device)
 		return -ENOMEM;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, device);
 	device->driver_data = dev;
 	ioaddr = edev->base_addr;
@@ -128,17 +128,15 @@ static int __init ne3210_eisa_probe (struct device *device)
 		inb(ioaddr + NE3210_CFG1), inb(ioaddr + NE3210_CFG2));
 #endif
 
-
 	port_index = inb(ioaddr + NE3210_CFG2) >> 6;
-	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr:",
-		edev->slot, ifmap[port_index]);
 	for(i = 0; i < ETHER_ADDR_LEN; i++)
-		printk(" %02x", (dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i)));
-
+		dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i);
+	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %s.\n",
+		edev->slot, ifmap[port_index], print_mac(mac, dev->dev_addr));
 
 	/* Snarf the interrupt now. CFG file has them all listed as `edge' with share=NO */
 	dev->irq = irq_map[(inb(ioaddr + NE3210_CFG2) >> 3) & 0x07];
-	printk(".\nne3210.c: using IRQ %d, ", dev->irq);
+	printk("ne3210.c: using IRQ %d, ", dev->irq);
 
 	retval = request_irq(dev->irq, ei_interrupt, 0, DRV_NAME, dev);
 	if (retval) {

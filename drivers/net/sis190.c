@@ -47,24 +47,13 @@
 #define PHY_ID_ANY		0x1f
 #define MII_REG_ANY		0x1f
 
-#ifdef CONFIG_SIS190_NAPI
-#define NAPI_SUFFIX	"-NAPI"
-#else
-#define NAPI_SUFFIX	""
-#endif
-
-#define DRV_VERSION		"1.2" NAPI_SUFFIX
+#define DRV_VERSION		"1.2"
 #define DRV_NAME		"sis190"
 #define SIS190_DRIVER_NAME	DRV_NAME " Gigabit Ethernet driver " DRV_VERSION
 #define PFX DRV_NAME ": "
 
-#ifdef CONFIG_SIS190_NAPI
-#define sis190_rx_skb			netif_receive_skb
-#define sis190_rx_quota(count, quota)	min(count, quota)
-#else
 #define sis190_rx_skb			netif_rx
 #define sis190_rx_quota(count, quota)	count
-#endif
 
 #define MAC_ADDR_LEN		6
 
@@ -281,7 +270,6 @@ struct sis190_private {
 	void __iomem *mmio_addr;
 	struct pci_dev *pci_dev;
 	struct net_device *dev;
-	struct net_device_stats stats;
 	spinlock_t lock;
 	u32 rx_buf_sz;
 	u32 cur_rx;
@@ -580,7 +568,7 @@ static inline int sis190_rx_pkt_err(u32 status, struct net_device_stats *stats)
 static int sis190_rx_interrupt(struct net_device *dev,
 			       struct sis190_private *tp, void __iomem *ioaddr)
 {
-	struct net_device_stats *stats = &tp->stats;
+	struct net_device_stats *stats = &dev->stats;
 	u32 rx_left, cur_rx = tp->cur_rx;
 	u32 delta, count;
 
@@ -694,8 +682,8 @@ static void sis190_tx_interrupt(struct net_device *dev,
 
 		skb = tp->Tx_skbuff[entry];
 
-		tp->stats.tx_packets++;
-		tp->stats.tx_bytes += skb->len;
+		dev->stats.tx_packets++;
+		dev->stats.tx_bytes += skb->len;
 
 		sis190_unmap_tx_skb(tp->pci_dev, skb, txd);
 		tp->Tx_skbuff[entry] = NULL;
@@ -1091,7 +1079,7 @@ static void sis190_tx_clear(struct sis190_private *tp)
 		tp->Tx_skbuff[i] = NULL;
 		dev_kfree_skb(skb);
 
-		tp->stats.tx_dropped++;
+		tp->dev->stats.tx_dropped++;
 	}
 	tp->cur_tx = tp->dirty_tx = 0;
 }
@@ -1115,10 +1103,8 @@ static void sis190_down(struct net_device *dev)
 
 		synchronize_irq(dev->irq);
 
-		if (!poll_locked) {
-			netif_poll_disable(dev);
+		if (!poll_locked)
 			poll_locked++;
-		}
 
 		synchronize_sched();
 
@@ -1136,8 +1122,6 @@ static int sis190_close(struct net_device *dev)
 	sis190_down(dev);
 
 	free_irq(dev->irq, dev);
-
-	netif_poll_enable(dev);
 
 	pci_free_consistent(pdev, TX_RING_BYTES, tp->TxDescRing, tp->tx_dma);
 	pci_free_consistent(pdev, RX_RING_BYTES, tp->RxDescRing, tp->rx_dma);
@@ -1158,7 +1142,7 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (unlikely(skb->len < ETH_ZLEN)) {
 		if (skb_padto(skb, ETH_ZLEN)) {
-			tp->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 			goto out;
 		}
 		len = ETH_ZLEN;
@@ -1209,13 +1193,6 @@ static int sis190_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 out:
 	return NETDEV_TX_OK;
-}
-
-static struct net_device_stats *sis190_get_stats(struct net_device *dev)
-{
-	struct sis190_private *tp = netdev_priv(dev);
-
-	return &tp->stats;
 }
 
 static void sis190_free_phy(struct list_head *first_phy)
@@ -1436,7 +1413,6 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 		goto err_out_0;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);
@@ -1783,6 +1759,7 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	struct net_device *dev;
 	void __iomem *ioaddr;
 	int rc;
+	DECLARE_MAC_BUF(mac);
 
 	if (!printed_version) {
 		net_drv(&debug, KERN_INFO SIS190_DRIVER_NAME " loaded.\n");
@@ -1811,7 +1788,6 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 	dev->open = sis190_open;
 	dev->stop = sis190_close;
 	dev->do_ioctl = sis190_ioctl;
-	dev->get_stats = sis190_get_stats;
 	dev->tx_timeout = sis190_tx_timeout;
 	dev->watchdog_timeo = SIS190_TX_TIMEOUT;
 	dev->hard_start_xmit = sis190_start_xmit;
@@ -1834,12 +1810,9 @@ static int __devinit sis190_init_one(struct pci_dev *pdev,
 		goto err_remove_mii;
 
 	net_probe(tp, KERN_INFO "%s: %s at %p (IRQ: %d), "
-	       "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-	       pci_name(pdev), sis_chip_info[ent->driver_data].name,
-	       ioaddr, dev->irq,
-	       dev->dev_addr[0], dev->dev_addr[1],
-	       dev->dev_addr[2], dev->dev_addr[3],
-	       dev->dev_addr[4], dev->dev_addr[5]);
+		  "%s\n",
+		  pci_name(pdev), sis_chip_info[ent->driver_data].name,
+		  ioaddr, dev->irq, print_mac(mac, dev->dev_addr));
 
 	net_probe(tp, KERN_INFO "%s: %s mode.\n", dev->name,
 		  (tp->features & F_HAS_RGMII) ? "RGMII" : "GMII");

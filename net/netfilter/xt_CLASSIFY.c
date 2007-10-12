@@ -24,6 +24,7 @@ MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("iptables qdisc classification target module");
 MODULE_ALIAS("ipt_CLASSIFY");
+MODULE_ALIAS("ip6t_CLASSIFY");
 
 static unsigned int
 target(struct sk_buff **pskb,

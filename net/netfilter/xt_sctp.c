@@ -13,6 +13,7 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kiran Kumar Immidi");
 MODULE_DESCRIPTION("Match for SCTP protocol packets");
 MODULE_ALIAS("ipt_sctp");
+MODULE_ALIAS("ip6t_sctp");
 
 #ifdef DEBUG_SCTP
 #define duprintf(format, args...) printk(format , ## args)

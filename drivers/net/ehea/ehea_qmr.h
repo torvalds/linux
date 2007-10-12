@@ -39,7 +39,7 @@
 #define EHEA_PAGESHIFT         12
 #define EHEA_PAGESIZE          (1UL << EHEA_PAGESHIFT)
 #define EHEA_SECTSIZE          (1UL << 24)
-#define EHEA_PAGES_PER_SECTION (EHEA_SECTSIZE >> PAGE_SHIFT)
+#define EHEA_PAGES_PER_SECTION (EHEA_SECTSIZE >> EHEA_PAGESHIFT)
 
 #if (1UL << SECTION_SIZE_BITS) < EHEA_SECTSIZE
 #error eHEA module can't work if kernel sectionsize < ehea sectionsize
@@ -145,7 +145,7 @@ struct ehea_rwqe {
 #define EHEA_CQE_VLAN_TAG_XTRACT   0x0400
 
 #define EHEA_CQE_TYPE_RQ           0x60
-#define EHEA_CQE_STAT_ERR_MASK     0x721F
+#define EHEA_CQE_STAT_ERR_MASK     0x720F
 #define EHEA_CQE_STAT_FAT_ERR_MASK 0x1F
 #define EHEA_CQE_STAT_ERR_TCP      0x4000
 #define EHEA_CQE_STAT_ERR_IP       0x2000

@@ -50,11 +50,16 @@ extern struct list_head crypto_alg_list;
 extern struct rw_semaphore crypto_alg_sem;
 extern struct blocking_notifier_head crypto_chain;
 
-extern enum km_type crypto_km_types[];
-
 static inline enum km_type crypto_kmap_type(int out)
 {
-	return crypto_km_types[(in_softirq() ? 2 : 0) + out];
+	enum km_type type;
+
+	if (in_softirq())
+		type = out * (KM_SOFTIRQ1 - KM_SOFTIRQ0) + KM_SOFTIRQ0;
+	else
+		type = out * (KM_USER1 - KM_USER0) + KM_USER0;
+
+	return type;
 }
 
 static inline void *crypto_kmap(struct page *page, int out)

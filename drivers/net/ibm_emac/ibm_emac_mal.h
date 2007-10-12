@@ -195,7 +195,7 @@ struct ibm_ocp_mal {
 	dcr_host_t		dcrhost;
 
 	struct list_head	poll_list;
-	struct net_device	poll_dev;
+	struct napi_struct	napi;
 
 	struct list_head	list;
 	u32			tx_chan_mask;

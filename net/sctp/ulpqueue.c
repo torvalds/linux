@@ -1027,6 +1027,7 @@ void sctp_ulpq_renege(struct sctp_ulpq *ulpq, struct sctp_chunk *chunk,
 		sctp_ulpq_partial_delivery(ulpq, chunk, gfp);
 	}
 
+	sk_stream_mem_reclaim(asoc->base.sk);
 	return;
 }
 

@@ -24,22 +24,26 @@
 #include "internal.h"
 
 struct cryptomgr_param {
-	struct rtattr *tb[CRYPTOA_MAX];
+	struct rtattr *tb[CRYPTO_MAX_ATTRS + 2];
 
 	struct {
 		struct rtattr attr;
 		struct crypto_attr_type data;
 	} type;
 
-	struct {
+	union {
 		struct rtattr attr;
-		struct crypto_attr_alg data;
-	} alg;
+		struct {
+			struct rtattr attr;
+			struct crypto_attr_alg data;
+		} alg;
+		struct {
+			struct rtattr attr;
+			struct crypto_attr_u32 data;
+		} nu32;
+	} attrs[CRYPTO_MAX_ATTRS];
 
-	struct {
-		char name[CRYPTO_MAX_ALG_NAME];
-	} larval;
-
+	char larval[CRYPTO_MAX_ALG_NAME];
 	char template[CRYPTO_MAX_ALG_NAME];
 };
 
@@ -72,7 +76,7 @@ out:
 	module_put_and_exit(0);
 
 err:
-	crypto_larval_error(param->larval.name, param->type.data.type,
+	crypto_larval_error(param->larval, param->type.data.type,
 			    param->type.data.mask);
 	goto out;
 }
@@ -84,6 +88,7 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 	const char *name = larval->alg.cra_name;
 	const char *p;
 	unsigned int len;
+	int i;
 
 	if (!try_module_get(THIS_MODULE))
 		goto err;
@@ -101,33 +106,74 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	memcpy(param->template, name, len);
 
-	name = p + 1;
-	len = 0;
-	for (p = name; *p; p++) {
-		for (; isalnum(*p) || *p == '-' || *p == '_' || *p == '('; p++)
-			;
+	i = 0;
+	for (;;) {
+		int notnum = 0;
 
-		if (*p != ')')
-			goto err_free_param;
+		name = ++p;
+		len = 0;
+
+		for (; isalnum(*p) || *p == '-' || *p == '_'; p++)
+			notnum |= !isdigit(*p);
+
+		if (*p == '(') {
+			int recursion = 0;
+
+			for (;;) {
+				if (!*++p)
+					goto err_free_param;
+				if (*p == '(')
+					recursion++;
+				else if (*p == ')' && !recursion--)
+					break;
+			}
+
+			notnum = 1;
+			p++;
+		}
 
 		len = p - name;
+		if (!len)
+			goto err_free_param;
+
+		if (notnum) {
+			param->attrs[i].alg.attr.rta_len =
+				sizeof(param->attrs[i].alg);
+			param->attrs[i].alg.attr.rta_type = CRYPTOA_ALG;
+			memcpy(param->attrs[i].alg.data.name, name, len);
+		} else {
+			param->attrs[i].nu32.attr.rta_len =
+				sizeof(param->attrs[i].nu32);
+			param->attrs[i].nu32.attr.rta_type = CRYPTOA_U32;
+			param->attrs[i].nu32.data.num =
+				simple_strtol(name, NULL, 0);
+		}
+
+		param->tb[i + 1] = &param->attrs[i].attr;
+		i++;
+
+		if (i >= CRYPTO_MAX_ATTRS)
+			goto err_free_param;
+
+		if (*p == ')')
+			break;
+
+		if (*p != ',')
+			goto err_free_param;
 	}
 
-	if (!len || name[len + 1])
+	if (!i)
 		goto err_free_param;
+
+	param->tb[i + 1] = NULL;
 
 	param->type.attr.rta_len = sizeof(param->type);
 	param->type.attr.rta_type = CRYPTOA_TYPE;
 	param->type.data.type = larval->alg.cra_flags;
 	param->type.data.mask = larval->mask;
-	param->tb[CRYPTOA_TYPE - 1] = &param->type.attr;
+	param->tb[0] = &param->type.attr;
 
-	param->alg.attr.rta_len = sizeof(param->alg);
-	param->alg.attr.rta_type = CRYPTOA_ALG;
-	memcpy(param->alg.data.name, name, len);
-	param->tb[CRYPTOA_ALG - 1] = &param->alg.attr;
-
-	memcpy(param->larval.name, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
+	memcpy(param->larval, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
 
 	thread = kthread_run(cryptomgr_probe, param, "cryptomgr");
 	if (IS_ERR(thread))

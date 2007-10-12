@@ -60,8 +60,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 
 //      mutex_lock(&priv->mutex);
 
-	adapter->prdeeprom =
-		    (char *)kmalloc(eeprom->len+sizeof(regctrl), GFP_KERNEL);
+	adapter->prdeeprom = kmalloc(eeprom->len+sizeof(regctrl), GFP_KERNEL);
 	if (!adapter->prdeeprom)
 		return -ENOMEM;
 	memcpy(adapter->prdeeprom, &regctrl, sizeof(regctrl));
@@ -72,9 +71,9 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	       regctrl.action, regctrl.offset, regctrl.NOB);
 
 	ret = libertas_prepare_and_send_command(priv,
-				    cmd_802_11_eeprom_access,
+				    CMD_802_11_EEPROM_ACCESS,
 				    regctrl.action,
-				    cmd_option_waitforrsp, 0,
+				    CMD_OPTION_WAITFORRSP, 0,
 				    &regctrl);
 
 	if (ret) {
@@ -110,56 +109,48 @@ static void libertas_ethtool_get_stats(struct net_device * dev,
 				struct ethtool_stats * stats, u64 * data)
 {
 	wlan_private *priv = dev->priv;
-
-	lbs_deb_enter(LBS_DEB_ETHTOOL);
-
-	stats->cmd = ETHTOOL_GSTATS;
-	BUG_ON(stats->n_stats != MESH_STATS_NUM);
-
-        data[0] = priv->mstats.fwd_drop_rbt;
-        data[1] = priv->mstats.fwd_drop_ttl;
-        data[2] = priv->mstats.fwd_drop_noroute;
-        data[3] = priv->mstats.fwd_drop_nobuf;
-        data[4] = priv->mstats.fwd_unicast_cnt;
-        data[5] = priv->mstats.fwd_bcast_cnt;
-        data[6] = priv->mstats.drop_blind;
-        data[7] = priv->mstats.tx_failed_cnt;
-
-	lbs_deb_enter(LBS_DEB_ETHTOOL);
-}
-
-static int libertas_ethtool_get_stats_count(struct net_device * dev)
-{
-	int ret;
-	wlan_private *priv = dev->priv;
 	struct cmd_ds_mesh_access mesh_access;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 
 	/* Get Mesh Statistics */
 	ret = libertas_prepare_and_send_command(priv,
-			cmd_mesh_access, cmd_act_mesh_get_stats,
-			cmd_option_waitforrsp, 0, &mesh_access);
+			CMD_MESH_ACCESS, CMD_ACT_MESH_GET_STATS,
+			CMD_OPTION_WAITFORRSP, 0, &mesh_access);
 
-	if (ret) {
-		ret = 0;
-		goto done;
+	if (ret)
+		return;
+
+	priv->mstats.fwd_drop_rbt = le32_to_cpu(mesh_access.data[0]);
+	priv->mstats.fwd_drop_ttl = le32_to_cpu(mesh_access.data[1]);
+	priv->mstats.fwd_drop_noroute = le32_to_cpu(mesh_access.data[2]);
+	priv->mstats.fwd_drop_nobuf = le32_to_cpu(mesh_access.data[3]);
+	priv->mstats.fwd_unicast_cnt = le32_to_cpu(mesh_access.data[4]);
+	priv->mstats.fwd_bcast_cnt = le32_to_cpu(mesh_access.data[5]);
+	priv->mstats.drop_blind = le32_to_cpu(mesh_access.data[6]);
+	priv->mstats.tx_failed_cnt = le32_to_cpu(mesh_access.data[7]);
+
+	data[0] = priv->mstats.fwd_drop_rbt;
+	data[1] = priv->mstats.fwd_drop_ttl;
+	data[2] = priv->mstats.fwd_drop_noroute;
+	data[3] = priv->mstats.fwd_drop_nobuf;
+	data[4] = priv->mstats.fwd_unicast_cnt;
+	data[5] = priv->mstats.fwd_bcast_cnt;
+	data[6] = priv->mstats.drop_blind;
+	data[7] = priv->mstats.tx_failed_cnt;
+
+	lbs_deb_enter(LBS_DEB_ETHTOOL);
+}
+
+static int libertas_ethtool_get_sset_count(struct net_device * dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return MESH_STATS_NUM;
+	default:
+		return -EOPNOTSUPP;
 	}
-
-        priv->mstats.fwd_drop_rbt = le32_to_cpu(mesh_access.data[0]);
-        priv->mstats.fwd_drop_ttl = le32_to_cpu(mesh_access.data[1]);
-        priv->mstats.fwd_drop_noroute = le32_to_cpu(mesh_access.data[2]);
-        priv->mstats.fwd_drop_nobuf = le32_to_cpu(mesh_access.data[3]);
-        priv->mstats.fwd_unicast_cnt = le32_to_cpu(mesh_access.data[4]);
-        priv->mstats.fwd_bcast_cnt = le32_to_cpu(mesh_access.data[5]);
-        priv->mstats.drop_blind = le32_to_cpu(mesh_access.data[6]);
-        priv->mstats.tx_failed_cnt = le32_to_cpu(mesh_access.data[7]);
-
-	ret = MESH_STATS_NUM;
-
-done:
-	lbs_deb_enter_args(LBS_DEB_ETHTOOL, "ret %d", ret);
-	return ret;
 }
 
 static void libertas_ethtool_get_strings (struct net_device * dev,
@@ -186,7 +177,7 @@ struct ethtool_ops libertas_ethtool_ops = {
 	.get_drvinfo = libertas_ethtool_get_drvinfo,
 	.get_eeprom =  libertas_ethtool_get_eeprom,
 	.get_eeprom_len = libertas_ethtool_get_eeprom_len,
-	.get_stats_count = libertas_ethtool_get_stats_count,
+	.get_sset_count = libertas_ethtool_get_sset_count,
 	.get_ethtool_stats = libertas_ethtool_get_stats,
 	.get_strings = libertas_ethtool_get_strings,
 };

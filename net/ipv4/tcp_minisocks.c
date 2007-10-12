@@ -368,6 +368,12 @@ void tcp_twsk_destructor(struct sock *sk)
 
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
 
+static inline void TCP_ECN_openreq_child(struct tcp_sock *tp,
+					 struct request_sock *req)
+{
+	tp->ecn_flags = inet_rsk(req)->ecn_ok ? TCP_ECN_OK : 0;
+}
+
 /* This is not only more efficient than what we used to do, it eliminates
  * a lot of code duplication between IPv4/IPv6 SYN recv processing. -DaveM
  *
@@ -399,7 +405,6 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
 
 		newtp->packets_out = 0;
-		newtp->left_out = 0;
 		newtp->retrans_out = 0;
 		newtp->sacked_out = 0;
 		newtp->fackets_out = 0;
@@ -440,7 +445,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
 		if ((newtp->rx_opt.sack_ok = ireq->sack_ok) != 0) {
 			if (sysctl_tcp_fack)
-				newtp->rx_opt.sack_ok |= 2;
+				tcp_enable_fack(newtp);
 		}
 		newtp->window_clamp = req->window_clamp;
 		newtp->rcv_ssthresh = req->rcv_wnd;

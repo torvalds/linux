@@ -31,13 +31,7 @@ static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 
 /* Add encapsulation header.
  *
- * The top IP header will be constructed per RFC 2401.  The following fields
- * in it shall be filled in by x->type->output:
- *      tot_len
- *      check
- *
- * On exit, skb->h will be set to the start of the payload to be processed
- * by x->type->output and skb->nh will be set to the top IP header.
+ * The top IP header will be constructed per RFC 2401.
  */
 static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
@@ -47,10 +41,11 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	int flags;
 
 	iph = ip_hdr(skb);
-	skb->transport_header = skb->network_header;
 
-	skb_push(skb, x->props.header_len);
-	skb_reset_network_header(skb);
+	skb_set_network_header(skb, -x->props.header_len);
+	skb->mac_header = skb->network_header +
+			  offsetof(struct iphdr, protocol);
+	skb->transport_header = skb->network_header + sizeof(*iph);
 	top_iph = ip_hdr(skb);
 
 	top_iph->ihl = 5;

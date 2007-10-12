@@ -75,6 +75,7 @@ struct sgiseeq_init_block { /* Note the name ;-) */
 
 struct sgiseeq_private {
 	struct sgiseeq_init_block *srings;
+	dma_addr_t srings_dma;
 
 	/* Ptrs to the descriptors in uncached space. */
 	struct sgiseeq_rx_desc *rx_desc;
@@ -91,8 +92,6 @@ struct sgiseeq_private {
 	int is_edlc;
 	unsigned char control;
 	unsigned char mode;
-
-	struct net_device_stats stats;
 
 	spinlock_t tx_lock;
 };
@@ -266,18 +265,17 @@ static int init_seeq(struct net_device *dev, struct sgiseeq_private *sp,
 	return 0;
 }
 
-static inline void record_rx_errors(struct sgiseeq_private *sp,
-				    unsigned char status)
+static void record_rx_errors(struct net_device *dev, unsigned char status)
 {
 	if (status & SEEQ_RSTAT_OVERF ||
 	    status & SEEQ_RSTAT_SFRAME)
-		sp->stats.rx_over_errors++;
+		dev->stats.rx_over_errors++;
 	if (status & SEEQ_RSTAT_CERROR)
-		sp->stats.rx_crc_errors++;
+		dev->stats.rx_crc_errors++;
 	if (status & SEEQ_RSTAT_DERROR)
-		sp->stats.rx_frame_errors++;
+		dev->stats.rx_frame_errors++;
 	if (status & SEEQ_RSTAT_REOF)
-		sp->stats.rx_errors++;
+		dev->stats.rx_errors++;
 }
 
 static inline void rx_maybe_restart(struct sgiseeq_private *sp,
@@ -327,8 +325,8 @@ static inline void sgiseeq_rx(struct net_device *dev, struct sgiseeq_private *sp
 				if (memcmp(eth_hdr(skb)->h_source, dev->dev_addr, ETH_ALEN)) {
 					netif_rx(skb);
 					dev->last_rx = jiffies;
-					sp->stats.rx_packets++;
-					sp->stats.rx_bytes += len;
+					dev->stats.rx_packets++;
+					dev->stats.rx_bytes += len;
 				} else {
 					/* Silently drop my own packets */
 					dev_kfree_skb_irq(skb);
@@ -336,10 +334,10 @@ static inline void sgiseeq_rx(struct net_device *dev, struct sgiseeq_private *sp
 			} else {
 				printk (KERN_NOTICE "%s: Memory squeeze, deferring packet.\n",
 					dev->name);
-				sp->stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			}
 		} else {
-			record_rx_errors(sp, pkt_status);
+			record_rx_errors(dev, pkt_status);
 		}
 
 		/* Return the entry to the ring pool. */
@@ -391,11 +389,11 @@ static inline void sgiseeq_tx(struct net_device *dev, struct sgiseeq_private *sp
 	if (!(status & (HPC3_ETXCTRL_ACTIVE | SEEQ_TSTAT_PTRANS))) {
 		/* Oops, HPC detected some sort of error. */
 		if (status & SEEQ_TSTAT_R16)
-			sp->stats.tx_aborted_errors++;
+			dev->stats.tx_aborted_errors++;
 		if (status & SEEQ_TSTAT_UFLOW)
-			sp->stats.tx_fifo_errors++;
+			dev->stats.tx_fifo_errors++;
 		if (status & SEEQ_TSTAT_LCLS)
-			sp->stats.collisions++;
+			dev->stats.collisions++;
 	}
 
 	/* Ack 'em... */
@@ -411,7 +409,7 @@ static inline void sgiseeq_tx(struct net_device *dev, struct sgiseeq_private *sp
 			}
 			break;
 		}
-		sp->stats.tx_packets++;
+		dev->stats.tx_packets++;
 		sp->tx_old = NEXT_TX(sp->tx_old);
 		td->tdma.cntinfo &= ~(HPCDMA_XIU | HPCDMA_XIE);
 		td->tdma.cntinfo |= HPCDMA_EOX;
@@ -515,7 +513,7 @@ static int sgiseeq_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Setup... */
 	skblen = skb->len;
 	len = (skblen <= ETH_ZLEN) ? ETH_ZLEN : skblen;
-	sp->stats.tx_bytes += len;
+	dev->stats.tx_bytes += len;
 	entry = sp->tx_new;
 	td = &sp->tx_desc[entry];
 
@@ -566,13 +564,6 @@ static void timeout(struct net_device *dev)
 
 	dev->trans_start = jiffies;
 	netif_wake_queue(dev);
-}
-
-static struct net_device_stats *sgiseeq_get_stats(struct net_device *dev)
-{
-	struct sgiseeq_private *sp = netdev_priv(dev);
-
-	return &sp->stats;
 }
 
 static void sgiseeq_set_multicast(struct net_device *dev)
@@ -631,6 +622,7 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	struct sgiseeq_private *sp;
 	struct net_device *dev;
 	int err, i;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof (struct sgiseeq_private));
 	if (!dev) {
@@ -643,13 +635,20 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	sp = netdev_priv(dev);
 
 	/* Make private data page aligned */
-	sr = (struct sgiseeq_init_block *) get_zeroed_page(GFP_KERNEL);
+	sr = dma_alloc_coherent(&pdev->dev, sizeof(*sp->srings),
+				&sp->srings_dma, GFP_KERNEL);
 	if (!sr) {
 		printk(KERN_ERR "Sgiseeq: Page alloc failed, aborting.\n");
 		err = -ENOMEM;
 		goto err_out_free_dev;
 	}
 	sp->srings = sr;
+	sp->rx_desc = sp->srings->rxvector;
+	sp->tx_desc = sp->srings->txvector;
+
+	/* A couple calculations now, saves many cycles later. */
+	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
+	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
 
 	memcpy(dev->dev_addr, pd->mac, ETH_ALEN);
 
@@ -661,19 +660,6 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	sp->hregs = &hpcregs->ethregs;
 	sp->name = sgiseeqstr;
 	sp->mode = SEEQ_RCMD_RBCAST;
-
-	sp->rx_desc = (struct sgiseeq_rx_desc *)
-	              CKSEG1ADDR(ALIGNED(&sp->srings->rxvector[0]));
-	dma_cache_wback_inv((unsigned long)&sp->srings->rxvector,
-	                    sizeof(sp->srings->rxvector));
-	sp->tx_desc = (struct sgiseeq_tx_desc *)
-	              CKSEG1ADDR(ALIGNED(&sp->srings->txvector[0]));
-	dma_cache_wback_inv((unsigned long)&sp->srings->txvector,
-	                    sizeof(sp->srings->txvector));
-
-	/* A couple calculations now, saves many cycles later. */
-	setup_rx_ring(sp->rx_desc, SEEQ_RX_BUFFERS);
-	setup_tx_ring(sp->tx_desc, SEEQ_TX_BUFFERS);
 
 	/* Setup PIO and DMA transfer timing */
 	sp->hregs->pconfig = 0x161;
@@ -699,7 +685,6 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 	dev->hard_start_xmit	= sgiseeq_start_xmit;
 	dev->tx_timeout		= timeout;
 	dev->watchdog_timeo	= (200 * HZ) / 1000;
-	dev->get_stats		= sgiseeq_get_stats;
 	dev->set_multicast_list	= sgiseeq_set_multicast;
 	dev->set_mac_address	= sgiseeq_set_mac_address;
 	dev->irq		= irq;
@@ -711,9 +696,8 @@ static int __init sgiseeq_probe(struct platform_device *pdev)
 		goto err_out_free_page;
 	}
 
-	printk(KERN_INFO "%s: %s ", dev->name, sgiseeqstr);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i], i == 5 ? '\n' : ':');
+	printk(KERN_INFO "%s: %s %s\n",
+	       dev->name, sgiseeqstr, print_mac(mac, dev->dev_addr));
 
 	return 0;
 
@@ -732,7 +716,8 @@ static int __exit sgiseeq_remove(struct platform_device *pdev)
 	struct sgiseeq_private *sp = netdev_priv(dev);
 
 	unregister_netdev(dev);
-	free_page((unsigned long) sp->srings);
+	dma_free_coherent(&pdev->dev, sizeof(*sp->srings), sp->srings,
+	                  sp->srings_dma);
 	free_netdev(dev);
 	platform_set_drvdata(pdev, NULL);
 

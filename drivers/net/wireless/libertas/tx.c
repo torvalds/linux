@@ -58,7 +58,6 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
  */
 static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 {
-	wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct txpd localtxpd;
 	struct txpd *plocaltxpd = &localtxpd;
@@ -71,10 +70,6 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	if (priv->adapter->surpriseremoved)
 		return -1;
-
-	if ((priv->adapter->debugmode & MRVDRV_DEBUG_TX_PATH) != 0)
-		lbs_dbg_hex("TX packet: ", skb->data,
-			 min_t(unsigned int, skb->len, 100));
 
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
 		lbs_deb_tx("tx err: skb length %d 0 or > %zd\n",
@@ -90,11 +85,8 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	/* offset of actual data */
 	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 
-	/* TxCtrl set by user or default */
-	plocaltxpd->tx_control = cpu_to_le32(adapter->pkttxctrl);
-
 	p802x_hdr = skb->data;
-	if (priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
 
 		/* locate radiotap header */
 		pradiotap_hdr = (struct tx_radiotap_hdr *)skb->data;
@@ -103,7 +95,6 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 		new_rate = convert_radiotap_rate_to_mv(pradiotap_hdr->rate);
 		if (new_rate != 0) {
 			/* use new tx_control[4:0] */
-			new_rate |= (adapter->pkttxctrl & ~0x1f);
 			plocaltxpd->tx_control = cpu_to_le32(new_rate);
 		}
 
@@ -115,12 +106,12 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	}
 	/* copy destination address from 802.3 or 802.11 header */
-	if (priv->adapter->linkmode == WLAN_LINKMODE_802_11)
+	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr + 4, ETH_ALEN);
 	else
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
 
-	lbs_dbg_hex("txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
+	lbs_deb_hex(LBS_DEB_TX, "txpd", (u8 *) plocaltxpd, sizeof(struct txpd));
 
 	if (IS_MESH_FRAME(skb)) {
 		plocaltxpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
@@ -130,7 +121,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	ptr += sizeof(struct txpd);
 
-	lbs_dbg_hex("Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
+	lbs_deb_hex(LBS_DEB_TX, "Tx Data", (u8 *) p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
 	memcpy(ptr, p802x_hdr, le16_to_cpu(plocaltxpd->tx_packet_length));
 	ret = priv->hw_host_to_card(priv, MVMS_DAT,
 				    priv->adapter->tmptxbuf,
@@ -153,13 +144,14 @@ done:
 		priv->stats.tx_errors++;
 	}
 
-	if (!ret && priv->adapter->radiomode == WLAN_RADIOMODE_RADIOTAP) {
+	if (!ret && priv->adapter->monitormode != WLAN_MONITOR_OFF) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
 		/* stop processing outgoing pkts */
 		netif_stop_queue(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_stop_queue(priv->mesh_dev);
 		/* freeze any packets already in our queues */
 		priv->adapter->TxLockFlag = 1;
 	} else {
@@ -198,10 +190,12 @@ static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
 	adapter->tx_queue_ps[adapter->tx_queue_idx++] = skb;
 	if (adapter->tx_queue_idx == NR_TX_QUEUE) {
 		netif_stop_queue(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_stop_queue(priv->mesh_dev);
 	} else {
 		netif_start_queue(priv->dev);
-		netif_start_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_start_queue(priv->mesh_dev);
 	}
 
 	spin_unlock(&adapter->txqueue_lock);
@@ -219,7 +213,7 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 	int ret = -1;
 
 	lbs_deb_enter(LBS_DEB_TX);
-	lbs_dbg_hex("TX Data", skb->data, min_t(unsigned int, skb->len, 100));
+	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
 	if (priv->dnld_sent) {
 		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",
@@ -258,15 +252,11 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	int txfail;
 	int try_count;
 
-	if (adapter->radiomode != WLAN_RADIOMODE_RADIOTAP ||
+	if (adapter->monitormode == WLAN_MONITOR_OFF ||
 	    adapter->currenttxskb == NULL)
 		return;
 
 	radiotap_hdr = (struct tx_radiotap_hdr *)adapter->currenttxskb->data;
-
-	if ((adapter->debugmode & MRVDRV_DEBUG_TX_PATH) != 0)
-		lbs_dbg_hex("TX feedback: ", (u8 *) radiotap_hdr,
-			min_t(unsigned int, adapter->currenttxskb->len, 100));
 
 	txfail = (status >> 24);
 
@@ -283,9 +273,10 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	libertas_upload_rx_packet(priv, adapter->currenttxskb);
 	adapter->currenttxskb = NULL;
 	priv->adapter->TxLockFlag = 0;
-	if (priv->adapter->connect_status == libertas_connected) {
+	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_wake_queue(priv->dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev)
+			netif_wake_queue(priv->mesh_dev);
 	}
 }
 EXPORT_SYMBOL_GPL(libertas_send_tx_feedback);

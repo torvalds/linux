@@ -93,6 +93,7 @@
 #include <linux/if_arp.h>		/* ARPHRD_ETHER */
 #include <linux/etherdevice.h>		/* compare_ether_addr */
 #include <linux/interrupt.h>
+#include <net/net_namespace.h>
 
 #include <linux/wireless.h>		/* Pretty obvious */
 #include <net/iw_handler.h>		/* New driver API */
@@ -672,7 +673,26 @@ static const struct seq_operations wireless_seq_ops = {
 
 static int wireless_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &wireless_seq_ops);
+	struct seq_file *seq;
+	int res;
+	res = seq_open(file, &wireless_seq_ops);
+	if (!res) {
+		seq = file->private_data;
+		seq->private = get_proc_net(inode);
+		if (!seq->private) {
+			seq_release(inode, file);
+			res = -ENXIO;
+		}
+	}
+	return res;
+}
+
+static int wireless_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct net *net = seq->private;
+	put_net(net);
+	return seq_release(inode, file);
 }
 
 static const struct file_operations wireless_seq_fops = {
@@ -680,16 +700,21 @@ static const struct file_operations wireless_seq_fops = {
 	.open    = wireless_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = seq_release,
+	.release = wireless_seq_release,
 };
 
-int __init wext_proc_init(void)
+int wext_proc_init(struct net *net)
 {
 	/* Create /proc/net/wireless entry */
-	if (!proc_net_fops_create("wireless", S_IRUGO, &wireless_seq_fops))
+	if (!proc_net_fops_create(net, "wireless", S_IRUGO, &wireless_seq_fops))
 		return -ENOMEM;
 
 	return 0;
+}
+
+void wext_proc_exit(struct net *net)
+{
+	proc_net_remove(net, "wireless");
 }
 #endif	/* CONFIG_PROC_FS */
 
@@ -1010,7 +1035,7 @@ static int ioctl_private_call(struct net_device *dev, struct ifreq *ifr,
  * Main IOCTl dispatcher.
  * Check the type of IOCTL and call the appropriate wrapper...
  */
-static int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
+static int wireless_process_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd)
 {
 	struct net_device *dev;
 	iw_handler	handler;
@@ -1019,7 +1044,7 @@ static int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 	 * The copy_to/from_user() of ifr is also dealt with in there */
 
 	/* Make sure the device exist */
-	if ((dev = __dev_get_by_name(ifr->ifr_name)) == NULL)
+	if ((dev = __dev_get_by_name(net, ifr->ifr_name)) == NULL)
 		return -ENODEV;
 
 	/* A bunch of special cases, then the generic case...
@@ -1053,7 +1078,7 @@ static int wireless_process_ioctl(struct ifreq *ifr, unsigned int cmd)
 }
 
 /* entry point from dev ioctl */
-int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
+int wext_handle_ioctl(struct net *net, struct ifreq *ifr, unsigned int cmd,
 		      void __user *arg)
 {
 	int ret;
@@ -1065,9 +1090,9 @@ int wext_handle_ioctl(struct ifreq *ifr, unsigned int cmd,
 	    && !capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	dev_load(ifr->ifr_name);
+	dev_load(net, ifr->ifr_name);
 	rtnl_lock();
-	ret = wireless_process_ioctl(ifr, cmd);
+	ret = wireless_process_ioctl(net, ifr, cmd);
 	rtnl_unlock();
 	if (IW_IS_GET(cmd) && copy_to_user(arg, ifr, sizeof(struct ifreq)))
 		return -EFAULT;
@@ -1129,10 +1154,12 @@ static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ifinfomsg *r;
 	struct nlmsghdr  *nlh;
-	unsigned char	 *b = skb_tail_pointer(skb);
 
-	nlh = NLMSG_PUT(skb, 0, 0, type, sizeof(*r));
-	r = NLMSG_DATA(nlh);
+	nlh = nlmsg_put(skb, 0, 0, type, sizeof(*r), 0);
+	if (nlh == NULL)
+		return -EMSGSIZE;
+
+	r = nlmsg_data(nlh);
 	r->ifi_family = AF_UNSPEC;
 	r->__ifi_pad = 0;
 	r->ifi_type = dev->type;
@@ -1141,15 +1168,13 @@ static int rtnetlink_fill_iwinfo(struct sk_buff *skb, struct net_device *dev,
 	r->ifi_change = 0;	/* Wireless changes don't affect those flags */
 
 	/* Add the wireless events in the netlink packet */
-	RTA_PUT(skb, IFLA_WIRELESS, event_len, event);
+	NLA_PUT(skb, IFLA_WIRELESS, event_len, event);
 
-	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
-	return skb->len;
+	return nlmsg_end(skb, nlh);
 
-nlmsg_failure:
-rtattr_failure:
-	nlmsg_trim(skb, b);
-	return -1;
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	return -EMSGSIZE;
 }
 
 /* ---------------------------------------------------------------- */
@@ -1162,17 +1187,19 @@ rtattr_failure:
 static void rtmsg_iwinfo(struct net_device *dev, char *event, int event_len)
 {
 	struct sk_buff *skb;
-	int size = NLMSG_GOODSIZE;
+	int err;
 
-	skb = alloc_skb(size, GFP_ATOMIC);
+	skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 	if (!skb)
 		return;
 
-	if (rtnetlink_fill_iwinfo(skb, dev, RTM_NEWLINK,
-				  event, event_len) < 0) {
+	err = rtnetlink_fill_iwinfo(skb, dev, RTM_NEWLINK, event, event_len);
+	if (err < 0) {
+		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		return;
 	}
+
 	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
 	skb_queue_tail(&wireless_nlevent_queue, skb);
 	tasklet_schedule(&wireless_nlevent_tasklet);

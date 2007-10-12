@@ -22,32 +22,6 @@
  */
 #define ERR_FLAGS (FS_MSRABT | FS_SEAC2 | FS_SFRMERR | FS_SFRMTY1)
 
-#ifdef	ISA
-#define DMA_BUSY_CHECK	CSRA
-#define	IMASK_FAST	(IS_PLINT1 | IS_PLINT2 | IS_TIMINT)
-#define	HRQR		(RQAA+(RQ_RRQ<<1))
-#define	HRQW		(RQAA+(RQ_WA2<<1))
-#define	HRQA0		(RQAA+(RQ_WA0<<1))
-#define HRQSQ		(RQAA+(RQ_WSQ<<1))
-#endif
-
-#ifdef	EISA
-#define	DMA_BUSY_CHECK	CSRA
-#define DMA_HIGH_WORD	0x0400
-#define DMA_MASK_M	0x0a
-#define DMA_MODE_M	0x0b
-#define DMA_BYTE_PTR_M	0x0c
-#define DMA_MASK_S	0x0d4
-#define DMA_MODE_S	0x0d6
-#define DMA_BYTE_PTR_S	0x0d8
-#define	IMASK_FAST	(IS_PLINT1 | IS_PLINT2 | IS_TIMINT | IS_TC)
-#endif	/* EISA */
-
-#ifdef	MCA
-#define	IMASK_FAST	(IS_PLINT1 | IS_PLINT2 | IS_TIMINT | IS_TOKEN | \
-			 IS_CHCK_L | IS_BUSERR)
-#endif
-
 #ifdef PCI
 #define	IMASK_FAST	(IS_PLINT1 | IS_PLINT2 | IS_TIMINT | IS_TOKEN | \
 			 IS_MINTR2 | IS_MINTR3 | IS_R1_P | \

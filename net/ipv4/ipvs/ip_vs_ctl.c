@@ -35,6 +35,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <linux/mutex.h>
 
+#include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/sock.h>
@@ -1791,24 +1792,8 @@ static const struct seq_operations ip_vs_info_seq_ops = {
 
 static int ip_vs_info_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct ip_vs_iter *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &ip_vs_info_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq	     = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &ip_vs_info_seq_ops,
+			sizeof(struct ip_vs_iter));
 }
 
 static const struct file_operations ip_vs_info_fops = {
@@ -2356,8 +2341,8 @@ int ip_vs_control_init(void)
 		return ret;
 	}
 
-	proc_net_fops_create("ip_vs", 0, &ip_vs_info_fops);
-	proc_net_fops_create("ip_vs_stats",0, &ip_vs_stats_fops);
+	proc_net_fops_create(&init_net, "ip_vs", 0, &ip_vs_info_fops);
+	proc_net_fops_create(&init_net, "ip_vs_stats",0, &ip_vs_stats_fops);
 
 	sysctl_header = register_sysctl_table(vs_root_table);
 
@@ -2390,8 +2375,8 @@ void ip_vs_control_cleanup(void)
 	cancel_work_sync(&defense_work.work);
 	ip_vs_kill_estimator(&ip_vs_stats);
 	unregister_sysctl_table(sysctl_header);
-	proc_net_remove("ip_vs_stats");
-	proc_net_remove("ip_vs");
+	proc_net_remove(&init_net, "ip_vs_stats");
+	proc_net_remove(&init_net, "ip_vs");
 	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);
 }

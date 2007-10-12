@@ -414,7 +414,7 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 	/*
 	 * Update the multicast hash table
 	 */
-	for (i = 0; i < sizeof(multi_hash) / sizeof(multi_hash[0]); i++)
+	for (i = 0; i < ARRAY_SIZE(multi_hash); i++)
 		write_rreg(dev->base_addr, i + LADRL, multi_hash[i]);
 
 	/*
@@ -741,12 +741,10 @@ static int __init am79c961_probe(struct platform_device *pdev)
 
 	ret = register_netdev(dev);
 	if (ret == 0) {
-		printk(KERN_INFO "%s: ether address ", dev->name);
+		DECLARE_MAC_BUF(mac);
 
-		/* Retrive and print the ethernet address. */
-		for (i = 0; i < 6; i++)
-			printk (i == 5 ? "%02x\n" : "%02x:", dev->dev_addr[i]);
-
+		printk(KERN_INFO "%s: ether address %s\n",
+		       dev->name, print_mac(mac, dev->dev_addr));
 		return 0;
 	}
 

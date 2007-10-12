@@ -612,7 +612,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 		daddr = NULL;
 
 	if (daddr) {
-		if (ipv6_addr_type(daddr) == IPV6_ADDR_MAPPED) {
+		if (ipv6_addr_v4mapped(daddr)) {
 			struct sockaddr_in sin;
 			sin.sin_family = AF_INET;
 			sin.sin_port = sin6 ? sin6->sin6_port : inet->dport;

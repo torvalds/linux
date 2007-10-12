@@ -83,41 +83,18 @@ struct cmd_ctrl_node {
 	wait_queue_head_t cmdwait_q;
 };
 
-/* WLAN_802_11_KEY
- *
- * Generic structure to hold all key types.  key type (WEP40, WEP104, TKIP, AES)
- * is determined from the keylength field.
- */
-struct WLAN_802_11_KEY {
-	__le32 len;
-	__le32 flags;  /* KEY_INFO_* from wlan_defs.h */
-	u8 key[MRVL_MAX_KEY_WPA_KEY_LENGTH];
-	__le16 type; /* KEY_TYPE_* from wlan_defs.h */
-};
-
-struct IE_WPA {
-	u8 elementid;
-	u8 len;
-	u8 oui[4];
-	__le16 version;
+/* Generic structure to hold all key types. */
+struct enc_key {
+	u16 len;
+	u16 flags;  /* KEY_INFO_* from wlan_defs.h */
+	u16 type; /* KEY_TYPE_* from wlan_defs.h */
+	u8 key[32];
 };
 
 /* wlan_offset_value */
 struct wlan_offset_value {
 	u32 offset;
 	u32 value;
-};
-
-struct WLAN_802_11_FIXED_IEs {
-	__le64 timestamp;
-	__le16 beaconinterval;
-	u16 capabilities; /* Actually struct ieeetypes_capinfo */
-};
-
-struct WLAN_802_11_VARIABLE_IEs {
-	u8 elementid;
-	u8 length;
-	u8 data[1];
 };
 
 /* Define general data structure */
@@ -131,7 +108,7 @@ struct cmd_ds_gen {
 
 #define S_DS_GEN sizeof(struct cmd_ds_gen)
 /*
- * Define data structure for cmd_get_hw_spec
+ * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command
  */
 struct cmd_ds_get_hw_spec {
@@ -178,11 +155,11 @@ struct cmd_ds_802_11_subscribe_event {
 
 /*
  * This scan handle Country Information IE(802.11d compliant)
- * Define data structure for cmd_802_11_scan
+ * Define data structure for CMD_802_11_SCAN
  */
 struct cmd_ds_802_11_scan {
 	u8 bsstype;
-	u8 BSSID[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	u8 tlvbuffer[1];
 #if 0
 	mrvlietypes_ssidparamset_t ssidParamSet;
@@ -237,7 +214,7 @@ struct cmd_ds_802_11_deauthenticate {
 
 struct cmd_ds_802_11_associate {
 	u8 peerstaaddr[6];
-	struct ieeetypes_capinfo capinfo;
+	__le16 capability;
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
@@ -260,8 +237,8 @@ struct cmd_ds_802_11_associate_rsp {
 };
 
 struct cmd_ds_802_11_ad_hoc_result {
-	u8 PAD[3];
-	u8 BSSID[ETH_ALEN];
+	u8 pad[3];
+	u8 bssid[ETH_ALEN];
 };
 
 struct cmd_ds_802_11_set_wep {
@@ -428,6 +405,16 @@ struct cmd_ds_802_11_rf_antenna {
 
 };
 
+struct cmd_ds_802_11_monitor_mode {
+	u16 action;
+	u16 mode;
+};
+
+struct cmd_ds_set_boot2_ver {
+	u16 action;
+	u16 version;
+};
+
 struct cmd_ds_802_11_ps_mode {
 	__le16 action;
 	__le16 nullpktinterval;
@@ -451,8 +438,8 @@ struct PS_CMD_ConfirmSleep {
 
 struct cmd_ds_802_11_data_rate {
 	__le16 action;
-	__le16 reserverd;
-	u8 datarate[G_SUPPORTED_RATES];
+	__le16 reserved;
+	u8 rates[MAX_RATES];
 };
 
 struct cmd_ds_802_11_rate_adapt_rateset {
@@ -462,30 +449,30 @@ struct cmd_ds_802_11_rate_adapt_rateset {
 };
 
 struct cmd_ds_802_11_ad_hoc_start {
-	u8 SSID[IW_ESSID_MAX_SIZE];
+	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 bsstype;
 	__le16 beaconperiod;
 	u8 dtimperiod;
 	union IEEEtypes_ssparamset ssparamset;
 	union ieeetypes_phyparamset phyparamset;
 	__le16 probedelay;
-	struct ieeetypes_capinfo cap;
-	u8 datarate[G_SUPPORTED_RATES];
+	__le16 capability;
+	u8 rates[MAX_RATES];
 	u8 tlv_memory_size_pad[100];
 } __attribute__ ((packed));
 
 struct adhoc_bssdesc {
-	u8 BSSID[6];
-	u8 SSID[32];
-	u8 bsstype;
+	u8 bssid[6];
+	u8 ssid[32];
+	u8 type;
 	__le16 beaconperiod;
 	u8 dtimperiod;
 	__le64 timestamp;
 	__le64 localtime;
 	union ieeetypes_phyparamset phyparamset;
 	union IEEEtypes_ssparamset ssparamset;
-	struct ieeetypes_capinfo cap;
-	u8 datarates[G_SUPPORTED_RATES];
+	__le16 capability;
+	u8 rates[MAX_RATES];
 
 	/* DO NOT ADD ANY FIELDS TO THIS STRUCTURE. It is used below in the
 	 * Adhoc join command and will cause a binary layout mismatch with
@@ -494,7 +481,7 @@ struct adhoc_bssdesc {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_ad_hoc_join {
-	struct adhoc_bssdesc bssdescriptor;
+	struct adhoc_bssdesc bss;
 	__le16 failtimeout;
 	__le16 probedelay;
 
@@ -646,6 +633,7 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_snmp_mib smib;
 		struct cmd_ds_802_11_rf_tx_power txp;
 		struct cmd_ds_802_11_rf_antenna rant;
+		struct cmd_ds_802_11_monitor_mode monitor;
 		struct cmd_ds_802_11_data_rate drate;
 		struct cmd_ds_802_11_rate_adapt_rateset rateset;
 		struct cmd_ds_mac_multicast_adr madr;
@@ -677,6 +665,7 @@ struct cmd_ds_command {
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 		struct cmd_ds_mesh_access mesh;
+		struct cmd_ds_set_boot2_ver boot2_ver;
 		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_subscribe_event subscribe_event;
 	} params;

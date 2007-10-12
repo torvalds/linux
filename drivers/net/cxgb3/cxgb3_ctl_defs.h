@@ -33,27 +33,29 @@
 #define _CXGB3_OFFLOAD_CTL_DEFS_H
 
 enum {
-	GET_MAX_OUTSTANDING_WR,
-	GET_TX_MAX_CHUNK,
-	GET_TID_RANGE,
-	GET_STID_RANGE,
-	GET_RTBL_RANGE,
-	GET_L2T_CAPACITY,
-	GET_MTUS,
-	GET_WR_LEN,
-	GET_IFF_FROM_MAC,
-	GET_DDP_PARAMS,
-	GET_PORTS,
+	GET_MAX_OUTSTANDING_WR 	= 0,
+	GET_TX_MAX_CHUNK	= 1,
+	GET_TID_RANGE		= 2,
+	GET_STID_RANGE		= 3,
+	GET_RTBL_RANGE		= 4,
+	GET_L2T_CAPACITY	= 5,
+	GET_MTUS		= 6,
+	GET_WR_LEN		= 7,
+	GET_IFF_FROM_MAC	= 8,
+	GET_DDP_PARAMS		= 9,
+	GET_PORTS		= 10,
 
-	ULP_ISCSI_GET_PARAMS,
-	ULP_ISCSI_SET_PARAMS,
+	ULP_ISCSI_GET_PARAMS	= 11,
+	ULP_ISCSI_SET_PARAMS	= 12,
 
-	RDMA_GET_PARAMS,
-	RDMA_CQ_OP,
-	RDMA_CQ_SETUP,
-	RDMA_CQ_DISABLE,
-	RDMA_CTRL_QP_SETUP,
-	RDMA_GET_MEM,
+	RDMA_GET_PARAMS		= 13,
+	RDMA_CQ_OP		= 14,
+	RDMA_CQ_SETUP		= 15,
+	RDMA_CQ_DISABLE		= 16,
+	RDMA_CTRL_QP_SETUP	= 17,
+	RDMA_GET_MEM		= 18,
+
+	GET_RX_PAGE_INFO	= 50,
 };
 
 /*
@@ -160,5 +162,13 @@ struct rdma_cq_setup {
 struct rdma_ctrlqp_setup {
 	unsigned long long base_addr;
 	unsigned int size;
+};
+
+/*
+ * Offload TX/RX page information.
+ */
+struct ofld_page_info {
+	unsigned int page_size;  /* Page size, should be a power of 2 */
+	unsigned int num;        /* Number of pages */
 };
 #endif				/* _CXGB3_OFFLOAD_CTL_DEFS_H */

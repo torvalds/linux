@@ -23,13 +23,6 @@
 				   Danger: may cause nasty hangs if the demon
 				   crashes. */
 
-#if 0
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format,args...)
-#endif
-
-
 struct atm_vcc *sigd = NULL;
 #ifdef WAIT_FOR_DEMON
 static DECLARE_WAIT_QUEUE_HEAD(sigd_sleep);
@@ -44,14 +37,14 @@ static void sigd_put_skb(struct sk_buff *skb)
 	add_wait_queue(&sigd_sleep,&wait);
 	while (!sigd) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		DPRINTK("atmsvc: waiting for signaling demon...\n");
+		pr_debug("atmsvc: waiting for signaling demon...\n");
 		schedule();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&sigd_sleep,&wait);
 #else
 	if (!sigd) {
-		DPRINTK("atmsvc: no signaling demon\n");
+		pr_debug("atmsvc: no signaling demon\n");
 		kfree_skb(skb);
 		return;
 	}
@@ -96,9 +89,9 @@ static int sigd_send(struct atm_vcc *vcc,struct sk_buff *skb)
 
 	msg = (struct atmsvc_msg *) skb->data;
 	atomic_sub(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
-	DPRINTK("sigd_send %d (0x%lx)\n",(int) msg->type,
-	  (unsigned long) msg->vcc);
 	vcc = *(struct atm_vcc **) &msg->vcc;
+	pr_debug("sigd_send %d (0x%lx)\n",(int) msg->type,
+	  (unsigned long) vcc);
 	sk = sk_atm(vcc);
 
 	switch (msg->type) {
@@ -130,7 +123,7 @@ static int sigd_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		case as_indicate:
 			vcc = *(struct atm_vcc **) &msg->listen_vcc;
 			sk = sk_atm(vcc);
-			DPRINTK("as_indicate!!!\n");
+			pr_debug("as_indicate!!!\n");
 			lock_sock(sk);
 			if (sk_acceptq_is_full(sk)) {
 				sigd_enq(NULL,as_reject,vcc,NULL,NULL);
@@ -139,7 +132,7 @@ static int sigd_send(struct atm_vcc *vcc,struct sk_buff *skb)
 			}
 			sk->sk_ack_backlog++;
 			skb_queue_tail(&sk->sk_receive_queue, skb);
-			DPRINTK("waking sk->sk_sleep 0x%p\n", sk->sk_sleep);
+			pr_debug("waking sk->sk_sleep 0x%p\n", sk->sk_sleep);
 			sk->sk_state_change(sk);
 as_indicate_complete:
 			release_sock(sk);
@@ -176,7 +169,7 @@ void sigd_enq2(struct atm_vcc *vcc,enum atmsvc_msg_type type,
 	struct atmsvc_msg *msg;
 	static unsigned session = 0;
 
-	DPRINTK("sigd_enq %d (0x%p)\n",(int) type,vcc);
+	pr_debug("sigd_enq %d (0x%p)\n",(int) type,vcc);
 	while (!(skb = alloc_skb(sizeof(struct atmsvc_msg),GFP_KERNEL)))
 		schedule();
 	msg = (struct atmsvc_msg *) skb_put(skb,sizeof(struct atmsvc_msg));
@@ -226,7 +219,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	struct sock *s;
 	int i;
 
-	DPRINTK("sigd_close\n");
+	pr_debug("sigd_close\n");
 	sigd = NULL;
 	if (skb_peek(&sk_atm(vcc)->sk_receive_queue))
 		printk(KERN_ERR "sigd_close: closing with requests pending\n");
@@ -237,7 +230,7 @@ static void sigd_close(struct atm_vcc *vcc)
 		struct hlist_head *head = &vcc_hash[i];
 
 		sk_for_each(s, node, head) {
-			struct atm_vcc *vcc = atm_sk(s);
+			vcc = atm_sk(s);
 
 			purge_vcc(vcc);
 		}
@@ -263,7 +256,7 @@ static struct atm_dev sigd_dev = {
 int sigd_attach(struct atm_vcc *vcc)
 {
 	if (sigd) return -EADDRINUSE;
-	DPRINTK("sigd_attach\n");
+	pr_debug("sigd_attach\n");
 	sigd = vcc;
 	vcc->dev = &sigd_dev;
 	vcc_insert_socket(sk_atm(vcc));

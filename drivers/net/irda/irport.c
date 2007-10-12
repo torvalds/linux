@@ -175,8 +175,6 @@ irport_open(int i, unsigned int iobase, unsigned int irq)
 	self->tx_buff.data = self->tx_buff.head;
 
 	self->netdev = dev;
-	/* Keep track of module usage */
-	SET_MODULE_OWNER(dev);
 
 	/* May be overridden by piggyback drivers */
 	self->interrupt    = irport_interrupt;

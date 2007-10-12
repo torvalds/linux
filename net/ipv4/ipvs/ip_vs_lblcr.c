@@ -50,6 +50,7 @@
 #include <linux/sysctl.h>
 /* for proc_net_create/proc_net_remove */
 #include <linux/proc_fs.h>
+#include <net/net_namespace.h>
 
 #include <net/ip_vs.h>
 
@@ -843,7 +844,7 @@ static int __init ip_vs_lblcr_init(void)
 	INIT_LIST_HEAD(&ip_vs_lblcr_scheduler.n_list);
 	sysctl_header = register_sysctl_table(lblcr_root_table);
 #ifdef CONFIG_IP_VS_LBLCR_DEBUG
-	proc_net_create("ip_vs_lblcr", 0, ip_vs_lblcr_getinfo);
+	proc_net_create(&init_net, "ip_vs_lblcr", 0, ip_vs_lblcr_getinfo);
 #endif
 	return register_ip_vs_scheduler(&ip_vs_lblcr_scheduler);
 }
@@ -852,7 +853,7 @@ static int __init ip_vs_lblcr_init(void)
 static void __exit ip_vs_lblcr_cleanup(void)
 {
 #ifdef CONFIG_IP_VS_LBLCR_DEBUG
-	proc_net_remove("ip_vs_lblcr");
+	proc_net_remove(&init_net, "ip_vs_lblcr");
 #endif
 	unregister_sysctl_table(sysctl_header);
 	unregister_ip_vs_scheduler(&ip_vs_lblcr_scheduler);

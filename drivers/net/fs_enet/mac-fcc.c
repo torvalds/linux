@@ -1,14 +1,14 @@
 /*
  * FCC driver for Motorola MPC82xx (PQ2).
  *
- * Copyright (c) 2003 Intracom S.A. 
+ * Copyright (c) 2003 Intracom S.A.
  *  by Pantelis Antoniou <panto@intracom.gr>
  *
- * 2005 (c) MontaVista Software, Inc. 
+ * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
  *
- * This file is licensed under the terms of the GNU General Public License 
- * version 2. This program is licensed "as is" without any warranty of any 
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
 
@@ -42,34 +42,29 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+#include <asm/of_device.h>
+#endif
+
 #include "fs_enet.h"
 
 /*************************************************/
 
 /* FCC access macros */
 
-#define __fcc_out32(addr, x)	out_be32((unsigned *)addr, x)
-#define __fcc_out16(addr, x)	out_be16((unsigned short *)addr, x)
-#define __fcc_out8(addr, x)	out_8((unsigned char *)addr, x)
-#define __fcc_in32(addr)	in_be32((unsigned *)addr)
-#define __fcc_in16(addr)	in_be16((unsigned short *)addr)
-#define __fcc_in8(addr)		in_8((unsigned char *)addr)
-
-/* parameter space */
-
 /* write, read, set bits, clear bits */
-#define W32(_p, _m, _v)	__fcc_out32(&(_p)->_m, (_v))
-#define R32(_p, _m)	__fcc_in32(&(_p)->_m)
+#define W32(_p, _m, _v)	out_be32(&(_p)->_m, (_v))
+#define R32(_p, _m)	in_be32(&(_p)->_m)
 #define S32(_p, _m, _v)	W32(_p, _m, R32(_p, _m) | (_v))
 #define C32(_p, _m, _v)	W32(_p, _m, R32(_p, _m) & ~(_v))
 
-#define W16(_p, _m, _v)	__fcc_out16(&(_p)->_m, (_v))
-#define R16(_p, _m)	__fcc_in16(&(_p)->_m)
+#define W16(_p, _m, _v)	out_be16(&(_p)->_m, (_v))
+#define R16(_p, _m)	in_be16(&(_p)->_m)
 #define S16(_p, _m, _v)	W16(_p, _m, R16(_p, _m) | (_v))
 #define C16(_p, _m, _v)	W16(_p, _m, R16(_p, _m) & ~(_v))
 
-#define W8(_p, _m, _v)	__fcc_out8(&(_p)->_m, (_v))
-#define R8(_p, _m)	__fcc_in8(&(_p)->_m)
+#define W8(_p, _m, _v)	out_8(&(_p)->_m, (_v))
+#define R8(_p, _m)	in_8(&(_p)->_m)
 #define S8(_p, _m, _v)	W8(_p, _m, R8(_p, _m) | (_v))
 #define C8(_p, _m, _v)	W8(_p, _m, R8(_p, _m) & ~(_v))
 
@@ -83,34 +78,62 @@
 
 #define MAX_CR_CMD_LOOPS	10000
 
-static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 mcn, u32 op)
+static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 op)
 {
 	const struct fs_platform_info *fpi = fep->fpi;
-
-	cpm2_map_t *immap = fs_enet_immap;
-	cpm_cpm2_t *cpmp = &immap->im_cpm;
-	u32 v;
 	int i;
 
-	/* Currently I don't know what feature call will look like. But 
-	   I guess there'd be something like do_cpm_cmd() which will require page & sblock */
-	v = mk_cr_cmd(fpi->cp_page, fpi->cp_block, mcn, op);
-	W32(cpmp, cp_cpcr, v | CPM_CR_FLG);
+	W32(cpmp, cp_cpcr, fpi->cp_command | op | CPM_CR_FLG);
 	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
 		if ((R32(cpmp, cp_cpcr) & CPM_CR_FLG) == 0)
-			break;
+			return 0;
 
-	if (i >= MAX_CR_CMD_LOOPS) {
-		printk(KERN_ERR "%s(): Not able to issue CPM command\n",
-		       __FUNCTION__);
-		return 1;
-	}
-
-	return 0;
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n",
+	       __FUNCTION__);
+	return 1;
 }
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	struct of_device *ofdev = to_of_device(fep->dev);
+	struct fs_platform_info *fpi = fep->fpi;
+	int ret = -EINVAL;
+
+	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	if (fep->interrupt == NO_IRQ)
+		goto out;
+
+	fep->fcc.fccp = of_iomap(ofdev->node, 0);
+	if (!fep->fcc.fccp)
+		goto out;
+
+	fep->fcc.ep = of_iomap(ofdev->node, 1);
+	if (!fep->fcc.ep)
+		goto out_fccp;
+
+	fep->fcc.fcccp = of_iomap(ofdev->node, 2);
+	if (!fep->fcc.fcccp)
+		goto out_ep;
+
+	fep->fcc.mem = (void __iomem *)cpm2_immr;
+	fpi->dpram_offset = cpm_dpalloc(128, 8);
+	if (IS_ERR_VALUE(fpi->dpram_offset)) {
+		ret = fpi->dpram_offset;
+		goto out_fcccp;
+	}
+
+	return 0;
+
+out_fcccp:
+	iounmap(fep->fcc.fcccp);
+out_ep:
+	iounmap(fep->fcc.ep);
+out_fccp:
+	iounmap(fep->fcc.fccp);
+out:
+	return ret;
+#else
 	struct platform_device *pdev = to_platform_device(fep->dev);
 	struct resource *r;
 
@@ -121,33 +144,33 @@ static int do_pd_setup(struct fs_enet_private *fep)
 
 	/* Attach the memory for the FCC Parameter RAM */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_pram");
-	fep->fcc.ep = (void *)ioremap(r->start, r->end - r->start + 1);
+	fep->fcc.ep = ioremap(r->start, r->end - r->start + 1);
 	if (fep->fcc.ep == NULL)
 		return -EINVAL;
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_regs");
-	fep->fcc.fccp = (void *)ioremap(r->start, r->end - r->start + 1);
+	fep->fcc.fccp = ioremap(r->start, r->end - r->start + 1);
 	if (fep->fcc.fccp == NULL)
 		return -EINVAL;
 
 	if (fep->fpi->fcc_regs_c) {
-
-		fep->fcc.fcccp = (void *)fep->fpi->fcc_regs_c;
+		fep->fcc.fcccp = (void __iomem *)fep->fpi->fcc_regs_c;
 	} else {
 		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 				"fcc_regs_c");
-		fep->fcc.fcccp = (void *)ioremap(r->start,
+		fep->fcc.fcccp = ioremap(r->start,
 				r->end - r->start + 1);
 	}
 
 	if (fep->fcc.fcccp == NULL)
 		return -EINVAL;
 
-	fep->fcc.mem = (void *)fep->fpi->mem_offset;
+	fep->fcc.mem = (void __iomem *)fep->fpi->mem_offset;
 	if (fep->fcc.mem == NULL)
 		return -EINVAL;
 
 	return 0;
+#endif
 }
 
 #define FCC_NAPI_RX_EVENT_MSK	(FCC_ENET_RXF | FCC_ENET_RXB)
@@ -158,11 +181,17 @@ static int do_pd_setup(struct fs_enet_private *fep)
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
+	struct fs_platform_info *fpi = fep->fpi;
+
+	fpi->cp_command = (fpi->cp_page << 26) |
+	                  (fpi->cp_block << 21) |
+	                  (12 << 6);
 
 	fep->fcc.idx = fs_get_fcc_index(fpi->fs_no);
 	if ((unsigned int)fep->fcc.idx >= 3)	/* max 3 FCCs */
 		return -EINVAL;
+#endif
 
 	if (do_pd_setup(fep) != 0)
 		return -EINVAL;
@@ -180,7 +209,7 @@ static int allocate_bd(struct net_device *dev)
 	struct fs_enet_private *fep = netdev_priv(dev);
 	const struct fs_platform_info *fpi = fep->fpi;
 
-	fep->ring_base = dma_alloc_coherent(fep->dev,
+	fep->ring_base = (void __iomem __force *)dma_alloc_coherent(fep->dev,
 					    (fpi->tx_ring + fpi->rx_ring) *
 					    sizeof(cbd_t), &fep->ring_mem_addr,
 					    GFP_KERNEL);
@@ -198,7 +227,7 @@ static void free_bd(struct net_device *dev)
 	if (fep->ring_base)
 		dma_free_coherent(fep->dev,
 			(fpi->tx_ring + fpi->rx_ring) * sizeof(cbd_t),
-			fep->ring_base, fep->ring_mem_addr);
+			(void __force *)fep->ring_base, fep->ring_mem_addr);
 }
 
 static void cleanup_data(struct net_device *dev)
@@ -209,7 +238,7 @@ static void cleanup_data(struct net_device *dev)
 static void set_promiscuous_mode(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	S32(fccp, fcc_fpsmr, FCC_PSMR_PRO);
 }
@@ -217,7 +246,7 @@ static void set_promiscuous_mode(struct net_device *dev)
 static void set_multicast_start(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_enet_t *ep = fep->fcc.ep;
+	fcc_enet_t __iomem *ep = fep->fcc.ep;
 
 	W32(ep, fen_gaddrh, 0);
 	W32(ep, fen_gaddrl, 0);
@@ -226,7 +255,7 @@ static void set_multicast_start(struct net_device *dev)
 static void set_multicast_one(struct net_device *dev, const u8 *mac)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_enet_t *ep = fep->fcc.ep;
+	fcc_enet_t __iomem *ep = fep->fcc.ep;
 	u16 taddrh, taddrm, taddrl;
 
 	taddrh = ((u16)mac[5] << 8) | mac[4];
@@ -236,14 +265,14 @@ static void set_multicast_one(struct net_device *dev, const u8 *mac)
 	W16(ep, fen_taddrh, taddrh);
 	W16(ep, fen_taddrm, taddrm);
 	W16(ep, fen_taddrl, taddrl);
-	fcc_cr_cmd(fep, 0x0C, CPM_CR_SET_GADDR);
+	fcc_cr_cmd(fep, CPM_CR_SET_GADDR);
 }
 
 static void set_multicast_finish(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
-	fcc_enet_t *ep = fep->fcc.ep;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
+	fcc_enet_t __iomem *ep = fep->fcc.ep;
 
 	/* clear promiscuous always */
 	C32(fccp, fcc_fpsmr, FCC_PSMR_PRO);
@@ -278,12 +307,14 @@ static void restart(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	const struct fs_platform_info *fpi = fep->fpi;
-	fcc_t *fccp = fep->fcc.fccp;
-	fcc_c_t *fcccp = fep->fcc.fcccp;
-	fcc_enet_t *ep = fep->fcc.ep;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
+	fcc_c_t __iomem *fcccp = fep->fcc.fcccp;
+	fcc_enet_t __iomem *ep = fep->fcc.ep;
 	dma_addr_t rx_bd_base_phys, tx_bd_base_phys;
 	u16 paddrh, paddrm, paddrl;
+#ifndef CONFIG_PPC_CPM_NEW_BINDING
 	u16 mem_addr;
+#endif
 	const unsigned char *mac;
 	int i;
 
@@ -291,7 +322,7 @@ static void restart(struct net_device *dev)
 
 	/* clear everything (slow & steady does it) */
 	for (i = 0; i < sizeof(*ep); i++)
-		__fcc_out8((char *)ep + i, 0);
+		out_8((u8 __iomem *)ep + i, 0);
 
 	/* get physical address */
 	rx_bd_base_phys = fep->ring_mem_addr;
@@ -315,14 +346,22 @@ static void restart(struct net_device *dev)
 	 * this area.
 	 */
 
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	W16(ep, fen_genfcc.fcc_riptr, fpi->dpram_offset);
+	W16(ep, fen_genfcc.fcc_tiptr, fpi->dpram_offset + 32);
+
+	W16(ep, fen_padptr, fpi->dpram_offset + 64);
+#else
 	mem_addr = (u32) fep->fcc.mem;	/* de-fixup dpram offset */
 
 	W16(ep, fen_genfcc.fcc_riptr, (mem_addr & 0xffff));
 	W16(ep, fen_genfcc.fcc_tiptr, ((mem_addr + 32) & 0xffff));
+
 	W16(ep, fen_padptr, mem_addr + 64);
+#endif
 
 	/* fill with special symbol...  */
-	memset(fep->fcc.mem + fpi->dpram_offset + 64, 0x88, 32);
+	memset_io(fep->fcc.mem + fpi->dpram_offset + 64, 0x88, 32);
 
 	W32(ep, fen_genfcc.fcc_rbptr, 0);
 	W32(ep, fen_genfcc.fcc_tbptr, 0);
@@ -407,7 +446,7 @@ static void restart(struct net_device *dev)
 			S8(fcccp, fcc_gfemr, 0x20);
 	}
 
-	fcc_cr_cmd(fep, 0x0c, CPM_CR_INIT_TRX);
+	fcc_cr_cmd(fep, CPM_CR_INIT_TRX);
 
 	/* clear events */
 	W16(fccp, fcc_fcce, 0xffff);
@@ -438,7 +477,7 @@ static void restart(struct net_device *dev)
 static void stop(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	/* stop ethernet */
 	C32(fccp, fcc_gfmr, FCC_GFMR_ENR | FCC_GFMR_ENT);
@@ -465,7 +504,7 @@ static void post_free_irq(struct net_device *dev, int irq)
 static void napi_clear_rx_event(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	W16(fccp, fcc_fcce, FCC_NAPI_RX_EVENT_MSK);
 }
@@ -473,7 +512,7 @@ static void napi_clear_rx_event(struct net_device *dev)
 static void napi_enable_rx(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	S16(fccp, fcc_fccm, FCC_NAPI_RX_EVENT_MSK);
 }
@@ -481,7 +520,7 @@ static void napi_enable_rx(struct net_device *dev)
 static void napi_disable_rx(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	C16(fccp, fcc_fccm, FCC_NAPI_RX_EVENT_MSK);
 }
@@ -494,15 +533,15 @@ static void rx_bd_done(struct net_device *dev)
 static void tx_kickstart(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
-	S32(fccp, fcc_ftodr, 0x80);
+	S16(fccp, fcc_ftodr, 0x8000);
 }
 
 static u32 get_int_events(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	return (u32)R16(fccp, fcc_fcce);
 }
@@ -510,7 +549,7 @@ static u32 get_int_events(struct net_device *dev)
 static void clear_int_events(struct net_device *dev, u32 int_events)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	W16(fccp, fcc_fcce, int_events & 0xffff);
 }
@@ -521,47 +560,46 @@ static void ev_error(struct net_device *dev, u32 int_events)
 	       ": %s FS_ENET ERROR(s) 0x%x\n", dev->name, int_events);
 }
 
-int get_regs(struct net_device *dev, void *p, int *sizep)
+static int get_regs(struct net_device *dev, void *p, int *sizep)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 
-	if (*sizep < sizeof(fcc_t) + sizeof(fcc_c_t) + sizeof(fcc_enet_t))
+	if (*sizep < sizeof(fcc_t) + sizeof(fcc_enet_t) + 1)
 		return -EINVAL;
 
 	memcpy_fromio(p, fep->fcc.fccp, sizeof(fcc_t));
 	p = (char *)p + sizeof(fcc_t);
 
-	memcpy_fromio(p, fep->fcc.fcccp, sizeof(fcc_c_t));
-	p = (char *)p + sizeof(fcc_c_t);
-
 	memcpy_fromio(p, fep->fcc.ep, sizeof(fcc_enet_t));
+	p = (char *)p + sizeof(fcc_enet_t);
 
+	memcpy_fromio(p, fep->fcc.fcccp, 1);
 	return 0;
 }
 
-int get_regs_len(struct net_device *dev)
+static int get_regs_len(struct net_device *dev)
 {
-	return sizeof(fcc_t) + sizeof(fcc_c_t) + sizeof(fcc_enet_t);
+	return sizeof(fcc_t) + sizeof(fcc_enet_t) + 1;
 }
 
 /* Some transmit errors cause the transmitter to shut
  * down.  We now issue a restart transmit.  Since the
  * errors close the BD and update the pointers, the restart
  * _should_ pick up without having to reset any of our
- * pointers either.  Also, To workaround 8260 device erratum 
+ * pointers either.  Also, To workaround 8260 device erratum
  * CPM37, we must disable and then re-enable the transmitter
  * following a Late Collision, Underrun, or Retry Limit error.
  */
-void tx_restart(struct net_device *dev)
+static void tx_restart(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	fcc_t *fccp = fep->fcc.fccp;
+	fcc_t __iomem *fccp = fep->fcc.fccp;
 
 	C32(fccp, fcc_gfmr, FCC_GFMR_ENT);
 	udelay(10);
 	S32(fccp, fcc_gfmr, FCC_GFMR_ENT);
 
-	fcc_cr_cmd(fep, 0x0C, CPM_CR_RESTART_TX);
+	fcc_cr_cmd(fep, CPM_CR_RESTART_TX);
 }
 
 /*************************************************************************/

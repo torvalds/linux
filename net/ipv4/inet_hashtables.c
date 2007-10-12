@@ -279,19 +279,18 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 	int ret;
 
 	if (!snum) {
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
-		int range = high - low;
-		int i;
-		int port;
+		int i, remaining, low, high, port;
 		static u32 hint;
 		u32 offset = hint + inet_sk_port_offset(sk);
 		struct hlist_node *node;
 		struct inet_timewait_sock *tw = NULL;
 
+		inet_get_local_port_range(&low, &high);
+		remaining = high - low;
+
 		local_bh_disable();
-		for (i = 1; i <= range; i++) {
-			port = low + (i + offset) % range;
+		for (i = 1; i <= remaining; i++) {
+			port = low + (i + offset) % remaining;
 			head = &hinfo->bhash[inet_bhashfn(port, hinfo->bhash_size)];
 			spin_lock(&head->lock);
 

@@ -284,6 +284,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #elif   defined(CONFIG_SUPERH)
 
 #ifdef CONFIG_SOLUTION_ENGINE
+#define SMC_IRQ_FLAGS		(0)
 #define SMC_CAN_USE_8BIT       0
 #define SMC_CAN_USE_16BIT      1
 #define SMC_CAN_USE_32BIT      0

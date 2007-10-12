@@ -65,6 +65,7 @@
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <net/net_namespace.h>
 
 #include <asm/uaccess.h>
 #include <linux/init.h>
@@ -1096,8 +1097,7 @@ static void yam_setup(struct net_device *dev)
 
 	skb_queue_head_init(&yp->send_queue);
 
-	dev->hard_header = ax25_hard_header;
-	dev->rebuild_header = ax25_rebuild_header;
+	dev->header_ops = &ax25_header_ops;
 
 	dev->set_mac_address = yam_set_mac_address;
 
@@ -1142,7 +1142,7 @@ static int __init yam_init_driver(void)
 	yam_timer.expires = jiffies + HZ / 100;
 	add_timer(&yam_timer);
 
-	proc_net_fops_create("yam", S_IRUGO, &yam_info_fops);
+	proc_net_fops_create(&init_net, "yam", S_IRUGO, &yam_info_fops);
 	return 0;
  error:
 	while (--i >= 0) {
@@ -1174,7 +1174,7 @@ static void __exit yam_cleanup_driver(void)
 		kfree(p);
 	}
 
-	proc_net_remove("yam");
+	proc_net_remove(&init_net, "yam");
 }
 
 /* --------------------------------------------------------------------- */

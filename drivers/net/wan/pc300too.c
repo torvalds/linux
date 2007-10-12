@@ -468,7 +468,6 @@ static int __devinit pc300_pci_init_one(struct pci_dev *pdev,
 		port->phy_node = i;
 
 		spin_lock_init(&port->lock);
-		SET_MODULE_OWNER(dev);
 		dev->irq = card->irq;
 		dev->mem_start = ramphys;
 		dev->mem_end = ramphys + ramsize - 1;

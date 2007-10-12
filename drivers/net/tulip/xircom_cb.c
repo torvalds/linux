@@ -252,7 +252,6 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 		goto tx_buf_fail;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 
@@ -271,7 +270,6 @@ static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_
 	dev->hard_start_xmit = &xircom_start_xmit;
 	dev->stop = &xircom_close;
 	dev->get_stats = &xircom_get_stats;
-	dev->priv = private;
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = &xircom_poll_controller;
 #endif
@@ -1076,6 +1074,7 @@ static void read_mac_address(struct xircom_private *card)
 	unsigned char j, tuple, link, data_id, data_count;
 	unsigned long flags;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	enter("read_mac_address");
 
@@ -1105,11 +1104,7 @@ static void read_mac_address(struct xircom_private *card)
 		}
 	}
 	spin_unlock_irqrestore(&card->lock, flags);
-#ifdef DEBUG
-	for (i = 0; i < 6; i++)
-		printk("%c%2.2X", i ? ':' : ' ', card->dev->dev_addr[i]);
-	printk("\n");
-#endif
+	pr_debug(" %s\n", print_mac(mac, card->dev->dev_addr));
 	leave("read_mac_address");
 }
 

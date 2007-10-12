@@ -11,6 +11,8 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <net/net_namespace.h>
+#include <net/sock.h>
 #include <net/fib_rules.h>
 
 static LIST_HEAD(rules_ops);
@@ -82,7 +84,7 @@ static void cleanup_ops(struct fib_rules_ops *ops)
 {
 	struct fib_rule *rule, *tmp;
 
-	list_for_each_entry_safe(rule, tmp, ops->rules_list, list) {
+	list_for_each_entry_safe(rule, tmp, &ops->rules_list, list) {
 		list_del_rcu(&rule->list);
 		fib_rule_put(rule);
 	}
@@ -137,7 +139,7 @@ int fib_rules_lookup(struct fib_rules_ops *ops, struct flowi *fl,
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(rule, ops->rules_list, list) {
+	list_for_each_entry_rcu(rule, &ops->rules_list, list) {
 jumped:
 		if (!fib_rule_match(rule, ops, fl, flags))
 			continue;
@@ -197,6 +199,7 @@ errout:
 
 static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule, *r, *last = NULL;
@@ -234,7 +237,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 		rule->ifindex = -1;
 		nla_strlcpy(rule->ifname, tb[FRA_IFNAME], IFNAMSIZ);
-		dev = __dev_get_by_name(rule->ifname);
+		dev = __dev_get_by_name(net, rule->ifname);
 		if (dev)
 			rule->ifindex = dev->ifindex;
 	}
@@ -268,7 +271,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		if (rule->target <= rule->pref)
 			goto errout_free;
 
-		list_for_each_entry(r, ops->rules_list, list) {
+		list_for_each_entry(r, &ops->rules_list, list) {
 			if (r->pref == rule->target) {
 				rule->ctarget = r;
 				break;
@@ -284,7 +287,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (err < 0)
 		goto errout_free;
 
-	list_for_each_entry(r, ops->rules_list, list) {
+	list_for_each_entry(r, &ops->rules_list, list) {
 		if (r->pref > rule->pref)
 			break;
 		last = r;
@@ -297,7 +300,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		 * There are unresolved goto rules in the list, check if
 		 * any of them are pointing to this new rule.
 		 */
-		list_for_each_entry(r, ops->rules_list, list) {
+		list_for_each_entry(r, &ops->rules_list, list) {
 			if (r->action == FR_ACT_GOTO &&
 			    r->target == rule->pref) {
 				BUG_ON(r->ctarget != NULL);
@@ -317,7 +320,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (last)
 		list_add_rcu(&rule->list, &last->list);
 	else
-		list_add_rcu(&rule->list, ops->rules_list);
+		list_add_rcu(&rule->list, &ops->rules_list);
 
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
 	flush_route_cache(ops);
@@ -356,7 +359,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	if (err < 0)
 		goto errout;
 
-	list_for_each_entry(rule, ops->rules_list, list) {
+	list_for_each_entry(rule, &ops->rules_list, list) {
 		if (frh->action && (frh->action != rule->action))
 			continue;
 
@@ -399,7 +402,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		 * actually been added.
 		 */
 		if (ops->nr_goto_rules > 0) {
-			list_for_each_entry(tmp, ops->rules_list, list) {
+			list_for_each_entry(tmp, &ops->rules_list, list) {
 				if (tmp->ctarget == rule) {
 					rcu_assign_pointer(tmp->ctarget, NULL);
 					ops->unresolved_rules++;
@@ -495,7 +498,7 @@ static int dump_rules(struct sk_buff *skb, struct netlink_callback *cb,
 	int idx = 0;
 	struct fib_rule *rule;
 
-	list_for_each_entry(rule, ops->rules_list, list) {
+	list_for_each_entry(rule, &ops->rules_list, list) {
 		if (idx < cb->args[1])
 			goto skip;
 
@@ -596,18 +599,21 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 	struct net_device *dev = ptr;
 	struct fib_rules_ops *ops;
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	ASSERT_RTNL();
 	rcu_read_lock();
 
 	switch (event) {
 	case NETDEV_REGISTER:
 		list_for_each_entry(ops, &rules_ops, list)
-			attach_rules(ops->rules_list, dev);
+			attach_rules(&ops->rules_list, dev);
 		break;
 
 	case NETDEV_UNREGISTER:
 		list_for_each_entry(ops, &rules_ops, list)
-			detach_rules(ops->rules_list, dev);
+			detach_rules(&ops->rules_list, dev);
 		break;
 	}
 

@@ -1220,10 +1220,17 @@ static struct net_device_stats * dvb_net_get_stats(struct net_device *dev)
 	return &((struct dvb_net_priv*) dev->priv)->stats;
 }
 
+static const struct header_ops dvb_header_ops = {
+	.create		= eth_header,
+	.parse		= eth_header_parse,
+	.rebuild	= eth_rebuild_header,
+};
+
 static void dvb_net_setup(struct net_device *dev)
 {
 	ether_setup(dev);
 
+	dev->header_ops		= &dvb_header_ops;
 	dev->open		= dvb_net_open;
 	dev->stop		= dvb_net_stop;
 	dev->hard_start_xmit	= dvb_net_tx;
@@ -1232,7 +1239,7 @@ static void dvb_net_setup(struct net_device *dev)
 	dev->set_mac_address    = dvb_net_set_mac;
 	dev->mtu		= 4096;
 	dev->mc_count           = 0;
-	dev->hard_header_cache  = NULL;
+
 	dev->flags |= IFF_NOARP;
 }
 

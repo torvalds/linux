@@ -58,7 +58,6 @@ typedef struct equalizer {
 	slave_queue_t		queue;
 	int			min_slaves;
 	int			max_slaves;
-	struct net_device_stats	stats;
 	struct timer_list	timer;
 } equalizer_t;  
 

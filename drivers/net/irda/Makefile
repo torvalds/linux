@@ -47,6 +47,8 @@ obj-$(CONFIG_MA600_DONGLE)	+= ma600-sir.o
 obj-$(CONFIG_TOIM3232_DONGLE)	+= toim3232-sir.o
 obj-$(CONFIG_EP7211_DONGLE)	+= ep7211-sir.o
 obj-$(CONFIG_KINGSUN_DONGLE)	+= kingsun-sir.o
+obj-$(CONFIG_KSDAZZLE_DONGLE)	+= ksdazzle-sir.o
+obj-$(CONFIG_KS959_DONGLE)    	+= ks959-sir.o
 
 # The SIR helper module
 sir-dev-objs := sir_dev.o sir_dongle.o

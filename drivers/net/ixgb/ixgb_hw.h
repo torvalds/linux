@@ -711,7 +711,7 @@ struct ixgb_hw {
 	uint32_t bar2;
 	uint32_t bar3;
 	uint16_t pci_cmd_word;	/* PCI command register id from PCI configuration space */
-	uint16_t eeprom[IXGB_EEPROM_SIZE];	/* EEPROM contents read at init time  */
+	__le16 eeprom[IXGB_EEPROM_SIZE];	/* EEPROM contents read at init time  */
 	unsigned long io_base;	/* Our I/O mapped location */
 	uint32_t lastLFC;
 	uint32_t lastRFC;
@@ -809,7 +809,7 @@ void ixgb_get_ee_mac_addr(struct ixgb_hw *hw, uint8_t *mac_addr);
 uint32_t ixgb_get_ee_pba_number(struct ixgb_hw *hw);
 uint16_t ixgb_get_ee_device_id(struct ixgb_hw *hw);
 boolean_t ixgb_get_eeprom_data(struct ixgb_hw *hw);
-uint16_t ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index);
+__le16 ixgb_get_eeprom_word(struct ixgb_hw *hw, uint16_t index);
 
 /* Everything else */
 void ixgb_led_on(struct ixgb_hw *hw);

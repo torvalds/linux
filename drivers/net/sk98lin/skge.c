@@ -4877,7 +4877,6 @@ static int __devinit skge_probe_one(struct pci_dev *pdev,
 		goto out_free_netdev;
 	}
 
-	SET_MODULE_OWNER(dev);
 	dev->open =		&SkGeOpen;
 	dev->stop =		&SkGeClose;
 	dev->hard_start_xmit =	&SkGeXmit;

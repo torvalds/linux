@@ -97,10 +97,9 @@ extern int tc_classify(struct sk_buff *skb, struct tcf_proto *tp,
 /* Calculate maximal size of packet seen by hard_start_xmit
    routine of this device.
  */
-static inline unsigned psched_mtu(struct net_device *dev)
+static inline unsigned psched_mtu(const struct net_device *dev)
 {
-	unsigned mtu = dev->mtu;
-	return dev->hard_header ? mtu + dev->hard_header_len : mtu;
+	return dev->mtu + dev->hard_header_len;
 }
 
 #endif

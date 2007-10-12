@@ -38,6 +38,7 @@
 #include <net/tipc/tipc_bearer.h>
 #include <net/tipc/tipc_msg.h>
 #include <linux/netdevice.h>
+#include <net/net_namespace.h>
 
 #define MAX_ETH_BEARERS		2
 #define ETH_LINK_PRIORITY	TIPC_DEF_LINK_PRI
@@ -76,7 +77,7 @@ static int send_msg(struct sk_buff *buf, struct tipc_bearer *tb_ptr,
 		skb_reset_network_header(clone);
 		dev = ((struct eth_bearer *)(tb_ptr->usr_handle))->dev;
 		clone->dev = dev;
-		dev->hard_header(clone, dev, ETH_P_TIPC,
+		dev_hard_header(clone, dev, ETH_P_TIPC,
 				 &dest->dev_addr.eth_addr,
 				 dev->dev_addr, clone->len);
 		dev_queue_xmit(clone);
@@ -99,6 +100,11 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 {
 	struct eth_bearer *eb_ptr = (struct eth_bearer *)pt->af_packet_priv;
 	u32 size;
+
+	if (dev->nd_net != &init_net) {
+		kfree_skb(buf);
+		return 0;
+	}
 
 	if (likely(eb_ptr->bearer)) {
 		if (likely(buf->pkt_type <= PACKET_BROADCAST)) {
@@ -129,7 +135,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 
 	/* Find device with specified name */
 
-	for_each_netdev(pdev){
+	for_each_netdev(&init_net, pdev){
 		if (!strncmp(pdev->name, driver_name, IFNAMSIZ)) {
 			dev = pdev;
 			break;
@@ -192,6 +198,9 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 	struct eth_bearer *eb_ptr = &eth_bearers[0];
 	struct eth_bearer *stop = &eth_bearers[MAX_ETH_BEARERS];
 
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
+
 	while ((eb_ptr->dev != dev)) {
 		if (++eb_ptr == stop)
 			return NOTIFY_DONE;	/* couldn't find device */
@@ -234,12 +243,12 @@ static int recv_notification(struct notifier_block *nb, unsigned long evt,
 static char *eth_addr2str(struct tipc_media_addr *a, char *str_buf, int str_size)
 {
 	unchar *addr = (unchar *)&a->dev_addr;
+	DECLARE_MAC_BUF(mac);
 
 	if (str_size < 18)
 		*str_buf = '\0';
 	else
-		sprintf(str_buf, "%02x:%02x:%02x:%02x:%02x:%02x",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+		sprintf(str_buf, "%s", print_mac(mac, addr));
 	return str_buf;
 }
 

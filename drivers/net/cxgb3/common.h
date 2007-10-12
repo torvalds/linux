@@ -97,6 +97,7 @@ enum {
 	MAX_NPORTS = 2,		/* max # of ports */
 	MAX_FRAME_SIZE = 10240,	/* max MAC frame size, including header + FCS */
 	EEPROMSIZE = 8192,	/* Serial EEPROM size */
+	SERNUM_LEN     = 16,    /* Serial # length */
 	RSS_TABLE_SIZE = 64,	/* size of RSS lookup and mapping tables */
 	TCB_SIZE = 128,		/* TCB size */
 	NMTUS = 16,		/* size of MTU table */
@@ -104,7 +105,7 @@ enum {
 	PROTO_SRAM_LINES = 128, /* size of TP sram */
 };
 
-#define MAX_RX_COALESCING_LEN 16224U
+#define MAX_RX_COALESCING_LEN 12288U
 
 enum {
 	PAUSE_RX = 1 << 0,
@@ -126,8 +127,8 @@ enum {				/* adapter interrupt-maintained statistics */
 
 enum {
 	TP_VERSION_MAJOR	= 1,
-	TP_VERSION_MINOR	= 0,
-	TP_VERSION_MICRO	= 44
+	TP_VERSION_MINOR	= 1,
+	TP_VERSION_MICRO	= 0
 };
 
 #define S_TP_VERSION_MAJOR		16
@@ -167,8 +168,8 @@ enum {
 };
 
 struct sg_ent {			/* SGE scatter/gather entry */
-	u32 len[2];
-	u64 addr[2];
+	__be32 len[2];
+	__be64 addr[2];
 };
 
 #ifndef SGE_NUM_GENBITS
@@ -391,6 +392,7 @@ struct vpd_params {
 	unsigned int uclk;
 	unsigned int mdc;
 	unsigned int mem_timing;
+	u8 sn[SERNUM_LEN + 1];
 	u8 eth_base[6];
 	u8 port_type[MAX_NPORTS];
 	unsigned short xauicfg[2];
@@ -436,6 +438,7 @@ enum {					    /* chip revisions */
 	T3_REV_A  = 0,
 	T3_REV_B  = 2,
 	T3_REV_B2 = 3,
+	T3_REV_C  = 4,
 };
 
 struct trace_params {
@@ -507,9 +510,11 @@ struct cmac {
 	unsigned int tx_xcnt;
 	u64 tx_mcnt;
 	unsigned int rx_xcnt;
+	unsigned int rx_ocnt;
 	u64 rx_mcnt;
 	unsigned int toggle_cnt;
 	unsigned int txen;
+	u64 rx_pause;
 	struct mac_stats stats;
 };
 
@@ -687,7 +692,7 @@ int t3_read_flash(struct adapter *adapter, unsigned int addr,
 		  unsigned int nwords, u32 *data, int byte_oriented);
 int t3_load_fw(struct adapter *adapter, const u8 * fw_data, unsigned int size);
 int t3_get_fw_version(struct adapter *adapter, u32 *vers);
-int t3_check_fw_version(struct adapter *adapter);
+int t3_check_fw_version(struct adapter *adapter, int *must_load);
 int t3_init_hw(struct adapter *adapter, u32 fw_params);
 void mac_prep(struct cmac *mac, struct adapter *adapter, int index);
 void early_hw_init(struct adapter *adapter, const struct adapter_info *ai);

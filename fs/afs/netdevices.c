@@ -8,6 +8,7 @@
 #include <linux/inetdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
+#include <net/net_namespace.h>
 #include "internal.h"
 
 /*
@@ -23,7 +24,7 @@ int afs_get_MAC_address(u8 *mac, size_t maclen)
 		BUG();
 
 	rtnl_lock();
-	dev = __dev_getfirstbyhwtype(ARPHRD_ETHER);
+	dev = __dev_getfirstbyhwtype(&init_net, ARPHRD_ETHER);
 	if (dev) {
 		memcpy(mac, dev->dev_addr, maclen);
 		ret = 0;
@@ -47,7 +48,7 @@ int afs_get_ipv4_interfaces(struct afs_interface *bufs, size_t maxbufs,
 	ASSERT(maxbufs > 0);
 
 	rtnl_lock();
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		if (dev->type == ARPHRD_LOOPBACK && !wantloopback)
 			continue;
 		idev = __in_dev_get_rtnl(dev);

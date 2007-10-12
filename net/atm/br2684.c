@@ -34,12 +34,6 @@ Author: Marcell GAL, 2000, XDSL Ltd, Hungary
  */
 /* #define FASTER_VERSION */
 
-#ifdef DEBUG
-#define DPRINTK(format, args...) printk(KERN_DEBUG "br2684: " format, ##args)
-#else
-#define DPRINTK(format, args...)
-#endif
-
 #ifdef SKB_DEBUG
 static void skb_debug(const struct sk_buff *skb)
 {
@@ -180,7 +174,7 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct br2684_dev *brdev,
 	skb_debug(skb);
 
 	ATM_SKB(skb)->vcc = atmvcc = brvcc->atmvcc;
-	DPRINTK("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
+	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, atmvcc, atmvcc->dev);
 	if (!atm_may_send(atmvcc, skb->truesize)) {
 		/* we free this here for now, because we cannot know in a higher
 			layer whether the skb point it supplied wasn't freed yet.
@@ -209,11 +203,11 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
 
-	DPRINTK("br2684_start_xmit, skb->dst=%p\n", skb->dst);
+	pr_debug("br2684_start_xmit, skb->dst=%p\n", skb->dst);
 	read_lock(&devs_lock);
 	brvcc = pick_outgoing_vcc(skb, brdev);
 	if (brvcc == NULL) {
-		DPRINTK("no vcc attached to dev %s\n", dev->name);
+		pr_debug("no vcc attached to dev %s\n", dev->name);
 		brdev->stats.tx_errors++;
 		brdev->stats.tx_carrier_errors++;
 		/* netif_stop_queue(dev); */
@@ -239,7 +233,7 @@ static int br2684_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *br2684_get_stats(struct net_device *dev)
 {
-	DPRINTK("br2684_get_stats\n");
+	pr_debug("br2684_get_stats\n");
 	return &BRPRIV(dev)->stats;
 }
 
@@ -390,7 +384,7 @@ packet_fails_filter(__be16 type, struct br2684_vcc *brvcc, struct sk_buff *skb)
 
 static void br2684_close_vcc(struct br2684_vcc *brvcc)
 {
-	DPRINTK("removing VCC %p from dev %p\n", brvcc, brvcc->device);
+	pr_debug("removing VCC %p from dev %p\n", brvcc, brvcc->device);
 	write_lock_irq(&devs_lock);
 	list_del(&brvcc->brvccs);
 	write_unlock_irq(&devs_lock);
@@ -408,7 +402,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 	struct br2684_dev *brdev = BRPRIV(net_dev);
 	int plen = sizeof(llc_oui_pid_pad) + ETH_HLEN;
 
-	DPRINTK("br2684_push\n");
+	pr_debug("br2684_push\n");
 
 	if (unlikely(skb == NULL)) {
 		/* skb==NULL means VCC is being destroyed */
@@ -425,7 +419,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 
 	skb_debug(skb);
 	atm_return(atmvcc, skb->truesize);
-	DPRINTK("skb from brdev %p\n", brdev);
+	pr_debug("skb from brdev %p\n", brdev);
 	if (brvcc->encaps == e_llc) {
 		/* let us waste some time for checking the encapsulation.
 		   Note, that only 7 char is checked so frames with a valid FCS
@@ -474,7 +468,7 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 #endif /* CONFIG_ATM_BR2684_IPFILTER */
 	skb->dev = net_dev;
 	ATM_SKB(skb)->vcc = atmvcc;	/* needed ? */
-	DPRINTK("received packet's protocol: %x\n", ntohs(skb->protocol));
+	pr_debug("received packet's protocol: %x\n", ntohs(skb->protocol));
 	skb_debug(skb);
 	if (unlikely(!(net_dev->flags & IFF_UP))) {
 		/* sigh, interface is down */
@@ -532,7 +526,7 @@ Note: we do not have explicit unassign, but look at _push()
 		err = -EINVAL;
 		goto error;
 	}
-	DPRINTK("br2684_regvcc vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps,
+	pr_debug("br2684_regvcc vcc=%p, encaps=%d, brvcc=%p\n", atmvcc, be.encaps,
 		brvcc);
 	if (list_empty(&brdev->brvccs) && !brdev->mac_was_set) {
 		unsigned char *esi = atmvcc->dev->esi;
@@ -612,7 +606,7 @@ static int br2684_create(void __user *arg)
 	struct br2684_dev *brdev;
 	struct atm_newif_br2684 ni;
 
-	DPRINTK("br2684_create\n");
+	pr_debug("br2684_create\n");
 
 	if (copy_from_user(&ni, arg, sizeof ni)) {
 		return -EFAULT;
@@ -629,7 +623,7 @@ static int br2684_create(void __user *arg)
 
 	brdev = BRPRIV(netdev);
 
-	DPRINTK("registered netdev %s\n", netdev->name);
+	pr_debug("registered netdev %s\n", netdev->name);
 	/* open, stop, do_ioctl ? */
 	err = register_netdev(netdev);
 	if (err < 0) {
@@ -715,17 +709,13 @@ static int br2684_seq_show(struct seq_file *seq, void *v)
 			br2684_devs);
 	const struct net_device *net_dev = brdev->net_dev;
 	const struct br2684_vcc *brvcc;
+	DECLARE_MAC_BUF(mac);
 
-	seq_printf(seq, "dev %.16s: num=%d, mac=%02X:%02X:"
-		       "%02X:%02X:%02X:%02X (%s)\n", net_dev->name,
-		       brdev->number,
-		       net_dev->dev_addr[0],
-		       net_dev->dev_addr[1],
-		       net_dev->dev_addr[2],
-		       net_dev->dev_addr[3],
-		       net_dev->dev_addr[4],
-		       net_dev->dev_addr[5],
-		       brdev->mac_was_set ? "set" : "auto");
+	seq_printf(seq, "dev %.16s: num=%d, mac=%s (%s)\n",
+		   net_dev->name,
+		   brdev->number,
+		   print_mac(mac, net_dev->dev_addr),
+		   brdev->mac_was_set ? "set" : "auto");
 
 	list_for_each_entry(brvcc, &brdev->brvccs, brvccs) {
 		seq_printf(seq, "  vcc %d.%d.%d: encaps=%s"

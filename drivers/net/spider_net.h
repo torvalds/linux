@@ -466,6 +466,8 @@ struct spider_net_card {
 	struct pci_dev *pdev;
 	struct mii_phy phy;
 
+	struct napi_struct napi;
+
 	int medium;
 
 	void __iomem *regs;
@@ -485,7 +487,6 @@ struct spider_net_card {
 
 	/* for ethtool */
 	int msg_enable;
-	struct net_device_stats netdev_stats;
 	struct spider_net_extra_stats spider_stats;
 	struct spider_net_options options;
 

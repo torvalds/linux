@@ -69,6 +69,9 @@ static int nf_sockopt(struct sock *sk, int pf, int val,
 	struct nf_sockopt_ops *ops;
 	int ret;
 
+	if (sk->sk_net != &init_net)
+		return -ENOPROTOOPT;
+
 	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
 		return -EINTR;
 
@@ -124,6 +127,10 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 	struct list_head *i;
 	struct nf_sockopt_ops *ops;
 	int ret;
+
+	if (sk->sk_net != &init_net)
+		return -ENOPROTOOPT;
+
 
 	if (mutex_lock_interruptible(&nf_sockopt_mutex) != 0)
 		return -EINTR;

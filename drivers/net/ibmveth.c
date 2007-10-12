@@ -28,7 +28,6 @@
 /**************************************************************************/
 /*
   TODO:
-  - remove frag processing code - no longer needed
   - add support for sysfs
   - possibly remove procfs support
 */
@@ -47,6 +46,9 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
+#include <linux/in.h>
+#include <linux/ip.h>
+#include <net/net_namespace.h>
 #include <asm/semaphore.h>
 #include <asm/hvcall.h>
 #include <asm/atomic.h>
@@ -83,9 +85,8 @@
 static int ibmveth_open(struct net_device *dev);
 static int ibmveth_close(struct net_device *dev);
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-static int ibmveth_poll(struct net_device *dev, int *budget);
+static int ibmveth_poll(struct napi_struct *napi, int budget);
 static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *ibmveth_get_stats(struct net_device *dev);
 static void ibmveth_set_multicast_list(struct net_device *dev);
 static int ibmveth_change_mtu(struct net_device *dev, int new_mtu);
 static void ibmveth_proc_register_driver(void);
@@ -97,7 +98,7 @@ static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter);
 static struct kobj_type ktype_veth_pool;
 
 #ifdef CONFIG_PROC_FS
-#define IBMVETH_PROC_DIR "net/ibmveth"
+#define IBMVETH_PROC_DIR "ibmveth"
 static struct proc_dir_entry *ibmveth_proc_dir;
 #endif
 
@@ -110,25 +111,59 @@ MODULE_DESCRIPTION("IBM i/pSeries Virtual Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(ibmveth_driver_version);
 
+struct ibmveth_stat {
+	char name[ETH_GSTRING_LEN];
+	int offset;
+};
+
+#define IBMVETH_STAT_OFF(stat) offsetof(struct ibmveth_adapter, stat)
+#define IBMVETH_GET_STAT(a, off) *((u64 *)(((unsigned long)(a)) + off))
+
+struct ibmveth_stat ibmveth_stats[] = {
+	{ "replenish_task_cycles", IBMVETH_STAT_OFF(replenish_task_cycles) },
+	{ "replenish_no_mem", IBMVETH_STAT_OFF(replenish_no_mem) },
+	{ "replenish_add_buff_failure", IBMVETH_STAT_OFF(replenish_add_buff_failure) },
+	{ "replenish_add_buff_success", IBMVETH_STAT_OFF(replenish_add_buff_success) },
+	{ "rx_invalid_buffer", IBMVETH_STAT_OFF(rx_invalid_buffer) },
+	{ "rx_no_buffer", IBMVETH_STAT_OFF(rx_no_buffer) },
+	{ "tx_map_failed", IBMVETH_STAT_OFF(tx_map_failed) },
+	{ "tx_send_failed", IBMVETH_STAT_OFF(tx_send_failed) },
+};
+
 /* simple methods of getting data from the current rxq entry */
+static inline u32 ibmveth_rxq_flags(struct ibmveth_adapter *adapter)
+{
+	return adapter->rx_queue.queue_addr[adapter->rx_queue.index].flags_off;
+}
+
+static inline int ibmveth_rxq_toggle(struct ibmveth_adapter *adapter)
+{
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_TOGGLE) >> IBMVETH_RXQ_TOGGLE_SHIFT;
+}
+
 static inline int ibmveth_rxq_pending_buffer(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].toggle == adapter->rx_queue.toggle);
+	return (ibmveth_rxq_toggle(adapter) == adapter->rx_queue.toggle);
 }
 
 static inline int ibmveth_rxq_buffer_valid(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].valid);
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_VALID);
 }
 
 static inline int ibmveth_rxq_frame_offset(struct ibmveth_adapter *adapter)
 {
-	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].offset);
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_OFF_MASK);
 }
 
 static inline int ibmveth_rxq_frame_length(struct ibmveth_adapter *adapter)
 {
 	return (adapter->rx_queue.queue_addr[adapter->rx_queue.index].length);
+}
+
+static inline int ibmveth_rxq_csum_good(struct ibmveth_adapter *adapter)
+{
+	return (ibmveth_rxq_flags(adapter) & IBMVETH_RXQ_CSUM_GOOD);
 }
 
 /* setup the initial settings for a buffer pool */
@@ -228,9 +263,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		correlator = ((u64)pool->index << 32) | index;
 		*(u64*)skb->data = correlator;
 
-		desc.desc = 0;
-		desc.fields.valid = 1;
-		desc.fields.length = pool->buff_size;
+		desc.fields.flags_len = IBMVETH_BUF_VALID | pool->buff_size;
 		desc.fields.address = dma_addr;
 
 		lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
@@ -371,9 +404,8 @@ static void ibmveth_rxq_recycle_buffer(struct ibmveth_adapter *adapter)
 		return;
 	}
 
-	desc.desc = 0;
-	desc.fields.valid = 1;
-	desc.fields.length = adapter->rx_buff_pool[pool].buff_size;
+	desc.fields.flags_len = IBMVETH_BUF_VALID |
+		adapter->rx_buff_pool[pool].buff_size;
 	desc.fields.address = adapter->rx_buff_pool[pool].dma_addr[index];
 
 	lpar_rc = h_add_logical_lan_buffer(adapter->vdev->unit_address, desc.desc);
@@ -480,6 +512,8 @@ static int ibmveth_open(struct net_device *netdev)
 
 	ibmveth_debug_printk("open starting\n");
 
+	napi_enable(&adapter->napi);
+
 	for(i = 0; i<IbmVethNumBufferPools; i++)
 		rxq_entries += adapter->rx_buff_pool[i].size;
 
@@ -489,6 +523,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if(!adapter->buffer_list_addr || !adapter->filter_list_addr) {
 		ibmveth_error_printk("unable to allocate filter or buffer list pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -498,6 +533,7 @@ static int ibmveth_open(struct net_device *netdev)
 	if(!adapter->rx_queue.queue_addr) {
 		ibmveth_error_printk("unable to allocate rx queue pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -514,6 +550,7 @@ static int ibmveth_open(struct net_device *netdev)
 	   (dma_mapping_error(adapter->rx_queue.queue_dma))) {
 		ibmveth_error_printk("unable to map filter or buffer list pages\n");
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENOMEM;
 	}
 
@@ -524,9 +561,7 @@ static int ibmveth_open(struct net_device *netdev)
 	memcpy(&mac_address, netdev->dev_addr, netdev->addr_len);
 	mac_address = mac_address >> 16;
 
-	rxq_desc.desc = 0;
-	rxq_desc.fields.valid = 1;
-	rxq_desc.fields.length = adapter->rx_queue.queue_len;
+	rxq_desc.fields.flags_len = IBMVETH_BUF_VALID | adapter->rx_queue.queue_len;
 	rxq_desc.fields.address = adapter->rx_queue.queue_dma;
 
 	ibmveth_debug_printk("buffer list @ 0x%p\n", adapter->buffer_list_addr);
@@ -545,6 +580,7 @@ static int ibmveth_open(struct net_device *netdev)
 				     rxq_desc.desc,
 				     mac_address);
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return -ENONET;
 	}
 
@@ -555,6 +591,7 @@ static int ibmveth_open(struct net_device *netdev)
 			ibmveth_error_printk("unable to alloc pool\n");
 			adapter->rx_buff_pool[i].active = 0;
 			ibmveth_cleanup(adapter);
+			napi_disable(&adapter->napi);
 			return -ENOMEM ;
 		}
 	}
@@ -567,6 +604,7 @@ static int ibmveth_open(struct net_device *netdev)
 		} while (H_IS_LONG_BUSY(rc) || (rc == H_BUSY));
 
 		ibmveth_cleanup(adapter);
+		napi_disable(&adapter->napi);
 		return rc;
 	}
 
@@ -586,6 +624,8 @@ static int ibmveth_close(struct net_device *netdev)
 	long lpar_rc;
 
 	ibmveth_debug_printk("close starting\n");
+
+	napi_disable(&adapter->napi);
 
 	if (!adapter->pool_config)
 		netif_stop_queue(netdev);
@@ -634,12 +674,164 @@ static u32 netdev_get_link(struct net_device *dev) {
 	return 1;
 }
 
+static void ibmveth_set_rx_csum_flags(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if (data)
+		adapter->rx_csum = 1;
+	else {
+		/*
+		 * Since the ibmveth firmware interface does not have the concept of
+		 * separate tx/rx checksum offload enable, if rx checksum is disabled
+		 * we also have to disable tx checksum offload. Once we disable rx
+		 * checksum offload, we are no longer allowed to send tx buffers that
+		 * are not properly checksummed.
+		 */
+		adapter->rx_csum = 0;
+		dev->features &= ~NETIF_F_IP_CSUM;
+	}
+}
+
+static void ibmveth_set_tx_csum_flags(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if (data) {
+		dev->features |= NETIF_F_IP_CSUM;
+		adapter->rx_csum = 1;
+	} else
+		dev->features &= ~NETIF_F_IP_CSUM;
+}
+
+static int ibmveth_set_csum_offload(struct net_device *dev, u32 data,
+				    void (*done) (struct net_device *, u32))
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	u64 set_attr, clr_attr, ret_attr;
+	long ret;
+	int rc1 = 0, rc2 = 0;
+	int restart = 0;
+
+	if (netif_running(dev)) {
+		restart = 1;
+		adapter->pool_config = 1;
+		ibmveth_close(dev);
+		adapter->pool_config = 0;
+	}
+
+	set_attr = 0;
+	clr_attr = 0;
+
+	if (data)
+		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
+	else
+		clr_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
+
+	ret = h_illan_attributes(adapter->vdev->unit_address, 0, 0, &ret_attr);
+
+	if (ret == H_SUCCESS && !(ret_attr & IBMVETH_ILLAN_ACTIVE_TRUNK) &&
+	    !(ret_attr & IBMVETH_ILLAN_TRUNK_PRI_MASK) &&
+	    (ret_attr & IBMVETH_ILLAN_PADDED_PKT_CSUM)) {
+		ret = h_illan_attributes(adapter->vdev->unit_address, clr_attr,
+					 set_attr, &ret_attr);
+
+		if (ret != H_SUCCESS) {
+			rc1 = -EIO;
+			ibmveth_error_printk("unable to change checksum offload settings."
+					     " %d rc=%ld\n", data, ret);
+
+			ret = h_illan_attributes(adapter->vdev->unit_address,
+						 set_attr, clr_attr, &ret_attr);
+		} else
+			done(dev, data);
+	} else {
+		rc1 = -EIO;
+		ibmveth_error_printk("unable to change checksum offload settings."
+				     " %d rc=%ld ret_attr=%lx\n", data, ret, ret_attr);
+	}
+
+	if (restart)
+		rc2 = ibmveth_open(dev);
+
+	return rc1 ? rc1 : rc2;
+}
+
+static int ibmveth_set_rx_csum(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	if ((data && adapter->rx_csum) || (!data && !adapter->rx_csum))
+		return 0;
+
+	return ibmveth_set_csum_offload(dev, data, ibmveth_set_rx_csum_flags);
+}
+
+static int ibmveth_set_tx_csum(struct net_device *dev, u32 data)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	int rc = 0;
+
+	if (data && (dev->features & NETIF_F_IP_CSUM))
+		return 0;
+	if (!data && !(dev->features & NETIF_F_IP_CSUM))
+		return 0;
+
+	if (data && !adapter->rx_csum)
+		rc = ibmveth_set_csum_offload(dev, data, ibmveth_set_tx_csum_flags);
+	else
+		ibmveth_set_tx_csum_flags(dev, data);
+
+	return rc;
+}
+
+static u32 ibmveth_get_rx_csum(struct net_device *dev)
+{
+	struct ibmveth_adapter *adapter = dev->priv;
+	return adapter->rx_csum;
+}
+
+static void ibmveth_get_strings(struct net_device *dev, u32 stringset, u8 *data)
+{
+	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(ibmveth_stats); i++, data += ETH_GSTRING_LEN)
+		memcpy(data, ibmveth_stats[i].name, ETH_GSTRING_LEN);
+}
+
+static int ibmveth_get_sset_count(struct net_device *dev, int sset)
+{
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ibmveth_stats);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void ibmveth_get_ethtool_stats(struct net_device *dev,
+				      struct ethtool_stats *stats, u64 *data)
+{
+	int i;
+	struct ibmveth_adapter *adapter = dev->priv;
+
+	for (i = 0; i < ARRAY_SIZE(ibmveth_stats); i++)
+		data[i] = IBMVETH_GET_STAT(adapter, ibmveth_stats[i].offset);
+}
+
 static const struct ethtool_ops netdev_ethtool_ops = {
 	.get_drvinfo		= netdev_get_drvinfo,
 	.get_settings		= netdev_get_settings,
 	.get_link		= netdev_get_link,
-	.get_sg			= ethtool_op_get_sg,
-	.get_tx_csum		= ethtool_op_get_tx_csum,
+	.set_tx_csum		= ibmveth_set_tx_csum,
+	.get_rx_csum		= ibmveth_get_rx_csum,
+	.set_rx_csum		= ibmveth_set_rx_csum,
+	.get_strings		= ibmveth_get_strings,
+	.get_sset_count		= ibmveth_get_sset_count,
+	.get_ethtool_stats	= ibmveth_get_ethtool_stats,
 };
 
 static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -652,9 +844,8 @@ static int ibmveth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ibmveth_adapter *adapter = netdev->priv;
-	union ibmveth_buf_desc desc[IbmVethMaxSendFrags];
+	union ibmveth_buf_desc desc;
 	unsigned long lpar_rc;
-	int nfrags = 0, curfrag;
 	unsigned long correlator;
 	unsigned long flags;
 	unsigned int retry_count;
@@ -664,59 +855,32 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	unsigned int tx_send_failed = 0;
 	unsigned int tx_map_failed = 0;
 
+	desc.fields.flags_len = IBMVETH_BUF_VALID | skb->len;
+	desc.fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
+					     skb->len, DMA_TO_DEVICE);
 
-	if ((skb_shinfo(skb)->nr_frags + 1) > IbmVethMaxSendFrags) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    ip_hdr(skb)->protocol != IPPROTO_TCP && skb_checksum_help(skb)) {
+		ibmveth_error_printk("tx: failed to checksum packet\n");
 		tx_dropped++;
 		goto out;
 	}
 
-	memset(&desc, 0, sizeof(desc));
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		unsigned char *buf = skb_transport_header(skb) + skb->csum_offset;
 
-	/* nfrags = number of frags after the initial fragment */
-	nfrags = skb_shinfo(skb)->nr_frags;
+		desc.fields.flags_len |= (IBMVETH_BUF_NO_CSUM | IBMVETH_BUF_CSUM_GOOD);
 
-	if(nfrags)
-		adapter->tx_multidesc_send++;
+		/* Need to zero out the checksum */
+		buf[0] = 0;
+		buf[1] = 0;
+	}
 
-	/* map the initial fragment */
-	desc[0].fields.length  = nfrags ? skb->len - skb->data_len : skb->len;
-	desc[0].fields.address = dma_map_single(&adapter->vdev->dev, skb->data,
-					desc[0].fields.length, DMA_TO_DEVICE);
-	desc[0].fields.valid   = 1;
-
-	if(dma_mapping_error(desc[0].fields.address)) {
-		ibmveth_error_printk("tx: unable to map initial fragment\n");
+	if (dma_mapping_error(desc.fields.address)) {
+		ibmveth_error_printk("tx: unable to map xmit buffer\n");
 		tx_map_failed++;
 		tx_dropped++;
 		goto out;
-	}
-
-	curfrag = nfrags;
-
-	/* map fragments past the initial portion if there are any */
-	while(curfrag--) {
-		skb_frag_t *frag = &skb_shinfo(skb)->frags[curfrag];
-		desc[curfrag+1].fields.address
-			= dma_map_single(&adapter->vdev->dev,
-				page_address(frag->page) + frag->page_offset,
-				frag->size, DMA_TO_DEVICE);
-		desc[curfrag+1].fields.length = frag->size;
-		desc[curfrag+1].fields.valid  = 1;
-
-		if(dma_mapping_error(desc[curfrag+1].fields.address)) {
-			ibmveth_error_printk("tx: unable to map fragment %d\n", curfrag);
-			tx_map_failed++;
-			tx_dropped++;
-			/* Free all the mappings we just created */
-			while(curfrag < nfrags) {
-				dma_unmap_single(&adapter->vdev->dev,
-						 desc[curfrag+1].fields.address,
-						 desc[curfrag+1].fields.length,
-						 DMA_TO_DEVICE);
-				curfrag++;
-			}
-			goto out;
-		}
 	}
 
 	/* send the frame. Arbitrarily set retrycount to 1024 */
@@ -724,23 +888,15 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	retry_count = 1024;
 	do {
 		lpar_rc = h_send_logical_lan(adapter->vdev->unit_address,
-					     desc[0].desc,
-					     desc[1].desc,
-					     desc[2].desc,
-					     desc[3].desc,
-					     desc[4].desc,
-					     desc[5].desc,
-					     correlator,
-					     &correlator);
+					     desc.desc, 0, 0, 0, 0, 0,
+					     correlator, &correlator);
 	} while ((lpar_rc == H_BUSY) && (retry_count--));
 
 	if(lpar_rc != H_SUCCESS && lpar_rc != H_DROPPED) {
-		int i;
 		ibmveth_error_printk("tx: h_send_logical_lan failed with rc=%ld\n", lpar_rc);
-		for(i = 0; i < 6; i++) {
-			ibmveth_error_printk("tx: desc[%i] valid=%d, len=%d, address=0x%d\n", i,
-					     desc[i].fields.valid, desc[i].fields.length, desc[i].fields.address);
-		}
+		ibmveth_error_printk("tx: valid=%d, len=%d, address=0x%08x\n",
+				     (desc.fields.flags_len & IBMVETH_BUF_VALID) ? 1 : 0,
+				     skb->len, desc.fields.address);
 		tx_send_failed++;
 		tx_dropped++;
 	} else {
@@ -749,16 +905,13 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netdev->trans_start = jiffies;
 	}
 
-	do {
-		dma_unmap_single(&adapter->vdev->dev,
-				desc[nfrags].fields.address,
-				desc[nfrags].fields.length, DMA_TO_DEVICE);
-	} while(--nfrags >= 0);
+	dma_unmap_single(&adapter->vdev->dev, desc.fields.address,
+			 skb->len, DMA_TO_DEVICE);
 
 out:	spin_lock_irqsave(&adapter->stats_lock, flags);
-	adapter->stats.tx_dropped += tx_dropped;
-	adapter->stats.tx_bytes += tx_bytes;
-	adapter->stats.tx_packets += tx_packets;
+	netdev->stats.tx_dropped += tx_dropped;
+	netdev->stats.tx_bytes += tx_bytes;
+	netdev->stats.tx_packets += tx_packets;
 	adapter->tx_send_failed += tx_send_failed;
 	adapter->tx_map_failed += tx_map_failed;
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
@@ -767,80 +920,72 @@ out:	spin_lock_irqsave(&adapter->stats_lock, flags);
 	return 0;
 }
 
-static int ibmveth_poll(struct net_device *netdev, int *budget)
+static int ibmveth_poll(struct napi_struct *napi, int budget)
 {
-	struct ibmveth_adapter *adapter = netdev->priv;
-	int max_frames_to_process = netdev->quota;
+	struct ibmveth_adapter *adapter = container_of(napi, struct ibmveth_adapter, napi);
+	struct net_device *netdev = adapter->netdev;
 	int frames_processed = 0;
-	int more_work = 1;
 	unsigned long lpar_rc;
 
  restart_poll:
 	do {
-		struct net_device *netdev = adapter->netdev;
+		struct sk_buff *skb;
 
-		if(ibmveth_rxq_pending_buffer(adapter)) {
-			struct sk_buff *skb;
+		if (!ibmveth_rxq_pending_buffer(adapter))
+			break;
 
-			rmb();
-
-			if(!ibmveth_rxq_buffer_valid(adapter)) {
-				wmb(); /* suggested by larson1 */
-				adapter->rx_invalid_buffer++;
-				ibmveth_debug_printk("recycling invalid buffer\n");
-				ibmveth_rxq_recycle_buffer(adapter);
-			} else {
-				int length = ibmveth_rxq_frame_length(adapter);
-				int offset = ibmveth_rxq_frame_offset(adapter);
-				skb = ibmveth_rxq_get_buffer(adapter);
-
-				ibmveth_rxq_harvest_buffer(adapter);
-
-				skb_reserve(skb, offset);
-				skb_put(skb, length);
-				skb->protocol = eth_type_trans(skb, netdev);
-
-				netif_receive_skb(skb);	/* send it up */
-
-				adapter->stats.rx_packets++;
-				adapter->stats.rx_bytes += length;
-				frames_processed++;
-				netdev->last_rx = jiffies;
-			}
+		rmb();
+		if (!ibmveth_rxq_buffer_valid(adapter)) {
+			wmb(); /* suggested by larson1 */
+			adapter->rx_invalid_buffer++;
+			ibmveth_debug_printk("recycling invalid buffer\n");
+			ibmveth_rxq_recycle_buffer(adapter);
 		} else {
-			more_work = 0;
+			int length = ibmveth_rxq_frame_length(adapter);
+			int offset = ibmveth_rxq_frame_offset(adapter);
+			int csum_good = ibmveth_rxq_csum_good(adapter);
+
+			skb = ibmveth_rxq_get_buffer(adapter);
+			if (csum_good)
+				skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+			ibmveth_rxq_harvest_buffer(adapter);
+
+			skb_reserve(skb, offset);
+			skb_put(skb, length);
+			skb->protocol = eth_type_trans(skb, netdev);
+
+			netif_receive_skb(skb);	/* send it up */
+
+			netdev->stats.rx_packets++;
+			netdev->stats.rx_bytes += length;
+			frames_processed++;
+			netdev->last_rx = jiffies;
 		}
-	} while(more_work && (frames_processed < max_frames_to_process));
+	} while (frames_processed < budget);
 
 	ibmveth_replenish_task(adapter);
 
-	if(more_work) {
-		/* more work to do - return that we are not done yet */
-		netdev->quota -= frames_processed;
-		*budget -= frames_processed;
-		return 1;
-	}
+	if (frames_processed < budget) {
+		/* We think we are done - reenable interrupts,
+		 * then check once more to make sure we are done.
+		 */
+		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+				       VIO_IRQ_ENABLE);
 
-	/* we think we are done - reenable interrupts, then check once more to make sure we are done */
-	lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_ENABLE);
-
-	ibmveth_assert(lpar_rc == H_SUCCESS);
-
-	netif_rx_complete(netdev);
-
-	if(ibmveth_rxq_pending_buffer(adapter) && netif_rx_reschedule(netdev, frames_processed))
-	{
-		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
 		ibmveth_assert(lpar_rc == H_SUCCESS);
-		more_work = 1;
-		goto restart_poll;
+
+		netif_rx_complete(netdev, napi);
+
+		if (ibmveth_rxq_pending_buffer(adapter) &&
+		    netif_rx_reschedule(netdev, napi)) {
+			lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+					       VIO_IRQ_DISABLE);
+			goto restart_poll;
+		}
 	}
 
-	netdev->quota -= frames_processed;
-	*budget -= frames_processed;
-
-	/* we really are done */
-	return 0;
+	return frames_processed;
 }
 
 static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
@@ -849,18 +994,13 @@ static irqreturn_t ibmveth_interrupt(int irq, void *dev_instance)
 	struct ibmveth_adapter *adapter = netdev->priv;
 	unsigned long lpar_rc;
 
-	if(netif_rx_schedule_prep(netdev)) {
-		lpar_rc = h_vio_signal(adapter->vdev->unit_address, VIO_IRQ_DISABLE);
+	if (netif_rx_schedule_prep(netdev, &adapter->napi)) {
+		lpar_rc = h_vio_signal(adapter->vdev->unit_address,
+				       VIO_IRQ_DISABLE);
 		ibmveth_assert(lpar_rc == H_SUCCESS);
-		__netif_rx_schedule(netdev);
+		__netif_rx_schedule(netdev, &adapter->napi);
 	}
 	return IRQ_HANDLED;
-}
-
-static struct net_device_stats *ibmveth_get_stats(struct net_device *dev)
-{
-	struct ibmveth_adapter *adapter = dev->priv;
-	return &adapter->stats;
 }
 
 static void ibmveth_set_multicast_list(struct net_device *netdev)
@@ -962,8 +1102,10 @@ static void ibmveth_poll_controller(struct net_device *dev)
 static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 {
 	int rc, i;
+	long ret;
 	struct net_device *netdev;
 	struct ibmveth_adapter *adapter;
+	u64 set_attr, ret_attr;
 
 	unsigned char *mac_addr_p;
 	unsigned int *mcastFilterSize_p;
@@ -994,8 +1136,6 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	if(!netdev)
 		return -ENOMEM;
 
-	SET_MODULE_OWNER(netdev);
-
 	adapter = netdev->priv;
 	dev->dev.driver_data = netdev;
 
@@ -1003,6 +1143,8 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	adapter->netdev = netdev;
 	adapter->mcastFilterSize= *mcastFilterSize_p;
 	adapter->pool_config = 0;
+
+	netif_napi_add(netdev, &adapter->napi, ibmveth_poll, 16);
 
 	/* 	Some older boxes running PHYP non-natively have an OF that
 		returns a 8-byte local-mac-address field (and the first
@@ -1020,11 +1162,8 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 	netdev->irq = dev->irq;
 	netdev->open               = ibmveth_open;
-	netdev->poll               = ibmveth_poll;
-	netdev->weight             = 16;
 	netdev->stop               = ibmveth_close;
 	netdev->hard_start_xmit    = ibmveth_start_xmit;
-	netdev->get_stats          = ibmveth_get_stats;
 	netdev->set_multicast_list = ibmveth_set_multicast_list;
 	netdev->do_ioctl           = ibmveth_ioctl;
 	netdev->ethtool_ops           = &netdev_ethtool_ops;
@@ -1056,6 +1195,22 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 	adapter->rx_queue.queue_dma = DMA_ERROR_CODE;
 
 	ibmveth_debug_printk("registering netdev...\n");
+
+	ret = h_illan_attributes(dev->unit_address, 0, 0, &ret_attr);
+
+	if (ret == H_SUCCESS && !(ret_attr & IBMVETH_ILLAN_ACTIVE_TRUNK) &&
+	    !(ret_attr & IBMVETH_ILLAN_TRUNK_PRI_MASK) &&
+	    (ret_attr & IBMVETH_ILLAN_PADDED_PKT_CSUM)) {
+		set_attr = IBMVETH_ILLAN_IPV4_TCP_CSUM;
+
+		ret = h_illan_attributes(dev->unit_address, 0, set_attr, &ret_attr);
+
+		if (ret == H_SUCCESS) {
+			adapter->rx_csum = 1;
+			netdev->features |= NETIF_F_IP_CSUM;
+		} else
+			ret = h_illan_attributes(dev->unit_address, set_attr, 0, &ret_attr);
+	}
 
 	rc = register_netdev(netdev);
 
@@ -1092,15 +1247,14 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 #ifdef CONFIG_PROC_FS
 static void ibmveth_proc_register_driver(void)
 {
-	ibmveth_proc_dir = proc_mkdir(IBMVETH_PROC_DIR, NULL);
+	ibmveth_proc_dir = proc_mkdir(IBMVETH_PROC_DIR, init_net.proc_net);
 	if (ibmveth_proc_dir) {
-		SET_MODULE_OWNER(ibmveth_proc_dir);
 	}
 }
 
 static void ibmveth_proc_unregister_driver(void)
 {
-	remove_proc_entry(IBMVETH_PROC_DIR, NULL);
+	remove_proc_entry(IBMVETH_PROC_DIR, init_net.proc_net);
 }
 
 static void *ibmveth_seq_start(struct seq_file *seq, loff_t *pos)
@@ -1127,22 +1281,16 @@ static int ibmveth_seq_show(struct seq_file *seq, void *v)
 	struct ibmveth_adapter *adapter = seq->private;
 	char *current_mac = ((char*) &adapter->netdev->dev_addr);
 	char *firmware_mac = ((char*) &adapter->mac_addr) ;
+	DECLARE_MAC_BUF(mac);
 
 	seq_printf(seq, "%s %s\n\n", ibmveth_driver_string, ibmveth_driver_version);
 
 	seq_printf(seq, "Unit Address:    0x%x\n", adapter->vdev->unit_address);
-	seq_printf(seq, "Current MAC:     %02X:%02X:%02X:%02X:%02X:%02X\n",
-		   current_mac[0], current_mac[1], current_mac[2],
-		   current_mac[3], current_mac[4], current_mac[5]);
-	seq_printf(seq, "Firmware MAC:    %02X:%02X:%02X:%02X:%02X:%02X\n",
-		   firmware_mac[0], firmware_mac[1], firmware_mac[2],
-		   firmware_mac[3], firmware_mac[4], firmware_mac[5]);
+	seq_printf(seq, "Current MAC:     %s\n", print_mac(mac, current_mac));
+	seq_printf(seq, "Firmware MAC:    %s\n", print_mac(mac, firmware_mac));
 
 	seq_printf(seq, "\nAdapter Statistics:\n");
-	seq_printf(seq, "  TX:  skbuffs linearized:          %ld\n", adapter->tx_linearized);
-	seq_printf(seq, "       multi-descriptor sends:      %ld\n", adapter->tx_multidesc_send);
-	seq_printf(seq, "       skb_linearize failures:      %ld\n", adapter->tx_linearize_failed);
-	seq_printf(seq, "       vio_map_single failres:      %ld\n", adapter->tx_map_failed);
+	seq_printf(seq, "  TX:  vio_map_single failres:      %ld\n", adapter->tx_map_failed);
 	seq_printf(seq, "       send failures:               %ld\n", adapter->tx_send_failed);
 	seq_printf(seq, "  RX:  replenish task cycles:       %ld\n", adapter->replenish_task_cycles);
 	seq_printf(seq, "       alloc_skb_failures:          %ld\n", adapter->replenish_no_mem);
@@ -1195,7 +1343,6 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 		} else {
 			entry->data = (void *) adapter;
 			entry->proc_fops = &ibmveth_proc_fops;
-			SET_MODULE_OWNER(entry);
 		}
 	}
 	return;

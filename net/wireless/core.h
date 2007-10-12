@@ -43,7 +43,39 @@ struct cfg80211_registered_device *wiphy_to_dev(struct wiphy *wiphy)
 extern struct mutex cfg80211_drv_mutex;
 extern struct list_head cfg80211_drv_list;
 
+/*
+ * This function returns a pointer to the driver
+ * that the genl_info item that is passed refers to.
+ * If successful, it returns non-NULL and also locks
+ * the driver's mutex!
+ *
+ * This means that you need to call cfg80211_put_dev()
+ * before being allowed to acquire &cfg80211_drv_mutex!
+ *
+ * This is necessary because we need to lock the global
+ * mutex to get an item off the list safely, and then
+ * we lock the drv mutex so it doesn't go away under us.
+ *
+ * We don't want to keep cfg80211_drv_mutex locked
+ * for all the time in order to allow requests on
+ * other interfaces to go through at the same time.
+ *
+ * The result of this can be a PTR_ERR and hence must
+ * be checked with IS_ERR() for errors.
+ */
+extern struct cfg80211_registered_device *
+cfg80211_get_dev_from_info(struct genl_info *info);
+
+/* identical to cfg80211_get_dev_from_info but only operate on ifindex */
+extern struct cfg80211_registered_device *
+cfg80211_get_dev_from_ifindex(int ifindex);
+
+extern void cfg80211_put_dev(struct cfg80211_registered_device *drv);
+
 /* free object */
 extern void cfg80211_dev_free(struct cfg80211_registered_device *drv);
+
+extern int cfg80211_dev_rename(struct cfg80211_registered_device *drv,
+			       char *newname);
 
 #endif /* __NET_WIRELESS_CORE_H */

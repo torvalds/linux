@@ -485,6 +485,7 @@ static void update_mac_address(struct net_device *dev)
 static int set_mac_address(struct net_device *dev, void* addr)
 {
 	struct sockaddr *address = addr;
+	DECLARE_MAC_BUF(mac);
 
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
@@ -492,9 +493,8 @@ static int set_mac_address(struct net_device *dev, void* addr)
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	update_mac_address(dev);
 
-	printk("%s: Setting MAC address to %02x:%02x:%02x:%02x:%02x:%02x\n", dev->name,
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	printk("%s: Setting MAC address to %s\n", dev->name,
+	       print_mac(mac, dev->dev_addr));
 
 	return 0;
 }
@@ -979,6 +979,7 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	struct at91_private *lp;
 	unsigned int val;
 	int res;
+	DECLARE_MAC_BUF(mac);
 
 	dev = alloc_etherdev(sizeof(struct at91_private));
 	if (!dev)
@@ -986,7 +987,6 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 
 	dev->base_addr = AT91_VA_BASE_EMAC;
 	dev->irq = AT91RM9200_ID_EMAC;
-	SET_MODULE_OWNER(dev);
 
 	/* Install the interrupt handler */
 	if (request_irq(dev->irq, at91ether_interrupt, 0, dev->name, dev)) {
@@ -1082,12 +1082,11 @@ static int __init at91ether_setup(unsigned long phy_type, unsigned short phy_add
 	}
 
 	/* Display ethernet banner */
-	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%02x:%02x:%02x:%02x:%02x:%02x)\n",
-		dev->name, (uint) dev->base_addr, dev->irq,
-		at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_SPD ? "100-" : "10-",
-		at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_FD ? "FullDuplex" : "HalfDuplex",
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%s)\n",
+	       dev->name, (uint) dev->base_addr, dev->irq,
+	       at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_SPD ? "100-" : "10-",
+	       at91_emac_read(AT91_EMAC_CFG) & AT91_EMAC_FD ? "FullDuplex" : "HalfDuplex",
+	       print_mac(mac, dev->dev_addr));
 	if ((phy_type == MII_DM9161_ID) || (lp->phy_type == MII_DM9161A_ID))
 		printk(KERN_INFO "%s: Davicom 9161 PHY %s\n", dev->name, (lp->phy_media == PORT_FIBRE) ? "(Fiber)" : "(Copper)");
 	else if (phy_type == MII_LXT971A_ID)

@@ -35,8 +35,9 @@
 #include <net/ax25.h>
 #include <net/rose.h>
 
-static int rose_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-	void *daddr, void *saddr, unsigned len)
+static int rose_header(struct sk_buff *skb, struct net_device *dev,
+		       unsigned short type,
+		       const void *daddr, const void *saddr, unsigned len)
 {
 	unsigned char *buff = skb_push(skb, ROSE_MIN_LEN + 2);
 
@@ -148,6 +149,11 @@ static struct net_device_stats *rose_get_stats(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+static const struct header_ops rose_header_ops = {
+	.create	= rose_header,
+	.rebuild= rose_rebuild_header,
+};
+
 void rose_setup(struct net_device *dev)
 {
 	dev->mtu		= ROSE_MAX_PACKET_SIZE - 2;
@@ -155,11 +161,10 @@ void rose_setup(struct net_device *dev)
 	dev->open		= rose_open;
 	dev->stop		= rose_close;
 
-	dev->hard_header	= rose_header;
+	dev->header_ops		= &rose_header_ops;
 	dev->hard_header_len	= AX25_BPQ_HEADER_LEN + AX25_MAX_HEADER_LEN + ROSE_MIN_LEN;
 	dev->addr_len		= ROSE_ADDR_LEN;
 	dev->type		= ARPHRD_ROSE;
-	dev->rebuild_header	= rose_rebuild_header;
 	dev->set_mac_address    = rose_set_mac_address;
 
 	/* New-style flags. */

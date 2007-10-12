@@ -496,7 +496,21 @@ static int do_sdio_entry(const char *filename,
 	ADD(alias, "c", id->class != (__u8)SDIO_ANY_ID, id->class);
 	ADD(alias, "v", id->vendor != (__u16)SDIO_ANY_ID, id->vendor);
 	ADD(alias, "d", id->device != (__u16)SDIO_ANY_ID, id->device);
+	return 1;
+}
 
+/* Looks like: ssb:vNidNrevN. */
+static int do_ssb_entry(const char *filename,
+			struct ssb_device_id *id, char *alias)
+{
+	id->vendor = TO_NATIVE(id->vendor);
+	id->coreid = TO_NATIVE(id->coreid);
+	id->revision = TO_NATIVE(id->revision);
+
+	strcpy(alias, "ssb:");
+	ADD(alias, "v", id->vendor != SSB_ANY_VENDOR, id->vendor);
+	ADD(alias, "id", id->coreid != SSB_ANY_ID, id->coreid);
+	ADD(alias, "rev", id->revision != SSB_ANY_REV, id->revision);
 	return 1;
 }
 
@@ -619,6 +633,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct sdio_device_id), "sdio",
 			 do_sdio_entry, mod);
+	else if (sym_is(symname, "__mod_ssb_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct ssb_device_id), "ssb",
+			 do_ssb_entry, mod);
 }
 
 /* Now add out buffered information to the generated C source */

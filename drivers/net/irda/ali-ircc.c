@@ -360,10 +360,6 @@ static int ali_ircc_open(int i, chipio_t *info)
 	self->tx_fifo.len = self->tx_fifo.ptr = self->tx_fifo.free = 0;
 	self->tx_fifo.tail = self->tx_buff.head;
 
-	
-	/* Keep track of module usage */
-	SET_MODULE_OWNER(dev);
-
 	/* Override the network functions we need to use */
 	dev->hard_start_xmit = ali_ircc_sir_hard_xmit;
 	dev->open            = ali_ircc_net_open;

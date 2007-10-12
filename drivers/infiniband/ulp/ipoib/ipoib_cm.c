@@ -430,7 +430,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		ipoib_dbg(priv, "cm recv error "
 			   "(status=%d, wrid=%d vend_err %x)\n",
 			   wc->status, wr_id, wc->vendor_err);
-		++priv->stats.rx_dropped;
+		++dev->stats.rx_dropped;
 		goto repost;
 	}
 
@@ -457,7 +457,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		 * this packet and reuse the old buffer.
 		 */
 		ipoib_dbg(priv, "failed to allocate receive buffer %d\n", wr_id);
-		++priv->stats.rx_dropped;
+		++dev->stats.rx_dropped;
 		goto repost;
 	}
 
@@ -474,8 +474,8 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 	skb_pull(skb, IPOIB_ENCAP_LEN);
 
 	dev->last_rx = jiffies;
-	++priv->stats.rx_packets;
-	priv->stats.rx_bytes += skb->len;
+	++dev->stats.rx_packets;
+	dev->stats.rx_bytes += skb->len;
 
 	skb->dev = dev;
 	/* XXX get correct PACKET_ type here */
@@ -512,8 +512,8 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	if (unlikely(skb->len > tx->mtu)) {
 		ipoib_warn(priv, "packet len %d (> %d) too long to send, dropping\n",
 			   skb->len, tx->mtu);
-		++priv->stats.tx_dropped;
-		++priv->stats.tx_errors;
+		++dev->stats.tx_dropped;
+		++dev->stats.tx_errors;
 		ipoib_cm_skb_too_long(dev, skb, tx->mtu - IPOIB_ENCAP_LEN);
 		return;
 	}
@@ -532,7 +532,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	tx_req->skb = skb;
 	addr = ib_dma_map_single(priv->ca, skb->data, skb->len, DMA_TO_DEVICE);
 	if (unlikely(ib_dma_mapping_error(priv->ca, addr))) {
-		++priv->stats.tx_errors;
+		++dev->stats.tx_errors;
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -542,7 +542,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	if (unlikely(post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
 			        addr, skb->len))) {
 		ipoib_warn(priv, "post_send failed\n");
-		++priv->stats.tx_errors;
+		++dev->stats.tx_errors;
 		ib_dma_unmap_single(priv->ca, addr, skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 	} else {
@@ -580,8 +580,8 @@ static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx
 	ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->skb->len, DMA_TO_DEVICE);
 
 	/* FIXME: is this right? Shouldn't we only increment on success? */
-	++priv->stats.tx_packets;
-	priv->stats.tx_bytes += tx_req->skb->len;
+	++dev->stats.tx_packets;
+	dev->stats.tx_bytes += tx_req->skb->len;
 
 	dev_kfree_skb_any(tx_req->skb);
 

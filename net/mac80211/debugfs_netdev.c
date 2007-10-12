@@ -66,7 +66,8 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata, char *buf,		\
 	int buflen)							\
 {									\
-	return scnprintf(buf, buflen, MAC_FMT "\n", MAC_ARG(sdata->field));\
+	DECLARE_MAC_BUF(mac);						\
+	return scnprintf(buf, buflen, "%s\n", print_mac(mac, sdata->field));\
 }
 
 #define __IEEE80211_IF_FILE(name)					\
@@ -112,13 +113,13 @@ static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	return scnprintf(buf, buflen, "%s%s%s%s%s%s%s\n",
-			 sdata->u.sta.ssid_set ? "SSID\n" : "",
-			 sdata->u.sta.bssid_set ? "BSSID\n" : "",
-			 sdata->u.sta.prev_bssid_set ? "prev BSSID\n" : "",
-			 sdata->u.sta.authenticated ? "AUTH\n" : "",
-			 sdata->u.sta.associated ? "ASSOC\n" : "",
-			 sdata->u.sta.probereq_poll ? "PROBEREQ POLL\n" : "",
-			 sdata->use_protection ? "CTS prot\n" : "");
+		 sdata->u.sta.flags & IEEE80211_STA_SSID_SET ? "SSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_BSSID_SET ? "BSSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
+		 sdata->u.sta.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
+		 sdata->flags & IEEE80211_SDATA_USE_PROTECTION ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
 
@@ -160,23 +161,6 @@ __IEEE80211_IF_FILE(beacon_tail_len);
 
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
-
-/* VLAN attributes */
-IEEE80211_IF_FILE(vlan_id, u.vlan.id, DEC);
-
-/* MONITOR attributes */
-static ssize_t ieee80211_if_fmt_mode(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	struct ieee80211_local *local = sdata->local;
-
-	return scnprintf(buf, buflen, "%s\n",
-			 ((local->hw.flags & IEEE80211_HW_MONITOR_DURING_OPER) ||
-			  local->open_count == local->monitors) ?
-			 "hard" : "soft");
-}
-__IEEE80211_IF_FILE(mode);
-
 
 #define DEBUGFS_ADD(name, type)\
 	sdata->debugfs.type.name = debugfs_create_file(#name, 0444,\
@@ -236,12 +220,10 @@ static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted, vlan);
 	DEBUGFS_ADD(eapol, vlan);
 	DEBUGFS_ADD(ieee8021_x, vlan);
-	DEBUGFS_ADD(vlan_id, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(mode, monitor);
 }
 
 static void add_files(struct ieee80211_sub_if_data *sdata)
@@ -331,12 +313,10 @@ static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(drop_unencrypted, vlan);
 	DEBUGFS_DEL(eapol, vlan);
 	DEBUGFS_DEL(ieee8021_x, vlan);
-	DEBUGFS_DEL(vlan_id, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_DEL(mode, monitor);
 }
 
 static void del_files(struct ieee80211_sub_if_data *sdata, int type)

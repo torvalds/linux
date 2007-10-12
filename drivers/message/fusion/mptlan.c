@@ -1427,8 +1427,6 @@ mpt_register_lan_device (MPT_ADAPTER *mpt_dev, int pnum)
 	dlprintk((KERN_INFO MYNAM ": Finished registering dev "
 		"and setting initial values\n"));
 
-	SET_MODULE_OWNER(dev);
-
 	if (register_netdev(dev) != 0) {
 		free_netdev(dev);
 		dev = NULL;

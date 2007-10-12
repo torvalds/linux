@@ -33,6 +33,19 @@ EXPORT_SYMBOL(inet_csk_timer_bug_msg);
  * This array holds the first and last local port number.
  */
 int sysctl_local_port_range[2] = { 32768, 61000 };
+DEFINE_SEQLOCK(sysctl_port_range_lock);
+
+void inet_get_local_port_range(int *low, int *high)
+{
+	unsigned seq;
+	do {
+		seq = read_seqbegin(&sysctl_port_range_lock);
+
+		*low = sysctl_local_port_range[0];
+		*high = sysctl_local_port_range[1];
+	} while (read_seqretry(&sysctl_port_range_lock, seq));
+}
+EXPORT_SYMBOL(inet_get_local_port_range);
 
 int inet_csk_bind_conflict(const struct sock *sk,
 			   const struct inet_bind_bucket *tb)
@@ -77,10 +90,11 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 
 	local_bh_disable();
 	if (!snum) {
-		int low = sysctl_local_port_range[0];
-		int high = sysctl_local_port_range[1];
-		int remaining = (high - low) + 1;
-		int rover = net_random() % (high - low) + low;
+		int remaining, rover, low, high;
+
+		inet_get_local_port_range(&low, &high);
+		remaining = high - low;
+		rover = net_random() % remaining + low;
 
 		do {
 			head = &hashinfo->bhash[inet_bhashfn(rover, hashinfo->bhash_size)];

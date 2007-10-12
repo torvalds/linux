@@ -682,8 +682,7 @@ static void hdlcdrv_setup(struct net_device *dev)
 
 	s->skb = NULL;
 	
-	dev->hard_header = ax25_hard_header;
-	dev->rebuild_header = ax25_rebuild_header;
+	dev->header_ops = &ax25_header_ops;
 	dev->set_mac_address = hdlcdrv_set_mac_address;
 	
 	dev->type = ARPHRD_AX25;           /* AF_AX25 device */

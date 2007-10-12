@@ -61,6 +61,18 @@ int sysctl_tcp_base_mss __read_mostly = 512;
 /* By default, RFC2861 behavior.  */
 int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
+static inline void tcp_packets_out_inc(struct sock *sk,
+				       const struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int orig = tp->packets_out;
+
+	tp->packets_out += tcp_skb_pcount(skb);
+	if (!orig)
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
+}
+
 static void update_send_head(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -267,6 +279,56 @@ static u16 tcp_select_window(struct sock *sk)
 		tp->pred_flags = 0;
 
 	return new_win;
+}
+
+static inline void TCP_ECN_send_synack(struct tcp_sock *tp,
+				       struct sk_buff *skb)
+{
+	TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_CWR;
+	if (!(tp->ecn_flags&TCP_ECN_OK))
+		TCP_SKB_CB(skb)->flags &= ~TCPCB_FLAG_ECE;
+}
+
+static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tp->ecn_flags = 0;
+	if (sysctl_tcp_ecn) {
+		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_ECE|TCPCB_FLAG_CWR;
+		tp->ecn_flags = TCP_ECN_OK;
+	}
+}
+
+static __inline__ void
+TCP_ECN_make_synack(struct request_sock *req, struct tcphdr *th)
+{
+	if (inet_rsk(req)->ecn_ok)
+		th->ece = 1;
+}
+
+static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
+				int tcp_header_len)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (tp->ecn_flags & TCP_ECN_OK) {
+		/* Not-retransmitted data segment: set ECT and inject CWR. */
+		if (skb->len != tcp_header_len &&
+		    !before(TCP_SKB_CB(skb)->seq, tp->snd_nxt)) {
+			INET_ECN_xmit(sk);
+			if (tp->ecn_flags&TCP_ECN_QUEUE_CWR) {
+				tp->ecn_flags &= ~TCP_ECN_QUEUE_CWR;
+				tcp_hdr(skb)->cwr = 1;
+				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
+			}
+		} else {
+			/* ACK or retransmitted segment: clear ECT|CE */
+			INET_ECN_dontxmit(sk);
+		}
+		if (tp->ecn_flags & TCP_ECN_DEMAND_CWR)
+			tcp_hdr(skb)->ece = 1;
+	}
 }
 
 static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
@@ -584,14 +646,30 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 		skb_shinfo(skb)->gso_size = 0;
 		skb_shinfo(skb)->gso_type = 0;
 	} else {
-		unsigned int factor;
-
-		factor = skb->len + (mss_now - 1);
-		factor /= mss_now;
-		skb_shinfo(skb)->gso_segs = factor;
+		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss_now);
 		skb_shinfo(skb)->gso_size = mss_now;
 		skb_shinfo(skb)->gso_type = sk->sk_gso_type;
 	}
+}
+
+/* When a modification to fackets out becomes necessary, we need to check
+ * skb is counted to fackets_out or not. Another important thing is to
+ * tweak SACK fastpath hint too as it would overwrite all changes unless
+ * hint is also changed.
+ */
+static void tcp_adjust_fackets_out(struct tcp_sock *tp, struct sk_buff *skb,
+				   int decr)
+{
+	if (!tp->sacked_out || tcp_is_reno(tp))
+		return;
+
+	if (!before(tp->highest_sack, TCP_SKB_CB(skb)->seq))
+		tp->fackets_out -= decr;
+
+	/* cnt_hint is "off-by-one" compared with fackets_out (see sacktag) */
+	if (tp->fastpath_skb_hint != NULL &&
+	    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq, TCP_SKB_CB(skb)->seq))
+		tp->fastpath_cnt_hint -= decr;
 }
 
 /* Function to create two new TCP segments.  Shrinks the given segment
@@ -609,7 +687,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 
 	BUG_ON(len > skb->len);
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_retrans_hints_partial(tp);
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;
@@ -633,6 +711,10 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
 	TCP_SKB_CB(buff)->end_seq = TCP_SKB_CB(skb)->end_seq;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(buff)->seq;
+
+	if (tcp_is_sack(tp) && tp->sacked_out &&
+	    (TCP_SKB_CB(skb)->seq == tp->highest_sack))
+		tp->highest_sack = TCP_SKB_CB(buff)->seq;
 
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->flags;
@@ -682,32 +764,15 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 		if (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)
 			tp->retrans_out -= diff;
 
-		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST) {
+		if (TCP_SKB_CB(skb)->sacked & TCPCB_LOST)
 			tp->lost_out -= diff;
-			tp->left_out -= diff;
-		}
 
-		if (diff > 0) {
-			/* Adjust Reno SACK estimate. */
-			if (!tp->rx_opt.sack_ok) {
-				tp->sacked_out -= diff;
-				if ((int)tp->sacked_out < 0)
-					tp->sacked_out = 0;
-				tcp_sync_left_out(tp);
-			}
-
-			tp->fackets_out -= diff;
-			if ((int)tp->fackets_out < 0)
-				tp->fackets_out = 0;
-			/* SACK fastpath might overwrite it unless dealt with */
-			if (tp->fastpath_skb_hint != NULL &&
-			    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq,
-				  TCP_SKB_CB(skb)->seq)) {
-				tp->fastpath_cnt_hint -= diff;
-				if ((int)tp->fastpath_cnt_hint < 0)
-					tp->fastpath_cnt_hint = 0;
-			}
+		/* Adjust Reno SACK estimate. */
+		if (tcp_is_reno(tp) && diff > 0) {
+			tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
+			tcp_verify_left_out(tp);
 		}
+		tcp_adjust_fackets_out(tp, skb, diff);
 	}
 
 	/* Link BUFF into the send queue. */
@@ -1654,8 +1719,9 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		BUG_ON(tcp_skb_pcount(skb) != 1 ||
 		       tcp_skb_pcount(next_skb) != 1);
 
-		/* changing transmit queue under us so clear hints */
-		clear_all_retrans_hints(tp);
+		if (WARN_ON(tcp_is_sack(tp) && tp->sacked_out &&
+		    (TCP_SKB_CB(next_skb)->seq == tp->highest_sack)))
+			return;
 
 		/* Ok.	We will be able to collapse the packet. */
 		tcp_unlink_write_queue(next_skb, sk);
@@ -1683,21 +1749,23 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked&(TCPCB_EVER_RETRANS|TCPCB_AT_TAIL);
 		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_SACKED_RETRANS)
 			tp->retrans_out -= tcp_skb_pcount(next_skb);
-		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST) {
+		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST)
 			tp->lost_out -= tcp_skb_pcount(next_skb);
-			tp->left_out -= tcp_skb_pcount(next_skb);
-		}
 		/* Reno case is special. Sigh... */
-		if (!tp->rx_opt.sack_ok && tp->sacked_out) {
+		if (tcp_is_reno(tp) && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
-			tp->left_out -= tcp_skb_pcount(next_skb);
+
+		tcp_adjust_fackets_out(tp, next_skb, tcp_skb_pcount(next_skb));
+		tp->packets_out -= tcp_skb_pcount(next_skb);
+
+		/* changed transmit queue under us so clear hints */
+		tcp_clear_retrans_hints_partial(tp);
+		/* manually tune sacktag skb hint */
+		if (tp->fastpath_skb_hint == next_skb) {
+			tp->fastpath_skb_hint = skb;
+			tp->fastpath_cnt_hint -= tcp_skb_pcount(skb);
 		}
 
-		/* Not quite right: it can be > snd.fack, but
-		 * it is better to underestimate fackets.
-		 */
-		tcp_dec_pcount_approx(&tp->fackets_out, next_skb);
-		tcp_packets_out_dec(tp, next_skb);
 		sk_stream_free_skb(sk, next_skb);
 	}
 }
@@ -1731,12 +1799,12 @@ void tcp_simple_retransmit(struct sock *sk)
 		}
 	}
 
-	clear_all_retrans_hints(tp);
+	tcp_clear_all_retrans_hints(tp);
 
 	if (!lost)
 		return;
 
-	tcp_sync_left_out(tp);
+	tcp_verify_left_out(tp);
 
 	/* Don't muck with the congestion window here.
 	 * Reason is that we do not increase amount of _data_
@@ -1846,6 +1914,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 				printk(KERN_DEBUG "retrans_out leaked.\n");
 		}
 #endif
+		if (!tp->retrans_out)
+			tp->lost_retrans_low = tp->snd_nxt;
 		TCP_SKB_CB(skb)->sacked |= TCPCB_RETRANS;
 		tp->retrans_out += tcp_skb_pcount(skb);
 
@@ -1938,40 +2008,35 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 		return;
 
 	/* No forward retransmissions in Reno are possible. */
-	if (!tp->rx_opt.sack_ok)
+	if (tcp_is_reno(tp))
 		return;
 
 	/* Yeah, we have to make difficult choice between forward transmission
 	 * and retransmission... Both ways have their merits...
 	 *
 	 * For now we do not retransmit anything, while we have some new
-	 * segments to send.
+	 * segments to send. In the other cases, follow rule 3 for
+	 * NextSeg() specified in RFC3517.
 	 */
 
 	if (tcp_may_send_now(sk))
 		return;
 
-	if (tp->forward_skb_hint) {
+	/* If nothing is SACKed, highest_sack in the loop won't be valid */
+	if (!tp->sacked_out)
+		return;
+
+	if (tp->forward_skb_hint)
 		skb = tp->forward_skb_hint;
-		packet_cnt = tp->forward_cnt_hint;
-	} else{
+	else
 		skb = tcp_write_queue_head(sk);
-		packet_cnt = 0;
-	}
 
 	tcp_for_write_queue_from(skb, sk) {
 		if (skb == tcp_send_head(sk))
 			break;
-		tp->forward_cnt_hint = packet_cnt;
 		tp->forward_skb_hint = skb;
 
-		/* Similar to the retransmit loop above we
-		 * can pretend that the retransmitted SKB
-		 * we send out here will be composed of one
-		 * real MSS sized packet because tcp_retransmit_skb()
-		 * will fragment it if necessary.
-		 */
-		if (++packet_cnt > tp->fackets_out)
+		if (after(TCP_SKB_CB(skb)->seq, tp->highest_sack))
 			break;
 
 		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)

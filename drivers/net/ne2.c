@@ -251,8 +251,6 @@ static int __init do_ne2_probe(struct net_device *dev)
 	int i;
 	int adapter_found = 0;
 
-	SET_MODULE_OWNER(dev);
-
 	/* Do not check any supplied i/o locations.
 	   POS registers usually don't fail :) */
 
@@ -304,6 +302,7 @@ out:
 static int ne2_procinfo(char *buf, int slot, struct net_device *dev)
 {
 	int len=0;
+	DECLARE_MAC_BUF(mac);
 
 	len += sprintf(buf+len, "The NE/2 Ethernet Adapter\n" );
 	len += sprintf(buf+len, "Driver written by Wim Dumon ");
@@ -314,12 +313,7 @@ static int ne2_procinfo(char *buf, int slot, struct net_device *dev)
 	len += sprintf(buf+len, "Based on the original NE2000 drivers\n" );
 	len += sprintf(buf+len, "Base IO: %#x\n", (unsigned int)dev->base_addr);
 	len += sprintf(buf+len, "IRQ    : %d\n", dev->irq);
-
-#define HW_ADDR(i) dev->dev_addr[i]
-	len += sprintf(buf+len, "HW addr : %x:%x:%x:%x:%x:%x\n",
-			HW_ADDR(0), HW_ADDR(1), HW_ADDR(2),
-			HW_ADDR(3), HW_ADDR(4), HW_ADDR(5) );
-#undef HW_ADDR
+	len += sprintf(buf+len, "HW addr : %s\n", print_mac(mac, dev->dev_addr));
 
 	return len;
 }
@@ -332,6 +326,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 	const char *name = "NE/2";
 	int start_page, stop_page;
 	static unsigned version_printed;
+	DECLARE_MAC_BUF(mac);
 
 	if (ei_debug && version_printed++ == 0)
 		printk(version);
@@ -432,7 +427,7 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 			{E8390_RREAD+E8390_START, E8390_CMD},
 		};
 
-		for (i = 0; i < sizeof(program_seq)/sizeof(program_seq[0]); i++)
+		for (i = 0; i < ARRAY_SIZE(program_seq); i++)
 			outb_p(program_seq[i].value, base_addr +
 				program_seq[i].offset);
 
@@ -471,12 +466,12 @@ static int __init ne2_probe1(struct net_device *dev, int slot)
 
 	dev->base_addr = base_addr;
 
-	for(i = 0; i < ETHER_ADDR_LEN; i++) {
-		printk(" %2.2x", SA_prom[i]);
+	for(i = 0; i < ETHER_ADDR_LEN; i++)
 		dev->dev_addr[i] = SA_prom[i];
-	}
 
-	printk("\n%s: %s found at %#x, using IRQ %d.\n",
+	printk(" %s\n", print_mac(mac, dev->dev_addr));
+
+	printk("%s: %s found at %#x, using IRQ %d.\n",
 			dev->name, name, base_addr, dev->irq);
 
 	mca_set_adapter_procfn(slot, (MCA_ProcFn) ne2_procinfo, dev);

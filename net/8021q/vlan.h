@@ -53,8 +53,8 @@ int vlan_dev_rebuild_header(struct sk_buff *skb);
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev);
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type, void *daddr, void *saddr,
-			 unsigned len);
+			 unsigned short type, const void *daddr,
+			 const void *saddr, unsigned len);
 int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int vlan_dev_change_mtu(struct net_device *dev, int new_mtu);

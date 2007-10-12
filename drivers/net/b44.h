@@ -129,6 +129,7 @@
 #define  RXCONFIG_FLOW		0x00000020 /* Flow Control Enable */
 #define  RXCONFIG_FLOW_ACCEPT	0x00000040 /* Accept Unicast Flow Control Frame */
 #define  RXCONFIG_RFILT		0x00000080 /* Reject Filter */
+#define  RXCONFIG_CAM_ABSENT	0x00000100 /* CAM Absent */
 #define B44_RXMAXLEN	0x0404UL /* EMAC RX Max Packet Length */
 #define B44_TXMAXLEN	0x0408UL /* EMAC TX Max Packet Length */
 #define B44_MDIO_CTRL	0x0410UL /* EMAC MDIO Control */
@@ -227,76 +228,6 @@
 #define B44_RX_PAUSE	0x05D4UL /* MIB RX Pause Packets */
 #define B44_RX_NPAUSE	0x05D8UL /* MIB RX Non-Pause Packets */
 
-/* Silicon backplane register definitions */
-#define B44_SBIMSTATE	0x0F90UL /* SB Initiator Agent State */
-#define  SBIMSTATE_PC		0x0000000f /* Pipe Count */
-#define  SBIMSTATE_AP_MASK	0x00000030 /* Arbitration Priority */
-#define  SBIMSTATE_AP_BOTH	0x00000000 /* Use both timeslices and token */
-#define  SBIMSTATE_AP_TS	0x00000010 /* Use timeslices only */
-#define  SBIMSTATE_AP_TK	0x00000020 /* Use token only */
-#define  SBIMSTATE_AP_RSV	0x00000030 /* Reserved */
-#define  SBIMSTATE_IBE		0x00020000 /* In Band Error */
-#define  SBIMSTATE_TO		0x00040000 /* Timeout */
-#define B44_SBINTVEC	0x0F94UL /* SB Interrupt Mask */
-#define  SBINTVEC_PCI		0x00000001 /* Enable interrupts for PCI */
-#define  SBINTVEC_ENET0		0x00000002 /* Enable interrupts for enet 0 */
-#define  SBINTVEC_ILINE20	0x00000004 /* Enable interrupts for iline20 */
-#define  SBINTVEC_CODEC		0x00000008 /* Enable interrupts for v90 codec */
-#define  SBINTVEC_USB		0x00000010 /* Enable interrupts for usb */
-#define  SBINTVEC_EXTIF		0x00000020 /* Enable interrupts for external i/f */
-#define  SBINTVEC_ENET1		0x00000040 /* Enable interrupts for enet 1 */
-#define B44_SBTMSLOW	0x0F98UL /* SB Target State Low */
-#define  SBTMSLOW_RESET		0x00000001 /* Reset */
-#define  SBTMSLOW_REJECT	0x00000002 /* Reject */
-#define  SBTMSLOW_CLOCK		0x00010000 /* Clock Enable */
-#define  SBTMSLOW_FGC		0x00020000 /* Force Gated Clocks On */
-#define  SBTMSLOW_PE		0x40000000 /* Power Management Enable */
-#define  SBTMSLOW_BE		0x80000000 /* BIST Enable */
-#define B44_SBTMSHIGH	0x0F9CUL /* SB Target State High */
-#define  SBTMSHIGH_SERR		0x00000001 /* S-error */
-#define  SBTMSHIGH_INT		0x00000002 /* Interrupt */
-#define  SBTMSHIGH_BUSY		0x00000004 /* Busy */
-#define  SBTMSHIGH_GCR		0x20000000 /* Gated Clock Request */
-#define  SBTMSHIGH_BISTF	0x40000000 /* BIST Failed */
-#define  SBTMSHIGH_BISTD	0x80000000 /* BIST Done */
-#define B44_SBIDHIGH	0x0FFCUL /* SB Identification High */
-#define  SBIDHIGH_RC_MASK	0x0000000f /* Revision Code */
-#define  SBIDHIGH_CC_MASK	0x0000fff0 /* Core Code */
-#define  SBIDHIGH_CC_SHIFT	4
-#define  SBIDHIGH_VC_MASK	0xffff0000 /* Vendor Code */
-#define  SBIDHIGH_VC_SHIFT	16
-
-/* SSB PCI config space registers.  */
-#define SSB_PMCSR		0x44
-#define  SSB_PE			0x100
-#define	SSB_BAR0_WIN		0x80
-#define	SSB_BAR1_WIN		0x84
-#define	SSB_SPROM_CONTROL	0x88
-#define	SSB_BAR1_CONTROL	0x8c
-
-/* SSB core and host control registers.  */
-#define SSB_CONTROL		0x0000UL
-#define SSB_ARBCONTROL		0x0010UL
-#define SSB_ISTAT		0x0020UL
-#define SSB_IMASK		0x0024UL
-#define SSB_MBOX		0x0028UL
-#define SSB_BCAST_ADDR		0x0050UL
-#define SSB_BCAST_DATA		0x0054UL
-#define SSB_PCI_TRANS_0		0x0100UL
-#define SSB_PCI_TRANS_1		0x0104UL
-#define SSB_PCI_TRANS_2		0x0108UL
-#define SSB_SPROM		0x0800UL
-
-#define SSB_PCI_MEM		0x00000000
-#define SSB_PCI_IO		0x00000001
-#define SSB_PCI_CFG0		0x00000002
-#define SSB_PCI_CFG1		0x00000003
-#define SSB_PCI_PREF		0x00000004
-#define SSB_PCI_BURST		0x00000008
-#define SSB_PCI_MASK0		0xfc000000
-#define SSB_PCI_MASK1		0xfc000000
-#define SSB_PCI_MASK2		0xc0000000
-
 /* 4400 PHY registers */
 #define B44_MII_AUXCTRL		24	/* Auxiliary Control */
 #define  MII_AUXCTRL_DUPLEX	0x0001  /* Full Duplex */
@@ -346,10 +277,12 @@ struct rx_header {
 
 struct ring_info {
 	struct sk_buff		*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping);
+	dma_addr_t	mapping;
 };
 
 #define B44_MCAST_TABLE_SIZE	32
+#define B44_PHY_ADDR_NO_PHY	30
+#define B44_MDC_RATIO		5000000
 
 #define	B44_STAT_REG_DECLARE		\
 	_B44(tx_good_octets)		\
@@ -410,6 +343,8 @@ B44_STAT_REG_DECLARE
 #undef _B44
 };
 
+struct ssb_device;
+
 struct b44 {
 	spinlock_t		lock;
 
@@ -422,6 +357,8 @@ struct b44 {
 
 	struct ring_info	*rx_buffers;
 	struct ring_info	*tx_buffers;
+
+	struct napi_struct	napi;
 
 	u32			dma_offset;
 	u32			flags;
@@ -450,8 +387,7 @@ struct b44 {
 	struct net_device_stats	stats;
 	struct b44_hw_stats	hw_stats;
 
-	void __iomem		*regs;
-	struct pci_dev		*pdev;
+	struct ssb_device	*sdev;
 	struct net_device	*dev;
 
 	dma_addr_t		rx_ring_dma, tx_ring_dma;
@@ -459,7 +395,6 @@ struct b44 {
 	u32			rx_pending;
 	u32			tx_pending;
 	u8			phy_addr;
-	u8			core_unit;
 
 	struct mii_if_info	mii_if;
 };

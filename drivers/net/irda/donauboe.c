@@ -1660,7 +1660,6 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
       }
 #endif
 
-  SET_MODULE_OWNER(dev);
   SET_NETDEV_DEV(dev, &pci_dev->dev);
   dev->hard_start_xmit = toshoboe_hard_xmit;
   dev->open = toshoboe_net_open;

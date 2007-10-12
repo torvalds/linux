@@ -3,6 +3,6 @@
 #
 
 obj-$(CONFIG_XFRM) := xfrm_policy.o xfrm_state.o xfrm_hash.o \
-		      xfrm_input.o xfrm_algo.o
+		      xfrm_input.o xfrm_output.o xfrm_algo.o
 obj-$(CONFIG_XFRM_USER) += xfrm_user.o
 

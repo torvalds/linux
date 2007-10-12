@@ -38,8 +38,7 @@ config 440EP
 
 config 440GP
 	bool
-# Disabled until the new EMAC Driver is merged.
-#	select IBM_NEW_EMAC_ZMII
+	select IBM_NEW_EMAC_ZMII
 
 config 440GX
 	bool

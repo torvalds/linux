@@ -26,6 +26,7 @@
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/stat.h>
+#include <net/net_namespace.h>
 #include <net/ax25.h>
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -195,6 +196,9 @@ static int rose_device_event(struct notifier_block *this, unsigned long event,
 	void *ptr)
 {
 	struct net_device *dev = (struct net_device *)ptr;
+
+	if (dev->nd_net != &init_net)
+		return NOTIFY_DONE;
 
 	if (event != NETDEV_DOWN)
 		return NOTIFY_DONE;
@@ -498,15 +502,18 @@ static struct proto rose_proto = {
 	.obj_size = sizeof(struct rose_sock),
 };
 
-static int rose_create(struct socket *sock, int protocol)
+static int rose_create(struct net *net, struct socket *sock, int protocol)
 {
 	struct sock *sk;
 	struct rose_sock *rose;
 
+	if (net != &init_net)
+		return -EAFNOSUPPORT;
+
 	if (sock->type != SOCK_SEQPACKET || protocol != 0)
 		return -ESOCKTNOSUPPORT;
 
-	if ((sk = sk_alloc(PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
+	if ((sk = sk_alloc(net, PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
 		return -ENOMEM;
 
 	rose = rose_sk(sk);
@@ -544,7 +551,7 @@ static struct sock *rose_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		return NULL;
 
-	if ((sk = sk_alloc(PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
+	if ((sk = sk_alloc(osk->sk_net, PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
 		return NULL;
 
 	rose = rose_sk(sk);
@@ -1576,10 +1583,10 @@ static int __init rose_proto_init(void)
 
 	rose_add_loopback_neigh();
 
-	proc_net_fops_create("rose", S_IRUGO, &rose_info_fops);
-	proc_net_fops_create("rose_neigh", S_IRUGO, &rose_neigh_fops);
-	proc_net_fops_create("rose_nodes", S_IRUGO, &rose_nodes_fops);
-	proc_net_fops_create("rose_routes", S_IRUGO, &rose_routes_fops);
+	proc_net_fops_create(&init_net, "rose", S_IRUGO, &rose_info_fops);
+	proc_net_fops_create(&init_net, "rose_neigh", S_IRUGO, &rose_neigh_fops);
+	proc_net_fops_create(&init_net, "rose_nodes", S_IRUGO, &rose_nodes_fops);
+	proc_net_fops_create(&init_net, "rose_routes", S_IRUGO, &rose_routes_fops);
 out:
 	return rc;
 fail:
@@ -1606,10 +1613,10 @@ static void __exit rose_exit(void)
 {
 	int i;
 
-	proc_net_remove("rose");
-	proc_net_remove("rose_neigh");
-	proc_net_remove("rose_nodes");
-	proc_net_remove("rose_routes");
+	proc_net_remove(&init_net, "rose");
+	proc_net_remove(&init_net, "rose_neigh");
+	proc_net_remove(&init_net, "rose_nodes");
+	proc_net_remove(&init_net, "rose_routes");
 	rose_loopback_clear();
 
 	rose_rt_free();

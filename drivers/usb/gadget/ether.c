@@ -2484,7 +2484,6 @@ autoconf_fail:
 
 	/* network device setup */
 	dev->net = net;
-	SET_MODULE_OWNER (net);
 	strcpy (net->name, "usb%d");
 	dev->cdc = cdc;
 	dev->zlp = zlp;

@@ -69,21 +69,20 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
 	/* Figure out how many options do we need to represent the ackvec */
-	const u16 nr_opts = (av->dccpav_vec_len +
-			     DCCP_MAX_ACKVEC_OPT_LEN - 1) /
-			    DCCP_MAX_ACKVEC_OPT_LEN;
+	const u16 nr_opts = DIV_ROUND_UP(av->dccpav_vec_len,
+					 DCCP_MAX_ACKVEC_OPT_LEN);
 	u16 len = av->dccpav_vec_len + 2 * nr_opts, i;
-	struct timeval now;
 	u32 elapsed_time;
 	const unsigned char *tail, *from;
 	unsigned char *to;
 	struct dccp_ackvec_record *avr;
+	suseconds_t delta;
 
 	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
 		return -1;
 
-	dccp_timestamp(sk, &now);
-	elapsed_time = timeval_delta(&now, &av->dccpav_time) / 10;
+	delta = ktime_us_delta(ktime_get_real(), av->dccpav_time);
+	elapsed_time = delta / 10;
 
 	if (elapsed_time != 0 &&
 	    dccp_insert_option_elapsed_time(sk, skb, elapsed_time))
@@ -159,8 +158,7 @@ struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 		av->dccpav_buf_head	= DCCP_MAX_ACKVEC_LEN - 1;
 		av->dccpav_buf_ackno	= UINT48_MAX + 1;
 		av->dccpav_buf_nonce = av->dccpav_buf_nonce = 0;
-		av->dccpav_time.tv_sec	= 0;
-		av->dccpav_time.tv_usec	= 0;
+		av->dccpav_time	     = ktime_set(0, 0);
 		av->dccpav_vec_len	= 0;
 		INIT_LIST_HEAD(&av->dccpav_records);
 	}
@@ -321,7 +319,7 @@ int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 	}
 
 	av->dccpav_buf_ackno = ackno;
-	dccp_timestamp(sk, &av->dccpav_time);
+	av->dccpav_time = ktime_get_real();
 out:
 	return 0;
 

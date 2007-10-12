@@ -154,7 +154,7 @@ replay:
 	/* Find head of filter chain. */
 
 	/* Find link */
-	if ((dev = __dev_get_by_index(t->tcm_ifindex)) == NULL)
+	if ((dev = __dev_get_by_index(&init_net, t->tcm_ifindex)) == NULL)
 		return -ENODEV;
 
 	/* Find qdisc */
@@ -387,7 +387,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return skb->len;
-	if ((dev = dev_get_by_index(tcm->tcm_ifindex)) == NULL)
+	if ((dev = dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return skb->len;
 
 	if (!tcm->tcm_parent)

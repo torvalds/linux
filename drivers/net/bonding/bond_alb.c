@@ -87,20 +87,20 @@ static const int alb_delta_in_ticks = HZ / ALB_TIMER_TICKS_PER_SEC;
 struct learning_pkt {
 	u8 mac_dst[ETH_ALEN];
 	u8 mac_src[ETH_ALEN];
-	u16 type;
+	__be16 type;
 	u8 padding[ETH_ZLEN - ETH_HLEN];
 };
 
 struct arp_pkt {
-	u16     hw_addr_space;
-	u16     prot_addr_space;
+	__be16  hw_addr_space;
+	__be16  prot_addr_space;
 	u8      hw_addr_len;
 	u8      prot_addr_len;
-	u16     op_code;
+	__be16  op_code;
 	u8      mac_src[ETH_ALEN];	/* sender hardware address */
-	u32     ip_src;			/* sender IP address */
+	__be32  ip_src;			/* sender IP address */
 	u8      mac_dst[ETH_ALEN];	/* target hardware address */
-	u32     ip_dst;			/* target IP address */
+	__be32  ip_dst;			/* target IP address */
 };
 #pragma pack()
 
@@ -345,6 +345,9 @@ static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct
 	struct arp_pkt *arp = (struct arp_pkt *)skb->data;
 	int res = NET_RX_DROP;
 
+	if (bond_dev->nd_net != &init_net)
+		goto out;
+
 	if (!(bond_dev->flags & IFF_MASTER))
 		goto out;
 
@@ -579,7 +582,7 @@ static void rlb_req_update_slave_clients(struct bonding *bond, struct slave *sla
 }
 
 /* mark all clients using src_ip to be updated */
-static void rlb_req_update_subnet_clients(struct bonding *bond, u32 src_ip)
+static void rlb_req_update_subnet_clients(struct bonding *bond, __be32 src_ip)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct rlb_client_info *client_info;
@@ -1264,7 +1267,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 	struct ethhdr *eth_data;
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct slave *tx_slave = NULL;
-	static const u32 ip_bcast = 0xffffffff;
+	static const __be32 ip_bcast = htonl(0xffffffff);
 	int hash_size = 0;
 	int do_tx_balance = 1;
 	u32 hash_index = 0;
@@ -1308,8 +1311,7 @@ int bond_alb_xmit(struct sk_buff *skb, struct net_device *bond_dev)
 		hash_size = sizeof(ipv6_hdr(skb)->daddr);
 		break;
 	case ETH_P_IPX:
-		if (ipx_hdr(skb)->ipx_checksum !=
-		    __constant_htons(IPX_NO_CHECKSUM)) {
+		if (ipx_hdr(skb)->ipx_checksum != IPX_NO_CHECKSUM) {
 			/* something is wrong with this packet */
 			do_tx_balance = 0;
 			break;

@@ -20,224 +20,163 @@
 #define OID_802_11_TX_RETRYCOUNT              0x0000801D
 #define OID_802_11D_ENABLE                    0x00008020
 
-#define cmd_option_waitforrsp             0x0002
+#define CMD_OPTION_WAITFORRSP             0x0002
 
-/** Host command ID */
-#define cmd_code_dnld                 0x0002
-#define cmd_get_hw_spec               0x0003
-#define cmd_eeprom_update             0x0004
-#define cmd_802_11_reset              0x0005
-#define cmd_802_11_scan               0x0006
-#define cmd_802_11_get_log            0x000b
-#define cmd_mac_multicast_adr         0x0010
-#define cmd_802_11_authenticate       0x0011
-#define cmd_802_11_eeprom_access      0x0059
-#define cmd_802_11_associate          0x0050
-#define cmd_802_11_set_wep            0x0013
-#define cmd_802_11_get_stat           0x0014
-#define cmd_802_3_get_stat            0x0015
-#define cmd_802_11_snmp_mib           0x0016
-#define cmd_mac_reg_map               0x0017
-#define cmd_bbp_reg_map               0x0018
-#define cmd_mac_reg_access            0x0019
-#define cmd_bbp_reg_access            0x001a
-#define cmd_rf_reg_access             0x001b
-#define cmd_802_11_radio_control      0x001c
-#define cmd_802_11_rf_channel         0x001d
-#define cmd_802_11_rf_tx_power        0x001e
-#define cmd_802_11_rssi               0x001f
-#define cmd_802_11_rf_antenna         0x0020
+/** Host command IDs */
 
-#define cmd_802_11_ps_mode	      0x0021
+/* Return command are almost always the same as the host command, but with
+ * bit 15 set high.  There are a few exceptions, though...
+ */
+#define CMD_RET(cmd)			(0x8000 | cmd)
 
-#define cmd_802_11_data_rate          0x0022
-#define cmd_rf_reg_map                0x0023
-#define cmd_802_11_deauthenticate     0x0024
-#define cmd_802_11_reassociate        0x0025
-#define cmd_802_11_disassociate       0x0026
-#define cmd_mac_control               0x0028
-#define cmd_802_11_ad_hoc_start       0x002b
-#define cmd_802_11_ad_hoc_join        0x002c
+/* Return command convention exceptions: */
+#define CMD_RET_802_11_ASSOCIATE      0x8012
 
-#define cmd_802_11_query_tkip_reply_cntrs  0x002e
-#define cmd_802_11_enable_rsn              0x002f
-#define cmd_802_11_pairwise_tsc       0x0036
-#define cmd_802_11_group_tsc          0x0037
-#define cmd_802_11_key_material       0x005e
+/* Command codes */
+#define CMD_CODE_DNLD                 0x0002
+#define CMD_GET_HW_SPEC               0x0003
+#define CMD_EEPROM_UPDATE             0x0004
+#define CMD_802_11_RESET              0x0005
+#define CMD_802_11_SCAN               0x0006
+#define CMD_802_11_GET_LOG            0x000b
+#define CMD_MAC_MULTICAST_ADR         0x0010
+#define CMD_802_11_AUTHENTICATE       0x0011
+#define CMD_802_11_EEPROM_ACCESS      0x0059
+#define CMD_802_11_ASSOCIATE          0x0050
+#define CMD_802_11_SET_WEP            0x0013
+#define CMD_802_11_GET_STAT           0x0014
+#define CMD_802_3_GET_STAT            0x0015
+#define CMD_802_11_SNMP_MIB           0x0016
+#define CMD_MAC_REG_MAP               0x0017
+#define CMD_BBP_REG_MAP               0x0018
+#define CMD_MAC_REG_ACCESS            0x0019
+#define CMD_BBP_REG_ACCESS            0x001a
+#define CMD_RF_REG_ACCESS             0x001b
+#define CMD_802_11_RADIO_CONTROL      0x001c
+#define CMD_802_11_RF_CHANNEL         0x001d
+#define CMD_802_11_RF_TX_POWER        0x001e
+#define CMD_802_11_RSSI               0x001f
+#define CMD_802_11_RF_ANTENNA         0x0020
 
-#define cmd_802_11_set_afc            0x003c
-#define cmd_802_11_get_afc            0x003d
+#define CMD_802_11_PS_MODE	      0x0021
 
-#define cmd_802_11_ad_hoc_stop        0x0040
+#define CMD_802_11_DATA_RATE          0x0022
+#define CMD_RF_REG_MAP                0x0023
+#define CMD_802_11_DEAUTHENTICATE     0x0024
+#define CMD_802_11_REASSOCIATE        0x0025
+#define CMD_802_11_DISASSOCIATE       0x0026
+#define CMD_MAC_CONTROL               0x0028
+#define CMD_802_11_AD_HOC_START       0x002b
+#define CMD_802_11_AD_HOC_JOIN        0x002c
 
-#define cmd_802_11_beacon_stop        0x0049
+#define CMD_802_11_QUERY_TKIP_REPLY_CNTRS  0x002e
+#define CMD_802_11_ENABLE_RSN              0x002f
+#define CMD_802_11_PAIRWISE_TSC       0x0036
+#define CMD_802_11_GROUP_TSC          0x0037
+#define CMD_802_11_KEY_MATERIAL       0x005e
 
-#define cmd_802_11_mac_address        0x004D
-#define cmd_802_11_eeprom_access      0x0059
+#define CMD_802_11_SET_AFC            0x003c
+#define CMD_802_11_GET_AFC            0x003d
 
-#define cmd_802_11_band_config        0x0058
+#define CMD_802_11_AD_HOC_STOP        0x0040
 
-#define cmd_802_11d_domain_info       0x005b
+#define CMD_802_11_BEACON_STOP        0x0049
 
-#define cmd_802_11_sleep_params          0x0066
+#define CMD_802_11_MAC_ADDRESS        0x004D
+#define CMD_802_11_EEPROM_ACCESS      0x0059
 
-#define cmd_802_11_inactivity_timeout    0x0067
+#define CMD_802_11_BAND_CONFIG        0x0058
 
-#define cmd_802_11_tpc_cfg               0x0072
-#define cmd_802_11_pwr_cfg               0x0073
+#define CMD_802_11D_DOMAIN_INFO       0x005b
 
-#define cmd_802_11_led_gpio_ctrl         0x004e
+#define CMD_802_11_SLEEP_PARAMS          0x0066
 
-#define cmd_802_11_subscribe_event       0x0075
+#define CMD_802_11_INACTIVITY_TIMEOUT    0x0067
 
-#define cmd_802_11_rate_adapt_rateset    0x0076
+#define CMD_802_11_TPC_CFG               0x0072
+#define CMD_802_11_PWR_CFG               0x0073
 
-#define cmd_802_11_tx_rate_query	0x007f
+#define CMD_802_11_LED_GPIO_CTRL         0x004e
 
-#define cmd_get_tsf                      0x0080
+#define CMD_802_11_SUBSCRIBE_EVENT       0x0075
 
-#define cmd_bt_access                 0x0087
-#define cmd_ret_bt_access                 0x8087
+#define CMD_802_11_RATE_ADAPT_RATESET    0x0076
 
-#define cmd_fwt_access                0x0095
-#define cmd_ret_fwt_access                0x8095
+#define CMD_802_11_TX_RATE_QUERY	0x007f
 
-#define cmd_mesh_access               0x009b
-#define cmd_ret_mesh_access               0x809b
+#define CMD_GET_TSF                      0x0080
+
+#define CMD_BT_ACCESS                 0x0087
+
+#define CMD_FWT_ACCESS                0x0095
+
+#define CMD_802_11_MONITOR_MODE       0x0098
+
+#define CMD_MESH_ACCESS               0x009b
+
+#define CMD_SET_BOOT2_VER                 0x00a5
 
 /* For the IEEE Power Save */
-#define cmd_subcmd_enter_ps               0x0030
-#define cmd_subcmd_exit_ps                0x0031
-#define cmd_subcmd_sleep_confirmed        0x0034
-#define cmd_subcmd_full_powerdown         0x0035
-#define cmd_subcmd_full_powerup           0x0036
+#define CMD_SUBCMD_ENTER_PS               0x0030
+#define CMD_SUBCMD_EXIT_PS                0x0031
+#define CMD_SUBCMD_SLEEP_CONFIRMED        0x0034
+#define CMD_SUBCMD_FULL_POWERDOWN         0x0035
+#define CMD_SUBCMD_FULL_POWERUP           0x0036
 
-/* command RET code, MSB is set to 1 */
-#define cmd_ret_hw_spec_info              0x8003
-#define cmd_ret_eeprom_update             0x8004
-#define cmd_ret_802_11_reset              0x8005
-#define cmd_ret_802_11_scan               0x8006
-#define cmd_ret_802_11_get_log            0x800b
-#define cmd_ret_mac_control               0x8028
-#define cmd_ret_mac_multicast_adr         0x8010
-#define cmd_ret_802_11_authenticate       0x8011
-#define cmd_ret_802_11_deauthenticate     0x8024
-#define cmd_ret_802_11_associate          0x8012
-#define cmd_ret_802_11_reassociate        0x8025
-#define cmd_ret_802_11_disassociate       0x8026
-#define cmd_ret_802_11_set_wep            0x8013
-#define cmd_ret_802_11_stat               0x8014
-#define cmd_ret_802_3_stat                0x8015
-#define cmd_ret_802_11_snmp_mib           0x8016
-#define cmd_ret_mac_reg_map               0x8017
-#define cmd_ret_bbp_reg_map               0x8018
-#define cmd_ret_rf_reg_map                0x8023
-#define cmd_ret_mac_reg_access            0x8019
-#define cmd_ret_bbp_reg_access            0x801a
-#define cmd_ret_rf_reg_access             0x801b
-#define cmd_ret_802_11_radio_control      0x801c
-#define cmd_ret_802_11_rf_channel         0x801d
-#define cmd_ret_802_11_rssi               0x801f
-#define cmd_ret_802_11_rf_tx_power        0x801e
-#define cmd_ret_802_11_rf_antenna         0x8020
-#define cmd_ret_802_11_ps_mode            0x8021
-#define cmd_ret_802_11_data_rate          0x8022
+#define CMD_ENABLE_RSN                    0x0001
+#define CMD_DISABLE_RSN                   0x0000
 
-#define cmd_ret_802_11_ad_hoc_start       0x802B
-#define cmd_ret_802_11_ad_hoc_join        0x802C
+#define CMD_ACT_SET                       0x0001
+#define CMD_ACT_GET                       0x0000
 
-#define cmd_ret_802_11_query_tkip_reply_cntrs  0x802e
-#define cmd_ret_802_11_enable_rsn              0x802f
-#define cmd_ret_802_11_pairwise_tsc       0x8036
-#define cmd_ret_802_11_group_tsc          0x8037
-#define cmd_ret_802_11_key_material       0x805e
+#define CMD_ACT_GET_AES                   (CMD_ACT_GET + 2)
+#define CMD_ACT_SET_AES                   (CMD_ACT_SET + 2)
+#define CMD_ACT_REMOVE_AES                (CMD_ACT_SET + 3)
 
-#define cmd_enable_rsn                    0x0001
-#define cmd_disable_rsn                   0x0000
+/* Define action or option for CMD_802_11_SET_WEP */
+#define CMD_ACT_ADD                         0x0002
+#define CMD_ACT_REMOVE                      0x0004
+#define CMD_ACT_USE_DEFAULT                 0x0008
 
-#define cmd_act_set                       0x0001
-#define cmd_act_get                       0x0000
+#define CMD_TYPE_WEP_40_BIT                 0x01
+#define CMD_TYPE_WEP_104_BIT                0x02
 
-#define cmd_act_get_AES                   (cmd_act_get + 2)
-#define cmd_act_set_AES                   (cmd_act_set + 2)
-#define cmd_act_remove_aes                (cmd_act_set + 3)
+#define CMD_NUM_OF_WEP_KEYS                 4
 
-#define cmd_ret_802_11_set_afc            0x803c
-#define cmd_ret_802_11_get_afc            0x803d
+#define CMD_WEP_KEY_INDEX_MASK              0x3fff
 
-#define cmd_ret_802_11_ad_hoc_stop        0x8040
+/* Define action or option for CMD_802_11_RESET */
+#define CMD_ACT_HALT                        0x0003
 
-#define cmd_ret_802_11_beacon_stop        0x8049
+/* Define action or option for CMD_802_11_SCAN */
+#define CMD_BSS_TYPE_BSS                    0x0001
+#define CMD_BSS_TYPE_IBSS                   0x0002
+#define CMD_BSS_TYPE_ANY                    0x0003
 
-#define cmd_ret_802_11_mac_address        0x804D
-#define cmd_ret_802_11_eeprom_access      0x8059
+/* Define action or option for CMD_802_11_SCAN */
+#define CMD_SCAN_TYPE_ACTIVE                0x0000
+#define CMD_SCAN_TYPE_PASSIVE               0x0001
 
-#define cmd_ret_802_11_band_config        0x8058
+#define CMD_SCAN_RADIO_TYPE_BG		0
 
-#define cmd_ret_802_11_sleep_params          0x8066
+#define CMD_SCAN_PROBE_DELAY_TIME           0
 
-#define cmd_ret_802_11_inactivity_timeout    0x8067
+/* Define action or option for CMD_MAC_CONTROL */
+#define CMD_ACT_MAC_RX_ON                   0x0001
+#define CMD_ACT_MAC_TX_ON                   0x0002
+#define CMD_ACT_MAC_LOOPBACK_ON             0x0004
+#define CMD_ACT_MAC_WEP_ENABLE              0x0008
+#define CMD_ACT_MAC_INT_ENABLE              0x0010
+#define CMD_ACT_MAC_MULTICAST_ENABLE        0x0020
+#define CMD_ACT_MAC_BROADCAST_ENABLE        0x0040
+#define CMD_ACT_MAC_PROMISCUOUS_ENABLE      0x0080
+#define CMD_ACT_MAC_ALL_MULTICAST_ENABLE    0x0100
+#define CMD_ACT_MAC_STRICT_PROTECTION_ENABLE  0x0400
 
-#define cmd_ret_802_11d_domain_info      (0x8000 |                  \
-                                              cmd_802_11d_domain_info)
-
-#define cmd_ret_802_11_tpc_cfg        (cmd_802_11_tpc_cfg | 0x8000)
-#define cmd_ret_802_11_pwr_cfg        (cmd_802_11_pwr_cfg | 0x8000)
-
-#define cmd_ret_802_11_led_gpio_ctrl     0x804e
-
-#define cmd_ret_802_11_subscribe_event	(cmd_802_11_subscribe_event | 0x8000)
-
-#define cmd_ret_802_11_rate_adapt_rateset	(cmd_802_11_rate_adapt_rateset | 0x8000)
-
-#define cmd_rte_802_11_tx_rate_query 	(cmd_802_11_tx_rate_query | 0x8000)
-
-#define cmd_ret_get_tsf             0x8080
-
-/* Define action or option for cmd_802_11_set_wep */
-#define cmd_act_add                         0x0002
-#define cmd_act_remove                      0x0004
-#define cmd_act_use_default                 0x0008
-
-#define cmd_type_wep_40_bit                 0x0001
-#define cmd_type_wep_104_bit                0x0002
-
-#define cmd_NUM_OF_WEP_KEYS                 4
-
-#define cmd_WEP_KEY_INDEX_MASK              0x3fff
-
-/* Define action or option for cmd_802_11_reset */
-#define cmd_act_halt                        0x0003
-
-/* Define action or option for cmd_802_11_scan */
-#define cmd_bss_type_bss                    0x0001
-#define cmd_bss_type_ibss                   0x0002
-#define cmd_bss_type_any                    0x0003
-
-/* Define action or option for cmd_802_11_scan */
-#define cmd_scan_type_active                0x0000
-#define cmd_scan_type_passive               0x0001
-
-#define cmd_scan_radio_type_bg		0
-
-#define cmd_scan_probe_delay_time           0
-
-/* Define action or option for cmd_mac_control */
-#define cmd_act_mac_rx_on                   0x0001
-#define cmd_act_mac_tx_on                   0x0002
-#define cmd_act_mac_loopback_on             0x0004
-#define cmd_act_mac_wep_enable              0x0008
-#define cmd_act_mac_int_enable              0x0010
-#define cmd_act_mac_multicast_enable        0x0020
-#define cmd_act_mac_broadcast_enable        0x0040
-#define cmd_act_mac_promiscuous_enable      0x0080
-#define cmd_act_mac_all_multicast_enable    0x0100
-#define cmd_act_mac_strict_protection_enable  0x0400
-
-/* Define action or option for cmd_802_11_radio_control */
-#define cmd_type_auto_preamble              0x0001
-#define cmd_type_short_preamble             0x0002
-#define cmd_type_long_preamble              0x0003
+/* Define action or option for CMD_802_11_RADIO_CONTROL */
+#define CMD_TYPE_AUTO_PREAMBLE              0x0001
+#define CMD_TYPE_SHORT_PREAMBLE             0x0002
+#define CMD_TYPE_LONG_PREAMBLE              0x0003
 
 #define TURN_ON_RF                              0x01
 #define RADIO_ON                                0x01
@@ -248,70 +187,80 @@
 #define SET_LONG_PREAMBLE                       0x01
 
 /* Define action or option for CMD_802_11_RF_CHANNEL */
-#define cmd_opt_802_11_rf_channel_get       0x00
-#define cmd_opt_802_11_rf_channel_set       0x01
+#define CMD_OPT_802_11_RF_CHANNEL_GET       0x00
+#define CMD_OPT_802_11_RF_CHANNEL_SET       0x01
 
-/* Define action or option for cmd_802_11_rf_tx_power */
-#define cmd_act_tx_power_opt_get            0x0000
-#define cmd_act_tx_power_opt_set_high       0x8007
-#define cmd_act_tx_power_opt_set_mid        0x8004
-#define cmd_act_tx_power_opt_set_low        0x8000
+/* Define action or option for CMD_802_11_RF_TX_POWER */
+#define CMD_ACT_TX_POWER_OPT_GET            0x0000
+#define CMD_ACT_TX_POWER_OPT_SET_HIGH       0x8007
+#define CMD_ACT_TX_POWER_OPT_SET_MID        0x8004
+#define CMD_ACT_TX_POWER_OPT_SET_LOW        0x8000
 
-#define cmd_act_tx_power_index_high         0x0007
-#define cmd_act_tx_power_index_mid          0x0004
-#define cmd_act_tx_power_index_low          0x0000
+#define CMD_ACT_TX_POWER_INDEX_HIGH         0x0007
+#define CMD_ACT_TX_POWER_INDEX_MID          0x0004
+#define CMD_ACT_TX_POWER_INDEX_LOW          0x0000
 
-/* Define action or option for cmd_802_11_data_rate */
-#define cmd_act_set_tx_auto                 0x0000
-#define cmd_act_set_tx_fix_rate             0x0001
-#define cmd_act_get_tx_rate                 0x0002
+/* Define action or option for CMD_802_11_DATA_RATE */
+#define CMD_ACT_SET_TX_AUTO                 0x0000
+#define CMD_ACT_SET_TX_FIX_RATE             0x0001
+#define CMD_ACT_GET_TX_RATE                 0x0002
 
-#define cmd_act_set_rx                      0x0001
-#define cmd_act_set_tx                      0x0002
-#define cmd_act_set_both                    0x0003
-#define cmd_act_get_rx                      0x0004
-#define cmd_act_get_tx                      0x0008
-#define cmd_act_get_both                    0x000c
+#define CMD_ACT_SET_RX                      0x0001
+#define CMD_ACT_SET_TX                      0x0002
+#define CMD_ACT_SET_BOTH                    0x0003
+#define CMD_ACT_GET_RX                      0x0004
+#define CMD_ACT_GET_TX                      0x0008
+#define CMD_ACT_GET_BOTH                    0x000c
 
-/* Define action or option for cmd_802_11_ps_mode */
-#define cmd_type_cam                        0x0000
-#define cmd_type_max_psp                    0x0001
-#define cmd_type_fast_psp                   0x0002
+/* Define action or option for CMD_802_11_PS_MODE */
+#define CMD_TYPE_CAM                        0x0000
+#define CMD_TYPE_MAX_PSP                    0x0001
+#define CMD_TYPE_FAST_PSP                   0x0002
 
-/* Define action or option for cmd_bt_access */
+/* Define action or option for CMD_BT_ACCESS */
 enum cmd_bt_access_opts {
 	/* The bt commands start at 5 instead of 1 because the old dft commands
 	 * are mapped to 1-4.  These old commands are no longer maintained and
 	 * should not be called.
 	 */
-	cmd_act_bt_access_add = 5,
-	cmd_act_bt_access_del,
-	cmd_act_bt_access_list,
-	cmd_act_bt_access_reset,
-	cmd_act_bt_access_set_invert,
-	cmd_act_bt_access_get_invert
+	CMD_ACT_BT_ACCESS_ADD = 5,
+	CMD_ACT_BT_ACCESS_DEL,
+	CMD_ACT_BT_ACCESS_LIST,
+	CMD_ACT_BT_ACCESS_RESET,
+	CMD_ACT_BT_ACCESS_SET_INVERT,
+	CMD_ACT_BT_ACCESS_GET_INVERT
 };
 
-/* Define action or option for cmd_fwt_access */
+/* Define action or option for CMD_FWT_ACCESS */
 enum cmd_fwt_access_opts {
-	cmd_act_fwt_access_add = 1,
-	cmd_act_fwt_access_del,
-	cmd_act_fwt_access_lookup,
-	cmd_act_fwt_access_list,
-	cmd_act_fwt_access_list_route,
-	cmd_act_fwt_access_list_neighbor,
-	cmd_act_fwt_access_reset,
-	cmd_act_fwt_access_cleanup,
-	cmd_act_fwt_access_time,
+	CMD_ACT_FWT_ACCESS_ADD = 1,
+	CMD_ACT_FWT_ACCESS_DEL,
+	CMD_ACT_FWT_ACCESS_LOOKUP,
+	CMD_ACT_FWT_ACCESS_LIST,
+	CMD_ACT_FWT_ACCESS_LIST_route,
+	CMD_ACT_FWT_ACCESS_LIST_neighbor,
+	CMD_ACT_FWT_ACCESS_RESET,
+	CMD_ACT_FWT_ACCESS_CLEANUP,
+	CMD_ACT_FWT_ACCESS_TIME,
 };
 
-/* Define action or option for cmd_mesh_access */
+/* Define action or option for CMD_MESH_ACCESS */
 enum cmd_mesh_access_opts {
-	cmd_act_mesh_get_ttl = 1,
-	cmd_act_mesh_set_ttl,
-	cmd_act_mesh_get_stats,
-	cmd_act_mesh_get_anycast,
-	cmd_act_mesh_set_anycast,
+	CMD_ACT_MESH_GET_TTL = 1,
+	CMD_ACT_MESH_SET_TTL,
+	CMD_ACT_MESH_GET_STATS,
+	CMD_ACT_MESH_GET_ANYCAST,
+	CMD_ACT_MESH_SET_ANYCAST,
+	CMD_ACT_MESH_SET_LINK_COSTS,
+	CMD_ACT_MESH_GET_LINK_COSTS,
+	CMD_ACT_MESH_SET_BCAST_RATE,
+	CMD_ACT_MESH_GET_BCAST_RATE,
+	CMD_ACT_MESH_SET_RREQ_DELAY,
+	CMD_ACT_MESH_GET_RREQ_DELAY,
+	CMD_ACT_MESH_SET_ROUTE_EXP,
+	CMD_ACT_MESH_GET_ROUTE_EXP,
+	CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
+	CMD_ACT_MESH_GET_AUTOSTART_ENABLED,
 };
 
 /** Card Event definition */

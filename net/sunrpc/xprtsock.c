@@ -1186,7 +1186,7 @@ static struct lock_class_key xs_slock_key[2];
 static inline void xs_reclassify_socket(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	BUG_ON(sk->sk_lock.owner != NULL);
+	BUG_ON(sock_owned_by_user(sk));
 	switch (sk->sk_family) {
 	case AF_INET:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFS",

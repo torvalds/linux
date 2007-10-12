@@ -9,6 +9,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/genhd.h>
+#include <net/net_namespace.h>
 #include <asm/unaligned.h>
 #include "aoe.h"
 
@@ -194,7 +195,7 @@ aoecmd_cfg_pkts(ushort aoemajor, unsigned char aoeminor, struct sk_buff **tail)
 	sl = sl_tail = NULL;
 
 	read_lock(&dev_base_lock);
-	for_each_netdev(ifp) {
+	for_each_netdev(&init_net, ifp) {
 		dev_hold(ifp);
 		if (!is_aoe_netif(ifp))
 			goto cont;

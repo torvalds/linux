@@ -91,6 +91,7 @@
 #include <linux/hash.h>
 #include <linux/sort.h>
 #include <linux/proc_fs.h>
+#include <net/net_namespace.h>
 #include <net/dst.h>
 #include <net/ip.h>
 #include <net/udp.h>
@@ -1410,12 +1411,12 @@ static struct proto pppol2tp_sk_proto = {
 
 /* socket() handler. Initialize a new struct sock.
  */
-static int pppol2tp_create(struct socket *sock)
+static int pppol2tp_create(struct net *net, struct socket *sock)
 {
 	int error = -ENOMEM;
 	struct sock *sk;
 
-	sk = sk_alloc(PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, 1);
+	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, 1);
 	if (!sk)
 		goto out;
 
@@ -2444,7 +2445,7 @@ static int __init pppol2tp_init(void)
 		goto out_unregister_pppol2tp_proto;
 
 #ifdef CONFIG_PROC_FS
-	pppol2tp_proc = create_proc_entry("pppol2tp", 0, proc_net);
+	pppol2tp_proc = create_proc_entry("pppol2tp", 0, init_net.proc_net);
 	if (!pppol2tp_proc) {
 		err = -ENOMEM;
 		goto out_unregister_pppox_proto;
@@ -2469,7 +2470,7 @@ static void __exit pppol2tp_exit(void)
 	unregister_pppox_proto(PX_PROTO_OL2TP);
 
 #ifdef CONFIG_PROC_FS
-	remove_proc_entry("pppol2tp", proc_net);
+	remove_proc_entry("pppol2tp", init_net.proc_net);
 #endif
 	proto_unregister(&pppol2tp_sk_proto);
 }

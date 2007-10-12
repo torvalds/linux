@@ -36,7 +36,7 @@ struct nf_conntrack_helper
 
 	void (*destroy)(struct nf_conn *ct);
 
-	int (*to_nfattr)(struct sk_buff *skb, const struct nf_conn *ct);
+	int (*to_nlattr)(struct sk_buff *skb, const struct nf_conn *ct);
 };
 
 extern struct nf_conntrack_helper *

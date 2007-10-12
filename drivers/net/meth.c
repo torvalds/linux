@@ -66,7 +66,6 @@ module_param(timeout, int, 0);
  * packets in and out, so there is place for a packet
  */
 struct meth_private {
-	struct net_device_stats stats;
 	/* in-memory copy of MAC Control register */
 	unsigned long mac_ctrl;
 	/* in-memory copy of DMA Control register */
@@ -96,11 +95,11 @@ char o2meth_eaddr[8]={0,0,0,0,0,0,0,0};
 static inline void load_eaddr(struct net_device *dev)
 {
 	int i;
-	DPRINTK("Loading MAC Address: %02x:%02x:%02x:%02x:%02x:%02x\n",
-		(int)o2meth_eaddr[0]&0xFF,(int)o2meth_eaddr[1]&0xFF,(int)o2meth_eaddr[2]&0xFF,
-		(int)o2meth_eaddr[3]&0xFF,(int)o2meth_eaddr[4]&0xFF,(int)o2meth_eaddr[5]&0xFF);
+	DECLARE_MAC_BUF(mac);
+
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = o2meth_eaddr[i];
+	DPRINTK("Loading MAC Address: %s\n", print_mac(mac, dev->dev_addr));
 	mace->eth.mac_addr = (*(unsigned long*)o2meth_eaddr) >> 16;
 }
 
@@ -401,15 +400,15 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 				printk(KERN_DEBUG "%s: bogus packet size: %ld, status=%#2lx.\n",
 				       dev->name, priv->rx_write,
 				       priv->rx_ring[priv->rx_write]->status.raw);
-				priv->stats.rx_errors++;
-				priv->stats.rx_length_errors++;
+				dev->stats.rx_errors++;
+				dev->stats.rx_length_errors++;
 				skb = priv->rx_skbs[priv->rx_write];
 			} else {
 				skb = alloc_skb(METH_RX_BUFF_SIZE, GFP_ATOMIC);
 				if (!skb) {
 					/* Ouch! No memory! Drop packet on the floor */
 					DPRINTK("No mem: dropping packet\n");
-					priv->stats.rx_dropped++;
+					dev->stats.rx_dropped++;
 					skb = priv->rx_skbs[priv->rx_write];
 				} else {
 					struct sk_buff *skb_c = priv->rx_skbs[priv->rx_write];
@@ -421,13 +420,13 @@ static void meth_rx(struct net_device* dev, unsigned long int_status)
 					priv->rx_skbs[priv->rx_write] = skb;
 					skb_c->protocol = eth_type_trans(skb_c, dev);
 					dev->last_rx = jiffies;
-					priv->stats.rx_packets++;
-					priv->stats.rx_bytes += len;
+					dev->stats.rx_packets++;
+					dev->stats.rx_bytes += len;
 					netif_rx(skb_c);
 				}
 			}
 		} else {
-			priv->stats.rx_errors++;
+			dev->stats.rx_errors++;
 			skb=priv->rx_skbs[priv->rx_write];
 #if MFE_DEBUG>0
 			printk(KERN_WARNING "meth: RX error: status=0x%016lx\n",status);
@@ -490,10 +489,10 @@ static void meth_tx_cleanup(struct net_device* dev, unsigned long int_status)
 #endif
 		if (status & METH_TX_ST_DONE) {
 			if (status & METH_TX_ST_SUCCESS){
-				priv->stats.tx_packets++;
-				priv->stats.tx_bytes += skb->len;
+				dev->stats.tx_packets++;
+				dev->stats.tx_bytes += skb->len;
 			} else {
-				priv->stats.tx_errors++;
+				dev->stats.tx_errors++;
 #if MFE_DEBUG>=1
 				DPRINTK("TX error: status=%016lx <",status);
 				if(status & METH_TX_ST_SUCCESS)
@@ -734,7 +733,7 @@ static void meth_tx_timeout(struct net_device *dev)
 	/* Try to reset the interface. */
 	meth_reset(dev);
 
-	priv->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	/* Clear all rings */
 	meth_free_tx_ring(priv);
@@ -773,12 +772,6 @@ static int meth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 /*
  * Return statistics to the caller
  */
-static struct net_device_stats *meth_stats(struct net_device *dev)
-{
-	struct meth_private *priv = netdev_priv(dev);
-	return &priv->stats;
-}
-
 /*
  * The init function.
  */
@@ -796,7 +789,6 @@ static int __init meth_probe(struct platform_device *pdev)
 	dev->stop            = meth_release;
 	dev->hard_start_xmit = meth_tx;
 	dev->do_ioctl        = meth_ioctl;
-	dev->get_stats       = meth_stats;
 #ifdef HAVE_TX_TIMEOUT
 	dev->tx_timeout      = meth_tx_timeout;
 	dev->watchdog_timeo  = timeout;

@@ -21,77 +21,41 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
-#include "hostapd_ioctl.h"
 #include "ieee80211_rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
-#include "debugfs_key.h"
-
-static void ieee80211_set_hw_encryption(struct net_device *dev,
-					struct sta_info *sta, u8 addr[ETH_ALEN],
-					struct ieee80211_key *key)
-{
-	struct ieee80211_key_conf *keyconf = NULL;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	/* default to sw encryption; this will be cleared by low-level
-	 * driver if the hw supports requested encryption */
-	if (key)
-		key->force_sw_encrypt = 1;
-
-	if (key && local->ops->set_key &&
-	    (keyconf = ieee80211_key_data2conf(local, key))) {
-		if (local->ops->set_key(local_to_hw(local), SET_KEY, addr,
-				       keyconf, sta ? sta->aid : 0)) {
-			key->force_sw_encrypt = 1;
-			key->hw_key_idx = HW_KEY_IDX_INVALID;
-		} else {
-			key->force_sw_encrypt =
-				!!(keyconf->flags & IEEE80211_KEY_FORCE_SW_ENCRYPT);
-			key->hw_key_idx =
-				keyconf->hw_key_idx;
-
-		}
-	}
-	kfree(keyconf);
-}
 
 
 static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
-				    int idx, int alg, int set_tx_key,
-				    const u8 *_key, size_t key_len)
+				    int idx, int alg, int remove,
+				    int set_tx_key, const u8 *_key,
+				    size_t key_len)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	int ret = 0;
 	struct sta_info *sta;
-	struct ieee80211_key *key, *old_key;
-	int try_hwaccel = 1;
-	struct ieee80211_key_conf *keyconf;
+	struct ieee80211_key *key;
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
+	if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
+		printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
+		       dev->name, idx);
+		return -EINVAL;
+	}
+
 	if (is_broadcast_ether_addr(sta_addr)) {
 		sta = NULL;
-		if (idx >= NUM_DEFAULT_KEYS) {
-			printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
-			       dev->name, idx);
-			return -EINVAL;
-		}
 		key = sdata->keys[idx];
-
-		/* TODO: consider adding hwaccel support for these; at least
-		 * Atheros key cache should be able to handle this since AP is
-		 * only transmitting frames with default keys. */
-		/* FIX: hw key cache can be used when only one virtual
-		 * STA is associated with each AP. If more than one STA
-		 * is associated to the same AP, software encryption
-		 * must be used. This should be done automatically
-		 * based on configured station devices. For the time
-		 * being, this can be only set at compile time. */
 	} else {
 		set_tx_key = 0;
-		if (idx != 0) {
+		/*
+		 * According to the standard, the key index of a pairwise
+		 * key must be zero. However, some AP are broken when it
+		 * comes to WEP key indices, so we work around this.
+		 */
+		if (idx != 0 && alg != ALG_WEP) {
 			printk(KERN_DEBUG "%s: set_encrypt - non-zero idx for "
 			       "individual key\n", dev->name);
 			return -EINVAL;
@@ -100,9 +64,10 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		sta = sta_info_get(local, sta_addr);
 		if (!sta) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+			DECLARE_MAC_BUF(mac);
 			printk(KERN_DEBUG "%s: set_encrypt - unknown addr "
-			       MAC_FMT "\n",
-			       dev->name, MAC_ARG(sta_addr));
+			       "%s\n",
+			       dev->name, print_mac(mac, sta_addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 			return -ENOENT;
@@ -111,144 +76,25 @@ static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
 		key = sta->key;
 	}
 
-	/* FIX:
-	 * Cannot configure default hwaccel keys with WEP algorithm, if
-	 * any of the virtual interfaces is using static WEP
-	 * configuration because hwaccel would otherwise try to decrypt
-	 * these frames.
-	 *
-	 * For now, just disable WEP hwaccel for broadcast when there is
-	 * possibility of conflict with default keys. This can maybe later be
-	 * optimized by using non-default keys (at least with Atheros ar521x).
-	 */
-	if (!sta && alg == ALG_WEP && !local->default_wep_only &&
-	    sdata->type != IEEE80211_IF_TYPE_IBSS &&
-	    sdata->type != IEEE80211_IF_TYPE_AP) {
-		try_hwaccel = 0;
-	}
-
-	if (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP) {
-		/* Software encryption cannot be used with devices that hide
-		 * encryption from the host system, so always try to use
-		 * hardware acceleration with such devices. */
-		try_hwaccel = 1;
-	}
-
-	if ((local->hw.flags & IEEE80211_HW_NO_TKIP_WMM_HWACCEL) &&
-	    alg == ALG_TKIP) {
-		if (sta && (sta->flags & WLAN_STA_WME)) {
-		/* Hardware does not support hwaccel with TKIP when using WMM.
-		 */
-			try_hwaccel = 0;
-		}
-		else if (sdata->type == IEEE80211_IF_TYPE_STA) {
-			sta = sta_info_get(local, sdata->u.sta.bssid);
-			if (sta) {
-				if (sta->flags & WLAN_STA_WME) {
-					try_hwaccel = 0;
-				}
-				sta_info_put(sta);
-				sta = NULL;
-			}
-		}
-	}
-
-	if (alg == ALG_NONE) {
-		keyconf = NULL;
-		if (try_hwaccel && key &&
-		    key->hw_key_idx != HW_KEY_IDX_INVALID &&
-		    local->ops->set_key &&
-		    (keyconf = ieee80211_key_data2conf(local, key)) != NULL &&
-		    local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				       sta_addr, keyconf, sta ? sta->aid : 0)) {
-			printk(KERN_DEBUG "%s: set_encrypt - low-level disable"
-			       " failed\n", dev->name);
-			ret = -EINVAL;
-		}
-		kfree(keyconf);
-
-		if (set_tx_key || sdata->default_key == key) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = NULL;
-		}
-		ieee80211_debugfs_key_remove(key);
-		if (sta)
-			sta->key = NULL;
-		else
-			sdata->keys[idx] = NULL;
+	if (remove) {
 		ieee80211_key_free(key);
 		key = NULL;
 	} else {
-		old_key = key;
-		key = ieee80211_key_alloc(sta ? NULL : sdata, idx, key_len,
-					  GFP_KERNEL);
+		/*
+		 * Automatically frees any old key if present.
+		 */
+		key = ieee80211_key_alloc(sdata, sta, alg, idx, key_len, _key);
 		if (!key) {
 			ret = -ENOMEM;
 			goto err_out;
 		}
-
-		/* default to sw encryption; low-level driver sets these if the
-		 * requested encryption is supported */
-		key->hw_key_idx = HW_KEY_IDX_INVALID;
-		key->force_sw_encrypt = 1;
-
-		key->alg = alg;
-		key->keyidx = idx;
-		key->keylen = key_len;
-		memcpy(key->key, _key, key_len);
-		if (set_tx_key)
-			key->default_tx_key = 1;
-
-		if (alg == ALG_CCMP) {
-			/* Initialize AES key state here as an optimization
-			 * so that it does not need to be initialized for every
-			 * packet. */
-			key->u.ccmp.tfm = ieee80211_aes_key_setup_encrypt(
-				key->key);
-			if (!key->u.ccmp.tfm) {
-				ret = -ENOMEM;
-				goto err_free;
-			}
-		}
-
-		if (set_tx_key || sdata->default_key == old_key) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = NULL;
-		}
-		ieee80211_debugfs_key_remove(old_key);
-		if (sta)
-			sta->key = key;
-		else
-			sdata->keys[idx] = key;
-		ieee80211_key_free(old_key);
-		ieee80211_debugfs_key_add(local, key);
-		if (sta)
-			ieee80211_debugfs_key_sta_link(key, sta);
-
-		if (try_hwaccel &&
-		    (alg == ALG_WEP || alg == ALG_TKIP || alg == ALG_CCMP))
-			ieee80211_set_hw_encryption(dev, sta, sta_addr, key);
 	}
 
-	if (set_tx_key || (!sta && !sdata->default_key && key)) {
-		sdata->default_key = key;
-		if (key)
-			ieee80211_debugfs_key_add_default(sdata);
+	if (set_tx_key || (!sta && !sdata->default_key && key))
+		ieee80211_set_default_key(sdata, idx);
 
-		if (local->ops->set_key_idx &&
-		    local->ops->set_key_idx(local_to_hw(local), idx))
-			printk(KERN_DEBUG "%s: failed to set TX key idx for "
-			       "low-level driver\n", dev->name);
-	}
-
-	if (sta)
-		sta_info_put(sta);
-
-	return 0;
-
-err_free:
-	ieee80211_key_free(key);
-err_out:
+	ret = 0;
+ err_out:
 	if (sta)
 		sta_info_put(sta);
 	return ret;
@@ -259,42 +105,23 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 				    struct iw_point *data, char *extra)
 {
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (local->user_space_mlme)
-		return -EOPNOTSUPP;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
+		return -EOPNOTSUPP;
+
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret = ieee80211_sta_set_extra_ie(dev, extra, data->length);
 		if (ret)
 			return ret;
-		sdata->u.sta.auto_bssid_sel = 0;
+		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		ieee80211_sta_req_auth(dev, &sdata->u.sta);
 		return 0;
 	}
 
-	if (sdata->type == IEEE80211_IF_TYPE_AP) {
-		kfree(sdata->u.ap.generic_elem);
-		sdata->u.ap.generic_elem = kmalloc(data->length, GFP_KERNEL);
-		if (!sdata->u.ap.generic_elem)
-			return -ENOMEM;
-		memcpy(sdata->u.ap.generic_elem, extra, data->length);
-		sdata->u.ap.generic_elem_len = data->length;
-		return ieee80211_if_config(dev);
-	}
 	return -EOPNOTSUPP;
-}
-
-static int ieee80211_ioctl_set_radio_enabled(struct net_device *dev,
-					     int val)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_conf *conf = &local->hw.conf;
-
-	conf->radio_enabled = val;
-	return ieee80211_hw_config(wdev_priv(dev->ieee80211_ptr));
 }
 
 static int ieee80211_ioctl_giwname(struct net_device *dev,
@@ -312,9 +139,6 @@ static int ieee80211_ioctl_giwname(struct net_device *dev,
 		break;
 	case MODE_IEEE80211G:
 		strcpy(name, "IEEE 802.11g");
-		break;
-	case MODE_ATHEROS_TURBO:
-		strcpy(name, "5GHz Turbo");
 		break;
 	default:
 		strcpy(name, "IEEE 802.11");
@@ -480,11 +304,6 @@ int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq)
 			struct ieee80211_channel *chan = &mode->channels[c];
 			if (chan->flag & IEEE80211_CHAN_W_SCAN &&
 			    ((chan->chan == channel) || (chan->freq == freq))) {
-				/* Use next_mode as the mode preference to
-				 * resolve non-unique channel numbers. */
-				if (set && mode->mode != local->next_mode)
-					continue;
-
 				local->oper_channel = chan;
 				local->oper_hw_mode = mode;
 				set++;
@@ -512,13 +331,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->type == IEEE80211_IF_TYPE_STA)
-		sdata->u.sta.auto_channel_sel = 0;
+		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
 		if (freq->m < 0) {
 			if (sdata->type == IEEE80211_IF_TYPE_STA)
-				sdata->u.sta.auto_channel_sel = 1;
+				sdata->u.sta.flags |=
+					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
 		} else
 			return ieee80211_set_channel(local, freq->m, -1);
@@ -554,7 +374,6 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 	size_t len = data->length;
 
@@ -566,14 +385,17 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret;
-		if (local->user_space_mlme) {
+		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
 			if (len > IEEE80211_MAX_SSID_LEN)
 				return -EINVAL;
 			memcpy(sdata->u.sta.ssid, ssid, len);
 			sdata->u.sta.ssid_len = len;
 			return 0;
 		}
-		sdata->u.sta.auto_ssid_sel = !data->flags;
+		if (data->flags)
+			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
+		else
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_SSID_SEL;
 		ret = ieee80211_sta_set_ssid(dev, ssid, len);
 		if (ret)
 			return ret;
@@ -628,25 +450,24 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->type == IEEE80211_IF_TYPE_STA ||
 	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		int ret;
-		if (local->user_space_mlme) {
+		if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME) {
 			memcpy(sdata->u.sta.bssid, (u8 *) &ap_addr->sa_data,
 			       ETH_ALEN);
 			return 0;
 		}
-		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data)) {
-			sdata->u.sta.auto_bssid_sel = 1;
-			sdata->u.sta.auto_channel_sel = 1;
-		} else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.sta.auto_bssid_sel = 1;
+		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_BSSID_SEL |
+				IEEE80211_STA_AUTO_CHANNEL_SEL;
+		else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
+			sdata->u.sta.flags |= IEEE80211_STA_AUTO_BSSID_SEL;
 		else
-			sdata->u.sta.auto_bssid_sel = 0;
+			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		ret = ieee80211_sta_set_bssid(dev, (u8 *) &ap_addr->sa_data);
 		if (ret)
 			return ret;
@@ -762,9 +583,6 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 		struct ieee80211_rate *rates = &mode->rates[i];
 		int this_rate = rates->rate;
 
-		if (mode->mode == MODE_ATHEROS_TURBO ||
-		    mode->mode == MODE_ATHEROS_TURBOG)
-			this_rate *= 2;
 		if (target_rate == this_rate) {
 			sdata->bss->max_ratectrl_rateidx = i;
 			if (rate->fixed)
@@ -795,6 +613,52 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 	else
 		rate->value = 0;
 	sta_info_put(sta);
+	return 0;
+}
+
+static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
+				      struct iw_request_info *info,
+				      union iwreq_data *data, char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	bool need_reconfig = 0;
+
+	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
+		return -EINVAL;
+	if (data->txpower.flags & IW_TXPOW_RANGE)
+		return -EINVAL;
+	if (!data->txpower.fixed)
+		return -EINVAL;
+
+	if (local->hw.conf.power_level != data->txpower.value) {
+		local->hw.conf.power_level = data->txpower.value;
+		need_reconfig = 1;
+	}
+	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
+		local->hw.conf.radio_enabled = !(data->txpower.disabled);
+		need_reconfig = 1;
+	}
+	if (need_reconfig) {
+		ieee80211_hw_config(local);
+		/* The return value of hw_config is not of big interest here,
+		 * as it doesn't say that it failed because of _this_ config
+		 * change or something else. Ignore it. */
+	}
+
+	return 0;
+}
+
+static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
+				   struct iw_request_info *info,
+				   union iwreq_data *data, char *extra)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	data->txpower.fixed = 1;
+	data->txpower.disabled = !(local->hw.conf.radio_enabled);
+	data->txpower.value = local->hw.conf.power_level;
+	data->txpower.flags = IW_TXPOW_DBM;
+
 	return 0;
 }
 
@@ -930,335 +794,6 @@ static int ieee80211_ioctl_giwretry(struct net_device *dev,
 	return 0;
 }
 
-static void ieee80211_key_enable_hwaccel(struct ieee80211_local *local,
-					 struct ieee80211_key *key)
-{
-	struct ieee80211_key_conf *keyconf;
-	u8 addr[ETH_ALEN];
-
-	if (!key || key->alg != ALG_WEP || !key->force_sw_encrypt ||
-	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
-		return;
-
-	memset(addr, 0xff, ETH_ALEN);
-	keyconf = ieee80211_key_data2conf(local, key);
-	if (keyconf && local->ops->set_key &&
-	    local->ops->set_key(local_to_hw(local),
-			       SET_KEY, addr, keyconf, 0) == 0) {
-		key->force_sw_encrypt =
-			!!(keyconf->flags & IEEE80211_KEY_FORCE_SW_ENCRYPT);
-		key->hw_key_idx = keyconf->hw_key_idx;
-	}
-	kfree(keyconf);
-}
-
-
-static void ieee80211_key_disable_hwaccel(struct ieee80211_local *local,
-					  struct ieee80211_key *key)
-{
-	struct ieee80211_key_conf *keyconf;
-	u8 addr[ETH_ALEN];
-
-	if (!key || key->alg != ALG_WEP || key->force_sw_encrypt ||
-	    (local->hw.flags & IEEE80211_HW_DEVICE_HIDES_WEP))
-		return;
-
-	memset(addr, 0xff, ETH_ALEN);
-	keyconf = ieee80211_key_data2conf(local, key);
-	if (keyconf && local->ops->set_key)
-		local->ops->set_key(local_to_hw(local), DISABLE_KEY,
-				   addr, keyconf, 0);
-	kfree(keyconf);
-	key->force_sw_encrypt = 1;
-}
-
-
-static int ieee80211_ioctl_default_wep_only(struct ieee80211_local *local,
-					    int value)
-{
-	int i;
-	struct ieee80211_sub_if_data *sdata;
-
-	local->default_wep_only = value;
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list)
-		for (i = 0; i < NUM_DEFAULT_KEYS; i++)
-			if (value)
-				ieee80211_key_enable_hwaccel(local,
-							     sdata->keys[i]);
-			else
-				ieee80211_key_disable_hwaccel(local,
-							      sdata->keys[i]);
-	read_unlock(&local->sub_if_lock);
-
-	return 0;
-}
-
-
-void ieee80211_update_default_wep_only(struct ieee80211_local *local)
-{
-	int i = 0;
-	struct ieee80211_sub_if_data *sdata;
-
-	read_lock(&local->sub_if_lock);
-	list_for_each_entry(sdata, &local->sub_if_list, list) {
-
-		if (sdata->dev == local->mdev)
-			continue;
-
-		/* If there is an AP interface then depend on userspace to
-		   set default_wep_only correctly. */
-		if (sdata->type == IEEE80211_IF_TYPE_AP) {
-			read_unlock(&local->sub_if_lock);
-			return;
-		}
-
-		i++;
-	}
-
-	read_unlock(&local->sub_if_lock);
-
-	if (i <= 1)
-		ieee80211_ioctl_default_wep_only(local, 1);
-	else
-		ieee80211_ioctl_default_wep_only(local, 0);
-}
-
-
-static int ieee80211_ioctl_prism2_param(struct net_device *dev,
-					struct iw_request_info *info,
-					void *wrqu, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
-	int *i = (int *) extra;
-	int param = *i;
-	int value = *(i + 1);
-	int ret = 0;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (param) {
-	case PRISM2_PARAM_IEEE_802_1X:
-		if (local->ops->set_ieee8021x)
-			ret = local->ops->set_ieee8021x(local_to_hw(local),
-							value);
-		if (ret)
-			printk(KERN_DEBUG "%s: failed to set IEEE 802.1X (%d) "
-			       "for low-level driver\n", dev->name, value);
-		else
-			sdata->ieee802_1x = value;
-		break;
-
-	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		if (sdata->type != IEEE80211_IF_TYPE_AP)
-			ret = -ENOENT;
-		else
-			sdata->use_protection = value;
-		break;
-
-	case PRISM2_PARAM_PREAMBLE:
-		local->short_preamble = value;
-		break;
-
-	case PRISM2_PARAM_STAT_TIME:
-		if (!local->stat_time && value) {
-			local->stat_timer.expires = jiffies + HZ * value / 100;
-			add_timer(&local->stat_timer);
-		} else if (local->stat_time && !value) {
-			del_timer_sync(&local->stat_timer);
-		}
-		local->stat_time = value;
-		break;
-	case PRISM2_PARAM_SHORT_SLOT_TIME:
-		if (value)
-			local->hw.conf.flags |= IEEE80211_CONF_SHORT_SLOT_TIME;
-		else
-			local->hw.conf.flags &= ~IEEE80211_CONF_SHORT_SLOT_TIME;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_NEXT_MODE:
-		local->next_mode = value;
-		break;
-
-	case PRISM2_PARAM_RADIO_ENABLED:
-		ret = ieee80211_ioctl_set_radio_enabled(dev, value);
-		break;
-
-	case PRISM2_PARAM_ANTENNA_MODE:
-		local->hw.conf.antenna_mode = value;
-		if (ieee80211_hw_config(local))
-			ret = -EINVAL;
-		break;
-
-	case PRISM2_PARAM_STA_ANTENNA_SEL:
-		local->sta_antenna_sel = value;
-		break;
-
-	case PRISM2_PARAM_TX_POWER_REDUCTION:
-		if (value < 0)
-			ret = -EINVAL;
-		else
-			local->hw.conf.tx_power_reduction = value;
-		break;
-
-	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
-		local->key_tx_rx_threshold = value;
-		break;
-
-	case PRISM2_PARAM_DEFAULT_WEP_ONLY:
-		ret = ieee80211_ioctl_default_wep_only(local, value);
-		break;
-
-	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
-		local->wifi_wme_noack_test = value;
-		break;
-
-	case PRISM2_PARAM_SCAN_FLAGS:
-		local->scan_flags = value;
-		break;
-
-	case PRISM2_PARAM_MIXED_CELL:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			sdata->u.sta.mixed_cell = !!value;
-		break;
-
-	case PRISM2_PARAM_HW_MODES:
-		local->enabled_modes = value;
-		break;
-
-	case PRISM2_PARAM_CREATE_IBSS:
-		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			sdata->u.sta.create_ibss = !!value;
-		break;
-	case PRISM2_PARAM_WMM_ENABLED:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			sdata->u.sta.wmm_enabled = !!value;
-		break;
-	case PRISM2_PARAM_RADAR_DETECT:
-		local->hw.conf.radar_detect = value;
-		break;
-	case PRISM2_PARAM_SPECTRUM_MGMT:
-		local->hw.conf.spect_mgmt = value;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	return ret;
-}
-
-
-static int ieee80211_ioctl_get_prism2_param(struct net_device *dev,
-					    struct iw_request_info *info,
-					    void *wrqu, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
-	int *param = (int *) extra;
-	int ret = 0;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	switch (*param) {
-	case PRISM2_PARAM_IEEE_802_1X:
-		*param = sdata->ieee802_1x;
-		break;
-
-	case PRISM2_PARAM_CTS_PROTECT_ERP_FRAMES:
-		*param = sdata->use_protection;
-		break;
-
-	case PRISM2_PARAM_PREAMBLE:
-		*param = local->short_preamble;
-		break;
-
-	case PRISM2_PARAM_STAT_TIME:
-		*param = local->stat_time;
-		break;
-	case PRISM2_PARAM_SHORT_SLOT_TIME:
-		*param = !!(local->hw.conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME);
-		break;
-
-	case PRISM2_PARAM_NEXT_MODE:
-		*param = local->next_mode;
-		break;
-
-	case PRISM2_PARAM_ANTENNA_MODE:
-		*param = local->hw.conf.antenna_mode;
-		break;
-
-	case PRISM2_PARAM_STA_ANTENNA_SEL:
-		*param = local->sta_antenna_sel;
-		break;
-
-	case PRISM2_PARAM_TX_POWER_REDUCTION:
-		*param = local->hw.conf.tx_power_reduction;
-		break;
-
-	case PRISM2_PARAM_KEY_TX_RX_THRESHOLD:
-		*param = local->key_tx_rx_threshold;
-		break;
-
-	case PRISM2_PARAM_DEFAULT_WEP_ONLY:
-		*param = local->default_wep_only;
-		break;
-
-	case PRISM2_PARAM_WIFI_WME_NOACK_TEST:
-		*param = local->wifi_wme_noack_test;
-		break;
-
-	case PRISM2_PARAM_SCAN_FLAGS:
-		*param = local->scan_flags;
-		break;
-
-	case PRISM2_PARAM_HW_MODES:
-		*param = local->enabled_modes;
-		break;
-
-	case PRISM2_PARAM_CREATE_IBSS:
-		if (sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!sdata->u.sta.create_ibss;
-		break;
-
-	case PRISM2_PARAM_MIXED_CELL:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!sdata->u.sta.mixed_cell;
-		break;
-	case PRISM2_PARAM_WMM_ENABLED:
-		if (sdata->type != IEEE80211_IF_TYPE_STA &&
-		    sdata->type != IEEE80211_IF_TYPE_IBSS)
-			ret = -EINVAL;
-		else
-			*param = !!sdata->u.sta.wmm_enabled;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	return ret;
-}
-
 static int ieee80211_ioctl_siwmlme(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_point *data, char *extra)
@@ -1291,6 +826,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata;
 	int idx, i, alg = ALG_WEP;
 	u8 bcaddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	int remove = 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
@@ -1309,21 +845,16 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 		idx--;
 
 	if (erq->flags & IW_ENCODE_DISABLED)
-		alg = ALG_NONE;
+		remove = 1;
 	else if (erq->length == 0) {
 		/* No key data - just set the default TX key index */
-		if (sdata->default_key != sdata->keys[idx]) {
-			ieee80211_debugfs_key_remove_default(sdata);
-			sdata->default_key = sdata->keys[idx];
-			if (sdata->default_key)
-				ieee80211_debugfs_key_add_default(sdata);
-		}
+		ieee80211_set_default_key(sdata, idx);
 		return 0;
 	}
 
 	return ieee80211_set_encryption(
 		dev, bcaddr,
-		idx, alg,
+		idx, alg, remove,
 		!sdata->default_key,
 		keybuf, erq->length);
 }
@@ -1362,9 +893,9 @@ static int ieee80211_ioctl_giwencode(struct net_device *dev,
 		return 0;
 	}
 
-	memcpy(key, sdata->keys[idx]->key,
-	       min((int)erq->length, sdata->keys[idx]->keylen));
-	erq->length = sdata->keys[idx]->keylen;
+	memcpy(key, sdata->keys[idx]->conf.key,
+	       min_t(int, erq->length, sdata->keys[idx]->conf.keylen));
+	erq->length = sdata->keys[idx]->conf.keylen;
 	erq->flags |= IW_ENCODE_ENABLED;
 
 	return 0;
@@ -1390,22 +921,12 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 			ret = -EINVAL;
 		else {
 			/*
-			 * TODO: sdata->u.sta.key_mgmt does not match with WE18
-			 * value completely; could consider modifying this to
-			 * be closer to WE18. For now, this value is not really
-			 * used for anything else than Privacy matching, so the
-			 * current code here should be more or less OK.
+			 * Key management was set by wpa_supplicant,
+			 * we only need this to associate to a network
+			 * that has privacy enabled regardless of not
+			 * having a key.
 			 */
-			if (data->value & IW_AUTH_KEY_MGMT_802_1X) {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_WPA_EAP;
-			} else if (data->value & IW_AUTH_KEY_MGMT_PSK) {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_WPA_PSK;
-			} else {
-				sdata->u.sta.key_mgmt =
-					IEEE80211_KEY_MGMT_NONE;
-			}
+			sdata->u.sta.key_management_enabled = !!data->value;
 		}
 		break;
 	case IW_AUTH_80211_AUTH_ALG:
@@ -1484,11 +1005,11 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
-	int alg, idx, i;
+	int uninitialized_var(alg), idx, i, remove = 0;
 
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_NONE:
-		alg = ALG_NONE;
+		remove = 1;
 		break;
 	case IW_ENCODE_ALG_WEP:
 		alg = ALG_WEP;
@@ -1504,7 +1025,7 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 	}
 
 	if (erq->flags & IW_ENCODE_DISABLED)
-		alg = ALG_NONE;
+		remove = 1;
 
 	idx = erq->flags & IW_ENCODE_INDEX;
 	if (idx < 1 || idx > 4) {
@@ -1523,19 +1044,12 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 		idx--;
 
 	return ieee80211_set_encryption(dev, ext->addr.sa_data, idx, alg,
+					remove,
 					ext->ext_flags &
 					IW_ENCODE_EXT_SET_TX_KEY,
 					ext->key, ext->key_len);
 }
 
-
-static const struct iw_priv_args ieee80211_ioctl_priv[] = {
-	{ PRISM2_IOCTL_PRISM2_PARAM,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2, 0, "param" },
-	{ PRISM2_IOCTL_GET_PRISM2_PARAM,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-	  IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, "get_param" },
-};
 
 /* Structures to export the Wireless Handlers */
 
@@ -1557,10 +1071,10 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL /* kernel code */,		/* SIOCGIWPRIV */
 	(iw_handler) NULL /* not used */,		/* SIOCSIWSTATS */
 	(iw_handler) NULL /* kernel code */,		/* SIOCGIWSTATS */
-	iw_handler_set_spy,				/* SIOCSIWSPY */
-	iw_handler_get_spy,				/* SIOCGIWSPY */
-	iw_handler_set_thrspy,				/* SIOCSIWTHRSPY */
-	iw_handler_get_thrspy,				/* SIOCGIWTHRSPY */
+	(iw_handler) NULL,				/* SIOCSIWSPY */
+	(iw_handler) NULL,				/* SIOCGIWSPY */
+	(iw_handler) NULL,				/* SIOCSIWTHRSPY */
+	(iw_handler) NULL,				/* SIOCGIWTHRSPY */
 	(iw_handler) ieee80211_ioctl_siwap,		/* SIOCSIWAP */
 	(iw_handler) ieee80211_ioctl_giwap,		/* SIOCGIWAP */
 	(iw_handler) ieee80211_ioctl_siwmlme,		/* SIOCSIWMLME */
@@ -1579,8 +1093,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwrts,		/* SIOCGIWRTS */
 	(iw_handler) ieee80211_ioctl_siwfrag,		/* SIOCSIWFRAG */
 	(iw_handler) ieee80211_ioctl_giwfrag,		/* SIOCGIWFRAG */
-	(iw_handler) NULL,				/* SIOCSIWTXPOW */
-	(iw_handler) NULL,				/* SIOCGIWTXPOW */
+	(iw_handler) ieee80211_ioctl_siwtxpower,	/* SIOCSIWTXPOW */
+	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
 	(iw_handler) ieee80211_ioctl_siwretry,		/* SIOCSIWRETRY */
 	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
@@ -1599,19 +1113,9 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* -- hole -- */
 };
 
-static const iw_handler ieee80211_private_handler[] =
-{							/* SIOCIWFIRSTPRIV + */
-	(iw_handler) ieee80211_ioctl_prism2_param,	/* 0 */
-	(iw_handler) ieee80211_ioctl_get_prism2_param,	/* 1 */
-};
-
 const struct iw_handler_def ieee80211_iw_handler_def =
 {
 	.num_standard	= ARRAY_SIZE(ieee80211_handler),
-	.num_private	= ARRAY_SIZE(ieee80211_private_handler),
-	.num_private_args = ARRAY_SIZE(ieee80211_ioctl_priv),
 	.standard	= (iw_handler *) ieee80211_handler,
-	.private	= (iw_handler *) ieee80211_private_handler,
-	.private_args	= (struct iw_priv_args *) ieee80211_ioctl_priv,
 	.get_wireless_stats = ieee80211_get_wireless_stats,
 };

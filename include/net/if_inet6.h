@@ -154,6 +154,7 @@ struct ipv6_devstat {
 	struct proc_dir_entry	*proc_dir_entry;
 	DEFINE_SNMP_STAT(struct ipstats_mib, ipv6);
 	DEFINE_SNMP_STAT(struct icmpv6_mib, icmpv6);
+	DEFINE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg);
 };
 
 struct inet6_dev 

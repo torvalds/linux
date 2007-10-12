@@ -277,6 +277,30 @@ ktime_t ktime_add_ns(const ktime_t kt, u64 nsec)
 }
 
 EXPORT_SYMBOL_GPL(ktime_add_ns);
+
+/**
+ * ktime_sub_ns - Subtract a scalar nanoseconds value from a ktime_t variable
+ * @kt:		minuend
+ * @nsec:	the scalar nsec value to subtract
+ *
+ * Returns the subtraction of @nsec from @kt in ktime_t format
+ */
+ktime_t ktime_sub_ns(const ktime_t kt, u64 nsec)
+{
+	ktime_t tmp;
+
+	if (likely(nsec < NSEC_PER_SEC)) {
+		tmp.tv64 = nsec;
+	} else {
+		unsigned long rem = do_div(nsec, NSEC_PER_SEC);
+
+		tmp = ktime_set((long)nsec, rem);
+	}
+
+	return ktime_sub(kt, tmp);
+}
+
+EXPORT_SYMBOL_GPL(ktime_sub_ns);
 # endif /* !CONFIG_KTIME_SCALAR */
 
 /*

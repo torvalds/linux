@@ -95,8 +95,9 @@ static int nr_rebuild_header(struct sk_buff *skb)
 
 #endif
 
-static int nr_header(struct sk_buff *skb, struct net_device *dev, unsigned short type,
-	void *daddr, void *saddr, unsigned len)
+static int nr_header(struct sk_buff *skb, struct net_device *dev,
+		     unsigned short type,
+		     const void *daddr, const void *saddr, unsigned len)
 {
 	unsigned char *buff = skb_push(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
 
@@ -193,6 +194,12 @@ static struct net_device_stats *nr_get_stats(struct net_device *dev)
 	return &nr->stats;
 }
 
+static const struct header_ops nr_header_ops = {
+	.create	= nr_header,
+	.rebuild= nr_rebuild_header,
+};
+
+
 void nr_setup(struct net_device *dev)
 {
 	dev->mtu		= NR_MAX_PACKET_SIZE;
@@ -200,11 +207,10 @@ void nr_setup(struct net_device *dev)
 	dev->open		= nr_open;
 	dev->stop		= nr_close;
 
-	dev->hard_header	= nr_header;
+	dev->header_ops		= &nr_header_ops;
 	dev->hard_header_len	= NR_NETWORK_LEN + NR_TRANSPORT_LEN;
 	dev->addr_len		= AX25_ADDR_LEN;
 	dev->type		= ARPHRD_NETROM;
-	dev->rebuild_header	= nr_rebuild_header;
 	dev->set_mac_address    = nr_set_mac_address;
 
 	/* New-style flags. */

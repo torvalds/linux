@@ -69,22 +69,22 @@
 void inflate_fast(z_streamp strm, unsigned start)
 {
     struct inflate_state *state;
-    unsigned char *in;      /* local strm->next_in */
-    unsigned char *last;    /* while in < last, enough input available */
-    unsigned char *out;     /* local strm->next_out */
-    unsigned char *beg;     /* inflate()'s initial strm->next_out */
-    unsigned char *end;     /* while out < end, enough space available */
+    const unsigned char *in;    /* local strm->next_in */
+    const unsigned char *last;  /* while in < last, enough input available */
+    unsigned char *out;         /* local strm->next_out */
+    unsigned char *beg;         /* inflate()'s initial strm->next_out */
+    unsigned char *end;         /* while out < end, enough space available */
 #ifdef INFLATE_STRICT
     unsigned dmax;              /* maximum distance from zlib header */
 #endif
     unsigned wsize;             /* window size or zero if not using window */
     unsigned whave;             /* valid bytes in the window */
     unsigned write;             /* window write index */
-    unsigned char *window;  /* allocated sliding window, if wsize != 0 */
+    unsigned char *window;      /* allocated sliding window, if wsize != 0 */
     unsigned long hold;         /* local strm->hold */
     unsigned bits;              /* local strm->bits */
-    code const *lcode;      /* local strm->lencode */
-    code const *dcode;      /* local strm->distcode */
+    code const *lcode;          /* local strm->lencode */
+    code const *dcode;          /* local strm->distcode */
     unsigned lmask;             /* mask for first level of length codes */
     unsigned dmask;             /* mask for first level of distance codes */
     code this;                  /* retrieved table entry */
@@ -92,7 +92,7 @@ void inflate_fast(z_streamp strm, unsigned start)
                                 /*  window position, window bytes to copy */
     unsigned len;               /* match length, unused bytes */
     unsigned dist;              /* match distance */
-    unsigned char *from;    /* where to copy match from */
+    unsigned char *from;        /* where to copy match from */
 
     /* copy state to local variables */
     state = (struct inflate_state *)strm->state;

@@ -336,7 +336,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* The SMC91c92-specific entries in the device structure. */
-    SET_MODULE_OWNER(dev);
     dev->hard_start_xmit = &smc_start_xmit;
     dev->get_stats = &smc_get_stats;
     dev->set_config = &s9k_config;
@@ -963,6 +962,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     int i, j, rev;
     kio_addr_t ioaddr;
     u_long mir;
+    DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "smc91c92_config(0x%p)\n", link);
 
@@ -1075,10 +1075,9 @@ static int smc91c92_config(struct pcmcia_device *link)
     strcpy(smc->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
-	   "hw_addr ", dev->name, name, (rev & 0x0f), dev->base_addr,
-	   dev->irq);
-    for (i = 0; i < 6; i++)
-	printk("%02X%s", dev->dev_addr[i], ((i<5) ? ":" : "\n"));
+	   "hw_addr %s\n",
+	   dev->name, name, (rev & 0x0f), dev->base_addr, dev->irq,
+	   print_mac(mac, dev->dev_addr));
 
     if (rev > 0) {
 	if (mir & 0x3ff)

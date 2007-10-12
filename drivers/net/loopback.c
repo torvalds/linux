@@ -57,12 +57,12 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/percpu.h>
+#include <net/net_namespace.h>
 
 struct pcpu_lstats {
 	unsigned long packets;
 	unsigned long bytes;
 };
-static DEFINE_PER_CPU(struct pcpu_lstats, pcpu_lstats);
 
 #define LOOPBACK_OVERHEAD (128 + MAX_HEADER + 16 + 16)
 
@@ -134,7 +134,7 @@ static void emulate_large_send_offload(struct sk_buff *skb)
  */
 static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct pcpu_lstats *lb_stats;
+	struct pcpu_lstats *pcpu_lstats, *lb_stats;
 
 	skb_orphan(skb);
 
@@ -154,8 +154,9 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 	dev->last_rx = jiffies;
 
-	/* it's OK to use __get_cpu_var() because BHs are off */
-	lb_stats = &__get_cpu_var(pcpu_lstats);
+	/* it's OK to use per_cpu_ptr() because BHs are off */
+	pcpu_lstats = netdev_priv(dev);
+	lb_stats = per_cpu_ptr(pcpu_lstats, smp_processor_id());
 	lb_stats->bytes += skb->len;
 	lb_stats->packets++;
 
@@ -166,15 +167,17 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static struct net_device_stats *get_stats(struct net_device *dev)
 {
+	const struct pcpu_lstats *pcpu_lstats;
 	struct net_device_stats *stats = &dev->stats;
 	unsigned long bytes = 0;
 	unsigned long packets = 0;
 	int i;
 
+	pcpu_lstats = netdev_priv(dev);
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
 
-		lb_stats = &per_cpu(pcpu_lstats, i);
+		lb_stats = per_cpu_ptr(pcpu_lstats, i);
 		bytes   += lb_stats->bytes;
 		packets += lb_stats->packets;
 	}
@@ -192,51 +195,107 @@ static u32 always_on(struct net_device *dev)
 
 static const struct ethtool_ops loopback_ethtool_ops = {
 	.get_link		= always_on,
-	.get_tso		= ethtool_op_get_tso,
 	.set_tso		= ethtool_op_set_tso,
 	.get_tx_csum		= always_on,
 	.get_sg			= always_on,
 	.get_rx_csum		= always_on,
 };
 
+static int loopback_dev_init(struct net_device *dev)
+{
+	struct pcpu_lstats *lstats;
+
+	lstats = alloc_percpu(struct pcpu_lstats);
+	if (!lstats)
+		return -ENOMEM;
+
+	dev->priv = lstats;
+	return 0;
+}
+
+static void loopback_dev_free(struct net_device *dev)
+{
+	struct pcpu_lstats *lstats = netdev_priv(dev);
+
+	free_percpu(lstats);
+	free_netdev(dev);
+}
+
 /*
- * The loopback device is special. There is only one instance and
- * it is statically allocated. Don't do this for other devices.
+ * The loopback device is special. There is only one instance
+ * per network namespace.
  */
-struct net_device loopback_dev = {
-	.name	 		= "lo",
-	.get_stats		= &get_stats,
-	.mtu			= (16 * 1024) + 20 + 20 + 12,
-	.hard_start_xmit	= loopback_xmit,
-	.hard_header		= eth_header,
-	.hard_header_cache	= eth_header_cache,
-	.header_cache_update	= eth_header_cache_update,
-	.hard_header_len	= ETH_HLEN,	/* 14	*/
-	.addr_len		= ETH_ALEN,	/* 6	*/
-	.tx_queue_len		= 0,
-	.type			= ARPHRD_LOOPBACK,	/* 0x0001*/
-	.rebuild_header		= eth_rebuild_header,
-	.flags			= IFF_LOOPBACK,
-	.features 		= NETIF_F_SG | NETIF_F_FRAGLIST
+static void loopback_setup(struct net_device *dev)
+{
+	dev->get_stats		= &get_stats;
+	dev->mtu		= (16 * 1024) + 20 + 20 + 12;
+	dev->hard_start_xmit	= loopback_xmit;
+	dev->hard_header_len	= ETH_HLEN;	/* 14	*/
+	dev->addr_len		= ETH_ALEN;	/* 6	*/
+	dev->tx_queue_len	= 0;
+	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
+	dev->flags		= IFF_LOOPBACK;
+	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
 #ifdef LOOPBACK_TSO
-				  | NETIF_F_TSO
+		| NETIF_F_TSO
 #endif
-				  | NETIF_F_NO_CSUM | NETIF_F_HIGHDMA
-				  | NETIF_F_LLTX,
-	.ethtool_ops		= &loopback_ethtool_ops,
-};
+		| NETIF_F_NO_CSUM
+		| NETIF_F_HIGHDMA
+		| NETIF_F_LLTX
+		| NETIF_F_NETNS_LOCAL,
+	dev->ethtool_ops	= &loopback_ethtool_ops;
+	dev->header_ops		= &eth_header_ops;
+	dev->init = loopback_dev_init;
+	dev->destructor = loopback_dev_free;
+}
 
 /* Setup and register the loopback device. */
-static int __init loopback_init(void)
+static __net_init int loopback_net_init(struct net *net)
 {
-	int err = register_netdev(&loopback_dev);
+	struct net_device *dev;
+	int err;
 
+	err = -ENOMEM;
+	dev = alloc_netdev(0, "lo", loopback_setup);
+	if (!dev)
+		goto out;
+
+	dev->nd_net = net;
+	err = register_netdev(dev);
+	if (err)
+		goto out_free_netdev;
+
+	err = 0;
+	net->loopback_dev = dev;
+
+out:
 	if (err)
 		panic("loopback: Failed to register netdevice: %d\n", err);
-
 	return err;
+
+out_free_netdev:
+	free_netdev(dev);
+	goto out;
+}
+
+static __net_exit void loopback_net_exit(struct net *net)
+{
+	struct net_device *dev = net->loopback_dev;
+
+	unregister_netdev(dev);
+}
+
+static struct pernet_operations __net_initdata loopback_net_ops = {
+       .init = loopback_net_init,
+       .exit = loopback_net_exit,
 };
 
-module_init(loopback_init);
+static int __init loopback_init(void)
+{
+	return register_pernet_device(&loopback_net_ops);
+}
 
-EXPORT_SYMBOL(loopback_dev);
+/* Loopback is special. It should be initialized before any other network
+ * device and network subsystem.
+ */
+fs_initcall(loopback_init);

@@ -102,6 +102,7 @@ typedef enum {
 	SCTP_CMD_SET_SK_ERR,	 /* Set sk_err */
 	SCTP_CMD_ASSOC_CHANGE,	 /* generate and send assoc_change event */
 	SCTP_CMD_ADAPTATION_IND, /* generate and send adaptation event */
+	SCTP_CMD_ASSOC_SHKEY,    /* generate the association shared keys */
 	SCTP_CMD_LAST
 } sctp_verb_t;
 

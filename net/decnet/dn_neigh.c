@@ -38,6 +38,7 @@
 #include <linux/rcupdate.h>
 #include <linux/jhash.h>
 #include <asm/atomic.h>
+#include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
 #include <net/flow.h>
@@ -210,7 +211,8 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 	char mac_addr[ETH_ALEN];
 
 	dn_dn2eth(mac_addr, rt->rt_local_src);
-	if (!dev->hard_header || dev->hard_header(skb, dev, ntohs(skb->protocol), neigh->ha, mac_addr, skb->len) >= 0)
+	if (dev_hard_header(skb, dev, ntohs(skb->protocol), neigh->ha,
+			    mac_addr, skb->len) >= 0)
 		return neigh->ops->queue_xmit(skb);
 
 	if (net_ratelimit())
@@ -578,24 +580,8 @@ static const struct seq_operations dn_neigh_seq_ops = {
 
 static int dn_neigh_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int rc = -ENOMEM;
-	struct neigh_seq_state *s = kzalloc(sizeof(*s), GFP_KERNEL);
-
-	if (!s)
-		goto out;
-
-	rc = seq_open(file, &dn_neigh_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq          = file->private_data;
-	seq->private = s;
-out:
-	return rc;
-out_kfree:
-	kfree(s);
-	goto out;
+	return seq_open_private(file, &dn_neigh_seq_ops,
+			sizeof(struct neigh_seq_state));
 }
 
 static const struct file_operations dn_neigh_seq_fops = {
@@ -611,11 +597,11 @@ static const struct file_operations dn_neigh_seq_fops = {
 void __init dn_neigh_init(void)
 {
 	neigh_table_init(&dn_neigh_table);
-	proc_net_fops_create("decnet_neigh", S_IRUGO, &dn_neigh_seq_fops);
+	proc_net_fops_create(&init_net, "decnet_neigh", S_IRUGO, &dn_neigh_seq_fops);
 }
 
 void __exit dn_neigh_cleanup(void)
 {
-	proc_net_remove("decnet_neigh");
+	proc_net_remove(&init_net, "decnet_neigh");
 	neigh_table_clear(&dn_neigh_table);
 }

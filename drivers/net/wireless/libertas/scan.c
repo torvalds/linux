@@ -13,10 +13,13 @@
 #include <net/ieee80211.h>
 #include <net/iw_handler.h>
 
+#include <asm/unaligned.h>
+
 #include "host.h"
 #include "decl.h"
 #include "dev.h"
 #include "scan.h"
+#include "join.h"
 
 //! Approximate amount of data needed to pass a scan result back to iwlist
 #define MAX_SCAN_CELL_SIZE  (IW_EV_ADDR_LEN             \
@@ -62,6 +65,15 @@
 static const u8 zeromac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static const u8 bcastmac[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
+
+
+
+/*********************************************************************/
+/*                                                                   */
+/*  Misc helper functions                                            */
+/*                                                                   */
+/*********************************************************************/
+
 static inline void clear_bss_descriptor (struct bss_descriptor * bss)
 {
 	/* Don't blow away ->list, just BSS data */
@@ -74,9 +86,9 @@ static inline int match_bss_no_security(struct wlan_802_11_security * secinfo,
 	if (   !secinfo->wep_enabled
 	    && !secinfo->WPAenabled
 	    && !secinfo->WPA2enabled
-	    && match_bss->wpa_ie[0] != WPA_IE
-	    && match_bss->rsn_ie[0] != WPA2_IE
-	    && !match_bss->privacy) {
+	    && match_bss->wpa_ie[0] != MFIE_TYPE_GENERIC
+	    && match_bss->rsn_ie[0] != MFIE_TYPE_RSN
+	    && !(match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -88,7 +100,7 @@ static inline int match_bss_static_wep(struct wlan_802_11_security * secinfo,
 	if ( secinfo->wep_enabled
 	   && !secinfo->WPAenabled
 	   && !secinfo->WPA2enabled
-	   && match_bss->privacy) {
+	   && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -99,9 +111,10 @@ static inline int match_bss_wpa(struct wlan_802_11_security * secinfo,
 {
 	if (  !secinfo->wep_enabled
 	   && secinfo->WPAenabled
-	   && (match_bss->wpa_ie[0] == WPA_IE)
+	   && (match_bss->wpa_ie[0] == MFIE_TYPE_GENERIC)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
-	      && bss->privacy */
+	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
+	    */
 	   ) {
 		return 1;
 	}
@@ -113,9 +126,10 @@ static inline int match_bss_wpa2(struct wlan_802_11_security * secinfo,
 {
 	if (  !secinfo->wep_enabled
 	   && secinfo->WPA2enabled
-	   && (match_bss->rsn_ie[0] == WPA2_IE)
+	   && (match_bss->rsn_ie[0] == MFIE_TYPE_RSN)
 	   /* privacy bit may NOT be set in some APs like LinkSys WRT54G
-	      && bss->privacy */
+	      && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
+	    */
 	   ) {
 		return 1;
 	}
@@ -128,9 +142,9 @@ static inline int match_bss_dynamic_wep(struct wlan_802_11_security * secinfo,
 	if (  !secinfo->wep_enabled
 	   && !secinfo->WPAenabled
 	   && !secinfo->WPA2enabled
-	   && (match_bss->wpa_ie[0] != WPA_IE)
-	   && (match_bss->rsn_ie[0] != WPA2_IE)
-	   && match_bss->privacy) {
+	   && (match_bss->wpa_ie[0] != MFIE_TYPE_GENERIC)
+	   && (match_bss->rsn_ie[0] != MFIE_TYPE_RSN)
+	   && (match_bss->capability & WLAN_CAPABILITY_PRIVACY)) {
 		return 1;
 	}
 	return 0;
@@ -160,7 +174,7 @@ static int is_network_compatible(wlan_adapter * adapter,
 {
 	int matched = 0;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	if (bss->mode != mode)
 		goto done;
@@ -177,7 +191,7 @@ static int is_network_compatible(wlan_adapter * adapter,
 		       adapter->secinfo.wep_enabled ? "e" : "d",
 		       adapter->secinfo.WPAenabled ? "e" : "d",
 		       adapter->secinfo.WPA2enabled ? "e" : "d",
-		       bss->privacy);
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	} else if ((matched = match_bss_wpa2(&adapter->secinfo, bss))) {
 		lbs_deb_scan(
@@ -187,15 +201,14 @@ static int is_network_compatible(wlan_adapter * adapter,
 		       adapter->secinfo.wep_enabled ? "e" : "d",
 		       adapter->secinfo.WPAenabled ? "e" : "d",
 		       adapter->secinfo.WPA2enabled ? "e" : "d",
-		       bss->privacy);
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	} else if ((matched = match_bss_dynamic_wep(&adapter->secinfo, bss))) {
 		lbs_deb_scan(
 		       "is_network_compatible() dynamic WEP: "
 		       "wpa_ie=%#x wpa2_ie=%#x privacy=%#x\n",
-		       bss->wpa_ie[0],
-		       bss->rsn_ie[0],
-		       bss->privacy);
+		       bss->wpa_ie[0], bss->rsn_ie[0],
+		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
 	}
 
@@ -207,15 +220,43 @@ static int is_network_compatible(wlan_adapter * adapter,
 	       adapter->secinfo.wep_enabled ? "e" : "d",
 	       adapter->secinfo.WPAenabled ? "e" : "d",
 	       adapter->secinfo.WPA2enabled ? "e" : "d",
-	       bss->privacy);
+	       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 
 done:
-	lbs_deb_leave(LBS_DEB_SCAN);
+	lbs_deb_leave_args(LBS_DEB_SCAN, "matched: %d", matched);
 	return matched;
 }
 
 /**
+ *  @brief Compare two SSIDs
+ *
+ *  @param ssid1    A pointer to ssid to compare
+ *  @param ssid2    A pointer to ssid to compare
+ *
+ *  @return         0--ssid is same, otherwise is different
+ */
+int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
+{
+	if (ssid1_len != ssid2_len)
+		return -1;
+
+	return memcmp(ssid1, ssid2, ssid1_len);
+}
+
+
+
+
+/*********************************************************************/
+/*                                                                   */
+/*  Main scanning support                                            */
+/*                                                                   */
+/*********************************************************************/
+
+
+/**
  *  @brief Create a channel list for the driver to scan based on region info
+ *
+ *  Only used from wlan_scan_setup_scan_config()
  *
  *  Use the driver region/band information to construct a comprehensive list
  *    of channels to scan.  This routine is used for any scan that is not
@@ -244,17 +285,19 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 	int nextchan;
 	u8 scantype;
 
+	lbs_deb_enter_args(LBS_DEB_SCAN, "filteredscan %d", filteredscan);
+
 	chanidx = 0;
 
 	/* Set the default scan type to the user specified type, will later
 	 *   be changed to passive on a per channel basis if restricted by
 	 *   regulatory requirements (11d or 11h)
 	 */
-	scantype = adapter->scantype;
+	scantype = CMD_SCAN_TYPE_ACTIVE;
 
 	for (rgnidx = 0; rgnidx < ARRAY_SIZE(adapter->region_channel); rgnidx++) {
 		if (priv->adapter->enable11d &&
-		    adapter->connect_status != libertas_connected) {
+		    adapter->connect_status != LIBERTAS_CONNECTED) {
 			/* Scan all the supported chan for the first scan */
 			if (!adapter->universal_channel[rgnidx].valid)
 				continue;
@@ -286,11 +329,11 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 			case BAND_G:
 			default:
 				scanchanlist[chanidx].radiotype =
-				    cmd_scan_radio_type_bg;
+				    CMD_SCAN_RADIO_TYPE_BG;
 				break;
 			}
 
-			if (scantype == cmd_scan_type_passive) {
+			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
 				scanchanlist[chanidx].maxscantime =
 				    cpu_to_le16(MRVDRV_PASSIVE_SCAN_CHAN_TIME);
 				scanchanlist[chanidx].chanscanmode.passivescan =
@@ -311,6 +354,16 @@ static void wlan_scan_create_channel_list(wlan_private * priv,
 		}
 	}
 }
+
+
+/* Delayed partial scan worker */
+void libertas_scan_worker(struct work_struct *work)
+{
+	wlan_private *priv = container_of(work, wlan_private, scan_work.work);
+
+	wlan_scan_networks(priv, NULL, 0);
+}
+
 
 /**
  *  @brief Construct a wlan_scan_cmd_config structure to use in issue scan cmds
@@ -359,7 +412,6 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 			    u8 * pfilteredscan,
 			    u8 * pscancurrentonly)
 {
-	wlan_adapter *adapter = priv->adapter;
 	struct mrvlietypes_numprobes *pnumprobestlv;
 	struct mrvlietypes_ssidparamset *pssidtlv;
 	struct wlan_scan_cmd_config * pscancfgout = NULL;
@@ -370,6 +422,8 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	int scandur;
 	int channel;
 	int radiotype;
+
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	pscancfgout = kzalloc(MAX_SCAN_CFG_ALLOC, GFP_KERNEL);
 	if (pscancfgout == NULL)
@@ -407,15 +461,12 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	*pscancurrentonly = 0;
 
 	if (puserscanin) {
-
 		/* Set the bss type scan filter, use adapter setting if unset */
 		pscancfgout->bsstype =
-		    (puserscanin->bsstype ? puserscanin->bsstype : adapter->
-		     scanmode);
+		    puserscanin->bsstype ? puserscanin->bsstype : CMD_BSS_TYPE_ANY;
 
 		/* Set the number of probes to send, use adapter setting if unset */
-		numprobes = (puserscanin->numprobes ? puserscanin->numprobes :
-			     adapter->scanprobes);
+		numprobes = puserscanin->numprobes ? puserscanin->numprobes : 0;
 
 		/*
 		 * Set the BSSID filter to the incoming configuration,
@@ -447,8 +498,8 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 			*pfilteredscan = 1;
 		}
 	} else {
-		pscancfgout->bsstype = adapter->scanmode;
-		numprobes = adapter->scanprobes;
+		pscancfgout->bsstype = CMD_BSS_TYPE_ANY;
+		numprobes = 0;
 	}
 
 	/* If the input config or adapter has the number of Probes set, add tlv */
@@ -469,59 +520,56 @@ wlan_scan_setup_scan_config(wlan_private * priv,
 	 */
 	*ppchantlvout = (struct mrvlietypes_chanlistparamset *) ptlvpos;
 
-	if (puserscanin && puserscanin->chanlist[0].channumber) {
-
-		lbs_deb_scan("Scan: Using supplied channel list\n");
-
-		for (chanidx = 0;
-		     chanidx < WLAN_IOCTL_USER_SCAN_CHAN_MAX
-		     && puserscanin->chanlist[chanidx].channumber; chanidx++) {
-
-			channel = puserscanin->chanlist[chanidx].channumber;
-			(pscanchanlist + chanidx)->channumber = channel;
-
-			radiotype = puserscanin->chanlist[chanidx].radiotype;
-			(pscanchanlist + chanidx)->radiotype = radiotype;
-
-			scantype = puserscanin->chanlist[chanidx].scantype;
-
-			if (scantype == cmd_scan_type_passive) {
-				(pscanchanlist +
-				 chanidx)->chanscanmode.passivescan = 1;
-			} else {
-				(pscanchanlist +
-				 chanidx)->chanscanmode.passivescan = 0;
-			}
-
-			if (puserscanin->chanlist[chanidx].scantime) {
-				scandur =
-				    puserscanin->chanlist[chanidx].scantime;
-			} else {
-				if (scantype == cmd_scan_type_passive) {
-					scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
-				} else {
-					scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
-				}
-			}
-
-			(pscanchanlist + chanidx)->minscantime =
-			    cpu_to_le16(scandur);
-			(pscanchanlist + chanidx)->maxscantime =
-			    cpu_to_le16(scandur);
-		}
-
-		/* Check if we are only scanning the current channel */
-		if ((chanidx == 1) && (puserscanin->chanlist[0].channumber
-				       ==
-				       priv->adapter->curbssparams.channel)) {
-			*pscancurrentonly = 1;
-			lbs_deb_scan("Scan: Scanning current channel only");
-		}
-
-	} else {
-		lbs_deb_scan("Scan: Creating full region channel list\n");
+	if (!puserscanin || !puserscanin->chanlist[0].channumber) {
+		/* Create a default channel scan list */
+		lbs_deb_scan("creating full region channel list\n");
 		wlan_scan_create_channel_list(priv, pscanchanlist,
 					      *pfilteredscan);
+		goto out;
+	}
+
+	for (chanidx = 0;
+	     chanidx < WLAN_IOCTL_USER_SCAN_CHAN_MAX
+	     && puserscanin->chanlist[chanidx].channumber; chanidx++) {
+
+		channel = puserscanin->chanlist[chanidx].channumber;
+		(pscanchanlist + chanidx)->channumber = channel;
+
+		radiotype = puserscanin->chanlist[chanidx].radiotype;
+		(pscanchanlist + chanidx)->radiotype = radiotype;
+
+		scantype = puserscanin->chanlist[chanidx].scantype;
+
+		if (scantype == CMD_SCAN_TYPE_PASSIVE) {
+			(pscanchanlist +
+			 chanidx)->chanscanmode.passivescan = 1;
+		} else {
+			(pscanchanlist +
+			 chanidx)->chanscanmode.passivescan = 0;
+		}
+
+		if (puserscanin->chanlist[chanidx].scantime) {
+			scandur = puserscanin->chanlist[chanidx].scantime;
+		} else {
+			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
+				scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
+			} else {
+				scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
+			}
+		}
+
+		(pscanchanlist + chanidx)->minscantime =
+		    cpu_to_le16(scandur);
+		(pscanchanlist + chanidx)->maxscantime =
+		    cpu_to_le16(scandur);
+	}
+
+	/* Check if we are only scanning the current channel */
+	if ((chanidx == 1) &&
+	    (puserscanin->chanlist[0].channumber ==
+			       priv->adapter->curbssparams.channel)) {
+		*pscancurrentonly = 1;
+		lbs_deb_scan("scanning current channel only");
 	}
 
 out:
@@ -530,6 +578,8 @@ out:
 
 /**
  *  @brief Construct and send multiple scan config commands to the firmware
+ *
+ *  Only used from wlan_scan_networks()
  *
  *  Previous routines have created a wlan_scan_cmd_config with any requested
  *   TLVs.  This function splits the channel TLV into maxchanperscan lists
@@ -568,12 +618,14 @@ static int wlan_scan_channel_list(wlan_private * priv,
 	int scanned = 0;
 	union iwreq_data wrqu;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter_args(LBS_DEB_SCAN, "maxchanperscan %d, filteredscan %d, "
+		"full_scan %d", maxchanperscan, filteredscan, full_scan);
 
-	if (pscancfgout == 0 || pchantlvout == 0 || pscanchanlist == 0) {
-		lbs_deb_scan("Scan: Null detect: %p, %p, %p\n",
-		       pscancfgout, pchantlvout, pscanchanlist);
-		return -1;
+	if (!pscancfgout || !pchantlvout || !pscanchanlist) {
+		lbs_deb_scan("pscancfgout, pchantlvout or "
+			"pscanchanlist is NULL\n");
+		ret = -1;
+		goto out;
 	}
 
 	pchantlvout->header.type = cpu_to_le16(TLV_TYPE_CHANLIST);
@@ -605,12 +657,13 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		while (tlvidx < maxchanperscan && ptmpchan->channumber
 		       && !doneearly && scanned < 2) {
 
-            lbs_deb_scan(
-                    "Scan: Chan(%3d), Radio(%d), mode(%d,%d), Dur(%d)\n",
-                ptmpchan->channumber, ptmpchan->radiotype,
-                ptmpchan->chanscanmode.passivescan,
-                ptmpchan->chanscanmode.disablechanfilt,
-                ptmpchan->maxscantime);
+			lbs_deb_scan("channel %d, radio %d, passive %d, "
+				"dischanflt %d, maxscantime %d\n",
+				ptmpchan->channumber,
+				ptmpchan->radiotype,
+			             ptmpchan->chanscanmode.passivescan,
+			             ptmpchan->chanscanmode.disablechanfilt,
+			             ptmpchan->maxscantime);
 
 			/* Copy the current channel TLV to the command being prepared */
 			memcpy(pchantlvout->chanscanparam + tlvidx,
@@ -667,7 +720,7 @@ static int wlan_scan_channel_list(wlan_private * priv,
 		}
 
 		/* Send the scan command to the firmware with the specified cfg */
-		ret = libertas_prepare_and_send_command(priv, cmd_802_11_scan, 0,
+		ret = libertas_prepare_and_send_command(priv, CMD_802_11_SCAN, 0,
 					    0, 0, pscancfgout);
 		if (scanned >= 2 && !full_scan) {
 			ret = 0;
@@ -679,24 +732,38 @@ static int wlan_scan_channel_list(wlan_private * priv,
 done:
 	priv->adapter->last_scanned_channel = ptmpchan->channumber;
 
-	/* Tell userspace the scan table has been updated */
-	memset(&wrqu, 0, sizeof(union iwreq_data));
-	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
+	if (priv->adapter->last_scanned_channel) {
+		/* Schedule the next part of the partial scan */
+		if (!full_scan && !priv->adapter->surpriseremoved) {
+			cancel_delayed_work(&priv->scan_work);
+			queue_delayed_work(priv->work_thread, &priv->scan_work,
+			                   msecs_to_jiffies(300));
+		}
+	} else {
+		/* All done, tell userspace the scan table has been updated */
+		memset(&wrqu, 0, sizeof(union iwreq_data));
+		wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
+	}
 
+out:
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
 
-static void
-clear_selected_scan_list_entries(wlan_adapter * adapter,
-                                 const struct wlan_ioctl_user_scan_cfg * scan_cfg)
+/*
+ * Only used from wlan_scan_networks()
+*/
+static void clear_selected_scan_list_entries(wlan_adapter *adapter,
+	const struct wlan_ioctl_user_scan_cfg *scan_cfg)
 {
-	struct bss_descriptor * bss;
-	struct bss_descriptor * safe;
+	struct bss_descriptor *bss;
+	struct bss_descriptor *safe;
 	u32 clear_ssid_flag = 0, clear_bssid_flag = 0;
 
+	lbs_deb_enter(LBS_DEB_SCAN);
+
 	if (!scan_cfg)
-		return;
+		goto out;
 
 	if (scan_cfg->clear_ssid && scan_cfg->ssid_len)
 		clear_ssid_flag = 1;
@@ -708,7 +775,7 @@ clear_selected_scan_list_entries(wlan_adapter * adapter,
 	}
 
 	if (!clear_ssid_flag && !clear_bssid_flag)
-		return;
+		goto out;
 
 	mutex_lock(&adapter->lock);
 	list_for_each_entry_safe (bss, safe, &adapter->network_list, list) {
@@ -731,11 +798,15 @@ clear_selected_scan_list_entries(wlan_adapter * adapter,
 		}
 	}
 	mutex_unlock(&adapter->lock);
+out:
+	lbs_deb_leave(LBS_DEB_SCAN);
 }
 
 
 /**
  *  @brief Internal function used to start a scan based on an input config
+ *
+ *  Also used from debugfs
  *
  *  Use the input user scan configuration information when provided in
  *    order to send the appropriate scan commands to firmware to populate or
@@ -744,12 +815,13 @@ clear_selected_scan_list_entries(wlan_adapter * adapter,
  *  @param priv          A pointer to wlan_private structure
  *  @param puserscanin   Pointer to the input configuration for the requested
  *                       scan.
+ *  @param full_scan     ???
  *
  *  @return              0 or < 0 if error
  */
 int wlan_scan_networks(wlan_private * priv,
-			      const struct wlan_ioctl_user_scan_cfg * puserscanin,
-			      int full_scan)
+                       const struct wlan_ioctl_user_scan_cfg * puserscanin,
+                       int full_scan)
 {
 	wlan_adapter * adapter = priv->adapter;
 	struct mrvlietypes_chanlistparamset *pchantlvout;
@@ -762,9 +834,16 @@ int wlan_scan_networks(wlan_private * priv,
 #ifdef CONFIG_LIBERTAS_DEBUG
 	struct bss_descriptor * iter_bss;
 	int i = 0;
+	DECLARE_MAC_BUF(mac);
 #endif
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter_args(LBS_DEB_SCAN, "full_scan %d", full_scan);
+
+	/* Cancel any partial outstanding partial scans if this scan
+	 * is a full scan.
+	 */
+	if (full_scan && delayed_work_pending(&priv->scan_work))
+		cancel_delayed_work(&priv->scan_work);
 
 	scan_chan_list = kzalloc(sizeof(struct chanscanparamset) *
 				WLAN_IOCTL_USER_SCAN_CHAN_MAX, GFP_KERNEL);
@@ -791,8 +870,10 @@ int wlan_scan_networks(wlan_private * priv,
 	if (!scancurrentchanonly) {
 		netif_stop_queue(priv->dev);
 		netif_carrier_off(priv->dev);
-		netif_stop_queue(priv->mesh_dev);
-		netif_carrier_off(priv->mesh_dev);
+		if (priv->mesh_dev) {
+			netif_stop_queue(priv->mesh_dev);
+			netif_carrier_off(priv->mesh_dev);
+		}
 	}
 
 	ret = wlan_scan_channel_list(priv,
@@ -807,19 +888,22 @@ int wlan_scan_networks(wlan_private * priv,
 #ifdef CONFIG_LIBERTAS_DEBUG
 	/* Dump the scan table */
 	mutex_lock(&adapter->lock);
+	lbs_deb_scan("The scan table contains:\n");
 	list_for_each_entry (iter_bss, &adapter->network_list, list) {
-		lbs_deb_scan("Scan:(%02d) " MAC_FMT ", RSSI[%03d], SSID[%s]\n",
-		       i++, MAC_ARG(iter_bss->bssid), (s32) iter_bss->rssi,
+		lbs_deb_scan("scan %02d, %s, RSSI, %d, SSID '%s'\n",
+		       i++, print_mac(mac, iter_bss->bssid), (s32) iter_bss->rssi,
 		       escape_essid(iter_bss->ssid, iter_bss->ssid_len));
 	}
 	mutex_unlock(&adapter->lock);
 #endif
 
-	if (priv->adapter->connect_status == libertas_connected) {
+	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_wake_queue(priv->dev);
-		netif_carrier_on(priv->mesh_dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev) {
+			netif_carrier_on(priv->mesh_dev);
+			netif_wake_queue(priv->mesh_dev);
+		}
 	}
 
 out:
@@ -831,58 +915,6 @@ out:
 
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
-}
-
-/**
- *  @brief Inspect the scan response buffer for pointers to expected TLVs
- *
- *  TLVs can be included at the end of the scan response BSS information.
- *    Parse the data in the buffer for pointers to TLVs that can potentially
- *    be passed back in the response
- *
- *  @param ptlv        Pointer to the start of the TLV buffer to parse
- *  @param tlvbufsize  size of the TLV buffer
- *  @param ptsftlv     Output parameter: Pointer to the TSF TLV if found
- *
- *  @return            void
- */
-static
-void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
-				       int tlvbufsize,
-				       struct mrvlietypes_tsftimestamp ** ptsftlv)
-{
-	struct mrvlietypes_data *pcurrenttlv;
-	int tlvbufleft;
-	u16 tlvtype;
-	u16 tlvlen;
-
-	pcurrenttlv = ptlv;
-	tlvbufleft = tlvbufsize;
-	*ptsftlv = NULL;
-
-	lbs_deb_scan("SCAN_RESP: tlvbufsize = %d\n", tlvbufsize);
-	lbs_dbg_hex("SCAN_RESP: TLV Buf", (u8 *) ptlv, tlvbufsize);
-
-	while (tlvbufleft >= sizeof(struct mrvlietypesheader)) {
-		tlvtype = le16_to_cpu(pcurrenttlv->header.type);
-		tlvlen = le16_to_cpu(pcurrenttlv->header.len);
-
-		switch (tlvtype) {
-		case TLV_TYPE_TSFTIMESTAMP:
-			*ptsftlv = (struct mrvlietypes_tsftimestamp *) pcurrenttlv;
-			break;
-
-		default:
-			lbs_deb_scan("SCAN_RESP: Unhandled TLV = %d\n",
-			       tlvtype);
-			/* Give up, this seems corrupted */
-			return;
-		}		/* switch */
-
-		tlvbufleft -= (sizeof(ptlv->header) + tlvlen);
-		pcurrenttlv =
-		    (struct mrvlietypes_data *) (pcurrenttlv->Data + tlvlen);
-	}			/* while */
 }
 
 /**
@@ -899,67 +931,49 @@ void wlan_ret_802_11_scan_get_tlv_ptrs(struct mrvlietypes_data * ptlv,
 static int libertas_process_bss(struct bss_descriptor * bss,
 				u8 ** pbeaconinfo, int *bytesleft)
 {
-	enum ieeetypes_elementid elemID;
 	struct ieeetypes_fhparamset *pFH;
 	struct ieeetypes_dsparamset *pDS;
 	struct ieeetypes_cfparamset *pCF;
 	struct ieeetypes_ibssparamset *pibss;
-	struct ieeetypes_capinfo *pcap;
-	struct WLAN_802_11_FIXED_IEs fixedie;
-	u8 *pcurrentptr;
-	u8 *pRate;
-	u8 elemlen;
-	u8 bytestocopy;
-	u8 ratesize;
-	u16 beaconsize;
-	u8 founddatarateie;
-	int bytesleftforcurrentbeacon;
+	DECLARE_MAC_BUF(mac);
+	struct ieeetypes_countryinfoset *pcountryinfo;
+	u8 *pos, *end, *p;
+	u8 n_ex_rates = 0, got_basic_rates = 0, n_basic_rates = 0;
+	u16 beaconsize = 0;
 	int ret;
 
-	struct IE_WPA *pIe;
-	const u8 oui01[4] = { 0x00, 0x50, 0xf2, 0x01 };
-
-	struct ieeetypes_countryinfoset *pcountryinfo;
-
-	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	founddatarateie = 0;
-	ratesize = 0;
-	beaconsize = 0;
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
-		beaconsize = le16_to_cpup((void *)*pbeaconinfo);
+		beaconsize = le16_to_cpu(get_unaligned((u16 *)*pbeaconinfo));
 		*bytesleft -= sizeof(beaconsize);
 		*pbeaconinfo += sizeof(beaconsize);
 	}
 
 	if (beaconsize == 0 || beaconsize > *bytesleft) {
-
 		*pbeaconinfo += *bytesleft;
 		*bytesleft = 0;
-
-		return -1;
+		ret = -1;
+		goto done;
 	}
 
 	/* Initialize the current working beacon pointer for this BSS iteration */
-	pcurrentptr = *pbeaconinfo;
+	pos = *pbeaconinfo;
+	end = pos + beaconsize;
 
 	/* Advance the return beacon pointer past the current beacon */
 	*pbeaconinfo += beaconsize;
 	*bytesleft -= beaconsize;
 
-	bytesleftforcurrentbeacon = beaconsize;
+	memcpy(bss->bssid, pos, ETH_ALEN);
+	lbs_deb_scan("process_bss: AP BSSID %s\n", print_mac(mac, bss->bssid));
+	pos += ETH_ALEN;
 
-	memcpy(bss->bssid, pcurrentptr, ETH_ALEN);
-	lbs_deb_scan("process_bss: AP BSSID " MAC_FMT "\n", MAC_ARG(bss->bssid));
-
-	pcurrentptr += ETH_ALEN;
-	bytesleftforcurrentbeacon -= ETH_ALEN;
-
-	if (bytesleftforcurrentbeacon < 12) {
+	if ((end - pos) < 12) {
 		lbs_deb_scan("process_bss: Not enough bytes left\n");
-		return -1;
+		ret = -1;
+		goto done;
 	}
 
 	/*
@@ -968,85 +982,61 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 	 */
 
 	/* RSSI is 1 byte long */
-	bss->rssi = *pcurrentptr;
-	lbs_deb_scan("process_bss: RSSI=%02X\n", *pcurrentptr);
-	pcurrentptr += 1;
-	bytesleftforcurrentbeacon -= 1;
+	bss->rssi = *pos;
+	lbs_deb_scan("process_bss: RSSI=%02X\n", *pos);
+	pos++;
 
 	/* time stamp is 8 bytes long */
-	fixedie.timestamp = bss->timestamp = le64_to_cpup((void *)pcurrentptr);
-	pcurrentptr += 8;
-	bytesleftforcurrentbeacon -= 8;
+	pos += 8;
 
 	/* beacon interval is 2 bytes long */
-	fixedie.beaconinterval = bss->beaconperiod = le16_to_cpup((void *)pcurrentptr);
-	pcurrentptr += 2;
-	bytesleftforcurrentbeacon -= 2;
+	bss->beaconperiod = le16_to_cpup((void *) pos);
+	pos += 2;
 
 	/* capability information is 2 bytes long */
-        memcpy(&fixedie.capabilities, pcurrentptr, 2);
-	lbs_deb_scan("process_bss: fixedie.capabilities=0x%X\n",
-	       fixedie.capabilities);
-	pcap = (struct ieeetypes_capinfo *) & fixedie.capabilities;
-	memcpy(&bss->cap, pcap, sizeof(struct ieeetypes_capinfo));
-	pcurrentptr += 2;
-	bytesleftforcurrentbeacon -= 2;
+	bss->capability = le16_to_cpup((void *) pos);
+	lbs_deb_scan("process_bss: capabilities = 0x%4X\n", bss->capability);
+	pos += 2;
+
+	if (bss->capability & WLAN_CAPABILITY_PRIVACY)
+		lbs_deb_scan("process_bss: AP WEP enabled\n");
+	if (bss->capability & WLAN_CAPABILITY_IBSS)
+		bss->mode = IW_MODE_ADHOC;
+	else
+		bss->mode = IW_MODE_INFRA;
 
 	/* rest of the current buffer are IE's */
-	lbs_deb_scan("process_bss: IE length for this AP = %d\n",
-	       bytesleftforcurrentbeacon);
-
-	lbs_dbg_hex("process_bss: IE info", (u8 *) pcurrentptr,
-		bytesleftforcurrentbeacon);
-
-	if (pcap->privacy) {
-		lbs_deb_scan("process_bss: AP WEP enabled\n");
-		bss->privacy = wlan802_11privfilter8021xWEP;
-	} else {
-		bss->privacy = wlan802_11privfilteracceptall;
-	}
-
-	if (pcap->ibss == 1) {
-		bss->mode = IW_MODE_ADHOC;
-	} else {
-		bss->mode = IW_MODE_INFRA;
-	}
+	lbs_deb_scan("process_bss: IE length for this AP = %zd\n", end - pos);
+	lbs_deb_hex(LBS_DEB_SCAN, "process_bss: IE info", pos, end - pos);
 
 	/* process variable IE */
-	while (bytesleftforcurrentbeacon >= 2) {
-		elemID = (enum ieeetypes_elementid) (*((u8 *) pcurrentptr));
-		elemlen = *((u8 *) pcurrentptr + 1);
+	while (pos <= end - 2) {
+		struct ieee80211_info_element * elem =
+			(struct ieee80211_info_element *) pos;
 
-		if (bytesleftforcurrentbeacon < elemlen) {
+		if (pos + elem->len > end) {
 			lbs_deb_scan("process_bss: error in processing IE, "
 			       "bytes left < IE length\n");
-			bytesleftforcurrentbeacon = 0;
-			continue;
+			break;
 		}
 
-		switch (elemID) {
-		case SSID:
-			bss->ssid_len = elemlen;
-			memcpy(bss->ssid, (pcurrentptr + 2), elemlen);
+		switch (elem->id) {
+		case MFIE_TYPE_SSID:
+			bss->ssid_len = elem->len;
+			memcpy(bss->ssid, elem->data, elem->len);
 			lbs_deb_scan("ssid '%s', ssid length %u\n",
 			             escape_essid(bss->ssid, bss->ssid_len),
 			             bss->ssid_len);
 			break;
 
-		case SUPPORTED_RATES:
-			memcpy(bss->datarates, (pcurrentptr + 2), elemlen);
-			memmove(bss->libertas_supported_rates, (pcurrentptr + 2),
-				elemlen);
-			ratesize = elemlen;
-			founddatarateie = 1;
+		case MFIE_TYPE_RATES:
+			n_basic_rates = min_t(u8, MAX_RATES, elem->len);
+			memcpy(bss->rates, elem->data, n_basic_rates);
+			got_basic_rates = 1;
 			break;
 
-		case EXTRA_IE:
-			lbs_deb_scan("process_bss: EXTRA_IE Found!\n");
-			break;
-
-		case FH_PARAM_SET:
-			pFH = (struct ieeetypes_fhparamset *) pcurrentptr;
+		case MFIE_TYPE_FH_SET:
+			pFH = (struct ieeetypes_fhparamset *) pos;
 			memmove(&bss->phyparamset.fhparamset, pFH,
 				sizeof(struct ieeetypes_fhparamset));
 #if 0 /* I think we can store these LE */
@@ -1055,21 +1045,21 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 #endif
 			break;
 
-		case DS_PARAM_SET:
-			pDS = (struct ieeetypes_dsparamset *) pcurrentptr;
+		case MFIE_TYPE_DS_SET:
+			pDS = (struct ieeetypes_dsparamset *) pos;
 			bss->channel = pDS->currentchan;
 			memcpy(&bss->phyparamset.dsparamset, pDS,
 			       sizeof(struct ieeetypes_dsparamset));
 			break;
 
-		case CF_PARAM_SET:
-			pCF = (struct ieeetypes_cfparamset *) pcurrentptr;
+		case MFIE_TYPE_CF_SET:
+			pCF = (struct ieeetypes_cfparamset *) pos;
 			memcpy(&bss->ssparamset.cfparamset, pCF,
 			       sizeof(struct ieeetypes_cfparamset));
 			break;
 
-		case IBSS_PARAM_SET:
-			pibss = (struct ieeetypes_ibssparamset *) pcurrentptr;
+		case MFIE_TYPE_IBSS_SET:
+			pibss = (struct ieeetypes_ibssparamset *) pos;
 			bss->atimwindow = le32_to_cpu(pibss->atimwindow);
 			memmove(&bss->ssparamset.ibssparamset, pibss,
 				sizeof(struct ieeetypes_ibssparamset));
@@ -1079,9 +1069,8 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 #endif
 			break;
 
-			/* Handle Country Info IE */
-		case COUNTRY_INFO:
-			pcountryinfo = (struct ieeetypes_countryinfoset *) pcurrentptr;
+		case MFIE_TYPE_COUNTRY:
+			pcountryinfo = (struct ieeetypes_countryinfoset *) pos;
 			if (pcountryinfo->len < sizeof(pcountryinfo->countrycode)
 			    || pcountryinfo->len > 254) {
 				lbs_deb_scan("process_bss: 11D- Err "
@@ -1094,70 +1083,63 @@ static int libertas_process_bss(struct bss_descriptor * bss,
 
 			memcpy(&bss->countryinfo,
 			       pcountryinfo, pcountryinfo->len + 2);
-			lbs_dbg_hex("process_bss: 11D- CountryInfo:",
+			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: 11d countryinfo",
 				(u8 *) pcountryinfo,
 				(u32) (pcountryinfo->len + 2));
 			break;
 
-		case EXTENDED_SUPPORTED_RATES:
-			/*
-			 * only process extended supported rate
-			 * if data rate is already found.
-			 * data rate IE should come before
+		case MFIE_TYPE_RATES_EX:
+			/* only process extended supported rate if data rate is
+			 * already found. Data rate IE should come before
 			 * extended supported rate IE
 			 */
-			if (founddatarateie) {
-				if ((elemlen + ratesize) > WLAN_SUPPORTED_RATES) {
-					bytestocopy =
-					    (WLAN_SUPPORTED_RATES - ratesize);
-				} else {
-					bytestocopy = elemlen;
-				}
+			if (!got_basic_rates)
+				break;
 
-				pRate = (u8 *) bss->datarates;
-				pRate += ratesize;
-				memmove(pRate, (pcurrentptr + 2), bytestocopy);
-				pRate = (u8 *) bss->libertas_supported_rates;
-				pRate += ratesize;
-				memmove(pRate, (pcurrentptr + 2), bytestocopy);
+			n_ex_rates = elem->len;
+			if (n_basic_rates + n_ex_rates > MAX_RATES)
+				n_ex_rates = MAX_RATES - n_basic_rates;
+
+			p = bss->rates + n_basic_rates;
+			memcpy(p, elem->data, n_ex_rates);
+			break;
+
+		case MFIE_TYPE_GENERIC:
+			if (elem->len >= 4 &&
+			    elem->data[0] == 0x00 &&
+			    elem->data[1] == 0x50 &&
+			    elem->data[2] == 0xf2 &&
+			    elem->data[3] == 0x01) {
+				bss->wpa_ie_len = min(elem->len + 2,
+				                      MAX_WPA_IE_LEN);
+				memcpy(bss->wpa_ie, elem, bss->wpa_ie_len);
+				lbs_deb_hex(LBS_DEB_SCAN, "process_bss: WPA IE", bss->wpa_ie,
+				            elem->len);
+			} else if (elem->len >= MARVELL_MESH_IE_LENGTH &&
+			    elem->data[0] == 0x00 &&
+			    elem->data[1] == 0x50 &&
+			    elem->data[2] == 0x43 &&
+			    elem->data[3] == 0x04) {
+				bss->mesh = 1;
 			}
 			break;
 
-		case VENDOR_SPECIFIC_221:
-#define IE_ID_LEN_FIELDS_BYTES 2
-			pIe = (struct IE_WPA *)pcurrentptr;
-
-			if (memcmp(pIe->oui, oui01, sizeof(oui01)))
-				break;
-
-			bss->wpa_ie_len = min(elemlen + IE_ID_LEN_FIELDS_BYTES,
-				MAX_WPA_IE_LEN);
-			memcpy(bss->wpa_ie, pcurrentptr, bss->wpa_ie_len);
-			lbs_dbg_hex("process_bss: WPA IE", bss->wpa_ie, elemlen);
-			break;
-		case WPA2_IE:
-			pIe = (struct IE_WPA *)pcurrentptr;
-			bss->rsn_ie_len = min(elemlen + IE_ID_LEN_FIELDS_BYTES,
-				MAX_WPA_IE_LEN);
-			memcpy(bss->rsn_ie, pcurrentptr, bss->rsn_ie_len);
-			lbs_dbg_hex("process_bss: RSN_IE", bss->rsn_ie, elemlen);
-			break;
-		case TIM:
+		case MFIE_TYPE_RSN:
+			bss->rsn_ie_len = min(elem->len + 2, MAX_WPA_IE_LEN);
+			memcpy(bss->rsn_ie, elem, bss->rsn_ie_len);
+			lbs_deb_hex(LBS_DEB_SCAN, "process_bss: RSN_IE", bss->rsn_ie, elem->len);
 			break;
 
-		case CHALLENGE_TEXT:
+		default:
 			break;
 		}
 
-		pcurrentptr += elemlen + 2;
-
-		/* need to account for IE ID and IE len */
-		bytesleftforcurrentbeacon -= (elemlen + 2);
-
-	}			/* while (bytesleftforcurrentbeacon > 2) */
+		pos += elem->len + 2;
+	}
 
 	/* Timestamp */
 	bss->last_scanned = jiffies;
+	libertas_unset_basic_rate_flags(bss->rates, sizeof(bss->rates));
 
 	ret = 0;
 
@@ -1167,23 +1149,9 @@ done:
 }
 
 /**
- *  @brief Compare two SSIDs
- *
- *  @param ssid1    A pointer to ssid to compare
- *  @param ssid2    A pointer to ssid to compare
- *
- *  @return         0--ssid is same, otherwise is different
- */
-int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
-{
-	if (ssid1_len != ssid2_len)
-		return -1;
-
-	return memcmp(ssid1, ssid2, ssid1_len);
-}
-
-/**
  *  @brief This function finds a specific compatible BSSID in the scan list
+ *
+ *  Used in association code
  *
  *  @param adapter  A pointer to wlan_adapter
  *  @param bssid    BSSID to find in the scan list
@@ -1191,16 +1159,18 @@ int libertas_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
+struct bss_descriptor *libertas_find_bssid_in_list(wlan_adapter * adapter,
 		u8 * bssid, u8 mode)
 {
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * found_bss = NULL;
 
-	if (!bssid)
-		return NULL;
+	lbs_deb_enter(LBS_DEB_SCAN);
 
-	lbs_dbg_hex("libertas_find_BSSID_in_list: looking for ",
+	if (!bssid)
+		goto out;
+
+	lbs_deb_hex(LBS_DEB_SCAN, "looking for",
 		bssid, ETH_ALEN);
 
 	/* Look through the scan table for a compatible match.  The loop will
@@ -1225,11 +1195,15 @@ struct bss_descriptor * libertas_find_bssid_in_list(wlan_adapter * adapter,
 	}
 	mutex_unlock(&adapter->lock);
 
+out:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "found_bss %p", found_bss);
 	return found_bss;
 }
 
 /**
  *  @brief This function finds ssid in ssid list.
+ *
+ *  Used in association code
  *
  *  @param adapter  A pointer to wlan_adapter
  *  @param ssid     SSID to find in the list
@@ -1246,6 +1220,8 @@ struct bss_descriptor * libertas_find_ssid_in_list(wlan_adapter * adapter,
 	struct bss_descriptor * iter_bss = NULL;
 	struct bss_descriptor * found_bss = NULL;
 	struct bss_descriptor * tmp_oldest = NULL;
+
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	mutex_lock(&adapter->lock);
 
@@ -1291,6 +1267,7 @@ struct bss_descriptor * libertas_find_ssid_in_list(wlan_adapter * adapter,
 
 out:
 	mutex_unlock(&adapter->lock);
+	lbs_deb_leave_args(LBS_DEB_SCAN, "found_bss %p", found_bss);
 	return found_bss;
 }
 
@@ -1304,12 +1281,14 @@ out:
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
+static struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
 		u8 mode)
 {
 	u8 bestrssi = 0;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * best_bss = NULL;
+
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	mutex_lock(&adapter->lock);
 
@@ -1335,11 +1314,14 @@ struct bss_descriptor * libertas_find_best_ssid_in_list(wlan_adapter * adapter,
 	}
 
 	mutex_unlock(&adapter->lock);
+	lbs_deb_leave_args(LBS_DEB_SCAN, "best_bss %p", best_bss);
 	return best_bss;
 }
 
 /**
  *  @brief Find the AP with specific ssid in the scan list
+ *
+ *  Used from association worker.
  *
  *  @param priv         A pointer to wlan_private structure
  *  @param pSSID        A pointer to AP's ssid
@@ -1353,11 +1335,11 @@ int libertas_find_best_network_ssid(wlan_private * priv,
 	int ret = -1;
 	struct bss_descriptor * found;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	wlan_scan_networks(priv, NULL, 1);
 	if (adapter->surpriseremoved)
-		return -1;
+		goto out;
 
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
@@ -1369,6 +1351,7 @@ int libertas_find_best_network_ssid(wlan_private * priv,
 		ret = 0;
 	}
 
+out:
 	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
@@ -1391,7 +1374,10 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	wlan_scan_networks(priv, NULL, 0);
+	if (!delayed_work_pending(&priv->scan_work)) {
+		queue_delayed_work(priv->work_thread, &priv->scan_work,
+		                   msecs_to_jiffies(50));
+	}
 
 	if (adapter->surpriseremoved)
 		return -1;
@@ -1400,10 +1386,17 @@ int libertas_set_scan(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
+
 /**
  *  @brief Send a scan command for all available channels filtered on a spec
  *
+ *  Used in association code and from debugfs
+ *
  *  @param priv             A pointer to wlan_private structure
+ *  @param ssid             A pointer to the SSID to scan for
+ *  @param ssid_len         Length of the SSID
+ *  @param clear_ssid       Should existing scan results with this SSID
+ *                          be cleared?
  *  @param prequestedssid   A pointer to AP's ssid
  *  @param keeppreviousscan Flag used to save/clear scan table before scan
  *
@@ -1416,7 +1409,8 @@ int libertas_send_specific_ssid_scan(wlan_private * priv,
 	struct wlan_ioctl_user_scan_cfg scancfg;
 	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter_args(LBS_DEB_SCAN, "SSID '%s', clear %d",
+		escape_essid(ssid, ssid_len), clear_ssid);
 
 	if (!ssid_len)
 		goto out;
@@ -1427,47 +1421,27 @@ int libertas_send_specific_ssid_scan(wlan_private * priv,
 	scancfg.clear_ssid = clear_ssid;
 
 	wlan_scan_networks(priv, &scancfg, 1);
-	if (adapter->surpriseremoved)
-		return -1;
+	if (adapter->surpriseremoved) {
+		ret = -1;
+		goto out;
+	}
 	wait_event_interruptible(adapter->cmd_pending, !adapter->nr_cmd_pending);
 
 out:
-	lbs_deb_leave(LBS_DEB_ASSOC);
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", ret);
 	return ret;
 }
 
-/**
- *  @brief scan an AP with specific BSSID
- *
- *  @param priv             A pointer to wlan_private structure
- *  @param bssid            A pointer to AP's bssid
- *  @param keeppreviousscan Flag used to save/clear scan table before scan
- *
- *  @return          0-success, otherwise fail
- */
-int libertas_send_specific_bssid_scan(wlan_private * priv, u8 * bssid, u8 clear_bssid)
-{
-	struct wlan_ioctl_user_scan_cfg scancfg;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (bssid == NULL)
-		goto out;
 
-	memset(&scancfg, 0x00, sizeof(scancfg));
-	memcpy(scancfg.bssid, bssid, ETH_ALEN);
-	scancfg.clear_bssid = clear_bssid;
+/*********************************************************************/
+/*                                                                   */
+/*  Support for Wireless Extensions                                  */
+/*                                                                   */
+/*********************************************************************/
 
-	wlan_scan_networks(priv, &scancfg, 1);
-	if (priv->adapter->surpriseremoved)
-		return -1;
-	wait_event_interruptible(priv->adapter->cmd_pending,
-		!priv->adapter->nr_cmd_pending);
-
-out:
-	lbs_deb_leave(LBS_DEB_ASSOC);
-	return 0;
-}
+#define MAX_CUSTOM_LEN 64
 
 static inline char *libertas_translate_scan(wlan_private *priv,
 					char *start, char *stop,
@@ -1483,10 +1457,13 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 #define RSSI_DIFF    ((u8)(PERFECT_RSSI - WORST_RSSI))
 	u8 rssi;
 
+	lbs_deb_enter(LBS_DEB_SCAN);
+
 	cfp = libertas_find_cfp_by_band_and_channel(adapter, 0, bss->channel);
 	if (!cfp) {
 		lbs_deb_scan("Invalid channel number %d\n", bss->channel);
-		return NULL;
+		start = NULL;
+		goto out;
 	}
 
 	/* First entry *MUST* be the AP BSSID */
@@ -1550,7 +1527,7 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
-	if (bss->privacy) {
+	if (bss->capability & WLAN_CAPABILITY_PRIVACY) {
 		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 	} else {
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
@@ -1565,12 +1542,9 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 	iwe.u.bitrate.disabled = 0;
 	iwe.u.bitrate.value = 0;
 
-	for (j = 0; j < sizeof(bss->libertas_supported_rates); j++) {
-		u8 rate = bss->libertas_supported_rates[j];
-		if (rate == 0)
-			break; /* no more rates */
-		/* Bit rate given in 500 kb/s units (+ 0x80) */
-		iwe.u.bitrate.value = (rate & 0x7f) * 500000;
+	for (j = 0; bss->rates[j] && (j < sizeof(bss->rates)); j++) {
+		/* Bit rate given in 500 kb/s units */
+		iwe.u.bitrate.value = bss->rates[j] * 500000;
 		current_val = iwe_stream_add_value(start, current_val,
 					 stop, &iwe, IW_EV_PARAM_LEN);
 	}
@@ -1605,11 +1579,25 @@ static inline char *libertas_translate_scan(wlan_private *priv,
 		start = iwe_stream_add_point(start, stop, &iwe, buf);
 	}
 
+	if (bss->mesh) {
+		char custom[MAX_CUSTOM_LEN];
+		char *p = custom;
+
+		iwe.cmd = IWEVCUSTOM;
+		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+		              "mesh-type: olpc");
+		iwe.u.data.length = p - custom;
+		if (iwe.u.data.length)
+			start = iwe_stream_add_point(start, stop, &iwe, custom);
+	}
+
+out:
+	lbs_deb_leave_args(LBS_DEB_SCAN, "start %p", start);
 	return start;
 }
 
 /**
- *  @brief  Retrieve the scan table entries via wireless tools IOCTL call
+ *  @brief  Handle Retrieve scan table ioctl
  *
  *  @param dev          A pointer to net_device structure
  *  @param info         A pointer to iw_request_info structure
@@ -1630,16 +1618,12 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	/* If we've got an uncompleted scan, schedule the next part */
-	if (!adapter->nr_cmd_pending && adapter->last_scanned_channel)
-		wlan_scan_networks(priv, NULL, 0);
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
 	if ((adapter->mode == IW_MODE_ADHOC) && adapter->adhoccreate) {
-		libertas_prepare_and_send_command(priv, cmd_802_11_rssi, 0,
-					cmd_option_waitforrsp, 0, NULL);
+		libertas_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+					CMD_OPTION_WAITFORRSP, 0, NULL);
 	}
 
 	mutex_lock(&adapter->lock);
@@ -1651,6 +1635,10 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 			err = -E2BIG;
 			break;
 		}
+
+		/* For mesh device, list only mesh networks */
+		if (dev == priv->mesh_dev && !iter_bss->mesh)
+			continue;
 
 		/* Prune old an old scan result */
 		stale_time = iter_bss->last_scanned + DEFAULT_MAX_SCAN_AGE;
@@ -1672,19 +1660,27 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
 	dwrq->length = (ev - extra);
 	dwrq->flags = 0;
 
-	lbs_deb_leave(LBS_DEB_ASSOC);
+	lbs_deb_leave_args(LBS_DEB_SCAN, "ret %d", err);
 	return err;
 }
+
+
+
+
+/*********************************************************************/
+/*                                                                   */
+/*  Command execution                                                */
+/*                                                                   */
+/*********************************************************************/
+
 
 /**
  *  @brief Prepare a scan command to be sent to the firmware
  *
- *  Use the wlan_scan_cmd_config sent to the command processing module in
- *   the libertas_prepare_and_send_command to configure a cmd_ds_802_11_scan command
- *   struct to send to firmware.
+ *  Called from libertas_prepare_and_send_command() in cmd.c
  *
- *  The fixed fields specifying the BSS type and BSSID filters as well as a
- *   variable number/length of TLVs are sent in the command to firmware.
+ *  Sends a fixed lenght data part (specifying the BSS type and BSSID filters)
+ *  as well as a variable number/length of TLVs to the firmware.
  *
  *  @param priv       A pointer to wlan_private structure
  *  @param cmd        A pointer to cmd_ds_command structure to be sent to
@@ -1693,36 +1689,31 @@ int libertas_get_scan(struct net_device *dev, struct iw_request_info *info,
  *                    to set the fields/TLVs for the command sent to firmware
  *
  *  @return           0 or -1
- *
- *  @sa wlan_scan_create_channel_list
  */
 int libertas_cmd_80211_scan(wlan_private * priv,
 			 struct cmd_ds_command *cmd, void *pdata_buf)
 {
 	struct cmd_ds_802_11_scan *pscan = &cmd->params.scan;
-	struct wlan_scan_cmd_config *pscancfg;
+	struct wlan_scan_cmd_config *pscancfg = pdata_buf;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
-
-	pscancfg = pdata_buf;
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* Set fixed field variables in scan command */
 	pscan->bsstype = pscancfg->bsstype;
-	memcpy(pscan->BSSID, pscancfg->bssid, sizeof(pscan->BSSID));
+	memcpy(pscan->bssid, pscancfg->bssid, ETH_ALEN);
 	memcpy(pscan->tlvbuffer, pscancfg->tlvbuffer, pscancfg->tlvbufferlen);
 
-	cmd->command = cpu_to_le16(cmd_802_11_scan);
+	cmd->command = cpu_to_le16(CMD_802_11_SCAN);
 
 	/* size is equal to the sizeof(fixed portions) + the TLV len + header */
-	cmd->size = cpu_to_le16(sizeof(pscan->bsstype)
-				     + sizeof(pscan->BSSID)
-				     + pscancfg->tlvbufferlen + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(pscan->bsstype) + ETH_ALEN
+				+ pscancfg->tlvbufferlen + S_DS_GEN);
 
-	lbs_deb_scan("SCAN_CMD: command=%x, size=%x, seqnum=%x\n",
+	lbs_deb_scan("SCAN_CMD: command 0x%04x, size %d, seqnum %d\n",
 		     le16_to_cpu(cmd->command), le16_to_cpu(cmd->size),
 		     le16_to_cpu(cmd->seqnum));
 
-	lbs_deb_leave(LBS_DEB_ASSOC);
+	lbs_deb_leave(LBS_DEB_SCAN);
 	return 0;
 }
 
@@ -1740,6 +1731,8 @@ static inline int is_same_network(struct bss_descriptor *src,
 
 /**
  *  @brief This function handles the command response of scan
+ *
+ *  Called from handle_cmd_response() in cmdrespc.
  *
  *   The response buffer for the scan command has the following
  *      memory layout:
@@ -1766,8 +1759,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 {
 	wlan_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_scan_rsp *pscan;
-	struct mrvlietypes_data *ptlv;
-	struct mrvlietypes_tsftimestamp *ptsftlv;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
 	u8 *pbssinfo;
@@ -1777,7 +1768,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 	int tlvbufsize;
 	int ret;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
+	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* Prune old entries from scan table */
 	list_for_each_entry_safe (iter_bss, safe, &adapter->network_list, list) {
@@ -1798,10 +1789,10 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(pscan->bssdescriptsize);
+	bytesleft = le16_to_cpu(get_unaligned((u16*)&pscan->bssdescriptsize));
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
-	scanrespsize = le16_to_cpu(resp->size);
+	scanrespsize = le16_to_cpu(get_unaligned((u16*)&resp->size));
 	lbs_deb_scan("SCAN_RESP: returned %d AP before parsing\n",
 	       pscan->nr_sets);
 
@@ -1816,11 +1807,6 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 				     + sizeof(pscan->nr_sets)
 				     + S_DS_GEN);
 
-	ptlv = (struct mrvlietypes_data *) (pscan->bssdesc_and_tlvbuffer + bytesleft);
-
-	/* Search the TLV buffer space in the scan response for any valid TLVs */
-	wlan_ret_802_11_scan_get_tlv_ptrs(ptlv, tlvbufsize, &ptsftlv);
-
 	/*
 	 *  Process each scan response returned (pscan->nr_sets).  Save
 	 *    the information in the newbssentry and then insert into the
@@ -1831,6 +1817,7 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 		struct bss_descriptor new;
 		struct bss_descriptor * found = NULL;
 		struct bss_descriptor * oldest = NULL;
+		DECLARE_MAC_BUF(mac);
 
 		/* Process the data fields and IEs returned for this BSS */
 		memset(&new, 0, sizeof (struct bss_descriptor));
@@ -1869,19 +1856,8 @@ int libertas_ret_80211_scan(wlan_private * priv, struct cmd_ds_command *resp)
 			continue;
 		}
 
-		lbs_deb_scan("SCAN_RESP: BSSID = " MAC_FMT "\n",
-		       new.bssid[0], new.bssid[1], new.bssid[2],
-		       new.bssid[3], new.bssid[4], new.bssid[5]);
-
-		/*
-		 * If the TSF TLV was appended to the scan results, save the
-		 *   this entries TSF value in the networktsf field.  The
-		 *   networktsf is the firmware's TSF value at the time the
-		 *   beacon or probe response was received.
-		 */
-		if (ptsftlv) {
-			new.networktsf = le64_to_cpup(&ptsftlv->tsftable[idx]);
-		}
+		lbs_deb_scan("SCAN_RESP: BSSID = %s\n",
+			     print_mac(mac, new.bssid));
 
 		/* Copy the locally created newbssentry to the scan table */
 		memcpy(found, &new, offsetof(struct bss_descriptor, list));

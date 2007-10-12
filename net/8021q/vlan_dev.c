@@ -122,6 +122,11 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	unsigned short vlan_TCI;
 	__be16 proto;
 
+	if (dev->nd_net != &init_net) {
+		kfree_skb(skb);
+		return -1;
+	}
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return -1;
 
@@ -338,8 +343,8 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
  *  physical devices.
  */
 int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type, void *daddr, void *saddr,
-			 unsigned len)
+			 unsigned short type,
+			 const void *daddr, const void *saddr, unsigned len)
 {
 	struct vlan_hdr *vhdr;
 	unsigned short veth_TCI = 0;
@@ -429,21 +434,19 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	if (build_vlan_header) {
 		/* Now make the underlying real hard header */
-		rc = dev->hard_header(skb, dev, ETH_P_8021Q, daddr, saddr, len + VLAN_HLEN);
-
-		if (rc > 0) {
+		rc = dev_hard_header(skb, dev, ETH_P_8021Q, daddr, saddr,
+				     len + VLAN_HLEN);
+		if (rc > 0)
 			rc += VLAN_HLEN;
-		} else if (rc < 0) {
+		else if (rc < 0)
 			rc -= VLAN_HLEN;
-		}
-	} else {
+	} else
 		/* If here, then we'll just make a normal looking ethernet frame,
 		 * but, the hard_start_xmit method will insert the tag (it has to
 		 * be able to do this for bridged and other skbs that don't come
 		 * down the protocol stack in an orderly manner.
 		 */
-		rc = dev->hard_header(skb, dev, type, daddr, saddr, len);
-	}
+		rc = dev_hard_header(skb, dev, type, daddr, saddr, len);
 
 	return rc;
 }

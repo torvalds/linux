@@ -3,6 +3,7 @@
 
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
+#include <linux/mutex.h>
 #include <net/iw_handler.h>
 
 #include "hostap_config.h"
@@ -641,7 +642,7 @@ struct local_info {
 			      * when removing entries from the list.
 			      * TX and RX paths can use read lock. */
 	spinlock_t cmdlock, baplock, lock;
-	struct semaphore rid_bap_sem;
+	struct mutex rid_bap_mtx;
 	u16 infofid; /* MAC buffer id for info frame */
 	/* txfid, intransmitfid, next_txtid, and next_alloc are protected by
 	 * txfidlock */
@@ -735,8 +736,6 @@ struct local_info {
 		PRISM2_MONITOR_80211 = 0, PRISM2_MONITOR_PRISM = 1,
 		PRISM2_MONITOR_CAPHDR = 2
 	} monitor_type;
-	int (*saved_eth_header_parse)(struct sk_buff *skb,
-				      unsigned char *haddr);
 	int monitor_allow_fcserr;
 
 	int hostapd; /* whether user space daemon, hostapd, is used for AP

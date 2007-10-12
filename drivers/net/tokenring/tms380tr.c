@@ -2124,7 +2124,7 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 		/* Get the frame size (Byte swap for Intel).
 		 * Do this early (see workaround comment below)
 		 */
-		Length = be16_to_cpu((unsigned short)rpl->FrameSize);
+		Length = be16_to_cpu(rpl->FrameSize);
 
 		/* Check if the Frame_Start, Frame_End and
 		 * Frame_Complete bits are set.
@@ -2140,7 +2140,7 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
 			 * Length2 is there because there have also been
 			 * cases where the FrameSize was partially written
 			 */
-			Length2 = be16_to_cpu((unsigned short)rpl->FrameSize);
+			Length2 = be16_to_cpu(rpl->FrameSize);
 
 			if(Length == 0 || Length != Length2)
 			{

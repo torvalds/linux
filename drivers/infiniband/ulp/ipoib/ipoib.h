@@ -228,6 +228,8 @@ struct ipoib_dev_priv {
 
 	struct net_device *dev;
 
+	struct napi_struct napi;
+
 	unsigned long flags;
 
 	struct mutex mcast_mutex;
@@ -277,8 +279,6 @@ struct ipoib_dev_priv {
 	struct list_head dead_ahs;
 
 	struct ib_event_handler event_handler;
-
-	struct net_device_stats stats;
 
 	struct net_device *parent;
 	struct list_head child_intfs;
@@ -351,7 +351,7 @@ extern struct workqueue_struct *ipoib_workqueue;
 
 /* functions */
 
-int ipoib_poll(struct net_device *dev, int *budget);
+int ipoib_poll(struct napi_struct *napi, int budget);
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 
 struct ipoib_ah *ipoib_create_ah(struct net_device *dev,

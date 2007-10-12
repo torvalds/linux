@@ -12,7 +12,6 @@
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
-#include <linux/spinlock.h>
 #include <linux/netfilter_ipv4.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
@@ -41,17 +40,12 @@ out:
 	return ret;
 }
 
-static int xfrm4_output_one(struct sk_buff *skb)
+static inline int xfrm4_output_one(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
+	struct iphdr *iph;
 	int err;
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		err = skb_checksum_help(skb);
-		if (err)
-			goto error_nolock;
-	}
 
 	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = xfrm4_tunnel_check_size(skb);
@@ -59,40 +53,19 @@ static int xfrm4_output_one(struct sk_buff *skb)
 			goto error_nolock;
 	}
 
-	do {
-		spin_lock_bh(&x->lock);
-		err = xfrm_state_check(x, skb);
-		if (err)
-			goto error;
+	err = xfrm_output(skb);
+	if (err)
+		goto error_nolock;
 
-		err = x->mode->output(x, skb);
-		if (err)
-			goto error;
-
-		err = x->type->output(x, skb);
-		if (err)
-			goto error;
-
-		x->curlft.bytes += skb->len;
-		x->curlft.packets++;
-
-		spin_unlock_bh(&x->lock);
-
-		if (!(skb->dst = dst_pop(dst))) {
-			err = -EHOSTUNREACH;
-			goto error_nolock;
-		}
-		dst = skb->dst;
-		x = dst->xfrm;
-	} while (x && (x->props.mode != XFRM_MODE_TUNNEL));
+	iph = ip_hdr(skb);
+	iph->tot_len = htons(skb->len);
+	ip_send_check(iph);
 
 	IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
 	err = 0;
 
 out_exit:
 	return err;
-error:
-	spin_unlock_bh(&x->lock);
 error_nolock:
 	kfree_skb(skb);
 	goto out_exit;

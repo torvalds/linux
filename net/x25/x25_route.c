@@ -129,7 +129,7 @@ void x25_route_device_down(struct net_device *dev)
  */
 struct net_device *x25_dev_get(char *devname)
 {
-	struct net_device *dev = dev_get_by_name(devname);
+	struct net_device *dev = dev_get_by_name(&init_net, devname);
 
 	if (dev &&
 	    (!(dev->flags & IFF_UP) || (dev->type != ARPHRD_X25

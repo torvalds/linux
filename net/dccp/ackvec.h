@@ -12,8 +12,8 @@
  */
 
 #include <linux/compiler.h>
+#include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/time.h>
 #include <linux/types.h>
 
 /* Read about the ECN nonce to see why it is 253 */
@@ -52,7 +52,7 @@
 struct dccp_ackvec {
 	u64		dccpav_buf_ackno;
 	struct list_head dccpav_records;
-	struct timeval	dccpav_time;
+	ktime_t		dccpav_time;
 	u16		dccpav_buf_head;
 	u16		dccpav_vec_len;
 	u8		dccpav_buf_nonce;

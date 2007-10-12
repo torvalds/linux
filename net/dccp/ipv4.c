@@ -381,7 +381,6 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 {
 	struct inet_request_sock *ireq;
 	struct inet_sock *newinet;
-	struct dccp_sock *newdp;
 	struct sock *newsk;
 
 	if (sk_acceptq_is_full(sk))
@@ -396,7 +395,6 @@ struct sock *dccp_v4_request_recv_sock(struct sock *sk, struct sk_buff *skb,
 
 	sk_setup_caps(newsk, dst);
 
-	newdp		   = dccp_sk(newsk);
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
 	newinet->daddr	   = ireq->rmt_addr;
@@ -512,17 +510,12 @@ out:
 static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 {
 	int err;
-	struct dccp_hdr *rxdh = dccp_hdr(rxskb), *dh;
 	const struct iphdr *rxiph;
-	const int dccp_hdr_reset_len = sizeof(struct dccp_hdr) +
-				       sizeof(struct dccp_hdr_ext) +
-				       sizeof(struct dccp_hdr_reset);
 	struct sk_buff *skb;
 	struct dst_entry *dst;
-	u64 seqno = 0;
 
 	/* Never send a reset in response to a reset. */
-	if (rxdh->dccph_type == DCCP_PKT_RESET)
+	if (dccp_hdr(rxskb)->dccph_type == DCCP_PKT_RESET)
 		return;
 
 	if (((struct rtable *)rxskb->dst)->rt_type != RTN_LOCAL)
@@ -532,37 +525,14 @@ static void dccp_v4_ctl_send_reset(struct sock *sk, struct sk_buff *rxskb)
 	if (dst == NULL)
 		return;
 
-	skb = alloc_skb(dccp_v4_ctl_socket->sk->sk_prot->max_header,
-			GFP_ATOMIC);
+	skb = dccp_ctl_make_reset(dccp_v4_ctl_socket, rxskb);
 	if (skb == NULL)
 		goto out;
 
-	/* Reserve space for headers. */
-	skb_reserve(skb, dccp_v4_ctl_socket->sk->sk_prot->max_header);
-	skb->dst = dst_clone(dst);
-
-	dh = dccp_zeroed_hdr(skb, dccp_hdr_reset_len);
-
-	/* Build DCCP header and checksum it. */
-	dh->dccph_type	   = DCCP_PKT_RESET;
-	dh->dccph_sport	   = rxdh->dccph_dport;
-	dh->dccph_dport	   = rxdh->dccph_sport;
-	dh->dccph_doff	   = dccp_hdr_reset_len / 4;
-	dh->dccph_x	   = 1;
-	dccp_hdr_reset(skb)->dccph_reset_code =
-				DCCP_SKB_CB(rxskb)->dccpd_reset_code;
-
-	/* See "8.3.1. Abnormal Termination" in RFC 4340 */
-	if (DCCP_SKB_CB(rxskb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
-		dccp_set_seqno(&seqno, DCCP_SKB_CB(rxskb)->dccpd_ack_seq + 1);
-
-	dccp_hdr_set_seq(dh, seqno);
-	dccp_hdr_set_ack(dccp_hdr_ack_bits(skb), DCCP_SKB_CB(rxskb)->dccpd_seq);
-
-	dccp_csum_outgoing(skb);
 	rxiph = ip_hdr(rxskb);
-	dh->dccph_checksum = dccp_v4_csum_finish(skb, rxiph->saddr,
-						 rxiph->daddr);
+	dccp_hdr(skb)->dccph_checksum = dccp_v4_csum_finish(skb, rxiph->saddr,
+								 rxiph->daddr);
+	skb->dst = dst_clone(dst);
 
 	bh_lock_sock(dccp_v4_ctl_socket->sk);
 	err = ip_build_and_send_pkt(skb, dccp_v4_ctl_socket->sk,
@@ -598,17 +568,14 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	struct dccp_request_sock *dreq;
 	const __be32 service = dccp_hdr_request(skb)->dccph_req_service;
 	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
-	__u8 reset_code = DCCP_RESET_CODE_TOO_BUSY;
 
 	/* Never answer to DCCP_PKT_REQUESTs send to broadcast or multicast */
 	if (((struct rtable *)skb->dst)->rt_flags &
-	    (RTCF_BROADCAST | RTCF_MULTICAST)) {
-		reset_code = DCCP_RESET_CODE_NO_CONNECTION;
-		goto drop;
-	}
+	    (RTCF_BROADCAST | RTCF_MULTICAST))
+		return 0;	/* discard, don't send a reset here */
 
 	if (dccp_bad_service_code(sk, service)) {
-		reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
+		dcb->dccpd_reset_code = DCCP_RESET_CODE_BAD_SERVICE_CODE;
 		goto drop;
 	}
 	/*
@@ -616,6 +583,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * limitations, they conserve resources and peer is
 	 * evidently real one.
 	 */
+	dcb->dccpd_reset_code = DCCP_RESET_CODE_TOO_BUSY;
 	if (inet_csk_reqsk_queue_is_full(sk))
 		goto drop;
 
@@ -668,7 +636,6 @@ drop_and_free:
 	reqsk_free(req);
 drop:
 	DCCP_INC_STATS_BH(DCCP_MIB_ATTEMPTFAILS);
-	dcb->dccpd_reset_code = reset_code;
 	return -1;
 }
 

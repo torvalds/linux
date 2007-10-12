@@ -12,17 +12,13 @@
 
 static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
-
-	iph->tot_len = htons(skb->len);
-	ip_send_check(iph);
-
+	skb_push(skb, -skb_network_offset(skb));
 	return 0;
 }
 
 static int ipip_xfrm_rcv(struct xfrm_state *x, struct sk_buff *skb)
 {
-	return 0;
+	return IPPROTO_IP;
 }
 
 static int ipip_init_state(struct xfrm_state *x)

@@ -319,22 +319,21 @@ struct ifconf32 {
 
 static int dev_ifname32(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
-	struct net_device *dev;
-	struct ifreq32 ifr32;
+	struct ifreq __user *uifr;
 	int err;
 
-	if (copy_from_user(&ifr32, compat_ptr(arg), sizeof(ifr32)))
+	uifr = compat_alloc_user_space(sizeof(struct ifreq));
+	if (copy_in_user(uifr, compat_ptr(arg), sizeof(struct ifreq32)));
 		return -EFAULT;
 
-	dev = dev_get_by_index(ifr32.ifr_ifindex);
-	if (!dev)
-		return -ENODEV;
+	err = sys_ioctl(fd, SIOCGIFNAME, (unsigned long)uifr);
+	if (err)
+		return err;
 
-	strlcpy(ifr32.ifr_name, dev->name, sizeof(ifr32.ifr_name));
-	dev_put(dev);
-	
-	err = copy_to_user(compat_ptr(arg), &ifr32, sizeof(ifr32));
-	return (err ? -EFAULT : 0);
+	if (copy_in_user(compat_ptr(arg), uifr, sizeof(struct ifreq32)))
+		return -EFAULT;
+
+	return 0;
 }
 
 static int dev_ifconf(unsigned int fd, unsigned int cmd, unsigned long arg)

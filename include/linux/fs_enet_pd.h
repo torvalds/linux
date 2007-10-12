@@ -16,6 +16,7 @@
 #ifndef FS_ENET_PD_H
 #define FS_ENET_PD_H
 
+#include <linux/string.h>
 #include <asm/types.h>
 
 #define FS_ENET_NAME	"fs_enet"
@@ -119,6 +120,7 @@ struct fs_platform_info {
 
 	u32 cp_page;		/* CPM page */
 	u32 cp_block;		/* CPM sblock */
+	u32 cp_command;		/* CPM page/sblock/mcn */
 
 	u32 clk_trx;		/* some stuff for pins & mux configuration*/
 	u32 clk_rx;
@@ -133,7 +135,11 @@ struct fs_platform_info {
 	u32 device_flags;
 
 	int phy_addr;		/* the phy address (-1 no phy) */
+#ifdef CONFIG_PPC_CPM_NEW_BINDING
+	char bus_id[16];
+#else
 	const char*	bus_id;
+#endif
 	int phy_irq;		/* the phy irq (if it exists)  */
 
 	const struct fs_mii_bus_info *bus_info;

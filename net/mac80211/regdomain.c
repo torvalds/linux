@@ -82,12 +82,6 @@ static void ieee80211_unmask_channel(int mode, struct ieee80211_channel *chan)
 
 	chan->flag = 0;
 
-	if (ieee80211_regdom == 64 &&
-	    (mode == MODE_ATHEROS_TURBO || mode == MODE_ATHEROS_TURBOG)) {
-		/* Do not allow Turbo modes in Japan. */
-		return;
-	}
-
 	for (i = 0; channel_range[i].start_freq; i++) {
 		const struct ieee80211_channel_range *r = &channel_range[i];
 		if (r->start_freq <= chan->freq && r->end_freq >= chan->freq) {

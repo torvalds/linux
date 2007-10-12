@@ -351,4 +351,19 @@ struct sdio_device_id {
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
+/* SSB core, see drivers/ssb/ */
+struct ssb_device_id {
+	__u16	vendor;
+	__u16	coreid;
+	__u8	revision;
+};
+#define SSB_DEVICE(_vendor, _coreid, _revision)  \
+	{ .vendor = _vendor, .coreid = _coreid, .revision = _revision, }
+#define SSB_DEVTABLE_END  \
+	{ 0, },
+
+#define SSB_ANY_VENDOR		0xFFFF
+#define SSB_ANY_ID		0xFFFF
+#define SSB_ANY_REV		0xFF
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

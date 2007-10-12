@@ -33,19 +33,20 @@
 #include <linux/ethtool.h>
 #include <linux/vmalloc.h>
 #include <linux/if_vlan.h>
+#include <linux/inet_lro.h>
 
 #include <asm/ibmebus.h>
 #include <asm/abs_addr.h>
 #include <asm/io.h>
 
 #define DRV_NAME	"ehea"
-#define DRV_VERSION	"EHEA_0074"
+#define DRV_VERSION	"EHEA_0078"
 
 /* eHEA capability flags */
 #define DLPAR_PORT_ADD_REM 1
 #define DLPAR_MEM_ADD      2
 #define DLPAR_MEM_REM      4
-#define EHEA_CAPABILITIES  (DLPAR_PORT_ADD_REM)
+#define EHEA_CAPABILITIES  (DLPAR_PORT_ADD_REM | DLPAR_MEM_ADD)
 
 #define EHEA_MSG_DEFAULT (NETIF_MSG_LINK | NETIF_MSG_TIMER \
 	| NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
@@ -58,6 +59,7 @@
 
 #define EHEA_SMALL_QUEUES
 #define EHEA_NUM_TX_QP 1
+#define EHEA_LRO_MAX_AGGR 64
 
 #ifdef EHEA_SMALL_QUEUES
 #define EHEA_MAX_CQE_COUNT      1023
@@ -83,6 +85,8 @@
 #define EHEA_MAX_PACKET_SIZE    9022	/* for jumbo frames */
 #define EHEA_RQ2_PKT_SIZE       1522
 #define EHEA_L_PKT_SIZE         256	/* low latency */
+
+#define MAX_LRO_DESCRIPTORS 8
 
 /* Send completion signaling */
 
@@ -351,6 +355,7 @@ struct ehea_q_skb_arr {
  * Port resources
  */
 struct ehea_port_res {
+	struct napi_struct napi;
 	struct port_stats p_stats;
 	struct ehea_mr send_mr;       	/* send memory region */
 	struct ehea_mr recv_mr;       	/* receive memory region */
@@ -362,7 +367,6 @@ struct ehea_port_res {
 	struct ehea_cq *send_cq;
 	struct ehea_cq *recv_cq;
 	struct ehea_eq *eq;
-	struct net_device *d_netdev;
 	struct ehea_q_skb_arr rq1_skba;
 	struct ehea_q_skb_arr rq2_skba;
 	struct ehea_q_skb_arr rq3_skba;
@@ -376,6 +380,8 @@ struct ehea_port_res {
 	u64 tx_packets;
 	u64 rx_packets;
 	u32 poll_counter;
+	struct net_lro_mgr lro_mgr;
+	struct net_lro_desc lro_desc[MAX_LRO_DESCRIPTORS];
 };
 
 
@@ -385,7 +391,6 @@ struct ehea_adapter {
 	struct ibmebus_dev *ebus_dev;
 	struct ehea_port *port[EHEA_MAX_PORTS];
 	struct ehea_eq *neq;       /* notification event queue */
-	struct workqueue_struct *ehea_wq;
 	struct tasklet_struct neq_tasklet;
 	struct ehea_mr mr;
 	u32 pd;                    /* protection domain */
@@ -429,6 +434,7 @@ struct ehea_port {
 	u32 msg_enable;
 	u32 sig_comp_iv;
 	u32 state;
+	u32 lro_max_aggr;
 	u8 phy_link;
 	u8 full_duplex;
 	u8 autoneg;

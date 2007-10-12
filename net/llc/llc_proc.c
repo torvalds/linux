@@ -17,6 +17,7 @@
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
 #include <linux/seq_file.h>
+#include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/llc.h>
 #include <net/llc_c_ac.h>
@@ -24,10 +25,10 @@
 #include <net/llc_c_st.h>
 #include <net/llc_conn.h>
 
-static void llc_ui_format_mac(struct seq_file *seq, unsigned char *mac)
+static void llc_ui_format_mac(struct seq_file *seq, u8 *addr)
 {
-	seq_printf(seq, "%02X:%02X:%02X:%02X:%02X:%02X",
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	DECLARE_MAC_BUF(mac);
+	seq_printf(seq, "%s", print_mac(mac, addr));
 }
 
 static struct sock *llc_get_sk_idx(loff_t pos)
@@ -127,8 +128,10 @@ static int llc_seq_socket_show(struct seq_file *seq, void *v)
 
 	if (llc->dev)
 		llc_ui_format_mac(seq, llc->dev->dev_addr);
-	else
-		seq_printf(seq, "00:00:00:00:00:00");
+	else {
+		u8 addr[6] = {0,0,0,0,0,0};
+		llc_ui_format_mac(seq, addr);
+	}
 	seq_printf(seq, "@%02X ", llc->sap->laddr.lsap);
 	llc_ui_format_mac(seq, llc->daddr.mac);
 	seq_printf(seq, "@%02X %8d %8d %2d %3d %4d\n", llc->daddr.lsap,
@@ -231,7 +234,7 @@ int __init llc_proc_init(void)
 	int rc = -ENOMEM;
 	struct proc_dir_entry *p;
 
-	llc_proc_dir = proc_mkdir("llc", proc_net);
+	llc_proc_dir = proc_mkdir("llc", init_net.proc_net);
 	if (!llc_proc_dir)
 		goto out;
 	llc_proc_dir->owner = THIS_MODULE;
@@ -254,7 +257,7 @@ out:
 out_core:
 	remove_proc_entry("socket", llc_proc_dir);
 out_socket:
-	remove_proc_entry("llc", proc_net);
+	remove_proc_entry("llc", init_net.proc_net);
 	goto out;
 }
 
@@ -262,5 +265,5 @@ void llc_proc_exit(void)
 {
 	remove_proc_entry("socket", llc_proc_dir);
 	remove_proc_entry("core", llc_proc_dir);
-	remove_proc_entry("llc", proc_net);
+	remove_proc_entry("llc", init_net.proc_net);
 }

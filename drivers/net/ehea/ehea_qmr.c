@@ -34,7 +34,6 @@
 
 struct ehea_busmap ehea_bmap = { 0, 0, NULL };
 extern u64 ehea_driver_flags;
-extern struct workqueue_struct *ehea_driver_wq;
 extern struct work_struct ehea_rereg_mr_task;
 
 
@@ -563,8 +562,7 @@ int ehea_destroy_qp(struct ehea_qp *qp)
 int ehea_create_busmap( void )
 {
 	u64 vaddr = EHEA_BUSMAP_START;
-	unsigned long abs_max_pfn = 0;
-	unsigned long sec_max_pfn;
+	unsigned long high_section_index = 0;
 	int i;
 
 	/*
@@ -574,14 +572,10 @@ int ehea_create_busmap( void )
 	ehea_bmap.valid_sections = 0;
 
 	for (i = 0; i < NR_MEM_SECTIONS; i++)
-		if (valid_section_nr(i)) {
-			sec_max_pfn = section_nr_to_pfn(i);
-			if (sec_max_pfn > abs_max_pfn)
-				abs_max_pfn = sec_max_pfn;
-			ehea_bmap.valid_sections++;
-		}
+		if (valid_section_nr(i))
+			high_section_index = i;
 
-	ehea_bmap.entries = abs_max_pfn / EHEA_PAGES_PER_SECTION + 1;
+	ehea_bmap.entries = high_section_index + 1;
 	ehea_bmap.vaddr = vmalloc(ehea_bmap.entries * sizeof(*ehea_bmap.vaddr));
 
 	if (!ehea_bmap.vaddr)
@@ -593,6 +587,7 @@ int ehea_create_busmap( void )
 		if (pfn_valid(pfn)) {
 			ehea_bmap.vaddr[i] = vaddr;
 			vaddr += EHEA_SECTSIZE;
+			ehea_bmap.valid_sections++;
 		} else
 			ehea_bmap.vaddr[i] = 0;
 	}
@@ -622,7 +617,7 @@ u64 ehea_map_vaddr(void *caddr)
 
 	if (unlikely(mapped_addr == -1))
 		if (!test_and_set_bit(__EHEA_STOP_XFER, &ehea_driver_flags))
-			queue_work(ehea_driver_wq, &ehea_rereg_mr_task);
+			schedule_work(&ehea_rereg_mr_task);
 
 	return mapped_addr;
 }
@@ -637,7 +632,7 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 
 	mr_len = ehea_bmap.valid_sections * EHEA_SECTSIZE;
 
-	pt =  kzalloc(EHEA_MAX_RPAGE * sizeof(u64), GFP_KERNEL);
+	pt =  kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!pt) {
 		ehea_error("no mem");
 		ret = -ENOMEM;
@@ -660,8 +655,8 @@ int ehea_reg_kernel_mr(struct ehea_adapter *adapter, struct ehea_mr *mr)
 			void *sectbase = __va(i << SECTION_SIZE_BITS);
 			unsigned long k = 0;
 
-			for (j = 0; j < (PAGES_PER_SECTION / EHEA_MAX_RPAGE);
-			      j++) {
+			for (j = 0; j < (EHEA_PAGES_PER_SECTION /
+					 EHEA_MAX_RPAGE); j++) {
 
 				for (m = 0; m < EHEA_MAX_RPAGE; m++) {
 					pg = sectbase + ((k++) * EHEA_PAGESIZE);

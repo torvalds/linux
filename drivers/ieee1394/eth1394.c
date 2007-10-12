@@ -159,14 +159,16 @@ MODULE_PARM_DESC(max_partial_datagrams,
 
 
 static int ether1394_header(struct sk_buff *skb, struct net_device *dev,
-			    unsigned short type, void *daddr, void *saddr,
-			    unsigned len);
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned len);
 static int ether1394_rebuild_header(struct sk_buff *skb);
-static int ether1394_header_parse(struct sk_buff *skb, unsigned char *haddr);
-static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh);
+static int ether1394_header_parse(const struct sk_buff *skb,
+				  unsigned char *haddr);
+static int ether1394_header_cache(const struct neighbour *neigh,
+				  struct hh_cache *hh);
 static void ether1394_header_cache_update(struct hh_cache *hh,
-					  struct net_device *dev,
-					  unsigned char *haddr);
+					  const struct net_device *dev,
+					  const unsigned char *haddr);
 static int ether1394_tx(struct sk_buff *skb, struct net_device *dev);
 static void ether1394_iso(struct hpsb_iso *iso);
 
@@ -506,6 +508,14 @@ static void ether1394_reset_priv(struct net_device *dev, int set_mtu)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
+static const struct header_ops ether1394_header_ops = {
+	.create		= ether1394_header,
+	.rebuild	= ether1394_rebuild_header,
+	.cache  	= ether1394_header_cache,
+	.cache_update	= ether1394_header_cache_update,
+	.parse		= ether1394_header_parse,
+};
+
 static void ether1394_init_dev(struct net_device *dev)
 {
 	dev->open		= ether1394_open;
@@ -515,11 +525,7 @@ static void ether1394_init_dev(struct net_device *dev)
 	dev->tx_timeout		= ether1394_tx_timeout;
 	dev->change_mtu		= ether1394_change_mtu;
 
-	dev->hard_header	= ether1394_header;
-	dev->rebuild_header	= ether1394_rebuild_header;
-	dev->hard_header_cache	= ether1394_header_cache;
-	dev->header_cache_update= ether1394_header_cache_update;
-	dev->hard_header_parse	= ether1394_header_parse;
+	dev->header_ops		= &ether1394_header_ops;
 
 	SET_ETHTOOL_OPS(dev, &ethtool_ops);
 
@@ -598,7 +604,6 @@ static void ether1394_add_host(struct hpsb_host *host)
 		goto out;
 	}
 
-	SET_MODULE_OWNER(dev);
 	SET_NETDEV_DEV(dev, &host->device);
 
 	priv = netdev_priv(dev);
@@ -711,8 +716,8 @@ static void ether1394_host_reset(struct hpsb_host *host)
  * saddr=NULL means use device source address
  * daddr=NULL means leave destination address (eg unresolved arp). */
 static int ether1394_header(struct sk_buff *skb, struct net_device *dev,
-			    unsigned short type, void *daddr, void *saddr,
-			    unsigned len)
+			    unsigned short type, const void *daddr,
+			    const void *saddr, unsigned len)
 {
 	struct eth1394hdr *eth =
 			(struct eth1394hdr *)skb_push(skb, ETH1394_HLEN);
@@ -752,15 +757,15 @@ static int ether1394_rebuild_header(struct sk_buff *skb)
 	return 0;
 }
 
-static int ether1394_header_parse(struct sk_buff *skb, unsigned char *haddr)
+static int ether1394_header_parse(const struct sk_buff *skb,
+				  unsigned char *haddr)
 {
-	struct net_device *dev = skb->dev;
-
-	memcpy(haddr, dev->dev_addr, ETH1394_ALEN);
+	memcpy(haddr, skb->dev->dev_addr, ETH1394_ALEN);
 	return ETH1394_ALEN;
 }
 
-static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh)
+static int ether1394_header_cache(const struct neighbour *neigh,
+				  struct hh_cache *hh)
 {
 	unsigned short type = hh->hh_type;
 	struct net_device *dev = neigh->dev;
@@ -779,8 +784,8 @@ static int ether1394_header_cache(struct neighbour *neigh, struct hh_cache *hh)
 
 /* Called by Address Resolution module to notify changes in address. */
 static void ether1394_header_cache_update(struct hh_cache *hh,
-					  struct net_device *dev,
-					  unsigned char * haddr)
+					  const struct net_device *dev,
+					  const unsigned char * haddr)
 {
 	memcpy((u8 *)hh->hh_data + 16 - ETH1394_HLEN, haddr, dev->addr_len);
 }
@@ -900,8 +905,8 @@ static u16 ether1394_parse_encap(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	/* Now add the ethernet header. */
-	if (dev->hard_header(skb, dev, ntohs(ether_type), &dest_hw, NULL,
-			     skb->len) >= 0)
+	if (dev_hard_header(skb, dev, ntohs(ether_type), &dest_hw, NULL,
+			    skb->len) >= 0)
 		ret = ether1394_type_trans(skb, dev);
 
 	return ret;

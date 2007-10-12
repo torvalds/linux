@@ -819,7 +819,6 @@ struct rr_private
 	u32			tx_full;
 	u32			fw_rev;
 	volatile short		fw_running;
-	struct net_device_stats stats;
 	struct pci_dev		*pci_dev;
 };
 
@@ -834,7 +833,6 @@ static irqreturn_t rr_interrupt(int irq, void *dev_id);
 static int rr_open(struct net_device *dev);
 static int rr_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static int rr_close(struct net_device *dev);
-static struct net_device_stats *rr_get_stats(struct net_device *dev);
 static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static unsigned int rr_read_eeprom(struct rr_private *rrpriv,
 				   unsigned long offset,

@@ -27,6 +27,8 @@
 
 #define MAX_LINKS 32		
 
+struct net;
+
 struct sockaddr_nl
 {
 	sa_family_t	nl_family;	/* AF_NETLINK	*/
@@ -129,6 +131,20 @@ struct nlattr
 	__u16           nla_type;
 };
 
+/*
+ * nla_type (16 bits)
+ * +---+---+-------------------------------+
+ * | N | O | Attribute Type                |
+ * +---+---+-------------------------------+
+ * N := Carries nested attributes
+ * O := Payload stored in network byte order
+ *
+ * Note: The N and O flag are mutually exclusive.
+ */
+#define NLA_F_NESTED		(1 << 15)
+#define NLA_F_NET_BYTEORDER	(1 << 14)
+#define NLA_TYPE_MASK		~(NLA_F_NESTED | NLA_F_NET_BYTEORDER)
+
 #define NLA_ALIGNTO		4
 #define NLA_ALIGN(len)		(((len) + NLA_ALIGNTO - 1) & ~(NLA_ALIGNTO - 1))
 #define NLA_HDRLEN		((int) NLA_ALIGN(sizeof(struct nlattr)))
@@ -157,8 +173,9 @@ struct netlink_skb_parms
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
-extern struct sock *netlink_kernel_create(int unit, unsigned int groups,
-					  void (*input)(struct sock *sk, int len),
+extern struct sock *netlink_kernel_create(struct net *net,
+					  int unit,unsigned int groups,
+					  void (*input)(struct sk_buff *skb),
 					  struct mutex *cb_mutex,
 					  struct module *module);
 extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
@@ -177,7 +194,7 @@ struct sock *netlink_getsockbyfilp(struct file *filp);
 int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock,
 		long timeo, struct sock *ssk);
 void netlink_detachskb(struct sock *sk, struct sk_buff *skb);
-int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol);
+int netlink_sendskb(struct sock *sk, struct sk_buff *skb);
 
 /*
  *	skb should fit one page. This choice is good for headerless malloc.
@@ -206,6 +223,7 @@ struct netlink_callback
 
 struct netlink_notify
 {
+	struct net *net;
 	int pid;
 	int protocol;
 };

@@ -374,6 +374,7 @@ struct macb {
 	struct clk		*pclk;
 	struct clk		*hclk;
 	struct net_device	*dev;
+	struct napi_struct	napi;
 	struct net_device_stats	stats;
 	struct macb_stats	hw_stats;
 

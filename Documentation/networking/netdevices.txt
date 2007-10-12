@@ -73,7 +73,8 @@ dev->hard_start_xmit:
 	has to lock by itself when needed. It is recommended to use a try lock
 	for this and return NETDEV_TX_LOCKED when the spin lock fails.
 	The locking there should also properly protect against 
-	set_multicast_list.
+	set_multicast_list. Note that the use of NETIF_F_LLTX is deprecated.
+	Dont use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
 	         will be called with interrupts disabled by netconsole.
@@ -95,9 +96,13 @@ dev->set_multicast_list:
 	Synchronization: netif_tx_lock spinlock.
 	Context: BHs disabled
 
-dev->poll:
-	Synchronization: __LINK_STATE_RX_SCHED bit in dev->state.  See
-		dev_close code and comments in net/core/dev.c for more info.
+struct napi_struct synchronization rules
+========================================
+napi->poll:
+	Synchronization: NAPI_STATE_SCHED bit in napi->state.  Device
+		driver's dev->close method will invoke napi_disable() on
+		all NAPI instances which will do a sleeping poll on the
+		NAPI_STATE_SCHED napi->state bit, waiting for all pending
+		NAPI activity to cease.
 	Context: softirq
 	         will be called with interrupts disabled by netconsole.
-

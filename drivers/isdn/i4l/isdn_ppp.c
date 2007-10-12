@@ -360,7 +360,7 @@ isdn_ppp_release(int min, struct file *file)
 		 * isdn_ppp_free() sets is->lp to NULL and lp->ppp_slot to -1
 		 * removing the IPPP_CONNECT flag omits calling of isdn_ppp_wakeup_daemon()
 		 */
-		isdn_net_hangup(&p->dev);
+		isdn_net_hangup(p->dev);
 	}
 	for (i = 0; i < NUM_RCV_BUFFS; i++) {
 		kfree(is->rq[i].buf);
@@ -531,7 +531,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 				if (lp) {
 					/* OK .. we are ready to send buffers */
 					is->pppcfg = val; /* isdn_ppp_xmit test for SC_ENABLE_IP !!! */
-					netif_wake_queue(&lp->netdev->dev);
+					netif_wake_queue(lp->netdev->dev);
 					break;
 				}
 			}
@@ -1023,7 +1023,7 @@ void isdn_ppp_receive(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buf
 static void
 isdn_ppp_push_higher(isdn_net_dev * net_dev, isdn_net_local * lp, struct sk_buff *skb, int proto)
 {
-	struct net_device *dev = &net_dev->dev;
+	struct net_device *dev = net_dev->dev;
  	struct ippp_struct *is, *mis;
 	isdn_net_local *mlp = NULL;
 	int slot;

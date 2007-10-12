@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <net/rtnetlink.h>
+#include <net/net_namespace.h>
 #include "br_private.h"
 
 static inline size_t br_nlmsg_size(void)
@@ -110,7 +111,7 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	int idx;
 
 	idx = 0;
-	for_each_netdev(dev) {
+	for_each_netdev(&init_net, dev) {
 		/* not a bridge port */
 		if (dev->br_port == NULL || idx < cb->args[0])
 			goto skip;
@@ -155,7 +156,7 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	if (new_state > BR_STATE_BLOCKING)
 		return -EINVAL;
 
-	dev = __dev_get_by_index(ifm->ifi_index);
+	dev = __dev_get_by_index(&init_net, ifm->ifi_index);
 	if (!dev)
 		return -ENODEV;
 

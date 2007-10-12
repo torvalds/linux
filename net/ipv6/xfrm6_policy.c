@@ -375,7 +375,7 @@ static void xfrm6_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 	xdst = (struct xfrm_dst *)dst;
 	if (xdst->u.rt6.rt6i_idev->dev == dev) {
-		struct inet6_dev *loopback_idev = in6_dev_get(&loopback_dev);
+		struct inet6_dev *loopback_idev = in6_dev_get(init_net.loopback_dev);
 		BUG_ON(!loopback_idev);
 
 		do {
