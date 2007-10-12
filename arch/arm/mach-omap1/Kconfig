@@ -84,11 +84,39 @@ config MACH_OMAP_PALMTE
 	bool "Palm Tungsten E"
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
 	help
-          Support for the Palm Tungsten E PDA. Currently only the LCD panel
-          is supported. To boot the kernel, you'll need a PalmOS compatible
-          bootloader; check out http://palmtelinux.sourceforge.net for more
-          information.
-          Say Y here if you have such a PDA, say NO otherwise.
+	  Support for the Palm Tungsten E PDA.  To boot the kernel, you'll
+	  need a PalmOS compatible bootloader; check out
+	  http://palmtelinux.sourceforge.net/ for more information.
+	  Say Y here if you have this PDA model, say N otherwise.
+
+config MACH_OMAP_PALMZ71
+	bool "Palm Zire71"
+	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	help
+	 Support for the Palm Zire71 PDA. To boot the kernel,
+	 you'll need a PalmOS compatible bootloader; check out
+	 http://hackndev.com/palm/z71 for more informations.
+	 Say Y here if you have such a PDA, say N otherwise.
+
+config MACH_OMAP_PALMTT
+	bool "Palm Tungsten|T"
+	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	help
+	  Support for the Palm Tungsten|T PDA. To boot the kernel, you'll
+	  need a PalmOS compatible bootloader (Garux); check out
+	  http://www.hackndev.com/palm/tt/ for more information.
+	  Say Y here if you have this PDA model, say N otherwise.
+
+config MACH_SX1
+	bool "Siemens SX1"
+	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	help
+	  Support for the Siemens SX1 phone. To boot the kernel,
+	  you'll need a SX1 compatible bootloader; check out
+	  http://forum.oslik.ru and
+	  http://www.handhelds.org/moin/moin.cgi/SiemensSX1
+	  for more information.
+	  Say Y here if you have such a phone, say NO otherwise.
 
 config MACH_NOKIA770
 	bool "Nokia 770"

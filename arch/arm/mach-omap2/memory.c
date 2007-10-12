@@ -30,6 +30,7 @@
 #include "prcm-regs.h"
 #include "memory.h"
 
+
 static struct memory_timings mem_timings;
 
 u32 omap2_memory_get_slow_dll_ctrl(void)
@@ -98,4 +99,21 @@ void omap2_init_memory_params(u32 force_lock_to_unlock_mode)
 
 	/* 90 degree phase for anything below 133Mhz + disable DLL filter */
 	mem_timings.slow_dll_ctrl |= ((1 << 1) | (3 << 8));
+}
+
+/* turn on smart idle modes for SDRAM scheduler and controller */
+void __init omap2_init_memory(void)
+{
+	u32 l;
+
+	l = SMS_SYSCONFIG;
+	l &= ~(0x3 << 3);
+	l |= (0x2 << 3);
+	SMS_SYSCONFIG = l;
+
+	l = SDRC_SYSCONFIG;
+	l &= ~(0x3 << 3);
+	l |= (0x2 << 3);
+	SDRC_SYSCONFIG = l;
+
 }
