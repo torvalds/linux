@@ -74,19 +74,20 @@ enum cmb_index {
  * enum cmb_format - types of supported measurement block formats
  *
  * @CMF_BASIC:      traditional channel measurement blocks supported
- * 		    by all machines that we run on
+ *		    by all machines that we run on
  * @CMF_EXTENDED:   improved format that was introduced with the z990
- * 		    machine
- * @CMF_AUTODETECT: default: use extended format when running on a z990
- *                  or later machine, otherwise fall back to basic format
- **/
+ *		    machine
+ * @CMF_AUTODETECT: default: use extended format when running on a machine
+ *		    supporting extended format, otherwise fall back to
+ *		    basic format
+ */
 enum cmb_format {
 	CMF_BASIC,
 	CMF_EXTENDED,
 	CMF_AUTODETECT = -1,
 };
 
-/**
+/*
  * format - actual format for all measurement blocks
  *
  * The format module parameter can be set to a value of 0 (zero)
@@ -107,6 +108,7 @@ module_param(format, bool, 0444);
  *		either with the help of a special pool or with kmalloc
  * @free:	free memory allocated with @alloc
  * @set:	enable or disable measurement
+ * @read:	read a measurement entry at an index
  * @readall:	read a measurement block in a common format
  * @reset:	clear the data in the associated measurement block and
  *		reset its time stamp
@@ -120,7 +122,7 @@ struct cmb_operations {
 	int  (*readall)(struct ccw_device *, struct cmbdata *);
 	void (*reset)  (struct ccw_device *);
 	void *(*align) (void *);
-
+/* private: */
 	struct attribute_group *attr_group;
 };
 static struct cmb_operations *cmbops;
@@ -471,6 +473,7 @@ static void cmf_generic_reset(struct ccw_device *cdev)
  *
  * @mem:	pointer to CMBs (only in basic measurement mode)
  * @list:	contains a linked list of all subchannels
+ * @num_channels: number of channels to be measured
  * @lock:	protect concurrent access to @mem and @list
  */
 struct cmb_area {
@@ -503,10 +506,20 @@ module_param_named(maxchannels, cmb_area.num_channels, uint, 0444);
 
 /**
  * struct cmb - basic channel measurement block
+ * @ssch_rsch_count: number of ssch and rsch
+ * @sample_count: number of samples
+ * @device_connect_time: time of device connect
+ * @function_pending_time: time of function pending
+ * @device_disconnect_time: time of device disconnect
+ * @control_unit_queuing_time: time of control unit queuing
+ * @device_active_only_time: time of device active only
+ * @reserved: unused in basic measurement mode
  *
- * cmb as used by the hardware the fields are described in z/Architecture
- * Principles of Operation, chapter 17.
- * The area to be a contiguous array and may not be reallocated or freed.
+ * The measurement block as used by the hardware. The fields are described
+ * further in z/Architecture Principles of Operation, chapter 17.
+ *
+ * The cmb area made up from these blocks must be a contiguous array and may
+ * not be reallocated or freed.
  * Only one cmb area can be present in the system.
  */
 struct cmb {
@@ -804,9 +817,20 @@ static struct cmb_operations cmbops_basic = {
 
 /**
  * struct cmbe - extended channel measurement block
+ * @ssch_rsch_count: number of ssch and rsch
+ * @sample_count: number of samples
+ * @device_connect_time: time of device connect
+ * @function_pending_time: time of function pending
+ * @device_disconnect_time: time of device disconnect
+ * @control_unit_queuing_time: time of control unit queuing
+ * @device_active_only_time: time of device active only
+ * @device_busy_time: time of device busy
+ * @initial_command_response_time: initial command response time
+ * @reserved: unused
  *
- * cmb as used by the hardware, may be in any 64 bit physical location,
- * the fields are described in z/Architecture Principles of Operation,
+ * The measurement block as used by the hardware. May be in any 64 bit physical
+ * location.
+ * The fields are described further in z/Architecture Principles of Operation,
  * third edition, chapter 17.
  */
 struct cmbe {
@@ -1218,7 +1242,15 @@ static ssize_t cmb_enable_store(struct device *dev,
 
 DEVICE_ATTR(cmb_enable, 0644, cmb_enable_show, cmb_enable_store);
 
-/* enable_cmf/disable_cmf: module interface for cmf (de)activation */
+/**
+ * enable_cmf() - switch on the channel measurement for a specific device
+ *  @cdev:	The ccw device to be enabled
+ *
+ *  Returns %0 for success or a negative error value.
+ *
+ *  Context:
+ *    non-atomic
+ */
 int enable_cmf(struct ccw_device *cdev)
 {
 	int ret;
@@ -1240,6 +1272,15 @@ int enable_cmf(struct ccw_device *cdev)
 	return ret;
 }
 
+/**
+ * disable_cmf() - switch off the channel measurement for a specific device
+ *  @cdev:	The ccw device to be disabled
+ *
+ *  Returns %0 for success or a negative error value.
+ *
+ *  Context:
+ *    non-atomic
+ */
 int disable_cmf(struct ccw_device *cdev)
 {
 	int ret;
@@ -1252,11 +1293,31 @@ int disable_cmf(struct ccw_device *cdev)
 	return ret;
 }
 
+/**
+ * cmf_read() - read one value from the current channel measurement block
+ * @cdev:	the channel to be read
+ * @index:	the index of the value to be read
+ *
+ * Returns the value read or %0 if the value cannot be read.
+ *
+ *  Context:
+ *    any
+ */
 u64 cmf_read(struct ccw_device *cdev, int index)
 {
 	return cmbops->read(cdev, index);
 }
 
+/**
+ * cmf_readall() - read the current channel measurement block
+ * @cdev:	the channel to be read
+ * @data:	a pointer to a data block that will be filled
+ *
+ * Returns %0 on success, a negative error value otherwise.
+ *
+ *  Context:
+ *    any
+ */
 int cmf_readall(struct ccw_device *cdev, struct cmbdata *data)
 {
 	return cmbops->readall(cdev, data);

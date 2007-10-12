@@ -1,29 +1,29 @@
 #ifndef S390_CMB_H
 #define S390_CMB_H
 /**
- * struct cmbdata -- channel measurement block data for user space
+ * struct cmbdata - channel measurement block data for user space
+ * @size: size of the stored data
+ * @elapsed_time: time since last sampling
+ * @ssch_rsch_count: number of ssch and rsch
+ * @sample_count: number of samples
+ * @device_connect_time: time of device connect
+ * @function_pending_time: time of function pending
+ * @device_disconnect_time: time of device disconnect
+ * @control_unit_queuing_time: time of control unit queuing
+ * @device_active_only_time: time of device active only
+ * @device_busy_time: time of device busy (ext. format)
+ * @initial_command_response_time: initial command response time (ext. format)
  *
- * @size:	size of the stored data
- * @ssch_rsch_count: XXX
- * @sample_count:
- * @device_connect_time:
- * @function_pending_time:
- * @device_disconnect_time:
- * @control_unit_queuing_time:
- * @device_active_only_time:
- * @device_busy_time:
- * @initial_command_response_time:
- *
- * all values are stored as 64 bit for simplicity, especially
+ * All values are stored as 64 bit for simplicity, especially
  * in 32 bit emulation mode. All time values are normalized to
  * nanoseconds.
  * Currently, two formats are known, which differ by the size of
  * this structure, i.e. the last two members are only set when
  * the extended channel measurement facility (first shipped in
  * z990 machines) is activated.
- * Potentially, more fields could be added, which results in a
+ * Potentially, more fields could be added, which would result in a
  * new ioctl number.
- **/
+ */
 struct cmbdata {
 	__u64 size;
 	__u64 elapsed_time;
@@ -49,44 +49,9 @@ struct cmbdata {
 
 #ifdef __KERNEL__
 struct ccw_device;
-/**
- * enable_cmf() - switch on the channel measurement for a specific device
- *  @cdev:	The ccw device to be enabled
- *  returns 0 for success or a negative error value.
- *
- *  Context:
- *    non-atomic
- **/
 extern int enable_cmf(struct ccw_device *cdev);
-
-/**
- * disable_cmf() - switch off the channel measurement for a specific device
- *  @cdev:	The ccw device to be disabled
- *  returns 0 for success or a negative error value.
- *
- *  Context:
- *    non-atomic
- **/
 extern int disable_cmf(struct ccw_device *cdev);
-
-/**
- * cmf_read() - read one value from the current channel measurement block
- * @cmf:	the channel to be read
- * @index:	the name of the value that is read
- *
- *  Context:
- *    any
- **/
-
 extern u64 cmf_read(struct ccw_device *cdev, int index);
-/**
- * cmf_readall() - read one value from the current channel measurement block
- * @cmf:	the channel to be read
- * @data:	a pointer to a data block that will be filled
- *
- *  Context:
- *    any
- **/
 extern int cmf_readall(struct ccw_device *cdev, struct cmbdata *data);
 
 #endif /* __KERNEL__ */
