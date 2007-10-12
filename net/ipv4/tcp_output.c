@@ -1914,6 +1914,8 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 				printk(KERN_DEBUG "retrans_out leaked.\n");
 		}
 #endif
+		if (!tp->retrans_out)
+			tp->lost_retrans_low = tp->snd_nxt;
 		TCP_SKB_CB(skb)->sacked |= TCPCB_RETRANS;
 		tp->retrans_out += tcp_skb_pcount(skb);
 

@@ -348,6 +348,8 @@ struct tcp_sock {
 	int     lost_cnt_hint;
 	int     retransmit_cnt_hint;
 
+	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
+
 	u16	advmss;		/* Advertised MSS			*/
 	u16	prior_ssthresh; /* ssthresh saved at recovery start	*/
 	u32	lost_out;	/* Lost packets			*/

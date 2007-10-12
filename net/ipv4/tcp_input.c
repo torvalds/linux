@@ -1112,7 +1112,8 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
  *
  * Search retransmitted skbs from write_queue that were sent when snd_nxt was
  * less than what is now known to be received by the other end (derived from
- * SACK blocks by the caller).
+ * SACK blocks by the caller). Also calculate the lowest snd_nxt among the
+ * remaining retransmitted skbs to avoid some costly processing per ACKs.
  */
 static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 {
@@ -1120,6 +1121,7 @@ static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 	struct sk_buff *skb;
 	int flag = 0;
 	int cnt = 0;
+	u32 new_low_seq = 0;
 
 	tcp_for_write_queue(skb, sk) {
 		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
@@ -1151,9 +1153,15 @@ static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
 				NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 			}
 		} else {
+			if (!new_low_seq || before(ack_seq, new_low_seq))
+				new_low_seq = ack_seq;
 			cnt += tcp_skb_pcount(skb);
 		}
 	}
+
+	if (tp->retrans_out)
+		tp->lost_retrans_low = new_low_seq;
+
 	return flag;
 }
 
@@ -1481,8 +1489,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		}
 	}
 
-	if (tp->retrans_out && highest_sack_end_seq &&
-	    after(highest_sack_end_seq, tp->high_seq) &&
+	if (tp->retrans_out &&
+	    after(highest_sack_end_seq, tp->lost_retrans_low) &&
 	    icsk->icsk_ca_state == TCP_CA_Recovery)
 		flag |= tcp_mark_lost_retrans(sk, highest_sack_end_seq);
 
