@@ -857,25 +857,12 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 
 static void setup_APIC_timer(void)
 {
-	unsigned long flags;
-	int irqen;
+	struct clock_event_device *levt = &__get_cpu_var(lapic_events);
 
-	local_irq_save(flags);
+	memcpy(levt, &lapic_clockevent, sizeof(*levt));
+	levt->cpumask = cpumask_of_cpu(smp_processor_id());
 
-	irqen = ! cpu_isset(smp_processor_id(),
-			    timer_interrupt_broadcast_ipi_mask);
-	__setup_APIC_LVTT(calibration_result, 0, irqen);
-	/* Turn off PIT interrupt if we use APIC timer as main timer.
-	   Only works with the PM timer right now
-	   TBD fix it for HPET too. */
-	if ((pmtmr_ioport != 0) &&
-		smp_processor_id() == boot_cpu_id &&
-		apic_runs_main_timer == 1 &&
-		!cpu_isset(boot_cpu_id, timer_interrupt_broadcast_ipi_mask)) {
-		stop_timer_interrupt();
-		apic_runs_main_timer++;
-	}
-	local_irq_restore(flags);
+	clockevents_register_device(levt);
 }
 
 /*
@@ -950,18 +937,34 @@ static void __init calibrate_APIC_clock(void)
 
 void __init setup_boot_APIC_clock (void)
 {
+	/*
+	 * The local apic timer can be disabled via the kernel commandline.
+	 * Register the lapic timer as a dummy clock event source on SMP
+	 * systems, so the broadcast mechanism is used. On UP systems simply
+	 * ignore it.
+	 */
 	if (disable_apic_timer) {
 		printk(KERN_INFO "Disabling APIC timer\n");
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
 		return;
 	}
 
 	printk(KERN_INFO "Using local APIC timer interrupts.\n");
-	using_apic_timer = 1;
-
 	calibrate_APIC_clock();
+
 	/*
-	 * Now set up the timer for real.
+	 * If nmi_watchdog is set to IO_APIC, we need the
+	 * PIT/HPET going.  Otherwise register lapic as a dummy
+	 * device.
 	 */
+	if (nmi_watchdog != NMI_IO_APIC)
+		lapic_clockevent.features &= ~CLOCK_EVT_FEAT_DUMMY;
+	else
+		printk(KERN_WARNING "APIC timer registered as dummy,"
+		       " due to nmi_watchdog=1!\n");
+
 	setup_APIC_timer();
 }
 
@@ -1073,22 +1076,34 @@ void setup_APIC_extended_lvt(unsigned char lvt_off, unsigned char vector,
 
 void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING);
-#ifdef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-	if (apic_runs_main_timer > 1 && smp_processor_id() == boot_cpu_id)
-		main_timer_handler();
+	int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
+
 	/*
-	 * We take the 'long' return path, and there every subsystem
-	 * grabs the appropriate locks (kernel lock/ irq lock).
+	 * Normally we should not be here till LAPIC has been initialized but
+	 * in some cases like kdump, its possible that there is a pending LAPIC
+	 * timer interrupt from previous kernel's context and is delivered in
+	 * new kernel the moment interrupts are enabled.
 	 *
-	 * We might want to decouple profiling from the 'long path',
-	 * and do the profiling totally in assembly.
-	 *
-	 * Currently this isn't too much of an issue (performance wise),
-	 * we can take more than 100K local irqs per second on a 100 MHz P5.
+	 * Interrupts are enabled early and LAPIC is setup much later, hence
+	 * its possible that when we get here evt->event_handler is NULL.
+	 * Check for event_handler being NULL and discard the interrupt as
+	 * spurious.
 	 */
+	if (!evt->event_handler) {
+		printk(KERN_WARNING
+		       "Spurious LAPIC timer interrupt on cpu %d\n", cpu);
+		/* Switch it off */
+		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, evt);
+		return;
+	}
+
+	/*
+	 * the NMI deadlock-detector uses this.
+	 */
+	add_pda(apic_timer_irqs, 1);
+
+	evt->event_handler(evt);
 }
 
 /*
@@ -1102,11 +1117,6 @@ void smp_local_timer_interrupt(void)
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	/*
-	 * the NMI deadlock-detector uses this.
-	 */
-	add_pda(apic_timer_irqs, 1);
 
 	/*
 	 * NOTE! We'd better ACK the irq immediately,
@@ -1291,7 +1301,7 @@ static __init int setup_noapictimer(char *str)
 static __init int setup_apicmaintimer(char *str)
 {
 	apic_runs_main_timer = 1;
-	nohpet = 1;
+
 	return 1;
 }
 __setup("apicmaintimer", setup_apicmaintimer);
@@ -1307,7 +1317,7 @@ static __init int setup_apicpmtimer(char *s)
 {
 	apic_calibrate_pmtmr = 1;
 	notsc_setup(NULL);
-	return setup_apicmaintimer(NULL);
+	return 0;
 }
 __setup("apicpmtimer", setup_apicpmtimer);
 

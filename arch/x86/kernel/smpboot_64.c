@@ -223,8 +223,6 @@ void __cpuinit smp_callin(void)
 	local_irq_disable();
 	Dprintk("Stack at about %p\n",&cpuid);
 
-	disable_APIC_timer();
-
 	/*
 	 * Save our processor parameters
 	 */
@@ -347,8 +345,6 @@ void __cpuinit start_secondary(void)
 		enable_NMI_through_LVT0(NULL);
 		enable_8259A_irq(0);
 	}
-
-	enable_APIC_timer();
 
 	/*
 	 * The sibling maps must be set before turing the online map on for

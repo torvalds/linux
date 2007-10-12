@@ -444,46 +444,6 @@ void __init init_ISA_irqs (void)
 	}
 }
 
-static void setup_timer_hardware(void)
-{
-	outb_p(0x34,0x43);		/* binary, mode 2, LSB/MSB, ch 0 */
-	udelay(10);
-	outb_p(LATCH & 0xff , 0x40);	/* LSB */
-	udelay(10);
-	outb(LATCH >> 8 , 0x40);	/* MSB */
-}
-
-static int timer_resume(struct sys_device *dev)
-{
-	setup_timer_hardware();
-	return 0;
-}
-
-void i8254_timer_resume(void)
-{
-	setup_timer_hardware();
-}
-
-static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer_pit"),
-	.resume		= timer_resume,
-};
-
-static struct sys_device device_timer = {
-	.id		= 0,
-	.cls		= &timer_sysclass,
-};
-
-static int __init init_timer_sysfs(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(init_timer_sysfs);
-
 void __init init_IRQ(void)
 {
 	int i;
@@ -532,12 +492,6 @@ void __init init_IRQ(void)
 	/* IPI vectors for APIC spurious and error interrupts */
 	set_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
 	set_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
-
-	/*
-	 * Set the clock to HZ Hz, we already have a valid
-	 * vector now:
-	 */
-	setup_timer_hardware();
 
 	if (!acpi_ioapic)
 		setup_irq(2, &irq2);
