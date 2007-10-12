@@ -479,6 +479,9 @@ struct dir_notify_req {
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 #define   CIFSSEC_MAY_LANMAN	0x00010
 #define   CIFSSEC_MAY_PLNTXT	0x00020
+#else
+#define   CIFSSEC_MAY_LANMAN    0
+#define   CIFSSEC_MAY_PLNTXT    0
 #endif /* weak passwords */
 #define   CIFSSEC_MAY_SEAL	0x00040 /* not supported yet */
 
