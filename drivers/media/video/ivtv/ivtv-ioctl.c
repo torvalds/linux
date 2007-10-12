@@ -555,6 +555,7 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 
 	/* set window size */
 	if (fmt->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		struct cx2341x_mpeg_params *p = &itv->params;
 		int w = fmt->fmt.pix.width;
 		int h = fmt->fmt.pix.height;
 
@@ -566,17 +567,19 @@ static int ivtv_try_or_set_fmt(struct ivtv *itv, int streamtype,
 		fmt->fmt.pix.width = w;
 		fmt->fmt.pix.height = h;
 
-		if (!set_fmt || (itv->params.width == w && itv->params.height == h))
+		if (!set_fmt || (p->width == w && p->height == h))
 			return 0;
 		if (atomic_read(&itv->capturing) > 0)
 			return -EBUSY;
 
-		itv->params.width = w;
-		itv->params.height = h;
+		p->width = w;
+		p->height = h;
 		if (w != 720 || h != (itv->is_50hz ? 576 : 480))
-			itv->params.video_temporal_filter = 0;
+			p->video_temporal_filter = 0;
 		else
-			itv->params.video_temporal_filter = 8;
+			p->video_temporal_filter = 8;
+		if (p->video_encoding == V4L2_MPEG_VIDEO_ENCODING_MPEG_1)
+			fmt->fmt.pix.width /= 2;
 		itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
 		return ivtv_get_fmt(itv, streamtype, fmt);
 	}
