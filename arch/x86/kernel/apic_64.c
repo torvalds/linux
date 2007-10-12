@@ -41,9 +41,8 @@
 #include <asm/apic.h>
 
 int apic_verbosity;
-int apic_calibrate_pmtmr __initdata;
-
 int disable_apic_timer __cpuinitdata;
+static int apic_calibrate_pmtmr __initdata;
 
 /* Local APIC timer works in C2? */
 int local_apic_timer_c2_ok;
@@ -247,7 +246,10 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 	apic_write(APIC_SPIV, value);
 
 	if (!virt_wire_setup) {
-		/* For LVT0 make it edge triggered, active high, external and enabled */
+		/*
+		 * For LVT0 make it edge triggered, active high,
+		 * external and enabled
+		 */
 		value = apic_read(APIC_LVT0);
 		value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
@@ -483,10 +485,12 @@ void __cpuinit setup_local_APIC (void)
 	value = apic_read(APIC_LVT0) & APIC_LVT_MASKED;
 	if (!smp_processor_id() && !value) {
 		value = APIC_DM_EXTINT;
-		apic_printk(APIC_VERBOSE, "enabled ExtINT on CPU#%d\n", smp_processor_id());
+		apic_printk(APIC_VERBOSE, "enabled ExtINT on CPU#%d\n",
+			    smp_processor_id());
 	} else {
 		value = APIC_DM_EXTINT | APIC_LVT_MASKED;
-		apic_printk(APIC_VERBOSE, "masked ExtINT on CPU#%d\n", smp_processor_id());
+		apic_printk(APIC_VERBOSE, "masked ExtINT on CPU#%d\n",
+			    smp_processor_id());
 	}
 	apic_write(APIC_LVT0, value);
 
@@ -793,12 +797,14 @@ void __init init_apic_mappings(void)
 			if (smp_found_config) {
 				ioapic_phys = mp_ioapics[i].mpc_apicaddr;
 			} else {
-				ioapic_phys = (unsigned long) alloc_bootmem_pages(PAGE_SIZE);
+				ioapic_phys = (unsigned long)
+					alloc_bootmem_pages(PAGE_SIZE);
 				ioapic_phys = __pa(ioapic_phys);
 			}
 			set_fixmap_nocache(idx, ioapic_phys);
-			apic_printk(APIC_VERBOSE,"mapped IOAPIC to %016lx (%016lx)\n",
-					__fix_to_virt(idx), ioapic_phys);
+			apic_printk(APIC_VERBOSE,
+				    "mapped IOAPIC to %016lx (%016lx)\n",
+				    __fix_to_virt(idx), ioapic_phys);
 			idx++;
 
 			if (ioapic_res != NULL) {
