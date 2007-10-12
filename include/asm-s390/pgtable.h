@@ -107,11 +107,18 @@ extern char empty_zero_page[PAGE_SIZE];
  * any out-of-bounds memory accesses will hopefully be caught.
  * The vmalloc() routines leaves a hole of 4kB between each vmalloced
  * area for the same reason. ;)
+ * vmalloc area starts at 4GB to prevent syscall table entry exchanging
+ * from modules.
  */
 extern unsigned long vmalloc_end;
-#define VMALLOC_OFFSET  (8*1024*1024)
-#define VMALLOC_START   (((unsigned long) high_memory + VMALLOC_OFFSET) \
-			 & ~(VMALLOC_OFFSET-1))
+
+#ifdef CONFIG_64BIT
+#define VMALLOC_ADDR	(max(0x100000000UL, (unsigned long) high_memory))
+#else
+#define VMALLOC_ADDR	((unsigned long) high_memory)
+#endif
+#define VMALLOC_OFFSET	(8*1024*1024)
+#define VMALLOC_START	((VMALLOC_ADDR + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
 #define VMALLOC_END	vmalloc_end
 
 /*
