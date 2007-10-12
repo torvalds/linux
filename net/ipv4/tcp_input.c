@@ -1181,6 +1181,38 @@ static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
 	return dup_sack;
 }
 
+/* Check if skb is fully within the SACK block. In presence of GSO skbs,
+ * the incoming SACK may not exactly match but we can find smaller MSS
+ * aligned portion of it that matches. Therefore we might need to fragment
+ * which may fail and creates some hassle (caller must handle error case
+ * returns).
+ */
+int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
+			  u32 start_seq, u32 end_seq)
+{
+	int in_sack, err;
+	unsigned int pkt_len;
+
+	in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
+		  !before(end_seq, TCP_SKB_CB(skb)->end_seq);
+
+	if (tcp_skb_pcount(skb) > 1 && !in_sack &&
+	    after(TCP_SKB_CB(skb)->end_seq, start_seq)) {
+
+		in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq);
+
+		if (!in_sack)
+			pkt_len = start_seq - TCP_SKB_CB(skb)->seq;
+		else
+			pkt_len = end_seq - TCP_SKB_CB(skb)->seq;
+		err = tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->gso_size);
+		if (err < 0)
+			return err;
+	}
+
+	return in_sack;
+}
+
 static int
 tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_una)
 {
@@ -1333,25 +1365,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (!before(TCP_SKB_CB(skb)->seq, end_seq))
 				break;
 
-			in_sack = !after(start_seq, TCP_SKB_CB(skb)->seq) &&
-				!before(end_seq, TCP_SKB_CB(skb)->end_seq);
-
-			if (tcp_skb_pcount(skb) > 1 && !in_sack &&
-			    after(TCP_SKB_CB(skb)->end_seq, start_seq)) {
-				unsigned int pkt_len;
-
-				in_sack = !after(start_seq,
-						 TCP_SKB_CB(skb)->seq);
-
-				if (!in_sack)
-					pkt_len = (start_seq -
-						   TCP_SKB_CB(skb)->seq);
-				else
-					pkt_len = (end_seq -
-						   TCP_SKB_CB(skb)->seq);
-				if (tcp_fragment(sk, skb, pkt_len, skb_shinfo(skb)->gso_size))
-					break;
-			}
+			in_sack = tcp_match_skb_to_sack(sk, skb, start_seq, end_seq);
+			if (in_sack < 0)
+				break;
 
 			fack_count += tcp_skb_pcount(skb);
 
