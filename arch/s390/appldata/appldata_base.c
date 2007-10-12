@@ -547,8 +547,7 @@ static void __cpuinit appldata_online_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static void
-appldata_offline_cpu(int cpu)
+static void __cpuexit appldata_offline_cpu(int cpu)
 {
 	del_virt_timer(&per_cpu(appldata_timer, cpu));
 	if (atomic_dec_and_test(&appldata_expire_count)) {
@@ -560,9 +559,9 @@ appldata_offline_cpu(int cpu)
 	spin_unlock(&appldata_timer_lock);
 }
 
-static int __cpuinit
-appldata_cpu_notify(struct notifier_block *self,
-		    unsigned long action, void *hcpu)
+static int __cpuinit appldata_cpu_notify(struct notifier_block *self,
+					 unsigned long action,
+					 void *hcpu)
 {
 	switch (action) {
 	case CPU_ONLINE:
@@ -645,6 +644,8 @@ static void __exit appldata_exit(void)
 		}
 	}
 	spin_unlock(&appldata_ops_lock);
+
+	unregister_hotcpu_notifier(&appldata_nb);
 
 	for_each_online_cpu(i)
 		appldata_offline_cpu(i);
