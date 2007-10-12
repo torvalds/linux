@@ -430,15 +430,15 @@ do_ivec:
 	membar		#Sync
 
 	sethi		%hi(ivector_table), %g2
-	sllx		%g3, 3, %g3
+	sllx		%g3, 4, %g3
 	or		%g2, %lo(ivector_table), %g2
 	add		%g2, %g3, %g3
 
 	TRAP_LOAD_IRQ_WORK(%g6, %g1)
 
-	lduw		[%g6], %g5		/* g5 = irq_work(cpu) */
-	stw		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
-	stw		%g3, [%g6]		/* irq_work(cpu) = bucket */
+	ldx		[%g6], %g5		/* g5 = irq_work(cpu) */
+	stx		%g5, [%g3 + 0x00]	/* bucket->irq_chain = g5 */
+	stx		%g3, [%g6]		/* irq_work(cpu) = bucket */
 	wr		%g0, 1 << PIL_DEVICE_IRQ, %set_softint
 	retry
 do_ivec_xcall:

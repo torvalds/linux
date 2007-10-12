@@ -59,23 +59,20 @@
  * of the vectored interrupt trap handler(s) in entry.S and sun4v_ivec.S
  */
 struct ino_bucket {
-	/* Next handler in per-CPU IRQ worklist.  We know that
-	 * bucket pointers have the high 32-bits clear, so to
-	 * save space we only store the bits we need.
-	 */
-/*0x00*/unsigned int irq_chain;
+/*0x00*/unsigned long irq_chain;
 
 	/* Virtual interrupt number assigned to this INO.  */
-/*0x04*/unsigned int virt_irq;
+/*0x08*/unsigned int virt_irq;
+/*0x0c*/unsigned int __pad;
 };
 
 #define NUM_IVECS	(IMAP_INR + 1)
 struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BYTES)));
 
 #define __irq_ino(irq) \
-        (((struct ino_bucket *)(unsigned long)(irq)) - &ivector_table[0])
-#define __bucket(irq) ((struct ino_bucket *)(unsigned long)(irq))
-#define __irq(bucket) ((unsigned int)(unsigned long)(bucket))
+        (((struct ino_bucket *)(irq)) - &ivector_table[0])
+#define __bucket(irq) ((struct ino_bucket *)(irq))
+#define __irq(bucket) ((unsigned long)(bucket))
 
 /* This has to be in the main kernel image, it cannot be
  * turned into per-cpu data.  The reason is that the main
@@ -87,13 +84,13 @@ struct ino_bucket ivector_table[NUM_IVECS] __attribute__ ((aligned (SMP_CACHE_BY
 #define irq_work(__cpu)	&(trap_block[(__cpu)].irq_worklist)
 
 static struct {
-	unsigned int irq;
+	unsigned long irq;
 	unsigned int dev_handle;
 	unsigned int dev_ino;
 } virt_to_real_irq_table[NR_IRQS];
 static DEFINE_SPINLOCK(virt_irq_alloc_lock);
 
-unsigned char virt_irq_alloc(unsigned int real_irq)
+unsigned char virt_irq_alloc(unsigned long real_irq)
 {
 	unsigned long flags;
 	unsigned char ent;
@@ -134,7 +131,7 @@ void virt_irq_free(unsigned int virt_irq)
 }
 #endif
 
-static unsigned int virt_to_real_irq(unsigned char virt_irq)
+static unsigned long virt_to_real_irq(unsigned char virt_irq)
 {
 	return virt_to_real_irq_table[virt_irq].irq;
 }
@@ -227,7 +224,7 @@ struct irq_handler_data {
 
 static inline struct ino_bucket *virt_irq_to_bucket(unsigned int virt_irq)
 {
-	unsigned int real_irq = virt_to_real_irq(virt_irq);
+	unsigned long real_irq = virt_to_real_irq(virt_irq);
 	struct ino_bucket *bucket = NULL;
 
 	if (likely(real_irq))
@@ -694,18 +691,28 @@ void handler_irq(int irq, struct pt_regs *regs)
 {
 	struct ino_bucket *bucket;
 	struct pt_regs *old_regs;
+	unsigned long pstate;
 
 	clear_softint(1 << irq);
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 
-	/* Sliiiick... */
-	bucket = __bucket(xchg32(irq_work(smp_processor_id()), 0));
+	/* Grab an atomic snapshot of the pending IVECs.  */
+	__asm__ __volatile__("rdpr	%%pstate, %0\n\t"
+			     "wrpr	%0, %3, %%pstate\n\t"
+			     "ldx	[%2], %1\n\t"
+			     "stx	%%g0, [%2]\n\t"
+			     "wrpr	%0, 0x0, %%pstate\n\t"
+			     : "=&r" (pstate), "=&r" (bucket)
+			     : "r" (irq_work(smp_processor_id())),
+			       "i" (PSTATE_IE)
+			     : "memory");
+
 	while (bucket) {
 		struct ino_bucket *next = __bucket(bucket->irq_chain);
 
-		bucket->irq_chain = 0;
+		bucket->irq_chain = 0UL;
 		__do_IRQ(bucket->virt_irq);
 
 		bucket = next;
@@ -808,7 +815,7 @@ void init_irqwork_curcpu(void)
 {
 	int cpu = hard_smp_processor_id();
 
-	trap_block[cpu].irq_worklist = 0;
+	trap_block[cpu].irq_worklist = 0UL;
 }
 
 /* Please be very careful with register_one_mondo() and

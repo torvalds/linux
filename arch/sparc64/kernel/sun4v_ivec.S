@@ -101,14 +101,14 @@ sun4v_dev_mondo:
 
 	/* Get &ivector_table[IVEC] into %g4.  */
 	sethi	%hi(ivector_table), %g4
-	sllx	%g3, 3, %g3
+	sllx	%g3, 4, %g3
 	or	%g4, %lo(ivector_table), %g4
 	add	%g4, %g3, %g4
 
 	/* Insert ivector_table[] entry into __irq_work[] queue.  */
-	lduw	[%g1], %g2		/* g2 = irq_work(cpu) */
-	stw	%g2, [%g4 + 0x00]	/* bucket->irq_chain = g2 */
-	stw	%g4, [%g1]		/* irq_work(cpu) = bucket */
+	ldx	[%g1], %g2		/* g2 = irq_work(cpu) */
+	stx	%g2, [%g4 + 0x00]	/* bucket->irq_chain = g2 */
+	stx	%g4, [%g1]		/* irq_work(cpu) = bucket */
 
 	/* Signal the interrupt by setting (1 << pil) in %softint.  */
 	wr	%g0, 1 << PIL_DEVICE_IRQ, %set_softint
