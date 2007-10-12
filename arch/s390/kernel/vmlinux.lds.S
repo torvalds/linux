@@ -2,6 +2,7 @@
  * Written by Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 #ifndef CONFIG_64BIT
@@ -35,10 +36,10 @@ SECTIONS
 	RODATA
 
 #ifdef CONFIG_SHARED_KERNEL
-	. = ALIGN(1048576);	/* VM shared segments are 1MB aligned */
+	. = ALIGN(0x100000);	/* VM shared segments are 1MB aligned */
 #endif
 
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	_eshared = .;		/* End of shareable data */
 
 	. = ALIGN(16);		/* Exception table */
@@ -56,37 +57,37 @@ SECTIONS
 		CONSTRUCTORS
 	}
 
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	.data_nosave : {
 	__nosave_begin = .;
 		*(.data.nosave)
 	}
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	__nosave_end = .;
 
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	.data.page_aligned : {
 		*(.data.idt)
 	}
 
-	. = ALIGN(256);
+	. = ALIGN(0x100);
 	.data.cacheline_aligned : {
 		*(.data.cacheline_aligned)
 	}
 
-	. = ALIGN(256);
+	. = ALIGN(0x100);
 	.data.read_mostly : {
 		*(.data.read_mostly)
 	}
 	_edata = .;		/* End of data section */
 
-	. = ALIGN(8192);	/* init_task */
+	. = ALIGN(2 * PAGE_SIZE);	/* init_task */
 	.data.init_task : {
 		*(.data.init_task)
 	}
 
 	/* will be freed after init */
-	. = ALIGN(4096);	/* Init code and data */
+	. = ALIGN(PAGE_SIZE);	/* Init code and data */
 	__init_begin = .;
 	.init.text : {
 		_sinittext = .;
@@ -104,7 +105,7 @@ SECTIONS
 	.init.data : {
 		*(.init.data)
 	}
-	. = ALIGN(256);
+	. = ALIGN(0x100);
 	.init.setup : {
 		__setup_start = .;
 		*(.init.setup)
@@ -124,7 +125,7 @@ SECTIONS
 	SECURITY_INIT
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	. = ALIGN(256);
+	. = ALIGN(0x100);
 	.init.ramfs : {
 		__initramfs_start = .;
 		*(.init.ramfs)
@@ -133,8 +134,8 @@ SECTIONS
 	}
 #endif
 
-	PERCPU(4096)
-	. = ALIGN(4096);
+	PERCPU(PAGE_SIZE)
+	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
 
 	/* BSS */
