@@ -652,6 +652,7 @@ static struct tuner_params tuner_microtune_4049_fm5_params[] = {
 		.port1_invert_for_secam_lc = 1,
 		.default_pll_gating_18 = 1,
 		.fm_gain_normal=1,
+		.radio_if = 1, /* 33.3 MHz */
 	},
 };
 
@@ -670,6 +671,9 @@ static struct tuner_params tuner_panasonic_vp27_params[] = {
 		.count  = ARRAY_SIZE(tuner_panasonic_vp27_ntsc_ranges),
 		.has_tda9887 = 1,
 		.intercarrier_mode = 1,
+		.default_top_low = -3,
+		.default_top_mid = -3,
+		.default_top_high = -3,
 	},
 };
 
@@ -730,6 +734,7 @@ static struct tuner_params tuner_philips_fm1256_ih3_params[] = {
 		.type   = TUNER_PARAM_TYPE_PAL,
 		.ranges = tuner_fm1236_mk3_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_fm1236_mk3_ntsc_ranges),
+		.radio_if = 1, /* 33.3 MHz */
 	},
 };
 
@@ -856,6 +861,9 @@ static struct tuner_params tuner_thomson_dtt761x_params[] = {
 		.type   = TUNER_PARAM_TYPE_NTSC,
 		.ranges = tuner_thomson_dtt761x_ntsc_ranges,
 		.count  = ARRAY_SIZE(tuner_thomson_dtt761x_ntsc_ranges),
+		.has_tda9887 = 1,
+		.fm_gain_normal = 1,
+		.radio_if = 2, /* 41.3 MHz */
 	},
 };
 

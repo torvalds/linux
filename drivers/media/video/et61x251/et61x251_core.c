@@ -22,7 +22,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/param.h>
-#include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/device.h>
@@ -707,7 +706,8 @@ static u8 et61x251_strtou8(const char* buff, size_t len, ssize_t* count)
    NOTE 2: buffers are PAGE_SIZE long
 */
 
-static ssize_t et61x251_show_reg(struct class_device* cd, char* buf)
+static ssize_t et61x251_show_reg(struct device* cd,
+				 struct device_attribute *attr, char* buf)
 {
 	struct et61x251_device* cam;
 	ssize_t count;
@@ -730,7 +730,8 @@ static ssize_t et61x251_show_reg(struct class_device* cd, char* buf)
 
 
 static ssize_t
-et61x251_store_reg(struct class_device* cd, const char* buf, size_t len)
+et61x251_store_reg(struct device* cd,
+		   struct device_attribute *attr, const char* buf, size_t len)
 {
 	struct et61x251_device* cam;
 	u8 index;
@@ -762,7 +763,8 @@ et61x251_store_reg(struct class_device* cd, const char* buf, size_t len)
 }
 
 
-static ssize_t et61x251_show_val(struct class_device* cd, char* buf)
+static ssize_t et61x251_show_val(struct device* cd,
+				 struct device_attribute *attr, char* buf)
 {
 	struct et61x251_device* cam;
 	ssize_t count;
@@ -793,7 +795,8 @@ static ssize_t et61x251_show_val(struct class_device* cd, char* buf)
 
 
 static ssize_t
-et61x251_store_val(struct class_device* cd, const char* buf, size_t len)
+et61x251_store_val(struct device* cd, struct device_attribute *attr,
+		   const char* buf, size_t len)
 {
 	struct et61x251_device* cam;
 	u8 value;
@@ -831,7 +834,8 @@ et61x251_store_val(struct class_device* cd, const char* buf, size_t len)
 }
 
 
-static ssize_t et61x251_show_i2c_reg(struct class_device* cd, char* buf)
+static ssize_t et61x251_show_i2c_reg(struct device* cd,
+				     struct device_attribute *attr, char* buf)
 {
 	struct et61x251_device* cam;
 	ssize_t count;
@@ -856,7 +860,8 @@ static ssize_t et61x251_show_i2c_reg(struct class_device* cd, char* buf)
 
 
 static ssize_t
-et61x251_store_i2c_reg(struct class_device* cd, const char* buf, size_t len)
+et61x251_store_i2c_reg(struct device* cd, struct device_attribute *attr,
+		       const char* buf, size_t len)
 {
 	struct et61x251_device* cam;
 	u8 index;
@@ -888,7 +893,8 @@ et61x251_store_i2c_reg(struct class_device* cd, const char* buf, size_t len)
 }
 
 
-static ssize_t et61x251_show_i2c_val(struct class_device* cd, char* buf)
+static ssize_t et61x251_show_i2c_val(struct device* cd,
+				     struct device_attribute *attr, char* buf)
 {
 	struct et61x251_device* cam;
 	ssize_t count;
@@ -924,7 +930,8 @@ static ssize_t et61x251_show_i2c_val(struct class_device* cd, char* buf)
 
 
 static ssize_t
-et61x251_store_i2c_val(struct class_device* cd, const char* buf, size_t len)
+et61x251_store_i2c_val(struct device* cd, struct device_attribute *attr,
+		       const char* buf, size_t len)
 {
 	struct et61x251_device* cam;
 	u8 value;
@@ -967,42 +974,40 @@ et61x251_store_i2c_val(struct class_device* cd, const char* buf, size_t len)
 }
 
 
-static CLASS_DEVICE_ATTR(reg, S_IRUGO | S_IWUSR,
-			 et61x251_show_reg, et61x251_store_reg);
-static CLASS_DEVICE_ATTR(val, S_IRUGO | S_IWUSR,
-			 et61x251_show_val, et61x251_store_val);
-static CLASS_DEVICE_ATTR(i2c_reg, S_IRUGO | S_IWUSR,
-			 et61x251_show_i2c_reg, et61x251_store_i2c_reg);
-static CLASS_DEVICE_ATTR(i2c_val, S_IRUGO | S_IWUSR,
-			 et61x251_show_i2c_val, et61x251_store_i2c_val);
+static DEVICE_ATTR(reg, S_IRUGO | S_IWUSR,
+		   et61x251_show_reg, et61x251_store_reg);
+static DEVICE_ATTR(val, S_IRUGO | S_IWUSR,
+		   et61x251_show_val, et61x251_store_val);
+static DEVICE_ATTR(i2c_reg, S_IRUGO | S_IWUSR,
+		   et61x251_show_i2c_reg, et61x251_store_i2c_reg);
+static DEVICE_ATTR(i2c_val, S_IRUGO | S_IWUSR,
+		   et61x251_show_i2c_val, et61x251_store_i2c_val);
 
 
 static int et61x251_create_sysfs(struct et61x251_device* cam)
 {
-	struct class_device *classdev = &(cam->v4ldev->class_dev);
+	struct device *classdev = &(cam->v4ldev->class_dev);
 	int err = 0;
 
-	if ((err = class_device_create_file(classdev, &class_device_attr_reg)))
+	if ((err = device_create_file(classdev, &dev_attr_reg)))
 		goto err_out;
-	if ((err = class_device_create_file(classdev, &class_device_attr_val)))
+	if ((err = device_create_file(classdev, &dev_attr_val)))
 		goto err_reg;
 
 	if (cam->sensor.sysfs_ops) {
-		if ((err = class_device_create_file(classdev,
-						  &class_device_attr_i2c_reg)))
+		if ((err = device_create_file(classdev, &dev_attr_i2c_reg)))
 			goto err_val;
-		if ((err = class_device_create_file(classdev,
-						  &class_device_attr_i2c_val)))
+		if ((err = device_create_file(classdev, &dev_attr_i2c_val)))
 			goto err_i2c_reg;
 	}
 
 err_i2c_reg:
 	if (cam->sensor.sysfs_ops)
-		class_device_remove_file(classdev, &class_device_attr_i2c_reg);
+		device_remove_file(classdev, &dev_attr_i2c_reg);
 err_val:
-	class_device_remove_file(classdev, &class_device_attr_val);
+	device_remove_file(classdev, &dev_attr_val);
 err_reg:
-	class_device_remove_file(classdev, &class_device_attr_reg);
+	device_remove_file(classdev, &dev_attr_reg);
 err_out:
 	return err;
 }

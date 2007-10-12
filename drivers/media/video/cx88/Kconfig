@@ -4,7 +4,7 @@ config VIDEO_CX88
 	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_BTCX
-	select VIDEO_BUF
+	select VIDEOBUF_DMA_SG
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
@@ -46,7 +46,7 @@ config VIDEO_CX88_BLACKBIRD
 config VIDEO_CX88_DVB
 	tristate "DVB/ATSC Support for cx2388x based TV cards"
 	depends on VIDEO_CX88 && DVB_CORE
-	select VIDEO_BUF_DVB
+	select VIDEOBUF_DVB
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE

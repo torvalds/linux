@@ -20,9 +20,7 @@
  */
 
 #include "ivtv-driver.h"
-#include "ivtv-streams.h"
 #include "ivtv-queue.h"
-#include "ivtv-mailbox.h"
 
 int ivtv_buf_copy_from_user(struct ivtv_stream *s, struct ivtv_buffer *buf, const char __user *src, int copybytes)
 {
@@ -60,6 +58,7 @@ void ivtv_enqueue(struct ivtv_stream *s, struct ivtv_buffer *buf, struct ivtv_qu
 		buf->bytesused = 0;
 		buf->readpos = 0;
 		buf->b_flags = 0;
+		buf->dma_xfer_cnt = 0;
 	}
 	spin_lock_irqsave(&s->qlock, flags);
 	list_add_tail(&buf->list, &q->list);
@@ -87,7 +86,7 @@ struct ivtv_buffer *ivtv_dequeue(struct ivtv_stream *s, struct ivtv_queue *q)
 }
 
 static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
-		struct ivtv_queue *to, int clear, int full)
+		struct ivtv_queue *to, int clear)
 {
 	struct ivtv_buffer *buf = list_entry(from->list.next, struct ivtv_buffer, list);
 
@@ -97,13 +96,7 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
 	from->bytesused -= buf->bytesused - buf->readpos;
 	/* special handling for q_free */
 	if (clear)
-		buf->bytesused = buf->readpos = buf->b_flags = 0;
-	else if (full) {
-		/* special handling for stolen buffers, assume
-		   all bytes are used. */
-		buf->bytesused = s->buf_size;
-		buf->readpos = buf->b_flags = 0;
-	}
+		buf->bytesused = buf->readpos = buf->b_flags = buf->dma_xfer_cnt = 0;
 	to->buffers++;
 	to->length += s->buf_size;
 	to->bytesused += buf->bytesused - buf->readpos;
@@ -112,7 +105,7 @@ static void ivtv_queue_move_buf(struct ivtv_stream *s, struct ivtv_queue *from,
 /* Move 'needed_bytes' worth of buffers from queue 'from' into queue 'to'.
    If 'needed_bytes' == 0, then move all buffers from 'from' into 'to'.
    If 'steal' != NULL, then buffers may also taken from that queue if
-   needed.
+   needed, but only if 'from' is the free queue.
 
    The buffer is automatically cleared if it goes to the free queue. It is
    also cleared if buffers need to be taken from the 'steal' queue and
@@ -133,7 +126,7 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 	int rc = 0;
 	int from_free = from == &s->q_free;
 	int to_free = to == &s->q_free;
-	int bytes_available;
+	int bytes_available, bytes_steal;
 
 	spin_lock_irqsave(&s->qlock, flags);
 	if (needed_bytes == 0) {
@@ -142,32 +135,47 @@ int ivtv_queue_move(struct ivtv_stream *s, struct ivtv_queue *from, struct ivtv_
 	}
 
 	bytes_available = from_free ? from->length : from->bytesused;
-	bytes_available += steal ? steal->length : 0;
+	bytes_steal = (from_free && steal) ? steal->length : 0;
 
-	if (bytes_available < needed_bytes) {
+	if (bytes_available + bytes_steal < needed_bytes) {
 		spin_unlock_irqrestore(&s->qlock, flags);
 		return -ENOMEM;
+	}
+	while (bytes_available < needed_bytes) {
+		struct ivtv_buffer *buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
+		u16 dma_xfer_cnt = buf->dma_xfer_cnt;
+
+		/* move buffers from the tail of the 'steal' queue to the tail of the
+		   'from' queue. Always copy all the buffers with the same dma_xfer_cnt
+		   value, this ensures that you do not end up with partial frame data
+		   if one frame is stored in multiple buffers. */
+		while (dma_xfer_cnt == buf->dma_xfer_cnt) {
+			list_move_tail(steal->list.prev, &from->list);
+			rc++;
+			steal->buffers--;
+			steal->length -= s->buf_size;
+			steal->bytesused -= buf->bytesused - buf->readpos;
+			buf->bytesused = buf->readpos = buf->b_flags = buf->dma_xfer_cnt = 0;
+			from->buffers++;
+			from->length += s->buf_size;
+			bytes_available += s->buf_size;
+			if (list_empty(&steal->list))
+				break;
+			buf = list_entry(steal->list.prev, struct ivtv_buffer, list);
+		}
 	}
 	if (from_free) {
 		u32 old_length = to->length;
 
 		while (to->length - old_length < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 		/* keep track of 'stolen' buffers */
-			ivtv_queue_move_buf(s, from, to, 1, 0);
+			ivtv_queue_move_buf(s, from, to, 1);
 		}
 	}
 	else {
 		u32 old_bytesused = to->bytesused;
 
 		while (to->bytesused - old_bytesused < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 		/* keep track of 'stolen' buffers */
-			ivtv_queue_move_buf(s, from, to, to_free, rc);
+			ivtv_queue_move_buf(s, from, to, to_free);
 		}
 	}
 	spin_unlock_irqrestore(&s->qlock, flags);
@@ -185,7 +193,7 @@ void ivtv_flush_queues(struct ivtv_stream *s)
 int ivtv_stream_alloc(struct ivtv_stream *s)
 {
 	struct ivtv *itv = s->itv;
-	int SGsize = sizeof(struct ivtv_SG_element) * s->buffers;
+	int SGsize = sizeof(struct ivtv_sg_element) * s->buffers;
 	int i;
 
 	if (s->buffers == 0)
@@ -195,27 +203,33 @@ int ivtv_stream_alloc(struct ivtv_stream *s)
 		s->dma != PCI_DMA_NONE ? "DMA " : "",
 		s->name, s->buffers, s->buf_size, s->buffers * s->buf_size / 1024);
 
-	if (ivtv_might_use_pio(s)) {
-		s->PIOarray = (struct ivtv_SG_element *)kzalloc(SGsize, GFP_KERNEL);
-		if (s->PIOarray == NULL) {
-			IVTV_ERR("Could not allocate PIOarray for %s stream\n", s->name);
-			return -ENOMEM;
-		}
-	}
-
-	/* Allocate DMA SG Arrays */
-	s->SGarray = (struct ivtv_SG_element *)kzalloc(SGsize, GFP_KERNEL);
-	if (s->SGarray == NULL) {
-		IVTV_ERR("Could not allocate SGarray for %s stream\n", s->name);
-		if (ivtv_might_use_pio(s)) {
-			kfree(s->PIOarray);
-			s->PIOarray = NULL;
-		}
+	s->sg_pending = kzalloc(SGsize, GFP_KERNEL);
+	if (s->sg_pending == NULL) {
+		IVTV_ERR("Could not allocate sg_pending for %s stream\n", s->name);
 		return -ENOMEM;
 	}
-	s->SG_length = 0;
+	s->sg_pending_size = 0;
+
+	s->sg_processing = kzalloc(SGsize, GFP_KERNEL);
+	if (s->sg_processing == NULL) {
+		IVTV_ERR("Could not allocate sg_processing for %s stream\n", s->name);
+		kfree(s->sg_pending);
+		s->sg_pending = NULL;
+		return -ENOMEM;
+	}
+	s->sg_processing_size = 0;
+
+	s->sg_dma = kzalloc(sizeof(struct ivtv_sg_element), GFP_KERNEL);
+	if (s->sg_dma == NULL) {
+		IVTV_ERR("Could not allocate sg_dma for %s stream\n", s->name);
+		kfree(s->sg_pending);
+		s->sg_pending = NULL;
+		kfree(s->sg_processing);
+		s->sg_processing = NULL;
+		return -ENOMEM;
+	}
 	if (ivtv_might_use_dma(s)) {
-		s->SG_handle = pci_map_single(itv->dev, s->SGarray, SGsize, s->dma);
+		s->sg_handle = pci_map_single(itv->dev, s->sg_dma, sizeof(struct ivtv_sg_element), s->dma);
 		ivtv_stream_sync_for_cpu(s);
 	}
 
@@ -262,16 +276,19 @@ void ivtv_stream_free(struct ivtv_stream *s)
 	}
 
 	/* Free SG Array/Lists */
-	if (s->SGarray != NULL) {
-		if (s->SG_handle != IVTV_DMA_UNMAPPED) {
-			pci_unmap_single(s->itv->dev, s->SG_handle,
-				 sizeof(struct ivtv_SG_element) * s->buffers, PCI_DMA_TODEVICE);
-			s->SG_handle = IVTV_DMA_UNMAPPED;
+	if (s->sg_dma != NULL) {
+		if (s->sg_handle != IVTV_DMA_UNMAPPED) {
+			pci_unmap_single(s->itv->dev, s->sg_handle,
+				 sizeof(struct ivtv_sg_element), PCI_DMA_TODEVICE);
+			s->sg_handle = IVTV_DMA_UNMAPPED;
 		}
-		kfree(s->SGarray);
-		kfree(s->PIOarray);
-		s->PIOarray = NULL;
-		s->SGarray = NULL;
-		s->SG_length = 0;
+		kfree(s->sg_pending);
+		kfree(s->sg_processing);
+		kfree(s->sg_dma);
+		s->sg_pending = NULL;
+		s->sg_processing = NULL;
+		s->sg_dma = NULL;
+		s->sg_pending_size = 0;
+		s->sg_processing_size = 0;
 	}
 }

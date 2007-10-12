@@ -24,7 +24,7 @@ MODULE_PARM_DESC(disable_rc_polling, "disable remote control polling (default: 0
 
 static int dvb_usb_force_pid_filter_usage;
 module_param_named(force_pid_filter_usage, dvb_usb_force_pid_filter_usage, int, 0444);
-MODULE_PARM_DESC(disable_rc_polling, "force all dvb-usb-devices to use a PID filter, if any (default: 0).");
+MODULE_PARM_DESC(force_pid_filter_usage, "force all dvb-usb-devices to use a PID filter, if any (default: 0).");
 
 static int dvb_usb_adapter_init(struct dvb_usb_device *d)
 {

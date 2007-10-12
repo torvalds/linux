@@ -1,14 +1,12 @@
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/types.h>
-#include <linux/videodev.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-
+#include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include "tuner-driver.h"
@@ -31,6 +29,8 @@
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
 struct tda9887_priv {
+	struct tuner_i2c_props i2c_props;
+
 	unsigned char 	   data[4];
 };
 
@@ -97,6 +97,8 @@ struct tvnorm {
 #define cAudioIF_6_5             0x03    // bit e0:1
 
 
+#define cVideoIFMask		0x1c	// bit e2:4
+/* Video IF selection in TV Mode (bit B3=0) */
 #define cVideoIF_58_75           0x00    // bit e2:4
 #define cVideoIF_45_75           0x04    // bit e2:4
 #define cVideoIF_38_90           0x08    // bit e2:4
@@ -106,6 +108,13 @@ struct tvnorm {
 #define cRadioIF_45_75           0x18    // bit e2:4
 #define cRadioIF_38_90           0x1C    // bit e2:4
 
+/* IF1 selection in Radio Mode (bit B3=1) */
+#define cRadioIF_33_30		0x00	// bit e2,4 (also 0x10,0x14)
+#define cRadioIF_41_30		0x04	// bit e2,4
+
+/* Output of AFC pin in radio mode when bit E7=1 */
+#define cRadioAGC_SIF		0x00	// bit e3
+#define cRadioAGC_FM		0x08	// bit e3
 
 #define cTunerGainNormal         0x00    // bit e5
 #define cTunerGainLow            0x20    // bit e5
@@ -487,9 +496,13 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 	if (t->tda9887_config & TDA9887_GATING_18)
 		buf[3] &= ~cGating_36;
 
-	if (t->tda9887_config & TDA9887_GAIN_NORMAL) {
-		radio_stereo.e &= ~cTunerGainLow;
-		radio_mono.e &= ~cTunerGainLow;
+	if (t->mode == V4L2_TUNER_RADIO) {
+		if (t->tda9887_config & TDA9887_RIF_41_3) {
+			buf[3] &= ~cVideoIFMask;
+			buf[3] |= cRadioIF_41_30;
+		}
+		if (t->tda9887_config & TDA9887_GAIN_NORMAL)
+			buf[3] &= ~cTunerGainLow;
 	}
 
 	return 0;
@@ -499,19 +512,19 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 
 static int tda9887_status(struct tuner *t)
 {
+	struct tda9887_priv *priv = t->priv;
 	unsigned char buf[1];
 	int rc;
 
 	memset(buf,0,sizeof(buf));
-	if (1 != (rc = i2c_master_recv(&t->i2c,buf,1)))
+	if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,buf,1)))
 		tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
 	dump_read_message(t, buf);
 	return 0;
 }
 
-static void tda9887_configure(struct i2c_client *client)
+static void tda9887_configure(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(client);
 	struct tda9887_priv *priv = t->priv;
 	int rc;
 
@@ -546,7 +559,7 @@ static void tda9887_configure(struct i2c_client *client)
 	if (tuner_debug > 1)
 		dump_write_message(t, priv->data);
 
-	if (4 != (rc = i2c_master_send(&t->i2c,priv->data,4)))
+	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,priv->data,4)))
 		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (tuner_debug > 2) {
@@ -557,16 +570,15 @@ static void tda9887_configure(struct i2c_client *client)
 
 /* ---------------------------------------------------------------------- */
 
-static void tda9887_tuner_status(struct i2c_client *client)
+static void tda9887_tuner_status(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(client);
 	struct tda9887_priv *priv = t->priv;
 	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", priv->data[1], priv->data[2], priv->data[3]);
 }
 
-static int tda9887_get_afc(struct i2c_client *client)
+static int tda9887_get_afc(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(client);
+	struct tda9887_priv *priv = t->priv;
 	static int AFC_BITS_2_kHz[] = {
 		-12500,  -37500,  -62500,  -97500,
 		-112500, -137500, -162500, -187500,
@@ -576,26 +588,24 @@ static int tda9887_get_afc(struct i2c_client *client)
 	int afc=0;
 	__u8 reg = 0;
 
-	if (1 == i2c_master_recv(&t->i2c,&reg,1))
+	if (1 == tuner_i2c_xfer_recv(&priv->i2c_props,&reg,1))
 		afc = AFC_BITS_2_kHz[(reg>>1)&0x0f];
 
 	return afc;
 }
 
-static void tda9887_standby(struct i2c_client *client)
+static void tda9887_standby(struct tuner *t)
 {
-	tda9887_configure(client);
+	tda9887_configure(t);
 }
 
-static void tda9887_set_freq(struct i2c_client *client, unsigned int freq)
+static void tda9887_set_freq(struct tuner *t, unsigned int freq)
 {
-	tda9887_configure(client);
+	tda9887_configure(t);
 }
 
-static void tda9887_release(struct i2c_client *c)
+static void tda9887_release(struct tuner *t)
 {
-	struct tuner *t = i2c_get_clientdata(c);
-
 	kfree(t->priv);
 	t->priv = NULL;
 }
@@ -609,17 +619,19 @@ static struct tuner_operations tda9887_tuner_ops = {
 	.release        = tda9887_release,
 };
 
-int tda9887_tuner_init(struct i2c_client *c)
+int tda9887_tuner_init(struct tuner *t)
 {
 	struct tda9887_priv *priv = NULL;
-	struct tuner *t = i2c_get_clientdata(c);
 
 	priv = kzalloc(sizeof(struct tda9887_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
 	t->priv = priv;
 
-	strlcpy(c->name, "tda9887", sizeof(c->name));
+	priv->i2c_props.addr = t->i2c.addr;
+	priv->i2c_props.adap = t->i2c.adapter;
+
+	strlcpy(t->i2c.name, "tda9887", sizeof(t->i2c.name));
 
 	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
 						t->i2c.driver->driver.name);

@@ -4,7 +4,7 @@ config VIDEO_BT848
 	select I2C_ALGOBIT
 	select FW_LOADER
 	select VIDEO_BTCX
-	select VIDEO_BUF
+	select VIDEOBUF_DMA_SG
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM

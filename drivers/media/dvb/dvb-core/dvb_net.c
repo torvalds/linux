@@ -357,11 +357,6 @@ static void dvb_net_ule( struct net_device *dev, const u8 *buf, size_t buf_len )
 	static unsigned char *ule_where = ule_hist, ule_dump = 0;
 #endif
 
-	if (dev == NULL) {
-		printk( KERN_ERR "NO netdev struct!\n" );
-		return;
-	}
-
 	/* For all TS cells in current buffer.
 	 * Appearently, we are called for every single TS cell.
 	 */
@@ -800,8 +795,8 @@ static int dvb_net_ts_callback(const u8 *buffer1, size_t buffer1_len,
 }
 
 
-static void dvb_net_sec(struct net_device *dev, const u8 *pkt, int
-pkt_len)
+static void dvb_net_sec(struct net_device *dev,
+			const u8 *pkt, int pkt_len)
 {
 	u8 *eth;
 	struct sk_buff *skb;
@@ -1446,18 +1441,9 @@ static int dvb_net_close(struct inode *inode, struct file *file)
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_net *dvbnet = dvbdev->priv;
 
-	if (!dvbdev)
-		return -ENODEV;
+	dvb_generic_release(inode, file);
 
-	if ((file->f_flags & O_ACCMODE) == O_RDONLY) {
-		dvbdev->readers++;
-	} else {
-		dvbdev->writers++;
-	}
-
-	dvbdev->users++;
-
-	if(dvbdev->users == 1 && dvbnet->exit==1) {
+	if(dvbdev->users == 1 && dvbnet->exit == 1) {
 		fops_put(file->f_op);
 		file->f_op = NULL;
 		wake_up(&dvbdev->wait_queue);

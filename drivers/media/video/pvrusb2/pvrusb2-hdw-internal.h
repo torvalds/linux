@@ -238,6 +238,7 @@ struct pvr2_hdw {
 	// CPU firmware info (used to help find / save firmware data)
 	char *fw_buffer;
 	unsigned int fw_size;
+	int fw_cpu_flag; /* True if we are dealing with the CPU */
 
 	// Which subsystem pieces have been enabled / configured
 	unsigned long subsys_enabled_mask;

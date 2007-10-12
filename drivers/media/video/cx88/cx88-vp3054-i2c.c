@@ -23,7 +23,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 
 #include <asm/io.h>
@@ -111,7 +110,7 @@ int vp3054_i2c_probe(struct cx8802_dev *dev)
 	struct vp3054_i2c_state *vp3054_i2c;
 	int rc;
 
-	if (core->board != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
+	if (core->boardnr != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
 		return 0;
 
 	dev->card_priv = kzalloc(sizeof(*vp3054_i2c), GFP_KERNEL);
@@ -152,7 +151,7 @@ void vp3054_i2c_remove(struct cx8802_dev *dev)
 	struct vp3054_i2c_state *vp3054_i2c = dev->card_priv;
 
 	if (vp3054_i2c == NULL ||
-	    dev->core->board != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
+	    dev->core->boardnr != CX88_BOARD_DNTV_LIVE_DVB_T_PRO)
 		return;
 
 	i2c_del_adapter(&vp3054_i2c->adap);

@@ -92,7 +92,6 @@ static int dpc_probe(struct saa7146_dev* dev)
 {
 	struct dpc* dpc = NULL;
 	struct i2c_client *client;
-	struct list_head *item;
 
 	dpc = kzalloc(sizeof(struct dpc), GFP_KERNEL);
 	if( NULL == dpc ) {
@@ -116,11 +115,9 @@ static int dpc_probe(struct saa7146_dev* dev)
 	}
 
 	/* loop through all i2c-devices on the bus and look who is there */
-	list_for_each(item,&dpc->i2c_adapter.clients) {
-		client = list_entry(item, struct i2c_client, list);
+	list_for_each_entry(client, &dpc->i2c_adapter.clients, list)
 		if( I2C_SAA7111A == client->addr )
 			dpc->saa7111a = client;
-	}
 
 	/* check if all devices are present */
 	if( 0 == dpc->saa7111a ) {

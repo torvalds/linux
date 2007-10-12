@@ -19,23 +19,27 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef __TUNER_HW_H__
-#define __TUNER_HW_H__
+#ifndef __TUNER_DRIVER_H__
+#define __TUNER_DRIVER_H__
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
+#include "tuner-i2c.h"
+#include "dvb_frontend.h"
 
 extern unsigned const int tuner_count;
 
+struct tuner;
+
 struct tuner_operations {
-	void (*set_tv_freq)(struct i2c_client *c, unsigned int freq);
-	void (*set_radio_freq)(struct i2c_client *c, unsigned int freq);
-	int  (*has_signal)(struct i2c_client *c);
-	int  (*is_stereo)(struct i2c_client *c);
-	int  (*get_afc)(struct i2c_client *c);
-	void (*tuner_status)(struct i2c_client *c);
-	void (*standby)(struct i2c_client *c);
-	void (*release)(struct i2c_client *c);
+	void (*set_tv_freq)(struct tuner *t, unsigned int freq);
+	void (*set_radio_freq)(struct tuner *t, unsigned int freq);
+	int  (*has_signal)(struct tuner *t);
+	int  (*is_stereo)(struct tuner *t);
+	int  (*get_afc)(struct tuner *t);
+	void (*tuner_status)(struct tuner *t);
+	void (*standby)(struct tuner *t);
+	void (*release)(struct tuner *t);
 };
 
 struct tuner {
@@ -49,12 +53,13 @@ struct tuner {
 
 	unsigned int tv_freq;	/* keep track of the current settings */
 	unsigned int radio_freq;
-	u16 	     last_div;
 	unsigned int audmode;
 	v4l2_std_id  std;
 
 	int          using_v4l2;
 	void *priv;
+
+	struct dvb_frontend fe;
 
 	/* used by tda9887 */
 	unsigned int       tda9887_config;
@@ -67,20 +72,7 @@ struct tuner {
 
 /* ------------------------------------------------------------------------ */
 
-extern int default_tuner_init(struct i2c_client *c);
-
-extern int tda9887_tuner_init(struct i2c_client *c);
-
-extern int microtune_init(struct i2c_client *c);
-
-extern int tda8290_init(struct i2c_client *c);
-extern int tda8290_probe(struct i2c_client *c);
-
-extern int tea5761_tuner_init(struct i2c_client *c);
-extern int tea5761_autodetection(struct i2c_client *c);
-
-extern int tea5767_autodetection(struct i2c_client *c);
-extern int tea5767_tuner_init(struct i2c_client *c);
+extern int tda9887_tuner_init(struct tuner *t);
 
 /* ------------------------------------------------------------------------ */
 
@@ -96,7 +88,7 @@ extern int tea5767_tuner_init(struct i2c_client *c);
 		printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
 
-#endif /* __TUNER_HW_H__ */
+#endif /* __TUNER_DRIVER_H__ */
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

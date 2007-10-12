@@ -33,16 +33,16 @@
 
 struct pvr2_sysfs {
 	struct pvr2_channel channel;
-	struct class_device *class_dev;
+	struct device *class_dev;
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
 	struct pvr2_sysfs_debugifc *debugifc;
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	struct pvr2_sysfs_ctl_item *item_first;
 	struct pvr2_sysfs_ctl_item *item_last;
-	struct class_device_attribute attr_v4l_minor_number;
-	struct class_device_attribute attr_v4l_radio_minor_number;
-	struct class_device_attribute attr_unit_number;
-	struct class_device_attribute attr_bus_info;
+	struct device_attribute attr_v4l_minor_number;
+	struct device_attribute attr_v4l_radio_minor_number;
+	struct device_attribute attr_unit_number;
+	struct device_attribute attr_bus_info;
 	int v4l_minor_number_created_ok;
 	int v4l_radio_minor_number_created_ok;
 	int unit_number_created_ok;
@@ -51,22 +51,22 @@ struct pvr2_sysfs {
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
 struct pvr2_sysfs_debugifc {
-	struct class_device_attribute attr_debugcmd;
-	struct class_device_attribute attr_debuginfo;
+	struct device_attribute attr_debugcmd;
+	struct device_attribute attr_debuginfo;
 	int debugcmd_created_ok;
 	int debuginfo_created_ok;
 };
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 
 struct pvr2_sysfs_ctl_item {
-	struct class_device_attribute attr_name;
-	struct class_device_attribute attr_type;
-	struct class_device_attribute attr_min;
-	struct class_device_attribute attr_max;
-	struct class_device_attribute attr_enum;
-	struct class_device_attribute attr_bits;
-	struct class_device_attribute attr_val;
-	struct class_device_attribute attr_custom;
+	struct device_attribute attr_name;
+	struct device_attribute attr_type;
+	struct device_attribute attr_min;
+	struct device_attribute attr_max;
+	struct device_attribute attr_enum;
+	struct device_attribute attr_bits;
+	struct device_attribute attr_val;
+	struct device_attribute attr_custom;
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *chptr;
 	struct pvr2_sysfs_ctl_item *item_next;
@@ -80,13 +80,13 @@ struct pvr2_sysfs_class {
 	struct class class;
 };
 
-static ssize_t show_name(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_name(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	const char *name;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -99,14 +99,14 @@ static ssize_t show_name(int id,struct class_device *class_dev,char *buf)
 	return scnprintf(buf,PAGE_SIZE,"%s\n",name);
 }
 
-static ssize_t show_type(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_type(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	const char *name;
 	enum pvr2_ctl_type tp;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -126,13 +126,13 @@ static ssize_t show_type(int id,struct class_device *class_dev,char *buf)
 	return scnprintf(buf,PAGE_SIZE,"%s\n",name);
 }
 
-static ssize_t show_min(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_min(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	long val;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -143,13 +143,13 @@ static ssize_t show_min(int id,struct class_device *class_dev,char *buf)
 	return scnprintf(buf,PAGE_SIZE,"%ld\n",val);
 }
 
-static ssize_t show_max(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_max(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	long val;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -160,14 +160,14 @@ static ssize_t show_max(int id,struct class_device *class_dev,char *buf)
 	return scnprintf(buf,PAGE_SIZE,"%ld\n",val);
 }
 
-static ssize_t show_val_norm(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_val_norm(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	int val,ret;
 	unsigned int cnt = 0;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -184,14 +184,14 @@ static ssize_t show_val_norm(int id,struct class_device *class_dev,char *buf)
 	return cnt+1;
 }
 
-static ssize_t show_val_custom(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_val_custom(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	int val,ret;
 	unsigned int cnt = 0;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -208,14 +208,14 @@ static ssize_t show_val_custom(int id,struct class_device *class_dev,char *buf)
 	return cnt+1;
 }
 
-static ssize_t show_enum(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_enum(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	long val;
 	unsigned int bcnt,ccnt,ecnt;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -233,14 +233,14 @@ static ssize_t show_enum(int id,struct class_device *class_dev,char *buf)
 	return bcnt;
 }
 
-static ssize_t show_bits(int id,struct class_device *class_dev,char *buf)
+static ssize_t show_bits(int id,struct device *class_dev,char *buf)
 {
 	struct pvr2_ctrl *cptr;
 	struct pvr2_sysfs *sfp;
 	int valid_bits,msk;
 	unsigned int bcnt,ccnt;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	cptr = pvr2_hdw_get_ctrl_by_index(sfp->channel.hdw,id);
 	if (!cptr) return -EINVAL;
@@ -278,23 +278,23 @@ static int store_val_any(int id,int customfl,struct pvr2_sysfs *sfp,
 	return ret;
 }
 
-static ssize_t store_val_norm(int id,struct class_device *class_dev,
+static ssize_t store_val_norm(int id,struct device *class_dev,
 			     const char *buf,size_t count)
 {
 	struct pvr2_sysfs *sfp;
 	int ret;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	ret = store_val_any(id,0,sfp,buf,count);
 	if (!ret) ret = count;
 	return ret;
 }
 
-static ssize_t store_val_custom(int id,struct class_device *class_dev,
+static ssize_t store_val_custom(int id,struct device *class_dev,
 				const char *buf,size_t count)
 {
 	struct pvr2_sysfs *sfp;
 	int ret;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	ret = store_val_any(id,1,sfp,buf,count);
 	if (!ret) ret = count;
 	return ret;
@@ -304,7 +304,7 @@ static ssize_t store_val_custom(int id,struct class_device *class_dev,
   Mike Isely <isely@pobox.com> 30-April-2005
 
   This next batch of horrible preprocessor hackery is needed because the
-  kernel's class_device_attribute mechanism fails to pass the actual
+  kernel's device_attribute mechanism fails to pass the actual
   attribute through to the show / store functions, which means we have no
   way to package up any attribute-specific parameters, like for example the
   control id.  So we work around this brain-damage by encoding the control
@@ -314,11 +314,13 @@ static ssize_t store_val_custom(int id,struct class_device *class_dev,
 */
 
 #define CREATE_SHOW_INSTANCE(sf_name,ctl_id) \
-static ssize_t sf_name##_##ctl_id(struct class_device *class_dev,char *buf) \
+static ssize_t sf_name##_##ctl_id(struct device *class_dev, \
+struct device_attribute *attr, char *buf) \
 { return sf_name(ctl_id,class_dev,buf); }
 
 #define CREATE_STORE_INSTANCE(sf_name,ctl_id) \
-static ssize_t sf_name##_##ctl_id(struct class_device *class_dev,const char *buf,size_t count) \
+static ssize_t sf_name##_##ctl_id(struct device *class_dev, \
+struct device_attribute *attr, const char *buf, size_t count) \
 { return sf_name(ctl_id,class_dev,buf,count); }
 
 #define CREATE_BATCH(ctl_id) \
@@ -395,17 +397,27 @@ CREATE_BATCH(58)
 CREATE_BATCH(59)
 
 struct pvr2_sysfs_func_set {
-	ssize_t (*show_name)(struct class_device *,char *);
-	ssize_t (*show_type)(struct class_device *,char *);
-	ssize_t (*show_min)(struct class_device *,char *);
-	ssize_t (*show_max)(struct class_device *,char *);
-	ssize_t (*show_enum)(struct class_device *,char *);
-	ssize_t (*show_bits)(struct class_device *,char *);
-	ssize_t (*show_val_norm)(struct class_device *,char *);
-	ssize_t (*store_val_norm)(struct class_device *,
+	ssize_t (*show_name)(struct device *,
+			     struct device_attribute *attr, char *);
+	ssize_t (*show_type)(struct device *,
+			     struct device_attribute *attr, char *);
+	ssize_t (*show_min)(struct device *,
+			    struct device_attribute *attr, char *);
+	ssize_t (*show_max)(struct device *,
+			    struct device_attribute *attr, char *);
+	ssize_t (*show_enum)(struct device *,
+			     struct device_attribute *attr, char *);
+	ssize_t (*show_bits)(struct device *,
+			     struct device_attribute *attr, char *);
+	ssize_t (*show_val_norm)(struct device *,
+				 struct device_attribute *attr, char *);
+	ssize_t (*store_val_norm)(struct device *,
+				  struct device_attribute *attr,
 				  const char *,size_t);
-	ssize_t (*show_val_custom)(struct class_device *,char *);
-	ssize_t (*store_val_custom)(struct class_device *,
+	ssize_t (*show_val_custom)(struct device *,
+				   struct device_attribute *attr, char *);
+	ssize_t (*store_val_custom)(struct device *,
+				    struct device_attribute *attr,
 				    const char *,size_t);
 };
 
@@ -597,9 +609,12 @@ static void pvr2_sysfs_add_control(struct pvr2_sysfs *sfp,int ctl_id)
 }
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
-static ssize_t debuginfo_show(struct class_device *,char *);
-static ssize_t debugcmd_show(struct class_device *,char *);
-static ssize_t debugcmd_store(struct class_device *,const char *,size_t count);
+static ssize_t debuginfo_show(struct device *, struct device_attribute *,
+			      char *);
+static ssize_t debugcmd_show(struct device *, struct device_attribute *,
+			     char *);
+static ssize_t debugcmd_store(struct device *, struct device_attribute *,
+			      const char *, size_t count);
 
 static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 {
@@ -616,16 +631,16 @@ static void pvr2_sysfs_add_debugifc(struct pvr2_sysfs *sfp)
 	dip->attr_debuginfo.attr.mode = S_IRUGO;
 	dip->attr_debuginfo.show = debuginfo_show;
 	sfp->debugifc = dip;
-	ret = class_device_create_file(sfp->class_dev,&dip->attr_debugcmd);
+	ret = device_create_file(sfp->class_dev,&dip->attr_debugcmd);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		dip->debugcmd_created_ok = !0;
 	}
-	ret = class_device_create_file(sfp->class_dev,&dip->attr_debuginfo);
+	ret = device_create_file(sfp->class_dev,&dip->attr_debuginfo);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		dip->debuginfo_created_ok = !0;
@@ -637,11 +652,11 @@ static void pvr2_sysfs_tear_down_debugifc(struct pvr2_sysfs *sfp)
 {
 	if (!sfp->debugifc) return;
 	if (sfp->debugifc->debuginfo_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->debugifc->attr_debuginfo);
 	}
 	if (sfp->debugifc->debugcmd_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->debugifc->attr_debugcmd);
 	}
 	kfree(sfp->debugifc);
@@ -683,7 +698,7 @@ static void pvr2_sysfs_class_release(struct class *class)
 }
 
 
-static void pvr2_sysfs_release(struct class_device *class_dev)
+static void pvr2_sysfs_release(struct device *class_dev)
 {
 	pvr2_sysfs_trace("Releasing class_dev id=%p",class_dev);
 	kfree(class_dev);
@@ -698,32 +713,33 @@ static void class_dev_destroy(struct pvr2_sysfs *sfp)
 #endif /* CONFIG_VIDEO_PVRUSB2_DEBUGIFC */
 	pvr2_sysfs_tear_down_controls(sfp);
 	if (sfp->bus_info_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->attr_bus_info);
 	}
 	if (sfp->v4l_minor_number_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->attr_v4l_minor_number);
 	}
 	if (sfp->v4l_radio_minor_number_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->attr_v4l_radio_minor_number);
 	}
 	if (sfp->unit_number_created_ok) {
-		class_device_remove_file(sfp->class_dev,
+		device_remove_file(sfp->class_dev,
 					 &sfp->attr_unit_number);
 	}
 	pvr2_sysfs_trace("Destroying class_dev id=%p",sfp->class_dev);
-	sfp->class_dev->class_data = NULL;
-	class_device_unregister(sfp->class_dev);
+	sfp->class_dev->driver_data = NULL;
+	device_unregister(sfp->class_dev);
 	sfp->class_dev = NULL;
 }
 
 
-static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
+static ssize_t v4l_minor_number_show(struct device *class_dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
@@ -731,21 +747,23 @@ static ssize_t v4l_minor_number_show(struct class_device *class_dev,char *buf)
 }
 
 
-static ssize_t bus_info_show(struct class_device *class_dev,char *buf)
+static ssize_t bus_info_show(struct device *class_dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%s\n",
 			 pvr2_hdw_get_bus_info(sfp->channel.hdw));
 }
 
 
-static ssize_t v4l_radio_minor_number_show(struct class_device *class_dev,
+static ssize_t v4l_radio_minor_number_show(struct device *class_dev,
+					   struct device_attribute *attr,
 					   char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_v4l_get_minor_number(sfp->channel.hdw,
@@ -753,10 +771,11 @@ static ssize_t v4l_radio_minor_number_show(struct class_device *class_dev,
 }
 
 
-static ssize_t unit_number_show(struct class_device *class_dev,char *buf)
+static ssize_t unit_number_show(struct device *class_dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	return scnprintf(buf,PAGE_SIZE,"%d\n",
 			 pvr2_hdw_get_unit_number(sfp->channel.hdw));
@@ -767,7 +786,7 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 			     struct pvr2_sysfs_class *class_ptr)
 {
 	struct usb_device *usb_dev;
-	struct class_device *class_dev;
+	struct device *class_dev;
 	int ret;
 
 	usb_dev = pvr2_hdw_get_dev(sfp->channel.hdw);
@@ -779,23 +798,23 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 
 	class_dev->class = &class_ptr->class;
 	if (pvr2_hdw_get_sn(sfp->channel.hdw)) {
-		snprintf(class_dev->class_id,BUS_ID_SIZE,"sn-%lu",
+		snprintf(class_dev->bus_id, BUS_ID_SIZE, "sn-%lu",
 			 pvr2_hdw_get_sn(sfp->channel.hdw));
 	} else if (pvr2_hdw_get_unit_number(sfp->channel.hdw) >= 0) {
-		snprintf(class_dev->class_id,BUS_ID_SIZE,"unit-%c",
+		snprintf(class_dev->bus_id, BUS_ID_SIZE, "unit-%c",
 			 pvr2_hdw_get_unit_number(sfp->channel.hdw) + 'a');
 	} else {
 		kfree(class_dev);
 		return;
 	}
 
-	class_dev->dev = &usb_dev->dev;
+	class_dev->parent = &usb_dev->dev;
 
 	sfp->class_dev = class_dev;
-	class_dev->class_data = sfp;
-	ret = class_device_register(class_dev);
+	class_dev->driver_data = sfp;
+	ret = device_register(class_dev);
 	if (ret) {
-		printk(KERN_ERR "%s: class_device_register failed\n",
+		printk(KERN_ERR "%s: device_register failed\n",
 		       __FUNCTION__);
 		kfree(class_dev);
 		return;
@@ -805,10 +824,10 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_v4l_minor_number.attr.mode = S_IRUGO;
 	sfp->attr_v4l_minor_number.show = v4l_minor_number_show;
 	sfp->attr_v4l_minor_number.store = NULL;
-	ret = class_device_create_file(sfp->class_dev,
+	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_v4l_minor_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		sfp->v4l_minor_number_created_ok = !0;
@@ -818,10 +837,10 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_v4l_radio_minor_number.attr.mode = S_IRUGO;
 	sfp->attr_v4l_radio_minor_number.show = v4l_radio_minor_number_show;
 	sfp->attr_v4l_radio_minor_number.store = NULL;
-	ret = class_device_create_file(sfp->class_dev,
+	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_v4l_radio_minor_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		sfp->v4l_radio_minor_number_created_ok = !0;
@@ -831,9 +850,9 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_unit_number.attr.mode = S_IRUGO;
 	sfp->attr_unit_number.show = unit_number_show;
 	sfp->attr_unit_number.store = NULL;
-	ret = class_device_create_file(sfp->class_dev,&sfp->attr_unit_number);
+	ret = device_create_file(sfp->class_dev,&sfp->attr_unit_number);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		sfp->unit_number_created_ok = !0;
@@ -843,10 +862,10 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	sfp->attr_bus_info.attr.mode = S_IRUGO;
 	sfp->attr_bus_info.show = bus_info_show;
 	sfp->attr_bus_info.store = NULL;
-	ret = class_device_create_file(sfp->class_dev,
+	ret = device_create_file(sfp->class_dev,
 				       &sfp->attr_bus_info);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: class_device_create_file error: %d\n",
+		printk(KERN_WARNING "%s: device_create_file error: %d\n",
 		       __FUNCTION__, ret);
 	} else {
 		sfp->bus_info_created_ok = !0;
@@ -886,7 +905,7 @@ struct pvr2_sysfs *pvr2_sysfs_create(struct pvr2_context *mp,
 }
 
 
-static int pvr2_sysfs_hotplug(struct class_device *cd,char **envp,
+static int pvr2_sysfs_hotplug(struct device *cd,char **envp,
 			      int numenvp,char *buf,int size)
 {
 	/* Even though we don't do anything here, we still need this function
@@ -902,8 +921,8 @@ struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 	pvr2_sysfs_trace("Creating pvr2_sysfs_class id=%p",clp);
 	clp->class.name = "pvrusb2";
 	clp->class.class_release = pvr2_sysfs_class_release;
-	clp->class.release = pvr2_sysfs_release;
-	clp->class.uevent = pvr2_sysfs_hotplug;
+	clp->class.dev_release = pvr2_sysfs_release;
+	clp->class.dev_uevent = pvr2_sysfs_hotplug;
 	if (class_register(&clp->class)) {
 		pvr2_sysfs_trace(
 			"Registration failed for pvr2_sysfs_class id=%p",clp);
@@ -921,32 +940,35 @@ void pvr2_sysfs_class_destroy(struct pvr2_sysfs_class *clp)
 
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DEBUGIFC
-static ssize_t debuginfo_show(struct class_device *class_dev,char *buf)
+static ssize_t debuginfo_show(struct device *class_dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	pvr2_hdw_trigger_module_log(sfp->channel.hdw);
 	return pvr2_debugifc_print_info(sfp->channel.hdw,buf,PAGE_SIZE);
 }
 
 
-static ssize_t debugcmd_show(struct class_device *class_dev,char *buf)
+static ssize_t debugcmd_show(struct device *class_dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct pvr2_sysfs *sfp;
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 	return pvr2_debugifc_print_status(sfp->channel.hdw,buf,PAGE_SIZE);
 }
 
 
-static ssize_t debugcmd_store(struct class_device *class_dev,
-			      const char *buf,size_t count)
+static ssize_t debugcmd_store(struct device *class_dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
 {
 	struct pvr2_sysfs *sfp;
 	int ret;
 
-	sfp = (struct pvr2_sysfs *)class_dev->class_data;
+	sfp = (struct pvr2_sysfs *)class_dev->driver_data;
 	if (!sfp) return -EINVAL;
 
 	ret = pvr2_debugifc_docmd(sfp->channel.hdw,buf,count);

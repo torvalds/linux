@@ -378,7 +378,7 @@ static int dvb_register(struct cx8802_dev *dev)
 	dev->ts_gen_cntrl = 0x0c;
 
 	/* init frontend */
-	switch (dev->core->board) {
+	switch (dev->core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
 		dev->dvb.frontend = dvb_attach(cx22702_attach,
 					       &connexant_refboard_config,
@@ -482,7 +482,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);
 		}
 #else
-		printk("%s: built without vp3054 support\n", dev->core->name);
+		printk(KERN_ERR "%s/2: built without vp3054 support\n", dev->core->name);
 #endif
 		break;
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_HYBRID:
@@ -625,12 +625,12 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	default:
-		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
+		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       dev->core->name);
 		break;
 	}
 	if (NULL == dev->dvb.frontend) {
-		printk("%s: frontend initialization failed\n",dev->core->name);
+		printk(KERN_ERR "%s/2: frontend initialization failed\n", dev->core->name);
 		return -1;
 	}
 
@@ -653,7 +653,7 @@ static int cx8802_dvb_advise_acquire(struct cx8802_driver *drv)
 	int err = 0;
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* We arrive here with either the cx23416 or the cx22702
 		 * on the bus. Take the bus from the cx23416 and enable the
@@ -676,7 +676,7 @@ static int cx8802_dvb_advise_release(struct cx8802_driver *drv)
 	int err = 0;
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	switch (core->board) {
+	switch (core->boardnr) {
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
 		/* Do Nothing, leave the cx22702 on the bus. */
 		break;
@@ -694,13 +694,13 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 
 	dprintk( 1, "%s\n", __FUNCTION__);
 	dprintk( 1, " ->being probed by Card=%d Name=%s, PCI %02x:%02x\n",
-		core->board,
+		core->boardnr,
 		core->name,
 		core->pci_bus,
 		core->pci_slot);
 
 	err = -ENODEV;
-	if (!(cx88_boards[core->board].mpeg & CX88_MPEG_DVB))
+	if (!(core->board.mpeg & CX88_MPEG_DVB))
 		goto fail_core;
 
 	/* If vp3054 isn't enabled, a stub will just return 0 */
@@ -709,8 +709,8 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 		goto fail_core;
 
 	/* dvb stuff */
-	printk("%s/2: cx2388x based dvb card\n", core->name);
-	videobuf_queue_init(&dev->dvb.dvbq, &dvb_qops,
+	printk(KERN_INFO "%s/2: cx2388x based DVB/ATSC card\n", core->name);
+	videobuf_queue_pci_init(&dev->dvb.dvbq, &dvb_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE,
 			    V4L2_FIELD_TOP,
@@ -718,7 +718,8 @@ static int cx8802_dvb_probe(struct cx8802_driver *drv)
 			    dev);
 	err = dvb_register(dev);
 	if (err != 0)
-		printk("%s dvb_register failed err = %d\n", __FUNCTION__, err);
+		printk(KERN_ERR "%s/2: dvb_register failed (err = %d)\n",
+		       core->name, err);
 
  fail_core:
 	return err;
@@ -747,7 +748,7 @@ static struct cx8802_driver cx8802_dvb_driver = {
 
 static int dvb_init(void)
 {
-	printk(KERN_INFO "cx2388x dvb driver version %d.%d.%d loaded\n",
+	printk(KERN_INFO "cx88/2: cx2388x dvb driver version %d.%d.%d loaded\n",
 	       (CX88_VERSION_CODE >> 16) & 0xff,
 	       (CX88_VERSION_CODE >>  8) & 0xff,
 	       CX88_VERSION_CODE & 0xff);

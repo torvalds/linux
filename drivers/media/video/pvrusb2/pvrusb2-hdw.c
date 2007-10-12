@@ -492,7 +492,7 @@ static int ctrl_cx2341x_get(struct pvr2_ctrl *cptr,int *vp)
 	cs.controls = &c1;
 	cs.count = 1;
 	c1.id = cptr->info->v4l_id;
-	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state, 0, &cs,
 				VIDIOC_G_EXT_CTRLS);
 	if (ret) return ret;
 	*vp = c1.value;
@@ -510,7 +510,7 @@ static int ctrl_cx2341x_set(struct pvr2_ctrl *cptr,int m,int v)
 	cs.count = 1;
 	c1.id = cptr->info->v4l_id;
 	c1.value = v;
-	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state,&cs,
+	ret = cx2341x_ext_ctrls(&cptr->hdw->enc_ctl_state, 0, &cs,
 				VIDIOC_S_EXT_CTRLS);
 	if (ret) return ret;
 	cptr->hdw->enc_stale = !0;
@@ -1143,6 +1143,13 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 			fw_files_24xxx, ARRAY_SIZE(fw_files_24xxx)
 		},
 	};
+
+	if ((hdw->hdw_type >= ARRAY_SIZE(fw_file_defs)) ||
+	    (!fw_file_defs[hdw->hdw_type].lst)) {
+		hdw->fw1_state = FW1_STATE_OK;
+		return 0;
+	}
+
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
 
 	trace_firmware("pvr2_upload_firmware1");
@@ -1223,6 +1230,11 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	static const char *fw_files[] = {
 		CX2341X_FIRM_ENC_FILENAME,
 	};
+
+	if ((hdw->hdw_type != PVR2_HDW_TYPE_29XXX) &&
+	    (hdw->hdw_type != PVR2_HDW_TYPE_24XXX)) {
+		return 0;
+	}
 
 	trace_firmware("pvr2_upload_firmware2");
 
@@ -1682,6 +1694,44 @@ static int pvr2_hdw_check_firmware(struct pvr2_hdw *hdw)
 	return result == 0;
 }
 
+struct pvr2_std_hack {
+	v4l2_std_id pat;  /* Pattern to match */
+	v4l2_std_id msk;  /* Which bits we care about */
+	v4l2_std_id std;  /* What additional standards or default to set */
+};
+
+/* This data structure labels specific combinations of standards from
+   tveeprom that we'll try to recognize.  If we recognize one, then assume
+   a specified default standard to use.  This is here because tveeprom only
+   tells us about available standards not the intended default standard (if
+   any) for the device in question.  We guess the default based on what has
+   been reported as available.  Note that this is only for guessing a
+   default - which can always be overridden explicitly - and if the user
+   has otherwise named a default then that default will always be used in
+   place of this table. */
+const static struct pvr2_std_hack std_eeprom_maps[] = {
+	{	/* PAL(B/G) */
+		.pat = V4L2_STD_B|V4L2_STD_GH,
+		.std = V4L2_STD_PAL_B|V4L2_STD_PAL_B1|V4L2_STD_PAL_G,
+	},
+	{	/* NTSC(M) */
+		.pat = V4L2_STD_MN,
+		.std = V4L2_STD_NTSC_M,
+	},
+	{	/* PAL(I) */
+		.pat = V4L2_STD_PAL_I,
+		.std = V4L2_STD_PAL_I,
+	},
+	{	/* SECAM(L/L') */
+		.pat = V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC,
+		.std = V4L2_STD_SECAM_L|V4L2_STD_SECAM_LC,
+	},
+	{	/* PAL(D/D1/K) */
+		.pat = V4L2_STD_DK,
+		.std = V4L2_STD_PAL_D/V4L2_STD_PAL_D1|V4L2_STD_PAL_K,
+	},
+};
+
 static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 {
 	char buf[40];
@@ -1691,7 +1741,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	std1 = get_default_standard(hdw);
 
 	bcnt = pvr2_std_id_to_str(buf,sizeof(buf),hdw->std_mask_eeprom);
-	pvr2_trace(PVR2_TRACE_INIT,
+	pvr2_trace(PVR2_TRACE_STD,
 		   "Supported video standard(s) reported by eeprom: %.*s",
 		   bcnt,buf);
 
@@ -1700,7 +1750,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	std2 = std1 & ~hdw->std_mask_avail;
 	if (std2) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std2);
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Expanding supported video standards"
 			   " to include: %.*s",
 			   bcnt,buf);
@@ -1711,7 +1761,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 
 	if (std1) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std1);
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Initial video standard forced to %.*s",
 			   bcnt,buf);
 		hdw->std_mask_cur = std1;
@@ -1720,12 +1770,33 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 		return;
 	}
 
+	{
+		unsigned int idx;
+		for (idx = 0; idx < ARRAY_SIZE(std_eeprom_maps); idx++) {
+			if (std_eeprom_maps[idx].msk ?
+			    ((std_eeprom_maps[idx].pat ^
+			     hdw->std_mask_eeprom) &
+			     std_eeprom_maps[idx].msk) :
+			    (std_eeprom_maps[idx].pat !=
+			     hdw->std_mask_eeprom)) continue;
+			bcnt = pvr2_std_id_to_str(buf,sizeof(buf),
+						  std_eeprom_maps[idx].std);
+			pvr2_trace(PVR2_TRACE_STD,
+				   "Initial video standard guessed as %.*s",
+				   bcnt,buf);
+			hdw->std_mask_cur = std_eeprom_maps[idx].std;
+			hdw->std_dirty = !0;
+			pvr2_hdw_internal_find_stdenum(hdw);
+			return;
+		}
+	}
+
 	if (hdw->std_enum_cnt > 1) {
 		// Autoselect the first listed standard
 		hdw->std_enum_cur = 1;
 		hdw->std_mask_cur = hdw->std_defs[hdw->std_enum_cur-1].id;
 		hdw->std_dirty = !0;
-		pvr2_trace(PVR2_TRACE_INIT,
+		pvr2_trace(PVR2_TRACE_STD,
 			   "Initial video standard auto-selected to %s",
 			   hdw->std_defs[hdw->std_enum_cur-1].name);
 		return;
@@ -1742,29 +1813,35 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	struct pvr2_ctrl *cptr;
 	int reloadFl = 0;
-	if (!reloadFl) {
-		reloadFl = (hdw->usb_intf->cur_altsetting->desc.bNumEndpoints
-			    == 0);
+	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
+	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+		if (!reloadFl) {
+			reloadFl =
+				(hdw->usb_intf->cur_altsetting->desc.bNumEndpoints
+				 == 0);
+			if (reloadFl) {
+				pvr2_trace(PVR2_TRACE_INIT,
+					   "USB endpoint config looks strange"
+					   "; possibly firmware needs to be"
+					   " loaded");
+			}
+		}
+		if (!reloadFl) {
+			reloadFl = !pvr2_hdw_check_firmware(hdw);
+			if (reloadFl) {
+				pvr2_trace(PVR2_TRACE_INIT,
+					   "Check for FX2 firmware failed"
+					   "; possibly firmware needs to be"
+					   " loaded");
+			}
+		}
 		if (reloadFl) {
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "USB endpoint config looks strange"
-				   "; possibly firmware needs to be loaded");
+			if (pvr2_upload_firmware1(hdw) != 0) {
+				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+					   "Failure uploading firmware1");
+			}
+			return;
 		}
-	}
-	if (!reloadFl) {
-		reloadFl = !pvr2_hdw_check_firmware(hdw);
-		if (reloadFl) {
-			pvr2_trace(PVR2_TRACE_INIT,
-				   "Check for FX2 firmware failed"
-				   "; possibly firmware needs to be loaded");
-		}
-	}
-	if (reloadFl) {
-		if (pvr2_upload_firmware1(hdw) != 0) {
-			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Failure uploading firmware1");
-		}
-		return;
 	}
 	hdw->fw1_state = FW1_STATE_OK;
 
@@ -1773,17 +1850,25 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	for (idx = 0; idx < pvr2_client_lists[hdw->hdw_type].cnt; idx++) {
-		request_module(pvr2_client_lists[hdw->hdw_type].lst[idx]);
+	if (hdw->hdw_type < ARRAY_SIZE(pvr2_client_lists)) {
+		for (idx = 0;
+		     idx < pvr2_client_lists[hdw->hdw_type].cnt;
+		     idx++) {
+			request_module(
+				pvr2_client_lists[hdw->hdw_type].lst[idx]);
+		}
 	}
 
-	pvr2_hdw_cmd_powerup(hdw);
-	if (!pvr2_hdw_dev_ok(hdw)) return;
+	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
+	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+		pvr2_hdw_cmd_powerup(hdw);
+		if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	if (pvr2_upload_firmware2(hdw)){
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,"device unstable!!");
-		pvr2_hdw_render_useless(hdw);
-		return;
+		if (pvr2_upload_firmware2(hdw)){
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,"device unstable!!");
+			pvr2_hdw_render_useless(hdw);
+			return;
+		}
 	}
 
 	// This step MUST happen after the earlier powerup step.
@@ -2172,6 +2257,7 @@ static void pvr2_hdw_remove_usb_stuff(struct pvr2_hdw *hdw)
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 {
+	if (!hdw) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_destroy: hdw=%p",hdw);
 	if (hdw->fw_buffer) {
 		kfree(hdw->fw_buffer);
@@ -2478,7 +2564,7 @@ static int pvr2_hdw_commit_ctl_internal(struct pvr2_hdw *hdw)
 		cs.count = 1;
 		c1.id = V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ;
 		c1.value = hdw->srate_val;
-		cx2341x_ext_ctrls(&hdw->enc_ctl_state,&cs,VIDIOC_S_EXT_CTRLS);
+		cx2341x_ext_ctrls(&hdw->enc_ctl_state, 0, &cs,VIDIOC_S_EXT_CTRLS);
 	}
 
 	/* Scan i2c core at this point - before we clear all the dirty
@@ -2604,7 +2690,85 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw)
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
 
-void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
+
+/* Grab EEPROM contents, needed for direct method. */
+#define EEPROM_SIZE 8192
+#define trace_eeprom(...) pvr2_trace(PVR2_TRACE_EEPROM,__VA_ARGS__)
+static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
+{
+	struct i2c_msg msg[2];
+	u8 *eeprom;
+	u8 iadd[2];
+	u8 addr;
+	u16 eepromSize;
+	unsigned int offs;
+	int ret;
+	int mode16 = 0;
+	unsigned pcnt,tcnt;
+	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
+	if (!eeprom) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Failed to allocate memory"
+			   " required to read eeprom");
+		return NULL;
+	}
+
+	trace_eeprom("Value for eeprom addr from controller was 0x%x",
+		     hdw->eeprom_addr);
+	addr = hdw->eeprom_addr;
+	/* Seems that if the high bit is set, then the *real* eeprom
+	   address is shifted right now bit position (noticed this in
+	   newer PVR USB2 hardware) */
+	if (addr & 0x80) addr >>= 1;
+
+	/* FX2 documentation states that a 16bit-addressed eeprom is
+	   expected if the I2C address is an odd number (yeah, this is
+	   strange but it's what they do) */
+	mode16 = (addr & 1);
+	eepromSize = (mode16 ? EEPROM_SIZE : 256);
+	trace_eeprom("Examining %d byte eeprom at location 0x%x"
+		     " using %d bit addressing",eepromSize,addr,
+		     mode16 ? 16 : 8);
+
+	msg[0].addr = addr;
+	msg[0].flags = 0;
+	msg[0].len = mode16 ? 2 : 1;
+	msg[0].buf = iadd;
+	msg[1].addr = addr;
+	msg[1].flags = I2C_M_RD;
+
+	/* We have to do the actual eeprom data fetch ourselves, because
+	   (1) we're only fetching part of the eeprom, and (2) if we were
+	   getting the whole thing our I2C driver can't grab it in one
+	   pass - which is what tveeprom is otherwise going to attempt */
+	memset(eeprom,0,EEPROM_SIZE);
+	for (tcnt = 0; tcnt < EEPROM_SIZE; tcnt += pcnt) {
+		pcnt = 16;
+		if (pcnt + tcnt > EEPROM_SIZE) pcnt = EEPROM_SIZE-tcnt;
+		offs = tcnt + (eepromSize - EEPROM_SIZE);
+		if (mode16) {
+			iadd[0] = offs >> 8;
+			iadd[1] = offs;
+		} else {
+			iadd[0] = offs;
+		}
+		msg[1].len = pcnt;
+		msg[1].buf = eeprom+tcnt;
+		if ((ret = i2c_transfer(&hdw->i2c_adap,
+					msg,ARRAY_SIZE(msg))) != 2) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "eeprom fetch set offs err=%d",ret);
+			kfree(eeprom);
+			return NULL;
+		}
+	}
+	return eeprom;
+}
+
+
+void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
+				int prom_flag,
+				int enable_flag)
 {
 	int ret;
 	u16 address;
@@ -2618,37 +2782,59 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw, int enable_flag)
 			kfree(hdw->fw_buffer);
 			hdw->fw_buffer = NULL;
 			hdw->fw_size = 0;
-			/* Now release the CPU.  It will disconnect and
-			   reconnect later. */
-			pvr2_hdw_cpureset_assert(hdw,0);
+			if (hdw->fw_cpu_flag) {
+				/* Now release the CPU.  It will disconnect
+				   and reconnect later. */
+				pvr2_hdw_cpureset_assert(hdw,0);
+			}
 			break;
 		}
 
-		pvr2_trace(PVR2_TRACE_FIRMWARE,
-			   "Preparing to suck out CPU firmware");
-		hdw->fw_size = 0x2000;
-		hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
-		if (!hdw->fw_buffer) {
-			hdw->fw_size = 0;
-			break;
+		hdw->fw_cpu_flag = (prom_flag == 0);
+		if (hdw->fw_cpu_flag) {
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Preparing to suck out CPU firmware");
+			hdw->fw_size = 0x2000;
+			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
+			if (!hdw->fw_buffer) {
+				hdw->fw_size = 0;
+				break;
+			}
+
+			/* We have to hold the CPU during firmware upload. */
+			pvr2_hdw_cpureset_assert(hdw,1);
+
+			/* download the firmware from address 0000-1fff in 2048
+			   (=0x800) bytes chunk. */
+
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Grabbing CPU firmware");
+			pipe = usb_rcvctrlpipe(hdw->usb_dev, 0);
+			for(address = 0; address < hdw->fw_size;
+			    address += 0x800) {
+				ret = usb_control_msg(hdw->usb_dev,pipe,
+						      0xa0,0xc0,
+						      address,0,
+						      hdw->fw_buffer+address,
+						      0x800,HZ);
+				if (ret < 0) break;
+			}
+
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Done grabbing CPU firmware");
+		} else {
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Sucking down EEPROM contents");
+			hdw->fw_buffer = pvr2_full_eeprom_fetch(hdw);
+			if (!hdw->fw_buffer) {
+				pvr2_trace(PVR2_TRACE_FIRMWARE,
+					   "EEPROM content suck failed.");
+				break;
+			}
+			hdw->fw_size = EEPROM_SIZE;
+			pvr2_trace(PVR2_TRACE_FIRMWARE,
+				   "Done sucking down EEPROM contents");
 		}
-
-		/* We have to hold the CPU during firmware upload. */
-		pvr2_hdw_cpureset_assert(hdw,1);
-
-		/* download the firmware from address 0000-1fff in 2048
-		   (=0x800) bytes chunk. */
-
-		pvr2_trace(PVR2_TRACE_FIRMWARE,"Grabbing CPU firmware");
-		pipe = usb_rcvctrlpipe(hdw->usb_dev, 0);
-		for(address = 0; address < hdw->fw_size; address += 0x800) {
-			ret = usb_control_msg(hdw->usb_dev,pipe,0xa0,0xc0,
-					      address,0,
-					      hdw->fw_buffer+address,0x800,HZ);
-			if (ret < 0) break;
-		}
-
-		pvr2_trace(PVR2_TRACE_FIRMWARE,"Done grabbing CPU firmware");
 
 	} while (0); LOCK_GIVE(hdw->big_lock);
 }
@@ -3272,7 +3458,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 			     int setFl,u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	struct list_head *item;
 	struct pvr2_i2c_client *cp;
 	struct v4l2_register req;
 	int stat = 0;
@@ -3285,8 +3470,7 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
 	mutex_lock(&hdw->i2c_list_lock); do {
-		list_for_each(item,&hdw->i2c_clients) {
-			cp = list_entry(item,struct pvr2_i2c_client,list);
+		list_for_each_entry(cp, &hdw->i2c_clients, list) {
 			if (!v4l2_chip_match_i2c_client(
 				    cp->client,
 				    req.match_type, req.match_chip)) {

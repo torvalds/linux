@@ -332,11 +332,11 @@ static int saa7127_set_vps(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 	if (!enable)
 		return 0;
 
-	state->vps_data[0] = data->data[4];
-	state->vps_data[1] = data->data[10];
-	state->vps_data[2] = data->data[11];
-	state->vps_data[3] = data->data[12];
-	state->vps_data[4] = data->data[13];
+	state->vps_data[0] = data->data[2];
+	state->vps_data[1] = data->data[8];
+	state->vps_data[2] = data->data[9];
+	state->vps_data[3] = data->data[10];
+	state->vps_data[4] = data->data[11];
 	v4l_dbg(1, debug, client, "Set VPS data %02x %02x %02x %02x %02x\n",
 		state->vps_data[0], state->vps_data[1],
 		state->vps_data[2], state->vps_data[3],

@@ -1,7 +1,7 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
 	depends on VIDEO_DEV && PCI && I2C
-	select VIDEO_BUF
+	select VIDEOBUF_DMA_SG
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select CRC32
@@ -38,7 +38,7 @@ config VIDEO_SAA7134_OSS
 config VIDEO_SAA7134_DVB
 	tristate "DVB/ATSC Support for saa7134 based TV cards"
 	depends on VIDEO_SAA7134 && DVB_CORE
-	select VIDEO_BUF_DVB
+	select VIDEOBUF_DVB
 	select FW_LOADER
 	select DVB_PLL if !DVB_FE_CUSTOMISE
 	select DVB_MT352 if !DVB_FE_CUSTOMISE

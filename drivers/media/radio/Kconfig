@@ -111,11 +111,16 @@ config RADIO_AZTECH_PORT
 	  jumper sets the card to 0x358.
 
 config RADIO_GEMTEK
-	tristate "GemTek Radio Card support"
+	tristate "GemTek Radio card (or compatible) support"
 	depends on ISA && VIDEO_V4L2
 	---help---
 	  Choose Y here if you have this FM radio card, and then fill in the
-	  port address below.
+	  I/O port address and settings below. The following cards either have
+	  GemTek Radio tuner or are rebranded GemTek Radio cards:
+
+	  - Sound Vision 16 Gold with FM Radio
+	  - Typhoon Radio card (some models)
+	  - Hama Radio card
 
 	  In order to control your radio card, you will need to use programs
 	  that are compatible with the Video For Linux API.  Information on
@@ -126,14 +131,25 @@ config RADIO_GEMTEK
 	  module will be called radio-gemtek.
 
 config RADIO_GEMTEK_PORT
-	hex "GemTek i/o port (0x20c, 0x30c, 0x24c or 0x34c)"
+	hex "Fixed I/O port (0x20c, 0x30c, 0x24c, 0x34c, 0c24c or 0x28c)"
 	depends on RADIO_GEMTEK=y
 	default "34c"
 	help
 	  Enter either 0x20c, 0x30c, 0x24c or 0x34c here. The card default is
 	  0x34c, if you haven't changed the jumper setting on the card. On
 	  Sound Vision 16 Gold PnP with FM Radio (ESS1869+FM Gemtek), the I/O
-	  port is 0x28c.
+	  port is 0x20c, 0x248 or 0x28c.
+	  If automatic I/O port probing is enabled this port will be used only
+	  in case of automatic probing failure, ie. as a fallback.
+
+config RADIO_GEMTEK_PROBE
+	bool "Automatic I/O port probing"
+	depends on RADIO_GEMTEK=y
+	default y
+	help
+	  Say Y here to enable automatic probing for GemTek Radio card. The
+	  following ports will be probed: 0x20c, 0x30c, 0x24c, 0x34c, 0x248 and
+	  0x28c.
 
 config RADIO_GEMTEK_PCI
 	tristate "GemTek PCI Radio Card support"

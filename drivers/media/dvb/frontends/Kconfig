@@ -283,6 +283,14 @@ config DVB_LGDT330X
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
 	  to support this frontend.
 
+config DVB_S5H1409
+	tristate "Samsung S5H1409 based"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want
+	  to support this frontend.
+
 comment "Tuners/PLL support"
 	depends on DVB_CORE
 
@@ -291,7 +299,7 @@ config DVB_PLL
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
-	  This module driver a number of tuners based on PLL chips with a
+	  This module drives a number of tuners based on PLL chips with a
 	  common I2C interface. Say Y when you want to support these tuners.
 
 config DVB_TDA826X
@@ -321,6 +329,29 @@ config DVB_TUNER_MT2060
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon IF tuner MT2060 from Microtune.
+
+config DVB_TUNER_MT2266
+	tristate "Microtune MT2266 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2266 from Microtune.
+
+config DVB_TUNER_MT2131
+	tristate "Microtune MT2131 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner MT2131 from Microtune.
+
+config DVB_TUNER_DIB0070
+	tristate "DiBcom DiB0070 silicon base-band tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
+	  This device is only used inside a SiP called togther with a
+	  demodulator for now.
 
 comment "Miscellaneous devices"
 	depends on DVB_CORE

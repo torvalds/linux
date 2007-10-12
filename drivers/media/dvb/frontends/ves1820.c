@@ -410,8 +410,8 @@ static struct dvb_frontend_ops ves1820_ops = {
 		.name = "VLSI VES1820 DVB-C",
 		.type = FE_QAM,
 		.frequency_stepsize = 62500,
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
+		.frequency_min = 47000000,
+		.frequency_max = 862000000,
 		.caps = FE_CAN_QAM_16 |
 			FE_CAN_QAM_32 |
 			FE_CAN_QAM_64 |

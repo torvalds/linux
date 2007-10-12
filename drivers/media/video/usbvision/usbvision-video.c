@@ -68,7 +68,6 @@
 #include <media/tuner.h>
 #include <media/audiochip.h>
 
-#include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 
 #ifdef CONFIG_KMOD
@@ -183,20 +182,22 @@ MODULE_ALIAS(DRIVER_ALIAS);
 
 #define YES_NO(x) ((x) ? "Yes" : "No")
 
-static inline struct usb_usbvision *cd_to_usbvision(struct class_device *cd)
+static inline struct usb_usbvision *cd_to_usbvision(struct device *cd)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
 	return video_get_drvdata(vdev);
 }
 
-static ssize_t show_version(struct class_device *cd, char *buf)
+static ssize_t show_version(struct device *cd,
+			    struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", USBVISION_VERSION_STRING);
 }
-static CLASS_DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
+static DEVICE_ATTR(version, S_IRUGO, show_version, NULL);
 
-static ssize_t show_model(struct class_device *cd, char *buf)
+static ssize_t show_model(struct device *cd,
+			  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -204,9 +205,10 @@ static ssize_t show_model(struct class_device *cd, char *buf)
 	return sprintf(buf, "%s\n",
 		       usbvision_device_data[usbvision->DevModel].ModelString);
 }
-static CLASS_DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
+static DEVICE_ATTR(model, S_IRUGO, show_model, NULL);
 
-static ssize_t show_hue(struct class_device *cd, char *buf)
+static ssize_t show_hue(struct device *cd,
+			struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -218,9 +220,10 @@ static ssize_t show_hue(struct class_device *cd, char *buf)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
-static CLASS_DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
+static DEVICE_ATTR(hue, S_IRUGO, show_hue, NULL);
 
-static ssize_t show_contrast(struct class_device *cd, char *buf)
+static ssize_t show_contrast(struct device *cd,
+			     struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -232,9 +235,10 @@ static ssize_t show_contrast(struct class_device *cd, char *buf)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
-static CLASS_DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
+static DEVICE_ATTR(contrast, S_IRUGO, show_contrast, NULL);
 
-static ssize_t show_brightness(struct class_device *cd, char *buf)
+static ssize_t show_brightness(struct device *cd,
+			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -246,9 +250,10 @@ static ssize_t show_brightness(struct class_device *cd, char *buf)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
-static CLASS_DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
+static DEVICE_ATTR(brightness, S_IRUGO, show_brightness, NULL);
 
-static ssize_t show_saturation(struct class_device *cd, char *buf)
+static ssize_t show_saturation(struct device *cd,
+			       struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -260,9 +265,10 @@ static ssize_t show_saturation(struct class_device *cd, char *buf)
 		call_i2c_clients(usbvision, VIDIOC_G_CTRL, &ctrl);
 	return sprintf(buf, "%d\n", ctrl.value);
 }
-static CLASS_DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
+static DEVICE_ATTR(saturation, S_IRUGO, show_saturation, NULL);
 
-static ssize_t show_streaming(struct class_device *cd, char *buf)
+static ssize_t show_streaming(struct device *cd,
+			      struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -270,9 +276,10 @@ static ssize_t show_streaming(struct class_device *cd, char *buf)
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->streaming==Stream_On?1:0));
 }
-static CLASS_DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
+static DEVICE_ATTR(streaming, S_IRUGO, show_streaming, NULL);
 
-static ssize_t show_compression(struct class_device *cd, char *buf)
+static ssize_t show_compression(struct device *cd,
+				struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
@@ -280,16 +287,17 @@ static ssize_t show_compression(struct class_device *cd, char *buf)
 	return sprintf(buf, "%s\n",
 		       YES_NO(usbvision->isocMode==ISOC_MODE_COMPRESS));
 }
-static CLASS_DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
+static DEVICE_ATTR(compression, S_IRUGO, show_compression, NULL);
 
-static ssize_t show_device_bridge(struct class_device *cd, char *buf)
+static ssize_t show_device_bridge(struct device *cd,
+				  struct device_attribute *attr, char *buf)
 {
 	struct video_device *vdev =
 		container_of(cd, struct video_device, class_dev);
 	struct usb_usbvision *usbvision = video_get_drvdata(vdev);
 	return sprintf(buf, "%d\n", usbvision->bridgeType);
 }
-static CLASS_DEVICE_ATTR(bridge, S_IRUGO, show_device_bridge, NULL);
+static DEVICE_ATTR(bridge, S_IRUGO, show_device_bridge, NULL);
 
 static void usbvision_create_sysfs(struct video_device *vdev)
 {
@@ -297,40 +305,40 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 	if (!vdev)
 		return;
 	do {
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_version);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_version);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_model);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_model);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_hue);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_hue);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_contrast);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_contrast);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_brightness);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_brightness);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_saturation);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_saturation);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_streaming);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_streaming);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_compression);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_compression);
 		if (res<0)
 			break;
-		res=class_device_create_file(&vdev->class_dev,
-					     &class_device_attr_bridge);
+		res = device_create_file(&vdev->class_dev,
+					 &dev_attr_bridge);
 		if (res>=0)
 			return;
 	} while (0);
@@ -341,24 +349,24 @@ static void usbvision_create_sysfs(struct video_device *vdev)
 static void usbvision_remove_sysfs(struct video_device *vdev)
 {
 	if (vdev) {
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_version);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_model);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_hue);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_contrast);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_brightness);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_saturation);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_streaming);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_compression);
-		class_device_remove_file(&vdev->class_dev,
-					 &class_device_attr_bridge);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_version);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_model);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_hue);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_contrast);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_brightness);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_saturation);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_streaming);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_compression);
+		device_remove_file(&vdev->class_dev,
+					 &dev_attr_bridge);
 	}
 }
 

@@ -373,13 +373,10 @@ static inline void dvb_dmx_swfilter_packet_type(struct dvb_demux_feed *feed,
 static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 {
 	struct dvb_demux_feed *feed;
-	struct list_head *pos, *head = &demux->feed_list;
 	u16 pid = ts_pid(buf);
 	int dvr_done = 0;
 
-	list_for_each(pos, head) {
-		feed = list_entry(pos, struct dvb_demux_feed, list_head);
-
+	list_for_each_entry(feed, &demux->feed_list, list_head) {
 		if ((feed->pid != pid) && (feed->pid != 0x2000))
 			continue;
 

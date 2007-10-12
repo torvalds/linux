@@ -74,6 +74,8 @@ config DVB_USB_DIB0700
 	select DVB_DIB7000M
 	select DVB_DIB3000MC
 	select DVB_TUNER_MT2060 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_MT2266 if !DVB_FE_CUSTOMISE
+	select DVB_TUNER_DIB0070
 	help
 	  Support for USB2.0/1.1 DVB receivers based on the DiB0700 USB bridge. The
 	  USB bridge is also present in devices having the DiB7700 DVB-T-USB

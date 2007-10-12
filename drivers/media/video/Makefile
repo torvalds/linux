@@ -4,14 +4,12 @@
 
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-types.o tuner-simple.o \
-			mt20xx.o tda8290.o tea5767.o tda9887.o
-
-tuner-$(CONFIG_TUNER_TEA5761)	+= tea5761.o
+tuner-objs	:=	tuner-core.o tuner-types.o tda9887.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
-obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o
+obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
+			   v4l2-int-device.o
 
 ifeq ($(CONFIG_VIDEO_V4L1_COMPAT),y)
   obj-$(CONFIG_VIDEO_DEV) += v4l1-compat.o
@@ -63,7 +61,6 @@ obj-$(CONFIG_VIDEO_CPIA_USB) += cpia_usb.o
 obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
-obj-$(CONFIG_VIDEO_IVTV) += ivtv/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
 obj-$(CONFIG_VIDEO_USBVISION) += usbvision/
 obj-$(CONFIG_VIDEO_TVP5150) += tvp5150.o
@@ -73,6 +70,7 @@ obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
 obj-$(CONFIG_VIDEO_TLV320AIC23B) += tlv320aic23b.o
 obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
 obj-$(CONFIG_VIDEO_WM8739) += wm8739.o
+obj-$(CONFIG_VIDEO_VP27SMPX) += vp27smpx.o
 obj-$(CONFIG_VIDEO_OVCAMCHIP) += ovcamchip/
 obj-$(CONFIG_VIDEO_CPIA2) += cpia2/
 obj-$(CONFIG_VIDEO_MXB) += mxb.o
@@ -82,8 +80,17 @@ obj-$(CONFIG_VIDEO_DPC) += dpc7146.o
 obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
-obj-$(CONFIG_VIDEO_BUF)   += video-buf.o
-obj-$(CONFIG_VIDEO_BUF_DVB) += video-buf-dvb.o
+
+obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
+obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
+obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
+obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
+obj-$(CONFIG_TUNER_TEA5761) += tea5761.o
+
+obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
+obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o
+obj-$(CONFIG_VIDEOBUF_VMALLOC) += videobuf-vmalloc.o
+obj-$(CONFIG_VIDEOBUF_DVB) += videobuf-dvb.o
 obj-$(CONFIG_VIDEO_BTCX)  += btcx-risc.o
 obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 
@@ -96,6 +103,8 @@ obj-$(CONFIG_VIDEO_CX2341X) += cx2341x.o
 
 obj-$(CONFIG_VIDEO_CAFE_CCIC) += cafe_ccic.o
 obj-$(CONFIG_VIDEO_OV7670) 	+= ov7670.o
+
+obj-$(CONFIG_VIDEO_TCM825X) += tcm825x.o
 
 obj-$(CONFIG_USB_DABUSB)        += dabusb.o
 obj-$(CONFIG_USB_OV511)         += ov511.o
@@ -114,6 +123,9 @@ obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
 obj-$(CONFIG_USB_QUICKCAM_MESSENGER)	+= usbvideo/
 
+obj-$(CONFIG_VIDEO_IVTV) += ivtv/
+
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
+obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core

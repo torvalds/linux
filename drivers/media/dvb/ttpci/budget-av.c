@@ -1232,7 +1232,7 @@ static struct saa7146_ext_vv vv_data = {
 	.capabilities = 0,	// perhaps later: V4L2_CAP_VBI_CAPTURE, but that need tweaking with the saa7113
 	.flags = 0,
 	.stds = &standard[0],
-	.num_stds = sizeof(standard) / sizeof(struct saa7146_standard),
+	.num_stds = ARRAY_SIZE(standard),
 	.ioctls = &ioctls[0],
 	.ioctl = av_ioctl,
 };

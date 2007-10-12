@@ -165,7 +165,7 @@ static void saa7146_set_vbi_capture(struct saa7146_dev *dev, struct saa7146_buf 
 	/* we don't wait here for the first field anymore. this is different from the video
 	   capture and might cause that the first buffer is only half filled (with only
 	   one field). but since this is some sort of streaming data, this is not that negative.
-	   but by doing this, we can use the whole engine from video-buf.c... */
+	   but by doing this, we can use the whole engine from videobuf-dma-sg.c... */
 
 /*
 	WRITE_RPS1(CMD_PAUSE | CMD_OAN | CMD_SIG1 | e_wait);
@@ -239,6 +239,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 		saa7146_dma_free(dev,q,buf);
 
 	if (STATE_NEEDS_INIT == buf->vb.state) {
+		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
+
 		buf->vb.width  = llength;
 		buf->vb.height = lines;
 		buf->vb.size   = size;
@@ -250,7 +252,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,e
 		err = videobuf_iolock(q,&buf->vb, NULL);
 		if (err)
 			goto oops;
-		err = saa7146_pgtable_build_single(dev->pci, &buf->pt[2], buf->vb.dma.sglist, buf->vb.dma.sglen);
+		err = saa7146_pgtable_build_single(dev->pci, &buf->pt[2],
+						 dma->sglist, dma->sglen);
 		if (0 != err)
 			return err;
 	}
@@ -404,7 +407,7 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 	fh->vbi_fmt.start[1] = 312;
 	fh->vbi_fmt.count[1] = 16;
 
-	videobuf_queue_init(&fh->vbi_q, &vbi_qops,
+	videobuf_queue_pci_init(&fh->vbi_q, &vbi_qops,
 			    dev->pci, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
 			    V4L2_FIELD_SEQ_TB, // FIXME: does this really work?

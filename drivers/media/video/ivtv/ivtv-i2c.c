@@ -109,6 +109,7 @@ static const u8 hw_driverids[] = {
 	I2C_DRIVERID_UPD64083,
 	I2C_DRIVERID_SAA717X,
 	I2C_DRIVERID_WM8739,
+	I2C_DRIVERID_VP27SMPX,
 	0 		/* IVTV_HW_GPIO dummy driver ID */
 };
 
@@ -128,6 +129,7 @@ static const char * const hw_drivernames[] = {
 	"upd64083",
 	"saa717x",
 	"wm8739",
+	"vp27smpx",
 	"gpio",
 };
 
@@ -534,14 +536,13 @@ static struct i2c_adapter ivtv_i2c_adap_template = {
 #endif
 };
 
-static struct i2c_algo_bit_data ivtv_i2c_algo_template = {
-	NULL,                   /* ?? */
-	ivtv_setsda_old,        /* setsda function */
-	ivtv_setscl_old,        /* " */
-	ivtv_getsda_old,        /* " */
-	ivtv_getscl_old,        /* " */
-	10,                     /* udelay */
-	200                     /* timeout */
+static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
+	.setsda		= ivtv_setsda_old,
+	.setscl		= ivtv_setscl_old,
+	.getsda		= ivtv_getsda_old,
+	.getscl		= ivtv_getscl_old,
+	.udelay		= 5,
+	.timeout	= 200,
 };
 
 static struct i2c_client ivtv_i2c_client_template = {

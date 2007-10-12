@@ -18,6 +18,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_STREAMS_H
+#define IVTV_STREAMS_H
+
 int ivtv_streams_setup(struct ivtv *itv);
 void ivtv_streams_cleanup(struct ivtv *itv);
 
@@ -29,3 +32,5 @@ int ivtv_stop_v4l2_decode_stream(struct ivtv_stream *s, int flags, u64 pts);
 
 void ivtv_stop_all_captures(struct ivtv *itv);
 int ivtv_passthrough_mode(struct ivtv *itv, int enable);
+
+#endif

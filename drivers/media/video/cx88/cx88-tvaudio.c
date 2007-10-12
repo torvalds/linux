@@ -36,7 +36,6 @@
 */
 
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/errno.h>
 #include <linux/freezer.h>
 #include <linux/kernel.h>
@@ -62,6 +61,10 @@ static unsigned int always_analog = 0;
 module_param(always_analog,int,0644);
 MODULE_PARM_DESC(always_analog,"force analog audio out");
 
+static unsigned int radio_deemphasis = 0;
+module_param(radio_deemphasis,int,0644);
+MODULE_PARM_DESC(radio_deemphasis, "Radio deemphasis time constant, "
+		 "0=None, 1=50us (elsewhere), 2=75us (USA)");
 
 #define dprintk(fmt, arg...)	if (audio_debug) \
 	printk(KERN_DEBUG "%s/0: " fmt, core->name , ## arg)
@@ -140,7 +143,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 	cx_write(AUD_RATE_THRES_DMD, 0x000000C0);
 	cx88_start_audio_dma(core);
 
-	if (cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD) {
+	if (core->board.mpeg & CX88_MPEG_BLACKBIRD) {
 		cx_write(AUD_I2SINPUTCNTL, 4);
 		cx_write(AUD_BAUDRATE, 1);
 		/* 'pass-thru mode': this enables the i2s output to the mpeg encoder */
@@ -149,7 +152,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 		cx_write(AUD_I2SCNTL, 0);
 		/* cx_write(AUD_APB_IN_RATE_ADJ, 0); */
 	}
-	if ((always_analog) || (!(cx88_boards[core->board].mpeg & CX88_MPEG_BLACKBIRD))) {
+	if ((always_analog) || (!(core->board.mpeg & CX88_MPEG_BLACKBIRD))) {
 		ctl |= EN_DAC_ENABLE;
 		cx_write(AUD_CTL, ctl);
 	}
@@ -678,6 +681,10 @@ static void set_audio_standard_FM(struct cx88_core *core,
 	};
 
 	/* It is enough to leave default values? */
+	/* No, it's not!  The deemphasis registers are reset to the 75us
+	 * values by default.  Analyzing the spectrum of the decoded audio
+	 * reveals that "no deemphasis" is the same as 75 us, while the 50 us
+	 * setting results in less deemphasis.  */
 	static const struct rlist fm_no_deemph[] = {
 
 		{AUD_POLYPH80SCALEFAC, 0x0003},
@@ -688,6 +695,7 @@ static void set_audio_standard_FM(struct cx88_core *core,
 	set_audio_start(core, SEL_FMRADIO);
 
 	switch (deemph) {
+	default:
 	case FM_NO_DEEMPH:
 		set_audio_registers(core, fm_no_deemph);
 		break;
@@ -757,7 +765,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 		set_audio_standard_EIAJ(core);
 		break;
 	case WW_FM:
-		set_audio_standard_FM(core, FM_NO_DEEMPH);
+		set_audio_standard_FM(core, radio_deemphasis);
 		break;
 	case WW_NONE:
 	default:
@@ -790,9 +798,9 @@ void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t)
 	core->astat = reg;
 
 /* TODO
-       Reading from AUD_STATUS is not enough
-       for auto-detecting sap/dual-fm/nicam.
-       Add some code here later.
+	Reading from AUD_STATUS is not enough
+	for auto-detecting sap/dual-fm/nicam.
+	Add some code here later.
 */
 
 	return;

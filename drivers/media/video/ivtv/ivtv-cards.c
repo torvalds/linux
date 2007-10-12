@@ -616,7 +616,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx = {
 	.hw_video = IVTV_HW_SAA7115 | IVTV_HW_UPD64031A | IVTV_HW_UPD6408X,
 	.hw_audio = IVTV_HW_GPIO,
 	.hw_audio_ctrl = IVTV_HW_WM8739,
-	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TVAUDIO |
+	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_VP27SMPX |
 		  IVTV_HW_TUNER | IVTV_HW_WM8739 |
 		  IVTV_HW_UPD64031A | IVTV_HW_UPD6408X,
 	.video_inputs = {
@@ -654,7 +654,7 @@ static const struct ivtv_card ivtv_card_gv_mvprx2e = {
 	.hw_audio = IVTV_HW_GPIO,
 	.hw_audio_ctrl = IVTV_HW_WM8739,
 	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TUNER |
-		  IVTV_HW_TVAUDIO | IVTV_HW_WM8739,
+		  IVTV_HW_VP27SMPX | IVTV_HW_WM8739,
 	.video_inputs = {
 		{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE4 },
 		{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO0    },
@@ -823,9 +823,7 @@ static const struct ivtv_card ivtv_card_dctmvtvp1 = {
 
 /* ------------------------------------------------------------------------- */
 
-#ifdef HAVE_XC3028
-
-/* Yuan PG600-2/GotView PCI DVD Lite/Club3D ZAP-TV1x01 cards */
+/* Yuan PG600-2/GotView PCI DVD Lite cards */
 
 static const struct ivtv_card_pci_info ivtv_pci_pg600v2[] = {
 	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_YUAN3,     0x0600 },
@@ -835,29 +833,87 @@ static const struct ivtv_card_pci_info ivtv_pci_pg600v2[] = {
 
 static const struct ivtv_card ivtv_card_pg600v2 = {
 	.type = IVTV_CARD_PG600V2,
-	.name = "Yuan PG600-2, GotView PCI DVD Lite, Club3D ZAP-TV1x01",
+	.name = "Yuan PG600-2, GotView PCI DVD Lite",
 	.v4l2_capabilities = IVTV_CAP_ENCODER,
 	.hw_video = IVTV_HW_CX25840,
 	.hw_audio = IVTV_HW_CX25840,
 	.hw_audio_ctrl = IVTV_HW_CX25840,
 	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
 	.video_inputs = {
-		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
-		{ IVTV_CARD_INPUT_SVIDEO1,    1,
+		{ IVTV_CARD_INPUT_SVIDEO1,    0,
 		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
 	},
 	.audio_inputs = {
-		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5       },
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
-	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5 },
 	.tuners = {
 		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
 	},
-	.gpio_init = { .direction = 0x1000, .initial_value = 0x1000 }, /* tuner reset */
 	.pci_list = ivtv_pci_pg600v2,
 };
-#endif
+
+/* ------------------------------------------------------------------------- */
+
+/* Club3D ZAP-TV1x01 cards */
+
+static const struct ivtv_card_pci_info ivtv_pci_club3d[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_YUAN3,     0x0600 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_club3d = {
+	.type = IVTV_CARD_CLUB3D,
+	.name = "Club3D ZAP-TV1x01",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_SVIDEO1,    0,
+		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE3 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
+	},
+	.tuners = {
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+	},
+	.pci_list = ivtv_pci_club3d,
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* AVerTV MCE 116 Plus (M116) card */
+
+static const struct ivtv_card_pci_info ivtv_pci_avertv_mce116[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc439 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_avertv_mce116 = {
+	.type = IVTV_CARD_AVERTV_MCE116,
+	.name = "AVerTV MCE 116 Plus",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER | IVTV_HW_WM8739,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 }, /* enable line-in */
+	.tuners = {
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+	},
+	.pci_list = ivtv_pci_avertv_mce116,
+};
 
 static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pvr250,
@@ -878,9 +934,9 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_gotview_pci_dvd2,
 	&ivtv_card_yuan_mpc622,
 	&ivtv_card_dctmvtvp1,
-#ifdef HAVE_XC3028
 	&ivtv_card_pg600v2,
-#endif
+	&ivtv_card_club3d,
+	&ivtv_card_avertv_mce116,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */

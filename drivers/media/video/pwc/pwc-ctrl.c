@@ -1648,7 +1648,7 @@ int pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 		ARG_OUT(cmd)
 		break;
 	}
-       /*
+	/*
 	case VIDIOCPWCGVIDTABLE:
 	{
 		ARG_DEF(struct pwc_table_init_buffer, table);

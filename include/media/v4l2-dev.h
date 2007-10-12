@@ -23,8 +23,6 @@
 #include <linux/videodev2.h>
 #endif
 
-#include <linux/fs.h>
-
 #define VIDEO_MAJOR	81
 /* Minor device allocation */
 #define MINOR_VFL_TYPE_GRABBER_MIN   0
@@ -88,8 +86,11 @@ struct video_device
 	/* device ops */
 	const struct file_operations *fops;
 
+	/* sysfs */
+	struct device class_dev;	/* v4l device */
+	struct device *dev;		/* device parent */
+
 	/* device info */
-	struct device *dev;
 	char name[32];
 	int type;       /* v4l1 */
 	int type2;      /* v4l2 */
@@ -334,7 +335,6 @@ void *priv;
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
 	struct mutex lock;             /* ... helper function uses these   */
-	struct class_device class_dev; /* sysfs */
 };
 
 /* Class-dev to video-device */
@@ -362,18 +362,18 @@ extern int video_usercopy(struct inode *inode, struct file *file,
 
 static inline int __must_check
 video_device_create_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
+			 struct device_attribute *attr)
 {
-	int ret = class_device_create_file(&vfd->class_dev, attr);
+	int ret = device_create_file(&vfd->class_dev, attr);
 	if (ret < 0)
 		printk(KERN_WARNING "%s error: %d\n", __FUNCTION__, ret);
 	return ret;
 }
 static inline void
 video_device_remove_file(struct video_device *vfd,
-			 struct class_device_attribute *attr)
+			 struct device_attribute *attr)
 {
-	class_device_remove_file(&vfd->class_dev, attr);
+	device_remove_file(&vfd->class_dev, attr);
 }
 
 #endif /* CONFIG_VIDEO_V4L1_COMPAT */

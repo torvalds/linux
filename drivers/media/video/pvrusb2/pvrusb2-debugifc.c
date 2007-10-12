@@ -397,10 +397,22 @@ static int pvr2_debugifc_do1cmd(struct pvr2_hdw *hdw,const char *buf,
 		count -= scnt; buf += scnt;
 		if (!wptr) return -EINVAL;
 		if (debugifc_match_keyword(wptr,wlen,"fetch")) {
-			pvr2_hdw_cpufw_set_enabled(hdw,!0);
+			scnt = debugifc_isolate_word(buf,count,&wptr,&wlen);
+			if (scnt && wptr) {
+				count -= scnt; buf += scnt;
+				if (debugifc_match_keyword(wptr,wlen,"prom")) {
+					pvr2_hdw_cpufw_set_enabled(hdw,!0,!0);
+				} else if (debugifc_match_keyword(wptr,wlen,
+								  "ram")) {
+					pvr2_hdw_cpufw_set_enabled(hdw,0,!0);
+				} else {
+					return -EINVAL;
+				}
+			}
+			pvr2_hdw_cpufw_set_enabled(hdw,0,!0);
 			return 0;
 		} else if (debugifc_match_keyword(wptr,wlen,"done")) {
-			pvr2_hdw_cpufw_set_enabled(hdw,0);
+			pvr2_hdw_cpufw_set_enabled(hdw,0,0);
 			return 0;
 		} else {
 			return -EINVAL;

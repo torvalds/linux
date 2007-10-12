@@ -18,6 +18,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_FILEOPS_H
+#define IVTV_FILEOPS_H
+
 /* Testing/Debugging */
 int ivtv_v4l2_open(struct inode *inode, struct file *filp);
 ssize_t ivtv_v4l2_read(struct file *filp, char __user *buf, size_t count,
@@ -42,3 +45,5 @@ int ivtv_claim_stream(struct ivtv_open_id *id, int type);
 
 /* Release a previously claimed stream. */
 void ivtv_release_stream(struct ivtv_stream *s);
+
+#endif

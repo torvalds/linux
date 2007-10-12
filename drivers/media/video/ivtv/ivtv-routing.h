@@ -1,5 +1,5 @@
 /*
-    Audio-related ivtv functions.
+    Audio/video-routing-related ivtv functions.
     Copyright (C) 2003-2004  Kevin Thayer <nufan_wfk at yahoo.com>
     Copyright (C) 2005-2007  Hans Verkuil <hverkuil@xs4all.nl>
 
@@ -18,6 +18,10 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-int ivtv_audio_set_io(struct ivtv *itv);
-void ivtv_audio_set_route(struct ivtv *itv, struct v4l2_routing *route);
-void ivtv_audio_set_audio_clock_freq(struct ivtv *itv, u8 freq);
+#ifndef IVTV_ROUTING_H
+#define IVTV_ROUTING_H
+
+void ivtv_audio_set_io(struct ivtv *itv);
+void ivtv_video_set_io(struct ivtv *itv);
+
+#endif

@@ -1,114 +1,29 @@
 /*
+ * generic helper functions for handling video4linux capture buffers
  *
- * generic helper functions for video4linux capture buffers, to handle
- * memory management and PCI DMA.
- * Right now, bttv, saa7134, saa7146 and cx88 use it.
+ * (c) 2007 Mauro Carvalho Chehab, <mchehab@infradead.org>
  *
- * The functions expect the hardware being able to scatter gatter
- * (i.e. the buffers are not linear in physical memory, but fragmented
- * into PAGE_SIZE chunks).  They also assume the driver does not need
- * to touch the video data.
- *
- * device specific map/unmap/sync stuff now are mapped as file operations
- * to allow its usage by USB and virtual devices.
- *
+ * Highly based on video-buf written originally by:
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
  * (c) 2006 Mauro Carvalho Chehab, <mchehab@infradead.org>
  * (c) 2006 Ted Walther and John Sokol
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation; either version 2
  */
 
-#include <linux/videodev2.h>
 #include <linux/poll.h>
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+#include <linux/videodev.h>
+#endif
+#include <linux/videodev2.h>
 
 #define UNSET (-1U)
 
-/* --------------------------------------------------------------------- */
-
-/*
- * Return a scatterlist for some page-aligned vmalloc()'ed memory
- * block (NULL on errors).  Memory for the scatterlist is allocated
- * using kmalloc.  The caller must free the memory.
- */
-struct scatterlist* videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages);
-
-/*
- * Return a scatterlist for a an array of userpages (NULL on errors).
- * Memory for the scatterlist is allocated using kmalloc.  The caller
- * must free the memory.
- */
-struct scatterlist* videobuf_pages_to_sg(struct page **pages, int nr_pages,
-					 int offset);
 
 struct videobuf_buffer;
 struct videobuf_queue;
-
-/* --------------------------------------------------------------------- */
-
-/*
- * A small set of helper functions to manage buffers (both userland
- * and kernel) for DMA.
- *
- * videobuf_dma_init_*()
- *	creates a buffer.  The userland version takes a userspace
- *	pointer + length.  The kernel version just wants the size and
- *	does memory allocation too using vmalloc_32().
- *
- * videobuf_dma_*()
- *	see Documentation/DMA-mapping.txt, these functions to
- *	basically the same.  The map function does also build a
- *	scatterlist for the buffer (and unmap frees it ...)
- *
- * videobuf_dma_free()
- *	no comment ...
- *
- */
-
-struct videobuf_dmabuf {
-	u32                 magic;
-
-	/* for userland buffer */
-	int                 offset;
-	struct page         **pages;
-
-	/* for kernel buffers */
-	void                *vmalloc;
-
-	/* Stores the userspace pointer to vmalloc area */
-	void                *varea;
-
-	/* for overlay buffers (pci-pci dma) */
-	dma_addr_t          bus_addr;
-
-	/* common */
-	struct scatterlist  *sglist;
-	int                 sglen;
-	int                 nr_pages;
-	int                 direction;
-};
-
-void videobuf_dma_init(struct videobuf_dmabuf *dma);
-int videobuf_dma_init_user(struct videobuf_dmabuf *dma, int direction,
-			   unsigned long data, unsigned long size);
-int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
-			     int nr_pages);
-int videobuf_dma_init_overlay(struct videobuf_dmabuf *dma, int direction,
-			      dma_addr_t addr, int nr_pages);
-int videobuf_dma_free(struct videobuf_dmabuf *dma);
-
-int videobuf_dma_map(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
-int videobuf_dma_sync(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
-int videobuf_dma_unmap(struct videobuf_queue* q,struct videobuf_dmabuf *dma);
-
-	/*FIXME: these variants are used only on *-alsa code, where videobuf is
-	 * used without queue
-	 */
-int videobuf_pci_dma_map(struct pci_dev *pci,struct videobuf_dmabuf *dma);
-int videobuf_pci_dma_unmap(struct pci_dev *pci,struct videobuf_dmabuf *dma);
 
 /* --------------------------------------------------------------------- */
 
@@ -162,26 +77,33 @@ struct videobuf_buffer {
 	unsigned int            input;
 	enum v4l2_field         field;
 	enum videobuf_state     state;
-	struct videobuf_dmabuf  dma;
 	struct list_head        stream;  /* QBUF/DQBUF list */
-
-	/* for mmap'ed buffers */
-	enum v4l2_memory        memory;
-	size_t                  boff;    /* buffer offset (mmap + overlay) */
-	size_t                  bsize;   /* buffer size */
-	unsigned long           baddr;   /* buffer addr (userland ptr!) */
-	struct videobuf_mapping *map;
 
 	/* touched by irq handler */
 	struct list_head        queue;
 	wait_queue_head_t       done;
 	unsigned int            field_count;
 	struct timeval          ts;
+
+	/* Memory type */
+	enum v4l2_memory        memory;
+
+	/* buffer size */
+	size_t                  bsize;
+
+	/* buffer offset (mmap + overlay) */
+	size_t                  boff;
+
+	/* buffer addr (userland ptr!) */
+	unsigned long           baddr;
+
+	/* for mmap'ed buffers */
+	struct videobuf_mapping *map;
+
+	/* Private pointer to allow specific methods to store their data */
+	int			privsize;
+	void                    *priv;
 };
-
-typedef int (vb_map_sg_t)(void *dev,struct scatterlist *sglist,int nr_pages,
-					int direction);
-
 
 struct videobuf_queue_ops {
 	int (*buf_setup)(struct videobuf_queue *q,
@@ -193,14 +115,37 @@ struct videobuf_queue_ops {
 			  struct videobuf_buffer *vb);
 	void (*buf_release)(struct videobuf_queue *q,
 			    struct videobuf_buffer *vb);
+};
 
-	/* Helper operations - device dependent.
-	 * If null, videobuf_init defaults all to PCI handling
-	 */
+#define MAGIC_QTYPE_OPS	0x12261003
 
-	vb_map_sg_t	*vb_map_sg;
-	vb_map_sg_t	*vb_dma_sync_sg;
-	vb_map_sg_t	*vb_unmap_sg;
+/* Helper operations - device type dependent */
+struct videobuf_qtype_ops {
+	u32                     magic;
+
+	void* (*alloc)		(size_t size);
+	int (*iolock)		(struct videobuf_queue* q,
+				 struct videobuf_buffer *vb,
+				 struct v4l2_framebuffer *fbuf);
+	int (*mmap)		(struct videobuf_queue *q,
+				 unsigned int *count,
+				 unsigned int *size,
+				 enum v4l2_memory memory);
+	int (*sync)		(struct videobuf_queue* q,
+				 struct videobuf_buffer *buf);
+	int (*copy_to_user)	(struct videobuf_queue *q,
+				 char __user *data,
+				 size_t count,
+				 int nonblocking);
+	int (*copy_stream)	(struct videobuf_queue *q,
+				 char __user *data,
+				 size_t count,
+				 size_t pos,
+				 int vbihack,
+				 int nonblocking);
+	int (*mmap_free)	(struct videobuf_queue *q);
+	int (*mmap_mapper)	(struct videobuf_queue *q,
+				struct vm_area_struct *vma);
 };
 
 struct videobuf_queue {
@@ -215,6 +160,7 @@ struct videobuf_queue {
 	enum v4l2_field            last;   /* for field=V4L2_FIELD_ALTERNATE */
 	struct videobuf_buffer     *bufs[VIDEO_MAX_FRAME];
 	struct videobuf_queue_ops  *ops;
+	struct videobuf_qtype_ops  *int_ops;
 
 	/* capture via mmap() + ioctl(QBUF/DQBUF) */
 	unsigned int               streaming;
@@ -229,28 +175,25 @@ struct videobuf_queue {
 	void                       *priv_data;
 };
 
-void* videobuf_alloc(unsigned int size);
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
 int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 
-/* Maps fops to PCI stuff */
-void videobuf_queue_pci(struct videobuf_queue* q);
+void *videobuf_alloc(struct videobuf_queue* q);
 
-void videobuf_queue_init(struct videobuf_queue *q,
+void videobuf_queue_core_init(struct videobuf_queue *q,
 			 struct videobuf_queue_ops *ops,
 			 void *dev,
 			 spinlock_t *irqlock,
 			 enum v4l2_buf_type type,
 			 enum v4l2_field field,
 			 unsigned int msize,
-			 void *priv);
+			 void *priv,
+			 struct videobuf_qtype_ops *int_ops);
 int  videobuf_queue_is_busy(struct videobuf_queue *q);
 void videobuf_queue_cancel(struct videobuf_queue *q);
 
 enum v4l2_field videobuf_next_field(struct videobuf_queue *q);
-void videobuf_status(struct v4l2_buffer *b, struct videobuf_buffer *vb,
-		     enum v4l2_buf_type type);
 int videobuf_reqbufs(struct videobuf_queue *q,
 		     struct v4l2_requestbuffers *req);
 int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b);
@@ -258,6 +201,10 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		  struct v4l2_buffer *b);
 int videobuf_dqbuf(struct videobuf_queue *q,
 		   struct v4l2_buffer *b, int nonblocking);
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+int videobuf_cgmbuf(struct videobuf_queue *q,
+		    struct video_mbuf *mbuf, int count);
+#endif
 int videobuf_streamon(struct videobuf_queue *q);
 int videobuf_streamoff(struct videobuf_queue *q);
 

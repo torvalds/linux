@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
+#include <linux/delay.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/cx25840.h>
@@ -133,7 +134,9 @@ static void init_dll1(struct i2c_client *client)
 	cx25840_write(client, 0x159, 0x23);
 	cx25840_write(client, 0x15a, 0x87);
 	cx25840_write(client, 0x15b, 0x06);
+	udelay(10);
 	cx25840_write(client, 0x159, 0xe1);
+	udelay(10);
 	cx25840_write(client, 0x15a, 0x86);
 	cx25840_write(client, 0x159, 0xe0);
 	cx25840_write(client, 0x159, 0xe1);
@@ -147,6 +150,7 @@ static void init_dll2(struct i2c_client *client)
 	cx25840_write(client, 0x15d, 0xe3);
 	cx25840_write(client, 0x15e, 0x86);
 	cx25840_write(client, 0x15f, 0x06);
+	udelay(10);
 	cx25840_write(client, 0x15d, 0xe1);
 	cx25840_write(client, 0x15d, 0xe0);
 	cx25840_write(client, 0x15d, 0xe1);
@@ -165,9 +169,7 @@ static void cx25836_initialize(struct i2c_client *client)
 	/* 3c. */
 	cx25840_and_or(client, 0x159, ~0x02, 0x02);
 	/* 3d. */
-	/* There should be a 10-us delay here, but since the
-	   i2c bus already has a 10-us delay we don't need to do
-	   anything */
+	udelay(10);
 	/* 3e. */
 	cx25840_and_or(client, 0x159, ~0x02, 0x00);
 	/* 3f. */
@@ -179,9 +181,18 @@ static void cx25836_initialize(struct i2c_client *client)
 	cx25840_and_or(client, 0x15b, ~0x1e, 0x10);
 }
 
-static void cx25840_initialize(struct i2c_client *client, int loadfw)
+static void cx25840_work_handler(struct work_struct *work)
 {
+	struct cx25840_state *state = container_of(work, struct cx25840_state, fw_work);
+	cx25840_loadfw(state->c);
+	wake_up(&state->fw_wait);
+}
+
+static void cx25840_initialize(struct i2c_client *client)
+{
+	DEFINE_WAIT(wait);
 	struct cx25840_state *state = i2c_get_clientdata(client);
+	struct workqueue_struct *q;
 
 	/* datasheet startup in numbered steps, refer to page 3-77 */
 	/* 2. */
@@ -197,8 +208,19 @@ static void cx25840_initialize(struct i2c_client *client, int loadfw)
 	cx25840_write(client, 0x13c, 0x01);
 	cx25840_write(client, 0x13c, 0x00);
 	/* 5. */
-	if (loadfw)
-		cx25840_loadfw(client);
+	/* Do the firmware load in a work handler to prevent.
+	   Otherwise the kernel is blocked waiting for the
+	   bit-banging i2c interface to finish uploading the
+	   firmware. */
+	INIT_WORK(&state->fw_work, cx25840_work_handler);
+	init_waitqueue_head(&state->fw_wait);
+	q = create_singlethread_workqueue("cx25840_fw");
+	prepare_to_wait(&state->fw_wait, &wait, TASK_UNINTERRUPTIBLE);
+	queue_work(q, &state->fw_work);
+	schedule();
+	finish_wait(&state->fw_wait, &wait);
+	destroy_workqueue(q);
+
 	/* 6. */
 	cx25840_write(client, 0x115, 0x8c);
 	cx25840_write(client, 0x116, 0x07);
@@ -251,8 +273,13 @@ static void input_change(struct i2c_client *client)
 	}
 	cx25840_and_or(client, 0x401, ~0x60, 0);
 	cx25840_and_or(client, 0x401, ~0x60, 0x60);
+	cx25840_and_or(client, 0x810, ~0x01, 1);
 
-	if (std & V4L2_STD_525_60) {
+	if (state->radio) {
+		cx25840_write(client, 0x808, 0xf9);
+		cx25840_write(client, 0x80b, 0x00);
+	}
+	else if (std & V4L2_STD_525_60) {
 		/* Certain Hauppauge PVR150 models have a hardware bug
 		   that causes audio to drop out. For these models the
 		   audio standard must be set explicitly.
@@ -281,11 +308,7 @@ static void input_change(struct i2c_client *client)
 		cx25840_write(client, 0x80b, 0x10);
 	}
 
-	if (cx25840_read(client, 0x803) & 0x10) {
-		/* restart audio decoder microcontroller */
-		cx25840_and_or(client, 0x803, ~0x10, 0x00);
-		cx25840_and_or(client, 0x803, ~0x10, 0x10);
-	}
+	cx25840_and_or(client, 0x810, ~0x01, 0);
 }
 
 static int set_input(struct i2c_client *client, enum cx25840_video_input vid_input,
@@ -625,6 +648,22 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 	struct v4l2_tuner *vt = arg;
 	struct v4l2_routing *route = arg;
 
+	/* ignore these commands */
+	switch (cmd) {
+		case TUNER_SET_TYPE_ADDR:
+			return 0;
+	}
+
+	if (!state->is_initialized) {
+		v4l_dbg(1, cx25840_debug, client, "cmd %08x triggered fw load\n", cmd);
+		/* initialize on first use */
+		state->is_initialized = 1;
+		if (state->is_cx25836)
+			cx25836_initialize(client);
+		else
+			cx25840_initialize(client);
+	}
+
 	switch (cmd) {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	/* ioctls to allow direct access to the
@@ -825,7 +864,7 @@ static int cx25840_command(struct i2c_client *client, unsigned int cmd,
 		if (state->is_cx25836)
 			cx25836_initialize(client);
 		else
-			cx25840_initialize(client, 0);
+			cx25840_initialize(client);
 		break;
 
 	case VIDIOC_G_CHIP_IDENT:
@@ -856,17 +895,16 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return 0;
 
-	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
-	if (state == 0)
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (client == 0)
 		return -ENOMEM;
 
-	client = &state->c;
 	client->addr = address;
 	client->adapter = adapter;
 	client->driver = &i2c_driver_cx25840;
 	snprintf(client->name, sizeof(client->name) - 1, "cx25840");
 
-	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", address << 1);
+	v4l_dbg(1, cx25840_debug, client, "detecting cx25840 client on address 0x%x\n", client->addr << 1);
 
 	device_id = cx25840_read(client, 0x101) << 8;
 	device_id |= cx25840_read(client, 0x100);
@@ -875,16 +913,20 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	 * 0x83 for the cx2583x and 0x84 for the cx2584x */
 	if ((device_id & 0xff00) == 0x8300) {
 		id = V4L2_IDENT_CX25836 + ((device_id >> 4) & 0xf) - 6;
-		state->is_cx25836 = 1;
 	}
 	else if ((device_id & 0xff00) == 0x8400) {
 		id = V4L2_IDENT_CX25840 + ((device_id >> 4) & 0xf);
-		state->is_cx25836 = 0;
 	}
 	else {
 		v4l_dbg(1, cx25840_debug, client, "cx25840 not found\n");
-		kfree(state);
+		kfree(client);
 		return 0;
+	}
+
+	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
+	if (state == NULL) {
+		kfree(client);
+		return -ENOMEM;
 	}
 
 	/* Note: revision '(device_id & 0x0f) == 2' was never built. The
@@ -892,24 +934,22 @@ static int cx25840_detect_client(struct i2c_adapter *adapter, int address,
 	v4l_info(client, "cx25%3x-2%x found @ 0x%x (%s)\n",
 		    (device_id & 0xfff0) >> 4,
 		    (device_id & 0x0f) < 3 ? (device_id & 0x0f) + 1 : (device_id & 0x0f),
-		    address << 1, adapter->name);
+		    client->addr << 1, client->adapter->name);
 
 	i2c_set_clientdata(client, state);
+	state->c = client;
+	state->is_cx25836 = ((device_id & 0xff00) == 0x8300);
 	state->vid_input = CX25840_COMPOSITE7;
 	state->aud_input = CX25840_AUDIO8;
 	state->audclk_freq = 48000;
 	state->pvr150_workaround = 0;
 	state->audmode = V4L2_TUNER_MODE_LANG1;
+	state->unmute_volume = -1;
 	state->vbi_line_offset = 8;
 	state->id = id;
 	state->rev = device_id;
 
 	i2c_attach_client(client);
-
-	if (state->is_cx25836)
-		cx25836_initialize(client);
-	else
-		cx25840_initialize(client, 1);
 
 	return 0;
 }
@@ -932,6 +972,7 @@ static int cx25840_detach_client(struct i2c_client *client)
 	}
 
 	kfree(state);
+	kfree(client);
 
 	return 0;
 }
@@ -1056,9 +1097,10 @@ static void log_audio_status(struct i2c_client *client)
 	}
 	v4l_info(client, "Detected audio standard:   %s\n", p);
 	v4l_info(client, "Audio muted:               %s\n",
-		    (mute_ctl & 0x2) ? "yes" : "no");
+		    (state->unmute_volume >= 0) ? "yes" : "no");
 	v4l_info(client, "Audio microcontroller:     %s\n",
-		    (download_ctl & 0x10) ? "running" : "stopped");
+		    (download_ctl & 0x10) ?
+				((mute_ctl & 0x2) ? "detecting" : "running") : "stopped");
 
 	switch (audio_config >> 4) {
 	case 0x00: p = "undefined"; break;

@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -232,7 +231,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	}
 
 	if (dev->hw_mute  == mute &&
-		dev->hw_input == in) {
+		dev->hw_input == in && !dev->inresume) {
 		dprintk("mute/input: nothing to do [mute=%d,input=%s]\n",
 			mute,in->name);
 		return;
@@ -877,7 +876,7 @@ static int tvaudio_thread_ddep(void *data)
 /* ------------------------------------------------------------------ */
 /* common stuff + external entry points                               */
 
-static void saa7134_enable_i2s(struct saa7134_dev *dev)
+void saa7134_enable_i2s(struct saa7134_dev *dev)
 {
 	int i2s_format;
 

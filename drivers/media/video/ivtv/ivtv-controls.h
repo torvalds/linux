@@ -18,4 +18,9 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef IVTV_CONTROLS_H
+#define IVTV_CONTROLS_H
+
 int ivtv_control_ioctls(struct ivtv *itv, unsigned int cmd, void *arg);
+
+#endif

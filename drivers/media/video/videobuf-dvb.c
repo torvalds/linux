@@ -22,8 +22,8 @@
 #include <linux/file.h>
 #include <linux/freezer.h>
 
-#include <media/video-buf.h>
-#include <media/video-buf-dvb.h>
+#include <media/videobuf-dma-sg.h>
+#include <media/videobuf-dvb.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -45,6 +45,7 @@ static int videobuf_dvb_thread(void *data)
 	struct videobuf_buffer *buf;
 	unsigned long flags;
 	int err;
+	struct videobuf_dmabuf *dma;
 
 	dprintk("dvb thread started\n");
 	set_freezable();
@@ -56,7 +57,6 @@ static int videobuf_dvb_thread(void *data)
 				 struct videobuf_buffer, stream);
 		list_del(&buf->stream);
 		err = videobuf_waiton(buf,0,1);
-		BUG_ON(0 != err);
 
 		/* no more feeds left or stop_feed() asked us to quit */
 		if (0 == dvb->nfeeds)
@@ -66,8 +66,9 @@ static int videobuf_dvb_thread(void *data)
 		try_to_freeze();
 
 		/* feed buffer data to demux */
+		dma=videobuf_to_dma(buf);
 		if (buf->state == STATE_DONE)
-			dvb_dmx_swfilter(&dvb->demux, buf->dma.vmalloc,
+			dvb_dmx_swfilter(&dvb->demux, dma->vmalloc,
 					 buf->size);
 
 		/* requeue buffer */

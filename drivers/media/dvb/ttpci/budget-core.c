@@ -34,7 +34,6 @@
  * the project's page is at http://www.linuxtv.org/dvb/
  */
 
-#include <linux/moduleparam.h>
 
 #include "budget.h"
 #include "ttpci-eeprom.h"
