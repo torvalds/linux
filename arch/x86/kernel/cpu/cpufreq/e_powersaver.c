@@ -253,7 +253,6 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		f_table[k].frequency = CPUFREQ_TABLE_END;
 	}
 
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.transition_latency = 140000; /* 844mV -> 700mV in ns */
 	policy->cur = fsb * current_multiplier;
 

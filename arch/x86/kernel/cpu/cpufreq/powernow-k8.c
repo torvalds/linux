@@ -76,7 +76,10 @@ static u32 find_khz_freq_from_fid(u32 fid)
 /* Return a frequency in MHz, given an input fid and did */
 static u32 find_freq_from_fiddid(u32 fid, u32 did)
 {
-	return 100 * (fid + 0x10) >> did;
+	if (current_cpu_data.x86 == 0x10)
+		return 100 * (fid + 0x10) >> did;
+	else
+		return 100 * (fid + 0x8) >> did;
 }
 
 static u32 find_khz_freq_from_fiddid(u32 fid, u32 did)
@@ -1208,7 +1211,6 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	/* run on any CPU again */
 	set_cpus_allowed(current, oldmask);
 
-	pol->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	if (cpu_family == CPU_HW_PSTATE)
 		pol->cpus = cpumask_of_cpu(pol->cpu);
 	else
@@ -1325,21 +1327,16 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
 static int __cpuinit powernowk8_init(void)
 {
 	unsigned int i, supported_cpus = 0;
-	unsigned int booted_cores = 1;
 
 	for_each_online_cpu(i) {
 		if (check_supported_cpu(i))
 			supported_cpus++;
 	}
 
-#ifdef CONFIG_SMP
-	booted_cores = cpu_data[0].booted_cores;
-#endif
-
 	if (supported_cpus == num_online_cpus()) {
 		printk(KERN_INFO PFX "Found %d %s "
 			"processors (%d cpu cores) (" VERSION ")\n",
-			supported_cpus/booted_cores,
+			num_online_nodes(),
 			boot_cpu_data.x86_model_id, supported_cpus);
 		return cpufreq_register_driver(&cpufreq_amd64_driver);
 	}

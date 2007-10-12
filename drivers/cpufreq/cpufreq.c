@@ -763,6 +763,8 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	init_completion(&policy->kobj_unregister);
 	INIT_WORK(&policy->update, handle_update);
 
+	/* Set governor before ->init, so that driver could check it */
+	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
 	 */
@@ -1109,12 +1111,7 @@ unsigned int cpufreq_quick_get(unsigned int cpu)
 	unsigned int ret_freq = 0;
 
 	if (policy) {
-		if (unlikely(lock_policy_rwsem_read(cpu)))
-			return ret_freq;
-
 		ret_freq = policy->cur;
-
-		unlock_policy_rwsem_read(cpu);
 		cpufreq_cpu_put(policy);
 	}
 
@@ -1483,6 +1480,31 @@ static int __cpufreq_governor(struct cpufreq_policy *policy,
 {
 	int ret;
 
+	/* Only must be defined when default governor is known to have latency
+	   restrictions, like e.g. conservative or ondemand.
+	   That this is the case is already ensured in Kconfig
+	*/
+#ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE
+	struct cpufreq_governor *gov = &cpufreq_gov_performance;
+#else
+	struct cpufreq_governor *gov = NULL;
+#endif
+
+	if (policy->governor->max_transition_latency &&
+	    policy->cpuinfo.transition_latency >
+	    policy->governor->max_transition_latency) {
+		if (!gov)
+			return -EINVAL;
+		else {
+			printk(KERN_WARNING "%s governor failed, too long"
+			       " transition latency of HW, fallback"
+			       " to %s governor\n",
+			       policy->governor->name,
+			       gov->name);
+			policy->governor = gov;
+		}
+	}
+
 	if (!try_module_get(policy->governor->owner))
 		return -EINVAL;
 
@@ -1703,7 +1725,7 @@ int cpufreq_update_policy(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
-static int cpufreq_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
 					unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;

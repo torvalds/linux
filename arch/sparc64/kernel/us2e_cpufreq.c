@@ -326,7 +326,6 @@ static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
 	table[2].index = 5;
 	table[3].frequency = CPUFREQ_TABLE_END;
 
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.transition_latency = 0;
 	policy->cur = clock_tick;
 

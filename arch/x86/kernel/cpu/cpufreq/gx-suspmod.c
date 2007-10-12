@@ -420,7 +420,6 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 		policy->min = maxfreq / POLICY_MIN_DIV;
 	policy->max = maxfreq;
 	policy->cur = curfreq;
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	policy->cpuinfo.min_freq = maxfreq / max_duration;
 	policy->cpuinfo.max_freq = maxfreq;
 	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;

@@ -646,7 +646,6 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 			policy->cpuinfo.transition_latency =
 			    perf->states[i].transition_latency * 1000;
 	}
-	policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 
 	data->max_freq = perf->states[0].core_frequency * 1000;
 	/* table init */

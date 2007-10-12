@@ -164,8 +164,7 @@ freq_table_get_index(struct cpufreq_stats *stat, unsigned int freq)
 	return -1;
 }
 
-static void
-cpufreq_stats_free_table (unsigned int cpu)
+static void __cpuexit cpufreq_stats_free_table(unsigned int cpu)
 {
 	struct cpufreq_stats *stat = cpufreq_stats_table[cpu];
 	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
@@ -305,8 +304,9 @@ cpufreq_stat_notifier_trans (struct notifier_block *nb, unsigned long val,
 	return 0;
 }
 
-static int cpufreq_stat_cpu_callback(struct notifier_block *nfb,
-					unsigned long action, void *hcpu)
+static int __cpuinit cpufreq_stat_cpu_callback(struct notifier_block *nfb,
+					       unsigned long action,
+					       void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
@@ -323,7 +323,7 @@ static int cpufreq_stat_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block cpufreq_stat_cpu_notifier =
+static struct notifier_block cpufreq_stat_cpu_notifier __cpuinitdata =
 {
 	.notifier_call = cpufreq_stat_cpu_callback,
 };
@@ -356,8 +356,7 @@ __init cpufreq_stats_init(void)
 
 	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	for_each_online_cpu(cpu) {
-		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier,
-				CPU_ONLINE, (void *)(long)cpu);
+		cpufreq_update_policy(cpu);
 	}
 	return 0;
 }
@@ -372,13 +371,12 @@ __exit cpufreq_stats_exit(void)
 			CPUFREQ_TRANSITION_NOTIFIER);
 	unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
 	for_each_online_cpu(cpu) {
-		cpufreq_stat_cpu_callback(&cpufreq_stat_cpu_notifier,
-						CPU_DEAD, (void *)(long)cpu);
+		cpufreq_stats_free_table(cpu);
 	}
 }
 
 MODULE_AUTHOR ("Zou Nan hai <nanhai.zou@intel.com>");
-MODULE_DESCRIPTION ("'cpufreq_stats' - A driver to export cpufreq stats"
+MODULE_DESCRIPTION ("'cpufreq_stats' - A driver to export cpufreq stats "
 				"through sysfs filesystem");
 MODULE_LICENSE ("GPL");
 
