@@ -1755,7 +1755,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	struct page *page;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	int bytes_read = 0;
+	unsigned int bytes_read = 0;
 	unsigned int read_size, i;
 	char *smb_read_data = NULL;
 	struct smb_com_read_rsp *pSMBr;
@@ -1849,7 +1849,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 
 			i +=  bytes_read >> PAGE_CACHE_SHIFT;
 			cifs_stats_bytes_read(pTcon, bytes_read);
-			if ((int)(bytes_read & PAGE_CACHE_MASK) != bytes_read) {
+			if ((bytes_read & PAGE_CACHE_MASK) != bytes_read) {
 				i++; /* account for partial page */
 
 				/* server copy of file can have smaller size
