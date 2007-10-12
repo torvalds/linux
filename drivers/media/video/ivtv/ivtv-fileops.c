@@ -892,6 +892,7 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 			if (atomic_read(&itv->capturing) > 0) {
 				/* switching to radio while capture is
 				   in progress is not polite */
+				ivtv_release_stream(s);
 				kfree(item);
 				return -EBUSY;
 			}
