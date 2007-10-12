@@ -290,7 +290,7 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 int lifebook_init(struct psmouse *psmouse)
 {
 	struct input_dev *dev1 = psmouse->dev;
-	int max_coord = lifebook_use_6byte_proto ? 1024 : 4096;
+	int max_coord = lifebook_use_6byte_proto ? 4096 : 1024;
 
 	if (lifebook_absolute_mode(psmouse))
 		return -1;
