@@ -296,10 +296,10 @@ static const u16 copper_fc_adv[] = {
 
 /* flow control to advertise bits when using 1000BaseX */
 static const u16 fiber_fc_adv[] = {
-	[FC_BOTH] = PHY_M_P_BOTH_MD_X,
+	[FC_NONE] = PHY_M_P_NO_PAUSE_X,
 	[FC_TX]   = PHY_M_P_ASYM_MD_X,
 	[FC_RX]	  = PHY_M_P_SYM_MD_X,
-	[FC_NONE] = PHY_M_P_NO_PAUSE_X,
+	[FC_BOTH] = PHY_M_P_BOTH_MD_X,
 };
 
 /* flow control to GMA disable bits */
