@@ -478,7 +478,8 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	s->buffers_stolen = 0;
 
 	/* mute/unmute video */
-	ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1, test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? 1 : 0);
+	ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
+		test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? 0x00808001 : 0);
 
 	/* Clear Streamoff flags in case left from last capture */
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
