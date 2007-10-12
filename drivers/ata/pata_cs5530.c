@@ -214,7 +214,7 @@ static struct ata_port_operations cs5530_port_ops = {
 	.port_start	= ata_port_start,
 };
 
-static struct dmi_system_id palmax_dmi_table[] = {
+static const struct dmi_system_id palmax_dmi_table[] = {
 	{
 		.ident = "Palmax PD1100",
 		.matches = {

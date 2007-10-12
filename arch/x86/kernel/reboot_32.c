@@ -79,7 +79,7 @@ __setup("reboot=", reboot_setup);
 /*
  * Some machines require the "reboot=b"  commandline option, this quirk makes that automatic.
  */
-static int __init set_bios_reboot(struct dmi_system_id *d)
+static int __init set_bios_reboot(const struct dmi_system_id *d)
 {
 	if (!reboot_thru_bios) {
 		reboot_thru_bios = 1;

@@ -480,14 +480,14 @@ static struct attribute_group hdaps_attribute_group = {
 /* Module stuff */
 
 /* hdaps_dmi_match - found a match.  return one, short-circuiting the hunt. */
-static int __init hdaps_dmi_match(struct dmi_system_id *id)
+static int __init hdaps_dmi_match(const struct dmi_system_id *id)
 {
 	printk(KERN_INFO "hdaps: %s detected.\n", id->ident);
 	return 1;
 }
 
 /* hdaps_dmi_match_invert - found an inverted match. */
-static int __init hdaps_dmi_match_invert(struct dmi_system_id *id)
+static int __init hdaps_dmi_match_invert(const struct dmi_system_id *id)
 {
 	hdaps_invert = 1;
 	printk(KERN_INFO "hdaps: inverting axis readings.\n");

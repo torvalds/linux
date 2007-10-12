@@ -123,7 +123,7 @@ void __devinit  pcibios_fixup_bus(struct pci_bus *b)
  * on the kernel command line (which was parsed earlier).
  */
 
-static int __devinit set_bf_sort(struct dmi_system_id *d)
+static int __devinit set_bf_sort(const struct dmi_system_id *d)
 {
 	if (pci_bf_sort == pci_bf_sort_default) {
 		pci_bf_sort = pci_dmi_bf;
@@ -136,7 +136,7 @@ static int __devinit set_bf_sort(struct dmi_system_id *d)
  * Enable renumbering of PCI bus# ranges to reach all PCI busses (Cardbus)
  */
 #ifdef __i386__
-static int __devinit assign_all_busses(struct dmi_system_id *d)
+static int __devinit assign_all_busses(const struct dmi_system_id *d)
 {
 	pci_probe |= PCI_ASSIGN_ALL_BUSSES;
 	printk(KERN_INFO "%s detected: enabling PCI bus# renumbering"

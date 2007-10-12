@@ -419,7 +419,7 @@ static unsigned int __devinit init_chipset_via82cxxx(struct pci_dev *dev, const 
  *	Cable special cases
  */
 
-static struct dmi_system_id cable_dmi_table[] = {
+static const struct dmi_system_id cable_dmi_table[] = {
 	{
 		.ident = "Acer Ferrari 3400",
 		.matches = {

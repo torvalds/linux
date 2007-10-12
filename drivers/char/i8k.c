@@ -98,9 +98,9 @@ struct smm_regs {
 	unsigned int edi __attribute__ ((packed));
 };
 
-static inline char *i8k_get_dmi_data(int field)
+static inline const char *i8k_get_dmi_data(int field)
 {
-	char *dmi_data = dmi_get_system_info(field);
+	const char *dmi_data = dmi_get_system_info(field);
 
 	return dmi_data && *dmi_data ? dmi_data : "?";
 }

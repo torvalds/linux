@@ -1214,7 +1214,7 @@ acpi_os_validate_address (
 }
 
 #ifdef CONFIG_DMI
-static int dmi_osi_linux(struct dmi_system_id *d)
+static int dmi_osi_linux(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE "%s detected: enabling _OSI(Linux)\n", d->ident);
 	enable_osi_linux(1);

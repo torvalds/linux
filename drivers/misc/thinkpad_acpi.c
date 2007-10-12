@@ -4448,7 +4448,7 @@ static void ibm_exit(struct ibm_struct *ibm)
 
 static void __init get_thinkpad_model_data(struct thinkpad_id_data *tp)
 {
-	struct dmi_device *dev = NULL;
+	const struct dmi_device *dev = NULL;
 	char ec_fw_string[18];
 
 	if (!tp)

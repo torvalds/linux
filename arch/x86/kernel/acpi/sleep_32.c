@@ -84,7 +84,7 @@ __setup("acpi_sleep=", acpi_sleep_setup);
 
 /* Ouch, we want to delete this. We already have better version in userspace, in
    s2ram from suspend.sf.net project */
-static __init int reset_videomode_after_s3(struct dmi_system_id *d)
+static __init int reset_videomode_after_s3(const struct dmi_system_id *d)
 {
 	acpi_realmode_flags |= 2;
 	return 0;

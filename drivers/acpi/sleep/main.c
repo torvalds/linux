@@ -215,7 +215,7 @@ static struct pm_ops acpi_pm_ops = {
  * Toshiba fails to preserve interrupts over S1, reinitialization
  * of 8259 is needed after S1 resume.
  */
-static int __init init_ints_after_s1(struct dmi_system_id *d)
+static int __init init_ints_after_s1(const struct dmi_system_id *d)
 {
 	printk(KERN_WARNING "%s with broken S1 detected.\n", d->ident);
 	init_8259A_after_S1 = 1;

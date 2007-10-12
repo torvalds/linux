@@ -247,7 +247,7 @@ static int have_wifi;
 static int have_bluetooth;
 static int have_leds;
 
-static int __init dmi_matched(struct dmi_system_id *dmi)
+static int __init dmi_matched(const struct dmi_system_id *dmi)
 {
 	const struct key_entry *key;
 
