@@ -18,13 +18,11 @@
 #include <linux/mutex.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
-#include <asm/arch/sharpsl.h>
-#include <asm/hardware/sharpsl_pm.h>
 
 static int corgibl_intensity;
 static struct backlight_properties corgibl_data;
 static struct backlight_device *corgi_backlight_device;
-static struct corgibl_machinfo *bl_machinfo;
+static struct generic_bl_info *bl_machinfo;
 
 static unsigned long corgibl_flags;
 #define CORGIBL_SUSPENDED     0x01
@@ -32,7 +30,6 @@ static unsigned long corgibl_flags;
 
 static int corgibl_send_intensity(struct backlight_device *bd)
 {
-	void (*corgi_kick_batt)(void);
 	int intensity = bd->props.brightness;
 
 	if (bd->props.power != FB_BLANK_UNBLANK)
@@ -48,11 +45,8 @@ static int corgibl_send_intensity(struct backlight_device *bd)
 
 	corgibl_intensity = intensity;
 
- 	corgi_kick_batt = symbol_get(sharpsl_battery_kick);
- 	if (corgi_kick_batt) {
- 		corgi_kick_batt();
- 		symbol_put(sharpsl_battery_kick);
- 	}
+	if (bl_machinfo->kick_battery)
+		bl_machinfo->kick_battery();
 
 	return 0;
 }
@@ -107,13 +101,17 @@ static struct backlight_ops corgibl_ops = {
 
 static int corgibl_probe(struct platform_device *pdev)
 {
-	struct corgibl_machinfo *machinfo = pdev->dev.platform_data;
+	struct generic_bl_info *machinfo = pdev->dev.platform_data;
+	const char *name = "generic-bl";
 
 	bl_machinfo = machinfo;
 	if (!machinfo->limit_mask)
 		machinfo->limit_mask = -1;
 
-	corgi_backlight_device = backlight_device_register ("corgi-bl",
+	if (machinfo->name)
+		name = machinfo->name;
+
+	corgi_backlight_device = backlight_device_register (name,
 		&pdev->dev, NULL, &corgibl_ops);
 	if (IS_ERR (corgi_backlight_device))
 		return PTR_ERR (corgi_backlight_device);
@@ -149,7 +147,7 @@ static struct platform_driver corgibl_driver = {
 	.suspend	= corgibl_suspend,
 	.resume		= corgibl_resume,
 	.driver		= {
-		.name	= "corgi-bl",
+		.name	= "generic-bl",
 	},
 };
 
