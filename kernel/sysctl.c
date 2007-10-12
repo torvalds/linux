@@ -1221,7 +1221,7 @@ static ctl_table fs_table[] = {
 };
 
 static ctl_table debug_table[] = {
-#ifdef CONFIG_X86
+#if defined(CONFIG_X86) || defined(CONFIG_PPC)
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "exception-trace",

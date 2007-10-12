@@ -64,6 +64,11 @@ struct rt_sigframe {
 	char abigap[288];
 } __attribute__ ((aligned (16)));
 
+static const char fmt32[] = KERN_INFO \
+	"%s[%d]: bad frame in %s: %08lx nip %08lx lr %08lx\n";
+static const char fmt64[] = KERN_INFO \
+	"%s[%d]: bad frame in %s: %016lx nip %016lx lr %016lx\n";
+
 /*
  * Set up the sigcontext for the signal frame.
  */
@@ -315,6 +320,11 @@ badframe:
 	printk("badframe in sys_rt_sigreturn, regs=%p uc=%p &uc->uc_mcontext=%p\n",
 	       regs, uc, &uc->uc_mcontext);
 #endif
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+			current->comm, current->pid, "rt_sigreturn",
+			(long)uc, regs->nip, regs->link);
+
 	force_sig(SIGSEGV, current);
 	return 0;
 }
@@ -398,6 +408,11 @@ badframe:
 	printk("badframe in setup_rt_frame, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(regs->msr & MSR_SF ? fmt64 : fmt32,
+			current->comm, current->pid, "setup_rt_frame",
+			(long)frame, regs->nip, regs->link);
+
 	force_sigsegv(signr, current);
 	return 0;
 }

@@ -705,11 +705,13 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 {
 	struct rt_sigframe __user *rt_sf;
 	struct mcontext __user *frame;
+	void __user *addr;
 	unsigned long newsp = 0;
 
 	/* Set up Signal Frame */
 	/* Put a Real Time Context onto stack */
 	rt_sf = get_sigframe(ka, regs, sizeof(*rt_sf));
+	addr = rt_sf;
 	if (unlikely(rt_sf == NULL))
 		goto badframe;
 
@@ -728,6 +730,7 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
+	addr = frame;
 	if (vdso32_rt_sigtramp && current->mm->context.vdso_base) {
 		if (save_user_regs(regs, frame, 0))
 			goto badframe;
@@ -742,6 +745,7 @@ int handle_rt_signal32(unsigned long sig, struct k_sigaction *ka,
 
 	/* create a stack frame for the caller of the handler */
 	newsp = ((unsigned long)rt_sf) - (__SIGNAL_FRAMESIZE + 16);
+	addr = (void __user *)regs->gpr[1];
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 
@@ -762,6 +766,12 @@ badframe:
 	printk("badframe in handle_rt_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(KERN_INFO "%s[%d]: bad frame in handle_rt_signal32: "
+			"%p nip %08lx lr %08lx\n",
+			current->comm, current->pid,
+			addr, regs->nip, regs->link);
+
 	force_sigsegv(sig, current);
 	return 0;
 }
@@ -886,6 +896,12 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	return 0;
 
  bad:
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(KERN_INFO "%s[%d]: bad frame in sys_rt_sigreturn: "
+			"%p nip %08lx lr %08lx\n",
+			current->comm, current->pid,
+			rt_sf, regs->nip, regs->link);
+
 	force_sig(SIGSEGV, current);
 	return 0;
 }
@@ -967,6 +983,13 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	 * We kill the task with a SIGSEGV in this situation.
 	 */
 	if (do_setcontext(ctx, regs, 1)) {
+		if (show_unhandled_signals && printk_ratelimit())
+			printk(KERN_INFO "%s[%d]: bad frame in "
+				"sys_debug_setcontext: %p nip %08lx "
+				"lr %08lx\n",
+				current->comm, current->pid,
+				ctx, regs->nip, regs->link);
+
 		force_sig(SIGSEGV, current);
 		goto out;
 	}
@@ -1048,6 +1071,12 @@ badframe:
 	printk("badframe in handle_signal, regs=%p frame=%p newsp=%lx\n",
 	       regs, frame, newsp);
 #endif
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(KERN_INFO "%s[%d]: bad frame in handle_signal32: "
+			"%p nip %08lx lr %08lx\n",
+			current->comm, current->pid,
+			frame, regs->nip, regs->link);
+
 	force_sigsegv(sig, current);
 	return 0;
 }
@@ -1061,12 +1090,14 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	struct sigcontext __user *sc;
 	struct sigcontext sigctx;
 	struct mcontext __user *sr;
+	void __user *addr;
 	sigset_t set;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	sc = (struct sigcontext __user *)(regs->gpr[1] + __SIGNAL_FRAMESIZE);
+	addr = sc;
 	if (copy_from_user(&sigctx, sc, sizeof(sigctx)))
 		goto badframe;
 
@@ -1083,6 +1114,7 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	restore_sigmask(&set);
 
 	sr = (struct mcontext __user *)from_user_ptr(sigctx.regs);
+	addr = sr;
 	if (!access_ok(VERIFY_READ, sr, sizeof(*sr))
 	    || restore_user_regs(regs, sr, 1))
 		goto badframe;
@@ -1091,6 +1123,12 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	return 0;
 
 badframe:
+	if (show_unhandled_signals && printk_ratelimit())
+		printk(KERN_INFO "%s[%d]: bad frame in sys_sigreturn: "
+			"%p nip %08lx lr %08lx\n",
+			current->comm, current->pid,
+			addr, regs->nip, regs->link);
+
 	force_sig(SIGSEGV, current);
 	return 0;
 }
