@@ -20,20 +20,6 @@
 
 #include <asm/scatterlist.h>
 
-#ifdef CONFIG_LBD
-# include <asm/div64.h>
-# define sector_div(a, b) do_div(a, b)
-#else
-# define sector_div(n, b)( \
-{ \
-	int _res; \
-	_res = (n) % (b); \
-	(n) /= (b); \
-	_res; \
-} \
-)
-#endif
-
 struct scsi_ioctl_command;
 
 struct request_queue;
