@@ -80,3 +80,9 @@ assfail(char *expr, char *file, int line)
 	printk("Assertion failed: %s, file: %s, line: %d\n", expr, file, line);
 	BUG();
 }
+
+void
+xfs_hex_dump(void *p, int length)
+{
+	print_hex_dump(KERN_ALERT, "", DUMP_PREFIX_OFFSET, 16, 1, p, length, 1);
+}
