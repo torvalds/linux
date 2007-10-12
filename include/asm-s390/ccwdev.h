@@ -67,36 +67,53 @@ ccw_device_id_match(const struct ccw_device_id *array,
 	return NULL;
 }
 
-/* The struct ccw device is our replacement for the globally accessible
- * ioinfo array. ioinfo will mutate into a subchannel device later.
+/**
+ * struct ccw_device - channel attached device
+ * @ccwlock: pointer to device lock
+ * @id: id of this device
+ * @drv: ccw driver for this device
+ * @dev: embedded device structure
+ * @online: online status of device
+ * @handler: interrupt handler
  *
- * Reference: Documentation/s390/driver-model.txt */
+ * @handler is a member of the device rather than the driver since a driver
+ * can have different interrupt handlers for different ccw devices
+ * (multi-subchannel drivers).
+ */
 struct ccw_device {
 	spinlock_t *ccwlock;
+/* private: */
 	struct ccw_device_private *private;	/* cio private information */
-	struct ccw_device_id id;	/* id of this device, driver_info is
-					   set by ccw_find_driver */
-	struct ccw_driver *drv;		/* */
-	struct device dev;		/* */
+/* public: */
+	struct ccw_device_id id;
+	struct ccw_driver *drv;
+	struct device dev;
 	int online;
-	/* This is sick, but a driver can have different interrupt handlers 
-	   for different ccw_devices (multi-subchannel drivers)... */
 	void (*handler) (struct ccw_device *, unsigned long, struct irb *);
 };
 
 
-/* Each ccw driver registers with the ccw root bus */
+/**
+ * struct ccw driver - device driver for channel attached devices
+ * @owner: owning module
+ * @ids: ids supported by this driver
+ * @probe: function called on probe
+ * @remove: function called on remove
+ * @set_online: called when setting device online
+ * @set_offline: called when setting device offline
+ * @notify: notify driver of device state changes
+ * @driver: embedded device driver structure
+ * @name: device driver name
+ */
 struct ccw_driver {
-	struct module *owner;		/* for automatic MOD_INC_USE_COUNT   */
-	struct ccw_device_id *ids;	/* probe driver with these devs      */
-	int (*probe) (struct ccw_device *); /* ask driver to probe dev 	     */
+	struct module *owner;
+	struct ccw_device_id *ids;
+	int (*probe) (struct ccw_device *);
 	void (*remove) (struct ccw_device *);
-					/* device is no longer available     */
 	int (*set_online) (struct ccw_device *);
 	int (*set_offline) (struct ccw_device *);
 	int (*notify) (struct ccw_device *, int);
-	struct device_driver driver;	/* higher level structure, don't init
-					   this from your driver	     */
+	struct device_driver driver;
 	char *name;
 };
 
@@ -124,36 +141,10 @@ extern void ccw_device_clear_options(struct ccw_device *, unsigned long);
 /* Allow forced onlining of boxed devices. */
 #define CCWDEV_ALLOW_FORCE              0x0008
 
-/*
- * ccw_device_start()
- *
- *  Start a S/390 channel program. When the interrupt arrives, the
- *  IRQ handler is called, either immediately, delayed (dev-end missing,
- *  or sense required) or never (no IRQ handler registered).
- *  Depending on the action taken, ccw_device_start() returns:  
- *                           0	     - Success
- *			     -EBUSY  - Device busy, or status pending
- *			     -ENODEV - Device not operational
- *                           -EINVAL - Device invalid for operation
- */
 extern int ccw_device_start(struct ccw_device *, struct ccw1 *,
 			    unsigned long, __u8, unsigned long);
-/*
- * ccw_device_start_timeout()
- *
- * This function notifies the device driver if the channel program has not
- * completed during the specified time. If a timeout occurs, the channel
- * program is terminated via xsch(), hsch() or csch().
- */
 extern int ccw_device_start_timeout(struct ccw_device *, struct ccw1 *,
 				    unsigned long, __u8, unsigned long, int);
-/*
- * ccw_device_start_key()
- * ccw_device_start_key_timeout()
- *
- * Same as ccw_device_start() and ccw_device_start_timeout(), except a
- * storage key != default key can be provided for the I/O.
- */
 extern int ccw_device_start_key(struct ccw_device *, struct ccw1 *,
 				unsigned long, __u8, __u8, unsigned long);
 extern int ccw_device_start_timeout_key(struct ccw_device *, struct ccw1 *,

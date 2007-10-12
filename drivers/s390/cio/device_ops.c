@@ -25,6 +25,16 @@
 #include "device.h"
 #include "chp.h"
 
+/**
+ * ccw_device_set_options_mask() - set some options and unset the rest
+ * @cdev: device for which the options are to be set
+ * @flags: options to be set
+ *
+ * All flags specified in @flags are set, all flags not specified in @flags
+ * are cleared.
+ * Returns:
+ *   %0 on success, -%EINVAL on an invalid flag combination.
+ */
 int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)
 {
        /*
@@ -40,6 +50,15 @@ int ccw_device_set_options_mask(struct ccw_device *cdev, unsigned long flags)
 	return 0;
 }
 
+/**
+ * ccw_device_set_options() - set some options
+ * @cdev: device for which the options are to be set
+ * @flags: options to be set
+ *
+ * All flags specified in @flags are set, the remainder is left untouched.
+ * Returns:
+ *   %0 on success, -%EINVAL if an invalid flag combination would ensue.
+ */
 int ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
 {
        /*
@@ -59,6 +78,13 @@ int ccw_device_set_options(struct ccw_device *cdev, unsigned long flags)
 	return 0;
 }
 
+/**
+ * ccw_device_clear_options() - clear some options
+ * @cdev: device for which the options are to be cleared
+ * @flags: options to be cleared
+ *
+ * All flags specified in @flags are cleared, the remainder is left untouched.
+ */
 void ccw_device_clear_options(struct ccw_device *cdev, unsigned long flags)
 {
 	cdev->private->options.fast &= (flags & CCWDEV_EARLY_NOTIFICATION) == 0;
@@ -67,8 +93,22 @@ void ccw_device_clear_options(struct ccw_device *cdev, unsigned long flags)
 	cdev->private->options.force &= (flags & CCWDEV_ALLOW_FORCE) == 0;
 }
 
-int
-ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
+/**
+ * ccw_device_clear() - terminate I/O request processing
+ * @cdev: target ccw device
+ * @intparm: interruption parameter; value is only used if no I/O is
+ *	     outstanding, otherwise the intparm associated with the I/O request
+ *	     is returned
+ *
+ * ccw_device_clear() calls csch on @cdev's subchannel.
+ * Returns:
+ *  %0 on success,
+ *  -%ENODEV on device not operational,
+ *  -%EINVAL on invalid device state.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 {
 	struct subchannel *sch;
 	int ret;
@@ -89,10 +129,33 @@ ccw_device_clear(struct ccw_device *cdev, unsigned long intparm)
 	return ret;
 }
 
-int
-ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
-		     unsigned long intparm, __u8 lpm, __u8 key,
-		     unsigned long flags)
+/**
+ * ccw_device_start_key() - start a s390 channel program with key
+ * @cdev: target ccw device
+ * @cpa: logical start address of channel program
+ * @intparm: user specific interruption parameter; will be presented back to
+ *	     @cdev's interrupt handler. Allows a device driver to associate
+ *	     the interrupt with a particular I/O request.
+ * @lpm: defines the channel path to be used for a specific I/O request. A
+ *	 value of 0 will make cio use the opm.
+ * @key: storage key to be used for the I/O
+ * @flags: additional flags; defines the action to be performed for I/O
+ *	   processing.
+ *
+ * Start a S/390 channel program. When the interrupt arrives, the
+ * IRQ handler is called, either immediately, delayed (dev-end missing,
+ * or sense required) or never (no IRQ handler registered).
+ * Returns:
+ *  %0, if the operation was successful;
+ *  -%EBUSY, if the device is busy, or status pending;
+ *  -%EACCES, if no path specified in @lpm is operational;
+ *  -%ENODEV, if the device is not operational.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
+			 unsigned long intparm, __u8 lpm, __u8 key,
+			 unsigned long flags)
 {
 	struct subchannel *sch;
 	int ret;
@@ -135,11 +198,38 @@ ccw_device_start_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	return ret;
 }
 
-
-int
-ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
-			     unsigned long intparm, __u8 lpm, __u8 key,
-			     unsigned long flags, int expires)
+/**
+ * ccw_device_start_timeout_key() - start a s390 channel program with timeout and key
+ * @cdev: target ccw device
+ * @cpa: logical start address of channel program
+ * @intparm: user specific interruption parameter; will be presented back to
+ *	     @cdev's interrupt handler. Allows a device driver to associate
+ *	     the interrupt with a particular I/O request.
+ * @lpm: defines the channel path to be used for a specific I/O request. A
+ *	 value of 0 will make cio use the opm.
+ * @key: storage key to be used for the I/O
+ * @flags: additional flags; defines the action to be performed for I/O
+ *	   processing.
+ * @expires: timeout value in jiffies
+ *
+ * Start a S/390 channel program. When the interrupt arrives, the
+ * IRQ handler is called, either immediately, delayed (dev-end missing,
+ * or sense required) or never (no IRQ handler registered).
+ * This function notifies the device driver if the channel program has not
+ * completed during the time specified by @expires. If a timeout occurs, the
+ * channel program is terminated via xsch, hsch or csch, and the device's
+ * interrupt handler will be called with an irb containing ERR_PTR(-%ETIMEDOUT).
+ * Returns:
+ *  %0, if the operation was successful;
+ *  -%EBUSY, if the device is busy, or status pending;
+ *  -%EACCES, if no path specified in @lpm is operational;
+ *  -%ENODEV, if the device is not operational.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
+				 unsigned long intparm, __u8 lpm, __u8 key,
+				 unsigned long flags, int expires)
 {
 	int ret;
 
@@ -152,18 +242,67 @@ ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	return ret;
 }
 
-int
-ccw_device_start(struct ccw_device *cdev, struct ccw1 *cpa,
-		 unsigned long intparm, __u8 lpm, unsigned long flags)
+/**
+ * ccw_device_start() - start a s390 channel program
+ * @cdev: target ccw device
+ * @cpa: logical start address of channel program
+ * @intparm: user specific interruption parameter; will be presented back to
+ *	     @cdev's interrupt handler. Allows a device driver to associate
+ *	     the interrupt with a particular I/O request.
+ * @lpm: defines the channel path to be used for a specific I/O request. A
+ *	 value of 0 will make cio use the opm.
+ * @flags: additional flags; defines the action to be performed for I/O
+ *	   processing.
+ *
+ * Start a S/390 channel program. When the interrupt arrives, the
+ * IRQ handler is called, either immediately, delayed (dev-end missing,
+ * or sense required) or never (no IRQ handler registered).
+ * Returns:
+ *  %0, if the operation was successful;
+ *  -%EBUSY, if the device is busy, or status pending;
+ *  -%EACCES, if no path specified in @lpm is operational;
+ *  -%ENODEV, if the device is not operational.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_start(struct ccw_device *cdev, struct ccw1 *cpa,
+		     unsigned long intparm, __u8 lpm, unsigned long flags)
 {
 	return ccw_device_start_key(cdev, cpa, intparm, lpm,
 				    PAGE_DEFAULT_KEY, flags);
 }
 
-int
-ccw_device_start_timeout(struct ccw_device *cdev, struct ccw1 *cpa,
-			 unsigned long intparm, __u8 lpm, unsigned long flags,
-			 int expires)
+/**
+ * ccw_device_start_timeout() - start a s390 channel program with timeout
+ * @cdev: target ccw device
+ * @cpa: logical start address of channel program
+ * @intparm: user specific interruption parameter; will be presented back to
+ *	     @cdev's interrupt handler. Allows a device driver to associate
+ *	     the interrupt with a particular I/O request.
+ * @lpm: defines the channel path to be used for a specific I/O request. A
+ *	 value of 0 will make cio use the opm.
+ * @flags: additional flags; defines the action to be performed for I/O
+ *	   processing.
+ * @expires: timeout value in jiffies
+ *
+ * Start a S/390 channel program. When the interrupt arrives, the
+ * IRQ handler is called, either immediately, delayed (dev-end missing,
+ * or sense required) or never (no IRQ handler registered).
+ * This function notifies the device driver if the channel program has not
+ * completed during the time specified by @expires. If a timeout occurs, the
+ * channel program is terminated via xsch, hsch or csch, and the device's
+ * interrupt handler will be called with an irb containing ERR_PTR(-%ETIMEDOUT).
+ * Returns:
+ *  %0, if the operation was successful;
+ *  -%EBUSY, if the device is busy, or status pending;
+ *  -%EACCES, if no path specified in @lpm is operational;
+ *  -%ENODEV, if the device is not operational.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_start_timeout(struct ccw_device *cdev, struct ccw1 *cpa,
+			     unsigned long intparm, __u8 lpm,
+			     unsigned long flags, int expires)
 {
 	return ccw_device_start_timeout_key(cdev, cpa, intparm, lpm,
 					    PAGE_DEFAULT_KEY, flags,
@@ -171,8 +310,23 @@ ccw_device_start_timeout(struct ccw_device *cdev, struct ccw1 *cpa,
 }
 
 
-int
-ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
+/**
+ * ccw_device_halt() - halt I/O request processing
+ * @cdev: target ccw device
+ * @intparm: interruption parameter; value is only used if no I/O is
+ *	     outstanding, otherwise the intparm associated with the I/O request
+ *	     is returned
+ *
+ * ccw_device_halt() calls hsch on @cdev's subchannel.
+ * Returns:
+ *  %0 on success,
+ *  -%ENODEV on device not operational,
+ *  -%EINVAL on invalid device state,
+ *  -%EBUSY on device busy or interrupt pending.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 {
 	struct subchannel *sch;
 	int ret;
@@ -193,8 +347,20 @@ ccw_device_halt(struct ccw_device *cdev, unsigned long intparm)
 	return ret;
 }
 
-int
-ccw_device_resume(struct ccw_device *cdev)
+/**
+ * ccw_device_resume() - resume channel program execution
+ * @cdev: target ccw device
+ *
+ * ccw_device_resume() calls rsch on @cdev's subchannel.
+ * Returns:
+ *  %0 on success,
+ *  -%ENODEV on device not operational,
+ *  -%EINVAL on invalid device state,
+ *  -%EBUSY on device busy or interrupt pending.
+ * Context:
+ *  Interrupts disabled, ccw device lock held
+ */
+int ccw_device_resume(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
@@ -260,11 +426,21 @@ ccw_device_call_handler(struct ccw_device *cdev)
 	return 1;
 }
 
-/*
- * Search for CIW command in extended sense data.
+/**
+ * ccw_device_get_ciw() - Search for CIW command in extended sense data.
+ * @cdev: ccw device to inspect
+ * @ct: command type to look for
+ *
+ * During SenseID, command information words (CIWs) describing special
+ * commands available to the device may have been stored in the extended
+ * sense data. This function searches for CIWs of a specified command
+ * type in the extended sense data.
+ * Returns:
+ *  %NULL if no extended sense data has been stored or if no CIW of the
+ *  specified command type could be found,
+ *  else a pointer to the CIW of the specified command type.
  */
-struct ciw *
-ccw_device_get_ciw(struct ccw_device *cdev, __u32 ct)
+struct ciw *ccw_device_get_ciw(struct ccw_device *cdev, __u32 ct)
 {
 	int ciw_cnt;
 
@@ -276,8 +452,14 @@ ccw_device_get_ciw(struct ccw_device *cdev, __u32 ct)
 	return NULL;
 }
 
-__u8
-ccw_device_get_path_mask(struct ccw_device *cdev)
+/**
+ * ccw_device_get_path_mask() - get currently available paths
+ * @cdev: ccw device to be queried
+ * Returns:
+ *  %0 if no subchannel for the device is available,
+ *  else the mask of currently available paths for the ccw device's subchannel.
+ */
+__u8 ccw_device_get_path_mask(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
@@ -357,8 +539,7 @@ out_unlock:
 	return ret;
 }
 
-void *
-ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
+void *ccw_device_get_chp_desc(struct ccw_device *cdev, int chp_no)
 {
 	struct subchannel *sch;
 	struct chp_id chpid;

@@ -357,8 +357,18 @@ ccw_device_remove_disconnected(struct ccw_device *cdev)
 			      cdev->private->dev_id.devno);
 }
 
-int
-ccw_device_set_offline(struct ccw_device *cdev)
+/**
+ * ccw_device_set_offline() - disable a ccw device for I/O
+ * @cdev: target ccw device
+ *
+ * This function calls the driver's set_offline() function for @cdev, if
+ * given, and then disables @cdev.
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ * Context:
+ *  enabled, ccw device lock not held
+ */
+int ccw_device_set_offline(struct ccw_device *cdev)
 {
 	int ret;
 
@@ -396,8 +406,19 @@ ccw_device_set_offline(struct ccw_device *cdev)
  	return ret;
 }
 
-int
-ccw_device_set_online(struct ccw_device *cdev)
+/**
+ * ccw_device_set_online() - enable a ccw device for I/O
+ * @cdev: target ccw device
+ *
+ * This function first enables @cdev and then calls the driver's set_online()
+ * function for @cdev, if given. If set_online() returns an error, @cdev is
+ * disabled again.
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ * Context:
+ *  enabled, ccw device lock not held
+ */
+int ccw_device_set_online(struct ccw_device *cdev)
 {
 	int ret;
 
@@ -1326,8 +1347,19 @@ __ccwdev_check_busid(struct device *dev, void *id)
 }
 
 
-struct ccw_device *
-get_ccwdev_by_busid(struct ccw_driver *cdrv, const char *bus_id)
+/**
+ * get_ccwdev_by_busid() - obtain device from a bus id
+ * @cdrv: driver the device is owned by
+ * @bus_id: bus id of the device to be searched
+ *
+ * This function searches all devices owned by @cdrv for a device with a bus
+ * id matching @bus_id.
+ * Returns:
+ *  If a match is found, its reference count of the found device is increased
+ *  and it is returned; else %NULL is returned.
+ */
+struct ccw_device *get_ccwdev_by_busid(struct ccw_driver *cdrv,
+				       const char *bus_id)
 {
 	struct device *dev;
 	struct device_driver *drv;
@@ -1409,8 +1441,15 @@ struct bus_type ccw_bus_type = {
 	.remove = ccw_device_remove,
 };
 
-int
-ccw_driver_register (struct ccw_driver *cdriver)
+/**
+ * ccw_driver_register() - register a ccw driver
+ * @cdriver: driver to be registered
+ *
+ * This function is mainly a wrapper around driver_register().
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ */
+int ccw_driver_register(struct ccw_driver *cdriver)
 {
 	struct device_driver *drv = &cdriver->driver;
 
@@ -1420,8 +1459,13 @@ ccw_driver_register (struct ccw_driver *cdriver)
 	return driver_register(drv);
 }
 
-void
-ccw_driver_unregister (struct ccw_driver *cdriver)
+/**
+ * ccw_driver_unregister() - deregister a ccw driver
+ * @cdriver: driver to be deregistered
+ *
+ * This function is mainly a wrapper around driver_unregister().
+ */
+void ccw_driver_unregister(struct ccw_driver *cdriver)
 {
 	driver_unregister(&cdriver->driver);
 }
