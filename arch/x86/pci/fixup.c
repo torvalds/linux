@@ -353,6 +353,53 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
 
+
+static struct dmi_system_id __devinitdata msi_k8t_dmi_table[] = {
+	{
+		.ident = "MSI-K8T-Neo2Fir",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-6702E"),
+		},
+	},
+	{}
+};
+
+/*
+ * The AMD-Athlon64 board MSI "K8T Neo2-FIR" disables the onboard sound
+ * card if a PCI-soundcard is added.
+ *
+ * The BIOS only gives options "DISABLED" and "AUTO". This code sets
+ * the corresponding register-value to enable the soundcard.
+ *
+ * The soundcard is only enabled, if the mainborad is identified
+ * via DMI-tables and the soundcard is detected to be off.
+ */
+static void __devinit pci_fixup_msi_k8t_onboard_sound(struct pci_dev *dev)
+{
+	unsigned char val;
+	if (!dmi_check_system(msi_k8t_dmi_table))
+		return; /* only applies to MSI K8T Neo2-FIR */
+
+	pci_read_config_byte(dev, 0x50, &val);
+	if (val & 0x40) {
+		pci_write_config_byte(dev, 0x50, val & (~0x40));
+
+		/* verify the change for status output */
+		pci_read_config_byte(dev, 0x50, &val);
+		if (val & 0x40)
+			printk(KERN_INFO "PCI: Detected MSI K8T Neo2-FIR, "
+					"can't enable onboard soundcard!\n");
+		else
+			printk(KERN_INFO "PCI: Detected MSI K8T Neo2-FIR, "
+					"enabled onboard soundcard.\n");
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
+		pci_fixup_msi_k8t_onboard_sound);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
+		pci_fixup_msi_k8t_onboard_sound);
+
 /*
  * Some Toshiba laptops need extra code to enable their TI TSB43AB22/A.
  *

@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
-
+#include <linux/kthread.h>
 #include "ibmphp.h"
 
 static int to_debug = 0;
@@ -101,12 +101,11 @@ static int to_debug = 0;
 //----------------------------------------------------------------------------
 // global variables
 //----------------------------------------------------------------------------
-static int ibmphp_shutdown;
-static int tid_poll;
 static struct mutex sem_hpcaccess;	// lock access to HPC
 static struct semaphore semOperations;	// lock all operations and
 					// access to data structures
 static struct semaphore sem_exit;	// make sure polling thread goes away
+static struct task_struct *ibmphp_poll_thread;
 //----------------------------------------------------------------------------
 // local function prototypes
 //----------------------------------------------------------------------------
@@ -116,10 +115,9 @@ static u8 hpc_writecmdtoindex (u8, u8);
 static u8 hpc_readcmdtoindex (u8, u8);
 static void get_hpc_access (void);
 static void free_hpc_access (void);
-static void poll_hpc (void);
+static int poll_hpc(void *data);
 static int process_changeinstatus (struct slot *, struct slot *);
 static int process_changeinlatch (u8, u8, struct controller *);
-static int hpc_poll_thread (void *);
 static int hpc_wait_ctlr_notworking (int, struct controller *, void __iomem *, u8 *);
 //----------------------------------------------------------------------------
 
@@ -137,8 +135,6 @@ void __init ibmphp_hpc_initvars (void)
 	init_MUTEX (&semOperations);
 	init_MUTEX_LOCKED (&sem_exit);
 	to_debug = 0;
-	ibmphp_shutdown = 0;
-	tid_poll = 0;
 
 	debug ("%s - Exit\n", __FUNCTION__);
 }
@@ -819,7 +815,7 @@ void ibmphp_unlock_operations (void)
 #define POLL_LATCH_REGISTER	0
 #define POLL_SLOTS		1
 #define POLL_SLEEP		2
-static void poll_hpc (void)
+static int poll_hpc(void *data)
 {
 	struct slot myslot;
 	struct slot *pslot = NULL;
@@ -833,10 +829,7 @@ static void poll_hpc (void)
 
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	while (!ibmphp_shutdown) {
-		if (ibmphp_shutdown) 
-			break;
-		
+	while (!kthread_should_stop()) {
 		/* try to get the lock to do some kind of hardware access */
 		down (&semOperations);
 
@@ -896,7 +889,7 @@ static void poll_hpc (void)
 			up (&semOperations);
 			msleep(POLL_INTERVAL_SEC * 1000);
 
-			if (ibmphp_shutdown) 
+			if (kthread_should_stop())
 				break;
 			
 			down (&semOperations);
@@ -915,6 +908,7 @@ static void poll_hpc (void)
 	}
 	up (&sem_exit);
 	debug ("%s - Exit\n", __FUNCTION__);
+	return 0;
 }
 
 
@@ -1050,47 +1044,20 @@ static int process_changeinlatch (u8 old, u8 new, struct controller *ctrl)
 }
 
 /*----------------------------------------------------------------------
-* Name:    hpc_poll_thread
-*
-* Action:  polling
-*
-* Return   0
-* Value:
-*---------------------------------------------------------------------*/
-static int hpc_poll_thread (void *data)
-{
-	debug ("%s - Entry\n", __FUNCTION__);
-
-	daemonize("hpc_poll");
-	allow_signal(SIGKILL);
-
-	poll_hpc ();
-
-	tid_poll = 0;
-	debug ("%s - Exit\n", __FUNCTION__);
-	return 0;
-}
-
-
-/*----------------------------------------------------------------------
 * Name:    ibmphp_hpc_start_poll_thread
 *
 * Action:  start polling thread
 *---------------------------------------------------------------------*/
 int __init ibmphp_hpc_start_poll_thread (void)
 {
-	int rc = 0;
-
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	tid_poll = kernel_thread (hpc_poll_thread, NULL, 0);
-	if (tid_poll < 0) {
+	ibmphp_poll_thread = kthread_run(poll_hpc, NULL, "hpc_poll");
+	if (IS_ERR(ibmphp_poll_thread)) {
 		err ("%s - Error, thread not started\n", __FUNCTION__);
-		rc = -1;
+		return PTR_ERR(ibmphp_poll_thread);
 	}
-
-	debug ("%s - Exit tid_poll[%d] rc[%d]\n", __FUNCTION__, tid_poll, rc);
-	return rc;
+	return 0;
 }
 
 /*----------------------------------------------------------------------
@@ -1102,7 +1069,7 @@ void __exit ibmphp_hpc_stop_poll_thread (void)
 {
 	debug ("%s - Entry\n", __FUNCTION__);
 
-	ibmphp_shutdown = 1;
+	kthread_stop(ibmphp_poll_thread);
 	debug ("before locking operations \n");
 	ibmphp_lock_operations ();
 	debug ("after locking operations \n");

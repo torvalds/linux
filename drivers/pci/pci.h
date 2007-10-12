@@ -51,6 +51,12 @@ void pci_restore_msi_state(struct pci_dev *dev);
 static inline void pci_restore_msi_state(struct pci_dev *dev) {}
 #endif
 
+#ifdef CONFIG_PCIEAER
+void pci_no_aer(void);
+#else
+static inline void pci_no_aer(void) { }
+#endif
+
 static inline int pci_no_d1d2(struct pci_dev *dev)
 {
 	unsigned int parent_dstates = 0;

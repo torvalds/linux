@@ -17,10 +17,15 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/log2.h>
 #include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
 unsigned int pci_pm_d3_delay = 10;
+
+#ifdef CONFIG_PCI_DOMAINS
+int pci_domains_supported = 1;
+#endif
 
 #define DEFAULT_CARDBUS_IO_SIZE		(256)
 #define DEFAULT_CARDBUS_MEM_SIZE	(64*1024*1024)
@@ -1454,7 +1459,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 	int cap, err = -EINVAL;
 	u32 stat, cmd, v, o;
 
-	if (mmrbc < 512 || mmrbc > 4096 || (mmrbc & (mmrbc-1)))
+	if (mmrbc < 512 || mmrbc > 4096 || !is_power_of_2(mmrbc))
 		goto out;
 
 	v = ffs(mmrbc) - 10;
@@ -1526,7 +1531,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq)
 	int cap, err = -EINVAL;
 	u16 ctl, v;
 
-	if (rq < 128 || rq > 4096 || (rq & (rq-1)))
+	if (rq < 128 || rq > 4096 || !is_power_of_2(rq))
 		goto out;
 
 	v = (ffs(rq) - 8) << 12;
@@ -1566,6 +1571,13 @@ int pci_select_bars(struct pci_dev *dev, unsigned long flags)
 	return bars;
 }
 
+static void __devinit pci_no_domains(void)
+{
+#ifdef CONFIG_PCI_DOMAINS
+	pci_domains_supported = 0;
+#endif
+}
+
 static int __devinit pci_init(void)
 {
 	struct pci_dev *dev = NULL;
@@ -1585,6 +1597,10 @@ static int __devinit pci_setup(char *str)
 		if (*str && (str = pcibios_setup(str)) && *str) {
 			if (!strcmp(str, "nomsi")) {
 				pci_no_msi();
+			} else if (!strcmp(str, "noaer")) {
+				pci_no_aer();
+			} else if (!strcmp(str, "nodomains")) {
+				pci_no_domains();
 			} else if (!strncmp(str, "cbiosize=", 9)) {
 				pci_cardbus_io_size = memparse(str + 9, &str);
 			} else if (!strncmp(str, "cbmemsize=", 10)) {

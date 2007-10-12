@@ -1137,6 +1137,11 @@ config PCI_MMCONFIG
 	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
 	default y
 
+config PCI_DOMAINS
+	bool
+	depends on PCI
+	default y
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"

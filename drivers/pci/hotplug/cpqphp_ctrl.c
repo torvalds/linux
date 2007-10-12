@@ -37,6 +37,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/kthread.h>
 #include "cpqphp.h"
 
 static u32 configure_new_device(struct controller* ctrl, struct pci_func *func,
@@ -45,34 +46,20 @@ static int configure_new_function(struct controller* ctrl, struct pci_func *func
 			u8 behind_bridge, struct resource_lists *resources);
 static void interrupt_event_handler(struct controller *ctrl);
 
-static struct semaphore event_semaphore;	/* mutex for process loop (up if something to process) */
-static struct semaphore event_exit;		/* guard ensure thread has exited before calling it quits */
-static int event_finished;
-static unsigned long pushbutton_pending;	/* = 0 */
 
-/* things needed for the long_delay function */
-static struct semaphore		delay_sem;
-static wait_queue_head_t	delay_wait;
+static struct task_struct *cpqhp_event_thread;
+static unsigned long pushbutton_pending;	/* = 0 */
 
 /* delay is in jiffies to wait for */
 static void long_delay(int delay)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	
-	/* only allow 1 customer into the delay queue at once
-	 * yes this makes some people wait even longer, but who really cares?
-	 * this is for _huge_ delays to make the hardware happy as the 
-	 * signals bounce around
+	/*
+	 * XXX(hch): if someone is bored please convert all callers
+	 * to call msleep_interruptible directly.  They really want
+	 * to specify timeouts in natural units and spend a lot of
+	 * effort converting them to jiffies..
 	 */
-	down (&delay_sem);
-
-	init_waitqueue_head(&delay_wait);
-
-	add_wait_queue(&delay_wait, &wait);
 	msleep_interruptible(jiffies_to_msecs(delay));
-	remove_wait_queue(&delay_wait, &wait);
-	
-	up(&delay_sem);
 }
 
 
@@ -955,8 +942,8 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 	}
 
 	if (schedule_flag) {
-		up(&event_semaphore);
-		dbg("Signal event_semaphore\n");
+		wake_up_process(cpqhp_event_thread);
+		dbg("Waking even thread");
 	}
 	return IRQ_HANDLED;
 }
@@ -973,15 +960,12 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
 	struct pci_func *new_slot;
 	struct pci_func *next;
 
-	new_slot = kmalloc(sizeof(*new_slot), GFP_KERNEL);
-
+	new_slot = kzalloc(sizeof(*new_slot), GFP_KERNEL);
 	if (new_slot == NULL) {
 		/* I'm not dead yet!
 		 * You will be. */
 		return new_slot;
 	}
-
-	memset(new_slot, 0, sizeof(struct pci_func));
 
 	new_slot->next = NULL;
 	new_slot->configured = 1;
@@ -1738,7 +1722,7 @@ static u32 remove_board(struct pci_func * func, u32 replace_flag, struct control
 static void pushbutton_helper_thread(unsigned long data)
 {
 	pushbutton_pending = data;
-	up(&event_semaphore);
+	wake_up_process(cpqhp_event_thread);
 }
 
 
@@ -1747,13 +1731,13 @@ static int event_thread(void* data)
 {
 	struct controller *ctrl;
 
-	daemonize("phpd_event");
-
 	while (1) {
 		dbg("!!!!event_thread sleeping\n");
-		down_interruptible (&event_semaphore);
-		dbg("event_thread woken finished = %d\n", event_finished);
-		if (event_finished) break;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+
+		if (kthread_should_stop())
+			break;
 		/* Do stuff here */
 		if (pushbutton_pending)
 			cpqhp_pushbutton_thread(pushbutton_pending);
@@ -1762,38 +1746,24 @@ static int event_thread(void* data)
 				interrupt_event_handler(ctrl);
 	}
 	dbg("event_thread signals exit\n");
-	up(&event_exit);
 	return 0;
 }
 
-
 int cpqhp_event_start_thread(void)
 {
-	int pid;
-
-	/* initialize our semaphores */
-	init_MUTEX(&delay_sem);
-	init_MUTEX_LOCKED(&event_semaphore);
-	init_MUTEX_LOCKED(&event_exit);
-	event_finished=0;
-
-	pid = kernel_thread(event_thread, NULL, 0);
-	if (pid < 0) {
+	cpqhp_event_thread = kthread_run(event_thread, NULL, "phpd_event");
+	if (IS_ERR(cpqhp_event_thread)) {
 		err ("Can't start up our event thread\n");
-		return -1;
+		return PTR_ERR(cpqhp_event_thread);
 	}
-	dbg("Our event thread pid = %d\n", pid);
+
 	return 0;
 }
 
 
 void cpqhp_event_stop_thread(void)
 {
-	event_finished = 1;
-	dbg("event_thread finish command given\n");
-	up(&event_semaphore);
-	dbg("wait for event_thread to exit\n");
-	down(&event_exit);
+	kthread_stop(cpqhp_event_thread);
 }
 
 

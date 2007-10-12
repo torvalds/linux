@@ -173,7 +173,7 @@ u8 pciehp_handle_power_fault(u8 hp_slot, struct controller *ctrl)
 	return 1;
 }
 
-/* The following routines constitute the bulk of the 
+/* The following routines constitute the bulk of the
    hotplug controller logic
  */
 
@@ -181,7 +181,7 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 {
 	/* turn off slot, turn on Amber LED, turn off Green LED if supported*/
 	if (POWER_CTRL(ctrl->ctrlcap)) {
-		if (pslot->hpc_ops->power_off_slot(pslot)) {   
+		if (pslot->hpc_ops->power_off_slot(pslot)) {
 			err("%s: Issue of Slot Power Off command failed\n",
 			    __FUNCTION__);
 			return;
@@ -189,7 +189,7 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 	}
 
 	if (PWR_LED(ctrl->ctrlcap))
-		pslot->hpc_ops->green_led_off(pslot);   
+		pslot->hpc_ops->green_led_off(pslot);
 
 	if (ATTN_LED(ctrl->ctrlcap)) {
 		if (pslot->hpc_ops->set_attention_status(pslot, 1)) {
@@ -231,7 +231,7 @@ static int board_added(struct slot *p_slot)
 		if (retval)
 			return retval;
 	}
-	
+
 	if (PWR_LED(ctrl->ctrlcap))
 		p_slot->hpc_ops->green_led_blink(p_slot);
 
@@ -548,7 +548,7 @@ int pciehp_enable_slot(struct slot *p_slot)
 		mutex_unlock(&p_slot->ctrl->crit_sect);
 		return -ENODEV;
 	}
-	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {	
+	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {
 		rc = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (rc || getstatus) {
 			info("%s: latch open on slot(%s)\n", __FUNCTION__,
@@ -557,8 +557,8 @@ int pciehp_enable_slot(struct slot *p_slot)
 			return -ENODEV;
 		}
 	}
-	
-	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {	
+
+	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {
 		rc = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (rc || getstatus) {
 			info("%s: already enabled on slot(%s)\n", __FUNCTION__,
@@ -593,7 +593,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 	/* Check to see if (latch closed, card present, power on) */
 	mutex_lock(&p_slot->ctrl->crit_sect);
 
-	if (!HP_SUPR_RM(p_slot->ctrl->ctrlcap)) {	
+	if (!HP_SUPR_RM(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_adapter_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
 			info("%s: no adapter on slot(%s)\n", __FUNCTION__,
@@ -603,7 +603,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		}
 	}
 
-	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {	
+	if (MRL_SENS(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 		if (ret || getstatus) {
 			info("%s: latch open on slot(%s)\n", __FUNCTION__,
@@ -613,7 +613,7 @@ int pciehp_disable_slot(struct slot *p_slot)
 		}
 	}
 
-	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {	
+	if (POWER_CTRL(p_slot->ctrl->ctrlcap)) {
 		ret = p_slot->hpc_ops->get_power_status(p_slot, &getstatus);
 		if (ret || !getstatus) {
 			info("%s: already disabled slot(%s)\n", __FUNCTION__,

@@ -26,6 +26,8 @@
 #define PCI_ASSIGN_ROMS		0x1000
 #define PCI_BIOS_IRQ_SCAN	0x2000
 #define PCI_ASSIGN_ALL_BUSSES	0x4000
+#define PCI_CAN_SKIP_ISA_ALIGN	0x8000
+#define PCI_USE__CRS		0x10000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;

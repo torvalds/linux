@@ -738,6 +738,11 @@ config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
 
+config PCI_DOMAINS
+	bool
+	depends on PCI
+	default y
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"

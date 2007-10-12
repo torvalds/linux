@@ -549,7 +549,7 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 			 * slot. */
 			bus->number = tbus;
 			pci_bus_read_config_dword(bus, PCI_DEVFN(tdevice, 0),
-						PCI_REVISION_ID, &work);
+						PCI_CLASS_REVISION, &work);
 
 			if ((work >> 8) == PCI_TO_PCI_BRIDGE_CLASS) {
 				pci_bus_read_config_dword(bus,

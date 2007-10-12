@@ -33,6 +33,15 @@
 
 #include "pci.h"
 
+static int
+skip_isa_ioresource_align(struct pci_dev *dev) {
+
+	if ((pci_probe & PCI_CAN_SKIP_ISA_ALIGN) &&
+	    !(dev->bus->bridge_ctl & PCI_BRIDGE_CTL_ISA))
+		return 1;
+	return 0;
+}
+
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
@@ -50,9 +59,13 @@ void
 pcibios_align_resource(void *data, struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
+	struct pci_dev *dev = data;
+
 	if (res->flags & IORESOURCE_IO) {
 		resource_size_t start = res->start;
 
+		if (skip_isa_ioresource_align(dev))
+			return;
 		if (start & 0x300) {
 			start = (start + 0x3ff) & ~0x3ff;
 			res->start = start;

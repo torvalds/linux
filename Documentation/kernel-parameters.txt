@@ -68,6 +68,7 @@ parameter is applicable:
 	PARIDE	The ParIDE (parallel port IDE) subsystem is enabled.
 	PARISC	The PA-RISC architecture is enabled.
 	PCI	PCI bus support is enabled.
+	PCIE	PCI Express support is enabled.
 	PCMCIA	The PCMCIA subsystem is enabled.
 	PNP	Plug & Play support is enabled.
 	PPC	PowerPC architecture is enabled.
@@ -1277,6 +1278,11 @@ and is between 256 and 4096 characters. It is defined in the file
 				Mechanism 1.
 		conf2		[X86-32] Force use of PCI Configuration
 				Mechanism 2.
+		noaer		[PCIE] If the PCIEAER kernel config parameter is
+				enabled, this kernel boot option can be used to
+				disable the use of PCIE advanced error reporting.
+		nodomains	[PCI] Disable support for multiple PCI
+				root domains (aka PCI segments, in ACPI-speak).
 		nommconf	[X86-32,X86_64] Disable use of MMCONFIG for PCI
 				Configuration
 		nomsi		[MSI] If the PCI_MSI kernel config parameter is
@@ -1321,6 +1327,8 @@ and is between 256 and 4096 characters. It is defined in the file
 				IRQ routing is enabled.
 		noacpi		[X86-32] Do not use ACPI for IRQ routing
 				or for PCI scanning.
+		use_crs		[X86-32] Use _CRS for PCI resource
+				allocation.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround

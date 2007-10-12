@@ -304,8 +304,8 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
 
 	hotplug_slot->info->attention_status = status;
-	
-	if (ATTN_LED(slot->ctrl->ctrlcap)) 
+
+	if (ATTN_LED(slot->ctrl->ctrlcap))
 		slot->hpc_ops->set_attention_status(slot, status);
 
 	return 0;
@@ -405,7 +405,7 @@ static int get_max_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	int retval;
 
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
-	
+
 	retval = slot->hpc_ops->get_max_bus_speed(slot, value);
 	if (retval < 0)
 		*value = PCI_SPEED_UNKNOWN;
@@ -419,7 +419,7 @@ static int get_cur_bus_speed(struct hotplug_slot *hotplug_slot, enum pci_bus_spe
 	int retval;
 
 	dbg("%s - physical_slot = %s\n", __FUNCTION__, hotplug_slot->name);
-	
+
 	retval = slot->hpc_ops->get_cur_bus_speed(slot, value);
 	if (retval < 0)
 		*value = PCI_SPEED_UNKNOWN;
@@ -434,7 +434,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	struct slot *t_slot;
 	u8 value;
 	struct pci_dev *pdev;
-	
+
 	ctrl = kzalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
 		err("%s : out of memory\n", __FUNCTION__);
@@ -502,23 +502,23 @@ static void pciehp_remove (struct pcie_device *dev)
 #ifdef CONFIG_PM
 static int pciehp_suspend (struct pcie_device *dev, pm_message_t state)
 {
-	printk("%s ENTRY\n", __FUNCTION__);	
+	printk("%s ENTRY\n", __FUNCTION__);
 	return 0;
 }
 
 static int pciehp_resume (struct pcie_device *dev)
 {
-	printk("%s ENTRY\n", __FUNCTION__);	
+	printk("%s ENTRY\n", __FUNCTION__);
 	return 0;
 }
 #endif
 
-static struct pcie_port_service_id port_pci_ids[] = { { 
-	.vendor = PCI_ANY_ID, 
+static struct pcie_port_service_id port_pci_ids[] = { {
+	.vendor = PCI_ANY_ID,
 	.device = PCI_ANY_ID,
 	.port_type = PCIE_ANY_PORT,
 	.service_type = PCIE_PORT_SERVICE_HP,
-	.driver_data =	0, 
+	.driver_data =	0,
 	}, { /* end: all zeroes */ }
 };
 static const char device_name[] = "hpdriver";
@@ -539,10 +539,6 @@ static struct pcie_port_service_driver hpdriver_portdrv = {
 static int __init pcied_init(void)
 {
 	int retval = 0;
-
-#ifdef CONFIG_HOTPLUG_PCI_PCIE_POLL_EVENT_MODE
-	pciehp_poll_mode = 1;
-#endif
 
 	retval = pcie_port_service_register(&hpdriver_portdrv);
  	dbg("pcie_port_service_register = %d\n", retval);

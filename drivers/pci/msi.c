@@ -132,7 +132,7 @@ void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 			pci_read_config_word(dev, msi_data_reg(pos, 1), &data);
 		} else {
 			msg->address_hi = 0;
-			pci_read_config_word(dev, msi_data_reg(pos, 1), &data);
+			pci_read_config_word(dev, msi_data_reg(pos, 0), &data);
 		}
 		msg->data = data;
 		break;

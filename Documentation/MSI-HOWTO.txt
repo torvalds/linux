@@ -241,68 +241,7 @@ address space of the MSI-X table/MSI-X PBA. Otherwise, the PCI subsystem
 will fail enabling MSI-X on its hardware device when it calls the function
 pci_enable_msix().
 
-5.3.2 Handling MSI-X allocation
-
-Determining the number of MSI-X vectors allocated to a function is
-dependent on the number of MSI capable devices and MSI-X capable
-devices populated in the system. The policy of allocating MSI-X
-vectors to a function is defined as the following:
-
-#of MSI-X vectors allocated to a function = (x - y)/z where
-
-x = 	The number of available PCI vector resources by the time
-	the device driver calls pci_enable_msix(). The PCI vector
-	resources is the sum of the number of unassigned vectors
-	(new) and the number of released vectors when any MSI/MSI-X
-	device driver switches its hardware device back to a legacy
-	mode or is hot-removed.	The number of unassigned vectors
-	may exclude some vectors reserved, as defined in parameter
-	NR_HP_RESERVED_VECTORS, for the case where the system is
-	capable of supporting hot-add/hot-remove operations. Users
-	may change the value defined in NR_HR_RESERVED_VECTORS to
-	meet their specific needs.
-
-y =	The number of MSI capable devices populated in the system.
-	This policy ensures that each MSI capable device has its
-	vector reserved to avoid the case where some MSI-X capable
-	drivers may attempt to claim all available vector resources.
-
-z =	The number of MSI-X capable devices populated in the system.
-	This policy ensures that maximum (x - y) is distributed
-	evenly among MSI-X capable devices.
-
-Note that the PCI subsystem scans y and z during a bus enumeration.
-When the PCI subsystem completes configuring MSI/MSI-X capability
-structure of a device as requested by its device driver, y/z is
-decremented accordingly.
-
-5.3.3 Handling MSI-X shortages
-
-For the case where fewer MSI-X vectors are allocated to a function
-than requested, the function pci_enable_msix() will return the
-maximum number of MSI-X vectors available to the caller. A device
-driver may re-send its request with fewer or equal vectors indicated
-in the return. For example, if a device driver requests 5 vectors, but
-the number of available vectors is 3 vectors, a value of 3 will be
-returned as a result of pci_enable_msix() call. A function could be
-designed for its driver to use only 3 MSI-X table entries as
-different combinations as ABC--, A-B-C, A--CB, etc. Note that this
-patch does not support multiple entries with the same vector. Such
-attempt by a device driver to use 5 MSI-X table entries with 3 vectors
-as ABBCC, AABCC, BCCBA, etc will result as a failure by the function
-pci_enable_msix(). Below are the reasons why supporting multiple
-entries with the same vector is an undesirable solution.
-
-	- The PCI subsystem cannot determine the entry that
-	  generated the message to mask/unmask MSI while handling
-	  software driver ISR. Attempting to walk through all MSI-X
-	  table entries (2048 max) to mask/unmask any match vector
-	  is an undesirable solution.
-
-	- Walking through all MSI-X table entries (2048 max) to handle
-	  SMP affinity of any match vector is an undesirable solution.
-
-5.3.4 API pci_enable_msix
+5.3.2 API pci_enable_msix
 
 int pci_enable_msix(struct pci_dev *dev, struct msix_entry *entries, int nvec)
 
@@ -339,7 +278,7 @@ a failure. This failure may be a result of duplicate entries
 specified in second argument, or a result of no available vector,
 or a result of failing to initialize MSI-X table entries.
 
-5.3.5 API pci_disable_msix
+5.3.3 API pci_disable_msix
 
 void pci_disable_msix(struct pci_dev *dev)
 
@@ -349,7 +288,7 @@ always call free_irq() on all MSI-X vectors it has done request_irq()
 on before calling this API. Failure to do so results in a BUG_ON() and
 a device will be left with MSI-X enabled and leaks its vectors.
 
-5.3.6 MSI-X mode vs. legacy mode diagram
+5.3.4 MSI-X mode vs. legacy mode diagram
 
 The below diagram shows the events which switch the interrupt
 mode on the MSI-X capable device function between MSI-X mode and
@@ -407,7 +346,7 @@ between MSI mod MSI-X mode during a run-time.
 MSI/MSI-X support requires support from both system hardware and
 individual hardware device functions.
 
-5.5.1 System hardware support
+5.5.1 Required x86 hardware support
 
 Since the target of MSI address is the local APIC CPU, enabling
 MSI/MSI-X support in the Linux kernel is dependent on whether existing

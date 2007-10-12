@@ -147,7 +147,7 @@
 #define PCI_BRIDGE_CONTROL	0x3e
 #define  PCI_BRIDGE_CTL_PARITY	0x01	/* Enable parity detection on secondary interface */
 #define  PCI_BRIDGE_CTL_SERR	0x02	/* The same for SERR forwarding */
-#define  PCI_BRIDGE_CTL_NO_ISA	0x04	/* Disable bridging of ISA ports */
+#define  PCI_BRIDGE_CTL_ISA	0x04	/* Enable ISA mode */
 #define  PCI_BRIDGE_CTL_VGA	0x08	/* Forward VGA addresses */
 #define  PCI_BRIDGE_CTL_MASTER_ABORT	0x20  /* Report master aborts */
 #define  PCI_BRIDGE_CTL_BUS_RESET	0x40	/* Secondary bus reset */
@@ -202,8 +202,12 @@
 #define  PCI_CAP_ID_CHSWP	0x06	/* CompactPCI HotSwap */
 #define  PCI_CAP_ID_PCIX	0x07	/* PCI-X */
 #define  PCI_CAP_ID_HT		0x08	/* HyperTransport */
-#define  PCI_CAP_ID_VNDR	0x09	/* Vendor specific capability */
+#define  PCI_CAP_ID_VNDR	0x09	/* Vendor specific */
+#define  PCI_CAP_ID_DBG		0x0A	/* Debug port */
+#define  PCI_CAP_ID_CCRC	0x0B	/* CompactPCI Central Resource Control */
 #define  PCI_CAP_ID_SHPC 	0x0C	/* PCI Standard Hot-Plug Controller */
+#define  PCI_CAP_ID_SSVID	0x0D	/* Bridge subsystem vendor/device ID */
+#define  PCI_CAP_ID_AGP3	0x0E	/* AGP Target PCI-PCI bridge */
 #define  PCI_CAP_ID_EXP 	0x10	/* PCI Express */
 #define  PCI_CAP_ID_MSIX	0x11	/* MSI-X */
 #define PCI_CAP_LIST_NEXT	1	/* Next capability in the list */

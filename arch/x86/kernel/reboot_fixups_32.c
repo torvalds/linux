@@ -11,6 +11,7 @@
 
 #include <asm/delay.h>
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <asm/reboot_fixups.h>
 #include <asm/msr.h>
 
@@ -55,6 +56,11 @@ void mach_reboot_fixups(void)
 	struct device_fixup *cur;
 	struct pci_dev *dev;
 	int i;
+
+	/* we can be called from sysrq-B code. In such a case it is
+	 * prohibited to dig PCI */
+	if (in_interrupt())
+		return;
 
 	for (i=0; i < ARRAY_SIZE(fixups_table); i++) {
 		cur = &(fixups_table[i]);
