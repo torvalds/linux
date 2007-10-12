@@ -164,6 +164,7 @@ static struct clock_event_device hpet_clockevent = {
 	.set_next_event = hpet_legacy_next_event,
 	.shift		= 32,
 	.irq		= 0,
+	.rating		= 50,
 };
 
 static void hpet_start_counter(void)
@@ -176,6 +177,17 @@ static void hpet_start_counter(void)
 	hpet_writel(0, HPET_COUNTER + 4);
 	cfg |= HPET_CFG_ENABLE;
 	hpet_writel(cfg, HPET_CFG);
+}
+
+static void hpet_resume_device(void)
+{
+	ich_force_hpet_resume();
+}
+
+static void hpet_restart_counter(void)
+{
+	hpet_resume_device();
+	hpet_start_counter();
 }
 
 static void hpet_enable_legacy_int(void)
@@ -299,7 +311,7 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.shift		= HPET_SHIFT,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-	.resume		= hpet_start_counter,
+	.resume		= hpet_restart_counter,
 #ifdef CONFIG_X86_64
 	.vread		= vread_hpet,
 #endif
@@ -412,10 +424,21 @@ out_nohpet:
  */
 static __init int hpet_late_init(void)
 {
-	if (!is_hpet_capable())
+	if (boot_hpet_disable)
 		return -ENODEV;
 
+	if (!hpet_address) {
+		if (!force_hpet_address)
+			return -ENODEV;
+
+		hpet_address = force_hpet_address;
+		hpet_enable();
+		if (!hpet_virt_address)
+			return -ENODEV;
+	}
+
 	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
+
 	return 0;
 }
 fs_initcall(hpet_late_init);
