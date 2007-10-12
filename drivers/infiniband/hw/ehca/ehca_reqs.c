@@ -526,7 +526,7 @@ poll_cq_one_read_cqe:
 	if (!cqe) {
 		ret = -EAGAIN;
 		ehca_dbg(cq->device, "Completion queue is empty ehca_cq=%p "
-			 "cq_num=%x ret=%x", my_cq, my_cq->cq_number, ret);
+			 "cq_num=%x ret=%i", my_cq, my_cq->cq_number, ret);
 		goto  poll_cq_one_exit0;
 	}
 

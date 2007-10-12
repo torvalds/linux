@@ -68,6 +68,9 @@ struct mlx4_mpt_entry {
 
 #define MLX4_MTT_FLAG_PRESENT		1
 
+#define MLX4_MPT_STATUS_SW		0xF0
+#define MLX4_MPT_STATUS_HW		0x00
+
 static u32 mlx4_buddy_alloc(struct mlx4_buddy *buddy, int order)
 {
 	int o;
@@ -349,58 +352,57 @@ err_table:
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_enable);
 
-static int mlx4_WRITE_MTT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
-			  int num_mtt)
+static int mlx4_write_mtt_chunk(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
+				int start_index, int npages, u64 *page_list)
 {
-	return mlx4_cmd(dev, mailbox->dma, num_mtt, 0, MLX4_CMD_WRITE_MTT,
-			MLX4_CMD_TIME_CLASS_B);
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	__be64 *mtts;
+	dma_addr_t dma_handle;
+	int i;
+	int s = start_index * sizeof (u64);
+
+	/* All MTTs must fit in the same page */
+	if (start_index / (PAGE_SIZE / sizeof (u64)) !=
+	    (start_index + npages - 1) / (PAGE_SIZE / sizeof (u64)))
+		return -EINVAL;
+
+	if (start_index & (MLX4_MTT_ENTRY_PER_SEG - 1))
+		return -EINVAL;
+
+	mtts = mlx4_table_find(&priv->mr_table.mtt_table, mtt->first_seg +
+				s / dev->caps.mtt_entry_sz, &dma_handle);
+	if (!mtts)
+		return -ENOMEM;
+
+	for (i = 0; i < npages; ++i)
+		mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, dma_handle, npages * sizeof (u64), DMA_TO_DEVICE);
+
+	return 0;
 }
 
 int mlx4_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		   int start_index, int npages, u64 *page_list)
 {
-	struct mlx4_cmd_mailbox *mailbox;
-	__be64 *mtt_entry;
-	int i;
-	int err = 0;
+	int chunk;
+	int err;
 
 	if (mtt->order < 0)
 		return -EINVAL;
 
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-
-	mtt_entry = mailbox->buf;
-
 	while (npages > 0) {
-		mtt_entry[0] = cpu_to_be64(mlx4_mtt_addr(dev, mtt) + start_index * 8);
-		mtt_entry[1] = 0;
-
-		for (i = 0; i < npages && i < MLX4_MAILBOX_SIZE / 8 - 2; ++i)
-			mtt_entry[i + 2] = cpu_to_be64(page_list[i] |
-						       MLX4_MTT_FLAG_PRESENT);
-
-		/*
-		 * If we have an odd number of entries to write, add
-		 * one more dummy entry for firmware efficiency.
-		 */
-		if (i & 1)
-			mtt_entry[i + 2] = 0;
-
-		err = mlx4_WRITE_MTT(dev, mailbox, (i + 1) & ~1);
+		chunk = min_t(int, PAGE_SIZE / sizeof(u64), npages);
+		err = mlx4_write_mtt_chunk(dev, mtt, start_index, chunk, page_list);
 		if (err)
-			goto out;
+			return err;
 
-		npages      -= i;
-		start_index += i;
-		page_list   += i;
+		npages      -= chunk;
+		start_index += chunk;
+		page_list   += chunk;
 	}
 
-out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
-
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_write_mtt);
 
@@ -428,7 +430,7 @@ int mlx4_buf_write_mtt(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 }
 EXPORT_SYMBOL_GPL(mlx4_buf_write_mtt);
 
-int __devinit mlx4_init_mr_table(struct mlx4_dev *dev)
+int mlx4_init_mr_table(struct mlx4_dev *dev)
 {
 	struct mlx4_mr_table *mr_table = &mlx4_priv(dev)->mr_table;
 	int err;
@@ -444,7 +446,7 @@ int __devinit mlx4_init_mr_table(struct mlx4_dev *dev)
 		goto err_buddy;
 
 	if (dev->caps.reserved_mtts) {
-		if (mlx4_alloc_mtt_range(dev, ilog2(dev->caps.reserved_mtts)) == -1) {
+		if (mlx4_alloc_mtt_range(dev, fls(dev->caps.reserved_mtts - 1)) == -1) {
 			mlx4_warn(dev, "MTT table of order %d is too small.\n",
 				  mr_table->mtt_buddy.max_order);
 			err = -ENOMEM;
@@ -470,3 +472,165 @@ void mlx4_cleanup_mr_table(struct mlx4_dev *dev)
 	mlx4_buddy_cleanup(&mr_table->mtt_buddy);
 	mlx4_bitmap_cleanup(&mr_table->mpt_bitmap);
 }
+
+static inline int mlx4_check_fmr(struct mlx4_fmr *fmr, u64 *page_list,
+				  int npages, u64 iova)
+{
+	int i, page_mask;
+
+	if (npages > fmr->max_pages)
+		return -EINVAL;
+
+	page_mask = (1 << fmr->page_shift) - 1;
+
+	/* We are getting page lists, so va must be page aligned. */
+	if (iova & page_mask)
+		return -EINVAL;
+
+	/* Trust the user not to pass misaligned data in page_list */
+	if (0)
+		for (i = 0; i < npages; ++i) {
+			if (page_list[i] & ~page_mask)
+				return -EINVAL;
+		}
+
+	if (fmr->maps >= fmr->max_maps)
+		return -EINVAL;
+
+	return 0;
+}
+
+int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list,
+		      int npages, u64 iova, u32 *lkey, u32 *rkey)
+{
+	u32 key;
+	int i, err;
+
+	err = mlx4_check_fmr(fmr, page_list, npages, iova);
+	if (err)
+		return err;
+
+	++fmr->maps;
+
+	key = key_to_hw_index(fmr->mr.key);
+	key += dev->caps.num_mpts;
+	*lkey = *rkey = fmr->mr.key = hw_index_to_key(key);
+
+	*(u8 *) fmr->mpt = MLX4_MPT_STATUS_SW;
+
+	/* Make sure MPT status is visible before writing MTT entries */
+	wmb();
+
+	for (i = 0; i < npages; ++i)
+		fmr->mtts[i] = cpu_to_be64(page_list[i] | MLX4_MTT_FLAG_PRESENT);
+
+	dma_sync_single(&dev->pdev->dev, fmr->dma_handle,
+			npages * sizeof(u64), DMA_TO_DEVICE);
+
+	fmr->mpt->key    = cpu_to_be32(key);
+	fmr->mpt->lkey   = cpu_to_be32(key);
+	fmr->mpt->length = cpu_to_be64(npages * (1ull << fmr->page_shift));
+	fmr->mpt->start  = cpu_to_be64(iova);
+
+	/* Make MTT entries are visible before setting MPT status */
+	wmb();
+
+	*(u8 *) fmr->mpt = MLX4_MPT_STATUS_HW;
+
+	/* Make sure MPT status is visible before consumer can use FMR */
+	wmb();
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_map_phys_fmr);
+
+int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
+		   int max_maps, u8 page_shift, struct mlx4_fmr *fmr)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	u64 mtt_seg;
+	int err = -ENOMEM;
+
+	if (page_shift < 12 || page_shift >= 32)
+		return -EINVAL;
+
+	/* All MTTs must fit in the same page */
+	if (max_pages * sizeof *fmr->mtts > PAGE_SIZE)
+		return -EINVAL;
+
+	fmr->page_shift = page_shift;
+	fmr->max_pages  = max_pages;
+	fmr->max_maps   = max_maps;
+	fmr->maps = 0;
+
+	err = mlx4_mr_alloc(dev, pd, 0, 0, access, max_pages,
+			    page_shift, &fmr->mr);
+	if (err)
+		return err;
+
+	mtt_seg = fmr->mr.mtt.first_seg * dev->caps.mtt_entry_sz;
+
+	fmr->mtts = mlx4_table_find(&priv->mr_table.mtt_table,
+				    fmr->mr.mtt.first_seg,
+				    &fmr->dma_handle);
+	if (!fmr->mtts) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	fmr->mpt = mlx4_table_find(&priv->mr_table.dmpt_table,
+				    key_to_hw_index(fmr->mr.key), NULL);
+	if (!fmr->mpt) {
+		err = -ENOMEM;
+		goto err_free;
+	}
+
+	return 0;
+
+err_free:
+	mlx4_mr_free(dev, &fmr->mr);
+	return err;
+}
+EXPORT_SYMBOL_GPL(mlx4_fmr_alloc);
+
+int mlx4_fmr_enable(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
+{
+	return mlx4_mr_enable(dev, &fmr->mr);
+}
+EXPORT_SYMBOL_GPL(mlx4_fmr_enable);
+
+void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
+		    u32 *lkey, u32 *rkey)
+{
+	u32 key;
+
+	if (!fmr->maps)
+		return;
+
+	key = key_to_hw_index(fmr->mr.key);
+	key &= dev->caps.num_mpts - 1;
+	*lkey = *rkey = fmr->mr.key = hw_index_to_key(key);
+
+	fmr->maps = 0;
+
+	*(u8 *) fmr->mpt = MLX4_MPT_STATUS_SW;
+}
+EXPORT_SYMBOL_GPL(mlx4_fmr_unmap);
+
+int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
+{
+	if (fmr->maps)
+		return -EBUSY;
+
+	fmr->mr.enabled = 0;
+	mlx4_mr_free(dev, &fmr->mr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mlx4_fmr_free);
+
+int mlx4_SYNC_TPT(struct mlx4_dev *dev)
+{
+	return mlx4_cmd(dev, 0, 0, 0, MLX4_CMD_SYNC_TPT, 1000);
+}
+EXPORT_SYMBOL_GPL(mlx4_SYNC_TPT);

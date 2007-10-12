@@ -553,6 +553,14 @@ void ipoib_drain_cq(struct net_device *dev)
 	do {
 		n = ib_poll_cq(priv->cq, IPOIB_NUM_WC, priv->ibwc);
 		for (i = 0; i < n; ++i) {
+			/*
+			 * Convert any successful completions to flush
+			 * errors to avoid passing packets up the
+			 * stack after bringing the device down.
+			 */
+			if (priv->ibwc[i].status == IB_WC_SUCCESS)
+				priv->ibwc[i].status = IB_WC_WR_FLUSH_ERR;
+
 			if (priv->ibwc[i].wr_id & IPOIB_CM_OP_SRQ)
 				ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
 			else if (priv->ibwc[i].wr_id & IPOIB_OP_RECV)

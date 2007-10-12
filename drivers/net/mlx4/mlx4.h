@@ -56,11 +56,7 @@ enum {
 };
 
 enum {
-	MLX4_BOARD_ID_LEN	= 64
-};
-
-enum {
-	MLX4_MGM_ENTRY_SIZE	=  0x40,
+	MLX4_MGM_ENTRY_SIZE	=  0x100,
 	MLX4_QP_PER_MGM		= 4 * (MLX4_MGM_ENTRY_SIZE / 16 - 2),
 	MLX4_MTT_ENTRY_PER_SEG	= 8
 };
@@ -133,6 +129,7 @@ struct mlx4_icm_table {
 	int			num_obj;
 	int			obj_size;
 	int			lowmem;
+	int			coherent;
 	struct mutex		mutex;
 	struct mlx4_icm	      **icm;
 };
@@ -277,9 +274,6 @@ struct mlx4_priv {
 
 	struct mlx4_uar		driver_uar;
 	void __iomem	       *kar;
-
-	u32			rev_id;
-	char			board_id[MLX4_BOARD_ID_LEN];
 };
 
 static inline struct mlx4_priv *mlx4_priv(struct mlx4_dev *dev)

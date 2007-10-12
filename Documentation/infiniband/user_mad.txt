@@ -99,6 +99,20 @@ Transaction IDs
   request/response pairs.  The upper 32 bits are reserved for use by
   the kernel and will be overwritten before a MAD is sent.
 
+P_Key Index Handling
+
+  The old ib_umad interface did not allow setting the P_Key index for
+  MADs that are sent and did not provide a way for obtaining the P_Key
+  index of received MADs.  A new layout for struct ib_user_mad_hdr
+  with a pkey_index member has been defined; however, to preserve
+  binary compatibility with older applications, this new layout will
+  not be used unless the IB_USER_MAD_ENABLE_PKEY ioctl is called
+  before a file descriptor is used for anything else.
+
+  In September 2008, the IB_USER_MAD_ABI_VERSION will be incremented
+  to 6, the new layout of struct ib_user_mad_hdr will be used by
+  default, and the IB_USER_MAD_ENABLE_PKEY ioctl will be removed.
+
 Setting IsSM Capability Bit
 
   To set the IsSM capability bit for a port, simply open the

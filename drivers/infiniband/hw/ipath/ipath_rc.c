@@ -81,9 +81,8 @@ static void ipath_init_restart(struct ipath_qp *qp, struct ipath_swqe *wqe)
  * Note that we are in the responder's side of the QP context.
  * Note the QP s_lock must be held.
  */
-static int ipath_make_rc_ack(struct ipath_qp *qp,
-			     struct ipath_other_headers *ohdr,
-			     u32 pmtu, u32 *bth0p, u32 *bth2p)
+static int ipath_make_rc_ack(struct ipath_ibdev *dev, struct ipath_qp *qp,
+			     struct ipath_other_headers *ohdr, u32 pmtu)
 {
 	struct ipath_ack_entry *e;
 	u32 hwords;
@@ -192,8 +191,7 @@ static int ipath_make_rc_ack(struct ipath_qp *qp,
 	}
 	qp->s_hdrwords = hwords;
 	qp->s_cur_size = len;
-	*bth0p = bth0 | (1 << 22); /* Set M bit */
-	*bth2p = bth2;
+	ipath_make_ruc_header(dev, qp, ohdr, bth0, bth2);
 	return 1;
 
 bail:
@@ -203,32 +201,39 @@ bail:
 /**
  * ipath_make_rc_req - construct a request packet (SEND, RDMA r/w, ATOMIC)
  * @qp: a pointer to the QP
- * @ohdr: a pointer to the IB header being constructed
- * @pmtu: the path MTU
- * @bth0p: pointer to the BTH opcode word
- * @bth2p: pointer to the BTH PSN word
  *
  * Return 1 if constructed; otherwise, return 0.
- * Note the QP s_lock must be held and interrupts disabled.
  */
-int ipath_make_rc_req(struct ipath_qp *qp,
-		      struct ipath_other_headers *ohdr,
-		      u32 pmtu, u32 *bth0p, u32 *bth2p)
+int ipath_make_rc_req(struct ipath_qp *qp)
 {
 	struct ipath_ibdev *dev = to_idev(qp->ibqp.device);
+	struct ipath_other_headers *ohdr;
 	struct ipath_sge_state *ss;
 	struct ipath_swqe *wqe;
 	u32 hwords;
 	u32 len;
 	u32 bth0;
 	u32 bth2;
+	u32 pmtu = ib_mtu_enum_to_int(qp->path_mtu);
 	char newreq;
+	unsigned long flags;
+	int ret = 0;
+
+	ohdr = &qp->s_hdr.u.oth;
+	if (qp->remote_ah_attr.ah_flags & IB_AH_GRH)
+		ohdr = &qp->s_hdr.u.l.oth;
+
+	/*
+	 * The lock is needed to synchronize between the sending tasklet,
+	 * the receive interrupt handler, and timeout resends.
+	 */
+	spin_lock_irqsave(&qp->s_lock, flags);
 
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->r_head_ack_queue != qp->s_tail_ack_queue ||
 	     (qp->s_flags & IPATH_S_ACK_PENDING) ||
 	     qp->s_ack_state != OP(ACKNOWLEDGE)) &&
-	    ipath_make_rc_ack(qp, ohdr, pmtu, bth0p, bth2p))
+	    ipath_make_rc_ack(dev, qp, ohdr, pmtu))
 		goto done;
 
 	if (!(ib_ipath_state_ops[qp->state] & IPATH_PROCESS_SEND_OK) ||
@@ -560,13 +565,12 @@ int ipath_make_rc_req(struct ipath_qp *qp,
 	qp->s_hdrwords = hwords;
 	qp->s_cur_sge = ss;
 	qp->s_cur_size = len;
-	*bth0p = bth0 | (qp->s_state << 24);
-	*bth2p = bth2;
+	ipath_make_ruc_header(dev, qp, ohdr, bth0 | (qp->s_state << 24), bth2);
 done:
-	return 1;
-
+	ret = 1;
 bail:
-	return 0;
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	return ret;
 }
 
 /**
@@ -627,7 +631,7 @@ static void send_rc_ack(struct ipath_qp *qp)
 	/*
 	 * If we can send the ACK, clear the ACK state.
 	 */
-	if (ipath_verbs_send(dev->dd, hwords, (u32 *) &hdr, 0, NULL) == 0) {
+	if (ipath_verbs_send(qp, &hdr, hwords, NULL, 0) == 0) {
 		dev->n_unicast_xmit++;
 		goto done;
 	}
@@ -757,7 +761,9 @@ void ipath_restart_rc(struct ipath_qp *qp, u32 psn, struct ib_wc *wc)
 		wc->vendor_err = 0;
 		wc->byte_len = 0;
 		wc->qp = &qp->ibqp;
+		wc->imm_data = 0;
 		wc->src_qp = qp->remote_qpn;
+		wc->wc_flags = 0;
 		wc->pkey_index = 0;
 		wc->slid = qp->remote_ah_attr.dlid;
 		wc->sl = qp->remote_ah_attr.sl;
@@ -1041,7 +1047,9 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode,
 			wc.vendor_err = 0;
 			wc.byte_len = 0;
 			wc.qp = &qp->ibqp;
+			wc.imm_data = 0;
 			wc.src_qp = qp->remote_qpn;
+			wc.wc_flags = 0;
 			wc.pkey_index = 0;
 			wc.slid = qp->remote_ah_attr.dlid;
 			wc.sl = qp->remote_ah_attr.sl;
@@ -1454,6 +1462,19 @@ static inline int ipath_rc_rcv_error(struct ipath_ibdev *dev,
 			goto send_ack;
 		}
 		/*
+		 * Try to send a simple ACK to work around a Mellanox bug
+		 * which doesn't accept a RDMA read response or atomic
+		 * response as an ACK for earlier SENDs or RDMA writes.
+		 */
+		if (qp->r_head_ack_queue == qp->s_tail_ack_queue &&
+		    !(qp->s_flags & IPATH_S_ACK_PENDING) &&
+		    qp->s_ack_state == OP(ACKNOWLEDGE)) {
+			spin_unlock_irqrestore(&qp->s_lock, flags);
+			qp->r_nak_state = 0;
+			qp->r_ack_psn = qp->s_ack_queue[i].psn - 1;
+			goto send_ack;
+		}
+		/*
 		 * Resend the RDMA read or atomic op which
 		 * ACKs this duplicate request.
 		 */
@@ -1476,11 +1497,21 @@ send_ack:
 static void ipath_rc_error(struct ipath_qp *qp, enum ib_wc_status err)
 {
 	unsigned long flags;
+	int lastwqe;
 
 	spin_lock_irqsave(&qp->s_lock, flags);
 	qp->state = IB_QPS_ERR;
-	ipath_error_qp(qp, err);
+	lastwqe = ipath_error_qp(qp, err);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
+
+	if (lastwqe) {
+		struct ib_event ev;
+
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+	}
 }
 
 static inline void ipath_update_ack_queue(struct ipath_qp *qp, unsigned n)

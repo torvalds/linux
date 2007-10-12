@@ -125,6 +125,14 @@ static void ib_uverbs_release_dev(struct kref *ref)
 	complete(&dev->comp);
 }
 
+static void ib_uverbs_release_event_file(struct kref *ref)
+{
+	struct ib_uverbs_event_file *file =
+		container_of(ref, struct ib_uverbs_event_file, ref);
+
+	kfree(file);
+}
+
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,
 			  struct ib_uverbs_event_file *ev_file,
 			  struct ib_ucq_object *uobj)
@@ -329,14 +337,6 @@ static unsigned int ib_uverbs_event_poll(struct file *filp,
 	spin_unlock_irq(&file->lock);
 
 	return pollflags;
-}
-
-void ib_uverbs_release_event_file(struct kref *ref)
-{
-	struct ib_uverbs_event_file *file =
-		container_of(ref, struct ib_uverbs_event_file, ref);
-
-	kfree(file);
 }
 
 static int ib_uverbs_event_fasync(int fd, struct file *filp, int on)

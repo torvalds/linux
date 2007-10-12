@@ -227,7 +227,7 @@ int mlx4_srq_query(struct mlx4_dev *dev, struct mlx4_srq *srq, int *limit_waterm
 	err = mlx4_QUERY_SRQ(dev, mailbox, srq->srqn);
 	if (err)
 		goto err_out;
-	*limit_watermark = srq_context->limit_watermark;
+	*limit_watermark = be16_to_cpu(srq_context->limit_watermark);
 
 err_out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
@@ -235,7 +235,7 @@ err_out:
 }
 EXPORT_SYMBOL_GPL(mlx4_srq_query);
 
-int __devinit mlx4_init_srq_table(struct mlx4_dev *dev)
+int mlx4_init_srq_table(struct mlx4_dev *dev)
 {
 	struct mlx4_srq_table *srq_table = &mlx4_priv(dev)->srq_table;
 	int err;

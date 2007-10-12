@@ -42,6 +42,8 @@
 #include <rdma/ib_pack.h>
 #include <rdma/ib_user_verbs.h>
 
+#include "ipath_kernel.h"
+
 #define IPATH_MAX_RDMA_ATOMIC	4
 
 #define QPN_MAX                 (1 << 24)
@@ -59,6 +61,7 @@
  */
 #define IB_CQ_NONE	(IB_CQ_NEXT_COMP + 1)
 
+/* AETH NAK opcode values */
 #define IB_RNR_NAK			0x20
 #define IB_NAK_PSN_ERROR		0x60
 #define IB_NAK_INVALID_REQUEST		0x61
@@ -66,6 +69,7 @@
 #define IB_NAK_REMOTE_OPERATIONAL_ERROR 0x63
 #define IB_NAK_INVALID_RD_REQUEST	0x64
 
+/* Flags for checking QP state (see ib_ipath_state_ops[]) */
 #define IPATH_POST_SEND_OK		0x01
 #define IPATH_POST_RECV_OK		0x02
 #define IPATH_PROCESS_RECV_OK		0x04
@@ -187,7 +191,11 @@ struct ipath_mmap_info {
 struct ipath_cq_wc {
 	u32 head;		/* index of next entry to fill */
 	u32 tail;		/* index of next ib_poll_cq() entry */
-	struct ib_uverbs_wc queue[1]; /* this is actually size ibcq.cqe + 1 */
+	union {
+		/* these are actually size ibcq.cqe + 1 */
+		struct ib_uverbs_wc uqueue[0];
+		struct ib_wc kqueue[0];
+	};
 };
 
 /*
@@ -239,7 +247,7 @@ struct ipath_mregion {
  */
 struct ipath_sge {
 	struct ipath_mregion *mr;
-	void *vaddr;		/* current pointer into the segment */
+	void *vaddr;		/* kernel virtual address of segment */
 	u32 sge_length;		/* length of the SGE */
 	u32 length;		/* remaining length of the segment */
 	u16 m;			/* current index: mr->map[m] */
@@ -407,6 +415,7 @@ struct ipath_qp {
 	u32 s_ssn;		/* SSN of tail entry */
 	u32 s_lsn;		/* limit sequence number (credit) */
 	struct ipath_swqe *s_wq;	/* send work queue */
+	struct ipath_swqe *s_wqe;
 	struct ipath_rq r_rq;		/* receive work queue */
 	struct ipath_sge r_sg_list[0];	/* verified SGEs */
 };
@@ -492,7 +501,7 @@ struct ipath_ibdev {
 	int ib_unit;		/* This is the device number */
 	u16 sm_lid;		/* in host order */
 	u8 sm_sl;
-	u8 mkeyprot_resv_lmc;
+	u8 mkeyprot;
 	/* non-zero when timer is set */
 	unsigned long mkey_lease_timeout;
 
@@ -667,7 +676,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 
 int ipath_destroy_qp(struct ib_qp *ibqp);
 
-void ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
+int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err);
 
 int ipath_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata);
@@ -683,16 +692,14 @@ void ipath_sqerror_qp(struct ipath_qp *qp, struct ib_wc *wc);
 
 void ipath_get_credit(struct ipath_qp *qp, u32 aeth);
 
-int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
-		     u32 *hdr, u32 len, struct ipath_sge_state *ss);
+int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
+		     u32 hdrwords, struct ipath_sge_state *ss, u32 len);
 
 void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
 void ipath_copy_sge(struct ipath_sge_state *ss, void *data, u32 length);
 
 void ipath_skip_sge(struct ipath_sge_state *ss, u32 length);
-
-int ipath_post_ruc_send(struct ipath_qp *qp, struct ib_send_wr *wr);
 
 void ipath_uc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		  int has_grh, void *data, u32 tlen, struct ipath_qp *qp);
@@ -732,6 +739,8 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 int ipath_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 
 int ipath_destroy_srq(struct ib_srq *ibsrq);
+
+void ipath_cq_enter(struct ipath_cq *cq, struct ib_wc *entry, int sig);
 
 int ipath_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
 
@@ -782,18 +791,28 @@ int ipath_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 
 void ipath_insert_rnr_queue(struct ipath_qp *qp);
 
+int ipath_init_sge(struct ipath_qp *qp, struct ipath_rwqe *wqe,
+		   u32 *lengthp, struct ipath_sge_state *ss);
+
 int ipath_get_rwqe(struct ipath_qp *qp, int wr_id_only);
 
 u32 ipath_make_grh(struct ipath_ibdev *dev, struct ib_grh *hdr,
 		   struct ib_global_route *grh, u32 hwords, u32 nwords);
 
-void ipath_do_ruc_send(unsigned long data);
+void ipath_make_ruc_header(struct ipath_ibdev *dev, struct ipath_qp *qp,
+			   struct ipath_other_headers *ohdr,
+			   u32 bth0, u32 bth2);
 
-int ipath_make_rc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
-		      u32 pmtu, u32 *bth0p, u32 *bth2p);
+void ipath_do_send(unsigned long data);
 
-int ipath_make_uc_req(struct ipath_qp *qp, struct ipath_other_headers *ohdr,
-		      u32 pmtu, u32 *bth0p, u32 *bth2p);
+void ipath_send_complete(struct ipath_qp *qp, struct ipath_swqe *wqe,
+			 enum ib_wc_status status);
+
+int ipath_make_rc_req(struct ipath_qp *qp);
+
+int ipath_make_uc_req(struct ipath_qp *qp);
+
+int ipath_make_ud_req(struct ipath_qp *qp);
 
 int ipath_register_ib_device(struct ipath_devdata *);
 

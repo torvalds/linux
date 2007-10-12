@@ -810,14 +810,16 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ib_cq *cq)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ib_qp_init_attr attr = {};
-	attr.recv_cq = priv->cq;
-	attr.srq = priv->cm.srq;
-	attr.cap.max_send_wr = ipoib_sendq_size;
-	attr.cap.max_send_sge = 1;
-	attr.sq_sig_type = IB_SIGNAL_ALL_WR;
-	attr.qp_type = IB_QPT_RC;
-	attr.send_cq = cq;
+	struct ib_qp_init_attr attr = {
+		.send_cq		= cq,
+		.recv_cq		= priv->cq,
+		.srq			= priv->cm.srq,
+		.cap.max_send_wr	= ipoib_sendq_size,
+		.cap.max_send_sge	= 1,
+		.sq_sig_type		= IB_SIGNAL_ALL_WR,
+		.qp_type		= IB_QPT_RC,
+        };
+
 	return ib_create_qp(priv->pd, &attr);
 }
 

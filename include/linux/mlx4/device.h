@@ -49,6 +49,10 @@ enum {
 };
 
 enum {
+	MLX4_BOARD_ID_LEN = 64
+};
+
+enum {
 	MLX4_DEV_CAP_FLAG_RC		= 1 <<  0,
 	MLX4_DEV_CAP_FLAG_UC		= 1 <<  1,
 	MLX4_DEV_CAP_FLAG_UD		= 1 <<  2,
@@ -210,6 +214,17 @@ struct mlx4_mr {
 	int			enabled;
 };
 
+struct mlx4_fmr {
+	struct mlx4_mr		mr;
+	struct mlx4_mpt_entry  *mpt;
+	__be64		       *mtts;
+	dma_addr_t		dma_handle;
+	int			max_pages;
+	int			max_maps;
+	int			maps;
+	u8			page_shift;
+};
+
 struct mlx4_uar {
 	unsigned long		pfn;
 	int			index;
@@ -272,6 +287,8 @@ struct mlx4_dev {
 	unsigned long		flags;
 	struct mlx4_caps	caps;
 	struct radix_tree_root	qp_table_tree;
+	u32			rev_id;
+	char			board_id[MLX4_BOARD_ID_LEN];
 };
 
 struct mlx4_init_port_param {
@@ -330,5 +347,15 @@ int mlx4_CLOSE_PORT(struct mlx4_dev *dev, int port);
 
 int mlx4_multicast_attach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
 int mlx4_multicast_detach(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16]);
+
+int mlx4_map_phys_fmr(struct mlx4_dev *dev, struct mlx4_fmr *fmr, u64 *page_list,
+		      int npages, u64 iova, u32 *lkey, u32 *rkey);
+int mlx4_fmr_alloc(struct mlx4_dev *dev, u32 pd, u32 access, int max_pages,
+		   int max_maps, u8 page_shift, struct mlx4_fmr *fmr);
+int mlx4_fmr_enable(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
+void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
+		    u32 *lkey, u32 *rkey);
+int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
+int mlx4_SYNC_TPT(struct mlx4_dev *dev);
 
 #endif /* MLX4_DEVICE_H */

@@ -32,7 +32,6 @@
  *
  * $Id: iser_verbs.c 7051 2006-05-10 12:29:11Z ogerlitz $
  */
-#include <asm/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>

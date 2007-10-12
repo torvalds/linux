@@ -52,6 +52,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 #define CMA_CM_RESPONSE_TIMEOUT 20
 #define CMA_MAX_CM_RETRIES 15
+#define CMA_CM_MRA_SETTING (IB_CM_MRA_FLAG_DELAY | 24)
 
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device);
@@ -138,6 +139,7 @@ struct rdma_id_private {
 	u32			qkey;
 	u32			qp_num;
 	u8			srq;
+	u8			tos;
 };
 
 struct cma_multicast {
@@ -1089,6 +1091,7 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 		event.param.ud.private_data_len =
 				IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE - offset;
 	} else {
+		ib_send_cm_mra(cm_id, CMA_CM_MRA_SETTING, NULL, 0);
 		conn_id = cma_new_conn_id(&listen_id->id, ib_event);
 		cma_set_req_event_data(&event, &ib_event->param.req_rcvd,
 				       ib_event->private_data, offset);
@@ -1474,6 +1477,15 @@ err:
 }
 EXPORT_SYMBOL(rdma_listen);
 
+void rdma_set_service_type(struct rdma_cm_id *id, int tos)
+{
+	struct rdma_id_private *id_priv;
+
+	id_priv = container_of(id, struct rdma_id_private, id);
+	id_priv->tos = (u8) tos;
+}
+EXPORT_SYMBOL(rdma_set_service_type);
+
 static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
 			      void *context)
 {
@@ -1498,23 +1510,37 @@ static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
 static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 			      struct cma_work *work)
 {
-	struct rdma_dev_addr *addr = &id_priv->id.route.addr.dev_addr;
+	struct rdma_addr *addr = &id_priv->id.route.addr;
 	struct ib_sa_path_rec path_rec;
+	ib_sa_comp_mask comp_mask;
+	struct sockaddr_in6 *sin6;
 
 	memset(&path_rec, 0, sizeof path_rec);
-	ib_addr_get_sgid(addr, &path_rec.sgid);
-	ib_addr_get_dgid(addr, &path_rec.dgid);
-	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(addr));
+	ib_addr_get_sgid(&addr->dev_addr, &path_rec.sgid);
+	ib_addr_get_dgid(&addr->dev_addr, &path_rec.dgid);
+	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(&addr->dev_addr));
 	path_rec.numb_path = 1;
 	path_rec.reversible = 1;
+	path_rec.service_id = cma_get_service_id(id_priv->id.ps, &addr->dst_addr);
+
+	comp_mask = IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
+		    IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
+		    IB_SA_PATH_REC_REVERSIBLE | IB_SA_PATH_REC_SERVICE_ID;
+
+	if (addr->src_addr.sa_family == AF_INET) {
+		path_rec.qos_class = cpu_to_be16((u16) id_priv->tos);
+		comp_mask |= IB_SA_PATH_REC_QOS_CLASS;
+	} else {
+		sin6 = (struct sockaddr_in6 *) &addr->src_addr;
+		path_rec.traffic_class = (u8) (be32_to_cpu(sin6->sin6_flowinfo) >> 20);
+		comp_mask |= IB_SA_PATH_REC_TRAFFIC_CLASS;
+	}
 
 	id_priv->query_id = ib_sa_path_rec_get(&sa_client, id_priv->id.device,
-				id_priv->id.port_num, &path_rec,
-				IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
-				IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
-				IB_SA_PATH_REC_REVERSIBLE,
-				timeout_ms, GFP_KERNEL,
-				cma_query_handler, work, &id_priv->query);
+					       id_priv->id.port_num, &path_rec,
+					       comp_mask, timeout_ms,
+					       GFP_KERNEL, cma_query_handler,
+					       work, &id_priv->query);
 
 	return (id_priv->query_id < 0) ? id_priv->query_id : 0;
 }

@@ -473,9 +473,10 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	INIT_LIST_HEAD(&path->neigh_list);
 
 	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
-	path->pathrec.sgid      = priv->local_gid;
-	path->pathrec.pkey      = cpu_to_be16(priv->pkey);
-	path->pathrec.numb_path = 1;
+	path->pathrec.sgid          = priv->local_gid;
+	path->pathrec.pkey          = cpu_to_be16(priv->pkey);
+	path->pathrec.numb_path     = 1;
+	path->pathrec.traffic_class = priv->broadcast->mcmember.traffic_class;
 
 	return path;
 }
@@ -496,6 +497,7 @@ static int path_rec_start(struct net_device *dev,
 				   IB_SA_PATH_REC_DGID		|
 				   IB_SA_PATH_REC_SGID		|
 				   IB_SA_PATH_REC_NUMB_PATH	|
+				   IB_SA_PATH_REC_TRAFFIC_CLASS |
 				   IB_SA_PATH_REC_PKEY,
 				   1000, GFP_ATOMIC,
 				   path_rec_completion,
@@ -1015,6 +1017,37 @@ static ssize_t show_pkey(struct device *dev,
 }
 static DEVICE_ATTR(pkey, S_IRUGO, show_pkey, NULL);
 
+static ssize_t show_umcast(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
+
+	return sprintf(buf, "%d\n", test_bit(IPOIB_FLAG_UMCAST, &priv->flags));
+}
+
+static ssize_t set_umcast(struct device *dev,
+			  struct device_attribute *attr,
+			  const char *buf, size_t count)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(dev));
+	unsigned long umcast_val = simple_strtoul(buf, NULL, 0);
+
+	if (umcast_val > 0) {
+		set_bit(IPOIB_FLAG_UMCAST, &priv->flags);
+		ipoib_warn(priv, "ignoring multicast groups joined directly "
+				"by userspace\n");
+	} else
+		clear_bit(IPOIB_FLAG_UMCAST, &priv->flags);
+
+	return count;
+}
+static DEVICE_ATTR(umcast, S_IWUSR | S_IRUGO, show_umcast, set_umcast);
+
+int ipoib_add_umcast_attr(struct net_device *dev)
+{
+	return device_create_file(&dev->dev, &dev_attr_umcast);
+}
+
 static ssize_t create_child(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t count)
@@ -1081,7 +1114,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_pkey port %d failed (ret = %d)\n",
 		       hca->name, port, result);
-		goto alloc_mem_failed;
+		goto device_init_failed;
 	}
 
 	/*
@@ -1097,7 +1130,7 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (result) {
 		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
-		goto alloc_mem_failed;
+		goto device_init_failed;
 	} else
 		memcpy(priv->dev->dev_addr + 4, priv->local_gid.raw, sizeof (union ib_gid));
 
@@ -1131,6 +1164,8 @@ static struct net_device *ipoib_add_port(const char *format,
 	if (ipoib_cm_add_mode_attr(priv->dev))
 		goto sysfs_failed;
 	if (ipoib_add_pkey_attr(priv->dev))
+		goto sysfs_failed;
+	if (ipoib_add_umcast_attr(priv->dev))
 		goto sysfs_failed;
 	if (device_create_file(&priv->dev->dev, &dev_attr_create_child))
 		goto sysfs_failed;

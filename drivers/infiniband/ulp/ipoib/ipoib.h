@@ -86,6 +86,7 @@ enum {
 	IPOIB_MCAST_STARTED       = 8,
 	IPOIB_FLAG_NETIF_STOPPED  = 9,
 	IPOIB_FLAG_ADMIN_CM 	  = 10,
+	IPOIB_FLAG_UMCAST	  = 11,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -113,7 +114,27 @@ struct ipoib_pseudoheader {
 	u8  hwaddr[INFINIBAND_ALEN];
 };
 
-struct ipoib_mcast;
+/* Used for all multicast joins (broadcast, IPv4 mcast and IPv6 mcast) */
+struct ipoib_mcast {
+	struct ib_sa_mcmember_rec mcmember;
+	struct ib_sa_multicast	 *mc;
+	struct ipoib_ah          *ah;
+
+	struct rb_node    rb_node;
+	struct list_head  list;
+
+	unsigned long created;
+	unsigned long backoff;
+
+	unsigned long flags;
+	unsigned char logcount;
+
+	struct list_head  neigh_list;
+
+	struct sk_buff_head pkt_queue;
+
+	struct net_device *dev;
+};
 
 struct ipoib_rx_buf {
 	struct sk_buff *skb;
@@ -364,6 +385,7 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 
 int ipoib_open(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
+int ipoib_add_umcast_attr(struct net_device *dev);
 
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		struct ipoib_ah *address, u32 qpn);

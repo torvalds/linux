@@ -120,12 +120,12 @@ static struct ib_device *__ib_device_get_by_name(const char *name)
 
 static int alloc_name(char *name)
 {
-	long *inuse;
+	unsigned long *inuse;
 	char buf[IB_DEVICE_NAME_MAX];
 	struct ib_device *device;
 	int i;
 
-	inuse = (long *) get_zeroed_page(GFP_KERNEL);
+	inuse = (unsigned long *) get_zeroed_page(GFP_KERNEL);
 	if (!inuse)
 		return -ENOMEM;
 

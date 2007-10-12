@@ -34,6 +34,7 @@
 #include <linux/spinlock.h>
 #include <linux/idr.h>
 #include <linux/pci.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
@@ -280,6 +281,89 @@ void __attribute__((weak)) ipath_disable_wc(struct ipath_devdata *dd)
 {
 }
 
+/*
+ * Perform a PIO buffer bandwidth write test, to verify proper system
+ * configuration.  Even when all the setup calls work, occasionally
+ * BIOS or other issues can prevent write combining from working, or
+ * can cause other bandwidth problems to the chip.
+ *
+ * This test simply writes the same buffer over and over again, and
+ * measures close to the peak bandwidth to the chip (not testing
+ * data bandwidth to the wire).   On chips that use an address-based
+ * trigger to send packets to the wire, this is easy.  On chips that
+ * use a count to trigger, we want to make sure that the packet doesn't
+ * go out on the wire, or trigger flow control checks.
+ */
+static void ipath_verify_pioperf(struct ipath_devdata *dd)
+{
+	u32 pbnum, cnt, lcnt;
+	u32 __iomem *piobuf;
+	u32 *addr;
+	u64 msecs, emsecs;
+
+	piobuf = ipath_getpiobuf(dd, &pbnum);
+	if (!piobuf) {
+		dev_info(&dd->pcidev->dev,
+			"No PIObufs for checking perf, skipping\n");
+		return;
+	}
+
+	/*
+	 * Enough to give us a reasonable test, less than piobuf size, and
+	 * likely multiple of store buffer length.
+	 */
+	cnt = 1024;
+
+	addr = vmalloc(cnt);
+	if (!addr) {
+		dev_info(&dd->pcidev->dev,
+			"Couldn't get memory for checking PIO perf,"
+			" skipping\n");
+		goto done;
+	}
+
+	preempt_disable();  /* we want reasonably accurate elapsed time */
+	msecs = 1 + jiffies_to_msecs(jiffies);
+	for (lcnt = 0; lcnt < 10000U; lcnt++) {
+		/* wait until we cross msec boundary */
+		if (jiffies_to_msecs(jiffies) >= msecs)
+			break;
+		udelay(1);
+	}
+
+	writeq(0, piobuf); /* length 0, no dwords actually sent */
+	ipath_flush_wc();
+
+	/*
+	 * this is only roughly accurate, since even with preempt we
+	 * still take interrupts that could take a while.   Running for
+	 * >= 5 msec seems to get us "close enough" to accurate values
+	 */
+	msecs = jiffies_to_msecs(jiffies);
+	for (emsecs = lcnt = 0; emsecs <= 5UL; lcnt++) {
+		__iowrite32_copy(piobuf + 64, addr, cnt >> 2);
+		emsecs = jiffies_to_msecs(jiffies) - msecs;
+	}
+
+	/* 1 GiB/sec, slightly over IB SDR line rate */
+	if (lcnt < (emsecs * 1024U))
+		ipath_dev_err(dd,
+			"Performance problem: bandwidth to PIO buffers is "
+			"only %u MiB/sec\n",
+			lcnt / (u32) emsecs);
+	else
+		ipath_dbg("PIO buffer bandwidth %u MiB/sec is OK\n",
+			lcnt / (u32) emsecs);
+
+	preempt_enable();
+
+	vfree(addr);
+
+done:
+	/* disarm piobuf, so it's available again */
+	ipath_disarm_piobufs(dd, pbnum, 1);
+}
+
 static int __devinit ipath_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
@@ -297,8 +381,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 	}
 
 	ipath_cdbg(VERBOSE, "initializing unit #%u\n", dd->ipath_unit);
-
-	read_bars(dd, pdev, &bar0, &bar1);
 
 	ret = pci_enable_device(pdev);
 	if (ret) {
@@ -445,9 +527,6 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		goto bail_regions;
 	}
 
-	dd->ipath_deviceid = ent->device;	/* save for later use */
-	dd->ipath_vendorid = ent->vendor;
-
 	dd->ipath_pcirev = pdev->revision;
 
 #if defined(__powerpc__)
@@ -514,6 +593,8 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 			      -ret);
 		ret = 0;
 	}
+
+	ipath_verify_pioperf(dd);
 
 	ipath_device_create_group(&pdev->dev, dd);
 	ipathfs_add_device(dd);
@@ -2004,6 +2085,8 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	ipath_set_ib_lstate(dd, INFINIPATH_IBCC_LINKINITCMD_DISABLE <<
 			    INFINIPATH_IBCC_LINKINITCMD_SHIFT);
 	ipath_cancel_sends(dd, 0);
+
+	signal_ib_event(dd, IB_EVENT_PORT_ERR);
 
 	/* disable IBC */
 	dd->ipath_control &= ~INFINIPATH_C_LINKENABLE;

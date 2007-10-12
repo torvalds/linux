@@ -42,6 +42,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
+#include <rdma/ib_verbs.h>
 
 #include "ipath_common.h"
 #include "ipath_debug.h"
@@ -139,6 +140,12 @@ struct ipath_portdata {
 	u32 port_pionowait;
 	/* total number of rcvhdrqfull errors */
 	u32 port_hdrqfull;
+	/* saved total number of rcvhdrqfull errors for poll edge trigger */
+	u32 port_hdrqfull_poll;
+	/* total number of polled urgent packets */
+	u32 port_urgent;
+	/* saved total number of polled urgent packets for poll edge trigger */
+	u32 port_urgent_poll;
 	/* pid of process using this port */
 	pid_t port_pid;
 	/* same size as task_struct .comm[] */
@@ -724,6 +731,8 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_LINKACTIVE    0x200
 		/* link current state is unknown */
 #define IPATH_LINKUNK       0x400
+		/* Write combining flush needed for PIO */
+#define IPATH_PIO_FLUSH_WC  0x1000
 		/* no IB cable, or no device on IB cable */
 #define IPATH_NOCABLE       0x4000
 		/* Supports port zero per packet receive interrupts via
@@ -755,8 +764,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_PORT_MASTER_UNINIT 4
 		/* waiting for an urgent packet to arrive */
 #define IPATH_PORT_WAITING_URG 5
-		/* waiting for a header overflow */
-#define IPATH_PORT_WAITING_OVERFLOW 6
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
@@ -769,6 +776,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *);
 int ipath_update_eeprom_log(struct ipath_devdata *dd);
 void ipath_inc_eeprom_err(struct ipath_devdata *dd, u32 eidx, u32 incr);
 u64 ipath_snap_cntr(struct ipath_devdata *, ipath_creg);
+void signal_ib_event(struct ipath_devdata *dd, enum ib_event_type ev);
 
 /*
  * Set LED override, only the two LSBs have "public" meaning, but

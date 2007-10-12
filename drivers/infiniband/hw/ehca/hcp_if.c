@@ -84,6 +84,10 @@
 #define H_MP_SHUTDOWN                   EHCA_BMASK_IBM(48, 48)
 #define H_MP_RESET_QKEY_CTR             EHCA_BMASK_IBM(49, 49)
 
+#define HCALL4_REGS_FORMAT "r4=%lx r5=%lx r6=%lx r7=%lx"
+#define HCALL7_REGS_FORMAT HCALL4_REGS_FORMAT " r8=%lx r9=%lx r10=%lx"
+#define HCALL9_REGS_FORMAT HCALL7_REGS_FORMAT " r11=%lx r12=%lx"
+
 static DEFINE_SPINLOCK(hcall_lock);
 
 static u32 get_longbusy_msecs(int longbusy_rc)
@@ -116,15 +120,27 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 				    unsigned long arg7)
 {
 	long ret;
-	int i, sleep_msecs;
+	int i, sleep_msecs, do_lock;
+	unsigned long flags;
 
-	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
-		     "arg5=%lx arg6=%lx arg7=%lx",
+	ehca_gen_dbg("opcode=%lx " HCALL7_REGS_FORMAT,
 		     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 
+	/* lock H_FREE_RESOURCE(MR) against itself and H_ALLOC_RESOURCE(MR) */
+	if ((opcode == H_FREE_RESOURCE) && (arg7 == 5)) {
+		arg7 = 0; /* better not upset firmware */
+		do_lock = 1;
+	}
+
 	for (i = 0; i < 5; i++) {
+		if (do_lock)
+			spin_lock_irqsave(&hcall_lock, flags);
+
 		ret = plpar_hcall_norets(opcode, arg1, arg2, arg3, arg4,
 					 arg5, arg6, arg7);
+
+		if (do_lock)
+			spin_unlock_irqrestore(&hcall_lock, flags);
 
 		if (H_IS_LONG_BUSY(ret)) {
 			sleep_msecs = get_longbusy_msecs(ret);
@@ -133,16 +149,13 @@ static long ehca_plpar_hcall_norets(unsigned long opcode,
 		}
 
 		if (ret < H_SUCCESS)
-			ehca_gen_err("opcode=%lx ret=%lx"
-				     " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				     " arg5=%lx arg6=%lx arg7=%lx ",
-				     opcode, ret,
-				     arg1, arg2, arg3, arg4, arg5,
-				     arg6, arg7);
+			ehca_gen_err("opcode=%lx ret=%li " HCALL7_REGS_FORMAT,
+				     opcode, ret, arg1, arg2, arg3,
+				     arg4, arg5, arg6, arg7);
+		else
+			ehca_gen_dbg("opcode=%lx ret=%li", opcode, ret);
 
-		ehca_gen_dbg("opcode=%lx ret=%lx", opcode, ret);
 		return ret;
-
 	}
 
 	return H_BUSY;
@@ -161,25 +174,24 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 			      unsigned long arg9)
 {
 	long ret;
-	int i, sleep_msecs, lock_is_set = 0;
+	int i, sleep_msecs, do_lock;
 	unsigned long flags = 0;
 
-	ehca_gen_dbg("opcode=%lx arg1=%lx arg2=%lx arg3=%lx arg4=%lx "
-		     "arg5=%lx arg6=%lx arg7=%lx arg8=%lx arg9=%lx",
-		     opcode, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
-		     arg8, arg9);
+	ehca_gen_dbg("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT, opcode,
+		     arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+
+	/* lock H_ALLOC_RESOURCE(MR) against itself and H_FREE_RESOURCE(MR) */
+	do_lock = ((opcode == H_ALLOC_RESOURCE) && (arg2 == 5));
 
 	for (i = 0; i < 5; i++) {
-		if ((opcode == H_ALLOC_RESOURCE) && (arg2 == 5)) {
+		if (do_lock)
 			spin_lock_irqsave(&hcall_lock, flags);
-			lock_is_set = 1;
-		}
 
 		ret = plpar_hcall9(opcode, outs,
 				   arg1, arg2, arg3, arg4, arg5,
 				   arg6, arg7, arg8, arg9);
 
-		if (lock_is_set)
+		if (do_lock)
 			spin_unlock_irqrestore(&hcall_lock, flags);
 
 		if (H_IS_LONG_BUSY(ret)) {
@@ -188,26 +200,19 @@ static long ehca_plpar_hcall9(unsigned long opcode,
 			continue;
 		}
 
-		if (ret < H_SUCCESS)
-			ehca_gen_err("opcode=%lx ret=%lx"
-				     " arg1=%lx arg2=%lx arg3=%lx arg4=%lx"
-				     " arg5=%lx arg6=%lx arg7=%lx arg8=%lx"
-				     " arg9=%lx"
-				     " out1=%lx out2=%lx out3=%lx out4=%lx"
-				     " out5=%lx out6=%lx out7=%lx out8=%lx"
-				     " out9=%lx",
-				     opcode, ret,
-				     arg1, arg2, arg3, arg4, arg5,
-				     arg6, arg7, arg8, arg9,
-				     outs[0], outs[1], outs[2], outs[3],
+		if (ret < H_SUCCESS) {
+			ehca_gen_err("INPUT -- opcode=%lx " HCALL9_REGS_FORMAT,
+				     opcode, arg1, arg2, arg3, arg4, arg5,
+				     arg6, arg7, arg8, arg9);
+			ehca_gen_err("OUTPUT -- ret=%li " HCALL9_REGS_FORMAT,
+				     ret, outs[0], outs[1], outs[2], outs[3],
 				     outs[4], outs[5], outs[6], outs[7],
 				     outs[8]);
-
-		ehca_gen_dbg("opcode=%lx ret=%lx out1=%lx out2=%lx out3=%lx "
-			     "out4=%lx out5=%lx out6=%lx out7=%lx out8=%lx "
-			     "out9=%lx",
-			     opcode, ret, outs[0], outs[1], outs[2], outs[3],
-			     outs[4], outs[5], outs[6], outs[7], outs[8]);
+		} else
+			ehca_gen_dbg("OUTPUT -- ret=%li " HCALL9_REGS_FORMAT,
+				     ret, outs[0], outs[1], outs[2], outs[3],
+				     outs[4], outs[5], outs[6], outs[7],
+				     outs[8]);
 		return ret;
 	}
 
@@ -247,7 +252,7 @@ u64 hipz_h_alloc_resource_eq(const struct ipz_adapter_handle adapter_handle,
 	*eq_ist = (u32)outs[5];
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resource - ret=%lx ", ret);
+		ehca_gen_err("Not enough resource - ret=%li ", ret);
 
 	return ret;
 }
@@ -285,7 +290,7 @@ u64 hipz_h_alloc_resource_cq(const struct ipz_adapter_handle adapter_handle,
 		hcp_galpas_ctor(&cq->galpas, outs[5], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -360,7 +365,7 @@ u64 hipz_h_alloc_resource_qp(const struct ipz_adapter_handle adapter_handle,
 		hcp_galpas_ctor(&parms->galpas, outs[6], outs[6]);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -555,7 +560,7 @@ u64 hipz_h_modify_qp(const struct ipz_adapter_handle adapter_handle,
 				0, 0, 0, 0, 0);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Insufficient resources ret=%lx", ret);
+		ehca_gen_err("Insufficient resources ret=%li", ret);
 
 	return ret;
 }
@@ -591,7 +596,7 @@ u64 hipz_h_destroy_qp(const struct ipz_adapter_handle adapter_handle,
 				qp->ipz_qp_handle.handle,  /* r6 */
 				0, 0, 0, 0, 0, 0);
 	if (ret == H_HARDWARE)
-		ehca_gen_err("HCA not operational. ret=%lx", ret);
+		ehca_gen_err("HCA not operational. ret=%li", ret);
 
 	ret = ehca_plpar_hcall_norets(H_FREE_RESOURCE,
 				      adapter_handle.handle,     /* r4 */
@@ -599,7 +604,7 @@ u64 hipz_h_destroy_qp(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("Resource still in use. ret=%lx", ret);
+		ehca_gen_err("Resource still in use. ret=%li", ret);
 
 	return ret;
 }
@@ -634,7 +639,7 @@ u64 hipz_h_define_aqp1(const struct ipz_adapter_handle adapter_handle,
 	*bma_qp_nr = (u32)outs[1];
 
 	if (ret == H_ALIAS_EXIST)
-		ehca_gen_err("AQP1 already exists. ret=%lx", ret);
+		ehca_gen_err("AQP1 already exists. ret=%li", ret);
 
 	return ret;
 }
@@ -656,7 +661,7 @@ u64 hipz_h_attach_mcqp(const struct ipz_adapter_handle adapter_handle,
 				      0, 0);
 
 	if (ret == H_NOT_ENOUGH_RESOURCES)
-		ehca_gen_err("Not enough resources. ret=%lx", ret);
+		ehca_gen_err("Not enough resources. ret=%li", ret);
 
 	return ret;
 }
@@ -695,7 +700,7 @@ u64 hipz_h_destroy_cq(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("H_FREE_RESOURCE failed ret=%lx ", ret);
+		ehca_gen_err("H_FREE_RESOURCE failed ret=%li ", ret);
 
 	return ret;
 }
@@ -717,7 +722,7 @@ u64 hipz_h_destroy_eq(const struct ipz_adapter_handle adapter_handle,
 				      0, 0, 0, 0, 0);
 
 	if (ret == H_RESOURCE)
-		ehca_gen_err("Resource in use. ret=%lx ", ret);
+		ehca_gen_err("Resource in use. ret=%li ", ret);
 
 	return ret;
 }
@@ -816,7 +821,7 @@ u64 hipz_h_free_resource_mr(const struct ipz_adapter_handle adapter_handle,
 	return ehca_plpar_hcall_norets(H_FREE_RESOURCE,
 				       adapter_handle.handle,    /* r4 */
 				       mr->ipz_mr_handle.handle, /* r5 */
-				       0, 0, 0, 0, 0);
+				       0, 0, 0, 0, 5);
 }
 
 u64 hipz_h_reregister_pmr(const struct ipz_adapter_handle adapter_handle,

@@ -158,6 +158,7 @@ static int alloc_small_queue_page(struct ipz_queue *queue, struct ehca_pd *pd)
 
 	queue->queue_pages[0] = (void *)(page->page | (bit << (order + 9)));
 	queue->small_page = page;
+	queue->offset = bit << (order + 9);
 	return 1;
 
 out:

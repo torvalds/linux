@@ -230,6 +230,121 @@ void ipath_skip_sge(struct ipath_sge_state *ss, u32 length)
 	}
 }
 
+static void ipath_flush_wqe(struct ipath_qp *qp, struct ib_send_wr *wr)
+{
+	struct ib_wc wc;
+
+	memset(&wc, 0, sizeof(wc));
+	wc.wr_id = wr->wr_id;
+	wc.status = IB_WC_WR_FLUSH_ERR;
+	wc.opcode = ib_ipath_wc_opcode[wr->opcode];
+	wc.qp = &qp->ibqp;
+	ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 1);
+}
+
+/**
+ * ipath_post_one_send - post one RC, UC, or UD send work request
+ * @qp: the QP to post on
+ * @wr: the work request to send
+ */
+static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
+{
+	struct ipath_swqe *wqe;
+	u32 next;
+	int i;
+	int j;
+	int acc;
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+
+	/* Check that state is OK to post send. */
+	if (unlikely(!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK))) {
+		if (qp->state != IB_QPS_SQE && qp->state != IB_QPS_ERR)
+			goto bail_inval;
+		/* C10-96 says generate a flushed completion entry. */
+		ipath_flush_wqe(qp, wr);
+		ret = 0;
+		goto bail;
+	}
+
+	/* IB spec says that num_sge == 0 is OK. */
+	if (wr->num_sge > qp->s_max_sge)
+		goto bail_inval;
+
+	/*
+	 * Don't allow RDMA reads or atomic operations on UC or
+	 * undefined operations.
+	 * Make sure buffer is large enough to hold the result for atomics.
+	 */
+	if (qp->ibqp.qp_type == IB_QPT_UC) {
+		if ((unsigned) wr->opcode >= IB_WR_RDMA_READ)
+			goto bail_inval;
+	} else if (qp->ibqp.qp_type == IB_QPT_UD) {
+		/* Check UD opcode */
+		if (wr->opcode != IB_WR_SEND &&
+		    wr->opcode != IB_WR_SEND_WITH_IMM)
+			goto bail_inval;
+		/* Check UD destination address PD */
+		if (qp->ibqp.pd != wr->wr.ud.ah->pd)
+			goto bail_inval;
+	} else if ((unsigned) wr->opcode > IB_WR_ATOMIC_FETCH_AND_ADD)
+		goto bail_inval;
+	else if (wr->opcode >= IB_WR_ATOMIC_CMP_AND_SWP &&
+		   (wr->num_sge == 0 ||
+		    wr->sg_list[0].length < sizeof(u64) ||
+		    wr->sg_list[0].addr & (sizeof(u64) - 1)))
+		goto bail_inval;
+	else if (wr->opcode >= IB_WR_RDMA_READ && !qp->s_max_rd_atomic)
+		goto bail_inval;
+
+	next = qp->s_head + 1;
+	if (next >= qp->s_size)
+		next = 0;
+	if (next == qp->s_last)
+		goto bail_inval;
+
+	wqe = get_swqe_ptr(qp, qp->s_head);
+	wqe->wr = *wr;
+	wqe->ssn = qp->s_ssn++;
+	wqe->length = 0;
+	if (wr->num_sge) {
+		acc = wr->opcode >= IB_WR_RDMA_READ ?
+			IB_ACCESS_LOCAL_WRITE : 0;
+		for (i = 0, j = 0; i < wr->num_sge; i++) {
+			u32 length = wr->sg_list[i].length;
+			int ok;
+
+			if (length == 0)
+				continue;
+			ok = ipath_lkey_ok(qp, &wqe->sg_list[j],
+					   &wr->sg_list[i], acc);
+			if (!ok)
+				goto bail_inval;
+			wqe->length += length;
+			j++;
+		}
+		wqe->wr.num_sge = j;
+	}
+	if (qp->ibqp.qp_type == IB_QPT_UC ||
+	    qp->ibqp.qp_type == IB_QPT_RC) {
+		if (wqe->length > 0x80000000U)
+			goto bail_inval;
+	} else if (wqe->length > to_idev(qp->ibqp.device)->dd->ipath_ibmtu)
+		goto bail_inval;
+	qp->s_head = next;
+
+	ret = 0;
+	goto bail;
+
+bail_inval:
+	ret = -EINVAL;
+bail:
+	spin_unlock_irqrestore(&qp->s_lock, flags);
+	return ret;
+}
+
 /**
  * ipath_post_send - post a send on a QP
  * @ibqp: the QP to post the send on
@@ -244,34 +359,16 @@ static int ipath_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	struct ipath_qp *qp = to_iqp(ibqp);
 	int err = 0;
 
-	/* Check that state is OK to post send. */
-	if (!(ib_ipath_state_ops[qp->state] & IPATH_POST_SEND_OK)) {
-		*bad_wr = wr;
-		err = -EINVAL;
-		goto bail;
-	}
-
 	for (; wr; wr = wr->next) {
-		switch (qp->ibqp.qp_type) {
-		case IB_QPT_UC:
-		case IB_QPT_RC:
-			err = ipath_post_ruc_send(qp, wr);
-			break;
-
-		case IB_QPT_SMI:
-		case IB_QPT_GSI:
-		case IB_QPT_UD:
-			err = ipath_post_ud_send(qp, wr);
-			break;
-
-		default:
-			err = -EINVAL;
-		}
+		err = ipath_post_one_send(qp, wr);
 		if (err) {
 			*bad_wr = wr;
-			break;
+			goto bail;
 		}
 	}
+
+	/* Try to do the send work in the caller's context. */
+	ipath_do_send((unsigned long) qp);
 
 bail:
 	return err;
@@ -416,7 +513,7 @@ void ipath_ib_rcv(struct ipath_ibdev *dev, void *rhdr, void *data,
 	/* Check for a valid destination LID (see ch. 7.11.1). */
 	lid = be16_to_cpu(hdr->lrh[1]);
 	if (lid < IPATH_MULTICAST_LID_BASE) {
-		lid &= ~((1 << (dev->mkeyprot_resv_lmc & 7)) - 1);
+		lid &= ~((1 << dev->dd->ipath_lmc) - 1);
 		if (unlikely(lid != dev->dd->ipath_lid)) {
 			dev->rcv_errors++;
 			goto bail;
@@ -631,7 +728,7 @@ static inline u32 clear_upper_bytes(u32 data, u32 n, u32 off)
 #endif
 
 static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
-		    u32 length)
+		    u32 length, unsigned flush_wc)
 {
 	u32 extra = 0;
 	u32 data = 0;
@@ -641,11 +738,11 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 		u32 len = ss->sge.length;
 		u32 off;
 
-		BUG_ON(len == 0);
 		if (len > length)
 			len = length;
 		if (len > ss->sge.sge_length)
 			len = ss->sge.sge_length;
+		BUG_ON(len == 0);
 		/* If the source address is not aligned, try to align it. */
 		off = (unsigned long)ss->sge.vaddr & (sizeof(u32) - 1);
 		if (off) {
@@ -757,36 +854,25 @@ static void copy_io(u32 __iomem *piobuf, struct ipath_sge_state *ss,
 	}
 	/* Update address before sending packet. */
 	update_sge(ss, length);
-	/* must flush early everything before trigger word */
-	ipath_flush_wc();
-	__raw_writel(last, piobuf);
-	/* be sure trigger word is written */
-	ipath_flush_wc();
+	if (flush_wc) {
+		/* must flush early everything before trigger word */
+		ipath_flush_wc();
+		__raw_writel(last, piobuf);
+		/* be sure trigger word is written */
+		ipath_flush_wc();
+	} else
+		__raw_writel(last, piobuf);
 }
 
-/**
- * ipath_verbs_send - send a packet
- * @dd: the infinipath device
- * @hdrwords: the number of words in the header
- * @hdr: the packet header
- * @len: the length of the packet in bytes
- * @ss: the SGE to send
- */
-int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
-		     u32 *hdr, u32 len, struct ipath_sge_state *ss)
+static int ipath_verbs_send_pio(struct ipath_qp *qp, u32 *hdr, u32 hdrwords,
+				struct ipath_sge_state *ss, u32 len,
+				u32 plen, u32 dwords)
 {
+	struct ipath_devdata *dd = to_idev(qp->ibqp.device)->dd;
 	u32 __iomem *piobuf;
-	u32 plen;
+	unsigned flush_wc;
 	int ret;
 
-	/* +1 is for the qword padding of pbc */
-	plen = hdrwords + ((len + 3) >> 2) + 1;
-	if (unlikely((plen << 2) > dd->ipath_ibmaxlen)) {
-		ret = -EINVAL;
-		goto bail;
-	}
-
-	/* Get a PIO buffer to use. */
 	piobuf = ipath_getpiobuf(dd, NULL);
 	if (unlikely(piobuf == NULL)) {
 		ret = -EBUSY;
@@ -799,48 +885,87 @@ int ipath_verbs_send(struct ipath_devdata *dd, u32 hdrwords,
 	 * or WC buffer can be written out of order.
 	 */
 	writeq(plen, piobuf);
-	ipath_flush_wc();
 	piobuf += 2;
+
+	flush_wc = dd->ipath_flags & IPATH_PIO_FLUSH_WC;
 	if (len == 0) {
 		/*
 		 * If there is just the header portion, must flush before
 		 * writing last word of header for correctness, and after
 		 * the last header word (trigger word).
 		 */
-		__iowrite32_copy(piobuf, hdr, hdrwords - 1);
-		ipath_flush_wc();
-		__raw_writel(hdr[hdrwords - 1], piobuf + hdrwords - 1);
-		ipath_flush_wc();
-		ret = 0;
-		goto bail;
+		if (flush_wc) {
+			ipath_flush_wc();
+			__iowrite32_copy(piobuf, hdr, hdrwords - 1);
+			ipath_flush_wc();
+			__raw_writel(hdr[hdrwords - 1], piobuf + hdrwords - 1);
+			ipath_flush_wc();
+		} else
+			__iowrite32_copy(piobuf, hdr, hdrwords);
+		goto done;
 	}
 
+	if (flush_wc)
+		ipath_flush_wc();
 	__iowrite32_copy(piobuf, hdr, hdrwords);
 	piobuf += hdrwords;
 
 	/* The common case is aligned and contained in one segment. */
 	if (likely(ss->num_sge == 1 && len <= ss->sge.length &&
 		   !((unsigned long)ss->sge.vaddr & (sizeof(u32) - 1)))) {
-		u32 w;
 		u32 *addr = (u32 *) ss->sge.vaddr;
 
 		/* Update address before sending packet. */
 		update_sge(ss, len);
-		/* Need to round up for the last dword in the packet. */
-		w = (len + 3) >> 2;
-		__iowrite32_copy(piobuf, addr, w - 1);
-		/* must flush early everything before trigger word */
-		ipath_flush_wc();
-		__raw_writel(addr[w - 1], piobuf + w - 1);
-		/* be sure trigger word is written */
-		ipath_flush_wc();
-		ret = 0;
-		goto bail;
+		if (flush_wc) {
+			__iowrite32_copy(piobuf, addr, dwords - 1);
+			/* must flush early everything before trigger word */
+			ipath_flush_wc();
+			__raw_writel(addr[dwords - 1], piobuf + dwords - 1);
+			/* be sure trigger word is written */
+			ipath_flush_wc();
+		} else
+			__iowrite32_copy(piobuf, addr, dwords);
+		goto done;
 	}
-	copy_io(piobuf, ss, len);
+	copy_io(piobuf, ss, len, flush_wc);
+done:
+	if (qp->s_wqe)
+		ipath_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
 	ret = 0;
-
 bail:
+	return ret;
+}
+
+/**
+ * ipath_verbs_send - send a packet
+ * @qp: the QP to send on
+ * @hdr: the packet header
+ * @hdrwords: the number of words in the header
+ * @ss: the SGE to send
+ * @len: the length of the packet in bytes
+ */
+int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
+		     u32 hdrwords, struct ipath_sge_state *ss, u32 len)
+{
+	struct ipath_devdata *dd = to_idev(qp->ibqp.device)->dd;
+	u32 plen;
+	int ret;
+	u32 dwords = (len + 3) >> 2;
+
+	/* +1 is for the qword padding of pbc */
+	plen = hdrwords + dwords + 1;
+
+	/* Drop non-VL15 packets if we are not in the active state */
+	if (!(dd->ipath_flags & IPATH_LINKACTIVE) &&
+	    qp->ibqp.qp_type != IB_QPT_SMI) {
+		if (qp->s_wqe)
+			ipath_send_complete(qp, qp->s_wqe, IB_WC_SUCCESS);
+		ret = 0;
+	} else
+		ret = ipath_verbs_send_pio(qp, (u32 *) hdr, hdrwords,
+					   ss, len, plen, dwords);
+
 	return ret;
 }
 
@@ -852,7 +977,6 @@ int ipath_snapshot_counters(struct ipath_devdata *dd, u64 *swords,
 
 	if (!(dd->ipath_flags & IPATH_INITTED)) {
 		/* no hardware, freeze, etc. */
-		ipath_dbg("unit %u not usable\n", dd->ipath_unit);
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -878,48 +1002,44 @@ bail:
 int ipath_get_counters(struct ipath_devdata *dd,
 		       struct ipath_verbs_counters *cntrs)
 {
+	struct ipath_cregs const *crp = dd->ipath_cregs;
 	int ret;
 
 	if (!(dd->ipath_flags & IPATH_INITTED)) {
 		/* no hardware, freeze, etc. */
-		ipath_dbg("unit %u not usable\n", dd->ipath_unit);
 		ret = -EINVAL;
 		goto bail;
 	}
 	cntrs->symbol_error_counter =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_ibsymbolerrcnt);
+		ipath_snap_cntr(dd, crp->cr_ibsymbolerrcnt);
 	cntrs->link_error_recovery_counter =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_iblinkerrrecovcnt);
+		ipath_snap_cntr(dd, crp->cr_iblinkerrrecovcnt);
 	/*
 	 * The link downed counter counts when the other side downs the
 	 * connection.  We add in the number of times we downed the link
 	 * due to local link integrity errors to compensate.
 	 */
 	cntrs->link_downed_counter =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_iblinkdowncnt);
+		ipath_snap_cntr(dd, crp->cr_iblinkdowncnt);
 	cntrs->port_rcv_errors =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rxdroppktcnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvovflcnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_portovflcnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_err_rlencnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_invalidrlencnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_erricrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errvcrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_errlpcrccnt) +
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_badformatcnt) +
+		ipath_snap_cntr(dd, crp->cr_rxdroppktcnt) +
+		ipath_snap_cntr(dd, crp->cr_rcvovflcnt) +
+		ipath_snap_cntr(dd, crp->cr_portovflcnt) +
+		ipath_snap_cntr(dd, crp->cr_err_rlencnt) +
+		ipath_snap_cntr(dd, crp->cr_invalidrlencnt) +
+		ipath_snap_cntr(dd, crp->cr_errlinkcnt) +
+		ipath_snap_cntr(dd, crp->cr_erricrccnt) +
+		ipath_snap_cntr(dd, crp->cr_errvcrccnt) +
+		ipath_snap_cntr(dd, crp->cr_errlpcrccnt) +
+		ipath_snap_cntr(dd, crp->cr_badformatcnt) +
 		dd->ipath_rxfc_unsupvl_errs;
 	cntrs->port_rcv_remphys_errors =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_rcvebpcnt);
-	cntrs->port_xmit_discards =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_unsupvlcnt);
-	cntrs->port_xmit_data =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordsendcnt);
-	cntrs->port_rcv_data =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_wordrcvcnt);
-	cntrs->port_xmit_packets =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktsendcnt);
-	cntrs->port_rcv_packets =
-		ipath_snap_cntr(dd, dd->ipath_cregs->cr_pktrcvcnt);
+		ipath_snap_cntr(dd, crp->cr_rcvebpcnt);
+	cntrs->port_xmit_discards = ipath_snap_cntr(dd, crp->cr_unsupvlcnt);
+	cntrs->port_xmit_data = ipath_snap_cntr(dd, crp->cr_wordsendcnt);
+	cntrs->port_rcv_data = ipath_snap_cntr(dd, crp->cr_wordrcvcnt);
+	cntrs->port_xmit_packets = ipath_snap_cntr(dd, crp->cr_pktsendcnt);
+	cntrs->port_rcv_packets = ipath_snap_cntr(dd, crp->cr_pktrcvcnt);
 	cntrs->local_link_integrity_errors =
 		(dd->ipath_flags & IPATH_GPIO_ERRINTRS) ?
 		dd->ipath_lli_errs : dd->ipath_lli_errors;
@@ -1033,25 +1153,26 @@ static int ipath_query_port(struct ib_device *ibdev,
 			    u8 port, struct ib_port_attr *props)
 {
 	struct ipath_ibdev *dev = to_idev(ibdev);
+	struct ipath_devdata *dd = dev->dd;
 	enum ib_mtu mtu;
-	u16 lid = dev->dd->ipath_lid;
+	u16 lid = dd->ipath_lid;
 	u64 ibcstat;
 
 	memset(props, 0, sizeof(*props));
 	props->lid = lid ? lid : __constant_be16_to_cpu(IB_LID_PERMISSIVE);
-	props->lmc = dev->mkeyprot_resv_lmc & 7;
+	props->lmc = dd->ipath_lmc;
 	props->sm_lid = dev->sm_lid;
 	props->sm_sl = dev->sm_sl;
-	ibcstat = dev->dd->ipath_lastibcstat;
+	ibcstat = dd->ipath_lastibcstat;
 	props->state = ((ibcstat >> 4) & 0x3) + 1;
 	/* See phys_state_show() */
 	props->phys_state = ipath_cvt_physportstate[
-		dev->dd->ipath_lastibcstat & 0xf];
+		dd->ipath_lastibcstat & 0xf];
 	props->port_cap_flags = dev->port_cap_flags;
 	props->gid_tbl_len = 1;
 	props->max_msg_sz = 0x80000000;
-	props->pkey_tbl_len = ipath_get_npkeys(dev->dd);
-	props->bad_pkey_cntr = ipath_get_cr_errpkey(dev->dd) -
+	props->pkey_tbl_len = ipath_get_npkeys(dd);
+	props->bad_pkey_cntr = ipath_get_cr_errpkey(dd) -
 		dev->z_pkey_violations;
 	props->qkey_viol_cntr = dev->qkey_violations;
 	props->active_width = IB_WIDTH_4X;
@@ -1061,12 +1182,12 @@ static int ipath_query_port(struct ib_device *ibdev,
 	props->init_type_reply = 0;
 
 	/*
-	 * Note: the chips support a maximum MTU of 4096, but the driver
+	 * Note: the chip supports a maximum MTU of 4096, but the driver
 	 * hasn't implemented this feature yet, so set the maximum value
 	 * to 2048.
 	 */
 	props->max_mtu = IB_MTU_2048;
-	switch (dev->dd->ipath_ibmtu) {
+	switch (dd->ipath_ibmtu) {
 	case 4096:
 		mtu = IB_MTU_4096;
 		break;
@@ -1415,9 +1536,7 @@ static int disable_timer(struct ipath_devdata *dd)
 {
 	/* Disable GPIO bit 2 interrupt */
 	if (dd->ipath_flags & IPATH_GPIO_INTR) {
-                u64 val;
                 /* Disable GPIO bit 2 interrupt */
-                val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_gpio_mask);
 		dd->ipath_gpio_mask &= ~((u64) (1 << IPATH_GPIO_PORT0_BIT));
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_gpio_mask,
 				 dd->ipath_gpio_mask);

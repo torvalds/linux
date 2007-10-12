@@ -95,7 +95,7 @@ enum {
 };
 
 enum {
-	GO_BIT_TIMEOUT		= 10000
+	GO_BIT_TIMEOUT_MSECS	= 10000
 };
 
 struct mlx4_cmd_context {
@@ -155,7 +155,7 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 
 	end = jiffies;
 	if (event)
-		end += HZ * 10;
+		end += msecs_to_jiffies(GO_BIT_TIMEOUT_MSECS);
 
 	while (cmd_pending(dev)) {
 		if (time_after_eq(jiffies, end))
@@ -184,6 +184,13 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 					       (event ? (1 << HCR_E_BIT) : 0)	|
 					       (op_modifier << HCR_OPMOD_SHIFT) |
 					       op),			  hcr + 6);
+
+	/*
+	 * Make sure that our HCR writes don't get mixed in with
+	 * writes from another CPU starting a FW command.
+	 */
+	mmiowb();
+
 	cmd->toggle = cmd->toggle ^ 1;
 
 	ret = 0;
