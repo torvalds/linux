@@ -790,24 +790,6 @@ static void setup_APIC_timer(unsigned int clocks)
 
 	local_irq_save(flags);
 
-	/* wait for irq slice */
-	if (hpet_address && hpet_use_timer) {
-		u32 trigger = hpet_readl(HPET_T0_CMP);
-		while (hpet_readl(HPET_T0_CMP) == trigger)
-			/* do nothing */ ;
-	} else {
-		int c1, c2;
-		outb_p(0x00, 0x43);
-		c2 = inb_p(0x40);
-		c2 |= inb_p(0x40) << 8;
-		do {
-			c1 = c2;
-			outb_p(0x00, 0x43);
-			c2 = inb_p(0x40);
-			c2 |= inb_p(0x40) << 8;
-		} while (c2 - c1 < 300);
-	}
-
 	irqen = ! cpu_isset(smp_processor_id(),
 			    timer_interrupt_broadcast_ipi_mask);
 	__setup_APIC_LVTT(clocks, 0, irqen);
