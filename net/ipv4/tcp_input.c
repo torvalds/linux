@@ -1711,16 +1711,21 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tcp_clear_retrans_hints_partial(tp);
 }
 
-void tcp_clear_retrans(struct tcp_sock *tp)
+static void tcp_clear_retrans_partial(struct tcp_sock *tp)
 {
 	tp->retrans_out = 0;
-
-	tp->fackets_out = 0;
-	tp->sacked_out = 0;
 	tp->lost_out = 0;
 
 	tp->undo_marker = 0;
 	tp->undo_retrans = 0;
+}
+
+void tcp_clear_retrans(struct tcp_sock *tp)
+{
+	tcp_clear_retrans_partial(tp);
+
+	tp->fackets_out = 0;
+	tp->sacked_out = 0;
 }
 
 /* Enter Loss state. If "how" is not zero, forget all SACK information
@@ -1732,7 +1737,6 @@ void tcp_enter_loss(struct sock *sk, int how)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int cnt = 0;
 
 	/* Reduce ssthresh if it has not yet been made inside this window. */
 	if (icsk->icsk_ca_state <= TCP_CA_Disorder || tp->snd_una == tp->high_seq ||
@@ -1746,7 +1750,10 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 
 	tp->bytes_acked = 0;
-	tcp_clear_retrans(tp);
+	tcp_clear_retrans_partial(tp);
+
+	if (tcp_is_reno(tp))
+		tcp_reset_reno_sack(tp);
 
 	if (!how) {
 		/* Push undo marker, if it was plain RTO and nothing
@@ -1754,13 +1761,15 @@ void tcp_enter_loss(struct sock *sk, int how)
 		tp->undo_marker = tp->snd_una;
 		tcp_clear_retrans_hints_partial(tp);
 	} else {
+		tp->sacked_out = 0;
+		tp->fackets_out = 0;
 		tcp_clear_all_retrans_hints(tp);
 	}
 
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
 			break;
-		cnt += tcp_skb_pcount(skb);
+
 		if (TCP_SKB_CB(skb)->sacked&TCPCB_RETRANS)
 			tp->undo_marker = 0;
 		TCP_SKB_CB(skb)->sacked &= (~TCPCB_TAGBITS)|TCPCB_SACKED_ACKED;
@@ -1768,9 +1777,6 @@ void tcp_enter_loss(struct sock *sk, int how)
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_ACKED;
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
-		} else {
-			tp->sacked_out += tcp_skb_pcount(skb);
-			tp->fackets_out = cnt;
 		}
 	}
 	tcp_verify_left_out(tp);
