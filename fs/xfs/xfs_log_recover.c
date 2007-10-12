@@ -2916,7 +2916,7 @@ xlog_recover_process_data(
 			ASSERT(0);
 			return (XFS_ERROR(EIO));
 		}
-		tid = INT_GET(ohead->oh_tid, ARCH_CONVERT);
+		tid = be32_to_cpu(ohead->oh_tid);
 		hash = XLOG_RHASH(tid);
 		trans = xlog_recover_find_tid(rhash[hash], tid);
 		if (trans == NULL) {		   /* not found; add new tid */
@@ -2924,7 +2924,7 @@ xlog_recover_process_data(
 				xlog_recover_new_tid(&rhash[hash], tid,
 					INT_GET(rhead->h_lsn, ARCH_CONVERT));
 		} else {
-			ASSERT(dp+INT_GET(ohead->oh_len, ARCH_CONVERT) <= lp);
+			ASSERT(dp + be32_to_cpu(ohead->oh_len) <= lp);
 			flags = ohead->oh_flags & ~XLOG_END_TRANS;
 			if (flags & XLOG_WAS_CONT_TRANS)
 				flags &= ~XLOG_CONTINUE_TRANS;
@@ -2938,8 +2938,7 @@ xlog_recover_process_data(
 				break;
 			case XLOG_WAS_CONT_TRANS:
 				error = xlog_recover_add_to_cont_trans(trans,
-						dp, INT_GET(ohead->oh_len,
-							ARCH_CONVERT));
+						dp, be32_to_cpu(ohead->oh_len));
 				break;
 			case XLOG_START_TRANS:
 				xlog_warn(
@@ -2950,8 +2949,7 @@ xlog_recover_process_data(
 			case 0:
 			case XLOG_CONTINUE_TRANS:
 				error = xlog_recover_add_to_trans(trans,
-						dp, INT_GET(ohead->oh_len,
-							ARCH_CONVERT));
+						dp, be32_to_cpu(ohead->oh_len));
 				break;
 			default:
 				xlog_warn(
@@ -2963,7 +2961,7 @@ xlog_recover_process_data(
 			if (error)
 				return error;
 		}
-		dp += INT_GET(ohead->oh_len, ARCH_CONVERT);
+		dp += be32_to_cpu(ohead->oh_len);
 		num_logops--;
 	}
 	return 0;

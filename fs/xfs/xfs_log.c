@@ -1829,7 +1829,7 @@ xlog_write(xfs_mount_t *	mp,
 	     */
 	    if (ticket->t_flags & XLOG_TIC_INITED) {
 		logop_head		= (xlog_op_header_t *)ptr;
-		INT_SET(logop_head->oh_tid, ARCH_CONVERT, ticket->t_tid);
+		logop_head->oh_tid	= cpu_to_be32(ticket->t_tid);
 		logop_head->oh_clientid = ticket->t_clientid;
 		logop_head->oh_len	= 0;
 		logop_head->oh_flags    = XLOG_START_TRANS;
@@ -1843,7 +1843,7 @@ xlog_write(xfs_mount_t *	mp,
 
 	    /* Copy log operation header directly into data section */
 	    logop_head			= (xlog_op_header_t *)ptr;
-	    INT_SET(logop_head->oh_tid, ARCH_CONVERT, ticket->t_tid);
+	    logop_head->oh_tid		= cpu_to_be32(ticket->t_tid);
 	    logop_head->oh_clientid	= ticket->t_clientid;
 	    logop_head->oh_res2		= 0;
 
@@ -1878,13 +1878,14 @@ xlog_write(xfs_mount_t *	mp,
 
 	    copy_off = partial_copy_len;
 	    if (need_copy <= iclog->ic_size - log_offset) { /*complete write */
-		INT_SET(logop_head->oh_len, ARCH_CONVERT, copy_len = need_copy);
+	        copy_len = need_copy;
+		logop_head->oh_len = cpu_to_be32(copy_len);
 		if (partial_copy)
 		    logop_head->oh_flags|= (XLOG_END_TRANS|XLOG_WAS_CONT_TRANS);
 		partial_copy_len = partial_copy = 0;
 	    } else {					    /* partial write */
 		copy_len = iclog->ic_size - log_offset;
-		INT_SET(logop_head->oh_len, ARCH_CONVERT, copy_len);
+		logop_head->oh_len = cpu_to_be32(copy_len);
 		logop_head->oh_flags |= XLOG_CONTINUE_TRANS;
 		if (partial_copy)
 			logop_head->oh_flags |= XLOG_WAS_CONT_TRANS;
@@ -3504,7 +3505,7 @@ xlog_verify_iclog(xlog_t	 *log,
 		field_offset = (__psint_t)
 			       ((xfs_caddr_t)&(ophead->oh_len) - base_ptr);
 		if (syncing == B_FALSE || (field_offset & 0x1ff)) {
-			op_len = INT_GET(ophead->oh_len, ARCH_CONVERT);
+			op_len = be32_to_cpu(ophead->oh_len);
 		} else {
 			idx = BTOBBT((__psint_t)&ophead->oh_len -
 				    (__psint_t)iclog->ic_datap);

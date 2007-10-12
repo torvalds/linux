@@ -265,11 +265,11 @@ typedef struct xlog_ticket {
 
 
 typedef struct xlog_op_header {
-	xlog_tid_t oh_tid;	/* transaction id of operation	:  4 b */
-	int	   oh_len;	/* bytes in data region		:  4 b */
-	__uint8_t  oh_clientid;	/* who sent me this		:  1 b */
-	__uint8_t  oh_flags;	/*				:  1 b */
-	ushort	   oh_res2;	/* 32 bit align			:  2 b */
+	__be32	   oh_tid;	/* transaction id of operation	:  4 b */
+	__be32	   oh_len;	/* bytes in data region		:  4 b */
+	__u8	   oh_clientid;	/* who sent me this		:  1 b */
+	__u8	   oh_flags;	/*				:  1 b */
+	__u16	   oh_res2;	/* 32 bit align			:  2 b */
 } xlog_op_header_t;
 
 
