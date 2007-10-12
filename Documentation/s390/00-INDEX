@@ -7,7 +7,7 @@
 cds.txt
 	- s390 common device support (common I/O layer).
 CommonIO
-	- common I/O layer command line parameters and /proc entries
+	- common I/O layer command line parameters, procfs and debugfs	entries
 config3270.sh
 	- example configuration for 3270 devices.
 DASD
