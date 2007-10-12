@@ -327,7 +327,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 		printk(KERN_ERR "onenand_wait: controller error = 0x%04x\n", ctrl);
 		if (ctrl & ONENAND_CTRL_LOCK)
 			printk(KERN_ERR "onenand_wait: it's locked error.\n");
-		return ctrl;
+		return -EIO;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
@@ -336,7 +336,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 			if (ecc & ONENAND_ECC_2BIT_ALL) {
 				printk(KERN_ERR "onenand_wait: ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.failed++;
-				return ecc;
+				return -EBADMSG;
 			} else if (ecc & ONENAND_ECC_1BIT_ALL) {
 				printk(KERN_INFO "onenand_wait: correctable ECC error = 0x%04x\n", ecc);
 				mtd->ecc_stats.corrected++;
