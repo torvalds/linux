@@ -15,7 +15,7 @@
 
 #include <asm/arch/smc.h>
 
-static struct smc_config flash_config __initdata = {
+static struct smc_timing flash_timing __initdata = {
 	.ncs_read_setup		= 0,
 	.nrd_setup		= 40,
 	.ncs_write_setup	= 0,
@@ -28,7 +28,9 @@ static struct smc_config flash_config __initdata = {
 
 	.read_cycle		= 120,
 	.write_cycle		= 120,
+};
 
+static struct smc_config flash_config __initdata = {
 	.bus_width		= 2,
 	.nrd_controlled		= 1,
 	.nwe_controlled		= 1,
@@ -82,6 +84,7 @@ static int __init atngw100_flash_init(void)
 {
 	int ret;
 
+	smc_set_timing(&flash_config, &flash_timing);
 	ret = smc_set_configuration(0, &flash_config);
 	if (ret < 0) {
 		printk(KERN_ERR "atngw100: failed to set NOR flash timing\n");

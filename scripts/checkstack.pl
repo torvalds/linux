@@ -12,6 +12,7 @@
 #	sh64 port by Paul Mundt
 #	Random bits by Matt Mackall <mpm@selenic.com>
 #	M68k port by Geert Uytterhoeven and Andreas Schwab
+#	AVR32 port by Haavard Skinnemoen <hskinnemoen@atmel.com>
 #
 #	Usage:
 #	objdump -d vmlinux | stackcheck.pl [arch]
@@ -37,6 +38,10 @@ my (@stack, $re, $x, $xs);
 	if ($arch eq 'arm') {
 		#c0008ffc:	e24dd064	sub	sp, sp, #100	; 0x64
 		$re = qr/.*sub.*sp, sp, #(([0-9]{2}|[3-9])[0-9]{2})/o;
+	} elsif ($arch eq 'avr32') {
+		#8000008a:       20 1d           sub sp,4
+		#80000ca8:       fa cd 05 b0     sub sp,sp,1456
+		$re = qr/^.*sub.*sp.*,([0-9]{1,8})/o;
 	} elsif ($arch =~ /^i[3456]86$/) {
 		#c0105234:       81 ec ac 05 00 00       sub    $0x5ac,%esp
 		$re = qr/^.*[as][du][db]    \$(0x$x{1,8}),\%esp$/o;

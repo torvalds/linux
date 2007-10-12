@@ -248,7 +248,7 @@ static int __init early_parse_fbmem(char *p)
 
 	fbmem_size = memparse(p, &p);
 	if (*p == '@') {
-		fbmem_start = memparse(p, &p);
+		fbmem_start = memparse(p + 1, &p);
 		ret = add_reserved_region(fbmem_start,
 					  fbmem_start + fbmem_size - 1,
 					  "Framebuffer");

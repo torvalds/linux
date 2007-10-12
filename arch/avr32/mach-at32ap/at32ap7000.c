@@ -25,12 +25,6 @@
 #include "pio.h"
 #include "pm.h"
 
-/*
- * We can reduce the code size a bit by using a constant here. Since
- * this file is completely chip-specific, it's safe to not use
- * ioremap. Generic drivers should of course never do this.
- */
-#define AT32_PM_BASE	0xfff00000
 
 #define PBMEM(base)					\
 	{						\
@@ -1168,6 +1162,72 @@ at32_add_device_ssc(unsigned int id, unsigned int flags)
 }
 
 /* --------------------------------------------------------------------
+ *  USB Device Controller
+ * -------------------------------------------------------------------- */
+static struct resource usba0_resource[] __initdata = {
+	{
+		.start		= 0xff300000,
+		.end		= 0xff3fffff,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= 0xfff03000,
+		.end		= 0xfff033ff,
+		.flags		= IORESOURCE_MEM,
+	},
+	IRQ(31),
+};
+static struct clk usba0_pclk = {
+	.name		= "pclk",
+	.parent		= &pbb_clk,
+	.mode		= pbb_clk_mode,
+	.get_rate	= pbb_clk_get_rate,
+	.index		= 12,
+};
+static struct clk usba0_hclk = {
+	.name		= "hclk",
+	.parent		= &hsb_clk,
+	.mode		= hsb_clk_mode,
+	.get_rate	= hsb_clk_get_rate,
+	.index		= 6,
+};
+
+struct platform_device *__init
+at32_add_device_usba(unsigned int id, struct usba_platform_data *data)
+{
+	struct platform_device *pdev;
+
+	if (id != 0)
+		return NULL;
+
+	pdev = platform_device_alloc("atmel_usba_udc", 0);
+	if (!pdev)
+		return NULL;
+
+	if (platform_device_add_resources(pdev, usba0_resource,
+					  ARRAY_SIZE(usba0_resource)))
+		goto out_free_pdev;
+
+	if (data) {
+		if (platform_device_add_data(pdev, data, sizeof(*data)))
+			goto out_free_pdev;
+
+		if (data->vbus_pin != GPIO_PIN_NONE)
+			at32_select_gpio(data->vbus_pin, 0);
+	}
+
+	usba0_pclk.dev = &pdev->dev;
+	usba0_hclk.dev = &pdev->dev;
+
+	platform_device_add(pdev);
+
+	return pdev;
+
+out_free_pdev:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+/* --------------------------------------------------------------------
  *  GCLK
  * -------------------------------------------------------------------- */
 static struct clk gclk0 = {
@@ -1252,6 +1312,8 @@ struct clk *at32_clock_list[] = {
 	&ssc0_pclk,
 	&ssc1_pclk,
 	&ssc2_pclk,
+	&usba0_hclk,
+	&usba0_pclk,
 	&gclk0,
 	&gclk1,
 	&gclk2,

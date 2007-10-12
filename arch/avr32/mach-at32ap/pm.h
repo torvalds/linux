@@ -4,6 +4,14 @@
 #ifndef __ARCH_AVR32_MACH_AT32AP_PM_H__
 #define __ARCH_AVR32_MACH_AT32AP_PM_H__
 
+/*
+ * We can reduce the code size a bit by using a constant here. Since
+ * this file is only used on AVR32 AP CPUs with segmentation enabled,
+ * it's safe to not use ioremap. Generic drivers should of course
+ * never do this.
+ */
+#define AT32_PM_BASE	0xfff00000
+
 /* PM register offsets */
 #define PM_MCCTRL				0x0000
 #define PM_CKSEL				0x0004

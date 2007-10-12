@@ -264,7 +264,11 @@ static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle,
 			size_t size, enum dma_data_direction direction)
 {
-	dma_cache_sync(dev, bus_to_virt(dma_handle), size, direction);
+	/*
+	 * No need to do anything since the CPU isn't supposed to
+	 * touch this memory after we flushed it at mapping- or
+	 * sync-for-device time.
+	 */
 }
 
 static inline void
@@ -309,12 +313,11 @@ static inline void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 		    int nents, enum dma_data_direction direction)
 {
-	int i;
-
-	for (i = 0; i < nents; i++) {
-		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
-			       sg[i].length, direction);
-	}
+	/*
+	 * No need to do anything since the CPU isn't supposed to
+	 * touch this memory after we flushed it at mapping- or
+	 * sync-for-device time.
+	 */
 }
 
 static inline void
