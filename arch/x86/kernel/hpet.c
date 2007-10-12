@@ -25,11 +25,7 @@
 unsigned long hpet_address;
 static void __iomem *hpet_virt_address;
 
-/* Temporary hack. Cleanup after x86_64 clock events conversion */
-#undef hpet_readl
-#undef hpet_writel
-
-static inline unsigned long hpet_readl(unsigned long a)
+unsigned long hpet_readl(unsigned long a)
 {
 	return readl(hpet_virt_address + a);
 }

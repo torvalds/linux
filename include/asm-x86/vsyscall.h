@@ -29,9 +29,6 @@ enum vsyscall_num {
 #define VGETCPU_RDTSCP	1
 #define VGETCPU_LSL	2
 
-#define hpet_readl(a)           readl((const void __iomem *)fix_to_virt(FIX_HPET_BASE) + a)
-#define hpet_writel(d,a)        writel(d, (void __iomem *)fix_to_virt(FIX_HPET_BASE) + a)
-
 extern int __vgetcpu_mode;
 extern volatile unsigned long __jiffies;
 

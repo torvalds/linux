@@ -65,6 +65,7 @@
 extern unsigned long hpet_address;
 extern int is_hpet_enabled(void);
 extern int hpet_enable(void);
+extern unsigned long hpet_readl(unsigned long a);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 
@@ -84,6 +85,7 @@ extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 #else
 
 static inline int hpet_enable(void) { return 0; }
+static inline unsigned long hpet_readl(unsigned long a) { return 0; }
 
 #endif /* CONFIG_HPET_TIMER */
 #endif /* ASM_X86_HPET_H */
