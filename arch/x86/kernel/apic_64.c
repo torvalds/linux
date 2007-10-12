@@ -759,8 +759,6 @@ void __init init_apic_mappings(void)
  * P5 APIC double write bug.
  */
 
-#define APIC_DIVISOR 16
-
 static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
 	unsigned int lvtt_value, tmp_value;
@@ -782,7 +780,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 				| APIC_TDR_DIV_16);
 
 	if (!oneshot)
-		apic_write(APIC_TMICT, clocks/APIC_DIVISOR);
+		apic_write(APIC_TMICT, clocks);
 }
 
 static void setup_APIC_timer(unsigned int clocks)
@@ -835,7 +833,7 @@ static void __init calibrate_APIC_clock(void)
 	 *
 	 * No interrupt enable !
 	 */
-	__setup_APIC_LVTT(4000000000, 0, 0);
+	__setup_APIC_LVTT(250000000, 0, 0);
 
 	apic_start = apic_read(APIC_TMCCT);
 #ifdef CONFIG_X86_PM_TIMER
@@ -862,7 +860,7 @@ static void __init calibrate_APIC_clock(void)
 	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
 		result / 1000 / 1000, result / 1000 % 1000);
 
-	calibration_result = result * APIC_DIVISOR / HZ;
+	calibration_result = result / HZ;
 }
 
 void __init setup_boot_APIC_clock (void)
