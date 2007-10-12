@@ -667,6 +667,9 @@ raw3215_probe (struct ccw_device *cdev)
 	struct raw3215_info *raw;
 	int line;
 
+	/* Console is special. */
+	if (raw3215[0] && (cdev->dev.driver_data == raw3215[0]))
+		return 0;
 	raw = kmalloc(sizeof(struct raw3215_info) +
 		      RAW3215_INBUF_SIZE, GFP_KERNEL|GFP_DMA);
 	if (raw == NULL)
