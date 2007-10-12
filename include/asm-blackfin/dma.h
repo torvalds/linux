@@ -152,6 +152,7 @@ struct dma_channel {
 /* functions to set register mode */
 void set_dma_start_addr(unsigned int channel, unsigned long addr);
 void set_dma_next_desc_addr(unsigned int channel, unsigned long addr);
+void set_dma_curr_desc_addr(unsigned int channel, unsigned long addr);
 void set_dma_x_count(unsigned int channel, unsigned short x_count);
 void set_dma_x_modify(unsigned int channel, short x_modify);
 void set_dma_y_count(unsigned int channel, unsigned short y_count);
@@ -159,6 +160,7 @@ void set_dma_y_modify(unsigned int channel, short y_modify);
 void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
 				   char intr_mode, char dma_mode, char width);
+void set_dma_curr_addr(unsigned int channel, unsigned long addr);
 
 /* get curr status for polling */
 unsigned short get_dma_curr_irqstat(unsigned int channel);

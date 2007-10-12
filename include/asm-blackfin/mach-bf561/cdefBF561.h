@@ -31,11 +31,8 @@
 #ifndef _CDEF_BF561_H
 #define _CDEF_BF561_H
 
-/*
-#if !defined(__ADSPBF561__)
-#warning cdefBF561.h should only be included for BF561 chip.
-#endif
-*/
+#include <asm/blackfin.h>
+
 /* include all Core registers and bit definitions */
 #include "defBF561.h"
 
@@ -67,7 +64,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	bfin_write32(SICA_IWR1, 0);
 
 	bfin_write16(VR_CTL, val);
-	__builtin_bfin_ssync();
+	SSYNC();
 
 	local_irq_save(flags);
 	asm("IDLE;");

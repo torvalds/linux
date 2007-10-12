@@ -57,7 +57,7 @@ config GENERIC_TIME
 	bool
 	default n
 
-config GENERIC_CALIBRATE_DELAY
+config GENERIC_GPIO
 	bool
 	default y
 
@@ -323,7 +323,7 @@ config CMDLINE
 	  to the kernel, you may specify one here. As a minimum, you should specify
 	  the memory size and the root device (e.g., mem=8M, root=/dev/nfs).
 
-comment "Board Setup"
+comment "Clock/PLL Setup"
 
 config CLKIN_HZ
 	int "Crystal Frequency in Hz"
@@ -334,6 +334,118 @@ config CLKIN_HZ
 	default "24576000" if PNAV10
 	help
 	  The frequency of CLKIN crystal oscillator on the board in Hz.
+
+config BFIN_KERNEL_CLOCK
+	bool "Re-program Clocks while Kernel boots?"
+	default n
+	help
+	  This option decides if kernel clocks are re-programed from the
+	  bootloader settings. If the clocks are not set, the SDRAM settings
+	  are also not changed, and the Bootloader does 100% of the hardware
+	  configuration.
+
+config PLL_BYPASS
+        bool "Bypass PLL"
+        depends on BFIN_KERNEL_CLOCK
+        default n
+
+config CLKIN_HALF
+	bool "Half Clock In"
+	depends on BFIN_KERNEL_CLOCK && (! PLL_BYPASS)
+	default n
+	help
+	  If this is set the clock will be divided by 2, before it goes to the PLL.
+
+config VCO_MULT
+	int "VCO Multiplier"
+	depends on BFIN_KERNEL_CLOCK && (! PLL_BYPASS)
+	range 1 64
+	default "22" if BFIN533_EZKIT
+	default "45" if BFIN533_STAMP
+	default "20" if BFIN537_STAMP
+	default "22" if BFIN533_BLUETECHNIX_CM
+	default "20" if BFIN537_BLUETECHNIX_CM
+	default "20" if BFIN561_BLUETECHNIX_CM
+	default "20" if BFIN561_EZKIT
+	help
+	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
+	  PLL Frequency = (Crystal Frequency) * (this setting)
+
+choice
+	prompt "Core Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
+	default CCLK_DIV_1
+	help
+	  This sets the frequency of the core. It can be 1, 2, 4 or 8
+	  Core Frequency = (PLL frequency) / (this setting)
+
+config CCLK_DIV_1
+	bool "1"
+
+config CCLK_DIV_2
+	bool "2"
+
+config CCLK_DIV_4
+	bool "4"
+
+config CCLK_DIV_8
+	bool "8"
+endchoice
+
+config SCLK_DIV
+	int "System Clock Divider"
+	depends on BFIN_KERNEL_CLOCK
+	range 1 15
+	default 5 if BFIN533_EZKIT
+	default 5 if BFIN533_STAMP
+	default 4 if BFIN537_STAMP
+	default 5 if BFIN533_BLUETECHNIX_CM
+	default 4 if BFIN537_BLUETECHNIX_CM
+	default 4 if BFIN561_BLUETECHNIX_CM
+	default 5 if BFIN561_EZKIT
+	help
+	  This sets the frequency of the system clock (including SDRAM or DDR).
+	  This can be between 1 and 15
+	  System Clock = (PLL frequency) / (this setting)
+
+#
+# Max & Min Speeds for various Chips
+#
+config MAX_VCO_HZ
+	int
+	default 600000000 if BF522
+	default 600000000 if BF525
+	default 600000000 if BF527
+	default 400000000 if BF531
+	default 400000000 if BF532
+	default 750000000 if BF533
+	default 500000000 if BF534
+	default 400000000 if BF536
+	default 600000000 if BF537
+	default 533000000 if BF538
+	default 533000000 if BF539
+	default 600000000 if BF542
+	default 533000000 if BF544
+	default 533000000 if BF549
+	default 600000000 if BF561
+
+config MIN_VCO_HZ
+	int
+	default 50000000
+
+config MAX_SCLK_HZ
+	int
+	default 133000000
+
+config MIN_SCLK_HZ
+	int
+	default 27000000
+
+comment "Kernel Timer/Scheduler"
+
+source kernel/Kconfig.hz
+
+comment "Memory Setup"
 
 config MEM_SIZE
 	int "SDRAM Memory Size in MBytes"
@@ -364,15 +476,16 @@ config ENET_FLASH_PIN
 config BOOT_LOAD
 	hex "Kernel load address for booting"
 	default "0x1000"
+	range 0x1000 0x20000000
 	help
 	  This option allows you to set the load address of the kernel.
 	  This can be useful if you are on a board which has a small amount
 	  of memory or you wish to reserve some memory at the beginning of
 	  the address space.
 
-	  Note that you generally want to keep this value at or above 4k
-	  (0x1000) as this will allow the kernel to capture NULL pointer
-	  references.
+	  Note that you need to keep this value above 4k (0x1000) as this
+	  memory region is used to capture NULL pointer references as well
+	  as some core kernel functions.
 
 comment "LED Status Indicators"
 	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
@@ -407,6 +520,52 @@ config BFIN_IDLE_LED_NUM
 	default "2" if BFIN533_STAMP
 	help
 	  Select the LED (marked on the board) for you to blink.
+
+choice
+	prompt "Blackfin Exception Scratch Register"
+	default BFIN_SCRATCH_REG_RETN
+	help
+	  Select the resource to reserve for the Exception handler:
+	    - RETN: Non-Maskable Interrupt (NMI)
+	    - RETE: Exception Return (JTAG/ICE)
+	    - CYCLES: Performance counter
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_RETN
+	bool "RETN"
+	help
+	  Use the RETN register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use NMI on the Blackfin while running Linux, but
+	  you can debug the system with a JTAG ICE and use the
+	  CYCLES performance registers.
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_RETE
+	bool "RETE"
+	help
+	  Use the RETE register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use a JTAG ICE while debugging a Blackfin board,
+	  but you can safely use the CYCLES performance registers
+	  and the NMI.
+
+	  If you are unsure, please select "RETN".
+
+config BFIN_SCRATCH_REG_CYCLES
+	bool "CYCLES"
+	help
+	  Use the CYCLES register in the Blackfin exception handler
+	  as a stack scratch register.  This means you cannot
+	  safely use the CYCLES performance registers on a Blackfin
+	  board at anytime, but you can debug the system with a JTAG
+	  ICE and use the NMI.
+
+	  If you are unsure, please select "RETN".
+
+endchoice
 
 #
 # Sorry - but you need to put the hex address here -
@@ -447,10 +606,6 @@ endmenu
 
 
 menu "Blackfin Kernel Optimizations"
-
-comment "Timer Tick"
-
-source kernel/Kconfig.hz
 
 comment "Memory Optimizations"
 
@@ -614,22 +769,22 @@ endchoice
 
 
 comment "Cache Support"
-config BLKFIN_CACHE
+config BFIN_ICACHE
 	bool "Enable ICACHE"
-config BLKFIN_DCACHE
+config BFIN_DCACHE
 	bool "Enable DCACHE"
-config BLKFIN_DCACHE_BANKA
+config BFIN_DCACHE_BANKA
 	bool "Enable only 16k BankA DCACHE - BankB is SRAM"
-	depends on BLKFIN_DCACHE && !BF531
+	depends on BFIN_DCACHE && !BF531
 	default n
-config BLKFIN_CACHE_LOCK
-	bool "Enable Cache Locking"
+config BFIN_ICACHE_LOCK
+	bool "Enable Instruction Cache Locking"
 
 choice
 	prompt "Policy"
-	depends on BLKFIN_DCACHE
-	default BLKFIN_WB
-config BLKFIN_WB
+	depends on BFIN_DCACHE
+	default BFIN_WB
+config BFIN_WB
 	bool "Write back"
 	help
 	  Write Back Policy:
@@ -646,7 +801,7 @@ config BLKFIN_WB
 	  If you are unsure of the options and you want to be safe,
 	  then go with Write Through.
 
-config BLKFIN_WT
+config BFIN_WT
 	bool "Write through"
 	help
 	  Write Back Policy:
@@ -672,66 +827,9 @@ config L1_MAX_PIECE
 	  Set the max memory pieces for the L1 SRAM allocation algorithm.
 	  Min value is 16. Max value is 1024.
 
-menu "Clock Settings"
-
-
-config BFIN_KERNEL_CLOCK
-	bool "Re-program Clocks while Kernel boots?"
-	default n
-	help
-	  This option decides if kernel clocks are re-programed from the
-	  bootloader settings. If the clocks are not set, the SDRAM settings
-	  are also not changed, and the Bootloader does 100% of the hardware
-	  configuration.
-
-config VCO_MULT
-	int "VCO Multiplier"
-	depends on BFIN_KERNEL_CLOCK
-	default "22" if BFIN533_EZKIT
-	default "45" if BFIN533_STAMP
-	default "20" if BFIN537_STAMP
-	default "22" if BFIN533_BLUETECHNIX_CM
-	default "20" if BFIN537_BLUETECHNIX_CM
-	default "20" if BFIN561_BLUETECHNIX_CM
-	default "20" if BFIN561_EZKIT
-
-config CCLK_DIV
-	int "Core Clock Divider"
-	depends on BFIN_KERNEL_CLOCK
-	default 1 if BFIN533_EZKIT
-	default 1 if BFIN533_STAMP
-	default 1 if BFIN537_STAMP
-	default 1 if BFIN533_BLUETECHNIX_CM
-	default 1 if BFIN537_BLUETECHNIX_CM
-	default 1 if BFIN561_BLUETECHNIX_CM
-	default 1 if BFIN561_EZKIT
-
-config SCLK_DIV
-	int "System Clock Divider"
-	depends on BFIN_KERNEL_CLOCK
-	default 5 if BFIN533_EZKIT
-	default 5 if BFIN533_STAMP
-	default 4 if BFIN537_STAMP
-	default 5 if BFIN533_BLUETECHNIX_CM
-	default 4 if BFIN537_BLUETECHNIX_CM
-	default 4 if BFIN561_BLUETECHNIX_CM
-	default 5 if BFIN561_EZKIT
-
-config CLKIN_HALF
-	bool "Half ClockIn"
-	depends on BFIN_KERNEL_CLOCK
-	default n
-
-config PLL_BYPASS
-	bool "Bypass PLL"
-	depends on BFIN_KERNEL_CLOCK
-	default n
-
-endmenu
-
 comment "Asynchonous Memory Configuration"
 
-menu "EBIU_AMBCTL Global Control"
+menu "EBIU_AMGCTL Global Control"
 config C_AMCKEN
 	bool "Enable CLKOUT"
 	default y
@@ -941,24 +1039,6 @@ config DEBUG_ICACHE_CHECK
 	  also relocates the irq_panic() function to L1 memory, (which is
 	  un-cached).
 
-config DEBUG_KERNEL_START
-	bool "Debug Kernel Startup"
-	depends on DEBUG_KERNEL
-	help
-	  Say Y here to put in an mini-execption handler before the kernel
-	  replaces the bootloader exception handler. This will stop kernels
-	  from dieing at startup with no visible error messages.
-
-config DEBUG_SERIAL_EARLY_INIT
-	bool "Initialize serial driver early"
-	default n
-	depends on SERIAL_BFIN
-	help
-	  Say Y here if you want to get kernel output early when kernel
-	  crashes before the normal console initialization. If this option
-	  is enable, console output will always go to the ttyBF0, no matter
-	  what kernel boot paramters you set.
-
 config DEBUG_HUNT_FOR_ZERO
 	bool "Catch NULL pointer reads/writes"
 	default y
@@ -973,8 +1053,89 @@ config DEBUG_HUNT_FOR_ZERO
 	  Enabling this option will take up an extra entry in CPLB table.
 	  Otherwise, there is no extra overhead.
 
+config DEBUG_BFIN_HWTRACE_ON
+	bool "Turn on Blackfin's Hardware Trace"
+	default y
+	help
+	  All Blackfins include a Trace Unit which stores a history of the last
+	  16 changes in program flow taken by the program sequencer. The history
+	  allows the user to recreate the program sequencer’s recent path. This
+	  can be handy when an application dies - we print out the execution
+	  path of how it got to the offending instruction.
+
+	  By turning this off, you may save a tiny amount of power.
+
+choice
+	prompt "Omit loop Tracing"
+	default DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	depends on DEBUG_BFIN_HWTRACE_ON
+	help
+	  The trace buffer can be configured to omit recording of changes in
+	  program flow that match either the last entry or one of the last
+	  two entries. Omitting one of these entries from the record prevents
+	  the trace buffer from overflowing because of any sort of loop (for, do
+	  while, etc) in the program.
+
+	  Because zero-overhead Hardware loops are not recorded in the trace buffer,
+	  this feature can be used to prevent trace overflow from loops that
+	  are nested four deep.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	bool "Trace all Loops"
+	help
+	  The trace buffer records all changes of flow 
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	bool "Compress single-level loops"
+	help
+	  The trace buffer does not record single loops - helpful if trace 
+	  is spinning on a while or do loop.
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+	bool "Compress two-level loops"
+	help
+	  The trace buffer does not record loops two levels deep. Helpful if
+	  the trace is spinning in a nested loop
+
+endchoice
+
+config DEBUG_BFIN_HWTRACE_COMPRESSION
+	int
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default 0 if DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
+	default 1 if DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
+	default 2 if DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
+
+
+config DEBUG_BFIN_HWTRACE_EXPAND
+	bool "Expand Trace Buffer greater than 16 entries"
+	depends on DEBUG_BFIN_HWTRACE_ON
+	default n
+	help
+	  By selecting this option, every time the 16 hardware entries in
+	  the Blackfin's HW Trace buffer are full, the kernel will move them
+	  into a software buffer, for dumping when there is an issue. This 
+	  has a great impact on performance, (an interrupt every 16 change of 
+	  flows) and should normally be turned off, except in those nasty
+	  debugging sessions
+
+config DEBUG_BFIN_HWTRACE_EXPAND_LEN
+	int "Size of Trace buffer (in power of 2k)"
+	range 0 4
+	depends on DEBUG_BFIN_HWTRACE_EXPAND
+	default 1
+	help
+	  This sets the size of the software buffer that the trace information
+	  is kept in.
+	  0 for (2^0)  1k, or 256 entries,
+	  1 for (2^1)  2k, or 512 entries,
+	  2 for (2^2)  4k, or 1024 entries,
+	  3 for (2^3)  8k, or 2048 entries,
+	  4 for (2^4) 16k, or 4096 entries
+
 config DEBUG_BFIN_NO_KERN_HWTRACE
 	bool "Trace user apps (turn off hwtrace in kernel)"
+	depends on DEBUG_BFIN_HWTRACE_ON
 	default n
 	help
 	  Some pieces of the kernel contain a lot of flow changes which can
@@ -984,6 +1145,20 @@ config DEBUG_BFIN_NO_KERN_HWTRACE
 
 	  Say Y here to disable hardware tracing in some known "jumpy" pieces
 	  of code so that the trace buffer will extend further back.
+
+config EARLY_PRINTK
+	bool "Early printk" 
+	default n
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. After enabling this
+	  feature, you must add "earlyprintk=serial,uart0,57600" to the
+	  command line (bootargs). It is safe to say Y here in all cases, as
+	  all of this lives in the init section and is thrown away after the
+	  kernel boots completely.
 
 config DUAL_CORE_TEST_MODULE
 	tristate "Dual Core Test Module"

@@ -33,6 +33,7 @@
 #include <asm/trace.h>
 
 #if CONFIG_BFIN_KERNEL_CLOCK
+#include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
 #endif
 
@@ -50,10 +51,12 @@ __INIT
 ENTRY(__start)
 	/* R0: argument of command line string, passed from uboot, save it */
 	R7 = R0;
-	/* Set the SYSCFG register:
-	 * Enable Cycle Counter and Nesting Of Interrupts (3rd Bit)
-	 */
-	R0 = 0x36;
+	/* Enable Cycle Counter and Nesting Of Interrupts */
+#ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
+	R0 = SYSCFG_SNEN;
+#else
+	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
+#endif
 	SYSCFG = R0;
 	R0 = 0;
 
@@ -95,43 +98,42 @@ ENTRY(__start)
 	M2 = r0;
 	M3 = r0;
 
-	trace_buffer_start(p0,r0);
+	trace_buffer_init(p0,r0);
 	P0 = R1;
 	R0 = R1;
 
 	/* Turn off the icache */
-	p0.l = (IMEM_CONTROL & 0xFFFF);
-	p0.h = (IMEM_CONTROL >> 16);
+	p0.l = LO(IMEM_CONTROL);
+	p0.h = HI(IMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
 
-	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
 	/* Turn off the dcache */
-	p0.l = (DMEM_CONTROL & 0xFFFF);
-	p0.h = (DMEM_CONTROL >> 16);
+	p0.l = LO(DMEM_CONTROL);
+	p0.h = HI(DMEM_CONTROL);
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
 
 	/* Anomaly 05000125 */
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	CLI R2;
 	SSYNC;
 #endif
 	[p0] = R0;
 	SSYNC;
-#ifdef ANOMALY_05000125
+#if ANOMALY_05000125
 	STI R2;
 #endif
 
@@ -166,6 +168,12 @@ ENTRY(__start)
 	sp.h = hi(INITIAL_STACK);
 	fp = sp;
 	usp = sp;
+
+#ifdef CONFIG_EARLY_PRINTK
+	SP += -12;
+	call _init_early_exception_vectors;
+	SP += 12;
+#endif
 
 	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
 	call _bf53x_relocate_l1_mem;
@@ -220,7 +228,7 @@ ENTRY(__start)
 	p0.l = .LWAIT_HERE;
 	p0.h = .LWAIT_HERE;
 	reti = p0;
-#if defined(ANOMALY_05000281)
+#if ANOMALY_05000281
 	nop; nop; nop;
 #endif
 	rti;
@@ -372,8 +380,8 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-	p0.l = (EBIU_SDBCTL & 0xFFFF);
-	p0.h = (EBIU_SDBCTL >> 16);     /* SDRAM Memory Bank Control Register */
+	p0.l = LO(EBIU_SDBCTL);
+	p0.h = HI(EBIU_SDBCTL);     /* SDRAM Memory Bank Control Register */
 	r0 = mem_SDBCTL;
 	w[p0] = r0.l;
 	ssync;
@@ -403,66 +411,6 @@ ENTRY(_start_dma_code)
 	RTS;
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
-
-ENTRY(_bfin_reset)
-	/* No more interrupts to be handled*/
-	CLI R6;
-	SSYNC;
-
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	p0.h = hi(FIO_INEN);
-	p0.l = lo(FIO_INEN);
-	r0.l = ~(PF1 | PF0);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_DIR);
-	p0.l = lo(FIO_DIR);
-	r0.l = (PF1 | PF0);
-	w[p0] = r0.l;
-
-	p0.h = hi(FIO_FLAG_C);
-	p0.l = lo(FIO_FLAG_C);
-	r0.l = (PF1 | PF0);
-	w[p0] = r0.l;
-#endif
-
-	/* Clear the IMASK register */
-	p0.h = hi(IMASK);
-	p0.l = lo(IMASK);
-	r0 = 0x0;
-	[p0] = r0;
-
-	/* Clear the ILAT register */
-	p0.h = hi(ILAT);
-	p0.l = lo(ILAT);
-	r0 = [p0];
-	[p0] = r0;
-	SSYNC;
-
-	/* make sure SYSCR is set to use BMODE */
-	P0.h = hi(SYSCR);
-	P0.l = lo(SYSCR);
-	R0.l = 0x20;		/* on BF561, disable core b */
-	W[P0] = R0.l;
-	SSYNC;
-
-	/* issue a system soft reset */
-	P1.h = hi(SWRST);
-	P1.l = lo(SWRST);
-	R1.l = 0x0007;
-	W[P1] = R1;
-	SSYNC;
-
-	/* clear system soft reset */
-	R0.l = 0x0000;
-	W[P0] = R0;
-	SSYNC;
-
-	/* issue core reset */
-	raise 1;
-
-	RTS;
-ENDPROC(_bfin_reset)
 
 .data
 

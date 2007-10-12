@@ -343,7 +343,7 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	u16 gpionr = irq - IRQ_PF0;
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, NULL);
+		ret = gpio_request(gpionr, "IRQ");
 		if (ret)
 			return ret;
 	}
@@ -377,7 +377,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, NULL);
+			ret = gpio_request(gpionr, "IRQ");
 			if (ret)
 				return ret;
 		}
@@ -587,7 +587,7 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	}
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, NULL);
+		ret = gpio_request(gpionr, "IRQ");
 		if (ret)
 			return ret;
 	}
@@ -627,7 +627,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, NULL);
+			ret = gpio_request(gpionr, "IRQ");
 			if (ret)
 				return ret;
 		}
@@ -721,10 +721,11 @@ void __init init_exception_vectors(void)
 {
 	SSYNC();
 
-#ifndef CONFIG_KGDB
-	bfin_write_EVT0(evt_emulation);
-#endif
-	bfin_write_EVT2(evt_evt2);
+	/* cannot program in software:
+	 * evt0 - emulation (jtag)
+	 * evt1 - reset
+	 */
+	bfin_write_EVT2(evt_nmi);
 	bfin_write_EVT3(trap);
 	bfin_write_EVT5(evt_ivhw);
 	bfin_write_EVT6(evt_timer);

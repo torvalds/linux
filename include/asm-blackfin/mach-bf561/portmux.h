@@ -81,7 +81,7 @@
 #define P_TMR1		(P_DEFINED | P_IDENT(GPIO_PF1))
 #define P_TMR0		(P_DEFINED | P_IDENT(GPIO_PF0))
 #define P_SPI0_MOSI	(P_DONTCARE)
-#define P_SPI0_MIS0	(P_DONTCARE)
+#define P_SPI0_MISO	(P_DONTCARE)
 #define P_SPI0_SCK	(P_DONTCARE)
 
 #endif /* _MACH_PORTMUX_H_ */

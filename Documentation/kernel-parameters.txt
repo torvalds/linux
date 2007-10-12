@@ -35,6 +35,7 @@ parameter is applicable:
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
 	AX25	Appropriate AX.25 support is enabled.
+	BLACKFIN Blackfin architecture is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
 	EFI	EFI Partitioning (GPT) is enabled
@@ -550,7 +551,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	dtc3181e=	[HW,SCSI]
 
-	earlyprintk=	[X86-32,X86-64,SH]
+	earlyprintk=	[X86-32,X86-64,SH,BLACKFIN]
 			earlyprintk=vga
 			earlyprintk=serial[,ttySn[,baudrate]]
 

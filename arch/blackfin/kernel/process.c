@@ -134,31 +134,6 @@ void cpu_idle(void)
 	}
 }
 
-void machine_restart(char *__unused)
-{
-#if defined(CONFIG_BLKFIN_CACHE)
-	bfin_write_IMEM_CONTROL(0x01);
-	SSYNC();
-#endif
-	bfin_reset();
-	/* Dont do anything till the reset occurs */
-	while (1) {
-		SSYNC();
-	}
-}
-
-void machine_halt(void)
-{
-	for (;;)
-		asm volatile ("idle");
-}
-
-void machine_power_off(void)
-{
-	for (;;)
-		asm volatile ("idle");
-}
-
 void show_regs(struct pt_regs *regs)
 {
 	printk(KERN_NOTICE "\n");
@@ -420,7 +395,8 @@ void finish_atomic_sections (struct pt_regs *regs)
 #if defined(CONFIG_ACCESS_CHECK)
 int _access_ok(unsigned long addr, unsigned long size)
 {
-
+	if (size == 0)
+		return 1;
 	if (addr > (addr + size))
 		return 0;
 	if (segment_eq(get_fs(), KERNEL_DS))

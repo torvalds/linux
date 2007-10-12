@@ -31,6 +31,8 @@
 #ifndef _CDEF_BF54X_H
 #define _CDEF_BF54X_H
 
+#include <asm/blackfin.h>
+
 #include "defBF54x_base.h"
 #include <asm/system.h>
 
@@ -60,7 +62,7 @@ static __inline__ void bfin_write_VR_CTL(unsigned int val)
 	bfin_write32(SIC_IWR2, 0);
 
 	bfin_write16(VR_CTL, val);
-	__builtin_bfin_ssync();
+	SSYNC();
 
 	local_irq_save(flags);
 	asm("IDLE;");

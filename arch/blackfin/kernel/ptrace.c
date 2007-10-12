@@ -44,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 #include <asm/dma.h>
+#include <asm/fixed_code.h>
 
 #define MAX_SHARED_LIBS 3
 #define TEXT_OFFSET 0
@@ -169,6 +170,9 @@ static inline int is_user_addr_valid(struct task_struct *child,
 		    && start + len <= (unsigned long)sraml->addr + sraml->length)
 			return 0;
 
+	if (start >= FIXED_CODE_START && start + len <= FIXED_CODE_END)
+		return 0;
+
 	return -EIO;
 }
 
@@ -215,9 +219,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				copied = sizeof(tmp);
 			} else
 #endif
-			copied =
-			    access_process_vm(child, addr + add, &tmp,
-					      sizeof(tmp), 0);
+			if (addr + add >= FIXED_CODE_START
+			    && addr + add + sizeof(tmp) <= FIXED_CODE_END) {
+				memcpy(&tmp, (const void *)(addr + add), sizeof(tmp));
+				copied = sizeof(tmp);
+			} else
+				copied = access_process_vm(child, addr + add, &tmp,
+							   sizeof(tmp), 0);
 			pr_debug("ptrace: copied size %d [0x%08lx]\n", copied, tmp);
 			if (copied != sizeof(tmp))
 				break;
@@ -281,9 +289,13 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				copied = sizeof(data);
 			} else
 #endif
-			copied =
-			    access_process_vm(child, addr + add, &data,
-					      sizeof(data), 1);
+			if (addr + add >= FIXED_CODE_START
+			    && addr + add + sizeof(data) <= FIXED_CODE_END) {
+				memcpy((void *)(addr + add), &data, sizeof(data));
+				copied = sizeof(data);
+			} else
+				copied = access_process_vm(child, addr + add, &data,
+							   sizeof(data), 1);
 			pr_debug("ptrace: copied size %d\n", copied);
 			if (copied != sizeof(data))
 				break;
