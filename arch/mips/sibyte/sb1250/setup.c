@@ -40,43 +40,6 @@ static char *soc_str;
 static char *pass_str;
 static unsigned int war_pass;	/* XXXKW don't overload PASS defines? */
 
-static inline int setup_bcm1250(void);
-static inline int setup_bcm112x(void);
-
-/* Setup code likely to be common to all SiByte platforms */
-
-static int __init sys_rev_decode(void)
-{
-	int ret = 0;
-
-	war_pass = soc_pass;
-	switch (soc_type) {
-	case K_SYS_SOC_TYPE_BCM1250:
-	case K_SYS_SOC_TYPE_BCM1250_ALT:
-	case K_SYS_SOC_TYPE_BCM1250_ALT2:
-		soc_str = "BCM1250";
-		ret = setup_bcm1250();
-		break;
-	case K_SYS_SOC_TYPE_BCM1120:
-		soc_str = "BCM1120";
-		ret = setup_bcm112x();
-		break;
-	case K_SYS_SOC_TYPE_BCM1125:
-		soc_str = "BCM1125";
-		ret = setup_bcm112x();
-		break;
-	case K_SYS_SOC_TYPE_BCM1125H:
-		soc_str = "BCM1125H";
-		ret = setup_bcm112x();
-		break;
-	default:
-		printk("Unknown SOC type %x\n", soc_type);
-		ret = 1;
-		break;
-	}
-	return ret;
-}
-
 static int __init setup_bcm1250(void)
 {
 	int ret = 0;
@@ -120,6 +83,7 @@ static int __init setup_bcm1250(void)
 		}
 		break;
 	}
+
 	return ret;
 }
 
@@ -158,6 +122,42 @@ static int __init setup_bcm112x(void)
 		printk("Unknown %s rev %x\n", soc_str, soc_pass);
 		ret = 1;
 	}
+
+	return ret;
+}
+
+/* Setup code likely to be common to all SiByte platforms */
+
+static int __init sys_rev_decode(void)
+{
+	int ret = 0;
+
+	war_pass = soc_pass;
+	switch (soc_type) {
+	case K_SYS_SOC_TYPE_BCM1250:
+	case K_SYS_SOC_TYPE_BCM1250_ALT:
+	case K_SYS_SOC_TYPE_BCM1250_ALT2:
+		soc_str = "BCM1250";
+		ret = setup_bcm1250();
+		break;
+	case K_SYS_SOC_TYPE_BCM1120:
+		soc_str = "BCM1120";
+		ret = setup_bcm112x();
+		break;
+	case K_SYS_SOC_TYPE_BCM1125:
+		soc_str = "BCM1125";
+		ret = setup_bcm112x();
+		break;
+	case K_SYS_SOC_TYPE_BCM1125H:
+		soc_str = "BCM1125H";
+		ret = setup_bcm112x();
+		break;
+	default:
+		printk("Unknown SOC type %x\n", soc_type);
+		ret = 1;
+		break;
+	}
+
 	return ret;
 }
 

@@ -491,7 +491,7 @@ void __init tlb_init(void)
 			int wired = current_cpu_data.tlbsize - ntlb;
 			write_c0_wired(wired);
 			write_c0_index(wired-1);
-			printk ("Restricting TLB to %d entries\n", ntlb);
+			printk("Restricting TLB to %d entries\n", ntlb);
 		} else
 			printk("Ignoring invalid argument ntlb=%d\n", ntlb);
 	}

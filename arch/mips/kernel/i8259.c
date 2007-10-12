@@ -30,8 +30,10 @@
 
 static int i8259A_auto_eoi = -1;
 DEFINE_SPINLOCK(i8259A_lock);
-/* some platforms call this... */
-void mask_and_ack_8259A(unsigned int);
+static void disable_8259A_irq(unsigned int irq);
+static void enable_8259A_irq(unsigned int irq);
+static void mask_and_ack_8259A(unsigned int irq);
+static void init_8259A(int auto_eoi);
 
 static struct irq_chip i8259A_chip = {
 	.name		= "XT-PIC",
@@ -39,6 +41,9 @@ static struct irq_chip i8259A_chip = {
 	.disable	= disable_8259A_irq,
 	.unmask		= enable_8259A_irq,
 	.mask_ack	= mask_and_ack_8259A,
+#ifdef CONFIG_MIPS_MT_SMTC_IRQAFF
+	.set_affinity	= plat_set_irq_affinity,
+#endif /* CONFIG_MIPS_MT_SMTC_IRQAFF */
 };
 
 /*
@@ -53,7 +58,7 @@ static unsigned int cached_irq_mask = 0xffff;
 #define cached_master_mask	(cached_irq_mask)
 #define cached_slave_mask	(cached_irq_mask >> 8)
 
-void disable_8259A_irq(unsigned int irq)
+static void disable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask;
 	unsigned long flags;
@@ -69,7 +74,7 @@ void disable_8259A_irq(unsigned int irq)
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
-void enable_8259A_irq(unsigned int irq)
+static void enable_8259A_irq(unsigned int irq)
 {
 	unsigned int mask;
 	unsigned long flags;
@@ -122,14 +127,14 @@ static inline int i8259A_irq_real(unsigned int irq)
 	int irqmask = 1 << irq;
 
 	if (irq < 8) {
-		outb(0x0B,PIC_MASTER_CMD);	/* ISR register */
+		outb(0x0B, PIC_MASTER_CMD);	/* ISR register */
 		value = inb(PIC_MASTER_CMD) & irqmask;
-		outb(0x0A,PIC_MASTER_CMD);	/* back to the IRR register */
+		outb(0x0A, PIC_MASTER_CMD);	/* back to the IRR register */
 		return value;
 	}
-	outb(0x0B,PIC_SLAVE_CMD);	/* ISR register */
+	outb(0x0B, PIC_SLAVE_CMD);	/* ISR register */
 	value = inb(PIC_SLAVE_CMD) & (irqmask >> 8);
-	outb(0x0A,PIC_SLAVE_CMD);	/* back to the IRR register */
+	outb(0x0A, PIC_SLAVE_CMD);	/* back to the IRR register */
 	return value;
 }
 
@@ -139,7 +144,7 @@ static inline int i8259A_irq_real(unsigned int irq)
  * first, _then_ send the EOI, and the order of EOI
  * to the two 8259s is important!
  */
-void mask_and_ack_8259A(unsigned int irq)
+static void mask_and_ack_8259A(unsigned int irq)
 {
 	unsigned int irqmask;
 	unsigned long flags;
@@ -170,12 +175,12 @@ handle_real_irq:
 	if (irq & 8) {
 		inb(PIC_SLAVE_IMR);	/* DUMMY - (do we need this?) */
 		outb(cached_slave_mask, PIC_SLAVE_IMR);
-		outb(0x60+(irq&7),PIC_SLAVE_CMD);/* 'Specific EOI' to slave */
-		outb(0x60+PIC_CASCADE_IR,PIC_MASTER_CMD); /* 'Specific EOI' to master-IRQ2 */
+		outb(0x60+(irq&7), PIC_SLAVE_CMD);/* 'Specific EOI' to slave */
+		outb(0x60+PIC_CASCADE_IR, PIC_MASTER_CMD); /* 'Specific EOI' to master-IRQ2 */
 	} else {
 		inb(PIC_MASTER_IMR);	/* DUMMY - (do we need this?) */
 		outb(cached_master_mask, PIC_MASTER_IMR);
-		outb(0x60+irq,PIC_MASTER_CMD);	/* 'Specific EOI to master */
+		outb(0x60+irq, PIC_MASTER_CMD);	/* 'Specific EOI to master */
 	}
 	smtc_im_ack_irq(irq);
 	spin_unlock_irqrestore(&i8259A_lock, flags);
@@ -253,7 +258,7 @@ static int __init i8259A_init_sysfs(void)
 
 device_initcall(i8259A_init_sysfs);
 
-void init_8259A(int auto_eoi)
+static void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
 
@@ -300,7 +305,9 @@ void init_8259A(int auto_eoi)
  * IRQ2 is cascade interrupt to second interrupt controller
  */
 static struct irqaction irq2 = {
-	no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL
+	.handler = no_action,
+	.mask = CPU_MASK_NONE,
+	.name = "cascade",
 };
 
 static struct resource pic1_io_resource = {
@@ -322,7 +329,7 @@ static struct resource pic2_io_resource = {
  * driver compatibility reasons interrupts 0 - 15 to be the i8259
  * interrupts even if the hardware uses a different interrupt numbering.
  */
-void __init init_i8259_irqs (void)
+void __init init_i8259_irqs(void)
 {
 	int i;
 

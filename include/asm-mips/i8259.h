@@ -37,9 +37,8 @@
 
 extern spinlock_t i8259A_lock;
 
-extern void init_8259A(int auto_eoi);
-extern void enable_8259A_irq(unsigned int irq);
-extern void disable_8259A_irq(unsigned int irq);
+extern int i8259A_irq_pending(unsigned int irq);
+extern void make_8259A_irq(unsigned int irq);
 
 extern void init_i8259_irqs(void);
 

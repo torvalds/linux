@@ -157,8 +157,8 @@ void vr41xx_enable_piuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + PIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MPIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -172,8 +172,8 @@ void vr41xx_disable_piuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + PIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MPIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -187,8 +187,8 @@ void vr41xx_enable_aiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + AIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MAIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -202,8 +202,8 @@ void vr41xx_disable_aiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + AIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MAIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -217,8 +217,8 @@ void vr41xx_enable_kiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + KIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_set(MKIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -232,8 +232,8 @@ void vr41xx_disable_kiuint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + KIU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4111 ||
-	    current_cpu_data.cputype == CPU_VR4121) {
+	if (current_cpu_type() == CPU_VR4111 ||
+	    current_cpu_type() == CPU_VR4121) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu1_clear(MKIUINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -319,9 +319,9 @@ void vr41xx_enable_pciint(void)
 	struct irq_desc *desc = irq_desc + PCI_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MPCIINTREG, PCIINT0);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -335,9 +335,9 @@ void vr41xx_disable_pciint(void)
 	struct irq_desc *desc = irq_desc + PCI_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MPCIINTREG, 0);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -351,9 +351,9 @@ void vr41xx_enable_scuint(void)
 	struct irq_desc *desc = irq_desc + SCU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MSCUINTREG, SCUINT0);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -367,9 +367,9 @@ void vr41xx_disable_scuint(void)
 	struct irq_desc *desc = irq_desc + SCU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MSCUINTREG, 0);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -383,9 +383,9 @@ void vr41xx_enable_csiint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + CSI_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_set(MCSIINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -399,9 +399,9 @@ void vr41xx_disable_csiint(uint16_t mask)
 	struct irq_desc *desc = irq_desc + CSI_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_clear(MCSIINTREG, mask);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -415,9 +415,9 @@ void vr41xx_enable_bcuint(void)
 	struct irq_desc *desc = irq_desc + BCU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MBCUINTREG, BCUINTR);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -431,9 +431,9 @@ void vr41xx_disable_bcuint(void)
 	struct irq_desc *desc = irq_desc + BCU_IRQ;
 	unsigned long flags;
 
-	if (current_cpu_data.cputype == CPU_VR4122 ||
-	    current_cpu_data.cputype == CPU_VR4131 ||
-	    current_cpu_data.cputype == CPU_VR4133) {
+	if (current_cpu_type() == CPU_VR4122 ||
+	    current_cpu_type() == CPU_VR4131 ||
+	    current_cpu_type() == CPU_VR4133) {
 		spin_lock_irqsave(&desc->lock, flags);
 		icu2_write(MBCUINTREG, 0);
 		spin_unlock_irqrestore(&desc->lock, flags);
@@ -608,7 +608,7 @@ int vr41xx_set_intassign(unsigned int irq, unsigned char intassign)
 {
 	int retval = -EINVAL;
 
-	if (current_cpu_data.cputype != CPU_VR4133)
+	if (current_cpu_type() != CPU_VR4133)
 		return -EINVAL;
 
 	if (intassign > INTASSIGN_MAX)
@@ -665,7 +665,7 @@ static int __init vr41xx_icu_init(void)
 	unsigned long icu1_start, icu2_start;
 	int i;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121:
 		icu1_start = ICU1_TYPE1_BASE;

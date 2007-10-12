@@ -99,7 +99,7 @@ void ll_msc_irq(void)
 }
 
 void
-msc_bind_eic_interrupt (unsigned int irq, unsigned int set)
+msc_bind_eic_interrupt(unsigned int irq, unsigned int set)
 {
 	MSCIC_WRITE(MSC01_IC_RAMW,
 		    (irq<<MSC01_IC_RAMW_ADDR_SHF) | (set<<MSC01_IC_RAMW_DATA_SHF));
@@ -130,7 +130,7 @@ void __init init_msc_irqs(unsigned long icubase, unsigned int irqbase, msc_irqma
 {
 	extern void (*board_bind_eic_interrupt)(unsigned int irq, unsigned int regset);
 
-	_icctrl_msc = (unsigned long) ioremap (icubase, 0x40000);
+	_icctrl_msc = (unsigned long) ioremap(icubase, 0x40000);
 
 	/* Reset interrupt controller - initialises all registers to 0 */
 	MSCIC_WRITE(MSC01_IC_RST, MSC01_IC_RST_RST_BIT);

@@ -41,7 +41,7 @@
 #ifdef __ASSEMBLY__
 
 #ifdef LEDS_PHYS
-#define setleds(t0,t1,c0,c1,c2,c3) \
+#define setleds(t0, t1, c0, c1, c2, c3) \
 	li	t0, (LEDS_PHYS|0xa0000000); \
 	li	t1, c0; \
 	sb	t1, 0x18(t0); \
@@ -52,7 +52,7 @@
 	li	t1, c3; \
 	sb	t1, 0x00(t0)
 #else
-#define setleds(t0,t1,c0,c1,c2,c3)
+#define setleds(t0, t1, c0, c1, c2, c3)
 #endif /* LEDS_PHYS */
 
 #else

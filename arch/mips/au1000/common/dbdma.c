@@ -184,7 +184,7 @@ static dbdev_tab_t dbdev_tab[] = {
 static chan_tab_t *chan_tab_ptr[NUM_DBDMA_CHANS];
 
 static dbdev_tab_t *
-find_dbdev_id (u32 id)
+find_dbdev_id(u32 id)
 {
 	int i;
 	dbdev_tab_t *p;
@@ -213,7 +213,7 @@ au1xxx_ddma_add_device(dbdev_tab_t *dev)
 	if ( NULL != p )
 	{
 		memcpy(p, dev, sizeof(dbdev_tab_t));
-		p->dev_id = DSCR_DEV2CUSTOM_ID(new_id,dev->dev_id);
+		p->dev_id = DSCR_DEV2CUSTOM_ID(new_id, dev->dev_id);
 		ret = p->dev_id;
 		new_id++;
 #if 0
@@ -671,7 +671,7 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	 * parts. If it is fixedin the future, these dma_cache_inv will just
 	 * be nothing more than empty macros. See io.h.
 	 * */
-	dma_cache_inv((unsigned long)buf,nbytes);
+	dma_cache_inv((unsigned long)buf, nbytes);
 	dp->dscr_cmd0 |= DSCR_CMD0_V;	/* Let it rip */
 	au_sync();
 	dma_cache_wback_inv((unsigned long)dp, sizeof(dp));

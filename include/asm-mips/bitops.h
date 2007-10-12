@@ -19,14 +19,14 @@
 #include <asm/sgidefs.h>
 #include <asm/war.h>
 
-#if (_MIPS_SZLONG == 32)
+#if _MIPS_SZLONG == 32
 #define SZLONG_LOG 5
 #define SZLONG_MASK 31UL
 #define __LL		"ll	"
 #define __SC		"sc	"
 #define __INS		"ins    "
 #define __EXT		"ext    "
-#elif (_MIPS_SZLONG == 64)
+#elif _MIPS_SZLONG == 64
 #define SZLONG_LOG 6
 #define SZLONG_MASK 63UL
 #define __LL		"lld	"
@@ -461,7 +461,7 @@ static inline int __ilog2(unsigned long x)
 	int lz;
 
 	if (sizeof(x) == 4) {
-		__asm__ (
+		__asm__(
 		"	.set	push					\n"
 		"	.set	mips32					\n"
 		"	clz	%0, %1					\n"
@@ -474,7 +474,7 @@ static inline int __ilog2(unsigned long x)
 
 	BUG_ON(sizeof(x) != 8);
 
-	__asm__ (
+	__asm__(
 	"	.set	push						\n"
 	"	.set	mips64						\n"
 	"	dclz	%0, %1						\n"
@@ -508,7 +508,7 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline int fls(int word)
 {
-	__asm__ ("clz %0, %1" : "=r" (word) : "r" (word));
+	__asm__("clz %0, %1" : "=r" (word) : "r" (word));
 
 	return 32 - word;
 }
@@ -516,7 +516,7 @@ static inline int fls(int word)
 #if defined(CONFIG_64BIT) && defined(CONFIG_CPU_MIPS64)
 static inline int fls64(__u64 word)
 {
-	__asm__ ("dclz %0, %1" : "=r" (word) : "r" (word));
+	__asm__("dclz %0, %1" : "=r" (word) : "r" (word));
 
 	return 64 - word;
 }

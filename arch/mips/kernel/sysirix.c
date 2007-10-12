@@ -486,10 +486,10 @@ asmlinkage int irix_syssgi(struct pt_regs *regs)
 
 		switch (arg1) {
 		case SGI_INV_SIZEOF:
-			retval = sizeof (inventory_t);
+			retval = sizeof(inventory_t);
 			break;
 		case SGI_INV_READ:
-			retval = dump_inventory_to_user (buffer, count);
+			retval = dump_inventory_to_user(buffer, count);
 			break;
 		default:
 			retval = -EINVAL;
@@ -778,7 +778,7 @@ asmlinkage int irix_times(struct tms __user *tbuf)
 	int err = 0;
 
 	if (tbuf) {
-		if (!access_ok(VERIFY_WRITE,tbuf,sizeof *tbuf))
+		if (!access_ok(VERIFY_WRITE, tbuf, sizeof *tbuf))
 			return -EFAULT;
 
 		err = __put_user(current->utime, &tbuf->tms_utime);
@@ -1042,9 +1042,9 @@ asmlinkage unsigned long irix_mmap32(unsigned long addr, size_t len, int prot,
 			long max_size = offset + len;
 
 			if (max_size > file->f_path.dentry->d_inode->i_size) {
-				old_pos = sys_lseek (fd, max_size - 1, 0);
-				sys_write (fd, (void __user *) "", 1);
-				sys_lseek (fd, old_pos, 0);
+				old_pos = sys_lseek(fd, max_size - 1, 0);
+				sys_write(fd, (void __user *) "", 1);
+				sys_lseek(fd, old_pos, 0);
 			}
 		}
 	}
@@ -1176,7 +1176,7 @@ static int irix_xstat32_xlate(struct kstat *stat, void __user *ubuf)
 	ub.st_ctime1  = stat->atime.tv_nsec;
 	ub.st_blksize = stat->blksize;
 	ub.st_blocks  = stat->blocks;
-	strcpy (ub.st_fstype, "efs");
+	strcpy(ub.st_fstype, "efs");
 
 	return copy_to_user(ubuf, &ub, sizeof(ub)) ? -EFAULT : 0;
 }
@@ -1208,7 +1208,7 @@ static int irix_xstat64_xlate(struct kstat *stat, void __user *ubuf)
 	ks.st_nlink = (u32) stat->nlink;
 	ks.st_uid = (s32) stat->uid;
 	ks.st_gid = (s32) stat->gid;
-	ks.st_rdev = sysv_encode_dev (stat->rdev);
+	ks.st_rdev = sysv_encode_dev(stat->rdev);
 	ks.st_pad2[0] = ks.st_pad2[1] = 0;
 	ks.st_size = (long long) stat->size;
 	ks.st_pad3 = 0;
@@ -1527,9 +1527,9 @@ asmlinkage int irix_mmap64(struct pt_regs *regs)
 			long max_size = off2 + len;
 
 			if (max_size > file->f_path.dentry->d_inode->i_size) {
-				old_pos = sys_lseek (fd, max_size - 1, 0);
-				sys_write (fd, (void __user *) "", 1);
-				sys_lseek (fd, old_pos, 0);
+				old_pos = sys_lseek(fd, max_size - 1, 0);
+				sys_write(fd, (void __user *) "", 1);
+				sys_lseek(fd, old_pos, 0);
 			}
 		}
 	}

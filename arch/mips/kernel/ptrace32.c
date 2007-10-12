@@ -36,11 +36,11 @@
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 
-int ptrace_getregs (struct task_struct *child, __s64 __user *data);
-int ptrace_setregs (struct task_struct *child, __s64 __user *data);
+int ptrace_getregs(struct task_struct *child, __s64 __user *data);
+int ptrace_setregs(struct task_struct *child, __s64 __user *data);
 
-int ptrace_getfpregs (struct task_struct *child, __u32 __user *data);
-int ptrace_setfpregs (struct task_struct *child, __u32 __user *data);
+int ptrace_getfpregs(struct task_struct *child, __u32 __user *data);
+int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);
 
 /*
  * Tracing a 32-bit process with a 64-bit strace and vice versa will not
@@ -346,19 +346,19 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs (child, (__u64 __user *) (__u64) data);
+		ret = ptrace_getregs(child, (__u64 __user *) (__u64) data);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs (child, (__u64 __user *) (__u64) data);
+		ret = ptrace_setregs(child, (__u64 __user *) (__u64) data);
 		break;
 
 	case PTRACE_GETFPREGS:
-		ret = ptrace_getfpregs (child, (__u32 __user *) (__u64) data);
+		ret = ptrace_getfpregs(child, (__u32 __user *) (__u64) data);
 		break;
 
 	case PTRACE_SETFPREGS:
-		ret = ptrace_setfpregs (child, (__u32 __user *) (__u64) data);
+		ret = ptrace_setfpregs(child, (__u32 __user *) (__u64) data);
 		break;
 
 	case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */

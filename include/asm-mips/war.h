@@ -3,20 +3,22 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2002, 2004 by Ralf Baechle
+ * Copyright (C) 2002, 2004, 2007 by Ralf Baechle
  */
 #ifndef _ASM_WAR_H
 #define _ASM_WAR_H
 
+#include <war.h>
 
 /*
  * Another R4600 erratum.  Due to the lack of errata information the exact
  * technical details aren't known.  I've experimentally found that disabling
  * interrupts during indexed I-cache flushes seems to be sufficient to deal
  * with the issue.
- *
- * #define R4600_V1_INDEX_ICACHEOP_WAR 1
  */
+#ifndef R4600_V1_INDEX_ICACHEOP_WAR
+#error Check setting of R4600_V1_INDEX_ICACHEOP_WAR for your platform
+#endif
 
 /*
  * Pleasures of the R4600 V1.x.  Cite from the IDT R4600 V1.7 errata:
@@ -43,9 +45,10 @@
  *                              nop
  *                              nop
  *                              cache       Hit_Writeback_Invalidate_D
- *
- * #define R4600_V1_HIT_CACHEOP_WAR 1
  */
+#ifndef R4600_V1_HIT_CACHEOP_WAR
+#error Check setting of R4600_V1_HIT_CACHEOP_WAR for your platform
+#endif
 
 
 /*
@@ -58,31 +61,10 @@
  * by a load instruction to an uncached address to empty the response buffer."
  * (Revision 2.0 device errata from IDT available on http://www.idt.com/
  * in .pdf format.)
- *
- * #define R4600_V2_HIT_CACHEOP_WAR 1
  */
-
-/*
- * R4600 CPU modules for the Indy come with both V1.7 and V2.0 processors.
- */
-#ifdef CONFIG_SGI_IP22
-
-#define R4600_V1_INDEX_ICACHEOP_WAR	1
-#define R4600_V1_HIT_CACHEOP_WAR	1
-#define R4600_V2_HIT_CACHEOP_WAR	1
-
+#ifndef R4600_V2_HIT_CACHEOP_WAR
+#error Check setting of R4600_V2_HIT_CACHEOP_WAR for your platform
 #endif
-
-/*
- * But the RM200C seems to have been shipped only with V2.0 R4600s
- */
-#ifdef CONFIG_SNI_RM
-
-#define R4600_V2_HIT_CACHEOP_WAR	1
-
-#endif
-
-#ifdef CONFIG_CPU_R5432
 
 /*
  * When an interrupt happens on a CP0 register read instruction, CPU may
@@ -93,12 +75,9 @@
  * first thing in the exception handler, which breaks one of the
  * pre-conditions for this problem.
  */
-#define	R5432_CP0_INTERRUPT_WAR 1
-
+#ifndef R5432_CP0_INTERRUPT_WAR
+#error Check setting of R5432_CP0_INTERRUPT_WAR for your platform
 #endif
-
-#if defined(CONFIG_SB1_PASS_1_WORKAROUNDS) || \
-    defined(CONFIG_SB1_PASS_2_WORKAROUNDS)
 
 /*
  * Workaround for the Sibyte M3 errata the text of which can be found at
@@ -110,13 +89,15 @@
  * will just return and take the exception again if the information was
  * found to be inconsistent.
  */
-#define BCM1250_M3_WAR 1
+#ifndef BCM1250_M3_WAR
+#error Check setting of BCM1250_M3_WAR for your platform
+#endif
 
 /*
  * This is a DUART workaround related to glitches around register accesses
  */
-#define SIBYTE_1956_WAR 1
-
+#ifndef SIBYTE_1956_WAR
+#error Check setting of SIBYTE_1956_WAR for your platform
 #endif
 
 /*
@@ -131,9 +112,8 @@
  * Affects:
  *  MIPS 4K		RTL revision <3.0, PRID revision <4
  */
-#if defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MIPS_ATLAS) || \
-    defined(CONFIG_MIPS_SEAD)
-#define MIPS4K_ICACHE_REFILL_WAR 1
+#ifndef MIPS4K_ICACHE_REFILL_WAR
+#error Check setting of MIPS4K_ICACHE_REFILL_WAR for your platform
 #endif
 
 /*
@@ -151,9 +131,8 @@
  *   MIPS 5Kc,5Kf	RTL revision <2.3, PRID revision <8
  *   MIPS 20Kc		RTL revision <4.0, PRID revision <?
  */
-#if defined(CONFIG_MIPS_MALTA) || defined(CONFIG_MIPS_ATLAS) || \
-    defined(CONFIG_MIPS_SEAD)
-#define MIPS_CACHE_SYNC_WAR 1
+#ifndef MIPS_CACHE_SYNC_WAR
+#error Check setting of MIPS_CACHE_SYNC_WAR for your platform
 #endif
 
 /*
@@ -163,16 +142,16 @@
  *
  * Workaround: do two phase flushing for Index_Invalidate_I
  */
-#ifdef CONFIG_CPU_TX49XX
-#define TX49XX_ICACHE_INDEX_INV_WAR 1
+#ifndef TX49XX_ICACHE_INDEX_INV_WAR
+#error Check setting of TX49XX_ICACHE_INDEX_INV_WAR for your platform
 #endif
 
 /*
  * On the RM9000 there is a problem which makes the CreateDirtyExclusive
  * eache operation unusable on SMP systems.
  */
-#if defined(CONFIG_PMC_YOSEMITE) || defined(CONFIG_BASLER_EXCITE)
-#define  RM9000_CDEX_SMP_WAR		1
+#ifndef RM9000_CDEX_SMP_WAR
+#error Check setting of RM9000_CDEX_SMP_WAR for your platform
 #endif
 
 /*
@@ -181,69 +160,23 @@
  * I-cache line worth of instructions being fetched may case spurious
  * exceptions.
  */
-#if defined(CONFIG_BASLER_EXCITE) || defined(CONFIG_MIPS_ATLAS) || \
-    defined(CONFIG_MIPS_MALTA) || defined(CONFIG_PMC_YOSEMITE) || \
-    defined(CONFIG_SGI_IP32) || defined(CONFIG_WR_PPMC)
-#define ICACHE_REFILLS_WORKAROUND_WAR	1
+#ifndef ICACHE_REFILLS_WORKAROUND_WAR
+#error Check setting of ICACHE_REFILLS_WORKAROUND_WAR for your platform
 #endif
 
 /*
  * On the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
-#ifdef CONFIG_SGI_IP27
-#define R10000_LLSC_WAR 1
+#ifndef R10000_LLSC_WAR
+#error Check setting of R10000_LLSC_WAR for your platform
 #endif
 
 /*
  * 34K core erratum: "Problems Executing the TLBR Instruction"
  */
-#if defined(CONFIG_PMC_MSP7120_EVAL) || defined(CONFIG_PMC_MSP7120_GW) || \
-	defined(CONFIG_PMC_MSP7120_FPGA)
-#define MIPS34K_MISSED_ITLB_WAR		1
-#endif
-
-/*
- * Workarounds default to off
- */
-#ifndef ICACHE_REFILLS_WORKAROUND_WAR
-#define ICACHE_REFILLS_WORKAROUND_WAR	0
-#endif
-#ifndef R4600_V1_INDEX_ICACHEOP_WAR
-#define R4600_V1_INDEX_ICACHEOP_WAR	0
-#endif
-#ifndef R4600_V1_HIT_CACHEOP_WAR
-#define R4600_V1_HIT_CACHEOP_WAR	0
-#endif
-#ifndef R4600_V2_HIT_CACHEOP_WAR
-#define R4600_V2_HIT_CACHEOP_WAR	0
-#endif
-#ifndef R5432_CP0_INTERRUPT_WAR
-#define R5432_CP0_INTERRUPT_WAR		0
-#endif
-#ifndef BCM1250_M3_WAR
-#define BCM1250_M3_WAR			0
-#endif
-#ifndef SIBYTE_1956_WAR
-#define SIBYTE_1956_WAR			0
-#endif
-#ifndef MIPS4K_ICACHE_REFILL_WAR
-#define MIPS4K_ICACHE_REFILL_WAR	0
-#endif
-#ifndef MIPS_CACHE_SYNC_WAR
-#define MIPS_CACHE_SYNC_WAR		0
-#endif
-#ifndef TX49XX_ICACHE_INDEX_INV_WAR
-#define TX49XX_ICACHE_INDEX_INV_WAR	0
-#endif
-#ifndef RM9000_CDEX_SMP_WAR
-#define RM9000_CDEX_SMP_WAR		0
-#endif
-#ifndef R10000_LLSC_WAR
-#define R10000_LLSC_WAR			0
-#endif
 #ifndef MIPS34K_MISSED_ITLB_WAR
-#define MIPS34K_MISSED_ITLB_WAR		0
+#error Check setting of MIPS34K_MISSED_ITLB_WAR for your platform
 #endif
 
 #endif /* _ASM_WAR_H */

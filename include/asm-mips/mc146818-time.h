@@ -63,8 +63,8 @@ static inline int mc146818_set_rtc_mmss(unsigned long nowtime)
 			BIN_TO_BCD(real_seconds);
 			BIN_TO_BCD(real_minutes);
 		}
-		CMOS_WRITE(real_seconds,RTC_SECONDS);
-		CMOS_WRITE(real_minutes,RTC_MINUTES);
+		CMOS_WRITE(real_seconds, RTC_SECONDS);
+		CMOS_WRITE(real_minutes, RTC_MINUTES);
 	} else {
 		printk(KERN_WARNING
 		       "set_rtc_mmss: can't update from %d to %d\n",

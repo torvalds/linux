@@ -211,7 +211,7 @@ int au_sleep(void)
 	unsigned long wakeup, flags;
 	extern	void	save_and_sleep(void);
 
-	spin_lock_irqsave(&pm_lock,flags);
+	spin_lock_irqsave(&pm_lock, flags);
 
 	save_core_regs();
 

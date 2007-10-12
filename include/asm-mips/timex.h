@@ -48,7 +48,7 @@
 
 typedef unsigned int cycles_t;
 
-static inline cycles_t get_cycles (void)
+static inline cycles_t get_cycles(void)
 {
 	return read_c0_count();
 }

@@ -12,7 +12,7 @@
  * Interrupt numbers
  */
 #define Q_PIC_IRQ_BASE		0
-#define Q_COUNT_COMPARE_IRQ	16
+#define Q_COUNT_COMPARE_IRQ	23
 
 /*
  * Qemu clock rate.  Unlike on real MIPS this has no relation to the

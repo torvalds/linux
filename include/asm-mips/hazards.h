@@ -10,10 +10,11 @@
 #ifndef _ASM_HAZARDS_H
 #define _ASM_HAZARDS_H
 
-
 #ifdef __ASSEMBLY__
 #define ASMMACRO(name, code...) .macro name; code; .endm
 #else
+
+#include <asm/cpu-features.h>
 
 #define ASMMACRO(name, code...)						\
 __asm__(".macro " #name "; " #code "; .endm");				\
@@ -84,6 +85,57 @@ do {									\
 	"	.set	mips0					\n"	\
 	"1:							\n"	\
 	: "=r" (tmp));							\
+} while (0)
+
+#elif defined(CONFIG_CPU_MIPSR1)
+
+/*
+ * These are slightly complicated by the fact that we guarantee R1 kernels to
+ * run fine on R2 processors.
+ */
+ASMMACRO(mtc0_tlbw_hazard,
+	_ssnop; _ssnop; _ehb
+	)
+ASMMACRO(tlbw_use_hazard,
+	_ssnop; _ssnop; _ssnop; _ehb
+	)
+ASMMACRO(tlb_probe_hazard,
+	 _ssnop; _ssnop; _ssnop; _ehb
+	)
+ASMMACRO(irq_enable_hazard,
+	 _ssnop; _ssnop; _ssnop; _ehb
+	)
+ASMMACRO(irq_disable_hazard,
+	_ssnop; _ssnop; _ssnop; _ehb
+	)
+ASMMACRO(back_to_back_c0_hazard,
+	 _ssnop; _ssnop; _ssnop; _ehb
+	)
+/*
+ * gcc has a tradition of misscompiling the previous construct using the
+ * address of a label as argument to inline assembler.  Gas otoh has the
+ * annoying difference between la and dla which are only usable for 32-bit
+ * rsp. 64-bit code, so can't be used without conditional compilation.
+ * The alterantive is switching the assembler to 64-bit code which happens
+ * to work right even for 32-bit code ...
+ */
+#define __instruction_hazard()						\
+do {									\
+	unsigned long tmp;						\
+									\
+	__asm__ __volatile__(						\
+	"	.set	mips64r2				\n"	\
+	"	dla	%0, 1f					\n"	\
+	"	jr.hb	%0					\n"	\
+	"	.set	mips0					\n"	\
+	"1:							\n"	\
+	: "=r" (tmp));							\
+} while (0)
+
+#define instruction_hazard()						\
+do {									\
+	if (cpu_has_mips_r2)						\
+		__instruction_hazard();					\
 } while (0)
 
 #elif defined(CONFIG_CPU_R10000)
@@ -193,7 +245,7 @@ ASMMACRO(enable_fpu_hazard,
 	 .set	mips64;
 	 .set	noreorder;
 	 _ssnop;
-	 bnezl	$0,.+4;
+	 bnezl	$0, .+4;
 	 _ssnop;
 	 .set	pop
 )

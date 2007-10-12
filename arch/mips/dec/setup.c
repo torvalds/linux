@@ -145,13 +145,9 @@ static void __init dec_be_init(void)
 	}
 }
 
-
-extern void dec_time_init(void);
-
 void __init plat_mem_setup(void)
 {
 	board_be_init = dec_be_init;
-	board_time_init = dec_time_init;
 
 	wbflush_setup();
 

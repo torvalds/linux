@@ -51,6 +51,7 @@ obj-$(CONFIG_IRQ_CPU_RM7K)	+= irq-rm7000.o
 obj-$(CONFIG_IRQ_CPU_RM9K)	+= irq-rm9000.o
 obj-$(CONFIG_MIPS_BOARDS_GEN)	+= irq-msc01.o
 obj-$(CONFIG_IRQ_TXX9)		+= irq_txx9.o
+obj-$(CONFIG_IRQ_GT641XX)	+= irq-gt641xx.o
 
 obj-$(CONFIG_32BIT)		+= scall32-o32.o
 obj-$(CONFIG_64BIT)		+= scall64-64.o
@@ -64,6 +65,7 @@ obj-$(CONFIG_PROC_FS)		+= proc.o
 
 obj-$(CONFIG_64BIT)		+= cpu-bugs64.o
 
+obj-$(CONFIG_I8253)		+= i8253.o
 obj-$(CONFIG_PCSPEAKER)		+= pcspeaker.o
 
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o relocate_kernel.o

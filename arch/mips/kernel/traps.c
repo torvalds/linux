@@ -295,7 +295,8 @@ void show_regs(struct pt_regs *regs)
 	if (1 <= cause && cause <= 5)
 		printk("BadVA : %0*lx\n", field, regs->cp0_badvaddr);
 
-	printk("PrId  : %08x\n", read_c0_prid());
+	printk("PrId  : %08x (%s)\n", read_c0_prid(),
+	       cpu_name_string());
 }
 
 void show_registers(struct pt_regs *regs)
@@ -627,7 +628,7 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 		lose_fpu(1);
 
 		/* Run the emulator */
-		sig = fpu_emulator_cop1Handler (regs, &current->thread.fpu, 1);
+		sig = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 1);
 
 		/*
 		 * We can't allow the emulated instruction to leave any of
@@ -954,7 +955,7 @@ asmlinkage void do_reserved(struct pt_regs *regs)
  */
 static inline void parity_protection_init(void)
 {
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_24K:
 	case CPU_34K:
 	case CPU_5KC:
@@ -1075,8 +1076,8 @@ void *set_except_vector(int n, void *addr)
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(volatile u32 *)(ebase + 0x200) = 0x08000000 |
-		                                 (0x03ffffff & (handler >> 2));
+		*(u32 *)(ebase + 0x200) = 0x08000000 |
+					  (0x03ffffff & (handler >> 2));
 		flush_icache_range(ebase + 0x200, ebase + 0x204);
 	}
 	return (void *)old_handler;
@@ -1165,11 +1166,11 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 
 	if (cpu_has_veic) {
 		if (board_bind_eic_interrupt)
-			board_bind_eic_interrupt (n, srs);
+			board_bind_eic_interrupt(n, srs);
 	} else if (cpu_has_vint) {
 		/* SRSMap is only defined if shadow sets are implemented */
 		if (mips_srs_max() > 1)
-			change_c0_srsmap (0xf << n*4, srs << n*4);
+			change_c0_srsmap(0xf << n*4, srs << n*4);
 	}
 
 	if (srs == 0) {
@@ -1198,10 +1199,10 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 			 * Sigh... panicing won't help as the console
 			 * is probably not configured :(
 			 */
-			panic ("VECTORSPACING too small");
+			panic("VECTORSPACING too small");
 		}
 
-		memcpy (b, &except_vec_vi, handler_len);
+		memcpy(b, &except_vec_vi, handler_len);
 #ifdef CONFIG_MIPS_MT_SMTC
 		BUG_ON(n > 7);	/* Vector index %d exceeds SMTC maximum. */
 
@@ -1370,9 +1371,9 @@ void __init per_cpu_trap_init(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 
 	if (cpu_has_veic || cpu_has_vint) {
-		write_c0_ebase (ebase);
+		write_c0_ebase(ebase);
 		/* Setting vector spacing enables EI/VI mode  */
-		change_c0_intctl (0x3e0, VECTORSPACING);
+		change_c0_intctl(0x3e0, VECTORSPACING);
 	}
 	if (cpu_has_divec) {
 		if (cpu_has_mipsmt) {
@@ -1390,8 +1391,8 @@ void __init per_cpu_trap_init(void)
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
 	 */
 	if (cpu_has_mips_r2) {
-		cp0_compare_irq = (read_c0_intctl () >> 29) & 7;
-		cp0_perfcount_irq = (read_c0_intctl () >> 26) & 7;
+		cp0_compare_irq = (read_c0_intctl() >> 29) & 7;
+		cp0_perfcount_irq = (read_c0_intctl() >> 26) & 7;
 		if (cp0_perfcount_irq == cp0_compare_irq)
 			cp0_perfcount_irq = -1;
 	} else {
@@ -1429,14 +1430,17 @@ void __init per_cpu_trap_init(void)
 }
 
 /* Install CPU exception handler */
-void __init set_handler (unsigned long offset, void *addr, unsigned long size)
+void __init set_handler(unsigned long offset, void *addr, unsigned long size)
 {
 	memcpy((void *)(ebase + offset), addr, size);
 	flush_icache_range(ebase + offset, ebase + offset + size);
 }
 
+static char panic_null_cerr[] __initdata =
+	"Trying to set NULL cache error exception handler";
+
 /* Install uncached CPU exception handler */
-void __init set_uncached_handler (unsigned long offset, void *addr, unsigned long size)
+void __init set_uncached_handler(unsigned long offset, void *addr, unsigned long size)
 {
 #ifdef CONFIG_32BIT
 	unsigned long uncached_ebase = KSEG1ADDR(ebase);
@@ -1444,6 +1448,9 @@ void __init set_uncached_handler (unsigned long offset, void *addr, unsigned lon
 #ifdef CONFIG_64BIT
 	unsigned long uncached_ebase = TO_UNCAC(ebase);
 #endif
+
+	if (!addr)
+		panic(panic_null_cerr);
 
 	memcpy((void *)(uncached_ebase + offset), addr, size);
 }
@@ -1464,7 +1471,7 @@ void __init trap_init(void)
 	unsigned long i;
 
 	if (cpu_has_veic || cpu_has_vint)
-		ebase = (unsigned long) alloc_bootmem_low_pages (0x200 + VECTORSPACING*64);
+		ebase = (unsigned long) alloc_bootmem_low_pages(0x200 + VECTORSPACING*64);
 	else
 		ebase = CAC_BASE;
 
@@ -1490,7 +1497,7 @@ void __init trap_init(void)
 	 * destination.
 	 */
 	if (cpu_has_ejtag && board_ejtag_handler_setup)
-		board_ejtag_handler_setup ();
+		board_ejtag_handler_setup();
 
 	/*
 	 * Only some CPUs have the watch exceptions.
@@ -1543,8 +1550,8 @@ void __init trap_init(void)
 	set_except_vector(12, handle_ov);
 	set_except_vector(13, handle_tr);
 
-	if (current_cpu_data.cputype == CPU_R6000 ||
-	    current_cpu_data.cputype == CPU_R6000A) {
+	if (current_cpu_type() == CPU_R6000 ||
+	    current_cpu_type() == CPU_R6000A) {
 		/*
 		 * The R6000 is the only R-series CPU that features a machine
 		 * check exception (similar to the R4000 cache error) and

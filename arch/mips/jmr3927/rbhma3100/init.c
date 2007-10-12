@@ -51,7 +51,6 @@ void __init prom_init(void)
 	if ((tx3927_ccfgptr->ccfg & TX3927_CCFG_TLBOFF) == 0)
 		puts("Warning: TX3927 TLB off\n");
 #endif
-	mips_machgroup = MACH_GROUP_TOSHIBA;
 
 #ifdef CONFIG_TOSHIBA_JMR3927
 	mips_machtype = MACH_TOSHIBA_JMR3927;

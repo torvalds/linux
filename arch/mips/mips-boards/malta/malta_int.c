@@ -124,7 +124,7 @@ static void corehi_irqdispatch(void)
 {
 	unsigned int intedge, intsteer, pcicmd, pcibadaddr;
         unsigned int pcimstat, intisr, inten, intpol;
-	unsigned int intrcause,datalo,datahi;
+	unsigned int intrcause, datalo, datahi;
 	struct pt_regs *regs = get_irq_regs();
 
         printk("CoreHI interrupt, shouldn't happen, so we die here!!!\n");
@@ -178,7 +178,7 @@ static void corehi_irqdispatch(void)
 
 static inline int clz(unsigned long x)
 {
-	__asm__ (
+	__asm__(
 	"	.set	push					\n"
 	"	.set	mips32					\n"
 	"	clz	%0, %1					\n"
@@ -303,32 +303,32 @@ void __init arch_init_irq(void)
         case MIPS_REVISION_SCON_SOCIT:
         case MIPS_REVISION_SCON_ROCIT:
 		if (cpu_has_veic)
-			init_msc_irqs (MIPS_MSC01_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
+			init_msc_irqs(MIPS_MSC01_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
 		else
-			init_msc_irqs (MIPS_MSC01_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
+			init_msc_irqs(MIPS_MSC01_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
 		break;
 
         case MIPS_REVISION_SCON_SOCITSC:
         case MIPS_REVISION_SCON_SOCITSCP:
 		if (cpu_has_veic)
-			init_msc_irqs (MIPS_SOCITSC_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
+			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
 		else
-			init_msc_irqs (MIPS_SOCITSC_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
+			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
 	}
 
 	if (cpu_has_veic) {
-		set_vi_handler (MSC01E_INT_I8259A, malta_hw0_irqdispatch);
-		set_vi_handler (MSC01E_INT_COREHI, corehi_irqdispatch);
-		setup_irq (MSC01E_INT_BASE+MSC01E_INT_I8259A, &i8259irq);
-		setup_irq (MSC01E_INT_BASE+MSC01E_INT_COREHI, &corehi_irqaction);
+		set_vi_handler(MSC01E_INT_I8259A, malta_hw0_irqdispatch);
+		set_vi_handler(MSC01E_INT_COREHI, corehi_irqdispatch);
+		setup_irq(MSC01E_INT_BASE+MSC01E_INT_I8259A, &i8259irq);
+		setup_irq(MSC01E_INT_BASE+MSC01E_INT_COREHI, &corehi_irqaction);
 	}
 	else if (cpu_has_vint) {
-		set_vi_handler (MIPSCPU_INT_I8259A, malta_hw0_irqdispatch);
-		set_vi_handler (MIPSCPU_INT_COREHI, corehi_irqdispatch);
+		set_vi_handler(MIPSCPU_INT_I8259A, malta_hw0_irqdispatch);
+		set_vi_handler(MIPSCPU_INT_COREHI, corehi_irqdispatch);
 #ifdef CONFIG_MIPS_MT_SMTC
-		setup_irq_smtc (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq,
+		setup_irq_smtc(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq,
 			(0x100 << MIPSCPU_INT_I8259A));
-		setup_irq_smtc (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
+		setup_irq_smtc(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
 			&corehi_irqaction, (0x100 << MIPSCPU_INT_COREHI));
 		/*
 		 * Temporary hack to ensure that the subsidiary device
@@ -343,12 +343,12 @@ void __init arch_init_irq(void)
 				irq_hwmask[i] = (0x100 << MIPSCPU_INT_I8259A);
 		}
 #else /* Not SMTC */
-		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
 #endif /* CONFIG_MIPS_MT_SMTC */
 	}
 	else {
-		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq (MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
 	}
 }

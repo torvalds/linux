@@ -14,7 +14,6 @@
 #define cpu_has_3k_cache	0
 #define cpu_has_4k_cache	1
 #define cpu_has_tx39_cache	0
-#define cpu_has_sb1_cache	0
 #define cpu_has_fpu		1
 #define cpu_has_32fpr		1
 #define cpu_has_counter		1

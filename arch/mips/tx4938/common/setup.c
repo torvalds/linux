@@ -34,23 +34,14 @@
 #include <asm/tx4938/rbtx4938.h>
 
 extern void toshiba_rbtx4938_setup(void);
-extern void rbtx4938_time_init(void);
 
 void __init tx4938_setup(void);
-void __init tx4938_time_init(void);
 void dump_cp0(char *key);
 
 void __init
 plat_mem_setup(void)
 {
-	board_time_init = tx4938_time_init;
 	toshiba_rbtx4938_setup();
-}
-
-void __init
-tx4938_time_init(void)
-{
-	rbtx4938_time_init();
 }
 
 void __init plat_timer_setup(struct irqaction *irq)

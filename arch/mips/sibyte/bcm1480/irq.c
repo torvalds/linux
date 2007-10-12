@@ -289,7 +289,7 @@ int bcm1480_steal_irq(int irq)
 	if (irq >= BCM1480_NR_IRQS)
 		return -EINVAL;
 
-	spin_lock_irqsave(&desc->lock,flags);
+	spin_lock_irqsave(&desc->lock, flags);
 	/* Don't allow sharing at all for these */
 	if (desc->action != NULL)
 		retval = -EBUSY;
@@ -297,7 +297,7 @@ int bcm1480_steal_irq(int irq)
 		desc->action = &bcm1480_dummy_action;
 		desc->depth = 0;
 	}
-	spin_unlock_irqrestore(&desc->lock,flags);
+	spin_unlock_irqrestore(&desc->lock, flags);
 	return 0;
 }
 
@@ -431,8 +431,8 @@ void __init arch_init_irq(void)
 
 #include <linux/delay.h>
 
-#define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
-#define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port,reg)))
+#define duart_out(reg, val)     csr_out32(val, IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
+#define duart_in(reg)           csr_in32(IOADDR(A_DUART_CHANREG(kgdb_port, reg)))
 
 static void bcm1480_kgdb_interrupt(void)
 {
@@ -450,7 +450,6 @@ static void bcm1480_kgdb_interrupt(void)
 
 #endif 	/* CONFIG_KGDB */
 
-extern void bcm1480_timer_interrupt(void);
 extern void bcm1480_mailbox_interrupt(void);
 
 asmlinkage void plat_irq_dispatch(void)
@@ -470,8 +469,16 @@ asmlinkage void plat_irq_dispatch(void)
 	else
 #endif
 
-	if (pending & CAUSEF_IP4)
-		bcm1480_timer_interrupt();
+	if (pending & CAUSEF_IP4) {
+		int cpu = smp_processor_id();
+		int irq = K_BCM1480_INT_TIMER_0 + cpu;
+
+		/* Reset the timer */
+		__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
+		            IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+
+		do_IRQ(irq);
+	}
 
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)

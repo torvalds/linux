@@ -95,8 +95,8 @@ void vr41xx_supply_clock(vr41xx_clock_t clock)
 		cmuclkmsk |= MSKFIR | MSKFFIR;
 		break;
 	case DSIU_CLOCK:
-		if (current_cpu_data.cputype == CPU_VR4111 ||
-		    current_cpu_data.cputype == CPU_VR4121)
+		if (current_cpu_type() == CPU_VR4111 ||
+		    current_cpu_type() == CPU_VR4121)
 			cmuclkmsk |= MSKDSIU;
 		else
 			cmuclkmsk |= MSKSIU | MSKDSIU;
@@ -146,8 +146,8 @@ void vr41xx_mask_clock(vr41xx_clock_t clock)
 		cmuclkmsk &= ~MSKPIU;
 		break;
 	case SIU_CLOCK:
-		if (current_cpu_data.cputype == CPU_VR4111 ||
-		    current_cpu_data.cputype == CPU_VR4121) {
+		if (current_cpu_type() == CPU_VR4111 ||
+		    current_cpu_type() == CPU_VR4121) {
 			cmuclkmsk &= ~(MSKSIU | MSKSSIU);
 		} else {
 			if (cmuclkmsk & MSKDSIU)
@@ -166,8 +166,8 @@ void vr41xx_mask_clock(vr41xx_clock_t clock)
 		cmuclkmsk &= ~(MSKFIR | MSKFFIR);
 		break;
 	case DSIU_CLOCK:
-		if (current_cpu_data.cputype == CPU_VR4111 ||
-		    current_cpu_data.cputype == CPU_VR4121) {
+		if (current_cpu_type() == CPU_VR4111 ||
+		    current_cpu_type() == CPU_VR4121) {
 			cmuclkmsk &= ~MSKDSIU;
 		} else {
 			if (cmuclkmsk & MSKSSIU)
@@ -216,7 +216,7 @@ static int __init vr41xx_cmu_init(void)
 {
 	unsigned long start, size;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
         case CPU_VR4111:
         case CPU_VR4121:
 		start = CMU_TYPE1_BASE;
@@ -246,7 +246,7 @@ static int __init vr41xx_cmu_init(void)
 	}
 
 	cmuclkmsk = cmu_read(CMUCLKMSK);
-	if (current_cpu_data.cputype == CPU_VR4133)
+	if (current_cpu_type() == CPU_VR4133)
 		cmuclkmsk2 = cmu_read(CMUCLKMSK2);
 
 	spin_lock_init(&cmu_lock);

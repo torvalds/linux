@@ -34,6 +34,11 @@
 #define cpu_has_nofpuex		0
 #define cpu_has_64bits		1
 
+#define cpu_has_mips32r1	0
+#define cpu_has_mips32r2	0
+#define cpu_has_mips64r1	0
+#define cpu_has_mips64r2	0
+
 #define cpu_has_inclusive_pcaches	0
 
 #define cpu_dcache_line_size()	32

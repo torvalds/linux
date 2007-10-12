@@ -19,10 +19,10 @@
 #define reg_rd32(r)    ((u32)(*((vu32*)(r))))
 #define reg_rd64(r)    ((u64)(*((vu64*)(r))))
 
-#define reg_wr08(r,v)  ((*((vu8 *)(r)))=((u8 )(v)))
-#define reg_wr16(r,v)  ((*((vu16*)(r)))=((u16)(v)))
-#define reg_wr32(r,v)  ((*((vu32*)(r)))=((u32)(v)))
-#define reg_wr64(r,v)  ((*((vu64*)(r)))=((u64)(v)))
+#define reg_wr08(r, v)  ((*((vu8 *)(r)))=((u8 )(v)))
+#define reg_wr16(r, v)  ((*((vu16*)(r)))=((u16)(v)))
+#define reg_wr32(r, v)  ((*((vu32*)(r)))=((u32)(v)))
+#define reg_wr64(r, v)  ((*((vu64*)(r)))=((u64)(v)))
 
 typedef volatile __signed char vs8;
 typedef volatile unsigned char vu8;

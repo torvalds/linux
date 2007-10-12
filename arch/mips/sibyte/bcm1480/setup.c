@@ -43,16 +43,49 @@ static unsigned int part_type;
 static char *soc_str;
 static char *pass_str;
 
-static inline int setup_bcm1x80_bcm1x55(void);
+static int __init setup_bcm1x80_bcm1x55(void)
+{
+	int ret = 0;
+
+	switch (soc_pass) {
+	case K_SYS_REVISION_BCM1480_S0:
+		periph_rev = 1;
+		pass_str = "S0 (pass1)";
+		break;
+	case K_SYS_REVISION_BCM1480_A1:
+		periph_rev = 1;
+		pass_str = "A1 (pass1)";
+		break;
+	case K_SYS_REVISION_BCM1480_A2:
+		periph_rev = 1;
+		pass_str = "A2 (pass1)";
+		break;
+	case K_SYS_REVISION_BCM1480_A3:
+		periph_rev = 1;
+		pass_str = "A3 (pass1)";
+		break;
+	case K_SYS_REVISION_BCM1480_B0:
+		periph_rev = 1;
+		pass_str = "B0 (pass2)";
+		break;
+	default:
+		printk("Unknown %s rev %x\n", soc_str, soc_pass);
+		periph_rev = 1;
+		pass_str = "Unknown Revision";
+		break;
+	}
+
+	return ret;
+}
 
 /* Setup code likely to be common to all SiByte platforms */
 
-static inline int sys_rev_decode(void)
+static int __init sys_rev_decode(void)
 {
 	int ret = 0;
 
 	switch (soc_type) {
-	    case K_SYS_SOC_TYPE_BCM1x80:
+	case K_SYS_SOC_TYPE_BCM1x80:
 		if (part_type == K_SYS_PART_BCM1480)
 		    soc_str = "BCM1480";
 		else if (part_type == K_SYS_PART_BCM1280)
@@ -62,7 +95,7 @@ static inline int sys_rev_decode(void)
 		ret = setup_bcm1x80_bcm1x55();
 		break;
 
-	    case K_SYS_SOC_TYPE_BCM1x55:
+	case K_SYS_SOC_TYPE_BCM1x55:
 		if (part_type == K_SYS_PART_BCM1455)
 		    soc_str = "BCM1455";
 		else if (part_type == K_SYS_PART_BCM1255)
@@ -72,49 +105,16 @@ static inline int sys_rev_decode(void)
 		ret = setup_bcm1x80_bcm1x55();
 		break;
 
-	    default:
+	default:
 		printk("Unknown part type %x\n", part_type);
 		ret = 1;
 		break;
 	}
+
 	return ret;
 }
 
-static inline int setup_bcm1x80_bcm1x55(void)
-{
-	int ret = 0;
-
-	switch (soc_pass) {
-	    case K_SYS_REVISION_BCM1480_S0:
-		periph_rev = 1;
-		pass_str = "S0 (pass1)";
-		break;
-	    case K_SYS_REVISION_BCM1480_A1:
-		periph_rev = 1;
-		pass_str = "A1 (pass1)";
-		break;
-	    case K_SYS_REVISION_BCM1480_A2:
-		periph_rev = 1;
-		pass_str = "A2 (pass1)";
-		break;
-	    case K_SYS_REVISION_BCM1480_A3:
-		periph_rev = 1;
-		pass_str = "A3 (pass1)";
-		break;
-	    case K_SYS_REVISION_BCM1480_B0:
-		periph_rev = 1;
-		pass_str = "B0 (pass2)";
-		break;
-	    default:
-		printk("Unknown %s rev %x\n", soc_str, soc_pass);
-		periph_rev = 1;
-		pass_str = "Unknown Revision";
-		break;
-	}
-	return ret;
-}
-
-void bcm1480_setup(void)
+void __init bcm1480_setup(void)
 {
 	uint64_t sys_rev;
 	int plldiv;

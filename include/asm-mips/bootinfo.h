@@ -15,21 +15,19 @@
 #include <asm/setup.h>
 
 /*
- * The MACH_GROUP_ IDs are the equivalent to PCI vendor IDs; the remaining
- * MACH_ values equivalent to product IDs.  As such the numbers do not
- * necessarily reflect technical relations or similarities between systems.
+ * The MACH_ IDs are sort of equivalent to PCI product IDs.  As such the
+ * numbers do not necessarily reflect technical relations or similarities
+ * between systems.
  */
 
 /*
  * Valid machtype values for group unknown
  */
-#define MACH_GROUP_UNKNOWN      0	/* whatever...			*/
 #define  MACH_UNKNOWN		0	/* whatever...			*/
 
 /*
  * Valid machtype values for group JAZZ
  */
-#define MACH_GROUP_JAZZ		1 	/* Jazz				*/
 #define  MACH_ACER_PICA_61	0	/* Acer PICA-61 (PICA1)		*/
 #define  MACH_MIPS_MAGNUM_4000	1	/* Mips Magnum 4000 "RC4030"	*/
 #define  MACH_OLIVETTI_M700	2	/* Olivetti M700-10 (-15 ??)    */
@@ -37,7 +35,6 @@
 /*
  * Valid machtype for group DEC
  */
-#define MACH_GROUP_DEC          2	/* Digital Equipment		*/
 #define  MACH_DSUNKNOWN		0
 #define  MACH_DS23100		1	/* DECstation 2100 or 3100	*/
 #define  MACH_DS5100		2	/* DECsystem 5100		*/
@@ -53,26 +50,22 @@
 /*
  * Valid machtype for group ARC
  */
-#define MACH_GROUP_ARC		3	/* Deskstation			*/
 #define MACH_DESKSTATION_RPC44  0	/* Deskstation rPC44 */
 #define MACH_DESKSTATION_TYNE	1	/* Deskstation Tyne */
 
 /*
  * Valid machtype for group SNI_RM
  */
-#define MACH_GROUP_SNI_RM	4	/* Siemens Nixdorf RM series	*/
 #define  MACH_SNI_RM200_PCI	0	/* RM200/RM300/RM400 PCI series */
 
 /*
  * Valid machtype for group ACN
  */
-#define MACH_GROUP_ACN		5
 #define  MACH_ACN_MIPS_BOARD	0       /* ACN MIPS single board        */
 
 /*
  * Valid machtype for group SGI
  */
-#define MACH_GROUP_SGI          6	/* Silicon Graphics		*/
 #define  MACH_SGI_IP22		0	/* Indy, Indigo2, Challenge S	*/
 #define  MACH_SGI_IP27		1	/* Origin 200, Origin 2000, Onyx 2 */
 #define  MACH_SGI_IP28		2	/* Indigo2 Impact		*/
@@ -82,26 +75,22 @@
 /*
  * Valid machtype for group COBALT
  */
-#define MACH_GROUP_COBALT       7	/* Cobalt servers		*/
 #define  MACH_COBALT_27		0	/* Proto "27" hardware		*/
 
 /*
  * Valid machtype for group BAGET
  */
-#define MACH_GROUP_BAGET	9	/* Baget			*/
 #define  MACH_BAGET201		0	/* BT23-201 */
 #define  MACH_BAGET202		1	/* BT23-202 */
 
 /*
  * Cosine boards.
  */
-#define MACH_GROUP_COSINE      10	/* CoSine Orion			*/
 #define  MACH_COSINE_ORION	0
 
 /*
  * Valid machtype for group MOMENCO
  */
-#define MACH_GROUP_MOMENCO	12	/* Momentum Boards		*/
 #define  MACH_MOMENCO_OCELOT	0
 #define  MACH_MOMENCO_OCELOT_G	1	/* no more supported (may 2007) */
 #define  MACH_MOMENCO_OCELOT_C	2	/* no more supported (jun 2007) */
@@ -111,7 +100,6 @@
 /*
  * Valid machtype for group PHILIPS
  */
-#define MACH_GROUP_PHILIPS     14
 #define  MACH_PHILIPS_NINO	0	/* Nino */
 #define  MACH_PHILIPS_VELO	1	/* Velo */
 #define  MACH_PHILIPS_JBS	2	/* JBS */
@@ -120,13 +108,11 @@
 /*
  * Valid machtype for group SIBYTE
  */
-#define MACH_GROUP_SIBYTE	16	/* Sibyte / Broadcom */
 #define  MACH_SWARM              0
 
 /*
  * Valid machtypes for group Toshiba
  */
-#define MACH_GROUP_TOSHIBA	17 /* Toshiba Reference Systems TSBREF       */
 #define  MACH_PALLAS		0
 #define  MACH_TOPAS		1
 #define  MACH_JMR		2
@@ -138,7 +124,6 @@
 /*
  * Valid machtype for group Alchemy
  */
-#define MACH_GROUP_ALCHEMY     18	/* AMD Alchemy	*/
 #define  MACH_PB1000		0	/* Au1000-based eval board */
 #define  MACH_PB1100		1	/* Au1100-based eval board */
 #define  MACH_PB1500		2	/* Au1500-based eval board */
@@ -160,7 +145,6 @@
  * FIXME: MACH_GROUPs should be by _MANUFACTURER_ of * the device, not by
  *        technical properties, so no new additions to this group.
  */
-#define MACH_GROUP_NEC_VR41XX  19
 #define  MACH_NEC_OSPREY	0	/* Osprey eval board */
 #define  MACH_NEC_EAGLE		1	/* NEC Eagle/Hawk board */
 #define  MACH_ZAO_CAPCELLA	2	/* ZAO Networks Capcella */
@@ -171,32 +155,33 @@
 #define  MACH_TANBAC_TB0229	7	/* TANBAC TB0229 (VR4131DIMM) */
 #define  MACH_NEC_CMBVR4133	8	/* CMB VR4133 Board */
 
-#define MACH_GROUP_HP_LJ	20	/* Hewlett Packard LaserJet	*/
 #define  MACH_HP_LASERJET	1
+
+/*
+ * Valid machtype for group LASAT
+ */
+#define  MACH_LASAT_100		0	/* Masquerade II/SP100/SP50/SP25 */
+#define  MACH_LASAT_200		1	/* Masquerade PRO/SP200 */
 
 /*
  * Valid machtype for group TITAN
  */
-#define MACH_GROUP_TITAN       22	/* PMC-Sierra Titan		*/
 #define  MACH_TITAN_YOSEMITE	1	/* PMC-Sierra Yosemite		*/
 #define  MACH_TITAN_EXCITE	2	/* Basler eXcite		*/
 
 /*
  * Valid machtype for group NEC EMMA2RH
  */
-#define MACH_GROUP_NEC_EMMA2RH 25	/* NEC EMMA2RH (was 23)		*/
 #define  MACH_NEC_MARKEINS	0	/* NEC EMMA2RH Mark-eins	*/
 
 /*
  * Valid machtype for group LEMOTE
  */
-#define MACH_GROUP_LEMOTE          27
 #define  MACH_LEMOTE_FULONG        0
 
 /*
  * Valid machtype for group PMC-MSP
  */
-#define MACH_GROUP_MSP         26	/* PMC-Sierra MSP boards/CPUs    */
 #define MACH_MSP4200_EVAL       0	/* PMC-Sierra MSP4200 Evaluation */
 #define MACH_MSP4200_GW         1	/* PMC-Sierra MSP4200 Gateway demo */
 #define MACH_MSP4200_FPGA       2	/* PMC-Sierra MSP4200 Emulation */
@@ -205,15 +190,19 @@
 #define MACH_MSP7120_FPGA       5	/* PMC-Sierra MSP7120 Emulation */
 #define MACH_MSP_OTHER        255	/* PMC-Sierra unknown board type */
 
-#define MACH_GROUP_WINDRIVER   28	/* Windriver boards */
 #define MACH_WRPPMC             1
+
+/*
+ * Valid machtype for group Broadcom
+ */
+#define MACH_GROUP_BRCM		23	/* Broadcom			*/
+#define  MACH_BCM47XX		1	/* Broadcom BCM47XX		*/
 
 #define CL_SIZE			COMMAND_LINE_SIZE
 
 const char *get_system_type(void);
 
 extern unsigned long mips_machtype;
-extern unsigned long mips_machgroup;
 
 #define BOOT_MEM_MAP_MAX	32
 #define BOOT_MEM_RAM		1

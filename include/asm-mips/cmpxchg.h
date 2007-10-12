@@ -72,7 +72,7 @@
  */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-#define __cmpxchg(ptr,old,new,barrier)					\
+#define __cmpxchg(ptr, old, new, barrier)				\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
 	__typeof__(*(ptr)) __old = (old);				\
@@ -102,6 +102,6 @@ extern void __cmpxchg_called_with_bad_pointer(void);
 })
 
 #define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
-#define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new,)
+#define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
 
 #endif /* __ASM_CMPXCHG_H */

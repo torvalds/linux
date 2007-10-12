@@ -58,7 +58,7 @@ static struct platform_device msp_usbhost_device = {
 		.dma_mask = &msp_usbhost_dma_mask,
 		.coherent_dma_mask = DMA_32BIT_MASK,
 	},
-	.num_resources 	= ARRAY_SIZE (msp_usbhost_resources),
+	.num_resources 	= ARRAY_SIZE(msp_usbhost_resources),
 	.resource	= msp_usbhost_resources,
 };
 #endif /* CONFIG_USB_EHCI_HCD */
@@ -86,7 +86,7 @@ static struct platform_device msp_usbdev_device = {
 		.dma_mask = &msp_usbdev_dma_mask,
 		.coherent_dma_mask = DMA_32BIT_MASK,
 	},
-	.num_resources	= ARRAY_SIZE (msp_usbdev_resources),
+	.num_resources	= ARRAY_SIZE(msp_usbdev_resources),
 	.resource	= msp_usbdev_resources,
 };
 #endif /* CONFIG_USB_GADGET */
@@ -129,7 +129,7 @@ static int __init msp_usb_setup(void)
 		ppfinit("platform add USB HOST done %s.\n",
 			    msp_devs[0]->name);
 
-		result = platform_add_devices(msp_devs, ARRAY_SIZE (msp_devs));
+		result = platform_add_devices(msp_devs, ARRAY_SIZE(msp_devs));
 #endif /* CONFIG_USB_EHCI_HCD */
 	}
 #if defined(CONFIG_USB_GADGET)
@@ -139,7 +139,7 @@ static int __init msp_usb_setup(void)
 		ppfinit("platform add USB DEVICE done %s.\n",
 			    msp_devs[0]->name);
 
-		result = platform_add_devices(msp_devs, ARRAY_SIZE (msp_devs));
+		result = platform_add_devices(msp_devs, ARRAY_SIZE(msp_devs));
 	}
 #endif /* CONFIG_USB_GADGET */
 #endif /* CONFIG_USB_EHCI_HCD || CONFIG_USB_GADGET */

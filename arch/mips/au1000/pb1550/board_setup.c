@@ -44,7 +44,7 @@
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-pb1x00/pb1550.h>
 
-void board_reset (void)
+void board_reset(void)
 {
     /* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writew(au_readw(0xAF00001C) & ~(1<<15), 0xAF00001C);

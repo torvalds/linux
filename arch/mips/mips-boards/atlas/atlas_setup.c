@@ -35,8 +35,6 @@
 #include <asm/traps.h>
 
 extern void mips_reboot_setup(void);
-extern void mips_time_init(void);
-extern unsigned long mips_rtc_get_time(void);
 
 #ifdef CONFIG_KGDB
 extern void kgdb_config(void);
@@ -57,15 +55,12 @@ void __init plat_mem_setup(void)
 
 	ioport_resource.end = 0x7fffffff;
 
-	serial_init ();
+	serial_init();
 
 #ifdef CONFIG_KGDB
 	kgdb_config();
 #endif
 	mips_reboot_setup();
-
-	board_time_init = mips_time_init;
-	rtc_mips_get_time = mips_rtc_get_time;
 }
 
 static void __init serial_init(void)

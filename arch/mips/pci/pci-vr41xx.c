@@ -228,7 +228,7 @@ static int __init vr41xx_pciu_init(void)
 	else
 		pciu_write(PCIEXACCREG, 0);
 
-	if (current_cpu_data.cputype == CPU_VR4122)
+	if (current_cpu_type() == CPU_VR4122)
 		pciu_write(PCITRDYVREG, TRDYV(setup->wait_time_limit_from_irdy_to_trdy));
 
 	pciu_write(LATTIMEREG, MLTIM(setup->master_latency_timer));

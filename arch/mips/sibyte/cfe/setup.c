@@ -29,8 +29,8 @@
 #include <asm/reboot.h>
 #include <asm/sibyte/board.h>
 
-#include "cfe_api.h"
-#include "cfe_error.h"
+#include <asm/fw/cfe/cfe_api.h>
+#include <asm/fw/cfe/cfe_error.h>
 
 /* Max ram addressable in 32-bit segments */
 #ifdef CONFIG_64BIT
@@ -309,7 +309,7 @@ void __init prom_init(void)
 	}
 
 #ifdef CONFIG_KGDB
-	if ((arg = strstr(arcs_cmdline,"kgdb=duart")) != NULL)
+	if ((arg = strstr(arcs_cmdline, "kgdb=duart")) != NULL)
 		kgdb_port = (arg[10] == '0') ? 0 : 1;
 	else
 		kgdb_port = 1;
@@ -339,7 +339,6 @@ void __init prom_init(void)
 	/* Not sure this is needed, but it's the safe way. */
 	arcs_cmdline[CL_SIZE-1] = 0;
 
-	mips_machgroup = MACH_GROUP_SIBYTE;
 	prom_meminit();
 }
 

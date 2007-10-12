@@ -49,8 +49,8 @@ void jazz_machine_restart(char *command)
 {
 	while(1) {
 		kb_wait();
-		jazz_write_command (0xd1);
+		jazz_write_command(0xd1);
 		kb_wait();
-		jazz_write_output (0x00);
+		jazz_write_output(0x00);
 	}
 }

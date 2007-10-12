@@ -118,7 +118,7 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 
 /* Program all of the registers in preparation for enabling profiling.  */
 
-static void mipsxx_cpu_setup (void *args)
+static void mipsxx_cpu_setup(void *args)
 {
 	unsigned int counters = op_model_mipsxx_ops.num_counters;
 
@@ -222,7 +222,7 @@ static inline int n_counters(void)
 {
 	int counters;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R10000:
 		counters = 2;
 		break;
@@ -274,7 +274,7 @@ static int __init mipsxx_init(void)
 #endif
 
 	op_model_mipsxx_ops.num_counters = counters;
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_20KC:
 		op_model_mipsxx_ops.cpu_type = "mips/20K";
 		break;

@@ -36,7 +36,6 @@
 #include <asm/mips-boards/simint.h>
 
 
-extern void sim_time_init(void);
 static void __init serial_init(void);
 unsigned int _isbonito = 0;
 
@@ -54,7 +53,6 @@ void __init plat_mem_setup(void)
 
 	serial_init();
 
-	board_time_init = sim_time_init;
 	pr_info("Linux started...\n");
 
 #ifdef CONFIG_MIPS_MT_SMP

@@ -91,7 +91,7 @@
 	: RAW_NODE_SWIN_BASE(nasid, widget))
 #else /* __ASSEMBLY__ */
 #define NODE_SWIN_BASE(nasid, widget) \
-     (NODE_IO_BASE(nasid) + (UINT64_CAST (widget) << SWIN_SIZE_BITS))
+     (NODE_IO_BASE(nasid) + (UINT64_CAST(widget) << SWIN_SIZE_BITS))
 #endif /* __ASSEMBLY__ */
 
 /*
@@ -106,7 +106,7 @@
 #define	BWIN_WIDGET_MASK	0x7
 #define NODE_BWIN_BASE0(nasid)	(NODE_IO_BASE(nasid) + BWIN_SIZE)
 #define NODE_BWIN_BASE(nasid, bigwin)	(NODE_BWIN_BASE0(nasid) + 	\
-			(UINT64_CAST (bigwin) << BWIN_SIZE_BITS))
+			(UINT64_CAST(bigwin) << BWIN_SIZE_BITS))
 
 #define	BWIN_WIDGETADDR(addr)	((addr) & BWIN_SIZEMASK)
 #define	BWIN_WINDOWNUM(addr)	(((addr) >> BWIN_SIZE_BITS) & BWIN_WIDGET_MASK)
@@ -259,7 +259,7 @@
  * CACHE_ERR_SP_PTR could either contain an address to the stack, or
  * the stack could start at CACHE_ERR_SP_PTR
  */
-#if defined (HUB_ERR_STS_WAR)
+#if defined(HUB_ERR_STS_WAR)
 #define CACHE_ERR_EFRAME	0x480
 #else /* HUB_ERR_STS_WAR */
 #define CACHE_ERR_EFRAME	0x400
@@ -275,7 +275,7 @@
 
 #define _ARCSPROM
 
-#if defined (HUB_ERR_STS_WAR)
+#if defined(HUB_ERR_STS_WAR)
 
 #define ERR_STS_WAR_REGISTER	IIO_IIBUSERR
 #define ERR_STS_WAR_ADDR	LOCAL_HUB_ADDR(IIO_IIBUSERR)

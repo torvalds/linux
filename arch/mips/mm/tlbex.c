@@ -35,24 +35,24 @@
 #include <asm/smp.h>
 #include <asm/war.h>
 
-static __init int __maybe_unused r45k_bvahwbug(void)
+static inline int r45k_bvahwbug(void)
 {
 	/* XXX: We should probe for the presence of this bug, but we don't. */
 	return 0;
 }
 
-static __init int __maybe_unused r4k_250MHZhwbug(void)
+static inline int r4k_250MHZhwbug(void)
 {
 	/* XXX: We should probe for the presence of this bug, but we don't. */
 	return 0;
 }
 
-static __init int __maybe_unused bcm1250_m3_war(void)
+static inline int __maybe_unused bcm1250_m3_war(void)
 {
 	return BCM1250_M3_WAR;
 }
 
-static __init int __maybe_unused r10000_llsc_war(void)
+static inline int __maybe_unused r10000_llsc_war(void)
 {
 	return R10000_LLSC_WAR;
 }
@@ -66,7 +66,7 @@ static __init int __maybe_unused r10000_llsc_war(void)
  * why; it's not an issue caused by the core RTL.
  *
  */
-static __init int __attribute__((unused)) m4kc_tlbp_war(void)
+static int __init m4kc_tlbp_war(void)
 {
 	return (current_cpu_data.processor_id & 0xffff00) ==
 	       (PRID_COMP_MIPS | PRID_IMP_4KC);
@@ -140,60 +140,60 @@ struct insn {
 	 | (e) << RE_SH						\
 	 | (f) << FUNC_SH)
 
-static __initdata struct insn insn_table[] = {
-	{ insn_addiu, M(addiu_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_addu, M(spec_op,0,0,0,0,addu_op), RS | RT | RD },
-	{ insn_and, M(spec_op,0,0,0,0,and_op), RS | RT | RD },
-	{ insn_andi, M(andi_op,0,0,0,0,0), RS | RT | UIMM },
-	{ insn_beq, M(beq_op,0,0,0,0,0), RS | RT | BIMM },
-	{ insn_beql, M(beql_op,0,0,0,0,0), RS | RT | BIMM },
-	{ insn_bgez, M(bcond_op,0,bgez_op,0,0,0), RS | BIMM },
-	{ insn_bgezl, M(bcond_op,0,bgezl_op,0,0,0), RS | BIMM },
-	{ insn_bltz, M(bcond_op,0,bltz_op,0,0,0), RS | BIMM },
-	{ insn_bltzl, M(bcond_op,0,bltzl_op,0,0,0), RS | BIMM },
-	{ insn_bne, M(bne_op,0,0,0,0,0), RS | RT | BIMM },
-	{ insn_daddiu, M(daddiu_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_daddu, M(spec_op,0,0,0,0,daddu_op), RS | RT | RD },
-	{ insn_dmfc0, M(cop0_op,dmfc_op,0,0,0,0), RT | RD | SET},
-	{ insn_dmtc0, M(cop0_op,dmtc_op,0,0,0,0), RT | RD | SET},
-	{ insn_dsll, M(spec_op,0,0,0,0,dsll_op), RT | RD | RE },
-	{ insn_dsll32, M(spec_op,0,0,0,0,dsll32_op), RT | RD | RE },
-	{ insn_dsra, M(spec_op,0,0,0,0,dsra_op), RT | RD | RE },
-	{ insn_dsrl, M(spec_op,0,0,0,0,dsrl_op), RT | RD | RE },
-	{ insn_dsrl32, M(spec_op,0,0,0,0,dsrl32_op), RT | RD | RE },
-	{ insn_dsubu, M(spec_op,0,0,0,0,dsubu_op), RS | RT | RD },
-	{ insn_eret, M(cop0_op,cop_op,0,0,0,eret_op), 0 },
-	{ insn_j, M(j_op,0,0,0,0,0), JIMM },
-	{ insn_jal, M(jal_op,0,0,0,0,0), JIMM },
-	{ insn_jr, M(spec_op,0,0,0,0,jr_op), RS },
-	{ insn_ld, M(ld_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_ll, M(ll_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_lld, M(lld_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_lui, M(lui_op,0,0,0,0,0), RT | SIMM },
-	{ insn_lw, M(lw_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_mfc0, M(cop0_op,mfc_op,0,0,0,0), RT | RD | SET},
-	{ insn_mtc0, M(cop0_op,mtc_op,0,0,0,0), RT | RD | SET},
-	{ insn_ori, M(ori_op,0,0,0,0,0), RS | RT | UIMM },
-	{ insn_rfe, M(cop0_op,cop_op,0,0,0,rfe_op), 0 },
-	{ insn_sc, M(sc_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_scd, M(scd_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_sd, M(sd_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_sll, M(spec_op,0,0,0,0,sll_op), RT | RD | RE },
-	{ insn_sra, M(spec_op,0,0,0,0,sra_op), RT | RD | RE },
-	{ insn_srl, M(spec_op,0,0,0,0,srl_op), RT | RD | RE },
-	{ insn_subu, M(spec_op,0,0,0,0,subu_op), RS | RT | RD },
-	{ insn_sw, M(sw_op,0,0,0,0,0), RS | RT | SIMM },
-	{ insn_tlbp, M(cop0_op,cop_op,0,0,0,tlbp_op), 0 },
-	{ insn_tlbwi, M(cop0_op,cop_op,0,0,0,tlbwi_op), 0 },
-	{ insn_tlbwr, M(cop0_op,cop_op,0,0,0,tlbwr_op), 0 },
-	{ insn_xor, M(spec_op,0,0,0,0,xor_op), RS | RT | RD },
-	{ insn_xori, M(xori_op,0,0,0,0,0), RS | RT | UIMM },
+static struct insn insn_table[] __initdata = {
+	{ insn_addiu, M(addiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
+	{ insn_addu, M(spec_op, 0, 0, 0, 0, addu_op), RS | RT | RD },
+	{ insn_and, M(spec_op, 0, 0, 0, 0, and_op), RS | RT | RD },
+	{ insn_andi, M(andi_op, 0, 0, 0, 0, 0), RS | RT | UIMM },
+	{ insn_beq, M(beq_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_beql, M(beql_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_bgez, M(bcond_op, 0, bgez_op, 0, 0, 0), RS | BIMM },
+	{ insn_bgezl, M(bcond_op, 0, bgezl_op, 0, 0, 0), RS | BIMM },
+	{ insn_bltz, M(bcond_op, 0, bltz_op, 0, 0, 0), RS | BIMM },
+	{ insn_bltzl, M(bcond_op, 0, bltzl_op, 0, 0, 0), RS | BIMM },
+	{ insn_bne, M(bne_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_daddiu, M(daddiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
+	{ insn_daddu, M(spec_op, 0, 0, 0, 0, daddu_op), RS | RT | RD },
+	{ insn_dmfc0, M(cop0_op, dmfc_op, 0, 0, 0, 0), RT | RD | SET},
+	{ insn_dmtc0, M(cop0_op, dmtc_op, 0, 0, 0, 0), RT | RD | SET},
+	{ insn_dsll, M(spec_op, 0, 0, 0, 0, dsll_op), RT | RD | RE },
+	{ insn_dsll32, M(spec_op, 0, 0, 0, 0, dsll32_op), RT | RD | RE },
+	{ insn_dsra, M(spec_op, 0, 0, 0, 0, dsra_op), RT | RD | RE },
+	{ insn_dsrl, M(spec_op, 0, 0, 0, 0, dsrl_op), RT | RD | RE },
+	{ insn_dsrl32, M(spec_op, 0, 0, 0, 0, dsrl32_op), RT | RD | RE },
+	{ insn_dsubu, M(spec_op, 0, 0, 0, 0, dsubu_op), RS | RT | RD },
+	{ insn_eret,  M(cop0_op, cop_op, 0, 0, 0, eret_op),  0 },
+	{ insn_j,  M(j_op, 0, 0, 0, 0, 0),  JIMM },
+	{ insn_jal,  M(jal_op, 0, 0, 0, 0, 0),  JIMM },
+	{ insn_jr,  M(spec_op, 0, 0, 0, 0, jr_op),  RS },
+	{ insn_ld,  M(ld_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_ll,  M(ll_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_lld,  M(lld_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_lui,  M(lui_op, 0, 0, 0, 0, 0),  RT | SIMM },
+	{ insn_lw,  M(lw_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_mfc0,  M(cop0_op, mfc_op, 0, 0, 0, 0),  RT | RD | SET},
+	{ insn_mtc0,  M(cop0_op, mtc_op, 0, 0, 0, 0),  RT | RD | SET},
+	{ insn_ori,  M(ori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
+	{ insn_rfe,  M(cop0_op, cop_op, 0, 0, 0, rfe_op),  0 },
+	{ insn_sc,  M(sc_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_scd,  M(scd_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_sd,  M(sd_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_sll,  M(spec_op, 0, 0, 0, 0, sll_op),  RT | RD | RE },
+	{ insn_sra,  M(spec_op, 0, 0, 0, 0, sra_op),  RT | RD | RE },
+	{ insn_srl,  M(spec_op, 0, 0, 0, 0, srl_op),  RT | RD | RE },
+	{ insn_subu,  M(spec_op, 0, 0, 0, 0, subu_op),  RS | RT | RD },
+	{ insn_sw,  M(sw_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
+	{ insn_tlbp,  M(cop0_op, cop_op, 0, 0, 0, tlbp_op),  0 },
+	{ insn_tlbwi,  M(cop0_op, cop_op, 0, 0, 0, tlbwi_op),  0 },
+	{ insn_tlbwr,  M(cop0_op, cop_op, 0, 0, 0, tlbwr_op),  0 },
+	{ insn_xor,  M(spec_op, 0, 0, 0, 0, xor_op),  RS | RT | RD },
+	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_invalid, 0, 0 }
 };
 
 #undef M
 
-static __init u32 build_rs(u32 arg)
+static u32 __init build_rs(u32 arg)
 {
 	if (arg & ~RS_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -201,7 +201,7 @@ static __init u32 build_rs(u32 arg)
 	return (arg & RS_MASK) << RS_SH;
 }
 
-static __init u32 build_rt(u32 arg)
+static u32 __init build_rt(u32 arg)
 {
 	if (arg & ~RT_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -209,7 +209,7 @@ static __init u32 build_rt(u32 arg)
 	return (arg & RT_MASK) << RT_SH;
 }
 
-static __init u32 build_rd(u32 arg)
+static u32 __init build_rd(u32 arg)
 {
 	if (arg & ~RD_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -217,7 +217,7 @@ static __init u32 build_rd(u32 arg)
 	return (arg & RD_MASK) << RD_SH;
 }
 
-static __init u32 build_re(u32 arg)
+static u32 __init build_re(u32 arg)
 {
 	if (arg & ~RE_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -225,7 +225,7 @@ static __init u32 build_re(u32 arg)
 	return (arg & RE_MASK) << RE_SH;
 }
 
-static __init u32 build_simm(s32 arg)
+static u32 __init build_simm(s32 arg)
 {
 	if (arg > 0x7fff || arg < -0x8000)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -233,7 +233,7 @@ static __init u32 build_simm(s32 arg)
 	return arg & 0xffff;
 }
 
-static __init u32 build_uimm(u32 arg)
+static u32 __init build_uimm(u32 arg)
 {
 	if (arg & ~IMM_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -241,7 +241,7 @@ static __init u32 build_uimm(u32 arg)
 	return arg & IMM_MASK;
 }
 
-static __init u32 build_bimm(s32 arg)
+static u32 __init build_bimm(s32 arg)
 {
 	if (arg > 0x1ffff || arg < -0x20000)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -252,7 +252,7 @@ static __init u32 build_bimm(s32 arg)
 	return ((arg < 0) ? (1 << 15) : 0) | ((arg >> 2) & 0x7fff);
 }
 
-static __init u32 build_jimm(u32 arg)
+static u32 __init build_jimm(u32 arg)
 {
 	if (arg & ~((JIMM_MASK) << 2))
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -260,7 +260,7 @@ static __init u32 build_jimm(u32 arg)
 	return (arg >> 2) & JIMM_MASK;
 }
 
-static __init u32 build_func(u32 arg)
+static u32 __init build_func(u32 arg)
 {
 	if (arg & ~FUNC_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -268,7 +268,7 @@ static __init u32 build_func(u32 arg)
 	return arg & FUNC_MASK;
 }
 
-static __init u32 build_set(u32 arg)
+static u32 __init build_set(u32 arg)
 {
 	if (arg & ~SET_MASK)
 		printk(KERN_WARNING "TLB synthesizer field overflow\n");
@@ -315,69 +315,69 @@ static void __init build_insn(u32 **buf, enum opcode opc, ...)
 }
 
 #define I_u1u2u3(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, a, b, c);		\
 	}
 
 #define I_u2u1u3(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, b, a, c);		\
 	}
 
 #define I_u3u1u2(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, b, c, a);		\
 	}
 
 #define I_u1u2s3(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, signed int c)			\
 	{							\
 		build_insn(buf, insn##op, a, b, c);		\
 	}
 
 #define I_u2s3u1(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	signed int b, unsigned int c)			\
 	{							\
 		build_insn(buf, insn##op, c, a, b);		\
 	}
 
 #define I_u2u1s3(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b, signed int c)			\
 	{							\
 		build_insn(buf, insn##op, b, a, c);		\
 	}
 
 #define I_u1u2(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	unsigned int b)					\
 	{							\
 		build_insn(buf, insn##op, a, b);		\
 	}
 
 #define I_u1s2(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a,	\
+	static inline void i##op(u32 **buf, unsigned int a,	\
 	 	signed int b)					\
 	{							\
 		build_insn(buf, insn##op, a, b);		\
 	}
 
 #define I_u1(op)						\
-	static inline void __init i##op(u32 **buf, unsigned int a)	\
+	static inline void i##op(u32 **buf, unsigned int a)	\
 	{							\
 		build_insn(buf, insn##op, a);			\
 	}
 
 #define I_0(op)							\
-	static inline void __init i##op(u32 **buf)		\
+	static inline void i##op(u32 **buf)		\
 	{							\
 		build_insn(buf, insn##op);			\
 	}
@@ -457,7 +457,7 @@ struct label {
 	enum label_id lab;
 };
 
-static __init void build_label(struct label **lab, u32 *addr,
+static void __init build_label(struct label **lab, u32 *addr,
 			       enum label_id l)
 {
 	(*lab)->addr = addr;
@@ -526,34 +526,34 @@ L_LA(_r3000_write_probe_fail)
 #define i_ehb(buf) i_sll(buf, 0, 0, 3)
 
 #ifdef CONFIG_64BIT
-static __init int __maybe_unused in_compat_space_p(long addr)
+static int __init __maybe_unused in_compat_space_p(long addr)
 {
 	/* Is this address in 32bit compat space? */
 	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
 }
 
-static __init int __maybe_unused rel_highest(long val)
+static int __init __maybe_unused rel_highest(long val)
 {
 	return ((((val + 0x800080008000L) >> 48) & 0xffff) ^ 0x8000) - 0x8000;
 }
 
-static __init int __maybe_unused rel_higher(long val)
+static int __init __maybe_unused rel_higher(long val)
 {
 	return ((((val + 0x80008000L) >> 32) & 0xffff) ^ 0x8000) - 0x8000;
 }
 #endif
 
-static __init int rel_hi(long val)
+static int __init rel_hi(long val)
 {
 	return ((((val + 0x8000L) >> 16) & 0xffff) ^ 0x8000) - 0x8000;
 }
 
-static __init int rel_lo(long val)
+static int __init rel_lo(long val)
 {
 	return ((val & 0xffff) ^ 0x8000) - 0x8000;
 }
 
-static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
+static void __init i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 {
 #ifdef CONFIG_64BIT
 	if (!in_compat_space_p(addr)) {
@@ -571,7 +571,7 @@ static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 		i_lui(buf, rs, rel_hi(addr));
 }
 
-static __init void __maybe_unused i_LA(u32 **buf, unsigned int rs,
+static void __init __maybe_unused i_LA(u32 **buf, unsigned int rs,
 					     long addr)
 {
 	i_LA_mostly(buf, rs, addr);
@@ -589,7 +589,7 @@ struct reloc {
 	enum label_id lab;
 };
 
-static __init void r_mips_pc16(struct reloc **rel, u32 *addr,
+static void __init r_mips_pc16(struct reloc **rel, u32 *addr,
 			       enum label_id l)
 {
 	(*rel)->addr = addr;
@@ -614,7 +614,7 @@ static inline void __resolve_relocs(struct reloc *rel, struct label *lab)
 	}
 }
 
-static __init void resolve_relocs(struct reloc *rel, struct label *lab)
+static void __init resolve_relocs(struct reloc *rel, struct label *lab)
 {
 	struct label *l;
 
@@ -624,7 +624,7 @@ static __init void resolve_relocs(struct reloc *rel, struct label *lab)
 				__resolve_relocs(rel, l);
 }
 
-static __init void move_relocs(struct reloc *rel, u32 *first, u32 *end,
+static void __init move_relocs(struct reloc *rel, u32 *first, u32 *end,
 			       long off)
 {
 	for (; rel->lab != label_invalid; rel++)
@@ -632,7 +632,7 @@ static __init void move_relocs(struct reloc *rel, u32 *first, u32 *end,
 			rel->addr += off;
 }
 
-static __init void move_labels(struct label *lab, u32 *first, u32 *end,
+static void __init move_labels(struct label *lab, u32 *first, u32 *end,
 			       long off)
 {
 	for (; lab->lab != label_invalid; lab++)
@@ -640,7 +640,7 @@ static __init void move_labels(struct label *lab, u32 *first, u32 *end,
 			lab->addr += off;
 }
 
-static __init void copy_handler(struct reloc *rel, struct label *lab,
+static void __init copy_handler(struct reloc *rel, struct label *lab,
 				u32 *first, u32 *end, u32 *target)
 {
 	long off = (long)(target - first);
@@ -651,7 +651,7 @@ static __init void copy_handler(struct reloc *rel, struct label *lab,
 	move_labels(lab, first, end, off);
 }
 
-static __init int __maybe_unused insn_has_bdelay(struct reloc *rel,
+static int __init __maybe_unused insn_has_bdelay(struct reloc *rel,
 						       u32 *addr)
 {
 	for (; rel->lab != label_invalid; rel++) {
@@ -743,11 +743,11 @@ il_bgez(u32 **p, struct reloc **r, unsigned int reg, enum label_id l)
  * We deliberately chose a buffer size of 128, so we won't scribble
  * over anything important on overflow before we panic.
  */
-static __initdata u32 tlb_handler[128];
+static u32 tlb_handler[128] __initdata;
 
 /* simply assume worst case size for labels and relocs */
-static __initdata struct label labels[128];
-static __initdata struct reloc relocs[128];
+static struct label labels[128] __initdata;
+static struct reloc relocs[128] __initdata;
 
 /*
  * The R3000 TLB handler is simple.
@@ -801,7 +801,7 @@ static void __init build_r3000_tlb_refill_handler(void)
  * other one.To keep things simple, we first assume linear space,
  * then we relocate it to the final handler layout as needed.
  */
-static __initdata u32 final_handler[64];
+static u32 final_handler[64] __initdata;
 
 /*
  * Hazards
@@ -825,9 +825,9 @@ static __initdata u32 final_handler[64];
  *
  * As if we MIPS hackers wouldn't know how to nop pipelines happy ...
  */
-static __init void __maybe_unused build_tlb_probe_entry(u32 **p)
+static void __init __maybe_unused build_tlb_probe_entry(u32 **p)
 {
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	/* Found by experiment: R4600 v2.0 needs this, too.  */
 	case CPU_R4600:
 	case CPU_R5000:
@@ -849,7 +849,7 @@ static __init void __maybe_unused build_tlb_probe_entry(u32 **p)
  */
 enum tlb_write_entry { tlb_random, tlb_indexed };
 
-static __init void build_tlb_write_entry(u32 **p, struct label **l,
+static void __init build_tlb_write_entry(u32 **p, struct label **l,
 					 struct reloc **r,
 					 enum tlb_write_entry wmode)
 {
@@ -860,7 +860,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case tlb_indexed: tlbw = i_tlbwi; break;
 	}
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R4000PC:
 	case CPU_R4000SC:
 	case CPU_R4000MC:
@@ -908,6 +908,8 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_4KSC:
 	case CPU_20KC:
 	case CPU_25KF:
+	case CPU_BCM3302:
+	case CPU_BCM4710:
 	case CPU_LOONGSON2:
 		if (m4kc_tlbp_war())
 			i_nop(p);
@@ -991,7 +993,7 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
  * TMP and PTR are scratch.
  * TMP will be clobbered, PTR will hold the pmd entry.
  */
-static __init void
+static void __init
 build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
 		 unsigned int tmp, unsigned int ptr)
 {
@@ -1052,7 +1054,7 @@ build_get_pmde64(u32 **p, struct label **l, struct reloc **r,
  * BVADDR is the faulting address, PTR is scratch.
  * PTR will hold the pgd for vmalloc.
  */
-static __init void
+static void __init
 build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 			unsigned int bvaddr, unsigned int ptr)
 {
@@ -1116,7 +1118,7 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
  * TMP and PTR are scratch.
  * TMP will be clobbered, PTR will hold the pgd entry.
  */
-static __init void __maybe_unused
+static void __init __maybe_unused
 build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 {
 	long pgdc = (long)pgd_current;
@@ -1151,12 +1153,12 @@ build_get_pgde32(u32 **p, unsigned int tmp, unsigned int ptr)
 
 #endif /* !CONFIG_64BIT */
 
-static __init void build_adjust_context(u32 **p, unsigned int ctx)
+static void __init build_adjust_context(u32 **p, unsigned int ctx)
 {
 	unsigned int shift = 4 - (PTE_T_LOG2 + 1) + PAGE_SHIFT - 12;
 	unsigned int mask = (PTRS_PER_PTE / 2 - 1) << (PTE_T_LOG2 + 1);
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR41XX:
 	case CPU_VR4111:
 	case CPU_VR4121:
@@ -1177,7 +1179,7 @@ static __init void build_adjust_context(u32 **p, unsigned int ctx)
 	i_andi(p, ctx, ctx, mask);
 }
 
-static __init void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
+static void __init build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 {
 	/*
 	 * Bug workaround for the Nevada. It seems as if under certain
@@ -1186,7 +1188,7 @@ static __init void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 	 * in a different cacheline or a load instruction, probably any
 	 * memory reference, is between them.
 	 */
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_NEVADA:
 		i_LW(p, ptr, 0, ptr);
 		GET_CONTEXT(p, tmp); /* get context reg */
@@ -1202,7 +1204,7 @@ static __init void build_get_ptep(u32 **p, unsigned int tmp, unsigned int ptr)
 	i_ADDU(p, ptr, ptr, tmp); /* add in offset */
 }
 
-static __init void build_update_entries(u32 **p, unsigned int tmp,
+static void __init build_update_entries(u32 **p, unsigned int tmp,
 					unsigned int ptep)
 {
 	/*
@@ -1870,7 +1872,7 @@ void __init build_tlb_refill_handler(void)
 	 */
 	static int run_once = 0;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_R2000:
 	case CPU_R3000:
 	case CPU_R3000A:

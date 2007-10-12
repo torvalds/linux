@@ -8,12 +8,24 @@
  * Copyright (C) 1995, 1996, 1997 by Ralf Baechle
  * Copyright (C) 2001 by Liam Davies (ldavies@agile.tv)
  */
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
-
-#include <asm/io.h>
-#include <asm/reboot.h>
+#include <linux/leds.h>
 
 #include <cobalt.h>
+
+#define RESET_PORT	((void __iomem *)CKSEG1ADDR(0x1c000000))
+#define RESET		0x0f
+
+DEFINE_LED_TRIGGER(power_off_led_trigger);
+
+static int __init ledtrig_power_off_init(void)
+{
+	led_trigger_register_simple("power-off", &power_off_led_trigger);
+	return 0;
+}
+device_initcall(ledtrig_power_off_init);
 
 void cobalt_machine_halt(void)
 {
@@ -21,23 +33,21 @@ void cobalt_machine_halt(void)
 	unsigned long mark;
 
 	/*
-	 * turn off bar on Qube, flash power off LED on RaQ (0.5Hz)
+	 * turn on power off LED on RaQ
 	 *
 	 * restart if ENTER and SELECT are pressed
 	 */
 
 	last = COBALT_KEY_PORT;
 
+	led_trigger_event(power_off_led_trigger, LED_FULL);
+
 	for (state = 0;;) {
-
-		state ^= COBALT_LED_POWER_OFF;
-		COBALT_LED_PORT = state;
-
 		diff = COBALT_KEY_PORT ^ last;
 		last ^= diff;
 
 		if((diff & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)) && !(~last & (COBALT_KEY_ENTER | COBALT_KEY_SELECT)))
-			COBALT_LED_PORT = COBALT_LED_RESET;
+			writeb(RESET, RESET_PORT);
 
 		for (mark = jiffies; jiffies - mark < HZ;)
 			;
@@ -46,17 +56,8 @@ void cobalt_machine_halt(void)
 
 void cobalt_machine_restart(char *command)
 {
-	COBALT_LED_PORT = COBALT_LED_RESET;
+	writeb(RESET, RESET_PORT);
 
 	/* we should never get here */
-	cobalt_machine_halt();
-}
-
-/*
- * This triggers the luser mode device driver for the power switch ;-)
- */
-void cobalt_machine_power_off(void)
-{
-	printk("You can switch the machine off now.\n");
 	cobalt_machine_halt();
 }

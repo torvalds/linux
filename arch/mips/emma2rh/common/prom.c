@@ -62,8 +62,6 @@ void __init prom_init(void)
 		strcat(arcs_cmdline, " ");
 	}
 
-	mips_machgroup = MACH_GROUP_NEC_EMMA2RH;
-
 #if defined(CONFIG_MARKEINS)
 	mips_machtype = MACH_NEC_MARKEINS;
 	add_memory_region(0, EMMA2RH_RAM_SIZE, BOOT_MEM_RAM);

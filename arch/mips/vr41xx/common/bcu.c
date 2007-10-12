@@ -70,7 +70,7 @@ EXPORT_SYMBOL_GPL(vr41xx_get_tclock_frequency);
 
 static inline uint16_t read_clkspeed(void)
 {
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121: return readw(CLKSPEEDREG_TYPE1);
 	case CPU_VR4122:
@@ -88,7 +88,7 @@ static inline unsigned long calculate_pclock(uint16_t clkspeed)
 {
 	unsigned long pclock = 0;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 	case CPU_VR4121:
 		pclock = 18432000 * 64;
@@ -138,7 +138,7 @@ static inline unsigned long calculate_vtclock(uint16_t clkspeed, unsigned long p
 {
 	unsigned long vtclock = 0;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 		/* The NEC VR4111 doesn't have the VTClock. */
 		break;
@@ -180,7 +180,7 @@ static inline unsigned long calculate_tclock(uint16_t clkspeed, unsigned long pc
 {
 	unsigned long tclock = 0;
 
-	switch (current_cpu_data.cputype) {
+	switch (current_cpu_type()) {
 	case CPU_VR4111:
 		if (!(clkspeed & DIV2B))
 			tclock = pclock / 2;

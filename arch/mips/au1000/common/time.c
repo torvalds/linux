@@ -64,47 +64,7 @@ static unsigned long last_pc0, last_match20;
 
 static DEFINE_SPINLOCK(time_lock);
 
-static inline void ack_r4ktimer(unsigned long newval)
-{
-	write_c0_compare(newval);
-}
-
-/*
- * There are a lot of conceptually broken versions of the MIPS timer interrupt
- * handler floating around.  This one is rather different, but the algorithm
- * is provably more robust.
- */
 unsigned long wtimer;
-
-void mips_timer_interrupt(void)
-{
-	int irq = 63;
-
-	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
-
-	if (r4k_offset == 0)
-		goto null;
-
-	do {
-		kstat_this_cpu.irqs[irq]++;
-		do_timer(1);
-#ifndef CONFIG_SMP
-		update_process_times(user_mode(get_irq_regs()));
-#endif
-		r4k_cur += r4k_offset;
-		ack_r4ktimer(r4k_cur);
-
-	} while (((unsigned long)read_c0_count()
-	         - r4k_cur) < 0x7fffffff);
-
-	irq_exit();
-	return;
-
-null:
-	ack_r4ktimer(0);
-	irq_exit();
-}
 
 #ifdef CONFIG_PM
 irqreturn_t counter0_irq(int irq, void *dev_id)
@@ -240,7 +200,7 @@ unsigned long cal_r4koff(void)
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T1S);
 
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S);
-		au_writel (0, SYS_TOYWRITE);
+		au_writel(0, SYS_TOYWRITE);
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C1S);
 
 		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) *
@@ -328,8 +288,4 @@ void __init plat_timer_setup(struct irqaction *irq)
 	}
 
 #endif
-}
-
-void __init au1xxx_time_init(void)
-{
 }

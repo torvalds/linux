@@ -118,11 +118,11 @@ struct apsp_table syscall_command_table[] = {
 
 static int sp_syscall(int num, int arg0, int arg1, int arg2, int arg3)
 {
-	register long int _num  __asm__ ("$2") = num;
-	register long int _arg0  __asm__ ("$4") = arg0;
-	register long int _arg1  __asm__ ("$5") = arg1;
-	register long int _arg2  __asm__ ("$6") = arg2;
-	register long int _arg3  __asm__ ("$7") = arg3;
+	register long int _num  __asm__("$2") = num;
+	register long int _arg0  __asm__("$4") = arg0;
+	register long int _arg1  __asm__("$5") = arg1;
+	register long int _arg2  __asm__("$6") = arg2;
+	register long int _arg3  __asm__("$7") = arg3;
 
 	mm_segment_t old_fs;
 
@@ -239,7 +239,7 @@ void sp_work_handle_request(void)
  	case MTSP_SYSCALL_GETTOD:
  		memset(&tz, 0, sizeof(tz));
  		if ((ret.retval = sp_syscall(__NR_gettimeofday, (int)&tv,
- 		                             (int)&tz, 0,0)) == 0)
+					     (int)&tz, 0, 0)) == 0)
 		ret.retval = tv.tv_sec;
 		break;
 

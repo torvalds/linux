@@ -199,7 +199,7 @@ typedef volatile struct au1xxx_ddma_desc {
 #define DSCR_CMD0_ALWAYS	31
 #define DSCR_NDEV_IDS		32
 /* THis macro is used to find/create custom device types */
-#define DSCR_DEV2CUSTOM_ID(x,d)	(((((x)&0xFFFF)<<8)|0x32000000)|((d)&0xFF))
+#define DSCR_DEV2CUSTOM_ID(x, d)	(((((x)&0xFFFF)<<8)|0x32000000)|((d)&0xFF))
 #define DSCR_CUSTOM2DEV_ID(x)	((x)&0xFF)
 
 
@@ -373,14 +373,14 @@ void * au1xxx_ddma_get_nextptr_virt(au1x_ddma_desc_t *dp);
  	Some compatibilty macros --
 		Needed to make changes to API without breaking existing drivers
 */
-#define	au1xxx_dbdma_put_source(chanid,buf,nbytes)_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define	au1xxx_dbdma_put_source_flags(chanid,buf,nbytes,flags) _au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
-#define	put_source_flags(chanid,buf,nbytes,flags) au1xxx_dbdma_put_source_flags(chanid,buf,nbytes,flags)
+#define	au1xxx_dbdma_put_source(chanid, buf, nbytes)_au1xxx_dbdma_put_source(chanid, buf, nbytes, DDMA_FLAGS_IE)
+#define	au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags) _au1xxx_dbdma_put_source(chanid, buf, nbytes, flags)
+#define	put_source_flags(chanid, buf, nbytes, flags) au1xxx_dbdma_put_source_flags(chanid, buf, nbytes, flags)
 
 
-#define au1xxx_dbdma_put_dest(chanid,buf,nbytes) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
-#define	au1xxx_dbdma_put_dest_flags(chanid,buf,nbytes,flags) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
-#define	put_dest_flags(chanid,buf,nbytes,flags) au1xxx_dbdma_put_dest_flags(chanid,buf,nbytes,flags)
+#define au1xxx_dbdma_put_dest(chanid, buf, nbytes) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, DDMA_FLAGS_IE)
+#define	au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags) _au1xxx_dbdma_put_dest(chanid, buf, nbytes, flags)
+#define	put_dest_flags(chanid, buf, nbytes, flags) au1xxx_dbdma_put_dest_flags(chanid, buf, nbytes, flags)
 
 /*
  *	Flags for the put_source/put_dest functions.

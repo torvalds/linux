@@ -140,7 +140,7 @@
  */
 #define SYMMON_STACK_SIZE		0x8000
 
-#if defined (PROM)
+#if defined(PROM)
 
 /*
  * These defines are prom version dependent.  No code other than the IP27

@@ -29,44 +29,44 @@
 
 #define PB1100_IDENT          0xAE000000
 #define BOARD_STATUS_REG      0xAE000004
-  #define PB1100_ROM_SEL         (1<<15)
-  #define PB1100_ROM_SIZ         (1<<14)
-  #define PB1100_SWAP_BOOT       (1<<13)
-  #define PB1100_FLASH_WP        (1<<12)
-  #define PB1100_ROM_H_STS       (1<<11)
-  #define PB1100_ROM_L_STS       (1<<10)
-  #define PB1100_FLASH_H_STS      (1<<9)
-  #define PB1100_FLASH_L_STS      (1<<8)
-  #define PB1100_SRAM_SIZ         (1<<7)
-  #define PB1100_TSC_BUSY         (1<<6)
-  #define PB1100_PCMCIA_VS_MASK   (3<<4)
-  #define PB1100_RS232_CD         (1<<3)
-  #define PB1100_RS232_CTS        (1<<2)
-  #define PB1100_RS232_DSR        (1<<1)
-  #define PB1100_RS232_RI         (1<<0)
+#  define PB1100_ROM_SEL         (1<<15)
+#  define PB1100_ROM_SIZ         (1<<14)
+#  define PB1100_SWAP_BOOT       (1<<13)
+#  define PB1100_FLASH_WP        (1<<12)
+#  define PB1100_ROM_H_STS       (1<<11)
+#  define PB1100_ROM_L_STS       (1<<10)
+#  define PB1100_FLASH_H_STS      (1<<9)
+#  define PB1100_FLASH_L_STS      (1<<8)
+#  define PB1100_SRAM_SIZ         (1<<7)
+#  define PB1100_TSC_BUSY         (1<<6)
+#  define PB1100_PCMCIA_VS_MASK   (3<<4)
+#  define PB1100_RS232_CD         (1<<3)
+#  define PB1100_RS232_CTS        (1<<2)
+#  define PB1100_RS232_DSR        (1<<1)
+#  define PB1100_RS232_RI         (1<<0)
 
 #define PB1100_IRDA_RS232     0xAE00000C
-  #define PB1100_IRDA_FULL       (0<<14) /* full power */
-  #define PB1100_IRDA_SHUTDOWN   (1<<14)
-  #define PB1100_IRDA_TT         (2<<14) /* 2/3 power */
-  #define PB1100_IRDA_OT         (3<<14) /* 1/3 power */
-  #define PB1100_IRDA_FIR        (1<<13)
+#  define PB1100_IRDA_FULL       (0<<14) /* full power */
+#  define PB1100_IRDA_SHUTDOWN   (1<<14)
+#  define PB1100_IRDA_TT         (2<<14) /* 2/3 power */
+#  define PB1100_IRDA_OT         (3<<14) /* 1/3 power */
+#  define PB1100_IRDA_FIR        (1<<13)
 
 #define PCMCIA_BOARD_REG     0xAE000010
-  #define PB1100_SD_WP1_RO       (1<<15) /* read only */
-  #define PB1100_SD_WP0_RO       (1<<14) /* read only */
-  #define PB1100_SD_PWR1         (1<<11) /* applies power to SD1 */
-  #define PB1100_SD_PWR0         (1<<10) /* applies power to SD0 */
-  #define PB1100_SEL_SD_CONN1     (1<<9)
-  #define PB1100_SEL_SD_CONN0     (1<<8)
-  #define PC_DEASSERT_RST         (1<<7)
-  #define PC_DRV_EN               (1<<4)
+#  define PB1100_SD_WP1_RO       (1<<15) /* read only */
+#  define PB1100_SD_WP0_RO       (1<<14) /* read only */
+#  define PB1100_SD_PWR1         (1<<11) /* applies power to SD1 */
+#  define PB1100_SD_PWR0         (1<<10) /* applies power to SD0 */
+#  define PB1100_SEL_SD_CONN1     (1<<9)
+#  define PB1100_SEL_SD_CONN0     (1<<8)
+#  define PC_DEASSERT_RST         (1<<7)
+#  define PC_DRV_EN               (1<<4)
 
 #define PB1100_G_CONTROL      0xAE000014 /* graphics control */
 
 #define PB1100_RST_VDDI       0xAE00001C
-  #define PB1100_SOFT_RESET      (1<<15) /* clear to reset the board */
-  #define PB1100_VDDI_MASK        (0x1F)
+#  define PB1100_SOFT_RESET      (1<<15) /* clear to reset the board */
+#  define PB1100_VDDI_MASK        (0x1F)
 
 #define PB1100_LEDS           0xAE000018
 
