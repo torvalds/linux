@@ -41,7 +41,6 @@
 #include <asm/apic.h>
 
 int apic_verbosity;
-int apic_runs_main_timer;
 int apic_calibrate_pmtmr __initdata;
 
 int disable_apic_timer __cpuinitdata;
@@ -128,15 +127,6 @@ static void lapic_timer_broadcast(cpumask_t mask)
 	send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
 #endif
 }
-
-/*
- * cpu_mask that denotes the CPUs that needs timer interrupt coming in as
- * IPIs in place of local APIC timers
- */
-static cpumask_t timer_interrupt_broadcast_ipi_mask;
-
-/* Using APIC to generate smp_local_timer_interrupt? */
-int using_apic_timer __read_mostly = 0;
 
 static void apic_pm_activate(void);
 
@@ -973,84 +963,6 @@ void __cpuinit setup_secondary_APIC_clock(void)
 	setup_APIC_timer();
 }
 
-void disable_APIC_timer(void)
-{
-	if (using_apic_timer) {
-		unsigned long v;
-
-		v = apic_read(APIC_LVTT);
-		/*
-		 * When an illegal vector value (0-15) is written to an LVT
-		 * entry and delivery mode is Fixed, the APIC may signal an
-		 * illegal vector error, with out regard to whether the mask
-		 * bit is set or whether an interrupt is actually seen on input.
-		 *
-		 * Boot sequence might call this function when the LVTT has
-		 * '0' vector value. So make sure vector field is set to
-		 * valid value.
-		 */
-		v |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
-		apic_write(APIC_LVTT, v);
-	}
-}
-
-void enable_APIC_timer(void)
-{
-	int cpu = smp_processor_id();
-
-	if (using_apic_timer &&
-	    !cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
-		unsigned long v;
-
-		v = apic_read(APIC_LVTT);
-		apic_write(APIC_LVTT, v & ~APIC_LVT_MASKED);
-	}
-}
-
-void switch_APIC_timer_to_ipi(void *cpumask)
-{
-	cpumask_t mask = *(cpumask_t *)cpumask;
-	int cpu = smp_processor_id();
-
-	if (cpu_isset(cpu, mask) &&
-	    !cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
-		disable_APIC_timer();
-		cpu_set(cpu, timer_interrupt_broadcast_ipi_mask);
-	}
-}
-EXPORT_SYMBOL(switch_APIC_timer_to_ipi);
-
-void smp_send_timer_broadcast_ipi(void)
-{
-	int cpu = smp_processor_id();
-	cpumask_t mask;
-
-	cpus_and(mask, cpu_online_map, timer_interrupt_broadcast_ipi_mask);
-
-	if (cpu_isset(cpu, mask)) {
-		cpu_clear(cpu, mask);
-		add_pda(apic_timer_irqs, 1);
-		smp_local_timer_interrupt();
-	}
-
-	if (!cpus_empty(mask)) {
-		send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
-	}
-}
-
-void switch_ipi_to_APIC_timer(void *cpumask)
-{
-	cpumask_t mask = *(cpumask_t *)cpumask;
-	int cpu = smp_processor_id();
-
-	if (cpu_isset(cpu, mask) &&
-	    cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask)) {
-		cpu_clear(cpu, timer_interrupt_broadcast_ipi_mask);
-		enable_APIC_timer();
-	}
-}
-EXPORT_SYMBOL(switch_ipi_to_APIC_timer);
-
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
@@ -1297,21 +1209,7 @@ static __init int setup_noapictimer(char *str)
 	disable_apic_timer = 1;
 	return 1;
 }
-
-static __init int setup_apicmaintimer(char *str)
-{
-	apic_runs_main_timer = 1;
-
-	return 1;
-}
-__setup("apicmaintimer", setup_apicmaintimer);
-
-static __init int setup_noapicmaintimer(char *str)
-{
-	apic_runs_main_timer = -1;
-	return 1;
-}
-__setup("noapicmaintimer", setup_noapicmaintimer);
+__setup("noapictimer", setup_noapictimer);
 
 static __init int setup_apicpmtimer(char *s)
 {
@@ -1320,6 +1218,4 @@ static __init int setup_apicpmtimer(char *s)
 	return 0;
 }
 __setup("apicpmtimer", setup_apicpmtimer);
-
-__setup("noapictimer", setup_noapictimer);
 

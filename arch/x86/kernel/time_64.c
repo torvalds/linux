@@ -150,48 +150,6 @@ int update_persistent_clock(struct timespec now)
 	return set_rtc_mmss(now.tv_sec);
 }
 
-void main_timer_handler(void)
-{
-/*
- * Here we are in the timer irq handler. We have irqs locally disabled (so we
- * don't need spin_lock_irqsave()) but we don't know if the timer_bh is running
- * on the other CPU, so we need a lock. We also need to lock the vsyscall
- * variables, because both do_timer() and us change them -arca+vojtech
- */
-
-	write_seqlock(&xtime_lock);
-
-/*
- * Do the timer stuff.
- */
-
-	do_timer(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-
-/*
- * In the SMP case we use the local APIC timer interrupt to do the profiling,
- * except when we simulate SMP mode on a uniprocessor system, in that case we
- * have to call the local interrupt handler.
- */
-
-	if (!using_apic_timer)
-		smp_local_timer_interrupt();
-
-	write_sequnlock(&xtime_lock);
-}
-
-static irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	if (apic_runs_main_timer > 1)
-		return IRQ_HANDLED;
-	main_timer_handler();
-	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi();
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 {
 	add_pda(irq0_irqs, 1);
