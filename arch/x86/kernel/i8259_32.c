@@ -10,7 +10,6 @@
 #include <linux/sysdev.h>
 #include <linux/bitops.h>
 
-#include <asm/8253pit.h>
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/io.h>

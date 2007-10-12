@@ -6,7 +6,6 @@
 #ifndef _ASMx8664_TIMEX_H
 #define _ASMx8664_TIMEX_H
 
-#include <asm/8253pit.h>
 #include <asm/msr.h>
 #include <asm/vsyscall.h>
 #include <asm/system.h>
@@ -14,6 +13,7 @@
 #include <asm/tsc.h>
 #include <linux/compiler.h>
 
+#define PIT_TICK_RATE	1193182UL
 #define CLOCK_TICK_RATE	PIT_TICK_RATE	/* Underlying HZ */
 
 extern int read_current_timer(unsigned long *timer_value);
