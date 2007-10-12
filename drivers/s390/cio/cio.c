@@ -619,6 +619,11 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	sch->schib.pmcw.ena = 0;
 	if ((sch->lpm & (sch->lpm - 1)) != 0)
 		sch->schib.pmcw.mp = 1;	/* multipath mode */
+	/* clean up possible residual cmf stuff */
+	sch->schib.pmcw.mme = 0;
+	sch->schib.pmcw.mbfc = 0;
+	sch->schib.pmcw.mbi = 0;
+	sch->schib.mba = 0;
 	return 0;
 out:
 	if (!cio_is_console(schid))

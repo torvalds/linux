@@ -21,6 +21,7 @@
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/param.h>		/* HZ */
+#include <asm/cmb.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -1440,6 +1441,7 @@ static void ccw_device_shutdown(struct device *dev)
 	cdev = to_ccwdev(dev);
 	if (cdev->drv && cdev->drv->shutdown)
 		cdev->drv->shutdown(cdev);
+	disable_cmf(cdev);
 }
 
 struct bus_type ccw_bus_type = {
