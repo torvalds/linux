@@ -160,10 +160,8 @@ static const struct hc_driver ehci_ppc_soc_hc_driver = {
 	 */
 	.hub_status_data = ehci_hub_status_data,
 	.hub_control = ehci_hub_control,
-#ifdef	CONFIG_PM
-	.hub_suspend = ehci_hub_suspend,
-	.hub_resume = ehci_hub_resume,
-#endif
+	.bus_suspend = ehci_bus_suspend,
+	.bus_resume = ehci_bus_resume,
 };
 
 static int ehci_hcd_ppc_soc_drv_probe(struct platform_device *pdev)

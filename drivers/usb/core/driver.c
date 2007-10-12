@@ -202,6 +202,11 @@ static int usb_probe_interface(struct device *dev)
 	intf = to_usb_interface(dev);
 	udev = interface_to_usbdev(intf);
 
+ 	if (udev->authorized == 0) {
+ 		dev_err(&intf->dev, "Device is not authorized for usage\n");
+ 		return -ENODEV;
+ 	}
+
 	id = usb_match_id(intf, driver->id_table);
 	if (!id)
 		id = usb_match_dynamic_id(intf, driver);
@@ -945,11 +950,11 @@ done:
 #ifdef	CONFIG_USB_SUSPEND
 
 /* Internal routine to check whether we may autosuspend a device. */
-static int autosuspend_check(struct usb_device *udev)
+static int autosuspend_check(struct usb_device *udev, int reschedule)
 {
 	int			i;
 	struct usb_interface	*intf;
-	unsigned long		suspend_time;
+	unsigned long		suspend_time, j;
 
 	/* For autosuspend, fail fast if anything is in use or autosuspend
 	 * is disabled.  Also fail if any interfaces require remote wakeup
@@ -991,20 +996,20 @@ static int autosuspend_check(struct usb_device *udev)
 	}
 
 	/* If everything is okay but the device hasn't been idle for long
-	 * enough, queue a delayed autosuspend request.
+	 * enough, queue a delayed autosuspend request.  If the device
+	 * _has_ been idle for long enough and the reschedule flag is set,
+	 * likewise queue a delayed (1 second) autosuspend request.
 	 */
-	if (time_after(suspend_time, jiffies)) {
+	j = jiffies;
+	if (time_before(j, suspend_time))
+		reschedule = 1;
+	else
+		suspend_time = j + HZ;
+	if (reschedule) {
 		if (!timer_pending(&udev->autosuspend.timer)) {
-
-			/* The value of jiffies may change between the
-			 * time_after() comparison above and the subtraction
-			 * below.  That's okay; the system behaves sanely
-			 * when a timer is registered for the present moment
-			 * or for the past.
-			 */
 			queue_delayed_work(ksuspend_usb_wq, &udev->autosuspend,
-				round_jiffies_relative(suspend_time - jiffies));
-			}
+				round_jiffies_relative(suspend_time - j));
+		}
 		return -EAGAIN;
 	}
 	return 0;
@@ -1012,7 +1017,7 @@ static int autosuspend_check(struct usb_device *udev)
 
 #else
 
-static inline int autosuspend_check(struct usb_device *udev)
+static inline int autosuspend_check(struct usb_device *udev, int reschedule)
 {
 	return 0;
 }
@@ -1069,7 +1074,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 
 	if (udev->auto_pm) {
-		status = autosuspend_check(udev);
+		status = autosuspend_check(udev, 0);
 		if (status < 0)
 			goto done;
 	}
@@ -1083,15 +1088,8 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 				break;
 		}
 	}
-	if (status == 0) {
-
-		/* Non-root devices don't need to do anything for FREEZE
-		 * or PRETHAW. */
-		if (udev->parent && (msg.event == PM_EVENT_FREEZE ||
-				msg.event == PM_EVENT_PRETHAW))
-			goto done;
+	if (status == 0)
 		status = usb_suspend_device(udev, msg);
-	}
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
@@ -1102,12 +1100,24 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 		/* Try another autosuspend when the interfaces aren't busy */
 		if (udev->auto_pm)
-			autosuspend_check(udev);
+			autosuspend_check(udev, status == -EBUSY);
 
-	/* If the suspend succeeded, propagate it up the tree */
+	/* If the suspend succeeded then prevent any more URB submissions,
+	 * flush any outstanding URBs, and propagate the suspend up the tree.
+	 */
 	} else {
 		cancel_delayed_work(&udev->autosuspend);
-		if (parent)
+		udev->can_submit = 0;
+		for (i = 0; i < 16; ++i) {
+			usb_hcd_flush_endpoint(udev, udev->ep_out[i]);
+			usb_hcd_flush_endpoint(udev, udev->ep_in[i]);
+		}
+
+		/* If this is just a FREEZE or a PRETHAW, udev might
+		 * not really be suspended.  Only true suspends get
+		 * propagated up the device tree.
+		 */
+		if (parent && udev->state == USB_STATE_SUSPENDED)
 			usb_autosuspend_device(parent);
 	}
 
@@ -1156,6 +1166,7 @@ static int usb_resume_both(struct usb_device *udev)
 		status = -ENODEV;
 		goto done;
 	}
+	udev->can_submit = 1;
 
 	/* Propagate the resume up the tree, if necessary */
 	if (udev->state == USB_STATE_SUSPENDED) {
@@ -1529,9 +1540,21 @@ int usb_external_resume_device(struct usb_device *udev)
 
 static int usb_suspend(struct device *dev, pm_message_t message)
 {
+	struct usb_device	*udev;
+
 	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
 		return 0;
-	return usb_external_suspend_device(to_usb_device(dev), message);
+	udev = to_usb_device(dev);
+
+	/* If udev is already suspended, we can skip this suspend and
+	 * we should also skip the upcoming system resume. */
+	if (udev->state == USB_STATE_SUSPENDED) {
+		udev->skip_sys_resume = 1;
+		return 0;
+	}
+
+	udev->skip_sys_resume = 0;
+	return usb_external_suspend_device(udev, message);
 }
 
 static int usb_resume(struct device *dev)
@@ -1542,13 +1565,14 @@ static int usb_resume(struct device *dev)
 		return 0;
 	udev = to_usb_device(dev);
 
-	/* If autoresume is disabled then we also want to prevent resume
-	 * during system wakeup.  However, a "persistent-device" reset-resume
-	 * after power loss counts as a wakeup event.  So allow a
-	 * reset-resume to occur if remote wakeup is enabled. */
-	if (udev->autoresume_disabled) {
+	/* If udev->skip_sys_resume is set then udev was already suspended
+	 * when the system suspend started, so we don't want to resume
+	 * udev during this system wakeup.  However a reset-resume counts
+	 * as a wakeup event, so allow a reset-resume to occur if remote
+	 * wakeup is enabled. */
+	if (udev->skip_sys_resume) {
 		if (!(udev->reset_resume && udev->do_remote_wakeup))
-			return -EPERM;
+			return -EHOSTUNREACH;
 	}
 	return usb_external_resume_device(udev);
 }

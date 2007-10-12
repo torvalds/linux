@@ -190,9 +190,6 @@ static int usbat_check_status(struct us_data *us)
 	unsigned char *reply = us->iobuf;
 	int rc;
 
-	if (!us)
-		return USB_STOR_TRANSPORT_ERROR;
-
 	rc = usbat_get_status(us, reply);
 	if (rc != USB_STOR_XFER_GOOD)
 		return USB_STOR_TRANSPORT_FAILED;

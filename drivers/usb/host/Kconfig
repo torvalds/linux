@@ -154,6 +154,19 @@ config USB_OHCI_HCD_PCI
 	  Enables support for PCI-bus plug-in USB controller cards.
 	  If unsure, say Y.
 
+config USB_OHCI_HCD_SSB
+	bool "OHCI support for Broadcom SSB OHCI core"
+	depends on USB_OHCI_HCD && SSB && EXPERIMENTAL
+	default n
+	---help---
+	  Support for the Sonics Silicon Backplane (SSB) attached
+	  Broadcom USB OHCI core.
+
+	  This device is present in some embedded devices with
+	  Broadcom based SSB bus.
+
+	  If unsure, say N.
+
 config USB_OHCI_BIG_ENDIAN_DESC
 	bool
 	depends on USB_OHCI_HCD

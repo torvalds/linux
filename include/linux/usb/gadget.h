@@ -1,5 +1,5 @@
 /*
- * <linux/usb_gadget.h>
+ * <linux/usb/gadget.h>
  *
  * We call the USB code inside a Linux-based peripheral device a "gadget"
  * driver, except for the hardware-specific bus glue.  One USB host can
@@ -22,10 +22,10 @@ struct usb_ep;
 /**
  * struct usb_request - describes one i/o request
  * @buf: Buffer used for data.  Always provide this; some controllers
- * 	only use PIO, or don't use DMA for some endpoints.
+ *	only use PIO, or don't use DMA for some endpoints.
  * @dma: DMA address corresponding to 'buf'.  If you don't set this
- * 	field, and the usb controller needs one, it is responsible
- * 	for mapping and unmapping the buffer.
+ *	field, and the usb controller needs one, it is responsible
+ *	for mapping and unmapping the buffer.
  * @length: Length of that data
  * @no_interrupt: If true, hints that no completion irq is needed.
  *	Helpful sometimes with deep request queues that are handled
@@ -45,16 +45,16 @@ struct usb_ep;
  * @context: For use by the completion callback
  * @list: For use by the gadget driver.
  * @status: Reports completion code, zero or a negative errno.
- * 	Normally, faults block the transfer queue from advancing until
- * 	the completion callback returns.
- * 	Code "-ESHUTDOWN" indicates completion caused by device disconnect,
- * 	or when the driver disabled the endpoint.
+ *	Normally, faults block the transfer queue from advancing until
+ *	the completion callback returns.
+ *	Code "-ESHUTDOWN" indicates completion caused by device disconnect,
+ *	or when the driver disabled the endpoint.
  * @actual: Reports bytes transferred to/from the buffer.  For reads (OUT
- * 	transfers) this may be less than the requested length.  If the
- * 	short_not_ok flag is set, short reads are treated as errors
- * 	even when status otherwise indicates successful completion.
- * 	Note that for writes (IN transfers) some data bytes may still
- * 	reside in a device-side FIFO when the request is reported as
+ *	transfers) this may be less than the requested length.  If the
+ *	short_not_ok flag is set, short reads are treated as errors
+ *	even when status otherwise indicates successful completion.
+ *	Note that for writes (IN transfers) some data bytes may still
+ *	reside in a device-side FIFO when the request is reported as
  *	complete.
  *
  * These are allocated/freed through the endpoint they're used with.  The
@@ -128,7 +128,7 @@ struct usb_ep_ops {
  *	value can sometimes be reduced (hardware allowing), according to
  *      the endpoint descriptor used to configure the endpoint.
  * @driver_data:for use by the gadget driver.  all other fields are
- * 	read-only to gadget drivers.
+ *	read-only to gadget drivers.
  *
  * the bus controller driver lists all the general purpose endpoints in
  * gadget->ep_list.  the control endpoint (gadget->ep0) is not in that list,
@@ -148,10 +148,10 @@ struct usb_ep {
 /**
  * usb_ep_enable - configure endpoint, making it usable
  * @ep:the endpoint being configured.  may not be the endpoint named "ep0".
- * 	drivers discover endpoints through the ep_list of a usb_gadget.
+ *	drivers discover endpoints through the ep_list of a usb_gadget.
  * @desc:descriptor for desired behavior.  caller guarantees this pointer
- * 	remains valid until the endpoint is disabled; the data byte order
- * 	is little-endian (usb-standard).
+ *	remains valid until the endpoint is disabled; the data byte order
+ *	is little-endian (usb-standard).
  *
  * when configurations are set, or when interface settings change, the driver
  * will enable or disable the relevant endpoints.  while it is enabled, an
@@ -232,7 +232,7 @@ usb_ep_free_request (struct usb_ep *ep, struct usb_request *req)
  * @ep:the endpoint associated with the request
  * @req:the request being submitted
  * @gfp_flags: GFP_* flags to use in case the lower level driver couldn't
- * 	pre-allocate all necessary memory with the request.
+ *	pre-allocate all necessary memory with the request.
  *
  * This tells the device controller to perform the specified request through
  * that endpoint (reading or writing a buffer).  When the request completes,
@@ -415,7 +415,7 @@ struct usb_gadget_ops {
  * struct usb_gadget - represents a usb slave device
  * @ops: Function pointers used to access hardware-specific operations.
  * @ep0: Endpoint zero, used when reading or writing responses to
- * 	driver setup() requests
+ *	driver setup() requests
  * @ep_list: List of other endpoints supported by the device.
  * @speed: Speed of current connection to USB host.
  * @is_dualspeed: True if the controller supports both high and full speed
@@ -432,7 +432,7 @@ struct usb_gadget_ops {
  * @b_hnp_enable: OTG device feature flag, indicating that the A-Host
  *	enabled HNP support.
  * @name: Identifies the controller hardware type.  Used in diagnostics
- * 	and sometimes configuration.
+ *	and sometimes configuration.
  * @dev: Driver model state for this abstract device.
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
@@ -477,6 +477,39 @@ static inline void *get_gadget_data (struct usb_gadget *gadget)
 /* iterates the non-control endpoints; 'tmp' is a struct usb_ep pointer */
 #define gadget_for_each_ep(tmp,gadget) \
 	list_for_each_entry(tmp, &(gadget)->ep_list, ep_list)
+
+
+/**
+ * gadget_is_dualspeed - return true iff the hardware handles high speed
+ * @gadget: controller that might support both high and full speeds
+ */
+static inline int gadget_is_dualspeed(struct usb_gadget *g)
+{
+#ifdef CONFIG_USB_GADGET_DUALSPEED
+	/* runtime test would check "g->is_dualspeed" ... that might be
+	 * useful to work around hardware bugs, but is mostly pointless
+	 */
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+/**
+ * gadget_is_otg - return true iff the hardware is OTG-ready
+ * @gadget: controller that might have a Mini-AB connector
+ *
+ * This is a runtime test, since kernels with a USB-OTG stack sometimes
+ * run on boards which only have a Mini-B (or Mini-A) connector.
+ */
+static inline int gadget_is_otg(struct usb_gadget *g)
+{
+#ifdef CONFIG_USB_OTG
+	return g->is_otg;
+#else
+	return 0;
+#endif
+}
 
 
 /**
@@ -655,23 +688,23 @@ usb_gadget_disconnect (struct usb_gadget *gadget)
  * @function: String describing the gadget's function
  * @speed: Highest speed the driver handles.
  * @bind: Invoked when the driver is bound to a gadget, usually
- * 	after registering the driver.
- * 	At that point, ep0 is fully initialized, and ep_list holds
- * 	the currently-available endpoints.
- * 	Called in a context that permits sleeping.
+ *	after registering the driver.
+ *	At that point, ep0 is fully initialized, and ep_list holds
+ *	the currently-available endpoints.
+ *	Called in a context that permits sleeping.
  * @setup: Invoked for ep0 control requests that aren't handled by
- * 	the hardware level driver. Most calls must be handled by
- * 	the gadget driver, including descriptor and configuration
- * 	management.  The 16 bit members of the setup data are in
- * 	USB byte order. Called in_interrupt; this may not sleep.  Driver
+ *	the hardware level driver. Most calls must be handled by
+ *	the gadget driver, including descriptor and configuration
+ *	management.  The 16 bit members of the setup data are in
+ *	USB byte order. Called in_interrupt; this may not sleep.  Driver
  *	queues a response to ep0, or returns negative to stall.
  * @disconnect: Invoked after all transfers have been stopped,
- * 	when the host is disconnected.  May be called in_interrupt; this
- * 	may not sleep.  Some devices can't detect disconnect, so this might
+ *	when the host is disconnected.  May be called in_interrupt; this
+ *	may not sleep.  Some devices can't detect disconnect, so this might
  *	not be called except as part of controller shutdown.
  * @unbind: Invoked when the driver is unbound from a gadget,
- * 	usually from rmmod (after a disconnect is reported).
- * 	Called in a context that permits sleeping.
+ *	usually from rmmod (after a disconnect is reported).
+ *	Called in a context that permits sleeping.
  * @suspend: Invoked on USB suspend.  May be called in_interrupt.
  * @resume: Invoked on USB resume.  May be called in_interrupt.
  * @driver: Driver model state for this driver.

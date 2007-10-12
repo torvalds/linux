@@ -19,6 +19,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/rwsem.h>
+
 /* This file contains declarations of usbcore internals that are mostly
  * used or exposed by Host Controller Drivers.
  */
@@ -51,6 +53,12 @@
  *
  * Since "struct usb_bus" is so thin, you can't share much code in it.
  * This framework is a layer over that, and should be more sharable.
+ *
+ * @authorized_default: Specifies if new devices are authorized to
+ *                      connect by default or they require explicit
+ *                      user space authorization; this bit is settable
+ *                      through /sys/class/usb_host/X/authorized_default.
+ *                      For the rest is RO, so we don't lock to r/w it.
  */
 
 /*-------------------------------------------------------------------------*/
@@ -90,6 +98,7 @@ struct usb_hcd {
 	unsigned		poll_rh:1;	/* poll for rh status? */
 	unsigned		poll_pending:1;	/* status has changed? */
 	unsigned		wireless:1;	/* Wireless USB HCD */
+	unsigned		authorized_default:1;
 
 	int			irq;		/* irq allocated */
 	void __iomem		*regs;		/* device memory/io */
@@ -182,11 +191,10 @@ struct hc_driver {
 	int	(*get_frame_number) (struct usb_hcd *hcd);
 
 	/* manage i/o requests, device state */
-	int	(*urb_enqueue) (struct usb_hcd *hcd,
-					struct usb_host_endpoint *ep,
-					struct urb *urb,
-					gfp_t mem_flags);
-	int	(*urb_dequeue) (struct usb_hcd *hcd, struct urb *urb);
+	int	(*urb_enqueue)(struct usb_hcd *hcd,
+				struct urb *urb, gfp_t mem_flags);
+	int	(*urb_dequeue)(struct usb_hcd *hcd,
+				struct urb *urb, int status);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
 	void 	(*endpoint_disable)(struct usb_hcd *hcd,
@@ -204,10 +212,18 @@ struct hc_driver {
 		/* Needed only if port-change IRQs are level-triggered */
 };
 
+extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
+extern int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
+		int status);
+extern void usb_hcd_unlink_urb_from_ep(struct usb_hcd *hcd, struct urb *urb);
+
 extern int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags);
 extern int usb_hcd_unlink_urb (struct urb *urb, int status);
-extern void usb_hcd_giveback_urb (struct usb_hcd *hcd, struct urb *urb);
-extern void usb_hcd_endpoint_disable (struct usb_device *udev,
+extern void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb,
+		int status);
+extern void usb_hcd_flush_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep);
+extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern int usb_hcd_get_frame_number (struct usb_device *udev);
 
@@ -402,7 +418,7 @@ static inline void usbfs_cleanup(void) { }
 struct usb_mon_operations {
 	void (*urb_submit)(struct usb_bus *bus, struct urb *urb);
 	void (*urb_submit_error)(struct usb_bus *bus, struct urb *urb, int err);
-	void (*urb_complete)(struct usb_bus *bus, struct urb *urb);
+	void (*urb_complete)(struct usb_bus *bus, struct urb *urb, int status);
 	/* void (*urb_unlink)(struct usb_bus *bus, struct urb *urb); */
 };
 
@@ -421,10 +437,11 @@ static inline void usbmon_urb_submit_error(struct usb_bus *bus, struct urb *urb,
 		(*mon_ops->urb_submit_error)(bus, urb, error);
 }
 
-static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb)
+static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
+		int status)
 {
 	if (bus->monitored)
-		(*mon_ops->urb_complete)(bus, urb);
+		(*mon_ops->urb_complete)(bus, urb, status);
 }
 
 int usb_mon_register(struct usb_mon_operations *ops);
@@ -435,7 +452,8 @@ void usb_mon_deregister(void);
 static inline void usbmon_urb_submit(struct usb_bus *bus, struct urb *urb) {}
 static inline void usbmon_urb_submit_error(struct usb_bus *bus, struct urb *urb,
     int error) {}
-static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb) {}
+static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
+		int status) {}
 
 #endif /* CONFIG_USB_MON */
 
@@ -454,5 +472,9 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb) {}
 		: (in_interrupt () ? "in_interrupt" : "can sleep"))
 
 
-#endif /* __KERNEL__ */
+/* This rwsem is for use only by the hub driver and ehci-hcd.
+ * Nobody else should touch it.
+ */
+extern struct rw_semaphore ehci_cf_port_reset_rwsem;
 
+#endif /* __KERNEL__ */

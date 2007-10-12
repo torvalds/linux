@@ -46,7 +46,6 @@ static int  visor_probe		(struct usb_serial *serial, const struct usb_device_id 
 static int  visor_calc_num_ports(struct usb_serial *serial);
 static void visor_shutdown	(struct usb_serial *serial);
 static int  visor_ioctl		(struct usb_serial_port *port, struct file * file, unsigned int cmd, unsigned long arg);
-static void visor_set_termios	(struct usb_serial_port *port, struct ktermios *old_termios);
 static void visor_write_bulk_callback	(struct urb *urb);
 static void visor_read_bulk_callback	(struct urb *urb);
 static void visor_read_int_callback	(struct urb *urb);
@@ -203,7 +202,6 @@ static struct usb_serial_driver handspring_device = {
 	.calc_num_ports =	visor_calc_num_ports,
 	.shutdown =		visor_shutdown,
 	.ioctl =		visor_ioctl,
-	.set_termios =		visor_set_termios,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.chars_in_buffer =	visor_chars_in_buffer,
@@ -234,7 +232,6 @@ static struct usb_serial_driver clie_5_device = {
 	.calc_num_ports =	visor_calc_num_ports,
 	.shutdown =		visor_shutdown,
 	.ioctl =		visor_ioctl,
-	.set_termios =		visor_set_termios,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.chars_in_buffer =	visor_chars_in_buffer,
@@ -262,7 +259,6 @@ static struct usb_serial_driver clie_3_5_device = {
 	.unthrottle =		visor_unthrottle,
 	.attach =		clie_3_5_startup,
 	.ioctl =		visor_ioctl,
-	.set_termios =		visor_set_termios,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.chars_in_buffer =	visor_chars_in_buffer,
@@ -935,66 +931,6 @@ static int visor_ioctl (struct usb_serial_port *port, struct file * file, unsign
 
 	return -ENOIOCTLCMD;
 }
-
-
-/* This function is all nice and good, but we don't change anything based on it :) */
-static void visor_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
-{
-	unsigned int cflag;
-
-	dbg("%s - port %d", __FUNCTION__, port->number);
-
-	if ((!port->tty) || (!port->tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
-
-	cflag = port->tty->termios->c_cflag;
-
-	/* get the byte size */
-	switch (cflag & CSIZE) {
-		case CS5:	dbg("%s - data bits = 5", __FUNCTION__);   break;
-		case CS6:	dbg("%s - data bits = 6", __FUNCTION__);   break;
-		case CS7:	dbg("%s - data bits = 7", __FUNCTION__);   break;
-		default:
-		case CS8:	dbg("%s - data bits = 8", __FUNCTION__);   break;
-	}
-	
-	/* determine the parity */
-	if (cflag & PARENB)
-		if (cflag & PARODD)
-			dbg("%s - parity = odd", __FUNCTION__);
-		else
-			dbg("%s - parity = even", __FUNCTION__);
-	else
-		dbg("%s - parity = none", __FUNCTION__);
-
-	/* figure out the stop bits requested */
-	if (cflag & CSTOPB)
-		dbg("%s - stop bits = 2", __FUNCTION__);
-	else
-		dbg("%s - stop bits = 1", __FUNCTION__);
-
-	
-	/* figure out the flow control settings */
-	if (cflag & CRTSCTS)
-		dbg("%s - RTS/CTS is enabled", __FUNCTION__);
-	else
-		dbg("%s - RTS/CTS is disabled", __FUNCTION__);
-	
-	/* determine software flow control */
-	if (I_IXOFF(port->tty))
-		dbg("%s - XON/XOFF is enabled, XON = %2x, XOFF = %2x",
-		    __FUNCTION__, START_CHAR(port->tty), STOP_CHAR(port->tty));
-	else
-		dbg("%s - XON/XOFF is disabled", __FUNCTION__);
-
-	/* get the baud rate wanted */
-	dbg("%s - baud rate = %d", __FUNCTION__, tty_get_baud_rate(port->tty));
-
-	return;
-}
-
 
 static int __init visor_init (void)
 {

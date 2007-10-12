@@ -71,6 +71,7 @@ struct async {
 	void __user *userbuffer;
 	void __user *userurb;
 	struct urb *urb;
+	int status;
 	u32 secid;
 };
 
@@ -289,10 +290,8 @@ static void snoop_urb(struct urb *urb, void __user *userurb)
 	if (!usbfs_snoop)
 		return;
 
-	if (urb->pipe & USB_DIR_IN)
-		dev_info(&urb->dev->dev, "direction=IN\n");
-	else
-		dev_info(&urb->dev->dev, "direction=OUT\n");
+	dev_info(&urb->dev->dev, "direction=%s\n",
+			usb_urb_dir_in(urb) ? "IN" : "OUT");
 	dev_info(&urb->dev->dev, "userurb=%p\n", userurb);
 	dev_info(&urb->dev->dev, "transfer_buffer_length=%d\n",
 		 urb->transfer_buffer_length);
@@ -312,9 +311,10 @@ static void async_completed(struct urb *urb)
         spin_lock(&ps->lock);
         list_move_tail(&as->asynclist, &ps->async_completed);
         spin_unlock(&ps->lock);
+	as->status = urb->status;
 	if (as->signr) {
 		sinfo.si_signo = as->signr;
-		sinfo.si_errno = as->urb->status;
+		sinfo.si_errno = as->status;
 		sinfo.si_code = SI_ASYNCIO;
 		sinfo.si_addr = as->userurb;
 		kill_pid_info_as_uid(as->signr, &sinfo, as->pid, as->uid,
@@ -910,6 +910,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	struct usb_ctrlrequest *dr = NULL;
 	unsigned int u, totlen, isofrmlen;
 	int ret, ifnum = -1;
+	int is_in;
 
 	if (uurb->flags & ~(USBDEVFS_URB_ISO_ASAP|USBDEVFS_URB_SHORT_NOT_OK|
 			   URB_NO_FSBR|URB_ZERO_PACKET))
@@ -924,16 +925,18 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		if ((ret = checkintf(ps, ifnum)))
 			return ret;
 	}
-	if ((uurb->endpoint & USB_ENDPOINT_DIR_MASK) != 0)
-		ep = ps->dev->ep_in [uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
-	else
-		ep = ps->dev->ep_out [uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
+	if ((uurb->endpoint & USB_ENDPOINT_DIR_MASK) != 0) {
+		is_in = 1;
+		ep = ps->dev->ep_in[uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
+	} else {
+		is_in = 0;
+		ep = ps->dev->ep_out[uurb->endpoint & USB_ENDPOINT_NUMBER_MASK];
+	}
 	if (!ep)
 		return -ENOENT;
 	switch(uurb->type) {
 	case USBDEVFS_URB_TYPE_CONTROL:
-		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				!= USB_ENDPOINT_XFER_CONTROL)
+		if (!usb_endpoint_xfer_control(&ep->desc))
 			return -EINVAL;
 		/* min 8 byte setup packet, max 8 byte setup plus an arbitrary data stage */
 		if (uurb->buffer_length < 8 || uurb->buffer_length > (8 + MAX_USBFS_BUFFER_SIZE))
@@ -952,23 +955,32 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 			kfree(dr);
 			return ret;
 		}
-		uurb->endpoint = (uurb->endpoint & ~USB_ENDPOINT_DIR_MASK) | (dr->bRequestType & USB_ENDPOINT_DIR_MASK);
 		uurb->number_of_packets = 0;
 		uurb->buffer_length = le16_to_cpup(&dr->wLength);
 		uurb->buffer += 8;
-		if (!access_ok((uurb->endpoint & USB_DIR_IN) ?  VERIFY_WRITE : VERIFY_READ, uurb->buffer, uurb->buffer_length)) {
+		if ((dr->bRequestType & USB_DIR_IN) && uurb->buffer_length) {
+			is_in = 1;
+			uurb->endpoint |= USB_DIR_IN;
+		} else {
+			is_in = 0;
+			uurb->endpoint &= ~USB_DIR_IN;
+		}
+		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
+				uurb->buffer, uurb->buffer_length)) {
 			kfree(dr);
 			return -EFAULT;
 		}
 		snoop(&ps->dev->dev, "control urb: bRequest=%02x "
 			"bRrequestType=%02x wValue=%04x "
 			"wIndex=%04x wLength=%04x\n",
-			dr->bRequest, dr->bRequestType, dr->wValue,
-			dr->wIndex, dr->wLength);
+			dr->bRequest, dr->bRequestType,
+			__le16_to_cpup(&dr->wValue),
+			__le16_to_cpup(&dr->wIndex),
+			__le16_to_cpup(&dr->wLength));
 		break;
 
 	case USBDEVFS_URB_TYPE_BULK:
-		switch (ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+		switch (usb_endpoint_type(&ep->desc)) {
 		case USB_ENDPOINT_XFER_CONTROL:
 		case USB_ENDPOINT_XFER_ISOC:
 			return -EINVAL;
@@ -977,7 +989,8 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		uurb->number_of_packets = 0;
 		if (uurb->buffer_length > MAX_USBFS_BUFFER_SIZE)
 			return -EINVAL;
-		if (!access_ok((uurb->endpoint & USB_DIR_IN) ? VERIFY_WRITE : VERIFY_READ, uurb->buffer, uurb->buffer_length))
+		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
+				uurb->buffer, uurb->buffer_length))
 			return -EFAULT;
 		snoop(&ps->dev->dev, "bulk urb\n");
 		break;
@@ -986,8 +999,7 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		/* arbitrary limit */
 		if (uurb->number_of_packets < 1 || uurb->number_of_packets > 128)
 			return -EINVAL;
-		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				!= USB_ENDPOINT_XFER_ISOC)
+		if (!usb_endpoint_xfer_isoc(&ep->desc))
 			return -EINVAL;
 		isofrmlen = sizeof(struct usbdevfs_iso_packet_desc) * uurb->number_of_packets;
 		if (!(isopkt = kmalloc(isofrmlen, GFP_KERNEL)))
@@ -1014,12 +1026,12 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 
 	case USBDEVFS_URB_TYPE_INTERRUPT:
 		uurb->number_of_packets = 0;
-		if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
-				!= USB_ENDPOINT_XFER_INT)
+		if (!usb_endpoint_xfer_int(&ep->desc))
 			return -EINVAL;
 		if (uurb->buffer_length > MAX_USBFS_BUFFER_SIZE)
 			return -EINVAL;
-		if (!access_ok((uurb->endpoint & USB_DIR_IN) ? VERIFY_WRITE : VERIFY_READ, uurb->buffer, uurb->buffer_length))
+		if (!access_ok(is_in ? VERIFY_WRITE : VERIFY_READ,
+				uurb->buffer, uurb->buffer_length))
 			return -EFAULT;
 		snoop(&ps->dev->dev, "interrupt urb\n");
 		break;
@@ -1039,8 +1051,11 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 		return -ENOMEM;
 	}
         as->urb->dev = ps->dev;
-        as->urb->pipe = (uurb->type << 30) | __create_pipe(ps->dev, uurb->endpoint & 0xf) | (uurb->endpoint & USB_DIR_IN);
-        as->urb->transfer_flags = uurb->flags;
+        as->urb->pipe = (uurb->type << 30) |
+			__create_pipe(ps->dev, uurb->endpoint & 0xf) |
+			(uurb->endpoint & USB_DIR_IN);
+        as->urb->transfer_flags = uurb->flags |
+			(is_in ? URB_DIR_IN : URB_DIR_OUT);
 	as->urb->transfer_buffer_length = uurb->buffer_length;
 	as->urb->setup_packet = (unsigned char*)dr;
 	as->urb->start_frame = uurb->start_frame;
@@ -1070,13 +1085,13 @@ static int proc_do_submiturb(struct dev_state *ps, struct usbdevfs_urb *uurb,
 	as->uid = current->uid;
 	as->euid = current->euid;
 	security_task_getsecid(current, &as->secid);
-	if (!(uurb->endpoint & USB_DIR_IN)) {
-		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer, as->urb->transfer_buffer_length)) {
+	if (!is_in) {
+		if (copy_from_user(as->urb->transfer_buffer, uurb->buffer,
+				as->urb->transfer_buffer_length)) {
 			free_async(as);
 			return -EFAULT;
 		}
 	}
-	snoop(&as->urb->dev->dev, "submit urb\n");
 	snoop_urb(as->urb, as->userurb);
         async_newpending(as);
         if ((ret = usb_submit_urb(as->urb, GFP_KERNEL))) {
@@ -1119,14 +1134,14 @@ static int processcompl(struct async *as, void __user * __user *arg)
 	if (as->userbuffer)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer, urb->transfer_buffer_length))
 			return -EFAULT;
-	if (put_user(urb->status, &userurb->status))
+	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
 	if (put_user(urb->actual_length, &userurb->actual_length))
 		return -EFAULT;
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (usb_pipeisoc(urb->pipe)) {
+	if (usb_endpoint_xfer_isoc(&urb->ep->desc)) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (put_user(urb->iso_frame_desc[i].actual_length,
 				     &userurb->iso_frame_desc[i].actual_length))
@@ -1233,14 +1248,14 @@ static int processcompl_compat(struct async *as, void __user * __user *arg)
 	if (as->userbuffer)
 		if (copy_to_user(as->userbuffer, urb->transfer_buffer, urb->transfer_buffer_length))
 			return -EFAULT;
-	if (put_user(urb->status, &userurb->status))
+	if (put_user(as->status, &userurb->status))
 		return -EFAULT;
 	if (put_user(urb->actual_length, &userurb->actual_length))
 		return -EFAULT;
 	if (put_user(urb->error_count, &userurb->error_count))
 		return -EFAULT;
 
-	if (usb_pipeisoc(urb->pipe)) {
+	if (usb_endpoint_xfer_isoc(&urb->ep->desc)) {
 		for (i = 0; i < urb->number_of_packets; i++) {
 			if (put_user(urb->iso_frame_desc[i].actual_length,
 				     &userurb->iso_frame_desc[i].actual_length))

@@ -256,6 +256,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x04DD, 0x9121) }, /* SHARP WS004SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9123) }, /* SHARP WS007SH USB Modem */
 	{ USB_DEVICE(0x04DD, 0x9151) }, /* SHARP S01SH USB Modem */
+	{ USB_DEVICE(0x04DD, 0x91AC) }, /* SHARP WS011SH USB Modem */
 	{ USB_DEVICE(0x04E8, 0x5F00) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F01) }, /* Samsung NEXiO USB Sync */
 	{ USB_DEVICE(0x04E8, 0x5F02) }, /* Samsung NEXiO USB Sync */
@@ -646,11 +647,13 @@ static int ipaq_open(struct usb_serial_port *port, struct file *filp)
 	kfree(port->bulk_out_buffer);
 	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
 	if (port->bulk_in_buffer == NULL) {
+		port->bulk_out_buffer = NULL; /* prevent double free */
 		goto enomem;
 	}
 	port->bulk_out_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
 	if (port->bulk_out_buffer == NULL) {
 		kfree(port->bulk_in_buffer);
+		port->bulk_in_buffer = NULL;
 		goto enomem;
 	}
 	port->read_urb->transfer_buffer = port->bulk_in_buffer;

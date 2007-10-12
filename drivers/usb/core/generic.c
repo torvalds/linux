@@ -40,7 +40,7 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 		&& desc->bInterfaceProtocol == 1;
 }
 
-static int choose_configuration(struct usb_device *udev)
+int usb_choose_configuration(struct usb_device *udev)
 {
 	int i;
 	int num_configs;
@@ -161,17 +161,20 @@ static int generic_probe(struct usb_device *udev)
 	/* Choose and set the configuration.  This registers the interfaces
 	 * with the driver core and lets interface drivers bind to them.
 	 */
-	c = choose_configuration(udev);
-	if (c >= 0) {
-		err = usb_set_configuration(udev, c);
-		if (err) {
-			dev_err(&udev->dev, "can't set config #%d, error %d\n",
+	if (udev->authorized == 0)
+		dev_err(&udev->dev, "Device is not authorized for usage\n");
+	else {
+		c = usb_choose_configuration(udev);
+		if (c >= 0) {
+			err = usb_set_configuration(udev, c);
+			if (err) {
+				dev_err(&udev->dev, "can't set config #%d, error %d\n",
 					c, err);
-			/* This need not be fatal.  The user can try to
-			 * set other configurations. */
+				/* This need not be fatal.  The user can try to
+				 * set other configurations. */
+			}
 		}
 	}
-
 	/* USB device state == configured ... usable */
 	usb_notify_add_device(udev);
 
@@ -203,8 +206,13 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 	 */
 	if (!udev->parent)
 		rc = hcd_bus_suspend(udev);
+
+	/* Non-root devices don't need to do anything for FREEZE or PRETHAW */
+	else if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_PRETHAW)
+		rc = 0;
 	else
 		rc = usb_port_suspend(udev);
+
 	return rc;
 }
 

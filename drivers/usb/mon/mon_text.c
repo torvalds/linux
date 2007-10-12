@@ -50,10 +50,13 @@ struct mon_iso_desc {
 struct mon_event_text {
 	struct list_head e_link;
 	int type;		/* submit, complete, etc. */
-	unsigned int pipe;	/* Pipe */
 	unsigned long id;	/* From pointer, most of the time */
 	unsigned int tstamp;
 	int busnum;
+	char devnum;
+	char epnum;
+	char is_in;
+	char xfertype;
 	int length;		/* Depends on type: xfer length or act length */
 	int status;
 	int interval;
@@ -121,13 +124,9 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
     struct urb *urb, char ev_type, struct mon_bus *mbus)
 {
 
-	if (!usb_pipecontrol(urb->pipe) || ev_type != 'S')
+	if (ep->xfertype != USB_ENDPOINT_XFER_CONTROL || ev_type != 'S')
 		return '-';
 
-	if (urb->dev->bus->uses_dma &&
-	    (urb->transfer_flags & URB_NO_SETUP_DMA_MAP)) {
-		return mon_dmapeek(ep->setup, urb->setup_dma, SETUP_MAX);
-	}
 	if (urb->setup_packet == NULL)
 		return 'Z';	/* '0' would be not as pretty. */
 
@@ -138,14 +137,12 @@ static inline char mon_text_get_setup(struct mon_event_text *ep,
 static inline char mon_text_get_data(struct mon_event_text *ep, struct urb *urb,
     int len, char ev_type, struct mon_bus *mbus)
 {
-	int pipe = urb->pipe;
-
 	if (len <= 0)
 		return 'L';
 	if (len >= DATA_MAX)
 		len = DATA_MAX;
 
-	if (usb_pipein(pipe)) {
+	if (ep->is_in) {
 		if (ev_type != 'C')
 			return '<';
 	} else {
@@ -186,7 +183,7 @@ static inline unsigned int mon_get_timestamp(void)
 }
 
 static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
-    char ev_type)
+    char ev_type, int status)
 {
 	struct mon_event_text *ep;
 	unsigned int stamp;
@@ -203,24 +200,28 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 	}
 
 	ep->type = ev_type;
-	ep->pipe = urb->pipe;
 	ep->id = (unsigned long) urb;
 	ep->busnum = urb->dev->bus->busnum;
+	ep->devnum = urb->dev->devnum;
+	ep->epnum = usb_endpoint_num(&urb->ep->desc);
+	ep->xfertype = usb_endpoint_type(&urb->ep->desc);
+	ep->is_in = usb_urb_dir_in(urb);
 	ep->tstamp = stamp;
 	ep->length = (ev_type == 'S') ?
 	    urb->transfer_buffer_length : urb->actual_length;
 	/* Collecting status makes debugging sense for submits, too */
-	ep->status = urb->status;
+	ep->status = status;
 
-	if (usb_pipeint(urb->pipe)) {
+	if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
 		ep->interval = urb->interval;
-	} else if (usb_pipeisoc(urb->pipe)) {
+	} else if (ep->xfertype == USB_ENDPOINT_XFER_ISOC) {
 		ep->interval = urb->interval;
 		ep->start_frame = urb->start_frame;
 		ep->error_count = urb->error_count;
 	}
 	ep->numdesc = urb->number_of_packets;
-	if (usb_pipeisoc(urb->pipe) && urb->number_of_packets > 0) {
+	if (ep->xfertype == USB_ENDPOINT_XFER_ISOC &&
+			urb->number_of_packets > 0) {
 		if ((ndesc = urb->number_of_packets) > ISODESC_MAX)
 			ndesc = ISODESC_MAX;
 		fp = urb->iso_frame_desc;
@@ -247,13 +248,13 @@ static void mon_text_event(struct mon_reader_text *rp, struct urb *urb,
 static void mon_text_submit(void *data, struct urb *urb)
 {
 	struct mon_reader_text *rp = data;
-	mon_text_event(rp, urb, 'S');
+	mon_text_event(rp, urb, 'S', -EINPROGRESS);
 }
 
-static void mon_text_complete(void *data, struct urb *urb)
+static void mon_text_complete(void *data, struct urb *urb, int status)
 {
 	struct mon_reader_text *rp = data;
-	mon_text_event(rp, urb, 'C');
+	mon_text_event(rp, urb, 'C', status);
 }
 
 static void mon_text_error(void *data, struct urb *urb, int error)
@@ -268,9 +269,12 @@ static void mon_text_error(void *data, struct urb *urb, int error)
 	}
 
 	ep->type = 'E';
-	ep->pipe = urb->pipe;
 	ep->id = (unsigned long) urb;
 	ep->busnum = 0;
+	ep->devnum = urb->dev->devnum;
+	ep->epnum = usb_endpoint_num(&urb->ep->desc);
+	ep->xfertype = usb_endpoint_type(&urb->ep->desc);
+	ep->is_in = usb_urb_dir_in(urb);
 	ep->tstamp = 0;
 	ep->length = 0;
 	ep->status = error;
@@ -413,10 +417,10 @@ static ssize_t mon_text_read_u(struct file *file, char __user *buf,
 	mon_text_read_head_u(rp, &ptr, ep);
 	if (ep->type == 'E') {
 		mon_text_read_statset(rp, &ptr, ep);
-	} else if (usb_pipeisoc(ep->pipe)) {
+	} else if (ep->xfertype == USB_ENDPOINT_XFER_ISOC) {
 		mon_text_read_isostat(rp, &ptr, ep);
 		mon_text_read_isodesc(rp, &ptr, ep);
-	} else if (usb_pipeint(ep->pipe)) {
+	} else if (ep->xfertype == USB_ENDPOINT_XFER_INT) {
 		mon_text_read_intstat(rp, &ptr, ep);
 	} else {
 		mon_text_read_statset(rp, &ptr, ep);
@@ -468,18 +472,17 @@ static void mon_text_read_head_t(struct mon_reader_text *rp,
 {
 	char udir, utype;
 
-	udir = usb_pipein(ep->pipe) ? 'i' : 'o';
-	switch (usb_pipetype(ep->pipe)) {
-	case PIPE_ISOCHRONOUS:	utype = 'Z'; break;
-	case PIPE_INTERRUPT:	utype = 'I'; break;
-	case PIPE_CONTROL:	utype = 'C'; break;
+	udir = (ep->is_in ? 'i' : 'o');
+	switch (ep->xfertype) {
+	case USB_ENDPOINT_XFER_ISOC:	utype = 'Z'; break;
+	case USB_ENDPOINT_XFER_INT:	utype = 'I'; break;
+	case USB_ENDPOINT_XFER_CONTROL:	utype = 'C'; break;
 	default: /* PIPE_BULK */  utype = 'B';
 	}
 	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 	    "%lx %u %c %c%c:%03u:%02u",
 	    ep->id, ep->tstamp, ep->type,
-	    utype, udir,
-	    usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+	    utype, udir, ep->devnum, ep->epnum);
 }
 
 static void mon_text_read_head_u(struct mon_reader_text *rp,
@@ -487,18 +490,17 @@ static void mon_text_read_head_u(struct mon_reader_text *rp,
 {
 	char udir, utype;
 
-	udir = usb_pipein(ep->pipe) ? 'i' : 'o';
-	switch (usb_pipetype(ep->pipe)) {
-	case PIPE_ISOCHRONOUS:	utype = 'Z'; break;
-	case PIPE_INTERRUPT:	utype = 'I'; break;
-	case PIPE_CONTROL:	utype = 'C'; break;
+	udir = (ep->is_in ? 'i' : 'o');
+	switch (ep->xfertype) {
+	case USB_ENDPOINT_XFER_ISOC:	utype = 'Z'; break;
+	case USB_ENDPOINT_XFER_INT:	utype = 'I'; break;
+	case USB_ENDPOINT_XFER_CONTROL:	utype = 'C'; break;
 	default: /* PIPE_BULK */  utype = 'B';
 	}
 	p->cnt += snprintf(p->pbuf + p->cnt, p->limit - p->cnt,
 	    "%lx %u %c %c%c:%d:%03u:%u",
 	    ep->id, ep->tstamp, ep->type,
-	    utype, udir,
-	    ep->busnum, usb_pipedevice(ep->pipe), usb_pipeendpoint(ep->pipe));
+	    utype, udir, ep->busnum, ep->devnum, ep->epnum);
 }
 
 static void mon_text_read_statset(struct mon_reader_text *rp,

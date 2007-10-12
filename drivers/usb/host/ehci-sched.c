@@ -797,7 +797,6 @@ done:
 
 static int intr_submit (
 	struct ehci_hcd		*ehci,
-	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
 	gfp_t			mem_flags
@@ -805,23 +804,26 @@ static int intr_submit (
 	unsigned		epnum;
 	unsigned long		flags;
 	struct ehci_qh		*qh;
-	int			status = 0;
+	int			status;
 	struct list_head	empty;
 
 	/* get endpoint and transfer/schedule data */
-	epnum = ep->desc.bEndpointAddress;
+	epnum = urb->ep->desc.bEndpointAddress;
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
 	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
 			&ehci_to_hcd(ehci)->flags))) {
 		status = -ESHUTDOWN;
-		goto done;
+		goto done_not_linked;
 	}
+	status = usb_hcd_link_urb_to_ep(ehci_to_hcd(ehci), urb);
+	if (unlikely(status))
+		goto done_not_linked;
 
 	/* get qh and force any scheduling errors */
 	INIT_LIST_HEAD (&empty);
-	qh = qh_append_tds (ehci, urb, &empty, epnum, &ep->hcpriv);
+	qh = qh_append_tds(ehci, urb, &empty, epnum, &urb->ep->hcpriv);
 	if (qh == NULL) {
 		status = -ENOMEM;
 		goto done;
@@ -832,13 +834,16 @@ static int intr_submit (
 	}
 
 	/* then queue the urb's tds to the qh */
-	qh = qh_append_tds (ehci, urb, qtd_list, epnum, &ep->hcpriv);
+	qh = qh_append_tds(ehci, urb, qtd_list, epnum, &urb->ep->hcpriv);
 	BUG_ON (qh == NULL);
 
 	/* ... update usbfs periodic stats */
 	ehci_to_hcd(ehci)->self.bandwidth_int_reqs++;
 
 done:
+	if (unlikely(status))
+		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	if (status)
 		qtd_list_free (ehci, urb, qtd_list);
@@ -1622,7 +1627,7 @@ itd_complete (
 
 	/* give urb back to the driver ... can be out-of-order */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb);
+	ehci_urb_done(ehci, urb, 0);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -1686,12 +1691,19 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
 	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &ehci_to_hcd(ehci)->flags)))
+			       &ehci_to_hcd(ehci)->flags))) {
 		status = -ESHUTDOWN;
-	else
-		status = iso_stream_schedule (ehci, urb, stream);
+		goto done_not_linked;
+	}
+	status = usb_hcd_link_urb_to_ep(ehci_to_hcd(ehci), urb);
+	if (unlikely(status))
+		goto done_not_linked;
+	status = iso_stream_schedule(ehci, urb, stream);
 	if (likely (status == 0))
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
+	else
+		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
 done:
@@ -1988,7 +2000,7 @@ sitd_complete (
 
 	/* give urb back to the driver */
 	dev = urb->dev;
-	ehci_urb_done (ehci, urb);
+	ehci_urb_done(ehci, urb, 0);
 	urb = NULL;
 
 	/* defer stopping schedule; completion can submit */
@@ -2049,12 +2061,19 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	/* schedule ... need to lock */
 	spin_lock_irqsave (&ehci->lock, flags);
 	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE,
-			       &ehci_to_hcd(ehci)->flags)))
+			       &ehci_to_hcd(ehci)->flags))) {
 		status = -ESHUTDOWN;
-	else
-		status = iso_stream_schedule (ehci, urb, stream);
+		goto done_not_linked;
+	}
+	status = usb_hcd_link_urb_to_ep(ehci_to_hcd(ehci), urb);
+	if (unlikely(status))
+		goto done_not_linked;
+	status = iso_stream_schedule(ehci, urb, stream);
 	if (status == 0)
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
+	else
+		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
 done:

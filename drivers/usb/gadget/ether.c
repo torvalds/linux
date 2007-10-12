@@ -19,40 +19,18 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* #define VERBOSE_DEBUG */
 
-// #define DEBUG 1
-// #define VERBOSE
-
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/delay.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/timer.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/utsname.h>
 #include <linux/device.h>
-#include <linux/moduleparam.h>
 #include <linux/ctype.h>
-
-#include <asm/byteorder.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-#include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/etherdevice.h>
+#include <linux/ethtool.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/cdc.h>
-#include <linux/usb_gadget.h>
-
-#include <linux/random.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/ethtool.h>
+#include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
 
@@ -356,15 +334,15 @@ module_param (qmult, uint, S_IRUGO|S_IWUSR);
 #define qlen(gadget) \
 	(DEFAULT_QLEN*((gadget->speed == USB_SPEED_HIGH) ? qmult : 1))
 
-/* also defer IRQs on highspeed TX */
-#define TX_DELAY	qmult
-
 static inline int BITRATE(struct usb_gadget *g)
 {
 	return (g->speed == USB_SPEED_HIGH) ? HS_BPS : FS_BPS;
 }
 
 #else	/* full speed (low speed doesn't do bulk) */
+
+#define qmult		1
+
 #define	DEVSPEED	USB_SPEED_FULL
 
 #define qlen(gadget) DEFAULT_QLEN
@@ -390,7 +368,7 @@ static inline int BITRATE(struct usb_gadget *g)
 	do { } while (0)
 #endif /* DEBUG */
 
-#ifdef VERBOSE
+#ifdef VERBOSE_DEBUG
 #define VDEBUG	DEBUG
 #else
 #define VDEBUG(dev,fmt,args...) \
@@ -830,8 +808,6 @@ static const struct usb_descriptor_header *fs_rndis_function [] = {
 };
 #endif
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-
 /*
  * usb 2.0 devices need to expose both high speed and full speed
  * descriptors, unless they only run at full speed.
@@ -934,18 +910,15 @@ static const struct usb_descriptor_header *hs_rndis_function [] = {
 
 
 /* maxpacket and other transfer characteristics vary by speed. */
-#define ep_desc(g,hs,fs) (((g)->speed==USB_SPEED_HIGH)?(hs):(fs))
-
-#else
-
-/* if there's no high speed support, maxpacket doesn't change. */
-#define ep_desc(g,hs,fs) (((void)(g)), (fs))
-
-static inline void __init hs_subset_descriptors(void)
+static inline struct usb_endpoint_descriptor *
+ep_desc(struct usb_gadget *g, struct usb_endpoint_descriptor *hs,
+		struct usb_endpoint_descriptor *fs)
 {
+	if (gadget_is_dualspeed(g) && g->speed == USB_SPEED_HIGH)
+		return hs;
+	return fs;
 }
 
-#endif	/* !CONFIG_USB_GADGET_DUALSPEED */
 
 /*-------------------------------------------------------------------------*/
 
@@ -989,22 +962,19 @@ static struct usb_gadget_strings	stringtab = {
  * complications: class descriptors, and an altsetting.
  */
 static int
-config_buf (enum usb_device_speed speed,
-	u8 *buf, u8 type,
-	unsigned index, int is_otg)
+config_buf(struct usb_gadget *g, u8 *buf, u8 type, unsigned index, int is_otg)
 {
 	int					len;
 	const struct usb_config_descriptor	*config;
 	const struct usb_descriptor_header	**function;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-	int				hs = (speed == USB_SPEED_HIGH);
+	int					hs = 0;
 
-	if (type == USB_DT_OTHER_SPEED_CONFIG)
-		hs = !hs;
+	if (gadget_is_dualspeed(g)) {
+		hs = (g->speed == USB_SPEED_HIGH);
+		if (type == USB_DT_OTHER_SPEED_CONFIG)
+			hs = !hs;
+	}
 #define which_fn(t)	(hs ? hs_ ## t ## _function : fs_ ## t ## _function)
-#else
-#define	which_fn(t)	(fs_ ## t ## _function)
-#endif
 
 	if (index >= device_desc.bNumConfigurations)
 		return -EINVAL;
@@ -1217,7 +1187,7 @@ eth_set_config (struct eth_dev *dev, unsigned number, gfp_t gfp_flags)
 		if (number)
 			eth_reset_config (dev);
 		usb_gadget_vbus_draw(dev->gadget,
-				dev->gadget->is_otg ? 8 : 100);
+				gadget_is_otg(dev->gadget) ? 8 : 100);
 	} else {
 		char *speed;
 		unsigned power;
@@ -1399,24 +1369,22 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 			value = min (wLength, (u16) sizeof device_desc);
 			memcpy (req->buf, &device_desc, value);
 			break;
-#ifdef CONFIG_USB_GADGET_DUALSPEED
 		case USB_DT_DEVICE_QUALIFIER:
-			if (!gadget->is_dualspeed)
+			if (!gadget_is_dualspeed(gadget))
 				break;
 			value = min (wLength, (u16) sizeof dev_qualifier);
 			memcpy (req->buf, &dev_qualifier, value);
 			break;
 
 		case USB_DT_OTHER_SPEED_CONFIG:
-			if (!gadget->is_dualspeed)
+			if (!gadget_is_dualspeed(gadget))
 				break;
 			// FALLTHROUGH
-#endif /* CONFIG_USB_GADGET_DUALSPEED */
 		case USB_DT_CONFIG:
-			value = config_buf (gadget->speed, req->buf,
+			value = config_buf(gadget, req->buf,
 					wValue >> 8,
 					wValue & 0xff,
-					gadget->is_otg);
+					gadget_is_otg(gadget));
 			if (value >= 0)
 				value = min (wLength, (u16) value);
 			break;
@@ -1585,12 +1553,12 @@ done_set_intf:
 				&& rndis_control_intf.bInterfaceNumber
 					== wIndex) {
 			u8 *buf;
+			u32 n;
 
 			/* return the result */
-			buf = rndis_get_next_response (dev->rndis_config,
-						       &value);
+			buf = rndis_get_next_response(dev->rndis_config, &n);
 			if (buf) {
-				memcpy (req->buf, buf, value);
+				memcpy(req->buf, buf, n);
 				req->complete = rndis_response_complete;
 				rndis_free_response(dev->rndis_config, buf);
 			}
@@ -1989,8 +1957,20 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 	}
 
 	spin_lock_irqsave(&dev->req_lock, flags);
+	/*
+	 * this freelist can be empty if an interrupt triggered disconnect()
+	 * and reconfigured the gadget (shutting down this queue) after the
+	 * network stack decided to xmit but before we got the spinlock.
+	 */
+	if (list_empty(&dev->tx_reqs)) {
+		spin_unlock_irqrestore(&dev->req_lock, flags);
+		return 1;
+	}
+
 	req = container_of (dev->tx_reqs.next, struct usb_request, list);
 	list_del (&req->list);
+
+	/* temporarily stop TX queue when the freelist empties */
 	if (list_empty (&dev->tx_reqs))
 		netif_stop_queue (net);
 	spin_unlock_irqrestore(&dev->req_lock, flags);
@@ -2026,12 +2006,11 @@ static int eth_start_xmit (struct sk_buff *skb, struct net_device *net)
 
 	req->length = length;
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
 	/* throttle highspeed IRQ rate back slightly */
-	req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH)
-		? ((atomic_read (&dev->tx_qlen) % TX_DELAY) != 0)
-		: 0;
-#endif
+	if (gadget_is_dualspeed(dev->gadget))
+		req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH)
+			? ((atomic_read(&dev->tx_qlen) % qmult) != 0)
+			: 0;
 
 	retval = usb_ep_queue (dev->in_ep, req, GFP_ATOMIC);
 	switch (retval) {
@@ -2188,8 +2167,7 @@ static int eth_stop (struct net_device *net)
 	}
 
 	if (rndis_active(dev)) {
-		rndis_set_param_medium (dev->rndis_config,
-					NDIS_MEDIUM_802_3, 0);
+		rndis_set_param_medium(dev->rndis_config, NDIS_MEDIUM_802_3, 0);
 		(void) rndis_signal_disconnect (dev->rndis_config);
 	}
 
@@ -2443,26 +2421,28 @@ autoconf_fail:
 	if (rndis)
 		device_desc.bNumConfigurations = 2;
 
-#ifdef	CONFIG_USB_GADGET_DUALSPEED
-	if (rndis)
-		dev_qualifier.bNumConfigurations = 2;
-	else if (!cdc)
-		dev_qualifier.bDeviceClass = USB_CLASS_VENDOR_SPEC;
+	if (gadget_is_dualspeed(gadget)) {
+		if (rndis)
+			dev_qualifier.bNumConfigurations = 2;
+		else if (!cdc)
+			dev_qualifier.bDeviceClass = USB_CLASS_VENDOR_SPEC;
 
-	/* assumes ep0 uses the same value for both speeds ... */
-	dev_qualifier.bMaxPacketSize0 = device_desc.bMaxPacketSize0;
+		/* assumes ep0 uses the same value for both speeds ... */
+		dev_qualifier.bMaxPacketSize0 = device_desc.bMaxPacketSize0;
 
-	/* and that all endpoints are dual-speed */
-	hs_source_desc.bEndpointAddress = fs_source_desc.bEndpointAddress;
-	hs_sink_desc.bEndpointAddress = fs_sink_desc.bEndpointAddress;
+		/* and that all endpoints are dual-speed */
+		hs_source_desc.bEndpointAddress =
+				fs_source_desc.bEndpointAddress;
+		hs_sink_desc.bEndpointAddress =
+				fs_sink_desc.bEndpointAddress;
 #if defined(DEV_CONFIG_CDC) || defined(CONFIG_USB_ETH_RNDIS)
-	if (status_ep)
-		hs_status_desc.bEndpointAddress =
-				fs_status_desc.bEndpointAddress;
+		if (status_ep)
+			hs_status_desc.bEndpointAddress =
+					fs_status_desc.bEndpointAddress;
 #endif
-#endif	/* DUALSPEED */
+	}
 
-	if (gadget->is_otg) {
+	if (gadget_is_otg(gadget)) {
 		otg_descriptor.bmAttributes |= USB_OTG_HNP,
 		eth_config.bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 		eth_config.bMaxPower = 4;
@@ -2598,12 +2578,11 @@ fail0:
 		if (rndis_set_param_dev (dev->rndis_config, dev->net,
 					 &dev->stats, &dev->cdc_filter))
 			goto fail0;
-		if (rndis_set_param_vendor (dev->rndis_config, vendorID,
-					    manufacturer))
+		if (rndis_set_param_vendor(dev->rndis_config, vendorID,
+					manufacturer))
 			goto fail0;
-		if (rndis_set_param_medium (dev->rndis_config,
-					    NDIS_MEDIUM_802_3,
-					    0))
+		if (rndis_set_param_medium(dev->rndis_config,
+					NDIS_MEDIUM_802_3, 0))
 			goto fail0;
 		INFO (dev, "RNDIS ready\n");
 	}

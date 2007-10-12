@@ -4,11 +4,8 @@
  * belong here.
  */
 
-/* device must not be autosuspended */
-#define USB_QUIRK_NO_AUTOSUSPEND	0x00000001
-
 /* string descriptors must not be fetched using a 255-byte read */
-#define USB_QUIRK_STRING_FETCH_255	0x00000002
+#define USB_QUIRK_STRING_FETCH_255	0x00000001
 
 /* device can't resume correctly so reset it instead */
-#define USB_QUIRK_RESET_RESUME		0x00000004
+#define USB_QUIRK_RESET_RESUME		0x00000002

@@ -90,18 +90,12 @@ MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-#if defined(CONFIG_USBD_SAFE_SERIAL_VENDOR) && !defined(CONFIG_USBD_SAFE_SERIAL_PRODUCT)
-#error "SAFE_SERIAL_VENDOR defined without SAFE_SERIAL_PRODUCT"
-#endif
-
-#if ! defined(CONFIG_USBD_SAFE_SERIAL_VENDOR)
 static __u16 vendor;		// no default
 static __u16 product;		// no default
 module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified USB idVendor (required)");
 module_param(product, ushort, 0);
 MODULE_PARM_DESC(product, "User specified USB idProduct (required)");
-#endif
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
@@ -145,11 +139,6 @@ static struct usb_device_id id_table[] = {
 	{MY_USB_DEVICE (0x4dd, 0x8003, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	// Collie 
 	{MY_USB_DEVICE (0x4dd, 0x8004, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	// Collie 
 	{MY_USB_DEVICE (0x5f9, 0xffff, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},	// Sharp tmp
-#if defined(CONFIG_USB_SAFE_SERIAL_VENDOR)
-	{MY_USB_DEVICE
-	 (CONFIG_USB_SAFE_SERIAL_VENDOR, CONFIG_USB_SAFE_SERIAL_PRODUCT, CDC_DEVICE_CLASS,
-	  LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},
-#endif
 	// extra null entry for module 
 	// vendor/produc parameters
 	{MY_USB_DEVICE (0, 0, CDC_DEVICE_CLASS, LINEO_INTERFACE_CLASS, LINEO_INTERFACE_SUBCLASS_SAFESERIAL)},

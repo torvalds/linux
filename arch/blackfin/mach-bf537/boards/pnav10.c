@@ -40,7 +40,7 @@
 #include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
-#include <linux/usb_sl811.h>
+#include <linux/usb/sl811.h>
 
 #include <linux/spi/ad7877.h>
 

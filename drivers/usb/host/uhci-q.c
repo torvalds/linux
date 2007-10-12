@@ -757,7 +757,6 @@ static void uhci_free_urb_priv(struct uhci_hcd *uhci,
 		uhci_free_td(uhci, td);
 	}
 
-	urbp->urb->hcpriv = NULL;
 	kmem_cache_free(uhci_up_cachep, urbp);
 }
 
@@ -1324,7 +1323,6 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	if (list_empty(&qh->queue)) {
 		qh->iso_packet_desc = &urb->iso_frame_desc[0];
 		qh->iso_frame = urb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	qh->skel = SKEL_ISO;
@@ -1361,22 +1359,18 @@ static int uhci_result_isochronous(struct uhci_hcd *uhci, struct urb *urb)
 			qh->iso_packet_desc->actual_length = actlength;
 			qh->iso_packet_desc->status = status;
 		}
-
-		if (status) {
+		if (status)
 			urb->error_count++;
-			qh->iso_status = status;
-		}
 
 		uhci_remove_td_from_urbp(td);
 		uhci_free_td(uhci, td);
 		qh->iso_frame += qh->period;
 		++qh->iso_packet_desc;
 	}
-	return qh->iso_status;
+	return 0;
 }
 
 static int uhci_urb_enqueue(struct usb_hcd *hcd,
-		struct usb_host_endpoint *hep,
 		struct urb *urb, gfp_t mem_flags)
 {
 	int ret;
@@ -1387,19 +1381,19 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 
 	spin_lock_irqsave(&uhci->lock, flags);
 
-	ret = urb->status;
-	if (ret != -EINPROGRESS)		/* URB already unlinked! */
-		goto done;
+	ret = usb_hcd_link_urb_to_ep(hcd, urb);
+	if (ret)
+		goto done_not_linked;
 
 	ret = -ENOMEM;
 	urbp = uhci_alloc_urb_priv(uhci, urb);
 	if (!urbp)
 		goto done;
 
-	if (hep->hcpriv)
-		qh = (struct uhci_qh *) hep->hcpriv;
+	if (urb->ep->hcpriv)
+		qh = urb->ep->hcpriv;
 	else {
-		qh = uhci_alloc_qh(uhci, urb->dev, hep);
+		qh = uhci_alloc_qh(uhci, urb->dev, urb->ep);
 		if (!qh)
 			goto err_no_qh;
 	}
@@ -1440,27 +1434,29 @@ static int uhci_urb_enqueue(struct usb_hcd *hcd,
 err_submit_failed:
 	if (qh->state == QH_STATE_IDLE)
 		uhci_make_qh_idle(uhci, qh);	/* Reclaim unused QH */
-
 err_no_qh:
 	uhci_free_urb_priv(uhci, urbp);
-
 done:
+	if (ret)
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+done_not_linked:
 	spin_unlock_irqrestore(&uhci->lock, flags);
 	return ret;
 }
 
-static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
+static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	unsigned long flags;
-	struct urb_priv *urbp;
 	struct uhci_qh *qh;
+	int rc;
 
 	spin_lock_irqsave(&uhci->lock, flags);
-	urbp = urb->hcpriv;
-	if (!urbp)			/* URB was never linked! */
+	rc = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (rc)
 		goto done;
-	qh = urbp->qh;
+
+	qh = ((struct urb_priv *) urb->hcpriv)->qh;
 
 	/* Remove Isochronous TDs from the frame list ASAP */
 	if (qh->type == USB_ENDPOINT_XFER_ISOC) {
@@ -1477,14 +1473,14 @@ static int uhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb)
 
 done:
 	spin_unlock_irqrestore(&uhci->lock, flags);
-	return 0;
+	return rc;
 }
 
 /*
  * Finish unlinking an URB and give it back
  */
 static void uhci_giveback_urb(struct uhci_hcd *uhci, struct uhci_qh *qh,
-		struct urb *urb)
+		struct urb *urb, int status)
 __releases(uhci->lock)
 __acquires(uhci->lock)
 {
@@ -1497,13 +1493,6 @@ __acquires(uhci->lock)
 		 * unlinked first.  Regardless, don't confuse people with a
 		 * negative length. */
 		urb->actual_length = max(urb->actual_length, 0);
-
-		/* Report erroneous short transfers */
-		if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
-				urb->actual_length <
-					urb->transfer_buffer_length &&
-				urb->status == 0))
-			urb->status = -EREMOTEIO;
 	}
 
 	/* When giving back the first URB in an Isochronous queue,
@@ -1516,7 +1505,6 @@ __acquires(uhci->lock)
 
 		qh->iso_packet_desc = &nurb->iso_frame_desc[0];
 		qh->iso_frame = nurb->start_frame;
-		qh->iso_status = 0;
 	}
 
 	/* Take the URB off the QH's queue.  If the queue is now empty,
@@ -1529,9 +1517,10 @@ __acquires(uhci->lock)
 	}
 
 	uhci_free_urb_priv(uhci, urbp);
+	usb_hcd_unlink_urb_from_ep(uhci_to_hcd(uhci), urb);
 
 	spin_unlock(&uhci->lock);
-	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb);
+	usb_hcd_giveback_urb(uhci_to_hcd(uhci), urb, status);
 	spin_lock(&uhci->lock);
 
 	/* If the queue is now empty, we can unlink the QH and give up its
@@ -1567,24 +1556,17 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 		if (status == -EINPROGRESS)
 			break;
 
-		spin_lock(&urb->lock);
-		if (urb->status == -EINPROGRESS)	/* Not dequeued */
-			urb->status = status;
-		else
-			status = ECONNRESET;		/* Not -ECONNRESET */
-		spin_unlock(&urb->lock);
-
 		/* Dequeued but completed URBs can't be given back unless
 		 * the QH is stopped or has finished unlinking. */
-		if (status == ECONNRESET) {
+		if (urb->unlinked) {
 			if (QH_FINISHED_UNLINKING(qh))
 				qh->is_stopped = 1;
 			else if (!qh->is_stopped)
 				return;
 		}
 
-		uhci_giveback_urb(uhci, qh, urb);
-		if (status < 0 && qh->type != USB_ENDPOINT_XFER_ISOC)
+		uhci_giveback_urb(uhci, qh, urb, status);
+		if (status < 0)
 			break;
 	}
 
@@ -1599,7 +1581,7 @@ static void uhci_scan_qh(struct uhci_hcd *uhci, struct uhci_qh *qh)
 restart:
 	list_for_each_entry(urbp, &qh->queue, node) {
 		urb = urbp->urb;
-		if (urb->status != -EINPROGRESS) {
+		if (urb->unlinked) {
 
 			/* Fix up the TD links and save the toggles for
 			 * non-Isochronous queues.  For Isochronous queues,
@@ -1608,7 +1590,7 @@ restart:
 				qh->is_stopped = 0;
 				return;
 			}
-			uhci_giveback_urb(uhci, qh, urb);
+			uhci_giveback_urb(uhci, qh, urb, 0);
 			goto restart;
 		}
 	}

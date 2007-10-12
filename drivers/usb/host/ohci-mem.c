@@ -28,7 +28,6 @@ static void ohci_hcd_init (struct ohci_hcd *ohci)
 	ohci->next_statechange = jiffies;
 	spin_lock_init (&ohci->lock);
 	INIT_LIST_HEAD (&ohci->pending);
-	INIT_WORK (&ohci->nec_work, ohci_quirk_nec_worker);
 }
 
 /*-------------------------------------------------------------------------*/

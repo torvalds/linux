@@ -28,27 +28,7 @@ obj-$(CONFIG_USB_MICROTEK)	+= image/
 
 obj-$(CONFIG_USB_SERIAL)	+= serial/
 
-obj-$(CONFIG_USB_ADUTUX)	+= misc/
-obj-$(CONFIG_USB_APPLEDISPLAY)	+= misc/
-obj-$(CONFIG_USB_AUERSWALD)	+= misc/
-obj-$(CONFIG_USB_BERRY_CHARGE)	+= misc/
-obj-$(CONFIG_USB_CYPRESS_CY7C63)+= misc/
-obj-$(CONFIG_USB_CYTHERM)	+= misc/
-obj-$(CONFIG_USB_EMI26)		+= misc/
-obj-$(CONFIG_USB_EMI62)		+= misc/
-obj-$(CONFIG_USB_FTDI_ELAN)	+= misc/
-obj-$(CONFIG_USB_IDMOUSE)	+= misc/
-obj-$(CONFIG_USB_LCD)		+= misc/
-obj-$(CONFIG_USB_LD)		+= misc/
-obj-$(CONFIG_USB_LED)		+= misc/
-obj-$(CONFIG_USB_LEGOTOWER)	+= misc/
-obj-$(CONFIG_USB_PHIDGETSERVO)	+= misc/
-obj-$(CONFIG_USB_RIO500)	+= misc/
-obj-$(CONFIG_USB_SISUSBVGA)	+= misc/
-obj-$(CONFIG_USB_TEST)		+= misc/
-obj-$(CONFIG_USB_TRANCEVIBRATOR)+= misc/
-obj-$(CONFIG_USB_USS720)	+= misc/
-obj-$(CONFIG_USB_IOWARRIOR)	+= misc/
+obj-$(CONFIG_USB)		+= misc/
 
 obj-$(CONFIG_USB_ATM)		+= atm/
 obj-$(CONFIG_USB_SPEEDTOUCH)	+= atm/
