@@ -277,7 +277,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	dma_addr_t dma_next = 0, dma_addr;
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
-	int outcount, incount;
+	int outcount, incount, i;
 	unsigned long handle;
 
 	BUG_ON(direction == DMA_NONE);
@@ -297,7 +297,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
 
-	for (s = outs; nelems; nelems--, s++) {
+	for_each_sg(sglist, s, nelems, i) {
 		unsigned long vaddr, npages, entry, slen;
 
 		slen = s->length;
@@ -341,7 +341,8 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			if (novmerge || (dma_addr != dma_next)) {
 				/* Can't merge: create a new segment */
 				segstart = s;
-				outcount++; outs++;
+				outcount++;
+				outs = sg_next(outs);
 				DBG("    can't merge, new segment.\n");
 			} else {
 				outs->dma_length += s->length;
@@ -374,7 +375,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	 * next entry of the sglist if we didn't fill the list completely
 	 */
 	if (outcount < incount) {
-		outs++;
+		outs = sg_next(outs);
 		outs->dma_address = DMA_ERROR_CODE;
 		outs->dma_length = 0;
 	}
@@ -385,7 +386,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	return outcount;
 
  failure:
-	for (s = &sglist[0]; s <= outs; s++) {
+	for_each_sg(sglist, s, nelems, i) {
 		if (s->dma_length != 0) {
 			unsigned long vaddr, npages;
 
@@ -395,6 +396,8 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			s->dma_address = DMA_ERROR_CODE;
 			s->dma_length = 0;
 		}
+		if (s == outs)
+			break;
 	}
 	spin_unlock_irqrestore(&(tbl->it_lock), flags);
 	return 0;
@@ -404,6 +407,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 		int nelems, enum dma_data_direction direction)
 {
+	struct scatterlist *sg;
 	unsigned long flags;
 
 	BUG_ON(direction == DMA_NONE);
@@ -413,15 +417,16 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 	spin_lock_irqsave(&(tbl->it_lock), flags);
 
+	sg = sglist;
 	while (nelems--) {
 		unsigned int npages;
-		dma_addr_t dma_handle = sglist->dma_address;
+		dma_addr_t dma_handle = sg->dma_address;
 
-		if (sglist->dma_length == 0)
+		if (sg->dma_length == 0)
 			break;
-		npages = iommu_num_pages(dma_handle,sglist->dma_length);
+		npages = iommu_num_pages(dma_handle, sg->dma_length);
 		__iommu_free(tbl, dma_handle, npages);
-		sglist++;
+		sg = sg_next(sg);
 	}
 
 	/* Flush/invalidate TLBs if necessary. As for iommu_free(), we
