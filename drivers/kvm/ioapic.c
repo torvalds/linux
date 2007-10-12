@@ -40,8 +40,11 @@
 #include <asm/apicdef.h>
 #include <asm/io_apic.h>
 #include "irq.h"
-/* #define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
+#if 0
+#define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
+#else
 #define ioapic_debug(fmt, arg...)
+#endif
 static void ioapic_deliver(struct kvm_ioapic *vioapic, int irq);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
@@ -113,7 +116,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	default:
 		index = (ioapic->ioregsel - 0x10) >> 1;
 
-		ioapic_debug("change redir index %x val %x", index, val);
+		ioapic_debug("change redir index %x val %x\n", index, val);
 		if (index >= IOAPIC_NUM_PINS)
 			return;
 		if (ioapic->ioregsel & 1) {
@@ -134,7 +137,7 @@ static void ioapic_inj_irq(struct kvm_ioapic *ioapic,
 			   struct kvm_lapic *target,
 			   u8 vector, u8 trig_mode, u8 delivery_mode)
 {
-	ioapic_debug("irq %d trig %d deliv %d", vector, trig_mode,
+	ioapic_debug("irq %d trig %d deliv %d\n", vector, trig_mode,
 		     delivery_mode);
 
 	ASSERT((delivery_mode == dest_Fixed) ||
@@ -151,7 +154,7 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 	struct kvm *kvm = ioapic->kvm;
 	struct kvm_vcpu *vcpu;
 
-	ioapic_debug("dest %d dest_mode %d", dest, dest_mode);
+	ioapic_debug("dest %d dest_mode %d\n", dest, dest_mode);
 
 	if (dest_mode == 0) {	/* Physical mode. */
 		if (dest == 0xFF) {	/* Broadcast. */
@@ -179,7 +182,7 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 			    kvm_apic_match_logical_addr(vcpu->apic, dest))
 				mask |= 1 << vcpu->vcpu_id;
 		}
-	ioapic_debug("mask %x", mask);
+	ioapic_debug("mask %x\n", mask);
 	return mask;
 }
 
@@ -196,12 +199,12 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	int vcpu_id;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
-		     "vector=%x trig_mode=%x",
+		     "vector=%x trig_mode=%x\n",
 		     dest, dest_mode, delivery_mode, vector, trig_mode);
 
 	deliver_bitmask = ioapic_get_delivery_bitmask(ioapic, dest, dest_mode);
 	if (!deliver_bitmask) {
-		ioapic_debug("no target on destination");
+		ioapic_debug("no target on destination\n");
 		return;
 	}
 
@@ -214,7 +217,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 				       trig_mode, delivery_mode);
 		else
 			ioapic_debug("null round robin: "
-				     "mask=%x vector=%x delivery_mode=%x",
+				     "mask=%x vector=%x delivery_mode=%x\n",
 				     deliver_bitmask, vector, dest_LowestPrio);
 		break;
 	case dest_Fixed:
@@ -304,7 +307,7 @@ static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 	u32 result;
 
-	ioapic_debug("addr %lx", (unsigned long)addr);
+	ioapic_debug("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	addr &= 0xff;
@@ -341,8 +344,8 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 	u32 data;
 
-	ioapic_debug("ioapic_mmio_write addr=%lx len=%d val=%p\n",
-		     addr, len, val);
+	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
+		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 	if (len == 4 || len == 8)
 		data = *(u32 *) val;
