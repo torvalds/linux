@@ -2652,10 +2652,10 @@ static int bnx2_poll_work(struct bnx2 *bp, int work_done, int budget)
 		REG_RD(bp, BNX2_HC_COMMAND);
 	}
 
-	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
+	if (sblk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
 		bnx2_tx_int(bp);
 
-	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->hw_rx_cons)
+	if (sblk->status_rx_quick_consumer_index0 != bp->hw_rx_cons)
 		work_done += bnx2_rx_int(bp, budget - work_done);
 
 	return work_done;
@@ -2665,6 +2665,7 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 {
 	struct bnx2 *bp = container_of(napi, struct bnx2, napi);
 	int work_done = 0;
+	struct status_block *sblk = bp->status_blk;
 
 	while (1) {
 		work_done = bnx2_poll_work(bp, work_done, budget);
@@ -2672,16 +2673,19 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 		if (unlikely(work_done >= budget))
 			break;
 
+		/* bp->last_status_idx is used below to tell the hw how
+		 * much work has been processed, so we must read it before
+		 * checking for more work.
+		 */
+		bp->last_status_idx = sblk->status_idx;
+		rmb();
 		if (likely(!bnx2_has_work(bp))) {
-			bp->last_status_idx = bp->status_blk->status_idx;
-			rmb();
-
 			netif_rx_complete(bp->dev, napi);
 			if (likely(bp->flags & USING_MSI_FLAG)) {
 				REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 				       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 				       bp->last_status_idx);
-				return 0;
+				break;
 			}
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |

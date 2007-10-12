@@ -3576,7 +3576,7 @@ static int tg3_poll_work(struct tg3 *tp, int work_done, int budget)
 	if (sblk->idx[0].tx_consumer != tp->tx_cons) {
 		tg3_tx(tp);
 		if (unlikely(tp->tg3_flags & TG3_FLAG_TX_RECOVERY_PENDING))
-			return 0;
+			return work_done;
 	}
 
 	/* run RX thread, within the bounds set by NAPI.
@@ -3593,6 +3593,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 {
 	struct tg3 *tp = container_of(napi, struct tg3, napi);
 	int work_done = 0;
+	struct tg3_hw_status *sblk = tp->hw_status;
 
 	while (1) {
 		work_done = tg3_poll_work(tp, work_done, budget);
@@ -3603,15 +3604,17 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 		if (unlikely(work_done >= budget))
 			break;
 
+		if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) {
+			/* tp->last_tag is used in tg3_restart_ints() below
+			 * to tell the hw how much work has been processed,
+			 * so we must read it before checking for more work.
+			 */
+			tp->last_tag = sblk->status_tag;
+			rmb();
+		} else
+			sblk->status &= ~SD_STATUS_UPDATED;
+
 		if (likely(!tg3_has_work(tp))) {
-			struct tg3_hw_status *sblk = tp->hw_status;
-
-			if (tp->tg3_flags & TG3_FLAG_TAGGED_STATUS) {
-				tp->last_tag = sblk->status_tag;
-				rmb();
-			} else
-				sblk->status &= ~SD_STATUS_UPDATED;
-
 			netif_rx_complete(tp->dev, napi);
 			tg3_restart_ints(tp);
 			break;
@@ -3621,9 +3624,10 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 	return work_done;
 
 tx_recovery:
+	/* work_done is guaranteed to be less than budget. */
 	netif_rx_complete(tp->dev, napi);
 	schedule_work(&tp->reset_task);
-	return 0;
+	return work_done;
 }
 
 static void tg3_irq_quiesce(struct tg3 *tp)
