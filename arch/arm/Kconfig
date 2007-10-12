@@ -997,6 +997,10 @@ source "drivers/pnp/Kconfig"
 
 source "drivers/block/Kconfig"
 
+# misc before ide - BLK_DEV_SGIIOC4 depends on SGI_IOC4
+
+source "drivers/misc/Kconfig"
+
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
 	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
@@ -1032,15 +1036,15 @@ source "drivers/spi/Kconfig"
 
 source "drivers/w1/Kconfig"
 
+source "drivers/power/Kconfig"
+
 source "drivers/hwmon/Kconfig"
+
+source "drivers/ssb/Kconfig"
 
 #source "drivers/l3/Kconfig"
 
-source "drivers/misc/Kconfig"
-
 source "drivers/mfd/Kconfig"
-
-source "drivers/leds/Kconfig"
 
 source "drivers/media/Kconfig"
 
@@ -1053,6 +1057,8 @@ source "drivers/hid/Kconfig"
 source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
+
+source "drivers/leds/Kconfig"
 
 source "drivers/rtc/Kconfig"
 
