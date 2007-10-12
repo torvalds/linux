@@ -27,7 +27,7 @@ int css_init_done = 0;
 static int need_reprobe = 0;
 static int max_ssid = 0;
 
-struct channel_subsystem *css[__MAX_CSSID + 1];
+struct channel_subsystem *channel_subsystems[__MAX_CSSID + 1];
 
 int css_characteristics_avail = 0;
 
@@ -177,7 +177,7 @@ static int css_register_subchannel(struct subchannel *sch)
 	int ret;
 
 	/* Initialize the subchannel structure */
-	sch->dev.parent = &css[0]->device;
+	sch->dev.parent = &channel_subsystems[0]->device;
 	sch->dev.bus = &css_bus_type;
 	sch->dev.release = &css_subchannel_release;
 	sch->dev.groups = subch_attr_groups;
@@ -606,27 +606,29 @@ static int __init setup_css(int nr)
 {
 	u32 tod_high;
 	int ret;
+	struct channel_subsystem *css;
 
-	memset(css[nr], 0, sizeof(struct channel_subsystem));
-	css[nr]->pseudo_subchannel =
-		kzalloc(sizeof(*css[nr]->pseudo_subchannel), GFP_KERNEL);
-	if (!css[nr]->pseudo_subchannel)
+	css = channel_subsystems[nr];
+	memset(css, 0, sizeof(struct channel_subsystem));
+	css->pseudo_subchannel =
+		kzalloc(sizeof(*css->pseudo_subchannel), GFP_KERNEL);
+	if (!css->pseudo_subchannel)
 		return -ENOMEM;
-	css[nr]->pseudo_subchannel->dev.parent = &css[nr]->device;
-	css[nr]->pseudo_subchannel->dev.release = css_subchannel_release;
-	sprintf(css[nr]->pseudo_subchannel->dev.bus_id, "defunct");
-	ret = cio_create_sch_lock(css[nr]->pseudo_subchannel);
+	css->pseudo_subchannel->dev.parent = &css->device;
+	css->pseudo_subchannel->dev.release = css_subchannel_release;
+	sprintf(css->pseudo_subchannel->dev.bus_id, "defunct");
+	ret = cio_create_sch_lock(css->pseudo_subchannel);
 	if (ret) {
-		kfree(css[nr]->pseudo_subchannel);
+		kfree(css->pseudo_subchannel);
 		return ret;
 	}
-	mutex_init(&css[nr]->mutex);
-	css[nr]->valid = 1;
-	css[nr]->cssid = nr;
-	sprintf(css[nr]->device.bus_id, "css%x", nr);
-	css[nr]->device.release = channel_subsystem_release;
+	mutex_init(&css->mutex);
+	css->valid = 1;
+	css->cssid = nr;
+	sprintf(css->device.bus_id, "css%x", nr);
+	css->device.release = channel_subsystem_release;
 	tod_high = (u32) (get_clock() >> 32);
-	css_generate_pgid(css[nr], tod_high);
+	css_generate_pgid(css, tod_high);
 	return 0;
 }
 
@@ -670,25 +672,28 @@ init_channel_subsystem (void)
 	}
 	/* Setup css structure. */
 	for (i = 0; i <= __MAX_CSSID; i++) {
-		css[i] = kmalloc(sizeof(struct channel_subsystem), GFP_KERNEL);
-		if (!css[i]) {
+		struct channel_subsystem *css;
+
+		css = kmalloc(sizeof(struct channel_subsystem), GFP_KERNEL);
+		if (!css) {
 			ret = -ENOMEM;
 			goto out_unregister;
 		}
+		channel_subsystems[i] = css;
 		ret = setup_css(i);
 		if (ret)
 			goto out_free;
-		ret = device_register(&css[i]->device);
+		ret = device_register(&css->device);
 		if (ret)
 			goto out_free_all;
 		if (css_characteristics_avail &&
 		    css_chsc_characteristics.secm) {
-			ret = device_create_file(&css[i]->device,
+			ret = device_create_file(&css->device,
 						 &dev_attr_cm_enable);
 			if (ret)
 				goto out_device;
 		}
-		ret = device_register(&css[i]->pseudo_subchannel->dev);
+		ret = device_register(&css->pseudo_subchannel->dev);
 		if (ret)
 			goto out_file;
 	}
@@ -699,22 +704,26 @@ init_channel_subsystem (void)
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
 out_file:
-	device_remove_file(&css[i]->device, &dev_attr_cm_enable);
+	device_remove_file(&channel_subsystems[i]->device,
+			   &dev_attr_cm_enable);
 out_device:
-	device_unregister(&css[i]->device);
+	device_unregister(&channel_subsystems[i]->device);
 out_free_all:
-	kfree(css[i]->pseudo_subchannel->lock);
-	kfree(css[i]->pseudo_subchannel);
+	kfree(channel_subsystems[i]->pseudo_subchannel->lock);
+	kfree(channel_subsystems[i]->pseudo_subchannel);
 out_free:
-	kfree(css[i]);
+	kfree(channel_subsystems[i]);
 out_unregister:
 	while (i > 0) {
+		struct channel_subsystem *css;
+
 		i--;
-		device_unregister(&css[i]->pseudo_subchannel->dev);
+		css = channel_subsystems[i];
+		device_unregister(&css->pseudo_subchannel->dev);
 		if (css_characteristics_avail && css_chsc_characteristics.secm)
-			device_remove_file(&css[i]->device,
+			device_remove_file(&css->device,
 					   &dev_attr_cm_enable);
-		device_unregister(&css[i]->device);
+		device_unregister(&css->device);
 	}
 out_bus:
 	bus_unregister(&css_bus_type);

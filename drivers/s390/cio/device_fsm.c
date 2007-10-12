@@ -446,7 +446,8 @@ static void __ccw_device_get_common_pgid(struct ccw_device *cdev)
 	if (cdev->private->pgid[last].inf.ps.state1 ==
 	    SNID_STATE1_RESET)
 		/* No previous pgid found */
-		memcpy(&cdev->private->pgid[0], &css[0]->global_pgid,
+		memcpy(&cdev->private->pgid[0],
+		       &channel_subsystems[0]->global_pgid,
 		       sizeof(struct pgid));
 	else
 		/* Use existing pgid */

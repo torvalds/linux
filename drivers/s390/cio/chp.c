@@ -55,7 +55,7 @@ static wait_queue_head_t cfg_wait_queue;
 /* Return channel_path struct for given chpid. */
 static inline struct channel_path *chpid_to_chp(struct chp_id chpid)
 {
-	return css[chpid.cssid]->chps[chpid.id];
+	return channel_subsystems[chpid.cssid]->chps[chpid.id];
 }
 
 /* Set vary state for given chpid. */
@@ -395,7 +395,7 @@ int chp_new(struct chp_id chpid)
 	/* fill in status, etc. */
 	chp->chpid = chpid;
 	chp->state = 1;
-	chp->dev.parent = &css[chpid.cssid]->device;
+	chp->dev.parent = &channel_subsystems[chpid.cssid]->device;
 	chp->dev.release = chp_release;
 	snprintf(chp->dev.bus_id, BUS_ID_SIZE, "chp%x.%02x", chpid.cssid,
 		 chpid.id);
@@ -430,18 +430,18 @@ int chp_new(struct chp_id chpid)
 		device_unregister(&chp->dev);
 		goto out_free;
 	}
-	mutex_lock(&css[chpid.cssid]->mutex);
-	if (css[chpid.cssid]->cm_enabled) {
+	mutex_lock(&channel_subsystems[chpid.cssid]->mutex);
+	if (channel_subsystems[chpid.cssid]->cm_enabled) {
 		ret = chp_add_cmg_attr(chp);
 		if (ret) {
 			sysfs_remove_group(&chp->dev.kobj, &chp_attr_group);
 			device_unregister(&chp->dev);
-			mutex_unlock(&css[chpid.cssid]->mutex);
+			mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
 			goto out_free;
 		}
 	}
-	css[chpid.cssid]->chps[chpid.id] = chp;
-	mutex_unlock(&css[chpid.cssid]->mutex);
+	channel_subsystems[chpid.cssid]->chps[chpid.id] = chp;
+	mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
 	return ret;
 out_free:
 	kfree(chp);
