@@ -34,7 +34,6 @@
 #include "dir.h"
 #include "debug.h"
 #include "inode.h"
-#include "attrib.h"
 #include "lcnalloc.h"
 #include "malloc.h"
 #include "mft.h"
@@ -2500,8 +2499,6 @@ retry_truncate:
 	/* Resize the attribute record to best fit the new attribute size. */
 	if (new_size < vol->mft_record_size &&
 			!ntfs_resident_attr_value_resize(m, a, new_size)) {
-		unsigned long flags;
-
 		/* The resize succeeded! */
 		flush_dcache_mft_record_page(ctx->ntfs_ino);
 		mark_mft_record_dirty(ctx->ntfs_ino);
