@@ -130,7 +130,6 @@ extern void clockevents_notify(unsigned long reason, void *arg);
 
 #else
 
-static inline void clockevents_resume_events(void) { }
 #define clockevents_notify(reason, arg) do { } while (0)
 
 #endif
