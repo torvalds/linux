@@ -198,7 +198,7 @@ xlog_header_check_dump(
 	cmn_err(CE_DEBUG, "    log : uuid = ");
 	for (b = 0; b < 16; b++)
 		cmn_err(CE_DEBUG, "%02x",((uchar_t *)&head->h_fs_uuid)[b]);
-	cmn_err(CE_DEBUG, ", fmt = %d\n", INT_GET(head->h_fmt, ARCH_CONVERT));
+	cmn_err(CE_DEBUG, ", fmt = %d\n", be32_to_cpu(head->h_fmt));
 }
 #else
 #define xlog_header_check_dump(mp, head)
@@ -212,14 +212,14 @@ xlog_header_check_recover(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(INT_GET(head->h_magicno, ARCH_CONVERT) == XLOG_HEADER_MAGIC_NUM);
+	ASSERT(be32_to_cpu(head->h_magicno) == XLOG_HEADER_MAGIC_NUM);
 
 	/*
 	 * IRIX doesn't write the h_fmt field and leaves it zeroed
 	 * (XLOG_FMT_UNKNOWN). This stops us from trying to recover
 	 * a dirty log created in IRIX.
 	 */
-	if (unlikely(INT_GET(head->h_fmt, ARCH_CONVERT) != XLOG_FMT)) {
+	if (unlikely(be32_to_cpu(head->h_fmt) != XLOG_FMT)) {
 		xlog_warn(
 	"XFS: dirty log written in incompatible format - can't recover");
 		xlog_header_check_dump(mp, head);
@@ -245,7 +245,7 @@ xlog_header_check_mount(
 	xfs_mount_t		*mp,
 	xlog_rec_header_t	*head)
 {
-	ASSERT(INT_GET(head->h_magicno, ARCH_CONVERT) == XLOG_HEADER_MAGIC_NUM);
+	ASSERT(be32_to_cpu(head->h_magicno) == XLOG_HEADER_MAGIC_NUM);
 
 	if (uuid_is_nil(&head->h_fs_uuid)) {
 		/*
@@ -447,8 +447,7 @@ xlog_find_verify_log_record(
 
 		head = (xlog_rec_header_t *)offset;
 
-		if (XLOG_HEADER_MAGIC_NUM ==
-		    INT_GET(head->h_magicno, ARCH_CONVERT))
+		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(head->h_magicno))
 			break;
 
 		if (!smallmem)
@@ -480,7 +479,7 @@ xlog_find_verify_log_record(
 	 * record do we update last_blk.
 	 */
 	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb)) {
-		uint	h_size = INT_GET(head->h_size, ARCH_CONVERT);
+		uint	h_size = be32_to_cpu(head->h_size);
 
 		xhdrs = h_size / XLOG_HEADER_CYCLE_SIZE;
 		if (h_size % XLOG_HEADER_CYCLE_SIZE)
@@ -489,8 +488,8 @@ xlog_find_verify_log_record(
 		xhdrs = 1;
 	}
 
-	if (*last_blk - i + extra_bblks
-			!= BTOBB(INT_GET(head->h_len, ARCH_CONVERT)) + xhdrs)
+	if (*last_blk - i + extra_bblks !=
+	    BTOBB(be32_to_cpu(head->h_len)) + xhdrs)
 		*last_blk = i;
 
 out:
@@ -823,8 +822,7 @@ xlog_find_tail(
 		if ((error = xlog_bread(log, i, 1, bp)))
 			goto bread_err;
 		offset = xlog_align(log, i, 1, bp);
-		if (XLOG_HEADER_MAGIC_NUM ==
-		    INT_GET(*(uint *)offset, ARCH_CONVERT)) {
+		if (XLOG_HEADER_MAGIC_NUM == be32_to_cpu(*(__be32 *)offset)) {
 			found = 1;
 			break;
 		}
@@ -841,7 +839,7 @@ xlog_find_tail(
 				goto bread_err;
 			offset = xlog_align(log, i, 1, bp);
 			if (XLOG_HEADER_MAGIC_NUM ==
-			    INT_GET(*(uint*)offset, ARCH_CONVERT)) {
+			    be32_to_cpu(*(__be32 *)offset)) {
 				found = 2;
 				break;
 			}
@@ -855,7 +853,7 @@ xlog_find_tail(
 
 	/* find blk_no of tail of log */
 	rhead = (xlog_rec_header_t *)offset;
-	*tail_blk = BLOCK_LSN(INT_GET(rhead->h_tail_lsn, ARCH_CONVERT));
+	*tail_blk = BLOCK_LSN(be64_to_cpu(rhead->h_tail_lsn));
 
 	/*
 	 * Reset log values according to the state of the log when we
@@ -869,11 +867,11 @@ xlog_find_tail(
 	 */
 	log->l_prev_block = i;
 	log->l_curr_block = (int)*head_blk;
-	log->l_curr_cycle = INT_GET(rhead->h_cycle, ARCH_CONVERT);
+	log->l_curr_cycle = be32_to_cpu(rhead->h_cycle);
 	if (found == 2)
 		log->l_curr_cycle++;
-	log->l_tail_lsn = INT_GET(rhead->h_tail_lsn, ARCH_CONVERT);
-	log->l_last_sync_lsn = INT_GET(rhead->h_lsn, ARCH_CONVERT);
+	log->l_tail_lsn = be64_to_cpu(rhead->h_tail_lsn);
+	log->l_last_sync_lsn = be64_to_cpu(rhead->h_lsn);
 	log->l_grant_reserve_cycle = log->l_curr_cycle;
 	log->l_grant_reserve_bytes = BBTOB(log->l_curr_block);
 	log->l_grant_write_cycle = log->l_curr_cycle;
@@ -891,8 +889,8 @@ xlog_find_tail(
 	 * unmount record rather than the block after it.
 	 */
 	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb)) {
-		int	h_size = INT_GET(rhead->h_size, ARCH_CONVERT);
-		int	h_version = INT_GET(rhead->h_version, ARCH_CONVERT);
+		int	h_size = be32_to_cpu(rhead->h_size);
+		int	h_version = be32_to_cpu(rhead->h_version);
 
 		if ((h_version & XLOG_VERSION_2) &&
 		    (h_size > XLOG_HEADER_CYCLE_SIZE)) {
@@ -906,10 +904,10 @@ xlog_find_tail(
 		hblks = 1;
 	}
 	after_umount_blk = (i + hblks + (int)
-		BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT))) % log->l_logBBsize;
+		BTOBB(be32_to_cpu(rhead->h_len))) % log->l_logBBsize;
 	tail_lsn = log->l_tail_lsn;
 	if (*head_blk == after_umount_blk &&
-	    INT_GET(rhead->h_num_logops, ARCH_CONVERT) == 1) {
+	    be32_to_cpu(rhead->h_num_logops) == 1) {
 		umount_data_blk = (i + hblks) % log->l_logBBsize;
 		if ((error = xlog_bread(log, umount_data_blk, 1, bp))) {
 			goto bread_err;
@@ -1100,14 +1098,13 @@ xlog_add_record(
 	xlog_rec_header_t	*recp = (xlog_rec_header_t *)buf;
 
 	memset(buf, 0, BBSIZE);
-	INT_SET(recp->h_magicno, ARCH_CONVERT, XLOG_HEADER_MAGIC_NUM);
-	INT_SET(recp->h_cycle, ARCH_CONVERT, cycle);
-	INT_SET(recp->h_version, ARCH_CONVERT,
+	recp->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
+	recp->h_cycle = cpu_to_be32(cycle);
+	recp->h_version = cpu_to_be32(
 			XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? 2 : 1);
-	INT_SET(recp->h_lsn, ARCH_CONVERT, xlog_assign_lsn(cycle, block));
-	INT_SET(recp->h_tail_lsn, ARCH_CONVERT,
-		xlog_assign_lsn(tail_cycle, tail_block));
-	INT_SET(recp->h_fmt, ARCH_CONVERT, XLOG_FMT);
+	recp->h_lsn = cpu_to_be64(xlog_assign_lsn(cycle, block));
+	recp->h_tail_lsn = cpu_to_be64(xlog_assign_lsn(tail_cycle, tail_block));
+	recp->h_fmt = cpu_to_be32(XLOG_FMT);
 	memcpy(&recp->h_fs_uuid, &log->l_mp->m_sb.sb_uuid, sizeof(uuid_t));
 }
 
@@ -2214,7 +2211,7 @@ xlog_recover_do_buffer_trans(
 	 * overlap with future reads of those inodes.
 	 */
 	if (XFS_DINODE_MAGIC ==
-	    INT_GET(*((__uint16_t *)(xfs_buf_offset(bp, 0))), ARCH_CONVERT) &&
+	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
 	    (XFS_BUF_COUNT(bp) != MAX(log->l_mp->m_sb.sb_blocksize,
 			(__uint32_t)XFS_INODE_CLUSTER_SIZE(log->l_mp)))) {
 		XFS_BUF_STALE(bp);
@@ -2584,8 +2581,7 @@ xlog_recover_do_dquot_trans(
 	/*
 	 * This type of quotas was turned off, so ignore this record.
 	 */
-	type = INT_GET(recddq->d_flags, ARCH_CONVERT) &
-			(XFS_DQ_USER | XFS_DQ_PROJ | XFS_DQ_GROUP);
+	type = recddq->d_flags & (XFS_DQ_USER | XFS_DQ_PROJ | XFS_DQ_GROUP);
 	ASSERT(type);
 	if (log->l_quotaoffs_flag & type)
 		return (0);
@@ -2898,8 +2894,8 @@ xlog_recover_process_data(
 	unsigned long		hash;
 	uint			flags;
 
-	lp = dp + INT_GET(rhead->h_len, ARCH_CONVERT);
-	num_logops = INT_GET(rhead->h_num_logops, ARCH_CONVERT);
+	lp = dp + be32_to_cpu(rhead->h_len);
+	num_logops = be32_to_cpu(rhead->h_num_logops);
 
 	/* check the log format matches our own - else we can't recover */
 	if (xlog_header_check_recover(log->l_mp, rhead))
@@ -2922,7 +2918,7 @@ xlog_recover_process_data(
 		if (trans == NULL) {		   /* not found; add new tid */
 			if (ohead->oh_flags & XLOG_START_TRANS)
 				xlog_recover_new_tid(&rhash[hash], tid,
-					INT_GET(rhead->h_lsn, ARCH_CONVERT));
+					be64_to_cpu(rhead->h_lsn));
 		} else {
 			ASSERT(dp + be32_to_cpu(ohead->oh_len) <= lp);
 			flags = ohead->oh_flags & ~XLOG_END_TRANS;
@@ -3313,16 +3309,16 @@ xlog_pack_data_checksum(
 	int		size)
 {
 	int		i;
-	uint		*up;
+	__be32		*up;
 	uint		chksum = 0;
 
-	up = (uint *)iclog->ic_datap;
+	up = (__be32 *)iclog->ic_datap;
 	/* divide length by 4 to get # words */
 	for (i = 0; i < (size >> 2); i++) {
-		chksum ^= INT_GET(*up, ARCH_CONVERT);
+		chksum ^= be32_to_cpu(*up);
 		up++;
 	}
-	INT_SET(iclog->ic_header.h_chksum, ARCH_CONVERT, chksum);
+	iclog->ic_header.h_chksum = cpu_to_be32(chksum);
 }
 #else
 #define xlog_pack_data_checksum(log, iclog, size)
@@ -3339,7 +3335,7 @@ xlog_pack_data(
 {
 	int			i, j, k;
 	int			size = iclog->ic_offset + roundoff;
-	uint			cycle_lsn;
+	__be32			cycle_lsn;
 	xfs_caddr_t		dp;
 	xlog_in_core_2_t	*xhdr;
 
@@ -3350,8 +3346,8 @@ xlog_pack_data(
 	dp = iclog->ic_datap;
 	for (i = 0; i < BTOBB(size) &&
 		i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
-		iclog->ic_header.h_cycle_data[i] = *(uint *)dp;
-		*(uint *)dp = cycle_lsn;
+		iclog->ic_header.h_cycle_data[i] = *(__be32 *)dp;
+		*(__be32 *)dp = cycle_lsn;
 		dp += BBSIZE;
 	}
 
@@ -3360,8 +3356,8 @@ xlog_pack_data(
 		for ( ; i < BTOBB(size); i++) {
 			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-			xhdr[j].hic_xheader.xh_cycle_data[k] = *(uint *)dp;
-			*(uint *)dp = cycle_lsn;
+			xhdr[j].hic_xheader.xh_cycle_data[k] = *(__be32 *)dp;
+			*(__be32 *)dp = cycle_lsn;
 			dp += BBSIZE;
 		}
 
@@ -3378,21 +3374,21 @@ xlog_unpack_data_checksum(
 	xfs_caddr_t		dp,
 	xlog_t			*log)
 {
-	uint			*up = (uint *)dp;
+	__be32			*up = (__be32 *)dp;
 	uint			chksum = 0;
 	int			i;
 
 	/* divide length by 4 to get # words */
-	for (i=0; i < INT_GET(rhead->h_len, ARCH_CONVERT) >> 2; i++) {
-		chksum ^= INT_GET(*up, ARCH_CONVERT);
+	for (i=0; i < be32_to_cpu(rhead->h_len) >> 2; i++) {
+		chksum ^= be32_to_cpu(*up);
 		up++;
 	}
-	if (chksum != INT_GET(rhead->h_chksum, ARCH_CONVERT)) {
+	if (chksum != be32_to_cpu(rhead->h_chksum)) {
 	    if (rhead->h_chksum ||
 		((log->l_flags & XLOG_CHKSUM_MISMATCH) == 0)) {
 		    cmn_err(CE_DEBUG,
 			"XFS: LogR chksum mismatch: was (0x%x) is (0x%x)\n",
-			    INT_GET(rhead->h_chksum, ARCH_CONVERT), chksum);
+			    be32_to_cpu(rhead->h_chksum), chksum);
 		    cmn_err(CE_DEBUG,
 "XFS: Disregard message if filesystem was created with non-DEBUG kernel");
 		    if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb)) {
@@ -3416,18 +3412,18 @@ xlog_unpack_data(
 	int			i, j, k;
 	xlog_in_core_2_t	*xhdr;
 
-	for (i = 0; i < BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT)) &&
+	for (i = 0; i < BTOBB(be32_to_cpu(rhead->h_len)) &&
 		  i < (XLOG_HEADER_CYCLE_SIZE / BBSIZE); i++) {
-		*(uint *)dp = *(uint *)&rhead->h_cycle_data[i];
+		*(__be32 *)dp = *(__be32 *)&rhead->h_cycle_data[i];
 		dp += BBSIZE;
 	}
 
 	if (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb)) {
 		xhdr = (xlog_in_core_2_t *)rhead;
-		for ( ; i < BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT)); i++) {
+		for ( ; i < BTOBB(be32_to_cpu(rhead->h_len)); i++) {
 			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-			*(uint *)dp = xhdr[j].hic_xheader.xh_cycle_data[k];
+			*(__be32 *)dp = xhdr[j].hic_xheader.xh_cycle_data[k];
 			dp += BBSIZE;
 		}
 	}
@@ -3443,24 +3439,21 @@ xlog_valid_rec_header(
 {
 	int			hlen;
 
-	if (unlikely(
-	    (INT_GET(rhead->h_magicno, ARCH_CONVERT) !=
-			XLOG_HEADER_MAGIC_NUM))) {
+	if (unlikely(be32_to_cpu(rhead->h_magicno) != XLOG_HEADER_MAGIC_NUM)) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(1)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 	if (unlikely(
 	    (!rhead->h_version ||
-	    (INT_GET(rhead->h_version, ARCH_CONVERT) &
-			(~XLOG_VERSION_OKBITS)) != 0))) {
+	    (be32_to_cpu(rhead->h_version) & (~XLOG_VERSION_OKBITS))))) {
 		xlog_warn("XFS: %s: unrecognised log version (%d).",
-			__FUNCTION__, INT_GET(rhead->h_version, ARCH_CONVERT));
+			__FUNCTION__, be32_to_cpu(rhead->h_version));
 		return XFS_ERROR(EIO);
 	}
 
 	/* LR body must have data or it wouldn't have been written */
-	hlen = INT_GET(rhead->h_len, ARCH_CONVERT);
+	hlen = be32_to_cpu(rhead->h_len);
 	if (unlikely( hlen <= 0 || hlen > INT_MAX )) {
 		XFS_ERROR_REPORT("xlog_valid_rec_header(2)",
 				XFS_ERRLEVEL_LOW, log->l_mp);
@@ -3520,9 +3513,8 @@ xlog_do_recovery_pass(
 		error = xlog_valid_rec_header(log, rhead, tail_blk);
 		if (error)
 			goto bread_err1;
-		h_size = INT_GET(rhead->h_size, ARCH_CONVERT);
-		if ((INT_GET(rhead->h_version, ARCH_CONVERT)
-				& XLOG_VERSION_2) &&
+		h_size = be32_to_cpu(rhead->h_size);
+		if ((be32_to_cpu(rhead->h_version) & XLOG_VERSION_2) &&
 		    (h_size > XLOG_HEADER_CYCLE_SIZE)) {
 			hblks = h_size / XLOG_HEADER_CYCLE_SIZE;
 			if (h_size % XLOG_HEADER_CYCLE_SIZE)
@@ -3559,7 +3551,7 @@ xlog_do_recovery_pass(
 				goto bread_err2;
 
 			/* blocks in data section */
-			bblks = (int)BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT));
+			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
 			error = xlog_bread(log, blk_no + hblks, bblks, dbp);
 			if (error)
 				goto bread_err2;
@@ -3634,7 +3626,7 @@ xlog_do_recovery_pass(
 			if (error)
 				goto bread_err2;
 
-			bblks = (int)BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT));
+			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
 			blk_no += hblks;
 
 			/* Read in data for log record */
@@ -3705,7 +3697,7 @@ xlog_do_recovery_pass(
 			error = xlog_valid_rec_header(log, rhead, blk_no);
 			if (error)
 				goto bread_err2;
-			bblks = (int)BTOBB(INT_GET(rhead->h_len, ARCH_CONVERT));
+			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
 			if ((error = xlog_bread(log, blk_no+hblks, bblks, dbp)))
 				goto bread_err2;
 			offset = xlog_align(log, blk_no+hblks, bblks, dbp);

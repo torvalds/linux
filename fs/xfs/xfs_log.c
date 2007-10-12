@@ -1227,12 +1227,12 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 		head = &iclog->ic_header;
 		memset(head, 0, sizeof(xlog_rec_header_t));
-		INT_SET(head->h_magicno, ARCH_CONVERT, XLOG_HEADER_MAGIC_NUM);
-		INT_SET(head->h_version, ARCH_CONVERT,
+		head->h_magicno = cpu_to_be32(XLOG_HEADER_MAGIC_NUM);
+		head->h_version = cpu_to_be32(
 			XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? 2 : 1);
-		INT_SET(head->h_size, ARCH_CONVERT, log->l_iclog_size);
+		head->h_size = cpu_to_be32(log->l_iclog_size);
 		/* new fields */
-		INT_SET(head->h_fmt, ARCH_CONVERT, XLOG_FMT);
+		head->h_fmt = cpu_to_be32(XLOG_FMT);
 		memcpy(&head->h_fs_uuid, &mp->m_sb.sb_uuid, sizeof(uuid_t));
 
 
@@ -1378,7 +1378,7 @@ xlog_sync(xlog_t		*log,
 {
 	xfs_caddr_t	dptr;		/* pointer to byte sized element */
 	xfs_buf_t	*bp;
-	int		i, ops;
+	int		i;
 	uint		count;		/* byte count of bwrite */
 	uint		count_init;	/* initial count before roundup */
 	int		roundoff;       /* roundoff to BB or stripe */
@@ -1417,21 +1417,17 @@ xlog_sync(xlog_t		*log,
 
 	/* real byte length */
 	if (v2) {
-		INT_SET(iclog->ic_header.h_len, 
-			ARCH_CONVERT,
-			iclog->ic_offset + roundoff);
+		iclog->ic_header.h_len =
+			cpu_to_be32(iclog->ic_offset + roundoff);
 	} else {
-		INT_SET(iclog->ic_header.h_len, ARCH_CONVERT, iclog->ic_offset);
+		iclog->ic_header.h_len =
+			cpu_to_be32(iclog->ic_offset);
 	}
-
-	/* put ops count in correct order */
-	ops = iclog->ic_header.h_num_logops;
-	INT_SET(iclog->ic_header.h_num_logops, ARCH_CONVERT, ops);
 
 	bp = iclog->ic_bp;
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, unsigned long) == (unsigned long)1);
 	XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)2);
-	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT)));
+	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn)));
 
 	XFS_STATS_ADD(xs_log_blocks, BTOBB(count));
 
@@ -1494,10 +1490,10 @@ xlog_sync(xlog_t		*log,
 		 * a new cycle.  Watch out for the header magic number
 		 * case, though.
 		 */
-		for (i=0; i<split; i += BBSIZE) {
-			INT_MOD(*(uint *)dptr, ARCH_CONVERT, +1);
-			if (INT_GET(*(uint *)dptr, ARCH_CONVERT) == XLOG_HEADER_MAGIC_NUM)
-				INT_MOD(*(uint *)dptr, ARCH_CONVERT, +1);
+		for (i = 0; i < split; i += BBSIZE) {
+			be32_add((__be32 *)dptr, 1);
+			if (be32_to_cpu(*(__be32 *)dptr) == XLOG_HEADER_MAGIC_NUM)
+				be32_add((__be32 *)dptr, 1);
 			dptr += BBSIZE;
 		}
 
@@ -1586,7 +1582,7 @@ xlog_state_finish_copy(xlog_t		*log,
 {
 	spin_lock(&log->l_icloglock);
 
-	iclog->ic_header.h_num_logops += record_cnt;
+	be32_add(&iclog->ic_header.h_num_logops, record_cnt);
 	iclog->ic_offset += copy_bytes;
 
 	spin_unlock(&log->l_icloglock);
@@ -1813,7 +1809,7 @@ xlog_write(xfs_mount_t *	mp,
 
 	/* start_lsn is the first lsn written to. That's all we need. */
 	if (! *start_lsn)
-	    *start_lsn = INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT);
+	    *start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
 	/* This loop writes out as many regions as can fit in the amount
 	 * of space which was allocated by xlog_state_get_iclog_space().
@@ -1983,7 +1979,8 @@ xlog_state_clean_log(xlog_t *log)
 			 * We don't need to cover the dummy.
 			 */
 			if (!changed &&
-			   (INT_GET(iclog->ic_header.h_num_logops, ARCH_CONVERT) == XLOG_COVER_OPS)) {
+			   (be32_to_cpu(iclog->ic_header.h_num_logops) ==
+			   		XLOG_COVER_OPS)) {
 				changed = 1;
 			} else {
 				/*
@@ -2051,7 +2048,7 @@ xlog_get_lowest_lsn(
 	lowest_lsn = 0;
 	do {
 	    if (!(lsn_log->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_DIRTY))) {
-		lsn = INT_GET(lsn_log->ic_header.h_lsn, ARCH_CONVERT);
+		lsn = be64_to_cpu(lsn_log->ic_header.h_lsn);
 		if ((lsn && !lowest_lsn) ||
 		    (XFS_LSN_CMP(lsn, lowest_lsn) < 0)) {
 			lowest_lsn = lsn;
@@ -2152,11 +2149,9 @@ xlog_state_do_callback(
 				 */
 
 				lowest_lsn = xlog_get_lowest_lsn(log);
-				if (lowest_lsn && (
-					XFS_LSN_CMP(
-						lowest_lsn,
-						INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT)
-					)<0)) {
+				if (lowest_lsn &&
+				    XFS_LSN_CMP(lowest_lsn,
+				    		be64_to_cpu(iclog->ic_header.h_lsn)) < 0) {
 					iclog = iclog->ic_next;
 					continue; /* Leave this iclog for
 						   * another thread */
@@ -2171,11 +2166,10 @@ xlog_state_do_callback(
 				 * No one else can be here except us.
 				 */
 				spin_lock(&log->l_grant_lock);
-				ASSERT(XFS_LSN_CMP(
-						log->l_last_sync_lsn,
-						INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT)
-					)<=0);
-				log->l_last_sync_lsn = INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT);
+				ASSERT(XFS_LSN_CMP(log->l_last_sync_lsn,
+				       be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
+				log->l_last_sync_lsn =
+					be64_to_cpu(iclog->ic_header.h_lsn);
 				spin_unlock(&log->l_grant_lock);
 
 				/*
@@ -2392,8 +2386,8 @@ restart:
 		xlog_tic_add_region(ticket,
 				    log->l_iclog_hsize,
 				    XLOG_REG_TYPE_LRHEADER);
-		INT_SET(head->h_cycle, ARCH_CONVERT, log->l_curr_cycle);
-		INT_SET(head->h_lsn, ARCH_CONVERT,
+		head->h_cycle = cpu_to_be32(log->l_curr_cycle);
+		head->h_lsn = cpu_to_be64(
 			xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block));
 		ASSERT(log->l_curr_block >= 0);
 	}
@@ -2823,7 +2817,7 @@ xlog_state_release_iclog(xlog_t		*log,
 	    iclog->ic_state == XLOG_STATE_WANT_SYNC) {
 		sync++;
 		iclog->ic_state = XLOG_STATE_SYNCING;
-		INT_SET(iclog->ic_header.h_tail_lsn, ARCH_CONVERT, log->l_tail_lsn);
+		iclog->ic_header.h_tail_lsn = cpu_to_be64(log->l_tail_lsn);
 		xlog_verify_tail_lsn(log, iclog, log->l_tail_lsn);
 		/* cycle incremented when incrementing curr_block */
 	}
@@ -2861,7 +2855,7 @@ xlog_state_switch_iclogs(xlog_t		*log,
 	if (!eventual_size)
 		eventual_size = iclog->ic_offset;
 	iclog->ic_state = XLOG_STATE_WANT_SYNC;
-	INT_SET(iclog->ic_header.h_prev_block, ARCH_CONVERT, log->l_prev_block);
+	iclog->ic_header.h_prev_block = cpu_to_be32(log->l_prev_block);
 	log->l_prev_block = log->l_curr_block;
 	log->l_prev_cycle = log->l_curr_cycle;
 
@@ -2957,7 +2951,7 @@ xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed)
 				 * the previous sync.
 				 */
 				iclog->ic_refcnt++;
-				lsn = INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT);
+				lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 				xlog_state_switch_iclogs(log, iclog, 0);
 				spin_unlock(&log->l_icloglock);
 
@@ -2965,7 +2959,7 @@ xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed)
 					return XFS_ERROR(EIO);
 				*log_flushed = 1;
 				spin_lock(&log->l_icloglock);
-				if (INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT) == lsn &&
+				if (be64_to_cpu(iclog->ic_header.h_lsn) == lsn &&
 				    iclog->ic_state != XLOG_STATE_DIRTY)
 					goto maybe_sleep;
 				else
@@ -3049,9 +3043,9 @@ try_again:
     }
 
     do {
-	if (INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT) != lsn) {
-	    iclog = iclog->ic_next;
-	    continue;
+	if (be64_to_cpu(iclog->ic_header.h_lsn) != lsn) {
+		iclog = iclog->ic_next;
+		continue;
 	}
 
 	if (iclog->ic_state == XLOG_STATE_DIRTY) {
@@ -3460,18 +3454,18 @@ xlog_verify_iclog(xlog_t	 *log,
 	spin_unlock(&log->l_icloglock);
 
 	/* check log magic numbers */
-	ptr = (xfs_caddr_t) &(iclog->ic_header);
-	if (INT_GET(*(uint *)ptr, ARCH_CONVERT) != XLOG_HEADER_MAGIC_NUM)
+	if (be32_to_cpu(iclog->ic_header.h_magicno) != XLOG_HEADER_MAGIC_NUM)
 		xlog_panic("xlog_verify_iclog: invalid magic num");
 
-	for (ptr += BBSIZE; ptr < ((xfs_caddr_t)&(iclog->ic_header))+count;
+	ptr = (xfs_caddr_t) &iclog->ic_header;
+	for (ptr += BBSIZE; ptr < ((xfs_caddr_t)&iclog->ic_header) + count;
 	     ptr += BBSIZE) {
-		if (INT_GET(*(uint *)ptr, ARCH_CONVERT) == XLOG_HEADER_MAGIC_NUM)
+		if (be32_to_cpu(*(__be32 *)ptr) == XLOG_HEADER_MAGIC_NUM)
 			xlog_panic("xlog_verify_iclog: unexpected magic num");
 	}
 
 	/* check fields */
-	len = INT_GET(iclog->ic_header.h_num_logops, ARCH_CONVERT);
+	len = be32_to_cpu(iclog->ic_header.h_num_logops);
 	ptr = iclog->ic_datap;
 	base_ptr = ptr;
 	ophead = (xlog_op_header_t *)ptr;
@@ -3512,9 +3506,9 @@ xlog_verify_iclog(xlog_t	 *log,
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-				op_len = INT_GET(xhdr[j].hic_xheader.xh_cycle_data[k], ARCH_CONVERT);
+				op_len = be32_to_cpu(xhdr[j].hic_xheader.xh_cycle_data[k]);
 			} else {
-				op_len = INT_GET(iclog->ic_header.h_cycle_data[idx], ARCH_CONVERT);
+				op_len = be32_to_cpu(iclog->ic_header.h_cycle_data[idx]);
 			}
 		}
 		ptr += sizeof(xlog_op_header_t) + op_len;
