@@ -70,11 +70,15 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 		seq_num = rtas_ret[1];
 	} while (rtas_busy_delay(rc));
 
-	if (rc == 0) /* Success */
-		rc = rtas_ret[0];
+	/*
+	 * If the RTAS call succeeded, check the number of irqs is actually
+	 * what we asked for. If not, return an error.
+	 */
+	if (rc == 0 && rtas_ret[0] != num_irqs)
+		rc = -ENOSPC;
 
-	pr_debug("rtas_msi: ibm,change_msi(func=%d,num=%d) = (%d)\n",
-		 func, num_irqs, rc);
+	pr_debug("rtas_msi: ibm,change_msi(func=%d,num=%d), got %d rc = %d\n",
+		 func, num_irqs, rtas_ret[0], rc);
 
 	return rc;
 }
@@ -87,7 +91,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 	if (!pdn)
 		return;
 
-	if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0) != 0)
+	if (rtas_change_msi(pdn, RTAS_CHANGE_FN, 0))
 		pr_debug("rtas_msi: Setting MSIs to 0 failed!\n");
 }
 
@@ -180,38 +184,31 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI) {
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
-		if (rc != nvec) {
+		if (rc) {
 			pr_debug("rtas_msi: trying the old firmware call.\n");
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_FN, nvec);
 		}
 	} else
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
 
-	if (rc != nvec) {
+	if (rc) {
 		pr_debug("rtas_msi: rtas_change_msi() failed\n");
-
-		/*
-		 * In case of an error it's not clear whether the device is
-		 * left with MSI enabled or not, so we explicitly disable.
-		 */
-		goto out_free;
+		return rc;
 	}
 
 	i = 0;
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = rtas_query_irq_number(pdn, i);
 		if (hwirq < 0) {
-			rc = hwirq;
 			pr_debug("rtas_msi: error (%d) getting hwirq\n", rc);
-			goto out_free;
+			return hwirq;
 		}
 
 		virq = irq_create_mapping(NULL, hwirq);
 
 		if (virq == NO_IRQ) {
 			pr_debug("rtas_msi: Failed mapping hwirq %d\n", hwirq);
-			rc = -ENOSPC;
-			goto out_free;
+			return -ENOSPC;
 		}
 
 		dev_dbg(&pdev->dev, "rtas_msi: allocated virq %d\n", virq);
@@ -220,10 +217,6 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	}
 
 	return 0;
-
- out_free:
-	rtas_teardown_msi_irqs(pdev);
-	return rc;
 }
 
 static void rtas_msi_pci_irq_fixup(struct pci_dev *pdev)

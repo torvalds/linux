@@ -14,12 +14,29 @@ config 64BIT
 	bool
 	default y if PPC64
 
+config WORD_SIZE
+	int
+	default 64 if PPC64
+	default 32 if !PPC64
+
 config PPC_MERGE
 	def_bool y
 
 config MMU
 	bool
 	default y
+
+config GENERIC_CMOS_UPDATE
+	def_bool y
+
+config GENERIC_TIME
+	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	def_bool y
+
+config GENERIC_CLOCKEVENTS
+	def_bool y
 
 config GENERIC_HARDIRQS
 	bool
@@ -156,6 +173,7 @@ config HIGHMEM
 	bool "High memory support"
 	depends on PPC32
 
+source kernel/time/Kconfig
 source kernel/Kconfig.hz
 source kernel/Kconfig.preempt
 source "fs/Kconfig.binfmt"
@@ -180,17 +198,29 @@ config MATH_EMULATION
 	  unit, which will allow programs that use floating-point
 	  instructions to run.
 
+config 8XX_MINIMAL_FPEMU
+	bool "Minimal math emulation for 8xx"
+	depends on 8xx && !MATH_EMULATION
+	help
+	  Older arch/ppc kernels still emulated a few floating point
+	  instructions such as load and store, even when full math
+	  emulation is disabled.  Say "Y" here if you want to preserve
+	  this behavior.
+
+	  It is recommended that you build a soft-float userspace instead.
+
 config IOMMU_VMERGE
-	bool "Enable IOMMU virtual merging (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PPC64
-	default n
+	bool "Enable IOMMU virtual merging"
+	depends on PPC64
+	default y
 	help
 	  Cause IO segments sent to a device for DMA to be merged virtually
 	  by the IOMMU when they happen to have been allocated contiguously.
 	  This doesn't add pressure to the IOMMU allocator. However, some
 	  drivers don't support getting large merged segments coming back
-	  from *_map_sg(). Say Y if you know the drivers you are using are
-	  properly handling this case.
+	  from *_map_sg().
+
+	  Most drivers don't have this problem; it is safe to say Y here.
 
 config HOTPLUG_CPU
 	bool "Support for enabling/disabling CPUs"
@@ -465,7 +495,7 @@ config PCI_8260
 
 config 8260_PCI9
 	bool "Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260 && !ADS8272
+	depends on PCI_8260 && !8272
 	default y
 
 choice
@@ -569,7 +599,8 @@ config TASK_SIZE_BOOL
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
-	default "0x80000000"
+	default "0x80000000" if PPC_PREP || PPC_8xx
+	default "0xc0000000"
 
 config CONSISTENT_START_BOOL
 	bool "Set custom consistent memory pool address"
@@ -581,6 +612,7 @@ config CONSISTENT_START_BOOL
 
 config CONSISTENT_START
 	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
+	default "0xfd000000" if (NOT_COHERENT_CACHE && 8xx)
 	default "0xff100000" if NOT_COHERENT_CACHE
 
 config CONSISTENT_SIZE_BOOL
@@ -662,3 +694,7 @@ config KEYS_COMPAT
 	default y
 
 source "crypto/Kconfig"
+
+config PPC_CLOCK
+	bool
+	default n

@@ -35,7 +35,6 @@
 #include <sysdev/fsl_soc.h>
 
 #include "mpc86xx.h"
-#include "mpc8641_hpcn.h"
 
 #undef DEBUG
 
@@ -132,25 +131,15 @@ static int mpc86xx_exclude_device(struct pci_controller *hose,
 static void __init
 mpc86xx_hpcn_setup_arch(void)
 {
+#ifdef CONFIG_PCI
 	struct device_node *np;
+#endif
 
 	if (ppc_md.progress)
 		ppc_md.progress("mpc86xx_hpcn_setup_arch()", 0);
 
-	np = of_find_node_by_type(NULL, "cpu");
-	if (np != 0) {
-		const unsigned int *fp;
-
-		fp = of_get_property(np, "clock-frequency", NULL);
-		if (fp != 0)
-			loops_per_jiffy = *fp / HZ;
-		else
-			loops_per_jiffy = 50000000 / HZ;
-		of_node_put(np);
-	}
-
 #ifdef CONFIG_PCI
-	for (np = NULL; (np = of_find_node_by_type(np, "pci")) != NULL;) {
+	for_each_compatible_node(np, "pci", "fsl,mpc8641-pcie") {
 		struct resource rsrc;
 		of_address_to_resource(np, 0, &rsrc);
 		if ((rsrc.start & 0xfffff) == 0x8000)
@@ -158,6 +147,7 @@ mpc86xx_hpcn_setup_arch(void)
 		else
 			fsl_add_bridge(np, 0);
 	}
+
 	uses_fsl_uli_m1575 = 1;
 	ppc_md.pci_exclude_device = mpc86xx_exclude_device;
 
@@ -205,23 +195,6 @@ static int __init mpc86xx_hpcn_probe(void)
 	return 0;
 }
 
-
-void
-mpc86xx_restart(char *cmd)
-{
-	void __iomem *rstcr;
-
-	rstcr = ioremap(get_immrbase() + MPC86XX_RSTCR_OFFSET, 0x100);
-
-	local_irq_disable();
-
-	/* Assert reset request to Reset Control Register */
-	out_be32(rstcr, 0x2);
-
-	/* not reached */
-}
-
-
 long __init
 mpc86xx_time_init(void)
 {
@@ -246,7 +219,7 @@ define_machine(mpc86xx_hpcn) {
 	.init_IRQ		= mpc86xx_hpcn_init_irq,
 	.show_cpuinfo		= mpc86xx_hpcn_show_cpuinfo,
 	.get_irq		= mpic_get_irq,
-	.restart		= mpc86xx_restart,
+	.restart		= fsl_rstcr_restart,
 	.time_init		= mpc86xx_time_init,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= udbg_progress,

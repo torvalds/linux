@@ -87,8 +87,8 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		 * entry in the hardware page table.
 		 *
 		 */
-		if (htab_bolt_mapping(ea, (unsigned long)ea + PAGE_SIZE,
-				      pa, flags, mmu_io_psize)) {
+		if (htab_bolt_mapping(ea, ea + PAGE_SIZE, pa, flags,
+				      mmu_io_psize, mmu_kernel_ssize)) {
 			printk(KERN_ERR "Failed to do bolted mapping IO "
 			       "memory at %016lx !\n", pa);
 			return -ENOMEM;
@@ -228,5 +228,7 @@ void iounmap(volatile void __iomem *token)
 EXPORT_SYMBOL(ioremap);
 EXPORT_SYMBOL(ioremap_flags);
 EXPORT_SYMBOL(__ioremap);
+EXPORT_SYMBOL(__ioremap_at);
 EXPORT_SYMBOL(iounmap);
 EXPORT_SYMBOL(__iounmap);
+EXPORT_SYMBOL(__iounmap_at);

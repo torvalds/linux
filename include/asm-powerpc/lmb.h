@@ -1,5 +1,5 @@
-#ifndef _PPC64_LMB_H
-#define _PPC64_LMB_H
+#ifndef _ASM_POWERPC_LMB_H
+#define _ASM_POWERPC_LMB_H
 #ifdef __KERNEL__
 
 /*
@@ -77,4 +77,4 @@ lmb_end_pfn(struct lmb_region *type, unsigned long region_nr)
 }
 
 #endif /* __KERNEL__ */
-#endif /* _PPC64_LMB_H */
+#endif /* _ASM_POWERPC_LMB_H */

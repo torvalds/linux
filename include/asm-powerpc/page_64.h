@@ -26,11 +26,17 @@
  */
 #define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
 
-/* Segment size */
+/* Segment size; normal 256M segments */
 #define SID_SHIFT		28
-#define SID_MASK		0xfffffffffUL
+#define SID_MASK		ASM_CONST(0xfffffffff)
 #define ESID_MASK		0xfffffffff0000000UL
 #define GET_ESID(x)		(((x) >> SID_SHIFT) & SID_MASK)
+
+/* 1T segments */
+#define SID_SHIFT_1T		40
+#define SID_MASK_1T		0xffffffUL
+#define ESID_MASK_1T		0xffffff0000000000UL
+#define GET_ESID_1T(x)		(((x) >> SID_SHIFT_1T) & SID_MASK_1T)
 
 #ifndef __ASSEMBLY__
 #include <asm/cache.h>
@@ -121,6 +127,7 @@ extern unsigned int get_slice_psize(struct mm_struct *mm,
 
 extern void slice_init_context(struct mm_struct *mm, unsigned int psize);
 extern void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
+#define slice_mm_new_context(mm)	((mm)->context.id == 0)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 extern int is_hugepage_only_range(struct mm_struct *m,
@@ -130,6 +137,12 @@ extern int is_hugepage_only_range(struct mm_struct *m,
 #endif /* __ASSEMBLY__ */
 #else
 #define slice_init()
+#define slice_set_user_psize(mm, psize)		\
+do {						\
+	(mm)->context.user_psize = (psize);	\
+	(mm)->context.sllp = SLB_VSID_USER | mmu_psize_defs[(psize)].sllp; \
+} while (0)
+#define slice_mm_new_context(mm)	1
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #ifdef CONFIG_HUGETLB_PAGE

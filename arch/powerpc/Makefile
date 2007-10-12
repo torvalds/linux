@@ -35,11 +35,14 @@ endif
 
 export CROSS32CC CROSS32AS CROSS32LD CROSS32AR CROSS32OBJCOPY
 
+ifeq ($(CROSS_COMPILE),)
 KBUILD_DEFCONFIG := $(shell uname -m)_defconfig
+else
+KBUILD_DEFCONFIG := ppc64_defconfig
+endif
 
 ifeq ($(CONFIG_PPC64),y)
 OLDARCH	:= ppc64
-SZ	:= 64
 
 new_nm := $(shell if $(NM) --help 2>&1 | grep -- '--synthetic' > /dev/null; then echo y; else echo n; fi)
 
@@ -49,22 +52,26 @@ endif
 
 else
 OLDARCH	:= ppc
-SZ	:= 32
+endif
+
+# It seems there are times we use this Makefile without
+# including the config file, but this replicates the old behaviour
+ifeq ($(CONFIG_WORD_SIZE),)
+CONFIG_WORD_SIZE := 32
 endif
 
 UTS_MACHINE := $(OLDARCH)
 
 ifeq ($(HAS_BIARCH),y)
-override AS	+= -a$(SZ)
-override LD	+= -m elf$(SZ)ppc
-override CC	+= -m$(SZ)
-override AR	:= GNUTARGET=elf$(SZ)-powerpc $(AR)
+override AS	+= -a$(CONFIG_WORD_SIZE)
+override LD	+= -m elf$(CONFIG_WORD_SIZE)ppc
+override CC	+= -m$(CONFIG_WORD_SIZE)
+override AR	:= GNUTARGET=elf$(CONFIG_WORD_SIZE)-powerpc $(AR)
 endif
 
 LDFLAGS_vmlinux	:= -Bstatic
 
-# The -Iarch/$(ARCH)/include is temporary while we are merging
-CPPFLAGS-$(CONFIG_PPC32) := -Iarch/$(ARCH) -Iarch/$(ARCH)/include
+CPPFLAGS-$(CONFIG_PPC32) := -Iarch/$(ARCH)
 AFLAGS-$(CONFIG_PPC32)	:= -Iarch/$(ARCH)
 CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=none  -mcall-aixdesc
 CFLAGS-$(CONFIG_PPC32)	:= -Iarch/$(ARCH) -ffixed-r2 -mmultiple
@@ -72,11 +79,8 @@ CPPFLAGS	+= $(CPPFLAGS-y)
 AFLAGS		+= $(AFLAGS-y)
 CFLAGS		+= -msoft-float -pipe $(CFLAGS-y)
 CPP		= $(CC) -E $(CFLAGS)
-# Temporary hack until we have migrated to asm-powerpc
-LINUXINCLUDE-$(CONFIG_PPC32)	:= -Iarch/$(ARCH)/include
-LINUXINCLUDE    += $(LINUXINCLUDE-y)
 
-CHECKFLAGS	+= -m$(SZ) -D__powerpc__ -D__powerpc$(SZ)__
+CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
 
 ifeq ($(CONFIG_PPC64),y)
 GCC_BROKEN_VEC	:= $(shell if [ $(call cc-version) -lt 0400 ] ; then echo "y"; fi)
@@ -94,6 +98,10 @@ endif
 else
 	CFLAGS += $(call cc-option,-mtune=power4)
 endif
+endif
+
+ifeq ($(CONFIG_TUNE_CELL),y)
+	CFLAGS += $(call cc-option,-mtune=cell)
 endif
 
 # No AltiVec instruction when building kernel
@@ -120,10 +128,9 @@ cpu-as-$(CONFIG_E200)		+= -Wa,-me200
 AFLAGS += $(cpu-as-y)
 CFLAGS += $(cpu-as-y)
 
-head-y				:= arch/powerpc/kernel/head_32.o
-head-$(CONFIG_PPC64)		:= arch/powerpc/kernel/head_64.o
+head-y				:= arch/powerpc/kernel/head_$(CONFIG_WORD_SIZE).o
 head-$(CONFIG_8xx)		:= arch/powerpc/kernel/head_8xx.o
-head-$(CONFIG_4xx)		:= arch/powerpc/kernel/head_4xx.o
+head-$(CONFIG_40x)		:= arch/powerpc/kernel/head_40x.o
 head-$(CONFIG_44x)		:= arch/powerpc/kernel/head_44x.o
 head-$(CONFIG_FSL_BOOKE)	:= arch/powerpc/kernel/head_fsl_booke.o
 
@@ -166,24 +173,19 @@ define archhelp
   @echo '  *_defconfig     - Select default config from arch/$(ARCH)/configs'
 endef
 
-install:
+install: vdso_install
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+
+vdso_install:
+ifeq ($(CONFIG_PPC64),y)
+	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
+endif
+	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-archmrproper:
-	$(Q)rm -rf arch/$(ARCH)/include
-
 archprepare: checkbin
-
-ifeq ($(CONFIG_PPC32),y)
-# Temporary hack until we have migrated to asm-powerpc
-include/asm: arch/$(ARCH)/include/asm
-arch/$(ARCH)/include/asm: FORCE
-	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
-	$(Q)ln -fsn $(srctree)/include/asm-$(OLDARCH) arch/$(ARCH)/include/asm
-endif
 
 # Use the file '.tmp_gas_check' for binutils tests, as gas won't output
 # to stdout and these checks are run even on install targets.

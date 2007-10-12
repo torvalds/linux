@@ -324,11 +324,13 @@ static struct of_device_id axon_ram_device_id[] = {
 };
 
 static struct of_platform_driver axon_ram_driver = {
-	.owner		= THIS_MODULE,
-	.name		= AXON_RAM_MODULE_NAME,
 	.match_table	= axon_ram_device_id,
 	.probe		= axon_ram_probe,
-	.remove		= axon_ram_remove
+	.remove		= axon_ram_remove,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= AXON_RAM_MODULE_NAME,
+	},
 };
 
 /**

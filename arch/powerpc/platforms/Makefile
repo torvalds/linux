@@ -9,7 +9,7 @@ obj-$(CONFIG_PPC_PMAC)		+= powermac/
 endif
 endif
 obj-$(CONFIG_PPC_CHRP)		+= chrp/
-#obj-$(CONFIG_4xx)		+= 4xx/
+obj-$(CONFIG_40x)		+= 40x/
 obj-$(CONFIG_44x)		+= 44x/
 obj-$(CONFIG_PPC_MPC52xx)	+= 52xx/
 obj-$(CONFIG_PPC_8xx)		+= 8xx/

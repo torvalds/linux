@@ -73,7 +73,7 @@ static void celleb_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
-static int celleb_machine_type_hack(char *ptr)
+static int __init celleb_machine_type_hack(char *ptr)
 {
 	strncpy(celleb_machine_type, ptr, sizeof(celleb_machine_type));
 	celleb_machine_type[sizeof(celleb_machine_type)-1] = 0;
@@ -101,19 +101,9 @@ static void __init celleb_setup_arch(void)
 	/* init to some ~sane value until calibrate_delay() runs */
 	loops_per_jiffy = 50000000;
 
-	if (ROOT_DEV == 0) {
-		printk("No ramdisk, default root is /dev/hda2\n");
-		ROOT_DEV = Root_HDA2;
-	}
-
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
-}
-
-static void beat_power_save(void)
-{
-	beat_pause(0);
 }
 
 static int __init celleb_probe(void)
@@ -124,18 +114,11 @@ static int __init celleb_probe(void)
 		return 0;
 
 	powerpc_firmware_features |= FW_FEATURE_CELLEB_POSSIBLE;
-	hpte_init_beat();
+	hpte_init_beat_v3();
 	return 1;
 }
 
-#ifdef CONFIG_KEXEC
-static void celleb_kexec_cpu_down(int crash, int secondary)
-{
-	beatic_deinit_IRQ();
-}
-#endif
-
-static struct of_device_id celleb_bus_ids[] = {
+static struct of_device_id celleb_bus_ids[] __initdata = {
 	{ .type = "scc", },
 	{ .type = "ioif", },	/* old style */
 	{},
@@ -148,6 +131,8 @@ static int __init celleb_publish_devices(void)
 
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
+
+	celleb_pci_workaround_init();
 
 	return 0;
 }
@@ -175,7 +160,7 @@ define_machine(celleb) {
 	.pci_probe_mode 	= celleb_pci_probe_mode,
 	.pci_setup_phb		= celleb_setup_phb,
 #ifdef CONFIG_KEXEC
-	.kexec_cpu_down		= celleb_kexec_cpu_down,
+	.kexec_cpu_down		= beat_kexec_cpu_down,
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
 	.machine_crash_shutdown	= default_machine_crash_shutdown,

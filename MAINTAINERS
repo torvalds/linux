@@ -1535,7 +1535,7 @@ P:	Pantelis Antoniou
 M:	pantelis.antoniou@gmail.com
 P:	Vitaly Bordug
 M:	vbordug@ru.mvista.com
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 
@@ -1543,14 +1543,14 @@ FREESCALE HIGHSPEED USB DEVICE DRIVER
 P:	Li Yang
 M:	leoli@freescale.com
 L:	linux-usb-devel@lists.sourceforge.net
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
 P:	Li Yang
 M:	leoli@freescale.com
 L:	netdev@vger.kernel.org
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 FILE LOCKING (flock() and fcntl()/lockf())
@@ -2297,38 +2297,49 @@ S:	Maintained
 LINUX FOR POWERPC EMBEDDED MPC52XX
 P:	Sylvain Munaut
 M:	tnt@246tNt.com
+P:	Grant Likely
+M:	grant.likely@secretlab.ca
 W:	http://www.246tNt.com/mpc52xx/
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
-L:	linuxppc-embedded@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
+P:	Josh Boyer
+M:	jwboyer@linux.vnet.ibm.com
 P:	Matt Porter
 M:	mporter@kernel.crashing.org
 W:	http://www.penguinppc.org/
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/jwboyer/powerpc.git
+S:	Maintained
+
+LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
+P:	Grant Likely
+M:	grant.likely@secretlab.ca
+W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC BOOT CODE
 P:	Tom Rini
 M:	trini@kernel.crashing.org
 W:	http://www.penguinppc.org/
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
 P:	Marcelo Tosatti
 M:	marcelo@kvack.org
 W:	http://www.penguinppc.org/
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
 P:	Kumar Gala
 M:	galak@kernel.crashing.org
 W:	http://www.penguinppc.org/
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
@@ -2990,7 +3001,7 @@ POWERPC 4xx EMAC DRIVER
 P:	Eugene Surovegin
 M:	ebs@ebshome.net
 W:	http://kernel.ebshome.net/emac/
-L:	linuxppc-embedded@ozlabs.org
+L:	linuxppc-dev@ozlabs.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 

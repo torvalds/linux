@@ -1,10 +1,10 @@
-#config BAMBOO
-#	bool "Bamboo"
-#	depends on 44x
-#	default n
-#	select 440EP
-#	help
-#	  This option enables support for the IBM PPC440EP evaluation board.
+config BAMBOO
+	bool "Bamboo"
+	depends on 44x
+	default n
+	select 440EP
+	help
+	  This option enables support for the IBM PPC440EP evaluation board.
 
 config EBONY
 	bool "Ebony"
@@ -13,6 +13,14 @@ config EBONY
 	select 440GP
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
+
+config SEQUOIA
+	bool "Sequoia"
+	depends on 44x
+	default n
+	select 440EPX
+	help
+	  This option enables support for the AMCC PPC440EPX evaluation board.
 
 #config LUAN
 #	bool "Luan"
@@ -35,6 +43,14 @@ config 440EP
 	bool
 	select PPC_FPU
 	select IBM440EP_ERR42
+#	select IBM_NEW_EMAC_ZMII
+
+config 440EPX
+	bool
+	select PPC_FPU
+# Disabled until the new EMAC Driver is merged.
+#	select IBM_NEW_EMAC_EMAC4
+#	select IBM_NEW_EMAC_ZMII
 
 config 440GP
 	bool
@@ -48,7 +64,7 @@ config 440SP
 
 config 440A
 	bool
-	depends on 440GX
+	depends on 440GX || 440EPX
 	default y
 
 # 44x errata/workaround config symbols, selected by the CPU models above

@@ -30,7 +30,6 @@
 			timebase-frequency = <04ead9a0>;
 			bus-frequency = <13ab6680>;
 			clock-frequency = <312c8040>;
-			32-bit;
 		};
 	};
 
@@ -42,7 +41,6 @@
 	soc8560@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00000200>;
@@ -132,115 +130,39 @@
 			phy-handle = <&phy1>;
 		};
 
-		pci@8000 {
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
-			device_type = "pci";
-			reg = <8000 1000>;
-			clock-frequency = <3f940aa>;
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-					/* IDSEL 0x2 */
-					 1000 0 0 1 &mpic 1 1
-					 1000 0 0 2 &mpic 2 1
-					 1000 0 0 3 &mpic 3 1
-					 1000 0 0 4 &mpic 4 1
-
-					/* IDSEL 0x3 */
-					 1800 0 0 1 &mpic 4 1
-					 1800 0 0 2 &mpic 1 1
-					 1800 0 0 3 &mpic 2 1
-					 1800 0 0 4 &mpic 3 1
-
-					/* IDSEL 0x4 */
-					 2000 0 0 1 &mpic 3 1
-					 2000 0 0 2 &mpic 4 1
-					 2000 0 0 3 &mpic 1 1
-					 2000 0 0 4 &mpic 2 1
-
-					/* IDSEL 0x5  */
-					 2800 0 0 1 &mpic 2 1
-					 2800 0 0 2 &mpic 3 1
-					 2800 0 0 3 &mpic 4 1
-					 2800 0 0 4 &mpic 1 1
-
-					/* IDSEL 12 */
-					 6000 0 0 1 &mpic 1 1
-					 6000 0 0 2 &mpic 2 1
-					 6000 0 0 3 &mpic 3 1
-					 6000 0 0 4 &mpic 4 1
-
-					/* IDSEL 13 */
-					 6800 0 0 1 &mpic 4 1
-					 6800 0 0 2 &mpic 1 1
-					 6800 0 0 3 &mpic 2 1
-					 6800 0 0 4 &mpic 3 1
-
-					/* IDSEL 14*/
-					 7000 0 0 1 &mpic 3 1
-					 7000 0 0 2 &mpic 4 1
-					 7000 0 0 3 &mpic 1 1
-					 7000 0 0 4 &mpic 2 1
-
-					/* IDSEL 15 */
-					 7800 0 0 1 &mpic 2 1
-					 7800 0 0 2 &mpic 3 1
-					 7800 0 0 3 &mpic 4 1
-					 7800 0 0 4 &mpic 1 1
-
-					/* IDSEL 18 */
-					 9000 0 0 1 &mpic 1 1
-					 9000 0 0 2 &mpic 2 1
-					 9000 0 0 3 &mpic 3 1
-					 9000 0 0 4 &mpic 4 1
-
-					/* IDSEL 19 */
-					 9800 0 0 1 &mpic 4 1
-					 9800 0 0 2 &mpic 1 1
-					 9800 0 0 3 &mpic 2 1
-					 9800 0 0 4 &mpic 3 1
-
-					/* IDSEL 20 */
-					 a000 0 0 1 &mpic 3 1
-					 a000 0 0 2 &mpic 4 1
-					 a000 0 0 3 &mpic 1 1
-					 a000 0 0 4 &mpic 2 1
-
-					/* IDSEL 21 */
-					 a800 0 0 1 &mpic 2 1
-					 a800 0 0 2 &mpic 3 1
-					 a800 0 0 3 &mpic 4 1
-					 a800 0 0 4 &mpic 1 1>;
-
-			interrupt-parent = <&mpic>;
-			interrupts = <18 2>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 80000000 80000000 0 20000000
-				  01000000 0 00000000 e2000000 0 01000000>;
-		};
-
 		mpic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <40000 40000>;
-			built-in;
 			device_type = "open-pic";
 		};
 
-		cpm@e0000000 {
+		cpm@919c0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			#interrupt-cells = <2>;
-			device_type = "cpm";
-			model = "CPM2";
-			ranges = <0 0 c0000>;
-			reg = <80000 40000>;
-			command-proc = <919c0>;
-			brg-frequency = <9d5b340>;
+			compatible = "fsl,mpc8560-cpm", "fsl,cpm2";
+			reg = <919c0 30>;
+			ranges;
+
+			muram@80000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 80000 10000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 4000 9000 2000>;
+				};
+			};
+
+			brg@919f0 {
+				compatible = "fsl,mpc8560-brg",
+				             "fsl,cpm2-brg",
+				             "fsl,cpm-brg";
+				reg = <919f0 10 915f0 10>;
+				clock-frequency = <d#165000000>;
+			};
 
 			cpmpic: pic@90c00 {
 				interrupt-controller;
@@ -249,44 +171,38 @@
 				interrupts = <2e 2>;
 				interrupt-parent = <&mpic>;
 				reg = <90c00 80>;
-				built-in;
-				device_type = "cpm-pic";
+				compatible = "fsl,mpc8560-cpm-pic", "fsl,cpm2-pic";
 			};
 
-			scc@91a00 {
+			serial@91a00 {
 				device_type = "serial";
-				compatible = "cpm_uart";
-				model = "SCC";
-				device-id = <1>;
+				compatible = "fsl,mpc8560-scc-uart",
+				             "fsl,cpm2-scc-uart";
 				reg = <91a00 20 88000 100>;
-				clock-setup = <00ffffff 0>;
-				rx-clock = <1>;
-				tx-clock = <1>;
+				fsl,cpm-brg = <1>;
+				fsl,cpm-command = <00800000>;
 				current-speed = <1c200>;
 				interrupts = <28 8>;
 				interrupt-parent = <&cpmpic>;
 			};
 
-			scc@91a20 {
+			serial@91a20 {
 				device_type = "serial";
-				compatible = "cpm_uart";
-				model = "SCC";
-				device-id = <2>;
+				compatible = "fsl,mpc8560-scc-uart",
+				             "fsl,cpm2-scc-uart";
 				reg = <91a20 20 88100 100>;
-				clock-setup = <ff00ffff 90000>;
-				rx-clock = <2>;
-				tx-clock = <2>;
+				fsl,cpm-brg = <2>;
+				fsl,cpm-command = <04a00000>;
 				current-speed = <1c200>;
 				interrupts = <29 8>;
 				interrupt-parent = <&cpmpic>;
 			};
 
-			fcc@91320 {
+			ethernet@91320 {
 				device_type = "network";
-				compatible = "fs_enet";
-				model = "FCC";
-				device-id = <2>;
-				reg = <91320 20 88500 100 913a0 30>;
+				compatible = "fsl,mpc8560-fcc-enet",
+				             "fsl,cpm2-fcc-enet";
+				reg = <91320 20 88500 100 913b0 1>;
 				/*
 				 * mac-address is deprecated and will be removed
 				 * in 2.6.25.  Only recent versions of
@@ -294,20 +210,17 @@
 				 */
 				mac-address = [ 00 00 00 00 00 00 ];
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				clock-setup = <ff00ffff 250000>;
-				rx-clock = <15>;
-				tx-clock = <16>;
+				fsl,cpm-command = <16200300>;
 				interrupts = <21 8>;
 				interrupt-parent = <&cpmpic>;
 				phy-handle = <&phy2>;
 			};
 
-			fcc@91340 {
+			ethernet@91340 {
 				device_type = "network";
-				compatible = "fs_enet";
-				model = "FCC";
-				device-id = <3>;
-				reg = <91340 20 88600 100 913d0 30>;
+				compatible = "fsl,mpc8560-fcc-enet",
+				             "fsl,cpm2-fcc-enet";
+				reg = <91340 20 88600 100 913d0 1>;
 				/*
 				 * mac-address is deprecated and will be removed
 				 * in 2.6.25.  Only recent versions of
@@ -315,13 +228,101 @@
 				 */
 				mac-address = [ 00 00 00 00 00 00 ];
 				local-mac-address = [ 00 00 00 00 00 00 ];
-				clock-setup = <ffff00ff 3700>;
-				rx-clock = <17>;
-				tx-clock = <18>;
+				fsl,cpm-command = <1a400300>;
 				interrupts = <22 8>;
 				interrupt-parent = <&cpmpic>;
 				phy-handle = <&phy3>;
 			};
 		};
+	};
+
+	pci@e0008000 {
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		compatible = "fsl,mpc8540-pcix", "fsl,mpc8540-pci";
+		device_type = "pci";
+		reg = <e0008000 1000>;
+		clock-frequency = <3f940aa>;
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+				/* IDSEL 0x2 */
+				 1000 0 0 1 &mpic 1 1
+				 1000 0 0 2 &mpic 2 1
+				 1000 0 0 3 &mpic 3 1
+				 1000 0 0 4 &mpic 4 1
+
+				/* IDSEL 0x3 */
+				 1800 0 0 1 &mpic 4 1
+				 1800 0 0 2 &mpic 1 1
+				 1800 0 0 3 &mpic 2 1
+				 1800 0 0 4 &mpic 3 1
+
+				/* IDSEL 0x4 */
+				 2000 0 0 1 &mpic 3 1
+				 2000 0 0 2 &mpic 4 1
+				 2000 0 0 3 &mpic 1 1
+				 2000 0 0 4 &mpic 2 1
+
+				/* IDSEL 0x5  */
+				 2800 0 0 1 &mpic 2 1
+				 2800 0 0 2 &mpic 3 1
+				 2800 0 0 3 &mpic 4 1
+				 2800 0 0 4 &mpic 1 1
+
+				/* IDSEL 12 */
+				 6000 0 0 1 &mpic 1 1
+				 6000 0 0 2 &mpic 2 1
+				 6000 0 0 3 &mpic 3 1
+				 6000 0 0 4 &mpic 4 1
+
+				/* IDSEL 13 */
+				 6800 0 0 1 &mpic 4 1
+				 6800 0 0 2 &mpic 1 1
+				 6800 0 0 3 &mpic 2 1
+				 6800 0 0 4 &mpic 3 1
+
+				/* IDSEL 14*/
+				 7000 0 0 1 &mpic 3 1
+				 7000 0 0 2 &mpic 4 1
+				 7000 0 0 3 &mpic 1 1
+				 7000 0 0 4 &mpic 2 1
+
+				/* IDSEL 15 */
+				 7800 0 0 1 &mpic 2 1
+				 7800 0 0 2 &mpic 3 1
+				 7800 0 0 3 &mpic 4 1
+				 7800 0 0 4 &mpic 1 1
+
+				/* IDSEL 18 */
+				 9000 0 0 1 &mpic 1 1
+				 9000 0 0 2 &mpic 2 1
+				 9000 0 0 3 &mpic 3 1
+				 9000 0 0 4 &mpic 4 1
+
+				/* IDSEL 19 */
+				 9800 0 0 1 &mpic 4 1
+				 9800 0 0 2 &mpic 1 1
+				 9800 0 0 3 &mpic 2 1
+				 9800 0 0 4 &mpic 3 1
+
+				/* IDSEL 20 */
+				 a000 0 0 1 &mpic 3 1
+				 a000 0 0 2 &mpic 4 1
+				 a000 0 0 3 &mpic 1 1
+				 a000 0 0 4 &mpic 2 1
+
+				/* IDSEL 21 */
+				 a800 0 0 1 &mpic 2 1
+				 a800 0 0 2 &mpic 3 1
+				 a800 0 0 3 &mpic 4 1
+				 a800 0 0 4 &mpic 1 1>;
+
+		interrupt-parent = <&mpic>;
+		interrupts = <18 2>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 80000000 80000000 0 20000000
+			  01000000 0 00000000 e2000000 0 01000000>;
 	};
 };

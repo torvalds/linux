@@ -56,9 +56,75 @@ enum qe_ic_grp_id {
 	QE_IC_GRP_RISCB		/* QE interrupt controller RISC group B */
 };
 
-void qe_ic_init(struct device_node *node, unsigned int flags);
+void qe_ic_init(struct device_node *node, unsigned int flags,
+		void (*low_handler)(unsigned int irq, struct irq_desc *desc),
+		void (*high_handler)(unsigned int irq, struct irq_desc *desc));
 void qe_ic_set_highest_priority(unsigned int virq, int high);
 int qe_ic_set_priority(unsigned int virq, unsigned int priority);
 int qe_ic_set_high_priority(unsigned int virq, unsigned int priority, int high);
+
+struct qe_ic;
+unsigned int qe_ic_get_low_irq(struct qe_ic *qe_ic);
+unsigned int qe_ic_get_high_irq(struct qe_ic *qe_ic);
+
+static inline void qe_ic_cascade_low_ipic(unsigned int irq,
+					  struct irq_desc *desc)
+{
+	struct qe_ic *qe_ic = desc->handler_data;
+	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
+
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq);
+}
+
+static inline void qe_ic_cascade_high_ipic(unsigned int irq,
+					   struct irq_desc *desc)
+{
+	struct qe_ic *qe_ic = desc->handler_data;
+	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
+
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq);
+}
+
+static inline void qe_ic_cascade_low_mpic(unsigned int irq,
+					  struct irq_desc *desc)
+{
+	struct qe_ic *qe_ic = desc->handler_data;
+	unsigned int cascade_irq = qe_ic_get_low_irq(qe_ic);
+
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq);
+
+	desc->chip->eoi(irq);
+}
+
+static inline void qe_ic_cascade_high_mpic(unsigned int irq,
+					   struct irq_desc *desc)
+{
+	struct qe_ic *qe_ic = desc->handler_data;
+	unsigned int cascade_irq = qe_ic_get_high_irq(qe_ic);
+
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq);
+
+	desc->chip->eoi(irq);
+}
+
+static inline void qe_ic_cascade_muxed_mpic(unsigned int irq,
+					    struct irq_desc *desc)
+{
+	struct qe_ic *qe_ic = desc->handler_data;
+	unsigned int cascade_irq;
+
+	cascade_irq = qe_ic_get_high_irq(qe_ic);
+	if (cascade_irq == NO_IRQ)
+		cascade_irq = qe_ic_get_low_irq(qe_ic);
+
+	if (cascade_irq != NO_IRQ)
+		generic_handle_irq(cascade_irq);
+
+	desc->chip->eoi(irq);
+}
 
 #endif /* _ASM_POWERPC_QE_IC_H */

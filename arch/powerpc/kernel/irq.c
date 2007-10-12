@@ -52,6 +52,7 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
+#include <linux/debugfs.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -272,7 +273,7 @@ void do_IRQ(struct pt_regs *regs)
 	struct thread_info *curtp, *irqtp;
 #endif
 
-        irq_enter();
+	irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 2KB free? */
@@ -321,7 +322,7 @@ void do_IRQ(struct pt_regs *regs)
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 
-        irq_exit();
+	irq_exit();
 	set_irq_regs(old_regs);
 
 #ifdef CONFIG_PPC_ISERIES
@@ -417,10 +418,16 @@ irq_hw_number_t virq_to_hw(unsigned int virq)
 }
 EXPORT_SYMBOL_GPL(virq_to_hw);
 
-__init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
-						unsigned int revmap_arg,
-						struct irq_host_ops *ops,
-						irq_hw_number_t inval_irq)
+static int default_irq_host_match(struct irq_host *h, struct device_node *np)
+{
+	return h->of_node != NULL && h->of_node == np;
+}
+
+struct irq_host *irq_alloc_host(struct device_node *of_node,
+				unsigned int revmap_type,
+				unsigned int revmap_arg,
+				struct irq_host_ops *ops,
+				irq_hw_number_t inval_irq)
 {
 	struct irq_host *host;
 	unsigned int size = sizeof(struct irq_host);
@@ -431,13 +438,7 @@ __init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
 	/* Allocate structure and revmap table if using linear mapping */
 	if (revmap_type == IRQ_HOST_MAP_LINEAR)
 		size += revmap_arg * sizeof(unsigned int);
-	if (mem_init_done)
-		host = kzalloc(size, GFP_KERNEL);
-	else {
-		host = alloc_bootmem(size);
-		if (host)
-			memset(host, 0, size);
-	}
+	host = zalloc_maybe_bootmem(size, GFP_KERNEL);
 	if (host == NULL)
 		return NULL;
 
@@ -445,6 +446,10 @@ __init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
 	host->revmap_type = revmap_type;
 	host->inval_irq = inval_irq;
 	host->ops = ops;
+	host->of_node = of_node;
+
+	if (host->ops->match == NULL)
+		host->ops->match = default_irq_host_match;
 
 	spin_lock_irqsave(&irq_big_lock, flags);
 
@@ -476,7 +481,7 @@ __init_refok struct irq_host *irq_alloc_host(unsigned int revmap_type,
 		host->inval_irq = 0;
 		/* setup us as the host for all legacy interrupts */
 		for (i = 1; i < NUM_ISA_INTERRUPTS; i++) {
-			irq_map[i].hwirq = 0;
+			irq_map[i].hwirq = i;
 			smp_wmb();
 			irq_map[i].host = host;
 			smp_wmb();
@@ -520,7 +525,7 @@ struct irq_host *irq_find_host(struct device_node *node)
 	 */
 	spin_lock_irqsave(&irq_big_lock, flags);
 	list_for_each_entry(h, &irq_hosts, link)
-		if (h->ops->match == NULL || h->ops->match(h, node)) {
+		if (h->ops->match(h, node)) {
 			found = h;
 			break;
 		}
@@ -994,6 +999,68 @@ static int irq_late_init(void)
 	return 0;
 }
 arch_initcall(irq_late_init);
+
+#ifdef CONFIG_VIRQ_DEBUG
+static int virq_debug_show(struct seq_file *m, void *private)
+{
+	unsigned long flags;
+	irq_desc_t *desc;
+	const char *p;
+	char none[] = "none";
+	int i;
+
+	seq_printf(m, "%-5s  %-7s  %-15s  %s\n", "virq", "hwirq",
+		      "chip name", "host name");
+
+	for (i = 1; i < NR_IRQS; i++) {
+		desc = get_irq_desc(i);
+		spin_lock_irqsave(&desc->lock, flags);
+
+		if (desc->action && desc->action->handler) {
+			seq_printf(m, "%5d  ", i);
+			seq_printf(m, "0x%05lx  ", virq_to_hw(i));
+
+			if (desc->chip && desc->chip->typename)
+				p = desc->chip->typename;
+			else
+				p = none;
+			seq_printf(m, "%-15s  ", p);
+
+			if (irq_map[i].host && irq_map[i].host->of_node)
+				p = irq_map[i].host->of_node->full_name;
+			else
+				p = none;
+			seq_printf(m, "%s\n", p);
+		}
+
+		spin_unlock_irqrestore(&desc->lock, flags);
+	}
+
+	return 0;
+}
+
+static int virq_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, virq_debug_show, inode->i_private);
+}
+
+static const struct file_operations virq_debug_fops = {
+	.open = virq_debug_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int __init irq_debugfs_init(void)
+{
+	if (debugfs_create_file("virq_mapping", S_IRUGO, powerpc_debugfs_root,
+				 NULL, &virq_debug_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+__initcall(irq_debugfs_init);
+#endif /* CONFIG_VIRQ_DEBUG */
 
 #endif /* CONFIG_PPC_MERGE */
 

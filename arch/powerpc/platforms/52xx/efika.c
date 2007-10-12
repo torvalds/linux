@@ -9,32 +9,15 @@
  * kind, whether express or implied.
  */
 
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/utsrelease.h>
-#include <linux/seq_file.h>
-#include <linux/string.h>
-#include <linux/root_dev.h>
-#include <linux/initrd.h>
-#include <linux/timer.h>
 #include <linux/pci.h>
-
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/sections.h>
-#include <asm/pci-bridge.h>
-#include <asm/pgtable.h>
+#include <linux/of.h>
 #include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/mpc52xx.h>
-
 
 #define EFIKA_PLATFORM_NAME "Efika"
 
@@ -78,8 +61,8 @@ static int rtas_write_config(struct pci_bus *bus, unsigned int devfn,
 }
 
 static struct pci_ops rtas_pci_ops = {
-	rtas_read_config,
-	rtas_write_config
+	.read = rtas_read_config,
+	.write = rtas_write_config,
 };
 
 
@@ -196,15 +179,6 @@ static void efika_suspend_prepare(void __iomem *mbar)
 static void __init efika_setup_arch(void)
 {
 	rtas_initialize();
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_below_start_ok = 1;
-
-	if (initrd_start)
-		ROOT_DEV = Root_RAM0;
-	else
-#endif
-		ROOT_DEV = Root_SDA2;	/* sda2 (sda1 is for the kernel) */
 
 	efika_pcisetup();
 

@@ -152,11 +152,6 @@ static void stop_this_cpu(void *dummy)
 		;
 }
 
-void smp_send_stop(void)
-{
-	smp_call_function(stop_this_cpu, NULL, 1, 0);
-}
-
 /*
  * Structure and data for smp_call_function(). This is designed to minimise
  * static memory requirements. It also looks cleaner.
@@ -197,9 +192,6 @@ int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
 	int ret = -1, num_cpus;
 	int cpu;
 	u64 timeout;
-
-	/* Can deadlock when called with interrupts disabled */
-	WARN_ON(irqs_disabled());
 
 	if (unlikely(smp_ops == NULL))
 		return ret;
@@ -270,10 +262,19 @@ int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
 	return ret;
 }
 
+static int __smp_call_function(void (*func)(void *info), void *info,
+			       int nonatomic, int wait)
+{
+	return smp_call_function_map(func,info,nonatomic,wait,cpu_online_map);
+}
+
 int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 			int wait)
 {
-	return smp_call_function_map(func,info,nonatomic,wait,cpu_online_map);
+	/* Can deadlock when called with interrupts disabled */
+	WARN_ON(irqs_disabled());
+
+	return __smp_call_function(func, info, nonatomic, wait);
 }
 EXPORT_SYMBOL(smp_call_function);
 
@@ -282,6 +283,9 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int
 {
 	cpumask_t map = CPU_MASK_NONE;
 	int ret = 0;
+
+	/* Can deadlock when called with interrupts disabled */
+	WARN_ON(irqs_disabled());
 
 	if (!cpu_online(cpu))
 		return -EINVAL;
@@ -298,6 +302,11 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int
 	return ret;
 }
 EXPORT_SYMBOL(smp_call_function_single);
+
+void smp_send_stop(void)
+{
+	__smp_call_function(stop_this_cpu, NULL, 1, 0);
+}
 
 void smp_call_function_interrupt(void)
 {
@@ -559,6 +568,8 @@ int __devinit start_secondary(void *unused)
 
 	if (system_state > SYSTEM_BOOTING)
 		snapshot_timebase();
+
+	secondary_cpu_time_init();
 
 	spin_lock(&call_lock);
 	cpu_set(cpu, cpu_online_map);

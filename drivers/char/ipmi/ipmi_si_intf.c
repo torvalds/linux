@@ -2253,19 +2253,19 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 		return ret;
 	}
 
-	regsize = get_property(np, "reg-size", &proplen);
+	regsize = of_get_property(np, "reg-size", &proplen);
 	if (regsize && proplen != 4) {
 		dev_warn(&dev->dev, PFX "invalid regsize from OF\n");
 		return -EINVAL;
 	}
 
-	regspacing = get_property(np, "reg-spacing", &proplen);
+	regspacing = of_get_property(np, "reg-spacing", &proplen);
 	if (regspacing && proplen != 4) {
 		dev_warn(&dev->dev, PFX "invalid regspacing from OF\n");
 		return -EINVAL;
 	}
 
-	regshift = get_property(np, "reg-shift", &proplen);
+	regshift = of_get_property(np, "reg-shift", &proplen);
 	if (regshift && proplen != 4) {
 		dev_warn(&dev->dev, PFX "invalid regshift from OF\n");
 		return -EINVAL;

@@ -60,7 +60,8 @@ static void _debug_dump_hpte(unsigned long pa, unsigned long va,
 }
 
 static long ps3_hpte_insert(unsigned long hpte_group, unsigned long va,
-	unsigned long pa, unsigned long rflags, unsigned long vflags, int psize)
+	unsigned long pa, unsigned long rflags, unsigned long vflags,
+	int psize, int ssize)
 {
 	unsigned long slot;
 	struct hash_pte lhpte;
@@ -72,7 +73,8 @@ static long ps3_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 	vflags &= ~HPTE_V_SECONDARY; /* this bit is ignored */
 
-	lhpte.v = hpte_encode_v(va, psize) | vflags | HPTE_V_VALID;
+	lhpte.v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M) |
+		vflags | HPTE_V_VALID;
 	lhpte.r = hpte_encode_r(ps3_mm_phys_to_lpar(pa), psize) | rflags;
 
 	p_pteg = hpte_group / HPTES_PER_GROUP;
@@ -167,14 +169,14 @@ static long ps3_hpte_remove(unsigned long hpte_group)
 }
 
 static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
-	unsigned long va, int psize, int local)
+	unsigned long va, int psize, int ssize, int local)
 {
 	unsigned long flags;
 	unsigned long result;
 	unsigned long pteg, bit;
 	unsigned long hpte_v, want_v;
 
-	want_v = hpte_encode_v(va, psize);
+	want_v = hpte_encode_v(va, psize, MMU_SEGSIZE_256M);
 
 	spin_lock_irqsave(&ps3_bolttab_lock, flags);
 
@@ -205,13 +207,13 @@ static long ps3_hpte_updatepp(unsigned long slot, unsigned long newpp,
 }
 
 static void ps3_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
-	int psize)
+	int psize, int ssize)
 {
 	panic("ps3_hpte_updateboltedpp() not implemented");
 }
 
 static void ps3_hpte_invalidate(unsigned long slot, unsigned long va,
-	int psize, int local)
+	int psize, int ssize, int local)
 {
 	unsigned long flags;
 	unsigned long result;

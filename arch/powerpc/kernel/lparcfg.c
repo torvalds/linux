@@ -77,7 +77,7 @@ static int iseries_lparcfg_data(struct seq_file *m, void *v)
 	int processors, max_processors;
 	unsigned long purr = get_purr();
 
-	shared = (int)(get_lppaca()->shared_proc);
+	shared = (int)(local_paca->lppaca_ptr->shared_proc);
 
 	seq_printf(m, "system_active_processors=%d\n",
 		   (int)HvLpConfig_getSystemPhysicalProcessors());

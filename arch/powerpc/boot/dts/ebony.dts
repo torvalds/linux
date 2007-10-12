@@ -9,10 +9,6 @@
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
  * any warranty of any kind, whether express or implied.
- *
- * To build:
- *   dtc -I dts -O asm -o ebony.S -b 0 ebony.dts
- *   dtc -I dts -O dtb -o ebony.dtb -b 0 ebony.dts
  */
 
 / {
@@ -142,13 +138,16 @@
 				interrupt-parent = <&UIC1>;
 
 				small-flash@0,80000 {
-					device_type = "rom";
-					compatible = "direct-mapped";
-					probe-type = "JEDEC";
+					compatible = "jedec-flash";
 					bank-width = <1>;
-					partitions = <0 80000>;
-					partition-names = "OpenBIOS";
 					reg = <0 80000 80000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "OpenBIOS";
+						reg = <0 80000>;
+						read-only;
+					};
 				};
 
 				ds1743@1,0 {
@@ -158,14 +157,19 @@
 				};
 
 				large-flash@2,0 {
-					device_type = "rom";
-					compatible = "direct-mapped";
-					probe-type = "JEDEC";
+					compatible = "jedec-flash";
 					bank-width = <1>;
-					partitions = <0 380000
-						      380000 80000>;
-					partition-names = "fs", "firmware";
 					reg = <2 0 400000>;
+					#address-cells = <1>;
+					#size-cells = <1>;
+					partition@0 {
+						label = "fs";
+						reg = <0 380000>;
+					};
+					partition@380000 {
+						label = "firmware";
+						reg = <380000 80000>;
+					};
 				};
 
 				ir@3,0 {
@@ -175,6 +179,7 @@
 				fpga@7,0 {
 					compatible = "Ebony-FPGA";
 					reg = <7 0 10>;
+					virtual-reg = <e8300000>;
 				};
 			};
 

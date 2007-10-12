@@ -26,10 +26,8 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
-#include <asm/residual.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
-#include <asm/smp.h>
 #include <asm/mpic.h>
 #include <asm/rtas.h>
 

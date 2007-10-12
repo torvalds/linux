@@ -18,19 +18,9 @@
 
 #undef DEBUG
 
-#include <linux/stddef.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/stddef.h>
-#include <linux/delay.h>
 #include <linux/irq.h>
-#include <linux/hardirq.h>
-
+#include <linux/of.h>
 #include <asm/io.h>
-#include <asm/processor.h>
-#include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
 #include "mpc52xx_pic.h"
@@ -242,12 +232,6 @@ static struct irq_chip mpc52xx_sdma_irqchip = {
  * irq_host
 */
 
-static int mpc52xx_irqhost_match(struct irq_host *h, struct device_node *node)
-{
-	pr_debug("%s: node=%p\n", __func__, node);
-	return mpc52xx_irqhost->host_data == node;
-}
-
 static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
 				 u32 * intspec, unsigned int intsize,
 				 irq_hw_number_t * out_hwirq,
@@ -368,7 +352,6 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 }
 
 static struct irq_host_ops mpc52xx_irqhost_ops = {
-	.match = mpc52xx_irqhost_match,
 	.xlate = mpc52xx_irqhost_xlate,
 	.map = mpc52xx_irqhost_map,
 };
@@ -420,14 +403,13 @@ void __init mpc52xx_init_irq(void)
 	 * hw irq information provided by the ofw to linux virq
 	 */
 
-	mpc52xx_irqhost = irq_alloc_host(IRQ_HOST_MAP_LINEAR,
+	mpc52xx_irqhost = irq_alloc_host(picnode, IRQ_HOST_MAP_LINEAR,
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
 	                                 &mpc52xx_irqhost_ops, -1);
 
 	if (!mpc52xx_irqhost)
 		panic(__FILE__ ": Cannot allocate the IRQ host\n");
 
-	mpc52xx_irqhost->host_data = picnode;
 	printk(KERN_INFO "MPC52xx PIC is up and running!\n");
 }
 

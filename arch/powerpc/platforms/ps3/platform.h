@@ -47,7 +47,11 @@ void __init ps3_register_ipi_debug_brk(unsigned int cpu, unsigned int virq);
 /* smp */
 
 void smp_init_ps3(void);
+#ifdef CONFIG_SMP
 void ps3_smp_cleanup_cpu(int cpu);
+#else
+static inline void ps3_smp_cleanup_cpu(int cpu) { }
+#endif
 
 /* time */
 
@@ -58,8 +62,10 @@ int ps3_set_rtc_time(struct rtc_time *time);
 
 /* os area */
 
-int __init ps3_os_area_init(void);
-u64 ps3_os_area_rtc_diff(void);
+void __init ps3_os_area_save_params(void);
+void __init ps3_os_area_init(void);
+u64 ps3_os_area_get_rtc_diff(void);
+void ps3_os_area_set_rtc_diff(u64 rtc_diff);
 
 /* spu */
 

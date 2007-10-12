@@ -192,7 +192,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 static void pci_dma_bus_setup_null(struct pci_bus *b) { }
 static void pci_dma_dev_setup_null(struct pci_dev *d) { }
 
-int iob_init(struct device_node *dn)
+int __init iob_init(struct device_node *dn)
 {
 	unsigned long tmp;
 	u32 regword;
@@ -238,7 +238,7 @@ int iob_init(struct device_node *dn)
 
 
 /* These are called very early. */
-void iommu_init_early_pasemi(void)
+void __init iommu_init_early_pasemi(void)
 {
 	int iommu_off;
 

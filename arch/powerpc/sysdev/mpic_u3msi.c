@@ -40,6 +40,7 @@ static struct irq_chip mpic_u3msi_chip = {
 	.unmask		= mpic_u3msi_unmask_irq,
 	.eoi		= mpic_end_irq,
 	.set_type	= mpic_set_irq_type,
+	.set_affinity	= mpic_set_affinity,
 	.typename	= "MPIC-U3MSI",
 };
 
@@ -107,59 +108,46 @@ static void u3msi_teardown_msi_irqs(struct pci_dev *pdev)
 	return;
 }
 
-static void u3msi_compose_msi_msg(struct pci_dev *pdev, int virq,
-				  struct msi_msg *msg)
-{
-	u64 addr;
-
-	addr = find_ht_magic_addr(pdev);
-	msg->address_lo = addr & 0xFFFFFFFF;
-	msg->address_hi = addr >> 32;
-	msg->data = virq_to_hw(virq);
-
-	pr_debug("u3msi: allocated virq 0x%x (hw 0x%lx) at address 0x%lx\n",
-		 virq, virq_to_hw(virq), addr);
-}
-
 static int u3msi_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
 	irq_hw_number_t hwirq;
-	int rc;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
+	u64 addr;
+
+	addr = find_ht_magic_addr(pdev);
+	msg.address_lo = addr & 0xFFFFFFFF;
+	msg.address_hi = addr >> 32;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		hwirq = mpic_msi_alloc_hwirqs(msi_mpic, 1);
 		if (hwirq < 0) {
-			rc = hwirq;
 			pr_debug("u3msi: failed allocating hwirq\n");
-			goto out_free;
+			return hwirq;
 		}
 
 		virq = irq_create_mapping(msi_mpic->irqhost, hwirq);
 		if (virq == NO_IRQ) {
 			pr_debug("u3msi: failed mapping hwirq 0x%lx\n", hwirq);
 			mpic_msi_free_hwirqs(msi_mpic, hwirq, 1);
-			rc = -ENOSPC;
-			goto out_free;
+			return -ENOSPC;
 		}
 
 		set_irq_msi(virq, entry);
 		set_irq_chip(virq, &mpic_u3msi_chip);
 		set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
 
-		u3msi_compose_msi_msg(pdev, virq, &msg);
+		pr_debug("u3msi: allocated virq 0x%x (hw 0x%lx) addr 0x%lx\n",
+			  virq, hwirq, addr);
+
+		msg.data = hwirq;
 		write_msi_msg(virq, &msg);
 
 		hwirq++;
 	}
 
 	return 0;
-
- out_free:
-	u3msi_teardown_msi_irqs(pdev);
-	return rc;
 }
 
 int mpic_u3msi_init(struct mpic *mpic)

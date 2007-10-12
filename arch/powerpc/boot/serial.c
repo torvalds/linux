@@ -19,8 +19,6 @@
 #include "io.h"
 #include "ops.h"
 
-extern void udelay(long delay);
-
 static int serial_open(void)
 {
 	struct serial_console_data *scdp = console_ops.data;
@@ -114,28 +112,35 @@ int serial_console_init(void)
 {
 	void *devp;
 	int rc = -1;
-	char compat[MAX_PROP_LEN];
 
 	devp = serial_get_stdout_devp();
 	if (devp == NULL)
 		goto err_out;
 
-	if (getprop(devp, "compatible", compat, sizeof(compat)) < 0)
-		goto err_out;
-
-	if (!strcmp(compat, "ns16550"))
+	if (dt_is_compatible(devp, "ns16550"))
 		rc = ns16550_console_init(devp, &serial_cd);
-	else if (!strcmp(compat, "marvell,mpsc"))
+	else if (dt_is_compatible(devp, "marvell,mpsc"))
 		rc = mpsc_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "fsl,cpm1-scc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm1-smc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm2-scc-uart") ||
+	         dt_is_compatible(devp, "fsl,cpm2-smc-uart"))
+		rc = cpm_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "mpc5200-psc-uart"))
+		rc = mpc5200_psc_console_init(devp, &serial_cd);
+	else if (dt_is_compatible(devp, "xilinx,uartlite"))
+		rc = uartlite_console_init(devp, &serial_cd);
 
 	/* Add other serial console driver calls here */
 
 	if (!rc) {
 		console_ops.open = serial_open;
 		console_ops.write = serial_write;
-		console_ops.edit_cmdline = serial_edit_cmdline;
 		console_ops.close = serial_close;
 		console_ops.data = &serial_cd;
+
+		if (serial_cd.getc)
+			console_ops.edit_cmdline = serial_edit_cmdline;
 
 		return 0;
 	}

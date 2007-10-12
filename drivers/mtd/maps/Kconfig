@@ -362,7 +362,7 @@ config MTD_WALNUT
 
 config MTD_EBONY
 	tristate "Flash devices mapped on IBM 440GP Ebony"
-	depends on MTD_JEDECPROBE && EBONY
+	depends on MTD_JEDECPROBE && EBONY && !PPC_MERGE
 	help
 	  This enables access routines for the flash chips on the IBM 440GP
 	  Ebony board. If you have one of these boards and would like to

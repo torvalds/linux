@@ -34,6 +34,8 @@ SECTIONS
 
 	/* Text and gots */
 	.text : {
+		ALIGN_FUNCTION();
+		*(.text.head)
 		_text = .;
 		TEXT_TEXT
 		SCHED_TEXT

@@ -34,9 +34,9 @@
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 #include <asm/reg.h>
+#include <asm/cell-regs.h>
 
 #include "pervasive.h"
-#include "cbe_regs.h"
 
 static int sysreset_hack;
 

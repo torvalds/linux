@@ -50,12 +50,6 @@ static void __maybe_unused _dump_time(int time, const char *func,
 	_dump_tm(&tm, func, line);
 }
 
-/**
- * rtc_shift - Difference in seconds between 1970 and the ps3 rtc value.
- */
-
-static s64 rtc_shift;
-
 void __init ps3_calibrate_decr(void)
 {
 	int result;
@@ -66,8 +60,6 @@ void __init ps3_calibrate_decr(void)
 
 	ppc_tb_freq = tmp;
 	ppc_proc_freq = ppc_tb_freq * 40;
-
-	rtc_shift = ps3_os_area_rtc_diff();
 }
 
 static u64 read_rtc(void)
@@ -87,18 +79,18 @@ int ps3_set_rtc_time(struct rtc_time *tm)
 	u64 now = mktime(tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
 		tm->tm_hour, tm->tm_min, tm->tm_sec);
 
-	rtc_shift = now - read_rtc();
+	ps3_os_area_set_rtc_diff(now - read_rtc());
 	return 0;
 }
 
 void ps3_get_rtc_time(struct rtc_time *tm)
 {
-	to_tm(read_rtc() + rtc_shift, tm);
+	to_tm(read_rtc() + ps3_os_area_get_rtc_diff(), tm);
 	tm->tm_year -= 1900;
 	tm->tm_mon -= 1;
 }
 
 unsigned long __init ps3_get_boot_time(void)
 {
-	return read_rtc() + rtc_shift;
+	return read_rtc() + ps3_os_area_get_rtc_diff();
 }

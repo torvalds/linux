@@ -56,30 +56,6 @@
 #define VIOCD_KERN_WARNING		KERN_WARNING "viocd: "
 #define VIOCD_KERN_INFO			KERN_INFO "viocd: "
 
-struct viocdlpevent {
-	struct HvLpEvent	event;
-	u32			reserved;
-	u16			version;
-	u16			sub_result;
-	u16			disk;
-	u16			flags;
-	u32			token;
-	u64			offset;		/* On open, max number of disks */
-	u64			len;		/* On open, size of the disk */
-	u32			block_size;	/* Only set on open */
-	u32			media_size;	/* Only set on open */
-};
-
-enum viocdsubtype {
-	viocdopen = 0x0001,
-	viocdclose = 0x0002,
-	viocdread = 0x0003,
-	viocdwrite = 0x0004,
-	viocdlockdoor = 0x0005,
-	viocdgetinfo = 0x0006,
-	viocdcheck = 0x0007
-};
-
 /*
  * Should probably make this a module parameter....sigh
  */
@@ -131,22 +107,13 @@ static struct capability_entry capability_table[] __initdata = {
 /* These are our internal structures for keeping track of devices */
 static int viocd_numdev;
 
-struct cdrom_info {
-	char	rsrcname[10];
-	char	type[4];
-	char	model[3];
-};
-/*
- * This needs to be allocated since it is passed to the
- * Hypervisor and we may be a module.
- */
-static struct cdrom_info *viocd_unitinfo;
-static dma_addr_t unitinfo_dmaaddr;
-
 struct disk_info {
 	struct gendisk			*viocd_disk;
 	struct cdrom_device_info	viocd_info;
 	struct device			*dev;
+	const char			*rsrcname;
+	const char			*type;
+	const char			*model;
 };
 static struct disk_info viocd_diskinfo[VIOCD_MAX_CD];
 
@@ -164,9 +131,9 @@ static int proc_viocd_show(struct seq_file *m, void *v)
 	for (i = 0; i < viocd_numdev; i++) {
 		seq_printf(m, "viocd device %d is iSeries resource %10.10s"
 				"type %4.4s, model %3.3s\n",
-				i, viocd_unitinfo[i].rsrcname,
-				viocd_unitinfo[i].type,
-				viocd_unitinfo[i].model);
+				i, viocd_diskinfo[i].rsrcname,
+				viocd_diskinfo[i].type,
+				viocd_diskinfo[i].model);
 	}
 	return 0;
 }
@@ -215,61 +182,6 @@ struct block_device_operations viocd_fops = {
 	.ioctl =		viocd_blk_ioctl,
 	.media_changed =	viocd_blk_media_changed,
 };
-
-/* Get info on CD devices from OS/400 */
-static void __init get_viocd_info(void)
-{
-	HvLpEvent_Rc hvrc;
-	int i;
-	struct viocd_waitevent we;
-
-	viocd_unitinfo = dma_alloc_coherent(iSeries_vio_dev,
-			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
-			&unitinfo_dmaaddr, GFP_ATOMIC);
-	if (viocd_unitinfo == NULL) {
-		printk(VIOCD_KERN_WARNING "error allocating unitinfo\n");
-		return;
-	}
-
-	memset(viocd_unitinfo, 0, sizeof(*viocd_unitinfo) * VIOCD_MAX_CD);
-
-	init_completion(&we.com);
-
-	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
-			HvLpEvent_Type_VirtualIo,
-			viomajorsubtype_cdio | viocdgetinfo,
-			HvLpEvent_AckInd_DoAck, HvLpEvent_AckType_ImmediateAck,
-			viopath_sourceinst(viopath_hostLp),
-			viopath_targetinst(viopath_hostLp),
-			(u64)&we, VIOVERSION << 16, unitinfo_dmaaddr, 0,
-			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD, 0);
-	if (hvrc != HvLpEvent_Rc_Good) {
-		printk(VIOCD_KERN_WARNING "cdrom error sending event. rc %d\n",
-				(int)hvrc);
-		goto error_ret;
-	}
-
-	wait_for_completion(&we.com);
-
-	if (we.rc) {
-		const struct vio_error_entry *err =
-			vio_lookup_rc(viocd_err_table, we.sub_result);
-		printk(VIOCD_KERN_WARNING "bad rc %d:0x%04X on getinfo: %s\n",
-				we.rc, we.sub_result, err->msg);
-		goto error_ret;
-	}
-
-	for (i = 0; (i < VIOCD_MAX_CD) && viocd_unitinfo[i].rsrcname[0]; i++)
-		viocd_numdev++;
-
-error_ret:
-	if (viocd_numdev == 0) {
-		dma_free_coherent(iSeries_vio_dev,
-				sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
-				viocd_unitinfo, unitinfo_dmaaddr);
-		viocd_unitinfo = NULL;
-	}
-}
 
 static int viocd_open(struct cdrom_device_info *cdi, int purpose)
 {
@@ -581,7 +493,6 @@ static void vio_handle_cd_event(struct HvLpEvent *event)
 					bevent->block_size / 512);
 		}
 		/* FALLTHROUGH !! */
-	case viocdgetinfo:
 	case viocdlockdoor:
 		pwe = (struct viocd_waitevent *)event->xCorrelationToken;
 return_complete:
@@ -665,22 +576,30 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	int deviceno;
 	struct disk_info *d;
 	struct cdrom_device_info *c;
-	struct cdrom_info *ci;
 	struct request_queue *q;
+	struct device_node *node = vdev->dev.archdata.of_node;
 
 	deviceno = vdev->unit_address;
-	if (deviceno >= viocd_numdev)
+	if (deviceno > VIOCD_MAX_CD)
+		return -ENODEV;
+	if (!node)
 		return -ENODEV;
 
+	if (deviceno >= viocd_numdev)
+		viocd_numdev = deviceno + 1;
+
 	d = &viocd_diskinfo[deviceno];
+	d->rsrcname = of_get_property(node, "linux,vio_rsrcname", NULL);
+	d->type = of_get_property(node, "linux,vio_type", NULL);
+	d->model = of_get_property(node, "linux,vio_model", NULL);
+
 	c = &d->viocd_info;
-	ci = &viocd_unitinfo[deviceno];
 
 	c->ops = &viocd_dops;
 	c->speed = 4;
 	c->capacity = 1;
 	c->handle = d;
-	c->mask = ~find_capability(ci->type);
+	c->mask = ~find_capability(d->type);
 	sprintf(c->name, VIOCD_DEVICE "%c", 'a' + deviceno);
 
 	if (register_cdrom(c) != 0) {
@@ -690,7 +609,7 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 	printk(VIOCD_KERN_INFO "cd %s is iSeries resource %10.10s "
 			"type %4.4s, model %3.3s\n",
-			c->name, ci->rsrcname, ci->type, ci->model);
+			c->name, d->rsrcname, d->type, d->model);
 	q = blk_init_queue(do_viocd_request, &viocd_reqlock);
 	if (q == NULL) {
 		printk(VIOCD_KERN_WARNING "Cannot allocate queue for %s!\n",
@@ -799,8 +718,6 @@ static int __init viocd_init(void)
 	/* Initialize our request handler */
 	vio_setHandler(viomajorsubtype_cdio, vio_handle_cd_event);
 
-	get_viocd_info();
-
 	spin_lock_init(&viocd_reqlock);
 
 	ret = vio_register_driver(&viocd_driver);
@@ -816,9 +733,6 @@ static int __init viocd_init(void)
 	return 0;
 
 out_free_info:
-	dma_free_coherent(iSeries_vio_dev,
-			sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
-			viocd_unitinfo, unitinfo_dmaaddr);
 	vio_clearHandler(viomajorsubtype_cdio);
 	viopath_close(viopath_hostLp, viomajorsubtype_cdio, MAX_CD_REQ + 2);
 out_unregister:
@@ -830,10 +744,6 @@ static void __exit viocd_exit(void)
 {
 	remove_proc_entry("iSeries/viocd", NULL);
 	vio_unregister_driver(&viocd_driver);
-	if (viocd_unitinfo != NULL)
-		dma_free_coherent(iSeries_vio_dev,
-				sizeof(*viocd_unitinfo) * VIOCD_MAX_CD,
-				viocd_unitinfo, unitinfo_dmaaddr);
 	viopath_close(viopath_hostLp, viomajorsubtype_cdio, MAX_CD_REQ + 2);
 	vio_clearHandler(viomajorsubtype_cdio);
 	unregister_blkdev(VIOCD_MAJOR, VIOCD_DEVICE);

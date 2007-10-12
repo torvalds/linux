@@ -22,11 +22,13 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-typedef struct {} dcr_host_t;
+typedef struct {
+	unsigned int base;
+} dcr_host_t;
 
 #define DCR_MAP_OK(host)	(1)
 
-#define dcr_map(dev, dcr_n, dcr_c)	((dcr_host_t){})
+#define dcr_map(dev, dcr_n, dcr_c)	((dcr_host_t){ .base = (dcr_n) })
 #define dcr_unmap(host, dcr_n, dcr_c)	do {} while (0)
 #define dcr_read(host, dcr_n)		mfdcr(dcr_n)
 #define dcr_write(host, dcr_n, value)	mtdcr(dcr_n, value)

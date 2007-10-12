@@ -65,14 +65,11 @@ static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 	spin_unlock(&hose_spinlock);
 }
 
-__init_refok struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
+struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	if (mem_init_done)
-		phb = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
-	else
-		phb = alloc_bootmem(sizeof (struct pci_controller));
+	phb = alloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
 	if (phb == NULL)
 		return NULL;
 	pci_setup_pci_controller(phb);

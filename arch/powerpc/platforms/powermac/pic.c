@@ -384,7 +384,7 @@ static void __init pmac_pic_probe_oldstyle(void)
 	/*
 	 * Allocate an irq host
 	 */
-	pmac_pic_host = irq_alloc_host(IRQ_HOST_MAP_LINEAR, max_irqs,
+	pmac_pic_host = irq_alloc_host(master, IRQ_HOST_MAP_LINEAR, max_irqs,
 				       &pmac_pic_host_ops,
 				       max_irqs);
 	BUG_ON(pmac_pic_host == NULL);

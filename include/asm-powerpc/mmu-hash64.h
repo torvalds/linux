@@ -47,6 +47,8 @@ extern char initial_stab[];
 
 /* Bits in the SLB VSID word */
 #define SLB_VSID_SHIFT		12
+#define SLB_VSID_SHIFT_1T	24
+#define SLB_VSID_SSIZE_SHIFT	62
 #define SLB_VSID_B		ASM_CONST(0xc000000000000000)
 #define SLB_VSID_B_256M		ASM_CONST(0x0000000000000000)
 #define SLB_VSID_B_1T		ASM_CONST(0x4000000000000000)
@@ -66,6 +68,7 @@ extern char initial_stab[];
 #define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS|SLB_VSID_C)
 
 #define SLBIE_C			(0x08000000)
+#define SLBIE_SSIZE_SHIFT	25
 
 /*
  * Hash table
@@ -77,7 +80,7 @@ extern char initial_stab[];
 #define HPTE_V_AVPN_SHIFT	7
 #define HPTE_V_AVPN		ASM_CONST(0x3fffffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
-#define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & HPTE_V_AVPN))
+#define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & 0xffffffffffffff80))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
 #define HPTE_V_LOCK		ASM_CONST(0x0000000000000008)
 #define HPTE_V_LARGE		ASM_CONST(0x0000000000000004)
@@ -164,16 +167,19 @@ struct mmu_psize_def
 #define MMU_SEGSIZE_256M	0
 #define MMU_SEGSIZE_1T		1
 
+
 #ifndef __ASSEMBLY__
 
 /*
- * The current system page sizes
+ * The current system page and segment sizes
  */
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
 extern int mmu_io_psize;
+extern int mmu_kernel_ssize;
+extern int mmu_highuser_ssize;
 
 /*
  * If the processor supports 64k normal pages but not 64k cache
@@ -195,13 +201,15 @@ extern int mmu_huge_psize;
  * This function sets the AVPN and L fields of the HPTE  appropriately
  * for the page size
  */
-static inline unsigned long hpte_encode_v(unsigned long va, int psize)
+static inline unsigned long hpte_encode_v(unsigned long va, int psize,
+					  int ssize)
 {
-	unsigned long v =
+	unsigned long v;
 	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
 	v <<= HPTE_V_AVPN_SHIFT;
 	if (psize != MMU_PAGE_4K)
 		v |= HPTE_V_LARGE;
+	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
 	return v;
 }
 
@@ -226,20 +234,40 @@ static inline unsigned long hpte_encode_r(unsigned long pa, int psize)
 }
 
 /*
- * This hashes a virtual address for a 256Mb segment only for now
+ * Build a VA given VSID, EA and segment size
+ */
+static inline unsigned long hpt_va(unsigned long ea, unsigned long vsid,
+				   int ssize)
+{
+	if (ssize == MMU_SEGSIZE_256M)
+		return (vsid << 28) | (ea & 0xfffffffUL);
+	return (vsid << 40) | (ea & 0xffffffffffUL);
+}
+
+/*
+ * This hashes a virtual address
  */
 
-static inline unsigned long hpt_hash(unsigned long va, unsigned int shift)
+static inline unsigned long hpt_hash(unsigned long va, unsigned int shift,
+				     int ssize)
 {
-	return ((va >> 28) & 0x7fffffffffUL) ^ ((va & 0x0fffffffUL) >> shift);
+	unsigned long hash, vsid;
+
+	if (ssize == MMU_SEGSIZE_256M) {
+		hash = (va >> 28) ^ ((va & 0x0fffffffUL) >> shift);
+	} else {
+		vsid = va >> 40;
+		hash = vsid ^ (vsid << 25) ^ ((va & 0xffffffffffUL) >> shift);
+	}
+	return hash & 0x7fffffffffUL;
 }
 
 extern int __hash_page_4K(unsigned long ea, unsigned long access,
 			  unsigned long vsid, pte_t *ptep, unsigned long trap,
-			  unsigned int local);
+			  unsigned int local, int ssize);
 extern int __hash_page_64K(unsigned long ea, unsigned long access,
 			   unsigned long vsid, pte_t *ptep, unsigned long trap,
-			   unsigned int local);
+			   unsigned int local, int ssize);
 struct mm_struct;
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap);
 extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
@@ -248,7 +276,7 @@ extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
 
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long mode,
-			     int psize);
+			     int psize, int ssize);
 
 extern void htab_initialize(void);
 extern void htab_initialize_secondary(void);
@@ -256,6 +284,7 @@ extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
 extern void hpte_init_beat(void);
+extern void hpte_init_beat_v3(void);
 
 extern void stabs_alloc(void);
 extern void slb_initialize(void);
@@ -316,12 +345,17 @@ extern void slb_vmalloc_update(void);
  * which are used by the iSeries firmware.
  */
 
-#define VSID_MULTIPLIER	ASM_CONST(200730139)	/* 28-bit prime */
-#define VSID_BITS	36
-#define VSID_MODULUS	((1UL<<VSID_BITS)-1)
+#define VSID_MULTIPLIER_256M	ASM_CONST(200730139)	/* 28-bit prime */
+#define VSID_BITS_256M		36
+#define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
 
-#define CONTEXT_BITS	19
-#define USER_ESID_BITS	16
+#define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
+#define VSID_BITS_1T		24
+#define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
+
+#define CONTEXT_BITS		19
+#define USER_ESID_BITS		16
+#define USER_ESID_BITS_1T	4
 
 #define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
 
@@ -335,17 +369,17 @@ extern void slb_vmalloc_update(void);
  *	rx = scratch register (clobbered)
  *
  * 	- rt and rx must be different registers
- * 	- The answer will end up in the low 36 bits of rt.  The higher
+ * 	- The answer will end up in the low VSID_BITS bits of rt.  The higher
  * 	  bits may contain other garbage, so you may need to mask the
  * 	  result.
  */
-#define ASM_VSID_SCRAMBLE(rt, rx)	\
-	lis	rx,VSID_MULTIPLIER@h;					\
-	ori	rx,rx,VSID_MULTIPLIER@l;				\
+#define ASM_VSID_SCRAMBLE(rt, rx, size)					\
+	lis	rx,VSID_MULTIPLIER_##size@h;				\
+	ori	rx,rx,VSID_MULTIPLIER_##size@l;				\
 	mulld	rt,rt,rx;		/* rt = rt * MULTIPLIER */	\
 									\
-	srdi	rx,rt,VSID_BITS;					\
-	clrldi	rt,rt,(64-VSID_BITS);					\
+	srdi	rx,rt,VSID_BITS_##size;					\
+	clrldi	rt,rt,(64-VSID_BITS_##size);				\
 	add	rt,rt,rx;		/* add high and low bits */	\
 	/* Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
 	 * 2^36-1+2^28-1.  That in particular means that if r3 >=	\
@@ -354,7 +388,7 @@ extern void slb_vmalloc_update(void);
 	 * doesn't, the answer is the low 36 bits of r3+1.  So in all	\
 	 * cases the answer is the low 36 bits of (r3 + ((r3+1) >> 36))*/\
 	addi	rx,rt,1;						\
-	srdi	rx,rx,VSID_BITS;	/* extract 2^36 bit */		\
+	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
 	add	rt,rt,rx
 
 
@@ -376,37 +410,60 @@ typedef struct {
 } mm_context_t;
 
 
-static inline unsigned long vsid_scramble(unsigned long protovsid)
-{
 #if 0
-	/* The code below is equivalent to this function for arguments
-	 * < 2^VSID_BITS, which is all this should ever be called
-	 * with.  However gcc is not clever enough to compute the
-	 * modulus (2^n-1) without a second multiply. */
-	return ((protovsid * VSID_MULTIPLIER) % VSID_MODULUS);
-#else /* 1 */
-	unsigned long x;
+/*
+ * The code below is equivalent to this function for arguments
+ * < 2^VSID_BITS, which is all this should ever be called
+ * with.  However gcc is not clever enough to compute the
+ * modulus (2^n-1) without a second multiply.
+ */
+#define vsid_scrample(protovsid, size) \
+	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
-	x = protovsid * VSID_MULTIPLIER;
-	x = (x >> VSID_BITS) + (x & VSID_MODULUS);
-	return (x + ((x+1) >> VSID_BITS)) & VSID_MODULUS;
+#else /* 1 */
+#define vsid_scramble(protovsid, size) \
+	({								 \
+		unsigned long x;					 \
+		x = (protovsid) * VSID_MULTIPLIER_##size;		 \
+		x = (x >> VSID_BITS_##size) + (x & VSID_MODULUS_##size); \
+		(x + ((x+1) >> VSID_BITS_##size)) & VSID_MODULUS_##size; \
+	})
 #endif /* 1 */
-}
 
 /* This is only valid for addresses >= KERNELBASE */
-static inline unsigned long get_kernel_vsid(unsigned long ea)
+static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
-	return vsid_scramble(ea >> SID_SHIFT);
+	if (ssize == MMU_SEGSIZE_256M)
+		return vsid_scramble(ea >> SID_SHIFT, 256M);
+	return vsid_scramble(ea >> SID_SHIFT_1T, 1T);
 }
 
-/* This is only valid for user addresses (which are below 2^41) */
-static inline unsigned long get_vsid(unsigned long context, unsigned long ea)
+/* Returns the segment size indicator for a user address */
+static inline int user_segment_size(unsigned long addr)
 {
-	return vsid_scramble((context << USER_ESID_BITS)
-			     | (ea >> SID_SHIFT));
+	/* Use 1T segments if possible for addresses >= 1T */
+	if (addr >= (1UL << SID_SHIFT_1T))
+		return mmu_highuser_ssize;
+	return MMU_SEGSIZE_256M;
 }
 
-#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER) % VSID_MODULUS)
+/* This is only valid for user addresses (which are below 2^44) */
+static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
+				     int ssize)
+{
+	if (ssize == MMU_SEGSIZE_256M)
+		return vsid_scramble((context << USER_ESID_BITS)
+				     | (ea >> SID_SHIFT), 256M);
+	return vsid_scramble((context << USER_ESID_BITS_1T)
+			     | (ea >> SID_SHIFT_1T), 1T);
+}
+
+/*
+ * This is only used on legacy iSeries in lparmap.c,
+ * hence the 256MB segment assumption.
+ */
+#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER_256M) %	\
+				 VSID_MODULUS_256M)
 #define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
 /* Physical address used by some IO functions */

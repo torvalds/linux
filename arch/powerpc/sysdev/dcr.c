@@ -33,6 +33,7 @@ unsigned int dcr_resource_start(struct device_node *np, unsigned int index)
 
 	return dr[index * 2];
 }
+EXPORT_SYMBOL_GPL(dcr_resource_start);
 
 unsigned int dcr_resource_len(struct device_node *np, unsigned int index)
 {
@@ -44,6 +45,7 @@ unsigned int dcr_resource_len(struct device_node *np, unsigned int index)
 
 	return dr[index * 2 + 1];
 }
+EXPORT_SYMBOL_GPL(dcr_resource_len);
 
 #ifndef CONFIG_PPC_DCR_NATIVE
 
@@ -102,7 +104,7 @@ u64 of_translate_dcr_address(struct device_node *dev,
 dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 		   unsigned int dcr_c)
 {
-	dcr_host_t ret = { .token = NULL, .stride = 0 };
+	dcr_host_t ret = { .token = NULL, .stride = 0, .base = dcr_n };
 	u64 addr;
 
 	pr_debug("dcr_map(%s, 0x%x, 0x%x)\n",
@@ -122,6 +124,7 @@ dcr_host_t dcr_map(struct device_node *dev, unsigned int dcr_n,
 	ret.token -= dcr_n * ret.stride;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(dcr_map);
 
 void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c)
 {
@@ -133,5 +136,6 @@ void dcr_unmap(dcr_host_t host, unsigned int dcr_n, unsigned int dcr_c)
 	iounmap(h.token);
 	h.token = NULL;
 }
+EXPORT_SYMBOL_GPL(dcr_unmap);
 
 #endif /* !defined(CONFIG_PPC_DCR_NATIVE) */

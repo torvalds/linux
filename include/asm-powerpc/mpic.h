@@ -224,8 +224,6 @@ struct mpic_reg_bank {
 	u32 __iomem	*base;
 #ifdef CONFIG_PPC_DCR
 	dcr_host_t	dhost;
-	unsigned int	dbase;
-	unsigned int	doff;
 #endif /* CONFIG_PPC_DCR */
 };
 
@@ -240,9 +238,6 @@ struct mpic_irq_save {
 /* The instance data of a given MPIC */
 struct mpic
 {
-	/* The device node of the interrupt controller */
-	struct device_node	*of_node;
-
 	/* The remapper for this MPIC */
 	struct irq_host		*irqhost;
 
@@ -292,10 +287,6 @@ struct mpic
 	struct mpic_reg_bank	cpuregs[MPIC_MAX_CPUS];
 	struct mpic_reg_bank	isus[MPIC_MAX_ISU];
 
-#ifdef CONFIG_PPC_DCR
-	unsigned int		dcr_base;
-#endif
-
 	/* Protected sources */
 	unsigned long		*protected;
 
@@ -307,6 +298,10 @@ struct mpic
 #ifdef CONFIG_PCI_MSI
 	spinlock_t		bitmap_lock;
 	unsigned long		*hwirq_bitmap;
+#endif
+
+#ifdef CONFIG_MPIC_BROKEN_REGREAD
+	u32			isu_reg0_shadow[MPIC_MAX_IRQ_SOURCES];
 #endif
 
 	/* link */

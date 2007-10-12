@@ -19,48 +19,22 @@
 
 #if defined(CONFIG_8260)
 #include <asm/mpc8260.h>
-#elif defined(CONFIG_85xx)
-#include <asm/mpc85xx.h>
 #endif
 
-#define cpm2_map(member)						\
-({									\
-	u32 offset = offsetof(cpm2_map_t, member);			\
-	void *addr = ioremap (CPM_MAP_ADDR + offset,			\
-			      sizeof( ((cpm2_map_t*)0)->member));	\
-	addr;								\
-})
-
-#define cpm2_map_size(member, size)					\
-({									\
-	u32 offset = offsetof(cpm2_map_t, member);			\
-	void *addr = ioremap (CPM_MAP_ADDR + offset, size);		\
-	addr;								\
-})
-
-#define cpm2_unmap(addr)	iounmap(addr)
+#define cpm2_map(member) (&cpm2_immr->member)
+#define cpm2_map_size(member, size) (&cpm2_immr->member)
+#define cpm2_unmap(addr) do {} while(0)
 #endif
 
 #ifdef CONFIG_8xx
 #include <asm/8xx_immap.h>
 #include <asm/mpc8xx.h>
 
-#define immr_map(member)						\
-({									\
-	u32 offset = offsetof(immap_t, member);				\
-	void *addr = ioremap (IMAP_ADDR + offset,			\
-			      sizeof( ((immap_t*)0)->member));		\
-	addr;								\
-})
+extern immap_t __iomem *mpc8xx_immr;
 
-#define immr_map_size(member, size)					\
-({									\
-	u32 offset = offsetof(immap_t, member);				\
-	void *addr = ioremap (IMAP_ADDR + offset, size);		\
-	addr;								\
-})
-
-#define immr_unmap(addr)		iounmap(addr)
+#define immr_map(member) (&mpc8xx_immr->member)
+#define immr_map_size(member, size) (&mpc8xx_immr->member)
+#define immr_unmap(addr) do {} while (0)
 #endif
 
 static inline int uart_baudrate(void)

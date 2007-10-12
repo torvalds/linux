@@ -320,10 +320,12 @@ static struct of_device_id gpio_mdio_match[] =
 
 static struct of_platform_driver gpio_mdio_driver =
 {
-	.name		= "gpio-mdio-bitbang",
 	.match_table	= gpio_mdio_match,
 	.probe		= gpio_mdio_probe,
 	.remove		= gpio_mdio_remove,
+	.driver		= {
+		.name	= "gpio-mdio-bitbang",
+	},
 };
 
 int gpio_mdio_init(void)

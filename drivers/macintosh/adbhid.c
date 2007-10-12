@@ -70,7 +70,7 @@ static struct notifier_block adbhid_adb_notifier = {
 #define ADB_KEY_POWER_OLD	0x7e
 #define ADB_KEY_POWER		0x7f
 
-u8 adb_to_linux_keycodes[128] = {
+u16 adb_to_linux_keycodes[128] = {
 	/* 0x00 */ KEY_A, 		/*  30 */
 	/* 0x01 */ KEY_S, 		/*  31 */
 	/* 0x02 */ KEY_D,		/*  32 */
@@ -134,7 +134,7 @@ u8 adb_to_linux_keycodes[128] = {
 	/* 0x3c */ KEY_RIGHT,		/* 106 */
 	/* 0x3d */ KEY_DOWN,		/* 108 */
 	/* 0x3e */ KEY_UP,		/* 103 */
-	/* 0x3f */ 0,
+	/* 0x3f */ KEY_FN,		/* 0x1d0 */
 	/* 0x40 */ 0,
 	/* 0x41 */ KEY_KPDOT,		/*  83 */
 	/* 0x42 */ 0,
@@ -208,7 +208,7 @@ struct adbhid {
 	int original_handler_id;
 	int current_handler_id;
 	int mouse_kind;
-	unsigned char *keycode;
+	u16 *keycode;
 	char name[64];
 	char phys[32];
 	int flags;
@@ -275,7 +275,7 @@ static void
 adbhid_input_keycode(int id, int keycode, int repeat)
 {
 	struct adbhid *ahid = adbhid[id];
-	int up_flag;
+	int up_flag, key;
 
 	up_flag = (keycode & 0x80);
 	keycode &= 0x7f;
@@ -321,8 +321,7 @@ adbhid_input_keycode(int id, int keycode, int repeat)
 			}
 		} else
 			ahid->flags |= FLAG_FN_KEY_PRESSED;
-		/* Swallow the key press */
-		return;
+		break;
 	case ADB_KEY_DEL:
 		/* Emulate Fn+delete = forward delete */
 		if (ahid->flags & FLAG_FN_KEY_PRESSED) {
@@ -336,9 +335,9 @@ adbhid_input_keycode(int id, int keycode, int repeat)
 #endif /* CONFIG_PPC_PMAC */
 	}
 
-	if (adbhid[id]->keycode[keycode]) {
-		input_report_key(adbhid[id]->input,
-				 adbhid[id]->keycode[keycode], !up_flag);
+	key = adbhid[id]->keycode[keycode];
+	if (key) {
+		input_report_key(adbhid[id]->input, key, !up_flag);
 		input_sync(adbhid[id]->input);
 	} else
 		printk(KERN_INFO "Unhandled ADB key (scancode %#02x) %s.\n", keycode,
@@ -757,8 +756,8 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_LED) | BIT(EV_REP);
 		input_dev->ledbit[0] = BIT(LED_SCROLLL) | BIT(LED_CAPSL) | BIT(LED_NUML);
 		input_dev->event = adbhid_kbd_event;
-		input_dev->keycodemax = 127;
-		input_dev->keycodesize = 1;
+		input_dev->keycodemax = KEY_FN;
+		input_dev->keycodesize = sizeof(hid->keycode[0]);
 		break;
 
 	case ADB_MOUSE:

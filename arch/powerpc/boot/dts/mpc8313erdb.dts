@@ -29,7 +29,6 @@
 			timebase-frequency = <0>;	// from bootloader
 			bus-frequency = <0>;		// from bootloader
 			clock-frequency = <0>;		// from bootloader
-			32-bit;
 		};
 	};
 
@@ -41,7 +40,6 @@
 	soc8313@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00000200>;
@@ -73,11 +71,11 @@
 
 		spi@7000 {
 			device_type = "spi";
-			compatible = "mpc83xx_spi";
+			compatible = "fsl_spi";
 			reg = <7000 1000>;
 			interrupts = <10 8>;
 			interrupt-parent = < &ipic >;
-			mode = <0>;
+			mode = "cpu";
 		};
 
 		/* phy type (ULPI, UTMI, UTMI_WIDE, SERIAL) */
@@ -152,36 +150,6 @@
 			interrupt-parent = < &ipic >;
 		};
 
-		pci@8500 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-
-					/* IDSEL 0x0E -mini PCI */
-					 7000 0 0 1 &ipic 12 8
-					 7000 0 0 2 &ipic 12 8
-					 7000 0 0 3 &ipic 12 8
-					 7000 0 0 4 &ipic 12 8
-
-					/* IDSEL 0x0F - PCI slot */
-					 7800 0 0 1 &ipic 11 8
-					 7800 0 0 2 &ipic 12 8
-					 7800 0 0 3 &ipic 11 8
-					 7800 0 0 4 &ipic 12 8>;
-			interrupt-parent = < &ipic >;
-			interrupts = <42 8>;
-			bus-range = <0 0>;
-			ranges = <02000000 0 90000000 90000000 0 10000000
-			          42000000 0 80000000 80000000 0 10000000
-			          01000000 0 00000000 e2000000 0 00100000>;
-			clock-frequency = <3f940aa>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8500 100>;
-			compatible = "fsl,mpc8349-pci";
-			device_type = "pci";
-		};
-
 		crypto@30000 {
 			device_type = "crypto";
 			model = "SEC2";
@@ -207,8 +175,37 @@
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <700 100>;
-			built-in;
 			device_type = "ipic";
 		};
+	};
+
+	pci@e0008500 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+
+				/* IDSEL 0x0E -mini PCI */
+				 7000 0 0 1 &ipic 12 8
+				 7000 0 0 2 &ipic 12 8
+				 7000 0 0 3 &ipic 12 8
+				 7000 0 0 4 &ipic 12 8
+
+				/* IDSEL 0x0F - PCI slot */
+				 7800 0 0 1 &ipic 11 8
+				 7800 0 0 2 &ipic 12 8
+				 7800 0 0 3 &ipic 11 8
+				 7800 0 0 4 &ipic 12 8>;
+		interrupt-parent = < &ipic >;
+		interrupts = <42 8>;
+		bus-range = <0 0>;
+		ranges = <02000000 0 90000000 90000000 0 10000000
+			  42000000 0 80000000 80000000 0 10000000
+			  01000000 0 00000000 e2000000 0 00100000>;
+		clock-frequency = <3f940aa>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008500 100>;
+		compatible = "fsl,mpc8349-pci";
+		device_type = "pci";
 	};
 };

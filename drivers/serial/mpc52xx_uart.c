@@ -1051,7 +1051,7 @@ mpc52xx_uart_of_assign(struct device_node *np, int idx)
 	/* If the slot is already occupied, then swap slots */
 	if (mpc52xx_uart_nodes[idx] && (free_idx != -1))
 		mpc52xx_uart_nodes[free_idx] = mpc52xx_uart_nodes[idx];
-	mpc52xx_uart_nodes[i] = np;
+	mpc52xx_uart_nodes[idx] = np;
 }
 
 static void

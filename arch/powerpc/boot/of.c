@@ -17,8 +17,6 @@
 
 #include "of.h"
 
-extern char _end[];
-
 /* Value picked to match that used by yaboot */
 #define PROG_START	0x01400000	/* only used on 64-bit systems */
 #define RAM_END		(512<<20)	/* Fixme: use OF */

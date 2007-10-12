@@ -36,10 +36,12 @@ config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
 	select 8xx
+	select WANT_DEVICE_TREE
 
 config 40x
 	bool "AMCC 40x"
 	select PPC_DCR_NATIVE
+	select WANT_DEVICE_TREE
 
 config 44x
 	bool "AMCC 44x"
@@ -68,6 +70,18 @@ config POWER3
 config POWER4
 	depends on PPC64
 	def_bool y
+
+config TUNE_CELL
+	bool "Optimize for Cell Broadband Engine"
+	depends on PPC64
+	help
+	  Cause the compiler to optimize for the PPE of the Cell Broadband
+	  Engine. This will make the code run considerably faster on Cell
+	  but somewhat slower on other machines. This option only changes
+	  the scheduling of instructions, not the selection of instructions
+	  itself, so the resulting kernel will keep running on all other
+	  machines. When building a kernel that is supposed to run only
+	  on Cell, you should also select the POWER4_ONLY option.
 
 config 6xx
 	bool

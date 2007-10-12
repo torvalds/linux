@@ -76,6 +76,8 @@ EXPORT_SYMBOL(machine_id);
 
 unsigned long klimit = (unsigned long) _end;
 
+char cmd_line[COMMAND_LINE_SIZE];
+
 /*
  * This still seems to be needed... -- paulus
  */ 

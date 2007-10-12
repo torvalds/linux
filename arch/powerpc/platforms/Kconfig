@@ -12,13 +12,10 @@ config PPC_MULTIPLATFORM
 	  RS/6000 machine, an Apple machine, or a PReP, CHRP,
 	  Maple or Cell-based machine.
 
-config EMBEDDED6xx
-	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32 && (BROKEN||BROKEN_ON_SMP)
-
 config PPC_82xx
 	bool "Freescale 82xx"
 	depends on 6xx
+	select WANT_DEVICE_TREE
 
 config PPC_83xx
 	bool "Freescale 83xx"
@@ -58,7 +55,7 @@ source "arch/powerpc/platforms/85xx/Kconfig"
 source "arch/powerpc/platforms/86xx/Kconfig"
 source "arch/powerpc/platforms/embedded6xx/Kconfig"
 source "arch/powerpc/platforms/44x/Kconfig"
-#source "arch/powerpc/platforms/4xx/Kconfig
+source "arch/powerpc/platforms/40x/Kconfig"
 
 config PPC_NATIVE
 	bool
@@ -135,6 +132,16 @@ config MPIC_U3_HT_IRQS
 	bool
 	depends on PPC_MAPLE
 	default y
+
+config MPIC_BROKEN_REGREAD
+	bool
+	depends on MPIC
+	help
+	  This option enables a MPIC driver workaround for some chips
+	  that have a bug that causes some interrupt source information
+	  to not read back properly. It is safe to use on other chips as
+	  well, but enabling it uses about 8KB of memory to keep copies
+	  of the register contents in software.
 
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
@@ -266,11 +273,23 @@ config QUICC_ENGINE
 config CPM2
 	bool
 	default n
+	select CPM
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
+
+config PPC_CPM_NEW_BINDING
+	bool
+	depends on CPM1 || CPM2
+	help
+	  Select this if your board has been converted to use the new
+	  device tree bindings for CPM, and no longer needs the
+	  ioport callbacks or the platform device glue code.
+
+	  The fs_enet and cpm_uart drivers will be built as
+	  of_platform devices.
 
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"
@@ -290,5 +309,8 @@ config FSL_ULI1575
 	  Supports for the ULI1575 PCIe south bridge that exists on some
 	  Freescale reference boards. The boards all use the ULI in pretty
 	  much the same way.
+
+config CPM
+	bool
 
 endmenu

@@ -1,6 +1,7 @@
 config PPC_MPC52xx
 	bool
 	select FSL_SOC
+	select PPC_CLOCK
 	default n
 
 config PPC_MPC5200
@@ -30,6 +31,7 @@ config PPC_EFIKA
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
 	depends on PPC_MULTIPLATFORM && PPC32
+	select WANT_DEVICE_TREE
 	select PPC_MPC5200
 	default n
 

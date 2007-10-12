@@ -29,7 +29,6 @@
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
-			32-bit;
 		};
 	};
 
@@ -41,7 +40,6 @@
 	soc8323@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
 		device_type = "soc";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00000200>;
@@ -94,45 +92,11 @@
 			descriptor-types-mask = <0122003f>;
 		};
 
-		pci@8500 {
-			interrupt-map-mask = <f800 0 0 7>;
-			interrupt-map = <
-					/* IDSEL 0x10 AD16 (USB) */
-					 8000 0 0 1 &pic 11 8
-
-					/* IDSEL 0x11 AD17 (Mini1)*/
-					 8800 0 0 1 &pic 12 8
-					 8800 0 0 2 &pic 13 8
-					 8800 0 0 3 &pic 14 8
-					 8800 0 0 4 &pic 30 8
-
-					/* IDSEL 0x12 AD18 (PCI/Mini2) */
-					 9000 0 0 1 &pic 13 8
-					 9000 0 0 2 &pic 14 8
-					 9000 0 0 3 &pic 30 8
-					 9000 0 0 4 &pic 11 8>;
-
-			interrupt-parent = <&pic>;
-			interrupts = <42 8>;
-			bus-range = <0 0>;
-			ranges = <42000000 0 80000000 80000000 0 10000000
-			          02000000 0 90000000 90000000 0 10000000
-			          01000000 0 d0000000 d0000000 0 04000000>;
-			clock-frequency = <0>;
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			reg = <8500 100>;
-			compatible = "fsl,mpc8349-pci";
-			device_type = "pci";
-		};
-
 		pic:pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <700 100>;
-			built-in;
 			device_type = "ipic";
 		};
 
@@ -211,7 +175,7 @@
 			reg = <4c0 40>;
 			interrupts = <2>;
 			interrupt-parent = <&qeic>;
-			mode = "cpu";
+			mode = "cpu-qe";
 		};
 
 		spi@500 {
@@ -292,10 +256,42 @@
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;
-			built-in;
 			big-endian;
 			interrupts = <20 8 21 8>; //high:32 low:33
 			interrupt-parent = <&pic>;
 		};
+	};
+
+	pci@e0008500 {
+		interrupt-map-mask = <f800 0 0 7>;
+		interrupt-map = <
+				/* IDSEL 0x10 AD16 (USB) */
+				 8000 0 0 1 &pic 11 8
+
+				/* IDSEL 0x11 AD17 (Mini1)*/
+				 8800 0 0 1 &pic 12 8
+				 8800 0 0 2 &pic 13 8
+				 8800 0 0 3 &pic 14 8
+				 8800 0 0 4 &pic 30 8
+
+				/* IDSEL 0x12 AD18 (PCI/Mini2) */
+				 9000 0 0 1 &pic 13 8
+				 9000 0 0 2 &pic 14 8
+				 9000 0 0 3 &pic 30 8
+				 9000 0 0 4 &pic 11 8>;
+
+		interrupt-parent = <&pic>;
+		interrupts = <42 8>;
+		bus-range = <0 0>;
+		ranges = <42000000 0 80000000 80000000 0 10000000
+			  02000000 0 90000000 90000000 0 10000000
+			  01000000 0 d0000000 d0000000 0 04000000>;
+		clock-frequency = <0>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <e0008500 100>;
+		compatible = "fsl,mpc8349-pci";
+		device_type = "pci";
 	};
 };

@@ -148,9 +148,10 @@ enum ucc_slow_diag_mode {
 
 struct ucc_slow_info {
 	int ucc_num;
+	int protocol;			/* QE_CR_PROTOCOL_xxx */
 	enum qe_clock rx_clock;
 	enum qe_clock tx_clock;
-	u32 regs;
+	phys_addr_t regs;
 	int irq;
 	u16 uccm_mask;
 	int data_mem_part;
@@ -186,7 +187,7 @@ struct ucc_slow_info {
 
 struct ucc_slow_private {
 	struct ucc_slow_info *us_info;
-	struct ucc_slow *us_regs;	/* a pointer to memory map of UCC regs */
+	struct ucc_slow __iomem *us_regs; /* Ptr to memory map of UCC regs */
 	struct ucc_slow_pram *us_pram;	/* a pointer to the parameter RAM */
 	u32 us_pram_offset;
 	int enabled_tx;		/* Whether channel is enabled for Tx (ENT) */
@@ -277,12 +278,12 @@ void ucc_slow_graceful_stop_tx(struct ucc_slow_private * uccs);
  */
 void ucc_slow_stop_tx(struct ucc_slow_private * uccs);
 
-/* ucc_slow_restart_x
+/* ucc_slow_restart_tx
  * Restarts transmitting on a specified slow UCC.
  *
  * uccs - (In) pointer to the slow UCC structure.
  */
-void ucc_slow_restart_x(struct ucc_slow_private * uccs);
+void ucc_slow_restart_tx(struct ucc_slow_private *uccs);
 
 u32 ucc_slow_get_qe_cr_subblock(int uccs_num);
 

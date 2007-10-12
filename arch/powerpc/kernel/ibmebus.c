@@ -371,7 +371,8 @@ static int ibmebus_match_path(struct device *dev, void *data)
 
 static char *ibmebus_chomp(const char *in, size_t count)
 {
-	char *out = (char*)kmalloc(count + 1, GFP_KERNEL);
+	char *out = kmalloc(count + 1, GFP_KERNEL);
+
 	if (!out)
 		return NULL;
 
@@ -396,10 +397,10 @@ static ssize_t ibmebus_store_probe(struct bus_type *bus,
 		return -ENOMEM;
 
 	if (bus_find_device(&ibmebus_bus_type, NULL, path,
-			     ibmebus_match_path)) {
+			    ibmebus_match_path)) {
 		printk(KERN_WARNING "%s: %s has already been probed\n",
 		       __FUNCTION__, path);
-		rc = -EINVAL;
+		rc = -EEXIST;
 		goto out;
 	}
 

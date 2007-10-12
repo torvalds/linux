@@ -23,7 +23,11 @@
 
 #include <asm/io.h>
 
-typedef struct { void __iomem *token; unsigned int stride; } dcr_host_t;
+typedef struct {
+	void __iomem *token;
+	unsigned int stride;
+	unsigned int base;
+} dcr_host_t;
 
 #define DCR_MAP_OK(host)	((host).token != NULL)
 

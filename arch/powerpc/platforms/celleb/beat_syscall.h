@@ -157,4 +157,8 @@
 #define HV_rtc_write __BEAT_ADD_VENDOR_ID(0x191, 1)
 #define HV_eeprom_read __BEAT_ADD_VENDOR_ID(0x192, 1)
 #define HV_eeprom_write __BEAT_ADD_VENDOR_ID(0x193, 1)
+#define HV_insert_htab_entry3 __BEAT_ADD_VENDOR_ID(0x104, 1)
+#define HV_invalidate_htab_entry3 __BEAT_ADD_VENDOR_ID(0x105, 1)
+#define HV_update_htab_permission3 __BEAT_ADD_VENDOR_ID(0x106, 1)
+#define HV_clear_htab3 __BEAT_ADD_VENDOR_ID(0x107, 1)
 #endif

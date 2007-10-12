@@ -23,6 +23,8 @@
 #include <asm/mmu.h>
 #endif
 
+#include <linux/pagemap.h>
+
 struct mmu_gather;
 
 #define tlb_start_vma(tlb, vma)	do { } while (0)

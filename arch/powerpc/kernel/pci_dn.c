@@ -23,8 +23,6 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/bootmem.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -45,10 +43,7 @@ static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 	const u32 *regs;
 	struct pci_dn *pdn;
 
-	if (mem_init_done)
-		pdn = kmalloc(sizeof(*pdn), GFP_KERNEL);
-	else
-		pdn = alloc_bootmem(sizeof(*pdn));
+	pdn = alloc_maybe_bootmem(sizeof(*pdn), GFP_KERNEL);
 	if (pdn == NULL)
 		return NULL;
 	memset(pdn, 0, sizeof(*pdn));

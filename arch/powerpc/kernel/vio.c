@@ -39,6 +39,8 @@
 
 extern struct kset devices_subsys; /* needed for vio_find_name() */
 
+static struct bus_type vio_bus_type;
+
 static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.name = vio_bus_device.dev.bus_id,
 	.type = "",
@@ -46,60 +48,33 @@ static struct vio_dev vio_bus_device  = { /* fake "parent" device */
 	.dev.bus = &vio_bus_type,
 };
 
-#ifdef CONFIG_PPC_ISERIES
-struct device *iSeries_vio_dev = &vio_bus_device.dev;
-EXPORT_SYMBOL(iSeries_vio_dev);
-
-static struct iommu_table veth_iommu_table;
-static struct iommu_table vio_iommu_table;
-
-static void __init iommu_vio_init(void)
-{
-	iommu_table_getparms_iSeries(255, 0, 0xff, &veth_iommu_table);
-	veth_iommu_table.it_size /= 2;
-	vio_iommu_table = veth_iommu_table;
-	vio_iommu_table.it_offset += veth_iommu_table.it_size;
-
-	if (!iommu_init_table(&veth_iommu_table, -1))
-		printk("Virtual Bus VETH TCE table failed.\n");
-	if (!iommu_init_table(&vio_iommu_table, -1))
-		printk("Virtual Bus VIO TCE table failed.\n");
-}
-#endif
-
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 {
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		if (strcmp(dev->type, "network") == 0)
-			return &veth_iommu_table;
-		return &vio_iommu_table;
-	} else
-#endif
-	{
-		const unsigned char *dma_window;
-		struct iommu_table *tbl;
-		unsigned long offset, size;
+	const unsigned char *dma_window;
+	struct iommu_table *tbl;
+	unsigned long offset, size;
 
-		dma_window = of_get_property(dev->dev.archdata.of_node,
-					  "ibm,my-dma-window", NULL);
-		if (!dma_window)
-			return NULL;
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return vio_build_iommu_table_iseries(dev);
 
-		tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
+	dma_window = of_get_property(dev->dev.archdata.of_node,
+				  "ibm,my-dma-window", NULL);
+	if (!dma_window)
+		return NULL;
 
-		of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
-				    &tbl->it_index, &offset, &size);
+	tbl = kmalloc(sizeof(*tbl), GFP_KERNEL);
 
-		/* TCE table size - measured in tce entries */
-		tbl->it_size = size >> IOMMU_PAGE_SHIFT;
-		/* offset for VIO should always be 0 */
-		tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
-		tbl->it_busno = 0;
-		tbl->it_type = TCE_VB;
+	of_parse_dma_window(dev->dev.archdata.of_node, dma_window,
+			    &tbl->it_index, &offset, &size);
 
-		return iommu_init_table(tbl, -1);
-	}
+	/* TCE table size - measured in tce entries */
+	tbl->it_size = size >> IOMMU_PAGE_SHIFT;
+	/* offset for VIO should always be 0 */
+	tbl->it_offset = offset >> IOMMU_PAGE_SHIFT;
+	tbl->it_busno = 0;
+	tbl->it_type = TCE_VB;
+
+	return iommu_init_table(tbl, -1);
 }
 
 /**
@@ -158,16 +133,6 @@ static int vio_bus_remove(struct device *dev)
 
 	/* driver can't remove */
 	return 1;
-}
-
-/* convert from struct device to struct vio_dev and pass to driver. */
-static void vio_bus_shutdown(struct device *dev)
-{
-	struct vio_dev *viodev = to_vio_dev(dev);
-	struct vio_driver *viodrv = to_vio_driver(dev->driver);
-
-	if (dev->driver && viodrv->shutdown)
-		viodrv->shutdown(viodev);
 }
 
 /**
@@ -282,15 +247,6 @@ static int __init vio_bus_init(void)
 	int err;
 	struct device_node *node_vroot;
 
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
-		iommu_vio_init();
-		vio_bus_device.dev.archdata.dma_ops = &dma_iommu_ops;
-		vio_bus_device.dev.archdata.dma_data = &vio_iommu_table;
-		iSeries_vio_dev = &vio_bus_device.dev;
-	}
-#endif /* CONFIG_PPC_ISERIES */
-
 	err = bus_register(&vio_bus_type);
 	if (err) {
 		printk(KERN_ERR "failed to register VIO bus\n");
@@ -317,11 +273,8 @@ static int __init vio_bus_init(void)
 		 * the device tree. Drivers will associate with them later.
 		 */
 		for (of_node = node_vroot->child; of_node != NULL;
-				of_node = of_node->sibling) {
-			printk(KERN_DEBUG "%s: processing %p\n",
-					__FUNCTION__, of_node);
+				of_node = of_node->sibling)
 			vio_register_device_node(of_node);
-		}
 		of_node_put(node_vroot);
 	}
 
@@ -391,14 +344,13 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 	return 0;
 }
 
-struct bus_type vio_bus_type = {
+static struct bus_type vio_bus_type = {
 	.name = "vio",
 	.dev_attrs = vio_dev_attrs,
 	.uevent = vio_hotplug,
 	.match = vio_bus_match,
 	.probe = vio_bus_probe,
 	.remove = vio_bus_remove,
-	.shutdown = vio_bus_shutdown,
 };
 
 /**

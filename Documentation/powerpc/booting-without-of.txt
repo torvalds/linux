@@ -50,7 +50,7 @@ Table of Contents
       g) Freescale SOC SEC Security Engines
       h) Board Control and Status (BCSR)
       i) Freescale QUICC Engine module (QE)
-      j) Flash chip nodes
+      j) CFI or JEDEC memory-mapped NOR flash
       k) Global Utilities Block
 
   VII - Specifying interrupt information for devices
@@ -1510,7 +1510,10 @@ platforms are moved over to use the flattened-device-tree model.
 
    i) Freescale QUICC Engine module (QE)
    This represents qe module that is installed on PowerQUICC II Pro.
-   Hopefully it will merge backward compatibility with CPM/CPM2.
+
+   NOTE:  This is an interim binding; it should be updated to fit
+   in with the CPM binding later in this document.
+
    Basically, it is a bus of devices, that could act more or less
    as a complete entity (UCC, USB etc ). All of them should be siblings on
    the "root" qe node, using the common properties from there.
@@ -1548,7 +1551,7 @@ platforms are moved over to use the flattened-device-tree model.
    Required properties:
    - device_type : should be "spi".
    - compatible : should be "fsl_spi".
-   - mode : the SPI operation mode, it can be "cpu" or "qe".
+   - mode : the SPI operation mode, it can be "cpu" or "cpu-qe".
    - reg : Offset and length of the register set for the device
    - interrupts : <a b> where a is the interrupt number and b is a
      field that represents an encoding of the sense and level
@@ -1757,45 +1760,69 @@ platforms are moved over to use the flattened-device-tree model.
 		};
 	};
 
-    j) Flash chip nodes
+   j) CFI or JEDEC memory-mapped NOR flash
 
     Flash chips (Memory Technology Devices) are often used for solid state
     file systems on embedded devices.
 
-    Required properties:
+     - compatible : should contain the specific model of flash chip(s)
+       used, if known, followed by either "cfi-flash" or "jedec-flash"
+     - reg : Address range of the flash chip
+     - bank-width : Width (in bytes) of the flash bank.  Equal to the
+       device width times the number of interleaved chips.
+     - device-width : (optional) Width of a single flash chip.  If
+       omitted, assumed to be equal to 'bank-width'.
+     - #address-cells, #size-cells : Must be present if the flash has
+       sub-nodes representing partitions (see below).  In this case
+       both #address-cells and #size-cells must be equal to 1.
 
-     - device_type : has to be "rom"
-     - compatible : Should specify what this flash device is compatible with.
-       Currently, this is most likely to be "direct-mapped" (which
-       corresponds to the MTD physmap mapping driver).
-     - reg : Offset and length of the register set (or memory mapping) for
-       the device.
-     - bank-width : Width of the flash data bus in bytes. Required
-       for the NOR flashes (compatible == "direct-mapped" and others) ONLY.
+    For JEDEC compatible devices, the following additional properties
+    are defined:
 
-    Recommended properties :
+     - vendor-id : Contains the flash chip's vendor id (1 byte).
+     - device-id : Contains the flash chip's device id (1 byte).
 
-     - partitions : Several pairs of 32-bit values where the first value is
-       partition's offset from the start of the device and the second one is
-       partition size in bytes with LSB used to signify a read only
-       partition (so, the partition size should always be an even number).
-     - partition-names : The list of concatenated zero terminated strings
-       representing the partition names.
-     - probe-type : The type of probe which should be done for the chip
-       (JEDEC vs CFI actually). Valid ONLY for NOR flashes.
+    In addition to the information on the flash bank itself, the
+    device tree may optionally contain additional information
+    describing partitions of the flash address space.  This can be
+    used on platforms which have strong conventions about which
+    portions of the flash are used for what purposes, but which don't
+    use an on-flash partition table such as RedBoot.
 
-   Example:
+    Each partition is represented as a sub-node of the flash device.
+    Each node's name represents the name of the corresponding
+    partition of the flash device.
 
- 	flash@ff000000 {
- 		device_type = "rom";
- 		compatible = "direct-mapped";
- 		probe-type = "CFI";
- 		reg = <ff000000 01000000>;
- 		bank-width = <4>;
- 		partitions = <00000000 00f80000
- 			      00f80000 00080001>;
- 		partition-names = "fs\0firmware";
- 	};
+    Flash partitions
+     - reg : The partition's offset and size within the flash bank.
+     - label : (optional) The label / name for this flash partition.
+       If omitted, the label is taken from the node name (excluding
+       the unit address).
+     - read-only : (optional) This parameter, if present, is a hint to
+       Linux that this flash partition should only be mounted
+       read-only.  This is usually used for flash partitions
+       containing early-boot firmware images or data which should not
+       be clobbered.
+
+    Example:
+
+	flash@ff000000 {
+		compatible = "amd,am29lv128ml", "cfi-flash";
+		reg = <ff000000 01000000>;
+		bank-width = <4>;
+		device-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		fs@0 {
+			label = "fs";
+			reg = <0 f80000>;
+		};
+		firmware@f80000 {
+			label ="firmware";
+			reg = <f80000 80000>;
+			read-only;
+		};
+	};
 
    k) Global Utilities Block
 
@@ -1824,8 +1851,243 @@ platforms are moved over to use the flattened-device-tree model.
 		fsl,has-rstcr;
 	};
 
+   l) Freescale Communications Processor Module
 
-    h) 4xx/Axon EMAC ethernet nodes
+   NOTE: This is an interim binding, and will likely change slightly,
+   as more devices are supported.  The QE bindings especially are
+   incomplete.
+
+   i) Root CPM node
+
+   Properties:
+   - compatible : "fsl,cpm1", "fsl,cpm2", or "fsl,qe".
+   - reg : A 48-byte region beginning with CPCR.
+
+   Example:
+	cpm@119c0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#interrupt-cells = <2>;
+		compatible = "fsl,mpc8272-cpm", "fsl,cpm2";
+		reg = <119c0 30>;
+	}
+
+   ii) Properties common to mulitple CPM/QE devices
+
+   - fsl,cpm-command : This value is ORed with the opcode and command flag
+                       to specify the device on which a CPM command operates.
+
+   - fsl,cpm-brg : Indicates which baud rate generator the device
+                   is associated with.  If absent, an unused BRG
+                   should be dynamically allocated.  If zero, the
+                   device uses an external clock rather than a BRG.
+
+   - reg : Unless otherwise specified, the first resource represents the
+           scc/fcc/ucc registers, and the second represents the device's
+           parameter RAM region (if it has one).
+
+   iii) Serial
+
+   Currently defined compatibles:
+   - fsl,cpm1-smc-uart
+   - fsl,cpm2-smc-uart
+   - fsl,cpm1-scc-uart
+   - fsl,cpm2-scc-uart
+   - fsl,qe-uart
+
+   Example:
+
+	serial@11a00 {
+		device_type = "serial";
+		compatible = "fsl,mpc8272-scc-uart",
+		             "fsl,cpm2-scc-uart";
+		reg = <11a00 20 8000 100>;
+		interrupts = <28 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-brg = <1>;
+		fsl,cpm-command = <00800000>;
+	};
+
+   iii) Network
+
+   Currently defined compatibles:
+   - fsl,cpm1-scc-enet
+   - fsl,cpm2-scc-enet
+   - fsl,cpm1-fec-enet
+   - fsl,cpm2-fcc-enet (third resource is GFEMR)
+   - fsl,qe-enet
+
+   Example:
+
+	ethernet@11300 {
+		device_type = "network";
+		compatible = "fsl,mpc8272-fcc-enet",
+		             "fsl,cpm2-fcc-enet";
+		reg = <11300 20 8400 100 11390 1>;
+		local-mac-address = [ 00 00 00 00 00 00 ];
+		interrupts = <20 8>;
+		interrupt-parent = <&PIC>;
+		phy-handle = <&PHY0>;
+		linux,network-index = <0>;
+		fsl,cpm-command = <12000300>;
+	};
+
+   iv) MDIO
+
+   Currently defined compatibles:
+   fsl,pq1-fec-mdio (reg is same as first resource of FEC device)
+   fsl,cpm2-mdio-bitbang (reg is port C registers)
+
+   Properties for fsl,cpm2-mdio-bitbang:
+   fsl,mdio-pin : pin of port C controlling mdio data
+   fsl,mdc-pin : pin of port C controlling mdio clock
+
+   Example:
+
+	mdio@10d40 {
+		device_type = "mdio";
+		compatible = "fsl,mpc8272ads-mdio-bitbang",
+		             "fsl,mpc8272-mdio-bitbang",
+		             "fsl,cpm2-mdio-bitbang";
+		reg = <10d40 14>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		fsl,mdio-pin = <12>;
+		fsl,mdc-pin = <13>;
+	};
+
+   v) Baud Rate Generators
+
+   Currently defined compatibles:
+   fsl,cpm-brg
+   fsl,cpm1-brg
+   fsl,cpm2-brg
+
+   Properties:
+   - reg : There may be an arbitrary number of reg resources; BRG
+     numbers are assigned to these in order.
+   - clock-frequency : Specifies the base frequency driving
+     the BRG.
+
+   Example:
+
+	brg@119f0 {
+		compatible = "fsl,mpc8272-brg",
+		             "fsl,cpm2-brg",
+		             "fsl,cpm-brg";
+		reg = <119f0 10 115f0 10>;
+		clock-frequency = <d#25000000>;
+	};
+
+   vi) Interrupt Controllers
+
+   Currently defined compatibles:
+   - fsl,cpm1-pic
+     - only one interrupt cell
+   - fsl,pq1-pic
+   - fsl,cpm2-pic
+     - second interrupt cell is level/sense:
+       - 2 is falling edge
+       - 8 is active low
+
+   Example:
+
+	interrupt-controller@10c00 {
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		reg = <10c00 80>;
+		compatible = "mpc8272-pic", "fsl,cpm2-pic";
+	};
+
+   vii) USB (Universal Serial Bus Controller)
+
+   Properties:
+   - compatible : "fsl,cpm1-usb", "fsl,cpm2-usb", "fsl,qe-usb"
+
+   Example:
+	usb@11bc0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,cpm2-usb";
+		reg = <11b60 18 8b00 100>;
+		interrupts = <b 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-command = <2e600000>;
+	};
+
+   viii) Multi-User RAM (MURAM)
+
+   The multi-user/dual-ported RAM is expressed as a bus under the CPM node.
+
+   Ranges must be set up subject to the following restrictions:
+
+   - Children's reg nodes must be offsets from the start of all muram, even
+     if the user-data area does not begin at zero.
+   - If multiple range entries are used, the difference between the parent
+     address and the child address must be the same in all, so that a single
+     mapping can cover them all while maintaining the ability to determine
+     CPM-side offsets with pointer subtraction.  It is recommended that
+     multiple range entries not be used.
+   - A child address of zero must be translatable, even if no reg resources
+     contain it.
+
+   A child "data" node must exist, compatible with "fsl,cpm-muram-data", to
+   indicate the portion of muram that is usable by the OS for arbitrary
+   purposes.  The data node may have an arbitrary number of reg resources,
+   all of which contribute to the allocatable muram pool.
+
+   Example, based on mpc8272:
+
+	muram@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 10000>;
+
+		data@0 {
+			compatible = "fsl,cpm-muram-data";
+			reg = <0 2000 9800 800>;
+		};
+	};
+
+   m) Chipselect/Local Bus
+
+   Properties:
+   - name : Should be localbus
+   - #address-cells : Should be either two or three.  The first cell is the
+                      chipselect number, and the remaining cells are the
+                      offset into the chipselect.
+   - #size-cells : Either one or two, depending on how large each chipselect
+                   can be.
+   - ranges : Each range corresponds to a single chipselect, and cover
+              the entire access window as configured.
+
+   Example:
+	localbus@f0010100 {
+		compatible = "fsl,mpc8272ads-localbus",
+		             "fsl,mpc8272-localbus",
+		             "fsl,pq2-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <f0010100 40>;
+
+		ranges = <0 0 fe000000 02000000
+		          1 0 f4500000 00008000>;
+
+		flash@0,0 {
+			compatible = "jedec-flash";
+			reg = <0 0 2000000>;
+			bank-width = <4>;
+			device-width = <1>;
+		};
+
+		board-control@1,0 {
+			reg = <1 0 20>;
+			compatible = "fsl,mpc8272ads-bcsr";
+		};
+	};
+
+
+    n) 4xx/Axon EMAC ethernet nodes
 
     The EMAC ethernet controller in IBM and AMCC 4xx chips, and also
     the Axon bridge.  To operate this needs to interact with a ths

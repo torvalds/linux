@@ -1,17 +1,30 @@
 choice
 	prompt "82xx Board Type"
 	depends on PPC_82xx
-	default MPC82xx_ADS
+	default MPC8272_ADS
 
-config MPC82xx_ADS
-	bool "Freescale MPC82xx ADS"
+config MPC8272_ADS
+	bool "Freescale MPC8272 ADS"
 	select DEFAULT_UIMAGE
 	select PQ2ADS
 	select 8272
 	select 8260
 	select FSL_SOC
+	select PQ2_ADS_PCI_PIC if PCI
+	select PPC_CPM_NEW_BINDING
 	help
-	This option enables support for the MPC8272 ADS board
+	  This option enables support for the MPC8272 ADS board
+
+config PQ2FADS
+	bool "Freescale PQ2FADS"
+	select DEFAULT_UIMAGE
+	select PQ2ADS
+	select 8260
+	select FSL_SOC
+	select PQ2_ADS_PCI_PIC if PCI
+	select PPC_CPM_NEW_BINDING
+	help
+	  This option enables support for the PQ2FADS board
 
 endchoice
 
@@ -34,3 +47,6 @@ config 8272
 	help
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
+
+config PQ2_ADS_PCI_PIC
+	bool

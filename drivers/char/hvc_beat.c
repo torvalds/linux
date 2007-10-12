@@ -97,7 +97,7 @@ static int hvc_beat_config(char *p)
 	return 0;
 }
 
-static int hvc_beat_console_init(void)
+static int __init hvc_beat_console_init(void)
 {
 	if (hvc_beat_useit && machine_is_compatible("Beat")) {
 		hvc_instantiate(0, 0, &hvc_beat_get_put_ops);
@@ -106,7 +106,7 @@ static int hvc_beat_console_init(void)
 }
 
 /* temp */
-static int hvc_beat_init(void)
+static int __init hvc_beat_init(void)
 {
 	struct hvc_struct *hp;
 

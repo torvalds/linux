@@ -74,6 +74,8 @@ void dt_fixup_cpu_clocks(u32 cpu, u32 tb, u32 bus)
 		if (bus > 0)
 			setprop_val(devp, "bus-frequency", bus);
 	}
+
+	timebase_period_ns = 1000000000 / tb;
 }
 
 void dt_fixup_clock(const char *path, u32 freq)
@@ -86,34 +88,38 @@ void dt_fixup_clock(const char *path, u32 freq)
 	}
 }
 
+void dt_fixup_mac_address(u32 index, const u8 *addr)
+{
+	void *devp = find_node_by_prop_value(NULL, "linux,network-index",
+	                                     (void*)&index, sizeof(index));
+
+	if (devp) {
+		printf("ENET%d: local-mac-address <-"
+		       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
+		       addr[0], addr[1], addr[2],
+		       addr[3], addr[4], addr[5]);
+
+		setprop(devp, "local-mac-address", addr, 6);
+	}
+}
+
 void __dt_fixup_mac_addresses(u32 startindex, ...)
 {
 	va_list ap;
 	u32 index = startindex;
-	void *devp;
 	const u8 *addr;
 
 	va_start(ap, startindex);
-	while ((addr = va_arg(ap, const u8 *))) {
-		devp = find_node_by_prop_value(NULL, "linux,network-index",
-					       (void*)&index, sizeof(index));
 
-		printf("ENET%d: local-mac-address <-"
-		       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", index,
-		       addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+	while ((addr = va_arg(ap, const u8 *)))
+		dt_fixup_mac_address(index++, addr);
 
-		if (devp)
-			setprop(devp, "local-mac-address", addr, 6);
-
-		index++;
-	}
 	va_end(ap);
 }
 
 #define MAX_ADDR_CELLS 4
-#define MAX_RANGES 8
 
-static void get_reg_format(void *node, u32 *naddr, u32 *nsize)
+void dt_get_reg_format(void *node, u32 *naddr, u32 *nsize)
 {
 	if (getprop(node, "#address-cells", naddr, 4) != 4)
 		*naddr = 2;
@@ -207,7 +213,7 @@ static int find_range(u32 *reg, u32 *ranges, int nregaddr,
  * In particular, PCI is not supported.  Also, only the beginning of the
  * reg block is tracked; size is ignored except in ranges.
  */
-static u32 dt_xlate_buf[MAX_ADDR_CELLS * MAX_RANGES * 3];
+static u32 prop_buf[MAX_PROP_LEN / 4];
 
 static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 		unsigned long *size)
@@ -216,14 +222,14 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	u32 this_addr[MAX_ADDR_CELLS];
 	void *parent;
 	u64 ret_addr, ret_size;
-	u32 naddr, nsize, prev_naddr;
+	u32 naddr, nsize, prev_naddr, prev_nsize;
 	int buflen, offset;
 
 	parent = get_parent(node);
 	if (!parent)
 		return 0;
 
-	get_reg_format(parent, &naddr, &nsize);
+	dt_get_reg_format(parent, &naddr, &nsize);
 
 	if (nsize > 2)
 		return 0;
@@ -231,41 +237,47 @@ static int dt_xlate(void *node, int res, int reglen, unsigned long *addr,
 	offset = (naddr + nsize) * res;
 
 	if (reglen < offset + naddr + nsize ||
-	    sizeof(dt_xlate_buf) < offset + naddr + nsize)
+	    MAX_PROP_LEN < (offset + naddr + nsize) * 4)
 		return 0;
 
-	copy_val(last_addr, dt_xlate_buf + offset, naddr);
+	copy_val(last_addr, prop_buf + offset, naddr);
 
-	ret_size = dt_xlate_buf[offset + naddr];
+	ret_size = prop_buf[offset + naddr];
 	if (nsize == 2) {
 		ret_size <<= 32;
-		ret_size |= dt_xlate_buf[offset + naddr + 1];
+		ret_size |= prop_buf[offset + naddr + 1];
 	}
 
-	while ((node = get_parent(node))) {
+	for (;;) {
 		prev_naddr = naddr;
+		prev_nsize = nsize;
+		node = parent;
 
-		get_reg_format(node, &naddr, &nsize);
+		parent = get_parent(node);
+		if (!parent)
+			break;
 
-		buflen = getprop(node, "ranges", dt_xlate_buf,
-				sizeof(dt_xlate_buf));
-		if (buflen < 0)
+		dt_get_reg_format(parent, &naddr, &nsize);
+
+		buflen = getprop(node, "ranges", prop_buf,
+				sizeof(prop_buf));
+		if (buflen == 0)
 			continue;
-		if (buflen > sizeof(dt_xlate_buf))
+		if (buflen < 0 || buflen > sizeof(prop_buf))
 			return 0;
 
-		offset = find_range(last_addr, dt_xlate_buf, prev_naddr,
-		                    naddr, nsize, buflen / 4);
+		offset = find_range(last_addr, prop_buf, prev_naddr,
+		                    naddr, prev_nsize, buflen / 4);
 
 		if (offset < 0)
 			return 0;
 
-		copy_val(this_addr, dt_xlate_buf + offset, prev_naddr);
+		copy_val(this_addr, prop_buf + offset, prev_naddr);
 
 		if (!sub_reg(last_addr, this_addr))
 			return 0;
 
-		copy_val(this_addr, dt_xlate_buf + offset + prev_naddr, naddr);
+		copy_val(this_addr, prop_buf + offset + prev_naddr, naddr);
 
 		if (!add_reg(last_addr, this_addr, naddr))
 			return 0;
@@ -292,16 +304,35 @@ int dt_xlate_reg(void *node, int res, unsigned long *addr, unsigned long *size)
 {
 	int reglen;
 
-	reglen = getprop(node, "reg", dt_xlate_buf, sizeof(dt_xlate_buf)) / 4;
+	reglen = getprop(node, "reg", prop_buf, sizeof(prop_buf)) / 4;
 	return dt_xlate(node, res, reglen, addr, size);
 }
 
 int dt_xlate_addr(void *node, u32 *buf, int buflen, unsigned long *xlated_addr)
 {
 
-	if (buflen > sizeof(dt_xlate_buf))
+	if (buflen > sizeof(prop_buf))
 		return 0;
 
-	memcpy(dt_xlate_buf, buf, buflen);
+	memcpy(prop_buf, buf, buflen);
 	return dt_xlate(node, 0, buflen / 4, xlated_addr, NULL);
+}
+
+int dt_is_compatible(void *node, const char *compat)
+{
+	char *buf = (char *)prop_buf;
+	int len, pos;
+
+	len = getprop(node, "compatible", buf, MAX_PROP_LEN);
+	if (len < 0)
+		return 0;
+
+	for (pos = 0; pos < len; pos++) {
+		if (!strcmp(buf + pos, compat))
+			return 1;
+
+		pos += strnlen(&buf[pos], len - pos);
+	}
+
+	return 0;
 }

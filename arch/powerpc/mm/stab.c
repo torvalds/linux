@@ -122,12 +122,12 @@ static int __ste_allocate(unsigned long ea, struct mm_struct *mm)
 
 	/* Kernel or user address? */
 	if (is_kernel_addr(ea)) {
-		vsid = get_kernel_vsid(ea);
+		vsid = get_kernel_vsid(ea, MMU_SEGSIZE_256M);
 	} else {
 		if ((ea >= TASK_SIZE_USER64) || (! mm))
 			return 1;
 
-		vsid = get_vsid(mm->context.id, ea);
+		vsid = get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M);
 	}
 
 	stab_entry = make_ste(get_paca()->stab_addr, GET_ESID(ea), vsid);
@@ -261,7 +261,7 @@ void __init stabs_alloc(void)
  */
 void stab_initialize(unsigned long stab)
 {
-	unsigned long vsid = get_kernel_vsid(PAGE_OFFSET);
+	unsigned long vsid = get_kernel_vsid(PAGE_OFFSET, MMU_SEGSIZE_256M);
 	unsigned long stabreal;
 
 	asm volatile("isync; slbia; isync":::"memory");

@@ -168,7 +168,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 #else
 		psize = mm->context.user_psize;
 #endif
-		vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) |
+		vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 				SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
@@ -176,12 +176,12 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 			psize = mmu_vmalloc_psize;
 		else
 			psize = mmu_io_psize;
-		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 			SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
 		psize = mmu_linear_psize;
-		vsid = (get_kernel_vsid(ea) << SLB_VSID_SHIFT) |
+		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
 			SLB_VSID_KERNEL;
 		break;
 	default:
@@ -458,7 +458,7 @@ static int spu_shutdown(struct sys_device *sysdev)
 	return 0;
 }
 
-struct sysdev_class spu_sysdev_class = {
+static struct sysdev_class spu_sysdev_class = {
 	set_kset_name("spu"),
 	.shutdown = spu_shutdown,
 };
