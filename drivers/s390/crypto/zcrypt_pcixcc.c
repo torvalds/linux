@@ -277,7 +277,7 @@ static int XCRB_msg_to_type6CPRB_msgX(struct zcrypt_device *zdev,
 	};
 	struct {
 		struct type6_hdr hdr;
-		struct ica_CPRBX cprbx;
+		struct CPRBX cprbx;
 	} __attribute__((packed)) *msg = ap_msg->message;
 
 	int rcblen = CEIL4(xcRB->request_control_blk_length);

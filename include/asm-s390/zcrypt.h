@@ -91,7 +91,7 @@ struct ica_rsa_modexpo_crt {
  *	    VUD block
  *	    key block
  */
-struct ica_CPRBX {
+struct CPRBX {
 	unsigned short	cprb_len;	/* CPRB length	      220	 */
 	unsigned char	cprb_ver_id;	/* CPRB version id.   0x02	 */
 	unsigned char	pad_000[3];	/* Alignment pad bytes		 */
@@ -130,7 +130,7 @@ struct ica_CPRBX {
 	unsigned char	cntrl_domain[4];/* Control domain		 */
 	unsigned char	S390enf_mask[4];/* S/390 enforcement mask	 */
 	unsigned char	pad_004[36];	/* reserved			 */
-};
+} __attribute__((packed));
 
 /**
  * xcRB
