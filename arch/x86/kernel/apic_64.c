@@ -55,6 +55,8 @@ static struct resource lapic_resource = {
 	.flags = IORESOURCE_MEM | IORESOURCE_BUSY,
 };
 
+static unsigned int calibration_result;
+
 /*
  * cpu_mask that denotes the CPUs that needs timer interrupt coming in as
  * IPIs in place of local APIC timers
@@ -821,7 +823,7 @@ static void setup_APIC_timer(unsigned int clocks)
 
 #define TICK_COUNT 100000000
 
-static int __init calibrate_APIC_clock(void)
+static void __init calibrate_APIC_clock(void)
 {
 	unsigned apic, apic_start;
 	unsigned long tsc, tsc_start;
@@ -855,16 +857,13 @@ static int __init calibrate_APIC_clock(void)
 		result = (apic_start - apic) * 1000L * tsc_khz /
 					(tsc - tsc_start);
 	}
-	printk("result %d\n", result);
-
+	printk(KERN_DEBUG "APIC timer calibration result %d\n", result);
 
 	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
 		result / 1000 / 1000, result / 1000 % 1000);
 
-	return result * APIC_DIVISOR / HZ;
+	calibration_result = result * APIC_DIVISOR / HZ;
 }
-
-static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock (void)
 {
@@ -878,7 +877,7 @@ void __init setup_boot_APIC_clock (void)
 
 	local_irq_disable();
 
-	calibration_result = calibrate_APIC_clock();
+	calibrate_APIC_clock();
 	/*
 	 * Now set up the timer for real.
 	 */
@@ -984,8 +983,6 @@ void setup_APIC_extended_lvt(unsigned char lvt_off, unsigned char vector,
 	unsigned int  v   = (mask << 16) | (msg_type << 8) | vector;
 	apic_write(reg, v);
 }
-
-#undef APIC_DIVISOR
 
 /*
  * Local timer interrupt handler. It does both profiling and
