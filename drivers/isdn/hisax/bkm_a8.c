@@ -20,8 +20,6 @@
 #include <linux/pci.h>
 #include "bkm_ax.h"
 
-#ifdef CONFIG_PCI
-
 #define	ATTEMPT_PCI_REMAPPING	/* Required for PLX rev 1 */
 
 extern const char *CardType[];
@@ -279,12 +277,9 @@ static u_char pci_bus __devinitdata = 0;
 static u_char pci_device_fn __devinitdata = 0;
 static u_char pci_irq __devinitdata = 0;
 
-#endif /* CONFIG_PCI */
-
 int __devinit
 setup_sct_quadro(struct IsdnCard *card)
 {
-#ifdef CONFIG_PCI
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];
 	u_int found = 0;
@@ -442,7 +437,4 @@ setup_sct_quadro(struct IsdnCard *card)
 		sct_quadro_subtypes[cs->subtyp],
 		readreg(cs->hw.ax.base, cs->hw.ax.data_adr, IPAC_ID));
 	return (1);
-#else
-	printk(KERN_ERR "HiSax: bkm_a8 only supported on PCI Systems\n");
-#endif /* CONFIG_PCI */
 }

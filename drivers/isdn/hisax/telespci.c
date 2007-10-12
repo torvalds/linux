@@ -295,11 +295,12 @@ setup_telespci(struct IsdnCard *card)
 #ifdef __BIG_ENDIAN
 #error "not running on big endian machines now"
 #endif
+
 	strcpy(tmp, telespci_revision);
 	printk(KERN_INFO "HiSax: Teles/PCI driver Rev. %s\n", HiSax_getrev(tmp));
 	if (cs->typ != ISDN_CTYPE_TELESPCI)
 		return (0);
-#ifdef CONFIG_PCI
+
 	if ((dev_tel = pci_find_device (PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36120, dev_tel))) {
 		if (pci_enable_device(dev_tel))
 			return(0);
@@ -317,11 +318,6 @@ setup_telespci(struct IsdnCard *card)
 		printk(KERN_WARNING "TelesPCI: No PCI card found\n");
 		return(0);
 	}
-#else
-	printk(KERN_WARNING "HiSax: Teles/PCI and NO_PCI_BIOS\n");
-	printk(KERN_WARNING "HiSax: Teles/PCI unable to config\n");
-	return (0);
-#endif /* CONFIG_PCI */
 
 	/* Initialize Zoran PCI controller */
 	writel(0x00000000, cs->hw.teles0.membase + 0x28);
