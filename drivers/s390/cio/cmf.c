@@ -489,7 +489,6 @@ static struct cmb_area cmb_area = {
 	.num_channels  = 1024,
 };
 
-
 /* ****** old style CMB handling ********/
 
 /*
@@ -812,7 +811,7 @@ static struct cmb_operations cmbops_basic = {
 	.align	    = align_cmb,
 	.attr_group = &cmf_attr_group,
 };
-
+
 /* ******** extended cmb handling ********/
 
 /**
@@ -1079,7 +1078,6 @@ static struct cmb_operations cmbops_extended = {
 	.align	    = align_cmbe,
 	.attr_group = &cmf_attr_group_ext,
 };
-
 
 static ssize_t cmb_show_attr(struct device *dev, char *buf, enum cmb_index idx)
 {

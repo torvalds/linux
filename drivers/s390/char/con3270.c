@@ -22,6 +22,7 @@
 #include <asm/ebcdic.h>
 
 #include "raw3270.h"
+#include "tty3270.h"
 #include "ctrlchar.h"
 
 #define CON3270_OUTPUT_BUFFER_SIZE 1024
@@ -506,8 +507,6 @@ con3270_write(struct console *co, const char *str, unsigned int count)
 		con3270_set_timer(cp, HZ/10);
 	spin_unlock_irqrestore(&cp->view.lock,flags);
 }
-
-extern struct tty_driver *tty3270_driver;
 
 static struct tty_driver *
 con3270_device(struct console *c, int *index)

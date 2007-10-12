@@ -93,6 +93,7 @@ static volatile enum sclp_mask_state_t {
 #define SCLP_RETRY_INTERVAL	30
 
 static void sclp_process_queue(void);
+static void __sclp_make_read_req(void);
 static int sclp_init_mask(int calculate);
 static int sclp_init(void);
 
@@ -115,7 +116,6 @@ sclp_service_call(sclp_cmdw_t command, void *sccb)
 	return 0;
 }
 
-static inline void __sclp_make_read_req(void);
 
 static void
 __sclp_queue_read_req(void)
@@ -318,8 +318,7 @@ sclp_read_cb(struct sclp_req *req, void *data)
 }
 
 /* Prepare read event data request. Called while sclp_lock is locked. */
-static inline void
-__sclp_make_read_req(void)
+static void __sclp_make_read_req(void)
 {
 	struct sccb_header *sccb;
 
