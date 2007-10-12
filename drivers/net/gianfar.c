@@ -168,7 +168,6 @@ static int gfar_probe(struct platform_device *pdev)
 	struct gfar_private *priv = NULL;
 	struct gianfar_platform_data *einfo;
 	struct resource *r;
-	int idx;
 	int err = 0;
 	DECLARE_MAC_BUF(mac);
 
