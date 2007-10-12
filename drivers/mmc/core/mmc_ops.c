@@ -40,10 +40,10 @@ static int _mmc_select_card(struct mmc_host *host, struct mmc_card *card)
 	}
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_select_card(struct mmc_card *card)
@@ -63,23 +63,36 @@ int mmc_go_idle(struct mmc_host *host)
 	int err;
 	struct mmc_command cmd;
 
-	mmc_set_chip_select(host, MMC_CS_HIGH);
-
-	mmc_delay(1);
+	/*
+	 * Non-SPI hosts need to prevent chipselect going active during
+	 * GO_IDLE; that would put chips into SPI mode.  Remind them of
+	 * that in case of hardware that won't pull up DAT3/nCS otherwise.
+	 *
+	 * SPI hosts ignore ios.chip_select; it's managed according to
+	 * rules that must accomodate non-MMC slaves which this layer
+	 * won't even know about.
+	 */
+	if (!mmc_host_is_spi(host)) {
+		mmc_set_chip_select(host, MMC_CS_HIGH);
+		mmc_delay(1);
+	}
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
-	cmd.flags = MMC_RSP_NONE | MMC_CMD_BC;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_NONE | MMC_CMD_BC;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
 
 	mmc_delay(1);
 
-	mmc_set_chip_select(host, MMC_CS_DONTCARE);
+	if (!mmc_host_is_spi(host)) {
+		mmc_set_chip_select(host, MMC_CS_DONTCARE);
+		mmc_delay(1);
+	}
 
-	mmc_delay(1);
+	host->use_spi_crc = 0;
 
 	return err;
 }
@@ -94,23 +107,33 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SEND_OP_COND;
-	cmd.arg = ocr;
-	cmd.flags = MMC_RSP_R3 | MMC_CMD_BCR;
+	cmd.arg = mmc_host_is_spi(host) ? 0 : ocr;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_cmd(host, &cmd, 0);
-		if (err != MMC_ERR_NONE)
+		if (err)
 			break;
 
-		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
+		/* if we're just probing, do a single pass */
+		if (ocr == 0)
 			break;
 
-		err = MMC_ERR_TIMEOUT;
+		/* otherwise wait until reset completes */
+		if (mmc_host_is_spi(host)) {
+			if (!(cmd.resp[0] & R1_SPI_IDLE))
+				break;
+		} else {
+			if (cmd.resp[0] & MMC_CARD_BUSY)
+				break;
+		}
+
+		err = -ETIMEDOUT;
 
 		mmc_delay(10);
 	}
 
-	if (rocr)
+	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
 
 	return err;
@@ -131,12 +154,12 @@ int mmc_all_send_cid(struct mmc_host *host, u32 *cid)
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 
 	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
 	memcpy(cid, cmd.resp, sizeof(u32) * 4);
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_set_relative_addr(struct mmc_card *card)
@@ -154,46 +177,52 @@ int mmc_set_relative_addr(struct mmc_card *card)
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
-int mmc_send_csd(struct mmc_card *card, u32 *csd)
+static int
+mmc_send_cxd_native(struct mmc_host *host, u32 arg, u32 *cxd, int opcode)
 {
 	int err;
 	struct mmc_command cmd;
 
-	BUG_ON(!card);
-	BUG_ON(!card->host);
-	BUG_ON(!csd);
+	BUG_ON(!host);
+	BUG_ON(!cxd);
 
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
-	cmd.opcode = MMC_SEND_CSD;
-	cmd.arg = card->rca << 16;
+	cmd.opcode = opcode;
+	cmd.arg = arg;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_AC;
 
-	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	err = mmc_wait_for_cmd(host, &cmd, MMC_CMD_RETRIES);
+	if (err)
 		return err;
 
-	memcpy(csd, cmd.resp, sizeof(u32) * 4);
+	memcpy(cxd, cmd.resp, sizeof(u32) * 4);
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
-int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
+static int
+mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
+		u32 opcode, void *buf, unsigned len)
 {
 	struct mmc_request mrq;
 	struct mmc_command cmd;
 	struct mmc_data data;
 	struct scatterlist sg;
+	void *data_buf;
 
-	BUG_ON(!card);
-	BUG_ON(!card->host);
-	BUG_ON(!ext_csd);
+	/* dma onto stack is unsafe/nonportable, but callers to this
+	 * routine normally provide temporary on-stack buffers ...
+	 */
+	data_buf = kmalloc(len, GFP_KERNEL);
+	if (data_buf == NULL)
+		return -ENOMEM;
 
 	memset(&mrq, 0, sizeof(struct mmc_request));
 	memset(&cmd, 0, sizeof(struct mmc_command));
@@ -202,28 +231,99 @@ int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	mrq.cmd = &cmd;
 	mrq.data = &data;
 
-	cmd.opcode = MMC_SEND_EXT_CSD;
+	cmd.opcode = opcode;
 	cmd.arg = 0;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
 
-	data.blksz = 512;
+	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
+	 * rely on callers to never use this with "native" calls for reading
+	 * CSD or CID.  Native versions of those commands use the R2 type,
+	 * not R1 plus a data block.
+	 */
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	data.blksz = len;
 	data.blocks = 1;
 	data.flags = MMC_DATA_READ;
 	data.sg = &sg;
 	data.sg_len = 1;
 
-	sg_init_one(&sg, ext_csd, 512);
+	sg_init_one(&sg, data_buf, len);
 
-	mmc_set_data_timeout(&data, card, 0);
+	if (card)
+		mmc_set_data_timeout(&data, card);
 
-	mmc_wait_for_req(card->host, &mrq);
+	mmc_wait_for_req(host, &mrq);
 
-	if (cmd.error != MMC_ERR_NONE)
+	memcpy(buf, data_buf, len);
+	kfree(data_buf);
+
+	if (cmd.error)
 		return cmd.error;
-	if (data.error != MMC_ERR_NONE)
+	if (data.error)
 		return data.error;
 
-	return MMC_ERR_NONE;
+	return 0;
+}
+
+int mmc_send_csd(struct mmc_card *card, u32 *csd)
+{
+	if (!mmc_host_is_spi(card->host))
+		return mmc_send_cxd_native(card->host, card->rca << 16,
+				csd, MMC_SEND_CSD);
+
+	return mmc_send_cxd_data(card, card->host, MMC_SEND_CSD, csd, 16);
+}
+
+int mmc_send_cid(struct mmc_host *host, u32 *cid)
+{
+	if (!mmc_host_is_spi(host)) {
+		if (!host->card)
+			return -EINVAL;
+		return mmc_send_cxd_native(host, host->card->rca << 16,
+				cid, MMC_SEND_CID);
+	}
+
+	return mmc_send_cxd_data(NULL, host, MMC_SEND_CID, cid, 16);
+}
+
+int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
+{
+	return mmc_send_cxd_data(card, card->host, MMC_SEND_EXT_CSD,
+			ext_csd, 512);
+}
+
+int mmc_spi_read_ocr(struct mmc_host *host, int highcap, u32 *ocrp)
+{
+	struct mmc_command cmd;
+	int err;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = MMC_SPI_READ_OCR;
+	cmd.arg = highcap ? (1 << 30) : 0;
+	cmd.flags = MMC_RSP_SPI_R3;
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+
+	*ocrp = cmd.resp[1];
+	return err;
+}
+
+int mmc_spi_set_crc(struct mmc_host *host, int use_crc)
+{
+	struct mmc_command cmd;
+	int err;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = MMC_SPI_CRC_ON_OFF;
+	cmd.flags = MMC_RSP_SPI_R1;
+	cmd.arg = use_crc;
+
+	err = mmc_wait_for_cmd(host, &cmd, 0);
+	if (!err)
+		host->use_spi_crc = use_crc;
+	return err;
 }
 
 int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
@@ -241,13 +341,13 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value)
 		  (index << 16) |
 		  (value << 8) |
 		  set;
-	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
+	cmd.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 int mmc_send_status(struct mmc_card *card, u32 *status)
@@ -261,16 +361,20 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 	memset(&cmd, 0, sizeof(struct mmc_command));
 
 	cmd.opcode = MMC_SEND_STATUS;
-	cmd.arg = card->rca << 16;
-	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+	if (!mmc_host_is_spi(card->host))
+		cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
-	if (err != MMC_ERR_NONE)
+	if (err)
 		return err;
 
+	/* NOTE: callers are required to understand the difference
+	 * between "native" and SPI format status words!
+	 */
 	if (status)
 		*status = cmd.resp[0];
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 

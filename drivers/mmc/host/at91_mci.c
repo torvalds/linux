@@ -328,7 +328,7 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 	data = cmd->data;
 	if (!data) return;
 
-	if (cmd->data->flags & MMC_DATA_MULTI) {
+	if (cmd->data->blocks > 1) {
 		pr_debug("multiple write : wait for BLKE...\n");
 		at91_mci_write(host, AT91_MCI_IER, AT91_MCI_BLKE);
 	} else
@@ -428,6 +428,14 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 	}
 
 	if (data) {
+
+		if ( data->blksz & 0x3 ) {
+			pr_debug("Unsupported block size\n");
+			cmd->error = -EINVAL;
+			mmc_request_done(host->mmc, host->request);
+			return;
+		}
+
 		block_length = data->blksz;
 		blocks = data->blocks;
 
@@ -439,7 +447,7 @@ static void at91_mci_send_command(struct at91mci_host *host, struct mmc_command 
 
 		if (data->flags & MMC_DATA_STREAM)
 			cmdr |= AT91_MCI_TRTYP_STREAM;
-		if (data->flags & MMC_DATA_MULTI)
+		if (data->blocks > 1)
 			cmdr |= AT91_MCI_TRTYP_MULTIPLE;
 	}
 	else {
@@ -577,24 +585,22 @@ static void at91_mci_completed_command(struct at91mci_host *host)
 			AT91_MCI_RENDE | AT91_MCI_RTOE | AT91_MCI_DCRCE |
 			AT91_MCI_DTOE | AT91_MCI_OVRE | AT91_MCI_UNRE)) {
 		if ((status & AT91_MCI_RCRCE) && !(mmc_resp_type(cmd) & MMC_RSP_CRC)) {
-			cmd->error = MMC_ERR_NONE;
+			cmd->error = 0;
 		}
 		else {
 			if (status & (AT91_MCI_RTOE | AT91_MCI_DTOE))
-				cmd->error = MMC_ERR_TIMEOUT;
+				cmd->error = -ETIMEDOUT;
 			else if (status & (AT91_MCI_RCRCE | AT91_MCI_DCRCE))
-				cmd->error = MMC_ERR_BADCRC;
-			else if (status & (AT91_MCI_OVRE | AT91_MCI_UNRE))
-				cmd->error = MMC_ERR_FIFO;
+				cmd->error = -EILSEQ;
 			else
-				cmd->error = MMC_ERR_FAILED;
+				cmd->error = -EIO;
 
 			pr_debug("Error detected and set to %d (cmd = %d, retries = %d)\n",
 				 cmd->error, cmd->opcode, cmd->retries);
 		}
 	}
 	else
-		cmd->error = MMC_ERR_NONE;
+		cmd->error = 0;
 
 	at91_mci_process_next(host);
 }
@@ -836,7 +842,6 @@ static int __init at91_mci_probe(struct platform_device *pdev)
 	mmc->f_min = 375000;
 	mmc->f_max = 25000000;
 	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps = MMC_CAP_BYTEBLOCK;
 
 	mmc->max_blk_size = 4095;
 	mmc->max_blk_count = mmc->max_req_size;

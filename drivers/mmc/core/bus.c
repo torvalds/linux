@@ -19,6 +19,7 @@
 
 #include "sysfs.h"
 #include "core.h"
+#include "sdio_cis.h"
 #include "bus.h"
 
 #define dev_to_mmc_card(d)	container_of(d, struct mmc_card, dev)
@@ -34,6 +35,8 @@ static ssize_t mmc_type_show(struct device *dev,
 		return sprintf(buf, "MMC\n");
 	case MMC_TYPE_SD:
 		return sprintf(buf, "SD\n");
+	case MMC_TYPE_SDIO:
+		return sprintf(buf, "SDIO\n");
 	default:
 		return -EFAULT;
 	}
@@ -59,28 +62,34 @@ mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 		int buf_size)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
-	int retval = 0, i = 0, length = 0;
-
-#define add_env(fmt,val) do {					\
-	retval = add_uevent_var(envp, num_envp, &i,		\
-				buf, buf_size, &length,		\
-				fmt, val);			\
-	if (retval)						\
-		return retval;					\
-} while (0);
+	const char *type;
+	int i = 0, length = 0;
 
 	switch (card->type) {
 	case MMC_TYPE_MMC:
-		add_env("MMC_TYPE=%s", "MMC");
+		type = "MMC";
 		break;
 	case MMC_TYPE_SD:
-		add_env("MMC_TYPE=%s", "SD");
+		type = "SD";
 		break;
+	case MMC_TYPE_SDIO:
+		type = "SDIO";
+		break;
+	default:
+		type = NULL;
 	}
 
-	add_env("MMC_NAME=%s", mmc_card_name(card));
+	if (type) {
+		if (add_uevent_var(envp, num_envp, &i,
+				buf, buf_size, &length,
+				"MMC_TYPE=%s", type))
+			return -ENOMEM;
+	}
 
-#undef add_env
+	if (add_uevent_var(envp, num_envp, &i,
+			buf, buf_size, &length,
+			"MMC_NAME=%s", mmc_card_name(card)))
+		return -ENOMEM;
 
 	envp[i] = NULL;
 
@@ -176,6 +185,11 @@ static void mmc_release_card(struct device *dev)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
 
+	sdio_free_common_cis(card);
+
+	if (card->info)
+		kfree(card->info);
+
 	kfree(card);
 }
 
@@ -221,15 +235,25 @@ int mmc_add_card(struct mmc_card *card)
 		if (mmc_card_blockaddr(card))
 			type = "SDHC";
 		break;
+	case MMC_TYPE_SDIO:
+		type = "SDIO";
+		break;
 	default:
 		type = "?";
 		break;
 	}
 
-	printk(KERN_INFO "%s: new %s%s card at address %04x\n",
-		mmc_hostname(card->host),
-		mmc_card_highspeed(card) ? "high speed " : "",
-		type, card->rca);
+	if (mmc_host_is_spi(card->host)) {
+		printk(KERN_INFO "%s: new %s%s card on SPI\n",
+			mmc_hostname(card->host),
+			mmc_card_highspeed(card) ? "high speed " : "",
+			type);
+	} else {
+		printk(KERN_INFO "%s: new %s%s card at address %04x\n",
+			mmc_hostname(card->host),
+			mmc_card_highspeed(card) ? "high speed " : "",
+			type, card->rca);
+	}
 
 	card->dev.uevent_suppress = 1;
 
@@ -261,8 +285,13 @@ int mmc_add_card(struct mmc_card *card)
 void mmc_remove_card(struct mmc_card *card)
 {
 	if (mmc_card_present(card)) {
-		printk(KERN_INFO "%s: card %04x removed\n",
-			mmc_hostname(card->host), card->rca);
+		if (mmc_host_is_spi(card->host)) {
+			printk(KERN_INFO "%s: SPI card removed\n",
+				mmc_hostname(card->host));
+		} else {
+			printk(KERN_INFO "%s: card %04x removed\n",
+				mmc_hostname(card->host), card->rca);
+		}
 
 		if (card->host->bus_ops->sysfs_remove)
 			card->host->bus_ops->sysfs_remove(card->host, card);

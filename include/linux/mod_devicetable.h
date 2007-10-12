@@ -340,4 +340,15 @@ struct parisc_device_id {
 #define PA_HVERSION_ANY_ID	0xffff
 #define PA_SVERSION_ANY_ID	0xffffffff
 
+/* SDIO */
+
+#define SDIO_ANY_ID (~0)
+
+struct sdio_device_id {
+	__u8	class;			/* Standard interface or SDIO_ANY_ID */
+	__u16	vendor;			/* Vendor or SDIO_ANY_ID */
+	__u16	device;			/* Device ID or SDIO_ANY_ID */
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

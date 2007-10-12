@@ -142,6 +142,10 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 				   host->dma_dir);
 
 	for (i = 0; i < host->dma_len; i++) {
+		unsigned int length = sg_dma_len(&data->sg[i]);
+		host->sg_cpu[i].dcmd = dcmd | length;
+		if (length & 31 && !(data->flags & MMC_DATA_READ))
+			host->sg_cpu[i].dcmd |= DCMD_ENDIRQEN;
 		if (data->flags & MMC_DATA_READ) {
 			host->sg_cpu[i].dsadr = host->res->start + MMC_RXFIFO;
 			host->sg_cpu[i].dtadr = sg_dma_address(&data->sg[i]);
@@ -149,7 +153,6 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 			host->sg_cpu[i].dsadr = sg_dma_address(&data->sg[i]);
 			host->sg_cpu[i].dtadr = host->res->start + MMC_TXFIFO;
 		}
-		host->sg_cpu[i].dcmd = dcmd | sg_dma_len(&data->sg[i]);
 		host->sg_cpu[i].ddadr = host->sg_dma + (i + 1) *
 					sizeof(struct pxa_dma_desc);
 	}
@@ -226,7 +229,7 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 	}
 
 	if (stat & STAT_TIME_OUT_RESPONSE) {
-		cmd->error = MMC_ERR_TIMEOUT;
+		cmd->error = -ETIMEDOUT;
 	} else if (stat & STAT_RES_CRC_ERR && cmd->flags & MMC_RSP_CRC) {
 #ifdef CONFIG_PXA27x
 		/*
@@ -239,11 +242,11 @@ static int pxamci_cmd_done(struct pxamci_host *host, unsigned int stat)
 			pr_debug("ignoring CRC from command %d - *risky*\n", cmd->opcode);
 		} else
 #endif
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 	}
 
 	pxamci_disable_irq(host, END_CMD_RES);
-	if (host->data && cmd->error == MMC_ERR_NONE) {
+	if (host->data && !cmd->error) {
 		pxamci_enable_irq(host, DATA_TRAN_DONE);
 	} else {
 		pxamci_finish_request(host, host->mrq);
@@ -264,9 +267,9 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 		     host->dma_dir);
 
 	if (stat & STAT_READ_TIME_OUT)
-		data->error = MMC_ERR_TIMEOUT;
+		data->error = -ETIMEDOUT;
 	else if (stat & (STAT_CRC_READ_ERROR|STAT_CRC_WRITE_ERROR))
-		data->error = MMC_ERR_BADCRC;
+		data->error = -EILSEQ;
 
 	/*
 	 * There appears to be a hardware design bug here.  There seems to
@@ -274,7 +277,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	 * This means that if there was an error on any block, we mark all
 	 * data blocks as being in error.
 	 */
-	if (data->error == MMC_ERR_NONE)
+	if (!data->error)
 		data->bytes_xfered = data->blocks * data->blksz;
 	else
 		data->bytes_xfered = 0;
@@ -284,7 +287,7 @@ static int pxamci_data_done(struct pxamci_host *host, unsigned int stat)
 	host->data = NULL;
 	if (host->mrq->stop) {
 		pxamci_stop_clock(host);
-		pxamci_start_cmd(host, host->mrq->stop, 0);
+		pxamci_start_cmd(host, host->mrq->stop, host->cmdat);
 	} else {
 		pxamci_finish_request(host, host->mrq);
 	}
@@ -298,7 +301,7 @@ static irqreturn_t pxamci_irq(int irq, void *devid)
 	unsigned int ireg;
 	int handled = 0;
 
-	ireg = readl(host->base + MMC_I_REG);
+	ireg = readl(host->base + MMC_I_REG) & ~readl(host->base + MMC_I_MASK);
 
 	if (ireg) {
 		unsigned stat = readl(host->base + MMC_STAT);
@@ -309,6 +312,10 @@ static irqreturn_t pxamci_irq(int irq, void *devid)
 			handled |= pxamci_cmd_done(host, stat);
 		if (ireg & DATA_TRAN_DONE)
 			handled |= pxamci_data_done(host, stat);
+		if (ireg & SDIO_INT) {
+			mmc_signal_sdio_irq(host->mmc);
+			handled = 1;
+		}
 	}
 
 	return IRQ_RETVAL(handled);
@@ -382,20 +389,46 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->cmdat |= CMDAT_INIT;
 	}
 
+	if (ios->bus_width == MMC_BUS_WIDTH_4)
+		host->cmdat |= CMDAT_SD_4DAT;
+	else
+		host->cmdat &= ~CMDAT_SD_4DAT;
+
 	pr_debug("PXAMCI: clkrt = %x cmdat = %x\n",
 		 host->clkrt, host->cmdat);
 }
 
+static void pxamci_enable_sdio_irq(struct mmc_host *host, int enable)
+{
+	struct pxamci_host *pxa_host = mmc_priv(host);
+
+	if (enable)
+		pxamci_enable_irq(pxa_host, SDIO_INT);
+	else
+		pxamci_disable_irq(pxa_host, SDIO_INT);
+}
+
 static const struct mmc_host_ops pxamci_ops = {
-	.request	= pxamci_request,
-	.get_ro		= pxamci_get_ro,
-	.set_ios	= pxamci_set_ios,
+	.request		= pxamci_request,
+	.get_ro			= pxamci_get_ro,
+	.set_ios		= pxamci_set_ios,
+	.enable_sdio_irq	= pxamci_enable_sdio_irq,
 };
 
 static void pxamci_dma_irq(int dma, void *devid)
 {
-	printk(KERN_ERR "DMA%d: IRQ???\n", dma);
-	DCSR(dma) = DCSR_STARTINTR|DCSR_ENDINTR|DCSR_BUSERR;
+	struct pxamci_host *host = devid;
+	int dcsr = DCSR(dma);
+	DCSR(dma) = dcsr & ~DCSR_STOPIRQEN;
+
+	if (dcsr & DCSR_ENDINTR) {
+		writel(BUF_PART_FULL, host->base + MMC_PRTBUF);
+	} else {
+		printk(KERN_ERR "%s: DMA error on channel %d (DCSR=%#x)\n",
+		       mmc_hostname(host->mmc), dma, dcsr);
+		host->data->error = -EIO;
+		pxamci_data_done(host, 0);
+	}
 }
 
 static irqreturn_t pxamci_detect_irq(int irq, void *devid)
@@ -444,9 +477,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	mmc->max_seg_size = PAGE_SIZE;
 
 	/*
-	 * Block length register is 10 bits.
+	 * Block length register is only 10 bits before PXA27x.
 	 */
-	mmc->max_blk_size = 1023;
+	mmc->max_blk_size = (cpu_is_pxa21x() || cpu_is_pxa25x()) ? 1023 : 2048;
 
 	/*
 	 * Block count register is 16 bits.
@@ -460,6 +493,12 @@ static int pxamci_probe(struct platform_device *pdev)
 	mmc->ocr_avail = host->pdata ?
 			 host->pdata->ocr_mask :
 			 MMC_VDD_32_33|MMC_VDD_33_34;
+	mmc->caps = 0;
+	host->cmdat = 0;
+	if (!cpu_is_pxa21x() && !cpu_is_pxa25x()) {
+		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
+		host->cmdat |= CMDAT_SDIO_INT_EN;
+	}
 
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
 	if (!host->sg_cpu) {

@@ -186,7 +186,7 @@ static void au1xmmc_tasklet_finish(unsigned long param)
 }
 
 static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
-				struct mmc_command *cmd, unsigned int flags)
+				struct mmc_command *cmd, struct mmc_data *data)
 {
 	u32 mmccmd = (cmd->opcode << SD_CMD_CI_SHIFT);
 
@@ -208,19 +208,21 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 	default:
 		printk(KERN_INFO "au1xmmc: unhandled response type %02x\n",
 			mmc_resp_type(cmd));
-		return MMC_ERR_INVALID;
+		return -EINVAL;
 	}
 
-	if (flags & MMC_DATA_READ) {
-		if (flags & MMC_DATA_MULTI)
-			mmccmd |= SD_CMD_CT_4;
-		else
-			mmccmd |= SD_CMD_CT_2;
-	} else if (flags & MMC_DATA_WRITE) {
-		if (flags & MMC_DATA_MULTI)
-			mmccmd |= SD_CMD_CT_3;
-		else
-			mmccmd |= SD_CMD_CT_1;
+	if (data) {
+		if (flags & MMC_DATA_READ) {
+			if (data->blocks > 1)
+				mmccmd |= SD_CMD_CT_4;
+			else
+				mmccmd |= SD_CMD_CT_2;
+		} else if (flags & MMC_DATA_WRITE) {
+			if (data->blocks > 1)
+				mmccmd |= SD_CMD_CT_3;
+			else
+				mmccmd |= SD_CMD_CT_1;
+		}
 	}
 
 	au_writel(cmd->arg, HOST_CMDARG(host));
@@ -253,7 +255,7 @@ static int au1xmmc_send_command(struct au1xmmc_host *host, int wait,
 		IRQ_ON(host, SD_CONFIG_CR);
 	}
 
-	return MMC_ERR_NONE;
+	return 0;
 }
 
 static void au1xmmc_data_complete(struct au1xmmc_host *host, u32 status)
@@ -278,7 +280,7 @@ static void au1xmmc_data_complete(struct au1xmmc_host *host, u32 status)
 	while((host->flags & HOST_F_XMIT) && (status & SD_STATUS_DB))
 		status = au_readl(HOST_STATUS(host));
 
-	data->error = MMC_ERR_NONE;
+	data->error = 0;
 	dma_unmap_sg(mmc_dev(host->mmc), data->sg, data->sg_len, host->dma.dir);
 
         /* Process any errors */
@@ -288,14 +290,14 @@ static void au1xmmc_data_complete(struct au1xmmc_host *host, u32 status)
 		crc |= ((status & 0x07) == 0x02) ? 0 : 1;
 
 	if (crc)
-		data->error = MMC_ERR_BADCRC;
+		data->error = -EILSEQ;
 
 	/* Clear the CRC bits */
 	au_writel(SD_STATUS_WC | SD_STATUS_RC, HOST_STATUS(host));
 
 	data->bytes_xfered = 0;
 
-	if (data->error == MMC_ERR_NONE) {
+	if (!data->error) {
 		if (host->flags & HOST_F_DMA) {
 			u32 chan = DMA_CHANNEL(host);
 
@@ -475,7 +477,7 @@ static void au1xmmc_cmd_complete(struct au1xmmc_host *host, u32 status)
 		return;
 
 	cmd = mrq->cmd;
-	cmd->error = MMC_ERR_NONE;
+	cmd->error = 0;
 
 	if (cmd->flags & MMC_RSP_PRESENT) {
 		if (cmd->flags & MMC_RSP_136) {
@@ -512,11 +514,11 @@ static void au1xmmc_cmd_complete(struct au1xmmc_host *host, u32 status)
         /* Figure out errors */
 
 	if (status & (SD_STATUS_SC | SD_STATUS_WC | SD_STATUS_RC))
-		cmd->error = MMC_ERR_BADCRC;
+		cmd->error = -EILSEQ;
 
 	trans = host->flags & (HOST_F_XMIT | HOST_F_RECV);
 
-	if (!trans || cmd->error != MMC_ERR_NONE) {
+	if (!trans || cmd->error) {
 
 		IRQ_OFF(host, SD_CONFIG_TH | SD_CONFIG_RA|SD_CONFIG_RF);
 		tasklet_schedule(&host->finish_task);
@@ -589,7 +591,7 @@ au1xmmc_prepare_data(struct au1xmmc_host *host, struct mmc_data *data)
 				   data->sg_len, host->dma.dir);
 
 	if (host->dma.len == 0)
-		return MMC_ERR_TIMEOUT;
+		return -ETIMEDOUT;
 
 	au_writel(data->blksz - 1, HOST_BLKSIZE(host));
 
@@ -640,11 +642,11 @@ au1xmmc_prepare_data(struct au1xmmc_host *host, struct mmc_data *data)
 			//IRQ_ON(host, SD_CONFIG_RA|SD_CONFIG_RF);
 	}
 
-	return MMC_ERR_NONE;
+	return 0;
 
  dataerr:
 	dma_unmap_sg(mmc_dev(host->mmc),data->sg,data->sg_len,host->dma.dir);
-	return MMC_ERR_TIMEOUT;
+	return -ETIMEDOUT;
 }
 
 /* static void au1xmmc_request
@@ -656,7 +658,7 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 
 	struct au1xmmc_host *host = mmc_priv(mmc);
 	unsigned int flags = 0;
-	int ret = MMC_ERR_NONE;
+	int ret = 0;
 
 	WARN_ON(irqs_disabled());
 	WARN_ON(host->status != HOST_S_IDLE);
@@ -672,10 +674,10 @@ static void au1xmmc_request(struct mmc_host* mmc, struct mmc_request* mrq)
 		ret = au1xmmc_prepare_data(host, mrq->data);
 	}
 
-	if (ret == MMC_ERR_NONE)
-		ret = au1xmmc_send_command(host, 0, mrq->cmd, flags);
+	if (!ret)
+		ret = au1xmmc_send_command(host, 0, mrq->cmd, mrq->data);
 
-	if (ret != MMC_ERR_NONE) {
+	if (ret) {
 		mrq->cmd->error = ret;
 		au1xmmc_finish_request(host);
 	}
@@ -764,10 +766,10 @@ static irqreturn_t au1xmmc_irq(int irq, void *dev_id)
 
 		if (host->mrq && (status & STATUS_TIMEOUT)) {
 			if (status & SD_STATUS_RAT)
-				host->mrq->cmd->error = MMC_ERR_TIMEOUT;
+				host->mrq->cmd->error = -ETIMEDOUT;
 
 			else if (status & SD_STATUS_DT)
-				host->mrq->data->error = MMC_ERR_TIMEOUT;
+				host->mrq->data->error = -ETIMEDOUT;
 
 			/* In PIO mode, interrupts might still be enabled */
 			IRQ_OFF(host, SD_CONFIG_NE | SD_CONFIG_TH);

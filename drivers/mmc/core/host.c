@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/pagemap.h>
+#include <linux/leds.h>
 
 #include <linux/mmc/host.h>
 
@@ -100,6 +101,9 @@ int mmc_add_host(struct mmc_host *host)
 {
 	int err;
 
+	WARN_ON((host->caps & MMC_CAP_SDIO_IRQ) &&
+		!host->ops->enable_sdio_irq);
+
 	if (!idr_pre_get(&mmc_host_idr, GFP_KERNEL))
 		return -ENOMEM;
 
@@ -111,6 +115,8 @@ int mmc_add_host(struct mmc_host *host)
 
 	snprintf(host->class_dev.bus_id, BUS_ID_SIZE,
 		 "mmc%d", host->index);
+
+	led_trigger_register_simple(host->class_dev.bus_id, &host->led);
 
 	err = device_add(&host->class_dev);
 	if (err)
@@ -136,6 +142,8 @@ void mmc_remove_host(struct mmc_host *host)
 	mmc_stop_host(host);
 
 	device_del(&host->class_dev);
+
+	led_trigger_unregister(host->led);
 
 	spin_lock(&mmc_host_lock);
 	idr_remove(&mmc_host_idr, host->index);

@@ -25,6 +25,8 @@
 #define SPI_EN			(1 << 0)
 
 #define MMC_CMDAT	0x0010
+#define CMDAT_SDIO_INT_EN	(1 << 11)
+#define CMDAT_SD_4DAT		(1 << 8)
 #define CMDAT_DMAEN		(1 << 7)
 #define CMDAT_INIT		(1 << 6)
 #define CMDAT_BUSY		(1 << 5)

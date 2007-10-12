@@ -55,7 +55,28 @@ struct sd_switch_caps {
 	unsigned int		hs_max_dtr;
 };
 
+struct sdio_cccr {
+	unsigned int		sdio_vsn;
+	unsigned int		sd_vsn;
+	unsigned int		multi_block:1,
+				low_speed:1,
+				wide_bus:1,
+				high_power:1,
+				high_speed:1;
+};
+
+struct sdio_cis {
+	unsigned short		vendor;
+	unsigned short		device;
+	unsigned short		blksize;
+	unsigned int		max_dtr;
+};
+
 struct mmc_host;
+struct sdio_func;
+struct sdio_func_tuple;
+
+#define SDIO_MAX_FUNCS		7
 
 /*
  * MMC device
@@ -67,11 +88,13 @@ struct mmc_card {
 	unsigned int		type;		/* card type */
 #define MMC_TYPE_MMC		0		/* MMC card */
 #define MMC_TYPE_SD		1		/* SD card */
+#define MMC_TYPE_SDIO		2		/* SDIO card */
 	unsigned int		state;		/* (our) card state */
 #define MMC_STATE_PRESENT	(1<<0)		/* present in sysfs */
 #define MMC_STATE_READONLY	(1<<1)		/* card is read-only */
 #define MMC_STATE_HIGHSPEED	(1<<2)		/* card is in high speed mode */
 #define MMC_STATE_BLOCKADDR	(1<<3)		/* card uses block-addressing */
+
 	u32			raw_cid[4];	/* raw card CID */
 	u32			raw_csd[4];	/* raw card CSD */
 	u32			raw_scr[2];	/* raw card SCR */
@@ -80,10 +103,19 @@ struct mmc_card {
 	struct mmc_ext_csd	ext_csd;	/* mmc v4 extended card specific */
 	struct sd_scr		scr;		/* extra SD information */
 	struct sd_switch_caps	sw_caps;	/* switch (CMD6) caps */
+
+	unsigned int		sdio_funcs;	/* number of SDIO functions */
+	struct sdio_cccr	cccr;		/* common card info */
+	struct sdio_cis		cis;		/* common tuple info */
+	struct sdio_func	*sdio_func[SDIO_MAX_FUNCS]; /* SDIO functions (devices) */
+	unsigned		num_info;	/* number of info strings */
+	const char		**info;		/* info strings */
+	struct sdio_func_tuple	*tuples;	/* unknown common tuples */
 };
 
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)
 #define mmc_card_sd(c)		((c)->type == MMC_TYPE_SD)
+#define mmc_card_sdio(c)	((c)->type == MMC_TYPE_SDIO)
 
 #define mmc_card_present(c)	((c)->state & MMC_STATE_PRESENT)
 #define mmc_card_readonly(c)	((c)->state & MMC_STATE_READONLY)
