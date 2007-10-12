@@ -783,7 +783,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 		apic_write(APIC_TMICT, clocks);
 }
 
-static void setup_APIC_timer(unsigned int clocks)
+static void setup_APIC_timer(void)
 {
 	unsigned long flags;
 	int irqen;
@@ -792,7 +792,7 @@ static void setup_APIC_timer(unsigned int clocks)
 
 	irqen = ! cpu_isset(smp_processor_id(),
 			    timer_interrupt_broadcast_ipi_mask);
-	__setup_APIC_LVTT(clocks, 0, irqen);
+	__setup_APIC_LVTT(calibration_result, 0, irqen);
 	/* Turn off PIT interrupt if we use APIC timer as main timer.
 	   Only works with the PM timer right now
 	   TBD fix it for HPET too. */
@@ -879,7 +879,7 @@ void __init setup_boot_APIC_clock (void)
 	/*
 	 * Now set up the timer for real.
 	 */
-	setup_APIC_timer(calibration_result);
+	setup_APIC_timer();
 
 	local_irq_enable();
 }
@@ -887,7 +887,7 @@ void __init setup_boot_APIC_clock (void)
 void __cpuinit setup_secondary_APIC_clock(void)
 {
 	local_irq_disable(); /* FIXME: Do we need this? --RR */
-	setup_APIC_timer(calibration_result);
+	setup_APIC_timer();
 	local_irq_enable();
 }
 
