@@ -20,7 +20,7 @@ EXPORT_SYMBOL(tsc_khz);
 
 static unsigned int cyc2ns_scale __read_mostly;
 
-void set_cyc2ns_scale(unsigned long khz)
+static inline void set_cyc2ns_scale(unsigned long khz)
 {
 	cyc2ns_scale = (NSEC_PER_MSEC << NS_SCALE) / khz;
 }
@@ -206,6 +206,7 @@ void __init tsc_calibrate(void)
 	}
 
 	tsc_khz = tsc2 / tsc1;
+	set_cyc2ns_scale(tsc_khz);
 }
 
 /*
