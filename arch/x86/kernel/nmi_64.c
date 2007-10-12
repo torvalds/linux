@@ -329,7 +329,7 @@ int __kprobes nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 		touched = 1;
 	}
 
-	sum = read_pda(apic_timer_irqs);
+	sum = read_pda(apic_timer_irqs) + read_pda(irq0_irqs);
 	if (__get_cpu_var(nmi_touch)) {
 		__get_cpu_var(nmi_touch) = 0;
 		touched = 1;

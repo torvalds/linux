@@ -194,6 +194,8 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 {
+	add_pda(irq0_irqs, 1);
+
 	global_clock_event->event_handler(global_clock_event);
 
 	return IRQ_HANDLED;
