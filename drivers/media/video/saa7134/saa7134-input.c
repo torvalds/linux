@@ -159,7 +159,7 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
+void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 {
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
@@ -182,7 +182,7 @@ static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 	}
 }
 
-static void saa7134_ir_stop(struct saa7134_dev *dev)
+void saa7134_ir_stop(struct saa7134_dev *dev)
 {
 	if (dev->remote->polling)
 		del_timer_sync(&dev->remote->timer);

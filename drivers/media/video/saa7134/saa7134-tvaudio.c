@@ -231,7 +231,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	}
 
 	if (dev->hw_mute  == mute &&
-		dev->hw_input == in && !dev->inresume) {
+		dev->hw_input == in && !dev->insuspend) {
 		dprintk("mute/input: nothing to do [mute=%d,input=%s]\n",
 			mute,in->name);
 		return;
