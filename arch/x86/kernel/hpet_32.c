@@ -1,5 +1,6 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/hpet.h>
 #include <linux/init.h>
@@ -7,6 +8,7 @@
 #include <linux/pm.h>
 #include <linux/delay.h>
 
+#include <asm/fixmap.h>
 #include <asm/hpet.h>
 #include <asm/i8253.h>
 #include <asm/io.h>
@@ -23,6 +25,10 @@
 unsigned long hpet_address;
 static void __iomem *hpet_virt_address;
 
+/* Temporary hack. Cleanup after x86_64 clock events conversion */
+#undef hpet_readl
+#undef hpet_writel
+
 static inline unsigned long hpet_readl(unsigned long a)
 {
 	return readl(hpet_virt_address + a);
@@ -32,6 +38,24 @@ static inline void hpet_writel(unsigned long d, unsigned long a)
 {
 	writel(d, hpet_virt_address + a);
 }
+
+#ifdef CONFIG_X86_64
+
+#include <asm/pgtable.h>
+
+static inline void hpet_set_mapping(void)
+{
+	set_fixmap_nocache(FIX_HPET_BASE, hpet_address);
+	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
+	hpet_virt_address = (void __iomem *)fix_to_virt(FIX_HPET_BASE);
+}
+
+static inline void hpet_clear_mapping(void)
+{
+	hpet_virt_address = NULL;
+}
+
+#else
 
 static inline void hpet_set_mapping(void)
 {
@@ -43,6 +67,7 @@ static inline void hpet_clear_mapping(void)
 	iounmap(hpet_virt_address);
 	hpet_virt_address = NULL;
 }
+#endif
 
 /*
  * HPET command line enable / disable
@@ -58,6 +83,13 @@ static int __init hpet_setup(char* str)
 	return 1;
 }
 __setup("hpet=", hpet_setup);
+
+static int __init disable_hpet(char *str)
+{
+	boot_hpet_disable = 1;
+	return 1;
+}
+__setup("nohpet", disable_hpet);
 
 static inline int is_hpet_capable(void)
 {
@@ -225,6 +257,13 @@ static cycle_t read_hpet(void)
 	return (cycle_t)hpet_readl(HPET_COUNTER);
 }
 
+#ifdef CONFIG_X86_64
+static cycle_t __vsyscall_fn vread_hpet(void)
+{
+	return readl((const void __iomem *)fix_to_virt(VSYSCALL_HPET) + 0xf0);
+}
+#endif
+
 static struct clocksource clocksource_hpet = {
 	.name		= "hpet",
 	.rating		= 250,
@@ -233,6 +272,9 @@ static struct clocksource clocksource_hpet = {
 	.shift		= HPET_SHIFT,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.resume		= hpet_start_counter,
+#ifdef CONFIG_X86_64
+	.vread		= vread_hpet,
+#endif
 };
 
 /*
@@ -331,7 +373,6 @@ int __init hpet_enable(void)
 
 	if (id & HPET_ID_LEGSUP) {
 		hpet_enable_int();
-		hpet_reserve_platform_timers(id);
 		/*
 		 * Start hpet with the boot cpu mask and make it
 		 * global after the IO_APIC has been initialized.
@@ -348,6 +389,22 @@ out_nohpet:
 	boot_hpet_disable = 1;
 	return 0;
 }
+
+/*
+ * Needs to be late, as the reserve_timer code calls kalloc !
+ *
+ * Not a problem on i386 as hpet_enable is called from late_time_init,
+ * but on x86_64 it is necessary !
+ */
+static __init int hpet_late_init(void)
+{
+	if (!is_hpet_capable())
+		return -ENODEV;
+
+	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
+	return 0;
+}
+fs_initcall(hpet_late_init);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 
