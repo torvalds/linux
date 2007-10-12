@@ -261,7 +261,9 @@ static int gfar_probe(struct platform_device *pdev)
 	dev->hard_start_xmit = gfar_start_xmit;
 	dev->tx_timeout = gfar_timeout;
 	dev->watchdog_timeo = TX_TIMEOUT;
+#ifdef CONFIG_GFAR_NAPI
 	netif_napi_add(dev, &priv->napi, gfar_poll, GFAR_DEV_WEIGHT);
+#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	dev->poll_controller = gfar_netpoll;
 #endif
@@ -931,6 +933,7 @@ tx_skb_fail:
 /* Returns 0 for success. */
 static int gfar_enet_open(struct net_device *dev)
 {
+	struct gfar_private *priv = netdev_priv(dev);
 	int err;
 
 	napi_enable(&priv->napi);
