@@ -44,7 +44,7 @@ int apic_verbosity;
 int apic_runs_main_timer;
 int apic_calibrate_pmtmr __initdata;
 
-int disable_apic_timer __initdata;
+int disable_apic_timer __cpuinitdata;
 
 /* Local APIC timer works in C2? */
 int local_apic_timer_c2_ok;
