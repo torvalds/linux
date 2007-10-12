@@ -181,7 +181,7 @@ static void hpet_start_counter(void)
 
 static void hpet_resume_device(void)
 {
-	ich_force_hpet_resume();
+	force_hpet_resume();
 }
 
 static void hpet_restart_counter(void)
