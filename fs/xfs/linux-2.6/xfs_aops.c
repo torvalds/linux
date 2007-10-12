@@ -323,7 +323,7 @@ xfs_iomap_valid(
 /*
  * BIO completion handler for buffered IO.
  */
-STATIC int
+STATIC void
 xfs_end_bio(
 	struct bio		*bio,
 	int			error)
@@ -339,7 +339,6 @@ xfs_end_bio(
 	bio_put(bio);
 
 	xfs_finish_ioend(ioend, 0);
-	return 0;
 }
 
 STATIC void

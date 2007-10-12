@@ -1103,7 +1103,7 @@ _xfs_buf_ioend(
 	}
 }
 
-STATIC int
+STATIC void
 xfs_buf_bio_end_io(
 	struct bio		*bio,
 	int			error)
@@ -1139,7 +1139,6 @@ xfs_buf_bio_end_io(
 
 	_xfs_buf_ioend(bp, 1);
 	bio_put(bio);
-	return 0;
 }
 
 STATIC void

@@ -291,8 +291,6 @@ static void metapage_read_end_io(struct bio *bio, int err)
 
 	dec_io(page, last_read_complete);
 	bio_put(bio);
-
-	return 0;
 }
 
 static void remove_from_logsync(struct metapage *mp)
@@ -349,7 +347,6 @@ static void metapage_write_end_io(struct bio *bio, int err)
 	}
 	dec_io(page, last_write_complete);
 	bio_put(bio);
-	return 0;
 }
 
 static int metapage_writepage(struct page *page, struct writeback_control *wbc)

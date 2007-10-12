@@ -216,7 +216,7 @@ static void o2hb_wait_on_io(struct o2hb_region *reg,
 	wait_for_completion(&wc->wc_io_complete);
 }
 
-static int o2hb_bio_end_io(struct bio *bio,
+static void o2hb_bio_end_io(struct bio *bio,
 			   int error)
 {
 	struct o2hb_bio_wait_ctxt *wc = bio->bi_private;
@@ -228,7 +228,6 @@ static int o2hb_bio_end_io(struct bio *bio,
 
 	o2hb_bio_wait_dec(wc, 1);
 	bio_put(bio);
-	return 0;
 }
 
 /* Setup a Bio to cover I/O against num_slots slots starting at

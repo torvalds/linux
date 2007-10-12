@@ -169,7 +169,6 @@ static void end_bio_io_page(struct bio *bio, int error)
 	else
 		printk(KERN_WARNING "gfs2: error %d reading superblock\n", error);
 	unlock_page(page);
-	return 0;
 }
 
 static void gfs2_sb_in(struct gfs2_sb_host *sb, const void *buf)
