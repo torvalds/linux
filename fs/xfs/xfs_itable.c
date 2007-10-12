@@ -619,21 +619,25 @@ xfs_bulkstat(
 						}
 					}
 				}
+				ino = XFS_AGINO_TO_INO(mp, agno, agino);
+				bno = XFS_AGB_TO_DADDR(mp, agno, agbno);
 				/*
 				 * Skip if this inode is free.
 				 */
-				if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free)
+				if (XFS_INOBT_MASK(chunkidx) & irbp->ir_free) {
+					lastino = ino;
 					continue;
+				}
 				/*
 				 * Count used inodes as free so we can tell
 				 * when the chunk is used up.
 				 */
 				irbp->ir_freecount++;
-				ino = XFS_AGINO_TO_INO(mp, agno, agino);
-				bno = XFS_AGB_TO_DADDR(mp, agno, agbno);
 				if (!xfs_bulkstat_use_dinode(mp, flags, bp,
-							     clustidx, &dip))
+							     clustidx, &dip)) {
+					lastino = ino;
 					continue;
+				}
 				/*
 				 * If we need to do an iget, cannot hold bp.
 				 * Drop it, until starting the next cluster.
@@ -694,8 +698,7 @@ xfs_bulkstat(
 			if (end_of_ag) {
 				agno++;
 				agino = 0;
-			} else
-				agino = XFS_INO_TO_AGINO(mp, lastino);
+			}
 		} else
 			break;
 	}
