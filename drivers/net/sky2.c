@@ -52,7 +52,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.18"
+#define DRV_VERSION		"1.19"
 #define PFX			DRV_NAME " "
 
 /*
@@ -296,10 +296,10 @@ static const u16 copper_fc_adv[] = {
 
 /* flow control to advertise bits when using 1000BaseX */
 static const u16 fiber_fc_adv[] = {
-	[FC_BOTH] = PHY_M_P_BOTH_MD_X,
+	[FC_NONE] = PHY_M_P_NO_PAUSE_X,
 	[FC_TX]   = PHY_M_P_ASYM_MD_X,
 	[FC_RX]	  = PHY_M_P_SYM_MD_X,
-	[FC_NONE] = PHY_M_P_NO_PAUSE_X,
+	[FC_BOTH] = PHY_M_P_BOTH_MD_X,
 };
 
 /* flow control to GMA disable bits */
@@ -606,19 +606,18 @@ static void sky2_phy_power(struct sky2_hw *hw, unsigned port, int onoff)
 {
 	struct pci_dev *pdev = hw->pdev;
 	u32 reg1;
-	static const u32 phy_power[]
-		= { PCI_Y2_PHY1_POWD, PCI_Y2_PHY2_POWD };
-
-	/* looks like this XL is back asswards .. */
-	if (hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
-		onoff = !onoff;
+	static const u32 phy_power[] = { PCI_Y2_PHY1_POWD, PCI_Y2_PHY2_POWD };
+	static const u32 coma_mode[] = { PCI_Y2_PHY1_COMA, PCI_Y2_PHY2_COMA };
 
 	pci_read_config_dword(pdev, PCI_DEV_REG1, &reg1);
+	/* Turn on/off phy power saving */
 	if (onoff)
-		/* Turn off phy power saving */
 		reg1 &= ~phy_power[port];
 	else
 		reg1 |= phy_power[port];
+
+	if (onoff && hw->chip_id == CHIP_ID_YUKON_XL && hw->chip_rev > 1)
+		reg1 |= coma_mode[port];
 
 	pci_write_config_dword(pdev, PCI_DEV_REG1, reg1);
 	pci_read_config_dword(pdev, PCI_DEV_REG1, &reg1);
@@ -1636,8 +1635,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 				printk(KERN_DEBUG "%s: tx done %u\n",
 				       dev->name, idx);
 
-			sky2->net_stats.tx_packets++;
-			sky2->net_stats.tx_bytes += re->skb->len;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += re->skb->len;
 
 			dev_kfree_skb_any(re->skb);
 			sky2->tx_next = RING_NEXT(idx, TX_RING_SIZE);
@@ -2205,16 +2204,16 @@ resubmit:
 len_error:
 	/* Truncation of overlength packets
 	   causes PHY length to not match MAC length */
-	++sky2->net_stats.rx_length_errors;
+	++dev->stats.rx_length_errors;
 	if (netif_msg_rx_err(sky2) && net_ratelimit())
 		pr_info(PFX "%s: rx length error: status %#x length %d\n",
 			dev->name, status, length);
 	goto resubmit;
 
 error:
-	++sky2->net_stats.rx_errors;
+	++dev->stats.rx_errors;
 	if (status & GMR_FS_RX_FF_OV) {
-		sky2->net_stats.rx_over_errors++;
+		dev->stats.rx_over_errors++;
 		goto resubmit;
 	}
 
@@ -2223,11 +2222,11 @@ error:
 		       dev->name, status, length);
 
 	if (status & (GMR_FS_LONG_ERR | GMR_FS_UN_SIZE))
-		sky2->net_stats.rx_length_errors++;
+		dev->stats.rx_length_errors++;
 	if (status & GMR_FS_FRAGMENT)
-		sky2->net_stats.rx_frame_errors++;
+		dev->stats.rx_frame_errors++;
 	if (status & GMR_FS_CRC_ERR)
-		sky2->net_stats.rx_crc_errors++;
+		dev->stats.rx_crc_errors++;
 
 	goto resubmit;
 }
@@ -2272,7 +2271,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 			++rx[port];
 			skb = sky2_receive(dev, length, status);
 			if (unlikely(!skb)) {
-				sky2->net_stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 				break;
 			}
 
@@ -2287,8 +2286,8 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 			}
 
 			skb->protocol = eth_type_trans(skb, dev);
-			sky2->net_stats.rx_packets++;
-			sky2->net_stats.rx_bytes += skb->len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += skb->len;
 			dev->last_rx = jiffies;
 
 #ifdef SKY2_VLAN_TAG_USED
@@ -2479,12 +2478,12 @@ static void sky2_mac_intr(struct sky2_hw *hw, unsigned port)
 		gma_read16(hw, port, GM_TX_IRQ_SRC);
 
 	if (status & GM_IS_RX_FF_OR) {
-		++sky2->net_stats.rx_fifo_errors;
+		++dev->stats.rx_fifo_errors;
 		sky2_write8(hw, SK_REG(port, RX_GMF_CTRL_T), GMF_CLI_RX_FO);
 	}
 
 	if (status & GM_IS_TX_FF_UR) {
-		++sky2->net_stats.tx_fifo_errors;
+		++dev->stats.tx_fifo_errors;
 		sky2_write8(hw, SK_REG(port, TX_GMF_CTRL_T), GMF_CLI_TX_FU);
 	}
 }
@@ -3223,12 +3222,6 @@ static void sky2_get_strings(struct net_device *dev, u32 stringset, u8 * data)
 	}
 }
 
-static struct net_device_stats *sky2_get_stats(struct net_device *dev)
-{
-	struct sky2_port *sky2 = netdev_priv(dev);
-	return &sky2->net_stats;
-}
-
 static int sky2_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
@@ -3569,20 +3562,64 @@ static void sky2_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const void __iomem *io = sky2->hw->regs;
+	unsigned int b;
 
 	regs->version = 1;
-	memset(p, 0, regs->len);
 
-	memcpy_fromio(p, io, B3_RAM_ADDR);
+	for (b = 0; b < 128; b++) {
+		/* This complicated switch statement is to make sure and
+		 * only access regions that are unreserved.
+		 * Some blocks are only valid on dual port cards.
+		 * and block 3 has some special diagnostic registers that
+		 * are poison.
+		 */
+		switch (b) {
+		case 3:
+			/* skip diagnostic ram region */
+			memcpy_fromio(p + 0x10, io + 0x10, 128 - 0x10);
+			break;
 
-	/* skip diagnostic ram region */
-	memcpy_fromio(p + B3_RI_WTO_R1, io + B3_RI_WTO_R1, 0x2000 - B3_RI_WTO_R1);
+		/* dual port cards only */
+		case 5:		/* Tx Arbiter 2 */
+		case 9: 	/* RX2 */
+		case 14 ... 15:	/* TX2 */
+		case 17: case 19: /* Ram Buffer 2 */
+		case 22 ... 23: /* Tx Ram Buffer 2 */
+		case 25: 	/* Rx MAC Fifo 1 */
+		case 27: 	/* Tx MAC Fifo 2 */
+		case 31:	/* GPHY 2 */
+		case 40 ... 47: /* Pattern Ram 2 */
+		case 52: case 54: /* TCP Segmentation 2 */
+		case 112 ... 116: /* GMAC 2 */
+			if (sky2->hw->ports == 1)
+				goto reserved;
+			/* fall through */
+		case 0:		/* Control */
+		case 2:		/* Mac address */
+		case 4:		/* Tx Arbiter 1 */
+		case 7:		/* PCI express reg */
+		case 8:		/* RX1 */
+		case 12 ... 13: /* TX1 */
+		case 16: case 18:/* Rx Ram Buffer 1 */
+		case 20 ... 21: /* Tx Ram Buffer 1 */
+		case 24: 	/* Rx MAC Fifo 1 */
+		case 26: 	/* Tx MAC Fifo 1 */
+		case 28 ... 29: /* Descriptor and status unit */
+		case 30:	/* GPHY 1*/
+		case 32 ... 39: /* Pattern Ram 1 */
+		case 48: case 50: /* TCP Segmentation 1 */
+		case 56 ... 60:	/* PCI space */
+		case 80 ... 84:	/* GMAC 1 */
+			memcpy_fromio(p, io, 128);
+			break;
+		default:
+reserved:
+			memset(p, 0, 128);
+		}
 
-	/* copy GMAC registers */
-	memcpy_fromio(p + BASE_GMAC_1, io + BASE_GMAC_1, 0x1000);
-	if (sky2->hw->ports > 1)
-		memcpy_fromio(p + BASE_GMAC_2, io + BASE_GMAC_2, 0x1000);
-
+		p += 128;
+		io += 128;
+	}
 }
 
 /* In order to do Jumbo packets on these chips, need to turn off the
@@ -3934,7 +3971,6 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	dev->stop = sky2_down;
 	dev->do_ioctl = sky2_ioctl;
 	dev->hard_start_xmit = sky2_xmit_frame;
-	dev->get_stats = sky2_get_stats;
 	dev->set_multicast_list = sky2_set_multicast;
 	dev->set_mac_address = sky2_set_mac_address;
 	dev->change_mtu = sky2_change_mtu;

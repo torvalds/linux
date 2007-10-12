@@ -6985,9 +6985,10 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		break;
 	};
 
-	/* Write our heartbeat update interval to APE. */
-	tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_INT_MS,
-			APE_HOST_HEARTBEAT_INT_DISABLE);
+	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)
+		/* Write our heartbeat update interval to APE. */
+		tg3_ape_write32(tp, TG3_APE_HOST_HEARTBEAT_INT_MS,
+				APE_HOST_HEARTBEAT_INT_DISABLE);
 
 	tg3_write_sig_post_reset(tp, RESET_KIND_INIT);
 
