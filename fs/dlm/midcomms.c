@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -27,7 +27,6 @@
 #include "dlm_internal.h"
 #include "lowcomms.h"
 #include "config.h"
-#include "rcom.h"
 #include "lock.h"
 #include "midcomms.h"
 
@@ -117,19 +116,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		offset &= (limit - 1);
 		len -= msglen;
 
-		switch (msg->h_cmd) {
-		case DLM_MSG:
-			dlm_receive_message(msg, nodeid, 0);
-			break;
-
-		case DLM_RCOM:
-			dlm_receive_rcom(msg, nodeid);
-			break;
-
-		default:
-			log_print("unknown msg type %x from %u: %u %u %u %u",
-				  msg->h_cmd, nodeid, msglen, len, offset, ret);
-		}
+		dlm_receive_buffer(msg, nodeid);
 	}
 
 	if (msg != (struct dlm_header *) __tmp)

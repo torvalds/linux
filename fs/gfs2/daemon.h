@@ -10,7 +10,6 @@
 #ifndef __DAEMON_DOT_H__
 #define __DAEMON_DOT_H__
 
-int gfs2_scand(void *data);
 int gfs2_glockd(void *data);
 int gfs2_recoverd(void *data);
 int gfs2_logd(void *data);

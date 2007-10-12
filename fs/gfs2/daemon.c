@@ -35,30 +35,6 @@
    The kthread functions used to start these daemons block and flush signals. */
 
 /**
- * gfs2_scand - Look for cached glocks and inodes to toss from memory
- * @sdp: Pointer to GFS2 superblock
- *
- * One of these daemons runs, finding candidates to add to sd_reclaim_list.
- * See gfs2_glockd()
- */
-
-int gfs2_scand(void *data)
-{
-	struct gfs2_sbd *sdp = data;
-	unsigned long t;
-
-	while (!kthread_should_stop()) {
-		gfs2_scand_internal(sdp);
-		t = gfs2_tune_get(sdp, gt_scand_secs) * HZ;
-		if (freezing(current))
-			refrigerator();
-		schedule_timeout_interruptible(t);
-	}
-
-	return 0;
-}
-
-/**
  * gfs2_glockd - Reclaim unused glock structures
  * @sdp: Pointer to GFS2 superblock
  *

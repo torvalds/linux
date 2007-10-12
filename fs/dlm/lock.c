@@ -3638,55 +3638,8 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 	dlm_put_lkb(lkb);
 }
 
-int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
+static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms)
 {
-	struct dlm_message *ms = (struct dlm_message *) hd;
-	struct dlm_ls *ls;
-	int error = 0;
-
-	if (!recovery)
-		dlm_message_in(ms);
-
-	ls = dlm_find_lockspace_global(hd->h_lockspace);
-	if (!ls) {
-		log_print("drop message %d from %d for unknown lockspace %d",
-			  ms->m_type, nodeid, hd->h_lockspace);
-		return -EINVAL;
-	}
-
-	/* recovery may have just ended leaving a bunch of backed-up requests
-	   in the requestqueue; wait while dlm_recoverd clears them */
-
-	if (!recovery)
-		dlm_wait_requestqueue(ls);
-
-	/* recovery may have just started while there were a bunch of
-	   in-flight requests -- save them in requestqueue to be processed
-	   after recovery.  we can't let dlm_recvd block on the recovery
-	   lock.  if dlm_recoverd is calling this function to clear the
-	   requestqueue, it needs to be interrupted (-EINTR) if another
-	   recovery operation is starting. */
-
-	while (1) {
-		if (dlm_locking_stopped(ls)) {
-			if (recovery) {
-				error = -EINTR;
-				goto out;
-			}
-			error = dlm_add_requestqueue(ls, nodeid, hd);
-			if (error == -EAGAIN)
-				continue;
-			else {
-				error = -EINTR;
-				goto out;
-			}
-		}
-
-		if (dlm_lock_recovery_try(ls))
-			break;
-		schedule();
-	}
-
 	switch (ms->m_type) {
 
 	/* messages sent to a master node */
@@ -3761,17 +3714,90 @@ int dlm_receive_message(struct dlm_header *hd, int nodeid, int recovery)
 		log_error(ls, "unknown message type %d", ms->m_type);
 	}
 
-	dlm_unlock_recovery(ls);
- out:
-	dlm_put_lockspace(ls);
 	dlm_astd_wake();
-	return error;
 }
 
+/* If the lockspace is in recovery mode (locking stopped), then normal
+   messages are saved on the requestqueue for processing after recovery is
+   done.  When not in recovery mode, we wait for dlm_recoverd to drain saved
+   messages off the requestqueue before we process new ones. This occurs right
+   after recovery completes when we transition from saving all messages on
+   requestqueue, to processing all the saved messages, to processing new
+   messages as they arrive. */
 
-/*
- * Recovery related
- */
+static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
+				int nodeid)
+{
+	if (dlm_locking_stopped(ls)) {
+		dlm_add_requestqueue(ls, nodeid, (struct dlm_header *) ms);
+	} else {
+		dlm_wait_requestqueue(ls);
+		_receive_message(ls, ms);
+	}
+}
+
+/* This is called by dlm_recoverd to process messages that were saved on
+   the requestqueue. */
+
+void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms)
+{
+	_receive_message(ls, ms);
+}
+
+/* This is called by the midcomms layer when something is received for
+   the lockspace.  It could be either a MSG (normal message sent as part of
+   standard locking activity) or an RCOM (recovery message sent as part of
+   lockspace recovery). */
+
+void dlm_receive_buffer(struct dlm_header *hd, int nodeid)
+{
+	struct dlm_message *ms = (struct dlm_message *) hd;
+	struct dlm_rcom *rc = (struct dlm_rcom *) hd;
+	struct dlm_ls *ls;
+	int type = 0;
+
+	switch (hd->h_cmd) {
+	case DLM_MSG:
+		dlm_message_in(ms);
+		type = ms->m_type;
+		break;
+	case DLM_RCOM:
+		dlm_rcom_in(rc);
+		type = rc->rc_type;
+		break;
+	default:
+		log_print("invalid h_cmd %d from %u", hd->h_cmd, nodeid);
+		return;
+	}
+
+	if (hd->h_nodeid != nodeid) {
+		log_print("invalid h_nodeid %d from %d lockspace %x",
+			  hd->h_nodeid, nodeid, hd->h_lockspace);
+		return;
+	}
+
+	ls = dlm_find_lockspace_global(hd->h_lockspace);
+	if (!ls) {
+		log_print("invalid h_lockspace %x from %d cmd %d type %d",
+			  hd->h_lockspace, nodeid, hd->h_cmd, type);
+
+		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
+			dlm_send_ls_not_ready(nodeid, rc);
+		return;
+	}
+
+	/* this rwsem allows dlm_ls_stop() to wait for all dlm_recv threads to
+	   be inactive (in this ls) before transitioning to recovery mode */
+
+	down_read(&ls->ls_recv_active);
+	if (hd->h_cmd == DLM_MSG)
+		dlm_receive_message(ls, ms, nodeid);
+	else
+		dlm_receive_rcom(ls, rc, nodeid);
+	up_read(&ls->ls_recv_active);
+
+	dlm_put_lockspace(ls);
+}
 
 static void recover_convert_waiter(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
@@ -4429,7 +4455,8 @@ int dlm_user_unlock(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 	if (lvb_in && ua->lksb.sb_lvbptr)
 		memcpy(ua->lksb.sb_lvbptr, lvb_in, DLM_USER_LVB_LEN);
-	ua->castparam = ua_tmp->castparam;
+	if (ua_tmp->castparam)
+		ua->castparam = ua_tmp->castparam;
 	ua->user_lksb = ua_tmp->user_lksb;
 
 	error = set_unlock_args(flags, ua, &args);
@@ -4474,7 +4501,8 @@ int dlm_user_cancel(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		goto out;
 
 	ua = (struct dlm_user_args *)lkb->lkb_astparam;
-	ua->castparam = ua_tmp->castparam;
+	if (ua_tmp->castparam)
+		ua->castparam = ua_tmp->castparam;
 	ua->user_lksb = ua_tmp->user_lksb;
 
 	error = set_unlock_args(flags, ua, &args);

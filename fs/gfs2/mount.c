@@ -42,6 +42,7 @@ enum {
 	Opt_nosuiddir,
 	Opt_data_writeback,
 	Opt_data_ordered,
+	Opt_err,
 };
 
 static match_table_t tokens = {
@@ -64,7 +65,8 @@ static match_table_t tokens = {
 	{Opt_suiddir, "suiddir"},
 	{Opt_nosuiddir, "nosuiddir"},
 	{Opt_data_writeback, "data=writeback"},
-	{Opt_data_ordered, "data=ordered"}
+	{Opt_data_ordered, "data=ordered"},
+	{Opt_err, NULL}
 };
 
 /**
@@ -237,6 +239,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, char *data_arg, int remount)
 		case Opt_data_ordered:
 			args->ar_data = GFS2_DATA_ORDERED;
 			break;
+		case Opt_err:
 		default:
 			fs_info(sdp, "unknown option: %s\n", o);
 			error = -EINVAL;

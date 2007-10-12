@@ -28,17 +28,17 @@
 #include "lm.h"
 #include "mount.h"
 #include "ops_fstype.h"
+#include "ops_dentry.h"
 #include "ops_super.h"
 #include "recovery.h"
 #include "rgrp.h"
 #include "super.h"
 #include "sys.h"
 #include "util.h"
+#include "log.h"
 
 #define DO 0
 #define UNDO 1
-
-extern struct dentry_operations gfs2_dops;
 
 static struct gfs2_sbd *init_sbd(struct super_block *sb)
 {
@@ -82,13 +82,15 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	INIT_LIST_HEAD(&sdp->sd_log_le_revoke);
 	INIT_LIST_HEAD(&sdp->sd_log_le_rg);
 	INIT_LIST_HEAD(&sdp->sd_log_le_databuf);
+	INIT_LIST_HEAD(&sdp->sd_log_le_ordered);
 
 	mutex_init(&sdp->sd_log_reserve_mutex);
 	INIT_LIST_HEAD(&sdp->sd_ail1_list);
 	INIT_LIST_HEAD(&sdp->sd_ail2_list);
 
 	init_rwsem(&sdp->sd_log_flush_lock);
-	INIT_LIST_HEAD(&sdp->sd_log_flush_list);
+	atomic_set(&sdp->sd_log_in_flight, 0);
+	init_waitqueue_head(&sdp->sd_log_flush_wait);
 
 	INIT_LIST_HEAD(&sdp->sd_revoke_list);
 
@@ -145,7 +147,8 @@ static int init_names(struct gfs2_sbd *sdp, int silent)
 	snprintf(sdp->sd_proto_name, GFS2_FSNAME_LEN, "%s", proto);
 	snprintf(sdp->sd_table_name, GFS2_FSNAME_LEN, "%s", table);
 
-	while ((table = strchr(sdp->sd_table_name, '/')))
+	table = sdp->sd_table_name;
+	while ((table = strchr(table, '/')))
 		*table = '_';
 
 out:
@@ -160,14 +163,6 @@ static int init_locking(struct gfs2_sbd *sdp, struct gfs2_holder *mount_gh,
 
 	if (undo)
 		goto fail_trans;
-
-	p = kthread_run(gfs2_scand, sdp, "gfs2_scand");
-	error = IS_ERR(p);
-	if (error) {
-		fs_err(sdp, "can't start scand thread: %d\n", error);
-		return error;
-	}
-	sdp->sd_scand_process = p;
 
 	for (sdp->sd_glockd_num = 0;
 	     sdp->sd_glockd_num < sdp->sd_args.ar_num_glockd;
@@ -229,14 +224,13 @@ fail:
 	while (sdp->sd_glockd_num--)
 		kthread_stop(sdp->sd_glockd_process[sdp->sd_glockd_num]);
 
-	kthread_stop(sdp->sd_scand_process);
 	return error;
 }
 
 static inline struct inode *gfs2_lookup_root(struct super_block *sb,
 					     u64 no_addr)
 {
-	return gfs2_inode_lookup(sb, DT_DIR, no_addr, 0);
+	return gfs2_inode_lookup(sb, DT_DIR, no_addr, 0, 0);
 }
 
 static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
@@ -301,8 +295,9 @@ static int init_sb(struct gfs2_sbd *sdp, int silent, int undo)
 		fs_err(sdp, "can't get root dentry\n");
 		error = -ENOMEM;
 		iput(inode);
-	}
-	sb->s_root->d_op = &gfs2_dops;
+	} else
+		sb->s_root->d_op = &gfs2_dops;
+	
 out:
 	gfs2_glock_dq_uninit(&sb_gh);
 	return error;
@@ -368,7 +363,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 		ip = GFS2_I(sdp->sd_jdesc->jd_inode);
 		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED,
-					   LM_FLAG_NOEXP | GL_EXACT,
+					   LM_FLAG_NOEXP | GL_EXACT | GL_NOCACHE,
 					   &sdp->sd_jinode_gh);
 		if (error) {
 			fs_err(sdp, "can't acquire journal inode glock: %d\n",
@@ -818,7 +813,6 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	struct nameidata nd;
 	struct file_system_type *fstype;
 	struct super_block *sb = NULL, *s;
-	struct list_head *l;
 	int error;
 
 	error = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
@@ -830,8 +824,7 @@ static struct super_block* get_gfs2_sb(const char *dev_name)
 	error = vfs_getattr(nd.mnt, nd.dentry, &stat);
 
 	fstype = get_fs_type("gfs2");
-	list_for_each(l, &fstype->fs_supers) {
-		s = list_entry(l, struct super_block, s_instances);
+	list_for_each_entry(s, &fstype->fs_supers, s_instances) {
 		if ((S_ISBLK(stat.mode) && s->s_dev == stat.rdev) ||
 		    (S_ISDIR(stat.mode) && s == nd.dentry->d_inode->i_sb)) {
 			sb = s;
@@ -861,7 +854,7 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 		error = -ENOENT;
 		goto error;
 	}
-	sdp = (struct gfs2_sbd*) sb->s_fs_info;
+	sdp = sb->s_fs_info;
 	if (sdp->sd_vfs_meta) {
 		printk(KERN_WARNING "GFS2: gfs2meta mount already exists\n");
 		error = -EBUSY;
@@ -896,7 +889,10 @@ error:
 
 static void gfs2_kill_sb(struct super_block *sb)
 {
-	gfs2_delete_debugfs_file(sb->s_fs_info);
+	if (sb->s_fs_info) {
+		gfs2_delete_debugfs_file(sb->s_fs_info);
+		gfs2_meta_syncfs(sb->s_fs_info);
+	}
 	kill_block_super(sb);
 }
 

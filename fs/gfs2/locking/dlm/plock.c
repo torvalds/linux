@@ -346,15 +346,16 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 
 static unsigned int dev_poll(struct file *file, poll_table *wait)
 {
+	unsigned int mask = 0;
+
 	poll_wait(file, &send_wq, wait);
 
 	spin_lock(&ops_lock);
-	if (!list_empty(&send_list)) {
-		spin_unlock(&ops_lock);
-		return POLLIN | POLLRDNORM;
-	}
+	if (!list_empty(&send_list))
+		mask = POLLIN | POLLRDNORM;
 	spin_unlock(&ops_lock);
-	return 0;
+
+	return mask;
 }
 
 static const struct file_operations dev_fops = {
