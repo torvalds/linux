@@ -41,11 +41,11 @@ struct cmbdata {
 };
 
 /* enable channel measurement */
-#define BIODASDCMFENABLE	_IO(DASD_IOCTL_LETTER,32)
+#define BIODASDCMFENABLE	_IO(DASD_IOCTL_LETTER, 32)
 /* enable channel measurement */
-#define BIODASDCMFDISABLE	_IO(DASD_IOCTL_LETTER,33)
+#define BIODASDCMFDISABLE	_IO(DASD_IOCTL_LETTER, 33)
 /* read channel measurement data */
-#define BIODASDREADALLCMB	_IOWR(DASD_IOCTL_LETTER,33,struct cmbdata)
+#define BIODASDREADALLCMB	_IOWR(DASD_IOCTL_LETTER, 33, struct cmbdata)
 
 #ifdef __KERNEL__
 struct ccw_device;
@@ -87,7 +87,7 @@ extern u64 cmf_read(struct ccw_device *cdev, int index);
  *  Context:
  *    any
  **/
-extern int cmf_readall(struct ccw_device *cdev, struct cmbdata*data);
+extern int cmf_readall(struct ccw_device *cdev, struct cmbdata *data);
 
 #endif /* __KERNEL__ */
 #endif /* S390_CMB_H */
