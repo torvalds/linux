@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/list.h>
+#include <linux/reboot.h>
 
 #include "css.h"
 #include "cio.h"
@@ -632,6 +633,29 @@ static int __init setup_css(int nr)
 	return 0;
 }
 
+static int css_reboot_event(struct notifier_block *this,
+			    unsigned long event,
+			    void *ptr)
+{
+	int ret, i;
+
+	ret = NOTIFY_DONE;
+	for (i = 0; i <= __MAX_CSSID; i++) {
+		struct channel_subsystem *css;
+
+		css = channel_subsystems[i];
+		if (css->cm_enabled)
+			if (chsc_secm(css, 0))
+				ret = NOTIFY_BAD;
+	}
+
+	return ret;
+}
+
+static struct notifier_block css_reboot_notifier = {
+	.notifier_call = css_reboot_event,
+};
+
 /*
  * Now that the driver core is running, we can setup our channel subsystem.
  * The struct subchannel's are created during probing (except for the
@@ -697,12 +721,17 @@ init_channel_subsystem (void)
 		if (ret)
 			goto out_file;
 	}
+	ret = register_reboot_notifier(&css_reboot_notifier);
+	if (ret)
+		goto out_pseudo;
 	css_init_done = 1;
 
 	ctl_set_bit(6, 28);
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
+out_pseudo:
+	device_unregister(&channel_subsystems[i]->pseudo_subchannel->dev);
 out_file:
 	device_remove_file(&channel_subsystems[i]->device,
 			   &dev_attr_cm_enable);
