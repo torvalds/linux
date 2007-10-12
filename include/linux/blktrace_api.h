@@ -290,12 +290,7 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 #define blk_add_trace_generic(q, rq, rw, what)	do { } while (0)
 #define blk_add_trace_pdu_int(q, what, bio, pdu)	do { } while (0)
 #define blk_add_trace_remap(q, bio, dev, f, t)	do {} while (0)
-static inline int do_blk_trace_setup(struct request_queue *q,
-				     struct block_device *bdev,
-				     struct blk_user_trace_setup *buts)
-{
-	return 0;
-}
+#define do_blk_trace_setup(q, bdev, buts)	(-ENOTTY)
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 #endif /* __KERNEL__ */
 #endif
