@@ -137,7 +137,7 @@ static int get_##name (struct hotplug_slot *slot, type *value)		\
 	int retval = 0;							\
 	if (try_module_get(ops->owner)) {				\
 		if (ops->get_##name)					\
-			retval = ops->get_##name (slot, value);		\
+			retval = ops->get_##name(slot, value);		\
 		else							\
 			*value = slot->info->name;			\
 		module_put(ops->owner);					\
