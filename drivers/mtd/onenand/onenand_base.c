@@ -1904,7 +1904,12 @@ static int onenand_do_lock_cmd(struct mtd_info *mtd, loff_t ofs, size_t len, int
  */
 static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 {
-	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+	int ret;
+
+	onenand_get_device(mtd, FL_LOCKING);
+	ret = onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_LOCK);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -1917,7 +1922,12 @@ static int onenand_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
  */
 static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 {
-	return onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
+	int ret;
+
+	onenand_get_device(mtd, FL_LOCKING);
+	ret = onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
+	onenand_release_device(mtd);
+	return ret;
 }
 
 /**
@@ -1979,7 +1989,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 			loff_t ofs = this->chipsize >> 1;
 			size_t len = mtd->erasesize;
 
-			onenand_unlock(mtd, ofs, len);
+			onenand_do_lock_cmd(mtd, ofs, len, ONENAND_CMD_UNLOCK);
 		}
 
 		onenand_check_lock_status(this);
@@ -1987,7 +1997,7 @@ static int onenand_unlock_all(struct mtd_info *mtd)
 		return 0;
 	}
 
-	onenand_unlock(mtd, 0x0, this->chipsize);
+	onenand_do_lock_cmd(mtd, 0x0, this->chipsize, ONENAND_CMD_UNLOCK);
 
 	return 0;
 }
