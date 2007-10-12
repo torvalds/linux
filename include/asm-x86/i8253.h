@@ -8,12 +8,8 @@
 
 extern spinlock_t i8253_lock;
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-
 extern struct clock_event_device *global_clock_event;
 
 extern void setup_pit_timer(void);
-
-#endif
 
 #endif	/* __ASM_I8253_H__ */
