@@ -306,9 +306,12 @@ int ieee80211_set_channel(struct ieee80211_local *local, int channel, int freq)
 			    ((chan->chan == channel) || (chan->freq == freq))) {
 				local->oper_channel = chan;
 				local->oper_hw_mode = mode;
-				set++;
+				set = 1;
+				break;
 			}
 		}
+		if (set)
+			break;
 	}
 
 	if (set) {
