@@ -1987,7 +1987,7 @@ static void tcp_mark_head_lost(struct sock *sk,
 		cnt += tcp_skb_pcount(skb);
 		if (cnt > packets || after(TCP_SKB_CB(skb)->end_seq, high_seq))
 			break;
-		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
+		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
 			tcp_verify_retransmit_hint(tp, skb);
