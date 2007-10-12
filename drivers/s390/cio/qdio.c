@@ -3727,7 +3727,7 @@ qdio_performance_stats_store(struct bus_type *bus, const char *buf, size_t count
 #endif /* CONFIG_64BIT */
 		}
 	} else {
-		QDIO_PRINT_WARN("QDIO performance_stats: write 0 or 1 to this file!\n");
+		QDIO_PRINT_ERR("QDIO performance_stats: write 0 or 1 to this file!\n");
 		return -EINVAL;
 	}
 	return count;
