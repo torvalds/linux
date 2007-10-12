@@ -26,12 +26,11 @@
 #define DRV_NAME	"pata_ixp4xx_cf"
 #define DRV_VERSION	"0.2"
 
-static int ixp4xx_set_mode(struct ata_port *ap, struct ata_device **error)
+static int ixp4xx_set_mode(struct ata_link *link, struct ata_device **error)
 {
-	int i;
+	struct ata_device *dev;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			ata_dev_printk(dev, KERN_INFO, "configured for PIO0\n");
 			dev->pio_mode = XFER_PIO_0;
@@ -49,7 +48,7 @@ static void ixp4xx_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 	unsigned int i;
 	unsigned int words = buflen >> 1;
 	u16 *buf16 = (u16 *) buf;
-	struct ata_port *ap = adev->ap;
+	struct ata_port *ap = adev->link->ap;
 	void __iomem *mmio = ap->ioaddr.data_addr;
 	struct ixp4xx_pata_data *data = ap->host->dev->platform_data;
 
@@ -108,7 +107,6 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.set_mode		= ixp4xx_set_mode,
 	.mode_filter		= ata_pci_default_filter,
 
-	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.exec_command		= ata_exec_command,
@@ -128,14 +126,17 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_dummy_irq_ack,
 
 	.port_start		= ata_port_start,
 };
 
 static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
-				struct ixp4xx_pata_data *data)
+			      struct ixp4xx_pata_data *data,
+			      unsigned long raw_cs0, unsigned long raw_cs1)
 {
+	unsigned long raw_cmd = raw_cs0;
+	unsigned long raw_ctl = raw_cs1 + 0x06;
+
 	ioaddr->cmd_addr	= data->cs0;
 	ioaddr->altstatus_addr	= data->cs1 + 0x06;
 	ioaddr->ctl_addr	= data->cs1 + 0x06;
@@ -161,7 +162,12 @@ static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
 	*(unsigned long *)&ioaddr->device_addr		^= 0x03;
 	*(unsigned long *)&ioaddr->status_addr		^= 0x03;
 	*(unsigned long *)&ioaddr->command_addr		^= 0x03;
+
+	raw_cmd ^= 0x03;
+	raw_ctl ^= 0x03;
 #endif
+
+	ata_port_desc(ap, "cmd 0x%lx ctl 0x%lx", raw_cmd, raw_ctl);
 }
 
 static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
@@ -206,7 +212,7 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	ap->pio_mask = 0x1f; /* PIO4 */
 	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY | ATA_FLAG_NO_ATAPI;
 
-	ixp4xx_setup_port(&ap->ioaddr, data);
+	ixp4xx_setup_port(ap, data, cs0->start, cs1->start);
 
 	dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 

@@ -64,46 +64,6 @@ u8 ata_irq_on(struct ata_port *ap)
 	return tmp;
 }
 
-u8 ata_dummy_irq_on (struct ata_port *ap) 	{ return 0; }
-
-/**
- *	ata_irq_ack - Acknowledge a device interrupt.
- *	@ap: Port on which interrupts are enabled.
- *
- *	Wait up to 10 ms for legacy IDE device to become idle (BUSY
- *	or BUSY+DRQ clear).  Obtain dma status and port status from
- *	device.  Clear the interrupt.  Return port status.
- *
- *	LOCKING:
- */
-
-u8 ata_irq_ack(struct ata_port *ap, unsigned int chk_drq)
-{
-	unsigned int bits = chk_drq ? ATA_BUSY | ATA_DRQ : ATA_BUSY;
-	u8 host_stat = 0, post_stat = 0, status;
-
-	status = ata_busy_wait(ap, bits, 1000);
-	if (status & bits)
-		if (ata_msg_err(ap))
-			printk(KERN_ERR "abnormal status 0x%X\n", status);
-
-	if (ap->ioaddr.bmdma_addr) {
-		/* get controller status; clear intr, err bits */
-		host_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-		iowrite8(host_stat | ATA_DMA_INTR | ATA_DMA_ERR,
-			 ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-
-		post_stat = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-	}
-	if (ata_msg_intr(ap))
-		printk(KERN_INFO "%s: irq ack: host_stat 0x%X, new host_stat 0x%X, drv_stat 0x%X\n",
-			__FUNCTION__,
-			host_stat, post_stat, status);
-	return status;
-}
-
-u8 ata_dummy_irq_ack(struct ata_port *ap, unsigned int chk_drq) { return 0; }
-
 /**
  *	ata_tf_load - send taskfile registers to host controller
  *	@ap: Port to which output is sent
@@ -445,7 +405,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	unsigned long flags;
 	int thaw = 0;
 
-	qc = __ata_qc_from_tag(ap, ap->active_tag);
+	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
 		qc = NULL;
 
@@ -500,7 +460,7 @@ void ata_bmdma_error_handler(struct ata_port *ap)
 	ata_reset_fn_t hardreset;
 
 	hardreset = NULL;
-	if (sata_scr_valid(ap))
+	if (sata_scr_valid(&ap->link))
 		hardreset = sata_std_hardreset;
 
 	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset, hardreset,
@@ -607,6 +567,9 @@ int ata_pci_init_bmdma(struct ata_host *host)
 		if ((!(ap->flags & ATA_FLAG_IGN_SIMPLEX)) &&
 		    (ioread8(bmdma + 2) & 0x80))
 			host->flags |= ATA_HOST_SIMPLEX;
+
+		ata_port_desc(ap, "bmdma 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, 4) + 8 * i);
 	}
 
 	return 0;
@@ -673,6 +636,10 @@ int ata_pci_init_sff_host(struct ata_host *host)
 		ap->ioaddr.ctl_addr = (void __iomem *)
 			((unsigned long)iomap[base + 1] | ATA_PCI_CTL_OFS);
 		ata_std_ports(&ap->ioaddr);
+
+		ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+			(unsigned long long)pci_resource_start(pdev, base),
+			(unsigned long long)pci_resource_start(pdev, base + 1));
 
 		mask |= 1 << i;
 	}
@@ -844,24 +811,30 @@ int ata_pci_init_one(struct pci_dev *pdev,
 				      IRQF_SHARED, DRV_NAME, host);
 		if (rc)
 			goto err_out;
-		host->irq = pdev->irq;
+
+		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
+		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
 	} else {
 		if (!ata_port_is_dummy(host->ports[0])) {
-			host->irq = ATA_PRIMARY_IRQ(pdev);
-			rc = devm_request_irq(dev, host->irq,
+			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
 					      IRQF_SHARED, DRV_NAME, host);
 			if (rc)
 				goto err_out;
+
+			ata_port_desc(host->ports[0], "irq %d",
+				      ATA_PRIMARY_IRQ(pdev));
 		}
 
 		if (!ata_port_is_dummy(host->ports[1])) {
-			host->irq2 = ATA_SECONDARY_IRQ(pdev);
-			rc = devm_request_irq(dev, host->irq2,
+			rc = devm_request_irq(dev, ATA_SECONDARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
 					      IRQF_SHARED, DRV_NAME, host);
 			if (rc)
 				goto err_out;
+
+			ata_port_desc(host->ports[1], "irq %d",
+				      ATA_SECONDARY_IRQ(pdev));
 		}
 	}
 
@@ -909,7 +882,7 @@ unsigned long ata_pci_default_filter(struct ata_device *adev, unsigned long xfer
 	/* Filter out DMA modes if the device has been configured by
 	   the BIOS as PIO only */
 
-	if (adev->ap->ioaddr.bmdma_addr == 0)
+	if (adev->link->ap->ioaddr.bmdma_addr == 0)
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 	return xfer_mask;
 }

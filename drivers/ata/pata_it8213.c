@@ -23,23 +23,24 @@
 
 /**
  *	it8213_pre_reset	-	check for 40/80 pin
- *	@ap: Port
+ *	@link: link
  *	@deadline: deadline jiffies for the operation
  *
  *	Filter out ports by the enable bits before doing the normal reset
  *	and probe.
  */
 
-static int it8213_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int it8213_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits it8213_enable_bits[] = {
 		{ 0x41U, 1U, 0x80UL, 0x80UL },	/* port 0 */
 	};
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	if (!pci_test_config_bits(pdev, &it8213_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -260,7 +261,6 @@ static struct scsi_host_template it8213_sht = {
 };
 
 static const struct ata_port_operations it8213_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= it8213_set_piomode,
 	.set_dmamode		= it8213_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -288,9 +288,8 @@ static const struct ata_port_operations it8213_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 

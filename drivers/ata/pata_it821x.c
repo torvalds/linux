@@ -391,7 +391,7 @@ static void it821x_passthru_dev_select(struct ata_port *ap,
 {
 	struct it821x_dev *itdev = ap->private_data;
 	if (itdev && device != itdev->last_device) {
-		struct ata_device *adev = &ap->device[device];
+		struct ata_device *adev = &ap->link.device[device];
 		it821x_program(ap, adev, itdev->pio[adev->devno]);
 		itdev->last_device = device;
 	}
@@ -450,7 +450,7 @@ static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
 
 /**
  *	it821x_smart_set_mode	-	mode setting
- *	@ap: interface to set up
+ *	@link: interface to set up
  *	@unused: device that failed (error only)
  *
  *	Use a non standard set_mode function. We don't want to be tuned.
@@ -459,12 +459,11 @@ static unsigned int it821x_passthru_qc_issue_prot(struct ata_queued_cmd *qc)
  *	and respect them.
  */
 
-static int it821x_smart_set_mode(struct ata_port *ap, struct ata_device **unused)
+static int it821x_smart_set_mode(struct ata_link *link, struct ata_device **unused)
 {
-	int i;
+	struct ata_device *dev;
 
-	for (i = 0; i < ATA_MAX_DEVICES; i++) {
-		struct ata_device *dev = &ap->device[i];
+	ata_link_for_each_dev(dev, link) {
 		if (ata_dev_enabled(dev)) {
 			/* We don't really care */
 			dev->pio_mode = XFER_PIO_0;
@@ -564,7 +563,7 @@ static int it821x_port_start(struct ata_port *ap)
 	struct it821x_dev *itdev;
 	u8 conf;
 
-	int ret = ata_port_start(ap);
+	int ret = ata_sff_port_start(ap);
 	if (ret < 0)
 		return ret;
 
@@ -621,7 +620,6 @@ static struct scsi_host_template it821x_sht = {
 
 static struct ata_port_operations it821x_smart_port_ops = {
 	.set_mode	= it821x_smart_set_mode,
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.mode_filter	= ata_pci_default_filter,
@@ -651,13 +649,11 @@ static struct ata_port_operations it821x_smart_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= it821x_port_start,
 };
 
 static struct ata_port_operations it821x_passthru_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= it821x_passthru_set_piomode,
 	.set_dmamode	= it821x_passthru_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -688,7 +684,6 @@ static struct ata_port_operations it821x_passthru_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_handler	= ata_interrupt,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
 	.port_start	= it821x_port_start,
 };

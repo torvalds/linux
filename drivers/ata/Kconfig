@@ -173,6 +173,15 @@ config SATA_INIC162X
 	help
 	  This option enables support for Initio 162x Serial ATA.
 
+config PATA_ACPI
+	tristate "ACPI firmware driver for PATA"
+	depends on ATA_ACPI
+	help
+	  This option enables an ACPI method driver which drives
+	  motherboard PATA controller interfaces through the ACPI
+	  firmware in the BIOS. This driver can sometimes handle
+	  otherwise unsupported hardware.
+
 config PATA_ALI
 	tristate "ALi PATA support (Experimental)"
 	depends on PCI && EXPERIMENTAL
@@ -192,16 +201,25 @@ config PATA_AMD
 	  If unsure, say N.
 
 config PATA_ARTOP
-	tristate "ARTOP 6210/6260 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "ARTOP 6210/6260 PATA support"
+	depends on PCI
 	help
 	  This option enables support for ARTOP PATA controllers.
 
 	  If unsure, say N.
 
+config PATA_AT32
+	tristate "Atmel AVR32 PATA support (Experimental)"
+	depends on AVR32 && PLATFORM_AT32AP && EXPERIMENTAL
+	help
+	  This option enables support for the IDE devices on the
+	  Atmel AT32AP platform.
+
+	  If unsure, say N.
+
 config PATA_ATIIXP
-	tristate "ATI PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "ATI PATA support"
+	depends on PCI
 	help
 	  This option enables support for the ATI ATA interfaces
 	  found on the many ATI chipsets.
@@ -219,8 +237,8 @@ config PATA_CMD640_PCI
 	  If unsure, say N.
 
 config PATA_CMD64X
-	tristate "CMD64x PATA support (Very Experimental)"
-	depends on PCI&& EXPERIMENTAL
+	tristate "CMD64x PATA support"
+	depends on PCI
 	help
 	  This option enables support for the CMD64x series chips
 	  except for the CMD640.
@@ -282,8 +300,8 @@ config ATA_GENERIC
 	  If unsure, say N.
 
 config PATA_HPT366
-	tristate "HPT 366/368 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	tristate "HPT 366/368 PATA support"
+	depends on PCI
 	help
 	  This option enables support for the HPT 366 and 368
 	  PATA controllers via the new ATA layer.
@@ -429,6 +447,15 @@ config PATA_NS87410
 	help
 	  This option enables support for the National Semiconductor
 	  NS87410 PCI-IDE controller.
+
+	  If unsure, say N.
+
+config PATA_NS87415
+	tristate "Nat Semi NS87415 PATA support (Experimental)"
+	depends on PCI && EXPERIMENTAL
+	help
+	  This option enables support for the National Semiconductor
+	  NS87415 PCI-IDE controller.
 
 	  If unsure, say N.
 
@@ -595,5 +622,21 @@ config PATA_SCC
 	  Toshiba Cell Reference Board.
 
 	  If unsure, say N.
+
+config PATA_BF54X
+	tristate "Blackfin 54x ATAPI support"
+	depends on BF542 || BF548 || BF549
+	help
+	  This option enables support for the built-in ATAPI controller on
+	  Blackfin 54x family chips.
+
+	  If unsure, say N.
+
+config PATA_BF54X_DMA
+	bool "DMA mode"
+	depends on PATA_BF54X
+	default y
+	help
+	  Enable DMA mode for Blackfin ATAPI controller.
 
 endif # ATA

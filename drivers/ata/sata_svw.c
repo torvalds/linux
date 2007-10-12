@@ -329,7 +329,6 @@ static struct scsi_host_template k2_sata_sht = {
 
 
 static const struct ata_port_operations k2_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= k2_sata_tf_load,
 	.tf_read		= k2_sata_tf_read,
 	.check_status		= k2_stat_check_status,
@@ -349,7 +348,6 @@ static const struct ata_port_operations k2_sata_ops = {
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 	.scr_read		= k2_sata_scr_read,
 	.scr_write		= k2_sata_scr_write,
 	.port_start		= ata_port_start,
@@ -445,9 +443,15 @@ static int k2_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 	/* different controllers have different number of ports - currently 4 or 8 */
 	/* All ports are on the same function. Multi-function device is no
 	 * longer available. This should not be seen in any system. */
-	for (i = 0; i < host->n_ports; i++)
-		k2_sata_setup_port(&host->ports[i]->ioaddr,
-				   mmio_base + i * K2_SATA_PORT_OFFSET);
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		unsigned int offset = i * K2_SATA_PORT_OFFSET;
+
+		k2_sata_setup_port(&ap->ioaddr, mmio_base + offset);
+
+		ata_port_pbar_desc(ap, 5, -1, "mmio");
+		ata_port_pbar_desc(ap, 5, offset, "port");
+	}
 
 	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
 	if (rc)

@@ -9,7 +9,7 @@
  * First cut with LBA48/ATAPI
  *
  * TODO:
- *	Channel interlock/reset on both required
+ *	Channel interlock/reset on both required ?
  */
 
 #include <linux/kernel.h>
@@ -22,7 +22,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_pdc202xx_old"
-#define DRV_VERSION "0.4.2"
+#define DRV_VERSION "0.4.3"
 
 static int pdc2026x_cable_detect(struct ata_port *ap)
 {
@@ -106,9 +106,9 @@ static void pdc202xx_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 		{ 0x20, 0x01 }
 	};
 	static u8 mdma_timing[3][2] = {
-		{ 0x60, 0x03 },
-		{ 0x60, 0x04 },
 		{ 0xe0, 0x0f },
+		{ 0x60, 0x04 },
+		{ 0x60, 0x03 },
 	};
 	u8 r_bp, r_cp;
 
@@ -139,6 +139,9 @@ static void pdc202xx_set_dmamode(struct ata_port *ap, struct ata_device *adev)
  *
  *	In UDMA3 or higher we have to clock switch for the duration of the
  *	DMA transfer sequence.
+ *
+ *	Note: The host lock held by the libata layer protects
+ *	us from two channels both trying to set DMA bits at once
  */
 
 static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
@@ -187,6 +190,9 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
  *
  *	After a DMA completes we need to put the clock back to 33MHz for
  *	PIO timings.
+ *
+ *	Note: The host lock held by the libata layer protects
+ *	us from two channels both trying to set DMA bits at once
  */
 
 static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
@@ -206,7 +212,6 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 		iowrite32(0, atapi_reg);
 		iowrite8(ioread8(clock) & ~sel66, clock);
 	}
-	/* Check we keep host level locking here */
 	/* Flip back to 33Mhz for PIO */
 	if (adev->dma_mode >= XFER_UDMA_2)
 		iowrite8(ioread8(clock) & ~sel66, clock);
@@ -247,7 +252,6 @@ static struct scsi_host_template pdc202xx_sht = {
 };
 
 static struct ata_port_operations pdc2024x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= pdc202xx_set_piomode,
 	.set_dmamode	= pdc202xx_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -275,13 +279,11 @@ static struct ata_port_operations pdc2024x_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static struct ata_port_operations pdc2026x_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= pdc202xx_set_piomode,
 	.set_dmamode	= pdc202xx_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -310,9 +312,8 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)

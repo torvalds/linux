@@ -167,7 +167,6 @@ static struct scsi_host_template pdc_ata_sht = {
 };
 
 static const struct ata_port_operations pdc_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -185,7 +184,6 @@ static const struct ata_port_operations pdc_sata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
@@ -194,7 +192,6 @@ static const struct ata_port_operations pdc_sata_ops = {
 
 /* First-generation chips need a more restrictive ->check_atapi_dma op */
 static const struct ata_port_operations pdc_old_sata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -212,7 +209,6 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.scr_read		= pdc_sata_scr_read,
 	.scr_write		= pdc_sata_scr_write,
@@ -220,7 +216,6 @@ static const struct ata_port_operations pdc_old_sata_ops = {
 };
 
 static const struct ata_port_operations pdc_pata_ops = {
-	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
@@ -238,7 +233,6 @@ static const struct ata_port_operations pdc_pata_ops = {
 	.data_xfer		= ata_data_xfer,
 	.irq_clear		= pdc_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
 	.port_start		= pdc_common_port_start,
 };
@@ -475,7 +469,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	buf32[2] = 0;				/* no next-packet */
 
 	/* select drive */
-	if (sata_scr_valid(ap)) {
+	if (sata_scr_valid(&ap->link)) {
 		dev_sel = PDC_DEVICE_SATA;
 	} else {
 		dev_sel = ATA_DEVICE_OBS;
@@ -626,7 +620,7 @@ static void pdc_post_internal_cmd(struct ata_queued_cmd *qc)
 static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   u32 port_status, u32 err_mask)
 {
-	struct ata_eh_info *ehi = &ap->eh_info;
+	struct ata_eh_info *ehi = &ap->link.eh_info;
 	unsigned int ac_err_mask = 0;
 
 	ata_ehi_clear_desc(ehi);
@@ -643,7 +637,7 @@ static void pdc_error_intr(struct ata_port *ap, struct ata_queued_cmd *qc,
 			   | PDC_PCI_SYS_ERR | PDC1_PCI_PARITY_ERR))
 		ac_err_mask |= AC_ERR_HOST_BUS;
 
-	if (sata_scr_valid(ap)) {
+	if (sata_scr_valid(&ap->link)) {
 		u32 serror;
 
 		pdc_sata_scr_read(ap, SCR_ERROR, &serror);
@@ -773,7 +767,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 		tmp = hotplug_status & (0x11 << ata_no);
 		if (tmp && ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct ata_eh_info *ehi = &ap->eh_info;
+			struct ata_eh_info *ehi = &ap->link.eh_info;
 			ata_ehi_clear_desc(ehi);
 			ata_ehi_hotplugged(ehi);
 			ata_ehi_push_desc(ehi, "hotplug_status %#x", tmp);
@@ -788,7 +782,7 @@ static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
 
-			qc = ata_qc_from_tag(ap, ap->active_tag);
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)))
 				handled += pdc_host_intr(ap, qc);
 		}
@@ -1009,10 +1003,15 @@ static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	is_sataii_tx4 = pdc_is_sataii_tx4(pi->flags);
 	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
 		unsigned int ata_no = pdc_port_no_to_ata_no(i, is_sataii_tx4);
-		pdc_ata_setup_port(host->ports[i],
-				   base + 0x200 + ata_no * 0x80,
-				   base + 0x400 + ata_no * 0x100);
+		unsigned int port_offset = 0x200 + ata_no * 0x80;
+		unsigned int scr_offset = 0x400 + ata_no * 0x100;
+
+		pdc_ata_setup_port(ap, base + port_offset, base + scr_offset);
+
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, -1, "mmio");
+		ata_port_pbar_desc(ap, PDC_MMIO_BAR, port_offset, "port");
 	}
 
 	/* initialize adapter */

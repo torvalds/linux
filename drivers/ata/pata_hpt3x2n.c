@@ -141,21 +141,22 @@ static int hpt3x2n_cable_detect(struct ata_port *ap)
 
 /**
  *	hpt3x2n_pre_reset	-	reset the hpt3x2n bus
- *	@ap: ATA port to reset
+ *	@link: ATA link to reset
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform the initial reset handling for the 3x2n series controllers.
  *	Reset the hardware and state machine,
  */
 
-static int hpt3xn_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int hpt3xn_pre_reset(struct ata_link *link, unsigned long deadline)
 {
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	/* Reset the state machine */
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -360,7 +361,6 @@ static struct scsi_host_template hpt3x2n_sht = {
  */
 
 static struct ata_port_operations hpt3x2n_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= hpt3x2n_set_piomode,
 	.set_dmamode	= hpt3x2n_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -390,9 +390,8 @@ static struct ata_port_operations hpt3x2n_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**

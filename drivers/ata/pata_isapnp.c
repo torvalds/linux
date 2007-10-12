@@ -38,7 +38,6 @@ static struct scsi_host_template isapnp_sht = {
 };
 
 static struct ata_port_operations isapnp_port_ops = {
-	.port_disable	= ata_port_disable,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
 	.check_status 	= ata_check_status,
@@ -58,9 +57,8 @@ static struct ata_port_operations isapnp_port_ops = {
 
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /**
@@ -111,6 +109,10 @@ static int isapnp_init_one(struct pnp_dev *idev, const struct pnp_device_id *dev
 	}
 
 	ata_std_ports(&ap->ioaddr);
+
+	ata_port_desc(ap, "cmd 0x%llx ctl 0x%llx",
+		      (unsigned long long)pnp_port_start(idev, 0),
+		      (unsigned long long)pnp_port_start(idev, 1));
 
 	/* activate */
 	return ata_host_activate(host, pnp_irq(idev, 0), ata_interrupt, 0,

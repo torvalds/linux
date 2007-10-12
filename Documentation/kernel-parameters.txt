@@ -865,6 +865,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
 			Format: addr:<io>,irq:<irq>
 
+	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
+			when set.
+			Format: <int>
+
 	load_ramdisk=	[RAM] List of ramdisks to load from floppy
 			See Documentation/ramdisk.txt.
 
@@ -1084,10 +1088,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	no387		[BUGS=X86-32] Tells the kernel to use the 387 maths
 			emulation library even if a 387 maths coprocessor
 			is present.
-
-	noacpi		[LIBATA] Disables use of ACPI in libata suspend/resume
-			when set.
-			Format: <int>
 
 	noaliencache	[MM, NUMA, SLAB] Disables the allocation of alien
 			caches in the slab allocator.  Saves per-node memory,

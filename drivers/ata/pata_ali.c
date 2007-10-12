@@ -305,7 +305,6 @@ static struct scsi_host_template ali_sht = {
  */
 
 static struct ata_port_operations ali_early_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= ali_set_piomode,
 	.tf_load	= ata_tf_load,
 	.tf_read	= ata_tf_read,
@@ -327,9 +326,8 @@ static struct ata_port_operations ali_early_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
@@ -337,8 +335,6 @@ static struct ata_port_operations ali_early_port_ops = {
  *	detect
  */
 static struct ata_port_operations ali_20_port_ops = {
-	.port_disable	= ata_port_disable,
-
 	.set_piomode	= ali_set_piomode,
 	.set_dmamode	= ali_set_dmamode,
 	.mode_filter	= ali_20_filter,
@@ -369,16 +365,14 @@ static struct ata_port_operations ali_20_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
  *	Port operations for DMA capable ALi with cable detect
  */
 static struct ata_port_operations ali_c2_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= ali_set_piomode,
 	.set_dmamode	= ali_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -408,16 +402,14 @@ static struct ata_port_operations ali_c2_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 /*
  *	Port operations for DMA capable ALi with cable detect and LBA48
  */
 static struct ata_port_operations ali_c5_port_ops = {
-	.port_disable	= ata_port_disable,
 	.set_piomode	= ali_set_piomode,
 	.set_dmamode	= ali_set_dmamode,
 	.mode_filter	= ata_pci_default_filter,
@@ -446,9 +438,8 @@ static struct ata_port_operations ali_c5_port_ops = {
 	.irq_handler	= ata_interrupt,
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
-	.irq_ack	= ata_irq_ack,
 
-	.port_start	= ata_port_start,
+	.port_start	= ata_sff_port_start,
 };
 
 

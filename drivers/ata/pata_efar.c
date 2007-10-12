@@ -26,25 +26,26 @@
 
 /**
  *	efar_pre_reset	-	Enable bits
- *	@ap: Port
+ *	@link: ATA link
  *	@deadline: deadline jiffies for the operation
  *
  *	Perform cable detection for the EFAR ATA interface. This is
  *	different to the PIIX arrangement
  */
 
-static int efar_pre_reset(struct ata_port *ap, unsigned long deadline)
+static int efar_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	static const struct pci_bits efar_enable_bits[] = {
 		{ 0x41U, 1U, 0x80UL, 0x80UL },	/* port 0 */
 		{ 0x43U, 1U, 0x80UL, 0x80UL },	/* port 1 */
 	};
+	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	if (!pci_test_config_bits(pdev, &efar_enable_bits[ap->port_no]))
 		return -ENOENT;
 
-	return ata_std_prereset(ap, deadline);
+	return ata_std_prereset(link, deadline);
 }
 
 /**
@@ -250,7 +251,6 @@ static struct scsi_host_template efar_sht = {
 };
 
 static const struct ata_port_operations efar_ops = {
-	.port_disable		= ata_port_disable,
 	.set_piomode		= efar_set_piomode,
 	.set_dmamode		= efar_set_dmamode,
 	.mode_filter		= ata_pci_default_filter,
@@ -278,9 +278,8 @@ static const struct ata_port_operations efar_ops = {
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
 	.irq_on			= ata_irq_on,
-	.irq_ack		= ata_irq_ack,
 
-	.port_start		= ata_port_start,
+	.port_start		= ata_sff_port_start,
 };
 
 
