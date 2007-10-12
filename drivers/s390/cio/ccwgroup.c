@@ -44,8 +44,7 @@ ccwgroup_bus_match (struct device * dev, struct device_driver * drv)
 	return 0;
 }
 static int
-ccwgroup_uevent (struct device *dev, char **envp, int num_envp, char *buffer,
-		  int buffer_size)
+ccwgroup_uevent (struct device *dev, struct kobj_uevent_env *env)
 {
 	/* TODO */
 	return 0;

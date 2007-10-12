@@ -139,7 +139,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 		 kobject_name(&cls->kset.kobj));
 	INIT_LIST_HEAD(&cls->drivers);
 	cls->kset.kobj.parent = &system_subsys.kobj;
-	kset_set_kset_s(cls, system_subsys);
+	cls->kset.kobj.kset = &system_subsys;
 	return kset_register(&cls->kset);
 }
 
@@ -153,25 +153,22 @@ void sysdev_class_unregister(struct sysdev_class * cls)
 EXPORT_SYMBOL_GPL(sysdev_class_register);
 EXPORT_SYMBOL_GPL(sysdev_class_unregister);
 
-
-static LIST_HEAD(sysdev_drivers);
 static DEFINE_MUTEX(sysdev_drivers_lock);
 
 /**
  *	sysdev_driver_register - Register auxillary driver
- * 	@cls:	Device class driver belongs to.
+ *	@cls:	Device class driver belongs to.
  *	@drv:	Driver.
  *
- *	If @cls is valid, then @drv is inserted into @cls->drivers to be
+ *	@drv is inserted into @cls->drivers to be
  *	called on each operation on devices of that class. The refcount
  *	of @cls is incremented.
- *	Otherwise, @drv is inserted into sysdev_drivers, and called for
- *	each device.
  */
 
-int sysdev_driver_register(struct sysdev_class * cls,
-			   struct sysdev_driver * drv)
+int sysdev_driver_register(struct sysdev_class *cls, struct sysdev_driver *drv)
 {
+	int err = 0;
+
 	mutex_lock(&sysdev_drivers_lock);
 	if (cls && kset_get(&cls->kset)) {
 		list_add_tail(&drv->entry, &cls->drivers);
@@ -182,10 +179,13 @@ int sysdev_driver_register(struct sysdev_class * cls,
 			list_for_each_entry(dev, &cls->kset.list, kobj.entry)
 				drv->add(dev);
 		}
-	} else
-		list_add_tail(&drv->entry, &sysdev_drivers);
+	} else {
+		err = -EINVAL;
+		printk(KERN_ERR "%s: invalid device class\n", __FUNCTION__);
+		WARN_ON(1);
+	}
 	mutex_unlock(&sysdev_drivers_lock);
-	return 0;
+	return err;
 }
 
 
@@ -251,12 +251,6 @@ int sysdev_register(struct sys_device * sysdev)
 		 * code that should have called us.
 		 */
 
-		/* Notify global drivers */
-		list_for_each_entry(drv, &sysdev_drivers, entry) {
-			if (drv->add)
-				drv->add(sysdev);
-		}
-
 		/* Notify class auxillary drivers */
 		list_for_each_entry(drv, &cls->drivers, entry) {
 			if (drv->add)
@@ -272,11 +266,6 @@ void sysdev_unregister(struct sys_device * sysdev)
 	struct sysdev_driver * drv;
 
 	mutex_lock(&sysdev_drivers_lock);
-	list_for_each_entry(drv, &sysdev_drivers, entry) {
-		if (drv->remove)
-			drv->remove(sysdev);
-	}
-
 	list_for_each_entry(drv, &sysdev->cls->drivers, entry) {
 		if (drv->remove)
 			drv->remove(sysdev);
@@ -293,7 +282,7 @@ void sysdev_unregister(struct sys_device * sysdev)
  *
  *	Loop over each class of system devices, and the devices in each
  *	of those classes. For each device, we call the shutdown method for
- *	each driver registered for the device - the globals, the auxillaries,
+ *	each driver registered for the device - the auxillaries,
  *	and the class driver.
  *
  *	Note: The list is iterated in reverse order, so that we shut down
@@ -320,13 +309,7 @@ void sysdev_shutdown(void)
 			struct sysdev_driver * drv;
 			pr_debug(" %s\n", kobject_name(&sysdev->kobj));
 
-			/* Call global drivers first. */
-			list_for_each_entry(drv, &sysdev_drivers, entry) {
-				if (drv->shutdown)
-					drv->shutdown(sysdev);
-			}
-
-			/* Call auxillary drivers next. */
+			/* Call auxillary drivers first */
 			list_for_each_entry(drv, &cls->drivers, entry) {
 				if (drv->shutdown)
 					drv->shutdown(sysdev);
@@ -351,12 +334,6 @@ static void __sysdev_resume(struct sys_device *dev)
 
 	/* Call auxillary drivers next. */
 	list_for_each_entry(drv, &cls->drivers, entry) {
-		if (drv->resume)
-			drv->resume(dev);
-	}
-
-	/* Call global drivers. */
-	list_for_each_entry(drv, &sysdev_drivers, entry) {
 		if (drv->resume)
 			drv->resume(dev);
 	}
@@ -393,16 +370,7 @@ int sysdev_suspend(pm_message_t state)
 		list_for_each_entry(sysdev, &cls->kset.list, kobj.entry) {
 			pr_debug(" %s\n", kobject_name(&sysdev->kobj));
 
-			/* Call global drivers first. */
-			list_for_each_entry(drv, &sysdev_drivers, entry) {
-				if (drv->suspend) {
-					ret = drv->suspend(sysdev, state);
-					if (ret)
-						goto gbl_driver;
-				}
-			}
-
-			/* Call auxillary drivers next. */
+			/* Call auxillary drivers first */
 			list_for_each_entry(drv, &cls->drivers, entry) {
 				if (drv->suspend) {
 					ret = drv->suspend(sysdev, state);
@@ -436,18 +404,7 @@ aux_driver:
 		if (err_drv->resume)
 			err_drv->resume(sysdev);
 	}
-	drv = NULL;
 
-gbl_driver:
-	if (drv)
-		printk(KERN_ERR "sysdev driver suspend failed for %s\n",
-				kobject_name(&sysdev->kobj));
-	list_for_each_entry(err_drv, &sysdev_drivers, entry) {
-		if (err_drv == drv)
-			break;
-		if (err_drv->resume)
-			err_drv->resume(sysdev);
-	}
 	/* resume other sysdevs in current class */
 	list_for_each_entry(err_dev, &cls->kset.list, kobj.entry) {
 		if (err_dev == sysdev)

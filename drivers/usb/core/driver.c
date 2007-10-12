@@ -581,12 +581,9 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 }
 
 #ifdef	CONFIG_HOTPLUG
-static int usb_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size)
+static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
-	int i = 0;
-	int length = 0;
 
 	if (!dev)
 		return -ENODEV;
@@ -615,51 +612,39 @@ static int usb_uevent(struct device *dev, char **envp, int num_envp,
 	 * all the device descriptors we don't tell them about.  Or
 	 * act as usermode drivers.
 	 */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "DEVICE=/proc/bus/usb/%03d/%03d",
+	if (add_uevent_var(env, "DEVICE=/proc/bus/usb/%03d/%03d",
 			   usb_dev->bus->busnum, usb_dev->devnum))
 		return -ENOMEM;
 #endif
 
 	/* per-device configurations are common */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "PRODUCT=%x/%x/%x",
+	if (add_uevent_var(env, "PRODUCT=%x/%x/%x",
 			   le16_to_cpu(usb_dev->descriptor.idVendor),
 			   le16_to_cpu(usb_dev->descriptor.idProduct),
 			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
 		return -ENOMEM;
 
 	/* class-based driver binding models */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "TYPE=%d/%d/%d",
+	if (add_uevent_var(env, "TYPE=%d/%d/%d",
 			   usb_dev->descriptor.bDeviceClass,
 			   usb_dev->descriptor.bDeviceSubClass,
 			   usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "BUSNUM=%03d",
+	if (add_uevent_var(env, "BUSNUM=%03d",
 			   usb_dev->bus->busnum))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "DEVNUM=%03d",
+	if (add_uevent_var(env, "DEVNUM=%03d",
 			   usb_dev->devnum))
 		return -ENOMEM;
 
-	envp[i] = NULL;
 	return 0;
 }
 
 #else
 
-static int usb_uevent(struct device *dev, char **envp,
-		      int num_envp, char *buffer, int buffer_size)
+static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

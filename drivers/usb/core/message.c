@@ -1344,14 +1344,11 @@ static void usb_release_interface(struct device *dev)
 }
 
 #ifdef	CONFIG_HOTPLUG
-static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
-		 char *buffer, int buffer_size)
+static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
 	struct usb_interface *intf;
 	struct usb_host_interface *alt;
-	int i = 0;
-	int length = 0;
 
 	if (!dev)
 		return -ENODEV;
@@ -1364,39 +1361,30 @@ static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
 	alt = intf->cur_altsetting;
 
 #ifdef CONFIG_USB_DEVICEFS
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "DEVICE=/proc/bus/usb/%03d/%03d",
+	if (add_uevent_var(env, "DEVICE=/proc/bus/usb/%03d/%03d",
 			   usb_dev->bus->busnum, usb_dev->devnum))
 		return -ENOMEM;
 #endif
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "PRODUCT=%x/%x/%x",
+	if (add_uevent_var(env, "PRODUCT=%x/%x/%x",
 			   le16_to_cpu(usb_dev->descriptor.idVendor),
 			   le16_to_cpu(usb_dev->descriptor.idProduct),
 			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "TYPE=%d/%d/%d",
+	if (add_uevent_var(env, "TYPE=%d/%d/%d",
 			   usb_dev->descriptor.bDeviceClass,
 			   usb_dev->descriptor.bDeviceSubClass,
 			   usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-		   buffer, buffer_size, &length,
-		   "INTERFACE=%d/%d/%d",
+	if (add_uevent_var(env, "INTERFACE=%d/%d/%d",
 		   alt->desc.bInterfaceClass,
 		   alt->desc.bInterfaceSubClass,
 		   alt->desc.bInterfaceProtocol))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-		   buffer, buffer_size, &length,
+	if (add_uevent_var(env,
 		   "MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
 		   le16_to_cpu(usb_dev->descriptor.idVendor),
 		   le16_to_cpu(usb_dev->descriptor.idProduct),
@@ -1409,14 +1397,12 @@ static int usb_if_uevent(struct device *dev, char **envp, int num_envp,
 		   alt->desc.bInterfaceProtocol))
 		return -ENOMEM;
 
-	envp[i] = NULL;
 	return 0;
 }
 
 #else
 
-static int usb_if_uevent(struct device *dev, char **envp,
-			 int num_envp, char *buffer, int buffer_size)
+static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	return -ENODEV;
 }

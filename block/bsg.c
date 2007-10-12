@@ -1010,10 +1010,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(bsg_register_queue);
 
-static struct cdev bsg_cdev = {
-	.kobj   = {.name = "bsg", },
-	.owner  = THIS_MODULE,
-};
+static struct cdev bsg_cdev;
 
 static int __init bsg_init(void)
 {

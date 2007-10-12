@@ -221,6 +221,42 @@ struct dentry *debugfs_create_u64(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL_GPL(debugfs_create_u64);
 
+DEFINE_SIMPLE_ATTRIBUTE(fops_x8, debugfs_u8_get, debugfs_u8_set, "0x%02llx\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_x16, debugfs_u16_get, debugfs_u16_set, "0x%04llx\n");
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_x32, debugfs_u32_get, debugfs_u32_set, "0x%08llx\n");
+
+/**
+ * debugfs_create_x8 - create a debugfs file that is used to read and write an unsigned 8-bit value
+ * debugfs_create_x16 - create a debugfs file that is used to read and write an unsigned 16-bit value
+ * debugfs_create_x32 - create a debugfs file that is used to read and write an unsigned 32-bit value
+ *
+ * These functions are exactly the same as the above functions, (but use a hex
+ * output for the decimal challenged) for details look at the above unsigned
+ * decimal functions.
+ */
+struct dentry *debugfs_create_x8(const char *name, mode_t mode,
+				 struct dentry *parent, u8 *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_x8);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_x8);
+
+struct dentry *debugfs_create_x16(const char *name, mode_t mode,
+				 struct dentry *parent, u16 *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_x16);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_x16);
+
+struct dentry *debugfs_create_x32(const char *name, mode_t mode,
+				 struct dentry *parent, u32 *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_x32);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_x32);
+
 static ssize_t read_file_bool(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {

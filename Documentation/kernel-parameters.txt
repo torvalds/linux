@@ -1437,6 +1437,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	pt.		[PARIDE]
 			See Documentation/paride.txt.
 
+	pty.legacy_count=
+			[KNL] Number of legacy pty's. Overwrites compiled-in
+			default number.
+
 	quiet		[KNL] Disable most log messages
 
 	r128=		[HW,DRM]

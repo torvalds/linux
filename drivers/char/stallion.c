@@ -4778,9 +4778,8 @@ static int __init stallion_module_init(void)
 	if (IS_ERR(stallion_class))
 		printk("STALLION: failed to create class\n");
 	for (i = 0; i < 4; i++)
-		class_device_create(stallion_class, NULL,
-				    MKDEV(STL_SIOMEMMAJOR, i), NULL,
-				    "staliomem%d", i);
+		device_create(stallion_class, NULL, MKDEV(STL_SIOMEMMAJOR, i),
+			      "staliomem%d", i);
 
 	return 0;
 err_unrtty:
@@ -4816,7 +4815,7 @@ static void __exit stallion_module_exit(void)
 	}
 
 	for (i = 0; i < 4; i++)
-		class_device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
+		device_destroy(stallion_class, MKDEV(STL_SIOMEMMAJOR, i));
 	unregister_chrdev(STL_SIOMEMMAJOR, "staliomem");
 	class_destroy(stallion_class);
 

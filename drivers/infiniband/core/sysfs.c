@@ -434,21 +434,18 @@ static void ib_device_release(struct class_device *cdev)
 	kfree(dev);
 }
 
-static int ib_device_uevent(struct class_device *cdev, char **envp,
-			    int num_envp, char *buf, int size)
+static int ib_device_uevent(struct class_device *cdev,
+			    struct kobj_uevent_env *env)
 {
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
-	int i = 0, len = 0;
 
-	if (add_uevent_var(envp, num_envp, &i, buf, size, &len,
-			   "NAME=%s", dev->name))
+	if (add_uevent_var(env, "NAME=%s", dev->name))
 		return -ENOMEM;
 
 	/*
 	 * It would be nice to pass the node GUID with the event...
 	 */
 
-	envp[i] = NULL;
 	return 0;
 }
 

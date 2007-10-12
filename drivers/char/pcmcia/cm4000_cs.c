@@ -1863,8 +1863,7 @@ static int cm4000_probe(struct pcmcia_device *link)
 		return ret;
 	}
 
-	class_device_create(cmm_class, NULL, MKDEV(major, i), NULL,
-			    "cmm%d", i);
+	device_create(cmm_class, NULL, MKDEV(major, i), "cmm%d", i);
 
 	return 0;
 }
@@ -1888,7 +1887,7 @@ static void cm4000_detach(struct pcmcia_device *link)
 	dev_table[devno] = NULL;
 	kfree(dev);
 
-	class_device_destroy(cmm_class, MKDEV(major, devno));
+	device_destroy(cmm_class, MKDEV(major, devno));
 
 	return;
 }

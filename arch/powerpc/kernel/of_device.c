@@ -57,26 +57,21 @@ ssize_t of_device_get_modalias(struct of_device *ofdev,
 	return tsize;
 }
 
-int of_device_uevent(struct device *dev,
-		char **envp, int num_envp, char *buffer, int buffer_size)
+int of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct of_device *ofdev;
 	const char *compat;
-	int i = 0, length = 0, seen = 0, cplen, sl;
+	int seen = 0, cplen, sl;
 
 	if (!dev)
 		return -ENODEV;
 
 	ofdev = to_of_device(dev);
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "OF_NAME=%s", ofdev->node->name))
+	if (add_uevent_var(env, "OF_NAME=%s", ofdev->node->name))
 		return -ENOMEM;
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "OF_TYPE=%s", ofdev->node->type))
+	if (add_uevent_var(env, "OF_TYPE=%s", ofdev->node->type))
 		return -ENOMEM;
 
         /* Since the compatible field can contain pretty much anything
@@ -85,9 +80,7 @@ int of_device_uevent(struct device *dev,
 
 	compat = of_get_property(ofdev->node, "compatible", &cplen);
 	while (compat && *compat && cplen > 0) {
-		if (add_uevent_var(envp, num_envp, &i,
-				   buffer, buffer_size, &length,
-				   "OF_COMPATIBLE_%d=%s", seen, compat))
+		if (add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat))
 			return -ENOMEM;
 
 		sl = strlen (compat) + 1;
@@ -96,25 +89,17 @@ int of_device_uevent(struct device *dev,
 		seen++;
 	}
 
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "OF_COMPATIBLE_N=%d", seen))
+	if (add_uevent_var(env, "OF_COMPATIBLE_N=%d", seen))
 		return -ENOMEM;
 
 	/* modalias is trickier, we add it in 2 steps */
-	if (add_uevent_var(envp, num_envp, &i,
-			   buffer, buffer_size, &length,
-			   "MODALIAS="))
+	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
-
-	sl = of_device_get_modalias(ofdev, &buffer[length-1],
-					buffer_size-length);
-	if (sl >= (buffer_size-length))
+	sl = of_device_get_modalias(ofdev, &env->buf[env->buflen-1],
+				    sizeof(env->buf) - env->buflen);
+	if (sl >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
-
-	length += sl;
-
-	envp[i] = NULL;
+	env->buflen += sl;
 
 	return 0;
 }

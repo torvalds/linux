@@ -871,10 +871,10 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	state[i].cur_part = 0;
 	for (j = 0; j < MAX_PARTITIONS; ++j)
 		state[i].part_stat_rwi[j] = VIOT_IDLE;
-	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i), NULL,
+	device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i),
 			"iseries!vt%d", i);
-	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
-			NULL, "iseries!nvt%d", i);
+	device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
+			"iseries!nvt%d", i);
 	printk(VIOTAPE_KERN_INFO "tape iseries/vt%d is iSeries "
 			"resource %10.10s type %4.4s, model %3.3s\n",
 			i, viotape_unitinfo[i].rsrcname,
@@ -886,8 +886,8 @@ static int viotape_remove(struct vio_dev *vdev)
 {
 	int i = vdev->unit_address;
 
-	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80));
-	class_device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i));
+	device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80));
+	device_destroy(tape_class, MKDEV(VIOTAPE_MAJOR, i));
 	return 0;
 }
 

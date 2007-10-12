@@ -2,6 +2,8 @@
  * kobject.c - library routines for handling generic kernel objects
  *
  * Copyright (c) 2002-2003 Patrick Mochel <mochel@osdl.org>
+ * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
+ * Copyright (c) 2006-2007 Novell Inc.
  *
  * This file is released under the GPLv2.
  *
@@ -44,11 +46,11 @@ static int populate_dir(struct kobject * kobj)
 	return error;
 }
 
-static int create_dir(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
+static int create_dir(struct kobject * kobj)
 {
 	int error = 0;
 	if (kobject_name(kobj)) {
-		error = sysfs_create_dir(kobj, shadow_parent);
+		error = sysfs_create_dir(kobj);
 		if (!error) {
 			if ((error = populate_dir(kobj)))
 				sysfs_remove_dir(kobj);
@@ -131,7 +133,6 @@ void kobject_init(struct kobject * kobj)
 		return;
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
-	init_waitqueue_head(&kobj->poll);
 	kobj->kset = kset_get(kobj->kset);
 }
 
@@ -157,12 +158,11 @@ static void unlink(struct kobject * kobj)
 }
 
 /**
- *	kobject_shadow_add - add an object to the hierarchy.
+ *	kobject_add - add an object to the hierarchy.
  *	@kobj:	object.
- *	@shadow_parent: sysfs directory to add to.
  */
 
-int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
+int kobject_add(struct kobject * kobj)
 {
 	int error = 0;
 	struct kobject * parent;
@@ -170,7 +170,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 	if (!(kobj = kobject_get(kobj)))
 		return -ENOENT;
 	if (!kobj->k_name)
-		kobj->k_name = kobj->name;
+		kobject_set_name(kobj, "NO_NAME");
 	if (!*kobj->k_name) {
 		pr_debug("kobject attempted to be registered with no name!\n");
 		WARN_ON(1);
@@ -181,7 +181,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 
 	pr_debug("kobject %s: registering. parent: %s, set: %s\n",
 		 kobject_name(kobj), parent ? kobject_name(parent) : "<NULL>", 
-		 kobj->kset ? kobj->kset->kobj.name : "<NULL>" );
+		 kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>" );
 
 	if (kobj->kset) {
 		spin_lock(&kobj->kset->list_lock);
@@ -194,7 +194,7 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 		kobj->parent = parent;
 	}
 
-	error = create_dir(kobj, shadow_parent);
+	error = create_dir(kobj);
 	if (error) {
 		/* unlink does the kobject_put() for us */
 		unlink(kobj);
@@ -214,16 +214,6 @@ int kobject_shadow_add(struct kobject *kobj, struct sysfs_dirent *shadow_parent)
 
 	return error;
 }
-
-/**
- *	kobject_add - add an object to the hierarchy.
- *	@kobj:	object.
- */
-int kobject_add(struct kobject * kobj)
-{
-	return kobject_shadow_add(kobj, NULL);
-}
-
 
 /**
  *	kobject_register - initialize and add an object.
@@ -255,53 +245,49 @@ int kobject_register(struct kobject * kobj)
 int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
 {
 	int error = 0;
-	int limit = KOBJ_NAME_LEN;
+	int limit;
 	int need;
 	va_list args;
-	char * name;
+	char *name;
 
-	/* 
-	 * First, try the static array 
-	 */
-	va_start(args,fmt);
-	need = vsnprintf(kobj->name,limit,fmt,args);
+	/* find out how big a buffer we need */
+	name = kmalloc(1024, GFP_KERNEL);
+	if (!name) {
+		error = -ENOMEM;
+		goto done;
+	}
+	va_start(args, fmt);
+	need = vsnprintf(name, 1024, fmt, args);
 	va_end(args);
-	if (need < limit) 
-		name = kobj->name;
-	else {
-		/* 
-		 * Need more space? Allocate it and try again 
-		 */
-		limit = need + 1;
-		name = kmalloc(limit,GFP_KERNEL);
-		if (!name) {
-			error = -ENOMEM;
-			goto Done;
-		}
-		va_start(args,fmt);
-		need = vsnprintf(name,limit,fmt,args);
-		va_end(args);
+	kfree(name);
 
-		/* Still? Give up. */
-		if (need >= limit) {
-			kfree(name);
-			error = -EFAULT;
-			goto Done;
-		}
+	/* Allocate the new space and copy the string in */
+	limit = need + 1;
+	name = kmalloc(limit, GFP_KERNEL);
+	if (!name) {
+		error = -ENOMEM;
+		goto done;
+	}
+	va_start(args, fmt);
+	need = vsnprintf(name, limit, fmt, args);
+	va_end(args);
+
+	/* something wrong with the string we copied? */
+	if (need >= limit) {
+		kfree(name);
+		error = -EFAULT;
+		goto done;
 	}
 
 	/* Free the old name, if necessary. */
-	if (kobj->k_name && kobj->k_name != kobj->name)
-		kfree(kobj->k_name);
+	kfree(kobj->k_name);
 
 	/* Now, set the new name */
 	kobj->k_name = name;
- Done:
+done:
 	return error;
 }
-
 EXPORT_SYMBOL(kobject_set_name);
-
 
 /**
  *	kobject_rename - change the name of an object
@@ -338,7 +324,7 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	/* Note : if we want to send the new name alone, not the full path,
 	 * we could probably use kobject_name(kobj); */
 
-	error = sysfs_rename_dir(kobj, kobj->parent->sd, new_name);
+	error = sysfs_rename_dir(kobj, new_name);
 
 	/* This function is mostly/only used for network interface.
 	 * Some hotplug package track interfaces by their name and
@@ -349,27 +335,6 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 out:
 	kfree(devpath_string);
 	kfree(devpath);
-	kobject_put(kobj);
-
-	return error;
-}
-
-/**
- *	kobject_rename - change the name of an object
- *	@kobj:	object in question.
- *	@new_parent: object's new parent
- *	@new_name: object's new name
- */
-
-int kobject_shadow_rename(struct kobject *kobj,
-			  struct sysfs_dirent *new_parent, const char *new_name)
-{
-	int error = 0;
-
-	kobj = kobject_get(kobj);
-	if (!kobj)
-		return -EINVAL;
-	error = sysfs_rename_dir(kobj, new_parent, new_name);
 	kobject_put(kobj);
 
 	return error;
@@ -477,13 +442,16 @@ void kobject_cleanup(struct kobject * kobj)
 	struct kobj_type * t = get_ktype(kobj);
 	struct kset * s = kobj->kset;
 	struct kobject * parent = kobj->parent;
+	const char *name = kobj->k_name;
 
 	pr_debug("kobject %s: cleaning up\n",kobject_name(kobj));
-	if (kobj->k_name != kobj->name)
-		kfree(kobj->k_name);
-	kobj->k_name = NULL;
-	if (t && t->release)
+	if (t && t->release) {
 		t->release(kobj);
+		/* If we have a release function, we can guess that this was
+		 * not a statically allocated kobject, so we should be safe to
+		 * free the name */
+		kfree(name);
+	}
 	if (s)
 		kset_put(s);
 	kobject_put(parent);
@@ -651,11 +619,6 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 	return ret;
 }
 
-void subsystem_init(struct kset *s)
-{
-	kset_init(s);
-}
-
 int subsystem_register(struct kset *s)
 {
 	return kset_register(s);
@@ -679,9 +642,9 @@ int subsys_create_file(struct kset *s, struct subsys_attribute *a)
 	if (!s || !a)
 		return -EINVAL;
 
-	if (subsys_get(s)) {
+	if (kset_get(s)) {
 		error = sysfs_create_file(&s->kobj, &a->attr);
-		subsys_put(s);
+		kset_put(s);
 	}
 	return error;
 }

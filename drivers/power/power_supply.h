@@ -14,8 +14,7 @@
 
 extern int power_supply_create_attrs(struct power_supply *psy);
 extern void power_supply_remove_attrs(struct power_supply *psy);
-extern int power_supply_uevent(struct device *dev, char **envp, int num_envp,
-			       char *buffer, int buffer_size);
+extern int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env);
 
 #else
 

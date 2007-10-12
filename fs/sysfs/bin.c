@@ -1,9 +1,15 @@
 /*
- * bin.c - binary file operations for sysfs.
+ * fs/sysfs/bin.c - sysfs binary file implementation
  *
  * Copyright (c) 2003 Patrick Mochel
  * Copyright (c) 2003 Matthew Wilcox
  * Copyright (c) 2004 Silicon Graphics, Inc.
+ * Copyright (c) 2007 SUSE Linux Products GmbH
+ * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
+ *
+ * This file is released under the GPLv2.
+ *
+ * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
 #undef DEBUG
@@ -14,9 +20,9 @@
 #include <linux/kobject.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 
 #include <asm/uaccess.h>
-#include <asm/semaphore.h>
 
 #include "sysfs.h"
 
@@ -30,8 +36,8 @@ static int
 fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
@@ -87,8 +93,8 @@ static int
 flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
@@ -140,8 +146,8 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct bin_buffer *bb = file->private_data;
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
-	struct kobject *kobj = attr_sd->s_parent->s_elem.dir.kobj;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
+	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	int rc;
 
 	mutex_lock(&bb->mutex);
@@ -167,12 +173,12 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 static int open(struct inode * inode, struct file * file)
 {
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
-	struct bin_attribute *attr = attr_sd->s_elem.bin_attr.bin_attr;
+	struct bin_attribute *attr = attr_sd->s_bin_attr.bin_attr;
 	struct bin_buffer *bb = NULL;
 	int error;
 
-	/* need attr_sd for attr */
-	if (!sysfs_get_active(attr_sd))
+	/* binary file operations requires both @sd and its parent */
+	if (!sysfs_get_active_two(attr_sd))
 		return -ENODEV;
 
 	error = -EACCES;
@@ -193,13 +199,12 @@ static int open(struct inode * inode, struct file * file)
 	mutex_init(&bb->mutex);
 	file->private_data = bb;
 
-	/* open succeeded, put active reference and pin attr_sd */
-	sysfs_put_active(attr_sd);
-	sysfs_get(attr_sd);
+	/* open succeeded, put active references */
+	sysfs_put_active_two(attr_sd);
 	return 0;
 
  err_out:
-	sysfs_put_active(attr_sd);
+	sysfs_put_active_two(attr_sd);
 	kfree(bb);
 	return error;
 }
@@ -211,7 +216,6 @@ static int release(struct inode * inode, struct file * file)
 
 	if (bb->mmapped)
 		sysfs_put_active_two(attr_sd);
-	sysfs_put(attr_sd);
 	kfree(bb->buffer);
 	kfree(bb);
 	return 0;

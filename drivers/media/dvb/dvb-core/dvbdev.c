@@ -103,10 +103,7 @@ static struct file_operations dvb_device_fops =
 	.open =		dvb_device_open,
 };
 
-static struct cdev dvb_device_cdev = {
-	.kobj   = {.name = "dvb", },
-	.owner  =       THIS_MODULE,
-};
+static struct cdev dvb_device_cdev;
 
 int dvb_generic_open(struct inode *inode, struct file *file)
 {

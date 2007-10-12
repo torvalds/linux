@@ -830,7 +830,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	/* prepare interface data */
 	policy->kobj.parent = &sys_dev->kobj;
 	policy->kobj.ktype = &ktype_cpufreq;
-	strlcpy(policy->kobj.name, "cpufreq", KOBJ_NAME_LEN);
+	kobject_set_name(&policy->kobj, "cpufreq");
 
 	ret = kobject_register(&policy->kobj);
 	if (ret) {

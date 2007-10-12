@@ -79,49 +79,38 @@ static int snprint_alias(char *buf, size_t size,
 
 /* Set up environment variables for ccw device uevent. Return 0 on success,
  * non-zero otherwise. */
-static int ccw_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size)
+static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
 	struct ccw_device_id *id = &(cdev->id);
-	int i = 0;
-	int len = 0;
 	int ret;
 	char modalias_buf[30];
 
 	/* CU_TYPE= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "CU_TYPE=%04X", id->cu_type);
+	ret = add_uevent_var(env, "CU_TYPE=%04X", id->cu_type);
 	if (ret)
 		return ret;
 
 	/* CU_MODEL= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "CU_MODEL=%02X", id->cu_model);
+	ret = add_uevent_var(env, "CU_MODEL=%02X", id->cu_model);
 	if (ret)
 		return ret;
 
 	/* The next two can be zero, that's ok for us */
 	/* DEV_TYPE= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "DEV_TYPE=%04X", id->dev_type);
+	ret = add_uevent_var(env, "DEV_TYPE=%04X", id->dev_type);
 	if (ret)
 		return ret;
 
 	/* DEV_MODEL= */
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "DEV_MODEL=%02X", id->dev_model);
+	ret = add_uevent_var(env, "DEV_MODEL=%02X", id->dev_model);
 	if (ret)
 		return ret;
 
 	/* MODALIAS=  */
 	snprint_alias(modalias_buf, sizeof(modalias_buf), id, "");
-	ret = add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &len,
-			     "MODALIAS=%s", modalias_buf);
-	if (ret)
-		return ret;
-	envp[i] = NULL;
-	return 0;
+	ret = add_uevent_var(env, "MODALIAS=%s", modalias_buf);
+	return ret;
 }
 
 struct bus_type ccw_bus_type;

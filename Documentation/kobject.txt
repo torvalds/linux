@@ -54,7 +54,6 @@ embedded in larger data structures and replace fields they duplicate.
 
 struct kobject {
 	const char		* k_name;
-	char			name[KOBJ_NAME_LEN];
 	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		* parent;
@@ -223,18 +222,15 @@ decl_subsys(devices, &ktype_device, &device_uevent_ops);
 is equivalent to doing:
 
 struct kset devices_subsys = {
-     .kobj = {
-	   .name = "devices",
-     },
      .ktype = &ktype_devices,
      .uevent_ops = &device_uevent_ops,
 };
-
+kobject_set_name(&devices_subsys, name);
 
 The objects that are registered with a subsystem that use the
 subsystem's default list must have their kset ptr set properly. These
 objects may have embedded kobjects or ksets. The
-following helpers make setting the kset easier:
+following helper makes setting the kset easier:
 
 
 kobj_set_kset_s(obj,subsys)
@@ -242,22 +238,8 @@ kobj_set_kset_s(obj,subsys)
 - Assumes that obj->kobj exists, and is a struct kobject.
 - Sets the kset of that kobject to the kset <subsys>.
 
-
-kset_set_kset_s(obj,subsys)
-
-- Assumes that obj->kset exists, and is a struct kset.
-- Sets the kset of the embedded kobject to the kset <subsys>.
-
-subsys_set_kset(obj,subsys)
-
-- Assumes obj->subsys exists, and is a struct subsystem.
-- Sets obj->subsys.kset.kobj.kset to the subsystem's embedded kset.
-
-void subsystem_init(struct kset *s);
 int subsystem_register(struct kset *s);
 void subsystem_unregister(struct kset *s);
-struct kset *subsys_get(struct kset *s);
-void kset_put(struct kset *s);
 
 These are just wrappers around the respective kset_* functions.
 

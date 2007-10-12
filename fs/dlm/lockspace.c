@@ -167,7 +167,6 @@ static struct kobj_type dlm_ktype = {
 };
 
 static struct kset dlm_kset = {
-	.kobj   = {.name = "dlm",},
 	.ktype  = &dlm_ktype,
 };
 
@@ -228,6 +227,7 @@ int dlm_lockspace_init(void)
 	INIT_LIST_HEAD(&lslist);
 	spin_lock_init(&lslist_lock);
 
+	kobject_set_name(&dlm_kset.kobj, "dlm");
 	kobj_set_kset_s(&dlm_kset, kernel_subsys);
 	error = kset_register(&dlm_kset);
 	if (error)

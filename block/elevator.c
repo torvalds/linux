@@ -186,7 +186,7 @@ static elevator_t *elevator_alloc(struct request_queue *q,
 	eq->ops = &e->ops;
 	eq->elevator_type = e;
 	kobject_init(&eq->kobj);
-	snprintf(eq->kobj.name, KOBJ_NAME_LEN, "%s", "iosched");
+	kobject_set_name(&eq->kobj, "%s", "iosched");
 	eq->kobj.ktype = &elv_ktype;
 	mutex_init(&eq->sysfs_lock);
 

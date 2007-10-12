@@ -1,7 +1,6 @@
 /* Functions internal to the PCI core code */
 
-extern int pci_uevent(struct device *dev, char **envp, int num_envp,
-		      char *buffer, int buffer_size);
+extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);

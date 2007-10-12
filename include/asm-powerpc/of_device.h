@@ -20,7 +20,7 @@ struct of_device
 extern ssize_t of_device_get_modalias(struct of_device *ofdev,
 					char *str, ssize_t len);
 extern int of_device_uevent(struct device *dev,
-	char **envp, int num_envp, char *buffer, int buffer_size);
+			    struct kobj_uevent_env *env);
 
 /* This is just here during the transition */
 #include <linux/of_device.h>

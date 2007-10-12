@@ -58,12 +58,11 @@ static int mmc_bus_match(struct device *dev, struct device_driver *drv)
 }
 
 static int
-mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
-		int buf_size)
+mmc_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct mmc_card *card = dev_to_mmc_card(dev);
 	const char *type;
-	int i = 0, length = 0;
+	int retval = 0;
 
 	switch (card->type) {
 	case MMC_TYPE_MMC:
@@ -80,20 +79,14 @@ mmc_bus_uevent(struct device *dev, char **envp, int num_envp, char *buf,
 	}
 
 	if (type) {
-		if (add_uevent_var(envp, num_envp, &i,
-				buf, buf_size, &length,
-				"MMC_TYPE=%s", type))
-			return -ENOMEM;
+		retval = add_uevent_var(env, "MMC_TYPE=%s", type);
+		if (retval)
+			return retval;
 	}
 
-	if (add_uevent_var(envp, num_envp, &i,
-			buf, buf_size, &length,
-			"MMC_NAME=%s", mmc_card_name(card)))
-		return -ENOMEM;
+	retval = add_uevent_var(env, "MMC_NAME=%s", mmc_card_name(card));
 
-	envp[i] = NULL;
-
-	return 0;
+	return retval;
 }
 
 static int mmc_bus_probe(struct device *dev)

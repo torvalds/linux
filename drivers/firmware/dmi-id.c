@@ -13,21 +13,31 @@
 #include <linux/device.h>
 #include <linux/autoconf.h>
 
-#define DEFINE_DMI_ATTR(_name, _mode, _show)		\
-static struct device_attribute sys_dmi_##_name##_attr =	\
-	__ATTR(_name, _mode, _show, NULL);
+struct dmi_device_attribute{
+	struct device_attribute dev_attr;
+	int field;
+};
+#define to_dmi_dev_attr(_dev_attr) \
+	container_of(_dev_attr, struct dmi_device_attribute, dev_attr)
 
-#define DEFINE_DMI_ATTR_WITH_SHOW(_name, _mode, _field)			\
-static ssize_t sys_dmi_##_name##_show(struct device *dev,		\
-				      struct device_attribute *attr,	\
-				      char *page)			\
-{									\
-	ssize_t len;							\
-	len = scnprintf(page, PAGE_SIZE, "%s\n", dmi_get_system_info(_field)); \
-	page[len-1] = '\n';						\
-	return len;							\
-}									\
-DEFINE_DMI_ATTR(_name, _mode, sys_dmi_##_name##_show);
+static ssize_t sys_dmi_field_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *page)
+{
+	int field = to_dmi_dev_attr(attr)->field;
+	ssize_t len;
+	len = scnprintf(page, PAGE_SIZE, "%s\n", dmi_get_system_info(field));
+	page[len-1] = '\n';
+	return len;
+}
+
+#define DMI_ATTR(_name, _mode, _show, _field)			\
+	{ .dev_attr = __ATTR(_name, _mode, _show, NULL),	\
+	  .field = _field }
+
+#define DEFINE_DMI_ATTR_WITH_SHOW(_name, _mode, _field)		\
+static struct dmi_device_attribute sys_dmi_##_name##_attr =	\
+	DMI_ATTR(_name, _mode, sys_dmi_field_show, _field);
 
 DEFINE_DMI_ATTR_WITH_SHOW(bios_vendor,		0444, DMI_BIOS_VENDOR);
 DEFINE_DMI_ATTR_WITH_SHOW(bios_version,		0444, DMI_BIOS_VERSION);
@@ -121,7 +131,8 @@ static ssize_t sys_dmi_modalias_show(struct device *dev,
 	return r+1;
 }
 
-DEFINE_DMI_ATTR(modalias, 0444, sys_dmi_modalias_show);
+static struct device_attribute sys_dmi_modalias_attr =
+	__ATTR(modalias, 0444, sys_dmi_modalias_show, NULL);
 
 static struct attribute *sys_dmi_attributes[DMI_STRING_MAX+2];
 
@@ -134,14 +145,17 @@ static struct attribute_group* sys_dmi_attribute_groups[] = {
 	NULL
 };
 
-static int dmi_dev_uevent(struct device *dev, char **envp,
-			    int num_envp, char *buffer, int buffer_size)
+static int dmi_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	strcpy(buffer, "MODALIAS=");
-	get_modalias(buffer+9, buffer_size-9);
-	envp[0] = buffer;
-	envp[1] = NULL;
+	ssize_t len;
 
+	if (add_uevent_var(env, "MODALIAS="))
+		return -ENOMEM;
+	len = get_modalias(&env->buf[env->buflen - 1],
+			   sizeof(env->buf) - env->buflen);
+	if (len >= (sizeof(env->buf) - env->buflen))
+		return -ENOMEM;
+	env->buflen += len;
 	return 0;
 }
 
@@ -157,7 +171,7 @@ static struct device *dmi_dev;
 
 #define ADD_DMI_ATTR(_name, _field) \
 	if (dmi_get_system_info(_field)) \
-		sys_dmi_attributes[i++] = & sys_dmi_##_name##_attr.attr;
+		sys_dmi_attributes[i++] = &sys_dmi_##_name##_attr.dev_attr.attr;
 
 extern int dmi_available;
 
