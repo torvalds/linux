@@ -410,13 +410,12 @@ xfs_fs_write_inode(
 		flags |= FLUSH_SYNC;
 	}
 	error = xfs_inode_flush(XFS_I(inode), flags);
-	if (error == EAGAIN) {
-		if (sync)
-			error = xfs_inode_flush(XFS_I(inode),
-						       flags | FLUSH_LOG);
-		else
-			error = 0;
-	}
+	/*
+	 * if we failed to write out the inode then mark
+	 * it dirty again so we'll try again later.
+	 */
+	if (error)
+		mark_inode_dirty_sync(inode);
 
 	return -error;
 }
@@ -622,7 +621,19 @@ xfs_fs_sync_super(
 	int			error;
 	int			flags;
 
-	if (unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
+	/*
+	 * Treat a sync operation like a freeze.  This is to work
+	 * around a race in sync_inodes() which works in two phases
+	 * - an asynchronous flush, which can write out an inode
+	 * without waiting for file size updates to complete, and a
+	 * synchronous flush, which wont do anything because the
+	 * async flush removed the inode's dirty flag.  Also
+	 * sync_inodes() will not see any files that just have
+	 * outstanding transactions to be flushed because we don't
+	 * dirty the Linux inode until after the transaction I/O
+	 * completes.
+	 */
+	if (wait || unlikely(sb->s_frozen == SB_FREEZE_WRITE)) {
 		/*
 		 * First stage of freeze - no more writers will make progress
 		 * now we are here, so we flush delwri and delalloc buffers
@@ -633,7 +644,7 @@ xfs_fs_sync_super(
 		 */
 		flags = SYNC_DATA_QUIESCE;
 	} else
-		flags = SYNC_FSDATA | (wait ? SYNC_WAIT : 0);
+		flags = SYNC_FSDATA;
 
 	error = xfs_sync(mp, flags);
 	sb->s_dirt = 0;
