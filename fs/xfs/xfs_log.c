@@ -1161,7 +1161,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	log->l_flags	   |= XLOG_ACTIVE_RECOVERY;
 
 	log->l_prev_block  = -1;
-	ASSIGN_ANY_LSN_HOST(log->l_tail_lsn, 1, 0);
+	log->l_tail_lsn	   = xlog_assign_lsn(1, 0);
 	/* log->l_tail_lsn = 0x100000000LL; cycle = 1; current block = 0 */
 	log->l_last_sync_lsn = log->l_tail_lsn;
 	log->l_curr_cycle  = 1;	    /* 0 is bad since this is initial value */
@@ -1326,8 +1326,7 @@ xlog_grant_push_ail(xfs_mount_t	*mp,
 	    threshold_block -= log->l_logBBsize;
 	    threshold_cycle += 1;
 	}
-	ASSIGN_ANY_LSN_HOST(threshold_lsn, threshold_cycle,
-		       threshold_block);
+	threshold_lsn = xlog_assign_lsn(threshold_cycle, threshold_block);
 
 	/* Don't pass in an lsn greater than the lsn of the last
 	 * log record known to be on disk.
@@ -2393,7 +2392,8 @@ restart:
 				    log->l_iclog_hsize,
 				    XLOG_REG_TYPE_LRHEADER);
 		INT_SET(head->h_cycle, ARCH_CONVERT, log->l_curr_cycle);
-		ASSIGN_LSN(head->h_lsn, log);
+		INT_SET(head->h_lsn, ARCH_CONVERT,
+			xlog_assign_lsn(log->l_curr_cycle, log->l_curr_block));
 		ASSERT(log->l_curr_block >= 0);
 	}
 
@@ -3488,9 +3488,11 @@ xlog_verify_iclog(xlog_t	 *log,
 			if (idx >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE)) {
 				j = idx / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
 				k = idx % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
-				clientid = GET_CLIENT_ID(xhdr[j].hic_xheader.xh_cycle_data[k], ARCH_CONVERT);
+				clientid = xlog_get_client_id(
+					xhdr[j].hic_xheader.xh_cycle_data[k]);
 			} else {
-				clientid = GET_CLIENT_ID(iclog->ic_header.h_cycle_data[idx], ARCH_CONVERT);
+				clientid = xlog_get_client_id(
+					iclog->ic_header.h_cycle_data[idx]);
 			}
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG)

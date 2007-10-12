@@ -311,7 +311,7 @@ xlog_find_cycle_start(
 		if ((error = xlog_bread(log, mid_blk, 1, bp)))
 			return error;
 		offset = xlog_align(log, mid_blk, 1, bp);
-		mid_cycle = GET_CYCLE(offset, ARCH_CONVERT);
+		mid_cycle = xlog_get_cycle(offset);
 		if (mid_cycle == cycle) {
 			*last_blk = mid_blk;
 			/* last_half_cycle == mid_cycle */
@@ -371,7 +371,7 @@ xlog_find_verify_cycle(
 
 		buf = xlog_align(log, i, bcount, bp);
 		for (j = 0; j < bcount; j++) {
-			cycle = GET_CYCLE(buf, ARCH_CONVERT);
+			cycle = xlog_get_cycle(buf);
 			if (cycle == stop_on_cycle_no) {
 				*new_blk = i+j;
 				goto out;
@@ -550,13 +550,13 @@ xlog_find_head(
 	if ((error = xlog_bread(log, 0, 1, bp)))
 		goto bp_err;
 	offset = xlog_align(log, 0, 1, bp);
-	first_half_cycle = GET_CYCLE(offset, ARCH_CONVERT);
+	first_half_cycle = xlog_get_cycle(offset);
 
 	last_blk = head_blk = log_bbnum - 1;	/* get cycle # of last block */
 	if ((error = xlog_bread(log, last_blk, 1, bp)))
 		goto bp_err;
 	offset = xlog_align(log, last_blk, 1, bp);
-	last_half_cycle = GET_CYCLE(offset, ARCH_CONVERT);
+	last_half_cycle = xlog_get_cycle(offset);
 	ASSERT(last_half_cycle != 0);
 
 	/*
@@ -808,7 +808,7 @@ xlog_find_tail(
 		if ((error = xlog_bread(log, 0, 1, bp)))
 			goto bread_err;
 		offset = xlog_align(log, 0, 1, bp);
-		if (GET_CYCLE(offset, ARCH_CONVERT) == 0) {
+		if (xlog_get_cycle(offset) == 0) {
 			*tail_blk = 0;
 			/* leave all other log inited values alone */
 			goto exit;
@@ -922,10 +922,12 @@ xlog_find_tail(
 			 * log records will point recovery to after the
 			 * current unmount record.
 			 */
-			ASSIGN_ANY_LSN_HOST(log->l_tail_lsn, log->l_curr_cycle,
-					after_umount_blk);
-			ASSIGN_ANY_LSN_HOST(log->l_last_sync_lsn, log->l_curr_cycle,
-					after_umount_blk);
+			log->l_tail_lsn =
+				xlog_assign_lsn(log->l_curr_cycle,
+						after_umount_blk);
+			log->l_last_sync_lsn =
+				xlog_assign_lsn(log->l_curr_cycle,
+						after_umount_blk);
 			*tail_blk = after_umount_blk;
 
 			/*
@@ -1007,7 +1009,7 @@ xlog_find_zeroed(
 	if ((error = xlog_bread(log, 0, 1, bp)))
 		goto bp_err;
 	offset = xlog_align(log, 0, 1, bp);
-	first_cycle = GET_CYCLE(offset, ARCH_CONVERT);
+	first_cycle = xlog_get_cycle(offset);
 	if (first_cycle == 0) {		/* completely zeroed log */
 		*blk_no = 0;
 		xlog_put_bp(bp);
@@ -1018,7 +1020,7 @@ xlog_find_zeroed(
 	if ((error = xlog_bread(log, log_bbnum-1, 1, bp)))
 		goto bp_err;
 	offset = xlog_align(log, log_bbnum-1, 1, bp);
-	last_cycle = GET_CYCLE(offset, ARCH_CONVERT);
+	last_cycle = xlog_get_cycle(offset);
 	if (last_cycle != 0) {		/* log completely written to */
 		xlog_put_bp(bp);
 		return 0;
@@ -1102,8 +1104,9 @@ xlog_add_record(
 	INT_SET(recp->h_cycle, ARCH_CONVERT, cycle);
 	INT_SET(recp->h_version, ARCH_CONVERT,
 			XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? 2 : 1);
-	ASSIGN_ANY_LSN_DISK(recp->h_lsn, cycle, block);
-	ASSIGN_ANY_LSN_DISK(recp->h_tail_lsn, tail_cycle, tail_block);
+	INT_SET(recp->h_lsn, ARCH_CONVERT, xlog_assign_lsn(cycle, block));
+	INT_SET(recp->h_tail_lsn, ARCH_CONVERT,
+		xlog_assign_lsn(tail_cycle, tail_block));
 	INT_SET(recp->h_fmt, ARCH_CONVERT, XLOG_FMT);
 	memcpy(&recp->h_fs_uuid, &log->l_mp->m_sb.sb_uuid, sizeof(uuid_t));
 }

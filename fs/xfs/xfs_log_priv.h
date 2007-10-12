@@ -55,32 +55,21 @@ struct xfs_mount;
 	BTOBB(XLOG_MAX_ICLOGS << (XFS_SB_VERSION_HASLOGV2(&log->l_mp->m_sb) ? \
 	 XLOG_MAX_RECORD_BSHIFT : XLOG_BIG_RECORD_BSHIFT))
 
-/*
- *  set lsns
- */
 
-#define ASSIGN_ANY_LSN_HOST(lsn,cycle,block)  \
-    { \
-	(lsn) = ((xfs_lsn_t)(cycle)<<32)|(block); \
-    }
-#define ASSIGN_ANY_LSN_DISK(lsn,cycle,block)  \
-    { \
-	INT_SET(((uint *)&(lsn))[0], ARCH_CONVERT, (cycle)); \
-	INT_SET(((uint *)&(lsn))[1], ARCH_CONVERT, (block)); \
-    }
-#define ASSIGN_LSN(lsn,log) \
-    ASSIGN_ANY_LSN_DISK(lsn,(log)->l_curr_cycle,(log)->l_curr_block);
+static inline xfs_lsn_t xlog_assign_lsn(uint cycle, uint block)
+{
+	return ((xfs_lsn_t)cycle << 32) | block;
+}
 
-#define XLOG_SET(f,b)		(((f) & (b)) == (b))
-
-#define GET_CYCLE(ptr, arch) \
-    (INT_GET(*(uint *)(ptr), arch) == XLOG_HEADER_MAGIC_NUM ? \
-	 INT_GET(*((uint *)(ptr)+1), arch) : \
-	 INT_GET(*(uint *)(ptr), arch) \
-    )
+static inline uint xlog_get_cycle(char *ptr)
+{
+	if (INT_GET(*(uint *)ptr, ARCH_CONVERT) == XLOG_HEADER_MAGIC_NUM)
+		return INT_GET(*((uint *)ptr + 1), ARCH_CONVERT);
+	else
+		return INT_GET(*(uint *)ptr, ARCH_CONVERT);
+}
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
-
 
 #ifdef __KERNEL__
 
@@ -96,14 +85,10 @@ struct xfs_mount;
  *
  * this has endian issues, of course.
  */
-
-#ifndef XFS_NATIVE_HOST
-#define GET_CLIENT_ID(i,arch) \
-    ((i) & 0xff)
-#else
-#define GET_CLIENT_ID(i,arch) \
-    ((i) >> 24)
-#endif
+static inline uint xlog_get_client_id(uint i)
+{
+	return INT_GET(i, ARCH_CONVERT) >> 24;
+}
 
 #define xlog_panic(args...)	cmn_err(CE_PANIC, ## args)
 #define xlog_exit(args...)	cmn_err(CE_PANIC, ## args)
