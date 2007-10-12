@@ -206,9 +206,70 @@ bail:
 	return err;
 }
 
+int ocfs2_read_inline_data(struct inode *inode, struct page *page,
+			   struct buffer_head *di_bh)
+{
+	void *kaddr;
+	unsigned int size;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	if (!(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL)) {
+		ocfs2_error(inode->i_sb, "Inode %llu lost inline data flag",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno);
+		return -EROFS;
+	}
+
+	size = i_size_read(inode);
+
+	if (size > PAGE_CACHE_SIZE ||
+	    size > ocfs2_max_inline_data(inode->i_sb)) {
+		ocfs2_error(inode->i_sb,
+			    "Inode %llu has with inline data has bad size: %u",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno, size);
+		return -EROFS;
+	}
+
+	kaddr = kmap_atomic(page, KM_USER0);
+	if (size)
+		memcpy(kaddr, di->id2.i_data.id_data, size);
+	/* Clear the remaining part of the page */
+	memset(kaddr + size, 0, PAGE_CACHE_SIZE - size);
+	flush_dcache_page(page);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	SetPageUptodate(page);
+
+	return 0;
+}
+
+static int ocfs2_readpage_inline(struct inode *inode, struct page *page)
+{
+	int ret;
+	struct buffer_head *di_bh = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	BUG_ON(!PageLocked(page));
+	BUG_ON(!OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL);
+
+	ret = ocfs2_read_block(osb, OCFS2_I(inode)->ip_blkno, &di_bh,
+			       OCFS2_BH_CACHED, inode);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_read_inline_data(inode, page, di_bh);
+out:
+	unlock_page(page);
+
+	brelse(di_bh);
+	return ret;
+}
+
 static int ocfs2_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	loff_t start = (loff_t)page->index << PAGE_CACHE_SHIFT;
 	int ret, unlock = 1;
 
@@ -222,7 +283,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 		goto out;
 	}
 
-	if (down_read_trylock(&OCFS2_I(inode)->ip_alloc_sem) == 0) {
+	if (down_read_trylock(&oi->ip_alloc_sem) == 0) {
 		ret = AOP_TRUNCATED_PAGE;
 		goto out_meta_unlock;
 	}
@@ -252,7 +313,10 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 		goto out_alloc;
 	}
 
-	ret = block_read_full_page(page, ocfs2_get_block);
+	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		ret = ocfs2_readpage_inline(inode, page);
+	else
+		ret = block_read_full_page(page, ocfs2_get_block);
 	unlock = 0;
 
 	ocfs2_data_unlock(inode, 0);
@@ -301,11 +365,7 @@ int ocfs2_prepare_write_nolock(struct inode *inode, struct page *page,
 {
 	int ret;
 
-	down_read(&OCFS2_I(inode)->ip_alloc_sem);
-
 	ret = block_prepare_write(page, from, to, ocfs2_get_block);
-
-	up_read(&OCFS2_I(inode)->ip_alloc_sem);
 
 	return ret;
 }
@@ -401,7 +461,9 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 		down_read(&OCFS2_I(inode)->ip_alloc_sem);
 	}
 
-	err = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL, NULL);
+	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL))
+		err = ocfs2_extent_map_get_blocks(inode, block, &p_blkno, NULL,
+						  NULL);
 
 	if (!INODE_JOURNAL(inode)) {
 		up_read(&OCFS2_I(inode)->ip_alloc_sem);
@@ -414,7 +476,6 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 		mlog_errno(err);
 		goto bail;
 	}
-
 
 bail:
 	status = err ? 0 : p_blkno;
@@ -569,6 +630,13 @@ static ssize_t ocfs2_direct_IO(int rw,
 	int ret;
 
 	mlog_entry_void();
+
+	/*
+	 * Fallback to buffered I/O if we see an inode without
+	 * extents.
+	 */
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		return 0;
 
 	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
 		/*
@@ -834,18 +902,22 @@ struct ocfs2_write_ctxt {
 	struct ocfs2_cached_dealloc_ctxt w_dealloc;
 };
 
-static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
+void ocfs2_unlock_and_free_pages(struct page **pages, int num_pages)
 {
 	int i;
 
-	for(i = 0; i < wc->w_num_pages; i++) {
-		if (wc->w_pages[i] == NULL)
-			continue;
-
-		unlock_page(wc->w_pages[i]);
-		mark_page_accessed(wc->w_pages[i]);
-		page_cache_release(wc->w_pages[i]);
+	for(i = 0; i < num_pages; i++) {
+		if (pages[i]) {
+			unlock_page(pages[i]);
+			mark_page_accessed(pages[i]);
+			page_cache_release(pages[i]);
+		}
 	}
+}
+
+static void ocfs2_free_write_ctxt(struct ocfs2_write_ctxt *wc)
+{
+	ocfs2_unlock_and_free_pages(wc->w_pages, wc->w_num_pages);
 
 	brelse(wc->w_di_bh);
 	kfree(wc);
@@ -1360,6 +1432,160 @@ out:
 	return ret;
 }
 
+static int ocfs2_write_begin_inline(struct address_space *mapping,
+				    struct inode *inode,
+				    struct ocfs2_write_ctxt *wc)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct page *page;
+	handle_t *handle;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
+
+	page = find_or_create_page(mapping, 0, GFP_NOFS);
+	if (!page) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+	/*
+	 * If we don't set w_num_pages then this page won't get unlocked
+	 * and freed on cleanup of the write context.
+	 */
+	wc->w_pages[0] = wc->w_target_page = page;
+	wc->w_num_pages = 1;
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, wc->w_di_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		ocfs2_commit_trans(osb, handle);
+
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (!(OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL))
+		ocfs2_set_inode_data_inline(inode, di);
+
+	if (!PageUptodate(page)) {
+		ret = ocfs2_read_inline_data(inode, page, wc->w_di_bh);
+		if (ret) {
+			ocfs2_commit_trans(osb, handle);
+
+			goto out;
+		}
+	}
+
+	wc->w_handle = handle;
+out:
+	return ret;
+}
+
+int ocfs2_size_fits_inline_data(struct buffer_head *di_bh, u64 new_size)
+{
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+
+	if (new_size < le16_to_cpu(di->id2.i_data.id_count))
+		return 1;
+	return 0;
+}
+
+static int ocfs2_try_to_write_inline_data(struct address_space *mapping,
+					  struct inode *inode, loff_t pos,
+					  unsigned len, struct page *mmap_page,
+					  struct ocfs2_write_ctxt *wc)
+{
+	int ret, written = 0;
+	loff_t end = pos + len;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+
+	mlog(0, "Inode %llu, write of %u bytes at off %llu. features: 0x%x\n",
+	     (unsigned long long)oi->ip_blkno, len, (unsigned long long)pos,
+	     oi->ip_dyn_features);
+
+	/*
+	 * Handle inodes which already have inline data 1st.
+	 */
+	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		if (mmap_page == NULL &&
+		    ocfs2_size_fits_inline_data(wc->w_di_bh, end))
+			goto do_inline_write;
+
+		/*
+		 * The write won't fit - we have to give this inode an
+		 * inline extent list now.
+		 */
+		ret = ocfs2_convert_inline_data_to_extents(inode, wc->w_di_bh);
+		if (ret)
+			mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * Check whether the inode can accept inline data.
+	 */
+	if (oi->ip_clusters != 0 || i_size_read(inode) != 0)
+		return 0;
+
+	/*
+	 * Check whether the write can fit.
+	 */
+	if (mmap_page || end > ocfs2_max_inline_data(inode->i_sb))
+		return 0;
+
+do_inline_write:
+	ret = ocfs2_write_begin_inline(mapping, inode, wc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * This signals to the caller that the data can be written
+	 * inline.
+	 */
+	written = 1;
+out:
+	return written ? written : ret;
+}
+
+/*
+ * This function only does anything for file systems which can't
+ * handle sparse files.
+ *
+ * What we want to do here is fill in any hole between the current end
+ * of allocation and the end of our write. That way the rest of the
+ * write path can treat it as an non-allocating write, which has no
+ * special case code for sparse/nonsparse files.
+ */
+static int ocfs2_expand_nonsparse_inode(struct inode *inode, loff_t pos,
+					unsigned len,
+					struct ocfs2_write_ctxt *wc)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	loff_t newsize = pos + len;
+
+	if (ocfs2_sparse_alloc(osb))
+		return 0;
+
+	if (newsize <= i_size_read(inode))
+		return 0;
+
+	ret = ocfs2_extend_no_holes(inode, newsize, newsize - len);
+	if (ret)
+		mlog_errno(ret);
+
+	return ret;
+}
+
 int ocfs2_write_begin_nolock(struct address_space *mapping,
 			     loff_t pos, unsigned len, unsigned flags,
 			     struct page **pagep, void **fsdata,
@@ -1379,6 +1605,25 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
+	}
+
+	if (ocfs2_supports_inline_data(osb)) {
+		ret = ocfs2_try_to_write_inline_data(mapping, inode, pos, len,
+						     mmap_page, wc);
+		if (ret == 1) {
+			ret = 0;
+			goto success;
+		}
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	ret = ocfs2_expand_nonsparse_inode(inode, pos, len, wc);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
 	}
 
 	ret = ocfs2_populate_write_desc(inode, wc, &clusters_to_alloc,
@@ -1462,6 +1707,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
 
+success:
 	*pagep = wc->w_target_page;
 	*fsdata = wc;
 	return 0;
@@ -1529,6 +1775,31 @@ out_fail:
 	return ret;
 }
 
+static void ocfs2_write_end_inline(struct inode *inode, loff_t pos,
+				   unsigned len, unsigned *copied,
+				   struct ocfs2_dinode *di,
+				   struct ocfs2_write_ctxt *wc)
+{
+	void *kaddr;
+
+	if (unlikely(*copied < len)) {
+		if (!PageUptodate(wc->w_target_page)) {
+			*copied = 0;
+			return;
+		}
+	}
+
+	kaddr = kmap_atomic(wc->w_target_page, KM_USER0);
+	memcpy(di->id2.i_data.id_data + pos, kaddr + pos, *copied);
+	kunmap_atomic(kaddr, KM_USER0);
+
+	mlog(0, "Data written to inode at offset %llu. "
+	     "id_count = %u, copied = %u, i_dyn_features = 0x%x\n",
+	     (unsigned long long)pos, *copied,
+	     le16_to_cpu(di->id2.i_data.id_count),
+	     le16_to_cpu(di->i_dyn_features));
+}
+
 int ocfs2_write_end_nolock(struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata)
@@ -1541,6 +1812,11 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)wc->w_di_bh->b_data;
 	handle_t *handle = wc->w_handle;
 	struct page *tmppage;
+
+	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL) {
+		ocfs2_write_end_inline(inode, pos, len, &copied, di, wc);
+		goto out_write_size;
+	}
 
 	if (unlikely(copied < len)) {
 		if (!PageUptodate(wc->w_target_page))
@@ -1579,6 +1855,7 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 		block_commit_write(tmppage, from, to);
 	}
 
+out_write_size:
 	pos += copied;
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);

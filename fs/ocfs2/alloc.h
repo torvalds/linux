@@ -62,6 +62,11 @@ static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
 	return le16_to_cpu(fe->id2.i_list.l_tree_depth) + 2;
 }
 
+void ocfs2_dinode_new_extent_list(struct inode *inode, struct ocfs2_dinode *di);
+void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di);
+int ocfs2_convert_inline_data_to_extents(struct inode *inode,
+					 struct buffer_head *di_bh);
+
 int ocfs2_truncate_log_init(struct ocfs2_super *osb);
 void ocfs2_truncate_log_shutdown(struct ocfs2_super *osb);
 void ocfs2_schedule_truncate_log_flush(struct ocfs2_super *osb,
@@ -115,6 +120,8 @@ int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct inode *inode,
 			  struct buffer_head *fe_bh,
 			  struct ocfs2_truncate_context *tc);
+int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
+			  unsigned int start, unsigned int end, int trunc);
 
 int ocfs2_find_leaf(struct inode *inode, struct ocfs2_extent_list *root_el,
 		    u32 cpos, struct buffer_head **leaf_bh);

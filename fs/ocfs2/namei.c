@@ -64,29 +64,6 @@
 
 #include "buffer_head_io.h"
 
-#define NAMEI_RA_CHUNKS  2
-#define NAMEI_RA_BLOCKS  4
-#define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
-#define NAMEI_RA_INDEX(c,b)  (((c) * NAMEI_RA_BLOCKS) + (b))
-
-static int inline ocfs2_search_dirblock(struct buffer_head *bh,
-					struct inode *dir,
-					const char *name, int namelen,
-					unsigned long offset,
-					struct ocfs2_dir_entry **res_dir);
-
-static int ocfs2_delete_entry(handle_t *handle,
-			      struct inode *dir,
-			      struct ocfs2_dir_entry *de_del,
-			      struct buffer_head *bh);
-
-static int __ocfs2_add_entry(handle_t *handle,
-			     struct inode *dir,
-			     const char *name, int namelen,
-			     struct inode *inode, u64 blkno,
-			     struct buffer_head *parent_fe_bh,
-			     struct buffer_head *insert_bh);
-
 static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 			      struct inode *dir,
 			      struct dentry *dentry, int mode,
@@ -96,13 +73,6 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 			      handle_t *handle,
 			      struct inode **ret_inode,
 			      struct ocfs2_alloc_context *inode_ac);
-
-static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
-			      handle_t *handle,
-			      struct inode *parent,
-			      struct inode *inode,
-			      struct buffer_head *fe_bh,
-			      struct ocfs2_alloc_context *data_ac);
 
 static int ocfs2_prepare_orphan_dir(struct ocfs2_super *osb,
 				    struct inode **ret_orphan_dir,
@@ -123,17 +93,6 @@ static int ocfs2_create_symlink_data(struct ocfs2_super *osb,
 				     struct inode *inode,
 				     const char *symname);
 
-static inline int ocfs2_add_entry(handle_t *handle,
-				  struct dentry *dentry,
-				  struct inode *inode, u64 blkno,
-				  struct buffer_head *parent_fe_bh,
-				  struct buffer_head *insert_bh)
-{
-	return __ocfs2_add_entry(handle, dentry->d_parent->d_inode,
-				 dentry->d_name.name, dentry->d_name.len,
-				 inode, blkno, parent_fe_bh, insert_bh);
-}
-
 /* An orphan dir name is an 8 byte value, printed as a hex string */
 #define OCFS2_ORPHAN_NAMELEN ((int)(2 * sizeof(u64)))
 
@@ -142,10 +101,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 {
 	int status;
 	u64 blkno;
-	struct buffer_head *dirent_bh = NULL;
 	struct inode *inode = NULL;
 	struct dentry *ret;
-	struct ocfs2_dir_entry *dirent;
 	struct ocfs2_inode_info *oi;
 
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", dir, dentry,
@@ -167,9 +124,8 @@ static struct dentry *ocfs2_lookup(struct inode *dir, struct dentry *dentry,
 		goto bail;
 	}
 
-	status = ocfs2_find_files_on_disk(dentry->d_name.name,
-					  dentry->d_name.len, &blkno,
-					  dir, &dirent_bh, &dirent);
+	status = ocfs2_lookup_ino_from_name(dir, dentry->d_name.name,
+					    dentry->d_name.len, &blkno);
 	if (status < 0)
 		goto bail_add;
 
@@ -224,81 +180,10 @@ bail_unlock:
 	ocfs2_meta_unlock(dir, 0);
 
 bail:
-	if (dirent_bh)
-		brelse(dirent_bh);
 
 	mlog_exit_ptr(ret);
 
 	return ret;
-}
-
-static int ocfs2_fill_new_dir(struct ocfs2_super *osb,
-			      handle_t *handle,
-			      struct inode *parent,
-			      struct inode *inode,
-			      struct buffer_head *fe_bh,
-			      struct ocfs2_alloc_context *data_ac)
-{
-	int status;
-	struct buffer_head *new_bh = NULL;
-	struct ocfs2_dir_entry *de = NULL;
-
-	mlog_entry_void();
-
-	status = ocfs2_do_extend_dir(osb->sb, handle, inode, fe_bh,
-				     data_ac, NULL, &new_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	ocfs2_set_new_buffer_uptodate(inode, new_bh);
-
-	status = ocfs2_journal_access(handle, inode, new_bh,
-				      OCFS2_JOURNAL_ACCESS_CREATE);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-	memset(new_bh->b_data, 0, osb->sb->s_blocksize);
-
-	de = (struct ocfs2_dir_entry *) new_bh->b_data;
-	de->inode = cpu_to_le64(OCFS2_I(inode)->ip_blkno);
-	de->name_len = 1;
-	de->rec_len =
-		cpu_to_le16(OCFS2_DIR_REC_LEN(de->name_len));
-	strcpy(de->name, ".");
-	ocfs2_set_de_type(de, S_IFDIR);
-	de = (struct ocfs2_dir_entry *) ((char *)de + le16_to_cpu(de->rec_len));
-	de->inode = cpu_to_le64(OCFS2_I(parent)->ip_blkno);
-	de->rec_len = cpu_to_le16(inode->i_sb->s_blocksize -
-				  OCFS2_DIR_REC_LEN(1));
-	de->name_len = 2;
-	strcpy(de->name, "..");
-	ocfs2_set_de_type(de, S_IFDIR);
-
-	status = ocfs2_journal_dirty(handle, new_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	i_size_write(inode, inode->i_sb->s_blocksize);
-	inode->i_nlink = 2;
-	inode->i_blocks = ocfs2_inode_sector_count(inode);
-	status = ocfs2_mark_inode_dirty(handle, inode, fe_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
-
-	status = 0;
-bail:
-	if (new_bh)
-		brelse(new_bh);
-
-	mlog_exit(status);
-	return status;
 }
 
 static int ocfs2_mknod(struct inode *dir,
@@ -365,9 +250,8 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	/* are we making a directory? If so, reserve a cluster for his
-	 * 1st extent. */
-	if (S_ISDIR(mode)) {
+	/* Reserve a cluster if creating an extent based directory. */
+	if (S_ISDIR(mode) && !ocfs2_supports_inline_data(osb)) {
 		status = ocfs2_reserve_clusters(osb, 1, &data_ac);
 		if (status < 0) {
 			if (status != -ENOSPC)
@@ -564,10 +448,21 @@ static int ocfs2_mknod_locked(struct ocfs2_super *osb,
 		cpu_to_le32(CURRENT_TIME.tv_nsec);
 	fe->i_dtime = 0;
 
-	fel = &fe->id2.i_list;
-	fel->l_tree_depth = 0;
-	fel->l_next_free_rec = 0;
-	fel->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(osb->sb));
+	/*
+	 * If supported, directories start with inline data.
+	 */
+	if (S_ISDIR(mode) && ocfs2_supports_inline_data(osb)) {
+		u16 feat = le16_to_cpu(fe->i_dyn_features);
+
+		fe->i_dyn_features = cpu_to_le16(feat | OCFS2_INLINE_DATA_FL);
+
+		fe->id2.i_data.id_count = cpu_to_le16(ocfs2_max_inline_data(osb->sb));
+	} else {
+		fel = &fe->id2.i_list;
+		fel->l_tree_depth = 0;
+		fel->l_next_free_rec = 0;
+		fel->l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(osb->sb));
+	}
 
 	status = ocfs2_journal_dirty(handle, *new_fe_bh);
 	if (status < 0) {
@@ -1048,11 +943,6 @@ static void ocfs2_double_unlock(struct inode *inode1, struct inode *inode2)
 		ocfs2_meta_unlock(inode2, 1);
 }
 
-#define PARENT_INO(buffer) \
-	((struct ocfs2_dir_entry *) \
-	 ((char *)buffer + \
-	  le16_to_cpu(((struct ocfs2_dir_entry *)buffer)->rec_len)))->inode
-
 static int ocfs2_rename(struct inode *old_dir,
 			struct dentry *old_dentry,
 			struct inode *new_dir,
@@ -1070,12 +960,12 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct buffer_head *old_inode_bh = NULL;
 	struct buffer_head *insert_entry_bh = NULL;
 	struct ocfs2_super *osb = NULL;
-	u64 newfe_blkno;
+	u64 newfe_blkno, old_de_ino;
 	handle_t *handle = NULL;
 	struct buffer_head *old_dir_bh = NULL;
 	struct buffer_head *new_dir_bh = NULL;
-	struct ocfs2_dir_entry *old_de = NULL, *new_de = NULL; // dirent for old_dentry
-							       // and new_dentry
+	struct ocfs2_dir_entry *old_inode_dot_dot_de = NULL, *old_de = NULL,
+		*new_de = NULL;
 	struct buffer_head *new_de_bh = NULL, *old_de_bh = NULL; // bhs for above
 	struct buffer_head *old_inode_de_bh = NULL; // if old_dentry is a dir,
 						    // this is the 1st dirent bh
@@ -1159,27 +1049,35 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 
 	if (S_ISDIR(old_inode->i_mode)) {
-		status = -EIO;
-		old_inode_de_bh = ocfs2_bread(old_inode, 0, &status, 0);
-		if (!old_inode_de_bh)
-			goto bail;
+		u64 old_inode_parent;
 
-		status = -EIO;
-		if (le64_to_cpu(PARENT_INO(old_inode_de_bh->b_data)) !=
-		    OCFS2_I(old_dir)->ip_blkno)
+		status = ocfs2_find_files_on_disk("..", 2, &old_inode_parent,
+						  old_inode, &old_inode_de_bh,
+						  &old_inode_dot_dot_de);
+		if (status) {
+			status = -EIO;
 			goto bail;
-		status = -EMLINK;
-		if (!new_inode && new_dir!=old_dir &&
-		    new_dir->i_nlink >= OCFS2_LINK_MAX)
+		}
+
+		if (old_inode_parent != OCFS2_I(old_dir)->ip_blkno) {
+			status = -EIO;
 			goto bail;
+		}
+
+		if (!new_inode && new_dir != old_dir &&
+		    new_dir->i_nlink >= OCFS2_LINK_MAX) {
+			status = -EMLINK;
+			goto bail;
+		}
 	}
 
-	status = -ENOENT;
-	old_de_bh = ocfs2_find_entry(old_dentry->d_name.name,
-				     old_dentry->d_name.len,
-				     old_dir, &old_de);
-	if (!old_de_bh)
+	status = ocfs2_lookup_ino_from_name(old_dir, old_dentry->d_name.name,
+					    old_dentry->d_name.len,
+					    &old_de_ino);
+	if (status) {
+		status = -ENOENT;
 		goto bail;
+	}
 
 	/*
 	 *  Check for inode number is _not_ due to possible IO errors.
@@ -1187,8 +1085,10 @@ static int ocfs2_rename(struct inode *old_dir,
 	 *  and merrily kill the link to whatever was created under the
 	 *  same name. Goodbye sticky bit ;-<
 	 */
-	if (le64_to_cpu(old_de->inode) != OCFS2_I(old_inode)->ip_blkno)
+	if (old_de_ino != OCFS2_I(old_inode)->ip_blkno) {
+		status = -ENOENT;
 		goto bail;
+	}
 
 	/* check if the target already exists (in which case we need
 	 * to delete it */
@@ -1321,20 +1221,13 @@ static int ocfs2_rename(struct inode *old_dir,
 		}
 
 		/* change the dirent to point to the correct inode */
-		status = ocfs2_journal_access(handle, new_dir, new_de_bh,
-					      OCFS2_JOURNAL_ACCESS_WRITE);
+		status = ocfs2_update_entry(new_dir, handle, new_de_bh,
+					    new_de, old_inode);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
 		}
-		new_de->inode = cpu_to_le64(OCFS2_I(old_inode)->ip_blkno);
-		new_de->file_type = old_de->file_type;
 		new_dir->i_version++;
-		status = ocfs2_journal_dirty(handle, new_de_bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
 
 		if (S_ISDIR(new_inode->i_mode))
 			newfe->i_links_count = 0;
@@ -1370,7 +1263,21 @@ static int ocfs2_rename(struct inode *old_dir,
 	} else
 		mlog_errno(status);
 
-	/* now that the name has been added to new_dir, remove the old name */
+	/*
+	 * Now that the name has been added to new_dir, remove the old name.
+	 *
+	 * We don't keep any directory entry context around until now
+	 * because the insert might have changed the type of directory
+	 * we're dealing with.
+	 */
+	old_de_bh = ocfs2_find_entry(old_dentry->d_name.name,
+				     old_dentry->d_name.len,
+				     old_dir, &old_de);
+	if (!old_de_bh) {
+		status = -EIO;
+		goto bail;
+	}
+
 	status = ocfs2_delete_entry(handle, old_dir, old_de, old_de_bh);
 	if (status < 0) {
 		mlog_errno(status);
@@ -1383,12 +1290,8 @@ static int ocfs2_rename(struct inode *old_dir,
 	}
 	old_dir->i_ctime = old_dir->i_mtime = CURRENT_TIME;
 	if (old_inode_de_bh) {
-		status = ocfs2_journal_access(handle, old_inode,
-					     old_inode_de_bh,
-					     OCFS2_JOURNAL_ACCESS_WRITE);
-		PARENT_INO(old_inode_de_bh->b_data) =
-			cpu_to_le64(OCFS2_I(new_dir)->ip_blkno);
-		status = ocfs2_journal_dirty(handle, old_inode_de_bh);
+		status = ocfs2_update_entry(old_inode, handle, old_inode_de_bh,
+					    old_inode_dot_dot_de, new_dir);
 		old_dir->i_nlink--;
 		if (new_inode) {
 			new_inode->i_nlink--;
@@ -1765,329 +1668,6 @@ bail:
 	mlog_exit(status);
 
 	return status;
-}
-
-int ocfs2_check_dir_entry(struct inode * dir,
-			  struct ocfs2_dir_entry * de,
-			  struct buffer_head * bh,
-			  unsigned long offset)
-{
-	const char *error_msg = NULL;
-	const int rlen = le16_to_cpu(de->rec_len);
-
-	if (rlen < OCFS2_DIR_REC_LEN(1))
-		error_msg = "rec_len is smaller than minimal";
-	else if (rlen % 4 != 0)
-		error_msg = "rec_len % 4 != 0";
-	else if (rlen < OCFS2_DIR_REC_LEN(de->name_len))
-		error_msg = "rec_len is too small for name_len";
-	else if (((char *) de - bh->b_data) + rlen > dir->i_sb->s_blocksize)
-		error_msg = "directory entry across blocks";
-
-	if (error_msg != NULL)
-		mlog(ML_ERROR, "bad entry in directory #%llu: %s - "
-		     "offset=%lu, inode=%llu, rec_len=%d, name_len=%d\n",
-		     (unsigned long long)OCFS2_I(dir)->ip_blkno, error_msg,
-		     offset, (unsigned long long)le64_to_cpu(de->inode), rlen,
-		     de->name_len);
-	return error_msg == NULL ? 1 : 0;
-}
-
-/* we don't always have a dentry for what we want to add, so people
- * like orphan dir can call this instead.
- *
- * If you pass me insert_bh, I'll skip the search of the other dir
- * blocks and put the record in there.
- */
-static int __ocfs2_add_entry(handle_t *handle,
-			     struct inode *dir,
-			     const char *name, int namelen,
-			     struct inode *inode, u64 blkno,
-			     struct buffer_head *parent_fe_bh,
-			     struct buffer_head *insert_bh)
-{
-	unsigned long offset;
-	unsigned short rec_len;
-	struct ocfs2_dir_entry *de, *de1;
-	struct super_block *sb;
-	int retval, status;
-
-	mlog_entry_void();
-
-	sb = dir->i_sb;
-
-	if (!namelen)
-		return -EINVAL;
-
-	rec_len = OCFS2_DIR_REC_LEN(namelen);
-	offset = 0;
-	de = (struct ocfs2_dir_entry *) insert_bh->b_data;
-	while (1) {
-		BUG_ON((char *)de >= sb->s_blocksize + insert_bh->b_data);
-		/* These checks should've already been passed by the
-		 * prepare function, but I guess we can leave them
-		 * here anyway. */
-		if (!ocfs2_check_dir_entry(dir, de, insert_bh, offset)) {
-			retval = -ENOENT;
-			goto bail;
-		}
-		if (ocfs2_match(namelen, name, de)) {
-			retval = -EEXIST;
-			goto bail;
-		}
-		if (((le64_to_cpu(de->inode) == 0) &&
-		     (le16_to_cpu(de->rec_len) >= rec_len)) ||
-		    (le16_to_cpu(de->rec_len) >=
-		     (OCFS2_DIR_REC_LEN(de->name_len) + rec_len))) {
-			dir->i_mtime = dir->i_ctime = CURRENT_TIME;
-			retval = ocfs2_mark_inode_dirty(handle, dir, parent_fe_bh);
-			if (retval < 0) {
-				mlog_errno(retval);
-				goto bail;
-			}
-
-			status = ocfs2_journal_access(handle, dir, insert_bh,
-						      OCFS2_JOURNAL_ACCESS_WRITE);
-			/* By now the buffer is marked for journaling */
-			offset += le16_to_cpu(de->rec_len);
-			if (le64_to_cpu(de->inode)) {
-				de1 = (struct ocfs2_dir_entry *)((char *) de +
-					OCFS2_DIR_REC_LEN(de->name_len));
-				de1->rec_len =
-					cpu_to_le16(le16_to_cpu(de->rec_len) -
-					OCFS2_DIR_REC_LEN(de->name_len));
-				de->rec_len = cpu_to_le16(OCFS2_DIR_REC_LEN(de->name_len));
-				de = de1;
-			}
-			de->file_type = OCFS2_FT_UNKNOWN;
-			if (blkno) {
-				de->inode = cpu_to_le64(blkno);
-				ocfs2_set_de_type(de, inode->i_mode);
-			} else
-				de->inode = 0;
-			de->name_len = namelen;
-			memcpy(de->name, name, namelen);
-
-			dir->i_version++;
-			status = ocfs2_journal_dirty(handle, insert_bh);
-			retval = 0;
-			goto bail;
-		}
-		offset += le16_to_cpu(de->rec_len);
-		de = (struct ocfs2_dir_entry *) ((char *) de + le16_to_cpu(de->rec_len));
-	}
-
-	/* when you think about it, the assert above should prevent us
-	 * from ever getting here. */
-	retval = -ENOSPC;
-bail:
-
-	mlog_exit(retval);
-	return retval;
-}
-
-
-/*
- * ocfs2_delete_entry deletes a directory entry by merging it with the
- * previous entry
- */
-static int ocfs2_delete_entry(handle_t *handle,
-			      struct inode *dir,
-			      struct ocfs2_dir_entry *de_del,
-			      struct buffer_head *bh)
-{
-	struct ocfs2_dir_entry *de, *pde;
-	int i, status = -ENOENT;
-
-	mlog_entry("(0x%p, 0x%p, 0x%p, 0x%p)\n", handle, dir, de_del, bh);
-
-	i = 0;
-	pde = NULL;
-	de = (struct ocfs2_dir_entry *) bh->b_data;
-	while (i < bh->b_size) {
-		if (!ocfs2_check_dir_entry(dir, de, bh, i)) {
-			status = -EIO;
-			mlog_errno(status);
-			goto bail;
-		}
-		if (de == de_del)  {
-			status = ocfs2_journal_access(handle, dir, bh,
-						      OCFS2_JOURNAL_ACCESS_WRITE);
-			if (status < 0) {
-				status = -EIO;
-				mlog_errno(status);
-				goto bail;
-			}
-			if (pde)
-				pde->rec_len =
-					cpu_to_le16(le16_to_cpu(pde->rec_len) +
-						    le16_to_cpu(de->rec_len));
-			else
-				de->inode = 0;
-			dir->i_version++;
-			status = ocfs2_journal_dirty(handle, bh);
-			goto bail;
-		}
-		i += le16_to_cpu(de->rec_len);
-		pde = de;
-		de = (struct ocfs2_dir_entry *)((char *)de + le16_to_cpu(de->rec_len));
-	}
-bail:
-	mlog_exit(status);
-	return status;
-}
-
-/*
- * Returns 0 if not found, -1 on failure, and 1 on success
- */
-static int inline ocfs2_search_dirblock(struct buffer_head *bh,
-					struct inode *dir,
-					const char *name, int namelen,
-					unsigned long offset,
-					struct ocfs2_dir_entry **res_dir)
-{
-	struct ocfs2_dir_entry *de;
-	char *dlimit, *de_buf;
-	int de_len;
-	int ret = 0;
-
-	mlog_entry_void();
-
-	de_buf = bh->b_data;
-	dlimit = de_buf + dir->i_sb->s_blocksize;
-
-	while (de_buf < dlimit) {
-		/* this code is executed quadratically often */
-		/* do minimal checking `by hand' */
-
-		de = (struct ocfs2_dir_entry *) de_buf;
-
-		if (de_buf + namelen <= dlimit &&
-		    ocfs2_match(namelen, name, de)) {
-			/* found a match - just to be sure, do a full check */
-			if (!ocfs2_check_dir_entry(dir, de, bh, offset)) {
-				ret = -1;
-				goto bail;
-			}
-			*res_dir = de;
-			ret = 1;
-			goto bail;
-		}
-
-		/* prevent looping on a bad block */
-		de_len = le16_to_cpu(de->rec_len);
-		if (de_len <= 0) {
-			ret = -1;
-			goto bail;
-		}
-
-		de_buf += de_len;
-		offset += de_len;
-	}
-
-bail:
-	mlog_exit(ret);
-	return ret;
-}
-
-struct buffer_head *ocfs2_find_entry(const char *name, int namelen,
-				     struct inode *dir,
-				     struct ocfs2_dir_entry **res_dir)
-{
-	struct super_block *sb;
-	struct buffer_head *bh_use[NAMEI_RA_SIZE];
-	struct buffer_head *bh, *ret = NULL;
-	unsigned long start, block, b;
-	int ra_max = 0;		/* Number of bh's in the readahead
-				   buffer, bh_use[] */
-	int ra_ptr = 0;		/* Current index into readahead
-				   buffer */
-	int num = 0;
-	int nblocks, i, err;
-
-	mlog_entry_void();
-
-	*res_dir = NULL;
-	sb = dir->i_sb;
-
-	nblocks = i_size_read(dir) >> sb->s_blocksize_bits;
-	start = OCFS2_I(dir)->ip_dir_start_lookup;
-	if (start >= nblocks)
-		start = 0;
-	block = start;
-
-restart:
-	do {
-		/*
-		 * We deal with the read-ahead logic here.
-		 */
-		if (ra_ptr >= ra_max) {
-			/* Refill the readahead buffer */
-			ra_ptr = 0;
-			b = block;
-			for (ra_max = 0; ra_max < NAMEI_RA_SIZE; ra_max++) {
-				/*
-				 * Terminate if we reach the end of the
-				 * directory and must wrap, or if our
-				 * search has finished at this block.
-				 */
-				if (b >= nblocks || (num && block == start)) {
-					bh_use[ra_max] = NULL;
-					break;
-				}
-				num++;
-
-				bh = ocfs2_bread(dir, b++, &err, 1);
-				bh_use[ra_max] = bh;
-			}
-		}
-		if ((bh = bh_use[ra_ptr++]) == NULL)
-			goto next;
-		wait_on_buffer(bh);
-		if (!buffer_uptodate(bh)) {
-			/* read error, skip block & hope for the best */
-			ocfs2_error(dir->i_sb, "reading directory %llu, "
-				    "offset %lu\n",
-				    (unsigned long long)OCFS2_I(dir)->ip_blkno,
-				    block);
-			brelse(bh);
-			goto next;
-		}
-		i = ocfs2_search_dirblock(bh, dir, name, namelen,
-					  block << sb->s_blocksize_bits,
-					  res_dir);
-		if (i == 1) {
-			OCFS2_I(dir)->ip_dir_start_lookup = block;
-			ret = bh;
-			goto cleanup_and_exit;
-		} else {
-			brelse(bh);
-			if (i < 0)
-				goto cleanup_and_exit;
-		}
-	next:
-		if (++block >= nblocks)
-			block = 0;
-	} while (block != start);
-
-	/*
-	 * If the directory has grown while we were searching, then
-	 * search the last part of the directory before giving up.
-	 */
-	block = nblocks;
-	nblocks = i_size_read(dir) >> sb->s_blocksize_bits;
-	if (block < nblocks) {
-		start = 0;
-		goto restart;
-	}
-
-cleanup_and_exit:
-	/* Clean up the read-ahead blocks */
-	for (; ra_ptr < ra_max; ra_ptr++)
-		brelse(bh_use[ra_ptr]);
-
-	mlog_exit_ptr(ret);
-	return ret;
 }
 
 static int ocfs2_blkno_stringify(u64 blkno, char *name)
