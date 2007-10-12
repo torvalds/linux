@@ -7807,9 +7807,10 @@ static struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 };
 
 static struct hda_input_mux alc262_fujitsu_capture_source = {
-	.num_items = 2,
+	.num_items = 3,
 	.items = {
 		{ "Mic", 0x0 },
+		{ "Int Mic", 0x1 },
 		{ "CD", 0x4 },
 	},
 };
@@ -7915,6 +7916,9 @@ static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
 	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -8411,7 +8415,8 @@ static struct alc_config_preset alc262_presets[] = {
 	},
 	[ALC262_FUJITSU] = {
 		.mixers = { alc262_fujitsu_mixer },
-		.init_verbs = { alc262_init_verbs, alc262_fujitsu_unsol_verbs },
+		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs,
+				alc262_fujitsu_unsol_verbs },
 		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
 		.dac_nids = alc262_dac_nids,
 		.hp_nid = 0x03,
