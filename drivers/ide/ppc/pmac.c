@@ -6,6 +6,7 @@
  * for doing DMA.
  *
  *  Copyright (C) 1998-2003 Paul Mackerras & Ben. Herrenschmidt
+ *  Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -311,7 +312,8 @@ static struct kauai_timing	kauai_pio_timings[] =
 	{ 240	, 0x0800038b },
 	{ 239	, 0x0800030c },
 	{ 180	, 0x05000249 },
-	{ 120	, 0x04000148 }
+	{ 120	, 0x04000148 },
+	{ 0	, 0 },
 };
 
 static struct kauai_timing	kauai_mdma_timings[] =
@@ -351,7 +353,8 @@ static struct kauai_timing	shasta_pio_timings[] =
 	{ 240	, 0x040003cd },
 	{ 239	, 0x040003cd },
 	{ 180	, 0x0400028b },
-	{ 120	, 0x0400010a }
+	{ 120	, 0x0400010a },
+	{ 0	, 0 },
 };
 
 static struct kauai_timing	shasta_mdma_timings[] =
@@ -411,8 +414,6 @@ kauai_lookup_timing(struct kauai_timing* table, int cycle_time)
 
 static void pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif);
 static int pmac_ide_build_dmatable(ide_drive_t *drive, struct request *rq);
-static int pmac_ide_tune_chipset(ide_drive_t *drive, u8 speed);
-static void pmac_ide_tuneproc(ide_drive_t *drive, u8 pio);
 static void pmac_ide_selectproc(ide_drive_t *drive);
 static void pmac_ide_kauai_selectproc(ide_drive_t *drive);
 
@@ -616,7 +617,7 @@ out:
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
 static void
-pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
+pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	u32 *timings;
 	unsigned accessTicks, recTicks;
@@ -630,7 +631,6 @@ pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 	/* which drive is it ? */
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
 
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	cycle_time = ide_pio_cycle_time(drive, pio);
 
 	switch (pmif->kind) {
@@ -698,8 +698,10 @@ pmac_ide_tuneproc(ide_drive_t *drive, u8 pio)
 		drive->name, pio,  *timings);
 #endif	
 
-	if (drive->select.all == HWIF(drive)->INB(IDE_SELECT_REG))
-		pmac_ide_do_update_timings(drive);
+	if (pmac_ide_do_setfeature(drive, XFER_PIO_0 + pio))
+		return;
+
+	pmac_ide_do_update_timings(drive);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
@@ -915,13 +917,12 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 
 /* 
  * Speedproc. This function is called by the core to set any of the standard
- * timing (PIO, MDMA or UDMA) to both the drive and the controller.
+ * DMA timing (MDMA or UDMA) to both the drive and the controller.
  * You may notice we don't use this function on normal "dma check" operation,
  * our dedicated function is more precise as it uses the drive provided
  * cycle time value. We should probably fix this one to deal with that too...
  */
-static int
-pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
+static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	int unit = (drive->select.b.unit & 0x01);
 	int ret = 0;
@@ -937,17 +938,9 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 	switch(speed) {
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 		case XFER_UDMA_6:
-		        if (pmif->kind != controller_sh_ata6)
-				return 1;
 		case XFER_UDMA_5:
-			if (pmif->kind != controller_un_ata6 &&
-			    pmif->kind != controller_k2_ata6 &&
-			    pmif->kind != controller_sh_ata6)
-				return 1;
 		case XFER_UDMA_4:
 		case XFER_UDMA_3:
-			if (drive->hwif->cbl != ATA_CBL_PATA80)
-				return 1;
 		case XFER_UDMA_2:
 		case XFER_UDMA_1:
 		case XFER_UDMA_0:
@@ -971,13 +964,6 @@ pmac_ide_tune_chipset (ide_drive_t *drive, byte speed)
 		case XFER_SW_DMA_0:
 			return 1;
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			pmac_ide_tuneproc(drive, speed & 0x07);
-			break;
 		default:
 			ret = 1;
 	}
@@ -1251,7 +1237,7 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	hwif->drives[0].unmask = 1;
 	hwif->drives[1].unmask = 1;
 	hwif->pio_mask = ATA_PIO4;
-	hwif->tuneproc = pmac_ide_tuneproc;
+	hwif->set_pio_mode = pmac_ide_set_pio_mode;
 	if (pmif->kind == controller_un_ata6
 	    || pmif->kind == controller_k2_ata6
 	    || pmif->kind == controller_sh_ata6)

@@ -780,12 +780,6 @@ int ide_driveid_update (ide_drive_t *drive)
 
 /*
  * Similar to ide_wait_stat(), except it never calls ide_error internally.
- * This is a kludge to handle the new ide_config_drive_speed() function,
- * and should not otherwise be used anywhere.  Eventually, the tuneproc's
- * should be updated to return ide_startstop_t, in which case we can get
- * rid of this abomination again.  :)   -ml
- *
- * It is gone..........
  *
  * const char *msg == consider adding for verbose errors.
  */

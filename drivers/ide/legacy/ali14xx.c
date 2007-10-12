@@ -68,8 +68,6 @@ static RegInitializer initData[] __initdata = {
 	{0x35, 0x03}, {0x00, 0x00}
 };
 
-#define ALI_MAX_PIO 4
-
 /* timing parameter registers for each drive */
 static struct { u8 reg1, reg2, reg3, reg4; } regTab[4] = {
 	{0x03, 0x26, 0x04, 0x27},     /* drive 0 */
@@ -109,15 +107,13 @@ static void outReg (u8 data, u8 reg)
  * This function computes timing parameters
  * and sets controller registers accordingly.
  */
-static void ali14xx_tune_drive (ide_drive_t *drive, u8 pio)
+static void ali14xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	int driveNum;
 	int time1, time2;
 	u8 param1, param2, param3, param4;
 	unsigned long flags;
 	int bus_speed = system_bus_clock();
-
-	pio = ide_get_best_pio_mode(drive, pio, ALI_MAX_PIO);
 
 	/* calculate timing, according to PIO mode */
 	time1 = ide_pio_cycle_time(drive, pio);
@@ -212,12 +208,12 @@ static int __init ali14xx_probe(void)
 
 	hwif->chipset = ide_ali14xx;
 	hwif->pio_mask = ATA_PIO4;
-	hwif->tuneproc = &ali14xx_tune_drive;
+	hwif->set_pio_mode = &ali14xx_set_pio_mode;
 	hwif->mate = mate;
 
 	mate->chipset = ide_ali14xx;
 	mate->pio_mask = ATA_PIO4;
-	mate->tuneproc = &ali14xx_tune_drive;
+	mate->set_pio_mode = &ali14xx_set_pio_mode;
 	mate->mate = hwif;
 	mate->channel = 1;
 

@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/alim15x3.c		Version 0.25	Jun 9 2007
+ * linux/drivers/ide/pci/alim15x3.c		Version 0.26	Jul 14 2007
  *
  *  Copyright (C) 1998-2000 Michel Aubry, Maintainer
  *  Copyright (C) 1998-2000 Andrzej Krzysztofowicz, Maintainer
@@ -283,17 +283,14 @@ static int ali_get_info (char *buffer, char **addr, off_t offset, int count)
 #endif  /* defined(DISPLAY_ALI_TIMINGS) && defined(CONFIG_IDE_PROC_FS) */
 
 /**
- *	ali15x3_tune_pio	-	set up chipset for PIO mode
- *	@drive: drive to tune
- *	@pio: desired mode
+ *	ali_tune_pio	-	set host controller for PIO mode
+ *	@drive: drive
+ *	@pio: PIO mode number
  *
- *	Select the best PIO mode for the drive in question.
- *	Then program the controller for this mode.
- *
- *	Returns the PIO mode programmed.
+ *	Program the controller for the given PIO mode.
  */
- 
-static u8 ali15x3_tune_pio (ide_drive_t *drive, u8 pio)
+
+static void ali_tune_pio(ide_drive_t *drive, const u8 pio)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = hwif->pci_dev;
@@ -306,7 +303,6 @@ static u8 ali15x3_tune_pio (ide_drive_t *drive, u8 pio)
 	u8 cd_dma_fifo = 0;
 	int unit = drive->select.b.unit & 1;
 
-	pio = ide_get_best_pio_mode(drive, pio, 5);
 	s_time = ide_pio_timings[pio].setup_time;
 	a_time = ide_pio_timings[pio].active_time;
 	if ((s_clc = (s_time * bus_speed + 999) / 1000) >= 8)
@@ -359,22 +355,20 @@ static u8 ali15x3_tune_pio (ide_drive_t *drive, u8 pio)
 	 * { 25,   70,     25  },   PIO Mode 4 with IORDY  ns
 	 * { 20,   50,     30  }    PIO Mode 5 with IORDY (nonstandard)
 	 */
-
-	return pio;
 }
 
 /**
- *	ali15x3_tune_drive	-	set up drive for PIO mode
+ *	ali_set_pio_mode	-	set up drive for PIO mode
  *	@drive: drive to tune
  *	@pio: desired mode
  *
- *	Program the controller with the best PIO timing for the given drive.
+ *	Program the controller with the desired PIO timing for the given drive.
  *	Then set up the drive itself.
  */
 
-static void ali15x3_tune_drive (ide_drive_t *drive, u8 pio)
+static void ali_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ali15x3_tune_pio(drive, pio);
+	ali_tune_pio(drive, pio);
 	(void) ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
@@ -409,21 +403,23 @@ static u8 ali_udma_filter(ide_drive_t *drive)
 /**
  *	ali15x3_tune_chipset	-	set up chipset/drive for new speed
  *	@drive: drive to configure for
- *	@xferspeed: desired speed
+ *	@speed: desired speed
  *
  *	Configure the hardware for the desired IDE transfer mode.
  *	We also do the needed drive configuration through helpers
  */
- 
-static int ali15x3_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+
+static int ali15x3_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-	u8 speed		= ide_rate_filter(drive, xferspeed);
 	u8 speed1		= speed;
 	u8 unit			= (drive->select.b.unit & 0x01);
 	u8 tmpbyte		= 0x00;
 	int m5229_udma		= (hwif->channel) ? 0x57 : 0x56;
+
+	if (speed < XFER_PIO_0)
+		return 1;
 
 	if (speed == XFER_UDMA_6)
 		speed1 = 0x47;
@@ -437,8 +433,9 @@ static int ali15x3_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		tmpbyte &= ultra_enable;
 		pci_write_config_byte(dev, m5229_udma, tmpbyte);
 
-		if (speed < XFER_SW_DMA_0)
-			(void) ali15x3_tune_pio(drive, speed - XFER_PIO_0);
+		/*
+		 * FIXME: Oh, my... DMA timings are never set.
+		 */
 	} else {
 		pci_read_config_byte(dev, m5229_udma, &tmpbyte);
 		tmpbyte &= (0x0f << ((1-unit) << 2));
@@ -471,7 +468,7 @@ static int ali15x3_config_drive_for_dma(ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	ali15x3_tune_drive(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -701,7 +698,7 @@ static u8 __devinit ata66_ali15x3(ide_hwif_t *hwif)
 static void __devinit init_hwif_common_ali15x3 (ide_hwif_t *hwif)
 {
 	hwif->autodma = 0;
-	hwif->tuneproc = &ali15x3_tune_drive;
+	hwif->set_pio_mode = &ali_set_pio_mode;
 	hwif->speedproc = &ali15x3_tune_chipset;
 	hwif->udma_filter = &ali_udma_filter;
 

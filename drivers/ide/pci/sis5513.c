@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/sis5513.c	Version 0.25	Jun 10, 2007
+ * linux/drivers/ide/pci/sis5513.c	Version 0.27	Jul 14, 2007
  *
  * Copyright (C) 1999-2000	Andre Hedrick <andre@linux-ide.org>
  * Copyright (C) 2002		Lionel Bouton <Lionel.Bouton@inet6.fr>, Maintainer
@@ -519,27 +519,18 @@ static void config_art_rwp_pio (ide_drive_t *drive, u8 pio)
 	}
 }
 
-static int sis5513_tune_drive(ide_drive_t *drive, u8 pio)
+static void sis_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	config_art_rwp_pio(drive, pio);
-	return ide_config_drive_speed(drive, XFER_PIO_0 + pio);
+	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static void sis5513_tuneproc(ide_drive_t *drive, u8 pio)
-{
-	(void)sis5513_tune_drive(drive, pio);
-}
-
-static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
+static int sis5513_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
-
-	u8 drive_pci, reg, speed;
 	u32 regdw;
-
-	speed = ide_rate_filter(drive, xferspeed);
+	u8 drive_pci, reg;
 
 	/* See config_art_rwp_pio for drive pci config registers */
 	drive_pci = 0x40;
@@ -582,9 +573,6 @@ static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 					regdw |= (unsigned long)cycle_time_value[ATA_133][speed-XFER_UDMA_0] << 4;
 					regdw |= (unsigned long)cvs_time_value[ATA_133][speed-XFER_UDMA_0] << 8;
 				} else {
-				/* if ATA133 disable, we should not set speed above UDMA5 */
-					if (speed > XFER_UDMA_5)
-						speed = XFER_UDMA_5;
 					regdw |= (unsigned long)cycle_time_value[ATA_100][speed-XFER_UDMA_0] << 4;
 					regdw |= (unsigned long)cvs_time_value[ATA_100][speed-XFER_UDMA_0] << 8;
 				}
@@ -608,12 +596,6 @@ static int sis5513_tune_chipset (ide_drive_t *drive, u8 xferspeed)
 		case XFER_SW_DMA_1:
 		case XFER_SW_DMA_0:
 			break;
-		case XFER_PIO_4:
-		case XFER_PIO_3:
-		case XFER_PIO_2:
-		case XFER_PIO_1:
-		case XFER_PIO_0:
-			return sis5513_tune_drive(drive, speed - XFER_PIO_0);
 		default:
 			BUG();
 			break;
@@ -627,7 +609,7 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 	/*
 	 * TODO: always set PIO mode and remove this
 	 */
-	sis5513_tuneproc(drive, 255);
+	ide_set_max_pio(drive);
 
 	drive->init_speed = 0;
 
@@ -635,9 +617,23 @@ static int sis5513_config_xfer_rate(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		sis5513_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
+}
+
+static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)
+{
+	struct pci_dev *dev = drive->hwif->pci_dev;
+	int drive_pci;
+	u32 reg54 = 0, regdw = 0;
+
+	pci_read_config_dword(dev, 0x54, &reg54);
+	drive_pci = ((reg54 & 0x40000000) ? 0x70 : 0x40) + drive->dn * 4;
+	pci_read_config_dword(dev, drive_pci, &regdw);
+
+	/* if ATA133 disable, we should not set speed above UDMA5 */
+	return (regdw & 0x08) ? ATA_UDMA6 : ATA_UDMA5;
 }
 
 /* Chip detection and general config */
@@ -844,8 +840,11 @@ static void __devinit init_hwif_sis5513 (ide_hwif_t *hwif)
 	if (!hwif->irq)
 		hwif->irq = hwif->channel ? 15 : 14;
 
-	hwif->tuneproc = &sis5513_tuneproc;
+	hwif->set_pio_mode = &sis_set_pio_mode;
 	hwif->speedproc = &sis5513_tune_chipset;
+
+	if (chipset_family >= ATA_133)
+		hwif->udma_filter = sis5513_ata133_udma_filter;
 
 	if (!(hwif->dma_base)) {
 		hwif->drives[0].autotune = 1;

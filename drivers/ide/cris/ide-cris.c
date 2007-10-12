@@ -680,11 +680,9 @@ static void cris_dma_off(ide_drive_t *drive)
 {
 }
 
-static void tune_cris_ide(ide_drive_t *drive, u8 pio)
+static void cris_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	int setup, strobe, hold;
-
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 
 	switch(pio)
 	{
@@ -722,14 +720,9 @@ static void tune_cris_ide(ide_drive_t *drive, u8 pio)
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
 
-static int speed_cris_ide(ide_drive_t *drive, u8 speed)
+static int speed_cris_ide(ide_drive_t *drive, const u8 speed)
 {
 	int cyc = 0, dvs = 0, strobe = 0, hold = 0;
-
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		tune_cris_ide(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
 
 	switch(speed)
 	{
@@ -797,7 +790,7 @@ init_e100_ide (void)
 		ide_register_hw(&hw, 1, &hwif);
 		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
-		hwif->tuneproc = &tune_cris_ide;
+		hwif->set_pio_mode = &cris_set_pio_mode;
 		hwif->speedproc = &speed_cris_ide;
 		hwif->ata_input_data = &cris_ide_input_data;
 		hwif->ata_output_data = &cris_ide_output_data;

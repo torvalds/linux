@@ -634,7 +634,7 @@ typedef struct ide_drive_s {
 
 	unsigned int	bios_cyl;	/* BIOS/fdisk/LILO number of cyls */
 	unsigned int	cyl;		/* "real" number of cyls */
-	unsigned int	drive_data;	/* use by tuneproc/selectproc */
+	unsigned int	drive_data;	/* used by set_pio_mode/selectproc */
 	unsigned int	failures;	/* current failure count */
 	unsigned int	max_failures;	/* maximum allowed failure count */
 	u64		probed_capacity;/* initial reported media capacity (ide-cd only currently) */
@@ -702,10 +702,10 @@ typedef struct hwif_s {
 #if 0
 	ide_hwif_ops_t	*hwifops;
 #else
-	/* routine to tune PIO mode for drives */
-	void	(*tuneproc)(ide_drive_t *, u8);
+	/* routine to set PIO mode for drives */
+	void	(*set_pio_mode)(ide_drive_t *, const u8);
 	/* routine to retune DMA modes for drives */
-	int	(*speedproc)(ide_drive_t *, u8);
+	int	(*speedproc)(ide_drive_t *, const u8);
 	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
 	/* chipset polling based on hba specifics */
@@ -723,6 +723,7 @@ typedef struct hwif_s {
 	/* driver soft-power interface */
 	int	(*busproc)(ide_drive_t *, int);
 #endif
+	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
@@ -1255,6 +1256,12 @@ enum {
 	IDE_HFLAG_PIO_NO_BLACKLIST	= (1 << 2),
 	/* don't use conservative PIO "downgrade" */
 	IDE_HFLAG_PIO_NO_DOWNGRADE	= (1 << 3),
+	/* use PIO8/9 for prefetch off/on */
+	IDE_HFLAG_ABUSE_PREFETCH	= (1 << 4),
+	/* use PIO6/7 for fast-devsel off/on */
+	IDE_HFLAG_ABUSE_FAST_DEVSEL	= (1 << 5),
+	/* use 100-102 and 200-202 PIO values to set DMA modes */
+	IDE_HFLAG_ABUSE_DMA_MODES	= (1 << 6),
 };
 
 typedef struct ide_pci_device_s {
@@ -1295,7 +1302,14 @@ int ide_in_drive_list(struct hd_driveid *, const struct drive_list_entry *);
 #ifdef CONFIG_BLK_DEV_IDEDMA
 int __ide_dma_bad_drive(ide_drive_t *);
 int __ide_dma_good_drive(ide_drive_t *);
-u8 ide_max_dma_mode(ide_drive_t *);
+
+u8 ide_find_dma_mode(ide_drive_t *, u8);
+
+static inline u8 ide_max_dma_mode(ide_drive_t *drive)
+{
+	return ide_find_dma_mode(drive, XFER_UDMA_6);
+}
+
 int ide_tune_dma(ide_drive_t *);
 void ide_dma_off(ide_drive_t *);
 void ide_dma_verbose(ide_drive_t *);
@@ -1321,6 +1335,7 @@ extern void ide_dma_timeout(ide_drive_t *);
 #endif /* CONFIG_BLK_DEV_IDEDMA_PCI */
 
 #else
+static inline u8 ide_find_dma_mode(ide_drive_t *drive, u8 speed) { return 0; }
 static inline u8 ide_max_dma_mode(ide_drive_t *drive) { return 0; }
 static inline int ide_tune_dma(ide_drive_t *drive) { return 0; }
 static inline void ide_dma_off(ide_drive_t *drive) { ; }
@@ -1337,11 +1352,13 @@ extern int ide_acpi_exec_tfs(ide_drive_t *drive);
 extern void ide_acpi_get_timing(ide_hwif_t *hwif);
 extern void ide_acpi_push_timing(ide_hwif_t *hwif);
 extern void ide_acpi_init(ide_hwif_t *hwif);
+extern void ide_acpi_set_state(ide_hwif_t *hwif, int on);
 #else
 static inline int ide_acpi_exec_tfs(ide_drive_t *drive) { return 0; }
 static inline void ide_acpi_get_timing(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_push_timing(ide_hwif_t *hwif) { ; }
 static inline void ide_acpi_init(ide_hwif_t *hwif) { ; }
+static inline void ide_acpi_set_state(ide_hwif_t *hwif, int on) {}
 #endif
 
 extern int ide_hwif_request_regions(ide_hwif_t *hwif);
@@ -1367,7 +1384,6 @@ static inline void ide_set_hwifdata (ide_hwif_t * hwif, void *data)
 }
 
 /* ide-lib.c */
-u8 ide_rate_filter(ide_drive_t *, u8);
 extern char *ide_xfer_verbose(u8 xfer_rate);
 extern void ide_toggle_bounce(ide_drive_t *drive, int on);
 extern int ide_set_xfer_rate(ide_drive_t *drive, u8 rate);
@@ -1404,6 +1420,12 @@ unsigned int ide_pio_cycle_time(ide_drive_t *, u8);
 u8 ide_get_best_pio_mode(ide_drive_t *, u8, u8);
 extern const ide_pio_timings_t ide_pio_timings[6];
 
+void ide_set_pio(ide_drive_t *, u8);
+
+static inline void ide_set_max_pio(ide_drive_t *drive)
+{
+	ide_set_pio(drive, 255);
+}
 
 extern spinlock_t ide_lock;
 extern struct mutex ide_cfg_mtx;

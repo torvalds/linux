@@ -153,9 +153,8 @@ static void atiixp_tune_pio(ide_drive_t *drive, u8 pio)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
-static void atiixp_tuneproc(ide_drive_t *drive, u8 pio)
+static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	atiixp_tune_pio(drive, pio);
 	(void)ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -163,28 +162,21 @@ static void atiixp_tuneproc(ide_drive_t *drive, u8 pio)
 /**
  *	atiixp_tune_chipset	-	tune a ATIIXP interface
  *	@drive: IDE drive to tune
- *	@xferspeed: speed to configure
+ *	@speed: speed to configure
  *
  *	Set a ATIIXP interface channel to the desired speeds. This involves
  *	requires the right timing data into the ATIIXP configuration space
  *	then setting the drive parameters appropriately
  */
 
-static int atiixp_speedproc(ide_drive_t *drive, u8 xferspeed)
+static int atiixp_speedproc(ide_drive_t *drive, const u8 speed)
 {
 	struct pci_dev *dev = drive->hwif->pci_dev;
 	unsigned long flags;
 	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
 	u32 tmp32;
 	u16 tmp16;
-	u8 speed, pio;
-
-	speed = ide_rate_filter(drive, xferspeed);
-
-	if (speed >= XFER_PIO_0 && speed <= XFER_PIO_4) {
-		atiixp_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
-	}
+	u8 pio;
 
 	spin_lock_irqsave(&atiixp_lock, flags);
 
@@ -233,7 +225,7 @@ static int atiixp_dma_check(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		atiixp_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -256,7 +248,7 @@ static void __devinit init_hwif_atiixp(ide_hwif_t *hwif)
 		hwif->irq = ch ? 15 : 14;
 
 	hwif->autodma = 0;
-	hwif->tuneproc = &atiixp_tuneproc;
+	hwif->set_pio_mode = &atiixp_set_pio_mode;
 	hwif->speedproc = &atiixp_speedproc;
 	hwif->drives[0].autotune = 1;
 	hwif->drives[1].autotune = 1;
@@ -325,7 +317,7 @@ static struct pci_device_id atiixp_pci_tbl[] = {
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP300_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP400_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP600_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
-	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 1},
+	{ PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_IXP700_IDE, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, atiixp_pci_tbl);

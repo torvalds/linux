@@ -221,9 +221,8 @@ static void scc_tune_pio(ide_drive_t *drive, const u8 pio)
 	out_be32((void __iomem *)pioct_port, reg);
 }
 
-static void scc_tuneproc(ide_drive_t *drive, u8 pio)
+static void scc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	scc_tune_pio(drive, pio);
 	ide_config_drive_speed(drive, XFER_PIO_0 + pio);
 }
@@ -231,16 +230,15 @@ static void scc_tuneproc(ide_drive_t *drive, u8 pio)
 /**
  *	scc_tune_chipset	-	tune a drive DMA mode
  *	@drive: Drive to set up
- *	@xferspeed: speed we want to achieve
+ *	@speed: speed we want to achieve
  *
  *	Load the timing settings for this device mode into the
  *	controller.
  */
 
-static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
+static int scc_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	u8 speed = ide_rate_filter(drive, xferspeed);
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
 	unsigned long ctl_base = ports->ctl;
 	unsigned long cckctrl_port = ctl_base + 0xff0;
@@ -272,13 +270,6 @@ static int scc_tune_chipset(ide_drive_t *drive, byte xferspeed)
 	case XFER_UDMA_0:
 		idx = speed - XFER_UDMA_0;
 		break;
-	case XFER_PIO_4:
-	case XFER_PIO_3:
-	case XFER_PIO_2:
-	case XFER_PIO_1:
-	case XFER_PIO_0:
-		scc_tune_pio(drive, speed - XFER_PIO_0);
-		return ide_config_drive_speed(drive, speed);
 	default:
 		return 1;
 	}
@@ -317,7 +308,7 @@ static int scc_config_drive_for_dma(ide_drive_t *drive)
 		return 0;
 
 	if (ide_use_fast_pio(drive))
-		scc_tuneproc(drive, 255);
+		ide_set_max_pio(drive);
 
 	return -1;
 }
@@ -718,7 +709,7 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	hwif->dma_setup = scc_dma_setup;
 	hwif->ide_dma_end = scc_ide_dma_end;
 	hwif->speedproc = scc_tune_chipset;
-	hwif->tuneproc = scc_tuneproc;
+	hwif->set_pio_mode = scc_set_pio_mode;
 	hwif->ide_dma_check = scc_config_drive_for_dma;
 	hwif->ide_dma_test_irq = scc_dma_test_irq;
 	hwif->udma_filter = scc_udma_filter;

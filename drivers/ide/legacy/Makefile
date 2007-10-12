@@ -7,6 +7,8 @@ obj-$(CONFIG_BLK_DEV_UMC8672)		+= umc8672.o
 
 obj-$(CONFIG_BLK_DEV_IDECS)		+= ide-cs.o
 
+obj-$(CONFIG_BLK_DEV_PLATFORM)		+= ide_platform.o
+
 # Last of all
 obj-$(CONFIG_BLK_DEV_HD)		+= hd.o
 

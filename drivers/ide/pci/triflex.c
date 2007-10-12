@@ -40,7 +40,7 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
-static int triflex_tune_chipset(ide_drive_t *drive, u8 xferspeed)
+static int triflex_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *dev = hwif->pci_dev;
@@ -48,7 +48,6 @@ static int triflex_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	u16 timing = 0;
 	u32 triflex_timings = 0;
 	u8 unit = (drive->select.b.unit & 0x01);
-	u8 speed = ide_rate_filter(drive, xferspeed);
 	
 	pci_read_config_dword(dev, channel_offset, &triflex_timings);
 	
@@ -94,10 +93,9 @@ static int triflex_tune_chipset(ide_drive_t *drive, u8 xferspeed)
 	return (ide_config_drive_speed(drive, speed));
 }
 
-static void triflex_tune_drive(ide_drive_t *drive, u8 pio)
+static void triflex_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	int use_pio = ide_get_best_pio_mode(drive, pio, 4);
-	(void) triflex_tune_chipset(drive, (XFER_PIO_0 + use_pio));
+	(void)triflex_tune_chipset(drive, XFER_PIO_0 + pio);
 }
 
 static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
@@ -105,14 +103,14 @@ static int triflex_config_drive_xfer_rate(ide_drive_t *drive)
 	if (ide_tune_dma(drive))
 		return 0;
 
-	triflex_tune_drive(drive, 255);
+	ide_set_max_pio(drive);
 
 	return -1;
 }
 
 static void __devinit init_hwif_triflex(ide_hwif_t *hwif)
 {
-	hwif->tuneproc = &triflex_tune_drive;
+	hwif->set_pio_mode = &triflex_set_pio_mode;
 	hwif->speedproc = &triflex_tune_chipset;
 
 	if (hwif->dma_base == 0)

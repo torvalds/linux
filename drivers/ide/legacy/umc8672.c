@@ -105,12 +105,11 @@ static void umc_set_speeds (u8 speeds[])
 		speeds[0], speeds[1], speeds[2], speeds[3]);
 }
 
-static void tune_umc (ide_drive_t *drive, u8 pio)
+static void umc_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = ide_hwifs[HWIF(drive)->index^1].hwgroup;
 
-	pio = ide_get_best_pio_mode(drive, pio, 4);
 	printk("%s: setting umc8672 to PIO mode%d (speed %d)\n",
 		drive->name, pio, pio_to_umc[pio]);
 	spin_lock_irqsave(&ide_lock, flags);
@@ -150,12 +149,12 @@ static int __init umc8672_probe(void)
 
 	hwif->chipset = ide_umc8672;
 	hwif->pio_mask = ATA_PIO4;
-	hwif->tuneproc = &tune_umc;
+	hwif->set_pio_mode = &umc_set_pio_mode;
 	hwif->mate = mate;
 
 	mate->chipset = ide_umc8672;
 	mate->pio_mask = ATA_PIO4;
-	mate->tuneproc = &tune_umc;
+	mate->set_pio_mode = &umc_set_pio_mode;
 	mate->mate = hwif;
 	mate->channel = 1;
 
