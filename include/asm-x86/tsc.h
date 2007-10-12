@@ -1,12 +1,13 @@
 /*
- * linux/include/asm-i386/tsc.h
- *
- * i386 TSC related functions
+ * x86 TSC related functions
  */
-#ifndef _ASM_i386_TSC_H
-#define _ASM_i386_TSC_H
+#ifndef _ASM_X86_TSC_H
+#define _ASM_X86_TSC_H
 
 #include <asm/processor.h>
+
+#define NS_SCALE	10 /* 2^10, carefully chosen */
+#define US_SCALE	32 /* 2^32, arbitralrily chosen */
 
 /*
  * Standard way to access the cycle counter.
@@ -71,5 +72,9 @@ int check_tsc_unstable(void);
  */
 extern void check_tsc_sync_source(int cpu);
 extern void check_tsc_sync_target(void);
+
+#ifdef CONFIG_X86_64
+extern void tsc_calibrate(void);
+#endif
 
 #endif

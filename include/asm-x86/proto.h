@@ -51,9 +51,6 @@ extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
 
-extern void stop_timer_interrupt(void);
-extern void main_timer_handler(void);
-
 extern unsigned long end_pfn_map; 
 
 extern void show_trace(struct task_struct *, struct pt_regs *, unsigned long * rsp);
@@ -90,13 +87,9 @@ extern int timer_over_8254;
 
 extern int gsi_irq_sharing(int gsi);
 
-extern void smp_local_timer_interrupt(void);
-
 extern int force_mwait;
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
-
-void i8254_timer_resume(void);
 
 #define round_up(x,y) (((x) + (y) - 1) & ~((y)-1))
 #define round_down(x,y) ((x) & ~((y)-1))

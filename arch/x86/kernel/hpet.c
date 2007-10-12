@@ -1,5 +1,6 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/hpet.h>
 #include <linux/init.h>
@@ -7,10 +8,10 @@
 #include <linux/pm.h>
 #include <linux/delay.h>
 
+#include <asm/fixmap.h>
 #include <asm/hpet.h>
+#include <asm/i8253.h>
 #include <asm/io.h>
-
-extern struct clock_event_device *global_clock_event;
 
 #define HPET_MASK	CLOCKSOURCE_MASK(32)
 #define HPET_SHIFT	22
@@ -22,9 +23,9 @@ extern struct clock_event_device *global_clock_event;
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
  */
 unsigned long hpet_address;
-static void __iomem * hpet_virt_address;
+static void __iomem *hpet_virt_address;
 
-static inline unsigned long hpet_readl(unsigned long a)
+unsigned long hpet_readl(unsigned long a)
 {
 	return readl(hpet_virt_address + a);
 }
@@ -33,6 +34,36 @@ static inline void hpet_writel(unsigned long d, unsigned long a)
 {
 	writel(d, hpet_virt_address + a);
 }
+
+#ifdef CONFIG_X86_64
+
+#include <asm/pgtable.h>
+
+static inline void hpet_set_mapping(void)
+{
+	set_fixmap_nocache(FIX_HPET_BASE, hpet_address);
+	__set_fixmap(VSYSCALL_HPET, hpet_address, PAGE_KERNEL_VSYSCALL_NOCACHE);
+	hpet_virt_address = (void __iomem *)fix_to_virt(FIX_HPET_BASE);
+}
+
+static inline void hpet_clear_mapping(void)
+{
+	hpet_virt_address = NULL;
+}
+
+#else
+
+static inline void hpet_set_mapping(void)
+{
+	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
+}
+
+static inline void hpet_clear_mapping(void)
+{
+	iounmap(hpet_virt_address);
+	hpet_virt_address = NULL;
+}
+#endif
 
 /*
  * HPET command line enable / disable
@@ -48,6 +79,13 @@ static int __init hpet_setup(char* str)
 	return 1;
 }
 __setup("hpet=", hpet_setup);
+
+static int __init disable_hpet(char *str)
+{
+	boot_hpet_disable = 1;
+	return 1;
+}
+__setup("nohpet", disable_hpet);
 
 static inline int is_hpet_capable(void)
 {
@@ -83,7 +121,7 @@ static void hpet_reserve_platform_timers(unsigned long id)
 
 	memset(&hd, 0, sizeof (hd));
 	hd.hd_phys_address = hpet_address;
-	hd.hd_address = hpet_virt_address;
+	hd.hd_address = hpet;
 	hd.hd_nirqs = nrtimers;
 	hd.hd_flags = HPET_DATA_PLATFORM;
 	hpet_reserve_timer(&hd, 0);
@@ -111,9 +149,9 @@ static void hpet_reserve_platform_timers(unsigned long id) { }
  */
 static unsigned long hpet_period;
 
-static void hpet_set_mode(enum clock_event_mode mode,
+static void hpet_legacy_set_mode(enum clock_event_mode mode,
 			  struct clock_event_device *evt);
-static int hpet_next_event(unsigned long delta,
+static int hpet_legacy_next_event(unsigned long delta,
 			   struct clock_event_device *evt);
 
 /*
@@ -122,10 +160,11 @@ static int hpet_next_event(unsigned long delta,
 static struct clock_event_device hpet_clockevent = {
 	.name		= "hpet",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_mode	= hpet_set_mode,
-	.set_next_event = hpet_next_event,
+	.set_mode	= hpet_legacy_set_mode,
+	.set_next_event = hpet_legacy_next_event,
 	.shift		= 32,
 	.irq		= 0,
+	.rating		= 50,
 };
 
 static void hpet_start_counter(void)
@@ -140,7 +179,18 @@ static void hpet_start_counter(void)
 	hpet_writel(cfg, HPET_CFG);
 }
 
-static void hpet_enable_int(void)
+static void hpet_resume_device(void)
+{
+	force_hpet_resume();
+}
+
+static void hpet_restart_counter(void)
+{
+	hpet_resume_device();
+	hpet_start_counter();
+}
+
+static void hpet_enable_legacy_int(void)
 {
 	unsigned long cfg = hpet_readl(HPET_CFG);
 
@@ -149,7 +199,39 @@ static void hpet_enable_int(void)
 	hpet_legacy_int_enabled = 1;
 }
 
-static void hpet_set_mode(enum clock_event_mode mode,
+static void hpet_legacy_clockevent_register(void)
+{
+	uint64_t hpet_freq;
+
+	/* Start HPET legacy interrupts */
+	hpet_enable_legacy_int();
+
+	/*
+	 * The period is a femto seconds value. We need to calculate the
+	 * scaled math multiplication factor for nanosecond to hpet tick
+	 * conversion.
+	 */
+	hpet_freq = 1000000000000000ULL;
+	do_div(hpet_freq, hpet_period);
+	hpet_clockevent.mult = div_sc((unsigned long) hpet_freq,
+				      NSEC_PER_SEC, 32);
+	/* Calculate the min / max delta */
+	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
+							   &hpet_clockevent);
+	hpet_clockevent.min_delta_ns = clockevent_delta2ns(0x30,
+							   &hpet_clockevent);
+
+	/*
+	 * Start hpet with the boot cpu mask and make it
+	 * global after the IO_APIC has been initialized.
+	 */
+	hpet_clockevent.cpumask = cpumask_of_cpu(smp_processor_id());
+	clockevents_register_device(&hpet_clockevent);
+	global_clock_event = &hpet_clockevent;
+	printk(KERN_DEBUG "hpet clockevent registered\n");
+}
+
+static void hpet_legacy_set_mode(enum clock_event_mode mode,
 			  struct clock_event_device *evt)
 {
 	unsigned long cfg, cmp, now;
@@ -190,12 +272,12 @@ static void hpet_set_mode(enum clock_event_mode mode,
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:
-		hpet_enable_int();
+		hpet_enable_legacy_int();
 		break;
 	}
 }
 
-static int hpet_next_event(unsigned long delta,
+static int hpet_legacy_next_event(unsigned long delta,
 			   struct clock_event_device *evt)
 {
 	unsigned long cnt;
@@ -215,6 +297,13 @@ static cycle_t read_hpet(void)
 	return (cycle_t)hpet_readl(HPET_COUNTER);
 }
 
+#ifdef CONFIG_X86_64
+static cycle_t __vsyscall_fn vread_hpet(void)
+{
+	return readl((const void __iomem *)fix_to_virt(VSYSCALL_HPET) + 0xf0);
+}
+#endif
+
 static struct clocksource clocksource_hpet = {
 	.name		= "hpet",
 	.rating		= 250,
@@ -222,60 +311,16 @@ static struct clocksource clocksource_hpet = {
 	.mask		= HPET_MASK,
 	.shift		= HPET_SHIFT,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-	.resume		= hpet_start_counter,
+	.resume		= hpet_restart_counter,
+#ifdef CONFIG_X86_64
+	.vread		= vread_hpet,
+#endif
 };
 
-/*
- * Try to setup the HPET timer
- */
-int __init hpet_enable(void)
+static int hpet_clocksource_register(void)
 {
-	unsigned long id;
-	uint64_t hpet_freq;
 	u64 tmp, start, now;
 	cycle_t t1;
-
-	if (!is_hpet_capable())
-		return 0;
-
-	hpet_virt_address = ioremap_nocache(hpet_address, HPET_MMAP_SIZE);
-
-	/*
-	 * Read the period and check for a sane value:
-	 */
-	hpet_period = hpet_readl(HPET_PERIOD);
-	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
-		goto out_nohpet;
-
-	/*
-	 * The period is a femto seconds value. We need to calculate the
-	 * scaled math multiplication factor for nanosecond to hpet tick
-	 * conversion.
-	 */
-	hpet_freq = 1000000000000000ULL;
-	do_div(hpet_freq, hpet_period);
-	hpet_clockevent.mult = div_sc((unsigned long) hpet_freq,
-				      NSEC_PER_SEC, 32);
-	/* Calculate the min / max delta */
-	hpet_clockevent.max_delta_ns = clockevent_delta2ns(0x7FFFFFFF,
-							   &hpet_clockevent);
-	hpet_clockevent.min_delta_ns = clockevent_delta2ns(0x30,
-							   &hpet_clockevent);
-
-	/*
-	 * Read the HPET ID register to retrieve the IRQ routing
-	 * information and the number of channels
-	 */
-	id = hpet_readl(HPET_ID);
-
-#ifdef CONFIG_HPET_EMULATE_RTC
-	/*
-	 * The legacy routing mode needs at least two channels, tick timer
-	 * and the rtc emulation channel.
-	 */
-	if (!(id & HPET_ID_NUMBER))
-		goto out_nohpet;
-#endif
 
 	/* Start the counter */
 	hpet_start_counter();
@@ -298,7 +343,7 @@ int __init hpet_enable(void)
 	if (t1 == read_hpet()) {
 		printk(KERN_WARNING
 		       "HPET counter not counting. HPET disabled\n");
-		goto out_nohpet;
+		return -ENODEV;
 	}
 
 	/* Initialize and register HPET clocksource
@@ -319,27 +364,84 @@ int __init hpet_enable(void)
 
 	clocksource_register(&clocksource_hpet);
 
+	return 0;
+}
+
+/*
+ * Try to setup the HPET timer
+ */
+int __init hpet_enable(void)
+{
+	unsigned long id;
+
+	if (!is_hpet_capable())
+		return 0;
+
+	hpet_set_mapping();
+
+	/*
+	 * Read the period and check for a sane value:
+	 */
+	hpet_period = hpet_readl(HPET_PERIOD);
+	if (hpet_period < HPET_MIN_PERIOD || hpet_period > HPET_MAX_PERIOD)
+		goto out_nohpet;
+
+	/*
+	 * Read the HPET ID register to retrieve the IRQ routing
+	 * information and the number of channels
+	 */
+	id = hpet_readl(HPET_ID);
+
+#ifdef CONFIG_HPET_EMULATE_RTC
+	/*
+	 * The legacy routing mode needs at least two channels, tick timer
+	 * and the rtc emulation channel.
+	 */
+	if (!(id & HPET_ID_NUMBER))
+		goto out_nohpet;
+#endif
+
+	if (hpet_clocksource_register())
+		goto out_nohpet;
+
 	if (id & HPET_ID_LEGSUP) {
-		hpet_enable_int();
-		hpet_reserve_platform_timers(id);
-		/*
-		 * Start hpet with the boot cpu mask and make it
-		 * global after the IO_APIC has been initialized.
-		 */
-		hpet_clockevent.cpumask = cpumask_of_cpu(smp_processor_id());
-		clockevents_register_device(&hpet_clockevent);
-		global_clock_event = &hpet_clockevent;
+		hpet_legacy_clockevent_register();
 		return 1;
 	}
 	return 0;
 
 out_nohpet:
-	iounmap(hpet_virt_address);
-	hpet_virt_address = NULL;
+	hpet_clear_mapping();
 	boot_hpet_disable = 1;
 	return 0;
 }
 
+/*
+ * Needs to be late, as the reserve_timer code calls kalloc !
+ *
+ * Not a problem on i386 as hpet_enable is called from late_time_init,
+ * but on x86_64 it is necessary !
+ */
+static __init int hpet_late_init(void)
+{
+	if (boot_hpet_disable)
+		return -ENODEV;
+
+	if (!hpet_address) {
+		if (!force_hpet_address)
+			return -ENODEV;
+
+		hpet_address = force_hpet_address;
+		hpet_enable();
+		if (!hpet_virt_address)
+			return -ENODEV;
+	}
+
+	hpet_reserve_platform_timers(hpet_readl(HPET_ID));
+
+	return 0;
+}
+fs_initcall(hpet_late_init);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
 

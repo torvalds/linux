@@ -4,6 +4,8 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 
+#include <asm/hpet.h>
+
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 
 static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
@@ -46,4 +48,207 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7320_MCH,	quirk_intel_irqbalance);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7525_MCH,	quirk_intel_irqbalance);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL,	PCI_DEVICE_ID_INTEL_E7520_MCH,	quirk_intel_irqbalance);
+#endif
+
+#if defined(CONFIG_HPET_TIMER)
+unsigned long force_hpet_address;
+
+static enum {
+	NONE_FORCE_HPET_RESUME,
+	OLD_ICH_FORCE_HPET_RESUME,
+	ICH_FORCE_HPET_RESUME
+} force_hpet_resume_type;
+
+static void __iomem *rcba_base;
+
+static void ich_force_hpet_resume(void)
+{
+	u32 val;
+
+	if (!force_hpet_address)
+		return;
+
+	if (rcba_base == NULL)
+		BUG();
+
+	/* read the Function Disable register, dword mode only */
+	val = readl(rcba_base + 0x3404);
+	if (!(val & 0x80)) {
+		/* HPET disabled in HPTC. Trying to enable */
+		writel(val | 0x80, rcba_base + 0x3404);
+	}
+
+	val = readl(rcba_base + 0x3404);
+	if (!(val & 0x80))
+		BUG();
+	else
+		printk(KERN_DEBUG "Force enabled HPET at resume\n");
+
+	return;
+}
+
+static void ich_force_enable_hpet(struct pci_dev *dev)
+{
+	u32 val;
+	u32 uninitialized_var(rcba);
+	int err = 0;
+
+	if (hpet_address || force_hpet_address)
+		return;
+
+	pci_read_config_dword(dev, 0xF0, &rcba);
+	rcba &= 0xFFFFC000;
+	if (rcba == 0) {
+		printk(KERN_DEBUG "RCBA disabled. Cannot force enable HPET\n");
+		return;
+	}
+
+	/* use bits 31:14, 16 kB aligned */
+	rcba_base = ioremap_nocache(rcba, 0x4000);
+	if (rcba_base == NULL) {
+		printk(KERN_DEBUG "ioremap failed. Cannot force enable HPET\n");
+		return;
+	}
+
+	/* read the Function Disable register, dword mode only */
+	val = readl(rcba_base + 0x3404);
+
+	if (val & 0x80) {
+		/* HPET is enabled in HPTC. Just not reported by BIOS */
+		val = val & 0x3;
+		force_hpet_address = 0xFED00000 | (val << 12);
+		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+			       force_hpet_address);
+		iounmap(rcba_base);
+		return;
+	}
+
+	/* HPET disabled in HPTC. Trying to enable */
+	writel(val | 0x80, rcba_base + 0x3404);
+
+	val = readl(rcba_base + 0x3404);
+	if (!(val & 0x80)) {
+		err = 1;
+	} else {
+		val = val & 0x3;
+		force_hpet_address = 0xFED00000 | (val << 12);
+	}
+
+	if (err) {
+		force_hpet_address = 0;
+		iounmap(rcba_base);
+		printk(KERN_DEBUG "Failed to force enable HPET\n");
+	} else {
+		force_hpet_resume_type = ICH_FORCE_HPET_RESUME;
+		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+			       force_hpet_address);
+	}
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_0,
+                         ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1,
+                         ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,
+                         ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,
+                         ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_31,
+                         ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_1,
+                         ich_force_enable_hpet);
+
+
+static struct pci_dev *cached_dev;
+
+static void old_ich_force_hpet_resume(void)
+{
+	u32 val;
+	u32 uninitialized_var(gen_cntl);
+
+	if (!force_hpet_address || !cached_dev)
+		return;
+
+	pci_read_config_dword(cached_dev, 0xD0, &gen_cntl);
+	gen_cntl &= (~(0x7 << 15));
+	gen_cntl |= (0x4 << 15);
+
+	pci_write_config_dword(cached_dev, 0xD0, gen_cntl);
+	pci_read_config_dword(cached_dev, 0xD0, &gen_cntl);
+	val = gen_cntl >> 15;
+	val &= 0x7;
+	if (val == 0x4)
+		printk(KERN_DEBUG "Force enabled HPET at resume\n");
+	else
+		BUG();
+}
+
+static void old_ich_force_enable_hpet(struct pci_dev *dev)
+{
+	u32 val;
+	u32 uninitialized_var(gen_cntl);
+
+	if (hpet_address || force_hpet_address)
+		return;
+
+	pci_read_config_dword(dev, 0xD0, &gen_cntl);
+	/*
+	 * Bit 17 is HPET enable bit.
+	 * Bit 16:15 control the HPET base address.
+	 */
+	val = gen_cntl >> 15;
+	val &= 0x7;
+	if (val & 0x4) {
+		val &= 0x3;
+		force_hpet_address = 0xFED00000 | (val << 12);
+		printk(KERN_DEBUG "HPET at base address 0x%lx\n",
+			       force_hpet_address);
+		return;
+	}
+
+	/*
+	 * HPET is disabled. Trying enabling at FED00000 and check
+	 * whether it sticks
+	 */
+	gen_cntl &= (~(0x7 << 15));
+	gen_cntl |= (0x4 << 15);
+	pci_write_config_dword(dev, 0xD0, gen_cntl);
+
+	pci_read_config_dword(dev, 0xD0, &gen_cntl);
+
+	val = gen_cntl >> 15;
+	val &= 0x7;
+	if (val & 0x4) {
+		/* HPET is enabled in HPTC. Just not reported by BIOS */
+		val &= 0x3;
+		force_hpet_address = 0xFED00000 | (val << 12);
+		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+			       force_hpet_address);
+		cached_dev = dev;
+		force_hpet_resume_type = OLD_ICH_FORCE_HPET_RESUME;
+		return;
+	}
+
+	printk(KERN_DEBUG "Failed to force enable HPET\n");
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0,
+                         old_ich_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_12,
+                         old_ich_force_enable_hpet);
+
+void force_hpet_resume(void)
+{
+	switch (force_hpet_resume_type) {
+	    case ICH_FORCE_HPET_RESUME:
+		return ich_force_hpet_resume();
+
+	    case OLD_ICH_FORCE_HPET_RESUME:
+		return old_ich_force_hpet_resume();
+
+	    default:
+		break;
+	}
+}
+
 #endif

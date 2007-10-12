@@ -1009,6 +1009,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
 
+	mfgpt_irq=	[IA-32] Specify the IRQ to use for the
+			Multi-Function General Purpose Timers on AMD Geode
+			platforms.
+
 	mga=		[HW,DRM]
 
 	mousedev.tap_time=
@@ -1159,6 +1163,9 @@ and is between 256 and 4096 characters. It is defined in the file
 	nomca		[IA-64] Disable machine check abort handling
 
 	nomce		[X86-32] Machine Check Exception
+
+	nomfgpt		[X86-32] Disable Multi-Function General Purpose
+			Timer usage (for AMD Geode machines).
 
 	noreplace-paravirt	[X86-32,PV_OPS] Don't patch paravirt_ops
 

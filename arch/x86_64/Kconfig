@@ -36,6 +36,18 @@ config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
+config CLOCKSOURCE_WATCHDOG
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	default y
+
 config ZONE_DMA32
 	bool
 	default y
@@ -129,6 +141,8 @@ source "init/Kconfig"
 
 
 menu "Processor type and features"
+
+source "kernel/time/Kconfig"
 
 choice
 	prompt "Subarchitecture Type"

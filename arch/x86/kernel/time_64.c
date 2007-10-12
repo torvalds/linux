@@ -28,11 +28,12 @@
 #include <linux/cpu.h>
 #include <linux/kallsyms.h>
 #include <linux/acpi.h>
+#include <linux/clockchips.h>
+
 #ifdef CONFIG_ACPI
 #include <acpi/achware.h>	/* for PM timer frequency */
 #include <acpi/acpi_bus.h>
 #endif
-#include <asm/8253pit.h>
 #include <asm/i8253.h>
 #include <asm/pgtable.h>
 #include <asm/vsyscall.h>
@@ -47,12 +48,8 @@
 #include <asm/nmi.h>
 #include <asm/vgtod.h>
 
-static char *timename = NULL;
-
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
-DEFINE_SPINLOCK(i8253_lock);
-EXPORT_SYMBOL(i8253_lock);
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
@@ -153,45 +150,12 @@ int update_persistent_clock(struct timespec now)
 	return set_rtc_mmss(now.tv_sec);
 }
 
-void main_timer_handler(void)
+static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 {
-/*
- * Here we are in the timer irq handler. We have irqs locally disabled (so we
- * don't need spin_lock_irqsave()) but we don't know if the timer_bh is running
- * on the other CPU, so we need a lock. We also need to lock the vsyscall
- * variables, because both do_timer() and us change them -arca+vojtech
- */
+	add_pda(irq0_irqs, 1);
 
-	write_seqlock(&xtime_lock);
+	global_clock_event->event_handler(global_clock_event);
 
-/*
- * Do the timer stuff.
- */
-
-	do_timer(1);
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-
-/*
- * In the SMP case we use the local APIC timer interrupt to do the profiling,
- * except when we simulate SMP mode on a uniprocessor system, in that case we
- * have to call the local interrupt handler.
- */
-
-	if (!using_apic_timer)
-		smp_local_timer_interrupt();
-
-	write_sequnlock(&xtime_lock);
-}
-
-static irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	if (apic_runs_main_timer > 1)
-		return IRQ_HANDLED;
-	main_timer_handler();
-	if (using_apic_timer)
-		smp_send_timer_broadcast_ipi();
 	return IRQ_HANDLED;
 }
 
@@ -292,97 +256,21 @@ static unsigned int __init tsc_calibrate_cpu_khz(void)
 	return pmc_now * tsc_khz / (tsc_now - tsc_start);
 }
 
-/*
- * pit_calibrate_tsc() uses the speaker output (channel 2) of
- * the PIT. This is better than using the timer interrupt output,
- * because we can read the value of the speaker with just one inb(),
- * where we need three i/o operations for the interrupt channel.
- * We count how many ticks the TSC does in 50 ms.
- */
-
-static unsigned int __init pit_calibrate_tsc(void)
-{
-	unsigned long start, end;
-	unsigned long flags;
-
-	spin_lock_irqsave(&i8253_lock, flags);
-
-	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
-
-	outb(0xb0, 0x43);
-	outb((PIT_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-	outb((PIT_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	start = get_cycles_sync();
-	while ((inb(0x61) & 0x20) == 0);
-	end = get_cycles_sync();
-
-	spin_unlock_irqrestore(&i8253_lock, flags);
-
-	return (end - start) / 50;
-}
-
-#define PIT_MODE 0x43
-#define PIT_CH0  0x40
-
-static void __pit_init(int val, u8 mode)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&i8253_lock, flags);
-	outb_p(mode, PIT_MODE);
-	outb_p(val & 0xff, PIT_CH0);	/* LSB */
-	outb_p(val >> 8, PIT_CH0);	/* MSB */
-	spin_unlock_irqrestore(&i8253_lock, flags);
-}
-
-void __init pit_init(void)
-{
-	__pit_init(LATCH, 0x34); /* binary, mode 2, LSB/MSB, ch 0 */
-}
-
-void pit_stop_interrupt(void)
-{
-	__pit_init(0, 0x30); /* mode 0 */
-}
-
-void stop_timer_interrupt(void)
-{
-	char *name;
-	if (hpet_address) {
-		name = "HPET";
-		hpet_timer_stop_set_go(0);
-	} else {
-		name = "PIT";
-		pit_stop_interrupt();
-	}
-	printk(KERN_INFO "timer: %s interrupt stopped.\n", name);
-}
-
 static struct irqaction irq0 = {
-	.handler	= timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_IRQPOLL,
+	.handler	= timer_event_interrupt,
+	.flags		= IRQF_DISABLED | IRQF_IRQPOLL | IRQF_NOBALANCING,
 	.mask		= CPU_MASK_NONE,
 	.name		= "timer"
 };
 
 void __init time_init(void)
 {
-	if (nohpet)
-		hpet_address = 0;
+	if (!hpet_enable())
+		setup_pit_timer();
 
-	if (hpet_arch_init())
-		hpet_address = 0;
+	setup_irq(0, &irq0);
 
-	if (hpet_use_timer) {
-		/* set tick_nsec to use the proper rate for HPET */
-		tick_nsec = TICK_NSEC_HPET;
-		tsc_khz = hpet_calibrate_tsc();
-		timename = "HPET";
-	} else {
-		pit_init();
-		tsc_khz = pit_calibrate_tsc();
-		timename = "PIT";
-	}
+	tsc_calibrate();
 
 	cpu_khz = tsc_khz;
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
@@ -398,50 +286,7 @@ void __init time_init(void)
 	else
 		vgetcpu_mode = VGETCPU_LSL;
 
-	set_cyc2ns_scale(tsc_khz);
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
 	init_tsc_clocksource();
-
-	setup_irq(0, &irq0);
 }
-
-/*
- * sysfs support for the timer.
- */
-
-static int timer_suspend(struct sys_device *dev, pm_message_t state)
-{
-	return 0;
-}
-
-static int timer_resume(struct sys_device *dev)
-{
-	if (hpet_address)
-		hpet_reenable();
-	else
-		i8254_timer_resume();
-	return 0;
-}
-
-static struct sysdev_class timer_sysclass = {
-	.resume = timer_resume,
-	.suspend = timer_suspend,
-	set_kset_name("timer"),
-};
-
-/* XXX this sysfs stuff should probably go elsewhere later -john */
-static struct sys_device device_timer = {
-	.id	= 0,
-	.cls	= &timer_sysclass,
-};
-
-static int time_init_device(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(time_init_device);

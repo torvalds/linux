@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/platform_device.h>
-#include <asm/8253pit.h>
 #include <asm/io.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
@@ -28,6 +27,7 @@ MODULE_LICENSE("GPL");
 /* Use the global PIT lock ! */
 #include <asm/i8253.h>
 #else
+#include <asm/8253pit.h>
 static DEFINE_SPINLOCK(i8253_lock);
 #endif
 
