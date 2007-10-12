@@ -759,14 +759,14 @@ void __init init_apic_mappings(void)
 
 #define APIC_DIVISOR 16
 
-static void __setup_APIC_LVTT(unsigned int clocks)
+static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
 	unsigned int lvtt_value, tmp_value;
-	int cpu = smp_processor_id();
 
-	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
-
-	if (cpu_isset(cpu, timer_interrupt_broadcast_ipi_mask))
+	lvtt_value = LOCAL_TIMER_VECTOR;
+	if (!oneshot)
+		lvtt_value |= APIC_LVT_TIMER_PERIODIC;
+	if (!irqen)
 		lvtt_value |= APIC_LVT_MASKED;
 
 	apic_write(APIC_LVTT, lvtt_value);
@@ -779,12 +779,14 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 				& ~(APIC_TDR_DIV_1 | APIC_TDR_DIV_TMBASE))
 				| APIC_TDR_DIV_16);
 
-	apic_write(APIC_TMICT, clocks/APIC_DIVISOR);
+	if (!oneshot)
+		apic_write(APIC_TMICT, clocks/APIC_DIVISOR);
 }
 
 static void setup_APIC_timer(unsigned int clocks)
 {
 	unsigned long flags;
+	int irqen;
 
 	local_irq_save(flags);
 
@@ -805,7 +807,10 @@ static void setup_APIC_timer(unsigned int clocks)
 			c2 |= inb_p(0x40) << 8;
 		} while (c2 - c1 < 300);
 	}
-	__setup_APIC_LVTT(clocks);
+
+	irqen = ! cpu_isset(smp_processor_id(),
+			    timer_interrupt_broadcast_ipi_mask);
+	__setup_APIC_LVTT(clocks, 0, irqen);
 	/* Turn off PIT interrupt if we use APIC timer as main timer.
 	   Only works with the PM timer right now
 	   TBD fix it for HPET too. */
@@ -843,8 +848,10 @@ static int __init calibrate_APIC_clock(void)
 	 * Put whatever arbitrary (but long enough) timeout
 	 * value into the APIC clock, we just want to get the
 	 * counter running for calibration.
+	 *
+	 * No interrupt enable !
 	 */
-	__setup_APIC_LVTT(4000000000);
+	__setup_APIC_LVTT(4000000000, 0, 0);
 
 	apic_start = apic_read(APIC_TMCCT);
 #ifdef CONFIG_X86_PM_TIMER
