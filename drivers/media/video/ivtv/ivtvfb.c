@@ -166,9 +166,6 @@ struct osd_info {
 	unsigned long fb_end_aligned_physaddr;
 #endif
 
-	/* Current osd mode */
-	int osd_mode;
-
 	/* Store the buffer offset */
 	int set_osd_coords_x;
 	int set_osd_coords_y;
@@ -470,13 +467,11 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 			IVTVFB_DEBUG_WARN("ivtvfb_set_var - Invalid bpp\n");
 	}
 
-	/* Change osd mode if needed.
-	   Although rare, things can go wrong. The extra mode
-	   change seems to help... */
-	if (osd_mode != -1 && osd_mode != oi->osd_mode) {
+	/* Set video mode. Although rare, the display can become scrambled even
+	   if we don't change mode. Always 'bounce' to osd_mode via mode 0 */
+	if (osd_mode != -1) {
 		ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, 0);
 		ivtv_vapi(itv, CX2341X_OSD_SET_PIXEL_FORMAT, 1, osd_mode);
-		oi->osd_mode = osd_mode;
 	}
 
 	oi->bits_per_pixel = var->bits_per_pixel;
@@ -881,9 +876,6 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 	if (osd_depth != 8 && osd_depth != 16 && osd_depth != 32) osd_depth = 8;
 	oi->bits_per_pixel = osd_depth;
 	oi->bytes_per_pixel = oi->bits_per_pixel / 8;
-
-	/* Invalidate current osd mode to force a mode switch later */
-	oi->osd_mode = -1;
 
 	/* Horizontal size & position */
 
