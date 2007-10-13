@@ -342,9 +342,10 @@ static inline void i2c_set_adapdata (struct i2c_adapter *dev, void *data)
 }
 
 /*flags for the client struct: */
-#define I2C_CLIENT_PEC  0x04			/* Use Packet Error Checking */
-#define I2C_CLIENT_TEN	0x10			/* we have a ten bit chip address	*/
-						/* Must equal I2C_M_TEN below */
+#define I2C_CLIENT_PEC	0x04		/* Use Packet Error Checking */
+#define I2C_CLIENT_TEN	0x10		/* we have a ten bit chip address */
+					/* Must equal I2C_M_TEN below */
+#define I2C_CLIENT_WAKE	0x80		/* for board_info; true iff can wake */
 
 /* i2c adapter classes (bitmask) */
 #define I2C_CLASS_HWMON		(1<<0)	/* lm_sensors, ... */

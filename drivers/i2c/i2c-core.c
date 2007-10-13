@@ -226,7 +226,9 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->adapter = adap;
 
 	client->dev.platform_data = info->platform_data;
-	client->flags = info->flags;
+	device_init_wakeup(&client->dev, info->flags & I2C_CLIENT_WAKE);
+
+	client->flags = info->flags & ~I2C_CLIENT_WAKE;
 	client->addr = info->addr;
 	client->irq = info->irq;
 
