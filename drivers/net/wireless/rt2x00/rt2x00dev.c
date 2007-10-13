@@ -193,6 +193,133 @@ void rt2x00lib_toggle_rx(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 		rt2x00lib_start_link_tuner(rt2x00dev);
 }
 
+static void rt2x00lib_evaluate_antenna_sample(struct rt2x00_dev *rt2x00dev)
+{
+	enum antenna rx = rt2x00dev->link.ant.active.rx;
+	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	int sample_a =
+	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_A);
+	int sample_b =
+	    rt2x00_get_link_ant_rssi_history(&rt2x00dev->link, ANTENNA_B);
+
+	/*
+	 * We are done sampling. Now we should evaluate the results.
+	 */
+	rt2x00dev->link.ant.flags &= ~ANTENNA_MODE_SAMPLE;
+
+	/*
+	 * During the last period we have sampled the RSSI
+	 * from both antenna's. It now is time to determine
+	 * which antenna demonstrated the best performance.
+	 * When we are already on the antenna with the best
+	 * performance, then there really is nothing for us
+	 * left to do.
+	 */
+	if (sample_a == sample_b)
+		return;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) {
+		if (sample_a > sample_b && rx == ANTENNA_B)
+			rx = ANTENNA_A;
+		else if (rx == ANTENNA_A)
+			rx = ANTENNA_B;
+	}
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY) {
+		if (sample_a > sample_b && tx == ANTENNA_B)
+			tx = ANTENNA_A;
+		else if (tx == ANTENNA_A)
+			tx = ANTENNA_B;
+	}
+
+	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+}
+
+static void rt2x00lib_evaluate_antenna_eval(struct rt2x00_dev *rt2x00dev)
+{
+	enum antenna rx = rt2x00dev->link.ant.active.rx;
+	enum antenna tx = rt2x00dev->link.ant.active.tx;
+	int rssi_curr = rt2x00_get_link_ant_rssi(&rt2x00dev->link);
+	int rssi_old = rt2x00_update_ant_rssi(&rt2x00dev->link, rssi_curr);
+
+	/*
+	 * Legacy driver indicates that we should swap antenna's
+	 * when the difference in RSSI is greater that 5. This
+	 * also should be done when the RSSI was actually better
+	 * then the previous sample.
+	 * When the difference exceeds the threshold we should
+	 * sample the rssi from the other antenna to make a valid
+	 * comparison between the 2 antennas.
+	 */
+	if ((rssi_curr - rssi_old) > -5 || (rssi_curr - rssi_old) < 5)
+		return;
+
+	rt2x00dev->link.ant.flags |= ANTENNA_MODE_SAMPLE;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY)
+		rx = (rx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+
+	if (rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)
+		tx = (tx == ANTENNA_A) ? ANTENNA_B : ANTENNA_A;
+
+	rt2x00lib_config_antenna(rt2x00dev, rx, tx);
+}
+
+static void rt2x00lib_evaluate_antenna(struct rt2x00_dev *rt2x00dev)
+{
+	/*
+	 * Determine if software diversity is enabled for
+	 * either the TX or RX antenna (or both).
+	 * Always perform this check since within the link
+	 * tuner interval the configuration might have changed.
+	 */
+	rt2x00dev->link.ant.flags &= ~ANTENNA_RX_DIVERSITY;
+	rt2x00dev->link.ant.flags &= ~ANTENNA_TX_DIVERSITY;
+
+	if (rt2x00dev->hw->conf.antenna_sel_rx == 0 &&
+	    rt2x00dev->default_ant.rx != ANTENNA_SW_DIVERSITY)
+		rt2x00dev->link.ant.flags |= ANTENNA_RX_DIVERSITY;
+	if (rt2x00dev->hw->conf.antenna_sel_tx == 0 &&
+	    rt2x00dev->default_ant.tx != ANTENNA_SW_DIVERSITY)
+		rt2x00dev->link.ant.flags |= ANTENNA_TX_DIVERSITY;
+
+	if (!(rt2x00dev->link.ant.flags & ANTENNA_RX_DIVERSITY) &&
+	    !(rt2x00dev->link.ant.flags & ANTENNA_TX_DIVERSITY)) {
+		rt2x00dev->link.ant.flags &= ~ANTENNA_MODE_SAMPLE;
+		return;
+	}
+
+	/*
+	 * If we have only sampled the data over the last period
+	 * we should now harvest the data. Otherwise just evaluate
+	 * the data. The latter should only be performed once
+	 * every 2 seconds.
+	 */
+	if (rt2x00dev->link.ant.flags & ANTENNA_MODE_SAMPLE)
+		rt2x00lib_evaluate_antenna_sample(rt2x00dev);
+	else if (rt2x00dev->link.count & 1)
+		rt2x00lib_evaluate_antenna_eval(rt2x00dev);
+}
+
+static void rt2x00lib_update_link_stats(struct link *link, int rssi)
+{
+	int avg_rssi = rssi;
+
+	/*
+	 * Update global RSSI
+	 */
+	if (link->qual.avg_rssi)
+		avg_rssi = MOVING_AVERAGE(link->qual.avg_rssi, rssi, 8);
+	link->qual.avg_rssi = avg_rssi;
+
+	/*
+	 * Update antenna RSSI
+	 */
+	if (link->ant.rssi_ant)
+		rssi = MOVING_AVERAGE(link->ant.rssi_ant, rssi, 8);
+	link->ant.rssi_ant = rssi;
+}
+
 static void rt2x00lib_precalculate_link_signal(struct link_qual *qual)
 {
 	if (qual->rx_failed || qual->rx_success)
@@ -261,7 +388,6 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	 * Update statistics.
 	 */
 	rt2x00dev->ops->lib->link_stats(rt2x00dev, &rt2x00dev->link.qual);
-
 	rt2x00dev->low_level_stats.dot11FCSErrorCount +=
 	    rt2x00dev->link.qual.rx_failed;
 
@@ -271,6 +397,11 @@ static void rt2x00lib_link_tuner(struct work_struct *work)
 	 */
 	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev);
+
+	/*
+	 * Evaluate antenna setup.
+	 */
+	rt2x00lib_evaluate_antenna(rt2x00dev);
 
 	/*
 	 * Precalculate a portion of the link signal which is
@@ -426,14 +557,15 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 		}
 	}
 
-	rt2x00_update_link_rssi(&rt2x00dev->link, desc->rssi);
+	rt2x00lib_update_link_stats(&rt2x00dev->link, desc->rssi);
 	rt2x00dev->link.qual.rx_success++;
+
 	rx_status->rate = val;
 	rx_status->signal =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, desc->rssi);
 	rx_status->ssi = desc->rssi;
 	rx_status->flag = desc->flags;
-	rx_status->antenna = rt2x00dev->link.active_ant.rx;
+	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	/*
 	 * Send frame to mac80211

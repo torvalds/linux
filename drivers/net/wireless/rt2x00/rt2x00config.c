@@ -94,6 +94,26 @@ void rt2x00lib_config_type(struct rt2x00_dev *rt2x00dev, const int type)
 	rt2x00dev->ops->lib->config_type(rt2x00dev, type, tsf_sync);
 }
 
+void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
+			      enum antenna rx, enum antenna tx)
+{
+	struct rt2x00lib_conf libconf;
+
+	libconf.ant.rx = rx;
+	libconf.ant.tx = tx;
+
+	/*
+	 * Write new antenna setup to device and reset the link tuner.
+	 * The latter is required since we need to recalibrate the
+	 * noise-sensitivity ratio for the new setup.
+	 */
+	rt2x00dev->ops->lib->config(rt2x00dev, CONFIG_UPDATE_ANTENNA, &libconf);
+	rt2x00lib_reset_link_tuner(rt2x00dev);
+
+	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
+	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
+}
+
 void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
@@ -101,7 +121,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_hw_mode *mode;
 	struct ieee80211_rate *rate;
 	struct antenna_setup *default_ant = &rt2x00dev->default_ant;
-	struct antenna_setup *active_ant = &rt2x00dev->link.active_ant;
+	struct antenna_setup *active_ant = &rt2x00dev->link.ant.active;
 	int flags = 0;
 	int short_slot_time;
 
@@ -247,6 +267,6 @@ config:
 	rt2x00dev->rx_status.freq = conf->freq;
 	rt2x00dev->rx_status.channel = conf->channel;
 	rt2x00dev->tx_power = conf->power_level;
-	rt2x00dev->link.active_ant.rx = libconf.ant.rx;
-	rt2x00dev->link.active_ant.tx = libconf.ant.tx;
+	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
+	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
 }
