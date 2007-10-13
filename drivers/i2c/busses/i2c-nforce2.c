@@ -264,6 +264,7 @@ static u32 nforce2_func(struct i2c_adapter *adapter)
 	/* other functionality might be possible, but is not tested */
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
+	       I2C_FUNC_SMBUS_PEC |
 	       (((struct nforce2_smbus*)adapter->algo_data)->blockops ?
 		I2C_FUNC_SMBUS_BLOCK_DATA : 0);
 }
