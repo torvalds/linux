@@ -770,12 +770,13 @@ set_timings_udma_shasta(u32 *pio_timings, u32 *ultra_timings, u8 speed)
 /*
  * Calculate MDMA timings for all cells
  */
-static int
+static void
 set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
-			u8 speed, int drive_cycle_time)
+		 	u8 speed)
 {
 	int cycleTime, accessTime = 0, recTime = 0;
 	unsigned accessTicks, recTicks;
+	struct hd_driveid *id = drive->id;
 	struct mdma_timings_t* tm = NULL;
 	int i;
 
@@ -785,11 +786,14 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		case 1: cycleTime = 150; break;
 		case 2: cycleTime = 120; break;
 		default:
-			return 1;
+			BUG();
+			break;
 	}
-	/* Adjust for drive */
-	if (drive_cycle_time && drive_cycle_time > cycleTime)
-		cycleTime = drive_cycle_time;
+
+	/* Check if drive provides explicit DMA cycle time */
+	if ((id->field_valid & 2) && id->eide_dma_time)
+		cycleTime = max_t(int, id->eide_dma_time, cycleTime);
+
 	/* OHare limits according to some old Apple sources */	
 	if ((intf_type == controller_ohare) && (cycleTime < 150))
 		cycleTime = 150;
@@ -817,8 +821,6 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 				break;
 			i++;
 		}
-		if (i < 0)
-			return 1;
 		cycleTime = tm[i].cycleTime;
 		accessTime = tm[i].accessTime;
 		recTime = tm[i].recoveryTime;
@@ -900,16 +902,12 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 	printk(KERN_ERR "%s: Set MDMA timing for mode %d, reg: 0x%08x\n",
 		drive->name, speed & 0xf,  *timings);
 #endif	
-	return 0;
 }
 #endif /* #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC */
 
 /* 
  * Speedproc. This function is called by the core to set any of the standard
  * DMA timing (MDMA or UDMA) to both the drive and the controller.
- * You may notice we don't use this function on normal "dma check" operation,
- * our dedicated function is more precise as it uses the drive provided
- * cycle time value. We should probably fix this one to deal with that too...
  */
 static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 {
@@ -947,7 +945,7 @@ static int pmac_ide_tune_chipset(ide_drive_t *drive, const u8 speed)
 		case XFER_MW_DMA_2:
 		case XFER_MW_DMA_1:
 		case XFER_MW_DMA_0:
-			ret = set_timings_mdma(drive, pmif->kind, &tl[0], &tl[1], speed, 0);
+			set_timings_mdma(drive, pmif->kind, &tl[0], &tl[1], speed);
 			break;
 		case XFER_SW_DMA_2:
 		case XFER_SW_DMA_1:
@@ -1680,8 +1678,6 @@ pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	pmac_ide_hwif_t* pmif = (pmac_ide_hwif_t *)hwif->hwif_data;
-	int drive_cycle_time;
-	struct hd_driveid *id = drive->id;
 	u32 *timings, *timings2;
 	u32 timing_local[2];
 	int ret;
@@ -1690,24 +1686,12 @@ pmac_ide_mdma_enable(ide_drive_t *drive, u16 mode)
 	timings = &pmif->timings[drive->select.b.unit & 0x01];
 	timings2 = &pmif->timings[(drive->select.b.unit & 0x01) + 2];
 
-	/* Check if drive provide explicit cycle time */
-	if ((id->field_valid & 2) && (id->eide_dma_time))
-		drive_cycle_time = id->eide_dma_time;
-	else
-		drive_cycle_time = 0;
-
 	/* Copy timings to local image */
 	timing_local[0] = *timings;
 	timing_local[1] = *timings2;
 
 	/* Calculate controller timings */
-	ret = set_timings_mdma(	drive, pmif->kind,
-				&timing_local[0],
-				&timing_local[1],
-				mode,
-				drive_cycle_time);
-	if (ret)
-		return 0;
+	set_timings_mdma(drive, pmif->kind, &timing_local[0], &timing_local[1], mode);
 
 	/* Set feature on drive */
     	printk(KERN_INFO "%s: Enabling MultiWord DMA %d\n", drive->name, mode & 0xf);
