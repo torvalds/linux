@@ -31,18 +31,21 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/i2c.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/hardware.h>
+#include <asm/gpio.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/gpio.h>
 #include <asm/arch/usb.h>
+#include <asm/arch/tps65010.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/common.h>
@@ -177,6 +180,19 @@ static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_smc91x_device,
 	&osk5912_cf_device,
 	&osk5912_mcbsp1_device,
+};
+
+static struct i2c_board_info __initdata osk_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("tps65010", 0x48),
+		.type		= "tps65010",
+		.irq		= OMAP_GPIO_IRQ(OMAP_MPUIO(1)),
+	},
+	/* TODO when driver support is ready:
+	 *  - aic23 audio chip at 0x1a
+	 *  - on Mistral, 24c04 eeprom at 0x50
+	 *  - optionally on Mistral, ov9640 camera sensor at 0x30
+	 */
 };
 
 static void __init osk_init_smc91x(void)
@@ -397,6 +413,14 @@ static void __init osk_init(void)
 	omap_board_config_size = ARRAY_SIZE(osk_config);
 	USB_TRANSCEIVER_CTRL_REG |= (3 << 1);
 
+	/* irq for tps65010 chip */
+	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */
+	if (gpio_request(OMAP_MPUIO(1), "tps65010") == 0)
+		gpio_direction_input(OMAP_MPUIO(1));
+
+	i2c_register_board_info(1, osk_i2c_board_info,
+			ARRAY_SIZE(osk_i2c_board_info));
+
 	omap_serial_init();
 	osk_mistral_init();
 }
@@ -405,6 +429,44 @@ static void __init osk_map_io(void)
 {
 	omap1_map_common_io();
 }
+
+#ifdef CONFIG_TPS65010
+static int __init osk_tps_init(void)
+{
+	if (!machine_is_omap_osk())
+		return 0;
+
+	/* Let LED1 (D9) blink */
+	tps65010_set_led(LED1, BLINK);
+
+	/* Disable LED 2 (D2) */
+	tps65010_set_led(LED2, OFF);
+
+	/* Set GPIO 1 HIGH to disable VBUS power supply;
+	 * OHCI driver powers it up/down as needed.
+	 */
+	tps65010_set_gpio_out_value(GPIO1, HIGH);
+
+	/* Set GPIO 2 low to turn on LED D3 */
+	tps65010_set_gpio_out_value(GPIO2, HIGH);
+
+	/* Set GPIO 3 low to take ethernet out of reset */
+	tps65010_set_gpio_out_value(GPIO3, LOW);
+
+	/* gpio4 for VDD_DSP */
+	/* FIXME send power to DSP iff it's configured */
+
+	/* Enable LOW_PWR */
+	tps65010_set_low_pwr(ON);
+
+	/* Switch VLDO2 to 3.0V for AIC23 */
+	tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V
+			| TPS_LDO1_ENABLE);
+
+	return 0;
+}
+fs_initcall(osk_tps_init);
+#endif
 
 MACHINE_START(OMAP_OSK, "TI-OSK")
 	/* Maintainer: Dirk Behme <dirk.behme@de.bosch.com> */

@@ -24,20 +24,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
-#include <linux/suspend.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 
-#include <asm/irq.h>
-#include <asm/mach-types.h>
-
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
 #include <asm/arch/tps65010.h>
 
 /*-------------------------------------------------------------------------*/
@@ -47,10 +40,6 @@
 
 MODULE_DESCRIPTION("TPS6501x Power Management Driver");
 MODULE_LICENSE("GPL");
-
-static unsigned short normal_i2c[] = { 0x48, /* 0x49, */ I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 static struct i2c_driver tps65010_driver;
 
@@ -79,10 +68,8 @@ enum tps_model {
 };
 
 struct tps65010 {
-	struct i2c_client	c;
 	struct i2c_client	*client;
 	struct mutex		lock;
-	int			irq;
 	struct delayed_work	work;
 	struct dentry		*file;
 	unsigned		charging:1;
@@ -445,7 +432,7 @@ static void tps65010_work(struct work_struct *work)
 	}
 
 	if (test_and_clear_bit(FLAG_IRQ_ENABLE, &tps->flags))
-		enable_irq(tps->irq);
+		enable_irq(tps->client->irq);
 
 	mutex_unlock(&tps->lock);
 }
@@ -464,116 +451,75 @@ static irqreturn_t tps65010_irq(int irq, void *_tps)
 
 static struct tps65010 *the_tps;
 
-static int __exit tps65010_detach_client(struct i2c_client *client)
+static int __exit tps65010_remove(struct i2c_client *client)
 {
-	struct tps65010		*tps;
+	struct tps65010		*tps = i2c_get_clientdata(client);
 
-	tps = container_of(client, struct tps65010, c);
-	free_irq(tps->irq, tps);
-#ifdef	CONFIG_ARM
-	if (machine_is_omap_h2())
-		omap_free_gpio(58);
-	if (machine_is_omap_osk())
-		omap_free_gpio(OMAP_MPUIO(1));
-#endif
+	if (client->irq > 0)
+		free_irq(client->irq, tps);
 	cancel_delayed_work(&tps->work);
 	flush_scheduled_work();
 	debugfs_remove(tps->file);
-	if (i2c_detach_client(client) == 0)
-		kfree(tps);
+	kfree(tps);
 	the_tps = NULL;
 	return 0;
 }
 
-static int tps65010_noscan(struct i2c_adapter *bus)
-{
-	/* pure paranoia, in case someone adds another i2c bus
-	 * after our init section's gone...
-	 */
-	return -ENODEV;
-}
-
-/* no error returns, they'd just make bus scanning stop */
-static int __init
-tps65010_probe(struct i2c_adapter *bus, int address, int kind)
+static int tps65010_probe(struct i2c_client *client)
 {
 	struct tps65010		*tps;
 	int			status;
-	unsigned long		irqflags;
-	struct i2c_client	*client;
 
 	if (the_tps) {
-		dev_dbg(&bus->dev, "only one %s for now\n", DRIVER_NAME);
-		return 0;
+		dev_dbg(&client->dev, "only one tps6501x chip allowed\n");
+		return -ENODEV;
 	}
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EINVAL;
 
 	tps = kzalloc(sizeof *tps, GFP_KERNEL);
 	if (!tps)
-		return 0;
+		return -ENOMEM;
 
 	mutex_init(&tps->lock);
 	INIT_DELAYED_WORK(&tps->work, tps65010_work);
-	tps->irq = -1;
-	tps->c.addr = address;
-	tps->c.adapter = bus;
-	tps->c.driver = &tps65010_driver;
-	strlcpy(tps->c.name, DRIVER_NAME, I2C_NAME_SIZE);
-	tps->client = client = &tps->c;
+	tps->client = client;
 
-	status = i2c_attach_client(client);
-	if (status < 0) {
-		dev_dbg(&bus->dev, "can't attach %s to device %d, err %d\n",
-				DRIVER_NAME, address, status);
+	if (strcmp(client->name, "tps65010") == 0)
+		tps->model = TPS65010;
+	else if (strcmp(client->name, "tps65011") == 0)
+		tps->model = TPS65011;
+	else if (strcmp(client->name, "tps65012") == 0)
+		tps->model = TPS65012;
+	else if (strcmp(client->name, "tps65013") == 0)
+		tps->model = TPS65013;
+	else {
+		dev_warn(&client->dev, "unknown chip '%s'\n", client->name);
+		status = -ENODEV;
 		goto fail1;
 	}
 
 	/* the IRQ is active low, but many gpio lines can't support that
-	 * so this driver can use falling-edge triggers instead.
+	 * so this driver uses falling-edge triggers instead.
 	 */
-	irqflags = IRQF_SAMPLE_RANDOM;
-#ifdef	CONFIG_ARM
-	if (machine_is_omap_h2()) {
-		tps->model = TPS65010;
-		omap_cfg_reg(W4_GPIO58);
-		tps->irq = OMAP_GPIO_IRQ(58);
-		omap_request_gpio(58);
-		omap_set_gpio_direction(58, 1);
-		irqflags |= IRQF_TRIGGER_FALLING;
-	}
-	if (machine_is_omap_osk()) {
-		tps->model = TPS65010;
-		// omap_cfg_reg(U19_1610_MPUIO1);
-		tps->irq = OMAP_GPIO_IRQ(OMAP_MPUIO(1));
-		omap_request_gpio(OMAP_MPUIO(1));
-		omap_set_gpio_direction(OMAP_MPUIO(1), 1);
-		irqflags |= IRQF_TRIGGER_FALLING;
-	}
-	if (machine_is_omap_h3()) {
-		tps->model = TPS65013;
-
-		// FIXME set up this board's IRQ ...
-	}
-#endif
-
-	if (tps->irq > 0) {
-		status = request_irq(tps->irq, tps65010_irq,
-			irqflags, DRIVER_NAME, tps);
+	if (client->irq > 0) {
+		status = request_irq(client->irq, tps65010_irq,
+			IRQF_SAMPLE_RANDOM | IRQF_TRIGGER_FALLING,
+			DRIVER_NAME, tps);
 		if (status < 0) {
 			dev_dbg(&client->dev, "can't get IRQ %d, err %d\n",
-					tps->irq, status);
-			i2c_detach_client(client);
+					client->irq, status);
 			goto fail1;
 		}
-#ifdef	CONFIG_ARM
 		/* annoying race here, ideally we'd have an option
 		 * to claim the irq now and enable it later.
+		 * FIXME genirq IRQF_NOAUTOEN now solves that ...
 		 */
-		disable_irq(tps->irq);
+		disable_irq(client->irq);
 		set_bit(FLAG_IRQ_ENABLE, &tps->flags);
-#endif
 	} else
-		printk(KERN_WARNING "%s: IRQ not configured!\n",
-				DRIVER_NAME);
+		dev_warn(&client->dev, "IRQ not configured!\n");
 
 
 	switch (tps->model) {
@@ -602,7 +548,6 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		i2c_smbus_read_byte_data(client, TPS_DEFGPIO),
 		i2c_smbus_read_byte_data(client, TPS_MASK3));
 
-	tps65010_driver.attach_adapter = tps65010_noscan;
 	the_tps = tps;
 
 #if	defined(CONFIG_USB_GADGET) && !defined(CONFIG_USB_OTG)
@@ -635,22 +580,15 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 	return 0;
 fail1:
 	kfree(tps);
-	return 0;
-}
-
-static int __init tps65010_scan_bus(struct i2c_adapter *bus)
-{
-	if (!i2c_check_functionality(bus, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -EINVAL;
-	return i2c_probe(bus, &addr_data, tps65010_probe);
+	return status;
 }
 
 static struct i2c_driver tps65010_driver = {
 	.driver = {
 		.name	= "tps65010",
 	},
-	.attach_adapter	= tps65010_scan_bus,
-	.detach_client	= __exit_p(tps65010_detach_client),
+	.probe	= tps65010_probe,
+	.remove	= __exit_p(tps65010_remove),
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1013,52 +951,6 @@ static int __init tps_init(void)
 		pr_debug("%s: re-probe ...\n", DRIVER_NAME);
 		msleep(10);
 	}
-
-#ifdef	CONFIG_ARM
-	if (machine_is_omap_osk()) {
-
-		// FIXME: More should be placed in the initialization code
-		//	  of the submodules (DSP, ethernet, power management,
-		//	  board-osk.c). Careful: I2C is initialized "late".
-
-		/* Let LED1 (D9) blink */
-		tps65010_set_led(LED1, BLINK);
-
-		/* Disable LED 2 (D2) */
-		tps65010_set_led(LED2, OFF);
-
-		/* Set GPIO 1 HIGH to disable VBUS power supply;
-		 * OHCI driver powers it up/down as needed.
-		 */
-		tps65010_set_gpio_out_value(GPIO1, HIGH);
-
-		/* Set GPIO 2 low to turn on LED D3 */
-		tps65010_set_gpio_out_value(GPIO2, HIGH);
-
-		/* Set GPIO 3 low to take ethernet out of reset */
-		tps65010_set_gpio_out_value(GPIO3, LOW);
-
-		/* gpio4 for VDD_DSP */
-
-		/* Enable LOW_PWR */
-		tps65010_set_low_pwr(ON);
-
-		/* Switch VLDO2 to 3.0V for AIC23 */
-		tps65010_config_vregs1(TPS_LDO2_ENABLE | TPS_VLDO2_3_0V | TPS_LDO1_ENABLE);
-
-	} else if (machine_is_omap_h2()) {
-		/* gpio3 for SD, gpio4 for VDD_DSP */
-
-		/* Enable LOW_PWR */
-		tps65010_set_low_pwr(ON);
-	} else if (machine_is_omap_h3()) {
-		/* gpio4 for SD, gpio3 for VDD_DSP */
-#ifdef CONFIG_PM
-		/* Enable LOW_PWR */
-		tps65013_set_low_pwr(ON);
-#endif
-	}
-#endif
 
 	return status;
 }

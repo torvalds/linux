@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/errno.h>
 #include <linux/workqueue.h>
+#include <linux/i2c.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -29,12 +30,14 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/hardware.h>
+#include <asm/gpio.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/gpio.h>
+#include <asm/arch/tps65010.h>
 #include <asm/arch/gpioexpander.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/mux.h>
@@ -413,6 +416,19 @@ static struct omap_board_config_kernel h3_config[] = {
 	{ OMAP_TAG_LCD,		&h3_lcd_config },
 };
 
+static struct i2c_board_info __initdata h3_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("tps65010", 0x48),
+		.type		= "tps65013",
+		/* .irq		= OMAP_GPIO_IRQ(??), */
+	},
+	/* TODO when driver support is ready:
+	 *  - isp1301 OTG transceiver
+	 *  - optional ov9640 camera sensor at 0x30
+	 *  - ...
+	 */
+};
+
 #define H3_NAND_RB_GPIO_PIN	10
 
 static int nand_dev_ready(struct nand_platform_data *data)
@@ -446,6 +462,10 @@ static void __init h3_init(void)
 	omap_board_config = h3_config;
 	omap_board_config_size = ARRAY_SIZE(h3_config);
 	omap_serial_init();
+
+	/* FIXME setup irq for tps65013 chip */
+	i2c_register_board_info(1, h3_i2c_board_info,
+			ARRAY_SIZE(h3_i2c_board_info));
 }
 
 static void __init h3_init_smc91x(void)
@@ -469,6 +489,23 @@ static void __init h3_map_io(void)
 {
 	omap1_map_common_io();
 }
+
+#ifdef CONFIG_TPS65010
+static int __init h3_tps_init(void)
+{
+	if (!machine_is_omap_h3())
+		return 0;
+
+	/* gpio4 for SD, gpio3 for VDD_DSP */
+	/* FIXME send power to DSP iff it's configured */
+
+	/* Enable LOW_PWR */
+	tps65013_set_low_pwr(ON);
+
+	return 0;
+}
+fs_initcall(h3_tps_init);
+#endif
 
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	/* Maintainer: Texas Instruments, Inc. */
